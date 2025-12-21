@@ -33,40 +33,31 @@ First, you need to prepare your server by installing git, Docker, and Docker Com
 
 ## 2. Environment Configuration
 
-Next, you need to configure the environment variables for the reverse proxy setup.
+The configuration script generates all necessary files from templates, including secrets.
 
-1.  Navigate to the cloned repository's `.devcontainer` directory:
-
-    ```bash
-    cd ~/step/.devcontainer
-    ```
-
-2.  Copy the `.env.remote-test.example` file to `.env`:
-
-    ```bash
-    cp .env.remote-test.example .env
-    ```
-
-3.  Configure the URLs using the `configure-urls.sh` script:
+1.  Run the configuration script:
 
     ```bash
     cd ~/step
     chmod +x .devcontainer/remote-deployment/configure-urls.sh
     ./.devcontainer/remote-deployment/configure-urls.sh sequent.vote remote-test
     ```
-    ```
 
     *   Replace `sequent.vote` with your root domain.
     *   Replace `remote-test` with your chosen subdomain suffix (e.g., `qa`, `staging`, `prod`).
 
-    This will automatically configure all service URLs in your `.env` file:
-    *   `login-remote-test.sequent.vote` (Keycloak)
-    *   `admin-remote-test.sequent.vote` (Admin Portal)
-    *   `voting-remote-test.sequent.vote` (Voting Portal)
-    *   `hasura-remote-test.sequent.vote` (Hasura)
-    *   `minio-remote-test.sequent.vote` (MinIO)
+    This script will:
+    *   Generate `.env` from `.env.remote-test.example`
+    *   Generate `nginx/default.conf` from `nginx/default.conf.template`
+    *   Generate random secrets (MASTER_SECRET, Keycloak client secrets)
+    *   Configure all service URLs:
+        *   `login-remote-test.sequent.vote` (Keycloak)
+        *   `admin-remote-test.sequent.vote` (Admin Portal)
+        *   `voting-remote-test.sequent.vote` (Voting Portal)
+        *   `hasura-remote-test.sequent.vote` (Hasura)
+        *   `minio-remote-test.sequent.vote` (MinIO)
 
-4.  **(Optional)** Review the `.env` file:
+2.  **(Optional)** Review the generated `.env` file:
 
     ```bash
     nano ~/step/.devcontainer/.env

@@ -1,6 +1,7 @@
 #!/bin/bash
 
-# This script configures the .env file for remote deployment with proper domain and subdomain settings.
+# This script configures .env and nginx for remote deployment.
+# It generates configs from templates, generates secrets, and configures URLs.
 
 # Check if arguments are provided
 if [ -z "$1" ] || [ -z "$2" ]; then
@@ -18,29 +19,74 @@ if [ -z "$1" ] || [ -z "$2" ]; then
   exit 1
 fi
 
+# Function to generate random hex string
+generate_hex() {
+  local length=$1
+  openssl rand -hex $length
+}
+
+# Function to generate random base64 string
+generate_base64() {
+  local bytes=$1
+  openssl rand -base64 $bytes | tr -d '\n'
+}
+
 # Set variables
 DOMAIN=$1
 SUBDOMAIN_SUFFIX=$2
 
-# Set the path to the .env file
-ENV_FILE="$HOME/step/.devcontainer/.env"
-NGINX_CONF="$HOME/step/.devcontainer/nginx/default.conf"
+# Set paths
+DEVCONTAINER_DIR="$HOME/step/.devcontainer"
+ENV_TEMPLATE="$DEVCONTAINER_DIR/.env.remote-test.example"
+ENV_FILE="$DEVCONTAINER_DIR/.env"
+NGINX_TEMPLATE="$DEVCONTAINER_DIR/nginx/default.conf.template"
+NGINX_CONF="$DEVCONTAINER_DIR/nginx/default.conf"
 
-# Check if the .env file exists
-if [ ! -f "$ENV_FILE" ]; then
-  echo "Error: .env file not found at $ENV_FILE."
-  echo "Please copy .env.remote-test.example to .env first:"
-  echo "  cp $HOME/step/.devcontainer/.env.remote-test.example $HOME/step/.devcontainer/.env"
+# Check if templates exist
+if [ ! -f "$ENV_TEMPLATE" ]; then
+  echo "Error: .env template not found at $ENV_TEMPLATE"
   exit 1
 fi
 
-# Check if nginx config exists
-if [ ! -f "$NGINX_CONF" ]; then
-  echo "Error: nginx config not found at $NGINX_CONF."
+if [ ! -f "$NGINX_TEMPLATE" ]; then
+  echo "Error: nginx template not found at $NGINX_TEMPLATE"
   exit 1
 fi
 
-echo "Configuring .env file for domain: $DOMAIN with subdomain suffix: $SUBDOMAIN_SUFFIX"
+echo "================================================"
+echo "Sequent Step Remote Deployment Configuration"
+echo "================================================"
+echo ""
+
+# Step 1: Copy templates
+echo "[1/4] Copying templates..."
+cp "$ENV_TEMPLATE" "$ENV_FILE"
+cp "$NGINX_TEMPLATE" "$NGINX_CONF"
+echo "  ✓ Created .env from template"
+echo "  ✓ Created nginx/default.conf from template"
+echo ""
+
+# Step 2: Generate secrets
+echo "[2/4] Generating secrets..."
+MASTER_SECRET=$(generate_hex 32)
+KEYCLOAK_CLIENT_SECRET=$(generate_base64 32)
+KEYCLOAK_ADMIN_CLIENT_SECRET=$(generate_base64 32)
+KEYCLOAK_CLI_CLIENT_SECRET=$(generate_base64 32)
+
+# Update secrets in .env
+sed -i "s|^SECRETS_BACKEND=.*|SECRETS_BACKEND=EnvVarMasterSecret|g" "$ENV_FILE"
+sed -i "s|^MASTER_SECRET=.*|MASTER_SECRET=$MASTER_SECRET|g" "$ENV_FILE"
+sed -i "s|^KEYCLOAK_CLIENT_SECRET=.*|KEYCLOAK_CLIENT_SECRET=$KEYCLOAK_CLIENT_SECRET|g" "$ENV_FILE"
+sed -i "s|^KEYCLOAK_ADMIN_CLIENT_SECRET=.*|KEYCLOAK_ADMIN_CLIENT_SECRET=$KEYCLOAK_ADMIN_CLIENT_SECRET|g" "$ENV_FILE"
+sed -i "s|^KEYCLOAK_CLI_CLIENT_SECRET=.*|KEYCLOAK_CLI_CLIENT_SECRET=$KEYCLOAK_CLI_CLIENT_SECRET|g" "$ENV_FILE"
+sed -i "s|^ACTIONS_ADMIN_SECRET=.*|ACTIONS_ADMIN_SECRET=$KEYCLOAK_ADMIN_CLIENT_SECRET|g" "$ENV_FILE"
+echo "  ✓ Generated MASTER_SECRET (32 bytes hex)"
+echo "  ✓ Generated Keycloak client secrets"
+echo "  ✓ Set SECRETS_BACKEND=EnvVarMasterSecret"
+echo ""
+
+# Step 3: Configure domain and URLs
+echo "[3/4] Configuring domain: $DOMAIN with subdomain: $SUBDOMAIN_SUFFIX..."
 
 # Update the DOMAIN variable
 sed -i "s|^DOMAIN=.*|DOMAIN=$DOMAIN|g" "$ENV_FILE"
@@ -57,7 +103,8 @@ sed -i "s|^HARVEST_DOMAIN=.*|HARVEST_DOMAIN=$SUBDOMAIN_SUFFIX.\${DOMAIN}|g" "$EN
 sed -i "s|^VOTING_PORTAL_HOSTNAME=.*|VOTING_PORTAL_HOSTNAME=voting-$SUBDOMAIN_SUFFIX.\${DOMAIN}|g" "$ENV_FILE"
 sed -i "s|^ADMIN_PORTAL_HOSTNAME=.*|ADMIN_PORTAL_HOSTNAME=admin-$SUBDOMAIN_SUFFIX.\${DOMAIN}|g" "$ENV_FILE"
 
-echo "Configuring nginx reverse proxy..."
+# Step 4: Configure nginx
+echo "[4/4] Configuring nginx reverse proxy..."
 
 # Update nginx config with domain and subdomain suffix
 sed -i "s|server_name admin-[a-zA-Z0-9_-]*\.\${DOMAIN};|server_name admin-$SUBDOMAIN_SUFFIX.$DOMAIN;|g" "$NGINX_CONF"
@@ -68,21 +115,25 @@ sed -i "s|server_name minio-[a-zA-Z0-9_-]*\.\${DOMAIN};|server_name minio-$SUBDO
 sed -i "s|server_name verifier-[a-zA-Z0-9_-]*\.\${DOMAIN};|server_name verifier-$SUBDOMAIN_SUFFIX.$DOMAIN;|g" "$NGINX_CONF"
 
 echo ""
-echo "✓ .env file configured successfully!"
-echo "✓ nginx config configured successfully!"
+echo "================================================"
+echo "✓ Configuration completed successfully!"
+echo "================================================"
 echo ""
-echo "Configuration:"
-echo "  Domain: $DOMAIN"
-echo "  Subdomain suffix: $SUBDOMAIN_SUFFIX"
+echo "Domain:    $DOMAIN"
+echo "Subdomain: $SUBDOMAIN_SUFFIX"
 echo ""
-echo "Configured URLs:"
-echo "  - Keycloak:      https://login-$SUBDOMAIN_SUFFIX.$DOMAIN"
-echo "  - Admin Portal:  https://admin-$SUBDOMAIN_SUFFIX.$DOMAIN"
-echo "  - Voting Portal: https://voting-$SUBDOMAIN_SUFFIX.$DOMAIN"
-echo "  - Hasura:        https://hasura-$SUBDOMAIN_SUFFIX.$DOMAIN"
-echo "  - MinIO:         https://minio-$SUBDOMAIN_SUFFIX.$DOMAIN"
+echo "Generated files:"
+echo "  ✓ $ENV_FILE"
+echo "  ✓ $NGINX_CONF"
+echo ""
+echo "Service URLs:"
+echo "  Keycloak:      https://login-$SUBDOMAIN_SUFFIX.$DOMAIN"
+echo "  Admin Portal:  https://admin-$SUBDOMAIN_SUFFIX.$DOMAIN"
+echo "  Voting Portal: https://voting-$SUBDOMAIN_SUFFIX.$DOMAIN"
+echo "  Hasura:        https://hasura-$SUBDOMAIN_SUFFIX.$DOMAIN"
+echo "  MinIO:         https://minio-$SUBDOMAIN_SUFFIX.$DOMAIN"
 echo ""
 echo "Next steps:"
-echo "  1. Review and update any remaining placeholders in $ENV_FILE"
-echo "  2. Set up DNS records with: ./.devcontainer/remote-deployment/setup-cloudflare.sh $DOMAIN <server_ip> $SUBDOMAIN_SUFFIX"
-echo "  3. Start the services with: docker-compose -f .devcontainer/docker-compose-remote.yml up -d --build"
+echo "  1. Set up DNS: ./.devcontainer/remote-deployment/setup-cloudflare.sh $DOMAIN <server_ip> $SUBDOMAIN_SUFFIX"
+echo "  2. Deploy:     cd ~/.devcontainer && docker-compose -f docker-compose-remote.yml up -d --build"
+echo ""
