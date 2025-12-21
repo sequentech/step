@@ -156,6 +156,31 @@ Finally, you can start the Docker Compose stack with the Nginx reverse proxy.
     docker-compose -f docker-compose-remote.yml ps
     ```
 
+5.  Upload required files to MinIO:
+
+    Due to a known issue with the configure-minio container, you need to manually upload the JWKS certificate file:
+
+    ```bash
+    cd ~/step
+    
+    # Create the public bucket
+    docker run --rm --network step_remote_test_default --entrypoint sh minio/mc -c '
+      mc alias set myminio http://minio:9000 minio minio123 && \
+      mc mb myminio/public && \
+      mc anonymous set download myminio/public
+    '
+    
+    # Upload files
+    docker run --rm -v $(pwd)/.devcontainer/minio:/scripts \
+      --network step_remote_test_default --entrypoint sh minio/mc -c '
+        mc alias set myminio http://minio:9000 minio minio123 && \
+        mc cp /scripts/certs.json myminio/public/certs.json && \
+        mc cp --recursive /scripts/public-assets/ myminio/public/public-assets/
+      '
+    ```
+
+    **Note:** This uploads the JWT signing certificates and public assets that Hasura needs to start properly.
+
 Your Sequent Step environment should now be up and running! You can access the different services through their subdomains:
 
 *   **Admin Portal:** `https://admin-remote-test.sequent.vote`
