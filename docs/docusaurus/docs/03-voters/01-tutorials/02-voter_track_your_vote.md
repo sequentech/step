@@ -19,7 +19,7 @@ Once you have finished voting, you can verify that your ballot was successfully 
 
 ### **Step 1: Secure Your Ballot ID**
 
-![Ballot List](/img/voter_guide/voter_ballot_review.png)
+![Ballot List](/img/voter_guide/voter_ballot_receipt.png)
 After casting your vote, you will reach the Confirmation screen.
 
 Copy the Ballot ID: Highlight and copy the long string of characters (the hash) next to the checkmark.
