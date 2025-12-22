@@ -147,3 +147,9 @@ Now tally view checks if it's an automatic ceremony based on only the keys cerem
 Documentation sidebar order has been restructured
 
 - Issue: [#8672](https://github.com/sequentech/meta/issues/8672)
+
+## 🐞 Voting Portal > Grace Period not applied if no scheduled event
+
+Fix to allow voting if grace period applies when the status is checked.
+
+- Issue: [#9091](https://github.com/sequentech/meta/issues/9091)
