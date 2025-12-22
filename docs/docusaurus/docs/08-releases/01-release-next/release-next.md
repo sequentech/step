@@ -7,6 +7,18 @@ title: Release Notes next
 SPDX-License-Identifier: AGPL-3.0-only
 -->
 
+## ✨ Initial extension system support with WebAssembly Components
+
+Introduced extensible plugin architecture using WebAssembly Components and 
+Wasmtime, allowing custom extensions to integrate seamlessly with core services 
+like Windmill and Harvest.
+
+Added comprehensive plugin management including compilation to .wasm, S3 
+storage/upload, database integration, route registration, hook execution, and 
+manifest retrieval for secure and authorized plugin loading.
+
+- Issue: [#578](https://github.com/sequentech/meta/issues/578)
+
 ## ✨ Implement happy path for CLI
 - Modify step CLI to run an election event from start to finish.
   Key commands:
