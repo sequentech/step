@@ -72,3 +72,9 @@ Now tally view checks if it's an automatic ceremony based on only the keys cerem
 Fixed an issue that prevented to search logs by username in the Admin portal.
 
 - Issue: [#7751](https://github.com/sequentech/meta/issues/7751)
+
+## 🐞 Voting Portal > Grace Period not applied if no scheduled event
+
+Fix to allow voting if grace period applies when the status is checked.
+
+- Issue: [#9091](https://github.com/sequentech/meta/issues/9091)
