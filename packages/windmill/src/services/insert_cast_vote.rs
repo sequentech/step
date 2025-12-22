@@ -804,8 +804,8 @@ async fn check_status(
         )));
     }
 
-    let current_voting_status = election_status.status_by_channel(voting_channel);
-    let dates_by_channel = election_status.dates_by_channel(voting_channel);
+    let current_voting_status = election_status.status_by_channel(&voting_channel);
+    let dates_by_channel = election_status.dates_by_channel(&voting_channel);
 
     // calculate if we need to apply the grace period
     let grace_period_secs = election_presentation.grace_period_secs.unwrap_or(0);
