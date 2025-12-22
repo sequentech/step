@@ -23,6 +23,7 @@ members = [
     "e2e",
     "orare",
     "orare/doc_renderer",
+    "plugins/*",
 ]
 
 [workspace.dependencies]

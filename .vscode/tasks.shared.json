@@ -12,7 +12,7 @@
                 "bash",
                 "--",
                 "-c",
-                "./scripts/loc.sh",
+                "./scripts/loc.sh"
             ],
             "presentation": {
                 "echo": true,
@@ -36,7 +36,7 @@
                 "bash",
                 "--",
                 "-c",
-                "./scripts/tasks/dependencies/generate-dependency-report.sh",
+                "./scripts/tasks/dependencies/generate-dependency-report.sh"
             ],
             "presentation": {
                 "echo": true,
@@ -108,7 +108,7 @@
                 "bash",
                 "--",
                 "-c",
-                "cd packages && yarn start:admin-portal",
+                "cd packages && yarn start:admin-portal"
             ],
             "presentation": {
                 "echo": true,
@@ -132,7 +132,7 @@
                 "bash",
                 "--",
                 "-c",
-                "cd packages && yarn storybook:ui-essentials",
+                "cd packages && yarn storybook:ui-essentials"
             ],
             "presentation": {
                 "echo": true,
@@ -156,7 +156,7 @@
                 "bash",
                 "--",
                 "-c",
-                "cd docs/docusaurus && yarn && yarn start",
+                "cd docs/docusaurus && yarn && yarn start"
             ],
             "presentation": {
                 "echo": true,
@@ -180,7 +180,7 @@
                 "bash",
                 "--",
                 "-c",
-                "cd docs/docusaurus && yarn && yarn build",
+                "cd docs/docusaurus && yarn && yarn build"
             ],
             "presentation": {
                 "echo": true,
@@ -204,7 +204,7 @@
                 "bash",
                 "--",
                 "-c",
-                "claude --dangerously-skip-permissions",
+                "claude --dangerously-skip-permissions"
             ],
             "presentation": {
                 "echo": true,
@@ -228,7 +228,7 @@
                 "bash",
                 "--",
                 "-c",
-                "cd docs/api/graphql && yarn && yarn run generate-full-docs && python -m http.server -d docs",
+                "cd docs/api/graphql && yarn && yarn run generate-full-docs && python -m http.server -d docs"
             ],
             "presentation": {
                 "echo": true,
@@ -252,7 +252,7 @@
                 "bash",
                 "--",
                 "-c",
-                "cd packages && yarn && yarn build:ui-core && yarn build:ui-essentials && yarn build:admin-portal && yarn start:admin-portal",
+                "cd packages && yarn && yarn build:ui-core && yarn build:ui-essentials && yarn start:admin-portal"
             ],
             "presentation": {
                 "echo": true,
@@ -276,7 +276,7 @@
                 "bash",
                 "--",
                 "-c",
-                "cd packages && yarn start:voting-portal",
+                "cd packages && yarn start:voting-portal"
             ],
             "presentation": {
                 "echo": true,
@@ -300,7 +300,7 @@
                 "bash",
                 "--",
                 "-c",
-                "cd packages && yarn start:ballot-verifier",
+                "cd packages && yarn start:ballot-verifier"
             ],
             "presentation": {
                 "echo": true,
@@ -325,12 +325,12 @@
                 "-f",
                 "--tail",
                 "200",
-                "graphql-engine",
+                "graphql-engine"
             ],
             "options": {
                 "env": {
                     "COMPOSE_PROJECT_NAME": "step_devcontainer",
-                    "COMPOSE_PROFILES": "base",
+                    "COMPOSE_PROFILES": "base"
                 }
             },
             "presentation": {
@@ -352,12 +352,12 @@
             "command": "bash",
             "args": [
                 "-c",
-                "docker compose stop keycloak; docker compose build keycloak && docker compose up -d --no-deps keycloak && docker compose logs -f --tail 100 keycloak",
+                "docker compose stop keycloak; docker compose build keycloak && docker compose up -d --no-deps keycloak && docker compose logs -f --tail 100 keycloak"
             ],
             "options": {
                 "env": {
                     "COMPOSE_PROJECT_NAME": "step_devcontainer",
-                    "COMPOSE_PROFILES": "base",
+                    "COMPOSE_PROFILES": "base"
                 },
                 "cwd": "${workspaceFolder}/.devcontainer"
             },
@@ -379,12 +379,12 @@
             "command": "bash",
             "args": [
                 "-c",
-                "docker compose stop janitor; docker compose build janitor && docker compose up -d --no-deps janitor",
+                "docker compose stop janitor; docker compose build janitor && docker compose up -d --no-deps janitor"
             ],
             "options": {
                 "env": {
                     "COMPOSE_PROJECT_NAME": "step_devcontainer",
-                    "COMPOSE_PROFILES": "base",
+                    "COMPOSE_PROFILES": "base"
                 },
                 "cwd": "${workspaceFolder}/.devcontainer"
             },
@@ -435,12 +435,12 @@
             "command": "bash",
             "args": [
                 "-c",
-                "docker compose stop graphql-engine; docker compose up -d --no-deps graphql-engine && docker compose logs -f --tail 100 graphql-engine",
+                "docker compose stop graphql-engine; docker compose up -d --no-deps graphql-engine && docker compose logs -f --tail 100 graphql-engine"
             ],
             "options": {
                 "env": {
                     "COMPOSE_PROJECT_NAME": "step_devcontainer",
-                    "COMPOSE_PROFILES": "base",
+                    "COMPOSE_PROFILES": "base"
                 },
                 "cwd": "${workspaceFolder}/.devcontainer"
             },
@@ -467,12 +467,12 @@
                 "-f",
                 "--tail",
                 "200",
-                "harvest",
+                "harvest"
             ],
             "options": {
                 "env": {
                     "COMPOSE_PROJECT_NAME": "step_devcontainer",
-                    "COMPOSE_PROFILES": "base",
+                    "COMPOSE_PROFILES": "base"
                 }
             },
             "presentation": {
@@ -494,12 +494,12 @@
             "command": "bash",
             "args": [
                 "-c",
-                "docker compose stop harvest; docker compose up -d --no-deps harvest && docker compose logs -f --tail 100 harvest",
+                "docker compose stop harvest; docker compose up -d --no-deps harvest && docker compose logs -f --tail 100 harvest"
             ],
             "options": {
                 "env": {
                     "COMPOSE_PROJECT_NAME": "step_devcontainer",
-                    "COMPOSE_PROFILES": "base",
+                    "COMPOSE_PROFILES": "base"
                 },
                 "cwd": "${workspaceFolder}/.devcontainer"
             },
@@ -531,7 +531,7 @@
             "options": {
                 "env": {
                     "COMPOSE_PROJECT_NAME": "step_devcontainer",
-                    "COMPOSE_PROFILES": "base",
+                    "COMPOSE_PROFILES": "base"
                 }
             },
             "presentation": {
@@ -558,7 +558,7 @@
             "options": {
                 "env": {
                     "COMPOSE_PROJECT_NAME": "step_devcontainer",
-                    "COMPOSE_PROFILES": "base",
+                    "COMPOSE_PROFILES": "base"
                 },
                 "cwd": "${workspaceFolder}/.devcontainer"
             },
@@ -585,12 +585,12 @@
                 "-f",
                 "--tail",
                 "200",
-                "keycloak",
+                "keycloak"
             ],
             "options": {
                 "env": {
                     "COMPOSE_PROJECT_NAME": "step_devcontainer",
-                    "COMPOSE_PROFILES": "base",
+                    "COMPOSE_PROFILES": "base"
                 }
             },
             "presentation": {
@@ -616,12 +616,12 @@
                 "-f",
                 "--tail",
                 "200",
-                "simplesamlphp",
+                "simplesamlphp"
             ],
             "options": {
                 "env": {
                     "COMPOSE_PROJECT_NAME": "step_devcontainer",
-                    "COMPOSE_PROFILES": "base",
+                    "COMPOSE_PROFILES": "base"
                 }
             },
             "presentation": {
@@ -647,12 +647,12 @@
                 "-f",
                 "--tail",
                 "200",
-                "beat",
+                "beat"
             ],
             "options": {
                 "env": {
                     "COMPOSE_PROJECT_NAME": "step_devcontainer",
-                    "COMPOSE_PROFILES": "base",
+                    "COMPOSE_PROFILES": "base"
                 }
             },
             "presentation": {
@@ -674,12 +674,12 @@
             "command": "bash",
             "args": [
                 "-c",
-                "docker compose stop beat; docker compose up -d --no-deps beat && docker compose logs -f --tail 100 beat",
+                "docker compose stop beat; docker compose up -d --no-deps beat && docker compose logs -f --tail 100 beat"
             ],
             "options": {
                 "env": {
                     "COMPOSE_PROJECT_NAME": "step_devcontainer",
-                    "COMPOSE_PROFILES": "base",
+                    "COMPOSE_PROFILES": "base"
                 },
                 "cwd": "${workspaceFolder}/.devcontainer"
             },
@@ -706,12 +706,12 @@
                 "-f",
                 "--tail",
                 "200",
-                "windmill",
+                "windmill"
             ],
             "options": {
                 "env": {
                     "COMPOSE_PROJECT_NAME": "step_devcontainer",
-                    "COMPOSE_PROFILES": "base",
+                    "COMPOSE_PROFILES": "base"
                 }
             },
             "presentation": {
@@ -733,12 +733,12 @@
             "command": "bash",
             "args": [
                 "-c",
-                "docker compose stop windmill; docker compose up -d --no-deps windmill && docker compose logs -f --tail 100 windmill",
+                "docker compose stop windmill; docker compose up -d --no-deps windmill && docker compose logs -f --tail 100 windmill"
             ],
             "options": {
                 "env": {
                     "COMPOSE_PROJECT_NAME": "step_devcontainer",
-                    "COMPOSE_PROFILES": "base",
+                    "COMPOSE_PROFILES": "base"
                 },
                 "cwd": "${workspaceFolder}/.devcontainer"
             },
@@ -761,12 +761,12 @@
             "command": "bash",
             "args": [
                 "-c",
-                "docker compose logs -f --tail 100 trustee1 trustee2",
+                "docker compose logs -f --tail 100 trustee1 trustee2"
             ],
             "options": {
                 "env": {
                     "COMPOSE_PROJECT_NAME": "step_devcontainer",
-                    "COMPOSE_PROFILES": "base",
+                    "COMPOSE_PROFILES": "base"
                 },
                 "cwd": "${workspaceFolder}/.devcontainer"
             },
@@ -789,12 +789,12 @@
             "command": "bash",
             "args": [
                 "-c",
-                "docker compose stop minio configure-minio; docker compose up --build -d --no-deps minio && docker compose up --build --no-deps configure-minio && docker compose logs -f --tail 100 configure-minio minio",
+                "docker compose stop minio configure-minio; docker compose up --build -d --no-deps minio && docker compose up --build --no-deps configure-minio && docker compose logs -f --tail 100 configure-minio minio"
             ],
             "options": {
                 "env": {
                     "COMPOSE_PROJECT_NAME": "step_devcontainer",
-                    "COMPOSE_PROFILES": "base",
+                    "COMPOSE_PROFILES": "base"
                 },
                 "cwd": "${workspaceFolder}/.devcontainer"
             },
@@ -817,12 +817,12 @@
             "command": "bash",
             "args": [
                 "-c",
-                "docker compose logs -f --tail 100 minio",
+                "docker compose logs -f --tail 100 minio"
             ],
             "options": {
                 "env": {
                     "COMPOSE_PROJECT_NAME": "step_devcontainer",
-                    "COMPOSE_PROFILES": "base",
+                    "COMPOSE_PROFILES": "base"
                 },
                 "cwd": "${workspaceFolder}/.devcontainer"
             },
@@ -850,7 +850,7 @@
             "options": {
                 "env": {
                     "COMPOSE_PROJECT_NAME": "step_devcontainer",
-                    "COMPOSE_PROFILES": "base",
+                    "COMPOSE_PROFILES": "base"
                 },
                 "cwd": "${workspaceFolder}/.devcontainer"
             },
@@ -873,12 +873,12 @@
             "command": "bash",
             "args": [
                 "-c",
-                "docker compose stop trustee1 trustee2; docker compose up -d --no-deps trustee1 trustee2 && docker compose logs -f --tail 100 trustee1 trustee2",
+                "docker compose stop trustee1 trustee2; docker compose up -d --no-deps trustee1 trustee2 && docker compose logs -f --tail 100 trustee1 trustee2"
             ],
             "options": {
                 "env": {
                     "COMPOSE_PROJECT_NAME": "step_devcontainer",
-                    "COMPOSE_PROFILES": "base",
+                    "COMPOSE_PROFILES": "base"
                 },
                 "cwd": "${workspaceFolder}/.devcontainer"
             },
@@ -900,7 +900,7 @@
             "label": "update.env",
             "command": "bash",
             "args": [
-                "./.devcontainer/scripts/initialize-command.sh",
+                "./.devcontainer/scripts/initialize-command.sh"
             ],
             "presentation": {
                 "echo": true,
@@ -948,7 +948,7 @@
                 "bash",
                 "--",
                 "-c",
-                "./.devcontainer/scripts/fix-vscode-settings-nix.sh",
+                "./.devcontainer/scripts/fix-vscode-settings-nix.sh"
             ],
             "presentation": {
                 "echo": true,
@@ -972,7 +972,7 @@
                 "bash",
                 "--",
                 "-c",
-                "./.devcontainer/scripts/update-graphql.sh",
+                "./.devcontainer/scripts/update-graphql.sh"
             ],
             "presentation": {
                 "echo": true,
@@ -996,7 +996,7 @@
                 "bash",
                 "--",
                 "-c",
-                "./.devcontainer/scripts/format-code.sh",
+                "./.devcontainer/scripts/format-code.sh"
             ],
             "presentation": {
                 "echo": true,
@@ -1047,12 +1047,12 @@
                 "-f",
                 "--tail",
                 "200",
-                "orare",
+                "orare"
             ],
             "options": {
                 "env": {
                     "COMPOSE_PROJECT_NAME": "step_devcontainer",
-                    "COMPOSE_PROFILES": "base",
+                    "COMPOSE_PROFILES": "base"
                 }
             },
             "presentation": {
@@ -1161,7 +1161,7 @@
                 "bash",
                 "--",
                 "-c",
-                "rm -rf /home/vscode/.docker/",
+                "rm -rf /home/vscode/.docker/"
             ],
             "presentation": {
                 "echo": true,
@@ -1202,5 +1202,29 @@
             },
             "problemMatcher": []
         },
+        {
+            "label": "upload.plugins",
+            "command": "devenv",
+            "args": [
+                "shell",
+                "bash",
+                "--",
+                "-c",
+                "./.devcontainer/scripts/upload_plugins_to_s3.sh"
+            ],
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "dedicated",
+                "showReuseMessage": true,
+                "clear": false
+            },
+            "isBackground": true,
+            "runOptions": {
+                "runOn": "default"
+            },
+            "problemMatcher": []
+        }
     ]
 }
