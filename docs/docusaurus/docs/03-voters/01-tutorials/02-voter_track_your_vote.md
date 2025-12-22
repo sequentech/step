@@ -10,7 +10,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 It is possible to verify that your ballot has been correctly submitted.
 In the Voting Portal's landing page `/election-chooser` click on the button 
-"Locate Your Ballot" to go to `/ballot-locator`.
+`Locate Your Ballot` to go to `/ballot-locator`.
 
 ## Ballot Locator
 
@@ -22,7 +22,7 @@ Once you have finished voting, you can verify that your ballot was successfully 
 ![Ballot List](/img/voter_guide/voter_ballot_receipt.png)
 After casting your vote, you will reach the Confirmation screen.
 
-Copy the Ballot ID: Highlight and copy the long string of characters (the hash) next to the checkmark.
+1. Copy the `Ballot ID`: Highlight and copy the long string of characters (the hash) next to the checkmark.
 
 Alternative: You can also scan the provided QR code on this screen to view your verification details instantly on your mobile device.
 
@@ -30,22 +30,25 @@ Alternative: You can also scan the provided QR code on this screen to view your 
 
 If you have already moved past the confirmation screen, you can still find the locator tool:
 
-Navigate back to your Ballot List (the main election dashboard).
 
 ![Ballot List](/img/voter_guide/voter_ballot_list.png)
 
-Find the relevant election for your ballot.
+1. Navigate back to your Ballot List (the main election dashboard).
 
-Click the white Locate your ballot button.
+2. Find the relevant election for your ballot.
+
+3. Click the white `Locate your Ballot` button.
 
 ### **Step 3: Search for Your Ballot**
 
 ![Ballot List](/img/voter_guide/voter_ballot_locator.png)
 Once you are on the Ballot Locator page:
 
-Enter your Ballot ID: Paste the ID you saved from Step 1 into the search field.
-Submit: Click the button to search the records.
+1. Enter your `Ballot ID`
 
+2. Paste the ID you saved from Step 1 into the search field.
+
+3. Submit: Click the button to search the records.
 
 ### **Step 4: Review the Results**
 
@@ -62,7 +65,7 @@ The immutable logs of the type `CastVote` are displayed in the Logs tab.
 To see the immutable logs, it's policy must be enabled in the Admin Portal at 
 Election Event level: Data > Ballot Design > Show Cast Vote Logs Tab.
 
-Enter the ballot ID to confirm you ballot is in the logs.
+1. Enter the ballot ID to confirm you ballot is in the logs.
 
 The table shows the user name, the ballot ID, timestamp of the ballot and message.
 The immutable log's message contains the user's signature among other things. It's 
