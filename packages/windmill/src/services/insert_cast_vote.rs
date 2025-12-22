@@ -57,8 +57,7 @@ use strand::signature::StrandSignatureSk;
 use strand::util::StrandError;
 use strand::zkp::Zkp;
 use strum_macros::Display;
-use tracing::info;
-use tracing::{error, event, instrument, Level};
+use tracing::{debug, error, info, instrument, trace};
 use uuid::Uuid;
 // Added imports
 use sequent_core::encrypt::hash_ballot;
@@ -868,21 +867,28 @@ async fn check_status(
             .last_stopped_at
             .map(|val| val.with_timezone(&Local));
 
-        match (current_voting_status, last_stopped_at) {
-            (VotingStatus::OPEN, _) => {}
-            (VotingStatus::PAUSED | VotingStatus::NOT_STARTED, _) => {
+        let allow_grace_period_voting = match last_stopped_at {
+            Some(close_date) => {
+                apply_grace_period
+                    && (now < (close_date + grace_period_duration))
+                    && auth_time_local < close_date
+            }
+            None => false,
+        };
+
+        match current_voting_status {
+            VotingStatus::NOT_STARTED | VotingStatus::PAUSED => {
                 return Err(CastVoteError::CheckStatusFailed(
                     format!("Voting Status for voting_channel={voting_channel:?} is {current_voting_status:?}"),
                 ));
             }
-            (VotingStatus::CLOSED, Some(close_date))
-                if apply_grace_period
-                    && (now < (close_date + grace_period_duration))
-                    && auth_time_local < close_date =>
-            {
-                info!("Grace period vote at {now}");
+            VotingStatus::OPEN => {
+                debug!("Allowing cast vote for election id {election_id}");
             }
-            (VotingStatus::CLOSED, _) => {
+            VotingStatus::CLOSED if allow_grace_period_voting => {
+                info!("Allowing grace period vote at {now}");
+            }
+            VotingStatus::CLOSED => {
                 return Err(CastVoteError::CheckStatusFailed(
                     format!("Voting Status for voting_channel={voting_channel:?} is {current_voting_status:?}"),
                 ));
@@ -926,7 +932,7 @@ async fn check_previous_votes(
         .filter_map(|cv| cv.area_id.and_then(|id| Uuid::parse_str(&id).ok()))
         .partition(|cv_area_id| cv_area_id.to_string() == area_id.to_string());
 
-    event!(Level::INFO, "get cast votes returns same: {:?}", same);
+    info!("get cast votes returns same: {:?}", same);
 
     // Skip max votes check if max_revotes is 0, allowing unlimited votes
     if max_revotes > 0 && same.len() >= max_revotes {
