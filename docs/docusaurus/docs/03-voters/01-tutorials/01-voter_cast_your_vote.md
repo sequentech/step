@@ -8,7 +8,7 @@ SPDX-FileCopyrightText: 2025 Sequent Tech <legal@sequentech.io>
 SPDX-License-Identifier: AGPL-3.0-only
 -->
 
-![Voter Login Page](/img/voter_guide/voter_login.png)
+![Voter Login Page](./../assets/voter_login.png)
 The image shows a login with a username and password, but your authentication method may be different.
 
 Refer to your specific login instructions for additional information.
@@ -19,7 +19,7 @@ Refer to your specific login instructions for additional information.
 <br></br>
 <br></br>
 
-![Ballot List](/img/voter_guide/voter_ballot_list.png)
+![Ballot List](./../assets/voter_ballot_list.png)
 Shows the list of ballots available to you.
 
 
@@ -29,7 +29,7 @@ Shows the list of ballots available to you.
 <br></br>
 <br></br>
 
-![Voter Instructions](/img/voter_guide/voter_instructions.png)
+![Voter Instructions](./../assets/voter_instructions.png)
 Gives simple instructions on how to vote and navigate the ballot.
 
 
@@ -39,7 +39,7 @@ Gives simple instructions on how to vote and navigate the ballot.
 <br></br>
 <br></br>
 
-![Ballot Marking](/img/voter_guide/voter_candidate_selection.png)
+![Ballot Marking](./../assets/voter_candidate_selection.png)
 This is where you choose your candidates and make selections.
 
 
@@ -54,7 +54,7 @@ This is where you choose your candidates and make selections.
 <br></br>
 <br></br>
 
-![Ballot Review](/img/voter_guide/voter_ballot_review.png)
+![Ballot Review](./../assets/voter_ballot_review.png)
 Shows all your selections so you can review them before submitting.
 
 
@@ -70,7 +70,7 @@ Shows all your selections so you can review them before submitting.
 <br></br>
 <br></br>
 
-![Voter Receipt](/img/voter_guide/voter_ballot_receipt.png)
+![Voter Receipt](./../assets/voter_ballot_receipt.png)
 Confirms your vote was cast. Shows a unique Ballot ID to help you track it.
 
 * Select Finish to go back to Election selection screen
