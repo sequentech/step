@@ -59,9 +59,9 @@ base64 = "0.22"
 # rust to json schema
 schemars = { version = "0.8", features = ["chrono"]}
 # strand
-strand = { path="../strand", features = []}
+strand = { path="../strand", features = [], optional = true}
 
-num-bigint = { version = "0.4", features = ["rand"] }
+num-bigint = { version = "0.4", features = ["rand"], optional = true }
 num-traits = "0.2"
 quick-error = "2.0"
 
