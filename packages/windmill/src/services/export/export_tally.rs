@@ -131,17 +131,28 @@ pub async fn export_tally_session_execution(
         "session_ids".to_string(),
         "status".to_string(),
         "results_event_id".to_string(),
+        "documents".to_string(),
     ])?;
 
     for tally_session_execution in event_tally_sessions_executions {
         let values: Vec<String> = serde_json::to_value(tally_session_execution)?
             .as_object()
             .ok_or_else(|| anyhow!("Failed to convert tally_session_execution to JSON object"))?
-            .values()
-            .map(|value| value.to_string())
+            .iter()
+            .map(|(_, value)| {
+                // Convert Value to string: primitives as-is, complex types as JSON strings
+                match value {
+                    serde_json::Value::Null => String::new(),
+                    serde_json::Value::String(s) => s.clone(),
+                    serde_json::Value::Number(n) => n.to_string(),
+                    serde_json::Value::Bool(b) => b.to_string(),
+                    // Arrays and objects become JSON strings (will be properly escaped by CSV writer)
+                    _ => serde_json::to_string(value).unwrap_or_default(),
+                }
+            })
             .collect();
 
-        writer.write_record(&values);
+        writer.write_record(&values)?;
     }
 
     writer

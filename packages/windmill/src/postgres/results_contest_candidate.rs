@@ -296,10 +296,7 @@ pub async fn insert_many_results_contest_candidates(
             cast_votes_percent, documents
         )
         SELECT
-            id, tenant_id, election_event_id, election_id, contest_id,
-            candidate_id, results_event_id, cast_votes, winning_position, points,
-            created_at, last_updated_at, labels, annotations,
-            cast_votes_percent, documents
+            *
         FROM data
         RETURNING *;
     "#;

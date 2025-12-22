@@ -433,10 +433,7 @@ pub async fn insert_many_results_elections(
             labels, annotations, documents
         )
         SELECT
-            id, tenant_id, election_event_id, election_id,
-            results_event_id, name, elegible_census, total_voters,
-            total_voters_percent, created_at, last_updated_at,
-            labels, annotations, documents
+            *
         FROM data
         RETURNING *;
     "#;
