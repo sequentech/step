@@ -353,9 +353,7 @@ pub async fn insert_many_tally_session_contests(
             labels, annotations, tally_session_id, election_id
         )
         SELECT
-            id, tenant_id, election_event_id, area_id,
-            contest_id, session_id, created_at, last_updated_at,
-            labels, annotations, tally_session_id, election_id
+            *
         FROM data
         RETURNING *;
     "#;

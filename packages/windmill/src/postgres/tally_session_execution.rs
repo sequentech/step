@@ -263,6 +263,7 @@ struct InsertableTallySessionExecution {
     session_ids: Option<Vec<i32>>,
     status: Option<Value>,
     results_event_id: Option<Uuid>,
+    documents: Option<Value>,
 }
 
 #[instrument(err, skip(hasura_transaction, executions))]
@@ -293,6 +294,7 @@ pub async fn insert_many_tally_session_executions(
                     Some(ref id) => Some(Uuid::parse_str(id)?),
                     None => None,
                 },
+                documents: e.documents,
             })
         })
         .collect::<Result<_>>()?;
@@ -313,18 +315,17 @@ pub async fn insert_many_tally_session_executions(
                 tally_session_id UUID,
                 session_ids INTEGER[],
                 status JSONB,
-                results_event_id UUID
+                results_event_id UUID,
+                documents JSONB
             )
         )
         INSERT INTO sequent_backend.tally_session_execution (
             id, tenant_id, election_event_id, created_at, last_updated_at,
             labels, annotations, current_message_id, tally_session_id,
-            session_ids, status, results_event_id
+            session_ids, status, results_event_id, documents
         )
         SELECT
-            id, tenant_id, election_event_id, created_at, last_updated_at,
-            labels, annotations, current_message_id, tally_session_id,
-            session_ids, status, results_event_id
+            *
         FROM data
         RETURNING *;
     "#;

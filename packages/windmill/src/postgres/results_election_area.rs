@@ -206,9 +206,7 @@ pub async fn insert_many_results_elections_areas(
             documents, name
         )
         SELECT
-            id, tenant_id, election_event_id, election_id,
-            area_id, results_event_id, created_at, last_updated_at,
-            documents, name
+            *
         FROM data
         RETURNING *;
     "#;
