@@ -13,7 +13,7 @@ The image shows a login with a username and password, but your authentication me
 
 Refer to your specific login instructions for additional information.
 
-* Enter your login credentials and select Login.
+1. Enter your login credentials and select Login.
 
 <br></br>
 <br></br>
@@ -23,7 +23,7 @@ Refer to your specific login instructions for additional information.
 Shows the list of ballots available to you.
 
 
-* Select Click to Vote in the ballot you wish to vote on, note that multiple ballots may appear depending on your eligibility.
+2. Select Click to Vote in the ballot you wish to vote on, note that multiple ballots may appear depending on your eligibility.
  
 <br></br>
 <br></br>
@@ -33,7 +33,7 @@ Shows the list of ballots available to you.
 Gives simple instructions on how to vote and navigate the ballot.
 
 
-* Review the instructions and select Start Voting
+3. Review the instructions and select Start Voting
 
 <br></br>
 <br></br>
@@ -43,8 +43,8 @@ Gives simple instructions on how to vote and navigate the ballot.
 This is where you choose your candidates and make selections.
 
 
-* Select your preferred candidates
-* Select Next to proceed to the Ballot Review screen or the next available ballot to mark
+1. Select your preferred candidates
+2. Select Next to proceed to the Ballot Review screen or the next available ballot to mark
 
 **Optional:**
 * Select Clear Selection to clear all selected candidates
@@ -58,9 +58,9 @@ This is where you choose your candidates and make selections.
 Shows all your selections so you can review them before submitting.
 
 
-* Review your selections one last time before casting your vote
-* Note your Ballot ID, used for Locating or Auditing your Ballot
-* Cast your Ballot
+1. Review your selections one last time before casting your vote
+2. Note your Ballot ID, used for Locating or Auditing your Ballot
+3. Cast your Ballot
 
 **Optional:**
 * Go back to Edit your Ballot
