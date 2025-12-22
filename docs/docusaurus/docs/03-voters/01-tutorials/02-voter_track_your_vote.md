@@ -52,7 +52,7 @@ Below this message, you will see the Ballot Content. This is a JSON-formatted bl
 **Ballot Content:** Please note that even though you have access to the content of your ballot, this is encrypted so that it's not possible to obtain the intention of the vote from the Ballot Content. This is a security measure intended to maintain the secrecy of the vote and preventing anyone to prove how they voted.
 :::
 
-## Option 1: Lookup the vote using a saved Ballot ID
+## Option 2: Lookup the vote using a saved Ballot ID
 
 As explained earlier in [step 1.1](#step-11-secure-your-ballot-id), after casting the vote you can simply save the Ballot ID by copying it and saving it somewhere save. With this, you can then follow the steps below to look it up and ensure that the vote is found using the Ballot Locator.
 
