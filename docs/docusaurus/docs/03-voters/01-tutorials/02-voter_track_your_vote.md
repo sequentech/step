@@ -94,16 +94,3 @@ If the ballot is found, you will see a green confirmation message stating:
 
 Below this message, you will see the Ballot Content. This is a JSON-formatted block of data that contains the technical details of your submission, including the timestamp and encrypted contest data, proving your vote is securely in the system.
 
-### Logs
-
-The immutable logs of the type `CastVote` are displayed in the Logs tab. 
-To see the immutable logs, it's policy must be enabled in the Admin Portal at 
-Election Event level: Data > Ballot Design > Show Cast Vote Logs Tab.
-
-1. Enter the ballot ID to confirm you ballot is in the logs.
-
-The table shows the user name, the ballot ID, timestamp of the ballot and message.
-The immutable log's message contains the user's signature among other things. It's 
-content is in Json format and you can press the copy button to visualize it better 
-on an editor.
-
