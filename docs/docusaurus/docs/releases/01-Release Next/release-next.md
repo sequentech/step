@@ -13,6 +13,13 @@ Activity Logs reports, and the ballot receipt.
 
 - Issue: [#6191](https://github.com/sequentech/meta/issues/6191)
 
+## 🐞 Tally > Contests are not in order when using multi-contest encoding
+
+Sort contest shows on tally results tabs based on the contest-order 
+ field in the election presentation.
+
+- Issue: [#8678](https://github.com/sequentech/meta/issues/8678)
+
 ## 🐞 Tally > Export option can't be read correctly if title is too long
 
 Modify the tally export translations to show the format before the document name.
