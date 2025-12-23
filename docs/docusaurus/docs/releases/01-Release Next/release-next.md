@@ -74,3 +74,7 @@ tally result files in `velvet-generate-reports`.
 It contains the value of some election metrics.
 
 - Issue: [#8573](https://github.com/sequentech/meta/issues/8573)
+
+## 🐞 Tally > Ballot Image fails on second time: duplicate ACM key
+
+Fix the unique key error by adding tennant and event id into the ACM key.
