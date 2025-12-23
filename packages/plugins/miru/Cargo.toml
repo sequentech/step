@@ -1,0 +1,28 @@
+# SPDX-FileCopyrightText: 2025 Sequent Legal <legal@sequentech.io>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+[package]
+name = "miru"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+wit-bindgen-rt = { version = "0.42.1", features = ["bitflags"] }
+serde_json = "1.0.105"
+serde = "1.0.152"
+
+sequent-core = { path = "../../sequent-core", default-features = false, features = [] }
+
+[package.metadata.component]
+package = "plugins-manager:miru"
+
+[package.metadata.component.target]
+path = "./wit/world.wit"
+
+[package.metadata.component.target.dependencies]
+"plugins-manager:transactions-manager" = { path = "../../sequent-core/src/plugins_wit/transaction/transaction-world.wit" }
+"plugins-manager:common" = { path = "../../sequent-core/src/plugins_wit/plugin/plugin-world.wit" }
+"plugins-manager:jwt" = { path = "../../sequent-core/src/plugins_wit/jwt/jwt-world.wit" }
