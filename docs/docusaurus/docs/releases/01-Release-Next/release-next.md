@@ -95,3 +95,9 @@ Fixed an issue that prevented to search logs by username in the Admin portal.
 Clear keys ceremony state when switching events.
 
 - Issue [#8675](https://github.com/sequentech/meta/issues/8675)
+
+## 🐞 Tally > Ballot Image fails on second time: duplicate ACM key
+
+Fix the unique key error by adding tennant and event id into the ACM key.
+
+- Issue: [#8679](https://github.com/sequentech/meta/issues/8679)
