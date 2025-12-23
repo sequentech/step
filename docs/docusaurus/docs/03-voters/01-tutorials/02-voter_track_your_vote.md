@@ -60,7 +60,7 @@ As explained earlier in [step 1.1](#step-11-secure-your-ballot-id), after castin
 **Prerequisites:** The steps below assume you have already logged in as a voter.
 :::
 
-### **Step : Access the Ballot Locator**
+### **Step 2.1 : Access the Ballot Locator**
 
 After logging in as a voter, you will see the Ballot List as depicted below:
 
@@ -74,7 +74,7 @@ Then follow the steps below:
 
 3. Click the white `Locate your Ballot` button.
 
-### **Step 3: Search for Your Ballot**
+### **Step 2.2: Search for Your Ballot**
 
 ![Ballot List](./../assets/voter_ballot_locator.png)
 Once you are on the Ballot Locator page:
@@ -85,7 +85,7 @@ Once you are on the Ballot Locator page:
 
 3. Submit: Click the button to search the records.
 
-### **Step 4: Review the Results**
+### **Step 2.3: Review the Results**
 
 ![Ballot List](./../assets/voter_ballot_located.png)
 If the ballot is found, you will see a green confirmation message stating:
