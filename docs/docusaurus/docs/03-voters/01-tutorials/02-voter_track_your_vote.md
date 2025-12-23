@@ -88,9 +88,9 @@ Once you are on the Ballot Locator page:
 ### **Step 2.3: Review the Results**
 
 ![Ballot List](./../assets/voter_ballot_located.png)
-If the ballot is found, you will see a green confirmation message stating:
+If the ballot is found, at the top of the screen you will see a green confirmation message stating:
 
-"Your ballot ID [ID Number] has been located."
+**"Your ballot ID [ID Number] has been located."**
 
 Below this message, you will see the Ballot Content. This is a JSON-formatted block of data that contains the technical details of your submission, including the timestamp and encrypted contest data, proving your vote is securely in the system.
 
