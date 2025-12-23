@@ -72,3 +72,9 @@ Now tally view checks if it's an automatic ceremony based on only the keys cerem
 Fixed an issue that prevented to search logs by username in the Admin portal.
 
 - Issue: [#7751](https://github.com/sequentech/meta/issues/7751)
+
+## 🐞 Tally > Ballot Image fails on second time: duplicate ACM key
+
+Fix the unique key error by adding tennant and event id into the ACM key.
+
+- Issue: [#8679](https://github.com/sequentech/meta/issues/8679)
