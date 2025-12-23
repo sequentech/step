@@ -78,3 +78,5 @@ It contains the value of some election metrics.
 ## 🐞 Tally > Ballot Image fails on second time: duplicate ACM key
 
 Fix the unique key error by adding tennant and event id into the ACM key.
+
+- Issue: [#8679](https://github.com/sequentech/meta/issues/8679)
