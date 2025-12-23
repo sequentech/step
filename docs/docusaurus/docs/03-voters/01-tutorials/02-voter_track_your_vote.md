@@ -64,7 +64,7 @@ As explained earlier in [step 1.1](#step-11-secure-your-ballot-id), after castin
 
 After logging in as a voter, you will see the Ballot List as depicted below:
 
-![Ballot List](./../assets/voter_ballot_list.png)
+![Ballot List](./../assets/voter_ballot_list_voted.png)
 
 Then follow the steps below:
 

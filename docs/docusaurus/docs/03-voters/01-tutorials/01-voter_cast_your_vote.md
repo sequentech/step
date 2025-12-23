@@ -4,87 +4,80 @@ title: Cast Your Vote
 ---
 
 <!--
-SPDX-FileCopyrightText: 2025 Sequent Tech <legal@sequentech.io>
+-- SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 SPDX-License-Identifier: AGPL-3.0-only
 -->
 
+To participate in the election, follow the steps below to authenticate, select your candidates, and securely cast your ballot.
+
+## Step 1: Login to the Voting Portal
+
 ![Voter Login Page](./../assets/voter_login.png)
-The image shows a login with a username and password, but your authentication method may be different.
 
-Refer to your specific login instructions for additional information.
+1. Enter your **login credentials** (username and password).
+2. Select **Login**.
 
-1. Enter your login credentials and select Login.
+:::info
+**Authentication Method:** The image above shows a standard login, but your specific authentication method may vary. Refer to your specific login instructions for additional information.
+:::
 
-<br></br>
-<br></br>
-<br></br>
+## Step 2: Select Your Ballot
 
-![Ballot List](./../assets/voter_ballot_list.png)
-Shows the list of ballots available to you.
+![Ballot List](./../assets/voter_ballot_list_not_voted.png)
 
+From the dashboard, you will see a list of ballots available to you. Note that multiple ballots may appear depending on your eligibility.
 
-2. Select Click to Vote in the ballot you wish to vote on, note that multiple ballots may appear depending on your eligibility.
- 
-<br></br>
-<br></br>
-<br></br>
+1. Locate the ballot you wish to vote on.
+2. Select the **Click to Vote** button.
+
+## Step 3: Review Instructions
 
 ![Voter Instructions](./../assets/voter_instructions.png)
-Gives simple instructions on how to vote and navigate the ballot.
 
+Before beginning, the system provides simple instructions on how to navigate the digital ballot.
 
-3. Review the instructions and select Start Voting
+1. Review the provided instructions.
+2. Select **Start Voting**.
 
-<br></br>
-<br></br>
-<br></br>
+## Step 4: Mark Your Ballot
 
 ![Ballot Marking](./../assets/voter_candidate_selection.png)
-This is where you choose your candidates and make selections.
 
+This screen is where you choose your candidates and make your selections.
 
-1. Select your preferred candidates
-2. Select Next to proceed to the Ballot Review screen or the next available ballot to mark
+1. Select your **preferred candidates**.
+2. Select **Next** to proceed to the Ballot Review screen or the next available contest.
 
-**Optional:**
-* Select Clear Selection to clear all selected candidates
-* Select Back to return to the ballot selection screen
+:::tip
+**Optional Actions:**
+* **Clear Selection:** Select this to remove all currently selected candidates.
+* **Back:** Select this to return to the ballot selection screen.
+:::
 
-<br></br>
-<br></br>
-<br></br>
+## Step 5: Review and Cast Your Vote
 
 ![Ballot Review](./../assets/voter_ballot_review.png)
-Shows all your selections so you can review them before submitting.
 
+This stage allows you to verify your choices before they are permanently recorded.
 
-1. Review your selections one last time before casting your vote
-2. Note your Ballot ID, used for Locating or Auditing your Ballot
-3. Cast your Ballot
+1. **Review your selections** one last time.
+2. **Note your Ballot ID:** This unique identifier is used for locating or auditing your ballot later.
+3. Select **Cast your Ballot**.
 
-**Optional:**
-* Go back to Edit your Ballot
-* Audit your Ballot, to ensure your selections were correctly encrypted. This will void the ballot (see the Auditing your Ballot section for more information).
+:::warning
+**Auditing your Ballot:** You may choose to "Audit your Ballot" to ensure selections were correctly encrypted. Please note that **auditing will void the ballot**. Refer to the "Auditing your Ballot" section for more details.
+:::
 
-<br></br>
-<br></br>
-<br></br>
+## Step 6: Confirmation and Receipt
 
 ![Voter Receipt](./../assets/voter_ballot_receipt.png)
-Confirms your vote was cast. Shows a unique Ballot ID to help you track it.
 
-* Select Finish to go back to Election selection screen
-* When scanned, the QR code takes the voter to the Ballot Locator to verify their ballot by ID.
-  
-**Optional:**
-* Print your vote receipt
+Once submitted, the confirmation screen verifies that your vote was successfully cast.
 
+1. **Ballot ID:** A unique ID is displayed to help you track your submission.
+2. **QR Code:** When scanned, the QR code takes you directly to the **Ballot Locator** to verify your ballot by ID.
+3. Select **Finish** to return to the main election selection screen.
 
-
-
-
-
-
-
-
-
+:::tip
+**Save Your Receipt:** You can select the **Print** button to download or print a physical copy of your vote receipt.
+:::
