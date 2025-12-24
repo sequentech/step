@@ -7,6 +7,25 @@ title: Release Notes next
 SPDX-License-Identifier: AGPL-3.0-only
 -->
 
+## 🐞 Admin Portal > Reports > Timezone shown is not showing timezone
+
+Add timezone information to dates in the List of Overseas Voters, OVCS Events,
+Activity Logs reports, and the ballot receipt.
+
+- Issue: [#6191](https://github.com/sequentech/meta/issues/6191)
+
+## ✨ Initial extension system support with WebAssembly Components
+
+Introduced extensible plugin architecture using WebAssembly Components and 
+Wasmtime, allowing custom extensions to integrate seamlessly with core services 
+like Windmill and Harvest.
+
+Added comprehensive plugin management including compilation to .wasm, S3 
+storage/upload, database integration, route registration, hook execution, and 
+manifest retrieval for secure and authorized plugin loading.
+
+- Issue: [#578](https://github.com/sequentech/meta/issues/578)
+
 ## ✨ Implement happy path for CLI
 - Modify step CLI to run an election event from start to finish.
   Key commands:
@@ -65,6 +84,73 @@ part.
 After the dependency updates, the Election Data form had stopped working.
 
 - Issue: [#9572](https://github.com/sequentech/meta/issues/9572)
+
+## ✨ Implement happy path for CLI
+
+- Modify step CLI to run an election event from start to finish.
+  Key commands:
+    - Import election event
+    - Create Publication (for both Election Event and Election)
+    - Start/Stop/Pause (both Election Event and Election)
+    - Create Keys Ceremony (including trustees part)
+    - Create Tally Ceremony (including trustees part)
+    - Download tally results 
+    - Export election event
+- Update the api-key-client to use the same mappers as the admin-portal client, 
+  and fix gold authentication for api-key-client by falling back to the iat claim
+  when auth_time is missing.
+
+- Issue: [#6680](https://github.com/sequentech/meta/issues/6680)
+
+## 🐞 Multi-Tenant login doesn't work
+
+A loop blocked the multi-tenant login.
+
+- Issue: [#9993](https://github.com/sequentech/meta/issues/9993)
+
+## ✨ ✨ Investigating costs increase in infra cluster (GHA)
+
+- Added ECR caching for docker artifacts
+- Added cargo caching for efficient test builds
+- Added 'sudo' to release-it installation
+
+- Issue: [#9293](https://github.com/sequentech/meta/issues/9293)
+
+## 🐞 Admin Portal > Can't send message to voters
+
+Going to the Admin Portal > Election Event > Voters > Send generated an
+unexpected error.
+
+- Issue: [#9721](https://github.com/sequentech/meta/issues/9721)
+
+## ✨ Reports > Add pagination to the electoral results report
+
+Added pagination to the electoral results reports in the footer.
+
+- Issue: [#9535](https://github.com/sequentech/meta/issues/9535)
+
+## 🐞 Keycloak's custom event listener is not working
+
+Electoral logs from keycloak, for example when a voter logs in/off, are not being
+recorded. This happened because after the dependency updates, the inetum
+authenticator keycloak extension was removed, but it contained the custom event
+listener. This fix adds it back, only the custom event listener, not the inetum
+part.
+
+- Issue: [#9574](https://github.com/sequentech/meta/issues/9574)
+
+## 🐞 Errors editing forms
+
+After the dependency updates, the Election Data form had stopped working.
+
+- Issue: [#9572](https://github.com/sequentech/meta/issues/9572)
+
+## 🐞 Tally > Contests are not in order when using multi-contest encoding
+
+Sort contest shows on tally results tabs based on the contest-order 
+ field in the election presentation.
+
+- Issue: [#8678](https://github.com/sequentech/meta/issues/8678)
 
 ## 🐞 Tally > "No Results" while loading the results
 

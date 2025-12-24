@@ -426,4 +426,5 @@ Prevent error when switching between elections on the "Data" tab by safely
  handling an undefined record.
 
 - Issue: [#8725](https://github.com/sequentech/meta/issues/8725)
+- Issue: [#8725](https://github.com/sequentech/meta/issues/8725)
 
