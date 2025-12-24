@@ -7,6 +7,12 @@ SPDX-FileCopyrightText: 2025 Sequent Tech <legal@sequentech.io>
 SPDX-License-Identifier: AGPL-3.0-only
 -->
 
+## 🐞 Admin Portal > Reports > Timezone shown is not showing timezone
+Add timezone information to dates in the List of Overseas Voters, OVCS Events,
+Activity Logs reports, and the ballot receipt.
+
+- Issue: [#6191](https://github.com/sequentech/meta/issues/6191)
+
 ## 🐞 Tally > Contests are not in order when using multi-contest encoding
 
 Sort contest shows on tally results tabs based on the contest-order 
@@ -78,3 +84,9 @@ Fixed an issue that prevented to search logs by username in the Admin portal.
 Fix to allow voting if grace period applies when the status is checked.
 
 - Issue: [#9091](https://github.com/sequentech/meta/issues/9091)
+
+## 🐞 New immudb column ballot_id is not backwards compatible
+
+Fix errors affecting election events that were created prior the addition of the ballot_id column.
+
+- Issue: [#9986](https://github.com/sequentech/meta/issues/9986)
