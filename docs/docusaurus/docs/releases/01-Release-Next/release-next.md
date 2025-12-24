@@ -123,7 +123,7 @@ Now tally view checks if it's an automatic ceremony based on only the keys cerem
 Fix to allow voting if grace period applies when the status is checked.
 
 - Issue: [#9091](https://github.com/sequentech/meta/issues/9091)
-- 
+
 ## 🐞 New immudb column ballot_id is not backwards compatible
 
 Fix errors affecting election events that were created prior the addition of the ballot_id column.
