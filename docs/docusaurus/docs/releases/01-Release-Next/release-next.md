@@ -102,6 +102,12 @@ Clear keys ceremony state when switching events.
 
 - Issue [#8675](https://github.com/sequentech/meta/issues/8675)
 
+## 🐞 Voting Portal > Grace Period not applied if no scheduled event
+
+Fix to allow voting if grace period applies when the status is checked.
+
+- Issue: [#9091](https://github.com/sequentech/meta/issues/9091)
+
 ## 🐞 New immudb column ballot_id is not backwards compatible
 
 Fix errors affecting election events that were created prior the addition of the ballot_id column.
