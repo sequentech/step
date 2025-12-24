@@ -101,3 +101,9 @@ Fixed an issue that prevented to search logs by username in the Admin portal.
 Clear keys ceremony state when switching events.
 
 - Issue [#8675](https://github.com/sequentech/meta/issues/8675)
+
+## 🐞 New immudb column ballot_id is not backwards compatible
+
+Fix errors affecting election events that were created prior the addition of the ballot_id column.
+
+- Issue: [#9986](https://github.com/sequentech/meta/issues/9986)
