@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2022 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, {useState, useEffect, PropsWithChildren} from "react"
+import React, {useState, useEffect, PropsWithChildren, useContext} from "react"
 import Typography from "@mui/material/Typography"
 import Paper, {PaperProps} from "@mui/material/Paper"
 import Box from "@mui/material/Box"
@@ -34,6 +34,7 @@ import {translate, ICandidate, IContest, EInvalidVotePolicy} from "@sequentech/u
 import {keyBy} from "lodash"
 import Image from "mui-image"
 import {checkIsInvalidVote, checkIsWriteIn, getImageUrl} from "../services/ElectionConfigService"
+import {GlobalSettings, SettingsContext} from "../providers/SettingsContextProvider"
 
 const StyledLink = styled(RouterLink)`
     margin: auto 0;
@@ -118,9 +119,15 @@ interface CandidateChoiceProps {
     ordered: boolean
     isWriteIn: boolean
     writeInValue: string | undefined
+    globalSettings: GlobalSettings
 }
 
-const CandidateChoice: React.FC<CandidateChoiceProps> = ({answer, isWriteIn, writeInValue}) => {
+const CandidateChoice: React.FC<CandidateChoiceProps> = ({
+    answer,
+    isWriteIn,
+    writeInValue,
+    globalSettings,
+}) => {
     const imageUrl = answer && getImageUrl(answer)
 
     return (
@@ -131,7 +138,9 @@ const CandidateChoice: React.FC<CandidateChoiceProps> = ({answer, isWriteIn, wri
             writeInValue={writeInValue}
             shouldDisable={false}
         >
-            {imageUrl ? <Image src={imageUrl} duration={100} /> : null}
+            {imageUrl ? (
+                <Image src={`${globalSettings.PUBLIC_BUCKET_URL}${imageUrl}`} duration={100} />
+            ) : null}
         </Candidate>
     )
 }
@@ -140,12 +149,14 @@ interface PlaintextVoteQuestionProps {
     questionPlaintext: IDecodedVoteContest
     question: IContest | null
     ballotService: IBallotService
+    globalSettings: GlobalSettings
 }
 
 const PlaintextVoteQuestion: React.FC<PlaintextVoteQuestionProps> = ({
     questionPlaintext,
     question,
     ballotService,
+    globalSettings,
 }) => {
     const {t, i18n} = useTranslation()
     const selectedAnswers = questionPlaintext.choices.filter((a) => a.selected > -1)
@@ -196,6 +207,7 @@ const PlaintextVoteQuestion: React.FC<PlaintextVoteQuestionProps> = ({
                         ordered={properties?.ordered || false}
                         isWriteIn={checkIsWriteIn(answersById[answer.id])}
                         writeInValue={answer.write_in_text}
+                        globalSettings={globalSettings}
                     />
                 ))}
             </CandidatesWrapper>
@@ -397,6 +409,7 @@ const VerifySelectionsSection: React.FC<VerifySelectionsSectionProps> = ({
     const [verifySelectionsHelp, setVerifySelectionsHelp] = useState(false)
     const plaintextVoteQuestions = confirmationBallot?.decoded_questions || []
     const questionsMap = keyBy(confirmationBallot?.election_config.contests || [], "id")
+    const {globalSettings} = useContext(SettingsContext)
 
     return (
         <>
@@ -457,6 +470,7 @@ const VerifySelectionsSection: React.FC<VerifySelectionsSectionProps> = ({
                             question={questionsMap[voteQuestion.contest_id] ?? null}
                             ballotService={ballotService}
                             key={voteQuestion.contest_id}
+                            globalSettings={globalSettings}
                         />
                     ))}
                 </>
