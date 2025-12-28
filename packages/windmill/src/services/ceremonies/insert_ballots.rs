@@ -59,7 +59,7 @@ pub enum BallotContent<C: Ctx> {
     Ciphertext(Ciphertext<C>),
 }
 
-// --- The Solution ---
+
 impl<C: Ctx> BallotContent<C> {
     /// Tries to convert the ballot into a plaintext.
     pub fn try_into_plaintext(self) -> Result<C::P> {
@@ -131,16 +131,7 @@ pub async fn insert_ballots_messages(
     let public_key_hash = if contest_encryption_policy != ContestEncryptionPolicy::PLAINTEXT {
         get_public_key_hash::<RistrettoCtx>(&board_messages)?
     } else {
-        // let found_config = board_messages
-        // .iter()
-        // .find(|message| StatementType::Configuration == message.statement.get_kind())
-        // .ok_or(anyhow!("Can't find configuration message"))?;
-        // let public_key_bytes = found_config
-        // .artifact
-        // .clone()
-        // .ok_or(anyhow!("Configuration message artifact missing"))?;
-        // let dkgpk = DkgPublicKey::<RistrettoCtx>::strand_deserialize(&public_key_bytes)?;
-        // let pk_bytes = dkgpk.strand_serialize()?;
+        // empty public key hash
         let pk_h = [0u8; 64];
         PublicKeyHash(strand::util::to_u8_array(&pk_h)?)
     };

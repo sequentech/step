@@ -125,19 +125,14 @@ pub fn get_tally_ceremony_status(input: Option<Value>) -> Result<TallyCeremonySt
         .flatten()
 }
 
-// ##################################################
-// ## FUNCTION MODIFIED (from previous step)
-// ##################################################
 #[instrument(skip(transaction), err)]
 pub async fn find_keys_ceremony(
     transaction: &Transaction<'_>,
     tenant_id: &str,
     election_event_id: &str,
     elections: &Vec<Election>,
-    contest_encryption_policy: &ContestEncryptionPolicy, // <-- ADDED PARAM
+    contest_encryption_policy: &ContestEncryptionPolicy,
 ) -> Result<Option<KeysCeremony>> {
-    // <-- CHANGED RETURN TYPE
-
     // If plaintext, it's valid to have no keys ceremony.
     if *contest_encryption_policy == ContestEncryptionPolicy::PLAINTEXT {
         return Ok(None);
@@ -176,7 +171,7 @@ pub async fn find_keys_ceremony(
         return Err(anyhow!("Invalid keys ceremony"));
     }
 
-    Ok(Some(keys_ceremony)) // <-- CHANGED RETURN
+    Ok(Some(keys_ceremony))
 }
 
 #[instrument]
@@ -698,7 +693,6 @@ pub async fn set_private_key(
         return Err(anyhow!("Unexpected status {}", current_status.to_string()));
     }
 
-    // --- LOGIC MODIFIED HERE ---
     // get the keys ceremonies for this election event
     // We must unwrap keys_ceremony_id, which is now Option<String>
     let Some(keys_ceremony_id_str) = &tally_session.keys_ceremony_id else {
@@ -714,7 +708,6 @@ pub async fn set_private_key(
         keys_ceremony_id_str, // Use the unwrapped &str
     )
     .await?;
-    // --- END OF MODIFIED LOGIC ---
 
     let tally_ceremony_status = get_tally_ceremony_status(tally_session_execution.status.clone())?;
 
@@ -747,7 +740,6 @@ pub async fn set_private_key(
         &keys_ceremony,
     )
     .await?;
-    // FFF tally fix
 
     if encrypted_private_key != private_key_base64 {
         return Ok(false);
