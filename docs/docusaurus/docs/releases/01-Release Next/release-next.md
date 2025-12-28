@@ -6,6 +6,13 @@ title: Release Notes next
 SPDX-FileCopyrightText: 2025 Sequent Tech <legal@sequentech.io>
 SPDX-License-Identifier: AGPL-3.0-only
 -->
+## 🐞 Voting Portal > Candidate images broken after export then import the event
+Fix export/import election event with s3 files include event public files.
+Add `PUBLIC_BUCKET_URL` to `global-settings.json` in ballot-verifier publuc folder
+ to support displaying images from the public bucket.
+
+- Issue: [#9087](https://github.com/sequentech/meta/issues/9087)
+
 ## 🐞 Tally > Export option can't be read correctly if title is too long
 
 Modify the tally export translations to show the format before the document name.
