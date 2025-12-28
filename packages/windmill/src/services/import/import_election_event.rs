@@ -468,7 +468,31 @@ pub async fn get_election_event_schema(
     tenant_id: String,
 ) -> Result<(ImportElectionEventSchema, HashMap<String, String>)> {
     let original_data: ImportElectionEventSchema = deserialize_str(data_str)?;
-    replace_ids(data_str, &original_data, id, tenant_id.clone())
+    let (schema, ids_map) = replace_ids(data_str, &original_data, id, tenant_id.clone())?;
+    let final_schema = default_contest_encryption_policy(schema)?;
+    Ok((final_schema, ids_map))
+}
+
+fn default_contest_encryption_policy(
+    mut schema: ImportElectionEventSchema,
+) -> Result<ImportElectionEventSchema> {
+    let mut final_schema = schema.clone();
+
+    let mut election_event_presentation = schema.election_event.presentation.clone().map_or_else(
+        || Ok(sequent_core::ballot::ElectionEventPresentation::default()),
+        |value| deserialize_value::<sequent_core::ballot::ElectionEventPresentation>(value),
+    )?;
+
+    election_event_presentation.contest_encryption_policy = Some(
+        election_event_presentation
+            .contest_encryption_policy
+            .clone()
+            .unwrap_or_default(),
+    );
+
+    final_schema.election_event.presentation =
+        Some(serde_json::to_value(election_event_presentation)?);
+    Ok(final_schema)
 }
 
 #[instrument(err, skip_all)]

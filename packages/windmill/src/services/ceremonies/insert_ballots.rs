@@ -59,7 +59,6 @@ pub enum BallotContent<C: Ctx> {
     Ciphertext(Ciphertext<C>),
 }
 
-
 impl<C: Ctx> BallotContent<C> {
     /// Tries to convert the ballot into a plaintext.
     pub fn try_into_plaintext(self) -> Result<C::P> {
