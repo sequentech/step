@@ -421,21 +421,34 @@ export const TallyCeremony: React.FC = () => {
                     !isConfirming // Prevent re-triggering if already in progress
                 ) {
                     setIsConfirming(true) // Use loading state
-                    UpdateTallyCeremonyMutation({
-                        variables: {
-                            election_event_id: record?.id,
-                            tally_session_id: tallySession.id,
-                            status: ITallyExecutionStatus.IN_PROGRESS,
-                        },
-                    })
-                        .catch((error) => {
-                            // Handle error if mutation fails
+
+                    // Use an async IIFE to await the mutation and ensure errors are handled
+                    void (async () => {
+                        try {
+                            const {data: nextStatus, errors} = await UpdateTallyCeremonyMutation({
+                                variables: {
+                                    election_event_id: record?.id,
+                                    tally_session_id: tallySession.id,
+                                    status: ITallyExecutionStatus.IN_PROGRESS,
+                                },
+                            })
+
+                            if (errors) {
+                                notify(t("tally.startTallyError"), {type: "error"})
+                                console.error("Auto-start tally failed", errors)
+                                return
+                            }
+
+                            // If successful, refetch to pick up updated status
+                            refetchTallySession()
+                        } catch (error) {
                             notify(t("tally.startTallyError"), {type: "error"})
                             console.error("Auto-start tally failed", error)
-                        })
-                        .finally(() => {
+                        } finally {
                             setIsConfirming(false) // Always reset loading state
-                        })
+                        }
+                    })()
+
                     return // Wait for mutation to cause refetch
                 }
 
