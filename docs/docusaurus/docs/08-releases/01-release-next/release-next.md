@@ -7,6 +7,13 @@ title: Release Notes next
 SPDX-License-Identifier: AGPL-3.0-only
 -->
 
+## 🐞 Voting Portal > Candidate images broken after export then import the event
+Fix export/import election event with s3 files include event public files.
+Add `PUBLIC_BUCKET_URL` to `global-settings.json` in ballot-verifier publuc folder
+ to support displaying images from the public bucket.
+
+- Issue: [#9087](https://github.com/sequentech/meta/issues/9087)
+
 ## ✨ Initial extension system support with WebAssembly Components
 
 Introduced extensible plugin architecture using WebAssembly Components and 
