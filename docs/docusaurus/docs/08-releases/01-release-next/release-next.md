@@ -14,6 +14,13 @@ Add `PUBLIC_BUCKET_URL` to `global-settings.json` in ballot-verifier publuc fold
 
 - Issue: [#9087](https://github.com/sequentech/meta/issues/9087)
 
+## 🐞 Admin Portal > Reports > Timezone shown is not showing timezone
+
+Add timezone information to dates in the List of Overseas Voters, OVCS Events,
+Activity Logs reports, and the ballot receipt.
+
+- Issue: [#6191](https://github.com/sequentech/meta/issues/6191)
+
 ## ✨ Initial extension system support with WebAssembly Components
 
 Introduced extensible plugin architecture using WebAssembly Components and 
@@ -86,6 +93,7 @@ After the dependency updates, the Election Data form had stopped working.
 - Issue: [#9572](https://github.com/sequentech/meta/issues/9572)
 
 ## ✨ Implement happy path for CLI
+
 - Modify step CLI to run an election event from start to finish.
   Key commands:
     - Import election event
@@ -232,3 +240,9 @@ Now tally view checks if it's an automatic ceremony based on only the keys cerem
 Documentation sidebar order has been restructured
 
 - Issue: [#8672](https://github.com/sequentech/meta/issues/8672)
+
+## 🐞 Voting Portal > Grace Period not applied if no scheduled event
+
+Fix to allow voting if grace period applies when the status is checked.
+
+- Issue: [#9091](https://github.com/sequentech/meta/issues/9091)
