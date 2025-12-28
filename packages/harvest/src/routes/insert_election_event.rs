@@ -133,6 +133,7 @@ pub async fn import_election_event_f(
         .name
         .clone()
         .unwrap_or_else(|| claims.hasura_claims.user_id.clone());
+    let executer_id = claims.hasura_claims.user_id.clone();
 
     authorize(&claims, true, Some(input.tenant_id.clone()), vec![])?;
 
@@ -291,6 +292,7 @@ pub async fn import_election_event_f(
             id.clone(),
             input.tenant_id.clone(),
             task_execution.clone(),
+            executer_id.clone(),
         ))
         .await
     {

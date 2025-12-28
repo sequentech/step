@@ -32,6 +32,7 @@ pub async fn import_election_event(
     election_event_id: String,
     tenant_id: String,
     task_execution: TasksExecution,
+    executer_id: String,
 ) -> Result<()> {
     let result = provide_hasura_transaction(|hasura_transaction| {
         let object = object.clone();
@@ -44,6 +45,7 @@ pub async fn import_election_event(
                 object,
                 election_event_id,
                 tenant_id,
+                executer_id,
             )
             .await
         })

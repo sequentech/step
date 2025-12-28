@@ -448,29 +448,26 @@ pub async fn process_export_zip(
 
     // Add Publications data file to the ZIP archive
     if export_config.publications {
-        let publications_filename = format!(
-            "{}-{}.json",
-            EDocuments::PUBLICATIONS.to_file_name(),
-            election_event_id
-        );
-
-        zip_writer
-            .start_file(&publications_filename, options)
-            .map_err(|e| anyhow!("Error starting ballot publications file in ZIP: {e:?}"))?;
-
-        let temp_path = export_ballot_publication::export_ballot_publications(
+        let publications_exports_files = export_ballot_publication::export_publications(
             &hasura_transaction,
-            document_id,
             tenant_id,
             election_event_id,
         )
         .await
-        .map_err(|err| anyhow!("Error exporting ballot publications: {err}"))?;
+        .map_err(|err| anyhow!("Error exporting ballot publications and ballot styles: {err}"))?;
 
-        let mut ballot_publication_file = File::open(temp_path)
-            .map_err(|e| anyhow!("Error opening temporary ballot publications file: {e:?}"))?;
-        std::io::copy(&mut ballot_publication_file, &mut zip_writer)
-            .map_err(|e| anyhow!("Error copying ballot publications file to ZIP: {e:?}"))?;
+        for (file_name, file_path) in publications_exports_files {
+            let file_name_in_zip = format!("{}.csv", file_name);
+
+            zip_writer
+                .start_file(&file_name_in_zip, options)
+                .map_err(|e| anyhow!("Error starting {file_name_in_zip} in ZIP: {e:?}"))?;
+
+            let mut file = File::open(&file_path)
+                .map_err(|e| anyhow!("Error opening {file_name} file: {e:?}"))?;
+            std::io::copy(&mut file, &mut zip_writer)
+                .map_err(|e| anyhow!("Error copying tally file to ZIP: {e:?}"))?;
+        }
     }
 
     // add protocol manager secrets
