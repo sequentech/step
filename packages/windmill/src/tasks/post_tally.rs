@@ -258,6 +258,7 @@ pub async fn post_tally_task_impl(
         "tally.tar.gz",
         Some(tar_document_id.to_string()),
         false,
+        false,
     )
     .await?;
 
@@ -323,6 +324,7 @@ pub async fn post_tally_task_impl(
         Some(election_event_id.to_string()),
         &file_name,
         Some(database_document_id.to_string()),
+        false,
         false,
     )
     .await?;
