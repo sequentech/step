@@ -3,10 +3,14 @@ id: voter_audit_ballot
 title: Audit your Vote
 ---
 
+import GoogleVideo from '@site/src/components/GoogleVideo';
+
 <!--
 -- SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 SPDX-License-Identifier: AGPL-3.0-only
 -->
+
+<GoogleVideo id="1lh_8MiMxbyFmLkrk-zYCJbYNHh5otryL" />
 
 The audit process allows you to verify that your ballot was correctly encrypted and that your selections match your intent. This process involves "spoiling" the ballot to prove its integrity, which is intended for users with technical confidence.
 

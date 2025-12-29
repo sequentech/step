@@ -10,7 +10,7 @@ import GoogleVideo from '@site/src/components/GoogleVideo';
 SPDX-License-Identifier: AGPL-3.0-onlyx
 -->
 
-<GoogleVideo id="1F7IVr_xcTzLdUQ3K7CkRtoObeVpakzuV" />
+<GoogleVideo id="1UawaEBS2MWuXBRAHd1gceEXvn1p19mM_" />
 
 It is possible to verify that your ballot has been correctly submitted.
 In the Voting Portal's landing page `/election-chooser` click on the button 

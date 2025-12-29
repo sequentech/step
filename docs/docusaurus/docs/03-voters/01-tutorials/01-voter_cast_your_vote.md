@@ -3,10 +3,15 @@ id: cast_your_vote
 title: Cast Your Vote
 ---
 
+import GoogleVideo from '@site/src/components/GoogleVideo';
+
 <!--
 -- SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 SPDX-License-Identifier: AGPL-3.0-only
 -->
+
+<GoogleVideo id="1nLAuC8ho_0QLeX2iuPdGdjb-vpdUvQqm" />
+
 
 To participate in the election, follow the steps below to authenticate, select your candidates, and securely cast your ballot.
 
