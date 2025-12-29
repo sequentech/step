@@ -3,10 +3,14 @@ id: voter_track_your_vote
 title: Track your Vote
 ---
 
+import GoogleVideo from '@site/src/components/GoogleVideo';
+
 <!--
 -- SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 SPDX-License-Identifier: AGPL-3.0-only
 -->
+
+<GoogleVideo id="1F7IVr_xcTzLdUQ3K7CkRtoObeVpakzuV" />
 
 It is possible to verify that your ballot has been correctly submitted.
 In the Voting Portal's landing page `/election-chooser` click on the button 
@@ -16,7 +20,7 @@ Once you have finished voting, you can verify that your ballot was successfully 
 
 ## Option 1: Access from the Confirmation Screen
 
-### **Step 1.1: Secure Your Ballot ID**
+### Step 1.1: Secure Your Ballot ID
 
 After casting your vote, you will reach the Confirmation Screen:
 
@@ -34,7 +38,7 @@ From this screen, you can directly access the Ballot Locator prefilled to lookup
 **Alternative:** You can also click in the `Print` button and the same options will be available but originating from the PDF you downloaded instead.
 :::
 
-### **Step 1.2: Access the Ballot Locator**
+### Step 1.2: Access the Ballot Locator
 
 Once you performed one of the three posible options to access the Ballot Locator explained in the Step before, you will see the following screen:
 
@@ -60,7 +64,7 @@ As explained earlier in [step 1.1](#step-11-secure-your-ballot-id), after castin
 **Prerequisites:** The steps below assume you have already logged in as a voter.
 :::
 
-### **Step 2.1 : Access the Ballot Locator**
+### Step 2.1 : Access the Ballot Locator
 
 After logging in as a voter, you will see the Ballot List as depicted below:
 
@@ -74,7 +78,7 @@ Then follow the steps below:
 
 3. Click the white `Locate your Ballot` button.
 
-### **Step 2.2: Search for Your Ballot**
+### Step 2.2: Search for Your Ballot
 
 ![Ballot List](./../assets/voter_ballot_locator.png)
 Once you are on the Ballot Locator page:
@@ -85,7 +89,7 @@ Once you are on the Ballot Locator page:
 
 3. Submit: Click the button to search the records.
 
-### **Step 2.3: Review the Results**
+### Step 2.3: Review the Results
 
 ![Ballot List](./../assets/voter_ballot_located.png)
 If the ballot is found, at the top of the screen you will see a green confirmation message stating:
