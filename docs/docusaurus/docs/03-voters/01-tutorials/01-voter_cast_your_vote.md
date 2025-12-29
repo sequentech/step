@@ -50,8 +50,8 @@ This screen is where you choose your candidates and make your selections.
 
 :::tip
 **Optional Actions:**
-* `Clear Selection:` Select this to remove all currently selected candidates.
-* `Back:` Select this to return to the ballot selection screen.
+* `Clear Selection` Select this to remove all currently selected candidates.
+* `Back` Select this to return to the ballot selection screen.
 :::
 
 ## Step 5: Review and Cast Your Vote
