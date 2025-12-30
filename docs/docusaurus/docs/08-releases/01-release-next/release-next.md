@@ -7,14 +7,12 @@ title: Release Notes next
 SPDX-License-Identifier: AGPL-3.0-only
 -->
 
-<<<<<<< HEAD
 ## ✨ feat/meta-9293-add-cargo-cache/main
 
 Added cargo caching for efficient test builds
 
 - Issue: [#9293](https://github.com/sequentech/meta/issues/9293)
 
-=======
 ## ✨ ✨ Investigating costs increase in infra cluster (GHA)
 
 - Added ECR caching for docker artifacts
@@ -30,7 +28,6 @@ unexpected error.
 
 - Issue: [#9721](https://github.com/sequentech/meta/issues/9721)
 
->>>>>>> 12d26e9e0a (✨ step-GHA-use-ecr-cache (#2213))
 ## ✨ Reports > Add pagination to the electoral results report
 
 Added pagination to the electoral results reports in the footer.
