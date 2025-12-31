@@ -1,0 +1,108 @@
+# SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+name: Automated Release Process
+run-name: 'Automated Release Process'
+on:
+  release:
+    types:
+      - published
+
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  # Build & Push the images
+
+  build-and-push:
+    uses: ./.github/workflows/reusable_build_push.yml
+    secrets: inherit
+    with:
+      tag: ${{ github.event.release.tag_name }}
+      push: true
+
+  # build-and-push-root-account:
+  #   if: ${{ github.event.inputs.infra_only == 'false' }}
+  #   uses: ./.github/workflows/reusable_build_push_root.yml
+  #   needs: release
+  #   secrets: inherit
+  #   with:
+  #     tag: ${{ needs.release.outputs.VERSION }}
+  #     push: true
+
+  trigger-beyond-release:
+    needs: [build-and-push]
+    if: ${{ always() && needs.build-and-push.result == 'success' }}
+    runs-on: gcp-selfhosted-ubuntu24 #gcp
+    steps:
+    - name: Trigger Beyond Release Workflow
+      uses: the-actions-org/workflow-dispatch@v4 # https://github.com/the-actions-org/workflow-dispatch
+      with:
+        repo: 'sequentech/beyond'
+        ref: ${{ github.event.release.target_commitish }}
+        workflow: 'Automated Release Process'
+        token: ${{ secrets.PAT }}
+        inputs: '{}'
+        wait-for-completion: true
+
+  trigger-deployer:
+    needs: [build-and-push, trigger-beyond-release]
+    if: ${{ always() && needs.build-and-push.result == 'success' }}
+    runs-on: gcp-selfhosted-ubuntu24 #gcp
+    steps:
+    - name: Trigger Deployer Workflow
+      uses: the-actions-org/workflow-dispatch@v4 # https://github.com/the-actions-org/workflow-dispatch
+      with:
+        repo: sequentech/gitops
+        ref: main # always use main for now
+        workflow: Deployer Workflow
+        token: ${{ secrets.PAT }}
+        inputs: '{"version":"${{ github.event.release.tag_name }}", "hash":"${{ github.event.release.target_commitish }}", "infra_only":"false" }'
+
+  cleanup:
+    if: failure()
+    # Here define the depenency jobs
+    needs: [build-and-push]
+    runs-on: gcp-selfhosted-ubuntu24 #gcp
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Fetches all history for all tags and branches
+
+      - name: Delete Release
+        run: |
+          echo "Version received in cleanup job: ${{ github.event.release.tag_name }}"
+          gh release delete '${{ github.event.release.tag_name }}' -y --cleanup-tag  || echo "Failed to delete release"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  slack-report:
+    needs: [build-and-push, trigger-deployer, cleanup]
+    runs-on: gcp-selfhosted-ubuntu24 #gcp
+    timeout-minutes: 20
+    if: always()
+    steps:
+      - name: Slack Workflow Notification
+        uses: Gamesight/slack-workflow-status@v1.2.0
+        with:
+          # Required Input
+          repo_token: ${{secrets.GITHUB_TOKEN}}
+          slack_webhook_url: ${{secrets.SLACK_WEBHOOK_URL}}
+          # Optional Input
+          name: 'Github Actions'
+
+      - name: Slack additional info
+        # Don't send slack notification if cleanup job deleted the release
+        if: ${{ needs.cleanup.result != 'success' }}
+        uses: slackapi/slack-github-action@v1.24.0
+        with:
+          payload: |
+            {
+              "text": "*Sequent Release Notification* :rocket:\n*Version:* ${{ github.event.release.tag_name }}\n*View Release:* <https://github.com/${{ github.repository }}/releases/tag/${{ github.event.release.tag_name }}|${{ github.event.release.tag_name }}>"
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
