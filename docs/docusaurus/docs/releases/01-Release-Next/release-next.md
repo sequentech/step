@@ -7,6 +7,19 @@ title: Release Notes next
 SPDX-License-Identifier: AGPL-3.0-only
 -->
 
+## ✨ feat/meta-9293-add-cargo-cache/main
+
+Added cargo caching for efficient test builds
+
+- Issue: [#9293](https://github.com/sequentech/meta/issues/9293)
+
+## ✨ ✨ Investigating costs increase in infra cluster (GHA)
+
+- Added ECR caching for docker artifacts
+- Added cargo caching for efficient test builds
+- Added 'sudo' to release-it installation
+
+- Issue: [#9293](https://github.com/sequentech/meta/issues/9293)
 ## 🐞 Admin Portal > Reports > Timezone shown is not showing timezone
 Add timezone information to dates in the List of Overseas Voters, OVCS Events,
 Activity Logs reports, and the ballot receipt.
