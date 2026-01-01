@@ -20,15 +20,26 @@ Added cargo caching for efficient test builds
 - Added 'sudo' to release-it installation
 
 - Issue: [#9293](https://github.com/sequentech/meta/issues/9293)
+## 🐞 Admin Portal > Reports > Timezone shown is not showing timezone
+Add timezone information to dates in the List of Overseas Voters, OVCS Events,
+Activity Logs reports, and the ballot receipt.
+
+- Issue: [#6191](https://github.com/sequentech/meta/issues/6191)
+
+## 🐞 Tally > Contests are not in order when using multi-contest encoding
+
+Sort contest shows on tally results tabs based on the contest-order 
+ field in the election presentation.
+
+- Issue: [#8678](https://github.com/sequentech/meta/issues/8678)
+
+## 🐞 Multi-Tenant login doesn't work
+
+A loop blocked the multi-tenant login.
+
+- Issue: [#9993](https://github.com/sequentech/meta/issues/9993)
 
 ## 🐞 Admin Portal > Can't send message to voters
-
-Going to the Admin Portal > Election Event > Voters > Send generated an
-unexpected error.
-
-- Issue: [#9721](https://github.com/sequentech/meta/issues/9721)
-
-## ✨ Reports > Add pagination to the electoral results report
 
 Going to the Admin Portal > Election Event > Voters > Send generated an
 unexpected error.
@@ -103,3 +114,15 @@ Fixed an issue that prevented to search logs by username in the Admin portal.
 Clear keys ceremony state when switching events.
 
 - Issue [#8675](https://github.com/sequentech/meta/issues/8675)
+
+## 🐞 Voting Portal > Grace Period not applied if no scheduled event
+
+Fix to allow voting if grace period applies when the status is checked.
+
+- Issue: [#9091](https://github.com/sequentech/meta/issues/9091)
+
+## 🐞 New immudb column ballot_id is not backwards compatible
+
+Fix errors affecting election events that were created prior the addition of the ballot_id column.
+
+- Issue: [#9986](https://github.com/sequentech/meta/issues/9986)
