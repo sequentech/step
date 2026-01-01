@@ -263,6 +263,7 @@ async fn generate_template_document(
         &otuput_doc_name,
         Some(document_id.to_string()),
         false,
+        false,
     )
     .await?;
 
