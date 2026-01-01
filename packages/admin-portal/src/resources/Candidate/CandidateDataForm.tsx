@@ -60,6 +60,7 @@ import {styled} from "@mui/material/styles"
 import {DropFile, Icon, adminTheme} from "@sequentech/ui-essentials"
 import {AuthContext} from "@/providers/AuthContextProvider"
 import {IPermissions} from "@/types/keycloak"
+import {useGetEventDocumentUrl} from "@/hooks/useGetEventDocumentUrl"
 
 const StyledIconButton = styled(IconButton)`
     color: ${adminTheme.palette.brandColor};
@@ -84,6 +85,7 @@ export const CandidateDataForm: React.FC<{
     const refresh = useRefresh()
     const {globalSettings} = useContext(SettingsContext)
     const [enabledDeleteImage, setEnabledDeleteImage] = useState<boolean>(true)
+    const getImageUrl = useGetEventDocumentUrl()
 
     const [value, setValue] = useState(0)
     const [expanded, setExpanded] = useState("candidate-data-general")
@@ -133,12 +135,6 @@ export const CandidateDataForm: React.FC<{
             }
         }
     }, [electionEvent?.presentation?.language_conf, election?.presentation?.language_conf])
-
-    const getImageUrl = (
-        tenantId?: string,
-        imageDocumentId?: string | null,
-        name?: string | null
-    ) => `tenant-${tenantId}/document-${imageDocumentId}/${name}`
 
     const [updateImage] = useUpdate<Sequent_Backend_Candidate>()
 
@@ -230,7 +226,12 @@ export const CandidateDataForm: React.FC<{
         imageDocumentId?: string,
         name?: string
     ) => {
-        let imgUrlBase = getImageUrl(newCandidate?.tenant_id, imageDocumentId, name)
+        let imgUrlBase = getImageUrl(
+            newCandidate?.tenant_id,
+            imageDocumentId,
+            name,
+            newCandidate?.election_event_id
+        )
         let imgUrl: ICandidateUrl = {
             url: imgUrlBase,
             is_image: true,
@@ -269,11 +270,10 @@ export const CandidateDataForm: React.FC<{
                     name: name,
                     media_type: theFile.type,
                     size: theFile.size,
+                    election_event_id: record?.election_event_id,
                 },
             })
             if (data?.get_upload_url?.document_id) {
-                console.log("upload :>> ", data)
-
                 try {
                     await fetch(data.get_upload_url.url, {
                         method: "PUT",
@@ -378,7 +378,8 @@ export const CandidateDataForm: React.FC<{
                 const imageUrl = getImageUrl(
                     parsedValue?.tenant_id,
                     parsedValue?.image_document_id,
-                    imageData?.name
+                    imageData?.name,
+                    parsedValue?.election_event_id
                 )
                 return (
                     <SimpleForm
