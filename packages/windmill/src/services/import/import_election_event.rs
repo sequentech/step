@@ -22,6 +22,7 @@ use chrono::format;
 use chrono::{DateTime, Utc};
 use deadpool_postgres::{Client as DbClient, Transaction};
 use futures::future::try_join_all;
+use once_cell::sync::Lazy;
 use sequent_core::ballot::AllowTallyStatus;
 use sequent_core::ballot::ElectionEventStatistics;
 use sequent_core::ballot::ElectionEventStatus;
@@ -835,6 +836,26 @@ async fn extract_document_name(filename: &str) -> Result<Option<&str>> {
     Ok(name)
 }
 
+static UUID_RE: Lazy<Regex> = Lazy::new(|| {
+    Regex::new(r"(?i)\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b").unwrap()
+});
+
+pub fn replace_ids_in_filename(
+    file_name: &str,
+    replacement_map: &HashMap<String, String>,
+) -> String {
+    UUID_RE
+        .replace_all(file_name, |caps: &regex::Captures| {
+            let id = caps.get(0).unwrap().as_str();
+            replacement_map
+                .get(id)
+                .map(String::as_str)
+                .unwrap_or(id)
+                .to_owned()
+        })
+        .into_owned()
+}
+
 #[instrument(err, skip(hasura_transaction, temp_file_path, replacement_map))]
 pub async fn process_s3_files(
     hasura_transaction: &Transaction<'_>,
@@ -872,6 +893,7 @@ pub async fn process_s3_files(
         .map_err(|e| anyhow!("Error extracting document name from filename: {e}"))?
         .ok_or_else(|| anyhow!("Error getting document name as str"))?;
 
+    let new_file_name = replace_ids_in_filename(&file_name, &replacement_map);
     // Upload the file and return the document
     let _document = upload_and_return_document(
         hasura_transaction,
@@ -880,7 +902,7 @@ pub async fn process_s3_files(
         &document_type,
         &tenant_id,
         Some(election_event_id.to_string()),
-        file_name,
+        &new_file_name,
         Some(new_document_id.to_string()),
         is_public.clone(),
         is_public, //is_public_event_file
