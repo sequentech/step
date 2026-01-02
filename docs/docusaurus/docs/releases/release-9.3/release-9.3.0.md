@@ -1,12 +1,12 @@
 ---
-id: release-9.3.0-rc.28
-title: Release 9.3.0-rc.28
+id: release-9.3.0
+title: Release 9.3.0
 ---
 <!--
 SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 SPDX-License-Identifier: AGPL-3.0-only
 -->
-# Release 9.3.0-rc.28
+# Release 9.3.0
 
 ## 🔄 Migrations
 
