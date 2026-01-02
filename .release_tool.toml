@@ -728,14 +728,14 @@ alias = "other"
 #
 # Default: Docusaurus template with frontmatter and default release notes
 output_template = '''---
-id: release-{{version}}
-title: {{title}}
+id: release-{{major}}.{{minor}}.{{patch}}
+title: Release {{major}}.{{minor}}.{{patch}}
 ---
 <!--
 SPDX-FileCopyrightText: {{year}} Sequent Tech Inc <legal@sequentech.io>
 SPDX-License-Identifier: AGPL-3.0-only
 -->
-# Release {{version}}
+# Release {{major}}.{{minor}}.{{patch}}
 
 {{ render_release_notes() }}'''
 
@@ -812,7 +812,7 @@ release_version_policy = "final-only"
 
 [[output.pr_code.templates]]
 output_template = '''
-title: {{title}}
+label: {{major}}.{{minor}}.{{patch}}
 position: -{{major}}.{{minor}}'''
 output_path = "docs/docusaurus/docs/releases/release-{{major}}.{{minor}}/_category_.yml"
 release_version_policy = "final-only"
