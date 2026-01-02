@@ -74,8 +74,9 @@ jobs:
 
       - name: Run Release Bot
         uses: sequentech/release-bot@main
+        env:
+          GITHUB_TOKEN: ${{ secrets.RELEASE_BOT_TOKEN }}
         with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
           version: ${{ inputs.version }}
           new_version_type: ${{ inputs.new_version_type }}
           from_version: ${{ inputs.from_version }}
