@@ -28,14 +28,12 @@ issue_repos = ["sequentech/meta"]
 # GitHub API Configuration
 # =============================================================================
 [github]
-# token: GitHub Personal Access Token for API authentication
-# RECOMMENDED: Use GITHUB_TOKEN environment variable instead of storing here
+# GITHUB_TOKEN environment variable is REQUIRED for API authentication
 # The token needs the following permissions:
 #   - repo (for accessing repositories, PRs, issues)
 #   - write:packages (if creating releases)
 # How to create: https://github.com/settings/tokens
-# Default: reads from GITHUB_TOKEN environment variable
-# token = "ghp_..."
+# Set it as an environment variable: export GITHUB_TOKEN="ghp_..."
 
 # api_url: GitHub API base URL
 # Change this only if using GitHub Enterprise Server
