@@ -22,7 +22,7 @@ code_repo = "sequentech/step"
 # If empty, uses code_repo for issues as well
 # This is useful when issues are tracked in different repos than the code
 # Default: [] (uses code_repo)
-issue_repos = []
+issue_repos = ["sequentech/meta"]
 
 # =============================================================================
 # GitHub API Configuration
