@@ -17,6 +17,7 @@ pub mod keycloak_realm;
 pub mod keys_ceremony;
 pub mod lock;
 pub mod maintenance;
+pub mod preview;
 pub mod render_report;
 pub mod reports;
 pub mod results_area_contest;
