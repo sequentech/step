@@ -1,3 +1,35 @@
 table:
     name: preview
     schema: sequent_backend
+insert_permissions:
+    - comment: ""
+      permission:
+          check:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+          columns:
+              - annotations
+              - requested_by
+              - url
+              - created_at
+              - updated_at
+              - document_id
+              - id
+              - tenant_id
+      role: generate-preview
+select_permissions:
+    - comment: ""
+      permission:
+          columns:
+              - annotations
+              - requested_by
+              - url
+              - created_at
+              - updated_at
+              - document_id
+              - id
+              - tenant_id
+          filter:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+      role: generate-preview

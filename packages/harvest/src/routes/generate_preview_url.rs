@@ -40,7 +40,7 @@ pub async fn generate_preview_url(
         &claims,
         true,
         Some(claims.hasura_claims.tenant_id.clone()),
-        vec![],
+        vec![Permissions::GENERATE_PREVIEW],
     )?;
 
     let executer_name = claims
@@ -81,11 +81,7 @@ pub async fn generate_preview_url(
         })?;
 
     hasura_transaction.commit().await.map_err(|e| {
-        ErrorResponse::new(
-            Status::InternalServerError,
-            &format!("Commit failed: {e:?}"),
-            ErrorCode::InternalServerError,
-        )
+        (Status::InternalServerError, format!("Commit failed: {e}"))
     })?;
 
     Ok(Json(GeneratePreviewUrlOutput { preview_url }))

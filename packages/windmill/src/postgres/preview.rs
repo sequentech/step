@@ -34,7 +34,7 @@ pub async fn insert_preview(
     document_id: &str,
     url: String,
     requested_by: &str,
-) -> Result<Preview> {
+) -> Result<()> {
     let document_uuid =
         Uuid::parse_str(document_id).with_context(|| "Error parsing tenant_id as UUID")?;
 
@@ -65,6 +65,7 @@ pub async fn insert_preview(
             "#,
         )
         .await?;
+
     let rows: Vec<Row> = hasura_transaction
         .query(
             &statement,
@@ -73,17 +74,5 @@ pub async fn insert_preview(
         .await
         .map_err(|err| anyhow!("Error inserting preview: {}", err))?;
 
-    let items: Vec<Preview> = rows
-        .into_iter()
-        .map(|row| -> Result<Preview> {
-            row.try_into()
-                .map(|res: PreviewWrapper| -> Preview { res.0 })
-        })
-        .collect::<Result<Vec<Preview>>>()
-        .with_context(|| "Error converting rows into preview")?;
-
-    items
-        .get(0)
-        .map(|val| val.clone())
-        .ok_or(anyhow!("Row not inserted"))
+    Ok(())
 }
