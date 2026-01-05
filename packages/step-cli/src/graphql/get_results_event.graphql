@@ -1,0 +1,11 @@
+query GetResultsEvent($resultsEventId: uuid!) {
+  sequent_backend_results_event(
+    where: {
+      id: {_eq: $resultsEventId}
+    }
+  ) {
+    id
+    name
+    documents
+  }
+} 

@@ -22,7 +22,7 @@ pub struct UpdateTallyStatus {
     tally_id: String,
 
     /// Status - the desired status
-    #[arg(long)]
+    #[arg(long, default_value = "IN_PROGRESS")]
     status: String,
 }
 
