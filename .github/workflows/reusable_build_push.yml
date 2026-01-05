@@ -116,8 +116,8 @@ jobs:
         tags: |
           ${{ vars.AWS_ECR_REGISTRY_GLOBALDOT }}/${{ matrix.service }}:${{ env.SHORT_SHA }}
           ${{ vars.AWS_ECR_REGISTRY_GLOBALDOT }}/${{ matrix.service }}:${{ inputs.tag || github.run_number }}
-        cache-from: type=gha,scope=${{ matrix.service }}
-        cache-to: type=gha,mode=max,scope=${{ matrix.service }}
+        cache-from: type=registry,ref=${{ vars.AWS_ECR_REGISTRY_GLOBALDOT }}/${{ matrix.service }}:buildcache
+        cache-to: type=registry,ref=${{ vars.AWS_ECR_REGISTRY_GLOBALDOT }}/${{ matrix.service }}:buildcache,mode=max
         build-args: |
           SPA_NAME=${{ matrix.spa_name }}
           FEATURES=${{ matrix.features }}

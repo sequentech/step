@@ -5,6 +5,7 @@
 
 use anyhow::{anyhow, Error};
 use core::result::Result;
+#[cfg(feature = "default_features")]
 use sequent_core::services::pdf::PdfRenderer;
 use std::env;
 use tokio::runtime::Runtime;
