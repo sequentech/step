@@ -90,9 +90,3 @@ Fix to allow voting if grace period applies when the status is checked.
 Fix errors affecting election events that were created prior the addition of the ballot_id column.
 
 - Issue: [#9986](https://github.com/sequentech/meta/issues/9986)
-
-## 🐞 Tally Multi Contest area votes not included in tally if area does not have the first contest assigned
-
-Fixed an issue that prevented ballots to be tallied if an area did not have the first contest assigned.
-
-- Issue: [#9994](https://github.com/sequentech/meta/issues/9994)
