@@ -34,7 +34,7 @@ jobs:
           # Branch where CLA signatures will be stored
           branch: 'cla-signatures'
           # Allowlist for bots and automated accounts
-          allowlist: 'dependabot*,edulix,Findeton,xalsina-sequent,yuvalkom-M,BelSequent,ereslibre,oded-eid-sequentech'
+          allowlist: 'dependabot*,sequentech-bot,edulix,Findeton,xalsina-sequent,yuvalkom-M,BelSequent,ereslibre,oded-eid-sequentech'
           
           # Customize the CLA message
           remote-organization-name: 'sequentech'
