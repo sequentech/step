@@ -7,6 +7,19 @@ SPDX-FileCopyrightText: 2025 Sequent Tech <legal@sequentech.io>
 SPDX-License-Identifier: AGPL-3.0-only
 -->
 
+## 🐞 Admin Portal > Reports > Timezone shown is not showing timezone
+Add timezone information to dates in the List of Overseas Voters, OVCS Events,
+Activity Logs reports, and the ballot receipt.
+
+- Issue: [#6191](https://github.com/sequentech/meta/issues/6191)
+
+## 🐞 Tally > Contests are not in order when using multi-contest encoding
+
+Sort contest shows on tally results tabs based on the contest-order 
+ field in the election presentation.
+
+- Issue: [#8678](https://github.com/sequentech/meta/issues/8678)
+
 ## 🐞 Tally > Export option can't be read correctly if title is too long
 
 Modify the tally export translations to show the format before the document name.
@@ -67,6 +80,12 @@ tally result files in `velvet-generate-reports`.
 It contains the value of some election metrics.
 
 - Issue: [#8573](https://github.com/sequentech/meta/issues/8573)
+
+## 🐞 Voting Portal > Grace Period not applied if no scheduled event
+
+Fix to allow voting if grace period applies when the status is checked.
+
+- Issue: [#9091](https://github.com/sequentech/meta/issues/9091)
 
 ## 🐞 Tally Multi Contest area votes not included in tally if area does not have the first contest assigned
 
