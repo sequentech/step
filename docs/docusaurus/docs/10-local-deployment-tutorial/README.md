@@ -17,18 +17,19 @@ This tutorial will guide you through setting up a Sequent Step development envir
 
 ## 1. Server Preparation
 
-First, you need to prepare your server by installing git, Docker, and Docker Compose, and then clone the `step` repository.
+First, you need to prepare your server by installing git, Docker, and Docker Compose, and then clone the `step` repository (currently with default branch - 'main').
 
 1.  SSH into your remote server.
 
 2.  Download and run the `prepare-server.sh` script:
 
     ```bash
-    curl -fsSL https://raw.githubusercontent.com/sequentech/step/main/.devcontainer/remote-deployment/prepare-server.sh -o prepare-server.sh
+    curl -fsSL https://raw.githubusercontent.com/sequentech/step/feat/meta-9292-create-deployment-tutorial-for-local-sequen-setup/main/.devcontainer/remote-deployment/prepare-server.sh -o prepare-server.sh
     chmod +x prepare-server.sh
     ./prepare-server.sh
     ```
-
+    **note:** The link is currently to a feature branch. Need to chang it back to release name or use default main.
+                We also need to change the prepare-server.sh to clone a specific release of step repo, with param
 3.  Log out and log back in to apply the Docker group membership changes. The `step` repository is now cloned at `/home/your-user/step`.
 
 ## 2. Environment Configuration
@@ -50,7 +51,7 @@ The configuration script generates all necessary files from templates, including
     *   Generate `.env` from `.env.remote-test.example`
     *   Generate `nginx/default.conf` from `nginx/default.conf.template`
     *   Generate random secrets (MASTER_SECRET, Keycloak client secrets)
-    *   Configure all service URLs:
+    *   Auto configure all service URLs (in the .env config file):
         *   `login-remote-test.sequent.vote` (Keycloak)
         *   `admin-remote-test.sequent.vote` (Admin Portal)
         *   `voting-remote-test.sequent.vote` (Voting Portal)
@@ -119,12 +120,12 @@ Finally, you can start the Docker Compose stack with the Nginx reverse proxy.
 
     **First time deployment:**
     ```bash
-    docker-compose -f docker-compose-remote.yml up -d --build
+    docker compose -f docker-compose-remote.yml up -d --build
     ```
 
     **Subsequent restarts (if images already built):**
     ```bash
-    docker-compose -f docker-compose-remote.yml up -d
+    docker compose -f docker-compose-remote.yml up -d
     ```
 
     **Notes:**
@@ -136,7 +137,7 @@ Finally, you can start the Docker Compose stack with the Nginx reverse proxy.
 3.  Monitor the startup process:
 
     ```bash
-    docker-compose -f docker-compose-remote.yml logs -f
+    docker compose -f docker-compose-remote.yml logs -f <application/container name | leave empty> 
     ```
 
     Press `Ctrl+C` to stop following the logs.
@@ -144,7 +145,7 @@ Finally, you can start the Docker Compose stack with the Nginx reverse proxy.
 4.  Check service status:
 
     ```bash
-    docker-compose -f docker-compose-remote.yml ps
+    docker compose -f docker-compose-remote.yml ps
     ```
 
 5.  Upload required files to MinIO:
@@ -195,7 +196,7 @@ nslookup admin-remote-test.sequent.vote
 docker logs <container-name>
 
 # View logs for all services
-docker-compose -f ~/step/.devcontainer/docker-compose-remote.yml logs
+docker compose -f ~/step/.devcontainer/docker-compose-remote.yml logs
 ```
 
 ### Check Resource Usage
@@ -212,14 +213,14 @@ htop
 
 ```bash
 cd ~/step/.devcontainer
-docker-compose -f docker-compose-remote.yml restart
+docker compose -f docker-compose-remote.yml restart
 ```
 
 ### Stop All Services
 
 ```bash
 cd ~/step/.devcontainer
-docker-compose -f docker-compose-remote.yml down
+docker compose -f docker-compose-remote.yml down
 ```
 
 ### Clean Up Docker System (if experiencing image corruption)
@@ -235,7 +236,7 @@ docker rm -f <container-id-or-name>
 
 # Recreate the container
 cd ~/step/.devcontainer
-docker-compose -f docker-compose-remote.yml up -d
+docker compose -f docker-compose-remote.yml up -d
 ```
 
 **If the above doesn't work, try a full cleanup:**
@@ -243,26 +244,26 @@ docker-compose -f docker-compose-remote.yml up -d
 ```bash
 # Stop and remove all containers
 cd ~/step/.devcontainer
-docker-compose -f docker-compose-remote.yml down
+docker compose -f docker-compose-remote.yml down
 
 # Build all missing images (uses cache for existing layers)
-docker-compose -f docker-compose-remote.yml build
+docker compose -f docker-compose-remote.yml build
 
 # Start everything
-docker-compose -f docker-compose-remote.yml up -d
+docker compose -f docker-compose-remote.yml up -d
 ```
 
 **Alternative: Full cleanup if needed**
 ```bash
 # Stop all services
 cd ~/step/.devcontainer
-docker-compose -f docker-compose-remote.yml down
+docker compose -f docker-compose-remote.yml down
 
 # Clean up dangling images and build cache (keeps built images)
 docker system prune -f
 
 # Rebuild and start
-docker-compose -f docker-compose-remote.yml up -d --build
+docker compose -f docker-compose-remote.yml up -d --build
 ```
 
 **Note:** Use `docker system prune -f` (without `-a`) to keep your built images. Only use `docker system prune -a -f` if you need to free maximum space and don't mind rebuilding everything.
@@ -275,10 +276,10 @@ If some images were deleted but others exist, rebuild only the missing ones:
 cd ~/step/.devcontainer
 
 # Build only specific services
-docker-compose -f docker-compose-remote.yml build harvest windmill mock_server beat b3
+docker compose -f docker-compose-remote.yml build harvest windmill mock_server beat b3
 
 # Then start all services
-docker-compose -f docker-compose-remote.yml up -d
+docker compose -f docker-compose-remote.yml up -d
 ```
 
 ### Updating Configuration After Code Changes
@@ -295,10 +296,10 @@ cd ~/step/.devcontainer
 remote-deployment/configure-urls.sh sequent.vote remote-test
 
 # Rebuild affected services (if Dockerfiles or build configs changed)
-docker-compose -f docker-compose-remote.yml build <service-name>
+docker compose -f docker-compose-remote.yml build <service-name>
 
 # Restart services to apply changes
-docker-compose -f docker-compose-remote.yml up -d
+docker compose -f docker-compose-remote.yml up -d
 ```
 
 ### Fixing Nginx Proxy Issues
@@ -312,9 +313,9 @@ docker ps | grep nginx-proxy
 # If not running, start it
 docker start nginx-proxy
 
-# Or restart it via docker-compose
+# Or restart it via docker compose
 cd ~/step/.devcontainer
-docker-compose -f docker-compose-remote.yml restart nginx-proxy
+docker compose -f docker-compose-remote.yml restart nginx-proxy
 
 # Check nginx logs for errors
 docker logs nginx-proxy
@@ -329,6 +330,6 @@ The admin-portal and voting-portal use production builds (static files served by
 - Changes to frontend code require rebuilding:
   ```bash
   cd ~/step/.devcontainer
-  docker-compose -f docker-compose-remote.yml build admin-portal voting-portal
-  docker-compose -f docker-compose-remote.yml up -d admin-portal voting-portal
+  docker compose -f docker-compose-remote.yml build admin-portal voting-portal
+  docker compose -f docker-compose-remote.yml up -d admin-portal voting-portal
   ```
