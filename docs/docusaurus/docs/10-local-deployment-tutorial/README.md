@@ -148,30 +148,42 @@ Finally, you can start the Docker Compose stack with the Nginx reverse proxy.
     docker compose -f docker-compose-remote.yml ps
     ```
 
-5.  Upload required files to MinIO:
+5.  Upload JWKS certificate to MinIO:
 
-    Due to a known issue with the configure-minio container, you need to manually upload the JWKS certificate file:
+    The JWKS file must be fetched from Keycloak and uploaded to MinIO. The file in the repo is empty by design.
 
     ```bash
     cd ~/step
     
-    # Create the public bucket
-    docker run --rm --network step_remote_test_default --entrypoint sh minio/mc -c '
-      mc alias set myminio http://minio:9000 minio minio123 && \
-      mc mb myminio/public && \
-      mc anonymous set download myminio/public
-    '
+    # Wait for Keycloak to be fully started (can take 1-2 minutes)
+    echo "Waiting for Keycloak..."
+    until docker logs keycloak 2>&1 | grep -q "Listening on"; do sleep 2; done
+    echo "Keycloak is ready"
     
-    # Upload files
-    docker run --rm -v $(pwd)/.devcontainer/minio:/scripts \
-      --network step_remote_test_default --entrypoint sh minio/mc -c '
-        mc alias set myminio http://minio:9000 minio minio123 && \
-        mc cp /scripts/certs.json myminio/public/certs.json && \
-        mc cp --recursive /scripts/public-assets/ myminio/public/public-assets/
+    # Fetch JWKS from Keycloak and upload to MinIO
+    docker compose -f .devcontainer/docker-compose-remote.yml exec -T windmill \
+      curl -s http://keycloak:8090/realms/tenant-90505c8a-23a9-4cdf-a26b-4e19f6a097d5/protocol/openid-connect/certs \
+      > /tmp/certs_temp.json
+    
+    # Upload to MinIO public bucket
+    cat /tmp/certs_temp.json | docker compose -f .devcontainer/docker-compose-remote.yml run \
+      --rm --entrypoint="" -T -i configure-minio sh -c '
+        mc alias set myminio http://minio:9000 minio minio123 > /dev/null 2>&1 && \
+        cat > /tmp/certs.json && \
+        mc cp --attr Cache-Control=max-age=30 /tmp/certs.json myminio/public/certs.json && \
+        echo "✓ JWKS uploaded successfully"
       '
+    
+    rm -f /tmp/certs_temp.json
+    
+    # Verify upload
+    docker compose -f .devcontainer/docker-compose-remote.yml run --rm --entrypoint="" -T configure-minio \
+      sh -c 'mc alias set myminio http://minio:9000 minio minio123 > /dev/null 2>&1 && \
+             mc cat myminio/public/certs.json | grep -q "keys" && \
+             echo "✓ JWKS file verified in MinIO" || echo "✗ ERROR: JWKS file is empty or invalid"'
     ```
 
-    **Note:** This uploads the JWT signing certificates and public assets that Hasura needs to start properly.
+    **Note:** This fetches JWT signing certificates from Keycloak that Hasura needs to verify authentication tokens. If you see errors, ensure Keycloak is fully started before running these commands.
 
 Your Sequent Step environment should now be up and running! You can access the different services through their subdomains:
 
