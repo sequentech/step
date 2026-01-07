@@ -2,8 +2,8 @@
 # ── 1. pin rust-overlay ──────────────────────────────────────────────
 let
   rustOverlay = import (builtins.fetchTarball {
-    url    = "https://github.com/oxalica/rust-overlay/archive/c52e346aedfa745564599558a096e88f9a5557f9.tar.gz";
-    sha256 = "1m3925fwf7hq3vcdn9fl554mzip6y4rqbrq7jb377h2l5rq6p9nd";
+  url = "https://github.com/oxalica/rust-overlay/archive/cb24c5cc207ba8e9a4ce245eedd2d37c3a988bc1.tar.gz";
+  sha256 = "096lirg41f5vgq9rrfg5b6vzyrya8v472v6cqfh1hjfi9ys20hc4";
   });
 
   pkgs' = pkgs.extend rustOverlay;
@@ -117,7 +117,7 @@ in
     export PATH=/workspaces/step/packages/step-cli/rust-local-target/release:$PATH
     set +a
 
-    export RUST_SRC_PATH=${rustStable}/bin/rustc
+    export RUST_SRC_PATH=${rustStable}/lib/rustlib/src/rust/library
   '';
 
 
