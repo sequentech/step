@@ -67,6 +67,9 @@ See [sequentech/meta#7996](https://github.com/sequentech/meta/issues/7996) for d
 
 ### 🛠 Bug Fixes
 
+- 🐞 Error loading activity logs ([sequentech/meta#10146](https://github.com/sequentech/meta/issues/10146))
+  by @Findeton
+
 - 🐞 Voting Portal > Grace Period not applied if no scheduled event ([sequentech/meta#9091](https://github.com/sequentech/meta/issues/9091))
   by @BelSequent
 
