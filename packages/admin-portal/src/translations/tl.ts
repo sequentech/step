@@ -2010,6 +2010,10 @@ const tagalogTranslation: TranslationType = {
                     RolesConfigOption: "Mag-import ng Mga Role at Pahintulot na Konfigurasyon",
                 },
             },
+            previewScreen: {
+                label: "Mga Preview",
+                noContent: "Walang nahanap na mga preview",
+            },
         },
         approvalsScreen: {
             column: {

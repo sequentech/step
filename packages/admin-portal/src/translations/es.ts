@@ -2009,6 +2009,10 @@ const spanishTranslation: TranslationType = {
                     RolesConfigOption: "Importar configuraciones de roles y permisos",
                 },
             },
+            previewScreen: {
+                label: "Vistas Previas",
+                noContent: "No se encontraron vistas previas",
+            },
         },
         approvalsScreen: {
             column: {

@@ -1999,6 +1999,10 @@ const basqueTranslation: TranslationType = {
                     RolesConfigOption: "Inportatu Rol eta Baimen Konfigurazioak",
                 },
             },
+            previewScreen: {
+                label: "Aurreikuspenak",
+                noContent: "Ez da aurreikuspenik aurkitu",
+            },
         },
         approvalsScreen: {
             column: {

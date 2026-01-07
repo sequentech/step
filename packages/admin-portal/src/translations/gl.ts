@@ -2008,6 +2008,10 @@ const galegoTranslation: TranslationType = {
                     RolesConfigOption: "Importar configuraciones de roles y permisos",
                 },
             },
+            previewScreen: {
+                label: "Vistas Previas",
+                noContent: "Non se atoparon vistas previas",
+            },
         },
         approvalsScreen: {
             column: {

@@ -2020,6 +2020,10 @@ const frenchTranslation: TranslationType = {
                     RolesConfigOption: "Importer les configurations des rôles et des permissions",
                 },
             },
+            previewScreen: {
+                label: "Aperçus",
+                noContent: "Aucun aperçu trouvé",
+            },
         },
         approvalsScreen: {
             column: {

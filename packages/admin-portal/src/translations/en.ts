@@ -1993,6 +1993,10 @@ const englishTranslation = {
                     RolesConfigOption: "Import Roles & Permissions Configurations",
                 },
             },
+            previewScreen: {
+                label: "Previews",
+                noContent: "No Previews found",
+            },
         },
         approvalsScreen: {
             column: {

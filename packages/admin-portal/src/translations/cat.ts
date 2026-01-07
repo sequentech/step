@@ -2018,6 +2018,10 @@ const catalanTranslation: TranslationType = {
                     RolesConfigOption: "Importa les configuracions de rols i permisos",
                 },
             },
+            previewScreen: {
+                label: "Prèvies",
+                noContent: "No s'han trobat prèvies",
+            },
         },
         approvalsScreen: {
             column: {

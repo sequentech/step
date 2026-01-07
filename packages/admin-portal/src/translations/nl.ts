@@ -2004,6 +2004,10 @@ const dutchTranslation: TranslationType = {
                     RolesConfigOption: "Configuraties Rollen & Machtigingen Importeren",
                 },
             },
+            previewScreen: {
+                label: "Voorbeeldweergaven",
+                noContent: "Geen voorbeeldweergaven gevonden",
+            },
         },
         approvalsScreen: {
             column: {
