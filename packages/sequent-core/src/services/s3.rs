@@ -583,7 +583,7 @@ pub async fn get_file_from_s3(
 pub async fn get_files_from_s3(
     s3_bucket: String,
     prefix: String,
-) -> Result<(Vec<TempPath>, Vec<String>)> {
+) -> Result<Vec<TempPath>> {
     let config = get_s3_aws_config(true)
         .await
         .with_context(|| "Error getting s3 aws config")?;
@@ -592,7 +592,6 @@ pub async fn get_files_from_s3(
         .with_context(|| "Error getting s3 client")?;
 
     let mut file_paths = Vec::new();
-    let mut document_ids = Vec::new();
 
     let result = client
         .list_objects_v2()
@@ -648,13 +647,10 @@ pub async fn get_files_from_s3(
                 .context("stream-copy from S3 to temp file")?;
 
             file_paths.push(temp_file.into_temp_path());
-            if let Some(document_id) = document_id.clone() {
-                document_ids.push(document_id);
-            }
         }
     }
 
-    Ok((file_paths, document_ids))
+    Ok(file_paths)
 }
 
 #[instrument(err)]

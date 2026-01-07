@@ -224,7 +224,6 @@ pub async fn generate_all_servers_document(
         "all_servers.zip",
         None,
         false,
-        false,
     )
     .await?;
 
@@ -374,7 +373,6 @@ pub async fn create_transmission_package_service(
         &xz_name,
         None,
         false,
-        false,
     )
     .await?;
 
@@ -391,7 +389,6 @@ pub async fn create_transmission_package_service(
         Some(election_event.id.to_string()),
         &eml_name,
         None,
-        false,
         false,
     )
     .await?;

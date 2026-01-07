@@ -72,7 +72,7 @@ import {CircularProgress} from "@mui/material"
 import CustomOrderInput from "@/components/custom-order/CustomOrderInput"
 import {AuthContext} from "@/providers/AuthContextProvider"
 import {IPermissions} from "@/types/keycloak"
-import {useGetEventDocumentUrl} from "@/hooks/useGetEventDocumentUrl"
+import {useGetDocumentUrl} from "@/hooks/useGetDocumentUrl"
 
 type FieldValues = Record<string, any>
 
@@ -295,7 +295,7 @@ export const ContestDataForm: React.FC = () => {
     const notify = useNotify()
     const refresh = useRefresh()
     const authContext = useContext(AuthContext)
-    const getImageUrl = useGetEventDocumentUrl()
+    const getImageUrl = useGetDocumentUrl()
     const [value, setValue] = useState(0)
     const [expanded, setExpanded] = useState("contest-data-general")
 
@@ -548,7 +548,6 @@ export const ContestDataForm: React.FC = () => {
                     name: theFile.name,
                     media_type: theFile.type,
                     size: theFile.size,
-                    election_event_id: record?.election_event_id,
                 },
             })
             if (data?.get_upload_url?.document_id) {
@@ -596,8 +595,7 @@ export const ContestDataForm: React.FC = () => {
                 const imageUrl = getImageUrl(
                     parsedValue?.tenant_id,
                     parsedValue?.image_document_id,
-                    imageData?.name,
-                    parsedValue?.election_event_id
+                    imageData?.name
                 )
 
                 return (
