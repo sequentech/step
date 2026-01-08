@@ -233,9 +233,3 @@ Now tally view checks if it's an automatic ceremony based on only the keys cerem
 Documentation sidebar order has been restructured
 
 - Issue: [#8672](https://github.com/sequentech/meta/issues/8672)
-
-## 🐞 Tally > Ballot Image fails on second time: duplicate ACM key
-
-Fix the unique key error by adding tennant and event id into the ACM key.
-
-- Issue: [#8679](https://github.com/sequentech/meta/issues/8679)
