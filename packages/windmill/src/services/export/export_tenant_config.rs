@@ -181,7 +181,6 @@ pub async fn process_export_zip(
         &zip_filename,
         Some(document_id.to_string()),
         false,
-        false,
     )
     .await?;
 

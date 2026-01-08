@@ -2,12 +2,11 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-export function useGetEventDocumentUrl() {
+export function useGetDocumentUrl() {
     const getImageUrl = (
         tenantId?: string,
         imageDocumentId?: string | null,
-        name?: string | null,
-        electionEventId?: string
-    ) => `tenant-${tenantId}/event-${electionEventId}/document-${imageDocumentId}/${name}`
+        name?: string | null
+    ) => `tenant-${tenantId}/document-${imageDocumentId}/${name}`
     return getImageUrl
 }

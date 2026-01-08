@@ -676,7 +676,6 @@ pub trait TemplateRenderer: Debug {
                 &enc_report_name,
                 Some(document_id.to_string()),
                 true,
-                false,
             )
             .await
             .map_err(|err| anyhow!("Error uploading document: {err:?}"))?;
@@ -717,7 +716,6 @@ pub trait TemplateRenderer: Debug {
                 &final_report_name,
                 Some(document_id.to_string()),
                 true,
-                false,
             )
             .await
             .map_err(|err| anyhow!("Error uploading document: {err:?}"))?;

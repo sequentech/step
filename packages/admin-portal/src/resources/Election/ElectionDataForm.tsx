@@ -78,7 +78,7 @@ import {ManagedNumberInput} from "@/components/managed-inputs/ManagedNumberInput
 import {MANAGE_ELECTION_DATES} from "@/queries/ManageElectionDates"
 import {JsonEditor, UpdateFunction} from "json-edit-react"
 import {CustomFilter} from "@/types/filters"
-import {useGetEventDocumentUrl} from "@/hooks/useGetEventDocumentUrl"
+import {useGetDocumentUrl} from "@/hooks/useGetDocumentUrl"
 
 const LangsWrapper = styled(Box)`
     margin-top: 46px;
@@ -102,7 +102,7 @@ export const ElectionDataForm: React.FC = () => {
     const record = useRecordContext<Sequent_Backend_Election>()
     const [tenantId] = useTenantStore()
     const {t} = useTranslation()
-    const getImageUrl = useGetEventDocumentUrl()
+    const getImageUrl = useGetDocumentUrl()
     const [getUploadUrl] = useMutation<GetUploadUrlMutation>(GET_UPLOAD_URL)
     const notify = useNotify()
     const refresh = useRefresh()
@@ -422,7 +422,6 @@ export const ElectionDataForm: React.FC = () => {
                     name: theFile.name,
                     media_type: theFile.type,
                     size: theFile.size,
-                    election_event_id: record?.election_event_id,
                 },
             })
             if (data?.get_upload_url?.document_id) {
@@ -537,8 +536,7 @@ export const ElectionDataForm: React.FC = () => {
                 const imageUrl = getImageUrl(
                     parsedValue?.tenant_id,
                     parsedValue?.image_document_id,
-                    imageData?.name,
-                    parsedValue?.election_event_id
+                    imageData?.name
                 )
 
                 const onSave = async () => {}
