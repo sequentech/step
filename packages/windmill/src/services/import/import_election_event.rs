@@ -15,7 +15,7 @@ use crate::services::reports::template_renderer::EReportEncryption;
 use crate::services::reports_vault::get_report_key_pair;
 use crate::services::tasks_execution::update_fail;
 use crate::tasks::insert_election_event::CreateElectionEventInput;
-use crate::types::documents::{ETallyDocuments, PUBLIC_S3_FILE_PREFIX};
+use crate::types::documents::ETallyDocuments;
 use ::keycloak::types::{ComponentExportRepresentation, RealmRepresentation};
 use anyhow::{anyhow, Context, Result};
 use chrono::format;
@@ -1110,7 +1110,7 @@ pub async fn process_document(
 
             if file_name.contains(&format!("{}/", EDocuments::S3_FILES.to_file_name())) {
                 let folder_path: Vec<_> = file_name.split("/").collect();
-                // Skips the OS created files and the documents_ids.txt
+                // Skips the OS created files
                 if folder_path[1] == EDocuments::VOTERS.to_file_name() {
                     continue;
                 }
