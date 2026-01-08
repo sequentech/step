@@ -1086,8 +1086,12 @@ impl TryFrom<&Row> for ElectoralLogRow {
             }
         }
 
-        let deserialized_message =
-            Message::strand_deserialize(&message).with_context(|| "Error deserializing message")?;
+        let deserialized_message_res = Message::strand_deserialize(&message);
+        info!(
+            "Deserialized message result: {:?}",
+            deserialized_message_res
+        );
+        let deserialized_message = deserialized_message_res?;
         let serialized = general_purpose::STANDARD_NO_PAD.encode(message);
         Ok(ElectoralLogRow {
             id,
@@ -1173,15 +1177,23 @@ pub async fn list_electoral_log(input: GetElectoralLogBody) -> Result<DataList<E
     let limit: usize = input.limit.unwrap_or(IMMUDB_ROWS_LIMIT as i64).try_into()?;
 
     let mut rows: Vec<ElectoralLogRow> = Vec::with_capacity(limit);
-    let mut resp_stream = sql_query_response.into_inner();
-    while let Some(streaming_batch) = resp_stream.next().await {
-        let items = streaming_batch?
-            .rows
-            .iter()
-            .map(ElectoralLogRow::try_from)
-            .collect::<Result<Vec<ElectoralLogRow>>>()?;
-        rows.extend(items);
+
+    // drop the stream to ensure connection cleanup
+    {
+        let mut resp_stream = sql_query_response.into_inner();
+        while let Some(streaming_batch) = resp_stream.next().await {
+            let items = streaming_batch?
+                .rows
+                .iter()
+                .map(ElectoralLogRow::try_from)
+                .collect::<Result<Vec<ElectoralLogRow>>>()?;
+            rows.extend(items);
+        }
     }
+
+    // Close and reopen the session to avoid connection reuse issues
+    client.close_session().await?;
+    client.open_session(&board_name).await?;
 
     let sql = format!(
         r#"
@@ -1191,6 +1203,8 @@ pub async fn list_electoral_log(input: GetElectoralLogBody) -> Result<DataList<E
         {clauses_to_count}
         "#,
     );
+
+    info!("query: {sql}");
     let sql_query_response = client.sql_query(&sql, count_params).await?;
     let mut rows_iter = sql_query_response
         .get_ref()
