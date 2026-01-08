@@ -35,6 +35,12 @@ To
 - [ ] 9.4: https://github.com/sequentech/step/pull/2291
 See [sequentech/meta#6191](https://github.com/sequentech/meta/issues/6191) for details.
 
+### 📖 [doc] Adding a section: `Reference/Third-Party Libraries`
+### For Developers
+1. **Rust Version**: All developers must use Rust 1.90.0. Run `rustc --version` in `devenv shell` to verify.
+2. **Dependency Updates**: After pulling this branch, run:
+See [sequentech/meta#7996](https://github.com/sequentech/meta/issues/7996) for details.
+
 ## 📝 Highlights
 
 ### 📖 [doc] Adding a section: `Reference/Third-Party Libraries`
@@ -66,6 +72,9 @@ See [sequentech/meta#7996](https://github.com/sequentech/meta/issues/7996) for d
 
 
 ### 🛠 Bug Fixes
+
+- 🐞 Tally Multi Contest area votes not included in tally if area does not have the first contest assigned ([sequentech/meta#9994](https://github.com/sequentech/meta/issues/9994))
+  by @xalsina-sequent
 
 - 🐞 Error loading activity logs ([sequentech/meta#10146](https://github.com/sequentech/meta/issues/10146))
   by @Findeton
