@@ -1,4 +1,4 @@
-# Remote Test Environment Deployment Tutorial
+# Remote Deployment Environment Tutorial
 
 This tutorial will guide you through setting up a Sequent Step development environment on a remote server, accessible via a public domain with a reverse proxy managing traffic.
 
