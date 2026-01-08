@@ -1,6 +1,17 @@
-# Remote Deployment Tutorial
+# Remote Standalone Deployment Tutorial
 
-This tutorial will guide you through setting up a Sequent Step development environment on a remote server, accessible via a public domain with a reverse proxy managing traffic.
+This tutorial will guide you through setting up a Sequent Step development environment on a single remote server, accessible via a public domain with a reverse proxy managing traffic.
+
+> **⚠️ Deployment Limitations**  
+> This tutorial provides a **standalone, single-server deployment** suitable for development, testing, and demonstration purposes. It does **not** include:  
+> - High availability or redundancy
+> - Automated backups and disaster recovery
+> - Load balancing across multiple servers
+> - Production-grade monitoring and alerting
+> - Security hardening for production environments
+> - Automated scaling or failover mechanisms
+>
+> **For production deployments** with enterprise-grade reliability, managed infrastructure, support, and SLA guarantees, please contact **Sequent** at [legal@sequentech.io](mailto:legal@sequentech.io).
 
 ## Prerequisites
 
