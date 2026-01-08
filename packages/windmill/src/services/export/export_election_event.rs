@@ -23,7 +23,7 @@ use crate::services::reports::template_renderer::{
 };
 use crate::services::reports_vault::get_password;
 use crate::tasks::export_election_event::ExportOptions;
-use crate::types::documents::{EDocuments, PUBLIC_S3_FILE_PREFIX};
+use crate::types::documents::EDocuments;
 
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::{Client as DbClient, Transaction};
