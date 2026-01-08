@@ -181,7 +181,7 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
 
     const modifySelectedTenantId = (val: string | null) => {
         if (null === val) {
-            localStorage.removeItem("selected-tenant-id")
+            // localStorage.removeItem("selected-tenant-id")
         } else {
             localStorage.setItem("selected-tenant-id", val)
         }
