@@ -15,7 +15,7 @@ This tutorial will guide you through setting up a Sequent Step development envir
 > - Security hardening for production environments
 > - Automated scaling or failover mechanisms
 >
-> **For production deployments** with enterprise-grade reliability, managed infrastructure, support, and SLA guarantees, please contact **Sequent** at [legal@sequentech.io](mailto:legal@sequentech.io).
+> **For production deployments** with enterprise-grade reliability, managed infrastructure, support, and SLA guarantees, please contact **Sequent**
 
 ## Prerequisites
 
