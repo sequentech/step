@@ -303,9 +303,6 @@ services:
     stdin_open: true
     image: sequentech.local/cargo-packages
     container_name: mock_server
-    build:
-      context: ../packages/
-      dockerfile: ./Dockerfile.cargo-packages
     volumes:
       - ..:/workspaces/step:z
     working_dir: /workspaces/step/packages/e2e/src/mock_server
@@ -318,6 +315,8 @@ services:
       "-x",
       "run"
     ]
+    depends_on:
+      - harvest
     environment:
       ROCKET_ADDRESS: ${ROCKET_ADDRESS}
       ROCKET_PORT: ${MOCK_SERVER_PORT}
@@ -728,9 +727,6 @@ services:
     image: sequentech.local/cargo-packages
     container_name: b3
     restart: always
-    build:
-      context: ../packages/
-      dockerfile: ./Dockerfile.cargo-packages
     volumes:
       - ..:/workspaces/step:z
     depends_on:
