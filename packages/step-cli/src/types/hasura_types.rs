@@ -13,3 +13,4 @@ pub type bytea = String;
 pub type text = String;
 pub type varchar = String;
 pub type numeric = f64;
+pub type json = Value;
