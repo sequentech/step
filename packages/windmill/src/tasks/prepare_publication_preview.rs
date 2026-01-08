@@ -138,7 +138,6 @@ pub async fn prepare_publication_preview_task(
         &doc_name_s3,
         Some(document_id.clone()),
         true,
-        false,
     )
     .await
     .map_err(|err| anyhow!("Error uploading document: {err:?}"))?;

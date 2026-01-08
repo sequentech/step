@@ -96,7 +96,6 @@ pub async fn write_export_document(
             &name,
             Some(document_id.to_string()),
             false, // is_public: bool,
-            false,
         )
         .await?;
     }
