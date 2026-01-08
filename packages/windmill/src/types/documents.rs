@@ -20,7 +20,7 @@ pub enum EDocuments {
     ROLES_PERMISSIONS_CONFIG,
     PUBLICATIONS,
     TALLY,
-    S3_DOCUMENTS_IDS,
+    IMAGES,
 }
 
 impl EDocuments {
@@ -40,7 +40,7 @@ impl EDocuments {
             EDocuments::ROLES_PERMISSIONS_CONFIG => "export_permissions",
             EDocuments::PUBLICATIONS => "export_publications",
             EDocuments::TALLY => "export_tally_data",
-            EDocuments::S3_DOCUMENTS_IDS => "s3_documents_ids",
+            EDocuments::IMAGES => "images",
         }
     }
 }
