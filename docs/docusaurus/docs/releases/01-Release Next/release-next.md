@@ -74,4 +74,3 @@ tally result files in `velvet-generate-reports`.
 It contains the value of some election metrics.
 
 - Issue: [#8573](https://github.com/sequentech/meta/issues/8573)
-
