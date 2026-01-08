@@ -20,27 +20,25 @@ To
 ```
 <span class="value" class="timestamp-content">{{datetime from_rfc3339=timestamp output_format="%B %d, %Y %H:%M GMT %:z"}}</span>
 ```
+# Tasks
+- [x] Successful defect resolution merged
+- [x] Overseas Voting Monitoring - OVCS Events Report
+- [x] Activity Logs Report (report and export logs)
+- [x] List of Overseas Voters Report
+- [x] Ballot receipt
+# Main PRs
+- [ ] https://github.com/sequentech/step/pull/1700
+# Support Branches PRs
+- [ ] 9.0: https://github.com/sequentech/step/pull/2227
+- [ ] 9.2: https://github.com/sequentech/step/pull/2232
+- [ ] 9.3: https://github.com/sequentech/step/pull/2233
+- [ ] 9.4: https://github.com/sequentech/step/pull/2291
 See [sequentech/meta#6191](https://github.com/sequentech/meta/issues/6191) for details.
 
 ### 📖 [doc] Adding a section: `Reference/Third-Party Libraries`
 ### For Developers
 1. **Rust Version**: All developers must use Rust 1.90.0. Run `rustc --version` in `devenv shell` to verify.
 2. **Dependency Updates**: After pulling this branch, run:
-```bash
-devenv shell
-cd packages/
-cargo build
-```
-3. **Frontend Updates**: For frontend work:
-```bash
-cd packages/
-yarn install
-```
-4. **ESLint Migration**: Projects now use flat config (`eslint.config.js`). Old `.eslintrc.json` files have been removed.
-5. **New Documentation**: Review the new developer documentation:
-- `docs/docusaurus/docs/developers/11-Updates/updating-rust-version.md`
-- `docs/docusaurus/docs/reference/third_party_deps/third_party_deps.md`
-- `docs/docusaurus/docs/developers/03-Development-Environment/nvd-api-key-setup.md`
 See [sequentech/meta#7996](https://github.com/sequentech/meta/issues/7996) for details.
 
 ## 📝 Highlights
@@ -48,12 +46,6 @@ See [sequentech/meta#7996](https://github.com/sequentech/meta/issues/7996) for d
 ### 📖 [doc] Adding a section: `Reference/Third-Party Libraries`
 This issue tracks the comprehensive update of Rust toolchain, dependencies, and documentation for the Step Repository. The goal is to standardize on **Rust stable 1.90.0** across all environments (Nix, GitHub Actions, Dockerfiles) and update all Rust crates and their dependencies to their latest compatible versions.
 Additionally, this includes creating developer documentation for managing Rust versions and third-party dependencies, plus implementing tooling for dependency auditing and reporting.
-### Main PRs
-- https://github.com/sequentech/step/pull/1988
-- https://github.com/sequentech/step/pull/2150
-- https://github.com/sequentech/step/pull/2153
-### Stable PRs
-- [x] Mark if not applicable
 See [sequentech/meta#7996](https://github.com/sequentech/meta/issues/7996) for details.
 
 ## 📋 All Changes
