@@ -23,7 +23,7 @@ use crate::services::reports::template_renderer::{
 };
 use crate::services::reports_vault::get_password;
 use crate::tasks::export_election_event::ExportOptions;
-use crate::types::documents::{EDocuments, PUBLIC_S3_FILE_PREFIX};
+use crate::types::documents::EDocuments;
 
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::{Client as DbClient, Transaction};
@@ -249,7 +249,9 @@ where
     let mut s3_files = Vec::new();
 
     for item in &items {
-        let Some(document_id) = get_document_id(item) else { continue };
+        let Some(document_id) = get_document_id(item) else {
+            continue;
+        };
 
         if let Some(temp_path) =
             get_image_file_from_s3(hasura_transaction, tenant_id, document_id, s3_bucket).await?
@@ -260,7 +262,6 @@ where
 
     Ok(s3_files)
 }
-
 
 pub async fn process_election_images(
     hasura_transaction: &Transaction<'_>,
@@ -297,7 +298,6 @@ pub async fn process_candidates_images(
     })
     .await
 }
-
 
 #[instrument(err, skip(hasura_transaction, elections, contests, candidates))]
 pub async fn process_event_images(
@@ -561,7 +561,6 @@ pub async fn process_export_zip(
             std::io::copy(&mut s3_file, &mut zip_writer)
                 .map_err(|e| anyhow!("Error copying S3 file to ZIP: {e:?}"))?;
         }
-
     }
 
     // Add Scheduled Events data file to the ZIP archive
