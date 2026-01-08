@@ -140,7 +140,7 @@ pub async fn read_export_data(
         vec![]
     };
 
-    let imported_election_scheme = ImportElectionEventSchema {
+    let import_election_event_schema = ImportElectionEventSchema {
         tenant_id: Uuid::parse_str(&tenant_id)?,
         keycloak_event_realm: Some(realm),
         election_event: election_event,
@@ -155,10 +155,10 @@ pub async fn read_export_data(
         applications: Some(export_applications),
     };
 
-    let images =
+    let images_files_path =
         process_event_images(&transaction, tenant_id, elections, contests, candidates).await?;
 
-    Ok((imported_election_scheme, images))
+    Ok((import_election_event_schema, images_files_path))
 }
 
 #[instrument(err)]
@@ -351,7 +351,7 @@ pub async fn process_export_zip(
         FileOptions::default().compression_method(zip::CompressionMethod::DEFLATE);
 
     // Add election event data file to the ZIP archive
-    let (export_data, event_images_files) = read_export_data(
+    let (export_data, event_images_files_path) = read_export_data(
         &hasura_transaction,
         tenant_id,
         election_event_id,
@@ -376,7 +376,7 @@ pub async fn process_export_zip(
 
     let images_folder_name = format!("{}", EDocuments::IMAGES.to_file_name());
 
-    for file_path in event_images_files {
+    for file_path in event_images_files_path {
         let file_name = file_path
             .file_name()
             .ok_or(anyhow!(
