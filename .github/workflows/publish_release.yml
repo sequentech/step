@@ -2,13 +2,11 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-only
 
-name: Automated Release Process
-run-name: 'Automated Release Process'
+name: Auto Publish Release
+run-name: 'Auto Publish Release'
 on:
   release:
-    types:
-      - published
-
+    types: [published]
 
 permissions:
   contents: read
