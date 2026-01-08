@@ -13,7 +13,7 @@ This directory contains all scripts needed for deploying Sequent Step to a remot
 
 The following files work together with these scripts but are kept in the main `.devcontainer` directory:
 
-- **`.env.remote-test.example`** - Example environment configuration (copy to `.env`)
+- **`.env.remote-deployment.example`** - Example environment configuration (copy to `.env`)
 - **`docker-compose-remote.yml`** - Docker Compose file for remote deployment with reverse proxy
 
 ## Full Documentation
@@ -25,7 +25,7 @@ For complete deployment instructions, see:
 
 1. Provision a server (see `provision-server.sh` for specs)
 2. Run `prepare-server.sh` on the server
-3. Copy `.env.remote-test.example` to `.env`
+3. Copy `.env.remote-deployment.example` to `.env`
 4. Run `configure-urls.sh <domain> <subdomain_suffix>`
 5. Run `setup-cloudflare.sh <domain> <server_ip> <subdomain_suffix>`
 6. Run `docker-compose -f docker-compose-remote.yml up -d --build`

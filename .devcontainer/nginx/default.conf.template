@@ -3,7 +3,7 @@
 # Admin Portal
 server {
     listen 80;
-    server_name admin-remote-test.${DOMAIN};
+    server_name admin-remote-deployment.${DOMAIN};
 
     location / {
         proxy_pass http://admin-portal:8000;
@@ -17,7 +17,7 @@ server {
 # Voting Portal
 server {
     listen 80;
-    server_name voting-remote-test.${DOMAIN};
+    server_name voting-remote-deployment.${DOMAIN};
 
     location / {
         proxy_pass http://voting-portal:8000;
@@ -31,7 +31,7 @@ server {
 # Ballot Verifier (points to voting portal)
 server {
     listen 80;
-    server_name verifier-remote-test.${DOMAIN};
+    server_name verifier-remote-deployment.${DOMAIN};
 
     location / {
         proxy_pass http://voting-portal:8000;
@@ -45,7 +45,7 @@ server {
 # # Hasura
 server {
     listen 80;
-    server_name hasura-remote-test.${DOMAIN};
+    server_name hasura-remote-deployment.${DOMAIN};
 
     location / {
         proxy_pass http://hasura:8080;
@@ -59,7 +59,7 @@ server {
 # Keycloak
 server {
     listen 80;
-    server_name login-remote-test.${DOMAIN};
+    server_name login-remote-deployment.${DOMAIN};
 
     location / {
         proxy_pass http://keycloak:8090;
@@ -74,7 +74,7 @@ server {
 # Minio
 server {
     listen 80;
-    server_name minio-remote-test.${DOMAIN};
+    server_name minio-remote-deployment.${DOMAIN};
 
     location / {
         proxy_pass http://minio-proxy:9002;

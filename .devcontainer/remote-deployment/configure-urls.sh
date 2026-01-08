@@ -7,15 +7,15 @@
 if [ -z "$1" ] || [ -z "$2" ]; then
   echo "Usage: ./configure-urls.sh <domain> <subdomain_suffix>"
   echo "  <domain>: The root domain (e.g., sequent.vote)"
-  echo "  <subdomain_suffix>: The suffix for all subdomains (e.g., remote-test, qa, staging)"
+  echo "  <subdomain_suffix>: The suffix for all subdomains (e.g., remote-deployment, qa, staging)"
   echo ""
-  echo "Example: ./configure-urls.sh sequent.vote remote-test"
+  echo "Example: ./configure-urls.sh sequent.vote remote-deployment"
   echo "This will configure URLs like:"
-  echo "  - admin-remote-test.sequent.vote"
-  echo "  - voting-remote-test.sequent.vote"
-  echo "  - hasura-remote-test.sequent.vote"
-  echo "  - login-remote-test.sequent.vote"
-  echo "  - minio-remote-test.sequent.vote"
+  echo "  - admin-remote-deployment.sequent.vote"
+  echo "  - voting-remote-deployment.sequent.vote"
+  echo "  - hasura-remote-deployment.sequent.vote"
+  echo "  - login-remote-deployment.sequent.vote"
+  echo "  - minio-remote-deployment.sequent.vote"
   exit 1
 fi
 
@@ -38,7 +38,7 @@ SUBDOMAIN_SUFFIX=$2
 # Set paths relative to script location
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 DEVCONTAINER_DIR="$( cd "$SCRIPT_DIR/.." && pwd )"
-ENV_TEMPLATE="$DEVCONTAINER_DIR/.env.remote-test.example"
+ENV_TEMPLATE="$DEVCONTAINER_DIR/.env.remote-deployment.example"
 ENV_FILE="$DEVCONTAINER_DIR/.env"
 NGINX_TEMPLATE="$DEVCONTAINER_DIR/nginx/default.conf.template"
 NGINX_CONF="$DEVCONTAINER_DIR/nginx/default.conf"

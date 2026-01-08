@@ -13,6 +13,7 @@ This tutorial will guide you through setting up a Sequent Step development envir
     *   OS: Ubuntu 22.04 LTS or 24.04 LTS
     *   See `.devcontainer/remote-deployment/provision-server.sh` for detailed specifications and provisioning examples.
 *   A domain name managed by Cloudflare (e.g., `sequent.vote`).
+*   Choose A subdomain suffix for the domain record we'll create. E.g. in admin-mycorporate.domain.com, 'mycorporate' is the subdomain suffix. domain.com is the domain.
 *   A Cloudflare API token with DNS editing permissions.
 
 ## 1. Server Preparation
@@ -41,22 +42,22 @@ The configuration script generates all necessary files from templates, including
     ```bash
     cd ~/step
     chmod +x .devcontainer/remote-deployment/configure-urls.sh
-    ./.devcontainer/remote-deployment/configure-urls.sh sequent.vote remote-test
+    ./.devcontainer/remote-deployment/configure-urls.sh <DOMAIN (sequent.vote)> <SUBDOMAIN_SUFFIX (remote-deployment)>
     ```
 
     *   Replace `sequent.vote` with your root domain.
-    *   Replace `remote-test` with your chosen subdomain suffix (e.g., `qa`, `staging`, `prod`).
+    *   Replace `remote-deployment` with your chosen subdomain suffix (e.g., `qa`, `staging`, `prod`).
 
     This script will:
-    *   Generate `.env` from `.env.remote-test.example`
+    *   Generate `.env` from `.env.remote-deployment.example`
     *   Generate `nginx/default.conf` from `nginx/default.conf.template`
     *   Generate random secrets (MASTER_SECRET, Keycloak client secrets)
     *   Auto configure all service URLs (in the .env config file):
-        *   `login-remote-test.sequent.vote` (Keycloak)
-        *   `admin-remote-test.sequent.vote` (Admin Portal)
-        *   `voting-remote-test.sequent.vote` (Voting Portal)
-        *   `hasura-remote-test.sequent.vote` (Hasura)
-        *   `minio-remote-test.sequent.vote` (MinIO)
+        *   `login-remote-deployment.sequent.vote` (Keycloak)
+        *   `admin-remote-deployment.sequent.vote` (Admin Portal)
+        *   `voting-remote-deployment.sequent.vote` (Voting Portal)
+        *   `hasura-remote-deployment.sequent.vote` (Hasura)
+        *   `minio-remote-deployment.sequent.vote` (MinIO)
 
 2.  **(Optional)** Review the generated `.env` file:
 
@@ -77,7 +78,7 @@ The configuration script generates all necessary files from templates, including
 
 ## 3. Cloudflare DNS Setup
 
-This step will automate the creation of the necessary DNS records in Cloudflare. It will create one primary A or CNAME record for the base subdomain (e.g., `remote-test.sequent.vote`) and then CNAME records for each service pointing to the primary record.
+This step will automate the creation of the necessary DNS records in Cloudflare. It will create one primary A or CNAME record for the base subdomain (e.g., `remote-deployment.sequent.vote`) and then CNAME records for each service pointing to the primary record.
 
 1.  Set your Cloudflare API token as an environment variable:
 
@@ -90,21 +91,21 @@ This step will automate the creation of the necessary DNS records in Cloudflare.
     ```bash
     cd ~/step/.devcontainer/remote-deployment
     chmod +x ./setup-cloudflare.sh
-    ./setup-cloudflare.sh sequent.vote YOUR_SERVER_IP remote-test
+    ./setup-cloudflare.sh sequent.vote YOUR_SERVER_IP remote-deployment
     ```
     ```
 
     *   Replace `sequent.vote` with your root domain.
     *   Replace `YOUR_SERVER_IP` with your server's public IP address (or CNAME target).
-    *   Replace `remote-test` with your subdomain suffix (must match what you used in step 2).
+    *   Replace `remote-deployment` with your subdomain suffix (must match what you used in step 2).
 
     The script will create:
-    *   `remote-test.sequent.vote` → YOUR_SERVER_IP (A record)
-    *   `admin-remote-test.sequent.vote` → remote-test.sequent.vote (CNAME)
-    *   `voting-remote-test.sequent.vote` → remote-test.sequent.vote (CNAME)
-    *   `hasura-remote-test.sequent.vote` → remote-test.sequent.vote (CNAME)
-    *   `login-remote-test.sequent.vote` → remote-test.sequent.vote (CNAME)
-    *   `minio-remote-test.sequent.vote` → remote-test.sequent.vote (CNAME)
+    *   `remote-deployment.sequent.vote` → YOUR_SERVER_IP (A record)
+    *   `admin-remote-deployment.sequent.vote` → remote-deployment.sequent.vote (CNAME)
+    *   `voting-remote-deployment.sequent.vote` → remote-deployment.sequent.vote (CNAME)
+    *   `hasura-remote-deployment.sequent.vote` → remote-deployment.sequent.vote (CNAME)
+    *   `login-remote-deployment.sequent.vote` → remote-deployment.sequent.vote (CNAME)
+    *   `minio-remote-deployment.sequent.vote` → remote-deployment.sequent.vote (CNAME)
 
 ## 4. Deployment
 
@@ -187,18 +188,18 @@ Finally, you can start the Docker Compose stack with the Nginx reverse proxy.
 
 Your Sequent Step environment should now be up and running! You can access the different services through their subdomains:
 
-*   **Admin Portal:** `https://admin-remote-test.sequent.vote`
-*   **Voting Portal:** `https://voting-remote-test.sequent.vote`
-*   **Hasura Console:** `https://hasura-remote-test.sequent.vote`
-*   **Keycloak:** `https://login-remote-test.sequent.vote`
-*   **MinIO:** `https://minio-remote-test.sequent.vote`
+*   **Admin Portal:** `https://admin-remote-deployment.sequent.vote`
+*   **Voting Portal:** `https://voting-remote-deployment.sequent.vote`
+*   **Hasura Console:** `https://hasura-remote-deployment.sequent.vote`
+*   **Keycloak:** `https://login-remote-deployment.sequent.vote`
+*   **MinIO:** `https://minio-remote-deployment.sequent.vote`
 
 ## Troubleshooting
 
 ### Check DNS Resolution
 
 ```bash
-nslookup admin-remote-test.sequent.vote
+nslookup admin-remote-deployment.sequent.vote
 ```
 
 ### Check Docker Logs
@@ -305,7 +306,7 @@ git pull
 
 # Reconfigure URLs (if domain/subdomain changed)
 cd ~/step/.devcontainer
-remote-deployment/configure-urls.sh sequent.vote remote-test
+remote-deployment/configure-urls.sh sequent.vote remote-deployment
 
 # Rebuild affected services (if Dockerfiles or build configs changed)
 docker compose -f docker-compose-remote.yml build <service-name>
