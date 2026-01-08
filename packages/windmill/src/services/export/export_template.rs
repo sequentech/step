@@ -100,7 +100,6 @@ pub async fn write_export_document(
             &full_name,
             Some(document_id.to_string()),
             false,
-            false,
         )
         .await
     } else {

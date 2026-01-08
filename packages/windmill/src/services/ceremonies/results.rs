@@ -464,7 +464,6 @@ pub async fn populate_results_tables(
             &file_name,
             Some(document_id.to_string()),
             false,
-            false,
         )
         .await?;
 

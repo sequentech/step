@@ -90,7 +90,6 @@ pub async fn export_tally_results_to_xlsx(
         &format!("{}.xlsx", xlsx_file_name),
         Some(document_id),
         false,
-        false,
     )
     .await
     .map_err(|e| anyhow!("Failed to upload XLSX document: {}", e))?;
