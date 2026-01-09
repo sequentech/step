@@ -242,6 +242,8 @@ services:
         condition: service_healthy
       minio:
         condition: service_healthy
+      minio-proxy:
+        condition: service_started
       configure-minio:
         condition: service_completed_successfully
 
