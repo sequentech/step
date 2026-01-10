@@ -30,7 +30,7 @@ use sequent_core::ballot_codec::PlaintextCodec;
 use sequent_core::serialization::deserialize_with_path::deserialize_value;
 use sequent_core::services::area_tree::TreeNodeArea;
 use sequent_core::services::s3;
-use sequent_core::services::translations::Name;
+use sequent_core::services::translations::{Alias, Name};
 use sequent_core::signatures::ecies_encrypt::EciesKeyPair;
 use sequent_core::sqlite::area::create_area_sqlite;
 use sequent_core::sqlite::area_contest::create_area_contest_sqlite;
@@ -263,9 +263,7 @@ pub fn create_election_configs_blocking(
 
         // TODO: Refactor to just extract some Election Config with no subitems
         let election_name_opt = election_opt.map(|election| election.get_name(&default_lang));
-
-        let election_alias_otp =
-            election_opt.map(|election| election.alias.clone().unwrap_or("".to_string()));
+        let election_alias_otp = election_opt.and_then(|e| e.get_alias(&default_lang));
 
         let election_description = election_opt
             .map(|election| election.description.clone().unwrap_or("".to_string()))

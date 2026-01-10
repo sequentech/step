@@ -1,0 +1,228 @@
+# SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+# =============================================================================
+# AUTO PUBLISH RELEASE WORKFLOW
+# =============================================================================
+#
+# This reusable workflow automates the release publishing process for Sequent.
+# It is designed to be called by other workflows (workflow_call trigger).
+#
+# WORKFLOW SEQUENCE:
+# 1. resolve-target-commit: Resolves the git tag to its commit SHA
+# 2. build-and-push: Builds and optionally pushes container images
+# 3. trigger-beyond-release: Triggers the Beyond repository release workflow
+# 4. trigger-deployer: Triggers the GitOps deployer workflow
+# 5. cleanup: Runs only on failure to perform cleanup tasks
+# 6. slack-report: Always runs to report workflow status to Slack
+#
+# REQUIRED SECRETS:
+# - PAT: Personal Access Token with repo permissions for cross-repo dispatches
+# - SLACK_WEBHOOK_URL: Slack webhook URL for notifications
+#
+# =============================================================================
+
+name: Auto Publish Release
+run-name: 'Auto Publish Release'
+
+on:
+  # ---------------------------------------------------------------------------
+  # External trigger: Allows triggering from other repositories or manually
+  # ---------------------------------------------------------------------------
+  workflow_dispatch:
+    inputs:
+      tag_name:
+        description: 'The git tag to use for the images (required for release builds)'
+        required: true
+        type: string
+      push:
+        description: 'Whether to push the images to the container registry'
+        required: true
+        type: boolean
+        default: true
+
+  # ---------------------------------------------------------------------------
+  # Internal trigger: Called by other workflows in the same repository
+  # ---------------------------------------------------------------------------
+  workflow_call:
+    inputs:
+      tag_name:
+        description: 'The git tag to use for the images (required for release builds)'
+        required: true
+        type: string
+      push:
+        description: 'Whether to push the images to the container registry'
+        required: true
+        type: boolean
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  # ===========================================================================
+  # JOB: resolve-target-commit
+  # ===========================================================================
+  # Resolves the provided git tag to its underlying commit SHA.
+  # This is necessary because annotated tags point to tag objects, not commits.
+  # The resolved commit SHA is used by downstream jobs for consistent builds.
+  # ===========================================================================
+  resolve-target-commit:
+    runs-on: ubuntu-latest
+    outputs:
+      target_commitish: ${{ steps.resolve_tag.outputs.commit_sha }}
+    steps:
+      - name: Resolve target commit from tag
+        id: resolve_tag
+        uses: actions/github-script@v7
+        with:
+          result-encoding: string
+          script: |
+            const tagName = ${{ toJSON(inputs.tag_name) }};
+            if (!tagName) {
+              core.setFailed('The tag_name input is required to resolve the commit SHA.');
+              return;
+            }
+            try {
+              const ref = await github.rest.git.getRef({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                ref: `tags/${tagName}`,
+              });
+
+              let commitSha = ref.data.object.sha;
+
+              // Annotated tags point to a tag object, not directly to a commit.
+              // We need to dereference the tag to get the actual commit SHA.
+              if (ref.data.object.type === 'tag') {
+                const tag = await github.rest.git.getTag({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  tag_sha: commitSha,
+                });
+                commitSha = tag.data.object.sha;
+              }
+
+              core.info(`Resolved tag ${tagName} to commit ${commitSha}`);
+              core.setOutput('commit_sha', commitSha);
+            } catch (error) {
+              core.setFailed(`Failed to resolve commit for tag ${tagName}: ${error.message}`);
+            }
+
+  # ===========================================================================
+  # JOB: build-and-push
+  # ===========================================================================
+  # Builds container images for the release and optionally pushes them to the
+  # registry. Uses the reusable build workflow with the resolved commit SHA.
+  # ===========================================================================
+  build-and-push:
+    needs: [resolve-target-commit]
+    uses: ./.github/workflows/reusable_build_push.yml
+    secrets: inherit
+    with:
+      tag: ${{ inputs.tag_name }}
+      push: ${{ inputs.push }}
+      # Note: The reusable workflow should checkout the correct ref internally
+      # using the tag. If it needs the commit SHA, pass it as an additional input.
+
+  # ===========================================================================
+  # JOB: trigger-beyond-release
+  # ===========================================================================
+  # Triggers the Automated Release Process workflow in the Beyond repository.
+  # This ensures the Beyond components are released in sync with this release.
+  # Waits for completion to ensure the downstream release succeeds.
+  # ===========================================================================
+  trigger-beyond-release:
+    needs: [resolve-target-commit, build-and-push]
+    runs-on: gcp-selfhosted-ubuntu24
+    steps:
+      - name: Trigger Beyond Release Workflow
+        uses: the-actions-org/workflow-dispatch@v4
+        with:
+          repo: 'sequentech/beyond'
+          ref: ${{ needs.resolve-target-commit.outputs.target_commitish }}
+          workflow: 'Automated Release Process'
+          token: ${{ secrets.PAT }}
+          inputs: '{}'
+          wait-for-completion: true
+
+  # ===========================================================================
+  # JOB: trigger-deployer
+  # ===========================================================================
+  # Triggers the GitOps Deployer workflow to deploy the new release.
+  # Runs after both build-and-push and trigger-beyond-release complete.
+  # Uses `always()` with explicit success check to run even if beyond-release
+  # is skipped, but only if build-and-push succeeded.
+  # ===========================================================================
+  trigger-deployer:
+    needs: [resolve-target-commit, build-and-push, trigger-beyond-release]
+    if: ${{ always() && needs.build-and-push.result == 'success' }}
+    runs-on: gcp-selfhosted-ubuntu24
+    steps:
+      - name: Trigger Deployer Workflow
+        uses: the-actions-org/workflow-dispatch@v4
+        with:
+          repo: sequentech/gitops
+          ref: main  # Always use main branch for GitOps repository
+          workflow: Deployer Workflow
+          token: ${{ secrets.PAT }}
+          inputs: '{"version":"${{ inputs.tag_name }}", "hash":"${{ needs.resolve-target-commit.outputs.target_commitish }}", "infra_only":"false" }'
+
+  # ===========================================================================
+  # JOB: cleanup
+  # ===========================================================================
+  # Performs cleanup tasks when the workflow fails.
+  # Currently checks out the repository with full history for potential
+  # rollback or cleanup operations.
+  # TODO: Add actual cleanup steps (e.g., delete failed release, rollback tags)
+  # ===========================================================================
+  cleanup:
+    needs: [build-and-push, trigger-beyond-release, trigger-deployer]
+    if: ${{ failure() }}
+    runs-on: gcp-selfhosted-ubuntu24
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Fetches all history for all tags and branches
+
+      # TODO: Add cleanup steps here, such as:
+      # - Delete partially created releases
+      # - Revert published artifacts
+      # - Notify about manual cleanup required
+
+  # ===========================================================================
+  # JOB: slack-report
+  # ===========================================================================
+  # Reports the workflow status to Slack. Always runs regardless of the
+  # outcome of previous jobs to ensure visibility into release status.
+  # Sends two notifications:
+  # 1. General workflow status (success/failure)
+  # 2. Detailed release information (only if cleanup didn't run successfully)
+  # ===========================================================================
+  slack-report:
+    needs: [build-and-push, trigger-deployer, cleanup]
+    runs-on: gcp-selfhosted-ubuntu24
+    timeout-minutes: 20
+    if: ${{ always() }}
+    steps:
+      - name: Slack Workflow Notification
+        uses: Gamesight/slack-workflow-status@v1.2.0
+        with:
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          slack_webhook_url: ${{ secrets.SLACK_WEBHOOK_URL }}
+          name: 'Github Actions'
+
+      - name: Slack additional info
+        # Don't send release notification if cleanup job ran successfully
+        # (indicating the release was rolled back)
+        if: ${{ needs.cleanup.result != 'success' }}
+        uses: slackapi/slack-github-action@v1.24.0
+        with:
+          payload: |
+            {
+              "text": "*Sequent Release Notification* :rocket:\n*Version:* ${{ inputs.tag_name }}\n*View Release:* <https://github.com/${{ github.repository }}/releases/tag/${{ inputs.tag_name }}|${{ inputs.tag_name }}>"
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
