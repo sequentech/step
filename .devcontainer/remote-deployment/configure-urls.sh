@@ -70,17 +70,21 @@ echo ""
 # Step 2: Generate secrets
 echo "[2/4] Generating secrets..."
 MASTER_SECRET=$(generate_hex 32)
-KEYCLOAK_CLIENT_SECRET=$(generate_base64 32)
-KEYCLOAK_ADMIN_CLIENT_SECRET=$(generate_base64 32)
-KEYCLOAK_CLI_CLIENT_SECRET=$(generate_base64 32)
 
 # Update secrets in .env (macOS compatible)
 sed -i.bak "s|^SECRETS_BACKEND=.*|SECRETS_BACKEND=EnvVarMasterSecret|g" "$ENV_FILE" && rm "$ENV_FILE.bak"
 sed -i.bak "s|^MASTER_SECRET=.*|MASTER_SECRET=$MASTER_SECRET|g" "$ENV_FILE" && rm "$ENV_FILE.bak"
-sed -i.bak "s|^KEYCLOAK_CLIENT_SECRET=.*|KEYCLOAK_CLIENT_SECRET=$KEYCLOAK_CLIENT_SECRET|g" "$ENV_FILE" && rm "$ENV_FILE.bak"
-sed -i.bak "s|^KEYCLOAK_ADMIN_CLIENT_SECRET=.*|KEYCLOAK_ADMIN_CLIENT_SECRET=$KEYCLOAK_ADMIN_CLIENT_SECRET|g" "$ENV_FILE" && rm "$ENV_FILE.bak"
-sed -i.bak "s|^KEYCLOAK_CLI_CLIENT_SECRET=.*|KEYCLOAK_CLI_CLIENT_SECRET=$KEYCLOAK_CLI_CLIENT_SECRET|g" "$ENV_FILE" && rm "$ENV_FILE.bak"
-sed -i.bak "s|^ACTIONS_ADMIN_SECRET=.*|ACTIONS_ADMIN_SECRET=$KEYCLOAK_ADMIN_CLIENT_SECRET|g" "$ENV_FILE" && rm "$ENV_FILE.bak"
+
+# TODO: Before uncommenting the next lines take into account that the secrets in .devcontainer/keycloak/import/tenant-90505c8a-23a9-4cdf-a26b-4e19f6a097d5.json
+# (file which is used as a template config to create the realm in Keycloak) must match as well, so it must be replaced there as well.
+# KEYCLOAK_CLIENT_SECRET=$(generate_base64 32)
+# KEYCLOAK_ADMIN_CLIENT_SECRET=$(generate_base64 32)
+# KEYCLOAK_CLI_CLIENT_SECRET=$(generate_base64 32)
+# sed -i.bak "s|^KEYCLOAK_CLIENT_SECRET=.*|KEYCLOAK_CLIENT_SECRET=$KEYCLOAK_CLIENT_SECRET|g" "$ENV_FILE" && rm "$ENV_FILE.bak"
+# sed -i.bak "s|^KEYCLOAK_ADMIN_CLIENT_SECRET=.*|KEYCLOAK_ADMIN_CLIENT_SECRET=$KEYCLOAK_ADMIN_CLIENT_SECRET|g" "$ENV_FILE" && rm "$ENV_FILE.bak"
+# sed -i.bak "s|^KEYCLOAK_CLI_CLIENT_SECRET=.*|KEYCLOAK_CLI_CLIENT_SECRET=$KEYCLOAK_CLI_CLIENT_SECRET|g" "$ENV_FILE" && rm "$ENV_FILE.bak"
+# sed -i.bak "s|^ACTIONS_ADMIN_SECRET=.*|ACTIONS_ADMIN_SECRET=$KEYCLOAK_ADMIN_CLIENT_SECRET|g" "$ENV_FILE" && rm "$ENV_FILE.bak"
+
 echo "  ✓ Generated MASTER_SECRET (32 bytes hex)"
 echo "  ✓ Generated Keycloak client secrets"
 echo "  ✓ Set SECRETS_BACKEND=EnvVarMasterSecret"
