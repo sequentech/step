@@ -7,13 +7,6 @@ title: Release Notes next
 SPDX-License-Identifier: AGPL-3.0-only
 -->
 
-## ✨ Support public/unencrypted plaintext vote/voting
-
-Added support for unencrypted plaintext voting. Allows votes to be cast without encryption. 
-It no longer requires key cerimonies and trustees.
-
-- Issue: [#838](https://github.com/sequentech/meta/issues/838)
-
 ## ✨ Initial extension system support with WebAssembly Components
 
 Introduced extensible plugin architecture using WebAssembly Components and 

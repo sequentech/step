@@ -211,11 +211,6 @@ export const ListTally: React.FC<ListAreaProps> = () => {
         electionEventRecord?.presentation?.contest_encryption_policy
     )
 
-    console.log("isKeyCeremonyFinished: ", isKeyCeremonyFinished)
-    console.log("isUnencryptedPolicy: ", isUnencryptedPolicy)
-    console.log("isPublished: ", isPublished)
-    console.log("isCreatingTally: ", isCreatingTally)
-
     const keysCeremonyIds = useMemo(
         () => keysCeremonies?.list_keys_ceremony?.items?.map((ceremony) => ceremony?.id) ?? [],
         [keysCeremonies?.list_keys_ceremony?.items]
