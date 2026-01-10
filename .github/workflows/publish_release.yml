@@ -119,6 +119,7 @@ jobs:
   build-and-push:
     needs: [resolve-target-commit]
     uses: ./.github/workflows/reusable_build_push.yml
+    secrets: inherit
     with:
       tag: ${{ inputs.tag_name }}
       push: ${{ inputs.push }}
