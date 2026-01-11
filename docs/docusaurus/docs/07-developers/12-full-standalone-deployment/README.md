@@ -132,10 +132,17 @@ Finally, you can start the Docker Compose stack with the Nginx reverse proxy.
     cd ~/step/.devcontainer
     ```
 
-2.  Start the services using the `docker-compose-remote.yml` file:
+2.  Build and start the services using the `docker-compose-remote.yml` file:
 
-    **First time deployment:**
+    **First time deployment (IMPORTANT - build base images first):**
+    
+    To avoid race conditions during parallel builds, we build critical base images first:
+    
     ```bash
+    # Build base images first (these are dependencies for other services)
+    docker compose -f docker-compose-remote.yml build cargo-packages postgresql keycloak
+    
+    # Now build and start everything
     docker compose -f docker-compose-remote.yml up -d --build
     ```
 
@@ -145,6 +152,7 @@ Finally, you can start the Docker Compose stack with the Nginx reverse proxy.
     ```
 
     **Notes:**
+    - Building base images separately prevents Docker parallel build conflicts
     - The `--build` flag is required for first-time setup to build all images locally
     - Once images are built, you can omit `--build` for faster startups and to save disk space
     - Only use `--build` again if you've updated Dockerfiles or need to rebuild images
@@ -361,3 +369,24 @@ The admin-portal and voting-portal use production builds (static files served by
   docker compose -f docker-compose-remote.yml build admin-portal voting-portal
   docker compose -f docker-compose-remote.yml up -d admin-portal voting-portal
   ```
+
+### Build Race Condition Errors
+
+If you see errors like:
+- `ERROR [harvest] exporting to image`
+- `failed to solve: image "sequentech.local/cargo-packages:latest": already exists`
+- `Image sequentech.local/cargo-packages` - `Error failed to resolve reference`
+
+This is a Docker parallel build race condition. **Solution:**
+
+```bash
+cd ~/step/.devcontainer
+
+# Build base images first
+docker compose -f docker-compose-remote.yml build cargo-packages postgresql keycloak
+
+# Then build everything else
+docker compose -f docker-compose-remote.yml up -d --build
+```
+
+Alternatively, if the first attempt fails, simply run the build command again - the base images will now exist and the second attempt will succeed.
