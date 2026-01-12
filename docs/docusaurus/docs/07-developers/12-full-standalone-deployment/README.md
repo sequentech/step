@@ -27,6 +27,7 @@ This tutorial will guide you through setting up a Sequent Step development envir
         *   Azure: `Standard_D8s_v3` (8 vCPUs, 32 GB RAM)
     *   OS: Ubuntu 22.04 LTS or 24.04 LTS
     *   See `.devcontainer/remote-deployment/provision-server.sh` for detailed specifications and provisioning examples.
+    *   optional: See also 'Cloudflare source IP addresses list' in the bottom of the document for firewall allowence.
 *   A domain name managed by Cloudflare (e.g., `sequent.vote`).
 *   Choose A subdomain suffix for the domain record we'll create. E.g. in admin-mycorporate.domain.com, 'mycorporate' is the subdomain suffix. domain.com is the domain.
 *   A Cloudflare API token with DNS editing permissions.
@@ -390,3 +391,23 @@ docker compose -f docker-compose-remote.yml up -d --build
 ```
 
 Alternatively, if the first attempt fails, simply run the build command again - the base images will now exist and the second attempt will succeed.
+
+### Cloudflare source IP addresses list:
+In case of firewall restrictions, please add the following IP addresses in your firewall:
+```    
+    "173.245.48.0/20",
+    "103.21.244.0/22",
+    "103.22.200.0/22",
+    "103.31.4.0/22",
+    "141.101.64.0/18",
+    "108.162.192.0/18",
+    "190.93.240.0/20",
+    "188.114.96.0/20",
+    "197.234.240.0/22",
+    "198.41.128.0/17",
+    "162.158.0.0/15",
+    "104.16.0.0/13",
+    "104.24.0.0/14",
+    "172.64.0.0/13",
+    "131.0.72.0/22"
+```
