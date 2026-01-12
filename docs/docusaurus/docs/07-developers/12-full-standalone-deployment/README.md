@@ -134,16 +134,9 @@ Finally, you can start the Docker Compose stack with the Nginx reverse proxy.
     ```
 
 2.  Build and start the services using the `docker-compose-remote.yml` file:
-
-    **First time deployment (IMPORTANT - build base images first):**
-    
-    To avoid race conditions during parallel builds, we build critical base images first:
     
     ```bash
-    # Build base images first (these are dependencies for other services)
-    docker compose -f docker-compose-remote.yml build cargo-packages postgresql keycloak
-    
-    # Now build and start everything
+    # Build and start everything
     docker compose -f docker-compose-remote.yml up -d --build
     ```
 
