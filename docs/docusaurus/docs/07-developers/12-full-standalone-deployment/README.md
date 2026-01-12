@@ -96,8 +96,11 @@ The configuration script generates all necessary files from templates, including
 
 This step will automate the creation of the necessary DNS records in Cloudflare. It will create one primary A or CNAME record for the base subdomain (e.g., `remote-deployment.sequent.vote`) and then CNAME records for each service pointing to the primary record.
 
-1.  Set your Cloudflare API token as an environment variable. If you don't have a token yet, [create one here](https://developers.cloudflare.com/fundamentals/api/get-started/create-token/) with DNS editing permissions:
-
+1.  Set your Cloudflare API token. 
+    - If you don't have a token yet, [create one here](https://developers.cloudflare.com/fundamentals/api/get-started/create-token/).
+    - Add DNS editing permissions (`Zone.DNS`)
+    - Set the token as an environment variable:
+    
     ```bash
     export CLOUDFLARE_API_TOKEN="your-cloudflare-api-token"
     ```
