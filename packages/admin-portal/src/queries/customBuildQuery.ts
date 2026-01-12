@@ -12,6 +12,11 @@ import {getRoles} from "./GetRoles"
 import {isString} from "lodash"
 import {COLUMNS_MAP} from "@/types/query"
 import {GetCastVotesByIp} from "./GetCastVotesByIp"
+import {
+    addOneDay,
+    LIST_TALLY_SHEETS_BY_LATEST_VERSION,
+    removeFromWhere,
+} from "./GetTallySheetsByLatestVersion"
 
 export interface ParamsSort {
     field: string
@@ -339,7 +344,55 @@ export const customBuildQuery =
             ret.variables.where = transformedRawParams
 
             return ret
+        } else if (resourceName === "tally_sheet_by_latest_verison" && raFetchType === "GET_LIST") {
+            const resource: any = {
+                type: {
+                    fields: [],
+                    name: "sequent_backend_tally_sheet",
+                },
+            }
+
+            return {
+                query: LIST_TALLY_SHEETS_BY_LATEST_VERSION,
+                variables: (() => {
+                    const vars = buildVariables(introspectionResults)(
+                        resource,
+                        raFetchType,
+                        params,
+                        null
+                    )
+
+                    return vars
+                })(),
+                parseResponse: (res: any) => {
+                    let items = res.data.items ?? []
+
+                    return {
+                        data: items,
+                        total: items.length,
+                    }
+                },
+            }
+        } else if (resourceName === "sequent_backend_tally_sheet" && raFetchType === "GET_LIST") {
+            const {filter} = params
+            let ret = buildQuery(introspectionResults)(raFetchType, resourceName, params)
+
+            const where = (ret.variables.where ??= {})
+
+            for (const f of ["created_at", "reviewed_at"] as const) {
+                if (!filter?.[f]) continue
+                removeFromWhere(where, f)
+                ;(where._and ??= []).push({
+                    [f]: {
+                        _gte: `${filter[f]}T00:00:00+00:00`,
+                        _lt: `${addOneDay(filter[f])}T00:00:00+00:00`,
+                    },
+                })
+            }
+
+            return ret
         }
+
         return buildQuery(introspectionResults)(raFetchType, resourceName, params)
     }
 

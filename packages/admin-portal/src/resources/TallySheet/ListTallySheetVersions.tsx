@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, {ReactElement, useContext, useEffect} from "react"
+import React, {ReactElement, useContext, useEffect, useMemo} from "react"
 import {
     DatagridConfigurable,
     List,
@@ -15,6 +15,8 @@ import {
     useRefresh,
     useNotify,
     useGetList,
+    SelectInput,
+    DateInput,
 } from "react-admin"
 import {ListActions} from "../../components/ListActions"
 import {ListActionsMenu} from "../../components/ListActionsMenu"
@@ -49,15 +51,19 @@ import ArrowBackIosIcon from "@mui/icons-material/ArrowBackIos"
 
 const OMIT_FIELDS = ["id"]
 
+export const tallySheetStatusChoices = [
+    {id: "PENDING", name: "PENDING"},
+    {id: "APPROVED", name: "APPROVED"},
+    {id: "DISAPPROVED", name: "DISAPPROVED"},
+]
+
 const Filters: Array<ReactElement> = [
-    <TextInput label="Area" source="area_id" key={0} />,
-    <TextInput label="Contest" source="contest_id" key={1} />,
-    <TextInput label="ID" source="id" key={2} />,
-    <TextInput label="Channel" source="channel" key={3} />,
-    <TextInput label="Version" source="version" key={4} />,
-    <TextInput label="Created by" source="created_by" key={5} />,
-    <TextInput label="Reviewed by" source="reviewed_by" key={6} />,
-    <TextInput label="Status" source="status" key={7} />,
+    <TextInput label="Version" source="version" key={1} />,
+    <TextInput label="Created by" source="created_by" key={2} />,
+    <TextInput label="Reviewed by" source="reviewed_by" key={3} />,
+    <SelectInput label="Status" source="status" key={4} choices={tallySheetStatusChoices} />,
+    <DateInput label="Created At" source="created_at" key={5} />,
+    <DateInput label="Reviewed At" source="reviewed_at" key={6} />,
 ]
 
 interface TTallySheetListVersions {

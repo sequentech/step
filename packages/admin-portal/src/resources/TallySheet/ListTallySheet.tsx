@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, {ReactElement, useContext, useEffect} from "react"
+import React, {ReactElement, useContext, useEffect, useMemo} from "react"
 import {
     DatagridConfigurable,
     List,
@@ -14,6 +14,9 @@ import {
     useRefresh,
     useNotify,
     useGetList,
+    SelectInput,
+    NullableBooleanInput,
+    NumberInput,
 } from "react-admin"
 import {ListActions} from "../../components/ListActions"
 import {ListActionsMenu} from "../../components/ListActionsMenu"
@@ -45,16 +48,20 @@ import {IPermissions} from "@/types/keycloak"
 import {AuthContext} from "@/providers/AuthContextProvider"
 import {EStatus} from "@/types/TallySheets"
 import {ListTallySheetVersions} from "./ListTallySheetVersions"
+import SelectArea from "@/components/area/SelectArea"
+import {votingChannels} from "./EditTallySheet"
+import {useElectionEventStore} from "@/providers/ElectionEventContextProvider"
+import SelectContest from "@/components/contest/SelectContest"
 
 const OMIT_FIELDS = ["id"]
 
-const Filters: Array<ReactElement> = [
-    <TextInput label="Area" source="area_id" key={0} />,
-    <TextInput label="Contest" source="contest_id" key={1} />,
-    <TextInput label="ID" source="id" key={2} />,
-    <TextInput label="Channel" source="channel" key={3} />,
-    <TextInput label="Latest version" source="version" key={4} />,
-]
+// const Filters: Array<ReactElement> = [
+//     <TextInput label="Area" source="area_id" key={0} />,
+//     <TextInput label="Contest" source="contest_id" key={1} />,
+//     <TextInput label="ID" source="id" key={2} />,
+//     <TextInput label="Channel" source="channel" key={3} />,
+//     <TextInput label="Latest version" source="version" key={4} />,
+// ]
 
 interface TTallySheetList {
     election: Sequent_Backend_Election
@@ -67,6 +74,7 @@ export const ListTallySheet: React.FC<TTallySheetList> = (props) => {
 
     const {t} = useTranslation()
     const [tenantId] = useTenantStore()
+
     const refresh = useRefresh()
     const {globalSettings} = useContext(SettingsContext)
     const notify = useNotify()
@@ -102,16 +110,6 @@ export const ListTallySheet: React.FC<TTallySheetList> = (props) => {
             },
         }
     )
-
-    const getLatestVersion = (area_id: string, contest_id: string, channel: string) => {
-        const approvedVersion = sheetsDescVersions?.find(
-            (sheet) =>
-                sheet.area_id === area_id &&
-                sheet.contest_id === contest_id &&
-                sheet.channel === channel
-        )
-        return approvedVersion?.version ?? "-"
-    }
 
     const getLatestApprovedVersion = (area_id: string, contest_id: string, channel: string) => {
         const approvedVersion = sheetsDescVersions?.find(
@@ -178,6 +176,36 @@ export const ListTallySheet: React.FC<TTallySheetList> = (props) => {
             )}
         </ResourceListStyles.EmptyBox>
     )
+
+    const Filters = useMemo(() => {
+        let filters: ReactElement[] = []
+        filters.push(
+            <SelectArea
+                tenantId={tenantId}
+                electionEventId={election.election_event_id}
+                source="area_id"
+                label={String(t("usersAndRolesScreen.users.fields.area"))}
+            />
+        )
+        filters.push(
+            <SelectContest
+                tenantId={tenantId}
+                electionEventId={election.election_event_id}
+                electionId={election.id}
+                source="contest_id"
+                label={String("Contest")}
+            />
+        )
+        filters.push(
+            <SelectInput
+                source="channel"
+                name="channel"
+                label={String(t("tallysheet.label.channel"))}
+                choices={votingChannels}
+            />
+        )
+        return filters
+    }, [tenantId])
 
     if (!canView) {
         return <Empty />
@@ -249,7 +277,7 @@ export const ListTallySheet: React.FC<TTallySheetList> = (props) => {
                     queryOptions={{
                         refetchInterval: globalSettings.QUERY_FAST_POLL_INTERVAL_MS,
                     }}
-                    resource="sequent_backend_tally_sheet"
+                    resource="tally_sheet_by_latest_verison"
                     actions={
                         <ListActions
                             withImport={false}
@@ -267,7 +295,6 @@ export const ListTallySheet: React.FC<TTallySheetList> = (props) => {
                         tenant_id: election.tenant_id || undefined,
                         election_event_id: election.election_event_id || undefined,
                         election_id: election.id || undefined,
-                        version: 1,
                     }}
                     filters={Filters}
                     empty={<Empty />}
@@ -298,15 +325,9 @@ export const ListTallySheet: React.FC<TTallySheetList> = (props) => {
                             )}
                         />
 
-                        <FunctionField
+                        <TextField
+                            source="version"
                             label={String(t("tallysheet.table.latestVersion"))}
-                            render={(record: Sequent_Backend_Tally_Sheet) =>
-                                getLatestVersion(
-                                    record.area_id,
-                                    record.contest_id,
-                                    record.channel as string
-                                )
-                            }
                         />
 
                         <FunctionField
