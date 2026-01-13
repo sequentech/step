@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.8.1">
 <title data-rh="true">Remote Standalone Deployment Tutorial | Sequent Online Voting</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:url" content="https://sequentech.github.io/docusaurus/pr-preview/pr-2257/docs/developers/full-standalone-deployment"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Remote Standalone Deployment Tutorial | Sequent Online Voting"><meta data-rh="true" name="description" content="This tutorial will guide you through setting up a Sequent Step development environment on a single remote server, accessible via a public domain with a reverse proxy managing traffic."><meta data-rh="true" property="og:description" content="This tutorial will guide you through setting up a Sequent Step development environment on a single remote server, accessible via a public domain with a reverse proxy managing traffic."><link data-rh="true" rel="icon" href="/docusaurus/pr-preview/pr-2257/img/favicon.ico"><link data-rh="true" rel="canonical" href="https://sequentech.github.io/docusaurus/pr-preview/pr-2257/docs/developers/full-standalone-deployment"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-2257/docs/developers/full-standalone-deployment" hreflang="en"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-2257/docs/developers/full-standalone-deployment" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Remote Standalone Deployment","item":"https://sequentech.github.io/docusaurus/pr-preview/pr-2257/docs/developers/full-standalone-deployment/"}]}</script><link rel="stylesheet" href="/docusaurus/pr-preview/pr-2257/assets/css/styles.54d9e100.css">
-<script src="/docusaurus/pr-preview/pr-2257/assets/js/runtime~main.18383a02.js" defer="defer"></script>
+<script src="/docusaurus/pr-preview/pr-2257/assets/js/runtime~main.d57e4871.js" defer="defer"></script>
 <script src="/docusaurus/pr-preview/pr-2257/assets/js/main.d7a29dd8.js" defer="defer"></script>
 </head>
 <body class="navigation-with-keyboard">
@@ -45,12 +45,19 @@
 </li>
 <li>A domain name managed by Cloudflare (e.g., <code>sequent.vote</code>).</li>
 <li>Choose A subdomain suffix for the domain record we&#x27;ll create. E.g. in admin-mycorporate.domain.com, &#x27;mycorporate&#x27; is the subdomain suffix. domain.com is the domain.</li>
-<li>A Cloudflare API token with DNS editing permissions.</li>
+<li>A Cloudflare API token with the following permissions:<!-- -->
+<ul>
+<li><strong>Required:</strong> <code>Zone &gt; DNS &gt; Edit</code> (for creating DNS records)</li>
+<li><strong>Recommended:</strong> <code>Zone &gt; Zone Settings &gt; Edit</code> (for automatic SSL configuration)</li>
+<li><strong>Optional:</strong> <code>Zone &gt; Zone Settings &gt; Read</code> (for checking current SSL mode)</li>
+<li>Note: If your token lacks SSL permissions, the script will provide manual configuration instructions</li>
+</ul>
+</li>
 <li><strong>Cloudflare SSL Configuration:</strong> One of the following:<!-- -->
 <ul>
 <li><strong>Option 1 (Recommended):</strong> Zone-wide SSL/TLS mode set to &quot;Flexible&quot; (simplest)</li>
 <li><strong>Option 2:</strong> At least 1 available Page Rule slot on your Cloudflare plan (Free plan includes 3 Page Rules)</li>
-<li>Note: The setup script will automatically configure SSL, but having Flexible mode pre-set will skip the Page Rule requirement</li>
+<li>Note: The setup script will automatically configure SSL if your API token has the required permissions</li>
 </ul>
 </li>
 </ul>
