@@ -190,7 +190,7 @@ PAGE_RULE_RESPONSE=$(curl -s -X POST "https://api.cloudflare.com/client/v4/zones
         
         if [ "$ERROR_CODE" == "9109" ]; then
             echo "⚠ Warning: API token does not have permission to create Page Rules."
-            echo "  Your API token needs 'Zone Settings: Edit' permission."
+            echo "  Your API token needs 'Page Rules: Edit' permission (under Zone > Page Rules)."
         else
             echo "✗ Error: Could not create Page Rule (Error code: $ERROR_CODE)"
             echo "  Message: $ERROR_MESSAGE"
@@ -222,7 +222,10 @@ PAGE_RULE_RESPONSE=$(curl -s -X POST "https://api.cloudflare.com/client/v4/zones
         echo "Option 3: Update API token permissions and re-run"
         echo "  1. Go to Cloudflare Dashboard → My Profile → API Tokens"
         echo "  2. Edit your token or create a new one"
-        echo "  3. Add permission: Zone > Zone Settings > Edit"
+        echo "  3. Add permissions:"
+        echo "     - Zone > DNS > Edit (already have this)"
+        echo "     - Zone > Zone Settings > Edit (for SSL mode check)"
+        echo "     - Zone > Page Rules > Edit (for creating Page Rules)"
         echo "  4. Re-run: ./setup-cloudflare.sh $ZONE_DOMAIN <IP> $SUBDOMAIN_SUFFIX"
         echo ""
         echo "DNS records have been created successfully. SSL configuration is pending."

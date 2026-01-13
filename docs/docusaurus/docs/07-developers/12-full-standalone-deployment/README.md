@@ -32,9 +32,11 @@ This tutorial will guide you through setting up a Sequent Step development envir
 *   Choose A subdomain suffix for the domain record we'll create. E.g. in admin-mycorporate.domain.com, 'mycorporate' is the subdomain suffix. domain.com is the domain.
 *   A Cloudflare API token with the following permissions:
     *   **Required:** `Zone > DNS > Edit` (for creating DNS records)
-    *   **Recommended:** `Zone > Zone Settings > Edit` (for automatic SSL configuration)
-    *   **Optional:** `Zone > Zone Settings > Read` (for checking current SSL mode)
-    *   Note: If your token lacks SSL permissions, the script will provide manual configuration instructions
+    *   **Recommended for automatic SSL setup:**
+        *   `Zone > Zone Settings > Read` (for checking current SSL mode)
+        *   `Zone > Zone Settings > Edit` (for modifying SSL settings)
+        *   `Zone > Page Rules > Edit` (for creating SSL Page Rules)
+    *   Note: If your token lacks SSL/Page Rule permissions, the script will complete DNS setup and provide manual SSL configuration instructions
 *   **Cloudflare SSL Configuration:** One of the following:
     *   **Option 1 (Recommended):** Zone-wide SSL/TLS mode set to "Flexible" (simplest)
     *   **Option 2:** At least 1 available Page Rule slot on your Cloudflare plan (Free plan includes 3 Page Rules)
