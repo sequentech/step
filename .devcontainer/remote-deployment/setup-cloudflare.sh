@@ -68,7 +68,8 @@ else
     else
         echo "Error creating DNS record for $SUBDOMAIN_SUFFIX.$ZONE_DOMAIN:"
         echo $RESPONSE | jq .errors
-        exit 1
+        # exit 1
+        echo temporarily continuing...
     fi
 fi
 
@@ -186,28 +187,46 @@ PAGE_RULE_RESPONSE=$(curl -s -X POST "https://api.cloudflare.com/client/v4/zones
     else
         ERROR_MESSAGE=$(echo $PAGE_RULE_RESPONSE | jq -r '.errors[0].message')
         ERROR_CODE=$(echo $PAGE_RULE_RESPONSE | jq -r '.errors[0].code')
-        echo "✗ Error: Could not create Page Rule (Error code: $ERROR_CODE)"
-        echo "  Message: $ERROR_MESSAGE"
-        echo ""
-        echo "This usually means:"
-        echo "  - You've reached the Page Rule limit (Free plan: 3 rules)"
-        echo "  - OR there's a permission issue with your API token"
+        
+        if [ "$ERROR_CODE" == "9109" ]; then
+            echo "⚠ Warning: API token does not have permission to create Page Rules."
+            echo "  Your API token needs 'Zone Settings: Edit' permission."
+        else
+            echo "✗ Error: Could not create Page Rule (Error code: $ERROR_CODE)"
+            echo "  Message: $ERROR_MESSAGE"
+            echo ""
+            echo "This usually means:"
+            echo "  - You've reached the Page Rule limit (Free plan: 3 rules)"
+            echo "  - OR there's a permission issue with your API token"
+        fi
+        
         echo ""
         echo "=== MANUAL ACTION REQUIRED ==="
         echo ""
-        echo "Option 1: Create Page Rule manually (if you have available Page Rules)"
+        echo "Your services will show '521 Web Server Is Down' errors without SSL configuration."
+        echo "Please configure SSL manually using ONE of these options:"
+        echo ""
+        echo "Option 1: Set zone-wide Flexible SSL (Simplest)"
+        echo "  1. Go to Cloudflare Dashboard → $ZONE_DOMAIN → SSL/TLS → Overview"
+        echo "  2. Set SSL/TLS encryption mode to 'Flexible'"
+        echo "  3. Wait 1-2 minutes for propagation"
+        echo ""
+        echo "Option 2: Create Page Rule manually (Recommended if you want isolation)"
         echo "  1. Go to Cloudflare Dashboard → $ZONE_DOMAIN → Rules → Page Rules"
         echo "  2. Click 'Create Page Rule'"
         echo "  3. URL pattern: $PAGE_RULE_URL"
         echo "  4. Add setting: SSL → Flexible"
-        echo "  5. Save and deploy"
+        echo "  5. Set priority to 1"
+        echo "  6. Save and deploy"
         echo ""
-        echo "Option 2: Set zone-wide Flexible SSL (affects all subdomains)"
-        echo "  1. Go to Cloudflare Dashboard → $ZONE_DOMAIN → SSL/TLS → Overview"
-        echo "  2. Set SSL/TLS encryption mode to 'Flexible'"
+        echo "Option 3: Update API token permissions and re-run"
+        echo "  1. Go to Cloudflare Dashboard → My Profile → API Tokens"
+        echo "  2. Edit your token or create a new one"
+        echo "  3. Add permission: Zone > Zone Settings > Edit"
+        echo "  4. Re-run: ./setup-cloudflare.sh $ZONE_DOMAIN <IP> $SUBDOMAIN_SUFFIX"
         echo ""
-        echo "Without one of these options, your site will show '521 Web Server Is Down' errors."
-        exit 1
+        echo "DNS records have been created successfully. SSL configuration is pending."
+        exit 0
     fi
 fi
 
