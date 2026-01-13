@@ -107,7 +107,6 @@ echo "[3/4] Configuring domain: $DOMAIN with subdomain: $SUBDOMAIN_SUFFIX..."
 sed -i.bak "s|^DOMAIN=.*|DOMAIN=$DOMAIN|g" "$ENV_FILE" && rm "$ENV_FILE.bak"
 
 # Update all subdomain-based URLs to use the new suffix
-sed -i.bak "s|ENV_SLUG=[a-zA-Z0-9_-]*$|ENV_SLUG=$SUBDOMAIN_SUFFIX|g" "$ENV_FILE" && rm "$ENV_FILE.bak"
 sed -i.bak "s|login-[a-zA-Z0-9_-]*\.\${DOMAIN}|login-$SUBDOMAIN_SUFFIX.\${DOMAIN}|g" "$ENV_FILE" && rm "$ENV_FILE.bak"
 sed -i.bak "s|admin-[a-zA-Z0-9_-]*\.\${DOMAIN}|admin-$SUBDOMAIN_SUFFIX.\${DOMAIN}|g" "$ENV_FILE" && rm "$ENV_FILE.bak"
 sed -i.bak "s|voting-[a-zA-Z0-9_-]*\.\${DOMAIN}|voting-$SUBDOMAIN_SUFFIX.\${DOMAIN}|g" "$ENV_FILE" && rm "$ENV_FILE.bak"
