@@ -31,6 +31,10 @@ This tutorial will guide you through setting up a Sequent Step development envir
 *   A domain name managed by Cloudflare (e.g., `sequent.vote`).
 *   Choose A subdomain suffix for the domain record we'll create. E.g. in admin-mycorporate.domain.com, 'mycorporate' is the subdomain suffix. domain.com is the domain.
 *   A Cloudflare API token with DNS editing permissions.
+*   **Cloudflare SSL Configuration:** One of the following:
+    *   **Option 1 (Recommended):** Zone-wide SSL/TLS mode set to "Flexible" (simplest)
+    *   **Option 2:** At least 1 available Page Rule slot on your Cloudflare plan (Free plan includes 3 Page Rules)
+    *   Note: The setup script will automatically configure SSL, but having Flexible mode pre-set will skip the Page Rule requirement
 
 ## 1. Server Preparation
 
@@ -92,9 +96,19 @@ The configuration script generates all necessary files from templates, including
     - Production secrets management (`VAULT_*` or `MASTER_SECRET`)
     - SimpleSAMLphp integration (`SSP_*`, `TENANT_ID`, etc.)
 
-## 3. Cloudflare DNS Setup
+## 3. Cloudflare DNS and SSL Setup
 
-This step will automate the creation of the necessary DNS records in Cloudflare. It will create one primary A or CNAME record for the base subdomain (e.g., `remote-deployment.sequent.vote`) and then CNAME records for each service pointing to the primary record.
+This step automates the creation of DNS records and configures SSL/TLS for HTTPS access.
+
+### What the script does:
+
+1. **Creates DNS records** (A record + CNAMEs for each service)
+2. **Configures SSL/TLS mode**:
+   - Checks if zone SSL mode is already "Flexible"
+   - If not, creates a Page Rule for Flexible SSL on your subdomains only
+   - This allows visitors to use HTTPS while the server uses HTTP internally
+
+### Running the script:
 
 1.  Set your Cloudflare API token as an environment variable:
 
@@ -109,19 +123,27 @@ This step will automate the creation of the necessary DNS records in Cloudflare.
     chmod +x ./setup-cloudflare.sh
     ./setup-cloudflare.sh sequent.vote YOUR_SERVER_IP remote-deployment
     ```
-    ```
 
     *   Replace `sequent.vote` with your root domain.
-    *   Replace `YOUR_SERVER_IP` with your server's public IP address (or CNAME target).
+    *   Replace `YOUR_SERVER_IP` with your server's public IP address.
     *   Replace `remote-deployment` with your subdomain suffix (must match what you used in step 2).
 
-    The script will create:
-    *   `remote-deployment.sequent.vote` → YOUR_SERVER_IP (A record)
-    *   `admin-remote-deployment.sequent.vote` → remote-deployment.sequent.vote (CNAME)
-    *   `voting-remote-deployment.sequent.vote` → remote-deployment.sequent.vote (CNAME)
-    *   `hasura-remote-deployment.sequent.vote` → remote-deployment.sequent.vote (CNAME)
-    *   `login-remote-deployment.sequent.vote` → remote-deployment.sequent.vote (CNAME)
-    *   `minio-remote-deployment.sequent.vote` → remote-deployment.sequent.vote (CNAME)
+### What gets created:
+
+**DNS Records:**
+*   `remote-deployment.sequent.vote` → YOUR_SERVER_IP (A record)
+*   `admin-remote-deployment.sequent.vote` → remote-deployment.sequent.vote (CNAME)
+*   `voting-remote-deployment.sequent.vote` → remote-deployment.sequent.vote (CNAME)
+*   `hasura-remote-deployment.sequent.vote` → remote-deployment.sequent.vote (CNAME)
+*   `login-remote-deployment.sequent.vote` → remote-deployment.sequent.vote (CNAME)
+*   `minio-remote-deployment.sequent.vote` → remote-deployment.sequent.vote (CNAME)
+*   `verifier-remote-deployment.sequent.vote` → remote-deployment.sequent.vote (CNAME)
+
+**SSL Configuration:**
+*   If zone SSL mode is already "Flexible": Nothing additional needed ✓
+*   Otherwise: Creates a Page Rule for `*-remote-deployment.sequent.vote/*` with Flexible SSL
+
+**Note:** If the script reports an error about Page Rules, see the **Troubleshooting** section below for manual configuration options.
 
 ## 4. Deployment
 
@@ -219,6 +241,56 @@ Your Sequent Step environment should now be up and running! You can access the d
 *   **MinIO:** `https://minio-remote-deployment.sequent.vote`
 
 ## Troubleshooting
+
+### Cloudflare SSL/TLS Errors (521 Web Server Is Down)
+
+If you see **"521 Web Server Is Down"** errors when accessing your sites, this means Cloudflare cannot connect to your origin server due to SSL configuration mismatch.
+
+**Cause:** The nginx server only accepts HTTP connections, but Cloudflare is trying to connect via HTTPS.
+
+**Symptoms:**
+- Error 521 in browser
+- `curl -I https://admin-yoursubdomain.yourdomain.com` returns `HTTP/2 521`
+- Services work when accessed via HTTP directly from the server
+
+**Solution - Option 1: Set zone-wide Flexible SSL (Simplest)**
+
+1. Go to Cloudflare Dashboard → Your Domain → SSL/TLS → Overview
+2. Set SSL/TLS encryption mode to **"Flexible"**
+3. Wait 1-2 minutes for changes to propagate
+4. Test: `curl -I https://admin-yoursubdomain.yourdomain.com` (should return `HTTP/2 200`)
+
+**Solution - Option 2: Create Page Rule manually**
+
+If you want to keep other subdomains on a different SSL mode:
+
+1. Go to Cloudflare Dashboard → Your Domain → Rules → Page Rules
+2. Click "Create Page Rule"
+3. URL pattern: `*-yoursubdomain.yourdomain.com/*` (replace with your actual subdomain suffix)
+4. Add setting: **SSL** → **Flexible**
+5. Set priority to 1 (highest)
+6. Save and deploy
+7. Wait 1-2 minutes for propagation
+
+**Solution - Option 3: Re-run setup script**
+
+If you've freed up a Page Rule slot or set zone-wide Flexible SSL:
+
+```bash
+cd ~/step/.devcontainer/remote-deployment
+export CLOUDFLARE_API_TOKEN="your-token"
+./setup-cloudflare.sh yourdomain.com YOUR_SERVER_IP your-subdomain-suffix
+```
+
+**Verification:**
+
+```bash
+# Should return HTTP/2 200 (not 521)
+curl -I https://admin-yoursubdomain.yourdomain.com
+
+# Check from server that nginx is responding locally
+ssh user@your-server 'curl -I http://localhost:80 -H "Host: admin-yoursubdomain.yourdomain.com"'
+```
 
 ### Check DNS Resolution
 

@@ -96,3 +96,83 @@ for SERVICE in "${SERVICES[@]}"; do
       fi
   fi
 done
+
+# Check current SSL/TLS mode for the zone
+echo "\nChecking SSL/TLS configuration..."
+SSL_MODE_RESPONSE=$(curl -s -X GET "https://api.cloudflare.com/client/v4/zones/$ZONE_ID/settings/ssl" \
+     -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+     -H "Content-Type: application/json")
+
+CURRENT_SSL_MODE=$(echo $SSL_MODE_RESPONSE | jq -r .result.value)
+echo "Current SSL/TLS mode: $CURRENT_SSL_MODE"
+
+# If SSL mode is already 'flexible', we don't need a Page Rule
+if [ "$CURRENT_SSL_MODE" == "flexible" ]; then
+    echo "✓ SSL/TLS mode is already set to 'Flexible' for the entire zone."
+    echo "  All subdomains will connect to origin via HTTP while serving HTTPS to visitors."
+    echo "  No Page Rule needed."
+else
+    echo "SSL/TLS mode is set to '$CURRENT_SSL_MODE'."
+    echo "Creating a Page Rule to enable Flexible SSL for *-$SUBDOMAIN_SUFFIX.$ZONE_DOMAIN only..."
+    echo "This will not affect other subdomains or the main domain."
+    
+    # Create a Page Rule that matches all our subdomains
+    PAGE_RULE_URL="*-$SUBDOMAIN_SUFFIX.$ZONE_DOMAIN/*"
+    echo "Creating Page Rule for pattern: $PAGE_RULE_URL"
+
+PAGE_RULE_RESPONSE=$(curl -s -X POST "https://api.cloudflare.com/client/v4/zones/$ZONE_ID/pagerules" \
+     -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+     -H "Content-Type: application/json" \
+     --data '{
+       "targets": [{
+         "target": "url",
+         "constraint": {
+           "operator": "matches",
+           "value": "'"$PAGE_RULE_URL"'"
+         }
+       }],
+       "actions": [{
+         "id": "ssl",
+         "value": "flexible"
+       }],
+       "priority": 1,
+       "status": "active"
+     }')
+
+    PAGE_RULE_SUCCESS=$(echo $PAGE_RULE_RESPONSE | jq -r .success)
+    if [ "$PAGE_RULE_SUCCESS" == "true" ]; then
+        echo "✓ Successfully created Page Rule for SSL Flexible mode"
+        echo "  Only subdomains matching *-$SUBDOMAIN_SUFFIX.$ZONE_DOMAIN will use Flexible SSL"
+    else
+        ERROR_MESSAGE=$(echo $PAGE_RULE_RESPONSE | jq -r '.errors[0].message')
+        ERROR_CODE=$(echo $PAGE_RULE_RESPONSE | jq -r '.errors[0].code')
+        echo "✗ Error: Could not create Page Rule (Error code: $ERROR_CODE)"
+        echo "  Message: $ERROR_MESSAGE"
+        echo ""
+        echo "This usually means:"
+        echo "  - You've reached the Page Rule limit (Free plan: 3 rules)"
+        echo "  - OR there's a permission issue with your API token"
+        echo ""
+        echo "=== MANUAL ACTION REQUIRED ==="
+        echo ""
+        echo "Option 1: Create Page Rule manually (if you have available Page Rules)"
+        echo "  1. Go to Cloudflare Dashboard → $ZONE_DOMAIN → Rules → Page Rules"
+        echo "  2. Click 'Create Page Rule'"
+        echo "  3. URL pattern: $PAGE_RULE_URL"
+        echo "  4. Add setting: SSL → Flexible"
+        echo "  5. Save and deploy"
+        echo ""
+        echo "Option 2: Set zone-wide Flexible SSL (affects all subdomains)"
+        echo "  1. Go to Cloudflare Dashboard → $ZONE_DOMAIN → SSL/TLS → Overview"
+        echo "  2. Set SSL/TLS encryption mode to 'Flexible'"
+        echo ""
+        echo "Without one of these options, your site will show '521 Web Server Is Down' errors."
+        exit 1
+    fi
+fi
+
+echo "\n✓ DNS setup complete!"
+echo "Your services will be available at:"
+for SERVICE in "${SERVICES[@]}"; do
+    echo "  - https://$SERVICE-$SUBDOMAIN_SUFFIX.$ZONE_DOMAIN"
+done
