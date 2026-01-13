@@ -75,11 +75,16 @@ MASTER_SECRET=$(generate_hex 32)
 sed -i.bak "s|^SECRETS_BACKEND=.*|SECRETS_BACKEND=EnvVarMasterSecret|g" "$ENV_FILE" && rm "$ENV_FILE.bak"
 sed -i.bak "s|^MASTER_SECRET=.*|MASTER_SECRET=$MASTER_SECRET|g" "$ENV_FILE" && rm "$ENV_FILE.bak"
 
-KEYCLOAK_JSON_FILE="$DEVCONTAINER_DIR/keycloak/import/tenant-90505c8a-23a9-4cdf-a26b-4e19f6a097d5.json"
-
+# The tailored file will be git ignored
+KEYCLOAK_JSON_FILE="$DEVCONTAINER_DIR/keycloak/import/tenant-90505c8a-23a9-4cdf-a26b-4e19f6a097d5_tailored_version.json"
+KEYCLOAK_JSON_SRC_FILE="$DEVCONTAINER_DIR/keycloak/import/tenant-90505c8a-23a9-4cdf-a26b-4e19f6a097d5.json"
 KEYCLOAK_CLIENT_SECRET=$(generate_base64 32)
 KEYCLOAK_ADMIN_CLIENT_SECRET=$(generate_base64 32)
 KEYCLOAK_CLI_CLIENT_SECRET=$(generate_base64 32)
+
+# Create the tailored file from the source to modify the secrets on it and the the env variable to it.
+cp "$KEYCLOAK_JSON_SRC_FILE" "$KEYCLOAK_JSON_FILE"
+sed -i.bak "s|^KEYCLOAK_TENANT_REALM_CONFIG_PATH=.*|KEYCLOAK_TENANT_REALM_CONFIG_PATH=$KEYCLOAK_JSON_FILE|g" "$ENV_FILE" && rm "$ENV_FILE.bak"
 
 sed -i.bak "s|^KEYCLOAK_CLIENT_SECRET=.*|KEYCLOAK_CLIENT_SECRET=$KEYCLOAK_CLIENT_SECRET|g" "$ENV_FILE" && rm "$ENV_FILE.bak"
 jq --arg secret "$KEYCLOAK_CLIENT_SECRET" '(.clients[] | select(.clientId == "service-account") | .secret) = $secret' "$KEYCLOAK_JSON_FILE" > "$KEYCLOAK_JSON_FILE.tmp" && mv "$KEYCLOAK_JSON_FILE.tmp" "$KEYCLOAK_JSON_FILE"
