@@ -373,26 +373,7 @@ export const customBuildQuery =
                     }
                 },
             }
-        } else if (resourceName === "sequent_backend_tally_sheet" && raFetchType === "GET_LIST") {
-            const {filter} = params
-            let ret = buildQuery(introspectionResults)(raFetchType, resourceName, params)
-
-            const where = (ret.variables.where ??= {})
-
-            for (const f of ["created_at", "reviewed_at"] as const) {
-                if (!filter?.[f]) continue
-                removeFromWhere(where, f)
-                ;(where._and ??= []).push({
-                    [f]: {
-                        _gte: `${filter[f]}T00:00:00+00:00`,
-                        _lt: `${addOneDay(filter[f])}T00:00:00+00:00`,
-                    },
-                })
-            }
-
-            return ret
         }
-
         return buildQuery(introspectionResults)(raFetchType, resourceName, params)
     }
 

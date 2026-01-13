@@ -59,11 +59,7 @@ export const tallySheetStatusChoices = [
 
 const Filters: Array<ReactElement> = [
     <TextInput label="Version" source="version" key={1} />,
-    <TextInput label="Created by" source="created_by" key={2} />,
-    <TextInput label="Reviewed by" source="reviewed_by" key={3} />,
     <SelectInput label="Status" source="status" key={4} choices={tallySheetStatusChoices} />,
-    <DateInput label="Created At" source="created_at" key={5} />,
-    <DateInput label="Reviewed At" source="reviewed_at" key={6} />,
 ]
 
 interface TTallySheetListVersions {
