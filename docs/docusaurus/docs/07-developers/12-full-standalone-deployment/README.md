@@ -118,7 +118,9 @@ This step automates the creation of DNS records and configures SSL/TLS for HTTPS
 
 1.  Set your Cloudflare API token. 
     - If you don't have a token yet, [create one here](https://developers.cloudflare.com/fundamentals/api/get-started/create-token/).
-    - Add DNS editing permissions (`Zone.DNS`)
+    - After creating the token, go to the permissions section, category: `Zone` and add:
+    - Permission: `DNS` > Access level: `Edit` (for creating Page Rules) and `Read.
+    - Permission: `Page Rules` > Access level: `Edit` (for creating Page Rules).
     - Set the token as an environment variable:
     
     ```bash
