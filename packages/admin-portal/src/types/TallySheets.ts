@@ -35,3 +35,9 @@ export interface IAreaContestResults {
     census?: number
     candidate_results: {[id: string]: ICandidateResults}
 }
+
+export interface ITallySheetConfig {
+    area_id: string
+    contest_id: string
+    channel: string
+}

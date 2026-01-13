@@ -55,14 +55,6 @@ import SelectContest from "@/components/contest/SelectContest"
 
 const OMIT_FIELDS = ["id"]
 
-// const Filters: Array<ReactElement> = [
-//     <TextInput label="Area" source="area_id" key={0} />,
-//     <TextInput label="Contest" source="contest_id" key={1} />,
-//     <TextInput label="ID" source="id" key={2} />,
-//     <TextInput label="Channel" source="channel" key={3} />,
-//     <TextInput label="Latest version" source="version" key={4} />,
-// ]
-
 interface TTallySheetList {
     election: Sequent_Backend_Election
     doAction: (action: number, id?: Identifier) => void
