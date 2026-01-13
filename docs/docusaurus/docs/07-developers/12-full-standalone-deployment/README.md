@@ -230,7 +230,8 @@ Finally, you can start the Docker Compose stack with the Nginx reverse proxy.
     # Verify upload
     docker compose -f .devcontainer/docker-compose-remote.yml run --rm --entrypoint="" -T configure-minio \
       sh -c 'mc alias set myminio http://minio:9000 minio minio123 > /dev/null 2>&1 && \
-             mc cat myminio/public/certs.json > /dev/null 2>&1 && \
+             CONTENT=$(mc cat myminio/public/certs.json 2>/dev/null) && \
+             [ -n "$CONTENT" ] && \
              echo "✓ JWKS file verified in MinIO" || echo "✗ ERROR: JWKS file is empty or invalid"'
     ```
 
