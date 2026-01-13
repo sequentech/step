@@ -78,23 +78,22 @@ sed -i.bak "s|^MASTER_SECRET=.*|MASTER_SECRET=$MASTER_SECRET|g" "$ENV_FILE" && r
 # The tailored file will be git ignored
 KEYCLOAK_JSON_FILE="$DEVCONTAINER_DIR/keycloak/import/tenant-90505c8a-23a9-4cdf-a26b-4e19f6a097d5_tailored_version.json"
 KEYCLOAK_JSON_SRC_FILE="$DEVCONTAINER_DIR/keycloak/import/tenant-90505c8a-23a9-4cdf-a26b-4e19f6a097d5.json"
+# Container path for services with workspace mounted at /workspaces/step
+KEYCLOAK_JSON_CONTAINER_PATH="/workspaces/step/.devcontainer/keycloak/import/tenant-90505c8a-23a9-4cdf-a26b-4e19f6a097d5_tailored_version.json"
+
 KEYCLOAK_CLIENT_SECRET=$(generate_base64 32)
-KEYCLOAK_ADMIN_CLIENT_SECRET=$(generate_base64 32)
 KEYCLOAK_CLI_CLIENT_SECRET=$(generate_base64 32)
 
-# Create the tailored file from the source to modify the secrets on it and the the env variable to it.
+# Create the tailored file from the source to modify the secrets on it and set the env variable to container path
 cp "$KEYCLOAK_JSON_SRC_FILE" "$KEYCLOAK_JSON_FILE"
-sed -i.bak "s|^KEYCLOAK_TENANT_REALM_CONFIG_PATH=.*|KEYCLOAK_TENANT_REALM_CONFIG_PATH=$KEYCLOAK_JSON_FILE|g" "$ENV_FILE" && rm "$ENV_FILE.bak"
+sed -i.bak "s|^KEYCLOAK_TENANT_REALM_CONFIG_PATH=.*|KEYCLOAK_TENANT_REALM_CONFIG_PATH=$KEYCLOAK_JSON_CONTAINER_PATH|g" "$ENV_FILE" && rm "$ENV_FILE.bak"
 
 sed -i.bak "s|^KEYCLOAK_CLIENT_SECRET=.*|KEYCLOAK_CLIENT_SECRET=$KEYCLOAK_CLIENT_SECRET|g" "$ENV_FILE" && rm "$ENV_FILE.bak"
 jq --arg secret "$KEYCLOAK_CLIENT_SECRET" '(.clients[] | select(.clientId == "service-account") | .secret) = $secret' "$KEYCLOAK_JSON_FILE" > "$KEYCLOAK_JSON_FILE.tmp" && mv "$KEYCLOAK_JSON_FILE.tmp" "$KEYCLOAK_JSON_FILE"
 
-sed -i.bak "s|^KEYCLOAK_ADMIN_CLIENT_SECRET=.*|KEYCLOAK_ADMIN_CLIENT_SECRET=$KEYCLOAK_ADMIN_CLIENT_SECRET|g" "$ENV_FILE" && rm "$ENV_FILE.bak"
-
 sed -i.bak "s|^KEYCLOAK_CLI_CLIENT_SECRET=.*|KEYCLOAK_CLI_CLIENT_SECRET=$KEYCLOAK_CLI_CLIENT_SECRET|g" "$ENV_FILE" && rm "$ENV_FILE.bak"
 jq --arg secret "$KEYCLOAK_CLI_CLIENT_SECRET" '(.clients[] | select(.clientId == "cli-account-admin") | .secret) = $secret' "$KEYCLOAK_JSON_FILE" > "$KEYCLOAK_JSON_FILE.tmp" && mv "$KEYCLOAK_JSON_FILE.tmp" "$KEYCLOAK_JSON_FILE"
 
-sed -i.bak "s|^ACTIONS_ADMIN_SECRET=.*|ACTIONS_ADMIN_SECRET=$KEYCLOAK_ADMIN_CLIENT_SECRET|g" "$ENV_FILE" && rm "$ENV_FILE.bak"
 
 echo "  ✓ Generated MASTER_SECRET (32 bytes hex)"
 echo "  ✓ Generated Keycloak client secrets"
