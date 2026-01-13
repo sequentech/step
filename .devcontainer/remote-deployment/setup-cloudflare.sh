@@ -63,13 +63,12 @@ if [ "$SUCCESS" == "true" ]; then
     echo "Successfully created DNS record for $SUBDOMAIN_SUFFIX.$ZONE_DOMAIN"
 else
     ERROR_CODE=$(echo $RESPONSE | jq -r '.errors[0].code')
-    if [ "$ERROR_CODE" == "81054" ]; then
+    if [ "$ERROR_CODE" == "81054" ] || [ "$ERROR_CODE" == "81058" ]; then
         echo "DNS record for $SUBDOMAIN_SUFFIX.$ZONE_DOMAIN already exists, skipping..."
     else
         echo "Error creating DNS record for $SUBDOMAIN_SUFFIX.$ZONE_DOMAIN:"
         echo $RESPONSE | jq .errors
-        # exit 1
-        echo temporarily continuing...
+        exit 1
     fi
 fi
 
