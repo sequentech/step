@@ -30,11 +30,15 @@ This tutorial will guide you through setting up a Sequent Step development envir
     *   optional: See also 'Cloudflare source IP addresses list' in the bottom of the document for firewall allowence.
 *   A domain name managed by Cloudflare (e.g., `sequent.vote`).
 *   Choose A subdomain suffix for the domain record we'll create. E.g. in admin-mycorporate.domain.com, 'mycorporate' is the subdomain suffix. domain.com is the domain.
-*   A Cloudflare API token with DNS editing permissions.
+*   A Cloudflare API token with the following permissions:
+    *   **Required:** `Zone > DNS > Edit` (for creating DNS records)
+    *   **Recommended:** `Zone > Zone Settings > Edit` (for automatic SSL configuration)
+    *   **Optional:** `Zone > Zone Settings > Read` (for checking current SSL mode)
+    *   Note: If your token lacks SSL permissions, the script will provide manual configuration instructions
 *   **Cloudflare SSL Configuration:** One of the following:
     *   **Option 1 (Recommended):** Zone-wide SSL/TLS mode set to "Flexible" (simplest)
     *   **Option 2:** At least 1 available Page Rule slot on your Cloudflare plan (Free plan includes 3 Page Rules)
-    *   Note: The setup script will automatically configure SSL, but having Flexible mode pre-set will skip the Page Rule requirement
+    *   Note: The setup script will automatically configure SSL if your API token has the required permissions
 
 ## 1. Server Preparation
 

@@ -103,6 +103,46 @@ SSL_MODE_RESPONSE=$(curl -s -X GET "https://api.cloudflare.com/client/v4/zones/$
      -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
      -H "Content-Type: application/json")
 
+SSL_SUCCESS=$(echo $SSL_MODE_RESPONSE | jq -r .success)
+
+if [ "$SSL_SUCCESS" != "true" ]; then
+    ERROR_CODE=$(echo $SSL_MODE_RESPONSE | jq -r '.errors[0].code')
+    ERROR_MESSAGE=$(echo $SSL_MODE_RESPONSE | jq -r '.errors[0].message')
+    
+    if [ "$ERROR_CODE" == "9109" ]; then
+        echo "⚠ Warning: API token does not have permission to read SSL settings."
+        echo "  Your API token needs 'Zone Settings: Read' and 'Zone Settings: Edit' permissions."
+        echo ""
+        echo "=== MANUAL ACTION REQUIRED ==="
+        echo ""
+        echo "Your services will show '521 Web Server Is Down' errors without SSL configuration."
+        echo "Please configure SSL manually using ONE of these options:"
+        echo ""
+        echo "Option 1: Update your API token permissions (Recommended)"
+        echo "  1. Go to Cloudflare Dashboard → My Profile → API Tokens"
+        echo "  2. Edit your token or create a new one"
+        echo "  3. Add permissions: Zone > Zone Settings > Edit"
+        echo "  4. Re-run this script with the updated token"
+        echo ""
+        echo "Option 2: Set zone-wide Flexible SSL manually"
+        echo "  1. Go to Cloudflare Dashboard → $ZONE_DOMAIN → SSL/TLS → Overview"
+        echo "  2. Set SSL/TLS encryption mode to 'Flexible'"
+        echo ""
+        echo "Option 3: Create Page Rule manually"
+        echo "  1. Go to Cloudflare Dashboard → $ZONE_DOMAIN → Rules → Page Rules"
+        echo "  2. Create a new Page Rule"
+        echo "  3. URL pattern: *-$SUBDOMAIN_SUFFIX.$ZONE_DOMAIN/*"
+        echo "  4. Setting: SSL → Flexible"
+        echo "  5. Save and deploy"
+        echo ""
+        echo "DNS records have been created successfully. SSL configuration is pending."
+        exit 0
+    else
+        echo "✗ Error checking SSL settings: $ERROR_MESSAGE (code: $ERROR_CODE)"
+        exit 1
+    fi
+fi
+
 CURRENT_SSL_MODE=$(echo $SSL_MODE_RESPONSE | jq -r .result.value)
 echo "Current SSL/TLS mode: $CURRENT_SSL_MODE"
 
