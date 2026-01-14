@@ -166,6 +166,7 @@ export const ListTallySheetVersions: React.FC<TTallySheetListVersions> = (props)
                 }}
                 filters={Filters}
                 empty={<Empty />}
+                sort={{field: "version", order: "ASC"}}
             >
                 <DatagridConfigurable
                     omit={OMIT_FIELDS}
@@ -193,11 +194,7 @@ export const ListTallySheetVersions: React.FC<TTallySheetListVersions> = (props)
                         )}
                     />
 
-                    <FunctionField
-                        key={"Version"}
-                        label={t("tallysheet.versionsTable.version")}
-                        render={(record: any) => <TextField source="version" />}
-                    />
+                    <TextField source="version" label={t("tallysheet.versionsTable.version")} />
 
                     <FunctionField
                         key={"Created by"}
