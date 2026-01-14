@@ -72,6 +72,11 @@ server {
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto https;
         proxy_set_header Forwarded "for=$remote_addr;host=$host;proto=https";
+        
+        # Increase buffer sizes for large headers from Keycloak
+        proxy_buffer_size 32k;
+        proxy_buffers 4 16k;
+        proxy_busy_buffers_size 32k;
     }
 }
 
