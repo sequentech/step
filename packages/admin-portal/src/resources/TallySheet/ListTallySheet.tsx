@@ -6,39 +6,24 @@ import {
     DatagridConfigurable,
     List,
     TextField,
-    TextInput,
     Identifier,
-    useDelete,
     WrapperField,
     FunctionField,
-    useRefresh,
-    useNotify,
     useGetList,
     SelectInput,
-    NullableBooleanInput,
-    NumberInput,
+    RaRecord,
+    useRefresh,
 } from "react-admin"
 import {ListActions} from "../../components/ListActions"
 import {ListActionsMenu} from "../../components/ListActionsMenu"
-import {Button, Tooltip, Typography} from "@mui/material"
-import {
-    ReviewTallySheetMutation,
-    Sequent_Backend_Contest,
-    Sequent_Backend_Election,
-    Sequent_Backend_Tally_Sheet,
-} from "../../gql/graphql"
-import {Dialog, IconButton} from "@sequentech/ui-essentials"
-import {Action, ActionsColumn} from "../../components/ActionButons"
+import {Button, Typography} from "@mui/material"
+import {Sequent_Backend_Election, Sequent_Backend_Tally_Sheet} from "../../gql/graphql"
+import {IconButton} from "@sequentech/ui-essentials"
+import {Action} from "../../components/ActionButons"
 import {useTranslation} from "react-i18next"
 import {ResourceListStyles} from "@/components/styles/ResourceListStyles"
 import {faPlus} from "@fortawesome/free-solid-svg-icons"
-import VisibilityIcon from "@mui/icons-material/Visibility"
-import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline"
-import UnpublishedIcon from "@mui/icons-material/Unpublished"
-import PublishedWithChangesIcon from "@mui/icons-material/PublishedWithChanges"
-import {WizardSteps} from "./TallySheetWizard"
-import {useMutation} from "@apollo/client"
-import {REVIEW_TALLY_SHEET} from "@/queries/reviewTallySheet"
+import {WizardSteps} from "./TallySheetWizardCopy"
 import {ContestItem} from "@/components/ContestItem"
 import {AreaItem} from "@/components/AreaItem"
 import {Add, WorkHistory} from "@mui/icons-material"
@@ -47,42 +32,40 @@ import {useTenantStore} from "@/providers/TenantContextProvider"
 import {IPermissions} from "@/types/keycloak"
 import {AuthContext} from "@/providers/AuthContextProvider"
 import {EStatus} from "@/types/TallySheets"
-import {ListTallySheetVersions} from "./ListTallySheetVersions"
 import SelectArea from "@/components/area/SelectArea"
 import {votingChannels} from "./EditTallySheet"
-import {useElectionEventStore} from "@/providers/ElectionEventContextProvider"
 import SelectContest from "@/components/contest/SelectContest"
 
 const OMIT_FIELDS = ["id"]
 
 interface TTallySheetList {
     election: Sequent_Backend_Election
-    doAction: (action: number, id?: Identifier) => void
+    doAction: (action: number) => void
+    setTallySheetRecord: React.Dispatch<React.SetStateAction<RaRecord<Identifier> | undefined>>
+    tallySheetRecord?: RaRecord<Identifier>
     reload: string | null
+    setShowVersionsTable: React.Dispatch<React.SetStateAction<boolean>>
 }
 
 export const ListTallySheet: React.FC<TTallySheetList> = (props) => {
-    const {election: election, doAction, reload} = props
+    const {
+        election: election,
+        doAction,
+        reload,
+        setTallySheetRecord,
+        tallySheetRecord,
+        setShowVersionsTable,
+    } = props
 
     const {t} = useTranslation()
     const [tenantId] = useTenantStore()
 
     const refresh = useRefresh()
     const {globalSettings} = useContext(SettingsContext)
-    const notify = useNotify()
-    const [showVersionsTable, setShowVersionsTable] = React.useState(false)
-    const [selectedTallySheet, setSelectedTallySheet] = React.useState<
-        Sequent_Backend_Tally_Sheet | undefined
-    >(undefined)
-    const [openDisapproveDialog, setOpenDisapproveDialog] = React.useState(false)
-    const [openApproveDialog, setOpenApproveDialog] = React.useState(false)
-    const [tallySheetId, setTallySheetId] = React.useState<Identifier | undefined>()
-    const [reviewTallySheet] = useMutation<ReviewTallySheetMutation>(REVIEW_TALLY_SHEET)
 
     const authContext = useContext(AuthContext)
     const canCreate = authContext.isAuthorized(true, tenantId, IPermissions.TALLY_SHEET_CREATE)
     const canView = authContext.isAuthorized(true, tenantId, IPermissions.TALLY_SHEET_VIEW)
-    const canReview = authContext.isAuthorized(true, tenantId, IPermissions.TALLY_SHEET_REVIEW)
 
     const {data: sheetsDescVersions} = useGetList<Sequent_Backend_Tally_Sheet>(
         "sequent_backend_tally_sheet",
@@ -126,28 +109,16 @@ export const ListTallySheet: React.FC<TTallySheetList> = (props) => {
 
     const createAction = () => {
         localStorage.removeItem("tallySheetData")
-        doAction(WizardSteps.Start)
+        doAction(WizardSteps.Configuration)
     }
 
     const addAction = (id: Identifier) => {
         localStorage.removeItem("tallySheetData")
-        const selected = sheetsDescVersions?.find((s) => {
-            return s.id === id
-        })
-        const latestVersion = sheetsDescVersions?.find((s) => {
-            return (
-                s.area_id === selected?.area_id &&
-                s.contest_id === selected?.contest_id &&
-                s.channel === selected?.channel
-            )
-        })
-        doAction(WizardSteps.Edit, latestVersion?.id)
+        doAction(WizardSteps.Configuration)
     }
 
     const versionsTableAction = (id: Identifier) => {
         setShowVersionsTable(true)
-        setTallySheetId(id)
-        setSelectedTallySheet(sheetsDescVersions?.find((s) => s.id === id))
     }
 
     const Empty = () => (
@@ -203,178 +174,103 @@ export const ListTallySheet: React.FC<TTallySheetList> = (props) => {
         return <Empty />
     }
 
-    const viewAction = (id: Identifier) => {
-        doAction(WizardSteps.View, id)
-    }
-
-    const approveAction = (id: Identifier) => {
-        setTallySheetId(id)
-        setOpenApproveDialog(true)
-    }
-
-    const disapproveAction = (id: Identifier) => {
-        setTallySheetId(id)
-        setOpenDisapproveDialog(true)
-    }
-
-    const confirmReviewAction = async (newStatus: EStatus) => {
-        const {data, errors} = await reviewTallySheet({
-            variables: {
-                electionEventId: election.election_event_id,
-                tallySheetId: tallySheetId,
-                newStatus,
-            },
-        })
-        // if (data && !data?.publish_tally_sheet?.tally_sheet_id) {
-        //     console.log("(unpublished) tally sheet not found, probably it's already published")
-        // }
-        if (errors) {
-            // add error notification
-            notify(t("tallysheet.message.reviewError"), {type: "error"})
-        } else {
-            notify(t("tallysheet.message.reviewSuccess"), {type: "success"})
-        }
-        setTallySheetId(undefined)
-    }
-
     const actions: (record: Sequent_Backend_Tally_Sheet) => Action[] = (record) => [
         {
             icon: <Add />,
             action: addAction,
             showAction: () => canCreate,
             label: String(t("tallysheet.common.add")),
+            saveRecordAction: setTallySheetRecord,
         },
         {
             icon: <WorkHistory />,
             action: versionsTableAction,
             showAction: () => canView,
             label: String(t("tallysheet.common.versions")),
+            saveRecordAction: setTallySheetRecord,
         },
     ]
 
     return (
         <>
-            {showVersionsTable && selectedTallySheet && (
-                <ListTallySheetVersions
-                    tallySheet={selectedTallySheet}
-                    approveAction={approveAction}
-                    disapproveAction={disapproveAction}
-                    doAction={doAction}
-                    reload={reload}
-                    setShowVersionsTable={setShowVersionsTable}
-                />
-            )}
-            {!showVersionsTable && (
-                <List
-                    queryOptions={{
-                        refetchInterval: globalSettings.QUERY_FAST_POLL_INTERVAL_MS,
+            <List
+                queryOptions={{
+                    refetchInterval: globalSettings.QUERY_FAST_POLL_INTERVAL_MS,
+                }}
+                resource="tally_sheet_by_latest_verison"
+                actions={
+                    <ListActions
+                        withImport={false}
+                        withExport={false}
+                        extraActions={[
+                            <Button key={0} onClick={createAction}>
+                                <Add />
+                                {t("tallysheet.empty.add")}
+                            </Button>,
+                        ]}
+                    />
+                }
+                sx={{flexGrow: 2}}
+                filter={{
+                    tenant_id: election.tenant_id || undefined,
+                    election_event_id: election.election_event_id || undefined,
+                    election_id: election.id || undefined,
+                }}
+                filters={Filters}
+                empty={<Empty />}
+            >
+                <DatagridConfigurable
+                    omit={OMIT_FIELDS}
+                    sx={{
+                        flexGrow: 1,
+                        overflowX: "auto",
+                        width: "100%",
+                        maxWidth: "100%",
                     }}
-                    resource="tally_sheet_by_latest_verison"
-                    actions={
-                        <ListActions
-                            withImport={false}
-                            withExport={false}
-                            extraActions={[
-                                <Button key={0} onClick={createAction}>
-                                    <Add />
-                                    {t("tallysheet.empty.add")}
-                                </Button>,
-                            ]}
-                        />
-                    }
-                    sx={{flexGrow: 2}}
-                    filter={{
-                        tenant_id: election.tenant_id || undefined,
-                        election_event_id: election.election_event_id || undefined,
-                        election_id: election.id || undefined,
-                    }}
-                    filters={Filters}
-                    empty={<Empty />}
                 >
-                    <DatagridConfigurable
-                        omit={OMIT_FIELDS}
-                        sx={{
-                            flexGrow: 1,
-                            overflowX: "auto",
-                            width: "100%",
-                            maxWidth: "100%",
-                        }}
-                    >
-                        <TextField source="id" />
-                        <TextField source="channel" />
+                    <TextField source="id" />
+                    <TextField source="channel" />
 
-                        <FunctionField
-                            label={String(t("tallysheet.table.contest"))}
-                            render={(record: Sequent_Backend_Tally_Sheet) => (
-                                <ContestItem record={record.contest_id} />
-                            )}
-                        />
+                    <FunctionField
+                        label={String(t("tallysheet.table.contest"))}
+                        render={(record: Sequent_Backend_Tally_Sheet) => (
+                            <ContestItem record={record.contest_id} />
+                        )}
+                    />
 
+                    <FunctionField
+                        label={String(t("tallysheet.table.area"))}
+                        render={(record: Sequent_Backend_Tally_Sheet) => (
+                            <AreaItem record={record.area_id} />
+                        )}
+                    />
+
+                    <TextField
+                        source="version"
+                        label={String(t("tallysheet.table.latestVersion"))}
+                    />
+
+                    <FunctionField
+                        label={String(t("tallysheet.table.approvedVersion"))}
+                        render={(record: Sequent_Backend_Tally_Sheet) =>
+                            getLatestApprovedVersion(
+                                record.area_id as string,
+                                record.contest_id as string,
+                                record.channel as string
+                            )
+                        }
+                    />
+
+                    <WrapperField source="actions" label="Actions">
                         <FunctionField
                             label={String(t("tallysheet.table.area"))}
                             render={(record: Sequent_Backend_Tally_Sheet) => (
-                                <AreaItem record={record.area_id} />
+                                <ListActionsMenu actions={actions(record)} />
                             )}
                         />
-
-                        <TextField
-                            source="version"
-                            label={String(t("tallysheet.table.latestVersion"))}
-                        />
-
-                        <FunctionField
-                            label={String(t("tallysheet.table.approvedVersion"))}
-                            render={(record: Sequent_Backend_Tally_Sheet) =>
-                                getLatestApprovedVersion(
-                                    record.area_id as string,
-                                    record.contest_id as string,
-                                    record.channel as string
-                                )
-                            }
-                        />
-
-                        <WrapperField source="actions" label="Actions">
-                            <FunctionField
-                                label={String(t("tallysheet.table.area"))}
-                                render={(record: Sequent_Backend_Tally_Sheet) => (
-                                    <ListActionsMenu actions={actions(record)} />
-                                )}
-                            />
-                        </WrapperField>
-                    </DatagridConfigurable>
-                </List>
-            )}
-            <Dialog
-                variant="warning"
-                open={openDisapproveDialog}
-                ok={String(t("tallysheet.common.disapprove"))}
-                cancel={String(t("common.label.cancel"))}
-                title={String(t("tallysheet.common.disapprove"))}
-                handleClose={(result: boolean) => {
-                    if (result) {
-                        confirmReviewAction(EStatus.DISAPPROVED)
-                    }
-                    setOpenDisapproveDialog(false)
-                }}
-            >
-                {t("tallysheet.common.warningDisapprove")}
-            </Dialog>
-
-            <Dialog
-                variant="info"
-                open={openApproveDialog}
-                ok={String(t("tallysheet.common.approve"))}
-                cancel={String(t("common.label.cancel"))}
-                title={String(t("tallysheet.common.disapprove"))}
-                handleClose={(result: boolean) => {
-                    if (result) {
-                        confirmReviewAction(EStatus.APPROVED)
-                    }
-                    setOpenApproveDialog(false)
-                }}
-            >
-                {t("tallysheet.common.warningApprove")}
-            </Dialog>
+                    </WrapperField>
+                </DatagridConfigurable>
+            </List>
         </>
     )
 }

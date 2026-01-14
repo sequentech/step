@@ -1,12 +1,12 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, {useEffect, useState} from "react"
+import React, {useState} from "react"
 import {BreadCrumbSteps, BreadCrumbStepsVariant} from "@sequentech/ui-essentials"
 import ChevronRightIcon from "@mui/icons-material/ChevronRight"
 import {useTranslation} from "react-i18next"
 import {TallyStyles} from "@/components/styles/TallyStyles"
-import {Identifier, useGetOne, useNotify} from "react-admin"
+import {useNotify} from "react-admin"
 import {WizardStyles} from "@/components/styles/WizardStyles"
 import {
     Sequent_Backend_Contest,
@@ -22,6 +22,7 @@ import ArrowBackIosIcon from "@mui/icons-material/ArrowBackIos"
 import {TallySheetConfigStep} from "./TallySheetConfigStep"
 import {IAreaContestResults, ITallySheetConfig} from "@/types/TallySheets"
 import {TallySheetsDataStep} from "./TallySheetsDataStep"
+import {TallySheetReview} from "./TallySheetReview"
 
 export const WizardSteps = {
     List: 0,
@@ -31,38 +32,35 @@ export const WizardSteps = {
 }
 
 interface TallySheetWizardProps {
-    tallySheetId?: Identifier | undefined
+    tallySheet?: Sequent_Backend_Tally_Sheet
     election: Sequent_Backend_Election
     action: number
-    doAction: (action: number, id?: Identifier) => void
+    doAction: (action: number) => void
+    isShowTallySheet: boolean
 }
 
 export const TallySheetWizard: React.FC<TallySheetWizardProps> = (props) => {
-    const {action, election: election, tallySheetId, doAction} = props
+    const {action, election: election, tallySheet, doAction, isShowTallySheet} = props
     const submitRef = React.useRef<HTMLButtonElement>(null)
     const notify = useNotify()
 
     const {t} = useTranslation()
-    const [page, setPage] = useState<number>(WizardSteps.Configuration)
-    const [config, setConfig] = useState<ITallySheetConfig | undefined>()
+    const [page, setPage] = useState<number>(action)
+    const [config, setConfig] = useState<ITallySheetConfig | undefined>(
+        tallySheet
+            ? {
+                  area_id: tallySheet.area_id,
+                  contest_id: tallySheet.contest_id,
+                  channel: tallySheet.channel ?? "",
+              }
+            : undefined
+    )
 
     const [isButtonDisabled, setIsButtonDisabled] = useState<boolean>(true)
     const [choosenContest, setChoosenContest] = useState<Sequent_Backend_Contest | undefined>()
     const [createdTallySheet, setCreatedTallySheet] = useState<
         Sequent_Backend_Tally_Sheet_Insert_Input | undefined
     >()
-
-    const {data: tallySheet} = useGetOne<Sequent_Backend_Tally_Sheet>(
-        "sequent_backend_tally_sheet",
-        {id: tallySheetId},
-        {enabled: !!tallySheetId}
-    )
-
-    const {data: contest} = useGetOne<Sequent_Backend_Contest>(
-        "sequent_backend_contest",
-        {id: tallySheet?.contest_id},
-        {enabled: !!tallySheet}
-    )
 
     const [CreateNewTallySheet] = useMutation<CreateNewTallySheetMutation>(CREATE_NEW_TALLY_SHEET, {
         context: {
@@ -72,33 +70,31 @@ export const TallySheetWizard: React.FC<TallySheetWizardProps> = (props) => {
         },
     })
 
-    useEffect(() => {
-        if (action) {
-            setPage(action)
-        }
-    }, [action])
-
-    useEffect(() => {
-        if (contest) {
-            setChoosenContest(contest)
-        }
-    }, [contest])
-
     const submitDataStep = (results: IAreaContestResults) => {
-        const tallySheetData:
-            | Sequent_Backend_Tally_Sheet
-            | Sequent_Backend_Tally_Sheet_Insert_Input = {
-            tenant_id: election.tenant_id,
-            election_event_id: election.election_event_id,
-            election_id: election.id,
-            contest_id: config?.contest_id,
-            area_id: config?.area_id,
-            channel: config?.channel,
-            content: results,
-        }
+        if (config) {
+            let content: IAreaContestResults = {
+                ...results,
+                contest_id: config?.contest_id,
+                area_id: config?.area_id,
+            }
 
-        localStorage.setItem("tallySheetData", JSON.stringify(tallySheetData))
-        setCreatedTallySheet(tallySheetData)
+            const tallySheetData:
+                | Sequent_Backend_Tally_Sheet
+                | Sequent_Backend_Tally_Sheet_Insert_Input = {
+                tenant_id: election.tenant_id,
+                election_event_id: election.election_event_id,
+                election_id: election.id,
+                contest_id: config.contest_id,
+                area_id: config.area_id,
+                channel: config.channel,
+                content: content,
+            }
+
+            localStorage.setItem("tallySheetData", JSON.stringify(tallySheetData))
+            setCreatedTallySheet(tallySheetData)
+        } else {
+            notify(t("tallysheet.allFieldsRequired"), {type: "error"})
+        }
     }
 
     const insertTallySheetAction = async () => {
@@ -130,31 +126,21 @@ export const TallySheetWizard: React.FC<TallySheetWizardProps> = (props) => {
         }
     }
 
-    useEffect(() => {
-        if (tallySheet) {
-            setConfig({
-                area_id: tallySheet.area_id,
-                contest_id: tallySheet.contest_id,
-                channel: tallySheet.channel ?? "",
-            })
-        }
-    }, [page, config])
-
     const handleNext = () => {
         if (page === WizardSteps.Configuration || page === WizardSteps.Data) {
             submitRef.current?.click()
-            if (WizardSteps.Data) {
+            if (page === WizardSteps.Data) {
                 // needs to wait for the click handler to submit the data
                 setTimeout(() => {
                     const tallySheet = localStorage.getItem("tallySheetData")
                     if (tallySheet) {
-                        doAction(WizardSteps.Review)
+                        setPage(WizardSteps.Review)
                     } else {
                         notify(t("tallysheet.allFieldsRequired"), {type: "error"})
                     }
                 }, 400)
             } else {
-                doAction(WizardSteps.Data)
+                setPage(WizardSteps.Data)
             }
         } else if (page === WizardSteps.Review) {
             insertTallySheetAction()
@@ -163,20 +149,20 @@ export const TallySheetWizard: React.FC<TallySheetWizardProps> = (props) => {
     }
 
     const handleBack = () => {
-        const tallySheet = localStorage.getItem("tallySheetData")
-        const tallySheetTemp = JSON.parse(tallySheet || "{}")
         if (page === WizardSteps.Configuration) {
             doAction(WizardSteps.List)
         } else if (page === WizardSteps.Data) {
-            doAction(WizardSteps.Configuration)
+            setPage(WizardSteps.Configuration)
         } else if (page === WizardSteps.Review) {
-            if (tallySheetId && tallySheetTemp && tallySheetTemp.id) {
+            if (tallySheet) {
                 doAction(WizardSteps.List)
             } else {
-                doAction(WizardSteps.Data)
+                setPage(WizardSteps.Data)
             }
         }
     }
+
+    const reviewTallySheet = tallySheet ?? createdTallySheet
 
     return (
         <>
@@ -203,6 +189,7 @@ export const TallySheetWizard: React.FC<TallySheetWizardProps> = (props) => {
                         setChoosenContest={setChoosenContest}
                         setIsButtonDisabled={setIsButtonDisabled}
                         currentConfig={config}
+                        version={tallySheet?.version ? tallySheet.version + 1 : undefined}
                     />
                 )}
                 {page === WizardSteps.Data && (
@@ -212,13 +199,12 @@ export const TallySheetWizard: React.FC<TallySheetWizardProps> = (props) => {
                         choosenContest={choosenContest}
                         setIsButtonDisabled={setIsButtonDisabled}
                         submitDataStep={submitDataStep}
+                        tallySheet={tallySheet}
                     />
                 )}
-                {/**
-                 * Add review step (confirm(createdTallySheet) or show(tallySheet) )
-                 * Remove Next button if its "show" action
-                 *
-                 */}
+                {page === WizardSteps.Review && reviewTallySheet && (
+                    <TallySheetReview tallySheet={reviewTallySheet} election={election} />
+                )}
                 <WizardStyles.Toolbar>
                     <WizardStyles.BackButton
                         color="info"
@@ -228,20 +214,21 @@ export const TallySheetWizard: React.FC<TallySheetWizardProps> = (props) => {
                         <ArrowBackIosIcon />
                         {t("common.label.back")}
                     </WizardStyles.BackButton>
-
-                    <WizardStyles.NextButton
-                        color="primary"
-                        disabled={isButtonDisabled}
-                        onClick={handleNext}
-                        className="tsw-next-button"
-                    >
-                        {page === WizardSteps.Data
-                            ? t("tallysheet.common.confirm")
-                            : page === WizardSteps.Review
-                              ? t("tallysheet.common.save")
-                              : t("tallysheet.common.next")}
-                        <ChevronRightIcon />
-                    </WizardStyles.NextButton>
+                    {!isShowTallySheet && (
+                        <WizardStyles.NextButton
+                            color="primary"
+                            disabled={isButtonDisabled}
+                            onClick={handleNext}
+                            className="tsw-next-button"
+                        >
+                            {page === WizardSteps.Data
+                                ? t("tallysheet.common.confirm")
+                                : page === WizardSteps.Review
+                                  ? t("tallysheet.common.save")
+                                  : t("tallysheet.common.next")}
+                            <ChevronRightIcon />
+                        </WizardStyles.NextButton>
+                    )}
                 </WizardStyles.Toolbar>
             </WizardStyles.WizardWrapper>
         </>

@@ -49,6 +49,7 @@ interface TallySheetConfigStepProps {
     setConfig: React.Dispatch<React.SetStateAction<ITallySheetConfig | undefined>>
     setChoosenContest: (contest: Sequent_Backend_Contest | undefined) => void
     setIsButtonDisabled: (disabled: boolean) => void
+    version?: number
 }
 
 export const TallySheetConfigStep: React.FC<TallySheetConfigStepProps> = (
@@ -61,6 +62,7 @@ export const TallySheetConfigStep: React.FC<TallySheetConfigStepProps> = (
         currentConfig,
         setChoosenContest,
         setIsButtonDisabled,
+        version,
     } = props
 
     const {t} = useTranslation()
@@ -204,7 +206,7 @@ export const TallySheetConfigStep: React.FC<TallySheetConfigStepProps> = (
 
     useEffect(() => {
         let isEnableNextButton: boolean = !!(areaId && contestId && channel)
-        setIsButtonDisabled(isEnableNextButton)
+        setIsButtonDisabled(!isEnableNextButton)
     }, [areaId, contestId, channel])
 
     const handleAreaChange = (
@@ -272,6 +274,9 @@ export const TallySheetConfigStep: React.FC<TallySheetConfigStepProps> = (
                 <PageHeaderStyles.SubTitle>
                     {t("tallysheet.common.subtitle")}
                 </PageHeaderStyles.SubTitle>
+                {version && (
+                    <PageHeaderStyles.SubTitle>Vesrion: {version}</PageHeaderStyles.SubTitle>
+                )}
 
                 <FormControl fullWidth size="small" required>
                     <Autocomplete
