@@ -1,3 +1,10 @@
+<!--
+ SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
+
+SPDX-License-Identifier: AGPL-3.0-only
+
+-->
+
 # Remote Deployment Scripts
 
 This directory contains all scripts needed for deploying Sequent Step to a remote server.

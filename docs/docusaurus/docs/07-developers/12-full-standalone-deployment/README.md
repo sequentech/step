@@ -2,6 +2,11 @@
 sidebar_label: Remote Standalone Deployment
 ---
 
+<!--
+SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
+SPDX-License-Identifier: AGPL-3.0-only
+-->
+
 # Remote Standalone Deployment Tutorial
 
 This tutorial will guide you through setting up a Sequent Step development environment on a single remote server, accessible via a public domain with a reverse proxy managing traffic.

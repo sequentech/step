@@ -1,5 +1,9 @@
 #!/bin/bash
 
+# SPDX-FileCopyrightText: 2025 Sequent Tech <legal@sequentech.io>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
 # This script prepares a fresh Ubuntu server for running the Sequent Step development environment.
 
 # Update and upgrade the system

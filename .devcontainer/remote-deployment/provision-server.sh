@@ -1,5 +1,9 @@
 #!/bin/bash
 
+# SPDX-FileCopyrightText: 2025 Sequent Tech <legal@sequentech.io>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
 # This is a placeholder script for provisioning a new server on a cloud provider.
 # You will need to replace the contents of this script with the actual commands
 # for your chosen cloud provider.

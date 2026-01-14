@@ -1,5 +1,9 @@
 #!/bin/bash
 
+# SPDX-FileCopyrightText: 2025 Sequent Tech <legal@sequentech.io>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
 # This script configures .env and nginx for remote deployment.
 # It generates configs from templates, generates secrets, and configures URLs.
 
