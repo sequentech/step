@@ -104,6 +104,7 @@ impl UpdateElectionVotingStatusCommand {
 /// * `election_event_id` - The ID of the election event
 /// * `election_id` - The ID of the election
 /// * `voting_status` - The new voting status to set
+/// * `voting_channel` - The voting channel to set the status for
 ///
 /// # Returns
 ///
