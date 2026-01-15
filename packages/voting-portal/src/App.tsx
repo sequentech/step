@@ -15,7 +15,7 @@ import {TenantEventType} from "."
 import {ApolloWrapper} from "./providers/ApolloContextProvider"
 import {VotingPortalError, VotingPortalErrorType} from "./services/VotingPortalError"
 import {useAppSelector} from "./store/hooks"
-import {selectElectionIds} from "./store/elections/electionsSlice"
+import {selectElectionById, selectElectionIds} from "./store/elections/electionsSlice"
 import {
     selectBallotStyleByElectionId,
     selectFirstBallotStyle,
@@ -23,6 +23,7 @@ import {
 import WatermarkBackground from "./components/WaterMark/Watermark"
 import SequentLogo from "@sequentech/ui-essentials/public/Sequent_logo.svg"
 import BlankLogoImg from "@sequentech/ui-essentials/public/blank_logo.svg"
+import {useElectionClassName} from "./hooks/useElectionClassName"
 
 const StyledApp = styled(Stack)<{css: string}>`
     min-height: 100vh;
@@ -107,6 +108,8 @@ const App = () => {
 
     const electionIds = useAppSelector(selectElectionIds)
     const ballotStyle = useAppSelector(selectBallotStyleByElectionId(String(electionIds[0])))
+
+    useElectionClassName()
 
     useEffect(() => {
         if (location.pathname === "/") {
