@@ -11,7 +11,7 @@ use crate::schema::immu_service_client::ImmuServiceClient;
 use crate::schema::{
     CommittedSqlTx, Database, DatabaseListRequestV2, DatabaseListResponseV2, DeleteDatabaseRequest,
     LoginRequest, NamedParam, NewTxRequest, OpenSessionRequest, SqlExecRequest, SqlQueryRequest,
-    SqlQueryResult, TxMode, UnloadDatabaseRequest,
+    SqlQueryResult, Table, TxMode, UnloadDatabaseRequest,
 };
 
 #[derive(Debug)]
@@ -111,6 +111,23 @@ impl Client {
         let list_tables_response = self.client.list_tables(list_tables_request).await?;
         debug!("list-tables-response={:?}", list_tables_response);
         Ok(!list_tables_response.get_ref().rows.is_empty())
+    }
+
+    #[instrument]
+    pub async fn has_column(&mut self, table_name: &str, column_name: &str) -> Result<bool> {
+        let describe_table_request = self.get_request(Table {
+            table_name: table_name.to_string(),
+        })?;
+        let describe_table_response = self.client.describe_table(describe_table_request).await?;
+        let result = describe_table_response.get_ref();
+        let found_in_string_values = result.rows.iter().any(|row| {
+            row.values.iter().any(|v| match &v.value {
+                Some(crate::schema::sql_value::Value::S(s)) => s == column_name,
+                _ => false,
+            })
+        });
+
+        Ok(found_in_string_values)
     }
 
     pub async fn sql_exec(&mut self, sql: &str, params: Vec<NamedParam>) -> Result<()> {
