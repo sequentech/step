@@ -20660,6 +20660,7 @@ export type CreateBallotReceiptMutationVariables = Exact<{
   ballot_id: Scalars['String']['input'];
   ballot_tracker_url: Scalars['String']['input'];
   election_event_id: Scalars['uuid']['input'];
+  tenant_id: Scalars['uuid']['input'];
   election_id: Scalars['uuid']['input'];
 }>;
 

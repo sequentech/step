@@ -7,14 +7,49 @@ title: Release Notes next
 SPDX-License-Identifier: AGPL-3.0-only
 -->
 
-## 🐞 Admin Portal: Scheduled Repeatable Reports is not working
+## 🐞 Admin Portal > Reports > Timezone shown is not showing timezone
+Add timezone information to dates in the List of Overseas Voters, OVCS Events,
+Activity Logs reports, and the ballot receipt.
 
-Modify the admin portal add/edit report form to require cron expression and email
-list to be filled.
-Fix using the recipients email list instead of empty list 
-when execute the report.
+- Issue: [#6191](https://github.com/sequentech/meta/issues/6191)
 
-- Issue: [#5412](https://github.com/sequentech/meta/issues/5412)
+## 🐞 Tally > Contests are not in order when using multi-contest encoding
+
+Sort contest shows on tally results tabs based on the contest-order 
+ field in the election presentation.
+
+- Issue: [#8678](https://github.com/sequentech/meta/issues/8678)
+
+## 🐞 Multi-Tenant login doesn't work
+
+A loop blocked the multi-tenant login.
+
+- Issue: [#9993](https://github.com/sequentech/meta/issues/9993)
+
+## 🐞 Admin Portal > Can't send message to voters
+
+Going to the Admin Portal > Election Event > Voters > Send generated an
+unexpected error.
+
+- Issue: [#9721](https://github.com/sequentech/meta/issues/9721)
+
+## 🐞 Tally > Election aliases not used
+
+Use election alias in all places in tally results.
+Fix showing 'event' or 'election' instead of the actual election event or election
+ name/alias.
+
+- Issue: [#8426](https://github.com/sequentech/meta/issues/8426)
+
+## 🐞 Keycloak's custom event listener is not working
+
+Electoral logs from keycloak, for example when a voter logs in/off, are not being
+recorded. This happened because after the dependency updates, the inetum
+authenticator keycloak extension was removed, but it contained the custom event
+listener. This fix adds it back, only the custom event listener, not the inetum
+part.
+
+- Issue: [#9574](https://github.com/sequentech/meta/issues/9574)
 
 ## 🐞 Errors editing forms
 
@@ -66,3 +101,15 @@ Fixed an issue that prevented to search logs by username in the Admin portal.
 Clear keys ceremony state when switching events.
 
 - Issue [#8675](https://github.com/sequentech/meta/issues/8675)
+
+## 🐞 Voting Portal > Grace Period not applied if no scheduled event
+
+Fix to allow voting if grace period applies when the status is checked.
+
+- Issue: [#9091](https://github.com/sequentech/meta/issues/9091)
+
+## 🐞 New immudb column ballot_id is not backwards compatible
+
+Fix errors affecting election events that were created prior the addition of the ballot_id column.
+
+- Issue: [#9986](https://github.com/sequentech/meta/issues/9986)
