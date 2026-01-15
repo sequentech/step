@@ -7,14 +7,18 @@ SPDX-FileCopyrightText: 2025 Sequent Tech <legal@sequentech.io>
 SPDX-License-Identifier: AGPL-3.0-only
 -->
 
-## 🐞 Admin Portal: Scheduled Repeatable Reports is not working
+## 🐞 Admin Portal > Reports > Timezone shown is not showing timezone
+Add timezone information to dates in the List of Overseas Voters, OVCS Events,
+Activity Logs reports, and the ballot receipt.
 
-Modify the admin portal add/edit report form to require cron expression and email
-list to be filled.
-Fix using the recipients email list instead of empty list 
-when execute the report.
+- Issue: [#6191](https://github.com/sequentech/meta/issues/6191)
 
-- Issue: [#5412](https://github.com/sequentech/meta/issues/5412)
+## 🐞 Tally > Contests are not in order when using multi-contest encoding
+
+Sort contest shows on tally results tabs based on the contest-order 
+ field in the election presentation.
+
+- Issue: [#8678](https://github.com/sequentech/meta/issues/8678)
 
 ## 🐞 Tally > Export option can't be read correctly if title is too long
 
@@ -27,6 +31,14 @@ Modify the tally export translations to show the format before the document name
 2. Fix Starting new tally after review other tally results shows the previous tally results while processing the tally ceremony.
 
 - Issue: [#8677](https://github.com/sequentech/meta/issues/8677)
+
+## 🐞 Tally > Election aliases not used
+
+Use election alias in all places in tally results.
+Fix showing 'event' or 'election' instead of the actual election event or election
+ name/alias.
+
+- Issue: [#8426](https://github.com/sequentech/meta/issues/8426)
 
 ## 🐞 Fix Graphql Typescript issues
 
@@ -68,3 +80,9 @@ tally result files in `velvet-generate-reports`.
 It contains the value of some election metrics.
 
 - Issue: [#8573](https://github.com/sequentech/meta/issues/8573)
+
+## 🐞 Voting Portal > Grace Period not applied if no scheduled event
+
+Fix to allow voting if grace period applies when the status is checked.
+
+- Issue: [#9091](https://github.com/sequentech/meta/issues/9091)
