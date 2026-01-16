@@ -1,429 +1,262 @@
 ---
-id: release-9.3.0
-title: Release Notes 9.3.0
+id: release-v9.3.0
+title: Release v9.3.0
 ---
 <!--
-SPDX-FileCopyrightText: 2025 Sequent Tech <legal@sequentech.io>
+SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 SPDX-License-Identifier: AGPL-3.0-only
 -->
+# Release v9.3.0
 
+## 🔄 Migrations
 
-## ✨ Don't build/push images on main
+### 🐞 Admin Portal > Reports > Timezone shown is not showing timezone
+In order to see the change the default receipt template ballot_receipt_user.hbs needs some changes.
+From
+```
+<span class="value" class="timestamp-content">{{timestamp}}</span>
+```
+To
+```
+<span class="value" class="timestamp-content">{{datetime from_rfc3339=timestamp output_format="%B %d, %Y %H:%M GMT %:z"}}</span>
+```
+See [sequentech/meta#6191](https://github.com/sequentech/meta/issues/6191) for details.
 
-Don't build/push images on main.
+### 📖 [doc] Adding a section: `Reference/Third-Party Libraries`
+### For Developers
+1. **Rust Version**: All developers must use Rust 1.90.0. Run `rustc --version` in `devenv shell` to verify.
+2. **Dependency Updates**: After pulling this branch, run:
+```bash
+devenv shell
+cd packages/
+cargo build
+```
+3. **Frontend Updates**: For frontend work:
+```bash
+cd packages/
+yarn install
+```
+4. **ESLint Migration**: Projects now use flat config (`eslint.config.js`). Old `.eslintrc.json` files have been removed.
+5. **New Documentation**: Review the new developer documentation:
+- `docs/docusaurus/docs/developers/11-Updates/updating-rust-version.md`
+- `docs/docusaurus/docs/reference/third_party_deps/third_party_deps.md`
+- `docs/docusaurus/docs/developers/03-Development-Environment/nvd-api-key-setup.md`
+See [sequentech/meta#7996](https://github.com/sequentech/meta/issues/7996) for details.
 
-- Issue: [#9291](https://github.com/sequentech/meta/issues/9291)
+## 📝 Highlights
 
-## 🐞 Tally > State not cleared when switching events
+### 📖 [doc] Adding a section: `Reference/Third-Party Libraries`
+This issue tracks the comprehensive update of Rust toolchain, dependencies, and documentation for the Step Repository. The goal is to standardize on **Rust stable 1.90.0** across all environments (Nix, GitHub Actions, Dockerfiles) and update all Rust crates and their dependencies to their latest compatible versions.
+Additionally, this includes creating developer documentation for managing Rust versions and third-party dependencies, plus implementing tooling for dependency auditing and reporting.
+### Main PRs
+- https://github.com/sequentech/step/pull/1988
+- https://github.com/sequentech/step/pull/2150
+- https://github.com/sequentech/step/pull/2153
+### Stable PRs
+- [x] Mark if not applicable
+See [sequentech/meta#7996](https://github.com/sequentech/meta/issues/7996) for details.
 
-Fix tally state is not cleared when switching election events on the tally tab.
+## 📋 All Changes
 
-- Issue: [#8674](https://github.com/sequentech/meta/issues/8674)
-  
-## 🐞 Username is shown after an attempted login with a valid username
+### 🚀 Features
 
-When the Keycloak login flow used the step `Username Password Form - Allowing password expiration`,
-the email was being shown at the top of the login page after a failed login
-if the user existed, leaking the information that the user did exist.
+- ✨ Publicly Open Source Preparations ([sequentech/meta#9060](https://github.com/sequentech/meta/issues/9060))
+  by @edulix
 
-- Issue: [#6476](https://github.com/sequentech/meta/issues/6476)
 
-## 🐞 Fixes after dependency updates
+- ✨ IdP-initiated SAML SSO authentication flow support ([sequentech/meta#8213](https://github.com/sequentech/meta/issues/8213))
+  by @xalsina-sequent
 
-Update ring dependency.
 
-- Issue: [#9132](https://github.com/sequentech/meta/issues/9132)
-- 
-## 🐞 Fixes after dependency updates
+- ✨ Move voter signature to the voting portal ([sequentech/meta#5518](https://github.com/sequentech/meta/issues/5518))
+  by @xalsina-sequent
 
-- Fixed voters import, which was broken after updating Keycloak from 24 to 26.
-- Removed faulty MinIO certificate management from devcontainer (only affects developers).
-- Show IP Addresses again, fix editing Voters and Areas.
-- Fixed rendering issue when editing Election Events.
-- Fixed running Storybook.
 
-- Issue: [#9132](https://github.com/sequentech/meta/issues/9132)
+- ✨ Voting Portal > Nightwatch voting with no revotes ([sequentech/meta#8624](https://github.com/sequentech/meta/issues/8624))
+  by @Findeton
 
-## 🔧 Publicly Open Source Preparations
 
-This release transitions the Sequent Voting Platform from an on-request
-permisioned open-source repository to a no-requirements, publicly-available
-open-source repository. These changes include license compliance updates,
-removal of client-specific integrations, improved documentation, and various
-code modernization efforts.
+- ✨ Voting Portal > Logs: Show Message column, to ensure signature shown ([sequentech/meta#7669](https://github.com/sequentech/meta/issues/7669))
+  by @BelSequent
 
-- Issue: [#9060](https://github.com/sequentech/meta/issues/9060)
 
-### License Compliance (REUSE 4.0)
-All files now have proper SPDX license headers standardized to AGPL-3.0-only
-with copyright assigned to `Sequent Tech Inc <legal@sequentech.io>`. The license
-headers and copyright year have been unified across the codebase - the project
-was already open source. The project has migrated from `.reuse/dep5` to 
-`REUSE.toml` for improved license management compliance with the REUSE 4.0 
-specification.
+- ✨ Videoconference links from Admin Portal ([sequentech/meta#8189](https://github.com/sequentech/meta/issues/8189))
+  by @BelSequent
 
-**New Features:**
-- Contributor License Agreement (CLA) system with automated GitHub workflow
-- Comprehensive third-party dependency documentation with OSI-approved licenses
-- New contributing guide and developer documentation
-- Updated README for open-source audience
 
-### Removed Features & Integrations
 
-The following features and integrations have been moved to our private
-repository in `beyound`:
+### 🛠 Bug Fixes
 
-1. **Inetum Integration** - All Inetum-specific authentication code has been
-   removed, including Keycloak extensions and custom authenticators.
+- 🐞 Error loading activity logs ([sequentech/step#2317](https://github.com/sequentech/step/pull/2317))
+  by @Findeton
 
-2. **Datafix Integration** - All Datafix integration documentation and API
-   endpoints have been removed.
 
-3. **Monitoring Dashboard** - The monitoring dashboard was not a supported
-   feature so for the time being and pending a redesign, we have removed it.
+- 🐞 Voting Portal > Grace Period not applied if no scheduled event ([sequentech/meta#9091](https://github.com/sequentech/meta/issues/9091))
+  by @BelSequent
 
-### Terminology Changes
 
-**"Vote Receipts" → "Ballot Images"**
+- 🐞 Admin Portal > Reports > Timezone shown is not showing timezone ([sequentech/meta#6191](https://github.com/sequentech/meta/issues/6191))
+  by @yuvalkom-M
 
-Throughout the codebase, user interface, and documentation, the terminology has
-been updated from "vote receipts" to "ballot images" for clearer communication.
-While template file names have been retained for backward compatibility, all
-internal references have been updated.
+  **Migration:** In order to see the change the default receipt template ballot_receipt_user.hbs needs some changes.
+From
+```
+<span class="value" class="timestamp-content">{{timestamp}}</span>
+```
+To
+```
+<span class="value" class="timestamp-content">{{datetime from_rfc3339=timestamp output_format="%B %d, %Y %H:%M GMT %:z"}}</span>
+```
 
-### Admin Portal Changes
+- 🐞 Tally > Contests are not in order when using multi-contest encoding ([sequentech/meta#8678](https://github.com/sequentech/meta/issues/8678))
+  by @yuvalkom-M
 
-- **ESLint Migration:** Migrated from legacy ESLint configuration to new flat
-  config format
-- **Configuration Modernization:** Renamed config files from `.js` to `.cjs` for
-  better CommonJS compatibility
-- **UI Improvements:** Fixed sticky toolbar issues and restored widget
-  background colors
-- **Dependency Updates:** Updated all npm packages and rebuilt WASM packages
 
-### Migration Required
+- 🐞 Admin Portal > Can't send message to voters ([sequentech/meta#9721](https://github.com/sequentech/meta/issues/9721))
+  by @Findeton
 
-#### Remove some Permissions
 
-The following Keycloak permissions must be manually removed from all tenant
-realms:
+- 🐞 Tally > Election aliases not used ([sequentech/meta#8426](https://github.com/sequentech/meta/issues/8426))
+  by @yuvalkom-M
 
-- `monitoring-dashboard-view-election-event`
-- `monitoring-dashboard-view-election`
 
-**Steps:**
-1. Log in to the Keycloak Admin Console
-2. Select the tenant realm (e.g., `dev`)
-3. Navigate to `Realm Roles`
-4. Search for and delete the roles:
-   - `monitoring-dashboard-view-election-event`
-   - `monitoring-dashboard-view-election`
-5. If these roles were assigned to any groups or users, remove those assignments
-   first
+- 🐞 Errors editing forms ([sequentech/meta#9572](https://github.com/sequentech/meta/issues/9572))
+  by @Findeton
 
-## 📖 Third-Party Libraries Reference Documentation
 
-Added comprehensive developer documentation for managing Rust versions and
-third-party dependencies. Standardized on Rust stable 1.90.0 across all
-environments (Nix, GitHub Actions, Dockerfiles). Created automated tooling for
-dependency reporting and security audits, including scripts for generating
-dependency lists with licenses and descriptions. Updated all Rust crates, npm
-packages, and Maven dependencies to their latest compatible versions.
+- 🐞 Keycloak's custom event listener is not working ([sequentech/meta#9574](https://github.com/sequentech/meta/issues/9574))
+  by @Findeton
 
-- Issue: https://github.com/sequentech/meta/issues/7996
 
-## ✨ Move voter signature to the voting portal
+- 🐞 Tally > Export option can't be read correctly if title is too long ([sequentech/meta#8676](https://github.com/sequentech/meta/issues/8676))
+  by @yuvalkom-M
 
-The voting portal will sign the ballot using an ephemeral key. The ballot will 
-now include this voter signature and the voter public key for verification. This 
-signature is verified while the ballot is cast and it's checked as well in the 
-ballot verifier.
 
-- Issue: [#5518](https://github.com/sequentech/meta/issues/5518)
+- 🐞 Tally > "No Results" while loading the results ([sequentech/meta#8677](https://github.com/sequentech/meta/issues/8677))
+  by @yuvalkom-M
 
-## 🐞 Windmill > Can't create Ballot Images on ARM
 
-The correct version of java jvm for the container architecture is installed instead 
-of just defaulting to installing x86-x64 version.
+- 🐞 Tally UI shows manual and executes automatic after policy switch ([sequentech/meta#8472](https://github.com/sequentech/meta/issues/8472))
+  by @yuvalkom-M
 
-- Issue: [#8621](https://github.com/sequentech/meta/issues/8621)
 
-## 🐞 Voter log errors
+- 🐞 Contest result extended metrics are 0 ([sequentech/meta#8573](https://github.com/sequentech/meta/issues/8573))
+  by @BelSequent
 
-Username is different for voter logs generated by keycloak and by windmill (one
-is the username and the other the email address).
 
-- Issue: [#8097](https://github.com/sequentech/meta/issues/8097)
+- 🐞 Error with tenants and templates in Admin portal. ([sequentech/meta#9539](https://github.com/sequentech/meta/issues/9539))
+  by @xalsina-sequent
 
-## 🐞 Admin Portal > Sidebar: Can't select active events tab if all Events are archived
 
-If all existing Election Events are archived and you click on the "Active" tab
-of the Admin Portal sidebar, it goes back to the Archived tab automatically.
+- 🐞 Fix graphql typescript issues ([sequentech/meta#9540](https://github.com/sequentech/meta/issues/9540))
+  by @Findeton
 
-- Issue: [#8876](https://github.com/sequentech/meta/issues/8876)
 
-## 🐞 Default Invalid vote policy mismatch
+- 🐞 Can't filter voter logs by username ([sequentech/meta#7751](https://github.com/sequentech/meta/issues/7751))
+  by @yuvalkom-M
 
-The default Invalid Vote Policy was different in the backend and the front-end.
-As a result, the UI displayed the policy as `warn-explicit-and-implicit`, even
-though the actual default (when not predefined) was `allowed`.
 
-- Issue: [#8855](https://github.com/sequentech/meta/issues/8855)
+- 🐞 Keys Ceremony > State not cleared when switching Election Events ([sequentech/meta#8675](https://github.com/sequentech/meta/issues/8675))
+  by @yuvalkom-M
 
-## ✨ Automatic Launch of E2E tests for environments and during release process
 
-Modified e2e github action to enable triggering it manually, including the
-arguments for the load test. This also adds a script to generate voters for
-load testing purposes, including the hash of the password.
+- 🐞 Fixes after dependency updates ([sequentech/meta#9132](https://github.com/sequentech/meta/issues/9132))
+  by @Findeton
 
-- Issue: [#7004](https://github.com/sequentech/meta/issues/7004)
 
-## ✨ Voting Portal > Nightwatch voting with no revotes
+- 📖 [doc] Adding a section: `Reference/Third-Party Libraries` ([sequentech/meta#7996](https://github.com/sequentech/meta/issues/7996))
+  by @Findeton, @edulix
 
-The Nightwatch-based vote-casting load tests now include an anti-double-voting
-mechanism to prevent voter reuse across parallel test instances and sequential
-iterations. When enabled (the default), each voter is used only once per test
-run by tracking used voters in a shared file (`used_voters.txt`).
+  This issue tracks the comprehensive update of Rust toolchain, dependencies, and documentation for the Step Repository. The goal is to standardize on **Rust stable 1.90.0** across all environments (Nix, GitHub Actions, Dockerfiles) and update all Rust crates and their dependencies to their latest compatible versions.
+Additionally, this includes creating developer documentation for managing Rust versions and third-party dependencies, plus implementing tooling for dependency auditing and reporting.
+### Main PRs
+- https://github.com/sequentech/step/pull/1988
+- https://github.com/sequentech/step/pull/2150
+- https://github.com/sequentech/step/pull/2153
+### Stable PRs
+- [x] Mark if not applicable
 
-New parameters:
-- `--disable-voter-tracking`: Disables the anti-double-voting mechanism to allow
-  voter reuse (only use if the election allows revoting).
-- `--previous-voters-file <path>`: Imports a list of previously used voters to
-  exclude them from the current run, enabling chained test runs or distributed
-  load testing across multiple machines.
-- `--keep-parallel-files`: Updated to also preserve the `used_voters.txt`
-  tracking file for inspection.
-- `--voter-min-index <N>` (default: `1`): The ids for the voters will be selected between 
-  `voter-min-index` and `voter-min-index + number-of-voters - 1`.
-- `--candidates-pattern <regex>`: Filters candidates during voting by name using a regular
-  expression. Supports JavaScript regex format like `/^(?!.*text).*$/` to exclude
-  candidates containing specific text.
+  **Migration:** ### For Developers
+1. **Rust Version**: All developers must use Rust 1.90.0. Run `rustc --version` in `devenv shell` to verify.
+2. **Dependency Updates**: After pulling this branch, run:
+```bash
+devenv shell
+cd packages/
+cargo build
+```
+3. **Frontend Updates**: For frontend work:
+```bash
+cd packages/
+yarn install
+```
+4. **ESLint Migration**: Projects now use flat config (`eslint.config.js`). Old `.eslintrc.json` files have been removed.
+5. **New Documentation**: Review the new developer documentation:
+- `docs/docusaurus/docs/developers/11-Updates/updating-rust-version.md`
+- `docs/docusaurus/docs/reference/third_party_deps/third_party_deps.md`
+- `docs/docusaurus/docs/developers/03-Development-Environment/nvd-api-key-setup.md`
 
-This prevents test failures when the election does not allow revoting, as the
-system will automatically retry with a different voter when a collision is
-detected.
+- 🐞 Tally > State not cleared when switching events ([sequentech/meta#8674](https://github.com/sequentech/meta/issues/8674))
+  by @yuvalkom-M
 
-- Issue: [#8624](https://github.com/sequentech/meta/issues/8624)
 
+- 🐞 Username is shown after an attempted login with a valid username ([sequentech/meta#6476](https://github.com/sequentech/meta/issues/6476))
+  by @Findeton
 
-## 🐞 Can't see Election Lists
 
-Due to a recent change, a bug was introduced that hid Candidate Lists in the
-Voting Portal.
+- 🐞 Windmill > Can't create Ballot Images on ARM ([sequentech/meta#8621](https://github.com/sequentech/meta/issues/8621))
+  by @xalsina-sequent
 
-- Issue [#8735](https://github.com/sequentech/meta/issues/8735)
 
-## 🐞 Failed scheduled event
+- 🐞 Voter log errors ([sequentech/meta#8097](https://github.com/sequentech/meta/issues/8097))
+  by @yuvalkom-M
 
-Scheduled events and reports were being executed multiple times due to a timing 
-mismatch between the beat scheduler's polling interval (10 seconds by default) 
-and the look-ahead window used by the tasks (hardcoded to 60 seconds). This 
-caused the same events/reports within the 60-second window to be repeatedly 
-discovered and queued on each 10-second poll. 
 
-The fix passes the configured schedule interval (schedule_events_interval and 
-schedule_reports_interval) from the beat to the task functions, which now use it
-as their look-ahead window instead of the hardcoded 60 seconds, ensuring each 
-scheduled item is processed exactly once.
+- 🐞 Admin Portal > Sidebar: Can't select active events tab if all Events are archived ([sequentech/meta#8876](https://github.com/sequentech/meta/issues/8876))
+  by @Findeton
 
-Also now admin users can schedule start/stop election events, as for those cases
-selecting an election is not required.
 
-- Issue: https://github.com/sequentech/meta/issues/8681
+- 🐞 Default Invalid vote policy mismatch ([sequentech/meta#8855](https://github.com/sequentech/meta/issues/8855))
+  by @Findeton
 
-## ✨ Videoconference links from Admin Portal
 
-Added a Google Meet component with a button to generate a link in EVENT > DATA to
-support creating a google meeting.
-Created INTEGRATIONS tab in tenant settings to add the google api credentials.
-Document on how to create credentials added to docusaurus in Admin Portal Tutorials.
-A new permission `google-meet-link` needs to be added manually in Keycloak, the procedure followed is:
+- 🐞 Can't see Election Lists ([sequentech/meta#8735](https://github.com/sequentech/meta/issues/8735))
+  by @Findeton
 
-1. Go to realm roles in the tenant realm (i.e. dev) and click on `Create role`
-2. Add the role to the list
-3. Then Go to `Groups` and choose `admin` group name
-4. Go to `role mapping` and click on `Assign role` and add those permissions
 
-- Issue: [#8189](https://github.com/sequentech/meta/issues/8189)
+- 🐞 Admin Portal > "Something went wrong" error when switching between diferent elections/questions ([sequentech/meta#8725](https://github.com/sequentech/meta/issues/8725))
+  by @yuvalkom-M
 
-## 🐞 Investigate rabbitmq issues
 
-The Electoral Log Windmill maintains a RabbitMQ connection, but sometimes it
-gets disconnected and Windmill didn't try reconnecting. Moreover, the probe
-didn't check the connection status. This fixes the issue by checking the
-connection status and reconnecting if necessary and checking the status of the
-connection in the probe.
+- 🐞 Failed scheduled event ([sequentech/meta#8681](https://github.com/sequentech/meta/issues/8681))
+  by @Findeton
 
-- Issue [#8626](https://github.com/sequentech/meta/issues/8626)
 
-## 🐞 Can't export voters list
 
-In specific cases of Election Events with hundreds of areas and elections and
-millions of voters, exporting voters failed because of an issue with logging
-a specific function.
+### 📖 Documentation
 
-- Issue [#8622](https://github.com/sequentech/meta/issues/8622)
+- 📖 [doc] v9.0.2 documentation ([sequentech/meta#9156](https://github.com/sequentech/meta/issues/9156))
+  by @Findeton
 
-## 🐞 Admin Portal > Tally > Actions Popup Menu doesn't close after click
 
-Within the `Results & Participation` section of the Tally tab of the Admin
-Portal, when clicking in some action item inside the Actions Popup Menu for
-Elections, the Popup Menu didn't automatically close and also in some cases it
-moved to the bottom right corner.
 
-- Issue: [#8614](https://github.com/sequentech/meta/issues/8614)
+### 🛡 Security Updates
 
-## 🐞 Admin Portal > Import Election Event: Password Dialog doesn't auto focus
+- 🛡 Security updates: ring ([sequentech/meta#9133](https://github.com/sequentech/meta/issues/9133))
+  by @Findeton
 
-When importing an election event that is encrypted, a dialog pops up asking for
-the password. But the password field doesn't autofocus so the admin user has to
-click on it.
 
-Additionally, when an error is shown in the import election event dialog, it
-will reappear when closing and reopening the import drawer.
 
-- Issue: [#8613](https://github.com/sequentech/meta/issues/8613)
+### Other Changes
 
-## 🐞 Keycloak Election ids are not filtered by area
+- ✨ Investigating costs increase in infra cluster (GHA) ([sequentech/meta#9293](https://github.com/sequentech/meta/issues/9293))
+  by @oded-eid-sequentech
 
-When a voter logs in and the voter is not assigned any election, keycloak adds 
-all election ids to the header. However only some election ids are actually 
-related to the user area and only those should be included.
 
-- Issue: [#8593](https://github.com/sequentech/meta/issues/8593)
+- 🐞 New immudb column ballot_id is not backwards compatible ([sequentech/step#2259](https://github.com/sequentech/step/pull/2259))
+  by @BelSequent
 
-## 🐞 Keycloak: Redirect To Registration Authenticator doesn't work when `http-relative-path` is set
 
-Keycloak: Redirect authenticator doesn't work when http-relative-path is set.
-The reason is that the http-relative-path is set twice, `/auth` appears twice in
-the URL.
+- 🐞 Multi-Tenant login doesn't work ([sequentech/step#2276](https://github.com/sequentech/step/pull/2276))
+  by @Findeton
 
-- Issue: [#8574](https://github.com/sequentech/meta/issues/8574)
-
-## 🐞 Keycloak: Deferred authenticator in Login mode ask for password confirmation
-
-When using the Deferred Authenticator in Login mode, it was asking for password
-confirmation and it was not checking that the password matches that of the user.
-
-- Issue: [#7585](https://github.com/sequentech/meta/issues/7585)
-
-## 🐞 Voting Portal: Invalid/BlankVote Candidates do not follow sort order
-
-Voting Portal: Invalid/BlankVote Candidates do not follow sort order within the
-top/bottom invalid candidates block.
-
-- Issue: [#8528](https://github.com/sequentech/meta/issues/8528)
-
-### 🐞 Invalid Vote Position was not configurable in Admin Portal > Candidate
-
-Added Invalid Vote Position configuration in Admin Portal > Candidate. This was
-already in the backend, but it was not configurable in the Admin Portal.
-
-- Issue: [#8528](https://github.com/sequentech/meta/issues/8528)
-
-## 🐞 Admin Portal > Sidebar: Fix left and right margins in tenant & election event actions
-
-- Issue: [#8527](https://github.com/sequentech/meta/issues/8527)
-
-## ✨ Automatically generate tally documents after tally finishes
-
-Added a post tally task that renders all the html reports to pdf. The pdfs are 
-included into the event tar.gz file that can be downloaded from the Tally results page in Admin portal.
-
-- Issue: [#7948](https://github.com/sequentech/meta/issues/7948)
-
-## 🐞 Inconsistencies in Voting Portal
-
-Removed inconsistencies and bugs when selecting candidates, explicit blank,
-null votes, undervotes, overvotes and with single/multi-contest encoding.
-
-- Issue: [#8235](https://github.com/sequentech/meta/issues/8235)
-
-## ✨ Standarize "Overseas voters turnout"
-
-Rename report to "Voters Turnout" and remove "Overseas", "OV" or other non standard
- terminology from the report, admin portal and source code.
-Create documents and tutorials about the voters tab, adding User Attributes to keycloak,
- or how to create reports and templates.
-
-- Issue: [#7532](https://github.com/sequentech/meta/issues/7532)
-
-## 🐞 Tally shows as an Admin 1 election but as a Trustee it shows 2 elections
-
-At the trustees tally ceremony, all elections were fetched instead of only those
-selected to participate in the tally.
-
-- Issue: [#7584](https://github.com/sequentech/meta/issues/7584)
-
-## ✨ Move release notes to Docusaurus
-
-Moved developer release notes to Docusaurus. Updated release notes for various
-existing versions, `v8.7.5`, `v8.7.6`, `v9.1.0` and `v9.1.1`.
-
-## 🐞 Velvet test errors
-
-A failing velvet test was identified due to a recent change: ballots exceeding 
-the maximum allowed votes are now classified as invalid. Since this behavior was
-not previously enforced, the corresponding test required an update.
-
-- Issue: [#8526](https://github.com/sequentech/meta/issues/8526)
-
-## ✨ Early voting for child areas
-
-Add per-area Early Voting policy with UI checkbox (allowed only if the Election
-Event allows the EARLY_VOTING channel) and adapt import/export/upsert support.
-Backend now stores EarlyVotingPolicy and area presentation; publications use
-area_presentation on BallotStyle.
-EARLY_VOTING can be allowed and started at event level, its lifecycle is governed
-by Online (auto-closes on Online start/close; cannot start after Online begins),
-while Kiosk remains independent.
-Publish UI consolidates per-channel actions in a dropdown for every start/pause/stop button;
-Voting Portal and Harvest endpoints honor early voting only for voters in enabled areas
-when the channel is started.
-
-- Issue: [#7681](https://github.com/sequentech/meta/issues/7681)
-
-## ✨ Improve Dashboard print look
-
-Improve the election event/election dashboard so that all necessary data (statistics)
-are displayed correctly in print mode.
-
-- Issue: [#7534](https://github.com/sequentech/meta/issues/7534)
-
-## 🐞 Contest result extended metrics are 0
-
-Fixes the extended metrics calculation that is visible in the json file of the 
-tally result files in `velvet-generate-reports`.
-It contains the value of some election metrics.
-
-- Issue: [#8573](https://github.com/sequentech/meta/issues/8573)
-
-## ✨ Weighted voting for areas
-
-Added a new election event policy at EVENT > DATA > Advanced configurations: `Weighted voting policy`.
-When the policy is set to `Weighted Voting for Areas`, it allows assigning a weight
-to each area. Tally results will then be calculated based on these weights, 
-which are taken from the ballot style of each area defined at publication.
-
-- Issue: [#7682](https://github.com/sequentech/meta/issues/7682)
-
-## ✨ Electoral results charts/visualization
-
-Added Charts in the Admin Portal's Tally Results below the data tables to display
- the General Information, Participation Results and Candidate Results.
-
-- Issue: [#7531](https://github.com/sequentech/meta/issues/7531)
-
-## ✨ Voting Portal > Logs: Show Message column, to ensure signature shown
-
-Added the message column on the log´s table of the Voting portal´s ballot-locator screen.
-
-- Issue: [#8213](https://github.com/sequentech/meta/issues/8213)
-
-## 🐞 Admin Portal > "Something went wrong" error when switching between diferent elections/questions
-
-Prevent error when switching between elections on the "Data" tab by safely
- handling an undefined record.
-
-- Issue: [#8725](https://github.com/sequentech/meta/issues/8725)
 
