@@ -49,7 +49,7 @@ pub type CryptographicHasher = crate::utils::hash::Hasher512;
  * ```ignore
  * // Defines the Ristretto context, with
  * // - Ristreto255 as the underlying group
- * // - Sha512 as the hashing function
+ * // - The library's default hasher as the hashing function
  * // - OsRng as the random number generator
  * // - Ed25519 as the digital signature scheme
  * pub struct RistrettoCtx;
@@ -140,9 +140,12 @@ where
  *
  * Sets
  * - `p256` as the underlying curve.
- * - `Sha3-256` as the hashing function.
+ * - The library's default hasher as the hashing function
  * - `OsRng` as the random number generator.
  * - `Ed25519` as the digital signature scheme.
+ * 
+ * Note: hashing to curve and scalar uses the p256 crate's internal hasher (SHA-256),
+ * not the the hasher specified with `Hasher` (which is the library's default hasher).
  */
 #[derive(Debug, PartialEq, Clone, Hash)]
 pub struct P256Ctx;

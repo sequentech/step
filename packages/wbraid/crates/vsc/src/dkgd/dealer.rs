@@ -320,6 +320,12 @@ impl<C: Context> CheckingValue<C> {
         Self { value, proof }
     }
     /// Verify the Schnorr proof of knowledge for this checking value.
+    /// 
+    /// # Errors
+    ///
+    /// - `HashToElementError` if challenge generation returns error
+    /// 
+    /// Returns `true` if the proof is valid, `false` otherwise.
     pub fn verify(&self, g: &C::Element, proof_context: &[u8]) -> Result<bool, Error> {
         self.proof.verify(g, &self.value, proof_context)
     }

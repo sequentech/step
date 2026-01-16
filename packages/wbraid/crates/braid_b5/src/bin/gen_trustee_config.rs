@@ -54,7 +54,7 @@ fn main() {
 fn gen_trustee_config<C: Context>() {
     let mut rng = C::get_rng();
     let sk = <C::SignatureScheme as SignatureScheme<C::Rng>>::gen_signing_key(&mut rng);
-    let encryption_key: symm::SymmetricKey = symm::gen_key();
+    let encryption_key: symm::SymmetricKey = symm::gen_key().unwrap();
 
     let tc = TrusteeConfig::new_from_objects::<C>(sk, encryption_key);
 

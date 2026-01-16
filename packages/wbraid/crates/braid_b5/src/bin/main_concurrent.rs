@@ -125,7 +125,7 @@ async fn run(args: &Cli) -> Result<()> {
     let contents = fs::read_to_string(args.trustee_config.clone())
         .expect("Should have been able to read the trustee configuration file");
 
-    let tc: TrusteeConfig = toml::from_str(&contents).unwrap();
+    let tc: TrusteeConfig = TrusteeConfig::from_toml_str(&contents).unwrap();
 
     let ignored_boards = get_ignored_boards();
     info!("ignored boards {:?}", ignored_boards);

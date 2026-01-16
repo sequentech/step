@@ -11,7 +11,7 @@
 //! use cryptography::utils::symm::{gen_key, encrypt, decrypt};
 //!
 //! // generate random key
-//! let key = gen_key();
+//! let key = gen_key().unwrap();
 //! // some data to encrypt
 //! let data = b"Hello, world!";
 //! // encrypt
@@ -56,10 +56,13 @@ impl EncryptionData {
 /// Generate a random symmetric encryption key
 /// 
 /// From crate doc:"Generate random key using the operating system’s secure RNG."
-#[must_use]
-pub fn gen_key() -> SymmetricKey {
+/// 
+/// # Errors
+///     
+/// Returns `Error::EncryptionError` if key generation fails
+pub fn gen_key() -> Result<SymmetricKey, Error> {
     ChaCha20Poly1305::generate_key()
-        .expect("Failed to generate key")
+        .map_err(|e| Error::EncryptionError(format!("Failed to generate symmetric key: {e}")))
 }
 
 /// Encrypt data using ChaCha20-Poly1305
@@ -113,7 +116,7 @@ mod tests {
 
     #[test]
     fn test_chacha_poly() {
-        let key = gen_key();
+        let key = gen_key().unwrap();
         let mut data = [0u8; 256];
         rand::thread_rng().fill_bytes(&mut data);
 

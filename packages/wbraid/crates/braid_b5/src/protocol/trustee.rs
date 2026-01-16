@@ -764,15 +764,10 @@ pub struct TrusteeConfig {
 }
 impl TrusteeConfig {
     /// Construct a TrusteeConfig from keys in serialized base64 form.
-    pub fn new(signing_key_sk: &str, signing_key_pk: &str, symm_key: &str) -> Self {
-        TrusteeConfig {
-            signing_key_sk: signing_key_sk.to_string(),
-            signing_key_pk: signing_key_pk.to_string(),
-            encryption_key: symm_key.to_string(),
-        }
+    pub fn from_toml_str(toml_str: &str) -> Result<Self, toml::de::Error> {
+        toml::from_str::<TrusteeConfig>(toml_str)
     }
 
-    /// Construct a TrusteeConfig from keys in object form.
     /// Construct a TrusteeConfig from keys in object form.
     pub fn new_from_objects<C: Context>(
         signing_key: <C::SignatureScheme as SignatureScheme<C::Rng>>::Signer,

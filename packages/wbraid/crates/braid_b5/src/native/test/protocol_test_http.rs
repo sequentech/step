@@ -320,7 +320,7 @@ pub async fn create_protocol_test<C: Context, const W: usize>(
     let (trustees, trustee_pks): (Vec<Trustee<C, NoOpStorage>>, Vec<<C::SignatureScheme as SignatureScheme<C::Rng>>::Verifier>) = (0..n_trustees)
         .map(|i| {
             let sk = C::SignatureScheme::gen_signing_key(&mut rng);
-            let encryption_key = cryptography::utils::symm::gen_key();
+            let encryption_key = cryptography::utils::symm::gen_key().unwrap();
             let pk = C::SignatureScheme::verifying_key(&sk);
             (
                 Trustee::new(

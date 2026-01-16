@@ -302,7 +302,7 @@ fn mk_context<C: Context>(n_trustees: u8, threshold: &[usize]) -> ReplContext<C>
         .map(|i| {
             let kp = C::SignatureScheme::gen_signing_key(&mut rng);
             // let encryption_key = ChaCha20Poly1305::generate_key(&mut csprng);
-            let encryption_key = cryptography::utils::symm::gen_key();
+            let encryption_key = cryptography::utils::symm::gen_key().unwrap();
             Trustee::new(
                 i.to_string(),
                 "foo".to_string(),

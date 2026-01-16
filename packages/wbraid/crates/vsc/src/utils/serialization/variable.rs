@@ -755,7 +755,9 @@ pub trait TypeId {
 #[derive(Debug, Clone, PartialEq, Eq)]
 /// Marker type for type `C`
 pub struct Marker<C> {
+    /// Unique type identifier for type `C`
     marker: u32,
+    /// Required by the compiler
     phantom: std::marker::PhantomData<C>,
 }
 impl<C: TypeId> Default for Marker<C> {
@@ -786,6 +788,7 @@ impl<C: TypeId> VDeserializable for Marker<C> {
 pub struct ConstMarker<const M: u32>;
 impl<const M: u32> ConstMarker<M> {
     /// Creates a new `Marker` instance for the constant type identifier `M`
+    #[must_use]
     pub fn new() -> Marker<Self> {
         Marker {
             marker: M,

@@ -199,7 +199,7 @@ pub fn create_protocol_test<C: Context, const W: usize>(
         .map(|i| {
             let sk = C::SignatureScheme::gen_signing_key(&mut rng);
             // let encryption_key = ChaCha20Poly1305::generate_key(&mut csprng);
-            let encryption_key = cryptography::utils::symm::gen_key();
+            let encryption_key = cryptography::utils::symm::gen_key().unwrap();
             let pk = C::SignatureScheme::verifying_key(&sk);
             (
                 Trustee::new(

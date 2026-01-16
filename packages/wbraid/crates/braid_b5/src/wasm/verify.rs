@@ -84,7 +84,7 @@ impl WasmVerifier {
         // Generate dummy trustee credentials (not used for verification)
         let mut rng = RistrettoCtx::get_rng();
         let dummy_sk = <<RistrettoCtx as Context>::SignatureScheme as SignatureScheme<_>>::gen_signing_key(&mut rng);
-        let dummy_encryption_key = symm::gen_key();
+        let dummy_encryption_key = symm::gen_key().unwrap();
 
         // Create NoOp storage (verifier doesn't need persistence)
         let storage = NoOpStorage::new();

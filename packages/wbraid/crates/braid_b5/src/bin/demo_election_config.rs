@@ -47,7 +47,7 @@ fn gen_election_config<C: Context>(n_trustees: usize, threshold: &[usize]) {
         .map(|_i| {
             let sk = <C::SignatureScheme as SignatureScheme<C::Rng>>::gen_signing_key(&mut rng);
             let pk = <C::SignatureScheme as SignatureScheme<C::Rng>>::verifying_key(&sk);
-            let encryption_key: symm::SymmetricKey = symm::gen_key();
+            let encryption_key: symm::SymmetricKey = symm::gen_key().unwrap();
             let tc = TrusteeConfig::new_from_objects::<C>(sk, encryption_key);
             (tc, pk)
         })

@@ -42,7 +42,6 @@ impl CryptographicGroup for P256Group {
     fn hash_to_scalar(input_slices: &[&[u8]], ds_tags: &[&[u8]]) -> Result<Self::Scalar, Error> {
         let ret = NistP256::hash_to_scalar::<ExpandMsgXmd<Self::Hasher>>(input_slices, ds_tags);
 
-        #[crate::warning("Fix this unwrap, modify hash_to_scalar trait to return result")]
         Ok(P256Scalar(ret?))
     }
 
@@ -55,7 +54,6 @@ impl CryptographicGroup for P256Group {
         let ret: Result<ProjectivePoint, Error> =
             ret.map_err(|e| Error::HashToElementError(e.to_string()));
 
-        #[crate::warning("Fix this unwrap, modify hash_to_element trait to return result")]
         Ok(P256Element(ret?))
     }
 

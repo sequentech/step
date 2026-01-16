@@ -36,7 +36,11 @@ use crate::protocol::board::local_storage::LocalBoardStorage;
 /// but provides no actual persistence. Messages are held transiently
 /// between store and retrieve calls, using external bulletin board IDs.
 ///
-/// WARNING: Provides no security guarantees - for testing only.
+/// WARNING: Provides no security guarantees - do not use this when running
+/// a mixnet node.
+/// Used for
+/// - unit tests
+/// - running verifiers on a completed protocol board
 pub struct NoOpStorage {
     /// Transient buffer holding messages between store_messages() and retrieve_messages()
     /// within a single protocol step. Cleared after retrieval.

@@ -45,7 +45,7 @@ async fn main() -> Result<()> {
     // generate dummy values, these are not important
     let mut rng = RistrettoCtx::get_rng();
     let dummy_sk = <<RistrettoCtx as Context>::SignatureScheme as SignatureScheme<_>>::gen_signing_key(&mut rng);
-    let dummy_encryption_key = cryptography::utils::symm::gen_key();
+    let dummy_encryption_key = cryptography::utils::symm::gen_key().unwrap();
 
     let args = Cli::parse();
 
