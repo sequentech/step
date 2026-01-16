@@ -10,7 +10,7 @@ use electoral_log::client::types::*;
 use rocket::http::Status;
 use rocket::serde::json::Json;
 use sequent_core::services::jwt::JwtClaims;
-use sequent_core::services::keycloak::get_event_realm;
+use sequent_core::services::keycloak::{get_event_realm, get_tenant_realm};
 use sequent_core::types::permissions::Permissions;
 use tracing::{info, instrument};
 use windmill::services::database::get_keycloak_pool;
@@ -90,7 +90,8 @@ pub async fn get_user_id(
     election_event_id: &str,
     username: &str,
 ) -> Result<Option<String>> {
-    let realm = get_event_realm(tenant_id, election_event_id);
+    let tenant_realm = get_tenant_realm(tenant_id);
+    let event_realm = get_event_realm(tenant_id, election_event_id);
     let mut keycloak_db_client: DbClient = get_keycloak_pool()
         .await
         .get()
@@ -102,10 +103,27 @@ pub async fn get_user_id(
         .await
         .map_err(|e| anyhow!("Error getting keycloak transaction: {e:?}"))?;
 
-    let user_ids =
-        get_users_by_username(&keycloak_transaction, &realm, username)
+    // Get user id by username, first look in the tenant realm which has less
+    // users. Then if not found, look in the event realm.
+    let mut user_ids =
+        get_users_by_username(&keycloak_transaction, &tenant_realm, username)
             .await
-            .map_err(|e| anyhow!("Error getting users by username: {e:?}"))?;
+            .map_err(|e| {
+                anyhow!(
+                    "Error getting users by username in tenant realm: {e:?}"
+                )
+            })?;
+    if user_ids.is_empty() {
+        user_ids = get_users_by_username(
+            &keycloak_transaction,
+            &event_realm,
+            username,
+        )
+        .await
+        .map_err(|e| {
+            anyhow!("Error getting users by username in event realm: {e:?}")
+        })?;
+    }
 
     match user_ids.len() {
         0 => {
