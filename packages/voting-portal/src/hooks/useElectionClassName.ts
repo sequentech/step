@@ -6,22 +6,7 @@ import {useParams} from "react-router"
 import {useAppSelector} from "../store/hooks"
 import {IElectionExtended, selectElectionById} from "../store/elections/electionsSlice"
 import {useTranslation} from "react-i18next"
-import {translateElection} from "@sequentech/ui-core"
-
-const MAX_CLASSNAME_LENGTH = 40
-const ROOT_CLASS_PREFIX = "e-"
-
-function toValidClassName(input?: string): string | null {
-    if (!input) return null
-
-    let result = input.replace(/\s+/g, "")
-    result = result.replace(/[^a-zA-Z0-9-_]/g, "")
-
-    result = `${ROOT_CLASS_PREFIX}${result}`
-    result = result.slice(0, MAX_CLASSNAME_LENGTH)
-
-    return result.length ? result : null
-}
+import {ROOT_CLASS_PREFIX, toValidClassName, translateElection} from "@sequentech/ui-core"
 
 /**
  * Manages election class on <html> and provides an election class formatter.
@@ -32,9 +17,10 @@ export const useElectionClassName = () => {
     const election = useAppSelector(selectElectionById(String(electionId ?? "")))
 
     const extractElectionName = (election: IElectionExtended) => {
+        let language = i18n.resolvedLanguage || i18n.language
         return (
-            translateElection(election, "alias", i18n.language) ||
-            translateElection(election, "name", i18n.language) ||
+            translateElection(election, "alias", language) ||
+            translateElection(election, "name", language) ||
             election.alias ||
             election.name ||
             election.id
