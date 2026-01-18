@@ -1,5 +1,8 @@
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
 import {IElectionPresentation, translateElection} from "@sequentech/ui-core"
-import {use, useCallback, useEffect, useMemo} from "react"
+import {useEffect, useMemo} from "react"
 import {useTranslation} from "react-i18next"
 import {IConfirmationBallot} from "../../services/BallotService"
 
