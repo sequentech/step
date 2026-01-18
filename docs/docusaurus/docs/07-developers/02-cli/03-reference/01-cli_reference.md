@@ -99,13 +99,15 @@ cli step create-contest \
   --name <CONTEST_NAME> \
   --description <DESCRIPTION> \
   --election-event-id <ELECTION_EVENT_ID> \
-  --election-id <ELECTION_ID>
+  --election-id <ELECTION_ID> \
+  --counting-algorithm <COUNTING_ALGORITHM>
 ```
 
 * `--name` – Contest name **(required)**
 * `--description` – Contest description *(optional)*
 * `--election-event-id` – Associated election event ID **(required)**
 * `--election-id` – Associated election ID **(required)**
+* `--counting-algorithm` - Counting algorithm *(optional, default: plurality-at-large)*. One of: `plurality-at-large`, `instant-runoff`
 
 ---
 

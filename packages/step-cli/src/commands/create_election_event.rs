@@ -45,15 +45,18 @@ impl CreateElectionEventCLI {
             &self.encryption_protocol,
             self.is_archived,
         ) {
-            Ok(id) => {
+            Ok(Some(id)) => {
                 println!(
                     "{} {}",
                     "Success! Election event created successfully! ID:".green(),
-                    id.unwrap_or_else(|| "None".to_string()).cyan()
+                    id.cyan()
                 );
             }
+            Ok(None) => {
+                eprintln!("Error: election event was not created");
+            }
             Err(err) => {
-                eprintln!("Error! Failed to create election event: {}", err)
+                eprintln!("Error! Failed to create election event: {}", err);
             }
         }
     }

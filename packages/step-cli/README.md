@@ -90,12 +90,13 @@ cli step create-election --name <ELECTION_NAME> --description <DESCRIPTION> --el
 
 ## Create Contest
 ```bash 
-cli step create-contest --name <CONTEST_NAME> --description <DESCRIPTION> --election-event-id <ELECTION_EVENT_ID>
+cli step create-contest --name <CONTEST_NAME> --description <DESCRIPTION> --election-event-id <ELECTION_EVENT_ID> --election-id <ELECTION_ID> --counting-algorithm <COUNTING_ALGORITHM>
 ```
 - name - the contest name - required*
 - description - the contest description - optional*
 - election_event_id - The associated election event id - required*
 - election_id - The associated election id - required*
+- counting_algorithm - A valid counting algorithm(plurality-at-large, instant-runoff) - optional* (default: plurality-at-large )
 
 ## Create Candidate
 ```bash 

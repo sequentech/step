@@ -83,12 +83,15 @@ impl UpdateElectionVotingStatusCommand {
             &self.voting_status,
             &self.voting_channel,
         ) {
-            Ok(id) => {
+            Ok(Some(id)) => {
                 println!(
                     "{} {}",
                     "Success! Updated successfully! ID:".green(),
-                    id.unwrap_or_else(|| "None".to_string()).cyan()
+                    id.cyan()
                 );
+            }
+            Ok(None) => {
+                eprintln!("Error! Failed to update election: {} ", self.election_id);
             }
             Err(err) => {
                 eprintln!("Error! Failed to update: {}", err);

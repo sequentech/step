@@ -3,9 +3,37 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::{types::hasura_types::*, utils::read_config::read_config};
-use clap::Args;
+use clap::{Args, ValueEnum};
 use colored::Colorize;
 use graphql_client::{GraphQLQuery, Response};
+use std::fmt;
+
+pub const INSTANT_RUNOFF: &str = "instant-runoff";
+pub const PLURALITY_AT_LARGE: &str = "plurality-at-large";
+
+#[derive(Debug, Clone, Copy, ValueEnum)]
+pub enum CountingAlgorithm {
+    #[value(name = "instant-runoff")]
+    InstantRunoff,
+
+    #[value(name = "plurality-at-large")]
+    PluralityAtLarge,
+}
+
+impl CountingAlgorithm {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            CountingAlgorithm::InstantRunoff => INSTANT_RUNOFF,
+            CountingAlgorithm::PluralityAtLarge => PLURALITY_AT_LARGE,
+        }
+    }
+}
+
+impl fmt::Display for CountingAlgorithm {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(self.as_str())
+    }
+}
 
 #[derive(Args)]
 #[command(about = "Create a new contest", long_about = None)]
@@ -25,6 +53,10 @@ pub struct CreateContest {
     /// Election id - the election to be associated with
     #[arg(long)]
     election_id: String,
+
+    /// Counting algorithm (optional)
+    #[arg(long, value_enum, default_value_t = CountingAlgorithm::PluralityAtLarge)]
+    counting_algorithm: CountingAlgorithm,
 }
 
 #[derive(GraphQLQuery)]
@@ -42,6 +74,7 @@ impl CreateContest {
             &self.description,
             &self.election_event_id,
             &self.election_id,
+            self.counting_algorithm,
         ) {
             Ok(id) => {
                 println!(
@@ -62,6 +95,7 @@ fn create_contest(
     description: &str,
     election_event_id: &str,
     election_id: &str,
+    counting_algorithm: CountingAlgorithm,
 ) -> Result<String, Box<dyn std::error::Error>> {
     let config = read_config()?;
     let client = reqwest::blocking::Client::new();
@@ -73,6 +107,7 @@ fn create_contest(
         election_id: election_id.to_string(),
         tenant_id: config.tenant_id.clone(),
 
+        counting_algorithm: Some(counting_algorithm.to_string()),
         presentation: None,
         max_votes: None,
         min_votes: None,

@@ -4,6 +4,7 @@ mutation InsertContest(
   $election_id: uuid!,
   $name: String!,
   $description: String,
+  $counting_algorithm: String,
   $max_votes: Int,
   $min_votes: Int,
   $winning_candidates_num: Int,
@@ -19,6 +20,7 @@ mutation InsertContest(
     min_votes: $min_votes,
     winning_candidates_num: $winning_candidates_num,
     presentation: $presentation
+    counting_algorithm: $counting_algorithm,
   }) {
     affected_rows
     returning {

@@ -39,13 +39,10 @@ impl UpdateTallyStatus {
     pub fn run(&self) {
         match update_status(&self.election_event_id, &self.tally_id, &self.status) {
             Ok(id) => {
+                let status = &self.status;
                 println!(
                     "{}",
-                    format!(
-                        "Success! Successfully updated status to {} for tally {}",
-                        &self.status, id
-                    )
-                    .green()
+                    format!("Success! Updated status to {status} for tally {id}").green()
                 );
             }
             Err(err) => {

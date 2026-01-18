@@ -1,6 +1,7 @@
 ---
 id: cli_tutorials_running_a_tally_ceremony
 title: Running a Tally Ceremony with the CLI
+position: 4
 ---
 
 <!--
@@ -128,7 +129,7 @@ cli step config \
 ### 2. Update the Tally Ceremony Status
 Update the Tally Ceremony status to IN_PROGRESS:
 ```bash
-cli step update-tally
+cli step update-tally \
   --election-event-id ac037831-66bd-451b-bdf7-e0a30eb2bfa0 \
   --tally-id bc7fcae1-f9e4-4714-a6c2-4c43a5cf07d9 \
   --status IN_PROGRESS

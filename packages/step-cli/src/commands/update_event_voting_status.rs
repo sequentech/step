@@ -80,11 +80,17 @@ impl UpdateElectionEventVotingStatus {
             &self.voting_status,
             &self.voting_channel,
         ) {
-            Ok(id) => {
+            Ok(Some(id)) => {
                 println!(
                     "{} {}",
                     "Success! Updated successfully! ID:".green(),
-                    id.unwrap_or_else(|| "None".to_string()).cyan()
+                    id.cyan()
+                );
+            }
+            Ok(None) => {
+                eprintln!(
+                    "Error! Failed to update election event: {} ",
+                    self.election_event_id
                 );
             }
             Err(err) => {

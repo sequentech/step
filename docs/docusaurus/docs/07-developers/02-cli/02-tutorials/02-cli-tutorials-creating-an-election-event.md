@@ -1,7 +1,7 @@
 ---
 id: cli-creating-an-election-event
 title: Creating an Election Event with the CLI
-posiiton: 2
+position: 2
 ---
 
 <!--
@@ -23,7 +23,7 @@ This guide walks you through manually creating an election event using the CLI.
 cd packages/step-cli
 ```
 
-2. configure the CLI to point to the correct tenant and Keycloak instance, and authenticate as an ***admin user***:
+2. Configure the CLI to point to the correct tenant and Keycloak instance, and authenticate as an ***admin user***:
 ```bash
 cli step config --tenant-id 90505c8a-23a9-4cdf-a26b-4e19f6a097d5 \
 --endpoint-url http://graphql-engine:8080/v1/graphql \
@@ -133,7 +133,7 @@ Success! Area created successfully! ID: 79aba105-f250-4375-a211-43dcaeadba64
 
 ## Step 6: Assign Contest to Area
 
-Link the contest to the area using the IDs you recieved in previous steps.
+Link the contest to the area using the IDs you received in previous steps.
 ```bash
 cli step create-area-contest \
   --election-event-id 79aba105-f250-4375-a211-43dcaeadba64 \
