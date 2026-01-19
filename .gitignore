@@ -39,7 +39,6 @@ devenv.local.nix
 .pre-commit-config.yaml
 .devcontainer/.env
 .devcontainer/nginx/default.conf
-.devcontainer/keycloak/import/tenant-90505c8a-23a9-4cdf-a26b-4e19f6a097d5_tailored_version.json
 
 # Frontend
 node_modules/

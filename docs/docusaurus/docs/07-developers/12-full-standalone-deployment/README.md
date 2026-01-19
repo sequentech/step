@@ -72,8 +72,8 @@ The configuration script generates all necessary files from templates, including
 
     ```bash
     cd ~/step
-    chmod +x .devcontainer/remote-deployment/configure-urls.sh
-    ./.devcontainer/remote-deployment/configure-urls.sh <DOMAIN (sequent.vote)> <SUBDOMAIN_SUFFIX (remote-deployment)>
+    chmod +x .devcontainer/remote-deployment/configure-environment.sh
+    ./.devcontainer/remote-deployment/configure-environment.sh <DOMAIN (sequent.vote)> <SUBDOMAIN_SUFFIX (remote-deployment)>
     ```
 
     *   Replace `sequent.vote` with your root domain.
@@ -412,7 +412,7 @@ git pull
 
 # Reconfigure URLs (if domain/subdomain changed)
 cd ~/step/.devcontainer
-remote-deployment/configure-urls.sh sequent.vote remote-deployment
+remote-deployment/configure-environment.sh sequent.vote remote-deployment
 
 # Rebuild affected services (if Dockerfiles or build configs changed)
 docker compose -f docker-compose-remote.yml build <service-name>

@@ -9,11 +9,11 @@
 
 # Check if arguments are provided
 if [ -z "$1" ] || [ -z "$2" ]; then
-  echo "Usage: ./configure-urls.sh <domain> <subdomain_suffix>"
+  echo "Usage: ./configure-environment.sh <domain> <subdomain_suffix>"
   echo "  <domain>: The root domain (e.g., sequent.vote)"
   echo "  <subdomain_suffix>: The suffix for all subdomains (e.g., remote-deployment, qa, staging)"
   echo ""
-  echo "Example: ./configure-urls.sh sequent.vote remote-deployment"
+  echo "Example: ./configure-environment.sh sequent.vote remote-deployment"
   echo "This will configure URLs like:"
   echo "  - admin-remote-deployment.sequent.vote"
   echo "  - voting-remote-deployment.sequent.vote"
@@ -79,18 +79,10 @@ MASTER_SECRET=$(generate_hex 32)
 sed -i.bak "s|^SECRETS_BACKEND=.*|SECRETS_BACKEND=EnvVarMasterSecret|g" "$ENV_FILE" && rm "$ENV_FILE.bak"
 sed -i.bak "s|^MASTER_SECRET=.*|MASTER_SECRET=$MASTER_SECRET|g" "$ENV_FILE" && rm "$ENV_FILE.bak"
 
-# The tailored file will be git ignored
-KEYCLOAK_JSON_FILE="$DEVCONTAINER_DIR/keycloak/import/tenant-90505c8a-23a9-4cdf-a26b-4e19f6a097d5_tailored_version.json"
-KEYCLOAK_JSON_SRC_FILE="$DEVCONTAINER_DIR/keycloak/import/tenant-90505c8a-23a9-4cdf-a26b-4e19f6a097d5.json"
-# Container path for services with workspace mounted at /workspaces/step
-KEYCLOAK_JSON_CONTAINER_PATH="/workspaces/step/.devcontainer/keycloak/import/tenant-90505c8a-23a9-4cdf-a26b-4e19f6a097d5_tailored_version.json"
+KEYCLOAK_JSON_FILE="$DEVCONTAINER_DIR/keycloak/import/tenant-90505c8a-23a9-4cdf-a26b-4e19f6a097d5.json"
 
 KEYCLOAK_CLIENT_SECRET=$(generate_base64 32)
 KEYCLOAK_CLI_CLIENT_SECRET=$(generate_base64 32)
-
-# Create the tailored file from the source to modify the secrets on it and set the env variable to container path
-cp "$KEYCLOAK_JSON_SRC_FILE" "$KEYCLOAK_JSON_FILE"
-sed -i.bak "s|^KEYCLOAK_TENANT_REALM_CONFIG_PATH=.*|KEYCLOAK_TENANT_REALM_CONFIG_PATH=$KEYCLOAK_JSON_CONTAINER_PATH|g" "$ENV_FILE" && rm "$ENV_FILE.bak"
 
 sed -i.bak "s|^KEYCLOAK_CLIENT_SECRET=.*|KEYCLOAK_CLIENT_SECRET=$KEYCLOAK_CLIENT_SECRET|g" "$ENV_FILE" && rm "$ENV_FILE.bak"
 jq --arg secret "$KEYCLOAK_CLIENT_SECRET" '(.clients[] | select(.clientId == "service-account") | .secret) = $secret' "$KEYCLOAK_JSON_FILE" > "$KEYCLOAK_JSON_FILE.tmp" && mv "$KEYCLOAK_JSON_FILE.tmp" "$KEYCLOAK_JSON_FILE"
