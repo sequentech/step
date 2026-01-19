@@ -224,6 +224,17 @@ cli step update-tally --election-event-id <ELECTION_EVENT_ID> --tally-id <TALLY_
 - Tally id - the tally ceremony id to confirm the key for - required*
 - Status - the status of the tally - enter <b>IN_PROGRESS</b> for completing the tally ceremony
 
+## Download Tally Results
+```bash
+cli step download-tally-results \
+  --election-event-id <ELECTION_EVENT_ID> \
+  --tally-id <TALLY_ID> \
+  --output-dir <OUTPUT_DIR>
+```
+- Election event id - the election event to be associated with - required*
+- Tally id - the tally ceremony id to confirm the key for - required*
+- Output-dir - the directory where results will be saved. optional* (defaults to the output folder within the step-cli package.)
+
 ## Render Template
 > This can be used to renders a handlerbars file into html
 ```bash 
@@ -236,7 +247,7 @@ cli step render-template [--base-template <PATH_TO_TEMPLATE_FILE>] --template <P
 
 ## Generate voters
 > This can be used to create csv file with voters. 
-> this action require to have export_election_event-<id>.json file in working-directory.
+> This action require to have export_election_event-<id>.json file in working-directory.
 ```bash 
 cli step generate-voters --working-directory <PATH_FOR_INPUT_OUTPUT> --num-users <NUMBER_VOTERS_TO_GENERATE>
 ```
@@ -246,7 +257,7 @@ cli step generate-voters --working-directory <PATH_FOR_INPUT_OUTPUT> --num-users
 
 ## Duplicate votes
 > This can be used to duplicate existing cast_vote row.
-> this required additional confituration at config.json in working-directory
+> This required additional confituration at config.json in working-directory
 ```bash 
 cli step duplicate-votes --working-directory <PATH_FOR_INPUT_OUTPUT> --num-votes <NUMBER_VOTES_TO_DUPLICATE>
 ```
@@ -255,7 +266,7 @@ cli step duplicate-votes --working-directory <PATH_FOR_INPUT_OUTPUT> --num-votes
 
 ## Create Applications
 > This can be used to create applicaiton.
-> this required additional confituration at config.json in working-directory
+> This required additional confituration at config.json in working-directory
 ```bash 
 cli step create-applications --working-directory <PATH_FOR_INPUT_OUTPUT> --num-applications <NUMBER_APPLICATIONS_TO_CREATE> --status <STATUS> --type <TYPE>
 ```
@@ -266,7 +277,7 @@ cli step create-applications --working-directory <PATH_FOR_INPUT_OUTPUT> --num-a
 
 ## Create Electoral Logs
 > This can be used to create electoral logs in immudb.
-> this required additional confituration at config.json in working-directory (like area_id and election_id)
+> This required additional confituration at config.json in working-directory (like area_id and election_id)
 ```bash 
 cli step create-electoral-logs --working-directory <PATH_FOR_INPUT_OUTPUT> --num-logs <NUMBER_LOGS_TO_CREATE>
 ```

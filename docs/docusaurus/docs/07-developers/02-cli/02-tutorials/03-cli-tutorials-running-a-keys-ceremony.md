@@ -100,6 +100,44 @@ After completing the ceremony as trustee1:
 > Re-run Step 2 again, starting with authentication,
 > this time logging in as trustee2, in order to fully complete the Keys Ceremony.
 
+-----------
+
+## Step 3: Create Publication and Enable Voting
+After completing the key ceremony, you must publish the election event to make it official and then manually
+ open the voting channels.
+
+### 1. Authenticate as Admin
+This process requires Gold-level admin permissions. If you haven't configured your CLI session yet, run the following command to authenticate:
+
+```bash
+cli step config --tenant-id 90505c8a-23a9-4cdf-a26b-4e19f6a097d5 \
+--endpoint-url http://graphql-engine:8080/v1/graphql \
+--keycloak-url http://keycloak:8090 \
+--keycloak-user admin \
+--keycloak-password admin \
+--keycloak-client-id api-key-client \
+--keycloak-client-secret 4lzmxNgZHjfzS5BwDVlyrRUDqwvFLUvL
+```
+### 2. Publish the Election Event
+Once authenticated, publish the election event and create publication:
+
+```bash
+cli step publish \
+--election-event-id ac037831-66bd-451b-bdf7-e0a30eb2bfa0
+```
+
+### 3. Enable Online Voting
+Finally, transition the voting status to OPEN for the online channel. This action allows eligible voters to begin casting their votes
+
+```bash
+cli step update-event-voting-status \
+  --election-event-id ac037831-66bd-451b-bdf7-e0a30eb2bfa0 \
+  --voting-status OPEN \
+  --voting-channel ONLINE
+```
+--------
+
+
 ℹ️ Reminder:
 Values like ac037831-66bd-451b-bdf7-e0a30eb2bfa0 and d9792af0-71b8-4952-8aac-94bc0fead5f7 are examples only.
 Your actual IDs will differ depending on your system configuration.

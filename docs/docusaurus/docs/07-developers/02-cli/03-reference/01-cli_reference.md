@@ -335,6 +335,19 @@ cli step update-tally \
 
 ---
 
+## Download Tally Results
+```bash
+cli step download-tally-results \
+  --election-event-id <ELECTION_EVENT_ID> \
+  --tally-id <TALLY_ID> \
+  --output-dir <OUTPUT_DIR>
+```
+* `--election-event-id` – Election event ID **(required)**
+* `--tally-id` – Tally ceremony ID **(required)**
+* `--output-dir` - The directory where results will be saved. *(optional; defaults to the output folder within the step-cli package.)*
+
+---
+
 ## Render Template
 
 ```bash

@@ -30,29 +30,20 @@ cd packages/step-cli  # or ../packages/step-cli if already in .devcontainer
 
 >  A Keys Ceremony must be completed successfully for the election event before starting a Tally Ceremony. To learn about how to run a keys ceremony click [here](./03-cli-tutorials-running-a-keys-ceremony.md)
 
-4. Publish the Ballot
-  > Before starting the Tally Ceremony, the ballot for the election event must be published.
+4. Close Voting (Optional)
+   Depending on your election configuration, you may need to transition the voting status to CLOSE before the Tally Ceremony can begin.
+   To close the online voting channel, run:
+```bash
+cli step update-event-voting-status \
+  --election-event-id ac037831-66bd-451b-bdf7-e0a30eb2bfa0 \
+  --voting-status CLOSE \
+  --voting-channel ONLINE
+```
 
-⚠️ This step requires authentication as an admin user with **gold** permission.
-If you are not already authenticated as admin, configure the CLI first:
-```bash
-cli step config --tenant-id 90505c8a-23a9-4cdf-a26b-4e19f6a097d5 \
---endpoint-url http://graphql-engine:8080/v1/graphql \
---keycloak-url http://keycloak:8090 \
---keycloak-user admin \
---keycloak-password admin \
---keycloak-client-id api-key-client \
---keycloak-client-secret 4lzmxNgZHjfzS5BwDVlyrRUDqwvFLUvL
-```
-Then you will be able to publish the election event and create publication.
-```bash
-cli step publish \
---election-event-id ac037831-66bd-451b-bdf7-e0a30eb2bfa0
-```
 ---
 
 ## Step 1: Start the Tally Ceremony (Admin Step)
-start a Tally Ceremony for the given election event: 
+Start a Tally Ceremony for the given election event: 
 > ⚠️ You must be authenticated as an admin user before running this command.
 If you have not already done so, re-run cli step config with admin credentials.
 
@@ -134,6 +125,18 @@ cli step update-tally \
   --tally-id bc7fcae1-f9e4-4714-a6c2-4c43a5cf07d9 \
   --status IN_PROGRESS
 ```
+
+-------
+
+## Step 4: Download Tally Reults
+To download tally results, run the following command:
+
+```bash
+cli step download-tally-results \
+  --election-event-id ac037831-66bd-451b-bdf7-e0a30eb2bfa0 \
+  --tally-id bc7fcae1-f9e4-4714-a6c2-4c43a5cf07d9
+```
+> This will download the results into `output` folder under step-cli package.
 
 ℹ️ Reminder: 
 Values like ac037831-66bd-451b-bdf7-e0a30eb2bfa0 and bc7fcae1-f9e4-4714-a6c2-4c43a5cf07d9 are examples only.

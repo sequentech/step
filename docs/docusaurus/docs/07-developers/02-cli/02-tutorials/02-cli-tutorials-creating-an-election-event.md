@@ -148,6 +148,22 @@ Success! Area contest created successfully! ID: 79aba105-f250-4375-a211-43dcaead
 
 After completing all steps, you will have a basic election event configured with default settings.
 
+---
+
+## Export Election event
+To back up your election event configuration, use the following command:
+
+```bash
+cli step export \
+-election-event --election-event-id \
+3f53ab49-79b2-4703-8b26-8a25d49d48b9\
+--include-voters \
+--bulletin-board \
+--encrypted
+```
+> This will export the election event configuration, including voters and the bulletin board, to the `data` folder inside the `step-cli` package.
+
+---
 
 ## Import Election event
 ```bash
