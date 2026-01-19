@@ -34,7 +34,11 @@
             <div class="right">
               <div>
                 <div>
+                  {{#if ../../election_alias}}
+                  <p class="election-name">{{../../election_alias}}</p>
+                   {{else}}
                   <p class="election-name">{{../../election_name}}</p>
+                  {{/if}}
                   <p class="election-name">{{../../area}}</p>
                 </div>
               </div>

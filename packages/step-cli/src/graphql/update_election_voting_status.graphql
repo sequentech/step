@@ -1,12 +1,14 @@
 mutation UpdateElectionVotingStatus(
         $electionEventId: uuid!
         $electionId: uuid!
-        $status: String!
+        $votingStatus: VotingStatus!
+        $votingChannels: [VotingStatusChannel]
 ) {
         update_election_voting_status(
             election_id: $electionId
-            voting_status: $status
+            voting_status: $votingStatus
             election_event_id: $electionEventId
+            voting_channels: $votingChannels
         ) {
             election_id
         }

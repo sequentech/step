@@ -123,10 +123,9 @@
                 </td>
                 <td>
                   {{datetime from_rfc3339=date_voted output_format="%B %d, %Y"}}
-
                 </td>
                 <td>
-                  {{datetime from_rfc3339=date_voted output_format="%H:%M"}}
+                  {{datetime from_rfc3339=date_voted output_format="%H:%M GMT %:z"}}
                 </td>
               </tr>
               {{/each}}

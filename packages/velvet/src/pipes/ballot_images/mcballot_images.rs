@@ -309,6 +309,7 @@ impl MCBallotImages {
 
         let td = TemplateData {
             election_name: election_input.name.clone(),
+            election_alias: election_input.alias.clone(),
             ballot_data,
             area: area_name.to_string(),
             election_annotations: election_input.annotations.clone(),
@@ -662,6 +663,7 @@ impl Pipe for MCBallotImages {
 pub struct TemplateData {
     pub ballot_data: Vec<BallotData>,
     pub election_name: String,
+    pub election_alias: String,
     pub area: String,
     pub election_dates: Option<StringifiedPeriodDates>,
     pub election_annotations: HashMap<String, String>,

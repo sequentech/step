@@ -23,6 +23,7 @@ gq http://graphql-engine:8080/v1/graphql \
 cd ..
 cp admin-portal/graphql.schema.json voting-portal/graphql.schema.json
 cp admin-portal/graphql.schema.json ballot-verifier/graphql.schema.json
+cp admin-portal/graphql.schema.json step-cli/src/graphql/schema.json
 cp admin-portal/graphql.schema.json .
 
 yarn
