@@ -29,10 +29,12 @@ generate_hex() {
   openssl rand -hex $length
 }
 
-# Function to generate random base64 string
+# Function to generate random alphanumeric string (URL-safe, no special chars)
 generate_base64() {
-  local bytes=$1
-  openssl rand -base64 $bytes | tr -d '\n'
+  local length=$1
+  # Generate random bytes and convert to alphanumeric only
+  # Using /dev/urandom, filter to alphanumeric, take required length
+  LC_ALL=C tr -dc 'a-zA-Z0-9' < /dev/urandom | head -c "$length"
 }
 
 # Set variables
