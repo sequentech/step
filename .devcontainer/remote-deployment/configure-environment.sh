@@ -85,6 +85,10 @@ KEYCLOAK_JSON_FILE="$DEVCONTAINER_DIR/keycloak/import/tenant-90505c8a-23a9-4cdf-
 
 KEYCLOAK_CLIENT_SECRET=$(generate_base64 32)
 KEYCLOAK_CLI_CLIENT_SECRET=$(generate_base64 32)
+HASURA_GRAPHQL_ADMIN_SECRET=$(generate_base64 32)
+AWS_S3_ROOT_PASSWORD=$(generate_base64 32)
+AWS_S3_ACCESS_SECRET=$(generate_base64 32)
+KEYCLOAK_ADMIN_PASSWORD=$(generate_base64 32)
 
 sed -i.bak "s|^KEYCLOAK_CLIENT_SECRET=.*|KEYCLOAK_CLIENT_SECRET=$KEYCLOAK_CLIENT_SECRET|g" "$ENV_FILE" && rm "$ENV_FILE.bak"
 jq --arg secret "$KEYCLOAK_CLIENT_SECRET" '(.clients[] | select(.clientId == "service-account") | .secret) = $secret' "$KEYCLOAK_JSON_FILE" > "$KEYCLOAK_JSON_FILE.tmp" && mv "$KEYCLOAK_JSON_FILE.tmp" "$KEYCLOAK_JSON_FILE"
@@ -92,6 +96,10 @@ jq --arg secret "$KEYCLOAK_CLIENT_SECRET" '(.clients[] | select(.clientId == "se
 sed -i.bak "s|^KEYCLOAK_CLI_CLIENT_SECRET=.*|KEYCLOAK_CLI_CLIENT_SECRET=$KEYCLOAK_CLI_CLIENT_SECRET|g" "$ENV_FILE" && rm "$ENV_FILE.bak"
 jq --arg secret "$KEYCLOAK_CLI_CLIENT_SECRET" '(.clients[] | select(.clientId == "cli-account-admin") | .secret) = $secret' "$KEYCLOAK_JSON_FILE" > "$KEYCLOAK_JSON_FILE.tmp" && mv "$KEYCLOAK_JSON_FILE.tmp" "$KEYCLOAK_JSON_FILE"
 
+sed -i.bak "s|^HASURA_GRAPHQL_ADMIN_SECRET=.*|HASURA_GRAPHQL_ADMIN_SECRET=$HASURA_GRAPHQL_ADMIN_SECRET|g" "$ENV_FILE" && rm "$ENV_FILE.bak"
+sed -i.bak "s|^AWS_S3_ROOT_PASSWORD=.*|AWS_S3_ROOT_PASSWORD=$AWS_S3_ROOT_PASSWORD|g" "$ENV_FILE" && rm "$ENV_FILE.bak"
+sed -i.bak "s|^AWS_S3_ACCESS_SECRET=.*|AWS_S3_ACCESS_SECRET=$AWS_S3_ACCESS_SECRET|g" "$ENV_FILE" && rm "$ENV_FILE.bak"
+sed -i.bak "s|^KEYCLOAK_ADMIN_PASSWORD=.*|KEYCLOAK_ADMIN_PASSWORD=$KEYCLOAK_ADMIN_PASSWORD|g" "$ENV_FILE" && rm "$ENV_FILE.bak"
 
 echo "  ✓ Generated MASTER_SECRET (32 bytes hex)"
 echo "  ✓ Generated Keycloak client secrets"
