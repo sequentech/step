@@ -4,8 +4,8 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.8.1">
 <title data-rh="true">README | Sequent Online Voting</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:url" content="https://sequentech.github.io/docusaurus/pr-preview/pr-2257/docs/try_it_out/full-standalone-deployment"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="README | Sequent Online Voting"><meta data-rh="true" name="description" content="&lt;!--"><meta data-rh="true" property="og:description" content="&lt;!--"><link data-rh="true" rel="icon" href="/docusaurus/pr-preview/pr-2257/img/favicon.ico"><link data-rh="true" rel="canonical" href="https://sequentech.github.io/docusaurus/pr-preview/pr-2257/docs/try_it_out/full-standalone-deployment"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-2257/docs/try_it_out/full-standalone-deployment" hreflang="en"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-2257/docs/try_it_out/full-standalone-deployment" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Remote Standalone Deployment","item":"https://sequentech.github.io/docusaurus/pr-preview/pr-2257/docs/try_it_out/full-standalone-deployment/"}]}</script><link rel="stylesheet" href="/docusaurus/pr-preview/pr-2257/assets/css/styles.54d9e100.css">
-<script src="/docusaurus/pr-preview/pr-2257/assets/js/runtime~main.b4a1a8a4.js" defer="defer"></script>
-<script src="/docusaurus/pr-preview/pr-2257/assets/js/main.18b8f4bf.js" defer="defer"></script>
+<script src="/docusaurus/pr-preview/pr-2257/assets/js/runtime~main.97479a1e.js" defer="defer"></script>
+<script src="/docusaurus/pr-preview/pr-2257/assets/js/main.784557c3.js" defer="defer"></script>
 </head>
 <body class="navigation-with-keyboard">
 <svg xmlns="http://www.w3.org/2000/svg" style="display: none;"><defs>
@@ -224,6 +224,12 @@ We also need to change the prepare-server.sh to clone a specific release of step
 <li><strong>Keycloak:</strong> <code>https://login-remote-deployment.sequent.vote</code></li>
 <li><strong>MinIO:</strong> <code>https://minio-remote-deployment.sequent.vote</code></li>
 </ul>
+<blockquote>
+<p><strong>⚠️ Security Warning:</strong> The default credentials for the Admin Portal are set to <code>admin</code> / <code>admin</code>. <strong>You MUST change this immediately</strong> in a production environment: Login to the Admin Portal, go to Users and Roles → For the User name <code>admin</code> click on Actions → Change Password.</p>
+<ul>
+<li><strong>Keycloak admin console password:</strong> If you need to login to the keycloak console, the password is stored in the <code>.env</code> file as <code>KEYCLOAK_ADMIN_PASSWORD</code>. This password was randomly generated during the deployment process and is unique to your deployment, the same for MinIO and Hasura Console.</li>
+</ul>
+</blockquote>
 <h2 class="anchor anchorWithStickyNavbar_LWe7" id="troubleshooting">Troubleshooting<a href="#troubleshooting" class="hash-link" aria-label="Direct link to Troubleshooting" title="Direct link to Troubleshooting">​</a></h2>
 <h3 class="anchor anchorWithStickyNavbar_LWe7" id="cloudflare-ssltls-errors-521-web-server-is-down">Cloudflare SSL/TLS Errors (521 Web Server Is Down)<a href="#cloudflare-ssltls-errors-521-web-server-is-down" class="hash-link" aria-label="Direct link to Cloudflare SSL/TLS Errors (521 Web Server Is Down)" title="Direct link to Cloudflare SSL/TLS Errors (521 Web Server Is Down)">​</a></h3>
 <p>If you see <strong>&quot;521 Web Server Is Down&quot;</strong> errors when accessing your sites, this means Cloudflare cannot connect to your origin server due to SSL configuration mismatch.</p>
