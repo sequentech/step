@@ -158,6 +158,40 @@ cli step create-area-contest \
 
 ---
 
+## Export Election event
+
+```bash
+cli step export-election-event \
+  --election-event-id <ELECTION_EVENT_ID> \
+  --include-voters \
+  --activity-logs \
+  --bulletin-board \
+  --publications \
+  --s3-files \
+  --scheduled-events \
+  --reports \
+  --applications \
+  --tally \
+  --encrypted \
+  --output-dir <OUTPUT_DIRECTORY_PATH>
+```
+* `--election-event-id` – Associated election event ID **(required)**
+* `--include-voters` – Include voter data in the export *(optional)*
+* `--activity-logs` – Include election event  activity logs *(optional)*
+* `--bulletin-board` –  Include bulletin board contents *(optional)*
+* `--publications` – Include publications *(optional)*
+* `--s3-files` – Include associated files stored in S3 *(optional)*
+* `--scheduled-events` – Include scheduled events *(optional)*
+* `--reports` – Include election event reports *(optional)*
+* `--applications `– Include applications data *(optional)*
+* `--tally` – Include election event tally *(optional)*
+* `--encrypted `– Encrypt the exported package *(optional)*
+* `--output-dir` – Directory where the export will be saved *(optional, default: ./data)*
+  
+> Note: The export is forced to be encrypted if you include any sensitive data flags, specifically: `--bulletin-board`, `--reports`, `--applications`, or `--tally`.
+
+---
+
 ## Update Election Event Voting Status
 
 ```bash

@@ -125,6 +125,37 @@ cli step create-area-contest --election-event-id <ELECTION_EVENT_ID> --contest-i
 - contest_id - The associated contest id - required*
 - area_id - The associated area id - required*
 
+## Export Election Event
+```bash 
+cli step export-election-event \
+  --election-event-id <ELECTION_EVENT_ID> \
+  --include-voters \
+  --activity-logs \
+  --bulletin-board \
+  --publications \
+  --s3-files \
+  --scheduled-events \
+  --reports \
+  --applications \
+  --tally \
+  --encrypted \
+  --output-dir <OUTPUT_DIRECTORY_PATH>
+```
+- Election event id – The associated election event id - required*
+- Include voters – Include voter data in the export - optional*
+- Activity logs – Include election event activity logs - optional*
+- Bulletin board – Include bulletin board contents - optional*
+- Publications – Include publications- optional*
+- S3 files – Include associated files stored in S3 - optional*
+- Scheduled events – Include scheduled events - optional*
+- Reports – Include election event reports - optional*
+- Applications – Include applications data - optional*
+- Tally – Include election event tallyInclude election event tally - optional*
+- Encrypted – Encrypt the exported package - optional*
+- Output-dir – The directory where the export will be saved - optional* (defaults to the data folder within the step-cli package.)
+
+> Note: The export is forced to be encrypted if you include any sensitive data flags, specifically: `--bulletin-board`, `--reports`, `--applications`, or `--tally`.
+
 ## Update Election Event Voting Status
 ```bash 
 cli step update-event-voting-status --election-event-id <ELECTION_EVENT_ID> --voting-status <VOTING_STATUS>

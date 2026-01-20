@@ -154,9 +154,8 @@ After completing all steps, you will have a basic election event configured with
 To back up your election event configuration, use the following command:
 
 ```bash
-cli step export \
--election-event --election-event-id \
-3f53ab49-79b2-4703-8b26-8a25d49d48b9\
+cli step export-election-event \
+--election-event-id 3f53ab49-79b2-4703-8b26-8a25d49d48b9 \
 --include-voters \
 --bulletin-board \
 --encrypted

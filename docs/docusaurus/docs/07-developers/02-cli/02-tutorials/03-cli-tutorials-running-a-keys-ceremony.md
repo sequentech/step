@@ -102,9 +102,9 @@ After completing the ceremony as trustee1:
 
 -----------
 
-## Step 3: Create Publication and Enable Voting
-After completing the key ceremony, you must publish the election event to make it official and then manually
- open the voting channels.
+## Create Publication and Enable Voting
+After completing the key ceremony, you must publish the election event to make it official and then 
+start the election event in order to enable voting.
 
 ### 1. Authenticate as Admin
 This process requires Gold-level admin permissions. If you haven't configured your CLI session yet, run the following command to authenticate:
