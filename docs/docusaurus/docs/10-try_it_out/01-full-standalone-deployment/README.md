@@ -211,6 +211,9 @@ Finally, you can start the Docker Compose stack with the Nginx reverse proxy.
     ```bash
     cd ~/step
     
+    # Export MinIO credentials from .env file
+    export AWS_S3_ACCESS_SECRET=$(grep AWS_S3_ACCESS_SECRET .devcontainer/.env | cut -d '=' -f2)
+    
     # Wait for Keycloak to be fully started (can take 1-2 minutes)
     echo "Waiting for Keycloak..."
     until docker logs keycloak 2>&1 | grep -q "Listening on"; do sleep 2; done
@@ -223,21 +226,21 @@ Finally, you can start the Docker Compose stack with the Nginx reverse proxy.
     
     # Upload to MinIO public bucket
     cat /tmp/certs_temp.json | docker compose -f .devcontainer/docker-compose-remote.yml run \
-      --rm --entrypoint="" -T -i configure-minio sh -c '
-        mc alias set myminio http://minio:9000 minio minio123 > /dev/null 2>&1 && \
+      --rm --entrypoint="" -T -i configure-minio sh -c "
+        mc alias set myminio http://minio:9000 minio $AWS_S3_ACCESS_SECRET > /dev/null 2>&1 && \
         cat > /tmp/certs.json && \
         mc cp --attr Cache-Control=max-age=30 /tmp/certs.json myminio/public/certs.json && \
-        echo "✓ JWKS uploaded successfully"
-      '
+        echo '✓ JWKS uploaded successfully'
+      "
     
     rm -f /tmp/certs_temp.json
     
     # Verify upload
     docker compose -f .devcontainer/docker-compose-remote.yml run --rm --entrypoint="" -T configure-minio \
-      sh -c 'mc alias set myminio http://minio:9000 minio minio123 > /dev/null 2>&1 && \
-             CONTENT=$(mc cat myminio/public/certs.json 2>/dev/null) && \
-             [ -n "$CONTENT" ] && \
-             echo "✓ JWKS file verified in MinIO" || echo "✗ ERROR: JWKS file is empty or invalid"'
+      sh -c "mc alias set myminio http://minio:9000 minio $AWS_S3_ACCESS_SECRET > /dev/null 2>&1 && \
+             CONTENT=\$(mc cat myminio/public/certs.json 2>/dev/null) && \
+             [ -n \"\$CONTENT\" ] && \
+             echo '✓ JWKS file verified in MinIO' || echo '✗ ERROR: JWKS file is empty or invalid'"
     ```
 
     **Note:** This fetches JWT signing certificates from Keycloak that Hasura needs to verify authentication tokens. If you see errors, ensure Keycloak is fully started before running these commands.
