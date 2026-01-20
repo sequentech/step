@@ -21,8 +21,6 @@ export const useElectionClassName = () => {
         return (
             translateElection(election, "alias", language) ||
             translateElection(election, "name", language) ||
-            election.alias ||
-            election.name ||
             election.id
         )
     }
