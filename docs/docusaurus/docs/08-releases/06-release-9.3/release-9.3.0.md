@@ -9,8 +9,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 # Release v9.3.0
 
 ## 🔄 Migrations
-### Keycloak upgrade
-Following the new keycloak version ____ presented in v9.3.0, the healthcheck probes moved to different ports. Changes:
+### Keycloak upgrade from 24 to 26.4
+Following the new keycloak version 26.4 presented in v9.3.0, the healthcheck probes moved to different ports. Changes:
 - Variable `KC_HOSTNAME` now needs `https://` at the beginning and `/auth` at the end
 - Added `"--http-enabled=true", "--health-enabled=true"`, to the start command
 - For nginx implementation, added:
