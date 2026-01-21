@@ -176,17 +176,20 @@ mod random;
 mod signatures;
 /// Symmetric encryption frontend.
 mod symmetric;
-/*
- /// Ed25519 digital signatures backed by [dalek](https://github.com/dalek-cryptography/curve25519-dalek/tree/main/ed25519-dalek).
-pub use signatures::dalek as signature;
-/// Random number generation backed by [rand](https://crates.io/crates/rand).
-pub use random::rand as rng;
+
+#[cfg(feature = "wasm")]
+pub mod wasm;
+
 /// SHA-2 hashing backed by [rustcrypto](https://crates.io/crates/sha2).
 pub use hashing::rustcrypto as hash;
+/// Random number generation backed by [rand](https://crates.io/crates/rand).
+pub use random::rand as rng;
+/// Ed25519 digital signatures backed by [dalek](https://github.com/dalek-cryptography/curve25519-dalek/tree/main/ed25519-dalek).
+pub use signatures::dalek as signature;
 /// Chacha20poly1305 backed by [rustcrypto](https://docs.rs/chacha20poly1305/latest/chacha20poly1305/).
 pub use symmetric::rustcrypto as symm;
-*/
 
+/*
 cfg_if::cfg_if! {
     if #[cfg(feature = "wasm")] {
         /// Webassembly API.
@@ -210,7 +213,7 @@ cfg_if::cfg_if! {
         /// Chacha20poly1305 backed by [rustcrypto](https://docs.rs/chacha20poly1305/latest/chacha20poly1305/).
         pub use symmetric::rustcrypto as symm;
     }
-}
+}*/
 
 /// Miscellaneous functions.
 #[doc(hidden)]

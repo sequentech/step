@@ -1,25 +1,21 @@
-// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
+// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-/// HTTP client for bulletin board using Service API
-#[cfg(feature = "native")]
-pub mod http;
-/// A LocalBoard is a trustee's view of a bulletin board.
-#[cfg(feature = "native")]
-pub mod local_fs;
-/// WASM-compatible local board with IndexedDB storage
-#[cfg(feature = "wasm-core")]
-pub mod local_wasm;
+// Shared SQL schema constants
+pub mod storage_schema;
 
-pub mod local;
+// Storage trait (persistence abstraction)
+pub mod local_storage;
 
-// Re-export the appropriate LocalBoard implementation
-// When both features are enabled (e.g., in tests), prefer native
-#[cfg(feature = "native")]
-pub use local_fs::LocalBoard;
-#[cfg(all(feature = "wasm-core", not(feature = "native")))]
-pub use local_wasm::LocalBoard;
+// Universal LocalBoard implementation and data structures
+pub mod local_board;
+
+// Re-export LocalBoard and its data structures
+pub use local_board::{ArtifactEntryIdentifier, BoardEntry, LocalBoard, StatementEntryIdentifier};
+
+// Re-export storage trait and types
+pub use local_storage::{LocalBoardStorage, StorageInfo};
 
 use anyhow::Result;
 use b4::messages::message::Message;
@@ -44,18 +40,34 @@ pub trait Board: Sized {
     /// ids do not determine the message history; this history is defined
     /// locally by each trustee according to the order in which those messages
     /// were received.
+    #[cfg(not(target_arch = "wasm32"))]
     fn get_messages(
         &mut self,
         board: &str,
         last_id: i64,
     ) -> impl std::future::Future<Output = Result<Vec<HttpB3Message>>> + Send;
 
+    #[cfg(target_arch = "wasm32")]
+    fn get_messages(
+        &mut self,
+        board: &str,
+        last_id: i64,
+    ) -> impl std::future::Future<Output = Result<Vec<HttpB3Message>>>;
+
     /// Posts a messages to the given board of the bulletin board.
+    #[cfg(not(target_arch = "wasm32"))]
     fn insert_messages(
         &mut self,
         board: &str,
         messages: Vec<Message>,
     ) -> impl std::future::Future<Output = Result<()>> + Send;
+
+    #[cfg(target_arch = "wasm32")]
+    fn insert_messages(
+        &mut self,
+        board: &str,
+        messages: Vec<Message>,
+    ) -> impl std::future::Future<Output = Result<()>>;
 }
 
 /// Allows abstracting over a board client implementation

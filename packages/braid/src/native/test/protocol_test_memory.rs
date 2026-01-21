@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
+// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
@@ -24,9 +24,9 @@ use b4::messages::newtypes::MAX_TRUSTEES;
 use b4::messages::newtypes::NULL_TRUSTEE;
 use b4::messages::protocol_manager::ProtocolManager;
 
+use crate::native::test::vector_board::VectorBoard;
+use crate::native::test::vector_session::VectorSession;
 use crate::protocol::trustee::Trustee;
-use crate::test::vector_board::VectorBoard;
-use crate::test::vector_session::VectorSession;
 
 pub fn run<C: Ctx + 'static>(ciphertexts: u32, batches: usize, ctx: C) {
     let n_trustees = rand::rng().random_range(2..13);
@@ -172,7 +172,7 @@ pub struct ProtocolTest<C: Ctx> {
     pub ctx: C,
     pub cfg: Configuration<C>,
     pub protocol_manager: ProtocolManager<C>,
-    pub trustees: Vec<Trustee<C>>,
+    pub trustees: Vec<Trustee<C, crate::native::board::NoOpStorage>>,
     pub remote: VectorBoard,
 }
 
@@ -183,14 +183,17 @@ pub fn create_protocol_test<C: Ctx>(
 ) -> Result<ProtocolTest<C>> {
     let session_id = 0;
 
-    let pmkey: StrandSignatureSk = StrandSignatureSk::gen()?;
+    let pmkey: StrandSignatureSk = StrandSignatureSk::generate()?;
     let pm: ProtocolManager<C> = ProtocolManager {
         signing_key: pmkey,
         phantom: PhantomData,
     };
-    let (trustees, trustee_pks): (Vec<Trustee<C>>, Vec<StrandSignaturePk>) = (0..n_trustees)
+    let (trustees, trustee_pks): (
+        Vec<Trustee<C, crate::native::board::NoOpStorage>>,
+        Vec<StrandSignaturePk>,
+    ) = (0..n_trustees)
         .map(|i| {
-            let sk = StrandSignatureSk::gen().unwrap();
+            let sk = StrandSignatureSk::generate().unwrap();
             // let encryption_key = ChaCha20Poly1305::generate_key(&mut csprng);
             let encryption_key = strand::symm::gen_key();
             let pk = StrandSignaturePk::from_sk(&sk).unwrap();
@@ -200,7 +203,7 @@ pub fn create_protocol_test<C: Ctx>(
                     "foo".to_string(),
                     sk,
                     encryption_key,
-                    None,
+                    crate::native::board::NoOpStorage::new(),
                     None,
                 ),
                 pk,

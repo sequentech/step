@@ -16,7 +16,7 @@
 //! let msg = b"message";
 //! let mut rng = StrandRng;
 //! // generate signing (private) and verification (public) keys
-//! let sk = StrandSignatureSk::gen().unwrap();
+//! let sk = StrandSignatureSk::generate().unwrap();
 //! let vk = StrandSignaturePk::from_sk(&sk).unwrap();
 //! // sign data
 //! let sig = sk.sign(msg);
@@ -153,7 +153,7 @@ impl StrandSignaturePk {
 pub struct StrandSignatureSk(SigningKey);
 impl StrandSignatureSk {
     /// Generates a key using randomness from rng::StrandRng.
-    pub fn gen() -> Result<StrandSignatureSk, StrandError> {
+    pub fn generate() -> Result<StrandSignatureSk, StrandError> {
         let mut rng = StrandRng;
         let sk = SigningKey::generate(&mut rng);
         Ok(StrandSignatureSk(sk))
@@ -420,7 +420,7 @@ pub(crate) mod tests {
         let msg2 = b"not_ok";
 
         let (vk_bytes, sig_bytes) = {
-            let sk = StrandSignatureSk::gen().unwrap();
+            let sk = StrandSignatureSk::generate().unwrap();
             let sk_der = sk.to_der().unwrap();
             let sk_d = StrandSignatureSk::from_der(&sk_der).unwrap();
 

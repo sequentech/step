@@ -7,12 +7,13 @@ use axum::{
     routing::{get, post},
     Router,
 };
-use b4::{db, handlers, state::AppState};
 use dotenv::dotenv;
 use sequent_core::util::init_log::init_log;
 use std::env;
 use tower_http::cors::{Any, CorsLayer};
-use tracing::info;
+use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
+
+use b4::{db, handlers, s3, state::AppState};
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -24,7 +25,10 @@ async fn main() -> Result<()> {
     // Initialize PostgreSQL database
     let db = db::init_db().await?;
 
-    let state = AppState::new(db);
+    // Initialize S3 client
+    let s3_client = s3::init_s3_client().await;
+
+    let state = AppState::new(db, s3_client);
 
     // Configure CORS
     let cors = CorsLayer::new()
@@ -46,7 +50,8 @@ async fn main() -> Result<()> {
             "/boards/:board/messages/:id/confirm",
             post(handlers::confirm_message),
         )
-        .route("/boards/:board/messages", get(handlers::list_messages))
+        .route("/boards/:board/messages/list", get(handlers::list_messages))
+        .route("/boards/:board/messages", get(handlers::get_messages))
         .route("/boards/:board/messages/:id", get(handlers::get_message))
         // Multi-board operations (GET)
         .route(

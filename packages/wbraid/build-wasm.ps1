@@ -6,7 +6,7 @@
 # This requires nightly Rust and proper linker flags for SharedArrayBuffer
 # Based on: https://github.com/huggingface/xet-core/issues/554
 
-cd ../braid-wasm
+cd ../braid
 
 Write-Host "Building WASM with atomics support..." -ForegroundColor Green
 
@@ -16,7 +16,7 @@ rustup override set nightly 2>&1 | Out-Null
 
 # Build using cargo (picks up .cargo/config.toml with atomics + linker flags)
 Write-Host "Compiling to WASM..." -ForegroundColor Cyan
-cargo +nightly build --target wasm32-unknown-unknown --release
+cargo +nightly build --lib --target wasm32-unknown-unknown --release --no-default-features --features wasm
 
 $buildResult = $LASTEXITCODE
 

@@ -130,20 +130,20 @@ Completed: Trustees = 5, Threshold = 3, Ciphertexts = 1000
    - **Goal**: Validate board metadata tracking and monitor visualization
    - **Note**: Monitor was migrated from b3's INDEX table approach to b4's boards table
 
-2.5 Batches and mixnumbers are not being respected by braid-wasm, hardcoded at 0, see lib::post_message, eg
+2.6 Revise:
 
-let response = self.bb_client.initiate_message(
-            size,
-            "unknown".to_string(),
-            "Unknown".to_string(),
-            0,
-            0,
-        ).await?;
-
-2.6 The shared crate seems unnecessary we should be reusing structs from b4, not creating
-duplicates on the receiving end
+// SAFETY: WASM is single-threaded, so RefCell is safe to share across "threads"
+// (which don't actually exist in WASM). This allows IndexedDbStorage to implement
+// LocalBoardStorage which requires Send + Sync.
+unsafe impl Send for IndexedDbStorage {}
+unsafe impl Sync for IndexedDbStorage {}
 
 2.7 Remove warnings
+
+2.8 We have lost the ability to save artifacts outside of the localboard.
+In the previous version of braid, there was a way to save artifacts in the
+sqlite data base, and store only the row ids in the local board. This was lost
+in the wasm compatible version of braid, all artifacts will be in memory.
 
 3. **Verifier Binary Testing**:
    - [ ] Run verifier against a completed protocol execution
@@ -382,7 +382,7 @@ duplicates on the receiving end
 - [x] HttpB3Message created and integrated
 - [x] Braid feature flags implemented
 - [x] Board trait unified with HttpB3Message
-- [x] Trustee/WasmTrustee split implemented
+- [x] Trustee/WasmSession split implemented
 - [x] LocalBoard/WasmLocalBoard split implemented
 ## Notes
 
@@ -425,7 +425,7 @@ duplicates on the receiving end
 - [x] HttpB3Message created and integrated
 - [x] Braid feature flags implemented
 - [x] Board trait unified with HttpB3Message
-- [x] Trustee/WasmTrustee split implemented
+- [x] Trustee/WasmSession split implemented
 - [x] LocalBoard/WasmLocalBoard split implemented
 - [x] Native tests passing
 - [x] POC service and client working

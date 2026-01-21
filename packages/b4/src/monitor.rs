@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
+// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 //  cargo run --bin monitor --features=monitor 2> error
@@ -16,7 +16,9 @@ use cursive::view::Resizable;
 use cursive::views::{Canvas, Layer};
 use cursive::{Cursive, Printer, Rect, Vec2};
 
-use b4::db::{DbPool, PgConnectionParams};
+use sqlx::SqlitePool;
+
+const DEFAULT_DB_PATH: &'static str = "sqlite://b4.db";
 
 // Equivalent to b3's B3IndexRow - board metadata for monitoring
 struct BoardInfo {
@@ -29,13 +31,13 @@ struct BoardInfo {
 }
 
 struct CData {
-    pool: DbPool,
+    db_path: String,
     timer_start: Option<SystemTime>,
 }
 impl CData {
-    fn new(pool: DbPool) -> Self {
+    fn new(db_path: String) -> Self {
         CData {
-            pool,
+            db_path,
             timer_start: None,
         }
     }
@@ -77,44 +79,14 @@ impl Data {
 
 #[derive(Parser)]
 struct Cli {
-    /// PostgreSQL host
-    #[arg(long, env = "B4_PG_HOST", default_value = "localhost")]
-    host: String,
-
-    /// PostgreSQL port
-    #[arg(long, env = "B4_PG_PORT", default_value_t = 5432)]
-    port: u16,
-
-    /// PostgreSQL user
-    #[arg(long, env = "B4_PG_USER", default_value = "postgres")]
-    username: String,
-
-    /// PostgreSQL password
-    #[arg(long, env = "B4_PG_PASSWORD", default_value = "postgres")]
-    password: String,
-
-    /// PostgreSQL database name
-    #[arg(long, env = "B4_PG_DATABASE", default_value = "b4")]
-    database: String,
+    /// Path to SQLite database
+    #[arg(long, default_value_t = DEFAULT_DB_PATH.to_string())]
+    db: String,
 }
 
 fn main() {
     let args = Cli::parse();
-
-    let params = PgConnectionParams::new(
-        &args.host,
-        args.port,
-        &args.username,
-        &args.password,
-        &args.database,
-    );
-
-    let rt = tokio::runtime::Builder::new_current_thread()
-        .enable_all()
-        .build()
-        .unwrap();
-
-    let pool = rt.block_on(b4::db::init_db_with_params(&params)).unwrap();
+    let db_path = args.db;
 
     let mut siv = cursive::default();
 
@@ -132,8 +104,11 @@ fn main() {
     siv.add_global_callback('t', timer);
     siv.set_fps(1);
 
+    // detect db connection errors early
+    q(&db_path).unwrap();
+
     siv.add_global_callback(Event::Refresh, step);
-    siv.set_user_data(CData::new(pool));
+    siv.set_user_data(CData::new(db_path));
 
     siv.run();
 }
@@ -145,7 +120,7 @@ fn timer(c: &mut Cursive) {
 
 fn step(c: &mut Cursive) {
     let cdata: &CData = c.user_data().unwrap();
-    let rows = if let Ok(rows) = q(&cdata.pool) {
+    let rows = if let Ok(rows) = q(&cdata.db_path) {
         rows
     } else {
         vec![]
@@ -434,12 +409,14 @@ fn get_progress(row: &BoardInfo) -> (f64, f64) {
     }
 }
 
-async fn query(pool: &DbPool) -> Result<Vec<BoardInfo>> {
-    let conn = pool.get().await?;
+async fn query(db_path: &str) -> Result<Vec<BoardInfo>> {
+    let pool = SqlitePool::connect(db_path).await?;
 
-    let rows = conn.query(
+    // Query boards table directly (equivalent to b3's INDEX table query)
+    // SELECT * FROM INDEX WHERE is_archived = false
+    let boards: Vec<(String, i32, i32, i32, i32, String)> = sqlx::query_as(
         r#"SELECT
-            board_name,
+            name,
             COALESCE(trustees_no, 0) as trustees_no,
             COALESCE(threshold_no, 0) as threshold_no,
             COALESCE(batch_count, 0) as batch_count,
@@ -447,28 +424,29 @@ async fn query(pool: &DbPool) -> Result<Vec<BoardInfo>> {
             COALESCE(last_message_kind, 'None') as last_message_kind
         FROM boards 
         WHERE status = 'active'
-        ORDER BY board_name"#,
-        &[]
-    ).await?;
+        ORDER BY name"#
+    )
+    .fetch_all(&pool)
+    .await?;
 
-    Ok(rows.into_iter().map(|r| {
+    Ok(boards.into_iter().map(|(board_name, trustees_no, threshold_no, batch_count, message_count, last_message_kind)| {
         BoardInfo {
-            board_name: r.get(0),
-            trustees_no: r.get(1),
-            threshold_no: r.get(2),
-            batch_count: r.get(3),
-            message_count: r.get(4),
-            last_message_kind: r.get(5),
+            board_name,
+            trustees_no,
+            threshold_no,
+            batch_count,
+            message_count,
+            last_message_kind,
         }
     }).collect())
 }
 
-fn q(pool: &DbPool) -> Result<Vec<BoardInfo>> {
+fn q(db_path: &str) -> Result<Vec<BoardInfo>> {
     let rt = tokio::runtime::Builder::new_current_thread()
         .enable_all()
         .build()?;
 
-    let inner = rt.block_on(query(pool))?;
+    let inner = rt.block_on(query(db_path))?;
 
     Ok(inner)
 }

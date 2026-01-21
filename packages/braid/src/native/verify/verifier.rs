@@ -1,10 +1,11 @@
 #![allow(non_camel_case_types)]
 
-// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
+// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use anyhow::Result;
+#[cfg(feature = "native")]
 use colored::*;
 use serde::Serialize;
 use strum::Display;
@@ -16,14 +17,14 @@ use b4::messages::message::VerifiedMessage;
 use b4::messages::newtypes::*;
 use b4::messages::statement::StatementType;
 
-// use crate::protocol::board::http::HttpB3;
-use crate::protocol::board::{http::HttpB3, Board};
+use crate::protocol::board::Board;
 use crate::protocol::predicate::Predicate;
 use crate::protocol::trustee::Trustee;
 
+use crate::native::verify::datalog::Target;
+use crate::native::verify::datalog::Verified;
+use crate::native::verify::logger::{create_logger, VerifierLogger};
 use crate::util::dbg_hash;
-use crate::verify::datalog::Target;
-use crate::verify::datalog::Verified;
 
 use strand::context::Ctx;
 use strand::serialization::StrandDeserialize;
@@ -113,34 +114,37 @@ enum Check {
     PLAINTEXTS_VALID,
 }
 
-pub struct Verifier<C: Ctx> {
-    trustee: Trustee<C>,
-    board: HttpB3,
+pub struct Verifier<C: Ctx, B: Board, S: crate::protocol::board::LocalBoardStorage> {
+    trustee: Trustee<C, S>,
+    board: B,
     board_name: String,
+    logger: Box<dyn VerifierLogger>,
 }
 
-impl<C: Ctx> Verifier<C> {
-    pub fn new(trustee: Trustee<C>, board: HttpB3, board_name: &str) -> Verifier<C> {
+impl<C: Ctx, B: Board, S: crate::protocol::board::LocalBoardStorage> Verifier<C, B, S> {
+    pub fn new(trustee: Trustee<C, S>, board: B, board_name: &str) -> Verifier<C, B, S> {
         Verifier {
             trustee,
             board,
             board_name: board_name.to_string(),
+            logger: create_logger(),
         }
     }
 
-    pub async fn run(&mut self) -> Result<()> {
+    pub async fn run(&mut self) -> Result<VerificationResult> {
         let mut vr = VerificationResult::new(&self.board_name);
         vr.add_target(Check::CONFIGURATION_VALID);
         vr.add_target(Check::MESSAGE_SIGNATURES_VALID);
         vr.add_target(Check::MESSAGES_CFG_VALID);
         vr.add_target(Check::PK_VALID);
 
-        info!(
-            "{}",
-            format!("Verifying board '{}'", self.board_name).bold()
-        );
+        self.logger
+            .log_title(&format!("Verifying board '{}'", self.board_name));
 
         let messages = self.board.get_messages(&self.board_name, -1).await?;
+
+        info!("Retrieved messages {} from board.", messages.len());
+
         let messages: Vec<(Message, i64)> = messages
             .iter()
             .map(|m| (Message::strand_deserialize(&m.message).unwrap(), m.id))
@@ -205,8 +209,11 @@ impl<C: Ctx> Verifier<C> {
         }
         predicates.push(Predicate::get_verifier_bootstrap_predicate(&cfg).unwrap());
 
+        #[cfg(feature = "native")]
         info!("{}", "Deriving verification targets..".blue());
-        let (_, targets, _) = crate::verify::datalog::S.run(&predicates);
+        #[cfg(not(feature = "native"))]
+        info!("Deriving verification targets..");
+        let (_, targets, _) = crate::native::verify::datalog::S.run(&predicates);
         for t in &targets {
             let tvr = t.get_verification_result();
             info!("Add verification target [batch {}]", t.get_batch());
@@ -215,10 +222,10 @@ impl<C: Ctx> Verifier<C> {
 
         // Run verifying actions
 
-        info!("{}", "Running verifying actions..".blue());
+        self.logger.log_step("Running verifying actions..");
         // Trustee running in verifier mode
         let output_messages = self.trustee.verify(messages)?;
-        info!("{}", "Verifying actions complete".blue());
+        self.logger.log_step("Verifying actions complete");
         for message in output_messages {
             let predicate =
                 Predicate::from_statement::<C>(&message.statement, VERIFIER_INDEX, &cfg)?;
@@ -228,8 +235,8 @@ impl<C: Ctx> Verifier<C> {
 
         // Collect verification results
 
-        info!("{}", "Collecting verification results".blue());
-        let (root, _targets, verified) = crate::verify::datalog::S.run(&predicates);
+        self.logger.log_step("Collecting verification results");
+        let (root, _targets, verified) = crate::native::verify::datalog::S.run(&predicates);
 
         let mut pk_h = None;
         let root = root.iter().next();
@@ -251,7 +258,7 @@ impl<C: Ctx> Verifier<C> {
 
         info!("{}", vr);
 
-        Ok(())
+        Ok(vr)
     }
 }
 
@@ -371,11 +378,12 @@ impl Verified {
 
 use std::collections::HashMap;
 #[derive(Serialize)]
-struct VerificationResult {
+pub struct VerificationResult {
     name: String,
     targets: HashMap<Check, VerificationItem>,
     children: HashMap<String, VerificationResult>,
 }
+
 impl VerificationResult {
     fn new(name: &str) -> VerificationResult {
         VerificationResult {
@@ -417,6 +425,52 @@ impl VerificationResult {
 
         (ok, not_ok, self.children.len())
     }
+
+    /// Get root-level checks (board-wide checks)
+    pub fn get_root_checks(&self) -> Vec<(String, bool, String)> {
+        self.targets
+            .iter()
+            .map(|(check, item)| (check.to_string(), item.result, item.metadata.clone()))
+            .collect()
+    }
+
+    /// Get batch-level checks organized by batch
+    pub fn get_batch_checks(&self) -> Vec<(String, Vec<(String, bool, String)>)> {
+        self.children
+            .iter()
+            .map(|(batch_name, child)| {
+                let checks = child
+                    .targets
+                    .iter()
+                    .map(|(check, item)| (check.to_string(), item.result, item.metadata.clone()))
+                    .collect();
+                (batch_name.clone(), checks)
+            })
+            .collect()
+    }
+
+    /// Get all checks as a flat list with their pass/fail status
+    pub fn get_all_checks(&self) -> Vec<(String, bool, String)> {
+        let mut checks = Vec::new();
+
+        // Add own checks
+        for (check, item) in &self.targets {
+            checks.push((check.to_string(), item.result, item.metadata.clone()));
+        }
+
+        // Add children's checks
+        for child in self.children.values() {
+            checks.extend(child.get_all_checks());
+        }
+
+        checks
+    }
+
+    /// Check if all verification checks passed
+    pub fn all_passed(&self) -> bool {
+        let (_, not_ok, _) = self.totals();
+        not_ok == 0
+    }
 }
 
 #[derive(Serialize)]
@@ -438,16 +492,26 @@ impl std::fmt::Display for VerificationResult {
         let json = serde_json::to_string_pretty(&self);
         writeln!(f, "VerificationResult:")?;
         let json = json.unwrap();
-        let json_color = json.replace("true", &"true".green().to_string());
-        let json_color = json_color.replace("false", &"false".red().to_string());
+        #[cfg(feature = "native")]
+        let json_color = {
+            let json_color = json.replace("true", &"true".green().to_string());
+            json_color.replace("false", &"false".red().to_string())
+        };
+        #[cfg(not(feature = "native"))]
+        let json_color = json.clone();
         writeln!(f, "{}", json_color)?;
         let (ok, not_ok, batches) = self.totals();
         let checks = format!("{} / {}", ok, (ok + not_ok));
-        if not_ok == 0 {
-            writeln!(f, "[{}] checks pass ({} batches)", checks.green(), batches)?;
-        } else {
-            writeln!(f, "[{}] checks pass ({} batches)", checks.red(), batches)?;
+        #[cfg(feature = "native")]
+        {
+            if not_ok == 0 {
+                writeln!(f, "[{}] checks pass ({} batches)", checks.green(), batches)?;
+            } else {
+                writeln!(f, "[{}] checks pass ({} batches)", checks.red(), batches)?;
+            }
         }
+        #[cfg(not(feature = "native"))]
+        writeln!(f, "[{}] checks pass ({} batches)", checks, batches)?;
 
         Ok(())
     }

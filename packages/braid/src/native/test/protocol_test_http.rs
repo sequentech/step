@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
+// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
@@ -23,11 +23,11 @@ use b4::messages::newtypes::PublicKeyHash;
 use b4::messages::newtypes::MAX_TRUSTEES;
 use b4::messages::newtypes::NULL_TRUSTEE;
 
-use crate::protocol::board::http::HttpB3;
-use crate::protocol::board::http::HttpB3BoardParams;
+use crate::native::board::HttpB3;
+use crate::native::board::HttpB3BoardParams;
 use crate::protocol::board::Board;
 
-use crate::protocol::session::Session;
+use crate::native::session::Session;
 use crate::protocol::trustee::Trustee;
 
 const HTTP_URL: &'static str = "http://127.0.0.1:3000";
@@ -72,7 +72,7 @@ pub struct ProtocolTest<C: Ctx> {
     pub ctx: C,
     pub cfg: Configuration<C>,
     pub protocol_manager: b4::messages::protocol_manager::ProtocolManager<C>,
-    pub trustees: Vec<Trustee<C>>,
+    pub trustees: Vec<Trustee<C, crate::native::board::NoOpStorage>>,
 }
 
 async fn run_protocol_test_http<C: Ctx + 'static>(
@@ -88,7 +88,8 @@ async fn run_protocol_test_http<C: Ctx + 'static>(
 
     for t in test.trustees.into_iter() {
         let board_params = HttpB3BoardParams::new(HTTP_URL).await;
-        let session: Session<C, HttpB3> = Session::new(TEST_BOARD, t, board_params);
+        let session: Session<C, HttpB3, crate::native::board::NoOpStorage> =
+            Session::new(TEST_BOARD, t, board_params);
         sessions.push(session);
     }
 
@@ -316,14 +317,17 @@ pub async fn create_protocol_test<C: Ctx>(
     threshold: &[usize],
     ctx: C,
 ) -> Result<ProtocolTest<C>> {
-    let pmkey: StrandSignatureSk = StrandSignatureSk::gen()?;
+    let pmkey: StrandSignatureSk = StrandSignatureSk::generate()?;
     let pm = b4::messages::protocol_manager::ProtocolManager {
         signing_key: pmkey,
         phantom: PhantomData,
     };
-    let (trustees, trustee_pks): (Vec<Trustee<C>>, Vec<StrandSignaturePk>) = (0..n_trustees)
+    let (trustees, trustee_pks): (
+        Vec<Trustee<C, crate::native::board::NoOpStorage>>,
+        Vec<StrandSignaturePk>,
+    ) = (0..n_trustees)
         .map(|i| {
-            let sk = StrandSignatureSk::gen().unwrap();
+            let sk = StrandSignatureSk::generate().unwrap();
             let encryption_key = strand::symm::gen_key();
             let pk = StrandSignaturePk::from_sk(&sk).unwrap();
             (
@@ -332,7 +336,7 @@ pub async fn create_protocol_test<C: Ctx>(
                     "foo".to_string(),
                     sk,
                     encryption_key,
-                    None,
+                    crate::native::board::NoOpStorage::new(),
                     None,
                 ),
                 pk,

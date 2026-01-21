@@ -1,9 +1,9 @@
-// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
+// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+use crate::native::test::vector_board::VectorBoard;
 use crate::protocol::trustee::Trustee;
-use crate::test::vector_board::VectorBoard;
 use b4::messages::artifact::{DkgPublicKey, Plaintexts};
 use b4::messages::message::Message;
 use log::{error, info};
@@ -14,14 +14,14 @@ use b4::messages::newtypes::{BatchNumber, TrusteePosition};
 
 // Implements cross-session parallelism as well as simulates cross-trustee parallelism
 #[derive(Debug)]
-pub struct VectorSession<C: Ctx> {
-    trustee: Trustee<C>,
+pub struct VectorSession<C: Ctx, S: crate::protocol::board::LocalBoardStorage> {
+    trustee: Trustee<C, S>,
     remote: Arc<Mutex<VectorBoard>>,
     last_message: i64,
 }
 
-impl<C: Ctx> VectorSession<C> {
-    pub fn new(trustee: Trustee<C>, remote: Arc<Mutex<VectorBoard>>) -> VectorSession<C> {
+impl<C: Ctx, S: crate::protocol::board::LocalBoardStorage> VectorSession<C, S> {
+    pub fn new(trustee: Trustee<C, S>, remote: Arc<Mutex<VectorBoard>>) -> VectorSession<C, S> {
         VectorSession {
             trustee,
             remote,

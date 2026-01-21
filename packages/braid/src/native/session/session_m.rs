@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
+// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
@@ -12,6 +12,7 @@ use strand::symm::SymmetricKey;
 use strand::backend::ristretto::RistrettoCtx;
 use tracing::info;
 
+use crate::native::board::SqliteStorage;
 use crate::protocol::trustee::Trustee;
 use crate::protocol::trustee::TrusteeConfig;
 use crate::util::ProtocolError;
@@ -34,13 +35,13 @@ use strand::context::Ctx;
 /// (see also SessionSet::run and main_concurrent::run).
 /// SessionSets will create and drop SessionM's as necessary
 /// according to updates to the bulletin board index.
-pub struct SessionM<C: Ctx + 'static> {
+pub struct SessionM<C: Ctx + 'static, S: crate::protocol::board::LocalBoardStorage> {
     pub board_name: String,
-    trustee: Trustee<C>,
+    trustee: Trustee<C, S>,
 }
-impl<C: Ctx> SessionM<C> {
+impl<C: Ctx, S: crate::protocol::board::LocalBoardStorage> SessionM<C, S> {
     /// Constructs a new SessionM to handle the requested board.
-    pub fn new(board_name: &str, trustee: Trustee<C>) -> Result<SessionM<C>> {
+    pub fn new(board_name: &str, trustee: Trustee<C, S>) -> Result<SessionM<C, S>> {
         let ret = SessionM {
             board_name: board_name.to_string(),
             trustee,
@@ -115,15 +116,19 @@ impl SessionFactory {
         })
     }
 
-    pub fn create_session(&self, board_name: &str) -> Result<SessionM<RistrettoCtx>> {
+    pub fn create_session(
+        &self,
+        board_name: &str,
+    ) -> Result<SessionM<RistrettoCtx, SqliteStorage>> {
         info!("* Creating new session for board '{}'..", board_name);
 
+        let storage = SqliteStorage::new(self.store_root.join(&board_name), None);
         let trustee = Trustee::new(
             self.trustee_name.clone(),
             board_name.to_string(),
             self.signing_key.clone(),
             self.symm_key,
-            Some(self.store_root.join(&board_name)),
+            storage,
             self.max_concurrent_actions,
         );
 

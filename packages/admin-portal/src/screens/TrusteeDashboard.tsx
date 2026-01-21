@@ -34,9 +34,10 @@ import {
 import {useInterval} from "react-use"
 
 // Import the WASM package (already in your dependencies)
-import init, {initThreadPool, WasmTrustee} from "braid-wasm"
+import init, {initThreadPool, WasmSession, WasmVerifier} from "braid-wasm"
 
 let trustee: any = null
+let verifier: any = null
 
 interface Config {
     name: string
@@ -83,6 +84,12 @@ export const TrusteeDashboard = () => {
     const [consoleLog, setConsoleLog] = useState<string[]>([])
     const [autoRun, setAutoRun] = useState(false)
     const [loading, setLoading] = useState(false)
+    const [storageInfo, setStorageInfo] = useState<any>(null)
+    const [verifierB4Url, setVerifierB4Url] = useState("http://127.0.0.1:3000")
+    const [verifierBoard, setVerifierBoard] = useState("")
+    const [verifyStatus, setVerifyStatus] = useState("")
+    const [verifyResults, setVerifyResults] = useState<any>(null)
+    const [verifying, setVerifying] = useState(false)
 
     const consoleEndRef = useRef<HTMLDivElement>(null)
 
@@ -142,7 +149,7 @@ export const TrusteeDashboard = () => {
         }
 
         try {
-            trustee = new WasmTrustee(JSON.stringify(config))
+            trustee = new WasmSession(JSON.stringify(config))
             setInitialized(true)
             log(`Trustee initialized: ${config.name}`)
         } catch (e: any) {
@@ -171,9 +178,16 @@ export const TrusteeDashboard = () => {
             const res = await trustee.connect_to_board()
             setConnected(true)
             setSelectedBoard(boardName)
-            log(`Connected to ${boardName} (+${res.added} msgs)`)
+
+            const pendingMsg =
+                res.pending > 0
+                    ? `${res.pending} remote message${res.pending === 1 ? "" : "s"} pending`
+                    : "no new messages"
+            log(`Connected to ${boardName} (${pendingMsg})`)
+
             updateState()
             updateBoard()
+            updateStorageInfo()
         } catch (e: any) {
             log(`Connect failed: ${e.message}`, "error")
         }
@@ -199,6 +213,16 @@ export const TrusteeDashboard = () => {
         }
     }
 
+    const updateStorageInfo = async () => {
+        if (!trustee) return
+        try {
+            const info = await trustee.get_storage_info()
+            setStorageInfo(info)
+        } catch (e: any) {
+            log(`Storage info update failed: ${e.message}`, "error")
+        }
+    }
+
     const step = async () => {
         if (!trustee || loading) return
         setLoading(true)
@@ -206,6 +230,7 @@ export const TrusteeDashboard = () => {
             const res = await trustee.step()
             await updateState()
             await updateBoard()
+            await updateStorageInfo()
 
             const action = res.actions?.length
                 ? res.actions.join(", ")
@@ -232,6 +257,46 @@ export const TrusteeDashboard = () => {
     }
 
     useInterval(step, autoRun ? 1000 : null)
+
+    const handleVerifyBoard = async () => {
+        if (!verifierBoard.trim()) {
+            setVerifyStatus("Please enter a board name")
+            return
+        }
+
+        setVerifying(true)
+        setVerifyStatus(`Verifying board "${verifierBoard}"...`)
+        setVerifyResults(null)
+
+        try {
+            log(`Starting verification of board "${verifierBoard}" from ${verifierB4Url}`)
+
+            // Create verifier instance
+            verifier = new WasmVerifier(verifierB4Url)
+
+            // Run verification
+            const result = await verifier.verify_board(verifierBoard)
+            log(`Verification result: ${result}`)
+
+            // Parse results
+            const resultData = JSON.parse(result)
+            const isValid = resultData.valid || false
+
+            if (isValid) {
+                setVerifyStatus(`✅ Board "${verifierBoard}" verified successfully`)
+            } else {
+                setVerifyStatus(`❌ Verification failed for board "${verifierBoard}"`)
+            }
+
+            setVerifyResults(resultData)
+        } catch (error: any) {
+            log(`Verification error: ${error.message}`, "error")
+            setVerifyStatus(`Error: ${error.message || error}`)
+            setVerifyResults(null)
+        } finally {
+            setVerifying(false)
+        }
+    }
 
     const progress = state.max_messages
         ? Math.round(((state.current_messages || 0) / state.max_messages) * 100)
@@ -469,6 +534,86 @@ export const TrusteeDashboard = () => {
                     </Card>
                 </Grid>
 
+                {/* Storage Diagnostics */}
+                <Grid size={{xs: 12, lg: 6}}>
+                    <Card>
+                        <CardHeader
+                            title="💾 Storage Diagnostics"
+                            action={
+                                <Button
+                                    size="small"
+                                    startIcon={<RefreshIcon />}
+                                    onClick={updateStorageInfo}
+                                    disabled={!connected}
+                                >
+                                    Refresh
+                                </Button>
+                            }
+                        />
+                        <CardContent>
+                            {storageInfo ? (
+                                <Paper variant="outlined" sx={{p: 2}}>
+                                    <Grid container spacing={2}>
+                                        <Grid size={12}>
+                                            <Typography variant="caption" color="text.secondary">
+                                                Backend:
+                                            </Typography>
+                                            <Typography variant="body2">
+                                                {storageInfo.backend_type}
+                                            </Typography>
+                                        </Grid>
+                                        <Grid size={6}>
+                                            <Typography variant="caption" color="text.secondary">
+                                                Total Messages:
+                                            </Typography>
+                                            <Typography variant="body2">
+                                                {storageInfo.total_messages}
+                                            </Typography>
+                                        </Grid>
+                                        <Grid size={6}>
+                                            <Typography variant="caption" color="text.secondary">
+                                                Max Internal ID:
+                                            </Typography>
+                                            <Typography variant="body2" color="success.main">
+                                                {storageInfo.max_internal_id}
+                                            </Typography>
+                                            <Typography variant="caption" sx={{fontSize: "0.7rem"}}>
+                                                (locally-controlled, security-critical)
+                                            </Typography>
+                                        </Grid>
+                                        <Grid size={12}>
+                                            <Typography variant="caption" color="text.secondary">
+                                                Max External ID:
+                                            </Typography>
+                                            <Typography variant="body2" color="warning.main">
+                                                {storageInfo.max_external_id}
+                                            </Typography>
+                                            <Typography variant="caption" sx={{fontSize: "0.7rem"}}>
+                                                (bulletin board ID, optimization only)
+                                            </Typography>
+                                        </Grid>
+                                        {storageInfo.extra_info && (
+                                            <Grid size={12}>
+                                                <Divider sx={{my: 1}} />
+                                                <Typography
+                                                    variant="caption"
+                                                    color="text.secondary"
+                                                >
+                                                    {storageInfo.extra_info}
+                                                </Typography>
+                                            </Grid>
+                                        )}
+                                    </Grid>
+                                </Paper>
+                            ) : (
+                                <Typography color="text.secondary" sx={{fontStyle: "italic"}}>
+                                    Connect to a board to see storage information
+                                </Typography>
+                            )}
+                        </CardContent>
+                    </Card>
+                </Grid>
+
                 {/* Console */}
                 <Grid size={{xs: 12, lg: 6}}>
                     <Card>
@@ -505,6 +650,108 @@ export const TrusteeDashboard = () => {
                     </Card>
                 </Grid>
             </Grid>
+
+            {/* Independent Verifier Section */}
+            <Card sx={{mt: 3}}>
+                <CardHeader title="🔍 Independent Verifier" />
+                <CardContent>
+                    <Typography variant="body2" color="text.secondary" sx={{mb: 2}}>
+                        Verify election integrity without trustee credentials. Checks configuration,
+                        signatures, PK construction, mixing, and decryption.
+                    </Typography>
+                    <Grid container spacing={2}>
+                        <Grid size={12}>
+                            <TextField
+                                label="B4 Server URL"
+                                fullWidth
+                                value={verifierB4Url}
+                                onChange={(e) => setVerifierB4Url(e.target.value)}
+                                placeholder="http://127.0.0.1:3000"
+                            />
+                        </Grid>
+                        <Grid size={12}>
+                            <Box display="flex" gap={2}>
+                                <TextField
+                                    label="Board Name"
+                                    fullWidth
+                                    value={verifierBoard}
+                                    onChange={(e) => setVerifierBoard(e.target.value)}
+                                    placeholder="Enter board name to verify"
+                                />
+                                <Button
+                                    variant="contained"
+                                    color="success"
+                                    onClick={handleVerifyBoard}
+                                    disabled={verifying}
+                                >
+                                    {verifying ? "Verifying..." : "Verify Board"}
+                                </Button>
+                            </Box>
+                        </Grid>
+                        {verifyStatus && (
+                            <Grid size={12}>
+                                <Alert
+                                    severity={
+                                        verifyStatus.includes("✅")
+                                            ? "success"
+                                            : verifyStatus.includes("❌")
+                                              ? "error"
+                                              : "info"
+                                    }
+                                >
+                                    {verifyStatus}
+                                </Alert>
+                            </Grid>
+                        )}
+                        {verifyResults && (
+                            <Grid size={12}>
+                                <Paper variant="outlined" sx={{p: 2}}>
+                                    <Typography
+                                        variant="subtitle2"
+                                        sx={{
+                                            fontWeight: 600,
+                                            color: verifyResults.valid
+                                                ? "success.main"
+                                                : "error.main",
+                                            mb: 1,
+                                        }}
+                                    >
+                                        Overall: {verifyResults.valid ? "VALID ✅" : "INVALID ❌"}
+                                    </Typography>
+                                    {verifyResults.checks && verifyResults.checks.length > 0 && (
+                                        <>
+                                            <Divider sx={{my: 1}} />
+                                            <List dense>
+                                                {verifyResults.checks.map(
+                                                    (check: any, idx: number) => (
+                                                        <ListItem key={idx} disablePadding>
+                                                            <ListItemText
+                                                                primary={
+                                                                    <Typography
+                                                                        variant="body2"
+                                                                        sx={{
+                                                                            color: check.passed
+                                                                                ? "success.main"
+                                                                                : "error.main",
+                                                                        }}
+                                                                    >
+                                                                        {check.passed ? "✅" : "❌"}{" "}
+                                                                        {check.name}
+                                                                    </Typography>
+                                                                }
+                                                            />
+                                                        </ListItem>
+                                                    )
+                                                )}
+                                            </List>
+                                        </>
+                                    )}
+                                </Paper>
+                            </Grid>
+                        )}
+                    </Grid>
+                </CardContent>
+            </Card>
         </Box>
     )
 }

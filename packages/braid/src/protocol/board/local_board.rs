@@ -1,83 +1,122 @@
-// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
+// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-//! WASM-compatible local board implementation
+//! Universal LocalBoard implementation
 //!
-//! # Current Status: In-Memory Only
+//! A LocalBoard is a trustee's view of a bulletin board, where by bulletin board
+//! we refer to one particular board, not the entire bulletin board system.
+//! As such a LocalBoard is specific to a protocol execution (session_id), referenced
+//! in the configuration.
 //!
-//! This implementation currently provides in-memory storage only. IndexedDB persistence
-//! is prepared but not yet integrated due to async/sync impedance mismatch.
-//!
-//! # Future: IndexedDB Persistence (Requires Async Refactor)
-//!
-//! To implement secure persistent storage in WASM, we need:
-//!
-//! ## Security Requirements:
-//! - **Append-only**: Messages assigned auto-incrementing local IDs, cannot be deleted
-//! - **Tamper-resistant**: Uniqueness constraints prevent duplicate messages
-//! - **Replay protection**: Track last_local_board_id persistently
-//! - **Locally-controlled ordering**: Local IDs determine order, not bulletin board
-//!
-//! ## IndexedDB Schema (Prepared):
-//! - **messages** object store with auto-increment key (local_id)
-//! - **Indexes**:
-//!   - `external_id` (unique) - bulletin board's ID for optimization
-//!   - `message_key` (unique) - composite key: sender_pk + kind + batch + mix_number
-//!
-//! ## Implementation Blocker:
-//! IndexedDB is inherently async, but the LocalBoardStorage trait requires sync methods.
-//! Options:
-//! 1. Make Trustee::step() async in WASM (requires braid-wasm refactor)
-//! 2. Use wasm-bindgen-futures with a custom executor (complex, may block UI)
-//! 3. Hybrid: cache in memory, persist async in background (eventual consistency issues)
-//!
-//! **Recommended**: Option 1 - make WASM trustee async throughout.
-//! This is the cleanest approach but requires refactoring braid-wasm::Trustee.
+//! This implementation is universal across platforms - the storage backend
+//! (SQLite, IndexedDB, in-memory) is abstracted via the LocalBoardStorage trait.
 
-use crate::protocol::board::local::{
-    ArtifactEntryIdentifier, BoardEntry, StatementEntryIdentifier,
-};
-use crate::util::{ProtocolContext, ProtocolError};
-use anyhow::{anyhow, Result};
-use b4::messages::artifact::*;
-use b4::messages::message::{Message, VerifiedMessage};
-use b4::messages::newtypes::*;
-use b4::messages::statement::{Statement, StatementType};
-use b4::HttpB3Message;
+use anyhow::Result;
 use log::{debug, error, warn};
 use std::collections::HashMap;
-use std::path::PathBuf;
 use strand::context::Ctx;
 use strand::hash::Hash;
 use strand::serialization::{StrandDeserialize, StrandSerialize};
 
-/// A WASM-compatible local board - currently in-memory only.
-///
-/// NOTE: Persistent IndexedDB storage is architecturally ready but requires
-/// making the Trustee async in WASM. See module documentation for details.
-pub struct LocalBoard<C: Ctx> {
-    pub(crate) configuration: Option<Configuration<C>>,
-    cfg_hash: Option<Hash>,
-    // Public for external crates (e.g., braid-wasm) to access statement count
-    pub statements: HashMap<StatementEntryIdentifier, (Hash, Statement)>,
-    pub(crate) store: Option<PathBuf>,
-    pub(crate) artifacts_memory: HashMap<ArtifactEntryIdentifier, (Hash, Vec<u8>)>,
+use b4::messages::artifact::*;
+use b4::messages::message::VerifiedMessage;
+use b4::messages::newtypes::*;
+use b4::messages::statement::{Statement, StatementType};
+use b4::HttpB3Message;
+
+use crate::protocol::board::local_storage::LocalBoardStorage;
+use crate::util::{ProtocolContext, ProtocolError};
+
+///////////////////////////////////////////////////////////////////////////
+// LocalBoard data structures
+///////////////////////////////////////////////////////////////////////////
+
+/// Key used to store statements in the statement map
+#[derive(Clone, Hash, Eq, PartialEq, Debug)]
+pub struct StatementEntryIdentifier {
+    pub kind: StatementType,
+    pub signer_position: TrusteePosition,
+    // the batch number
+    pub batch: BatchNumber,
+    // When storing mix signature statements in the local board they
+    // will not be unique with the above fields only.
+    // (mixes themselves are, since only one mix is produced by each trustee, so the signer position
+    // is sufficient; on the other hand each trustee signs _all other mixes_).
+    // Without including this field in the hash key, the different signature statements
+    // would be rejected as duplicates.
+    pub mix_number: usize,
 }
 
-impl<C: Ctx> LocalBoard<C> {
-    /// Construct an empty LocalBoard with in-memory storage only
-    pub(crate) fn new(_store: Option<PathBuf>, _blob_store: Option<PathBuf>) -> Self {
-        tracing::info!(
-            "WASM LocalBoard: in-memory only (IndexedDB persistence requires async refactor)"
-        );
+/// Convenience to return entries to the trustee for inference.
+#[derive(Clone)]
+pub struct BoardEntry {
+    pub key: StatementEntryIdentifier,
+    pub value: (Hash, Statement),
+}
+
+/// Key used to store artifacts in the artifact map
+#[derive(Clone, Hash, Eq, PartialEq, Debug)]
+pub struct ArtifactEntryIdentifier {
+    pub statement_entry: StatementEntryIdentifier,
+}
+
+///////////////////////////////////////////////////////////////////////////
+// LocalBoard implementation
+///////////////////////////////////////////////////////////////////////////
+
+/// A LocalBoard is a trustee's view of a bulletin board
+///
+/// Generic over:
+/// - `C`: Cryptographic context (e.g., RistrettoCtx)
+/// - `S`: Storage backend implementing LocalBoardStorage trait
+pub struct LocalBoard<C: Ctx, S: LocalBoardStorage> {
+    pub(crate) configuration: Option<Configuration<C>>,
+    cfg_hash: Option<Hash>,
+
+    // All keys contain a statement type and a sender. For multi instance predicates
+    // (eg multiple decryption/mixing), they also have a batch (usize)
+    //
+    // We put the hash in the value so that we can detect overwrite attempt,
+    // the statement hash is checked on retrieval (it's not in the key)
+    pub statements: HashMap<StatementEntryIdentifier, (Hash, Statement)>,
+
+    // Artifacts entries point to their source statement.
+    // We put the hash in the value so that we can distinguish
+    // between an artifact already present found and an overwrite attempt. It also
+    // ensures checking that Action access to artifacts is for the matching hash
+    // (coming from predicate data): the Action must provide the expected hash to
+    // retrieve the artifact.
+    //
+    // This access to artifacts is done through specific type safe methods
+    // that construct the keys to the underlying key value store, the hash is
+    // checked on retrieval (it's not in the key)
+    // FIXME we have lost the option of storing artifacts in the storage backend,
+    // previously there was a separate field that stored row ids for artifacts in sqlite.
+    pub(crate) artifacts_memory: HashMap<ArtifactEntryIdentifier, (Hash, Vec<u8>)>,
+
+    // Storage backend (SQLite, IndexedDB, or no-op)
+    // Public to allow external crates (e.g., braid-wasm) to access storage diagnostics
+    pub storage: S,
+
+    /// Tracks the last locally-controlled store ID loaded into the in-memory board.
+    /// This is the local database's AUTOINCREMENT ID (or equivalent), NOT the
+    /// bulletin board's external ID. Updated automatically by add().
+    last_local_board_id: i64,
+}
+
+impl<C: Ctx, S: LocalBoardStorage> LocalBoard<C, S> {
+    /// Construct an empty LocalBoard with the specified storage backend
+    pub(crate) fn new(storage: S) -> LocalBoard<C, S> {
+        tracing::info!("LocalBoard created");
 
         LocalBoard {
             configuration: None,
             cfg_hash: None,
             statements: HashMap::new(),
-            store: None, // Persistence disabled until async refactor
             artifacts_memory: HashMap::new(),
+            storage,
+            last_local_board_id: -1,
         }
     }
 
@@ -86,19 +125,42 @@ impl<C: Ctx> LocalBoard<C> {
     ///////////////////////////////////////////////////////////////////////////
 
     /// Adds a message to the board.
+    ///
+    /// The _store_id parameter was historically a remnant, but is now used to track
+    /// last_local_board_id (the locally-controlled storage ID: SQLite AUTOINCREMENT
+    /// or IndexedDB position). This allows LocalBoard to automatically track which
+    /// messages have been loaded into memory.
     pub(crate) fn add(
         &mut self,
         message: VerifiedMessage,
-        _store_id: i64,
+        local_id: i64,
     ) -> Result<(), ProtocolError> {
-        if message.statement.get_kind() == StatementType::Configuration {
+        let result = if message.statement.get_kind() == StatementType::Configuration {
             self.add_bootstrap(message)
         } else {
             self.add_message(message)
+        };
+
+        // Update tracking: this message with local_id has been loaded into memory
+        if result.is_ok() && local_id > self.last_local_board_id {
+            self.last_local_board_id = local_id;
         }
+
+        result
     }
 
+    ///////////////////////////////////////////////////////////////////////////
+    // Add bootstrap configuration
+    //
+    // The bootstrap configuration is not stored as a parameter/artifact, but directly
+    // in the board struct fields.
+    ///////////////////////////////////////////////////////////////////////////
+
     /// Bootstraps the board with a configuration message
+    ///
+    /// If the board has already been initialized the incoming
+    /// message will be ignored if it's identical to the existing
+    /// configuration. Otherwise an error will be raised.
     fn add_bootstrap(&mut self, message: VerifiedMessage) -> Result<(), ProtocolError> {
         let cfg_hash = message.statement.get_cfg_h();
 
@@ -143,7 +205,22 @@ impl<C: Ctx> LocalBoard<C> {
         }
     }
 
-    /// Adds a non-bootstrap message to the board.
+    ///////////////////////////////////////////////////////////////////////////
+    // All other statements
+    //
+    // Other statements, including _signed_ configuration
+    ///////////////////////////////////////////////////////////////////////////
+
+    /// Adds a non-bootstrap (not the configuration) message to the board.
+    ///
+    /// All messages that are not the configuration are added this way,
+    /// including configuration signatures. Messages can be stand alone
+    /// statements, or statements plus a binary artifact.
+    ///
+    /// If a statement that already existed in the board is received it
+    /// will be ignored if it is identical. Otherwise an error will be raised.
+    /// If an artifact that already existed in the board is received the
+    /// artifact and the statement will be ignored.
     fn add_message(&mut self, message: VerifiedMessage) -> Result<(), ProtocolError> {
         let bytes = message.statement.strand_serialize()?;
         let statement_hash = strand::hash::hash(&bytes)?;
@@ -229,15 +306,25 @@ impl<C: Ctx> LocalBoard<C> {
     // Raw accessors for Trustee
     ///////////////////////////////////////////////////////////////////////////
 
+    /// Returns the configuration hash.
+    ///
+    /// Used by the trustee for sanity checks.
     pub(crate) fn get_cfg_hash(&self) -> Option<Hash> {
         self.cfg_hash
     }
 
+    /// Returns the configuration.
+    ///
+    /// Used by the trustee for sanity checks as well
+    /// as for deriving the configuration predicate for
+    /// datalog.
     pub(crate) fn get_configuration_raw(&self) -> Option<Configuration<C>> {
         self.configuration.clone()
     }
 
-    // Public for external crates (e.g., braid-wasm) to get board summary
+    /// Returns all the statement entries.
+    ///
+    /// Used by the trustee to derive all the datalog predicates.
     pub fn get_statement_entries(&self) -> Vec<BoardEntry> {
         self.statements
             .iter()
@@ -252,6 +339,10 @@ impl<C: Ctx> LocalBoard<C> {
     // Artifact accessors for Actions (forwarded from Trustee)
     ///////////////////////////////////////////////////////////////////////////
 
+    /// Gets the Configuration, with a hash check
+    ///
+    /// If the configuration does not exist, or the supplied hash does not match
+    /// returns None. The trustee version of this function raises an error instead.
     pub(crate) fn get_configuration(
         &self,
         configuration_h: &ConfigurationHash,
@@ -269,6 +360,7 @@ impl<C: Ctx> LocalBoard<C> {
         None
     }
 
+    /// Gets a Channel, with a hash check.
     pub(crate) fn get_channel(
         &self,
         channel_h: &ChannelHash,
@@ -278,6 +370,7 @@ impl<C: Ctx> LocalBoard<C> {
         Ok(Channel::<C>::strand_deserialize(&bytes)?)
     }
 
+    /// Gets a Share, with a hash check.
     pub(crate) fn get_shares(
         &self,
         shares_h: &SharesHash,
@@ -287,6 +380,7 @@ impl<C: Ctx> LocalBoard<C> {
         Ok(Shares::strand_deserialize(&bytes)?)
     }
 
+    /// Gets the DkgPublicKey, with a hash check.
     pub(crate) fn get_dkg_public_key(
         &self,
         pk_h: &PublicKeyHash,
@@ -296,6 +390,7 @@ impl<C: Ctx> LocalBoard<C> {
         Ok(DkgPublicKey::<C>::strand_deserialize(&bytes)?)
     }
 
+    /// Gets Ballots, with a hash check.
     pub(crate) fn get_ballots(
         &self,
         b_h: &CiphertextsHash,
@@ -306,6 +401,7 @@ impl<C: Ctx> LocalBoard<C> {
         Ok(Ballots::<C>::strand_deserialize(&bytes)?)
     }
 
+    /// Gets a Mix, with a hash check.
     pub(crate) fn get_mix(
         &self,
         m_h: &CiphertextsHash,
@@ -316,6 +412,7 @@ impl<C: Ctx> LocalBoard<C> {
         Ok(Mix::<C>::strand_deserialize(&bytes)?)
     }
 
+    /// Gets DecryptionFactors, with a hash check.
     pub(crate) fn get_decryption_factors(
         &self,
         d_h: &DecryptionFactorsHash,
@@ -331,6 +428,7 @@ impl<C: Ctx> LocalBoard<C> {
         Ok(DecryptionFactors::<C>::strand_deserialize(&bytes)?)
     }
 
+    /// Gets Plaintexts, with a hash check.
     pub(crate) fn get_plaintexts(
         &self,
         p_h: &PlaintextsHash,
@@ -342,9 +440,12 @@ impl<C: Ctx> LocalBoard<C> {
     }
 
     ///////////////////////////////////////////////////////////////////////////
-    // Artifact retrieval (in-memory only)
+    // Artifact retrieval (always from memory)
     //////////////////////////////////////////////////////////////////////////
 
+    /// Returns a dkg artifact bytes from memory, with hash check.
+    ///
+    /// Dkg artifacts have their batch and mixnumber set to 0.
     fn get_dkg_artifact(
         &self,
         kind: StatementType,
@@ -354,6 +455,10 @@ impl<C: Ctx> LocalBoard<C> {
         self.get_artifact(kind, hash, signer_position, 0)
     }
 
+    /// Returns an artifact bytes from memory, with hash check.
+    ///
+    /// All artifacts have their mix number set to 0. Only mix signature
+    /// statements are keyed (in the hashmap) with a mix number != 0.
     fn get_artifact(
         &self,
         kind: StatementType,
@@ -379,6 +484,7 @@ impl<C: Ctx> LocalBoard<C> {
     // LocalBoard key construction
     ///////////////////////////////////////////////////////////////////////////
 
+    /// Constructs statement entry keys.
     pub(crate) fn get_statement_entry_identifier(
         &self,
         statement: &Statement,
@@ -394,6 +500,7 @@ impl<C: Ctx> LocalBoard<C> {
         }
     }
 
+    /// Constructs artifact entry keys from a statement entry key.
     pub(crate) fn get_artifact_entry_identifier(
         &self,
         statement_entry: &StatementEntryIdentifier,
@@ -406,6 +513,7 @@ impl<C: Ctx> LocalBoard<C> {
         )
     }
 
+    /// Constructs artifact entry keys.
     pub(crate) fn get_artifact_entry_identifier_ext(
         &self,
         statement_type: StatementType,
@@ -425,13 +533,55 @@ impl<C: Ctx> LocalBoard<C> {
     }
 
     ///////////////////////////////////////////////////////////////////////////
-    // Additional methods required by Trustee
+    // Storage interaction methods
     ///////////////////////////////////////////////////////////////////////////
 
-    // Public for external crates (e.g., braid-wasm) to track protocol progress
-    pub fn max_messages(&self) -> usize {
+    /// Updates the message store with the supplied remote messages
+    pub(crate) fn update_store(
+        &self,
+        messages: &[HttpB3Message],
+        ignore_existing: bool,
+    ) -> Result<()> {
+        self.storage.store_messages(messages, ignore_existing)
+    }
+
+    /// Returns the last locally-controlled store ID loaded into this board.
+    ///
+    /// This is NOT the bulletin board's external ID - it's our local database ID
+    /// (SQLite AUTOINCREMENT or IndexedDB position).
+    pub(crate) fn get_last_local_board_id(&self) -> i64 {
+        self.last_local_board_id
+    }
+
+    /// Updates the message store and returns messages not yet in the board.
+    ///
+    /// Called as part of the normal step update sequence
+    /// 1) Retrieve remote messages
+    /// 2) Store them in the message store (assigning locally-controlled IDs)
+    /// 3) Return messages with local_id > last_local_board_id for loading into memory
+    ///
+    /// SECURITY: Uses locally-controlled AUTOINCREMENT IDs (not bulletin board IDs)
+    /// to ensure append-only, tamper-proof message ordering.
+    pub(crate) fn store_and_return_messages(
+        &mut self,
+        messages: &[HttpB3Message],
+        ignore_existing: bool,
+    ) -> Result<Vec<(b4::messages::message::Message, i64)>> {
+        self.storage.store_messages(messages, ignore_existing)?;
+        self.storage.retrieve_messages(self.last_local_board_id)
+    }
+
+    /// Returns the largest external_id stored in the message store.
+    ///
+    /// OPTIMIZATION ONLY: Has NO security implications.
+    pub(crate) fn get_last_external_id(&self) -> Result<i64> {
+        self.storage.get_last_external_id()
+    }
+
+    /// The maximum number of messages this protocol will generate.
+    pub(crate) fn max_messages(&self) -> usize {
         let Some(cfg) = &self.configuration else {
-            return 1;
+            return 0;
         };
 
         let mut sei = StatementEntryIdentifier {
@@ -452,7 +602,6 @@ impl<C: Ctx> LocalBoard<C> {
         let t = cfg.threshold;
 
         let dkg = 1 + (5 * n);
-
         let per_batch_tally = 1 + (2 * t) + (t * (t - 1)) + n;
 
         dkg + ((sei.batch as usize) * per_batch_tally)
@@ -487,51 +636,5 @@ impl<C: Ctx> LocalBoard<C> {
         let entry = self.artifacts_memory.get(&aei)?;
 
         Plaintexts::<C>::strand_deserialize(&entry.1).ok()
-    }
-
-    ///////////////////////////////////////////////////////////////////////////
-    ///////////////////////////////////////////////////////////////////////////
-    // Store methods - Currently stubs, pending async refactor for IndexedDB
-    ///////////////////////////////////////////////////////////////////////////
-
-    /// Not yet implemented: IndexedDB persistence requires async refactor
-    ///
-    /// TODO: Once Trustee::step() is async in WASM, implement:
-    /// - Open IndexedDB for this board
-    /// - Store messages with auto-increment local_id
-    /// - Query messages WHERE local_id > last_local_board_id ORDER BY local_id ASC
-    /// - Return Vec<(Message, local_id)>
-    pub(crate) fn store_and_return_messages(
-        &mut self,
-        _messages: &Vec<HttpB3Message>,
-        _last_local_board_id: i64,
-        _ignore_existing: bool,
-    ) -> Result<Vec<(Message, i64)>> {
-        // WASM has no persistence yet - messages processed directly via step()
-        Ok(vec![])
-    }
-
-    /// Not yet implemented: IndexedDB persistence requires async refactor
-    ///
-    /// TODO: Once async, implement:
-    /// - Deserialize messages to extract metadata
-    /// - Store in IndexedDB with uniqueness constraints
-    /// - Use ignore_existing to handle duplicates during full refresh
-    pub(crate) fn update_store(
-        &self,
-        _messages: &Vec<HttpB3Message>,
-        _ignore_existing: bool,
-    ) -> Result<()> {
-        Ok(())
-    }
-
-    /// Not yet implemented: IndexedDB persistence requires async refactor
-    ///
-    /// TODO: Once async, implement:
-    /// - Query IndexedDB for MAX(external_id)
-    /// - Return max or -1 if empty
-    /// Note: This is OPTIMIZATION ONLY, has no security implications
-    pub(crate) fn get_last_external_id(&mut self) -> Result<i64> {
-        Ok(-1)
     }
 }

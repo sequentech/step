@@ -175,7 +175,7 @@ $b4Process = Start-Process powershell -ArgumentList @(
     "`$env:AWS_REGION = 'us-east-1'; " +
     "`$env:S3_BUCKET_NAME = 'wbraid-messages'; " +
     "`$env:AWS_FORCE_PATH_STYLE = 'true'; " +
-    "cargo run --bin b4 --release --features native"
+    "cargo run --bin b4 --release"
 ) -PassThru
 
 Write-Info "Started B4 server in new window (PID: $($b4Process.Id))..."
@@ -296,7 +296,7 @@ for ($t = 0; $t -lt $NumTrustees; $t++) {
         "-Command",
         "`$host.ui.RawUI.WindowTitle = '$processTitle'; " +
         "cd '$workingDir'; cd $trusteeDir; " +
-        "cargo run --manifest-path ..\\..\\Cargo.toml --release --bin main_concurrent --features native -- --b3-url http://127.0.0.1:50051 --trustee-config trustee.toml"
+        "cargo run --manifest-path ..\\..\\Cargo.toml --release --bin main_concurrent -- --b3-url http://127.0.0.1:50051 --trustee-config trustee.toml"
     ) -PassThru -WindowStyle Minimized
     
     $trusteeProcesses += $trusteeProc

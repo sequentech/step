@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
+// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
@@ -146,7 +146,10 @@ impl Action {
     /// 4) Create messages through Message static functions
     ///      4.1) Message::<function> Computes hashes and artifact data
     ///      4.2) Trustee::<message> Signs the statement and returns Message
-    pub(crate) fn run<C: Ctx>(&self, trustee: &Trustee<C>) -> Result<Vec<Message>, ProtocolError> {
+    pub(crate) fn run<C: Ctx, S: crate::protocol::board::LocalBoardStorage>(
+        &self,
+        trustee: &Trustee<C, S>,
+    ) -> Result<Vec<Message>, ProtocolError> {
         info!("Running action {}..", &self);
         match self {
             Self::SignConfiguration(cfg_h) => cfg::sign_config(cfg_h, trustee),
@@ -267,9 +270,9 @@ impl Action {
     /// Runs this Action in verifying mode.
     ///
     /// Only three actions are relevant for a verifier.
-    pub(crate) fn run_for_verifier<C: Ctx>(
+    pub(crate) fn run_for_verifier<C: Ctx, S: crate::protocol::board::LocalBoardStorage>(
         &self,
-        trustee: &Trustee<C>,
+        trustee: &Trustee<C, S>,
     ) -> Result<Vec<Message>, ProtocolError> {
         match self {
             Self::SignPublicKey(cfg_h, pk_h, sh_hs, cm_hs, self_pos, num_t, th) => {

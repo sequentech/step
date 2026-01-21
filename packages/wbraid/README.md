@@ -73,7 +73,7 @@ This workspace demonstrates a feature-gated approach to WASM compatibility:
 
 Core crates:
 - `b3` - Message types with `HttpB3Message` for universal HTTP transport
-- `braid` - Main library with feature-gated `Trustee`/`WasmTrustee` implementations
+- `braid` - Main library with feature-gated `Trustee`/`WasmSession` implementations
 - `client` - WASM proof-of-concept with atomics/SharedArrayBuffer support
 - `service` - REST API bulletin board service
 

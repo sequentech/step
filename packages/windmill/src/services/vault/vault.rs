@@ -177,7 +177,7 @@ pub async fn get_admin_user_signing_key(
             "Vault: generating private signing key for admin user {}",
             lookup_key.clone()
         );
-        let sk = StrandSignatureSk::gen()?;
+        let sk = StrandSignatureSk::generate()?;
         let sk_string = sk.to_der_b64_string()?;
         let pk = StrandSignaturePk::from_sk(&sk)?;
         let pk = pk.to_der_b64_string()?;

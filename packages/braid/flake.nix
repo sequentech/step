@@ -25,7 +25,10 @@
             inherit system overlays;
           };
           
-          rust-system = pkgs.rust-bin.nightly."2025-01-29".default;
+          rust-system = pkgs.rust-bin.nightly."2025-01-29".default.override {
+            targets = [ "wasm32-unknown-unknown" ];
+            extensions = [ "rust-src" ];
+          };
           # see https://github.com/NixOS/nixpkgs/blob/master/doc/languages-frameworks/rust.section.md#importing-a-cargolock-file-importing-a-cargolock-file
           cargoPatches = {
               cargoLock = let
@@ -61,11 +64,19 @@
           # configure the dev shell
           devShell = (
             pkgs.mkShell.override { stdenv = pkgs.clangStdenv; }
-          ) { 
-            buildInputs = 
-              packages.braid.buildInputs ++
-              [ pkgs.bash pkgs.reuse pkgs.cargo-deny ]; 
-            nativeBuildInputs = packages.braid.nativeBuildInputs;
+          ) {
+            # Put rust-system first to ensure nightly is used
+            buildInputs = [
+              rust-system
+              pkgs.openssl
+              pkgs.bash
+              pkgs.reuse
+              pkgs.cargo-deny
+            ] ++ pkgs.lib.lists.optionals pkgs.stdenv.isDarwin [ pkgs.darwin.apple_sdk.frameworks.Security ];
+            nativeBuildInputs = [
+              pkgs.pkg-config
+              pkgs.m4
+            ];
           };
         }
     );

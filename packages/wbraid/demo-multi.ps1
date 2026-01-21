@@ -281,7 +281,7 @@ for ($t = 0; $t -lt $NumTrustees; $t++) {
         "-Command",
         "`$host.ui.RawUI.WindowTitle = '$processTitle'; " +
         "cd '$workingDir'; cd $trusteeDir; " +
-        "cargo run --manifest-path ..\\..\\Cargo.toml --release --bin main_concurrent --features native -- --b3-url http://127.0.0.1:50051 --trustee-config trustee.toml"
+        "cargo run --manifest-path ..\\..\\Cargo.toml --release --bin main_concurrent -- --b3-url http://127.0.0.1:50051 --trustee-config trustee.toml"
     ) -PassThru -WindowStyle Minimized
     
     $trusteeProcesses += $trusteeProc

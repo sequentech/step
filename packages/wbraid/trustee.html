@@ -5,16 +5,12 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>braid-wasm</title>
     <style>
-        * {
-            box-sizing: border-box;
-        }
-
+        * { box-sizing: border-box; }
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
             max-width: 1400px;
@@ -22,38 +18,30 @@ SPDX-License-Identifier: AGPL-3.0-only
             padding: 20px;
             background: #f8f9fa;
         }
-
         h1 {
             color: #2c3e50;
             margin-bottom: 10px;
         }
-
         .subtitle {
             color: #7f8c8d;
             font-size: 14px;
             margin-bottom: 30px;
         }
-
         .grid {
             display: grid;
             grid-template-columns: 1fr 1fr;
             gap: 20px;
             margin-bottom: 20px;
         }
-
         @media (max-width: 768px) {
-            .grid {
-                grid-template-columns: 1fr;
-            }
+            .grid { grid-template-columns: 1fr; }
         }
-
         .panel {
             background: white;
             border-radius: 8px;
             padding: 20px;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
         }
-
         .panel h2 {
             margin: 0 0 16px 0;
             font-size: 18px;
@@ -61,11 +49,9 @@ SPDX-License-Identifier: AGPL-3.0-only
             border-bottom: 2px solid #3498db;
             padding-bottom: 8px;
         }
-
         .form-group {
             margin-bottom: 16px;
         }
-
         label {
             display: block;
             margin-bottom: 6px;
@@ -73,10 +59,7 @@ SPDX-License-Identifier: AGPL-3.0-only
             color: #555;
             font-size: 14px;
         }
-
-        input,
-        textarea,
-        select {
+        input, textarea, select {
             width: 100%;
             padding: 10px;
             border: 1px solid #ddd;
@@ -84,12 +67,10 @@ SPDX-License-Identifier: AGPL-3.0-only
             font-size: 14px;
             font-family: inherit;
         }
-
         textarea {
             font-family: 'Courier New', monospace;
             resize: vertical;
         }
-
         button {
             padding: 10px 20px;
             background: #3498db;
@@ -101,22 +82,18 @@ SPDX-License-Identifier: AGPL-3.0-only
             font-weight: 600;
             transition: background 0.2s;
         }
-
         button:hover:not(:disabled) {
             background: #2980b9;
         }
-
         button:disabled {
             background: #bdc3c7;
             cursor: not-allowed;
             opacity: 0.6;
         }
-
         button.loading {
             position: relative;
             color: transparent;
         }
-
         button.loading::after {
             content: "⏳";
             position: absolute;
@@ -126,112 +103,83 @@ SPDX-License-Identifier: AGPL-3.0-only
             color: white;
             animation: spin 1s linear infinite;
         }
-
         @keyframes spin {
-            0% {
-                content: "⏳";
-            }
-
-            25% {
-                content: "⌛";
-            }
-
-            50% {
-                content: "⏳";
-            }
-
-            75% {
-                content: "⌛";
-            }
+            0% { content: "⏳"; }
+            25% { content: "⌛"; }
+            50% { content: "⏳"; }
+            75% { content: "⌛"; }
         }
-
         button.secondary {
             background: #16a085;
         }
-
         button.secondary:hover:not(:disabled) {
             background: #138d75;
         }
-
         button.success {
             background: #27ae60;
         }
-
         button.success:hover:not(:disabled) {
             background: #229954;
         }
-
         button.danger {
             background: #e74c3c;
         }
-
         button.danger:hover:not(:disabled) {
             background: #c0392b;
         }
-
         .button-group {
             display: flex;
             gap: 10px;
             margin-top: 16px;
         }
-
         .button-group button {
             flex: 1;
         }
-
         .status {
             padding: 12px;
             border-radius: 4px;
             margin-top: 12px;
             font-size: 14px;
         }
-
         .status.success {
             background: #d4edda;
             color: #155724;
             border: 1px solid #c3e6cb;
         }
-
         .status.error {
             background: #f8d7da;
             color: #721c24;
             border: 1px solid #f5c6cb;
         }
-
         .status.info {
             background: #d1ecf1;
             color: #0c5460;
             border: 1px solid #bee5eb;
         }
-
         .stats {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
             gap: 12px;
             margin-top: 16px;
         }
-
         .stat-card {
             background: #f8f9fa;
             padding: 16px;
             border-radius: 6px;
             border-left: 4px solid #3498db;
         }
-
         .stat-label {
             font-size: 12px;
             color: #7f8c8d;
             text-transform: uppercase;
             letter-spacing: 0.5px;
         }
-
         .stat-value {
             font-size: 24px;
             font-weight: bold;
             color: #2c3e50;
             margin-top: 4px;
         }
-
         .progress {
             width: 100%;
             height: 24px;
@@ -240,7 +188,6 @@ SPDX-License-Identifier: AGPL-3.0-only
             overflow: hidden;
             margin-top: 8px;
         }
-
         .progress-bar {
             height: 100%;
             background: linear-gradient(90deg, #3498db, #2ecc71);
@@ -252,7 +199,6 @@ SPDX-License-Identifier: AGPL-3.0-only
             font-size: 12px;
             font-weight: bold;
         }
-
         .board-list {
             max-height: 200px;
             overflow-y: auto;
@@ -260,27 +206,22 @@ SPDX-License-Identifier: AGPL-3.0-only
             border-radius: 4px;
             margin-top: 8px;
         }
-
         .board-item {
             padding: 10px;
             border-bottom: 1px solid #ecf0f1;
             cursor: pointer;
             transition: background 0.2s;
         }
-
         .board-item:hover {
             background: #f8f9fa;
         }
-
         .board-item:last-child {
             border-bottom: none;
         }
-
         .board-item.selected {
             background: #e3f2fd;
             font-weight: 600;
         }
-
         #console {
             background: #1e1e1e;
             color: #d4d4d4;
@@ -293,37 +234,20 @@ SPDX-License-Identifier: AGPL-3.0-only
             white-space: pre-wrap;
             word-wrap: break-word;
         }
-
         .log-entry {
             margin-bottom: 4px;
             padding: 2px 0;
         }
-
-        .log-info {
-            color: #4fc3f7;
-        }
-
-        .log-warn {
-            color: #ffb74d;
-        }
-
-        .log-error {
-            color: #e57373;
-        }
-
-        .log-debug {
-            color: #9e9e9e;
-        }
-
-        .hidden {
-            display: none;
-        }
+        .log-info { color: #4fc3f7; }
+        .log-warn { color: #ffb74d; }
+        .log-error { color: #e57373; }
+        .log-debug { color: #9e9e9e; }
+        .hidden { display: none; }
     </style>
 </head>
-
 <body>
     <h1>braid-wasm</h1>
-    <p class="subtitle">cryptographic mixnet node</p>
+    <p class="subtitle">verifiable mixnet node (v0.4.0, built 2025-12-05 19:12:33)</p>
 
     <div class="grid">
         <!-- Configuration Panel -->
@@ -347,7 +271,7 @@ SPDX-License-Identifier: AGPL-3.0-only
             </div>
             <div class="form-group">
                 <label for="b4-url">B4 Server URL:</label>
-                <input type="text" id="b4-url" value="http://127.0.0.1:50051" placeholder="http://127.0.0.1:50051">
+                <input type="text" id="b4-url" value="http://127.0.0.1:3000" placeholder="http://127.0.0.1:3000">
             </div>
             <button id="init-btn" class="success">Initialize Trustee</button>
             <div id="init-status"></div>
@@ -378,37 +302,29 @@ SPDX-License-Identifier: AGPL-3.0-only
             <div class="progress">
                 <div class="progress-bar" id="progress-bar" style="width: 0%">0%</div>
             </div>
-
+            
             <!-- Board Contents -->
-            <details id="board-contents-details"
-                style="margin-top: 16px; background: #f8f9fa; padding: 12px; border-radius: 4px;">
-                <summary style="cursor: pointer; font-weight: 600; color: #2c3e50;">📜 Local Board Contents (<span
-                        id="board-count">0</span> statements)</summary>
-                <div id="board-contents"
-                    style="margin-top: 12px; font-size: 12px; max-height: 200px; overflow-y: auto; font-family: 'Courier New', monospace;">
+            <details id="board-contents-details" style="margin-top: 16px; background: #f8f9fa; padding: 12px; border-radius: 4px;">
+                <summary style="cursor: pointer; font-weight: 600; color: #2c3e50;">📜 Local Board Contents (<span id="board-count">0</span> statements)</summary>
+                <div id="board-contents" style="margin-top: 12px; font-size: 12px; max-height: 200px; overflow-y: auto; font-family: 'Courier New', monospace;">
                     <em style="color: #95a5a6;">No statements yet</em>
                 </div>
             </details>
-
+            
             <!-- Action History (collapsible, initially collapsed) -->
-            <details id="action-history-details"
-                style="margin-top: 16px; background: #f8f9fa; padding: 12px; border-radius: 4px;">
-                <summary style="cursor: pointer; font-weight: 600; color: #2c3e50;">📊 Action History (<span
-                        id="action-count">0</span> actions)</summary>
-                <div id="action-history"
-                    style="margin-top: 12px; font-size: 12px; max-height: 200px; overflow-y: auto; font-family: 'Courier New', monospace;">
+            <details id="action-history-details" style="margin-top: 16px; background: #f8f9fa; padding: 12px; border-radius: 4px;">
+                <summary style="cursor: pointer; font-weight: 600; color: #2c3e50;">📊 Action History (<span id="action-count">0</span> actions)</summary>
+                <div id="action-history" style="margin-top: 12px; font-size: 12px; max-height: 200px; overflow-y: auto; font-family: 'Courier New', monospace;">
                     <em style="color: #95a5a6;">No actions yet</em>
                 </div>
-                <button id="clear-history-btn" class="secondary"
-                    style="margin-top: 12px; width: 100%; font-size: 12px; padding: 6px;">Clear History</button>
+                <button id="clear-history-btn" class="secondary" style="margin-top: 12px; width: 100%; font-size: 12px; padding: 6px;">Clear History</button>
             </details>
-
+            
             <!-- Console Output (collapsible, initially collapsed) -->
             <details style="margin-top: 16px; background: #f8f9fa; padding: 12px; border-radius: 4px;">
                 <summary style="cursor: pointer; font-weight: 600; color: #2c3e50;">💻 Console Output</summary>
                 <div id="console" style="margin-top: 12px;"></div>
-                <button id="clear-console-btn" class="secondary" style="margin-top: 12px; width: 100%;">Clear
-                    Console</button>
+                <button id="clear-console-btn" class="secondary" style="margin-top: 12px; width: 100%;">Clear Console</button>
             </details>
         </div>
     </div>
@@ -425,13 +341,49 @@ SPDX-License-Identifier: AGPL-3.0-only
                 <button id="connect-board-btn" disabled class="secondary">Connect</button>
             </div>
         </div>
+
+        <!-- Storage Diagnostics Panel -->
+        <div class="panel">
+            <h2>💾 Storage Diagnostics</h2>
+            <div id="storage-info" style="font-family: 'Courier New', monospace; font-size: 12px;">
+                <em style="color: #95a5a6;">Connect to a board to see storage information</em>
+            </div>
+            <button id="refresh-storage-btn" disabled class="secondary" style="margin-top: 12px; width: 100%;">Refresh Storage Info</button>
+        </div>
+    </div>
+
+    <!-- Independent Verifier Section -->
+    <div class="panel" style="margin-top: 20px;">
+        <h2>🔍 Independent Verifier</h2>
+        <p style="font-size: 13px; color: #7f8c8d; margin-bottom: 16px;">
+            Verify election integrity without trustee credentials. Checks configuration, signatures, PK construction, mixing, and decryption.
+        </p>
+        <div class="form-group">
+            <label for="verifier-b4-url">B4 Server URL:</label>
+            <input type="text" id="verifier-b4-url" value="http://127.0.0.1:3000" placeholder="http://127.0.0.1:3000">
+        </div>
+        <div class="form-group">
+            <label for="verifier-board">Board Name:</label>
+            <div class="button-group">
+                <input type="text" id="verifier-board" placeholder="Enter board name to verify">
+                <button id="verify-board-btn" class="success">Verify Board</button>
+            </div>
+        </div>
+        <div id="verify-status"></div>
+        
+        <!-- Verification Results (collapsible) -->
+        <details id="verify-results-details" style="margin-top: 16px; background: #f8f9fa; padding: 12px; border-radius: 4px;" class="hidden">
+            <summary style="cursor: pointer; font-weight: 600; color: #2c3e50;">📋 Verification Results</summary>
+            <div id="verify-results" style="margin-top: 12px; font-size: 12px; max-height: 300px; overflow-y: auto; font-family: 'Courier New', monospace;">
+            </div>
+        </details>
     </div>
 
     <script type="module">
         // Dynamic import with timestamp to force cache refresh
         const timestamp = new Date().getTime();
         console.log('Loading WASM with cache-busting timestamp:', timestamp);
-        const { default: init, initThreadPool, WasmTrustee } = await import(`./crates/braid-wasm/pkg/braid_wasm.js?v=${timestamp}`);
+        const { default: init, initThreadPool, WasmSession, WasmVerifier } = await import(`./crates/braid/pkg/braid.js?v=${timestamp}`);
 
         let trustee = null;
         let autoInterval = null;
@@ -447,25 +399,25 @@ SPDX-License-Identifier: AGPL-3.0-only
                 added: stepInfo.added || 0,
                 posted: stepInfo.posted || 0
             };
-
+            
             actionHistory.unshift(entry); // Add to beginning
-
+            
             // Limit history size
             if (actionHistory.length > MAX_ACTION_HISTORY) {
                 actionHistory = actionHistory.slice(0, MAX_ACTION_HISTORY);
             }
-
+            
             updateActionHistoryDisplay();
         }
-
+        
         // Update action history display
         function updateActionHistoryDisplay() {
             const historyEl = document.getElementById('action-history');
             const countEl = document.getElementById('action-count');
             const detailsEl = document.getElementById('action-history-details');
-
+            
             countEl.textContent = actionHistory.length;
-
+            
             if (actionHistory.length === 0) {
                 historyEl.innerHTML = '<em style="color: #95a5a6;">No actions yet</em>';
                 detailsEl.removeAttribute('open');
@@ -480,7 +432,7 @@ SPDX-License-Identifier: AGPL-3.0-only
                         <span style="color: #2c3e50; margin-left: 4px;">${entry.action}</span>${details}
                     </div>`;
                 }).join('');
-
+                
                 historyEl.innerHTML = html;
                 detailsEl.setAttribute('open', ''); // Auto-expand when there's content
             }
@@ -498,12 +450,12 @@ SPDX-License-Identifier: AGPL-3.0-only
             entry.className = `log-entry log-${type}`;
             entry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
             consoleEl.appendChild(entry);
-
+            
             // Limit console entries to prevent memory issues
             while (consoleEl.children.length > MAX_CONSOLE_ENTRIES) {
                 consoleEl.removeChild(consoleEl.firstChild);
             }
-
+            
             consoleEl.scrollTop = consoleEl.scrollHeight;
         }
 
@@ -530,8 +482,8 @@ SPDX-License-Identifier: AGPL-3.0-only
             document.getElementById('current-msgs').textContent = state.current_messages || 0;
             document.getElementById('max-msgs').textContent = state.max_messages || 0;
             document.getElementById('current-board').textContent = state.board_name || '-';
-
-            const progress = state.max_messages > 0 ?
+            
+            const progress = state.max_messages > 0 ? 
                 Math.round((state.current_messages / state.max_messages) * 100) : 0;
             const progressBar = document.getElementById('progress-bar');
             progressBar.style.width = progress + '%';
@@ -545,9 +497,9 @@ SPDX-License-Identifier: AGPL-3.0-only
                 const boardCount = document.getElementById('board-count');
                 const boardContents = document.getElementById('board-contents');
                 const boardDetailsEl = document.getElementById('board-contents-details');
-
+                
                 boardCount.textContent = summary.length;
-
+                
                 if (summary.length === 0) {
                     boardContents.innerHTML = '<em style="color: #95a5a6;">No statements yet</em>';
                     // Keep collapsed when empty
@@ -559,7 +511,7 @@ SPDX-License-Identifier: AGPL-3.0-only
                         if (!grouped[s.kind]) grouped[s.kind] = [];
                         grouped[s.kind].push(s);
                     });
-
+                    
                     const html = Object.entries(grouped).map(([kind, stmts]) => {
                         const signers = stmts.map(s => s.signer === 4294967295 ? 'PM' : `T${s.signer}`).join(', ');
                         return `<div style="padding: 4px 0; border-bottom: 1px solid #ecf0f1;">
@@ -567,13 +519,58 @@ SPDX-License-Identifier: AGPL-3.0-only
                             <span style="color: #7f8c8d; margin-left: 8px;">(${signers})</span>
                         </div>`;
                     }).join('');
-
+                    
                     boardContents.innerHTML = html;
                     // Auto-expand when there's content
                     boardDetailsEl.setAttribute('open', '');
                 }
             } catch (err) {
                 console.error('Failed to update board contents:', err);
+            }
+        }
+
+        async function updateStorageInfo() {
+            if (!trustee) return;
+            try {
+                const info = await trustee.get_storage_info();
+                const storageDiv = document.getElementById('storage-info');
+                
+                const html = `
+                    <div style="background: #f8f9fa; padding: 12px; border-radius: 4px; border-left: 4px solid #3498db;">
+                        <div style="margin-bottom: 8px;">
+                            <span style="color: #7f8c8d; font-weight: 600;">Backend:</span>
+                            <span style="color: #2c3e50; margin-left: 8px;">${info.backend_type}</span>
+                        </div>
+                        <div style="margin-bottom: 8px;">
+                            <span style="color: #7f8c8d; font-weight: 600;">Total Messages:</span>
+                            <span style="color: #2c3e50; margin-left: 8px;">${info.total_messages}</span>
+                        </div>
+                        <div style="margin-bottom: 8px;">
+                            <span style="color: #7f8c8d; font-weight: 600;">Max Internal ID:</span>
+                            <span style="color: #27ae60; margin-left: 8px;">${info.max_internal_id}</span>
+                            <span style="color: #95a5a6; font-size: 10px; margin-left: 4px;">(locally-controlled, security-critical)</span>
+                        </div>
+                        <div style="margin-bottom: 8px;">
+                            <span style="color: #7f8c8d; font-weight: 600;">Max External ID:</span>
+                            <span style="color: #e67e22; margin-left: 8px;">${info.max_external_id}</span>
+                            <span style="color: #95a5a6; font-size: 10px; margin-left: 4px;">(bulletin board ID, optimization only)</span>
+                        </div>
+                        ${info.extra_info ? `
+                        <div style="margin-top: 12px; padding-top: 12px; border-top: 1px solid #ecf0f1;">
+                            <span style="color: #95a5a6; font-size: 11px;">${info.extra_info}</span>
+                        </div>
+                        ` : ''}
+                    </div>
+                `;
+                
+                storageDiv.innerHTML = html;
+            } catch (err) {
+                console.error('Failed to get storage info:', err);
+                document.getElementById('storage-info').innerHTML = `
+                    <div style="color: #e74c3c; padding: 12px; background: #f8d7da; border-radius: 4px;">
+                        Error: ${err}
+                    </div>
+                `;
             }
         }
 
@@ -632,15 +629,15 @@ SPDX-License-Identifier: AGPL-3.0-only
                 showStatus('init-status', 'Initializing trustee...', 'info');
                 initBtn.disabled = true;
                 initBtn.classList.add('loading');
-
-                trustee = new WasmTrustee(JSON.stringify(config));
-
+                
+                trustee = new WasmSession(JSON.stringify(config));
+                
                 document.getElementById('fetch-boards-btn').disabled = false;
                 document.getElementById('connect-board-btn').disabled = true;
                 initBtn.classList.remove('success', 'loading');
                 initBtn.classList.add('secondary');
                 initBtn.textContent = '✓ Initialized';
-
+                
                 showStatus('init-status', `Trustee '${config.name}' initialized successfully!`, 'success');
                 console.log(`Initialized trustee: ${config.name} connecting to ${config.b4_url}`);
             } catch (err) {
@@ -657,17 +654,17 @@ SPDX-License-Identifier: AGPL-3.0-only
             try {
                 showStatus('boards-status', 'Fetching boards...', 'info');
                 const boards = await trustee.fetch_boards();
-
+                
                 const boardsList = document.getElementById('boards-list');
                 boardsList.classList.remove('hidden');
-
+                
                 if (boards.length === 0) {
                     boardsList.innerHTML = '<div style="padding: 10px; color: #7f8c8d;">No boards found</div>';
                 } else {
-                    boardsList.innerHTML = boards.map(b =>
+                    boardsList.innerHTML = boards.map(b => 
                         `<div class="board-item" data-board="${b.name}">${b.name}</div>`
                     ).join('');
-
+                    
                     // Add click handlers
                     boardsList.querySelectorAll('.board-item').forEach(item => {
                         item.addEventListener('click', () => {
@@ -679,7 +676,7 @@ SPDX-License-Identifier: AGPL-3.0-only
                         });
                     });
                 }
-
+                
                 showStatus('boards-status', `Found ${boards.length} board(s)`, 'success');
                 console.log(`Found boards:`, boards);
             } catch (err) {
@@ -703,27 +700,34 @@ SPDX-License-Identifier: AGPL-3.0-only
                 }
 
                 showStatus('boards-status', `Connecting to board '${boardName}'...`, 'info');
-
+                
                 // Initialize the session (creates the trustee object)
                 await trustee.init_session(boardName);
-
-                // Perform initial sync: fetch existing messages and update local board
-                showStatus('boards-status', `Syncing with board '${boardName}'...`, 'info');
-                const syncResult = await trustee.connect_to_board();
-                console.log(`Initial sync complete: ${syncResult.added} messages added`);
-
+                
+                // Check for pending messages (doesn't process them yet)
+                showStatus('boards-status', `Checking board '${boardName}' for pending messages...`, 'info');
+                const connectResult = await trustee.connect_to_board();
+                console.log(`Board check complete: ${connectResult.pending} remote messages pending (last stored external_id: ${connectResult.last_external_id})`);
+                
                 document.getElementById('step-btn').disabled = false;
                 document.getElementById('auto-btn').disabled = false;
-
-                showStatus('boards-status', `✓ Connected to '${boardName}' (${syncResult.added} messages synced)`, 'success');
+                
+                const pendingMsg = connectResult.pending > 0 
+                    ? `${connectResult.pending} remote message${connectResult.pending === 1 ? '' : 's'} pending`
+                    : 'no new messages';
+                showStatus('boards-status', `✓ Connected to '${boardName}' (${pendingMsg})`, 'success');
                 console.log(`Connected to board: ${boardName}`);
-
+                
                 // Get initial state and update UI
                 const state = await trustee.get_state();
                 updateState(state);
-
+                
                 // Update local board contents display
                 await updateBoardContents();
+                
+                // Update storage info and enable refresh button
+                await updateStorageInfo();
+                document.getElementById('refresh-storage-btn').disabled = false;
             } catch (err) {
                 showStatus('boards-status', `Error: ${err}`, 'error');
                 console.error('Connect board error:', err);
@@ -735,22 +739,23 @@ SPDX-License-Identifier: AGPL-3.0-only
         document.getElementById('step-btn').addEventListener('click', async () => {
             if (isExecuting) return;
             isExecuting = true;
-
+            
             const stepBtn = document.getElementById('step-btn');
             const originalText = stepBtn.textContent;
-
+            
             try {
                 stepBtn.disabled = true;
                 stepBtn.classList.add('loading');
                 showStatus('step-status', 'Executing protocol step...', 'info');
                 console.log('--- Starting protocol step ---');
-
+                
                 const result = await trustee.step();
                 const state = await trustee.get_state();
-
+                
                 updateState(state);
                 await updateBoardContents();
-
+                await updateStorageInfo();
+                
                 // Display actions or message counts
                 let action;
                 if (result.actions && result.actions.length > 0) {
@@ -761,14 +766,14 @@ SPDX-License-Identifier: AGPL-3.0-only
                     action = 'Idle';
                 }
                 document.getElementById('last-step-result').textContent = action;
-
+                
                 // Add to action history (skip idle actions)
                 if (action !== 'Idle') {
                     addActionToHistory(action, { added: result.added || 0, posted: result.posted || 0 });
                 }
-
-                showStatus('step-status',
-                    `Step complete: ${result.added || 0} added, ${result.posted || 0} posted`,
+                
+                showStatus('step-status', 
+                    `Step complete: ${result.added || 0} added, ${result.posted || 0} posted`, 
                     'success');
                 console.log('Step result:', result);
             } catch (err) {
@@ -787,7 +792,7 @@ SPDX-License-Identifier: AGPL-3.0-only
         document.getElementById('auto-btn').addEventListener('click', async () => {
             const autoBtn = document.getElementById('auto-btn');
             const stepBtn = document.getElementById('step-btn');
-
+            
             if (!isAutoRunning) {
                 // Start auto-run
                 isAutoRunning = true;
@@ -795,20 +800,21 @@ SPDX-License-Identifier: AGPL-3.0-only
                 autoBtn.classList.remove('secondary');
                 autoBtn.classList.add('danger');
                 stepBtn.disabled = true;
-
+                
                 console.log('Starting auto-execution (1 step per second)');
-
+                
                 const runStep = async () => {
                     if (!isAutoRunning) return;
-
+                    
                     try {
                         showStatus('step-status', 'Auto-executing protocol step...', 'info');
                         const result = await trustee.step();
                         const state = await trustee.get_state();
-
+                        
                         updateState(state);
                         await updateBoardContents();
-
+                        await updateStorageInfo();
+                        
                         // Display actions or message counts
                         let action;
                         if (result.actions && result.actions.length > 0) {
@@ -819,25 +825,25 @@ SPDX-License-Identifier: AGPL-3.0-only
                             action = 'Idle';
                         }
                         document.getElementById('last-step-result').textContent = action;
-
+                        
                         // Add to action history (skip idle actions)
                         if (action !== 'Idle') {
                             addActionToHistory(action, { added: result.added || 0, posted: result.posted || 0 });
                         }
-
-                        showStatus('step-status',
-                            `Auto step: ${result.added || 0} added, ${result.posted || 0} posted`,
+                        
+                        showStatus('step-status', 
+                            `Auto step: ${result.added || 0} added, ${result.posted || 0} posted`, 
                             'success');
                     } catch (err) {
                         showStatus('step-status', `Auto step error: ${err}`, 'error');
                         console.error('Auto step error:', err);
                     }
-
+                    
                     if (isAutoRunning) {
                         setTimeout(runStep, 1000);
                     }
                 };
-
+                
                 runStep();
             } else {
                 // Stop auto-run
@@ -855,7 +861,7 @@ SPDX-License-Identifier: AGPL-3.0-only
         document.getElementById('clear-console-btn').addEventListener('click', () => {
             consoleEl.innerHTML = '';
         });
-
+        
         // Clear action history
         document.getElementById('clear-history-btn').addEventListener('click', () => {
             actionHistory = [];
@@ -863,9 +869,92 @@ SPDX-License-Identifier: AGPL-3.0-only
             console.log('Action history cleared');
         });
 
+        // Refresh storage info
+        document.getElementById('refresh-storage-btn').addEventListener('click', async () => {
+            await updateStorageInfo();
+            console.log('Storage info refreshed');
+        });
+
+        // Verify board
+        document.getElementById('verify-board-btn').addEventListener('click', async () => {
+            const btn = document.getElementById('verify-board-btn');
+            const statusEl = document.getElementById('verify-status');
+            const resultsDetailsEl = document.getElementById('verify-results-details');
+            const resultsEl = document.getElementById('verify-results');
+            const b4Url = document.getElementById('verifier-b4-url').value.trim();
+            const boardName = document.getElementById('verifier-board').value.trim();
+
+            if (!boardName) {
+                showStatusInEl(statusEl, 'Please enter a board name', 'error');
+                return;
+            }
+
+            btn.disabled = true;
+            btn.classList.add('loading');
+            showStatusInEl(statusEl, `Verifying board "${boardName}"...`, 'info');
+            resultsDetailsEl.classList.add('hidden');
+
+            try {
+                console.log(`Starting verification of board "${boardName}" from ${b4Url}`);
+                
+                // Create verifier instance
+                const verifier = new WasmVerifier(b4Url);
+                
+                // Run verification
+                const result = await verifier.verify_board(boardName);
+                
+                console.log('Verification result:', result);
+                
+                // Display results
+                const resultData = JSON.parse(result);
+                const isValid = resultData.valid || false;
+                const checks = resultData.checks || [];
+                
+                if (isValid) {
+                    showStatusInEl(statusEl, `✅ Board "${boardName}" verified successfully`, 'success');
+                } else {
+                    showStatusInEl(statusEl, `❌ Verification failed for board "${boardName}"`, 'error');
+                }
+                
+                // Display individual check results
+                let html = '<div style="padding: 8px 0;">';
+                html += `<div style="margin-bottom: 8px; font-weight: 600; color: ${isValid ? '#27ae60' : '#e74c3c'};">`;
+                html += `Overall: ${isValid ? 'VALID ✅' : 'INVALID ❌'}</div>`;
+                
+                if (checks.length > 0) {
+                    html += '<div style="border-top: 1px solid #ecf0f1; padding-top: 8px;">';
+                    checks.forEach(check => {
+                        const status = check.passed ? '✅' : '❌';
+                        const color = check.passed ? '#27ae60' : '#e74c3c';
+                        html += `<div style="padding: 4px 0; color: ${color};">${status} ${check.name}</div>`;
+                    });
+                    html += '</div>';
+                } else {
+                    html += '<div style="color: #7f8c8d; font-style: italic;">No detailed checks available</div>';
+                }
+                
+                html += '</div>';
+                resultsEl.innerHTML = html;
+                resultsDetailsEl.classList.remove('hidden');
+                resultsDetailsEl.setAttribute('open', '');
+                
+            } catch (error) {
+                console.error('Verification error:', error);
+                showStatusInEl(statusEl, `Error: ${error.message || error}`, 'error');
+                resultsDetailsEl.classList.add('hidden');
+            } finally {
+                btn.disabled = false;
+                btn.classList.remove('loading');
+            }
+        });
+
+        // Helper function for showing status in any element
+        function showStatusInEl(el, message, type) {
+            el.innerHTML = `<div class="status ${type}">${message}</div>`;
+        }
+
         // Initialize on load
         initializeWasm();
     </script>
 </body>
-
 </html>

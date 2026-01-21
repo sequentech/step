@@ -2,7 +2,7 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-only
 [workspace]
-members = ["crates/b4", "crates/braid-wasm", "crates/braid", "crates/strand"]
+members = ["crates/b4", "crates/braid", "crates/strand", "crates/cryptography"]
 resolver = "2"
 
 [workspace.dependencies]

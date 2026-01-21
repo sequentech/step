@@ -128,10 +128,24 @@ pub struct GetMessageResponse {
     pub download_url: Option<String>,
 }
 
-/// Response from listing messages
+/// Response from listing messages (metadata only)
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ListMessagesResponse {
     pub messages: Vec<Message>,
+}
+
+/// Message with pre-signed download URL for S3 content
+#[derive(Debug, Serialize, Deserialize)]
+pub struct MessageWithUrl {
+    #[serde(flatten)]
+    pub message: Message,
+    pub download_url: Option<String>,
+}
+
+/// Response from getting messages (includes download URLs for immediate use)
+#[derive(Debug, Serialize, Deserialize)]
+pub struct GetMessagesResponse {
+    pub messages: Vec<MessageWithUrl>,
 }
 
 // ============================================================================
@@ -152,11 +166,11 @@ pub struct GetMessagesMultiRequest {
     pub requests: Vec<BoardMessageRequest>,
 }
 
-/// Response with messages from a single board
+/// Response with messages from a single board (includes download URLs)
 #[derive(Debug, Serialize, Deserialize)]
 pub struct BoardMessagesResponse {
     pub board: String,
-    pub messages: Vec<Message>,
+    pub messages: Vec<MessageWithUrl>,
 }
 
 /// Response with messages from multiple boards

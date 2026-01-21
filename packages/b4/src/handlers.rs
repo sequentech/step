@@ -9,17 +9,16 @@ use crate::api_types::{
     InitiateMessageResponse, InitiateMessagesMultiRequest, InitiateMessagesMultiResponse,
     ListMessagesResponse, Message, MAX_INLINE_MESSAGE_SIZE,
 };
-use crate::{db, state::AppState};
 use axum::{
     extract::{Path, Query, State},
     http::StatusCode,
     Json,
 };
 use chrono::Utc;
-use sequent_core::services::s3::get_private_bucket;
 use serde::{Deserialize, Serialize};
-use tracing::info;
 use uuid::Uuid;
+
+use crate::{db, s3, state::AppState};
 
 #[derive(Debug, Serialize)]
 pub struct BoardResponse {
@@ -82,7 +81,6 @@ pub async fn get_board(
 pub async fn list_boards(
     State(state): State<AppState>,
 ) -> Result<Json<BoardsListResponse>, StatusCode> {
-    info!("list_boards");
     let boards = db::list_boards(&state.db).await.map_err(|e| {
         tracing::error!("Failed to list boards: {}", e);
         StatusCode::INTERNAL_SERVER_ERROR
@@ -124,26 +122,17 @@ pub async fn initiate_message(
         // Large message - generate S3 upload URL
         let s3_key = format!("{}/messages/{}", board_name, message_id);
 
-        let s3_bucket = get_private_bucket().map_err(|e| {
-            tracing::error!("Failed to check private bucket: {}", e);
-            StatusCode::INTERNAL_SERVER_ERROR
-        })?;
-
         tracing::debug!(
             "[S3] Generating upload URL for s3://{}/{}",
-            s3_bucket,
+            state.bucket_name,
             s3_key
         );
-
-        let upload_url = sequent_core::services::s3::get_upload_url(
-            s3_key, true,  // is_public
-            false, // is_local
-        )
-        .await
-        .map_err(|e| {
-            tracing::error!("[S3] Failed to generate upload URL: {}", e);
-            StatusCode::INTERNAL_SERVER_ERROR
-        })?;
+        let upload_url = s3::generate_upload_url(&state.s3_client, &state.bucket_name, &s3_key)
+            .await
+            .map_err(|e| {
+                tracing::error!("[S3] Failed to generate upload URL: {}", e);
+                StatusCode::INTERNAL_SERVER_ERROR
+            })?;
         tracing::debug!(
             "[S3] Generated upload URL for board '{}' message {}",
             board_name,
@@ -216,21 +205,25 @@ pub async fn confirm_message(
         )
         .await
         .map_err(|e| {
-            tracing::error!("Failed to insert message: {:?}", e);
+            tracing::error!("Failed to insert message: {}", e);
             StatusCode::INTERNAL_SERVER_ERROR
         })?;
     } else {
         // S3 message - verify upload and get size
         let s3_key = format!("{}/messages/{}", board_name, id);
-        let s3_bucket = get_private_bucket().map_err(|e| {
-            tracing::error!("Failed to check private bucket: {}", e);
-            StatusCode::INTERNAL_SERVER_ERROR
-        })?;
 
         // Get object metadata from S3 to determine size
-        tracing::debug!("[S3] HEAD s3://{}/{}", s3_bucket, s3_key);
-        let size = match sequent_core::services::s3::get_object_size(&s3_bucket, &s3_key).await {
-            Ok(size) => {
+        tracing::debug!("[S3] HEAD s3://{}/{}", state.bucket_name, s3_key);
+        let size = match state
+            .s3_client
+            .head_object()
+            .bucket(&state.bucket_name)
+            .key(&s3_key)
+            .send()
+            .await
+        {
+            Ok(output) => {
+                let size = output.content_length().unwrap_or(0) as usize;
                 tracing::debug!("[S3] Object found: {} bytes", size);
                 size
             }
@@ -269,7 +262,7 @@ pub async fn confirm_message(
         )
         .await
         .map_err(|e| {
-            tracing::error!("Failed to insert message: {:?}", e);
+            tracing::error!("Failed to insert message: {}", e);
             StatusCode::INTERNAL_SERVER_ERROR
         })?;
     }
@@ -296,17 +289,13 @@ pub async fn get_message(
 
     let download_url = match &message.content_type {
         ContentType::S3 { key } => {
-            let s3_bucket = get_private_bucket().map_err(|e| {
-                tracing::error!("Failed to check private bucket: {}", e);
-                StatusCode::INTERNAL_SERVER_ERROR
-            })?;
             tracing::debug!(
                 "[S3] Generating download URL for s3://{}/{}",
-                s3_bucket,
+                state.bucket_name,
                 key
             );
             Some(
-                sequent_core::services::s3::get_document_url(key.clone(), s3_bucket)
+                s3::generate_download_url(&state.s3_client, &state.bucket_name, key)
                     .await
                     .map_err(|e| {
                         tracing::error!("[S3] Failed to generate download URL: {}", e);
@@ -339,6 +328,14 @@ pub async fn list_messages(
                 StatusCode::INTERNAL_SERVER_ERROR
             })?;
 
+        if messages.is_empty() {
+            tracing::warn!(
+                "Found 0 messages for list_messages request on board '{}' with last_id {}",
+                board_name,
+                last_id
+            );
+        }
+
         // TODO: Return truncated flag in response for pagination
         Ok(Json(ListMessagesResponse { messages }))
     } else {
@@ -354,10 +351,85 @@ pub async fn list_messages(
     }
 }
 
+pub async fn get_messages(
+    State(state): State<AppState>,
+    Path(board_name): Path<String>,
+    Query(query): Query<GetMessagesQuery>,
+) -> Result<Json<crate::api_types::GetMessagesResponse>, StatusCode> {
+    use crate::api_types::{GetMessagesResponse, MessageWithUrl};
+
+    // Get messages using same logic as list_messages
+    let messages = if let Some(last_id) = query.last_id {
+        let limit = query.limit.unwrap_or(100).min(1000);
+
+        let (msgs, _truncated) = db::get_messages_after(&state.db, &board_name, last_id, limit)
+            .await
+            .map_err(|e| {
+                tracing::error!("Failed to get messages after ID: {}", e);
+                StatusCode::INTERNAL_SERVER_ERROR
+            })?;
+
+        if msgs.is_empty() {
+            tracing::warn!(
+                "Found 0 messages for get_messages request on board '{}' with last_id {}",
+                board_name,
+                last_id
+            );
+        }
+
+        msgs
+    } else {
+        db::list_messages(&state.db, &board_name)
+            .await
+            .map_err(|e| {
+                tracing::error!("Failed to list messages: {}", e);
+                StatusCode::INTERNAL_SERVER_ERROR
+            })?
+    };
+
+    // Generate download URLs for S3 messages
+    let mut enriched_messages = Vec::new();
+    for msg in messages {
+        let download_url = match &msg.content_type {
+            ContentType::S3 { key } => {
+                tracing::debug!(
+                    "[S3] Generating download URL for s3://{}/{}",
+                    state.bucket_name,
+                    key
+                );
+                Some(
+                    s3::generate_download_url(&state.s3_client, &state.bucket_name, key)
+                        .await
+                        .map_err(|e| {
+                            tracing::error!("[S3] Failed to generate download URL: {}", e);
+                            StatusCode::INTERNAL_SERVER_ERROR
+                        })?,
+                )
+            }
+            ContentType::Inline { .. } => None,
+        };
+
+        enriched_messages.push(MessageWithUrl {
+            message: msg,
+            download_url,
+        });
+    }
+
+    tracing::debug!(
+        "get_messages: returning {} messages with download URLs",
+        enriched_messages.len()
+    );
+    Ok(Json(GetMessagesResponse {
+        messages: enriched_messages,
+    }))
+}
+
 pub async fn get_messages_multi(
     State(state): State<AppState>,
     Json(req): Json<GetMessagesMultiRequest>,
 ) -> Result<Json<GetMessagesMultiResponse>, StatusCode> {
+    use crate::api_types::MessageWithUrl;
+
     tracing::info!(
         "[MULTI-GET] {} boards in single request",
         req.requests.len()
@@ -381,12 +453,40 @@ pub async fn get_messages_multi(
                     StatusCode::INTERNAL_SERVER_ERROR
                 })?;
 
+        // Generate download URLs for S3 messages
+        let mut enriched_messages = Vec::new();
+        for msg in messages {
+            let download_url = match &msg.content_type {
+                ContentType::S3 { key } => {
+                    tracing::debug!(
+                        "[S3] Generating download URL for s3://{}/{}",
+                        state.bucket_name,
+                        key
+                    );
+                    Some(
+                        s3::generate_download_url(&state.s3_client, &state.bucket_name, key)
+                            .await
+                            .map_err(|e| {
+                                tracing::error!("[S3] Failed to generate download URL: {}", e);
+                                StatusCode::INTERNAL_SERVER_ERROR
+                            })?,
+                    )
+                }
+                ContentType::Inline { .. } => None,
+            };
+
+            enriched_messages.push(MessageWithUrl {
+                message: msg,
+                download_url,
+            });
+        }
+
         tracing::info!(
             "  -> Board '{}': last_id={}, limit={}, returned={} messages{}",
             board_req.board,
             last_id,
             limit,
-            messages.len(),
+            enriched_messages.len(),
             if has_more {
                 " (paginated, more available)"
             } else {
@@ -396,7 +496,7 @@ pub async fn get_messages_multi(
 
         boards.push(BoardMessagesResponse {
             board: board_req.board,
-            messages,
+            messages: enriched_messages,
         });
     }
 
@@ -438,29 +538,23 @@ pub async fn initiate_messages_multi(
             if size > MAX_INLINE_MESSAGE_SIZE {
                 // Large message - generate S3 upload URL
                 let s3_key = format!("{}/messages/{}", board_name, message_id);
-                let s3_bucket = get_private_bucket().map_err(|e| {
-                    tracing::error!("Failed to check private bucket: {}", e);
-                    StatusCode::INTERNAL_SERVER_ERROR
-                })?;
 
                 tracing::debug!(
                     "[S3] Generating upload URL for s3://{}/{}",
-                    s3_bucket,
+                    state.bucket_name,
                     s3_key
                 );
-                let upload_url = sequent_core::services::s3::get_upload_url(
-                    s3_key, false, //is_public
-                    false, //is_local
-                )
-                .await
-                .map_err(|e| {
-                    tracing::error!(
-                        "[S3] Failed to generate upload URL for board '{}': {}",
-                        board_name,
-                        e
-                    );
-                    StatusCode::INTERNAL_SERVER_ERROR
-                })?;
+                let upload_url =
+                    s3::generate_upload_url(&state.s3_client, &state.bucket_name, &s3_key)
+                        .await
+                        .map_err(|e| {
+                            tracing::error!(
+                                "[S3] Failed to generate upload URL for board '{}': {}",
+                                board_name,
+                                e
+                            );
+                            StatusCode::INTERNAL_SERVER_ERROR
+                        })?;
                 tracing::debug!("[S3] Generated upload URL for board '{}'", board_name);
 
                 uploads.push(MessageUploadInfo {
@@ -607,33 +701,43 @@ pub async fn confirm_messages_multi(
                 // S3 message - download to extract metadata
                 s3_count += 1;
                 let s3_key = format!("{}/messages/{}", board_name, message_id);
-                let s3_bucket = get_private_bucket().map_err(|e| {
-                    tracing::error!("Failed to check private bucket: {}", e);
-                    StatusCode::INTERNAL_SERVER_ERROR
-                })?;
 
                 // Download message from S3 to extract metadata
                 tracing::debug!(
                     "[S3] GET s3://{}/{} (multi-board confirm)",
-                    s3_bucket,
+                    state.bucket_name,
                     s3_key
                 );
-                let data =
-                    sequent_core::services::s3::get_file_from_s3(s3_bucket.clone(), s3_key.clone())
-                        .await
-                        .map_err(|e| {
-                            tracing::error!(
-                                "[S3] Failed to GET object for board '{}': {}",
-                                board_name,
-                                e
-                            );
-                            StatusCode::BAD_REQUEST
-                        })?;
+                let obj = state
+                    .s3_client
+                    .get_object()
+                    .bucket(&state.bucket_name)
+                    .key(&s3_key)
+                    .send()
+                    .await
+                    .map_err(|e| {
+                        tracing::error!(
+                            "[S3] Failed to GET object for board '{}': {}",
+                            board_name,
+                            e
+                        );
+                        StatusCode::BAD_REQUEST
+                    })?;
+
+                let bytes = obj.body.collect().await.map_err(|e| {
+                    tracing::error!(
+                        "[S3] Failed to read object body for board '{}': {}",
+                        board_name,
+                        e
+                    );
+                    StatusCode::INTERNAL_SERVER_ERROR
+                })?;
+                let data = bytes.to_vec();
                 let size = data.len();
                 tracing::debug!(
                     "[S3] Downloaded {} bytes from s3://{}/{}",
                     size,
-                    s3_bucket,
+                    state.bucket_name,
                     s3_key
                 );
 

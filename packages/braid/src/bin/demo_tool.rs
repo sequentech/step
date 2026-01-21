@@ -11,6 +11,7 @@ use std::fs::File;
 use std::io::Write;
 use std::marker::PhantomData;
 use std::path::Path;
+use std::path::PathBuf;
 use tokio_postgres::NoTls;
 use tracing::{info, instrument};
 
@@ -199,7 +200,7 @@ enum Command {
 #[instrument]
 async fn main() -> Result<()> {
     let ctx = RistrettoCtx;
-    braid::util::init_log(true);
+    braid::native::logging::init_log(true);
     let args = Cli::parse();
 
     match &args.command {
@@ -306,14 +307,14 @@ async fn main() -> Result<()> {
 ///    |
 ///   └ trustee.toml
 fn gen_configs<C: Ctx>(n_trustees: usize, threshold: usize) -> Result<()> {
-    let pmkey: StrandSignatureSk = StrandSignatureSk::gen()?;
+    let pmkey: StrandSignatureSk = StrandSignatureSk::generate()?;
     let pm: ProtocolManager<C> = ProtocolManager {
         signing_key: pmkey,
         phantom: PhantomData,
     };
     let (trustees, trustee_pks): (Vec<TrusteeConfig>, Vec<StrandSignaturePk>) = (0..n_trustees)
         .map(|_| {
-            let sk = StrandSignatureSk::gen().unwrap();
+            let sk = StrandSignatureSk::generate().unwrap();
             let pk = StrandSignaturePk::from_sk(&sk).unwrap();
             let encryption_key: symm::SymmetricKey = symm::gen_key();
             let tc = TrusteeConfig::new_from_objects(sk, encryption_key);
@@ -814,5 +815,34 @@ async fn create_board(pool: &DbPool, name: &str) -> Result<()> {
     )
     .await?;
     info!("Created board: {}", name);
+    Ok(())
+}
+
+/// Drops the entire database file.
+#[instrument()]
+async fn drop_database(database_url: &Option<String>) -> Result<()> {
+    let db_path = database_url
+        .clone()
+        .or_else(|| env::var("DATABASE_URL").ok())
+        .unwrap_or_else(|| {
+            let mut path = env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
+            path.push("b4.db");
+            path.display().to_string()
+        });
+
+    // Remove sqlite: prefix if present
+    let file_path = db_path
+        .trim_start_matches("sqlite:")
+        .split('?')
+        .next()
+        .unwrap();
+
+    if Path::new(file_path).exists() {
+        fs::remove_file(file_path)?;
+        info!("Dropped database: {}", file_path);
+    } else {
+        info!("Database file not found: {}", file_path);
+    }
+
     Ok(())
 }

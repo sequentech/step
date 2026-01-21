@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
+// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
@@ -10,6 +10,8 @@ use tracing::info;
 use b4::messages::message::Message;
 use b4::HttpB3Message;
 use strand::serialization::StrandSerialize;
+
+use crate::protocol::board::{Board, BoardFactory, BoardFactoryMulti, BoardMulti};
 
 #[derive(Debug, Serialize)]
 struct InitiateMessageRequest {
@@ -42,27 +44,35 @@ struct ConfirmMessageResponse {
 }
 
 #[derive(Debug, Deserialize)]
-struct ListMessagesResponse {
-    messages: Vec<MessageRow>,
+struct GetMessagesResponse {
+    messages: Vec<MessageWithUrl>,
 }
 
 #[derive(Debug, Deserialize)]
-struct MessageRow {
+struct MessageWithUrl {
     id: String,
+    #[allow(dead_code)]
     timestamp: i64,
+    #[allow(dead_code)]
     size: usize,
     content_type: ContentTypeDto,
     sender_pk: String,
     statement_kind: String,
     batch: i32,
     mix_number: i32,
+    download_url: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
 #[serde(untagged)]
 enum ContentTypeDto {
-    Inline { message: String }, // base64 encoded
-    S3 { key: String },
+    Inline {
+        message: String,
+    }, // base64 encoded
+    S3 {
+        #[allow(dead_code)]
+        key: String,
+    },
 }
 
 /// HTTP client for bulletin board using Service API
@@ -81,45 +91,6 @@ impl HttpB3 {
             s3_client,
             bucket_name: bucket_name.to_string(),
         }
-    }
-
-    /// Helper to process message rows from list response
-    async fn process_message_rows(&self, rows: Vec<MessageRow>) -> Result<Vec<HttpB3Message>> {
-        let mut result = Vec::new();
-
-        for msg_row in rows {
-            let message_bytes = match msg_row.content_type {
-                ContentTypeDto::Inline { message } => {
-                    base64::prelude::Engine::decode(&base64::prelude::BASE64_STANDARD, message)?
-                }
-                ContentTypeDto::S3 { key } => {
-                    let obj = self
-                        .s3_client
-                        .get_object()
-                        .bucket(&self.bucket_name)
-                        .key(&key)
-                        .send()
-                        .await?;
-
-                    let bytes = obj.body.collect().await?;
-                    bytes.to_vec()
-                }
-            };
-
-            let id: i64 = msg_row.id.parse()?;
-
-            result.push(HttpB3Message::new(
-                id,
-                message_bytes,
-                "1".to_string(),
-                msg_row.sender_pk,
-                msg_row.statement_kind,
-                msg_row.batch,
-                msg_row.mix_number,
-            ));
-        }
-
-        Ok(result)
     }
 
     /// Helper to post a single message to a specific board
@@ -242,7 +213,7 @@ impl HttpB3 {
     }
 }
 
-impl super::Board for HttpB3 {
+impl Board for HttpB3 {
     type Factory = HttpB3BoardParams;
 
     async fn get_messages(&mut self, board: &str, last_id: i64) -> Result<Vec<HttpB3Message>> {
@@ -257,41 +228,48 @@ impl super::Board for HttpB3 {
             anyhow::bail!("Failed to get messages: HTTP {}", response.status());
         }
 
-        let list_response: ListMessagesResponse = response.json().await?;
+        let get_response: GetMessagesResponse = response.json().await?;
 
         let mut result = Vec::new();
 
-        for msg_row in list_response.messages {
-            let message_bytes = match msg_row.content_type {
+        // NOTE: POTENTIAL OPTIMIZATION
+        // S3 downloads are currently sequential. For better performance with many messages,
+        // these could be parallelized using futures::join_all or similar techniques.
+        // With pre-signed URLs already available, there's no dependency between downloads.
+
+        for msg in get_response.messages {
+            let message_bytes = match msg.content_type {
                 ContentTypeDto::Inline { message } => {
                     // Decode base64
                     base64::prelude::Engine::decode(&base64::prelude::BASE64_STANDARD, message)?
                 }
-                ContentTypeDto::S3 { key } => {
-                    // Download from S3
-                    let obj = self
-                        .s3_client
-                        .get_object()
-                        .bucket(&self.bucket_name)
-                        .key(&key)
-                        .send()
-                        .await?;
+                ContentTypeDto::S3 { key: _ } => {
+                    // Use pre-signed download URL from response
+                    let download_url = msg
+                        .download_url
+                        .ok_or_else(|| anyhow::anyhow!("S3 message missing download_url"))?;
 
-                    let bytes = obj.body.collect().await?;
-                    bytes.to_vec()
+                    // Download from S3 using pre-signed URL
+                    let s3_response = self.client.get(&download_url).send().await?;
+
+                    if !s3_response.status().is_success() {
+                        anyhow::bail!("Failed to download from S3: HTTP {}", s3_response.status());
+                    }
+
+                    s3_response.bytes().await?.to_vec()
                 }
             };
 
-            let id: i64 = msg_row.id.parse()?;
+            let id: i64 = msg.id.parse()?;
 
             result.push(HttpB3Message::new(
                 id,
                 message_bytes,
                 "1".to_string(),
-                msg_row.sender_pk,
-                msg_row.statement_kind,
-                msg_row.batch,
-                msg_row.mix_number,
+                msg.sender_pk,
+                msg.statement_kind,
+                msg.batch,
+                msg.mix_number,
             ));
         }
 
@@ -346,7 +324,7 @@ impl HttpB3BoardParams {
     }
 
     /// Create a board client for a specific board (helper for testing)
-    pub fn create_board(&self, board_name: &str, store_root: Option<PathBuf>) -> HttpB3 {
+    pub fn create_board(&self, _board_name: &str, _store_root: Option<PathBuf>) -> HttpB3 {
         HttpB3 {
             client: reqwest::Client::new(),
             base_url: self.base_url.clone(),
@@ -356,7 +334,7 @@ impl HttpB3BoardParams {
     }
 }
 
-impl super::BoardFactory<HttpB3> for HttpB3BoardParams {
+impl BoardFactory<HttpB3> for HttpB3BoardParams {
     fn get_board(&self) -> HttpB3 {
         // Board name will be set when used with Session
         HttpB3 {
@@ -368,7 +346,7 @@ impl super::BoardFactory<HttpB3> for HttpB3BoardParams {
     }
 }
 
-impl super::BoardFactoryMulti<HttpB3> for HttpB3BoardParams {
+impl BoardFactoryMulti<HttpB3> for HttpB3BoardParams {
     fn get_board(&self) -> HttpB3 {
         HttpB3 {
             client: reqwest::Client::new(),
@@ -379,7 +357,7 @@ impl super::BoardFactoryMulti<HttpB3> for HttpB3BoardParams {
     }
 }
 
-impl super::BoardMulti for HttpB3 {
+impl BoardMulti for HttpB3 {
     type Factory = HttpB3BoardParams;
 
     async fn get_messages_multi(
@@ -423,34 +401,39 @@ impl super::BoardMulti for HttpB3 {
         for board_resp in multi_response.boards {
             let mut http_messages = Vec::new();
 
-            for msg in board_resp.messages {
-                let message_bytes = match msg.content_type {
+            for msg_with_url in board_resp.messages {
+                let message_bytes = match msg_with_url.message.content_type {
                     b4::api_types::ContentType::Inline { data } => data,
-                    b4::api_types::ContentType::S3 { key } => {
-                        // Download from S3
-                        let obj = self
-                            .s3_client
-                            .get_object()
-                            .bucket(&self.bucket_name)
-                            .key(&key)
-                            .send()
-                            .await?;
+                    b4::api_types::ContentType::S3 { key: _ } => {
+                        // Use pre-signed download URL from response
+                        let download_url = msg_with_url
+                            .download_url
+                            .ok_or_else(|| anyhow::anyhow!("S3 message missing download_url"))?;
 
-                        let bytes = obj.body.collect().await?;
-                        bytes.to_vec()
+                        // Download from S3 using pre-signed URL
+                        let s3_response = self.client.get(&download_url).send().await?;
+
+                        if !s3_response.status().is_success() {
+                            anyhow::bail!(
+                                "Failed to download from S3: HTTP {}",
+                                s3_response.status()
+                            );
+                        }
+
+                        s3_response.bytes().await?.to_vec()
                     }
                 };
 
-                let id: i64 = msg.id.parse()?;
+                let id: i64 = msg_with_url.message.id.parse()?;
 
                 http_messages.push(HttpB3Message::new(
                     id,
                     message_bytes,
                     "1".to_string(),
-                    msg.sender_pk,
-                    msg.statement_kind,
-                    msg.batch,
-                    msg.mix_number,
+                    msg_with_url.message.sender_pk,
+                    msg_with_url.message.statement_kind,
+                    msg_with_url.message.batch,
+                    msg_with_url.message.mix_number,
                 ));
             }
 
