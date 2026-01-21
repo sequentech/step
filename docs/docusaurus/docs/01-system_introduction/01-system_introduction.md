@@ -43,7 +43,6 @@ Check out the [latest release notes](../08-releases/01-release-next/release-next
 
 Choose your path based on your role:
 
-t push
 ### 🗳️ For Election Managers
 Learn how to create and manage elections:
 - [Setting Up Your First Election](../02-election_managers/)
@@ -67,3 +66,6 @@ Start building and contributing:
 - [GraphQL API Documentation](../07-developers/01-graphql-api.md)
 - [CLI Tool](../07-developers/02-cli/01-cli_cli.md)
 - [GitHub Repository](https://github.com/sequentech/step)
+
+### 🚀 For technical project/operation managers:
+- [Creating your own Standalone Sequent deployment](../10-try_it_out/01-full-standalone-deployment/README.md)
