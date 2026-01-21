@@ -24,7 +24,7 @@ members = [
     "orare/doc_renderer",
     "plugins/*",
     "wbraid",
-,]
+]
 
 [patch.crates-io]
 celery = { git = "https://github.com/Findeton/rusty-celery.git", rev = "b4145925aaaf742b7ba54499fff45313bcadfca1" }
