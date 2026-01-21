@@ -205,15 +205,15 @@ impl BoardClient {
             .to_where_clause();
         // Min and max clauses will go in the end of where_clause
         let (min_clause, min_clause_value) = if let Some(min_ts) = min_ts {
-            ("statement_timestamp >= @min_ts", min_ts)
+            ("statement_timestamp >= @min_ts", Some(min_ts))
         } else {
-            ("", 0)
+            ("", None)
         };
 
         let (max_clause, max_clause_value) = if let Some(max_ts) = max_ts {
-            ("statement_timestamp <= @max_ts", max_ts)
+            ("statement_timestamp <= @max_ts", Some(max_ts))
         } else {
-            ("", 0)
+            ("", None)
         };
 
         let order_by_clauses = if let Some(order_by) = order_by {
@@ -226,7 +226,7 @@ impl BoardClient {
             format!("ORDER BY id desc")
         };
 
-        if min_clause_value != 0 {
+        if let Some(min_clause_value) = min_clause_value {
             params.push(NamedParam {
                 name: String::from("min_ts"),
                 value: Some(SqlValue {
@@ -234,7 +234,7 @@ impl BoardClient {
                 }),
             })
         }
-        if max_clause_value != 0 {
+        if let Some(max_clause_value) = max_clause_value {
             params.push(NamedParam {
                 name: String::from("max_ts"),
                 value: Some(SqlValue {
@@ -910,11 +910,11 @@ pub(crate) mod tests {
         let cols_match = WhereClauseOrdMap::from(&[
             (
                 ElectoralLogVarCharColumn::StatementKind,
-                (SqlCompOperators::Equal, "".to_string()),
+                (SqlCompOperators::Equal("".to_string())),
             ),
             (
                 ElectoralLogVarCharColumn::SenderPk,
-                (SqlCompOperators::Equal, "".to_string()),
+                (SqlCompOperators::Equal("".to_string())),
             ),
         ]);
         let ret = b

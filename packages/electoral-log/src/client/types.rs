@@ -199,13 +199,35 @@ pub enum OrderDirection {
     Desc,
 }
 
+// Enumeration for the valid filter fields with min/max support for timestamps
+#[derive(Debug, Deserialize, Hash, PartialEq, Eq, EnumString, Display, Clone)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum FilterField {
+    Id,
+    CreatedMin,
+    CreatedMax,
+    StatementTimestampMin,
+    StatementTimestampMax,
+    StatementKind,
+    Message,
+    UserId,
+    Username,
+    BallotId,
+    SenderPk,
+    LogType,
+    EventType,
+    Description,
+    Version,
+}
+
 #[derive(Deserialize, Debug, Default, Clone)]
 pub struct GetElectoralLogBody {
     pub tenant_id: String,
     pub election_event_id: String,
     pub limit: Option<i64>,
     pub offset: Option<i64>,
-    pub filter: Option<HashMap<OrderField, String>>,
+    pub filter: Option<HashMap<FilterField, String>>,
     pub order_by: Option<HashMap<OrderField, OrderDirection>>,
     pub election_id: Option<String>,
     pub area_ids: Option<Vec<String>>,
@@ -221,14 +243,19 @@ impl GetElectoralLogBody {
         if let Some(filters_map) = &self.filter {
             for (field, value) in filters_map.iter() {
                 match field {
-                    OrderField::Created | OrderField::StatementTimestamp => {
+                    FilterField::CreatedMin | FilterField::StatementTimestampMin => {
                         let date_time_utc = DateTime::parse_from_rfc3339(&value)
                             .map_err(|err| anyhow!("Error parsing timestamp: {err:?}"))?;
                         let datetime = date_time_utc.with_timezone(&Utc);
                         let ts: i64 = datetime.timestamp();
-                        let ts_end: i64 = ts + 90_000; // Search along that day.
                         min_ts = Some(ts);
-                        max_ts = Some(ts_end);
+                    }
+                    FilterField::CreatedMax | FilterField::StatementTimestampMax => {
+                        let date_time_utc = DateTime::parse_from_rfc3339(&value)
+                            .map_err(|err| anyhow!("Error parsing timestamp: {err:?}"))?;
+                        let datetime = date_time_utc.with_timezone(&Utc);
+                        let ts: i64 = datetime.timestamp();
+                        max_ts = Some(ts);
                     }
                     _ => {}
                 }
@@ -244,15 +271,15 @@ impl GetElectoralLogBody {
         if let Some(filters_map) = &self.filter {
             for (field, value) in filters_map.iter() {
                 match field {
-                    OrderField::Id => {} // Why would someone filter the electoral log by id?
-                    OrderField::SenderPk | OrderField::Username | OrderField::BallotId | OrderField::StatementKind | OrderField::Version => { // sql VARCHAR type
+                    FilterField::Id => {} // Why would someone filter the electoral log by id?
+                    FilterField::SenderPk | FilterField::Username | FilterField::BallotId | FilterField::StatementKind | FilterField::Version => { // sql VARCHAR type
                         let variant = ElectoralLogVarCharColumn::from_str(field.to_string().as_str()).map_err(|_| anyhow!("Field not found"))?; 
                         cols_match_select.insert(
                             variant,
                             SqlCompOperators::Equal(value.clone()), // Using 'Like' here would not scale for millions of entries, causing no response from immudb is some cases.
                         );
                     }
-                    OrderField::UserId => {
+                    FilterField::UserId => {
                         // insert user_id_mod
                         cols_match_select.insert(
                             ElectoralLogVarCharColumn::UserIdKey,
@@ -264,9 +291,10 @@ impl GetElectoralLogBody {
                             SqlCompOperators::Equal(value.clone()),
                         );
                     }
-                    OrderField::StatementTimestamp | OrderField::Created => {} // handled by `get_min_max_ts`
-                    OrderField::EventType | OrderField::LogType | OrderField::Description // these have no column but are inside of Message
-                    | OrderField::Message => {} // Message column is sql BLOB type and it´s encrypted so we can't filter it without expensive operations
+                    FilterField::StatementTimestampMin | FilterField::StatementTimestampMax
+                    | FilterField::CreatedMin | FilterField::CreatedMax => {} // handled by `get_min_max_ts`
+                    FilterField::EventType | FilterField::LogType | FilterField::Description // these have no column but are inside of Message
+                    | FilterField::Message => {} // Message column is sql BLOB type and it´s encrypted so we can't filter it without expensive operations
                 }
             }
         }

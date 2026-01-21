@@ -67,8 +67,10 @@ export const customBuildQuery =
                 "election_event_id",
                 "user_id",
                 "username",
-                "created",
-                "statement_timestamp",
+                "created_min",
+                "created_max",
+                "statement_timestamp_min",
+                "statement_timestamp_max",
                 "statement_kind",
             ]
             Object.keys(params.filter).forEach((f) => {

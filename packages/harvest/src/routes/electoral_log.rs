@@ -39,8 +39,8 @@ pub async fn list_electoral_log(
     // inprove performance.
     if let Some(filter) = &mut input.filter {
         if let (Some(username), None) = (
-            filter.get(&OrderField::Username),
-            filter.get(&OrderField::UserId),
+            filter.get(&FilterField::Username),
+            filter.get(&FilterField::UserId),
         ) {
             match get_user_id(
                 &input.tenant_id,
@@ -50,7 +50,7 @@ pub async fn list_electoral_log(
             .await
             {
                 Ok(Some(user_id)) => {
-                    filter.insert(OrderField::UserId, user_id);
+                    filter.insert(FilterField::UserId, user_id);
                 }
                 Ok(None) => {
                     return Ok(Json(DataList::default()));

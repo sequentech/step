@@ -2090,7 +2090,17 @@
         "fields": null,
         "inputFields": [
           {
-            "name": "created",
+            "name": "created_max",
+            "description": null,
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
+            "name": "created_min",
             "description": null,
             "type": {
               "kind": "SCALAR",
@@ -2120,7 +2130,17 @@
             "defaultValue": null
           },
           {
-            "name": "statement_timestamp",
+            "name": "statement_timestamp_max",
+            "description": null,
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
+            "name": "statement_timestamp_min",
             "description": null,
             "type": {
               "kind": "SCALAR",
