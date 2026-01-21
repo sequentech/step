@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::{ballot::*, types::ceremonies::CountingAlgType};
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use std::convert::TryInto;
 
 pub trait BasesCodec {
@@ -24,7 +24,9 @@ impl BasesCodec for Contest {
             CountingAlgType::Cumulative => {
                 self.cumulative_number_of_checkboxes() + 1u64
             }
-            _ => (self.max_votes + 1i64).try_into().unwrap(),
+            _ => (self.max_votes + 1i64).try_into().map_err(|_e| {
+                anyhow!("Failed to convert {} to u64", self.max_votes + 1i64)
+            })?,
         };
 
         let num_valid_candidates: usize = self
