@@ -2,7 +2,7 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-only
 
-# Rust build artifacts - ALL target directories at any level
+# Rust build artifacts
 target/
 **/target/
 rust-local-target/
