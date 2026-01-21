@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2022 Felix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use serde::{Deserialize, Serialize};
@@ -115,10 +115,6 @@ pub enum Permissions {
     ADMIN_CEREMONY,
     #[strum(serialize = "admin-dashboard-view")]
     ADMIN_DASHBOARD_VIEW,
-    #[strum(serialize = "monitoring-dashboard-view-election-event")]
-    MONITORING_DASHBOARD_VIEW_ELECTION_EVENT,
-    #[strum(serialize = "monitoring-dashboard-view-election")]
-    MONITORING_DASHBOARD_VIEW_ELECTION,
     #[strum(serialize = "tally-sheet-view")]
     TALLY_SHEET_VIEW,
     #[strum(serialize = "tally-sheet-create")]
@@ -311,38 +307,10 @@ pub enum Permissions {
     REPORT_PREVIEW,
     #[strum(serialize = "transmission-report-generate")]
     TRANSMISSION_REPORT_GENERATE,
-    #[strum(serialize = "monitor-authenticated-voters")]
-    MONITOR_AUTHENTICATED_VOTERS,
-    #[strum(serialize = "monitor-all-approve-disapprove-voters")]
-    MONITOR_ALL_APPROVE_DISAPPROVE_VOTERS,
-    #[strum(serialize = "monitor-automatic-approve-disapprove-voters")]
-    MONITOR_AUTOMATIC_APPROVE_DISAPPROVE_VOTERS,
-    #[strum(serialize = "monitor-manually-approve-disapprove-voters")]
-    MONITOR_MANUALLY_APPROVE_DISAPPROVE_VOTERS,
-    #[strum(serialize = "monitor-enrolled-overseas-voters")]
-    MONITOR_ENROLLED_OVERSEAS_VOTERS,
-    #[strum(serialize = "monitor-posts-already-closed-voting")]
-    MONITOR_POSTS_ALREADY_CLOSED_VOTING,
-    #[strum(serialize = "monitor-posts-already-generated-election-results")]
-    MONITOR_POSTS_ALREADY_GENERATED_ELECTION_RESULTS,
-    #[strum(serialize = "monitor-posts-already-opened-voting")]
-    MONITOR_POSTS_ALREADY_OPENED_VOTING,
-    #[strum(serialize = "monitor-posts-already-started-counting-votes")]
-    MONITOR_POSTS_ALREADY_STARTED_COUNTING_VOTES,
-    #[strum(serialize = "monitor-posts-initialized-the-system")]
-    MONITOR_POSTS_INITIALIZED_THE_SYSTEM,
-    #[strum(serialize = "monitor-posts-started-voting")]
-    MONITOR_POSTS_STARTED_VOTING,
-    #[strum(serialize = "monitor-posts-transmitted-results")]
-    MONITOR_POSTS_TRANSMITTED_RESULTS,
-    #[strum(serialize = "monitor-voters-voted-test-election")]
-    MONITOR_VOTERS_VOTED_TEST_ELECTION,
     #[strum(serialize = "application-export")]
     APPLICATION_EXPORT,
     #[strum(serialize = "application-import")]
     APPLICATION_IMPORT,
-    #[strum(serialize = "monitor-voters-who-voted")]
-    MONITOR_VOTERS_WHO_VOTED,
     #[strum(serialize = "election-event-publish-preview")]
     EE_PUBLISH_PREVIEW,
     #[strum(serialize = "election-event-publish-back-button")]

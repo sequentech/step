@@ -1,5 +1,4 @@
-// SPDX-FileCopyrightText: 2023 Felix Robles <felix@sequentech.io>
-// SPDX-FileCopyrightText: 2024 Eduardo Robles <edu@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 #![recursion_limit = "256"]
@@ -11,6 +10,7 @@ use sequent_core::services::connection::LastDatafixAccessToken;
 use sequent_core::util::init_log::init_log;
 use windmill::services::{
     celery_app::set_is_app_active,
+    plugins_manager::plugin_manager::init_plugin_manager,
     probe::{setup_probe, AppName},
 };
 
@@ -25,6 +25,7 @@ async fn rocket() -> _ {
 
     setup_probe(AppName::HARVEST).await;
     set_is_app_active(true);
+    init_plugin_manager().await.unwrap();
 
     rocket::build()
         .register(
@@ -106,7 +107,6 @@ async fn rocket() -> _ {
                 routes::voting_status::update_event_status,
                 routes::voting_status::update_election_status,
                 routes::tally_ceremony::update_tally_ceremony,
-                routes::manual_verification_pdf::get_manual_verification_pdf,
                 routes::tally_sheets::publish_tally_sheet,
                 routes::create_ballot_receipt::create_ballot_receipt,
                 routes::election_dates::manage_election_dates,
@@ -125,12 +125,9 @@ async fn rocket() -> _ {
                 routes::reports::generate_template,
                 routes::reports::generate_report,
                 routes::reports::encrypt_report_route,
-                routes::reports::generate_transmission_report,
                 routes::templates::get_user_template,
                 routes::applications::verify_user_application,
                 routes::applications::change_application_status,
-                routes::election_event_monitoring::get_election_event_monitoring_f,
-                routes::election_monitoring::get_election_monitoring_f,
                 routes::export_application::export_application_route,
                 routes::import_application::import_application_route,
                 routes::trustees::export_trustees_route,
@@ -139,5 +136,6 @@ async fn rocket() -> _ {
                 routes::google_meet::generate_google_meeting,
             ],
         )
+        .mount("/", routes![routes::plugins::plugin_routes])
         .manage(LastDatafixAccessToken::init())
 }

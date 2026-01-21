@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
@@ -25,6 +25,9 @@ pub enum ETasksExecution {
     IMPORT_APPLICATION,
     EXPORT_TRUSTEES,
     RENDER_DOCUMENT_PDF,
+    CREATE_TENANT,
+    EXPORT_TEMPLATES,
+    IMPORT_TEMPLATES,
     DELETE_ELECTION_EVENT,
     PREPARE_PUBLICATION_PREVIEW,
     EXPORT_TALLY_RESULTS_XLSX,
@@ -52,6 +55,9 @@ impl ETasksExecution {
             ETasksExecution::IMPORT_APPLICATION => "Import Application",
             ETasksExecution::EXPORT_TRUSTEES => "Export Trustees",
             ETasksExecution::RENDER_DOCUMENT_PDF => "Render Document PDF",
+            ETasksExecution::CREATE_TENANT => "Create Tenant",
+            ETasksExecution::EXPORT_TEMPLATES => "Export Templates",
+            ETasksExecution::IMPORT_TEMPLATES => "Import Templates",
             ETasksExecution::DELETE_ELECTION_EVENT => "Delete Election Event",
             ETasksExecution::PREPARE_PUBLICATION_PREVIEW => "Prepare Publication Preview",
             ETasksExecution::EXPORT_TALLY_RESULTS_XLSX => "Export Tally Results To XLSX",

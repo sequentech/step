@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {createContext, useContext, useEffect, useState} from "react"
@@ -36,7 +36,7 @@ export const TenantContextProvider = (props: TenantContextProviderProps) => {
 
     const setTenantIdWrapper = (tenantId: string | null): void => {
         if (null === tenantId) {
-            localStorage.removeItem("selected-tenant-id")
+            // localStorage.removeItem("selected-tenant-id")
         } else {
             localStorage.setItem("selected-tenant-id", tenantId)
         }

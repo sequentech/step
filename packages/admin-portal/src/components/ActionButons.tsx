@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2024 Eduardo Robles <edu@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import {styled} from "@mui/material/styles"
@@ -52,7 +52,12 @@ export const ActionsColumn: React.FC<ActionsColumnProps> = (props) => {
                       <StyledIconButton
                           className={action.className ?? ""}
                           key={index}
-                          onClick={() => record && action.action(record?.id)}
+                          onClick={(event) => {
+                              event.stopPropagation()
+                              if (record) {
+                                  action.action(record.id)
+                              }
+                          }}
                       >
                           {action.icon}
                       </StyledIconButton>

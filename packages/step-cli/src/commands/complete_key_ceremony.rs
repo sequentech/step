@@ -1,11 +1,11 @@
-// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use clap::Args;
 
 use crate::utils::trustees::{
-    check_private_key::CheckPrivateKey, get_private_key::GetPrivateKey,
+    check_private_key::CheckPrivateKey, get_trustee_private_key::GetTrusteePrivateKey,
     store_private_key::download_private_key,
 };
 
@@ -41,7 +41,8 @@ pub fn complete_ceremony(
     election_event_id: &str,
     key_ceremony_id: &str,
 ) -> Result<String, Box<dyn std::error::Error>> {
-    let private_key = GetPrivateKey::get_trustee_private_key(&election_event_id, &key_ceremony_id)?;
+    let private_key =
+        GetTrusteePrivateKey::get_trustee_private_key(&election_event_id, &key_ceremony_id)?;
     let checked = CheckPrivateKey::check(&election_event_id, &key_ceremony_id, &private_key)?;
     if checked {
         let path = download_private_key(&election_event_id, &private_key)?;

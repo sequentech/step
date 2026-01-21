@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: 2025 Sequent Tech <legal@sequentech.io>
+# SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 #
 # SPDX-License-Identifier: AGPL-3.0-only
 
@@ -22,6 +22,7 @@ on:
     branches:
       - main
       - release/*
+      - feat/use-arc-runner-java-test
 
 permissions:
   contents: write
@@ -30,13 +31,11 @@ permissions:
 
 jobs:
   build:
-    runs-on:
-      - env=infra-euw1
-      - runs-on=${{ github.run_id }}
-      - runner=2cpu-linux-x64
-      - image=ubuntu24-full-x64
+    runs-on: gcp-selfhosted-ubuntu24
     steps:
       - uses: actions/checkout@v4
+        with:
+          clean: true
 
       - name: Set Node.js 22.x
         uses: actions/setup-node@v3
@@ -66,6 +65,9 @@ jobs:
           yarn generate-full-docs
           ls -lah docs/
           cp -r docs ../../docusaurus/build/graphql
+
+      - name: Install rsync
+        run: sudo apt-get update && sudo apt-get install -y rsync
 
       - name: Publish (PR)
         uses: rossjrw/pr-preview-action@v1

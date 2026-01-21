@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2023 Kevin Nguyen <kevin@sequentech.io>, Félix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::postgres::area::get_event_areas;
@@ -140,7 +140,37 @@ async fn generate_area_contests_mc(
                 Some(contest.id.clone())
             })
             .collect::<Vec<_>>();
-        for (i, contest_id) in contest_ids.iter().enumerate() {
+
+        // Extract plaintexts once per session/batch
+        let batch_num: i64 = session_election.session_id as i64;
+
+        // We wrap this in an Option. We will 'take' it for the first valid contest we find.
+        let mut pending_plaintexts: Option<Vec<<RistrettoCtx as Ctx>::P>> = relevant_plaintexts
+            .iter()
+            .find(|plaintexts_message| {
+                batch_num == plaintexts_message.statement.get_batch_number() as i64
+            })
+            .and_then(|plaintexts_message| {
+                plaintexts_message.artifact.clone().and_then(|artifact| {
+                    Plaintexts::<RistrettoCtx>::strand_deserialize(&artifact)
+                        .ok()
+                        .map(|plaintexts| plaintexts.0 .0)
+                })
+            });
+
+        if pending_plaintexts.is_none() {
+            event!(
+                Level::INFO,
+                "Expected: Plaintexts not found yet for session contest = {}, batch number = {}",
+                session_election.id,
+                batch_num
+            );
+            // Skips the whole batch if there are no plaintexts.
+            continue;
+        }
+
+        // Loop over contests
+        for contest_id in contest_ids.iter() {
             let area_id = session_election.area_id.clone();
             let election_id = session_election.election_id.clone();
 
@@ -169,29 +199,10 @@ async fn generate_area_contests_mc(
                 continue;
             };
 
-            let plaintexts = if 0 == i {
-                let batch_num: i64 = session_election.session_id as i64;
-                let Some(plaintexts) = relevant_plaintexts
-                    .iter()
-                    .find(|plaintexts_message| {
-                        batch_num == plaintexts_message.statement.get_batch_number() as i64
-                    })
-                    .map(|plaintexts_message| {
-                        plaintexts_message
-                            .artifact
-                            .clone()
-                            .map(|artifact| -> Option<Vec<<RistrettoCtx as Ctx>::P>> {
-                                Plaintexts::<RistrettoCtx>::strand_deserialize(&artifact)
-                                    .ok()
-                                    .map(|plaintexts| plaintexts.0 .0)
-                            })
-                            .flatten()
-                    })
-                    .flatten()
-                else {
-                    event!(Level::INFO, "Expected: Plaintexts not found yet for session contest = {}, batch number = {}", session_election.id, batch_num );
-                    continue;
-                };
+            // Assign plaintexts to the first VALID contest
+            // .take() returns the value inside the Option and replaces it with None.
+            // This ensures plaintexts are added exactly once, to the first contest that survives the checks above.
+            let plaintexts = if let Some(plaintexts) = pending_plaintexts.take() {
                 info!(
                     "Multi Contests: Adding {} plaintexts for area {} and election {}",
                     plaintexts.len(),
@@ -499,6 +510,11 @@ pub async fn upsert_ballots_messages(
         .clone()
         .unwrap_or_default()
         .get_contest_encryption_policy();
+    let delegated_voting_policy = tally_session_hasura
+        .configuration
+        .clone()
+        .unwrap_or_default()
+        .get_delegated_voting_policy();
     let expected_batch_ids: Vec<i64> = tally_session_contests
         .clone()
         .into_iter()
@@ -541,6 +557,7 @@ pub async fn upsert_ballots_messages(
             trustee_names,
             missing_ballots_batches.clone(),
             contest_encryption_policy,
+            delegated_voting_policy,
         )
         .await?
     } else {

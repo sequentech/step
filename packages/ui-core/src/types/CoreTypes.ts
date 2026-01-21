@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
@@ -8,6 +8,19 @@ import {IContestPresentation} from "./ContestPresentation"
 import {IAreaPresentation} from "./AreaPresentation"
 import {ICandidatePresentation} from "./CandidatePresentation"
 import {IElectionDates, IElectionPresentation} from "./ElectionPresentation"
+
+export enum ICountingAlgorithm {
+    PLURALITY_AT_LARGE = "plurality-at-large",
+    INSTANT_RUNOFF = "instant-runoff",
+    // // These variants below are present in the Rust enum, but not supported by velvet tally. It´s commented out to not show them in the UI till they are completely supported:
+    //     BORDA_NAURU = "borda-nauru",
+    //     BORDA = "borda",
+    //     BORDA_MAS_MADRID = "borda-mas-madrid",
+    //     PAIRWISE_BETA = "pairwise-beta",
+    //     DESBORDA3 = "desborda3",
+    //     DESBORDA2 = "desborda2",
+    //     DESBORDA = "desborda",
+}
 
 export enum EAllowTally {
     ALLOWED = "allowed",
@@ -89,7 +102,7 @@ export interface IContest {
     min_votes: number
     winning_candidates_num: number
     voting_type?: string
-    counting_algorithm?: string
+    counting_algorithm?: ICountingAlgorithm
     is_encrypted: boolean
     candidates: Array<ICandidate>
     presentation?: IContestPresentation

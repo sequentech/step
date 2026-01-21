@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
@@ -10,7 +10,6 @@ import {v4 as uuidv4} from "uuid"
 import {AuthContext} from "@/providers/AuthContextProvider"
 import ElectionHeader from "@/components/ElectionHeader"
 import DashboardElection from "@/components/dashboard/election/Dashboard"
-import MonitoringDashboardElection from "@/components/monitoring-dashboard/election/MonitoringDashboard"
 import {Sequent_Backend_Election} from "@/gql/graphql"
 import {Publish} from "../Publish/Publish"
 import {EditElectionData} from "./ElectionData"
@@ -30,12 +29,6 @@ import {Tabs} from "@/components/Tabs"
 const DashboardTab: React.FC = () => (
     <Suspense fallback={<div>Loading Dashboard...</div>}>
         <DashboardElection />
-    </Suspense>
-)
-
-const MonitoringTab: React.FC = () => (
-    <Suspense fallback={<div>Loading Monitoring...</div>}>
-        <MonitoringDashboardElection />
     </Suspense>
 )
 
@@ -101,12 +94,6 @@ export const ElectionTabs: React.FC = () => {
         IPermissions.ELECTION_DASHBOARD_TAB
     )
 
-    const showMonitoringDashboard = authContext.isAuthorized(
-        true,
-        authContext.tenantId,
-        IPermissions.MONITORING_DASHBOARD_VIEW_ELECTION
-    )
-
     const showData = authContext.isAuthorized(
         true,
         authContext.tenantId,
@@ -157,13 +144,6 @@ export const ElectionTabs: React.FC = () => {
             })
         }
 
-        if (showMonitoringDashboard) {
-            result.push({
-                label: t("electionScreen.tabs.monitoring"),
-                component: MonitoringTab,
-            })
-        }
-
         if (showData) {
             result.push({
                 label: t("electionScreen.tabs.data"),
@@ -196,15 +176,7 @@ export const ElectionTabs: React.FC = () => {
         }
 
         return result
-    }, [
-        showDashboard,
-        showMonitoringDashboard,
-        showData,
-        showVoters,
-        showPublish,
-        showApprovalsExecution,
-        t,
-    ])
+    }, [showDashboard, showData, showVoters, showPublish, showApprovalsExecution, t])
 
     if (!record || !hasPermissionToViewElection) {
         return (

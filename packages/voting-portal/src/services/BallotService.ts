@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import {
@@ -9,6 +9,7 @@ import {
     encryptBallotSelection,
     encryptMultiBallotSelection,
     interpretContestSelection,
+    isPreferential,
     interpretMultiContestSelection,
     getWriteInAvailableCharacters,
     decodeAuditableBallot,
@@ -27,6 +28,7 @@ import {
     ISignedContent,
     IContest,
     BallotSelection,
+    ICountingAlgorithm,
 } from "@sequentech/ui-core"
 
 export interface IBallotService {
@@ -71,6 +73,7 @@ export interface IBallotService {
         electionId: string,
         hashableBallot: IAuditableMultiBallot
     ) => ISignedContent | null
+    isPreferential: (countingAlgorithm?: ICountingAlgorithm) => boolean
 }
 
 export const provideBallotService = (): IBallotService => ({
@@ -88,4 +91,5 @@ export const provideBallotService = (): IBallotService => ({
     checkIsBlank,
     signHashableBallot,
     signHashableMultiBallot,
+    isPreferential,
 })

@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2023 Kevin Nguyen <kevin@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
@@ -45,7 +45,9 @@ interface ExpandIconProps {
     expanded: boolean
 }
 
-export const ExpandIcon = styled(IconButton)<ExpandIconProps>`
+export const ExpandIcon = styled(IconButton, {
+    shouldForwardProp: (prop) => prop !== "expanded",
+})<ExpandIconProps>`
     transform: ${(props) => (props.expanded ? "rotate(180deg)" : "rotate(0deg)")};
     transition: transform 0.3s;
     padding: 4px;

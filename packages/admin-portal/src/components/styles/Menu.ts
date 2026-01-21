@@ -1,4 +1,4 @@
-//SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
@@ -206,7 +206,9 @@ export const MenuStyles = {
     StyledAddCircleIcon: styled(AddCircleIcon)`
         color: ${adminTheme.palette.brandColor};
     `,
-    StyledDiv: styled(Box)<{isWidth: boolean}>`
+    StyledDiv: styled(Box, {
+        shouldForwardProp: (prop) => prop !== "isWidth",
+    })<{isWidth: boolean}>`
         flex: 0 0 auto;
         height: 1.5rem;
         width: ${({isWidth}) => (isWidth ? "1.5rem" : "auto")};

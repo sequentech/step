@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2023 Kevin Nguyen <kevin@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
@@ -10,6 +10,7 @@ use sequent_core::ballot::*;
 use sequent_core::ballot_codec::multi_ballot::{BallotChoices, ContestChoices};
 use sequent_core::ballot_codec::BigUIntCodec;
 use sequent_core::plaintext::{DecodedVoteChoice, DecodedVoteContest};
+use sequent_core::types::ceremonies::CountingAlgType;
 use sequent_core::util::voting_screen::{
     check_voting_error_dialog_util, check_voting_not_allowed_next_util, get_contest_plurality,
     get_decoded_contest_plurality,
@@ -343,7 +344,8 @@ pub fn generate_mcballots(
                 .iter()
                 .map(ContestChoices::from_decoded_vote_contest)
                 .collect();
-            let ballot = BallotChoices::new(false, contest_choices);
+            let ballot =
+                BallotChoices::new(false, contest_choices, CountingAlgType::PluralityAtLarge);
 
             let ballot_style = generate_ballot_style(
                 &election.tenant_id,
@@ -401,6 +403,7 @@ mod tests {
     use sequent_core::ballot_codec::BigUIntCodec;
     use sequent_core::plaintext::{DecodedVoteChoice, DecodedVoteContest};
     use sequent_core::serialization::deserialize_with_path::deserialize_str;
+    use sequent_core::types::ceremonies::CountingAlgType;
     use sequent_core::util::init_log;
     use std::fs;
     use std::io::Read;
@@ -570,7 +573,7 @@ mod tests {
             election_num * (area_num - 1)
         );
 
-        // VoteReceipts
+        // BallotImages
         state.exec_next()?;
 
         // MultiBallotReceipts
@@ -658,7 +661,7 @@ mod tests {
             election_num * contest_num * (area_num - 1)
         );
 
-        // VoteReceipts
+        // BallotImages
         state.exec_next()?;
 
         // DoTally
@@ -712,7 +715,7 @@ mod tests {
         // DecodeBallots
         state.exec_next()?;
 
-        // VoteReceipts
+        // BallotImages
         state.exec_next()?;
 
         // DoTally
@@ -752,7 +755,7 @@ mod tests {
         // DecodeBallots
         state.exec_next()?;
 
-        // VoteReceipts
+        // BallotImages
         state.exec_next()?;
 
         // DoTally
@@ -1113,7 +1116,7 @@ mod tests {
         // DecodeBallots
         state.exec_next()?;
 
-        // VoteReceipts
+        // BallotImages
         state.exec_next()?;
 
         // DoTally
@@ -1285,7 +1288,7 @@ mod tests {
         // DecodeBallots
         state.exec_next()?;
 
-        // VoteReceipts
+        // BallotImages
         state.exec_next()?;
 
         // DoTally
@@ -1439,7 +1442,7 @@ mod tests {
         // DecodeBallots
         state.exec_next()?;
 
-        // VoteReceipts
+        // BallotImages
         state.exec_next()?;
 
         // DoTally
@@ -1599,7 +1602,7 @@ mod tests {
         // DecodeBallots
         state.exec_next()?;
 
-        // VoteReceipts
+        // BallotImages
         state.exec_next()?;
 
         // DoTally
@@ -1792,7 +1795,7 @@ mod tests {
 
         // Execute pipeline stages
         state.exec_next()?; // DecodeBallots
-        state.exec_next()?; // VoteReceipts
+        state.exec_next()?; // BallotImages
         state.exec_next()?; // DoTally
         state.exec_next()?; // MarkWinners
         state.exec_next()?; // Generate reports

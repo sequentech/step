@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {ReactElement, useEffect, useState} from "react"
@@ -293,7 +293,7 @@ export const ListArea: React.FC<ListAreaProps> = (props) => {
                             disableSyncWithLocation
                         >
                             <ResetFilters />
-                            <DatagridConfigurable omit={OMIT_FIELDS}>
+                            <DatagridConfigurable omit={OMIT_FIELDS} rowClick={false}>
                                 <TextField source="id" />
                                 <TextField source="name" className="area-name" />
                                 <TextField source="description" className="area-description" />

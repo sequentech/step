@@ -29,7 +29,7 @@ function Feature({Svg, title, description, link}) {
 
 const FeatureList = [
   {
-    title: 'Election Creation',
+    title: 'Election Managers',
     Svg: ElectionSvg,
     link: '/docs/admin_portal/Tutorials/admin_portal_tutorials_setting-up-your-first-election',
     description: (
@@ -40,7 +40,7 @@ const FeatureList = [
     ),
   },
   {
-    title: 'Voting Process',
+    title: 'Voters',
     Svg: VotersSvg,
     link: 'docs/voting_portal/voting_portal.md',
     description: (
@@ -51,7 +51,7 @@ const FeatureList = [
     ),
   },
   {
-    title: 'Election Audit',
+    title: 'Election Auditors',
     Svg: AuditorsSvg,
     link: 'docs/election_verifier/election_verifier.md',
     description: (

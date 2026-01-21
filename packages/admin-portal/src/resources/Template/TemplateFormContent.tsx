@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useContext, useEffect, useState, useMemo} from "react"
@@ -57,7 +57,14 @@ export const TemplateFormContent: React.FC<TTemplateFormContent> = ({
     const [templateExtraConfig, setTemplateExtraConfig] = useState<IExtraConfig | undefined>(
         undefined
     )
-    const {record} = useEditContext<Sequent_Backend_Template>()
+    let record: Sequent_Backend_Template | undefined
+
+    if (isTemplateEdit) {
+        // This is only called when isTemplateEdit is true, ensuring it's in an Edit context
+        const context = useEditContext<Sequent_Backend_Template>()
+        record = context.record
+    }
+
     const recordMemo = useMemo(() => {
         console.log("record: ", record) // Data stored on the table
         return record ?? null

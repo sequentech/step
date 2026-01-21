@@ -1,11 +1,14 @@
-// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+
+use std::collections::HashMap;
 
 use crate::{types::hasura_types::*, utils::read_config::read_config};
 use clap::Args;
 use create_user::KeycloakUser2;
 use graphql_client::{GraphQLQuery, Response};
+use serde_json::{Map, Value};
 
 #[derive(Args)]
 #[command(about = "Create a new voter", long_about = None)]
@@ -15,20 +18,23 @@ pub struct CreateVoter {
     election_event_id: String,
 
     /// User first name
-    #[arg(long, default_value = "")]
+    #[arg(long)]
     first_name: String,
 
     /// User last name
-    #[arg(long, default_value = "")]
+    #[arg(long)]
     last_name: String,
 
     /// User username
-    #[arg(long, default_value = "")]
+    #[arg(long)]
     username: String,
 
     /// User Email
     #[arg(long, default_value = "")]
     email: String,
+
+    #[arg(long)]
+    area_id: String,
 }
 
 #[derive(GraphQLQuery)]
@@ -47,6 +53,7 @@ impl CreateVoter {
             &self.last_name,
             &self.username,
             &self.email,
+            &self.area_id,
         ) {
             Ok(id) => {
                 println!("Success! Voter created successfully! ID: {}", id);
@@ -64,9 +71,22 @@ pub fn create_voter(
     last_name: &str,
     username: &str,
     email: &str,
+    area_id: &str,
 ) -> Result<String, Box<dyn std::error::Error>> {
     let config = read_config()?;
     let client = reqwest::blocking::Client::new();
+    let mut attributes = Map::new();
+
+    attributes.insert(
+        "area-id".to_string(),
+        Value::Array(vec![Value::String(area_id.to_string())]),
+    );
+
+    let attributes_value = if attributes.is_empty() {
+        None
+    } else {
+        Some(Value::Object(attributes))
+    };
 
     let variables = create_user::Variables {
         tenant_id: config.tenant_id.clone(),
@@ -82,7 +102,7 @@ pub fn create_voter(
             } else {
                 Some(last_name.to_string())
             },
-            attributes: None,
+            attributes: attributes_value,
             email: if email.is_empty() {
                 None
             } else {

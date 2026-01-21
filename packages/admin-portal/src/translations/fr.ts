@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2022 Félix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import {TranslationType} from "./en"
@@ -81,6 +81,9 @@ const frenchTranslation: TranslationType = {
                 EXPORT_TENANT_CONFIG: "Exporter la Configuration du Locataire",
                 IMPORT_TENANT_CONFIG: "Importer la Configuration du Locataire",
                 RENDER_DOCUMENT_PDF: "Générer le document PDF",
+                CREATE_TENANT: "Créer un locataire",
+                EXPORT_TEMPLATES: "Exporter les Modèles",
+                IMPORT_TEMPLATES: "Importer les Modèles",
                 DELETE_ELECTION_EVENT: "Supprimer l'événement électoral",
                 PREPARE_PUBLICATION_PREVIEW: "Préparer l'aperçu de la publication",
                 EXPORT_TALLY_RESULTS_XLSX: "Exporter les résultats du dépouillement au format XLSX",
@@ -364,6 +367,13 @@ const frenchTranslation: TranslationType = {
                     options: {
                         "areas-weighted-voting": "Vote Pondéré par Zones",
                         "disabled-weighted-voting": "Vote Pondéré Désactivé",
+                    },
+                },
+                delegatedVotingPolicy: {
+                    policyLabel: "Politique de vote délégué",
+                    options: {
+                        enabled: "Activé",
+                        disabled: "Désactivé",
                     },
                 },
             },
@@ -919,10 +929,6 @@ const frenchTranslation: TranslationType = {
                 "report-delete": "Supprimer un Rapport",
                 "report-generate": "Générer un Rapport",
                 "report-preview": "Aperçu du Rapport",
-                "monitoring-dashboard-view-election-event":
-                    "Vue du Tableau de Bord de Suivi des Élections",
-                "monitoring-dashboard-view-election":
-                    "Vue du Tableau de Bord de Suivi des Événements Électoraux",
                 "monitor-authenticated-voters": "Surveillance des Électeurs Authentifiés",
                 "monitor-all-approve-disapprove-voters":
                     "Lire la Surveillance des Électeurs Approuvés et Refusés",
@@ -1053,7 +1059,6 @@ const frenchTranslation: TranslationType = {
             },
             reportType: {
                 BALLOT_RECEIPT: "Reçu de Bulletin",
-                VOTE_RECEIPT: "Reçu de Vote",
                 ELECTORAL_RESULTS: "Résultats Électoraux",
                 MANUAL_VERIFICATION: "Vérification Manuelle",
                 STATISTICAL_REPORT: "Rapport Statistique",
@@ -1160,7 +1165,7 @@ const frenchTranslation: TranslationType = {
                 import: "Importer",
                 export: "Exporter",
                 loadingData: "Chargement des données ...",
-                exportFormat: "Exporter les résultats de '{{item}}' au format {{format}}",
+                exportFormat: "Exporter au format {{format}} - Résultats de '{{item}}",
                 allResults: "de l'événement électoral",
                 globalAreaResults: "de toutes les zones",
                 title: "Titre",
@@ -1322,6 +1327,7 @@ const frenchTranslation: TranslationType = {
             options: {
                 "non-preferential": "Sans Préférence",
                 "plurality-at-large": "Pluralité Générale",
+                "instant-runoff": "Vote à Second Tour Instantané",
                 "random": "Aléatoire",
                 "custom": "Personnalisé",
                 "alphabetical": "Alphabétique",
@@ -1673,6 +1679,12 @@ const frenchTranslation: TranslationType = {
                 number_of_votes: "Nombre de votes",
                 winning_position: "Position gagnante",
                 weight: "Poids",
+                preferential: {
+                    candidate: "Candidat",
+                    winner: "Gagnant",
+                    eliminated: "Éliminé",
+                    round: "Tour",
+                },
             },
             chart: {
                 votesForCandidates: "Votes pour les Candidats",
@@ -1800,10 +1812,6 @@ const frenchTranslation: TranslationType = {
             communicationType: {
                 CREDENTIALS: "Identifiants",
                 BALLOT_RECEIPT: "Reçu de Vote",
-                PARTICIPATION_REPORT: "Rapport de Participation",
-                ELECTORAL_RESULTS: "Résultats Électoraux",
-                OTP: "OTP",
-                TALLY_REPORT: "Rapport de comptage",
             },
             email: {
                 subject: "Sujet",
@@ -1940,37 +1948,12 @@ const frenchTranslation: TranslationType = {
             },
             type: {
                 CREDENTIALS: "Identifiants",
-                BALLOT_RECEIPT: "Reçu de Vote",
-                VOTE_RECEIPT: "Reçu de Vote",
-                PARTICIPATION_REPORT: "Rapport de Participation",
-                ELECTORAL_RESULTS: "Résultats Électoraux",
-                OTP: "OTP",
-                TALLY_REPORT: "Rapport de Dépouillement",
-                MANUAL_VERIFICATION: "Vérifier manuellement l'électeur",
-                STATISTICAL_REPORT: "Rapport Statistique",
                 INITIALIZATION_REPORT: "Rapport d'Initialisation",
-                STATUS: "Rapport de Statut",
-                TRANSMISSION_REPORT: "Rapports de Transmission",
-                AUDIT_LOGS: "Journaux d'Audit",
-                ACTIVITY_LOGS: "Journaux d'Activité",
-                OVCS_INFORMATION: "Informations OVCS",
-                OVCS_EVENTS: "Surveillance du Vote à l'Étranger - Événements OVCS",
-                OVCS_STATISTICS: "Surveillance du Vote à l'Étranger - Statistiques OVCS",
-                OV_WHO_VOTED: "Utilisateurs OV Ayant Voté",
-                PRE_ENROLLED_OV_BUT_DISAPPROVED: "Liste des OV préinscrits mais refusés",
-                LIST_OF_OVERSEAS_VOTERS: "Liste des Électeurs Résidant à l'Étranger",
-                VOTERS_TURNOUT_PERCENTAGE: "Participation des Électeurs",
-                OV_TURNOUT_PER_ABOARD_STATUS_SEX:
-                    "Participation des Électeurs à l'Étranger - par Statut à Bord et Sexe",
-                OV_TURNOUT_PER_ABOARD_STATUS_SEX_PERCENTAGE:
-                    "Participation des Électeurs à l'Étranger - par Statut à Bord, Sexe et avec Pourcentage",
-                OV_PRE_ENROLLED_APPROVED: "Liste des OV qui se sont Préinscrits (Approuvés)",
-                PRE_ENROLLED_OV_SUBJECT_TO_MANUAL_VALIDATION:
-                    "Liste des OV qui se sont Préinscrits mais nécessitent une Validation Manuelle",
-                OV_NOT_YET_PRE_ENROLLED_LIST: "Liste des OV qui ne sont pas encore Préinscrits",
-                OV_WITH_VOTING_STATUS: "Liste des Électeurs à l'Étranger avec Statut de Vote",
-                OV_NOT_YET_PRE_ENROLLED_NUMBER: "Nombre d'OV qui ne sont pas encore Préinscrits",
+                ELECTORAL_RESULTS: "Résultats Électoraux",
                 BALLOT_IMAGES: "Images des Bulletins",
+                BALLOT_RECEIPT: "Reçu de Vote",
+                ACTIVITY_LOGS: "Journaux d'Activité",
+                MANUAL_VERIFICATION: "Vérification Manuelle",
             },
             method: {
                 email: "Email",

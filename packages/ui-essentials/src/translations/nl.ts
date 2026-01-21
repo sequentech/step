@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2024 Félix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import {TranslationType} from "./en"
@@ -25,6 +25,16 @@ const dutchTranslation: TranslationType = {
             moreInformationLink: "Meer informatie",
             writeInsPlaceholder: "Typ hier de naam van de kandidaat",
             blankVote: "Blanco stem",
+            preferential: {
+                position: "Positie",
+                none: "Geen",
+                ordinals: {
+                    first: "e",
+                    second: "e",
+                    third: "e",
+                    other: "e",
+                },
+            },
         },
         homeScreen: {
             title: "Sequent Stembiljet Verifieerder",

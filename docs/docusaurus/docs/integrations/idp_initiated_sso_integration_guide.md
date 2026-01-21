@@ -73,7 +73,7 @@ Contact Sequent technical support to request your integration parameters. You'll
 |-----------|-------------|---------|
 | `TENANT_ID` | Your organization's tenant UUID | `abc12345-6789-...` |
 | `EVENT_ID` | Your voting event UUID | `def67890-1234-...` |
-| `SP_BASE_URL` | Sequent's authentication service URL | `https://login-example.sequent.vote` |
+| `SP_BASE_URL` | Sequent's authentication service URL | `https://login-example.sequent.vote/auth/` |
 | `VOTING_PORTAL_URL` | Voting portal base URL | `https://voting-example.sequent.vote` |
 | `SP_IDP_ALIAS` | Your IdP identifier | `yourcompany-idp` |
 | `SP_CLIENT_ID` | SAML client ID | `vp-sso` |
@@ -107,8 +107,7 @@ to make this work are the following:
 
 ```bash
 # Your local IdP URLs (for development)
-IDP_BASE_URL=http://localhost:8083/simplesaml
-IDP_HOSTNAME=localhost:8083
+IDP_BASE_URL=https://localhost:8083/simplesaml
 
 # Example users for testing SimpleSAMLphp authentication
 # Format: "username1:password1:email1,username2:password2:email2,..."
@@ -118,7 +117,7 @@ SSP_EXAMPLE_USERS=user1:password:user1@example.com,user2:password:user2@example.
 # Sequent configuration (from Step 1)
 TENANT_ID=<your-tenant-id>
 EVENT_ID=<your-event-id>
-SP_BASE_URL=https://login-example.sequent.vote
+SP_BASE_URL=https://login-example.sequent.vote/auth/
 SP_IDP_ALIAS=yourcompany-idp
 SP_CLIENT_ID=vp-sso
 SP_CERT_DATA=<certificate-from-sequent>
@@ -168,12 +167,12 @@ choco install ngrok # Windows
 
 **Start ngrok tunnel:**
 ```bash
-ngrok http 8083
+ngrok http https://localhost:8083
 ```
 
 **You'll see output like:**
 ```
-Forwarding  https://abc123.ngrok.io -> http://localhost:8083
+Forwarding  https://abc123.ngrok.io -> https://localhost:8083 
 ```
 
 **Update your configuration** with the ngrok URL:
@@ -181,12 +180,10 @@ Forwarding  https://abc123.ngrok.io -> http://localhost:8083
 Edit `simplesamlphp/.env` and change:
 ```bash
 # Before:
-IDP_BASE_URL=http://localhost:8083/simplesaml
-IDP_HOSTNAME=localhost:8083
+IDP_BASE_URL=https://localhost:8083/simplesaml
 
 # After (use your ngrok URL):
 IDP_BASE_URL=https://abc123.ngrok.io/simplesaml
-IDP_HOSTNAME=abc123.ngrok.io
 ```
 
 **Restart SimpleSAMLphp** to pick up the new configuration:
@@ -197,7 +194,7 @@ docker-compose restart simplesamlphp
 ### 2.5 Access the Reference Implementation
 
 Once running with ngrok, access:
-- **Admin interface:** `https://abc123.ngrok.io/simplesaml/` (use your ngrok URL)
+- **Admin interface:** `https://abc123.ngrok.io/simplesaml/module.php/admin` (use your ngrok URL)
 - **IdP metadata:** `https://abc123.ngrok.io/simplesaml/saml2/idp/metadata.php`
 - **SSO trigger page:** `https://abc123.ngrok.io/simplesaml/idp-initiated-sso.php`
 
@@ -209,11 +206,15 @@ Once running with ngrok, access:
 
 Sequent needs your IdP metadata to configure trust. Provide:
 
-1. **IdP Metadata URL:** `http://localhost:8083/simplesaml/saml2/idp/metadata.php`
+1. **IdP Metadata URL:** `https://abc123.ngrok.io/simplesaml/saml2/idp/metadata.php`
    - Or download and send the XML file
-2. **IdP Entity ID:** Found in the metadata (will be `http://localhost:8083/simplesaml/saml2/idp/metadata.php`)
-3. **IdP SSO URL:** `http://localhost:8083/simplesaml/saml2/idp/SSOService.php`
+2. **IdP Entity ID:** Found in the metadata (will be `https://abc123.ngrok.io/simplesaml/saml2/idp/metadata.php`)
+3. **IdP SSO URL:** `https://abc123.ngrok.io/simplesaml/saml2/idp/SSOService.php`
 4. **Public Certificate:** Found in `.devcontainer/simplesamlphp/cert/server.crt`
+
+:::note Why you still send `server.crt`
+When you expose SimpleSAMLphp through ngrok, ngrok terminates HTTPS on the public URL and presents **its** TLS certificate to browsers. That only affects the transport channel. The certificate stored at `.devcontainer/simplesamlphp/cert/server.crt` is different: SimpleSAMLphp uses it to **sign SAML responses/assertions** and it is embedded in your IdP metadata. Sequent needs this signing certificate (not the ngrok TLS cert) to validate every message your IdP issues, regardless of which tunnel or proxy you use.
+:::
 
 **For testing:** Sequent will configure their staging environment to accept assertions from your local SimpleSAMLphp instance.
 
@@ -223,7 +224,7 @@ Sequent needs your IdP metadata to configure trust. Provide:
 
 ### 4.1 Test End-to-End Flow
 
-1. Open browser to: `http://localhost:8083/simplesaml/idp-initiated-sso.php`
+1. Open browser to: `https://abc123.ngrok.io/simplesaml/idp-initiated-sso.php`
 2. Click **"Login to Voting Portal"**
 3. Authenticate with test credentials (as configured in `SSP_EXAMPLE_USERS`):
    - Default: Username: `user1` / Password: `password`
@@ -272,7 +273,7 @@ All configuration in one place, loaded from environment variables:
 <?php
 return [
     // Your IdP configuration
-    'idp_base_url' => getenv('IDP_BASE_URL') ?: 'http://localhost:8083/simplesaml',
+    'idp_base_url' => getenv('IDP_BASE_URL') ?: 'https://abc123.ngrok.io/simplesaml',
 
     // Sequent provided values
     'tenant_id' => getenv('TENANT_ID') ?: '...',
@@ -303,7 +304,7 @@ $config = require __DIR__ . '/../config.php';
 // Build the ACS URL where Sequent receives SAML responses
 $acsUrl = sprintf(
     '%s/realms/%s/broker/%s/endpoint/clients/%s',
-    $config['sp_base_url'],      // https://login-example.sequent.vote
+    $config['sp_base_url'],      // https://login-example.sequent.vote/auth/
     $config['sp_realm'],          // tenant-...-event-...
     $config['sp_idp_alias'],      // yourcompany-idp
     $config['sp_client_id']       // vp-sso
@@ -360,18 +361,9 @@ $config = require __DIR__ . '/../config.php';
 // The SP Entity ID to target
 $spEntityId = $config['sp_realm'];
 
-// Where to redirect after authentication
-$finalRedirectUrl = sprintf(
-    '%s/tenant/%s/event/%s/login',
-    $config['voting_portal_url'],
-    $config['tenant_id'],
-    $config['event_id']
-);
-
 // Build SSO URL with parameters
 $ssoUrl = "/simplesaml/saml2/idp/SSOService.php?" . http_build_query([
     'spentityid' => $spEntityId,        // Which SP to send to
-    'RelayState' => $finalRedirectUrl,  // Where to go after auth
 ]);
 ?>
 

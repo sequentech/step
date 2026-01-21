@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2022 Félix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import {TranslationType} from "./en"
@@ -319,6 +319,10 @@ const tagalogTranslation: TranslationType = {
                 overVoteDisabled:
                     "Naabot na ang maximum: Napili mo na ang maximum na {{numSelected}} na mga opsyon. Upang baguhin ang iyong pagpili, mangyaring alisin muna ang isa pang opsyon.",
                 blankVote: "Blank Vote: Walang pinili",
+                preferenceOrderWithGaps:
+                    "Ang pagkakasunod-sunod ng kagustuhan ay may isa o higit pang puwang.",
+                duplicatedPosition:
+                    "Ang parehong posisyon ay napili para sa dalawa o higit pang kandidato.",
             },
             explicit: {
                 notAllowed:

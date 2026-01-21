@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2024 Félix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import {TranslationType} from "./en"
@@ -321,6 +321,9 @@ const catalanTranslation: TranslationType = {
                 overVoteDisabled:
                     "Màxim assolit: Has seleccionat el màxim de {{numSelected}} opcions. Per canviar la teva selecció, si us plau, desmarca primer una altra opció.",
                 blankVote: "Vot en Blanc: 0 opcions seleccionades",
+                preferenceOrderWithGaps: "L'ordre de preferència té un o més buits.",
+                duplicatedPosition:
+                    "La mateixa posició va ser seleccionada per a dos o més candidats.",
             },
             explicit: {
                 notAllowed: "Vot marcat explícitament com a invàlid però la pregunta no ho permet",

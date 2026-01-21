@@ -1,5 +1,5 @@
 {{!--
-SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+ SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
   SPDX-License-Identifier: AGPL-3.0-only
   --}}
   {{let "qr_height" 250 }}
@@ -34,7 +34,11 @@ SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
             <div class="right">
               <div>
                 <div>
+                  {{#if ../../election_alias}}
+                  <p class="election-name">{{../../election_alias}}</p>
+                   {{else}}
                   <p class="election-name">{{../../election_name}}</p>
+                  {{/if}}
                   <p class="election-name">{{../../area}}</p>
                 </div>
               </div>

@@ -7,13 +7,13 @@ name: Build Sequent Core WASM Target
 on:
   pull_request:
   push:
-    branches: [ 'main' ]
+    branches: [ 'main', 'feat/use-arc-runner-java-test' ]
   release:
     types: [published]
 
 jobs:
   build_wasm:
-    runs-on: ubuntu-latest
+    runs-on: gcp-selfhosted-ubuntu24
 
     steps:
       - name: Checkout Repository

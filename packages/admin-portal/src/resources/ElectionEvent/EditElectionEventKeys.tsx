@@ -1,5 +1,4 @@
-// SPDX-FileCopyrightText: 2023 Eduardo Robles <edu@sequentech.io>
-// SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
@@ -206,6 +205,11 @@ export const EditElectionEventKeys: React.FC<EditElectionEventKeysProps> = (prop
         setShowTrusteeCeremony(false)
         setCurrentCeremony(null)
     }
+
+    // Clear state when election event changes
+    useEffect(() => {
+        goBack()
+    }, [electionEvent])
 
     const getCeremony = (id: Identifier): Sequent_Backend_Keys_Ceremony | undefined => {
         if (keysCeremonies) {

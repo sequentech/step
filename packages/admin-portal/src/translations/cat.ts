@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2024 Félix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import {TranslationType} from "./en"
@@ -48,6 +48,9 @@ const catalanTranslation: TranslationType = {
                 EXPORT_TENANT_CONFIG: "Exporta la Configuració del Llogater",
                 IMPORT_TENANT_CONFIG: "Importa la Configuració del Llogater",
                 RENDER_DOCUMENT_PDF: "Generar el document PDF",
+                CREATE_TENANT: "Crear Llogater",
+                EXPORT_TEMPLATES: "Exportar plantilles",
+                IMPORT_TEMPLATES: "Importar plantilles",
                 DELETE_ELECTION_EVENT: "Esborrar esdeveniment electoral",
                 PREPARE_PUBLICATION_PREVIEW: "Preparar la vista prèvia de la publicació",
                 EXPORT_TALLY_RESULTS_XLSX: "Exporta els resultats del recompte en format XLSX",
@@ -364,6 +367,13 @@ const catalanTranslation: TranslationType = {
                     options: {
                         "areas-weighted-voting": "Votació Ponderada per Àrees",
                         "disabled-weighted-voting": "Votació Ponderada Desactivada",
+                    },
+                },
+                delegatedVotingPolicy: {
+                    policyLabel: "Política de Votació Delegada",
+                    options: {
+                        enabled: "Activada",
+                        disabled: "Desactivada",
                     },
                 },
             },
@@ -923,9 +933,6 @@ const catalanTranslation: TranslationType = {
                 "report-delete": "Eliminar Informe",
                 "report-generate": "Generar Informe",
                 "report-preview": "Vista Prèvia de l'Informe",
-                "monitoring-dashboard-view-election-event":
-                    "Vista del Panell de Monitoreig d'Esdeveniments Electorals",
-                "monitoring-dashboard-view-election": "Vista del Panell de Monitoreig d'Eleccions",
                 "monitor-authenticated-voters": "Monitoreig de Votants Autenticats",
                 "monitor-all-approve-disapprove-voters":
                     "Llegir Monitoreig de Votants Aprovat i Rebutjat",
@@ -1057,7 +1064,6 @@ const catalanTranslation: TranslationType = {
             },
             reportType: {
                 BALLOT_RECEIPT: "Rebut de la Papereta",
-                VOTE_RECEIPT: "Rebut de Vot",
                 ELECTORAL_RESULTS: "Resultats Electorals",
                 MANUAL_VERIFICATION: "Verificació Manual",
                 STATISTICAL_REPORT: "Informe Estadístic",
@@ -1162,7 +1168,7 @@ const catalanTranslation: TranslationType = {
                 import: "Importar",
                 export: "Exportar",
                 loadingData: "Carregant dades...",
-                exportFormat: "Exportar resultats de '{{item}}' en format {{format}}",
+                exportFormat: "Exporta en format {{format}} - Resultats de '{{item}}'",
                 allResults: "de l'esdeveniment electoral",
                 globalAreaResults: "de totes les àrees",
                 title: "Títol",
@@ -1323,6 +1329,7 @@ const catalanTranslation: TranslationType = {
             options: {
                 "non-preferential": "Sense Preferència",
                 "plurality-at-large": "Majoria Plural",
+                "instant-runoff": "Segona Volta Instantània",
                 "random": "Aleatòries",
                 "custom": "Personalitzat",
                 "alphabetical": "Alfabètic",
@@ -1670,6 +1677,12 @@ const catalanTranslation: TranslationType = {
                 number_of_votes: "Número de vots",
                 winning_position: "Posició guanyadora",
                 weight: "Pes",
+                preferential: {
+                    candidate: "Candidat",
+                    winner: "Guanyador",
+                    eliminated: "Eliminat",
+                    round: "Ronda",
+                },
             },
             chart: {
                 votesForCandidates: "Vots per Candidats",
@@ -1797,10 +1810,6 @@ const catalanTranslation: TranslationType = {
             communicationType: {
                 CREDENTIALS: "Credencials",
                 BALLOT_RECEIPT: "Comprovant de Votació",
-                PARTICIPATION_REPORT: "Informe de Participació",
-                ELECTORAL_RESULTS: "Resultats Electorals",
-                OTP: "OTP",
-                TALLY_REPORT: "Informe de recompte",
             },
             email: {
                 subject: "Assumpte",
@@ -1937,38 +1946,12 @@ const catalanTranslation: TranslationType = {
             },
             type: {
                 CREDENTIALS: "Credencials",
-                BALLOT_RECEIPT: "Rebut de Vot",
-                VOTE_RECEIPT: "Rebut de Vot",
-                PARTICIPATION_REPORT: "Informe de Participació",
-                ELECTORAL_RESULTS: "Resultats Electorals",
-                OTP: "OTP",
-                TALLY_REPORT: "Informe de Còmput",
-                MANUAL_VERIFICATION: "Verificar manualment el votant",
-                STATISTICAL_REPORT: "Informe Estadístic",
                 INITIALIZATION_REPORT: "Informe d'Inicialització",
-                STATUS: "Informe d'Estat",
-                TRANSMISSION_REPORT: "Informes de Transmissió",
-                AUDIT_LOGS: "Registres d'Auditoria",
-                ACTIVITY_LOGS: "Registres d'Activitats",
-                OVCS_INFORMATION: "Informació OVCS",
-                OVCS_EVENTS: "Monitoratge de Vot a l'Estranger - Esdeveniments OVCS",
-                OVCS_STATISTICS: "Monitoratge de Vot a l'Estranger - Estadístiques OVCS",
-                OV_WHO_VOTED: "Usuaris OV Que Han Votat",
-                PRE_ENROLLED_OV_BUT_DISAPPROVED:
-                    "Llista d'OV que es van preinscriure però van ser rebutjats",
-                LIST_OF_OVERSEAS_VOTERS: "Llista de Votants a l'Estranger",
-                VOTERS_TURNOUT_PERCENTAGE: "Participació dels Votants",
-                OV_TURNOUT_PER_ABOARD_STATUS_SEX:
-                    "Participació de Votants a l'Estranger - segons Estat a Bord i Sexe",
-                OV_TURNOUT_PER_ABOARD_STATUS_SEX_PERCENTAGE:
-                    "Participació de Votants a l'Estranger - segons Estat a Bord, Sexe i amb Percentatge",
-                OV_PRE_ENROLLED_APPROVED: "Llista de OV que es van Preinscriure (Aprovats)",
-                PRE_ENROLLED_OV_SUBJECT_TO_MANUAL_VALIDATION:
-                    "Llista de OV que es van Preinscriure però necessiten Validació Manual",
-                OV_NOT_YET_PRE_ENROLLED_LIST: "Llista de OV que encara no s'han Preinscrit",
-                OV_WITH_VOTING_STATUS: "Llista de Votants a l'Estranger amb Estat de Votació",
-                OV_NOT_YET_PRE_ENROLLED_NUMBER: "Nombre de OV que encara no s'han Preinscrit",
+                ELECTORAL_RESULTS: "Resultats Electorals",
                 BALLOT_IMAGES: "Imatges de Butlleta",
+                BALLOT_RECEIPT: "Rebut de Vot",
+                ACTIVITY_LOGS: "Registres d'Activitats",
+                MANUAL_VERIFICATION: "Verificació Manual",
             },
             method: {
                 email: "Email",

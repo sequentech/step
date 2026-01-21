@@ -41,7 +41,6 @@ RUN echo 'By default SSP is on <a href="/simplesaml/">/simplesaml/</a>' > /var/w
 
 # Enable Apache modules
 RUN a2enmod ssl rewrite headers
-EXPOSE 443
 
 # Tell Apache to listen on port 8083
 RUN echo "Listen 8083" >> /etc/apache2/ports.conf

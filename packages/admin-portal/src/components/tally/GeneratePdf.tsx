@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2025 Sequent Tech <legal@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useEffect, useMemo, useState} from "react"
@@ -100,7 +100,12 @@ export const GeneratePDF: React.FC<GenerateReportProps> = ({
                     overflow: "hidden",
                 }}
             >
-                <span>
+                <span
+                    title={t("common.label.exportFormat", {
+                        item: name,
+                        format: EExportFormat.PDF.toUpperCase(),
+                    })}
+                >
                     {t("common.label.exportFormat", {
                         item: name,
                         format: EExportFormat.PDF.toUpperCase(),

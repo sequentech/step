@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
@@ -13,11 +13,8 @@ export const EditCandidateData: React.FC<{record?: Sequent_Backend_Candidate}> =
         return <CircularProgress />
     }
     const transform = (data: any) => {
-        console.log("TRANSFORM ELECTION :: ", data)
-
         // save presentation object
         // language_conf
-        console.log("data before :: ", data)
         const enabled_language_codes = []
         for (const key in data.enabled_languages) {
             if (typeof data.enabled_languages[key] === "boolean" && data.enabled_languages[key]) {

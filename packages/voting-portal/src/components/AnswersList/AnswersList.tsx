@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useState} from "react"
@@ -173,7 +173,7 @@ export const AnswersList: React.FC<AnswersListProps> = ({
                                 key={candidateIndex}
                                 index={candidateIndex}
                                 hasCategory={true}
-                                isActive={!isReview && checkableCandidates}
+                                isSelectable={!isReview && checkableCandidates}
                                 isReview={isReview}
                                 isInvalidVote={false}
                                 isInvalidWriteIns={isInvalidWriteIns}
@@ -201,7 +201,7 @@ export const AnswersList: React.FC<AnswersListProps> = ({
                         key={candidateIndex}
                         index={candidateIndex}
                         hasCategory={true}
-                        isActive={!isReview && checkableCandidates}
+                        isSelectable={!isReview && checkableCandidates}
                         isReview={isReview}
                         isInvalidVote={false}
                         isInvalidWriteIns={isInvalidWriteIns}

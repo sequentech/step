@@ -1,6 +1,4 @@
-// SPDX-FileCopyrightText: 2023 Felix Robles <felix@sequentech.io>
-// SPDX-FileCopyrightText: 2024 Eduardo Robles <edu@sequentech.io>
-// SPDX-FileCopyrightText: 2024 Kevin Nguyen <kevin@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
@@ -129,6 +127,7 @@ pub async fn get_document_url(
         document_id,
     )
     .await?;
+
     let Some(document) = document else {
         info!("document is None");
         return Ok(None);

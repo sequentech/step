@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: 2023-2024 Sequent Tech <legal@sequentech.io>
+# SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 #
 # SPDX-License-Identifier: AGPL-3.0-only
 
@@ -18,12 +18,7 @@ on:
 
 jobs:
   e2e:
-    runs-on:
-      - env=infra-euw1
-      - runs-on=${{ github.run_id }}
-      - runner=4cpu-linux-x64
-      - image=ubuntu24-full-x64
-      - disk=large
+    runs-on: gcp-selfhosted-ubuntu24
     steps:
     - uses: actions/checkout@v4
     - uses: cachix/install-nix-action@v26

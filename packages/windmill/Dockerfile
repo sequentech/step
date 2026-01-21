@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+# SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 #
 # SPDX-License-Identifier: AGPL-3.0-only
 
@@ -56,6 +56,8 @@ RUN case "${TARGETARCH}" in \
     && update-alternatives --install /usr/bin/java java /usr/local/jdk-${JAVA_VERSION}/bin/java 1 \
     && update-alternatives --install /usr/bin/javac javac /usr/local/jdk-${JAVA_VERSION}/bin/javac 1 \
     && curl -L --proto '=https' --tlsv1.2 -sSf https://raw.githubusercontent.com/cargo-bins/cargo-binstall/main/install-from-binstall-release.sh | bash
+
+RUN rustup toolchain install nightly && rustup default nightly
 
 # java -jar ecies-tool.jar create-keys public.pem private.pem
 

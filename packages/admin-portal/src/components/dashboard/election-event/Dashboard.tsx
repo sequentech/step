@@ -1,5 +1,4 @@
-// SPDX-FileCopyrightText: 2023 Kevin Nguyen <kevin@sequentech.io>
-// SPDX-FileCopyrightText: 2023, 2024 Eduardo Robles <edu@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
@@ -256,7 +255,7 @@ const DashboardElectionEvent: React.FC<DashboardElectionEventProps> = (props) =>
                             height={cardHeight}
                         />
                     </Container>
-                    {/* NOTE:LOOP showIpAdresses && record?.id && <ListIpAddress electionEventId={record.id} />*/}
+                    {showIpAdresses && record?.id && <ListIpAddress />}
                 </Box>
                 <Box
                     sx={{

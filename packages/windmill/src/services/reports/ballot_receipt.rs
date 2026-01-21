@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use super::template_renderer::*;
@@ -14,7 +14,7 @@ use sequent_core::util::temp_path::*;
 use sequent_core::services::pdf;
 use sequent_core::services::s3::get_minio_url;
 use sequent_core::types::date_time::{DateFormat, TimeZone};
-use sequent_core::util::date_time::generate_timestamp;
+use sequent_core::util::date_time::get_date_and_time;
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
 use uuid::Uuid;
@@ -154,7 +154,7 @@ impl TemplateRenderer for BallotTemplate {
             ballot_tracker_url: ballot_tracker_url.to_string(),
             qrcode: QR_CODE_TEMPLATE.to_string(),
             logo: LOGO_TEMPLATE.to_string(),
-            timestamp: generate_timestamp(time_zone, date_format, None),
+            timestamp: get_date_and_time(),
         })
     }
 

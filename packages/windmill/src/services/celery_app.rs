@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2023 Felix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use anyhow::{anyhow, Context, Result};
@@ -13,6 +13,7 @@ use strum_macros::AsRefStr;
 use tokio::sync::{Mutex, RwLock};
 use tracing::{event, info, instrument, Level};
 
+use crate::services::plugins_manager::plugin_manager::init_plugin_manager;
 use crate::tasks::activity_logs_report::generate_activity_logs_report;
 use crate::tasks::create_ballot_receipt::create_ballot_receipt;
 use crate::tasks::create_keys::create_keys;
@@ -34,6 +35,7 @@ use crate::tasks::generate_report::generate_report;
 use crate::tasks::generate_template::generate_template;
 use crate::tasks::import_application::import_applications;
 use crate::tasks::import_election_event::import_election_event;
+use crate::tasks::import_templates::import_templates_task;
 use crate::tasks::import_tenant_config::import_tenant_config;
 use crate::tasks::import_users::import_users;
 use crate::tasks::insert_election_event::insert_election_event_t;
@@ -48,6 +50,7 @@ use crate::tasks::manage_election_voting_period_end::manage_election_voting_peri
 use crate::tasks::manual_verification_report::generate_manual_verification_report;
 use crate::tasks::miru_plugin_tasks::create_transmission_package_task;
 use crate::tasks::miru_plugin_tasks::send_transmission_package_task;
+use crate::tasks::plugins_tasks::execute_plugin_task;
 use crate::tasks::post_tally::post_tally_task;
 use crate::tasks::prepare_publication_preview::prepare_publication_preview;
 use crate::tasks::process_board::process_board;
@@ -230,6 +233,9 @@ pub async fn generate_celery_app() -> Result<Arc<Celery>> {
         .await
         .with_context(|| "error creating rabbitmq connection")?
         .1;
+
+    init_plugin_manager().await?;
+
     celery::app!(
         broker = AMQPBroker { amqp_addr },
         tasks = [
@@ -249,13 +255,13 @@ pub async fn generate_celery_app() -> Result<Arc<Celery>> {
             import_users,
             export_users,
             import_election_event,
-            generate_manual_verification_report,
             scheduled_events,
             manage_election_event_date,
             manage_election_event_enrollment,
             manage_election_event_lockdown,
             manage_election_init_report,
             manage_election_voting_period_end,
+            generate_manual_verification_report,
             manage_election_allow_tally,
             manage_election_date,
             export_election_event,
@@ -276,15 +282,16 @@ pub async fn generate_celery_app() -> Result<Arc<Celery>> {
             process_electoral_log_events_batch,
             electoral_log_batch_dispatcher,
             render_document_pdf,
+            execute_plugin_task,
             prepare_publication_preview,
             export_tally_results_to_xlsx_task,
             post_tally_task,
+            import_templates_task,
         ],
         task_routes = [
             create_keys::NAME => &Queue::Short.queue_name(&slug),
             review_boards::NAME => &Queue::Beat.queue_name(&slug),
             process_board::NAME => &Queue::Beat.queue_name(&slug),
-            generate_manual_verification_report::NAME => &Queue::Reports.queue_name(&slug),
             render_report::NAME => &Queue::Reports.queue_name(&slug),
             create_ballot_receipt::NAME => &Queue::Reports.queue_name(&slug),
             generate_report::NAME => &Queue::Reports.queue_name(&slug),
@@ -314,6 +321,7 @@ pub async fn generate_celery_app() -> Result<Arc<Celery>> {
             manage_election_event_lockdown::NAME => &Queue::Beat.queue_name(&slug),
             manage_election_init_report::NAME => &Queue::Beat.queue_name(&slug),
             manage_election_voting_period_end::NAME => &Queue::Beat.queue_name(&slug),
+            generate_manual_verification_report::NAME => &Queue::Reports.queue_name(&slug),
             manage_election_allow_tally::NAME => &Queue::Beat.queue_name(&slug),
             create_transmission_package_task::NAME => &Queue::Short.queue_name(&slug),
             send_transmission_package_task::NAME => &Queue::Short.queue_name(&slug),
@@ -324,9 +332,11 @@ pub async fn generate_celery_app() -> Result<Arc<Celery>> {
             enqueue_electoral_log_event::NAME => &Queue::ElectoralLogEvent.queue_name(&slug),
             process_electoral_log_events_batch::NAME => &Queue::ElectoralLogBatch.queue_name(&slug),
             electoral_log_batch_dispatcher::NAME => &Queue::ElectoralLogBeat.queue_name(&slug),
+            execute_plugin_task::NAME => &Queue::Short.queue_name(&slug),
             prepare_publication_preview::NAME => &Queue::Beat.queue_name(&slug),
             export_tally_results_to_xlsx_task::NAME => &Queue::ImportExport.queue_name(&slug),
             post_tally_task::NAME => &Queue::Reports.queue_name(&slug),
+            import_templates_task::NAME => &Queue::ImportExport.queue_name(&slug),
         ],
         prefetch_count = prefetch_count,
         acks_late = acks_late,

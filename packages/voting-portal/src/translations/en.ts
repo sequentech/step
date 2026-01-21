@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2022 Félix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 
 import BallotLocator from "../routes/BallotLocator"
@@ -316,6 +316,8 @@ const englishTranslation = {
                 overVoteDisabled:
                     "Maximum reached: You have selected the maximum {{numSelected}} choices. To change your selection, please deselect another option first.",
                 blankVote: "Blank Vote: 0 choices selected",
+                preferenceOrderWithGaps: "The order of preference has one or more gaps.",
+                duplicatedPosition: "The same position was selected for two or more candidates.",
             },
             explicit: {
                 notAllowed: "Ballot marked explicitly invalid but question doesn't allow it",

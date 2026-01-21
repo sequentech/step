@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
@@ -35,6 +35,7 @@ export const TallyStyles = {
         bottom: 0;
         background-color: ${({theme}) => theme.palette.background.default};
         box-shadow: 0 -2px 4px rgba(0, 0, 0, 0.1);
+        z-index: 10; // Renders the footer on top of other content, avoids transparency issues
     `,
     StyledFooter: styled("div")`
         max-width: 1280px;

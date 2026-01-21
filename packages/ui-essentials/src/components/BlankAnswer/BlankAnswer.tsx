@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2024 Félix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React from "react"
@@ -11,7 +11,7 @@ const BlankAnswer: React.FC = () => {
     return (
         <Candidate
             title={t("candidate.blankVote")}
-            isActive={false}
+            isSelectable={false}
             checked={true}
             setChecked={() => undefined}
             hasCategory={false}

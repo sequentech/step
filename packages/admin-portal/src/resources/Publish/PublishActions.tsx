@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
@@ -671,7 +671,7 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
                     ) : (
                         <>
                             {canWrite && canPublishRegenerate && (
-                                <div className="list-actions" style={{paddingTop: "4px"}}>
+                                <div className="list-actions" style={{paddingBottom: "4px"}}>
                                     <StatusButton
                                         Icon={RotateLeft}
                                         disabledStatus={[]}

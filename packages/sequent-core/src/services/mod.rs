@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2022 Felix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
@@ -29,3 +29,6 @@ pub mod translations;
 
 #[cfg(feature = "keycloak")]
 pub mod replace_uuids;
+
+#[cfg(feature = "keycloak")]
+pub mod authorization;

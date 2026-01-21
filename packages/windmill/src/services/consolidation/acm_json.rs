@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2024 Felix Robles <felix@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use super::{
@@ -54,7 +54,7 @@ pub async fn get_acm_key_pair(
     election_event_id: &str,
 ) -> Result<EciesKeyPair> {
     let secret_key = format!(
-        "acm-key-pair-{}-{}",
+        "acm-key-pair-{}-{}-{tenant_id}-{election_event_id}",
         get_miru_device_id(),
         get_miru_serial_number()
     );
