@@ -34,7 +34,7 @@
     "jotai": "^2.6.0",
     "json-edit-react": "^1.17.1",
     "keycloak-js": "^26.2.1",
-    "lodash": "^4.17.21",
+    "lodash": "^4.17.23",
     "moment-timezone": "^0.5.46",
     "process": "^0.11.10",
     "ra-data-hasura": "0.6.0",
