@@ -58,7 +58,7 @@ pub struct ReplicationChoice<C: Ctx> {
     Clone,
 )]
 pub struct PublicKeyConfig {
-    pub public_key: String,
+    pub public_key: Option<String>,
     pub is_demo: bool,
 }
 

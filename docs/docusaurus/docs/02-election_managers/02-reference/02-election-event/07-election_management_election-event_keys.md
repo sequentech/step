@@ -11,6 +11,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 The Key Ceremony establishes the collective private key used to decrypt votes and publishes a corresponding public key for voters to encrypt their ballots. During this ceremony, trustees collaboratively generate fragments of the private key, ensuring no single party holds the full secret. Each trustee downloads, securely backs up, and verifies their key fragment. Only after all trustees complete these steps can the election proceed to stages such as ballot publication, voting, and tallying. This distributed approach guarantees that votes encrypted under the shared public key remain confidential and tamper-resistant, and that the combined private key—reconstructed only when a threshold of trustees collaborates—preserves integrity and availability of decryption throughout the election lifecycle.
 
+> **Note for Unencrypted Elections**: If your Election Event is configured with the **Unencrypted Single Contest (Plaintext)** encryption policy, keys are not required. The Key Ceremony is only necessary for encrypted elections. You can proceed directly to publishing and tallying without performing a Key Ceremony.
+
 
 ## Opening Key Distribution Ceremony
 

@@ -118,12 +118,12 @@ export const getBallotStrategy = (
     service: IBallotService
 ): IBallotStrategy => {
     switch (policy) {
-        case EElectionEventContestEncryptionPolicy.SINGLE_CONTEST:
-            return new SingleContestStrategy(service)
         case EElectionEventContestEncryptionPolicy.MULTIPLE_CONTESTS:
             return new MultiContestStrategy(service)
         case EElectionEventContestEncryptionPolicy.PLAINTEXT:
             return new PlaintextStrategy(service)
+        case EElectionEventContestEncryptionPolicy.SINGLE_CONTEST:
+            return new SingleContestStrategy(service)
         default:
             throw new VotingPortalError(VotingPortalErrorType.UNABLE_TO_ENCRYPT_BALLOT)
     }

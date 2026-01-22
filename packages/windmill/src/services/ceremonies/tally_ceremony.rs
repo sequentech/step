@@ -280,9 +280,6 @@ fn get_area_contests_for_election_ids(
     area_contests_tree.get_contest_matches(&contest_ids)
 }
 
-// ##################################################
-// ## FUNCTION MODIFIED
-// ##################################################
 #[instrument(err, skip(transaction))]
 pub async fn create_tally_ceremony(
     transaction: &Transaction<'_>,
@@ -639,9 +636,6 @@ pub async fn update_tally_ceremony(
     Ok(())
 }
 
-// ##################################################
-// ## FUNCTION MODIFIED
-// ##################################################
 #[instrument(err, skip(transaction))]
 pub async fn set_private_key(
     transaction: &Transaction<'_>,

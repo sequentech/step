@@ -137,17 +137,17 @@ pub fn create_ballot_style(
     let public_key =
         if ContestEncryptionPolicy::PLAINTEXT == contest_encryption_policy {
             ballot::PublicKeyConfig {
-                public_key: "".to_string(),
+                public_key: None,
                 is_demo: false,
             }
         } else {
             public_key
                 .map(|key| ballot::PublicKeyConfig {
-                    public_key: key,
+                    public_key: Some(key),
                     is_demo: false,
                 })
                 .unwrap_or(ballot::PublicKeyConfig {
-                    public_key: demo_public_key_env.to_string(),
+                    public_key: Some(demo_public_key_env.to_string()),
                     is_demo: true,
                 })
         };

@@ -157,7 +157,7 @@ export interface IBallotStyle {
 }
 
 export interface IPublicKeyConfig {
-    public_key: string
+    public_key?: string
     is_demo: boolean
 }
 
