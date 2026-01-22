@@ -9,6 +9,9 @@ mutation InsertContest(
   $min_votes: Int,
   $winning_candidates_num: Int,
   $presentation: jsonb,
+  $is_acclaimed: Boolean,
+  $is_active: Boolean,
+  $is_encrypted: Boolean,
 ) {
   insert_sequent_backend_contest(objects: {
     tenant_id: $tenant_id,
@@ -21,6 +24,9 @@ mutation InsertContest(
     winning_candidates_num: $winning_candidates_num,
     presentation: $presentation
     counting_algorithm: $counting_algorithm,
+    is_acclaimed:  $is_acclaimed,
+    is_active: $is_active,
+    is_encrypted: $is_encrypted,
   }) {
     affected_rows
     returning {
