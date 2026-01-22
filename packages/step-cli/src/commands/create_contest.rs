@@ -6,8 +6,10 @@ use std::collections::HashMap;
 
 use crate::{types::hasura_types::*, utils::read_config::read_config};
 use clap::Args;
+use colored::Colorize;
 use graphql_client::{GraphQLQuery, Response};
 use sequent_core::ballot::ContestPresentation;
+use sequent_core::types::ceremonies::CountingAlgType;
 
 #[derive(Args)]
 #[command(about = "Create a new contest", long_about = None)]
@@ -27,6 +29,10 @@ pub struct CreateContest {
     /// Election id - the election to be associated with
     #[arg(long)]
     election_id: String,
+
+    /// Counting algorithm (optional)
+    #[arg(long, default_value_t = CountingAlgType::PluralityAtLarge)]
+    counting_algorithm: CountingAlgType,
 }
 
 #[derive(GraphQLQuery)]
@@ -44,9 +50,14 @@ impl CreateContest {
             &self.description,
             &self.election_event_id,
             &self.election_id,
+            self.counting_algorithm,
         ) {
             Ok(id) => {
-                println!("Success! Contest created successfully! ID: {}", id);
+                println!(
+                    "{} {}",
+                    "Success! Contest created successfully! ID:".green(),
+                    id.cyan()
+                );
             }
             Err(err) => {
                 eprintln!("Error! Failed to create contest: {}", err)
@@ -60,6 +71,7 @@ fn create_contest(
     description: &str,
     election_event_id: &str,
     election_id: &str,
+    counting_algorithm: CountingAlgType,
 ) -> Result<String, Box<dyn std::error::Error>> {
     let config = read_config()?;
     let client = reqwest::blocking::Client::new();
@@ -72,16 +84,19 @@ fn create_contest(
     )]));
 
     let variables = insert_contest::Variables {
-        name: name.to_string(),
         description: Some(description.to_string()),
         election_event_id: election_event_id.to_string(),
         election_id: election_id.to_string(),
         tenant_id: config.tenant_id.clone(),
 
         presentation: Some(serde_json::to_value(presentation)?),
-        max_votes: None,
-        min_votes: None,
-        winning_candidates_num: None,
+        counting_algorithm: Some(counting_algorithm.to_string()),
+        max_votes: Some(1),
+        min_votes: Some(0),
+        winning_candidates_num: Some(1),
+        is_acclaimed: Some(false),
+        is_active: Some(true),
+        is_encrypted: Some(true),
     };
 
     let request_body = InsertContest::build_query(variables);

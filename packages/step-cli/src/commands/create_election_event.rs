@@ -7,6 +7,7 @@ use std::collections::HashMap;
 use crate::types::hasura_types::*;
 use crate::utils::read_config::read_config;
 use clap::Args;
+use colored::Colorize;
 use graphql_client::{GraphQLQuery, Response};
 use sequent_core::ballot::ElectionEventPresentation;
 use serde_json::Value;
@@ -47,14 +48,18 @@ impl CreateElectionEventCLI {
             &self.encryption_protocol,
             self.is_archived,
         ) {
-            Ok(id) => {
+            Ok(Some(id)) => {
                 println!(
-                    "Success! Election event created successfully! ID: {}",
-                    id.unwrap_or_else(|| "None".to_string())
+                    "{} {}",
+                    "Success! Election event created successfully! ID:".green(),
+                    id.cyan()
                 );
             }
+            Ok(None) => {
+                eprintln!("Error: election event was not created");
+            }
             Err(err) => {
-                eprintln!("Error! Failed to create election event: {}", err)
+                eprintln!("Error! Failed to create election event: {}", err);
             }
         }
     }

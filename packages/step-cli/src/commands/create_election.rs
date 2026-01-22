@@ -6,6 +6,7 @@ use std::collections::HashMap;
 
 use crate::{types::hasura_types::*, utils::read_config::read_config};
 use clap::Args;
+use colored::Colorize;
 use graphql_client::{GraphQLQuery, Response};
 use sequent_core::ballot::ElectionPresentation;
 
@@ -45,7 +46,11 @@ impl CreateElection {
             &self.election_event_id,
         ) {
             Ok(id) => {
-                println!("Success! Election created successfully! ID: {}", id);
+                println!(
+                    "{} {}",
+                    "Success! Election created successfully! ID:".green(),
+                    id.cyan()
+                );
             }
             Err(err) => {
                 eprintln!("Error! Failed to create election: {}", err)
