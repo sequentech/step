@@ -16,6 +16,7 @@
         "prettify:fix": "yarn sort-yaml && prettier --write ."
     },
     "resolutions": {
-        "glob": "11.1.0"
+        "glob": "11.1.0",
+        "js-yaml": "4.1.1"
     }
 }
