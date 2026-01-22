@@ -7,6 +7,7 @@ use crate::{
     utils::{read_config::read_config, trustees::store_private_key::get_private_key_content},
 };
 use clap::Args;
+use colored::Colorize;
 use graphql_client::{GraphQLQuery, Response};
 
 #[derive(Args)]
@@ -34,9 +35,9 @@ impl ConfirmKeyForTally {
         match confirm_key(&self.election_event_id, &self.tally_id) {
             Ok(is_valid) => {
                 if is_valid {
-                    println!("Success! Successfully confirmed key");
+                    println!("{}", "Success! Successfully confirmed key".green());
                 } else {
-                    eprintln!("Error! Failed to confirm key")
+                    eprintln!("{}", "Error! Failed to confirm key".red())
                 }
             }
             Err(err) => {

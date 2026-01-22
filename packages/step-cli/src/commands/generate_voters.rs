@@ -3,21 +3,21 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use anyhow::Result;
 use chrono::Utc;
+use chrono::{Duration, NaiveDate};
 use clap::Args;
+use colored::Colorize;
 use csv::Writer;
 use fake::faker::name::raw::{FirstName, LastName};
 use fake::locales::EN;
 use fake::Fake;
 use rand::seq::IndexedRandom;
 use rand::seq::SliceRandom;
+use rand::Rng;
 use serde_json::Value;
 use std::collections::HashSet;
 use std::fs::File;
 use std::io::BufReader;
 use std::path::PathBuf;
-
-use chrono::{Duration, NaiveDate};
-use rand::Rng;
 
 use crate::utils::read_config::load_external_config;
 
@@ -36,7 +36,7 @@ impl GenerateVoters {
     /// Execute the rendering process
     pub fn run(&self) {
         match self.run_generate_voters(&self.working_directory, self.num_users) {
-            Ok(_) => println!("Successfully generated voters into csv"),
+            Ok(_) => println!("{}", "Successfully generated voters into csv".green()),
             Err(err) => eprintln!("Error! Failed to generate voters: {err:?}"),
         }
     }

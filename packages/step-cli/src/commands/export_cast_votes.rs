@@ -8,6 +8,7 @@ use anyhow::{anyhow, Context, Result};
 use base64::engine::general_purpose;
 use base64::Engine;
 use clap::Args;
+use colored::Colorize;
 use csv::WriterBuilder;
 use electoral_log::messages::message::Message;
 use electoral_log::messages::newtypes::ElectionIdString;
@@ -61,7 +62,7 @@ impl ExportCastVotes {
     pub fn run(&self) {
         let runtime = tokio::runtime::Runtime::new().expect("Failed to create Tokio runtime");
         match runtime.block_on(self.run_export_cast_votes()) {
-            Ok(_) => println!("Successfully exported cast votes"),
+            Ok(_) => println!("{}", "Successfully exported cast votes".green()),
             Err(err) => eprintln!("Error! Failed to export cast votes: {err:?}"),
         }
     }
