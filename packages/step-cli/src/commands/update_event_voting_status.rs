@@ -5,8 +5,10 @@ use crate::{types::hasura_types::*, utils::read_config::read_config};
 use clap::Args;
 use colored::Colorize;
 use graphql_client::{GraphQLQuery, Response};
-use sequent_core::ballot::{VotingStatus , VotingStatusChannel};
-use update_event_voting_status::{VotingStatus as  CliVotingStatus, VotingStatusChannel as CliVotingStatusChannel };
+use sequent_core::ballot::{VotingStatus, VotingStatusChannel};
+use update_event_voting_status::{
+    VotingStatus as CliVotingStatus, VotingStatusChannel as CliVotingStatusChannel,
+};
 
 impl From<VotingStatus> for CliVotingStatus {
     fn from(v: VotingStatus) -> Self {
