@@ -45,6 +45,8 @@ We support coordinated vulnerability disclosure and ask reporters to:
 - Avoid accessing, altering, or exfiltrating real voter data.
 - Give us a reasonable opportunity to investigate and remediate before public disclosure.
 
+Sequent Tech discloses vulnerabilities transparently when issuing patch releases that address security issues. For details, see the Vulnerability management process below.
+
 ## Vulnerability management process
 
 When a report is received at [security@sequentech.io](mailto:security@sequentech.io), we follow a documented triage and remediation process:
