@@ -51,6 +51,7 @@ If you have not already done so, re-run cli step config with admin credentials.
 cli step start-tally \
   --election-event-id ac037831-66bd-451b-bdf7-e0a30eb2bfa0 \
   --election-ids 6f5c2c7b-8b3f-4c2b-9e36-1b87c4c2e9c1 \
+  --election-ids 314723b2-c8a5-4fb7-9d90-e6ffba0b0f6d \
   --tally-type ELECTORAL_RESULTS
 ```
 > This command starts a Tally Ceremony for the specified elections within the election event.

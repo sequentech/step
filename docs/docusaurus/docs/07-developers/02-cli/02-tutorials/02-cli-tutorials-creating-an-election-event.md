@@ -79,6 +79,9 @@ Success! Election created successfully! ID: 79aba105-f250-4375-a211-43dcaeadba64
 ## Step 3: Create a Contest
 
 Create a contest within the election.
+
+> ℹ️ **Note**: You can optionally specify a `--counting-algorithm` parameter (defaults to `plurality-at-large`). Use `cli step create-contest --help` to see available options.
+
 ```bash
 cli step create-contest \
   --name "President" \
