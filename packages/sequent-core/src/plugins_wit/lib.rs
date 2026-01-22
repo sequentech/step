@@ -5,7 +5,13 @@ pub mod plugin_bindings {
     wasmtime::component::bindgen!({
         path: "src/plugins_wit/plugin/plugin-world.wit",
         world: "plugins-manager:common/plugin",
-        async: true,
+        imports: {
+            default: async,
+        },
+        exports: {
+            default: async,
+        },
+        require_store_data_send: true,
     });
 }
 
@@ -13,7 +19,13 @@ pub mod transactions_manager_bindings {
     wasmtime::component::bindgen!({
         path: "src/plugins_wit/transaction/transaction-world.wit",
         world: "transactions-manager",
-        async: true,
+        imports: {
+            default: async,
+        },
+        exports: {
+            default: async,
+        },
+        require_store_data_send: true,
     });
 }
 
@@ -21,6 +33,12 @@ pub mod authorization_bindings {
     wasmtime::component::bindgen!({
         path: "src/plugins_wit/jwt/jwt-world.wit",
         world: "jwt",
-        async: true,
+        imports: {
+            default: async,
+        },
+        exports: {
+            default: async,
+        },
+        require_store_data_send: true,
     });
 }
