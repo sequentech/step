@@ -4,6 +4,7 @@
 
 use crate::{types::hasura_types::*, utils::read_config::read_config};
 use clap::Args;
+use colored::Colorize;
 use graphql_client::{GraphQLQuery, Response};
 
 #[derive(Args)]
@@ -34,7 +35,11 @@ impl CreateArea {
     pub fn run(&self) {
         match create_area(&self.name, &self.description, &self.election_event_id) {
             Ok(id) => {
-                println!("Success! Area created successfully! ID: {}", id);
+                println!(
+                    "{} {}",
+                    "Success! Area created successfully! ID:".green(),
+                    id.cyan()
+                );
             }
             Err(err) => {
                 eprintln!("Error! Failed to create Area: {}", err)

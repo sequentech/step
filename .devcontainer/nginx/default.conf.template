@@ -1,0 +1,95 @@
+# SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+# Nginx Reverse Proxy Configuration
+
+# Admin Portal
+server {
+    listen 80;
+    server_name admin-remote-deployment.${DOMAIN};
+
+    location / {
+        proxy_pass http://admin-portal:8000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto https;
+    }
+}
+
+# Voting Portal
+server {
+    listen 80;
+    server_name voting-remote-deployment.${DOMAIN};
+
+    location / {
+        proxy_pass http://voting-portal:8000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto https;
+    }
+}
+
+# Ballot Verifier (points to voting portal)
+server {
+    listen 80;
+    server_name verifier-remote-deployment.${DOMAIN};
+
+    location / {
+        proxy_pass http://voting-portal:8000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto https;
+    }
+}
+
+# # Hasura
+server {
+    listen 80;
+    server_name hasura-remote-deployment.${DOMAIN};
+
+    location / {
+        proxy_pass http://hasura:8080;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto https;
+    }
+}
+
+# Keycloak
+server {
+    listen 80;
+    server_name login-remote-deployment.${DOMAIN};
+
+    location / {
+        proxy_pass http://keycloak:8090;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto https;
+        proxy_set_header Forwarded "for=$remote_addr;host=$host;proto=https";
+        
+        # Increase buffer sizes for large headers from Keycloak
+        proxy_buffer_size 32k;
+        proxy_buffers 4 16k;
+        proxy_busy_buffers_size 32k;
+    }
+}
+
+# Minio
+server {
+    listen 80;
+    server_name minio-remote-deployment.${DOMAIN};
+
+    location / {
+        proxy_pass http://minio-proxy:9002;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto https;
+    }
+}
