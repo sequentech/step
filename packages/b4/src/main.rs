@@ -4,6 +4,7 @@
 
 use anyhow::{Context, Result};
 use axum::{
+    http::Method,
     routing::{get, post},
     Router,
 };
@@ -30,11 +31,38 @@ async fn main() -> Result<()> {
 
     let state = AppState::new(db, s3_client);
 
-    // Configure CORS
-    let cors = CorsLayer::new()
-        .allow_origin(Any)
-        .allow_methods(Any)
-        .allow_headers(Any);
+    // Configure CORS - read allowed origins from environment
+    // In development, this should include localhost origins
+    // In production, restrict to specific domains
+    let allowed_origins_str =
+        env::var("B4_ALLOWED_ORIGINS").unwrap_or_else(|_| "*".to_string());
+
+    let cors = if allowed_origins_str == "*" {
+        tracing::warn!("CORS: Allowing all origins (*) - this should only be used in development!");
+        CorsLayer::new()
+            .allow_origin(Any)
+            .allow_methods(Any)
+            .allow_headers(Any)
+    } else {
+        let origins: Vec<_> = allowed_origins_str
+            .split(',')
+            .filter_map(|s| {
+                let trimmed = s.trim();
+                if trimmed.is_empty() {
+                    None
+                } else {
+                    trimmed.parse().ok()
+                }
+            })
+            .collect();
+
+        tracing::info!("CORS: Allowing origins: {:?}", origins);
+
+        CorsLayer::new()
+            .allow_origin(origins)
+            .allow_methods([Method::GET, Method::POST, Method::OPTIONS])
+            .allow_headers(Any)
+    };
 
     let app = Router::new()
         // Board management
@@ -75,6 +103,7 @@ async fn main() -> Result<()> {
         "Bulletin board service listening on {}",
         listener.local_addr()?
     );
+    tracing::info!("JWT authentication is ENABLED - all endpoints require valid trustee role");
 
     axum::serve(listener, app).await?;
 

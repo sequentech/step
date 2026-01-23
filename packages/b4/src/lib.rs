@@ -6,6 +6,8 @@ pub mod api_types;
 pub mod messages;
 
 // Native-only modules
+#[cfg(feature = "native")]
+pub mod auth;
 #[cfg(feature = "client")]
 pub mod client;
 #[cfg(feature = "native")]

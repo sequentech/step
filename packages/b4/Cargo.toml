@@ -30,7 +30,7 @@ bb8-postgres = { version = "0.9", optional = true }
 anyhow = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
-sequent-core = { path="../sequent-core", features = ["log", "s3", "probe", "default_features"], optional = true }
+sequent-core = { path="../sequent-core", features = ["log", "s3", "probe", "default_features", "keycloak"], optional = true }
 dotenv = { version = "0.15", optional = true } 
 
 # Message types dependencies

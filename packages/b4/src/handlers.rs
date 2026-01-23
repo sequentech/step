@@ -9,6 +9,7 @@ use crate::api_types::{
     InitiateMessageResponse, InitiateMessagesMultiRequest, InitiateMessagesMultiResponse,
     ListMessagesResponse, Message, MAX_INLINE_MESSAGE_SIZE,
 };
+use crate::auth::RequireRole;
 use axum::{
     extract::{Path, Query, State},
     http::StatusCode,
@@ -45,8 +46,11 @@ pub struct GetMessagesQuery {
 
 pub async fn create_board(
     State(state): State<AppState>,
+    RequireRole { claims, .. }: RequireRole,
     Json(req): Json<CreateBoardRequest>,
 ) -> Result<Json<BoardResponse>, StatusCode> {
+    tracing::info!("User {} creating board '{}'", claims.sub, req.name);
+
     let board = db::create_board(&state.db, &req.name).await.map_err(|e| {
         tracing::error!("Failed to create board: {}", e);
         StatusCode::BAD_REQUEST
@@ -61,8 +65,11 @@ pub async fn create_board(
 
 pub async fn get_board(
     State(state): State<AppState>,
+    RequireRole { claims, .. }: RequireRole,
     Path(board_name): Path<String>,
 ) -> Result<Json<BoardResponse>, StatusCode> {
+    tracing::debug!("User {} getting board '{}'", claims.sub, board_name);
+
     let board = db::get_board(&state.db, &board_name)
         .await
         .map_err(|e| {
@@ -80,7 +87,10 @@ pub async fn get_board(
 
 pub async fn list_boards(
     State(state): State<AppState>,
+    RequireRole { claims, .. }: RequireRole,
 ) -> Result<Json<BoardsListResponse>, StatusCode> {
+    tracing::debug!("User {} listing boards", claims.sub);
+
     let boards = db::list_boards(&state.db).await.map_err(|e| {
         tracing::error!("Failed to list boards: {}", e);
         StatusCode::INTERNAL_SERVER_ERROR
@@ -100,9 +110,17 @@ pub async fn list_boards(
 
 pub async fn initiate_message(
     State(state): State<AppState>,
+    RequireRole { claims, .. }: RequireRole,
     Path(board_name): Path<String>,
     Json(req): Json<InitiateMessageRequest>,
 ) -> Result<Json<InitiateMessageResponse>, StatusCode> {
+    tracing::debug!(
+        "User {} initiating message on board '{}' (size: {} bytes)",
+        claims.sub,
+        board_name,
+        req.size
+    );
+
     // Validate board exists
     db::get_board(&state.db, &board_name)
         .await
@@ -156,9 +174,17 @@ pub async fn initiate_message(
 
 pub async fn confirm_message(
     State(state): State<AppState>,
+    RequireRole { claims, .. }: RequireRole,
     Path((board_name, id)): Path<(String, String)>,
     Json(req): Json<ConfirmMessageRequest>,
 ) -> Result<Json<ConfirmMessageResponse>, StatusCode> {
+    tracing::debug!(
+        "User {} confirming message '{}' on board '{}'",
+        claims.sub,
+        id,
+        board_name
+    );
+
     // Validate board exists
     db::get_board(&state.db, &board_name)
         .await
@@ -272,8 +298,16 @@ pub async fn confirm_message(
 
 pub async fn get_message(
     State(state): State<AppState>,
+    RequireRole { claims, .. }: RequireRole,
     Path((board_name, id)): Path<(String, String)>,
 ) -> Result<Json<GetMessageResponse>, StatusCode> {
+    tracing::debug!(
+        "User {} getting message '{}' from board '{}'",
+        claims.sub,
+        id,
+        board_name
+    );
+
     let id_num: i64 = id.parse().map_err(|_| {
         tracing::error!("Invalid message ID: {}", id);
         StatusCode::BAD_REQUEST
@@ -314,9 +348,12 @@ pub async fn get_message(
 
 pub async fn list_messages(
     State(state): State<AppState>,
+    RequireRole { claims, .. }: RequireRole,
     Path(board_name): Path<String>,
     Query(query): Query<GetMessagesQuery>,
 ) -> Result<Json<ListMessagesResponse>, StatusCode> {
+    tracing::debug!("User {} listing messages from board '{}'", claims.sub, board_name);
+
     // If last_id is provided, use range query
     if let Some(last_id) = query.last_id {
         let limit = query.limit.unwrap_or(100).min(1000); // Max 1000 messages per request
@@ -353,10 +390,13 @@ pub async fn list_messages(
 
 pub async fn get_messages(
     State(state): State<AppState>,
+    RequireRole { claims, .. }: RequireRole,
     Path(board_name): Path<String>,
     Query(query): Query<GetMessagesQuery>,
 ) -> Result<Json<crate::api_types::GetMessagesResponse>, StatusCode> {
     use crate::api_types::{GetMessagesResponse, MessageWithUrl};
+
+    tracing::debug!("User {} getting messages from board '{}'", claims.sub, board_name);
 
     // Get messages using same logic as list_messages
     let messages = if let Some(last_id) = query.last_id {
@@ -426,12 +466,14 @@ pub async fn get_messages(
 
 pub async fn get_messages_multi(
     State(state): State<AppState>,
+    RequireRole { claims, .. }: RequireRole,
     Json(req): Json<GetMessagesMultiRequest>,
 ) -> Result<Json<GetMessagesMultiResponse>, StatusCode> {
     use crate::api_types::MessageWithUrl;
 
     tracing::info!(
-        "[MULTI-GET] {} boards in single request",
+        "[MULTI-GET] User {} requesting {} boards in single request",
+        claims.sub,
         req.requests.len()
     );
 
@@ -508,9 +550,16 @@ pub async fn get_messages_multi(
 
 pub async fn initiate_messages_multi(
     State(state): State<AppState>,
+    RequireRole { claims, .. }: RequireRole,
     Json(req): Json<InitiateMessagesMultiRequest>,
 ) -> Result<Json<InitiateMessagesMultiResponse>, StatusCode> {
     use crate::api_types::{BoardInitiateResponse, MessageUploadInfo};
+
+    tracing::info!(
+        "[MULTI-INITIATE] User {} initiating messages for {} boards",
+        claims.sub,
+        req.requests.len()
+    );
 
     let mut board_responses = Vec::new();
 
@@ -590,13 +639,15 @@ pub async fn initiate_messages_multi(
 
 pub async fn confirm_messages_multi(
     State(state): State<AppState>,
+    RequireRole { claims, .. }: RequireRole,
     Json(req): Json<ConfirmMessagesMultiRequest>,
 ) -> Result<Json<ConfirmMessagesMultiResponse>, StatusCode> {
     use crate::api_types::ConfirmMessagesMultiResponse;
 
     let board_count = req.requests.len();
     tracing::info!(
-        "[MULTI-CONFIRM] Confirming messages for {} boards",
+        "[MULTI-CONFIRM] User {} confirming messages for {} boards",
+        claims.sub,
         board_count
     );
 
