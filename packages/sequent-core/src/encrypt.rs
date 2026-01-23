@@ -98,11 +98,12 @@ pub fn parse_public_key<C: Ctx>(
         .ok_or(BallotError::ConsistencyCheck(
             "Missing Public Key Config".to_string(),
         ))?;
-    let public_key_str = public_key_config
-        .public_key
-        .ok_or(BallotError::ConsistencyCheck(
-            "Missing Public Key".to_string(),
-        ))?;
+    let public_key_str =
+        public_key_config
+            .public_key
+            .ok_or(BallotError::ConsistencyCheck(
+                "Missing Public Key".to_string(),
+            ))?;
     Base64Deserialize::deserialize(public_key_str)
 }
 

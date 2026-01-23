@@ -176,10 +176,12 @@ const PLAINTEXT_DECODED_CONTESTS_JSON: &str = r#"[{
 
 // Helper function to create an auditable plaintext ballot from decoded contests
 fn create_auditable_plaintext_ballot() -> JsValue {
-    let decoded_contests_json = JSON::parse(PLAINTEXT_DECODED_CONTESTS_JSON).unwrap();
+    let decoded_contests_json =
+        JSON::parse(PLAINTEXT_DECODED_CONTESTS_JSON).unwrap();
     let election_json = JSON::parse(PLAINTEXT_ELECTION_JSON).unwrap();
 
-    let result = encode_plaintext_contest_js(decoded_contests_json, election_json);
+    let result =
+        encode_plaintext_contest_js(decoded_contests_json, election_json);
     assert!(
         result.is_ok(),
         "Failed to create auditable plaintext ballot: {:?}",
@@ -190,10 +192,12 @@ fn create_auditable_plaintext_ballot() -> JsValue {
 
 #[wasm_bindgen_test]
 fn test_encode_plaintext_contest_success() {
-    let decoded_contests_json = JSON::parse(PLAINTEXT_DECODED_CONTESTS_JSON).unwrap();
+    let decoded_contests_json =
+        JSON::parse(PLAINTEXT_DECODED_CONTESTS_JSON).unwrap();
     let election_json = JSON::parse(PLAINTEXT_ELECTION_JSON).unwrap();
 
-    let result = encode_plaintext_contest_js(decoded_contests_json, election_json);
+    let result =
+        encode_plaintext_contest_js(decoded_contests_json, election_json);
 
     assert!(
         result.is_ok(),
@@ -202,20 +206,38 @@ fn test_encode_plaintext_contest_success() {
     );
 
     // Verify the result has expected structure
-    let auditable_ballot: Value = serde_wasm_bindgen::from_value(result.unwrap()).unwrap();
-    assert!(auditable_ballot.get("version").is_some(), "Should have version field");
-    assert!(auditable_ballot.get("issue_date").is_some(), "Should have issue_date field");
-    assert!(auditable_ballot.get("config").is_some(), "Should have config field");
-    assert!(auditable_ballot.get("contests").is_some(), "Should have contests field");
-    assert!(auditable_ballot.get("ballot_hash").is_some(), "Should have ballot_hash field");
+    let auditable_ballot: Value =
+        serde_wasm_bindgen::from_value(result.unwrap()).unwrap();
+    assert!(
+        auditable_ballot.get("version").is_some(),
+        "Should have version field"
+    );
+    assert!(
+        auditable_ballot.get("issue_date").is_some(),
+        "Should have issue_date field"
+    );
+    assert!(
+        auditable_ballot.get("config").is_some(),
+        "Should have config field"
+    );
+    assert!(
+        auditable_ballot.get("contests").is_some(),
+        "Should have contests field"
+    );
+    assert!(
+        auditable_ballot.get("ballot_hash").is_some(),
+        "Should have ballot_hash field"
+    );
 }
 
 #[wasm_bindgen_test]
 fn test_encode_plaintext_contest_fails_on_invalid_contests() {
-    let invalid_contests_json = JSON::parse(r#"[{"invalid": "data"}]"#).unwrap();
+    let invalid_contests_json =
+        JSON::parse(r#"[{"invalid": "data"}]"#).unwrap();
     let election_json = JSON::parse(PLAINTEXT_ELECTION_JSON).unwrap();
 
-    let result = encode_plaintext_contest_js(invalid_contests_json, election_json);
+    let result =
+        encode_plaintext_contest_js(invalid_contests_json, election_json);
 
     assert!(result.is_err(), "Should fail on invalid decoded contests");
 }
@@ -233,7 +255,8 @@ fn test_decode_auditable_plaintext_ballot_success() {
     );
 
     // Verify the decoded contests structure
-    let decoded_contests: Value = serde_wasm_bindgen::from_value(result.unwrap()).unwrap();
+    let decoded_contests: Value =
+        serde_wasm_bindgen::from_value(result.unwrap()).unwrap();
     assert!(decoded_contests.is_array(), "Result should be an array");
     let contests_array = decoded_contests.as_array().unwrap();
     assert_eq!(contests_array.len(), 1, "Should have one contest");
@@ -242,10 +265,12 @@ fn test_decode_auditable_plaintext_ballot_success() {
 #[wasm_bindgen_test]
 fn test_encode_decode_plaintext_roundtrip() {
     // Encode the plaintext ballot
-    let decoded_contests_json = JSON::parse(PLAINTEXT_DECODED_CONTESTS_JSON).unwrap();
+    let decoded_contests_json =
+        JSON::parse(PLAINTEXT_DECODED_CONTESTS_JSON).unwrap();
     let election_json = JSON::parse(PLAINTEXT_ELECTION_JSON).unwrap();
 
-    let encode_result = encode_plaintext_contest_js(decoded_contests_json, election_json);
+    let encode_result =
+        encode_plaintext_contest_js(decoded_contests_json, election_json);
     assert!(encode_result.is_ok(), "Encoding should succeed");
     let auditable_ballot = encode_result.unwrap();
 
@@ -254,12 +279,18 @@ fn test_encode_decode_plaintext_roundtrip() {
     assert!(decode_result.is_ok(), "Decoding should succeed");
 
     // Verify structure matches original
-    let decoded_contests: Value = serde_wasm_bindgen::from_value(decode_result.unwrap()).unwrap();
-    let original_contests: Value = serde_json::from_str(PLAINTEXT_DECODED_CONTESTS_JSON).unwrap();
+    let decoded_contests: Value =
+        serde_wasm_bindgen::from_value(decode_result.unwrap()).unwrap();
+    let original_contests: Value =
+        serde_json::from_str(PLAINTEXT_DECODED_CONTESTS_JSON).unwrap();
 
     let decoded_array = decoded_contests.as_array().unwrap();
     let original_array = original_contests.as_array().unwrap();
-    assert_eq!(decoded_array.len(), original_array.len(), "Should have same number of contests");
+    assert_eq!(
+        decoded_array.len(),
+        original_array.len(),
+        "Should have same number of contests"
+    );
 }
 
 #[wasm_bindgen_test]
@@ -275,12 +306,28 @@ fn test_to_hashable_plaintext_ballot_success() {
     );
 
     // Verify the hashable ballot structure
-    let hashable_ballot: Value = serde_wasm_bindgen::from_value(result.unwrap()).unwrap();
-    assert!(hashable_ballot.get("version").is_some(), "Should have version field");
-    assert!(hashable_ballot.get("issue_date").is_some(), "Should have issue_date field");
-    assert!(hashable_ballot.get("contests").is_some(), "Should have contests field");
-    assert!(hashable_ballot.get("config").is_some(), "Should have config field");
-    assert!(hashable_ballot.get("ballot_style_hash").is_some(), "Should have ballot_style_hash field");
+    let hashable_ballot: Value =
+        serde_wasm_bindgen::from_value(result.unwrap()).unwrap();
+    assert!(
+        hashable_ballot.get("version").is_some(),
+        "Should have version field"
+    );
+    assert!(
+        hashable_ballot.get("issue_date").is_some(),
+        "Should have issue_date field"
+    );
+    assert!(
+        hashable_ballot.get("contests").is_some(),
+        "Should have contests field"
+    );
+    assert!(
+        hashable_ballot.get("config").is_some(),
+        "Should have config field"
+    );
+    assert!(
+        hashable_ballot.get("ballot_style_hash").is_some(),
+        "Should have ballot_style_hash field"
+    );
 }
 
 #[wasm_bindgen_test]
@@ -321,12 +368,20 @@ fn test_hash_auditable_plaintext_ballot_deterministic() {
     let result1 = hash_auditable_plaintext_ballot_js(auditable_ballot1);
     let result2 = hash_auditable_plaintext_ballot_js(auditable_ballot2);
 
-    assert!(result1.is_ok() && result2.is_ok(), "Both hashing operations should succeed");
+    assert!(
+        result1.is_ok() && result2.is_ok(),
+        "Both hashing operations should succeed"
+    );
 
-    let hash1: String = serde_wasm_bindgen::from_value(result1.unwrap()).unwrap();
-    let hash2: String = serde_wasm_bindgen::from_value(result2.unwrap()).unwrap();
+    let hash1: String =
+        serde_wasm_bindgen::from_value(result1.unwrap()).unwrap();
+    let hash2: String =
+        serde_wasm_bindgen::from_value(result2.unwrap()).unwrap();
 
-    assert_eq!(hash1, hash2, "Identical ballots should produce identical hashes");
+    assert_eq!(
+        hash1, hash2,
+        "Identical ballots should produce identical hashes"
+    );
 }
 
 #[wasm_bindgen_test]
@@ -335,11 +390,12 @@ fn test_sign_plaintext_ballot_success() {
     let ballot_id = JsValue::from_str("test-ballot-id-12345");
     let election_id = JsValue::from_str("f2f1065e-b784-46d1-b81a-c71bfeb9ad55");
 
-    let result = sign_hashable_plaintext_ballot_with_ephemeral_voter_signing_key_js(
-        ballot_id,
-        election_id,
-        auditable_ballot,
-    );
+    let result =
+        sign_hashable_plaintext_ballot_with_ephemeral_voter_signing_key_js(
+            ballot_id,
+            election_id,
+            auditable_ballot,
+        );
 
     assert!(
         result.is_ok(),
@@ -348,35 +404,47 @@ fn test_sign_plaintext_ballot_success() {
     );
 
     // Verify the signed content structure
-    let signed_content: Value = serde_wasm_bindgen::from_value(result.unwrap()).unwrap();
-    assert!(signed_content.get("voter_signing_pk").is_some(), "Should have voter_signing_pk field");
-    assert!(signed_content.get("voter_ballot_signature").is_some(), "Should have voter_ballot_signature field");
+    let signed_content: Value =
+        serde_wasm_bindgen::from_value(result.unwrap()).unwrap();
+    assert!(
+        signed_content.get("voter_signing_pk").is_some(),
+        "Should have voter_signing_pk field"
+    );
+    assert!(
+        signed_content.get("voter_ballot_signature").is_some(),
+        "Should have voter_ballot_signature field"
+    );
 }
 
 #[wasm_bindgen_test]
 fn test_sign_and_verify_plaintext_ballot_roundtrip() {
     // First encode the ballot
-    let decoded_contests_json = JSON::parse(PLAINTEXT_DECODED_CONTESTS_JSON).unwrap();
+    let decoded_contests_json =
+        JSON::parse(PLAINTEXT_DECODED_CONTESTS_JSON).unwrap();
     let election_json = JSON::parse(PLAINTEXT_ELECTION_JSON).unwrap();
 
-    let encode_result = encode_plaintext_contest_js(decoded_contests_json, election_json);
+    let encode_result =
+        encode_plaintext_contest_js(decoded_contests_json, election_json);
     assert!(encode_result.is_ok(), "Encoding should succeed");
     let auditable_ballot = encode_result.unwrap();
 
     // Get the ballot hash for use as ballot_id
-    let hash_result = hash_auditable_plaintext_ballot_js(auditable_ballot.clone());
+    let hash_result =
+        hash_auditable_plaintext_ballot_js(auditable_ballot.clone());
     assert!(hash_result.is_ok(), "Hashing should succeed");
-    let ballot_hash: String = serde_wasm_bindgen::from_value(hash_result.unwrap()).unwrap();
+    let ballot_hash: String =
+        serde_wasm_bindgen::from_value(hash_result.unwrap()).unwrap();
 
     let ballot_id = JsValue::from_str(&ballot_hash);
     let election_id = JsValue::from_str("f2f1065e-b784-46d1-b81a-c71bfeb9ad55");
 
     // Sign the ballot
-    let sign_result = sign_hashable_plaintext_ballot_with_ephemeral_voter_signing_key_js(
-        ballot_id.clone(),
-        election_id.clone(),
-        auditable_ballot.clone(),
-    );
+    let sign_result =
+        sign_hashable_plaintext_ballot_with_ephemeral_voter_signing_key_js(
+            ballot_id.clone(),
+            election_id.clone(),
+            auditable_ballot.clone(),
+        );
     assert!(
         sign_result.is_ok(),
         "Signing should succeed. Error: {:?}",
@@ -384,12 +452,14 @@ fn test_sign_and_verify_plaintext_ballot_roundtrip() {
     );
 
     // Get the signed content
-    let signed_content: Value = serde_wasm_bindgen::from_value(sign_result.unwrap()).unwrap();
+    let signed_content: Value =
+        serde_wasm_bindgen::from_value(sign_result.unwrap()).unwrap();
 
     // Update the auditable ballot with signature information
     let mut auditable_ballot_value: Value =
         serde_wasm_bindgen::from_value(auditable_ballot).unwrap();
-    auditable_ballot_value["voter_signing_pk"] = signed_content["voter_signing_pk"].clone();
+    auditable_ballot_value["voter_signing_pk"] =
+        signed_content["voter_signing_pk"].clone();
     auditable_ballot_value["voter_ballot_signature"] =
         signed_content["voter_ballot_signature"].clone();
 
@@ -410,47 +480,56 @@ fn test_sign_and_verify_plaintext_ballot_roundtrip() {
         verify_result.err()
     );
 
-    let is_verified: bool = serde_wasm_bindgen::from_value(verify_result.unwrap()).unwrap();
+    let is_verified: bool =
+        serde_wasm_bindgen::from_value(verify_result.unwrap()).unwrap();
     assert!(is_verified, "Signature verification should return true");
 }
 
 #[wasm_bindgen_test]
 fn test_verify_plaintext_ballot_fails_with_tampered_signature() {
     // First encode and sign the ballot
-    let decoded_contests_json = JSON::parse(PLAINTEXT_DECODED_CONTESTS_JSON).unwrap();
+    let decoded_contests_json =
+        JSON::parse(PLAINTEXT_DECODED_CONTESTS_JSON).unwrap();
     let election_json = JSON::parse(PLAINTEXT_ELECTION_JSON).unwrap();
 
-    let encode_result = encode_plaintext_contest_js(decoded_contests_json, election_json);
+    let encode_result =
+        encode_plaintext_contest_js(decoded_contests_json, election_json);
     assert!(encode_result.is_ok(), "Encoding should succeed");
     let auditable_ballot = encode_result.unwrap();
 
     // Get the ballot hash
-    let hash_result = hash_auditable_plaintext_ballot_js(auditable_ballot.clone());
+    let hash_result =
+        hash_auditable_plaintext_ballot_js(auditable_ballot.clone());
     assert!(hash_result.is_ok(), "Hashing should succeed");
-    let ballot_hash: String = serde_wasm_bindgen::from_value(hash_result.unwrap()).unwrap();
+    let ballot_hash: String =
+        serde_wasm_bindgen::from_value(hash_result.unwrap()).unwrap();
 
     let ballot_id = JsValue::from_str(&ballot_hash);
     let election_id = JsValue::from_str("f2f1065e-b784-46d1-b81a-c71bfeb9ad55");
 
     // Sign the ballot
-    let sign_result = sign_hashable_plaintext_ballot_with_ephemeral_voter_signing_key_js(
-        ballot_id.clone(),
-        election_id.clone(),
-        auditable_ballot.clone(),
-    );
+    let sign_result =
+        sign_hashable_plaintext_ballot_with_ephemeral_voter_signing_key_js(
+            ballot_id.clone(),
+            election_id.clone(),
+            auditable_ballot.clone(),
+        );
     assert!(sign_result.is_ok(), "Signing should succeed");
 
-    let signed_content: Value = serde_wasm_bindgen::from_value(sign_result.unwrap()).unwrap();
+    let signed_content: Value =
+        serde_wasm_bindgen::from_value(sign_result.unwrap()).unwrap();
 
     // Create ballot with tampered signature
     let mut auditable_ballot_value: Value =
         serde_wasm_bindgen::from_value(auditable_ballot).unwrap();
-    auditable_ballot_value["voter_signing_pk"] = signed_content["voter_signing_pk"].clone();
+    auditable_ballot_value["voter_signing_pk"] =
+        signed_content["voter_signing_pk"].clone();
     // Use a different (invalid) signature
     auditable_ballot_value["voter_ballot_signature"] =
         Value::String("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA".to_string());
 
-    let tampered_ballot = JSON::parse(&auditable_ballot_value.to_string()).unwrap();
+    let tampered_ballot =
+        JSON::parse(&auditable_ballot_value.to_string()).unwrap();
 
     // Verification should fail
     let verify_result = verify_plaintext_ballot_signature_js(
@@ -484,6 +563,10 @@ fn test_verify_plaintext_ballot_without_signature() {
         result.err()
     );
 
-    let is_verified: bool = serde_wasm_bindgen::from_value(result.unwrap()).unwrap();
-    assert!(!is_verified, "Unsigned ballot verification should return false");
+    let is_verified: bool =
+        serde_wasm_bindgen::from_value(result.unwrap()).unwrap();
+    assert!(
+        !is_verified,
+        "Unsigned ballot verification should return false"
+    );
 }
