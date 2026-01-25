@@ -7,6 +7,7 @@ use crate::{
     utils::read_config::read_config,
 };
 use clap::Args;
+use colored::Colorize;
 use graphql_client::{GraphQLQuery, Response};
 use std::str::FromStr;
 
@@ -38,9 +39,10 @@ impl UpdateTallyStatus {
     pub fn run(&self) {
         match update_status(&self.election_event_id, &self.tally_id, &self.status) {
             Ok(id) => {
+                let status = &self.status;
                 println!(
-                    "Success! Successfully updated status to {} for tally: {}",
-                    &self.status, id
+                    "{}",
+                    format!("Success! Updated status to {status} for tally {id}").green()
                 );
             }
             Err(err) => {
