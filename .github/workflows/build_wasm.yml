@@ -58,3 +58,8 @@ jobs:
         working-directory: packages/sequent-core
         run: |
           nix develop --command wasm-pack -v pack .
+
+      - name: Check that WASM tests work
+        working-directory: packages/sequent-core
+        run: |
+          nix develop --command wasm-pack test --release --chrome --headless -- --features=wasmtest,default_features
