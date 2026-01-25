@@ -35,15 +35,15 @@
     "i18next-browser-languagedetector": "^6.1.4"
   },
   "peerDependencies": {
-    "react": "18.1.0",
-    "react-dom": "18.1.0",
-    "mui-image": "1.0.7",
-    "react-i18next": "11.18.3",
-    "react-router-dom": "6.11.2",
-    "@mui/material": "5.13.3",
     "@emotion/react": "11.10.0",
     "@emotion/styled": "11.10.0",
-    "@sequentech/ui-core": "*"
+    "@mui/material": "5.13.3",
+    "@sequentech/ui-core": "*",
+    "mui-image": "1.0.7",
+    "react": "18.1.0",
+    "react-dom": "18.1.0",
+    "react-i18next": "11.18.3",
+    "react-router-dom": "6.11.2"
   },
   "devDependencies": {
     "@babel/cli": "7.12.8",
@@ -54,14 +54,9 @@
     "@babel/preset-env": "7.22.4",
     "@babel/preset-react": "7.22.3",
     "@babel/preset-typescript": "7.21.5",
-    "mui-image": "^1.0.7",
-    "react": "18.1.0",
-    "react-dom": "18.1.0",
-    "react-i18next": "11.18.3",
-    "react-router-dom": "6.11.2",
-    "@mui/material": "5.13.3",
     "@emotion/react": "11.10.0",
     "@emotion/styled": "11.10.0",
+    "@mui/material": "5.13.3",
     "@storybook/addon-actions": "^7.0.18",
     "@storybook/addon-essentials": "^7.0.18",
     "@storybook/addon-interactions": "^7.0.18",
@@ -96,7 +91,12 @@
     "eslint-plugin-storybook": "^0.6.12",
     "eslint-webpack-plugin": "2.4.0",
     "jest": "26.6.3",
+    "mui-image": "^1.0.7",
     "prettier": "2.2.1",
+    "react": "18.1.0",
+    "react-dom": "18.1.0",
+    "react-i18next": "11.18.3",
+    "react-router-dom": "6.11.2",
     "storybook": "^7.0.18",
     "storybook-addon-pseudo-states": "2.0.1",
     "storybook-addon-react-router-v6": "^1.0.2",
@@ -128,5 +128,8 @@
   },
   "readme": "ERROR: No README data found!",
   "homepage": "https://github.com/sequentech/ui-essentials#readme",
-  "_id": "ui-essentials@0.1.0"
+  "_id": "ui-essentials@0.1.0",
+  "resolutions": {
+    "form-data": ">=3.0.4"
+  }
 }

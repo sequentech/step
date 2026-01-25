@@ -30,5 +30,8 @@
     "@browserstack/wdio-browserstack-service": "^1.0.2",
     "@wdio/local-runner": "^5.23.0",
     "@wdio/mocha-framework": "^5.18.7"
+  },
+  "overrides": {
+    "form-data": "2.5.4"
   }
 }
