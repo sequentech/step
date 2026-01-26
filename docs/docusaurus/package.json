@@ -41,5 +41,11 @@
   },
   "engines": {
     "node": ">=18.0"
+  },
+  "resolutions": {
+    "node-forge": "1.3.2"
+  },
+  "overrides": {
+    "node-forge": "1.3.2"
   }
 }
