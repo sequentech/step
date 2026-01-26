@@ -37,8 +37,10 @@ ring = "0.17"
 sha2 = "0.10"
 base64 = "0.22"
 
+colored = "3.0"
+
 url = "2"
 
 [[bin]]
-name = "step-cli"
+name = "cli"
 path = "src/main.rs"

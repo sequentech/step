@@ -3,21 +3,21 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use anyhow::Result;
 use chrono::Utc;
+use chrono::{Duration, NaiveDate};
 use clap::Args;
+use colored::Colorize;
 use csv::Writer;
 use fake::faker::name::raw::{FirstName, LastName};
 use fake::locales::EN;
 use fake::Fake;
 use rand::seq::IndexedRandom;
 use rand::seq::SliceRandom;
+use rand::Rng;
 use serde_json::Value;
 use std::collections::HashSet;
 use std::fs::File;
 use std::io::BufReader;
 use std::path::PathBuf;
-
-use chrono::{Duration, NaiveDate};
-use rand::Rng;
 
 use crate::utils::read_config::load_external_config;
 
@@ -36,7 +36,7 @@ impl GenerateVoters {
     /// Execute the rendering process
     pub fn run(&self) {
         match self.run_generate_voters(&self.working_directory, self.num_users) {
-            Ok(_) => println!("Successfully generated voters into csv"),
+            Ok(_) => println!("{}", "Successfully generated voters into csv".green()),
             Err(err) => eprintln!("Error! Failed to generate voters: {err:?}"),
         }
     }
@@ -93,6 +93,8 @@ impl GenerateVoters {
         let min_age = voters_config.min_age;
         let max_age = voters_config.max_age;
         let overseas_reference = voters_config.overseas_reference;
+        let authorized_elections_count = voters_config.authorized_elections_count;
+        let email_verified = voters_config.email_verified;
 
         // Parse election event file parts.
         let areas: &[serde_json::Value] = election_data
@@ -306,7 +308,17 @@ impl GenerateVoters {
                 .cloned()
                 .unwrap_or_else(|| (election_country_candidate.clone(), "Unknown".to_string()));
             let joined_aliases = if !election_aliases.is_empty() {
-                election_aliases.join("|")
+                if authorized_elections_count > 0 {
+                    let amount =
+                        std::cmp::min(authorized_elections_count as usize, election_aliases.len());
+                    election_aliases
+                        .choose_multiple(&mut rand::thread_rng(), amount)
+                        .cloned()
+                        .collect::<Vec<String>>()
+                        .join("|")
+                } else {
+                    election_aliases.join("|")
+                }
             } else {
                 "Unknown".to_string()
             };
@@ -358,6 +370,7 @@ impl GenerateVoters {
                     "email" => email.clone(),
                     "password_salt" => password_salt.to_string(),
                     "hashed_password" => hashed_password.to_string(),
+                    "email_verified" => email_verified.to_string(),
                     _ => "".to_string(), // default empty if field not recognized
                 };
                 record.push(value);
