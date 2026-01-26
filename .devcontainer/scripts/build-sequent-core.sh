@@ -22,7 +22,7 @@ wasm-pack --version
 which wasm-bindgen
 wasm-bindgen --version
 
-wasm-pack build --mode no-install --out-name index --release --target web --features=wasmtest,,default_features
+wasm-pack build --mode no-install --out-name index --release --target web --features=wasmtest,default_features
 wasm-pack -v pack . 2>&1 | tee output.log
 
 cd ..
