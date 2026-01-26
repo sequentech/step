@@ -6,6 +6,7 @@ use std::collections::HashMap;
 
 use crate::{types::hasura_types::*, utils::read_config::read_config};
 use clap::Args;
+use colored::Colorize;
 use create_user::KeycloakUser2;
 use graphql_client::{GraphQLQuery, Response};
 use serde_json::{Map, Value};
@@ -56,7 +57,11 @@ impl CreateVoter {
             &self.area_id,
         ) {
             Ok(id) => {
-                println!("Success! Voter created successfully! ID: {}", id);
+                println!(
+                    "{} {}",
+                    "Success! Voter created successfully! ID:".green(),
+                    id.cyan()
+                );
             }
             Err(err) => {
                 eprintln!("Error! Failed to create voter: {}", err)
