@@ -13,6 +13,7 @@ import jakarta.ws.rs.core.UriBuilder;
 import jakarta.ws.rs.core.UriInfo;
 import java.io.IOException;
 import java.net.URI;
+import java.text.Bidi;
 import java.text.MessageFormat;
 import java.util.Arrays;
 import java.util.Collections;
@@ -520,6 +521,13 @@ public class Utils {
         }
       }
       attributes.put("locale", locale);
+
+      // Determine text direction based on locale using java.text.Bidi
+      // This follows the same approach as Keycloak's LocaleBean.isLeftToRight()
+      String localizedName = locale.getDisplayName(locale);
+      Bidi bidi = new Bidi(localizedName, Bidi.DIRECTION_DEFAULT_LEFT_TO_RIGHT);
+      boolean isLtr = bidi.isLeftToRight();
+      attributes.put("ltr", isLtr);
 
       Properties messages = theme.getEnhancedMessages(realm, locale);
       attributes.put("msg", new MessageFormatterMethod(locale, messages));
