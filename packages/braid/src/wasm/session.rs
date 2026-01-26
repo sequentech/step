@@ -31,6 +31,9 @@ pub struct WasmSessionConfig {
     // FIXME is this used anywhere?
     pub name: String,
     pub b4_url: String,
+    /// JWT access token for B4 authentication (required)
+    /// Will be sent as `Authorization: Bearer <token>` header on all B4 requests
+    pub access_token: String,
     #[serde(flatten)]
     pub trustee_config: TrusteeConfig,
 }
@@ -63,6 +66,8 @@ pub struct WasmSession {
     // FIXME is this used anywhere?
     name: String,
     b4_url: String,
+    /// JWT access token for B4 authentication (required)
+    access_token: String,
     board_name: Option<String>,
     config: TrusteeConfig,
 }
@@ -92,6 +97,7 @@ impl WasmSession {
             session: None,
             name: wasm_config.name,
             b4_url: wasm_config.b4_url,
+            access_token: wasm_config.access_token,
             board_name: None,
             config: wasm_config.trustee_config,
         })
@@ -222,6 +228,11 @@ impl WasmSession {
 
         let request = Request::new_with_str_and_init(&url, &opts)?;
 
+        // Add Authorization header
+        request
+            .headers()
+            .set("Authorization", &format!("Bearer {}", self.access_token))?;
+
         let window = web_sys::window().ok_or_else(|| JsValue::from_str("No window"))?;
         let resp_value = JsFuture::from(window.fetch_with_request(&request)).await?;
         let resp: Response = resp_value.dyn_into()?;
@@ -273,6 +284,11 @@ impl WasmSession {
 
         let request = Request::new_with_str_and_init(&url, &opts)?;
 
+        // Add Authorization header
+        request
+            .headers()
+            .set("Authorization", &format!("Bearer {}", self.access_token))?;
+
         let window = web_sys::window().ok_or_else(|| JsValue::from_str("No window"))?;
         let resp_value = JsFuture::from(window.fetch_with_request(&request)).await?;
         let resp: Response = resp_value.dyn_into()?;
@@ -315,6 +331,12 @@ impl WasmSession {
                     opts.set_mode(RequestMode::Cors);
 
                     let request = Request::new_with_str_and_init(&message_url, &opts)?;
+
+                    // Add Authorization header
+                    request
+                        .headers()
+                        .set("Authorization", &format!("Bearer {}", self.access_token))?;
+
                     let window = web_sys::window().ok_or_else(|| JsValue::from_str("No window"))?;
                     let resp_value = JsFuture::from(window.fetch_with_request(&request)).await?;
                     let resp: Response = resp_value.dyn_into()?;
@@ -464,6 +486,11 @@ impl WasmSession {
             let request = Request::new_with_str_and_init(&initiate_url, &opts)?;
             request.headers().set("Content-Type", "application/json")?;
 
+            // Add Authorization header
+            request
+                .headers()
+                .set("Authorization", &format!("Bearer {}", self.access_token))?;
+
             let window = web_sys::window().ok_or_else(|| JsValue::from_str("No window"))?;
             let resp_value = JsFuture::from(window.fetch_with_request(&request)).await?;
             let resp: Response = resp_value.dyn_into()?;
@@ -544,6 +571,11 @@ impl WasmSession {
                 let request3 = Request::new_with_str_and_init(&confirm_url, &opts3)?;
                 request3.headers().set("Content-Type", "application/json")?;
 
+                // Add Authorization header
+                request3
+                    .headers()
+                    .set("Authorization", &format!("Bearer {}", self.access_token))?;
+
                 let resp_value3 = JsFuture::from(window.fetch_with_request(&request3)).await?;
                 let resp3: Response = resp_value3.dyn_into()?;
 
@@ -581,6 +613,11 @@ impl WasmSession {
 
                 let request3 = Request::new_with_str_and_init(&confirm_url, &opts3)?;
                 request3.headers().set("Content-Type", "application/json")?;
+
+                // Add Authorization header
+                request3
+                    .headers()
+                    .set("Authorization", &format!("Bearer {}", self.access_token))?;
 
                 let resp_value3 = JsFuture::from(window.fetch_with_request(&request3)).await?;
                 let resp3: Response = resp_value3.dyn_into()?;
@@ -738,6 +775,14 @@ impl WasmSession {
     #[wasm_bindgen(getter)]
     pub fn b4_url(&self) -> String {
         self.b4_url.clone()
+    }
+
+    /// Update the access token for B4 authentication
+    ///
+    /// This should be called when the token is refreshed (tokens typically expire).
+    pub fn update_access_token(&mut self, token: String) {
+        web_sys::console::log_1(&JsValue::from_str("Access token updated"));
+        self.access_token = token;
     }
 
     /// Get board summary - list of statements in local board

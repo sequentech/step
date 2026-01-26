@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, {useState, useEffect, useRef, useCallback} from "react"
+import React, {useState, useEffect, useRef, useCallback, useContext} from "react"
 import {
     Card,
     CardContent,
@@ -32,6 +32,7 @@ import {
     Terminal as TerminalIcon,
 } from "@mui/icons-material"
 import {useInterval} from "react-use"
+import {AuthContext} from "@/providers/AuthContextProvider"
 
 // Import the WASM package (already in your dependencies)
 import init, {initThreadPool, WasmSession, WasmVerifier} from "braid-wasm"
@@ -44,6 +45,7 @@ interface Config {
     signing_key_pk: string
     encryption_key: string
     b4_url: string
+    access_token: string
 }
 
 interface Board {
@@ -63,12 +65,15 @@ interface Action {
 }
 
 export const TrusteeDashboard = () => {
+    const {getAccessToken} = useContext(AuthContext)
+
     const [config, setConfig] = useState<Config>({
         name: "browser-trustee-1",
         signing_key_sk: "",
         signing_key_pk: "",
         encryption_key: "",
         b4_url: "http://127.0.0.1:50051",
+        access_token: "",
     })
 
     const [initialized, setInitialized] = useState(false)
@@ -136,16 +141,48 @@ export const TrusteeDashboard = () => {
         }
     }, [log])
 
+    // Update access token in WasmSession when it changes (tokens get refreshed periodically)
+    useEffect(() => {
+        if (!initialized || !trustee) return
+        const currentToken = getAccessToken()
+        if (!currentToken) {
+            log("Warning: Access token expired or unavailable", "warn")
+            return
+        }
+        log("Updating access token in trustee session")
+        // Update the token in the active session
+        try {
+            trustee.update_access_token(currentToken)
+        } catch (e: any) {
+            log(`Failed to update access token: ${e.message}`, "warn")
+        }
+    }, [initialized, getAccessToken])
+
     const handleInit = async () => {
-        if (Object.values(config).some((v) => !v.trim())) {
-            log("All fields required", "error")
+        // Validate required fields (excluding optional access_token)
+        const requiredFields = ['name', 'signing_key_sk', 'signing_key_pk', 'encryption_key', 'b4_url'] as const
+        const missingFields = requiredFields.filter(field => !config[field]?.trim())
+        if (missingFields.length > 0) {
+            log(`Missing required fields: ${missingFields.join(', ')}`, "error")
+            return
+        }
+
+        // Get access token from auth context
+        const accessToken = getAccessToken()
+        if (!accessToken) {
+            log("Error: No access token available - cannot initialize trustee", "error")
             return
         }
 
         try {
-            trustee = new WasmSession(JSON.stringify(config))
+            // Pass config with access token to WasmSession
+            const configWithToken = {
+                ...config,
+                access_token: accessToken
+            }
+            trustee = new WasmSession(JSON.stringify(configWithToken))
             setInitialized(true)
-            log(`Trustee initialized: ${config.name}`)
+            log(`Trustee initialized: ${config.name} (authenticated)`)
         } catch (e: any) {
             log(`Init failed: ${e.message}`, "error")
         }
