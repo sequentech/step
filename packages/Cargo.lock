@@ -1605,31 +1605,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "braid-wasm"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "b4",
- "base64 0.22.1",
- "braid",
- "console_error_panic_hook",
- "getrandom 0.2.16",
- "indexed_db_futures",
- "js-sys",
- "reqwest",
- "serde",
- "serde-wasm-bindgen",
- "serde_json",
- "strand",
- "tracing-wasm",
- "wasm-bindgen",
- "wasm-bindgen-futures",
- "wasm-bindgen-rayon",
- "wasm-bindgen-test",
- "web-sys",
-]
-
-[[package]]
 name = "brotli-decompressor"
 version = "4.0.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
