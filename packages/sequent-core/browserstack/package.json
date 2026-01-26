@@ -31,6 +31,8 @@
     "@wdio/mocha-framework": "^5.18.7"
   },
   "overrides": {
-    "form-data": "2.5.4"
+    "form-data": "2.5.4",
+    "ws": "8.17.1",
+    "tar-fs": "2.1.3"
   }
 }
