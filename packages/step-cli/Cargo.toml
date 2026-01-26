@@ -28,7 +28,7 @@ fake = { version = "4", features = ["derive"] }
 csv = "1.1"
 rand = "0.8"
 chrono = "0.4"
-tokio = { version = "1.38.1", features = ["full"] }
+tokio = { version = "1.44.2", features = ["full"] }
 tokio-postgres = "0.7.10"
 deadpool-postgres = { version = "0.11.0", features = ["rt_tokio_1", "serde"] }
 

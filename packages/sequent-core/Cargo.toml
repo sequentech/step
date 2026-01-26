@@ -107,7 +107,7 @@ tokio-postgres = { version = "0.7", features = ["with-uuid-1", "with-chrono-0_4"
 # probehandler
 tokio = { version = "1.44", features = ["full"], optional = true }
 warp =  { version = "0.3", optional = true }
-ammonia = "3.3.0"
+ammonia = "4.1.2"
 ordered-float = { version = "4.4.0", features = ["serde"] }
 
 rand = "0.8"
