@@ -7,7 +7,6 @@ resolver = "2"
 
 members = [
     "braid",
-    "braid-wasm",
     "b4",
     "electoral-log",
     "harvest",
