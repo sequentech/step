@@ -352,7 +352,11 @@ pub async fn list_messages(
     Path(board_name): Path<String>,
     Query(query): Query<GetMessagesQuery>,
 ) -> Result<Json<ListMessagesResponse>, StatusCode> {
-    tracing::debug!("User {} listing messages from board '{}'", claims.sub, board_name);
+    tracing::debug!(
+        "User {} listing messages from board '{}'",
+        claims.sub,
+        board_name
+    );
 
     // If last_id is provided, use range query
     if let Some(last_id) = query.last_id {
@@ -396,7 +400,11 @@ pub async fn get_messages(
 ) -> Result<Json<crate::api_types::GetMessagesResponse>, StatusCode> {
     use crate::api_types::{GetMessagesResponse, MessageWithUrl};
 
-    tracing::debug!("User {} getting messages from board '{}'", claims.sub, board_name);
+    tracing::debug!(
+        "User {} getting messages from board '{}'",
+        claims.sub,
+        board_name
+    );
 
     // Get messages using same logic as list_messages
     let messages = if let Some(last_id) = query.last_id {

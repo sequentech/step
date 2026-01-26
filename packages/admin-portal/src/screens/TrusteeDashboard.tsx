@@ -160,10 +160,16 @@ export const TrusteeDashboard = () => {
 
     const handleInit = async () => {
         // Validate required fields (excluding optional access_token)
-        const requiredFields = ['name', 'signing_key_sk', 'signing_key_pk', 'encryption_key', 'b4_url'] as const
-        const missingFields = requiredFields.filter(field => !config[field]?.trim())
+        const requiredFields = [
+            "name",
+            "signing_key_sk",
+            "signing_key_pk",
+            "encryption_key",
+            "b4_url",
+        ] as const
+        const missingFields = requiredFields.filter((field) => !config[field]?.trim())
         if (missingFields.length > 0) {
-            log(`Missing required fields: ${missingFields.join(', ')}`, "error")
+            log(`Missing required fields: ${missingFields.join(", ")}`, "error")
             return
         }
 
@@ -178,7 +184,7 @@ export const TrusteeDashboard = () => {
             // Pass config with access token to WasmSession
             const configWithToken = {
                 ...config,
-                access_token: accessToken
+                access_token: accessToken,
             }
             trustee = new WasmSession(JSON.stringify(configWithToken))
             setInitialized(true)

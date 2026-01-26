@@ -34,8 +34,7 @@ async fn main() -> Result<()> {
     // Configure CORS - read allowed origins from environment
     // In development, this should include localhost origins
     // In production, restrict to specific domains
-    let allowed_origins_str =
-        env::var("B4_ALLOWED_ORIGINS").unwrap_or_else(|_| "*".to_string());
+    let allowed_origins_str = env::var("B4_ALLOWED_ORIGINS").unwrap_or_else(|_| "*".to_string());
 
     let cors = if allowed_origins_str == "*" {
         tracing::warn!("CORS: Allowing all origins (*) - this should only be used in development!");
