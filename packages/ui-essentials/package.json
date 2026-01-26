@@ -98,7 +98,7 @@
     "react-dom": "18.1.0",
     "react-i18next": "11.18.3",
     "react-router-dom": "6.11.2",
-    "storybook": "^7.0.18",
+    "storybook": "^7.6.21",
     "storybook-addon-pseudo-states": "2.0.1",
     "storybook-addon-react-router-v6": "^1.0.2",
     "ts-jest": "26.4.4",
