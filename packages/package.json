@@ -38,5 +38,8 @@
     "generate:voting-portal": "yarn --cwd ./voting-portal generate",
     "generate:admin-portal": "yarn --cwd ./admin-portal generate",
     "generate:ballot-verifier": "yarn --cwd ./ballot-verifier generate"
+  },
+  "dependencies": {
+    "rollup": "3.29.5"
   }
 }
