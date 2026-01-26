@@ -130,6 +130,7 @@
   "homepage": "https://github.com/sequentech/ui-essentials#readme",
   "_id": "ui-essentials@0.1.0",
   "resolutions": {
-    "form-data": ">=3.0.4"
+    "form-data": ">=3.0.4",
+    "@babel/traverse": "7.23.2"
   }
 }
