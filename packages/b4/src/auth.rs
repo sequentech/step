@@ -8,6 +8,8 @@ use axum::{
     http::{request::Parts, StatusCode},
 };
 use sequent_core::services::jwt::{decode_jwt, JwtClaims};
+use sequent_core::types::permissions::Permissions;
+use tracing::{error, info, instrument, warn};
 
 /// JWT Claims extractor for Axum
 /// Usage: Add `JwtAuth(claims): JwtAuth` to handler parameters
@@ -20,6 +22,7 @@ where
 {
     type Rejection = StatusCode;
 
+    #[instrument(skip(parts, _state))]
     async fn from_request_parts(parts: &mut Parts, _state: &S) -> Result<Self, Self::Rejection> {
         // Extract Authorization header
         let auth_header = parts
@@ -57,33 +60,30 @@ where
 {
     type Rejection = StatusCode;
 
+    #[instrument(skip(parts, state))]
     async fn from_request_parts(parts: &mut Parts, state: &S) -> Result<Self, Self::Rejection> {
         // First extract JWT claims
         let JwtAuth(claims) = JwtAuth::from_request_parts(parts, state).await?;
 
-        // Check for trustee role in realm_access or resource_access
-        let has_trustee_role = claims
-            .realm_access
-            .as_ref()
-            .map(|ra| ra.roles.contains(&"trustee".to_string()))
-            .unwrap_or(false)
-            || claims
-                .resource_access
-                .as_ref()
-                .map(|ra| {
-                    ra.get("b4")
-                        .map(|access| access.roles.contains(&"trustee".to_string()))
-                        .unwrap_or(false)
-                })
-                .unwrap_or(false);
-
+        // Initially Claude thought it will be configure this way: "trustee" role in claims.realm_access.roles nor b4 in claims.resource_access hashmap.
+        // This is not the case.
+        // However the requirements below are ussually be true if the user is logged in as a trustee:
+        let has_trustee_role = claims.trustee.is_some()
+            && claims
+                .hasura_claims
+                .allowed_roles
+                .contains(&Permissions::TRUSTEE_WRITE.to_string())
+            && claims
+                .hasura_claims
+                .allowed_roles
+                .contains(&Permissions::TRUSTEE_READ.to_string())
+            && claims
+                .hasura_claims
+                .allowed_roles
+                .contains(&Permissions::TRUSTEE_CEREMONY.to_string());
+        let user_id = &claims.sub;
         if !has_trustee_role {
-            tracing::warn!(
-                "User {} does not have trustee role (realm_access: {:?}, resource_access: {:?})",
-                claims.sub,
-                claims.realm_access,
-                claims.resource_access
-            );
+            tracing::warn!("User {user_id} does not have trustee role {claims:?}",);
             return Err(StatusCode::FORBIDDEN);
         }
 
