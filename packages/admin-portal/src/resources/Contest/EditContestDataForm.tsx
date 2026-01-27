@@ -71,6 +71,7 @@ import {CircularProgress} from "@mui/material"
 import CustomOrderInput from "@/components/custom-order/CustomOrderInput"
 import {AuthContext} from "@/providers/AuthContextProvider"
 import {IPermissions} from "@/types/keycloak"
+import {useGetDocumentUrl} from "@/hooks/useGetDocumentUrl"
 
 type FieldValues = Record<string, any>
 
@@ -293,7 +294,7 @@ export const ContestDataForm: React.FC = () => {
     const notify = useNotify()
     const refresh = useRefresh()
     const authContext = useContext(AuthContext)
-
+    const getImageUrl = useGetDocumentUrl()
     const [value, setValue] = useState(0)
     const [expanded, setExpanded] = useState("contest-data-general")
 
@@ -597,6 +598,12 @@ export const ContestDataForm: React.FC = () => {
             {(incoming) => {
                 const parsedValue = parseValues(incoming as Sequent_Backend_Contest_Extended)
 
+                const imageUrl = getImageUrl(
+                    parsedValue?.tenant_id,
+                    parsedValue?.image_document_id,
+                    imageData?.name
+                )
+
                 return (
                     <SimpleForm
                         defaultValues={{candidatesOrder: sortedCandidates}}
@@ -825,8 +832,8 @@ export const ContestDataForm: React.FC = () => {
                                             <img
                                                 width={200}
                                                 height={200}
-                                                src={`${globalSettings.PUBLIC_BUCKET_URL}tenant-${parsedValue?.tenant_id}/document-${parsedValue?.image_document_id}/${imageData?.name}`}
-                                                alt={`tenant-${parsedValue?.tenant_id}/document-${parsedValue?.image_document_id}/${imageData?.name}`}
+                                                src={`${globalSettings.PUBLIC_BUCKET_URL}${imageUrl}`}
+                                                alt={imageUrl}
                                             />
                                         ) : null}
                                     </Grid>
