@@ -61,9 +61,9 @@ export interface AuthContextValues {
      */
     hasRole: (role: string) => boolean
     /**
-     * Get Access Token
+     * The current access token
      */
-    getAccessToken: () => string | undefined
+    accessToken: string | undefined
 
     updateTokenAndPermissionLabels: () => void
 
@@ -106,7 +106,7 @@ const defaultAuthContextValues: AuthContextValues = {
     trustee: "",
     logout: () => {},
     hasRole: () => false,
-    getAccessToken: () => undefined,
+    accessToken: undefined,
     isAuthorized: () => false,
     openProfileLink: () => new Promise(() => undefined),
     permissionLabels: [],
@@ -175,6 +175,7 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
     const [tenantId, setTenantId] = useState<string>("")
     const [trustee, setTrustee] = useState<string>("")
     const [permissionLabels, setPermissionLabels] = useState<string[]>([])
+    const [accessToken, setAccessToken] = useState<string | undefined>(undefined)
     const [selectedTenantId, setSelectTenantId] = useState<string | null>(
         localStorage.getItem("selected-tenant-id")
     )
@@ -280,6 +281,7 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
 
                 // User should be authenticated now due to login-required
                 localStorage.setItem("token", generateTokenStorage(newKeycloak))
+                setAccessToken(newKeycloak.token)
                 setAuthenticated(true)
                 setIsKeycloakInitialized(true)
                 setTimeout(updateTokenPeriodically, 4e3)
@@ -300,6 +302,7 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
                 if (fallbackResponse) {
                     // User is authenticated
                     localStorage.setItem("token", generateTokenStorage(newKeycloak))
+                    setAccessToken(newKeycloak.token)
                     setAuthenticated(true)
                     setIsKeycloakInitialized(true)
                     setTimeout(updateTokenPeriodically, 4e3)
@@ -411,6 +414,7 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
             }
             // If we get here the user is authenticated and we can update the state accordingly
             localStorage.setItem("token", generateTokenStorage(keycloak))
+            setAccessToken(keycloak.token)
             setAuthenticated(true)
             setTimeout(updateTokenPeriodically, 4e3)
             setIsKeycloakInitialized(true)
@@ -445,6 +449,7 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
             }
             if (refreshed) {
                 localStorage.setItem("token", generateTokenStorage(keycloak))
+                setAccessToken(keycloak.token)
             }
         }
         await sleep(sleepSecs * 1e3)
@@ -548,8 +553,6 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
         ].includes(role)
     }
 
-    const getAccessToken = () => keycloak?.token
-
     const isAuthorized = (
         checkSuperAdmin: boolean,
         someTenantId: string | null,
@@ -604,7 +607,7 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
                 trustee,
                 logout,
                 hasRole,
-                getAccessToken,
+                accessToken,
                 isAuthorized,
                 openProfileLink,
                 permissionLabels,

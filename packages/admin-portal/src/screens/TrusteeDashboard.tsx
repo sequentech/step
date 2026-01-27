@@ -65,7 +65,7 @@ interface Action {
 }
 
 export const TrusteeDashboard = () => {
-    const {getAccessToken} = useContext(AuthContext)
+    const {accessToken} = useContext(AuthContext)
 
     const [config, setConfig] = useState<Config>({
         name: "browser-trustee-1",
@@ -144,19 +144,18 @@ export const TrusteeDashboard = () => {
     // Update access token in WasmSession when it changes (tokens get refreshed periodically)
     useEffect(() => {
         if (!initialized || !trustee) return
-        const currentToken = getAccessToken()
-        if (!currentToken) {
+        if (!accessToken) {
             log("Warning: Access token expired or unavailable", "warn")
             return
         }
         log("Updating access token in trustee session")
         // Update the token in the active session
         try {
-            trustee.update_access_token(currentToken)
+            trustee.update_access_token(accessToken)
         } catch (e: any) {
             log(`Failed to update access token: ${e.message}`, "warn")
         }
-    }, [initialized, getAccessToken])
+    }, [initialized, accessToken])
 
     const handleInit = async () => {
         // Validate required fields (excluding optional access_token)
@@ -174,7 +173,6 @@ export const TrusteeDashboard = () => {
         }
 
         // Get access token from auth context
-        const accessToken = getAccessToken()
         if (!accessToken) {
             log("Error: No access token available - cannot initialize trustee", "error")
             return
