@@ -148,9 +148,9 @@ fn test_verify_fails_on_bad_signature() {
     );
     let error_string = result.err().unwrap().as_string().unwrap();
     assert!(
-        error_string.contains("Failed to verify signature") ||
-        error_string.contains("Verification equation was not satisfied") ||
-        error_string.contains("Failed to deserialize signature"),
+        error_string.contains("Failed to verify signature")
+            || error_string.contains("Verification equation was not satisfied")
+            || error_string.contains("Failed to deserialize signature"),
         "Error message should mention failed verification. Got: {}",
         error_string
     );
@@ -160,7 +160,8 @@ fn test_verify_fails_on_bad_signature() {
 fn test_fails_on_malformed_auditable_ballot_json() {
     let ballot_id = JsValue::from_str("test-ballot-id");
     let election_id = JsValue::from_str("f2f1065e-b784-46d1-b81a-c71bfeb9ad55");
-    let auditable_plaintext_ballot_json = JsValue::from_str("{ not valid json }");
+    let auditable_plaintext_ballot_json =
+        JsValue::from_str("{ not valid json }");
 
     let result = verify_plaintext_ballot_signature_js(
         ballot_id,
@@ -171,9 +172,9 @@ fn test_fails_on_malformed_auditable_ballot_json() {
     assert!(result.is_err(), "Should fail on auditable ballot parsing");
     let error_string = result.err().unwrap().as_string().unwrap();
     assert!(
-        error_string.contains("Failed to parse") ||
-        error_string.contains("Error parsing") ||
-        error_string.contains("Error deserializing"),
+        error_string.contains("Failed to parse")
+            || error_string.contains("Error parsing")
+            || error_string.contains("Error deserializing"),
         "Error should mention parsing failure. Got: {}",
         error_string
     );
