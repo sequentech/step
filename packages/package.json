@@ -55,6 +55,10 @@
     "cross-spawn": "7.0.5",
     "**/express/path-to-regexp": "0.1.12",
     "**/nise/path-to-regexp": "6.3.0",
-    "ejs": "3.1.10"
+    "ejs": "3.1.10",
+    "**/@npmcli/map-workspaces/glob": "10.5.0",
+    "**/js-beautify/glob": "10.5.0",
+    "**/@storybook/core-common/glob": "10.5.0",
+    "webpack": ">=5.94.0"
   }
 }
