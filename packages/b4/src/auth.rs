@@ -29,12 +29,16 @@ where
             .headers
             .get("authorization")
             .and_then(|h| h.to_str().ok())
-            .ok_or(StatusCode::UNAUTHORIZED)?;
+            .ok_or_else(|| {
+                tracing::error!("Missing or invalid Authorization header");
+                StatusCode::UNAUTHORIZED
+            })?;
 
         // Extract Bearer token
-        let token = auth_header
-            .strip_prefix("Bearer ")
-            .ok_or(StatusCode::UNAUTHORIZED)?;
+        let token = auth_header.strip_prefix("Bearer ").ok_or_else(|| {
+            tracing::error!("Authorization header missing 'Bearer ' prefix");
+            StatusCode::UNAUTHORIZED
+        })?;
 
         // Decode and validate JWT
         let claims = decode_jwt(token).map_err(|e| {

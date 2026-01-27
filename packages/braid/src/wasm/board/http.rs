@@ -21,6 +21,8 @@ use strand::serialization::StrandSerialize;
 #[derive(Clone)]
 pub struct WasmHttpBoardParams {
     pub b4_url: String,
+    /// JWT access token for B4 authentication
+    pub access_token: String,
 }
 
 /// HTTP board client using web_sys fetch API
@@ -53,6 +55,11 @@ impl WasmHttpBoard {
         opts.set_mode(RequestMode::Cors);
 
         let request = Request::new_with_str_and_init(&url, &opts)?;
+
+        // Add Authorization header
+        request
+            .headers()
+            .set("Authorization", &format!("Bearer {}", self.params.access_token))?;
 
         let window = web_sys::window().ok_or_else(|| JsValue::from_str("No window"))?;
         let resp_value = JsFuture::from(window.fetch_with_request(&request)).await?;
@@ -174,6 +181,11 @@ impl WasmHttpBoard {
         let request = Request::new_with_str_and_init(&initiate_url, &opts)?;
         request.headers().set("Content-Type", "application/json")?;
 
+        // Add Authorization header
+        request
+            .headers()
+            .set("Authorization", &format!("Bearer {}", self.params.access_token))?;
+
         let window = web_sys::window().ok_or_else(|| JsValue::from_str("No window"))?;
         let resp_value = JsFuture::from(window.fetch_with_request(&request)).await?;
         let resp: Response = resp_value.dyn_into()?;
@@ -240,6 +252,11 @@ impl WasmHttpBoard {
             let request3 = Request::new_with_str_and_init(&confirm_url, &opts3)?;
             request3.headers().set("Content-Type", "application/json")?;
 
+            // Add Authorization header
+            request3
+                .headers()
+                .set("Authorization", &format!("Bearer {}", self.params.access_token))?;
+
             let resp_value3 = JsFuture::from(window.fetch_with_request(&request3)).await?;
             let resp3: Response = resp_value3.dyn_into()?;
 
@@ -274,6 +291,11 @@ impl WasmHttpBoard {
 
             let request3 = Request::new_with_str_and_init(&confirm_url, &opts3)?;
             request3.headers().set("Content-Type", "application/json")?;
+
+            // Add Authorization header
+            request3
+                .headers()
+                .set("Authorization", &format!("Bearer {}", self.params.access_token))?;
 
             let resp_value3 = JsFuture::from(window.fetch_with_request(&request3)).await?;
             let resp3: Response = resp_value3.dyn_into()?;

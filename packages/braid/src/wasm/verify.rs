@@ -44,6 +44,8 @@ pub struct VerificationSummary {
 #[wasm_bindgen]
 pub struct WasmVerifier {
     b4_url: String,
+    /// JWT access token for B4 authentication
+    access_token: String,
     board_name: Option<String>,
 }
 
@@ -53,12 +55,14 @@ impl WasmVerifier {
     ///
     /// # Arguments
     /// * `b4_url` - URL of the B4 server (e.g., "http://localhost:8000")
+    /// * `access_token` - JWT access token for B4 authentication
     #[wasm_bindgen(constructor)]
-    pub fn new(b4_url: String) -> WasmVerifier {
+    pub fn new(b4_url: String, access_token: String) -> WasmVerifier {
         console_error_panic_hook::set_once();
 
         WasmVerifier {
             b4_url,
+            access_token,
             board_name: None,
         }
     }
@@ -99,9 +103,10 @@ impl WasmVerifier {
             None, // No max_concurrent_actions limit
         );
 
-        // Create WASM HTTP board
+        // Create WASM HTTP board with access token for authenticated B4 requests
         let board_params = WasmHttpBoardParams {
             b4_url: self.b4_url.clone(),
+            access_token: self.access_token.clone(),
         };
         let board = WasmHttpBoard::new(board_params);
 

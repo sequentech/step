@@ -7427,7 +7427,7 @@ braces@^2.3.2, braces@^3.0.3, braces@~3.0.2:
 
 "braid-wasm@file:./admin-portal/rust/braid-wasm-0.1.0.tgz":
   version "0.1.0"
-  resolved "file:./admin-portal/rust/braid-wasm-0.1.0.tgz#76a701dbf8d0cc154d64e2f7584c94d5f174e148"
+  resolved "file:./admin-portal/rust/braid-wasm-0.1.0.tgz#5726ad017444722595f496d65899ac8866a8b00a"
 
 brorand@^1.0.1, brorand@^1.1.0:
   version "1.1.0"

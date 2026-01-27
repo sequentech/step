@@ -140,9 +140,10 @@ impl WasmSession {
             None, // Default max_concurrent_actions
         );
 
-        // Create board factory
+        // Create board factory with access token for authenticated B4 requests
         let board_factory = WasmHttpBoardFactory::new(WasmHttpBoardParams {
             b4_url: self.b4_url.clone(),
+            access_token: self.access_token.clone(),
         });
 
         // Create session
