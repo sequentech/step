@@ -8850,6 +8850,7 @@ dependencies = [
  "aws-sdk-sesv2",
  "aws-sdk-sns",
  "aws-smithy-types",
+ "axum 0.7.9",
  "base64 0.22.1",
  "borsh",
  "cfg-if",
