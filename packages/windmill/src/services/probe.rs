@@ -3,11 +3,11 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::services::celery_app::{get_celery_app, get_celery_connection, get_queues, Queue};
 use crate::services::database::{get_hasura_pool, get_keycloak_pool};
-use crate::services::jwks::get_jwks_secret_path;
 use crate::services::providers::sms_sender::{SmsSender, SmsTransport};
 use crate::services::vault::check_master_secret;
 use core::time::Duration;
 use deadpool_postgres::Timeouts;
+use sequent_core::services::jwks::get_jwks_secret_path;
 use sequent_core::services::keycloak::get_client_credentials;
 use sequent_core::services::probe::ProbeHandler;
 use sequent_core::services::s3;

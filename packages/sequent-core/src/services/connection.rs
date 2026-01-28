@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+use crate::services::jwks::{get_global_jwks_cache, verify_token_signature};
 use crate::services::jwt::*;
 use crate::services::keycloak::{
     get_third_party_client_access_token, KeycloakAdminClient,
@@ -68,13 +69,31 @@ impl<'r> FromRequest<'r> for JwtClaims {
         match headers.get_one("authorization") {
             Some(authorization) => {
                 match authorization.strip_prefix("Bearer ") {
-                    Some(token) => match decode_jwt(token) {
-                        Ok(jwt) => Outcome::Success(jwt),
-                        Err(err) => {
-                            warn!("JwtClaims guard: decode_jwt error {err:?}");
-                            Outcome::Error((Status::Unauthorized, ()))
+                    Some(token) => {
+                        // Get JWKS from cache and verify token signature
+                        let jwks_cache = get_global_jwks_cache();
+                        let keys = match jwks_cache.get_jwks_cached().await {
+                            Ok(keys) => keys,
+                            Err(err) => {
+                                error!("JwtClaims guard: Failed to get JWKS from cache: {err}");
+                                return Outcome::Error((Status::InternalServerError, ()));
+                            }
+                        };
+
+                        if let Err(err) = verify_token_signature(token, &keys) {
+                            warn!("JwtClaims guard: JWT signature verification failed: {err}");
+                            return Outcome::Error((Status::Unauthorized, ()));
                         }
-                    },
+
+                        // Decode and validate JWT claims
+                        match decode_jwt(token) {
+                            Ok(jwt) => Outcome::Success(jwt),
+                            Err(err) => {
+                                warn!("JwtClaims guard: decode_jwt error {err:?}");
+                                Outcome::Error((Status::Unauthorized, ()))
+                            }
+                        }
+                    }
                     None => {
                         warn!("JwtClaims guard: not a bearer token: {authorization:?}");
                         Outcome::Error((Status::Unauthorized, ()))
