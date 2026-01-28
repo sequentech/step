@@ -78,6 +78,14 @@
     "express": "4.19.2",
     "jose": "4.15.5",
     "postcss": "^8.4.31",
-    "micromatch": "^4.0.8"
+    "micromatch": "^4.0.8",
+    "js-yaml": "^4.1.1",
+    "esbuild": "^0.25.0",
+    "@adobe/css-tools": "4.3.1",
+    "nanoid": "3.3.8",
+    "on-headers": "1.1.0",
+    "min-document": "2.19.1",
+    "serve-static": "^1.16.0",
+    "diff": ">=4.0.4"
   }
 }
