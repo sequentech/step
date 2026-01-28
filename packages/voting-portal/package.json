@@ -16,7 +16,7 @@
     "@sequentech/ui-core": "*",
     "sequent-core": "file:./rust/sequent-core-0.1.0.tgz",
     "dotenv": "16.3.1",
-    "graphql": "16.7.1",
+    "graphql": "16.8.1",
     "i18next": "^21.8.16",
     "i18next-browser-languagedetector": "^6.1.4",
     "keycloak-js": "^22.0.1",
