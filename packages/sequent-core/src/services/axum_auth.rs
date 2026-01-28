@@ -38,6 +38,7 @@ use axum::{
 };
 use tracing::instrument;
 
+use crate::services::jwks::{get_global_jwks_cache, verify_token_signature};
 use crate::services::jwt::{decode_jwt, JwtClaims};
 use crate::types::permissions::Permissions;
 
@@ -75,7 +76,19 @@ where
             StatusCode::UNAUTHORIZED
         })?;
 
-        // Decode and validate JWT
+        // Get JWKS from cache and verify token signature
+        let jwks_cache = get_global_jwks_cache();
+        let keys = jwks_cache.get_jwks_cached().await.map_err(|e| {
+            tracing::error!("Failed to get JWKS from cache: {e}");
+            StatusCode::INTERNAL_SERVER_ERROR
+        })?;
+
+        verify_token_signature(token, &keys).map_err(|e| {
+            tracing::error!("JWT signature verification failed: {e}");
+            StatusCode::UNAUTHORIZED
+        })?;
+
+        // Decode and validate JWT claims
         let claims = decode_jwt(token).map_err(|e| {
             tracing::error!("Failed to decode JWT: {e}");
             StatusCode::UNAUTHORIZED

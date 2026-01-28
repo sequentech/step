@@ -5,11 +5,13 @@
 #[cfg(feature = "areas")]
 pub mod area_tree;
 #[cfg(feature = "keycloak")]
+pub mod axum_auth;
+#[cfg(feature = "keycloak")]
 pub mod connection;
 #[cfg(feature = "keycloak")]
 pub mod date;
-#[cfg(feature = "keycloak")]
-pub mod axum_auth;
+#[cfg(all(feature = "keycloak", feature = "s3"))]
+pub mod jwks;
 #[cfg(feature = "keycloak")]
 pub mod jwt;
 #[cfg(feature = "keycloak")]
