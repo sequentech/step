@@ -7,6 +7,7 @@ use jsonwebtoken::{decode, decode_header, Algorithm, DecodingKey, Validation};
 use serde::{Deserialize, Serialize};
 use std::env;
 use std::sync::{OnceLock, RwLock};
+use tokio::sync::Mutex;
 use std::time::Instant;
 use tracing::{info, instrument, warn};
 
@@ -164,13 +165,20 @@ struct JwksCacheEntry {
 }
 
 /// Thread-safe cache for JWKS keys.
-#[derive(Debug, Default)]
-pub struct JwksCache(RwLock<Option<JwksCacheEntry>>);
+#[derive(Debug)]
+pub struct JwksCache {
+    cache: RwLock<Option<JwksCacheEntry>>,
+    /// Prevents thundering herd: only one task fetches new keys at a time.
+    fetch_lock: Mutex<()>,
+}
 
 impl JwksCache {
     #[instrument]
     pub fn init() -> Self {
-        JwksCache(RwLock::new(None))
+        JwksCache {
+            cache: RwLock::new(None),
+            fetch_lock: Mutex::const_new(()),
+        }
     }
 
     /// Checks if the cache entry is still valid (not expired).
@@ -187,7 +195,7 @@ impl JwksCache {
     /// Reads JWKS from cache if available and not expired.
     #[instrument(skip(self))]
     fn read_from_cache(&self) -> Option<Vec<JWKKey>> {
-        let cache_guard = match self.0.read() {
+        let cache_guard = match self.cache.read() {
             Ok(guard) => guard,
             Err(err) => {
                 warn!("Error acquiring read lock on JWKS cache: {err:?}");
@@ -221,7 +229,7 @@ impl JwksCache {
         keys: Vec<JWKKey>,
         cache_control_secs: Option<u64>,
     ) -> Result<()> {
-        let mut cache_guard = self.0.write().map_err(|err| {
+        let mut cache_guard = self.cache.write().map_err(|err| {
             anyhow!("Error acquiring write lock on JWKS cache: {err:?}")
         })?;
 
@@ -242,12 +250,20 @@ impl JwksCache {
     /// Gets JWKS from cache if valid, otherwise fetches from S3 and updates cache.
     #[instrument(skip(self))]
     pub async fn get_jwks_cached(&self) -> Result<Vec<JWKKey>> {
-        // Try to read from cache first
+        // Fast path: check cache without fetch lock
         if let Some(keys) = self.read_from_cache() {
             return Ok(keys);
         }
 
-        // Cache miss or expired, fetch from S3
+        // Acquire fetch lock to prevent thundering herd
+        let _fetch_guard = self.fetch_lock.lock().await;
+
+        // Double-check: someone else may have fetched while we waited
+        if let Some(keys) = self.read_from_cache() {
+            return Ok(keys);
+        }
+
+        // Still a cache miss, fetch from S3
         info!("JWKS cache miss, fetching from S3");
         let (keys, cache_control_secs) = get_jwks().await?;
 

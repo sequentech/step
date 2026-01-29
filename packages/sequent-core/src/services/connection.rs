@@ -18,6 +18,7 @@ use serde::{Deserialize, Serialize};
 use std::net::IpAddr;
 use std::sync::RwLock;
 use std::time::{Duration, Instant};
+use tokio::sync::Mutex;
 use tracing::{error, info, instrument, warn};
 
 const TENANT_ID_HEADER: &str = "tenant-id";
@@ -76,7 +77,10 @@ impl<'r> FromRequest<'r> for JwtClaims {
                             Ok(keys) => keys,
                             Err(err) => {
                                 error!("JwtClaims guard: Failed to get JWKS from cache: {err}");
-                                return Outcome::Error((Status::InternalServerError, ()));
+                                return Outcome::Error((
+                                    Status::InternalServerError,
+                                    (),
+                                ));
                             }
                         };
 
@@ -89,7 +93,9 @@ impl<'r> FromRequest<'r> for JwtClaims {
                         match decode_jwt(token) {
                             Ok(jwt) => Outcome::Success(jwt),
                             Err(err) => {
-                                warn!("JwtClaims guard: decode_jwt error {err:?}");
+                                warn!(
+                                    "JwtClaims guard: decode_jwt error {err:?}"
+                                );
                                 Outcome::Error((Status::Unauthorized, ()))
                             }
                         }
@@ -222,31 +228,37 @@ struct TokenResponseExtended {
 /// Last access token can be reused if it´s not expired, this is to avoid
 /// Keycloak having to hold one token per Api request which could lead quickly
 /// to many thousands of tokens.
-///
-/// Keycloak can hold multiple tokens for the same client, so we do not care
-/// about using the previous token if one thread read it and while didn´t send
-/// it yet other thread wrote it. As long as it is not expired, we can reuse it.
-/// The same goes for scalability as each container can hold a different
+/// Each container can hold a different
 /// token being all valid.
-#[derive(Debug, Default)]
-pub struct LastDatafixAccessToken(RwLock<Option<TokenResponseExtended>>);
+///
+/// This cache is initialized by Rocket at startup time via `.manage()` in
+/// Harvest's main.rs.
+#[derive(Debug)]
+pub struct LastDatafixAccessToken {
+    token: RwLock<Option<TokenResponseExtended>>,
+    /// Prevents thundering herd: only one task fetches a new token at a time.
+    fetch_lock: Mutex<()>,
+}
 
 impl LastDatafixAccessToken {
     pub fn init() -> Self {
-        LastDatafixAccessToken(RwLock::new(None))
+        LastDatafixAccessToken {
+            token: RwLock::new(None),
+            fetch_lock: Mutex::const_new(()),
+        }
     }
 }
 
 /// Reads the access token if it has been requested successfully before and it
 /// is not expired.
 #[instrument(skip(lst_acc_tkn))]
-async fn read_access_token(
+fn read_access_token(
     client_id: &str,
     client_secret: &str,
     tenant_id: &str,
     lst_acc_tkn: &LastDatafixAccessToken,
 ) -> Option<PubKeycloakAdminToken> {
-    let token_resp_ext_opt = match lst_acc_tkn.0.read() {
+    let token_resp_ext_opt = match lst_acc_tkn.token.read() {
         Ok(read) => read.clone(),
         Err(err) => {
             warn!("Error acquiring read lock {err:?}");
@@ -268,43 +280,34 @@ async fn read_access_token(
             return Some(data.token_resp);
         }
     }
-    return None;
+    None
 }
 
-/// Request a new access token and writes it to the cache
+/// Writes a new access token to the cache
 #[instrument(err, skip(lst_acc_tkn))]
-async fn request_access_token(
+fn write_access_token(
+    token_resp: PubKeycloakAdminToken,
+    stamp: Instant,
     client_id: String,
     client_secret: String,
     tenant_id: String,
     lst_acc_tkn: &LastDatafixAccessToken,
-) -> AnyhowResult<PubKeycloakAdminToken> {
-    let stamp: Instant = Instant::now(); // Capture the stamp before sending the request
-    info!("Requesting access token");
-    let keycloak_adm_tkn = get_third_party_client_access_token(
-        client_id.clone(),
-        client_secret.clone(),
-        tenant_id.clone(),
-    )
-    .await?;
-
-    let token_resp: PubKeycloakAdminToken = keycloak_adm_tkn.try_into()?;
-    let mut write = match lst_acc_tkn.0.write() {
+) -> AnyhowResult<()> {
+    let mut write = match lst_acc_tkn.token.write() {
         Ok(write) => write,
         Err(err) => {
             return Err(anyhow!("Error acquiring write lock: {err:?}"));
         }
     };
     *write = Some(TokenResponseExtended {
-        token_resp: token_resp.clone(),
+        token_resp,
         stamp,
         client_id,
         client_secret,
         tenant_id,
     });
-
-    Ok(token_resp)
-} // release the lock
+    Ok(())
+}
 
 #[rocket::async_trait]
 impl<'r> FromRequest<'r> for DatafixClaims {
@@ -331,32 +334,87 @@ impl<'r> FromRequest<'r> for DatafixClaims {
         let lst_acc_tkn = try_outcome!(
             request.guard::<&State<LastDatafixAccessToken>>().await
         );
-        let token_resp = match read_access_token(
+
+        // Fast path: check cache without fetch lock
+        if let Some(token_resp) = read_access_token(
             &authorization.client_id,
             &authorization.client_secret,
             &tenant_id,
             &lst_acc_tkn,
+        ) {
+            return match decode_jwt(&token_resp.access_token) {
+                Ok(jwt_claims) => Outcome::Success(DatafixClaims {
+                    jwt_claims,
+                    tenant_id,
+                    datafix_event_id,
+                }),
+                Err(err) => {
+                    warn!("DatafixClaims guard: decode_jwt error {err:?}");
+                    Outcome::Error((Status::Unauthorized, ()))
+                }
+            };
+        }
+
+        // Acquire fetch lock to prevent thundering herd
+        let _fetch_guard = lst_acc_tkn.fetch_lock.lock().await;
+
+        // Double-check: someone else may have fetched while we waited
+        if let Some(token_resp) = read_access_token(
+            &authorization.client_id,
+            &authorization.client_secret,
+            &tenant_id,
+            &lst_acc_tkn,
+        ) {
+            return match decode_jwt(&token_resp.access_token) {
+                Ok(jwt_claims) => Outcome::Success(DatafixClaims {
+                    jwt_claims,
+                    tenant_id,
+                    datafix_event_id,
+                }),
+                Err(err) => {
+                    warn!("DatafixClaims guard: decode_jwt error {err:?}");
+                    Outcome::Error((Status::Unauthorized, ()))
+                }
+            };
+        }
+
+        // Still a cache miss, fetch from Keycloak
+        let stamp = Instant::now();
+        let keycloak_adm_tkn = match get_third_party_client_access_token(
+            authorization.client_id.clone(),
+            authorization.client_secret.clone(),
+            tenant_id.clone(),
         )
         .await
         {
-            Some(token_resp) => token_resp,
-            None => {
-                match request_access_token(
-                    authorization.client_id,
-                    authorization.client_secret,
-                    tenant_id.clone(),
-                    &lst_acc_tkn,
-                )
-                .await
-                {
-                    Ok(token_resp) => token_resp,
-                    Err(err) => {
-                        error!("DatafixClaims guard: request_access_token error {err:?}");
-                        return Outcome::Error((Status::Unauthorized, ()));
-                    }
-                }
+            Ok(token) => token,
+            Err(err) => {
+                error!("DatafixClaims guard: get_third_party_client_access_token error {err:?}");
+                return Outcome::Error((Status::Unauthorized, ()));
             }
         };
+
+        let token_resp: PubKeycloakAdminToken = match keycloak_adm_tkn
+            .try_into()
+        {
+            Ok(resp) => resp,
+            Err(err) => {
+                error!("DatafixClaims guard: token conversion error {err:?}");
+                return Outcome::Error((Status::Unauthorized, ()));
+            }
+        };
+
+        if let Err(err) = write_access_token(
+            token_resp.clone(),
+            stamp,
+            authorization.client_id,
+            authorization.client_secret,
+            tenant_id.clone(),
+            &lst_acc_tkn,
+        ) {
+            error!("DatafixClaims guard: write_access_token error {err:?}");
+            return Outcome::Error((Status::InternalServerError, ()));
+        }
 
         match decode_jwt(&token_resp.access_token) {
             Ok(jwt_claims) => Outcome::Success(DatafixClaims {
