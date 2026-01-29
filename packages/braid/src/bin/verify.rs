@@ -9,7 +9,7 @@ use braid::native::verify::verifier::Verifier;
 use braid::protocol::trustee::Trustee;
 use braid::util::get_access_token;
 use clap::Parser;
-use tracing::info;
+use tracing::{info, instrument};
 
 use strand::backend::ristretto::RistrettoCtx;
 use strand::signature::StrandSignatureSk;

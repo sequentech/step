@@ -2,16 +2,12 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use anyhow::{anyhow, Result};
+use anyhow::Result;
 
 use braid::native::board::HttpB3Index;
 use braid::native::session::session_m::SessionFactory;
-use braid::native::session::session_m::SessionFactory;
-use braid::native::session::session_master::SessionMaster;
 use braid::native::session::session_master::SessionMaster;
 use braid::protocol::trustee::TrusteeConfig;
-use braid::protocol::trustee::TrusteeConfig;
-use braid::util::ensure_directory;
 use braid::util::{ensure_directory, get_access_token};
 use clap::Parser;
 use std::collections::HashSet;
@@ -19,8 +15,7 @@ use std::fs;
 use std::io::Write;
 use std::path::PathBuf;
 use tokio::time::{sleep, Duration};
-use tracing::instrument;
-use tracing::{error, info};
+use tracing::{error, info, instrument};
 
 cfg_if::cfg_if! {
     if #[cfg(feature = "jemalloc")] {
