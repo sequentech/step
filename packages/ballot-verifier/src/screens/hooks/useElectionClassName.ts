@@ -34,11 +34,12 @@ export const useElectionClassName = (confirmationBallot: IConfirmationBallot | n
     useEffect(() => {
         if (!electionClassName) return
 
-        const root = document.documentElement
-        root.classList.add(electionClassName)
+        const appRoot = document.querySelector(".app-root")
+        if (!appRoot) return
+        appRoot.classList.add(electionClassName)
 
         return () => {
-            root.classList.remove(electionClassName)
+            appRoot.classList.remove(electionClassName)
         }
     }, [electionClassName])
 }

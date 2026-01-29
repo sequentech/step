@@ -25,9 +25,8 @@ import SequentLogo from "@sequentech/ui-essentials/public/Sequent_logo.svg"
 import BlankLogoImg from "@sequentech/ui-essentials/public/blank_logo.svg"
 import {useElectionClassName} from "./hooks/useElectionClassName"
 
-const StyledApp = styled(Stack)<{css: string}>`
+const StyledApp = styled(Stack)`
     min-height: 100vh;
-    ${({css}) => css}
 
     /* Visually hidden until focused, then shown for keyboard users */
     .skip-link {
@@ -43,6 +42,10 @@ const StyledApp = styled(Stack)<{css: string}>`
     .skip-link:focus {
         top: 0;
     }
+`
+
+const StyledAppWrapper = styled(Stack)<{css: string}>`
+    ${({css}) => css}
 `
 
 const StyledMain = styled(`main`)`
@@ -142,27 +145,26 @@ const App = () => {
     }, [tenantId, eventId, isAuthenticated, setTenantEvent, globalSettings.DISABLE_AUTH])
 
     return (
-        <StyledApp
-            className="app-root"
-            css={ballotStyle?.ballot_eml.election_event_presentation?.css ?? ""}
-        >
-            <ScrollRestoration />
-            <ApolloWrapper>
-                <HeaderWithContext />
-                <PageBanner
-                    marginBottom="auto"
-                    sx={{display: "flex", position: "relative", flex: 1}}
-                    className="main"
-                    component="main"
-                    id="main-content"
-                    role="main"
-                >
-                    <WatermarkBackground />
-                    <Outlet />
-                </PageBanner>
-            </ApolloWrapper>
-            <Footer />
-        </StyledApp>
+        <StyledAppWrapper css={ballotStyle?.ballot_eml.election_event_presentation?.css ?? ""}>
+            <StyledApp className="app-root">
+                <ScrollRestoration />
+                <ApolloWrapper>
+                    <HeaderWithContext />
+                    <PageBanner
+                        marginBottom="auto"
+                        sx={{display: "flex", position: "relative", flex: 1}}
+                        className="main"
+                        component="main"
+                        id="main-content"
+                        role="main"
+                    >
+                        <WatermarkBackground />
+                        <Outlet />
+                    </PageBanner>
+                </ApolloWrapper>
+                <Footer />
+            </StyledApp>
+        </StyledAppWrapper>
     )
 }
 

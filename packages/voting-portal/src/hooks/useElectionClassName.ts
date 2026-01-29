@@ -36,17 +36,19 @@ export const useElectionClassName = () => {
     }, [electionId, election, getElectionClassName])
 
     useEffect(() => {
-        const root = document.documentElement
+        const appRoot = document.querySelector(".app-root")
+
+        if (!appRoot) return
 
         // Remove any previous e-* class we added
-        for (const cls of Array.from(root.classList)) {
+        for (const cls of Array.from(appRoot.classList)) {
             if (cls.startsWith(ROOT_CLASS_PREFIX)) {
-                root.classList.remove(cls)
+                appRoot.classList.remove(cls)
             }
         }
 
         if (activeElectionClassName) {
-            root.classList.add(activeElectionClassName)
+            appRoot.classList.add(activeElectionClassName)
         }
     }, [activeElectionClassName])
 
