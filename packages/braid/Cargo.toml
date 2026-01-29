@@ -31,6 +31,7 @@ tokio = { version = "1.40", optional = true }
 aws-config = { version = "1.5", features = ["behavior-version-latest"], optional = true }
 aws-sdk-s3 = { version = "1.52", optional = true }
 chrono = { version = "0.4", optional = true }
+sequent-core = { path = "../sequent-core", features = ["keycloak"], optional = true }
 
 # WASM-only dependencies  
 wasm-bindgen = { version = "=0.2.104", optional = true }
@@ -118,7 +119,7 @@ default = ["native"]
 # Native build with gRPC, filesystem, PostgreSQL  
 native = [
     "dep:strand",
-    "strand/rayon", 
+    "strand/rayon",
     "dep:rayon",
     "dep:tonic",
     "dep:rusqlite",
@@ -137,7 +138,8 @@ native = [
     "dep:aws-config",
     "dep:aws-sdk-s3",
     "dep:reqwest",
-    "dep:chrono"
+    "dep:chrono",
+    "dep:sequent-core"
 ]
 
 # WASM build with HTTP bulletin board and IndexedDB

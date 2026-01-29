@@ -375,6 +375,29 @@ impl KeycloakAdminClient {
         Ok(KeycloakAdminClient { client })
     }
 
+    /// Returns the cached access token string, fetching from Keycloak if needed.
+    ///
+    /// This method reads the token from the global cache. If the cache is empty
+    /// or expired, it triggers a fetch via `KeycloakAdminClient::new()` to
+    /// populate the cache, then reads again.
+    #[instrument(err)]
+    pub async fn get_cached_token() -> Result<String> {
+        // Try reading from cache first
+        if let Some((token_resp, _url)) = read_access_token() {
+            return Ok(token_resp.access_token);
+        }
+
+        // Cache miss - populate cache by calling new()
+        let _ = KeycloakAdminClient::new().await?;
+
+        // Read again after populating
+        if let Some((token_resp, _url)) = read_access_token() {
+            return Ok(token_resp.access_token);
+        }
+
+        Err(anyhow!("Failed to get cached token after fetch"))
+    }
+
     #[instrument(err)]
     pub async fn pub_new() -> Result<PubKeycloakAdmin> {
         let login_config = get_keycloak_login_admin_config();

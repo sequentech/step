@@ -46,8 +46,13 @@ impl SessionMaster {
     /// start the requested number of SessionSets and the channels
     /// used to update them.
     ///
-    pub async fn new(b3_url: &str, session_factory: SessionFactory, size: usize) -> Result<Self> {
-        let board_params = HttpB3BoardParams::new(b3_url).await;
+    pub async fn new(
+        b3_url: &str,
+        session_factory: SessionFactory,
+        size: usize,
+        access_token: String,
+    ) -> Result<Self> {
+        let board_params = HttpB3BoardParams::new(b3_url, access_token).await;
 
         let mut session_sets = vec![];
         let mut runners = vec![];
@@ -71,6 +76,12 @@ impl SessionMaster {
             session_factory,
             session_sets,
         })
+    }
+
+    /// Updates the access token for B4 authentication.
+    /// New tokens will be used when SessionSets are rebuilt.
+    pub fn set_access_token(&mut self, access_token: String) {
+        self.board_params.set_access_token(access_token);
     }
 
     /// Returns the session set that will handle this board

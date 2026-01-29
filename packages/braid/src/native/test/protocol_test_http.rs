@@ -25,10 +25,10 @@ use b4::messages::newtypes::NULL_TRUSTEE;
 
 use crate::native::board::HttpB3;
 use crate::native::board::HttpB3BoardParams;
-use crate::protocol::board::Board;
-
 use crate::native::session::Session;
+use crate::protocol::board::Board;
 use crate::protocol::trustee::Trustee;
+use crate::util::get_access_token;
 
 const HTTP_URL: &'static str = "http://127.0.0.1:3000";
 const TEST_BOARD: &'static str = "protocoltest";
@@ -83,11 +83,12 @@ async fn run_protocol_test_http<C: Ctx + 'static>(
 ) -> Result<()> {
     let ctx = test.ctx.clone();
     let mut sessions = vec![];
+    let access_token = get_access_token().await?;
 
     let _pks: Vec<StrandSignaturePk> = test.trustees.iter().map(|t| t.get_pk().unwrap()).collect();
 
     for t in test.trustees.into_iter() {
-        let board_params = HttpB3BoardParams::new(HTTP_URL).await;
+        let board_params = HttpB3BoardParams::new(HTTP_URL, access_token.clone()).await;
         let session: Session<C, HttpB3, crate::native::board::NoOpStorage> =
             Session::new(TEST_BOARD, t, board_params);
         sessions.push(session);
@@ -215,7 +216,7 @@ async fn run_protocol_test_http<C: Ctx + 'static>(
         plaintexts_in.push(next_p);
 
         // Insert ballot message using a temporary board
-        let board_params = HttpB3BoardParams::new(HTTP_URL).await;
+        let board_params = HttpB3BoardParams::new(HTTP_URL, access_token.clone()).await;
         let mut temp_board = board_params.create_board(TEST_BOARD, None);
         temp_board
             .insert_messages(TEST_BOARD, vec![message.try_into().unwrap()])
@@ -355,6 +356,9 @@ pub async fn create_protocol_test<C: Ctx>(
     // Bootstrap message will be sent by first session
     let message = Message::bootstrap_msg(&cfg, &pm)?;
 
+    // Fetch access token for B4 authentication
+    let access_token = get_access_token().await?;
+
     // Create HTTP client to initialize board
     let client = reqwest::Client::new();
 
@@ -368,7 +372,7 @@ pub async fn create_protocol_test<C: Ctx>(
         .await;
 
     // Send bootstrap message
-    let board_params = HttpB3BoardParams::new(HTTP_URL).await;
+    let board_params = HttpB3BoardParams::new(HTTP_URL, access_token).await;
     let mut temp_board = board_params.create_board(TEST_BOARD, None);
     temp_board
         .insert_messages(TEST_BOARD, vec![message.try_into().unwrap()])

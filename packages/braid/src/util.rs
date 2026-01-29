@@ -115,6 +115,8 @@ pub fn ensure_directory(folder: PathBuf) -> Result<()> {
 }
 
 #[cfg(feature = "native")]
+use sequent_core::services::keycloak::KeycloakAdminClient;
+#[cfg(feature = "native")]
 use tracing_subscriber::filter::LevelFilter;
 #[cfg(feature = "native")]
 use tracing_subscriber::reload::Handle;
@@ -153,4 +155,11 @@ pub fn init_log(set_global: bool) -> Handle<LevelFilter, Registry> {
     }
     tracing_log::LogTracer::init().unwrap();
     reload_handle
+}
+
+/// Fetches the access token from Keycloak for B4 authentication.
+/// Uses KeycloakAdminClient::get_cached_token() which caches tokens and handles expiry.
+#[cfg(feature = "native")]
+pub async fn get_access_token() -> Result<String> {
+    KeycloakAdminClient::get_cached_token().await
 }

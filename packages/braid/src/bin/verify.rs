@@ -4,13 +4,12 @@
 
 // cargo run --bin verify -- --b3-url http://[::1]:50051 --board testboard
 use anyhow::Result;
-use clap::Parser;
-use tracing::info;
-use tracing::instrument;
-
 use braid::native::board::{HttpB3, HttpB3BoardParams};
 use braid::native::verify::verifier::Verifier;
 use braid::protocol::trustee::Trustee;
+use braid::util::get_access_token;
+use clap::Parser;
+use tracing::info;
 
 use strand::backend::ristretto::RistrettoCtx;
 use strand::signature::StrandSignatureSk;
@@ -52,6 +51,9 @@ async fn main() -> Result<()> {
 
     info!("Connecting to board '{}'..", args.board);
 
+    // Fetch access token for B4 authentication
+    let access_token = get_access_token().await?;
+
     let trustee: Trustee<RistrettoCtx, braid::native::board::NoOpStorage> = Trustee::new(
         "Verifier".to_string(),
         args.board.to_string(),
@@ -60,7 +62,7 @@ async fn main() -> Result<()> {
         braid::native::board::NoOpStorage::new(),
         None,
     );
-    let board_params = HttpB3BoardParams::new(&args.server_url).await;
+    let board_params = HttpB3BoardParams::new(&args.server_url, access_token).await;
     let board: HttpB3 = board_params.create_board(&args.board, None);
     let mut session: Verifier<RistrettoCtx, HttpB3, braid::native::board::NoOpStorage> =
         Verifier::new(trustee, board, &args.board);

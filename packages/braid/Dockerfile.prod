@@ -16,6 +16,8 @@ RUN apt-get update \
         make \
         unzip \
         curl \
+        libssl-dev \
+        pkg-config \
     && rm -rf /var/lib/apt/lists/*
 
 
