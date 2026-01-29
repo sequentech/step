@@ -14,5 +14,8 @@
         "format": "prettier --write .",
         "sort-yaml": "node sort-yaml-second-level.js",
         "prettify:fix": "yarn sort-yaml && prettier --write ."
+    },
+    "resolutions": {
+        "js-yaml": "4.1.1"
     }
 }
