@@ -86,6 +86,13 @@ async fn main() -> Result<()> {
     let bytes = braid::util::decode_base64(&tc.encryption_key)?;
     let ek = symm::sk_from_bytes(&bytes)?;
 
+    // Get trustee name and password for Keycloak authentication
+    let trustee_name =
+        std::env::var("TRUSTEE_NAME").map_err(|_| anyhow!("TRUSTEE_NAME must be set"))?;
+
+    let trustee_password =
+        std::env::var("TRUSTEE_PSW").map_err(|_| anyhow!("TRUSTEE_PSW must be set"))?;
+
     let ignored_boards = get_ignored_boards();
     info!("ignored boards {:?}", ignored_boards);
 
@@ -100,8 +107,8 @@ async fn main() -> Result<()> {
     loop {
         info!("{} >", loop_count);
 
-        // Fetch access token for B4 authentication (cached by KeycloakAdminClient)
-        let access_token = match get_access_token().await {
+        // Fetch access token for B4 authentication using trustee credentials
+        let access_token = match get_access_token(&trustee_name, &trustee_password).await {
             Ok(token) => token,
             Err(e) => {
                 error!("Failed to get access token: {e:?}");
@@ -145,7 +152,7 @@ async fn main() -> Result<()> {
             let storage =
                 braid::native::board::SqliteStorage::new(store_root.join(board_name), None);
             let trustee = Trustee::new(
-                std::env::var("TRUSTEE_NAME").unwrap_or_else(|_| "Self".to_string()),
+                trustee_name.clone(),
                 board_name.to_string(),
                 sk.clone(),
                 ek.clone(),

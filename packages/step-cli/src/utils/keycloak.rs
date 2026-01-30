@@ -4,6 +4,10 @@
 
 use deadpool_postgres::{Config as PgConfig, Pool, Runtime};
 use serde_json;
+use sequent_core::services::keycloak::{
+    generate_keycloak_token as generate_token_inner,
+    refresh_keycloak_token as refresh_token_inner,
+};
 use std::env;
 use std::error::Error;
 use std::fs;
@@ -12,6 +16,10 @@ use tokio_postgres::NoTls;
 
 use crate::types::keycloak::KeycloakTokenResponse;
 
+/// Generates a Keycloak token using Resource Owner Password Credentials flow.
+///
+/// This is a wrapper around the shared implementation in sequent-core that
+/// converts the response to the step-cli's simplified KeycloakTokenResponse type.
 pub fn generate_keycloak_token(
     keycloak_url: &str,
     username: &str,
@@ -20,35 +28,24 @@ pub fn generate_keycloak_token(
     client_secret: &str,
     tenant_id: &str,
 ) -> Result<KeycloakTokenResponse, Box<dyn Error>> {
-    let params = [
-        ("grant_type", "password"),
-        ("scope", "openid"),
-        ("client_id", client_id),
-        ("client_secret", client_secret),
-        ("username", username),
-        ("password", password),
-    ];
-
-    let realm = format!("tenant-{}", tenant_id);
-    let url = format!(
-        "{}/realms/{}/protocol/openid-connect/token",
-        keycloak_url, realm
-    );
-
-    let client = reqwest::blocking::Client::new();
-    let response = client.post(&url).form(&params).send()?;
-
-    if response.status().is_success() {
-        let token_response: KeycloakTokenResponse = response.json()?;
-        Ok(token_response)
-    } else {
-        let status = response.status();
-        let error_message = response.text()?;
-        let error = format!("HTTP Status: {}\nError Message: {}", status, error_message);
-        Err(Box::from(error))
-    }
+    let token_resp = generate_token_inner(
+        keycloak_url,
+        username,
+        password,
+        client_id,
+        client_secret,
+        tenant_id,
+    )?;
+    Ok(KeycloakTokenResponse {
+        access_token: token_resp.access_token,
+        refresh_token: token_resp.refresh_token.unwrap_or_default(),
+    })
 }
 
+/// Refreshes a Keycloak token using a refresh token.
+///
+/// This is a wrapper around the shared implementation in sequent-core that
+/// converts the response to the step-cli's simplified KeycloakTokenResponse type.
 pub fn refresh_keycloak_token(
     keycloak_url: &str,
     refresh_token: &str,
@@ -56,31 +53,17 @@ pub fn refresh_keycloak_token(
     client_secret: &str,
     tenant_id: &str,
 ) -> Result<KeycloakTokenResponse, Box<dyn Error>> {
-    let params = [
-        ("grant_type", "refresh_token"),
-        ("client_id", client_id),
-        ("client_secret", client_secret),
-        ("refresh_token", refresh_token),
-    ];
-
-    let realm = format!("tenant-{}", tenant_id);
-    let url = format!(
-        "{}/realms/{}/protocol/openid-connect/token",
-        keycloak_url, realm
-    );
-
-    let client = reqwest::blocking::Client::new();
-    let response = client.post(&url).form(&params).send()?;
-
-    if response.status().is_success() {
-        let token_response: KeycloakTokenResponse = response.json()?;
-        Ok(token_response)
-    } else {
-        let status = response.status();
-        let error_message = response.text()?;
-        let error = format!("HTTP Status: {}\nError Message: {}", status, error_message);
-        Err(Box::from(error))
-    }
+    let token_resp = refresh_token_inner(
+        keycloak_url,
+        refresh_token,
+        client_id,
+        client_secret,
+        tenant_id,
+    )?;
+    Ok(KeycloakTokenResponse {
+        access_token: token_resp.access_token,
+        refresh_token: token_resp.refresh_token.unwrap_or_default(),
+    })
 }
 
 pub fn get_auth_token_dir() -> PathBuf {

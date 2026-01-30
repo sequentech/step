@@ -141,16 +141,18 @@ async fn run(args: &Cli) -> Result<()> {
             .unwrap(),
     );
 
+    let trustee_password =
+        std::env::var("TRUSTEE_PSW").map_err(|_| anyhow!("TRUSTEE_PSW must be set"))?;
     let factory = SessionFactory::new(&trustee_name, tc, store_root, args.max_concurrent_actions)?;
 
     // Fetch initial access token for B4 authentication
-    let access_token = get_access_token().await?;
+    let access_token = get_access_token(&trustee_name, &trustee_password).await?;
     let mut master =
         SessionMaster::new(&args.b3_url, factory, args.session_workers, access_token).await?;
 
     loop {
-        // Refresh access token (KeycloakAdminClient caches and handles expiry)
-        let access_token = match get_access_token().await {
+        // Refresh access token using trustee credentials (cached)
+        let access_token = match get_access_token(&trustee_name, &trustee_password).await {
             Ok(token) => token,
             Err(e) => {
                 error!("Failed to get access token: {e:?}");

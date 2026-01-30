@@ -1,9 +1,10 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+
 use crate::serialization::deserialize_with_path::deserialize_str;
 use crate::services::connection;
-use crate::services::connection::PRE_EXPIRATION_SECS;
+use crate::services::keycloak::cache::{get_admin_token_cache, TokenResponse};
 use crate::services::keycloak::realm::get_tenant_realm;
 use anyhow::{anyhow, Result};
 use keycloak::{KeycloakAdmin, KeycloakAdminToken, KeycloakTokenSupplier};
@@ -14,11 +15,13 @@ use serde::{Deserialize, Serialize};
 use serde_json;
 use std::convert::TryFrom;
 use std::env;
-use std::sync::{OnceLock, RwLock};
-use std::time::{Duration, Instant};
-use tokio::sync::Mutex;
-use tracing::{event, info, instrument, warn, Level};
+use std::time::Instant;
+use tracing::{event, info, instrument, Level};
 
+/// Public Keycloak admin token with all fields exposed.
+///
+/// This is kept for backward compatibility with code that uses the keycloak
+/// crate's KeycloakAdminToken type.
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
 pub struct PubKeycloakAdminToken {
     pub access_token: String,
@@ -37,10 +40,10 @@ impl TryFrom<KeycloakAdminToken> for PubKeycloakAdminToken {
 
     fn try_from(token: KeycloakAdminToken) -> Result<Self, Self::Error> {
         let json = serde_json::to_string(&token).map_err(|err| {
-            anyhow!(format!("Error serializing: {err:?}, Token: {token:?}"))
+            anyhow!("Error serializing: {err:?}, Token: {token:?}")
         })?;
         deserialize_str(&json).map_err(|err| {
-            anyhow!(format!("Error deserializing: {err:?}, Token: {json:?}"))
+            anyhow!("Error deserializing: {err:?}, Token: {json:?}")
         })
     }
 }
@@ -50,11 +53,41 @@ impl TryFrom<PubKeycloakAdminToken> for KeycloakAdminToken {
 
     fn try_from(token: PubKeycloakAdminToken) -> Result<Self, Self::Error> {
         let json = serde_json::to_string(&token)
-            .map_err(|err| anyhow!(format!("{err:?}, Token: {token:?}")))?;
+            .map_err(|err| anyhow!("{err:?}, Token: {token:?}"))?;
 
         deserialize_str(&json).map_err(|err| {
-            anyhow!(format!("Error deserializing: {err:?}, Token: {json:?}"))
+            anyhow!("Error deserializing: {err:?}, Token: {json:?}")
         })
+    }
+}
+
+impl From<TokenResponse> for PubKeycloakAdminToken {
+    fn from(token: TokenResponse) -> Self {
+        PubKeycloakAdminToken {
+            access_token: token.access_token,
+            expires_in: token.expires_in,
+            not_before_policy: token.not_before_policy,
+            refresh_expires_in: token.refresh_expires_in,
+            refresh_token: token.refresh_token,
+            scope: token.scope.unwrap_or_default(),
+            session_state: token.session_state,
+            token_type: token.token_type.unwrap_or_else(|| "Bearer".to_string()),
+        }
+    }
+}
+
+impl From<PubKeycloakAdminToken> for TokenResponse {
+    fn from(token: PubKeycloakAdminToken) -> Self {
+        TokenResponse {
+            access_token: token.access_token,
+            expires_in: token.expires_in,
+            not_before_policy: token.not_before_policy,
+            refresh_expires_in: token.refresh_expires_in,
+            refresh_token: token.refresh_token,
+            scope: Some(token.scope),
+            session_state: token.session_state,
+            token_type: Some(token.token_type),
+        }
     }
 }
 
@@ -219,111 +252,31 @@ pub struct PubKeycloakAdmin {
     pub token_supplier: KeycloakAdminToken,
 }
 
-/// TokenResponse, timestamp before sending the request and url to avoid having
-/// to retrieve it again from the ENV.
-#[derive(Debug, Clone)]
-struct TokenResponseAdminCli {
-    token_resp: PubKeycloakAdminToken,
-    timestamp: Instant,
-    url: String,
-}
-
-/// Cache for admin CLI tokens to avoid requesting a new token from Keycloak
-/// every time.
-#[derive(Debug)]
-struct AdminTokenCache {
-    token: RwLock<Option<TokenResponseAdminCli>>,
-    /// Prevents thundering herd: only one task fetches a new token at a time.
-    fetch_lock: Mutex<()>,
-}
-
-impl AdminTokenCache {
-    fn init() -> Self {
-        AdminTokenCache {
-            token: RwLock::new(None),
-            fetch_lock: Mutex::const_new(()),
-        }
-    }
-}
-
-/// Global admin token cache instance.
-static ADMIN_TOKEN_CACHE: OnceLock<AdminTokenCache> = OnceLock::new();
-
-/// Returns a reference to the global admin token cache.
-fn get_admin_token_cache() -> &'static AdminTokenCache {
-    ADMIN_TOKEN_CACHE.get_or_init(AdminTokenCache::init)
-}
-
-/// Reads the access token if it has been requested successfully before and
-/// it is not expired.
-#[instrument(skip_all)]
-fn read_access_token() -> Option<(PubKeycloakAdminToken, String)> {
-    let cache = get_admin_token_cache();
-    let token_resp_ext_opt = match cache.token.read() {
-        Ok(read) => read.clone(),
-        Err(err) => {
-            warn!("Error acquiring read lock {err:?}");
-            return None;
-        }
-    };
-
-    if let Some(data) = token_resp_ext_opt {
-        let pre_expiration_time: i64 =
-            data.token_resp.expires_in as i64 - PRE_EXPIRATION_SECS; // Renew the token 5 seconds before it expires
-        if pre_expiration_time.is_positive()
-            && data.timestamp.elapsed()
-                < Duration::from_secs(pre_expiration_time as u64)
-        {
-            return Some((data.token_resp, data.url));
-        }
-    }
-    None
-}
-
-/// Writes the token to the cache
-#[instrument(err, skip_all)]
-fn write_access_token(
-    token_resp: PubKeycloakAdminToken,
-    url: String,
-    timestamp: Instant,
-) -> Result<()> {
-    let cache = get_admin_token_cache();
-    let mut write = cache
-        .token
-        .write()
-        .map_err(|err| anyhow!("Error acquiring write lock: {err:?}"))?;
-
-    *write = Some(TokenResponseAdminCli {
-        token_resp,
-        timestamp,
-        url,
-    });
-
-    Ok(())
-}
-
 impl KeycloakAdminClient {
     /// Tries to read the token from the cache, if expired requests it to
     /// Keycloak.
     #[instrument(err)]
     pub async fn new() -> Result<KeycloakAdminClient> {
+        let cache = get_admin_token_cache();
+
         // Fast path: check cache without fetch lock
-        if let Some((token_resp, url)) = read_access_token() {
-            return Self::new_with(token_resp.try_into()?, &url).await;
+        if let Some((token_resp, url)) = cache.read_token() {
+            let pub_token: PubKeycloakAdminToken = token_resp.into();
+            return Self::new_with(pub_token.try_into()?, &url).await;
         }
 
         // Acquire fetch lock to prevent thundering herd
-        let cache = get_admin_token_cache();
         let _fetch_guard = cache.fetch_lock.lock().await;
 
         // Double-check: someone else may have fetched while we waited
-        if let Some((token_resp, url)) = read_access_token() {
-            return Self::new_with(token_resp.try_into()?, &url).await;
+        if let Some((token_resp, url)) = cache.read_token() {
+            let pub_token: PubKeycloakAdminToken = token_resp.into();
+            return Self::new_with(pub_token.try_into()?, &url).await;
         }
 
         // Still a cache miss, fetch from Keycloak
         let login_config = get_keycloak_login_admin_config();
-        let timestamp: Instant = Instant::now(); // Capture the stamp before sending the request
+        let timestamp: Instant = Instant::now();
         let client = reqwest::Client::new();
         let admin_token = KeycloakAdminToken::acquire(
             &login_config.url,
@@ -334,11 +287,12 @@ impl KeycloakAdminClient {
         .await
         .map_err(|err| anyhow!("KeycloakAdminToken::acquire error {err:?}"))?;
         info!("Successfully acquired credentials");
-        let token_resp: PubKeycloakAdminToken =
-            admin_token.clone().try_into()?;
-        write_access_token(token_resp, login_config.url.clone(), timestamp)
+        let pub_token: PubKeycloakAdminToken = admin_token.clone().try_into()?;
+        let token_resp: TokenResponse = pub_token.into();
+        cache
+            .write_token(token_resp, login_config.url.clone(), timestamp)
             .map_err(|err| {
-                anyhow!("KeycloakAdminClient: write_access_token error {err:?}")
+                anyhow!("KeycloakAdminClient: write_token error {err:?}")
             })?;
         let keycloak_admin =
             KeycloakAdmin::new(&login_config.url, admin_token, client);
@@ -382,8 +336,10 @@ impl KeycloakAdminClient {
     /// populate the cache, then reads again.
     #[instrument(err)]
     pub async fn get_cached_token() -> Result<String> {
+        let cache = get_admin_token_cache();
+
         // Try reading from cache first
-        if let Some((token_resp, _url)) = read_access_token() {
+        if let Some((token_resp, _url)) = cache.read_token() {
             return Ok(token_resp.access_token);
         }
 
@@ -391,13 +347,16 @@ impl KeycloakAdminClient {
         let _ = KeycloakAdminClient::new().await?;
 
         // Read again after populating
-        if let Some((token_resp, _url)) = read_access_token() {
+        if let Some((token_resp, _url)) = cache.read_token() {
             return Ok(token_resp.access_token);
         }
 
         Err(anyhow!("Failed to get cached token after fetch"))
     }
 
+    /// Not using the cache, creates a public KeycloakAdmin client requesting
+    /// a new token from Keycloak.
+    /// TODO: Consider removing PubKeycloakAdmin entirely and using only KeycloakAdminClient::new()
     #[instrument(err)]
     pub async fn pub_new() -> Result<PubKeycloakAdmin> {
         let login_config = get_keycloak_login_admin_config();

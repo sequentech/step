@@ -524,7 +524,11 @@ services:
     #entrypoint: ["/bin/sh", "-c", "while true; do sleep 3600; done"]
     environment:
         TRUSTEE_NAME: trustee1
+        TRUSTEE_PSW: trustee1
         TRUSTEE_CONFIG_PATH: ${TRUSTEE1_CONFIG}
+        KC_TRUSTEE_CLIENT_SECRET: ${KC_TRUSTEE_CLIENT_SECRET}
+        KEYCLOAK_URL: ${KEYCLOAK_URL}
+        SUPER_ADMIN_TENANT_ID: ${SUPER_ADMIN_TENANT_ID}
         IGNORE_BOARDS: ${IGNORE_BOARDS}
         SECRETS_BACKEND: ${SECRETS_BACKEND}
         VAULT_SERVER_URL: ${VAULT_SERVER_URL}
@@ -549,7 +553,11 @@ services:
       - immudb
     environment:
         TRUSTEE_NAME: trustee2
+        TRUSTEE_PSW: trustee2
         TRUSTEE_CONFIG_PATH: ${TRUSTEE2_CONFIG}
+        KC_TRUSTEE_CLIENT_SECRET: ${KC_TRUSTEE_CLIENT_SECRET}
+        KEYCLOAK_URL: ${KEYCLOAK_URL}
+        SUPER_ADMIN_TENANT_ID: ${SUPER_ADMIN_TENANT_ID}
         IGNORE_BOARDS: ${IGNORE_BOARDS}
         SECRETS_BACKEND: ${SECRETS_BACKEND}
         VAULT_SERVER_URL: ${VAULT_SERVER_URL}

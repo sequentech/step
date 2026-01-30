@@ -51,8 +51,14 @@ async fn main() -> Result<()> {
 
     info!("Connecting to board '{}'..", args.board);
 
+    // Get trustee name and password for Keycloak authentication
+    let trustee_name =
+        std::env::var("TRUSTEE_NAME").map_err(|_| anyhow!("TRUSTEE_NAME must be set"))?;
+    let trustee_password =
+        std::env::var("TRUSTEE_PSW").map_err(|_| anyhow!("TRUSTEE_PSW must be set"))?;
+
     // Fetch access token for B4 authentication
-    let access_token = get_access_token().await?;
+    let access_token = get_access_token(&trustee_name, &trustee_password).await?;
 
     let trustee: Trustee<RistrettoCtx, braid::native::board::NoOpStorage> = Trustee::new(
         "Verifier".to_string(),

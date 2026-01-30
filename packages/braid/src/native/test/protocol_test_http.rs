@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use base64::prelude::*;
 use log::{info, warn};
 use rand::seq::IndexedRandom;
@@ -83,7 +83,12 @@ async fn run_protocol_test_http<C: Ctx + 'static>(
 ) -> Result<()> {
     let ctx = test.ctx.clone();
     let mut sessions = vec![];
-    let access_token = get_access_token().await?;
+    let trustee_name =
+        std::env::var("TRUSTEE_NAME").map_err(|_| anyhow!("TRUSTEE_NAME must be set"))?;
+    let trustee_password =
+        std::env::var("TRUSTEE_PSW").map_err(|_| anyhow!("TRUSTEE_PSW must be set"))?;
+    // Fetch access token for B4 authentication
+    let access_token = get_access_token(&trustee_name, &trustee_password).await?;
 
     let _pks: Vec<StrandSignaturePk> = test.trustees.iter().map(|t| t.get_pk().unwrap()).collect();
 
@@ -355,9 +360,12 @@ pub async fn create_protocol_test<C: Ctx>(
 
     // Bootstrap message will be sent by first session
     let message = Message::bootstrap_msg(&cfg, &pm)?;
-
+    let trustee_name =
+        std::env::var("TRUSTEE_NAME").map_err(|_| anyhow!("TRUSTEE_NAME must be set"))?;
+    let trustee_password =
+        std::env::var("TRUSTEE_PSW").map_err(|_| anyhow!("TRUSTEE_PSW must be set"))?;
     // Fetch access token for B4 authentication
-    let access_token = get_access_token().await?;
+    let access_token = get_access_token(&trustee_name, &trustee_password).await?;
 
     // Create HTTP client to initialize board
     let client = reqwest::Client::new();
