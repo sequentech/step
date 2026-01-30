@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 
 use braid::native::board::HttpB3Index;
 use braid::native::session::session_m::SessionFactory;
