@@ -89,6 +89,7 @@ public class AwsSesEmailSenderProvider implements EmailSenderProvider {
     return new InternetAddress(email, displayName, "UTF-8");
   }
 
+  @Override
   public void validate(Map<String, String> config) throws EmailException {
     String from = config.get("from");
     String fromDisplayName = config.get("fromDisplayName");
