@@ -59,7 +59,7 @@ zip = "2.1.6"
 
 # logging
 tracing = "0.1"
-tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"] } # Added for generate_logs binary
+tracing-subscriber = { version = "0.3.20", features = ["env-filter", "fmt"] } # Added for generate_logs binary
 thiserror = "1.0.50"
 
 # time
