@@ -62,7 +62,7 @@ wasm-bindgen = {version = "=0.2.100", optional = true}
 tracing-wasm = {version="0.2.1", optional = true}
 
 # dbg
-reedline-repl-rs = { version = "1.0.7" }
+reedline-repl-rs = { version = "1.3.0" }
 ascii_table = { version = "4.0.2" }
 async-trait = "0.1.73"
 
