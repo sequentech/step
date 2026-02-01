@@ -1,18 +1,27 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, {ReactElement, useContext} from "react"
-
+import React, {ReactElement, useContext, useState} from "react"
+import DownloadIcon from "@mui/icons-material/Download"
 import {Box, Typography} from "@mui/material"
 import {useTranslation} from "react-i18next"
 import {styled} from "@mui/material/styles"
 
-import {List, TextField, TextInput, DatagridConfigurable} from "react-admin"
+import {
+    List,
+    TextField,
+    TextInput,
+    DatagridConfigurable,
+    UrlField,
+    FunctionField,
+    Button,
+} from "react-admin"
 
 import {ListActions} from "@/components/ListActions"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import {AuthContext} from "@/providers/AuthContextProvider"
 import {IPermissions} from "@/types/keycloak"
+import {DownloadDocument} from "../User/DownloadDocument"
 
 const EmptyBox = styled(Box)`
     display: flex;
@@ -23,6 +32,12 @@ const EmptyBox = styled(Box)`
     width: 100%;
 `
 
+const StyledButton = styled(Button)`
+    .MuiButton-startIcon {
+        margin-right: 0;
+    }
+`
+
 const Filters: Array<ReactElement> = [
     <TextInput label="Requested By" source="requested_by" key={0} />,
 ]
@@ -31,6 +46,7 @@ export const SettingsPreviews: React.FC<void> = () => {
     const {t} = useTranslation()
     const [tenantId] = useTenantStore()
     const authContext = useContext(AuthContext)
+    const [documentId, setDocumentId] = useState(undefined)
     const canReadPreview = authContext.isAuthorized(true, tenantId, IPermissions.PREVIEW_READ)
 
     const Empty = () => (
@@ -55,10 +71,31 @@ export const SettingsPreviews: React.FC<void> = () => {
             >
                 <DatagridConfigurable>
                     <TextField source="requested_by" />
-                    <TextField source="url" />
-                    <TextField source="document_id" />
+                    <UrlField source="url" target="_blank" />
+                    <FunctionField
+                        label="Document"
+                        render={(record) => (
+                            <StyledButton
+                                onClick={() => {
+                                    setDocumentId(record.document_id)
+                                }}
+                                startIcon={<DownloadIcon />}
+                            />
+                        )}
+                    />
                 </DatagridConfigurable>
             </List>
+            {documentId && (
+                <>
+                    <DownloadDocument
+                        documentId={documentId ?? ""}
+                        fileName={null}
+                        onDownload={() => {
+                            setDocumentId(undefined)
+                        }}
+                    />
+                </>
+            )}
         </>
     )
 }

@@ -39,7 +39,7 @@ pub fn construct_preview_url(
 }
 
 #[instrument(err)]
-pub async fn get_documnet_data(preview_file_path: &str) -> Result<(String, String)> {
+pub async fn get_document_data(preview_file_path: &str) -> Result<(String, String)> {
     let file = File::open(preview_file_path)
         .map_err(|e| anyhow::anyhow!("Failed to open preview file: {}", e))?;
     let parsed: PublicationPreview = serde_json::from_reader(file)
@@ -89,7 +89,7 @@ pub async fn generate_preview_url(
     let file_size =
         get_file_size(temp_path_string.as_str()).with_context(|| "Error obtaining file size")?;
 
-    let (ballot_style_id, area_id) = get_documnet_data(&temp_path_string).await?;
+    let (ballot_style_id, area_id) = get_document_data(&temp_path_string).await?;
     let doc_name = format!("{ballot_style_id}.json");
 
     let document = upload_and_return_document(

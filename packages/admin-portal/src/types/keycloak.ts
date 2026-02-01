@@ -195,4 +195,5 @@ export enum IPermissions {
     VOTER_EMAIL_TLF_EDIT = "voter-email-tlf-edit", // permission to edit voter fields: email and mobile number
     GOOGLE_MEET_LINK = "google-meet-link",
     PREVIEW_READ = "preview-read",
+    GENERATE_PREVIEW = "generate-preview",
 }
