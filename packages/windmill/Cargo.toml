@@ -110,7 +110,7 @@ regex = { version = "1.10.2" }
 futures = "0.3.30"
 # for hashing passwords in import users
 sha2 = "0.10"
-ring = "0.17"
+ring = "0.17.12"
 # serializing
 hex = "0.4"
 # threading
