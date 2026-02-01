@@ -81,7 +81,7 @@ web-sys = { version = "0.3", features = ['Performance'], optional = true }
 # OpenSSL needs to be configured to operate in FIPS mode
 # https://github.com/sfackler/rust-openssl/issues/1924
 # https://www.openssl.org/docs/man3.0/man7/fips_module.html
-openssl = { version = "0.10.57", optional = true }
+openssl = { version = "0.10.72", optional = true }
 
 rayon = { version = "1.5", optional = true }
 cfg-if = "1.0"
