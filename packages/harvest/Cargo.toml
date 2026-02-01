@@ -31,8 +31,8 @@ strum_macros = "0.25"
 uuid = { version = "1.5.0", features = ["v4", "fast-rng"] }
 
 # s3
-aws-config = { version = "1.0.3", features = ["behavior-version-latest"] }
-aws-sdk-s3 = "1.11.0"
+aws-config = { version = "1.8.12", features = ["behavior-version-latest"] }
+aws-sdk-s3 = "1.112.0"
 
 # logging
 tracing = "0.1"
