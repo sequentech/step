@@ -18,7 +18,7 @@ use crate::util::aws::get_s3_aws_config;
 static JWKS_CACHE: OnceLock<JwksCache> = OnceLock::new();
 
 /// Returns a reference to the global JWKS cache.
-#[instrument]
+#[instrument(level = "trace")]
 pub fn get_global_jwks_cache() -> &'static JwksCache {
     JWKS_CACHE.get_or_init(JwksCache::init)
 }
@@ -43,7 +43,7 @@ pub struct JwksOutput {
 }
 
 /// Returns the path to the JWKS certificates file in S3.
-#[instrument]
+#[instrument(level = "trace")]
 pub fn get_jwks_secret_path() -> String {
     env::var("AWS_S3_JWKS_CERTS_PATH")
         .unwrap_or_else(|_| "certs.json".to_string())
@@ -51,7 +51,7 @@ pub fn get_jwks_secret_path() -> String {
 
 /// Parses a Cache-Control header value and extracts the max-age in seconds.
 /// Returns None if the header is "no-cache" or if max-age cannot be parsed.
-#[instrument]
+#[instrument(level = "trace")]
 fn parse_cache_control(cache_control: Option<&str>) -> Option<u64> {
     let header = cache_control?;
 
@@ -77,7 +77,7 @@ fn parse_cache_control(cache_control: Option<&str>) -> Option<u64> {
 /// Returns a tuple of (keys, cache_control_seconds) where cache_control_seconds
 /// is Some(seconds) if the Cache-Control header specifies max-age, or None if
 /// it's set to no-cache or not present.
-#[instrument(err)]
+#[instrument(level = "trace", err)]
 pub async fn get_jwks() -> Result<(Vec<JWKKey>, Option<u64>)> {
     let s3_bucket = get_public_bucket()
         .with_context(|| "Failed to get public S3 bucket")?;
@@ -168,7 +168,7 @@ pub struct JwksCache {
 }
 
 impl JwksCache {
-    #[instrument]
+    #[instrument(level = "trace")]
     pub fn init() -> Self {
         JwksCache {
             cache: RwLock::new(None),
@@ -177,7 +177,7 @@ impl JwksCache {
     }
 
     /// Checks if the cache entry is still valid (not expired).
-    #[instrument(skip(entry))]
+    #[instrument(level = "trace", skip(entry))]
     fn is_cache_valid(entry: &JwksCacheEntry) -> bool {
         let ttl = entry.cache_control_secs.unwrap_or(DEFAULT_CACHE_TTL_SECS);
 
@@ -188,7 +188,7 @@ impl JwksCache {
     }
 
     /// Reads JWKS from cache if available and not expired.
-    #[instrument(skip(self))]
+    #[instrument(level = "trace", skip(self))]
     fn read_from_cache(&self) -> Option<Vec<JWKKey>> {
         let cache_guard = match self.cache.read() {
             Ok(guard) => guard,
@@ -218,7 +218,7 @@ impl JwksCache {
     }
 
     /// Writes JWKS to cache.
-    #[instrument(skip(self, keys))]
+    #[instrument(level = "trace", skip(self, keys))]
     fn write_to_cache(
         &self,
         keys: Vec<JWKKey>,
@@ -243,7 +243,7 @@ impl JwksCache {
     }
 
     /// Gets JWKS from cache if valid, otherwise fetches from S3 and updates cache.
-    #[instrument(skip(self))]
+    #[instrument(level = "trace", skip(self))]
     pub async fn get_jwks_cached(&self) -> Result<Vec<JWKKey>> {
         // Fast path: check cache without fetch lock
         if let Some(keys) = self.read_from_cache() {
@@ -274,7 +274,7 @@ impl JwksCache {
 /// This function decodes the JWT header to find the key ID (kid),
 /// looks up the corresponding key in the provided JWKS, and verifies
 /// the signature.
-#[instrument(skip(token, keys), fields(kid))]
+#[instrument(level = "trace", skip(token, keys), fields(kid))]
 pub fn verify_token_signature(token: &str, keys: &[JWKKey]) -> Result<()> {
     // Decode header to get the key ID
     let header = decode_header(token)

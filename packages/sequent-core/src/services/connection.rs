@@ -35,6 +35,7 @@ pub struct AuthHeaders {
 impl<'r> FromRequest<'r> for AuthHeaders {
     type Error = ();
 
+    #[instrument(level = "trace", skip_all)]
     async fn from_request(
         request: &'r Request<'_>,
     ) -> Outcome<Self, Self::Error> {
@@ -63,6 +64,7 @@ impl<'r> FromRequest<'r> for AuthHeaders {
 impl<'r> FromRequest<'r> for JwtClaims {
     type Error = ();
 
+    #[instrument(level = "trace", skip_all)]
     async fn from_request(
         request: &'r Request<'_>,
     ) -> Outcome<Self, Self::Error> {
@@ -124,6 +126,7 @@ pub struct UserLocation {
 impl<'r> FromRequest<'r> for UserLocation {
     type Error = ();
 
+    #[instrument(level = "trace", skip_all)]
     async fn from_request(
         request: &'r Request<'_>,
     ) -> Outcome<Self, Self::Error> {
@@ -164,7 +167,7 @@ struct DatafixHeaders {
 }
 
 /// Returns None if any of the required headers are missing or is incomplete
-#[instrument(skip_all)]
+#[instrument(level = "trace", skip_all)]
 fn parse_datafix_headers(headers: &HeaderMap) -> Option<DatafixHeaders> {
     let required_headers =
         [TENANT_ID_HEADER, EVENT_ID_HEADER, AUTHORIZATION_HEADER];
@@ -241,6 +244,7 @@ pub struct LastDatafixAccessToken {
 }
 
 impl LastDatafixAccessToken {
+    #[instrument(level = "trace")]
     pub fn init() -> Self {
         LastDatafixAccessToken {
             token: RwLock::new(None),
@@ -251,7 +255,7 @@ impl LastDatafixAccessToken {
 
 /// Reads the access token if it has been requested successfully before and it
 /// is not expired.
-#[instrument(skip(lst_acc_tkn))]
+#[instrument(level = "trace", skip(lst_acc_tkn))]
 fn read_access_token(
     client_id: &str,
     client_secret: &str,
@@ -284,7 +288,7 @@ fn read_access_token(
 }
 
 /// Writes a new access token to the cache
-#[instrument(err, skip(lst_acc_tkn))]
+#[instrument(level = "trace", err, skip(lst_acc_tkn))]
 fn write_access_token(
     token_resp: PubKeycloakAdminToken,
     stamp: Instant,
@@ -312,7 +316,7 @@ fn write_access_token(
 #[rocket::async_trait]
 impl<'r> FromRequest<'r> for DatafixClaims {
     type Error = ();
-    #[instrument(skip_all)]
+    #[instrument(level = "trace", skip_all)]
     async fn from_request(
         request: &'r Request<'_>,
     ) -> Outcome<Self, Self::Error> {

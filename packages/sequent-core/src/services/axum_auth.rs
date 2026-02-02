@@ -55,7 +55,7 @@ where
 {
     type Rejection = StatusCode;
 
-    #[instrument(skip(parts, _state))]
+    #[instrument(level = "trace", skip(parts, _state))]
     async fn from_request_parts(
         parts: &mut Parts,
         _state: &S,
@@ -127,7 +127,7 @@ where
 {
     type Rejection = StatusCode;
 
-    #[instrument(skip(parts, state))]
+    #[instrument(level = "trace", skip(parts, state))]
     async fn from_request_parts(
         parts: &mut Parts,
         state: &S,
