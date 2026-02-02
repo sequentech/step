@@ -9,7 +9,7 @@ use std::env;
 use std::sync::{OnceLock, RwLock};
 use std::time::Instant;
 use tokio::sync::Mutex;
-use tracing::{info, instrument, warn};
+use tracing::{info, instrument, trace, warn};
 
 use crate::services::s3::{get_public_bucket, get_s3_client};
 use crate::util::aws::get_s3_aws_config;
@@ -84,7 +84,7 @@ pub async fn get_jwks() -> Result<(Vec<JWKKey>, Option<u64>)> {
 
     let path = get_jwks_secret_path();
 
-    info!(
+    trace!(
         bucket = %s3_bucket,
         path = %path,
         "Fetching JWKS from S3"
@@ -123,7 +123,7 @@ pub async fn get_jwks() -> Result<(Vec<JWKKey>, Option<u64>)> {
     // Extract cache-control header
     let cache_control_secs = parse_cache_control(response.cache_control());
 
-    info!(
+    trace!(
         cache_control = ?response.cache_control(),
         cache_control_secs = ?cache_control_secs,
         "S3 response cache-control"
@@ -141,11 +141,6 @@ pub async fn get_jwks() -> Result<(Vec<JWKKey>, Option<u64>)> {
     // Parse the JSON
     let jwks_output: JwksOutput = serde_json::from_slice(&body_bytes)
         .with_context(|| "Failed to parse JWKS JSON")?;
-
-    info!(
-        keys_count = jwks_output.keys.len(),
-        "Successfully fetched JWKS from S3"
-    );
 
     Ok((jwks_output.keys, cache_control_secs))
 }
@@ -205,14 +200,14 @@ impl JwksCache {
 
         if let Some(entry) = cache_guard.as_ref() {
             if Self::is_cache_valid(entry) {
-                info!(
+                trace!(
                     keys_count = entry.keys.len(),
                     cache_age_secs = entry.fetched_at.elapsed().as_secs(),
                     "Returning JWKS from cache"
                 );
                 return Some(entry.keys.clone());
             } else {
-                info!(
+                trace!(
                     cache_age_secs = entry.fetched_at.elapsed().as_secs(),
                     "JWKS cache expired"
                 );
@@ -239,7 +234,7 @@ impl JwksCache {
             fetched_at: Instant::now(),
         });
 
-        info!(
+        trace!(
             cache_control_secs = ?cache_control_secs,
             "Updated JWKS cache"
         );
@@ -264,7 +259,7 @@ impl JwksCache {
         }
 
         // Still a cache miss, fetch from S3
-        info!("JWKS cache miss, fetching from S3");
+        trace!("JWKS cache miss, fetching from S3");
         let (keys, cache_control_secs) = get_jwks().await?;
 
         // Update cache
@@ -322,7 +317,7 @@ pub fn verify_token_signature(token: &str, keys: &[JWKKey]) -> Result<()> {
             anyhow!("JWT signature verification failed: {err}")
         })?;
 
-    info!("JWT signature verified successfully");
+    trace!("JWT signature verified successfully");
     Ok(())
 }
 
