@@ -656,9 +656,19 @@ impl HttpB3Index {
         }
 
         let url = format!("{}/boards", self.base_url);
-        let response = self.add_auth_header(self.client.get(&url)).send().await?;
-        let boards_response: BoardsResponse = response.json().await?;
+        let response = self
+            .add_auth_header(self.client.get(&url))
+            .send()
+            .await
+            .map_err(|e| anyhow::anyhow!("While sending the request: {e:?}"))?;
 
+        if !response.status().is_success() {
+            return Err(anyhow::anyhow!(
+                "Failed to get boards: HTTP {}",
+                response.status()
+            ));
+        }
+        let boards_response: BoardsResponse = response.json().await?;
         Ok(boards_response.boards.into_iter().map(|b| b.name).collect())
     }
 }
