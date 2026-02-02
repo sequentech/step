@@ -58,7 +58,7 @@ impl KeycloakUserLoginConfig {
 }
 
 /// Fetches a token using the Resource Owner Password Credentials flow.
-#[instrument(err, skip(login_config))]
+#[instrument(level = "trace", err, skip(login_config))]
 async fn get_user_credentials_inner(
     login_config: &KeycloakUserLoginConfig,
 ) -> Result<String> {
@@ -124,7 +124,7 @@ impl KeycloakUserClient {
     ///
     /// # Arguments
     /// * `login_config` - The Keycloak user login configuration
-    #[instrument(err, skip(login_config))]
+    #[instrument(level = "trace", err, skip(login_config))]
     pub async fn get_cached_token(
         login_config: &KeycloakUserLoginConfig,
     ) -> Result<String> {
@@ -157,7 +157,11 @@ impl KeycloakUserClient {
         );
 
         cache
-            .write_token(token_resp.clone(), login_config.url.clone(), timestamp)
+            .write_token(
+                token_resp.clone(),
+                login_config.url.clone(),
+                timestamp,
+            )
             .map_err(|err| anyhow!("Failed to write token to cache: {err}"))?;
 
         Ok(token_resp.access_token)
@@ -167,7 +171,7 @@ impl KeycloakUserClient {
     ///
     /// # Arguments
     /// * `login_config` - The Keycloak user login configuration
-    #[instrument(err, skip(login_config))]
+    #[instrument(level = "trace", err, skip(login_config))]
     pub async fn get_token_uncached(
         login_config: &KeycloakUserLoginConfig,
     ) -> Result<String> {
@@ -197,7 +201,7 @@ impl KeycloakUserClient {
 /// * `client_id` - OAuth client ID
 /// * `client_secret` - OAuth client secret
 /// * `tenant_id` - Tenant ID for realm construction
-#[instrument(err, skip(password, client_secret))]
+#[instrument(level = "trace", err, skip(password, client_secret))]
 pub fn generate_keycloak_token(
     keycloak_url: &str,
     username: &str,
@@ -237,7 +241,7 @@ pub fn generate_keycloak_token(
 /// Refreshes a Keycloak token using a refresh token.
 ///
 /// This is a blocking version for use in synchronous contexts (e.g., step-cli).
-#[instrument(err, skip(refresh_token, client_secret))]
+#[instrument(level = "trace", err, skip(refresh_token, client_secret))]
 pub fn refresh_keycloak_token(
     keycloak_url: &str,
     refresh_token: &str,

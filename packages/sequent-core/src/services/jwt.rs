@@ -73,7 +73,7 @@ pub struct JwtClaims {
     pub trustee: Option<String>,
 }
 
-#[instrument(err, skip_all)]
+#[instrument(level = "trace", err, skip_all)]
 pub fn decode_jwt(token: &str) -> Result<JwtClaims> {
     let parts: Vec<&str> = token.split('.').collect();
     let part = parts.get(1).ok_or(anyhow::anyhow!("Bad token (no '.')"))?;
@@ -90,7 +90,7 @@ pub fn decode_jwt(token: &str) -> Result<JwtClaims> {
     Ok(claims)
 }
 
-#[instrument(skip_all, ret)]
+#[instrument(level = "trace", skip_all, ret)]
 pub fn decode_permission_labels(claims: &JwtClaims) -> Vec<String> {
     let Some(label_str) = claims.hasura_claims.permission_labels.clone() else {
         return vec![];
@@ -118,7 +118,7 @@ pub fn decode_permission_labels(claims: &JwtClaims) -> Vec<String> {
  * Returns true only if the JWT has gold permissions and the JWT
  * authentication is fresh, i.e. performed less than 60 seconds ago.
  */
-#[instrument(skip_all)]
+#[instrument(level = "trace", skip_all)]
 pub fn has_gold_permission(claims: &JwtClaims) -> bool {
     let auth_time_local: DateTime<Local> =
         if let Some(auth_time_int) = claims.auth_time {

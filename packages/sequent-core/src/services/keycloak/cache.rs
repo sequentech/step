@@ -62,7 +62,7 @@ impl TokenCache {
     /// it is not expired.
     ///
     /// Returns the token response and URL if valid, None otherwise.
-    #[instrument(skip_all)]
+    #[instrument(level = "trace", skip_all)]
     pub fn read_token(&self) -> Option<(TokenResponse, String)> {
         let token_resp_ext_opt = match self.token.read() {
             Ok(read) => read.clone(),
@@ -86,7 +86,7 @@ impl TokenCache {
     }
 
     /// Writes the token to the cache.
-    #[instrument(skip_all)]
+    #[instrument(level = "trace", skip_all)]
     pub fn write_token(
         &self,
         token_resp: TokenResponse,
@@ -118,6 +118,7 @@ impl Default for TokenCache {
 static ADMIN_TOKEN_CACHE: OnceLock<TokenCache> = OnceLock::new();
 
 /// Returns a reference to the global admin token cache.
+#[instrument(level = "trace", skip_all)]
 pub fn get_admin_token_cache() -> &'static TokenCache {
     ADMIN_TOKEN_CACHE.get_or_init(TokenCache::new)
 }
@@ -126,6 +127,7 @@ pub fn get_admin_token_cache() -> &'static TokenCache {
 static USER_TOKEN_CACHE: OnceLock<TokenCache> = OnceLock::new();
 
 /// Returns a reference to the global user token cache.
+#[instrument(level = "trace", skip_all)]
 pub fn get_user_token_cache() -> &'static TokenCache {
     USER_TOKEN_CACHE.get_or_init(TokenCache::new)
 }
