@@ -2007,6 +2007,11 @@ const dutchTranslation: TranslationType = {
             previewScreen: {
                 label: "Voorbeeldweergaven",
                 noContent: "Geen voorbeeldweergaven gevonden",
+                table: {
+                    requestedBy: "Aangevraagd door",
+                    document: "Document",
+                    url: "URL",
+                },
             },
         },
         approvalsScreen: {

@@ -2002,6 +2002,11 @@ const basqueTranslation: TranslationType = {
             previewScreen: {
                 label: "Aurreikuspenak",
                 noContent: "Ez da aurreikuspenik aurkitu",
+                table: {
+                    requestedBy: "Eskatzailea",
+                    document: "Dokumentua",
+                    url: "URLa",
+                },
             },
         },
         approvalsScreen: {

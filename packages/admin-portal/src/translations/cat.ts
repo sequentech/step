@@ -2021,6 +2021,11 @@ const catalanTranslation: TranslationType = {
             previewScreen: {
                 label: "Prèvies",
                 noContent: "No s'han trobat prèvies",
+                table: {
+                    requestedBy: "Sol·licitat per",
+                    document: "Document",
+                    url: "URL",
+                },
             },
         },
         approvalsScreen: {

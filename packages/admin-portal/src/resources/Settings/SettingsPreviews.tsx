@@ -38,16 +38,20 @@ const StyledButton = styled(Button)`
     }
 `
 
-const Filters: Array<ReactElement> = [
-    <TextInput label="Requested By" source="requested_by" key={0} />,
-]
-
 export const SettingsPreviews: React.FC<void> = () => {
     const {t} = useTranslation()
     const [tenantId] = useTenantStore()
     const authContext = useContext(AuthContext)
     const [documentId, setDocumentId] = useState(undefined)
     const canReadPreview = authContext.isAuthorized(true, tenantId, IPermissions.PREVIEW_READ)
+
+    const Filters: Array<ReactElement> = [
+        <TextInput
+            label={t("settings.previewScreen.table.requestedBy")}
+            source="requested_by"
+            key={0}
+        />,
+    ]
 
     const Empty = () => (
         <EmptyBox m={1}>
@@ -70,10 +74,18 @@ export const SettingsPreviews: React.FC<void> = () => {
                 empty={<Empty />}
             >
                 <DatagridConfigurable>
-                    <TextField source="requested_by" />
-                    <UrlField source="url" target="_blank" />
+                    <TextField
+                        source="requested_by"
+                        label={t("settings.previewScreen.table.requestedBy")}
+                    />
+                    <UrlField
+                        source="url"
+                        target="_blank"
+                        label={t("settings.previewScreen.table.url")}
+                    />
                     <FunctionField
-                        label="Document"
+                        source="document_id"
+                        label={t("settings.previewScreen.table.document")}
                         render={(record) => (
                             <StyledButton
                                 onClick={() => {

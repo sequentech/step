@@ -2011,6 +2011,11 @@ const galegoTranslation: TranslationType = {
             previewScreen: {
                 label: "Vistas Previas",
                 noContent: "Non se atoparon vistas previas",
+                table: {
+                    requestedBy: "Solicitado por",
+                    document: "Documento",
+                    url: "URL",
+                },
             },
         },
         approvalsScreen: {

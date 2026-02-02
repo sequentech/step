@@ -2023,6 +2023,11 @@ const frenchTranslation: TranslationType = {
             previewScreen: {
                 label: "Aperçus",
                 noContent: "Aucun aperçu trouvé",
+                table: {
+                    requestedBy: "Demandé par",
+                    document: "Document",
+                    url: "URL",
+                },
             },
         },
         approvalsScreen: {

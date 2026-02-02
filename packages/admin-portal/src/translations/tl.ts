@@ -2013,6 +2013,11 @@ const tagalogTranslation: TranslationType = {
             previewScreen: {
                 label: "Mga Preview",
                 noContent: "Walang nahanap na mga preview",
+                table: {
+                    requestedBy: "Hiniling ng",
+                    document: "Dokumento",
+                    url: "URL",
+                },
             },
         },
         approvalsScreen: {

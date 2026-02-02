@@ -1996,6 +1996,11 @@ const englishTranslation = {
             previewScreen: {
                 label: "Previews",
                 noContent: "No Previews found",
+                table: {
+                    requestedBy: "Requested By",
+                    document: "Document",
+                    url: "URL",
+                },
             },
         },
         approvalsScreen: {
