@@ -23,7 +23,8 @@
       "password",
       "email",
       "password_salt",
-      "hashed_password"
+      "hashed_password",
+      "email_verified"
     ],
     "excluded_columns": [
       "password",
@@ -39,7 +40,9 @@
     "hashed_password": "V0rb8+HmTneV64qto5f0G2+OY09x2RwPeqtK605EUz0=",
     "overseas_reference": "B",
     "min_age": 18,
-    "max_age": 90
+    "max_age": 90,
+    "authorized_elections_count": 1,
+    "email_verified": true
   },
   "duplicate_votes": {
     "row_id_to_clone": "4b2ab2fb-f562-475a-8872-6d4a01631d59"

@@ -38,6 +38,7 @@ pkg
 devenv.local.nix
 .pre-commit-config.yaml
 .devcontainer/.env
+.devcontainer/nginx/default.conf
 
 # Frontend
 node_modules/

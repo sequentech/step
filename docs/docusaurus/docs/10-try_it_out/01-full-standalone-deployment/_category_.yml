@@ -1,0 +1,3 @@
+label: 'Full Standalone Deployment'
+position: 1
+description: 'Deploy and run a complete Sequent environment on a single server'

@@ -5,11 +5,13 @@ use crate::utils::keycloak::get_keyckloak_pool;
 use crate::utils::read_config::load_external_config;
 use anyhow::Result;
 use clap::Args;
+use colored::Colorize;
 use serde_json::Value;
 use std::env;
 use tokio_postgres::Transaction;
 use uuid::Uuid;
 use windmill::services::providers::transactions_provider::provide_hasura_transaction;
+
 #[derive(Args)]
 #[command(about)]
 pub struct DuplicateVotes {
@@ -26,7 +28,7 @@ impl DuplicateVotes {
     pub fn run(&self) {
         let runtime = tokio::runtime::Runtime::new().expect("Failed to create Tokio runtime");
         match runtime.block_on(self.run_duplicate_votes(&self.working_directory, self.num_votes)) {
-            Ok(_) => println!("Successfully duplicate vote"),
+            Ok(_) => println!("{}", "Successfully duplicate vote".green()),
             Err(err) => eprintln!("Error! Failed to duplicate vote: {err:?}"),
         }
     }

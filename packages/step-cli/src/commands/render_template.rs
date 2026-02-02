@@ -4,6 +4,7 @@
 
 use anyhow::Result;
 use clap::Args;
+use colored::Colorize;
 use sequent_core::services::reports::render_template_text;
 use sequent_core::types::to_map::ToMap;
 use serde_json::{Map, Value};
@@ -54,7 +55,7 @@ impl RenderTemplate {
     /// Execute the rendering process
     pub fn run(&self) {
         match self.generate_report() {
-            Ok(_) => println!("Successfully generated the report"),
+            Ok(_) => println!("{}", "Successfully generated the report".green()),
             Err(err) => eprintln!("Error! Failed to generate the report: {err:?}"),
         }
     }
