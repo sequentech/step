@@ -17,7 +17,8 @@ const StyledButton = styled(MuiIconButton)`
 `
 
 export interface IIconButtonProps
-    extends Omit<FontAwesomeIconProps, "onClick">, Pick<IconButtonProps, "onClick"> {
+    extends Omit<FontAwesomeIconProps, "onClick">,
+        Pick<IconButtonProps, "onClick"> {
     variant?: "inherit" | "primary" | "info" | "warning" | "error" | "success"
     sx?: SxProps<Theme>
 }
