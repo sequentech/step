@@ -903,6 +903,7 @@ services:
       RUSTFLAGS: ${RUSTFLAGS}
       RUST_BACKTRACE: ${RUST_BACKTRACE}
       LOG_LEVEL: ${LOG_LEVEL}
+      # LOG_LEVEL: sequent_core=trace,info
       CARGO_TERM_COLOR: ${CARGO_TERM_COLOR}
       B4_PG_HOST: ${B4_PG_HOST}
       B4_PG_PORT: ${B4_PG_PORT}
