@@ -23,13 +23,38 @@ use std::io::{Error, ErrorKind};
 use std::marker::PhantomData;
 
 use borsh::{BorshDeserialize, BorshSerialize};
-use num_bigint::RandBigInt;
 use num_bigint::{BigUint, ParseBigIntError};
 use num_integer::Integer;
 use num_modular::{ModularSymbols, ModularUnaryOps};
 use num_traits::{Num, One, Zero};
+use rand::RngCore;
 
 use crate::backend::constants::*;
+
+/// Generate a random BigUint in the range [0, bound).
+/// This replaces RandBigInt::gen_biguint_below which requires rand 0.8.
+/// This is because num-bigint does not support rand 0.9 currently
+fn gen_biguint_below<R: RngCore>(rng: &mut R, bound: &BigUint) -> BigUint {
+    if bound.is_zero() {
+        return BigUint::zero();
+    }
+    let bits = bound.bits() as usize;
+    let bytes_needed = (bits + 7) / 8;
+    let mut bytes = vec![0u8; bytes_needed];
+
+    loop {
+        rng.fill_bytes(&mut bytes);
+        // Mask off extra bits in the most significant byte
+        let extra_bits = bytes_needed * 8 - bits;
+        if extra_bits > 0 && !bytes.is_empty() {
+            bytes[0] &= 0xFF >> extra_bits;
+        }
+        let result = BigUint::from_bytes_be(&bytes);
+        if result < *bound {
+            return result;
+        }
+    }
+}
 use crate::context::{Ctx, Element, Exponent, Plaintext};
 use crate::elgamal::{Ciphertext, PrivateKey, PublicKey};
 use crate::rng::StrandRng;
@@ -210,16 +235,15 @@ impl<P: BigintCtxParams> Ctx for BigintCtx<P> {
     #[inline(always)]
     fn rnd(&self, rng: &mut Self::R) -> Self::E {
         let one: BigUint = One::one();
-        let unencoded = BigUintP(
-            rng.gen_biguint_below(&(&self.params.exp_modulus().0 - one)),
-        );
+        let bound = &self.params.exp_modulus().0 - one;
+        let unencoded = BigUintP(gen_biguint_below(rng, &bound));
 
         self.encode(&unencoded)
             .expect("0..(q-1) should always be encodable")
     }
     #[inline(always)]
     fn rnd_exp(&self, rng: &mut Self::R) -> Self::X {
-        BigUintX::new(rng.gen_biguint_below(&self.params.exp_modulus().0))
+        BigUintX::new(gen_biguint_below(rng, &self.params.exp_modulus().0))
     }
     fn rnd_plaintext(&self, rng: &mut Self::R) -> Self::P {
         BigUintP(self.rnd_exp(rng).0)
