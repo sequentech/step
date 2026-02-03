@@ -19,6 +19,7 @@ import {faPrint, faCircleQuestion, faCheck} from "@fortawesome/free-solid-svg-ic
 import Button from "@mui/material/Button"
 
 import {useLocation, useNavigate, useParams} from "react-router-dom"
+import Link from "@mui/material/Link"
 import {useAppDispatch, useAppSelector} from "../store/hooks"
 import {selectAuditableBallot} from "../store/auditableBallots/auditableBallotsSlice"
 import {canVoteSomeElection} from "../store/castVotes/castVotesSlice"
@@ -98,7 +99,7 @@ const BallotIdBorder = styled(Box)`
     border-radius: 4px;
 `
 
-const BallotIdLink = styled("a")`
+const BallotIdLink = styled(Link)`
     color: ${({theme}) => theme.palette.brandColor};
     text-decoration: none;
     font-weight: normal;
@@ -401,8 +402,6 @@ const ConfirmationScreen: React.FC = () => {
     }
 
     useEffect(() => {
-        console.log("in conformation")
-
         if (!gotData.current) {
             gotData.current = true
             const {ballotIdStored, isDemoStored} = getBallotId()
