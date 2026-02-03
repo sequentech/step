@@ -401,8 +401,8 @@ const ConfirmationScreen: React.FC = () => {
     }
 
     useEffect(() => {
-        console.log("in conformation");
-        
+        console.log("in conformation")
+
         if (!gotData.current) {
             gotData.current = true
             const {ballotIdStored, isDemoStored} = getBallotId()
@@ -483,7 +483,7 @@ const ConfirmationScreen: React.FC = () => {
                         onClick={handleBallotIdLinkClick}
                     >
                         {t("ballotHash", {ballotId: ballotId.current})}
-                    </BallotIdLink> 
+                    </BallotIdLink>
                     <IconButton
                         icon={faCircleQuestion}
                         sx={{
@@ -546,7 +546,7 @@ const ConfirmationScreen: React.FC = () => {
                 electionId={electionId}
                 ballotId={ballotId.current ?? ""}
                 isGoldenAuth={confirmationScreenData ? true : false}
-            /> 
+            />
         </PageLimit>
     )
 }
