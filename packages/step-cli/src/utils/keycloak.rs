@@ -3,11 +3,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use deadpool_postgres::{Config as PgConfig, Pool, Runtime};
-use serde_json;
 use sequent_core::services::keycloak::{
-    generate_keycloak_token as generate_token_inner,
-    refresh_keycloak_token as refresh_token_inner,
+    generate_keycloak_token as generate_token_inner, refresh_keycloak_token as refresh_token_inner,
 };
+use serde_json;
 use std::env;
 use std::error::Error;
 use std::fs;

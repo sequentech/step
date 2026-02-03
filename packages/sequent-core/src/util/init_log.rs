@@ -2,8 +2,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use tracing_subscriber::filter::EnvFilter;
-use tracing_subscriber::reload::Handle;
 use tracing_subscriber::reload;
+use tracing_subscriber::reload::Handle;
 use tracing_subscriber::{layer::SubscriberExt, registry::Registry};
 use tracing_tree::HierarchicalLayer;
 
