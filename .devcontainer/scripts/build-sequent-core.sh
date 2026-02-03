@@ -9,7 +9,10 @@ set -euo pipefail
 # flag, which is not supported when compiling C code for WebAssembly targets
 # (used by the ring cryptographic library):
 export NIX_HARDENING_ENABLE=""
-export CFLAGS_wasm32_unknown_unknown="${CFLAGS_wasm32_unknown_unknown:-} -O3 -ffunction-sections -fdata-sections -fno-exceptions" 
+export CFLAGS_wasm32_unknown_unknown="${CFLAGS_wasm32_unknown_unknown:-} -O3 -ffunction-sections -fdata-sections -fno-exceptions"
+
+# Pin wasm-bindgen-cli version to match the wasm-bindgen crate in Cargo.toml
+WASM_BINDGEN_VERSION="0.2.104"
 
 TARGET_DIR=/workspaces/step/packages/sequent-core
 cd "$TARGET_DIR"
@@ -19,6 +22,13 @@ which cargo
 cargo --version
 which wasm-pack
 wasm-pack --version
+
+# Install exact wasm-bindgen-cli version if not already installed or version mismatch
+INSTALLED_VERSION=$(wasm-bindgen --version 2>/dev/null | awk '{print $2}' || echo "none")
+if [ "$INSTALLED_VERSION" != "$WASM_BINDGEN_VERSION" ]; then
+    echo "Installing wasm-bindgen-cli $WASM_BINDGEN_VERSION (current: $INSTALLED_VERSION)"
+    cargo install wasm-bindgen-cli --version "$WASM_BINDGEN_VERSION" --force
+fi
 which wasm-bindgen
 wasm-bindgen --version
 
