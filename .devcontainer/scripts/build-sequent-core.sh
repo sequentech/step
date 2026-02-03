@@ -12,7 +12,7 @@ export NIX_HARDENING_ENABLE=""
 export CFLAGS_wasm32_unknown_unknown="${CFLAGS_wasm32_unknown_unknown:-} -O3 -ffunction-sections -fdata-sections -fno-exceptions"
 
 # Pin wasm-bindgen-cli version to match the wasm-bindgen crate in Cargo.toml
-WASM_BINDGEN_VERSION="0.2.104"
+WASM_BINDGEN_VERSION="0.2.100"
 
 TARGET_DIR=/workspaces/step/packages/sequent-core
 cd "$TARGET_DIR"
