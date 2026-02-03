@@ -48,7 +48,9 @@
     "node-forge": "1.3.2",
     "mdast-util-to-hast": "13.2.1",
     "lodash": "4.17.23",
-    "lodash-es": "4.17.23"
+    "lodash-es": "4.17.23",
+    "plugin-content-docs/js-yaml": "4.1.1",
+    "**/gray-matter/js-yaml": "3.14.2"
   },
   "overrides": {
     "webpack-dev-server": ">=5.2.1",
@@ -56,6 +58,7 @@
     "node-forge": "1.3.2",
     "mdast-util-to-hast": "13.2.1",
     "lodash": "4.17.23",
-    "lodash-es": "4.17.23"
+    "lodash-es": "4.17.23",
+    "js-yaml": "4.1.1"
   }
 }
