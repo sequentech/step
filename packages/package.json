@@ -73,7 +73,8 @@
     "lodash": "4.17.23",
     "lodash-es": "4.17.23",
     "js-yaml": "4.1.1",
-    "react-router": "7.12.0"
+    "react-router": "7.12.0",
+    "diff": "^5.2.2"
   },
   "scripts": {
     "start:voting-portal": "yarn --cwd ./voting-portal start",
