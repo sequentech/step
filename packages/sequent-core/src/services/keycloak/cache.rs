@@ -131,3 +131,173 @@ static USER_TOKEN_CACHE: OnceLock<TokenCache> = OnceLock::new();
 pub fn get_user_token_cache() -> &'static TokenCache {
     USER_TOKEN_CACHE.get_or_init(TokenCache::new)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn create_test_token(expires_in: usize) -> TokenResponse {
+        TokenResponse {
+            access_token: "test-access-token".to_string(),
+            expires_in,
+            not_before_policy: Some(0),
+            refresh_expires_in: Some(1800),
+            refresh_token: Some("test-refresh-token".to_string()),
+            scope: Some("openid profile email".to_string()),
+            session_state: Some("test-session".to_string()),
+            token_type: Some("Bearer".to_string()),
+        }
+    }
+
+    #[test]
+    fn test_token_cache_read_empty() {
+        let cache = TokenCache::new();
+        let result = cache.read_token();
+        assert!(result.is_none(), "Empty cache should return None");
+    }
+
+    #[test]
+    fn test_token_cache_write_then_read() {
+        let cache = TokenCache::new();
+        let token = create_test_token(3600); // Expires in 1 hour
+        let url = "http://test-keycloak/token".to_string();
+
+        cache
+            .write_token(token.clone(), url.clone(), Instant::now())
+            .expect("Write should succeed");
+
+        let result = cache.read_token();
+        assert!(result.is_some(), "Cache should return token after write");
+
+        let (read_token, read_url) = result.unwrap();
+        assert_eq!(read_token.access_token, token.access_token);
+        assert_eq!(read_url, url);
+    }
+
+    #[test]
+    fn test_token_cache_expiration() {
+        let cache = TokenCache::new();
+        // Token that expires in 1 second (effectively already expired with
+        // pre-expiration buffer)
+        let token = create_test_token(1);
+        let url = "http://test-keycloak/token".to_string();
+
+        // Write with a timestamp in the past
+        let past_timestamp = Instant::now() - Duration::from_secs(10);
+        cache
+            .write_token(token, url, past_timestamp)
+            .expect("Write should succeed");
+
+        let result = cache.read_token();
+        assert!(result.is_none(), "Expired token should return None");
+    }
+
+    #[test]
+    fn test_token_cache_pre_expiration() {
+        let cache = TokenCache::new();
+        // Token expires in 10 seconds
+        let token = create_test_token(10);
+        let url = "http://test-keycloak/token".to_string();
+
+        // Write with a timestamp 6 seconds in the past
+        // With PRE_EXPIRATION_SECS=5, effective TTL is 10-5=5 seconds
+        // After 6 seconds elapsed, the token should be considered expired
+        let past_timestamp = Instant::now() - Duration::from_secs(6);
+        cache
+            .write_token(token, url, past_timestamp)
+            .expect("Write should succeed");
+
+        let result = cache.read_token();
+        assert!(
+            result.is_none(),
+            "Token should be invalid 5s before expiry (pre-expiration buffer)"
+        );
+    }
+
+    #[test]
+    fn test_token_cache_pre_expiration_still_valid() {
+        let cache = TokenCache::new();
+        // Token expires in 20 seconds
+        let token = create_test_token(20);
+        let url = "http://test-keycloak/token".to_string();
+
+        // Write with a timestamp 10 seconds in the past
+        // With PRE_EXPIRATION_SECS=5, effective TTL is 20-5=15 seconds
+        // After 10 seconds elapsed, the token should still be valid
+        let past_timestamp = Instant::now() - Duration::from_secs(10);
+        cache
+            .write_token(token, url, past_timestamp)
+            .expect("Write should succeed");
+
+        let result = cache.read_token();
+        assert!(
+            result.is_some(),
+            "Token should still be valid before pre-expiration window"
+        );
+    }
+
+    #[test]
+    fn test_token_cache_url_preserved() {
+        let cache = TokenCache::new();
+        let token = create_test_token(3600);
+        let url = "http://custom-keycloak-url:8080/realms/test/protocol/openid-connect/token".to_string();
+
+        cache
+            .write_token(token, url.clone(), Instant::now())
+            .expect("Write should succeed");
+
+        let result = cache.read_token();
+        assert!(result.is_some(), "Cache should return token");
+
+        let (_, read_url) = result.unwrap();
+        assert_eq!(read_url, url, "URL should be preserved exactly");
+    }
+
+    #[test]
+    fn test_token_cache_overwrite() {
+        let cache = TokenCache::new();
+
+        // Write first token
+        let token1 = create_test_token(3600);
+        let url1 = "http://keycloak1/token".to_string();
+        cache
+            .write_token(token1, url1, Instant::now())
+            .expect("Write should succeed");
+
+        // Write second token (overwrite)
+        let mut token2 = create_test_token(7200);
+        token2.access_token = "new-access-token".to_string();
+        let url2 = "http://keycloak2/token".to_string();
+        cache
+            .write_token(token2.clone(), url2.clone(), Instant::now())
+            .expect("Write should succeed");
+
+        let result = cache.read_token();
+        assert!(result.is_some(), "Cache should return token");
+
+        let (read_token, read_url) = result.unwrap();
+        assert_eq!(
+            read_token.access_token, token2.access_token,
+            "Should return the newer token"
+        );
+        assert_eq!(read_url, url2, "Should return the newer URL");
+    }
+
+    #[test]
+    fn test_token_cache_zero_expires_in() {
+        let cache = TokenCache::new();
+        // Token with 0 expires_in should be immediately invalid
+        let token = create_test_token(0);
+        let url = "http://test-keycloak/token".to_string();
+
+        cache
+            .write_token(token, url, Instant::now())
+            .expect("Write should succeed");
+
+        let result = cache.read_token();
+        assert!(
+            result.is_none(),
+            "Token with 0 expires_in should be invalid"
+        );
+    }
+}

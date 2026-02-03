@@ -321,6 +321,54 @@ pub fn verify_token_signature(token: &str, keys: &[JWKKey]) -> Result<()> {
     Ok(())
 }
 
+/// Test support utilities for JWKS testing.
+///
+/// This module provides functions to inject test keys into the global JWKS cache,
+/// enabling integration tests to use mock JWKS keys without requiring S3.
+#[cfg(any(test, feature = "test-utils"))]
+pub mod test_support {
+    use super::*;
+
+    /// Injects test keys into the global JWKS cache.
+    ///
+    /// This function allows tests to set up the JWKS cache with known keys
+    /// before running authentication tests, avoiding the need for S3.
+    ///
+    /// # Arguments
+    /// * `keys` - Vector of JWKKey to inject into the cache
+    ///
+    /// # Example
+    /// ```ignore
+    /// use sequent_core::services::jwks::test_support::setup_test_jwks_cache;
+    /// use sequent_core::services::test_utils::generate_test_keypair;
+    ///
+    /// let keypair = generate_test_keypair("test-key");
+    /// setup_test_jwks_cache(vec![keypair.jwk.clone()]);
+    /// ```
+    #[instrument(level = "trace", skip(keys))]
+    pub fn setup_test_jwks_cache(keys: Vec<JWKKey>) {
+        let cache = get_global_jwks_cache();
+        // Use a long TTL for test keys (1 hour)
+        cache
+            .write_to_cache(keys, Some(3600))
+            .expect("Failed to write test keys to JWKS cache");
+    }
+
+    /// Clears the JWKS cache for test isolation.
+    ///
+    /// Note: Due to the use of `OnceLock`, the cache cannot be truly reset.
+    /// This function writes an empty key set with a very short TTL, effectively
+    /// invalidating the cache for subsequent requests.
+    #[instrument(level = "trace")]
+    pub fn clear_test_jwks_cache() {
+        let cache = get_global_jwks_cache();
+        // Write empty keys with 0 TTL to effectively clear
+        cache
+            .write_to_cache(vec![], Some(0))
+            .expect("Failed to clear JWKS cache");
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -349,5 +397,158 @@ mod tests {
     fn test_parse_cache_control_invalid() {
         assert_eq!(parse_cache_control(Some("max-age=invalid")), None);
         assert_eq!(parse_cache_control(Some("private")), None);
+    }
+
+    // Tests for verify_token_signature
+    mod verify_signature_tests {
+        use super::*;
+        use crate::services::test_utils::{generate_test_keypair, TestTokenBuilder};
+
+        #[test]
+        fn test_verify_token_signature_valid_rs256() {
+            let keypair = generate_test_keypair("test-key-valid");
+            let token = TestTokenBuilder::new()
+                .with_permissions(&["trustee-ceremony"])
+                .build(&keypair);
+
+            let result = verify_token_signature(&token, &[keypair.jwk.clone()]);
+            assert!(
+                result.is_ok(),
+                "Valid token should verify successfully: {result:?}"
+            );
+        }
+
+        #[test]
+        fn test_verify_token_signature_missing_kid() {
+            // Create a token without kid in header
+            let keypair = generate_test_keypair("test-key-no-kid");
+
+            // Manually create a token without kid
+            let claims = serde_json::json!({
+                "sub": "test-user",
+                "exp": chrono::Utc::now().timestamp() + 3600
+            });
+            let mut header = jsonwebtoken::Header::new(Algorithm::RS256);
+            header.kid = None; // Explicitly no kid
+            let token = jsonwebtoken::encode(&header, &claims, &keypair.encoding_key)
+                .expect("Failed to encode token");
+
+            let result = verify_token_signature(&token, &[keypair.jwk.clone()]);
+            assert!(result.is_err(), "Token without kid should fail");
+            let err = result.unwrap_err().to_string();
+            assert!(
+                err.contains("missing 'kid'"),
+                "Error should mention missing kid: {err}"
+            );
+        }
+
+        #[test]
+        fn test_verify_token_signature_kid_not_found() {
+            let keypair = generate_test_keypair("test-key-1");
+            let other_keypair = generate_test_keypair("test-key-2");
+
+            // Create token with keypair's kid, but verify against other_keypair's JWK
+            let token = TestTokenBuilder::new().build(&keypair);
+
+            let result = verify_token_signature(&token, &[other_keypair.jwk.clone()]);
+            assert!(result.is_err(), "Token with unknown kid should fail");
+            let err = result.unwrap_err().to_string();
+            assert!(
+                err.contains("No matching key found"),
+                "Error should mention no matching key: {err}"
+            );
+        }
+
+        #[test]
+        fn test_verify_token_signature_invalid_signature() {
+            let keypair = generate_test_keypair("test-key-sig");
+            let other_keypair = generate_test_keypair("test-key-sig"); // Same kid but different key
+
+            // Create token with one key
+            let token = TestTokenBuilder::new().build(&keypair);
+
+            // Create a JWK with the same kid but different public key
+            let mut wrong_jwk = other_keypair.jwk.clone();
+            wrong_jwk.kid = keypair.kid.clone();
+
+            let result = verify_token_signature(&token, &[wrong_jwk]);
+            assert!(result.is_err(), "Token with wrong signature should fail");
+            let err = result.unwrap_err().to_string();
+            assert!(
+                err.contains("signature verification failed")
+                    || err.contains("InvalidSignature"),
+                "Error should mention signature failure: {err}"
+            );
+        }
+
+        #[test]
+        fn test_verify_token_signature_unsupported_algorithm() {
+            let keypair = generate_test_keypair("test-key-alg");
+
+            // Create a token (normally RS256)
+            let token = TestTokenBuilder::new().build(&keypair);
+
+            // Modify the JWK to claim a different algorithm
+            let mut jwk = keypair.jwk.clone();
+            jwk.alg = "ES256".to_string(); // Unsupported for RSA key
+
+            let result = verify_token_signature(&token, &[jwk]);
+            assert!(result.is_err(), "Unsupported algorithm should fail");
+            let err = result.unwrap_err().to_string();
+            assert!(
+                err.contains("Unsupported algorithm"),
+                "Error should mention unsupported algorithm: {err}"
+            );
+        }
+
+        #[test]
+        fn test_verify_token_signature_empty_keys() {
+            let keypair = generate_test_keypair("test-key-empty");
+            let token = TestTokenBuilder::new().build(&keypair);
+
+            let result = verify_token_signature(&token, &[]);
+            assert!(result.is_err(), "Empty keys should fail verification");
+            let err = result.unwrap_err().to_string();
+            assert!(
+                err.contains("No matching key found"),
+                "Error should mention no matching key: {err}"
+            );
+        }
+
+        #[test]
+        fn test_verify_token_signature_malformed_token() {
+            let keypair = generate_test_keypair("test-key-malformed");
+
+            let result =
+                verify_token_signature("not.a.valid.jwt", &[keypair.jwk.clone()]);
+            assert!(result.is_err(), "Malformed token should fail");
+            let err = result.unwrap_err().to_string();
+            assert!(
+                err.contains("Failed to decode JWT header"),
+                "Error should mention decode failure: {err}"
+            );
+        }
+
+        #[test]
+        fn test_verify_token_signature_multiple_keys() {
+            let keypair1 = generate_test_keypair("test-key-multi-1");
+            let keypair2 = generate_test_keypair("test-key-multi-2");
+            let keypair3 = generate_test_keypair("test-key-multi-3");
+
+            // Create token with keypair2
+            let token = TestTokenBuilder::new().build(&keypair2);
+
+            // Verify against all three keys (should find keypair2)
+            let keys = vec![
+                keypair1.jwk.clone(),
+                keypair2.jwk.clone(),
+                keypair3.jwk.clone(),
+            ];
+            let result = verify_token_signature(&token, &keys);
+            assert!(
+                result.is_ok(),
+                "Should find matching key among multiple: {result:?}"
+            );
+        }
     }
 }
