@@ -46,7 +46,7 @@
     "react": "19.1.1",
     "react-dom": "19.1.1",
     "react-i18next": "15.7.3",
-    "react-router": "^7.12.0",
+    "react-router": "7.12.0",
     "mui-image": "1.0.9"
   },
   "resolutions": {
@@ -97,7 +97,7 @@
     "react": "19.1.1",
     "react-dom": "19.1.1",
     "react-i18next": "15.7.3",
-    "react-router": "^7.12.0",
+    "react-router": "7.12.0",
     "storybook-addon-pseudo-states": "^4.0.4",
     "storybook-addon-remix-react-router": "^3.0.0",
     "ts-jest": "26.4.4",
