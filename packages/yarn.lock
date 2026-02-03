@@ -4903,7 +4903,7 @@
     "@storybook/global" "^5.0.0"
     ts-dedent "^2.0.0"
 
-"@storybook/addon-links@^9.1.5":
+"@storybook/addon-links@^9.1.17", "@storybook/addon-links@^9.1.5":
   version "9.1.17"
   resolved "https://registry.yarnpkg.com/@storybook/addon-links/-/addon-links-9.1.17.tgz#58d23d44b63f5d40ae0b7b406afde442d9a31d72"
   integrity sha512-LqtrDXRJrdMfZJ0om38SjmY2lQUGmpL8Zt2xTZtQjUy1V+ZiQpuUx7+TJZIOWujzRp75fxhM4AB0HuLDsemlcA==
@@ -5016,7 +5016,7 @@
     tiny-invariant "^1.3.1"
     ts-dedent "^2.0.0"
 
-"@storybook/cli@^9.1.5":
+"@storybook/cli@^9.1.17", "@storybook/cli@^9.1.5":
   version "9.1.17"
   resolved "https://registry.yarnpkg.com/@storybook/cli/-/cli-9.1.17.tgz#3beef860a52cdadc96c3647352a336b8498a1528"
   integrity sha512-j4eb7ADrDF5rnwS4xpXpqaRy0PhZUvywULYx9QxTeB7/+pFzRLzk0iSA3IQgdPGYGeEqF84B+geTcLPR6Ss9wQ==
@@ -5170,7 +5170,7 @@
   resolved "https://registry.yarnpkg.com/@storybook/node-logger/-/node-logger-8.6.15.tgz#d8fae8ce6558c6a5dc43e8434ddfa4cc2182961b"
   integrity sha512-jubNUjIB6SzvnboI+Nr/cWF3LlmefVeCREKnmytvMA/20e74F8D5DwLHpd1bzsupJULBIoWlf9be2Qr5KiWcqA==
 
-"@storybook/preset-create-react-app@^9.1.5":
+"@storybook/preset-create-react-app@^9.1.17", "@storybook/preset-create-react-app@^9.1.5":
   version "9.1.17"
   resolved "https://registry.yarnpkg.com/@storybook/preset-create-react-app/-/preset-create-react-app-9.1.17.tgz#1eaef07394a342895d54f70c5c5ca2805d6f64ab"
   integrity sha512-pjYuNKP8X4ihgEwhRi8iqPduD9eCt/arHbmQ1oX+2ihetpc3+uE3XC1lMJyTCJhQJBCzzC28s9UlJcp6jqJvNQ==
@@ -5240,7 +5240,7 @@
     resolve "^1.22.8"
     tsconfig-paths "^4.2.0"
 
-"@storybook/react-webpack5@^9.1.5":
+"@storybook/react-webpack5@^9.1.17", "@storybook/react-webpack5@^9.1.5":
   version "9.1.17"
   resolved "https://registry.yarnpkg.com/@storybook/react-webpack5/-/react-webpack5-9.1.17.tgz#f979ba3b698ceaaee4cbdc018596f5192ed48a14"
   integrity sha512-GDOYMUzAj1dqFyrD1XbJaekcCrFZOIz0wVimbLeqRPwn+BNIZ9sylgvMiLxbiGMHWzVwJOyWDG/XVbuqXGfzWw==
@@ -5249,7 +5249,7 @@
     "@storybook/preset-react-webpack" "9.1.17"
     "@storybook/react" "9.1.17"
 
-"@storybook/react@8.6.15", "@storybook/react@9.1.17", "@storybook/react@^9.1.5":
+"@storybook/react@8.6.15", "@storybook/react@9.1.17", "@storybook/react@^9.1.17", "@storybook/react@^9.1.5":
   version "8.6.15"
   resolved "https://registry.yarnpkg.com/@storybook/react/-/react-8.6.15.tgz#368759e7d24d0237efc3fab430dc029cf8f31ffc"
   integrity sha512-hdnhlJg+YkpPMOw2hvK7+mhdxAbguA+TFTIAzVV9CeUYoHDIZAsgeKVhRmgZGN20NGjRN5ZcwkplAMJnF9v+6w==
@@ -16751,18 +16751,10 @@ react-refresh@^0.18.0:
   dependencies:
     react-router "7.13.0"
 
-react-router@7.12.0:
+react-router@7.12.0, react-router@7.13.0, "react-router@^6.28.1 || ^7.1.1":
   version "7.12.0"
   resolved "https://registry.yarnpkg.com/react-router/-/react-router-7.12.0.tgz#459a86862abbedd02e76e686751fe71f9fd73a4f"
   integrity sha512-kTPDYPFzDVGIIGNLS5VJykK0HfHLY5MF3b+xj0/tTyNYL1gF1qs7u67Z9jEhQk2sQ98SUaHxlG31g1JtF7IfVw==
-  dependencies:
-    cookie "^1.0.1"
-    set-cookie-parser "^2.6.0"
-
-react-router@7.13.0, "react-router@^6.28.1 || ^7.1.1":
-  version "7.13.0"
-  resolved "https://registry.yarnpkg.com/react-router/-/react-router-7.13.0.tgz#de9484aee764f4f65b93275836ff5944d7f5bd3b"
-  integrity sha512-PZgus8ETambRT17BUm/LL8lX3Of+oiLaPuVTRH3l1eLvSPpKO3AvhAEb5N7ihAFZQrYDqkvvWfFh9p0z9VsjLw==
   dependencies:
     cookie "^1.0.1"
     set-cookie-parser "^2.6.0"
@@ -17497,7 +17489,6 @@ sentence-case@^3.0.4:
 
 "sequent-core@file:./voting-portal/rust/sequent-core-0.1.0.tgz":
   version "0.1.0"
-  uid e953be0882f18ddc2b03c22cc70df098edda1dda
   resolved "file:./voting-portal/rust/sequent-core-0.1.0.tgz#e953be0882f18ddc2b03c22cc70df098edda1dda"
 
 serialize-javascript@^6.0.0, serialize-javascript@^6.0.2:
