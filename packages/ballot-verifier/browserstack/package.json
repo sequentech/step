@@ -32,5 +32,8 @@
   },
   "resolutions": {
     "get-func-name": "^2.0.2"
+  },
+  "overrides": {
+    "glob": "10.5.0"
   }
 }
