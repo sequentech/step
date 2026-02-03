@@ -1,14 +1,8 @@
-{ pkgs, ... }:
-# ── 1. pin rust-overlay ──────────────────────────────────────────────
+{ pkgs, inputs, ... }:
 let
-  rustOverlay = import (builtins.fetchTarball {
-  url = "https://github.com/oxalica/rust-overlay/archive/cb24c5cc207ba8e9a4ce245eedd2d37c3a988bc1.tar.gz";
-  sha256 = "096lirg41f5vgq9rrfg5b6vzyrya8v472v6cqfh1hjfi9ys20hc4";
-  });
+  pkgs' = pkgs.extend inputs.rust-overlay.overlays.default;
 
-  pkgs' = pkgs.extend rustOverlay;
-
-  rustStable = pkgs'.rust-bin.stable.latest.default.override {
+  rustStable = pkgs'.rust-bin.stable."1.93.0".default.override {
     targets    = [ "wasm32-unknown-unknown" "wasm32-wasip1" "wasm32-wasip2"];
     extensions = [ "rust-src" "rust-analyzer-preview" ];
   };
@@ -26,6 +20,7 @@ in
     # they don't allow to use environment variables as an input, or
     # because they don't run within the devenv environment.
     ALPINE_LAMBDA_BASE_IMAGE = "alpine:3.17@sha256:8fc3dacfb6d69da8d44e42390de777e48577085db99aa4e4af35f483eb08b989";
+    PROTOC = "${pkgs.protobuf}/bin/protoc";
   };
 
   # https://devenv.sh/packages/
@@ -40,7 +35,9 @@ in
     git
     hasura-cli
     reuse
+    pkg-config
     openssl
+    openssl.dev
     glibc
     openssh
     postgresql_18
@@ -73,6 +70,7 @@ in
     iputils
     geckodriver
     firefox
+    chromium
 
     # to build the rug backend in strand/braid
     gcc

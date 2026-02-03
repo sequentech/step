@@ -62,3 +62,8 @@ clap = { version = "4.5", features = ["derive", "env"], optional = true }
 
 # WASM dependencies
 js-sys = { version = "0.3", optional = true }
+
+[dev-dependencies]
+tower = { version = "0.5", features = ["util"] }  # ServiceExt for testing
+serial_test = "3.0"                                # Sequential test execution
+sequent-core = { path="../sequent-core", features = ["test-utils"] }
