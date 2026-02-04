@@ -35,9 +35,7 @@ Check out the [latest release notes](../08-releases/01-release-next/release-next
 
 ## Need Help?
 
-- **Discord**: Join our [Discord community](https://discord.gg/WfvSTmcdY8)
-- **GitHub**: Report issues or contribute at [github.com/sequentech/step](https://github.com/sequentech/step)
-- **Documentation**: Browse the sidebar for detailed guides and references
+Check out [Support](../09-support/01-support.md).
 
 ## Getting Started
 

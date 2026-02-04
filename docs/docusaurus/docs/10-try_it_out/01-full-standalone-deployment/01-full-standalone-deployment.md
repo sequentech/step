@@ -56,7 +56,7 @@ First, you need to prepare your server by installing git, Docker, and Docker Com
 2.  Download and run the `prepare-server.sh` script:
 
     ```bash
-    curl -fsSL https://raw.githubusercontent.com/sequentech/step/feat/meta-9292-create-deployment-tutorial-for-local-sequen-setup/main/.devcontainer/remote-deployment/prepare-server.sh -o prepare-server.sh
+    curl -fsSL https://raw.githubusercontent.com/sequentech/step/refs/heads/main/.devcontainer/remote-deployment/prepare-server.sh -o prepare-server.sh
     chmod +x prepare-server.sh
     ./prepare-server.sh
     ```
