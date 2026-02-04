@@ -153,13 +153,15 @@
               export CC=${pkgs.llvmPackages_19.clang}/bin/clang
               export CXX=${pkgs.llvmPackages_19.clang}/bin/clang++
               export AR=${pkgs.llvmPackages_19.llvm}/bin/llvm-ar
-              export CC_wasm32_unknown_unknown=${pkgs.llvmPackages_19.clang}/bin/clang
+              # Use unwrapped clang for wasm32 target to avoid glibc header issues
+              # (wrapped clang adds host glibc includes which fail on cross-compile)
+              export CC_wasm32_unknown_unknown=${pkgs.llvmPackages_19.clang-unwrapped}/bin/clang
 
               export PROTOC=${pkgs.protobuf}/bin/protoc
 
-              # Set up the clang resource directory properly
+              # Set up the clang resource directory properly (use unwrapped for wasm32)
               CLANG_MAJOR_VERSION="19"
-              CLANG_RESOURCE_DIR="${pkgs.llvmPackages_19.clang}/lib/clang/$CLANG_MAJOR_VERSION"
+              CLANG_RESOURCE_DIR="${pkgs.llvmPackages_19.clang-unwrapped}/lib/clang/$CLANG_MAJOR_VERSION"
 
               # Use libclang's include directory which has the standard headers
               LIBCLANG_INCLUDE="${pkgs.llvmPackages_19.libclang.lib}/lib/clang/$CLANG_MAJOR_VERSION/include"
