@@ -22,22 +22,24 @@ async fn main() -> Result<()> {
     init_log(true);
 
     let b4_bind = env::var("B4_BIND").context("B4_BIND must be set")?;
-
     // Initialize PostgreSQL database
     let db = db::init_db().await?;
-
     // Initialize S3 client
     let s3_client = s3::init_s3_client().await;
-
     let state = AppState::new(db, s3_client);
+    let is_dev_env = env::var("ENV_SLUG").unwrap_or_else(|_| "".to_string()) == "dev";
 
-    // Configure CORS - read allowed origins from environment
-    // In development, this should include localhost origins
-    // In production, restrict to specific domains
+    // Configure CORS
+    // - development: default allow all origins to unblock local browser work
+    // - production: require an explicit allowlist via B4_ALLOWED_ORIGINS
     let allowed_origins_str = env::var("B4_ALLOWED_ORIGINS").unwrap_or_else(|_| "*".to_string());
 
-    let cors = if allowed_origins_str == "*" {
-        tracing::warn!("CORS: Allowing all origins (*) - this should only be used in development!");
+    let cors = if allowed_origins_str.trim() == "*" {
+        if !is_dev_env {
+            anyhow::bail!("B4_ALLOWED_ORIGINS cannot be '*' in production")
+        }
+
+        tracing::warn!("CORS: Allowing all origins (*) - development mode");
         CorsLayer::new()
             .allow_origin(Any)
             .allow_methods(Any)
@@ -54,6 +56,10 @@ async fn main() -> Result<()> {
                 }
             })
             .collect();
+
+        if origins.is_empty() {
+            anyhow::bail!("B4_ALLOWED_ORIGINS did not contain any valid origins")
+        }
 
         tracing::info!("CORS: Allowing origins: {:?}", origins);
 

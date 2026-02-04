@@ -418,6 +418,7 @@ services:
       B4_PG_DATABASE: ${B4_PG_DATABASE}
       B4_ALLOWED_ORIGINS: ${B4_ALLOWED_ORIGINS}
       B4_BIND: ${B4_BIND}
+      ENV_SLUG: ${ENV_SLUG}
 
     depends_on:
       postgres-b4:
