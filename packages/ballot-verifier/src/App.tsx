@@ -20,8 +20,9 @@ import {selectFirstBallotStyle} from "./store/ballotStyles/ballotStylesSlice"
 import SequentLogo from "@sequentech/ui-essentials/public/Sequent_logo.svg"
 import BlankLogoImg from "@sequentech/ui-essentials/public/blank_logo.svg"
 
-const StyledApp = styled(Stack)`
+const StyledApp = styled(Stack)<{css: string}>`
     min-height: 100vh;
+    ${({css}) => css}
 `
 
 const HeaderWithContext: React.FC = () => {
@@ -76,7 +77,10 @@ const App = () => {
     }, [navigate])
 
     return (
-        <StyledApp>
+        <StyledApp
+            className="app-root"
+            css={confirmationBallot?.election_config?.election_event_presentation?.css ?? ""}
+        >
             {globalSettings.DISABLE_AUTH ? <Header /> : <HeaderWithContext />}
             <PageBanner marginBottom="auto">
                 <Routes>
