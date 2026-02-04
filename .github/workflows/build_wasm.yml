@@ -51,6 +51,11 @@ jobs:
 
       - name: Check that WASM build works
         working-directory: packages/sequent-core
+        # Disable Nix hardening flags that are incompatible with wasm32 target
+        # (ring crate fails with -fzero-call-used-regs=used-gpr)
+        env:
+          NIX_HARDENING_ENABLE: ""
+          CFLAGS_wasm32_unknown_unknown: "-O3 -ffunction-sections -fdata-sections -fno-exceptions"
         run: |
           nix develop --command wasm-pack build --mode no-install --out-name index --release --target web --features=wasmtest,default_features
 
