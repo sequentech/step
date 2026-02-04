@@ -24,6 +24,8 @@ jobs:
           - service: immudb-rs
           - service: sequent-core
             extra: --all-features --lib
+          - service: b4
+            extra: ---features native
           - service: velvet
           - service: windmill
           - service: wrap-map-err

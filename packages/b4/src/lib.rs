@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 pub mod api_types;
+pub mod board_utils;
 pub mod messages;
 
 // Native-only modules

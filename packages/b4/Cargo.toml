@@ -67,3 +67,14 @@ js-sys = { version = "0.3", optional = true }
 tower = { version = "0.5", features = ["util"] }  # ServiceExt for testing
 serial_test = "3.0"                                # Sequential test execution
 sequent-core = { path="../sequent-core", features = ["test-utils"] }
+reqwest = { version = "0.12", features = ["json"] }  # HTTP client for integration tests
+testcontainers = "0.23"                              # Container management for tests
+testcontainers-modules = { version = "0.11", features = ["postgres", "localstack"] }
+tokio = { version = "1", features = ["rt-multi-thread", "macros"] }  # Async runtime for tests
+axum = "0.7"                                         # Re-export for test router building
+tower-http = { version = "0.6", features = ["cors"] } # CORS layer for test server
+aws-config = { version = "1.5", features = ["behavior-version-latest"] }
+aws-sdk-s3 = "1.52"
+bb8-postgres = "0.9"
+tokio-postgres = "0.7"
+dotenv = "0.15"
