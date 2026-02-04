@@ -37,10 +37,14 @@ wasm-pack -v pack . 2>&1 | tee output.log
 
 cd ..
 hash=$(grep "shasum:" sequent-core/output.log | awk '{printf $4}')
-hash="${hash}\\\""
 awk -v hash="${hash}" '
+  /^"sequent-core@file:/ { in_sequent = 1 }
+  /^"[^"]+":$/ && !/^"sequent-core@file:/ { in_sequent = 0 }
   /sequent-core-0.1.0.tgz#/ {
-    sub(/#.*/, "#"hash"")
+    sub(/#.*/, "#"hash"\"")
+  }
+  /^  uid "/ && in_sequent {
+    sub(/"[^"]*"$/, "\""hash"\"")
   }
   { print }
 ' yarn.lock > yarn.lock.tmp

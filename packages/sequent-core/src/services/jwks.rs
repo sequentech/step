@@ -402,7 +402,9 @@ mod tests {
     // Tests for verify_token_signature
     mod verify_signature_tests {
         use super::*;
-        use crate::services::test_utils::{generate_test_keypair, TestTokenBuilder};
+        use crate::services::test_utils::{
+            generate_test_keypair, TestTokenBuilder,
+        };
 
         #[test]
         fn test_verify_token_signature_valid_rs256() {
@@ -430,8 +432,9 @@ mod tests {
             });
             let mut header = jsonwebtoken::Header::new(Algorithm::RS256);
             header.kid = None; // Explicitly no kid
-            let token = jsonwebtoken::encode(&header, &claims, &keypair.encoding_key)
-                .expect("Failed to encode token");
+            let token =
+                jsonwebtoken::encode(&header, &claims, &keypair.encoding_key)
+                    .expect("Failed to encode token");
 
             let result = verify_token_signature(&token, &[keypair.jwk.clone()]);
             assert!(result.is_err(), "Token without kid should fail");
@@ -450,7 +453,8 @@ mod tests {
             // Create token with keypair's kid, but verify against other_keypair's JWK
             let token = TestTokenBuilder::new().build(&keypair);
 
-            let result = verify_token_signature(&token, &[other_keypair.jwk.clone()]);
+            let result =
+                verify_token_signature(&token, &[other_keypair.jwk.clone()]);
             assert!(result.is_err(), "Token with unknown kid should fail");
             let err = result.unwrap_err().to_string();
             assert!(
@@ -519,8 +523,10 @@ mod tests {
         fn test_verify_token_signature_malformed_token() {
             let keypair = generate_test_keypair("test-key-malformed");
 
-            let result =
-                verify_token_signature("not.a.valid.jwt", &[keypair.jwk.clone()]);
+            let result = verify_token_signature(
+                "not.a.valid.jwt",
+                &[keypair.jwk.clone()],
+            );
             assert!(result.is_err(), "Malformed token should fail");
             let err = result.unwrap_err().to_string();
             assert!(

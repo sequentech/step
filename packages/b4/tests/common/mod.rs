@@ -130,7 +130,9 @@ impl RequestBuilder {
     pub fn build(self) -> Request<Body> {
         let body = self.body.map(Body::from).unwrap_or(Body::empty());
 
-        let mut builder = Request::builder().method(self.method.as_str()).uri(&self.uri);
+        let mut builder = Request::builder()
+            .method(self.method.as_str())
+            .uri(&self.uri);
 
         if let Some(auth) = &self.auth_header {
             builder = builder.header("authorization", auth);
