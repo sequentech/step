@@ -327,7 +327,7 @@ const BallotLocator: React.FC = () => {
                     >
                         <Button variant="secondary" className="secondary">
                             <Icon icon={faAngleLeft} size="sm" />
-                            <Box marginLeft="12px">{t("votingScreen.backButton")}</Box>
+                            <Box>{t("votingScreen.backButton")}</Box>
                         </Button>
                     </StyledLink>
                 </Box>
