@@ -209,6 +209,7 @@ export const ElectoralLogList: React.FC<ElectoralLogListProps> = ({
                     step: 1, // Adds seconds field to the datetime input
                 },
             }}
+            format={(value) => (value ? value.replace('Z', '').replace('.000', '') : value)}
             parse={(value) => (value ? new Date(`${value}Z`).toISOString() : value)}
         />,
         <DateTimeInput
@@ -220,6 +221,7 @@ export const ElectoralLogList: React.FC<ElectoralLogListProps> = ({
                     step: 1, // Adds seconds field to the datetime input
                 },
             }}
+            format={(value) => (value ? value.replace('Z', '').replace('.000', '') : value)}
             parse={(value) => (value ? new Date(`${value}Z`).toISOString() : value)}
         />,
         <DateTimeInput
@@ -231,6 +233,7 @@ export const ElectoralLogList: React.FC<ElectoralLogListProps> = ({
                     step: 1, // Adds seconds field to the datetime input
                 },
             }}
+            format={(value) => (value ? value.replace('Z', '').replace('.000', '') : value)}
             parse={(value) => (value ? new Date(`${value}Z`).toISOString() : value)}
         />,
         <DateTimeInput
@@ -242,6 +245,7 @@ export const ElectoralLogList: React.FC<ElectoralLogListProps> = ({
                     step: 1, // Adds seconds field to the datetime input
                 },
             }}
+            format={(value) => (value ? value.replace('Z', '').replace('.000', '') : value)}
             parse={(value) => (value ? new Date(`${value}Z`).toISOString() : value)}
         />,
         <TextInput
