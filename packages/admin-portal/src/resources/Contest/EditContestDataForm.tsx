@@ -474,6 +474,11 @@ export const ContestDataForm: React.FC = () => {
             newContest.presentation.pagination_policy =
                 newContest.presentation.pagination_policy || ""
 
+            // Default allow_writeins to true if not set
+            if (newContest.presentation.allow_writeins === undefined) {
+                newContest.presentation.allow_writeins = false
+            }
+
             return newContest
         },
         [languageConf, electionEvent, candidates]
@@ -678,6 +683,10 @@ export const ContestDataForm: React.FC = () => {
                             </AccordionSummary>
                             <AccordionDetails>
                                 <BooleanInput source="is_acclaimed" />
+                                <BooleanInput
+                                    source="presentation.allow_writeins"
+                                    label={String(t(`contestScreen.allowWriteins.label`))}
+                                />
                                 <NumberInput source="min_votes" min={0} />
                                 <NumberInput source="max_votes" min={0} />
                                 <NumberInput source="presentation.columns" min={1} />
