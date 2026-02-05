@@ -18,6 +18,7 @@ import {useAppSelector} from "./store/hooks"
 import {selectElectionIds} from "./store/elections/electionsSlice"
 import {
     selectBallotStyleByElectionId,
+    selectBallotStyleElectionIds,
     selectFirstBallotStyle,
 } from "./store/ballotStyles/ballotStylesSlice"
 import WatermarkBackground from "./components/WaterMark/Watermark"
@@ -102,11 +103,13 @@ const App = () => {
     const navigate = useNavigate()
     const {globalSettings} = useContext(SettingsContext)
     const location = useLocation()
-    const {tenantId, eventId} = useParams<TenantEventType>()
+    const {tenantId, eventId, ballotId} = useParams()
     const {isAuthenticated, setTenantEvent} = useContext(AuthContext)
 
     const electionIds = useAppSelector(selectElectionIds)
-    const ballotStyle = useAppSelector(selectBallotStyleByElectionId(String(electionIds[0])))
+    const ballotStyleElectionIds = useAppSelector(selectBallotStyleElectionIds)
+    const electionId = ballotId ? ballotStyleElectionIds[0] : electionIds[0]
+    const ballotStyle = useAppSelector(selectBallotStyleByElectionId(String(electionId)))
 
     useEffect(() => {
         if (location.pathname === "/") {

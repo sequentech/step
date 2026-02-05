@@ -86,7 +86,7 @@ const App = () => {
         }
     }, [navigate])
 
-    let css = useMemo(
+    const customCss = useMemo(
         () =>
             confirmationBallot?.election_config?.election_event_presentation?.css ??
             ballotStyle?.ballot_eml?.election_event_presentation?.css ??
@@ -95,7 +95,7 @@ const App = () => {
     )
 
     return (
-        <StyledAppWrapper css={css}>
+        <StyledAppWrapper css={customCss}>
             <StyledApp className="ballot-verifier app-root">
                 {globalSettings.DISABLE_AUTH ? <Header /> : <HeaderWithContext />}
                 <PageBanner marginBottom="auto">
