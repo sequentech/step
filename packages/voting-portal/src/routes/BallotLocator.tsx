@@ -267,8 +267,8 @@ const BallotLocator: React.FC = () => {
 
     return (
         <PageLimit
+            className="ballot-locator-screen screen"
             maxWidth="lg"
-            className="confirmation-screen screen"
             sx={{marginTop: "48px", width: "100%"}}
         >
             <Box sx={{borderBottom: 1, borderColor: "divider"}}>
