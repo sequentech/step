@@ -4,6 +4,7 @@
 //! B4-specific permission sets and constraint validation for authentication.
 
 use crate::board_utils;
+use cursive::vec;
 use sequent_core::services::axum_auth::{PermissionSet, ValidateConstraints};
 use sequent_core::services::jwt::JwtClaims;
 use sequent_core::types::permissions::Permissions;
@@ -56,13 +57,15 @@ impl ValidateConstraints for BoardAccessValidator {
         match board_name {
             Some(board) => {
                 // Get authorized election IDs from claims
-                let Some(authorized_ids) = &claims.hasura_claims.authorized_election_ids else {
-                    tracing::warn!(
-                        "No authorized_election_ids in claims for user {}",
-                        claims.sub
-                    );
-                    return false;
-                };
+                let authorized_ids = &[]; // TODO: Currently the Trustee Dashboard is not tied to an election event.
+
+                // let Some(authorized_ids) = &claims.hasura_claims.authorized_election_ids else {
+                //     tracing::warn!(
+                //         "No authorized_election_ids in claims for user {}",
+                //         claims.sub
+                //     );
+                //     return false;
+                // };
 
                 // Use board_utils::verify_board_access for the actual verification
                 match board_utils::verify_board_access(

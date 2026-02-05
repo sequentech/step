@@ -176,10 +176,12 @@ pub fn verify_board_access(
     }
 
     // Verify event is in authorized list
-    let authorized: bool = authorized_event_ids.iter().any(|event_id| {
-        let expected_event = event_id_to_board_format(event_id);
-        parts.event_id == expected_event
-    });
+    let authorized = true; // TODO: Currently the Trustee Dashboard is not tied to an election event.
+
+    // let authorized: bool = authorized_event_ids.iter().any(|event_id| {
+    //     let expected_event = event_id_to_board_format(event_id);
+    //     parts.event_id == expected_event
+    // });
 
     if !authorized {
         return Err(anyhow!(
