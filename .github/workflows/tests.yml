@@ -25,7 +25,7 @@ jobs:
           - service: sequent-core
             extra: --all-features --lib
           - service: b4
-            extra: ---features native
+            extra: --features native
           - service: velvet
           - service: windmill
           - service: wrap-map-err
