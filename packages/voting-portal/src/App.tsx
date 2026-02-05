@@ -18,6 +18,7 @@ import {useAppSelector} from "./store/hooks"
 import {selectElectionIds} from "./store/elections/electionsSlice"
 import {
     selectBallotStyleByElectionId,
+    selectBallotStyleElectionIds,
     selectFirstBallotStyle,
 } from "./store/ballotStyles/ballotStylesSlice"
 import WatermarkBackground from "./components/WaterMark/Watermark"
@@ -106,7 +107,10 @@ const App = () => {
     const {isAuthenticated, setTenantEvent} = useContext(AuthContext)
 
     const electionIds = useAppSelector(selectElectionIds)
-    const ballotStyle = useAppSelector(selectBallotStyleByElectionId(String(electionIds[0])))
+    const ballotStyleElectionIds = useAppSelector(selectBallotStyleElectionIds)
+
+    const electionId = electionIds.length > 0 ? electionIds[0] : ballotStyleElectionIds[0]
+    const ballotStyle = useAppSelector(selectBallotStyleByElectionId(String(electionId)))
 
     useEffect(() => {
         if (location.pathname === "/") {
@@ -140,7 +144,7 @@ const App = () => {
 
     return (
         <StyledApp
-            className="app-root"
+            className="voting-portal app-root"
             css={ballotStyle?.ballot_eml.election_event_presentation?.css ?? ""}
         >
             <ScrollRestoration />
