@@ -111,10 +111,6 @@ function isHex(str: string) {
     return regex.test(str)
 }
 
-const StyledApp = styled(Stack)<{css: string}>`
-    ${({css}) => css}
-`
-
 interface TabPanelProps {
     children?: React.ReactNode
     index: number
