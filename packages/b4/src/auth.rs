@@ -4,7 +4,6 @@
 //! B4-specific permission sets and constraint validation for authentication.
 
 use crate::board_utils;
-use cursive::vec;
 use sequent_core::services::axum_auth::{PermissionSet, ValidateConstraints};
 use sequent_core::services::jwt::JwtClaims;
 use sequent_core::types::permissions::Permissions;

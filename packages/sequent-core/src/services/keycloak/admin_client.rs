@@ -15,7 +15,6 @@ use serde::{Deserialize, Serialize};
 use serde_json;
 use std::convert::TryFrom;
 use std::env;
-use std::time::Instant;
 use tracing::{event, info, instrument, Level};
 
 /// Public Keycloak admin token with all fields exposed.
@@ -278,7 +277,6 @@ impl KeycloakAdminClient {
 
         // Still a cache miss, fetch from Keycloak
         let login_config = get_keycloak_login_admin_config();
-        let timestamp: Instant = Instant::now();
         let client = reqwest::Client::new();
         let admin_token = KeycloakAdminToken::acquire(
             &login_config.url,
@@ -293,7 +291,7 @@ impl KeycloakAdminClient {
             admin_token.clone().try_into()?;
         let token_resp: TokenResponse = pub_token.into();
         cache
-            .write_token(token_resp, login_config.url.clone(), timestamp)
+            .write_token(token_resp, login_config.url.clone())
             .map_err(|err| {
                 anyhow!("KeycloakAdminClient: write_token error {err:?}")
             })?;

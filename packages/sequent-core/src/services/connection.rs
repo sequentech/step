@@ -17,7 +17,7 @@ use rocket::State;
 use serde::{Deserialize, Serialize};
 use std::net::IpAddr;
 use std::sync::RwLock;
-use std::time::{Duration, Instant};
+use std::time::{SystemTime, UNIX_EPOCH};
 use tokio::sync::Mutex;
 use tracing::{error, info, instrument, warn};
 
@@ -217,12 +217,10 @@ fn parse_datafix_headers(headers: &HeaderMap) -> Option<DatafixHeaders> {
     })
 }
 
-/// TokenResponse, timestamp before sending the request and the credentials to
-/// make sure the requester is the same.
+/// TokenResponse and the credentials to make sure the requester is the same.
 #[derive(Debug, Clone)]
 struct TokenResponseExtended {
     token_resp: PubKeycloakAdminToken,
-    stamp: Instant,
     client_id: String,
     client_secret: String,
     tenant_id: String,
@@ -255,6 +253,7 @@ impl LastDatafixAccessToken {
 
 /// Reads the access token if it has been requested successfully before and it
 /// is not expired.
+/// Note: `expires_in` is an absolute Unix timestamp (like JWT `exp` claim).
 #[instrument(level = "trace", skip(lst_acc_tkn))]
 fn read_access_token(
     client_id: &str,
@@ -271,15 +270,17 @@ fn read_access_token(
     };
 
     if let Some(data) = token_resp_ext_opt {
+        let time_now = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .map(|d| d.as_secs() as i64)
+            .unwrap_or(0);
         let pre_expiration_time: i64 =
-            data.token_resp.expires_in as i64 - PRE_EXPIRATION_SECS; // Renew the token 5 seconds before it expires
+            data.token_resp.expires_in as i64 - PRE_EXPIRATION_SECS;
 
         if data.client_id.eq(client_id)
             && data.client_secret.eq(client_secret)
             && data.tenant_id.eq(tenant_id)
-            && pre_expiration_time.is_positive()
-            && data.stamp.elapsed()
-                < Duration::from_secs(pre_expiration_time as u64)
+            && time_now < pre_expiration_time
         {
             return Some(data.token_resp);
         }
@@ -291,7 +292,6 @@ fn read_access_token(
 #[instrument(level = "trace", err, skip(lst_acc_tkn))]
 fn write_access_token(
     token_resp: PubKeycloakAdminToken,
-    stamp: Instant,
     client_id: String,
     client_secret: String,
     tenant_id: String,
@@ -305,7 +305,6 @@ fn write_access_token(
     };
     *write = Some(TokenResponseExtended {
         token_resp,
-        stamp,
         client_id,
         client_secret,
         tenant_id,
@@ -383,7 +382,6 @@ impl<'r> FromRequest<'r> for DatafixClaims {
         }
 
         // Still a cache miss, fetch from Keycloak
-        let stamp = Instant::now();
         let keycloak_adm_tkn = match get_third_party_client_access_token(
             authorization.client_id.clone(),
             authorization.client_secret.clone(),
@@ -410,7 +408,6 @@ impl<'r> FromRequest<'r> for DatafixClaims {
 
         if let Err(err) = write_access_token(
             token_resp.clone(),
-            stamp,
             authorization.client_id,
             authorization.client_secret,
             tenant_id.clone(),

@@ -14,7 +14,6 @@ use anyhow::{anyhow, Result};
 use reqwest_middleware::ClientBuilder;
 use reqwest_retry::{policies::ExponentialBackoff, RetryTransientMiddleware};
 use std::env;
-use std::time::Instant;
 use tracing::{event, info, instrument, Level};
 
 /// Configuration for Resource Owner Password Credentials flow.
@@ -144,7 +143,6 @@ impl KeycloakUserClient {
         }
 
         // Still a cache miss, fetch from Keycloak
-        let timestamp = Instant::now();
         let text = get_user_credentials_inner(login_config).await?;
 
         let token_resp: TokenResponse = deserialize_str(&text).map_err(|err| {
@@ -157,11 +155,7 @@ impl KeycloakUserClient {
         );
 
         cache
-            .write_token(
-                token_resp.clone(),
-                login_config.url.clone(),
-                timestamp,
-            )
+            .write_token(token_resp.clone(), login_config.url.clone())
             .map_err(|err| anyhow!("Failed to write token to cache: {err}"))?;
 
         Ok(token_resp.access_token)
