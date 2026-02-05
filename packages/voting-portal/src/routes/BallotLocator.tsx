@@ -266,7 +266,11 @@ const BallotLocator: React.FC = () => {
     }
 
     return (
-        <Box width={"100%"} maxWidth={"lg"} marginTop="48px">
+        <PageLimit
+            maxWidth="lg"
+            className="confirmation-screen screen"
+            sx={{marginTop: "48px", width: "100%"}}
+        >
             <Box sx={{borderBottom: 1, borderColor: "divider"}}>
                 <Tabs
                     variant="scrollable"
@@ -328,7 +332,7 @@ const BallotLocator: React.FC = () => {
                     </StyledLink>
                 </Box>
             </Box>
-        </Box>
+        </PageLimit>
     )
 }
 
@@ -715,109 +719,100 @@ const BallotLocatorLogic = () => {
 
     return (
         <Stack>
-            <PageLimit
-                className="ballot-locator-screen screen"
-                maxWidth="lg"
-                sx={{padding: "0 !important"}}
-            >
-                <Box marginTop="48px">
-                    <BreadCrumbSteps
-                        labels={["ballotLocator.steps.lookup", "ballotLocator.steps.result"]}
-                        selected={hasBallotId ? 1 : 0}
-                    />
-                </Box>
+            <Box marginTop="48px">
+                <BreadCrumbSteps
+                    labels={["ballotLocator.steps.lookup", "ballotLocator.steps.result"]}
+                    selected={hasBallotId ? 1 : 0}
+                />
+            </Box>
 
+            <Box
+                sx={{
+                    display: "flex",
+                    flexDirection: {xs: "column", md: "row"},
+                    justifyContent: "space-between",
+                    alignItems: "flex-start",
+                }}
+            >
                 <Box
                     sx={{
-                        display: "flex",
-                        flexDirection: {xs: "column", md: "row"},
-                        justifyContent: "space-between",
-                        alignItems: "flex-start",
+                        order: {xs: 2, md: 1},
                     }}
                 >
-                    <Box
-                        sx={{
-                            order: {xs: 2, md: 1},
-                        }}
-                    >
-                        <StyledTitle variant="h1">
-                            {!hasBallotId ? (
-                                <Box>{t("ballotLocator.title")}</Box>
-                            ) : (
-                                <Box>{t("ballotLocator.titleResult")}</Box>
-                            )}
-                            <IconButton
-                                icon={faCircleQuestion}
-                                sx={{fontSize: "unset", lineHeight: "unset", paddingBottom: "2px"}}
-                                fontSize="16px"
-                                onClick={() => setOpenTitleHelp(true)}
-                            />
-                            <Dialog
-                                handleClose={() => setOpenTitleHelp(false)}
-                                open={openTitleHelp}
-                                title={t("ballotLocator.titleHelpDialog.title")}
-                                ok={t("ballotLocator.titleHelpDialog.ok")}
-                                variant="info"
-                            >
-                                {stringToHtml(t("ballotLocator.titleHelpDialog.content"))}
-                            </Dialog>
-                        </StyledTitle>
-
-                        <Typography
-                            variant="body1"
-                            sx={{color: theme.palette.customGrey.contrastText}}
-                        >
-                            {t("ballotLocator.description")}
-                        </Typography>
-                    </Box>
-                </Box>
-
-                {hasBallotId && !loading && (
-                    <Box>
-                        {hasBallotId && !!ballotContent ? (
-                            <MessageSuccess>{t("ballotLocator.found", {ballotId})}</MessageSuccess>
+                    <StyledTitle variant="h1">
+                        {!hasBallotId ? (
+                            <Box>{t("ballotLocator.title")}</Box>
                         ) : (
-                            <MessageFailed>{t("ballotLocator.notFound", {ballotId})}</MessageFailed>
+                            <Box>{t("ballotLocator.titleResult")}</Box>
                         )}
-                    </Box>
-                )}
-                {!hasBallotId && (
-                    <BallotIdInput
-                        inputBallotId={inputBallotId}
-                        setInputBallotId={setInputBallotId}
-                        validatedBallotId={validatedBallotId}
-                        captureEnter={captureEnter}
-                        placeholderLabel="ballotLocator.description"
-                    />
-                )}
-                {hasBallotId && ballotContent && (
-                    <>
-                        <Typography>{t("ballotLocator.contentDesc")}</Typography>
-                        <InfoDataBox>{ballotContent}</InfoDataBox>
-                    </>
-                )}
-
-                {!hasBallotId ? (
-                    <Button
-                        sx={{marginTop: "10px"}}
-                        disabled={!validatedBallotId || inputBallotId.trim() === ""}
-                        className="normal"
-                        onClick={() => locate(true)}
-                    >
-                        <span>{t("ballotLocator.locate")}</span>
-                    </Button>
-                ) : (
-                    <>
-                        <Button
-                            sx={{marginTop: "10px"}}
-                            className="normal"
-                            onClick={() => locate()}
+                        <IconButton
+                            icon={faCircleQuestion}
+                            sx={{fontSize: "unset", lineHeight: "unset", paddingBottom: "2px"}}
+                            fontSize="16px"
+                            onClick={() => setOpenTitleHelp(true)}
+                        />
+                        <Dialog
+                            handleClose={() => setOpenTitleHelp(false)}
+                            open={openTitleHelp}
+                            title={t("ballotLocator.titleHelpDialog.title")}
+                            ok={t("ballotLocator.titleHelpDialog.ok")}
+                            variant="info"
                         >
-                            <span>{t("ballotLocator.locateAgain")}</span>
-                        </Button>
-                    </>
-                )}
-            </PageLimit>
+                            {stringToHtml(t("ballotLocator.titleHelpDialog.content"))}
+                        </Dialog>
+                    </StyledTitle>
+
+                    <Typography variant="body1" sx={{color: theme.palette.customGrey.contrastText}}>
+                        {t("ballotLocator.description")}
+                    </Typography>
+                </Box>
+            </Box>
+
+            {hasBallotId && !loading && (
+                <Box>
+                    {hasBallotId && !!ballotContent ? (
+                        <MessageSuccess>{t("ballotLocator.found", {ballotId})}</MessageSuccess>
+                    ) : (
+                        <MessageFailed>{t("ballotLocator.notFound", {ballotId})}</MessageFailed>
+                    )}
+                </Box>
+            )}
+            {!hasBallotId && (
+                <BallotIdInput
+                    inputBallotId={inputBallotId}
+                    setInputBallotId={setInputBallotId}
+                    validatedBallotId={validatedBallotId}
+                    captureEnter={captureEnter}
+                    placeholderLabel="ballotLocator.description"
+                />
+            )}
+            {hasBallotId && ballotContent && (
+                <>
+                    <Typography>{t("ballotLocator.contentDesc")}</Typography>
+                    <InfoDataBox>{ballotContent}</InfoDataBox>
+                </>
+            )}
+
+            {!hasBallotId ? (
+                <Button
+                    sx={{marginTop: "10px", width: "fit-content"}}
+                    disabled={!validatedBallotId || inputBallotId.trim() === ""}
+                    className="normal"
+                    onClick={() => locate(true)}
+                >
+                    <span>{t("ballotLocator.locate")}</span>
+                </Button>
+            ) : (
+                <>
+                    <Button
+                        sx={{marginTop: "10px", width: "fit-content"}}
+                        className="normal"
+                        onClick={() => locate()}
+                    >
+                        <span>{t("ballotLocator.locateAgain")}</span>
+                    </Button>
+                </>
+            )}
         </Stack>
     )
 }

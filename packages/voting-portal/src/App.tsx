@@ -143,7 +143,7 @@ const App = () => {
 
     return (
         <StyledApp
-            className="app-root"
+            className="voting-portal app-root"
             css={ballotStyle?.ballot_eml.election_event_presentation?.css ?? ""}
         >
             <ScrollRestoration />
