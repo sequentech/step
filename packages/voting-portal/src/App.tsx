@@ -103,12 +103,13 @@ const App = () => {
     const navigate = useNavigate()
     const {globalSettings} = useContext(SettingsContext)
     const location = useLocation()
-    const {tenantId, eventId, ballotId} = useParams()
+    const {tenantId, eventId} = useParams<TenantEventType>()
     const {isAuthenticated, setTenantEvent} = useContext(AuthContext)
 
     const electionIds = useAppSelector(selectElectionIds)
     const ballotStyleElectionIds = useAppSelector(selectBallotStyleElectionIds)
-    const electionId = ballotId ? ballotStyleElectionIds[0] : electionIds[0]
+
+    const electionId = electionIds.length > 0 ? electionIds[0] : ballotStyleElectionIds[0]
     const ballotStyle = useAppSelector(selectBallotStyleByElectionId(String(electionId)))
 
     useEffect(() => {
