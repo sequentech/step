@@ -6,6 +6,7 @@ use crate::utils::read_config::load_external_config;
 use anyhow::{anyhow, Context, Result};
 use chrono::Utc;
 use clap::Args;
+use colored::Colorize;
 use electoral_log::client::types::ElectoralLogMessage;
 use electoral_log::messages::message::{Message, Sender};
 use electoral_log::messages::newtypes::EventIdString;
@@ -45,7 +46,7 @@ impl CreateElectoralLogs {
         match runtime
             .block_on(self.run_create_electoral_logs(&self.working_directory, self.num_logs))
         {
-            Ok(_) => println!("Successfully created electoral logs."),
+            Ok(_) => println!("{}", "Successfully created electoral logs.".green()),
             Err(err) => eprintln!("Error! Failed to create electoral logs: {err:?}"),
         }
     }

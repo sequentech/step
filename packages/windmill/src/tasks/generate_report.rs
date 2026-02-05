@@ -95,6 +95,8 @@ pub async fn generate_report(
         }
     };
 
+    let email_recipients = report.cron_config.unwrap_or_default().email_recipients;
+
     // Helper macro to reduce duplication in execute_report call
     macro_rules! execute_report {
         ($report:expr) => {
@@ -104,7 +106,7 @@ pub async fn generate_report(
                     &report.tenant_id,
                     &report.election_event_id,
                     is_scheduled_task,
-                    vec![],
+                    email_recipients,
                     report_mode,
                     Some(report_clone),
                     &hasura_transaction,
@@ -165,6 +167,7 @@ pub async fn generate_report(
 ) -> Result<()> {
     let _permit = acquire_semaphore().await?;
     // Spawn the task using an async block
+    let task_execution_clone = task_execution.clone();
     let handle = tokio::task::spawn_blocking({
         move || {
             tokio::runtime::Handle::current().block_on(async move {
@@ -173,7 +176,7 @@ pub async fn generate_report(
                     document_id,
                     report_mode,
                     is_scheduled_task,
-                    task_execution,
+                    task_execution_clone,
                     executer_username,
                     tally_session_id,
                 )
@@ -185,9 +188,24 @@ pub async fn generate_report(
 
     // Await the result and handle JoinError explicitly
     match handle.await {
-        Ok(inner_result) => inner_result.map_err(|err| Error::from(err.context("Task failed"))),
-        Err(join_error) => Err(Error::from(anyhow!("Task panicked: {}", join_error))),
-    }?;
+        Ok(inner_result) => {
+            if let Err(ref err) = inner_result {
+                if let Some(ref task_exec) = task_execution {
+                    let _ = update_fail(task_exec, &format!("Task failed: {:?}", err)).await;
+                }
+            }
+            inner_result.map_err(|err| Error::from(err.context("Task failed")))?;
+        }
+        Err(join_error) => {
+            if let Some(ref task_exec) = task_execution {
+                let _ = update_fail(task_exec, &format!("Task panicked: {}", join_error)).await;
+            }
+            return Err(Error::from(anyhow::anyhow!(
+                "Task panicked: {}",
+                join_error
+            )));
+        }
+    }
 
     Ok(())
 }
