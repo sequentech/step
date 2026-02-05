@@ -18,6 +18,7 @@ use common::TestServer;
 use sequent_core::services::test_utils::{
     TestTokenBuilder, TEST_ELECTION_EVENT_ID, TEST_TENANT_ID,
 };
+use sequent_core::types::permissions::Permissions;
 use serial_test::serial;
 
 // ============================================================================
@@ -462,15 +463,15 @@ async fn test_all_endpoints_require_auth() {
 }
 
 // ============================================================================
-// Future Requirement Tests - Browser Trustee Board Verification
+// Browser Trustee Board Verification Tests
 // ============================================================================
 // These tests verify that browser trustees can only access boards matching
 // their tenant_id and authorized_election_ids from JWT claims.
-// EXPECTED TO FAIL until the feature is implemented.
+// Browser trustees do NOT have the "server" default_role, so they are
+// subject to board access validation via BoardAccessValidator.
 
 #[tokio::test]
 #[serial]
-#[should_panic(expected = "assertion")]
 async fn test_browser_trustee_wrong_tenant_id_should_fail() {
     let server = TestServer::new().await;
     server.cleanup().await;
@@ -478,7 +479,7 @@ async fn test_browser_trustee_wrong_tenant_id_should_fail() {
     // Create board with default test tenant
     server.create_board(&server.board_name).await;
 
-    // Token has DIFFERENT tenant
+    // Token has DIFFERENT tenant - should be rejected
     let wrong_tenant = "12345678-1234-1234-1234-123456789012";
     let token = server.create_browser_trustee_token(wrong_tenant, &[TEST_ELECTION_EVENT_ID]);
 
@@ -488,14 +489,12 @@ async fn test_browser_trustee_wrong_tenant_id_should_fail() {
         .add_header(AUTHORIZATION, format!("Bearer {token}"))
         .await;
 
-    // FUTURE: Should return 403 Forbidden due to tenant mismatch
-    // Currently passes (returns 200) because verification is not implemented
+    // Returns 403 Forbidden due to tenant mismatch
     resp.assert_status(StatusCode::FORBIDDEN);
 }
 
 #[tokio::test]
 #[serial]
-#[should_panic(expected = "assertion")]
 async fn test_browser_trustee_wrong_event_id_should_fail() {
     let server = TestServer::new().await;
     server.cleanup().await;
@@ -503,7 +502,7 @@ async fn test_browser_trustee_wrong_event_id_should_fail() {
     // Create board with default test tenant and event
     server.create_board(&server.board_name).await;
 
-    // Token has correct tenant but DIFFERENT event
+    // Token has correct tenant but DIFFERENT event - should be rejected
     let wrong_event = "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee";
     let token = server.create_browser_trustee_token(TEST_TENANT_ID, &[wrong_event]);
 
@@ -513,8 +512,7 @@ async fn test_browser_trustee_wrong_event_id_should_fail() {
         .add_header(AUTHORIZATION, format!("Bearer {token}"))
         .await;
 
-    // FUTURE: Should return 403 Forbidden due to event not in authorized list
-    // Currently passes (returns 200) because verification is not implemented
+    // Returns 403 Forbidden due to event not in authorized list
     resp.assert_status(StatusCode::FORBIDDEN);
 }
 
@@ -527,7 +525,7 @@ async fn test_browser_trustee_correct_tenant_and_event_should_succeed() {
     // Create board with default test tenant and event
     server.create_board(&server.board_name).await;
 
-    // Token has CORRECT tenant and event
+    // Token has CORRECT tenant and event - should succeed
     let token = server.create_browser_trustee_token(TEST_TENANT_ID, &[TEST_ELECTION_EVENT_ID]);
 
     let resp = server
@@ -540,11 +538,11 @@ async fn test_browser_trustee_correct_tenant_and_event_should_succeed() {
 }
 
 // ============================================================================
-// Future Requirement Tests - Native Trustee "server" Claim
+// Native Trustee "server" Role Tests
 // ============================================================================
-// Native trustees should have trustee: "server" claim and should skip
+// Native trustees have x-hasura-default-role: "server" and bypass
 // board name verification (can access any board).
-// EXPECTED TO FAIL until the feature is implemented.
+// Uses SERVER_DEFAULT_ROLE constant from b4::auth.
 
 #[tokio::test]
 #[serial]
@@ -555,7 +553,7 @@ async fn test_native_trustee_with_server_claim_can_access_any_board() {
     // Create board with default test tenant
     server.create_board(&server.board_name).await;
 
-    // Native trustee token with trustee: "server"
+    // Native trustee token with default_role: "server"
     // Should be able to access any board regardless of tenant/event
     let token = server.create_native_trustee_token();
 
@@ -570,7 +568,6 @@ async fn test_native_trustee_with_server_claim_can_access_any_board() {
 
 #[tokio::test]
 #[serial]
-#[should_panic(expected = "assertion")]
 async fn test_non_server_trustee_requires_board_verification() {
     let server = TestServer::new().await;
     server.cleanup().await;
@@ -578,9 +575,11 @@ async fn test_non_server_trustee_requires_board_verification() {
     // Create board with default test tenant and event
     server.create_board(&server.board_name).await;
 
-    // Token with trustee claim that is NOT "server" - should be treated as browser trustee
+    // Token with trustee claim that is NOT "server" - treated as browser trustee
+    // Uses Permissions::TRUSTEE_CEREMONY constant instead of hardcoded string
+    let permission = Permissions::TRUSTEE_CEREMONY.to_string();
     let token = TestTokenBuilder::new()
-        .with_permissions(&["trustee-ceremony"])
+        .with_permissions(&[&permission])
         .with_tenant("wrong-tenant-id") // Wrong tenant
         .with_trustee(Some("trustee1")) // Not "server"
         .build(&server.keypair);
@@ -591,7 +590,7 @@ async fn test_non_server_trustee_requires_board_verification() {
         .add_header(AUTHORIZATION, format!("Bearer {token}"))
         .await;
 
-    // FUTURE: Non-server trustees should have board verification applied
+    // Non-server trustees have board verification applied
     // Should fail because tenant doesn't match
     resp.assert_status(StatusCode::FORBIDDEN);
 }

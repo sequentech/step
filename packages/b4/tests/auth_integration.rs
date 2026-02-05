@@ -18,6 +18,7 @@ mod common;
 
 use axum::http::{header::AUTHORIZATION, StatusCode};
 use common::TestServer;
+use sequent_core::types::permissions::Permissions;
 use serial_test::serial;
 
 // ============================================================================
@@ -157,7 +158,9 @@ async fn test_valid_token_with_multiple_permissions() {
     let server = TestServer::new().await;
 
     // Token with multiple permissions including the required one
-    let token = server.create_token(&["user", "trustee-ceremony", "admin"]);
+    // Uses Permissions::TRUSTEE_CEREMONY constant instead of hardcoded string
+    let trustee_perm = Permissions::TRUSTEE_CEREMONY.to_string();
+    let token = server.create_token(&["user", &trustee_perm, "admin"]);
     let resp = server
         .server
         .get("/boards")

@@ -242,6 +242,15 @@ impl TestTokenBuilder {
         self
     }
 
+    /// Sets the default role in `hasura_claims.default_role`.
+    ///
+    /// This is used for authorization decisions (e.g., "server" bypasses board validation).
+    #[instrument(level = "trace", skip(self))]
+    pub fn with_default_role(mut self, role: &str) -> Self {
+        self.claims.hasura_claims.default_role = role.to_string();
+        self
+    }
+
     /// Provides access to the underlying claims for advanced customization.
     pub fn claims_mut(&mut self) -> &mut JwtClaims {
         &mut self.claims

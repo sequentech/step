@@ -9,7 +9,7 @@ use crate::api_types::{
     InitiateMessageResponse, InitiateMessagesMultiRequest, InitiateMessagesMultiResponse,
     ListMessagesResponse, Message, MAX_INLINE_MESSAGE_SIZE,
 };
-use crate::auth::{RequirePermissions, TrusteeCeremony};
+use crate::auth::{BoardAccessValidator, RequireConstraints, RequirePermissions, TrusteeCeremony};
 use axum::{
     extract::{Path, Query, State},
     http::StatusCode,
@@ -65,7 +65,7 @@ pub async fn create_board(
 
 pub async fn get_board(
     State(state): State<AppState>,
-    RequirePermissions { claims, .. }: RequirePermissions<TrusteeCeremony>,
+    RequireConstraints { claims, .. }: RequireConstraints<TrusteeCeremony, BoardAccessValidator>,
     Path(board_name): Path<String>,
 ) -> Result<Json<BoardResponse>, StatusCode> {
     tracing::debug!("User {} getting board '{}'", claims.sub, board_name);
@@ -110,7 +110,7 @@ pub async fn list_boards(
 
 pub async fn initiate_message(
     State(state): State<AppState>,
-    RequirePermissions { claims, .. }: RequirePermissions<TrusteeCeremony>,
+    RequireConstraints { claims, .. }: RequireConstraints<TrusteeCeremony, BoardAccessValidator>,
     Path(board_name): Path<String>,
     Json(req): Json<InitiateMessageRequest>,
 ) -> Result<Json<InitiateMessageResponse>, StatusCode> {
@@ -174,7 +174,7 @@ pub async fn initiate_message(
 
 pub async fn confirm_message(
     State(state): State<AppState>,
-    RequirePermissions { claims, .. }: RequirePermissions<TrusteeCeremony>,
+    RequireConstraints { claims, .. }: RequireConstraints<TrusteeCeremony, BoardAccessValidator>,
     Path((board_name, id)): Path<(String, String)>,
     Json(req): Json<ConfirmMessageRequest>,
 ) -> Result<Json<ConfirmMessageResponse>, StatusCode> {
@@ -298,7 +298,7 @@ pub async fn confirm_message(
 
 pub async fn get_message(
     State(state): State<AppState>,
-    RequirePermissions { claims, .. }: RequirePermissions<TrusteeCeremony>,
+    RequireConstraints { claims, .. }: RequireConstraints<TrusteeCeremony, BoardAccessValidator>,
     Path((board_name, id)): Path<(String, String)>,
 ) -> Result<Json<GetMessageResponse>, StatusCode> {
     tracing::debug!(
@@ -348,7 +348,7 @@ pub async fn get_message(
 
 pub async fn list_messages(
     State(state): State<AppState>,
-    RequirePermissions { claims, .. }: RequirePermissions<TrusteeCeremony>,
+    RequireConstraints { claims, .. }: RequireConstraints<TrusteeCeremony, BoardAccessValidator>,
     Path(board_name): Path<String>,
     Query(query): Query<GetMessagesQuery>,
 ) -> Result<Json<ListMessagesResponse>, StatusCode> {
@@ -394,7 +394,7 @@ pub async fn list_messages(
 
 pub async fn get_messages(
     State(state): State<AppState>,
-    RequirePermissions { claims, .. }: RequirePermissions<TrusteeCeremony>,
+    RequireConstraints { claims, .. }: RequireConstraints<TrusteeCeremony, BoardAccessValidator>,
     Path(board_name): Path<String>,
     Query(query): Query<GetMessagesQuery>,
 ) -> Result<Json<crate::api_types::GetMessagesResponse>, StatusCode> {

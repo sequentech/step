@@ -33,9 +33,10 @@
 
 use axum::{
     async_trait,
-    extract::FromRequestParts,
+    extract::{FromRequestParts, RawPathParams},
     http::{request::Parts, StatusCode},
 };
+use std::marker::PhantomData;
 use tracing::instrument;
 
 use crate::services::jwks::{get_global_jwks_cache, verify_token_signature};
@@ -159,6 +160,128 @@ where
         Ok(RequirePermissions {
             claims,
             _marker: std::marker::PhantomData,
+        })
+    }
+}
+
+/// Trait for validating additional constraints beyond permissions.
+///
+/// Implement this trait in your service to add custom authorization logic
+/// that validates path parameters against JWT claims. For example, checking
+/// that a user can only access boards matching their tenant_id.
+///
+/// # Example
+///
+/// ```ignore
+/// use sequent_core::services::axum_auth::ValidateConstraints;
+/// use sequent_core::services::jwt::JwtClaims;
+///
+/// pub struct BoardAccessValidator;
+///
+/// impl ValidateConstraints for BoardAccessValidator {
+///     fn validate(claims: &JwtClaims, path_params: &[(&str, &str)]) -> bool {
+///         // Find the "board" path parameter
+///         let board_name = path_params.iter()
+///             .find(|(k, _)| *k == "board")
+///             .map(|(_, v)| *v);
+///
+///         match board_name {
+///             Some(board) => verify_board_access(board, &claims),
+///             None => true, // No board param, allow
+///         }
+///     }
+/// }
+/// ```
+pub trait ValidateConstraints: Send + Sync {
+    /// Validates path parameters against JWT claims.
+    ///
+    /// # Arguments
+    /// * `claims` - The validated JWT claims from the request
+    /// * `path_params` - Path parameters extracted by the router (e.g., `[("board", "my-board")]`)
+    ///
+    /// # Returns
+    /// * `true` - Allow the request
+    /// * `false` - Deny the request (returns 403 Forbidden)
+    ///
+    /// Default implementation allows all requests.
+    fn validate(_claims: &JwtClaims, _path_params: &[(&str, &str)]) -> bool {
+        true
+    }
+}
+
+/// Generic extractor that requires permissions AND validates constraints.
+///
+/// Combines `RequirePermissions` with additional constraint validation.
+/// Use this when handlers need both permission checking and custom authorization
+/// logic (e.g., verifying board access based on tenant_id).
+///
+/// # Example
+///
+/// ```ignore
+/// use sequent_core::services::axum_auth::{RequireConstraints, PermissionSet, ValidateConstraints};
+///
+/// pub struct TrusteeCeremony;
+/// impl PermissionSet for TrusteeCeremony {
+///     fn required_permissions() -> &'static [Permissions] {
+///         &[Permissions::TRUSTEE_CEREMONY]
+///     }
+/// }
+///
+/// pub struct BoardAccessValidator;
+/// impl ValidateConstraints for BoardAccessValidator { /* ... */ }
+///
+/// async fn get_board(
+///     RequireConstraints { claims, .. }: RequireConstraints<TrusteeCeremony, BoardAccessValidator>,
+///     Path(board_name): Path<String>,
+/// ) -> impl IntoResponse {
+///     // Handler code - both permission and board access verified
+/// }
+/// ```
+pub struct RequireConstraints<P: PermissionSet, V: ValidateConstraints> {
+    pub claims: JwtClaims,
+    _markers: PhantomData<(P, V)>,
+}
+
+#[async_trait]
+impl<S, P, V> FromRequestParts<S> for RequireConstraints<P, V>
+where
+    S: Send + Sync,
+    P: PermissionSet,
+    V: ValidateConstraints,
+{
+    type Rejection = StatusCode;
+
+    #[instrument(level = "trace", skip(parts, state))]
+    async fn from_request_parts(
+        parts: &mut Parts,
+        state: &S,
+    ) -> Result<Self, Self::Rejection> {
+        // First get permissions (which includes JWT validation)
+        let RequirePermissions { claims, .. } =
+            RequirePermissions::<P>::from_request_parts(parts, state).await?;
+
+        // Extract path params using Axum's public RawPathParams
+        let raw_params = RawPathParams::from_request_parts(parts, state)
+            .await
+            .map_err(|e| {
+                tracing::error!("Failed to extract path params: {e:?}");
+                StatusCode::INTERNAL_SERVER_ERROR
+            })?;
+
+        let params: Vec<(&str, &str)> = raw_params.iter().collect();
+
+        // Validate constraints
+        if !V::validate(&claims, &params) {
+            tracing::warn!(
+                "User {} failed constraint validation",
+                claims.sub
+            );
+            return Err(StatusCode::FORBIDDEN);
+        }
+
+        Ok(RequireConstraints {
+            claims,
+            _markers: PhantomData,
         })
     }
 }

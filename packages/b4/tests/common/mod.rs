@@ -16,6 +16,7 @@ use axum::{
 };
 use axum_test::TestServer as AxumTestServer;
 use b4::{
+    auth::SERVER_DEFAULT_ROLE,
     db::{self, DbPool, PgConnectionParams},
     handlers,
     state::AppState,
@@ -27,6 +28,7 @@ use sequent_core::services::{
         TEST_ELECTION_EVENT_ID, TEST_SLUG, TEST_TENANT_ID,
     },
 };
+use sequent_core::types::permissions::Permissions;
 use std::sync::Arc;
 use testcontainers::{runners::AsyncRunner, ContainerAsync, ImageExt};
 use testcontainers_modules::{localstack::LocalStack, postgres::Postgres};
@@ -192,15 +194,26 @@ impl TestServer {
     }
 
     /// Creates a valid token with the specified permissions.
+    ///
+    /// Note: This creates a token without the "server" default_role, so it will
+    /// require proper tenant/event claims for board access validation.
     pub fn create_token(&self, permissions: &[&str]) -> String {
         TestTokenBuilder::new()
             .with_permissions(permissions)
             .build(&self.keypair)
     }
 
-    /// Creates a valid trustee token.
+    /// Creates a valid trustee token with server role (bypasses board validation).
+    ///
+    /// Uses `Permissions::TRUSTEE_CEREMONY` and `SERVER_DEFAULT_ROLE` constants.
+    /// This is the default for most tests that just need basic auth.
     pub fn create_trustee_token(&self) -> String {
-        self.create_token(&["trustee-ceremony"])
+        let permission = Permissions::TRUSTEE_CEREMONY.to_string();
+        TestTokenBuilder::new()
+            .with_permissions(&[&permission])
+            .with_default_role(SERVER_DEFAULT_ROLE)
+            .with_trustee(Some(SERVER_DEFAULT_ROLE))
+            .build(&self.keypair)
     }
 
     /// Creates an expired token.
@@ -220,24 +233,33 @@ impl TestServer {
     }
 
     /// Creates a browser trustee token with specific tenant and authorized events.
+    ///
+    /// Browser trustees do NOT have the server role, so they are subject to
+    /// board access validation based on tenant_id and authorized_election_ids.
     pub fn create_browser_trustee_token(
         &self,
         tenant_id: &str,
         authorized_event_ids: &[&str],
     ) -> String {
+        let permission = Permissions::TRUSTEE_CEREMONY.to_string();
         TestTokenBuilder::new()
-            .with_permissions(&["trustee-ceremony"])
+            .with_permissions(&[&permission])
             .with_tenant(tenant_id)
             .with_authorized_election_ids(authorized_event_ids)
             .with_trustee(Some("trustee1"))
             .build(&self.keypair)
     }
 
-    /// Creates a native trustee token with the "server" claim.
+    /// Creates a native trustee token with the "server" default role.
+    ///
+    /// Native server trustees bypass board access validation and can access any board.
+    /// Uses `SERVER_DEFAULT_ROLE` constant.
     pub fn create_native_trustee_token(&self) -> String {
+        let permission = Permissions::TRUSTEE_CEREMONY.to_string();
         TestTokenBuilder::new()
-            .with_permissions(&["trustee-ceremony"])
-            .with_trustee(Some("server"))
+            .with_permissions(&[&permission])
+            .with_default_role(SERVER_DEFAULT_ROLE)
+            .with_trustee(Some(SERVER_DEFAULT_ROLE))
             .build(&self.keypair)
     }
 
