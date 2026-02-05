@@ -21,7 +21,7 @@ import Tabs from "@mui/material/Tabs"
 import Tab from "@mui/material/Tab"
 import {Link, useLocation, useNavigate, useParams} from "react-router-dom"
 import {GET_CAST_VOTE} from "../queries/GetCastVote"
-import {useQuery, useMutation} from "@apollo/client/react"
+import {useQuery} from "@apollo/client/react"
 import {
     GetBallotStylesQuery,
     GetCastVoteQuery,
@@ -112,8 +112,6 @@ function isHex(str: string) {
 }
 
 const StyledApp = styled(Stack)<{css: string}>`
-    min-height: 100vh;
-    min-width: 100vw;
     ${({css}) => css}
 `
 
@@ -131,7 +129,7 @@ const CustomTabPanel: React.FC<TabPanelProps> = ({children, index, value}) => {
             id={`simple-tabpanel-${index}`}
             aria-labelledby={`simple-tab-${index}`}
         >
-            {value === index && <Box sx={{p: 3}}>{children}</Box>}
+            {value === index && <Box>{children}</Box>}
         </div>
     )
 }
@@ -179,8 +177,8 @@ const BallotLocator: React.FC = () => {
         defaultLanguageTouched,
         setDefaultLanguageTouched
     ) // Overwrite translations
-    const customCss = dataElectionEvent?.sequent_backend_election_event[0]?.presentation?.css
-    let fetchTimeout: any = useRef()
+
+    let fetchTimeout: any = useRef(undefined)
 
     const requestCVMsgs = async (headerName?: string, newOrder?: string) => {
         let duration = lastCVRequestTimestamp.current
@@ -287,46 +285,48 @@ const BallotLocator: React.FC = () => {
                     )}
                 </Tabs>
             </Box>
-            <CustomTabPanel value={value} index={0}>
-                <BallotLocatorLogic customCss={customCss} />
-            </CustomTabPanel>
-            <CustomTabPanel value={value} index={1}>
-                <Box marginTop="48px">
-                    <BallotIdInput
-                        inputBallotId={inputBallotId}
-                        setInputBallotId={setInputBallotId}
-                        validatedBallotId={validatedBallotId}
-                        ballotIdNotFoundErr={ballotIdNotFoundErr}
-                        captureEnter={captureEnter}
-                        placeholderLabel="ballotLocator.filterByBallotId"
+            <Box sx={{p: 3}}>
+                <CustomTabPanel value={value} index={0}>
+                    <BallotLocatorLogic />
+                </CustomTabPanel>
+                <CustomTabPanel value={value} index={1}>
+                    <Box marginTop="48px">
+                        <BallotIdInput
+                            inputBallotId={inputBallotId}
+                            setInputBallotId={setInputBallotId}
+                            validatedBallotId={validatedBallotId}
+                            ballotIdNotFoundErr={ballotIdNotFoundErr}
+                            captureEnter={captureEnter}
+                            placeholderLabel="ballotLocator.filterByBallotId"
+                        />
+                    </Box>
+                    <LogsTable
+                        rows={rows}
+                        total={total}
+                        onOrderBy={onClickHeader}
+                        rowsPerPage={rowsPerPage}
+                        handleChangeRowsPerPage={handleChangeRowsPerPage}
+                        page={page}
+                        handleChangePage={handleChangePage}
+                        somethingWentWrongErr={somethingWentWrongErr}
                     />
-                </Box>
-                <LogsTable
-                    rows={rows}
-                    total={total}
-                    onOrderBy={onClickHeader}
-                    rowsPerPage={rowsPerPage}
-                    handleChangeRowsPerPage={handleChangeRowsPerPage}
-                    page={page}
-                    handleChangePage={handleChangePage}
-                    somethingWentWrongErr={somethingWentWrongErr}
-                />
-            </CustomTabPanel>
-            <Box
-                sx={{
-                    order: {xs: 1, md: 2},
-                    marginTop: "20px",
-                    marginLeft: {xs: "16px", md: "16px"},
-                }}
-            >
-                <StyledLink
-                    to={`/tenant/${tenantId}/event/${eventId}/election-chooser${location.search}`}
+                </CustomTabPanel>
+                <Box
+                    sx={{
+                        order: {xs: 1, md: 2},
+                        marginTop: "20px",
+                        width: "fit-content",
+                    }}
                 >
-                    <Button variant="secondary" className="secondary">
-                        <Icon icon={faAngleLeft} size="sm" />
-                        <Box paddingLeft="12px">{t("votingScreen.backButton")}</Box>
-                    </Button>
-                </StyledLink>
+                    <StyledLink
+                        to={`/tenant/${tenantId}/event/${eventId}/election-chooser${location.search}`}
+                    >
+                        <Button variant="secondary" className="secondary">
+                            <Icon icon={faAngleLeft} size="sm" />
+                            <Box marginLeft="12px">{t("votingScreen.backButton")}</Box>
+                        </Button>
+                    </StyledLink>
+                </Box>
             </Box>
         </Box>
     )
@@ -659,11 +659,7 @@ const BallotIdInput: React.FC<BallotIdInputProps> = ({
     )
 }
 
-interface BallotLocatorLogicProps {
-    customCss: any
-}
-
-const BallotLocatorLogic: React.FC<BallotLocatorLogicProps> = ({customCss}) => {
+const BallotLocatorLogic = () => {
     const {tenantId, eventId, electionId, ballotId} = useParams()
     const [openTitleHelp, setOpenTitleHelp] = useState<boolean>(false)
     const navigate = useNavigate()
@@ -717,11 +713,13 @@ const BallotLocatorLogic: React.FC<BallotLocatorLogicProps> = ({customCss}) => {
         }
     }
 
-    const ConditionalStyledApp = customCss ? StyledApp : Stack
-
     return (
-        <ConditionalStyledApp css={customCss}>
-            <PageLimit className="ballot-locator-screen screen" maxWidth="lg">
+        <Stack>
+            <PageLimit
+                className="ballot-locator-screen screen"
+                maxWidth="lg"
+                sx={{padding: "0 !important"}}
+            >
                 <Box marginTop="48px">
                     <BreadCrumbSteps
                         labels={["ballotLocator.steps.lookup", "ballotLocator.steps.result"]}
@@ -820,7 +818,7 @@ const BallotLocatorLogic: React.FC<BallotLocatorLogicProps> = ({customCss}) => {
                     </>
                 )}
             </PageLimit>
-        </ConditionalStyledApp>
+        </Stack>
     )
 }
 
