@@ -272,10 +272,7 @@ where
 
         // Validate constraints
         if !V::validate(&claims, &params) {
-            tracing::warn!(
-                "User {} failed constraint validation",
-                claims.sub
-            );
+            tracing::warn!("User {} failed constraint validation", claims.sub);
             return Err(StatusCode::FORBIDDEN);
         }
 

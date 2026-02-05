@@ -57,7 +57,10 @@ impl ValidateConstraints for BoardAccessValidator {
             Some(board) => {
                 // Get authorized election IDs from claims
                 let Some(authorized_ids) = &claims.hasura_claims.authorized_election_ids else {
-                    tracing::warn!("No authorized_election_ids in claims for user {}", claims.sub);
+                    tracing::warn!(
+                        "No authorized_election_ids in claims for user {}",
+                        claims.sub
+                    );
                     return false;
                 };
 
