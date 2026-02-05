@@ -94,6 +94,16 @@ where
             StatusCode::UNAUTHORIZED
         })?;
 
+        // Validate token expiration
+        let now = chrono::Utc::now().timestamp();
+        if claims.exp < now {
+            tracing::error!(
+                "JWT token has expired (exp: {}, now: {now})",
+                claims.exp
+            );
+            return Err(StatusCode::UNAUTHORIZED);
+        }
+
         Ok(JwtAuth(claims))
     }
 }

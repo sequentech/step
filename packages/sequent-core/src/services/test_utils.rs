@@ -226,7 +226,10 @@ impl TestTokenBuilder {
 
     /// Sets the authorized election IDs in `hasura_claims.authorized_election_ids`.
     #[instrument(level = "trace", skip(self))]
-    pub fn with_authorized_election_ids(mut self, election_ids: &[&str]) -> Self {
+    pub fn with_authorized_election_ids(
+        mut self,
+        election_ids: &[&str],
+    ) -> Self {
         self.claims.hasura_claims.authorized_election_ids =
             Some(election_ids.iter().map(|s| s.to_string()).collect());
         self
@@ -283,12 +286,13 @@ pub const TEST_SLUG: &str = "dev";
 /// // Returns: "devtenant90505c8a23a94cdfaevent388b3effe5834a5682b70ad15eaa409a"
 /// ```
 #[instrument(level = "trace")]
-pub fn create_test_board_name(tenant_id: &str, election_event_id: &str, slug: &str) -> String {
-    let tenant: String = tenant_id
-        .chars()
-        .filter(|&c| c != '-')
-        .take(17)
-        .collect();
+pub fn create_test_board_name(
+    tenant_id: &str,
+    election_event_id: &str,
+    slug: &str,
+) -> String {
+    let tenant: String =
+        tenant_id.chars().filter(|&c| c != '-').take(17).collect();
     format!("{slug}tenant{tenant}event{election_event_id}")
         .chars()
         .filter(|&c| c != '-')
@@ -397,8 +401,10 @@ mod tests {
             .authorized_election_ids
             .expect("Should have authorized_election_ids");
         assert_eq!(election_ids.len(), 2);
-        assert!(election_ids.contains(&"388b3eff-e583-4a56-82b7-0ad15eaa409a".to_string()));
-        assert!(election_ids.contains(&"aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee".to_string()));
+        assert!(election_ids
+            .contains(&"388b3eff-e583-4a56-82b7-0ad15eaa409a".to_string()));
+        assert!(election_ids
+            .contains(&"aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee".to_string()));
     }
 
     #[test]
@@ -413,9 +419,7 @@ mod tests {
         assert_eq!(claims.trustee, Some("server".to_string()));
 
         // Test clearing trustee
-        let token = TestTokenBuilder::new()
-            .with_trustee(None)
-            .build(&keypair);
+        let token = TestTokenBuilder::new().with_trustee(None).build(&keypair);
         let claims = decode_jwt(&token).expect("Failed to decode token");
         assert_eq!(claims.trustee, None);
     }
@@ -450,7 +454,11 @@ mod tests {
         assert!(board.starts_with("devtenant"));
         assert!(board.contains("event"));
         // Verify it matches the expected format
-        let expected = create_test_board_name(TEST_TENANT_ID, TEST_ELECTION_EVENT_ID, TEST_SLUG);
+        let expected = create_test_board_name(
+            TEST_TENANT_ID,
+            TEST_ELECTION_EVENT_ID,
+            TEST_SLUG,
+        );
         assert_eq!(board, expected);
     }
 

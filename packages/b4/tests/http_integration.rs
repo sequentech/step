@@ -4,7 +4,7 @@
 
 //! HTTP Integration tests for B4.
 //!
-//! These tests start a real HTTP server and make actual HTTP requests to verify
+//! These tests wrap the Axum router with axum-test and make requests to verify
 //! the complete request/response cycle, including authentication middleware.
 //!
 //! Tests use testcontainers for PostgreSQL and LocalStack (S3) to provide
@@ -12,10 +12,12 @@
 
 mod common;
 
+use axum::http::{header::AUTHORIZATION, StatusCode};
 use b4::api_types::{InitiateMessageRequest, InitiateMessageResponse};
 use common::TestServer;
-use reqwest::StatusCode;
-use sequent_core::services::test_utils::{TestTokenBuilder, TEST_ELECTION_EVENT_ID, TEST_TENANT_ID};
+use sequent_core::services::test_utils::{
+    TestTokenBuilder, TEST_ELECTION_EVENT_ID, TEST_TENANT_ID,
+};
 use serial_test::serial;
 
 // ============================================================================
@@ -27,18 +29,9 @@ use serial_test::serial;
 async fn test_missing_auth_header_returns_401() {
     let server = TestServer::new().await;
 
-    let resp = server
-        .client
-        .get(format!("{}/boards", server.url()))
-        .send()
-        .await
-        .expect("Request failed");
+    let resp = server.server.get("/boards").await;
 
-    assert_eq!(
-        resp.status(),
-        StatusCode::UNAUTHORIZED,
-        "Missing auth header should return 401"
-    );
+    resp.assert_status(StatusCode::UNAUTHORIZED);
 }
 
 #[tokio::test]
@@ -47,18 +40,12 @@ async fn test_invalid_bearer_format_returns_401() {
     let server = TestServer::new().await;
 
     let resp = server
-        .client
-        .get(format!("{}/boards", server.url()))
-        .header("Authorization", "Basic dXNlcjpwYXNz")
-        .send()
-        .await
-        .expect("Request failed");
+        .server
+        .get("/boards")
+        .add_header(AUTHORIZATION, "Basic dXNlcjpwYXNz")
+        .await;
 
-    assert_eq!(
-        resp.status(),
-        StatusCode::UNAUTHORIZED,
-        "Non-Bearer auth should return 401"
-    );
+    resp.assert_status(StatusCode::UNAUTHORIZED);
 }
 
 #[tokio::test]
@@ -67,18 +54,12 @@ async fn test_empty_bearer_token_returns_401() {
     let server = TestServer::new().await;
 
     let resp = server
-        .client
-        .get(format!("{}/boards", server.url()))
-        .header("Authorization", "Bearer ")
-        .send()
-        .await
-        .expect("Request failed");
+        .server
+        .get("/boards")
+        .add_header(AUTHORIZATION, "Bearer ")
+        .await;
 
-    assert_eq!(
-        resp.status(),
-        StatusCode::UNAUTHORIZED,
-        "Empty Bearer token should return 401"
-    );
+    resp.assert_status(StatusCode::UNAUTHORIZED);
 }
 
 #[tokio::test]
@@ -87,18 +68,12 @@ async fn test_malformed_token_returns_401() {
     let server = TestServer::new().await;
 
     let resp = server
-        .client
-        .get(format!("{}/boards", server.url()))
-        .bearer_auth("not-a-valid-jwt")
-        .send()
-        .await
-        .expect("Request failed");
+        .server
+        .get("/boards")
+        .add_header(AUTHORIZATION, "Bearer not-a-valid-jwt")
+        .await;
 
-    assert_eq!(
-        resp.status(),
-        StatusCode::UNAUTHORIZED,
-        "Malformed token should return 401"
-    );
+    resp.assert_status(StatusCode::UNAUTHORIZED);
 }
 
 // ============================================================================
@@ -112,18 +87,12 @@ async fn test_invalid_signature_returns_401() {
 
     let invalid_token = server.create_invalid_signature_token(&["trustee-ceremony"]);
     let resp = server
-        .client
-        .get(format!("{}/boards", server.url()))
-        .bearer_auth(&invalid_token)
-        .send()
-        .await
-        .expect("Request failed");
+        .server
+        .get("/boards")
+        .add_header(AUTHORIZATION, format!("Bearer {invalid_token}"))
+        .await;
 
-    assert_eq!(
-        resp.status(),
-        StatusCode::UNAUTHORIZED,
-        "Token with invalid signature should return 401"
-    );
+    resp.assert_status(StatusCode::UNAUTHORIZED);
 }
 
 #[tokio::test]
@@ -133,18 +102,12 @@ async fn test_expired_token_returns_401() {
 
     let expired_token = server.create_expired_token(&["trustee-ceremony"]);
     let resp = server
-        .client
-        .get(format!("{}/boards", server.url()))
-        .bearer_auth(&expired_token)
-        .send()
-        .await
-        .expect("Request failed");
+        .server
+        .get("/boards")
+        .add_header(AUTHORIZATION, format!("Bearer {expired_token}"))
+        .await;
 
-    assert_eq!(
-        resp.status(),
-        StatusCode::UNAUTHORIZED,
-        "Expired token should return 401"
-    );
+    resp.assert_status(StatusCode::UNAUTHORIZED);
 }
 
 // ============================================================================
@@ -159,18 +122,12 @@ async fn test_valid_token_missing_permission_returns_403() {
     // Token with different permission (not trustee-ceremony)
     let token = server.create_token(&["user", "admin"]);
     let resp = server
-        .client
-        .get(format!("{}/boards", server.url()))
-        .bearer_auth(&token)
-        .send()
-        .await
-        .expect("Request failed");
+        .server
+        .get("/boards")
+        .add_header(AUTHORIZATION, format!("Bearer {token}"))
+        .await;
 
-    assert_eq!(
-        resp.status(),
-        StatusCode::FORBIDDEN,
-        "Valid token without required permission should return 403"
-    );
+    resp.assert_status(StatusCode::FORBIDDEN);
 }
 
 #[tokio::test]
@@ -180,18 +137,12 @@ async fn test_valid_token_with_permission_returns_200() {
 
     let token = server.create_trustee_token();
     let resp = server
-        .client
-        .get(format!("{}/boards", server.url()))
-        .bearer_auth(&token)
-        .send()
-        .await
-        .expect("Request failed");
+        .server
+        .get("/boards")
+        .add_header(AUTHORIZATION, format!("Bearer {token}"))
+        .await;
 
-    assert_eq!(
-        resp.status(),
-        StatusCode::OK,
-        "Valid token with trustee-ceremony permission should return 200"
-    );
+    resp.assert_status_ok();
 }
 
 // ============================================================================
@@ -202,20 +153,19 @@ async fn test_valid_token_with_permission_returns_200() {
 #[serial]
 async fn test_create_board() {
     let server = TestServer::new().await;
+    server.cleanup().await;
     let token = server.create_trustee_token();
 
     let resp = server
-        .client
-        .post(format!("{}/boards", server.url()))
-        .bearer_auth(&token)
+        .server
+        .post("/boards")
+        .add_header(AUTHORIZATION, format!("Bearer {token}"))
         .json(&serde_json::json!({ "name": &server.board_name }))
-        .send()
-        .await
-        .expect("Request failed");
+        .await;
 
-    assert_eq!(resp.status(), StatusCode::OK);
+    resp.assert_status_ok();
 
-    let body: serde_json::Value = resp.json().await.expect("Failed to parse response");
+    let body: serde_json::Value = resp.json();
     assert_eq!(body["name"], server.board_name);
     assert_eq!(body["status"], "active");
 }
@@ -224,22 +174,21 @@ async fn test_create_board() {
 #[serial]
 async fn test_list_boards() {
     let server = TestServer::new().await;
+    server.cleanup().await;
     let token = server.create_trustee_token();
 
     // Create a board first
     server.create_board(&server.board_name).await;
 
     let resp = server
-        .client
-        .get(format!("{}/boards", server.url()))
-        .bearer_auth(&token)
-        .send()
-        .await
-        .expect("Request failed");
+        .server
+        .get("/boards")
+        .add_header(AUTHORIZATION, format!("Bearer {token}"))
+        .await;
 
-    assert_eq!(resp.status(), StatusCode::OK);
+    resp.assert_status_ok();
 
-    let body: serde_json::Value = resp.json().await.expect("Failed to parse response");
+    let body: serde_json::Value = resp.json();
     assert!(body["boards"].is_array());
     assert!(!body["boards"].as_array().unwrap().is_empty());
 }
@@ -248,22 +197,21 @@ async fn test_list_boards() {
 #[serial]
 async fn test_get_board() {
     let server = TestServer::new().await;
+    server.cleanup().await;
     let token = server.create_trustee_token();
 
     // Create a board first
     server.create_board(&server.board_name).await;
 
     let resp = server
-        .client
-        .get(format!("{}/boards/{}", server.url(), server.board_name))
-        .bearer_auth(&token)
-        .send()
-        .await
-        .expect("Request failed");
+        .server
+        .get(&format!("/boards/{}", server.board_name))
+        .add_header(AUTHORIZATION, format!("Bearer {token}"))
+        .await;
 
-    assert_eq!(resp.status(), StatusCode::OK);
+    resp.assert_status_ok();
 
-    let body: serde_json::Value = resp.json().await.expect("Failed to parse response");
+    let body: serde_json::Value = resp.json();
     assert_eq!(body["name"], server.board_name);
 }
 
@@ -274,14 +222,12 @@ async fn test_get_nonexistent_board_returns_404() {
     let token = server.create_trustee_token();
 
     let resp = server
-        .client
-        .get(format!("{}/boards/nonexistent-board", server.url()))
-        .bearer_auth(&token)
-        .send()
-        .await
-        .expect("Request failed");
+        .server
+        .get("/boards/nonexistent-board")
+        .add_header(AUTHORIZATION, format!("Bearer {token}"))
+        .await;
 
-    assert_eq!(resp.status(), StatusCode::NOT_FOUND);
+    resp.assert_status(StatusCode::NOT_FOUND);
 }
 
 // ============================================================================
@@ -292,6 +238,7 @@ async fn test_get_nonexistent_board_returns_404() {
 #[serial]
 async fn test_initiate_small_message() {
     let server = TestServer::new().await;
+    server.cleanup().await;
     let token = server.create_trustee_token();
 
     // Create a board first
@@ -306,23 +253,20 @@ async fn test_initiate_small_message() {
     };
 
     let resp = server
-        .client
-        .post(format!(
-            "{}/boards/{}/messages/initiate",
-            server.url(),
-            server.board_name
-        ))
-        .bearer_auth(&token)
+        .server
+        .post(&format!("/boards/{}/messages/initiate", server.board_name))
+        .add_header(AUTHORIZATION, format!("Bearer {token}"))
         .json(&req)
-        .send()
-        .await
-        .expect("Request failed");
+        .await;
 
-    assert_eq!(resp.status(), StatusCode::OK);
+    resp.assert_status_ok();
 
-    let body: InitiateMessageResponse = resp.json().await.expect("Failed to parse response");
+    let body: InitiateMessageResponse = resp.json();
     assert!(!body.message_id.is_empty());
-    assert!(!body.should_upload, "Small message should not require S3 upload");
+    assert!(
+        !body.should_upload,
+        "Small message should not require S3 upload"
+    );
     assert!(body.upload_url.is_none());
 }
 
@@ -330,6 +274,7 @@ async fn test_initiate_small_message() {
 #[serial]
 async fn test_initiate_large_message() {
     let server = TestServer::new().await;
+    server.cleanup().await;
     let token = server.create_trustee_token();
 
     // Create a board first
@@ -344,21 +289,15 @@ async fn test_initiate_large_message() {
     };
 
     let resp = server
-        .client
-        .post(format!(
-            "{}/boards/{}/messages/initiate",
-            server.url(),
-            server.board_name
-        ))
-        .bearer_auth(&token)
+        .server
+        .post(&format!("/boards/{}/messages/initiate", server.board_name))
+        .add_header(AUTHORIZATION, format!("Bearer {token}"))
         .json(&req)
-        .send()
-        .await
-        .expect("Request failed");
+        .await;
 
-    assert_eq!(resp.status(), StatusCode::OK);
+    resp.assert_status_ok();
 
-    let body: InitiateMessageResponse = resp.json().await.expect("Failed to parse response");
+    let body: InitiateMessageResponse = resp.json();
     assert!(!body.message_id.is_empty());
     assert!(body.should_upload, "Large message should require S3 upload");
     assert!(body.upload_url.is_some());
@@ -368,26 +307,21 @@ async fn test_initiate_large_message() {
 #[serial]
 async fn test_list_messages_empty() {
     let server = TestServer::new().await;
+    server.cleanup().await;
     let token = server.create_trustee_token();
 
     // Create a board first
     server.create_board(&server.board_name).await;
 
     let resp = server
-        .client
-        .get(format!(
-            "{}/boards/{}/messages/list",
-            server.url(),
-            server.board_name
-        ))
-        .bearer_auth(&token)
-        .send()
-        .await
-        .expect("Request failed");
+        .server
+        .get(&format!("/boards/{}/messages/list", server.board_name))
+        .add_header(AUTHORIZATION, format!("Bearer {token}"))
+        .await;
 
-    assert_eq!(resp.status(), StatusCode::OK);
+    resp.assert_status_ok();
 
-    let body: serde_json::Value = resp.json().await.expect("Failed to parse response");
+    let body: serde_json::Value = resp.json();
     assert!(body["messages"].is_array());
     assert!(body["messages"].as_array().unwrap().is_empty());
 }
@@ -396,26 +330,21 @@ async fn test_list_messages_empty() {
 #[serial]
 async fn test_get_messages_empty() {
     let server = TestServer::new().await;
+    server.cleanup().await;
     let token = server.create_trustee_token();
 
     // Create a board first
     server.create_board(&server.board_name).await;
 
     let resp = server
-        .client
-        .get(format!(
-            "{}/boards/{}/messages",
-            server.url(),
-            server.board_name
-        ))
-        .bearer_auth(&token)
-        .send()
-        .await
-        .expect("Request failed");
+        .server
+        .get(&format!("/boards/{}/messages", server.board_name))
+        .add_header(AUTHORIZATION, format!("Bearer {token}"))
+        .await;
 
-    assert_eq!(resp.status(), StatusCode::OK);
+    resp.assert_status_ok();
 
-    let body: serde_json::Value = resp.json().await.expect("Failed to parse response");
+    let body: serde_json::Value = resp.json();
     assert!(body["messages"].is_array());
 }
 
@@ -427,6 +356,7 @@ async fn test_get_messages_empty() {
 #[serial]
 async fn test_get_messages_multi() {
     let server = TestServer::new().await;
+    server.cleanup().await;
     let token = server.create_trustee_token();
 
     // Create a board first
@@ -443,17 +373,15 @@ async fn test_get_messages_multi() {
     });
 
     let resp = server
-        .client
-        .post(format!("{}/boards/messages/multi/get", server.url()))
-        .bearer_auth(&token)
+        .server
+        .post("/boards/messages/multi/get")
+        .add_header(AUTHORIZATION, format!("Bearer {token}"))
         .json(&req)
-        .send()
-        .await
-        .expect("Request failed");
+        .await;
 
-    assert_eq!(resp.status(), StatusCode::OK);
+    resp.assert_status_ok();
 
-    let body: serde_json::Value = resp.json().await.expect("Failed to parse response");
+    let body: serde_json::Value = resp.json();
     assert!(body["boards"].is_array());
 }
 
@@ -461,6 +389,7 @@ async fn test_get_messages_multi() {
 #[serial]
 async fn test_initiate_messages_multi() {
     let server = TestServer::new().await;
+    server.cleanup().await;
     let token = server.create_trustee_token();
 
     // Create a board first
@@ -484,17 +413,15 @@ async fn test_initiate_messages_multi() {
     });
 
     let resp = server
-        .client
-        .post(format!("{}/boards/messages/multi/initiate", server.url()))
-        .bearer_auth(&token)
+        .server
+        .post("/boards/messages/multi/initiate")
+        .add_header(AUTHORIZATION, format!("Bearer {token}"))
         .json(&req)
-        .send()
-        .await
-        .expect("Request failed");
+        .await;
 
-    assert_eq!(resp.status(), StatusCode::OK);
+    resp.assert_status_ok();
 
-    let body: serde_json::Value = resp.json().await.expect("Failed to parse response");
+    let body: serde_json::Value = resp.json();
     assert!(body["boards"].is_array());
 }
 
@@ -510,34 +437,27 @@ async fn test_all_endpoints_require_auth() {
     let board = "test-board";
 
     let endpoints = [
-        ("POST", "/boards"),
-        ("GET", "/boards"),
-        ("GET", &format!("/boards/{board}")),
-        ("POST", &format!("/boards/{board}/messages/initiate")),
-        ("POST", &format!("/boards/{board}/messages/123/confirm")),
-        ("GET", &format!("/boards/{board}/messages/list")),
-        ("GET", &format!("/boards/{board}/messages")),
-        ("GET", &format!("/boards/{board}/messages/1")),
-        ("POST", "/boards/messages/multi/get"),
-        ("POST", "/boards/messages/multi/initiate"),
-        ("POST", "/boards/messages/multi/confirm"),
+        ("POST", "/boards".to_string()),
+        ("GET", "/boards".to_string()),
+        ("GET", format!("/boards/{board}")),
+        ("POST", format!("/boards/{board}/messages/initiate")),
+        ("POST", format!("/boards/{board}/messages/123/confirm")),
+        ("GET", format!("/boards/{board}/messages/list")),
+        ("GET", format!("/boards/{board}/messages")),
+        ("GET", format!("/boards/{board}/messages/1")),
+        ("POST", "/boards/messages/multi/get".to_string()),
+        ("POST", "/boards/messages/multi/initiate".to_string()),
+        ("POST", "/boards/messages/multi/confirm".to_string()),
     ];
 
     for (method, path) in endpoints {
-        let url = format!("{}{}", server.url(), path);
-        let req_builder = match method {
-            "GET" => server.client.get(&url),
-            "POST" => server.client.post(&url).json(&serde_json::json!({})),
+        let resp = match method {
+            "GET" => server.server.get(&path).await,
+            "POST" => server.server.post(&path).json(&serde_json::json!({})).await,
             _ => panic!("Unknown method"),
         };
 
-        let resp = req_builder.send().await.expect("Request failed");
-
-        assert_eq!(
-            resp.status(),
-            StatusCode::UNAUTHORIZED,
-            "Endpoint {method} {path} should require authentication"
-        );
+        resp.assert_status(StatusCode::UNAUTHORIZED);
     }
 }
 
@@ -553,6 +473,7 @@ async fn test_all_endpoints_require_auth() {
 #[should_panic(expected = "assertion")]
 async fn test_browser_trustee_wrong_tenant_id_should_fail() {
     let server = TestServer::new().await;
+    server.cleanup().await;
 
     // Create board with default test tenant
     server.create_board(&server.board_name).await;
@@ -562,20 +483,14 @@ async fn test_browser_trustee_wrong_tenant_id_should_fail() {
     let token = server.create_browser_trustee_token(wrong_tenant, &[TEST_ELECTION_EVENT_ID]);
 
     let resp = server
-        .client
-        .get(format!("{}/boards/{}", server.url(), server.board_name))
-        .bearer_auth(&token)
-        .send()
-        .await
-        .expect("Request failed");
+        .server
+        .get(&format!("/boards/{}", server.board_name))
+        .add_header(AUTHORIZATION, format!("Bearer {token}"))
+        .await;
 
     // FUTURE: Should return 403 Forbidden due to tenant mismatch
     // Currently passes (returns 200) because verification is not implemented
-    assert_eq!(
-        resp.status(),
-        StatusCode::FORBIDDEN,
-        "Browser trustee with wrong tenant should get 403"
-    );
+    resp.assert_status(StatusCode::FORBIDDEN);
 }
 
 #[tokio::test]
@@ -583,6 +498,7 @@ async fn test_browser_trustee_wrong_tenant_id_should_fail() {
 #[should_panic(expected = "assertion")]
 async fn test_browser_trustee_wrong_event_id_should_fail() {
     let server = TestServer::new().await;
+    server.cleanup().await;
 
     // Create board with default test tenant and event
     server.create_board(&server.board_name).await;
@@ -592,52 +508,35 @@ async fn test_browser_trustee_wrong_event_id_should_fail() {
     let token = server.create_browser_trustee_token(TEST_TENANT_ID, &[wrong_event]);
 
     let resp = server
-        .client
-        .get(format!("{}/boards/{}", server.url(), server.board_name))
-        .bearer_auth(&token)
-        .send()
-        .await
-        .expect("Request failed");
+        .server
+        .get(&format!("/boards/{}", server.board_name))
+        .add_header(AUTHORIZATION, format!("Bearer {token}"))
+        .await;
 
     // FUTURE: Should return 403 Forbidden due to event not in authorized list
     // Currently passes (returns 200) because verification is not implemented
-    assert_eq!(
-        resp.status(),
-        StatusCode::FORBIDDEN,
-        "Browser trustee with wrong event should get 403"
-    );
+    resp.assert_status(StatusCode::FORBIDDEN);
 }
 
 #[tokio::test]
 #[serial]
-#[should_panic(expected = "assertion")]
 async fn test_browser_trustee_correct_tenant_and_event_should_succeed() {
     let server = TestServer::new().await;
+    server.cleanup().await;
 
     // Create board with default test tenant and event
     server.create_board(&server.board_name).await;
 
     // Token has CORRECT tenant and event
-    let token =
-        server.create_browser_trustee_token(TEST_TENANT_ID, &[TEST_ELECTION_EVENT_ID]);
+    let token = server.create_browser_trustee_token(TEST_TENANT_ID, &[TEST_ELECTION_EVENT_ID]);
 
     let resp = server
-        .client
-        .get(format!("{}/boards/{}", server.url(), server.board_name))
-        .bearer_auth(&token)
-        .send()
-        .await
-        .expect("Request failed");
+        .server
+        .get(&format!("/boards/{}", server.board_name))
+        .add_header(AUTHORIZATION, format!("Bearer {token}"))
+        .await;
 
-    // This should succeed (200) - the test is marked should_panic because
-    // currently the verification logic is not wired, so we can't distinguish
-    // between "passed because correct" vs "passed because not checked"
-    // Once implemented, remove #[should_panic] and this will pass correctly
-    assert_eq!(
-        resp.status(),
-        StatusCode::OK,
-        "Browser trustee with correct tenant and event should get 200"
-    );
+    resp.assert_status_ok();
 }
 
 // ============================================================================
@@ -649,9 +548,9 @@ async fn test_browser_trustee_correct_tenant_and_event_should_succeed() {
 
 #[tokio::test]
 #[serial]
-#[should_panic(expected = "assertion")]
 async fn test_native_trustee_with_server_claim_can_access_any_board() {
     let server = TestServer::new().await;
+    server.cleanup().await;
 
     // Create board with default test tenant
     server.create_board(&server.board_name).await;
@@ -661,21 +560,12 @@ async fn test_native_trustee_with_server_claim_can_access_any_board() {
     let token = server.create_native_trustee_token();
 
     let resp = server
-        .client
-        .get(format!("{}/boards/{}", server.url(), server.board_name))
-        .bearer_auth(&token)
-        .send()
-        .await
-        .expect("Request failed");
+        .server
+        .get(&format!("/boards/{}", server.board_name))
+        .add_header(AUTHORIZATION, format!("Bearer {token}"))
+        .await;
 
-    // FUTURE: Native trustees with "server" claim should skip board verification
-    // Currently passes (returns 200) but not because of correct logic
-    // This test verifies the "server" claim is properly handled
-    assert_eq!(
-        resp.status(),
-        StatusCode::OK,
-        "Native trustee with 'server' claim should access any board"
-    );
+    resp.assert_status_ok();
 }
 
 #[tokio::test]
@@ -683,6 +573,7 @@ async fn test_native_trustee_with_server_claim_can_access_any_board() {
 #[should_panic(expected = "assertion")]
 async fn test_non_server_trustee_requires_board_verification() {
     let server = TestServer::new().await;
+    server.cleanup().await;
 
     // Create board with default test tenant and event
     server.create_board(&server.board_name).await;
@@ -695,18 +586,12 @@ async fn test_non_server_trustee_requires_board_verification() {
         .build(&server.keypair);
 
     let resp = server
-        .client
-        .get(format!("{}/boards/{}", server.url(), server.board_name))
-        .bearer_auth(&token)
-        .send()
-        .await
-        .expect("Request failed");
+        .server
+        .get(&format!("/boards/{}", server.board_name))
+        .add_header(AUTHORIZATION, format!("Bearer {token}"))
+        .await;
 
     // FUTURE: Non-server trustees should have board verification applied
     // Should fail because tenant doesn't match
-    assert_eq!(
-        resp.status(),
-        StatusCode::FORBIDDEN,
-        "Non-server trustee with wrong tenant should get 403"
-    );
+    resp.assert_status(StatusCode::FORBIDDEN);
 }

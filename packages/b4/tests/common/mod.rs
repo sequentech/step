@@ -4,19 +4,22 @@
 
 //! Common test infrastructure for B4 integration tests.
 //!
-//! This module provides the TestServer which starts a real HTTP server
-//! with PostgreSQL and LocalStack (S3) containers.
+//! This module provides the TestServer which wraps the Axum router
+//! with PostgreSQL and LocalStack (S3) containers using axum-test.
+//!
+//! The server is lazily initialized once and shared across all tests in the
+//! same test binary, significantly reducing test execution time.
 
 use axum::{
     routing::{get, post},
     Router,
 };
+use axum_test::TestServer as AxumTestServer;
 use b4::{
-    db::{self, PgConnectionParams},
+    db::{self, DbPool, PgConnectionParams},
     handlers,
     state::AppState,
 };
-use reqwest::{Client, StatusCode};
 use sequent_core::services::{
     jwks::test_support::setup_test_jwks_cache,
     test_utils::{
@@ -24,26 +27,53 @@ use sequent_core::services::{
         TEST_ELECTION_EVENT_ID, TEST_SLUG, TEST_TENANT_ID,
     },
 };
-use std::net::SocketAddr;
-use std::time::Duration;
+use std::sync::Arc;
 use testcontainers::{runners::AsyncRunner, ContainerAsync, ImageExt};
 use testcontainers_modules::{localstack::LocalStack, postgres::Postgres};
-use tokio::net::TcpListener;
+use tokio::sync::OnceCell;
 use tower_http::cors::{Any, CorsLayer};
 
-/// Test server that runs the actual B4 HTTP server with real DB and S3.
+/// Global shared test server instance.
+static SHARED_SERVER: OnceCell<Arc<TestServer>> = OnceCell::const_new();
+
+/// Returns a shared TestServer instance, initializing it on first call.
+///
+/// This significantly improves test performance by reusing containers across tests.
+pub async fn get_shared_server() -> Arc<TestServer> {
+    SHARED_SERVER
+        .get_or_init(|| async { Arc::new(TestServer::init().await) })
+        .await
+        .clone()
+}
+
+/// Test server that wraps the B4 router with axum-test.
 pub struct TestServer {
-    pub addr: SocketAddr,
+    pub server: AxumTestServer,
     pub keypair: TestKeyPair,
-    pub client: Client,
     pub board_name: String,
+    db_pool: DbPool,
     _pg_container: ContainerAsync<Postgres>,
     _s3_container: ContainerAsync<LocalStack>,
 }
 
 impl TestServer {
-    /// Creates a new test server with PostgreSQL and LocalStack containers.
-    pub async fn new() -> Self {
+    /// Returns a shared test server instance (preferred for most tests).
+    ///
+    /// Uses a lazily-initialized shared server to avoid container startup overhead.
+    pub async fn new() -> Arc<TestServer> {
+        get_shared_server().await
+    }
+
+    /// Creates a fresh test server with new PostgreSQL and LocalStack containers.
+    ///
+    /// Use this only when you need isolated state (e.g., tests that modify DB
+    /// in conflicting ways). Most tests should use `new()` instead.
+    pub async fn new_isolated() -> Self {
+        Self::init().await
+    }
+
+    /// Internal initialization - creates actual containers and server.
+    async fn init() -> Self {
         // Start PostgreSQL container
         let pg_container = Postgres::default()
             .with_env_var("POSTGRES_DB", "b4_test")
@@ -68,13 +98,8 @@ impl TestServer {
         let s3_endpoint = format!("http://{s3_host}:{s3_port}");
 
         // Initialize database
-        let pg_params = PgConnectionParams::new(
-            &pg_host.to_string(),
-            pg_port,
-            "test",
-            "test",
-            "b4_test",
-        );
+        let pg_params =
+            PgConnectionParams::new(&pg_host.to_string(), pg_port, "test", "test", "b4_test");
         let db_pool = db::init_db_with_params(&pg_params)
             .await
             .expect("Failed to initialize database");
@@ -107,8 +132,8 @@ impl TestServer {
         let keypair = generate_test_keypair("b4-http-test-key");
         setup_test_jwks_cache(vec![keypair.jwk.clone()]);
 
-        // Create app state
-        let state = AppState::new(db_pool, s3_client);
+        // Create app state (clone pool so we can keep a reference for cleanup)
+        let state = AppState::new(db_pool.clone(), s3_client);
 
         // Build the actual B4 router (same as main.rs)
         let cors = CorsLayer::new()
@@ -150,44 +175,20 @@ impl TestServer {
             .layer(cors)
             .with_state(state);
 
-        // Start HTTP server on random port
-        let listener = TcpListener::bind("127.0.0.1:0")
-            .await
-            .expect("Failed to bind listener");
-        let addr = listener.local_addr().expect("Failed to get local addr");
-
-        // Spawn the server
-        tokio::spawn(async move {
-            axum::serve(listener, app)
-                .await
-                .expect("Server error");
-        });
-
-        // Wait for server to be ready
-        tokio::time::sleep(Duration::from_millis(100)).await;
-
-        // Create HTTP client
-        let client = Client::builder()
-            .timeout(Duration::from_secs(30))
-            .build()
-            .expect("Failed to create HTTP client");
+        // Create axum-test server
+        let server = AxumTestServer::new(app).expect("Failed to create test server");
 
         // Default test board name
         let board_name = create_test_board_name(TEST_TENANT_ID, TEST_ELECTION_EVENT_ID, TEST_SLUG);
 
         TestServer {
-            addr,
+            server,
             keypair,
-            client,
             board_name,
+            db_pool,
             _pg_container: pg_container,
             _s3_container: s3_container,
         }
-    }
-
-    /// Returns the base URL for the test server.
-    pub fn url(&self) -> String {
-        format!("http://{}", self.addr)
     }
 
     /// Creates a valid token with the specified permissions.
@@ -244,15 +245,29 @@ impl TestServer {
     pub async fn create_board(&self, name: &str) -> String {
         let token = self.create_trustee_token();
         let resp = self
-            .client
-            .post(format!("{}/boards", self.url()))
-            .bearer_auth(&token)
+            .server
+            .post("/boards")
+            .add_header(axum::http::header::AUTHORIZATION, format!("Bearer {token}"))
             .json(&serde_json::json!({ "name": name }))
-            .send()
-            .await
-            .expect("Failed to create board");
+            .await;
 
-        assert_eq!(resp.status(), StatusCode::OK, "Failed to create board");
+        resp.assert_status_ok();
         name.to_string()
+    }
+
+    /// Cleans up all test data from the database.
+    ///
+    /// Call this at the start of tests that need a clean slate.
+    pub async fn cleanup(&self) {
+        let conn = self
+            .db_pool
+            .get()
+            .await
+            .expect("Failed to get DB connection");
+
+        // Delete all boards (this will cascade to messages due to partitioning)
+        conn.execute("DELETE FROM boards", &[])
+            .await
+            .expect("Failed to cleanup boards");
     }
 }

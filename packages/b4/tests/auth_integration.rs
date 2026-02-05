@@ -12,11 +12,12 @@
 //! - Browser-based and native trustee flows
 //!
 //! Tests use `#[serial]` to avoid race conditions on the global JWKS cache.
+//! Tests use `axum-test` for fluent HTTP testing API.
 
 mod common;
 
+use axum::http::{header::AUTHORIZATION, StatusCode};
 use common::TestServer;
-use reqwest::StatusCode;
 use serial_test::serial;
 
 // ============================================================================
@@ -28,18 +29,9 @@ use serial_test::serial;
 async fn test_missing_auth_header_returns_401() {
     let server = TestServer::new().await;
 
-    let resp = server
-        .client
-        .get(format!("{}/boards", server.url()))
-        .send()
-        .await
-        .expect("Request failed");
+    let resp = server.server.get("/boards").await;
 
-    assert_eq!(
-        resp.status(),
-        StatusCode::UNAUTHORIZED,
-        "Missing auth header should return 401"
-    );
+    resp.assert_status(StatusCode::UNAUTHORIZED);
 }
 
 #[tokio::test]
@@ -49,18 +41,12 @@ async fn test_invalid_bearer_format_returns_401() {
 
     // Test with "Basic" auth type instead of "Bearer"
     let resp = server
-        .client
-        .get(format!("{}/boards", server.url()))
-        .header("Authorization", "Basic dXNlcjpwYXNz")
-        .send()
-        .await
-        .expect("Request failed");
+        .server
+        .get("/boards")
+        .add_header(AUTHORIZATION, "Basic dXNlcjpwYXNz")
+        .await;
 
-    assert_eq!(
-        resp.status(),
-        StatusCode::UNAUTHORIZED,
-        "Non-Bearer auth should return 401"
-    );
+    resp.assert_status(StatusCode::UNAUTHORIZED);
 }
 
 #[tokio::test]
@@ -70,18 +56,12 @@ async fn test_empty_bearer_token_returns_401() {
 
     // Test with empty token after "Bearer "
     let resp = server
-        .client
-        .get(format!("{}/boards", server.url()))
-        .header("Authorization", "Bearer ")
-        .send()
-        .await
-        .expect("Request failed");
+        .server
+        .get("/boards")
+        .add_header(AUTHORIZATION, "Bearer ")
+        .await;
 
-    assert_eq!(
-        resp.status(),
-        StatusCode::UNAUTHORIZED,
-        "Empty Bearer token should return 401"
-    );
+    resp.assert_status(StatusCode::UNAUTHORIZED);
 }
 
 #[tokio::test]
@@ -91,18 +71,12 @@ async fn test_malformed_token_returns_401() {
 
     // Test with a clearly malformed token
     let resp = server
-        .client
-        .get(format!("{}/boards", server.url()))
-        .bearer_auth("not-a-valid-jwt")
-        .send()
-        .await
-        .expect("Request failed");
+        .server
+        .get("/boards")
+        .add_header(AUTHORIZATION, "Bearer not-a-valid-jwt")
+        .await;
 
-    assert_eq!(
-        resp.status(),
-        StatusCode::UNAUTHORIZED,
-        "Malformed token should return 401"
-    );
+    resp.assert_status(StatusCode::UNAUTHORIZED);
 }
 
 // ============================================================================
@@ -117,18 +91,12 @@ async fn test_invalid_signature_returns_401() {
     // Token signed with a different key (not in JWKS cache)
     let invalid_token = server.create_invalid_signature_token(&["trustee-ceremony"]);
     let resp = server
-        .client
-        .get(format!("{}/boards", server.url()))
-        .bearer_auth(&invalid_token)
-        .send()
-        .await
-        .expect("Request failed");
+        .server
+        .get("/boards")
+        .add_header(AUTHORIZATION, format!("Bearer {invalid_token}"))
+        .await;
 
-    assert_eq!(
-        resp.status(),
-        StatusCode::UNAUTHORIZED,
-        "Token with invalid signature should return 401"
-    );
+    resp.assert_status(StatusCode::UNAUTHORIZED);
 }
 
 #[tokio::test]
@@ -139,18 +107,12 @@ async fn test_expired_token_returns_401() {
     // Create an expired token
     let expired_token = server.create_expired_token(&["trustee-ceremony"]);
     let resp = server
-        .client
-        .get(format!("{}/boards", server.url()))
-        .bearer_auth(&expired_token)
-        .send()
-        .await
-        .expect("Request failed");
+        .server
+        .get("/boards")
+        .add_header(AUTHORIZATION, format!("Bearer {expired_token}"))
+        .await;
 
-    assert_eq!(
-        resp.status(),
-        StatusCode::UNAUTHORIZED,
-        "Expired token should return 401"
-    );
+    resp.assert_status(StatusCode::UNAUTHORIZED);
 }
 
 // ============================================================================
@@ -165,18 +127,12 @@ async fn test_valid_token_missing_permission_returns_403() {
     // Token with different permission (not trustee-ceremony)
     let token = server.create_token(&["user", "admin"]);
     let resp = server
-        .client
-        .get(format!("{}/boards", server.url()))
-        .bearer_auth(&token)
-        .send()
-        .await
-        .expect("Request failed");
+        .server
+        .get("/boards")
+        .add_header(AUTHORIZATION, format!("Bearer {token}"))
+        .await;
 
-    assert_eq!(
-        resp.status(),
-        StatusCode::FORBIDDEN,
-        "Valid token without required permission should return 403"
-    );
+    resp.assert_status(StatusCode::FORBIDDEN);
 }
 
 #[tokio::test]
@@ -187,18 +143,12 @@ async fn test_valid_token_with_permission_returns_200() {
     // Token with correct permission
     let token = server.create_trustee_token();
     let resp = server
-        .client
-        .get(format!("{}/boards", server.url()))
-        .bearer_auth(&token)
-        .send()
-        .await
-        .expect("Request failed");
+        .server
+        .get("/boards")
+        .add_header(AUTHORIZATION, format!("Bearer {token}"))
+        .await;
 
-    assert_eq!(
-        resp.status(),
-        StatusCode::OK,
-        "Valid token with trustee-ceremony permission should return 200"
-    );
+    resp.assert_status_ok();
 }
 
 #[tokio::test]
@@ -209,18 +159,12 @@ async fn test_valid_token_with_multiple_permissions() {
     // Token with multiple permissions including the required one
     let token = server.create_token(&["user", "trustee-ceremony", "admin"]);
     let resp = server
-        .client
-        .get(format!("{}/boards", server.url()))
-        .bearer_auth(&token)
-        .send()
-        .await
-        .expect("Request failed");
+        .server
+        .get("/boards")
+        .add_header(AUTHORIZATION, format!("Bearer {token}"))
+        .await;
 
-    assert_eq!(
-        resp.status(),
-        StatusCode::OK,
-        "Token with trustee-ceremony among other permissions should succeed"
-    );
+    resp.assert_status_ok();
 }
 
 // ============================================================================
@@ -242,18 +186,12 @@ async fn test_browser_trustee_flow() {
 
     // Typical browser trustee operations
     let resp = server
-        .client
-        .get(format!("{}/boards", server.url()))
-        .bearer_auth(&browser_token)
-        .send()
-        .await
-        .expect("Request failed");
+        .server
+        .get("/boards")
+        .add_header(AUTHORIZATION, format!("Bearer {browser_token}"))
+        .await;
 
-    assert_eq!(
-        resp.status(),
-        StatusCode::OK,
-        "Browser trustee with valid token should succeed"
-    );
+    resp.assert_status_ok();
 }
 
 /// Tests that browser trustee requests fail gracefully when token expires.
@@ -266,18 +204,12 @@ async fn test_browser_trustee_expired_token() {
     let expired_token = server.create_expired_token(&["trustee-ceremony"]);
 
     let resp = server
-        .client
-        .get(format!("{}/boards", server.url()))
-        .bearer_auth(&expired_token)
-        .send()
-        .await
-        .expect("Request failed");
+        .server
+        .get("/boards")
+        .add_header(AUTHORIZATION, format!("Bearer {expired_token}"))
+        .await;
 
-    assert_eq!(
-        resp.status(),
-        StatusCode::UNAUTHORIZED,
-        "Browser trustee with expired token should get 401"
-    );
+    resp.assert_status(StatusCode::UNAUTHORIZED);
 }
 
 // ============================================================================
@@ -298,18 +230,12 @@ async fn test_native_trustee_flow() {
 
     // Native trustees make the same HTTP requests as browser trustees
     let resp = server
-        .client
-        .get(format!("{}/boards", server.url()))
-        .bearer_auth(&native_token)
-        .send()
-        .await
-        .expect("Request failed");
+        .server
+        .get("/boards")
+        .add_header(AUTHORIZATION, format!("Bearer {native_token}"))
+        .await;
 
-    assert_eq!(
-        resp.status(),
-        StatusCode::OK,
-        "Native trustee with valid token should succeed"
-    );
+    resp.assert_status_ok();
 }
 
 // ============================================================================
@@ -324,18 +250,12 @@ async fn test_token_with_empty_permissions() {
     // Token with no permissions at all
     let token = server.create_token(&[]);
     let resp = server
-        .client
-        .get(format!("{}/boards", server.url()))
-        .bearer_auth(&token)
-        .send()
-        .await
-        .expect("Request failed");
+        .server
+        .get("/boards")
+        .add_header(AUTHORIZATION, format!("Bearer {token}"))
+        .await;
 
-    assert_eq!(
-        resp.status(),
-        StatusCode::FORBIDDEN,
-        "Token with no permissions should return 403"
-    );
+    resp.assert_status(StatusCode::FORBIDDEN);
 }
 
 #[tokio::test]
@@ -346,18 +266,12 @@ async fn test_case_sensitive_permission() {
     // Permission with wrong case
     let token = server.create_token(&["TRUSTEE-CEREMONY"]);
     let resp = server
-        .client
-        .get(format!("{}/boards", server.url()))
-        .bearer_auth(&token)
-        .send()
-        .await
-        .expect("Request failed");
+        .server
+        .get("/boards")
+        .add_header(AUTHORIZATION, format!("Bearer {token}"))
+        .await;
 
-    assert_eq!(
-        resp.status(),
-        StatusCode::FORBIDDEN,
-        "Permissions should be case-sensitive"
-    );
+    resp.assert_status(StatusCode::FORBIDDEN);
 }
 
 #[tokio::test]
@@ -368,17 +282,16 @@ async fn test_extra_whitespace_in_auth_header() {
     let token = server.create_trustee_token();
     // Extra whitespace after "Bearer"
     let resp = server
-        .client
-        .get(format!("{}/boards", server.url()))
-        .header("Authorization", format!("Bearer  {token}"))
-        .send()
-        .await
-        .expect("Request failed");
+        .server
+        .get("/boards")
+        .add_header(AUTHORIZATION, format!("Bearer  {token}"))
+        .await;
 
     // The behavior depends on implementation - this tests the actual behavior
     // Most implementations reject extra whitespace
+    let status = resp.status_code();
     assert!(
-        resp.status() == StatusCode::UNAUTHORIZED || resp.status() == StatusCode::OK,
+        status == StatusCode::UNAUTHORIZED || status == StatusCode::OK,
         "Extra whitespace handling should be consistent"
     );
 }
