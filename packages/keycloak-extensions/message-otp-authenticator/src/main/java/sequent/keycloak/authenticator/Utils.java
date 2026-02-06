@@ -13,6 +13,7 @@ import jakarta.ws.rs.core.UriBuilder;
 import jakarta.ws.rs.core.UriInfo;
 import java.io.IOException;
 import java.net.URI;
+import java.text.Bidi;
 import java.text.MessageFormat;
 import java.util.Arrays;
 import java.util.Collections;
@@ -130,11 +131,12 @@ public class Utils {
 
     // Method to convert a string value to a NotificationType
     public static MessageCourier fromString(String type) {
-      if (type != null) {
-        for (MessageCourier messageCourier : MessageCourier.values()) {
-          if (type.equalsIgnoreCase(messageCourier.name())) {
-            return messageCourier;
-          }
+      if (type == null || type.isEmpty()) {
+        return BOTH;
+      }
+      for (MessageCourier messageCourier : MessageCourier.values()) {
+        if (type.equalsIgnoreCase(messageCourier.name())) {
+          return messageCourier;
         }
       }
       throw new IllegalArgumentException("No constant with text " + type + " found");
@@ -251,6 +253,7 @@ public class Utils {
       Object context)
       throws IOException, EmailException {
     log.info("sendCode(): start");
+    Map<String, String> configMap = MessageOTPAuthenticatorFactory.getConfigMap(config);
     String mobileNumber = Utils.getMobileNumber(config, user, authSession, deferredUser);
     String emailAddress = Utils.getEmailAddress(user, authSession, deferredUser);
     String code = null;
@@ -258,8 +261,8 @@ public class Utils {
     log.infov("sendCode(): mobileNumber=`{0}`", mobileNumber);
     log.infov("sendCode(): emailAddress=`{0}`", emailAddress);
 
-    int length = Integer.parseInt(config.getConfig().get(Utils.CODE_LENGTH));
-    int ttl = Integer.parseInt(config.getConfig().get(Utils.CODE_TTL));
+    int length = Integer.parseInt(configMap.get(Utils.CODE_LENGTH));
+    int ttl = Integer.parseInt(configMap.get(Utils.CODE_TTL));
     authSession.setAuthNote(
         Utils.CODE_TTL, Long.toString(System.currentTimeMillis() + (ttl * 1000L)));
 
@@ -520,6 +523,13 @@ public class Utils {
         }
       }
       attributes.put("locale", locale);
+
+      // Determine text direction based on locale using java.text.Bidi
+      // This follows the same approach as Keycloak's LocaleBean.isLeftToRight()
+      String localizedName = locale.getDisplayName(locale);
+      Bidi bidi = new Bidi(localizedName, Bidi.DIRECTION_DEFAULT_LEFT_TO_RIGHT);
+      boolean isLtr = bidi.isLeftToRight();
+      attributes.put("ltr", isLtr);
 
       Properties messages = theme.getEnhancedMessages(realm, locale);
       attributes.put("msg", new MessageFormatterMethod(locale, messages));
