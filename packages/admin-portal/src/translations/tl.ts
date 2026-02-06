@@ -1366,6 +1366,9 @@ const tagalogTranslation: TranslationType = {
             paginationPolicy: {
                 label: "Pangalan ng Pahina",
             },
+            allowWriteins: {
+                label: "Payagan ang Mga Manu-manong Kandidato",
+            },
             error: {},
             createContestSuccess: "Paligsahan ay nalikha",
             createContestError: "Error sa paglikha ng paligsahan",
