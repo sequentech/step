@@ -243,6 +243,7 @@ export const Answer: React.FC<IAnswerProps> = ({
         <Candidate
             isPreferentialVote={isPreferentialVote}
             totalCandidates={totalCandidates}
+            maxVotes={contest.max_votes}
             title={translate(answer, "name", i18n.language)}
             description={stringToHtml(translate(answer, "description", i18n.language) || "")}
             isSelectable={isSelectable}

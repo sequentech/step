@@ -118,6 +118,7 @@ export interface CandidateProps extends PropsWithChildren {
     className?: string
     isPreferentialVote?: boolean
     totalCandidates?: number
+    maxVotes?: number
     selectedPosition?: number | null
     handlePreferentialChange?: (value: number | null) => void
 }
@@ -142,6 +143,7 @@ const Candidate: React.FC<CandidateProps> = ({
     className,
     isPreferentialVote = false,
     totalCandidates = 0,
+    maxVotes,
     selectedPosition,
     handlePreferentialChange,
 }) => {
@@ -182,7 +184,12 @@ const Candidate: React.FC<CandidateProps> = ({
         return `${num}${t("candidate.preferential.ordinals.other")}`
     }
 
-    const scrollablePreferentialVote = totalCandidates > 4
+    const maxSelectablePositions =
+        typeof maxVotes === "number" && maxVotes > 0
+            ? Math.min(maxVotes, totalCandidates)
+            : totalCandidates
+
+    const scrollablePreferentialVote = maxSelectablePositions > 4
 
     return (
         <BorderBox
@@ -276,7 +283,7 @@ const Candidate: React.FC<CandidateProps> = ({
                     <MenuItem value={0}>
                         <em>{t("candidate.preferential.none")}</em>
                     </MenuItem>
-                    {Array.from({length: totalCandidates}, (_, i) => i + 1).map((num) => (
+                    {Array.from({length: maxSelectablePositions}, (_, i) => i + 1).map((num) => (
                         <MenuItem key={num} value={num}>
                             {getOrdinalSuffix(num)}
                         </MenuItem>
