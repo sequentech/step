@@ -10,6 +10,7 @@ use braid::native::session::session_master::SessionMaster;
 use braid::protocol::trustee::TrusteeConfig;
 use braid::util::{ensure_directory, get_access_token};
 use clap::Parser;
+use sequent_core::util::init_log::init_log;
 use std::collections::HashSet;
 use std::fs;
 use std::io::Write;
@@ -103,7 +104,7 @@ fn main() -> Result<()> {
 ///
 #[instrument(skip_all)]
 async fn run(args: &Cli) -> Result<()> {
-    braid::native::logging::init_log(true);
+    init_log(true);
 
     let default_panic = std::panic::take_hook();
     std::panic::set_hook(Box::new(move |info| {

@@ -17,8 +17,6 @@ pub mod verify;
 
 // Native-only modules
 #[cfg(feature = "native")]
-pub mod logging;
-#[cfg(feature = "native")]
 pub mod session;
 #[cfg(feature = "native")]
 pub mod test;

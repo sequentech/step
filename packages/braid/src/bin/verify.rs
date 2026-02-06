@@ -9,10 +9,10 @@ use braid::native::verify::verifier::Verifier;
 use braid::protocol::trustee::Trustee;
 use braid::util::get_access_token;
 use clap::Parser;
-use tracing::{info, instrument};
-
+use sequent_core::util::init_log::init_log;
 use strand::backend::ristretto::RistrettoCtx;
 use strand::signature::StrandSignatureSk;
+use tracing::{info, instrument};
 
 /// Verifies election data on a bulletin board
 #[derive(Parser)]
@@ -39,7 +39,7 @@ struct Cli {
 #[tokio::main]
 #[instrument]
 async fn main() -> Result<()> {
-    braid::native::logging::init_log(true);
+    init_log(true);
 
     // generate dummy values, these are not important
     let dummy_sk = StrandSignatureSk::generate().unwrap();

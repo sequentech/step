@@ -14,7 +14,7 @@ use anyhow::{anyhow, Result};
 use reqwest_middleware::ClientBuilder;
 use reqwest_retry::{policies::ExponentialBackoff, RetryTransientMiddleware};
 use std::env;
-use tracing::{event, info, instrument, Level};
+use tracing::{event, info, instrument, trace, Level};
 
 /// Configuration for Resource Owner Password Credentials flow.
 #[derive(Debug)]
@@ -153,6 +153,8 @@ impl KeycloakUserClient {
             "Successfully acquired user credentials for {}",
             login_config.username
         );
+
+        trace!("Token response: {token_resp:?}");
 
         cache
             .write_token(token_resp.clone(), login_config.url.clone())

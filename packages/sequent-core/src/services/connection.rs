@@ -253,7 +253,8 @@ impl LastDatafixAccessToken {
 
 /// Reads the access token if it has been requested successfully before and it
 /// is not expired.
-/// Note: `expires_in` is an absolute Unix timestamp (like JWT `exp` claim).
+/// Note: `expires_in` is stored as an absolute Unix timestamp
+/// (converted from relative seconds by `write_access_token`).
 #[instrument(level = "trace", skip(lst_acc_tkn))]
 fn read_access_token(
     client_id: &str,
@@ -288,15 +289,26 @@ fn read_access_token(
     None
 }
 
-/// Writes a new access token to the cache
+/// Writes a new access token to the cache.
+///
+/// Converts `expires_in` from a relative duration (seconds until
+/// expiration, as returned by Keycloak) to an absolute Unix timestamp
+/// so that `read_access_token` can compare it directly against the
+/// current time.
 #[instrument(level = "trace", err, skip(lst_acc_tkn))]
 fn write_access_token(
-    token_resp: PubKeycloakAdminToken,
+    mut token_resp: PubKeycloakAdminToken,
     client_id: String,
     client_secret: String,
     tenant_id: String,
     lst_acc_tkn: &LastDatafixAccessToken,
 ) -> AnyhowResult<()> {
+    let now = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.as_secs() as usize)
+        .unwrap_or(0);
+    token_resp.expires_in = now + token_resp.expires_in;
+
     let mut write = match lst_acc_tkn.token.write() {
         Ok(write) => write,
         Err(err) => {

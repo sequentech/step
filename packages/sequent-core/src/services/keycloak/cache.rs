@@ -61,7 +61,8 @@ impl TokenCache {
     /// it is not expired.
     ///
     /// Returns the token response and URL if valid, None otherwise.
-    /// Note: `expires_in` is an absolute Unix timestamp (like JWT `exp` claim).
+    /// Note: `expires_in` is stored as an absolute Unix timestamp
+    /// (converted from relative seconds by `write_token`).
     #[instrument(level = "trace", skip_all)]
     pub fn read_token(&self) -> Option<(TokenResponse, String)> {
         let token_resp_ext_opt = match self.token.read() {
@@ -87,12 +88,23 @@ impl TokenCache {
     }
 
     /// Writes the token to the cache.
+    ///
+    /// Converts `expires_in` from a relative duration (seconds until
+    /// expiration, as returned by Keycloak) to an absolute Unix timestamp
+    /// so that `read_token` can compare it directly against the current
+    /// time.
     #[instrument(level = "trace", skip_all)]
     pub fn write_token(
         &self,
-        token_resp: TokenResponse,
+        mut token_resp: TokenResponse,
         url: String,
     ) -> Result<(), String> {
+        let now = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .map(|d| d.as_secs() as usize)
+            .unwrap_or(0);
+        token_resp.expires_in = now + token_resp.expires_in;
+
         let mut write = self
             .token
             .write()
@@ -132,16 +144,9 @@ pub fn get_user_token_cache() -> &'static TokenCache {
 mod tests {
     use super::*;
 
-    /// Helper to get current Unix timestamp
-    fn now_unix() -> usize {
-        SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .map(|d| d.as_secs() as usize)
-            .unwrap_or(0)
-    }
-
-    /// Creates a test token with the given absolute expiration timestamp.
-    /// `expires_in` is an absolute Unix timestamp (like JWT `exp` claim).
+    /// Creates a test token with the given relative expiration (seconds from
+    /// now), matching the format Keycloak returns. `write_token` will convert
+    /// this to an absolute timestamp internally.
     fn create_test_token(expires_in: usize) -> TokenResponse {
         TokenResponse {
             access_token: "test-access-token".to_string(),
@@ -165,8 +170,8 @@ mod tests {
     #[test]
     fn test_token_cache_write_then_read() {
         let cache = TokenCache::new();
-        // Token expires 1 hour from now (absolute timestamp)
-        let token = create_test_token(now_unix() + 3600);
+        // Token valid for 1 hour (relative seconds, like Keycloak returns)
+        let token = create_test_token(3600);
         let url = "http://test-keycloak/token".to_string();
 
         cache
@@ -182,24 +187,11 @@ mod tests {
     }
 
     #[test]
-    fn test_token_cache_expiration() {
-        let cache = TokenCache::new();
-        // Token already expired 10 seconds ago (absolute timestamp in the past)
-        let token = create_test_token(now_unix() - 10);
-        let url = "http://test-keycloak/token".to_string();
-
-        cache.write_token(token, url).expect("Write should succeed");
-
-        let result = cache.read_token();
-        assert!(result.is_none(), "Expired token should return None");
-    }
-
-    #[test]
     fn test_token_cache_pre_expiration() {
         let cache = TokenCache::new();
         // Token expires in 3 seconds (less than PRE_EXPIRATION_SECS=5)
         // So it should be considered expired due to pre-expiration buffer
-        let token = create_test_token(now_unix() + 3);
+        let token = create_test_token(3);
         let url = "http://test-keycloak/token".to_string();
 
         cache.write_token(token, url).expect("Write should succeed");
@@ -215,7 +207,7 @@ mod tests {
     fn test_token_cache_pre_expiration_still_valid() {
         let cache = TokenCache::new();
         // Token expires in 20 seconds (well beyond PRE_EXPIRATION_SECS=5)
-        let token = create_test_token(now_unix() + 20);
+        let token = create_test_token(20);
         let url = "http://test-keycloak/token".to_string();
 
         cache.write_token(token, url).expect("Write should succeed");
@@ -230,7 +222,7 @@ mod tests {
     #[test]
     fn test_token_cache_url_preserved() {
         let cache = TokenCache::new();
-        let token = create_test_token(now_unix() + 3600);
+        let token = create_test_token(3600);
         let url = "http://custom-keycloak-url:8080/realms/test/protocol/openid-connect/token".to_string();
 
         cache
@@ -249,14 +241,14 @@ mod tests {
         let cache = TokenCache::new();
 
         // Write first token
-        let token1 = create_test_token(now_unix() + 3600);
+        let token1 = create_test_token(3600);
         let url1 = "http://keycloak1/token".to_string();
         cache
             .write_token(token1, url1)
             .expect("Write should succeed");
 
         // Write second token (overwrite)
-        let mut token2 = create_test_token(now_unix() + 7200);
+        let mut token2 = create_test_token(7200);
         token2.access_token = "new-access-token".to_string();
         let url2 = "http://keycloak2/token".to_string();
         cache
@@ -277,7 +269,7 @@ mod tests {
     #[test]
     fn test_token_cache_zero_expires_in() {
         let cache = TokenCache::new();
-        // Token with 0 expires_in (epoch time) should be invalid
+        // Token with 0 expires_in means it expires immediately
         let token = create_test_token(0);
         let url = "http://test-keycloak/token".to_string();
 

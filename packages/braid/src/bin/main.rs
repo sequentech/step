@@ -16,6 +16,7 @@ use tracing::{error, info};
 use braid::native::session::Session;
 use braid::protocol::trustee::Trustee;
 use braid::protocol::trustee::TrusteeConfig;
+use sequent_core::util::init_log::init_log;
 use strand::backend::ristretto::RistrettoCtx;
 use strand::signature::StrandSignatureSk;
 use strand::symm;
@@ -65,7 +66,7 @@ command line option is set to true.
 #[tokio::main]
 #[instrument]
 async fn main() -> Result<()> {
-    braid::native::logging::init_log(true);
+    init_log(true);
 
     cfg_if::cfg_if! {
         if #[cfg(feature = "jemalloc")] {
