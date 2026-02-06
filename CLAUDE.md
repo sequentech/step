@@ -1,5 +1,12 @@
 # Claude Code Project Guidelines
 
+## Licensing
+
+This project is licensed under the **GNU Affero General Public License v3.0 (AGPL-3.0)**. See the [LICENSE](LICENSE) file for full details.
+
+- All new source files must include the AGPL-3.0 license header
+- Contributions must be compatible with the AGPL-3.0 license
+
 ## General Rules
 
 - Use `nix develop --command` prefix for all shell commands (e.g., `nix develop --command cargo build`, `nix develop --command cargo test`)

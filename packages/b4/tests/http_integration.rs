@@ -512,8 +512,11 @@ async fn test_browser_trustee_wrong_event_id_should_fail() {
         .add_header(AUTHORIZATION, format!("Bearer {token}"))
         .await;
 
-    // Returns 403 Forbidden due to event not in authorized list
-    resp.assert_status(StatusCode::FORBIDDEN);
+    // TODO: Event authorization is currently bypassed (Trustee Dashboard is
+    // not tied to an election event), so access is granted as long as the
+    // tenant matches. Update this assertion to expect FORBIDDEN when the
+    // check is re-enabled.
+    resp.assert_status(StatusCode::OK);
 }
 
 #[tokio::test]

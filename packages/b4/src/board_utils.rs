@@ -318,8 +318,11 @@ mod tests {
         ];
         let result = verify_board_access(board_name, TEST_TENANT_ID, &authorized_events);
 
-        assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("not authorized"));
+        // TODO: Event authorization is currently bypassed (Trustee Dashboard
+        // is not tied to an election event), so access is always granted when
+        // the tenant matches. Update this assertion when the check is
+        // re-enabled.
+        assert!(result.is_ok());
     }
 
     #[test]
@@ -339,7 +342,10 @@ mod tests {
         let authorized_events: Vec<String> = vec![];
         let result = verify_board_access(board_name, TEST_TENANT_ID, &authorized_events);
 
-        assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("not authorized"));
+        // TODO: Event authorization is currently bypassed (Trustee Dashboard
+        // is not tied to an election event), so access is always granted when
+        // the tenant matches. Update this assertion when the check is
+        // re-enabled.
+        assert!(result.is_ok());
     }
 }
