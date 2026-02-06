@@ -79,8 +79,11 @@ impl SessionMaster {
     }
 
     /// Updates the access token for B4 authentication.
-    /// New tokens will be used when SessionSets are rebuilt.
-    pub fn set_access_token(&mut self, access_token: String) {
+    ///
+    /// Because `HttpB3BoardParams` shares the token via `Arc<RwLock<>>`,
+    /// this update is immediately visible to all running `SessionSet`
+    /// tasks (they hold clones of the same `board_params`).
+    pub fn set_access_token(&self, access_token: String) {
         self.board_params.set_access_token(access_token);
     }
 

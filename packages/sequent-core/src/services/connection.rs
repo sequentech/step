@@ -93,7 +93,20 @@ impl<'r> FromRequest<'r> for JwtClaims {
 
                         // Decode and validate JWT claims
                         match decode_jwt(token) {
-                            Ok(jwt) => Outcome::Success(jwt),
+                            Ok(jwt) => {
+                                let now = chrono::Utc::now().timestamp();
+                                if jwt.exp < now {
+                                    warn!(
+                                        "JwtClaims guard: JWT token has expired (exp: {}, now: {now})",
+                                        jwt.exp
+                                    );
+                                    return Outcome::Error((
+                                        Status::Unauthorized,
+                                        (),
+                                    ));
+                                }
+                                Outcome::Success(jwt)
+                            }
                             Err(err) => {
                                 warn!(
                                     "JwtClaims guard: decode_jwt error {err:?}"

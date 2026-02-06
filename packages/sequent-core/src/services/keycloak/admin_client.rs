@@ -15,7 +15,7 @@ use serde::{Deserialize, Serialize};
 use serde_json;
 use std::convert::TryFrom;
 use std::env;
-use tracing::{event, info, instrument, Level};
+use tracing::{event, info, instrument, warn, Level};
 
 /// Public Keycloak admin token with all fields exposed.
 ///
@@ -183,6 +183,54 @@ pub async fn get_credentials_inner(
     res.text().await.map_err(|e| anyhow!(e))
 }
 
+/// Refreshes an admin token using the refresh_token grant type.
+///
+/// This forces Keycloak to issue a brand new token pair, unlike the
+/// client_credentials grant which may return the same near-expired token
+/// from an active session.
+#[instrument(level = "trace", err, skip(refresh_token))]
+async fn refresh_admin_token_inner(
+    login_config: &KeycloakLoginConfig,
+    refresh_token: &str,
+) -> Result<String> {
+    let body_string = serde_urlencoded::to_string::<[(String, String); 4]>([
+        ("grant_type".into(), "refresh_token".into()),
+        ("client_id".into(), login_config.client_id.clone()),
+        ("client_secret".into(), login_config.client_secret.clone()),
+        ("refresh_token".into(), refresh_token.to_string()),
+    ])
+    .unwrap();
+
+    let keycloak_endpoint = format!(
+        "{}/realms/{}/protocol/openid-connect/token",
+        login_config.url, login_config.realm
+    );
+
+    let retry_policy = ExponentialBackoff::builder().build_with_max_retries(3);
+    let client = ClientBuilder::new(reqwest::Client::new())
+        .with(RetryTransientMiddleware::new_with_policy(retry_policy))
+        .build();
+
+    event!(Level::INFO, "Refreshing admin token at {keycloak_endpoint}");
+
+    let res = client
+        .post(&keycloak_endpoint)
+        .header("Content-Type", "application/x-www-form-urlencoded")
+        .body(body_string)
+        .send()
+        .await?;
+
+    if !res.status().is_success() {
+        let status = res.status();
+        let error_text = res.text().await.unwrap_or_default();
+        return Err(anyhow!(
+            "Failed to refresh admin token: HTTP {status}, {error_text}"
+        ));
+    }
+
+    res.text().await.map_err(|e| anyhow!(e))
+}
+
 // Client Credentials OpenID Authentication flow.
 // This enables servers to authenticate, without using a browser.
 #[instrument(level = "trace", err)]
@@ -275,8 +323,54 @@ impl KeycloakAdminClient {
             return Self::new_with(pub_token.try_into()?, &url).await;
         }
 
-        // Still a cache miss, fetch from Keycloak
         let login_config = get_keycloak_login_admin_config();
+
+        // Try to refresh using the cached refresh token first, since
+        // client_credentials grant may return the same near-expired token
+        // from Keycloak's active session.
+        if let Some(cached) = cache.read_token_for_refresh() {
+            if let Some(ref refresh_token) = cached.refresh_token {
+                match refresh_admin_token_inner(&login_config, refresh_token)
+                    .await
+                {
+                    Ok(text) => {
+                        let token_resp: TokenResponse =
+                            deserialize_str(&text).map_err(|err| {
+                                anyhow!("Error deserializing refreshed admin token: {err:?}, response: {text:?}")
+                            })?;
+                        info!("Successfully refreshed admin credentials");
+                        let pub_token: PubKeycloakAdminToken =
+                            token_resp.clone().into();
+                        cache
+                            .write_token(
+                                token_resp,
+                                login_config.url.clone(),
+                            )
+                            .map_err(|err| {
+                                anyhow!("KeycloakAdminClient: write_token error {err:?}")
+                            })?;
+                        let admin_token: KeycloakAdminToken =
+                            pub_token.try_into()?;
+                        let client = reqwest::Client::new();
+                        let keycloak_admin = KeycloakAdmin::new(
+                            &login_config.url,
+                            admin_token,
+                            client,
+                        );
+                        return Ok(KeycloakAdminClient {
+                            client: keycloak_admin,
+                        });
+                    }
+                    Err(err) => {
+                        warn!(
+                            "Admin refresh token failed, falling back to acquire: {err}"
+                        );
+                    }
+                }
+            }
+        }
+
+        // Fall back to full client_credentials authentication
         let client = reqwest::Client::new();
         let admin_token = KeycloakAdminToken::acquire(
             &login_config.url,

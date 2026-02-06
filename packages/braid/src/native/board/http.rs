@@ -5,6 +5,7 @@
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
+use std::sync::{Arc, RwLock};
 use tracing::info;
 
 use b4::messages::message::Message;
@@ -81,7 +82,7 @@ pub struct HttpB3 {
     base_url: String,
     s3_client: aws_sdk_s3::Client,
     bucket_name: String,
-    access_token: String,
+    access_token: Arc<RwLock<String>>,
 }
 
 impl HttpB3 {
@@ -96,13 +97,18 @@ impl HttpB3 {
             base_url: base_url.to_string(),
             s3_client,
             bucket_name: bucket_name.to_string(),
-            access_token,
+            access_token: Arc::new(RwLock::new(access_token)),
         }
     }
 
     /// Adds the Authorization header for B4 authentication
     fn add_auth_header(&self, request: reqwest::RequestBuilder) -> reqwest::RequestBuilder {
-        request.header("Authorization", format!("Bearer {}", self.access_token))
+        let access_token = self
+            .access_token
+            .read()
+            .expect("access_token lock poisoned")
+            .clone();
+        request.header("Authorization", format!("Bearer {}", access_token))
     }
 
     /// Helper to post a single message to a specific board
@@ -293,13 +299,17 @@ impl Board for HttpB3 {
     }
 }
 
-/// Factory for creating HttpB3 board clients
+/// Factory for creating HttpB3 board clients.
+///
+/// The access token is wrapped in `Arc<RwLock<>>` so that all clones
+/// (including those held by `SessionSet` tasks) share the same token
+/// and see updates from the master loop.
 #[derive(Clone)]
 pub struct HttpB3BoardParams {
     base_url: String,
     s3_client: aws_sdk_s3::Client,
     bucket_name: String,
-    access_token: String,
+    access_token: Arc<RwLock<String>>,
 }
 
 impl HttpB3BoardParams {
@@ -330,13 +340,24 @@ impl HttpB3BoardParams {
             base_url: base_url.to_string(),
             s3_client,
             bucket_name,
-            access_token,
+            access_token: Arc::new(RwLock::new(access_token)),
         }
     }
 
-    /// Updates the access token for authentication
-    pub fn set_access_token(&mut self, access_token: String) {
-        self.access_token = access_token;
+    /// Updates the access token for authentication.
+    ///
+    /// Because the token is behind `Arc<RwLock<>>`, all clones (including
+    /// those held by running `SessionSet` tasks) will see the new value.
+    pub fn set_access_token(&self, access_token: String) {
+        *self
+            .access_token
+            .write()
+            .expect("access_token lock poisoned") = access_token;
+    }
+
+    /// Reads the current access token.
+    fn clone_access_token(&self) -> Arc<RwLock<String>> {
+        self.access_token.clone()
     }
 
     /// Create a board client for a specific board (helper for testing)
@@ -346,7 +367,7 @@ impl HttpB3BoardParams {
             base_url: self.base_url.clone(),
             s3_client: self.s3_client.clone(),
             bucket_name: self.bucket_name.clone(),
-            access_token: self.access_token.clone(),
+            access_token: self.clone_access_token(),
         }
     }
 }
@@ -359,7 +380,7 @@ impl BoardFactory<HttpB3> for HttpB3BoardParams {
             base_url: self.base_url.clone(),
             s3_client: self.s3_client.clone(),
             bucket_name: self.bucket_name.clone(),
-            access_token: self.access_token.clone(),
+            access_token: self.clone_access_token(),
         }
     }
 }
@@ -371,7 +392,7 @@ impl BoardFactoryMulti<HttpB3> for HttpB3BoardParams {
             base_url: self.base_url.clone(),
             s3_client: self.s3_client.clone(),
             bucket_name: self.bucket_name.clone(),
-            access_token: self.access_token.clone(),
+            access_token: self.clone_access_token(),
         }
     }
 }

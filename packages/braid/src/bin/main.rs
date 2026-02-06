@@ -100,6 +100,10 @@ async fn main() -> Result<()> {
     let store_root = std::env::current_dir().unwrap().join("message_store");
     ensure_directory(store_root.clone())?;
 
+    // Fetch initial access token for B4 authentication
+    let initial_access_token = get_access_token(&trustee_name, &trustee_password).await?;
+    let board_params = HttpB3BoardParams::new(&args.b3_url, initial_access_token).await;
+
     let mut session_map: HashMap<
         String,
         Session<RistrettoCtx, HttpB3, braid::native::board::SqliteStorage>,
@@ -117,6 +121,8 @@ async fn main() -> Result<()> {
                 continue;
             }
         };
+        // Update the shared token so all existing sessions see the refresh
+        board_params.set_access_token(access_token.clone());
 
         let b3index = HttpB3Index::new(&args.b3_url, access_token.clone());
 
@@ -160,9 +166,7 @@ async fn main() -> Result<()> {
                 storage,
                 None,
             );
-            let board = HttpB3BoardParams::new(&args.b3_url, access_token.clone()).await;
-
-            let session = Session::new(&board_name, trustee, board);
+            let session = Session::new(&board_name, trustee, board_params.clone());
             session_map.insert(board_name.clone(), session);
         }
 

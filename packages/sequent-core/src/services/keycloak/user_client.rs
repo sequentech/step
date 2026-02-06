@@ -14,7 +14,7 @@ use anyhow::{anyhow, Result};
 use reqwest_middleware::ClientBuilder;
 use reqwest_retry::{policies::ExponentialBackoff, RetryTransientMiddleware};
 use std::env;
-use tracing::{event, info, instrument, trace, Level};
+use tracing::{event, info, instrument, trace, warn, Level};
 
 /// Configuration for Resource Owner Password Credentials flow.
 #[derive(Debug)]
@@ -106,6 +106,57 @@ async fn get_user_credentials_inner(
     res.text().await.map_err(|e| anyhow!(e))
 }
 
+/// Refreshes a token using the refresh_token grant type (async version).
+///
+/// This forces Keycloak to issue a brand new token pair, unlike the password
+/// grant which may return the same token from an active session.
+#[instrument(level = "trace", err, skip(login_config, refresh_token))]
+async fn refresh_user_token_inner(
+    login_config: &KeycloakUserLoginConfig,
+    refresh_token: &str,
+) -> Result<String> {
+    let body_string = serde_urlencoded::to_string::<[(String, String); 4]>([
+        ("grant_type".into(), "refresh_token".into()),
+        ("client_id".into(), login_config.client_id.clone()),
+        ("client_secret".into(), login_config.client_secret.clone()),
+        ("refresh_token".into(), refresh_token.to_string()),
+    ])
+    .unwrap();
+
+    let keycloak_endpoint = format!(
+        "{}/realms/{}/protocol/openid-connect/token",
+        login_config.url, login_config.realm
+    );
+
+    let retry_policy = ExponentialBackoff::builder().build_with_max_retries(3);
+    let client = ClientBuilder::new(reqwest::Client::new())
+        .with(RetryTransientMiddleware::new_with_policy(retry_policy))
+        .build();
+
+    event!(
+        Level::INFO,
+        "Refreshing user token at {keycloak_endpoint} for user {}",
+        login_config.username
+    );
+
+    let res = client
+        .post(&keycloak_endpoint)
+        .header("Content-Type", "application/x-www-form-urlencoded")
+        .body(body_string)
+        .send()
+        .await?;
+
+    if !res.status().is_success() {
+        let status = res.status();
+        let error_text = res.text().await.unwrap_or_default();
+        return Err(anyhow!(
+            "Failed to refresh user token: HTTP {status}, {error_text}"
+        ));
+    }
+
+    res.text().await.map_err(|e| anyhow!(e))
+}
+
 /// Client for user-based Keycloak authentication using password grant.
 ///
 /// This client is used for authenticating as a specific user (e.g., a trustee)
@@ -142,7 +193,45 @@ impl KeycloakUserClient {
             return Ok(token_resp.access_token);
         }
 
-        // Still a cache miss, fetch from Keycloak
+        // Try to refresh using the cached refresh token first, since
+        // password grant may return the same near-expired token from
+        // Keycloak's active session.
+        if let Some(cached) = cache.read_token_for_refresh() {
+            if let Some(ref refresh_token) = cached.refresh_token {
+                match refresh_user_token_inner(login_config, refresh_token)
+                    .await
+                {
+                    Ok(text) => {
+                        let token_resp: TokenResponse =
+                            deserialize_str(&text).map_err(|err| {
+                                anyhow!("Error deserializing refreshed token: {err:?}, response: {text:?}")
+                            })?;
+
+                        info!(
+                            "Successfully refreshed user credentials for {}",
+                            login_config.username
+                        );
+                        trace!("Refreshed token response: {token_resp:?}");
+
+                        cache
+                            .write_token(token_resp.clone(), login_config.url.clone())
+                            .map_err(|err| {
+                                anyhow!("Failed to write refreshed token to cache: {err}")
+                            })?;
+
+                        return Ok(token_resp.access_token);
+                    }
+                    Err(err) => {
+                        warn!(
+                            "Refresh token failed for {}, falling back to password grant: {err}",
+                            login_config.username
+                        );
+                    }
+                }
+            }
+        }
+
+        // Fall back to password grant (fresh login)
         let text = get_user_credentials_inner(login_config).await?;
 
         let token_resp: TokenResponse = deserialize_str(&text).map_err(|err| {

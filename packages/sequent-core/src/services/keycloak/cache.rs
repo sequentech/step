@@ -87,6 +87,46 @@ impl TokenCache {
         None
     }
 
+    /// Reads the cached token for refresh purposes.
+    ///
+    /// Unlike `read_token`, this returns the cached `TokenResponse` even when
+    /// the access token is near/past expiration, as long as the refresh token
+    /// is still valid. Returns `None` if there is no cached token, no refresh
+    /// token, or the refresh token has also expired.
+    #[instrument(level = "trace", skip_all)]
+    pub fn read_token_for_refresh(&self) -> Option<TokenResponse> {
+        let token_resp_ext_opt = match self.token.read() {
+            Ok(read) => read.clone(),
+            Err(err) => {
+                warn!("Error acquiring read lock {err:?}");
+                return None;
+            }
+        };
+
+        if let Some(data) = token_resp_ext_opt {
+            // Must have a refresh token
+            if data.token_resp.refresh_token.is_none() {
+                return None;
+            }
+
+            // Check that the refresh token itself hasn't expired
+            if let Some(refresh_expires_abs) =
+                data.token_resp.refresh_expires_in
+            {
+                let time_now = SystemTime::now()
+                    .duration_since(UNIX_EPOCH)
+                    .map(|d| d.as_secs() as i64)
+                    .unwrap_or(0);
+                let pre_expiration_time: i64 =
+                    refresh_expires_abs as i64 - PRE_EXPIRATION_SECS;
+                if time_now < pre_expiration_time {
+                    return Some(data.token_resp);
+                }
+            }
+        }
+        None
+    }
+
     /// Writes the token to the cache.
     ///
     /// Converts `expires_in` from a relative duration (seconds until
@@ -104,6 +144,9 @@ impl TokenCache {
             .map(|d| d.as_secs() as usize)
             .unwrap_or(0);
         token_resp.expires_in = now + token_resp.expires_in;
+        if let Some(refresh_exp) = token_resp.refresh_expires_in {
+            token_resp.refresh_expires_in = Some(now + refresh_exp);
+        }
 
         let mut write = self
             .token
@@ -279,6 +322,90 @@ mod tests {
         assert!(
             result.is_none(),
             "Token with 0 expires_in should be invalid"
+        );
+    }
+
+    #[test]
+    fn test_token_cache_read_for_refresh_access_expired() {
+        let cache = TokenCache::new();
+        // Access token expires in 3s (within PRE_EXPIRATION_SECS=5 buffer),
+        // but refresh token is valid for 1800s
+        let token = create_test_token(3);
+        let url = "http://test-keycloak/token".to_string();
+
+        cache.write_token(token, url).expect("Write should succeed");
+
+        // read_token should fail (access expired)
+        assert!(cache.read_token().is_none());
+
+        // read_token_for_refresh should succeed (refresh still valid)
+        let result = cache.read_token_for_refresh();
+        assert!(
+            result.is_some(),
+            "Should return token for refresh when access expired but refresh valid"
+        );
+        assert_eq!(
+            result.unwrap().refresh_token.unwrap(),
+            "test-refresh-token"
+        );
+    }
+
+    #[test]
+    fn test_token_cache_read_for_refresh_both_expired() {
+        let cache = TokenCache::new();
+        // Both access and refresh expire immediately
+        let mut token = create_test_token(0);
+        token.refresh_expires_in = Some(0);
+        let url = "http://test-keycloak/token".to_string();
+
+        cache.write_token(token, url).expect("Write should succeed");
+
+        let result = cache.read_token_for_refresh();
+        assert!(
+            result.is_none(),
+            "Should return None when both access and refresh tokens expired"
+        );
+    }
+
+    #[test]
+    fn test_token_cache_read_for_refresh_no_refresh_token() {
+        let cache = TokenCache::new();
+        let mut token = create_test_token(3);
+        token.refresh_token = None;
+        let url = "http://test-keycloak/token".to_string();
+
+        cache.write_token(token, url).expect("Write should succeed");
+
+        let result = cache.read_token_for_refresh();
+        assert!(
+            result.is_none(),
+            "Should return None when no refresh token available"
+        );
+    }
+
+    #[test]
+    fn test_token_cache_refresh_expires_in_converted() {
+        let cache = TokenCache::new();
+        let token = create_test_token(3600);
+        let url = "http://test-keycloak/token".to_string();
+
+        cache.write_token(token, url).expect("Write should succeed");
+
+        // The stored refresh_expires_in should be an absolute timestamp
+        // (now + 1800), not the relative 1800
+        let result = cache.read_token_for_refresh();
+        assert!(result.is_some());
+        let stored = result.unwrap();
+        let now = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .map(|d| d.as_secs() as usize)
+            .unwrap_or(0);
+        // refresh_expires_in should be roughly now + 1800 (within a 2s margin)
+        let refresh_abs = stored.refresh_expires_in.unwrap();
+        assert!(
+            refresh_abs > now + 1790 && refresh_abs < now + 1810,
+            "refresh_expires_in should be absolute: got {refresh_abs}, expected ~{expected}",
+            expected = now + 1800
         );
     }
 }
