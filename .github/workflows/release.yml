@@ -268,7 +268,7 @@ jobs:
         ref: ${{ github.ref }}
         workflow: 'Automated Release Process'
         token: ${{ secrets.PAT }}
-        inputs: '{"createMajorReleaseBranch":${{ github.event.inputs.createMajorReleaseBranch }}, "createMinorReleaseBranch":${{ github.event.inputs.createMinorReleaseBranch }}, "preRelease":${{ github.event.inputs.preRelease }} }'
+        inputs: '{"createMajorReleaseBranch":${{ github.event.inputs.createMajorReleaseBranch }}, "createMinorReleaseBranch":${{ github.event.inputs.createMinorReleaseBranch }}, "preRelease":${{ github.event.inputs.preRelease }}, "version":"${{ needs.release.outputs.VERSION }}"}'
         wait-for-completion: true
 
   trigger-deployer:
