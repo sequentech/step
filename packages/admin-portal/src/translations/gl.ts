@@ -2012,6 +2012,9 @@ const galegoTranslation: TranslationType = {
                 label: "Vistas Previas",
                 noContent: "Non se atoparon vistas previas",
                 table: {
+                    title: "Vistas previas externas",
+                    description:
+                        "Un rexistro das vistas previas de estilos de papeleta xeradas mediante peticións externas",
                     requestedBy: "Solicitado por",
                     document: "Documento",
                     url: "URL",

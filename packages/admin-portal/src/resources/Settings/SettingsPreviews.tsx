@@ -22,6 +22,7 @@ import {useTenantStore} from "@/providers/TenantContextProvider"
 import {AuthContext} from "@/providers/AuthContextProvider"
 import {IPermissions} from "@/types/keycloak"
 import {DownloadDocument} from "../User/DownloadDocument"
+import {PageHeaderStyles} from "@/components/styles/PageHeaderStyles"
 
 const EmptyBox = styled(Box)`
     display: flex;
@@ -67,6 +68,12 @@ export const SettingsPreviews: React.FC<void> = () => {
 
     return (
         <>
+            <PageHeaderStyles.Title>
+                {t("settings.previewScreen.table.title")}
+            </PageHeaderStyles.Title>
+            <PageHeaderStyles.SubTitle>
+                {t("settings.previewScreen.table.description")}
+            </PageHeaderStyles.SubTitle>
             <List
                 resource="sequent_backend_preview"
                 filters={Filters}

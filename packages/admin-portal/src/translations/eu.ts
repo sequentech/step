@@ -2003,6 +2003,9 @@ const basqueTranslation: TranslationType = {
                 label: "Aurreikuspenak",
                 noContent: "Ez da aurreikuspenik aurkitu",
                 table: {
+                    title: "Kanpoko aurrebistak",
+                    description:
+                        "Kanpoko eskaeren bidez sortutako hautestontzi-estiloen aurrebisten erregistroa",
                     requestedBy: "Eskatzailea",
                     document: "Dokumentua",
                     url: "URLa",

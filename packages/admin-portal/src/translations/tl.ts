@@ -2014,6 +2014,9 @@ const tagalogTranslation: TranslationType = {
                 label: "Mga Preview",
                 noContent: "Walang nahanap na mga preview",
                 table: {
+                    title: "Mga Panlabas na Preview",
+                    description:
+                        "Isang rekord ng mga preview ng estilo ng balota na ginawa sa pamamagitan ng mga panlabas na request",
                     requestedBy: "Hiniling ng",
                     document: "Dokumento",
                     url: "URL",
