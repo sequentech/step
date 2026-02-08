@@ -121,6 +121,10 @@ const ElectionWrapper: React.FC<ElectionWrapperProps> = ({
     const location = useLocation()
     const {i18n} = useTranslation()
 
+    console.log("i18n.languages", i18n.languages)
+    console.log("i18n.language", i18n.language)
+    console.log("i18n.resolvedLanguage", i18n.resolvedLanguage)
+
     const {tenantId, eventId} = useParams<TenantEventType>()
     const electionEvent = useAppSelector(selectElectionEventById(eventId))
     const election = useAppSelector(selectElectionById(electionId))

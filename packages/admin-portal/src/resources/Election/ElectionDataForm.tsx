@@ -317,6 +317,7 @@ export const ElectionDataForm: React.FC = () => {
             if (!customFilters && temp?.presentation?.custom_filters) {
                 setCustomFilters(temp.presentation.custom_filters)
             }
+            console.log({temp})
 
             return temp
         },
