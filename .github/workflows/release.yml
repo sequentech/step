@@ -197,11 +197,11 @@ jobs:
         if [ "${{ needs.create-release-branch.outputs.NEW_RELEASE_BRANCH }}" == "" ]; then
           if [ "${{ github.event.inputs.preRelease }}" = "true" ]; then
             # Check if the latest tag is a pre-release
-            if [ "${{ steps.CheckLatestRelease.outputs.latestReleaseIsPreRelease }}" = "true" ]; then
+          if [ "${{ steps.CheckLatestRelease.outputs.latestReleaseIsPreRelease }}" = "true" ]; then
               # Then increment the pre-release version
-              release-it --ci --increment=pre --preRelease=rc --verbose
+              release-it --ci --increment=pre --preRelease=rc --git.getLatestTagFromAllRefs --verbose
             else
-              release-it --ci --increment=patch --preRelease=rc --verbose
+              release-it --ci --increment=patch --preRelease=rc --git.getLatestTagFromAllRefs --verbose
             fi
           else
             release-it --ci --increment=patch --verbose
