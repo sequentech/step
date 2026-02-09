@@ -35,6 +35,7 @@ import {keyBy} from "lodash"
 import Image from "mui-image"
 import {checkIsInvalidVote, checkIsWriteIn, getImageUrl} from "../services/ElectionConfigService"
 import {provideBallotService} from "../services/BallotService"
+import {useElectionClassName} from "./hooks/useElectionClassName"
 import {GlobalSettings, SettingsContext} from "../providers/SettingsContextProvider"
 
 const StyledLink = styled(RouterLink)`
@@ -506,6 +507,7 @@ export const ConfirmationScreen: React.FC<IProps> = ({
 }) => {
     const navigate = useNavigate()
     const [isLoading, setIsLoading] = useState(confirmationBallot === null)
+    useElectionClassName(confirmationBallot)
 
     useEffect(() => {
         setIsLoading(confirmationBallot === null)

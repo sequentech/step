@@ -15,7 +15,7 @@ import {TenantEventType} from "."
 import {ApolloWrapper} from "./providers/ApolloContextProvider"
 import {VotingPortalError, VotingPortalErrorType} from "./services/VotingPortalError"
 import {useAppSelector} from "./store/hooks"
-import {selectElectionIds} from "./store/elections/electionsSlice"
+import {selectElectionById, selectElectionIds} from "./store/elections/electionsSlice"
 import {
     selectBallotStyleByElectionId,
     selectBallotStyleElectionIds,
@@ -24,10 +24,10 @@ import {
 import WatermarkBackground from "./components/WaterMark/Watermark"
 import SequentLogo from "@sequentech/ui-essentials/public/Sequent_logo.svg"
 import BlankLogoImg from "@sequentech/ui-essentials/public/blank_logo.svg"
+import {useElectionClassName} from "./hooks/useElectionClassName"
 
-const StyledApp = styled(Stack)<{customCss: string}>`
+const StyledApp = styled(Stack)`
     min-height: 100vh;
-    ${({customCss}) => customCss}
 
     /* Visually hidden until focused, then shown for keyboard users */
     .skip-link {
@@ -43,6 +43,10 @@ const StyledApp = styled(Stack)<{customCss: string}>`
     .skip-link:focus {
         top: 0;
     }
+`
+
+const StyledAppWrapper = styled(Stack)<{css: string}>`
+    ${({css}) => css}
 `
 
 const StyledMain = styled(`main`)`
@@ -114,6 +118,8 @@ const App = () => {
 
         return electionId ? selectBallotStyleByElectionId(String(electionId))(state) : undefined
     })
+    useElectionClassName()
+
     useEffect(() => {
         if (location.pathname === "/") {
             throw new VotingPortalError(VotingPortalErrorType.NO_ELECTION_EVENT)
@@ -145,27 +151,26 @@ const App = () => {
     }, [tenantId, eventId, isAuthenticated, setTenantEvent, globalSettings.DISABLE_AUTH])
 
     return (
-        <StyledApp
-            className="voting-portal app-root"
-            customCss={ballotStyle?.ballot_eml.election_event_presentation?.css ?? ""}
-        >
-            <ScrollRestoration />
-            <ApolloWrapper>
-                <HeaderWithContext />
-                <PageBanner
-                    marginBottom="auto"
-                    sx={{display: "flex", position: "relative", flex: 1}}
-                    className="main"
-                    component="main"
-                    id="main-content"
-                    role="main"
-                >
-                    <WatermarkBackground />
-                    <Outlet />
-                </PageBanner>
-            </ApolloWrapper>
-            <Footer />
-        </StyledApp>
+        <StyledAppWrapper css={ballotStyle?.ballot_eml.election_event_presentation?.css ?? ""}>
+            <StyledApp className="app-root">
+                <ScrollRestoration />
+                <ApolloWrapper>
+                    <HeaderWithContext />
+                    <PageBanner
+                        marginBottom="auto"
+                        sx={{display: "flex", position: "relative", flex: 1}}
+                        className="main"
+                        component="main"
+                        id="main-content"
+                        role="main"
+                    >
+                        <WatermarkBackground />
+                        <Outlet />
+                    </PageBanner>
+                </ApolloWrapper>
+                <Footer />
+            </StyledApp>
+        </StyledAppWrapper>
     )
 }
 

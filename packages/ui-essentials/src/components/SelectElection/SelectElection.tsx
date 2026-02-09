@@ -159,6 +159,7 @@ export interface SelectElectionProps {
     onClickBallotLocator?: () => void
     electionDates?: IElectionDates
     isStarted: boolean
+    className?: string | null
 }
 
 /**
@@ -232,6 +233,7 @@ const SelectElection: React.FC<SelectElectionProps> = ({
     onClickBallotLocator,
     electionDates,
     isStarted,
+    className,
 }) => {
     const {t} = useTranslation()
     const startVotingDate = getStartDate(electionDates) ?? ""
@@ -269,7 +271,7 @@ const SelectElection: React.FC<SelectElectionProps> = ({
                 isactive={String(!!isActive)}
                 role="button"
                 tabIndex={0}
-                className="election-item"
+                className={className ? `election-item ${className}` : "election-item"}
                 is-start={String(!!isStarted)}
             >
                 <TextContainer className="election-info">
