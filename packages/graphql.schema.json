@@ -9196,26 +9196,17 @@
             "deprecationReason": null
           },
           {
-<<<<<<< HEAD
             "name": "add_tally_sheet_version",
             "description": "add_tally_sheet_version",
             "args": [
               {
                 "name": "election_event_id",
-=======
-            "name": "call_plugin_route",
-            "description": null,
-            "args": [
-              {
-                "name": "data",
->>>>>>> origin/main
                 "description": null,
                 "type": {
                   "kind": "NON_NULL",
                   "name": null,
                   "ofType": {
                     "kind": "SCALAR",
-<<<<<<< HEAD
                     "name": "String",
                     "ofType": null
                   }
@@ -9231,20 +9222,13 @@
                   "ofType": {
                     "kind": "SCALAR",
                     "name": "Int",
-=======
-                    "name": "jsonb",
->>>>>>> origin/main
                     "ofType": null
                   }
                 },
                 "defaultValue": null
               },
               {
-<<<<<<< HEAD
                 "name": "tally_sheet_id",
-=======
-                "name": "path",
->>>>>>> origin/main
                 "description": null,
                 "type": {
                   "kind": "NON_NULL",
@@ -9259,11 +9243,47 @@
               }
             ],
             "type": {
-<<<<<<< HEAD
               "kind": "OBJECT",
               "name": "AddTallySheetOutput",
               "ofType": null
-=======
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "call_plugin_route",
+            "description": null,
+            "args": [
+              {
+                "name": "data",
+                "description": null,
+                "type": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "kind": "SCALAR",
+                    "name": "jsonb",
+                    "ofType": null
+                  }
+                },
+                "defaultValue": null
+              },
+              {
+                "name": "path",
+                "description": null,
+                "type": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "kind": "SCALAR",
+                    "name": "String",
+                    "ofType": null
+                  }
+                },
+                "defaultValue": null
+              }
+            ],
+            "type": {
               "kind": "NON_NULL",
               "name": null,
               "ofType": {
@@ -9271,7 +9291,6 @@
                 "name": "PluginsRouteOutput",
                 "ofType": null
               }
->>>>>>> origin/main
             },
             "isDeprecated": false,
             "deprecationReason": null
@@ -113440,9 +113459,13 @@
             "description": null,
             "args": [],
             "type": {
-              "kind": "SCALAR",
-              "name": "String",
-              "ofType": null
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "String",
+                "ofType": null
+              }
             },
             "isDeprecated": false,
             "deprecationReason": null
@@ -113468,9 +113491,13 @@
             "description": null,
             "args": [],
             "type": {
-              "kind": "SCALAR",
-              "name": "Int",
-              "ofType": null
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "Int",
+                "ofType": null
+              }
             },
             "isDeprecated": false,
             "deprecationReason": null
