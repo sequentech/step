@@ -58454,18 +58454,6 @@
         "description": "columns and relationships of \"sequent_backend.election_event\"",
         "fields": [
           {
-            "name": "alias",
-            "description": null,
-            "args": [],
-            "type": {
-              "kind": "SCALAR",
-              "name": "String",
-              "ofType": null
-            },
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
             "name": "annotations",
             "description": null,
             "args": [
@@ -58800,22 +58788,6 @@
               "kind": "SCALAR",
               "name": "jsonb",
               "ofType": null
-            },
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
-            "name": "name",
-            "description": null,
-            "args": [],
-            "type": {
-              "kind": "NON_NULL",
-              "name": null,
-              "ofType": {
-                "kind": "SCALAR",
-                "name": "String",
-                "ofType": null
-              }
             },
             "isDeprecated": false,
             "deprecationReason": null
@@ -59231,16 +59203,6 @@
             "defaultValue": null
           },
           {
-            "name": "alias",
-            "description": null,
-            "type": {
-              "kind": "INPUT_OBJECT",
-              "name": "String_comparison_exp",
-              "ofType": null
-            },
-            "defaultValue": null
-          },
-          {
             "name": "annotations",
             "description": null,
             "type": {
@@ -59356,16 +59318,6 @@
             "type": {
               "kind": "INPUT_OBJECT",
               "name": "jsonb_comparison_exp",
-              "ofType": null
-            },
-            "defaultValue": null
-          },
-          {
-            "name": "name",
-            "description": null,
-            "type": {
-              "kind": "INPUT_OBJECT",
-              "name": "String_comparison_exp",
               "ofType": null
             },
             "defaultValue": null
@@ -59778,16 +59730,6 @@
         "fields": null,
         "inputFields": [
           {
-            "name": "alias",
-            "description": null,
-            "type": {
-              "kind": "SCALAR",
-              "name": "String",
-              "ofType": null
-            },
-            "defaultValue": null
-          },
-          {
             "name": "annotations",
             "description": null,
             "type": {
@@ -59898,16 +59840,6 @@
             "defaultValue": null
           },
           {
-            "name": "name",
-            "description": null,
-            "type": {
-              "kind": "SCALAR",
-              "name": "String",
-              "ofType": null
-            },
-            "defaultValue": null
-          },
-          {
             "name": "presentation",
             "description": null,
             "type": {
@@ -59998,18 +59930,6 @@
         "description": "aggregate max on columns",
         "fields": [
           {
-            "name": "alias",
-            "description": null,
-            "args": [],
-            "type": {
-              "kind": "SCALAR",
-              "name": "String",
-              "ofType": null
-            },
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
             "name": "audit_election_event_id",
             "description": null,
             "args": [],
@@ -60064,18 +59984,6 @@
             "type": {
               "kind": "SCALAR",
               "name": "uuid",
-              "ofType": null
-            },
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
-            "name": "name",
-            "description": null,
-            "args": [],
-            "type": {
-              "kind": "SCALAR",
-              "name": "String",
               "ofType": null
             },
             "isDeprecated": false,
@@ -60141,18 +60049,6 @@
         "description": "aggregate min on columns",
         "fields": [
           {
-            "name": "alias",
-            "description": null,
-            "args": [],
-            "type": {
-              "kind": "SCALAR",
-              "name": "String",
-              "ofType": null
-            },
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
             "name": "audit_election_event_id",
             "description": null,
             "args": [],
@@ -60207,18 +60103,6 @@
             "type": {
               "kind": "SCALAR",
               "name": "uuid",
-              "ofType": null
-            },
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
-            "name": "name",
-            "description": null,
-            "args": [],
-            "type": {
-              "kind": "SCALAR",
-              "name": "String",
               "ofType": null
             },
             "isDeprecated": false,
@@ -60393,16 +60277,6 @@
         "fields": null,
         "inputFields": [
           {
-            "name": "alias",
-            "description": null,
-            "type": {
-              "kind": "ENUM",
-              "name": "order_by",
-              "ofType": null
-            },
-            "defaultValue": null
-          },
-          {
             "name": "annotations",
             "description": null,
             "type": {
@@ -60504,16 +60378,6 @@
           },
           {
             "name": "labels",
-            "description": null,
-            "type": {
-              "kind": "ENUM",
-              "name": "order_by",
-              "ofType": null
-            },
-            "defaultValue": null
-          },
-          {
-            "name": "name",
             "description": null,
             "type": {
               "kind": "ENUM",
@@ -60722,12 +60586,6 @@
         "interfaces": null,
         "enumValues": [
           {
-            "name": "alias",
-            "description": "column name",
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
             "name": "annotations",
             "description": "column name",
             "isDeprecated": false,
@@ -60783,12 +60641,6 @@
           },
           {
             "name": "labels",
-            "description": "column name",
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
-            "name": "name",
             "description": "column name",
             "isDeprecated": false,
             "deprecationReason": null
@@ -60850,16 +60702,6 @@
         "description": "input type for updating data in table \"sequent_backend.election_event\"",
         "fields": null,
         "inputFields": [
-          {
-            "name": "alias",
-            "description": null,
-            "type": {
-              "kind": "SCALAR",
-              "name": "String",
-              "ofType": null
-            },
-            "defaultValue": null
-          },
           {
             "name": "annotations",
             "description": null,
@@ -60956,16 +60798,6 @@
             "type": {
               "kind": "SCALAR",
               "name": "jsonb",
-              "ofType": null
-            },
-            "defaultValue": null
-          },
-          {
-            "name": "name",
-            "description": null,
-            "type": {
-              "kind": "SCALAR",
-              "name": "String",
               "ofType": null
             },
             "defaultValue": null
@@ -61097,16 +60929,6 @@
         "fields": null,
         "inputFields": [
           {
-            "name": "alias",
-            "description": null,
-            "type": {
-              "kind": "SCALAR",
-              "name": "String",
-              "ofType": null
-            },
-            "defaultValue": null
-          },
-          {
             "name": "annotations",
             "description": null,
             "type": {
@@ -61202,16 +61024,6 @@
             "type": {
               "kind": "SCALAR",
               "name": "jsonb",
-              "ofType": null
-            },
-            "defaultValue": null
-          },
-          {
-            "name": "name",
-            "description": null,
-            "type": {
-              "kind": "SCALAR",
-              "name": "String",
               "ofType": null
             },
             "defaultValue": null
@@ -61310,12 +61122,6 @@
         "interfaces": null,
         "enumValues": [
           {
-            "name": "alias",
-            "description": "column name",
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
             "name": "annotations",
             "description": "column name",
             "isDeprecated": false,
@@ -61371,12 +61177,6 @@
           },
           {
             "name": "labels",
-            "description": "column name",
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
-            "name": "name",
             "description": "column name",
             "isDeprecated": false,
             "deprecationReason": null

@@ -22,7 +22,6 @@ pub async fn create_election_event_sqlite(
                 labels TEXT,
                 annotations TEXT,
                 tenant_id TEXT NOT NULL,
-                name TEXT NOT NULL,
                 description TEXT,
                 presentation TEXT,
                 bulletin_board_reference TEXT,
@@ -34,7 +33,6 @@ pub async fn create_election_event_sqlite(
                 is_audit INTEGER,
                 audit_election_event_id TEXT,
                 public_key TEXT,
-                alias TEXT,
                 statistics TEXT DEFAULT '{}'
             );
             ",
@@ -42,13 +40,13 @@ pub async fn create_election_event_sqlite(
 
     let mut statement = sqlite_transaction.prepare(
         "INSERT INTO election_event
-                (id, created_at, updated_at, labels, annotations, tenant_id, name,
+                (id, created_at, updated_at, labels, annotations, tenant_id,
                  description, presentation, bulletin_board_reference, is_archived,
                  voting_channels, status, user_boards, encryption_protocol, is_audit,
-                 audit_election_event_id, public_key, alias, statistics)
+                 audit_election_event_id, public_key, statistics)
                 VALUES
                 ($1, $2, $3, $4, $5, $6, $7, $8, $9,
-                $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20);
+                $10, $11, $12, $13, $14, $15, $16, $17, $18);
             ",
     )?;
 
@@ -63,7 +61,6 @@ pub async fn create_election_event_sqlite(
             .map(to_string)
             .transpose()?,
         election_event.tenant_id,
-        election_event.name,
         election_event.description,
         election_event
             .presentation
@@ -87,7 +84,6 @@ pub async fn create_election_event_sqlite(
         election_event.is_audit,
         election_event.audit_election_event_id,
         election_event.public_key,
-        election_event.alias,
         election_event
             .statistics
             .as_ref()

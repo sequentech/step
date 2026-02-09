@@ -80,7 +80,6 @@ pub struct ElectionEvent {
     pub labels: Option<Value>,
     pub annotations: Option<Value>,
     pub tenant_id: String,
-    pub name: String,
     pub description: Option<String>,
     pub presentation: Option<Value>,
     pub bulletin_board_reference: Option<Value>,
@@ -92,7 +91,6 @@ pub struct ElectionEvent {
     pub is_audit: Option<bool>,
     pub audit_election_event_id: Option<String>,
     pub public_key: Option<String>,
-    pub alias: Option<String>,
     pub statistics: Option<Value>,
 }
 

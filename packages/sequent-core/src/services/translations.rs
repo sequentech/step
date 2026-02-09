@@ -130,6 +130,21 @@ fn get_alias_from_i18n(
     lang_alias.or(default_lang_alias)
 }
 
+impl Name for ElectionEvent {
+    fn get_name(&self, language: &str) -> String {
+        let base_name = "".to_string();
+        let Some(presentation_val) = self.presentation.clone() else {
+            return base_name;
+        };
+        let Ok(presentation) =
+            deserialize_value::<ElectionEventPresentation>(presentation_val)
+        else {
+            return base_name;
+        };
+        get_name_from_i18n(&presentation.i18n, language).unwrap_or(base_name)
+    }
+}
+
 impl Name for Election {
     fn get_name(&self, language: &str) -> String {
         let base_name = self.name.clone();
