@@ -79,6 +79,7 @@ import {ManagedNumberInput} from "@/components/managed-inputs/ManagedNumberInput
 import {MANAGE_ELECTION_DATES} from "@/queries/ManageElectionDates"
 import {JsonEditor, UpdateFunction} from "json-edit-react"
 import {CustomFilter} from "@/types/filters"
+import {useGetDocumentUrl} from "@/hooks/useGetDocumentUrl"
 
 const LangsWrapper = styled(Box)`
     margin-top: 46px;
@@ -101,8 +102,8 @@ export type Sequent_Backend_Election_Extended = RaRecord<Identifier> & {
 export const ElectionDataForm: React.FC = () => {
     const record = useRecordContext<Sequent_Backend_Election>()
     const [tenantId] = useTenantStore()
-
     const {t} = useTranslation()
+    const getImageUrl = useGetDocumentUrl()
     const [getUploadUrl] = useMutation<GetUploadUrlMutation>(GET_UPLOAD_URL)
     const notify = useNotify()
     const refresh = useRefresh()
@@ -245,13 +246,13 @@ export const ElectionDataForm: React.FC = () => {
             temp.presentation.contests_order =
                 temp.presentation.contests_order || ContestsOrder.ALPHABETICAL
 
-            /*temp.presentation.audit_button_cfg ??= EVotingPortalAuditButtonCfg.SHOW
+            temp.presentation.audit_button_cfg ??= EVotingPortalAuditButtonCfg.SHOW
             temp.presentation.cast_vote_gold_level ??= ECastVoteGoldLevelPolicy.NO_GOLD_LEVEL
             temp.presentation.start_screen_title_policy ??= EStartScreenTitlePolicy.ELECTION
             temp.presentation.security_confirmation_policy ??= ESecurityConfirmationPolicy.NONE
             temp.presentation.initialization_report_policy ??= EInitializeReportPolicy.NOT_REQUIRED
             temp.presentation.grace_period_policy ??= EGracePeriodPolicy.NO_GRACE_PERIOD
-            temp.presentation.grace_period_secs ??= 0*/
+            temp.presentation.grace_period_secs ??= 0
 
             const votingSettings = data?.voting_channels || tenantData?.voting_channels
 
@@ -554,12 +555,19 @@ export const ElectionDataForm: React.FC = () => {
         setCustomFilters(newData as CustomFilter[])
         setActivateSave(true)
     }
+
     return record && data ? (
         <RecordContext.Consumer>
             {(incoming) => {
                 const parsedValue = parseValues(
                     incoming as Sequent_Backend_Election_Extended,
                     languageSettings
+                )
+
+                const imageUrl = getImageUrl(
+                    parsedValue?.tenant_id,
+                    parsedValue?.image_document_id,
+                    imageData?.name
                 )
 
                 const onSave = async () => {}
@@ -751,8 +759,8 @@ export const ElectionDataForm: React.FC = () => {
                                             <img
                                                 width={200}
                                                 height={200}
-                                                src={`${globalSettings.PUBLIC_BUCKET_URL}tenant-${parsedValue?.tenant_id}/document-${parsedValue?.image_document_id}/${imageData?.name}`}
-                                                alt={`tenant-${parsedValue?.tenant_id}/document-${parsedValue?.image_document_id}/${imageData?.name}`}
+                                                src={`${globalSettings.PUBLIC_BUCKET_URL}${imageUrl}`}
+                                                alt={imageUrl}
                                             />
                                         ) : null}
                                     </Grid>

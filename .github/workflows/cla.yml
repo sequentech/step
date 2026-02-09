@@ -21,7 +21,7 @@ jobs:
     steps:
       - name: "CLA Assistant"
         if: (github.event.comment.body == 'recheck' || github.event.comment.body == 'I have read the CLA Document and I hereby sign the CLA') || github.event_name == 'pull_request_target'
-        uses: cla-assistant/github-action@v2.3.0
+        uses: contributor-assistant/github-action@v2.5.2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           # The GitHub personal access token (PAT) that has write access to the CLA document repository
@@ -34,7 +34,7 @@ jobs:
           # Branch where CLA signatures will be stored
           branch: 'cla-signatures'
           # Allowlist for bots and automated accounts
-          allowlist: 'dependabot*,edulix,Findeton,xalsina-sequent,yuvalkom-M,BelSequent,ereslibre,oded-eid-sequentech'
+          allowlist: 'dependabot*,sequentech-bot,edulix,Findeton,xalsina-sequent,yuvalkom-M,BelSequent,ereslibre,oded-eid-sequentech'
           
           # Customize the CLA message
           remote-organization-name: 'sequentech'

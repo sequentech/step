@@ -1376,6 +1376,9 @@ const galegoTranslation: TranslationType = {
             paginationPolicy: {
                 label: "Nome da Páxina",
             },
+            allowWriteins: {
+                label: "Permitir candidaturas manuais",
+            },
             error: {},
             createContestSuccess: "Concurso creado",
             createContestError: "Erro ao crear o concurso",

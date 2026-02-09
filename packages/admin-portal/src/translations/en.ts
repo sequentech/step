@@ -1366,6 +1366,9 @@ const englishTranslation = {
             paginationPolicy: {
                 label: "Page Name",
             },
+            allowWriteins: {
+                label: "Allow Write-Ins",
+            },
             error: {},
             createContestSuccess: "Contest created",
             createContestError: "Error creating candidate",

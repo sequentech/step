@@ -768,6 +768,11 @@ export enum PgAuditTable {
   PgauditKeycloak = 'pgaudit_keycloak'
 }
 
+export type PluginsRouteOutput = {
+  __typename?: 'PluginsRouteOutput';
+  data?: Maybe<Scalars['jsonb']['output']>;
+};
+
 export type PrepareBallotPublicationPreviewOutput = {
   __typename?: 'PrepareBallotPublicationPreviewOutput';
   document_id: Scalars['String']['output'];
@@ -1076,8 +1081,12 @@ export type Mutation_Root = {
   ApplicationChangeStatus?: Maybe<ApplicationChangeStatusOutput>;
   /** Verify User Registration Application */
   VerifyApplication: Scalars['String']['output'];
+<<<<<<< HEAD
   /** add_tally_sheet_version */
   add_tally_sheet_version?: Maybe<AddTallySheetOutput>;
+=======
+  call_plugin_route: PluginsRouteOutput;
+>>>>>>> origin/main
   /** check private key */
   check_private_key?: Maybe<CheckPrivateKeyOutput>;
   /** create scheduled event */
@@ -1682,10 +1691,16 @@ export type Mutation_RootVerifyApplicationArgs = {
 
 
 /** mutation root */
+<<<<<<< HEAD
 export type Mutation_RootAdd_Tally_Sheet_VersionArgs = {
   election_event_id: Scalars['String']['input'];
   old_version: Scalars['Int']['input'];
   tally_sheet_id: Scalars['String']['input'];
+=======
+export type Mutation_RootCall_Plugin_RouteArgs = {
+  data: Scalars['jsonb']['input'];
+  path: Scalars['String']['input'];
+>>>>>>> origin/main
 };
 
 

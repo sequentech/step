@@ -10,13 +10,13 @@ use crate::{
         import_election_event::import, publish_changes::publish_changes,
         start_key_ceremony::start_ceremony as start_key_ceremony,
         start_tally::start_ceremony as start_tally_ceremony,
-        update_election_event_status::update_status,
+        update_event_voting_status::update_event_voting_status,
         update_tally_status::update_status as update_tally_status, update_voter::edit_voter,
     },
     types::tally::TallyExecutionStatus,
     utils::areas::get_areas::GetAreas,
 };
-use sequent_core::ballot::VotingStatus;
+use sequent_core::{ballot::VotingStatus, types::ceremonies::TallyType};
 use std::{env, error::Error, fmt::format};
 
 #[test]
@@ -69,12 +69,13 @@ fn run_e2e() -> Result<(), Box<dyn Error>> {
                 &pass,
                 &area_id,
                 "",
+                &true,
             )?;
         }
     }
 
     // Step 2: Start Key Ceremony
-    let key_ceremony_id = start_key_ceremony(&election_event_id, 2)?;
+    let key_ceremony_id = start_key_ceremony(&election_event_id, 2, None, None)?;
 
     // Auth with trustee1
     let trustee1 = env::var("TRUSTEE_1").unwrap_or("trustee1".to_string());
@@ -115,11 +116,11 @@ fn run_e2e() -> Result<(), Box<dyn Error>> {
     )?;
 
     // Step 3: Start Election - Update Status
-    let status = VotingStatus::OPEN.to_string();
-    update_status(&election_event_id, &status)?;
+    let status = update_event_voting_status::VotingStatus::OPEN;
+    update_event_voting_status(&election_event_id, &status)?;
 
     // Step 3.5 : Create Publication
-    publish_changes(&election_event_id)?;
+    publish_changes(&election_event_id, None)?;
 
     // Step 4: Create + Run Loadero Test
     let voting_portal_domain = std::env::var("VOTING_PORTAL_DOMAIN")?;
@@ -130,7 +131,11 @@ fn run_e2e() -> Result<(), Box<dyn Error>> {
     init_loadero_tests(&election_event_id, &voting_portal_url, voter_sim_number)?;
 
     // Step 5: Tally votes
-    let tally_id = start_tally_ceremony(&election_event_id, None)?;
+    let tally_id = start_tally_ceremony(
+        &election_event_id,
+        None,
+        TallyType::ELECTORAL_RESULTS.to_string().as_str(),
+    )?;
     // Confirm trustee keys
     // Trustee 1
     create_config(

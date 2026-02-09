@@ -90,6 +90,28 @@ public class AwsSesEmailSenderProvider implements EmailSenderProvider {
   }
 
   @Override
+  public void validate(Map<String, String> config) throws EmailException {
+    String from = config.get("from");
+    String fromDisplayName = config.get("fromDisplayName");
+
+    try {
+      // Validate that the 'from' address is present and properly formatted
+      if (from == null || from.trim().isEmpty()) {
+        throw new EmailException("Missing 'from' email address in configuration", null);
+      }
+
+      // Validate that the from address is properly formatted
+      toInternetAddress(from, fromDisplayName);
+
+      log.infov("AWS SES email configuration validated successfully - from: {0}", from);
+    } catch (EmailException e) {
+      throw e;
+    } catch (Exception e) {
+      throw new EmailException("Invalid email configuration: " + e.getMessage(), e);
+    }
+  }
+
+  @Override
   public void close() {
     // Properly close the SES client
     if (sesClient != null) {
