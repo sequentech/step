@@ -12,6 +12,7 @@
     "on-headers": "^1.1.0",
     "brace-expansion": "^2.0.2",
     "send": "^0.19.1",
-    "serve-static": "^2.2.0"
+    "serve-static": "^2.2.0",
+    "qs": "6.14.1"
   }
 }
