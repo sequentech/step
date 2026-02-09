@@ -294,6 +294,8 @@ export const TallyCeremony: React.FC = () => {
     }, [tallySession?.annotations?.[MIRU_TALLY_SESSION_ANNOTATION_KEY]])
     const tallySessionDataRef = useRef(tallySessionData)
 
+    const electionEventName = record ? aliasRenderer(record) : "event"
+
     useEffect(() => {
         tallySessionDataRef.current = tallySessionData
     }, [tallySessionData])
@@ -672,11 +674,17 @@ export const TallyCeremony: React.FC = () => {
         return parsedDocuments
             ? {
                   documents: parsedDocuments,
-                  name: aliasRenderer(record) ?? "event",
+                  name: electionEventName,
                   class_type: "event",
               }
             : null
-    }, [resultsEventId, resultsEvent, resultsEvent?.[0]?.id, resultsEvent?.[0]?.name])
+    }, [
+        resultsEventId,
+        resultsEvent,
+        resultsEvent?.[0]?.id,
+        resultsEvent?.[0]?.name,
+        i18n.language,
+    ])
 
     const handleMiruExportSuccess = (e: {
         election_id?: string
@@ -798,6 +806,8 @@ export const TallyCeremony: React.FC = () => {
         steps.push("tally.breadcrumbSteps.results")
         return steps
     }
+
+    console.log({record})
 
     return (
         <TallyStyles.WizardContainer>
@@ -1134,7 +1144,7 @@ export const TallyCeremony: React.FC = () => {
                                                 electionEventId={
                                                     resultsEvent?.[0].election_event_id
                                                 }
-                                                itemName={aliasRenderer(record) ?? "event"}
+                                                itemName={electionEventName}
                                                 tenantId={tenantId}
                                                 resultsEventId={resultsEventId}
                                             />
