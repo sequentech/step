@@ -225,7 +225,22 @@ jobs:
         fi
 
         # Get the version from the newly created tag
-        VERSION=$(git describe --tags --abbrev=0)
+        # Extract major.minor version from the current branch (e.g., release/9.3 -> 9.3)
+        branchMajorMinor=""
+        if [[ "${{ github.ref_name }}" =~ ^release/([0-9]+\.[0-9]+)$ ]]; then
+          branchMajorMinor="${BASH_REMATCH[1]}"
+        fi
+        
+        # Fetch latest tags and get the most recent one for this major.minor version
+        git fetch origin --tags
+        if [ -n "$branchMajorMinor" ]; then
+          # On a release branch: get latest tag for this major.minor version
+          VERSION=$(git -c "versionsort.suffix=-" for-each-ref --count=1 --sort=-v:refname --format="%(refname:short)" "refs/tags/v${branchMajorMinor}.*")
+        else
+          # On main branch: get the absolute latest tag
+          VERSION=$(git -c "versionsort.suffix=-" for-each-ref --count=1 --sort=-v:refname --format="%(refname:short)" refs/tags/v[0-9]*.[0-9]*.[0-9]*)
+        fi
+        
         echo VERSION=$VERSION | tee -a $GITHUB_ENV $GITHUB_OUTPUT
 
         # Get the short hash of the commit pointed to by the new tag
