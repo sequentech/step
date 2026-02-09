@@ -3,8 +3,8 @@
     "type": "module",
     "private": true,
     "devDependencies": {
-        "glob": "^11.0.0",
-        "js-yaml": "^4.1.0",
+        "glob": "^11.1.0",
+        "js-yaml": "^4.1.1",
         "prettier": "^3.3.3",
         "yaml": "^2.6.1",
         "yaml-sort": "^2.1.0"
@@ -14,5 +14,8 @@
         "format": "prettier --write .",
         "sort-yaml": "node sort-yaml-second-level.js",
         "prettify:fix": "yarn sort-yaml && prettier --write ."
+    },
+    "resolutions": {
+        "js-yaml": "4.1.1"
     }
 }

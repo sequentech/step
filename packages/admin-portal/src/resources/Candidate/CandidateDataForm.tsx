@@ -61,6 +61,7 @@ import styled from "@emotion/styled"
 import {DropFile, Icon, adminTheme} from "@sequentech/ui-essentials"
 import {AuthContext} from "@/providers/AuthContextProvider"
 import {IPermissions} from "@/types/keycloak"
+import {useGetDocumentUrl} from "@/hooks/useGetDocumentUrl"
 
 const StyledIconButton = styled(IconButton)`
     color: ${adminTheme.palette.brandColor};
@@ -85,6 +86,7 @@ export const CandidateDataForm: React.FC<{
     const refresh = useRefresh()
     const {globalSettings} = useContext(SettingsContext)
     const [enabledDeleteImage, setEnabledDeleteImage] = useState<boolean>(true)
+    const getImageUrl = useGetDocumentUrl()
 
     const [value, setValue] = useState(0)
     const [expanded, setExpanded] = useState("candidate-data-general")
@@ -134,12 +136,6 @@ export const CandidateDataForm: React.FC<{
             }
         }
     }, [electionEvent?.presentation?.language_conf, election?.presentation?.language_conf])
-
-    const getImageUrl = (
-        tenantId?: string,
-        imageDocumentId?: string | null,
-        name?: string | null
-    ) => `tenant-${tenantId}/document-${imageDocumentId}/${name}`
 
     const [updateImage] = useUpdate<Sequent_Backend_Candidate>()
 
@@ -271,8 +267,6 @@ export const CandidateDataForm: React.FC<{
                 },
             })
             if (data?.get_upload_url?.document_id) {
-                console.log("upload :>> ", data)
-
                 try {
                     await fetch(data.get_upload_url.url, {
                         method: "PUT",
