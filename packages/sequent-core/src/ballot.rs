@@ -1766,6 +1766,7 @@ impl ElectionEventStatus {
     PartialEq,
     Eq,
     Clone,
+    Copy,
     EnumString,
     JsonSchema,
     IntoStaticStr,
