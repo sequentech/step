@@ -701,6 +701,10 @@ enum PgAuditTable {
   pgaudit_keycloak
 }
 
+type PluginsRouteOutput {
+  data: jsonb
+}
+
 type PrepareBallotPublicationPreviewOutput {
   document_id: String!
   error_msg: String
@@ -1018,6 +1022,7 @@ type mutation_root {
   VerifyApplication(body: ApplicationVerifyBody!): String!
   """add_tally_sheet_version"""
   add_tally_sheet_version(election_event_id: String!, old_version: Int!, tally_sheet_id: String!): AddTallySheetOutput
+  call_plugin_route(data: jsonb!, path: String!): PluginsRouteOutput!
   """check private key"""
   check_private_key(object: CheckPrivateKeyInput!): CheckPrivateKeyOutput
   """create scheduled event"""
@@ -18026,9 +18031,9 @@ type tally_sheet {
   last_updated_at: timestamptz!
   reviewed_at: timestamptz
   reviewed_by_user_id: String
-  status: String
+  status: String!
   tenant_id: uuid!
-  version: Int
+  version: Int!
 }
 
 """
