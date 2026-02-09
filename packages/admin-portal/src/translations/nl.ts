@@ -1376,6 +1376,9 @@ const dutchTranslation: TranslationType = {
             paginationPolicy: {
                 label: "Paginanaam",
             },
+            allowWriteins: {
+                label: "Handgeschreven kandidaten toestaan",
+            },
             error: {},
             createContestSuccess: "Verkiezing aangemaakt",
             createContestError: "Fout bij aanmaken verkiezing",
