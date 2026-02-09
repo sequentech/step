@@ -7,6 +7,26 @@ title: Release Notes next
 SPDX-License-Identifier: AGPL-3.0-only
 -->
 
+## 🐞 Admin Portal > Reports > Timezone shown is not showing timezone
+
+Add timezone information to dates in the List of Overseas Voters, OVCS Events,
+Activity Logs reports, and the ballot receipt.
+
+- Issue: [#6191](https://github.com/sequentech/meta/issues/6191)
+
+## 🐞 Tally > Contests are not in order when using multi-contest encoding
+
+Sort contest shows on tally results tabs based on the contest-order 
+ field in the election presentation.
+
+- Issue: [#8678](https://github.com/sequentech/meta/issues/8678)
+
+## 🐞 Multi-Tenant login doesn't work
+
+A loop blocked the multi-tenant login.
+
+- Issue: [#9993](https://github.com/sequentech/meta/issues/9993)
+
 ## 🐞 Admin Portal > Can't send message to voters
 
 Going to the Admin Portal > Election Event > Voters > Send generated an
@@ -98,8 +118,14 @@ Now tally view checks if it's an automatic ceremony based on only the keys cerem
 
 - Issue: [#8472](https://github.com/sequentech/meta/issues/8472)
 
-## 🐞 Admin Portal > Electoral Logs > Timestamp filter does not work
+## 🐞 Voting Portal > Grace Period not applied if no scheduled event
 
-Fix the filter by timestamp in the Admin Portal's UI.
+Fix to allow voting if grace period applies when the status is checked.
 
-- Issue: [#9995](https://github.com/sequentech/meta/issues/9995)
+- Issue: [#9091](https://github.com/sequentech/meta/issues/9091)
+
+## 🐞 New immudb column ballot_id is not backwards compatible
+
+Fix errors affecting election events that were created prior the addition of the ballot_id column.
+
+- Issue: [#9986](https://github.com/sequentech/meta/issues/9986)
