@@ -235,17 +235,17 @@ jobs:
         git fetch origin --tags
         if [ -n "$branchMajorMinor" ]; then
           # On a release branch: get latest tag for this major.minor version
-          VERSION=$(git -c "versionsort.suffix=-" for-each-ref --count=1 --sort=-v:refname --format="%(refname:short)" "refs/tags/v${branchMajorMinor}.*" | sed 's/^v//')
+          VERSION=$(git -c "versionsort.suffix=-" for-each-ref --count=1 --sort=-v:refname --format="%(refname:short)" "refs/tags/v${branchMajorMinor}.*")
         else
           # On main branch: get the absolute latest tag
-          VERSION=$(git -c "versionsort.suffix=-" for-each-ref --count=1 --sort=-v:refname --format="%(refname:short)" refs/tags/v[0-9]*.[0-9]*.[0-9]* | sed 's/^v//')
+          VERSION=$(git -c "versionsort.suffix=-" for-each-ref --count=1 --sort=-v:refname --format="%(refname:short)" refs/tags/v[0-9]*.[0-9]*.[0-9]*)
         fi
         
         echo VERSION=$VERSION | tee -a $GITHUB_ENV $GITHUB_OUTPUT
 
         # Get the short hash of the commit pointed to by the new tag
         # This is the correct and reliable way to get the release hash.
-        HASH=$(git rev-parse --short v$VERSION)
+        HASH=$(git rev-parse --short $VERSION)
         echo "HASH=$HASH" | tee -a $GITHUB_OUTPUT
 
         echo "Release Version (is prerelease: ${{ inputs.preRelease }}): $VERSION"
