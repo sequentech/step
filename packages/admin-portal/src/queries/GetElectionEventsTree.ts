@@ -10,8 +10,6 @@ export const FETCH_ELECTION_EVENTS_TREE = gql`
             where: {is_archived: {_eq: $isArchived}, _and: {tenant_id: {_eq: $tenantId}}}
         ) {
             id
-            name
-            alias
             presentation
             is_archived
         }

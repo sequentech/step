@@ -326,7 +326,6 @@ export const sequent_backend_election: Sequent_Backend_Election = {
 
 export const sequent_backend_election_event: Sequent_Backend_Election_Event = {
     __typename: undefined,
-    alias: undefined,
     annotations: undefined,
     audit_election_event_id: undefined,
     bulletin_board_reference: undefined,
@@ -339,7 +338,6 @@ export const sequent_backend_election_event: Sequent_Backend_Election_Event = {
     is_archived: true,
     is_audit: undefined,
     labels: undefined,
-    name: "",
     presentation: undefined,
     public_key: undefined,
     statistics: undefined,
