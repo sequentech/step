@@ -4,6 +4,8 @@
 
 //! WASM bindings for election verification
 
+use std::sync::{Arc, RwLock};
+
 use serde::{Deserialize, Serialize};
 use wasm_bindgen::prelude::*;
 
@@ -106,7 +108,7 @@ impl WasmVerifier {
         // Create WASM HTTP board with access token for authenticated B4 requests
         let board_params = WasmHttpBoardParams {
             b4_url: self.b4_url.clone(),
-            access_token: self.access_token.clone(),
+            access_token: Arc::new(RwLock::new(self.access_token.clone())),
         };
         let board = WasmHttpBoard::new(board_params);
 

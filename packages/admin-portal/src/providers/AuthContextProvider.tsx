@@ -64,6 +64,10 @@ export interface AuthContextValues {
      * The current access token
      */
     accessToken: string | undefined
+    /**
+     * Get Access Token
+     */
+    getAccessToken: () => string | undefined
 
     updateTokenAndPermissionLabels: () => void
 
@@ -107,6 +111,7 @@ const defaultAuthContextValues: AuthContextValues = {
     logout: () => {},
     hasRole: () => false,
     accessToken: undefined,
+    getAccessToken: () => undefined,
     isAuthorized: () => false,
     openProfileLink: () => new Promise(() => undefined),
     permissionLabels: [],
@@ -553,6 +558,8 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
         ].includes(role)
     }
 
+    const getAccessToken = () => keycloak?.token
+
     const isAuthorized = (
         checkSuperAdmin: boolean,
         someTenantId: string | null,
@@ -608,6 +615,7 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
                 logout,
                 hasRole,
                 accessToken,
+                getAccessToken,
                 isAuthorized,
                 openProfileLink,
                 permissionLabels,

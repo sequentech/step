@@ -4,6 +4,8 @@
 
 //! WASM bindings for Braid mixnet node and session
 
+use std::sync::{Arc, RwLock};
+
 use serde::{Deserialize, Serialize};
 use wasm_bindgen::prelude::*;
 use wasm_bindgen_futures::JsFuture;
@@ -66,8 +68,11 @@ pub struct WasmSession {
     // FIXME is this used anywhere?
     name: String,
     b4_url: String,
-    /// JWT access token for B4 authentication (required)
-    access_token: String,
+    /// JWT access token for B4 authentication (required).
+    /// Wrapped in `Arc<RwLock<>>` so the token is shared with the
+    /// `Session`'s board factory; calling `update_access_token` propagates
+    /// to all clones automatically.
+    access_token: Arc<RwLock<String>>,
     board_name: Option<String>,
     config: TrusteeConfig,
 }
@@ -97,7 +102,7 @@ impl WasmSession {
             session: None,
             name: wasm_config.name,
             b4_url: wasm_config.b4_url,
-            access_token: wasm_config.access_token,
+            access_token: Arc::new(RwLock::new(wasm_config.access_token)),
             board_name: None,
             config: wasm_config.trustee_config,
         })
@@ -232,7 +237,12 @@ impl WasmSession {
         // Add Authorization header
         request
             .headers()
-            .set("Authorization", &format!("Bearer {}", self.access_token))?;
+            .set("Authorization", &format!(
+                "Bearer {}",
+                self.access_token
+                    .read()
+                    .expect("access_token lock poisoned")
+            ))?;
 
         let window = web_sys::window().ok_or_else(|| JsValue::from_str("No window"))?;
         let resp_value = JsFuture::from(window.fetch_with_request(&request)).await?;
@@ -288,7 +298,12 @@ impl WasmSession {
         // Add Authorization header
         request
             .headers()
-            .set("Authorization", &format!("Bearer {}", self.access_token))?;
+            .set("Authorization", &format!(
+                "Bearer {}",
+                self.access_token
+                    .read()
+                    .expect("access_token lock poisoned")
+            ))?;
 
         let window = web_sys::window().ok_or_else(|| JsValue::from_str("No window"))?;
         let resp_value = JsFuture::from(window.fetch_with_request(&request)).await?;
@@ -336,7 +351,12 @@ impl WasmSession {
                     // Add Authorization header
                     request
                         .headers()
-                        .set("Authorization", &format!("Bearer {}", self.access_token))?;
+                        .set("Authorization", &format!(
+                "Bearer {}",
+                self.access_token
+                    .read()
+                    .expect("access_token lock poisoned")
+            ))?;
 
                     let window = web_sys::window().ok_or_else(|| JsValue::from_str("No window"))?;
                     let resp_value = JsFuture::from(window.fetch_with_request(&request)).await?;
@@ -490,7 +510,12 @@ impl WasmSession {
             // Add Authorization header
             request
                 .headers()
-                .set("Authorization", &format!("Bearer {}", self.access_token))?;
+                .set("Authorization", &format!(
+                "Bearer {}",
+                self.access_token
+                    .read()
+                    .expect("access_token lock poisoned")
+            ))?;
 
             let window = web_sys::window().ok_or_else(|| JsValue::from_str("No window"))?;
             let resp_value = JsFuture::from(window.fetch_with_request(&request)).await?;
@@ -575,7 +600,12 @@ impl WasmSession {
                 // Add Authorization header
                 request3
                     .headers()
-                    .set("Authorization", &format!("Bearer {}", self.access_token))?;
+                    .set("Authorization", &format!(
+                "Bearer {}",
+                self.access_token
+                    .read()
+                    .expect("access_token lock poisoned")
+            ))?;
 
                 let resp_value3 = JsFuture::from(window.fetch_with_request(&request3)).await?;
                 let resp3: Response = resp_value3.dyn_into()?;
@@ -618,7 +648,12 @@ impl WasmSession {
                 // Add Authorization header
                 request3
                     .headers()
-                    .set("Authorization", &format!("Bearer {}", self.access_token))?;
+                    .set("Authorization", &format!(
+                "Bearer {}",
+                self.access_token
+                    .read()
+                    .expect("access_token lock poisoned")
+            ))?;
 
                 let resp_value3 = JsFuture::from(window.fetch_with_request(&request3)).await?;
                 let resp3: Response = resp_value3.dyn_into()?;
@@ -781,9 +816,14 @@ impl WasmSession {
     /// Update the access token for B4 authentication
     ///
     /// This should be called when the token is refreshed (tokens typically expire).
+    /// Because the token is behind `Arc<RwLock<>>`, this update is immediately
+    /// visible to the `Session`'s board factory (they share the same Arc).
     pub fn update_access_token(&mut self, token: String) {
         web_sys::console::log_1(&JsValue::from_str("Access token updated"));
-        self.access_token = token;
+        *self
+            .access_token
+            .write()
+            .expect("access_token lock poisoned") = token;
     }
 
     /// Get board summary - list of statements in local board
