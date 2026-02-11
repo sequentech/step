@@ -123,7 +123,6 @@ export const CreateElection: React.FC = () => {
             const {data} = await createElection({
                 variables: {
                     electionEventId: electionEventId,
-                    name: electionSubmit.name,
                     presentation: electionSubmit.presentation,
                     description: electionSubmit.description,
                 },

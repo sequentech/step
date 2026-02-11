@@ -21,7 +21,6 @@ use windmill::services::import::import_election_event::upsert_b3_and_elog;
 #[derive(Serialize, Deserialize, Debug)]
 pub struct CreateElectionInput {
     election_event_id: String,
-    name: String,
     presentation: ElectionPresentation,
     description: Option<String>,
 }
@@ -59,7 +58,6 @@ pub async fn create_election(
         &hasura_transaction,
         &claims.hasura_claims.tenant_id,
         &body.election_event_id,
-        &body.name,
         &body.presentation,
         body.description.clone(),
     )

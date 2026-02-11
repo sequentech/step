@@ -74,6 +74,25 @@ impl ElectionEvent {
     }
 }
 
+impl Election {
+    /// Get the default language at Election level that´s configurable on
+    /// the Admin portal
+    pub fn get_default_language(&self) -> String {
+        let Some(presentation_val) = self.presentation.clone() else {
+            return DEFAULT_LANG.into();
+        };
+        let Ok(presentation) =
+            deserialize_value::<ElectionPresentation>(presentation_val)
+        else {
+            return DEFAULT_LANG.into();
+        };
+        let language_conf = presentation.language_conf.unwrap_or_default();
+        let lang = language_conf
+            .default_language_code
+            .unwrap_or(DEFAULT_LANG.into());
+        lang
+    }
+}
 pub trait Name {
     fn get_name(&self, default_language: &str) -> String;
 }
@@ -147,7 +166,7 @@ impl Name for ElectionEvent {
 
 impl Name for Election {
     fn get_name(&self, language: &str) -> String {
-        let base_name = self.name.clone();
+        let base_name = "".to_string();
         let Some(presentation_val) = self.presentation.clone() else {
             return base_name;
         };
@@ -162,7 +181,7 @@ impl Name for Election {
 
 impl Alias for Election {
     fn get_alias(&self, language: &str) -> Option<String> {
-        let base_alias = self.alias.clone();
+        let base_alias = None;
         let Some(presentation_val) = self.presentation.clone() else {
             return base_alias;
         };

@@ -48,7 +48,7 @@ pub async fn delete_event_b3(
     let slug = std::env::var("ENV_SLUG").with_context(|| "missing env var ENV_SLUG")?;
     let board_name = get_event_board(tenant_id, election_event_id, &slug);
 
-    let elections = get_elections(&hasura_transaction, tenant_id, election_event_id, None).await?;
+    let elections = get_elections(&hasura_transaction, tenant_id, election_event_id).await?;
     board_client.delete_board(board_name.as_str()).await?;
 
     for election in elections {

@@ -807,8 +807,6 @@ export const TallyCeremony: React.FC = () => {
         return steps
     }
 
-    console.log({record})
-
     return (
         <TallyStyles.WizardContainer>
             <TallyStyles.ContentWrapper>

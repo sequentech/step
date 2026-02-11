@@ -51,13 +51,11 @@ export const GET_TALLY_DATA = gql`
         ) {
             tenant_id
             status
-            alias
             statistics
             spoil_ballot_option
             receipts
             presentation
             num_allowed_revotes
-            name
             last_updated_at
             labels
             is_kiosk

@@ -299,7 +299,6 @@ export const sequent_backend_document: Sequent_Backend_Document = {
 
 export const sequent_backend_election: Sequent_Backend_Election = {
     __typename: undefined,
-    alias: undefined,
     annotations: undefined,
     contests: [],
     contests_aggregate: {} as any,
@@ -313,7 +312,6 @@ export const sequent_backend_election: Sequent_Backend_Election = {
     is_kiosk: undefined,
     labels: undefined,
     last_updated_at: undefined,
-    name: "",
     num_allowed_revotes: undefined,
     presentation: undefined,
     receipts: undefined,

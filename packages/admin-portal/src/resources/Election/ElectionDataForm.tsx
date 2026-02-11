@@ -285,8 +285,7 @@ export const ElectionDataForm: React.FC = () => {
             if (!temp.presentation?.i18n?.en) {
                 temp.presentation.i18n.en = {}
             }
-            temp.presentation.i18n.en.name = temp.name
-            temp.presentation.i18n.en.alias = temp.alias
+
             temp.presentation.i18n.en.description = temp.description
 
             // receipts
@@ -317,7 +316,6 @@ export const ElectionDataForm: React.FC = () => {
             if (!customFilters && temp?.presentation?.custom_filters) {
                 setCustomFilters(temp.presentation.custom_filters)
             }
-            console.log({temp})
 
             return temp
         },

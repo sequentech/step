@@ -28,7 +28,6 @@ impl TryFrom<Row> for ElectionWrapper {
             last_updated_at: item.get("last_updated_at"),
             labels: item.try_get("labels")?,
             annotations: item.try_get("annotations")?,
-            name: item.try_get("name")?,
             description: item.try_get("description")?,
             presentation: item.try_get("presentation")?,
             status: item.try_get("status")?,
@@ -37,7 +36,6 @@ impl TryFrom<Row> for ElectionWrapper {
             is_consolidated_ballot_encoding: item.try_get("is_consolidated_ballot_encoding")?,
             spoil_ballot_option: item.try_get("spoil_ballot_option")?,
             is_kiosk: item.try_get("is_kiosk")?,
-            alias: item.try_get("alias")?,
             voting_channels: item.try_get("voting_channels")?,
             image_document_id: item.try_get("image_document_id")?,
             statistics: item.try_get("statistics")?,
@@ -155,14 +153,7 @@ pub async fn get_elections(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
     election_event_id: &str,
-    get_test_elections: Option<bool>,
 ) -> Result<Vec<Election>> {
-    let get_test_elections_clause = match get_test_elections {
-        Some(true) => "AND name ILIKE '%Test%'".to_string(),
-        Some(false) => "AND name NOT ILIKE '%Test%'".to_string(),
-        None => "".to_string(),
-    };
-
     let statement_str = format!(
         r#"
             SELECT
@@ -172,7 +163,6 @@ pub async fn get_elections(
             WHERE
                 tenant_id = $1 AND
                 election_event_id = $2
-                {get_test_elections_clause}
             "#
     );
 
@@ -386,7 +376,6 @@ pub async fn create_election(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
     election_event_id: &str,
-    name: &str,
     presentation: &ElectionPresentation,
     description: Option<String>,
 ) -> Result<Election> {
@@ -405,8 +394,6 @@ pub async fn create_election(
                     election_event_id,
                     created_at,
                     last_updated_at,
-                    name,
-                    alias,
                     description,
                     presentation,
                     voting_channels,
@@ -421,9 +408,7 @@ pub async fn create_election(
                     $3,
                     $4,
                     $5,
-                    $6,
-                    $7,
-                    $8
+                    $6
                 )
                 RETURNING *;
             "#,
@@ -436,8 +421,6 @@ pub async fn create_election(
             &[
                 &Uuid::parse_str(&tenant_id)?,
                 &Uuid::parse_str(&election_event_id)?,
-                &name.to_string(),
-                &name.to_string(),
                 &description,
                 &presentation_value,
                 &voting_channels_value,
@@ -485,7 +468,6 @@ pub async fn insert_elections(
                     last_updated_at,
                     labels,
                     annotations,
-                    name,
                     description,
                     presentation,
                     status,
@@ -493,7 +475,6 @@ pub async fn insert_elections(
                     num_allowed_revotes,
                     is_consolidated_ballot_encoding,
                     spoil_ballot_option,
-                    alias,
                     voting_channels,
                     is_kiosk,
                     image_document_id,
@@ -526,9 +507,7 @@ pub async fn insert_elections(
                     $17,
                     $18,
                     $19,
-                    $20,
-                    $21,
-                    $22
+                    $20
                 );
             "#,
             )
@@ -543,7 +522,6 @@ pub async fn insert_elections(
                     &Uuid::parse_str(&election.election_event_id)?,
                     &election.labels,
                     &election.annotations,
-                    &election.name,
                     &election.description,
                     &election.presentation,
                     &election.status,
@@ -553,7 +531,6 @@ pub async fn insert_elections(
                         .and_then(|val| Some(val as i32)),
                     &election.is_consolidated_ballot_encoding,
                     &election.spoil_ballot_option,
-                    &election.alias,
                     &election.voting_channels,
                     &election.is_kiosk,
                     &election.image_document_id,

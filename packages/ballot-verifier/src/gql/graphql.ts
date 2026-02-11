@@ -88,7 +88,7 @@ export type CastVotesByIp = {
     __typename?: "CastVotesByIp"
     country?: Maybe<Scalars["String"]["output"]>
     election_id?: Maybe<Scalars["String"]["output"]>
-    election_name?: Maybe<Scalars["String"]["output"]>
+    election_presentation?: Maybe<Scalars["jsonb"]["output"]>
     id?: Maybe<Scalars["String"]["output"]>
     ip?: Maybe<Scalars["String"]["output"]>
     vote_count?: Maybe<Scalars["Int"]["output"]>
@@ -1761,7 +1761,6 @@ export type Mutation_RootCreate_Ballot_ReceiptArgs = {
 export type Mutation_RootCreate_ElectionArgs = {
     description?: InputMaybe<Scalars["String"]["input"]>
     election_event_id: Scalars["String"]["input"]
-    name: Scalars["String"]["input"]
     presentation?: InputMaybe<Scalars["jsonb"]["input"]>
 }
 
@@ -8528,7 +8527,6 @@ export type Sequent_Backend_Document_Variance_Fields = {
 /** columns and relationships of "sequent_backend.election" */
 export type Sequent_Backend_Election = {
     __typename?: "sequent_backend_election"
-    alias?: Maybe<Scalars["String"]["output"]>
     annotations?: Maybe<Scalars["jsonb"]["output"]>
     /** An array relationship */
     contests: Array<Sequent_Backend_Contest>
@@ -8546,7 +8544,6 @@ export type Sequent_Backend_Election = {
     keys_ceremony_id?: Maybe<Scalars["uuid"]["output"]>
     labels?: Maybe<Scalars["jsonb"]["output"]>
     last_updated_at?: Maybe<Scalars["timestamptz"]["output"]>
-    name: Scalars["String"]["output"]
     num_allowed_revotes?: Maybe<Scalars["Int"]["output"]>
     permission_label?: Maybe<Scalars["String"]["output"]>
     presentation?: Maybe<Scalars["jsonb"]["output"]>
@@ -8716,7 +8713,6 @@ export type Sequent_Backend_Election_Bool_Exp = {
     _and?: InputMaybe<Array<Sequent_Backend_Election_Bool_Exp>>
     _not?: InputMaybe<Sequent_Backend_Election_Bool_Exp>
     _or?: InputMaybe<Array<Sequent_Backend_Election_Bool_Exp>>
-    alias?: InputMaybe<String_Comparison_Exp>
     annotations?: InputMaybe<Jsonb_Comparison_Exp>
     contests?: InputMaybe<Sequent_Backend_Contest_Bool_Exp>
     contests_aggregate?: InputMaybe<Sequent_Backend_Contest_Aggregate_Bool_Exp>
@@ -8732,7 +8728,6 @@ export type Sequent_Backend_Election_Bool_Exp = {
     keys_ceremony_id?: InputMaybe<Uuid_Comparison_Exp>
     labels?: InputMaybe<Jsonb_Comparison_Exp>
     last_updated_at?: InputMaybe<Timestamptz_Comparison_Exp>
-    name?: InputMaybe<String_Comparison_Exp>
     num_allowed_revotes?: InputMaybe<Int_Comparison_Exp>
     permission_label?: InputMaybe<String_Comparison_Exp>
     presentation?: InputMaybe<Jsonb_Comparison_Exp>
@@ -9223,7 +9218,6 @@ export type Sequent_Backend_Election_Inc_Input = {
 
 /** input type for inserting data into table "sequent_backend.election" */
 export type Sequent_Backend_Election_Insert_Input = {
-    alias?: InputMaybe<Scalars["String"]["input"]>
     annotations?: InputMaybe<Scalars["jsonb"]["input"]>
     contests?: InputMaybe<Sequent_Backend_Contest_Arr_Rel_Insert_Input>
     created_at?: InputMaybe<Scalars["timestamptz"]["input"]>
@@ -9238,7 +9232,6 @@ export type Sequent_Backend_Election_Insert_Input = {
     keys_ceremony_id?: InputMaybe<Scalars["uuid"]["input"]>
     labels?: InputMaybe<Scalars["jsonb"]["input"]>
     last_updated_at?: InputMaybe<Scalars["timestamptz"]["input"]>
-    name?: InputMaybe<Scalars["String"]["input"]>
     num_allowed_revotes?: InputMaybe<Scalars["Int"]["input"]>
     permission_label?: InputMaybe<Scalars["String"]["input"]>
     presentation?: InputMaybe<Scalars["jsonb"]["input"]>
@@ -9253,7 +9246,6 @@ export type Sequent_Backend_Election_Insert_Input = {
 /** aggregate max on columns */
 export type Sequent_Backend_Election_Max_Fields = {
     __typename?: "sequent_backend_election_max_fields"
-    alias?: Maybe<Scalars["String"]["output"]>
     created_at?: Maybe<Scalars["timestamptz"]["output"]>
     description?: Maybe<Scalars["String"]["output"]>
     election_event_id?: Maybe<Scalars["uuid"]["output"]>
@@ -9262,7 +9254,6 @@ export type Sequent_Backend_Election_Max_Fields = {
     image_document_id?: Maybe<Scalars["String"]["output"]>
     keys_ceremony_id?: Maybe<Scalars["uuid"]["output"]>
     last_updated_at?: Maybe<Scalars["timestamptz"]["output"]>
-    name?: Maybe<Scalars["String"]["output"]>
     num_allowed_revotes?: Maybe<Scalars["Int"]["output"]>
     permission_label?: Maybe<Scalars["String"]["output"]>
     tenant_id?: Maybe<Scalars["uuid"]["output"]>
@@ -9270,7 +9261,6 @@ export type Sequent_Backend_Election_Max_Fields = {
 
 /** order by max() on columns of table "sequent_backend.election" */
 export type Sequent_Backend_Election_Max_Order_By = {
-    alias?: InputMaybe<Order_By>
     created_at?: InputMaybe<Order_By>
     description?: InputMaybe<Order_By>
     election_event_id?: InputMaybe<Order_By>
@@ -9279,7 +9269,6 @@ export type Sequent_Backend_Election_Max_Order_By = {
     image_document_id?: InputMaybe<Order_By>
     keys_ceremony_id?: InputMaybe<Order_By>
     last_updated_at?: InputMaybe<Order_By>
-    name?: InputMaybe<Order_By>
     num_allowed_revotes?: InputMaybe<Order_By>
     permission_label?: InputMaybe<Order_By>
     tenant_id?: InputMaybe<Order_By>
@@ -9288,7 +9277,6 @@ export type Sequent_Backend_Election_Max_Order_By = {
 /** aggregate min on columns */
 export type Sequent_Backend_Election_Min_Fields = {
     __typename?: "sequent_backend_election_min_fields"
-    alias?: Maybe<Scalars["String"]["output"]>
     created_at?: Maybe<Scalars["timestamptz"]["output"]>
     description?: Maybe<Scalars["String"]["output"]>
     election_event_id?: Maybe<Scalars["uuid"]["output"]>
@@ -9297,7 +9285,6 @@ export type Sequent_Backend_Election_Min_Fields = {
     image_document_id?: Maybe<Scalars["String"]["output"]>
     keys_ceremony_id?: Maybe<Scalars["uuid"]["output"]>
     last_updated_at?: Maybe<Scalars["timestamptz"]["output"]>
-    name?: Maybe<Scalars["String"]["output"]>
     num_allowed_revotes?: Maybe<Scalars["Int"]["output"]>
     permission_label?: Maybe<Scalars["String"]["output"]>
     tenant_id?: Maybe<Scalars["uuid"]["output"]>
@@ -9305,7 +9292,6 @@ export type Sequent_Backend_Election_Min_Fields = {
 
 /** order by min() on columns of table "sequent_backend.election" */
 export type Sequent_Backend_Election_Min_Order_By = {
-    alias?: InputMaybe<Order_By>
     created_at?: InputMaybe<Order_By>
     description?: InputMaybe<Order_By>
     election_event_id?: InputMaybe<Order_By>
@@ -9314,7 +9300,6 @@ export type Sequent_Backend_Election_Min_Order_By = {
     image_document_id?: InputMaybe<Order_By>
     keys_ceremony_id?: InputMaybe<Order_By>
     last_updated_at?: InputMaybe<Order_By>
-    name?: InputMaybe<Order_By>
     num_allowed_revotes?: InputMaybe<Order_By>
     permission_label?: InputMaybe<Order_By>
     tenant_id?: InputMaybe<Order_By>
@@ -9338,7 +9323,6 @@ export type Sequent_Backend_Election_On_Conflict = {
 
 /** Ordering options when selecting data from "sequent_backend.election". */
 export type Sequent_Backend_Election_Order_By = {
-    alias?: InputMaybe<Order_By>
     annotations?: InputMaybe<Order_By>
     contests_aggregate?: InputMaybe<Sequent_Backend_Contest_Aggregate_Order_By>
     created_at?: InputMaybe<Order_By>
@@ -9353,7 +9337,6 @@ export type Sequent_Backend_Election_Order_By = {
     keys_ceremony_id?: InputMaybe<Order_By>
     labels?: InputMaybe<Order_By>
     last_updated_at?: InputMaybe<Order_By>
-    name?: InputMaybe<Order_By>
     num_allowed_revotes?: InputMaybe<Order_By>
     permission_label?: InputMaybe<Order_By>
     presentation?: InputMaybe<Order_By>
@@ -9691,8 +9674,6 @@ export type Sequent_Backend_Election_Result_Updates = {
 /** select columns of table "sequent_backend.election" */
 export enum Sequent_Backend_Election_Select_Column {
     /** column name */
-    Alias = "alias",
-    /** column name */
     Annotations = "annotations",
     /** column name */
     CreatedAt = "created_at",
@@ -9718,8 +9699,6 @@ export enum Sequent_Backend_Election_Select_Column {
     Labels = "labels",
     /** column name */
     LastUpdatedAt = "last_updated_at",
-    /** column name */
-    Name = "name",
     /** column name */
     NumAllowedRevotes = "num_allowed_revotes",
     /** column name */
@@ -9766,7 +9745,6 @@ export enum Sequent_Backend_Election_Select_Column_Sequent_Backend_Election_Aggr
 
 /** input type for updating data in table "sequent_backend.election" */
 export type Sequent_Backend_Election_Set_Input = {
-    alias?: InputMaybe<Scalars["String"]["input"]>
     annotations?: InputMaybe<Scalars["jsonb"]["input"]>
     created_at?: InputMaybe<Scalars["timestamptz"]["input"]>
     description?: InputMaybe<Scalars["String"]["input"]>
@@ -9780,7 +9758,6 @@ export type Sequent_Backend_Election_Set_Input = {
     keys_ceremony_id?: InputMaybe<Scalars["uuid"]["input"]>
     labels?: InputMaybe<Scalars["jsonb"]["input"]>
     last_updated_at?: InputMaybe<Scalars["timestamptz"]["input"]>
-    name?: InputMaybe<Scalars["String"]["input"]>
     num_allowed_revotes?: InputMaybe<Scalars["Int"]["input"]>
     permission_label?: InputMaybe<Scalars["String"]["input"]>
     presentation?: InputMaybe<Scalars["jsonb"]["input"]>
@@ -9835,7 +9812,6 @@ export type Sequent_Backend_Election_Stream_Cursor_Input = {
 
 /** Initial value of the column from where the streaming should start */
 export type Sequent_Backend_Election_Stream_Cursor_Value_Input = {
-    alias?: InputMaybe<Scalars["String"]["input"]>
     annotations?: InputMaybe<Scalars["jsonb"]["input"]>
     created_at?: InputMaybe<Scalars["timestamptz"]["input"]>
     description?: InputMaybe<Scalars["String"]["input"]>
@@ -9849,7 +9825,6 @@ export type Sequent_Backend_Election_Stream_Cursor_Value_Input = {
     keys_ceremony_id?: InputMaybe<Scalars["uuid"]["input"]>
     labels?: InputMaybe<Scalars["jsonb"]["input"]>
     last_updated_at?: InputMaybe<Scalars["timestamptz"]["input"]>
-    name?: InputMaybe<Scalars["String"]["input"]>
     num_allowed_revotes?: InputMaybe<Scalars["Int"]["input"]>
     permission_label?: InputMaybe<Scalars["String"]["input"]>
     presentation?: InputMaybe<Scalars["jsonb"]["input"]>
@@ -10115,8 +10090,6 @@ export type Sequent_Backend_Election_Type_Updates = {
 /** update columns of table "sequent_backend.election" */
 export enum Sequent_Backend_Election_Update_Column {
     /** column name */
-    Alias = "alias",
-    /** column name */
     Annotations = "annotations",
     /** column name */
     CreatedAt = "created_at",
@@ -10142,8 +10115,6 @@ export enum Sequent_Backend_Election_Update_Column {
     Labels = "labels",
     /** column name */
     LastUpdatedAt = "last_updated_at",
-    /** column name */
-    Name = "name",
     /** column name */
     NumAllowedRevotes = "num_allowed_revotes",
     /** column name */

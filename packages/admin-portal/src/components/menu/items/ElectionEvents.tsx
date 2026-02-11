@@ -53,6 +53,7 @@ import {
 } from "@/queries/GetElectionEventsTree"
 import {useElectionEventTallyStore} from "@/providers/ElectionEventTallyProvider"
 import {sortCandidatesInContest, sortContestList, sortElectionList} from "@sequentech/ui-core"
+import {useAliasRenderer} from "@/hooks/useAliasRenderer"
 
 const MenuItem = styled(Menu.Item)`
     color: ${adminTheme.palette.brandColor};
@@ -215,6 +216,7 @@ export default function ElectionEvents() {
     const [instantSearchInput, setInstantSearchInput] = useState<string>("")
     const [searchInput, setSearchInput] = useState<string>("")
     const navigate = useNavigate()
+    const aliasRenderer = useAliasRenderer()
 
     const [isArchivedElectionEvents, setArchivedElectionEvents] = useAtom(
         archivedElectionEventSelection
@@ -468,6 +470,12 @@ export default function ElectionEvents() {
         openImportDrawer?.()
     }
 
+    const transformElectionEvent = (electionEvent: ElectionEventType): ElectionEventType => {
+        return {
+            ...electionEvent,
+            name: aliasRenderer(electionEvent),
+        }
+    }
     const transformElectionsForSort = (elections: ElectionType[]): IElection[] => {
         return elections.map((election) => {
             return {
@@ -475,6 +483,7 @@ export default function ElectionEvents() {
                 tenant_id: tenantId || "",
                 image_document_id: election.image_document_id ?? "",
                 contests: [],
+                name: aliasRenderer(election),
             }
         })
     }
@@ -515,8 +524,9 @@ export default function ElectionEvents() {
             electionEvents: cloneDeep(resultData?.electionEvents ?? [])?.map(
                 (electionEvent: ElectionEventType) => {
                     const electionOrderType = electionEvent?.presentation?.elections_order
+
                     return {
-                        ...electionEvent,
+                        ...transformElectionEvent(electionEvent),
                         ...(electionEvent.id === electionEventId
                             ? {
                                   active: true,
