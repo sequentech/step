@@ -1369,6 +1369,18 @@ const dutchTranslation: TranslationType = {
                 "not-allowed-with-msg-and-disable":
                     "Niet Toegestaan met Waarschuwing en Verdere Selecties Uitschakelen",
             },
+            duplicatedRankPolicy: {
+                "label": "Beleid Gedupliceerde Rang",
+                "warn-and-alert": "Waarschuwen met dialoog (kiezer kan doorgaan)",
+                "warn": "Alleen Waarschuwen",
+                "not-allowed": "Niet Toegestaan (kiezer moet probleem oplossen voor verder gaan)",
+            },
+            preferenceGapsPolicy: {
+                "label": "Beleid Voorkeursgaten",
+                "warn": "Alleen Waarschuwen",
+                "warn-and-alert": "Waarschuwen met dialoog (kiezer kan doorgaan)",
+                "not-allowed": "Niet Toegestaan (kiezer moet probleem oplossen voor verder gaan)",
+            },
             paginationPolicy: {
                 label: "Paginanaam",
             },

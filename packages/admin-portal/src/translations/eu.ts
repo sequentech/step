@@ -1368,6 +1368,18 @@ const basqueTranslation: TranslationType = {
                 "not-allowed-with-msg-and-disable":
                     "Ez Baimenduta Abisu mezuarekin eta Gehiago hautatzea Desgaitu",
             },
+            duplicatedRankPolicy: {
+                "label": "Bikoiztutako Rankaren Politika",
+                "warn-and-alert": "Abisatu elkarrizketa-koadroarekin (botatzaileak aurrera egin dezake)",
+                "warn": "Soilik abisatu",
+                "not-allowed": "Ez baimenduta (botatzaileak aurrera egin aurretik konpondu behar du)",
+            },
+            preferenceGapsPolicy: {
+                "label": "Lehentasun Hutsunearen Politika",
+                "warn": "Soilik abisatu",
+                "warn-and-alert": "Abisatu elkarrizketa-koadroarekin (botatzaileak aurrera egin dezake)",
+                "not-allowed": "Ez baimenduta (botatzaileak aurrera egin aurretik konpondu behar du)",
+            },
             paginationPolicy: {
                 label: "Orri Izena",
             },

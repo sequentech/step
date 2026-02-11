@@ -58,6 +58,8 @@ import {
     EBlankVotePolicy,
     EOverVotePolicy,
     ECandidatesIconCheckboxPolicy,
+    EDuplicatedRankPolicy,
+    EPreferenceGapsPolicy,
 } from "@sequentech/ui-core"
 import {DropFile} from "@sequentech/ui-essentials"
 import {IVotingType} from "./constants"
@@ -407,6 +409,20 @@ export const ContestDataForm: React.FC = () => {
         }))
     }
 
+    const duplicatedRankPolicyChoices = () => {
+        return Object.values(EDuplicatedRankPolicy).map((value) => ({
+            id: value,
+            name: t(`contestScreen.duplicatedRankPolicy.${value}`),
+        }))
+    }
+
+    const preferenceGapsPolicyChoices = () => {
+        return Object.values(EPreferenceGapsPolicy).map((value) => ({
+            id: value,
+            name: t(`contestScreen.preferenceGapsPolicy.${value}`),
+        }))
+    }
+
     const parseValues = useCallback(
         (incoming: Sequent_Backend_Contest_Extended): Sequent_Backend_Contest_Extended => {
             if (!electionEvent) {
@@ -470,6 +486,13 @@ export const ContestDataForm: React.FC = () => {
 
             newContest.presentation.over_vote_policy =
                 newContest.presentation.over_vote_policy || EOverVotePolicy.ALLOWED
+
+            newContest.presentation.duplicated_rank_policy =
+                newContest.presentation.duplicated_rank_policy ||
+                EDuplicatedRankPolicy.WARN_AND_ALERT
+
+            newContest.presentation.preference_gaps_policy =
+                newContest.presentation.preference_gaps_policy || EPreferenceGapsPolicy.WARN
 
             newContest.presentation.pagination_policy =
                 newContest.presentation.pagination_policy || ""
@@ -784,6 +807,22 @@ export const ContestDataForm: React.FC = () => {
                                     choices={overVotePolicyChoices()}
                                     label={String(t(`contestScreen.overVotePolicy.label`))}
                                     defaultValue={EOverVotePolicy.ALLOWED}
+                                    validate={required()}
+                                />
+
+                                <SelectInput
+                                    source={`presentation.duplicated_rank_policy`}
+                                    choices={duplicatedRankPolicyChoices()}
+                                    label={String(t(`contestScreen.duplicatedRankPolicy.label`))}
+                                    defaultValue={EDuplicatedRankPolicy.WARN_AND_ALERT}
+                                    validate={required()}
+                                />
+
+                                <SelectInput
+                                    source={`presentation.preference_gaps_policy`}
+                                    choices={preferenceGapsPolicyChoices()}
+                                    label={String(t(`contestScreen.preferenceGapsPolicy.label`))}
+                                    defaultValue={EPreferenceGapsPolicy.WARN}
                                     validate={required()}
                                 />
 

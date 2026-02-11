@@ -1204,6 +1204,64 @@ pub enum EOverVotePolicy {
     NOT_ALLOWED_WITH_MSG_AND_DISABLE,
 }
 
+#[allow(non_camel_case_types)]
+#[derive(
+    Debug,
+    BorshSerialize,
+    BorshDeserialize,
+    Serialize,
+    Deserialize,
+    PartialEq,
+    Eq,
+    JsonSchema,
+    Copy,
+    Clone,
+    EnumString,
+    Display,
+    Default,
+)]
+pub enum EDuplicatedRankPolicy {
+    #[strum(serialize = "warn-and-alert")]
+    #[serde(rename = "warn-and-alert")]
+    #[default]
+    WARN_AND_ALERT,
+    #[strum(serialize = "warn")]
+    #[serde(rename = "warn")]
+    WARN,
+    #[strum(serialize = "not-allowed")]
+    #[serde(rename = "not-allowed")]
+    NOT_ALLOWED,
+}
+
+#[allow(non_camel_case_types)]
+#[derive(
+    Debug,
+    BorshSerialize,
+    BorshDeserialize,
+    Serialize,
+    Deserialize,
+    PartialEq,
+    Eq,
+    JsonSchema,
+    Copy,
+    Clone,
+    EnumString,
+    Display,
+    Default,
+)]
+pub enum EPreferenceGapsPolicy {
+    #[strum(serialize = "warn")]
+    #[serde(rename = "warn")]
+    #[default]
+    WARN,
+    #[strum(serialize = "warn-and-alert")]
+    #[serde(rename = "warn-and-alert")]
+    WARN_AND_ALERT,
+    #[strum(serialize = "not-allowed")]
+    #[serde(rename = "not-allowed")]
+    NOT_ALLOWED,
+}
+
 #[derive(
     BorshSerialize,
     BorshDeserialize,
@@ -1353,6 +1411,8 @@ pub struct ContestPresentation {
     pub under_vote_policy: Option<EUnderVotePolicy>,
     pub blank_vote_policy: Option<EBlankVotePolicy>,
     pub over_vote_policy: Option<EOverVotePolicy>,
+    pub duplicated_rank_policy: Option<EDuplicatedRankPolicy>,
+    pub preference_gaps_policy: Option<EPreferenceGapsPolicy>,
     pub pagination_policy: Option<String>,
     pub cumulative_number_of_checkboxes: Option<u64>,
     pub shuffle_categories: Option<bool>,

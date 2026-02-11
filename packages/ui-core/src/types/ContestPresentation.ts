@@ -54,6 +54,18 @@ export enum EOverVotePolicy {
     NOT_ALLOWED_WITH_MSG_AND_DISABLE = "not-allowed-with-msg-and-disable",
 }
 
+export enum EDuplicatedRankPolicy {
+    WARN_AND_ALERT = "warn-and-alert",
+    WARN = "warn",
+    NOT_ALLOWED = "not-allowed",
+}
+
+export enum EPreferenceGapsPolicy {
+    WARN = "warn",
+    WARN_AND_ALERT = "warn-and-alert",
+    NOT_ALLOWED = "not-allowed",
+}
+
 export interface ITypePresentation {
     name?: string
     name_i18n?: Record<string, string>
@@ -80,5 +92,7 @@ export interface IContestPresentation {
     types_presentation?: Record<string, ITypePresentation>
     sort_order?: number
     under_vote_policy?: EUnderVotePolicy
+    duplicated_rank_policy?: EDuplicatedRankPolicy
+    preference_gaps_policy?: EPreferenceGapsPolicy
     columns?: number
 }
