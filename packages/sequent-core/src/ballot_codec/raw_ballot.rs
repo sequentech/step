@@ -390,30 +390,14 @@ impl RawBallotCodec for Contest {
                 Ok(()) => {}
                 Err(error) => match error {
                     PreferencialOrderErrorType::PreferenceOrderWithGaps => {
-                        decoded_contest.invalid_alerts.push(
-                            InvalidPlaintextError {
-                                error_type: InvalidPlaintextErrorType::Implicit,
-                                candidate_id: None,
-                                message: Some(
-                                    "errors.implicit.preferenceOrderWithGaps"
-                                        .to_string(),
-                                ),
-                                message_map: HashMap::new(),
-                            },
-                        );
+                        let check =
+                            check_preference_gaps_policy(&presentation);
+                        decoded_contest.update(check);
                     }
                     PreferencialOrderErrorType::DuplicatedPosition => {
-                        decoded_contest.invalid_errors.push(
-                            InvalidPlaintextError {
-                                error_type: InvalidPlaintextErrorType::Implicit,
-                                candidate_id: None,
-                                message: Some(
-                                    "errors.implicit.duplicatedPosition"
-                                        .to_string(),
-                                ),
-                                message_map: HashMap::new(),
-                            },
-                        );
+                        let check =
+                            check_duplicated_rank_policy(&presentation);
+                        decoded_contest.update(check);
                     }
                 },
             }

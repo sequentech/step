@@ -6,8 +6,9 @@ use crate::ballot_codec::multi_ballot::DecodedContestChoices;
 use crate::plaintext::DecodedVoteContest;
 use crate::{
     ballot::{
-        ContestPresentation, EBlankVotePolicy, EOverVotePolicy,
-        EUnderVotePolicy, InvalidVotePolicy,
+        ContestPresentation, EBlankVotePolicy, EDuplicatedRankPolicy,
+        EOverVotePolicy, EPreferenceGapsPolicy, EUnderVotePolicy,
+        InvalidVotePolicy,
     },
     plaintext::{InvalidPlaintextError, InvalidPlaintextErrorType},
 };
@@ -226,6 +227,60 @@ pub fn check_under_vote_policy(
                     ("max".to_string(), max_votes.to_string()),
                 ]),
             });
+        }
+    }
+    checker_result
+}
+
+pub fn check_duplicated_rank_policy(
+    presentation: &ContestPresentation,
+) -> CheckerResult {
+    let mut checker_result: CheckerResult = Default::default();
+    let policy = presentation
+        .duplicated_rank_policy
+        .clone()
+        .unwrap_or_default();
+    let error = InvalidPlaintextError {
+        error_type: InvalidPlaintextErrorType::Implicit,
+        candidate_id: None,
+        message: Some("errors.implicit.duplicatedPosition".to_string()),
+        message_map: HashMap::new(),
+    };
+    match policy {
+        EDuplicatedRankPolicy::WARN_AND_ALERT
+        | EDuplicatedRankPolicy::NOT_ALLOWED => {
+            checker_result.invalid_errors.push(error);
+        }
+        EDuplicatedRankPolicy::WARN => {
+            checker_result.invalid_alerts.push(error);
+        }
+    }
+    checker_result
+}
+
+pub fn check_preference_gaps_policy(
+    presentation: &ContestPresentation,
+) -> CheckerResult {
+    let mut checker_result: CheckerResult = Default::default();
+    let policy = presentation
+        .preference_gaps_policy
+        .clone()
+        .unwrap_or_default();
+    let error = InvalidPlaintextError {
+        error_type: InvalidPlaintextErrorType::Implicit,
+        candidate_id: None,
+        message: Some(
+            "errors.implicit.preferenceOrderWithGaps".to_string(),
+        ),
+        message_map: HashMap::new(),
+    };
+    match policy {
+        EPreferenceGapsPolicy::WARN => {
+            checker_result.invalid_alerts.push(error);
+        }
+        EPreferenceGapsPolicy::WARN_AND_ALERT
+        | EPreferenceGapsPolicy::NOT_ALLOWED => {
+            checker_result.invalid_errors.push(error);
         }
     }
     checker_result

@@ -1450,6 +1450,8 @@ impl ContestPresentation {
             types_presentation: None,
             sort_order: None,
             under_vote_policy: Some(EUnderVotePolicy::ALLOWED),
+            duplicated_rank_policy: Some(EDuplicatedRankPolicy::WARN_AND_ALERT),
+            preference_gaps_policy: Some(EPreferenceGapsPolicy::WARN),
             columns: None,
         }
     }
