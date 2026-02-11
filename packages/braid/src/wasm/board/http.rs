@@ -276,12 +276,12 @@ impl WasmHttpBoard {
             request3.headers().set(
                 "Authorization",
                 &format!(
-                "Bearer {}",
-                self.params
-                    .access_token
-                    .read()
-                    .expect("access_token lock poisoned")
-            ),
+                    "Bearer {}",
+                    self.params
+                        .access_token
+                        .read()
+                        .expect("access_token lock poisoned")
+                ),
             )?;
 
             let resp_value3 = JsFuture::from(window.fetch_with_request(&request3)).await?;
@@ -323,12 +323,12 @@ impl WasmHttpBoard {
             request3.headers().set(
                 "Authorization",
                 &format!(
-                "Bearer {}",
-                self.params
-                    .access_token
-                    .read()
-                    .expect("access_token lock poisoned")
-            ),
+                    "Bearer {}",
+                    self.params
+                        .access_token
+                        .read()
+                        .expect("access_token lock poisoned")
+                ),
             )?;
 
             let resp_value3 = JsFuture::from(window.fetch_with_request(&request3)).await?;

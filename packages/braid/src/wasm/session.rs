@@ -235,14 +235,15 @@ impl WasmSession {
         let request = Request::new_with_str_and_init(&url, &opts)?;
 
         // Add Authorization header
-        request
-            .headers()
-            .set("Authorization", &format!(
+        request.headers().set(
+            "Authorization",
+            &format!(
                 "Bearer {}",
                 self.access_token
                     .read()
                     .expect("access_token lock poisoned")
-            ))?;
+            ),
+        )?;
 
         let window = web_sys::window().ok_or_else(|| JsValue::from_str("No window"))?;
         let resp_value = JsFuture::from(window.fetch_with_request(&request)).await?;
@@ -296,14 +297,15 @@ impl WasmSession {
         let request = Request::new_with_str_and_init(&url, &opts)?;
 
         // Add Authorization header
-        request
-            .headers()
-            .set("Authorization", &format!(
+        request.headers().set(
+            "Authorization",
+            &format!(
                 "Bearer {}",
                 self.access_token
                     .read()
                     .expect("access_token lock poisoned")
-            ))?;
+            ),
+        )?;
 
         let window = web_sys::window().ok_or_else(|| JsValue::from_str("No window"))?;
         let resp_value = JsFuture::from(window.fetch_with_request(&request)).await?;
@@ -349,14 +351,15 @@ impl WasmSession {
                     let request = Request::new_with_str_and_init(&message_url, &opts)?;
 
                     // Add Authorization header
-                    request
-                        .headers()
-                        .set("Authorization", &format!(
-                "Bearer {}",
-                self.access_token
-                    .read()
-                    .expect("access_token lock poisoned")
-            ))?;
+                    request.headers().set(
+                        "Authorization",
+                        &format!(
+                            "Bearer {}",
+                            self.access_token
+                                .read()
+                                .expect("access_token lock poisoned")
+                        ),
+                    )?;
 
                     let window = web_sys::window().ok_or_else(|| JsValue::from_str("No window"))?;
                     let resp_value = JsFuture::from(window.fetch_with_request(&request)).await?;
@@ -508,14 +511,15 @@ impl WasmSession {
             request.headers().set("Content-Type", "application/json")?;
 
             // Add Authorization header
-            request
-                .headers()
-                .set("Authorization", &format!(
-                "Bearer {}",
-                self.access_token
-                    .read()
-                    .expect("access_token lock poisoned")
-            ))?;
+            request.headers().set(
+                "Authorization",
+                &format!(
+                    "Bearer {}",
+                    self.access_token
+                        .read()
+                        .expect("access_token lock poisoned")
+                ),
+            )?;
 
             let window = web_sys::window().ok_or_else(|| JsValue::from_str("No window"))?;
             let resp_value = JsFuture::from(window.fetch_with_request(&request)).await?;
@@ -598,14 +602,15 @@ impl WasmSession {
                 request3.headers().set("Content-Type", "application/json")?;
 
                 // Add Authorization header
-                request3
-                    .headers()
-                    .set("Authorization", &format!(
-                "Bearer {}",
-                self.access_token
-                    .read()
-                    .expect("access_token lock poisoned")
-            ))?;
+                request3.headers().set(
+                    "Authorization",
+                    &format!(
+                        "Bearer {}",
+                        self.access_token
+                            .read()
+                            .expect("access_token lock poisoned")
+                    ),
+                )?;
 
                 let resp_value3 = JsFuture::from(window.fetch_with_request(&request3)).await?;
                 let resp3: Response = resp_value3.dyn_into()?;
@@ -646,14 +651,15 @@ impl WasmSession {
                 request3.headers().set("Content-Type", "application/json")?;
 
                 // Add Authorization header
-                request3
-                    .headers()
-                    .set("Authorization", &format!(
-                "Bearer {}",
-                self.access_token
-                    .read()
-                    .expect("access_token lock poisoned")
-            ))?;
+                request3.headers().set(
+                    "Authorization",
+                    &format!(
+                        "Bearer {}",
+                        self.access_token
+                            .read()
+                            .expect("access_token lock poisoned")
+                    ),
+                )?;
 
                 let resp_value3 = JsFuture::from(window.fetch_with_request(&request3)).await?;
                 let resp3: Response = resp_value3.dyn_into()?;
