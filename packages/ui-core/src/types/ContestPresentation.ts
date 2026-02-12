@@ -55,15 +55,13 @@ export enum EOverVotePolicy {
 }
 
 export enum EDuplicatedRankPolicy {
-    WARN_AND_ALERT = "warn-and-alert",
-    WARN = "warn",
-    NOT_ALLOWED = "not-allowed",
+    WARN_AND_DIALOG = "warn-and-dialog",
+    NOT_ALLOWED_WARN_AND_DIALOG = "not-allowed-warn-and-dialog",
 }
 
 export enum EPreferenceGapsPolicy {
-    WARN = "warn",
-    WARN_AND_ALERT = "warn-and-alert",
-    NOT_ALLOWED = "not-allowed",
+    WARN_AND_DIALOG = "warn-and-dialog",
+    NOT_ALLOWED_WARN_AND_DIALOG = "not-allowed-warn-and-dialog",
 }
 
 export interface ITypePresentation {

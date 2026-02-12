@@ -85,7 +85,7 @@ pub fn check_voting_not_allowed_next_util(
                         == EOverVotePolicy::NOT_ALLOWED_WITH_MSG_AND_ALERT)
             // - duplicated rank policy is NOT_ALLOWED and there's a
             //   duplicated position error
-                || (*duplicated_rank_policy == EDuplicatedRankPolicy::NOT_ALLOWED
+                || (*duplicated_rank_policy == EDuplicatedRankPolicy::NOT_ALLOWED_WARN_AND_DIALOG
                     && invalid_errors.iter().any(|e| {
                         e.message
                             == Some(
@@ -95,7 +95,7 @@ pub fn check_voting_not_allowed_next_util(
                     }))
             // - preference gaps policy is NOT_ALLOWED and there's a
             //   preference order with gaps error
-                || (*preference_gaps_policy == EPreferenceGapsPolicy::NOT_ALLOWED
+                || (*preference_gaps_policy == EPreferenceGapsPolicy::NOT_ALLOWED_WARN_AND_DIALOG
                     && invalid_errors.iter().any(|e| {
                         e.message
                             == Some(
@@ -201,7 +201,7 @@ pub fn check_voting_error_dialog_util(
             // - duplicated rank policy is WARN_AND_ALERT and there's a
             //   duplicated position error
                 || (*duplicated_rank_policy
-                    == EDuplicatedRankPolicy::WARN_AND_ALERT
+                    == EDuplicatedRankPolicy::WARN_AND_DIALOG
                     && invalid_errors.iter().any(|e| {
                         e.message
                             == Some(
@@ -212,7 +212,7 @@ pub fn check_voting_error_dialog_util(
             // - preference gaps policy is WARN_AND_ALERT and there's a
             //   preference order with gaps error
                 || (*preference_gaps_policy
-                    == EPreferenceGapsPolicy::WARN_AND_ALERT
+                    == EPreferenceGapsPolicy::WARN_AND_DIALOG
                     && invalid_errors.iter().any(|e| {
                         e.message
                             == Some(

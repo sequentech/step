@@ -247,12 +247,9 @@ pub fn check_duplicated_rank_policy(
         message_map: HashMap::new(),
     };
     match policy {
-        EDuplicatedRankPolicy::WARN_AND_ALERT
-        | EDuplicatedRankPolicy::NOT_ALLOWED => {
+        EDuplicatedRankPolicy::WARN_AND_DIALOG
+        | EDuplicatedRankPolicy::NOT_ALLOWED_WARN_AND_DIALOG => {
             checker_result.invalid_errors.push(error);
-        }
-        EDuplicatedRankPolicy::WARN => {
-            checker_result.invalid_alerts.push(error);
         }
     }
     checker_result
@@ -273,11 +270,8 @@ pub fn check_preference_gaps_policy(
         message_map: HashMap::new(),
     };
     match policy {
-        EPreferenceGapsPolicy::WARN => {
-            checker_result.invalid_alerts.push(error);
-        }
-        EPreferenceGapsPolicy::WARN_AND_ALERT
-        | EPreferenceGapsPolicy::NOT_ALLOWED => {
+        EPreferenceGapsPolicy::WARN_AND_DIALOG
+        | EPreferenceGapsPolicy::NOT_ALLOWED_WARN_AND_DIALOG => {
             checker_result.invalid_errors.push(error);
         }
     }

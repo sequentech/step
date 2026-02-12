@@ -489,10 +489,11 @@ export const ContestDataForm: React.FC = () => {
 
             newContest.presentation.duplicated_rank_policy =
                 newContest.presentation.duplicated_rank_policy ||
-                EDuplicatedRankPolicy.WARN_AND_ALERT
+                EDuplicatedRankPolicy.WARN_AND_DIALOG
 
             newContest.presentation.preference_gaps_policy =
-                newContest.presentation.preference_gaps_policy || EPreferenceGapsPolicy.WARN
+                newContest.presentation.preference_gaps_policy ||
+                EPreferenceGapsPolicy.WARN_AND_DIALOG
 
             newContest.presentation.pagination_policy =
                 newContest.presentation.pagination_policy || ""
@@ -814,7 +815,7 @@ export const ContestDataForm: React.FC = () => {
                                     source={`presentation.duplicated_rank_policy`}
                                     choices={duplicatedRankPolicyChoices()}
                                     label={String(t(`contestScreen.duplicatedRankPolicy.label`))}
-                                    defaultValue={EDuplicatedRankPolicy.WARN_AND_ALERT}
+                                    defaultValue={EDuplicatedRankPolicy.WARN_AND_DIALOG}
                                     validate={required()}
                                 />
 
@@ -822,7 +823,7 @@ export const ContestDataForm: React.FC = () => {
                                     source={`presentation.preference_gaps_policy`}
                                     choices={preferenceGapsPolicyChoices()}
                                     label={String(t(`contestScreen.preferenceGapsPolicy.label`))}
-                                    defaultValue={EPreferenceGapsPolicy.WARN}
+                                    defaultValue={EPreferenceGapsPolicy.WARN_AND_DIALOG}
                                     validate={required()}
                                 />
 

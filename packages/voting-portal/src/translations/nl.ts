@@ -319,9 +319,10 @@ const dutchTranslation: TranslationType = {
                 overVoteDisabled:
                     "Maximum bereikt: U heeft het maximum aantal keuzes {{numSelected}} geselecteerd. Om uw selectie te wijzigen, deselecteer eerst een andere optie.",
                 blankVote: "Blanco stem: 0 keuzes geselecteerd",
-                preferenceOrderWithGaps: "De voorkeursvolgorde heeft een of meer hiaten.",
+                preferenceOrderWithGaps:
+                    "Ongeldige stem!. De voorkeursvolgorde heeft een of meer hiaten.",
                 duplicatedPosition:
-                    "Dezelfde positie is geselecteerd voor twee of meer kandidaten.",
+                    "Ongeldige stem!. Dezelfde positie is geselecteerd voor twee of meer kandidaten.",
             },
             explicit: {
                 notAllowed:

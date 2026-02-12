@@ -1382,16 +1382,16 @@ const catalanTranslation: TranslationType = {
                     "No es permet amb missatge d'avís i desactiva més seleccions",
             },
             duplicatedRankPolicy: {
-                "label": "Política de rang duplicat",
-                "warn-and-alert": "Advertir amb diàleg (el votant pot continuar)",
-                "warn": "Només advertir",
-                "not-allowed": "No permès (el votant ha de corregir-ho abans de continuar)",
+                "label": "Vot invàlid - Política de rang duplicat",
+                "warn-and-dialog": "Mostrar advertiment i diàleg (el votant pot continuar)",
+                "not-allowed-warn-and-dialog":
+                    "Mostrar advertiment i diàleg (el votant no pot continuar)",
             },
             preferenceGapsPolicy: {
-                "label": "Política de buits de preferència",
-                "warn": "Només advertir",
-                "warn-and-alert": "Advertir amb diàleg (el votant pot continuar)",
-                "not-allowed": "No permès (el votant ha de corregir-ho abans de continuar)",
+                "label": "Vot invàlid - Política de rangs omesos",
+                "warn-and-dialog": "Mostrar advertiment i diàleg (el votant pot continuar)",
+                "not-allowed-warn-and-dialog":
+                    "Mostrar advertiment i diàleg (el votant no pot continuar)",
             },
             paginationPolicy: {
                 label: "Nom de la pàgina",

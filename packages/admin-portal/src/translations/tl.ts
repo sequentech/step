@@ -1375,18 +1375,16 @@ const tagalogTranslation: TranslationType = {
                     "Dai Tinutugutan an mensahe nin Patanid asin I-disable an mga dugang pang pagpili",
             },
             duplicatedRankPolicy: {
-                "label": "Patakaran sa Dobleng Ranggo",
-                "warn-and-alert":
-                    "Magbigay ng babala na may dialog (maaaring magpatuloy ang botante)",
-                "warn": "Magbigay lang ng babala",
-                "not-allowed": "Hindi pinapayagan (kailangang ayusin ng botante bago magpatuloy)",
+                "label": "Di-wastong Boto - Patakaran sa Dobleng Ranggo",
+                "warn-and-dialog": "Ipakita ang babala at dialog (maaaring magpatuloy ang botante)",
+                "not-allowed-warn-and-dialog":
+                    "Ipakita ang babala at dialog (hindi maaaring magpatuloy ang botante)",
             },
             preferenceGapsPolicy: {
-                "label": "Patakaran sa Agwat ng Kagustuhan",
-                "warn": "Magbigay lang ng babala",
-                "warn-and-alert":
-                    "Magbigay ng babala na may dialog (maaaring magpatuloy ang botante)",
-                "not-allowed": "Hindi pinapayagan (kailangang ayusin ng botante bago magpatuloy)",
+                "label": "Di-wastong Boto - Patakaran sa Nilaktawang Ranggo",
+                "warn-and-dialog": "Ipakita ang babala at dialog (maaaring magpatuloy ang botante)",
+                "not-allowed-warn-and-dialog":
+                    "Ipakita ang babala at dialog (hindi maaaring magpatuloy ang botante)",
             },
             paginationPolicy: {
                 label: "Pangalan ng Pahina",

@@ -1373,16 +1373,16 @@ const galegoTranslation: TranslationType = {
                     "Non Permitido con Mensaxe de Aviso e Desactivar seleccións adicionais",
             },
             duplicatedRankPolicy: {
-                "label": "Política de posición duplicada",
-                "warn-and-alert": "Avisar con diálogo (o votante pode continuar)",
-                "warn": "Só avisar",
-                "not-allowed": "Non permitido (o votante debe corrixilo antes de continuar)",
+                "label": "Voto non válido - Política de posición duplicada",
+                "warn-and-dialog": "Mostrar aviso e diálogo (o votante pode continuar)",
+                "not-allowed-warn-and-dialog":
+                    "Mostrar aviso e diálogo (o votante non pode continuar)",
             },
             preferenceGapsPolicy: {
-                "label": "Política de ocos na preferencia",
-                "warn": "Só avisar",
-                "warn-and-alert": "Avisar con diálogo (o votante pode continuar)",
-                "not-allowed": "Non permitido (o votante debe corrixilo antes de continuar)",
+                "label": "Voto non válido - Política de rangos omitidos",
+                "warn-and-dialog": "Mostrar aviso e diálogo (o votante pode continuar)",
+                "not-allowed-warn-and-dialog":
+                    "Mostrar aviso e diálogo (o votante non pode continuar)",
             },
             paginationPolicy: {
                 label: "Nome da Páxina",

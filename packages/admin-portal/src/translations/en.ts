@@ -1361,16 +1361,16 @@ const englishTranslation = {
                     "Not Allowed with Warning message and Disable further selections",
             },
             duplicatedRankPolicy: {
-                "label": "Duplicated Rank Policy",
-                "warn-and-alert": "Warn with dialog (voter can proceed)",
-                "warn": "Warn only",
-                "not-allowed": "Not allowed (voter must fix before proceeding)",
+                "label": "Invalid Vote - Duplicate Rank Policy",
+                "warn-and-dialog": "Show Warning and Dialog (voter can proceed)",
+                "not-allowed-warn-and-dialog":
+                    "Show Warning and Dialog (voter not allowed to proceed)",
             },
             preferenceGapsPolicy: {
-                "label": "Preference Gaps Policy",
-                "warn": "Warn only",
-                "warn-and-alert": "Warn with dialog (voter can proceed)",
-                "not-allowed": "Not allowed (voter must fix before proceeding)",
+                "label": "Invalid Vote - Skipped Ranks Policy",
+                "warn-and-dialog": "Show Warning and Dialog (voter can proceed)",
+                "not-allowed-warn-and-dialog":
+                    "Show Warning and Dialog (voter not allowed to proceed)",
             },
             paginationPolicy: {
                 label: "Page Name",
