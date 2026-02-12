@@ -1387,6 +1387,12 @@ const catalanTranslation: TranslationType = {
             allowWriteins: {
                 label: "Permetre candidatures manuals",
             },
+            maxVotes: {
+                helperText:
+                    "Nombre màxim de candidats que un votant pot seleccionar (votació no preferencial).",
+                helperTextPreferential:
+                    "Posició de rang més alta disponible per als votants (p.ex. '5' significa posicions 1–5). Ha de ser almenys igual al nombre de candidats a ordenar (votació preferencial).",
+            },
             error: {},
             createContestSuccess: "Pregunta creada",
             createContestError: "Error creant pregunta",
