@@ -7892,7 +7892,6 @@ input cast_vote_updates {
 columns and relationships of "sequent_backend.contest"
 """
 type contest {
-  alias: String
   annotations(
     """JSON select path"""
     path: String
@@ -7944,7 +7943,6 @@ type contest {
   last_updated_at: timestamptz
   max_votes: Int
   min_votes: Int
-  name: String
   presentation(
     """JSON select path"""
     path: String
@@ -8068,7 +8066,6 @@ input contest_bool_exp {
   _and: [contest_bool_exp!]
   _not: contest_bool_exp
   _or: [contest_bool_exp!]
-  alias: String_comparison_exp
   annotations: jsonb_comparison_exp
   candidates: candidate_bool_exp
   candidates_aggregate: candidate_aggregate_bool_exp
@@ -8087,7 +8084,6 @@ input contest_bool_exp {
   last_updated_at: timestamptz_comparison_exp
   max_votes: Int_comparison_exp
   min_votes: Int_comparison_exp
-  name: String_comparison_exp
   presentation: jsonb_comparison_exp
   tally_configuration: jsonb_comparison_exp
   tenant_id: uuid_comparison_exp
@@ -8151,7 +8147,6 @@ input contest_inc_input {
 input type for inserting data into table "sequent_backend.contest"
 """
 input contest_insert_input {
-  alias: String
   annotations: jsonb
   candidates: candidate_arr_rel_insert_input
   conditions: jsonb
@@ -8169,7 +8164,6 @@ input contest_insert_input {
   last_updated_at: timestamptz
   max_votes: Int
   min_votes: Int
-  name: String
   presentation: jsonb
   tally_configuration: jsonb
   tenant_id: uuid
@@ -8179,7 +8173,6 @@ input contest_insert_input {
 
 """aggregate max on columns"""
 type contest_max_fields {
-  alias: String
   counting_algorithm: String
   created_at: timestamptz
   description: String
@@ -8190,7 +8183,6 @@ type contest_max_fields {
   last_updated_at: timestamptz
   max_votes: Int
   min_votes: Int
-  name: String
   tenant_id: uuid
   voting_type: String
   winning_candidates_num: Int
@@ -8200,7 +8192,6 @@ type contest_max_fields {
 order by max() on columns of table "sequent_backend.contest"
 """
 input contest_max_order_by {
-  alias: order_by
   counting_algorithm: order_by
   created_at: order_by
   description: order_by
@@ -8211,7 +8202,6 @@ input contest_max_order_by {
   last_updated_at: order_by
   max_votes: order_by
   min_votes: order_by
-  name: order_by
   tenant_id: order_by
   voting_type: order_by
   winning_candidates_num: order_by
@@ -8219,7 +8209,6 @@ input contest_max_order_by {
 
 """aggregate min on columns"""
 type contest_min_fields {
-  alias: String
   counting_algorithm: String
   created_at: timestamptz
   description: String
@@ -8230,7 +8219,6 @@ type contest_min_fields {
   last_updated_at: timestamptz
   max_votes: Int
   min_votes: Int
-  name: String
   tenant_id: uuid
   voting_type: String
   winning_candidates_num: Int
@@ -8240,7 +8228,6 @@ type contest_min_fields {
 order by min() on columns of table "sequent_backend.contest"
 """
 input contest_min_order_by {
-  alias: order_by
   counting_algorithm: order_by
   created_at: order_by
   description: order_by
@@ -8251,7 +8238,6 @@ input contest_min_order_by {
   last_updated_at: order_by
   max_votes: order_by
   min_votes: order_by
-  name: order_by
   tenant_id: order_by
   voting_type: order_by
   winning_candidates_num: order_by
@@ -8287,7 +8273,6 @@ input contest_on_conflict {
 
 """Ordering options when selecting data from "sequent_backend.contest"."""
 input contest_order_by {
-  alias: order_by
   annotations: order_by
   candidates_aggregate: candidate_aggregate_order_by
   conditions: order_by
@@ -8305,7 +8290,6 @@ input contest_order_by {
   last_updated_at: order_by
   max_votes: order_by
   min_votes: order_by
-  name: order_by
   presentation: order_by
   tally_configuration: order_by
   tenant_id: order_by
@@ -8333,8 +8317,6 @@ input contest_prepend_input {
 select columns of table "sequent_backend.contest"
 """
 enum contest_select_column {
-  """column name"""
-  alias
   """column name"""
   annotations
   """column name"""
@@ -8367,8 +8349,6 @@ enum contest_select_column {
   max_votes
   """column name"""
   min_votes
-  """column name"""
-  name
   """column name"""
   presentation
   """column name"""
@@ -8409,7 +8389,6 @@ enum contest_select_column_sequent_backend_contest_aggregate_bool_exp_bool_or_ar
 input type for updating data in table "sequent_backend.contest"
 """
 input contest_set_input {
-  alias: String
   annotations: jsonb
   conditions: jsonb
   counting_algorithm: String
@@ -8426,7 +8405,6 @@ input contest_set_input {
   last_updated_at: timestamptz
   max_votes: Int
   min_votes: Int
-  name: String
   presentation: jsonb
   tally_configuration: jsonb
   tenant_id: uuid
@@ -8494,7 +8472,6 @@ input contest_stream_cursor_input {
 
 """Initial value of the column from where the streaming should start"""
 input contest_stream_cursor_value_input {
-  alias: String
   annotations: jsonb
   conditions: jsonb
   counting_algorithm: String
@@ -8511,7 +8488,6 @@ input contest_stream_cursor_value_input {
   last_updated_at: timestamptz
   max_votes: Int
   min_votes: Int
-  name: String
   presentation: jsonb
   tally_configuration: jsonb
   tenant_id: uuid
@@ -8539,8 +8515,6 @@ input contest_sum_order_by {
 update columns of table "sequent_backend.contest"
 """
 enum contest_update_column {
-  """column name"""
-  alias
   """column name"""
   annotations
   """column name"""
@@ -8573,8 +8547,6 @@ enum contest_update_column {
   max_votes
   """column name"""
   min_votes
-  """column name"""
-  name
   """column name"""
   presentation
   """column name"""
