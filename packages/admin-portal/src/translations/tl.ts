@@ -1376,14 +1376,16 @@ const tagalogTranslation: TranslationType = {
             },
             duplicatedRankPolicy: {
                 "label": "Patakaran sa Dobleng Ranggo",
-                "warn-and-alert": "Magbigay ng babala na may dialog (maaaring magpatuloy ang botante)",
+                "warn-and-alert":
+                    "Magbigay ng babala na may dialog (maaaring magpatuloy ang botante)",
                 "warn": "Magbigay lang ng babala",
                 "not-allowed": "Hindi pinapayagan (kailangang ayusin ng botante bago magpatuloy)",
             },
             preferenceGapsPolicy: {
                 "label": "Patakaran sa Agwat ng Kagustuhan",
                 "warn": "Magbigay lang ng babala",
-                "warn-and-alert": "Magbigay ng babala na may dialog (maaaring magpatuloy ang botante)",
+                "warn-and-alert":
+                    "Magbigay ng babala na may dialog (maaaring magpatuloy ang botante)",
                 "not-allowed": "Hindi pinapayagan (kailangang ayusin ng botante bago magpatuloy)",
             },
             paginationPolicy: {

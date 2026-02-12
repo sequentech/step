@@ -269,9 +269,7 @@ pub fn check_preference_gaps_policy(
     let error = InvalidPlaintextError {
         error_type: InvalidPlaintextErrorType::Implicit,
         candidate_id: None,
-        message: Some(
-            "errors.implicit.preferenceOrderWithGaps".to_string(),
-        ),
+        message: Some("errors.implicit.preferenceOrderWithGaps".to_string()),
         message_map: HashMap::new(),
     };
     match policy {

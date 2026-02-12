@@ -390,13 +390,11 @@ impl RawBallotCodec for Contest {
                 Ok(()) => {}
                 Err(error) => match error {
                     PreferencialOrderErrorType::PreferenceOrderWithGaps => {
-                        let check =
-                            check_preference_gaps_policy(&presentation);
+                        let check = check_preference_gaps_policy(&presentation);
                         decoded_contest.update(check);
                     }
                     PreferencialOrderErrorType::DuplicatedPosition => {
-                        let check =
-                            check_duplicated_rank_policy(&presentation);
+                        let check = check_duplicated_rank_policy(&presentation);
                         decoded_contest.update(check);
                     }
                 },
