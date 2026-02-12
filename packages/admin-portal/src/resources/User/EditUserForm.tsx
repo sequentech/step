@@ -569,6 +569,13 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
         return {"name@_ilike,alias@_ilike": searched.current}
     }
 
+    const formattedElections = electionsList?.map((e) => {
+        return {
+            id: e.id,
+            name: aliasRenderer(e),
+        }
+    })
+
     const renderFormField = useCallback(
         (attr: UserProfileAttribute, index: number) => {
             if (attr.name) {
@@ -746,10 +753,10 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                                 label={getTranslationLabel(attr.name, attr.display_name, t)}
                                 className="elections-selector"
                                 fullWidth
-                                choices={electionsList || []}
+                                choices={formattedElections || []}
                                 source="attributes.authorized-election-ids"
-                                defaultValue={user?.attributes?.["authorized-election-ids"] ?? []}
-                                optionText={aliasRenderer}
+                                optionValue={"name"}
+                                optionText={"name"}
                                 onChange={handleArraySelectChange}
                                 disabled={
                                     !(
