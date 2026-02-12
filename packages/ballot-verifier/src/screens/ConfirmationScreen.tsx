@@ -167,7 +167,6 @@ const PlaintextVoteQuestion: React.FC<PlaintextVoteQuestionProps> = ({
     globalSettings,
 }) => {
     const {t, i18n} = useTranslation()
-    const selectedAnswers = questionPlaintext.choices.filter((a) => a.selected > -1)
     if (!question) {
         return (
             <>
@@ -178,6 +177,9 @@ const PlaintextVoteQuestion: React.FC<PlaintextVoteQuestionProps> = ({
 
     const {isPreferential} = provideBallotService()
     const isPreferentialVote = isPreferential(question.counting_algorithm)
+    const selectedAnswers = questionPlaintext.choices
+        .filter((a) => a.selected > -1)
+        .sort((a, b) => (isPreferentialVote ? a.selected - b.selected : 0))
 
     const explicitInvalidAnswer =
         (questionPlaintext.is_explicit_invalid &&
