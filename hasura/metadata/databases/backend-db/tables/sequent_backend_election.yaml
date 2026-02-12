@@ -163,6 +163,7 @@ insert_permissions:
 select_permissions:
     - comment: ""
       permission:
+          allow_aggregations: true
           columns:
               - annotations
               - created_at
@@ -195,10 +196,10 @@ select_permissions:
                               _is_null: true
                         - permission_label:
                               _in: X-Hasura-Permission-Labels
-          allow_aggregations: true
       role: admin-user
     - comment: ""
       permission:
+          allow_aggregations: true
           columns:
               - is_consolidated_ballot_encoding
               - initialization_report_generated
@@ -225,10 +226,10 @@ select_permissions:
           filter:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
-          allow_aggregations: true
       role: election-create
     - comment: ""
       permission:
+          allow_aggregations: true
           columns:
               - is_consolidated_ballot_encoding
               - initialization_report_generated
@@ -255,10 +256,10 @@ select_permissions:
           filter:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
-          allow_aggregations: true
       role: election-delete
     - comment: ""
       permission:
+          allow_aggregations: true
           columns:
               - is_consolidated_ballot_encoding
               - initialization_report_generated
@@ -291,10 +292,10 @@ select_permissions:
                               _is_null: true
                         - permission_label:
                               _in: X-Hasura-Permission-Labels
-          allow_aggregations: true
       role: election-event-read
     - comment: ""
       permission:
+          allow_aggregations: true
           columns:
               - is_consolidated_ballot_encoding
               - initialization_report_generated
@@ -327,10 +328,10 @@ select_permissions:
                               _is_null: true
                         - permission_label:
                               _in: X-Hasura-Permission-Labels
-          allow_aggregations: true
       role: election-event-write
     - comment: ""
       permission:
+          allow_aggregations: true
           columns:
               - is_consolidated_ballot_encoding
               - initialization_report_generated
@@ -363,10 +364,10 @@ select_permissions:
                               _is_null: true
                         - permission_label:
                               _in: X-Hasura-Permission-Labels
-          allow_aggregations: true
       role: election-read
     - comment: ""
       permission:
+          allow_aggregations: true
           columns:
               - is_consolidated_ballot_encoding
               - initialization_report_generated
@@ -393,10 +394,10 @@ select_permissions:
           filter:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
-          allow_aggregations: true
       role: election-write
     - comment: ""
       permission:
+          allow_aggregations: true
           columns:
               - annotations
               - created_at
@@ -422,10 +423,10 @@ select_permissions:
           filter:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
-          allow_aggregations: true
       role: permission-label-write
     - comment: ""
       permission:
+          allow_aggregations: true
           columns:
               - annotations
               - created_at
@@ -450,7 +451,6 @@ select_permissions:
               - tenant_id
               - voting_channels
           filter: {}
-          allow_aggregations: true
       role: service-account
     - comment: ""
       permission:
@@ -481,6 +481,9 @@ select_permissions:
 update_permissions:
     - comment: ""
       permission:
+          check:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
           columns:
               - annotations
               - created_at
@@ -505,14 +508,12 @@ update_permissions:
               - tenant_id
               - voting_channels
           filter:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
-          check:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
       role: admin-user
     - comment: ""
       permission:
+          check: null
           columns:
               - is_consolidated_ballot_encoding
               - initialization_report_generated
@@ -539,10 +540,12 @@ update_permissions:
           filter:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
-          check: null
       role: election-edit
     - comment: ""
       permission:
+          check:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
           columns:
               - is_consolidated_ballot_encoding
               - initialization_report_generated
@@ -567,14 +570,12 @@ update_permissions:
               - keys_ceremony_id
               - tenant_id
           filter:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
-          check:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
       role: election-event-write
     - comment: ""
       permission:
+          check: {}
           columns:
               - is_consolidated_ballot_encoding
               - initialization_report_generated
@@ -601,10 +602,10 @@ update_permissions:
           filter:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
-          check: {}
       role: election-write
     - comment: ""
       permission:
+          check: null
           columns:
               - annotations
               - created_at
@@ -630,10 +631,10 @@ update_permissions:
           filter:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
-          check: null
       role: permission-label-write
     - comment: ""
       permission:
+          check: {}
           columns:
               - annotations
               - created_at
@@ -657,7 +658,6 @@ update_permissions:
               - tenant_id
               - voting_channels
           filter: {}
-          check: {}
       role: service-account
 delete_permissions:
     - comment: ""

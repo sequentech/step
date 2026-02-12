@@ -260,11 +260,6 @@ fn get_contest_from_postcode(contests: &Vec<Contest>, postcode: &str) -> Result<
     if let Some(&contest_name) = contest_map.get(postcode) {
         // Find the contest with the matching alias
         for contest in contests {
-            if let Some(alias) = contest.alias.clone() {
-                if alias == contest_name.to_string() {
-                    return Ok(Some(contest.id.clone()));
-                }
-            }
             if let Some(presentation) = contest.presentation.clone() {
                 let contest_presentation: ContestPresentation = deserialize_value(presentation)?;
                 if let Some(i18n) = contest_presentation.i18n.clone() {

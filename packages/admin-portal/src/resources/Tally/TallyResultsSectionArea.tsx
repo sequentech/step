@@ -118,10 +118,12 @@ export const TallyResultsSectionArea: React.FC<TallyResultsCandidatesProps> = (p
         return election?.presentation ? aliasRenderer(JSON.parse(election.presentation)) : undefined
     }, [tallyData?.sequent_backend_election, electionId])
 
-    const contestName: string | undefined | null = useMemo(
-        () => tallyData?.sequent_backend_contest?.find((contest) => contest.id === contestId)?.name,
-        [tallyData?.sequent_backend_contest, contestId]
-    )
+    const contestName: string | undefined = useMemo(() => {
+        const contest = tallyData?.sequent_backend_contest?.find(
+            (contest) => contest.id === contestId
+        )
+        return contest?.presentation ? aliasRenderer(JSON.parse(contest.presentation)) : undefined
+    }, [tallyData?.sequent_backend_election, electionId])
 
     const areaName: string | undefined | null = useMemo(
         () => tallyData?.sequent_backend_area?.find((area) => area.id === areaId)?.name,

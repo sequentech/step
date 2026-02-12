@@ -121,10 +121,6 @@ const ElectionWrapper: React.FC<ElectionWrapperProps> = ({
     const location = useLocation()
     const {i18n} = useTranslation()
 
-    console.log("i18n.languages", i18n.languages)
-    console.log("i18n.language", i18n.language)
-    console.log("i18n.resolvedLanguage", i18n.resolvedLanguage)
-
     const {tenantId, eventId} = useParams<TenantEventType>()
     const electionEvent = useAppSelector(selectElectionEventById(eventId))
     const election = useAppSelector(selectElectionById(electionId))
@@ -267,7 +263,7 @@ const fakeUpdateBallotStyleAndSelection = (dispatch: AppDispatch) => {
 }
 
 const ElectionSelectionScreen: React.FC = () => {
-    const {t} = useTranslation()
+    const {t, i18n} = useTranslation()
     const navigate = useNavigate()
     const location = useLocation()
 
@@ -436,14 +432,19 @@ const ElectionSelectionScreen: React.FC = () => {
                         image_document_id: "",
                         contests: [],
                         description: election.description ?? undefined,
-                        alias: election.alias ?? undefined,
+                        alias: election.presentation
+                            ? translateElection(election.presentation, "alias", i18n.language)
+                            : undefined,
                     })
                 )
             }
 
-            let foundTestElection = dataElections.sequent_backend_election.find((election) =>
-                election.name.includes("TEST")
-            )
+            let foundTestElection = dataElections.sequent_backend_election.find((election) => {
+                const name = election.presentation
+                    ? translateElection(election.presentation, "name", i18n.language)
+                    : undefined
+                name && name.includes("TEST")
+            })
 
             if (foundTestElection) {
                 setCanVoteTest(false)

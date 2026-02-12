@@ -255,7 +255,6 @@ export const sequent_backend_template: Sequent_Backend_Template = {
 
 export const sequent_backend_contest: Sequent_Backend_Contest = {
     __typename: undefined,
-    alias: undefined,
     annotations: undefined,
     candidates: [],
     candidates_aggregate: {} as any,
@@ -274,7 +273,6 @@ export const sequent_backend_contest: Sequent_Backend_Contest = {
     last_updated_at: undefined,
     max_votes: undefined,
     min_votes: undefined,
-    name: undefined,
     presentation: undefined,
     tally_configuration: undefined,
     tenant_id: "",

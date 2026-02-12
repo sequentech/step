@@ -151,7 +151,7 @@ fn get_alias_from_i18n(
 
 impl Name for ElectionEvent {
     fn get_name(&self, language: &str) -> String {
-        let base_name = "".to_string();
+        let base_name = "-".to_string();
         let Some(presentation_val) = self.presentation.clone() else {
             return base_name;
         };
@@ -166,7 +166,7 @@ impl Name for ElectionEvent {
 
 impl Name for Election {
     fn get_name(&self, language: &str) -> String {
-        let base_name = "".to_string();
+        let base_name = "-".to_string();
         let Some(presentation_val) = self.presentation.clone() else {
             return base_name;
         };

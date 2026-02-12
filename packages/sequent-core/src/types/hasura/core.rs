@@ -132,8 +132,6 @@ pub struct Contest {
     pub annotations: Option<Value>,
     pub is_acclaimed: Option<bool>,
     pub is_active: Option<bool>,
-    pub name: Option<String>,
-    pub alias: Option<String>,
     pub description: Option<String>,
     pub presentation: Option<Value>,
     pub min_votes: Option<i64>,

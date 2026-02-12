@@ -381,8 +381,7 @@ public class AuthorizedElectionsUserAttributeMapper extends AbstractOIDCProtocol
             query GetAllElectionsFromEvent {
               sequent_backend_election(where: {election_event_id: {_eq: "%s"}, tenant_id: {_eq: "%s"}}) {
                 id
-                alias
-                name
+                presentation
               }
             }
             """,
@@ -421,8 +420,24 @@ public class AuthorizedElectionsUserAttributeMapper extends AbstractOIDCProtocol
     Map<String, String> electionIds = new HashMap<>();
     for (JsonNode election : electionsNode) {
       String id = election.path("id").asText();
-      // Use asText(null) so that if alias is missing it returns null.
-      String alias = election.hasNonNull("alias") ? election.get("alias").asText() : null;
+
+      String alias = null;
+      JsonNode presentation = election.get("presentation");
+
+      if (presentation != null && !presentation.isNull()) {
+        JsonNode defaultLangNode = presentation.path("language_conf").path("default_language_code");
+
+        if (!defaultLangNode.isMissingNode() && !defaultLangNode.isNull()) {
+          String defaultLang = defaultLangNode.asText();
+
+          JsonNode aliasNode = presentation.path("i18n").path(defaultLang).path("alias");
+
+          if (!aliasNode.isMissingNode() && !aliasNode.isNull()) {
+            alias = aliasNode.asText();
+          }
+        }
+      }
+
       String key = (alias != null && !alias.isEmpty()) ? alias : id;
 
       keyAreaLog.append(String.format("Key: %s, Id: %s, Alias: %s\t", key, id, alias));

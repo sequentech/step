@@ -748,7 +748,7 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                                 fullWidth
                                 choices={electionsList || []}
                                 source="attributes.authorized-election-ids"
-                                optionValue="alias"
+                                defaultValue={user?.attributes?.["authorized-election-ids"] ?? []}
                                 optionText={aliasRenderer}
                                 onChange={handleArraySelectChange}
                                 disabled={

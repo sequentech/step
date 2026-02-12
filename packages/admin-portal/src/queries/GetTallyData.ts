@@ -102,7 +102,6 @@ export const GET_TALLY_DATA = gql`
             tenant_id
             tally_configuration
             presentation
-            name
             min_votes
             max_votes
             last_updated_at
@@ -119,7 +118,6 @@ export const GET_TALLY_DATA = gql`
             counting_algorithm
             conditions
             annotations
-            alias
         }
         sequent_backend_results_event(
             where: {
