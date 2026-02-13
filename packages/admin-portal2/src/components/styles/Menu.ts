@@ -23,41 +23,52 @@ export const MenuStyles = {
         display: flex;
         padding-left: 1rem;
         padding-right: 1rem;
-        background-color: white;
+        background-color: transparent;
         text-transform: uppercase;
         font-size: 0.75rem;
         line-height: 1.5rem;
+        margin-bottom: 8px;
         & > *:not(:last-child) {
             margin-right: 1rem;
         }
     `,
 
     SideMenuActiveItem: styled("li")<{isArchivedElectionEvents: boolean}>`
-        padding-left: 1rem;
-        padding-right: 1rem;
-        padding-top: 0.5rem;
-        padding-bottom: 0.5rem;
+        padding: 6px 16px;
         cursor: pointer;
+        border-radius: 6px;
+        font-weight: 600;
+        background-color: ${({isArchivedElectionEvents}) =>
+            !isArchivedElectionEvents ? "#FFFFFF" : "transparent"};
         color: ${({isArchivedElectionEvents}) =>
-            !isArchivedElectionEvents
-                ? adminTheme.palette.brandColor
-                : adminTheme.palette.secondary.main};
-        border-bottom: ${({isArchivedElectionEvents}) =>
-            !isArchivedElectionEvents ? `2px solid ${adminTheme.palette.brandSuccess}` : "none"};
+            !isArchivedElectionEvents ? "#111827" : "#6B7280"};
+        box-shadow: ${({isArchivedElectionEvents}) =>
+            !isArchivedElectionEvents ? "0px 1px 2px rgba(0, 0, 0, 0.05)" : "none"};
+        border-bottom: none;
+        transition: all 0.2s;
+        
+        &:hover {
+             color: #111827;
+        }
     `,
 
     SideMenuArchiveItem: styled("li")<{isArchivedElectionEvents: boolean}>`
-        padding-left: 1rem;
-        padding-right: 1rem;
-        padding-top: 0.5rem;
-        padding-bottom: 0.5rem;
+        padding: 6px 16px;
         cursor: pointer;
+        border-radius: 6px;
+        font-weight: 600;
+        background-color: ${({isArchivedElectionEvents}) =>
+            isArchivedElectionEvents ? "#FFFFFF" : "transparent"};
         color: ${({isArchivedElectionEvents}) =>
-            isArchivedElectionEvents
-                ? adminTheme.palette.brandColor
-                : adminTheme.palette.secondary.main};
-        border-bottom: ${({isArchivedElectionEvents}) =>
-            isArchivedElectionEvents ? `2px solid ${adminTheme.palette.brandSuccess}` : "none"};
+            isArchivedElectionEvents ? "#111827" : "#6B7280"};
+        box-shadow: ${({isArchivedElectionEvents}) =>
+            isArchivedElectionEvents ? "0px 1px 2px rgba(0, 0, 0, 0.05)" : "none"};
+        border-bottom: none;
+        transition: all 0.2s;
+
+        &:hover {
+             color: #111827;
+        }
     `,
 
     RefreshAction: styled("li")`

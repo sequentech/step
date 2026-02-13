@@ -106,16 +106,35 @@ export const ElectionEventListContent: React.FC<ElectionEventListProps> = ({asid
                                 <Typography variant="body1" paragraph>
                                     {t("common.resources.noResult.askCreate")}
                                 </Typography>
-                                <Box display="flex" gap={1}>
+                                <Box display="flex" gap={2} mt={2}>
                                     <Button
                                         label={String(t("common.label.add"))}
                                         startIcon={<AddIcon />}
                                         onClick={() => openCreateDrawer()}
+                                        variant="contained"
+                                        size="large"
+                                        sx={{
+                                            backgroundColor: '#0F054C',
+                                            color: '#ffffff',
+                                            '&:hover': {
+                                                backgroundColor: '#0a0333',
+                                            }
+                                        }}
                                     />
                                     <Button
                                         label={String(t("common.label.import"))}
                                         startIcon={<PublishIcon />}
                                         onClick={() => openImportDrawer?.()}
+                                        variant="outlined"
+                                        size="large"
+                                        sx={{
+                                            borderColor: '#0F054C',
+                                            color: '#0F054C',
+                                            '&:hover': {
+                                                borderColor: '#0a0333',
+                                                backgroundColor: 'rgba(15, 5, 76, 0.04)'
+                                            }
+                                        }}
                                     />
                                 </Box>
                             </>

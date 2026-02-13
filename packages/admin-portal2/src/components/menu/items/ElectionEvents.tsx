@@ -96,7 +96,7 @@ const StyledButton = styled(Button)(({theme}) => ({
 }))
 
 const Container = styled("div")<{isActive?: boolean}>`
-    background-color: ${({isActive}) => (isActive ? adminTheme.palette.green.light : "initial")};
+    background-color: initial;
 `
 
 const SideBarContainer = styled("div")`
