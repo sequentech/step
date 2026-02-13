@@ -57,7 +57,8 @@ export const AppAppBar = () => {
                 },
                 backgroundColor: 'background.paper',
                 color: 'text.primary',
-                boxShadow: 1,
+                boxShadow: 'none',
+                borderBottom: '1px solid #E5E7EB',
             }}
         >
             <Box width="100%">

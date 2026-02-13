@@ -229,11 +229,7 @@ function TreeLeaves({
                             justifyContent: i18n.dir(i18n.language) === "rtl" ? "end" : "start",
                         }}
                     >
-                        <MenuStyles.StyledAddIcon
-                            style={{
-                                display: i18n.dir(i18n.language) === "rtl" ? "none" : "start",
-                            }}
-                        />
+                        {/* Remove duplicate icon rendering */}
 
                         {treeResourceNames[0] === TREE_RESOURCE_NAMES[0] ? (
                             <MenuStyles.StyledNavLinkButton
@@ -243,7 +239,7 @@ function TreeLeaves({
                                 }}
                                 onClick={handleOpenCreateElectionEventMenu}
                             >
-                                {t(mapAddResource[treeResourceNames[0] as ResourceName])}
+                                <MenuStyles.StyledAddIcon /> {t(mapAddResource[treeResourceNames[0] as ResourceName])}
                             </MenuStyles.StyledNavLinkButton>
                         ) : (
                             <MenuStyles.StyledNavLink
@@ -253,15 +249,11 @@ function TreeLeaves({
                                     textAlign: i18n.dir(i18n.language) === "rtl" ? "end" : "start",
                                 }}
                             >
-                                {t(mapAddResource[treeResourceNames[0] as ResourceName])}
+                                <MenuStyles.StyledAddIcon /> {t(mapAddResource[treeResourceNames[0] as ResourceName])}
                             </MenuStyles.StyledNavLink>
                         )}
 
-                        <MenuStyles.StyledAddIcon
-                            style={{
-                                display: i18n.dir(i18n.language) === "rtl" ? "block" : "none",
-                            }}
-                        />
+                        {/* Remove duplicate icon rendering */}
                         <MenuStyles.StyledHiddenDiv />
                     </MenuStyles.CreateElectionContainer>
                 )}

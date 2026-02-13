@@ -86,7 +86,8 @@ const themeOptions: ThemeOptions = {
         MuiAppBar: {
             styleOverrides: {
                 root: {
-                    boxShadow: '0px 1px 0px rgba(0,0,0,0.05)',
+                    boxShadow: 'none',
+                    borderBottom: '1px solid #E5E7EB',
                     backgroundColor: '#ffffff',
                     color: '#1a1a1a',
                 },
