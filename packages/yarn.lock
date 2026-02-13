@@ -17483,6 +17483,11 @@ sentence-case@^3.0.4:
   uid e953be0882f18ddc2b03c22cc70df098edda1dda
   resolved "file:./admin-portal/rust/sequent-core-0.1.0.tgz#e953be0882f18ddc2b03c22cc70df098edda1dda"
 
+"sequent-core@file:./admin-portal2/rust/sequent-core-0.1.0.tgz":
+  version "0.1.0"
+  uid e953be0882f18ddc2b03c22cc70df098edda1dda
+  resolved "file:./admin-portal2/rust/sequent-core-0.1.0.tgz#e953be0882f18ddc2b03c22cc70df098edda1dda"
+
 "sequent-core@file:./ballot-verifier/rust/sequent-core-0.1.0.tgz":
   version "0.1.0"
   resolved "file:./ballot-verifier/rust/sequent-core-0.1.0.tgz#e953be0882f18ddc2b03c22cc70df098edda1dda"

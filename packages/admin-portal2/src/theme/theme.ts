@@ -1,4 +1,4 @@
-import { createTheme, ThemeOptions, alpha } from '@mui/material/styles';
+import { createTheme, ThemeOptions, alpha, PaletteOptions } from '@mui/material/styles';
 import { defaultTheme } from 'react-admin';
 
 // Define brand colors
@@ -28,7 +28,20 @@ const themeOptions: ThemeOptions = {
             primary: '#1a1a1a',
             secondary: '#6c757d',
         },
-    },
+        lightBackground: '#f8f9fa',
+        brandColor: brandColor,
+        brandSuccess: secondaryColor,
+        errorColor: '#DC2626',
+        red: { light: '#FECACA', main: '#991B1B', dark: '#991B1B' },
+        green: { light: '#ECFDF5', main: '#064E3B', dark: '#047857' },
+        customGreen: { light: '#CFF0DC', main: '#0EB048', dark: '#0EB048' },
+        yellow: { light: '#FFF7D9', main: '#837032', dark: '#837032' },
+        blue: { light: '#CCE5FF', main: '#292F99', dark: '#292F99' },
+        customGrey: { light: '#E7EAEE', main: '#757575', dark: '#64748B', contrastText: '#191D23' },
+        extraGrey: { main: '#B8C0CC' },
+        white: 'white',
+        black: 'black',
+    } as PaletteOptions,
     typography: {
         fontFamily: '"Inter", "Roboto", "Helvetica", "Arial", sans-serif',
         h1: { fontWeight: 700 },
@@ -43,7 +56,7 @@ const themeOptions: ThemeOptions = {
         borderRadius: 8,
     },
     components: {
-        ...defaultTheme.components,
+        ...(defaultTheme.components as Record<string, unknown>),
         MuiButton: {
             styleOverrides: {
                 root: {
@@ -92,43 +105,45 @@ const themeOptions: ThemeOptions = {
                 },
             },
         },
-        // React Admin overrides
-        RaLayout: {
-            styleOverrides: {
-                root: {
-                    '& .RaLayout-content': {
-                        padding: 24,
-                    },
-                },
-            },
-        },
-        RaSidebar: {
-            styleOverrides: {
-                root: {
-                    height: '100vh',
-                    borderRight: '1px solid #e0e0e0',
-                    '& .MuiDrawer-paper': {
-                         borderRight: 'none',
-                    }
-                },
-            },
-        },
-        RaMenuItemLink: {
-            styleOverrides: {
-                root: {
-                    borderRadius: 8,
-                    margin: '4px 8px',
-                    '&.RaMenuItemLink-active': {
-                        backgroundColor: alpha(brandColor, 0.08),
-                        color: brandColor,
-                        fontWeight: 600,
-                        '& .MuiSvgIcon-root': {
-                            color: brandColor,
+        // React Admin overrides (not in MUI's Components type)
+        ...({
+            RaLayout: {
+                styleOverrides: {
+                    root: {
+                        '& .RaLayout-content': {
+                            padding: 24,
                         },
                     },
                 },
             },
-        },
+            RaSidebar: {
+                styleOverrides: {
+                    root: {
+                        height: '100vh',
+                        borderRight: '1px solid #e0e0e0',
+                        '& .MuiDrawer-paper': {
+                             borderRight: 'none',
+                        }
+                    },
+                },
+            },
+            RaMenuItemLink: {
+                styleOverrides: {
+                    root: {
+                        borderRadius: 8,
+                        margin: '4px 8px',
+                        '&.RaMenuItemLink-active': {
+                            backgroundColor: alpha(brandColor, 0.08),
+                            color: brandColor,
+                            fontWeight: 600,
+                            '& .MuiSvgIcon-root': {
+                                color: brandColor,
+                            },
+                        },
+                    },
+                },
+            },
+        } as Record<string, unknown>),
     },
 };
 

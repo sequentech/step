@@ -73,7 +73,7 @@ export const AppMenu = () => {
                         to="#"
                         primaryText={t("sideMenu.help")}
                         leftIcon={<HelpIcon />}
-                        onClick={(e) => {
+                        onClick={(e: React.MouseEvent<HTMLElement>) => {
                             e.preventDefault();
                             setAnchorEl(e.currentTarget);
                         }}

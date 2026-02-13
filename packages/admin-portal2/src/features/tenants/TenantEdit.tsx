@@ -10,26 +10,26 @@ export const TenantEdit = () => {
         <Edit>
             <SimpleForm>
                 <Grid container spacing={2}>
-                    <Grid item xs={12}>
+                    <Grid size={12}>
                          <Typography variant="h6" gutterBottom>Configuration</Typography>
                     </Grid>
-                    <Grid item xs={12} md={6}>
+                    <Grid size={{ xs: 12, md: 6 }}>
                         <TextInput source="slug" fullWidth />
                     </Grid>
-                    <Grid item xs={12} md={6}>
+                    <Grid size={{ xs: 12, md: 6 }}>
                         <BooleanInput source="is_active" />
                     </Grid>
-                    <Grid item xs={12}>
+                    <Grid size={12}>
                         <TextField source="id" label="ID" />
                     </Grid>
-                    <Grid item xs={12}>
+                    <Grid size={12}>
                         <Typography variant="subtitle2">Labels</Typography>
                         <JsonInput
                             source="labels"
                             reactJsonOptions={{ collapsed: true, name: null }}
                         />
                     </Grid>
-                    <Grid item xs={12}>
+                    <Grid size={12}>
                         <Typography variant="subtitle2">Annotations</Typography>
                          <JsonInput
                             source="annotations"
