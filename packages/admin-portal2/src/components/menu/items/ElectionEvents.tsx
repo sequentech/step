@@ -96,7 +96,8 @@ const StyledButton = styled(Button)(({theme}) => ({
 }))
 
 const Container = styled("div")<{isActive?: boolean}>`
-    background-color: initial;
+    background-color: ${({isActive}) => (isActive ? adminTheme.palette.green.light : "initial")};
+    box-shadow: none;
 `
 
 const SideBarContainer = styled("div")`
@@ -684,6 +685,7 @@ export default function ElectionEvents() {
                             className="election-event-create-button"
                             icon={faPlusCircle as any}
                             size="xs"
+                            style={{ marginRight: '16px' }}
                         />
                     ) : null}
                 </HorizontalBox>
@@ -697,8 +699,9 @@ export default function ElectionEvents() {
                                 size="small"
                                 value={instantSearchInput}
                                 onChange={(e) => debouncedSearchChange(e.target.value)}
+                                fullWidth
                             />
-                            <SearchIcon />
+                            <SearchIcon sx={{ marginLeft: 1, marginRight: 1 }} />
                         </SideBarContainer>
 
                         {treeMenu}

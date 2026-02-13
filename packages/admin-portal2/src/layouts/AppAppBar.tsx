@@ -61,7 +61,7 @@ export const AppAppBar = () => {
                 borderBottom: '1px solid #E5E7EB',
             }}
         >
-            <Box width="100%">
+            <Box width="100%" display="flex" justifyContent="space-between">
                  <Header
                     appVersion={{ main: globalSettings.APP_VERSION }}
                     appHash={{ main: globalSettings.APP_HASH }}
