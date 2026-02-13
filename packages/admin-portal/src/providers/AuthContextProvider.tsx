@@ -8,12 +8,12 @@ import {createContext, useEffect, useState} from "react"
 import {isNull, isString, sleep} from "@sequentech/ui-core"
 import {IPermissions} from "@/types/keycloak"
 import {SettingsContext} from "./SettingsContextProvider"
-import {useLocation, useNavigate} from "react-router"
 import {ExecutionResult} from "graphql"
 import {GetAllTenantsQuery} from "@/gql/graphql"
 import SelectTenant from "@/screens/SelectTenant"
 import {Dialog, IconButton, adminTheme} from "@sequentech/ui-essentials"
 import {useTranslation} from "react-i18next"
+import {useNavigate, useLocation} from "react-router-dom"
 
 /**
  * AuthContextValues defines the structure for the default values of the {@link AuthContext}.
@@ -181,7 +181,7 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
 
     const modifySelectedTenantId = (val: string | null) => {
         if (null === val) {
-            localStorage.removeItem("selected-tenant-id")
+            // localStorage.removeItem("selected-tenant-id")
         } else {
             localStorage.setItem("selected-tenant-id", val)
         }

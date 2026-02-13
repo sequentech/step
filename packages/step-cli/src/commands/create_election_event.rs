@@ -5,6 +5,7 @@
 use crate::types::hasura_types::*;
 use crate::utils::read_config::read_config;
 use clap::Args;
+use colored::Colorize;
 use graphql_client::{GraphQLQuery, Response};
 use serde_json::Value;
 
@@ -44,11 +45,18 @@ impl CreateElectionEventCLI {
             &self.encryption_protocol,
             self.is_archived,
         ) {
-            Ok(id) => {
-                println!("Success! Election event created successfully! ID: {}", id);
+            Ok(Some(id)) => {
+                println!(
+                    "{} {}",
+                    "Success! Election event created successfully! ID:".green(),
+                    id.cyan()
+                );
+            }
+            Ok(None) => {
+                eprintln!("Error: election event was not created");
             }
             Err(err) => {
-                eprintln!("Error! Failed to create election event: {}", err)
+                eprintln!("Error! Failed to create election event: {}", err);
             }
         }
     }
@@ -59,7 +67,7 @@ fn create_election_event(
     description: &str,
     encryption_protocol: &str,
     is_archived: bool,
-) -> Result<String, Box<dyn std::error::Error>> {
+) -> Result<Option<String>, Box<dyn std::error::Error>> {
     let config = read_config()?;
     let client = reqwest::blocking::Client::new();
 
