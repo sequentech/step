@@ -147,7 +147,6 @@ probe = ["dep:tokio", "dep:warp"]
 lambda_inplace = []
 lambda_openwhisk = []
 lambda_aws_lambda = []
-version = ["dep:tracing"]
 plugins_wit = ["dep:wasmtime", "dep:wasmtime-wasi"]
 default_features = ["dep:strand", "dep:num-bigint", "dep:tempfile", "dep:ammonia"]
 
