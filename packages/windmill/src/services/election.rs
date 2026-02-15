@@ -29,8 +29,8 @@ impl TryFrom<Election> for ElectionHead {
         let election = item.clone();
         Ok(ElectionHead {
             id: election.id.clone(),
-            name: election.get_name(&default_language).clone(),
-            alias: election.get_alias(&default_language).clone(),
+            name: election.get_name(&default_language),
+            alias: election.get_alias(&default_language),
         })
     }
 }
