@@ -54,7 +54,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: packages/${{ matrix.service }}/target
-          key: ${{ runner.os }}-cargo-test-${{ matrix.service }}-${{ hashFiles('packages/${{ matrix.service }}/Cargo.lock') }}
+          key: ${{ runner.os }}-cargo-test-${{ matrix.service }}-${{ hashFiles('packages/Cargo.lock') }}
           restore-keys: |
             ${{ runner.os }}-cargo-test-${{ matrix.service }}-
 
