@@ -158,20 +158,10 @@ export const CandidateDataForm: React.FC<{
             if (!newCandidate.presentation.i18n.en) {
                 newCandidate.presentation.i18n.en = {}
             }
-            if (!newCandidate.presentation.i18n.en.name && newCandidate.name) {
-                newCandidate.presentation.i18n.en.name = newCandidate.name
-            }
-            if (!newCandidate.presentation.i18n.en.name && newCandidate.name) {
-                newCandidate.presentation.i18n.en.name = newCandidate.name
-            }
-            if (!newCandidate.presentation.i18n.en.alias && newCandidate.alias) {
-                newCandidate.presentation.i18n.en.alias = newCandidate.alias
-            }
             if (!newCandidate.presentation.i18n.en.description && newCandidate.description) {
                 newCandidate.presentation.i18n.en.description = newCandidate.description
             }
-            newCandidate.name = newCandidate.presentation.i18n.en.name
-            newCandidate.alias = newCandidate.presentation.i18n.en.alias
+
             newCandidate.description = newCandidate.presentation.i18n.en.description
 
             return newCandidate

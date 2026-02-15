@@ -198,17 +198,26 @@ fn create_contest(
             let alias_i18n =
                 parse_i18n_field(&candidate_presentation.i18n, "alias");
 
+            let candidate_name = name_i18n
+                .as_ref()
+                .and_then(|i18n| i18n.get(&default_language))
+                .and_then(|name| name.clone());
+            let candidate_alias = alias_i18n
+                .as_ref()
+                .and_then(|i18n| i18n.get(&default_language))
+                .and_then(|alias| alias.clone());
+
             Ok(ballot::Candidate {
                 id: candidate.id.clone(),
                 tenant_id: (candidate.tenant_id.clone()),
                 election_event_id: (candidate.election_event_id.clone()),
                 election_id: (contest.election_id.clone()),
                 contest_id: (contest.id.clone()),
-                name: candidate.name.clone(),
+                name: candidate_name.clone(),
                 name_i18n,
                 description: candidate.description.clone(),
                 description_i18n,
-                alias: candidate.alias.clone(),
+                alias: candidate_alias.clone(),
                 alias_i18n: alias_i18n,
                 candidate_type: candidate.r#type.clone(),
                 presentation: Some(candidate_presentation),

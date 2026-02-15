@@ -77,7 +77,6 @@ export const GET_TALLY_DATA = gql`
             type
             tenant_id
             presentation
-            name
             last_updated_at
             labels
             is_public
@@ -88,7 +87,6 @@ export const GET_TALLY_DATA = gql`
             created_at
             contest_id
             annotations
-            alias
         }
         sequent_backend_contest(
             where: {

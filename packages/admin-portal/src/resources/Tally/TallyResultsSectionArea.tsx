@@ -48,7 +48,7 @@ export const TallyResultsSectionArea: React.FC<TallyResultsCandidatesProps> = (p
     const orderedResultsData = useMemo(() => {
         return (resultsData as Sequent_Backend_Candidate_Extended[]).sort(sortCandidates)
     }, [resultsData])
-    const {t} = useTranslation()
+    const {t, i18n} = useTranslation()
     const {globalSettings} = useContext(SettingsContext)
     const tallyData = useAtomValue(tallyQueryData)
     const aliasRenderer = useAliasRenderer()
@@ -150,12 +150,12 @@ export const TallyResultsSectionArea: React.FC<TallyResultsCandidatesProps> = (p
             const temp: Array<Sequent_Backend_Candidate_Extended> | undefined = candidates?.map(
                 (candidate, index) => {
                     let candidateResult = results.find((r) => r.candidate_id === candidate.id)
-
+                    let candidateName = aliasRenderer(JSON.parse(candidate.presentation))
                     return {
                         ...candidate,
                         rowId: index,
                         id: candidate.id || "",
-                        name: candidate.name,
+                        name: candidateName,
                         status: "",
                         cast_votes: candidateResult?.cast_votes,
                         cast_votes_percent: candidateResult?.cast_votes_percent,
@@ -166,7 +166,7 @@ export const TallyResultsSectionArea: React.FC<TallyResultsCandidatesProps> = (p
 
             setResultsData(temp)
         }
-    }, [results, candidates])
+    }, [results, candidates, i18n.language])
 
     return (
         <>

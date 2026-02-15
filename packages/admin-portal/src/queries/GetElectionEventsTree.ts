@@ -47,8 +47,6 @@ export const FETCH_CANDIDATE_TREE = gql`
             where: {contest_id: {_eq: $contestId}, _and: {tenant_id: {_eq: $tenantId}}}
         ) {
             id
-            name
-            alias
             presentation
             election_event_id
             contest_id

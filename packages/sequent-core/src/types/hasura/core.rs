@@ -155,8 +155,6 @@ pub struct Candidate {
     pub last_updated_at: Option<DateTime<Local>>,
     pub labels: Option<Value>,
     pub annotations: Option<Value>,
-    pub name: Option<String>,
-    pub alias: Option<String>,
     pub description: Option<String>,
     pub r#type: Option<String>,
     pub presentation: Option<Value>,

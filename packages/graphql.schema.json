@@ -44716,18 +44716,6 @@
         "description": "columns and relationships of \"sequent_backend.candidate\"",
         "fields": [
           {
-            "name": "alias",
-            "description": null,
-            "args": [],
-            "type": {
-              "kind": "SCALAR",
-              "name": "String",
-              "ofType": null
-            },
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
             "name": "annotations",
             "description": null,
             "args": [
@@ -44872,18 +44860,6 @@
             "type": {
               "kind": "SCALAR",
               "name": "timestamptz",
-              "ofType": null
-            },
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
-            "name": "name",
-            "description": null,
-            "args": [],
-            "type": {
-              "kind": "SCALAR",
-              "name": "String",
               "ofType": null
             },
             "isDeprecated": false,
@@ -45473,16 +45449,6 @@
             "defaultValue": null
           },
           {
-            "name": "alias",
-            "description": null,
-            "type": {
-              "kind": "INPUT_OBJECT",
-              "name": "String_comparison_exp",
-              "ofType": null
-            },
-            "defaultValue": null
-          },
-          {
             "name": "annotations",
             "description": null,
             "type": {
@@ -45578,16 +45544,6 @@
             "type": {
               "kind": "INPUT_OBJECT",
               "name": "timestamptz_comparison_exp",
-              "ofType": null
-            },
-            "defaultValue": null
-          },
-          {
-            "name": "name",
-            "description": null,
-            "type": {
-              "kind": "INPUT_OBJECT",
-              "name": "String_comparison_exp",
               "ofType": null
             },
             "defaultValue": null
@@ -45798,16 +45754,6 @@
         "fields": null,
         "inputFields": [
           {
-            "name": "alias",
-            "description": null,
-            "type": {
-              "kind": "SCALAR",
-              "name": "String",
-              "ofType": null
-            },
-            "defaultValue": null
-          },
-          {
             "name": "annotations",
             "description": null,
             "type": {
@@ -45908,16 +45854,6 @@
             "defaultValue": null
           },
           {
-            "name": "name",
-            "description": null,
-            "type": {
-              "kind": "SCALAR",
-              "name": "String",
-              "ofType": null
-            },
-            "defaultValue": null
-          },
-          {
             "name": "presentation",
             "description": null,
             "type": {
@@ -45957,18 +45893,6 @@
         "name": "sequent_backend_candidate_max_fields",
         "description": "aggregate max on columns",
         "fields": [
-          {
-            "name": "alias",
-            "description": null,
-            "args": [],
-            "type": {
-              "kind": "SCALAR",
-              "name": "String",
-              "ofType": null
-            },
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
           {
             "name": "contest_id",
             "description": null,
@@ -46048,18 +45972,6 @@
             "type": {
               "kind": "SCALAR",
               "name": "timestamptz",
-              "ofType": null
-            },
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
-            "name": "name",
-            "description": null,
-            "args": [],
-            "type": {
-              "kind": "SCALAR",
-              "name": "String",
               "ofType": null
             },
             "isDeprecated": false,
@@ -46102,16 +46014,6 @@
         "fields": null,
         "inputFields": [
           {
-            "name": "alias",
-            "description": null,
-            "type": {
-              "kind": "ENUM",
-              "name": "order_by",
-              "ofType": null
-            },
-            "defaultValue": null
-          },
-          {
             "name": "contest_id",
             "description": null,
             "type": {
@@ -46173,16 +46075,6 @@
           },
           {
             "name": "last_updated_at",
-            "description": null,
-            "type": {
-              "kind": "ENUM",
-              "name": "order_by",
-              "ofType": null
-            },
-            "defaultValue": null
-          },
-          {
-            "name": "name",
             "description": null,
             "type": {
               "kind": "ENUM",
@@ -46222,18 +46114,6 @@
         "description": "aggregate min on columns",
         "fields": [
           {
-            "name": "alias",
-            "description": null,
-            "args": [],
-            "type": {
-              "kind": "SCALAR",
-              "name": "String",
-              "ofType": null
-            },
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
             "name": "contest_id",
             "description": null,
             "args": [],
@@ -46312,18 +46192,6 @@
             "type": {
               "kind": "SCALAR",
               "name": "timestamptz",
-              "ofType": null
-            },
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
-            "name": "name",
-            "description": null,
-            "args": [],
-            "type": {
-              "kind": "SCALAR",
-              "name": "String",
               "ofType": null
             },
             "isDeprecated": false,
@@ -46366,16 +46234,6 @@
         "fields": null,
         "inputFields": [
           {
-            "name": "alias",
-            "description": null,
-            "type": {
-              "kind": "ENUM",
-              "name": "order_by",
-              "ofType": null
-            },
-            "defaultValue": null
-          },
-          {
             "name": "contest_id",
             "description": null,
             "type": {
@@ -46437,16 +46295,6 @@
           },
           {
             "name": "last_updated_at",
-            "description": null,
-            "type": {
-              "kind": "ENUM",
-              "name": "order_by",
-              "ofType": null
-            },
-            "defaultValue": null
-          },
-          {
-            "name": "name",
             "description": null,
             "type": {
               "kind": "ENUM",
@@ -46595,16 +46443,6 @@
         "fields": null,
         "inputFields": [
           {
-            "name": "alias",
-            "description": null,
-            "type": {
-              "kind": "ENUM",
-              "name": "order_by",
-              "ofType": null
-            },
-            "defaultValue": null
-          },
-          {
             "name": "annotations",
             "description": null,
             "type": {
@@ -46696,16 +46534,6 @@
           },
           {
             "name": "last_updated_at",
-            "description": null,
-            "type": {
-              "kind": "ENUM",
-              "name": "order_by",
-              "ofType": null
-            },
-            "defaultValue": null
-          },
-          {
-            "name": "name",
             "description": null,
             "type": {
               "kind": "ENUM",
@@ -46852,12 +46680,6 @@
         "interfaces": null,
         "enumValues": [
           {
-            "name": "alias",
-            "description": "column name",
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
             "name": "annotations",
             "description": "column name",
             "isDeprecated": false,
@@ -46913,12 +46735,6 @@
           },
           {
             "name": "last_updated_at",
-            "description": "column name",
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
-            "name": "name",
             "description": "column name",
             "isDeprecated": false,
             "deprecationReason": null
@@ -46984,16 +46800,6 @@
         "description": "input type for updating data in table \"sequent_backend.candidate\"",
         "fields": null,
         "inputFields": [
-          {
-            "name": "alias",
-            "description": null,
-            "type": {
-              "kind": "SCALAR",
-              "name": "String",
-              "ofType": null
-            },
-            "defaultValue": null
-          },
           {
             "name": "annotations",
             "description": null,
@@ -47090,16 +46896,6 @@
             "type": {
               "kind": "SCALAR",
               "name": "timestamptz",
-              "ofType": null
-            },
-            "defaultValue": null
-          },
-          {
-            "name": "name",
-            "description": null,
-            "type": {
-              "kind": "SCALAR",
-              "name": "String",
               "ofType": null
             },
             "defaultValue": null
@@ -47181,16 +46977,6 @@
         "fields": null,
         "inputFields": [
           {
-            "name": "alias",
-            "description": null,
-            "type": {
-              "kind": "SCALAR",
-              "name": "String",
-              "ofType": null
-            },
-            "defaultValue": null
-          },
-          {
             "name": "annotations",
             "description": null,
             "type": {
@@ -47291,16 +47077,6 @@
             "defaultValue": null
           },
           {
-            "name": "name",
-            "description": null,
-            "type": {
-              "kind": "SCALAR",
-              "name": "String",
-              "ofType": null
-            },
-            "defaultValue": null
-          },
-          {
             "name": "presentation",
             "description": null,
             "type": {
@@ -47343,12 +47119,6 @@
         "inputFields": null,
         "interfaces": null,
         "enumValues": [
-          {
-            "name": "alias",
-            "description": "column name",
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
           {
             "name": "annotations",
             "description": "column name",
@@ -47405,12 +47175,6 @@
           },
           {
             "name": "last_updated_at",
-            "description": "column name",
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
-            "name": "name",
             "description": "column name",
             "isDeprecated": false,
             "deprecationReason": null

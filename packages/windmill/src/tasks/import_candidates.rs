@@ -4,6 +4,7 @@
 
 use crate::postgres::candidate::insert_candidates;
 use crate::postgres::contest::export_contests;
+use crate::postgres::election_event::get_election_event_by_id;
 use crate::services::tasks_execution::*;
 use crate::{
     postgres::document::get_document,
@@ -13,11 +14,12 @@ use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::Client as DbClient;
 use encoding_rs::WINDOWS_1252;
 use encoding_rs_io::DecodeReaderBytesBuilder;
-use sequent_core::ballot::ContestPresentation;
+use sequent_core::ballot::{CandidatePresentation, ContestPresentation};
 use sequent_core::serialization::deserialize_with_path::deserialize_value;
 use sequent_core::types::hasura::core::Contest;
 use sequent_core::types::hasura::core::{Candidate, TasksExecution};
 use sequent_core::util::integrity_check::{integrity_check, HashFileVerifyError};
+use std::collections::HashMap;
 use std::io::BufReader;
 use std::io::Seek;
 use tracing::{event, info, instrument, Level};
@@ -370,6 +372,10 @@ pub async fn import_candidates_task(
         .has_headers(false)
         .from_reader(transcoded_reader);
 
+    let election_event =
+        get_election_event_by_id(&hasura_transaction, &tenant_id, &election_event_id).await?;
+    let default_lang = election_event.get_default_language();
+
     let mut candidates: Vec<Candidate> = vec![];
     for result in rdr.records() {
         match result.with_context(|| "Error reading CSV record") {
@@ -384,6 +390,22 @@ pub async fn import_candidates_task(
                 let Some(contest_id) = contest_id_opt else {
                     continue;
                 };
+                let mut presentation = CandidatePresentation::new();
+
+                let lang = default_lang.as_str();
+
+                presentation
+                    .i18n
+                    .get_or_insert_with(HashMap::new)
+                    .entry(lang.to_string())
+                    .or_insert_with(HashMap::new)
+                    .insert(
+                        "name".to_string(),
+                        Some(format!("{name_on_ballot} ({ext})")),
+                    );
+
+                let presentation_json = serde_json::to_value(&presentation)?;
+
                 let candidate = Candidate {
                     id: Uuid::new_v4().to_string(),
                     tenant_id: tenant_id.clone(),
@@ -393,11 +415,9 @@ pub async fn import_candidates_task(
                     last_updated_at: None,
                     labels: None,
                     annotations: None,
-                    name: Some(format!("{name_on_ballot} ({ext})")),
-                    alias: None,
                     description: None,
                     r#type: None,
-                    presentation: None,
+                    presentation: Some(presentation_json),
                     is_public: Some(true),
                     image_document_id: None,
                 };

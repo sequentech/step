@@ -9,7 +9,7 @@ import {Dialog, IconButton, PageLimit, SelectElection, theme} from "@sequentech/
 import {
     isString,
     stringToHtml,
-    translateElection,
+    translateFromPresentation,
     EVotingStatus,
     IElectionEventStatus,
     isUndefined,
@@ -221,7 +221,7 @@ const ElectionWrapper: React.FC<ElectionWrapperProps> = ({
         <SelectElection
             isActive={canVote()}
             isOpen={isVotingOpen()}
-            title={translateElection(election, "name", i18n.language) || "-"}
+            title={translateFromPresentation(election, "name", i18n.language) || "-"}
             hasVoted={castVotes.length > 0}
             onClickToVote={canVote() ? onClickToVote : undefined}
             onClickBallotLocator={handleClickBallotLocator}
@@ -433,7 +433,11 @@ const ElectionSelectionScreen: React.FC = () => {
                         contests: [],
                         description: election.description ?? undefined,
                         alias: election.presentation
-                            ? translateElection(election.presentation, "alias", i18n.language)
+                            ? translateFromPresentation(
+                                  election.presentation,
+                                  "alias",
+                                  i18n.language
+                              )
                             : undefined,
                     })
                 )
@@ -441,7 +445,7 @@ const ElectionSelectionScreen: React.FC = () => {
 
             let foundTestElection = dataElections.sequent_backend_election.find((election) => {
                 const name = election.presentation
-                    ? translateElection(election.presentation, "name", i18n.language)
+                    ? translateFromPresentation(election.presentation, "name", i18n.language)
                     : undefined
                 name && name.includes("TEST")
             })

@@ -14,7 +14,7 @@ import {CastVotesPerDay, GetElectionStatsQuery, Sequent_Backend_Election} from "
 import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {useQuery} from "@apollo/client"
 import {GET_ELECTION_STATS} from "@/queries/GetElectionStats"
-import {IElectionStatistics, translateElection} from "@sequentech/ui-core"
+import {IElectionStatistics, translateFromPresentation} from "@sequentech/ui-core"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import {AuthContext} from "@/providers/AuthContextProvider"
 import {IPermissions} from "@/types/keycloak"
@@ -33,7 +33,7 @@ export default function DashboardElection() {
     const {globalSettings} = useContext(SettingsContext)
     const record = useRecordContext<Sequent_Backend_Election>()
     const electionAlias = record
-        ? translateElection(record.presentation, "alias", i18n.language)
+        ? translateFromPresentation(record.presentation, "alias", i18n.language)
         : undefined
     const endDate = getToday()
     const startDate = daysBefore(endDate, 6)
