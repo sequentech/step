@@ -7101,7 +7101,6 @@ input ballot_style_updates {
 columns and relationships of "sequent_backend.candidate"
 """
 type candidate {
-  alias: String
   annotations(
     """JSON select path"""
     path: String
@@ -7118,7 +7117,6 @@ type candidate {
     path: String
   ): jsonb
   last_updated_at: timestamptz
-  name: String
   presentation(
     """JSON select path"""
     path: String
@@ -7203,7 +7201,6 @@ input candidate_bool_exp {
   _and: [candidate_bool_exp!]
   _not: candidate_bool_exp
   _or: [candidate_bool_exp!]
-  alias: String_comparison_exp
   annotations: jsonb_comparison_exp
   contest_id: uuid_comparison_exp
   created_at: timestamptz_comparison_exp
@@ -7214,7 +7211,6 @@ input candidate_bool_exp {
   is_public: Boolean_comparison_exp
   labels: jsonb_comparison_exp
   last_updated_at: timestamptz_comparison_exp
-  name: String_comparison_exp
   presentation: jsonb_comparison_exp
   tenant_id: uuid_comparison_exp
   type: String_comparison_exp
@@ -7261,7 +7257,6 @@ input candidate_delete_key_input {
 input type for inserting data into table "sequent_backend.candidate"
 """
 input candidate_insert_input {
-  alias: String
   annotations: jsonb
   contest_id: uuid
   created_at: timestamptz
@@ -7272,7 +7267,6 @@ input candidate_insert_input {
   is_public: Boolean
   labels: jsonb
   last_updated_at: timestamptz
-  name: String
   presentation: jsonb
   tenant_id: uuid
   type: String
@@ -7280,7 +7274,6 @@ input candidate_insert_input {
 
 """aggregate max on columns"""
 type candidate_max_fields {
-  alias: String
   contest_id: uuid
   created_at: timestamptz
   description: String
@@ -7288,7 +7281,6 @@ type candidate_max_fields {
   id: uuid
   image_document_id: String
   last_updated_at: timestamptz
-  name: String
   tenant_id: uuid
   type: String
 }
@@ -7297,7 +7289,6 @@ type candidate_max_fields {
 order by max() on columns of table "sequent_backend.candidate"
 """
 input candidate_max_order_by {
-  alias: order_by
   contest_id: order_by
   created_at: order_by
   description: order_by
@@ -7305,14 +7296,12 @@ input candidate_max_order_by {
   id: order_by
   image_document_id: order_by
   last_updated_at: order_by
-  name: order_by
   tenant_id: order_by
   type: order_by
 }
 
 """aggregate min on columns"""
 type candidate_min_fields {
-  alias: String
   contest_id: uuid
   created_at: timestamptz
   description: String
@@ -7320,7 +7309,6 @@ type candidate_min_fields {
   id: uuid
   image_document_id: String
   last_updated_at: timestamptz
-  name: String
   tenant_id: uuid
   type: String
 }
@@ -7329,7 +7317,6 @@ type candidate_min_fields {
 order by min() on columns of table "sequent_backend.candidate"
 """
 input candidate_min_order_by {
-  alias: order_by
   contest_id: order_by
   created_at: order_by
   description: order_by
@@ -7337,7 +7324,6 @@ input candidate_min_order_by {
   id: order_by
   image_document_id: order_by
   last_updated_at: order_by
-  name: order_by
   tenant_id: order_by
   type: order_by
 }
@@ -7363,7 +7349,6 @@ input candidate_on_conflict {
 
 """Ordering options when selecting data from "sequent_backend.candidate"."""
 input candidate_order_by {
-  alias: order_by
   annotations: order_by
   contest_id: order_by
   created_at: order_by
@@ -7374,7 +7359,6 @@ input candidate_order_by {
   is_public: order_by
   labels: order_by
   last_updated_at: order_by
-  name: order_by
   presentation: order_by
   tenant_id: order_by
   type: order_by
@@ -7399,8 +7383,6 @@ select columns of table "sequent_backend.candidate"
 """
 enum candidate_select_column {
   """column name"""
-  alias
-  """column name"""
   annotations
   """column name"""
   contest_id
@@ -7420,8 +7402,6 @@ enum candidate_select_column {
   labels
   """column name"""
   last_updated_at
-  """column name"""
-  name
   """column name"""
   presentation
   """column name"""
@@ -7450,7 +7430,6 @@ enum candidate_select_column_sequent_backend_candidate_aggregate_bool_exp_bool_o
 input type for updating data in table "sequent_backend.candidate"
 """
 input candidate_set_input {
-  alias: String
   annotations: jsonb
   contest_id: uuid
   created_at: timestamptz
@@ -7461,7 +7440,6 @@ input candidate_set_input {
   is_public: Boolean
   labels: jsonb
   last_updated_at: timestamptz
-  name: String
   presentation: jsonb
   tenant_id: uuid
   type: String
@@ -7479,7 +7457,6 @@ input candidate_stream_cursor_input {
 
 """Initial value of the column from where the streaming should start"""
 input candidate_stream_cursor_value_input {
-  alias: String
   annotations: jsonb
   contest_id: uuid
   created_at: timestamptz
@@ -7490,7 +7467,6 @@ input candidate_stream_cursor_value_input {
   is_public: Boolean
   labels: jsonb
   last_updated_at: timestamptz
-  name: String
   presentation: jsonb
   tenant_id: uuid
   type: String
@@ -7500,8 +7476,6 @@ input candidate_stream_cursor_value_input {
 update columns of table "sequent_backend.candidate"
 """
 enum candidate_update_column {
-  """column name"""
-  alias
   """column name"""
   annotations
   """column name"""
@@ -7522,8 +7496,6 @@ enum candidate_update_column {
   labels
   """column name"""
   last_updated_at
-  """column name"""
-  name
   """column name"""
   presentation
   """column name"""
