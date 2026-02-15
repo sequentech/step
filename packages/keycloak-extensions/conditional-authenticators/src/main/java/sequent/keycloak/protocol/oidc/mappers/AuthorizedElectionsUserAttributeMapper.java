@@ -431,9 +431,12 @@ public class AuthorizedElectionsUserAttributeMapper extends AbstractOIDCProtocol
           String defaultLang = defaultLangNode.asText();
 
           JsonNode aliasNode = presentation.path("i18n").path(defaultLang).path("alias");
+          JsonNode nameNode = presentation.path("i18n").path(defaultLang).path("name");
 
           if (!aliasNode.isMissingNode() && !aliasNode.isNull()) {
             alias = aliasNode.asText();
+          } else if (!nameNode.isMissingNode() && !nameNode.isNull()) {
+            alias = nameNode.asText();
           }
         }
       }
