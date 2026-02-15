@@ -1373,6 +1373,9 @@ const basqueTranslation: TranslationType = {
             paginationPolicy: {
                 label: "Orri Izena",
             },
+            allowWriteins: {
+                label: "Eskuzko hautagaitzak baimendu",
+            },
             error: {},
             createContestSuccess: "Lehiaketa sortua",
             createContestError: "Errorea hautagaia sortzerakoan",
