@@ -33,7 +33,8 @@ export const TallyResultsContest: React.FC<TallyResultsContestProps> = (props) =
     const [contestId, setContestId] = useState<string | null>()
     const {globalSettings} = useContext(SettingsContext)
 
-    const {t} = reactI18next.useTranslation()
+    const {t, i18n} = reactI18next.useTranslation()
+    const aliasRenderer = useAliasRenderer()
     const [electionData, setElectionData] = useState<string | null>(null)
     const [electionEventData, setElectionEventData] = useState<string | null>(null)
     const [tenantData, setTenantData] = useState<string | null>(null)
@@ -139,11 +140,14 @@ export const TallyResultsContest: React.FC<TallyResultsContestProps> = (props) =
         }
     }
 
-    let contestName: string | undefined = useMemo(
-        () =>
-            (contestId && contests?.find((contest) => contest.id === contestId)?.name) || undefined,
-        [contestId, contests]
-    )
+    const contestName = useMemo(() => {
+        if (!contestId || !contests) return undefined
+
+        const contest = contests.find((c) => c.id === contestId)
+        if (!contest?.presentation) return undefined
+
+        return aliasRenderer(JSON.parse(contest.presentation))
+    }, [contestId, contests, i18n.language])
 
     let documents: IResultDocumentsData | null = useMemo(() => {
         const documents =
@@ -159,7 +163,6 @@ export const TallyResultsContest: React.FC<TallyResultsContestProps> = (props) =
               }
             : null
     }, [contestId, resultsContests, resultsContests?.[0]?.documents, contestName])
-    const aliasRenderer = useAliasRenderer()
 
     return (
         <>
