@@ -279,6 +279,15 @@ curl -X POST "https://api.example.sequent.vote/graphql" \
   }'
 ```
 
+**Expected Response:**
+```json
+{
+  "data": {
+    "__typename": "query_root"
+  }
+}
+```
+
 ### Python Example
 
 ```python

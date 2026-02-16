@@ -318,7 +318,7 @@ mutation ImportElectionEvent(
   "data": {
     "import_election_event": {
       "id": "b2c3d4e5-f6a7-8901-bcde-f12345678901",
-      "message": "Election event imported successfully",
+      "message": "Task created: import_election_event",
       "error": null
     }
   }
@@ -326,8 +326,10 @@ mutation ImportElectionEvent(
 ```
 
 - `id`: UUID of the created election event (if successful)
-- `message`: Status message
+- `message`: Status message (typically "Task created: import_election_event")
 - `error`: Error message (if import failed, otherwise `null`)
+
+**Note:** The import process is asynchronous. The mutation creates a background task that processes the import. The `message` field confirms task creation, while the `id` field contains the election event UUID that will be created once the task completes successfully.
 
 ### CURL Example
 
