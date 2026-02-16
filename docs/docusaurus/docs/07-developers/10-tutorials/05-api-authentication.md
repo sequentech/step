@@ -379,15 +379,9 @@ print(result)
 
 ### SSL/TLS Errors
 
-**Problem:** Certificate verification failures in development.
+**Problem:** Certificate verification failures.
 
-**Solution (Development Only):**
-```python
-# NEVER do this in production
-response = requests.post(token_url, data=data, verify=False)
-```
-
-**Production Solution:**
+**Solution:**
 - Ensure your Keycloak instance has a valid SSL certificate
 - Update your system's CA certificates if needed
 - Use HTTPS for all production environments
