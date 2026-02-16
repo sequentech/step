@@ -4,7 +4,7 @@ title: Import Election Event via API
 ---
 
 <!--
-SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
+SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 SPDX-License-Identifier: AGPL-3.0-only
 -->
 
@@ -128,6 +128,8 @@ mutation GetUploadUrl(
 
 - `url`: Pre-signed S3/MinIO URL for uploading (time-limited, typically 15 minutes)
 - `document_id`: UUID to reference this document in subsequent operations
+
+**Note:** The URL contains AWS signature parameters for secure, time-limited upload access.
 
 ### CURL Example
 
@@ -470,15 +472,31 @@ This is useful for:
 
 ### Invalid JSON Format
 
-**Problem:** Import fails with "Invalid JSON" error.
+**Problem:** Import fails with "Invalid JSON" or schema validation error.
 
 **Cause:** The uploaded file is not valid JSON or doesn't match the expected schema.
 
+**Example Error:**
+```json
+{
+  "data": {
+    "import_election_event": {
+      "id": null,
+      "message": null,
+      "error": "Error checking import: keycloak_event_realm.authenticationFlows: invalid type: map, expected a sequence at line 32 column 6"
+    }
+  }
+}
+```
+
+This error indicates that at line 32, column 6 of the JSON file, the `authenticationFlows` field is a map/object but should be an array.
+
 **Solution:**
 - Validate your JSON file syntax before uploading
-- Use `check_only: true` to validate the structure
+- Use `check_only: true` to validate the structure before importing
 - Ensure the file matches the election event schema
 - Check for required fields in the JSON structure
+- Pay attention to the line and column numbers in error messages to locate the issue
 
 ### Authentication Errors
 

@@ -4,7 +4,7 @@ title: API Authentication with Keycloak
 ---
 
 <!--
-SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
+SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 SPDX-License-Identifier: AGPL-3.0-only
 -->
 
@@ -39,12 +39,14 @@ Set up the following environment variables with your instance details:
 |----------|-------------|---------|
 | `KEYCLOAK_URL` | Base URL of your Keycloak instance | `https://keycloak.example.sequent.vote` |
 | `TENANT_ID` | Your tenant identifier | `my-tenant-123` |
-| `CLIENT_ID` | OAuth2 client ID | `sequent-client` |
-| `CLIENT_SECRET` | OAuth2 client secret | `your-client-secret` |
+| `CLIENT_ID` | OAuth2 client ID for CLI/admin operations | `admin-portal` |
+| `CLIENT_SECRET` | OAuth2 client secret | `admin-portal-client-secret` |
 | `USERNAME` | Your username | `user@example.com` |
 | `PASSWORD` | Your password | `your-secure-password` |
 
-**Security Note:** Never commit credentials to version control. Use environment variables or a secure secrets management system.
+**Important Notes:**
+- For **CLI and administrative operations** (like importing election events, managing users), use the `admin-portal` client ID which has the necessary permissions
+- **Security Note:** Never commit credentials to version control. Use environment variables or a secure secrets management system.
 
 ### Setting Up Environment Variables
 
@@ -54,8 +56,8 @@ For **bash/CURL** (Linux/macOS):
 # Export environment variables in your terminal
 export KEYCLOAK_URL="https://keycloak.example.sequent.vote"
 export TENANT_ID="my-tenant-123"
-export CLIENT_ID="sequent-client"
-export CLIENT_SECRET="your-client-secret"
+export CLIENT_ID="admin-portal"
+export CLIENT_SECRET="admin-portal-client-secret"
 export USERNAME="user@example.com"
 export PASSWORD="your-secure-password"
 ```
@@ -67,8 +69,8 @@ Alternatively, create a `.env` file and source it:
 cat > .env <<EOF
 export KEYCLOAK_URL="https://keycloak.example.sequent.vote"
 export TENANT_ID="my-tenant-123"
-export CLIENT_ID="sequent-client"
-export CLIENT_SECRET="your-client-secret"
+export CLIENT_ID="admin-portal"
+export CLIENT_SECRET="admin-portal-client-secret"
 export USERNAME="user@example.com"
 export PASSWORD="your-secure-password"
 EOF
@@ -166,22 +168,26 @@ A successful response will look like this:
 
 ```json
 {
-  "access_token": "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9...",
-  "expires_in": 3600,
-  "refresh_expires_in": 36000,
-  "refresh_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "access_token": "eyJhbGciOiJSUzI1NiIsInR5cCIgOiAiSldUIiwia2lkIiA6ICJC...",
+  "expires_in": 300,
+  "refresh_expires_in": 1800,
+  "refresh_token": "eyJhbGciOiJIUzUxMiIsInR5cCIgOiAiSldUIiwia2lkIiA6IC...",
   "token_type": "Bearer",
-  "not-before-policy": 0,
-  "session_state": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+  "id_token": "eyJhbGciOiJSUzI1NiIsInR5cCIgOiAiSldUIiwia2lkIiA6ICJC...",
+  "not-before-policy": 1712715173,
+  "session_state": "0986ebd3-b08b-9981-191a-5a418381d0bd",
   "scope": "openid profile email"
 }
 ```
 
 Key fields:
-- `access_token`: Use this to authenticate API requests
+- `access_token`: Use this to authenticate API requests (JWT format)
 - `refresh_token`: Use this to obtain a new access token when it expires
-- `expires_in`: Token lifetime in seconds (typically 3600 = 1 hour)
+- `expires_in`: Token lifetime in seconds (typically 300 = 5 minutes)
+- `refresh_expires_in`: Refresh token lifetime in seconds (typically 1800 = 30 minutes)
 - `token_type`: Always "Bearer" for Keycloak
+- `id_token`: OpenID Connect ID token containing user identity claims
+- `scope`: Granted OAuth2 scopes
 
 ## 2. Refreshing Access Tokens
 
@@ -332,17 +338,21 @@ print(result)
 
 ### 403 Forbidden - Insufficient Permissions
 
-**Problem:** Request fails with HTTP 403 status.
+**Problem:** Request fails with HTTP 403 status or GraphQL mutation not found.
 
 **Possible Causes:**
 - User lacks required permissions
 - Client lacks required scopes
+- Using wrong client ID (e.g., `service-account` instead of `admin-portal` for administrative operations)
 - Incorrect tenant ID
 
 **Solution:**
+- **Use the correct client ID**: For administrative operations like importing election events or managing users, use `admin-portal`
 - Verify the user has appropriate roles in Keycloak
 - Check client scope configuration in Keycloak
 - Confirm you're using the correct tenant ID
+
+**Example:** If you receive an error like `"field 'get_upload_url' not found"`, ensure you're using the `admin-portal` client credentials.
 
 ### Token Expiration
 
