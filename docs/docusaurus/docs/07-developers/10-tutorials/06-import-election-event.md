@@ -845,4 +845,4 @@ Now that you can import election events via the API, explore other operations:
 - [CLI Tutorials](../02-cli/02-tutorials/02-cli-tutorials-creating-an-election-event.md) - Learn about creating election events with the CLI
 - [Export Election Events](../02-cli/03-reference/01-cli_reference.md#export-election-event) - Learn how to export election events
 
-For questions or support, refer to the [Support](../../../09-support/) section.
+For questions or support, refer to the [Support](../../09-support/01-support.md) section.
