@@ -112,7 +112,6 @@ impl Name for Election {
 
 impl Alias for Election {
     fn get_alias(&self, language: &str) -> Option<String> {
-        // fallback: name (same behavior you had)
         let base = Some(self.get_name(language));
 
         parse_presentation::<ElectionPresentation>(&self.presentation)
