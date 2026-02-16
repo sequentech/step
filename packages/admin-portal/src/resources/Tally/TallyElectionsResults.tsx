@@ -110,8 +110,10 @@ export const TallyElectionsResults: React.FC<TallyElectionsResultsProps> = (prop
             headerName: t("tally.table.elections"),
             flex: 1,
             editable: false,
-            valueGetter(params) {
-                return aliasRenderer(params.row)
+            valueGetter(value, row) {
+                const presentation = JSON.parse(row.presentation)
+                const election_name = aliasRenderer(presentation)
+                return election_name
             },
         },
         {

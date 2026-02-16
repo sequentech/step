@@ -35,6 +35,7 @@ import {useElectionEventTallyStore} from "@/providers/ElectionEventTallyProvider
 import {useCreateElectionEventStore} from "@/providers/CreateElectionEventContextProvider"
 import {useNavigate} from "react-router-dom"
 import RefreshIcon from "@mui/icons-material/Refresh"
+import {useAliasRenderer} from "@/hooks/useAliasRenderer"
 
 export const mapAddResource: Record<ResourceName, string> = {
     sequent_backend_election_event: "createResource.electionEvent",
@@ -120,6 +121,7 @@ function TreeLeaves({
     const {t, i18n} = useTranslation()
     const {openCreateDrawer, openImportDrawer} = useCreateElectionEventStore()
     const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null)
+    const aliasRenderer = useAliasRenderer()
 
     useEffect(() => {
         const dir = i18n.dir(i18n.language)
@@ -209,13 +211,7 @@ function TreeLeaves({
                                 parentData={resource}
                                 superParentData={parentData}
                                 id={resource.id}
-                                name={
-                                    translateElection(resource, "alias", i18n.language) ||
-                                    translateElection(resource, "name", i18n.language) ||
-                                    resource.alias ||
-                                    resource.name ||
-                                    "-"
-                                }
+                                name={aliasRenderer(resource)}
                                 treeResourceNames={treeResourceNames}
                                 isArchivedElectionEvents={isArchivedElectionEvents}
                                 fullPath={fillPath(resource)}

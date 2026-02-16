@@ -9,8 +9,10 @@ import ElectionHeader from "../../components/ElectionHeader"
 import {EditContestData} from "./EditContestData"
 import {ListTallySheet} from "../TallySheet/ListTallySheet"
 import {TallySheetWizard, WizardSteps} from "../TallySheet/TallySheetWizard"
+import {useAliasRenderer} from "@/hooks/useAliasRenderer"
 
 export const ContestTabs: React.FC = () => {
+    const aliasRenderer = useAliasRenderer()
     const record = useRecordContext<Sequent_Backend_Contest>()
 
     const [action, setAction] = useState<number>(WizardSteps.List)
@@ -27,7 +29,10 @@ export const ContestTabs: React.FC = () => {
 
     return (
         <>
-            <ElectionHeader title={record?.name || ""} subtitle="contestScreen.common.subtitle" />
+            <ElectionHeader
+                title={aliasRenderer(record)}
+                subtitle="contestScreen.common.subtitle"
+            />
             <TabbedShowLayout>
                 <TabbedShowLayout.Tab label="Data">
                     <EditContestData />
@@ -38,36 +43,41 @@ export const ContestTabs: React.FC = () => {
                         setAction(WizardSteps.List)
                     }}
                 >
-                    {action === WizardSteps.List ? (
-                        <ListTallySheet contest={record} doAction={handleAction} reload={refresh} />
-                    ) : action === WizardSteps.Start ? (
-                        <TallySheetWizard
-                            contest={record}
-                            action={action}
-                            doAction={handleAction}
-                        />
-                    ) : action === WizardSteps.Edit ? (
-                        <TallySheetWizard
-                            tallySheetId={tallySheetId}
-                            contest={record}
-                            action={action}
-                            doAction={handleAction}
-                        />
-                    ) : action === WizardSteps.Confirm ? (
-                        <TallySheetWizard
-                            tallySheetId={tallySheetId}
-                            contest={record}
-                            action={action}
-                            doAction={handleAction}
-                        />
-                    ) : action === WizardSteps.View ? (
-                        <TallySheetWizard
-                            tallySheetId={tallySheetId}
-                            contest={record}
-                            action={action}
-                            doAction={handleAction}
-                        />
-                    ) : null}
+                    {record &&
+                        (action === WizardSteps.List ? (
+                            <ListTallySheet
+                                contest={record}
+                                doAction={handleAction}
+                                reload={refresh}
+                            />
+                        ) : action === WizardSteps.Start ? (
+                            <TallySheetWizard
+                                contest={record}
+                                action={action}
+                                doAction={handleAction}
+                            />
+                        ) : action === WizardSteps.Edit ? (
+                            <TallySheetWizard
+                                tallySheetId={tallySheetId}
+                                contest={record}
+                                action={action}
+                                doAction={handleAction}
+                            />
+                        ) : action === WizardSteps.Confirm ? (
+                            <TallySheetWizard
+                                tallySheetId={tallySheetId}
+                                contest={record}
+                                action={action}
+                                doAction={handleAction}
+                            />
+                        ) : action === WizardSteps.View ? (
+                            <TallySheetWizard
+                                tallySheetId={tallySheetId}
+                                contest={record}
+                                action={action}
+                                doAction={handleAction}
+                            />
+                        ) : null)}
                 </TabbedShowLayout.Tab>
             </TabbedShowLayout>
         </>

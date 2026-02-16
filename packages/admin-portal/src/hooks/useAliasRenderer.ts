@@ -14,8 +14,8 @@ export function useAliasRenderer() {
         return (
             translateElection(item, "alias", i18n.language) ||
             translateElection(item, "name", i18n.language) ||
-            item.alias ||
-            item.name ||
+            translateElection(item, "alias", "en") ||
+            translateElection(item, "name", "en") ||
             "-"
         )
     }
