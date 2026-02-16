@@ -329,6 +329,46 @@ pub async fn update_tally_session_annotation(
     Ok(())
 }
 
+/// Append tie-break data to tally session annotations
+/// Merges the new data with existing annotations
+#[instrument(err, skip(hasura_transaction))]
+pub async fn append_tally_session_tie_break_annotation(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    tally_session_id: &str,
+    tie_break_data: Value,
+) -> Result<()> {
+    // First, get current tally session to retrieve existing annotations
+    let current_session = get_tally_session_by_id(
+        hasura_transaction,
+        tenant_id,
+        election_event_id,
+        tally_session_id,
+    )
+    .await?;
+
+    // Get existing annotations or create new object
+    let mut annotations = current_session
+        .annotations
+        .unwrap_or(serde_json::json!({}));
+
+    // Merge tie_break data as a JSON object
+    if let Some(obj) = annotations.as_object_mut() {
+        obj.insert("tie_break".to_string(), tie_break_data);
+    }
+
+    // Update annotations using existing function
+    update_tally_session_annotation(
+        hasura_transaction,
+        tenant_id,
+        election_event_id,
+        tally_session_id,
+        annotations,
+    )
+    .await
+}
+
 #[instrument(err, skip(hasura_transaction))]
 pub async fn get_tally_sessions_by_election_id(
     hasura_transaction: &Transaction<'_>,

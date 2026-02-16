@@ -78,6 +78,7 @@ pub enum TallyExecutionStatus {
     STARTED,
     CONNECTED,
     IN_PROGRESS,
+    AWAITING_INPUT,
     SUCCESS,
     CANCELLED,
 }

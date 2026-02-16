@@ -122,6 +122,7 @@ pub fn prepare_tally_for_area_contest(
     area_contest: &AreaContestDataType,
     tally_sheets: &HashMap<(String, String), Vec<TallySheet>>,
     tally_session: &TallySession,
+    tie_resolution: Option<&serde_json::Value>,
 ) -> Result<()> {
     let contest_encryption_policy = tally_session
         .configuration
@@ -207,10 +208,23 @@ pub fn prepare_tally_for_area_contest(
         "{DEFAULT_DIR_CONFIGS}/election__{election_id}/contest__{contest_id}/contest-config.json"
     ));
     let mut contest_config_file = fs::File::create(contest_config_path)?;
+
+    // Prepare contest data, potentially injecting tie resolution
+    let mut contest = area_contest.contest.clone();
+    if let Some(tie_res) = tie_resolution {
+        // Inject tie resolution into contest annotations for resume scenario
+        // Annotations is HashMap<String, String>, so we need to serialize to JSON string
+        let mut annotations = contest.annotations.clone().unwrap_or_default();
+        let tie_res_json_string = serde_json::to_string(tie_res)?;
+        info!("Injecting tie resolution into contest annotations: {}", tie_res_json_string);
+        annotations.insert("tie_resolution".to_string(), tie_res_json_string);
+        contest.annotations = Some(annotations);
+    }
+
     writeln!(
         contest_config_file,
         "{}",
-        serde_json::to_string(&area_contest.contest)?
+        serde_json::to_string(&contest)?
     )?;
 
     //// create tally sheets files
@@ -576,12 +590,13 @@ async fn build_reports_pipe_config(
         .clone()
         .ok_or_else(|| anyhow!("Missing tally session annotations"))?;
 
-    let tally_annotations: Annotations = deserialize_value(tally_annotations_js)?;
-
-    let tally_executer_username = tally_annotations
+    // Don't deserialize to Annotations type since it may contain non-string fields like tie_break
+    // Just access the executer_username field directly
+    let tally_executer_username = tally_annotations_js
         .get("executer_username")
-        .cloned()
-        .unwrap_or(String::new());
+        .and_then(|v| v.as_str())
+        .unwrap_or("")
+        .to_string();
 
     let report_hash = get_report_hash(&tally_type.to_string()).await?;
 
@@ -611,6 +626,7 @@ pub async fn create_config_file(
     pdf_options: Option<PrintToPdfOptionsLocal>,
     tally_session: &TallySession,
     tally_type: TallyType,
+    tie_resolution: Option<serde_json::Value>,
 ) -> Result<()> {
     let contest_encryption_policy = tally_session
         .configuration
@@ -663,7 +679,7 @@ pub async fn create_config_file(
                     velvet::config::PipeConfig {
                         id: "do-tally".to_string(),
                         pipe: PipeName::DoTally,
-                        config: Some(serde_json::Value::Null),
+                        config: tie_resolution.or(Some(serde_json::Value::Null)),
                     },
                     velvet::config::PipeConfig {
                         id: "mark-winners".to_string(),
@@ -861,6 +877,7 @@ pub async fn run_velvet_tally(
     election_event: &ElectionEvent,
     tally_session: &TallySession,
     tally_type: TallyType,
+    tie_resolution: Option<serde_json::Value>,
 ) -> Result<State> {
     let basic_areas: Vec<TreeNodeArea> = areas.into_iter().map(|area| area.into()).collect();
     // map<(area_id,contest_id), tally_sheet>
@@ -871,6 +888,7 @@ pub async fn run_velvet_tally(
             area_contest,
             &tally_sheet_map,
             tally_session,
+            tie_resolution.as_ref(),
         )?;
     }
     create_election_configs(
@@ -896,6 +914,7 @@ pub async fn run_velvet_tally(
         pdf_options,
         tally_session,
         tally_type,
+        tie_resolution,
     )
     .await?;
     call_velvet(base_tally_path.clone(), "decode-ballots").await

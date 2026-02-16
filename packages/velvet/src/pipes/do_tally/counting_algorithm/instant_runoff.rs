@@ -12,7 +12,7 @@ use rand::prelude::IndexedRandom;
 use rand::seq::SliceRandom;
 use rand::thread_rng;
 use rayon::vec;
-use sequent_core::ballot::{Candidate, Contest, Weight};
+use sequent_core::ballot::{Candidate, Contest, TieBreakingPolicy, Weight};
 use sequent_core::plaintext::{DecodedVoteChoice, DecodedVoteContest};
 use sequent_core::types::ceremonies::{ScopeOperation, TallyOperation};
 use serde::{Deserialize, Serialize};
@@ -20,7 +20,7 @@ use serde_json;
 use std::cmp;
 use std::collections::HashMap;
 use std::ops::{Deref, DerefMut};
-use tracing::{info, instrument};
+use tracing::{info, instrument, warn};
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct CandidateReference {
@@ -119,7 +119,7 @@ pub struct CandidateOutcome {
 
 type CandidatesOutcomes = HashMap<String, CandidateOutcome>;
 
-#[derive(Debug, Default, Serialize, Deserialize)]
+#[derive(Debug, Default, Clone, Serialize, Deserialize)]
 pub struct CandidatesStatus(pub HashMap<String, ECandidateStatus>);
 
 impl Deref for CandidatesStatus {
@@ -185,13 +185,56 @@ pub struct Round {
     pub exhausted_ballots_count: u64, // Number of exhausted ballots in this round
 }
 
-#[derive(Default, Debug, Serialize, Deserialize)]
+#[derive(Default, Debug, Clone, Serialize, Deserialize)]
 pub struct RunoffStatus {
     pub candidates_status: CandidatesStatus,
     pub name_references: Vec<CandidateReference>, // Maps candidate ID to name and serves as an ordered by results list in the end.
     pub round_count: u64,
     pub rounds: Vec<Round>,
     pub max_rounds: u64,
+}
+
+/// Method used to break a tie
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub enum TieBreakingMethod {
+    Random,
+    ExternalProcedure,
+    Lookback,
+}
+
+/// State of a tie that requires external resolution
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TieBreakingState {
+    pub round_number: u64,
+    pub tied_candidate_ids: Vec<String>,
+    pub vote_counts: Vec<u64>,
+    pub method_used: TieBreakingMethod,
+    pub resolved_by_candidate_id: Option<String>,
+}
+
+/// Result of running the IRV algorithm
+#[derive(Debug)]
+pub enum RunoffResult {
+    /// Normal completion (winner found or max rounds reached)
+    Completed(RunoffStatus),
+    /// Tie detected with external procedure policy - needs admin input
+    RequiresExternalInput {
+        state: RunoffStatus,
+        tie_info: TieBreakingState,
+    },
+}
+
+/// Internal enum for round-by-round execution
+enum RoundResult {
+    /// Continue to next round
+    Continue,
+    /// Runoff is finished (winner found or max rounds)
+    Finished,
+    /// Tie requires external input
+    RequiresInput {
+        candidates_to_eliminate: Vec<String>,
+        round_number: u64,
+    },
 }
 
 impl RunoffStatus {
@@ -323,8 +366,59 @@ impl RunoffStatus {
     pub fn determine_winner_by_lot(
         &mut self,
         candidates_to_eliminate: &Vec<String>,
+        tie_breaking_policy: &TieBreakingPolicy,
+        tie_resolution_candidate: Option<&str>,
     ) -> Option<(CandidateReference, Vec<CandidateReference>)> {
         // FULL TIE: All active candidates have the same (lowest) number of votes
+
+        // Check if we have a pre-configured tie resolution (resume scenario)
+        if let Some(resolved_candidate_id) = tie_resolution_candidate {
+            if candidates_to_eliminate.contains(&resolved_candidate_id.to_string()) {
+                info!(
+                    "IRV tie detected among {} candidates. Using pre-configured resolution: {}",
+                    candidates_to_eliminate.len(),
+                    resolved_candidate_id
+                );
+
+                let winner_name = self.get_candidate_name(resolved_candidate_id).unwrap_or_default();
+                let winner = CandidateReference {
+                    id: resolved_candidate_id.to_string(),
+                    name: winner_name.clone(),
+                };
+
+                // Mark all others as eliminated, keep only the resolved winner active
+                let mut eliminated = Vec::new();
+                for candidate_id in candidates_to_eliminate {
+                    if candidate_id == resolved_candidate_id {
+                        continue;
+                    }
+                    self.candidates_status
+                        .set_candidate_to_eliminated(candidate_id);
+                    eliminated.push(CandidateReference {
+                        id: candidate_id.to_string(),
+                        name: self.get_candidate_name(candidate_id).unwrap_or_default(),
+                    });
+                }
+
+                return Some((winner, eliminated));
+            } else {
+                warn!(
+                    "Configured tie resolution candidate {} is not among tied candidates: {:?}. Ignoring.",
+                    resolved_candidate_id,
+                    candidates_to_eliminate
+                );
+            }
+        }
+
+        // Check policy - if external procedure and no resolution, pause needed
+        if *tie_breaking_policy == TieBreakingPolicy::EXTERNAL_PROCEDURE {
+            info!(
+                "IRV tie detected among {} candidates with EXTERNAL_PROCEDURE policy. Pausing for admin input.",
+                candidates_to_eliminate.len()
+            );
+            return None; // Signal that we need to pause for external input
+        }
+
         // No meaningful elimination possible → winner decided by lot (random)
         let mut rng = thread_rng();
         let Some(winner_id) = candidates_to_eliminate.choose(&mut rng) else {
@@ -489,8 +583,10 @@ impl RunoffStatus {
                 if let Some(eliminated_candidates) = eliminated_candidates {
                     round.eliminated_candidates = Some(eliminated_candidates);
                 } else {
+                    // NOTE: This method is for backward compatibility and always uses RANDOM policy
+                    // For proper tie-breaking policy support, callers should use run_with_policy() instead
                     if let Some((winner, eliminated_candidates)) =
-                        self.determine_winner_by_lot(&candidates_to_eliminate)
+                        self.determine_winner_by_lot(&candidates_to_eliminate, &TieBreakingPolicy::RANDOM, None)
                     {
                         round.winner = Some(winner);
                         round.eliminated_candidates = Some(eliminated_candidates);
@@ -535,12 +631,251 @@ impl RunoffStatus {
     }
 
     #[instrument(skip_all)]
-    pub fn run(&mut self, ballots_status: &mut BallotsStatus) {
-        let mut iterations = 0;
-        while self.run_next_round(ballots_status) && iterations < self.max_rounds {
-            iterations += 1;
+    /// Apply an external tie-breaking decision
+    /// Eliminates all candidates except the chosen winner
+    /// Returns error if winner_id is invalid
+    #[instrument]
+    pub fn apply_external_tie_decision(&mut self, winner_id: &str) -> Result<(), String> {
+        // Validate winner_id is in candidates_status
+        if !self.candidates_status.contains_key(winner_id) {
+            return Err(format!("Invalid candidate ID: {}", winner_id));
         }
+
+        // Get all active candidates
+        let active_candidates = self.candidates_status.get_active_candidate_ids();
+
+        // Validate winner is actually active
+        if !active_candidates.contains(&winner_id.to_string()) {
+            return Err(format!(
+                "Candidate {} is not active (may already be eliminated)",
+                winner_id
+            ));
+        }
+
+        // Eliminate all except the chosen winner
+        for candidate_id in &active_candidates {
+            if candidate_id != winner_id {
+                self.candidates_status
+                    .set_candidate_to_eliminated(&candidate_id);
+            }
+        }
+
+        // Update last round with winner and eliminated list
+        // Get candidate names before mutable borrow
+        let winner = CandidateReference {
+            id: winner_id.to_string(),
+            name: self.get_candidate_name(winner_id).unwrap_or_default(),
+        };
+
+        let eliminated: Vec<CandidateReference> = active_candidates
+            .into_iter()
+            .filter(|id| id != winner_id)
+            .map(|id| CandidateReference {
+                id: id.clone(),
+                name: self.get_candidate_name(&id).unwrap_or_default(),
+            })
+            .collect();
+
+        if let Some(last_round) = self.rounds.last_mut() {
+            last_round.winner = Some(winner);
+            last_round.eliminated_candidates = Some(eliminated);
+        }
+
+        Ok(())
+    }
+
+    /// Run next round with tie-breaking policy support
+    /// Returns RoundResult indicating what should happen next
+    fn run_next_round_with_policy(
+        &mut self,
+        ballots_status: &mut BallotsStatus,
+        tie_breaking_policy: &TieBreakingPolicy,
+        tie_resolution_candidate: Option<&str>,
+    ) -> RoundResult {
+        let mut round = Round::default();
+        let mut candidates_wins = self.candidates_status.initialize_candidates_wins();
+        let act_candidate_ids = self.candidates_status.get_active_candidate_ids();
+        let act_candidates_count = act_candidate_ids.len() as u64;
+        let mut act_ballots = 0;
+        let mut exhausted_ballots = self
+            .get_last_round()
+            .unwrap_or_default()
+            .exhausted_ballots_count;
+
+        for (ballot_st, ballot, weight) in ballots_status.ballots.iter_mut() {
+            if *ballot_st != BallotStatus::Valid {
+                continue;
+            }
+            let candidate_id = self.find_first_active_choice(&ballot.choices, &act_candidate_ids);
+            let w = weight.unwrap_or_default();
+            if let Some(candidate_id) = candidate_id {
+                if let Some(outcome) = candidates_wins.get_mut(&candidate_id) {
+                    outcome.wins += w;
+                }
+                act_ballots += 1;
+            } else {
+                *ballot_st = BallotStatus::Exhausted;
+                exhausted_ballots += 1;
+            }
+        }
+
+        candidates_wins = self.calculate_transferences(&candidates_wins);
+
+        // Calculate percentages using act_ballots as denominator
+        let act_ballots_f64 = cmp::max(1, act_ballots) as f64;
+        for outcome in candidates_wins.values_mut() {
+            outcome.percentage = ((outcome.wins as f64) / act_ballots_f64).clamp(0.0, 1.0);
+        }
+
+        // Check if there is a winner
+        let max_wins = candidates_wins.values().map(|o| o.wins).max().unwrap_or(0);
+        if 2 * max_wins > act_ballots {
+            let winner_id = self
+                .filter_candidates_by_number_of_wins(&candidates_wins, max_wins)
+                .first()
+                .cloned();
+            round.winner = winner_id.and_then(|id| {
+                Some(CandidateReference {
+                    id: id.clone(),
+                    name: self.get_candidate_name(&id).unwrap_or_default(),
+                })
+            });
+        }
+
+        // Eliminate candidates for the next round
+        let round_result = match round.winner.is_some() {
+            true => RoundResult::Finished,
+            false => {
+                // Find the Active candidate(s) with the fewest votes
+                let least_wins = candidates_wins.values().map(|o| o.wins).min().unwrap_or(0);
+                let candidates_to_eliminate: Vec<String> =
+                    self.filter_candidates_by_number_of_wins(&candidates_wins, least_wins);
+                let eliminated_candidates =
+                    self.do_round_eliminations(&candidates_wins, &candidates_to_eliminate);
+
+                match eliminated_candidates {
+                    Some(eliminated_candidates) => {
+                        round.eliminated_candidates = Some(eliminated_candidates);
+                        RoundResult::Continue
+                    }
+                    None => {
+                        // Tie detected - check policy and resolution
+                        if let Some((winner, eliminated_candidates)) =
+                            self.determine_winner_by_lot(
+                                &candidates_to_eliminate,
+                                tie_breaking_policy,
+                                tie_resolution_candidate,
+                            )
+                        {
+                            // Random policy resolved the tie
+                            round.winner = Some(winner);
+                            round.eliminated_candidates = Some(eliminated_candidates);
+                            RoundResult::Finished
+                        } else {
+                            // External procedure policy - pause needed
+                            // Don't update round yet, will be updated when resumed
+                            round.active_ballots_count = act_ballots;
+                            round.active_candidates_count = act_candidates_count;
+                            round.exhausted_ballots_count = exhausted_ballots;
+                            round.candidates_wins = candidates_wins.clone();
+                            round = self.fill_candidate_wins_names(&round);
+                            self.rounds.push(round);
+                            self.round_count += 1;
+
+                            return RoundResult::RequiresInput {
+                                candidates_to_eliminate,
+                                round_number: self.round_count,
+                            };
+                        }
+                    }
+                }
+            }
+        };
+
+        round.active_ballots_count = act_ballots;
+        round.active_candidates_count = act_candidates_count;
+        round.exhausted_ballots_count = exhausted_ballots;
+        round.candidates_wins = candidates_wins;
+        round = self.fill_candidate_wins_names(&round);
+        self.rounds.push(round);
+        self.round_count += 1;
+
+        round_result
+    }
+
+    /// Run the IRV algorithm with tie-breaking policy support
+    /// Returns RunoffResult indicating completion or need for external input
+    #[instrument(skip_all)]
+    pub fn run_with_policy(
+        &mut self,
+        ballots_status: &mut BallotsStatus,
+        tie_breaking_policy: &TieBreakingPolicy,
+        tie_resolution_candidate: Option<&str>,
+    ) -> RunoffResult {
+        let mut iterations = 0;
+        while iterations < self.max_rounds {
+            match self.run_next_round_with_policy(
+                ballots_status,
+                tie_breaking_policy,
+                tie_resolution_candidate,
+            ) {
+                RoundResult::Continue => {
+                    iterations += 1;
+                }
+                RoundResult::Finished => {
+                    self.name_references = self.order_name_references_by_result();
+                    return RunoffResult::Completed(self.clone());
+                }
+                RoundResult::RequiresInput {
+                    candidates_to_eliminate,
+                    round_number,
+                } => {
+                    // Build tie state
+                    let last_round = self.get_last_round().unwrap();
+                    let vote_counts: Vec<u64> = candidates_to_eliminate
+                        .iter()
+                        .map(|id| {
+                            last_round
+                                .candidates_wins
+                                .get(id)
+                                .map(|o| o.wins)
+                                .unwrap_or(0)
+                        })
+                        .collect();
+
+                    let tie_info = TieBreakingState {
+                        round_number,
+                        tied_candidate_ids: candidates_to_eliminate,
+                        vote_counts,
+                        method_used: TieBreakingMethod::ExternalProcedure,
+                        resolved_by_candidate_id: None,
+                    };
+
+                    return RunoffResult::RequiresExternalInput {
+                        state: self.clone(),
+                        tie_info,
+                    };
+                }
+            }
+        }
+
         self.name_references = self.order_name_references_by_result();
+        RunoffResult::Completed(self.clone())
+    }
+
+    /// Keep existing run() method for backward compatibility
+    /// Calls run_with_policy with RANDOM policy
+    pub fn run(&mut self, ballots_status: &mut BallotsStatus) {
+        let result = self.run_with_policy(ballots_status, &TieBreakingPolicy::RANDOM, None);
+        match result {
+            RunoffResult::Completed(status) => {
+                *self = status;
+            }
+            RunoffResult::RequiresExternalInput { .. } => {
+                // Should never happen with RANDOM policy
+                panic!("Unexpected RequiresExternalInput with RANDOM policy");
+            }
+        }
     }
 }
 
@@ -571,7 +906,59 @@ impl InstantRunoff {
             TallyOperation::SkipCandidateResults => (vec![], None),
             _ => {
                 let mut runoff = RunoffStatus::initialize_runoff(&contest);
-                runoff.run(&mut ballots_status);
+
+                // Get tie-breaking policy from contest
+                let tie_breaking_policy = contest.get_tie_breaking_policy();
+
+                // Check for tie resolution in contest annotations (for resume scenario)
+                let tie_resolution_candidate: Option<String> = contest
+                    .annotations
+                    .as_ref()
+                    .and_then(|annotations| annotations.get("tie_resolution"))
+                    .and_then(|json_str| {
+                        // Parse the JSON string
+                        let tie_res_value: serde_json::Value = serde_json::from_str(json_str).ok()?;
+                        // Extract the candidate ID
+                        tie_res_value
+                            .get("resolved_by_candidate_id")
+                            .and_then(|id_value| id_value.as_str())
+                            .map(|s| s.to_string())
+                    });
+
+                if let Some(ref candidate_id) = tie_resolution_candidate {
+                    info!(
+                        "Found tie resolution in contest annotations: will choose candidate {} if tie occurs",
+                        candidate_id
+                    );
+                }
+
+                // Run with policy support
+                let runoff_result = runoff.run_with_policy(
+                    &mut ballots_status,
+                    &tie_breaking_policy,
+                    tie_resolution_candidate.as_deref(),
+                );
+
+                // Handle the result
+                let runoff = match runoff_result {
+                    RunoffResult::Completed(status) => status,
+                    RunoffResult::RequiresExternalInput { state, tie_info } => {
+                        // Serialize the paused state and return error to signal pause needed
+                        let paused_state = serde_json::to_value(&state)
+                            .map_err(|e| Error::UnexpectedError(format!("Failed to serialize paused state: {}", e)))?;
+
+                        info!(
+                            "Tie detected requiring external input: round {}, {} candidates tied",
+                            tie_info.round_number,
+                            tie_info.tied_candidate_ids.len()
+                        );
+
+                        return Err(Error::TieRequiresExternalInput {
+                            paused_state,
+                            tie_info,
+                        });
+                    }
+                };
 
                 let mut vote_count: HashMap<String, u64> = HashMap::new(); // vote_count has only the last round results or it could be left empty because the full results are in runoff_value
                 if let Some(results) = runoff.get_last_round() {

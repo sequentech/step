@@ -5,7 +5,7 @@
 use crate::ballot::{
     self, AreaAnnotations, AreaPresentation, CandidatePresentation,
     ContestPresentation, ElectionEventPresentation, ElectionPresentation,
-    I18nContent, StringifiedPeriodDates, WeightedVotingPolicy,
+    I18nContent, StringifiedPeriodDates, TieBreakingPolicy, WeightedVotingPolicy,
 };
 
 use crate::serialization::deserialize_with_path::deserialize_value;
@@ -222,6 +222,16 @@ fn create_contest(
             contest.counting_algorithm
         )
     })?;
+
+    // Extract tie_breaking_policy from tally_configuration JSON
+    let tie_breaking_policy = contest
+        .tally_configuration
+        .as_ref()
+        .and_then(|config| config.get("tie_breaking_policy"))
+        .and_then(|policy| {
+            serde_json::from_value::<TieBreakingPolicy>(policy.clone()).ok()
+        });
+
     Ok(ballot::Contest {
         id: contest.id.clone(),
         tenant_id: (contest.tenant_id),
@@ -247,5 +257,6 @@ fn create_contest(
             .clone()
             .map(|value| deserialize_value(value))
             .transpose()?,
+        tie_breaking_policy,
     })
 }

@@ -1247,6 +1247,21 @@ actions:
       permissions:
           - role: trustee-read
           - role: admin-user
+    - name: submit_tie_break_decision
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/submit-tie-break-decision
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: admin-user
+          - role: admin-ceremony
+      comment: Submit tie-breaking decision for IRV tally
     - name: upload_signature
       definition:
           kind: synchronous

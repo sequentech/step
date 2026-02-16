@@ -27,6 +27,7 @@ pub mod refresh_token;
 pub mod render_template;
 pub mod start_key_ceremony;
 pub mod start_tally;
+pub mod submit_tie_break;
 pub mod update_election_voting_status;
 pub mod update_event_voting_status;
 pub mod update_tally_status;

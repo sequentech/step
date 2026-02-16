@@ -10,6 +10,10 @@ use crate::postgres::reports::get_template_alias_for_report;
 use crate::postgres::reports::ReportType;
 use crate::postgres::results_event::insert_results_event;
 use crate::postgres::tally_session::get_tally_session_by_id;
+use crate::postgres::tally_session::{append_tally_session_tie_break_annotation, update_tally_session_annotation, update_tally_session_status};
+use crate::services::electoral_log::ElectoralLog;
+use crate::tasks::electoral_log::{enqueue_electoral_log_event, LogEventInput, INTERNAL_MESSAGE_TYPE};
+use crate::services::celery_app::get_celery_app;
 use crate::postgres::tally_session_contest::update_tally_session_contests_annotations;
 use crate::postgres::tally_session_execution::insert_tally_session_execution;
 use crate::postgres::tally_sheet::get_published_tally_sheets_by_event;
@@ -84,6 +88,7 @@ use sequent_core::types::hasura::core::TallySheet;
 use sequent_core::types::templates::PrintToPdfOptionsLocal;
 use sequent_core::types::templates::ReportExtraConfig;
 use sequent_core::types::templates::SendTemplateBody;
+use serde_json;
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::str::FromStr;
@@ -92,6 +97,50 @@ use tempfile::tempdir;
 use tokio::time::Duration as ChronoDuration;
 use tracing::{event, info, instrument, warn, Level};
 use uuid::Uuid;
+
+/// Parses a TieRequiresExternalInput error string and extracts the structured data
+/// Returns (paused_state_json, tie_info_json) if successful
+fn parse_tie_error(error_string: &str) -> Option<(serde_json::Value, serde_json::Value)> {
+    // Check if this is a tie error with our structured JSON format
+    if let Some(json_start) = error_string.find("TIE_REQUIRES_EXTERNAL_INPUT_JSON:") {
+        let mut json_str = &error_string[json_start + "TIE_REQUIRES_EXTERNAL_INPUT_JSON:".len()..];
+
+        // The JSON might be wrapped in quotes and escaped, extract until the closing quote/paren
+        // Handle case where error is wrapped: UnexpectedError("TIE_REQUIRES_EXTERNAL_INPUT_JSON:{...}")
+        json_str = json_str.trim();
+
+        // If the JSON ends with quote-paren patterns from error wrapping, find the actual end
+        let json_end = if json_str.ends_with("\"))") || json_str.ends_with("\")") {
+            // Find the last occurrence of } and include it (add 1)
+            json_str.rfind("}").map(|i| i + 1).unwrap_or(json_str.len())
+        } else if json_str.ends_with("}") {
+            json_str.len()
+        } else {
+            // Try to find the closing brace
+            json_str.rfind("}").map(|i| i + 1).unwrap_or(json_str.len())
+        };
+
+        json_str = &json_str[..json_end];
+
+        // Unescape the JSON if it contains escaped quotes
+        let unescaped_json = if json_str.contains("\\\"") {
+            json_str.replace("\\\"", "\"")
+        } else {
+            json_str.to_string()
+        };
+
+        // Parse the JSON
+        if let Ok(parsed) = serde_json::from_str::<serde_json::Value>(&unescaped_json) {
+            if let Some(obj) = parsed.as_object() {
+                if let (Some(paused_state), Some(tie_info)) =
+                    (obj.get("paused_state"), obj.get("tie_info")) {
+                    return Some((paused_state.clone(), tie_info.clone()));
+                }
+            }
+        }
+    }
+    None
+}
 
 #[instrument(skip_all, err)]
 fn get_ballot_styles(ballot_styles: &Vec<BallotStyleHasura>) -> Result<Vec<BallotStyle>> {
@@ -1100,24 +1149,176 @@ pub async fn execute_tally_session_wrapped(
     let areas: Vec<Area> =
         get_event_areas(hasura_transaction, &tenant_id, &election_event_id).await?;
 
+    // Check if we're resuming from a paused state with a tie resolution
+    let tie_resolution = if let Some(annotations) = &tally_session.annotations {
+        info!("Checking for tie resolution in annotations");
+        if let Some(tie_break) = annotations.get("tie_break") {
+            info!("Found tie_break in annotations: {:?}", tie_break);
+            // tie_break is stored as a JSON object
+            if let Some(resolution) = tie_break.get("resolution") {
+                info!("Found tie resolution in annotations - resuming tally with external decision");
+                // Extract the resolved_by_candidate_id and create config
+                // Note: The "tie_resolution" key will be added by velvet_tally.rs when storing in contest annotations
+                if let Some(candidate_id) = resolution.get("resolved_by_candidate_id") {
+                    info!("Resolved candidate ID: {}", candidate_id);
+                    Some(serde_json::json!({
+                        "resolved_by_candidate_id": candidate_id
+                    }))
+                } else {
+                    info!("No resolved_by_candidate_id in resolution");
+                    None
+                }
+            } else {
+                info!("No resolution field in tie_break");
+                None
+            }
+        } else {
+            info!("No tie_break in annotations");
+            None
+        }
+    } else {
+        info!("No annotations in tally_session");
+        None
+    };
+
     let status = if !plaintexts_data.is_empty() {
-        Some(
-            run_velvet_tally(
-                base_tempdir.path().to_path_buf(),
-                &plaintexts_data,
-                &cast_votes_count,
-                &tally_sheets,
-                report_content_template,
-                report_system_template,
-                pdf_options,
-                &areas,
-                hasura_transaction,
-                &election_event,
-                &tally_session,
-                tally_type_enum.clone(),
-            )
-            .await?,
+        match run_velvet_tally(
+            base_tempdir.path().to_path_buf(),
+            &plaintexts_data,
+            &cast_votes_count,
+            &tally_sheets,
+            report_content_template,
+            report_system_template,
+            pdf_options,
+            &areas,
+            hasura_transaction,
+            &election_event,
+            &tally_session,
+            tally_type_enum.clone(),
+            tie_resolution,
         )
+        .await
+        {
+            Ok(state) => Some(state),
+            Err(err) => {
+                // Check if this is a tie-breaking pause error
+                let err_str = err.to_string();
+                if err_str.contains("TieRequiresExternalInput") {
+                    info!("Tie detected requiring external input - pausing tally execution");
+
+                    // Parse the error to extract paused_state and tie_info
+                    if let Some((_paused_state, tie_info)) = parse_tie_error(&err_str) {
+                        info!("Successfully extracted tie info from error");
+
+                        // Check if tie-break already exists with a resolution.
+                        // This prevents overwriting harvest's resolution when the tally resumes.
+                        let current_annotations = tally_session
+                            .annotations
+                            .clone()
+                            .unwrap_or(serde_json::json!({}));
+
+                        let should_save_tie_info = if let Some(existing_tie_break) = current_annotations.get("tie_break") {
+                            // Check if resolution already exists (added by harvest)
+                            if existing_tie_break.get("resolution").is_some() {
+                                info!("Tie-break resolution already exists (from harvest) - not overwriting");
+                                false
+                            } else {
+                                info!("Tie-break exists but no resolution - updating");
+                                true
+                            }
+                        } else {
+                            info!("No existing tie-break - saving new tie info");
+                            true
+                        };
+
+                        if should_save_tie_info {
+                            // Clean up tie_info: remove fields that are redundant or will be added by harvest
+                            let mut tie_info_cleaned = tie_info.clone();
+                            if let Some(obj) = tie_info_cleaned.as_object_mut() {
+                                obj.remove("resolved_by_candidate_id"); // Null field, will be added by harvest in resolution
+                                obj.remove("vote_counts"); // Redundant - already in final results
+                                obj.remove("method_used"); // Redundant - always ExternalProcedure if we're here
+                            }
+
+                            append_tally_session_tie_break_annotation(
+                                hasura_transaction,
+                                &tenant_id,
+                                &election_event_id,
+                                &tally_session_id,
+                                tie_info_cleaned.clone(),
+                            )
+                            .await?;
+                            info!("Saved tie-breaking info to annotations");
+
+                            // Log tie detection to electoral log
+                            let electoral_log_body = serde_json::json!({
+                                "event_type": "tally_tie_detected",
+                                "tally_session_id": tally_session_id,
+                                "round_number": tie_info_cleaned.get("round_number"),
+                                "tied_candidate_ids": tie_info_cleaned.get("tied_candidate_ids"),
+                                "message": "Tie detected during IRV tally - awaiting administrator resolution"
+                            });
+
+                            let log_input = LogEventInput {
+                                election_event_id: election_event_id.clone(),
+                                message_type: INTERNAL_MESSAGE_TYPE.to_string(),
+                                user_id: tally_session.annotations
+                                    .as_ref()
+                                    .and_then(|a| a.get("executer_user_id"))
+                                    .and_then(|v| v.as_str())
+                                    .map(|s| s.to_string()),
+                                username: tally_session.annotations
+                                    .as_ref()
+                                    .and_then(|a| a.get("executer_username"))
+                                    .and_then(|v| v.as_str())
+                                    .map(|s| s.to_string()),
+                                tenant_id: tenant_id.clone(),
+                                body: serde_json::to_string(&electoral_log_body)
+                                    .unwrap_or_else(|_| "{}".to_string()),
+                            };
+
+                            let celery_app = get_celery_app().await;
+                            if let Err(e) = celery_app.send_task(enqueue_electoral_log_event::new(log_input)).await {
+                                warn!("Failed to enqueue tie detection electoral log event: {}", e);
+                                // Don't fail the tally if electoral log fails
+                            } else {
+                                info!("Tie detection logged to electoral log");
+                            }
+                        }
+
+                        // Update status to AWAITING_INPUT
+                        update_tally_session_status(
+                            hasura_transaction,
+                            &tenant_id,
+                            &election_event_id,
+                            &tally_session_id,
+                            TallyExecutionStatus::AWAITING_INPUT,
+                            false, // not completed
+                        )
+                        .await?;
+
+                        info!("Tally session {} status updated to AWAITING_INPUT", tally_session_id);
+
+                        warn!(
+                            "Tally paused due to tie requiring external input. \
+                             Admin must submit tie-break decision via API."
+                        );
+
+                        // Exit gracefully - this is not an error condition
+                        return Ok(());
+                    } else {
+                        // Failed to parse the error - log and fail
+                        return Err(Error::String(format!(
+                            "Failed to parse TieRequiresExternalInput error data: {}",
+                            err_str
+                        )));
+                    }
+                } else {
+                    // Not a tie error, propagate normally
+                    return Err(err.into());
+                }
+            }
+        }
     } else {
         None
     };
@@ -1476,3 +1677,4 @@ mod tests {
         Ok(())
     }
 }
+

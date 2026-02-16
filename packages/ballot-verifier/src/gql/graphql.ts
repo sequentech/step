@@ -890,6 +890,12 @@ export type String_Comparison_Exp = {
     _similar?: InputMaybe<Scalars["String"]["input"]>
 }
 
+export type SubmitTieBreakOutput = {
+    __typename?: "SubmitTieBreakOutput"
+    success: Scalars["Boolean"]["output"]
+    tally_session_id: Scalars["uuid"]["output"]
+}
+
 export type TotalAggregate = {
     __typename?: "TotalAggregate"
     aggregate: Aggregate
@@ -1424,6 +1430,8 @@ export type Mutation_Root = {
     set_role_permission?: Maybe<SetRolePermissionOutput>
     set_user_role?: Maybe<SetUserRoleOutput>
     set_voter_authentication?: Maybe<SetVoterAuthenticationOutput>
+    /** Submit tie-breaking decision for IRV tally */
+    submit_tie_break_decision?: Maybe<SubmitTieBreakOutput>
     update_election_voting_status?: Maybe<UpdateElectionVotingStatusOutput>
     update_event_voting_status?: Maybe<UpdateEventVotingStatusOutput>
     /** update data of the table: "sequent_backend.applications" */
@@ -3012,6 +3020,13 @@ export type Mutation_RootSet_Voter_AuthenticationArgs = {
     election_event_id: Scalars["String"]["input"]
     enrollment: Scalars["String"]["input"]
     otp: Scalars["String"]["input"]
+}
+
+/** mutation root */
+export type Mutation_RootSubmit_Tie_Break_DecisionArgs = {
+    election_event_id: Scalars["uuid"]["input"]
+    selected_candidate_id: Scalars["uuid"]["input"]
+    tally_session_id: Scalars["uuid"]["input"]
 }
 
 /** mutation root */
@@ -15855,7 +15870,7 @@ export type Sequent_Backend_Tally_Session = {
     execution_status?: Maybe<Scalars["String"]["output"]>
     id: Scalars["uuid"]["output"]
     is_execution_completed: Scalars["Boolean"]["output"]
-    keys_ceremony_id: Scalars["uuid"]["output"]
+    keys_ceremony_id?: Maybe<Scalars["uuid"]["output"]>
     labels?: Maybe<Scalars["jsonb"]["output"]>
     last_updated_at?: Maybe<Scalars["timestamptz"]["output"]>
     permission_label?: Maybe<Array<Scalars["String"]["output"]>>

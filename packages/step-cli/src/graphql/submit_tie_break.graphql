@@ -1,0 +1,14 @@
+mutation SubmitTieBreakMutation(
+    $election_event_id: uuid!
+    $tally_session_id: uuid!
+    $selected_candidate_id: uuid!
+) {
+    submit_tie_break_decision(
+        election_event_id: $election_event_id
+        tally_session_id: $tally_session_id
+        selected_candidate_id: $selected_candidate_id
+    ) {
+        success
+        tally_session_id
+    }
+}

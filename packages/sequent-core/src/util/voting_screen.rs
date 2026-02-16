@@ -352,6 +352,7 @@ pub fn get_contest_plurality(
             pagination_policy: None,
             columns: None,
         }),
+        tie_breaking_policy: None,
     }
 }
 

@@ -1434,6 +1434,7 @@ pub struct Contest {
     pub presentation: Option<ContestPresentation>,
     pub created_at: Option<String>,
     pub annotations: Option<Annotations>,
+    pub tie_breaking_policy: Option<TieBreakingPolicy>,
 }
 
 impl Contest {
@@ -1495,6 +1496,12 @@ impl Contest {
             .iter()
             .map(|candidate| candidate.id.clone())
             .collect()
+    }
+
+    /// Get the tie-breaking policy configuration value.
+    /// If the value is not set, return the default value (RANDOM).
+    pub fn get_tie_breaking_policy(&self) -> TieBreakingPolicy {
+        self.tie_breaking_policy.clone().unwrap_or_default()
     }
 }
 
@@ -2410,4 +2417,29 @@ pub enum DelegatedVotingPolicy {
     DISABLED,
     #[serde(rename = "enabled")]
     ENABLED,
+}
+
+#[allow(non_camel_case_types)]
+#[derive(
+    BorshSerialize,
+    BorshDeserialize,
+    Default,
+    Display,
+    Serialize,
+    Deserialize,
+    Debug,
+    PartialEq,
+    Eq,
+    Clone,
+    EnumString,
+    JsonSchema,
+)]
+pub enum TieBreakingPolicy {
+    #[default]
+    #[strum(serialize = "random")]
+    #[serde(rename = "random")]
+    RANDOM,
+    #[strum(serialize = "external-procedure")]
+    #[serde(rename = "external-procedure")]
+    EXTERNAL_PROCEDURE,
 }
