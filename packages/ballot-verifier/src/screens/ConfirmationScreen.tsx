@@ -12,7 +12,6 @@ import {styled} from "@mui/material/styles"
 import Skeleton from "@mui/material/Skeleton"
 import {IBallotService, IConfirmationBallot} from "../services/BallotService"
 import {IDecodedVoteContest, checkIsBlank} from "@sequentech/ui-core"
-import Button from "@mui/material/Button"
 import {
     faCircleQuestion,
     faTimesCircle,
@@ -29,6 +28,8 @@ import {
     Dialog,
     theme,
     BlankAnswer,
+    ActionsContainer,
+    StyledButton,
 } from "@sequentech/ui-essentials"
 import {translate, ICandidate, IContest, EInvalidVotePolicy} from "@sequentech/ui-core"
 import {keyBy} from "lodash"
@@ -63,28 +64,6 @@ const OneLine = styled(Paper)`
     text-overflow: ellipsis;
 `
 
-const ActionsContainer = styled(Box)`
-    display: flex;
-    flex-direction: row;
-    align-items: center;
-    justify-content: space-between;
-    width: 100%;
-    margin-bottom: 20px;
-    margin-top: 10px;
-    gap: 2px;
-`
-
-const StyledButton = styled(Button)`
-    display flex;
-    padding: 5px;
-
-    span {
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        padding: 5px;
-    }
-`
 
 const CandidatesWrapper = styled(Box)`
     display: flex;
@@ -387,7 +366,7 @@ const ActionButtons: React.FC<ActionButtonProps> = () => {
     const triggerPrint = () => window.print()
 
     return (
-        <ActionsContainer>
+        <ActionsContainer sx={{marginBottom: "20px", marginTop: "10px"}}>
             <StyledLink to="/" sx={{margin: "auto 0", width: {xs: "100%", sm: "200px"}}}>
                 <StyledButton sx={{width: {xs: "100%", sm: "200px"}}}>
                     <Icon icon={faAngleLeft} size="sm" />
