@@ -1209,6 +1209,10 @@ export type Mutation_Root = {
     delete_sequent_backend_tally_session_execution?: Maybe<Sequent_Backend_Tally_Session_Execution_Mutation_Response>
     /** delete single row from the table: "sequent_backend.tally_session_execution" */
     delete_sequent_backend_tally_session_execution_by_pk?: Maybe<Sequent_Backend_Tally_Session_Execution>
+    /** delete data from the table: "sequent_backend.tally_session_resolution" */
+    delete_sequent_backend_tally_session_resolution?: Maybe<Sequent_Backend_Tally_Session_Resolution_Mutation_Response>
+    /** delete single row from the table: "sequent_backend.tally_session_resolution" */
+    delete_sequent_backend_tally_session_resolution_by_pk?: Maybe<Sequent_Backend_Tally_Session_Resolution>
     /** delete data from the table: "sequent_backend.tally_sheet" */
     delete_sequent_backend_tally_sheet?: Maybe<Sequent_Backend_Tally_Sheet_Mutation_Response>
     /** delete single row from the table: "sequent_backend.tally_sheet" */
@@ -1397,6 +1401,10 @@ export type Mutation_Root = {
     insert_sequent_backend_tally_session_execution_one?: Maybe<Sequent_Backend_Tally_Session_Execution>
     /** insert a single row into the table: "sequent_backend.tally_session" */
     insert_sequent_backend_tally_session_one?: Maybe<Sequent_Backend_Tally_Session>
+    /** insert data into the table: "sequent_backend.tally_session_resolution" */
+    insert_sequent_backend_tally_session_resolution?: Maybe<Sequent_Backend_Tally_Session_Resolution_Mutation_Response>
+    /** insert a single row into the table: "sequent_backend.tally_session_resolution" */
+    insert_sequent_backend_tally_session_resolution_one?: Maybe<Sequent_Backend_Tally_Session_Resolution>
     /** insert data into the table: "sequent_backend.tally_sheet" */
     insert_sequent_backend_tally_sheet?: Maybe<Sequent_Backend_Tally_Sheet_Mutation_Response>
     /** insert a single row into the table: "sequent_backend.tally_sheet" */
@@ -1677,6 +1685,14 @@ export type Mutation_Root = {
     /** update multiples rows of table: "sequent_backend.tally_session" */
     update_sequent_backend_tally_session_many?: Maybe<
         Array<Maybe<Sequent_Backend_Tally_Session_Mutation_Response>>
+    >
+    /** update data of the table: "sequent_backend.tally_session_resolution" */
+    update_sequent_backend_tally_session_resolution?: Maybe<Sequent_Backend_Tally_Session_Resolution_Mutation_Response>
+    /** update single row of the table: "sequent_backend.tally_session_resolution" */
+    update_sequent_backend_tally_session_resolution_by_pk?: Maybe<Sequent_Backend_Tally_Session_Resolution>
+    /** update multiples rows of table: "sequent_backend.tally_session_resolution" */
+    update_sequent_backend_tally_session_resolution_many?: Maybe<
+        Array<Maybe<Sequent_Backend_Tally_Session_Resolution_Mutation_Response>>
     >
     /** update data of the table: "sequent_backend.tally_sheet" */
     update_sequent_backend_tally_sheet?: Maybe<Sequent_Backend_Tally_Sheet_Mutation_Response>
@@ -2195,6 +2211,16 @@ export type Mutation_RootDelete_Sequent_Backend_Tally_Session_Execution_By_PkArg
     election_event_id: Scalars["uuid"]["input"]
     id: Scalars["uuid"]["input"]
     tenant_id: Scalars["uuid"]["input"]
+}
+
+/** mutation root */
+export type Mutation_RootDelete_Sequent_Backend_Tally_Session_ResolutionArgs = {
+    where: Sequent_Backend_Tally_Session_Resolution_Bool_Exp
+}
+
+/** mutation root */
+export type Mutation_RootDelete_Sequent_Backend_Tally_Session_Resolution_By_PkArgs = {
+    id: Scalars["uuid"]["input"]
 }
 
 /** mutation root */
@@ -2878,6 +2904,18 @@ export type Mutation_RootInsert_Sequent_Backend_Tally_Session_Execution_OneArgs 
 export type Mutation_RootInsert_Sequent_Backend_Tally_Session_OneArgs = {
     object: Sequent_Backend_Tally_Session_Insert_Input
     on_conflict?: InputMaybe<Sequent_Backend_Tally_Session_On_Conflict>
+}
+
+/** mutation root */
+export type Mutation_RootInsert_Sequent_Backend_Tally_Session_ResolutionArgs = {
+    objects: Array<Sequent_Backend_Tally_Session_Resolution_Insert_Input>
+    on_conflict?: InputMaybe<Sequent_Backend_Tally_Session_Resolution_On_Conflict>
+}
+
+/** mutation root */
+export type Mutation_RootInsert_Sequent_Backend_Tally_Session_Resolution_OneArgs = {
+    object: Sequent_Backend_Tally_Session_Resolution_Insert_Input
+    on_conflict?: InputMaybe<Sequent_Backend_Tally_Session_Resolution_On_Conflict>
 }
 
 /** mutation root */
@@ -3896,6 +3934,33 @@ export type Mutation_RootUpdate_Sequent_Backend_Tally_Session_ManyArgs = {
 }
 
 /** mutation root */
+export type Mutation_RootUpdate_Sequent_Backend_Tally_Session_ResolutionArgs = {
+    _append?: InputMaybe<Sequent_Backend_Tally_Session_Resolution_Append_Input>
+    _delete_at_path?: InputMaybe<Sequent_Backend_Tally_Session_Resolution_Delete_At_Path_Input>
+    _delete_elem?: InputMaybe<Sequent_Backend_Tally_Session_Resolution_Delete_Elem_Input>
+    _delete_key?: InputMaybe<Sequent_Backend_Tally_Session_Resolution_Delete_Key_Input>
+    _prepend?: InputMaybe<Sequent_Backend_Tally_Session_Resolution_Prepend_Input>
+    _set?: InputMaybe<Sequent_Backend_Tally_Session_Resolution_Set_Input>
+    where: Sequent_Backend_Tally_Session_Resolution_Bool_Exp
+}
+
+/** mutation root */
+export type Mutation_RootUpdate_Sequent_Backend_Tally_Session_Resolution_By_PkArgs = {
+    _append?: InputMaybe<Sequent_Backend_Tally_Session_Resolution_Append_Input>
+    _delete_at_path?: InputMaybe<Sequent_Backend_Tally_Session_Resolution_Delete_At_Path_Input>
+    _delete_elem?: InputMaybe<Sequent_Backend_Tally_Session_Resolution_Delete_Elem_Input>
+    _delete_key?: InputMaybe<Sequent_Backend_Tally_Session_Resolution_Delete_Key_Input>
+    _prepend?: InputMaybe<Sequent_Backend_Tally_Session_Resolution_Prepend_Input>
+    _set?: InputMaybe<Sequent_Backend_Tally_Session_Resolution_Set_Input>
+    pk_columns: Sequent_Backend_Tally_Session_Resolution_Pk_Columns_Input
+}
+
+/** mutation root */
+export type Mutation_RootUpdate_Sequent_Backend_Tally_Session_Resolution_ManyArgs = {
+    updates: Array<Sequent_Backend_Tally_Session_Resolution_Updates>
+}
+
+/** mutation root */
 export type Mutation_RootUpdate_Sequent_Backend_Tally_SheetArgs = {
     _append?: InputMaybe<Sequent_Backend_Tally_Sheet_Append_Input>
     _delete_at_path?: InputMaybe<Sequent_Backend_Tally_Sheet_Delete_At_Path_Input>
@@ -4309,6 +4374,12 @@ export type Query_Root = {
     sequent_backend_tally_session_execution_aggregate: Sequent_Backend_Tally_Session_Execution_Aggregate
     /** fetch data from the table: "sequent_backend.tally_session_execution" using primary key columns */
     sequent_backend_tally_session_execution_by_pk?: Maybe<Sequent_Backend_Tally_Session_Execution>
+    /** fetch data from the table: "sequent_backend.tally_session_resolution" */
+    sequent_backend_tally_session_resolution: Array<Sequent_Backend_Tally_Session_Resolution>
+    /** fetch aggregated fields from the table: "sequent_backend.tally_session_resolution" */
+    sequent_backend_tally_session_resolution_aggregate: Sequent_Backend_Tally_Session_Resolution_Aggregate
+    /** fetch data from the table: "sequent_backend.tally_session_resolution" using primary key columns */
+    sequent_backend_tally_session_resolution_by_pk?: Maybe<Sequent_Backend_Tally_Session_Resolution>
     /** fetch data from the table: "sequent_backend.tally_sheet" */
     sequent_backend_tally_sheet: Array<Sequent_Backend_Tally_Sheet>
     /** fetch aggregated fields from the table: "sequent_backend.tally_sheet" */
@@ -5089,6 +5160,26 @@ export type Query_RootSequent_Backend_Tally_Session_Execution_By_PkArgs = {
     election_event_id: Scalars["uuid"]["input"]
     id: Scalars["uuid"]["input"]
     tenant_id: Scalars["uuid"]["input"]
+}
+
+export type Query_RootSequent_Backend_Tally_Session_ResolutionArgs = {
+    distinct_on?: InputMaybe<Array<Sequent_Backend_Tally_Session_Resolution_Select_Column>>
+    limit?: InputMaybe<Scalars["Int"]["input"]>
+    offset?: InputMaybe<Scalars["Int"]["input"]>
+    order_by?: InputMaybe<Array<Sequent_Backend_Tally_Session_Resolution_Order_By>>
+    where?: InputMaybe<Sequent_Backend_Tally_Session_Resolution_Bool_Exp>
+}
+
+export type Query_RootSequent_Backend_Tally_Session_Resolution_AggregateArgs = {
+    distinct_on?: InputMaybe<Array<Sequent_Backend_Tally_Session_Resolution_Select_Column>>
+    limit?: InputMaybe<Scalars["Int"]["input"]>
+    offset?: InputMaybe<Scalars["Int"]["input"]>
+    order_by?: InputMaybe<Array<Sequent_Backend_Tally_Session_Resolution_Order_By>>
+    where?: InputMaybe<Sequent_Backend_Tally_Session_Resolution_Bool_Exp>
+}
+
+export type Query_RootSequent_Backend_Tally_Session_Resolution_By_PkArgs = {
+    id: Scalars["uuid"]["input"]
 }
 
 export type Query_RootSequent_Backend_Tally_SheetArgs = {
@@ -15874,6 +15965,10 @@ export type Sequent_Backend_Tally_Session = {
     labels?: Maybe<Scalars["jsonb"]["output"]>
     last_updated_at?: Maybe<Scalars["timestamptz"]["output"]>
     permission_label?: Maybe<Array<Scalars["String"]["output"]>>
+    /** An array relationship */
+    resolutions: Array<Sequent_Backend_Tally_Session_Resolution>
+    /** An aggregate relationship */
+    resolutions_aggregate: Sequent_Backend_Tally_Session_Resolution_Aggregate
     tally_type?: Maybe<Scalars["String"]["output"]>
     tenant_id: Scalars["uuid"]["output"]
     threshold: Scalars["Int"]["output"]
@@ -15892,6 +15987,24 @@ export type Sequent_Backend_Tally_SessionConfigurationArgs = {
 /** columns and relationships of "sequent_backend.tally_session" */
 export type Sequent_Backend_Tally_SessionLabelsArgs = {
     path?: InputMaybe<Scalars["String"]["input"]>
+}
+
+/** columns and relationships of "sequent_backend.tally_session" */
+export type Sequent_Backend_Tally_SessionResolutionsArgs = {
+    distinct_on?: InputMaybe<Array<Sequent_Backend_Tally_Session_Resolution_Select_Column>>
+    limit?: InputMaybe<Scalars["Int"]["input"]>
+    offset?: InputMaybe<Scalars["Int"]["input"]>
+    order_by?: InputMaybe<Array<Sequent_Backend_Tally_Session_Resolution_Order_By>>
+    where?: InputMaybe<Sequent_Backend_Tally_Session_Resolution_Bool_Exp>
+}
+
+/** columns and relationships of "sequent_backend.tally_session" */
+export type Sequent_Backend_Tally_SessionResolutions_AggregateArgs = {
+    distinct_on?: InputMaybe<Array<Sequent_Backend_Tally_Session_Resolution_Select_Column>>
+    limit?: InputMaybe<Scalars["Int"]["input"]>
+    offset?: InputMaybe<Scalars["Int"]["input"]>
+    order_by?: InputMaybe<Array<Sequent_Backend_Tally_Session_Resolution_Order_By>>
+    where?: InputMaybe<Sequent_Backend_Tally_Session_Resolution_Bool_Exp>
 }
 
 /** aggregated selection of "sequent_backend.tally_session" */
@@ -15954,6 +16067,8 @@ export type Sequent_Backend_Tally_Session_Bool_Exp = {
     labels?: InputMaybe<Jsonb_Comparison_Exp>
     last_updated_at?: InputMaybe<Timestamptz_Comparison_Exp>
     permission_label?: InputMaybe<String_Array_Comparison_Exp>
+    resolutions?: InputMaybe<Sequent_Backend_Tally_Session_Resolution_Bool_Exp>
+    resolutions_aggregate?: InputMaybe<Sequent_Backend_Tally_Session_Resolution_Aggregate_Bool_Exp>
     tally_type?: InputMaybe<String_Comparison_Exp>
     tenant_id?: InputMaybe<Uuid_Comparison_Exp>
     threshold?: InputMaybe<Int_Comparison_Exp>
@@ -16762,6 +16877,7 @@ export type Sequent_Backend_Tally_Session_Insert_Input = {
     labels?: InputMaybe<Scalars["jsonb"]["input"]>
     last_updated_at?: InputMaybe<Scalars["timestamptz"]["input"]>
     permission_label?: InputMaybe<Array<Scalars["String"]["input"]>>
+    resolutions?: InputMaybe<Sequent_Backend_Tally_Session_Resolution_Arr_Rel_Insert_Input>
     tally_type?: InputMaybe<Scalars["String"]["input"]>
     tenant_id?: InputMaybe<Scalars["uuid"]["input"]>
     threshold?: InputMaybe<Scalars["Int"]["input"]>
@@ -16810,6 +16926,13 @@ export type Sequent_Backend_Tally_Session_Mutation_Response = {
     returning: Array<Sequent_Backend_Tally_Session>
 }
 
+/** input type for inserting object relation for remote table "sequent_backend.tally_session" */
+export type Sequent_Backend_Tally_Session_Obj_Rel_Insert_Input = {
+    data: Sequent_Backend_Tally_Session_Insert_Input
+    /** upsert condition */
+    on_conflict?: InputMaybe<Sequent_Backend_Tally_Session_On_Conflict>
+}
+
 /** on_conflict condition type for table "sequent_backend.tally_session" */
 export type Sequent_Backend_Tally_Session_On_Conflict = {
     constraint: Sequent_Backend_Tally_Session_Constraint
@@ -16832,6 +16955,7 @@ export type Sequent_Backend_Tally_Session_Order_By = {
     labels?: InputMaybe<Order_By>
     last_updated_at?: InputMaybe<Order_By>
     permission_label?: InputMaybe<Order_By>
+    resolutions_aggregate?: InputMaybe<Sequent_Backend_Tally_Session_Resolution_Aggregate_Order_By>
     tally_type?: InputMaybe<Order_By>
     tenant_id?: InputMaybe<Order_By>
     threshold?: InputMaybe<Order_By>
@@ -16849,6 +16973,431 @@ export type Sequent_Backend_Tally_Session_Prepend_Input = {
     annotations?: InputMaybe<Scalars["jsonb"]["input"]>
     configuration?: InputMaybe<Scalars["jsonb"]["input"]>
     labels?: InputMaybe<Scalars["jsonb"]["input"]>
+}
+
+/** columns and relationships of "sequent_backend.tally_session_resolution" */
+export type Sequent_Backend_Tally_Session_Resolution = {
+    __typename?: "sequent_backend_tally_session_resolution"
+    annotations?: Maybe<Scalars["jsonb"]["output"]>
+    contest_id?: Maybe<Scalars["uuid"]["output"]>
+    created_at: Scalars["timestamptz"]["output"]
+    election_event_id: Scalars["uuid"]["output"]
+    id: Scalars["uuid"]["output"]
+    labels?: Maybe<Scalars["jsonb"]["output"]>
+    last_updated_at: Scalars["timestamptz"]["output"]
+    resolution?: Maybe<Scalars["jsonb"]["output"]>
+    resolution_data: Scalars["jsonb"]["output"]
+    resolution_type: Scalars["String"]["output"]
+    resolved_at?: Maybe<Scalars["timestamptz"]["output"]>
+    resolved_by_user?: Maybe<Scalars["uuid"]["output"]>
+    results_event_id?: Maybe<Scalars["uuid"]["output"]>
+    status: Scalars["String"]["output"]
+    /** An object relationship */
+    tally_session?: Maybe<Sequent_Backend_Tally_Session>
+    tally_session_id: Scalars["uuid"]["output"]
+    tenant_id: Scalars["uuid"]["output"]
+}
+
+/** columns and relationships of "sequent_backend.tally_session_resolution" */
+export type Sequent_Backend_Tally_Session_ResolutionAnnotationsArgs = {
+    path?: InputMaybe<Scalars["String"]["input"]>
+}
+
+/** columns and relationships of "sequent_backend.tally_session_resolution" */
+export type Sequent_Backend_Tally_Session_ResolutionLabelsArgs = {
+    path?: InputMaybe<Scalars["String"]["input"]>
+}
+
+/** columns and relationships of "sequent_backend.tally_session_resolution" */
+export type Sequent_Backend_Tally_Session_ResolutionResolutionArgs = {
+    path?: InputMaybe<Scalars["String"]["input"]>
+}
+
+/** columns and relationships of "sequent_backend.tally_session_resolution" */
+export type Sequent_Backend_Tally_Session_ResolutionResolution_DataArgs = {
+    path?: InputMaybe<Scalars["String"]["input"]>
+}
+
+/** aggregated selection of "sequent_backend.tally_session_resolution" */
+export type Sequent_Backend_Tally_Session_Resolution_Aggregate = {
+    __typename?: "sequent_backend_tally_session_resolution_aggregate"
+    aggregate?: Maybe<Sequent_Backend_Tally_Session_Resolution_Aggregate_Fields>
+    nodes: Array<Sequent_Backend_Tally_Session_Resolution>
+}
+
+export type Sequent_Backend_Tally_Session_Resolution_Aggregate_Bool_Exp = {
+    count?: InputMaybe<Sequent_Backend_Tally_Session_Resolution_Aggregate_Bool_Exp_Count>
+}
+
+export type Sequent_Backend_Tally_Session_Resolution_Aggregate_Bool_Exp_Count = {
+    arguments?: InputMaybe<Array<Sequent_Backend_Tally_Session_Resolution_Select_Column>>
+    distinct?: InputMaybe<Scalars["Boolean"]["input"]>
+    filter?: InputMaybe<Sequent_Backend_Tally_Session_Resolution_Bool_Exp>
+    predicate: Int_Comparison_Exp
+}
+
+/** aggregate fields of "sequent_backend.tally_session_resolution" */
+export type Sequent_Backend_Tally_Session_Resolution_Aggregate_Fields = {
+    __typename?: "sequent_backend_tally_session_resolution_aggregate_fields"
+    count: Scalars["Int"]["output"]
+    max?: Maybe<Sequent_Backend_Tally_Session_Resolution_Max_Fields>
+    min?: Maybe<Sequent_Backend_Tally_Session_Resolution_Min_Fields>
+}
+
+/** aggregate fields of "sequent_backend.tally_session_resolution" */
+export type Sequent_Backend_Tally_Session_Resolution_Aggregate_FieldsCountArgs = {
+    columns?: InputMaybe<Array<Sequent_Backend_Tally_Session_Resolution_Select_Column>>
+    distinct?: InputMaybe<Scalars["Boolean"]["input"]>
+}
+
+/** order by aggregate values of table "sequent_backend.tally_session_resolution" */
+export type Sequent_Backend_Tally_Session_Resolution_Aggregate_Order_By = {
+    count?: InputMaybe<Order_By>
+    max?: InputMaybe<Sequent_Backend_Tally_Session_Resolution_Max_Order_By>
+    min?: InputMaybe<Sequent_Backend_Tally_Session_Resolution_Min_Order_By>
+}
+
+/** append existing jsonb value of filtered columns with new jsonb value */
+export type Sequent_Backend_Tally_Session_Resolution_Append_Input = {
+    annotations?: InputMaybe<Scalars["jsonb"]["input"]>
+    labels?: InputMaybe<Scalars["jsonb"]["input"]>
+    resolution?: InputMaybe<Scalars["jsonb"]["input"]>
+    resolution_data?: InputMaybe<Scalars["jsonb"]["input"]>
+}
+
+/** input type for inserting array relation for remote table "sequent_backend.tally_session_resolution" */
+export type Sequent_Backend_Tally_Session_Resolution_Arr_Rel_Insert_Input = {
+    data: Array<Sequent_Backend_Tally_Session_Resolution_Insert_Input>
+    /** upsert condition */
+    on_conflict?: InputMaybe<Sequent_Backend_Tally_Session_Resolution_On_Conflict>
+}
+
+/** Boolean expression to filter rows from the table "sequent_backend.tally_session_resolution". All fields are combined with a logical 'AND'. */
+export type Sequent_Backend_Tally_Session_Resolution_Bool_Exp = {
+    _and?: InputMaybe<Array<Sequent_Backend_Tally_Session_Resolution_Bool_Exp>>
+    _not?: InputMaybe<Sequent_Backend_Tally_Session_Resolution_Bool_Exp>
+    _or?: InputMaybe<Array<Sequent_Backend_Tally_Session_Resolution_Bool_Exp>>
+    annotations?: InputMaybe<Jsonb_Comparison_Exp>
+    contest_id?: InputMaybe<Uuid_Comparison_Exp>
+    created_at?: InputMaybe<Timestamptz_Comparison_Exp>
+    election_event_id?: InputMaybe<Uuid_Comparison_Exp>
+    id?: InputMaybe<Uuid_Comparison_Exp>
+    labels?: InputMaybe<Jsonb_Comparison_Exp>
+    last_updated_at?: InputMaybe<Timestamptz_Comparison_Exp>
+    resolution?: InputMaybe<Jsonb_Comparison_Exp>
+    resolution_data?: InputMaybe<Jsonb_Comparison_Exp>
+    resolution_type?: InputMaybe<String_Comparison_Exp>
+    resolved_at?: InputMaybe<Timestamptz_Comparison_Exp>
+    resolved_by_user?: InputMaybe<Uuid_Comparison_Exp>
+    results_event_id?: InputMaybe<Uuid_Comparison_Exp>
+    status?: InputMaybe<String_Comparison_Exp>
+    tally_session?: InputMaybe<Sequent_Backend_Tally_Session_Bool_Exp>
+    tally_session_id?: InputMaybe<Uuid_Comparison_Exp>
+    tenant_id?: InputMaybe<Uuid_Comparison_Exp>
+}
+
+/** unique or primary key constraints on table "sequent_backend.tally_session_resolution" */
+export enum Sequent_Backend_Tally_Session_Resolution_Constraint {
+    /** unique or primary key constraint on columns "id" */
+    TallySessionResolutionPkey = "tally_session_resolution_pkey",
+}
+
+/** delete the field or element with specified path (for JSON arrays, negative integers count from the end) */
+export type Sequent_Backend_Tally_Session_Resolution_Delete_At_Path_Input = {
+    annotations?: InputMaybe<Array<Scalars["String"]["input"]>>
+    labels?: InputMaybe<Array<Scalars["String"]["input"]>>
+    resolution?: InputMaybe<Array<Scalars["String"]["input"]>>
+    resolution_data?: InputMaybe<Array<Scalars["String"]["input"]>>
+}
+
+/** delete the array element with specified index (negative integers count from the end). throws an error if top level container is not an array */
+export type Sequent_Backend_Tally_Session_Resolution_Delete_Elem_Input = {
+    annotations?: InputMaybe<Scalars["Int"]["input"]>
+    labels?: InputMaybe<Scalars["Int"]["input"]>
+    resolution?: InputMaybe<Scalars["Int"]["input"]>
+    resolution_data?: InputMaybe<Scalars["Int"]["input"]>
+}
+
+/** delete key/value pair or string element. key/value pairs are matched based on their key value */
+export type Sequent_Backend_Tally_Session_Resolution_Delete_Key_Input = {
+    annotations?: InputMaybe<Scalars["String"]["input"]>
+    labels?: InputMaybe<Scalars["String"]["input"]>
+    resolution?: InputMaybe<Scalars["String"]["input"]>
+    resolution_data?: InputMaybe<Scalars["String"]["input"]>
+}
+
+/** input type for inserting data into table "sequent_backend.tally_session_resolution" */
+export type Sequent_Backend_Tally_Session_Resolution_Insert_Input = {
+    annotations?: InputMaybe<Scalars["jsonb"]["input"]>
+    contest_id?: InputMaybe<Scalars["uuid"]["input"]>
+    created_at?: InputMaybe<Scalars["timestamptz"]["input"]>
+    election_event_id?: InputMaybe<Scalars["uuid"]["input"]>
+    id?: InputMaybe<Scalars["uuid"]["input"]>
+    labels?: InputMaybe<Scalars["jsonb"]["input"]>
+    last_updated_at?: InputMaybe<Scalars["timestamptz"]["input"]>
+    resolution?: InputMaybe<Scalars["jsonb"]["input"]>
+    resolution_data?: InputMaybe<Scalars["jsonb"]["input"]>
+    resolution_type?: InputMaybe<Scalars["String"]["input"]>
+    resolved_at?: InputMaybe<Scalars["timestamptz"]["input"]>
+    resolved_by_user?: InputMaybe<Scalars["uuid"]["input"]>
+    results_event_id?: InputMaybe<Scalars["uuid"]["input"]>
+    status?: InputMaybe<Scalars["String"]["input"]>
+    tally_session?: InputMaybe<Sequent_Backend_Tally_Session_Obj_Rel_Insert_Input>
+    tally_session_id?: InputMaybe<Scalars["uuid"]["input"]>
+    tenant_id?: InputMaybe<Scalars["uuid"]["input"]>
+}
+
+/** aggregate max on columns */
+export type Sequent_Backend_Tally_Session_Resolution_Max_Fields = {
+    __typename?: "sequent_backend_tally_session_resolution_max_fields"
+    contest_id?: Maybe<Scalars["uuid"]["output"]>
+    created_at?: Maybe<Scalars["timestamptz"]["output"]>
+    election_event_id?: Maybe<Scalars["uuid"]["output"]>
+    id?: Maybe<Scalars["uuid"]["output"]>
+    last_updated_at?: Maybe<Scalars["timestamptz"]["output"]>
+    resolution_type?: Maybe<Scalars["String"]["output"]>
+    resolved_at?: Maybe<Scalars["timestamptz"]["output"]>
+    resolved_by_user?: Maybe<Scalars["uuid"]["output"]>
+    results_event_id?: Maybe<Scalars["uuid"]["output"]>
+    status?: Maybe<Scalars["String"]["output"]>
+    tally_session_id?: Maybe<Scalars["uuid"]["output"]>
+    tenant_id?: Maybe<Scalars["uuid"]["output"]>
+}
+
+/** order by max() on columns of table "sequent_backend.tally_session_resolution" */
+export type Sequent_Backend_Tally_Session_Resolution_Max_Order_By = {
+    contest_id?: InputMaybe<Order_By>
+    created_at?: InputMaybe<Order_By>
+    election_event_id?: InputMaybe<Order_By>
+    id?: InputMaybe<Order_By>
+    last_updated_at?: InputMaybe<Order_By>
+    resolution_type?: InputMaybe<Order_By>
+    resolved_at?: InputMaybe<Order_By>
+    resolved_by_user?: InputMaybe<Order_By>
+    results_event_id?: InputMaybe<Order_By>
+    status?: InputMaybe<Order_By>
+    tally_session_id?: InputMaybe<Order_By>
+    tenant_id?: InputMaybe<Order_By>
+}
+
+/** aggregate min on columns */
+export type Sequent_Backend_Tally_Session_Resolution_Min_Fields = {
+    __typename?: "sequent_backend_tally_session_resolution_min_fields"
+    contest_id?: Maybe<Scalars["uuid"]["output"]>
+    created_at?: Maybe<Scalars["timestamptz"]["output"]>
+    election_event_id?: Maybe<Scalars["uuid"]["output"]>
+    id?: Maybe<Scalars["uuid"]["output"]>
+    last_updated_at?: Maybe<Scalars["timestamptz"]["output"]>
+    resolution_type?: Maybe<Scalars["String"]["output"]>
+    resolved_at?: Maybe<Scalars["timestamptz"]["output"]>
+    resolved_by_user?: Maybe<Scalars["uuid"]["output"]>
+    results_event_id?: Maybe<Scalars["uuid"]["output"]>
+    status?: Maybe<Scalars["String"]["output"]>
+    tally_session_id?: Maybe<Scalars["uuid"]["output"]>
+    tenant_id?: Maybe<Scalars["uuid"]["output"]>
+}
+
+/** order by min() on columns of table "sequent_backend.tally_session_resolution" */
+export type Sequent_Backend_Tally_Session_Resolution_Min_Order_By = {
+    contest_id?: InputMaybe<Order_By>
+    created_at?: InputMaybe<Order_By>
+    election_event_id?: InputMaybe<Order_By>
+    id?: InputMaybe<Order_By>
+    last_updated_at?: InputMaybe<Order_By>
+    resolution_type?: InputMaybe<Order_By>
+    resolved_at?: InputMaybe<Order_By>
+    resolved_by_user?: InputMaybe<Order_By>
+    results_event_id?: InputMaybe<Order_By>
+    status?: InputMaybe<Order_By>
+    tally_session_id?: InputMaybe<Order_By>
+    tenant_id?: InputMaybe<Order_By>
+}
+
+/** response of any mutation on the table "sequent_backend.tally_session_resolution" */
+export type Sequent_Backend_Tally_Session_Resolution_Mutation_Response = {
+    __typename?: "sequent_backend_tally_session_resolution_mutation_response"
+    /** number of rows affected by the mutation */
+    affected_rows: Scalars["Int"]["output"]
+    /** data from the rows affected by the mutation */
+    returning: Array<Sequent_Backend_Tally_Session_Resolution>
+}
+
+/** on_conflict condition type for table "sequent_backend.tally_session_resolution" */
+export type Sequent_Backend_Tally_Session_Resolution_On_Conflict = {
+    constraint: Sequent_Backend_Tally_Session_Resolution_Constraint
+    update_columns?: Array<Sequent_Backend_Tally_Session_Resolution_Update_Column>
+    where?: InputMaybe<Sequent_Backend_Tally_Session_Resolution_Bool_Exp>
+}
+
+/** Ordering options when selecting data from "sequent_backend.tally_session_resolution". */
+export type Sequent_Backend_Tally_Session_Resolution_Order_By = {
+    annotations?: InputMaybe<Order_By>
+    contest_id?: InputMaybe<Order_By>
+    created_at?: InputMaybe<Order_By>
+    election_event_id?: InputMaybe<Order_By>
+    id?: InputMaybe<Order_By>
+    labels?: InputMaybe<Order_By>
+    last_updated_at?: InputMaybe<Order_By>
+    resolution?: InputMaybe<Order_By>
+    resolution_data?: InputMaybe<Order_By>
+    resolution_type?: InputMaybe<Order_By>
+    resolved_at?: InputMaybe<Order_By>
+    resolved_by_user?: InputMaybe<Order_By>
+    results_event_id?: InputMaybe<Order_By>
+    status?: InputMaybe<Order_By>
+    tally_session?: InputMaybe<Sequent_Backend_Tally_Session_Order_By>
+    tally_session_id?: InputMaybe<Order_By>
+    tenant_id?: InputMaybe<Order_By>
+}
+
+/** primary key columns input for table: sequent_backend.tally_session_resolution */
+export type Sequent_Backend_Tally_Session_Resolution_Pk_Columns_Input = {
+    id: Scalars["uuid"]["input"]
+}
+
+/** prepend existing jsonb value of filtered columns with new jsonb value */
+export type Sequent_Backend_Tally_Session_Resolution_Prepend_Input = {
+    annotations?: InputMaybe<Scalars["jsonb"]["input"]>
+    labels?: InputMaybe<Scalars["jsonb"]["input"]>
+    resolution?: InputMaybe<Scalars["jsonb"]["input"]>
+    resolution_data?: InputMaybe<Scalars["jsonb"]["input"]>
+}
+
+/** select columns of table "sequent_backend.tally_session_resolution" */
+export enum Sequent_Backend_Tally_Session_Resolution_Select_Column {
+    /** column name */
+    Annotations = "annotations",
+    /** column name */
+    ContestId = "contest_id",
+    /** column name */
+    CreatedAt = "created_at",
+    /** column name */
+    ElectionEventId = "election_event_id",
+    /** column name */
+    Id = "id",
+    /** column name */
+    Labels = "labels",
+    /** column name */
+    LastUpdatedAt = "last_updated_at",
+    /** column name */
+    Resolution = "resolution",
+    /** column name */
+    ResolutionData = "resolution_data",
+    /** column name */
+    ResolutionType = "resolution_type",
+    /** column name */
+    ResolvedAt = "resolved_at",
+    /** column name */
+    ResolvedByUser = "resolved_by_user",
+    /** column name */
+    ResultsEventId = "results_event_id",
+    /** column name */
+    Status = "status",
+    /** column name */
+    TallySessionId = "tally_session_id",
+    /** column name */
+    TenantId = "tenant_id",
+}
+
+/** input type for updating data in table "sequent_backend.tally_session_resolution" */
+export type Sequent_Backend_Tally_Session_Resolution_Set_Input = {
+    annotations?: InputMaybe<Scalars["jsonb"]["input"]>
+    contest_id?: InputMaybe<Scalars["uuid"]["input"]>
+    created_at?: InputMaybe<Scalars["timestamptz"]["input"]>
+    election_event_id?: InputMaybe<Scalars["uuid"]["input"]>
+    id?: InputMaybe<Scalars["uuid"]["input"]>
+    labels?: InputMaybe<Scalars["jsonb"]["input"]>
+    last_updated_at?: InputMaybe<Scalars["timestamptz"]["input"]>
+    resolution?: InputMaybe<Scalars["jsonb"]["input"]>
+    resolution_data?: InputMaybe<Scalars["jsonb"]["input"]>
+    resolution_type?: InputMaybe<Scalars["String"]["input"]>
+    resolved_at?: InputMaybe<Scalars["timestamptz"]["input"]>
+    resolved_by_user?: InputMaybe<Scalars["uuid"]["input"]>
+    results_event_id?: InputMaybe<Scalars["uuid"]["input"]>
+    status?: InputMaybe<Scalars["String"]["input"]>
+    tally_session_id?: InputMaybe<Scalars["uuid"]["input"]>
+    tenant_id?: InputMaybe<Scalars["uuid"]["input"]>
+}
+
+/** Streaming cursor of the table "sequent_backend_tally_session_resolution" */
+export type Sequent_Backend_Tally_Session_Resolution_Stream_Cursor_Input = {
+    /** Stream column input with initial value */
+    initial_value: Sequent_Backend_Tally_Session_Resolution_Stream_Cursor_Value_Input
+    /** cursor ordering */
+    ordering?: InputMaybe<Cursor_Ordering>
+}
+
+/** Initial value of the column from where the streaming should start */
+export type Sequent_Backend_Tally_Session_Resolution_Stream_Cursor_Value_Input = {
+    annotations?: InputMaybe<Scalars["jsonb"]["input"]>
+    contest_id?: InputMaybe<Scalars["uuid"]["input"]>
+    created_at?: InputMaybe<Scalars["timestamptz"]["input"]>
+    election_event_id?: InputMaybe<Scalars["uuid"]["input"]>
+    id?: InputMaybe<Scalars["uuid"]["input"]>
+    labels?: InputMaybe<Scalars["jsonb"]["input"]>
+    last_updated_at?: InputMaybe<Scalars["timestamptz"]["input"]>
+    resolution?: InputMaybe<Scalars["jsonb"]["input"]>
+    resolution_data?: InputMaybe<Scalars["jsonb"]["input"]>
+    resolution_type?: InputMaybe<Scalars["String"]["input"]>
+    resolved_at?: InputMaybe<Scalars["timestamptz"]["input"]>
+    resolved_by_user?: InputMaybe<Scalars["uuid"]["input"]>
+    results_event_id?: InputMaybe<Scalars["uuid"]["input"]>
+    status?: InputMaybe<Scalars["String"]["input"]>
+    tally_session_id?: InputMaybe<Scalars["uuid"]["input"]>
+    tenant_id?: InputMaybe<Scalars["uuid"]["input"]>
+}
+
+/** update columns of table "sequent_backend.tally_session_resolution" */
+export enum Sequent_Backend_Tally_Session_Resolution_Update_Column {
+    /** column name */
+    Annotations = "annotations",
+    /** column name */
+    ContestId = "contest_id",
+    /** column name */
+    CreatedAt = "created_at",
+    /** column name */
+    ElectionEventId = "election_event_id",
+    /** column name */
+    Id = "id",
+    /** column name */
+    Labels = "labels",
+    /** column name */
+    LastUpdatedAt = "last_updated_at",
+    /** column name */
+    Resolution = "resolution",
+    /** column name */
+    ResolutionData = "resolution_data",
+    /** column name */
+    ResolutionType = "resolution_type",
+    /** column name */
+    ResolvedAt = "resolved_at",
+    /** column name */
+    ResolvedByUser = "resolved_by_user",
+    /** column name */
+    ResultsEventId = "results_event_id",
+    /** column name */
+    Status = "status",
+    /** column name */
+    TallySessionId = "tally_session_id",
+    /** column name */
+    TenantId = "tenant_id",
+}
+
+export type Sequent_Backend_Tally_Session_Resolution_Updates = {
+    /** append existing jsonb value of filtered columns with new jsonb value */
+    _append?: InputMaybe<Sequent_Backend_Tally_Session_Resolution_Append_Input>
+    /** delete the field or element with specified path (for JSON arrays, negative integers count from the end) */
+    _delete_at_path?: InputMaybe<Sequent_Backend_Tally_Session_Resolution_Delete_At_Path_Input>
+    /** delete the array element with specified index (negative integers count from the end). throws an error if top level container is not an array */
+    _delete_elem?: InputMaybe<Sequent_Backend_Tally_Session_Resolution_Delete_Elem_Input>
+    /** delete key/value pair or string element. key/value pairs are matched based on their key value */
+    _delete_key?: InputMaybe<Sequent_Backend_Tally_Session_Resolution_Delete_Key_Input>
+    /** prepend existing jsonb value of filtered columns with new jsonb value */
+    _prepend?: InputMaybe<Sequent_Backend_Tally_Session_Resolution_Prepend_Input>
+    /** sets the columns of the filtered rows to the given values */
+    _set?: InputMaybe<Sequent_Backend_Tally_Session_Resolution_Set_Input>
+    /** filter the rows which have to be updated */
+    where: Sequent_Backend_Tally_Session_Resolution_Bool_Exp
 }
 
 /** select columns of table "sequent_backend.tally_session" */
@@ -18910,6 +19459,14 @@ export type Subscription_Root = {
     sequent_backend_tally_session_execution_by_pk?: Maybe<Sequent_Backend_Tally_Session_Execution>
     /** fetch data from the table in a streaming manner: "sequent_backend.tally_session_execution" */
     sequent_backend_tally_session_execution_stream: Array<Sequent_Backend_Tally_Session_Execution>
+    /** fetch data from the table: "sequent_backend.tally_session_resolution" */
+    sequent_backend_tally_session_resolution: Array<Sequent_Backend_Tally_Session_Resolution>
+    /** fetch aggregated fields from the table: "sequent_backend.tally_session_resolution" */
+    sequent_backend_tally_session_resolution_aggregate: Sequent_Backend_Tally_Session_Resolution_Aggregate
+    /** fetch data from the table: "sequent_backend.tally_session_resolution" using primary key columns */
+    sequent_backend_tally_session_resolution_by_pk?: Maybe<Sequent_Backend_Tally_Session_Resolution>
+    /** fetch data from the table in a streaming manner: "sequent_backend.tally_session_resolution" */
+    sequent_backend_tally_session_resolution_stream: Array<Sequent_Backend_Tally_Session_Resolution>
     /** fetch data from the table in a streaming manner: "sequent_backend.tally_session" */
     sequent_backend_tally_session_stream: Array<Sequent_Backend_Tally_Session>
     /** fetch data from the table: "sequent_backend.tally_sheet" */
@@ -19801,6 +20358,32 @@ export type Subscription_RootSequent_Backend_Tally_Session_Execution_StreamArgs 
     batch_size: Scalars["Int"]["input"]
     cursor: Array<InputMaybe<Sequent_Backend_Tally_Session_Execution_Stream_Cursor_Input>>
     where?: InputMaybe<Sequent_Backend_Tally_Session_Execution_Bool_Exp>
+}
+
+export type Subscription_RootSequent_Backend_Tally_Session_ResolutionArgs = {
+    distinct_on?: InputMaybe<Array<Sequent_Backend_Tally_Session_Resolution_Select_Column>>
+    limit?: InputMaybe<Scalars["Int"]["input"]>
+    offset?: InputMaybe<Scalars["Int"]["input"]>
+    order_by?: InputMaybe<Array<Sequent_Backend_Tally_Session_Resolution_Order_By>>
+    where?: InputMaybe<Sequent_Backend_Tally_Session_Resolution_Bool_Exp>
+}
+
+export type Subscription_RootSequent_Backend_Tally_Session_Resolution_AggregateArgs = {
+    distinct_on?: InputMaybe<Array<Sequent_Backend_Tally_Session_Resolution_Select_Column>>
+    limit?: InputMaybe<Scalars["Int"]["input"]>
+    offset?: InputMaybe<Scalars["Int"]["input"]>
+    order_by?: InputMaybe<Array<Sequent_Backend_Tally_Session_Resolution_Order_By>>
+    where?: InputMaybe<Sequent_Backend_Tally_Session_Resolution_Bool_Exp>
+}
+
+export type Subscription_RootSequent_Backend_Tally_Session_Resolution_By_PkArgs = {
+    id: Scalars["uuid"]["input"]
+}
+
+export type Subscription_RootSequent_Backend_Tally_Session_Resolution_StreamArgs = {
+    batch_size: Scalars["Int"]["input"]
+    cursor: Array<InputMaybe<Sequent_Backend_Tally_Session_Resolution_Stream_Cursor_Input>>
+    where?: InputMaybe<Sequent_Backend_Tally_Session_Resolution_Bool_Exp>
 }
 
 export type Subscription_RootSequent_Backend_Tally_Session_StreamArgs = {

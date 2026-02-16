@@ -25,6 +25,7 @@ use windmill::postgres::tally_session::{
     append_tally_session_tie_break_annotation, get_tally_session_by_id,
     update_tally_session_status,
 };
+use windmill::postgres::tally_session_resolution::{create_tally_session_resolution, get_pending_resolutions, get_resolution_by_tally_session, submit_resolution, ResolutionStatus, ResolutionType, TallySessionResolution};
 use windmill::services::providers::transactions_provider::provide_hasura_transaction;
 use windmill::services::{
     ceremonies::tally_ceremony, database::get_hasura_pool,
@@ -350,6 +351,26 @@ pub struct SubmitTieBreakOutput {
     tally_session_id: String,
 }
 
+#[derive(Serialize, Deserialize, Debug)]
+pub struct TallyResolution {
+    contest_id: String,
+    selected_candidate_id: String,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct SubmitTallyResolutionInput {
+    election_event_id: String,
+    tally_session_id: String,
+    resolutions: Vec<TallyResolution>,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct SubmitTallyResolutionOutput {
+    success: bool,
+    tally_session_id: String,
+    resolved_count: usize,
+}
+
 /// Submit a tie-breaking decision for a paused IRV tally
 #[instrument(skip(claims))]
 #[post("/submit-tie-break-decision", format = "json", data = "<body>")]
@@ -422,24 +443,37 @@ pub async fn submit_tie_break_decision(
         ));
     }
 
-    // 5. Get tie-break state from annotations
-    let annotations = tally_session.annotations.clone().ok_or((
-        Status::BadRequest,
-        "No annotations found for tally session".to_string(),
-    ))?;
+    // 5. Get pending IRV tie-break resolution from the resolution table
+    let pending_resolutions = get_pending_resolutions(
+        &hasura_transaction,
+        &tenant_id,
+        &input.election_event_id,
+        &input.tally_session_id,
+    )
+    .await
+    .map_err(|e| {
+        (
+            Status::InternalServerError,
+            format!("Error fetching pending resolutions: {}", e),
+        )
+    })?;
 
-    let tie_break_data = annotations
-        .get("tie_break")
-        .ok_or((Status::BadRequest, "No tie-break data found".to_string()))?
-        .clone();
+    let pending_tie_break = pending_resolutions
+        .iter()
+        .find(|r| r.resolution_type == ResolutionType::IrvTieBreak)
+        .ok_or((
+            Status::BadRequest,
+            "No pending IRV tie-break resolution found".to_string(),
+        ))?;
 
     // 6. Validate selected candidate is in tied candidates
-    let tied_candidates = tie_break_data
+    let tied_candidates = pending_tie_break
+        .resolution_data
         .get("tied_candidate_ids")
         .and_then(|v| v.as_array())
         .ok_or((
             Status::BadRequest,
-            "Invalid tie-break data: missing tied_candidate_ids".to_string(),
+            "Invalid resolution data: missing tied_candidate_ids".to_string(),
         ))?;
 
     let tied_candidate_ids: Vec<String> = tied_candidates
@@ -457,30 +491,25 @@ pub async fn submit_tie_break_decision(
         ));
     }
 
-    // 7. Update annotations with resolution
+    // 7. Submit the resolution
     let resolution = serde_json::json!({
         "resolved_by_candidate_id": input.selected_candidate_id,
         "resolved_at": chrono::Utc::now().to_rfc3339(),
-        "resolved_by_user": user_id,
     });
 
-    let mut updated_tie_data = tie_break_data.clone();
-    if let Some(obj) = updated_tie_data.as_object_mut() {
-        obj.insert("resolution".to_string(), resolution);
-    }
-
-    append_tally_session_tie_break_annotation(
+    submit_resolution(
         &hasura_transaction,
         &tenant_id,
         &input.election_event_id,
-        &input.tally_session_id,
-        updated_tie_data,
+        &pending_tie_break.id,
+        resolution,
+        &user_id,
     )
     .await
     .map_err(|e| {
         (
             Status::InternalServerError,
-            format!("Error updating annotations: {}", e),
+            format!("Error submitting resolution: {}", e),
         )
     })?;
 
@@ -510,8 +539,8 @@ pub async fn submit_tie_break_decision(
     let electoral_log_body = serde_json::json!({
         "event_type": "tally_tie_resolved",
         "tally_session_id": input.tally_session_id,
-        "round_number": tie_break_data.get("round_number"),
-        "tied_candidate_ids": tie_break_data.get("tied_candidate_ids"),
+        "round_number": pending_tie_break.resolution_data.get("round_number"),
+        "tied_candidate_ids": pending_tie_break.resolution_data.get("tied_candidate_ids"),
         "resolved_by_candidate_id": input.selected_candidate_id.clone(),
         "resolved_by_user": user_id.clone(),
         "message": "Tie resolved by administrator - tally resuming"
@@ -553,4 +582,365 @@ pub async fn submit_tie_break_decision(
         success: true,
         tally_session_id: input.tally_session_id,
     }))
+}
+
+/// Submit multiple tally resolutions for a paused tally (batch operation)
+#[instrument(skip(claims))]
+#[post("/submit-tally-resolution", format = "json", data = "<body>")]
+pub async fn submit_tally_resolution(
+    body: Json<SubmitTallyResolutionInput>,
+    claims: JwtClaims,
+) -> Result<Json<SubmitTallyResolutionOutput>, (Status, String)> {
+    // 1. Authorize
+    authorize(
+        &claims,
+        true,
+        Some(claims.hasura_claims.tenant_id.clone()),
+        vec![Permissions::ADMIN_CEREMONY],
+    )?;
+
+    let input = body.into_inner();
+    let tenant_id = claims.hasura_claims.tenant_id.clone();
+    let user_id = claims.hasura_claims.user_id.clone();
+
+    // 2. Validate input
+    if input.resolutions.is_empty() {
+        return Err((
+            Status::BadRequest,
+            "At least one resolution required".to_string(),
+        ));
+    }
+
+    // 3. Get DB connection
+    let mut hasura_db_client: DbClient = get_hasura_pool()
+        .await
+        .get()
+        .await
+        .map_err(|err| {
+            (
+                Status::InternalServerError,
+                format!("Error getting hasura db pool: {err}"),
+            )
+        })?;
+
+    let hasura_transaction = hasura_db_client.transaction().await.map_err(|err| {
+        (
+            Status::InternalServerError,
+            format!("Error starting hasura transaction: {err}"),
+        )
+    })?;
+
+    // 4. Get tally session and validate status
+    let tally_session = get_tally_session_by_id(
+        &hasura_transaction,
+        &tenant_id,
+        &input.election_event_id,
+        &input.tally_session_id,
+    )
+    .await
+    .map_err(|_| {
+        (
+            Status::NotFound,
+            format!("Tally session not found: {}", input.tally_session_id),
+        )
+    })?;
+
+    let execution_status = tally_session
+        .execution_status
+        .and_then(|s| s.parse::<TallyExecutionStatus>().ok())
+        .ok_or((
+            Status::BadRequest,
+            "Invalid or missing execution status".to_string(),
+        ))?;
+
+    if execution_status != TallyExecutionStatus::AWAITING_INPUT {
+        return Err((
+            Status::BadRequest,
+            format!(
+                "Tally session is not awaiting input. Current status: {}",
+                execution_status
+            ),
+        ));
+    }
+
+    // 5. Get all resolutions for this tally session (for re-submission support)
+    let all_resolutions = get_resolution_by_tally_session(
+        &hasura_transaction,
+        &tenant_id,
+        &input.election_event_id,
+        &input.tally_session_id,
+    )
+    .await
+    .map_err(|e| {
+        (
+            Status::InternalServerError,
+            format!("Error fetching resolutions: {}", e),
+        )
+    })?;
+
+    // 6. Validate and submit each resolution
+    let mut resolved_count = 0;
+    let mut has_previous_resolutions = false;
+
+    for tie_resolution in &input.resolutions {
+        // Find the latest resolution for this contest (by created_at)
+        let latest_resolution = all_resolutions
+            .iter()
+            .filter(|r| {
+                r.resolution_type == ResolutionType::IrvTieBreak
+                    && r.contest_id.as_ref() == Some(&tie_resolution.contest_id)
+            })
+            .max_by_key(|r| r.created_at)
+            .ok_or((
+                Status::BadRequest,
+                format!(
+                    "No resolution found for contest {}",
+                    tie_resolution.contest_id
+                ),
+            ))?;
+
+        // Check if this is a re-submission
+        if latest_resolution.status == ResolutionStatus::Resolved {
+            has_previous_resolutions = true;
+            event!(
+                Level::INFO,
+                "Re-submission detected for contest {} - creating new resolution",
+                tie_resolution.contest_id
+            );
+        }
+
+        // Validate selected candidate is in tied candidates
+        let tied_candidates = latest_resolution
+            .resolution_data
+            .get("tied_candidate_ids")
+            .and_then(|v| v.as_array())
+            .ok_or((
+                Status::BadRequest,
+                format!(
+                    "Invalid resolution data for contest {}: missing tied_candidate_ids",
+                    tie_resolution.contest_id
+                ),
+            ))?;
+
+        let tied_candidate_ids: Vec<String> = tied_candidates
+            .iter()
+            .filter_map(|v| v.as_str().map(String::from))
+            .collect();
+
+        if !tied_candidate_ids.contains(&tie_resolution.selected_candidate_id) {
+            return Err((
+                Status::BadRequest,
+                format!(
+                    "Selected candidate {} is not in tied candidates for contest {}: {:?}",
+                    tie_resolution.selected_candidate_id,
+                    tie_resolution.contest_id,
+                    tied_candidate_ids
+                ),
+            ));
+        }
+
+        // Create new resolution row (supports re-submission)
+        let new_resolution_id = create_tally_session_resolution(
+            &hasura_transaction,
+            &tenant_id,
+            &input.election_event_id,
+            &input.tally_session_id,
+            &tie_resolution.contest_id,
+            latest_resolution.results_event_id.as_ref().ok_or((
+                Status::InternalServerError,
+                "Missing results_event_id in resolution".to_string(),
+            ))?,
+            ResolutionType::IrvTieBreak,
+            serde_json::json!({
+                "round_number": latest_resolution.resolution_data.get("round_number"),
+                "tied_candidate_ids": latest_resolution.resolution_data.get("tied_candidate_ids"),
+                "vote_counts": latest_resolution.resolution_data.get("vote_counts"),
+            }),
+        )
+        .await
+        .map_err(|e| {
+            (
+                Status::InternalServerError,
+                format!("Error creating resolution: {}", e),
+            )
+        })?;
+
+        // Immediately mark the new resolution as resolved
+        let resolution = serde_json::json!({
+            "resolved_by_candidate_id": tie_resolution.selected_candidate_id,
+            "resolved_at": chrono::Utc::now().to_rfc3339(),
+        });
+
+        submit_resolution(
+            &hasura_transaction,
+            &tenant_id,
+            &input.election_event_id,
+            &new_resolution_id,
+            resolution,
+            &user_id,
+        )
+        .await
+        .map_err(|e| {
+            (
+                Status::InternalServerError,
+                format!("Error submitting resolution: {}", e),
+            )
+        })?;
+
+        // Log to electoral log
+        let electoral_log_body = serde_json::json!({
+            "event_type": "tally_tie_resolved",
+            "tally_session_id": input.tally_session_id,
+            "contest_id": tie_resolution.contest_id,
+            "resolution_id": new_resolution_id,
+            "round_number": latest_resolution.resolution_data.get("round_number"),
+            "tied_candidate_ids": latest_resolution.resolution_data.get("tied_candidate_ids"),
+            "resolved_by_candidate_id": tie_resolution.selected_candidate_id.clone(),
+            "resolved_by_user": user_id.clone(),
+            "message": format!("Tie resolved for contest {} - tally resuming", tie_resolution.contest_id)
+        });
+
+        let log_input = LogEventInput {
+            election_event_id: input.election_event_id.clone(),
+            message_type: INTERNAL_MESSAGE_TYPE.to_string(),
+            user_id: Some(user_id.clone()),
+            username: claims.preferred_username.clone(),
+            tenant_id: tenant_id.clone(),
+            body: serde_json::to_string(&electoral_log_body)
+                .unwrap_or_else(|_| "{}".to_string()),
+        };
+
+        let celery_app = get_celery_app().await;
+        if let Err(e) = celery_app
+            .send_task(enqueue_electoral_log_event::new(log_input))
+            .await
+        {
+            event!(
+                Level::WARN,
+                "Failed to enqueue tie resolution electoral log event: {}",
+                e
+            );
+        }
+
+        resolved_count += 1;
+    }
+
+    // 7. Update tally session status
+    if has_previous_resolutions {
+        // Re-submission: reset status to trigger re-execution
+        update_tally_session_status(
+            &hasura_transaction,
+            &tenant_id,
+            &input.election_event_id,
+            &input.tally_session_id,
+            TallyExecutionStatus::STARTED,
+            false,
+        )
+        .await
+        .map_err(|e| {
+            (
+                Status::InternalServerError,
+                format!("Error updating status: {}", e),
+            )
+        })?;
+
+        event!(
+            Level::INFO,
+            "Re-submission detected - tally status set to STARTED for re-execution"
+        );
+    } else {
+        // First submission: set to IN_PROGRESS as before
+        update_tally_session_status(
+            &hasura_transaction,
+            &tenant_id,
+            &input.election_event_id,
+            &input.tally_session_id,
+            TallyExecutionStatus::IN_PROGRESS,
+            false,
+        )
+        .await
+        .map_err(|e| {
+            (
+                Status::InternalServerError,
+                format!("Error updating status: {}", e),
+            )
+        })?;
+    }
+
+    // 8. Commit transaction
+    hasura_transaction.commit().await.map_err(|err| {
+        (Status::InternalServerError, format!("Commit failed: {err}"))
+    })?;
+
+    event!(
+        Level::INFO,
+        "Batch tally resolution submission completed for tally session {}, resolved {} contest(s)",
+        input.tally_session_id,
+        resolved_count
+    );
+
+    Ok(Json(SubmitTallyResolutionOutput {
+        success: true,
+        tally_session_id: input.tally_session_id,
+        resolved_count,
+    }))
+}
+
+/// Get all pending tie resolutions for a tally session
+#[instrument(skip(claims))]
+#[get("/pending-tie-resolutions?<election_event_id>&<tally_session_id>")]
+pub async fn get_pending_tie_resolutions_endpoint(
+    election_event_id: String,
+    tally_session_id: String,
+    claims: JwtClaims,
+) -> Result<Json<Vec<TallySessionResolution>>, (Status, String)> {
+    // Authorize
+    authorize(
+        &claims,
+        true,
+        Some(claims.hasura_claims.tenant_id.clone()),
+        vec![Permissions::ADMIN_CEREMONY],
+    )?;
+
+    let tenant_id = claims.hasura_claims.tenant_id.clone();
+
+    // Get DB connection
+    let mut hasura_db_client: DbClient = get_hasura_pool()
+        .await
+        .get()
+        .await
+        .map_err(|err| {
+            (
+                Status::InternalServerError,
+                format!("Error getting hasura db pool: {err}"),
+            )
+        })?;
+
+    let hasura_transaction = hasura_db_client.transaction().await.map_err(|err| {
+        (
+            Status::InternalServerError,
+            format!("Error starting hasura transaction: {err}"),
+        )
+    })?;
+
+    // Get pending resolutions
+    let resolutions = get_pending_resolutions(
+        &hasura_transaction,
+        &tenant_id,
+        &election_event_id,
+        &tally_session_id,
+    )
+    .await
+    .map_err(|e| {
+        (
+            Status::InternalServerError,
+            format!("Error fetching pending resolutions: {}", e),
+        )
+    })?;
+
+    hasura_transaction.commit().await.map_err(|err| {
+        (Status::InternalServerError, format!("Commit failed: {err}"))
+    })?;
+
+    Ok(Json(resolutions))
 }

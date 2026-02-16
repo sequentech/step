@@ -1,0 +1,333 @@
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+
+use anyhow::{anyhow, Result};
+use deadpool_postgres::Transaction;
+use serde::{Deserialize, Serialize};
+use serde_json::Value;
+use tracing::{info, instrument};
+use uuid::Uuid;
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TallySessionResolution {
+    pub id: String,
+    pub tenant_id: String,
+    pub election_event_id: String,
+    pub tally_session_id: String,
+    pub contest_id: Option<String>,
+    pub results_event_id: Option<String>,
+    pub created_at: Option<chrono::DateTime<chrono::Utc>>,
+    pub last_updated_at: Option<chrono::DateTime<chrono::Utc>>,
+    pub resolution_type: ResolutionType,
+    pub status: ResolutionStatus,
+    pub resolution_data: Value,
+    pub resolution: Option<Value>,
+    pub resolved_by_user: Option<String>,
+    pub resolved_at: Option<chrono::DateTime<chrono::Utc>>,
+    pub labels: Option<Value>,
+    pub annotations: Option<Value>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "snake_case")]
+pub enum ResolutionType {
+    IrvTieBreak,
+    ManualRecount,
+    ExternalValidation,
+}
+
+impl std::fmt::Display for ResolutionType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ResolutionType::IrvTieBreak => write!(f, "irv_tie_break"),
+            ResolutionType::ManualRecount => write!(f, "manual_recount"),
+            ResolutionType::ExternalValidation => write!(f, "external_validation"),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "lowercase")]
+pub enum ResolutionStatus {
+    Pending,
+    Resolved,
+    Cancelled,
+}
+
+impl std::fmt::Display for ResolutionStatus {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ResolutionStatus::Pending => write!(f, "pending"),
+            ResolutionStatus::Resolved => write!(f, "resolved"),
+            ResolutionStatus::Cancelled => write!(f, "cancelled"),
+        }
+    }
+}
+
+/// Create a new pending resolution
+#[instrument(skip(hasura_transaction))]
+pub async fn create_tally_session_resolution(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    tally_session_id: &str,
+    contest_id: &str,
+    results_event_id: &str,
+    resolution_type: ResolutionType,
+    resolution_data: Value,
+) -> Result<String> {
+    let query = r#"
+        INSERT INTO sequent_backend.tally_session_resolution
+        (tenant_id, election_event_id, tally_session_id, contest_id, results_event_id, resolution_type, status, resolution_data)
+        VALUES ($1, $2, $3, $4, $5, $6, 'pending', $7)
+        RETURNING id
+    "#;
+
+    let row = hasura_transaction
+        .query_one(
+            query,
+            &[
+                &Uuid::parse_str(tenant_id)?,
+                &Uuid::parse_str(election_event_id)?,
+                &Uuid::parse_str(tally_session_id)?,
+                &Uuid::parse_str(contest_id)?,
+                &Uuid::parse_str(results_event_id)?,
+                &resolution_type.to_string(),
+                &resolution_data,
+            ],
+        )
+        .await?;
+
+    let id: Uuid = row.get(0);
+    info!(
+        "Created resolution {} for tally session {} contest {}",
+        id, tally_session_id, contest_id
+    );
+    Ok(id.to_string())
+}
+
+/// Get pending resolutions for a tally session
+#[instrument(skip(hasura_transaction))]
+pub async fn get_pending_resolutions(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    tally_session_id: &str,
+) -> Result<Vec<TallySessionResolution>> {
+    let query = r#"
+        SELECT
+            id, tenant_id, election_event_id, tally_session_id,
+            contest_id, results_event_id,
+            created_at, last_updated_at, resolution_type, status,
+            resolution_data, resolution, resolved_by_user, resolved_at,
+            labels, annotations
+        FROM sequent_backend.tally_session_resolution
+        WHERE tenant_id = $1
+          AND election_event_id = $2
+          AND tally_session_id = $3
+          AND status = 'pending'
+        ORDER BY created_at ASC
+    "#;
+
+    let rows = hasura_transaction
+        .query(
+            query,
+            &[
+                &Uuid::parse_str(tenant_id)?,
+                &Uuid::parse_str(election_event_id)?,
+                &Uuid::parse_str(tally_session_id)?,
+            ],
+        )
+        .await?;
+
+    let mut resolutions = Vec::new();
+    for row in rows {
+        let resolution_type_str: String = row.get(8);
+        let status_str: String = row.get(9);
+
+        resolutions.push(TallySessionResolution {
+            id: row.get::<_, Uuid>(0).to_string(),
+            tenant_id: row.get::<_, Uuid>(1).to_string(),
+            election_event_id: row.get::<_, Uuid>(2).to_string(),
+            tally_session_id: row.get::<_, Uuid>(3).to_string(),
+            contest_id: row.get::<_, Option<Uuid>>(4).map(|u| u.to_string()),
+            results_event_id: row.get::<_, Option<Uuid>>(5).map(|u| u.to_string()),
+            created_at: row.get(6),
+            last_updated_at: row.get(7),
+            resolution_type: serde_json::from_str(&format!("\"{}\"", resolution_type_str))?,
+            status: serde_json::from_str(&format!("\"{}\"", status_str))?,
+            resolution_data: row.get(10),
+            resolution: row.get(11),
+            resolved_by_user: row.get::<_, Option<Uuid>>(12).map(|u| u.to_string()),
+            resolved_at: row.get(13),
+            labels: row.get(14),
+            annotations: row.get(15),
+        });
+    }
+
+    Ok(resolutions)
+}
+
+/// Get all resolutions for a tally session (both pending and resolved)
+#[instrument(skip(hasura_transaction))]
+pub async fn get_resolution_by_tally_session(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    tally_session_id: &str,
+) -> Result<Vec<TallySessionResolution>> {
+    let query = r#"
+        SELECT
+            id, tenant_id, election_event_id, tally_session_id,
+            contest_id, results_event_id,
+            created_at, last_updated_at, resolution_type, status,
+            resolution_data, resolution, resolved_by_user, resolved_at,
+            labels, annotations
+        FROM sequent_backend.tally_session_resolution
+        WHERE tenant_id = $1
+          AND election_event_id = $2
+          AND tally_session_id = $3
+        ORDER BY created_at ASC
+    "#;
+
+    let rows = hasura_transaction
+        .query(
+            query,
+            &[
+                &Uuid::parse_str(tenant_id)?,
+                &Uuid::parse_str(election_event_id)?,
+                &Uuid::parse_str(tally_session_id)?,
+            ],
+        )
+        .await?;
+
+    let mut resolutions = Vec::new();
+    for row in rows {
+        let resolution_type_str: String = row.get(8);
+        let status_str: String = row.get(9);
+
+        resolutions.push(TallySessionResolution {
+            id: row.get::<_, Uuid>(0).to_string(),
+            tenant_id: row.get::<_, Uuid>(1).to_string(),
+            election_event_id: row.get::<_, Uuid>(2).to_string(),
+            tally_session_id: row.get::<_, Uuid>(3).to_string(),
+            contest_id: row.get::<_, Option<Uuid>>(4).map(|u| u.to_string()),
+            results_event_id: row.get::<_, Option<Uuid>>(5).map(|u| u.to_string()),
+            created_at: row.get(6),
+            last_updated_at: row.get(7),
+            resolution_type: serde_json::from_str(&format!("\"{}\"", resolution_type_str))?,
+            status: serde_json::from_str(&format!("\"{}\"", status_str))?,
+            resolution_data: row.get(10),
+            resolution: row.get(11),
+            resolved_by_user: row.get::<_, Option<Uuid>>(12).map(|u| u.to_string()),
+            resolved_at: row.get(13),
+            labels: row.get(14),
+            annotations: row.get(15),
+        });
+    }
+
+    Ok(resolutions)
+}
+
+/// Submit a resolution for a pending item
+#[instrument(skip(hasura_transaction))]
+pub async fn submit_resolution(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    resolution_id: &str,
+    resolution: Value,
+    resolved_by_user: &str,
+) -> Result<()> {
+    let query = r#"
+        UPDATE sequent_backend.tally_session_resolution
+        SET resolution = $1,
+            status = 'resolved',
+            resolved_by_user = $2,
+            resolved_at = NOW()
+        WHERE id = $3
+          AND tenant_id = $4
+          AND election_event_id = $5
+          AND status = 'pending'
+    "#;
+
+    let affected = hasura_transaction
+        .execute(
+            query,
+            &[
+                &resolution,
+                &Uuid::parse_str(resolved_by_user)?,
+                &Uuid::parse_str(resolution_id)?,
+                &Uuid::parse_str(tenant_id)?,
+                &Uuid::parse_str(election_event_id)?,
+            ],
+        )
+        .await?;
+
+    if affected == 0 {
+        return Err(anyhow!(
+            "Resolution not found or already resolved: {}",
+            resolution_id
+        ));
+    }
+
+    info!("Submitted resolution {}", resolution_id);
+    Ok(())
+}
+
+/// Get a resolution by ID
+#[instrument(skip(hasura_transaction))]
+pub async fn get_resolution_by_id(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    resolution_id: &str,
+) -> Result<TallySessionResolution> {
+    let query = r#"
+        SELECT
+            id, tenant_id, election_event_id, tally_session_id,
+            contest_id, results_event_id,
+            created_at, last_updated_at, resolution_type, status,
+            resolution_data, resolution, resolved_by_user, resolved_at,
+            labels, annotations
+        FROM sequent_backend.tally_session_resolution
+        WHERE id = $1
+          AND tenant_id = $2
+          AND election_event_id = $3
+    "#;
+
+    let row = hasura_transaction
+        .query_one(
+            query,
+            &[
+                &Uuid::parse_str(resolution_id)?,
+                &Uuid::parse_str(tenant_id)?,
+                &Uuid::parse_str(election_event_id)?,
+            ],
+        )
+        .await?;
+
+    let resolution_type_str: String = row.get(8);
+    let status_str: String = row.get(9);
+
+    Ok(TallySessionResolution {
+        id: row.get::<_, Uuid>(0).to_string(),
+        tenant_id: row.get::<_, Uuid>(1).to_string(),
+        election_event_id: row.get::<_, Uuid>(2).to_string(),
+        tally_session_id: row.get::<_, Uuid>(3).to_string(),
+        contest_id: row.get::<_, Option<Uuid>>(4).map(|u| u.to_string()),
+        results_event_id: row.get::<_, Option<Uuid>>(5).map(|u| u.to_string()),
+        created_at: row.get(6),
+        last_updated_at: row.get(7),
+        resolution_type: serde_json::from_str(&format!("\"{}\"", resolution_type_str))?,
+        status: serde_json::from_str(&format!("\"{}\"", status_str))?,
+        resolution_data: row.get(10),
+        resolution: row.get(11),
+        resolved_by_user: row.get::<_, Option<Uuid>>(12).map(|u| u.to_string()),
+        resolved_at: row.get(13),
+        labels: row.get(14),
+        annotations: row.get(15),
+    })
+}
+

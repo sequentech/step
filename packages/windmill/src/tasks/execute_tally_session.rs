@@ -11,6 +11,7 @@ use crate::postgres::reports::ReportType;
 use crate::postgres::results_event::insert_results_event;
 use crate::postgres::tally_session::get_tally_session_by_id;
 use crate::postgres::tally_session::{append_tally_session_tie_break_annotation, update_tally_session_annotation, update_tally_session_status};
+use crate::postgres::tally_session_resolution::{create_tally_session_resolution, get_pending_resolutions, get_resolution_by_tally_session, submit_resolution, ResolutionStatus, ResolutionType};
 use crate::services::electoral_log::ElectoralLog;
 use crate::tasks::electoral_log::{enqueue_electoral_log_event, LogEventInput, INTERNAL_MESSAGE_TYPE};
 use crate::services::celery_app::get_celery_app;
@@ -98,48 +99,71 @@ use tokio::time::Duration as ChronoDuration;
 use tracing::{event, info, instrument, warn, Level};
 use uuid::Uuid;
 
-/// Parses a TieRequiresExternalInput error string and extracts the structured data
-/// Returns (paused_state_json, tie_info_json) if successful
-fn parse_tie_error(error_string: &str) -> Option<(serde_json::Value, serde_json::Value)> {
-    // Check if this is a tie error with our structured JSON format
-    if let Some(json_start) = error_string.find("TIE_REQUIRES_EXTERNAL_INPUT_JSON:") {
-        let mut json_str = &error_string[json_start + "TIE_REQUIRES_EXTERNAL_INPUT_JSON:".len()..];
+struct TieResolutionMetadata {
+    pending: Vec<(String, serde_json::Value)>,  // Vec of (contest_id, tie_metadata)
+    resolved: Vec<(String, serde_json::Value)>,  // Vec of (contest_id, tie_metadata)
+}
 
-        // The JSON might be wrapped in quotes and escaped, extract until the closing quote/paren
-        // Handle case where error is wrapped: UnexpectedError("TIE_REQUIRES_EXTERNAL_INPUT_JSON:{...}")
-        json_str = json_str.trim();
+/// Checks if the results contain tie resolution metadata (both pending and resolved)
+/// Returns the tie metadata if found, grouped by contest_id
+async fn check_for_tie_resolutions(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    results_event_id: &str,
+) -> AnyhowResult<TieResolutionMetadata> {
+    // Query results_contest table to check annotations for process_results tie resolution metadata
+    let query = r#"
+        SELECT id, annotations
+        FROM sequent_backend.results_contest
+        WHERE tenant_id = $1
+          AND election_event_id = $2
+          AND results_event_id = $3
+          AND annotations IS NOT NULL
+          AND annotations->>'process_results' IS NOT NULL
+    "#;
 
-        // If the JSON ends with quote-paren patterns from error wrapping, find the actual end
-        let json_end = if json_str.ends_with("\"))") || json_str.ends_with("\")") {
-            // Find the last occurrence of } and include it (add 1)
-            json_str.rfind("}").map(|i| i + 1).unwrap_or(json_str.len())
-        } else if json_str.ends_with("}") {
-            json_str.len()
-        } else {
-            // Try to find the closing brace
-            json_str.rfind("}").map(|i| i + 1).unwrap_or(json_str.len())
-        };
+    let rows = hasura_transaction
+        .query(
+            query,
+            &[
+                &Uuid::parse_str(tenant_id).context("Failed to parse tenant_id")?,
+                &Uuid::parse_str(election_event_id).context("Failed to parse election_event_id")?,
+                &Uuid::parse_str(results_event_id).context("Failed to parse results_event_id")?,
+            ],
+        )
+        .await?;
 
-        json_str = &json_str[..json_end];
+    let mut pending = Vec::new();
+    let mut resolved = Vec::new();
 
-        // Unescape the JSON if it contains escaped quotes
-        let unescaped_json = if json_str.contains("\\\"") {
-            json_str.replace("\\\"", "\"")
-        } else {
-            json_str.to_string()
-        };
+    for row in rows {
+        let contest_id: Uuid = row.get(0);
+        let contest_id_str = contest_id.to_string();
+        let annotations: serde_json::Value = row.get(1);
 
-        // Parse the JSON
-        if let Ok(parsed) = serde_json::from_str::<serde_json::Value>(&unescaped_json) {
-            if let Some(obj) = parsed.as_object() {
-                if let (Some(paused_state), Some(tie_info)) =
-                    (obj.get("paused_state"), obj.get("tie_info")) {
-                    return Some((paused_state.clone(), tie_info.clone()));
+        if let Some(process_results_str) = annotations.get("process_results").and_then(|v| v.as_str()) {
+            let process_results: serde_json::Value = serde_json::from_str(process_results_str)?;
+
+            if let Some(obj) = process_results.as_object() {
+                // Check for pending tie resolution
+                if let Some(tie_metadata) = obj.get("pending_tie_resolution") {
+                    pending.push((contest_id_str.clone(), tie_metadata.clone()));
+                }
+
+                // Check for resolved tie resolutions
+                if let Some(resolved_ties) = obj.get("resolved_tie_resolutions") {
+                    if let Some(array) = resolved_ties.as_array() {
+                        for tie in array {
+                            resolved.push((contest_id_str.clone(), tie.clone()));
+                        }
+                    }
                 }
             }
         }
     }
-    None
+
+    Ok(TieResolutionMetadata { pending, resolved })
 }
 
 #[instrument(skip_all, err)]
@@ -1149,36 +1173,36 @@ pub async fn execute_tally_session_wrapped(
     let areas: Vec<Area> =
         get_event_areas(hasura_transaction, &tenant_id, &election_event_id).await?;
 
-    // Check if we're resuming from a paused state with a tie resolution
-    let tie_resolution = if let Some(annotations) = &tally_session.annotations {
-        info!("Checking for tie resolution in annotations");
-        if let Some(tie_break) = annotations.get("tie_break") {
-            info!("Found tie_break in annotations: {:?}", tie_break);
-            // tie_break is stored as a JSON object
-            if let Some(resolution) = tie_break.get("resolution") {
-                info!("Found tie resolution in annotations - resuming tally with external decision");
-                // Extract the resolved_by_candidate_id and create config
-                // Note: The "tie_resolution" key will be added by velvet_tally.rs when storing in contest annotations
-                if let Some(candidate_id) = resolution.get("resolved_by_candidate_id") {
-                    info!("Resolved candidate ID: {}", candidate_id);
-                    Some(serde_json::json!({
-                        "resolved_by_candidate_id": candidate_id
-                    }))
-                } else {
-                    info!("No resolved_by_candidate_id in resolution");
-                    None
-                }
-            } else {
-                info!("No resolution field in tie_break");
-                None
-            }
-        } else {
-            info!("No tie_break in annotations");
-            None
-        }
-    } else {
-        info!("No annotations in tally_session");
-        None
+    // Check if there's a resolved tie-break resolution for this tally session
+    let tie_resolution = {
+        info!("Checking for resolved tie-break in resolution table");
+
+        // Get all resolutions for this tally session (both pending and resolved)
+        let all_resolutions = get_resolution_by_tally_session(
+            hasura_transaction,
+            &tenant_id,
+            &election_event_id,
+            &tally_session_id,
+        )
+        .await
+        .unwrap_or_default();
+
+        // Find the most recent resolved IRV tie-break
+        all_resolutions
+            .iter()
+            .filter(|r| r.resolution_type == ResolutionType::IrvTieBreak)
+            .filter(|r| r.resolution.is_some())
+            .last()
+            .and_then(|resolution_record| {
+                resolution_record.resolution.as_ref().and_then(|res| {
+                    res.get("resolved_by_candidate_id").map(|candidate_id| {
+                        info!("Found resolved tie-break - candidate: {}", candidate_id);
+                        serde_json::json!({
+                            "resolved_by_candidate_id": candidate_id
+                        })
+                    })
+                })
+            })
     };
 
     let status = if !plaintexts_data.is_empty() {
@@ -1201,122 +1225,8 @@ pub async fn execute_tally_session_wrapped(
         {
             Ok(state) => Some(state),
             Err(err) => {
-                // Check if this is a tie-breaking pause error
-                let err_str = err.to_string();
-                if err_str.contains("TieRequiresExternalInput") {
-                    info!("Tie detected requiring external input - pausing tally execution");
-
-                    // Parse the error to extract paused_state and tie_info
-                    if let Some((_paused_state, tie_info)) = parse_tie_error(&err_str) {
-                        info!("Successfully extracted tie info from error");
-
-                        // Check if tie-break already exists with a resolution.
-                        // This prevents overwriting harvest's resolution when the tally resumes.
-                        let current_annotations = tally_session
-                            .annotations
-                            .clone()
-                            .unwrap_or(serde_json::json!({}));
-
-                        let should_save_tie_info = if let Some(existing_tie_break) = current_annotations.get("tie_break") {
-                            // Check if resolution already exists (added by harvest)
-                            if existing_tie_break.get("resolution").is_some() {
-                                info!("Tie-break resolution already exists (from harvest) - not overwriting");
-                                false
-                            } else {
-                                info!("Tie-break exists but no resolution - updating");
-                                true
-                            }
-                        } else {
-                            info!("No existing tie-break - saving new tie info");
-                            true
-                        };
-
-                        if should_save_tie_info {
-                            // Clean up tie_info: remove fields that are redundant or will be added by harvest
-                            let mut tie_info_cleaned = tie_info.clone();
-                            if let Some(obj) = tie_info_cleaned.as_object_mut() {
-                                obj.remove("resolved_by_candidate_id"); // Null field, will be added by harvest in resolution
-                                obj.remove("vote_counts"); // Redundant - already in final results
-                                obj.remove("method_used"); // Redundant - always ExternalProcedure if we're here
-                            }
-
-                            append_tally_session_tie_break_annotation(
-                                hasura_transaction,
-                                &tenant_id,
-                                &election_event_id,
-                                &tally_session_id,
-                                tie_info_cleaned.clone(),
-                            )
-                            .await?;
-                            info!("Saved tie-breaking info to annotations");
-
-                            // Log tie detection to electoral log
-                            let electoral_log_body = serde_json::json!({
-                                "event_type": "tally_tie_detected",
-                                "tally_session_id": tally_session_id,
-                                "round_number": tie_info_cleaned.get("round_number"),
-                                "tied_candidate_ids": tie_info_cleaned.get("tied_candidate_ids"),
-                                "message": "Tie detected during IRV tally - awaiting administrator resolution"
-                            });
-
-                            let log_input = LogEventInput {
-                                election_event_id: election_event_id.clone(),
-                                message_type: INTERNAL_MESSAGE_TYPE.to_string(),
-                                user_id: tally_session.annotations
-                                    .as_ref()
-                                    .and_then(|a| a.get("executer_user_id"))
-                                    .and_then(|v| v.as_str())
-                                    .map(|s| s.to_string()),
-                                username: tally_session.annotations
-                                    .as_ref()
-                                    .and_then(|a| a.get("executer_username"))
-                                    .and_then(|v| v.as_str())
-                                    .map(|s| s.to_string()),
-                                tenant_id: tenant_id.clone(),
-                                body: serde_json::to_string(&electoral_log_body)
-                                    .unwrap_or_else(|_| "{}".to_string()),
-                            };
-
-                            let celery_app = get_celery_app().await;
-                            if let Err(e) = celery_app.send_task(enqueue_electoral_log_event::new(log_input)).await {
-                                warn!("Failed to enqueue tie detection electoral log event: {}", e);
-                                // Don't fail the tally if electoral log fails
-                            } else {
-                                info!("Tie detection logged to electoral log");
-                            }
-                        }
-
-                        // Update status to AWAITING_INPUT
-                        update_tally_session_status(
-                            hasura_transaction,
-                            &tenant_id,
-                            &election_event_id,
-                            &tally_session_id,
-                            TallyExecutionStatus::AWAITING_INPUT,
-                            false, // not completed
-                        )
-                        .await?;
-
-                        info!("Tally session {} status updated to AWAITING_INPUT", tally_session_id);
-
-                        warn!(
-                            "Tally paused due to tie requiring external input. \
-                             Admin must submit tie-break decision via API."
-                        );
-
-                        // Exit gracefully - this is not an error condition
-                        return Ok(());
-                    } else {
-                        // Failed to parse the error - log and fail
-                        return Err(Error::String(format!(
-                            "Failed to parse TieRequiresExternalInput error data: {}",
-                            err_str
-                        )));
-                    }
-                } else {
-                    // Not a tie error, propagate normally
-                    return Err(err.into());
-                }
+                // Propagate error - ties are no longer errors, they're detected via metadata
+                return Err(err.into());
             }
         }
     } else {
@@ -1339,6 +1249,199 @@ pub async fn execute_tally_session_wrapped(
         plaintexts_data.is_empty(), // &tally_session,
     )
     .await?;
+
+    // Check if results contain tie resolution metadata (pending or resolved)
+    if let Some(ref results_event_id_str) = results_event_id {
+        let tie_resolutions = check_for_tie_resolutions(
+            hasura_transaction,
+            &tenant_id,
+            &election_event_id,
+            results_event_id_str,
+        ).await?;
+
+        // Handle resolved tie resolutions (random or external procedure)
+        if !tie_resolutions.resolved.is_empty() {
+            info!("Detected {} resolved tie resolution(s) in results - creating resolution records", tie_resolutions.resolved.len());
+
+            for (contest_id, tie_resolution) in &tie_resolutions.resolved {
+                // Create resolution record with status "resolved"
+                let resolution_data = serde_json::json!({
+                    "round_number": tie_resolution.get("round_number"),
+                    "tied_candidate_ids": tie_resolution.get("tied_candidate_ids"),
+                    "vote_counts": tie_resolution.get("vote_counts"),
+                    "method_used": tie_resolution.get("method_used"),
+                });
+
+                let resolution_id = create_tally_session_resolution(
+                    hasura_transaction,
+                    &tenant_id,
+                    &election_event_id,
+                    &tally_session_id,
+                    contest_id,
+                    results_event_id_str,
+                    ResolutionType::IrvTieBreak,
+                    resolution_data.clone(),
+                )
+                .await?;
+
+                // Immediately mark it as resolved
+                let resolution_value = serde_json::json!({
+                    "resolved_by_candidate_id": tie_resolution.get("resolved_by_candidate_id"),
+                    "method_used": tie_resolution.get("method_used"),
+                });
+
+                // Get executer_user_id for the resolution
+                let executer_user_id = tally_session.annotations
+                    .as_ref()
+                    .and_then(|a| a.get("executer_user_id"))
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("00000000-0000-0000-0000-000000000000"); // System user ID
+
+                submit_resolution(
+                    hasura_transaction,
+                    &tenant_id,
+                    &election_event_id,
+                    &resolution_id,
+                    resolution_value,
+                    executer_user_id,
+                )
+                .await?;
+
+                info!("Created and resolved resolution {} for IRV tie-break", resolution_id);
+
+                // Log to electoral log
+                let method_used = tie_resolution.get("method_used")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("Unknown");
+                let resolved_candidate = tie_resolution.get("resolved_by_candidate_id")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("Unknown");
+
+                let electoral_log_body = serde_json::json!({
+                    "event_type": "tally_tie_resolved",
+                    "tally_session_id": tally_session_id,
+                    "contest_id": contest_id,
+                    "resolution_id": resolution_id,
+                    "round_number": tie_resolution.get("round_number"),
+                    "tied_candidate_ids": tie_resolution.get("tied_candidate_ids"),
+                    "method_used": method_used,
+                    "resolved_by_candidate_id": resolved_candidate,
+                    "message": format!("Tie resolved for contest {} using {} method - selected candidate {}", contest_id, method_used, resolved_candidate)
+                });
+
+                let log_input = LogEventInput {
+                    election_event_id: election_event_id.clone(),
+                    message_type: INTERNAL_MESSAGE_TYPE.to_string(),
+                    user_id: tally_session.annotations
+                        .as_ref()
+                        .and_then(|a| a.get("executer_user_id"))
+                        .and_then(|v| v.as_str())
+                        .map(|s| s.to_string()),
+                    username: tally_session.annotations
+                        .as_ref()
+                        .and_then(|a| a.get("executer_username"))
+                        .and_then(|v| v.as_str())
+                        .map(|s| s.to_string()),
+                    tenant_id: tenant_id.clone(),
+                    body: serde_json::to_string(&electoral_log_body)
+                        .unwrap_or_else(|_| "{}".to_string()),
+                };
+
+                let celery_app = get_celery_app().await;
+                if let Err(e) = celery_app.send_task(enqueue_electoral_log_event::new(log_input)).await {
+                    warn!("Failed to enqueue tie resolution electoral log event: {}", e);
+                }
+            }
+        }
+
+        // Handle pending tie resolutions (external procedure requiring input)
+        if !tie_resolutions.pending.is_empty() {
+            info!("Detected {} pending tie resolution(s) in results - creating resolution records", tie_resolutions.pending.len());
+
+            // Get all existing pending resolutions for this tally session
+            let existing_pending_resolutions = get_pending_resolutions(
+                hasura_transaction,
+                &tenant_id,
+                &election_event_id,
+                &tally_session_id,
+            )
+            .await?;
+
+            for (contest_id, tie_metadata) in &tie_resolutions.pending {
+                // Check if a pending resolution already exists for this contest
+                let resolution_exists = existing_pending_resolutions.iter().any(|r| {
+                    r.contest_id.as_ref() == Some(contest_id) &&
+                    r.resolution_type == ResolutionType::IrvTieBreak &&
+                    r.status == ResolutionStatus::Pending
+                });
+
+                if !resolution_exists {
+                    let resolution_id = create_tally_session_resolution(
+                        hasura_transaction,
+                        &tenant_id,
+                        &election_event_id,
+                        &tally_session_id,
+                        contest_id,
+                        results_event_id_str,
+                        ResolutionType::IrvTieBreak,
+                        tie_metadata.clone(),
+                    )
+                    .await?;
+                    info!("Created pending resolution {} for IRV tie-break in contest {}", resolution_id, contest_id);
+
+                    // Log to electoral log
+                    let electoral_log_body = serde_json::json!({
+                        "event_type": "tally_tie_detected",
+                        "tally_session_id": tally_session_id,
+                        "contest_id": contest_id,
+                        "resolution_id": resolution_id,
+                        "round_number": tie_metadata.get("round_number"),
+                        "tied_candidate_ids": tie_metadata.get("tied_candidate_ids"),
+                        "message": format!("Tie detected for contest {} during IRV tally - awaiting administrator resolution", contest_id)
+                    });
+
+                    let log_input = LogEventInput {
+                        election_event_id: election_event_id.clone(),
+                        message_type: INTERNAL_MESSAGE_TYPE.to_string(),
+                        user_id: tally_session.annotations
+                            .as_ref()
+                            .and_then(|a| a.get("executer_user_id"))
+                            .and_then(|v| v.as_str())
+                            .map(|s| s.to_string()),
+                        username: tally_session.annotations
+                            .as_ref()
+                            .and_then(|a| a.get("executer_username"))
+                            .and_then(|v| v.as_str())
+                            .map(|s| s.to_string()),
+                        tenant_id: tenant_id.clone(),
+                        body: serde_json::to_string(&electoral_log_body)
+                            .unwrap_or_else(|_| "{}".to_string()),
+                    };
+
+                    let celery_app = get_celery_app().await;
+                    if let Err(e) = celery_app.send_task(enqueue_electoral_log_event::new(log_input)).await {
+                        warn!("Failed to enqueue tie detection electoral log event: {}", e);
+                    }
+                }
+            }
+
+            // Update status to AWAITING_INPUT
+            update_tally_session_status(
+                hasura_transaction,
+                &tenant_id,
+                &election_event_id,
+                &tally_session_id,
+                TallyExecutionStatus::AWAITING_INPUT,
+                false,
+            )
+            .await?;
+
+            info!("Tally paused - awaiting administrator tie-break decisions for {} contest(s)", tie_resolutions.pending.len());
+            warn!("Partial results have been saved. Admin must submit tie-break decisions via API to resume.");
+            return Ok(());
+        }
+    }
+
     // map_plaintext_data also calls this but at this point the credentials
     // could be expired
 

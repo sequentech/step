@@ -192,6 +192,7 @@ pub struct RunoffStatus {
     pub round_count: u64,
     pub rounds: Vec<Round>,
     pub max_rounds: u64,
+    pub tie_resolutions: Vec<TieBreakingState>, // Tracks all tie resolutions (random and external)
 }
 
 /// Method used to break a tie
@@ -366,10 +367,17 @@ impl RunoffStatus {
     pub fn determine_winner_by_lot(
         &mut self,
         candidates_to_eliminate: &Vec<String>,
+        candidates_wins: &CandidatesOutcomes,
         tie_breaking_policy: &TieBreakingPolicy,
         tie_resolution_candidate: Option<&str>,
     ) -> Option<(CandidateReference, Vec<CandidateReference>)> {
         // FULL TIE: All active candidates have the same (lowest) number of votes
+
+        // Extract vote counts for tied candidates
+        let vote_counts: Vec<u64> = candidates_to_eliminate
+            .iter()
+            .map(|id| candidates_wins.get(id).map(|o| o.wins).unwrap_or(0))
+            .collect();
 
         // Check if we have a pre-configured tie resolution (resume scenario)
         if let Some(resolved_candidate_id) = tie_resolution_candidate {
@@ -379,6 +387,15 @@ impl RunoffStatus {
                     candidates_to_eliminate.len(),
                     resolved_candidate_id
                 );
+
+                // Record this resolution
+                self.tie_resolutions.push(TieBreakingState {
+                    round_number: self.round_count + 1,
+                    tied_candidate_ids: candidates_to_eliminate.clone(),
+                    vote_counts: vote_counts.clone(),
+                    method_used: TieBreakingMethod::ExternalProcedure,
+                    resolved_by_candidate_id: Some(resolved_candidate_id.to_string()),
+                });
 
                 let winner_name = self.get_candidate_name(resolved_candidate_id).unwrap_or_default();
                 let winner = CandidateReference {
@@ -431,6 +448,15 @@ impl RunoffStatus {
             winner_name,
             winner_id
         );
+
+        // Record this random resolution
+        self.tie_resolutions.push(TieBreakingState {
+            round_number: self.round_count + 1,
+            tied_candidate_ids: candidates_to_eliminate.clone(),
+            vote_counts,
+            method_used: TieBreakingMethod::Random,
+            resolved_by_candidate_id: Some(winner_id.to_string()),
+        });
 
         let winner = CandidateReference {
             id: winner_id.to_string(),
@@ -586,7 +612,7 @@ impl RunoffStatus {
                     // NOTE: This method is for backward compatibility and always uses RANDOM policy
                     // For proper tie-breaking policy support, callers should use run_with_policy() instead
                     if let Some((winner, eliminated_candidates)) =
-                        self.determine_winner_by_lot(&candidates_to_eliminate, &TieBreakingPolicy::RANDOM, None)
+                        self.determine_winner_by_lot(&candidates_to_eliminate, &candidates_wins, &TieBreakingPolicy::RANDOM, None)
                     {
                         round.winner = Some(winner);
                         round.eliminated_candidates = Some(eliminated_candidates);
@@ -763,6 +789,7 @@ impl RunoffStatus {
                         if let Some((winner, eliminated_candidates)) =
                             self.determine_winner_by_lot(
                                 &candidates_to_eliminate,
+                                &candidates_wins,
                                 tie_breaking_policy,
                                 tie_resolution_candidate,
                             )
@@ -940,27 +967,50 @@ impl InstantRunoff {
                 );
 
                 // Handle the result
-                let runoff = match runoff_result {
-                    RunoffResult::Completed(status) => status,
-                    RunoffResult::RequiresExternalInput { state, tie_info } => {
-                        // Serialize the paused state and return error to signal pause needed
-                        let paused_state = serde_json::to_value(&state)
-                            .map_err(|e| Error::UnexpectedError(format!("Failed to serialize paused state: {}", e)))?;
+                let (runoff, process_results_value) = match runoff_result {
+                    RunoffResult::Completed(status) => {
+                        // Normal completion - serialize runoff state
+                        let mut runoff_value = serde_json::to_value(&status)
+                            .map_err(|e| Error::UnexpectedError(e.to_string()))?;
 
+                        // If there were any tie resolutions, embed them at the top level for easy detection
+                        if !status.tie_resolutions.is_empty() {
+                            if let Some(obj) = runoff_value.as_object_mut() {
+                                obj.insert("resolved_tie_resolutions".to_string(),
+                                    serde_json::to_value(&status.tie_resolutions)
+                                        .unwrap_or(serde_json::json!([]))
+                                );
+                            }
+                        }
+
+                        (status, runoff_value)
+                    },
+                    RunoffResult::RequiresExternalInput { state, tie_info } => {
                         info!(
-                            "Tie detected requiring external input: round {}, {} candidates tied",
+                            "Tie detected requiring external input: round {}, {} candidates tied - creating partial results",
                             tie_info.round_number,
                             tie_info.tied_candidate_ids.len()
                         );
 
-                        return Err(Error::TieRequiresExternalInput {
-                            paused_state,
-                            tie_info,
-                        });
+                        // Serialize the partial runoff state with embedded tie information
+                        let mut partial_runoff_value = serde_json::to_value(&state)
+                            .map_err(|e| Error::UnexpectedError(e.to_string()))?;
+
+                        // Embed tie information in the process_results for windmill to detect
+                        if let Some(obj) = partial_runoff_value.as_object_mut() {
+                            obj.insert("pending_tie_resolution".to_string(), serde_json::json!({
+                                "round_number": tie_info.round_number,
+                                "tied_candidate_ids": tie_info.tied_candidate_ids,
+                                "vote_counts": tie_info.vote_counts,
+                                "method_used": format!("{:?}", tie_info.method_used),
+                            }));
+                        }
+
+                        (state, partial_runoff_value)
                     }
                 };
 
-                let mut vote_count: HashMap<String, u64> = HashMap::new(); // vote_count has only the last round results or it could be left empty because the full results are in runoff_value
+                let mut vote_count: HashMap<String, u64> = HashMap::new(); // vote_count has only the last round results or it could be left empty because the full results are in process_results_value
                 if let Some(results) = runoff.get_last_round() {
                     vote_count = results
                         .candidates_wins
@@ -968,10 +1018,6 @@ impl InstantRunoff {
                         .map(|(candidate_id, outcome)| (candidate_id, outcome.wins))
                         .collect();
                 }
-
-                // Create a json value from runoff object.
-                let runoff_value = serde_json::to_value(runoff)
-                    .map_err(|e| Error::UnexpectedError(e.to_string()))?;
 
                 let candidate_result = self.tally.create_candidate_results(
                     vote_count,
@@ -982,7 +1028,7 @@ impl InstantRunoff {
                     count_invalid,
                     percentage_votes_denominator,
                 )?;
-                (candidate_result, Some(runoff_value))
+                (candidate_result, Some(process_results_value))
             }
         };
 
