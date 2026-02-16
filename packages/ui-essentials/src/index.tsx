@@ -39,3 +39,5 @@ export {default as CustomAutocompleteArrayInput} from "./components/CustomAutoco
 export {default as Loader} from "./components/Loader/Loader"
 export {default as ExpandableText} from "./components/ExpandableText/ExpandableText"
 export {ActionsContainer, StyledButton} from "./components/ConfirmationActions/ConfirmationActions"
+export {PlaintextVoteContest} from "./components/PlaintextVoteContest/PlaintextVoteContest"
+export type {PlaintextVoteContestProps} from "./components/PlaintextVoteContest/PlaintextVoteContest"

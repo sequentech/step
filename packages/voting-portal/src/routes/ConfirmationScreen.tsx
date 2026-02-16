@@ -4,7 +4,16 @@
 import {Box, CircularProgress, Typography} from "@mui/material"
 import React, {useState, useEffect, useContext, useCallback, useRef, useMemo} from "react"
 import {useTranslation} from "react-i18next"
-import {PageLimit, Icon, IconButton, theme, QRCode, Dialog, ActionsContainer, StyledButton} from "@sequentech/ui-essentials"
+import {
+    PageLimit,
+    Icon,
+    IconButton,
+    theme,
+    QRCode,
+    Dialog,
+    ActionsContainer,
+    StyledButton,
+} from "@sequentech/ui-essentials"
 import {
     stringToHtml,
     IElectionEventPresentation,
@@ -55,7 +64,6 @@ const StyledTitle = styled(Typography)`
     flex-direction: row;
     gap: 16px;
 `
-
 
 const BallotIdContainer = styled(Box)`
     display: flex;
