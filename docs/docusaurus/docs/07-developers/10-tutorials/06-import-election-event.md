@@ -38,6 +38,17 @@ Before starting, ensure you have:
 | `TENANT_ID` | Your tenant identifier | `my-tenant-123` |
 | `ACCESS_TOKEN` | Keycloak access token | `eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9...` |
 
+**Setting Up for bash/CURL:**
+
+```bash
+# Export environment variables
+export HASURA_URL="https://api.example.sequent.vote/graphql"
+export TENANT_ID="my-tenant-123"
+export ACCESS_TOKEN="your-access-token-here"
+```
+
+Obtain `ACCESS_TOKEN` from the [authentication tutorial](./05-api-authentication.md).
+
 ## 1. Understanding the Workflow
 
 The import process is split into three distinct operations for security and scalability:
@@ -125,10 +136,10 @@ mutation GetUploadUrl(
 FILE_PATH="election-event.json"
 FILE_SIZE=$(wc -c < "$FILE_PATH")
 
-# Make GraphQL request
-curl -X POST "https://api.example.sequent.vote/graphql" \
+# Make GraphQL request using environment variables
+curl -X POST "${HASURA_URL}" \
   -H "Content-Type: application/json" \
-  -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
+  -H "Authorization: Bearer ${ACCESS_TOKEN}" \
   -d '{
     "query": "mutation GetUploadUrl($name: String!, $media_type: String!, $size: Int!, $is_public: Boolean!, $is_local: Boolean) { get_upload_url(name: $name, media_type: $media_type, size: $size, is_public: $is_public, is_local: $is_local) { url document_id } }",
     "variables": {
@@ -321,14 +332,18 @@ mutation ImportElectionEvent(
 ### CURL Example
 
 ```bash
-curl -X POST "https://api.example.sequent.vote/graphql" \
+# Save the document_id from the previous step
+DOCUMENT_ID="a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+
+# Import the election event using environment variables
+curl -X POST "${HASURA_URL}" \
   -H "Content-Type: application/json" \
-  -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
+  -H "Authorization: Bearer ${ACCESS_TOKEN}" \
   -d '{
     "query": "mutation ImportElectionEvent($tenant_id: String!, $document_id: String!, $check_only: Boolean) { import_election_event(tenant_id: $tenant_id, document_id: $document_id, check_only: $check_only) { id message error } }",
     "variables": {
-      "tenant_id": "my-tenant-123",
-      "document_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+      "tenant_id": "'"${TENANT_ID}"'",
+      "document_id": "'"${DOCUMENT_ID}"'",
       "check_only": false
     }
   }'
@@ -404,290 +419,33 @@ print(f"Election Event ID: {import_result['id']}")
 print(f"Message: {import_result['message']}")
 ```
 
-## 5. Complete End-to-End Example
-
-### Bash Script
-
-```bash
-#!/bin/bash
-set -e
-
-# Configuration
-FILE_PATH="election-event.json"
-HASURA_URL="${HASURA_URL:-https://api.example.sequent.vote/graphql}"
-TENANT_ID="${TENANT_ID:-my-tenant-123}"
-ACCESS_TOKEN="${ACCESS_TOKEN}"
-
-if [ -z "$ACCESS_TOKEN" ]; then
-    echo "Error: ACCESS_TOKEN environment variable not set"
-    exit 1
-fi
-
-if [ ! -f "$FILE_PATH" ]; then
-    echo "Error: File not found: $FILE_PATH"
-    exit 1
-fi
-
-echo "Step 1: Getting upload URL..."
-FILE_SIZE=$(wc -c < "$FILE_PATH")
-
-UPLOAD_RESPONSE=$(curl -s -X POST "$HASURA_URL" \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer $ACCESS_TOKEN" \
-  -d '{
-    "query": "mutation GetUploadUrl($name: String!, $media_type: String!, $size: Int!, $is_public: Boolean!) { get_upload_url(name: $name, media_type: $media_type, size: $size, is_public: $is_public) { url document_id } }",
-    "variables": {
-      "name": "'"$(basename "$FILE_PATH")"'",
-      "media_type": "application/json",
-      "size": '"$FILE_SIZE"',
-      "is_public": false
-    }
-  }')
-
-UPLOAD_URL=$(echo "$UPLOAD_RESPONSE" | grep -o '"url":"[^"]*' | cut -d'"' -f4)
-DOCUMENT_ID=$(echo "$UPLOAD_RESPONSE" | grep -o '"document_id":"[^"]*' | cut -d'"' -f4)
-
-echo "Document ID: $DOCUMENT_ID"
-
-echo "Step 2: Uploading file..."
-curl -X PUT "$UPLOAD_URL" \
-  -H "Content-Type: application/json" \
-  --data-binary "@$FILE_PATH"
-
-echo -e "\nStep 3: Importing election event..."
-IMPORT_RESPONSE=$(curl -s -X POST "$HASURA_URL" \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer $ACCESS_TOKEN" \
-  -d '{
-    "query": "mutation ImportElectionEvent($tenant_id: String!, $document_id: String!) { import_election_event(tenant_id: $tenant_id, document_id: $document_id) { id message error } }",
-    "variables": {
-      "tenant_id": "'"$TENANT_ID"'",
-      "document_id": "'"$DOCUMENT_ID"'"
-    }
-  }')
-
-echo "$IMPORT_RESPONSE"
-
-ELECTION_ID=$(echo "$IMPORT_RESPONSE" | grep -o '"id":"[^"]*' | head -1 | cut -d'"' -f4)
-ERROR=$(echo "$IMPORT_RESPONSE" | grep -o '"error":"[^"]*' | cut -d'"' -f4)
-
-if [ -n "$ERROR" ] && [ "$ERROR" != "null" ]; then
-    echo "Import failed: $ERROR"
-    exit 1
-fi
-
-echo "Success! Election Event ID: $ELECTION_ID"
-```
-
-### Complete Python Script
-
-```python
-import requests
-import os
-import sys
-
-class ElectionEventImporter:
-    """Complete importer for election events via the Sequent API."""
-
-    def __init__(self, hasura_url, tenant_id, access_token):
-        self.hasura_url = hasura_url
-        self.tenant_id = tenant_id
-        self.access_token = access_token
-
-    def import_election_event(self, file_path, check_only=False, is_local=False):
-        """
-        Import an election event from a file.
-
-        Args:
-            file_path: Path to the election event JSON file
-            check_only: If True, validate without importing
-            is_local: If True, use local MinIO instead of S3
-
-        Returns:
-            Dictionary with 'id', 'message', and 'error' fields
-        """
-        try:
-            # Step 1: Get upload URL
-            print("Step 1: Getting upload URL...")
-            upload_info = self._get_upload_url(file_path, is_local)
-            upload_url = upload_info['url']
-            document_id = upload_info['document_id']
-            print(f"  Document ID: {document_id}")
-
-            # Step 2: Upload file
-            print("Step 2: Uploading file...")
-            media_type = self._get_media_type(file_path)
-            self._upload_file(file_path, upload_url, media_type)
-            print("  File uploaded successfully")
-
-            # Step 3: Import election event
-            print("Step 3: Importing election event...")
-            result = self._import_election_event(document_id, check_only)
-
-            if result['error']:
-                print(f"  Error: {result['error']}")
-                return result
-
-            print(f"  Success! Election Event ID: {result['id']}")
-            return result
-
-        except Exception as e:
-            print(f"Error during import: {e}")
-            raise
-
-    def _get_upload_url(self, file_path, is_local):
-        """Get pre-signed upload URL from API."""
-        file_size = os.path.getsize(file_path)
-        file_name = os.path.basename(file_path)
-        media_type = self._get_media_type(file_path)
-
-        query = """
-        mutation GetUploadUrl(
-            $name: String!,
-            $media_type: String!,
-            $size: Int!,
-            $is_public: Boolean!,
-            $is_local: Boolean
-        ) {
-            get_upload_url(
-                name: $name,
-                media_type: $media_type,
-                size: $size,
-                is_public: $is_public,
-                is_local: $is_local
-            ) {
-                url
-                document_id
-            }
-        }
-        """
-
-        variables = {
-            'name': file_name,
-            'media_type': media_type,
-            'size': file_size,
-            'is_public': False,
-            'is_local': is_local
-        }
-
-        result = self._graphql_request(query, variables)
-        return result['data']['get_upload_url']
-
-    def _upload_file(self, file_path, upload_url, media_type):
-        """Upload file to pre-signed URL."""
-        with open(file_path, 'rb') as f:
-            file_contents = f.read()
-
-        headers = {'Content-Type': media_type}
-        response = requests.put(upload_url, data=file_contents, headers=headers)
-        response.raise_for_status()
-
-    def _import_election_event(self, document_id, check_only):
-        """Trigger the election event import."""
-        query = """
-        mutation ImportElectionEvent(
-            $tenant_id: String!,
-            $document_id: String!,
-            $check_only: Boolean
-        ) {
-            import_election_event(
-                tenant_id: $tenant_id,
-                document_id: $document_id,
-                check_only: $check_only
-            ) {
-                id
-                message
-                error
-            }
-        }
-        """
-
-        variables = {
-            'tenant_id': self.tenant_id,
-            'document_id': document_id,
-            'check_only': check_only
-        }
-
-        result = self._graphql_request(query, variables)
-        return result['data']['import_election_event']
-
-    def _graphql_request(self, query, variables):
-        """Make a GraphQL request."""
-        headers = {
-            'Content-Type': 'application/json',
-            'Authorization': f'Bearer {self.access_token}'
-        }
-
-        response = requests.post(
-            self.hasura_url,
-            json={'query': query, 'variables': variables},
-            headers=headers
-        )
-        response.raise_for_status()
-
-        result = response.json()
-
-        if 'errors' in result:
-            error_messages = [e['message'] for e in result['errors']]
-            raise Exception(f"GraphQL errors: {', '.join(error_messages)}")
-
-        return result
-
-    @staticmethod
-    def _get_media_type(file_path):
-        """Determine MIME type from file extension."""
-        if file_path.endswith('.json'):
-            return 'application/json'
-        elif file_path.endswith('.zip'):
-            return 'application/zip'
-        else:
-            return 'application/octet-stream'
-
-
-# Example usage
-if __name__ == '__main__':
-    # Get configuration from environment
-    hasura_url = os.getenv('HASURA_URL', 'https://api.example.sequent.vote/graphql')
-    tenant_id = os.getenv('TENANT_ID')
-    access_token = os.getenv('ACCESS_TOKEN')
-
-    if not tenant_id or not access_token:
-        print("Error: TENANT_ID and ACCESS_TOKEN environment variables required")
-        sys.exit(1)
-
-    # Create importer
-    importer = ElectionEventImporter(hasura_url, tenant_id, access_token)
-
-    # Import election event
-    file_path = 'election-event.json'
-    result = importer.import_election_event(file_path)
-
-    if result['error']:
-        print(f"Import failed: {result['error']}")
-        sys.exit(1)
-
-    print(f"Successfully imported election event: {result['id']}")
-```
-
-## 6. Validation Mode
+## 5. Validation Mode
 
 Before importing an election event, you can validate it without actually creating it using the `check_only` parameter.
 
 ### Example
 
 ```python
-# Validate the election event file without importing
-result = importer.import_election_event(
-    'election-event.json',
-    check_only=True
+# First, validate without importing
+validation_result = import_election_event(
+    document_id=document_id,
+    access_token=access_token,
+    tenant_id=os.getenv('TENANT_ID'),
+    check_only=True  # Validation only
 )
 
-if result['error']:
-    print(f"Validation failed: {result['error']}")
+if validation_result['error']:
+    print(f"Validation failed: {validation_result['error']}")
 else:
-    print(f"Validation passed: {result['message']}")
+    print(f"Validation passed: {validation_result['message']}")
     # Now import for real
-    result = importer.import_election_event('election-event.json')
+    import_result = import_election_event(
+        document_id=document_id,
+        access_token=access_token,
+        tenant_id=os.getenv('TENANT_ID'),
+        check_only=False
+    )
+    print(f"Import successful: {import_result['id']}")
 ```
 
 This is useful for:
@@ -695,7 +453,7 @@ This is useful for:
 - Testing election event configurations
 - CI/CD pipelines that validate before deployment
 
-## 7. Troubleshooting
+## 6. Troubleshooting
 
 ### Upload URL Expired
 
@@ -783,7 +541,7 @@ This is useful for:
 - For very large files, consider compressing to ZIP format
 - Monitor upload progress in your code
 
-## 8. Best Practices
+## 7. Best Practices
 
 ### Validate Before Importing
 
@@ -791,13 +549,24 @@ Always use `check_only: true` first to catch errors early:
 
 ```python
 # Validate first
-validation = importer.import_election_event(file_path, check_only=True)
+validation = import_election_event(
+    document_id=document_id,
+    access_token=access_token,
+    tenant_id=tenant_id,
+    check_only=True
+)
+
 if validation['error']:
     print(f"Validation failed: {validation['error']}")
     sys.exit(1)
 
-# Then import
-result = importer.import_election_event(file_path)
+# Then import for real
+result = import_election_event(
+    document_id=document_id,
+    access_token=access_token,
+    tenant_id=tenant_id,
+    check_only=False
+)
 ```
 
 ### Error Handling
@@ -837,7 +606,7 @@ The import process may take time for large election events. Consider:
 - Implementing webhooks for import completion notifications
 - Logging import operations for audit trails
 
-## 9. Next Steps
+## 8. Next Steps
 
 Now that you can import election events via the API, explore other operations:
 

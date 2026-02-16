@@ -46,6 +46,39 @@ Set up the following environment variables with your instance details:
 
 **Security Note:** Never commit credentials to version control. Use environment variables or a secure secrets management system.
 
+### Setting Up Environment Variables
+
+For **bash/CURL** (Linux/macOS):
+
+```bash
+# Export environment variables in your terminal
+export KEYCLOAK_URL="https://keycloak.example.sequent.vote"
+export TENANT_ID="my-tenant-123"
+export CLIENT_ID="sequent-client"
+export CLIENT_SECRET="your-client-secret"
+export USERNAME="user@example.com"
+export PASSWORD="your-secure-password"
+```
+
+Alternatively, create a `.env` file and source it:
+
+```bash
+# Create .env file (don't commit this to Git!)
+cat > .env <<EOF
+export KEYCLOAK_URL="https://keycloak.example.sequent.vote"
+export TENANT_ID="my-tenant-123"
+export CLIENT_ID="sequent-client"
+export CLIENT_SECRET="your-client-secret"
+export USERNAME="user@example.com"
+export PASSWORD="your-secure-password"
+EOF
+
+# Load the environment variables
+source .env
+```
+
+For **Python**, environment variables are automatically available via `os.getenv()`.
+
 ## 1. Obtaining an Access Token
 
 ### Understanding the Token Endpoint
@@ -65,14 +98,15 @@ https://keycloak.example.sequent.vote/realms/tenant-my-tenant-123/protocol/openi
 ### CURL Example
 
 ```bash
-curl -X POST "https://keycloak.example.sequent.vote/realms/tenant-my-tenant-123/protocol/openid-connect/token" \
+# Using environment variables
+curl -X POST "${KEYCLOAK_URL}/realms/tenant-${TENANT_ID}/protocol/openid-connect/token" \
   -H "Content-Type: application/x-www-form-urlencoded" \
   -d "grant_type=password" \
   -d "scope=openid" \
-  -d "client_id=sequent-client" \
-  -d "client_secret=your-client-secret" \
-  -d "username=user@example.com" \
-  -d "password=your-secure-password"
+  -d "client_id=${CLIENT_ID}" \
+  -d "client_secret=${CLIENT_SECRET}" \
+  -d "username=${USERNAME}" \
+  -d "password=${PASSWORD}"
 ```
 
 ### Python Example
@@ -173,12 +207,16 @@ if time.time() - token_acquired_at > expires_in - 300:
 ### CURL Example
 
 ```bash
-curl -X POST "https://keycloak.example.sequent.vote/realms/tenant-my-tenant-123/protocol/openid-connect/token" \
+# Save the refresh token from the initial authentication
+REFRESH_TOKEN="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+
+# Use it to get a new access token
+curl -X POST "${KEYCLOAK_URL}/realms/tenant-${TENANT_ID}/protocol/openid-connect/token" \
   -H "Content-Type: application/x-www-form-urlencoded" \
   -d "grant_type=refresh_token" \
-  -d "client_id=sequent-client" \
-  -d "client_secret=your-client-secret" \
-  -d "refresh_token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+  -d "client_id=${CLIENT_ID}" \
+  -d "client_secret=${CLIENT_SECRET}" \
+  -d "refresh_token=${REFRESH_TOKEN}"
 ```
 
 ### Python Example
@@ -229,9 +267,13 @@ Once you have an access token, include it in the `Authorization` header of your 
 ### Example GraphQL Request
 
 ```bash
+# Save the access token from authentication
+ACCESS_TOKEN="eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9..."
+
+# Use it in API requests
 curl -X POST "https://api.example.sequent.vote/graphql" \
   -H "Content-Type: application/json" \
-  -H "Authorization: Bearer eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9..." \
+  -H "Authorization: Bearer ${ACCESS_TOKEN}" \
   -d '{
     "query": "query { __typename }"
   }'
@@ -263,125 +305,7 @@ result = make_authenticated_request(access_token, query)
 print(result)
 ```
 
-## 4. Complete Python Client Class
-
-Here's a production-ready Python class that handles authentication with automatic token refresh:
-
-```python
-import requests
-import os
-import time
-from typing import Dict, Optional
-
-class SequentAuthClient:
-    """Client for managing Keycloak authentication with the Sequent API."""
-
-    def __init__(self, keycloak_url: str = None, tenant_id: str = None,
-                 client_id: str = None, client_secret: str = None,
-                 username: str = None, password: str = None):
-        """Initialize the auth client with credentials."""
-        self.keycloak_url = keycloak_url or os.getenv('KEYCLOAK_URL')
-        self.tenant_id = tenant_id or os.getenv('TENANT_ID')
-        self.client_id = client_id or os.getenv('CLIENT_ID')
-        self.client_secret = client_secret or os.getenv('CLIENT_SECRET')
-        self.username = username or os.getenv('USERNAME')
-        self.password = password or os.getenv('PASSWORD')
-
-        self.realm = f"tenant-{self.tenant_id}"
-        self.token_url = f"{self.keycloak_url}/realms/{self.realm}/protocol/openid-connect/token"
-
-        self.access_token: Optional[str] = None
-        self.refresh_token: Optional[str] = None
-        self.token_acquired_at: Optional[float] = None
-        self.expires_in: Optional[int] = None
-
-    def get_token(self) -> str:
-        """Get a valid access token, refreshing if necessary."""
-        if self.access_token and not self._token_needs_refresh():
-            return self.access_token
-
-        if self.refresh_token and self.token_acquired_at:
-            # Try to refresh
-            try:
-                self._refresh_token()
-                return self.access_token
-            except requests.exceptions.RequestException:
-                # Refresh failed, fall through to get new token
-                pass
-
-        # Get new token
-        self._authenticate()
-        return self.access_token
-
-    def _authenticate(self):
-        """Obtain a new access token using username and password."""
-        data = {
-            'grant_type': 'password',
-            'scope': 'openid',
-            'client_id': self.client_id,
-            'client_secret': self.client_secret,
-            'username': self.username,
-            'password': self.password
-        }
-
-        response = requests.post(self.token_url, data=data)
-        response.raise_for_status()
-
-        self._update_tokens(response.json())
-
-    def _refresh_token(self):
-        """Refresh the access token using the refresh token."""
-        data = {
-            'grant_type': 'refresh_token',
-            'client_id': self.client_id,
-            'client_secret': self.client_secret,
-            'refresh_token': self.refresh_token
-        }
-
-        response = requests.post(self.token_url, data=data)
-        response.raise_for_status()
-
-        self._update_tokens(response.json())
-
-    def _update_tokens(self, token_data: Dict):
-        """Update stored tokens from response data."""
-        self.access_token = token_data['access_token']
-        self.refresh_token = token_data.get('refresh_token', self.refresh_token)
-        self.expires_in = token_data['expires_in']
-        self.token_acquired_at = time.time()
-
-    def _token_needs_refresh(self) -> bool:
-        """Check if the token needs to be refreshed (5 minute buffer)."""
-        if not self.token_acquired_at or not self.expires_in:
-            return True
-
-        elapsed = time.time() - self.token_acquired_at
-        return elapsed > (self.expires_in - 300)
-
-    def get_headers(self) -> Dict[str, str]:
-        """Get authorization headers for API requests."""
-        token = self.get_token()
-        return {
-            'Authorization': f'Bearer {token}',
-            'Content-Type': 'application/json'
-        }
-
-# Usage Example
-auth_client = SequentAuthClient()
-
-# Get headers for API request (automatically handles token refresh)
-headers = auth_client.get_headers()
-
-# Make API request
-response = requests.post(
-    'https://api.example.sequent.vote/graphql',
-    headers=headers,
-    json={'query': 'query { __typename }'}
-)
-print(response.json())
-```
-
-## 5. Troubleshooting
+## 4. Troubleshooting
 
 ### 401 Unauthorized - Invalid Credentials
 
@@ -449,7 +373,7 @@ response = requests.post(token_url, data=data, verify=False)
 - Update your system's CA certificates if needed
 - Use HTTPS for all production environments
 
-## 6. Security Considerations
+## 5. Security Considerations
 
 ### Never Commit Credentials
 
