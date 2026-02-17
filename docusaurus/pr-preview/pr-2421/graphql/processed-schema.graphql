@@ -823,9 +823,15 @@ input String_comparison_exp {
   _similar: String
 }
 
-type SubmitTieBreakOutput {
+type SubmitTallyResolutionOutput {
+  resolved_count: Int!
   success: Boolean!
-  tally_session_id: uuid!
+  tally_session_id: String!
+}
+
+input TallyResolutionInput {
+  contest_id: uuid!
+  selected_candidate_id: uuid!
 }
 
 type TotalAggregate {
@@ -2153,8 +2159,8 @@ type mutation_root {
   set_role_permission(permission_name: String!, role_id: String!, tenant_id: String!): SetRolePermissionOutput
   set_user_role(role_id: String!, tenant_id: String!, user_id: String!): SetUserRoleOutput
   set_voter_authentication(election_event_id: String!, enrollment: String!, otp: String!): SetVoterAuthenticationOutput
-  """Submit tie-breaking decision for IRV tally"""
-  submit_tie_break_decision(election_event_id: uuid!, selected_candidate_id: uuid!, tally_session_id: uuid!): SubmitTieBreakOutput
+  """Submit tally resolutions"""
+  submit_tally_resolution(election_event_id: uuid!, resolutions: [TallyResolutionInput!]!, tally_session_id: uuid!): SubmitTallyResolutionOutput
   update_election_voting_status(election_event_id: uuid!, election_id: uuid!, voting_channels: [VotingStatusChannel], voting_status: VotingStatus!): UpdateElectionVotingStatusOutput
   update_event_voting_status(election_event_id: uuid!, voting_channels: [VotingStatusChannel], voting_status: VotingStatus!): UpdateEventVotingStatusOutput
   """
