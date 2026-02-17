@@ -140,7 +140,7 @@ export const sequent_backend_tally_session: Sequent_Backend_Tally_Session = {
     labels: undefined,
     last_updated_at: undefined,
     resolutions: [],
-    resolutions_aggregate: { nodes: [] },
+    resolutions_aggregate: {nodes: []},
     tenant_id: "",
     threshold: 0,
 }

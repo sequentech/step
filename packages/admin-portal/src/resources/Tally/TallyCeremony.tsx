@@ -38,6 +38,7 @@ import {TallyElectionsProgress} from "./TallyElectionsProgress"
 import {TallyElectionsResults} from "./TallyElectionsResults"
 import {TallyResults} from "./TallyResults"
 import {TallyLogs} from "./TallyLogs"
+import {TallyResolutionPanel} from "./TallyResolutionPanel"
 import {useGetList, useGetOne, useNotify, useRecordContext} from "react-admin"
 import {WizardStyles} from "@/components/styles/WizardStyles"
 import {UPDATE_TALLY_CEREMONY} from "@/queries/UpdateTallyCeremony"
@@ -395,7 +396,10 @@ export const TallyCeremony: React.FC = () => {
                 setPage(WizardSteps.Ceremony)
                 return
             }
-            if (tallySession.execution_status === ITallyExecutionStatus.IN_PROGRESS) {
+            if (
+                tallySession.execution_status === ITallyExecutionStatus.IN_PROGRESS ||
+                tallySession.execution_status === ITallyExecutionStatus.AWAITING_INPUT
+            ) {
                 setPage(WizardSteps.Tally)
                 return
             }
@@ -1014,6 +1018,18 @@ export const TallyCeremony: React.FC = () => {
                                     />
                                 </WizardStyles.AccordionDetails>
                             </Accordion>
+
+                            {tally?.execution_status === ITallyExecutionStatus.AWAITING_INPUT &&
+                                tally?.election_event_id &&
+                                contests && (
+                                    <TallyResolutionPanel
+                                        tallySession={tally}
+                                        contests={contests}
+                                        electionEventId={tally.election_event_id}
+                                        tenantId={tenantId}
+                                        onResolutionSubmitted={refetchTallySession}
+                                    />
+                                )}
                         </>
                     )}
 
@@ -1152,6 +1168,16 @@ export const TallyCeremony: React.FC = () => {
                                     />
                                 </WizardStyles.AccordionDetails>
                             </Accordion>
+
+                            {tally?.election_event_id && contests && (
+                                <TallyResolutionPanel
+                                    tallySession={tally}
+                                    contests={contests}
+                                    electionEventId={tally.election_event_id}
+                                    tenantId={tenantId}
+                                    onResolutionSubmitted={refetchTallySession}
+                                />
+                            )}
                         </>
                     )}
                 </WizardStyles.WizardWrapper>

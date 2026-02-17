@@ -33,7 +33,7 @@ This feature adds support for externally-resolved ties in Instant Runoff Voting 
 4. Election officials use hat procedure to select winner
 5. Admin submits decision via API/CLI: "Candidate B selected via hat procedure"
 6. Tally resumes and completes with Candidate B as winner
-7. Decision is permanently recorded in annotations with timestamp and user
+7. Decision is permanently recorded in the resolution table with timestamp and user
 
 ---
 
@@ -107,6 +107,7 @@ Windmill saves state and updates status:
 // Save full RunoffStatus to annotations["paused_runoff_state"]
 // Save tie info to annotations["tie_break"]
 // Update execution_status to AWAITING_INPUT
+// Create a tally_session_resolution row per tied contest
 ```
 
 **Annotations Structure:**
@@ -129,48 +130,41 @@ Windmill saves state and updates status:
 
 ### 3. Admin Resolution
 
-Administrator submits tie-break decision:
+Administrator submits tally resolution(s). Multiple contests can be resolved in a single call.
 
 **Via API:**
 ```bash
-POST /submit-tie-break-decision
+POST /submit-tally-resolution
 Content-Type: application/json
 Authorization: Bearer <token>
 
 {
   "election_event_id": "event-123",
   "tally_session_id": "tally-456",
-  "selected_candidate_id": "candidate-a-uuid"
+  "resolutions": [
+    {
+      "contest_id": "contest-uuid",
+      "selected_candidate_id": "candidate-a-uuid"
+    }
+  ]
 }
 ```
 
 **Via CLI:**
 ```bash
-step-cli submit-tie-break \
+cli step submit-tally-resolution \
   --election-event-id event-123 \
   --tally-id tally-456 \
-  --candidate-id candidate-a-uuid
+  --resolution contest-uuid:candidate-a-uuid
 ```
 
 ### 4. Resume
 
 System automatically resumes tally:
 
-1. Validates candidate is in tied candidates list
-2. Updates annotations with resolution:
-   ```json
-   {
-     "tie_break": {
-       ...
-       "resolution": {
-         "resolved_by_candidate_id": "candidate-a-uuid",
-         "resolved_at": "2026-02-11T11:00:00Z",
-         "resolved_by_user": "admin-user-uuid"
-       }
-     }
-   }
-   ```
-3. Changes status from `AWAITING_INPUT` to `IN_PROGRESS`
+1. For each resolution, creates a new row in `tally_session_resolution` (audit trail preserved)
+2. Uses the latest resolution per contest (by `created_at`) to determine the decision
+3. Changes status from `AWAITING_INPUT` to `IN_PROGRESS` (or `STARTED` on re-submission, to trigger re-execution)
 4. Loads paused RunoffStatus from annotations
 5. Applies decision: eliminates all candidates except chosen winner
 6. Continues IRV algorithm to completion
@@ -179,7 +173,7 @@ System automatically resumes tally:
 
 ## API Usage
 
-### Endpoint: `POST /submit-tie-break-decision`
+### Endpoint: `POST /submit-tally-resolution`
 
 **Authentication:** Bearer token with `ADMIN_CEREMONY` permission
 
@@ -188,15 +182,23 @@ System automatically resumes tally:
 {
   "election_event_id": "uuid",
   "tally_session_id": "uuid",
-  "selected_candidate_id": "uuid"
+  "resolutions": [
+    {
+      "contest_id": "uuid",
+      "selected_candidate_id": "uuid"
+    }
+  ]
 }
 ```
+
+Multiple contests can be resolved in one request by adding more entries to `resolutions`.
 
 **Response (Success):**
 ```json
 {
   "success": true,
-  "tally_session_id": "uuid"
+  "tally_session_id": "uuid",
+  "resolved_count": 1
 }
 ```
 
@@ -210,45 +212,58 @@ System automatically resumes tally:
 **Validation Rules:**
 1. ✅ Tally session must exist
 2. ✅ Status must be `AWAITING_INPUT`
-3. ✅ Candidate must be in `tied_candidates` list
+3. ✅ At least one resolution must be provided
 4. ✅ User must have `ADMIN_CEREMONY` permission
 
 **HTTP Status Codes:**
 - `200` - Success
-- `400` - Bad request (invalid status, invalid candidate)
+- `400` - Bad request (invalid status, missing resolutions)
 - `401` - Unauthorized
 - `404` - Tally session not found
 - `500` - Server error
+
+### Re-submission
+
+If a resolution is submitted again for the same contest, a new row is created in `tally_session_resolution` (preserving the full audit trail) and the tally status is reset to `STARTED` to trigger re-execution with the new decision. The latest resolution (by `created_at`) is always used.
 
 ---
 
 ## CLI Usage
 
-### Command: `step-cli submit-tie-break`
+### Command: `cli step submit-tally-resolution`
 
 **Installation:**
 Ensure step-cli is installed and configured:
 ```bash
-step-cli config --endpoint https://api.example.com --token <your-token>
+cli step config --endpoint https://api.example.com --token <your-token>
 ```
 
 **Usage:**
 ```bash
-step-cli submit-tie-break \
+cli step submit-tally-resolution \
   --election-event-id <EVENT_ID> \
   --tally-id <TALLY_SESSION_ID> \
-  --candidate-id <CANDIDATE_ID>
+  --resolution <CONTEST_ID>:<CANDIDATE_ID>
+```
+
+The `--resolution` flag can be repeated to resolve multiple contests at once:
+```bash
+cli step submit-tally-resolution \
+  --election-event-id <EVENT_ID> \
+  --tally-id <TALLY_SESSION_ID> \
+  --resolution <CONTEST_ID_1>:<CANDIDATE_ID_1> \
+  --resolution <CONTEST_ID_2>:<CANDIDATE_ID_2>
 ```
 
 **Example:**
 ```bash
-step-cli submit-tie-break \
+cli step submit-tally-resolution \
   --election-event-id a1b2c3d4-e5f6-7890-abcd-ef1234567890 \
   --tally-id b2c3d4e5-f6a7-8901-bcde-f12345678901 \
-  --candidate-id c3d4e5f6-a7b8-9012-cdef-123456789012
+  --resolution d4e5f6a7-b8c9-0123-def0-123456789012:c3d4e5f6-a7b8-9012-cdef-123456789012
 
 # Output:
-# Success! Tie-break decision submitted. Selected candidate: c3d4e5f6-a7b8-9012-cdef-123456789012
+# Success! 1 tally resolution(s) submitted.
 ```
 
 **Arguments:**
@@ -257,7 +272,7 @@ step-cli submit-tie-break \
 |----------|----------|-------------|
 | `--election-event-id` | Yes | UUID of the election event |
 | `--tally-id` | Yes | UUID of the tally session |
-| `--candidate-id` | Yes | UUID of the selected candidate |
+| `--resolution` | Yes (repeatable) | `CONTEST_ID:CANDIDATE_ID` pair; repeat for multiple contests |
 
 ---
 
@@ -305,7 +320,7 @@ Ballot 3: Charlie > Alice > Bob
 
 **3. Start Tally:**
 ```bash
-step-cli start-tally --election-event-id <ID> --election-ids <ID>
+cli step start-tally --election-event-id <ID> --election-ids <ID>
 ```
 
 **4. Verify Pause:**
@@ -315,16 +330,16 @@ Check tally session status:
 
 **5. Submit Decision:**
 ```bash
-step-cli submit-tie-break \
+cli step submit-tally-resolution \
   --election-event-id <EVENT_ID> \
   --tally-id <TALLY_ID> \
-  --candidate-id cand-a
+  --resolution <CONTEST_ID>:cand-a
 ```
 
 **6. Verify Completion:**
 - Status changes to `IN_PROGRESS` → `SUCCESS`
 - Winner is "Alice"
-- Annotations contain resolution with timestamp and user
+- Resolution is recorded in `tally_session_resolution` table with timestamp and user
 
 ---
 
@@ -343,11 +358,10 @@ step-cli submit-tie-break \
                     ▼
 ┌─────────────────────────────────────────────────────────┐
 │ Harvest API                                              │
-│ POST /submit-tie-break-decision                         │
+│ POST /submit-tally-resolution                           │
 │ - Validates status (AWAITING_INPUT)                     │
-│ - Validates candidate in tied list                      │
-│ - Updates annotations with resolution                   │
-│ - Changes status to IN_PROGRESS                         │
+│ - Creates new resolution row per contest (audit trail)  │
+│ - Changes status to IN_PROGRESS (or STARTED on re-sub) │
 └───────────────────┬─────────────────────────────────────┘
                     │
                     ▼
@@ -355,8 +369,9 @@ step-cli submit-tie-break \
 │ Windmill (Orchestration)                                │
 │ - Detects pause needed (RequiresExternalInput)         │
 │ - Saves RunoffStatus to annotations                     │
+│ - Creates pending resolution rows in DB                 │
 │ - Updates execution_status to AWAITING_INPUT            │
-│ - On resume: loads state, applies decision              │
+│ - On resume: loads state, applies latest resolution    │
 └───────────────────┬─────────────────────────────────────┘
                     │
                     ▼
@@ -377,8 +392,9 @@ step-cli submit-tie-break \
 | | `sequent-core/src/types/ceremonies.rs` | AWAITING_INPUT status |
 | **Velvet** | `velvet/src/pipes/do_tally/counting_algorithm/instant_runoff.rs` | Core IRV logic with tie-breaking |
 | **Windmill** | `windmill/src/postgres/tally_session.rs` | Annotation management |
+| | `windmill/src/postgres/tally_session_resolution.rs` | Resolution table operations |
 | **Harvest** | `harvest/src/routes/tally_ceremony.rs` | API endpoint |
-| **CLI** | `step-cli/src/commands/submit_tie_break.rs` | CLI command |
+| **CLI** | `step-cli/src/commands/submit_tally_resolution.rs` | CLI command |
 | **Tests** | `velvet/tests/instant_runoff/irv_tie_breaking_tests.rs` | Test suite |
 
 ### State Machine
@@ -390,29 +406,27 @@ step-cli submit-tie-break \
                            │
                            ▼
                     ┌─────────────┐
-                    │   STARTED   │
-                    └──────┬──────┘
-                           │
-                           ▼
-                    ┌─────────────┐
-                    │  CONNECTED  │
-                    └──────┬──────┘
-                           │
-                           ▼
-                    ┌─────────────┐
-         ┌──────────│ IN_PROGRESS │◄──────────┐
-         │          └──────┬──────┘           │
-         │                 │                   │
-         │ Tie Detected    │ No Tie           │ Decision
-         │ (External       │                   │ Submitted
-         │  Policy)        │                   │
-         │                 │                   │
-         ▼                 ▼                   │
-  ┌──────────────┐  ┌─────────────┐          │
-  │AWAITING_INPUT├──►   SUCCESS   │          │
-  └──────┬───────┘  └─────────────┘          │
-         │                                     │
-         └─────────────────────────────────────┘
+                    │   STARTED   │◄──────────────────┐
+                    └──────┬──────┘                   │
+                           │                           │ Re-submission
+                           ▼                           │ (new resolution row)
+                    ┌─────────────┐                   │
+                    │  CONNECTED  │                   │
+                    └──────┬──────┘                   │
+                           │                           │
+                           ▼                           │
+                    ┌─────────────┐           ┌───────┴──────┐
+         ┌──────────│ IN_PROGRESS │◄──────────│AWAITING_INPUT│
+         │          └──────┬──────┘  First    └──────┬───────┘
+         │                 │         submission       │
+         │ Tie Detected    │ No Tie                   │ Re-submission
+         │ (External       │                           │ (new resolution row
+         │  Policy)        │                           │  → STARTED)
+         │                 │                           │
+         ▼                 ▼                           │
+  ┌──────────────┐  ┌─────────────┐                  │
+  │AWAITING_INPUT├──►   SUCCESS   │◄─────────────────┘
+  └──────────────┘  └─────────────┘    (after re-execution)
 ```
 
 ---
@@ -450,20 +464,14 @@ FROM sequent_backend.tally_session
 WHERE id = 'your-tally-id';
 ```
 
-### Invalid Candidate Error
+### Check Resolution History
 
-**Symptom:** API returns "Selected candidate is not in tied candidates"
-
-**Causes:**
-1. ✅ Wrong candidate ID provided
-2. ✅ Typo in UUID
-3. ✅ Candidate was not actually tied
-
-**Solution:** Check tie state in annotations:
+To view the full audit trail of all resolutions submitted for a tally session:
 ```sql
-SELECT annotations->'tie_break'->'tied_candidates'
-FROM sequent_backend.tally_session
-WHERE id = 'your-tally-id';
+SELECT contest_id, selected_candidate_id, resolved_by_user_id, created_at
+FROM sequent_backend.tally_session_resolution
+WHERE tally_session_id = 'your-tally-id'
+ORDER BY created_at DESC;
 ```
 
 ---
@@ -475,10 +483,9 @@ WHERE id = 'your-tally-id';
 - Display tied candidates with names and vote counts
 - Input field for external method used (dropdown or text)
 - Resume button after decision entered
-- Audit trail viewer
+- Audit trail viewer showing all submitted resolutions
 
 ### Additional Features
-- Support for multiple tie-breaking rounds
 - Custom tie-breaking method documentation
 - Email notifications to admins when pause occurs
 - Webhook integration for external systems
@@ -498,10 +505,13 @@ A: The tally remains in `AWAITING_INPUT` status indefinitely. It will not time o
 A: Currently, this feature is only implemented for IRV (Instant Runoff). Other algorithms would need similar modifications.
 
 **Q: Is the tie-break decision reversible?**
-A: No. Once submitted and the tally completes, the decision is final and recorded in the immutable audit trail.
+A: Yes, a resolution can be re-submitted. Each submission creates a new row in `tally_session_resolution`, preserving the full audit trail. The latest resolution (by `created_at`) is used, and the tally re-executes automatically.
 
 **Q: What if two admins submit different decisions simultaneously?**
-A: The first submission wins (transaction-level database locking). The second will receive an error that status is no longer `AWAITING_INPUT`.
+A: Both submissions succeed and are both recorded in the audit trail. The tally will use the latest one by `created_at`. Since re-submission is supported, this is not a race condition — both decisions are preserved and the tally re-executes with the most recent.
+
+**Q: Can multiple tie contests be resolved in one call?**
+A: Yes, the `--resolution` flag in the CLI and the `resolutions` array in the API both accept multiple entries, one per tied contest.
 
 ---
 
