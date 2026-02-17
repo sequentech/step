@@ -172,6 +172,7 @@ impl TemplateRenderer for ActivityLogsTemplate {
         offset: &mut i64,
         limit: i64,
     ) -> Result<Self::UserData> {
+        info!("prepare_user_data_batch: offset = {offset}, limit = {limit}");
         let mut act_log: Vec<ActivityLogRow> = vec![];
         let mut elect_logs: Vec<ElectoralLogRow> = vec![];
 
@@ -231,7 +232,10 @@ impl TemplateRenderer for ActivityLogsTemplate {
             .with_context(|| "Error obtaining Pg config from env.")?
             .default_sql_batch_size as i64;
 
+        info!("prepare_user_data: initial limit = {limit}, offset = {offset}");
+
         loop {
+            info!("prepare_user_data loop: iteration with offset = {offset}, limit = {limit}");
             let electoral_logs: DataList<ElectoralLogRow> =
                 list_electoral_log(GetElectoralLogBody {
                     tenant_id: self.ids.tenant_id.clone(),
@@ -258,14 +262,12 @@ impl TemplateRenderer for ActivityLogsTemplate {
                 let log_type = head_data.log_type;
                 let description = head_data.description;
                 let activity_log = electoral_log.try_into()?;
-                info!("activity_log = {activity_log:?}");
                 let activity_log = ActivityLogRow {
                     event_type,
                     log_type,
                     description,
                     ..activity_log
                 };
-                info!("activity_log = {activity_log:?}");
                 act_log.push(activity_log);
             }
 
@@ -467,4 +469,182 @@ pub async fn generate_export_data(
     drop(csv_writer);
 
     Ok(temp_file)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::services::protocol_manager::get_event_board;
+    use crate::services::reports::template_renderer::ReportOriginatedFrom;
+    use chrono::Utc;
+    use electoral_log::BoardClient;
+    use std::env;
+    use std::process::Command;
+
+    const TENANT_ID: &str = "90505c8a-23a9-4cdf-a26b-4e19f6a097d5";
+    const ELECTION_EVENT_ID: &str = "bb6eabc3-e66b-4201-bfef-6d60544fa803";
+    const NUM_LOGS: usize = 120_000;
+
+    #[tokio::test]
+    #[ignore]
+    async fn test_prepare_user_data_120k() -> Result<()> {
+        // Use a unique slug per run to get a clean database (immudb delete is unreliable)
+        let test_env_slug = format!("t{}", Utc::now().timestamp());
+        env::set_var("ENV_SLUG", &test_env_slug);
+
+        let immudb_user = env::var("IMMUDB_USER").context("IMMUDB_USER must be set")?;
+        let immudb_password = env::var("IMMUDB_PASSWORD").context("IMMUDB_PASSWORD must be set")?;
+        let immudb_server_url =
+            env::var("IMMUDB_SERVER_URL").context("IMMUDB_SERVER_URL must be set")?;
+
+        let board_name = get_event_board(TENANT_ID, ELECTION_EVENT_ID, &test_env_slug);
+        println!("board_name: {board_name}");
+
+        // Set up immudb database (unique slug ensures a fresh database each run)
+        let mut board_client = BoardClient::new(&immudb_server_url, &immudb_user, &immudb_password)
+            .await
+            .map_err(|e| anyhow!("Failed to create BoardClient: {e:?}"))?;
+        board_client
+            .upsert_electoral_log_db(&board_name)
+            .await
+            .map_err(|e| anyhow!("Failed to create immudb database: {e:?}"))?;
+        println!("Set up immudb database: {board_name}");
+
+        // Seed electoral logs using step-cli binary
+        let step_cli_bin = "/workspaces/step/packages/step-cli/rust-local-target/release/step-cli";
+        let working_dir = "/workspaces/step/packages/step-cli/data";
+        let output = Command::new(step_cli_bin)
+            .args([
+                "step",
+                "create-electoral-logs",
+                "--working-directory",
+                working_dir,
+                "--num-logs",
+                &NUM_LOGS.to_string(),
+            ])
+            .env("ENV_SLUG", &test_env_slug)
+            .env("IMMUDB_USER", &immudb_user)
+            .env("IMMUDB_PASSWORD", &immudb_password)
+            .env("IMMUDB_SERVER_URL", &immudb_server_url)
+            .env("DEFAULT_SQL_BATCH_SIZE", "500")
+            .env(
+                "KC_DB_URL_HOST",
+                env::var("KC_DB_URL_HOST").context("KC_DB_URL_HOST must be set")?,
+            )
+            .env(
+                "KC_DB_URL_PORT",
+                env::var("KC_DB_URL_PORT").context("KC_DB_URL_PORT must be set")?,
+            )
+            .env(
+                "KC_DB_USERNAME",
+                env::var("KC_DB_USERNAME").context("KC_DB_USERNAME must be set")?,
+            )
+            .env(
+                "KC_DB_PASSWORD",
+                env::var("KC_DB_PASSWORD").context("KC_DB_PASSWORD must be set")?,
+            )
+            .env("KC_DB", env::var("KC_DB").context("KC_DB must be set")?)
+            .output()
+            .map_err(|e| anyhow!("Failed to run step-cli: {e:?}"))?;
+
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        println!("step-cli stdout: {stdout}");
+        println!("step-cli stderr: {stderr}");
+        assert!(
+            output.status.success(),
+            "step-cli failed with status: {}",
+            output.status
+        );
+
+        // Create ActivityLogsTemplate with matching IDs
+        let ids = ReportOrigins {
+            tenant_id: TENANT_ID.to_string(),
+            election_event_id: ELECTION_EVENT_ID.to_string(),
+            election_id: None,
+            template_alias: None,
+            voter_id: None,
+            report_origin: ReportOriginatedFrom::ReportsTab,
+            executer_username: None,
+            tally_session_id: None,
+        };
+        let template = ActivityLogsTemplate::new(ids, ReportFormat::CSV);
+
+        // Create dummy deadpool postgres transactions (unused by prepare_user_data)
+        let hasura_pg_host = env::var("HASURA_PG_HOST").context("HASURA_PG_HOST must be set")?;
+        let hasura_pg_port: u16 = env::var("HASURA_PG_PORT")
+            .context("HASURA_PG_PORT must be set")?
+            .parse()
+            .context("HASURA_PG_PORT must be a valid port number")?;
+        let hasura_pg_user = env::var("HASURA_PG_USER").context("HASURA_PG_USER must be set")?;
+        let hasura_pg_password =
+            env::var("HASURA_PG_PASSWORD").context("HASURA_PG_PASSWORD must be set")?;
+        let hasura_pg_dbname =
+            env::var("HASURA_PG_DBNAME").context("HASURA_PG_DBNAME must be set")?;
+
+        let mut hasura_cfg = deadpool_postgres::Config::new();
+        hasura_cfg.host = Some(hasura_pg_host);
+        hasura_cfg.port = Some(hasura_pg_port);
+        hasura_cfg.user = Some(hasura_pg_user);
+        hasura_cfg.password = Some(hasura_pg_password);
+        hasura_cfg.dbname = Some(hasura_pg_dbname);
+        let hasura_pool = hasura_cfg
+            .create_pool(
+                Some(deadpool_postgres::Runtime::Tokio1),
+                tokio_postgres::NoTls,
+            )
+            .map_err(|e| anyhow!("Failed to create hasura pool: {e:?}"))?;
+        let mut hasura_client = hasura_pool
+            .get()
+            .await
+            .map_err(|e| anyhow!("Failed to get hasura client: {e:?}"))?;
+        let hasura_tx = hasura_client
+            .transaction()
+            .await
+            .map_err(|e| anyhow!("Failed to start hasura transaction: {e:?}"))?;
+
+        let kc_db_host = env::var("KC_DB_URL_HOST").context("KC_DB_URL_HOST must be set")?;
+        let kc_db_port: u16 = env::var("KC_DB_URL_PORT")
+            .context("KC_DB_URL_PORT must be set")?
+            .parse()
+            .context("KC_DB_URL_PORT must be a valid port number")?;
+        let kc_db_user = env::var("KC_DB_USERNAME").context("KC_DB_USERNAME must be set")?;
+        let kc_db_password = env::var("KC_DB_PASSWORD").context("KC_DB_PASSWORD must be set")?;
+        let kc_db_dbname = env::var("KC_DB_URL_DATABASE").unwrap_or("postgres".to_string());
+
+        let mut kc_cfg = deadpool_postgres::Config::new();
+        kc_cfg.host = Some(kc_db_host);
+        kc_cfg.port = Some(kc_db_port);
+        kc_cfg.user = Some(kc_db_user);
+        kc_cfg.password = Some(kc_db_password);
+        kc_cfg.dbname = Some(kc_db_dbname);
+        let kc_pool = kc_cfg
+            .create_pool(
+                Some(deadpool_postgres::Runtime::Tokio1),
+                tokio_postgres::NoTls,
+            )
+            .map_err(|e| anyhow!("Failed to create keycloak pool: {e:?}"))?;
+        let mut kc_client = kc_pool
+            .get()
+            .await
+            .map_err(|e| anyhow!("Failed to get keycloak client: {e:?}"))?;
+        let kc_tx = kc_client
+            .transaction()
+            .await
+            .map_err(|e| anyhow!("Failed to start keycloak transaction: {e:?}"))?;
+
+        // Call prepare_user_data
+        let user_data = template
+            .prepare_user_data(&hasura_tx, &kc_tx)
+            .await
+            .map_err(|e| anyhow!("prepare_user_data failed: {e:?}"))?;
+
+        println!("act_log.len() = {}", user_data.act_log.len());
+        println!("electoral_log.len() = {}", user_data.electoral_log.len());
+
+        assert_eq!(user_data.act_log.len(), NUM_LOGS);
+        assert_eq!(user_data.electoral_log.len(), NUM_LOGS);
+
+        Ok(())
+    }
 }
