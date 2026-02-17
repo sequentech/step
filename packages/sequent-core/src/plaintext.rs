@@ -71,28 +71,29 @@ impl DecodedVoteContest {
         let mut errors: Vec<PreferencialOrderErrorType> = Vec::new();
 
         // Discard the unselected choices and sort the selected ones by their preference order
-        let mut choices: Vec<DecodedVoteChoice> = self
+        let choices: Vec<i64> = self
             .choices
             .iter()
             .filter(|choice| choice.selected >= 0)
-            .cloned()
+            .map(|choice| choice.selected)
             .collect();
-
-        choices.sort_by(|a, b| a.selected.cmp(&b.selected));
-
-        let ordered_choices: Vec<i64> =
-            choices.iter().map(|choice| choice.selected).collect();
 
         // After removing the unselected choices we check that there are no duplicates in
         // the preference order
-        let choices_unique_set = ordered_choices.iter().collect::<HashSet<_>>();
-        if ordered_choices.len() != choices_unique_set.len() {
+        let choices_unique_set = choices.iter().collect::<HashSet<_>>();
+        if choices.len() != choices_unique_set.len() {
             errors.push(PreferencialOrderErrorType::DuplicatedPosition);
         }
 
         // Check that there are no gaps in the ordered choices
+        let mut ordered_choices = choices_unique_set
+            .into_iter()
+            .cloned()
+            .collect::<Vec<i64>>();
+        ordered_choices.sort();
         let expected_order: Vec<i64> =
             (0..ordered_choices.len() as i64).collect();
+
         if ordered_choices != expected_order {
             errors.push(PreferencialOrderErrorType::PreferenceOrderWithGaps);
         }
