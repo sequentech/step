@@ -104,7 +104,6 @@ async fn rocket() -> _ {
                 routes::keys_ceremony::list_keys_ceremonies,
                 routes::tally_ceremony::create_tally_ceremony,
                 routes::tally_ceremony::restore_private_key,
-                routes::tally_ceremony::submit_tie_break_decision,
                 routes::tally_ceremony::submit_tally_resolution,
                 routes::tally_ceremony::get_pending_tie_resolutions_endpoint,
                 routes::voting_status::update_event_status,

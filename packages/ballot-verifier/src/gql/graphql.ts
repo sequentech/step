@@ -890,10 +890,16 @@ export type String_Comparison_Exp = {
     _similar?: InputMaybe<Scalars["String"]["input"]>
 }
 
-export type SubmitTieBreakOutput = {
-    __typename?: "SubmitTieBreakOutput"
+export type SubmitTallyResolutionOutput = {
+    __typename?: "SubmitTallyResolutionOutput"
+    resolved_count: Scalars["Int"]["output"]
     success: Scalars["Boolean"]["output"]
-    tally_session_id: Scalars["uuid"]["output"]
+    tally_session_id: Scalars["String"]["output"]
+}
+
+export type TallyResolutionInput = {
+    contest_id: Scalars["uuid"]["input"]
+    selected_candidate_id: Scalars["uuid"]["input"]
 }
 
 export type TotalAggregate = {
@@ -1438,8 +1444,8 @@ export type Mutation_Root = {
     set_role_permission?: Maybe<SetRolePermissionOutput>
     set_user_role?: Maybe<SetUserRoleOutput>
     set_voter_authentication?: Maybe<SetVoterAuthenticationOutput>
-    /** Submit tie-breaking decision for IRV tally */
-    submit_tie_break_decision?: Maybe<SubmitTieBreakOutput>
+    /** Submit tally resolutions */
+    submit_tally_resolution?: Maybe<SubmitTallyResolutionOutput>
     update_election_voting_status?: Maybe<UpdateElectionVotingStatusOutput>
     update_event_voting_status?: Maybe<UpdateEventVotingStatusOutput>
     /** update data of the table: "sequent_backend.applications" */
@@ -3061,9 +3067,9 @@ export type Mutation_RootSet_Voter_AuthenticationArgs = {
 }
 
 /** mutation root */
-export type Mutation_RootSubmit_Tie_Break_DecisionArgs = {
+export type Mutation_RootSubmit_Tally_ResolutionArgs = {
     election_event_id: Scalars["uuid"]["input"]
-    selected_candidate_id: Scalars["uuid"]["input"]
+    resolutions: Array<TallyResolutionInput>
     tally_session_id: Scalars["uuid"]["input"]
 }
 

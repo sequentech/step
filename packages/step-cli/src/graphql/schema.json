@@ -7005,9 +7005,25 @@
       },
       {
         "kind": "OBJECT",
-        "name": "SubmitTieBreakOutput",
+        "name": "SubmitTallyResolutionOutput",
         "description": null,
         "fields": [
+          {
+            "name": "resolved_count",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "Int",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
           {
             "name": "success",
             "description": null,
@@ -7033,7 +7049,7 @@
               "name": null,
               "ofType": {
                 "kind": "SCALAR",
-                "name": "uuid",
+                "name": "String",
                 "ofType": null
               }
             },
@@ -7043,6 +7059,45 @@
         ],
         "inputFields": null,
         "interfaces": [],
+        "enumValues": null,
+        "possibleTypes": null
+      },
+      {
+        "kind": "INPUT_OBJECT",
+        "name": "TallyResolutionInput",
+        "description": null,
+        "fields": null,
+        "inputFields": [
+          {
+            "name": "contest_id",
+            "description": null,
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "uuid",
+                "ofType": null
+              }
+            },
+            "defaultValue": null
+          },
+          {
+            "name": "selected_candidate_id",
+            "description": null,
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "uuid",
+                "ofType": null
+              }
+            },
+            "defaultValue": null
+          }
+        ],
+        "interfaces": null,
         "enumValues": null,
         "possibleTypes": null
       },
@@ -18015,8 +18070,8 @@
             "deprecationReason": null
           },
           {
-            "name": "submit_tie_break_decision",
-            "description": "Submit tie-breaking decision for IRV tally",
+            "name": "submit_tally_resolution",
+            "description": "Submit tally resolutions",
             "args": [
               {
                 "name": "election_event_id",
@@ -18033,15 +18088,23 @@
                 "defaultValue": null
               },
               {
-                "name": "selected_candidate_id",
+                "name": "resolutions",
                 "description": null,
                 "type": {
                   "kind": "NON_NULL",
                   "name": null,
                   "ofType": {
-                    "kind": "SCALAR",
-                    "name": "uuid",
-                    "ofType": null
+                    "kind": "LIST",
+                    "name": null,
+                    "ofType": {
+                      "kind": "NON_NULL",
+                      "name": null,
+                      "ofType": {
+                        "kind": "INPUT_OBJECT",
+                        "name": "TallyResolutionInput",
+                        "ofType": null
+                      }
+                    }
                   }
                 },
                 "defaultValue": null
@@ -18063,7 +18126,7 @@
             ],
             "type": {
               "kind": "OBJECT",
-              "name": "SubmitTieBreakOutput",
+              "name": "SubmitTallyResolutionOutput",
               "ofType": null
             },
             "isDeprecated": false,

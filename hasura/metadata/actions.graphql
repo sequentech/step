@@ -595,11 +595,22 @@ type Mutation {
         tally_session_id: uuid!
         status: String!
     ): StartTallyOutput
-    submit_tie_break_decision(
+    submit_tally_resolution(
         election_event_id: uuid!
         tally_session_id: uuid!
-        selected_candidate_id: uuid!
-    ): SubmitTieBreakOutput
+        resolutions: [TallyResolutionInput!]!
+    ): SubmitTallyResolutionOutput
+}
+
+input TallyResolutionInput {
+    contest_id: uuid!
+    selected_candidate_id: uuid!
+}
+
+type SubmitTallyResolutionOutput {
+    success: Boolean!
+    tally_session_id: String!
+    resolved_count: Int!
 }
 
 type Mutation {
@@ -1210,11 +1221,6 @@ type CreateTallyOutput {
 }
 
 type StartTallyOutput {
-    tally_session_id: uuid!
-}
-
-type SubmitTieBreakOutput {
-    success: Boolean!
     tally_session_id: uuid!
 }
 
