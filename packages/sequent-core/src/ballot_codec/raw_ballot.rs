@@ -388,16 +388,22 @@ impl RawBallotCodec for Contest {
         if self.get_counting_algorithm().is_preferential() {
             match decoded_contest.validate_preferencial_order() {
                 Ok(()) => {}
-                Err(error) => match error {
-                    PreferencialOrderErrorType::PreferenceOrderWithGaps => {
-                        let check = check_preference_gaps_policy(&presentation);
-                        decoded_contest.update(check);
+                Err(errors) => {
+                    for error in errors {
+                        match error {
+                            PreferencialOrderErrorType::PreferenceOrderWithGaps => {
+                                let check =
+                                    check_preference_gaps_policy(&presentation);
+                                decoded_contest.update(check);
+                            }
+                            PreferencialOrderErrorType::DuplicatedPosition => {
+                                let check =
+                                    check_duplicated_rank_policy(&presentation);
+                                decoded_contest.update(check);
+                            }
+                        }
                     }
-                    PreferencialOrderErrorType::DuplicatedPosition => {
-                        let check = check_duplicated_rank_policy(&presentation);
-                        decoded_contest.update(check);
-                    }
-                },
+                }
             }
         }
 

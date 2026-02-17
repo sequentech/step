@@ -64,36 +64,44 @@ impl DecodedVoteContest {
     /// handle it depending on the policy or jurisdiction rules.
     /// Returns Ok if the order is valid after sorting it and if it is
     /// contiguous, e.g. 1,2,3,4 or 1,4,2,3.
+    /// Returns Err with a Vec of all errors found (may contain multiple variants).
     pub fn validate_preferencial_order(
         &self,
-    ) -> Result<(), PreferencialOrderErrorType> {
-        let mut valid_choices: Vec<DecodedVoteChoice> = self
+    ) -> Result<(), Vec<PreferencialOrderErrorType>> {
+        let mut errors: Vec<PreferencialOrderErrorType> = Vec::new();
+
+        // Discard the unselected choices and sort the selected ones by their preference order
+        let mut choices: Vec<DecodedVoteChoice> = self
             .choices
             .iter()
             .filter(|choice| choice.selected >= 0)
             .cloned()
             .collect();
 
-        valid_choices.sort_by(|a, b| a.selected.cmp(&b.selected));
-        let valid_choices_order: Vec<i64> =
-            valid_choices.iter().map(|choice| choice.selected).collect();
+        choices.sort_by(|a, b| a.selected.cmp(&b.selected));
+
+        let ordered_choices: Vec<i64> =
+            choices.iter().map(|choice| choice.selected).collect();
 
         // After removing the unselected choices we check that there are no duplicates in
         // the preference order
-        let valid_choices_unique_set =
-            valid_choices_order.iter().collect::<HashSet<_>>();
-        if valid_choices_order.len() != valid_choices_unique_set.len() {
-            return Err(PreferencialOrderErrorType::DuplicatedPosition);
+        let choices_unique_set = ordered_choices.iter().collect::<HashSet<_>>();
+        if ordered_choices.len() != choices_unique_set.len() {
+            errors.push(PreferencialOrderErrorType::DuplicatedPosition);
         }
 
-        // If there are no duplicates and the set has the same length, the only
-        // thing left to check is that there are no gaps
+        // Check that there are no gaps in the ordered choices
         let expected_order: Vec<i64> =
-            (0..valid_choices_order.len() as i64).collect();
-        if valid_choices_order != expected_order {
-            return Err(PreferencialOrderErrorType::PreferenceOrderWithGaps);
+            (0..ordered_choices.len() as i64).collect();
+        if ordered_choices != expected_order {
+            errors.push(PreferencialOrderErrorType::PreferenceOrderWithGaps);
         }
-        Ok(())
+
+        if errors.is_empty() {
+            Ok(())
+        } else {
+            Err(errors)
+        }
     }
 }
 
