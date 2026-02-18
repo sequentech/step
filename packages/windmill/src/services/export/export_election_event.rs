@@ -34,6 +34,7 @@ use sequent_core::services::s3;
 use sequent_core::temp_path::generate_temp_file;
 use sequent_core::types::hasura::core::KeysCeremony;
 use sequent_core::types::hasura::core::{Candidate, Contest, Election};
+use sequent_core::util::version::{DEV_APP_VERSION, ENV_VAR_APP_VERSION};
 use std::collections::HashMap;
 use std::env;
 use std::fs::File;
@@ -140,6 +141,9 @@ pub async fn read_export_data(
         vec![]
     };
 
+    let version =
+        std::env::var(ENV_VAR_APP_VERSION).unwrap_or_else(|_| DEV_APP_VERSION.to_string());
+
     let import_election_event_schema = ImportElectionEventSchema {
         tenant_id: Uuid::parse_str(&tenant_id)?,
         keycloak_event_realm: Some(realm),
@@ -153,6 +157,7 @@ pub async fn read_export_data(
         reports: export_reports,
         keys_ceremonies: Some(export_keys_ceremonies),
         applications: Some(export_applications),
+        version,
     };
 
     let images_files_path =
@@ -175,7 +180,7 @@ pub async fn generate_encrypted_zip(
 
 pub async fn write_export_document(data: ImportElectionEventSchema) -> Result<NamedTempFile> {
     // Serialize the data into JSON string
-    let data_str = serde_json::to_string(&data)?;
+    let data_str = serde_json::to_string_pretty(&data)?;
     let data_bytes = data_str.into_bytes();
 
     // Create and write the data into a temporary file
