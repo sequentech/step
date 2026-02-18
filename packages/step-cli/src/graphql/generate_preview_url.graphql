@@ -1,0 +1,11 @@
+mutation GeneratePreviewUrl(
+    $tenant_id: String!
+    $document_id: String!
+    ) {
+    generate_preview_url(
+      tenant_id: $tenant_id
+      document_id: $document_id
+      ) {
+          preview_url
+      }
+    }
