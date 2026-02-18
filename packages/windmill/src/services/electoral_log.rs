@@ -1000,6 +1000,28 @@ impl ElectoralLogRow {
     }
 }
 
+impl TryFrom<ElectoralLogMessage> for ElectoralLogRow {
+    type Error = anyhow::Error;
+
+    fn try_from(elog_msg: ElectoralLogMessage) -> Result<Self, Self::Error> {
+        let serialized = general_purpose::STANDARD_NO_PAD.encode(elog_msg.message.clone());
+        let deserialized_message = Message::strand_deserialize(&elog_msg.message)
+            .map_err(|e| anyhow!("Error deserializing message: {e:?}"))?;
+
+        Ok(ElectoralLogRow {
+            id: elog_msg.id,
+            created: elog_msg.created,
+            statement_timestamp: elog_msg.statement_timestamp,
+            statement_kind: elog_msg.statement_kind.clone(),
+            message: serde_json::to_string_pretty(&deserialized_message)
+                .with_context(|| "Error serializing message to json")?,
+            data: serialized,
+            user_id: elog_msg.user_id.clone(),
+            username: elog_msg.username.clone(),
+        })
+    }
+}
+
 impl TryFrom<&Row> for ElectoralLogRow {
     type Error = anyhow::Error;
 
