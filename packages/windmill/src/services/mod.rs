@@ -26,6 +26,7 @@ pub mod electoral_log;
 pub mod event_list;
 pub mod export;
 pub mod folders;
+pub mod generate_preview_url;
 pub mod google_meet;
 pub mod import;
 pub mod insert_cast_vote;

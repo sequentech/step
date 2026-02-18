@@ -1997,6 +1997,18 @@ const englishTranslation = {
                     RolesConfigOption: "Import Roles & Permissions Configurations",
                 },
             },
+            previewScreen: {
+                label: "Previews",
+                noContent: "No Previews found",
+                table: {
+                    title: "External Previews",
+                    description:
+                        "A record of ballot style previews generated via external requests",
+                    requestedBy: "Requested By",
+                    document: "Document",
+                    url: "URL",
+                },
+            },
         },
         approvalsScreen: {
             column: {

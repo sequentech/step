@@ -168,6 +168,9 @@ const AdminOperationMap: Record<string, IPermissions> = {
     update_sequent_backend_trustees: IPermissions.TRUSTEE_WRITE,
     delete_sequent_backend_trustee: IPermissions.TRUSTEE_WRITE,
     delete_sequent_backend_trustees: IPermissions.TRUSTEE_WRITE,
+    //preview
+    sequent_backend_preview: IPermissions.PREVIEW_READ,
+    sequent_backend_previews: IPermissions.PREVIEW_READ,
 }
 
 const TrusteeOperationMap: Record<string, IPermissions> = {

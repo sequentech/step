@@ -24,6 +24,7 @@ pub mod export_tasks_execution;
 pub mod export_template;
 pub mod export_tenant_config;
 pub mod fetch_document;
+pub mod generate_preview_url;
 pub mod google_meet;
 pub mod immudb_log_audit;
 pub mod import_application;
