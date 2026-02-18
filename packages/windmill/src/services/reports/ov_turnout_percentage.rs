@@ -22,6 +22,7 @@ use sequent_core::ballot::StringifiedPeriodDates;
 use sequent_core::services::keycloak::get_event_realm;
 use sequent_core::services::pdf;
 use sequent_core::services::s3::get_minio_url;
+use sequent_core::services::translations::Alias;
 use sequent_core::types::scheduled_event::generate_voting_period_dates;
 use sequent_core::util::temp_path::*;
 use serde::{Deserialize, Serialize};
@@ -308,11 +309,12 @@ impl TemplateRenderer for OVTurnoutPercentageReport {
             calc_percentage(overall_total_female_voted, overall_total_female_registered);
         let percentage_total = calc_percentage(overall_total_voted, overall_total_registered);
 
+        let language = election.get_default_language();
         Ok(UserData {
             areas,
             election: UserDataElection {
                 election_dates,
-                election_title: election.alias.unwrap_or(election.name).clone(),
+                election_title: election.get_alias(&language),
                 post: election_general_data.post,
                 inspectors: vec![],
                 overall_total: UserDataStats {

@@ -26,20 +26,20 @@ use rayon::ThreadPoolBuilder;
 use sequent_core::ballot::StringifiedPeriodDates;
 use sequent_core::services::keycloak::{self, get_event_realm};
 use sequent_core::services::s3::get_minio_url;
+use sequent_core::services::translations::Alias;
 use sequent_core::services::{pdf, reports};
 use sequent_core::types::hasura::core::TasksExecution;
-use sequent_core::util::temp_path::*;
-use serde::{Deserialize, Serialize};
-use tracing::{debug, info, instrument};
-
 use sequent_core::types::templates::ReportExtraConfig;
 use sequent_core::types::to_map::ToMap;
+use sequent_core::util::temp_path::*;
+use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
 use std::fs;
 use std::path::Path;
 use tempfile::tempdir;
 use tempfile::{NamedTempFile, TempPath};
 use tokio::runtime::Runtime;
+use tracing::{debug, info, instrument};
 
 use crate::services::celery_app::get_worker_threads;
 use crate::services::consolidation::aes_256_cbc_encrypt::encrypt_file_aes_256_cbc;
@@ -491,6 +491,8 @@ impl TemplateRenderer for OverseasVotersReport {
                 .await
                 .map_err(|err| anyhow!("Error at get_areas_by_election_id: {err:?}"))?;
 
+                let language = election.get_default_language();
+
                 for area in election_areas.iter() {
                     let area_general_data =
                         extract_area_data(&area, election_event_annotations.sbei_users.clone())
@@ -500,7 +502,7 @@ impl TemplateRenderer for OverseasVotersReport {
                     areas.push(UserDataArea {
                         election_id: election_id.clone(),
                         area_id: area.id.clone(),
-                        election_title: election.alias.clone().unwrap_or(election.name.clone()),
+                        election_title: election.get_alias(&language),
                         election_dates: election_dates.clone(),
                         station_name: election_general_data.precinct_code.clone(),
                         station_id: election_general_data.pollcenter_code.clone(),

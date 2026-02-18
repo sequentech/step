@@ -27,6 +27,7 @@ use sequent_core::ballot::StringifiedPeriodDates;
 use sequent_core::services::keycloak::get_event_realm;
 use sequent_core::services::pdf;
 use sequent_core::services::s3::get_minio_url;
+use sequent_core::services::translations::Alias;
 use sequent_core::types::hasura::core::Election;
 use sequent_core::util::temp_path::*;
 use serde::{Deserialize, Serialize};
@@ -289,9 +290,11 @@ impl TemplateRenderer for OVCSStatisticsTemplate {
                     .or_insert_with(Vec::new)
                     .push(area_stat);
             }
+
+            let language = election.get_default_language();
             elections_data.push(UserElectionData {
                 election_dates,
-                election_title: election.alias.unwrap_or(election.name).clone(),
+                election_title: election.get_alias(&language),
             });
         }
 
@@ -311,8 +314,11 @@ impl TemplateRenderer for OVCSStatisticsTemplate {
             .await
             .map_err(|err| anyhow!("Error at counting all disapproved applications: {err}"))?;
 
+        let language = election_event.get_default_language();
+        let election_title: String = election_event.get_alias(&language);
+
         Ok(UserData {
-            election_event_title: election_event.alias.unwrap_or(election_event.name).clone(),
+            election_event_title: election_title,
             execution_annotations: ExecutionAnnotations {
                 date_printed,
                 report_hash,
