@@ -1078,7 +1078,6 @@ pub async fn list_electoral_log(input: GetElectoralLogBody) -> Result<DataList<E
     );
 
     event!(Level::INFO, "database name = {board_name}");
-    info!("input = {:?}", input);
     client.open_session(&board_name).await?;
     let (clauses, params) = input.as_sql(false)?;
     let (clauses_to_count, count_params) = input.as_sql(true)?;
@@ -1102,7 +1101,7 @@ pub async fn list_electoral_log(input: GetElectoralLogBody) -> Result<DataList<E
     let sql_query_response = client.streaming_sql_query(&sql, params).await?;
 
     let limit: usize = input.limit.unwrap_or(IMMUDB_ROWS_LIMIT as i64).try_into()?;
-
+    info!("list_electoral_log: limit = {}", limit);
     let mut rows: Vec<ElectoralLogRow> = Vec::with_capacity(limit);
     let mut resp_stream = sql_query_response.into_inner();
     while let Some(streaming_batch) = resp_stream.next().await {

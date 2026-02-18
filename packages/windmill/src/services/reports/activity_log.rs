@@ -482,7 +482,7 @@ mod tests {
     use std::process::Command;
 
     const TENANT_ID: &str = "90505c8a-23a9-4cdf-a26b-4e19f6a097d5";
-    const ELECTION_EVENT_ID: &str = "bb6eabc3-e66b-4201-bfef-6d60544fa803";
+    const ELECTION_EVENT_ID: &str = "439e7d48-1061-4797-a321-6b1c436d55db";
     const NUM_LOGS: usize = 120_000;
 
     #[tokio::test]
