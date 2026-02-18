@@ -1384,6 +1384,9 @@ const frenchTranslation: TranslationType = {
             paginationPolicy: {
                 label: "Nom de la page",
             },
+            allowWriteins: {
+                label: "Autoriser les candidatures manuscrites",
+            },
             error: {},
             createContestSuccess: "Question créée",
             createContestError: "Erreur lors de la création de la question",

@@ -1384,6 +1384,9 @@ const catalanTranslation: TranslationType = {
             paginationPolicy: {
                 label: "Nom de la pàgina",
             },
+            allowWriteins: {
+                label: "Permetre candidatures manuals",
+            },
             error: {},
             createContestSuccess: "Pregunta creada",
             createContestError: "Error creant pregunta",
