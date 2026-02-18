@@ -21,14 +21,22 @@ use sequent_core::{
 use serde::{Deserialize, Serialize};
 use tracing::{event, instrument, Level};
 use windmill::postgres::election::get_elections_by_ids;
-use windmill::postgres::tally_session::{get_tally_session_by_id, update_tally_session_status};
-use windmill::postgres::tally_session_resolution::{create_tally_session_resolution, get_pending_resolutions, get_resolution_by_tally_session, submit_resolution, ResolutionStatus, ResolutionType, TallySessionResolution};
+use windmill::postgres::tally_session::{
+    get_tally_session_by_id, update_tally_session_status,
+};
+use windmill::postgres::tally_session_resolution::{
+    create_tally_session_resolution, get_pending_resolutions,
+    get_resolution_by_tally_session, submit_resolution, ResolutionStatus,
+    ResolutionType, TallySessionResolution,
+};
+use windmill::services::celery_app::get_celery_app;
 use windmill::services::providers::transactions_provider::provide_hasura_transaction;
 use windmill::services::{
     ceremonies::tally_ceremony, database::get_hasura_pool,
 };
-use windmill::tasks::electoral_log::{enqueue_electoral_log_event, LogEventInput, INTERNAL_MESSAGE_TYPE};
-use windmill::services::celery_app::get_celery_app;
+use windmill::tasks::electoral_log::{
+    enqueue_electoral_log_event, LogEventInput, INTERNAL_MESSAGE_TYPE,
+};
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct CreateTallyCeremonyInput {
@@ -351,7 +359,6 @@ pub struct SubmitTallyResolutionOutput {
     resolved_count: usize,
 }
 
-
 /// Submit multiple tally resolutions for a paused tally (batch operation)
 #[instrument(skip(claims))]
 #[post("/submit-tally-resolution", format = "json", data = "<body>")]
@@ -380,23 +387,21 @@ pub async fn submit_tally_resolution(
     }
 
     // 3. Get DB connection
-    let mut hasura_db_client: DbClient = get_hasura_pool()
-        .await
-        .get()
-        .await
-        .map_err(|err| {
+    let mut hasura_db_client: DbClient =
+        get_hasura_pool().await.get().await.map_err(|err| {
             (
                 Status::InternalServerError,
                 format!("Error getting hasura db pool: {err}"),
             )
         })?;
 
-    let hasura_transaction = hasura_db_client.transaction().await.map_err(|err| {
-        (
-            Status::InternalServerError,
-            format!("Error starting hasura transaction: {err}"),
-        )
-    })?;
+    let hasura_transaction =
+        hasura_db_client.transaction().await.map_err(|err| {
+            (
+                Status::InternalServerError,
+                format!("Error starting hasura transaction: {err}"),
+            )
+        })?;
 
     // 4. Get tally session and validate status
     let tally_session = get_tally_session_by_id(
@@ -673,23 +678,21 @@ pub async fn get_pending_tie_resolutions_endpoint(
     let tenant_id = claims.hasura_claims.tenant_id.clone();
 
     // Get DB connection
-    let mut hasura_db_client: DbClient = get_hasura_pool()
-        .await
-        .get()
-        .await
-        .map_err(|err| {
+    let mut hasura_db_client: DbClient =
+        get_hasura_pool().await.get().await.map_err(|err| {
             (
                 Status::InternalServerError,
                 format!("Error getting hasura db pool: {err}"),
             )
         })?;
 
-    let hasura_transaction = hasura_db_client.transaction().await.map_err(|err| {
-        (
-            Status::InternalServerError,
-            format!("Error starting hasura transaction: {err}"),
-        )
-    })?;
+    let hasura_transaction =
+        hasura_db_client.transaction().await.map_err(|err| {
+            (
+                Status::InternalServerError,
+                format!("Error starting hasura transaction: {err}"),
+            )
+        })?;
 
     // Get pending resolutions
     let resolutions = get_pending_resolutions(

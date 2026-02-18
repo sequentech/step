@@ -330,4 +330,3 @@ pub async fn get_resolution_by_id(
         annotations: row.get(15),
     })
 }
-

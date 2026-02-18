@@ -5,7 +5,8 @@
 use crate::ballot::{
     self, AreaAnnotations, AreaPresentation, CandidatePresentation,
     ContestPresentation, ElectionEventPresentation, ElectionPresentation,
-    I18nContent, StringifiedPeriodDates, TieBreakingPolicy, WeightedVotingPolicy,
+    I18nContent, StringifiedPeriodDates, TieBreakingPolicy,
+    WeightedVotingPolicy,
 };
 
 use crate::serialization::deserialize_with_path::deserialize_value;

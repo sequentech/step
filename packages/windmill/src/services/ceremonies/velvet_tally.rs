@@ -216,16 +216,15 @@ pub fn prepare_tally_for_area_contest(
         // Annotations is HashMap<String, String>, so we need to serialize to JSON string
         let mut annotations = contest.annotations.clone().unwrap_or_default();
         let tie_res_json_string = serde_json::to_string(tie_res)?;
-        info!("Injecting tie resolution into contest annotations: {}", tie_res_json_string);
+        info!(
+            "Injecting tie resolution into contest annotations: {}",
+            tie_res_json_string
+        );
         annotations.insert("tie_resolution".to_string(), tie_res_json_string);
         contest.annotations = Some(annotations);
     }
 
-    writeln!(
-        contest_config_file,
-        "{}",
-        serde_json::to_string(&contest)?
-    )?;
+    writeln!(contest_config_file, "{}", serde_json::to_string(&contest)?)?;
 
     //// create tally sheets files
     if relevant_sheets.len() > 0 {

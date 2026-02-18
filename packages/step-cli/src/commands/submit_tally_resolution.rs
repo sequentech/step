@@ -62,11 +62,7 @@ impl SubmitTallyResolution {
             return;
         }
 
-        match submit_tally_resolution(
-            &self.election_event_id,
-            &self.tally_id,
-            resolutions,
-        ) {
+        match submit_tally_resolution(&self.election_event_id, &self.tally_id, resolutions) {
             Ok(count) => {
                 println!(
                     "{}",

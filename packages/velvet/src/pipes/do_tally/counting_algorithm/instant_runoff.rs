@@ -397,7 +397,9 @@ impl RunoffStatus {
                     resolved_by_candidate_id: Some(resolved_candidate_id.to_string()),
                 });
 
-                let winner_name = self.get_candidate_name(resolved_candidate_id).unwrap_or_default();
+                let winner_name = self
+                    .get_candidate_name(resolved_candidate_id)
+                    .unwrap_or_default();
                 let winner = CandidateReference {
                     id: resolved_candidate_id.to_string(),
                     name: winner_name.clone(),
@@ -611,9 +613,12 @@ impl RunoffStatus {
                 } else {
                     // NOTE: This method is for backward compatibility and always uses RANDOM policy
                     // For proper tie-breaking policy support, callers should use run_with_policy() instead
-                    if let Some((winner, eliminated_candidates)) =
-                        self.determine_winner_by_lot(&candidates_to_eliminate, &candidates_wins, &TieBreakingPolicy::RANDOM, None)
-                    {
+                    if let Some((winner, eliminated_candidates)) = self.determine_winner_by_lot(
+                        &candidates_to_eliminate,
+                        &candidates_wins,
+                        &TieBreakingPolicy::RANDOM,
+                        None,
+                    ) {
                         round.winner = Some(winner);
                         round.eliminated_candidates = Some(eliminated_candidates);
                     };
@@ -786,14 +791,12 @@ impl RunoffStatus {
                     }
                     None => {
                         // Tie detected - check policy and resolution
-                        if let Some((winner, eliminated_candidates)) =
-                            self.determine_winner_by_lot(
-                                &candidates_to_eliminate,
-                                &candidates_wins,
-                                tie_breaking_policy,
-                                tie_resolution_candidate,
-                            )
-                        {
+                        if let Some((winner, eliminated_candidates)) = self.determine_winner_by_lot(
+                            &candidates_to_eliminate,
+                            &candidates_wins,
+                            tie_breaking_policy,
+                            tie_resolution_candidate,
+                        ) {
                             // Random policy resolved the tie
                             round.winner = Some(winner);
                             round.eliminated_candidates = Some(eliminated_candidates);
@@ -944,7 +947,8 @@ impl InstantRunoff {
                     .and_then(|annotations| annotations.get("tie_resolution"))
                     .and_then(|json_str| {
                         // Parse the JSON string
-                        let tie_res_value: serde_json::Value = serde_json::from_str(json_str).ok()?;
+                        let tie_res_value: serde_json::Value =
+                            serde_json::from_str(json_str).ok()?;
                         // Extract the candidate ID
                         tie_res_value
                             .get("resolved_by_candidate_id")
@@ -976,15 +980,16 @@ impl InstantRunoff {
                         // If there were any tie resolutions, embed them at the top level for easy detection
                         if !status.tie_resolutions.is_empty() {
                             if let Some(obj) = runoff_value.as_object_mut() {
-                                obj.insert("resolved_tie_resolutions".to_string(),
+                                obj.insert(
+                                    "resolved_tie_resolutions".to_string(),
                                     serde_json::to_value(&status.tie_resolutions)
-                                        .unwrap_or(serde_json::json!([]))
+                                        .unwrap_or(serde_json::json!([])),
                                 );
                             }
                         }
 
                         (status, runoff_value)
-                    },
+                    }
                     RunoffResult::RequiresExternalInput { state, tie_info } => {
                         info!(
                             "Tie detected requiring external input: round {}, {} candidates tied - creating partial results",
@@ -998,12 +1003,15 @@ impl InstantRunoff {
 
                         // Embed tie information in the process_results for windmill to detect
                         if let Some(obj) = partial_runoff_value.as_object_mut() {
-                            obj.insert("pending_tie_resolution".to_string(), serde_json::json!({
-                                "round_number": tie_info.round_number,
-                                "tied_candidate_ids": tie_info.tied_candidate_ids,
-                                "vote_counts": tie_info.vote_counts,
-                                "method_used": format!("{:?}", tie_info.method_used),
-                            }));
+                            obj.insert(
+                                "pending_tie_resolution".to_string(),
+                                serde_json::json!({
+                                    "round_number": tie_info.round_number,
+                                    "tied_candidate_ids": tie_info.tied_candidate_ids,
+                                    "vote_counts": tie_info.vote_counts,
+                                    "method_used": format!("{:?}", tie_info.method_used),
+                                }),
+                            );
                         }
 
                         (state, partial_runoff_value)

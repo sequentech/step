@@ -10,15 +10,20 @@ use crate::postgres::reports::get_template_alias_for_report;
 use crate::postgres::reports::ReportType;
 use crate::postgres::results_event::insert_results_event;
 use crate::postgres::tally_session::get_tally_session_by_id;
-use crate::postgres::tally_session::{append_tally_session_tie_break_annotation, update_tally_session_annotation, update_tally_session_status};
-use crate::postgres::tally_session_resolution::{create_tally_session_resolution, get_pending_resolutions, get_resolution_by_tally_session, submit_resolution, ResolutionStatus, ResolutionType};
-use crate::services::electoral_log::ElectoralLog;
-use crate::services::celery_app::get_celery_app;
+use crate::postgres::tally_session::{
+    append_tally_session_tie_break_annotation, update_tally_session_annotation,
+    update_tally_session_status,
+};
 use crate::postgres::tally_session_contest::update_tally_session_contests_annotations;
 use crate::postgres::tally_session_execution::insert_tally_session_execution;
+use crate::postgres::tally_session_resolution::{
+    create_tally_session_resolution, get_pending_resolutions, get_resolution_by_tally_session,
+    submit_resolution, ResolutionStatus, ResolutionType,
+};
 use crate::postgres::tally_sheet::get_published_tally_sheets_by_event;
 use crate::postgres::template::get_template_by_alias;
 use crate::services::cast_votes::{count_cast_votes_election, ElectionCastVotes};
+use crate::services::celery_app::get_celery_app;
 use crate::services::ceremonies::insert_ballots::{
     get_elections_end_dates, insert_ballots_messages,
 };
@@ -38,6 +43,7 @@ use crate::services::ceremonies::velvet_tally::AreaContestDataType;
 use crate::services::database::{get_hasura_pool, get_keycloak_pool};
 use crate::services::election::get_election_event_elections;
 use crate::services::election_event_status::get_election_event_status;
+use crate::services::electoral_log::ElectoralLog;
 use crate::services::pg_lock::PgLock;
 use crate::services::protocol_manager;
 use crate::services::reports::electoral_results::ElectoralResults;
@@ -150,14 +156,22 @@ async fn check_for_tie_resolutions(
             if let Some(obj) = process_results.as_object() {
                 // Check for pending tie resolution
                 if let Some(tie_metadata) = obj.get("pending_tie_resolution") {
-                    pending.push((results_contest_id_str.clone(), contest_id_str.clone(), tie_metadata.clone()));
+                    pending.push((
+                        results_contest_id_str.clone(),
+                        contest_id_str.clone(),
+                        tie_metadata.clone(),
+                    ));
                 }
 
                 // Check for resolved tie resolutions
                 if let Some(resolved_ties) = obj.get("resolved_tie_resolutions") {
                     if let Some(array) = resolved_ties.as_array() {
                         for tie in array {
-                            resolved.push((results_contest_id_str.clone(), contest_id_str.clone(), tie.clone()));
+                            resolved.push((
+                                results_contest_id_str.clone(),
+                                contest_id_str.clone(),
+                                tie.clone(),
+                            ));
                         }
                     }
                 }
@@ -875,7 +889,10 @@ async fn map_plaintext_data(
     let next_new_board_message = match next_new_board_message_opt {
         Some(msg) => msg,
         None if force_rerun => {
-            event!(Level::INFO, "Board has no new messages but force_rerun is set (tie-break re-run)");
+            event!(
+                Level::INFO,
+                "Board has no new messages but force_rerun is set (tie-break re-run)"
+            );
             board_messages
                 .last()
                 .ok_or_else(|| anyhow::anyhow!("No board messages found for tie-break re-run"))?
@@ -1270,11 +1287,15 @@ pub async fn execute_tally_session_wrapped(
             &tenant_id,
             &election_event_id,
             results_event_id_str,
-        ).await?;
+        )
+        .await?;
 
         // Handle resolved tie resolutions (random or external procedure)
         if !tie_resolutions.resolved.is_empty() {
-            info!("Detected {} resolved tie resolution(s) in results - creating resolution records", tie_resolutions.resolved.len());
+            info!(
+                "Detected {} resolved tie resolution(s) in results - creating resolution records",
+                tie_resolutions.resolved.len()
+            );
 
             for (results_contest_id, contest_id, tie_resolution) in &tie_resolutions.resolved {
                 // Create resolution record with status "resolved"
@@ -1305,7 +1326,8 @@ pub async fn execute_tally_session_wrapped(
                 });
 
                 // Get executer_user_id for the resolution
-                let executer_user_id = tally_session.annotations
+                let executer_user_id = tally_session
+                    .annotations
                     .as_ref()
                     .and_then(|a| a.get("executer_user_id"))
                     .and_then(|v| v.as_str())
@@ -1321,7 +1343,10 @@ pub async fn execute_tally_session_wrapped(
                 )
                 .await?;
 
-                info!("Created and resolved resolution {} for IRV tie-break in contest {}", resolution_id, contest_id);
+                info!(
+                    "Created and resolved resolution {} for IRV tie-break in contest {}",
+                    resolution_id, contest_id
+                );
             }
         }
 
@@ -1330,7 +1355,10 @@ pub async fn execute_tally_session_wrapped(
         // admin already submitted a resolution, so old pending annotations from
         // the previous results_contest rows should be ignored.
         if !has_resolved_tie_break && !tie_resolutions.pending.is_empty() {
-            info!("Detected {} pending tie resolution(s) in results - creating resolution records", tie_resolutions.pending.len());
+            info!(
+                "Detected {} pending tie resolution(s) in results - creating resolution records",
+                tie_resolutions.pending.len()
+            );
 
             // Get all existing pending resolutions for this tally session
             let existing_pending_resolutions = get_pending_resolutions(
@@ -1345,9 +1373,9 @@ pub async fn execute_tally_session_wrapped(
                 // Check if a pending resolution already exists for this contest
                 // contest_id column in DB stores results_contest.id (FK)
                 let resolution_exists = existing_pending_resolutions.iter().any(|r| {
-                    r.contest_id.as_ref() == Some(results_contest_id) &&
-                    r.resolution_type == ResolutionType::IrvTieBreak &&
-                    r.status == ResolutionStatus::Pending
+                    r.contest_id.as_ref() == Some(results_contest_id)
+                        && r.resolution_type == ResolutionType::IrvTieBreak
+                        && r.status == ResolutionStatus::Pending
                 });
 
                 if !resolution_exists {
@@ -1368,7 +1396,10 @@ pub async fn execute_tally_session_wrapped(
                         enriched_metadata,
                     )
                     .await?;
-                    info!("Created pending resolution {} for IRV tie-break in contest {}", resolution_id, contest_id);
+                    info!(
+                        "Created pending resolution {} for IRV tie-break in contest {}",
+                        resolution_id, contest_id
+                    );
                 }
             }
 
@@ -1376,10 +1407,8 @@ pub async fn execute_tally_session_wrapped(
             let session_ids_i32: Option<Vec<i32>> = session_ids
                 .clone()
                 .map(|values| values.into_iter().map(|int| int as i32).collect());
-            new_status.logs = append_tally_updated(
-                &new_status.logs,
-                &election_ids.clone().unwrap_or(vec![]),
-            );
+            new_status.logs =
+                append_tally_updated(&new_status.logs, &election_ids.clone().unwrap_or(vec![]));
             insert_tally_session_execution(
                 hasura_transaction,
                 &tenant_id,
@@ -1404,7 +1433,10 @@ pub async fn execute_tally_session_wrapped(
             )
             .await?;
 
-            info!("Tally paused - awaiting administrator tie-break decisions for {} contest(s)", tie_resolutions.pending.len());
+            info!(
+                "Tally paused - awaiting administrator tie-break decisions for {} contest(s)",
+                tie_resolutions.pending.len()
+            );
             return Ok(());
         }
     }
@@ -1747,4 +1779,3 @@ mod tests {
         Ok(())
     }
 }
-

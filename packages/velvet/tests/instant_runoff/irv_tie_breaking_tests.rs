@@ -107,7 +107,9 @@ fn test_full_tie_with_random_policy_completes() -> Result<()> {
             );
             let winner_id = &last_round.winner.as_ref().unwrap().id;
             assert!(
-                winner_id == "candidate_a" || winner_id == "candidate_b" || winner_id == "candidate_c",
+                winner_id == "candidate_a"
+                    || winner_id == "candidate_b"
+                    || winner_id == "candidate_c",
                 "Winner should be one of the tied candidates"
             );
         }
@@ -135,10 +137,8 @@ fn test_full_tie_with_external_policy_pauses() -> Result<()> {
     let mut runoff = RunoffStatus::initialize_runoff(&contest);
 
     // Run with external procedure policy
-    let result = runoff.run_with_policy(
-        &mut ballots_status,
-        &TieBreakingPolicy::EXTERNAL_PROCEDURE,
-    );
+    let result =
+        runoff.run_with_policy(&mut ballots_status, &TieBreakingPolicy::EXTERNAL_PROCEDURE);
 
     // Should require external input
     match result {
@@ -148,9 +148,15 @@ fn test_full_tie_with_external_policy_pauses() -> Result<()> {
             assert_eq!(tie_info.vote_counts, vec![1, 1, 1]);
 
             // Verify all candidates are tied
-            assert!(tie_info.tied_candidate_ids.contains(&"candidate_a".to_string()));
-            assert!(tie_info.tied_candidate_ids.contains(&"candidate_b".to_string()));
-            assert!(tie_info.tied_candidate_ids.contains(&"candidate_c".to_string()));
+            assert!(tie_info
+                .tied_candidate_ids
+                .contains(&"candidate_a".to_string()));
+            assert!(tie_info
+                .tied_candidate_ids
+                .contains(&"candidate_b".to_string()));
+            assert!(tie_info
+                .tied_candidate_ids
+                .contains(&"candidate_c".to_string()));
         }
         RunoffResult::Completed(_) => {
             panic!("EXTERNAL_PROCEDURE policy should pause on tie");
@@ -175,10 +181,8 @@ fn test_no_tie_with_external_policy_completes() -> Result<()> {
     let mut ballots_status = BallotsStatus::initialize_ballots_status(&votes, &contest);
     let mut runoff = RunoffStatus::initialize_runoff(&contest);
 
-    let result = runoff.run_with_policy(
-        &mut ballots_status,
-        &TieBreakingPolicy::EXTERNAL_PROCEDURE,
-    );
+    let result =
+        runoff.run_with_policy(&mut ballots_status, &TieBreakingPolicy::EXTERNAL_PROCEDURE);
 
     // Should complete normally without pausing
     match result {
@@ -209,10 +213,8 @@ fn test_apply_external_tie_decision() -> Result<()> {
     let mut ballots_status = BallotsStatus::initialize_ballots_status(&votes, &contest);
     let mut runoff = RunoffStatus::initialize_runoff(&contest);
 
-    let result = runoff.run_with_policy(
-        &mut ballots_status,
-        &TieBreakingPolicy::EXTERNAL_PROCEDURE,
-    );
+    let result =
+        runoff.run_with_policy(&mut ballots_status, &TieBreakingPolicy::EXTERNAL_PROCEDURE);
 
     // Get the paused state
     let mut paused_state = match result {
@@ -243,10 +245,7 @@ fn test_apply_external_tie_decision_invalid_candidate() -> Result<()> {
     let mut contest = create_test_contest_3_candidates();
     contest.tie_breaking_policy = Some(TieBreakingPolicy::EXTERNAL_PROCEDURE);
 
-    let votes = vec![
-        create_vote(&["a", "b", "c"]),
-        create_vote(&["b", "c", "a"]),
-    ];
+    let votes = vec![create_vote(&["a", "b", "c"]), create_vote(&["b", "c", "a"])];
 
     let mut ballots_status = BallotsStatus::initialize_ballots_status(&votes, &contest);
     let mut runoff = RunoffStatus::initialize_runoff(&contest);
@@ -277,10 +276,8 @@ fn test_resume_after_external_decision() -> Result<()> {
     let mut runoff = RunoffStatus::initialize_runoff(&contest);
 
     // First run - pause on tie
-    let result = runoff.run_with_policy(
-        &mut ballots_status,
-        &TieBreakingPolicy::EXTERNAL_PROCEDURE,
-    );
+    let result =
+        runoff.run_with_policy(&mut ballots_status, &TieBreakingPolicy::EXTERNAL_PROCEDURE);
 
     let mut paused_state = match result {
         RunoffResult::RequiresExternalInput { state, .. } => state,
@@ -291,14 +288,17 @@ fn test_resume_after_external_decision() -> Result<()> {
     paused_state.apply_external_tie_decision("candidate_b")?;
 
     // Resume - should complete now
-    let result2 = paused_state.run_with_policy(
-        &mut ballots_status,
-        &TieBreakingPolicy::EXTERNAL_PROCEDURE,
-    );
+    let result2 =
+        paused_state.run_with_policy(&mut ballots_status, &TieBreakingPolicy::EXTERNAL_PROCEDURE);
 
     match result2 {
         RunoffResult::Completed(final_state) => {
-            let winner = final_state.get_last_round().unwrap().winner.as_ref().unwrap();
+            let winner = final_state
+                .get_last_round()
+                .unwrap()
+                .winner
+                .as_ref()
+                .unwrap();
             assert_eq!(winner.id, "candidate_b");
         }
         _ => panic!("Should complete after applying decision"),

@@ -349,9 +349,7 @@ pub async fn append_tally_session_tie_break_annotation(
     .await?;
 
     // Get existing annotations or create new object
-    let mut annotations = current_session
-        .annotations
-        .unwrap_or(serde_json::json!({}));
+    let mut annotations = current_session.annotations.unwrap_or(serde_json::json!({}));
 
     // Merge tie_break data as a JSON object
     if let Some(obj) = annotations.as_object_mut() {
