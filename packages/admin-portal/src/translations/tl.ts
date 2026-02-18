@@ -287,6 +287,7 @@ const tagalogTranslation: TranslationType = {
                 name: "Pangalan",
                 alias: "Alias",
                 description: "Paglalarawan",
+                externalId: "Panlabas na ID",
                 startDateTime: "Petsa at Oras ng Pagsisimula",
                 endDateTime: "Petsa at Oras ng Pagtatapos",
                 language: "Wika",

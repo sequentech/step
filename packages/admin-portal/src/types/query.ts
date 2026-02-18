@@ -304,6 +304,7 @@ export const sequent_backend_election: Sequent_Backend_Election = {
     description: undefined,
     election_event_id: "",
     eml: undefined,
+    external_id: undefined,
     id: "",
     image_document_id: undefined,
     is_consolidated_ballot_encoding: undefined,
@@ -604,7 +605,7 @@ export const COLUMNS_MAP: {[key: string]: Array<string>} = {
     sequent_backend_election: [
         ...Object.keys(sequent_backend_election),
         "keys_ceremony_id",
-        "name@_ilike,alias@_ilike",
+        "external_id",
     ],
     sequent_backend_election_event: Object.keys(sequent_backend_election_event),
     sequent_backend_election_result: Object.keys(sequent_backend_election_result),

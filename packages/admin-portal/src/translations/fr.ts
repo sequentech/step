@@ -285,6 +285,7 @@ const frenchTranslation: TranslationType = {
                 name: "Nom",
                 alias: "Alias",
                 description: "Description",
+                externalId: "ID externe",
                 startDateTime: "Date et heure de début",
                 endDateTime: "Date et heure de fin",
                 language: "Langue",

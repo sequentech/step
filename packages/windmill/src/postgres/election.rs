@@ -32,6 +32,7 @@ impl TryFrom<Row> for ElectionWrapper {
             presentation: item.try_get("presentation")?,
             status: item.try_get("status")?,
             eml: item.try_get("eml")?,
+            external_id: item.try_get("external_id")?,
             num_allowed_revotes: num_allowed_revotes.map(|val| val as i64),
             is_consolidated_ballot_encoding: item.try_get("is_consolidated_ballot_encoding")?,
             spoil_ballot_option: item.try_get("spoil_ballot_option")?,
@@ -378,6 +379,7 @@ pub async fn create_election(
     election_event_id: &str,
     presentation: &ElectionPresentation,
     description: Option<String>,
+    external_id: &str,
 ) -> Result<Election> {
     let presentation_value = serde_json::to_value(presentation)
         .map_err(|err| anyhow!("Error serializing election presentation: {err}"))?;
@@ -397,7 +399,8 @@ pub async fn create_election(
                     description,
                     presentation,
                     voting_channels,
-                    status
+                    status,
+                    external_id
                 )
                 VALUES
                 (
@@ -408,7 +411,8 @@ pub async fn create_election(
                     $3,
                     $4,
                     $5,
-                    $6
+                    $6,
+                    $7
                 )
                 RETURNING *;
             "#,
@@ -425,6 +429,7 @@ pub async fn create_election(
                 &presentation_value,
                 &voting_channels_value,
                 &status,
+                &external_id,
             ],
         )
         .await
@@ -482,7 +487,8 @@ pub async fn insert_elections(
                     receipts,
                     permission_label,
                     keys_ceremony_id,
-                    initialization_report_generated
+                    initialization_report_generated,
+                    external_id
                 )
                 VALUES
                 (
@@ -507,7 +513,8 @@ pub async fn insert_elections(
                     $17,
                     $18,
                     $19,
-                    $20
+                    $20,
+                    $21
                 );
             "#,
             )
@@ -539,10 +546,11 @@ pub async fn insert_elections(
                     &election.permission_label,
                     &keys_ceremony_id_uuid_opt,
                     &election.initialization_report_generated,
+                    &election.external_id,
                 ],
             )
             .await
-            .map_err(|err| anyhow!("Error running the document query: {err}"))?;
+            .map_err(|err| anyhow!("Error running the insert election query: {err}"))?;
     }
 
     Ok(())

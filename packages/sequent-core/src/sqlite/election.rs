@@ -30,6 +30,7 @@ pub async fn create_election_sqlite(
             num_allowed_revotes INTEGER,
             is_consolidated_ballot_encoding BOOLEAN,
             spoil_ballot_option BOOLEAN,
+            external_id TEXT,
             voting_channels TEXT,
             is_kiosk BOOLEAN DEFAULT FALSE,
             image_document_id TEXT,
@@ -46,14 +47,14 @@ pub async fn create_election_sqlite(
                 id, tenant_id, election_event_id, created_at, last_updated_at, labels,
                 annotations, description, presentation, status, eml,
                 num_allowed_revotes, is_consolidated_ballot_encoding, spoil_ballot_option,
-                voting_channels, is_kiosk, image_document_id, statistics,
+                external_id, voting_channels, is_kiosk, image_document_id, statistics,
                 receipts, permission_label, keys_ceremony_id, initialization_report_generated
             ) VALUES (
                 ?1, ?2, ?3, ?4, ?5, ?6,
                 ?7, ?8, ?9, ?10, ?11, ?12,
                 ?13, ?14, ?15,
                 ?16, ?17, ?18, ?19, ?20,
-                ?21, ?22
+                ?21, ?22, ?23
             )",
     )?;
 
@@ -83,7 +84,7 @@ pub async fn create_election_sqlite(
                 .presentation
                 .as_ref()
                 .and_then(|v| to_string(v).ok()),
-            // 1
+            // 10
             election.status.as_ref().and_then(|v| to_string(v).ok()),
             // 11
             election.eml,
@@ -94,23 +95,25 @@ pub async fn create_election_sqlite(
             // 14
             election.spoil_ballot_option,
             // 15
+            election.external_id,
+            // 16
             election
                 .voting_channels
                 .as_ref()
                 .and_then(|v| to_string(v).ok()),
-            // 16
-            election.is_kiosk.unwrap_or(false),
             // 17
-            election.image_document_id,
+            election.is_kiosk.unwrap_or(false),
             // 18
-            election.statistics.as_ref().and_then(|v| to_string(v).ok()),
+            election.image_document_id,
             // 19
-            election.receipts.as_ref().and_then(|v| to_string(v).ok()),
+            election.statistics.as_ref().and_then(|v| to_string(v).ok()),
             // 20
-            election.permission_label,
+            election.receipts.as_ref().and_then(|v| to_string(v).ok()),
             // 21
-            election.keys_ceremony_id,
+            election.permission_label,
             // 22
+            election.keys_ceremony_id,
+            // 23
             election.initialization_report_generated,
         ])?;
     }

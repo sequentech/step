@@ -21,6 +21,7 @@ import {
     IContest,
     IElection,
     ICandidate,
+    translateFromPresentation,
 } from "@sequentech/ui-core"
 import SearchIcon from "@mui/icons-material/Search"
 import {
@@ -473,9 +474,11 @@ export default function ElectionEvents() {
     const transformElectionEvent = (electionEvent: ElectionEventType): ElectionEventType => {
         return {
             ...electionEvent,
-            name: aliasRenderer(electionEvent),
+            name: translateFromPresentation(electionEvent, "name", i18n.language) ?? "-",
+            alias: aliasRenderer(electionEvent),
         }
     }
+
     const transformElectionsForSort = (elections: ElectionType[]): IElection[] => {
         return elections.map((election) => {
             return {
@@ -483,7 +486,8 @@ export default function ElectionEvents() {
                 tenant_id: tenantId || "",
                 image_document_id: election.image_document_id ?? "",
                 contests: [],
-                name: aliasRenderer(election),
+                name: translateFromPresentation(election, "name", i18n.language) ?? "-",
+                alias: aliasRenderer(election),
             }
         })
     }
@@ -498,6 +502,8 @@ export default function ElectionEvents() {
                 min_votes: 0,
                 winning_candidates_num: 0,
                 is_encrypted: false,
+                name: translateFromPresentation(contest, "name", i18n.language) ?? "-",
+                alias: aliasRenderer(contest),
             }
         })
     }
@@ -509,6 +515,8 @@ export default function ElectionEvents() {
                 id: candidate.id,
                 election_id: electionId || "",
                 tenant_id: tenantId || "",
+                name: translateFromPresentation(candidate, "name", i18n.language) ?? "-",
+                alias: aliasRenderer(candidate),
             }
         })
     }

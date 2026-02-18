@@ -9201,6 +9201,20 @@
                 "defaultValue": null
               },
               {
+                "name": "external_id",
+                "description": null,
+                "type": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "kind": "SCALAR",
+                    "name": "String",
+                    "ofType": null
+                  }
+                },
+                "defaultValue": null
+              },
+              {
                 "name": "presentation",
                 "description": null,
                 "type": {
@@ -56284,6 +56298,18 @@
             "deprecationReason": null
           },
           {
+            "name": "external_id",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "id",
             "description": null,
             "args": [],
@@ -57424,6 +57450,16 @@
             "defaultValue": null
           },
           {
+            "name": "external_id",
+            "description": null,
+            "type": {
+              "kind": "INPUT_OBJECT",
+              "name": "String_comparison_exp",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
             "name": "id",
             "description": null,
             "type": {
@@ -57606,6 +57642,12 @@
         "inputFields": null,
         "interfaces": null,
         "enumValues": [
+          {
+            "name": "election_election_event_id_external_id_key",
+            "description": "unique or primary key constraint on columns \"external_id\", \"election_event_id\"",
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
           {
             "name": "election_pkey",
             "description": "unique or primary key constraint on columns \"id\", \"tenant_id\", \"election_event_id\"",
@@ -60871,6 +60913,16 @@
             "defaultValue": null
           },
           {
+            "name": "external_id",
+            "description": null,
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
             "name": "id",
             "description": null,
             "type": {
@@ -61099,6 +61151,18 @@
             "deprecationReason": null
           },
           {
+            "name": "external_id",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "id",
             "description": null,
             "args": [],
@@ -61235,6 +61299,16 @@
             "defaultValue": null
           },
           {
+            "name": "external_id",
+            "description": null,
+            "type": {
+              "kind": "ENUM",
+              "name": "order_by",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
             "name": "id",
             "description": null,
             "type": {
@@ -61352,6 +61426,18 @@
           },
           {
             "name": "eml",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "external_id",
             "description": null,
             "args": [],
             "type": {
@@ -61490,6 +61576,16 @@
           },
           {
             "name": "eml",
+            "description": null,
+            "type": {
+              "kind": "ENUM",
+              "name": "order_by",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
+            "name": "external_id",
             "description": null,
             "type": {
               "kind": "ENUM",
@@ -61739,6 +61835,16 @@
           },
           {
             "name": "eml",
+            "description": null,
+            "type": {
+              "kind": "ENUM",
+              "name": "order_by",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
+            "name": "external_id",
             "description": null,
             "type": {
               "kind": "ENUM",
@@ -63994,6 +64100,12 @@
             "deprecationReason": null
           },
           {
+            "name": "external_id",
+            "description": "column name",
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "id",
             "description": "column name",
             "isDeprecated": false,
@@ -64216,6 +64328,16 @@
           },
           {
             "name": "eml",
+            "description": null,
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
+            "name": "external_id",
             "description": null,
             "type": {
               "kind": "SCALAR",
@@ -64614,6 +64736,16 @@
           },
           {
             "name": "eml",
+            "description": null,
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
+            "name": "external_id",
             "description": null,
             "type": {
               "kind": "SCALAR",
@@ -66293,6 +66425,12 @@
           },
           {
             "name": "eml",
+            "description": "column name",
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "external_id",
             "description": "column name",
             "isDeprecated": false,
             "deprecationReason": null

@@ -571,6 +571,7 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
 
     const formattedElections = electionsList?.map((e) => {
         return {
+            external_id: e.external_id ?? "",
             id: e.id,
             name: aliasRenderer(e),
         }
@@ -755,7 +756,7 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                                 fullWidth
                                 choices={formattedElections || []}
                                 source="attributes.authorized-election-ids"
-                                optionValue={"name"}
+                                optionValue={"external_id"}
                                 optionText={"name"}
                                 onChange={handleArraySelectChange}
                                 disabled={

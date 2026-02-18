@@ -21,6 +21,7 @@ use windmill::services::import::import_election_event::upsert_b3_and_elog;
 #[derive(Serialize, Deserialize, Debug)]
 pub struct CreateElectionInput {
     election_event_id: String,
+    external_id: String,
     presentation: ElectionPresentation,
     description: Option<String>,
 }
@@ -60,6 +61,7 @@ pub async fn create_election(
         &body.election_event_id,
         &body.presentation,
         body.description.clone(),
+        &body.external_id,
     )
     .await
     .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;

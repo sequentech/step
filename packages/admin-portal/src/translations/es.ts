@@ -286,6 +286,7 @@ const spanishTranslation: TranslationType = {
                 name: "Nombre",
                 alias: "Alias",
                 description: "Descripción",
+                externalId: "ID externo",
                 startDateTime: "Fecha y hora de inicio",
                 endDateTime: "Fecha y hora de finalización",
                 language: "Idioma",

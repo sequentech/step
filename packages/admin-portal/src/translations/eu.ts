@@ -286,6 +286,7 @@ const basqueTranslation: TranslationType = {
                 name: "Izena",
                 alias: "Ezizena",
                 description: "Deskribapena",
+                externalId: "Kanpoko IDa",
                 startDateTime: "Hasiera Data eta Ordua",
                 endDateTime: "Amaiera Data eta Ordua",
                 language: "Hizkuntza",

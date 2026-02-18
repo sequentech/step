@@ -107,6 +107,7 @@ pub struct Election {
     pub presentation: Option<Value>,
     pub status: Option<Value>,
     pub eml: Option<String>,
+    pub external_id: Option<String>,
     pub num_allowed_revotes: Option<i64>,
     pub is_consolidated_ballot_encoding: Option<bool>,
     pub spoil_ballot_option: Option<bool>,

@@ -22,6 +22,7 @@ export const GET_ELECTIONS = gql`
             tenant_id
             permission_label
             initialization_report_generated
+            external_id
         }
     }
 `

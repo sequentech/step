@@ -607,6 +607,11 @@ export const ElectionDataForm: React.FC = () => {
                                 </ElectionStyles.Wrapper>
                             </AccordionSummary>
                             <AccordionDetails>
+                                <TextInput
+                                    source="external_id"
+                                    label={String(t("electionEventScreen.field.externalId"))}
+                                    readOnly={record.external_id !== undefined}
+                                />
                                 <Tabs value={value} onChange={handleChange}>
                                     {renderTabs(parsedValue)}
                                 </Tabs>

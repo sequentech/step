@@ -66,6 +66,7 @@ export const GET_TALLY_DATA = gql`
             election_event_id
             description
             created_at
+            external_id
         }
         sequent_backend_candidate(
             where: {

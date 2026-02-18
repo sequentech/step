@@ -286,6 +286,7 @@ const galegoTranslation: TranslationType = {
                 name: "Nome",
                 alias: "Alias",
                 description: "Descrición",
+                externalId: "ID externo",
                 startDateTime: "Data e Hora de Inicio",
                 endDateTime: "Data e Hora de Fin",
                 language: "Idioma",
