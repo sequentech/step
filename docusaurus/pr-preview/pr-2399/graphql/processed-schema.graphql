@@ -1006,7 +1006,7 @@ type mutation_root {
   createScheduledEvent(created_by: String, cron_config: String, election_event_id: uuid, event_payload: jsonb!, event_processor: String!, tenant_id: String!): ScheduledEventOutput3
   """create_ballot_receipt"""
   create_ballot_receipt(ballot_id: String!, ballot_tracker_url: String!, election_event_id: uuid!, election_id: uuid!, tenant_id: uuid!): createBallotReceiptOutput
-  create_election(description: String, election_event_id: String!, presentation: jsonb): CreateElectionOutput
+  create_election(description: String, election_event_id: String!, external_id: String!, presentation: jsonb): CreateElectionOutput
   """create keys ceremony"""
   create_keys_ceremony(object: CreateKeysCeremonyInput!): CreateKeysCeremonyOutput
   create_permission(body: CreatePermissionInput!): KeycloakPermission
@@ -9006,6 +9006,7 @@ type election {
   description: String
   election_event_id: uuid!
   eml: String
+  external_id: String
   id: uuid!
   image_document_id: String
   initialization_report_generated: Boolean
@@ -9158,6 +9159,7 @@ input election_bool_exp {
   description: String_comparison_exp
   election_event_id: uuid_comparison_exp
   eml: String_comparison_exp
+  external_id: String_comparison_exp
   id: uuid_comparison_exp
   image_document_id: String_comparison_exp
   initialization_report_generated: Boolean_comparison_exp
@@ -9181,6 +9183,10 @@ input election_bool_exp {
 unique or primary key constraints on table "sequent_backend.election"
 """
 enum election_constraint {
+  """
+  unique or primary key constraint on columns "external_id", "election_event_id"
+  """
+  election_election_event_id_external_id_key
   """
   unique or primary key constraint on columns "id", "tenant_id", "election_event_id"
   """
@@ -9694,6 +9700,7 @@ input election_insert_input {
   description: String
   election_event_id: uuid
   eml: String
+  external_id: String
   id: uuid
   image_document_id: String
   initialization_report_generated: Boolean
@@ -9719,6 +9726,7 @@ type election_max_fields {
   description: String
   election_event_id: uuid
   eml: String
+  external_id: String
   id: uuid
   image_document_id: String
   keys_ceremony_id: uuid
@@ -9736,6 +9744,7 @@ input election_max_order_by {
   description: order_by
   election_event_id: order_by
   eml: order_by
+  external_id: order_by
   id: order_by
   image_document_id: order_by
   keys_ceremony_id: order_by
@@ -9751,6 +9760,7 @@ type election_min_fields {
   description: String
   election_event_id: uuid
   eml: String
+  external_id: String
   id: uuid
   image_document_id: String
   keys_ceremony_id: uuid
@@ -9768,6 +9778,7 @@ input election_min_order_by {
   description: order_by
   election_event_id: order_by
   eml: order_by
+  external_id: order_by
   id: order_by
   image_document_id: order_by
   keys_ceremony_id: order_by
@@ -9804,6 +9815,7 @@ input election_order_by {
   description: order_by
   election_event_id: order_by
   eml: order_by
+  external_id: order_by
   id: order_by
   image_document_id: order_by
   initialization_report_generated: order_by
@@ -10183,6 +10195,8 @@ enum election_select_column {
   """column name"""
   eml
   """column name"""
+  external_id
+  """column name"""
   id
   """column name"""
   image_document_id
@@ -10255,6 +10269,7 @@ input election_set_input {
   description: String
   election_event_id: uuid
   eml: String
+  external_id: String
   id: uuid
   image_document_id: String
   initialization_report_generated: Boolean
@@ -10327,6 +10342,7 @@ input election_stream_cursor_value_input {
   description: String
   election_event_id: uuid
   eml: String
+  external_id: String
   id: uuid
   image_document_id: String
   initialization_report_generated: Boolean
@@ -10636,6 +10652,8 @@ enum election_update_column {
   election_event_id
   """column name"""
   eml
+  """column name"""
+  external_id
   """column name"""
   id
   """column name"""
