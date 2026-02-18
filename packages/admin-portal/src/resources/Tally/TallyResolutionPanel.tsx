@@ -62,6 +62,11 @@ export const TallyResolutionPanel: React.FC<TallyResolutionPanelProps> = ({
         SubmitResolutionMutationVariables
     >(SUBMIT_TALLY_RESOLUTION)
 
+    // The DB column contest_id references results_contest.id (FK), not contest.id.
+    // The actual contest_id is stored in resolution_data.contest_id by windmill.
+    const getContestId = (r: Sequent_Backend_Tally_Session_Resolution): string | undefined =>
+        r.resolution_data?.contest_id ?? r.contest_id ?? undefined
+
     // Fetch resolutions directly — ra-data-hasura does not include nested
     // relationships in useGetOne queries, so we query this table separately.
     const {data: allResolutions} = useGetList<Sequent_Backend_Tally_Session_Resolution>(
@@ -108,7 +113,8 @@ export const TallyResolutionPanel: React.FC<TallyResolutionPanelProps> = ({
     const allContestIds = useMemo(() => {
         const ids = new Set<string>()
         for (const r of [...latestPendingResolutions, ...resolvedResolutions]) {
-            if (r.contest_id) ids.add(r.contest_id)
+            const cid = getContestId(r)
+            if (cid) ids.add(cid)
         }
         return Array.from(ids)
     }, [latestPendingResolutions, resolvedResolutions])
@@ -138,13 +144,11 @@ export const TallyResolutionPanel: React.FC<TallyResolutionPanelProps> = ({
         [allResolutions, selectedResolutionId]
     )
 
-    const selectedContestName = useMemo(
-        () =>
-            contests.find((c) => c.id === selectedResolution?.contest_id)?.name ??
-            selectedResolution?.contest_id ??
-            "",
-        [contests, selectedResolution]
-    )
+    const selectedContestName = useMemo(() => {
+        if (!selectedResolution) return ""
+        const cid = getContestId(selectedResolution)
+        return contests.find((c) => c.id === cid)?.name ?? cid ?? ""
+    }, [contests, selectedResolution])
 
     const tiedCandidatesForSelected = useMemo(() => {
         if (!selectedResolution?.resolution_data) return []
@@ -198,8 +202,8 @@ export const TallyResolutionPanel: React.FC<TallyResolutionPanelProps> = ({
         resolution: Sequent_Backend_Tally_Session_Resolution,
         isPending: boolean
     ) => {
-        const contestName =
-            contests.find((c) => c.id === resolution.contest_id)?.name ?? resolution.contest_id
+        const cid = getContestId(resolution)
+        const contestName = contests.find((c) => c.id === cid)?.name ?? cid
         const isSelected = selectedResolutionId === resolution.id
         const isDecided = !!(
             isPending &&

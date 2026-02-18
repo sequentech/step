@@ -1169,15 +1169,17 @@ export const TallyCeremony: React.FC = () => {
                                 </WizardStyles.AccordionDetails>
                             </Accordion>
 
-                            {tally?.election_event_id && contests && (
-                                <TallyResolutionPanel
-                                    tallySession={tally}
-                                    contests={contests}
-                                    electionEventId={tally.election_event_id}
-                                    tenantId={tenantId}
-                                    onResolutionSubmitted={refetchTallySession}
-                                />
-                            )}
+                            {tally?.execution_status === ITallyExecutionStatus.AWAITING_INPUT &&
+                                tally?.election_event_id &&
+                                contests && (
+                                    <TallyResolutionPanel
+                                        tallySession={tally}
+                                        contests={contests}
+                                        electionEventId={tally.election_event_id}
+                                        tenantId={tenantId}
+                                        onResolutionSubmitted={refetchTallySession}
+                                    />
+                                )}
                         </>
                     )}
                 </WizardStyles.WizardWrapper>
