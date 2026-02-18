@@ -1331,8 +1331,12 @@ const catalanTranslation: TranslationType = {
                 "plurality-at-large": "Majoria Plural",
                 "instant-runoff": "Segona Volta Instantània",
                 "random": "Aleatòries",
+                "external-procedure": "Procediment extern",
                 "custom": "Personalitzat",
                 "alphabetical": "Alfabètic",
+            },
+            tieBreakingPolicy: {
+                label: "Política de desempat",
             },
             auditButtonConfig: {
                 "label": "Opció de visualització del botó d'auditoria",

@@ -472,16 +472,6 @@ pub async fn submit_tally_resolution(
                 ),
             ))?;
 
-        // Check if this is a re-submission
-        if latest_resolution.status == ResolutionStatus::Resolved {
-            has_previous_resolutions = true;
-            event!(
-                Level::INFO,
-                "Re-submission detected for contest {} - creating new resolution",
-                tie_resolution.contest_id
-            );
-        }
-
         // Validate selected candidate is in tied candidates
         let tied_candidates = latest_resolution
             .resolution_data
@@ -512,44 +502,54 @@ pub async fn submit_tally_resolution(
             ));
         }
 
-        // Create new resolution row (supports re-submission)
-        let new_resolution_id = create_tally_session_resolution(
-            &hasura_transaction,
-            &tenant_id,
-            &input.election_event_id,
-            &input.tally_session_id,
-            &tie_resolution.contest_id,
-            latest_resolution.results_event_id.as_ref().ok_or((
-                Status::InternalServerError,
-                "Missing results_event_id in resolution".to_string(),
-            ))?,
-            ResolutionType::IrvTieBreak,
-            serde_json::json!({
-                "round_number": latest_resolution.resolution_data.get("round_number"),
-                "tied_candidate_ids": latest_resolution.resolution_data.get("tied_candidate_ids"),
-                "vote_counts": latest_resolution.resolution_data.get("vote_counts"),
-            }),
-        )
-        .await
-        .map_err(|e| {
-            (
-                Status::InternalServerError,
-                format!("Error creating resolution: {}", e),
-            )
-        })?;
-
-        // Immediately mark the new resolution as resolved
-        let resolution = serde_json::json!({
+        let resolution_value = serde_json::json!({
             "resolved_by_candidate_id": tie_resolution.selected_candidate_id,
             "resolved_at": chrono::Utc::now().to_rfc3339(),
         });
+
+        let resolution_id_to_submit = if latest_resolution.status == ResolutionStatus::Pending {
+            // First submission: resolve the existing pending record directly
+            latest_resolution.id.clone()
+        } else {
+            // Re-submission: admin changed their mind — create a new record
+            has_previous_resolutions = true;
+            event!(
+                Level::INFO,
+                "Re-submission detected for contest {} - creating new resolution",
+                tie_resolution.contest_id
+            );
+            create_tally_session_resolution(
+                &hasura_transaction,
+                &tenant_id,
+                &input.election_event_id,
+                &input.tally_session_id,
+                &tie_resolution.contest_id,
+                latest_resolution.results_event_id.as_ref().ok_or((
+                    Status::InternalServerError,
+                    "Missing results_event_id in resolution".to_string(),
+                ))?,
+                ResolutionType::IrvTieBreak,
+                serde_json::json!({
+                    "round_number": latest_resolution.resolution_data.get("round_number"),
+                    "tied_candidate_ids": latest_resolution.resolution_data.get("tied_candidate_ids"),
+                    "vote_counts": latest_resolution.resolution_data.get("vote_counts"),
+                }),
+            )
+            .await
+            .map_err(|e| {
+                (
+                    Status::InternalServerError,
+                    format!("Error creating resolution: {}", e),
+                )
+            })?
+        };
 
         submit_resolution(
             &hasura_transaction,
             &tenant_id,
             &input.election_event_id,
-            &new_resolution_id,
-            resolution,
+            &resolution_id_to_submit,
+            resolution_value,
             &user_id,
         )
         .await
@@ -565,7 +565,7 @@ pub async fn submit_tally_resolution(
             "event_type": "tally_tie_resolved",
             "tally_session_id": input.tally_session_id,
             "contest_id": tie_resolution.contest_id,
-            "resolution_id": new_resolution_id,
+            "resolution_id": resolution_id_to_submit,
             "round_number": latest_resolution.resolution_data.get("round_number"),
             "tied_candidate_ids": latest_resolution.resolution_data.get("tied_candidate_ids"),
             "resolved_by_candidate_id": tie_resolution.selected_candidate_id.clone(),

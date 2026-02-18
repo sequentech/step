@@ -1322,8 +1322,12 @@ const tagalogTranslation: TranslationType = {
                 "plurality-at-large": "Pluralidad sa Lahat",
                 "instant-runoff": "Instant Runoff",
                 "random": "Random",
+                "external-procedure": "External Procedure",
                 "custom": "Pasadya",
                 "alphabetical": "Alpabetikal",
+            },
+            tieBreakingPolicy: {
+                label: "Patakaran sa Tie-Breaking",
             },
             auditButtonConfig: {
                 "label": "Mga Opsyon sa Pagpahiling kan Buton nin Pag-audit",

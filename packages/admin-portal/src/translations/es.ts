@@ -1322,8 +1322,12 @@ const spanishTranslation: TranslationType = {
                 "plurality-at-large": "Mayoría Plural",
                 "instant-runoff": "Segunda Vuelta Instantánea",
                 "random": "Aleatorias",
+                "external-procedure": "Procedimiento externo",
                 "custom": "Personalizado",
                 "alphabetical": "Alfabético",
+            },
+            tieBreakingPolicy: {
+                label: "Política de desempate",
             },
             auditButtonConfig: {
                 "label": "Opciones de visualización del botón de auditoría",

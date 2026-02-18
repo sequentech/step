@@ -993,7 +993,10 @@ export const TallyCeremony: React.FC = () => {
 
                             <Accordion
                                 sx={{width: "100%"}}
-                                expanded={expandedData["tally-data-results"]}
+                                expanded={
+                                    expandedData["tally-data-results"] ||
+                                    tally?.execution_status === ITallyExecutionStatus.AWAITING_INPUT
+                                }
                                 onChange={() =>
                                     setExpandedData((prev: IExpanded) => ({
                                         ...prev,
@@ -1169,8 +1172,7 @@ export const TallyCeremony: React.FC = () => {
                                 </WizardStyles.AccordionDetails>
                             </Accordion>
 
-                            {tally?.execution_status === ITallyExecutionStatus.AWAITING_INPUT &&
-                                tally?.election_event_id &&
+                            {tally?.election_event_id &&
                                 contests && (
                                     <TallyResolutionPanel
                                         tallySession={tally}

@@ -18,7 +18,7 @@ use crate::postgres::tally_session_contest::update_tally_session_contests_annota
 use crate::postgres::tally_session_execution::insert_tally_session_execution;
 use crate::postgres::tally_session_resolution::{
     create_tally_session_resolution, get_pending_resolutions, get_resolution_by_tally_session,
-    submit_resolution, ResolutionStatus, ResolutionType,
+    ResolutionStatus, ResolutionType,
 };
 use crate::postgres::tally_sheet::get_published_tally_sheets_by_event;
 use crate::postgres::template::get_template_by_alias;
@@ -107,18 +107,16 @@ use uuid::Uuid;
 struct TieResolutionMetadata {
     // Vec of (results_contest_id, contest_id, tie_metadata)
     pending: Vec<(String, String, serde_json::Value)>,
-    resolved: Vec<(String, String, serde_json::Value)>,
 }
 
-/// Checks if the results contain tie resolution metadata (both pending and resolved)
-/// Returns the tie metadata if found, grouped by contest_id
+/// Checks if the results contain pending tie resolution metadata and returns them.
+/// Resolved ties are tracked in tally_session_resolution by harvest — not created here.
 async fn check_for_tie_resolutions(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
     election_event_id: &str,
     results_event_id: &str,
 ) -> AnyhowResult<TieResolutionMetadata> {
-    // Query results_contest table to check annotations for process_results tie resolution metadata
     let query = r#"
         SELECT id, contest_id, annotations
         FROM sequent_backend.results_contest
@@ -126,7 +124,7 @@ async fn check_for_tie_resolutions(
           AND election_event_id = $2
           AND results_event_id = $3
           AND annotations IS NOT NULL
-          AND annotations->>'process_results' IS NOT NULL
+          AND annotations->'process_results'->>'pending_tie_resolution' IS NOT NULL
     "#;
 
     let rows = hasura_transaction
@@ -141,7 +139,6 @@ async fn check_for_tie_resolutions(
         .await?;
 
     let mut pending = Vec::new();
-    let mut resolved = Vec::new();
 
     for row in rows {
         // results_contest.id is what tally_session_resolution.contest_id FK references
@@ -154,32 +151,18 @@ async fn check_for_tie_resolutions(
 
         if let Some(process_results) = annotations.get("process_results") {
             if let Some(obj) = process_results.as_object() {
-                // Check for pending tie resolution
                 if let Some(tie_metadata) = obj.get("pending_tie_resolution") {
                     pending.push((
-                        results_contest_id_str.clone(),
-                        contest_id_str.clone(),
+                        results_contest_id_str,
+                        contest_id_str,
                         tie_metadata.clone(),
                     ));
-                }
-
-                // Check for resolved tie resolutions
-                if let Some(resolved_ties) = obj.get("resolved_tie_resolutions") {
-                    if let Some(array) = resolved_ties.as_array() {
-                        for tie in array {
-                            resolved.push((
-                                results_contest_id_str.clone(),
-                                contest_id_str.clone(),
-                                tie.clone(),
-                            ));
-                        }
-                    }
                 }
             }
         }
     }
 
-    Ok(TieResolutionMetadata { pending, resolved })
+    Ok(TieResolutionMetadata { pending })
 }
 
 #[instrument(skip_all, err)]
@@ -1289,66 +1272,6 @@ pub async fn execute_tally_session_wrapped(
             results_event_id_str,
         )
         .await?;
-
-        // Handle resolved tie resolutions (random or external procedure)
-        if !tie_resolutions.resolved.is_empty() {
-            info!(
-                "Detected {} resolved tie resolution(s) in results - creating resolution records",
-                tie_resolutions.resolved.len()
-            );
-
-            for (results_contest_id, contest_id, tie_resolution) in &tie_resolutions.resolved {
-                // Create resolution record with status "resolved"
-                let resolution_data = serde_json::json!({
-                    "round_number": tie_resolution.get("round_number"),
-                    "tied_candidate_ids": tie_resolution.get("tied_candidate_ids"),
-                    "vote_counts": tie_resolution.get("vote_counts"),
-                    "method_used": tie_resolution.get("method_used"),
-                });
-
-                // FK references results_contest.id, so pass results_contest_id
-                let resolution_id = create_tally_session_resolution(
-                    hasura_transaction,
-                    &tenant_id,
-                    &election_event_id,
-                    &tally_session_id,
-                    results_contest_id,
-                    results_event_id_str,
-                    ResolutionType::IrvTieBreak,
-                    resolution_data.clone(),
-                )
-                .await?;
-
-                // Immediately mark it as resolved
-                let resolution_value = serde_json::json!({
-                    "resolved_by_candidate_id": tie_resolution.get("resolved_by_candidate_id"),
-                    "method_used": tie_resolution.get("method_used"),
-                });
-
-                // Get executer_user_id for the resolution
-                let executer_user_id = tally_session
-                    .annotations
-                    .as_ref()
-                    .and_then(|a| a.get("executer_user_id"))
-                    .and_then(|v| v.as_str())
-                    .unwrap_or("00000000-0000-0000-0000-000000000000");
-
-                submit_resolution(
-                    hasura_transaction,
-                    &tenant_id,
-                    &election_event_id,
-                    &resolution_id,
-                    resolution_value,
-                    executer_user_id,
-                )
-                .await?;
-
-                info!(
-                    "Created and resolved resolution {} for IRV tie-break in contest {}",
-                    resolution_id, contest_id
-                );
-            }
-        }
 
         // Handle pending tie resolutions (external procedure requiring input).
         // Skip when has_resolved_tie_break is true: this is a re-run after the

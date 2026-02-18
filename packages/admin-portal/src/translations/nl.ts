@@ -1318,8 +1318,12 @@ const dutchTranslation: TranslationType = {
                 "plurality-at-large": "Meerderheidsstelsel (meervoudig)",
                 "instant-runoff": "Instant-runoff stemmen",
                 "random": "Willekeurig",
+                "external-procedure": "Externe procedure",
                 "custom": "Aangepast",
                 "alphabetical": "Alfabetisch",
+            },
+            tieBreakingPolicy: {
+                label: "Beleid voor gelijkspel",
             },
             auditButtonConfig: {
                 "label": "Weergaveopties Auditknop",

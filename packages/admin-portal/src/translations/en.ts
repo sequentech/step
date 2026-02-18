@@ -1310,8 +1310,12 @@ const englishTranslation = {
                 "plurality-at-large": "Plurality at Large",
                 "instant-runoff": "Instant Runoff",
                 "random": "Random",
+                "external-procedure": "External Procedure",
                 "custom": "Custom",
                 "alphabetical": "Alphabetical",
+            },
+            tieBreakingPolicy: {
+                label: "Tie-Breaking Policy",
             },
             auditButtonConfig: {
                 "label": "Audit Button Display Options",

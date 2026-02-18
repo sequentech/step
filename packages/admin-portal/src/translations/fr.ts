@@ -1329,8 +1329,12 @@ const frenchTranslation: TranslationType = {
                 "plurality-at-large": "Pluralité Générale",
                 "instant-runoff": "Vote à Second Tour Instantané",
                 "random": "Aléatoire",
+                "external-procedure": "Procédure externe",
                 "custom": "Personnalisé",
                 "alphabetical": "Alphabétique",
+            },
+            tieBreakingPolicy: {
+                label: "Politique de départage",
             },
             auditButtonConfig: {
                 "label": "Options d'affichage du bouton d'audit",

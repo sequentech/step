@@ -1322,8 +1322,12 @@ const galegoTranslation: TranslationType = {
                 "plurality-at-large": "Pluralidade en Xeral",
                 "instant-runoff": "Segunda Volta Instantánea",
                 "random": "Aleatorio",
+                "external-procedure": "Procedemento externo",
                 "custom": "Personalizado",
                 "alphabetical": "Alfabético",
+            },
+            tieBreakingPolicy: {
+                label: "Política de desempate",
             },
             auditButtonConfig: {
                 "label": "Opcións de Visualización do Botón de Auditoría",

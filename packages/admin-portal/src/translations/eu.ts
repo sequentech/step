@@ -1317,8 +1317,12 @@ const basqueTranslation: TranslationType = {
                 "plurality-at-large": "Pluralitatea Orokorrean",
                 "instant-runoff": "Berehalako Bigarren Itzulia",
                 "random": "Ausazkoa",
+                "external-procedure": "Kanpoko prozedura",
                 "custom": "Pertsonalizatua",
                 "alphabetical": "Alfabetikoa",
+            },
+            tieBreakingPolicy: {
+                label: "Berdinketa hausteko politika",
             },
             auditButtonConfig: {
                 "label": "Auditoria Botoi Erakutsi Aukerak",
