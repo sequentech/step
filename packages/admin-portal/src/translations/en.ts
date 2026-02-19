@@ -530,6 +530,7 @@ const englishTranslation = {
                 scheduledClosing: "Scheduled Closing",
                 alias: "Alias",
                 description: "Description",
+                externalId: "External ID",
             },
             error: {
                 fileError: "Error uploading file",

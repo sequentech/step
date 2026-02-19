@@ -115,47 +115,6 @@ impl Alias for Election {
     }
 }
 
-// fn get_name_from_i18n(
-//     i18n_ref: &Option<I18nContent<I18nContent<Option<String>>>>,
-//     language: &str,
-// ) -> Option<String> {
-//     let Some(i18n) = i18n_ref.clone() else {
-//         return None;
-//     };
-
-//     let lang_name = if let Some(lang_i18n) = i18n.get(language) {
-//         let alias = lang_i18n.get("alias").cloned().flatten();
-//         let name = lang_i18n.get("name").cloned().flatten();
-//         alias.or(name)
-//     } else {
-//         None
-//     };
-//     let default_lang_name = if let Some(def_lang_i18n) =
-// i18n.get(DEFAULT_LANG)     {
-//         let alias = def_lang_i18n.get("alias").cloned().flatten();
-//         let name = def_lang_i18n.get("name").cloned().flatten();
-//         alias.or(name)
-//     } else {
-//         None
-//     };
-//     lang_name.or(default_lang_name)
-// }
-
-// impl Name for Election {
-//     fn get_name(&self, language: &str) -> String {
-//         let base_name = self.name.clone();
-//         let Some(presentation_val) = self.presentation.clone() else {
-//             return base_name;
-//         };
-//         let Ok(presentation) =
-//             deserialize_value::<ElectionPresentation>(presentation_val)
-//         else {
-//             return base_name;
-//         };
-//         get_name_from_i18n(&presentation.i18n, language).unwrap_or(base_name)
-//     }
-// }
-
 /* ===================== Contest ===================== */
 
 impl Name for Contest {
