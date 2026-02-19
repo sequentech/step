@@ -24,7 +24,7 @@ Importing an election event is a three-step process:
 
 Before starting, ensure you have:
 
-- Completed the [API Authentication](./05-api-authentication.md) tutorial
+- Completed the [API Authentication](./04-api-authentication.md) tutorial
 - A valid election event JSON file to import
 - An authenticated access token from Keycloak
 - Python 3.8 or higher (for Python examples)
@@ -47,7 +47,7 @@ export TENANT_ID="my-tenant-123"
 export ACCESS_TOKEN="your-access-token-here"
 ```
 
-Obtain `ACCESS_TOKEN` from the [authentication tutorial](./05-api-authentication.md).
+Obtain `ACCESS_TOKEN` from the [authentication tutorial](./04-api-authentication.md).
 
 ## 1. Understanding the Workflow
 
@@ -508,7 +508,7 @@ This error indicates that at line 32, column 6 of the JSON file, the `authentica
 - Verify your access token is current
 - Refresh your token if it has expired
 - Check the `Authorization` header format: `Bearer {token}`
-- Refer to the [Authentication tutorial](./05-api-authentication.md)
+- Refer to the [Authentication tutorial](./04-api-authentication.md)
 
 ### Permission Denied
 
@@ -631,7 +631,5 @@ The import process may take time for large election events. Consider:
 Now that you can import election events via the API, explore other operations:
 
 - [GraphQL API Reference](../01-graphql-api.md) - Explore all available mutations and queries
-- [CLI Tutorials](../02-cli/02-tutorials/02-cli-tutorials-creating-an-election-event.md) - Learn about creating election events with the CLI
-- [Export Election Events](../02-cli/03-reference/01-cli_reference.md#export-election-event) - Learn how to export election events
-
-For questions or support, refer to the [Support](../../09-support/01-support.md) section.
+- [CLI Tutorials](../02-CLI/02-Tutorials/Creating-an-Election-with-the-CLI/cli_tutorials_creating-an-election-with-the-cli.md) - Learn about creating election events with the CLI
+- [CLI Reference](../02-CLI/03-Reference/01-cli_reference.md) - Learn how to export and manage election events

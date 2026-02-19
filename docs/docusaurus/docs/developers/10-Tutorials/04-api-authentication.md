@@ -424,8 +424,6 @@ Store credentials securely:
 
 Now that you can authenticate with the Sequent API, you're ready to perform operations:
 
-- [Import Election Event](./06-import-election-event.md) - Learn how to upload and import election events via the API
+- [Import Election Event](./05-import-election-event.md) - Learn how to upload and import election events via the API
 - [GraphQL API Reference](../01-graphql-api.md) - Explore available GraphQL queries and mutations
-- [CLI Tutorials](../02-cli/02-tutorials/01-cli-tutorials-getting-started.md) - Learn about the Sequent CLI tool
-
-For questions or support, refer to the [Support](../../09-support/01-support.md) section.
+- [CLI Reference](../02-CLI/01-cli_cli.md) - Learn about the Sequent CLI tool
