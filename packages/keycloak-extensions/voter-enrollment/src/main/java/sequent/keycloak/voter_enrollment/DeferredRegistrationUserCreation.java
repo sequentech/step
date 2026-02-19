@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2023-2024 Sequent Tech <legal@sequentech.io>
+// SPDX-FileCopyrightText: 2026 Sequent Tech <legal@sequentech.io>
 // SPDX-FileCopyrightText: 2016 Red Hat, Inc. and/or its affiliates
 //
 // SPDX-License-Identifier: AGPL-3.0-only
