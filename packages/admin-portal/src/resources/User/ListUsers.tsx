@@ -1024,6 +1024,14 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
             }
         }, [isFetching, filtersChanged])
 
+        const hasAuthorizedElectionIdsAttributes = useMemo(
+            () =>
+                userAttributes?.get_user_profile_attributes.find(
+                    (attr) => attr.name === AUTHORIZED_ELECTION_IDS
+                ),
+            [userAttributes?.get_user_profile_attributes]
+        )
+
         if (isLoading || (isFetching && filtersChanged)) {
             return <TableSkeleton rowCount={perPage} />
         }
@@ -1060,7 +1068,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                                 }
                             />
                         )}
-                        {electionEventId && (
+                        {electionEventId && hasAuthorizedElectionIdsAttributes && (
                             <ReferenceArrayField
                                 label={String(
                                     t("usersAndRolesScreen.users.fields.authorized-election-ids")
