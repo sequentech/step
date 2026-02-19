@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2025 Sequent Tech <legal@sequentech.io>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
 # CLAUDE.md
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.

@@ -84,8 +84,9 @@ impl ActivityLogsTemplate {
             &slug,
         );
 
-        let total = get_board_client()
-            .await?
+        let mut board_client = get_board_client().await?;
+
+        let total = board_client
             .count_electoral_log_messages(&board_name)
             .await
             .map_err(|e| anyhow!("Error counting electoral log messages: {e:?}"))?;
@@ -96,8 +97,7 @@ impl ActivityLogsTemplate {
 
         while offset < total {
             info!("offset: {offset}, total: {total}");
-            let msgs = get_board_client()
-                .await?
+            let msgs = board_client
                 .get_electoral_log_messages_batch(&board_name, limit, offset)
                 .await
                 .map_err(|e| anyhow!("Error fetching electoral log batch: {e:?}"))?;
@@ -110,13 +110,12 @@ impl ActivityLogsTemplate {
             );
 
             for entry in msgs {
-                let row: ElectoralLogRow = entry
+                let mut row: ElectoralLogRow = entry
                     .try_into()
                     .map_err(|e| anyhow!("Error converting log entry to row: {e:?}"))?;
-                let mut row_clean = row.clone();
-                row_clean.message = row_clean.message.replace('\n', " ").replace('\r', " ");
+                row.message = row.message.replace('\n', " ").replace('\r', " ");
                 csv_writer
-                    .serialize(row_clean)
+                    .serialize(row)
                     .map_err(|e| anyhow!("Error serializing to CSV: {e:?}"))?;
             }
 
@@ -129,6 +128,51 @@ impl ActivityLogsTemplate {
         drop(csv_writer);
 
         Ok(temp_file)
+    }
+}
+
+impl TryFrom<ElectoralLogRow> for ActivityLogRow {
+    type Error = anyhow::Error;
+
+    fn try_from(electoral_log: ElectoralLogRow) -> Result<Self, Self::Error> {
+        let user_id = match electoral_log.user_id() {
+            Some(user_id) => user_id.to_string(),
+            None => "-".to_string(),
+        };
+
+        let statement_timestamp: String = if let Ok(datetime_parsed) =
+            ISO8601::timestamp_secs_utc_to_date_opt(electoral_log.statement_timestamp())
+        {
+            datetime_parsed.to_rfc3339()
+        } else {
+            return Err(anyhow::anyhow!("Error parsing statement_timestamp"));
+        };
+
+        let created: String =
+            if let Ok(datetime_parsed) = ISO8601::timestamp_secs_utc_to_date_opt(electoral_log.created()) {
+                datetime_parsed.to_rfc3339()
+            } else {
+                return Err(anyhow::anyhow!("Error parsing created"));
+            };
+
+        let head_data = electoral_log
+            .statement_head_data()
+            .with_context(|| "Error to get head data.")?;
+        let event_type = head_data.event_type;
+        let log_type = head_data.log_type;
+        let description = head_data.description;
+
+        Ok(ActivityLogRow {
+            id: electoral_log.id(),
+            user_id,
+            created,
+            statement_timestamp,
+            statement_kind: electoral_log.statement_kind().to_string(),
+            event_type,
+            log_type,
+            description,
+            message: electoral_log.message().to_string(),
+        })
     }
 }
 
