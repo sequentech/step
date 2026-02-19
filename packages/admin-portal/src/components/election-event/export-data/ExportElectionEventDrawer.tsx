@@ -8,8 +8,6 @@ import {EXPORT_ELECTION_EVENT} from "@/queries/ExportElectionEvent"
 import {useMutation} from "@apollo/client"
 import {useTranslation} from "react-i18next"
 import {IPermissions} from "@/types/keycloak"
-import {FormStyles} from "@/components/styles/FormStyles"
-import {DownloadDocument} from "../../../resources/User/DownloadDocument"
 import {Dialog} from "@sequentech/ui-essentials"
 import {Checkbox, FormControlLabel, FormGroup} from "@mui/material"
 import {styled} from "@mui/styles"
@@ -27,8 +25,6 @@ interface ExportWrapperProps {
     electionEventId: string
     openExport: boolean
     setOpenExport: (val: boolean) => void
-    exportDocumentId: string | undefined
-    setExportDocumentId: (val: string | undefined) => void
     setLoadingExport: (val: boolean) => void
 }
 
@@ -36,8 +32,6 @@ export const ExportElectionEventDrawer: React.FC<ExportWrapperProps> = ({
     electionEventId,
     openExport,
     setOpenExport,
-    exportDocumentId,
-    setExportDocumentId,
     setLoadingExport,
 }) => {
     const {t} = useTranslation()
@@ -120,17 +114,14 @@ export const ExportElectionEventDrawer: React.FC<ExportWrapperProps> = ({
 
             const task_id = exportElectionEventData?.export_election_event?.task_execution.id
             setWidgetTaskId(currWidget.identifier, task_id)
-            setExportDocumentId(documentId)
+            setLoadingExport(false)
+
+            if (generatedPassword) {
+                setOpenPasswordDialog(true)
+            }
         } catch (e) {
             updateWidgetFail(currWidget.identifier)
             setLoadingExport(false)
-        }
-    }
-
-    const onDownloadSuccess = () => {
-        setLoadingExport(false)
-        if (password) {
-            setOpenPasswordDialog(true)
         }
     }
 
@@ -273,22 +264,6 @@ export const ExportElectionEventDrawer: React.FC<ExportWrapperProps> = ({
                     />
                 </FormGroup>
             </Dialog>
-            {exportDocumentId && (
-                <>
-                    <FormStyles.ShowProgress />
-                    <DownloadDocument
-                        documentId={exportDocumentId}
-                        electionEventId={electionEventId ?? ""}
-                        fileName={null}
-                        onDownload={() => {
-                            console.log("onDownload called")
-                            setExportDocumentId(undefined)
-                            setOpenExport(false)
-                        }}
-                        onSucess={onDownloadSuccess}
-                    />
-                </>
-            )}
             {openPasswordDialog && password && (
                 <PasswordDialog password={password} onClose={resetState}>
                     <DecryptHelp decryptionCommand={decryptionCommand} />
