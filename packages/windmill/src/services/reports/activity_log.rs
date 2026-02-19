@@ -148,12 +148,13 @@ impl TryFrom<ElectoralLogRow> for ActivityLogRow {
             return Err(anyhow::anyhow!("Error parsing statement_timestamp"));
         };
 
-        let created: String =
-            if let Ok(datetime_parsed) = ISO8601::timestamp_secs_utc_to_date_opt(electoral_log.created()) {
-                datetime_parsed.to_rfc3339()
-            } else {
-                return Err(anyhow::anyhow!("Error parsing created"));
-            };
+        let created: String = if let Ok(datetime_parsed) =
+            ISO8601::timestamp_secs_utc_to_date_opt(electoral_log.created())
+        {
+            datetime_parsed.to_rfc3339()
+        } else {
+            return Err(anyhow::anyhow!("Error parsing created"));
+        };
 
         let head_data = electoral_log
             .statement_head_data()
