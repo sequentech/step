@@ -605,42 +605,6 @@ impl BoardClient {
         Ok(messages)
     }
 
-    /// Returns the total count of electoral log messages by fetching the last id,
-    /// which equals the count since ids are auto-incremented without gaps.
-    #[instrument(skip(self), err)]
-    pub async fn count_electoral_log_messages(&mut self, board_db: &str) -> Result<i64> {
-        self.client.use_database(board_db).await?;
-        let sql = format!(
-            r#"
-            SELECT
-                id,
-                created,
-                sender_pk,
-                statement_timestamp,
-                statement_kind,
-                message,
-                version,
-                user_id,
-                username
-            FROM {ELECTORAL_LOG_TABLE}
-            ORDER BY id desc
-            LIMIT 1
-            OFFSET 0;
-            "#
-        );
-        let sql_query_response = self.client.sql_query(&sql, vec![]).await?;
-        let elog_msg = sql_query_response
-            .get_ref()
-            .rows
-            .iter()
-            .map(ElectoralLogMessage::try_from)
-            .next();
-        match elog_msg {
-            Some(elog_msg) => Ok(elog_msg?.id),
-            None => Ok(0),
-        }
-    }
-
     pub async fn open_session(&mut self, database_name: &str) -> Result<()> {
         self.client.open_session(database_name).await
     }
