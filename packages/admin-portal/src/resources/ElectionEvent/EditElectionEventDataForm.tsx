@@ -131,7 +131,6 @@ export const EditElectionEventDataForm: React.FC = () => {
     const [languageSettings, setLanguageSettings] = useState<Array<string>>(["en"])
     const [openExport, setOpenExport] = useState(false)
     const [loadingExport, setLoadingExport] = useState(false)
-    const [exportDocumentId, setExportDocumentId] = useState<string | undefined>()
     const [openDrawer, setOpenDrawer] = useState<boolean>(false)
     const [openImportCandidates, setOpenImportCandidates] = useState(false)
     const [openGoogleMeet, setOpenGoogleMeet] = useState(false)
@@ -1295,8 +1294,6 @@ export const EditElectionEventDataForm: React.FC = () => {
                 electionEventId={record?.id}
                 openExport={openExport}
                 setOpenExport={setOpenExport}
-                exportDocumentId={exportDocumentId}
-                setExportDocumentId={setExportDocumentId}
                 setLoadingExport={setLoadingExport}
             />
 

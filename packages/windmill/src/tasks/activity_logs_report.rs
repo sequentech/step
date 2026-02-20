@@ -13,18 +13,17 @@ use crate::{
                 GenerateReportMode, ReportOriginatedFrom, ReportOrigins, TemplateRenderer,
             },
         },
+        tasks_execution::*,
     },
     types::error::Result,
 };
 use anyhow::{anyhow, Context};
 use celery::error::TaskError;
 use deadpool_postgres::Client as DbClient;
+use sequent_core::types::hasura::core::TasksExecution;
 use tracing::instrument;
 
-#[instrument(err)]
-#[wrap_map_err::wrap_map_err(TaskError)]
-#[celery::task(max_retries = 0)]
-pub async fn generate_activity_logs_report(
+async fn generate_activity_logs_report_impl(
     tenant_id: String,
     election_event_id: String,
     document_id: String,
@@ -68,7 +67,7 @@ pub async fn generate_activity_logs_report(
         format,
     );
 
-    let _ = report
+    report
         .execute_report(
             &document_id,
             &tenant_id,
@@ -82,7 +81,7 @@ pub async fn generate_activity_logs_report(
             /* task_execution */ None,
         )
         .await
-        .map_err(|err| anyhow!("error generating report: {err:?}"));
+        .map_err(|err| anyhow!("error generating report: {err:?}"))?;
 
     hasura_transaction
         .commit()
@@ -90,4 +89,42 @@ pub async fn generate_activity_logs_report(
         .with_context(|| "Failed to commit Hasura transaction")?;
 
     Ok(())
+}
+
+#[instrument(err)]
+#[wrap_map_err::wrap_map_err(TaskError)]
+#[celery::task(max_retries = 0)]
+pub async fn generate_activity_logs_report(
+    tenant_id: String,
+    election_event_id: String,
+    document_id: String,
+    format: ReportFormat,
+    report_clone: Option<Report>,
+    task_execution: TasksExecution,
+) -> Result<()> {
+    match generate_activity_logs_report_impl(
+        tenant_id,
+        election_event_id,
+        document_id.clone(),
+        format,
+        report_clone,
+    )
+    .await
+    {
+        Ok(()) => {
+            update_complete(&task_execution, Some(document_id))
+                .await
+                .context("Failed to update task execution status to COMPLETED")?;
+            Ok(())
+        }
+        Err(err) => {
+            if let Err(update_err) = update_fail(&task_execution, &format!("{err:?}")).await {
+                tracing::error!(
+                    "Failed to update task execution status to FAILED: {:?}",
+                    update_err
+                );
+            }
+            Err(err)
+        }
+    }
 }
