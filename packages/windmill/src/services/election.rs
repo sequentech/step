@@ -20,6 +20,7 @@ pub struct ElectionHead {
     pub id: String,
     pub name: String,
     pub alias: Option<String>,
+    pub external_id: Option<String>,
 }
 
 impl TryFrom<Election> for ElectionHead {
@@ -31,6 +32,7 @@ impl TryFrom<Election> for ElectionHead {
             id: election.id.clone(),
             name: election.get_name(&default_language),
             alias: Some(election.get_alias(&default_language)),
+            external_id: election.alias, // alias column act like external_id
         })
     }
 }
