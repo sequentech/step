@@ -32,7 +32,7 @@ const TallyResultsMemo: React.MemoExoticComponent<React.FC<TallyResultsProps>> =
     (props: TallyResultsProps): React.JSX.Element => {
         const {tally, resultsEventId, onCreateTransmissionPackage, loading} = props
 
-        const {t} = useTranslation()
+        const {t, i18n} = useTranslation()
         const [value, setValue] = React.useState<number | null>(0)
         const [electionsData, setElectionsData] = useState<Array<Sequent_Backend_Election>>([])
         const [electionId, setElectionId] = useState<string | null>(null)
@@ -147,11 +147,17 @@ const TallyResultsMemo: React.MemoExoticComponent<React.FC<TallyResultsProps>> =
             return parsedDocuments
                 ? {
                       documents: parsedDocuments,
-                      name: aliasRenderer(currentElection) ?? "election",
+                      name: currentElection ? aliasRenderer(currentElection) : "election",
                       class_type: "election",
                   }
                 : null
-        }, [resultsEventId, resultsElection, resultsElection?.[0]?.id, currentElection])
+        }, [
+            resultsEventId,
+            resultsElection,
+            resultsElection?.[0]?.id,
+            currentElection,
+            i18n.language,
+        ])
 
         let areasDocuments: IResultDocumentsData[] | null = useMemo(
             () =>
