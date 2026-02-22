@@ -673,7 +673,7 @@ export const TallyCeremony: React.FC = () => {
 
         return parsedDocuments
             ? {
-                  documents,
+                  documents: parsedDocuments,
                   name: electionEventName,
                   class_type: "event",
               }
