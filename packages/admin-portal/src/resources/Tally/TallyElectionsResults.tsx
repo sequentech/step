@@ -220,8 +220,7 @@ export const TallyElectionsResults: React.FC<TallyElectionsResultsProps> = (prop
             editable: false,
             renderCell: (props: GridRenderCellParams<any, string>) => {
                 const presentation = JSON.parse(props.row.presentation)
-                const election_name = aliasRenderer(presentation)
-                return election_name
+                return aliasRenderer(presentation)
             },
         },
         {
