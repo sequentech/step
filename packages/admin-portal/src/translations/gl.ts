@@ -585,6 +585,7 @@ const galegoTranslation: TranslationType = {
                 alias: "Alias",
                 description: "Descrición",
                 securityConfirmationHtml: "Confirmación de seguridade HTML",
+                externalId: "ID externo",
             },
             securityConfirmationPolicy: {
                 label: "Política da caixa de confirmación de seguridade",
