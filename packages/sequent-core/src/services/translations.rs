@@ -14,35 +14,58 @@ use crate::{
 
 pub const DEFAULT_LANG: &str = "en";
 
+fn parse_presentation<P>(presentation: &Option<serde_json::Value>) -> Option<P>
+where
+    P: for<'de> serde::Deserialize<'de>,
+{
+    let val = presentation.as_ref()?;
+    deserialize_value::<P>(val.clone()).ok()
+}
+
+fn i18n_field(
+    i18n: &Option<I18nContent<I18nContent<Option<String>>>>,
+    language: &str,
+    field: &'static str,
+) -> Option<String> {
+    let i18n = i18n.as_ref()?;
+
+    // Try requested language first, then default language.
+    i18n.get(language)
+        .and_then(|m| m.get(field))
+        .cloned()
+        .flatten()
+        .or_else(|| {
+            i18n.get(DEFAULT_LANG)
+                .and_then(|m| m.get(field))
+                .cloned()
+                .flatten()
+        })
+}
+
+pub trait Name {
+    fn get_name(&self, language: &str) -> String;
+}
+
+pub trait Alias {
+    fn get_alias(&self, language: &str) -> String;
+}
+
+/* ---------------------- ElectionEvent ---------------------- */
+
 impl ElectionEvent {
     /// Get the default language at Election Event level that´s configurable on
     /// the Admin portal
     pub fn get_default_language(&self) -> String {
-        let Some(presentation_val) = self.presentation.clone() else {
-            return DEFAULT_LANG.into();
-        };
-        let Ok(presentation) =
-            deserialize_value::<ElectionEventPresentation>(presentation_val)
-        else {
-            return DEFAULT_LANG.into();
-        };
-        let language_conf = presentation.language_conf.unwrap_or_default();
-        let lang = language_conf
-            .default_language_code
-            .unwrap_or(DEFAULT_LANG.into());
-        lang
+        parse_presentation::<ElectionEventPresentation>(&self.presentation)
+            .and_then(|p| p.language_conf)
+            .and_then(|lc| lc.default_language_code)
+            .unwrap_or_else(|| DEFAULT_LANG.into())
     }
 
     pub fn get_contest_encryption_policy(&self) -> ContestEncryptionPolicy {
-        let Some(presentation_val) = self.presentation.clone() else {
-            return ContestEncryptionPolicy::default();
-        };
-        let Ok(presentation) =
-            deserialize_value::<ElectionEventPresentation>(presentation_val)
-        else {
-            return ContestEncryptionPolicy::default();
-        };
-        presentation.contest_encryption_policy.unwrap_or_default()
+        parse_presentation::<ElectionEventPresentation>(&self.presentation)
+            .and_then(|p| p.contest_encryption_policy)
+            .unwrap_or_default()
     }
 
     pub fn get_decoded_ballots_inclusion_policy(
@@ -62,50 +85,54 @@ impl ElectionEvent {
     }
 }
 
-pub trait Name {
-    fn get_name(&self, default_language: &str) -> String;
+impl Name for ElectionEvent {
+    fn get_name(&self, language: &str) -> String {
+        parse_presentation::<ElectionEventPresentation>(&self.presentation)
+            .and_then(|p| i18n_field(&p.i18n, language, "name"))
+            .unwrap_or_else(|| "-".into())
+    }
 }
 
-fn get_name_from_i18n(
-    i18n_ref: &Option<I18nContent<I18nContent<Option<String>>>>,
-    language: &str,
-) -> Option<String> {
-    let Some(i18n) = i18n_ref.clone() else {
-        return None;
-    };
+impl Alias for ElectionEvent {
+    fn get_alias(&self, language: &str) -> String {
+        let base = self.get_name(language);
 
-    let lang_name = if let Some(lang_i18n) = i18n.get(language) {
-        let alias = lang_i18n.get("alias").cloned().flatten();
-        let name = lang_i18n.get("name").cloned().flatten();
-        alias.or(name)
-    } else {
-        None
-    };
-    let default_lang_name = if let Some(def_lang_i18n) = i18n.get(DEFAULT_LANG)
-    {
-        let alias = def_lang_i18n.get("alias").cloned().flatten();
-        let name = def_lang_i18n.get("name").cloned().flatten();
-        alias.or(name)
-    } else {
-        None
-    };
-    lang_name.or(default_lang_name)
+        parse_presentation::<ElectionEventPresentation>(&self.presentation)
+            .and_then(|p| i18n_field(&p.i18n, language, "alias"))
+            .unwrap_or_else(|| base)
+    }
+}
+
+/* ------------------------- Election ------------------------- */
+
+impl Election {
+    pub fn get_default_language(&self) -> String {
+        parse_presentation::<ElectionPresentation>(&self.presentation)
+            .and_then(|p| p.language_conf)
+            .and_then(|lc| lc.default_language_code)
+            .unwrap_or_else(|| DEFAULT_LANG.into())
+    }
 }
 
 impl Name for Election {
     fn get_name(&self, language: &str) -> String {
-        let base_name = self.name.clone();
-        let Some(presentation_val) = self.presentation.clone() else {
-            return base_name;
-        };
-        let Ok(presentation) =
-            deserialize_value::<ElectionPresentation>(presentation_val)
-        else {
-            return base_name;
-        };
-        get_name_from_i18n(&presentation.i18n, language).unwrap_or(base_name)
+        parse_presentation::<ElectionPresentation>(&self.presentation)
+            .and_then(|p| i18n_field(&p.i18n, language, "name"))
+            .unwrap_or_else(|| "-".into())
     }
 }
+
+impl Alias for Election {
+    fn get_alias(&self, language: &str) -> String {
+        let base = self.get_name(language);
+
+        parse_presentation::<ElectionPresentation>(&self.presentation)
+            .and_then(|p| i18n_field(&p.i18n, language, "alias"))
+            .unwrap_or_else(|| base)
+    }
+}
+
+/* ===================== Contest ===================== */
 
 impl Name for Contest {
     fn get_name(&self, language: &str) -> String {

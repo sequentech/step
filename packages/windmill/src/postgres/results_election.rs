@@ -8,6 +8,7 @@ use ordered_float::NotNan;
 use rust_decimal::prelude::ToPrimitive;
 use rust_decimal::Decimal;
 use sequent_core::serialization::deserialize_with_path::deserialize_value;
+use sequent_core::services::translations::Name;
 use sequent_core::types::results::ResultDocuments;
 use sequent_core::types::results::*;
 use serde::{Deserialize, Serialize};
@@ -150,6 +151,7 @@ pub async fn insert_results_elections(
     let election_event_uuid = Uuid::parse_str(election_event_id)?;
     let results_event_uuid = Uuid::parse_str(results_event_id)?;
 
+    let language = election.get_default_language();
     let insert_data: Vec<InsertResultsElection> = elections
         .iter()
         .map(|election| {
@@ -158,7 +160,7 @@ pub async fn insert_results_elections(
                 election_event_id: election_event_uuid,
                 results_event_id: results_event_uuid,
                 election_id: Uuid::parse_str(&election.election_id)?,
-                name: election.name.clone(),
+                name: election.get_name(&language),
                 elegible_census: election.elegible_census,
                 total_voters: election.total_voters,
                 total_voters_percent: election.total_voters_percent.clone().map(|n| n.into()),

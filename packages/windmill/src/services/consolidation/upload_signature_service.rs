@@ -50,6 +50,7 @@ use anyhow::{anyhow, Context, Result};
 use chrono::{Local, Utc};
 use deadpool_postgres::{Client as DbClient, Transaction};
 use reqwest::multipart;
+use sequent_core::services::translations::Name;
 use sequent_core::util::temp_path::{generate_temp_file, get_file_size, read_temp_file};
 use sequent_core::{
     ballot::Annotations,
@@ -434,12 +435,13 @@ pub async fn upload_transmission_package_signature_service(
     new_signatures.push(server_signature.clone());
     // generate zip of zips
     let mut new_transmission_package_data = transmission_area_election.clone();
+    let language = election.get_default_language();
     new_transmission_package_data
         .logs
         .push(sign_transmission_package_log(
             &now_local,
             election_id,
-            &election.name,
+            &election.get_name(&language),
             area_id,
             &area_name,
             &sbei_user.miru_id,
