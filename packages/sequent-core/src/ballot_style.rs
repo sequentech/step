@@ -9,7 +9,6 @@ use crate::ballot::{
 };
 
 use crate::serialization::deserialize_with_path::deserialize_value;
-use crate::services::translations::{Alias, Name};
 use crate::types::hasura::core::{self as hasura_types};
 use anyhow::{anyhow, Context, Result};
 use std::collections::HashMap;
