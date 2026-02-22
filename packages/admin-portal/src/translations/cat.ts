@@ -576,6 +576,7 @@ const catalanTranslation: TranslationType = {
                 alias: "Àlies",
                 description: "Descripció",
                 securityConfirmationHtml: "Confirmació de seguretat HTML",
+                externalId: "ID extern",
             },
             securityConfirmationPolicy: {
                 label: "Política de la casella de confirmació de seguretat",

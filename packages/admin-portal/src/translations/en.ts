@@ -574,6 +574,7 @@ const englishTranslation = {
                 alias: "Alias",
                 description: "Description",
                 securityConfirmationHtml: "Security Confirmation Html",
+                externalId: "External ID",
             },
             securityConfirmationPolicy: {
                 label: "Security Confirmation Checkbox Policy",
