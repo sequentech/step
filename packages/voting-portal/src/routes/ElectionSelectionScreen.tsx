@@ -263,7 +263,7 @@ const fakeUpdateBallotStyleAndSelection = (dispatch: AppDispatch) => {
 }
 
 const ElectionSelectionScreen: React.FC = () => {
-    const {t} = useTranslation()
+    const {t, i18n} = useTranslation()
     const navigate = useNavigate()
     const location = useLocation()
 
@@ -432,14 +432,23 @@ const ElectionSelectionScreen: React.FC = () => {
                         image_document_id: "",
                         contests: [],
                         description: election.description ?? undefined,
-                        alias: election.alias ?? undefined,
+                        alias: election.presentation
+                            ? translateFromPresentation(
+                                  election.presentation,
+                                  "alias",
+                                  i18n.language
+                              )
+                            : undefined,
                     })
                 )
             }
 
-            let foundTestElection = dataElections.sequent_backend_election.find((election) =>
-                election.name.includes("TEST")
-            )
+            let foundTestElection = dataElections.sequent_backend_election.find((election) => {
+                const name = election.presentation
+                    ? translateFromPresentation(election.presentation, "name", i18n.language)
+                    : undefined
+                name && name.includes("TEST")
+            })
 
             if (foundTestElection) {
                 setCanVoteTest(false)
