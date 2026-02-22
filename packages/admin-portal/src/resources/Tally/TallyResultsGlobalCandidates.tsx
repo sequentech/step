@@ -259,12 +259,12 @@ export const TallyResultsGlobalCandidates: React.FC<TallyResultsGlobalCandidates
         [tallyData?.sequent_backend_results_contest_candidate, contestId, electionId]
     )
 
-    const electionName: string | undefined = useMemo(
-        () =>
-            tallyData?.sequent_backend_election?.find((election) => election.id === electionId)
-                ?.name,
-        [tallyData?.sequent_backend_election, electionId]
-    )
+    const electionName: string | undefined = useMemo(() => {
+        const election = tallyData?.sequent_backend_election?.find(
+            (election) => election.id === electionId
+        )
+        return election?.presentation ? aliasRenderer(JSON.parse(election.presentation)) : undefined
+    }, [tallyData?.sequent_backend_election, electionId])
 
     const getChartName = (contestName: string | undefined) => {
         if (electionName && contestName) {

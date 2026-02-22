@@ -119,6 +119,10 @@ const TallyResultsMemo: React.MemoExoticComponent<React.FC<TallyResultsProps>> =
             setValue(index)
         }
 
+        const getElectionAlias = (election: Sequent_Backend_Election) => {
+            return aliasRenderer(JSON.parse(election.presentation))
+        }
+
         const currentElection = useMemo(() => {
             return elections?.find((election) => election.id === electionId)
         }, [elections, electionId])
@@ -147,7 +151,7 @@ const TallyResultsMemo: React.MemoExoticComponent<React.FC<TallyResultsProps>> =
             return parsedDocuments
                 ? {
                       documents: parsedDocuments,
-                      name: currentElection ? aliasRenderer(currentElection) : "election",
+                      name: currentElection ? getElectionAlias(currentElection) : "election",
                       class_type: "election",
                   }
                 : null
@@ -232,7 +236,7 @@ const TallyResultsMemo: React.MemoExoticComponent<React.FC<TallyResultsProps>> =
                                 {electionsData?.map((election, index) => (
                                     <Tab
                                         key={index}
-                                        label={aliasRenderer(election)}
+                                        label={getElectionAlias(election)}
                                         onClick={() => tabClicked(election.id, index)}
                                     />
                                 ))}
@@ -241,7 +245,11 @@ const TallyResultsMemo: React.MemoExoticComponent<React.FC<TallyResultsProps>> =
                                 <ExportElectionMenu
                                     documentsList={documentsList}
                                     electionEventId={data?.election_event_id}
-                                    itemName={aliasRenderer(currentElection) ?? "election"}
+                                    itemName={
+                                        currentElection
+                                            ? getElectionAlias(currentElection)
+                                            : "election"
+                                    }
                                     tallyType={data?.tally_type}
                                     electionId={electionId}
                                     onCreateTransmissionPackage={onCreateTransmissionPackage}
