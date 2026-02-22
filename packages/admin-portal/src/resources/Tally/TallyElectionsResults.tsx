@@ -82,6 +82,8 @@ const GeneralInformationCharts: React.FC<GeneralInformationChartsProps> = ({
     }
 
     const result = selectedResult
+    const presentation = JSON.parse(result.presentation)
+    const election_name = aliasRenderer(presentation)
     const eligibleCensus = result.elegible_census as number
     const totalVoters = result.total_voters as number
     const nonVoters = eligibleCensus - totalVoters
@@ -131,7 +133,7 @@ const GeneralInformationCharts: React.FC<GeneralInformationChartsProps> = ({
                 maxWidth: {xs: "100%", lg: 450},
             }}
         >
-            <CardChart title={aliasRenderer(result)} collapsible={true}>
+            <CardChart title={election_name} collapsible={true}>
                 <Chart
                     options={chartOptions.options}
                     series={chartOptions.series}
@@ -219,7 +221,9 @@ export const TallyElectionsResults: React.FC<TallyElectionsResultsProps> = (prop
             flex: 1,
             editable: false,
             valueGetter(value, row) {
-                return aliasRenderer(row)
+                const presentation = JSON.parse(row.presentation)
+                const election_name = aliasRenderer(presentation)
+                return election_name
             },
         },
         {
