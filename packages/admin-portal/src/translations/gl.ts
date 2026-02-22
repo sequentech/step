@@ -286,7 +286,6 @@ const galegoTranslation: TranslationType = {
                 name: "Nome",
                 alias: "Alias",
                 description: "Descrición",
-                externalId: "ID externo",
                 startDateTime: "Data e Hora de Inicio",
                 endDateTime: "Data e Hora de Fin",
                 language: "Idioma",
@@ -586,6 +585,7 @@ const galegoTranslation: TranslationType = {
                 alias: "Alias",
                 description: "Descrición",
                 securityConfirmationHtml: "Confirmación de seguridade HTML",
+                externalId: "ID externo",
             },
             securityConfirmationPolicy: {
                 label: "Política da caixa de confirmación de seguridade",

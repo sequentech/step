@@ -284,7 +284,6 @@ const englishTranslation = {
                 name: "Name",
                 alias: "Alias",
                 description: "Description",
-                externalId: "External ID",
                 startDateTime: "Start Date and Time",
                 endDateTime: "End Date and Time",
                 language: "Language",
@@ -585,6 +584,7 @@ const englishTranslation = {
                 alias: "Alias",
                 description: "Description",
                 securityConfirmationHtml: "Security Confirmation Html",
+                externalId: "External ID",
             },
             securityConfirmationPolicy: {
                 label: "Security Confirmation Checkbox Policy",

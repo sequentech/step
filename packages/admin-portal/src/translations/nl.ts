@@ -285,7 +285,6 @@ const dutchTranslation: TranslationType = {
                 name: "Naam",
                 alias: "Alias",
                 description: "Beschrijving",
-                externalId: "Externe ID",
                 startDateTime: "Startdatum en -tijd",
                 endDateTime: "Einddatum en -tijd",
                 language: "Taal",
@@ -583,6 +582,7 @@ const dutchTranslation: TranslationType = {
                 alias: "Alias",
                 description: "Beschrijving",
                 securityConfirmationHtml: "Beveiligingsbevestiging HTML",
+                externalId: "Externe ID",
             },
             securityConfirmationPolicy: {
                 label: "Beleid voor selectievakje van beveiligingsbevestiging",

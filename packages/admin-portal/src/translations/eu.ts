@@ -286,7 +286,6 @@ const basqueTranslation: TranslationType = {
                 name: "Izena",
                 alias: "Ezizena",
                 description: "Deskribapena",
-                externalId: "Kanpoko IDa",
                 startDateTime: "Hasiera Data eta Ordua",
                 endDateTime: "Amaiera Data eta Ordua",
                 language: "Hizkuntza",
@@ -587,6 +586,7 @@ const basqueTranslation: TranslationType = {
                 alias: "Ezizena",
                 description: "Deskribapena",
                 securityConfirmationHtml: "Segurtasun-berrespena HTML",
+                externalId: "Kanpoko IDa",
             },
             securityConfirmationPolicy: {
                 label: "Segurtasun-berrespeneko kontrol-laukiaren politika",

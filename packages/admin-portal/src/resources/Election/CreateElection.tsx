@@ -152,16 +152,13 @@ export const CreateElection: React.FC = () => {
         >
             <Typography variant="h4">{t("common.resources.election")}</Typography>
             <Typography variant="body2">{t("createResource.election")}</Typography>
-            <TextInput source="name" required label={String(t("electionEventScreen.field.name"))} />
+            <TextInput source="name" required label={String(t("electionScreen.field.name"))} />
             <TextInput
                 source="external_id"
-                label={String(t("electionEventScreen.field.externalId"))}
+                label={String(t("electionScreen.field.externalId"))}
                 required
             />
-            <TextInput
-                source="description"
-                label={String(t("electionEventScreen.field.description"))}
-            />
+            <TextInput source="description" label={String(t("electionScreen.field.description"))} />
             <Hidden>
                 <BooleanInput source="is_consolidated_ballot_encoding" />
                 <BooleanInput source="spoil_ballot_option" />

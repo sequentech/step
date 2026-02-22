@@ -285,7 +285,6 @@ const catalanTranslation: TranslationType = {
                 name: "Nom",
                 alias: "Àlies",
                 description: "Descripció",
-                externalId: "ID extern",
                 startDateTime: "Data i hora d'inici",
                 endDateTime: "Data i hora de finalització",
                 language: "Idioma",
@@ -587,6 +586,7 @@ const catalanTranslation: TranslationType = {
                 alias: "Àlies",
                 description: "Descripció",
                 securityConfirmationHtml: "Confirmació de seguretat HTML",
+                externalId: "ID extern",
             },
             securityConfirmationPolicy: {
                 label: "Política de la casella de confirmació de seguretat",
