@@ -21,7 +21,11 @@ export const translate = <T, K extends keyof T>(
     return input[key] as string
 }
 
-export const translateElection = (object: any, key: string, lang: string): string | undefined => {
+export const translateFromPresentation = (
+    object: any,
+    key: string,
+    lang: string
+): string | undefined => {
     if (object?.["i18n"]) {
         return object["i18n"][lang]?.[key] || undefined
     }

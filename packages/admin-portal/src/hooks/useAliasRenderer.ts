@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import {translateElection} from "@sequentech/ui-core"
+import {translateFromPresentation} from "@sequentech/ui-core"
 import {useTranslation} from "react-i18next"
 
 export function useAliasRenderer() {
@@ -12,10 +12,10 @@ export function useAliasRenderer() {
         if (!item) return "-"
 
         return (
-            translateElection(item, "alias", i18n.language) ||
-            translateElection(item, "name", i18n.language) ||
-            translateElection(item, "alias", "en") ||
-            translateElection(item, "name", "en") ||
+            translateFromPresentation(item, "alias", i18n.language) ||
+            translateFromPresentation(item, "name", i18n.language) ||
+            translateFromPresentation(item, "alias", "en") ||
+            translateFromPresentation(item, "name", "en") ||
             "-"
         )
     }
