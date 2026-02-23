@@ -605,6 +605,9 @@ export const TallyCeremony: React.FC = () => {
                     keys_ceremony_id: keysCeremonyId,
                     election_ids: selectedElections ?? [],
                     tally_type: creatingType,
+                    configuration: {
+                        consolidated_report_policy: consolidatedReportPolicy,
+                    },
                 },
             })
 

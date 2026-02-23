@@ -45,7 +45,8 @@ use strand::hash::hash_b64;
 use tokio::task;
 use tracing::instrument;
 use velvet::pipes::generate_reports::{
-    BasicArea, ElectionReportDataComputed, ReportDataComputed, OUTPUT_HTML, OUTPUT_JSON, OUTPUT_PDF,
+    BasicArea, ElectionReportDataComputed, ReportDataComputed, OUTPUT_ALL_AREAS_HTML,
+    OUTPUT_ALL_AREAS_JSON, OUTPUT_HTML, OUTPUT_JSON, OUTPUT_PDF,
 };
 
 pub const MIME_PDF: &str = "application/pdf";
@@ -193,6 +194,8 @@ impl GenerateResultDocuments for Vec<ElectionReportDataComputed> {
             tar_gz: Some(base_path.display().to_string()),
             tar_gz_original: None,
             tar_gz_pdfs: None,
+            all_areas_html: None,
+            all_areas_json: None,
         }
     }
 
@@ -346,6 +349,8 @@ impl GenerateResultDocuments for Vec<ElectionReportDataComputed> {
                 tar_gz: Some(document.id),
                 tar_gz_original: Some(original_document.id),
                 tar_gz_pdfs: None,
+                all_areas_html: None,
+                all_areas_json: None,
             };
 
             update_results_event_documents(
@@ -376,6 +381,8 @@ impl GenerateResultDocuments for Vec<ElectionReportDataComputed> {
                 tar_gz: None,
                 tar_gz_original: None,
                 tar_gz_pdfs: None,
+                all_areas_html: None,
+                all_areas_json: None,
             })
         }
     }
@@ -394,6 +401,8 @@ impl GenerateResultDocuments for ElectionReportDataComputed {
         let json_path = folder_path.join(OUTPUT_JSON);
         let pdf_path = folder_path.join(OUTPUT_PDF);
         let html_path = folder_path.join(OUTPUT_HTML);
+        let all_areas_html_path = folder_path.join(OUTPUT_ALL_AREAS_HTML);
+        let all_areas_json_path = folder_path.join(OUTPUT_ALL_AREAS_JSON);
 
         ResultDocumentPaths {
             json: if json_path.is_file() {
@@ -414,6 +423,16 @@ impl GenerateResultDocuments for ElectionReportDataComputed {
             tar_gz: None,
             tar_gz_original: None,
             tar_gz_pdfs: None,
+            all_areas_html: if (all_areas_html_path.is_file()) {
+                Some(all_areas_html_path.display().to_string())
+            } else {
+                None
+            },
+            all_areas_json: if (all_areas_json_path.is_file()) {
+                Some(all_areas_json_path.display().to_string())
+            } else {
+                None
+            },
         }
     }
 
@@ -527,6 +546,8 @@ impl GenerateResultDocuments for ReportDataComputed {
             tar_gz: None,
             tar_gz_original: None,
             tar_gz_pdfs: None,
+            all_areas_html: None,
+            all_areas_json: None,
         }
     }
 
@@ -788,6 +809,8 @@ fn get_area_document_paths(
         tar_gz: None,
         tar_gz_original: None,
         tar_gz_pdfs: None,
+        all_areas_html: None,
+        all_areas_json: None,
     }
 }
 

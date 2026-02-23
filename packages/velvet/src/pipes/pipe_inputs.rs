@@ -25,6 +25,7 @@ pub const PREFIX_ELECTION: &str = "election__";
 pub const PREFIX_CONTEST: &str = "contest__";
 pub const PREFIX_AREA: &str = "area__";
 pub const PREFIX_TALLY_SHEET: &str = "tally_sheet__";
+pub const PREFIX_ALL_AREAS: &str = "all_areas_results";
 
 pub const DEFAULT_DIR_CONFIGS: &str = "default/configs";
 pub const DEFAULT_DIR_BALLOTS: &str = "default/ballots";
@@ -87,6 +88,17 @@ impl PipeInputs {
                 path.push(format!("{}{}", PREFIX_AREA, area_id));
             }
         }
+
+        path
+    }
+
+    #[instrument(skip_all)]
+    pub fn build_all_areas_path(root: &Path, election_id: &Uuid) -> PathBuf {
+        let mut path = PathBuf::new();
+
+        path.push(root);
+        path.push(format!("{}{}", PREFIX_ELECTION, election_id));
+        path.push(format!("{}", PREFIX_ALL_AREAS));
 
         path
     }

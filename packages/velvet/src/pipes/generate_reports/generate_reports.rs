@@ -6,7 +6,9 @@ use rand::seq::SliceRandom;
 use rand::thread_rng;
 use rayon::prelude::*;
 use sequent_core::{
-    ballot::{Candidate, CandidatesOrder, Contest, StringifiedPeriodDates},
+    ballot::{
+        Candidate, CandidatesOrder, ConsolidatedReportPolicy, Contest, StringifiedPeriodDates,
+    },
     serialization::deserialize_with_path::{deserialize_str, deserialize_value},
     services::{area_tree::TreeNodeArea, pdf, reports},
     types::to_map::ToMap,
@@ -48,6 +50,8 @@ use crate::{
 pub const OUTPUT_PDF: &str = "report.pdf";
 pub const OUTPUT_HTML: &str = "report.html";
 pub const OUTPUT_JSON: &str = "report.json";
+pub const OUTPUT_ALL_AREAS_JSON: &str = "all_areas_results.json";
+pub const OUTPUT_ALL_AREAS_HTML: &str = "all_areas_results.html";
 pub const PARALLEL_CHUNK_SIZE: usize = 8;
 
 #[derive(Debug)]
@@ -749,6 +753,7 @@ impl GenerateReports {
                 false,
                 election_hash,
                 areas_map,
+                false,
             )?;
         }
 
@@ -768,6 +773,7 @@ impl GenerateReports {
         area_based: bool,
         election_hash: Option<String>,
         areas_map: &HashMap<String, TreeNodeArea>,
+        all_areas: bool,
     ) -> Result<String> {
         let (reports, result_hash) =
             self.generate_report(reports, enable_pdfs, election_hash, areas_map)?;
@@ -776,7 +782,10 @@ impl GenerateReports {
             true => {
                 PipeInputs::build_path_by_area(&self.output_dir, election_id, contest_id, area_id)
             }
-            false => PipeInputs::build_path(&self.output_dir, election_id, contest_id, area_id),
+            false => match all_areas {
+                true => PipeInputs::build_all_areas_path(&self.output_dir, election_id),
+                false => PipeInputs::build_path(&self.output_dir, election_id, contest_id, area_id),
+            },
         };
 
         if let Some(tally_sheet) = tally_sheet_id.clone() {
@@ -799,7 +808,12 @@ impl GenerateReports {
             pdf_file.write_all(&bytes_pdf)?;
         };
 
-        let html_path = base_path.join(OUTPUT_HTML);
+        let (html_path, json_path) = match all_areas {
+            true => (OUTPUT_ALL_AREAS_HTML, OUTPUT_ALL_AREAS_JSON),
+            false => (OUTPUT_HTML, OUTPUT_JSON),
+        };
+
+        let html_path = base_path.join(html_path);
         let mut html_file = OpenOptions::new()
             .write(true)
             .truncate(true)
@@ -807,7 +821,7 @@ impl GenerateReports {
             .open(html_path)?;
         html_file.write_all(&reports.bytes_html)?;
 
-        let json_path = base_path.join(OUTPUT_JSON);
+        let json_path = base_path.join(json_path);
         let mut json_file = OpenOptions::new()
             .write(true)
             .truncate(true)
@@ -985,6 +999,7 @@ impl Pipe for GenerateReports {
                     false,
                     None,
                     &areas_map,
+                    false,
                 )?;
 
                 // make area reports with all contests related to each area
@@ -1005,21 +1020,17 @@ impl Pipe for GenerateReports {
                 });
 
                 // 3. Parallelize processing of each area in area_contests_map
-                area_contests_map
-                    .par_iter() // <- PARALLELIZED iteration over areas
-                    .try_for_each(|(_area_id, area_contests)| -> Result<()> {
-                        // area_id is from map key
-                        let matching_area_contests = area_contests.contests.clone(); // Clone if needed for parallel tasks
-                        let area_config: &InputAreaConfig = area_contests.area; // area_config is a more descriptive name
+                let area_contests_reports: Vec<ReportData> = area_contests_map
+                    .par_iter()
+                    .map(|(_area_id, area_contests)| -> Result<Vec<ReportData>> {
+                        let matching_area_contests = area_contests.contests.clone();
+                        let area_config: &InputAreaConfig = area_contests.area;
 
-                        // The chunking logic here is kept, but you could also flatten and par_iter directly
-                        // if intermediate Vec allocation is not an issue.
-                        // This collects reports for all contests related to the current area.
                         let contests_report: Vec<ReportData> = matching_area_contests
-                            .chunks(PARALLEL_CHUNK_SIZE) // This chunks the contests for the current area
+                            .chunks(PARALLEL_CHUNK_SIZE)
                             .map(|contest_list_chunk| {
                                 contest_list_chunk
-                                    .par_iter() // Parallel processing of contests within this chunk for this area
+                                    .par_iter()
                                     .map(|contest_input| {
                                         self.make_report(
                                             &election_input.id,
@@ -1039,27 +1050,57 @@ impl Pipe for GenerateReports {
                                             &areas_map,
                                         )
                                     })
-                                    .collect::<Result<Vec<ReportData>>>() // Collect ReportData for this chunk
+                                    .collect::<Result<Vec<ReportData>>>()
                             })
-                            .collect::<Result<Vec<Vec<ReportData>>>>()? // Collect results from all chunks
+                            .collect::<Result<Vec<Vec<ReportData>>>>()?
                             .into_iter()
-                            .flatten() // Flatten Vec<Vec<ReportData>> to Vec<ReportData>
+                            .flatten()
                             .collect();
 
                         self.write_report(
                             &election_input.id,
                             None,
-                            Some(&area_config.id), // Use area_config.id
-                            contests_report,
+                            Some(&area_config.id),
+                            contests_report.clone(),
                             false,
                             None,
                             config.enable_pdfs,
                             true,
                             Some(result_hash.clone()),
                             &areas_map,
+                            false,
                         )?;
-                        Ok(())
-                    })?; // End of par_iter().try_for_each over area_contests_map
+
+                        if config.tally_consolidated_report_policy
+                            == ConsolidatedReportPolicy::GENERATE
+                        {
+                            Ok(contests_report)
+                        } else {
+                            Ok(vec![])
+                        }
+                    })
+                    .collect::<Result<Vec<Vec<ReportData>>>>()?
+                    .into_iter()
+                    .flatten()
+                    .collect(); // End of par_iter().try_for_each over area_contests_map
+
+                if (config.tally_consolidated_report_policy == ConsolidatedReportPolicy::GENERATE
+                    && area_contests_reports.len() > 0)
+                {
+                    let result_hash = self.write_report(
+                        &election_input.id,
+                        None,
+                        None,
+                        area_contests_reports,
+                        false,
+                        None,
+                        config.enable_pdfs,
+                        false,
+                        None,
+                        &areas_map,
+                        true,
+                    )?;
+                }
 
                 Ok(())
             }) // End of par_iter().try_for_each over election_list
