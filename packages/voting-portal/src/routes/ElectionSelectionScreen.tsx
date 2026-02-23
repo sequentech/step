@@ -65,6 +65,7 @@ import {updateBallotStyleAndSelection} from "../services/BallotStyles"
 import useUpdateTranslation from "../hooks/useUpdateTranslation"
 import {GET_SUPPORT_MATERIALS} from "../queries/GetSupportMaterials"
 import {setSupportMaterial} from "../store/supportMaterials/supportMaterialsSlice"
+import {useElectionClassName} from "../hooks/useElectionClassName"
 
 const StyledTitle = styled(Typography)`
     margin-top: 25.5px;
@@ -129,10 +130,13 @@ const ElectionWrapper: React.FC<ElectionWrapperProps> = ({
     const [visitedBypassChooser, setVisitedBypassChooser] = useState(false)
     const authContext = useContext(AuthContext)
     const isKiosk = authContext.isKiosk()
+    let [getElectionClassName] = useElectionClassName()
 
     if (!election) {
         throw new VotingPortalError(VotingPortalErrorType.INTERNAL_ERROR)
     }
+
+    let electionClassName = getElectionClassName(election)
 
     const electionStatus = election?.status as IElectionStatus | null
     const isVotingOpen = () => {
@@ -227,6 +231,7 @@ const ElectionWrapper: React.FC<ElectionWrapperProps> = ({
             onClickBallotLocator={handleClickBallotLocator}
             electionDates={ballotStyle?.ballot_eml?.election_dates}
             isStarted={isVotingStarted()}
+            className={electionClassName}
         />
     )
 }

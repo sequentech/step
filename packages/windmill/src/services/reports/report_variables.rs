@@ -25,6 +25,7 @@ use sequent_core::types::hasura::core::{Area, Election, ElectionEvent};
 use sequent_core::types::keycloak::AREA_ID_ATTR_NAME;
 use sequent_core::types::scheduled_event::ScheduledEvent;
 use sequent_core::util::temp_path::*;
+use sequent_core::util::version::{ENV_VAR_APP_HASH, ENV_VAR_APP_VERSION};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::{HashMap, HashSet};
@@ -51,11 +52,11 @@ pub struct ExecutionAnnotations {
 }
 
 pub fn get_app_hash() -> String {
-    env::var("APP_HASH").unwrap_or("-".to_string())
+    env::var(ENV_VAR_APP_HASH).unwrap_or("-".to_string())
 }
 
 pub fn get_app_version() -> String {
-    env::var("APP_VERSION").unwrap_or("-".to_string())
+    env::var(ENV_VAR_APP_VERSION).unwrap_or("-".to_string())
 }
 
 #[derive(Debug)]

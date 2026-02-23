@@ -409,6 +409,11 @@ export type GenerateGoogleMeetOutput = {
     meet_link?: Maybe<Scalars["String"]["output"]>
 }
 
+export type GeneratePreviewUrlOutput = {
+    __typename?: "GeneratePreviewUrlOutput"
+    preview_url: Scalars["String"]["output"]
+}
+
 export type GenerateTemplateOutput = {
     __typename?: "GenerateTemplateOutput"
     document_id: Scalars["String"]["output"]
@@ -1147,6 +1152,10 @@ export type Mutation_Root = {
     delete_sequent_backend_notification?: Maybe<Sequent_Backend_Notification_Mutation_Response>
     /** delete single row from the table: "sequent_backend.notification" */
     delete_sequent_backend_notification_by_pk?: Maybe<Sequent_Backend_Notification>
+    /** delete data from the table: "sequent_backend.preview" */
+    delete_sequent_backend_preview?: Maybe<Sequent_Backend_Preview_Mutation_Response>
+    /** delete single row from the table: "sequent_backend.preview" */
+    delete_sequent_backend_preview_by_pk?: Maybe<Sequent_Backend_Preview>
     /** delete data from the table: "sequent_backend.report" */
     delete_sequent_backend_report?: Maybe<Sequent_Backend_Report_Mutation_Response>
     /** delete single row from the table: "sequent_backend.report" */
@@ -1244,6 +1253,7 @@ export type Mutation_Root = {
     generate_ballot_publication?: Maybe<PublishBallotOutput>
     /** generate Google Meet link for election events */
     generate_google_meet?: Maybe<GenerateGoogleMeetOutput>
+    generate_preview_url?: Maybe<GeneratePreviewUrlOutput>
     generate_report?: Maybe<GenerateReportOutput>
     generate_template?: Maybe<GenerateTemplateOutput>
     generate_transmission_report?: Maybe<GenerateReportOutput>
@@ -1335,6 +1345,10 @@ export type Mutation_Root = {
     insert_sequent_backend_notification?: Maybe<Sequent_Backend_Notification_Mutation_Response>
     /** insert a single row into the table: "sequent_backend.notification" */
     insert_sequent_backend_notification_one?: Maybe<Sequent_Backend_Notification>
+    /** insert data into the table: "sequent_backend.preview" */
+    insert_sequent_backend_preview?: Maybe<Sequent_Backend_Preview_Mutation_Response>
+    /** insert a single row into the table: "sequent_backend.preview" */
+    insert_sequent_backend_preview_one?: Maybe<Sequent_Backend_Preview>
     /** insert data into the table: "sequent_backend.report" */
     insert_sequent_backend_report?: Maybe<Sequent_Backend_Report_Mutation_Response>
     /** insert a single row into the table: "sequent_backend.report" */
@@ -1557,6 +1571,14 @@ export type Mutation_Root = {
     /** update multiples rows of table: "sequent_backend.notification" */
     update_sequent_backend_notification_many?: Maybe<
         Array<Maybe<Sequent_Backend_Notification_Mutation_Response>>
+    >
+    /** update data of the table: "sequent_backend.preview" */
+    update_sequent_backend_preview?: Maybe<Sequent_Backend_Preview_Mutation_Response>
+    /** update single row of the table: "sequent_backend.preview" */
+    update_sequent_backend_preview_by_pk?: Maybe<Sequent_Backend_Preview>
+    /** update multiples rows of table: "sequent_backend.preview" */
+    update_sequent_backend_preview_many?: Maybe<
+        Array<Maybe<Sequent_Backend_Preview_Mutation_Response>>
     >
     /** update data of the table: "sequent_backend.report" */
     update_sequent_backend_report?: Maybe<Sequent_Backend_Report_Mutation_Response>
@@ -2020,6 +2042,16 @@ export type Mutation_RootDelete_Sequent_Backend_Notification_By_PkArgs = {
 }
 
 /** mutation root */
+export type Mutation_RootDelete_Sequent_Backend_PreviewArgs = {
+    where: Sequent_Backend_Preview_Bool_Exp
+}
+
+/** mutation root */
+export type Mutation_RootDelete_Sequent_Backend_Preview_By_PkArgs = {
+    id: Scalars["uuid"]["input"]
+}
+
+/** mutation root */
 export type Mutation_RootDelete_Sequent_Backend_ReportArgs = {
     where: Sequent_Backend_Report_Bool_Exp
 }
@@ -2366,6 +2398,12 @@ export type Mutation_RootGenerate_Google_MeetArgs = {
 }
 
 /** mutation root */
+export type Mutation_RootGenerate_Preview_UrlArgs = {
+    document_id: Scalars["String"]["input"]
+    tenant_id: Scalars["String"]["input"]
+}
+
+/** mutation root */
 export type Mutation_RootGenerate_ReportArgs = {
     election_event_id?: InputMaybe<Scalars["String"]["input"]>
     report_id: Scalars["String"]["input"]
@@ -2702,6 +2740,18 @@ export type Mutation_RootInsert_Sequent_Backend_NotificationArgs = {
 export type Mutation_RootInsert_Sequent_Backend_Notification_OneArgs = {
     object: Sequent_Backend_Notification_Insert_Input
     on_conflict?: InputMaybe<Sequent_Backend_Notification_On_Conflict>
+}
+
+/** mutation root */
+export type Mutation_RootInsert_Sequent_Backend_PreviewArgs = {
+    objects: Array<Sequent_Backend_Preview_Insert_Input>
+    on_conflict?: InputMaybe<Sequent_Backend_Preview_On_Conflict>
+}
+
+/** mutation root */
+export type Mutation_RootInsert_Sequent_Backend_Preview_OneArgs = {
+    object: Sequent_Backend_Preview_Insert_Input
+    on_conflict?: InputMaybe<Sequent_Backend_Preview_On_Conflict>
 }
 
 /** mutation root */
@@ -3487,6 +3537,33 @@ export type Mutation_RootUpdate_Sequent_Backend_Notification_ManyArgs = {
 }
 
 /** mutation root */
+export type Mutation_RootUpdate_Sequent_Backend_PreviewArgs = {
+    _append?: InputMaybe<Sequent_Backend_Preview_Append_Input>
+    _delete_at_path?: InputMaybe<Sequent_Backend_Preview_Delete_At_Path_Input>
+    _delete_elem?: InputMaybe<Sequent_Backend_Preview_Delete_Elem_Input>
+    _delete_key?: InputMaybe<Sequent_Backend_Preview_Delete_Key_Input>
+    _prepend?: InputMaybe<Sequent_Backend_Preview_Prepend_Input>
+    _set?: InputMaybe<Sequent_Backend_Preview_Set_Input>
+    where: Sequent_Backend_Preview_Bool_Exp
+}
+
+/** mutation root */
+export type Mutation_RootUpdate_Sequent_Backend_Preview_By_PkArgs = {
+    _append?: InputMaybe<Sequent_Backend_Preview_Append_Input>
+    _delete_at_path?: InputMaybe<Sequent_Backend_Preview_Delete_At_Path_Input>
+    _delete_elem?: InputMaybe<Sequent_Backend_Preview_Delete_Elem_Input>
+    _delete_key?: InputMaybe<Sequent_Backend_Preview_Delete_Key_Input>
+    _prepend?: InputMaybe<Sequent_Backend_Preview_Prepend_Input>
+    _set?: InputMaybe<Sequent_Backend_Preview_Set_Input>
+    pk_columns: Sequent_Backend_Preview_Pk_Columns_Input
+}
+
+/** mutation root */
+export type Mutation_RootUpdate_Sequent_Backend_Preview_ManyArgs = {
+    updates: Array<Sequent_Backend_Preview_Updates>
+}
+
+/** mutation root */
 export type Mutation_RootUpdate_Sequent_Backend_ReportArgs = {
     _append?: InputMaybe<Sequent_Backend_Report_Append_Input>
     _delete_at_path?: InputMaybe<Sequent_Backend_Report_Delete_At_Path_Input>
@@ -4210,6 +4287,12 @@ export type Query_Root = {
     sequent_backend_notification_aggregate: Sequent_Backend_Notification_Aggregate
     /** fetch data from the table: "sequent_backend.notification" using primary key columns */
     sequent_backend_notification_by_pk?: Maybe<Sequent_Backend_Notification>
+    /** fetch data from the table: "sequent_backend.preview" */
+    sequent_backend_preview: Array<Sequent_Backend_Preview>
+    /** fetch aggregated fields from the table: "sequent_backend.preview" */
+    sequent_backend_preview_aggregate: Sequent_Backend_Preview_Aggregate
+    /** fetch data from the table: "sequent_backend.preview" using primary key columns */
+    sequent_backend_preview_by_pk?: Maybe<Sequent_Backend_Preview>
     /** fetch data from the table: "sequent_backend.report" */
     sequent_backend_report: Array<Sequent_Backend_Report>
     /** fetch aggregated fields from the table: "sequent_backend.report" */
@@ -4763,6 +4846,26 @@ export type Query_RootSequent_Backend_Notification_AggregateArgs = {
 }
 
 export type Query_RootSequent_Backend_Notification_By_PkArgs = {
+    id: Scalars["uuid"]["input"]
+}
+
+export type Query_RootSequent_Backend_PreviewArgs = {
+    distinct_on?: InputMaybe<Array<Sequent_Backend_Preview_Select_Column>>
+    limit?: InputMaybe<Scalars["Int"]["input"]>
+    offset?: InputMaybe<Scalars["Int"]["input"]>
+    order_by?: InputMaybe<Array<Sequent_Backend_Preview_Order_By>>
+    where?: InputMaybe<Sequent_Backend_Preview_Bool_Exp>
+}
+
+export type Query_RootSequent_Backend_Preview_AggregateArgs = {
+    distinct_on?: InputMaybe<Array<Sequent_Backend_Preview_Select_Column>>
+    limit?: InputMaybe<Scalars["Int"]["input"]>
+    offset?: InputMaybe<Scalars["Int"]["input"]>
+    order_by?: InputMaybe<Array<Sequent_Backend_Preview_Order_By>>
+    where?: InputMaybe<Sequent_Backend_Preview_Bool_Exp>
+}
+
+export type Query_RootSequent_Backend_Preview_By_PkArgs = {
     id: Scalars["uuid"]["input"]
 }
 
@@ -11357,6 +11460,249 @@ export type Sequent_Backend_Notification_Updates = {
     _set?: InputMaybe<Sequent_Backend_Notification_Set_Input>
     /** filter the rows which have to be updated */
     where: Sequent_Backend_Notification_Bool_Exp
+}
+
+/** columns and relationships of "sequent_backend.preview" */
+export type Sequent_Backend_Preview = {
+    __typename?: "sequent_backend_preview"
+    annotations?: Maybe<Scalars["jsonb"]["output"]>
+    created_at: Scalars["timestamptz"]["output"]
+    document_id: Scalars["uuid"]["output"]
+    id: Scalars["uuid"]["output"]
+    requested_by: Scalars["String"]["output"]
+    tenant_id: Scalars["uuid"]["output"]
+    updated_at: Scalars["timestamptz"]["output"]
+    url: Scalars["String"]["output"]
+}
+
+/** columns and relationships of "sequent_backend.preview" */
+export type Sequent_Backend_PreviewAnnotationsArgs = {
+    path?: InputMaybe<Scalars["String"]["input"]>
+}
+
+/** aggregated selection of "sequent_backend.preview" */
+export type Sequent_Backend_Preview_Aggregate = {
+    __typename?: "sequent_backend_preview_aggregate"
+    aggregate?: Maybe<Sequent_Backend_Preview_Aggregate_Fields>
+    nodes: Array<Sequent_Backend_Preview>
+}
+
+/** aggregate fields of "sequent_backend.preview" */
+export type Sequent_Backend_Preview_Aggregate_Fields = {
+    __typename?: "sequent_backend_preview_aggregate_fields"
+    count: Scalars["Int"]["output"]
+    max?: Maybe<Sequent_Backend_Preview_Max_Fields>
+    min?: Maybe<Sequent_Backend_Preview_Min_Fields>
+}
+
+/** aggregate fields of "sequent_backend.preview" */
+export type Sequent_Backend_Preview_Aggregate_FieldsCountArgs = {
+    columns?: InputMaybe<Array<Sequent_Backend_Preview_Select_Column>>
+    distinct?: InputMaybe<Scalars["Boolean"]["input"]>
+}
+
+/** append existing jsonb value of filtered columns with new jsonb value */
+export type Sequent_Backend_Preview_Append_Input = {
+    annotations?: InputMaybe<Scalars["jsonb"]["input"]>
+}
+
+/** Boolean expression to filter rows from the table "sequent_backend.preview". All fields are combined with a logical 'AND'. */
+export type Sequent_Backend_Preview_Bool_Exp = {
+    _and?: InputMaybe<Array<Sequent_Backend_Preview_Bool_Exp>>
+    _not?: InputMaybe<Sequent_Backend_Preview_Bool_Exp>
+    _or?: InputMaybe<Array<Sequent_Backend_Preview_Bool_Exp>>
+    annotations?: InputMaybe<Jsonb_Comparison_Exp>
+    created_at?: InputMaybe<Timestamptz_Comparison_Exp>
+    document_id?: InputMaybe<Uuid_Comparison_Exp>
+    id?: InputMaybe<Uuid_Comparison_Exp>
+    requested_by?: InputMaybe<String_Comparison_Exp>
+    tenant_id?: InputMaybe<Uuid_Comparison_Exp>
+    updated_at?: InputMaybe<Timestamptz_Comparison_Exp>
+    url?: InputMaybe<String_Comparison_Exp>
+}
+
+/** unique or primary key constraints on table "sequent_backend.preview" */
+export enum Sequent_Backend_Preview_Constraint {
+    /** unique or primary key constraint on columns "id" */
+    PreviewPkey = "preview_pkey",
+}
+
+/** delete the field or element with specified path (for JSON arrays, negative integers count from the end) */
+export type Sequent_Backend_Preview_Delete_At_Path_Input = {
+    annotations?: InputMaybe<Array<Scalars["String"]["input"]>>
+}
+
+/** delete the array element with specified index (negative integers count from the end). throws an error if top level container is not an array */
+export type Sequent_Backend_Preview_Delete_Elem_Input = {
+    annotations?: InputMaybe<Scalars["Int"]["input"]>
+}
+
+/** delete key/value pair or string element. key/value pairs are matched based on their key value */
+export type Sequent_Backend_Preview_Delete_Key_Input = {
+    annotations?: InputMaybe<Scalars["String"]["input"]>
+}
+
+/** input type for inserting data into table "sequent_backend.preview" */
+export type Sequent_Backend_Preview_Insert_Input = {
+    annotations?: InputMaybe<Scalars["jsonb"]["input"]>
+    created_at?: InputMaybe<Scalars["timestamptz"]["input"]>
+    document_id?: InputMaybe<Scalars["uuid"]["input"]>
+    id?: InputMaybe<Scalars["uuid"]["input"]>
+    requested_by?: InputMaybe<Scalars["String"]["input"]>
+    tenant_id?: InputMaybe<Scalars["uuid"]["input"]>
+    updated_at?: InputMaybe<Scalars["timestamptz"]["input"]>
+    url?: InputMaybe<Scalars["String"]["input"]>
+}
+
+/** aggregate max on columns */
+export type Sequent_Backend_Preview_Max_Fields = {
+    __typename?: "sequent_backend_preview_max_fields"
+    created_at?: Maybe<Scalars["timestamptz"]["output"]>
+    document_id?: Maybe<Scalars["uuid"]["output"]>
+    id?: Maybe<Scalars["uuid"]["output"]>
+    requested_by?: Maybe<Scalars["String"]["output"]>
+    tenant_id?: Maybe<Scalars["uuid"]["output"]>
+    updated_at?: Maybe<Scalars["timestamptz"]["output"]>
+    url?: Maybe<Scalars["String"]["output"]>
+}
+
+/** aggregate min on columns */
+export type Sequent_Backend_Preview_Min_Fields = {
+    __typename?: "sequent_backend_preview_min_fields"
+    created_at?: Maybe<Scalars["timestamptz"]["output"]>
+    document_id?: Maybe<Scalars["uuid"]["output"]>
+    id?: Maybe<Scalars["uuid"]["output"]>
+    requested_by?: Maybe<Scalars["String"]["output"]>
+    tenant_id?: Maybe<Scalars["uuid"]["output"]>
+    updated_at?: Maybe<Scalars["timestamptz"]["output"]>
+    url?: Maybe<Scalars["String"]["output"]>
+}
+
+/** response of any mutation on the table "sequent_backend.preview" */
+export type Sequent_Backend_Preview_Mutation_Response = {
+    __typename?: "sequent_backend_preview_mutation_response"
+    /** number of rows affected by the mutation */
+    affected_rows: Scalars["Int"]["output"]
+    /** data from the rows affected by the mutation */
+    returning: Array<Sequent_Backend_Preview>
+}
+
+/** on_conflict condition type for table "sequent_backend.preview" */
+export type Sequent_Backend_Preview_On_Conflict = {
+    constraint: Sequent_Backend_Preview_Constraint
+    update_columns?: Array<Sequent_Backend_Preview_Update_Column>
+    where?: InputMaybe<Sequent_Backend_Preview_Bool_Exp>
+}
+
+/** Ordering options when selecting data from "sequent_backend.preview". */
+export type Sequent_Backend_Preview_Order_By = {
+    annotations?: InputMaybe<Order_By>
+    created_at?: InputMaybe<Order_By>
+    document_id?: InputMaybe<Order_By>
+    id?: InputMaybe<Order_By>
+    requested_by?: InputMaybe<Order_By>
+    tenant_id?: InputMaybe<Order_By>
+    updated_at?: InputMaybe<Order_By>
+    url?: InputMaybe<Order_By>
+}
+
+/** primary key columns input for table: sequent_backend.preview */
+export type Sequent_Backend_Preview_Pk_Columns_Input = {
+    id: Scalars["uuid"]["input"]
+}
+
+/** prepend existing jsonb value of filtered columns with new jsonb value */
+export type Sequent_Backend_Preview_Prepend_Input = {
+    annotations?: InputMaybe<Scalars["jsonb"]["input"]>
+}
+
+/** select columns of table "sequent_backend.preview" */
+export enum Sequent_Backend_Preview_Select_Column {
+    /** column name */
+    Annotations = "annotations",
+    /** column name */
+    CreatedAt = "created_at",
+    /** column name */
+    DocumentId = "document_id",
+    /** column name */
+    Id = "id",
+    /** column name */
+    RequestedBy = "requested_by",
+    /** column name */
+    TenantId = "tenant_id",
+    /** column name */
+    UpdatedAt = "updated_at",
+    /** column name */
+    Url = "url",
+}
+
+/** input type for updating data in table "sequent_backend.preview" */
+export type Sequent_Backend_Preview_Set_Input = {
+    annotations?: InputMaybe<Scalars["jsonb"]["input"]>
+    created_at?: InputMaybe<Scalars["timestamptz"]["input"]>
+    document_id?: InputMaybe<Scalars["uuid"]["input"]>
+    id?: InputMaybe<Scalars["uuid"]["input"]>
+    requested_by?: InputMaybe<Scalars["String"]["input"]>
+    tenant_id?: InputMaybe<Scalars["uuid"]["input"]>
+    updated_at?: InputMaybe<Scalars["timestamptz"]["input"]>
+    url?: InputMaybe<Scalars["String"]["input"]>
+}
+
+/** Streaming cursor of the table "sequent_backend_preview" */
+export type Sequent_Backend_Preview_Stream_Cursor_Input = {
+    /** Stream column input with initial value */
+    initial_value: Sequent_Backend_Preview_Stream_Cursor_Value_Input
+    /** cursor ordering */
+    ordering?: InputMaybe<Cursor_Ordering>
+}
+
+/** Initial value of the column from where the streaming should start */
+export type Sequent_Backend_Preview_Stream_Cursor_Value_Input = {
+    annotations?: InputMaybe<Scalars["jsonb"]["input"]>
+    created_at?: InputMaybe<Scalars["timestamptz"]["input"]>
+    document_id?: InputMaybe<Scalars["uuid"]["input"]>
+    id?: InputMaybe<Scalars["uuid"]["input"]>
+    requested_by?: InputMaybe<Scalars["String"]["input"]>
+    tenant_id?: InputMaybe<Scalars["uuid"]["input"]>
+    updated_at?: InputMaybe<Scalars["timestamptz"]["input"]>
+    url?: InputMaybe<Scalars["String"]["input"]>
+}
+
+/** update columns of table "sequent_backend.preview" */
+export enum Sequent_Backend_Preview_Update_Column {
+    /** column name */
+    Annotations = "annotations",
+    /** column name */
+    CreatedAt = "created_at",
+    /** column name */
+    DocumentId = "document_id",
+    /** column name */
+    Id = "id",
+    /** column name */
+    RequestedBy = "requested_by",
+    /** column name */
+    TenantId = "tenant_id",
+    /** column name */
+    UpdatedAt = "updated_at",
+    /** column name */
+    Url = "url",
+}
+
+export type Sequent_Backend_Preview_Updates = {
+    /** append existing jsonb value of filtered columns with new jsonb value */
+    _append?: InputMaybe<Sequent_Backend_Preview_Append_Input>
+    /** delete the field or element with specified path (for JSON arrays, negative integers count from the end) */
+    _delete_at_path?: InputMaybe<Sequent_Backend_Preview_Delete_At_Path_Input>
+    /** delete the array element with specified index (negative integers count from the end). throws an error if top level container is not an array */
+    _delete_elem?: InputMaybe<Sequent_Backend_Preview_Delete_Elem_Input>
+    /** delete key/value pair or string element. key/value pairs are matched based on their key value */
+    _delete_key?: InputMaybe<Sequent_Backend_Preview_Delete_Key_Input>
+    /** prepend existing jsonb value of filtered columns with new jsonb value */
+    _prepend?: InputMaybe<Sequent_Backend_Preview_Prepend_Input>
+    /** sets the columns of the filtered rows to the given values */
+    _set?: InputMaybe<Sequent_Backend_Preview_Set_Input>
+    /** filter the rows which have to be updated */
+    where: Sequent_Backend_Preview_Bool_Exp
 }
 
 /** columns and relationships of "sequent_backend.report" */
@@ -18693,6 +19039,14 @@ export type Subscription_Root = {
     sequent_backend_notification_by_pk?: Maybe<Sequent_Backend_Notification>
     /** fetch data from the table in a streaming manner: "sequent_backend.notification" */
     sequent_backend_notification_stream: Array<Sequent_Backend_Notification>
+    /** fetch data from the table: "sequent_backend.preview" */
+    sequent_backend_preview: Array<Sequent_Backend_Preview>
+    /** fetch aggregated fields from the table: "sequent_backend.preview" */
+    sequent_backend_preview_aggregate: Sequent_Backend_Preview_Aggregate
+    /** fetch data from the table: "sequent_backend.preview" using primary key columns */
+    sequent_backend_preview_by_pk?: Maybe<Sequent_Backend_Preview>
+    /** fetch data from the table in a streaming manner: "sequent_backend.preview" */
+    sequent_backend_preview_stream: Array<Sequent_Backend_Preview>
     /** fetch data from the table: "sequent_backend.report" */
     sequent_backend_report: Array<Sequent_Backend_Report>
     /** fetch aggregated fields from the table: "sequent_backend.report" */
@@ -19306,6 +19660,32 @@ export type Subscription_RootSequent_Backend_Notification_StreamArgs = {
     batch_size: Scalars["Int"]["input"]
     cursor: Array<InputMaybe<Sequent_Backend_Notification_Stream_Cursor_Input>>
     where?: InputMaybe<Sequent_Backend_Notification_Bool_Exp>
+}
+
+export type Subscription_RootSequent_Backend_PreviewArgs = {
+    distinct_on?: InputMaybe<Array<Sequent_Backend_Preview_Select_Column>>
+    limit?: InputMaybe<Scalars["Int"]["input"]>
+    offset?: InputMaybe<Scalars["Int"]["input"]>
+    order_by?: InputMaybe<Array<Sequent_Backend_Preview_Order_By>>
+    where?: InputMaybe<Sequent_Backend_Preview_Bool_Exp>
+}
+
+export type Subscription_RootSequent_Backend_Preview_AggregateArgs = {
+    distinct_on?: InputMaybe<Array<Sequent_Backend_Preview_Select_Column>>
+    limit?: InputMaybe<Scalars["Int"]["input"]>
+    offset?: InputMaybe<Scalars["Int"]["input"]>
+    order_by?: InputMaybe<Array<Sequent_Backend_Preview_Order_By>>
+    where?: InputMaybe<Sequent_Backend_Preview_Bool_Exp>
+}
+
+export type Subscription_RootSequent_Backend_Preview_By_PkArgs = {
+    id: Scalars["uuid"]["input"]
+}
+
+export type Subscription_RootSequent_Backend_Preview_StreamArgs = {
+    batch_size: Scalars["Int"]["input"]
+    cursor: Array<InputMaybe<Sequent_Backend_Preview_Stream_Cursor_Input>>
+    where?: InputMaybe<Sequent_Backend_Preview_Bool_Exp>
 }
 
 export type Subscription_RootSequent_Backend_ReportArgs = {

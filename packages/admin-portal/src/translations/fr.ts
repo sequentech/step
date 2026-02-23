@@ -2024,6 +2024,18 @@ const frenchTranslation: TranslationType = {
                     RolesConfigOption: "Importer les configurations des rôles et des permissions",
                 },
             },
+            previewScreen: {
+                label: "Aperçus",
+                noContent: "Aucun aperçu trouvé",
+                table: {
+                    title: "Aperçus externes",
+                    description:
+                        "Un registre des aperçus de styles de bulletins de vote générés via des requêtes externes",
+                    requestedBy: "Demandé par",
+                    document: "Document",
+                    url: "URL",
+                },
+            },
         },
         approvalsScreen: {
             column: {

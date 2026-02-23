@@ -44,6 +44,9 @@ use sequent_core::types::hasura::core::Document;
 use sequent_core::types::hasura::core::KeysCeremony;
 use sequent_core::types::hasura::core::TasksExecution;
 use sequent_core::util::mime::{get_mime_types, matches_mime};
+use sequent_core::util::version::{
+    check_version_compatibility, DEV_APP_VERSION, ENV_VAR_APP_VERSION,
+};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Map, Value};
 use std::collections::HashMap;
@@ -104,6 +107,13 @@ pub struct ImportElectionEventSchema {
     pub reports: Vec<Report>,
     pub keys_ceremonies: Option<Vec<KeysCeremony>>,
     pub applications: Option<Vec<Application>>,
+    #[serde(default = "default_version")]
+    pub version: String,
+}
+
+// Set the default version of an imported election event to be compatible with version 9, which is the first version to include this feature.
+fn default_version() -> String {
+    "9.0.0".to_string()
 }
 
 #[instrument(err)]
@@ -467,6 +477,9 @@ pub async fn get_election_event_schema(
     tenant_id: String,
 ) -> Result<(ImportElectionEventSchema, HashMap<String, String>)> {
     let original_data: ImportElectionEventSchema = deserialize_str(data_str)?;
+    let current_version =
+        std::env::var(ENV_VAR_APP_VERSION).unwrap_or_else(|_| DEV_APP_VERSION.to_string());
+    check_version_compatibility(&original_data.version, &current_version)?;
     replace_ids(data_str, &original_data, id, tenant_id.clone())
 }
 
@@ -486,7 +499,7 @@ pub async fn process_election_event_file(
         tenant_id.clone(),
     )
     .await
-    .with_context(|| format!("Error getting document for election event ID {election_event_id} and tenant ID {tenant_id}"))?;
+    .map_err(|err| anyhow!("Error getting document for election event ID {election_event_id} and tenant ID {tenant_id}: {err}"))?;
 
     let election_ids: Vec<String> = data
         .elections
