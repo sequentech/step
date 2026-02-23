@@ -243,6 +243,24 @@ type Mutation {
 }
 
 type Mutation {
+    generate_google_meet(
+        summary: String!
+        description: String!
+        start_date_time: String!
+        end_date_time: String!
+        time_zone: String!
+        attendee_emails: [String!]!
+    ): GenerateGoogleMeetOutput
+}
+
+type Mutation {
+    generate_preview_url(
+        tenant_id: String!
+        document_id: String!
+    ): GeneratePreviewUrlOutput
+}
+
+type Mutation {
     generate_report(
         report_id: String!
         report_mode: String!
@@ -1635,17 +1653,10 @@ type ExportTallyResultsOutput {
     error_msg: String
 }
 
-type Mutation {
-    generate_google_meet(
-        summary: String!
-        description: String!
-        start_date_time: String!
-        end_date_time: String!
-        time_zone: String!
-        attendee_emails: [String!]!
-    ): GenerateGoogleMeetOutput
-}
-
 type GenerateGoogleMeetOutput {
     meet_link: String
+}
+
+type GeneratePreviewUrlOutput {
+    preview_url: String!
 }

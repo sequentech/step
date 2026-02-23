@@ -2028,6 +2028,18 @@ const dutchTranslation: TranslationType = {
                     RolesConfigOption: "Configuraties Rollen & Machtigingen Importeren",
                 },
             },
+            previewScreen: {
+                label: "Voorbeeldweergaven",
+                noContent: "Geen voorbeeldweergaven gevonden",
+                table: {
+                    title: "Externe voorvertoningen",
+                    description:
+                        "Een overzicht van voorvertoningen van stembiljetstijlen die zijn gegenereerd via externe verzoeken",
+                    requestedBy: "Aangevraagd door",
+                    document: "Document",
+                    url: "URL",
+                },
+            },
         },
         approvalsScreen: {
             column: {
