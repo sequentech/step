@@ -69,7 +69,7 @@ Manage how the ballot for this contest is displayed and how voters interact with
     - **Preferential (Instant Runoff / IRV)**: the highest ranking position available to voters. For example, a value of `5` means voters can assign ranks 1 through 5. Must be at least the number of candidates available to rank.
   - Works in conjunction with the Over Vote Policy to determine what happens when a voter exceeds this limit.
 - **Under-Vote Alert**
-  - Show a warning if a voter selects fewer than the minimum required options.
+  - Show a warning if a voter selects fewer than the maximum required options.
 - **Over-Vote Alert**
   - Show a warning if a voter selects more than the allowed number of options.
 - **Winning Candidates Number**
