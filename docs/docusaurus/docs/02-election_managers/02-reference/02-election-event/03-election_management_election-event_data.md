@@ -108,8 +108,9 @@ Provide documents that voters can access in the Voting Portal.
 Configure advanced system behaviors for this Election Event.
 
 - **Contest Encryption Policy**:
-  - **Single Contests**: Encrypt contests individually.
+  - **Single Contest**: Encrypt contests individually.
   - **Multiple Contests**: Encrypt multiple contests together to enable ballot-level audit.
+  - **Unencrypted Single Contest (Plaintext)**: Run elections without encryption. This option is suitable for non-confidential voting scenarios where encryption is not required. When this policy is selected, key ceremonies are not necessary, and the tally process is simplified.
 - **Lockdown Status**: When enabled, no changes can be made to this Election Event. This action is irreversible.
 - **Voting Portal Countdown Policy**:
   - Define the session timeout duration in seconds.

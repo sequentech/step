@@ -401,7 +401,7 @@ pub struct TallySession {
     pub election_ids: Option<Vec<String>>,
     pub area_ids: Option<Vec<String>>,
     pub is_execution_completed: bool,
-    pub keys_ceremony_id: String,
+    pub keys_ceremony_id: Option<String>,
     pub execution_status: Option<String>,
     pub threshold: i64,
     pub configuration: Option<TallySessionConfiguration>,

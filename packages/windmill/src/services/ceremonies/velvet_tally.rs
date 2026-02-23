@@ -148,7 +148,9 @@ pub fn prepare_tally_for_area_contest(
     ));
     fs::create_dir_all(&ballots_path)?;
 
-    if ContestEncryptionPolicy::SINGLE_CONTEST == contest_encryption_policy {
+    if (ContestEncryptionPolicy::SINGLE_CONTEST == contest_encryption_policy)
+        || (ContestEncryptionPolicy::PLAINTEXT == contest_encryption_policy)
+    {
         let csv_ballots_path = ballots_path.join("ballots.csv");
         let mut csv_ballots_file = File::create(&csv_ballots_path)?;
         let buffer = biguit_ballots.join("\n").into_bytes();
@@ -657,6 +659,7 @@ pub async fn create_config_file(
                         pipe: match contest_encryption_policy {
                             ContestEncryptionPolicy::MULTIPLE_CONTESTS => PipeName::DecodeMCBallots,
                             ContestEncryptionPolicy::SINGLE_CONTEST => PipeName::DecodeBallots,
+                            ContestEncryptionPolicy::PLAINTEXT => PipeName::DecodeBallots,
                         },
                         config: Some(serde_json::Value::Null),
                     },

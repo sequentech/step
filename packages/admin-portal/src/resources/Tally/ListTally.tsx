@@ -43,7 +43,7 @@ import {theme, IconButton, Dialog} from "@sequentech/ui-essentials"
 import {AuthContext, AuthContextValues} from "@/providers/AuthContextProvider"
 import {ResourceListStyles} from "@/components/styles/ResourceListStyles"
 import {faPlus} from "@fortawesome/free-solid-svg-icons"
-import {EAllowTally} from "@sequentech/ui-core"
+import {EElectionEventContestEncryptionPolicy} from "@sequentech/ui-core"
 import {
     ETallyType,
     IExecutionStatus,
@@ -204,6 +204,12 @@ export const ListTally: React.FC<ListAreaProps> = () => {
             ),
         [keysCeremonies?.list_keys_ceremony?.items]
     )
+    const isUnencryptedPolicy = useMemo(
+        () =>
+            electionEventRecord?.presentation?.contest_encryption_policy ===
+            EElectionEventContestEncryptionPolicy.PLAINTEXT,
+        electionEventRecord?.presentation?.contest_encryption_policy
+    )
 
     const keysCeremonyIds = useMemo(
         () => keysCeremonies?.list_keys_ceremony?.items?.map((ceremony) => ceremony?.id) ?? [],
@@ -217,7 +223,9 @@ export const ListTally: React.FC<ListAreaProps> = () => {
                 setIsCreatingTally(true)
                 setCreatingFlag(ETallyType.ELECTORAL_RESULTS)
             }}
-            disabled={!isKeyCeremonyFinished || !isPublished || isCreatingTally}
+            disabled={
+                (!isKeyCeremonyFinished && !isUnencryptedPolicy) || !isPublished || isCreatingTally
+            }
             style={{height: "10px"}}
             sx={{marginBottom: "10px"}}
         >
@@ -231,7 +239,7 @@ export const ListTally: React.FC<ListAreaProps> = () => {
         <Button
             label={String(t("electionEventScreen.tally.create.createInitializationReportButton"))}
             onClick={() => setCreatingFlag(ETallyType.INITIALIZATION_REPORT)}
-            disabled={!isKeyCeremonyFinished || !isPublished}
+            disabled={(!isKeyCeremonyFinished && !isUnencryptedPolicy) || !isPublished}
         >
             {isListActions ? <Add /> : <IconButton icon={faPlus as any} fontSize="24px" />}
         </Button>
@@ -239,16 +247,18 @@ export const ListTally: React.FC<ListAreaProps> = () => {
 
     const Empty = () => (
         <ResourceListStyles.EmptyBox>
-            {canCreateCeremony && !isKeyCeremonyFinished && (
+            {canCreateCeremony && !isKeyCeremonyFinished && !isUnencryptedPolicy && (
                 <Alert severity="warning">
                     {t("electionEventScreen.tally.notify.noKeysTally")}
                 </Alert>
             )}
-            {canCreateCeremony && isKeyCeremonyFinished && !isPublished && (
-                <Alert severity="warning">
-                    {t("electionEventScreen.tally.notify.noPublication")}
-                </Alert>
-            )}
+            {canCreateCeremony &&
+                (isKeyCeremonyFinished || isUnencryptedPolicy) &&
+                !isPublished && (
+                    <Alert severity="warning">
+                        {t("electionEventScreen.tally.notify.noPublication")}
+                    </Alert>
+                )}
             <Typography variant="h4" paragraph>
                 {t("electionEventScreen.tally.emptyHeader")}
             </Typography>
@@ -442,10 +452,12 @@ export const ListTally: React.FC<ListAreaProps> = () => {
                     filter={{
                         tenant_id: tenantId || undefined,
                         election_event_id: electionEventRecord?.id || undefined,
-                        keys_ceremony_id: {
-                            format: "hasura-raw-query",
-                            value: {_in: keysCeremonyIds},
-                        },
+                        keys_ceremony_id: isUnencryptedPolicy
+                            ? undefined
+                            : {
+                                  format: "hasura-raw-query",
+                                  value: {_in: keysCeremonyIds},
+                              },
                     }}
                     storeKey={false}
                     filters={Filters}

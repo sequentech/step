@@ -4,8 +4,10 @@
 import {
     hashMultiBallot,
     hashBallot512,
+    hashPlaintextBallot,
     decodeAuditableBallot,
     decodeAuditableMultiBallot,
+    decodeAuditablePlaintextBallot,
     getLayoutProperties,
     getPoints,
     generateSampleAuditableBallot,
@@ -16,11 +18,13 @@ import {
     IContest,
     IAuditableSingleBallot,
     IAuditableMultiBallot,
+    IAuditablePlaintextBallot,
     IContestLayoutProperties,
     verifyBallotSignature,
     verifyMultiBallotSignature,
     ICountingAlgorithm,
     isPreferential,
+    verifyPlaintextBallotSignature,
 } from "@sequentech/ui-core"
 
 export interface IConfirmationBallot {
@@ -32,11 +36,15 @@ export interface IConfirmationBallot {
 export interface IBallotService {
     hashMultiBallot: (auditableBallot: IAuditableMultiBallot) => string
     hashBallot512: (auditableBallot: IAuditableSingleBallot) => string
+    hashPlaintextBallot: (auditableBallot: IAuditablePlaintextBallot) => string
     decodeAuditableBallot: (
         auditableBallot: IAuditableSingleBallot
     ) => Array<IDecodedVoteContest> | null
     decodeAuditableMultiBallot: (
         auditableBallot: IAuditableMultiBallot
+    ) => Array<IDecodedVoteContest> | null
+    decodeAuditablePlaintextBallot: (
+        auditableBallot: IAuditablePlaintextBallot
     ) => Array<IDecodedVoteContest> | null
     getLayoutProperties: (question: IContest) => IContestLayoutProperties | null
     getPoints: (question: IContest, answer: IDecodedVoteChoice) => number | null
@@ -53,13 +61,20 @@ export interface IBallotService {
         content: IAuditableMultiBallot
     ) => boolean | null
     isPreferential: (countingAlgorithm?: ICountingAlgorithm) => boolean
+    verifyPlaintextBallotSignature: (
+        ballot_id: string,
+        election_id: string,
+        content: IAuditablePlaintextBallot
+    ) => boolean | null
 }
 
 export const provideBallotService = (): IBallotService => ({
     hashMultiBallot,
     hashBallot512,
+    hashPlaintextBallot,
     decodeAuditableBallot,
     decodeAuditableMultiBallot,
+    decodeAuditablePlaintextBallot,
     getLayoutProperties,
     getPoints,
     generateSampleAuditableBallot,
@@ -67,4 +82,5 @@ export const provideBallotService = (): IBallotService => ({
     verifyBallotSignature,
     verifyMultiBallotSignature,
     isPreferential,
+    verifyPlaintextBallotSignature,
 })

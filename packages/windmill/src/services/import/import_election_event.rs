@@ -482,7 +482,31 @@ pub async fn get_election_event_schema(
     let current_version =
         std::env::var(ENV_VAR_APP_VERSION).unwrap_or_else(|_| DEV_APP_VERSION.to_string());
     check_version_compatibility(&original_data.version, &current_version)?;
-    replace_ids(data_str, &original_data, id, tenant_id.clone())
+    let (schema, ids_map) = replace_ids(data_str, &original_data, id, tenant_id.clone())?;
+    let final_schema = default_contest_encryption_policy(schema)?;
+    Ok((final_schema, ids_map))
+}
+
+fn default_contest_encryption_policy(
+    mut schema: ImportElectionEventSchema,
+) -> Result<ImportElectionEventSchema> {
+    let mut final_schema = schema.clone();
+
+    let mut election_event_presentation = schema.election_event.presentation.clone().map_or_else(
+        || Ok(sequent_core::ballot::ElectionEventPresentation::default()),
+        |value| deserialize_value::<sequent_core::ballot::ElectionEventPresentation>(value),
+    )?;
+
+    election_event_presentation.contest_encryption_policy = Some(
+        election_event_presentation
+            .contest_encryption_policy
+            .clone()
+            .unwrap_or_default(),
+    );
+
+    final_schema.election_event.presentation =
+        Some(serde_json::to_value(election_event_presentation)?);
+    Ok(final_schema)
 }
 
 #[instrument(err, skip_all)]

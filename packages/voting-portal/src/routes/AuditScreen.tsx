@@ -20,6 +20,7 @@ import {
     downloadBlob,
     IAuditableSingleBallot,
     IAuditableMultiBallot,
+    IAuditablePlaintextBallot,
     EElectionEventContestEncryptionPolicy,
 } from "@sequentech/ui-core"
 import {styled} from "@mui/material/styles"
@@ -35,6 +36,7 @@ import {Typography} from "@mui/material"
 import {useAppSelector} from "../store/hooks"
 import {selectAuditableBallot} from "../store/auditableBallots/auditableBallotsSlice"
 import {provideBallotService} from "../services/BallotService"
+import {getBallotStrategy} from "../services/BallotStrategy"
 import {SettingsContext} from "../providers/SettingsContextProvider"
 import {useRootBackLink} from "../hooks/root-back-link"
 import StyledLinkContainer from "../components/Link"
@@ -116,14 +118,13 @@ const AuditScreen: React.FC = () => {
     const {t} = useTranslation()
     const [openBallotIdHelp, setOpenBallotIdHelp] = useState(false)
     const [openStep1Help, setOpenStep1Help] = useState(false)
-    const {hashBallot, hashMultiBallot} = provideBallotService()
-    const isMultiContest =
-        auditableBallot?.config.election_event_presentation?.contest_encryption_policy ==
-        EElectionEventContestEncryptionPolicy.MULTIPLE_CONTESTS
-    const hashedBallot = isMultiContest
-        ? hashMultiBallot(auditableBallot as IAuditableMultiBallot)
-        : hashBallot(auditableBallot as IAuditableSingleBallot)
-    const ballotHash = auditableBallot && hashedBallot
+    const ballotService = provideBallotService()
+
+    const encryptionPolicy =
+        auditableBallot?.config.election_event_presentation?.contest_encryption_policy
+
+    const ballotHash =
+        auditableBallot && getBallotStrategy(encryptionPolicy, ballotService).hash(auditableBallot)
     const backLink = useRootBackLink()
     const navigate = useNavigate()
     const location = useLocation()

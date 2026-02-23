@@ -52,9 +52,14 @@ jobs:
       - name: Check that WASM build works
         working-directory: packages/sequent-core
         run: |
-          nix develop --command wasm-pack build --mode no-install --out-name index --release --target web --features=wasmtest
+          nix develop --command wasm-pack build --mode no-install --out-name index --release --target web --features=wasmtest,default_features
 
       - name: Check that WASM pack works
         working-directory: packages/sequent-core
         run: |
           nix develop --command wasm-pack -v pack .
+
+      - name: Check that WASM tests work
+        working-directory: packages/sequent-core
+        run: |
+          nix develop --command wasm-pack test --release --firefox --headless -- --features=wasmtest,default_features

@@ -31,6 +31,7 @@ import {
     EGraphQLErrorCode,
     IAuditableSingleBallot,
     IAuditableMultiBallot,
+    IAuditablePlaintextBallot,
     ECastVoteGoldLevelPolicy,
     EElectionEventContestEncryptionPolicy,
     IHashableBallot,
@@ -52,6 +53,7 @@ import {INSERT_CAST_VOTE} from "../queries/InsertCastVote"
 import {GetElectionEventQuery, InsertCastVoteMutation, GetElectionsQuery} from "../gql/graphql"
 import {GET_ELECTIONS} from "../queries/GetElections"
 import {provideBallotService} from "../services/BallotService"
+import {getBallotStrategy} from "../services/BallotStrategy"
 import {ICastVote, addCastVotes} from "../store/castVotes/castVotesSlice"
 import {TenantEventType} from ".."
 import {useRootBackLink} from "../hooks/root-back-link"
@@ -67,8 +69,10 @@ import {
     sortContestList,
     hashBallot,
     hashMultiBallot,
+    hashPlaintextBallot,
     IHashableSingleBallot,
     IHashableMultiBallot,
+    IHashablePlaintextBallot,
 } from "@sequentech/ui-core"
 import {SettingsContext} from "../providers/SettingsContextProvider"
 import {AuthContext} from "../providers/AuthContextProvider"
@@ -324,7 +328,7 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
     const isCastingBallot = useRef<boolean>(false)
     const [isConfirmCastVoteModal, setConfirmCastVoteModal] = React.useState<boolean>(false)
     const {tenantId, eventId} = useParams<TenantEventType>()
-    const {toHashableBallot, toHashableMultiBallot} = provideBallotService()
+    const ballotService = provideBallotService()
     const submit = useSubmit()
     const isDemo = !!ballotStyle?.ballot_eml?.public_key?.is_demo
     const {globalSettings} = useContext(SettingsContext)
@@ -398,11 +402,15 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
             }
         }
 
-        let hashableBallot: IHashableSingleBallot | IHashableMultiBallot | undefined
+        let hashableBallot: IHashableBallot | undefined
         try {
-            hashableBallot = isMultiContest
-                ? toHashableMultiBallot(auditableBallot as IAuditableMultiBallot)
-                : toHashableBallot(auditableBallot as IAuditableSingleBallot)
+            const encryptionPolicy =
+                auditableBallot?.config.election_event_presentation?.contest_encryption_policy
+
+            const strategy = getBallotStrategy(encryptionPolicy, ballotService)
+
+            // Replaces the large switch/IIFE block
+            hashableBallot = strategy.toHashable(auditableBallot)
         } catch (error) {
             isCastingBallot.current = false
             console.error(error)
@@ -501,7 +509,8 @@ export const ReviewScreen: React.FC = () => {
     const [auditBallotHelp, setAuditBallotHelp] = useState<boolean>(false)
     const [openBallotIdHelp, setOpenBallotIdHelp] = useState(false)
     const [openReviewScreenHelp, setReviewScreenHelp] = useState(false)
-    const {interpretContestSelection, interpretMultiContestSelection} = provideBallotService()
+    const ballotService = provideBallotService()
+    const {interpretContestSelection, interpretMultiContestSelection} = ballotService
     const {t} = useTranslation()
     const backLink = useRootBackLink()
     const navigate = useNavigate()
@@ -553,11 +562,11 @@ export const ReviewScreen: React.FC = () => {
     const isMultiContest =
         auditableBallot?.config.election_event_presentation?.contest_encryption_policy ==
         EElectionEventContestEncryptionPolicy.MULTIPLE_CONTESTS
-    const hashableBallot = auditableBallot
-        ? isMultiContest
-            ? hashMultiBallot(auditableBallot as IAuditableMultiBallot)
-            : hashBallot(auditableBallot as IAuditableSingleBallot)
-        : undefined
+    const hashableBallot = useMemo(() => {
+        if (!auditableBallot) return undefined
+        const policy = auditableBallot.config.election_event_presentation?.contest_encryption_policy
+        return getBallotStrategy(policy, ballotService).hash(auditableBallot)
+    }, [auditableBallot])
 
     const ballotId = useMemo(() => {
         return auditableBallot && hashableBallot ? hashableBallot : undefined

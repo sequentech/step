@@ -321,6 +321,7 @@ const dutchTranslation: TranslationType = {
                     options: {
                         "single-contest": "Enkele Verkiezing",
                         "multiple-contests": "Meerdere Verkiezingen",
+                        "plaintext": "Enkele Niet-versleutelde Verkiezing",
                     },
                     policyLabel: "Encryptiebeleid verkiezingen",
                 },
@@ -418,6 +419,8 @@ const dutchTranslation: TranslationType = {
                 notify: {
                     participateNow:
                         "U bent uitgenodigd om deel te nemen aan een sleutelceremonie. Gelieve op de Sleutelactie van de ceremonie te klikken om deel te nemen.",
+                    plaintextNoKeys:
+                        "Er zijn geen sleutels vereist voor niet-versleutelde verkiezingen.",
                 },
             },
             tabs: {

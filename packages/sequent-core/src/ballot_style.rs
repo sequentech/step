@@ -4,8 +4,9 @@
 
 use crate::ballot::{
     self, AreaAnnotations, AreaPresentation, CandidatePresentation,
-    ContestPresentation, ElectionEventPresentation, ElectionPresentation,
-    I18nContent, StringifiedPeriodDates, WeightedVotingPolicy,
+    ContestEncryptionPolicy, ContestPresentation, ElectionEventPresentation,
+    ElectionPresentation, I18nContent, StringifiedPeriodDates,
+    WeightedVotingPolicy,
 };
 
 use crate::serialization::deserialize_with_path::deserialize_value;
@@ -109,6 +110,12 @@ pub fn create_ballot_style(
             .clone()
             .unwrap_or(WeightedVotingPolicy::default());
 
+    let contest_encryption_policy: ContestEncryptionPolicy =
+        election_event_presentation
+            .contest_encryption_policy
+            .clone()
+            .unwrap_or(ContestEncryptionPolicy::default());
+
     let mut area_annotations: Option<AreaAnnotations> = None;
     if event_weighted_voting_policy
         == WeightedVotingPolicy::AREAS_WEIGHTED_VOTING
@@ -126,6 +133,25 @@ pub fn create_ballot_style(
         .transpose()?
         .unwrap_or_default();
 
+    // Do not set public key if not using encryption
+    let public_key =
+        if ContestEncryptionPolicy::PLAINTEXT == contest_encryption_policy {
+            ballot::PublicKeyConfig {
+                public_key: None,
+                is_demo: false,
+            }
+        } else {
+            public_key
+                .map(|key| ballot::PublicKeyConfig {
+                    public_key: Some(key),
+                    is_demo: false,
+                })
+                .unwrap_or(ballot::PublicKeyConfig {
+                    public_key: Some(demo_public_key_env.to_string()),
+                    is_demo: true,
+                })
+        };
+
     Ok(ballot::BallotStyle {
         id,
         tenant_id: election.tenant_id,
@@ -133,17 +159,7 @@ pub fn create_ballot_style(
         election_id: election.id,
         num_allowed_revotes: election.num_allowed_revotes,
         description: election.description,
-        public_key: Some(
-            public_key
-                .map(|key| ballot::PublicKeyConfig {
-                    public_key: key,
-                    is_demo: false,
-                })
-                .unwrap_or(ballot::PublicKeyConfig {
-                    public_key: demo_public_key_env.to_string(),
-                    is_demo: true,
-                }),
-        ),
+        public_key: Some(public_key),
         area_id: area.id,
         area_presentation: Some(area_presentation),
         contests,

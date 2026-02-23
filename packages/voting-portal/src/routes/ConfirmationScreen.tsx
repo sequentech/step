@@ -2,18 +2,10 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import {Box, CircularProgress, Typography} from "@mui/material"
-import React, {useState, useEffect, useContext, useCallback, useRef, useMemo} from "react"
+import React, {useState, useEffect, useContext, useCallback, useRef} from "react"
 import {useTranslation} from "react-i18next"
 import {PageLimit, Icon, IconButton, theme, QRCode, Dialog} from "@sequentech/ui-essentials"
-import {
-    stringToHtml,
-    IElectionEventPresentation,
-    EVotingStatus,
-    IAuditableMultiBallot,
-    IAuditableSingleBallot,
-    EElectionEventContestEncryptionPolicy,
-    IElection,
-} from "@sequentech/ui-core"
+import {stringToHtml, IElectionEventPresentation, EVotingStatus} from "@sequentech/ui-core"
 import {styled} from "@mui/material/styles"
 import {faPrint, faCircleQuestion, faCheck} from "@fortawesome/free-solid-svg-icons"
 import Button from "@mui/material/Button"
@@ -24,7 +16,6 @@ import {useAppDispatch, useAppSelector} from "../store/hooks"
 import {selectAuditableBallot} from "../store/auditableBallots/auditableBallotsSlice"
 import {canVoteSomeElection} from "../store/castVotes/castVotesSlice"
 import {selectElectionEventById} from "../store/electionEvents/electionEventsSlice"
-import {IElectionExtended} from "../store/elections/electionsSlice"
 import {TenantEventType} from ".."
 import {clearBallot} from "../store/ballotSelections/ballotSelectionsSlice"
 import {
@@ -43,13 +34,11 @@ import {VotingPortalError, VotingPortalErrorType} from "../services/VotingPortal
 import {GetDocumentQuery, GetElectionsQuery} from "../gql/graphql"
 import {GET_ELECTIONS} from "../queries/GetElections"
 import {downloadUrl} from "@sequentech/ui-core"
-import {
-    ConfirmationScreenData,
-    selectConfirmationScreenData,
-} from "../store/castVotes/confirmationScreenDataSlice"
+import {selectConfirmationScreenData} from "../store/castVotes/confirmationScreenDataSlice"
 import {GetCastVotesQuery} from "../gql/graphql"
 import {GET_CAST_VOTES} from "../queries/GetCastVotes"
 import {GET_DOCUMENT} from "../queries/GetDocument"
+import {getBallotStrategy} from "../services/BallotStrategy"
 
 const StyledTitle = styled(Typography)`
     margin-top: 25.5px;
@@ -185,7 +174,7 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({
         (item) => item.status.voting_status === EVotingStatus.OPEN
     )
 
-    const {data: castVotes, error: errorCastVote} = useQuery<GetCastVotesQuery>(GET_CAST_VOTES, {
+    const {data: castVotes} = useQuery<GetCastVotesQuery>(GET_CAST_VOTES, {
         skip: globalSettings.DISABLE_AUTH || !isGoldenAuth,
     })
 
@@ -352,7 +341,7 @@ const ConfirmationScreen: React.FC = () => {
     const [openBallotIdHelp, setOpenBallotIdHelp] = useState(false)
     const [openConfirmationHelp, setOpenConfirmationHelp] = useState(false)
     const [openDemoBallotUrlHelp, setDemoBallotUrlHelp] = useState(false)
-    const {hashBallot, hashMultiBallot} = provideBallotService()
+    const ballotService = provideBallotService()
     const oneBallotStyle = useAppSelector(selectFirstBallotStyle)
 
     const getBallotId = (): {
@@ -371,12 +360,12 @@ const ConfirmationScreen: React.FC = () => {
             }
         } else {
             console.log("auditableBallot normal flow")
-            const isMultiContest =
-                auditableBallot?.config.election_event_presentation?.contest_encryption_policy ==
-                EElectionEventContestEncryptionPolicy.MULTIPLE_CONTESTS
-            const hashableBallot = isMultiContest
-                ? hashMultiBallot(auditableBallot as IAuditableMultiBallot)
-                : hashBallot(auditableBallot as IAuditableSingleBallot)
+            const encryptionPolicy =
+                auditableBallot?.config.election_event_presentation?.contest_encryption_policy
+
+            const strategy = getBallotStrategy(encryptionPolicy, ballotService)
+            const hashableBallot = strategy.hash(auditableBallot)
+
             const ballotIdStored = (auditableBallot && hashableBallot) || undefined
             const isDemoStored = oneBallotStyle?.ballot_eml.public_key?.is_demo
             return {ballotIdStored, isDemoStored}

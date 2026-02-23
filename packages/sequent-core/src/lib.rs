@@ -13,6 +13,7 @@ pub mod ballot_style;
 pub mod error;
 #[cfg(feature = "default_features")]
 pub mod multi_ballot;
+pub mod plaintext_ballot;
 pub mod types;
 //pub use ballot::*;
 #[cfg(feature = "default_features")]

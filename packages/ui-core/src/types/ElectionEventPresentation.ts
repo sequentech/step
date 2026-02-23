@@ -53,6 +53,7 @@ export enum EElectionEventDecodedBallots {
 export enum EElectionEventContestEncryptionPolicy {
     MULTIPLE_CONTESTS = "multiple-contests",
     SINGLE_CONTEST = "single-contest",
+    PLAINTEXT = "plaintext",
 }
 
 export enum EElectionEventPublishPolicy {

@@ -16709,7 +16709,7 @@ export type Sequent_Backend_Tally_Session = {
   execution_status?: Maybe<Scalars['String']['output']>;
   id: Scalars['uuid']['output'];
   is_execution_completed: Scalars['Boolean']['output'];
-  keys_ceremony_id: Scalars['uuid']['output'];
+  keys_ceremony_id?: Maybe<Scalars['uuid']['output']>;
   labels?: Maybe<Scalars['jsonb']['output']>;
   last_updated_at?: Maybe<Scalars['timestamptz']['output']>;
   permission_label?: Maybe<Array<Scalars['String']['output']>>;

@@ -322,6 +322,7 @@ const catalanTranslation: TranslationType = {
                     options: {
                         "single-contest": "Concurs únic",
                         "multiple-contests": "Diversos concursos",
+                        "plaintext": "Concurs únic sense encriptar",
                     },
                     policyLabel: "Política de xifrat de concurs",
                 },
@@ -420,6 +421,7 @@ const catalanTranslation: TranslationType = {
                 notify: {
                     participateNow:
                         "Ha estat convidat a participar a una Cerimònia de Claus. Si us plau <1>feu clic a continuació en l'acció de clau de la cerimònia</1> per participar.",
+                    plaintextNoKeys: "No es requereixen claus per a les eleccions sense encriptar.",
                 },
             },
             tabs: {

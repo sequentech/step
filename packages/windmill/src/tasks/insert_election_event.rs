@@ -15,6 +15,7 @@ use celery::error::TaskError;
 use deadpool_postgres::Transaction;
 use keycloak::types::RealmRepresentation;
 use sequent_core;
+use sequent_core::serialization::deserialize_with_path::deserialize_value;
 use sequent_core::services::connection;
 use sequent_core::services::keycloak::get_event_realm;
 use sequent_core::services::keycloak::{get_client_credentials, KeycloakAdminClient};
@@ -56,6 +57,18 @@ pub async fn insert_election_event_anyhow(
     if final_object.voting_channels.is_none() {
         final_object.voting_channels = serde_json::to_value(VotingChannels::default()).ok();
     }
+
+    let mut election_event_presentation = final_object.presentation.clone().map_or_else(
+        || Ok(sequent_core::ballot::ElectionEventPresentation::default()),
+        |value| deserialize_value::<sequent_core::ballot::ElectionEventPresentation>(value),
+    )?;
+    election_event_presentation.contest_encryption_policy = Some(
+        election_event_presentation
+            .contest_encryption_policy
+            .clone()
+            .unwrap_or_default(),
+    );
+    final_object.presentation = Some(serde_json::to_value(election_event_presentation)?);
 
     match upsert_keycloak_realm(tenant_id.as_str(), &id.as_ref(), None).await {
         Ok(realm) => Some(realm),

@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/usr/bin/bash
 set -euo pipefail
 
 # SPDX-FileCopyrightText: 2025 Sequent Tech <legal@sequentech.io>
@@ -9,7 +9,8 @@ set -euo pipefail
 # flag, which is not supported when compiling C code for WebAssembly targets
 # (used by the ring cryptographic library):
 export NIX_HARDENING_ENABLE=""
-export CFLAGS_wasm32_unknown_unknown="-O3 -ffunction-sections -fdata-sections -fno-exceptions"; 
+# Append optimization flags to existing CFLAGS (preserving include paths from flake.nix)
+export CFLAGS_wasm32_unknown_unknown="${CFLAGS_wasm32_unknown_unknown} -O3 -ffunction-sections -fdata-sections -fno-exceptions"
 
 TARGET_DIR=/workspaces/step/packages/sequent-core
 cd "$TARGET_DIR"
@@ -22,7 +23,7 @@ wasm-pack --version
 which wasm-bindgen
 wasm-bindgen --version
 
-wasm-pack build --mode no-install --out-name index --release --target web --features=wasmtest
+wasm-pack build --mode no-install --out-name index --release --target web --features=wasmtest,default_features
 wasm-pack -v pack . 2>&1 | tee output.log
 
 cd ..

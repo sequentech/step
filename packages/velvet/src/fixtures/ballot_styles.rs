@@ -22,7 +22,7 @@ pub fn get_ballot_style_1(
         num_allowed_revotes: Some(1),
         description: Some("Write-ins simple".into()),
         public_key: Some(PublicKeyConfig {
-            public_key: "ajR/I9RqyOwbpsVRucSNOgXVLCvLpfQxCgPoXGQ2RF4".into(),
+            public_key: Some("ajR/I9RqyOwbpsVRucSNOgXVLCvLpfQxCgPoXGQ2RF4".into()),
             is_demo: false,
         }),
         area_id: area_id.to_string(),
@@ -57,7 +57,7 @@ pub fn generate_ballot_style(
         num_allowed_revotes: Some(1),
         description: Some("Write-ins simple".into()),
         public_key: Some(PublicKeyConfig {
-            public_key: "ajR/I9RqyOwbpsVRucSNOgXVLCvLpfQxCgPoXGQ2RF4".into(),
+            public_key: Some("ajR/I9RqyOwbpsVRucSNOgXVLCvLpfQxCgPoXGQ2RF4".into()),
             is_demo: false,
         }),
         area_id: area_id.to_string(),

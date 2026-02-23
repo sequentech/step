@@ -789,7 +789,9 @@ async fn insert_ballots<C: Ctx>(
     board_name: &str,
     ballots: Message,
 ) -> Result<()> {
-    if ballots.statement.get_kind() != StatementType::Ballots {
+    if ballots.statement.get_kind() != StatementType::Ballots
+        && ballots.statement.get_kind() != StatementType::Plaintexts
+    {
         return Err(anyhow!("Expected message to be Ballots"));
     }
 

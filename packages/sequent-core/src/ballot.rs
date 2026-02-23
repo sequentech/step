@@ -58,7 +58,7 @@ pub struct ReplicationChoice<C: Ctx> {
     Clone,
 )]
 pub struct PublicKeyConfig {
-    pub public_key: String,
+    pub public_key: Option<String>,
     pub is_demo: bool,
 }
 
@@ -1596,6 +1596,9 @@ pub enum ContestEncryptionPolicy {
     #[strum(serialize = "single-contest")]
     #[serde(rename = "single-contest")]
     SINGLE_CONTEST,
+    #[strum(serialize = "plaintext")]
+    #[serde(rename = "plaintext")]
+    PLAINTEXT,
 }
 
 #[allow(non_camel_case_types)]

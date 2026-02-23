@@ -16,9 +16,11 @@ import {
     IContest,
     IAuditableMultiBallot,
     IAuditableSingleBallot,
+    IAuditablePlaintextBallot,
     EElectionEventContestEncryptionPolicy,
     EVoterSigningPolicy,
     BallotSelection,
+    hashPlaintextBallot,
 } from "@sequentech/ui-core"
 import {styled} from "@mui/material/styles"
 import Typography from "@mui/material/Typography"
@@ -33,6 +35,7 @@ import {
 } from "../store/ballotSelections/ballotSelectionsSlice"
 import {clearIsVoted, setIsVoted} from "../store/extra/extraSlice"
 import {provideBallotService} from "../services/BallotService"
+import {getBallotStrategy} from "../services/BallotStrategy"
 import {setAuditableBallot} from "../store/auditableBallots/auditableBallotsSlice"
 import {Question} from "../components/Question/Question"
 import {CircularProgress} from "@mui/material"
@@ -299,16 +302,7 @@ const VotingScreen: React.FC = () => {
     const [hasInvalidErrors, setHasInvalidErrors] = useState<boolean>(false)
     const [contestsPerPage, setContestsPerPage] = useState<IContest[][]>([])
 
-    const {
-        encryptBallotSelection,
-        encryptMultiBallotSelection,
-        decodeAuditableBallot,
-        decodeAuditableMultiBallot,
-        signHashableMultiBallot,
-        signHashableBallot,
-        hashMultiBallot,
-        hashBallot,
-    } = provideBallotService()
+    const ballotService = provideBallotService()
     const election = useAppSelector(selectElectionById(String(electionId)))
     const ballotStyle = useAppSelector(selectBallotStyleByElectionId(String(electionId)))
 
@@ -377,26 +371,20 @@ const VotingScreen: React.FC = () => {
                 ballotStyle.ballot_eml.election_event_presentation?.voter_signing_policy ===
                 EVoterSigningPolicy.WITH_SIGNATURE
 
-            const auditableBallot = isMultiContest
-                ? encryptMultiBallotSelection(selectionState, ballotStyle.ballot_eml)
-                : encryptBallotSelection(selectionState, ballotStyle.ballot_eml)
+            const encryptionPolicy =
+                ballotStyle.ballot_eml.election_event_presentation?.contest_encryption_policy
 
-            let ballotId = isMultiContest
-                ? hashMultiBallot(auditableBallot as IAuditableMultiBallot)
-                : hashBallot(auditableBallot as IAuditableSingleBallot)
+            const strategy = getBallotStrategy(encryptionPolicy, ballotService)
+
+            const auditableBallot = strategy.encrypt(selectionState, ballotStyle.ballot_eml)
+            const ballotId = strategy.hash(auditableBallot)
 
             if (doSignBallot) {
-                let signedContent = isMultiContest
-                    ? signHashableMultiBallot(
-                          ballotId,
-                          ballotStyle.election_id,
-                          auditableBallot as IAuditableMultiBallot
-                      )
-                    : signHashableBallot(
-                          ballotId,
-                          ballotStyle.election_id,
-                          auditableBallot as IAuditableSingleBallot
-                      )
+                const signedContent = strategy.sign(
+                    ballotId,
+                    ballotStyle.election_id,
+                    auditableBallot
+                )
                 auditableBallot.voter_signing_pk = signedContent?.public_key
                 auditableBallot.voter_ballot_signature = signedContent?.signature
             }
@@ -408,9 +396,7 @@ const VotingScreen: React.FC = () => {
                 })
             )
 
-            let decodedSelectionState = isMultiContest
-                ? decodeAuditableMultiBallot(auditableBallot as IAuditableMultiBallot)
-                : decodeAuditableBallot(auditableBallot as IAuditableSingleBallot)
+            const decodedSelectionState = strategy.decode(auditableBallot)
 
             if (null !== decodedSelectionState) {
                 dispatch(
@@ -419,6 +405,8 @@ const VotingScreen: React.FC = () => {
                         ballotSelection: decodedSelectionState,
                     })
                 )
+            } else {
+                throw new VotingPortalError(VotingPortalErrorType.INTERNAL_ERROR)
             }
 
             submit(null, {method: "post"})

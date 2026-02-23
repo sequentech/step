@@ -322,6 +322,7 @@ const galegoTranslation: TranslationType = {
                     options: {
                         "single-contest": "Concurso único",
                         "multiple-contests": "Varios concursos",
+                        "plaintext": "Concurso único non cifrado",
                     },
                     policyLabel: "Política de cifrado de concurso",
                 },
@@ -420,6 +421,7 @@ const galegoTranslation: TranslationType = {
                 notify: {
                     participateNow:
                         "Fostes invitado a participar nunha Cerimonia de Chaves. Por favor, <1>fai clic na Acción de Chave da cerimonia</1> para participar.",
+                    plaintextNoKeys: "Non se requiren claves para as eleccións non cifradas.",
                 },
             },
             tabs: {

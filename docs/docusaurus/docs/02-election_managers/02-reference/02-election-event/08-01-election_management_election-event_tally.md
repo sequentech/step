@@ -12,8 +12,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 ## Introduction
 The Tally section covers the essential procedures required to consolidate resultd after voting has concluded. Election Board members are guided through starting the tally ceremony, verifying key fragments, running the tally, and reviewing results. By following these instructions, the post-election phase is handled with integrity and precision, ensuring that results are verified and published correctly and that the process remains transparent and trustworthy.
 
-## Closing Key Ceremony
-During the Closing Key Ceremony for an Election Event, trustees use their cryptographic key fragments to decrypt the final tally:
+## Closing Key Ceremony (Encrypted Elections Only)
+During the Closing Key Ceremony for an **encrypted** Election Event, trustees use their cryptographic key fragments to decrypt the final tally:
 
 - **Retrieve stored key fragments:** Each trustee securely retrieves their previously backed-up fragment of the private key.
 - **Verify integrity and functionality:** Trustees perform cryptographic tests or audits to confirm each fragment is unaltered and functional.
@@ -22,24 +22,41 @@ During the Closing Key Ceremony for an Election Event, trustees use their crypto
 
 This ceremony ensures that only a quorum of trustees can reconstruct the private key for decryption, preserving security throughout the election lifecycle.
 
+> **Note**: This ceremony step is automatically skipped for Election Events configured with the **Unencrypted Single Contest (Plaintext)** encryption policy.
+
 ## Prerequisites for Tally
 Before initiating the tally process:
 
-1. **Opening Key Ceremony completed:** All key fragments have been generated and verified.
+1. **Opening Key Ceremony completed (for encrypted elections):** All key fragments have been generated and verified.
 2. **Voting phase concluded (optional):** Votes may or may not have been cast; starting a tally with no votes is technically possible but yields empty results.
 
-> Note: According to the Election Event Keys/Tally Ceremonies Policy, if the Key Ceremony is set to 'Automatic,' the Tally Ceremony will also be automated, and no trustee action is required.
+> **Note for Automated Ceremonies**: According to the Election Event Keys/Tally Ceremonies Policy, if the Key Ceremony is set to 'Automatic,' the Tally Ceremony will also be automated, and no trustee action is required.
+
+> **Note for Unencrypted Elections**: If your Election Event is configured with the **Unencrypted Single Contest (Plaintext)** encryption policy, the Key Ceremony step is not required. The tally process will automatically skip the ceremony phase and proceed directly to tallying the votes.
 
 ## Starting the Tally Process
+
+### For Encrypted Elections
 1. Navigate to the relevant **Election Event** in the Administration Portal.
 2. Go to the **Tally** tab.
 3. Click **Start Tally Ceremony**.
 4. Select one or more Elections to include in this tally.
-5. Confirm to proceed; the system will notify trustees to verify their key fragments.
-6. Trustees verify their fragments as prompted; once the threshold of fragments is verified, the tally begins automatically.
-7. Wait for the system to finalize the tally. A success notification appears when complete.
+5. Select the Key Ceremony to use for decryption.
+6. Confirm to proceed; the system will notify trustees to verify their key fragments.
+7. Trustees verify their fragments as prompted; once the threshold of fragments is verified, the tally begins automatically.
+8. Wait for the system to finalize the tally. A success notification appears when complete.
 
-## Trustee Key Verification for Tally
+### For Unencrypted Elections (Plaintext)
+1. Navigate to the relevant **Election Event** in the Administration Portal.
+2. Go to the **Tally** tab.
+3. Click **Start Tally Ceremony**.
+4. Select one or more Elections to include in this tally.
+5. Confirm to proceed; the system will **automatically start the tally** without requiring trustee verification.
+6. Wait for the system to finalize the tally. A success notification appears when complete.
+
+## Trustee Key Verification for Tally (Encrypted Elections Only)
+This section applies only to **encrypted** elections. For unencrypted elections, this step is automatically skipped.
+
 1. Log in to the Administration Portal and open the relevant Election Event.
 2. Go to the **Tally** tab.
 3. Click the Key Action invitation or the key icon next to the Tally ceremony.

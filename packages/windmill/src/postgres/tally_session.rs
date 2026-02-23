@@ -49,7 +49,10 @@ impl TryFrom<Row> for TallySessionWrapper {
                         .collect()
                 }),
             is_execution_completed: item.try_get("is_execution_completed")?,
-            keys_ceremony_id: item.try_get::<_, Uuid>("keys_ceremony_id")?.to_string(),
+            keys_ceremony_id: item
+                .try_get::<_, Uuid>("keys_ceremony_id")
+                .map(|id| id.to_string())
+                .ok(),
             execution_status: item.try_get("execution_status")?,
             threshold: item.try_get::<_, i32>("threshold")? as i64,
             configuration: item
@@ -70,7 +73,7 @@ pub async fn insert_tally_session(
     election_ids: Vec<String>,
     area_ids: Vec<String>,
     tally_session_id: &str,
-    keys_ceremony_id: &str,
+    keys_ceremony_id: &Option<String>,
     execution_status: TallyExecutionStatus,
     threshold: i32,
     configuration: Option<TallySessionConfiguration>,
@@ -123,7 +126,9 @@ pub async fn insert_tally_session(
                 &election_uuids,
                 &area_uuids,
                 &Uuid::parse_str(tally_session_id)?,
-                &Uuid::parse_str(keys_ceremony_id)?,
+                &keys_ceremony_id
+                    .as_ref()
+                    .map(|id| Uuid::parse_str(&id).ok()),
                 &Some(execution_status.to_string()),
                 &threshold,
                 &configuration_json,
@@ -499,7 +504,7 @@ struct InsertableTallySession {
     tenant_id: Uuid,
     election_event_id: Uuid,
     id: Uuid,
-    keys_ceremony_id: Uuid,
+    keys_ceremony_id: Option<Uuid>,
     election_ids: Vec<Uuid>,
     area_ids: Vec<Uuid>,
     execution_status: Option<String>,
@@ -547,7 +552,10 @@ pub async fn insert_many_tally_sessions(
                 tenant_id: Uuid::parse_str(&session.tenant_id)?,
                 election_event_id: Uuid::parse_str(&session.election_event_id)?,
                 id: Uuid::parse_str(&session.id)?,
-                keys_ceremony_id: Uuid::parse_str(&session.keys_ceremony_id)?,
+                keys_ceremony_id: session
+                    .keys_ceremony_id
+                    .as_ref()
+                    .and_then(|id| Uuid::parse_str(&id).ok()),
                 election_ids,
                 area_ids,
                 execution_status: session.execution_status.clone(),
