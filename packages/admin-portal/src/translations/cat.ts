@@ -2033,6 +2033,18 @@ const catalanTranslation: TranslationType = {
                     RolesConfigOption: "Importa les configuracions de rols i permisos",
                 },
             },
+            previewScreen: {
+                label: "Prèvies",
+                noContent: "No s'han trobat prèvies",
+                table: {
+                    title: "Vistes prèvies externes",
+                    description:
+                        "Un registre de les vistes prèvies d'estils de papereta generades mitjançant peticions externes",
+                    requestedBy: "Sol·licitat per",
+                    document: "Document",
+                    url: "URL",
+                },
+            },
         },
         approvalsScreen: {
             column: {

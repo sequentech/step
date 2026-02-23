@@ -2026,6 +2026,18 @@ const spanishTranslation: TranslationType = {
                     RolesConfigOption: "Importar configuraciones de roles y permisos",
                 },
             },
+            previewScreen: {
+                label: "Vistas Previas",
+                noContent: "No se encontraron vistas previas",
+                table: {
+                    title: "Vistas previas externas",
+                    description:
+                        "Un registro de las vistas previas de estilos de papeleta generadas mediante peticiones externas",
+                    requestedBy: "Solicitado por",
+                    document: "Documento",
+                    url: "URL",
+                },
+            },
         },
         approvalsScreen: {
             column: {

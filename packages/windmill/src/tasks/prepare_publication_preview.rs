@@ -26,7 +26,7 @@ use tracing::{info, instrument};
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct PublicationPreview {
-    ballot_styles: Value,
+    pub ballot_styles: Value,
     election_event: Value,
     elections: Value,
     support_materials: Value,
