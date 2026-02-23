@@ -483,6 +483,7 @@ mod tests {
     use electoral_log::BoardClient;
     use sequent_core::util::external_config::load_external_config;
     use std::env;
+    use std::io::BufRead;
     use std::process::Command;
 
     const NUM_LOGS: usize = 120_000;
@@ -490,110 +491,8 @@ mod tests {
     const STEP_CLI_BIN: &str =
         "/workspaces/step/packages/step-cli/rust-local-target/release/step-cli";
 
-    #[tokio::test]
-    #[ignore]
-    async fn test_generate_export_csv_data_120k() -> Result<()> {
-        let config = load_external_config(STEP_CLI_DATA_DIR)
-            .map_err(|e| anyhow!("Failed to load external config: {e}"))?;
-        let tenant_id = config.tenant_id;
-        let election_event_id = config.election_event_id;
-
-        // Use a unique slug per run to get a clean database (immudb delete is unreliable)
-        let test_env_slug = format!("t{}", Utc::now().timestamp());
-        env::set_var("ENV_SLUG", &test_env_slug);
-
-        let immudb_user = env::var("IMMUDB_USER").context("IMMUDB_USER must be set")?;
-        let immudb_password = env::var("IMMUDB_PASSWORD").context("IMMUDB_PASSWORD must be set")?;
-        let immudb_server_url =
-            env::var("IMMUDB_SERVER_URL").context("IMMUDB_SERVER_URL must be set")?;
-
-        let board_name = get_event_board(&tenant_id, &election_event_id, &test_env_slug);
-        println!("board_name: {board_name}");
-
-        // Set up immudb database (unique slug ensures a fresh database each run)
-        let mut board_client = BoardClient::new(&immudb_server_url, &immudb_user, &immudb_password)
-            .await
-            .map_err(|e| anyhow!("Failed to create BoardClient: {e:?}"))?;
-        board_client
-            .upsert_electoral_log_db(&board_name)
-            .await
-            .map_err(|e| anyhow!("Failed to create immudb database: {e:?}"))?;
-        println!("Set up immudb database: {board_name}");
-
-        // Seed electoral logs using step-cli binary
-        let output = Command::new(STEP_CLI_BIN)
-            .args([
-                "step",
-                "create-electoral-logs",
-                "--working-directory",
-                STEP_CLI_DATA_DIR,
-                "--num-logs",
-                &NUM_LOGS.to_string(),
-            ])
-            .env("ENV_SLUG", &test_env_slug)
-            .env("IMMUDB_USER", &immudb_user)
-            .env("IMMUDB_PASSWORD", &immudb_password)
-            .env("IMMUDB_SERVER_URL", &immudb_server_url)
-            .env("DEFAULT_SQL_BATCH_SIZE", "500")
-            .env(
-                "KC_DB_URL_HOST",
-                env::var("KC_DB_URL_HOST").context("KC_DB_URL_HOST must be set")?,
-            )
-            .env(
-                "KC_DB_URL_PORT",
-                env::var("KC_DB_URL_PORT").context("KC_DB_URL_PORT must be set")?,
-            )
-            .env(
-                "KC_DB_USERNAME",
-                env::var("KC_DB_USERNAME").context("KC_DB_USERNAME must be set")?,
-            )
-            .env(
-                "KC_DB_PASSWORD",
-                env::var("KC_DB_PASSWORD").context("KC_DB_PASSWORD must be set")?,
-            )
-            .env("KC_DB", env::var("KC_DB").context("KC_DB must be set")?)
-            .output()
-            .map_err(|e| anyhow!("Failed to run step-cli: {e:?}"))?;
-
-        let stdout = String::from_utf8_lossy(&output.stdout);
-        let stderr = String::from_utf8_lossy(&output.stderr);
-        println!("step-cli stdout: {stdout}");
-        println!("step-cli stderr: {stderr}");
-        assert!(
-            output.status.success(),
-            "step-cli failed with status: {}",
-            output.status
-        );
-
-        // Create ActivityLogsTemplate with matching IDs
-        let ids = ReportOrigins {
-            tenant_id: tenant_id.clone(),
-            election_event_id: election_event_id.clone(),
-            election_id: None,
-            template_alias: None,
-            voter_id: None,
-            report_origin: ReportOriginatedFrom::ReportsTab,
-            executer_username: None,
-            tally_session_id: None,
-        };
-        let template = ActivityLogsTemplate::new(ids, ReportFormat::CSV);
-
-        let name = format!("test-export-{election_event_id}");
-        let temp_file = template
-            .generate_export_csv_data(&name)
-            .await
-            .map_err(|e| anyhow!("generate_export_csv_data failed: {e:?}"))?;
-
-        let metadata = std::fs::metadata(temp_file.path())
-            .map_err(|e| anyhow!("Failed to get temp file metadata: {e:?}"))?;
-        println!("CSV file size: {} bytes", metadata.len());
-        assert!(metadata.len() > 0, "CSV file should not be empty");
-
-        Ok(())
-    }
-
-    // You can run this test in windmill folder as "cargo test test_generate_export_csv_data_120k_memory -- --nocapture --ignored"
-    // To visualize the rerults, open DHAT Viewer in the browser and upload the generated dhat-heap.json file.
+    // Run: cargo test --release test_generate_export_csv_data_120k_memory -- --nocapture --ignored
+    // To visualize results, open DHAT Viewer in a browser and upload the generated dhat-heap.json file.
     #[tokio::test]
     #[ignore]
     async fn test_generate_export_csv_data_120k_memory() -> Result<()> {
@@ -696,7 +595,21 @@ mod tests {
         let metadata = std::fs::metadata(temp_file.path())
             .map_err(|e| anyhow!("Failed to get temp file metadata: {e:?}"))?;
         println!("CSV file size:    {} bytes", metadata.len());
-        assert!(metadata.len() > 0, "CSV file should not be empty");
+
+        let file = std::fs::File::open(temp_file.path())
+            .map_err(|e| anyhow!("Failed to open temp file: {e:?}"))?;
+        let line_count = std::io::BufReader::new(file).lines().count();
+        println!(
+            "CSV line count:   {} lines ({} data rows)",
+            line_count,
+            line_count.saturating_sub(1)
+        );
+        assert_eq!(
+            line_count - 1,
+            NUM_LOGS,
+            "expected {NUM_LOGS} data rows but got {}",
+            line_count - 1
+        );
 
         // _profiler drops here → writes dhat-heap.json in the working directory
         Ok(())
