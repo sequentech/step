@@ -1685,6 +1685,13 @@ const spanishTranslation: TranslationType = {
                 totalVoters: "Total de Votantes",
                 nonVoters: "No Votantes",
             },
+            consolidatedReportPolicy: {
+                title: "Política de informe consolidado",
+                options: {
+                    "generate": "Generar",
+                    "do-not-generate": "No generar",
+                },
+            },
         },
         publish: {
             preview: {

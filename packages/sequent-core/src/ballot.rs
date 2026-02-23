@@ -2411,3 +2411,25 @@ pub enum DelegatedVotingPolicy {
     #[serde(rename = "enabled")]
     ENABLED,
 }
+
+#[derive(
+    BorshSerialize,
+    BorshDeserialize,
+    Display,
+    Serialize,
+    Deserialize,
+    Debug,
+    PartialEq,
+    Eq,
+    Clone,
+    EnumString,
+    Default,
+    JsonSchema,
+)]
+pub enum ConsolidatedReportPolicy {
+    #[default]
+    #[serde(rename = "do-not-generate")]
+    DO_NOT_GENERATE,
+    #[serde(rename = "generate")]
+    GENERATE,
+}

@@ -1694,6 +1694,13 @@ const catalanTranslation: TranslationType = {
                 totalVoters: "Total de Votants",
                 nonVoters: "No Votants",
             },
+            consolidatedReportPolicy: {
+                title: "Política d'informe consolidat",
+                options: {
+                    "generate": "Generar",
+                    "do-not-generate": "No generar",
+                },
+            },
         },
         publish: {
             preview: {

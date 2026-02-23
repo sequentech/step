@@ -1680,6 +1680,13 @@ const basqueTranslation: TranslationType = {
                 totalVoters: "Bozkatzaile Guztiak",
                 nonVoters: "Ez-bozkatzaileak",
             },
+            consolidatedReportPolicy: {
+                title: "Txosten bateratuaren politika",
+                options: {
+                    "generate": "Sortu",
+                    "do-not-generate": "Ez sortu",
+                },
+            },
         },
         publish: {
             preview: {

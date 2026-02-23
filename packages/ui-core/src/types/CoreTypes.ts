@@ -275,3 +275,13 @@ export interface IGraphQLActionError {
     name?: string | null
     graphQLErrors?: Array<IGraphQLError>
 }
+
+export interface EnumChoice<T> {
+    id: T
+    name: string
+}
+
+export enum ConsolidatedReportPolicy {
+    GENERATE = "generate",
+    DO_NOT_GENERATE = "do-not-generate",
+}

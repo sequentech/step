@@ -1685,6 +1685,13 @@ const galegoTranslation: TranslationType = {
                 totalVoters: "Total de Votantes",
                 nonVoters: "Non Votantes",
             },
+            consolidatedReportPolicy: {
+                title: "Política de informe consolidado",
+                options: {
+                    "generate": "Xerar",
+                    "do-not-generate": "Non xerar",
+                },
+            },
         },
         publish: {
             preview: {

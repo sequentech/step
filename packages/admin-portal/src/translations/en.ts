@@ -1671,6 +1671,13 @@ const englishTranslation = {
                 totalVoters: "Total Voters",
                 nonVoters: "Non Voters",
             },
+            consolidatedReportPolicy: {
+                title: "Consolidated Report Policy",
+                options: {
+                    "generate": "Generate",
+                    "do-not-generate": "Do Not Generate",
+                },
+            },
         },
         publish: {
             preview: {

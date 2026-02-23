@@ -1680,6 +1680,13 @@ const dutchTranslation: TranslationType = {
                 totalVoters: "Totaal Kiezers",
                 nonVoters: "Niet-kiezers",
             },
+            consolidatedReportPolicy: {
+                title: "Beleid voor geconsolideerd rapport",
+                options: {
+                    "generate": "Genereren",
+                    "do-not-generate": "Niet genereren",
+                },
+            },
         },
         publish: {
             preview: {

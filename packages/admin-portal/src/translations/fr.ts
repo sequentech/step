@@ -1696,6 +1696,13 @@ const frenchTranslation: TranslationType = {
                 totalVoters: "Total des Électeurs",
                 nonVoters: "Non-Électeurs",
             },
+            consolidatedReportPolicy: {
+                title: "Politique de rapport consolidé",
+                options: {
+                    "generate": "Générer",
+                    "do-not-generate": "Ne pas générer",
+                },
+            },
         },
         publish: {
             preview: {
