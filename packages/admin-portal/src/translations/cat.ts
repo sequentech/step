@@ -1383,13 +1383,13 @@ const catalanTranslation: TranslationType = {
             },
             duplicatedRankPolicy: {
                 "label": "Vot invàlid - Política de rang duplicat",
-                "warn-and-dialog": "Mostrar advertiment i diàleg (el votant pot continuar)",
+                "allowed-warn-and-dialog": "Mostrar advertiment i diàleg (el votant pot continuar)",
                 "not-allowed-warn-and-dialog":
                     "Mostrar advertiment i diàleg (el votant no pot continuar)",
             },
             preferenceGapsPolicy: {
                 "label": "Vot invàlid - Política de rangs omesos",
-                "warn-and-dialog": "Mostrar advertiment i diàleg (el votant pot continuar)",
+                "allowed-warn-and-dialog": "Mostrar advertiment i diàleg (el votant pot continuar)",
                 "not-allowed-warn-and-dialog":
                     "Mostrar advertiment i diàleg (el votant no pot continuar)",
             },

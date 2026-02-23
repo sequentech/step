@@ -1374,13 +1374,13 @@ const galegoTranslation: TranslationType = {
             },
             duplicatedRankPolicy: {
                 "label": "Voto non válido - Política de posición duplicada",
-                "warn-and-dialog": "Mostrar aviso e diálogo (o votante pode continuar)",
+                "allowed-warn-and-dialog": "Mostrar aviso e diálogo (o votante pode continuar)",
                 "not-allowed-warn-and-dialog":
                     "Mostrar aviso e diálogo (o votante non pode continuar)",
             },
             preferenceGapsPolicy: {
                 "label": "Voto non válido - Política de rangos omitidos",
-                "warn-and-dialog": "Mostrar aviso e diálogo (o votante pode continuar)",
+                "allowed-warn-and-dialog": "Mostrar aviso e diálogo (o votante pode continuar)",
                 "not-allowed-warn-and-dialog":
                     "Mostrar aviso e diálogo (o votante non pode continuar)",
             },

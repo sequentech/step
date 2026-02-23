@@ -1383,13 +1383,15 @@ const frenchTranslation: TranslationType = {
             },
             duplicatedRankPolicy: {
                 "label": "Vote invalide - Politique de rang dupliqué",
-                "warn-and-dialog": "Afficher avertissement et dialogue (l'électeur peut continuer)",
+                "allowed-warn-and-dialog":
+                    "Afficher avertissement et dialogue (l'électeur peut continuer)",
                 "not-allowed-warn-and-dialog":
                     "Afficher avertissement et dialogue (l'électeur n'est pas autorisé à continuer)",
             },
             preferenceGapsPolicy: {
                 "label": "Vote invalide - Politique de rangs ignorés",
-                "warn-and-dialog": "Afficher avertissement et dialogue (l'électeur peut continuer)",
+                "allowed-warn-and-dialog":
+                    "Afficher avertissement et dialogue (l'électeur peut continuer)",
                 "not-allowed-warn-and-dialog":
                     "Afficher avertissement et dialogue (l'électeur n'est pas autorisé à continuer)",
             },

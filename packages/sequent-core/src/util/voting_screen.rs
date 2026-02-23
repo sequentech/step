@@ -201,7 +201,7 @@ pub fn check_voting_error_dialog_util(
             // - duplicated rank policy is WARN_AND_ALERT and there's a
             //   duplicated position error
                 || (*duplicated_rank_policy
-                    == EDuplicatedRankPolicy::WARN_AND_DIALOG
+                    == EDuplicatedRankPolicy::ALLOWED_WARN_AND_DIALOG
                     && invalid_errors.iter().any(|e| {
                         e.message
                             == Some(
@@ -212,7 +212,7 @@ pub fn check_voting_error_dialog_util(
             // - preference gaps policy is WARN_AND_ALERT and there's a
             //   preference order with gaps error
                 || (*preference_gaps_policy
-                    == EPreferenceGapsPolicy::WARN_AND_DIALOG
+                    == EPreferenceGapsPolicy::ALLOWED_WARN_AND_DIALOG
                     && invalid_errors.iter().any(|e| {
                         e.message
                             == Some(

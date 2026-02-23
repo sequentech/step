@@ -1221,10 +1221,10 @@ pub enum EOverVotePolicy {
     Default,
 )]
 pub enum EDuplicatedRankPolicy {
-    #[strum(serialize = "warn-and-dialog")]
-    #[serde(rename = "warn-and-dialog")]
+    #[strum(serialize = "allowed-warn-and-dialog")]
+    #[serde(rename = "allowed-warn-and-dialog")]
     #[default]
-    WARN_AND_DIALOG,
+    ALLOWED_WARN_AND_DIALOG,
     #[strum(serialize = "not-allowed-warn-and-dialog")]
     #[serde(rename = "not-allowed-warn-and-dialog")]
     NOT_ALLOWED_WARN_AND_DIALOG,
@@ -1247,10 +1247,10 @@ pub enum EDuplicatedRankPolicy {
     Default,
 )]
 pub enum EPreferenceGapsPolicy {
-    #[strum(serialize = "warn-and-dialog")]
-    #[serde(rename = "warn-and-dialog")]
+    #[strum(serialize = "allowed-warn-and-dialog")]
+    #[serde(rename = "allowed-warn-and-dialog")]
     #[default]
-    WARN_AND_DIALOG,
+    ALLOWED_WARN_AND_DIALOG,
     #[strum(serialize = "not-allowed-warn-and-dialog")]
     #[serde(rename = "not-allowed-warn-and-dialog")]
     NOT_ALLOWED_WARN_AND_DIALOG,
@@ -1444,12 +1444,8 @@ impl ContestPresentation {
             types_presentation: None,
             sort_order: None,
             under_vote_policy: Some(EUnderVotePolicy::ALLOWED),
-            duplicated_rank_policy: Some(
-                EDuplicatedRankPolicy::WARN_AND_DIALOG,
-            ),
-            preference_gaps_policy: Some(
-                EPreferenceGapsPolicy::WARN_AND_DIALOG,
-            ),
+            duplicated_rank_policy: Some(EDuplicatedRankPolicy::default()),
+            preference_gaps_policy: Some(EPreferenceGapsPolicy::default()),
             columns: None,
         }
     }

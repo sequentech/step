@@ -247,7 +247,7 @@ pub fn check_duplicated_rank_policy(
         message_map: HashMap::new(),
     };
     match policy {
-        EDuplicatedRankPolicy::WARN_AND_DIALOG
+        EDuplicatedRankPolicy::ALLOWED_WARN_AND_DIALOG
         | EDuplicatedRankPolicy::NOT_ALLOWED_WARN_AND_DIALOG => {
             checker_result.invalid_errors.push(error);
         }
@@ -270,7 +270,7 @@ pub fn check_preference_gaps_policy(
         message_map: HashMap::new(),
     };
     match policy {
-        EPreferenceGapsPolicy::WARN_AND_DIALOG
+        EPreferenceGapsPolicy::ALLOWED_WARN_AND_DIALOG
         | EPreferenceGapsPolicy::NOT_ALLOWED_WARN_AND_DIALOG => {
             checker_result.invalid_errors.push(error);
         }

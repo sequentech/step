@@ -1362,13 +1362,13 @@ const englishTranslation = {
             },
             duplicatedRankPolicy: {
                 "label": "Invalid Vote - Duplicate Rank Policy",
-                "warn-and-dialog": "Show Warning and Dialog (voter can proceed)",
+                "allowed-warn-and-dialog": "Show Warning and Dialog (voter can proceed)",
                 "not-allowed-warn-and-dialog":
                     "Show Warning and Dialog (voter not allowed to proceed)",
             },
             preferenceGapsPolicy: {
                 "label": "Invalid Vote - Skipped Ranks Policy",
-                "warn-and-dialog": "Show Warning and Dialog (voter can proceed)",
+                "allowed-warn-and-dialog": "Show Warning and Dialog (voter can proceed)",
                 "not-allowed-warn-and-dialog":
                     "Show Warning and Dialog (voter not allowed to proceed)",
             },

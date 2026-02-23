@@ -1371,13 +1371,13 @@ const dutchTranslation: TranslationType = {
             },
             duplicatedRankPolicy: {
                 "label": "Ongeldige stem - Beleid Gedupliceerde Rang",
-                "warn-and-dialog": "Toon waarschuwing en dialoog (kiezer kan doorgaan)",
+                "allowed-warn-and-dialog": "Toon waarschuwing en dialoog (kiezer kan doorgaan)",
                 "not-allowed-warn-and-dialog":
                     "Toon waarschuwing en dialoog (kiezer mag niet doorgaan)",
             },
             preferenceGapsPolicy: {
                 "label": "Ongeldige stem - Beleid Overgeslagen Rangen",
-                "warn-and-dialog": "Toon waarschuwing en dialoog (kiezer kan doorgaan)",
+                "allowed-warn-and-dialog": "Toon waarschuwing en dialoog (kiezer kan doorgaan)",
                 "not-allowed-warn-and-dialog":
                     "Toon waarschuwing en dialoog (kiezer mag niet doorgaan)",
             },

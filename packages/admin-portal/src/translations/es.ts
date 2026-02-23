@@ -1374,13 +1374,15 @@ const spanishTranslation: TranslationType = {
             },
             duplicatedRankPolicy: {
                 "label": "Voto inválido - Política de rango duplicado",
-                "warn-and-dialog": "Mostrar advertencia y diálogo (el votante puede continuar)",
+                "allowed-warn-and-dialog":
+                    "Mostrar advertencia y diálogo (el votante puede continuar)",
                 "not-allowed-warn-and-dialog":
                     "Mostrar advertencia y diálogo (el votante no puede continuar)",
             },
             preferenceGapsPolicy: {
                 "label": "Voto inválido - Política de rangos omitidos",
-                "warn-and-dialog": "Mostrar advertencia y diálogo (el votante puede continuar)",
+                "allowed-warn-and-dialog":
+                    "Mostrar advertencia y diálogo (el votante puede continuar)",
                 "not-allowed-warn-and-dialog":
                     "Mostrar advertencia y diálogo (el votante no puede continuar)",
             },

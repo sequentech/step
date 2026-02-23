@@ -1370,14 +1370,14 @@ const basqueTranslation: TranslationType = {
             },
             duplicatedRankPolicy: {
                 "label": "Boto baliogabea - Bikoiztutako Rankaren Politika",
-                "warn-and-dialog":
+                "allowed-warn-and-dialog":
                     "Erakutsi ohartarazpena eta elkarrizketa-koadroa (botatzaileak aurrera egin dezake)",
                 "not-allowed-warn-and-dialog":
                     "Erakutsi ohartarazpena eta elkarrizketa-koadroa (botatzaileak ezin du aurrera egin)",
             },
             preferenceGapsPolicy: {
                 "label": "Boto baliogabea - Saltatutako Ranken Politika",
-                "warn-and-dialog":
+                "allowed-warn-and-dialog":
                     "Erakutsi ohartarazpena eta elkarrizketa-koadroa (botatzaileak aurrera egin dezake)",
                 "not-allowed-warn-and-dialog":
                     "Erakutsi ohartarazpena eta elkarrizketa-koadroa (botatzaileak ezin du aurrera egin)",

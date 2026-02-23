@@ -1376,13 +1376,15 @@ const tagalogTranslation: TranslationType = {
             },
             duplicatedRankPolicy: {
                 "label": "Di-wastong Boto - Patakaran sa Dobleng Ranggo",
-                "warn-and-dialog": "Ipakita ang babala at dialog (maaaring magpatuloy ang botante)",
+                "allowed-warn-and-dialog":
+                    "Ipakita ang babala at dialog (maaaring magpatuloy ang botante)",
                 "not-allowed-warn-and-dialog":
                     "Ipakita ang babala at dialog (hindi maaaring magpatuloy ang botante)",
             },
             preferenceGapsPolicy: {
                 "label": "Di-wastong Boto - Patakaran sa Nilaktawang Ranggo",
-                "warn-and-dialog": "Ipakita ang babala at dialog (maaaring magpatuloy ang botante)",
+                "allowed-warn-and-dialog":
+                    "Ipakita ang babala at dialog (maaaring magpatuloy ang botante)",
                 "not-allowed-warn-and-dialog":
                     "Ipakita ang babala at dialog (hindi maaaring magpatuloy ang botante)",
             },

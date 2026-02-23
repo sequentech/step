@@ -55,12 +55,12 @@ export enum EOverVotePolicy {
 }
 
 export enum EDuplicatedRankPolicy {
-    WARN_AND_DIALOG = "warn-and-dialog",
+    ALLOWED_WARN_AND_DIALOG = "allowed-warn-and-dialog",
     NOT_ALLOWED_WARN_AND_DIALOG = "not-allowed-warn-and-dialog",
 }
 
 export enum EPreferenceGapsPolicy {
-    WARN_AND_DIALOG = "warn-and-dialog",
+    ALLOWED_WARN_AND_DIALOG = "allowed-warn-and-dialog",
     NOT_ALLOWED_WARN_AND_DIALOG = "not-allowed-warn-and-dialog",
 }
 
