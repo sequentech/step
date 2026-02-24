@@ -48,6 +48,7 @@ use velvet::pipes::generate_reports::{
     BasicArea, ElectionReportDataComputed, ReportDataComputed, OUTPUT_ALL_AREAS_HTML,
     OUTPUT_ALL_AREAS_JSON, OUTPUT_HTML, OUTPUT_JSON, OUTPUT_PDF,
 };
+use velvet::pipes::pipe_inputs::PREFIX_ALL_AREAS;
 
 pub const MIME_PDF: &str = "application/pdf";
 pub const MIME_JSON: &str = "application/json";
@@ -109,6 +110,33 @@ async fn generic_save_documents(
         election_event_id,
     )
     .await?;
+
+    if (document_paths.all_areas_html.is_some()) {
+        documents.all_areas_html = process_and_upload_document(
+            hasura_transaction,
+            document_paths.all_areas_html.clone(),
+            MIME_HTML,
+            OUTPUT_ALL_AREAS_HTML,
+            &all_reports,
+            report_type.clone(),
+            tenant_id,
+            election_event_id,
+        )
+        .await?;
+    }
+    if (document_paths.all_areas_json.is_some()) {
+        documents.all_areas_json = process_and_upload_document(
+            hasura_transaction,
+            document_paths.all_areas_json.clone(),
+            MIME_HTML,
+            OUTPUT_ALL_AREAS_JSON,
+            &all_reports,
+            report_type.clone(),
+            tenant_id,
+            election_event_id,
+        )
+        .await?;
+    }
 
     Ok(documents)
 }
@@ -401,8 +429,10 @@ impl GenerateResultDocuments for ElectionReportDataComputed {
         let json_path = folder_path.join(OUTPUT_JSON);
         let pdf_path = folder_path.join(OUTPUT_PDF);
         let html_path = folder_path.join(OUTPUT_HTML);
-        let all_areas_html_path = folder_path.join(OUTPUT_ALL_AREAS_HTML);
-        let all_areas_json_path = folder_path.join(OUTPUT_ALL_AREAS_JSON);
+
+        let all_areas_folder_path = folder_path.join(PREFIX_ALL_AREAS);
+        let all_areas_html_path = all_areas_folder_path.join(OUTPUT_ALL_AREAS_HTML);
+        let all_areas_json_path = all_areas_folder_path.join(OUTPUT_ALL_AREAS_JSON);
 
         ResultDocumentPaths {
             json: if json_path.is_file() {

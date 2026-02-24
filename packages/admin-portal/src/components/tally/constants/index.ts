@@ -24,4 +24,8 @@ export const EXPORT_FORMATS: Array<{
         label: "TAR_GZ",
         value: EExportFormat.TAR_GZ,
     },
+    {
+        label: "ALL_AREAS",
+        value: EExportFormat.ALL_AREAS_HTML,
+    },
 ]

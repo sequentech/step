@@ -1701,6 +1701,7 @@ const catalanTranslation: TranslationType = {
                     "do-not-generate": "No generar",
                 },
             },
+            exportAllAreas: "Resultats combinats de totes les àrees",
         },
         publish: {
             preview: {

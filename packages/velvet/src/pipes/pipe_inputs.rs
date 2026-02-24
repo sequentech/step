@@ -25,7 +25,7 @@ pub const PREFIX_ELECTION: &str = "election__";
 pub const PREFIX_CONTEST: &str = "contest__";
 pub const PREFIX_AREA: &str = "area__";
 pub const PREFIX_TALLY_SHEET: &str = "tally_sheet__";
-pub const PREFIX_ALL_AREAS: &str = "all_areas_results";
+pub const PREFIX_ALL_AREAS: &str = "all_areas";
 
 pub const DEFAULT_DIR_CONFIGS: &str = "default/configs";
 pub const DEFAULT_DIR_BALLOTS: &str = "default/ballots";

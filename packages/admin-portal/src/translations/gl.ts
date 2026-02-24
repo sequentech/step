@@ -1692,6 +1692,7 @@ const galegoTranslation: TranslationType = {
                     "do-not-generate": "Non xerar",
                 },
             },
+            exportAllAreas: "Resultados combinados de todas as áreas",
         },
         publish: {
             preview: {

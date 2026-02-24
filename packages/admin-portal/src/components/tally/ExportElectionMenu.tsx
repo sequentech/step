@@ -230,44 +230,46 @@ export const ExportElectionMenu: React.FC<ExportElectionMenuProps> = (props) => 
                                     <React.Fragment
                                         key={`${documents.class_type}:${documents.name}:${format.value}`}
                                     >
-                                        <MenuItem
-                                            className={getMenuClassName(
-                                                format.value,
-                                                documents.class_type,
-                                                documents.class_subtype
-                                            )}
-                                            key={format.value}
-                                            onClick={(e: React.MouseEvent<HTMLElement>) => {
-                                                e.preventDefault()
-                                                e.stopPropagation()
-                                                setTimeout(() => handleClose(), 0)
-                                                handleExport(documents.documents, format.value)
-                                            }}
-                                            disabled={isExportFormatDisabled(
-                                                documents.documents,
-                                                format.value
-                                            )}
-                                        >
-                                            <Box
-                                                sx={{
-                                                    textOverflow: "ellipsis",
-                                                    whiteSpace: "nowrap",
-                                                    overflow: "hidden",
+                                        {format.value !== EExportFormat.ALL_AREAS_HTML && (
+                                            <MenuItem
+                                                className={getMenuClassName(
+                                                    format.value,
+                                                    documents.class_type,
+                                                    documents.class_subtype
+                                                )}
+                                                key={format.value}
+                                                onClick={(e: React.MouseEvent<HTMLElement>) => {
+                                                    e.preventDefault()
+                                                    e.stopPropagation()
+                                                    setTimeout(() => handleClose(), 0)
+                                                    handleExport(documents.documents, format.value)
                                                 }}
+                                                disabled={isExportFormatDisabled(
+                                                    documents.documents,
+                                                    format.value
+                                                )}
                                             >
-                                                <span
-                                                    title={t("common.label.exportFormat", {
-                                                        item: documents.name,
-                                                        format: format.label,
-                                                    })}
+                                                <Box
+                                                    sx={{
+                                                        textOverflow: "ellipsis",
+                                                        whiteSpace: "nowrap",
+                                                        overflow: "hidden",
+                                                    }}
                                                 >
-                                                    {t("common.label.exportFormat", {
-                                                        item: documents.name,
-                                                        format: format.label,
-                                                    })}
-                                                </span>
-                                            </Box>
-                                        </MenuItem>
+                                                    <span
+                                                        title={t("common.label.exportFormat", {
+                                                            item: documents.name,
+                                                            format: format.label,
+                                                        })}
+                                                    >
+                                                        {t("common.label.exportFormat", {
+                                                            item: documents.name,
+                                                            format: format.label,
+                                                        })}
+                                                    </span>
+                                                </Box>
+                                            </MenuItem>
+                                        )}
                                         {format.value === EExportFormat.HTML ? (
                                             <GeneratePDF
                                                 key={documents.name}
@@ -278,6 +280,22 @@ export const ExportElectionMenu: React.FC<ExportElectionMenuProps> = (props) => 
                                                 handleClose={handleClose}
                                             />
                                         ) : null}
+                                        {format.value === EExportFormat.ALL_AREAS_HTML &&
+                                            electionId &&
+                                            documents.class_type === "election" && (
+                                                <GeneratePDF
+                                                    key={documents.name}
+                                                    documents={documents.documents}
+                                                    name={documents.name}
+                                                    electionEventId={electionEventId}
+                                                    tallySessionId={tallySessionId}
+                                                    handleClose={handleClose}
+                                                    documentTypeToConvertFrom={
+                                                        EExportFormat.ALL_AREAS_HTML
+                                                    }
+                                                    title={t("tally.exportAllAreas")}
+                                                />
+                                            )}
                                     </React.Fragment>
                                 )
                             )}

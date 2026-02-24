@@ -1703,6 +1703,7 @@ const frenchTranslation: TranslationType = {
                     "do-not-generate": "Ne pas générer",
                 },
             },
+            exportAllAreas: "Résultats combinés de toutes les zones",
         },
         publish: {
             preview: {

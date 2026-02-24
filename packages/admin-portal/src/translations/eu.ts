@@ -1687,6 +1687,7 @@ const basqueTranslation: TranslationType = {
                     "do-not-generate": "Ez sortu",
                 },
             },
+            exportAllAreas: "Eremu guztien emaitza bateratuak",
         },
         publish: {
             preview: {

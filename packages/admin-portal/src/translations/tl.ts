@@ -1693,6 +1693,7 @@ const tagalogTranslation: TranslationType = {
                     "do-not-generate": "Huwag bumuo",
                 },
             },
+            exportAllAreas: "Pinagsamang resulta ng lahat ng lugar",
         },
         publish: {
             preview: {

@@ -1678,6 +1678,7 @@ const englishTranslation = {
                     "do-not-generate": "Do Not Generate",
                 },
             },
+            exportAllAreas: "All Areas Combined Results",
         },
         publish: {
             preview: {

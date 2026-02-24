@@ -1692,6 +1692,7 @@ const spanishTranslation: TranslationType = {
                     "do-not-generate": "No generar",
                 },
             },
+            exportAllAreas: "Resultados combinados de todas las áreas",
         },
         publish: {
             preview: {

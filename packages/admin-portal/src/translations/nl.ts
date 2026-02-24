@@ -1687,6 +1687,7 @@ const dutchTranslation: TranslationType = {
                     "do-not-generate": "Niet genereren",
                 },
             },
+            exportAllAreas: "Gecombineerde resultaten van alle gebieden",
         },
         publish: {
             preview: {
