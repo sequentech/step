@@ -640,6 +640,13 @@ const basqueTranslation: TranslationType = {
                     "election-event": "Hauteskunde-ekitaldiaren titulua",
                 },
             },
+            consolidatedReportPolicy: {
+                label: "Txosten bateratuaren politika",
+                options: {
+                    "generate": "Sortu",
+                    "do-not-generate": "Ez sortu",
+                },
+            },
         },
         tenantScreen: {
             common: {
@@ -1680,14 +1687,8 @@ const basqueTranslation: TranslationType = {
                 totalVoters: "Bozkatzaile Guztiak",
                 nonVoters: "Ez-bozkatzaileak",
             },
-            consolidatedReportPolicy: {
-                title: "Txosten bateratuaren politika",
-                options: {
-                    "generate": "Sortu",
-                    "do-not-generate": "Ez sortu",
-                },
-            },
-            exportAllAreas: "Eremu guztien emaitza bateratuak",
+            exportAllAreas:
+                "Eremu guztien emaitzak {{format}} formatuan esportatu '{{item}}'-rentzat",
         },
         publish: {
             preview: {

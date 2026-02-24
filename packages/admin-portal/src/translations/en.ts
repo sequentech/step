@@ -638,6 +638,13 @@ const englishTranslation = {
                     "election-event": "Election event title",
                 },
             },
+            consolidatedReportPolicy: {
+                label: "Consolidated Report Policy",
+                options: {
+                    "generate": "Generate",
+                    "do-not-generate": "Do Not Generate",
+                },
+            },
         },
         tenantScreen: {
             common: {
@@ -1671,14 +1678,7 @@ const englishTranslation = {
                 totalVoters: "Total Voters",
                 nonVoters: "Non Voters",
             },
-            consolidatedReportPolicy: {
-                title: "Consolidated Report Policy",
-                options: {
-                    "generate": "Generate",
-                    "do-not-generate": "Do Not Generate",
-                },
-            },
-            exportAllAreas: "All Areas Combined Results",
+            exportAllAreas: "Export All Areas Results in {{format}} format for '{{item}}'",
         },
         publish: {
             preview: {

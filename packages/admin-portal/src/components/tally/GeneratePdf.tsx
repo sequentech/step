@@ -22,7 +22,7 @@ interface GenerateReportProps {
     tallySessionId: string
     handleClose: () => void
     documentTypeToConvertFrom?: EExportFormat
-    title?: string
+    label?: string
 }
 
 export const GeneratePDF: React.FC<GenerateReportProps> = ({
@@ -32,7 +32,7 @@ export const GeneratePDF: React.FC<GenerateReportProps> = ({
     tallySessionId,
     handleClose,
     documentTypeToConvertFrom = EExportFormat.HTML,
-    title,
+    label,
 }) => {
     const {t} = useTranslation()
     const [documentId, setDocumentId] = useState<string | null>(null)
@@ -53,7 +53,7 @@ export const GeneratePDF: React.FC<GenerateReportProps> = ({
                 setDocumentId(id)
             }
         }
-    }, [[documents?.[EExportFormat.PDF]]])
+    }, [documents, documentTypeToConvertFrom, documentId])
 
     const [addWidget, setWidgetTaskId, updateWidgetFail] = useWidgetStore()
 
@@ -109,14 +109,14 @@ export const GeneratePDF: React.FC<GenerateReportProps> = ({
             >
                 <span
                     title={
-                        title ??
+                        label ??
                         t("common.label.exportFormat", {
                             item: name,
                             format: EExportFormat.PDF.toUpperCase(),
                         })
                     }
                 >
-                    {title ??
+                    {label ??
                         t("common.label.exportFormat", {
                             item: name,
                             format: EExportFormat.PDF.toUpperCase(),

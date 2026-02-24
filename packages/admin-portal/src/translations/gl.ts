@@ -639,6 +639,13 @@ const galegoTranslation: TranslationType = {
                     "election-event": "Título do evento electoral",
                 },
             },
+            consolidatedReportPolicy: {
+                label: "Política de informe consolidado",
+                options: {
+                    "generate": "Xerar",
+                    "do-not-generate": "Non xerar",
+                },
+            },
         },
         tenantScreen: {
             common: {
@@ -1685,14 +1692,8 @@ const galegoTranslation: TranslationType = {
                 totalVoters: "Total de Votantes",
                 nonVoters: "Non Votantes",
             },
-            consolidatedReportPolicy: {
-                title: "Política de informe consolidado",
-                options: {
-                    "generate": "Xerar",
-                    "do-not-generate": "Non xerar",
-                },
-            },
-            exportAllAreas: "Resultados combinados de todas as áreas",
+            exportAllAreas:
+                "Exportar os resultados de todas as áreas en formato {{format}} para '{{item}}'",
         },
         publish: {
             preview: {

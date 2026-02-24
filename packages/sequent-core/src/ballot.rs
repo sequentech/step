@@ -1234,6 +1234,7 @@ pub struct ElectionPresentation {
     pub tally: Option<Tally>,
     pub initialization_report_policy: Option<EInitializeReportPolicy>,
     pub security_confirmation_policy: Option<ESecurityConfirmationPolicy>,
+    pub consolidated_report_policy: Option<ConsolidatedReportPolicy>,
 }
 
 impl core::Election {
@@ -1269,6 +1270,9 @@ impl Default for ElectionPresentation {
             grace_period_secs: None,
             initialization_report_policy: None,
             security_confirmation_policy: None,
+            consolidated_report_policy: Some(
+                ConsolidatedReportPolicy::DO_NOT_GENERATE,
+            ),
         }
     }
 }

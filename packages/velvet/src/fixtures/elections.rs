@@ -4,7 +4,7 @@
 
 use super::ballot_styles;
 use crate::pipes::pipe_inputs::ElectionConfig;
-use sequent_core::services::area_tree::TreeNodeArea;
+use sequent_core::{ballot::ElectionPresentation, services::area_tree::TreeNodeArea};
 use uuid::Uuid;
 
 #[allow(unused)]
@@ -43,6 +43,7 @@ pub fn get_election_config_1(election_event_id: &Uuid, areas: Vec<Uuid>) -> Elec
                 parent_id: None,
             })
             .collect(),
+        presentation: Some(ElectionPresentation::default()),
     }
 }
 
@@ -80,6 +81,7 @@ pub fn get_election_config_2() -> ElectionConfig {
             election_event_id: election_event_id.to_string(),
             parent_id: None,
         }],
+        presentation: Some(ElectionPresentation::default()),
     }
 }
 
@@ -122,5 +124,6 @@ pub fn get_election_config_3(
                 parent_id: parent_area_id.map(|a| a.to_string()),
             })
             .collect(),
+        presentation: Some(ElectionPresentation::default()),
     }
 }

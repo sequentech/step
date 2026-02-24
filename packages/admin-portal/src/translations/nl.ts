@@ -636,6 +636,13 @@ const dutchTranslation: TranslationType = {
                     "election-event": "Verkiezingsevenementtitel",
                 },
             },
+            consolidatedReportPolicy: {
+                label: "Beleid voor geconsolideerd rapport",
+                options: {
+                    "generate": "Genereren",
+                    "do-not-generate": "Niet genereren",
+                },
+            },
         },
         tenantScreen: {
             common: {
@@ -1680,14 +1687,8 @@ const dutchTranslation: TranslationType = {
                 totalVoters: "Totaal Kiezers",
                 nonVoters: "Niet-kiezers",
             },
-            consolidatedReportPolicy: {
-                title: "Beleid voor geconsolideerd rapport",
-                options: {
-                    "generate": "Genereren",
-                    "do-not-generate": "Niet genereren",
-                },
-            },
-            exportAllAreas: "Gecombineerde resultaten van alle gebieden",
+            exportAllAreas:
+                "Exporteer de resultaten van alle gebieden in {{format}}-formaat voor '{{item}}'",
         },
         publish: {
             preview: {

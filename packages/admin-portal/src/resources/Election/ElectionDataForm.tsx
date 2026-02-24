@@ -63,6 +63,7 @@ import {
     IElectionEventPresentation,
     IElectionPresentation,
     EAllowTally,
+    EConsolidatedReportPolicy,
 } from "@sequentech/ui-core"
 import {DropFile} from "@sequentech/ui-essentials"
 import FileJsonInput from "../../components/FileJsonInput"
@@ -547,6 +548,13 @@ export const ElectionDataForm: React.FC = () => {
         }))
     }
 
+    const consolidatedReportPolicyChoices = (): Array<EnumChoice<EConsolidatedReportPolicy>> => {
+        return Object.values(EConsolidatedReportPolicy).map((value) => ({
+            id: value,
+            name: t(`electionScreen.consolidatedReportPolicy.options.${value.toLowerCase()}`),
+        }))
+    }
+
     const updateCustomFilters = (
         values: Sequent_Backend_Election_Extended,
         {newData}: UpdateFunctionProps
@@ -892,6 +900,15 @@ export const ElectionDataForm: React.FC = () => {
                                         t(`electionScreen.securityConfirmationPolicy.label`)
                                     )}
                                     defaultValue={ESecurityConfirmationPolicy.NONE}
+                                />
+                                <SelectInput
+                                    source={`presentation.consolidated_report_policy`}
+                                    choices={consolidatedReportPolicyChoices()}
+                                    label={String(
+                                        t("electionScreen.consolidatedReportPolicy.label")
+                                    )}
+                                    validate={required()}
+                                    defaultValue={EConsolidatedReportPolicy.DO_NOT_GENERATE}
                                 />
                             </AccordionDetails>
                         </Accordion>

@@ -277,6 +277,9 @@ pub fn create_election_configs_blocking(
             })
             .unwrap_or(Default::default());
 
+        let election_presentation =
+            election_opt.map(|election| election.get_presentation().unwrap_or_default());
+
         let election_cast_votes_count = cast_votes_count
             .iter()
             .find(|data| data.election_id == election_id);
@@ -310,6 +313,7 @@ pub fn create_election_configs_blocking(
                     .unwrap_or(0),
                 ballot_styles: vec![],
                 areas: areas.clone(),
+                presentation: election_presentation.clone(),
             },
         };
 
@@ -593,9 +597,6 @@ async fn build_reports_pipe_config(
         ("executer_username".to_string(), tally_executer_username),
     ]);
 
-    let tally_configuration = tally_session.configuration.clone().unwrap_or_default();
-    let tally_consolidated_report_policy = tally_configuration.get_consolidated_report_policy();
-
     Ok(PipeConfigGenerateReports {
         enable_pdfs: false,
         report_content_template,
@@ -603,7 +604,6 @@ async fn build_reports_pipe_config(
         system_template: report_system_template,
         pdf_options,
         extra_data: serde_json::to_value(extra_data)?,
-        tally_consolidated_report_policy: tally_consolidated_report_policy,
     })
 }
 

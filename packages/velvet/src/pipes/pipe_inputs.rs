@@ -8,7 +8,7 @@ use crate::{
     utils::parse_file,
 };
 use sequent_core::{
-    ballot::{BallotStyle, Contest, ReportDates, StringifiedPeriodDates},
+    ballot::{BallotStyle, Contest, ElectionPresentation, ReportDates, StringifiedPeriodDates},
     services::area_tree::TreeNodeArea,
     util::path::get_folder_name,
 };
@@ -217,6 +217,7 @@ impl PipeInputs {
             census: election.census,
             total_votes: election.total_votes,
             areas: election.areas,
+            presentation: election.presentation,
         })
     }
 
@@ -307,6 +308,7 @@ pub struct InputElectionConfig {
     pub census: u64,
     pub total_votes: u64,
     pub areas: Vec<TreeNodeArea>,
+    pub presentation: Option<ElectionPresentation>,
 }
 
 #[derive(Debug, Clone)]
@@ -378,6 +380,7 @@ pub struct ElectionConfig {
     pub ballot_styles: Vec<BallotStyle>,
     pub areas: Vec<TreeNodeArea>,
     pub dates: Option<StringifiedPeriodDates>,
+    pub presentation: Option<ElectionPresentation>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]

@@ -640,6 +640,13 @@ const catalanTranslation: TranslationType = {
                     "election-event": "Títol de l'esdeveniment electoral",
                 },
             },
+            consolidatedReportPolicy: {
+                label: "Política d'informe consolidat",
+                options: {
+                    "generate": "Generar",
+                    "do-not-generate": "No generar",
+                },
+            },
         },
         tenantScreen: {
             common: {
@@ -1694,14 +1701,8 @@ const catalanTranslation: TranslationType = {
                 totalVoters: "Total de Votants",
                 nonVoters: "No Votants",
             },
-            consolidatedReportPolicy: {
-                title: "Política d'informe consolidat",
-                options: {
-                    "generate": "Generar",
-                    "do-not-generate": "No generar",
-                },
-            },
-            exportAllAreas: "Resultats combinats de totes les àrees",
+            exportAllAreas:
+                "Exporta els resultats de totes les àrees en format {{format}} per a '{{item}}'",
         },
         publish: {
             preview: {

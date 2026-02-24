@@ -856,6 +856,12 @@ impl Pipe for GenerateReports {
             .election_list
             .par_iter() // <- PARALLELIZED
             .try_for_each(|election_input| -> Result<()> {
+                let consolidated_report_policy = election_input
+                    .presentation
+                    .clone()
+                    .and_then(|presentation| presentation.consolidated_report_policy)
+                    .unwrap_or_default();
+
                 // Added Result<()> for try_for_each
                 let areas_map: HashMap<String, TreeNodeArea> = election_input
                     .areas
@@ -1071,9 +1077,7 @@ impl Pipe for GenerateReports {
                             false,
                         )?;
 
-                        if config.tally_consolidated_report_policy
-                            == ConsolidatedReportPolicy::GENERATE
-                        {
+                        if consolidated_report_policy == ConsolidatedReportPolicy::GENERATE {
                             Ok(contests_report)
                         } else {
                             Ok(vec![])
@@ -1084,7 +1088,7 @@ impl Pipe for GenerateReports {
                     .flatten()
                     .collect(); // End of par_iter().try_for_each over area_contests_map
 
-                if (config.tally_consolidated_report_policy == ConsolidatedReportPolicy::GENERATE
+                if (consolidated_report_policy == ConsolidatedReportPolicy::GENERATE
                     && area_contests_reports.len() > 0)
                 {
                     let result_hash = self.write_report(

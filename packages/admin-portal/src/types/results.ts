@@ -15,3 +15,5 @@ export enum EExportFormat {
 export type IResultDocuments = {
     [F in EExportFormat]?: string
 }
+
+export const ALL_AREAS_PREFIX = "all_areas"

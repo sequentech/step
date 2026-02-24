@@ -22,7 +22,6 @@ pub struct PipeConfigGenerateReports {
     pub execution_annotations: HashMap<String, String>,
     pub system_template: String,
     pub extra_data: Value,
-    pub tally_consolidated_report_policy: ConsolidatedReportPolicy,
 }
 
 #[derive(Serialize, Deserialize, Debug, Default, EnumString)]

@@ -45,12 +45,10 @@ import {CREATE_TALLY_CEREMONY} from "@/queries/CreateTallyCeremony"
 import {useMutation, useQuery} from "@apollo/client"
 import {ETallyType, ITallyExecutionStatus} from "@/types/ceremonies"
 import {
-    ConsolidatedReportPolicy,
     EAllowTally,
     EElectionEventCeremoniesPolicy,
     EInitializeReportPolicy,
     EInitReport,
-    EnumChoice,
     EVotingStatus,
     isArray,
 } from "@sequentech/ui-core"
@@ -150,9 +148,6 @@ export const TallyCeremony: React.FC = () => {
     const [addWidget, setWidgetTaskId, updateWidgetFail] = useWidgetStore()
     const [isTallyCompleted, setIsTallyCompleted] = useState<boolean>(false)
     const [isConfirming, setIsConfirming] = useState<boolean>(false)
-    const [consolidatedReportPolicy, setConsolidatedReportPolicy] = useState<string>(
-        ConsolidatedReportPolicy.DO_NOT_GENERATE
-    )
     const allowTallyCeremonyCreation = useRef<boolean>(true)
     const electionEvent = useRecordContext<Sequent_Backend_Election_Event>()
     const [CreateTallyCeremonyMutation] =
@@ -605,9 +600,6 @@ export const TallyCeremony: React.FC = () => {
                     keys_ceremony_id: keysCeremonyId,
                     election_ids: selectedElections ?? [],
                     tally_type: creatingType,
-                    configuration: {
-                        consolidated_report_policy: consolidatedReportPolicy,
-                    },
                 },
             })
 
@@ -807,12 +799,6 @@ export const TallyCeremony: React.FC = () => {
         return steps
     }
 
-    const consolidatedReportPolicyOptions: Array<EnumChoice<ConsolidatedReportPolicy>> =
-        Object.values(ConsolidatedReportPolicy).map((value) => ({
-            id: value,
-            name: t(`tally.consolidatedReportPolicy.options.${value.toLowerCase()}`),
-        }))
-
     return (
         <TallyStyles.WizardContainer>
             <TallyStyles.ContentWrapper>
@@ -890,30 +876,6 @@ export const TallyCeremony: React.FC = () => {
                                     {sortedKeysCeremonies.map((keysCeremony) => (
                                         <MenuItem key={keysCeremony.id} value={keysCeremony.id}>
                                             {keysCeremony?.name}
-                                        </MenuItem>
-                                    ))}
-                                </Select>
-                                <ElectionHeader
-                                    title={"tally.consolidatedReportPolicy.title"}
-                                    subtitle={""}
-                                />
-
-                                <Select
-                                    id="consolidated-report-policy-tally"
-                                    value={consolidatedReportPolicy}
-                                    defaultValue={ConsolidatedReportPolicy.DO_NOT_GENERATE}
-                                    onChange={(props) => {
-                                        console.log(props?.target?.value)
-                                        if (!props?.target?.value) {
-                                            return
-                                        }
-
-                                        setConsolidatedReportPolicy(props?.target?.value)
-                                    }}
-                                >
-                                    {consolidatedReportPolicyOptions.map((policy) => (
-                                        <MenuItem key={policy.id} value={policy.id}>
-                                            {policy.name}
                                         </MenuItem>
                                     ))}
                                 </Select>
