@@ -49,15 +49,16 @@ jobs:
             exit 1
           fi
 
-      - name: Check that WASM build works
+      - name: Check that WASM build and pack works
         working-directory: packages/sequent-core
         run: |
-          nix develop --command wasm-pack build --mode no-install --out-name index --release --target web --features=wasmtest,default_features
-
-      - name: Check that WASM pack works
-        working-directory: packages/sequent-core
-        run: |
-          nix develop --command wasm-pack -v pack .
+          nix develop --command bash -c '
+            set -euo pipefail
+            export NIX_HARDENING_ENABLE=""
+            export CFLAGS_wasm32_unknown_unknown="${CFLAGS_wasm32_unknown_unknown:-} -O3 -ffunction-sections -fdata-sections -fno-exceptions"
+            wasm-pack build --mode no-install --out-name index --release --target web --features=wasmtest,default_features
+            wasm-pack -v pack .
+          '
 
       - name: Check that yarn.lock hash matches freshly built package
         working-directory: packages
