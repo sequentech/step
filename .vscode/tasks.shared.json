@@ -1045,7 +1045,7 @@
             "args": [
               "-l",
               "-c",
-              "cd /workspaces/step/packages/sequent-core && nix develop --command ../../.devcontainer/scripts/rebuild-sequent-core-full.sh"
+              "cd /workspaces/step/packages/sequent-core && nix develop --command ../../.devcontainer/scripts/rebuild-sequent-core-full.sh && direnv exec /workspaces/step bash -c \"cd /workspaces/step/packages && yarn && yarn build:ui-core && yarn build:ui-essentials\""
             ],
             "options": {
               "cwd": "${workspaceFolder}"

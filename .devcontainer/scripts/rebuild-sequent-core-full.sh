@@ -12,7 +12,7 @@ set -euo pipefail
 
 # Nix hardening flag is not supported when compiling C code for WebAssembly
 export NIX_HARDENING_ENABLE=""
-export CFLAGS_wasm32_unknown_unknown="-O3 -ffunction-sections -fdata-sections -fno-exceptions"
+export CFLAGS_wasm32_unknown_unknown="${CFLAGS_wasm32_unknown_unknown:-} -O3 -ffunction-sections -fdata-sections -fno-exceptions"
 
 SEQUENT_CORE_DIR="$(pwd)"
 PACKAGES_DIR="$(dirname "$SEQUENT_CORE_DIR")"
@@ -50,8 +50,3 @@ cp sequent-core/pkg/sequent-core-0.1.0.tgz ./ballot-verifier/rust/sequent-core-0
 
 echo "==> Cleaning node_modules and dist..."
 rm -rf node_modules */node_modules dist */dist
-
-echo "==> Installing dependencies and building frontend..."
-yarn && yarn build:ui-core && yarn build:ui-essentials
-
-echo "==> Done."
