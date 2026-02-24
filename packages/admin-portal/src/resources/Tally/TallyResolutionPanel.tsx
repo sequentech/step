@@ -181,7 +181,7 @@ export const TallyResolutionPanel: React.FC<TallyResolutionPanelProps> = ({
                     ),
                 },
                 context: {
-                    headers: {"x-hasura-role": IPermissions.ADMIN_CEREMONY},
+                    headers: {"x-hasura-role": IPermissions.TALLY_RESOLUTION_SUBMIT},
                 },
             })
             notify("tally.pendingResolutions.submitSuccess", {type: "success"})

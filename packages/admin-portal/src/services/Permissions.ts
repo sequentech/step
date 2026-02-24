@@ -150,6 +150,9 @@ const AdminOperationMap: Record<string, IPermissions> = {
     // tally_session_execution
     sequent_backend_tally_session_execution: IPermissions.ADMIN_CEREMONY,
     sequent_backend_tally_session_executions: IPermissions.ADMIN_CEREMONY,
+    // tally_session_resolution
+    sequent_backend_tally_session_resolution: IPermissions.TALLY_RESOLUTION_SUBMIT,
+    sequent_backend_tally_session_resolutions: IPermissions.TALLY_RESOLUTION_SUBMIT,
     // tally_sheet
     sequent_backend_tally_sheet: IPermissions.TALLY_SHEET_VIEW,
     sequent_backend_tally_sheets: IPermissions.TALLY_SHEET_VIEW,

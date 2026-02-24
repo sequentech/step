@@ -371,7 +371,7 @@ pub async fn submit_tally_resolution(
         &claims,
         true,
         Some(claims.hasura_claims.tenant_id.clone()),
-        vec![Permissions::ADMIN_CEREMONY],
+        vec![Permissions::TALLY_RESOLUTION_SUBMIT],
     )?;
 
     let input = body.into_inner();
