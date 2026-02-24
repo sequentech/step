@@ -1367,6 +1367,12 @@ const englishTranslation = {
             allowWriteins: {
                 label: "Allow Write-Ins",
             },
+            maxVotes: {
+                helperText:
+                    "Maximum number of candidates a voter can select (non-preferential voting).",
+                helperTextPreferential:
+                    "Highest ranking position available to voters (e.g. '5' means positions 1–5). Must be at least the number of candidates to rank (preferential voting).",
+            },
             error: {},
             createContestSuccess: "Contest created",
             createContestError: "Error creating candidate",

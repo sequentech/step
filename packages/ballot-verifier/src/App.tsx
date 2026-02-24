@@ -154,7 +154,6 @@ const App = () => {
                                         <ConfirmationScreen
                                             confirmationBallot={confirmationBallot}
                                             ballotId={ballotId}
-                                            ballotService={ballotService}
                                         />
                                     </ApolloWrapper>
                                 </ApolloContextProvider>
