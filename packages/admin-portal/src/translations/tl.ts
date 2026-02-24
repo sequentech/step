@@ -1394,6 +1394,12 @@ const tagalogTranslation: TranslationType = {
             allowWriteins: {
                 label: "Payagan ang Mga Manu-manong Kandidato",
             },
+            maxVotes: {
+                helperText:
+                    "Pinakamataas na bilang ng mga kandidatong maaaring piliin ng botante (hindi-kagustuhang pagboto).",
+                helperTextPreferential:
+                    "Pinakamataas na posisyon ng ranggo na magagamit (hal. '5' ay nagbibigay ng mga posisyon 1–5). Dapat na hindi bababa sa bilang ng mga kandidatong irurango (kagustuhang pagboto).",
+            },
             error: {},
             createContestSuccess: "Paligsahan ay nalikha",
             createContestError: "Error sa paglikha ng paligsahan",

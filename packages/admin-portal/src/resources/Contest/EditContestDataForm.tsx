@@ -712,7 +712,23 @@ export const ContestDataForm: React.FC = () => {
                                     label={String(t(`contestScreen.allowWriteins.label`))}
                                 />
                                 <NumberInput source="min_votes" min={0} />
-                                <NumberInput source="max_votes" min={0} />
+                                <FormDataConsumer>
+                                    {({formData}) => (
+                                        <NumberInput
+                                            source="max_votes"
+                                            min={0}
+                                            helperText={String(
+                                                t(
+                                                    formData?.counting_algorithm ===
+                                                        ICountingAlgorithm.INSTANT_RUNOFF
+                                                        ? "contestScreen.maxVotes.helperTextPreferential"
+                                                        : "contestScreen.maxVotes.helperText"
+                                                )
+                                            )}
+                                        />
+                                    )}
+                                </FormDataConsumer>
+                                <Box sx={{marginTop: "1rem"}} />
                                 <NumberInput source="presentation.columns" min={1} />
                                 <NumberInput source="winning_candidates_num" min={0} />
                                 <SelectInput

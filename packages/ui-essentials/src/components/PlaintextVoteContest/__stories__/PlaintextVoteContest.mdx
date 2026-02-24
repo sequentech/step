@@ -1,0 +1,44 @@
+import { Canvas, Meta } from '@storybook/blocks'
+import * as PlaintextVoteContestStories from './PlaintextVoteContest.stories'
+
+<Meta of={PlaintextVoteContestStories} title="components/PlaintextVoteContest"/>
+
+# PlaintextVoteContest
+
+Displays a decoded, human-readable view of a voter's selections for a single contest. Used in ballot receipt and confirmation screens.
+
+## Normal Vote (multiple selections)
+
+<Canvas of={PlaintextVoteContestStories.NormalVote} />
+
+## Single Selection
+
+<Canvas of={PlaintextVoteContestStories.SingleSelection} />
+
+## Blank Vote
+
+<Canvas of={PlaintextVoteContestStories.BlankVote} />
+
+## Explicit Invalid Vote
+
+<Canvas of={PlaintextVoteContestStories.ExplicitInvalidVote} />
+
+## With Validation Warnings
+
+<Canvas of={PlaintextVoteContestStories.WithValidationWarnings} />
+
+## Preferential Vote (Ranked Choice)
+
+<Canvas of={PlaintextVoteContestStories.PreferentialVote} />
+
+## Write-In Vote
+
+<Canvas of={PlaintextVoteContestStories.WriteInVote} />
+
+## With Points
+
+<Canvas of={PlaintextVoteContestStories.WithPoints} />
+
+## Contest Not Found
+
+<Canvas of={PlaintextVoteContestStories.ContestNotFound} />

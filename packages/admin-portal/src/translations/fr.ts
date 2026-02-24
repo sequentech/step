@@ -1401,6 +1401,12 @@ const frenchTranslation: TranslationType = {
             allowWriteins: {
                 label: "Autoriser les candidatures manuscrites",
             },
+            maxVotes: {
+                helperText:
+                    "Nombre maximum de candidats qu'un électeur peut sélectionner (vote non préférentiel).",
+                helperTextPreferential:
+                    "Position de classement la plus haute disponible (ex. '5' signifie positions 1 à 5). Doit être au moins égal au nombre de candidats à classer (vote préférentiel).",
+            },
             error: {},
             createContestSuccess: "Question créée",
             createContestError: "Erreur lors de la création de la question",

@@ -1390,6 +1390,12 @@ const galegoTranslation: TranslationType = {
             allowWriteins: {
                 label: "Permitir candidaturas manuais",
             },
+            maxVotes: {
+                helperText:
+                    "Número máximo de candidatos que un votante pode seleccionar (votación non preferencial).",
+                helperTextPreferential:
+                    "Posición de rango máis alta dispoñible para os votantes (ex. '5' significa posicións 1–5). Debe ser polo menos igual ao número de candidatos a ordenar (votación preferencial).",
+            },
             error: {},
             createContestSuccess: "Concurso creado",
             createContestError: "Erro ao crear o concurso",
