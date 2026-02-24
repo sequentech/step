@@ -1377,6 +1377,15 @@ const tagalogTranslation: TranslationType = {
             paginationPolicy: {
                 label: "Pangalan ng Pahina",
             },
+            allowWriteins: {
+                label: "Payagan ang Mga Manu-manong Kandidato",
+            },
+            maxVotes: {
+                helperText:
+                    "Pinakamataas na bilang ng mga kandidatong maaaring piliin ng botante (hindi-kagustuhang pagboto).",
+                helperTextPreferential:
+                    "Pinakamataas na posisyon ng ranggo na magagamit (hal. '5' ay nagbibigay ng mga posisyon 1–5). Dapat na hindi bababa sa bilang ng mga kandidatong irurango (kagustuhang pagboto).",
+            },
             error: {},
             createContestSuccess: "Paligsahan ay nalikha",
             createContestError: "Error sa paglikha ng paligsahan",
@@ -2008,6 +2017,18 @@ const tagalogTranslation: TranslationType = {
                     tenantConfigOption: "Mag-import ng Mga Konfigurasyon ng Tenant",
                     keycloakConfigOption: "Mag-import ng Mga Konfigurasyon ng Keycloak",
                     RolesConfigOption: "Mag-import ng Mga Role at Pahintulot na Konfigurasyon",
+                },
+            },
+            previewScreen: {
+                label: "Mga Preview",
+                noContent: "Walang nahanap na mga preview",
+                table: {
+                    title: "Mga Panlabas na Preview",
+                    description:
+                        "Isang rekord ng mga preview ng estilo ng balota na ginawa sa pamamagitan ng mga panlabas na request",
+                    requestedBy: "Hiniling ng",
+                    document: "Dokumento",
+                    url: "URL",
                 },
             },
         },

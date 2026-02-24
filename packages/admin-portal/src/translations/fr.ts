@@ -1384,6 +1384,15 @@ const frenchTranslation: TranslationType = {
             paginationPolicy: {
                 label: "Nom de la page",
             },
+            allowWriteins: {
+                label: "Autoriser les candidatures manuscrites",
+            },
+            maxVotes: {
+                helperText:
+                    "Nombre maximum de candidats qu'un électeur peut sélectionner (vote non préférentiel).",
+                helperTextPreferential:
+                    "Position de classement la plus haute disponible (ex. '5' signifie positions 1 à 5). Doit être au moins égal au nombre de candidats à classer (vote préférentiel).",
+            },
             error: {},
             createContestSuccess: "Question créée",
             createContestError: "Erreur lors de la création de la question",
@@ -2018,6 +2027,18 @@ const frenchTranslation: TranslationType = {
                     tenantConfigOption: "Importer les configurations du locataire",
                     keycloakConfigOption: "Importer les configurations Keycloak",
                     RolesConfigOption: "Importer les configurations des rôles et des permissions",
+                },
+            },
+            previewScreen: {
+                label: "Aperçus",
+                noContent: "Aucun aperçu trouvé",
+                table: {
+                    title: "Aperçus externes",
+                    description:
+                        "Un registre des aperçus de styles de bulletins de vote générés via des requêtes externes",
+                    requestedBy: "Demandé par",
+                    document: "Document",
+                    url: "URL",
                 },
             },
         },
