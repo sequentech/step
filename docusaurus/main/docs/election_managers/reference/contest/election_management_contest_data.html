@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.9.2">
 <title data-rh="true">Data | Sequent Online Voting</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:url" content="https://sequentech.github.io/docusaurus/main/docs/election_managers/reference/contest/election_management_contest_data"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Data | Sequent Online Voting"><meta data-rh="true" name="description" content="&lt;!--"><meta data-rh="true" property="og:description" content="&lt;!--"><link data-rh="true" rel="icon" href="/docusaurus/main/img/favicon.ico"><link data-rh="true" rel="canonical" href="https://sequentech.github.io/docusaurus/main/docs/election_managers/reference/contest/election_management_contest_data"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/main/docs/election_managers/reference/contest/election_management_contest_data" hreflang="en"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/main/docs/election_managers/reference/contest/election_management_contest_data" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Data","item":"https://sequentech.github.io/docusaurus/main/docs/election_managers/reference/contest/election_management_contest_data"}]}</script><link rel="stylesheet" href="/docusaurus/main/assets/css/styles.b012d36e.css">
-<script src="/docusaurus/main/assets/js/runtime~main.58cfbfe8.js" defer="defer"></script>
+<script src="/docusaurus/main/assets/js/runtime~main.b0120be2.js" defer="defer"></script>
 <script src="/docusaurus/main/assets/js/main.7cc6d610.js" defer="defer"></script>
 </head>
 <body class="navigation-with-keyboard">
@@ -78,9 +78,26 @@
 <li class="">Voters can view the result but cannot cast a vote.</li>
 </ul>
 </li>
+<li class=""><strong>Min Votes</strong>
+<ul>
+<li class="">The minimum number of selections a voter must make before the ballot is considered valid.</li>
+<li class="">Setting this to 0 allows voters to submit without selecting any candidate.</li>
+</ul>
+</li>
+<li class=""><strong>Max Votes</strong>
+<ul>
+<li class="">The meaning depends on the counting algorithm:<!-- -->
+<ul>
+<li class=""><strong>Non-preferential (Plurality at Large)</strong>: the maximum number of candidates a voter may select.</li>
+<li class=""><strong>Preferential (Instant Runoff / IRV)</strong>: the highest ranking position available to voters. For example, a value of <code>5</code> means voters can assign ranks 1 through 5. Must be at least the number of candidates available to rank.</li>
+</ul>
+</li>
+<li class="">Works in conjunction with the Over Vote Policy to determine what happens when a voter exceeds this limit.</li>
+</ul>
+</li>
 <li class=""><strong>Under-Vote Alert</strong>
 <ul>
-<li class="">Show a warning if a voter selects fewer than the minimum required options.</li>
+<li class="">Show a warning if a voter selects fewer than the maximum required options.</li>
 </ul>
 </li>
 <li class=""><strong>Over-Vote Alert</strong>
