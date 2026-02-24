@@ -49,6 +49,15 @@ jobs:
             exit 1
           fi
 
+      - name: Print tool versions
+        working-directory: packages/sequent-core
+        run: |
+          nix develop --command bash -c '
+            wasm-opt --version
+            wasm-bindgen --version
+            wasm-pack --version
+          '
+
       - name: Check that WASM build and pack works
         working-directory: packages/sequent-core
         run: |
