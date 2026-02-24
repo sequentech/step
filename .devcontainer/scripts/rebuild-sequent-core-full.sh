@@ -10,10 +10,6 @@ set -euo pipefail
 # Run from inside packages/sequent-core via nix develop:
 #   cd packages/sequent-core && nix develop --command ../../.devcontainer/scripts/rebuild-sequent-core-full.sh
 
-# Nix hardening flag is not supported when compiling C code for WebAssembly
-export NIX_HARDENING_ENABLE=""
-export CFLAGS_wasm32_unknown_unknown="${CFLAGS_wasm32_unknown_unknown:-} -O3 -ffunction-sections -fdata-sections -fno-exceptions"
-
 SEQUENT_CORE_DIR="$(pwd)"
 PACKAGES_DIR="$(dirname "$SEQUENT_CORE_DIR")"
 
