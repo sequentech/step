@@ -1374,6 +1374,12 @@ const basqueTranslation: TranslationType = {
             allowWriteins: {
                 label: "Eskuzko hautagaitzak baimendu",
             },
+            maxVotes: {
+                helperText:
+                    "Hautesleak aukeratu ahal dituen hautagai kopuru maximoa (ez-hobesentziazko botazioa).",
+                helperTextPreferential:
+                    "Hautesleek erabil dezaketen posizio altuena (adib. '5' 1-5 posizioak ahalbidetzen ditu). Ordenatu beharreko hautagai kopurua baino gehiago izan behar du (hobesentziazko botazioa).",
+            },
             error: {},
             createContestSuccess: "Lehiaketa sortua",
             createContestError: "Errorea hautagaia sortzerakoan",
