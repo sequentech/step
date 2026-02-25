@@ -223,6 +223,7 @@ impl GenerateReports {
                     is_aggregate: false,
                     tally_sheet_id: None,
                     channel_type: report.channel_type.clone(),
+                    is_summary: report.is_summary,
                 }
             })
             .collect::<Vec<ReportDataComputed>>();
@@ -508,6 +509,7 @@ impl GenerateReports {
                     area: None,
                     winners,
                     channel_type: None,
+                    is_summary: false,
                 });
 
                 for area in &contest_input.area_list {
@@ -544,6 +546,7 @@ impl GenerateReports {
                         }),
                         winners,
                         channel_type: None,
+                        is_summary: false,
                     });
                 }
             }
@@ -652,6 +655,7 @@ impl GenerateReports {
                 area: area.clone(),
                 winners,
                 channel_type: Some(subfolder_name.to_string_lossy().into_owned()),
+                is_summary: false,
             };
             reports.push(report);
         }
@@ -735,6 +739,7 @@ impl GenerateReports {
             area: area.clone(),
             winners,
             channel_type: None,
+            is_summary: false,
         };
 
         let mut combined: Vec<ReportData> = Vec::new();
@@ -1026,7 +1031,7 @@ impl Pipe for GenerateReports {
                 });
 
                 // 3. Parallelize processing of each area in area_contests_map
-                let area_contests_reports: Vec<ReportData> = area_contests_map
+                let mut area_contests_reports: Vec<ReportData> = area_contests_map
                     .par_iter()
                     .map(|(_area_id, area_contests)| -> Result<Vec<ReportData>> {
                         let matching_area_contests = area_contests.contests.clone();
@@ -1091,6 +1096,36 @@ impl Pipe for GenerateReports {
                 if (consolidated_report_policy == ConsolidatedReportPolicy::GENERATE
                     && area_contests_reports.len() > 0)
                 {
+                    let aggregate_areas_contests_results = area_contests_reports
+                        .iter()
+                        .map(|r| r.contest_result.clone())
+                        .fold(ContestResult::default(), |acc, next| {
+                            acc.aggregate(&next, true)
+                        });
+
+                    let contest = area_contests_reports
+                        .first()
+                        .map(|r| r.contest.clone())
+                        .expect("area_contests_reports is empty");
+
+                    let summary_report = ReportData {
+                        election_name: election_input.name.clone(),
+                        election_id: election_input.id.to_string(),
+                        election_description: election_input.description.to_string(),
+                        election_dates: election_input.dates.clone(),
+                        election_annotations: election_input.annotations.clone(),
+                        election_event_annotations: election_input
+                            .election_event_annotations
+                            .clone(),
+                        contest: contest,
+                        contest_result: aggregate_areas_contests_results,
+                        area: None,
+                        winners: vec![],
+                        channel_type: None,
+                        is_summary: true,
+                    };
+                    area_contests_reports.insert(0, summary_report);
+
                     let result_hash = self.write_report(
                         &election_input.id,
                         None,
@@ -1139,6 +1174,7 @@ pub struct ReportData {
     pub contest_result: ContestResult,
     pub winners: Vec<WinnerResult>,
     pub channel_type: Option<String>,
+    pub is_summary: bool,
 }
 
 #[derive(Debug, Serialize, Clone)]
@@ -1166,6 +1202,7 @@ pub struct ReportDataComputed {
     pub contest_result: ContestResult,
     pub candidate_result: Vec<CandidateResultForReport>,
     pub channel_type: Option<String>,
+    pub is_summary: bool,
 }
 
 impl From<ReportDataComputed> for ReportData {
@@ -1186,6 +1223,7 @@ impl From<ReportDataComputed> for ReportData {
                 .filter_map(|winner| winner.into())
                 .collect(),
             channel_type: item.channel_type.clone(),
+            is_summary: item.is_summary,
         }
     }
 }

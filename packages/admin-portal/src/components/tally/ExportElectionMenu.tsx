@@ -255,7 +255,8 @@ export const ExportElectionMenu: React.FC<ExportElectionMenuProps> = (props) => 
                                                 handleClose={handleClose}
                                             />
                                         ) : null}
-                                        {format.value.includes(ALL_AREAS_PREFIX) &&
+                                        {tallyType !== ETallyType.INITIALIZATION_REPORT &&
+                                            format.value.includes(ALL_AREAS_PREFIX) &&
                                             electionId &&
                                             documents.class_type === "election" && (
                                                 <ExportMenuItem
@@ -275,7 +276,8 @@ export const ExportElectionMenu: React.FC<ExportElectionMenuProps> = (props) => 
                                                     })}
                                                 />
                                             )}
-                                        {format.value === EExportFormat.ALL_AREAS_HTML &&
+                                        {tallyType !== ETallyType.INITIALIZATION_REPORT &&
+                                            format.value === EExportFormat.ALL_AREAS_HTML &&
                                             electionId &&
                                             documents.class_type === "election" && (
                                                 <GeneratePDF

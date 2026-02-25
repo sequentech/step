@@ -10,12 +10,16 @@
       <h2>Channel: {{ sanitize_html report.channel_type }}</h2>
     {{/if}}
     <div style="margin: 12px 0;">
-      <h2 style="margin: 0;">Contest: {{ sanitize_html report.contest.name }}</h2>
-      {{#if report.area}}
-        <h2 style="margin: 0;">Area: {{ report.area.name}}</h2>
-      {{/if}}
-      {{#if report.contest.max_votes}}
-        <p class="vote-for">Vote for {{format_u64 report.contest.max_votes}}</p>
+      {{#if report.is_summary}}
+        <h2 style="margin: 0;">Summary:</h2>
+      {{else}}
+        <h2 style="margin: 0;">Contest: {{ sanitize_html report.contest.name }}</h2>
+        {{#if report.area}}
+          <h2 style="margin: 0;">Area: {{ report.area.name}}</h2>
+        {{/if}}
+        {{#if report.contest.max_votes}}
+          <p class="vote-for">Vote for {{format_u64 report.contest.max_votes}}</p>
+        {{/if}}
       {{/if}}
     </div>
     <p class="contest-desc">{{ sanitize_html report.contest.description }}</p>

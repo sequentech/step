@@ -10,6 +10,7 @@
   },
   "reports": [
     {
+      "is_summary":false,
       "election_id": "1",
       "election_name": "TOKYO PE",
       "election_description": "",
@@ -282,6 +283,7 @@
       "channel_type": "Online Voting"
     },
     {
+      "is_summary":false,
       "election_id": "1",
       "election_name": "NEW YORK PCG",
       "election_description": "",
