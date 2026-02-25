@@ -604,6 +604,7 @@ async fn build_reports_pipe_config(
         system_template: report_system_template,
         pdf_options,
         extra_data: serde_json::to_value(extra_data)?,
+        tally_type: tally_type.clone(),
     })
 }
 

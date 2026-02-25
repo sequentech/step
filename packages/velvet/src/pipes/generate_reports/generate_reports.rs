@@ -11,7 +11,7 @@ use sequent_core::{
     },
     serialization::deserialize_with_path::{deserialize_str, deserialize_value},
     services::{area_tree::TreeNodeArea, pdf, reports},
-    types::to_map::ToMap,
+    types::{ceremonies::TallyType, to_map::ToMap},
     util::{date_time::get_date_and_time, path::list_subfolders},
 };
 use serde::{Deserialize, Serialize};
@@ -855,6 +855,7 @@ impl Pipe for GenerateReports {
             .join(PipeNameOutputDir::MarkWinners.as_ref());
 
         let config = self.get_config()?; // Assuming config is shareable (Sync+Clone) or created/cloned per thread if needed
+        let tally_type = config.tally_type; // Assuming config is shareable (Sync+Clone) or created/cloned per thread if needed
 
         // 1. Parallelize processing of each election_input
         self.pipe_inputs
@@ -1093,7 +1094,8 @@ impl Pipe for GenerateReports {
                     .flatten()
                     .collect(); // End of par_iter().try_for_each over area_contests_map
 
-                if (consolidated_report_policy == ConsolidatedReportPolicy::GENERATE
+                if (tally_type == TallyType::ELECTORAL_RESULTS
+                    && consolidated_report_policy == ConsolidatedReportPolicy::GENERATE
                     && area_contests_reports.len() > 0)
                 {
                     let aggregate_areas_contests_results = area_contests_reports

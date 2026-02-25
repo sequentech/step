@@ -5,6 +5,7 @@
 use sequent_core::{
     ballot::ConsolidatedReportPolicy,
     types::{
+        ceremonies::TallyType,
         date_time::{DateFormat, TimeZone},
         templates::PrintToPdfOptionsLocal,
     },
@@ -22,6 +23,7 @@ pub struct PipeConfigGenerateReports {
     pub execution_annotations: HashMap<String, String>,
     pub system_template: String,
     pub extra_data: Value,
+    pub tally_type: TallyType,
 }
 
 #[derive(Serialize, Deserialize, Debug, Default, EnumString)]
