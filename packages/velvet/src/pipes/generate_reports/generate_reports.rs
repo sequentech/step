@@ -229,10 +229,14 @@ impl GenerateReports {
             .collect::<Vec<ReportDataComputed>>();
 
         reports.sort_by(|a, b| {
-            b.contest_result
-                .contest
-                .name
-                .cmp(&a.contest_result.contest.name)
+            b.is_summary
+                .cmp(&a.is_summary) // summaries first
+                .then_with(|| {
+                    b.contest_result
+                        .contest
+                        .name
+                        .cmp(&a.contest_result.contest.name)
+                })
         });
 
         Ok(reports)
@@ -1126,7 +1130,7 @@ impl Pipe for GenerateReports {
                         channel_type: None,
                         is_summary: true,
                     };
-                    area_contests_reports.insert(0, summary_report);
+                    area_contests_reports.push(summary_report);
 
                     let result_hash = self.write_report(
                         &election_input.id,

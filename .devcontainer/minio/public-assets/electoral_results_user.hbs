@@ -6,6 +6,7 @@
   </div>
   
   {{ #each reports as |report| }}
+  <div class="page">
     {{#if report.channel_type}}
       <h2>Channel: {{ sanitize_html report.channel_type }}</h2>
     {{/if}}
@@ -24,6 +25,7 @@
     </div>
     <p class="contest-desc">{{ sanitize_html report.contest.description }}</p>
 
+{{#unless report.is_summary}}
     <table>
       <tr>
         <th colspan="2">Configuration Data</th>
@@ -43,6 +45,7 @@
         <td style="width: 45%;">{{ format_u64 report.contest.max_votes }}</td>
       </tr>
     </table>
+    {{/unless}}
 
     <table>
       <tr>
@@ -90,7 +93,7 @@
       </tr>
     </table>
 
-
+    {{#unless report.is_summary}}
         {{#eq report.contest.counting_algorithm "plurality-at-large"}}
           <table>
             <tr>
@@ -188,6 +191,8 @@
             {{/with}}
           {{/if}}
         {{/eq}}
+      {{/unless}}
+      </div>
   {{/each}}
 
 </div>
