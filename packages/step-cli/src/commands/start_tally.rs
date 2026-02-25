@@ -7,8 +7,8 @@ use crate::{
     utils::{elections::get::GetElections, read_config::read_config},
 };
 use clap::Args;
+use colored::Colorize;
 use graphql_client::{GraphQLQuery, Response};
-
 #[derive(Args)]
 #[command(about = "Start Tally Ceremony", long_about = None)]
 pub struct StartTallyCeremony {
@@ -41,10 +41,14 @@ impl StartTallyCeremony {
             &self.tally_type,
         ) {
             Ok(id) => {
-                println!("Success! Successfully started Tally ceremony. ID: {}", id);
+                println!(
+                    "{} {}",
+                    "Success! Successfully started Tally ceremony. ID:".green(),
+                    id.cyan()
+                );
             }
             Err(err) => {
-                eprintln!("Error! Failed to start key ceremony: {}", err)
+                eprintln!("Error! Failed to start Tally ceremony: {}", err)
             }
         }
     }

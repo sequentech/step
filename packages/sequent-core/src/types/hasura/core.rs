@@ -23,6 +23,18 @@ use crate::{
 };
 
 #[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
+pub struct Preview {
+    pub id: String,
+    pub tenant_id: String,
+    pub document_id: String,
+    pub url: String,
+    pub requested_by: String,
+    pub created_at: Option<DateTime<Local>>,
+    pub updated_at: Option<DateTime<Local>>,
+    pub annotations: Option<Value>,
+}
+
+#[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
 pub struct BallotPublication {
     pub id: String,
     pub tenant_id: String,

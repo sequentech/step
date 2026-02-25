@@ -1,0 +1,150 @@
+table:
+    name: preview
+    schema: sequent_backend
+insert_permissions:
+    - comment: ""
+      permission:
+          check:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+          columns:
+              - annotations
+              - requested_by
+              - url
+              - created_at
+              - updated_at
+              - document_id
+              - id
+              - tenant_id
+      role: admin-user
+    - comment: ""
+      permission:
+          check:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+          columns:
+              - annotations
+              - requested_by
+              - url
+              - created_at
+              - updated_at
+              - document_id
+              - id
+              - tenant_id
+      role: generate-preview
+    - comment: ""
+      permission:
+          check: {}
+          columns:
+              - annotations
+              - requested_by
+              - url
+              - created_at
+              - updated_at
+              - document_id
+              - id
+              - tenant_id
+      role: service-account
+select_permissions:
+    - comment: ""
+      permission:
+          columns:
+              - annotations
+              - requested_by
+              - url
+              - created_at
+              - updated_at
+              - document_id
+              - id
+              - tenant_id
+          filter:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+          allow_aggregations: true
+      role: admin-user
+    - comment: ""
+      permission:
+          columns:
+              - annotations
+              - requested_by
+              - url
+              - created_at
+              - updated_at
+              - document_id
+              - id
+              - tenant_id
+          filter:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+      role: generate-preview
+    - comment: ""
+      permission:
+          columns:
+              - annotations
+              - requested_by
+              - url
+              - created_at
+              - updated_at
+              - document_id
+              - id
+              - tenant_id
+          filter:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+          allow_aggregations: true
+      role: preview-read
+    - comment: ""
+      permission:
+          columns:
+              - annotations
+              - requested_by
+              - url
+              - created_at
+              - updated_at
+              - document_id
+              - id
+              - tenant_id
+          filter: {}
+      role: service-account
+update_permissions:
+    - comment: ""
+      permission:
+          columns:
+              - annotations
+              - requested_by
+              - url
+              - created_at
+              - updated_at
+              - document_id
+              - id
+              - tenant_id
+          filter:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+          check: null
+      role: admin-user
+    - comment: ""
+      permission:
+          columns:
+              - annotations
+              - requested_by
+              - url
+              - created_at
+              - updated_at
+              - document_id
+              - id
+              - tenant_id
+          filter: {}
+          check: {}
+      role: service-account
+delete_permissions:
+    - comment: ""
+      permission:
+          filter:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+      role: admin-user
+    - comment: ""
+      permission:
+          filter: {}
+      role: service-account

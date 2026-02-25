@@ -76,7 +76,7 @@ const App = () => {
     }, [navigate])
 
     return (
-        <StyledApp>
+        <StyledApp className="app-root">
             {globalSettings.DISABLE_AUTH ? <Header /> : <HeaderWithContext />}
             <PageBanner marginBottom="auto">
                 <Routes>
@@ -131,7 +131,6 @@ const App = () => {
                                         <ConfirmationScreen
                                             confirmationBallot={confirmationBallot}
                                             ballotId={ballotId}
-                                            ballotService={ballotService}
                                         />
                                     </ApolloWrapper>
                                 </ApolloContextProvider>
