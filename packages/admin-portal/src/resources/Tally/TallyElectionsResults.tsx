@@ -82,8 +82,7 @@ const GeneralInformationCharts: React.FC<GeneralInformationChartsProps> = ({
     }
 
     const result = selectedResult
-    const presentation = JSON.parse(result.presentation)
-    const election_name = aliasRenderer(presentation)
+    const election_name = aliasRenderer(result.presentation)
     const eligibleCensus = result.elegible_census as number
     const totalVoters = result.total_voters as number
     const nonVoters = eligibleCensus - totalVoters
@@ -219,7 +218,7 @@ export const TallyElectionsResults: React.FC<TallyElectionsResultsProps> = (prop
             flex: 1,
             editable: false,
             valueGetter(value, row) {
-                return value ? value : aliasRenderer(JSON.parse(row.presentation))
+                return value ? value : aliasRenderer(row.presentation)
             },
         },
         {

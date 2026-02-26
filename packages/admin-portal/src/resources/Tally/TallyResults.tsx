@@ -98,7 +98,7 @@ const TallyResultsElectionsTabs: React.MemoExoticComponent<React.FC<TallyResults
         }, [elections])
 
         const getElectionAlias = (election: Sequent_Backend_Election) => {
-            return aliasRenderer(JSON.parse(election.presentation))
+            return aliasRenderer(election.presentation)
         }
 
         interface TabPanelProps {
