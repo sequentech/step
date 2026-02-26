@@ -160,12 +160,12 @@ public class AuthorizedElectionsUserAttributeMapper extends AbstractOIDCProtocol
 
     List<String> authorizedElectionIds = new ArrayList<>();
 
-    // Priority 1: If user has explicit election assignments (as aliases), use them
+    // Priority 1: If user has explicit election assignments (as external IDs), use them
     if (attributeValue != null && !attributeValue.isEmpty()) {
       log.infov(
           "User has explicitly authorized elections: {0}",
           attributeValue.stream().collect(Collectors.joining("|")));
-      // The attributeValue contains aliases, we'll use them as-is
+      // The attributeValue contains external IDs, we'll use them as-is
       // They will be mapped to IDs later in the stream processing
       authorizedElectionIds.addAll(attributeValue);
     } else {
@@ -186,15 +186,15 @@ public class AuthorizedElectionsUserAttributeMapper extends AbstractOIDCProtocol
             log.infov(
                 "Found elections for area {0}: {1}",
                 areaId, areaElections.stream().collect(Collectors.joining("|")));
-            // Add election aliases for the elections in this area
+            // Add election external ID for the elections in this area
             for (String electionId : areaElections) {
-              // Find the alias for this election ID
+              // Find the external ID for this election ID
               String external_id =
                   electionsExternalIds.entrySet().stream()
                       .filter(entry -> entry.getValue().equals(electionId))
                       .map(Map.Entry::getKey)
                       .findFirst()
-                      .orElse(electionId); // If no alias found, use the ID itself
+                      .orElse(electionId); // If no external ID found, use the ID itself
               authorizedElectionIds.add(external_id);
             }
           } else {
@@ -216,10 +216,12 @@ public class AuthorizedElectionsUserAttributeMapper extends AbstractOIDCProtocol
 
     Stream<String> mappedAuthorizedElectionIds =
         authorizedElectionIds.stream()
-            // The key is either the alias or the id when alias is null. The value is always the id.
-            // Then when key and value are equal (Ids) is because the alias was found to be null.
+            // The key is either the external ID or the id when external_id is null. The value is
+            // always the id.
+            // Then when key and value are equal (Ids) is because the external_id was found to be
+            // null.
             .filter(electionExternalId -> (electionsExternalIds.get(electionExternalId) != null))
-            // Map alias to election_id
+            // Map external_id to election_id
             .map(electionExternalId -> electionsExternalIds.get(electionExternalId));
 
     String useArray = mappingModel.getConfig().get(ARRAY_ATTRS);
@@ -420,7 +422,7 @@ public class AuthorizedElectionsUserAttributeMapper extends AbstractOIDCProtocol
     Map<String, String> electionIds = new HashMap<>();
     for (JsonNode election : electionsNode) {
       String id = election.path("id").asText();
-      // Use asText(null) so that if alias is missing it returns null.
+      // Use asText(null) so that if external_id is missing it returns null.
       String external_id =
           election.hasNonNull("external_id") ? election.get("external_id").asText() : null;
       String key = (external_id != null && !external_id.isEmpty()) ? external_id : id;
