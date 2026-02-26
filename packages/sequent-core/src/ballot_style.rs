@@ -103,18 +103,7 @@ pub fn create_ballot_style(
         })
         .collect::<Result<Vec<ballot::Contest>>>()?;
 
-    let event_weighted_voting_policy: WeightedVotingPolicy =
-        election_event_presentation
-            .weighted_voting_policy
-            .clone()
-            .unwrap_or(WeightedVotingPolicy::default());
-
-    let mut area_annotations: Option<AreaAnnotations> = None;
-    if event_weighted_voting_policy
-        == WeightedVotingPolicy::AREAS_WEIGHTED_VOTING
-    {
-        area_annotations = area.clone().read_annotations()?;
-    }
+    let area_annotations = area.clone().read_annotations()?;
     let area_presentation: AreaPresentation = area
         .presentation
         .clone()

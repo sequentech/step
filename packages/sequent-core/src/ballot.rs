@@ -2363,12 +2363,18 @@ impl Area {
     pub fn read_annotations(
         &self,
     ) -> Result<Option<AreaAnnotations>, Error<serde_json::Error>> {
-        let area_annotations: Option<AreaAnnotations> =
-            self.annotations.clone().map(|annotations_value| {
-                deserialize_value(annotations_value)
-                    .unwrap_or_else(|_| AreaAnnotations::default())
-            });
-        Ok(area_annotations)
+        self.annotations
+            .as_ref()
+            .map(|v| match deserialize_value::<AreaAnnotations>(v.clone()) {
+                Ok(a) => Ok(a),
+                Err(e) => {
+                    eprintln!(
+                        "failed to deserialize AreaAnnotations: {e}; raw={v:?}"
+                    );
+                    Ok(AreaAnnotations::default())
+                }
+            })
+            .transpose()
     }
 }
 
