@@ -11,7 +11,7 @@ use clap::{Parser, Subcommand};
 
 #[derive(Parser)]
 #[command(
-    name = "seq",
+    name = "cli",
     version = "1.0",
     about = "CLI tool for managing Sequent tasks"
 )]
@@ -58,6 +58,7 @@ enum StepCommands {
         commands::update_election_voting_status::UpdateElectionVotingStatusCommand,
     ),
     DownloadTallyResults(commands::download_tally_results::DownloadTallyResults),
+    GeneratePreviewUrl(commands::generate_preview::GeneratePreview),
 }
 
 fn main() {
@@ -97,6 +98,7 @@ fn main() {
                 update_election_voting_status.run()
             }
             StepCommands::DownloadTallyResults(download) => download.run(),
+            StepCommands::GeneratePreviewUrl(render) => render.run(),
         },
     }
 }

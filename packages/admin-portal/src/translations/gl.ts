@@ -1375,6 +1375,15 @@ const galegoTranslation: TranslationType = {
             paginationPolicy: {
                 label: "Nome da Páxina",
             },
+            allowWriteins: {
+                label: "Permitir candidaturas manuais",
+            },
+            maxVotes: {
+                helperText:
+                    "Número máximo de candidatos que un votante pode seleccionar (votación non preferencial).",
+                helperTextPreferential:
+                    "Posición de rango máis alta dispoñible para os votantes (ex. '5' significa posicións 1–5). Debe ser polo menos igual ao número de candidatos a ordenar (votación preferencial).",
+            },
             error: {},
             createContestSuccess: "Concurso creado",
             createContestError: "Erro ao crear o concurso",
@@ -2006,6 +2015,18 @@ const galegoTranslation: TranslationType = {
                     tenantConfigOption: "Importar configuraciones del inquilino",
                     keycloakConfigOption: "Importar configuraciones de Keycloak",
                     RolesConfigOption: "Importar configuraciones de roles y permisos",
+                },
+            },
+            previewScreen: {
+                label: "Vistas Previas",
+                noContent: "Non se atoparon vistas previas",
+                table: {
+                    title: "Vistas previas externas",
+                    description:
+                        "Un rexistro das vistas previas de estilos de papeleta xeradas mediante peticións externas",
+                    requestedBy: "Solicitado por",
+                    document: "Documento",
+                    url: "URL",
                 },
             },
         },

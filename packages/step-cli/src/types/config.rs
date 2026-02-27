@@ -47,6 +47,8 @@ pub struct GenerateVoters {
     pub overseas_reference: String,
     pub min_age: i64,
     pub max_age: i64,
+    pub authorized_elections_count: i64,
+    pub email_verified: bool,
 }
 
 #[derive(Debug, Serialize, Deserialize)]

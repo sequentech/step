@@ -4,6 +4,7 @@
 
 use crate::utils::tally::{download_document, get_documents, get_tally_session_execution};
 use clap::Args;
+use colored::Colorize;
 use std::error::Error;
 
 #[derive(Args)]
@@ -26,7 +27,11 @@ impl DownloadTallyResults {
     pub fn run(&self) {
         match download_results(&self.tally_id, &self.output_dir, &self.election_event_id) {
             Ok(_) => {
-                println!("Success! Downloaded tally results to {}", self.output_dir);
+                println!(
+                    "{} {}",
+                    "Success! Downloaded tally results to:".green(),
+                    self.output_dir.cyan()
+                );
             }
             Err(err) => {
                 eprintln!("Error! Failed to download tally results: {}", err)

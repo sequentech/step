@@ -4,6 +4,7 @@
 
 use crate::{types::hasura_types::*, utils::read_config::read_config};
 use clap::Args;
+use colored::Colorize;
 use edit_user::EditUsersInput;
 use graphql_client::{GraphQLQuery, Response};
 use serde_json::{Map, Value};
@@ -74,7 +75,11 @@ impl UpdateVoter {
             &self.temporary,
         ) {
             Ok(id) => {
-                println!("Success! Voter updated successfully! ID: {}", id);
+                println!(
+                    "{} {}",
+                    "Success! Voter updated successfully! ID:".green(),
+                    id.cyan()
+                );
             }
             Err(err) => {
                 eprintln!("Error! Failed to update voter: {}", err)
