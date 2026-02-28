@@ -48,6 +48,7 @@ services:
       KC_SPI_TRUSTSTORE_PROVIDER: ${KC_SPI_TRUSTSTORE_PROVIDER:-}
       KC_SPI_TRUSTSTORE_URL_URL: ${KC_SPI_TRUSTSTORE_URL_URL:-}
       KC_SPI_TRUSTSTORE_URL_REFRESH_INTERVAL_SECONDS: ${KC_SPI_TRUSTSTORE_URL_REFRESH_INTERVAL_SECONDS:-0}
+      KC_PROXY_HEADERS: xforwarded
     volumes:
       # https://www.keycloak.org/server/containers#_importing_a_realm_on_startup
       - ./keycloak/import:/opt/keycloak/data/import:z
@@ -65,6 +66,9 @@ services:
       --spi-user-profile-declarative-user-profile-admin-read-only-attributes=sequent.admin-read-only.*
       -Dkeycloak.profile.feature.upload_scripts=enabled
       --spi-truststore-provider=${KC_SPI_TRUSTSTORE_PROVIDER:-file}
+      --spi-x509cert-lookup-provider=${KC_SPI_X509CERT_LOOKUP_PROVIDER:-default}
+      --spi-x509cert-lookup-nginx-ssl-client-cert=ssl-client-cert
+      --spi-x509cert-lookup-nginx-trust-proxy-verification=true
       --spi-email-sender-provider=dummy
       --spi-email-sender-dummy-enabled=true
       --spi-email-sender-default-enabled=false
@@ -83,3 +87,16 @@ services:
       timeout: 10s
       retries: 25
       start_period: 5s
+
+  keycloak-nginx:
+    profiles: ["full", "base"]
+    container_name: keycloak-nginx
+    build:
+      context: .
+      dockerfile: keycloak-nginx/Dockerfile
+    image: sequentech.local/keycloak-nginx
+    ports:
+      - "8443:8443"
+    depends_on:
+      keycloak:
+        condition: service_healthy
