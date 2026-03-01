@@ -50642,6 +50642,18 @@
             "deprecationReason": null
           },
           {
+            "name": "external_id",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "id",
             "description": null,
             "args": [],
@@ -51430,6 +51442,18 @@
             "deprecationReason": null
           },
           {
+            "name": "external_id",
+            "description": null,
+            "type": {
+              "kind": "INPUT_OBJECT",
+              "name": "String_comparison_exp",
+              "ofType": null
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "id",
             "description": null,
             "type": {
@@ -51784,6 +51808,18 @@
             "deprecationReason": null
           },
           {
+            "name": "external_id",
+            "description": null,
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "id",
             "description": null,
             "type": {
@@ -51939,6 +51975,18 @@
             "deprecationReason": null
           },
           {
+            "name": "external_id",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "id",
             "description": null,
             "args": [],
@@ -52049,6 +52097,18 @@
           },
           {
             "name": "election_event_id",
+            "description": null,
+            "type": {
+              "kind": "ENUM",
+              "name": "order_by",
+              "ofType": null
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "external_id",
             "description": null,
             "type": {
               "kind": "ENUM",
@@ -52179,6 +52239,18 @@
             "deprecationReason": null
           },
           {
+            "name": "external_id",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "id",
             "description": null,
             "args": [],
@@ -52289,6 +52361,18 @@
           },
           {
             "name": "election_event_id",
+            "description": null,
+            "type": {
+              "kind": "ENUM",
+              "name": "order_by",
+              "ofType": null
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "external_id",
             "description": null,
             "type": {
               "kind": "ENUM",
@@ -52548,6 +52632,18 @@
             "deprecationReason": null
           },
           {
+            "name": "external_id",
+            "description": null,
+            "type": {
+              "kind": "ENUM",
+              "name": "order_by",
+              "ofType": null
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "id",
             "description": null,
             "type": {
@@ -52796,6 +52892,12 @@
             "deprecationReason": null
           },
           {
+            "name": "external_id",
+            "description": "column name",
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "id",
             "description": "column name",
             "isDeprecated": false,
@@ -52943,6 +53045,18 @@
             "type": {
               "kind": "SCALAR",
               "name": "uuid",
+              "ofType": null
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "external_id",
+            "description": null,
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
               "ofType": null
             },
             "defaultValue": null,
@@ -53158,6 +53272,18 @@
             "deprecationReason": null
           },
           {
+            "name": "external_id",
+            "description": null,
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "id",
             "description": null,
             "type": {
@@ -53293,6 +53419,12 @@
           },
           {
             "name": "election_event_id",
+            "description": "column name",
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "external_id",
             "description": "column name",
             "isDeprecated": false,
             "deprecationReason": null
@@ -55972,6 +56104,18 @@
             "deprecationReason": null
           },
           {
+            "name": "external_id",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "id",
             "description": null,
             "args": [],
@@ -57205,6 +57349,18 @@
             "deprecationReason": null
           },
           {
+            "name": "external_id",
+            "description": null,
+            "type": {
+              "kind": "INPUT_OBJECT",
+              "name": "String_comparison_exp",
+              "ofType": null
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "id",
             "description": null,
             "type": {
@@ -57803,6 +57959,18 @@
             "deprecationReason": null
           },
           {
+            "name": "external_id",
+            "description": null,
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "id",
             "description": null,
             "type": {
@@ -58042,6 +58210,18 @@
             "deprecationReason": null
           },
           {
+            "name": "external_id",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "id",
             "description": null,
             "args": [],
@@ -58200,6 +58380,18 @@
           },
           {
             "name": "election_id",
+            "description": null,
+            "type": {
+              "kind": "ENUM",
+              "name": "order_by",
+              "ofType": null
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "external_id",
             "description": null,
             "type": {
               "kind": "ENUM",
@@ -58378,6 +58570,18 @@
             "deprecationReason": null
           },
           {
+            "name": "external_id",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "id",
             "description": null,
             "args": [],
@@ -58536,6 +58740,18 @@
           },
           {
             "name": "election_id",
+            "description": null,
+            "type": {
+              "kind": "ENUM",
+              "name": "order_by",
+              "ofType": null
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "external_id",
             "description": null,
             "type": {
               "kind": "ENUM",
@@ -58907,6 +59123,18 @@
             "deprecationReason": null
           },
           {
+            "name": "external_id",
+            "description": null,
+            "type": {
+              "kind": "ENUM",
+              "name": "order_by",
+              "ofType": null
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "id",
             "description": null,
             "type": {
@@ -59263,6 +59491,12 @@
             "deprecationReason": null
           },
           {
+            "name": "external_id",
+            "description": "column name",
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "id",
             "description": "column name",
             "isDeprecated": false,
@@ -59494,6 +59728,18 @@
             "type": {
               "kind": "SCALAR",
               "name": "uuid",
+              "ofType": null
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "external_id",
+            "description": null,
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
               "ofType": null
             },
             "defaultValue": null,
@@ -60093,6 +60339,18 @@
             "deprecationReason": null
           },
           {
+            "name": "external_id",
+            "description": null,
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "id",
             "description": null,
             "type": {
@@ -60408,6 +60666,12 @@
           },
           {
             "name": "election_id",
+            "description": "column name",
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "external_id",
             "description": "column name",
             "isDeprecated": false,
             "deprecationReason": null
@@ -64952,12 +65216,6 @@
         "interfaces": null,
         "enumValues": [
           {
-            "name": "election_election_event_id_external_id_key",
-            "description": "unique or primary key constraint on columns \"external_id\", \"election_event_id\"",
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
             "name": "election_pkey",
             "description": "unique or primary key constraint on columns \"id\", \"tenant_id\", \"election_event_id\"",
             "isDeprecated": false,
@@ -65613,6 +65871,18 @@
             "deprecationReason": null
           },
           {
+            "name": "external_id",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "id",
             "description": null,
             "args": [],
@@ -66213,6 +66483,18 @@
           },
           {
             "name": "encryption_protocol",
+            "description": null,
+            "type": {
+              "kind": "INPUT_OBJECT",
+              "name": "String_comparison_exp",
+              "ofType": null
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "external_id",
             "description": null,
             "type": {
               "kind": "INPUT_OBJECT",
@@ -66826,6 +67108,18 @@
             "deprecationReason": null
           },
           {
+            "name": "external_id",
+            "description": null,
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "id",
             "description": null,
             "type": {
@@ -67029,6 +67323,18 @@
             "deprecationReason": null
           },
           {
+            "name": "external_id",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "id",
             "description": null,
             "args": [],
@@ -67138,6 +67444,18 @@
           },
           {
             "name": "encryption_protocol",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "external_id",
             "description": null,
             "args": [],
             "type": {
@@ -67411,6 +67729,18 @@
           },
           {
             "name": "encryption_protocol",
+            "description": null,
+            "type": {
+              "kind": "ENUM",
+              "name": "order_by",
+              "ofType": null
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "external_id",
             "description": null,
             "type": {
               "kind": "ENUM",
@@ -67740,6 +68070,12 @@
             "deprecationReason": null
           },
           {
+            "name": "external_id",
+            "description": "column name",
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "id",
             "description": "column name",
             "isDeprecated": false,
@@ -67883,6 +68219,18 @@
           },
           {
             "name": "encryption_protocol",
+            "description": null,
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "external_id",
             "description": null,
             "type": {
               "kind": "SCALAR",
@@ -68162,6 +68510,18 @@
             "deprecationReason": null
           },
           {
+            "name": "external_id",
+            "description": null,
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "id",
             "description": null,
             "type": {
@@ -68351,6 +68711,12 @@
           },
           {
             "name": "encryption_protocol",
+            "description": "column name",
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "external_id",
             "description": "column name",
             "isDeprecated": false,
             "deprecationReason": null
