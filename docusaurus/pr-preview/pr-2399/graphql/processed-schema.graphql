@@ -7233,6 +7233,7 @@ type candidate {
   created_at: timestamptz
   description: String
   election_event_id: uuid!
+  external_id: String
   id: uuid!
   image_document_id: String
   is_public: Boolean
@@ -7330,6 +7331,7 @@ input candidate_bool_exp {
   created_at: timestamptz_comparison_exp
   description: String_comparison_exp
   election_event_id: uuid_comparison_exp
+  external_id: String_comparison_exp
   id: uuid_comparison_exp
   image_document_id: String_comparison_exp
   is_public: Boolean_comparison_exp
@@ -7386,6 +7388,7 @@ input candidate_insert_input {
   created_at: timestamptz
   description: String
   election_event_id: uuid
+  external_id: String
   id: uuid
   image_document_id: String
   is_public: Boolean
@@ -7402,6 +7405,7 @@ type candidate_max_fields {
   created_at: timestamptz
   description: String
   election_event_id: uuid
+  external_id: String
   id: uuid
   image_document_id: String
   last_updated_at: timestamptz
@@ -7417,6 +7421,7 @@ input candidate_max_order_by {
   created_at: order_by
   description: order_by
   election_event_id: order_by
+  external_id: order_by
   id: order_by
   image_document_id: order_by
   last_updated_at: order_by
@@ -7430,6 +7435,7 @@ type candidate_min_fields {
   created_at: timestamptz
   description: String
   election_event_id: uuid
+  external_id: String
   id: uuid
   image_document_id: String
   last_updated_at: timestamptz
@@ -7445,6 +7451,7 @@ input candidate_min_order_by {
   created_at: order_by
   description: order_by
   election_event_id: order_by
+  external_id: order_by
   id: order_by
   image_document_id: order_by
   last_updated_at: order_by
@@ -7478,6 +7485,7 @@ input candidate_order_by {
   created_at: order_by
   description: order_by
   election_event_id: order_by
+  external_id: order_by
   id: order_by
   image_document_id: order_by
   is_public: order_by
@@ -7516,6 +7524,8 @@ enum candidate_select_column {
   description
   """column name"""
   election_event_id
+  """column name"""
+  external_id
   """column name"""
   id
   """column name"""
@@ -7559,6 +7569,7 @@ input candidate_set_input {
   created_at: timestamptz
   description: String
   election_event_id: uuid
+  external_id: String
   id: uuid
   image_document_id: String
   is_public: Boolean
@@ -7586,6 +7597,7 @@ input candidate_stream_cursor_value_input {
   created_at: timestamptz
   description: String
   election_event_id: uuid
+  external_id: String
   id: uuid
   image_document_id: String
   is_public: Boolean
@@ -7610,6 +7622,8 @@ enum candidate_update_column {
   description
   """column name"""
   election_event_id
+  """column name"""
+  external_id
   """column name"""
   id
   """column name"""
@@ -8027,6 +8041,7 @@ type contest {
   description: String
   election_event_id: uuid!
   election_id: uuid!
+  external_id: String
   id: uuid!
   image_document_id: String
   is_acclaimed: Boolean
@@ -8171,6 +8186,7 @@ input contest_bool_exp {
   description: String_comparison_exp
   election_event_id: uuid_comparison_exp
   election_id: uuid_comparison_exp
+  external_id: String_comparison_exp
   id: uuid_comparison_exp
   image_document_id: String_comparison_exp
   is_acclaimed: Boolean_comparison_exp
@@ -8251,6 +8267,7 @@ input contest_insert_input {
   description: String
   election_event_id: uuid
   election_id: uuid
+  external_id: String
   id: uuid
   image_document_id: String
   is_acclaimed: Boolean
@@ -8274,6 +8291,7 @@ type contest_max_fields {
   description: String
   election_event_id: uuid
   election_id: uuid
+  external_id: String
   id: uuid
   image_document_id: String
   last_updated_at: timestamptz
@@ -8293,6 +8311,7 @@ input contest_max_order_by {
   description: order_by
   election_event_id: order_by
   election_id: order_by
+  external_id: order_by
   id: order_by
   image_document_id: order_by
   last_updated_at: order_by
@@ -8310,6 +8329,7 @@ type contest_min_fields {
   description: String
   election_event_id: uuid
   election_id: uuid
+  external_id: String
   id: uuid
   image_document_id: String
   last_updated_at: timestamptz
@@ -8329,6 +8349,7 @@ input contest_min_order_by {
   description: order_by
   election_event_id: order_by
   election_id: order_by
+  external_id: order_by
   id: order_by
   image_document_id: order_by
   last_updated_at: order_by
@@ -8377,6 +8398,7 @@ input contest_order_by {
   description: order_by
   election_event_id: order_by
   election_id: order_by
+  external_id: order_by
   id: order_by
   image_document_id: order_by
   is_acclaimed: order_by
@@ -8427,6 +8449,8 @@ enum contest_select_column {
   election_event_id
   """column name"""
   election_id
+  """column name"""
+  external_id
   """column name"""
   id
   """column name"""
@@ -8492,6 +8516,7 @@ input contest_set_input {
   description: String
   election_event_id: uuid
   election_id: uuid
+  external_id: String
   id: uuid
   image_document_id: String
   is_acclaimed: Boolean
@@ -8575,6 +8600,7 @@ input contest_stream_cursor_value_input {
   description: String
   election_event_id: uuid
   election_id: uuid
+  external_id: String
   id: uuid
   image_document_id: String
   is_acclaimed: Boolean
@@ -8625,6 +8651,8 @@ enum contest_update_column {
   election_event_id
   """column name"""
   election_id
+  """column name"""
+  external_id
   """column name"""
   id
   """column name"""
@@ -9308,10 +9336,6 @@ unique or primary key constraints on table "sequent_backend.election"
 """
 enum election_constraint {
   """
-  unique or primary key constraint on columns "external_id", "election_event_id"
-  """
-  election_election_event_id_external_id_key
-  """
   unique or primary key constraint on columns "id", "tenant_id", "election_event_id"
   """
   election_pkey
@@ -9398,6 +9422,7 @@ type election_event {
     where: election_bool_exp
   ): election_aggregate!
   encryption_protocol: String!
+  external_id: String
   id: uuid!
   is_archived: Boolean!
   is_audit: Boolean
@@ -9470,6 +9495,7 @@ input election_event_bool_exp {
   elections: election_bool_exp
   elections_aggregate: election_aggregate_bool_exp
   encryption_protocol: String_comparison_exp
+  external_id: String_comparison_exp
   id: uuid_comparison_exp
   is_archived: Boolean_comparison_exp
   is_audit: Boolean_comparison_exp
@@ -9544,6 +9570,7 @@ input election_event_insert_input {
   description: String
   elections: election_arr_rel_insert_input
   encryption_protocol: String
+  external_id: String
   id: uuid
   is_archived: Boolean
   is_audit: Boolean
@@ -9564,6 +9591,7 @@ type election_event_max_fields {
   created_at: timestamptz
   description: String
   encryption_protocol: String
+  external_id: String
   id: uuid
   public_key: String
   tenant_id: uuid
@@ -9577,6 +9605,7 @@ type election_event_min_fields {
   created_at: timestamptz
   description: String
   encryption_protocol: String
+  external_id: String
   id: uuid
   public_key: String
   tenant_id: uuid
@@ -9614,6 +9643,7 @@ input election_event_order_by {
   description: order_by
   elections_aggregate: election_aggregate_order_by
   encryption_protocol: order_by
+  external_id: order_by
   id: order_by
   is_archived: order_by
   is_audit: order_by
@@ -9661,6 +9691,8 @@ enum election_event_select_column {
   """column name"""
   encryption_protocol
   """column name"""
+  external_id
+  """column name"""
   id
   """column name"""
   is_archived
@@ -9696,6 +9728,7 @@ input election_event_set_input {
   created_at: timestamptz
   description: String
   encryption_protocol: String
+  external_id: String
   id: uuid
   is_archived: Boolean
   is_audit: Boolean
@@ -9728,6 +9761,7 @@ input election_event_stream_cursor_value_input {
   created_at: timestamptz
   description: String
   encryption_protocol: String
+  external_id: String
   id: uuid
   is_archived: Boolean
   is_audit: Boolean
@@ -9758,6 +9792,8 @@ enum election_event_update_column {
   description
   """column name"""
   encryption_protocol
+  """column name"""
+  external_id
   """column name"""
   id
   """column name"""
