@@ -113,8 +113,11 @@ const App = () => {
     const electionIds = useAppSelector(selectElectionIds)
     const ballotStyleElectionIds = useAppSelector(selectBallotStyleElectionIds)
 
-    const electionId = electionIds.length > 0 ? electionIds[0] : ballotStyleElectionIds[0]
-    const ballotStyle = useAppSelector(selectBallotStyleByElectionId(String(electionId)))
+    const ballotStyle = useAppSelector((state) => {
+        const electionId = electionIds[0] ?? ballotStyleElectionIds[0]
+
+        return electionId ? selectBallotStyleByElectionId(String(electionId))(state) : undefined
+    })
 
     useElectionClassName()
 
