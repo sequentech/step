@@ -42,6 +42,7 @@ import {IDecodedVoteContest, IInvalidPlaintextError} from "@sequentech/ui-core"
 import {useAppSelector} from "../../store/hooks"
 import {selectBallotSelectionQuestion} from "../../store/ballotSelections/ballotSelectionsSlice"
 import {sortCandidatesInContest, checkIsBlank} from "@sequentech/ui-core"
+import {provideBallotService} from "../../services/BallotService"
 
 const StyledTitle = styled(Typography)`
     margin-top: 25.5px;
@@ -126,6 +127,8 @@ export const Question: React.FC<IQuestionProps> = ({
 }) => {
     // THIS IS A CONTEST COMPONENT
     const {i18n} = useTranslation()
+    const {isPreferential} = provideBallotService()
+    const isPreferentialVote = isPreferential(question.counting_algorithm)
     let [candidatesOrder, setCandidatesOrder] = useState<Array<string> | null>(null)
     const [explicitBlank, setExplicitBlank] = useState<boolean>(false)
     let [categoriesMapOrder, setCategoriesMapOrder] = useState<CategoriesMap | null>(null)
@@ -204,11 +207,25 @@ export const Question: React.FC<IQuestionProps> = ({
     }
 
     if (null === candidatesOrder) {
-        setCandidatesOrder(
-            sortCandidatesInContest(noCategoryCandidates, candidatesOrderType, true).map(
-                (c) => c.id
-            )
+        let sortedCandidates = sortCandidatesInContest(
+            noCategoryCandidates,
+            candidatesOrderType,
+            true
         )
+
+        if (isReview && isPreferentialVote && contestState) {
+            const choicesById = keyBy(contestState.choices, "id")
+            sortedCandidates = [...sortedCandidates].sort((a, b) => {
+                const aRank = choicesById[a.id]?.selected ?? -1
+                const bRank = choicesById[b.id]?.selected ?? -1
+                if (aRank === -1 && bRank === -1) return 0
+                if (aRank === -1) return 1
+                if (bRank === -1) return -1
+                return aRank - bRank
+            })
+        }
+
+        setCandidatesOrder(sortedCandidates.map((c) => c.id))
     }
 
     const noCategoryCandidatesMap = keyBy(noCategoryCandidates, "id")
