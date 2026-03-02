@@ -104,6 +104,7 @@ pub struct ElectionEvent {
     pub audit_election_event_id: Option<String>,
     pub public_key: Option<String>,
     pub statistics: Option<Value>,
+    pub external_id: Option<String>,
 }
 
 #[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
@@ -156,6 +157,7 @@ pub struct Contest {
     pub tally_configuration: Option<Value>,
     pub image_document_id: Option<String>,
     pub conditions: Option<Value>,
+    pub external_id: Option<String>,
 }
 
 #[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
@@ -173,6 +175,7 @@ pub struct Candidate {
     pub presentation: Option<Value>,
     pub is_public: Option<bool>,
     pub image_document_id: Option<String>,
+    pub external_id: Option<String>,
 }
 
 #[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]

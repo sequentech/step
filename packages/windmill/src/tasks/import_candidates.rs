@@ -420,6 +420,7 @@ pub async fn import_candidates_task(
                     presentation: Some(presentation_json),
                     is_public: Some(true),
                     image_document_id: None,
+                    external_id: None,
                 };
                 candidates.push(candidate);
             }

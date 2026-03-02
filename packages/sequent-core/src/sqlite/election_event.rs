@@ -33,7 +33,8 @@ pub async fn create_election_event_sqlite(
                 is_audit INTEGER,
                 audit_election_event_id TEXT,
                 public_key TEXT,
-                statistics TEXT DEFAULT '{}'
+                statistics TEXT DEFAULT '{}',
+                external_id TEXT
             );
             ",
     )?;
@@ -43,10 +44,10 @@ pub async fn create_election_event_sqlite(
                 (id, created_at, updated_at, labels, annotations, tenant_id,
                  description, presentation, bulletin_board_reference, is_archived,
                  voting_channels, status, user_boards, encryption_protocol, is_audit,
-                 audit_election_event_id, public_key, statistics)
+                 audit_election_event_id, public_key, statistics, external_id)
                 VALUES
                 ($1, $2, $3, $4, $5, $6, $7, $8, $9,
-                $10, $11, $12, $13, $14, $15, $16, $17, $18);
+                $10, $11, $12, $13, $14, $15, $16, $17, $18, $19);
             ",
     )?;
 
@@ -89,6 +90,7 @@ pub async fn create_election_event_sqlite(
             .as_ref()
             .map(to_string)
             .transpose()?,
+        election_event.external_id,
     ])?;
     Ok(())
 }

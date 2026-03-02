@@ -351,6 +351,7 @@ pub async fn insert_election_event_db(
             "num_emails_sent": 0,
             "num_sms_sent": 0
         })),
+        external_id: None,
     };
 
     insert_election_event(&hasura_transaction, &new_election_input).await?;

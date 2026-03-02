@@ -41,6 +41,7 @@ impl TryFrom<Row> for ContestWrapper {
             tally_configuration: item.try_get("tally_configuration")?,
             image_document_id: item.try_get("image_document_id")?,
             conditions: item.try_get("conditions")?,
+            external_id: item.try_get("external_id")?,
         }))
     }
 }
@@ -57,9 +58,9 @@ pub async fn insert_contest(
         .prepare(
             r#"
                 INSERT INTO sequent_backend.contest
-                (id, tenant_id, election_event_id, election_id, created_at, last_updated_at, labels, annotations, is_acclaimed, is_active, description, presentation, min_votes, max_votes, voting_type, counting_algorithm, is_encrypted, tally_configuration, conditions, winning_candidates_num, image_document_id)
+                (id, tenant_id, election_event_id, election_id, created_at, last_updated_at, labels, annotations, is_acclaimed, is_active, description, presentation, min_votes, max_votes, voting_type, counting_algorithm, is_encrypted, tally_configuration, conditions, winning_candidates_num, image_document_id, external_id)
                 VALUES
-                ($1, $2, $3, $4, NOW(), NOW(), $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19);
+                ($1, $2, $3, $4, NOW(), NOW(), $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20);
             "#,
         )
         .await?;
@@ -89,6 +90,7 @@ pub async fn insert_contest(
                         .winning_candidates_num
                         .and_then(|val| Some(val as i32)),
                     &contest.image_document_id,
+                    &contest.external_id,
                 ],
             )
             .await
@@ -108,7 +110,7 @@ pub async fn export_contests(
         .prepare(
             r#"
                 SELECT
-                    id, tenant_id, election_event_id, election_id, created_at, last_updated_at, labels, annotations, is_acclaimed, is_active, description, presentation, min_votes, max_votes, voting_type, counting_algorithm, is_encrypted, tally_configuration, conditions, winning_candidates_num, image_document_id
+                    id, tenant_id, election_event_id, election_id, created_at, last_updated_at, labels, annotations, is_acclaimed, is_active, description, presentation, min_votes, max_votes, voting_type, counting_algorithm, is_encrypted, tally_configuration, conditions, winning_candidates_num, image_document_id, external_id
                 FROM
                     sequent_backend.contest
                 WHERE

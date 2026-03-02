@@ -28,7 +28,8 @@ pub async fn create_candidate_sqlite(
             type TEXT,
             presentation TEXT,
             is_public BOOLEAN,
-            image_document_id TEXT
+            image_document_id TEXT,
+            external_id TEXT
         );",
     )?;
 
@@ -45,8 +46,8 @@ pub async fn import_candidate_sqlite(
             "INSERT INTO candidate (
                 id, tenant_id, election_event_id, contest_id, created_at, last_updated_at,
                 labels, annotations, description, type, presentation,
-                is_public, image_document_id
-            ) VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13)",
+                is_public, image_document_id, external_id
+            ) VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14)",
         )?;
 
         let mut rdr = ReaderBuilder::new()
@@ -106,6 +107,9 @@ pub async fn import_candidate_sqlite(
                 is_public,
                 opt(rec
                     .get(12)
+                    .with_context(|| "Error fetching String record")?),
+                opt(rec
+                    .get(13)
                     .with_context(|| "Error fetching String record")?),
             ])?;
         }

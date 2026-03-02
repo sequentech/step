@@ -38,6 +38,7 @@ impl TryFrom<Row> for ElectionEventWrapper {
                 .map(|val| val.to_string()),
             public_key: item.get("public_key"),
             statistics: item.try_get("statistics")?,
+            external_id: item.try_get("external_id")?,
         }))
     }
 }
@@ -53,9 +54,9 @@ pub async fn insert_election_event(
         .prepare(
             r#"
                 INSERT INTO sequent_backend.election_event
-                (id, created_at, updated_at, labels, annotations, tenant_id, description, presentation, bulletin_board_reference, is_archived, voting_channels, status, user_boards, encryption_protocol, is_audit, audit_election_event_id, public_key, statistics)
+                (id, created_at, updated_at, labels, annotations, tenant_id, description, presentation, bulletin_board_reference, is_archived, voting_channels, status, user_boards, encryption_protocol, is_audit, audit_election_event_id, public_key, statistics, external_id)
                 VALUES
-                ($1, NOW(), NOW(), $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16);
+                ($1, NOW(), NOW(), $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17);
             "#,
         )
         .await?;
@@ -83,6 +84,7 @@ pub async fn insert_election_event(
                     .and_then(|s| Uuid::parse_str(&s).ok()),
                 &election_event.public_key,
                 &election_event.statistics,
+                &election_event.external_id,
             ],
         )
         .await

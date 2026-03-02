@@ -36,7 +36,8 @@ CREATE TABLE contest (
     tally_configuration TEXT,
     conditions TEXT,
     winning_candidates_num INTEGER,
-    image_document_id TEXT
+    image_document_id TEXT,
+    external_id TEXT
         );",
     )?;
 
@@ -47,13 +48,13 @@ CREATE TABLE contest (
             labels, annotations, is_acclaimed, is_active, description,
             presentation, min_votes, max_votes, voting_type, counting_algorithm,
             is_encrypted, tally_configuration, conditions, winning_candidates_num,
-            image_document_id
+            image_document_id, external_id
         ) VALUES (
             ?1, ?2, ?3, ?4, ?5,
             ?6, ?7, ?8, ?9, ?10,
             ?11, ?12, ?13, ?14, ?15,
             ?16, ?17, ?18, ?19, ?20,
-            ?21
+            ?21, ?22
         )",
     )?;
 
@@ -85,7 +86,8 @@ CREATE TABLE contest (
                 .and_then(|v| to_string(v).ok()),
             contest.conditions.as_ref().and_then(|v| to_string(v).ok()),
             contest.winning_candidates_num,
-            contest.image_document_id
+            contest.image_document_id,
+            contest.external_id,
         ])?;
     }
 
