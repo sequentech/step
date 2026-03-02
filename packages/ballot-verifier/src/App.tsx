@@ -24,8 +24,8 @@ import {
 import SequentLogo from "@sequentech/ui-essentials/public/Sequent_logo.svg"
 import BlankLogoImg from "@sequentech/ui-essentials/public/blank_logo.svg"
 
-const StyledAppWrapper = styled(Stack)<{css: string}>`
-    ${({css}) => css}
+const StyledAppWrapper = styled(Stack)<{customCss: string}>`
+    ${({customCss}) => customCss}
 `
 
 const StyledApp = styled(Stack)`
@@ -75,8 +75,12 @@ const App = () => {
     const [fileName, setFileName] = useState("")
     const ballotService = provideBallotService()
 
-    const electionIds = useAppSelector(selectBallotStyleElectionIds)
-    const ballotStyle = useAppSelector(selectBallotStyleByElectionId(String(electionIds[0])))
+    const ballotStyleElectionIds = useAppSelector(selectBallotStyleElectionIds)
+    const ballotStyle = useAppSelector((state) =>
+        ballotStyleElectionIds.length > 0
+            ? selectBallotStyleByElectionId(String(ballotStyleElectionIds[0]))(state)
+            : undefined
+    )
 
     useEffect(() => {
         if (globalSettings.DISABLE_AUTH) {
@@ -95,7 +99,7 @@ const App = () => {
     )
 
     return (
-        <StyledAppWrapper css={customCss}>
+        <StyledAppWrapper customCss={customCss}>
             <StyledApp className="ballot-verifier app-root">
                 {globalSettings.DISABLE_AUTH ? <Header /> : <HeaderWithContext />}
                 <PageBanner marginBottom="auto">

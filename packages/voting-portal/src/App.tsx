@@ -25,9 +25,9 @@ import WatermarkBackground from "./components/WaterMark/Watermark"
 import SequentLogo from "@sequentech/ui-essentials/public/Sequent_logo.svg"
 import BlankLogoImg from "@sequentech/ui-essentials/public/blank_logo.svg"
 
-const StyledApp = styled(Stack)<{css: string}>`
+const StyledApp = styled(Stack)<{customCss: string}>`
     min-height: 100vh;
-    ${({css}) => css}
+    ${({customCss}) => customCss}
 
     /* Visually hidden until focused, then shown for keyboard users */
     .skip-link {
@@ -109,9 +109,11 @@ const App = () => {
     const electionIds = useAppSelector(selectElectionIds)
     const ballotStyleElectionIds = useAppSelector(selectBallotStyleElectionIds)
 
-    const electionId = electionIds.length > 0 ? electionIds[0] : ballotStyleElectionIds[0]
-    const ballotStyle = useAppSelector(selectBallotStyleByElectionId(String(electionId)))
+    const ballotStyle = useAppSelector((state) => {
+        const electionId = electionIds[0] ?? ballotStyleElectionIds[0]
 
+        return electionId ? selectBallotStyleByElectionId(String(electionId))(state) : undefined
+    })
     useEffect(() => {
         if (location.pathname === "/") {
             throw new VotingPortalError(VotingPortalErrorType.NO_ELECTION_EVENT)
@@ -145,7 +147,7 @@ const App = () => {
     return (
         <StyledApp
             className="voting-portal app-root"
-            css={ballotStyle?.ballot_eml.election_event_presentation?.css ?? ""}
+            customCss={ballotStyle?.ballot_eml.election_event_presentation?.css ?? ""}
         >
             <ScrollRestoration />
             <ApolloWrapper>
