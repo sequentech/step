@@ -45,8 +45,8 @@ const StyledApp = styled(Stack)`
     }
 `
 
-const StyledAppWrapper = styled(Stack)<{css: string}>`
-    ${({css}) => css}
+const StyledAppWrapper = styled(Stack)<{customCss: string}>`
+    ${({customCss}) => customCss}
 `
 
 const StyledMain = styled(`main`)`
@@ -149,7 +149,9 @@ const App = () => {
     }, [tenantId, eventId, isAuthenticated, setTenantEvent, globalSettings.DISABLE_AUTH])
 
     return (
-        <StyledAppWrapper css={ballotStyle?.ballot_eml.election_event_presentation?.css ?? ""}>
+        <StyledAppWrapper
+            customCss={ballotStyle?.ballot_eml.election_event_presentation?.css ?? ""}
+        >
             <StyledApp className="voting-portal app-root">
                 <ScrollRestoration />
                 <ApolloWrapper>
