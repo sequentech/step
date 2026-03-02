@@ -456,7 +456,7 @@ const ElectionSelectionScreen: React.FC = () => {
 
             setTestElectionId(foundTestElection?.id || null)
         }
-    }, [dataElections, dispatch])
+    }, [dataElections, dispatch, i18n.language])
 
     useEffect(() => {
         if (!testElectionId) {
