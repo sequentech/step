@@ -22,7 +22,7 @@ import {TallyResultsCandidatesIRV} from "./TallyResultsCandidatesIRV"
 import {ICountingAlgorithm} from "@sequentech/ui-core"
 import {winningPositionComparator, parseProcessResults} from "./utils"
 import {LoadingResults} from "./TallyElectionsResults"
-import { useAliasRenderer } from "@/hooks/useAliasRenderer"
+import {useAliasRenderer} from "@/hooks/useAliasRenderer"
 
 interface TallyResultsCandidatesProps {
     areaId: string | null | undefined
@@ -123,7 +123,7 @@ export const TallyResultsSectionArea: React.FC<TallyResultsCandidatesProps> = (p
             (contest) => contest.id === contestId
         )
         return contest?.presentation ? aliasRenderer(contest.presentation) : undefined
-    }, [tallyData?.sequent_backend_election, electionId])
+    }, [tallyData?.sequent_backend_contest, contestId])
 
     const areaName: string | undefined | null = useMemo(
         () => tallyData?.sequent_backend_area?.find((area) => area.id === areaId)?.name,
