@@ -80,14 +80,14 @@ export const TallyResultsSectionGlobal: React.FC<TallyResultsGlobalCandidatesPro
         )
         if (!contest?.presentation) return undefined
 
-        return aliasRenderer(JSON.parse(contest.presentation))
+        return aliasRenderer(contest.presentation)
     }, [contestId, tallyData, i18n.language])
 
     const electionName: string | undefined = useMemo(() => {
         const election = tallyData?.sequent_backend_election?.find(
             (election) => election.id === electionId
         )
-        return election?.presentation ? aliasRenderer(JSON.parse(election.presentation)) : undefined
+        return election?.presentation ? aliasRenderer(election.presentation) : undefined
     }, [tallyData?.sequent_backend_election, electionId])
 
     const processResults = useMemo(
@@ -120,7 +120,7 @@ export const TallyResultsSectionGlobal: React.FC<TallyResultsGlobalCandidatesPro
                 (candidate, index): Sequent_Backend_Candidate_Extended => {
                     let candidateResult = results.find((r) => r.candidate_id === candidate.id)
 
-                    let candidateName = aliasRenderer(JSON.parse(candidate.presentation))
+                    let candidateName = aliasRenderer(candidate.presentation)
                     return {
                         ...candidate,
                         rowId: index,

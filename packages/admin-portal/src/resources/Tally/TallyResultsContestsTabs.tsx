@@ -146,7 +146,7 @@ export const TallyResultsContestsTabs: React.FC<TallyResultsContestProps> = (pro
         const contest = contests.find((c) => c.id === contestId)
         if (!contest?.presentation) return undefined
 
-        return aliasRenderer(JSON.parse(contest.presentation))
+        return aliasRenderer(contest.presentation)
     }, [contestId, contests, i18n.language])
 
     let documents: IResultDocumentsData | null = useMemo(() => {
