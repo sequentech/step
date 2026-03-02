@@ -117,8 +117,7 @@ export const TallyResultsCandidates: React.FC<TallyResultsCandidatesProps> = (pr
             editable: false,
             align: "left",
             renderCell: (props: GridRenderCellParams<any, string>) => {
-                const presentation = JSON.parse(props.row.presentation)
-                return aliasRenderer(presentation)
+                return aliasRenderer(props.row.presentation)
             },
         },
         {

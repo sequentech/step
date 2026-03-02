@@ -120,7 +120,7 @@ const TallyResultsMemo: React.MemoExoticComponent<React.FC<TallyResultsProps>> =
         }
 
         const getElectionAlias = (election: Sequent_Backend_Election) => {
-            return aliasRenderer(JSON.parse(election.presentation))
+            return aliasRenderer(election.presentation)
         }
 
         const currentElection = useMemo(() => {

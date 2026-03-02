@@ -111,8 +111,7 @@ export const TallyElectionsResults: React.FC<TallyElectionsResultsProps> = (prop
             flex: 1,
             editable: false,
             renderCell: (props: GridRenderCellParams<any, string>) => {
-                const presentation = JSON.parse(props.row.presentation)
-                return aliasRenderer(presentation)
+                return aliasRenderer(props.row.presentation)
             },
         },
         {
