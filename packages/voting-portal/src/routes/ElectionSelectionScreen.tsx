@@ -447,7 +447,7 @@ const ElectionSelectionScreen: React.FC = () => {
                 const name = election.presentation
                     ? translateFromPresentation(election.presentation, "name", i18n.language)
                     : undefined
-                name && name.includes("TEST")
+                return name?.includes("TEST") ?? false
             })
 
             if (foundTestElection) {

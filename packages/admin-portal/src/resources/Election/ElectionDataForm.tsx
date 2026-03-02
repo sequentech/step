@@ -614,7 +614,7 @@ export const ElectionDataForm: React.FC = () => {
                                 <TextInput
                                     source="alias"
                                     label={String(t("electionScreen.field.externalId"))}
-                                    disabled={record.alias !== undefined}
+                                    disabled={!!record.alias}
                                 />
                                 <Tabs value={value} onChange={handleChange}>
                                     {renderTabs(parsedValue)}
