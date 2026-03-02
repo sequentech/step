@@ -8,15 +8,15 @@ title: System Navigation
 SPDX-License-Identifier: AGPL-3.0-only
 -->
 
+# Basic Navigation
+
 <video controls width="600">
-  <source src="./assets/duplicate_votes_usage.mp4" type="video/mp4" />
+  <source src="./assets/system_navigation.mp4" type="video/mp4" />
   Your browser does not support the video tag.
 </video>
 
 ![System Landing Page](/img/system_introduction/basic_navigation.png)
 
-
-# Basic Navigation
 
 The system's user interface (UI) is divided into four main areas, each serving a specific function:
 
