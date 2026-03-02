@@ -7,7 +7,7 @@ import GoogleVideo from '@site/src/components/GoogleVideo';
 
 <!--
 -- SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
-SPDX-License-Identifier: AGPL-3.0-onlyx
+SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <GoogleVideo id="1UawaEBS2MWuXBRAHd1gceEXvn1p19mM_" />
