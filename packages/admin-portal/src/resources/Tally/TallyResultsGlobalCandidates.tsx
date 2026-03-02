@@ -263,7 +263,7 @@ export const TallyResultsGlobalCandidates: React.FC<TallyResultsGlobalCandidates
         const election = tallyData?.sequent_backend_election?.find(
             (election) => election.id === electionId
         )
-        return election?.presentation ? aliasRenderer(JSON.parse(election.presentation)) : undefined
+        return election?.presentation ? aliasRenderer(election.presentation) : undefined
     }, [tallyData?.sequent_backend_election, electionId])
 
     const getChartName = (contestName: string | undefined) => {
@@ -305,8 +305,7 @@ export const TallyResultsGlobalCandidates: React.FC<TallyResultsGlobalCandidates
             editable: false,
             align: "left",
             renderCell: (props: GridRenderCellParams<any, string>) => {
-                const presentation = JSON.parse(props.row.presentation)
-                return aliasRenderer(presentation)
+                return aliasRenderer(props.row.presentation)
             },
         },
         {
