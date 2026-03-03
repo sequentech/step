@@ -2,6 +2,17 @@ table:
     name: tally_session_resolution
     schema: sequent_backend
 object_relationships:
+    - name: contest
+      using:
+          manual_configuration:
+              column_mapping:
+                  contest_id: id
+                  election_event_id: election_event_id
+                  tenant_id: tenant_id
+              insertion_order: null
+              remote_table:
+                  name: contest
+                  schema: sequent_backend
     - name: tally_session
       using:
           manual_configuration:
@@ -65,6 +76,8 @@ select_permissions:
               - resolution_type
               - resolved_at
               - resolved_by_user
+              - results_contest_id
+              - results_event_id
               - status
               - tally_session_id
               - tenant_id
@@ -88,11 +101,38 @@ select_permissions:
               - resolution_type
               - resolved_at
               - resolved_by_user
+              - results_contest_id
+              - results_event_id
               - status
               - tally_session_id
               - tenant_id
           filter: {}
       role: super-admin-user
+    - comment: ""
+      permission:
+          allow_aggregations: true
+          columns:
+              - annotations
+              - contest_id
+              - created_at
+              - election_event_id
+              - id
+              - labels
+              - last_updated_at
+              - resolution
+              - resolution_data
+              - resolution_type
+              - resolved_at
+              - resolved_by_user
+              - results_contest_id
+              - results_event_id
+              - status
+              - tally_session_id
+              - tenant_id
+          filter:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+      role: tally-resolution-submit
 update_permissions:
     - comment: ""
       permission:

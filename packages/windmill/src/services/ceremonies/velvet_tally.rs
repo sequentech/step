@@ -122,7 +122,7 @@ pub fn prepare_tally_for_area_contest(
     area_contest: &AreaContestDataType,
     tally_sheets: &HashMap<(String, String), Vec<TallySheet>>,
     tally_session: &TallySession,
-    tie_resolution: Option<&serde_json::Value>,
+    tie_resolutions: &HashMap<String, serde_json::Value>,
 ) -> Result<()> {
     let contest_encryption_policy = tally_session
         .configuration
@@ -211,14 +211,14 @@ pub fn prepare_tally_for_area_contest(
 
     // Prepare contest data, potentially injecting tie resolution
     let mut contest = area_contest.contest.clone();
-    if let Some(tie_res) = tie_resolution {
-        // Inject tie resolution into contest annotations for resume scenario
+    if let Some(tie_res) = tie_resolutions.get(&contest_id) {
+        // Inject the resolution for this specific contest into its annotations
         // Annotations is HashMap<String, String>, so we need to serialize to JSON string
         let mut annotations = contest.annotations.clone().unwrap_or_default();
         let tie_res_json_string = serde_json::to_string(tie_res)?;
         info!(
-            "Injecting tie resolution into contest annotations: {}",
-            tie_res_json_string
+            "Injecting tie resolution into contest {} annotations: {}",
+            contest_id, tie_res_json_string
         );
         annotations.insert("tie_resolution".to_string(), tie_res_json_string);
         contest.annotations = Some(annotations);
@@ -876,7 +876,7 @@ pub async fn run_velvet_tally(
     election_event: &ElectionEvent,
     tally_session: &TallySession,
     tally_type: TallyType,
-    tie_resolution: Option<serde_json::Value>,
+    tie_resolutions: HashMap<String, serde_json::Value>,
 ) -> Result<State> {
     let basic_areas: Vec<TreeNodeArea> = areas.into_iter().map(|area| area.into()).collect();
     // map<(area_id,contest_id), tally_sheet>
@@ -887,7 +887,7 @@ pub async fn run_velvet_tally(
             area_contest,
             &tally_sheet_map,
             tally_session,
-            tie_resolution.as_ref(),
+            &tie_resolutions,
         )?;
     }
     create_election_configs(
@@ -913,7 +913,7 @@ pub async fn run_velvet_tally(
         pdf_options,
         tally_session,
         tally_type,
-        tie_resolution,
+        None,
     )
     .await?;
     call_velvet(base_tally_path.clone(), "decode-ballots").await

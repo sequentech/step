@@ -453,7 +453,7 @@ export const ContestDataForm: React.FC = () => {
             newContest.voting_type = newContest.voting_type || IVotingType.NON_PREFERENTIAL
             newContest.counting_algorithm =
                 newContest.counting_algorithm || ICountingAlgorithm.PLURALITY_AT_LARGE
-            const tallyConfig = ((newContest.tally_configuration ?? {}) as Record<string, unknown>)
+            const tallyConfig = (newContest.tally_configuration ?? {}) as Record<string, unknown>
             if (!tallyConfig.tie_breaking_policy) {
                 tallyConfig.tie_breaking_policy = ITieBreakingPolicy.RANDOM
             }
@@ -678,9 +678,7 @@ export const ContestDataForm: React.FC = () => {
                                         ICountingAlgorithm.INSTANT_RUNOFF ? (
                                             <SelectInput
                                                 source="tally_configuration.tie_breaking_policy"
-                                                label={t(
-                                                    "contestScreen.tieBreakingPolicy.label"
-                                                )}
+                                                label={t("contestScreen.tieBreakingPolicy.label")}
                                                 choices={tieBreakingPolicyChoices()}
                                                 validate={required()}
                                             />

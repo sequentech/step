@@ -6,26 +6,38 @@ import {useTranslation} from "react-i18next"
 import {useGetList, useNotify} from "react-admin"
 import {useMutation} from "@apollo/client"
 import {
+    Alert,
+    AlertTitle,
+    Autocomplete,
     Box,
     Button,
     Chip,
     CircularProgress,
-    Divider,
     FormControlLabel,
+    Popover,
     Radio,
     RadioGroup,
+    TextField,
     Typography,
 } from "@mui/material"
+import ViewColumnIcon from "@mui/icons-material/ViewColumn"
+import GavelIcon from "@mui/icons-material/Gavel"
+import AssignmentIcon from "@mui/icons-material/Assignment"
+import ChevronRightIcon from "@mui/icons-material/ChevronRight"
 import {
+    Sequent_Backend_Area,
     Sequent_Backend_Candidate,
     Sequent_Backend_Contest,
+    Sequent_Backend_Election,
     Sequent_Backend_Tally_Session,
+    Sequent_Backend_Tally_Session_Contest,
     Sequent_Backend_Tally_Session_Resolution,
     SubmitTallyResolutionOutput,
     TallyResolutionInput,
 } from "@/gql/graphql"
 import {SUBMIT_TALLY_RESOLUTION} from "@/queries/SubmitTallyResolution"
 import {IPermissions} from "@/types/keycloak"
+import {ITallyExecutionStatus} from "@/types/ceremonies"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
 
 type SubmitResolutionMutationResult = {submit_tally_resolution?: SubmitTallyResolutionOutput | null}
@@ -38,6 +50,7 @@ type SubmitResolutionMutationVariables = {
 interface TallyResolutionPanelProps {
     tallySession: Sequent_Backend_Tally_Session
     contests: Sequent_Backend_Contest[]
+    elections: Sequent_Backend_Election[]
     electionEventId: string
     tenantId: string | null
     onResolutionSubmitted: () => void
@@ -46,6 +59,7 @@ interface TallyResolutionPanelProps {
 export const TallyResolutionPanel: React.FC<TallyResolutionPanelProps> = ({
     tallySession,
     contests,
+    elections,
     electionEventId,
     tenantId,
     onResolutionSubmitted,
@@ -54,21 +68,29 @@ export const TallyResolutionPanel: React.FC<TallyResolutionPanelProps> = ({
     const notify = useNotify()
     const {globalSettings} = useContext(SettingsContext)
     const [selectedResolutionId, setSelectedResolutionId] = useState<string | null>(null)
+    // draftSelections: temporary, updated by radio onChange (not yet committed)
+    const [draftSelections, setDraftSelections] = useState<Record<string, string>>({})
+    // pendingSelections: committed by clicking Save; drives the Apply button and chip state
     const [pendingSelections, setPendingSelections] = useState<Record<string, string>>({})
+    const [resolvedEditingIds, setResolvedEditingIds] = useState<Record<string, boolean>>({})
     const [submitting, setSubmitting] = useState(false)
+    // Filter popover state
+    const [filterAnchorEl, setFilterAnchorEl] = useState<HTMLButtonElement | null>(null)
+    const [filterElection, setFilterElection] = useState<string>("")
+    const [filterContest, setFilterContest] = useState<string>("")
+    const [filterArea, setFilterArea] = useState<string>("")
+    const [filterStatus, setFilterStatus] = useState<string>("")
 
     const [submitTallyResolution] = useMutation<
         SubmitResolutionMutationResult,
         SubmitResolutionMutationVariables
     >(SUBMIT_TALLY_RESOLUTION)
 
-    // The DB column contest_id references results_contest.id (FK), not contest.id.
-    // The actual contest_id is stored in resolution_data.contest_id by windmill.
+    // contest_id is a direct FK to sequent_backend.contest.id.
+    // Fallback to resolution_data.contest_id for rows created before the migration.
     const getContestId = (r: Sequent_Backend_Tally_Session_Resolution): string | undefined =>
-        r.resolution_data?.contest_id ?? r.contest_id ?? undefined
+        r.contest_id ?? r.resolution_data?.contest_id ?? undefined
 
-    // Fetch resolutions directly — ra-data-hasura does not include nested
-    // relationships in useGetOne queries, so we query this table separately.
     const {data: allResolutions} = useGetList<Sequent_Backend_Tally_Session_Resolution>(
         "sequent_backend_tally_session_resolution",
         {
@@ -85,6 +107,24 @@ export const TallyResolutionPanel: React.FC<TallyResolutionPanelProps> = ({
             refetchOnWindowFocus: false,
             enabled: !!tallySession.id && !!tenantId,
         }
+    )
+
+    const {data: tallySessionContests} = useGetList<Sequent_Backend_Tally_Session_Contest>(
+        "sequent_backend_tally_session_contest",
+        {
+            pagination: {page: 1, perPage: 9999},
+            filter: {tally_session_id: tallySession.id, tenant_id: tenantId},
+        },
+        {enabled: !!tallySession.id && !!tenantId}
+    )
+
+    const {data: areas} = useGetList<Sequent_Backend_Area>(
+        "sequent_backend_area",
+        {
+            pagination: {page: 1, perPage: 9999},
+            filter: {election_event_id: electionEventId, tenant_id: tenantId},
+        },
+        {enabled: !!electionEventId && !!tenantId}
     )
 
     // Keep only the latest pending resolution per contest (handles re-submissions)
@@ -110,14 +150,20 @@ export const TallyResolutionPanel: React.FC<TallyResolutionPanelProps> = ({
         [allResolutions]
     )
 
+    // Combined display list: pending first, then resolved
+    const allDisplayResolutions = useMemo(
+        () => [...latestPendingResolutions, ...resolvedResolutions],
+        [latestPendingResolutions, resolvedResolutions]
+    )
+
     const allContestIds = useMemo(() => {
         const ids = new Set<string>()
-        for (const r of [...latestPendingResolutions, ...resolvedResolutions]) {
+        for (const r of allDisplayResolutions) {
             const cid = getContestId(r)
             if (cid) ids.add(cid)
         }
         return Array.from(ids)
-    }, [latestPendingResolutions, resolvedResolutions])
+    }, [allDisplayResolutions])
 
     const {data: candidates} = useGetList<Sequent_Backend_Candidate>(
         "sequent_backend_candidate",
@@ -139,16 +185,130 @@ export const TallyResolutionPanel: React.FC<TallyResolutionPanelProps> = ({
         }
     )
 
+    const electionMap = useMemo(() => {
+        const map = new Map<string, string>()
+        for (const e of elections) {
+            map.set(e.id, e.name)
+        }
+        return map
+    }, [elections])
+
+    const areaMap = useMemo(() => {
+        const map = new Map<string, string>()
+        for (const a of areas ?? []) {
+            if (a.name) map.set(a.id, a.name)
+        }
+        return map
+    }, [areas])
+
+    const totalTallyAreaCount = useMemo(() => {
+        const ids = new Set<string>()
+        for (const tsc of tallySessionContests ?? []) {
+            ids.add(tsc.area_id)
+        }
+        return ids.size
+    }, [tallySessionContests])
+
+    // actual contest_id → area label for this tally session
+    // Returns "Global" when the contest spans all areas in the tally session
+    const contestAreaLabel = useMemo(() => {
+        const map = new Map<string, string>()
+        const contestAreaIds = new Map<string, string[]>()
+        for (const tsc of tallySessionContests ?? []) {
+            if (!tsc.contest_id) continue
+            const ids = contestAreaIds.get(tsc.contest_id) ?? []
+            if (!ids.includes(tsc.area_id)) ids.push(tsc.area_id)
+            contestAreaIds.set(tsc.contest_id, ids)
+        }
+        contestAreaIds.forEach((areaIds, contestId) => {
+            if (totalTallyAreaCount > 0 && areaIds.length === totalTallyAreaCount) {
+                map.set(contestId, t("tally.pendingResolutions.globalArea"))
+            } else {
+                const names = areaIds
+                    .map((id) => areaMap.get(id) ?? "")
+                    .filter((name) => name !== "")
+                map.set(contestId, names.join(", "))
+            }
+        })
+        return map
+    }, [tallySessionContests, areaMap, totalTallyAreaCount, t])
+
+    // Filter dropdown options: only items that appear in the current resolution list
+    const relevantElections = useMemo(() => {
+        const ids = new Set<string>()
+        for (const r of allDisplayResolutions) {
+            const contest = contests.find((c) => c.id === getContestId(r))
+            if (contest?.election_id) ids.add(contest.election_id)
+        }
+        return elections.filter((e) => ids.has(e.id))
+    }, [allDisplayResolutions, contests, elections])
+
+    const relevantContests = useMemo(() => {
+        const ids = new Set(
+            allDisplayResolutions.map((r) => getContestId(r)).filter((v): v is string => !!v)
+        )
+        return contests.filter((c) => ids.has(c.id))
+    }, [allDisplayResolutions, contests])
+
+    const relevantAreas = useMemo(() => {
+        const contestIds = new Set(
+            allDisplayResolutions.map((r) => getContestId(r)).filter((v): v is string => !!v)
+        )
+        const areaIds = new Set<string>()
+        for (const tsc of tallySessionContests ?? []) {
+            if (contestIds.has(tsc.contest_id)) areaIds.add(tsc.area_id)
+        }
+        return (areas ?? []).filter((a) => areaIds.has(a.id))
+    }, [allDisplayResolutions, tallySessionContests, areas])
+
+    const activeFilterCount = [filterElection, filterContest, filterArea, filterStatus].filter(
+        Boolean
+    ).length
+
+    const filteredResolutions = useMemo(() => {
+        return allDisplayResolutions.filter((r) => {
+            const contestId = getContestId(r)
+            const contest = contests.find((c) => c.id === contestId)
+
+            if (filterElection && contest?.election_id !== filterElection) return false
+            if (filterContest && contestId !== filterContest) return false
+            if (filterArea) {
+                const contestAreas = (tallySessionContests ?? []).filter(
+                    (tsc) => tsc.contest_id === contestId
+                )
+                if (!contestAreas.some((tsc) => tsc.area_id === filterArea)) return false
+            }
+            if (filterStatus === "decided") {
+                if (r.status !== "pending" || !(r.contest_id && pendingSelections[r.contest_id]))
+                    return false
+            } else if (filterStatus === "pending") {
+                if (r.status !== "pending" || !!(r.contest_id && pendingSelections[r.contest_id]))
+                    return false
+            } else if (filterStatus === "resolved") {
+                if (r.status !== "resolved") return false
+            }
+            return true
+        })
+    }, [
+        allDisplayResolutions,
+        filterElection,
+        filterContest,
+        filterArea,
+        filterStatus,
+        contests,
+        tallySessionContests,
+        pendingSelections,
+    ])
+
     const selectedResolution = useMemo(
         () => (allResolutions ?? []).find((r) => r.id === selectedResolutionId) ?? null,
         [allResolutions, selectedResolutionId]
     )
 
-    const selectedContestName = useMemo(() => {
-        if (!selectedResolution) return ""
-        const cid = getContestId(selectedResolution)
-        return contests.find((c) => c.id === cid)?.name ?? cid ?? ""
-    }, [contests, selectedResolution])
+    const selectedContestId = useMemo(
+        () => (selectedResolution ? getContestId(selectedResolution) : undefined),
+        [selectedResolution]
+    )
 
     const tiedCandidatesForSelected = useMemo(() => {
         if (!selectedResolution?.resolution_data) return []
@@ -162,23 +322,88 @@ export const TallyResolutionPanel: React.FC<TallyResolutionPanelProps> = ({
         return (candidates ?? []).find((c) => c.id === candidateId) ?? null
     }, [selectedResolution, candidates])
 
-    const allResolved =
-        latestPendingResolutions.length > 0 &&
-        latestPendingResolutions.every((r) => r.contest_id && pendingSelections[r.contest_id])
+    const hasResolvedRedecisions = resolvedResolutions.some(
+        (r) => r.contest_id && pendingSelections[r.contest_id]
+    )
+
+    // Apply button is enabled when:
+    // - session is awaiting input and at least one pending resolution has been decided, OR
+    // - any already-resolved resolution has been re-decided (allowed regardless of session status)
+    const canApply =
+        !submitting &&
+        ((tallySession.execution_status === ITallyExecutionStatus.AWAITING_INPUT &&
+            latestPendingResolutions.some(
+                (r) => r.contest_id && pendingSelections[r.contest_id]
+            )) ||
+            hasResolvedRedecisions)
+
+    const handleSave = () => {
+        if (!selectedResolution?.contest_id) return
+        const contestId = selectedResolution.contest_id
+        const draftValue = draftSelections[contestId]
+        if (!draftValue) return
+        setPendingSelections((prev) => ({...prev, [contestId]: draftValue}))
+        if (!isPendingSelected) {
+            setResolvedEditingIds((prev) => {
+                const next = {...prev}
+                delete next[selectedResolution.id]
+                return next
+            })
+        }
+    }
+
+    const handleUndoDecision = () => {
+        if (!selectedResolution?.contest_id) return
+        const contestId = selectedResolution.contest_id
+        const savedCandidate = pendingSelections[contestId]
+        if (savedCandidate) {
+            setDraftSelections((prev) => ({...prev, [contestId]: savedCandidate}))
+        }
+        setPendingSelections((prev) => {
+            const next = {...prev}
+            delete next[contestId]
+            return next
+        })
+        if (!isPendingSelected && selectedResolution) {
+            setResolvedEditingIds((prev) => ({...prev, [selectedResolution.id]: true}))
+        }
+    }
+
+    const handleStartResolvedEdit = () => {
+        if (!selectedResolution?.contest_id) return
+        const currentCandidate = selectedResolution.resolution?.resolved_by_candidate_id
+        if (currentCandidate) {
+            setDraftSelections((prev) => ({
+                ...prev,
+                [selectedResolution.contest_id!]: currentCandidate,
+            }))
+        }
+        setResolvedEditingIds((prev) => ({...prev, [selectedResolution.id]: true}))
+    }
 
     const handleSubmit = async () => {
         setSubmitting(true)
+        const pendingContestIds = new Set(
+            latestPendingResolutions.map((r) => r.contest_id).filter(Boolean)
+        )
+        const resolvedContestIds = new Set(
+            resolvedResolutions.map((r) => r.contest_id).filter(Boolean)
+        )
         try {
             await submitTallyResolution({
                 variables: {
                     election_event_id: electionEventId,
                     tally_session_id: tallySession.id,
-                    resolutions: Object.entries(pendingSelections).map(
-                        ([contest_id, selected_candidate_id]) => ({
+                    resolutions: Object.entries(pendingSelections)
+                        .filter(
+                            ([contest_id]) =>
+                                pendingContestIds.has(contest_id) ||
+                                resolvedContestIds.has(contest_id)
+                        )
+                        .map(([contest_id, selected_candidate_id]) => ({
                             contest_id,
                             selected_candidate_id,
-                        })
-                    ),
+                        })),
                 },
                 context: {
                     headers: {"x-hasura-role": IPermissions.TALLY_RESOLUTION_SUBMIT},
@@ -186,6 +411,8 @@ export const TallyResolutionPanel: React.FC<TallyResolutionPanelProps> = ({
             })
             notify("tally.pendingResolutions.submitSuccess", {type: "success"})
             setPendingSelections({})
+            setDraftSelections({})
+            setResolvedEditingIds({})
             onResolutionSubmitted()
         } catch {
             notify("tally.pendingResolutions.submitError", {type: "error"})
@@ -194,202 +421,499 @@ export const TallyResolutionPanel: React.FC<TallyResolutionPanelProps> = ({
         }
     }
 
-    if ((allResolutions ?? []).length === 0) {
+    if (allDisplayResolutions.length === 0) {
         return null
     }
 
-    const renderResolutionItem = (
-        resolution: Sequent_Backend_Tally_Session_Resolution,
-        isPending: boolean
-    ) => {
-        const cid = getContestId(resolution)
-        const contestName = contests.find((c) => c.id === cid)?.name ?? cid
+    const getResolutionSubtitle = (r: Sequent_Backend_Tally_Session_Resolution): string => {
+        const contestId = getContestId(r)
+        const contest = contests.find((c) => c.id === contestId)
+        const parts: string[] = []
+        if (contest) {
+            const electionName = electionMap.get(contest.election_id)
+            if (electionName) parts.push(electionName)
+            if (contest.name) parts.push(contest.name)
+        }
+        if (contestId) {
+            const areaLabel = contestAreaLabel.get(contestId)
+            if (areaLabel) parts.push(areaLabel)
+        }
+        const round = r.resolution_data?.round_number
+        if (round !== undefined && round !== null) {
+            parts.push(t("tally.pendingResolutions.round", {round}))
+        }
+        return parts.join(" | ")
+    }
+
+    const renderResolutionItem = (resolution: Sequent_Backend_Tally_Session_Resolution) => {
+        const isPending = resolution.status === "pending"
+        const isDecided =
+            isPending && !!(resolution.contest_id && pendingSelections[resolution.contest_id])
         const isSelected = selectedResolutionId === resolution.id
-        const isDecided = !!(
-            isPending &&
-            resolution.contest_id &&
-            pendingSelections[resolution.contest_id]
-        )
+        const subtitle = getResolutionSubtitle(resolution)
+        const titleKey = isPending
+            ? "tally.pendingResolutions.tieResolutionRequired"
+            : "tally.pendingResolutions.tieResolved"
+
+        let chipLabel: string
+        let chipColor: "warning" | "info" | "success"
+        if (isDecided) {
+            chipLabel = t("tally.pendingResolutions.pendingApplyStatus")
+            chipColor = "info"
+        } else if (isPending) {
+            chipLabel = t("tally.pendingResolutions.pendingResolutionStatus")
+            chipColor = "warning"
+        } else {
+            chipLabel = t("tally.pendingResolutions.resolvedStatus")
+            chipColor = "success"
+        }
+
+        const icon =
+            resolution.resolution_type === "irv_tie_break" ? (
+                <GavelIcon fontSize="small" color="action" />
+            ) : (
+                <AssignmentIcon fontSize="small" color="action" />
+            )
+
         return (
             <Box
                 key={resolution.id}
                 onClick={() => setSelectedResolutionId(resolution.id)}
                 sx={{
+                    "display": "flex",
+                    "alignItems": "center",
+                    "minHeight": 75,
+                    "px": 1.5,
+                    "py": 1,
+                    "borderBottom": "1px solid",
+                    "borderColor": "divider",
+                    "backgroundColor": isSelected ? "action.selected" : "transparent",
                     "cursor": "pointer",
-                    "p": 1.5,
-                    "mb": 1,
-                    "border": "1px solid",
-                    "borderColor": isSelected ? "primary.main" : "divider",
-                    "borderRadius": 1,
-                    "backgroundColor": isSelected ? "action.selected" : "background.paper",
-                    "&:hover": {backgroundColor: "action.hover"},
+                    "&:hover": {
+                        backgroundColor: isSelected ? "action.selected" : "action.hover",
+                    },
                 }}
             >
-                <Typography variant="subtitle2" noWrap>
-                    {contestName}
-                </Typography>
-                <Typography variant="caption" color="text.secondary">
-                    {t("tally.pendingResolutions.round", {
-                        round: resolution.resolution_data?.round_number ?? "?",
-                    })}
-                </Typography>
-                <Box sx={{mt: 0.5}}>
-                    <Chip
-                        label={
-                            isPending
-                                ? isDecided
-                                    ? t("tally.pendingResolutions.decided")
-                                    : t("tally.pendingResolutions.pendingDecision")
-                                : t("tally.pendingResolutions.resolved")
-                        }
-                        color={!isPending || isDecided ? "success" : "warning"}
-                        size="small"
-                    />
+                <Box sx={{mr: 2.5, flexShrink: 0, display: "flex", alignItems: "center"}}>
+                    {icon}
                 </Box>
+
+                <Box sx={{flex: 1, minWidth: 0}}>
+                    <Typography variant="body2">
+                        <Box component="span" sx={{fontWeight: 700}}>
+                            {t(titleKey)}
+                        </Box>
+                        {subtitle ? `: ${subtitle}` : ""}
+                    </Typography>
+                </Box>
+
+                <Chip
+                    label={chipLabel}
+                    size="small"
+                    color={chipColor}
+                    sx={{ml: 1, flexShrink: 0, borderRadius: "100px"}}
+                />
+                <ChevronRightIcon fontSize="small" color="action" sx={{ml: 0.5, flexShrink: 0}} />
             </Box>
         )
     }
 
+    const statusFilterOptions = [
+        {id: "pending", name: t("tally.pendingResolutions.pendingResolutionStatus")},
+        {id: "decided", name: t("tally.pendingResolutions.pendingApplyStatus")},
+        {id: "resolved", name: t("tally.pendingResolutions.resolvedStatus")},
+    ]
+
+    const isPendingSelected = selectedResolution?.status === "pending"
+    const isDecidedSelected =
+        isPendingSelected &&
+        !!(selectedResolution?.contest_id && pendingSelections[selectedResolution.contest_id])
+    const isResolvedEditing =
+        !isPendingSelected && !!(selectedResolution && resolvedEditingIds[selectedResolution.id])
+    const isResolvedRedecided =
+        !isPendingSelected &&
+        !!(selectedResolution?.contest_id && pendingSelections[selectedResolution.contest_id])
+    const tiedCandidateNames = tiedCandidatesForSelected.map((c) => c.name ?? c.id).join(", ")
+    // Draft value: show the draft selection if set, otherwise fall back to the committed selection
+    const currentDraftValue = selectedResolution?.contest_id
+        ? (draftSelections[selectedResolution.contest_id] ??
+          pendingSelections[selectedResolution.contest_id] ??
+          "")
+        : ""
+
     return (
-        <Box
-            sx={{
-                mt: 2,
-                p: 2,
-                border: "1px solid",
-                borderColor: "divider",
-                borderRadius: 1,
-                width: "100%",
-            }}
-        >
-            <Typography variant="h6" gutterBottom>
-                {t("tally.pendingResolutions.title")}
-            </Typography>
+        <Box sx={{mt: 2, mx: "35px"}}>
+            <Box sx={{display: "flex", minHeight: 400, gap: "29px"}}>
+                {/* LEFT PANEL */}
+                <Box
+                    sx={{
+                        width: "40%",
+                        minWidth: 220,
+                        border: "1px solid",
+                        borderColor: "rgba(0,0,0,0.2)",
+                        display: "flex",
+                        flexDirection: "column",
+                    }}
+                >
+                    {/* Left panel header */}
+                    <Box
+                        sx={{
+                            display: "flex",
+                            justifyContent: "space-between",
+                            alignItems: "center",
+                            px: 3,
+                            height: 75,
+                            borderBottom: "1px solid",
+                            borderColor: "rgba(0,0,0,0.2)",
+                            flexShrink: 0,
+                        }}
+                    >
+                        <Typography
+                            variant="h6"
+                            fontWeight={500}
+                            sx={{color: "#282828", fontSize: 20, lineHeight: "32px"}}
+                        >
+                            {t("tally.pendingResolutions.pendingResolutionsHeader")}{" "}
+                            <Box component="span" sx={{color: "primary.main"}}>
+                                ({latestPendingResolutions.length})
+                            </Box>
+                        </Typography>
+                        <Button
+                            variant="outlined"
+                            color="primary"
+                            size="small"
+                            startIcon={<ViewColumnIcon />}
+                            sx={{flexShrink: 0}}
+                            onClick={(e) => setFilterAnchorEl(e.currentTarget)}
+                        >
+                            {t("tally.pendingResolutions.filter")}
+                            {activeFilterCount > 0 ? ` (${activeFilterCount})` : ""}
+                        </Button>
 
-            <Box sx={{display: "flex", gap: 2, mt: 1}}>
-                {/* LEFT PANEL - list of resolutions */}
-                <Box sx={{width: "40%", minWidth: 220}}>
-                    {latestPendingResolutions.length > 0 && (
-                        <>
-                            <Typography
-                                variant="overline"
-                                color="text.secondary"
-                                sx={{display: "block", mb: 0.5}}
+                        {/* Filter popover */}
+                        <Popover
+                            open={Boolean(filterAnchorEl)}
+                            anchorEl={filterAnchorEl}
+                            onClose={() => setFilterAnchorEl(null)}
+                            anchorOrigin={{vertical: "bottom", horizontal: "right"}}
+                            transformOrigin={{vertical: "top", horizontal: "right"}}
+                        >
+                            <Box
+                                sx={{
+                                    p: 2,
+                                    width: 280,
+                                    display: "flex",
+                                    flexDirection: "column",
+                                    gap: 2,
+                                }}
                             >
-                                {t("tally.pendingResolutions.pendingSection")}
-                            </Typography>
-                            {latestPendingResolutions.map((r) => renderResolutionItem(r, true))}
-                        </>
-                    )}
+                                <Autocomplete
+                                    size="small"
+                                    options={relevantElections}
+                                    getOptionLabel={(o) => o.name ?? ""}
+                                    isOptionEqualToValue={(o, v) => o.id === v.id}
+                                    value={
+                                        relevantElections.find((e) => e.id === filterElection) ??
+                                        null
+                                    }
+                                    onChange={(_, v) => setFilterElection(v?.id ?? "")}
+                                    renderInput={(params) => (
+                                        <TextField
+                                            {...params}
+                                            label={t("tally.pendingResolutions.filterElection")}
+                                        />
+                                    )}
+                                />
 
-                    {resolvedResolutions.length > 0 && (
-                        <>
-                            {latestPendingResolutions.length > 0 && <Divider sx={{my: 1}} />}
-                            <Typography
-                                variant="overline"
-                                color="text.secondary"
-                                sx={{display: "block", mb: 0.5}}
-                            >
-                                {t("tally.pendingResolutions.resolvedSection")}
-                            </Typography>
-                            {resolvedResolutions.map((r) => renderResolutionItem(r, false))}
-                        </>
-                    )}
+                                <Autocomplete
+                                    size="small"
+                                    options={relevantContests}
+                                    getOptionLabel={(o) => o.name ?? ""}
+                                    isOptionEqualToValue={(o, v) => o.id === v.id}
+                                    value={
+                                        relevantContests.find((c) => c.id === filterContest) ?? null
+                                    }
+                                    onChange={(_, v) => setFilterContest(v?.id ?? "")}
+                                    renderInput={(params) => (
+                                        <TextField
+                                            {...params}
+                                            label={t("tally.pendingResolutions.filterContest")}
+                                        />
+                                    )}
+                                />
+
+                                <Autocomplete
+                                    size="small"
+                                    options={relevantAreas}
+                                    getOptionLabel={(o) => o.name ?? ""}
+                                    isOptionEqualToValue={(o, v) => o.id === v.id}
+                                    value={relevantAreas.find((a) => a.id === filterArea) ?? null}
+                                    onChange={(_, v) => setFilterArea(v?.id ?? "")}
+                                    renderInput={(params) => (
+                                        <TextField
+                                            {...params}
+                                            label={t("tally.pendingResolutions.filterArea")}
+                                        />
+                                    )}
+                                />
+
+                                <Autocomplete
+                                    size="small"
+                                    options={statusFilterOptions}
+                                    getOptionLabel={(o) => o.name}
+                                    isOptionEqualToValue={(o, v) => o.id === v.id}
+                                    value={
+                                        statusFilterOptions.find((o) => o.id === filterStatus) ??
+                                        null
+                                    }
+                                    onChange={(_, v) => setFilterStatus(v?.id ?? "")}
+                                    renderInput={(params) => (
+                                        <TextField
+                                            {...params}
+                                            label={t("tally.pendingResolutions.filterStatusLabel")}
+                                        />
+                                    )}
+                                />
+
+                                <Button
+                                    size="small"
+                                    onClick={() => {
+                                        setFilterElection("")
+                                        setFilterContest("")
+                                        setFilterArea("")
+                                        setFilterStatus("")
+                                    }}
+                                    disabled={activeFilterCount === 0}
+                                >
+                                    {t("tally.pendingResolutions.clearFilters")}
+                                </Button>
+                            </Box>
+                        </Popover>
+                    </Box>
+
+                    {/* Resolution list */}
+                    <Box sx={{flex: 1, overflowY: "auto"}}>
+                        {filteredResolutions.map((r) => renderResolutionItem(r))}
+                    </Box>
+
+                    {/* Apply resolutions button */}
+                    <Box
+                        sx={{
+                            px: 3,
+                            py: 1,
+                            display: "flex",
+                            justifyContent: "flex-end",
+                            flexShrink: 0,
+                        }}
+                    >
+                        <Button
+                            variant="contained"
+                            color="primary"
+                            disabled={!canApply}
+                            onClick={handleSubmit}
+                            startIcon={
+                                submitting ? <CircularProgress size={16} color="inherit" /> : null
+                            }
+                        >
+                            {t("tally.pendingResolutions.applyResolutions")}
+                        </Button>
+                    </Box>
                 </Box>
 
                 {/* RIGHT PANEL */}
-                {selectedResolution ? (
-                    <Box sx={{flex: 1}}>
-                        <Typography variant="subtitle1" gutterBottom>
+                <Box
+                    sx={{
+                        flex: 1,
+                        border: "1px solid",
+                        borderColor: "rgba(0,0,0,0.2)",
+                        display: "flex",
+                        flexDirection: "column",
+                    }}
+                >
+                    {/* Right panel header */}
+                    <Box
+                        sx={{
+                            display: "flex",
+                            alignItems: "center",
+                            px: 3,
+                            height: 75,
+                            borderBottom: "1px solid",
+                            borderColor: "rgba(0,0,0,0.2)",
+                            flexShrink: 0,
+                        }}
+                    >
+                        <Typography
+                            variant="h6"
+                            fontWeight={500}
+                            sx={{color: "#282828", fontSize: 20, lineHeight: "32px"}}
+                        >
                             {t("tally.pendingResolutions.resolutionTitle")}
                         </Typography>
-                        <Typography variant="body2" color="text.secondary" gutterBottom>
-                            {t("tally.pendingResolutions.roundInfo", {
-                                round: selectedResolution.resolution_data?.round_number ?? "?",
-                                contest: selectedContestName,
-                            })}
-                        </Typography>
+                    </Box>
 
-                        {selectedResolution.status === "pending" ? (
-                            <>
+                    {/* Right panel content */}
+                    {selectedResolution ? (
+                        <Box
+                            sx={{
+                                flex: 1,
+                                px: 3,
+                                pt: 1.5,
+                                overflow: "auto",
+                                display: "flex",
+                                flexDirection: "column",
+                                gap: 2,
+                            }}
+                        >
+                            {isPendingSelected ? (
+                                <Alert severity="info">
+                                    <AlertTitle>
+                                        {t("tally.pendingResolutions.tieInfoTitle", {
+                                            round:
+                                                selectedResolution.resolution_data?.round_number ??
+                                                "?",
+                                        })}
+                                    </AlertTitle>
+                                    {t("tally.pendingResolutions.tieInfoBody", {
+                                        candidates: tiedCandidateNames || "?",
+                                    })}
+                                </Alert>
+                            ) : (
+                                <Alert severity="success">
+                                    <AlertTitle>
+                                        {t("tally.pendingResolutions.tallyResumedTitle")}
+                                    </AlertTitle>
+                                    {t("tally.pendingResolutions.tallyResumedBody", {
+                                        candidate:
+                                            resolvedCandidateForSelected?.name ??
+                                            selectedResolution.resolution
+                                                ?.resolved_by_candidate_id ??
+                                            "?",
+                                        user: selectedResolution.resolved_by_user ?? "",
+                                    })}
+                                </Alert>
+                            )}
+
+                            <Box>
+                                <Typography variant="body2" sx={{mb: 1}}>
+                                    {t("tally.pendingResolutions.selectCandidateToAdvance")}
+                                </Typography>
                                 <RadioGroup
+                                    row
                                     value={
-                                        pendingSelections[selectedResolution.contest_id ?? ""] ?? ""
+                                        isPendingSelected ||
+                                        isResolvedEditing ||
+                                        isResolvedRedecided
+                                            ? currentDraftValue
+                                            : (resolvedCandidateForSelected?.id ?? "")
                                     }
-                                    onChange={(e) =>
-                                        setPendingSelections((prev) => ({
-                                            ...prev,
-                                            [selectedResolution.contest_id!]: e.target.value,
-                                        }))
+                                    onChange={
+                                        (isPendingSelected && !isDecidedSelected) ||
+                                        isResolvedEditing
+                                            ? (e) =>
+                                                  setDraftSelections((prev) => ({
+                                                      ...prev,
+                                                      [selectedResolution.contest_id!]:
+                                                          e.target.value,
+                                                  }))
+                                            : undefined
                                     }
                                 >
                                     {tiedCandidatesForSelected.map((candidate) => (
                                         <FormControlLabel
                                             key={candidate.id}
                                             value={candidate.id}
-                                            control={<Radio />}
+                                            control={
+                                                <Radio
+                                                    disabled={
+                                                        !(
+                                                            (isPendingSelected &&
+                                                                !isDecidedSelected) ||
+                                                            isResolvedEditing
+                                                        )
+                                                    }
+                                                />
+                                            }
                                             label={candidate.name ?? candidate.id}
                                         />
                                     ))}
                                 </RadioGroup>
-                                {pendingSelections[selectedResolution.contest_id ?? ""] && (
+                            </Box>
+                        </Box>
+                    ) : (
+                        <Box
+                            sx={{
+                                flex: 1,
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                            }}
+                        >
+                            <Typography color="text.secondary">
+                                {t("tally.pendingResolutions.selectContest")}
+                            </Typography>
+                        </Box>
+                    )}
+
+                    {/* Right panel footer — matches left panel footer height */}
+                    <Box
+                        sx={{
+                            px: 3,
+                            py: 1,
+                            display: "flex",
+                            justifyContent: "flex-end",
+                            flexShrink: 0,
+                        }}
+                    >
+                        {selectedResolution && (
+                            <>
+                                {isDecidedSelected ? (
                                     <Button
                                         variant="outlined"
-                                        size="small"
-                                        sx={{mt: 1}}
-                                        onClick={() =>
-                                            setPendingSelections((prev) => {
-                                                const next = {...prev}
-                                                delete next[selectedResolution.contest_id!]
-                                                return next
-                                            })
-                                        }
+                                        color="primary"
+                                        onClick={handleUndoDecision}
+                                    >
+                                        {t("tally.pendingResolutions.undoResolution")}
+                                    </Button>
+                                ) : isPendingSelected ? (
+                                    <Button
+                                        variant="contained"
+                                        color="primary"
+                                        disabled={!currentDraftValue}
+                                        onClick={handleSave}
+                                    >
+                                        {t("tally.pendingResolutions.save")}
+                                    </Button>
+                                ) : isResolvedEditing ? (
+                                    <Button
+                                        variant="contained"
+                                        color="primary"
+                                        disabled={!currentDraftValue}
+                                        onClick={handleSave}
+                                    >
+                                        {t("tally.pendingResolutions.save")}
+                                    </Button>
+                                ) : isResolvedRedecided ? (
+                                    <Button
+                                        variant="outlined"
+                                        color="primary"
+                                        onClick={handleUndoDecision}
+                                    >
+                                        {t("tally.pendingResolutions.undoResolution")}
+                                    </Button>
+                                ) : (
+                                    <Button
+                                        variant="outlined"
+                                        color="primary"
+                                        onClick={handleStartResolvedEdit}
                                     >
                                         {t("tally.pendingResolutions.undoResolution")}
                                     </Button>
                                 )}
                             </>
-                        ) : (
-                            <Typography variant="body2" sx={{mt: 1}}>
-                                {t("tally.pendingResolutions.winner", {
-                                    candidate:
-                                        resolvedCandidateForSelected?.name ??
-                                        selectedResolution.resolution?.resolved_by_candidate_id ??
-                                        "?",
-                                })}
-                            </Typography>
                         )}
                     </Box>
-                ) : (
-                    <Box
-                        sx={{
-                            flex: 1,
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                        }}
-                    >
-                        <Typography color="text.secondary">
-                            {t("tally.pendingResolutions.selectContest")}
-                        </Typography>
-                    </Box>
-                )}
-            </Box>
-
-            {latestPendingResolutions.length > 0 && (
-                <Box sx={{mt: 2, display: "flex", justifyContent: "flex-end"}}>
-                    <Button
-                        variant="contained"
-                        color="primary"
-                        disabled={!allResolved || submitting}
-                        onClick={handleSubmit}
-                        startIcon={
-                            submitting ? <CircularProgress size={16} color="inherit" /> : null
-                        }
-                    >
-                        {t("tally.pendingResolutions.applyResolutions")}
-                    </Button>
                 </Box>
-            )}
+            </Box>
         </Box>
     )
 }

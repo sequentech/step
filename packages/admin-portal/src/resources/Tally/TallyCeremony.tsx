@@ -1028,6 +1028,7 @@ export const TallyCeremony: React.FC = () => {
                                     <TallyResolutionPanel
                                         tallySession={tally}
                                         contests={contests}
+                                        elections={elections ?? []}
                                         electionEventId={tally.election_event_id}
                                         tenantId={tenantId}
                                         onResolutionSubmitted={refetchTallySession}
@@ -1172,16 +1173,16 @@ export const TallyCeremony: React.FC = () => {
                                 </WizardStyles.AccordionDetails>
                             </Accordion>
 
-                            {tally?.election_event_id &&
-                                contests && (
-                                    <TallyResolutionPanel
-                                        tallySession={tally}
-                                        contests={contests}
-                                        electionEventId={tally.election_event_id}
-                                        tenantId={tenantId}
-                                        onResolutionSubmitted={refetchTallySession}
-                                    />
-                                )}
+                            {tally?.election_event_id && contests && (
+                                <TallyResolutionPanel
+                                    tallySession={tally}
+                                    contests={contests}
+                                    elections={elections ?? []}
+                                    electionEventId={tally.election_event_id}
+                                    tenantId={tenantId}
+                                    onResolutionSubmitted={refetchTallySession}
+                                />
+                            )}
                         </>
                     )}
                 </WizardStyles.WizardWrapper>
@@ -1202,7 +1203,8 @@ export const TallyCeremony: React.FC = () => {
                         </CancelButton>
                     ) : null}
                     {page < WizardSteps.Results &&
-                        tally?.execution_status !== ITallyExecutionStatus.CANCELLED && (
+                        tally?.execution_status !== ITallyExecutionStatus.CANCELLED &&
+                        tally?.execution_status !== ITallyExecutionStatus.AWAITING_INPUT && (
                             <NextButton
                                 key="tally-next-button"
                                 color="primary"

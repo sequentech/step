@@ -1261,6 +1261,7 @@ actions:
       permissions:
           - role: admin-user
           - role: admin-ceremony
+          - role: tally-resolution-submit
       comment: Submit tally resolutions
     - name: upload_signature
       definition:

@@ -152,11 +152,7 @@ async fn check_for_tie_resolutions(
         if let Some(process_results) = annotations.get("process_results") {
             if let Some(obj) = process_results.as_object() {
                 if let Some(tie_metadata) = obj.get("pending_tie_resolution") {
-                    pending.push((
-                        results_contest_id_str,
-                        contest_id_str,
-                        tie_metadata.clone(),
-                    ));
+                    pending.push((results_contest_id_str, contest_id_str, tie_metadata.clone()));
                 }
             }
         }
@@ -1147,7 +1143,8 @@ pub async fn execute_tally_session_wrapped(
 
     // Check if there's a resolved tie-break resolution for this tally session
     // (must happen before map_plaintext_data so we can force a re-run)
-    let tie_resolution = {
+    // Build a per-contest map: actual_contest_id -> {resolved_by_candidate_id}
+    let tie_resolutions: HashMap<String, serde_json::Value> = {
         info!("Checking for resolved tie-break in resolution table");
         let all_resolutions = get_resolution_by_tally_session(
             hasura_transaction,
@@ -1162,19 +1159,21 @@ pub async fn execute_tally_session_wrapped(
             .iter()
             .filter(|r| r.resolution_type == ResolutionType::IrvTieBreak)
             .filter(|r| r.resolution.is_some())
-            .last()
-            .and_then(|resolution_record| {
-                resolution_record.resolution.as_ref().and_then(|res| {
-                    res.get("resolved_by_candidate_id").map(|candidate_id| {
-                        info!("Found resolved tie-break - candidate: {}", candidate_id);
-                        serde_json::json!({
-                            "resolved_by_candidate_id": candidate_id
-                        })
-                    })
-                })
+            .filter_map(|r| {
+                let actual_contest_id = r.contest_id.as_deref()?.to_string();
+                let candidate_id = r.resolution.as_ref()?.get("resolved_by_candidate_id")?;
+                info!(
+                    "Found resolved tie-break for contest {}: {}",
+                    actual_contest_id, candidate_id
+                );
+                Some((
+                    actual_contest_id,
+                    serde_json::json!({ "resolved_by_candidate_id": candidate_id }),
+                ))
             })
+            .collect()
     };
-    let has_resolved_tie_break = tie_resolution.is_some();
+    let has_resolved_tie_break = !tie_resolutions.is_empty();
 
     // map plaintexts to contests
     let plaintexts_data_opt = map_plaintext_data(
@@ -1231,7 +1230,7 @@ pub async fn execute_tally_session_wrapped(
             &election_event,
             &tally_session,
             tally_type_enum.clone(),
-            tie_resolution,
+            tie_resolutions,
         )
         .await
         {
@@ -1274,10 +1273,10 @@ pub async fn execute_tally_session_wrapped(
         .await?;
 
         // Handle pending tie resolutions (external procedure requiring input).
-        // Skip when has_resolved_tie_break is true: this is a re-run after the
-        // admin already submitted a resolution, so old pending annotations from
-        // the previous results_contest rows should be ignored.
-        if !has_resolved_tie_break && !tie_resolutions.pending.is_empty() {
+        // On a re-run after partial resolution the new results_event_id ensures
+        // check_for_tie_resolutions only returns ties from the freshly-computed
+        // results, so old annotations are not accidentally re-processed.
+        if !tie_resolutions.pending.is_empty() {
             info!(
                 "Detected {} pending tie resolution(s) in results - creating resolution records",
                 tie_resolutions.pending.len()
@@ -1293,30 +1292,24 @@ pub async fn execute_tally_session_wrapped(
             .await?;
 
             for (results_contest_id, contest_id, tie_metadata) in &tie_resolutions.pending {
-                // Check if a pending resolution already exists for this contest
-                // contest_id column in DB stores results_contest.id (FK)
+                // Check if a pending resolution already exists for this contest using
+                // the stable contest_id column (FK to sequent_backend.contest).
                 let resolution_exists = existing_pending_resolutions.iter().any(|r| {
-                    r.contest_id.as_ref() == Some(results_contest_id)
+                    r.contest_id.as_deref() == Some(contest_id.as_str())
                         && r.resolution_type == ResolutionType::IrvTieBreak
-                        && r.status == ResolutionStatus::Pending
                 });
 
                 if !resolution_exists {
-                    // Enrich resolution_data with the actual contest_id for frontend use
-                    let mut enriched_metadata = tie_metadata.clone();
-                    if let Some(obj) = enriched_metadata.as_object_mut() {
-                        obj.insert("contest_id".to_string(), serde_json::json!(contest_id));
-                    }
-                    // FK references results_contest.id, so pass results_contest_id
                     let resolution_id = create_tally_session_resolution(
                         hasura_transaction,
                         &tenant_id,
                         &election_event_id,
                         &tally_session_id,
                         results_contest_id,
+                        contest_id,
                         results_event_id_str,
                         ResolutionType::IrvTieBreak,
-                        enriched_metadata,
+                        tie_metadata.clone(),
                     )
                     .await?;
                     info!(

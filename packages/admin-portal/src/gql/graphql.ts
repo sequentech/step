@@ -17505,6 +17505,8 @@ export type Sequent_Backend_Tally_Session_Prepend_Input = {
 export type Sequent_Backend_Tally_Session_Resolution = {
   __typename?: 'sequent_backend_tally_session_resolution';
   annotations?: Maybe<Scalars['jsonb']['output']>;
+  /** An object relationship */
+  contest?: Maybe<Sequent_Backend_Contest>;
   contest_id?: Maybe<Scalars['uuid']['output']>;
   created_at: Scalars['timestamptz']['output'];
   election_event_id: Scalars['uuid']['output'];
@@ -17516,6 +17518,7 @@ export type Sequent_Backend_Tally_Session_Resolution = {
   resolution_type: Scalars['String']['output'];
   resolved_at?: Maybe<Scalars['timestamptz']['output']>;
   resolved_by_user?: Maybe<Scalars['uuid']['output']>;
+  results_contest_id?: Maybe<Scalars['uuid']['output']>;
   results_event_id?: Maybe<Scalars['uuid']['output']>;
   status: Scalars['String']['output'];
   /** An object relationship */
