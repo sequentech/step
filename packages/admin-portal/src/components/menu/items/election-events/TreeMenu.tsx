@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import React, {useCallback, useContext, useEffect, useMemo, useRef, useState} from "react"
-import {useLocation} from "react-router-dom"
+import {useNavigate, useLocation} from "react-router-dom"
 import {useGetOne, useSidebarState} from "react-admin"
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore"
 import ChevronRightIcon from "@mui/icons-material/ChevronRight"
@@ -33,7 +33,6 @@ import {MenuStyles, TreeMenuItemContainer} from "@/components/styles/Menu"
 import {Sequent_Backend_Document} from "@/gql/graphql"
 import {useElectionEventTallyStore} from "@/providers/ElectionEventTallyProvider"
 import {useCreateElectionEventStore} from "@/providers/CreateElectionEventContextProvider"
-import {useNavigate} from "react-router-dom"
 import RefreshIcon from "@mui/icons-material/Refresh"
 
 export const mapAddResource: Record<ResourceName, string> = {
