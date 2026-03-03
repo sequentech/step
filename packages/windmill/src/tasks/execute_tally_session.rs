@@ -1257,6 +1257,7 @@ pub async fn execute_tally_session_wrapped(
         status,
         &tenant_id,
         &election_event_id,
+        &tally_session_id,
         session_ids.clone(),
         tally_session_execution.clone(),
         &areas,

@@ -14,6 +14,7 @@ use crate::postgres::results_contest::insert_results_contests;
 use crate::postgres::results_contest_candidate::insert_results_contest_candidates;
 use crate::postgres::results_election::insert_results_elections;
 use crate::postgres::results_event::insert_results_event;
+use crate::postgres::tally_session_resolution::get_resolution_by_tally_session;
 use crate::services::ceremonies::result_documents::save_result_documents;
 use crate::services::documents::upload_and_return_document;
 use anyhow::{anyhow, Context, Result};
@@ -21,7 +22,9 @@ use deadpool_postgres::Transaction;
 use rusqlite::Connection;
 use rusqlite::Transaction as SqliteTransaction;
 use sequent_core::sqlite::results_event::find_results_event_sqlite;
+use sequent_core::sqlite::tally_session_resolution::create_tally_session_resolutions_sqlite;
 use sequent_core::types::ceremonies::{TallySessionDocuments, TallyType};
+use sequent_core::types::results::TallySessionResolution as TallySessionResolutionSqlite;
 use sequent_core::types::hasura::core::TallySessionExecution;
 use sequent_core::types::hasura::core::{Area, TallySession};
 use sequent_core::types::results::*;
@@ -339,6 +342,7 @@ pub async fn process_results_tables(
     state_opt: Option<State>,
     tenant_id: &str,
     election_event_id: &str,
+    tally_session_id: &str,
     session_ids: Option<Vec<i64>>,
     previous_execution: TallySessionExecution,
     areas: &Vec<Area>,
@@ -383,6 +387,40 @@ pub async fn process_results_tables(
             )
             .await?;
         }
+
+        if let Some(sqlite_transaction) = sqlite_transaction_opt {
+            let pg_resolutions = get_resolution_by_tally_session(
+                hasura_transaction,
+                tenant_id,
+                election_event_id,
+                tally_session_id,
+            )
+            .await?;
+
+            let sqlite_resolutions: Vec<TallySessionResolutionSqlite> = pg_resolutions
+                .into_iter()
+                .map(|r| TallySessionResolutionSqlite {
+                    id: r.id,
+                    tenant_id: r.tenant_id,
+                    election_event_id: r.election_event_id,
+                    tally_session_id: r.tally_session_id,
+                    results_contest_id: r.results_contest_id,
+                    contest_id: r.contest_id,
+                    results_event_id: r.results_event_id,
+                    created_at: r.created_at.map(|dt| dt.to_rfc3339()),
+                    last_updated_at: r.last_updated_at.map(|dt| dt.to_rfc3339()),
+                    resolution_type: r.resolution_type.to_string(),
+                    status: r.status.to_string(),
+                    resolution_data: serde_json::to_string(&r.resolution_data).ok(),
+                    resolution: r.resolution.and_then(|v| serde_json::to_string(&v).ok()),
+                    resolved_by_user: r.resolved_by_user,
+                    resolved_at: r.resolved_at.map(|dt| dt.to_rfc3339()),
+                })
+                .collect();
+
+            create_tally_session_resolutions_sqlite(sqlite_transaction, sqlite_resolutions).await?;
+        }
+
         Ok(results_event_id_opt)
     } else {
         Ok(previous_execution.results_event_id)
@@ -396,6 +434,7 @@ pub async fn populate_results_tables(
     state_opt: Option<State>,
     tenant_id: &str,
     election_event_id: &str,
+    tally_session_id: &str,
     session_ids: Option<Vec<i64>>,
     previous_execution: TallySessionExecution,
     areas: &Vec<Area>,
@@ -422,6 +461,7 @@ pub async fn populate_results_tables(
                         state_opt,
                         tenant_id,
                         election_event_id,
+                        tally_session_id,
                         session_ids,
                         previous_execution,
                         areas,
@@ -446,6 +486,7 @@ pub async fn populate_results_tables(
                         state_opt,
                         tenant_id,
                         election_event_id,
+                        tally_session_id,
                         session_ids,
                         previous_execution,
                         areas,
