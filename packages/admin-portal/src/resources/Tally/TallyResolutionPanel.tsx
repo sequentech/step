@@ -86,10 +86,8 @@ export const TallyResolutionPanel: React.FC<TallyResolutionPanelProps> = ({
         SubmitResolutionMutationVariables
     >(SUBMIT_TALLY_RESOLUTION)
 
-    // contest_id is a direct FK to sequent_backend.contest.id.
-    // Fallback to resolution_data.contest_id for rows created before the migration.
     const getContestId = (r: Sequent_Backend_Tally_Session_Resolution): string | undefined =>
-        r.contest_id ?? r.resolution_data?.contest_id ?? undefined
+        r.contest_id ?? undefined
 
     const {data: allResolutions} = useGetList<Sequent_Backend_Tally_Session_Resolution>(
         "sequent_backend_tally_session_resolution",
