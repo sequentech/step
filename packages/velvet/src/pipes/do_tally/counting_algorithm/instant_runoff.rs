@@ -1009,6 +1009,7 @@ impl InstantRunoff {
                                     "round_number": tie_info.round_number,
                                     "tied_candidate_ids": tie_info.tied_candidate_ids,
                                     "vote_counts": tie_info.vote_counts,
+                                    "total_votes": count_valid + count_invalid,
                                     "method_used": format!("{:?}", tie_info.method_used),
                                 }),
                             );
