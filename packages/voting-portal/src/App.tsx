@@ -19,15 +19,16 @@ import {useAppSelector} from "./store/hooks"
 import {selectElectionIds} from "./store/elections/electionsSlice"
 import {
     selectBallotStyleByElectionId,
+    selectBallotStyleElectionIds,
     selectFirstBallotStyle,
 } from "./store/ballotStyles/ballotStylesSlice"
 import WatermarkBackground from "./components/WaterMark/Watermark"
 import SequentLogo from "@sequentech/ui-essentials/public/Sequent_logo.svg"
 import BlankLogoImg from "@sequentech/ui-essentials/public/blank_logo.svg"
 
-const StyledApp = styled(Stack)<{css: string}>`
+const StyledApp = styled(Stack)<{customCss: string}>`
     min-height: 100vh;
-    ${({css}) => css}
+    ${({customCss}) => customCss}
 `
 
 const HeaderWithContext: React.FC = () => {
@@ -85,8 +86,13 @@ const App = () => {
     const {isAuthenticated, setTenantEvent} = useContext(AuthContext)
 
     const electionIds = useAppSelector(selectElectionIds)
-    const ballotStyle = useAppSelector(selectBallotStyleByElectionId(String(electionIds[0])))
+    const ballotStyleElectionIds = useAppSelector(selectBallotStyleElectionIds)
 
+    const ballotStyle = useAppSelector((state) => {
+        const electionId = electionIds[0] ?? ballotStyleElectionIds[0]
+
+        return electionId ? selectBallotStyleByElectionId(String(electionId))(state) : undefined
+    })
     useEffect(() => {
         if (location.pathname === "/") {
             throw new VotingPortalError(VotingPortalErrorType.NO_ELECTION_EVENT)
@@ -119,8 +125,8 @@ const App = () => {
 
     return (
         <StyledApp
-            className="app-root"
-            css={ballotStyle?.ballot_eml.election_event_presentation?.css ?? ""}
+            className="voting-portal app-root"
+            customCss={ballotStyle?.ballot_eml.election_event_presentation?.css ?? ""}
         >
             <ScrollRestoration />
             <ApolloWrapper>
