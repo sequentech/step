@@ -21,7 +21,7 @@ import {
     Typography,
 } from "@mui/material"
 import ViewColumnIcon from "@mui/icons-material/ViewColumn"
-import GavelIcon from "@mui/icons-material/Gavel"
+import InfoOutlineIcon from "@mui/icons-material/InfoOutlined"
 import AssignmentIcon from "@mui/icons-material/Assignment"
 import ChevronRightIcon from "@mui/icons-material/ChevronRight"
 import {
@@ -141,14 +141,20 @@ export const TallyResolutionPanel: React.FC<TallyResolutionPanelProps> = ({
         return Array.from(byContest.values())
     }, [allResolutions])
 
-    // All resolved resolutions, sorted most-recent first
-    const resolvedResolutions = useMemo(
-        () =>
-            (allResolutions ?? [])
-                .filter((r) => r.status === "resolved")
-                .sort((a, b) => b.created_at.localeCompare(a.created_at)),
-        [allResolutions]
-    )
+    // All resolved resolutions, sorted most-recent first.
+    // Excludes contests that currently have a pending resolution — those are superseded.
+    const resolvedResolutions = useMemo(() => {
+        const pendingContestIds = new Set(
+            latestPendingResolutions.map((r) => r.contest_id).filter((id): id is string => !!id)
+        )
+        return (allResolutions ?? [])
+            .filter(
+                (r) =>
+                    r.status === "resolved" &&
+                    !(r.contest_id && pendingContestIds.has(r.contest_id))
+            )
+            .sort((a, b) => b.created_at.localeCompare(a.created_at))
+    }, [allResolutions, latestPendingResolutions])
 
     // Combined display list: pending first, then resolved
     const allDisplayResolutions = useMemo(
@@ -323,7 +329,10 @@ export const TallyResolutionPanel: React.FC<TallyResolutionPanelProps> = ({
     }, [selectedResolution, candidates])
 
     const hasResolvedRedecisions = resolvedResolutions.some(
-        (r) => r.contest_id && pendingSelections[r.contest_id]
+        (r) =>
+            r.contest_id &&
+            pendingSelections[r.contest_id] &&
+            pendingSelections[r.contest_id] !== r.resolution?.resolved_by_candidate_id
     )
 
     // Apply button is enabled when:
@@ -409,13 +418,13 @@ export const TallyResolutionPanel: React.FC<TallyResolutionPanelProps> = ({
                     headers: {"x-hasura-role": IPermissions.TALLY_RESOLUTION_SUBMIT},
                 },
             })
-            notify("tally.pendingResolutions.submitSuccess", {type: "success"})
+            notify(t("tally.pendingResolutions.submitSuccess"), {type: "success"})
             setPendingSelections({})
             setDraftSelections({})
             setResolvedEditingIds({})
             onResolutionSubmitted()
         } catch {
-            notify("tally.pendingResolutions.submitError", {type: "error"})
+            notify(t("tally.pendingResolutions.submitError"), {type: "error"})
         } finally {
             setSubmitting(false)
         }
@@ -449,6 +458,11 @@ export const TallyResolutionPanel: React.FC<TallyResolutionPanelProps> = ({
         const isPending = resolution.status === "pending"
         const isDecided =
             isPending && !!(resolution.contest_id && pendingSelections[resolution.contest_id])
+        const isResolvedRedecided =
+            !isPending &&
+            !!(resolution.contest_id && pendingSelections[resolution.contest_id]) &&
+            pendingSelections[resolution.contest_id] !==
+                resolution.resolution?.resolved_by_candidate_id
         const isSelected = selectedResolutionId === resolution.id
         const subtitle = getResolutionSubtitle(resolution)
         const titleKey = isPending
@@ -457,7 +471,7 @@ export const TallyResolutionPanel: React.FC<TallyResolutionPanelProps> = ({
 
         let chipLabel: string
         let chipColor: "warning" | "info" | "success"
-        if (isDecided) {
+        if (isDecided || isResolvedRedecided) {
             chipLabel = t("tally.pendingResolutions.pendingApplyStatus")
             chipColor = "info"
         } else if (isPending) {
@@ -470,7 +484,7 @@ export const TallyResolutionPanel: React.FC<TallyResolutionPanelProps> = ({
 
         const icon =
             resolution.resolution_type === "irv_tie_break" ? (
-                <GavelIcon fontSize="small" color="action" />
+                <InfoOutlineIcon fontSize="small" color="action" />
             ) : (
                 <AssignmentIcon fontSize="small" color="action" />
             )
@@ -783,17 +797,16 @@ export const TallyResolutionPanel: React.FC<TallyResolutionPanelProps> = ({
                                         {t("tally.pendingResolutions.tallyResumedTitle")}
                                     </AlertTitle>
                                     {t("tally.pendingResolutions.tallyResumedBody", {
-                                        candidate:
-                                            resolvedCandidateForSelected?.name ??
-                                            selectedResolution.resolution
-                                                ?.resolved_by_candidate_id ??
-                                            "?",
+                                        date: new Date(
+                                            selectedResolution.created_at
+                                        ).toLocaleDateString("en-GB"),
                                         user: selectedResolution.resolved_by_user ?? "",
                                     })}
                                 </Alert>
                             )}
 
-                            <Box>
+                            <Box sx={{border: "1px solid", 
+                            borderColor: "rgba(0,0,0,0.2)", py: "14px", px: "16px"}}>
                                 <Typography variant="body2" sx={{mb: 1}}>
                                     {t("tally.pendingResolutions.selectCandidateToAdvance")}
                                 </Typography>
