@@ -557,7 +557,7 @@ export const TallyResolutionPanel: React.FC<TallyResolutionPanelProps> = ({
 
     return (
         <Box sx={{mt: 2, mx: "35px"}}>
-            <Box sx={{display: "flex", minHeight: 400, gap: "29px"}}>
+            <Box sx={{display: "flex", height: 600, gap: "29px"}}>
                 {/* LEFT PANEL */}
                 <Box
                     sx={{
@@ -805,8 +805,14 @@ export const TallyResolutionPanel: React.FC<TallyResolutionPanelProps> = ({
                                 </Alert>
                             )}
 
-                            <Box sx={{border: "1px solid", 
-                            borderColor: "rgba(0,0,0,0.2)", py: "14px", px: "16px"}}>
+                            <Box
+                                sx={{
+                                    border: "1px solid",
+                                    borderColor: "rgba(0,0,0,0.2)",
+                                    py: "14px",
+                                    px: "16px",
+                                }}
+                            >
                                 <Typography variant="body2" sx={{mb: 1}}>
                                     {t("tally.pendingResolutions.selectCandidateToAdvance")}
                                 </Typography>
