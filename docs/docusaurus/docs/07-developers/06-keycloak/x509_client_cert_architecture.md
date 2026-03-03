@@ -19,13 +19,13 @@ goal is **fully dynamic certificate management**: a tech admin can add or remove
 trusted CA certificates through the admin portal UI without touching Cloudflare,
 gitops, or restarting any service.
 
-The infrastructure for the mTLS subdomain is configured once per client
-environment (via gitops), after which cert management is entirely self-service
-through the admin portal and the Keycloak realm configuration UI.
+The infrastructure for the mTLS subdomain is configured once per environment
+(via gitops), after which cert management is entirely self-service through the
+admin portal and the Keycloak realm configuration UI.
 
 This is a multi-tenant system. Certificate trust must be isolated per tenant —
-a tenant admin can only manage CA certs that affect their own voters. See the
-[Multi-Tenancy Design](#multi-tenancy-design) section for details.
+a tenant admin can only manage authentication CAs that affect their own voters.
+See the [Multi-Tenancy Design](#multi-tenancy-design) section for details.
 
 **See also:** [X.509 Dev Tutorial](../10-tutorials/07-x509-voter-certificate-authentication) — dev environment setup, testing, and troubleshooting.
 
@@ -37,41 +37,33 @@ The flow involves two Keycloak subdomains pointing at the same Keycloak backend:
 
 | Subdomain | Purpose | Cloudflare mode | TLS terminates at |
 |---|---|---|---|
-| `login-{client}.sequent.vote` | Standard login (password) | Orange cloud (proxied) | Cloudflare edge |
-| `login-mtls-{client}.sequent.vote` | mTLS certificate login | Grey cloud (DNS-only) | nginx ingress controller inside cluster |
+| `login-{env}.sequent.vote` | Standard login (password) | Orange cloud (proxied) | Cloudflare edge |
+| `login-mtls-{env}.sequent.vote` | mTLS certificate login | Grey cloud (DNS-only) | nginx ingress controller inside cluster |
 
 ### Production flow
 
-```
-Browser (voter)
-  │
-  ├─ 1. Opens voting-{client}.sequent.vote
-  │
-  ├─ 2. Voting portal redirects to login-{client}.sequent.vote (Keycloak)
-  │
-  └─ 3. Keycloak shows login page
-         ├─ Username/password form  ──► standard password login
-         └─ "Login with Certificate" button (if mtls_login_url realm attr set)
-                   │
-                   ▼
-         Browser navigates to login-mtls-{client}.sequent.vote
-                   │
-         Cloudflare DNS-only → NLB (TCP passthrough)
-                   │
-         nginx ingress controller
-         (auth-tls-verify-client: optional_no_ca)
-         TLS handshake: requests client cert
-                   │
-         Browser presents voter client cert
-                   │
-         nginx ingress passes raw cert in ssl-client-cert header
-         (auth-tls-pass-certificate-to-upstream: true)
-                   │
-         Keycloak x509 authenticator
-         validates cert chain against UrlTruststoreProvider
-         (CA bundle loaded per-realm from S3, refreshed periodically)
-                   │
-         Token issued → redirect back to voting-{client}.sequent.vote
+```mermaid
+sequenceDiagram
+    participant B as Browser (voter)
+    participant VP as Voting Portal
+    participant KC as Keycloak (login-{env})
+    participant NLB as NLB + nginx ingress
+    participant KCm as Keycloak (login-mtls-{env})
+    participant S3 as S3 Voter Auth CA bundle
+
+    B->>VP: Opens voting-{env}.sequent.vote
+    VP->>B: Redirect to Keycloak login
+    B->>KC: GET /realms/.../auth
+    KC->>B: Login page with "Login with Certificate" button
+    B->>NLB: Click button — navigate to login-mtls-{env}.sequent.vote
+    Note over B,NLB: Cloudflare DNS-only → NLB TCP passthrough → nginx ingress
+    NLB->>B: TLS handshake — request client cert (optional_no_ca)
+    B->>NLB: Present voter client cert
+    NLB->>KCm: Forward request + ssl-client-cert header (URL-encoded PEM)
+    KCm->>S3: UrlTruststoreProvider fetches tenant CA bundle (periodic background)
+    S3->>KCm: client-ca.pem
+    KCm->>KCm: Validate cert chain against CA bundle
+    KCm->>B: Issue token — redirect to voting portal
 ```
 
 ### Dev environment (codespaces)
@@ -81,8 +73,10 @@ environment replicates the production mTLS path using a dedicated nginx proxy
 container (`.devcontainer/keycloak-nginx/`), which runs alongside Keycloak and
 performs the same function the nginx ingress controller performs in production.
 
-```
-Browser (dev) → nginx mTLS proxy (:8443) → Keycloak (:8090)
+```mermaid
+flowchart LR
+    B[Browser] --> N["nginx mTLS proxy :8443<br/>.devcontainer/keycloak-nginx"]
+    N --> KC[Keycloak :8090]
 ```
 
 The dev nginx config (`.devcontainer/keycloak-nginx/keycloak-mtls.conf`) is
@@ -96,8 +90,12 @@ specific to codespaces and is **not deployed to production**.
 
 The production networking path is:
 
-```
-Browser → Cloudflare → NLB (AWS, Layer 4) → nginx ingress controller → Keycloak pod
+```mermaid
+flowchart LR
+    B[Browser] --> CF["Cloudflare<br/>grey cloud / DNS-only"]
+    CF --> NLB["AWS NLB<br/>Layer 4 — TCP passthrough"]
+    NLB --> NG["nginx ingress controller<br/>TLS terminates here"]
+    NG --> KC[Keycloak pod]
 ```
 
 The AWS NLB is a Layer 4 (TCP) load balancer — it passes raw TCP connections
@@ -109,25 +107,19 @@ certificate is exchanged with Cloudflare, not with the nginx ingress controller
 — so nginx never sees it.
 
 By setting the mTLS subdomain to **Cloudflare grey cloud (DNS-only)**, the
-browser's TLS connection goes:
-
-```
-Browser ──TLS (with client cert)──► NLB (TCP passthrough) ──TCP──► nginx ingress → TLS terminates here
-```
-
-The nginx ingress controller sees the full TLS handshake including the client
-certificate. This is the approach that works with the existing nginx x509cert
-lookup SPI in Keycloak.
+browser's TLS connection reaches the nginx ingress controller intact, including
+the client certificate. This is the approach that works with the existing nginx
+x509cert lookup SPI in Keycloak.
 
 This is a **one-time gitops configuration**. Cloudflare is not involved in
-client certificate handling and never needs to be changed when voter CA certs
-are updated.
+client certificate handling and never needs to be changed when voter
+authentication CAs are updated.
 
 ### nginx ingress controller (production mTLS)
 
-The existing per-client nginx ingress controller handles mTLS for the
-`login-mtls-{client}.sequent.vote` hostname via a dedicated Ingress resource.
-No separate nginx proxy pod is deployed in production.
+The existing per-environment nginx ingress controller handles mTLS for the
+`login-mtls-{env}.sequent.vote` hostname via a dedicated Ingress resource. No
+separate nginx proxy pod is deployed in production.
 
 The Ingress for the mTLS subdomain uses these annotations:
 
@@ -147,14 +139,14 @@ nginx.ingress.kubernetes.io/proxy-buffer-size: "128k"
 - The proxy buffer annotation is already present on the existing Keycloak
   ingress and handles the ~2 KB URL-encoded cert in headers.
 
-All CA validation happens in Keycloak, not in nginx. When CA certs change,
-nginx is unaffected.
+All CA validation happens in Keycloak, not in nginx. When authentication CAs
+change, nginx is unaffected.
 
 ### Server TLS certificate for the mTLS subdomain
 
-The `login-mtls-{client}.sequent.vote` subdomain is served using the same
-`{client}-tls` Let's Encrypt certificate that covers all other client subdomains
-(`login-{client}`, `admin-{client}`, `voting-{client}`, etc.).
+The `login-mtls-{env}.sequent.vote` subdomain is served using the same
+`{env}-tls` Let's Encrypt certificate that covers all other environment
+subdomains (`login-{env}`, `admin-{env}`, `voting-{env}`, etc.).
 
 This is automatic: the `client-setup` chart's `certificate.yaml` template
 builds the Certificate CRD `dnsNames` from the union of all `nlb.externalDNS.domains`
@@ -168,8 +160,8 @@ The nginx ingress references this secret:
 
 ```yaml
 tls:
-  - secretName: {client}-tls
-    hosts: [login-mtls-{client}.sequent.vote]
+  - secretName: {env}-tls
+    hosts: [login-mtls-{env}.sequent.vote]
 ```
 
 **Dev environment:** The `.devcontainer/keycloak-nginx/` nginx proxy uses a
@@ -179,8 +171,7 @@ self-signed certificate (`nginx-tls.crt` / `nginx-tls.key` in
 
 ### UrlTruststoreProvider (Dynamic CA Bundle)
 
-`UrlTruststoreProvider`
-([`packages/keycloak-extensions/url-truststore-provider/`](packages/keycloak-extensions/url-truststore-provider/))
+`UrlTruststoreProvider` (`packages/keycloak-extensions/url-truststore-provider/`)
 is a custom Keycloak SPI that loads trusted CA certificates from a URL and
 refreshes them in the background.
 
@@ -190,8 +181,8 @@ realm by Windmill during election event realm creation), rather than from a
 global instance-level env var. If the realm attribute is not set, it falls back
 to the env-var URL (used in dev).
 
-Keycloak startup arguments (added to the client's `keycloakx/values.yaml` in
-gitops):
+Keycloak startup arguments (added to the environment's `keycloakx/values.yaml`
+in gitops):
 
 ```yaml
 KC_SPI_TRUSTSTORE_PROVIDER: url
@@ -216,9 +207,9 @@ Key implementation details:
 - If the S3 fetch fails during a refresh, Keycloak logs an error and retains
   the previous CA bundle (no disruption to running elections).
 
-### S3 Certificate Bundle
+### S3 Authentication CA Bundle
 
-CA certificates are stored per tenant in the per-client S3 bucket:
+CA certificates are stored per tenant in the per-environment S3 bucket:
 
 ```
 s3://sequent-{client}-bucket-{region}-{account}/public/tenant-{tenantId}/client-ca.pem
@@ -273,7 +264,7 @@ attribute `mtls_login_url`.
 ```
 
 The `mtls_login_url` realm attribute holds the base URL of the mTLS Keycloak
-endpoint (e.g. `https://login-mtls-{client}.sequent.vote/auth`). The button
+endpoint (e.g. `https://login-mtls-{env}.sequent.vote/auth`). The button
 preserves the existing OIDC state so Keycloak continues the same auth session
 on the mTLS subdomain.
 
@@ -284,39 +275,33 @@ existing realms without cert auth continue to work identically.
 
 ## Multi-Tenancy Design
 
-Sequent is a multi-tenant platform. A single client environment can serve
-multiple tenants, each with their own election events. CA certificate trust must
-be isolated per tenant:
+Sequent is a multi-tenant platform. A single environment can serve multiple
+tenants, each with their own election events. Authentication CA trust must be
+isolated per tenant:
 
-- A Tenant A admin managing voter CAs must only affect Tenant A's voters.
-- Adding or removing a CA for Tenant A must not change what Keycloak trusts for
-  Tenant B.
+- A Tenant A admin managing voter authentication CAs must only affect Tenant A's voters.
+- Adding or removing an authentication CA for Tenant A must not change what
+  Keycloak trusts for Tenant B.
 
 ### How isolation is achieved
 
-**Per-tenant S3 path:** Each tenant has its own cert bundle at
+**Per-tenant S3 path:** Each tenant has its own CA bundle at
 `public/tenant-{tenantId}/client-ca.pem`. The Harvest endpoint uses the
 `tenantId` from the authenticated request to determine which path to read/write.
-Tenant-scoped permissions (`voter-ca-read` / `voter-ca-write`) ensure a user
-can only manage the cert bundle for tenants they have access to.
+Tenant-scoped permissions (`voter-auth-ca-read` / `voter-auth-ca-write`) ensure
+a user can only manage the CA bundle for tenants they have access to.
 
 **Per-realm `voter_ca_bundle_url` attribute:** The `UrlTruststoreProvider` SPI
 must be extended to read the CA bundle URL from the Keycloak realm attribute
-`voter_ca_bundle_url` (falling back to the instance-level env var for dev/bootstrap).
-When Windmill creates an election event realm, it sets:
+`voter_ca_bundle_url` (falling back to the instance-level env var for
+dev/bootstrap). When Windmill creates an election event realm, it sets:
 
 ```
 voter_ca_bundle_url = https://sequent-{client}-bucket-{region}-{account}.s3.amazonaws.com/public/tenant-{tenantId}/client-ca.pem
 ```
 
 This ensures the Keycloak realm for Tenant A's election event only trusts the
-CA certs managed by Tenant A admins.
-
-**User-level isolation (Keycloak realms):** Even without per-tenant S3 paths,
-realms already provide voter-level isolation — a cert that authenticates a voter
-in Tenant A's realm cannot be used in Tenant B's realm, because the voter does
-not exist there. The per-tenant S3 path adds management-level isolation (who can
-change what) on top of the user-level isolation Keycloak already provides.
+authentication CAs managed by Tenant A admins.
 
 ### Permissions
 
@@ -324,22 +309,24 @@ The following permissions must be added to `sequent-core`'s `Permissions` enum
 (following the existing naming convention):
 
 ```rust
-#[strum(serialize = "voter-ca-read")]
-VOTER_CA_READ,
-#[strum(serialize = "voter-ca-write")]
-VOTER_CA_WRITE,
+#[strum(serialize = "voter-auth-ca-read")]
+VOTER_AUTH_CA_READ,
+#[strum(serialize = "voter-auth-ca-write")]
+VOTER_AUTH_CA_WRITE,
 ```
 
-- `voter-ca-read` — required to view the list of trusted CA certs for a tenant
-- `voter-ca-write` — required to add or remove trusted CA certs for a tenant
+- `voter-auth-ca-read` — required to view the list of trusted authentication
+  CAs for a tenant
+- `voter-auth-ca-write` — required to add or remove trusted authentication CAs
+  for a tenant
 
 These permissions are scoped at the **tenant level**. They should be included in
 the default tenant admin role template in `keycloak.ts`.
 
-The Harvest endpoint (`POST /manage-client-certs`) must require `voter-ca-write`
-on the request's tenant. The existing `ELECTION_EVENT_WRITE` permission should
-not be reused — cert management is a separate concern with separate access
-control requirements.
+The Harvest endpoint (`POST /manage-voter-auth-cas`) must require
+`voter-auth-ca-write` on the request's tenant. The existing
+`ELECTION_EVENT_WRITE` permission should not be reused — authentication CA
+management is a separate concern with separate access control requirements.
 
 ---
 
@@ -347,39 +334,26 @@ control requirements.
 
 Once the infrastructure is deployed, the complete cert lifecycle is:
 
-```
-Admin Portal UI
-"Voter Certificate Authorities" section in tenant settings
+```mermaid
+sequenceDiagram
+    participant UI as Admin Portal<br/>"Voter Authentication CAs"
+    participant Hasura as Hasura
+    participant Harvest as Harvest
+    participant S3 as S3 (per-tenant bundle)
+    participant KC as Keycloak<br/>UrlTruststoreProvider
 
-  ┌──────────────────────────────────────────────────────┐
-  │  CA Certificates                      [+ Add cert]   │
-  │  ──────────────────────────────────────────────────  │
-  │  CN=ElectionCA2025  exp 2026-01-01  [Download] [✕]  │
-  │  CN=ElectionCA2026  exp 2027-01-01  [Download] [✕]  │
-  └──────────────────────────────────────────────────────┘
-          │
-          │ GraphQL mutation (requires voter-ca-write on tenant)
-          ▼
-    Hasura (forwards to Harvest via action)
-          │
-          │ REST call
-          ▼
-    Harvest  POST /manage-client-certs
-    1. Authorize (requires voter-ca-write on tenantId)
-    2. Fetch current public/tenant-{tenantId}/client-ca.pem from S3
-    3. Parse PEM → list of X.509 certs
-    4. Add or remove the specified cert by subject DN
-    5. Serialize back to concatenated PEM
-    6. Write to S3 public/tenant-{tenantId}/client-ca.pem
-          │
-          │ (within refresh-interval-seconds, default 1 hour)
-          ▼
-    Keycloak UrlTruststoreProvider (background thread, per-realm)
-    - Reads voter_ca_bundle_url from realm attribute
-    - Fetches updated client-ca.pem from S3
-    - Parses certs, classifies as root / intermediate
-    - Atomically replaces volatile provider reference
-    - New voter sessions use the updated CA bundle
+    UI->>Hasura: GraphQL mutation (voter-auth-ca-write on tenant)
+    Hasura->>Harvest: POST /manage-voter-auth-cas
+    Harvest->>Harvest: Authorize voter-auth-ca-write on tenantId
+    Harvest->>S3: GET public/tenant-{tenantId}/client-ca.pem
+    S3->>Harvest: Current PEM bundle
+    Harvest->>Harvest: Parse + add or remove cert by subject DN
+    Harvest->>S3: PUT updated PEM bundle
+    Note over S3,KC: Within refresh-interval-seconds (default 1 hour)
+    KC->>S3: Background thread fetches per-realm URL (voter_ca_bundle_url)
+    S3->>KC: Updated client-ca.pem
+    KC->>KC: Atomically replace volatile provider reference
+    Note over KC: New voter sessions use updated CA bundle
 ```
 
 No Windmill/RabbitMQ task is needed — the S3 write is fast and handled
@@ -407,33 +381,33 @@ Design decisions needed:
 - i18n message key (`loginWithCertificate`) and translations for all supported locales
 - Behaviour when the voter browser has no client certificate installed (the mTLS subdomain will still show the Keycloak login page — username/password fallback)
 
-**2. Admin portal: Voter CA certificate management UI**
+**2. Admin portal: Voter Authentication CAs management UI**
 
-The admin portal needs a UI section for managing the trusted CA cert bundle for
-a tenant. This is a tenant-level setting (not per-election-event).
+The admin portal needs a UI section for managing the trusted CA bundle for a
+tenant. This is a tenant-level setting (not per-election-event).
 
 Design decisions needed:
-- Where in the admin portal tenant settings page to place the "Voter Certificate Authorities" section
+- Where in the admin portal tenant settings page to place the "Voter Authentication CAs" section
 - List view: columns (Subject DN, issuer, expiry, fingerprint), sort order
 - Add cert flow: file upload (PEM/DER/P7B), cert preview before saving, error handling for invalid PEM
 - Remove cert flow: confirmation dialog, warning if removing a CA still in use
-- Permission guard: show section only if user has `voter-ca-read`; show add/remove only if `voter-ca-write`
+- Permission guard: show section only if user has `voter-auth-ca-read`; show add/remove only if `voter-auth-ca-write`
 
 ### Code to build
 
 | Component | What | Files |
 |---|---|---|
-| `sequent-core` | Add `VOTER_CA_READ`, `VOTER_CA_WRITE` to `Permissions` enum | `packages/sequent-core/src/types/permissions.rs` |
+| `sequent-core` | Add `VOTER_AUTH_CA_READ`, `VOTER_AUTH_CA_WRITE` to `Permissions` enum | `packages/sequent-core/src/types/permissions.rs` |
 | `UrlTruststoreProvider` SPI | Extend to read CA bundle URL from `voter_ca_bundle_url` realm attribute, falling back to env var | `packages/keycloak-extensions/url-truststore-provider/` |
-| Harvest | `POST /manage-client-certs` endpoint — read, modify, write per-tenant S3 cert bundle | `packages/harvest/src/routes/manage_client_certs.rs` |
-| `sequent-core` | S3 read/write helpers for the cert bundle (reuse `packages/sequent-core/src/services/s3.rs` pattern) | `packages/sequent-core/src/services/s3.rs` |
-| Hasura | GraphQL action wiring for the new Harvest endpoint; permission check for `voter-ca-write` | Hasura metadata / migration |
-| Admin portal | "Voter Certificate Authorities" section in tenant settings | `packages/admin-portal/src/` |
+| Harvest | `POST /manage-voter-auth-cas` endpoint — read, modify, write per-tenant S3 CA bundle | `packages/harvest/src/routes/manage_voter_auth_cas.rs` |
+| `sequent-core` | S3 read/write helpers for the CA bundle (reuse `packages/sequent-core/src/services/s3.rs` pattern) | `packages/sequent-core/src/services/s3.rs` |
+| Hasura | GraphQL action wiring for the new Harvest endpoint; permission check for `voter-auth-ca-write` | Hasura metadata / migration |
+| Admin portal | "Voter Authentication CAs" section in tenant settings | `packages/admin-portal/src/` |
 | Keycloak theme | `login.ftl` in `sequent.voting-portal` with conditional mTLS button | `packages/keycloak-extensions/sequent-theme/src/main/resources/theme/sequent.voting-portal/login/login.ftl` |
 | Keycloak theme | `loginWithCertificate` message key | `packages/keycloak-extensions/sequent-theme/src/main/resources/theme/sequent.voting-portal/login/messages/messages_en.properties` |
 | Windmill | Set `voter_ca_bundle_url` realm attribute when creating election event realm | Windmill task for realm creation |
 
-### Gitops changes (one-time per client environment)
+### Gitops changes (one-time per environment)
 
 | What | Where | Details |
 |---|---|---|
@@ -449,7 +423,7 @@ controller handles mTLS via annotations.
 ## Operations Guide: Gitops Setup (for developers)
 
 This section is for developers doing the one-time infrastructure setup per
-client environment.
+environment.
 
 ### 1. Add the mTLS domain to `setup/values.yaml`
 
@@ -548,13 +522,13 @@ envVars:
 ```
 
 > After applying these changes via ArgoCD, Keycloak will restart once. From
-> that point on, no further restarts are needed for cert management.
+> that point on, no further restarts are needed for authentication CA management.
 
-### 4. Upload an initial CA certificate bundle for each tenant
+### 4. Upload an initial CA bundle for each tenant
 
-Before Keycloak can validate any voter cert for a tenant, the per-tenant S3
-cert bundle must exist. Once the admin portal UI is built, upload via the UI.
-For initial bootstrap, use the AWS CLI:
+Before Keycloak can validate any voter cert for a tenant, the per-tenant S3 CA
+bundle must exist. Once the admin portal UI is built, upload via the UI. For
+initial bootstrap, use the AWS CLI:
 
 ```bash
 aws s3 cp client-ca.pem \
@@ -587,7 +561,7 @@ This causes the "Login with Certificate" button to appear on the voter login
 page. Remove this attribute to hide the button.
 
 > **Note:** The `voter_ca_bundle_url` realm attribute is set automatically by
-> Windmill when the realm is created. It points to the tenant's cert bundle in
+> Windmill when the realm is created. It points to the tenant's CA bundle in
 > S3. You should not need to set or change it manually.
 
 ### Step 2: Create the x509 authentication flow
@@ -681,30 +655,31 @@ it should prompt your browser for a client certificate selection.
 
 ---
 
-## Operations Guide: Managing Voter CA Certificates via Admin Portal (for tech admins)
+## Operations Guide: Managing Voter Authentication CAs via Admin Portal (for tech admins)
 
-### What is a CA certificate?
+### What is a voter authentication CA?
 
 Voter client certificates are issued by a Certificate Authority (CA). To trust
 a voter's certificate, Keycloak needs to trust the CA that signed it. You
-manage these trusted CAs through the admin portal.
+manage these trusted CAs through the admin portal under **Voter Authentication
+CAs**.
 
-The CA cert bundle is scoped to the **tenant** — it covers all election events
-under that tenant. You do not need to configure cert trust per election event.
+The CA bundle is scoped to the **tenant** — it covers all election events under
+that tenant. You do not need to configure cert trust per election event.
 
 ### Viewing current trusted CAs
 
 1. Log in to the admin portal at `admin-{client}.sequent.vote`
 2. Navigate to the tenant
-3. Open the **Voter Certificate Authorities** section in tenant settings
+3. Open the **Voter Authentication CAs** section in tenant settings
 
 You will see each currently trusted CA with its subject DN, expiry date, and
-fingerprint. This section is visible to users with the `voter-ca-read`
+fingerprint. This section is visible to users with the `voter-auth-ca-read`
 permission.
 
 ### Adding a new trusted CA
 
-Requires the `voter-ca-write` permission.
+Requires the `voter-auth-ca-write` permission.
 
 1. Click **Add CA Certificate**
 2. Upload the CA certificate file (PEM format, `.pem` or `.crt`)
@@ -721,7 +696,7 @@ Keycloak has refreshed.
 
 ### Removing a trusted CA
 
-Requires the `voter-ca-write` permission.
+Requires the `voter-auth-ca-write` permission.
 
 1. Click **Remove** next to the CA to remove
 2. Confirm the action
@@ -744,14 +719,14 @@ with username/password if that is configured as ALTERNATIVE in the flow.
 
 ---
 
-## Certificate Bundle Format Reference
+## Authentication CA Bundle Format Reference
 
 | Property | Value |
 |---|---|
 | Format | PEM (base64-encoded DER, `-----BEGIN CERTIFICATE-----` / `-----END CERTIFICATE-----`) |
 | Multiple certs | Concatenated in one file, no separator needed |
 | Encoding | UTF-8 |
-| S3 path | `public/tenant-{tenantId}/client-ca.pem` in the per-client S3 bucket |
+| S3 path | `public/tenant-{tenantId}/client-ca.pem` in the per-environment S3 bucket |
 | Public URL | `https://sequent-{client}-bucket-{region}-{account}.s3.amazonaws.com/public/tenant-{tenantId}/client-ca.pem` |
 | Refresh interval | Configurable via `KC_SPI_TRUSTSTORE_URL_REFRESH_INTERVAL_SECONDS` (default: 3600 s) |
 | Max chain depth | 2 (nginx ingress default; adjustable if deeper chains are needed) |
