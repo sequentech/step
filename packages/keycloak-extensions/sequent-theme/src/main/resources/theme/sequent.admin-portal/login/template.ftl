@@ -4,7 +4,7 @@
 SPDX-License-Identifier: AGPL-3.0-only
 -->
 
-<#macro registrationLayout bodyClass="" displayInfo=false displayMessage=true displayRequiredFields=false displayCard=true>
+<#macro registrationLayout bodyClass="" displayInfo=false displayMessage=true displayRequiredFields=false displayCard=true displaySocialProviders=false>
 <!DOCTYPE html>
 <html class="${properties.kcHtmlClass!}"<#if realm.internationalizationEnabled> lang="${locale.currentLanguageTag}"</#if> translate="no">
 
@@ -194,7 +194,10 @@ SPDX-License-Identifier: AGPL-3.0-only
               </form>
           </#if>
 
-          <#nested "socialProviders">
+
+          <#if displaySocialProviders>
+           <#nested "socialProviders">
+          </#if>
 
           <#if displayInfo>
               <div id="kc-info" class="${properties.kcSignUpClass!}">
