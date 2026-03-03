@@ -1148,8 +1148,9 @@ pub async fn execute_tally_session_wrapped(
 
     // Check if there's a resolved tie-break resolution for this tally session
     // (must happen before map_plaintext_data so we can force a re-run)
-    // Build a per-contest map: actual_contest_id -> {resolved_by_candidate_id}
-    let tie_resolutions: HashMap<String, serde_json::Value> = {
+    // Build a per-contest map: actual_contest_id -> Vec<{round_number, resolved_by_candidate_id}>
+    // All resolved rounds for the same contest are preserved so multi-round IRV resumes correctly.
+    let tie_resolutions: HashMap<String, Vec<serde_json::Value>> = {
         info!("Checking for resolved tie-break in resolution table");
         let all_resolutions = get_resolution_by_tally_session(
             hasura_transaction,
@@ -1160,23 +1161,39 @@ pub async fn execute_tally_session_wrapped(
         .await
         .unwrap_or_default();
 
-        all_resolutions
+        let mut map: HashMap<String, Vec<serde_json::Value>> = HashMap::new();
+        for r in all_resolutions
             .iter()
             .filter(|r| r.resolution_type == ResolutionType::IrvTieBreak)
             .filter(|r| r.resolution.is_some())
-            .filter_map(|r| {
-                let actual_contest_id = r.contest_id.as_deref()?.to_string();
-                let candidate_id = r.resolution.as_ref()?.get("resolved_by_candidate_id")?;
-                info!(
-                    "Found resolved tie-break for contest {}: {}",
-                    actual_contest_id, candidate_id
-                );
-                Some((
-                    actual_contest_id,
-                    serde_json::json!({ "resolved_by_candidate_id": candidate_id }),
-                ))
-            })
-            .collect()
+        {
+            let Some(actual_contest_id) = r.contest_id.as_deref() else {
+                continue;
+            };
+            let Some(candidate_id) = r
+                .resolution
+                .as_ref()
+                .and_then(|v| v.get("resolved_by_candidate_id"))
+            else {
+                continue;
+            };
+            let round_number = r
+                .resolution_data
+                .get("round_number")
+                .and_then(|v| v.as_u64())
+                .unwrap_or(0);
+            info!(
+                "Found resolved tie-break for contest {} round {}: {}",
+                actual_contest_id, round_number, candidate_id
+            );
+            map.entry(actual_contest_id.to_string())
+                .or_default()
+                .push(serde_json::json!({
+                    "round_number": round_number,
+                    "resolved_by_candidate_id": candidate_id,
+                }));
+        }
+        map
     };
     let has_resolved_tie_break = !tie_resolutions.is_empty();
 

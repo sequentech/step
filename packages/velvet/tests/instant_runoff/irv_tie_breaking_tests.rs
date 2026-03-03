@@ -5,6 +5,7 @@
 use anyhow::Result;
 use sequent_core::ballot::{Candidate, Contest, TieBreakingPolicy};
 use sequent_core::plaintext::{DecodedVoteChoice, DecodedVoteContest};
+use std::collections::HashMap;
 use velvet::pipes::do_tally::counting_algorithm::instant_runoff::{
     BallotsStatus, RunoffResult, RunoffStatus,
 };
@@ -95,7 +96,7 @@ fn test_full_tie_with_random_policy_completes() -> Result<()> {
     let mut runoff = RunoffStatus::initialize_runoff(&contest);
 
     // Run with random policy
-    let result = runoff.run_with_policy(&mut ballots_status, &TieBreakingPolicy::RANDOM);
+    let result = runoff.run_with_policy(&mut ballots_status, &TieBreakingPolicy::RANDOM, &HashMap::new());
 
     // Should complete with a randomly selected winner
     match result {
@@ -138,7 +139,7 @@ fn test_full_tie_with_external_policy_pauses() -> Result<()> {
 
     // Run with external procedure policy
     let result =
-        runoff.run_with_policy(&mut ballots_status, &TieBreakingPolicy::EXTERNAL_PROCEDURE);
+        runoff.run_with_policy(&mut ballots_status, &TieBreakingPolicy::EXTERNAL_PROCEDURE, &HashMap::new());
 
     // Should require external input
     match result {
@@ -182,7 +183,7 @@ fn test_no_tie_with_external_policy_completes() -> Result<()> {
     let mut runoff = RunoffStatus::initialize_runoff(&contest);
 
     let result =
-        runoff.run_with_policy(&mut ballots_status, &TieBreakingPolicy::EXTERNAL_PROCEDURE);
+        runoff.run_with_policy(&mut ballots_status, &TieBreakingPolicy::EXTERNAL_PROCEDURE, &HashMap::new());
 
     // Should complete normally without pausing
     match result {
@@ -214,7 +215,7 @@ fn test_apply_external_tie_decision() -> Result<()> {
     let mut runoff = RunoffStatus::initialize_runoff(&contest);
 
     let result =
-        runoff.run_with_policy(&mut ballots_status, &TieBreakingPolicy::EXTERNAL_PROCEDURE);
+        runoff.run_with_policy(&mut ballots_status, &TieBreakingPolicy::EXTERNAL_PROCEDURE, &HashMap::new());
 
     // Get the paused state
     let mut paused_state = match result {
@@ -250,7 +251,7 @@ fn test_apply_external_tie_decision_invalid_candidate() -> Result<()> {
     let mut ballots_status = BallotsStatus::initialize_ballots_status(&votes, &contest);
     let mut runoff = RunoffStatus::initialize_runoff(&contest);
 
-    runoff.run_with_policy(&mut ballots_status, &TieBreakingPolicy::EXTERNAL_PROCEDURE);
+    runoff.run_with_policy(&mut ballots_status, &TieBreakingPolicy::EXTERNAL_PROCEDURE, &HashMap::new());
 
     // Try to apply decision with invalid candidate
     let result = runoff.apply_external_tie_decision("candidate_xyz");
@@ -277,7 +278,7 @@ fn test_resume_after_external_decision() -> Result<()> {
 
     // First run - pause on tie
     let result =
-        runoff.run_with_policy(&mut ballots_status, &TieBreakingPolicy::EXTERNAL_PROCEDURE);
+        runoff.run_with_policy(&mut ballots_status, &TieBreakingPolicy::EXTERNAL_PROCEDURE, &HashMap::new());
 
     let mut paused_state = match result {
         RunoffResult::RequiresExternalInput { state, .. } => state,
@@ -289,7 +290,7 @@ fn test_resume_after_external_decision() -> Result<()> {
 
     // Resume - should complete now
     let result2 =
-        paused_state.run_with_policy(&mut ballots_status, &TieBreakingPolicy::EXTERNAL_PROCEDURE);
+        paused_state.run_with_policy(&mut ballots_status, &TieBreakingPolicy::EXTERNAL_PROCEDURE, &HashMap::new());
 
     match result2 {
         RunoffResult::Completed(final_state) => {

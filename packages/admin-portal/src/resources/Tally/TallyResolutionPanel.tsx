@@ -282,12 +282,11 @@ export const TallyResolutionPanel: React.FC<TallyResolutionPanelProps> = ({
                 )
                 if (!contestAreas.some((tsc) => tsc.area_id === filterArea)) return false
             }
+            const isLocallyDecided = !!(r.contest_id && pendingSelections[r.contest_id])
             if (filterStatus === "decided") {
-                if (r.status !== "pending" || !(r.contest_id && pendingSelections[r.contest_id]))
-                    return false
+                if (r.status !== "pending" || !isLocallyDecided) return false
             } else if (filterStatus === "pending") {
-                if (r.status !== "pending" || !!(r.contest_id && pendingSelections[r.contest_id]))
-                    return false
+                if (r.status !== "pending" || isLocallyDecided) return false
             } else if (filterStatus === "resolved") {
                 if (r.status !== "resolved") return false
             }

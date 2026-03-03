@@ -162,9 +162,8 @@ cli step submit-tally-resolution \
 
 System automatically resumes tally:
 
-1. For each resolution, creates a new row in `tally_session_resolution` (audit trail preserved)
-2. Uses the latest resolution per contest (by `created_at`) to determine the decision
-3. Changes status from `AWAITING_INPUT` to `IN_PROGRESS` (or `STARTED` on re-submission, to trigger re-execution)
+1. Marks each resolution as `resolved` in `tally_session_resolution`, recording the chosen candidate, resolver, and timestamp
+2. Changes status from `AWAITING_INPUT` to `IN_PROGRESS` (or `STARTED` on re-submission, to trigger re-execution)
 4. Loads paused RunoffStatus from annotations
 5. Applies decision: eliminates all candidates except chosen winner
 6. Continues IRV algorithm to completion
@@ -224,7 +223,7 @@ Multiple contests can be resolved in one request by adding more entries to `reso
 
 ### Re-submission
 
-If a resolution is submitted again for the same contest, a new row is created in `tally_session_resolution` (preserving the full audit trail) and the tally status is reset to `STARTED` to trigger re-execution with the new decision. The latest resolution (by `created_at`) is always used.
+If a resolution is submitted again for the same contest, the existing `tally_session_resolution` row is updated in place (overwriting `resolution`, `resolved_by_user`, and `resolved_at`), and the tally status is reset to `STARTED` to trigger re-execution with the new decision.
 
 ---
 
@@ -360,7 +359,7 @@ cli step submit-tally-resolution \
 │ Harvest API                                              │
 │ POST /submit-tally-resolution                           │
 │ - Validates status (AWAITING_INPUT)                     │
-│ - Creates new resolution row per contest (audit trail)  │
+│ - Resolves (or updates) the resolution row per contest  │
 │ - Changes status to IN_PROGRESS (or STARTED on re-sub) │
 └───────────────────┬─────────────────────────────────────┘
                     │
@@ -505,10 +504,10 @@ A: The tally remains in `AWAITING_INPUT` status indefinitely. It will not time o
 A: Currently, this feature is only implemented for IRV (Instant Runoff). Other algorithms would need similar modifications.
 
 **Q: Is the tie-break decision reversible?**
-A: Yes, a resolution can be re-submitted. Each submission creates a new row in `tally_session_resolution`, preserving the full audit trail. The latest resolution (by `created_at`) is used, and the tally re-executes automatically.
+A: Yes, a resolution can be re-submitted. The existing `tally_session_resolution` row is updated in place with the new decision, and the tally re-executes automatically.
 
 **Q: What if two admins submit different decisions simultaneously?**
-A: Both submissions succeed and are both recorded in the audit trail. The tally will use the latest one by `created_at`. Since re-submission is supported, this is not a race condition — both decisions are preserved and the tally re-executes with the most recent.
+A: The last write wins — both updates succeed but only the final state is kept. The tally re-executes with whichever decision was committed last.
 
 **Q: Can multiple tie contests be resolved in one call?**
 A: Yes, the `--resolution` flag in the CLI and the `resolutions` array in the API both accept multiple entries, one per tied contest.

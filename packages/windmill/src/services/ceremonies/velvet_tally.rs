@@ -122,7 +122,7 @@ pub fn prepare_tally_for_area_contest(
     area_contest: &AreaContestDataType,
     tally_sheets: &HashMap<(String, String), Vec<TallySheet>>,
     tally_session: &TallySession,
-    tie_resolutions: &HashMap<String, serde_json::Value>,
+    tie_resolutions: &HashMap<String, Vec<serde_json::Value>>,
 ) -> Result<()> {
     let contest_encryption_policy = tally_session
         .configuration
@@ -211,16 +211,17 @@ pub fn prepare_tally_for_area_contest(
 
     // Prepare contest data, potentially injecting tie resolution
     let mut contest = area_contest.contest.clone();
-    if let Some(tie_res) = tie_resolutions.get(&contest_id) {
-        // Inject the resolution for this specific contest into its annotations
-        // Annotations is HashMap<String, String>, so we need to serialize to JSON string
+    if let Some(tie_res_vec) = tie_resolutions.get(&contest_id) {
+        // Inject all per-round resolutions for this contest into its annotations.
+        // Annotations is HashMap<String, String>, so we serialize the Vec to a JSON string.
         let mut annotations = contest.annotations.clone().unwrap_or_default();
-        let tie_res_json_string = serde_json::to_string(tie_res)?;
+        let tie_res_json_string = serde_json::to_string(tie_res_vec)?;
         info!(
-            "Injecting tie resolution into contest {} annotations: {}",
-            contest_id, tie_res_json_string
+            "Injecting {} tie resolution(s) into contest {} annotations",
+            tie_res_vec.len(),
+            contest_id
         );
-        annotations.insert("tie_resolution".to_string(), tie_res_json_string);
+        annotations.insert("tie_resolutions".to_string(), tie_res_json_string);
         contest.annotations = Some(annotations);
     }
 
@@ -876,7 +877,7 @@ pub async fn run_velvet_tally(
     election_event: &ElectionEvent,
     tally_session: &TallySession,
     tally_type: TallyType,
-    tie_resolutions: HashMap<String, serde_json::Value>,
+    tie_resolutions: HashMap<String, Vec<serde_json::Value>>,
 ) -> Result<State> {
     let basic_areas: Vec<TreeNodeArea> = areas.into_iter().map(|area| area.into()).collect();
     // map<(area_id,contest_id), tally_sheet>

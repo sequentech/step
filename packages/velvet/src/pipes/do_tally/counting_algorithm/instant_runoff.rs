@@ -721,7 +721,7 @@ impl RunoffStatus {
         &mut self,
         ballots_status: &mut BallotsStatus,
         tie_breaking_policy: &TieBreakingPolicy,
-        tie_resolution_candidate: Option<&str>,
+        tie_resolutions: &HashMap<u64, String>,
     ) -> RoundResult {
         let mut round = Round::default();
         let mut candidates_wins = self.candidates_status.initialize_candidates_wins();
@@ -790,7 +790,11 @@ impl RunoffStatus {
                         RoundResult::Continue
                     }
                     None => {
-                        // Tie detected - check policy and resolution
+                        // Tie detected - check policy and resolution.
+                        // round_count is still at N-1 here; this tie belongs to round N.
+                        let current_round = self.round_count + 1;
+                        let tie_resolution_candidate =
+                            tie_resolutions.get(&current_round).map(|s| s.as_str());
                         if let Some((winner, eliminated_candidates)) = self.determine_winner_by_lot(
                             &candidates_to_eliminate,
                             &candidates_wins,
@@ -840,14 +844,14 @@ impl RunoffStatus {
         &mut self,
         ballots_status: &mut BallotsStatus,
         tie_breaking_policy: &TieBreakingPolicy,
-        tie_resolution_candidate: Option<&str>,
+        tie_resolutions: &HashMap<u64, String>,
     ) -> RunoffResult {
         let mut iterations = 0;
         while iterations < self.max_rounds {
             match self.run_next_round_with_policy(
                 ballots_status,
                 tie_breaking_policy,
-                tie_resolution_candidate,
+                tie_resolutions,
             ) {
                 RoundResult::Continue => {
                     iterations += 1;
@@ -896,7 +900,7 @@ impl RunoffStatus {
     /// Keep existing run() method for backward compatibility
     /// Calls run_with_policy with RANDOM policy
     pub fn run(&mut self, ballots_status: &mut BallotsStatus) {
-        let result = self.run_with_policy(ballots_status, &TieBreakingPolicy::RANDOM, None);
+        let result = self.run_with_policy(ballots_status, &TieBreakingPolicy::RANDOM, &HashMap::new());
         match result {
             RunoffResult::Completed(status) => {
                 *self = status;
@@ -940,26 +944,35 @@ impl InstantRunoff {
                 // Get tie-breaking policy from contest
                 let tie_breaking_policy = contest.get_tie_breaking_policy();
 
-                // Check for tie resolution in contest annotations (for resume scenario)
-                let tie_resolution_candidate: Option<String> = contest
+                // Check for per-round tie resolutions in contest annotations (for resume scenario).
+                // Stored as a JSON array of {round_number, resolved_by_candidate_id} objects.
+                let tie_resolutions_map: HashMap<u64, String> = contest
                     .annotations
                     .as_ref()
-                    .and_then(|annotations| annotations.get("tie_resolution"))
+                    .and_then(|annotations| annotations.get("tie_resolutions"))
                     .and_then(|json_str| {
-                        // Parse the JSON string
-                        let tie_res_value: serde_json::Value =
-                            serde_json::from_str(json_str).ok()?;
-                        // Extract the candidate ID
-                        tie_res_value
-                            .get("resolved_by_candidate_id")
-                            .and_then(|id_value| id_value.as_str())
-                            .map(|s| s.to_string())
-                    });
+                        serde_json::from_str::<Vec<serde_json::Value>>(json_str).ok()
+                    })
+                    .map(|vec| {
+                        vec.into_iter()
+                            .filter_map(|v| {
+                                let round_number =
+                                    v.get("round_number").and_then(|n| n.as_u64())?;
+                                let candidate_id = v
+                                    .get("resolved_by_candidate_id")
+                                    .and_then(|s| s.as_str())?
+                                    .to_string();
+                                Some((round_number, candidate_id))
+                            })
+                            .collect()
+                    })
+                    .unwrap_or_default();
 
-                if let Some(ref candidate_id) = tie_resolution_candidate {
+                if !tie_resolutions_map.is_empty() {
                     info!(
-                        "Found tie resolution in contest annotations: will choose candidate {} if tie occurs",
-                        candidate_id
+                        "Found {} tie resolution(s) in contest annotations for rounds: {:?}",
+                        tie_resolutions_map.len(),
+                        tie_resolutions_map.keys().collect::<Vec<_>>()
                     );
                 }
 
@@ -967,7 +980,7 @@ impl InstantRunoff {
                 let runoff_result = runoff.run_with_policy(
                     &mut ballots_status,
                     &tie_breaking_policy,
-                    tie_resolution_candidate.as_deref(),
+                    &tie_resolutions_map,
                 );
 
                 // Handle the result
