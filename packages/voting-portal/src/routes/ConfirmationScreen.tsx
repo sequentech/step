@@ -4,7 +4,16 @@
 import {Box, CircularProgress, Typography} from "@mui/material"
 import React, {useState, useEffect, useContext, useCallback, useRef, useMemo} from "react"
 import {useTranslation} from "react-i18next"
-import {PageLimit, Icon, IconButton, theme, QRCode, Dialog} from "@sequentech/ui-essentials"
+import {
+    PageLimit,
+    Icon,
+    IconButton,
+    theme,
+    QRCode,
+    Dialog,
+    ActionsContainer,
+    StyledButton,
+} from "@sequentech/ui-essentials"
 import {
     stringToHtml,
     IElectionEventPresentation,
@@ -16,8 +25,6 @@ import {
 } from "@sequentech/ui-core"
 import {styled} from "@mui/material/styles"
 import {faPrint, faCircleQuestion, faCheck} from "@fortawesome/free-solid-svg-icons"
-import Button from "@mui/material/Button"
-
 import {useLocation, useNavigate, useParams} from "react-router-dom"
 import Link from "@mui/material/Link"
 import {useAppDispatch, useAppSelector} from "../store/hooks"
@@ -56,27 +63,6 @@ const StyledTitle = styled(Typography)`
     display: flex;
     flex-direction: row;
     gap: 16px;
-`
-
-const StyledButton = styled(Button)`
-    display: flex;
-    padding: 5px;
-
-    span {
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        padding: 5px;
-    }
-`
-
-const ActionsContainer = styled(Box)`
-    display: flex;
-    flex-direction: row;
-    align-items: center;
-    justify-content: space-between;
-    width: 100%;
-    gap: 2px;
 `
 
 const BallotIdContainer = styled(Box)`

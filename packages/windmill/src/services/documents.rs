@@ -164,7 +164,11 @@ pub async fn get_document_as_temp_file(
     tenant_id: &str,
     document: &Document,
 ) -> anyhow::Result<NamedTempFile> {
-    let s3_bucket = s3::get_private_bucket()?;
+    let s3_bucket = match document.is_public {
+        Some(true) => s3::get_public_bucket()?,
+        _ => s3::get_private_bucket()?,
+    };
+
     let document_name = document.name.clone().unwrap_or_default();
     let election_event_id = document.election_event_id.clone();
 

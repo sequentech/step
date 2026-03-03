@@ -365,6 +365,10 @@ pub enum Permissions {
     VOTER_EMAIL_TLF_EDIT,
     #[strum(serialize = "google-meet-link")]
     GOOGLE_MEET_LINK,
+    #[strum(serialize = "generate-preview")]
+    GENERATE_PREVIEW,
+    #[strum(serialize = "preview-read")]
+    PREVIEW_READ,
     #[strum(serialize = "tally-resolution-submit")]
     TALLY_RESOLUTION_SUBMIT,
 }

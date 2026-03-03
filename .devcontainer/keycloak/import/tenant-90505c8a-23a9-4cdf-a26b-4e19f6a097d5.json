@@ -1788,6 +1788,24 @@
         "attributes": {}
       },
       {
+        "id": "5640710d-b40b-44cb-888f-f6b7277efedd",
+        "name": "generate-preview",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "50ef5e3e-42c6-4588-b46a-bb938aa8d849",
+        "attributes": {}
+      },
+      {
+        "id": "bddb99dc-bf6d-44a9-8f0a-d4830ce1b92d",
+        "name": "preview-read",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "50ef5e3e-42c6-4588-b46a-bb938aa8d849",
+        "attributes": {}
+      },
+      {
         "id": "3a1e8f2b-7c4d-4e9a-b5f0-1d2c3e4a5b6c",
         "name": "tally-resolution-submit",
         "description": "",
@@ -2383,6 +2401,8 @@
         "voter-voted-edit",
         "voter-email-tlf-edit",
         "transmission-report-generate",
+        "preview-read",
+        "generate-preview",
         "tally-resolution-submit"
       ],
       "clientRoles": {}

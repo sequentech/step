@@ -136,6 +136,7 @@ async fn rocket() -> _ {
                 routes::set_voter_authentication::set_voter_authentication,
                 routes::export_tally_results::export_tally_results_route,
                 routes::google_meet::generate_google_meeting,
+                routes::generate_preview_url::generate_preview_url
             ],
         )
         .mount("/", routes![routes::plugins::plugin_routes])
