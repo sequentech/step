@@ -19,7 +19,7 @@ Areas allow you to organize an election into specific geographic or logical divi
 
 To manage areas, first select your electoral event and then click on the **Areas** menu in the top navigation bar.
 
-![Areas Menu Location](./../assets/areas_menu_navigation.png)
+![Areas Menu Location](./assets/areas_menu_navigation.png)
 
 From this screen, you can view existing areas, the contests assigned to them, and perform management actions like editing or deleting.
 
@@ -32,7 +32,7 @@ Follow these steps to define a new area within your election:
 3. **Description:** Provide an optional description.
 4. **Area Contests:** Select one or more contests that should be available to voters in this specific area.
 
-![Area Configuration Dialog](./../assets/area_config_details.png)
+![Area Configuration Dialog](./assets/area_config_details.png)
 
 5. **Parent:** If the area is part of a larger hierarchy, you can select a parent area.
 6. Select `Save`.
@@ -49,7 +49,7 @@ The Areas interface provides several tools for efficient organization and bulk d
 **Integrity Check:** When importing area data, the system allows you to paste a **SHA-256 hash** to verify the file's authenticity and ensure it hasn't been tampered with.
 :::
 
-![Import Areas Dialog](./../assets/import_areas.png)
+![Import Areas Dialog](./assets/import_areas.png)
 
 7. Drag and drop your file or click **Browse** to select your CSV.
 8. Select `Import` to finalize the process.
