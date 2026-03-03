@@ -116,6 +116,24 @@ fn decode_plaintexts_to_biguints(
         .collect::<Vec<_>>()
 }
 
+pub(crate) fn inject_tie_resolutions_into_contest(
+    contest: &mut Contest,
+    tie_resolutions: &HashMap<String, Vec<serde_json::Value>>,
+) -> anyhow::Result<()> {
+    if let Some(tie_res_vec) = tie_resolutions.get(&contest.id) {
+        let mut annotations = contest.annotations.clone().unwrap_or_default();
+        let tie_res_json_string = serde_json::to_string(tie_res_vec)?;
+        info!(
+            "Injecting {} tie resolution(s) into contest {} annotations",
+            tie_res_vec.len(),
+            contest.id
+        );
+        annotations.insert("tie_resolutions".to_string(), tie_res_json_string);
+        contest.annotations = Some(annotations);
+    }
+    Ok(())
+}
+
 #[instrument(skip_all, err)]
 pub fn prepare_tally_for_area_contest(
     base_tempdir: PathBuf,
@@ -211,19 +229,7 @@ pub fn prepare_tally_for_area_contest(
 
     // Prepare contest data, potentially injecting tie resolution
     let mut contest = area_contest.contest.clone();
-    if let Some(tie_res_vec) = tie_resolutions.get(&contest_id) {
-        // Inject all per-round resolutions for this contest into its annotations.
-        // Annotations is HashMap<String, String>, so we serialize the Vec to a JSON string.
-        let mut annotations = contest.annotations.clone().unwrap_or_default();
-        let tie_res_json_string = serde_json::to_string(tie_res_vec)?;
-        info!(
-            "Injecting {} tie resolution(s) into contest {} annotations",
-            tie_res_vec.len(),
-            contest_id
-        );
-        annotations.insert("tie_resolutions".to_string(), tie_res_json_string);
-        contest.annotations = Some(annotations);
-    }
+    inject_tie_resolutions_into_contest(&mut contest, tie_resolutions)?;
 
     writeln!(contest_config_file, "{}", serde_json::to_string(&contest)?)?;
 
@@ -918,4 +924,54 @@ pub async fn run_velvet_tally(
     )
     .await?;
     call_velvet(base_tally_path.clone(), "decode-ballots").await
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use sequent_core::ballot::Contest;
+
+    /// Passing a tie_resolutions map whose key matches the contest id must
+    /// serialize the Vec as a JSON string and store it under the
+    /// "tie_resolutions" annotation key.
+    #[test]
+    fn test_prepare_tally_for_area_contest_injects_annotations() {
+        let contest_id = "contest-abc";
+        let mut contest = Contest {
+            id: contest_id.to_string(),
+            ..Default::default()
+        };
+        let resolutions = vec![serde_json::json!({
+            "round_number": 2,
+            "resolved_by_candidate_id": "candidate-x"
+        })];
+        let mut map: HashMap<String, Vec<serde_json::Value>> = HashMap::new();
+        map.insert(contest_id.to_string(), resolutions);
+
+        inject_tie_resolutions_into_contest(&mut contest, &map).unwrap();
+
+        let annotations = contest.annotations.expect("annotations should be set");
+        let json_str = annotations
+            .get("tie_resolutions")
+            .expect("tie_resolutions key should exist");
+        let parsed: Vec<serde_json::Value> = serde_json::from_str(json_str).unwrap();
+        assert_eq!(parsed.len(), 1);
+        assert_eq!(parsed[0]["round_number"], 2);
+        assert_eq!(parsed[0]["resolved_by_candidate_id"], "candidate-x");
+    }
+
+    /// When the map has no entry for the contest id the annotations field must
+    /// remain untouched (None).
+    #[test]
+    fn test_inject_tie_resolutions_no_match_leaves_annotations_unchanged() {
+        let mut contest = Contest {
+            id: "contest-abc".to_string(),
+            ..Default::default()
+        };
+        let map: HashMap<String, Vec<serde_json::Value>> = HashMap::new();
+
+        inject_tie_resolutions_into_contest(&mut contest, &map).unwrap();
+
+        assert!(contest.annotations.is_none());
+    }
 }
