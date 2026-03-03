@@ -1720,6 +1720,8 @@ const catalanTranslation: TranslationType = {
                 filterArea: "Àrea",
                 filterStatusLabel: "Estat",
                 clearFilters: "Esborrar filtres",
+                candidateWithVotes: "{{name}} ({{votes}} vots)",
+                candidateWithVotesAndPercent: "{{name}} ({{votes}} vots, {{percent}}%)",
                 tieInfoTitle: "Recompte pausat per empat sense resoldre (Ronda {{round}})",
                 tieInfoBody:
                     "Candidats empatats: {{candidates}}. Cal un desempat manual per continuar el recompte.",

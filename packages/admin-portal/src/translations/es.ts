@@ -1711,6 +1711,8 @@ const spanishTranslation: TranslationType = {
                 filterArea: "Área",
                 filterStatusLabel: "Estado",
                 clearFilters: "Borrar filtros",
+                candidateWithVotes: "{{name}} ({{votes}} votos)",
+                candidateWithVotesAndPercent: "{{name}} ({{votes}} votos, {{percent}}%)",
                 tieInfoTitle: "Recuento pausado por empate sin resolver (Ronda {{round}})",
                 tieInfoBody:
                     "Candidatos empatados: {{candidates}}. Se requiere desempate manual para continuar el recuento.",

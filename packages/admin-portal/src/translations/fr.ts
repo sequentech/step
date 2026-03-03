@@ -1722,6 +1722,8 @@ const frenchTranslation: TranslationType = {
                 filterArea: "Zone",
                 filterStatusLabel: "Statut",
                 clearFilters: "Effacer les filtres",
+                candidateWithVotes: "{{name}} ({{votes}} voix)",
+                candidateWithVotesAndPercent: "{{name}} ({{votes}} voix, {{percent}}%)",
                 tieInfoTitle: "Décompte pausé en raison d'une égalité non résolue (Tour {{round}})",
                 tieInfoBody:
                     "Candidats à égalité : {{candidates}}. Un départage manuel est requis pour continuer le décompte.",

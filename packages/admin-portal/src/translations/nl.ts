@@ -1706,6 +1706,8 @@ const dutchTranslation: TranslationType = {
                 filterArea: "Gebied",
                 filterStatusLabel: "Status",
                 clearFilters: "Filters wissen",
+                candidateWithVotes: "{{name}} ({{votes}} stemmen)",
+                candidateWithVotesAndPercent: "{{name}} ({{votes}} stemmen, {{percent}}%)",
                 tieInfoTitle: "Telling gepauzeerd wegens onopgelost gelijkspel (Ronde {{round}})",
                 tieInfoBody:
                     "Kandidaten gelijk: {{candidates}}. Handmatige tiebreak vereist om de telling voort te zetten.",

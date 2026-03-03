@@ -1706,6 +1706,8 @@ const basqueTranslation: TranslationType = {
                 filterArea: "Eremua",
                 filterStatusLabel: "Egoera",
                 clearFilters: "Iragazkiak garbitu",
+                candidateWithVotes: "{{name}} ({{votes}} boto)",
+                candidateWithVotesAndPercent: "{{name}} ({{votes}} boto, {{percent}}%)",
                 tieInfoTitle: "Zenbaketa etenda berdinketa konpondu gabeagatik (Txanda {{round}})",
                 tieInfoBody:
                     "Berdinketako hautagaiak: {{candidates}}. Eskuzko desempatea behar da zenbaketa jarraitzeko.",

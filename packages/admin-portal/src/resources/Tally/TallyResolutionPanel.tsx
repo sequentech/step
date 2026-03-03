@@ -547,7 +547,26 @@ export const TallyResolutionPanel: React.FC<TallyResolutionPanelProps> = ({
     const isResolvedRedecided =
         !isPendingSelected &&
         !!(selectedResolution?.contest_id && pendingSelections[selectedResolution.contest_id])
-    const tiedCandidateNames = tiedCandidatesForSelected.map((c) => c.name ?? c.id).join(", ")
+    const tiedIds: string[] = selectedResolution?.resolution_data?.tied_candidate_ids ?? []
+    const voteCounts: number[] = selectedResolution?.resolution_data?.vote_counts ?? []
+    const totalVotes: number | undefined = selectedResolution?.resolution_data?.total_votes
+    const tiedVoteCountsMap = new Map<string, number>(tiedIds.map((id, i) => [id, voteCounts[i]]))
+    const tiedCandidateNames = tiedCandidatesForSelected
+        .map((c) => {
+            const name = c.name ?? c.id
+            const votes = tiedVoteCountsMap.get(c.id)
+            if (votes === undefined) return name
+            if (totalVotes) {
+                const percent = ((votes / totalVotes) * 100).toFixed(1)
+                return t("tally.pendingResolutions.candidateWithVotesAndPercent", {
+                    name,
+                    votes,
+                    percent,
+                })
+            }
+            return t("tally.pendingResolutions.candidateWithVotes", {name, votes})
+        })
+        .join(", ")
     // Draft value: show the draft selection if set, otherwise fall back to the committed selection
     const currentDraftValue = selectedResolution?.contest_id
         ? (draftSelections[selectedResolution.contest_id] ??
@@ -556,8 +575,8 @@ export const TallyResolutionPanel: React.FC<TallyResolutionPanelProps> = ({
         : ""
 
     return (
-        <Box sx={{mt: 2, mx: "35px"}}>
-            <Box sx={{display: "flex", height: 600, gap: "29px"}}>
+        <Box sx={{mt: 2}}>
+            <Box sx={{display: "flex", height: 413, gap: "29px"}}>
                 {/* LEFT PANEL */}
                 <Box
                     sx={{
@@ -809,11 +828,11 @@ export const TallyResolutionPanel: React.FC<TallyResolutionPanelProps> = ({
                                 sx={{
                                     border: "1px solid",
                                     borderColor: "rgba(0,0,0,0.2)",
-                                    py: "14px",
-                                    px: "16px",
+                                    py: 1,
+                                    px: 2,
                                 }}
                             >
-                                <Typography variant="body2" sx={{mb: 1}}>
+                                <Typography variant="body2" sx={{mb: 1, mt: 1}}>
                                     {t("tally.pendingResolutions.selectCandidateToAdvance")}
                                 </Typography>
                                 <RadioGroup

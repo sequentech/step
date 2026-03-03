@@ -1697,6 +1697,8 @@ const englishTranslation = {
                 filterArea: "Area",
                 filterStatusLabel: "Status",
                 clearFilters: "Clear filters",
+                candidateWithVotes: "{{name}} ({{votes}} votes)",
+                candidateWithVotesAndPercent: "{{name}} ({{votes}} votes, {{percent}}%)",
                 tieInfoTitle: "Tally paused due to unresolved tie (Round {{round}})",
                 tieInfoBody:
                     "Candidates tied: {{candidates}}. Manual tie-break required to continue tally.",

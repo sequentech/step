@@ -1711,6 +1711,8 @@ const galegoTranslation: TranslationType = {
                 filterArea: "Área",
                 filterStatusLabel: "Estado",
                 clearFilters: "Borrar filtros",
+                candidateWithVotes: "{{name}} ({{votes}} votos)",
+                candidateWithVotesAndPercent: "{{name}} ({{votes}} votos, {{percent}}%)",
                 tieInfoTitle: "Escrutinio pausado por empate sen resolver (Rolda {{round}})",
                 tieInfoBody:
                     "Candidatos empatados: {{candidates}}. Requírese desempate manual para continuar o escrutinio.",

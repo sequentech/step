@@ -1712,6 +1712,8 @@ const tagalogTranslation: TranslationType = {
                 filterArea: "Lugar",
                 filterStatusLabel: "Katayuan",
                 clearFilters: "I-clear ang mga filter",
+                candidateWithVotes: "{{name}} ({{votes}} boto)",
+                candidateWithVotesAndPercent: "{{name}} ({{votes}} boto, {{percent}}%)",
                 tieInfoTitle:
                     "Ang pagbibilang ay natigil dahil sa hindi naresolubasiyong ugnayan (Ikot {{round}})",
                 tieInfoBody:
