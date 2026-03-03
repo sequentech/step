@@ -25,7 +25,7 @@ struct CeleryOpt {
     review_boards_interval: u64,
     #[arg(short = 's', long, default_value = "10")]
     schedule_events_interval: u64,
-    #[arg(short = 'c', long, default_value = "10")]
+    #[arg(short = 'c', long, default_value = "60")]
     schedule_reports_interval: u64,
     #[arg(short = 'e', long, default_value = "5")]
     electoral_log_interval: u64,
