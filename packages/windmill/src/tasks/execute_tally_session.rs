@@ -30,7 +30,8 @@ use crate::services::ceremonies::insert_ballots::{
 use crate::services::ceremonies::keys_ceremony::get_keys_ceremony_board;
 use crate::services::ceremonies::results::populate_results_tables;
 use crate::services::ceremonies::serialize_logs::{
-    append_tally_finished, append_tally_updated, generate_logs, print_messages, sort_logs,
+    append_tally_finished, append_tally_resumed_after_resolution, append_tally_updated,
+    generate_logs, print_messages, sort_logs,
 };
 use crate::services::ceremonies::tally_ceremony::find_last_tally_session_execution_and_all_related_data;
 use crate::services::ceremonies::tally_ceremony::{
@@ -926,6 +927,10 @@ async fn map_plaintext_data(
         let mut logs = new_status.logs.clone();
         logs.append(&mut new_logs);
         new_status.logs = sort_logs(&logs);
+    }
+
+    if force_rerun {
+        new_status.logs = append_tally_resumed_after_resolution(&new_status.logs);
     }
 
     // get ballot styles, from where we'll get the Contest(s)
