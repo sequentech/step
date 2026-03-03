@@ -1292,6 +1292,9 @@ const spanishTranslation: TranslationType = {
             paginationPolicy: {
                 label: "Nombre de la página",
             },
+            allowWriteins: {
+                label: "Permitir candidaturas manuales",
+            },
             error: {},
             createContestSuccess: "Pregunta creado",
             createContestError: "Error creando pregunta",
