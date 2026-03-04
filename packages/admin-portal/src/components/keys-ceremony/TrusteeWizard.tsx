@@ -19,6 +19,7 @@ import {DownloadStep} from "./DownloadStep"
 import {WizardStyles} from "@/components/styles/WizardStyles"
 import {CheckStep} from "./CheckStep"
 import {EElectionEventCeremoniesPolicy} from "@sequentech/ui-core"
+import {useHeadlessTrustee} from "@/hooks/useHeadlessTrustee"
 
 export const isTrusteeParticipating = (
     ceremony: Sequent_Backend_Keys_Ceremony,
@@ -115,14 +116,23 @@ export const TrusteeWizard: React.FC<TrusteeWizardProps> = ({
         return !trusteeCheckedKeys && trusteeParticipating && !keysGenerated
     }
 
+    // Computed before the early return so hooks below are always called unconditionally
+    const isAutomaticCeremony =
+        electionEvent?.presentation?.ceremonies_policy ===
+            EElectionEventCeremoniesPolicy.AUTOMATED_CEREMONIES &&
+        currentCeremony?.settings?.policy === EElectionEventCeremoniesPolicy.AUTOMATED_CEREMONIES
+
+    // Silently run the braid protocol for browser-based trustees during automatic ceremonies
+    useHeadlessTrustee({
+        electionEvent,
+        currentCeremony,
+        isAutomaticCeremony,
+        isTrusteeParticipating: !!trusteeParticipating,
+    })
+
     if (!electionEvent) {
         return <CircularProgress />
     }
-
-    const isAutomaticCeremony =
-        electionEvent.presentation?.ceremonies_policy ===
-            EElectionEventCeremoniesPolicy.AUTOMATED_CEREMONIES &&
-        currentCeremony?.settings?.policy === EElectionEventCeremoniesPolicy.AUTOMATED_CEREMONIES
 
     return (
         <WizardStyles.WizardWrapper>
