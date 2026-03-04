@@ -4,6 +4,7 @@
 
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::{Client as DbClient, Transaction};
+use sequent_core::types::ceremonies::TrusteeModePolicy;
 use sequent_core::types::hasura::core::Trustee;
 use serde_json::value::Value;
 use tokio_postgres::row::Row;
@@ -144,4 +145,13 @@ pub async fn get_all_trustees(
         .collect::<Result<Vec<Trustee>>>()?;
 
     Ok(elements)
+}
+
+pub fn get_trustee_mode_policy(trustee: &Trustee) -> TrusteeModePolicy {
+    trustee
+        .annotations
+        .as_ref()
+        .and_then(|a| a.get("trustee_mode_policy"))
+        .and_then(|v| serde_json::from_value(v.clone()).ok())
+        .unwrap_or_default()
 }
