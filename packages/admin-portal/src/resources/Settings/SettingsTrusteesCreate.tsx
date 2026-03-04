@@ -16,7 +16,10 @@ import {
     TextInput,
     useRefresh,
     useNotify,
+    required,
 } from "react-admin"
+
+import {ETrusteeModePolicy, getDefaultTrusteeModePolicy} from "@sequentech/ui-core"
 
 import {PageHeaderStyles} from "../../components/styles/PageHeaderStyles"
 
@@ -35,6 +38,13 @@ export const SettingsTrusteesCreate: React.FC<CreateProps> = (props) => {
     const refresh = useRefresh()
     const [tenantId] = useTenantStore()
     const {t} = useTranslation()
+
+    const trusteeModePolicyChoices = () => {
+        return Object.values(ETrusteeModePolicy).map((value) => ({
+            id: value,
+            name: t(`trusteesSettingsScreen.trusteeModePolicy.options.${value}`),
+        }))
+    }
 
     const onSuccess = () => {
         refresh()
@@ -65,6 +75,15 @@ export const SettingsTrusteesCreate: React.FC<CreateProps> = (props) => {
                 </PageHeaderStyles.Title>
                 <TextInput source="name" />
                 <TextInput source="public_key" />
+                <SelectInput
+                    source="annotations.trustee_mode_policy"
+                    choices={trusteeModePolicyChoices()}
+                    label={String(
+                        t("trusteesSettingsScreen.trusteeModePolicy.label")
+                    )}
+                    defaultValue={getDefaultTrusteeModePolicy()}
+                    validate={required()}
+                />
 
                 <Hidden>
                     <ReferenceInput source="tenant_id" reference="sequent_backend_tenant">
