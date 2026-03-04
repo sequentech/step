@@ -132,13 +132,13 @@ export const TallyResultsSectionGlobal: React.FC<TallyResultsGlobalCandidatesPro
                 <>
                     <TallyResultsSummary
                         general={general}
-                        chartName={getChartName(general?.[0].name ?? undefined)}
+                        chartName={getChartName(general?.[0]?.name ?? undefined)}
                     />
                     {counting_algorithm === ICountingAlgorithm.PLURALITY_AT_LARGE && (
                         <TallyResultsCandidatesPlurality
                             resultsData={resultsData}
                             orderedResultsData={orderedResultsData}
-                            chartName={getChartName(general?.[0].name ?? undefined)}
+                            chartName={getChartName(general?.[0]?.name ?? undefined)}
                         />
                     )}
                     {counting_algorithm === ICountingAlgorithm.INSTANT_RUNOFF && processResults && (
