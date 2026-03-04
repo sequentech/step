@@ -15,6 +15,7 @@ use crate::types::ceremonies::{
 };
 use crate::types::hasura::core::{self, Area, ElectionEvent};
 use ::core::convert::TryInto;
+use anyhow::anyhow;
 use borsh::{BorshDeserialize, BorshSerialize};
 use chrono::DateTime;
 use chrono::Utc;
@@ -1271,7 +1272,7 @@ impl Default for ElectionPresentation {
             initialization_report_policy: None,
             security_confirmation_policy: None,
             consolidated_report_policy: Some(
-                ConsolidatedReportPolicy::DO_NOT_GENERATE,
+                ConsolidatedReportPolicy::default(),
             ),
         }
     }
@@ -2365,14 +2366,11 @@ impl Area {
     ) -> Result<Option<AreaAnnotations>, Error<serde_json::Error>> {
         self.annotations
             .as_ref()
-            .map(|v| match deserialize_value::<AreaAnnotations>(v.clone()) {
-                Ok(a) => Ok(a),
-                Err(e) => {
-                    eprintln!(
-                        "failed to deserialize AreaAnnotations: {e}; raw={v:?}"
-                    );
-                    Ok(AreaAnnotations::default())
-                }
+            .map(|v| {
+                deserialize_value::<AreaAnnotations>(v.clone()).map_err(|e| {
+                    anyhow!("failed to deserialize AreaAnnotations: error={e} raw={v}");
+                    e
+                })
             })
             .transpose()
     }
@@ -2438,8 +2436,10 @@ pub enum DelegatedVotingPolicy {
 )]
 pub enum ConsolidatedReportPolicy {
     #[default]
+    #[strum(serialize = "do-not-generate")]
     #[serde(rename = "do-not-generate")]
     DO_NOT_GENERATE,
+    #[strum(serialize = "generate")]
     #[serde(rename = "generate")]
     GENERATE,
 }

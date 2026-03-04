@@ -64,6 +64,7 @@ import {
     IElectionPresentation,
     EAllowTally,
     EConsolidatedReportPolicy,
+    getDefaultConsolidatedReportPolicy,
 } from "@sequentech/ui-core"
 import {DropFile} from "@sequentech/ui-essentials"
 import FileJsonInput from "../../components/FileJsonInput"
@@ -254,6 +255,7 @@ export const ElectionDataForm: React.FC = () => {
             temp.presentation.initialization_report_policy ??= EInitializeReportPolicy.NOT_REQUIRED
             temp.presentation.grace_period_policy ??= EGracePeriodPolicy.NO_GRACE_PERIOD
             temp.presentation.grace_period_secs ??= 0
+            temp.presentation.consolidated_report_policy ??= getDefaultConsolidatedReportPolicy()
 
             const votingSettings = data?.voting_channels || tenantData?.voting_channels
 
@@ -908,7 +910,7 @@ export const ElectionDataForm: React.FC = () => {
                                         t("electionScreen.consolidatedReportPolicy.label")
                                     )}
                                     validate={required()}
-                                    defaultValue={EConsolidatedReportPolicy.DO_NOT_GENERATE}
+                                    defaultValue={getDefaultConsolidatedReportPolicy()}
                                 />
                             </AccordionDetails>
                         </Accordion>

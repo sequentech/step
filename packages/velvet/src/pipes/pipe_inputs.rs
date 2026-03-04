@@ -93,7 +93,7 @@ impl PipeInputs {
     }
 
     #[instrument(skip_all)]
-    pub fn build_all_areas_path(root: &Path, election_id: &Uuid) -> PathBuf {
+    pub fn build_consolidated_report_path(root: &Path, election_id: &Uuid) -> PathBuf {
         let mut path = PathBuf::new();
 
         path.push(root);

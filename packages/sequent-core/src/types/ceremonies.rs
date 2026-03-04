@@ -204,17 +204,17 @@ pub enum CeremoniesPolicy {
     BorshDeserialize,
 )]
 pub enum TallyOperation {
-    #[serde(rename = "process-ballots-all")]
     #[strum(serialize = "process-ballots-all")]
+    #[serde(rename = "process-ballots-all")]
     ProcessBallotsAll, /* Process ballots to calculate Candidate Results
                         * and participation
                         * statistics */
-    #[serde(rename = "aggregate-results")]
     #[strum(serialize = "aggregate-results")]
+    #[serde(rename = "aggregate-results")]
     AggregateResults, /* Aggregate results that have been processed in
                        * every area */
-    #[serde(rename = "skip-candidate-results")]
     #[strum(serialize = "skip-candidate-results")]
+    #[serde(rename = "skip-candidate-results")]
     SkipCandidateResults, /* Needs the ballots to calculate participation
                            * statistics but without the Candidate Results */
 }
