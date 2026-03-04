@@ -754,7 +754,6 @@ async fn map_plaintext_data(
     tally_session_execution: TallySessionExecution,
     tally_session_contest: Vec<TallySessionContest>,
     ballot_styles: Vec<BallotStyleHasura>,
-    force_rerun: bool,
 ) -> Result<
     Option<(
         Vec<AreaContestDataType>,
@@ -904,36 +903,46 @@ async fn map_plaintext_data(
         return Ok(None);
     }
 
-    // find a new board message
-    let next_new_board_message_opt = board_messages
-        .iter()
-        .find(|board_message| board_message.id > last_message_id);
+    // Determine whether this is a tie-break re-run by checking if any resolved
+    // resolutions exist for this session.
+    let tie_break_rerun = {
+        let all_resolutions = get_resolution_by_tally_session(
+            hasura_transaction,
+            &tenant_id,
+            &election_event_id,
+            &tally_session_id,
+        )
+        .await
+        .unwrap_or_default();
+        !build_tie_resolutions_map(&all_resolutions).is_empty()
+    };
 
     let newest_message_id = board_messages
         .last()
         .map(|board_message| board_message.id)
         .unwrap_or(-1);
 
-    let next_new_board_message = match next_new_board_message_opt {
+    // In a tie-break re-run the tally replays from the last processed message;
+    // normally we require a new (unprocessed) message to proceed.
+    let board_message_to_process = match board_messages
+        .iter()
+        .find(|m| m.id > last_message_id)
+    {
         Some(msg) => msg,
-        None if force_rerun => {
-            event!(
-                Level::INFO,
-                "Board has no new messages but force_rerun is set (tie-break re-run)"
-            );
+        None if tie_break_rerun => {
+            event!(Level::INFO, "Replaying last board message for tie-break re-run");
             board_messages
                 .last()
                 .ok_or_else(|| anyhow::anyhow!("No board messages found for tie-break re-run"))?
         }
         None => {
-            event!(Level::INFO, "Board has no new messages");
+            event!(Level::INFO, "No new board messages — skipping");
             return Ok(None);
         }
     };
 
-    // find the timestamp of the new board message.
-    // We do this because once we convert into a Message, we lose the link to the board message id
-    let mut next_timestamp = Message::strand_deserialize(&next_new_board_message.message)?
+    // Extract the timestamp before deserializing — once converted to Message the board message id is lost.
+    let mut next_timestamp = Message::strand_deserialize(&board_message_to_process.message)?
         .statement
         .get_timestamp();
     next_timestamp = std::cmp::max(tally_session_created_at_timestamp_secs, next_timestamp);
@@ -977,7 +986,7 @@ async fn map_plaintext_data(
         new_status.logs = sort_logs(&logs);
     }
 
-    if force_rerun {
+    if tie_break_rerun {
         new_status.logs = append_tally_resumed_after_resolution(&new_status.logs);
         let log_body = serde_json::json!({
             "event_type": "tally_resumed_after_resolution",
@@ -1217,10 +1226,9 @@ pub async fn execute_tally_session_wrapped(
 
     let status = get_tally_ceremony_status(tally_session_execution.status.clone())?;
 
-    // Check if there's a resolved tie-break resolution for this tally session
-    // (must happen before map_plaintext_data so we can force a re-run)
+    // Fetch resolved tie-break resolutions to pass into the velvet tally and
+    // to determine has_resolved_tie_break for populate_results_tables.
     let tie_resolutions: HashMap<String, Vec<serde_json::Value>> = {
-        info!("Checking for resolved tie-break in resolution table");
         let all_resolutions = get_resolution_by_tally_session(
             hasura_transaction,
             &tenant_id,
@@ -1246,7 +1254,6 @@ pub async fn execute_tally_session_wrapped(
         tally_session_execution.clone(),
         tally_session_contests.clone(),
         ballot_styles.clone(),
-        has_resolved_tie_break,
     )
     .await?;
 
