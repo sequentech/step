@@ -24,6 +24,7 @@ use crate::postgres::tally_sheet::get_published_tally_sheets_by_event;
 use crate::postgres::template::get_template_by_alias;
 use crate::services::cast_votes::{count_cast_votes_election, ElectionCastVotes};
 use crate::services::celery_app::get_celery_app;
+use crate::tasks::electoral_log::{enqueue_electoral_log_event, LogEventInput, INTERNAL_MESSAGE_TYPE};
 use crate::services::ceremonies::insert_ballots::{
     get_elections_end_dates, insert_ballots_messages,
 };
@@ -978,6 +979,29 @@ async fn map_plaintext_data(
 
     if force_rerun {
         new_status.logs = append_tally_resumed_after_resolution(&new_status.logs);
+        let log_body = serde_json::json!({
+            "event_type": "tally_resumed_after_resolution",
+            "tally_session_id": tally_session_id,
+        });
+        let log_input = LogEventInput {
+            election_event_id: election_event_id.clone(),
+            message_type: INTERNAL_MESSAGE_TYPE.to_string(),
+            user_id: None,
+            username: None,
+            tenant_id: tenant_id.clone(),
+            body: serde_json::to_string(&log_body).unwrap_or_else(|_| "{}".to_string()),
+        };
+        let celery_app = get_celery_app().await;
+        if let Err(e) = celery_app
+            .send_task(enqueue_electoral_log_event::new(log_input))
+            .await
+        {
+            event!(
+                Level::WARN,
+                "Failed to enqueue tally_resumed_after_resolution log: {}",
+                e
+            );
+        }
     }
 
     // get ballot styles, from where we'll get the Contest(s)
@@ -1351,6 +1375,30 @@ pub async fn execute_tally_session_wrapped(
                         "Created pending resolution {} for IRV tie-break in contest {}",
                         resolution_id, contest_id
                     );
+                    let log_body = serde_json::json!({
+                        "event_type": "tally_tie_detected",
+                        "tally_session_id": tally_session_id,
+                        "contest_id": contest_id,
+                        "resolution_id": resolution_id,
+                        "tied_candidate_ids": tie_metadata.get("tied_candidate_ids"),
+                        "round_number": tie_metadata.get("round_number"),
+                    });
+                    let log_input = LogEventInput {
+                        election_event_id: election_event_id.clone(),
+                        message_type: INTERNAL_MESSAGE_TYPE.to_string(),
+                        user_id: None,
+                        username: None,
+                        tenant_id: tenant_id.clone(),
+                        body: serde_json::to_string(&log_body)
+                            .unwrap_or_else(|_| "{}".to_string()),
+                    };
+                    let celery_app = get_celery_app().await;
+                    if let Err(e) = celery_app
+                        .send_task(enqueue_electoral_log_event::new(log_input))
+                        .await
+                    {
+                        event!(Level::WARN, "Failed to enqueue tally_tie_detected log: {}", e);
+                    }
                 }
             }
 
@@ -1388,6 +1436,36 @@ pub async fn execute_tally_session_wrapped(
                 "Tally paused - awaiting administrator tie-break decisions for {} contest(s)",
                 tie_resolutions.pending.len()
             );
+            let pending_contest_ids: Vec<&str> = tie_resolutions
+                .pending
+                .iter()
+                .map(|(_, contest_id, _)| contest_id.as_str())
+                .collect();
+            let log_body = serde_json::json!({
+                "event_type": "tally_paused_awaiting_input",
+                "tally_session_id": tally_session_id,
+                "pending_contest_ids": pending_contest_ids,
+                "pending_count": tie_resolutions.pending.len(),
+            });
+            let log_input = LogEventInput {
+                election_event_id: election_event_id.clone(),
+                message_type: INTERNAL_MESSAGE_TYPE.to_string(),
+                user_id: None,
+                username: None,
+                tenant_id: tenant_id.clone(),
+                body: serde_json::to_string(&log_body).unwrap_or_else(|_| "{}".to_string()),
+            };
+            let celery_app = get_celery_app().await;
+            if let Err(e) = celery_app
+                .send_task(enqueue_electoral_log_event::new(log_input))
+                .await
+            {
+                event!(
+                    Level::WARN,
+                    "Failed to enqueue tally_paused_awaiting_input log: {}",
+                    e
+                );
+            }
             return Ok(());
         }
     }

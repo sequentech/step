@@ -536,8 +536,13 @@ pub async fn submit_tally_resolution(
         }
 
         // Log to electoral log
+        let event_type = if is_resubmission(latest_resolution) {
+            "tally_tie_resolution_updated"
+        } else {
+            "tally_tie_resolved"
+        };
         let electoral_log_body = serde_json::json!({
-            "event_type": "tally_tie_resolved",
+            "event_type": event_type,
             "tally_session_id": input.tally_session_id,
             "contest_id": tie_resolution.contest_id,
             "resolution_id": resolution_id,
