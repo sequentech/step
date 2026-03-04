@@ -31,9 +31,10 @@ use windmill::postgres::tally_session_resolution::{
 };
 use windmill::services::celery_app::get_celery_app;
 use windmill::services::providers::transactions_provider::provide_hasura_transaction;
-use windmill::services::{
-    ceremonies::tally_ceremony, database::get_hasura_pool,
+use windmill::services::ceremonies::tally_ceremony::{
+    self, extract_tied_candidate_ids, is_resubmission, validate_resolution_allowed,
 };
+use windmill::services::database::get_hasura_pool;
 use windmill::tasks::electoral_log::{
     enqueue_electoral_log_event, LogEventInput, INTERNAL_MESSAGE_TYPE,
 };
@@ -444,23 +445,9 @@ pub async fn submit_tally_resolution(
     // Allow re-submission of already-resolved resolutions even when the tally is not
     // in AWAITING_INPUT (e.g., SUCCESS). Only reject if the tally is not awaiting
     // input AND at least one submitted resolution targets a pending (not yet resolved) record.
-    if execution_status != TallyExecutionStatus::AWAITING_INPUT {
-        let all_are_resolved_updates = input.resolutions.iter().all(|res| {
-            all_resolutions.iter().any(|r| {
-                r.contest_id.as_deref() == Some(res.contest_id.as_str())
-                    && r.status == ResolutionStatus::Resolved
-            })
-        });
-        if !all_are_resolved_updates {
-            return Err((
-                Status::BadRequest,
-                format!(
-                    "Tally session is not awaiting input. Current status: {}",
-                    execution_status
-                ),
-            ));
-        }
-    }
+    let input_contest_ids: Vec<&str> =
+        input.resolutions.iter().map(|r| r.contest_id.as_str()).collect();
+    validate_resolution_allowed(&execution_status, &input_contest_ids, &all_resolutions)?;
 
     // 6. Validate and submit each resolution
     let mut resolved_count = 0;
@@ -484,22 +471,8 @@ pub async fn submit_tally_resolution(
             ))?;
 
         // Validate selected candidate is in tied candidates
-        let tied_candidates = latest_resolution
-            .resolution_data
-            .get("tied_candidate_ids")
-            .and_then(|v| v.as_array())
-            .ok_or((
-                Status::BadRequest,
-                format!(
-                    "Invalid resolution data for contest {}: missing tied_candidate_ids",
-                    tie_resolution.contest_id
-                ),
-            ))?;
-
-        let tied_candidate_ids: Vec<String> = tied_candidates
-            .iter()
-            .filter_map(|v| v.as_str().map(String::from))
-            .collect();
+        let tied_candidate_ids =
+            extract_tied_candidate_ids(latest_resolution, &tie_resolution.contest_id)?;
 
         if !tied_candidate_ids.contains(&tie_resolution.selected_candidate_id) {
             return Err((
@@ -520,7 +493,7 @@ pub async fn submit_tally_resolution(
 
         let resolution_id = latest_resolution.id.clone();
 
-        if latest_resolution.status == ResolutionStatus::Pending {
+        if !is_resubmission(latest_resolution) {
             // First submission: resolve the existing pending record
             submit_resolution(
                 &hasura_transaction,

@@ -1827,6 +1827,48 @@ mod tests {
         assert!(map.is_empty(), "Incomplete rows must produce an empty map");
     }
 
+    /// An empty slice must produce an empty map (no panics).
+    #[test]
+    fn test_build_tie_resolutions_map_empty_input() {
+        let map = build_tie_resolutions_map(&[]);
+        assert!(map.is_empty());
+    }
+
+    /// When resolution_data carries no "round_number" key the entry must be
+    /// stored with round_number = 0 rather than being discarded.
+    #[test]
+    fn test_build_tie_resolutions_map_defaults_round_to_zero_when_missing() {
+        let mut row =
+            make_resolution("contest-1", 99, "candidate-a", ResolutionType::IrvTieBreak);
+        // Overwrite resolution_data with an object that lacks round_number
+        row.resolution_data = serde_json::json!({"other_field": "value"});
+
+        let map = build_tie_resolutions_map(&[row]);
+        let entries = map.get("contest-1").unwrap();
+        assert_eq!(entries.len(), 1);
+        assert_eq!(
+            entries[0].get("round_number").and_then(|v| v.as_u64()),
+            Some(0),
+            "Missing round_number must default to 0"
+        );
+    }
+
+    /// A resolved row whose resolution object does not contain
+    /// "resolved_by_candidate_id" must be silently skipped.
+    #[test]
+    fn test_build_tie_resolutions_map_skips_row_missing_candidate_id() {
+        let mut row =
+            make_resolution("contest-1", 1, "candidate-a", ResolutionType::IrvTieBreak);
+        // resolution exists but contains no resolved_by_candidate_id key
+        row.resolution = Some(serde_json::json!({"some_other_key": "value"}));
+
+        let map = build_tie_resolutions_map(&[row]);
+        assert!(
+            map.is_empty(),
+            "Row missing resolved_by_candidate_id must be excluded"
+        );
+    }
+
     // -------------------------------------------------------------------------
     // Tests for parse_pending_tie_from_annotations
     // -------------------------------------------------------------------------
@@ -1862,5 +1904,28 @@ mod tests {
 
         let no_process_results = serde_json::json!({"other": "data"});
         assert!(parse_pending_tie_from_annotations(&no_process_results).is_none());
+    }
+
+    /// When process_results is not a JSON object (e.g. a string or array) the
+    /// as_object() guard must prevent a panic and return None.
+    #[test]
+    fn test_parse_pending_tie_when_process_results_is_not_an_object() {
+        let string_value = serde_json::json!({"process_results": "unexpected string"});
+        assert!(parse_pending_tie_from_annotations(&string_value).is_none());
+
+        let array_value = serde_json::json!({"process_results": [1, 2, 3]});
+        assert!(parse_pending_tie_from_annotations(&array_value).is_none());
+    }
+
+    /// pending_tie_resolution: null is stored as JSON null; the function must
+    /// return Some(Value::Null) because the key exists.
+    #[test]
+    fn test_parse_pending_tie_returns_null_value_when_key_is_null() {
+        let annotations = serde_json::json!({
+            "process_results": {"pending_tie_resolution": null}
+        });
+        let result = parse_pending_tie_from_annotations(&annotations);
+        assert!(result.is_some(), "Key present with null value must return Some");
+        assert!(result.unwrap().is_null());
     }
 }

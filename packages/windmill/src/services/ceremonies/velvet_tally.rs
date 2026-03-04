@@ -960,6 +960,41 @@ mod tests {
         assert_eq!(parsed[0]["resolved_by_candidate_id"], "candidate-x");
     }
 
+    /// Existing annotation entries must be preserved; only "tie_resolutions"
+    /// should be added (or updated).  Other keys must survive unchanged.
+    #[test]
+    fn test_inject_tie_resolutions_preserves_existing_annotations() {
+        let contest_id = "contest-abc";
+        let mut existing = HashMap::new();
+        existing.insert("other_key".to_string(), "other_value".to_string());
+
+        let mut contest = Contest {
+            id: contest_id.to_string(),
+            annotations: Some(existing),
+            ..Default::default()
+        };
+
+        let resolutions = vec![serde_json::json!({
+            "round_number": 1,
+            "resolved_by_candidate_id": "candidate-y"
+        })];
+        let mut map: HashMap<String, Vec<serde_json::Value>> = HashMap::new();
+        map.insert(contest_id.to_string(), resolutions);
+
+        inject_tie_resolutions_into_contest(&mut contest, &map).unwrap();
+
+        let annotations = contest.annotations.expect("annotations should be set");
+        assert_eq!(
+            annotations.get("other_key").map(|s| s.as_str()),
+            Some("other_value"),
+            "Pre-existing annotations must not be removed"
+        );
+        assert!(
+            annotations.contains_key("tie_resolutions"),
+            "tie_resolutions must be injected"
+        );
+    }
+
     /// When the map has no entry for the contest id the annotations field must
     /// remain untouched (None).
     #[test]

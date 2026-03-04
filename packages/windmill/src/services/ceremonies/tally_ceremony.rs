@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::postgres::area::get_event_areas;
+use crate::postgres::tally_session_resolution::{ResolutionStatus, TallySessionResolution};
 use crate::postgres::area_contest::export_area_contests;
 use crate::postgres::ballot_style::get_ballot_styles_by_elections;
 use crate::postgres::contest::export_contests;
@@ -27,6 +28,7 @@ use crate::services::election_event_status::get_election_status;
 use crate::services::electoral_log::ElectoralLog;
 use crate::services::protocol_manager::get_event_board;
 use anyhow::{anyhow, Context, Result};
+use rocket::http::Status;
 use b3::messages::newtypes::BatchNumber;
 use deadpool_postgres::Transaction;
 use futures::try_join;
@@ -845,4 +847,164 @@ pub async fn set_tally_session_completed(
     }
 
     Ok(())
+}
+
+/// Returns `Err` if the tally is not awaiting input AND at least one of the
+/// requested contest IDs does not yet have a resolved record in `all_resolutions`.
+pub fn validate_resolution_allowed(
+    execution_status: &TallyExecutionStatus,
+    input_contest_ids: &[&str],
+    all_resolutions: &[TallySessionResolution],
+) -> Result<(), (Status, String)> {
+    if *execution_status != TallyExecutionStatus::AWAITING_INPUT {
+        let all_are_resolved_updates = input_contest_ids.iter().all(|contest_id| {
+            all_resolutions.iter().any(|r| {
+                r.contest_id.as_deref() == Some(contest_id)
+                    && r.status == ResolutionStatus::Resolved
+            })
+        });
+        if !all_are_resolved_updates {
+            return Err((
+                Status::BadRequest,
+                format!(
+                    "Tally session is not awaiting input. Current status: {}",
+                    execution_status
+                ),
+            ));
+        }
+    }
+    Ok(())
+}
+
+/// Extracts the list of tied candidate IDs from a resolution's `resolution_data` field.
+pub fn extract_tied_candidate_ids(
+    resolution: &TallySessionResolution,
+    contest_id: &str,
+) -> Result<Vec<String>, (Status, String)> {
+    let tied_candidates = resolution
+        .resolution_data
+        .get("tied_candidate_ids")
+        .and_then(|v| v.as_array())
+        .ok_or_else(|| {
+            (
+                Status::BadRequest,
+                format!(
+                    "Invalid resolution data for contest {}: missing tied_candidate_ids",
+                    contest_id
+                ),
+            )
+        })?;
+
+    Ok(tied_candidates
+        .iter()
+        .filter_map(|v| v.as_str().map(String::from))
+        .collect())
+}
+
+/// Returns `true` when the resolution already has a decision recorded (i.e. this is
+/// an admin changing their mind rather than the first submission).
+pub fn is_resubmission(resolution: &TallySessionResolution) -> bool {
+    resolution.status != ResolutionStatus::Pending
+}
+
+#[cfg(test)]
+mod tally_resolution_tests {
+    use super::{
+        extract_tied_candidate_ids, is_resubmission, validate_resolution_allowed,
+    };
+    use crate::postgres::tally_session_resolution::{
+        ResolutionStatus, ResolutionType, TallySessionResolution,
+    };
+    use rocket::http::Status;
+    use sequent_core::types::ceremonies::TallyExecutionStatus;
+
+    fn make_resolution(
+        contest_id: &str,
+        status: ResolutionStatus,
+        tied_ids: &[&str],
+    ) -> TallySessionResolution {
+        TallySessionResolution {
+            id: "00000000-0000-0000-0000-000000000001".to_string(),
+            tenant_id: "00000000-0000-0000-0000-000000000002".to_string(),
+            election_event_id: "00000000-0000-0000-0000-000000000003".to_string(),
+            tally_session_id: "00000000-0000-0000-0000-000000000004".to_string(),
+            results_contest_id: None,
+            contest_id: Some(contest_id.to_string()),
+            results_event_id: None,
+            created_at: None,
+            last_updated_at: None,
+            resolution_type: ResolutionType::IrvTieBreak,
+            status,
+            resolution_data: serde_json::json!({
+                "tied_candidate_ids": tied_ids,
+                "round_number": 2
+            }),
+            resolution: None,
+            resolved_by_user: None,
+            resolved_at: None,
+            labels: None,
+            annotations: None,
+        }
+    }
+
+    #[test]
+    fn test_submit_resolution_fails_if_not_awaiting_input() {
+        let resolution =
+            make_resolution("contest-1", ResolutionStatus::Pending, &["c-1", "c-2"]);
+        let result = validate_resolution_allowed(
+            &TallyExecutionStatus::IN_PROGRESS,
+            &["contest-1"],
+            &[resolution],
+        );
+        assert!(result.is_err());
+        let (status, msg) = result.unwrap_err();
+        assert_eq!(status, Status::BadRequest);
+        assert!(
+            msg.contains("not awaiting input"),
+            "Expected 'not awaiting input' in: {msg}"
+        );
+    }
+
+    #[test]
+    fn test_submit_resolution_fails_if_candidate_not_tied() {
+        let resolution =
+            make_resolution("contest-1", ResolutionStatus::Pending, &["c-1", "c-2"]);
+        let tied_ids = extract_tied_candidate_ids(&resolution, "contest-1")
+            .expect("tied_candidate_ids should parse");
+        assert!(!tied_ids.contains(&"c-99".to_string()));
+        assert!(tied_ids.contains(&"c-1".to_string()));
+        assert!(tied_ids.contains(&"c-2".to_string()));
+    }
+
+    #[test]
+    fn test_submit_resolution_success_updates_status() {
+        let resolution =
+            make_resolution("contest-1", ResolutionStatus::Pending, &["c-1", "c-2"]);
+        let result = validate_resolution_allowed(
+            &TallyExecutionStatus::AWAITING_INPUT,
+            &["contest-1"],
+            &[resolution.clone()],
+        );
+        assert!(result.is_ok());
+        assert!(
+            !is_resubmission(&resolution),
+            "Pending resolution should not be treated as a re-submission"
+        );
+    }
+
+    #[test]
+    fn test_resubmit_resolution_updates_existing_record() {
+        let resolution =
+            make_resolution("contest-1", ResolutionStatus::Resolved, &["c-1", "c-2"]);
+        assert!(
+            is_resubmission(&resolution),
+            "Resolved resolution should be treated as a re-submission"
+        );
+        let result = validate_resolution_allowed(
+            &TallyExecutionStatus::SUCCESS,
+            &["contest-1"],
+            &[resolution],
+        );
+        assert!(result.is_ok());
+    }
 }
