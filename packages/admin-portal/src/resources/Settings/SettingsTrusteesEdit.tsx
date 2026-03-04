@@ -74,9 +74,7 @@ export const SettingsTrusteesEdit: React.FC<EditProps> = (props) => {
                     <SelectInput
                         source="annotations.trustee_mode_policy"
                         choices={trusteeModePolicyChoices()}
-                        label={String(
-                            t("trusteesSettingsScreen.trusteeModePolicy.label")
-                        )}
+                        label={String(t("trusteesSettingsScreen.trusteeModePolicy.label"))}
                         defaultValue={getDefaultTrusteeModePolicy()}
                         validate={required()}
                     />
