@@ -131,7 +131,7 @@ This behavior is implemented by `get_contest_tally_operation`, which parses `tal
 At area level, the tally operation is configured via the `area_annotations` associated with each `BallotStyle` and the area identifier:
 
 - **Source**: the `BallotStyle` entry whose `area_id` matches the area being tallied.
-- **Location**: `ballot_style.area_annotations.tally_operation` (internally accessed via `get_tally_operation()`).
+- **Location**: `ballot_style.area_annotations.tally_operation`
 - **Type**: string
 - **Allowed values**: same as contest level – `"process-ballots-all"`, `"aggregate-results"`, `"skip-candidate-results"`.
 
