@@ -3,7 +3,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use anyhow::{anyhow, Result};
-use tracing::{info, instrument};
+#[cfg(feature = "log")]
+use tracing::info;
 
 pub const DEV_APP_VERSION: &str = "dev";
 pub const ENV_VAR_APP_VERSION: &str = "APP_VERSION";
@@ -13,6 +14,7 @@ pub fn check_version_compatibility(
     imported_version: &str,
     current_version: &str,
 ) -> Result<()> {
+    #[cfg(feature = "log")]
     info!(
         "Checking version compatibility - Current: {}, Imported: {}",
         current_version, imported_version
@@ -20,11 +22,13 @@ pub fn check_version_compatibility(
 
     // If current version is DEV_APP_VERSION, allow any import
     if current_version == DEV_APP_VERSION {
+        #[cfg(feature = "log")]
         info!("Current version is 'dev', allowing import");
         return Ok(());
     }
 
     if imported_version == DEV_APP_VERSION {
+        #[cfg(feature = "log")]
         info!("Imported version is 'dev' while system is not in dev mode, rejecting import");
         return Err(anyhow!("Imported version is 'dev', which is not compatible with current version {}. Please use a different version.", current_version));
     }

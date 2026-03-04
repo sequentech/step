@@ -57,19 +57,27 @@ Voting System configuration will affect the tally and the Voting portal interfac
 Manage how the ballot for this contest is displayed and how voters interact with it.
 
 ### Display Settings & Alerts
-- **Is acclaimed**  
-  - Indicates that the winner is already determined.  
+- **Is acclaimed**
+  - Indicates that the winner is already determined.
   - Voters can view the result but cannot cast a vote.
-- **Under-Vote Alert**  
-  - Show a warning if a voter selects fewer than the minimum required options.
-- **Over-Vote Alert**  
+- **Min Votes**
+  - The minimum number of selections a voter must make before the ballot is considered valid.
+  - Setting this to 0 allows voters to submit without selecting any candidate.
+- **Max Votes**
+  - The meaning depends on the counting algorithm:
+    - **Non-preferential (Plurality at Large)**: the maximum number of candidates a voter may select.
+    - **Preferential (Instant Runoff / IRV)**: the highest ranking position available to voters. For example, a value of `5` means voters can assign ranks 1 through 5. Must be at least the number of candidates available to rank.
+  - Works in conjunction with the Over Vote Policy to determine what happens when a voter exceeds this limit.
+- **Under-Vote Alert**
+  - Show a warning if a voter selects fewer than the maximum required options.
+- **Over-Vote Alert**
   - Show a warning if a voter selects more than the allowed number of options.
-- **Winning Candidates Number**  
+- **Winning Candidates Number**
   - Specify how many candidates can win this contest.
-- **Candidate Order**  
-  - Determine display order:  
-    - Random  
-    - Alphabetical  
+- **Candidate Order**
+  - Determine display order:
+    - Random
+    - Alphabetical
     - Custom (when selected, enable manual reordering).
 
 ### Edit Lists & Selection Types
