@@ -25,9 +25,8 @@ use windmill::postgres::tally_session::{
     get_tally_session_by_id, update_tally_session_status,
 };
 use windmill::postgres::tally_session_resolution::{
-    get_pending_resolutions, get_resolution_by_tally_session,
-    submit_resolution, update_resolution, ResolutionStatus, ResolutionType,
-    TallySessionResolution,
+    get_resolution_by_tally_session, submit_resolution, update_resolution, ResolutionStatus,
+    ResolutionType,
 };
 use windmill::services::celery_app::get_celery_app;
 use windmill::services::providers::transactions_provider::provide_hasura_transaction;
@@ -624,59 +623,3 @@ pub async fn submit_tally_resolution(
     }))
 }
 
-/// Get all pending tie resolutions for a tally session
-#[instrument(skip(claims))]
-#[get("/pending-tie-resolutions?<election_event_id>&<tally_session_id>")]
-pub async fn get_pending_tie_resolutions_endpoint(
-    election_event_id: String,
-    tally_session_id: String,
-    claims: JwtClaims,
-) -> Result<Json<Vec<TallySessionResolution>>, (Status, String)> {
-    // Authorize
-    authorize(
-        &claims,
-        true,
-        Some(claims.hasura_claims.tenant_id.clone()),
-        vec![Permissions::ADMIN_CEREMONY],
-    )?;
-
-    let tenant_id = claims.hasura_claims.tenant_id.clone();
-
-    // Get DB connection
-    let mut hasura_db_client: DbClient =
-        get_hasura_pool().await.get().await.map_err(|err| {
-            (
-                Status::InternalServerError,
-                format!("Error getting hasura db pool: {err}"),
-            )
-        })?;
-
-    let hasura_transaction =
-        hasura_db_client.transaction().await.map_err(|err| {
-            (
-                Status::InternalServerError,
-                format!("Error starting hasura transaction: {err}"),
-            )
-        })?;
-
-    // Get pending resolutions
-    let resolutions = get_pending_resolutions(
-        &hasura_transaction,
-        &tenant_id,
-        &election_event_id,
-        &tally_session_id,
-    )
-    .await
-    .map_err(|e| {
-        (
-            Status::InternalServerError,
-            format!("Error fetching pending resolutions: {}", e),
-        )
-    })?;
-
-    hasura_transaction.commit().await.map_err(|err| {
-        (Status::InternalServerError, format!("Commit failed: {err}"))
-    })?;
-
-    Ok(Json(resolutions))
-}
