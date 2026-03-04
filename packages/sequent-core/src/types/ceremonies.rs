@@ -191,6 +191,31 @@ pub enum CeremoniesPolicy {
 }
 
 #[derive(
+    BorshSerialize,
+    BorshDeserialize,
+    Display,
+    Serialize,
+    Deserialize,
+    Debug,
+    PartialEq,
+    Eq,
+    Clone,
+    EnumString,
+    Default,
+    JsonSchema,
+    Copy,
+)]
+pub enum TrusteeModePolicy {
+    #[default]
+    #[strum(serialize = "browser-based")]
+    #[serde(rename = "browser-based")]
+    BROWSER_BASED,
+    #[strum(serialize = "server-based")]
+    #[serde(rename = "server-based")]
+    SERVER_BASED,
+}
+
+#[derive(
     Debug,
     Display,
     EnumString,
