@@ -182,6 +182,13 @@ const englishTranslation = {
             edit: {
                 title: "Edit Trustee",
             },
+            trusteeModePolicy: {
+                label: "Trustee Mode",
+                options: {
+                    "browser-based": "Browser Based",
+                    "server-based": "Server Based",
+                },
+            },
         },
         scheduleScreen: {
             noPermissions: "You don't have permission to access settings.",

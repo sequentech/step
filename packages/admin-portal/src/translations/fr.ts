@@ -183,6 +183,13 @@ const frenchTranslation: TranslationType = {
             edit: {
                 title: "Modifier le fiduciaire",
             },
+            trusteeModePolicy: {
+                label: "Trustee Mode",
+                options: {
+                    "browser-based": "Browser Based",
+                    "server-based": "Server Based",
+                },
+            },
         },
         scheduleScreen: {
             noPermissions: "Vous n'avez pas la permission d'accéder à la configuration.",

@@ -34,6 +34,7 @@ import {
     check_voting_error_dialog,
     verify_ballot_signature_js,
     verify_multi_ballot_signature_js,
+    get_default_trustee_mode_policy,
 } from "sequent-core"
 import {
     CandidatesOrder,
@@ -412,4 +413,8 @@ export const generateSampleAuditableBallot = (): IAuditableSingleBallot | null =
         console.log(error)
         return null
     }
+}
+
+export const getDefaultTrusteeModePolicy = (): string => {
+    return get_default_trustee_mode_policy()
 }

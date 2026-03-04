@@ -183,6 +183,13 @@ const basqueTranslation: TranslationType = {
             edit: {
                 title: "Editatu Fideikomisarioa",
             },
+            trusteeModePolicy: {
+                label: "Trustee Mode",
+                options: {
+                    "browser-based": "Browser Based",
+                    "server-based": "Server Based",
+                },
+            },
         },
         scheduleScreen: {
             noPermissions: "Ez duzu ezarpenak atzitzeko baimenik.",

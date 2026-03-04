@@ -183,6 +183,13 @@ const catalanTranslation: TranslationType = {
             edit: {
                 title: "Editar fiduciari",
             },
+            trusteeModePolicy: {
+                label: "Trustee Mode",
+                options: {
+                    "browser-based": "Browser Based",
+                    "server-based": "Server Based",
+                },
+            },
         },
         scheduleScreen: {
             noPermissions: "No tens permís per accedir a la configuració.",

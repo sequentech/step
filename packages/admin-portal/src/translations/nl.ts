@@ -182,6 +182,13 @@ const dutchTranslation: TranslationType = {
             edit: {
                 title: "Trustee bewerken",
             },
+            trusteeModePolicy: {
+                label: "Trustee Mode",
+                options: {
+                    "browser-based": "Browser Based",
+                    "server-based": "Server Based",
+                },
+            },
         },
         scheduleScreen: {
             noPermissions: "U hebt geen toestemming om toegang te krijgen tot instellingen.",

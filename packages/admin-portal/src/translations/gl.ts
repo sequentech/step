@@ -183,6 +183,13 @@ const galegoTranslation: TranslationType = {
             edit: {
                 title: "Editar fideicomisario",
             },
+            trusteeModePolicy: {
+                label: "Trustee Mode",
+                options: {
+                    "browser-based": "Browser Based",
+                    "server-based": "Server Based",
+                },
+            },
         },
         scheduleScreen: {
             noPermissions: "Non tes permiso para acceder ás configuracións.",

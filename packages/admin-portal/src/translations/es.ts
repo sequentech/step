@@ -184,6 +184,13 @@ const spanishTranslation: TranslationType = {
             edit: {
                 title: "Editar fideicomisario",
             },
+            trusteeModePolicy: {
+                label: "Trustee Mode",
+                options: {
+                    "browser-based": "Browser Based",
+                    "server-based": "Server Based",
+                },
+            },
         },
         scheduleScreen: {
             noPermissions: "No tienes permiso para acceder a la configuración.",

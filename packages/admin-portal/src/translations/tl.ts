@@ -184,6 +184,13 @@ const tagalogTranslation: TranslationType = {
             edit: {
                 title: "I-edit ang Tagapangasiwa",
             },
+            trusteeModePolicy: {
+                label: "Trustee Mode",
+                options: {
+                    "browser-based": "Browser Based",
+                    "server-based": "Server Based",
+                },
+            },
         },
         scheduleScreen: {
             noPermissions: "Wala kang pahintulot na ma-access ang mga setting.",
