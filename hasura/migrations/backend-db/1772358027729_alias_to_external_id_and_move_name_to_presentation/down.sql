@@ -18,9 +18,6 @@ set "name" = coalesce(
 )
 where "name" is null;
 
-alter table "sequent_backend"."candidate"
-alter column "name" set not null;
-
 do $$
 begin
   if exists (
@@ -55,9 +52,6 @@ set "name" = coalesce(
   '-'
 )
 where "name" is null;
-
-alter table "sequent_backend"."contest"
-alter column "name" set not null;
 
 do $$
 begin
