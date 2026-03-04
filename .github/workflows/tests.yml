@@ -91,3 +91,64 @@ jobs:
           DEFAULT_SQL_BATCH_SIZE: "1000"
           CARGO_BUILD_JOBS: ${{ matrix.build_jobs || 4 }}
         run: cd packages/${{ matrix.service }} && cargo test ${{ matrix.extra }}
+
+  # ===========================================================================
+  # JOB: notify-on-failure
+  # ===========================================================================
+  # Sends a Slack notification to the dev channel when the test job fails.
+  # Runs on the GCP runner — it will be a fresh pod, not the one that failed.
+  # ===========================================================================
+  notify-on-failure:
+    name: Notify on failure
+    needs: run-tests
+    if: failure()
+    runs-on: gcp-selfhosted-ubuntu24
+    steps:
+      - name: Slack notification
+        uses: slackapi/slack-github-action@v1.24.0
+        with:
+          payload: |
+            {
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": ":rotating_light: *GHA Runner Failure* — `${{ github.repository }}`"
+                  }
+                },
+                {
+                  "type": "section",
+                  "fields": [
+                    {
+                      "type": "mrkdwn",
+                      "text": "*Workflow:*\n${{ github.workflow }}"
+                    },
+                    {
+                      "type": "mrkdwn",
+                      "text": "*Triggered by:*\n${{ github.actor }}"
+                    },
+                    {
+                      "type": "mrkdwn",
+                      "text": "*Branch/PR:*\n${{ github.head_ref || github.ref_name }}"
+                    },
+                    {
+                      "type": "mrkdwn",
+                      "text": "*Run:*\n<${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View run>"
+                    }
+                  ]
+                },
+                {
+                  "type": "context",
+                  "elements": [
+                    {
+                      "type": "mrkdwn",
+                      "text": ":warning: Possible OOM kill \u2014 runner lost communication with GitHub."
+                    }
+                  ]
+                }
+              ]
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK
