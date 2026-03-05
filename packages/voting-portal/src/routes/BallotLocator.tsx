@@ -90,12 +90,6 @@ function isHex(str: string) {
     return regex.test(str)
 }
 
-const StyledApp = styled(Stack)<{css: string}>`
-    min-height: 100vh;
-    min-width: 100vw;
-    ${({css}) => css}
-`
-
 const BallotLocator: React.FC = () => {
     const {tenantId, eventId, electionId, ballotId} = useParams()
     const [openTitleHelp, setOpenTitleHelp] = useState<boolean>(false)
@@ -168,10 +162,8 @@ const BallotLocator: React.FC = () => {
     }
 
     return (
-        <StyledApp
-            css={dataElectionEvent?.sequent_backend_election_event[0]?.presentation?.css ?? ""}
-        >
-            <PageLimit maxWidth="lg" className="ballot-locator-screen screen">
+        <PageLimit maxWidth="lg" className="ballot-locator-screen screen">
+            <Box>
                 <Box marginTop="48px">
                     <BreadCrumbSteps
                         labels={["ballotLocator.steps.lookup", "ballotLocator.steps.result"]}
@@ -221,16 +213,6 @@ const BallotLocator: React.FC = () => {
                         >
                             {t("ballotLocator.description")}
                         </Typography>
-                    </Box>
-                    <Box sx={{order: {xs: 1, md: 2}, marginTop: "20px"}}>
-                        <StyledLink
-                            to={`/tenant/${tenantId}/event/${eventId}/election-chooser${location.search}`}
-                        >
-                            <Button variant="secondary" className="secondary">
-                                <Icon icon={faAngleLeft} size="sm" />
-                                <Box paddingLeft="12px">{t("votingScreen.backButton")}</Box>
-                            </Button>
-                        </StyledLink>
                     </Box>
                 </Box>
 
@@ -290,8 +272,18 @@ const BallotLocator: React.FC = () => {
                         </Button>
                     </>
                 )}
-            </PageLimit>
-        </StyledApp>
+                <Box sx={{order: {xs: 1, md: 2}, marginTop: "20px"}}>
+                    <StyledLink
+                        to={`/tenant/${tenantId}/event/${eventId}/election-chooser${location.search}`}
+                    >
+                        <Button variant="secondary" className="secondary">
+                            <Icon icon={faAngleLeft} size="sm" />
+                            <Box paddingLeft="4px">{t("votingScreen.backButton")}</Box>
+                        </Button>
+                    </StyledLink>
+                </Box>
+            </Box>
+        </PageLimit>
     )
 }
 
