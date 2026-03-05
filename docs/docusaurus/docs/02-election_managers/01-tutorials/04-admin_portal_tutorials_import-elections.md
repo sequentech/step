@@ -24,7 +24,7 @@ Exporting allows you to save a comprehensive snapshot of your election event.
 1.  Navigate to the **Data** menu within your specific Electoral Event.
 2.  Select the `Export` button.
 
-![Export Password and Instructions](./assets/export_menu_selections.png.png)
+![Export Password and Instructions](./assets/export_menu_selections.png)
 
 3.  Choose the data components you wish to include in the export:
     * **Include Voters:** Exports the registered voter list.
