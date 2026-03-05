@@ -19,12 +19,12 @@ The Sequent Admin Portal provides tools to export election data for backup or au
 
 Exporting allows you to save a comprehensive snapshot of your election event.
 
-![Export Menu Selection](./../assets/export_menu_selection.png)
+![Export Menu Selection](./assets/export_menu_selection.png)
 
 1.  Navigate to the **Data** menu within your specific Electoral Event.
 2.  Select the `Export` button.
 
-![Export Password and Instructions](./../assets/export_menu_selections.png.png)
+![Export Password and Instructions](./assets/export_menu_selections.png.png)
 
 3.  Choose the data components you wish to include in the export:
     * **Include Voters:** Exports the registered voter list.
@@ -38,7 +38,7 @@ Exporting allows you to save a comprehensive snapshot of your election event.
 
 
 
-![Export Password and Instructions](./../assets/export_password_display.png)
+![Export Password and Instructions](./assets/export_password_display.png)
 
 4.  Click `Export` to generate an `.ezip` file.
 5.  **Save the Password:** A dialog will display a unique decryption password. Copy and store this securely; you will need it to import the file later or to unzip it manually.
@@ -47,12 +47,12 @@ Exporting allows you to save a comprehensive snapshot of your election event.
 
 You can import an election event using a previously exported `.ezip` file to recreate an event configuration.
 
-![Import Election Options](./../assets/import_election.png)
+![Import Election Options](./assets/import_election.png)
 
 1.  From the sidebar, click the **plus icon** next to "Election Events" or the `+ Create an Election Event` button.
 2.  Select `Import Election Event`.
 
-![Import File Upload](./../assets/import_file_upload.png)
+![Import File Upload](./assets/import_file_upload.png)
 
 3.  Drag and drop your import file or click **Browse** to select it from your local storage.
 4.  If your file was encrypted, enter the **Decryption Password** you saved during the export process.
