@@ -18,6 +18,7 @@ import {useAppSelector} from "./store/hooks"
 import {selectElectionById, selectElectionIds} from "./store/elections/electionsSlice"
 import {
     selectBallotStyleByElectionId,
+    selectBallotStyleElectionIds,
     selectFirstBallotStyle,
 } from "./store/ballotStyles/ballotStylesSlice"
 import WatermarkBackground from "./components/WaterMark/Watermark"
@@ -44,8 +45,8 @@ const StyledApp = styled(Stack)`
     }
 `
 
-const StyledAppWrapper = styled(Stack)<{css: string}>`
-    ${({css}) => css}
+const StyledAppWrapper = styled(Stack)<{customCss: string}>`
+    ${({customCss}) => customCss}
 `
 
 const StyledMain = styled(`main`)`
@@ -110,7 +111,13 @@ const App = () => {
     const {isAuthenticated, setTenantEvent} = useContext(AuthContext)
 
     const electionIds = useAppSelector(selectElectionIds)
-    const ballotStyle = useAppSelector(selectBallotStyleByElectionId(String(electionIds[0])))
+    const ballotStyleElectionIds = useAppSelector(selectBallotStyleElectionIds)
+
+    const ballotStyle = useAppSelector((state) => {
+        const electionId = electionIds[0] ?? ballotStyleElectionIds[0]
+
+        return electionId ? selectBallotStyleByElectionId(String(electionId))(state) : undefined
+    })
 
     useElectionClassName()
 
@@ -145,8 +152,10 @@ const App = () => {
     }, [tenantId, eventId, isAuthenticated, setTenantEvent, globalSettings.DISABLE_AUTH])
 
     return (
-        <StyledAppWrapper css={ballotStyle?.ballot_eml.election_event_presentation?.css ?? ""}>
-            <StyledApp className="app-root">
+        <StyledAppWrapper
+            customCss={ballotStyle?.ballot_eml.election_event_presentation?.css ?? ""}
+        >
+            <StyledApp className="voting-portal app-root">
                 <ScrollRestoration />
                 <ApolloWrapper>
                     <HeaderWithContext />
