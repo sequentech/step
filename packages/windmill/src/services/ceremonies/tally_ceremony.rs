@@ -2,7 +2,6 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::postgres::area::get_event_areas;
-use crate::postgres::tally_session_resolution::{ResolutionStatus, TallySessionResolution};
 use crate::postgres::area_contest::export_area_contests;
 use crate::postgres::ballot_style::get_ballot_styles_by_elections;
 use crate::postgres::contest::export_contests;
@@ -19,6 +18,7 @@ use crate::postgres::tally_session_contest::{
 use crate::postgres::tally_session_execution::{
     get_last_tally_session_execution, insert_tally_session_execution,
 };
+use crate::postgres::tally_session_resolution::{ResolutionStatus, TallySessionResolution};
 use crate::services::ceremonies::keys_ceremony::find_trustee_private_key;
 use crate::services::ceremonies::serialize_logs::{
     append_tally_trustee_log, generate_tally_initial_log,
@@ -28,10 +28,10 @@ use crate::services::election_event_status::get_election_status;
 use crate::services::electoral_log::ElectoralLog;
 use crate::services::protocol_manager::get_event_board;
 use anyhow::{anyhow, Context, Result};
-use rocket::http::Status;
 use b3::messages::newtypes::BatchNumber;
 use deadpool_postgres::Transaction;
 use futures::try_join;
+use rocket::http::Status;
 use sequent_core::ballot::{AllowTallyStatus, ContestEncryptionPolicy};
 use sequent_core::serialization::deserialize_with_path::*;
 use sequent_core::services::area_tree::ContestsData;
@@ -909,9 +909,7 @@ pub fn is_resubmission(resolution: &TallySessionResolution) -> bool {
 
 #[cfg(test)]
 mod tally_resolution_tests {
-    use super::{
-        extract_tied_candidate_ids, is_resubmission, validate_resolution_allowed,
-    };
+    use super::{extract_tied_candidate_ids, is_resubmission, validate_resolution_allowed};
     use crate::postgres::tally_session_resolution::{
         ResolutionStatus, ResolutionType, TallySessionResolution,
     };
@@ -949,8 +947,7 @@ mod tally_resolution_tests {
 
     #[test]
     fn test_submit_resolution_fails_if_not_awaiting_input() {
-        let resolution =
-            make_resolution("contest-1", ResolutionStatus::Pending, &["c-1", "c-2"]);
+        let resolution = make_resolution("contest-1", ResolutionStatus::Pending, &["c-1", "c-2"]);
         let result = validate_resolution_allowed(
             &TallyExecutionStatus::IN_PROGRESS,
             &["contest-1"],
@@ -967,8 +964,7 @@ mod tally_resolution_tests {
 
     #[test]
     fn test_submit_resolution_fails_if_candidate_not_tied() {
-        let resolution =
-            make_resolution("contest-1", ResolutionStatus::Pending, &["c-1", "c-2"]);
+        let resolution = make_resolution("contest-1", ResolutionStatus::Pending, &["c-1", "c-2"]);
         let tied_ids = extract_tied_candidate_ids(&resolution, "contest-1")
             .expect("tied_candidate_ids should parse");
         assert!(!tied_ids.contains(&"c-99".to_string()));
@@ -978,8 +974,7 @@ mod tally_resolution_tests {
 
     #[test]
     fn test_submit_resolution_success_updates_status() {
-        let resolution =
-            make_resolution("contest-1", ResolutionStatus::Pending, &["c-1", "c-2"]);
+        let resolution = make_resolution("contest-1", ResolutionStatus::Pending, &["c-1", "c-2"]);
         let result = validate_resolution_allowed(
             &TallyExecutionStatus::AWAITING_INPUT,
             &["contest-1"],
@@ -994,8 +989,7 @@ mod tally_resolution_tests {
 
     #[test]
     fn test_resubmit_resolution_updates_existing_record() {
-        let resolution =
-            make_resolution("contest-1", ResolutionStatus::Resolved, &["c-1", "c-2"]);
+        let resolution = make_resolution("contest-1", ResolutionStatus::Resolved, &["c-1", "c-2"]);
         assert!(
             is_resubmission(&resolution),
             "Resolved resolution should be treated as a re-submission"

@@ -900,7 +900,8 @@ impl RunoffStatus {
     /// Keep existing run() method for backward compatibility
     /// Calls run_with_policy with RANDOM policy
     pub fn run(&mut self, ballots_status: &mut BallotsStatus) {
-        let result = self.run_with_policy(ballots_status, &TieBreakingPolicy::RANDOM, &HashMap::new());
+        let result =
+            self.run_with_policy(ballots_status, &TieBreakingPolicy::RANDOM, &HashMap::new());
         match result {
             RunoffResult::Completed(status) => {
                 *self = status;

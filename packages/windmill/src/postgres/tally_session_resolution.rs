@@ -321,4 +321,3 @@ pub async fn update_resolution(
     info!("Updated resolution {}", resolution_id);
     Ok(())
 }
-

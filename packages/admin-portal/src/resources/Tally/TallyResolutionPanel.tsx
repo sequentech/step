@@ -13,10 +13,7 @@ import {
     Button,
     Chip,
     CircularProgress,
-    FormControlLabel,
     Popover,
-    Radio,
-    RadioGroup,
     TextField,
     Typography,
 } from "@mui/material"
@@ -39,6 +36,8 @@ import {SUBMIT_TALLY_RESOLUTION} from "@/queries/SubmitTallyResolution"
 import {IPermissions} from "@/types/keycloak"
 import {ITallyExecutionStatus} from "@/types/ceremonies"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
+
+const GLOBAL_AREA_ID = "__global__"
 
 type SubmitResolutionMutationResult = {submit_tally_resolution?: SubmitTallyResolutionOutput | null}
 type SubmitResolutionMutationVariables = {
@@ -76,10 +75,10 @@ export const TallyResolutionPanel: React.FC<TallyResolutionPanelProps> = ({
     const [submitting, setSubmitting] = useState(false)
     // Filter popover state
     const [filterAnchorEl, setFilterAnchorEl] = useState<HTMLButtonElement | null>(null)
-    const [filterElection, setFilterElection] = useState<string>("")
-    const [filterContest, setFilterContest] = useState<string>("")
-    const [filterArea, setFilterArea] = useState<string>("")
-    const [filterStatus, setFilterStatus] = useState<string>("")
+    const [filterElections, setFilterElections] = useState<string[]>([])
+    const [filterContests, setFilterContests] = useState<string[]>([])
+    const [filterAreas, setFilterAreas] = useState<string[]>([])
+    const [filterStatuses, setFilterStatuses] = useState<string[]>([])
 
     const [submitTallyResolution] = useMutation<
         SubmitResolutionMutationResult,
@@ -265,8 +264,21 @@ export const TallyResolutionPanel: React.FC<TallyResolutionPanelProps> = ({
         return (areas ?? []).filter((a) => areaIds.has(a.id))
     }, [allDisplayResolutions, tallySessionContests, areas])
 
-    const activeFilterCount = [filterElection, filterContest, filterArea, filterStatus].filter(
-        Boolean
+    const relevantAreaOptions = useMemo(() => {
+        const globalLabel = t("tally.pendingResolutions.globalArea")
+        const hasGlobal = allDisplayResolutions.some((r) => {
+            const cid = getContestId(r)
+            return cid && contestAreaLabel.get(cid) === globalLabel
+        })
+        const areaOptions = relevantAreas.map((a) => ({id: a.id, name: a.name ?? ""}))
+        if (hasGlobal) {
+            return [{id: GLOBAL_AREA_ID, name: globalLabel}, ...areaOptions]
+        }
+        return areaOptions
+    }, [allDisplayResolutions, relevantAreas, contestAreaLabel, t])
+
+    const activeFilterCount = [filterElections, filterContests, filterAreas, filterStatuses].filter(
+        (f) => f.length > 0
     ).length
 
     const filteredResolutions = useMemo(() => {
@@ -274,33 +286,49 @@ export const TallyResolutionPanel: React.FC<TallyResolutionPanelProps> = ({
             const contestId = getContestId(r)
             const contest = contests.find((c) => c.id === contestId)
 
-            if (filterElection && contest?.election_id !== filterElection) return false
-            if (filterContest && contestId !== filterContest) return false
-            if (filterArea) {
-                const contestAreas = (tallySessionContests ?? []).filter(
-                    (tsc) => tsc.contest_id === contestId
-                )
-                if (!contestAreas.some((tsc) => tsc.area_id === filterArea)) return false
+            if (
+                filterElections.length > 0 &&
+                (!contest?.election_id || !filterElections.includes(contest.election_id))
+            )
+                return false
+            if (filterContests.length > 0 && (!contestId || !filterContests.includes(contestId)))
+                return false
+            if (filterAreas.length > 0) {
+                const globalLabel = t("tally.pendingResolutions.globalArea")
+                const isGlobal = !!contestId && contestAreaLabel.get(contestId) === globalLabel
+                const matchesArea = filterAreas.some((areaId) => {
+                    if (areaId === GLOBAL_AREA_ID) return isGlobal
+                    if (isGlobal) return false
+                    const contestAreas = (tallySessionContests ?? []).filter(
+                        (tsc) => tsc.contest_id === contestId
+                    )
+                    return contestAreas.some((tsc) => tsc.area_id === areaId)
+                })
+                if (!matchesArea) return false
             }
-            const isLocallyDecided = !!(r.contest_id && pendingSelections[r.contest_id])
-            if (filterStatus === "decided") {
-                if (r.status !== "pending" || !isLocallyDecided) return false
-            } else if (filterStatus === "pending") {
-                if (r.status !== "pending" || isLocallyDecided) return false
-            } else if (filterStatus === "resolved") {
-                if (r.status !== "resolved") return false
+            if (filterStatuses.length > 0) {
+                const isLocallyDecided = !!(r.contest_id && pendingSelections[r.contest_id])
+                const matchesAny = filterStatuses.some((status) => {
+                    if (status === "decided") return r.status === "pending" && isLocallyDecided
+                    if (status === "pending") return r.status === "pending" && !isLocallyDecided
+                    if (status === "resolved") return r.status === "resolved"
+                    return false
+                })
+                if (!matchesAny) return false
             }
             return true
         })
     }, [
         allDisplayResolutions,
-        filterElection,
-        filterContest,
-        filterArea,
-        filterStatus,
+        filterElections,
+        filterContests,
+        filterAreas,
+        filterStatuses,
         contests,
         tallySessionContests,
+        contestAreaLabel,
         pendingSelections,
+        t,
     ])
 
     const selectedResolution = useMemo(
@@ -634,19 +662,19 @@ export const TallyResolutionPanel: React.FC<TallyResolutionPanelProps> = ({
                                     width: 280,
                                     display: "flex",
                                     flexDirection: "column",
-                                    gap: 2,
+                                    gap: 0,
                                 }}
                             >
                                 <Autocomplete
+                                    multiple
                                     size="small"
                                     options={relevantElections}
                                     getOptionLabel={(o) => o.name ?? ""}
                                     isOptionEqualToValue={(o, v) => o.id === v.id}
-                                    value={
-                                        relevantElections.find((e) => e.id === filterElection) ??
-                                        null
-                                    }
-                                    onChange={(_, v) => setFilterElection(v?.id ?? "")}
+                                    value={relevantElections.filter((e) =>
+                                        filterElections.includes(e.id)
+                                    )}
+                                    onChange={(_, v) => setFilterElections(v.map((e) => e.id))}
                                     renderInput={(params) => (
                                         <TextField
                                             {...params}
@@ -656,14 +684,15 @@ export const TallyResolutionPanel: React.FC<TallyResolutionPanelProps> = ({
                                 />
 
                                 <Autocomplete
+                                    multiple
                                     size="small"
                                     options={relevantContests}
                                     getOptionLabel={(o) => o.name ?? ""}
                                     isOptionEqualToValue={(o, v) => o.id === v.id}
-                                    value={
-                                        relevantContests.find((c) => c.id === filterContest) ?? null
-                                    }
-                                    onChange={(_, v) => setFilterContest(v?.id ?? "")}
+                                    value={relevantContests.filter((c) =>
+                                        filterContests.includes(c.id)
+                                    )}
+                                    onChange={(_, v) => setFilterContests(v.map((c) => c.id))}
                                     renderInput={(params) => (
                                         <TextField
                                             {...params}
@@ -673,12 +702,15 @@ export const TallyResolutionPanel: React.FC<TallyResolutionPanelProps> = ({
                                 />
 
                                 <Autocomplete
+                                    multiple
                                     size="small"
-                                    options={relevantAreas}
-                                    getOptionLabel={(o) => o.name ?? ""}
+                                    options={relevantAreaOptions}
+                                    getOptionLabel={(o) => o.name}
                                     isOptionEqualToValue={(o, v) => o.id === v.id}
-                                    value={relevantAreas.find((a) => a.id === filterArea) ?? null}
-                                    onChange={(_, v) => setFilterArea(v?.id ?? "")}
+                                    value={relevantAreaOptions.filter((a) =>
+                                        filterAreas.includes(a.id)
+                                    )}
+                                    onChange={(_, v) => setFilterAreas(v.map((a) => a.id))}
                                     renderInput={(params) => (
                                         <TextField
                                             {...params}
@@ -688,15 +720,15 @@ export const TallyResolutionPanel: React.FC<TallyResolutionPanelProps> = ({
                                 />
 
                                 <Autocomplete
+                                    multiple
                                     size="small"
                                     options={statusFilterOptions}
                                     getOptionLabel={(o) => o.name}
                                     isOptionEqualToValue={(o, v) => o.id === v.id}
-                                    value={
-                                        statusFilterOptions.find((o) => o.id === filterStatus) ??
-                                        null
-                                    }
-                                    onChange={(_, v) => setFilterStatus(v?.id ?? "")}
+                                    value={statusFilterOptions.filter((o) =>
+                                        filterStatuses.includes(o.id)
+                                    )}
+                                    onChange={(_, v) => setFilterStatuses(v.map((o) => o.id))}
                                     renderInput={(params) => (
                                         <TextField
                                             {...params}
@@ -708,10 +740,10 @@ export const TallyResolutionPanel: React.FC<TallyResolutionPanelProps> = ({
                                 <Button
                                     size="small"
                                     onClick={() => {
-                                        setFilterElection("")
-                                        setFilterContest("")
-                                        setFilterArea("")
-                                        setFilterStatus("")
+                                        setFilterElections([])
+                                        setFilterContests([])
+                                        setFilterAreas([])
+                                        setFilterStatuses([])
                                     }}
                                     disabled={activeFilterCount === 0}
                                 >
@@ -829,49 +861,45 @@ export const TallyResolutionPanel: React.FC<TallyResolutionPanelProps> = ({
                                     px: 2,
                                 }}
                             >
-                                <Typography variant="body2" sx={{mb: 1, mt: 1}}>
-                                    {t("tally.pendingResolutions.selectCandidateToAdvance")}
-                                </Typography>
-                                <RadioGroup
-                                    row
+                                <Autocomplete
+                                    options={tiedCandidatesForSelected}
+                                    getOptionLabel={(c) => c.name ?? c.id}
+                                    isOptionEqualToValue={(o, v) => o.id === v.id}
+                                    disabled={
+                                        !(
+                                            (isPendingSelected && !isDecidedSelected) ||
+                                            isResolvedEditing
+                                        )
+                                    }
                                     value={
-                                        isPendingSelected ||
-                                        isResolvedEditing ||
-                                        isResolvedRedecided
-                                            ? currentDraftValue
-                                            : (resolvedCandidateForSelected?.id ?? "")
+                                        tiedCandidatesForSelected.find(
+                                            (c) =>
+                                                c.id ===
+                                                (isPendingSelected ||
+                                                isResolvedEditing ||
+                                                isResolvedRedecided
+                                                    ? currentDraftValue
+                                                    : (resolvedCandidateForSelected?.id ?? ""))
+                                        ) ?? null
                                     }
-                                    onChange={
-                                        (isPendingSelected && !isDecidedSelected) ||
-                                        isResolvedEditing
-                                            ? (e) =>
-                                                  setDraftSelections((prev) => ({
-                                                      ...prev,
-                                                      [selectedResolution.contest_id!]:
-                                                          e.target.value,
-                                                  }))
-                                            : undefined
-                                    }
-                                >
-                                    {tiedCandidatesForSelected.map((candidate) => (
-                                        <FormControlLabel
-                                            key={candidate.id}
-                                            value={candidate.id}
-                                            control={
-                                                <Radio
-                                                    disabled={
-                                                        !(
-                                                            (isPendingSelected &&
-                                                                !isDecidedSelected) ||
-                                                            isResolvedEditing
-                                                        )
-                                                    }
-                                                />
-                                            }
-                                            label={candidate.name ?? candidate.id}
+                                    onChange={(_, candidate) => {
+                                        if (candidate) {
+                                            setDraftSelections((prev) => ({
+                                                ...prev,
+                                                [selectedResolution.contest_id!]: candidate.id,
+                                            }))
+                                        }
+                                    }}
+                                    renderInput={(params) => (
+                                        <TextField
+                                            {...params}
+                                            label={t(
+                                                "tally.pendingResolutions.selectCandidateToAdvance"
+                                            )}
+                                            size="small"
                                         />
-                                    ))}
-                                </RadioGroup>
+                                    )}
+                                />
                             </Box>
                         </Box>
                     ) : (

@@ -100,7 +100,11 @@ fn test_full_tie_with_random_policy_completes() -> Result<()> {
     let mut runoff = RunoffStatus::initialize_runoff(&contest);
 
     // Run with random policy
-    let result = runoff.run_with_policy(&mut ballots_status, &TieBreakingPolicy::RANDOM, &HashMap::new());
+    let result = runoff.run_with_policy(
+        &mut ballots_status,
+        &TieBreakingPolicy::RANDOM,
+        &HashMap::new(),
+    );
 
     // Should complete with a randomly selected winner
     match result {
@@ -142,8 +146,11 @@ fn test_full_tie_with_external_policy_pauses() -> Result<()> {
     let mut runoff = RunoffStatus::initialize_runoff(&contest);
 
     // Run with external procedure policy
-    let result =
-        runoff.run_with_policy(&mut ballots_status, &TieBreakingPolicy::EXTERNAL_PROCEDURE, &HashMap::new());
+    let result = runoff.run_with_policy(
+        &mut ballots_status,
+        &TieBreakingPolicy::EXTERNAL_PROCEDURE,
+        &HashMap::new(),
+    );
 
     // Should require external input
     match result {
@@ -186,8 +193,11 @@ fn test_no_tie_with_external_policy_completes() -> Result<()> {
     let mut ballots_status = BallotsStatus::initialize_ballots_status(&votes, &contest);
     let mut runoff = RunoffStatus::initialize_runoff(&contest);
 
-    let result =
-        runoff.run_with_policy(&mut ballots_status, &TieBreakingPolicy::EXTERNAL_PROCEDURE, &HashMap::new());
+    let result = runoff.run_with_policy(
+        &mut ballots_status,
+        &TieBreakingPolicy::EXTERNAL_PROCEDURE,
+        &HashMap::new(),
+    );
 
     // Should complete normally without pausing
     match result {
@@ -219,8 +229,11 @@ fn test_apply_external_tie_decision() -> Result<()> {
     let mut ballots_status = BallotsStatus::initialize_ballots_status(&votes, &contest);
     let mut runoff = RunoffStatus::initialize_runoff(&contest);
 
-    let result =
-        runoff.run_with_policy(&mut ballots_status, &TieBreakingPolicy::EXTERNAL_PROCEDURE, &HashMap::new());
+    let result = runoff.run_with_policy(
+        &mut ballots_status,
+        &TieBreakingPolicy::EXTERNAL_PROCEDURE,
+        &HashMap::new(),
+    );
 
     // Get the paused state
     let mut paused_state = match result {
@@ -251,7 +264,11 @@ fn test_apply_external_tie_decision_invalid_candidate() -> Result<()> {
     let mut ballots_status = BallotsStatus::initialize_ballots_status(&votes, &contest);
     let mut runoff = RunoffStatus::initialize_runoff(&contest);
 
-    runoff.run_with_policy(&mut ballots_status, &TieBreakingPolicy::EXTERNAL_PROCEDURE, &HashMap::new());
+    runoff.run_with_policy(
+        &mut ballots_status,
+        &TieBreakingPolicy::EXTERNAL_PROCEDURE,
+        &HashMap::new(),
+    );
 
     // Try to apply decision with invalid candidate
     let result = runoff.apply_external_tie_decision("candidate_xyz");
@@ -277,8 +294,11 @@ fn test_resume_after_external_decision() -> Result<()> {
     let mut runoff = RunoffStatus::initialize_runoff(&contest);
 
     // First run - pause on tie
-    let result =
-        runoff.run_with_policy(&mut ballots_status, &TieBreakingPolicy::EXTERNAL_PROCEDURE, &HashMap::new());
+    let result = runoff.run_with_policy(
+        &mut ballots_status,
+        &TieBreakingPolicy::EXTERNAL_PROCEDURE,
+        &HashMap::new(),
+    );
 
     let mut paused_state = match result {
         RunoffResult::RequiresExternalInput { state, .. } => state,
@@ -291,8 +311,11 @@ fn test_resume_after_external_decision() -> Result<()> {
         .map_err(|e| anyhow::anyhow!(e))?;
 
     // Resume - should complete now
-    let result2 =
-        paused_state.run_with_policy(&mut ballots_status, &TieBreakingPolicy::EXTERNAL_PROCEDURE, &HashMap::new());
+    let result2 = paused_state.run_with_policy(
+        &mut ballots_status,
+        &TieBreakingPolicy::EXTERNAL_PROCEDURE,
+        &HashMap::new(),
+    );
 
     match result2 {
         RunoffResult::Completed(final_state) => {
@@ -367,8 +390,12 @@ fn test_multi_round_tie_with_external_policy() -> Result<()> {
         RunoffResult::RequiresExternalInput { tie_info, .. } => {
             assert_eq!(tie_info.round_number, 2, "Tie should occur at Round 2");
             assert_eq!(tie_info.tied_candidate_ids.len(), 2);
-            assert!(tie_info.tied_candidate_ids.contains(&"candidate_a".to_string()));
-            assert!(tie_info.tied_candidate_ids.contains(&"candidate_c".to_string()));
+            assert!(tie_info
+                .tied_candidate_ids
+                .contains(&"candidate_a".to_string()));
+            assert!(tie_info
+                .tied_candidate_ids
+                .contains(&"candidate_c".to_string()));
         }
         RunoffResult::Completed(_) => panic!("Expected pause at Round 2, got completion"),
     }
@@ -418,7 +445,9 @@ fn test_ignored_resolution_for_non_tied_candidate() -> Result<()> {
         RunoffResult::RequiresExternalInput { tie_info, .. } => {
             assert_eq!(tie_info.round_number, 2);
             assert!(
-                !tie_info.tied_candidate_ids.contains(&"candidate_b".to_string()),
+                !tie_info
+                    .tied_candidate_ids
+                    .contains(&"candidate_b".to_string()),
                 "B should not be in the Round 2 tie"
             );
         }
@@ -477,7 +506,8 @@ fn test_tie_breaking_state_history_recorded() -> Result<()> {
     // --- RANDOM policy ---
     let mut contest = create_test_contest_3_candidates();
     contest.tie_breaking_policy = Some(TieBreakingPolicy::RANDOM);
-    let mut ballots_status = BallotsStatus::initialize_ballots_status(&three_way_tie_votes, &contest);
+    let mut ballots_status =
+        BallotsStatus::initialize_ballots_status(&three_way_tie_votes, &contest);
     let mut runoff = RunoffStatus::initialize_runoff(&contest);
     let result = runoff.run_with_policy(
         &mut ballots_status,
@@ -488,11 +518,18 @@ fn test_tie_breaking_state_history_recorded() -> Result<()> {
         RunoffResult::Completed(s) => s,
         _ => panic!("RANDOM policy on a full tie should always complete"),
     };
-    assert_eq!(state.tie_resolutions.len(), 1, "Should record one tie resolution");
+    assert_eq!(
+        state.tie_resolutions.len(),
+        1,
+        "Should record one tie resolution"
+    );
     let entry = &state.tie_resolutions[0];
     assert_eq!(entry.round_number, 1);
     assert_eq!(entry.method_used, TieBreakingMethod::Random);
-    assert!(entry.resolved_by_candidate_id.is_some(), "Random resolution must record a winner");
+    assert!(
+        entry.resolved_by_candidate_id.is_some(),
+        "Random resolution must record a winner"
+    );
 
     // --- EXTERNAL_PROCEDURE policy with a pre-configured resolution ---
     let mut contest2 = create_test_contest_3_candidates();

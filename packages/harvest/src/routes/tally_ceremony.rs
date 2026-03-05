@@ -25,15 +25,16 @@ use windmill::postgres::tally_session::{
     get_tally_session_by_id, update_tally_session_status,
 };
 use windmill::postgres::tally_session_resolution::{
-    get_resolution_by_tally_session, submit_resolution, update_resolution, ResolutionStatus,
-    ResolutionType,
+    get_resolution_by_tally_session, submit_resolution, update_resolution,
+    ResolutionStatus, ResolutionType,
 };
 use windmill::services::celery_app::get_celery_app;
-use windmill::services::providers::transactions_provider::provide_hasura_transaction;
 use windmill::services::ceremonies::tally_ceremony::{
-    self, extract_tied_candidate_ids, is_resubmission, validate_resolution_allowed,
+    self, extract_tied_candidate_ids, is_resubmission,
+    validate_resolution_allowed,
 };
 use windmill::services::database::get_hasura_pool;
+use windmill::services::providers::transactions_provider::provide_hasura_transaction;
 use windmill::tasks::electoral_log::{
     enqueue_electoral_log_event, LogEventInput, INTERNAL_MESSAGE_TYPE,
 };
@@ -444,9 +445,16 @@ pub async fn submit_tally_resolution(
     // Allow re-submission of already-resolved resolutions even when the tally is not
     // in AWAITING_INPUT (e.g., SUCCESS). Only reject if the tally is not awaiting
     // input AND at least one submitted resolution targets a pending (not yet resolved) record.
-    let input_contest_ids: Vec<&str> =
-        input.resolutions.iter().map(|r| r.contest_id.as_str()).collect();
-    validate_resolution_allowed(&execution_status, &input_contest_ids, &all_resolutions)?;
+    let input_contest_ids: Vec<&str> = input
+        .resolutions
+        .iter()
+        .map(|r| r.contest_id.as_str())
+        .collect();
+    validate_resolution_allowed(
+        &execution_status,
+        &input_contest_ids,
+        &all_resolutions,
+    )?;
 
     // 6. Validate and submit each resolution
     let mut resolved_count = 0;
@@ -470,8 +478,10 @@ pub async fn submit_tally_resolution(
             ))?;
 
         // Validate selected candidate is in tied candidates
-        let tied_candidate_ids =
-            extract_tied_candidate_ids(latest_resolution, &tie_resolution.contest_id)?;
+        let tied_candidate_ids = extract_tied_candidate_ids(
+            latest_resolution,
+            &tie_resolution.contest_id,
+        )?;
 
         if !tied_candidate_ids.contains(&tie_resolution.selected_candidate_id) {
             return Err((
@@ -622,4 +632,3 @@ pub async fn submit_tally_resolution(
         resolved_count,
     }))
 }
-

@@ -24,7 +24,6 @@ use crate::postgres::tally_sheet::get_published_tally_sheets_by_event;
 use crate::postgres::template::get_template_by_alias;
 use crate::services::cast_votes::{count_cast_votes_election, ElectionCastVotes};
 use crate::services::celery_app::get_celery_app;
-use crate::tasks::electoral_log::{enqueue_electoral_log_event, LogEventInput, INTERNAL_MESSAGE_TYPE};
 use crate::services::ceremonies::insert_ballots::{
     get_elections_end_dates, insert_ballots_messages,
 };
@@ -61,6 +60,9 @@ use crate::services::temp_path::{
 };
 use crate::services::users::list_users;
 use crate::services::users::ListUsersFilter;
+use crate::tasks::electoral_log::{
+    enqueue_electoral_log_event, LogEventInput, INTERNAL_MESSAGE_TYPE,
+};
 use crate::types::error::{Error, Result};
 use anyhow::{anyhow, Context, Result as AnyhowResult};
 use b3::messages::{artifact::Plaintexts, message::Message, statement::StatementType};
@@ -943,13 +945,13 @@ async fn map_plaintext_data(
 
     // In a tie-break re-run the tally replays from the last processed message;
     // normally we require a new (unprocessed) message to proceed.
-    let board_message_to_process = match board_messages
-        .iter()
-        .find(|m| m.id > last_message_id)
-    {
+    let board_message_to_process = match board_messages.iter().find(|m| m.id > last_message_id) {
         Some(msg) => msg,
         None if tie_break_rerun => {
-            event!(Level::INFO, "Replaying last board message for tie-break re-run");
+            event!(
+                Level::INFO,
+                "Replaying last board message for tie-break re-run"
+            );
             board_messages
                 .last()
                 .ok_or_else(|| anyhow::anyhow!("No board messages found for tie-break re-run"))?
@@ -1414,15 +1416,18 @@ pub async fn execute_tally_session_wrapped(
                         user_id: None,
                         username: None,
                         tenant_id: tenant_id.clone(),
-                        body: serde_json::to_string(&log_body)
-                            .unwrap_or_else(|_| "{}".to_string()),
+                        body: serde_json::to_string(&log_body).unwrap_or_else(|_| "{}".to_string()),
                     };
                     let celery_app = get_celery_app().await;
                     if let Err(e) = celery_app
                         .send_task(enqueue_electoral_log_event::new(log_input))
                         .await
                     {
-                        event!(Level::WARN, "Failed to enqueue tally_tie_detected log: {}", e);
+                        event!(
+                            Level::WARN,
+                            "Failed to enqueue tally_tie_detected log: {}",
+                            e
+                        );
                     }
                 }
             }
@@ -1885,7 +1890,11 @@ mod tests {
         assert_eq!(map.len(), 2, "Two distinct contest IDs expected");
 
         let contest1 = map.get("contest-1").unwrap();
-        assert_eq!(contest1.len(), 2, "Both round-1 and round-3 entries must be present");
+        assert_eq!(
+            contest1.len(),
+            2,
+            "Both round-1 and round-3 entries must be present"
+        );
         let rounds: Vec<u64> = contest1
             .iter()
             .filter_map(|v| v.get("round_number").and_then(|n| n.as_u64()))
@@ -1941,8 +1950,7 @@ mod tests {
     /// stored with round_number = 0 rather than being discarded.
     #[test]
     fn test_build_tie_resolutions_map_defaults_round_to_zero_when_missing() {
-        let mut row =
-            make_resolution("contest-1", 99, "candidate-a", ResolutionType::IrvTieBreak);
+        let mut row = make_resolution("contest-1", 99, "candidate-a", ResolutionType::IrvTieBreak);
         // Overwrite resolution_data with an object that lacks round_number
         row.resolution_data = serde_json::json!({"other_field": "value"});
 
@@ -1960,8 +1968,7 @@ mod tests {
     /// "resolved_by_candidate_id" must be silently skipped.
     #[test]
     fn test_build_tie_resolutions_map_skips_row_missing_candidate_id() {
-        let mut row =
-            make_resolution("contest-1", 1, "candidate-a", ResolutionType::IrvTieBreak);
+        let mut row = make_resolution("contest-1", 1, "candidate-a", ResolutionType::IrvTieBreak);
         // resolution exists but contains no resolved_by_candidate_id key
         row.resolution = Some(serde_json::json!({"some_other_key": "value"}));
 
@@ -2028,7 +2035,10 @@ mod tests {
             "process_results": {"pending_tie_resolution": null}
         });
         let result = parse_pending_tie_from_annotations(&annotations);
-        assert!(result.is_some(), "Key present with null value must return Some");
+        assert!(
+            result.is_some(),
+            "Key present with null value must return Some"
+        );
         assert!(result.unwrap().is_null());
     }
 
@@ -2073,7 +2083,11 @@ mod tests {
     fn test_pending_resolution_exists_true_for_same_contest_and_round() {
         let existing = vec![make_pending_resolution("contest-x", 2)];
         let tie_metadata = serde_json::json!({"round_number": 2});
-        assert!(pending_resolution_exists(&existing, "contest-x", &tie_metadata));
+        assert!(pending_resolution_exists(
+            &existing,
+            "contest-x",
+            &tie_metadata
+        ));
     }
 
     /// Same contest but different round — area-level ProcessBallotsAll can produce
@@ -2082,7 +2096,11 @@ mod tests {
     fn test_pending_resolution_exists_false_for_same_contest_different_round() {
         let existing = vec![make_pending_resolution("contest-x", 2)];
         let tie_metadata = serde_json::json!({"round_number": 3});
-        assert!(!pending_resolution_exists(&existing, "contest-x", &tie_metadata));
+        assert!(!pending_resolution_exists(
+            &existing,
+            "contest-x",
+            &tie_metadata
+        ));
     }
 
     /// Different contest, same round — must not collide.
@@ -2090,7 +2108,11 @@ mod tests {
     fn test_pending_resolution_exists_false_for_different_contest() {
         let existing = vec![make_pending_resolution("contest-x", 2)];
         let tie_metadata = serde_json::json!({"round_number": 2});
-        assert!(!pending_resolution_exists(&existing, "contest-y", &tie_metadata));
+        assert!(!pending_resolution_exists(
+            &existing,
+            "contest-y",
+            &tie_metadata
+        ));
     }
 
     /// A pending record with a non-IrvTieBreak type must not match even if contest
