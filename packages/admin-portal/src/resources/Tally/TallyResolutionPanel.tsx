@@ -855,38 +855,35 @@ export const TallyResolutionPanel: React.FC<TallyResolutionPanelProps> = ({
                                     {t("tally.pendingResolutions.selectCandidateToAdvance")}
                                 </Typography>
 
-                                    <Autocomplete
-                                        options={tiedCandidatesForSelected}
-                                        getOptionLabel={(c) => c.name ?? c.id}
-                                        isOptionEqualToValue={(o, v) => o.id === v.id}
-                                        disabled={
-                                            !(
-                                                (isPendingSelected && !isDecidedSelected) ||
-                                                isResolvedEditing
-                                            )
-                                        }
-                                        value={
-                                            tiedCandidatesForSelected.find(
-                                                (c) =>
-                                                    c.id ===
-                                                    (isPendingSelected ||
-                                                    isResolvedEditing ||
-                                                    isResolvedRedecided
-                                                        ? currentDraftValue
-                                                        : (resolvedCandidateForSelected?.id ?? ""))
-                                            ) ?? null
-                                        }
-                                        onChange={(_, candidate) => {
-                                            setDraftSelections((prev) => ({
-                                                ...prev,
-                                                [selectedResolution.contest_id!]:
-                                                    candidate?.id ?? "",
-                                            }))
-                                        }}
-                                        renderInput={(params) => (
-                                            <TextField {...params} size="small" />
-                                        )}
-                                    />
+                                <Autocomplete
+                                    options={tiedCandidatesForSelected}
+                                    getOptionLabel={(c) => c.name ?? c.id}
+                                    isOptionEqualToValue={(o, v) => o.id === v.id}
+                                    disabled={
+                                        !(
+                                            (isPendingSelected && !isDecidedSelected) ||
+                                            isResolvedEditing
+                                        )
+                                    }
+                                    value={
+                                        tiedCandidatesForSelected.find(
+                                            (c) =>
+                                                c.id ===
+                                                (isPendingSelected ||
+                                                isResolvedEditing ||
+                                                isResolvedRedecided
+                                                    ? currentDraftValue
+                                                    : (resolvedCandidateForSelected?.id ?? ""))
+                                        ) ?? null
+                                    }
+                                    onChange={(_, candidate) => {
+                                        setDraftSelections((prev) => ({
+                                            ...prev,
+                                            [selectedResolution.contest_id!]: candidate?.id ?? "",
+                                        }))
+                                    }}
+                                    renderInput={(params) => <TextField {...params} size="small" />}
+                                />
                             </Box>
                         </Box>
                     ) : (

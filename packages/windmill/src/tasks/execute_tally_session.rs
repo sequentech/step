@@ -61,7 +61,7 @@ use crate::services::temp_path::{
 use crate::services::users::list_users;
 use crate::services::users::ListUsersFilter;
 use crate::tasks::electoral_log::{
-    enqueue_electoral_log_event, LogEventInput, INTERNAL_MESSAGE_TYPE,
+    enqueue_electoral_log_event, LogEventBody, LogEventInput, LogMessageType,
 };
 use crate::types::error::{Error, Result};
 use anyhow::{anyhow, Context, Result as AnyhowResult};
@@ -1015,11 +1015,13 @@ async fn map_plaintext_data(
         });
         let log_input = LogEventInput {
             election_event_id: election_event_id.clone(),
-            message_type: INTERNAL_MESSAGE_TYPE.to_string(),
+            message_type: LogMessageType::Internal,
             user_id: None,
             username: None,
             tenant_id: tenant_id.clone(),
-            body: serde_json::to_string(&log_body).unwrap_or_else(|_| "{}".to_string()),
+            body: LogEventBody::Plain(
+                serde_json::to_string(&log_body).unwrap_or_else(|_| "{}".to_string()),
+            ),
         };
         let celery_app = get_celery_app().await;
         if let Err(e) = celery_app
@@ -1412,11 +1414,14 @@ pub async fn execute_tally_session_wrapped(
                     });
                     let log_input = LogEventInput {
                         election_event_id: election_event_id.clone(),
-                        message_type: INTERNAL_MESSAGE_TYPE.to_string(),
+                        message_type: LogMessageType::Internal,
                         user_id: None,
                         username: None,
                         tenant_id: tenant_id.clone(),
-                        body: serde_json::to_string(&log_body).unwrap_or_else(|_| "{}".to_string()),
+                        body: LogEventBody::Plain(
+                            serde_json::to_string(&log_body)
+                                .unwrap_or_else(|_| "{}".to_string()),
+                        ),
                     };
                     let celery_app = get_celery_app().await;
                     if let Err(e) = celery_app
@@ -1479,11 +1484,13 @@ pub async fn execute_tally_session_wrapped(
             });
             let log_input = LogEventInput {
                 election_event_id: election_event_id.clone(),
-                message_type: INTERNAL_MESSAGE_TYPE.to_string(),
+                message_type: LogMessageType::Internal,
                 user_id: None,
                 username: None,
                 tenant_id: tenant_id.clone(),
-                body: serde_json::to_string(&log_body).unwrap_or_else(|_| "{}".to_string()),
+                body: LogEventBody::Plain(
+                    serde_json::to_string(&log_body).unwrap_or_else(|_| "{}".to_string()),
+                ),
             };
             let celery_app = get_celery_app().await;
             if let Err(e) = celery_app
