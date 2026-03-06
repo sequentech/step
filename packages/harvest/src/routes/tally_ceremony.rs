@@ -36,7 +36,7 @@ use windmill::services::ceremonies::tally_ceremony::{
 use windmill::services::database::get_hasura_pool;
 use windmill::services::providers::transactions_provider::provide_hasura_transaction;
 use windmill::tasks::electoral_log::{
-    enqueue_electoral_log_event, LogEventInput, INTERNAL_MESSAGE_TYPE,
+    enqueue_electoral_log_event, LogEventBody, LogEventInput, LogMessageType,
 };
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -564,12 +564,14 @@ pub async fn submit_tally_resolution(
 
         let log_input = LogEventInput {
             election_event_id: input.election_event_id.clone(),
-            message_type: INTERNAL_MESSAGE_TYPE.to_string(),
+            message_type: LogMessageType::Internal,
             user_id: Some(user_id.clone()),
             username: claims.preferred_username.clone(),
             tenant_id: tenant_id.clone(),
-            body: serde_json::to_string(&electoral_log_body)
-                .unwrap_or_else(|_| "{}".to_string()),
+            body: LogEventBody::Plain(
+                serde_json::to_string(&electoral_log_body)
+                    .unwrap_or_else(|_| "{}".to_string()),
+            ),
         };
 
         let celery_app = get_celery_app().await;
