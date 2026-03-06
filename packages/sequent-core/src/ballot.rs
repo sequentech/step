@@ -2405,10 +2405,6 @@ impl AreaAnnotations {
     pub fn get_weight(&self) -> Weight {
         self.weight.unwrap_or_default()
     }
-    pub fn get_tally_operation(&self) -> TallyOperation {
-        self.tally_operation
-            .unwrap_or(TallyOperation::ProcessBallotsAll)
-    }
 }
 
 impl Area {
