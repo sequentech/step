@@ -851,7 +851,7 @@ export const TallyResolutionPanel: React.FC<TallyResolutionPanelProps> = ({
                                     px: 2,
                                 }}
                             >
-                                <Typography variant="body2" sx={{mb: 1, mt: 1}}>
+                                <Typography variant="body2" sx={{my: 0}}>
                                     {t("tally.pendingResolutions.selectCandidateToAdvance")}
                                 </Typography>
 
