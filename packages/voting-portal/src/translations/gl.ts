@@ -320,9 +320,9 @@ const galegoTranslation: TranslationType = {
                     "Máximo alcanzado: Seleccionaches o máximo {{numSelected}} opcións. Para cambiar a selección, deselecciona primeiro outra opción.",
                 blankVote: "Voto en branco: 0 opcións seleccionadas",
                 preferenceOrderWithGaps:
-                    "Voto non válido!. A orde de preferencia ten un ou máis ocos.",
+                    "Voto non válido! A orde de preferencia ten un ou máis ocos.",
                 duplicatedPosition:
-                    "Voto non válido!. A mesma posición foi seleccionada para dous ou máis candidatos.",
+                    "Voto non válido! A mesma posición foi seleccionada para dous ou máis candidatos.",
             },
             explicit: {
                 notAllowed:

@@ -317,9 +317,9 @@ const englishTranslation = {
                     "Maximum reached: You have selected the maximum {{numSelected}} choices. To change your selection, please deselect another option first.",
                 blankVote: "Blank Vote: 0 choices selected",
                 preferenceOrderWithGaps:
-                    "Invalid vote!. The order of preference has one or more gaps.",
+                    "Invalid vote! The order of preference has one or more gaps.",
                 duplicatedPosition:
-                    "Invalid vote!. The same position was selected for two or more candidates.",
+                    "Invalid vote! The same position was selected for two or more candidates.",
             },
             explicit: {
                 notAllowed: "Ballot marked explicitly invalid but question doesn't allow it",

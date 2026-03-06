@@ -320,9 +320,9 @@ const frenchTranslation: TranslationType = {
                     "Maximum atteint : Vous avez sélectionné le maximum de {{numSelected}} choix. Pour changer votre sélection, veuillez d'abord désélectionner une autre option.",
                 blankVote: "Vote Blanc: 0 options sélectionnées",
                 preferenceOrderWithGaps:
-                    "Vote invalide!. L'ordre de préférence comporte un ou plusieurs trous.",
+                    "Vote invalide! L'ordre de préférence comporte un ou plusieurs trous.",
                 duplicatedPosition:
-                    "Vote invalide!. La même position a été sélectionnée pour deux ou plusieurs candidats.",
+                    "Vote invalide! La même position a été sélectionnée pour deux ou plusieurs candidats.",
             },
             explicit: {
                 notAllowed:

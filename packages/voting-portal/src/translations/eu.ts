@@ -320,9 +320,9 @@ const basqueTranslation: TranslationType = {
                     "Gehienezkora heldu: Gehienezko {{numSelected}} aukera hautatu dituzu. Zure hautaketa aldatzeko, mesedez ezgaitu beste aukera bat lehenik.",
                 blankVote: "Boto Zuria: 0 aukera hautatu",
                 preferenceOrderWithGaps:
-                    "Boto baliogabea!. Lehentasunaren ordenak hutsune bat edo gehiago ditu.",
+                    "Boto baliogabea! Lehentasunaren ordenak hutsune bat edo gehiago ditu.",
                 duplicatedPosition:
-                    "Boto baliogabea!. Posizio bera hautatu da bi kandidatu edo gehiagorentzat.",
+                    "Boto baliogabea! Posizio bera hautatu da bi kandidatu edo gehiagorentzat.",
             },
             explicit: {
                 notAllowed:

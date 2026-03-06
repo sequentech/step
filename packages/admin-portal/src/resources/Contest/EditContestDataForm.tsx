@@ -827,21 +827,38 @@ export const ContestDataForm: React.FC = () => {
                                     validate={required()}
                                 />
 
-                                <SelectInput
-                                    source={`presentation.duplicated_rank_policy`}
-                                    choices={duplicatedRankPolicyChoices()}
-                                    label={String(t(`contestScreen.duplicatedRankPolicy.label`))}
-                                    defaultValue={getDefaultDuplicatedRankPolicy()}
-                                    validate={required()}
-                                />
+                                <FormDataConsumer>
+                                    {({formData}) =>
+                                        formData?.counting_algorithm ===
+                                        ICountingAlgorithm.INSTANT_RUNOFF ? (
+                                            <>
+                                                <SelectInput
+                                                    source={`presentation.duplicated_rank_policy`}
+                                                    choices={duplicatedRankPolicyChoices()}
+                                                    label={String(
+                                                        t(
+                                                            `contestScreen.duplicatedRankPolicy.label`
+                                                        )
+                                                    )}
+                                                    defaultValue={getDefaultDuplicatedRankPolicy()}
+                                                    validate={required()}
+                                                />
 
-                                <SelectInput
-                                    source={`presentation.preference_gaps_policy`}
-                                    choices={preferenceGapsPolicyChoices()}
-                                    label={String(t(`contestScreen.preferenceGapsPolicy.label`))}
-                                    defaultValue={getDefaultPreferenceGapsPolicy()}
-                                    validate={required()}
-                                />
+                                                <SelectInput
+                                                    source={`presentation.preference_gaps_policy`}
+                                                    choices={preferenceGapsPolicyChoices()}
+                                                    label={String(
+                                                        t(
+                                                            `contestScreen.preferenceGapsPolicy.label`
+                                                        )
+                                                    )}
+                                                    defaultValue={getDefaultPreferenceGapsPolicy()}
+                                                    validate={required()}
+                                                />
+                                            </>
+                                        ) : null
+                                    }
+                                </FormDataConsumer>
 
                                 <SelectInput
                                     source={`presentation.candidates_icon_checkbox_policy`}
