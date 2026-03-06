@@ -1419,8 +1419,7 @@ pub async fn execute_tally_session_wrapped(
                         username: None,
                         tenant_id: tenant_id.clone(),
                         body: LogEventBody::Plain(
-                            serde_json::to_string(&log_body)
-                                .unwrap_or_else(|_| "{}".to_string()),
+                            serde_json::to_string(&log_body).unwrap_or_else(|_| "{}".to_string()),
                         ),
                     };
                     let celery_app = get_celery_app().await;
