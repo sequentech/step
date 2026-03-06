@@ -1715,7 +1715,7 @@ const galegoTranslation: TranslationType = {
                 candidateWithVotesAndPercent: "{{name}} ({{votes}} votos, {{percent}}%)",
                 tieInfoTitle: "Escrutinio pausado por empate sen resolver (Rolda {{round}})",
                 tieInfoBody:
-                    "Candidatos empatados: {{candidates}}. Requírese desempate manual para continuar o escrutinio.",
+                    "Candidatos empatados ({{votes}} votos, {{percent}}%): {{candidates}}. Requírese desempate manual para continuar o escrutinio.",
                 tallyResumedTitle: "Escrutinio retomado tras aplicar a resolución",
                 tallyResumedBody: "O empate foi resolto o {{date}} por {{user}}",
             },

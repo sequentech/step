@@ -1724,7 +1724,7 @@ const catalanTranslation: TranslationType = {
                 candidateWithVotesAndPercent: "{{name}} ({{votes}} vots, {{percent}}%)",
                 tieInfoTitle: "Recompte pausat per empat sense resoldre (Ronda {{round}})",
                 tieInfoBody:
-                    "Candidats empatats: {{candidates}}. Cal un desempat manual per continuar el recompte.",
+                    "Candidats empatats ({{votes}} vots, {{percent}}%): {{candidates}}. Cal un desempat manual per continuar el recompte.",
                 tallyResumedTitle: "Recompte reprès després d'aplicar la resolució",
                 tallyResumedBody: "L'empat va ser resolt el {{date}} per {{user}}",
             },

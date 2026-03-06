@@ -1701,7 +1701,7 @@ const englishTranslation = {
                 candidateWithVotesAndPercent: "{{name}} ({{votes}} votes, {{percent}}%)",
                 tieInfoTitle: "Tally paused due to unresolved tie (Round {{round}})",
                 tieInfoBody:
-                    "Candidates tied: {{candidates}}. Manual tie-break required to continue tally.",
+                    "Candidates tied ({{votes}} votes, {{percent}}%): {{candidates}}. Manual tie-break required to continue tally.",
                 tallyResumedTitle: "Tally resumed after resolution applied",
                 tallyResumedBody: "Candidates tie was resolved on {{date}} by {{user}}",
             },

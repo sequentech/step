@@ -1717,7 +1717,7 @@ const tagalogTranslation: TranslationType = {
                 tieInfoTitle:
                     "Ang pagbibilang ay natigil dahil sa hindi naresolubasiyong ugnayan (Ikot {{round}})",
                 tieInfoBody:
-                    "Mga kandidatong nagtatali: {{candidates}}. Kinakailangan ang manu-manong pagpili para magpatuloy ang pagbibilang.",
+                    "Mga kandidatong nagtatali ({{votes}} boto, {{percent}}%): {{candidates}}. Kinakailangan ang manu-manong pagpili para magpatuloy ang pagbibilang.",
                 tallyResumedTitle:
                     "Nagpapatuloy na ang pagbibilang pagkatapos ilapat ang resolusyon",
                 tallyResumedBody: "Ang ugnayan ay nalutas noong {{date}} ni {{user}}",

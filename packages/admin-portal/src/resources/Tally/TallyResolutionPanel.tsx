@@ -572,26 +572,14 @@ export const TallyResolutionPanel: React.FC<TallyResolutionPanelProps> = ({
     const isResolvedRedecided =
         !isPendingSelected &&
         !!(selectedResolution?.contest_id && pendingSelections[selectedResolution.contest_id])
-    const tiedIds: string[] = selectedResolution?.resolution_data?.tied_candidate_ids ?? []
     const voteCounts: number[] = selectedResolution?.resolution_data?.vote_counts ?? []
     const totalVotes: number | undefined = selectedResolution?.resolution_data?.total_votes
-    const tiedVoteCountsMap = new Map<string, number>(tiedIds.map((id, i) => [id, voteCounts[i]]))
-    const tiedCandidateNames = tiedCandidatesForSelected
-        .map((c) => {
-            const name = c.name ?? c.id
-            const votes = tiedVoteCountsMap.get(c.id)
-            if (votes === undefined) return name
-            if (totalVotes) {
-                const percent = ((votes / totalVotes) * 100).toFixed(1)
-                return t("tally.pendingResolutions.candidateWithVotesAndPercent", {
-                    name,
-                    votes,
-                    percent,
-                })
-            }
-            return t("tally.pendingResolutions.candidateWithVotes", {name, votes})
-        })
-        .join(", ")
+    const tiedVoteCount: number | undefined = voteCounts[0]
+    const tiedVotePercent: string | undefined =
+        tiedVoteCount !== undefined && totalVotes
+            ? ((tiedVoteCount / totalVotes) * 100).toFixed(1)
+            : undefined
+    const tiedCandidateNames = tiedCandidatesForSelected.map((c) => c.name ?? c.id).join(", ")
     // Draft value: show the draft selection if set, otherwise fall back to the committed selection
     const currentDraftValue = selectedResolution?.contest_id
         ? (draftSelections[selectedResolution.contest_id] ??
@@ -837,6 +825,8 @@ export const TallyResolutionPanel: React.FC<TallyResolutionPanelProps> = ({
                                     </AlertTitle>
                                     {t("tally.pendingResolutions.tieInfoBody", {
                                         candidates: tiedCandidateNames || "?",
+                                        votes: tiedVoteCount ?? "?",
+                                        percent: tiedVotePercent ?? "?",
                                     })}
                                 </Alert>
                             ) : (
@@ -861,45 +851,42 @@ export const TallyResolutionPanel: React.FC<TallyResolutionPanelProps> = ({
                                     px: 2,
                                 }}
                             >
-                                <Autocomplete
-                                    options={tiedCandidatesForSelected}
-                                    getOptionLabel={(c) => c.name ?? c.id}
-                                    isOptionEqualToValue={(o, v) => o.id === v.id}
-                                    disabled={
-                                        !(
-                                            (isPendingSelected && !isDecidedSelected) ||
-                                            isResolvedEditing
-                                        )
-                                    }
-                                    value={
-                                        tiedCandidatesForSelected.find(
-                                            (c) =>
-                                                c.id ===
-                                                (isPendingSelected ||
-                                                isResolvedEditing ||
-                                                isResolvedRedecided
-                                                    ? currentDraftValue
-                                                    : (resolvedCandidateForSelected?.id ?? ""))
-                                        ) ?? null
-                                    }
-                                    onChange={(_, candidate) => {
-                                        if (candidate) {
+                                <Typography variant="body2" sx={{mb: 1, mt: 1}}>
+                                    {t("tally.pendingResolutions.selectCandidateToAdvance")}
+                                </Typography>
+
+                                    <Autocomplete
+                                        options={tiedCandidatesForSelected}
+                                        getOptionLabel={(c) => c.name ?? c.id}
+                                        isOptionEqualToValue={(o, v) => o.id === v.id}
+                                        disabled={
+                                            !(
+                                                (isPendingSelected && !isDecidedSelected) ||
+                                                isResolvedEditing
+                                            )
+                                        }
+                                        value={
+                                            tiedCandidatesForSelected.find(
+                                                (c) =>
+                                                    c.id ===
+                                                    (isPendingSelected ||
+                                                    isResolvedEditing ||
+                                                    isResolvedRedecided
+                                                        ? currentDraftValue
+                                                        : (resolvedCandidateForSelected?.id ?? ""))
+                                            ) ?? null
+                                        }
+                                        onChange={(_, candidate) => {
                                             setDraftSelections((prev) => ({
                                                 ...prev,
-                                                [selectedResolution.contest_id!]: candidate.id,
+                                                [selectedResolution.contest_id!]:
+                                                    candidate?.id ?? "",
                                             }))
-                                        }
-                                    }}
-                                    renderInput={(params) => (
-                                        <TextField
-                                            {...params}
-                                            label={t(
-                                                "tally.pendingResolutions.selectCandidateToAdvance"
-                                            )}
-                                            size="small"
-                                        />
-                                    )}
-                                />
+                                        }}
+                                        renderInput={(params) => (
+                                            <TextField {...params} size="small" />
+                                        )}
+                                    />
                             </Box>
                         </Box>
                     ) : (

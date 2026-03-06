@@ -1726,7 +1726,7 @@ const frenchTranslation: TranslationType = {
                 candidateWithVotesAndPercent: "{{name}} ({{votes}} voix, {{percent}}%)",
                 tieInfoTitle: "Décompte pausé en raison d'une égalité non résolue (Tour {{round}})",
                 tieInfoBody:
-                    "Candidats à égalité : {{candidates}}. Un départage manuel est requis pour continuer le décompte.",
+                    "Candidats à égalité ({{votes}} voix, {{percent}}%) : {{candidates}}. Un départage manuel est requis pour continuer le décompte.",
                 tallyResumedTitle: "Décompte repris après application de la résolution",
                 tallyResumedBody: "L'égalité a été résolue le {{date}} par {{user}}",
             },

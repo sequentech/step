@@ -1710,7 +1710,7 @@ const basqueTranslation: TranslationType = {
                 candidateWithVotesAndPercent: "{{name}} ({{votes}} boto, {{percent}}%)",
                 tieInfoTitle: "Zenbaketa etenda berdinketa konpondu gabeagatik (Txanda {{round}})",
                 tieInfoBody:
-                    "Berdinketako hautagaiak: {{candidates}}. Eskuzko desempatea behar da zenbaketa jarraitzeko.",
+                    "Berdinketako hautagaiak ({{votes}} boto, {{percent}}%): {{candidates}}. Eskuzko desempatea behar da zenbaketa jarraitzeko.",
                 tallyResumedTitle: "Zenbaketa berriro hasi da ebazpena aplikatu ondoren",
                 tallyResumedBody: "Berdinketa {{date}} egunean {{user}} erabiltzaileak ebatzi zuen",
             },

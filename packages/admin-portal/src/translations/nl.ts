@@ -1710,7 +1710,7 @@ const dutchTranslation: TranslationType = {
                 candidateWithVotesAndPercent: "{{name}} ({{votes}} stemmen, {{percent}}%)",
                 tieInfoTitle: "Telling gepauzeerd wegens onopgelost gelijkspel (Ronde {{round}})",
                 tieInfoBody:
-                    "Kandidaten gelijk: {{candidates}}. Handmatige tiebreak vereist om de telling voort te zetten.",
+                    "Kandidaten gelijk ({{votes}} stemmen, {{percent}}%): {{candidates}}. Handmatige tiebreak vereist om de telling voort te zetten.",
                 tallyResumedTitle: "Telling hervat na toepassing van de resolutie",
                 tallyResumedBody: "De gelijkstand werd opgelost op {{date}} door {{user}}",
             },

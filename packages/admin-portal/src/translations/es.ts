@@ -1715,7 +1715,7 @@ const spanishTranslation: TranslationType = {
                 candidateWithVotesAndPercent: "{{name}} ({{votes}} votos, {{percent}}%)",
                 tieInfoTitle: "Recuento pausado por empate sin resolver (Ronda {{round}})",
                 tieInfoBody:
-                    "Candidatos empatados: {{candidates}}. Se requiere desempate manual para continuar el recuento.",
+                    "Candidatos empatados ({{votes}} votos, {{percent}}%): {{candidates}}. Se requiere desempate manual para continuar el recuento.",
                 tallyResumedTitle: "Recuento reanudado tras aplicar la resolución",
                 tallyResumedBody: "El empate fue resuelto el {{date}} por {{user}}",
             },
