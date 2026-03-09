@@ -167,16 +167,12 @@ pub fn map_decoded_ballot_choices_to_decoded_contests(
         let mut choices = vec![];
 
         for candidate in &found_contest.candidates {
-            let selected = if found_ballot_choices
+            let selected = found_ballot_choices
                 .choices
                 .iter()
-                .find(|choice| choice.0 == candidate.id)
-                .is_some()
-            {
-                0
-            } else {
-                -1
-            };
+                .find(|choice| choice.id == candidate.id)
+                .map(|choice| choice.selected)
+                .unwrap_or(-1);
 
             let decoded_vote_choice = DecodedVoteChoice {
                 id: candidate.id.clone(),

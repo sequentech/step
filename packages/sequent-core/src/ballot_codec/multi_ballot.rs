@@ -29,7 +29,7 @@ use crate::encrypt::encode_to_plaintext_decoded_multi_contest;
 use crate::util::normalize_vote::normalize_election;
 use num_bigint::ToBigUint;
 use num_traits::{ToPrimitive, Zero};
-
+use std::hash::{Hash, Hasher};
 /// A multi contest ballot.
 ///
 /// A multi contest ballot can be encoded in to a
@@ -151,11 +151,18 @@ impl DecodedContestChoices {
         }
     }
 }
-#[derive(
-    Serialize, Deserialize, JsonSchema, PartialEq, Eq, Debug, Clone, Hash,
-)]
+#[derive(Serialize, Deserialize, JsonSchema, PartialEq, Eq, Debug, Clone)]
 /// A decoded contest choice contains the candidate_id as a String.
-pub struct DecodedContestChoice(pub String);
+pub struct DecodedContestChoice {
+    pub id: String,
+    pub selected: i64,
+}
+
+impl Hash for DecodedContestChoice {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.id.hash(state);
+    }
+}
 
 /// The choices for the set of contests returned when decoding a multi-content
 /// ballot.
@@ -338,7 +345,7 @@ impl BallotChoices {
                 // preferencial multiballot. When decoding, we
                 // will take the order of the
                 // vector to determine the order of preference of each choice.
-                // The invalid ones with seected = -1 will be at the beginning
+                // The invalid ones with selected = -1 will be at the beginning
                 // but will be ignored when decoding anyway
                 // because are marked to 0.
                 let mut pref_choices: Vec<ContestChoice> =
@@ -350,7 +357,7 @@ impl BallotChoices {
         };
 
         // We set all values as unset (0) by default
-        let mut contest_choices = vec![0u64; max_votes];
+        let mut contest_choices = vec![0u64; sorted_candidates.len()];
         let mut marked = 0;
         for p in &choices_order {
             let (position, _candidate) =
@@ -370,18 +377,19 @@ impl BallotChoices {
             // list, sorted by id. The same sorting order must be used
             // to interpret choices when decoding.
             let mark = if p.selected > -1 {
-                (position + 1).try_into().map_err(|_| {
-                    format!("u64 conversion on candidate position")
-                })?
+               (p.selected + 1).try_into().map_err(|_| {
+                        format!("u64 conversion on candidate position")
+                    })?
             } else {
                 // unset
                 0
             };
 
-            contest_choices[marked] = mark;
+            contest_choices[*position] = mark;
             marked += 1;
 
             if marked == max_votes {
+                //TODO: need??
                 break;
             }
         }
@@ -501,11 +509,13 @@ impl BallotChoices {
                 format!("i64 -> usize conversion on contest max_votes")
             })?;
 
+        let num_of_choices = choices.iter().filter(|&&v| v > 0).count();
+
         // The first slot is used for explicit invalid ballot, so + 1
-        if choices.len() != expected_choices + 1 {
+        if num_of_choices != expected_choices {
             return Err(format!(
                 "Unexpected number of choices {} != {}",
-                choices.len(),
+                num_of_choices,
                 expected_choices
             ));
         }
@@ -522,16 +532,19 @@ impl BallotChoices {
         let mut choice_index = 1;
 
         for contest in sorted_contests {
-            let max_votes: usize =
-                contest.max_votes.try_into().map_err(|_| {
-                    format!("i64 -> usize conversion on contest max_votes")
-                })?;
+
+            let num_valid_candidates = contest
+                .candidates
+                .iter()
+                .filter(|candidate| !candidate.is_explicit_invalid())
+                .count();
+
             let next = Self::decode_contest(
                 &contest,
                 &choices[choice_index..],
                 is_explicit_invalid,
             )?;
-            choice_index += max_votes;
+            choice_index += num_valid_candidates;
             contest_choices.push(next);
         }
 
@@ -583,6 +596,15 @@ impl BallotChoices {
 
         sorted_candidates.sort_by_key(|c| c.id.clone());
 
+        // Note how the position for the candidate is mapped to the first
+        // element in the tuple. This position will be used below when
+        // marking choices.
+        let candidates_map = sorted_candidates
+            .iter()
+            .enumerate()
+            .map(|c| (c.1.id.clone(), (c.0, c.1)))
+            .collect::<HashMap<String, (usize, &Candidate)>>();
+
         let max_votes: usize = contest.max_votes.try_into().map_err(|_| {
             format!("i64 -> usize conversion on contest max_votes")
         })?;
@@ -591,32 +613,35 @@ impl BallotChoices {
         })?;
 
         let mut next_choices = vec![];
-        for i in 0..max_votes {
-            let next = choices[i];
-            let next = usize::try_from(next).map_err(|_| {
+        for i in 0..sorted_candidates.len() {
+            let selected = choices[i];
+            let selected = usize::try_from(selected).map_err(|_| {
                 format!("u64 -> usize conversion on plaintext choice")
             })?;
             // Unset
-            if next == 0 {
+            if selected == 0 {
                 continue;
             }
             // choices are offset by 1 to allow for the unset value at 0
-            let next = next - 1;
+            let selected = selected - 1;
 
             // A choice of a candidate is represented as that
             // candidate's position in the candidate
             // list, sorted by id. The same sorting order must be used
             // to interpret choices when encoding.
-            let candidate = sorted_candidates.get(next);
+            let candidate = sorted_candidates.get(i);
             let Some(candidate) = candidate else {
                 return Err(format!(
                     "Candidate selection out of range {} (length: {})",
-                    next,
+                    i,
                     sorted_candidates.len()
                 ));
             };
 
-            let choice = DecodedContestChoice(candidate.id.clone());
+            let choice = DecodedContestChoice {
+                id: candidate.id.clone(),
+                selected: selected as i64,
+            };
 
             next_choices.push(choice);
         }
@@ -735,13 +760,6 @@ impl BallotChoices {
         sorted_contests.sort_by_key(|c| c.id.clone());
 
         for contest in sorted_contests {
-            // Compact encoding only supports plurality
-            if contest.get_counting_algorithm()
-                != CountingAlgType::PluralityAtLarge
-            {
-                return Err(format!("get_bases: multi ballot encoding only supports plurality at large, received {}", contest.get_counting_algorithm()));
-            }
-
             let num_valid_candidates: Result<u64, TryFromIntError> = contest
                 .candidates
                 .iter()
@@ -753,7 +771,7 @@ impl BallotChoices {
                 num_valid_candidates.map_err(|e| e.to_string())?;
 
             let max_selections = contest.max_votes;
-            for _ in 1..=max_selections {
+            for _ in 1..=num_valid_candidates {
                 // + 1: include a per-ballot invalid flag
                 bases.push(u64::from(num_valid_candidates + 1));
             }

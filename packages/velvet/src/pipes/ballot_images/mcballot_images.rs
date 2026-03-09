@@ -752,11 +752,11 @@ fn convert_ballots(
             if let Some(blank) = blank {
                 let mut next = blank.clone();
                 for choice in &contest.choices {
-                    let blank = next.get(&choice.0);
+                    let blank = next.get(&choice.id);
                     if let Some(blank) = blank {
                         let mut marked = blank.clone();
-                        marked.selected = 1;
-                        next.insert(choice.0.clone(), marked);
+                        marked.selected = (choice.selected + 1); //TODO:check
+                        next.insert(choice.id.clone(), marked);
                     } else {
                         return Err(Error::UnexpectedError(format!(
                             "could not find candidate for choice"
