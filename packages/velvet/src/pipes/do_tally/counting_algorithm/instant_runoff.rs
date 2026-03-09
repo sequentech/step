@@ -372,54 +372,58 @@ impl RunoffStatus {
             .collect();
 
         // Determine winner_id: pre-configured resolution takes priority over policy
-        let winner_id: String = if let Some(resolved_candidate_id) = tie_resolution_candidate {
-            if candidates_to_eliminate.contains(&resolved_candidate_id.to_string()) {
+        let winner_id: String = match tie_resolution_candidate {
+            Some(resolved_candidate_id) => {
+                if candidates_to_eliminate.contains(&resolved_candidate_id.to_string()) {
+                    info!(
+                        "IRV tie detected among {} candidates. Using pre-configured resolution: {}",
+                        candidates_to_eliminate.len(),
+                        resolved_candidate_id
+                    );
+                    self.tie_resolutions.push(TieBreakingState {
+                        round_number: self.round_count + 1,
+                        tied_candidate_ids: candidates_to_eliminate.clone(),
+                        vote_counts,
+                        method_used: TieBreakingMethod::ExternalProcedure,
+                        resolved_by_candidate_id: Some(resolved_candidate_id.to_string()),
+                    });
+                    resolved_candidate_id.to_string()
+                } else {
+                    warn!(
+                        "Configured tie resolution candidate {} is not among tied candidates: {:?}. Ignoring.",
+                        resolved_candidate_id,
+                        candidates_to_eliminate
+                    );
+                    return None;
+                }
+            }
+            None if self.tie_breaking_policy == TieBreakingPolicy::EXTERNAL_PROCEDURE => {
                 info!(
-                    "IRV tie detected among {} candidates. Using pre-configured resolution: {}",
+                    "IRV tie detected among {} candidates with EXTERNAL_PROCEDURE policy. Pausing for admin input.",
+                    candidates_to_eliminate.len()
+                );
+                return None;
+            }
+            None => {
+                // RANDOM policy: select winner by lot
+                let mut rng = thread_rng();
+                let winner_id = candidates_to_eliminate.choose(&mut rng).cloned()?;
+                let winner_name = self.get_candidate_name(&winner_id).unwrap_or_default();
+                info!(
+                    "IRV full tie detected among {} candidates. Selecting winner by lot: {} ({})",
                     candidates_to_eliminate.len(),
-                    resolved_candidate_id
+                    winner_name,
+                    winner_id
                 );
                 self.tie_resolutions.push(TieBreakingState {
                     round_number: self.round_count + 1,
                     tied_candidate_ids: candidates_to_eliminate.clone(),
                     vote_counts,
-                    method_used: TieBreakingMethod::ExternalProcedure,
-                    resolved_by_candidate_id: Some(resolved_candidate_id.to_string()),
+                    method_used: TieBreakingMethod::Random,
+                    resolved_by_candidate_id: Some(winner_id.clone()),
                 });
-                resolved_candidate_id.to_string()
-            } else {
-                warn!(
-                    "Configured tie resolution candidate {} is not among tied candidates: {:?}. Ignoring.",
-                    resolved_candidate_id,
-                    candidates_to_eliminate
-                );
-                return None;
-            }
-        } else if self.tie_breaking_policy == TieBreakingPolicy::EXTERNAL_PROCEDURE {
-            info!(
-                "IRV tie detected among {} candidates with EXTERNAL_PROCEDURE policy. Pausing for admin input.",
-                candidates_to_eliminate.len()
-            );
-            return None;
-        } else {
-            // RANDOM policy: select winner by lot
-            let mut rng = thread_rng();
-            let winner_id = candidates_to_eliminate.choose(&mut rng).cloned()?;
-            let winner_name = self.get_candidate_name(&winner_id).unwrap_or_default();
-            info!(
-                "IRV full tie detected among {} candidates. Selecting winner by lot: {} ({})",
-                candidates_to_eliminate.len(),
-                winner_name,
                 winner_id
-            );
-            self.tie_resolutions.push(TieBreakingState {
-                round_number: self.round_count + 1,
-                tied_candidate_ids: candidates_to_eliminate.clone(),
-                vote_counts,
-                method_used: TieBreakingMethod::Random,
-                resolved_by_candidate_id: Some(winner_id.clone()),
-            });
-            winner_id
+            }
         };
 
         // Shared elimination loop
@@ -668,11 +672,11 @@ impl RunoffStatus {
                     None => {
                         // Tie detected - check policy and resolution.
                         // round_count is still at N-1 here; this tie belongs to round N.
-                        let current_round = self.round_count + 1;
+                        let round_number = self.round_count + 1;
                         // Clone to avoid holding an immutable borrow on self.tie_resolutions_map
                         // while calling determine_winner_by_lot (which borrows self mutably).
                         let tie_resolution_candidate: Option<String> =
-                            self.tie_resolutions_map.get(&current_round).cloned();
+                            self.tie_resolutions_map.get(&round_number).cloned();
                         if let Some((winner, eliminated_candidates)) = self.determine_winner_by_lot(
                             &candidates_to_eliminate,
                             &round.candidates_wins,
@@ -685,7 +689,7 @@ impl RunoffStatus {
                             // External procedure policy - pause needed
                             RoundResult::RequiresInput {
                                 candidates_to_eliminate,
-                                round_number: self.round_count + 1,
+                                round_number,
                             }
                         }
                     }
