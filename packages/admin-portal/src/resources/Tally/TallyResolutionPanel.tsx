@@ -63,7 +63,7 @@ export const TallyResolutionPanel: React.FC<TallyResolutionPanelProps> = ({
     tenantId,
     onResolutionSubmitted,
 }) => {
-    const {t} = useTranslation()
+    const {t, i18n} = useTranslation()
     const notify = useNotify()
     const {globalSettings} = useContext(SettingsContext)
     const [selectedResolutionId, setSelectedResolutionId] = useState<string | null>(null)
@@ -836,8 +836,8 @@ export const TallyResolutionPanel: React.FC<TallyResolutionPanelProps> = ({
                                     </AlertTitle>
                                     {t("tally.pendingResolutions.tallyResumedBody", {
                                         date: new Date(
-                                            selectedResolution.created_at
-                                        ).toLocaleDateString("en-GB"),
+                                            selectedResolution.resolved_at
+                                        ).toLocaleDateString(i18n.language),
                                         user: selectedResolution.resolved_by_user ?? "",
                                     })}
                                 </Alert>

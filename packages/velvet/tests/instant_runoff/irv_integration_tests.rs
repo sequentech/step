@@ -117,6 +117,7 @@ fn test_tie_breaking_using_previous_round() {
         ],
         name_references,
         tie_resolutions: vec![],
+        ..Default::default()
     };
 
     // The candidates tied in the current round (Round 2)
@@ -214,6 +215,7 @@ fn test_tie_persists_through_lookback() {
         ],
         name_references,
         tie_resolutions: vec![],
+        ..Default::default()
     };
 
     // When round3 is processed, I is eliminated.
@@ -300,6 +302,7 @@ fn test_do_round_eliminations_with_tie_resolution() {
         ],
         name_references,
         tie_resolutions: vec![],
+        ..Default::default()
     };
 
     // Initialize remaining candidates as active
@@ -376,6 +379,7 @@ fn test_do_round_eliminations_unbreakable_tie_simultaneus_elimination() {
         ],
         name_references,
         tie_resolutions: vec![],
+        ..Default::default()
     };
 
     // Initialize all candidates as active
@@ -547,7 +551,7 @@ fn test_run_with_random_ballots() {
     // Initialize statuses
     let mut ballots_status = BallotsStatus::initialize_ballots_status(&votes, &contest);
     let mut runoff = RunoffStatus::initialize_runoff(&contest);
-    runoff.run(&mut ballots_status);
+    runoff.run_with_policy(&mut ballots_status);
 
     println!("RunoffStatus: {:#?}", runoff);
 
@@ -659,7 +663,7 @@ fn test_all_ballot_candidates_unselected() {
     // Initialize statuses and run
     let mut ballots_status = BallotsStatus::initialize_ballots_status(&votes, &contest);
     let mut runoff = RunoffStatus::initialize_runoff(&contest);
-    runoff.run(&mut ballots_status);
+    runoff.run_with_policy(&mut ballots_status);
 
     println!("RunoffStatus (all invalid): {:#?}", runoff);
 
@@ -853,7 +857,7 @@ fn test_tie_in_final_round() {
     // Initialize statuses and run
     let mut ballots_status = BallotsStatus::initialize_ballots_status(&votes, &contest);
     let mut runoff = RunoffStatus::initialize_runoff(&contest);
-    runoff.run(&mut ballots_status);
+    runoff.run_with_policy(&mut ballots_status);
 
     println!("RunoffStatus (tie scenario): {:#?}", runoff);
 

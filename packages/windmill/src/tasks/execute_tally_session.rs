@@ -11,8 +11,7 @@ use crate::postgres::reports::ReportType;
 use crate::postgres::results_event::insert_results_event;
 use crate::postgres::tally_session::get_tally_session_by_id;
 use crate::postgres::tally_session::{
-    append_tally_session_tie_break_annotation, update_tally_session_annotation,
-    update_tally_session_status,
+    update_tally_session_annotation, update_tally_session_status,
 };
 use crate::postgres::tally_session_contest::update_tally_session_contests_annotations;
 use crate::postgres::tally_session_execution::insert_tally_session_execution;
@@ -1213,7 +1212,7 @@ pub async fn execute_tally_session_wrapped(
             tenant_id.clone(),
             election_event_id.clone(),
             tally_session_id.clone(),
-            election_ids.clone().unwrap_or(vec![]),
+            election_ids.clone().unwrap_or_default(),
         )
         .await?
     else {
@@ -1441,7 +1440,7 @@ pub async fn execute_tally_session_wrapped(
                 .clone()
                 .map(|values| values.into_iter().map(|int| int as i32).collect());
             new_status.logs =
-                append_tally_updated(&new_status.logs, &election_ids.clone().unwrap_or(vec![]));
+                append_tally_updated(&new_status.logs, &election_ids.clone().unwrap_or_default());
             insert_tally_session_execution(
                 hasura_transaction,
                 &tenant_id,
@@ -1514,9 +1513,9 @@ pub async fn execute_tally_session_wrapped(
         .map(|values| values.clone().into_iter().map(|int| int as i32).collect());
 
     new_status.logs = if is_execution_completed {
-        append_tally_finished(&new_status.logs, &election_ids.clone().unwrap_or(vec![]))
+        append_tally_finished(&new_status.logs, &election_ids.clone().unwrap_or_default())
     } else {
-        append_tally_updated(&new_status.logs, &election_ids.clone().unwrap_or(vec![]))
+        append_tally_updated(&new_status.logs, &election_ids.clone().unwrap_or_default())
     };
 
     // insert tally_session_execution

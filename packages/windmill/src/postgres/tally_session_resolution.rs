@@ -6,6 +6,7 @@ use anyhow::{anyhow, Result};
 use deadpool_postgres::Transaction;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use tokio_postgres::Row;
 use tracing::{info, instrument};
 use uuid::Uuid;
 
@@ -64,6 +65,30 @@ impl std::fmt::Display for ResolutionStatus {
             ResolutionStatus::Cancelled => write!(f, "cancelled"),
         }
     }
+}
+
+fn map_row_to_resolution(row: &Row) -> Result<TallySessionResolution> {
+    let resolution_type_str: String = row.get(9);
+    let status_str: String = row.get(10);
+    Ok(TallySessionResolution {
+        id: row.get::<_, Uuid>(0).to_string(),
+        tenant_id: row.get::<_, Uuid>(1).to_string(),
+        election_event_id: row.get::<_, Uuid>(2).to_string(),
+        tally_session_id: row.get::<_, Uuid>(3).to_string(),
+        results_contest_id: row.get::<_, Option<Uuid>>(4).map(|u| u.to_string()),
+        contest_id: row.get::<_, Option<Uuid>>(5).map(|u| u.to_string()),
+        results_event_id: row.get::<_, Option<Uuid>>(6).map(|u| u.to_string()),
+        created_at: row.get(7),
+        last_updated_at: row.get(8),
+        resolution_type: serde_json::from_value(serde_json::Value::String(resolution_type_str))?,
+        status: serde_json::from_value(serde_json::Value::String(status_str))?,
+        resolution_data: row.get(11),
+        resolution: row.get(12),
+        resolved_by_user: row.get::<_, Option<Uuid>>(13).map(|u| u.to_string()),
+        resolved_at: row.get(14),
+        labels: row.get(15),
+        annotations: row.get(16),
+    })
 }
 
 /// Create a new pending resolution
@@ -146,28 +171,7 @@ pub async fn get_pending_resolutions(
 
     let mut resolutions = Vec::new();
     for row in rows {
-        let resolution_type_str: String = row.get(9);
-        let status_str: String = row.get(10);
-
-        resolutions.push(TallySessionResolution {
-            id: row.get::<_, Uuid>(0).to_string(),
-            tenant_id: row.get::<_, Uuid>(1).to_string(),
-            election_event_id: row.get::<_, Uuid>(2).to_string(),
-            tally_session_id: row.get::<_, Uuid>(3).to_string(),
-            results_contest_id: row.get::<_, Option<Uuid>>(4).map(|u| u.to_string()),
-            contest_id: row.get::<_, Option<Uuid>>(5).map(|u| u.to_string()),
-            results_event_id: row.get::<_, Option<Uuid>>(6).map(|u| u.to_string()),
-            created_at: row.get(7),
-            last_updated_at: row.get(8),
-            resolution_type: serde_json::from_str(&format!("\"{}\"", resolution_type_str))?,
-            status: serde_json::from_str(&format!("\"{}\"", status_str))?,
-            resolution_data: row.get(11),
-            resolution: row.get(12),
-            resolved_by_user: row.get::<_, Option<Uuid>>(13).map(|u| u.to_string()),
-            resolved_at: row.get(14),
-            labels: row.get(15),
-            annotations: row.get(16),
-        });
+        resolutions.push(map_row_to_resolution(&row)?);
     }
 
     Ok(resolutions)
@@ -208,28 +212,7 @@ pub async fn get_resolution_by_tally_session(
 
     let mut resolutions = Vec::new();
     for row in rows {
-        let resolution_type_str: String = row.get(9);
-        let status_str: String = row.get(10);
-
-        resolutions.push(TallySessionResolution {
-            id: row.get::<_, Uuid>(0).to_string(),
-            tenant_id: row.get::<_, Uuid>(1).to_string(),
-            election_event_id: row.get::<_, Uuid>(2).to_string(),
-            tally_session_id: row.get::<_, Uuid>(3).to_string(),
-            results_contest_id: row.get::<_, Option<Uuid>>(4).map(|u| u.to_string()),
-            contest_id: row.get::<_, Option<Uuid>>(5).map(|u| u.to_string()),
-            results_event_id: row.get::<_, Option<Uuid>>(6).map(|u| u.to_string()),
-            created_at: row.get(7),
-            last_updated_at: row.get(8),
-            resolution_type: serde_json::from_str(&format!("\"{}\"", resolution_type_str))?,
-            status: serde_json::from_str(&format!("\"{}\"", status_str))?,
-            resolution_data: row.get(11),
-            resolution: row.get(12),
-            resolved_by_user: row.get::<_, Option<Uuid>>(13).map(|u| u.to_string()),
-            resolved_at: row.get(14),
-            labels: row.get(15),
-            annotations: row.get(16),
-        });
+        resolutions.push(map_row_to_resolution(&row)?);
     }
 
     Ok(resolutions)

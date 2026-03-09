@@ -1503,6 +1503,31 @@ impl Contest {
     pub fn get_tie_breaking_policy(&self) -> TieBreakingPolicy {
         self.tie_breaking_policy.clone().unwrap_or_default()
     }
+
+    /// Get per-round tie resolutions from contest annotations.
+    /// Returns a map of round_number → resolved_by_candidate_id.
+    pub fn get_tie_resolutions(&self) -> HashMap<u64, String> {
+        self.annotations
+            .as_ref()
+            .and_then(|annotations| annotations.get("tie_resolutions"))
+            .and_then(|json_str| {
+                serde_json::from_str::<Vec<serde_json::Value>>(json_str).ok()
+            })
+            .map(|vec| {
+                vec.into_iter()
+                    .filter_map(|v| {
+                        let round_number =
+                            v.get("round_number").and_then(|n| n.as_u64())?;
+                        let candidate_id = v
+                            .get("resolved_by_candidate_id")
+                            .and_then(|s| s.as_str())?
+                            .to_string();
+                        Some((round_number, candidate_id))
+                    })
+                    .collect()
+            })
+            .unwrap_or_default()
+    }
 }
 
 #[allow(non_camel_case_types)]

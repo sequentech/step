@@ -501,8 +501,9 @@ pub async fn submit_tally_resolution(
         });
 
         let resolution_id = latest_resolution.id.clone();
+        let resubmission = is_resubmission(latest_resolution);
 
-        if !is_resubmission(latest_resolution) {
+        if !resubmission {
             // First submission: resolve the existing pending record
             submit_resolution(
                 &hasura_transaction,
@@ -545,7 +546,7 @@ pub async fn submit_tally_resolution(
         }
 
         // Log to electoral log
-        let event_type = if is_resubmission(latest_resolution) {
+        let event_type = if resubmission {
             "tally_tie_resolution_updated"
         } else {
             "tally_tie_resolved"
