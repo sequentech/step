@@ -27,6 +27,7 @@ use sequent_core::serialization::deserialize_with_path::*;
 use sequent_core::services::generate_urls::get_auth_url;
 use sequent_core::services::generate_urls::AuthAction;
 use sequent_core::services::keycloak::{get_event_realm, get_tenant_realm};
+use sequent_core::services::translations::Name;
 use sequent_core::services::{keycloak, reports};
 use sequent_core::types::hasura::core::ElectionEvent;
 use sequent_core::types::keycloak::{User, UserArea, AREA_ID_ATTR_NAME};
@@ -61,11 +62,12 @@ fn get_variables(
     );
     variables.insert("tenant_id".to_string(), json!(tenant_id.clone()));
     if let Some(ref election_event) = election_event {
+        let default_language = election_event.get_default_language();
         variables.insert(
             "election_event".to_string(),
             json!({
                 "id": election_event.id.clone(),
-                "name": election_event.name.clone(),
+                "name": election_event.get_name(&default_language)
             }),
         );
         variables.insert(

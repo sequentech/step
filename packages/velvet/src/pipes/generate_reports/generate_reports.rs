@@ -221,6 +221,7 @@ impl GenerateReports {
 
                 ReportDataComputed {
                     election_name: report.election_name.clone(),
+                    election_alias: report.election_alias.clone(),
                     election_id: report.election_id.clone(),
                     election_event_id: report.election_event_id.clone(),
                     tenant_id: report.tenant_id.clone(),
@@ -535,7 +536,8 @@ impl GenerateReports {
                 )?;
 
                 reports.push(ReportData {
-                    election_name: election_input.alias.clone(),
+                    election_name: election_input.name.clone(),
+                    election_alias: election_input.alias.clone(),
                     election_id: election_input.id.to_string(),
                     election_event_id: contest_input.contest.election_event_id.clone(),
                     tenant_id: contest_input.contest.tenant_id.clone(),
@@ -570,6 +572,7 @@ impl GenerateReports {
 
                     reports.push(ReportData {
                         election_name: election_input.name.clone(),
+                        election_alias: election_input.alias.clone(),
                         election_id: election_input.id.to_string(),
                         election_event_id: contest_input.contest.election_event_id.clone(),
                         tenant_id: contest_input.contest.tenant_id.clone(),
@@ -610,6 +613,7 @@ impl GenerateReports {
         &self,
         election_id: &Uuid,
         election_name: &str,
+        election_alias: &str,
         election_description: &str,
         election_dates: &Option<StringifiedPeriodDates>,
         election_annotations: &HashMap<String, String>,
@@ -686,6 +690,7 @@ impl GenerateReports {
 
             let report = ReportData {
                 election_name: election_name.to_string(),
+                election_alias: election_alias.to_string(),
                 election_id: election_id.to_string(),
                 election_event_id: contest.election_event_id.clone(),
                 tenant_id: contest.tenant_id.clone(),
@@ -720,6 +725,7 @@ impl GenerateReports {
         &self,
         election_id: &Uuid,
         election_name: &str,
+        election_alias: &str,
         election_description: &str,
         election_dates: &Option<StringifiedPeriodDates>,
         election_annotations: &HashMap<String, String>,
@@ -758,6 +764,7 @@ impl GenerateReports {
         let breakdowns = self.read_breakdowns(
             election_id,
             election_name,
+            election_alias,
             election_description,
             election_dates,
             &election_annotations,
@@ -772,6 +779,7 @@ impl GenerateReports {
 
         let report = ReportData {
             election_name: election_name.to_string(),
+            election_alias: election_alias.to_string(),
             election_id: election_id.to_string(),
             election_event_id: contest.election_event_id.clone(),
             tenant_id: contest.tenant_id.clone(),
@@ -974,6 +982,7 @@ impl Pipe for GenerateReports {
                                         self.make_report(
                                             &election_input.id,
                                             &election_input.name,
+                                            &election_input.alias,
                                             &election_input.description,
                                             &election_input.dates,
                                             &election_input.annotations,
@@ -1000,6 +1009,7 @@ impl Pipe for GenerateReports {
                                     self.make_report(
                                         &election_input.id,
                                         &election_input.name,
+                                        &election_input.alias,
                                         &election_input.description,
                                         &election_input.dates,
                                         &election_input.annotations,
@@ -1018,6 +1028,7 @@ impl Pipe for GenerateReports {
                                 self.make_report(
                                     &election_input.id,
                                     &election_input.name,
+                                    &election_input.alias,
                                     &election_input.description,
                                     &election_input.dates,
                                     &election_input.annotations,
@@ -1040,6 +1051,7 @@ impl Pipe for GenerateReports {
                         let contest_report = self.make_report(
                             &election_input.id,
                             &election_input.name,
+                            &election_input.alias,
                             &election_input.description,
                             &election_input.dates,
                             &election_input.annotations,
@@ -1106,6 +1118,7 @@ impl Pipe for GenerateReports {
                                         self.make_report(
                                             &election_input.id,
                                             &election_input.name,
+                                            &election_input.alias,
                                             &election_input.description,
                                             &election_input.dates,
                                             &election_input.annotations,
@@ -1228,6 +1241,7 @@ impl From<AreaConfig> for BasicArea {
 #[derive(Debug, Clone)]
 pub struct ReportData {
     pub election_name: String,
+    pub election_alias: String,
     pub election_id: String,
     pub election_event_id: String,
     pub tenant_id: String,
@@ -1255,6 +1269,7 @@ pub struct ElectionReportDataComputed {
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct ReportDataComputed {
     pub election_name: String,
+    pub election_alias: String,
     pub election_id: String,
     pub election_event_id: String,
     pub tenant_id: String,
@@ -1277,6 +1292,7 @@ impl From<ReportDataComputed> for ReportData {
     fn from(item: ReportDataComputed) -> Self {
         ReportData {
             election_name: item.election_name.clone(),
+            election_alias: item.election_alias.clone(),
             election_id: item.election_id.clone(),
             election_description: item.election_description.clone(),
             election_dates: item.election_dates.clone(),

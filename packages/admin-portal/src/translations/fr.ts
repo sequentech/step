@@ -587,6 +587,7 @@ const frenchTranslation: TranslationType = {
                 alias: "Alias",
                 description: "Description",
                 securityConfirmationHtml: "Confirmation de sécurité HTML",
+                externalId: "ID externe",
             },
             securityConfirmationPolicy: {
                 label: "Politique de la case à cocher de confirmation de sécurité",

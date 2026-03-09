@@ -92,7 +92,6 @@ pub struct ElectionEvent {
     pub labels: Option<Value>,
     pub annotations: Option<Value>,
     pub tenant_id: String,
-    pub name: String,
     pub description: Option<String>,
     pub presentation: Option<Value>,
     pub bulletin_board_reference: Option<Value>,
@@ -104,8 +103,8 @@ pub struct ElectionEvent {
     pub is_audit: Option<bool>,
     pub audit_election_event_id: Option<String>,
     pub public_key: Option<String>,
-    pub alias: Option<String>,
     pub statistics: Option<Value>,
+    pub external_id: Option<String>,
 }
 
 #[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
@@ -117,16 +116,15 @@ pub struct Election {
     pub last_updated_at: Option<DateTime<Local>>,
     pub labels: Option<Value>,
     pub annotations: Option<Value>,
-    pub name: String,
     pub description: Option<String>,
     pub presentation: Option<Value>,
     pub status: Option<Value>,
     pub eml: Option<String>,
+    pub external_id: Option<String>,
     pub num_allowed_revotes: Option<i64>,
     pub is_consolidated_ballot_encoding: Option<bool>,
     pub spoil_ballot_option: Option<bool>,
     pub is_kiosk: Option<bool>,
-    pub alias: Option<String>,
     pub voting_channels: Option<Value>,
     pub image_document_id: Option<String>,
     pub statistics: Option<Value>,
@@ -148,8 +146,6 @@ pub struct Contest {
     pub annotations: Option<Value>,
     pub is_acclaimed: Option<bool>,
     pub is_active: Option<bool>,
-    pub name: Option<String>,
-    pub alias: Option<String>,
     pub description: Option<String>,
     pub presentation: Option<Value>,
     pub min_votes: Option<i64>,
@@ -161,6 +157,7 @@ pub struct Contest {
     pub tally_configuration: Option<Value>,
     pub image_document_id: Option<String>,
     pub conditions: Option<Value>,
+    pub external_id: Option<String>,
 }
 
 #[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
@@ -173,13 +170,12 @@ pub struct Candidate {
     pub last_updated_at: Option<DateTime<Local>>,
     pub labels: Option<Value>,
     pub annotations: Option<Value>,
-    pub name: Option<String>,
-    pub alias: Option<String>,
     pub description: Option<String>,
     pub r#type: Option<String>,
     pub presentation: Option<Value>,
     pub is_public: Option<bool>,
     pub image_document_id: Option<String>,
+    pub external_id: Option<String>,
 }
 
 #[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
