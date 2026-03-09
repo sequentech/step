@@ -40,6 +40,7 @@ use deadpool_postgres::{Client as DbClient, Transaction};
 use sequent_core::ballot::Annotations;
 use sequent_core::serialization::deserialize_with_path::{deserialize_str, deserialize_value};
 use sequent_core::services::date::ISO8601;
+use sequent_core::services::translations::Name;
 use sequent_core::signatures::ecies_encrypt::generate_ecies_key_pair;
 use sequent_core::types::ceremonies::Log;
 use sequent_core::types::date_time::TimeZone;
@@ -399,10 +400,12 @@ pub async fn create_transmission_package_service(
     } else {
         vec![]
     };
+
+    let election_name = election.get_name(&election.get_default_language());
     logs.push(create_transmission_package_log(
         &now_local,
         election_id,
-        &election.name,
+        &election_name,
         area_id,
         &area_name,
     ));
