@@ -534,6 +534,7 @@ const galegoTranslation: TranslationType = {
                 scheduledClosing: "Peche Programado",
                 alias: "Alias",
                 description: "Descrición",
+                externalId: "ID externo",
             },
             error: {
                 fileError: "Erro ao cargar o ficheiro",

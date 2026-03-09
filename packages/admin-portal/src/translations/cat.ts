@@ -534,6 +534,7 @@ const catalanTranslation: TranslationType = {
                 scheduledClosing: "Tancament Programat",
                 alias: "Àlies",
                 description: "Descripció",
+                externalId: "ID extern",
             },
             error: {
                 fileError: "Error al carregar el fitxer",

@@ -535,6 +535,7 @@ const basqueTranslation: TranslationType = {
                 scheduledClosing: "Programatutako Itxiera",
                 alias: "Ezizena",
                 description: "Deskribapena",
+                externalId: "Kanpoko IDa",
             },
             error: {
                 fileError: "Errorea fitxategia igotzean",

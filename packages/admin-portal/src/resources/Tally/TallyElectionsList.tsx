@@ -60,7 +60,6 @@ export const TallyElectionsList: React.FC<TallyElectionsListProps> = (props) => 
                     ...election,
                     rowId: index,
                     id: election.id || "",
-                    name: election.name,
                     active: true,
                 }))
                 .filter((election) =>

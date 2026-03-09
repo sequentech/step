@@ -24,6 +24,7 @@ use sequent_core::serialization::deserialize_with_path::deserialize_value;
 use sequent_core::services::keycloak::get_event_realm;
 use sequent_core::services::pdf;
 use sequent_core::services::s3::get_minio_url;
+use sequent_core::services::translations::Name;
 use sequent_core::util::temp_path::*;
 use sequent_core::{ballot::ElectionStatus, ballot::VotingStatus};
 use serde::{Deserialize, Serialize};
@@ -193,7 +194,9 @@ impl TemplateRenderer for StatusTemplate {
         let election_dates = get_election_dates(&election, scheduled_events)
             .map_err(|e| anyhow::anyhow!("Error getting election dates {e}"))?;
         let date_printed = get_date_and_time();
-        let election_title = election_event.name.clone();
+
+        let language = election_event.get_default_language();
+        let election_title: String = election_event.get_name(&language);
 
         let app_hash = get_app_hash();
         let app_version = get_app_version();

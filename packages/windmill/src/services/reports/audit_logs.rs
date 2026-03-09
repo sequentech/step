@@ -49,6 +49,7 @@ use sequent_core::services::date::ISO8601;
 use sequent_core::services::keycloak::{self, get_event_realm, get_tenant_realm};
 use sequent_core::services::pdf;
 use sequent_core::services::s3::get_minio_url;
+use sequent_core::services::translations::Name;
 use sequent_core::types::hasura::core::{Election, TasksExecution};
 use sequent_core::util::temp_path::*;
 use serde::{Deserialize, Serialize};
@@ -259,8 +260,9 @@ impl AuditLogsTemplate {
         .await
         .map_err(|err| anyhow!("Error at count_ballots_by_election: {err:?}"))?;
 
+        let language = election_event.get_default_language();
         Ok(UserData {
-            election_event_title: election_event.name.clone(),
+            election_event_title: election_event.get_name(&language).clone(),
             election_dates,
             geographical_region,
             post,

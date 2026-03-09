@@ -531,6 +531,7 @@ const dutchTranslation: TranslationType = {
                 scheduledClosing: "Geplande Sluiting",
                 alias: "Alias",
                 description: "Beschrijving",
+                externalId: "Externe ID",
             },
             error: {
                 fileError: "Fout bij uploaden bestand",

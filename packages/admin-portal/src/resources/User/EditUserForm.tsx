@@ -65,6 +65,7 @@ import {useUsersPermissions} from "./useUsersPermissions"
 import debounce from "lodash/debounce"
 import {CustomAutocompleteArrayInput} from "@sequentech/ui-essentials"
 import {useCustomNotify} from "@/hooks/useCustomNotify"
+import {AUTHORIZED_ELECTION_IDS} from "./ListUsers"
 
 interface ListUserRolesProps {
     userId?: string
@@ -569,6 +570,14 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
         return {"name@_ilike,alias@_ilike": searched.current}
     }
 
+    const formattedElections = electionsList?.map((e) => {
+        return {
+            external_id: e.alias ?? "",
+            id: e.id,
+            name: aliasRenderer(e),
+        }
+    })
+
     const renderFormField = useCallback(
         (attr: UserProfileAttribute, index: number) => {
             if (attr.name) {
@@ -740,7 +749,7 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                             />
                         </FormControl>
                     )
-                } else if (attr.name.toLowerCase().includes("authorized-election-ids")) {
+                } else if (attr.name.toLowerCase().includes(AUTHORIZED_ELECTION_IDS)) {
                     return (
                         <>
                             <FormStyles.AutocompleteArrayInput
@@ -748,10 +757,10 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                                 label={getTranslationLabel(attr.name, attr.display_name, t)}
                                 className="elections-selector"
                                 fullWidth
-                                choices={electionsList || []}
-                                source="attributes.authorized-election-ids"
-                                optionValue="alias"
-                                optionText={aliasRenderer}
+                                choices={formattedElections || []}
+                                source={`attributes.${AUTHORIZED_ELECTION_IDS}`}
+                                optionValue={"external_id"}
+                                optionText={"name"}
                                 onChange={handleArraySelectChange}
                                 disabled={
                                     !(

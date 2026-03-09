@@ -5,7 +5,7 @@ import React, {useEffect, useState} from "react"
 import {Box, Typography} from "@mui/material"
 import {useTranslation} from "react-i18next"
 import {Dialog, PageLimit, theme} from "@sequentech/ui-essentials"
-import {IElection, stringToHtml, translateElection} from "@sequentech/ui-core"
+import {IElection, stringToHtml, translateFromPresentation} from "@sequentech/ui-core"
 import {styled} from "@mui/material/styles"
 import {Link as RouterLink, useLocation, useNavigate, useParams} from "react-router-dom"
 import Button from "@mui/material/Button"
@@ -128,11 +128,13 @@ const StartScreen: React.FC = () => {
                 <Stepper selected={1} />
             </Box>
             <StyledTitle variant="h3" justifyContent="center" fontWeight="bold">
-                <span>{translateElection(election, "name", i18n.language) ?? "-"}</span>
+                <span>{translateFromPresentation(election, "name", i18n.language) ?? "-"}</span>
             </StyledTitle>
             {election.description ? (
                 <Typography variant="body2" sx={{color: theme.palette.customGrey.main}}>
-                    {stringToHtml(translateElection(election, "description", i18n.language) ?? "-")}
+                    {stringToHtml(
+                        translateFromPresentation(election, "description", i18n.language) ?? "-"
+                    )}
                 </Typography>
             ) : null}
             <Typography variant="h5">{t("startScreen.instructionsTitle")}</Typography>

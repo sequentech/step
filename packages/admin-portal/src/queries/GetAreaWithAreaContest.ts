@@ -12,6 +12,7 @@ export const GET_AREA_WITH_AREA_CONTESTS = gql`
             contest {
                 name
                 alias
+                presentation
             }
             id
         }

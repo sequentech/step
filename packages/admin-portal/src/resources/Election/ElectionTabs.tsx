@@ -21,9 +21,10 @@ import {IPermissions} from "@/types/keycloak"
 import {EditElectionEventUsers} from "../ElectionEvent/EditElectionEventUsers"
 import {ResourceListStyles} from "@/components/styles/ResourceListStyles"
 import {Box, Typography} from "@mui/material"
-import {EElectionEventLockedDown, i18n, translateElection} from "@sequentech/ui-core"
+import {EElectionEventLockedDown} from "@sequentech/ui-core"
 import {EditElectionEventApprovals} from "../ElectionEvent/EditElectionEventApprovals"
 import {Tabs} from "@/components/Tabs"
+import {useAliasRenderer} from "@/hooks/useAliasRenderer"
 
 export const ElectionTabs: React.FC = () => {
     const record = useRecordContext<Sequent_Backend_Election>()
@@ -33,6 +34,7 @@ export const ElectionTabs: React.FC = () => {
     const usersPermissionLabels = authContext.permissionLabels
     const [hasPermissionToViewElection, setHasPermissionToViewElection] = useState<boolean>(true)
     const [open] = useSidebarState()
+    const aliasRenderer = useAliasRenderer()
 
     const isElectionEventLocked =
         record?.presentation?.locked_down == EElectionEventLockedDown.LOCKED_DOWN
@@ -94,13 +96,7 @@ export const ElectionTabs: React.FC = () => {
             className="election-box"
         >
             <ElectionHeader
-                title={
-                    translateElection(record, "alias", i18n?.language) ||
-                    translateElection(record, "name", i18n?.language) ||
-                    record?.alias ||
-                    record?.name ||
-                    "-"
-                }
+                title={aliasRenderer(record)}
                 subtitle="electionScreen.common.subtitle"
             />
             <Tabs

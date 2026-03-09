@@ -9,7 +9,7 @@ import {Dialog, IconButton, PageLimit, SelectElection, theme} from "@sequentech/
 import {
     isString,
     stringToHtml,
-    translateElection,
+    translateFromPresentation,
     EVotingStatus,
     IElectionEventStatus,
     isUndefined,
@@ -171,7 +171,7 @@ const ElectionWrapper: React.FC<ElectionWrapperProps> = ({
         <SelectElection
             isActive={canVote()}
             isOpen={isVotingOpen}
-            title={translateElection(election, "name", i18n.language) || "-"}
+            title={translateFromPresentation(election, "name", i18n.language) || "-"}
             hasVoted={castVotes.length > 0}
             onClickToVote={canVote() ? onClickToVote : undefined}
             onClickBallotLocator={handleClickBallotLocator}

@@ -12,10 +12,11 @@ import {useElectionEventTallyStore} from "@/providers/ElectionEventTallyProvider
 import {useLocation, useNavigate} from "react-router-dom"
 import {v4 as uuidv4} from "uuid"
 import {EPublishType} from "../Publish/EPublishType"
-import {EElectionEventLockedDown, i18n, translateElection} from "@sequentech/ui-core"
+import {EElectionEventLockedDown, i18n} from "@sequentech/ui-core"
 import {Box, CircularProgress} from "@mui/material"
 import {Tabs} from "@/components/Tabs"
 import {Dialog} from "@sequentech/ui-essentials"
+import {useAliasRenderer} from "@/hooks/useAliasRenderer"
 
 // Lazy load the tab components
 const DashboardElectionEvent = lazy(() => import("@/components/dashboard/election-event/Dashboard"))
@@ -81,6 +82,7 @@ export const ElectionEventTabs: React.FC = () => {
         record?.presentation?.locked_down == EElectionEventLockedDown.LOCKED_DOWN
     const {setTallyId} = useElectionEventTallyStore()
     const [open] = useSidebarState()
+    const aliasRenderer = useAliasRenderer()
 
     const showDashboard = authContext.isAuthorized(
         true,
@@ -201,13 +203,7 @@ export const ElectionEventTabs: React.FC = () => {
             className="events-box"
         >
             <ElectionHeader
-                title={
-                    translateElection(record, "alias", i18n.language) ||
-                    translateElection(record, "name", i18n.language) ||
-                    record.alias ||
-                    record.name ||
-                    "-"
-                }
+                title={aliasRenderer(record)}
                 subtitle="electionEventScreen.common.subtitle"
             />
             <Box
