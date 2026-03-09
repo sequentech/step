@@ -1142,7 +1142,7 @@ mod tests {
 
         let reports: TemplateData = serde_json::from_reader(f)?;
         let report = &reports.reports[0];
-        let contest_result = report.contest_result.unwrap_or_default();
+        let contest_result = report.contest_result.clone().unwrap_or_default();
 
         assert_eq!(contest_result.total_votes, 142, "total_votes");
         assert_eq!(contest_result.total_invalid_votes, 2, "total_invalid_votes");
@@ -1171,7 +1171,7 @@ mod tests {
 
         let reports: TemplateData = serde_json::from_reader(f)?;
         let report = &reports.reports[0];
-        let contest_result = report.contest_result.unwrap_or_default();
+        let contest_result = report.contest_result.clone().unwrap_or_default();
 
         assert_eq!(contest_result.total_votes, 100);
         assert_eq!(contest_result.total_invalid_votes, 1, "total_invalid_votes");
@@ -1199,7 +1199,7 @@ mod tests {
 
         let reports: TemplateData = serde_json::from_reader(f)?;
         let report = &reports.reports[0];
-        let contest_result = report.contest_result.unwrap_or_default();
+        let contest_result = report.contest_result.clone().unwrap_or_default();
 
         assert_eq!(contest_result.total_votes, 20);
         assert_eq!(contest_result.total_valid_votes, 19);
@@ -1308,7 +1308,7 @@ mod tests {
 
         let reports: TemplateData = deserialize_str(&buffer)?;
         let report = &reports.reports[0];
-        let contest_result = report.contest_result.unwrap_or_default();
+        let contest_result = report.contest_result.clone().unwrap_or_default();
 
         assert_eq!(contest_result.total_votes, 0);
         assert_eq!(contest_result.census, 100);
@@ -1460,7 +1460,7 @@ mod tests {
 
         let reports: TemplateData = serde_json::from_reader(f)?;
         let report = &reports.reports[0];
-        let contest_result = report.contest_result.unwrap_or_default();
+        let contest_result = report.contest_result.clone().unwrap_or_default();
 
         assert_eq!(contest_result.total_votes, 10);
         assert_eq!(contest_result.census, 100);
@@ -1621,7 +1621,7 @@ mod tests {
 
         let reports: TemplateData = serde_json::from_reader(f)?;
         let report = &reports.reports[0];
-        let contest_result = report.contest_result.unwrap_or_default();
+        let contest_result = report.contest_result.clone().unwrap_or_default();
 
         assert_eq!(contest_result.census, 100);
         assert_eq!(
@@ -1809,7 +1809,7 @@ mod tests {
             let f = fs::File::open(&report_path)?;
             let reports: TemplateData = serde_json::from_reader(f)?;
             let report = &reports.reports[0];
-            let contest_result = report.contest_result.unwrap_or_default();
+            let contest_result = report.contest_result.clone().unwrap_or_default();
 
             assert_eq!(
                 contest_result.total_votes, 10,
@@ -1824,7 +1824,7 @@ mod tests {
                 let f = fs::File::open(&aggregate_report_path)?;
                 let reports: TemplateData = serde_json::from_reader(f)?;
                 let report = &reports.reports[0];
-                let contest_result = report.contest_result.unwrap_or_default();
+                let contest_result = report.contest_result.clone().unwrap_or_default();
                 assert_eq!(
                     contest_result.total_votes,
                     // in parent, aggregate is 20: 10 from the children + 10
