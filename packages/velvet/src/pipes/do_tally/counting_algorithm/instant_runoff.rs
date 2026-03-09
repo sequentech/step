@@ -700,9 +700,11 @@ impl RunoffStatus {
     }
 
     /// Run the IRV algorithm. Returns self after completion or after pausing for external tie input.
-    /// Check `self.pending_tie` to determine if external input is required.
+    /// Check `self.pending_tie_resolution` to determine if external input is required.
     #[instrument(skip_all)]
     pub fn run_with_policy(&mut self, ballots_status: &mut BallotsStatus) -> RunoffStatus {
+        // Clear any pending tie from a previous (paused) run before starting/resuming.
+        self.pending_tie_resolution = None;
         let mut iterations = 0;
         while iterations < self.max_rounds {
             match self.run_next_round(ballots_status) {
