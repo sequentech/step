@@ -65,14 +65,14 @@ import {UpsertArea} from "./resources/Area/UpsertArea"
 
 interface AppProps {}
 
-const StyledApp = styled(Box)<{css: string}>`
-    ${({css}) => css}
+const StyledApp = styled(Box)<{customCss: string}>`
+    ${({customCss}) => customCss}
 `
 
 export const StyledAppAtom: React.FC<{children: React.ReactNode}> = ({children}) => {
     const css = useAtomValue(cssInputLookAndFeel)
     return (
-        <StyledApp className="felix-ttt" css={css}>
+        <StyledApp className="felix-ttt" customCss={css}>
             {children}
         </StyledApp>
     )
