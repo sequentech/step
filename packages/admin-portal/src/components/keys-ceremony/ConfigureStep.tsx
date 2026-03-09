@@ -38,7 +38,7 @@ import {
 } from "react-admin"
 import ArrowForwardIosIcon from "@mui/icons-material/ArrowForwardIos"
 import ArrowBackIosIcon from "@mui/icons-material/ArrowBackIos"
-import {FieldValues, SubmitHandler} from "react-hook-form"
+import {FieldValues, SubmitHandler, useFormContext, useWatch} from "react-hook-form"
 import {useMutation} from "@apollo/client"
 import {useTranslation} from "react-i18next"
 import {CREATE_KEYS_CEREMONY} from "@/queries/CreateKeysCeremony"
@@ -46,6 +46,7 @@ import {useTenantStore} from "@/providers/TenantContextProvider"
 import {Dialog} from "@sequentech/ui-essentials"
 import {
     EElectionEventCeremoniesPolicy,
+    ETrusteeModePolicy,
     IElectionEventPresentation,
     isNull,
 } from "@sequentech/ui-core"
@@ -73,6 +74,42 @@ const TRUSTEE_CHECKBOXES_SX = {
         flexFlow: "column",
         overflowY: "scroll",
     },
+}
+
+/**
+ * Shows the automatic-ceremony toggle only when the election event policy
+ * allows it AND disables it (forcing the value to false) whenever any
+ * currently selected trustee is configured as browser-based.
+ *
+ * Automatic ceremonies require server-based trustees because the admin's
+ * browser cannot supply each trustee's private braid keys.
+ */
+const AutomaticCeremonyToggle: React.FC<{
+    trusteeList?: Sequent_Backend_Trustee[]
+    isElectionEventAutomatedCeremonyPolicy: boolean
+    label: string
+}> = ({trusteeList, isElectionEventAutomatedCeremonyPolicy, label}) => {
+    const {setValue} = useFormContext()
+    const selectedNames: string[] = (useWatch({name: ["trusteeNames"]}) as string[]) ?? []
+
+    const hasAnyBrowserBased = selectedNames.some((name) => {
+        const trustee = trusteeList?.find((t) => t.name === name)
+        const policy = trustee?.annotations?.trustee_mode_policy
+        // Default policy is browser-based when unset
+        return !policy || policy === ETrusteeModePolicy.BROWSER_BASED
+    })
+
+    useEffect(() => {
+        if (hasAnyBrowserBased) {
+            setValue("isAutomatic", false)
+        }
+    }, [hasAnyBrowserBased, setValue])
+
+    if (!isElectionEventAutomatedCeremonyPolicy) {
+        return null
+    }
+
+    return <BooleanInput disabled={hasAnyBrowserBased} source="isAutomatic" label={label} />
 }
 
 export interface ConfigureStepProps {
@@ -386,15 +423,15 @@ export const ConfigureStep: React.FC<ConfigureStepProps> = ({
                             }}
                             variant="filled"
                         />
-                        {isElectionEventAutomatedCeremonyPolicy && (
-                            <BooleanInput
-                                disabled={!isElectionEventAutomatedCeremonyPolicy}
-                                source="isAutomatic"
-                                label={String(
-                                    t("keysGeneration.configureStep.automaticCeremonyToggle")
-                                )}
-                            />
-                        )}
+                        <AutomaticCeremonyToggle
+                            trusteeList={trusteeList}
+                            isElectionEventAutomatedCeremonyPolicy={
+                                isElectionEventAutomatedCeremonyPolicy
+                            }
+                            label={String(
+                                t("keysGeneration.configureStep.automaticCeremonyToggle")
+                            )}
+                        />
                         {trusteeList ? (
                             <>
                                 <InputLabel dir={i18n.dir(i18n.language)}>
