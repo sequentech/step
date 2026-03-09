@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
@@ -9,14 +9,13 @@ import {
     Button,
     Datagrid,
     Identifier,
-    List,
+    ListContextProvider,
     SaveButton,
     SimpleForm,
-    SortPayload,
     TextField,
     TextInput,
     WrapperField,
-    useListContext,
+    useList,
     useNotify,
     useRecordContext,
     useUpdate,
@@ -28,6 +27,7 @@ import {Sequent_Backend_Election_Event_Extended} from "./EditElectionEventDataFo
 import {Action, ActionsColumn} from "@/components/ActionButons"
 import {
     Box,
+    Card,
     Drawer,
     FormControl,
     InputLabel,
@@ -39,93 +39,74 @@ import {
 } from "@mui/material"
 import {useTranslation} from "react-i18next"
 import {PageHeaderStyles} from "@/components/styles/PageHeaderStyles"
-import _ from "lodash"
 import {useLocalizationPermissions} from "./useLocalizationPermissions"
 
 interface LocalizationListProps {
     selectedLanguage: string
-    election_event_id: string
     actions: Action[]
 }
 
-const LocalizationList: React.FC<LocalizationListProps> = ({
-    selectedLanguage,
-    election_event_id,
-    actions,
-}) => {
-    const {data, isLoading} = useListContext()
+const LocalizationList: React.FC<LocalizationListProps> = ({selectedLanguage, actions}) => {
     const {t} = useTranslation()
-    const [page, setPage] = useState(0)
-    const [pageSize, setPageSize] = useState(10)
-    const [sort, setSort] = useState<SortPayload>({
-        field: "id",
-        order: "ASC",
+    const record = useRecordContext<Sequent_Backend_Election_Event_Extended>()
+
+    const translationData = useMemo(() => {
+        return Object.entries(record?.presentation?.i18n?.[selectedLanguage] || {}).map(
+            ([key, value]) => ({
+                id: key,
+                value: value as string,
+            })
+        )
+    }, [record?.presentation?.i18n, selectedLanguage])
+
+    const listContext = useList({
+        data: translationData,
+        perPage: 10,
     })
 
-    const targetElectionEvent = useMemo(() => {
-        return data?.find((e) => e.id === election_event_id)
-    }, [data, isLoading, election_event_id])
-
-    const translationData = Object.entries(
-        targetElectionEvent?.presentation?.i18n?.[selectedLanguage] || {}
-    ).map(([key, value]) => ({
-        id: key,
-        value: value,
-    }))
-
-    const sortedTranslationData = useMemo(() => {
-        //@ts-ignore
-        return _.orderBy(translationData, [sort.field], [sort.order.toLowerCase()])
-    }, [translationData, sort])
-
-    const paginatedData = useMemo(() => {
-        return _.chunk(sortedTranslationData, pageSize)
-    }, [sortedTranslationData, pageSize])
-
-    if (isLoading) {
-        return <p>{t("loading")}</p>
-    }
-
-    const handlePageChange = (e: any, page: number) => {
-        setPage(page)
-    }
-
-    const handleRowsChange = (v: number) => {
-        setPageSize(v)
-    }
-
     return (
-        <>
-            <Datagrid
-                data={paginatedData[page]}
-                total={translationData.length}
-                bulkActionButtons={false}
-                sort={sort}
-                setSort={setSort}
-            >
-                <TextField source="id" label={t("electionEventScreen.localization.labels.key")} />
-                <TextField
-                    source="value"
-                    label={t("electionEventScreen.localization.labels.value")}
-                />
-                <WrapperField label="Actions">
-                    <ActionsColumn actions={actions} />
-                </WrapperField>
-            </Datagrid>
+        <ListContextProvider value={listContext}>
+            <Card>
+                <Datagrid
+                    bulkActionButtons={false}
+                    sx={{
+                        "& .column-id": {minWidth: "150px"},
+                        "& .column-value": {width: "100%"},
+                        "& .column-actions": {minWidth: "100px", whiteSpace: "nowrap"},
+                    }}
+                >
+                    <TextField
+                        source="id"
+                        label={String(t("electionEventScreen.localization.labels.key"))}
+                    />
+                    <TextField
+                        source="value"
+                        label={String(t("electionEventScreen.localization.labels.value"))}
+                    />
+                    <WrapperField source="actions" label="Actions">
+                        <ActionsColumn actions={actions} />
+                    </WrapperField>
+                </Datagrid>
+            </Card>
             <TablePagination
-                page={page}
-                rowsPerPage={pageSize}
-                count={translationData.length || 0}
-                onPageChange={handlePageChange}
-                onRowsPerPageChange={(e) => handleRowsChange(parseInt(e.target.value))}
+                component="div"
+                page={listContext.page ? listContext.page - 1 : 0}
+                rowsPerPage={listContext.perPage}
+                rowsPerPageOptions={[5, 10, 25, 50]}
+                count={listContext.total || 0}
+                onPageChange={(e, page) => listContext.setPage(page + 1)}
+                onRowsPerPageChange={(e) => {
+                    listContext.setPerPage(parseInt(e.target.value, 10))
+                    listContext.setPage(1)
+                }}
             />
-        </>
+        </ListContextProvider>
     )
 }
 
 const EditElectionEventTextDataTable = () => {
     const record = useRecordContext<Sequent_Backend_Election_Event_Extended>()
-    const [update, {isLoading}] = useUpdate()
+    const [update] = useUpdate()
 
     const {t} = useTranslation()
     const notify = useNotify()
@@ -173,19 +154,19 @@ const EditElectionEventTextDataTable = () => {
         if (!e || !e?.presentation || !e?.presentation?.i18n) return
         const newKey: string = e?.presentation?.i18n?.[selectedLanguage]?.newKey ?? ""
         const newValue: string = e?.presentation?.i18n?.[selectedLanguage]?.newVal ?? ""
-        if (!newValue || !newValue) return
+        if (!newValue || !newKey) return
         update(
             "sequent_backend_election_event",
             {
-                id: record.id,
+                id: record?.id,
                 data: {
                     ...record,
                     presentation: {
-                        ...record.presentation,
+                        ...record?.presentation,
                         i18n: {
-                            ...record.presentation.i18n,
+                            ...record?.presentation.i18n,
                             [selectedLanguage]: {
-                                ...record.presentation.i18n?.[selectedLanguage],
+                                ...record?.presentation.i18n?.[selectedLanguage],
                                 [newKey]: newValue,
                             },
                         },
@@ -212,15 +193,15 @@ const EditElectionEventTextDataTable = () => {
         update(
             "sequent_backend_election_event",
             {
-                id: record.id,
+                id: record?.id,
                 data: {
                     ...record,
                     presentation: {
-                        ...record.presentation,
+                        ...record?.presentation,
                         i18n: {
-                            ...record.presentation.i18n,
+                            ...record?.presentation.i18n,
                             [selectedLanguage]: {
-                                ...record.presentation.i18n?.[selectedLanguage],
+                                ...record?.presentation.i18n?.[selectedLanguage],
                                 [recordId as string]: editVal,
                             },
                         },
@@ -242,19 +223,19 @@ const EditElectionEventTextDataTable = () => {
     }
     const confirmDeleteAction = () => {
         if (!deleteId || !selectedLanguage) return
-        const updatedI18nForLanguage = {...record.presentation.i18n[selectedLanguage]}
+        const updatedI18nForLanguage = {...record?.presentation.i18n[selectedLanguage]}
         delete updatedI18nForLanguage[deleteId as string]
 
         update(
             "sequent_backend_election_event",
             {
-                id: record.id,
+                id: record?.id,
                 data: {
                     ...record,
                     presentation: {
-                        ...record.presentation,
+                        ...record?.presentation,
                         i18n: {
-                            ...record.presentation?.i18n,
+                            ...record?.presentation?.i18n,
                             [selectedLanguage]: updatedI18nForLanguage,
                         },
                     },
@@ -309,7 +290,7 @@ const EditElectionEventTextDataTable = () => {
                             <Select
                                 labelId="select-language"
                                 fullWidth
-                                label={t("electionEventScreen.localization.selectLanguage")}
+                                label={String(t("electionEventScreen.localization.selectLanguage"))}
                                 onChange={handleLanguageChange}
                                 value={selectedLanguage}
                             >
@@ -328,7 +309,7 @@ const EditElectionEventTextDataTable = () => {
                         {canCreateLocalization ? (
                             <Button
                                 onClick={() => setOpenCreate(true)}
-                                label={t("common.label.add")}
+                                label={String(t("common.label.add"))}
                             >
                                 <Add />
                             </Button>
@@ -358,11 +339,15 @@ const EditElectionEventTextDataTable = () => {
 
                                     <TextInput
                                         source={`presentation.i18n.${selectedLanguage}.newKey`}
-                                        label={t("electionEventScreen.localization.labels.key")}
+                                        label={String(
+                                            t("electionEventScreen.localization.labels.key")
+                                        )}
                                     />
                                     <TextInput
                                         source={`presentation.i18n.${selectedLanguage}.newVal`}
-                                        label={t("electionEventScreen.localization.labels.value")}
+                                        label={String(
+                                            t("electionEventScreen.localization.labels.value")
+                                        )}
                                         multiline
                                     />
                                 </>
@@ -370,13 +355,9 @@ const EditElectionEventTextDataTable = () => {
                         </Drawer>
                     </div>
                 </Box>
-                <List actions={false} sx={{flexGrow: 1, width: "100%"}} pagination={false}>
-                    <LocalizationList
-                        selectedLanguage={selectedLanguage}
-                        election_event_id={record.id}
-                        actions={actions}
-                    />
-                </List>
+                <Box sx={{flexGrow: 1, width: "100%"}}>
+                    <LocalizationList selectedLanguage={selectedLanguage} actions={actions} />
+                </Box>
             </SimpleForm>
 
             <Drawer
@@ -402,16 +383,18 @@ const EditElectionEventTextDataTable = () => {
 
                         <TextInput
                             source="editableKey"
-                            label={t("electionEventScreen.localization.labels.key")}
+                            label={String(t("electionEventScreen.localization.labels.key"))}
                             defaultValue={recordId ?? undefined}
                             disabled
                         />
                         <TextInput
                             source="editableVal"
-                            label={t("electionEventScreen.localization.labels.value")}
+                            label={String(t("electionEventScreen.localization.labels.value"))}
                             defaultValue={
                                 recordId
-                                    ? record?.presentation?.i18n[selectedLanguage][recordId]
+                                    ? record?.presentation?.i18n[selectedLanguage][
+                                          recordId as string
+                                      ]
                                     : undefined
                             }
                             multiline
@@ -423,9 +406,9 @@ const EditElectionEventTextDataTable = () => {
             <Dialog
                 variant="warning"
                 open={openDeleteModal}
-                ok={t("common.label.delete")}
-                cancel={t("common.label.cancel")}
-                title={t("common.label.warning")}
+                ok={String(t("common.label.delete"))}
+                cancel={String(t("common.label.cancel"))}
+                title={String(t("common.label.warning"))}
                 handleClose={(result: boolean) => {
                     if (result) {
                         confirmDeleteAction()
