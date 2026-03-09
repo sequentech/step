@@ -42,7 +42,7 @@ export const TallyResultsAreasTabs: React.FC<TallyResultsContestAreasProps> = (p
         resultsEventId,
         tallySessionId,
     } = props
-    const {t} = reactI18next.useTranslation()
+    const {t, i18n} = reactI18next.useTranslation()
 
     const [value, setValue] = React.useState<number>(0)
     const [areasData, setAreasData] = useState<Array<Sequent_Backend_Area_Contest>>([])
@@ -50,6 +50,7 @@ export const TallyResultsAreasTabs: React.FC<TallyResultsContestAreasProps> = (p
     const [selectedArea, setSelectedArea] = useState<string | null>(null)
     const {globalSettings} = useContext(SettingsContext)
     const tallyData = useAtomValue(tallyQueryData)
+    const aliasRenderer = useAliasRenderer()
 
     const {canExportCeremony} = useKeysPermissions()
 
@@ -124,6 +125,8 @@ export const TallyResultsAreasTabs: React.FC<TallyResultsContestAreasProps> = (p
         setSelectedArea(null)
     }
 
+    const contestName = contest ? aliasRenderer(contest) : "contest"
+
     let documents: IResultDocumentsData | null = useMemo(() => {
         let parsedDocuments: IResultDocuments | null = null
         try {
@@ -148,7 +151,7 @@ export const TallyResultsAreasTabs: React.FC<TallyResultsContestAreasProps> = (p
         return parsedDocuments
             ? {
                   documents: parsedDocuments,
-                  name: contest?.name ?? "contest",
+                  name: contestName,
                   class_type: "contest-area",
               }
             : null
@@ -158,10 +161,8 @@ export const TallyResultsAreasTabs: React.FC<TallyResultsContestAreasProps> = (p
         resultsContests,
         resultsContests?.[0]?.contest_id,
         resultsContests?.[0]?.area_id,
-        contest?.name,
+        i18n.language,
     ])
-
-    const aliasRenderer = useAliasRenderer()
 
     return (
         <>
@@ -199,7 +200,7 @@ export const TallyResultsAreasTabs: React.FC<TallyResultsContestAreasProps> = (p
                     <ExportElectionMenu
                         documentsList={[documents]}
                         electionEventId={electionEventId}
-                        itemName={contest?.name ?? "contest"}
+                        itemName={contestName}
                         tallySessionId={tallySessionId}
                     />
                 ) : null}

@@ -4,17 +4,17 @@
 use crate::postgres::area::get_elections_by_area;
 use crate::postgres::election_event::get_election_event_by_id_if_exist;
 use crate::services::celery_app::get_celery_app;
+use crate::services::database::{get_hasura_pool, get_keycloak_pool, PgConfig};
 use crate::services::election_event_board::get_election_event_board;
 use crate::services::election_event_statistics::update_election_event_statistics;
 use crate::services::election_statistics::update_election_statistics;
 use crate::services::electoral_log::ElectoralLog;
 use crate::services::providers::{email_sender::EmailSender, sms_sender::SmsSender};
 use crate::services::users::{list_users, list_users_with_vote_info, ListUsersFilter};
-use crate::types::error::Result;
-
-use crate::services::database::{get_hasura_pool, get_keycloak_pool, PgConfig};
 use crate::types::error::Error;
+use crate::types::error::Result;
 use deadpool_postgres::{Client as DbClient, Transaction};
+use sequent_core::services::translations::Name;
 
 use anyhow::{anyhow, Context};
 use aws_sdk_sesv2::types::{Body, Content, Destination, EmailContent, Message as AwsMessage};
@@ -61,11 +61,12 @@ fn get_variables(
     );
     variables.insert("tenant_id".to_string(), json!(tenant_id.clone()));
     if let Some(ref election_event) = election_event {
+        let language = election_event.get_default_language();
         variables.insert(
             "election_event".to_string(),
             json!({
                 "id": election_event.id.clone(),
-                "name": election_event.name.clone(),
+                "name": election_event.get_name(&language).clone(),
             }),
         );
         variables.insert(

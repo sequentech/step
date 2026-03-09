@@ -95,6 +95,7 @@ export const CreateElection: React.FC = () => {
         let electionSubmit = input0 as {
             name: string
             description?: string
+            external_id: string
             presentation: IElectionPresentation
         }
         let i18n = addDefaultTranslationsToElement(electionSubmit)
@@ -123,6 +124,7 @@ export const CreateElection: React.FC = () => {
             const {data} = await createElection({
                 variables: {
                     electionEventId: electionEventId,
+                    externalId: electionSubmit.external_id,
                     name: electionSubmit.name,
                     presentation: electionSubmit.presentation,
                     description: electionSubmit.description,
@@ -151,8 +153,13 @@ export const CreateElection: React.FC = () => {
         >
             <Typography variant="h4">{t("common.resources.election")}</Typography>
             <Typography variant="body2">{t("createResource.election")}</Typography>
-            <TextInput source="name" />
-            <TextInput source="description" />
+            <TextInput source="name" required label={String(t("electionScreen.field.name"))} />
+            <TextInput
+                source="external_id"
+                label={String(t("electionScreen.field.externalId"))}
+                required
+            />
+            <TextInput source="description" label={String(t("electionScreen.field.description"))} />
             <Hidden>
                 <BooleanInput source="is_consolidated_ballot_encoding" />
                 <BooleanInput source="spoil_ballot_option" />

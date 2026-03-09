@@ -161,9 +161,6 @@ export const CandidateDataForm: React.FC<{
             if (!newCandidate.presentation.i18n.en.name && newCandidate.name) {
                 newCandidate.presentation.i18n.en.name = newCandidate.name
             }
-            if (!newCandidate.presentation.i18n.en.name && newCandidate.name) {
-                newCandidate.presentation.i18n.en.name = newCandidate.name
-            }
             if (!newCandidate.presentation.i18n.en.alias && newCandidate.alias) {
                 newCandidate.presentation.i18n.en.alias = newCandidate.alias
             }

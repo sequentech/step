@@ -2,9 +2,12 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+use std::collections::HashMap;
+
 use crate::{types::hasura_types::*, utils::read_config::read_config};
 use clap::Args;
 use graphql_client::{GraphQLQuery, Response};
+use sequent_core::ballot::ContestPresentation;
 
 #[derive(Args)]
 #[command(about = "Create a new contest", long_about = None)]
@@ -61,6 +64,13 @@ fn create_contest(
     let config = read_config()?;
     let client = reqwest::blocking::Client::new();
 
+    let mut presentation = ContestPresentation::default();
+
+    presentation.i18n = Some(HashMap::from([(
+        "en".to_string(),
+        HashMap::from([("name".to_string(), Some(name.to_string()))]),
+    )]));
+
     let variables = insert_contest::Variables {
         name: name.to_string(),
         description: Some(description.to_string()),
@@ -68,7 +78,7 @@ fn create_contest(
         election_id: election_id.to_string(),
         tenant_id: config.tenant_id.clone(),
 
-        presentation: None,
+        presentation: Some(serde_json::to_value(presentation)?),
         max_votes: None,
         min_votes: None,
         winning_candidates_num: None,
