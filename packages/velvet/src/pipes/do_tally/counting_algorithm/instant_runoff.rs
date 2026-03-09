@@ -195,7 +195,7 @@ pub struct RunoffStatus {
     pub tie_breaking_policy: TieBreakingPolicy,
     #[serde(skip)]
     pub tie_resolutions_map: HashMap<u64, String>,
-    pub pending_tie: Option<TieBreakingState>, // Some = tally paused waiting for external input
+    pub pending_tie_resolution: Option<TieBreakingState>, // Some = tally paused waiting for external input
 }
 
 /// Method used to break a tie
@@ -731,7 +731,7 @@ impl RunoffStatus {
                         })
                         .collect();
 
-                    self.pending_tie = Some(TieBreakingState {
+                    self.pending_tie_resolution = Some(TieBreakingState {
                         round_number,
                         tied_candidate_ids: candidates_to_eliminate,
                         vote_counts,
@@ -788,7 +788,7 @@ impl InstantRunoff {
                 // Run with policy (tie_breaking_policy and tie_resolutions_map are fields of runoff)
                 let runoff = runoff.run_with_policy(&mut ballots_status);
 
-                if let Some(pending) = &runoff.pending_tie {
+                if let Some(pending) = &runoff.pending_tie_resolution {
                     info!(
                         "Tie detected requiring external input: round {}, {} candidates tied - creating partial results",
                         pending.round_number,

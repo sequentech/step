@@ -103,7 +103,7 @@ fn test_full_tie_with_random_policy_completes() -> Result<()> {
 
     // Should complete with a randomly selected winner
     assert!(
-        result.pending_tie.is_none(),
+        result.pending_tie_resolution.is_none(),
         "RANDOM policy should not require external input"
     );
     let last_round = result.get_last_round().unwrap();
@@ -139,7 +139,7 @@ fn test_full_tie_with_external_policy_pauses() -> Result<()> {
 
     // Should require external input
     let tie_info = result
-        .pending_tie
+        .pending_tie_resolution
         .expect("EXTERNAL_PROCEDURE policy should pause on tie");
     assert_eq!(tie_info.tied_candidate_ids.len(), 3);
     assert_eq!(tie_info.round_number, 1);
@@ -178,7 +178,7 @@ fn test_no_tie_with_external_policy_completes() -> Result<()> {
 
     // Should complete normally without pausing
     assert!(
-        result.pending_tie.is_none(),
+        result.pending_tie_resolution.is_none(),
         "Should complete without pausing when there's a clear winner"
     );
     let last_round = result.get_last_round().unwrap();
@@ -204,7 +204,10 @@ fn test_apply_external_tie_decision() -> Result<()> {
     let mut runoff = RunoffStatus::initialize_runoff(&contest);
 
     let mut paused_state = runoff.run_with_policy(&mut ballots_status);
-    assert!(paused_state.pending_tie.is_some(), "Expected paused state");
+    assert!(
+        paused_state.pending_tie_resolution.is_some(),
+        "Expected paused state"
+    );
 
     // Apply external decision: choose candidate_a
     paused_state
@@ -256,7 +259,10 @@ fn test_resume_after_external_decision() -> Result<()> {
 
     // First run - pause on tie
     let mut paused_state = runoff.run_with_policy(&mut ballots_status);
-    assert!(paused_state.pending_tie.is_some(), "Expected pause");
+    assert!(
+        paused_state.pending_tie_resolution.is_some(),
+        "Expected pause"
+    );
 
     // Apply decision
     paused_state
@@ -267,7 +273,7 @@ fn test_resume_after_external_decision() -> Result<()> {
     let result2 = paused_state.run_with_policy(&mut ballots_status);
 
     assert!(
-        result2.pending_tie.is_none(),
+        result2.pending_tie_resolution.is_none(),
         "Should complete after applying decision"
     );
     let last_round = result2.get_last_round().unwrap();
@@ -307,7 +313,7 @@ fn test_multi_round_tie_with_external_policy() -> Result<()> {
     let mut runoff = RunoffStatus::initialize_runoff(&contest);
     let result = runoff.run_with_policy(&mut ballots_status);
     let tie_info = result
-        .pending_tie
+        .pending_tie_resolution
         .expect("Expected pause at Round 2, got completion");
     assert_eq!(tie_info.round_number, 2, "Tie should occur at Round 2");
     assert_eq!(tie_info.tied_candidate_ids.len(), 2);
@@ -326,7 +332,7 @@ fn test_multi_round_tie_with_external_policy() -> Result<()> {
         .insert(2u64, "candidate_a".to_string());
     let result2 = runoff2.run_with_policy(&mut ballots_status2);
     assert!(
-        result2.pending_tie.is_none(),
+        result2.pending_tie_resolution.is_none(),
         "Expected completion when Round 2 resolution is provided"
     );
     let last_round = result2.get_last_round().unwrap();
@@ -352,7 +358,7 @@ fn test_ignored_resolution_for_non_tied_candidate() -> Result<()> {
         .insert(2u64, "candidate_b".to_string());
     let result = runoff.run_with_policy(&mut ballots_status);
     let tie_info = result
-        .pending_tie
+        .pending_tie_resolution
         .expect("Should have ignored the invalid resolution and paused");
     assert_eq!(tie_info.round_number, 2);
     assert!(
@@ -381,7 +387,7 @@ fn test_ignored_resolution_for_wrong_round() -> Result<()> {
         .insert(1u64, "candidate_a".to_string());
     let result = runoff.run_with_policy(&mut ballots_status);
     let tie_info = result
-        .pending_tie
+        .pending_tie_resolution
         .expect("Round 1 resolution should not be used for a Round 2 tie");
     assert_eq!(
         tie_info.round_number, 2,
@@ -410,7 +416,7 @@ fn test_tie_breaking_state_history_recorded() -> Result<()> {
     let mut runoff = RunoffStatus::initialize_runoff(&contest);
     let result = runoff.run_with_policy(&mut ballots_status);
     assert!(
-        result.pending_tie.is_none(),
+        result.pending_tie_resolution.is_none(),
         "RANDOM policy on a full tie should always complete"
     );
     assert_eq!(
@@ -437,7 +443,7 @@ fn test_tie_breaking_state_history_recorded() -> Result<()> {
         .insert(1u64, "candidate_a".to_string());
     let result2 = runoff2.run_with_policy(&mut ballots_status2);
     assert!(
-        result2.pending_tie.is_none(),
+        result2.pending_tie_resolution.is_none(),
         "EXTERNAL_PROCEDURE with a valid resolution should complete"
     );
     assert_eq!(result2.tie_resolutions.len(), 1);
