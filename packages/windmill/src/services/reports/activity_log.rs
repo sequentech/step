@@ -76,7 +76,7 @@ impl ActivityLogsTemplate {
     #[instrument(err, skip(self))]
     pub async fn generate_export_csv_data(&self, name: &str) -> Result<NamedTempFile> {
         let limit = IMMUDB_ROWS_LIMIT as i64;
-        let mut offset: i64 = 0;
+        let mut last_id: i64 = 0;
         let slug = std::env::var("ENV_SLUG").with_context(|| "missing env var ENV_SLUG")?;
         let board_name = get_event_board(
             self.ids.tenant_id.as_str(),
@@ -86,19 +86,14 @@ impl ActivityLogsTemplate {
 
         let mut board_client = get_board_client().await?;
 
-        let total = board_client
-            .count_electoral_log_messages(&board_name, None)
-            .await
-            .map_err(|e| anyhow!("Error counting electoral log messages: {e:?}"))?;
-
         let mut temp_file =
             generate_temp_file(name, ".csv").with_context(|| "Error creating named temp file")?;
         let mut csv_writer = WriterBuilder::new().from_writer(temp_file.as_file_mut());
 
-        while offset < total {
-            info!("offset: {offset}, total: {total}");
+        loop {
+            info!("last_id: {last_id}");
             let msgs = board_client
-                .get_electoral_log_messages_batch(&board_name, limit, offset)
+                .get_electoral_log_messages_batch(&board_name, limit, last_id)
                 .await
                 .map_err(|e| anyhow!("Error fetching electoral log batch: {e:?}"))?;
 
@@ -108,8 +103,10 @@ impl ActivityLogsTemplate {
                 msgs.len(),
                 batch_size
             );
+            let is_last_batch = msgs.len() < limit as usize;
 
             for entry in msgs {
+                last_id = entry.id;
                 let mut row: ElectoralLogRow = entry
                     .try_into()
                     .map_err(|e| anyhow!("Error converting log entry to row: {e:?}"))?;
@@ -119,7 +116,9 @@ impl ActivityLogsTemplate {
                     .map_err(|e| anyhow!("Error serializing to CSV: {e:?}"))?;
             }
 
-            offset += limit;
+            if is_last_batch {
+                break;
+            }
         }
 
         csv_writer
@@ -288,8 +287,11 @@ impl TemplateRenderer for ActivityLogsTemplate {
             self.ids.election_event_id.as_str(),
             &slug,
         );
+        // Uses offset-based pagination because the caller framework pre-computes
+        // `offset = batch_index * limit` and processes batches in parallel (rayon),
+        // which is incompatible with cursor-based pagination.
         let msgs = client
-            .get_electoral_log_messages_batch(&board_name, limit, *offset)
+            .get_electoral_log_messages_at_offset(&board_name, limit, *offset)
             .await
             .map_err(|e| anyhow!("Failed to get electoral log messages batch: {e:?}"))?;
         info!("Format: {:#?}", self.report_format);
