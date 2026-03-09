@@ -366,6 +366,10 @@ type GenerateGoogleMeetOutput {
   meet_link: String
 }
 
+type GeneratePreviewUrlOutput {
+  preview_url: String!
+}
+
 type GenerateTemplateOutput {
   document_id: String!
   task_execution: tasks_execution_type
@@ -1208,6 +1212,17 @@ type mutation_root {
   """
   delete_sequent_backend_notification_by_pk(id: uuid!): notification
   """
+  delete data from the table: "sequent_backend.preview"
+  """
+  delete_sequent_backend_preview(
+    """filter the rows which have to be deleted"""
+    where: preview_bool_exp!
+  ): preview_mutation_response
+  """
+  delete single row from the table: "sequent_backend.preview"
+  """
+  delete_sequent_backend_preview_by_pk(id: uuid!): preview
+  """
   delete data from the table: "sequent_backend.report"
   """
   delete_sequent_backend_report(
@@ -1437,6 +1452,7 @@ type mutation_root {
   generate_ballot_publication(election_event_id: uuid!, election_id: uuid): PublishBallotOutput
   """generate Google Meet link for election events"""
   generate_google_meet(attendee_emails: [String!]!, description: String!, end_date_time: String!, start_date_time: String!, summary: String!, time_zone: String!): GenerateGoogleMeetOutput
+  generate_preview_url(document_id: String!, tenant_id: String!): GeneratePreviewUrlOutput
   generate_report(election_event_id: String, report_id: String!, report_mode: String!, tenant_id: String!): generateReportOutput
   generate_template(election_event_id: String!, election_id: String!, tally_session_id: String!, type: String!): GenerateTemplateOutput
   generate_transmission_report(election_event_id: String!, election_id: String, tally_session_id: String, tenant_id: String!): generateReportOutput
@@ -1766,6 +1782,24 @@ type mutation_root {
     """upsert condition"""
     on_conflict: notification_on_conflict
   ): notification
+  """
+  insert data into the table: "sequent_backend.preview"
+  """
+  insert_sequent_backend_preview(
+    """the rows to be inserted"""
+    objects: [preview_insert_input!]!
+    """upsert condition"""
+    on_conflict: preview_on_conflict
+  ): preview_mutation_response
+  """
+  insert a single row into the table: "sequent_backend.preview"
+  """
+  insert_sequent_backend_preview_one(
+    """the row to be inserted"""
+    object: preview_insert_input!
+    """upsert condition"""
+    on_conflict: preview_on_conflict
+  ): preview
   """
   insert data into the table: "sequent_backend.report"
   """
@@ -3059,6 +3093,62 @@ type mutation_root {
     """updates to execute, in order"""
     updates: [notification_updates!]!
   ): [notification_mutation_response]
+  """
+  update data of the table: "sequent_backend.preview"
+  """
+  update_sequent_backend_preview(
+    """append existing jsonb value of filtered columns with new jsonb value"""
+    _append: preview_append_input
+    """
+    delete the field or element with specified path (for JSON arrays, negative integers count from the end)
+    """
+    _delete_at_path: preview_delete_at_path_input
+    """
+    delete the array element with specified index (negative integers count from the end). throws an error if top level container is not an array
+    """
+    _delete_elem: preview_delete_elem_input
+    """
+    delete key/value pair or string element. key/value pairs are matched based on their key value
+    """
+    _delete_key: preview_delete_key_input
+    """prepend existing jsonb value of filtered columns with new jsonb value"""
+    _prepend: preview_prepend_input
+    """sets the columns of the filtered rows to the given values"""
+    _set: preview_set_input
+    """filter the rows which have to be updated"""
+    where: preview_bool_exp!
+  ): preview_mutation_response
+  """
+  update single row of the table: "sequent_backend.preview"
+  """
+  update_sequent_backend_preview_by_pk(
+    """append existing jsonb value of filtered columns with new jsonb value"""
+    _append: preview_append_input
+    """
+    delete the field or element with specified path (for JSON arrays, negative integers count from the end)
+    """
+    _delete_at_path: preview_delete_at_path_input
+    """
+    delete the array element with specified index (negative integers count from the end). throws an error if top level container is not an array
+    """
+    _delete_elem: preview_delete_elem_input
+    """
+    delete key/value pair or string element. key/value pairs are matched based on their key value
+    """
+    _delete_key: preview_delete_key_input
+    """prepend existing jsonb value of filtered columns with new jsonb value"""
+    _prepend: preview_prepend_input
+    """sets the columns of the filtered rows to the given values"""
+    _set: preview_set_input
+    pk_columns: preview_pk_columns_input!
+  ): preview
+  """
+  update multiples rows of table: "sequent_backend.preview"
+  """
+  update_sequent_backend_preview_many(
+    """updates to execute, in order"""
+    updates: [preview_updates!]!
+  ): [preview_mutation_response]
   """
   update data of the table: "sequent_backend.report"
   """
@@ -4801,6 +4891,40 @@ type query_root {
   fetch data from the table: "sequent_backend.notification" using primary key columns
   """
   sequent_backend_notification_by_pk(id: uuid!): notification
+  """
+  fetch data from the table: "sequent_backend.preview"
+  """
+  sequent_backend_preview(
+    """distinct select on columns"""
+    distinct_on: [preview_select_column!]
+    """limit the number of rows returned"""
+    limit: Int
+    """skip the first n rows. Use only with order_by"""
+    offset: Int
+    """sort the rows by one or more columns"""
+    order_by: [preview_order_by!]
+    """filter the rows returned"""
+    where: preview_bool_exp
+  ): [preview!]!
+  """
+  fetch aggregated fields from the table: "sequent_backend.preview"
+  """
+  sequent_backend_preview_aggregate(
+    """distinct select on columns"""
+    distinct_on: [preview_select_column!]
+    """limit the number of rows returned"""
+    limit: Int
+    """skip the first n rows. Use only with order_by"""
+    offset: Int
+    """sort the rows by one or more columns"""
+    order_by: [preview_order_by!]
+    """filter the rows returned"""
+    where: preview_bool_exp
+  ): preview_aggregate!
+  """
+  fetch data from the table: "sequent_backend.preview" using primary key columns
+  """
+  sequent_backend_preview_by_pk(id: uuid!): preview
   """
   fetch data from the table: "sequent_backend.report"
   """
@@ -12128,6 +12252,273 @@ input notification_updates {
   _set: notification_set_input
   """filter the rows which have to be updated"""
   where: notification_bool_exp!
+}
+
+"""
+columns and relationships of "sequent_backend.preview"
+"""
+type preview {
+  annotations(
+    """JSON select path"""
+    path: String
+  ): jsonb
+  created_at: timestamptz!
+  document_id: uuid!
+  id: uuid!
+  requested_by: String!
+  tenant_id: uuid!
+  updated_at: timestamptz!
+  url: String!
+}
+
+"""
+aggregated selection of "sequent_backend.preview"
+"""
+type preview_aggregate {
+  aggregate: preview_aggregate_fields
+  nodes: [preview!]!
+}
+
+"""
+aggregate fields of "sequent_backend.preview"
+"""
+type preview_aggregate_fields {
+  count(columns: [preview_select_column!], distinct: Boolean): Int!
+  max: preview_max_fields
+  min: preview_min_fields
+}
+
+"""append existing jsonb value of filtered columns with new jsonb value"""
+input preview_append_input {
+  annotations: jsonb
+}
+
+"""
+Boolean expression to filter rows from the table "sequent_backend.preview". All fields are combined with a logical 'AND'.
+"""
+input preview_bool_exp {
+  _and: [preview_bool_exp!]
+  _not: preview_bool_exp
+  _or: [preview_bool_exp!]
+  annotations: jsonb_comparison_exp
+  created_at: timestamptz_comparison_exp
+  document_id: uuid_comparison_exp
+  id: uuid_comparison_exp
+  requested_by: String_comparison_exp
+  tenant_id: uuid_comparison_exp
+  updated_at: timestamptz_comparison_exp
+  url: String_comparison_exp
+}
+
+"""
+unique or primary key constraints on table "sequent_backend.preview"
+"""
+enum preview_constraint {
+  """
+  unique or primary key constraint on columns "id"
+  """
+  preview_pkey
+}
+
+"""
+delete the field or element with specified path (for JSON arrays, negative integers count from the end)
+"""
+input preview_delete_at_path_input {
+  annotations: [String!]
+}
+
+"""
+delete the array element with specified index (negative integers count from the end). throws an error if top level container is not an array
+"""
+input preview_delete_elem_input {
+  annotations: Int
+}
+
+"""
+delete key/value pair or string element. key/value pairs are matched based on their key value
+"""
+input preview_delete_key_input {
+  annotations: String
+}
+
+"""
+input type for inserting data into table "sequent_backend.preview"
+"""
+input preview_insert_input {
+  annotations: jsonb
+  created_at: timestamptz
+  document_id: uuid
+  id: uuid
+  requested_by: String
+  tenant_id: uuid
+  updated_at: timestamptz
+  url: String
+}
+
+"""aggregate max on columns"""
+type preview_max_fields {
+  created_at: timestamptz
+  document_id: uuid
+  id: uuid
+  requested_by: String
+  tenant_id: uuid
+  updated_at: timestamptz
+  url: String
+}
+
+"""aggregate min on columns"""
+type preview_min_fields {
+  created_at: timestamptz
+  document_id: uuid
+  id: uuid
+  requested_by: String
+  tenant_id: uuid
+  updated_at: timestamptz
+  url: String
+}
+
+"""
+response of any mutation on the table "sequent_backend.preview"
+"""
+type preview_mutation_response {
+  """number of rows affected by the mutation"""
+  affected_rows: Int!
+  """data from the rows affected by the mutation"""
+  returning: [preview!]!
+}
+
+"""
+on_conflict condition type for table "sequent_backend.preview"
+"""
+input preview_on_conflict {
+  constraint: preview_constraint!
+  update_columns: [preview_update_column!]! = []
+  where: preview_bool_exp
+}
+
+"""Ordering options when selecting data from "sequent_backend.preview"."""
+input preview_order_by {
+  annotations: order_by
+  created_at: order_by
+  document_id: order_by
+  id: order_by
+  requested_by: order_by
+  tenant_id: order_by
+  updated_at: order_by
+  url: order_by
+}
+
+"""primary key columns input for table: sequent_backend.preview"""
+input preview_pk_columns_input {
+  id: uuid!
+}
+
+"""prepend existing jsonb value of filtered columns with new jsonb value"""
+input preview_prepend_input {
+  annotations: jsonb
+}
+
+"""
+select columns of table "sequent_backend.preview"
+"""
+enum preview_select_column {
+  """column name"""
+  annotations
+  """column name"""
+  created_at
+  """column name"""
+  document_id
+  """column name"""
+  id
+  """column name"""
+  requested_by
+  """column name"""
+  tenant_id
+  """column name"""
+  updated_at
+  """column name"""
+  url
+}
+
+"""
+input type for updating data in table "sequent_backend.preview"
+"""
+input preview_set_input {
+  annotations: jsonb
+  created_at: timestamptz
+  document_id: uuid
+  id: uuid
+  requested_by: String
+  tenant_id: uuid
+  updated_at: timestamptz
+  url: String
+}
+
+"""
+Streaming cursor of the table "sequent_backend_preview"
+"""
+input preview_stream_cursor_input {
+  """Stream column input with initial value"""
+  initial_value: preview_stream_cursor_value_input!
+  """cursor ordering"""
+  ordering: cursor_ordering
+}
+
+"""Initial value of the column from where the streaming should start"""
+input preview_stream_cursor_value_input {
+  annotations: jsonb
+  created_at: timestamptz
+  document_id: uuid
+  id: uuid
+  requested_by: String
+  tenant_id: uuid
+  updated_at: timestamptz
+  url: String
+}
+
+"""
+update columns of table "sequent_backend.preview"
+"""
+enum preview_update_column {
+  """column name"""
+  annotations
+  """column name"""
+  created_at
+  """column name"""
+  document_id
+  """column name"""
+  id
+  """column name"""
+  requested_by
+  """column name"""
+  tenant_id
+  """column name"""
+  updated_at
+  """column name"""
+  url
+}
+
+input preview_updates {
+  """append existing jsonb value of filtered columns with new jsonb value"""
+  _append: preview_append_input
+  """
+  delete the field or element with specified path (for JSON arrays, negative integers count from the end)
+  """
+  _delete_at_path: preview_delete_at_path_input
+  """
+  delete the array element with specified index (negative integers count from the end). throws an error if top level container is not an array
+  """
+  _delete_elem: preview_delete_elem_input
+  """
+  delete key/value pair or string element. key/value pairs are matched based on their key value
+  """
+  _delete_key: preview_delete_key_input
+  """prepend existing jsonb value of filtered columns with new jsonb value"""
+  _prepend: preview_prepend_input
+  """sets the columns of the filtered rows to the given values"""
+  _set: preview_set_input
+  """filter the rows which have to be updated"""
+  where: preview_bool_exp!
 }
 
 """
@@ -20482,6 +20873,51 @@ type subscription_root {
     """filter the rows returned"""
     where: notification_bool_exp
   ): [notification!]!
+  """
+  fetch data from the table: "sequent_backend.preview"
+  """
+  sequent_backend_preview(
+    """distinct select on columns"""
+    distinct_on: [preview_select_column!]
+    """limit the number of rows returned"""
+    limit: Int
+    """skip the first n rows. Use only with order_by"""
+    offset: Int
+    """sort the rows by one or more columns"""
+    order_by: [preview_order_by!]
+    """filter the rows returned"""
+    where: preview_bool_exp
+  ): [preview!]!
+  """
+  fetch aggregated fields from the table: "sequent_backend.preview"
+  """
+  sequent_backend_preview_aggregate(
+    """distinct select on columns"""
+    distinct_on: [preview_select_column!]
+    """limit the number of rows returned"""
+    limit: Int
+    """skip the first n rows. Use only with order_by"""
+    offset: Int
+    """sort the rows by one or more columns"""
+    order_by: [preview_order_by!]
+    """filter the rows returned"""
+    where: preview_bool_exp
+  ): preview_aggregate!
+  """
+  fetch data from the table: "sequent_backend.preview" using primary key columns
+  """
+  sequent_backend_preview_by_pk(id: uuid!): preview
+  """
+  fetch data from the table in a streaming manner: "sequent_backend.preview"
+  """
+  sequent_backend_preview_stream(
+    """maximum number of rows returned in a single batch"""
+    batch_size: Int!
+    """cursor to stream the results returned by the query"""
+    cursor: [preview_stream_cursor_input]!
+    """filter the rows returned"""
+    where: preview_bool_exp
+  ): [preview!]!
   """
   fetch data from the table: "sequent_backend.report"
   """
