@@ -21,6 +21,21 @@ import {CheckStep} from "./CheckStep"
 import {EElectionEventCeremoniesPolicy} from "@sequentech/ui-core"
 import {useHeadlessTrustee} from "@/hooks/useHeadlessTrustee"
 
+/**
+ * Returns true when the currently logged-in trustee user is expected to act
+ * in the given ceremony.
+ *
+ * Both conditions must hold:
+ *  1. The ceremony is in an actionable phase: USER_CONFIGURATION (trustees
+ *     still being invited) or IN_PROGRESS (braid protocol actively running).
+ *     SUCCESS, CANCELLED and STARTED are intentionally excluded.
+ *  2. The logged-in user's trustee name (from JWT claims) appears in the
+ *     ceremony's trustee list — i.e. they were explicitly assigned to it.
+ *
+ * Used as a gate throughout the wizard to decide whether to show the trustee
+ * flow and, in automatic ceremonies, whether to start the headless WASM
+ * trustee protocol runner.
+ */
 export const isTrusteeParticipating = (
     ceremony: Sequent_Backend_Keys_Ceremony,
     authContext: AuthContextValues

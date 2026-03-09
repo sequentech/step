@@ -7,7 +7,7 @@ import {useInterval} from "react-use"
 import {useQuery} from "@apollo/client"
 import {AuthContext} from "@/providers/AuthContextProvider"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
-import {ETrusteeModePolicy} from "@sequentech/ui-core"
+import {ETrusteeModePolicy, getDefaultTrusteeModePolicy} from "@sequentech/ui-core"
 import {GET_TRUSTEE_CONFIG} from "@/queries/GetTrusteeConfig"
 import {Sequent_Backend_Election_Event, Sequent_Backend_Keys_Ceremony} from "@/gql/graphql"
 import {IKeysCeremonyExecutionStatus as EStatus} from "@/services/KeyCeremony"
@@ -17,7 +17,7 @@ import init, {initThreadPool, WasmSession} from "braid-wasm"
 let wasmReady = false
 let wasmInitPromise: Promise<void> | null = null
 
-const ensureWasmReady = (): Promise<void> => {
+export const ensureWasmReady = (): Promise<void> => {
     if (wasmReady) return Promise.resolve()
     if (wasmInitPromise) return wasmInitPromise
     wasmInitPromise = (async () => {
@@ -70,7 +70,7 @@ export const useHeadlessTrustee = ({
 
     const trusteeRecord = trusteeData?.sequent_backend_trustee?.[0]
     const annotations = trusteeRecord?.annotations ?? {}
-    const trusteeModePolicy = annotations?.trustee_mode_policy ?? ETrusteeModePolicy.BROWSER_BASED
+    const trusteeModePolicy = annotations?.trustee_mode_policy ?? getDefaultTrusteeModePolicy()
     const braidConfig = annotations?.braid_config
     const isBrowserBased = trusteeModePolicy === ETrusteeModePolicy.BROWSER_BASED
 
