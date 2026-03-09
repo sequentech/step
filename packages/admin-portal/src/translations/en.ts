@@ -1370,6 +1370,12 @@ const englishTranslation = {
             allowWriteins: {
                 label: "Allow Write-Ins",
             },
+            maxVotes: {
+                helperText:
+                    "Maximum number of candidates a voter can select (non-preferential voting).",
+                helperTextPreferential:
+                    "Highest ranking position available to voters (e.g. '5' means positions 1–5). Must be at least the number of candidates to rank (preferential voting).",
+            },
             error: {},
             createContestSuccess: "Contest created",
             createContestError: "Error creating candidate",
@@ -1998,6 +2004,18 @@ const englishTranslation = {
                     tenantConfigOption: "Import Tenant Configurations",
                     keycloakConfigOption: "Import Keycloak Configurations",
                     RolesConfigOption: "Import Roles & Permissions Configurations",
+                },
+            },
+            previewScreen: {
+                label: "Previews",
+                noContent: "No Previews found",
+                table: {
+                    title: "External Previews",
+                    description:
+                        "A record of ballot style previews generated via external requests",
+                    requestedBy: "Requested By",
+                    document: "Document",
+                    url: "URL",
                 },
             },
         },

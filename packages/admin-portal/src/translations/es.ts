@@ -1382,6 +1382,12 @@ const spanishTranslation: TranslationType = {
             allowWriteins: {
                 label: "Permitir candidaturas manuales",
             },
+            maxVotes: {
+                helperText:
+                    "Número máximo de candidatos que un votante puede seleccionar (votación no preferencial).",
+                helperTextPreferential:
+                    "Posición de rango más alta disponible para los votantes (p.ej. '5' significa posiciones 1–5). Debe ser al menos igual al número de candidatos a ordenar (votación preferencial).",
+            },
             error: {},
             createContestSuccess: "Pregunta creado",
             createContestError: "Error creando pregunta",
@@ -2014,6 +2020,18 @@ const spanishTranslation: TranslationType = {
                     tenantConfigOption: "Importar configuraciones del inquilino",
                     keycloakConfigOption: "Importar configuraciones de Keycloak",
                     RolesConfigOption: "Importar configuraciones de roles y permisos",
+                },
+            },
+            previewScreen: {
+                label: "Vistas Previas",
+                noContent: "No se encontraron vistas previas",
+                table: {
+                    title: "Vistas previas externas",
+                    description:
+                        "Un registro de las vistas previas de estilos de papeleta generadas mediante peticiones externas",
+                    requestedBy: "Solicitado por",
+                    document: "Documento",
+                    url: "URL",
                 },
             },
         },

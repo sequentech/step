@@ -1391,6 +1391,12 @@ const catalanTranslation: TranslationType = {
             allowWriteins: {
                 label: "Permetre candidatures manuals",
             },
+            maxVotes: {
+                helperText:
+                    "Nombre màxim de candidats que un votant pot seleccionar (votació no preferencial).",
+                helperTextPreferential:
+                    "Posició de rang més alta disponible per als votants (p.ex. '5' significa posicions 1–5). Ha de ser almenys igual al nombre de candidats a ordenar (votació preferencial).",
+            },
             error: {},
             createContestSuccess: "Pregunta creada",
             createContestError: "Error creant pregunta",
@@ -2023,6 +2029,18 @@ const catalanTranslation: TranslationType = {
                     tenantConfigOption: "Importa les configuracions del llogater",
                     keycloakConfigOption: "Importa les configuracions de Keycloak",
                     RolesConfigOption: "Importa les configuracions de rols i permisos",
+                },
+            },
+            previewScreen: {
+                label: "Prèvies",
+                noContent: "No s'han trobat prèvies",
+                table: {
+                    title: "Vistes prèvies externes",
+                    description:
+                        "Un registre de les vistes prèvies d'estils de papereta generades mitjançant peticions externes",
+                    requestedBy: "Sol·licitat per",
+                    document: "Document",
+                    url: "URL",
                 },
             },
         },

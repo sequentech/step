@@ -28,18 +28,96 @@ use lapin::{
     types::FieldTable,
 };
 
-const EVENT_TYPE_COMMUNICATIONS: &str = "communications";
-pub const INTERNAL_MESSAGE_TYPE: &str = "internal";
+/// Classifies the type of an incoming log event.
+///
+/// Serializes as a plain string for wire compatibility:
+/// - `Internal`            → `"internal"`
+/// - `KeycloakEvent(s)`   → `s` (the raw Keycloak event type, e.g. `"LOGIN"`)
+#[derive(Clone, Debug, PartialEq)]
+pub enum LogMessageType {
+    Internal,
+    KeycloakEvent(String),
+}
+
+impl Serialize for LogMessageType {
+    fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        match self {
+            LogMessageType::Internal => serializer.serialize_str("internal"),
+            LogMessageType::KeycloakEvent(event_type) => serializer.serialize_str(event_type),
+        }
+    }
+}
+
+impl<'de> Deserialize<'de> for LogMessageType {
+    fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let s = String::deserialize(deserializer)?;
+        Ok(match s.as_str() {
+            "internal" => LogMessageType::Internal,
+            _ => LogMessageType::KeycloakEvent(s),
+        })
+    }
+}
+
+/// Represents the typed content of a log event body.
+///
+/// Serializes as a plain string for wire compatibility:
+/// - `Communications(msg)` → `"communications <msg>"`
+/// - `Plain(s)`            → `s`
+#[derive(Clone, Debug, PartialEq)]
+pub enum LogEventBody {
+    /// Body from a send-template action; contains the template message.
+    Communications(String),
+    /// Body from a standard Keycloak event; typically the error field or "null".
+    Plain(String),
+}
+
+impl LogEventBody {
+    pub fn as_raw(&self) -> String {
+        match self {
+            LogEventBody::Communications(msg) => format!("communications {}", msg),
+            LogEventBody::Plain(s) => s.clone(),
+        }
+    }
+}
+
+impl Serialize for LogEventBody {
+    fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        serializer.serialize_str(&self.as_raw())
+    }
+}
+
+impl<'de> Deserialize<'de> for LogEventBody {
+    fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let s = String::deserialize(deserializer)?;
+        Ok(if let Some(msg) = s.strip_prefix("communications ") {
+            LogEventBody::Communications(msg.trim().to_string())
+        } else {
+            LogEventBody::Plain(s)
+        })
+    }
+}
 
 /// Represents an incoming log event.
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct LogEventInput {
     pub election_event_id: String,
-    pub message_type: String,
+    pub message_type: LogMessageType,
     pub user_id: Option<String>,
     pub username: Option<String>,
     pub tenant_id: String,
-    pub body: String,
+    pub body: LogEventBody,
 }
 
 /// Enqueue the electoral log event.
@@ -90,47 +168,35 @@ pub async fn process_electoral_log_events_batch(events: Vec<LogEventInput>) -> R
         let board_name = get_election_event_board(election_event.bulletin_board_reference.clone())
             .with_context(|| "Error getting election event board")?;
 
-        let user_id = input
-            .user_id
-            .clone()
-            .unwrap_or_else(|| "unknown_user".into());
-        let username = input.username.clone();
-        let tenant_id = input.tenant_id.clone();
-        let realm = get_event_realm(&input.tenant_id, &input.election_event_id);
-
-        let user_area_id = get_user_area_id(&keycloak_transaction, &realm, &user_id)
-            .await
-            .with_context(|| "Error getting user area id")?;
-
-        let electoral_log = ElectoralLog::for_admin_user(
-            &hasura_tx,
-            &board_name,
-            &tenant_id,
-            &election_event.id,
-            &user_id,
-            username.clone(),
-            None,
-            user_area_id.clone(),
-        )
-        .await
-        .with_context(|| "Error initializing electoral log")?;
-
-        let event_message = match input.message_type.as_str() {
-            INTERNAL_MESSAGE_TYPE => {
-                let message: ElectoralLogMessage = deserialize_str(&input.body)
+        let event_message = match &input.message_type {
+            LogMessageType::Internal => {
+                let message: ElectoralLogMessage = deserialize_str(&input.body.as_raw())
                     .with_context(|| "Error parsing input.body into a ElectoralLogMessage")?;
                 message
             }
-            _ => {
-                if input.body.contains(EVENT_TYPE_COMMUNICATIONS) {
-                    let template_body = input
-                        .body
-                        .replace(EVENT_TYPE_COMMUNICATIONS, "")
-                        .trim()
-                        .to_string();
+            LogMessageType::KeycloakEvent(event_type) => {
+                let user_id = input
+                    .user_id
+                    .clone()
+                    .unwrap_or_else(|| "unknown_user".into());
+                let username = input.username.clone();
+                let realm = get_event_realm(&input.tenant_id, &input.election_event_id);
+                let user_area_id = get_user_area_id(&keycloak_transaction, &realm, &user_id)
+                    .await
+                    .with_context(|| "Error getting user area id")?;
+                let electoral_log = ElectoralLog::new(
+                    &hasura_tx,
+                    &input.tenant_id,
+                    Some(&election_event.id),
+                    &board_name,
+                )
+                .await
+                .with_context(|| "Error initializing electoral log")?;
+
+                if let LogEventBody::Communications(ref template_body) = input.body {
                     let send_template_msg = electoral_log
                         .build_send_template_message(
-                            Some(template_body),
+                            Some(template_body.clone()),
                             input.election_event_id.clone(),
                             Some(user_id.clone()),
                             username.clone(),
@@ -147,8 +213,8 @@ pub async fn process_electoral_log_events_batch(events: Vec<LogEventInput>) -> R
                 electoral_log
                     .build_keycloak_event_message(
                         input.election_event_id.clone(),
-                        input.message_type.clone(),
-                        input.body.clone(),
+                        event_type.clone(),
+                        input.body.as_raw(),
                         Some(user_id.clone()),
                         username.clone(),
                         user_area_id,

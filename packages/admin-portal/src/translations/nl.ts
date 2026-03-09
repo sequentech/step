@@ -1379,6 +1379,12 @@ const dutchTranslation: TranslationType = {
             allowWriteins: {
                 label: "Handgeschreven kandidaten toestaan",
             },
+            maxVotes: {
+                helperText:
+                    "Maximaal aantal kandidaten dat een kiezer kan selecteren (niet-preferentieel stemmen).",
+                helperTextPreferential:
+                    "Hoogste beschikbare rangpositie voor kiezers (bijv. '5' staat rangen 1–5 toe). Moet minimaal gelijk zijn aan het aantal te rangschikken kandidaten (preferentieel stemmen).",
+            },
             error: {},
             createContestSuccess: "Verkiezing aangemaakt",
             createContestError: "Fout bij aanmaken verkiezing",
@@ -2009,6 +2015,18 @@ const dutchTranslation: TranslationType = {
                     tenantConfigOption: "Tenantconfiguraties Importeren",
                     keycloakConfigOption: "Keycloak-configuraties Importeren",
                     RolesConfigOption: "Configuraties Rollen & Machtigingen Importeren",
+                },
+            },
+            previewScreen: {
+                label: "Voorbeeldweergaven",
+                noContent: "Geen voorbeeldweergaven gevonden",
+                table: {
+                    title: "Externe voorvertoningen",
+                    description:
+                        "Een overzicht van voorvertoningen van stembiljetstijlen die zijn gegenereerd via externe verzoeken",
+                    requestedBy: "Aangevraagd door",
+                    document: "Document",
+                    url: "URL",
                 },
             },
         },
