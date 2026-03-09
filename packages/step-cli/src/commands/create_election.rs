@@ -2,9 +2,12 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+use std::collections::HashMap;
+
 use crate::{types::hasura_types::*, utils::read_config::read_config};
 use clap::Args;
 use graphql_client::{GraphQLQuery, Response};
+use sequent_core::ballot::ElectionPresentation;
 
 #[derive(Args)]
 #[command(about = "Create a new election", long_about = None)]
@@ -16,6 +19,9 @@ pub struct CreateElection {
     /// Description of the election
     #[arg(long, default_value = "")]
     description: String,
+
+    #[arg(long)]
+    external_id: String,
 
     /// Election event id - the election event to be associated with
     #[arg(long)]
@@ -32,7 +38,12 @@ pub struct InsertElection;
 
 impl CreateElection {
     pub fn run(&self) {
-        match create_election(&self.name, &self.description, &self.election_event_id) {
+        match create_election(
+            &self.name,
+            &self.external_id,
+            &self.description,
+            &self.election_event_id,
+        ) {
             Ok(id) => {
                 println!("Success! Election created successfully! ID: {}", id);
             }
@@ -45,17 +56,27 @@ impl CreateElection {
 
 fn create_election(
     name: &str,
+    external_id: &str,
     description: &str,
     election_event_id: &str,
 ) -> Result<String, Box<dyn std::error::Error>> {
     let config = read_config()?;
     let client = reqwest::blocking::Client::new();
+
+    let mut presentation = ElectionPresentation::default();
+
+    presentation.i18n = Some(HashMap::from([(
+        "en".to_string(),
+        HashMap::from([("name".to_string(), Some(name.to_string()))]),
+    )]));
+
     let variables = insert_election::Variables {
         name: name.to_string(),
+        external_id: external_id.to_string(),
         description: Some(description.to_string()),
         election_event_id: election_event_id.to_string(),
         tenant_id: config.tenant_id.clone(),
-        presentation: None,
+        presentation: Some(serde_json::to_value(presentation)?),
     };
 
     let request_body = InsertElection::build_query(variables);

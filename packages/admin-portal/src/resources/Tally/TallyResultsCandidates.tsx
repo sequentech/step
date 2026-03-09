@@ -32,6 +32,7 @@ import {sortCandidates} from "@/utils/candidateSort"
 import {tallyQueryData} from "@/atoms/tally-candidates"
 import {EElectionEventWeightedVotingPolicy} from "@sequentech/ui-core"
 import {ParticipationSummaryChart, CandidatesResultsCharts} from "./TallyResultsGlobalCandidates"
+import {useAliasRenderer} from "@/hooks/useAliasRenderer"
 
 interface TallyResultsCandidatesProps {
     areaId: string | null | undefined
@@ -74,6 +75,7 @@ export const TallyResultsCandidates: React.FC<TallyResultsCandidatesProps> = (pr
     const {t} = useTranslation()
     const {globalSettings} = useContext(SettingsContext)
     const tallyData = useAtomValue(tallyQueryData)
+    const aliasRenderer = useAliasRenderer()
 
     const candidates: Array<Sequent_Backend_Candidate> | undefined = useMemo(
         () =>
@@ -124,17 +126,19 @@ export const TallyResultsCandidates: React.FC<TallyResultsCandidatesProps> = (pr
         )
     }, [eventRecord])
 
-    const electionName: string | undefined = useMemo(
-        () =>
-            tallyData?.sequent_backend_election?.find((election) => election.id === electionId)
-                ?.name,
-        [tallyData?.sequent_backend_election, electionId]
-    )
+    const electionName: string | undefined = useMemo(() => {
+        const election = tallyData?.sequent_backend_election?.find(
+            (election) => election.id === electionId
+        )
+        return election?.presentation ? aliasRenderer(election.presentation) : undefined
+    }, [tallyData?.sequent_backend_election, electionId])
 
-    const contestName: string | undefined | null = useMemo(
-        () => tallyData?.sequent_backend_contest?.find((contest) => contest.id === contestId)?.name,
-        [tallyData?.sequent_backend_contest, contestId]
-    )
+    const contestName: string | undefined = useMemo(() => {
+        const contest = tallyData?.sequent_backend_contest?.find(
+            (contest) => contest.id === contestId
+        )
+        return contest?.presentation ? aliasRenderer(contest.presentation) : undefined
+    }, [tallyData?.sequent_backend_election, electionId])
 
     const areaName: string | undefined | null = useMemo(
         () => tallyData?.sequent_backend_area?.find((area) => area.id === areaId)?.name,
@@ -179,6 +183,9 @@ export const TallyResultsCandidates: React.FC<TallyResultsCandidatesProps> = (pr
             flex: 1,
             editable: false,
             align: "left",
+            renderCell: (props: GridRenderCellParams<any, string>) => {
+                return aliasRenderer(props.row.presentation)
+            },
         },
         {
             field: "cast_votes",

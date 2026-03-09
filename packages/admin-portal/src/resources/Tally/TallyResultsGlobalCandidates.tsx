@@ -31,6 +31,7 @@ import {formatPercentOne, isNumber} from "@sequentech/ui-core"
 import {useAtomValue} from "jotai"
 import {sortCandidates} from "@/utils/candidateSort"
 import {tallyQueryData} from "@/atoms/tally-candidates"
+import {useAliasRenderer} from "@/hooks/useAliasRenderer"
 import Chart, {Props} from "react-apexcharts"
 import CardChart from "@/components/dashboard/charts/Charts"
 
@@ -223,6 +224,7 @@ export const TallyResultsGlobalCandidates: React.FC<TallyResultsGlobalCandidates
     const {t} = useTranslation()
     const {globalSettings} = useContext(SettingsContext)
     const tallyData = useAtomValue(tallyQueryData)
+    const aliasRenderer = useAliasRenderer()
 
     const [resultsData, setResultsData] = useState<Array<Sequent_Backend_Candidate_Extended>>([])
     const orderedResultsData = useMemo(() => {
@@ -257,12 +259,12 @@ export const TallyResultsGlobalCandidates: React.FC<TallyResultsGlobalCandidates
         [tallyData?.sequent_backend_results_contest_candidate, contestId, electionId]
     )
 
-    const electionName: string | undefined = useMemo(
-        () =>
-            tallyData?.sequent_backend_election?.find((election) => election.id === electionId)
-                ?.name,
-        [tallyData?.sequent_backend_election, electionId]
-    )
+    const electionName: string | undefined = useMemo(() => {
+        const election = tallyData?.sequent_backend_election?.find(
+            (election) => election.id === electionId
+        )
+        return election?.presentation ? aliasRenderer(election.presentation) : undefined
+    }, [tallyData?.sequent_backend_election, electionId])
 
     const getChartName = (contestName: string | undefined) => {
         if (electionName && contestName) {
@@ -302,6 +304,9 @@ export const TallyResultsGlobalCandidates: React.FC<TallyResultsGlobalCandidates
             flex: 1,
             editable: false,
             align: "left",
+            renderCell: (props: GridRenderCellParams<any, string>) => {
+                return aliasRenderer(props.row.presentation)
+            },
         },
         {
             field: "cast_votes",
