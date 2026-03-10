@@ -18,7 +18,6 @@ use crate::postgres::tally_session_execution::insert_tally_session_execution;
 use crate::postgres::tally_session_resolution::{
     create_tally_session_resolution, get_pending_resolutions, get_resolution_by_tally_session,
 };
-use sequent_core::types::ceremonies::{ResolutionStatus, ResolutionType, TallySessionResolution};
 use crate::postgres::tally_sheet::get_published_tally_sheets_by_event;
 use crate::postgres::template::get_template_by_alias;
 use crate::services::cast_votes::{count_cast_votes_election, ElectionCastVotes};
@@ -82,6 +81,7 @@ use sequent_core::types::ceremonies::TallyExecutionStatus;
 use sequent_core::types::ceremonies::TallyTrusteeStatus;
 use sequent_core::types::ceremonies::TallyType;
 use sequent_core::types::ceremonies::{CeremoniesPolicy, TallyCeremonyStatus};
+use sequent_core::types::ceremonies::{ResolutionStatus, ResolutionType, TallySessionResolution};
 use sequent_core::types::hasura::core::Area;
 use sequent_core::types::hasura::core::BallotStyle as BallotStyleHasura;
 use sequent_core::types::hasura::core::ElectionEvent;
@@ -1805,9 +1805,11 @@ mod tests {
     // Tests for build_tie_resolutions_map
     // -------------------------------------------------------------------------
 
-    use sequent_core::types::ceremonies::{ResolutionStatus, ResolutionType, TallySessionResolution};
     use crate::tasks::execute_tally_session::{
         build_tie_resolutions_map, parse_pending_tie_from_annotations, pending_resolution_exists,
+    };
+    use sequent_core::types::ceremonies::{
+        ResolutionStatus, ResolutionType, TallySessionResolution,
     };
 
     fn make_resolution(

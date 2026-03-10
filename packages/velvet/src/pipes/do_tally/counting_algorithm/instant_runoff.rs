@@ -690,6 +690,7 @@ impl RunoffStatus {
                         resolved_by_candidate_id: None,
                     });
 
+                    self.name_references = self.order_name_references_by_result();
                     return self.clone();
                 }
             }

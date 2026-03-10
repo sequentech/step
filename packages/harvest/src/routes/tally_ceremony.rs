@@ -13,8 +13,8 @@ use sequent_core::ballot::{
 use sequent_core::serialization::deserialize_with_path;
 use sequent_core::services::jwt::decode_permission_labels;
 use sequent_core::types::ceremonies::TallyExecutionStatus;
-use sequent_core::types::ceremonies::TallyType;
 use sequent_core::types::ceremonies::TallyResolution;
+use sequent_core::types::ceremonies::TallyType;
 use sequent_core::types::permissions::Permissions;
 use sequent_core::{
     services::jwt::JwtClaims, types::hasura::core::TallySessionConfiguration,

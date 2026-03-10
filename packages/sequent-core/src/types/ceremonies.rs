@@ -230,8 +230,9 @@ pub struct TallyResolution {
     pub selected_candidate_id: String,
 }
 
-
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Display, EnumString)]
+#[derive(
+    Debug, Clone, Serialize, Deserialize, PartialEq, Display, EnumString,
+)]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum ResolutionType {
@@ -240,7 +241,9 @@ pub enum ResolutionType {
     ExternalValidation,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Display, EnumString)]
+#[derive(
+    Debug, Clone, Serialize, Deserialize, PartialEq, Display, EnumString,
+)]
 #[serde(rename_all = "lowercase")]
 #[strum(serialize_all = "lowercase")]
 pub enum ResolutionStatus {
@@ -268,7 +271,6 @@ pub struct TallySessionResolution {
     pub labels: Option<Value>,
     pub annotations: Option<Value>,
 }
-
 
 #[derive(
     Eq,

@@ -4,8 +4,8 @@
 
 use anyhow::{anyhow, Result};
 use deadpool_postgres::Transaction;
-use serde_json::Value;
 use sequent_core::types::ceremonies::{ResolutionStatus, ResolutionType, TallySessionResolution};
+use serde_json::Value;
 use tokio_postgres::Row;
 use tracing::{info, instrument};
 use uuid::Uuid;

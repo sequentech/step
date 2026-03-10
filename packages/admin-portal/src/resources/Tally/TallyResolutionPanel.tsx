@@ -581,7 +581,9 @@ export const TallyResolutionPanel: React.FC<TallyResolutionPanelProps> = ({
         tiedVoteCount !== undefined && totalVotes
             ? ((tiedVoteCount / totalVotes) * 100).toFixed(1)
             : undefined
-    const tiedCandidateNames = tiedCandidatesForSelected.map((c) => aliasRenderer(c.presentation)).join(", ")
+    const tiedCandidateNames = tiedCandidatesForSelected
+        .map((c) => aliasRenderer(c.presentation))
+        .join(", ")
     // Draft value: show the draft selection if set, otherwise fall back to the committed selection
     const currentDraftValue = selectedResolution?.contest_id
         ? (draftSelections[selectedResolution.contest_id] ??

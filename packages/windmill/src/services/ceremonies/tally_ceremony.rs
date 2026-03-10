@@ -21,7 +21,6 @@ use crate::postgres::tally_session_execution::{
 use crate::postgres::tally_session_resolution::{
     get_resolution_by_tally_session, submit_resolution, update_resolution,
 };
-use sequent_core::types::ceremonies::{ResolutionStatus, ResolutionType, TallySessionResolution};
 use crate::services::ceremonies::keys_ceremony::find_trustee_private_key;
 use crate::services::ceremonies::serialize_logs::{
     append_tally_trustee_log, generate_tally_initial_log,
@@ -41,6 +40,7 @@ use sequent_core::services::area_tree::ContestsData;
 use sequent_core::services::area_tree::TreeNode;
 use sequent_core::services::jwt::JwtClaims;
 use sequent_core::types::ceremonies::*;
+use sequent_core::types::ceremonies::{ResolutionStatus, ResolutionType, TallySessionResolution};
 use sequent_core::types::hasura::core::KeysCeremony;
 use sequent_core::types::hasura::core::{AreaContest, TallySessionConfiguration};
 use sequent_core::types::hasura::core::{
@@ -853,7 +853,6 @@ pub async fn set_tally_session_completed(
     Ok(())
 }
 
-
 /// Submit multiple tally resolutions for a paused tally (batch operation).
 /// Returns the number of resolutions processed.
 pub async fn submit_tally_resolution(
@@ -1092,8 +1091,10 @@ pub fn is_resubmission(resolution: &TallySessionResolution) -> bool {
 mod tally_resolution_tests {
     use super::{extract_tied_candidate_ids, is_resubmission, validate_resolution_allowed};
     use rocket::http::Status;
-    use sequent_core::types::ceremonies::{ResolutionStatus, ResolutionType, TallySessionResolution};
     use sequent_core::types::ceremonies::TallyExecutionStatus;
+    use sequent_core::types::ceremonies::{
+        ResolutionStatus, ResolutionType, TallySessionResolution,
+    };
 
     fn make_resolution(
         contest_id: &str,
