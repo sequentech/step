@@ -289,8 +289,6 @@ cargo test -p velvet irv_tie_breaking
 - ✅ `test_full_tie_with_random_policy_completes` - Random policy completes normally
 - ✅ `test_full_tie_with_external_policy_pauses` - External policy pauses on tie
 - ✅ `test_no_tie_with_external_policy_completes` - No pause when clear winner
-- ✅ `test_apply_external_tie_decision` - Apply decision eliminates others
-- ✅ `test_apply_external_tie_decision_invalid_candidate` - Validation works
 - ✅ `test_resume_after_external_decision` - Resume continues correctly
 - ✅ `test_backward_compatibility_with_run` - Old code still works
 
@@ -379,7 +377,6 @@ cli step submit-tally-resolution \
 │ instant_runoff.rs                                       │
 │ - run_with_policy() - accepts tie-breaking policy      │
 │ - Returns RunoffResult enum                             │
-│ - apply_external_tie_decision() - eliminates others    │
 └─────────────────────────────────────────────────────────┘
 ```
 

@@ -32,12 +32,6 @@ pub struct SubmitTallyResolution {
 )]
 pub struct SubmitTallyResolutionMutation;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct TallyResolution {
-    contest_id: String,
-    selected_candidate_id: String,
-}
-
 impl SubmitTallyResolution {
     pub fn run(&self) {
         // Parse resolutions

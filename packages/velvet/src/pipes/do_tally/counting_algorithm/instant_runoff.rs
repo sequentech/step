@@ -203,7 +203,6 @@ pub struct RunoffStatus {
 pub enum TieBreakingMethod {
     Random,
     ExternalProcedure,
-    Lookback,
 }
 
 /// State of a tie that requires external resolution
@@ -532,60 +531,6 @@ impl RunoffStatus {
             }
         }
         new_name_references
-    }
-
-    #[instrument(skip_all)]
-    /// Apply an external tie-breaking decision
-    /// Eliminates all candidates except the chosen winner
-    /// Returns error if winner_id is invalid
-    #[instrument]
-    pub fn apply_external_tie_decision(&mut self, winner_id: &str) -> Result<(), String> {
-        // Validate winner_id is in candidates_status
-        if !self.candidates_status.contains_key(winner_id) {
-            return Err(format!("Invalid candidate ID: {}", winner_id));
-        }
-
-        // Get all active candidates
-        let active_candidates = self.candidates_status.get_active_candidate_ids();
-
-        // Validate winner is actually active
-        if !active_candidates.contains(&winner_id.to_string()) {
-            return Err(format!(
-                "Candidate {} is not active (may already be eliminated)",
-                winner_id
-            ));
-        }
-
-        // Eliminate all except the chosen winner
-        for candidate_id in &active_candidates {
-            if candidate_id != winner_id {
-                self.candidates_status
-                    .set_candidate_to_eliminated(&candidate_id);
-            }
-        }
-
-        // Update last round with winner and eliminated list
-        // Get candidate names before mutable borrow
-        let winner = CandidateReference {
-            id: winner_id.to_string(),
-            name: self.get_candidate_name(winner_id).unwrap_or_default(),
-        };
-
-        let eliminated: Vec<CandidateReference> = active_candidates
-            .into_iter()
-            .filter(|id| id != winner_id)
-            .map(|id| CandidateReference {
-                id: id.clone(),
-                name: self.get_candidate_name(&id).unwrap_or_default(),
-            })
-            .collect();
-
-        if let Some(last_round) = self.rounds.last_mut() {
-            last_round.winner = Some(winner);
-            last_round.eliminated_candidates = Some(eliminated);
-        }
-
-        Ok(())
     }
 
     /// Run next round. Reads tie-breaking policy and resolutions from self.

@@ -223,6 +223,12 @@ pub enum ScopeOperation {
     Contest(TallyOperation),
 }
 
+#[derive(Serialize, Deserialize, Debug)]
+pub struct TallyResolution {
+    pub contest_id: String,
+    pub selected_candidate_id: String,
+}
+
 #[derive(
     Eq,
     PartialEq,

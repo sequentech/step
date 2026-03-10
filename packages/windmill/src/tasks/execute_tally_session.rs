@@ -29,8 +29,7 @@ use crate::services::ceremonies::insert_ballots::{
 use crate::services::ceremonies::keys_ceremony::get_keys_ceremony_board;
 use crate::services::ceremonies::results::populate_results_tables;
 use crate::services::ceremonies::serialize_logs::{
-    append_tally_finished, append_tally_resumed_after_resolution, append_tally_updated,
-    generate_logs, print_messages, sort_logs,
+    append_tally_finished, append_tally_updated, generate_logs, print_messages, sort_logs,
 };
 use crate::services::ceremonies::tally_ceremony::find_last_tally_session_execution_and_all_related_data;
 use crate::services::ceremonies::tally_ceremony::{
@@ -42,6 +41,7 @@ use crate::services::ceremonies::velvet_tally::run_velvet_tally;
 use crate::services::ceremonies::velvet_tally::AreaContestDataType;
 use crate::services::database::{get_hasura_pool, get_keycloak_pool};
 use crate::services::election::get_election_event_elections;
+use crate::services::election_event_board::get_election_event_board;
 use crate::services::election_event_status::get_election_event_status;
 use crate::services::electoral_log::ElectoralLog;
 use crate::services::pg_lock::PgLock;
@@ -59,9 +59,6 @@ use crate::services::temp_path::{
 };
 use crate::services::users::list_users;
 use crate::services::users::ListUsersFilter;
-use crate::tasks::electoral_log::{
-    enqueue_electoral_log_event, LogEventBody, LogEventInput, LogMessageType,
-};
 use crate::types::error::{Error, Result};
 use anyhow::{anyhow, Context, Result as AnyhowResult};
 use b3::messages::{artifact::Plaintexts, message::Message, statement::StatementType};
@@ -925,7 +922,7 @@ async fn map_plaintext_data(
 
     // Determine whether this is a tie-break re-run by checking if any resolved
     // resolutions exist for this session.
-    let tie_break_rerun = {
+    let (tie_break_rerun, resolved_resolution_ids) = {
         let all_resolutions = get_resolution_by_tally_session(
             hasura_transaction,
             &tenant_id,
@@ -934,7 +931,13 @@ async fn map_plaintext_data(
         )
         .await
         .unwrap_or_default();
-        !build_tie_resolutions_map(&all_resolutions).is_empty()
+        let is_rerun = !build_tie_resolutions_map(&all_resolutions).is_empty();
+        let ids = all_resolutions
+            .iter()
+            .filter(|r| r.status == ResolutionStatus::Resolved)
+            .map(|r| r.id.clone())
+            .collect::<Vec<_>>();
+        (is_rerun, ids)
     };
 
     let newest_message_id = board_messages
@@ -1007,32 +1010,23 @@ async fn map_plaintext_data(
     }
 
     if tie_break_rerun {
-        new_status.logs = append_tally_resumed_after_resolution(&new_status.logs);
-        let log_body = serde_json::json!({
-            "event_type": "tally_resumed_after_resolution",
-            "tally_session_id": tally_session_id,
-        });
-        let log_input = LogEventInput {
-            election_event_id: election_event_id.clone(),
-            message_type: LogMessageType::Internal,
-            user_id: None,
-            username: None,
-            tenant_id: tenant_id.clone(),
-            body: LogEventBody::Plain(
-                serde_json::to_string(&log_body).unwrap_or_else(|_| "{}".to_string()),
-            ),
-        };
-        let celery_app = get_celery_app().await;
-        if let Err(e) = celery_app
-            .send_task(enqueue_electoral_log_event::new(log_input))
+        let board_name = get_election_event_board(election_event.bulletin_board_reference.clone())
+            .with_context(|| "missing bulletin board")?;
+        let electoral_log = ElectoralLog::new(
+            hasura_transaction,
+            &tenant_id,
+            Some(&election_event_id),
+            board_name.as_str(),
+        )
+        .await?;
+        electoral_log
+            .post_tally_resumed_with_resolution(
+                election_event_id.clone(),
+                tally_session.election_ids.clone(),
+                resolved_resolution_ids,
+            )
             .await
-        {
-            event!(
-                Level::WARN,
-                "Failed to enqueue tally_resumed_after_resolution log: {}",
-                e
-            );
-        }
+            .with_context(|| "error posting tally resumed to electoral log")?;
     }
 
     // get ballot styles, from where we'll get the Contest(s)
@@ -1379,6 +1373,7 @@ pub async fn execute_tally_session_wrapped(
             )
             .await?;
 
+            let mut pending_resolution_ids: Vec<String> = vec![];
             for (results_contest_id, contest_id, tie_metadata) in &tie_resolutions.pending {
                 let resolution_exists = pending_resolution_exists(
                     &existing_pending_resolutions,
@@ -1403,35 +1398,12 @@ pub async fn execute_tally_session_wrapped(
                         "Created pending resolution {} for IRV tie-break in contest {}",
                         resolution_id, contest_id
                     );
-                    let log_body = serde_json::json!({
-                        "event_type": "tally_tie_detected",
-                        "tally_session_id": tally_session_id,
-                        "contest_id": contest_id,
-                        "resolution_id": resolution_id,
-                        "tied_candidate_ids": tie_metadata.get("tied_candidate_ids"),
-                        "round_number": tie_metadata.get("round_number"),
-                    });
-                    let log_input = LogEventInput {
-                        election_event_id: election_event_id.clone(),
-                        message_type: LogMessageType::Internal,
-                        user_id: None,
-                        username: None,
-                        tenant_id: tenant_id.clone(),
-                        body: LogEventBody::Plain(
-                            serde_json::to_string(&log_body).unwrap_or_else(|_| "{}".to_string()),
-                        ),
-                    };
-                    let celery_app = get_celery_app().await;
-                    if let Err(e) = celery_app
-                        .send_task(enqueue_electoral_log_event::new(log_input))
-                        .await
-                    {
-                        event!(
-                            Level::WARN,
-                            "Failed to enqueue tally_tie_detected log: {}",
-                            e
-                        );
-                    }
+                    pending_resolution_ids.push(resolution_id);
+                } else if let Some(existing) = existing_pending_resolutions
+                    .iter()
+                    .find(|r| r.contest_id.as_ref() == Some(contest_id))
+                {
+                    pending_resolution_ids.push(existing.id.clone());
                 }
             }
 
@@ -1469,38 +1441,24 @@ pub async fn execute_tally_session_wrapped(
                 "Tally paused - awaiting administrator tie-break decisions for {} contest(s)",
                 tie_resolutions.pending.len()
             );
-            let pending_contest_ids: Vec<&str> = tie_resolutions
-                .pending
-                .iter()
-                .map(|(_, contest_id, _)| contest_id.as_str())
-                .collect();
-            let log_body = serde_json::json!({
-                "event_type": "tally_paused_awaiting_input",
-                "tally_session_id": tally_session_id,
-                "pending_contest_ids": pending_contest_ids,
-                "pending_count": tie_resolutions.pending.len(),
-            });
-            let log_input = LogEventInput {
-                election_event_id: election_event_id.clone(),
-                message_type: LogMessageType::Internal,
-                user_id: None,
-                username: None,
-                tenant_id: tenant_id.clone(),
-                body: LogEventBody::Plain(
-                    serde_json::to_string(&log_body).unwrap_or_else(|_| "{}".to_string()),
-                ),
-            };
-            let celery_app = get_celery_app().await;
-            if let Err(e) = celery_app
-                .send_task(enqueue_electoral_log_event::new(log_input))
+            let board_name =
+                get_election_event_board(election_event.bulletin_board_reference.clone())
+                    .with_context(|| "missing bulletin board")?;
+            let electoral_log = ElectoralLog::new(
+                hasura_transaction,
+                &tenant_id,
+                Some(&election_event_id),
+                board_name.as_str(),
+            )
+            .await?;
+            electoral_log
+                .post_tally_paused_pending_resolution(
+                    election_event_id.clone(),
+                    tally_session.election_ids.clone(),
+                    pending_resolution_ids,
+                )
                 .await
-            {
-                event!(
-                    Level::WARN,
-                    "Failed to enqueue tally_paused_awaiting_input log: {}",
-                    e
-                );
-            }
+                .with_context(|| "error posting tally paused to electoral log")?;
             return Ok(());
         }
     }

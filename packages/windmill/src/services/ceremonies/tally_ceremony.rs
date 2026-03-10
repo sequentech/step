@@ -18,7 +18,10 @@ use crate::postgres::tally_session_contest::{
 use crate::postgres::tally_session_execution::{
     get_last_tally_session_execution, insert_tally_session_execution,
 };
-use crate::postgres::tally_session_resolution::{ResolutionStatus, TallySessionResolution};
+use crate::postgres::tally_session_resolution::{
+    get_resolution_by_tally_session, submit_resolution, update_resolution, ResolutionStatus,
+    ResolutionType, TallySessionResolution,
+};
 use crate::services::ceremonies::keys_ceremony::find_trustee_private_key;
 use crate::services::ceremonies::serialize_logs::{
     append_tally_trustee_log, generate_tally_initial_log,
@@ -44,6 +47,7 @@ use sequent_core::types::hasura::core::{
     BallotStyle, Election, TallySession, TallySessionContest, TallySessionExecution,
 };
 use sequent_core::types::hasura::core::{Contest, ElectionEvent};
+use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use std::collections::HashMap;
 use std::collections::HashSet;
@@ -847,6 +851,183 @@ pub async fn set_tally_session_completed(
     }
 
     Ok(())
+}
+
+
+/// Submit multiple tally resolutions for a paused tally (batch operation).
+/// Returns the number of resolutions processed.
+pub async fn submit_tally_resolution(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    tally_session_id: &str,
+    resolutions: &[TallyResolution],
+    user_id: &str,
+    username: Option<String>,
+) -> Result<usize> {
+    // Get tally session and validate status
+    let tally_session = get_tally_session_by_id(
+        hasura_transaction,
+        tenant_id,
+        election_event_id,
+        tally_session_id,
+    )
+    .await?;
+
+    let execution_status = tally_session
+        .execution_status
+        .and_then(|s| s.parse::<TallyExecutionStatus>().ok())
+        .ok_or_else(|| anyhow!("Missing execution status for tally session {tally_session_id}"))?;
+
+    // Get all resolutions for this tally session (needed before status validation)
+    let all_resolutions = get_resolution_by_tally_session(
+        hasura_transaction,
+        tenant_id,
+        election_event_id,
+        tally_session_id,
+    )
+    .await?;
+
+    // Allow re-submission of already-resolved resolutions even when the tally is not
+    // in AWAITING_INPUT (e.g., SUCCESS). Only reject if the tally is not awaiting
+    // input AND at least one submitted resolution targets a pending (not yet resolved) record.
+    let input_contest_ids: Vec<&str> = resolutions.iter().map(|r| r.contest_id.as_str()).collect();
+    validate_resolution_allowed(&execution_status, &input_contest_ids, &all_resolutions)
+        .map_err(|(_, msg)| anyhow!(msg))?;
+
+    let election_event =
+        get_election_event_by_id(hasura_transaction, tenant_id, election_event_id).await?;
+    let board_name = get_election_event_board(election_event.bulletin_board_reference.clone())
+        .with_context(|| "missing bulletin board")?;
+    let electoral_log = ElectoralLog::for_admin_user(
+        hasura_transaction,
+        &board_name,
+        tenant_id,
+        election_event_id,
+        user_id,
+        username.clone(),
+        tally_session.election_ids.clone(),
+        None,
+    )
+    .await?;
+
+    // Validate and submit each resolution
+    let mut resolved_count = 0;
+
+    for tie_resolution in resolutions {
+        // Find the latest resolution for this contest (by created_at)
+        let latest_resolution = all_resolutions
+            .iter()
+            .filter(|r| {
+                r.resolution_type == ResolutionType::IrvTieBreak
+                    && r.contest_id.as_ref() == Some(&tie_resolution.contest_id)
+            })
+            .max_by_key(|r| r.created_at)
+            .ok_or_else(|| {
+                anyhow!(
+                    "No resolution found for contest {}",
+                    tie_resolution.contest_id
+                )
+            })?;
+
+        // Validate selected candidate is in tied candidates
+        let tied_candidate_ids =
+            extract_tied_candidate_ids(latest_resolution, &tie_resolution.contest_id)
+                .map_err(|(_, msg)| anyhow!(msg))?;
+
+        if !tied_candidate_ids.contains(&tie_resolution.selected_candidate_id) {
+            return Err(anyhow!(
+                "Selected candidate {} is not in tied candidates for contest {}: {:?}",
+                tie_resolution.selected_candidate_id,
+                tie_resolution.contest_id,
+                tied_candidate_ids
+            ));
+        }
+
+        let resolution_value = serde_json::json!({
+            "resolved_by_candidate_id": tie_resolution.selected_candidate_id,
+            "resolved_at": chrono::Utc::now().to_rfc3339(),
+        });
+
+        let resolution_id = latest_resolution.id.clone();
+        let resubmission = is_resubmission(latest_resolution);
+
+        if !resubmission {
+            // First submission: resolve the existing pending record
+            submit_resolution(
+                hasura_transaction,
+                tenant_id,
+                election_event_id,
+                &resolution_id,
+                resolution_value,
+                user_id,
+            )
+            .await?;
+            electoral_log
+                .post_tally_tie_resolved(
+                    election_event_id.to_string(),
+                    tally_session.election_ids.clone(),
+                    tie_resolution.contest_id.clone(),
+                    resolution_id,
+                    Some(user_id.to_string()),
+                    username.clone(),
+                )
+                .await
+                .with_context(|| "error posting tally tie resolved to electoral log")?;
+        } else {
+            // Re-submission: admin changed their mind — update the existing record
+            event!(
+                Level::INFO,
+                "Re-submission detected for contest {} - updating existing resolution",
+                tie_resolution.contest_id
+            );
+            update_resolution(
+                hasura_transaction,
+                tenant_id,
+                election_event_id,
+                &resolution_id,
+                resolution_value,
+                user_id,
+            )
+            .await?;
+            electoral_log
+                .post_tally_tie_resolution_updated(
+                    election_event_id.to_string(),
+                    tally_session.election_ids.clone(),
+                    tie_resolution.contest_id.clone(),
+                    resolution_id,
+                    Some(user_id.to_string()),
+                    username.clone(),
+                )
+                .await
+                .with_context(|| "error posting tally tie resolution updated to electoral log")?;
+        }
+
+        resolved_count += 1;
+    }
+
+    let next_status = TallyExecutionStatus::IN_PROGRESS;
+
+    // Update tally session status — always resume so the tally re-runs and
+    // produces intermediate results. Windmill will pause again in AWAITING_INPUT
+    // if any new tie-breaks are detected during the re-run.
+    update_tally_session_status(
+        hasura_transaction,
+        tenant_id,
+        election_event_id,
+        tally_session_id,
+        next_status.clone(),
+        false,
+    )
+    .await?;
+
+    event!(
+        Level::INFO,
+        "Tally session status set to {:?} after resolution submission",
+        next_status
+    );
+
+    Ok(resolved_count)
 }
 
 /// Returns `Err` if the tally is not awaiting input AND at least one of the

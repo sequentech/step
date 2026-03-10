@@ -14,6 +14,7 @@ use sequent_core::serialization::deserialize_with_path;
 use sequent_core::services::jwt::decode_permission_labels;
 use sequent_core::types::ceremonies::TallyExecutionStatus;
 use sequent_core::types::ceremonies::TallyType;
+use sequent_core::types::ceremonies::TallyResolution;
 use sequent_core::types::permissions::Permissions;
 use sequent_core::{
     services::jwt::JwtClaims, types::hasura::core::TallySessionConfiguration,
@@ -24,20 +25,9 @@ use windmill::postgres::election::get_elections_by_ids;
 use windmill::postgres::tally_session::{
     get_tally_session_by_id, update_tally_session_status,
 };
-use windmill::postgres::tally_session_resolution::{
-    get_resolution_by_tally_session, submit_resolution, update_resolution,
-    ResolutionStatus, ResolutionType,
-};
-use windmill::services::celery_app::get_celery_app;
-use windmill::services::ceremonies::tally_ceremony::{
-    self, extract_tied_candidate_ids, is_resubmission,
-    validate_resolution_allowed,
-};
+use windmill::services::ceremonies::tally_ceremony::{self};
 use windmill::services::database::get_hasura_pool;
 use windmill::services::providers::transactions_provider::provide_hasura_transaction;
-use windmill::tasks::electoral_log::{
-    enqueue_electoral_log_event, LogEventBody, LogEventInput, LogMessageType,
-};
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct CreateTallyCeremonyInput {
@@ -341,12 +331,6 @@ pub async fn restore_private_key(
 }
 
 #[derive(Serialize, Deserialize, Debug)]
-pub struct TallyResolution {
-    contest_id: String,
-    selected_candidate_id: String,
-}
-
-#[derive(Serialize, Deserialize, Debug)]
 pub struct SubmitTallyResolutionInput {
     election_event_id: String,
     tally_session_id: String,
@@ -367,7 +351,6 @@ pub async fn submit_tally_resolution(
     body: Json<SubmitTallyResolutionInput>,
     claims: JwtClaims,
 ) -> Result<Json<SubmitTallyResolutionOutput>, (Status, String)> {
-    // 1. Authorize
     authorize(
         &claims,
         true,
@@ -379,7 +362,6 @@ pub async fn submit_tally_resolution(
     let tenant_id = claims.hasura_claims.tenant_id.clone();
     let user_id = claims.hasura_claims.user_id.clone();
 
-    // 2. Validate input
     if input.resolutions.is_empty() {
         return Err((
             Status::BadRequest,
@@ -387,7 +369,6 @@ pub async fn submit_tally_resolution(
         ));
     }
 
-    // 3. Get DB connection
     let mut hasura_db_client: DbClient =
         get_hasura_pool().await.get().await.map_err(|err| {
             (
@@ -404,220 +385,18 @@ pub async fn submit_tally_resolution(
             )
         })?;
 
-    // 4. Get tally session and validate status
-    let tally_session = get_tally_session_by_id(
+    let resolved_count = tally_ceremony::submit_tally_resolution(
         &hasura_transaction,
         &tenant_id,
         &input.election_event_id,
         &input.tally_session_id,
+        &input.resolutions,
+        &user_id,
+        claims.preferred_username.clone(),
     )
     .await
-    .map_err(|_| {
-        (
-            Status::NotFound,
-            format!("Tally session not found: {}", input.tally_session_id),
-        )
-    })?;
+    .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
 
-    let execution_status = tally_session
-        .execution_status
-        .and_then(|s| s.parse::<TallyExecutionStatus>().ok())
-        .ok_or((
-            Status::BadRequest,
-            "Invalid or missing execution status".to_string(),
-        ))?;
-
-    // 5. Get all resolutions for this tally session (needed before status validation)
-    let all_resolutions = get_resolution_by_tally_session(
-        &hasura_transaction,
-        &tenant_id,
-        &input.election_event_id,
-        &input.tally_session_id,
-    )
-    .await
-    .map_err(|e| {
-        (
-            Status::InternalServerError,
-            format!("Error fetching resolutions: {}", e),
-        )
-    })?;
-
-    // Allow re-submission of already-resolved resolutions even when the tally is not
-    // in AWAITING_INPUT (e.g., SUCCESS). Only reject if the tally is not awaiting
-    // input AND at least one submitted resolution targets a pending (not yet resolved) record.
-    let input_contest_ids: Vec<&str> = input
-        .resolutions
-        .iter()
-        .map(|r| r.contest_id.as_str())
-        .collect();
-    validate_resolution_allowed(
-        &execution_status,
-        &input_contest_ids,
-        &all_resolutions,
-    )?;
-
-    // 6. Validate and submit each resolution
-    let mut resolved_count = 0;
-    let mut has_previous_resolutions = false;
-
-    for tie_resolution in &input.resolutions {
-        // Find the latest resolution for this contest (by created_at)
-        let latest_resolution = all_resolutions
-            .iter()
-            .filter(|r| {
-                r.resolution_type == ResolutionType::IrvTieBreak
-                    && r.contest_id.as_ref() == Some(&tie_resolution.contest_id)
-            })
-            .max_by_key(|r| r.created_at)
-            .ok_or((
-                Status::BadRequest,
-                format!(
-                    "No resolution found for contest {}",
-                    tie_resolution.contest_id
-                ),
-            ))?;
-
-        // Validate selected candidate is in tied candidates
-        let tied_candidate_ids = extract_tied_candidate_ids(
-            latest_resolution,
-            &tie_resolution.contest_id,
-        )?;
-
-        if !tied_candidate_ids.contains(&tie_resolution.selected_candidate_id) {
-            return Err((
-                Status::BadRequest,
-                format!(
-                    "Selected candidate {} is not in tied candidates for contest {}: {:?}",
-                    tie_resolution.selected_candidate_id,
-                    tie_resolution.contest_id,
-                    tied_candidate_ids
-                ),
-            ));
-        }
-
-        let resolution_value = serde_json::json!({
-            "resolved_by_candidate_id": tie_resolution.selected_candidate_id,
-            "resolved_at": chrono::Utc::now().to_rfc3339(),
-        });
-
-        let resolution_id = latest_resolution.id.clone();
-        let resubmission = is_resubmission(latest_resolution);
-
-        if !resubmission {
-            // First submission: resolve the existing pending record
-            submit_resolution(
-                &hasura_transaction,
-                &tenant_id,
-                &input.election_event_id,
-                &resolution_id,
-                resolution_value,
-                &user_id,
-            )
-            .await
-            .map_err(|e| {
-                (
-                    Status::InternalServerError,
-                    format!("Error submitting resolution: {}", e),
-                )
-            })?;
-        } else {
-            // Re-submission: admin changed their mind — update the existing record
-            has_previous_resolutions = true;
-            event!(
-                Level::INFO,
-                "Re-submission detected for contest {} - updating existing resolution",
-                tie_resolution.contest_id
-            );
-            update_resolution(
-                &hasura_transaction,
-                &tenant_id,
-                &input.election_event_id,
-                &resolution_id,
-                resolution_value,
-                &user_id,
-            )
-            .await
-            .map_err(|e| {
-                (
-                    Status::InternalServerError,
-                    format!("Error updating resolution: {}", e),
-                )
-            })?;
-        }
-
-        // Log to electoral log
-        let event_type = if resubmission {
-            "tally_tie_resolution_updated"
-        } else {
-            "tally_tie_resolved"
-        };
-        let electoral_log_body = serde_json::json!({
-            "event_type": event_type,
-            "tally_session_id": input.tally_session_id,
-            "contest_id": tie_resolution.contest_id,
-            "resolution_id": resolution_id,
-            "round_number": latest_resolution.resolution_data.get("round_number"),
-            "tied_candidate_ids": latest_resolution.resolution_data.get("tied_candidate_ids"),
-            "resolved_by_candidate_id": tie_resolution.selected_candidate_id.clone(),
-            "resolved_by_user": user_id.clone(),
-            "message": format!("Tie resolved for contest {} - tally resuming", tie_resolution.contest_id)
-        });
-
-        let log_input = LogEventInput {
-            election_event_id: input.election_event_id.clone(),
-            message_type: LogMessageType::Internal,
-            user_id: Some(user_id.clone()),
-            username: claims.preferred_username.clone(),
-            tenant_id: tenant_id.clone(),
-            body: LogEventBody::Plain(
-                serde_json::to_string(&electoral_log_body)
-                    .unwrap_or_else(|_| "{}".to_string()),
-            ),
-        };
-
-        let celery_app = get_celery_app().await;
-        if let Err(e) = celery_app
-            .send_task(enqueue_electoral_log_event::new(log_input))
-            .await
-        {
-            event!(
-                Level::WARN,
-                "Failed to enqueue tie resolution electoral log event: {}",
-                e
-            );
-        }
-
-        resolved_count += 1;
-    }
-
-    let next_status = TallyExecutionStatus::IN_PROGRESS;
-
-    // 7. Update tally session status — always resume so the tally re-runs and
-    // produces intermediate results. Windmill will pause again in AWAITING_INPUT
-    // if any new tie-breaks are detected during the re-run.
-    update_tally_session_status(
-        &hasura_transaction,
-        &tenant_id,
-        &input.election_event_id,
-        &input.tally_session_id,
-        next_status.clone(),
-        false,
-    )
-    .await
-    .map_err(|e| {
-        (
-            Status::InternalServerError,
-            format!("Error updating status: {}", e),
-        )
-    })?;
-
-    event!(
-        Level::INFO,
-        "Tally session status set to {:?} after resolution submission",
-        next_status
-    );
-
-    // 8. Commit transaction
     hasura_transaction.commit().await.map_err(|err| {
         (Status::InternalServerError, format!("Commit failed: {err}"))
     })?;
