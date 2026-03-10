@@ -1093,12 +1093,12 @@ mod tests {
             inc.sort_by_key(|c| c.candidate_id.clone());
 
             let mut outc = outc.choices.clone();
-            outc.sort_by_key(|c| c.clone().0);
+            outc.sort_by_key(|c| c.clone().id);
 
             for (j, ic) in inc.iter().enumerate() {
                 let oc = outc[j].clone();
 
-                assert_eq!(ic.candidate_id, oc.0);
+                assert_eq!(ic.candidate_id, oc.id);
             }
         }
     }
