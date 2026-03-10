@@ -962,6 +962,7 @@ mod tests {
     use crate::serialization::deserialize_with_path::deserialize_value;
     use rand::{seq::SliceRandom, Rng};
     use serde_json::json;
+    use std::collections::HashSet;
 
     #[test]
     fn test_multi_contest_reencoding_with_explicit_invalid() {
@@ -1061,7 +1062,16 @@ mod tests {
 
     #[test]
     fn test_roundtrip() {
-        let (ballot, style) = random_ballot(5);
+        test_roundtrip_by_type(CountingAlgType::PluralityAtLarge)
+    }
+
+    #[test]
+    fn test_roundtrip_irv() {
+        test_roundtrip_by_type(CountingAlgType::InstantRunoff)
+    }
+
+    fn test_roundtrip_by_type(counting_algorithm: CountingAlgType) {
+        let (ballot, style) = random_ballot(5, counting_algorithm);
         println!("{:?}", ballot);
 
         let max_bytes =
@@ -1105,7 +1115,8 @@ mod tests {
 
     #[test]
     fn test_mixed_radix_encode() {
-        let (ballot, style) = random_ballot(5);
+        let (ballot, style) =
+            random_ballot(5, CountingAlgType::PluralityAtLarge);
 
         let mixed_radix = ballot.encode_to_raw_ballot(&style).unwrap();
 
@@ -1149,7 +1160,10 @@ mod tests {
         }
     }
 
-    fn random_ballot(contests: usize) -> (BallotChoices, BallotStyle) {
+    fn random_ballot(
+        contests: usize,
+        counting_algorithm: CountingAlgType,
+    ) -> (BallotChoices, BallotStyle) {
         let mut rng = rand::thread_rng();
         let contests: Vec<Contest> = (0..contests)
             .map(|i| {
@@ -1166,56 +1180,78 @@ mod tests {
                     })
                     .collect();
 
-                random_contest(contest_id, candidates, min_votes, max_votes)
+                random_contest(
+                    contest_id,
+                    candidates,
+                    min_votes,
+                    max_votes,
+                    counting_algorithm.clone(),
+                )
             })
             .collect();
 
+        let allow_duplicate_choice_rank = !counting_algorithm.is_preferential();
         let choices: Vec<ContestChoices> = contests
             .iter()
-            .map(|c| random_contest_choices(&c))
+            .map(|c| random_contest_choices(&c, allow_duplicate_choice_rank))
             .collect();
 
         let ballot_style = random_ballot_style(contests);
 
-        let ballot = BallotChoices::new(
-            false,
-            choices,
-            CountingAlgType::PluralityAtLarge,
-        );
+        let ballot = BallotChoices::new(false, choices, counting_algorithm);
 
         (ballot, ballot_style)
     }
 
-    fn random_choice(id: String) -> ContestChoice {
+    fn random_choice(id: String, max_votes: i64) -> ContestChoice {
         let mut rng = rand::thread_rng();
         // we do not include -1 here as an unset choice will cause the test to
         // fail due to
         // 1) mismatched number of choices (an unset value does not produce a
         //    choice when decoding)
         // 2) number of choices below min_votes
-        ContestChoice::new(id, rng.gen_range(0..10) as i64)
+        ContestChoice::new(id, rng.gen_range(0..max_votes) as i64)
     }
 
-    fn random_contest_choices(contest: &Contest) -> ContestChoices {
+    fn random_contest_choices(
+        contest: &Contest,
+        allow_duplicate: bool,
+    ) -> ContestChoices {
         let mut rng = rand::thread_rng();
         let count = rng.gen_range(contest.min_votes..=contest.max_votes);
 
         let mut cs = contest.candidates.clone();
         cs.shuffle(&mut rng);
+
+        let mut used = HashSet::new();
+
         let choices = cs
             .iter()
             .take(count as usize)
-            .map(|c| random_choice(c.id.clone()))
+            .map(|c| {
+                let choice = if allow_duplicate {
+                    random_choice(c.id.clone(), contest.max_votes)
+                } else {
+                    loop {
+                        let choice =
+                            random_choice(c.id.clone(), contest.max_votes);
+                        if used.insert(choice.selected) {
+                            break choice;
+                        }
+                    }
+                };
+                choice
+            })
             .collect();
 
         ContestChoices::new(contest.id.clone(), choices)
     }
-
     fn random_contest(
         id: String,
         candidates: Vec<Candidate>,
         min_votes: i64,
         max_votes: i64,
+        counting_algorithm: CountingAlgType,
     ) -> Contest {
         Contest {
             id,
@@ -1234,7 +1270,7 @@ mod tests {
             min_votes,
             winning_candidates_num: 0,
             voting_type: None,
-            counting_algorithm: Some(CountingAlgType::PluralityAtLarge),
+            counting_algorithm: Some(counting_algorithm),
             is_encrypted: true,
             candidates,
             presentation: None,
