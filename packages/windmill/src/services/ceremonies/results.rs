@@ -26,7 +26,6 @@ use sequent_core::sqlite::tally_session_resolution::create_tally_session_resolut
 use sequent_core::types::ceremonies::{TallySessionDocuments, TallyType};
 use sequent_core::types::hasura::core::TallySessionExecution;
 use sequent_core::types::hasura::core::{Area, TallySession};
-use sequent_core::types::results::TallySessionResolution as TallySessionResolutionSqlite;
 use sequent_core::types::results::*;
 use sequent_core::util::temp_path::get_file_size;
 use serde_json::json;
@@ -386,39 +385,6 @@ pub async fn process_results_tables(
                 sqlite_transaction_opt,
             )
             .await?;
-        }
-
-        if let Some(sqlite_transaction) = sqlite_transaction_opt {
-            let pg_resolutions = get_resolution_by_tally_session(
-                hasura_transaction,
-                tenant_id,
-                election_event_id,
-                tally_session_id,
-            )
-            .await?;
-
-            let sqlite_resolutions: Vec<TallySessionResolutionSqlite> = pg_resolutions
-                .into_iter()
-                .map(|r| TallySessionResolutionSqlite {
-                    id: r.id,
-                    tenant_id: r.tenant_id,
-                    election_event_id: r.election_event_id,
-                    tally_session_id: r.tally_session_id,
-                    results_contest_id: r.results_contest_id,
-                    contest_id: r.contest_id,
-                    results_event_id: r.results_event_id,
-                    created_at: r.created_at.map(|dt| dt.to_rfc3339()),
-                    last_updated_at: r.last_updated_at.map(|dt| dt.to_rfc3339()),
-                    resolution_type: r.resolution_type.to_string(),
-                    status: r.status.to_string(),
-                    resolution_data: serde_json::to_string(&r.resolution_data).ok(),
-                    resolution: r.resolution.and_then(|v| serde_json::to_string(&v).ok()),
-                    resolved_by_user: r.resolved_by_user,
-                    resolved_at: r.resolved_at.map(|dt| dt.to_rfc3339()),
-                })
-                .collect();
-
-            create_tally_session_resolutions_sqlite(sqlite_transaction, sqlite_resolutions).await?;
         }
 
         Ok(results_event_id_opt)

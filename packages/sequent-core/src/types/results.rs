@@ -195,22 +195,3 @@ pub struct ResultsAreaContestCandidate {
     pub cast_votes_percent: Option<NotNan<f64>>,
     pub documents: Option<ResultDocuments>,
 }
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct TallySessionResolution {
-    pub id: String,
-    pub tenant_id: String,
-    pub election_event_id: String,
-    pub tally_session_id: String,
-    pub results_contest_id: Option<String>,
-    pub contest_id: Option<String>,
-    pub results_event_id: Option<String>,
-    pub created_at: Option<String>,
-    pub last_updated_at: Option<String>,
-    pub resolution_type: String,
-    pub status: String,
-    pub resolution_data: Option<String>,
-    pub resolution: Option<String>,
-    pub resolved_by_user: Option<String>,
-    pub resolved_at: Option<String>,
-}

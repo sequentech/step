@@ -6,6 +6,7 @@
 use borsh::{BorshDeserialize, BorshSerialize};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 use std::default::Default;
 use strum_macros::{Display, EnumString};
 
@@ -228,6 +229,46 @@ pub struct TallyResolution {
     pub contest_id: String,
     pub selected_candidate_id: String,
 }
+
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Display, EnumString)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum ResolutionType {
+    IrvTieBreak,
+    ManualRecount,
+    ExternalValidation,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Display, EnumString)]
+#[serde(rename_all = "lowercase")]
+#[strum(serialize_all = "lowercase")]
+pub enum ResolutionStatus {
+    Pending,
+    Resolved,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TallySessionResolution {
+    pub id: String,
+    pub tenant_id: String,
+    pub election_event_id: String,
+    pub tally_session_id: String,
+    pub results_contest_id: Option<String>,
+    pub contest_id: Option<String>,
+    pub results_event_id: Option<String>,
+    pub created_at: Option<chrono::DateTime<chrono::Utc>>,
+    pub last_updated_at: Option<chrono::DateTime<chrono::Utc>>,
+    pub resolution_type: ResolutionType,
+    pub status: ResolutionStatus,
+    pub resolution_data: Value,
+    pub resolution: Option<Value>,
+    pub resolved_by_user: Option<String>,
+    pub resolved_at: Option<chrono::DateTime<chrono::Utc>>,
+    pub labels: Option<Value>,
+    pub annotations: Option<Value>,
+}
+
 
 #[derive(
     Eq,

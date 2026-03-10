@@ -19,9 +19,9 @@ use crate::postgres::tally_session_execution::{
     get_last_tally_session_execution, insert_tally_session_execution,
 };
 use crate::postgres::tally_session_resolution::{
-    get_resolution_by_tally_session, submit_resolution, update_resolution, ResolutionStatus,
-    ResolutionType, TallySessionResolution,
+    get_resolution_by_tally_session, submit_resolution, update_resolution,
 };
+use sequent_core::types::ceremonies::{ResolutionStatus, ResolutionType, TallySessionResolution};
 use crate::services::ceremonies::keys_ceremony::find_trustee_private_key;
 use crate::services::ceremonies::serialize_logs::{
     append_tally_trustee_log, generate_tally_initial_log,
@@ -1091,10 +1091,8 @@ pub fn is_resubmission(resolution: &TallySessionResolution) -> bool {
 #[cfg(test)]
 mod tally_resolution_tests {
     use super::{extract_tied_candidate_ids, is_resubmission, validate_resolution_allowed};
-    use crate::postgres::tally_session_resolution::{
-        ResolutionStatus, ResolutionType, TallySessionResolution,
-    };
     use rocket::http::Status;
+    use sequent_core::types::ceremonies::{ResolutionStatus, ResolutionType, TallySessionResolution};
     use sequent_core::types::ceremonies::TallyExecutionStatus;
 
     fn make_resolution(

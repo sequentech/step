@@ -4,68 +4,11 @@
 
 use anyhow::{anyhow, Result};
 use deadpool_postgres::Transaction;
-use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use sequent_core::types::ceremonies::{ResolutionStatus, ResolutionType, TallySessionResolution};
 use tokio_postgres::Row;
 use tracing::{info, instrument};
 use uuid::Uuid;
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct TallySessionResolution {
-    pub id: String,
-    pub tenant_id: String,
-    pub election_event_id: String,
-    pub tally_session_id: String,
-    pub results_contest_id: Option<String>,
-    pub contest_id: Option<String>,
-    pub results_event_id: Option<String>,
-    pub created_at: Option<chrono::DateTime<chrono::Utc>>,
-    pub last_updated_at: Option<chrono::DateTime<chrono::Utc>>,
-    pub resolution_type: ResolutionType,
-    pub status: ResolutionStatus,
-    pub resolution_data: Value,
-    pub resolution: Option<Value>,
-    pub resolved_by_user: Option<String>,
-    pub resolved_at: Option<chrono::DateTime<chrono::Utc>>,
-    pub labels: Option<Value>,
-    pub annotations: Option<Value>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-#[serde(rename_all = "snake_case")]
-pub enum ResolutionType {
-    IrvTieBreak,
-    ManualRecount,
-    ExternalValidation,
-}
-
-impl std::fmt::Display for ResolutionType {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            ResolutionType::IrvTieBreak => write!(f, "irv_tie_break"),
-            ResolutionType::ManualRecount => write!(f, "manual_recount"),
-            ResolutionType::ExternalValidation => write!(f, "external_validation"),
-        }
-    }
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-#[serde(rename_all = "lowercase")]
-pub enum ResolutionStatus {
-    Pending,
-    Resolved,
-    Cancelled,
-}
-
-impl std::fmt::Display for ResolutionStatus {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            ResolutionStatus::Pending => write!(f, "pending"),
-            ResolutionStatus::Resolved => write!(f, "resolved"),
-            ResolutionStatus::Cancelled => write!(f, "cancelled"),
-        }
-    }
-}
 
 fn map_row_to_resolution(row: &Row) -> Result<TallySessionResolution> {
     let resolution_type_str: String = row.get(9);

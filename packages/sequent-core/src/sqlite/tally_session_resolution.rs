@@ -2,9 +2,10 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use crate::types::results::TallySessionResolution;
+use crate::types::ceremonies::TallySessionResolution;
 use anyhow::Result;
 use rusqlite::{params, Transaction};
+use serde_json::to_string;
 use tracing::instrument;
 
 #[instrument(err, skip_all)]
@@ -28,7 +29,9 @@ pub async fn create_tally_session_resolutions_sqlite(
             resolution_data TEXT,
             resolution TEXT,
             resolved_by_user TEXT,
-            resolved_at TEXT
+            resolved_at TEXT,
+            labels TEXT,
+            annotations TEXT
         );",
     )?;
 
@@ -37,9 +40,10 @@ pub async fn create_tally_session_resolutions_sqlite(
             id, tenant_id, election_event_id, tally_session_id,
             results_contest_id, contest_id, results_event_id,
             created_at, last_updated_at, resolution_type, status,
-            resolution_data, resolution, resolved_by_user, resolved_at
+            resolution_data, resolution, resolved_by_user, resolved_at,
+            labels, annotations
         ) VALUES (
-            ?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14,?15
+            ?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14,?15,?16,?17
         );",
     )?;
 
@@ -52,14 +56,16 @@ pub async fn create_tally_session_resolutions_sqlite(
             r.results_contest_id,
             r.contest_id,
             r.results_event_id,
-            r.created_at,
-            r.last_updated_at,
-            r.resolution_type,
-            r.status,
-            r.resolution_data,
-            r.resolution,
+            r.created_at.map(|dt| dt.to_rfc3339()),
+            r.last_updated_at.map(|dt| dt.to_rfc3339()),
+            r.resolution_type.to_string(),
+            r.status.to_string(),
+            to_string(&r.resolution_data)?,
+            r.resolution.as_ref().map(to_string).transpose()?,
             r.resolved_by_user,
-            r.resolved_at,
+            r.resolved_at.map(|dt| dt.to_rfc3339()),
+            r.labels.as_ref().map(to_string).transpose()?,
+            r.annotations.as_ref().map(to_string).transpose()?,
         ])?;
     }
 
