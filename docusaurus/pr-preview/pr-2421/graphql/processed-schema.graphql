@@ -18302,6 +18302,8 @@ type tally_session_resolution {
     """JSON select path"""
     path: String
   ): jsonb
+  """An object relationship"""
+  contest: contest
   contest_id: uuid
   created_at: timestamptz!
   election_event_id: uuid!
@@ -18322,6 +18324,7 @@ type tally_session_resolution {
   resolution_type: String!
   resolved_at: timestamptz
   resolved_by_user: uuid
+  results_contest_id: uuid
   results_event_id: uuid
   status: String!
   """An object relationship"""
@@ -18392,6 +18395,7 @@ input tally_session_resolution_bool_exp {
   _not: tally_session_resolution_bool_exp
   _or: [tally_session_resolution_bool_exp!]
   annotations: jsonb_comparison_exp
+  contest: contest_bool_exp
   contest_id: uuid_comparison_exp
   created_at: timestamptz_comparison_exp
   election_event_id: uuid_comparison_exp
@@ -18403,6 +18407,7 @@ input tally_session_resolution_bool_exp {
   resolution_type: String_comparison_exp
   resolved_at: timestamptz_comparison_exp
   resolved_by_user: uuid_comparison_exp
+  results_contest_id: uuid_comparison_exp
   results_event_id: uuid_comparison_exp
   status: String_comparison_exp
   tally_session: tally_session_bool_exp
@@ -18455,6 +18460,7 @@ input type for inserting data into table "sequent_backend.tally_session_resoluti
 """
 input tally_session_resolution_insert_input {
   annotations: jsonb
+  contest: contest_obj_rel_insert_input
   contest_id: uuid
   created_at: timestamptz
   election_event_id: uuid
@@ -18466,6 +18472,7 @@ input tally_session_resolution_insert_input {
   resolution_type: String
   resolved_at: timestamptz
   resolved_by_user: uuid
+  results_contest_id: uuid
   results_event_id: uuid
   status: String
   tally_session: tally_session_obj_rel_insert_input
@@ -18483,6 +18490,7 @@ type tally_session_resolution_max_fields {
   resolution_type: String
   resolved_at: timestamptz
   resolved_by_user: uuid
+  results_contest_id: uuid
   results_event_id: uuid
   status: String
   tally_session_id: uuid
@@ -18501,6 +18509,7 @@ input tally_session_resolution_max_order_by {
   resolution_type: order_by
   resolved_at: order_by
   resolved_by_user: order_by
+  results_contest_id: order_by
   results_event_id: order_by
   status: order_by
   tally_session_id: order_by
@@ -18517,6 +18526,7 @@ type tally_session_resolution_min_fields {
   resolution_type: String
   resolved_at: timestamptz
   resolved_by_user: uuid
+  results_contest_id: uuid
   results_event_id: uuid
   status: String
   tally_session_id: uuid
@@ -18535,6 +18545,7 @@ input tally_session_resolution_min_order_by {
   resolution_type: order_by
   resolved_at: order_by
   resolved_by_user: order_by
+  results_contest_id: order_by
   results_event_id: order_by
   status: order_by
   tally_session_id: order_by
@@ -18565,6 +18576,7 @@ Ordering options when selecting data from "sequent_backend.tally_session_resolut
 """
 input tally_session_resolution_order_by {
   annotations: order_by
+  contest: contest_order_by
   contest_id: order_by
   created_at: order_by
   election_event_id: order_by
@@ -18576,6 +18588,7 @@ input tally_session_resolution_order_by {
   resolution_type: order_by
   resolved_at: order_by
   resolved_by_user: order_by
+  results_contest_id: order_by
   results_event_id: order_by
   status: order_by
   tally_session: tally_session_order_by
@@ -18627,6 +18640,8 @@ enum tally_session_resolution_select_column {
   """column name"""
   resolved_by_user
   """column name"""
+  results_contest_id
+  """column name"""
   results_event_id
   """column name"""
   status
@@ -18652,6 +18667,7 @@ input tally_session_resolution_set_input {
   resolution_type: String
   resolved_at: timestamptz
   resolved_by_user: uuid
+  results_contest_id: uuid
   results_event_id: uuid
   status: String
   tally_session_id: uuid
@@ -18682,6 +18698,7 @@ input tally_session_resolution_stream_cursor_value_input {
   resolution_type: String
   resolved_at: timestamptz
   resolved_by_user: uuid
+  results_contest_id: uuid
   results_event_id: uuid
   status: String
   tally_session_id: uuid
@@ -18716,6 +18733,8 @@ enum tally_session_resolution_update_column {
   resolved_at
   """column name"""
   resolved_by_user
+  """column name"""
+  results_contest_id
   """column name"""
   results_event_id
   """column name"""
