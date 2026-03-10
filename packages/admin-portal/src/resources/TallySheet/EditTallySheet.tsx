@@ -35,6 +35,7 @@ import {
     EEnableCheckableLists,
     ICandidatePresentation,
     IContestPresentation,
+    translateFromPresentation,
 } from "@sequentech/ui-core"
 import {filterCandidateByCheckableLists} from "@/services/CandidatesFilter"
 import {uniq} from "lodash"
@@ -68,7 +69,7 @@ const numbers = /^[0-9]+$/
 export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
     const {tallySheet, contest, doCreatedTalySheet, submitRef} = props
 
-    const {t} = useTranslation()
+    const {t, i18n} = useTranslation()
 
     const [areasList, setAreasList] = useState<IArea[]>([])
     const [channel, setChannel] = React.useState<string | null>(null)
@@ -210,7 +211,11 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
                         }
                         const candidateTemp: ICandidateResultsExtended = {
                             candidate_id: candidate.id,
-                            name: candidate.name as string,
+                            name: translateFromPresentation(
+                                candidate,
+                                "name",
+                                i18n.language
+                            ) as string,
                         }
                         if (contentTemp.candidate_results[candidate.id]) {
                             candidateTemp.total_votes =
@@ -265,7 +270,7 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
                 }
                 const candidateTemp: ICandidateResultsExtended = {
                     candidate_id: candidate.id,
-                    name: candidate.name as string,
+                    name: translateFromPresentation(candidate, "name", i18n.language) as string,
                 }
                 candidatesTemp.push(candidateTemp)
             }

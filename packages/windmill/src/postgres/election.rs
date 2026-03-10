@@ -28,16 +28,15 @@ impl TryFrom<Row> for ElectionWrapper {
             last_updated_at: item.get("last_updated_at"),
             labels: item.try_get("labels")?,
             annotations: item.try_get("annotations")?,
-            name: item.try_get("name")?,
             description: item.try_get("description")?,
             presentation: item.try_get("presentation")?,
             status: item.try_get("status")?,
             eml: item.try_get("eml")?,
+            external_id: item.try_get("external_id")?,
             num_allowed_revotes: num_allowed_revotes.map(|val| val as i64),
             is_consolidated_ballot_encoding: item.try_get("is_consolidated_ballot_encoding")?,
             spoil_ballot_option: item.try_get("spoil_ballot_option")?,
             is_kiosk: item.try_get("is_kiosk")?,
-            alias: item.try_get("alias")?,
             voting_channels: item.try_get("voting_channels")?,
             image_document_id: item.try_get("image_document_id")?,
             statistics: item.try_get("statistics")?,
@@ -155,14 +154,7 @@ pub async fn get_elections(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
     election_event_id: &str,
-    get_test_elections: Option<bool>,
 ) -> Result<Vec<Election>> {
-    let get_test_elections_clause = match get_test_elections {
-        Some(true) => "AND name ILIKE '%Test%'".to_string(),
-        Some(false) => "AND name NOT ILIKE '%Test%'".to_string(),
-        None => "".to_string(),
-    };
-
     let statement_str = format!(
         r#"
             SELECT
@@ -172,7 +164,6 @@ pub async fn get_elections(
             WHERE
                 tenant_id = $1 AND
                 election_event_id = $2
-                {get_test_elections_clause}
             "#
     );
 
@@ -386,9 +377,9 @@ pub async fn create_election(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
     election_event_id: &str,
-    name: &str,
     presentation: &ElectionPresentation,
     description: Option<String>,
+    external_id: &str,
 ) -> Result<Election> {
     let presentation_value = serde_json::to_value(presentation)
         .map_err(|err| anyhow!("Error serializing election presentation: {err}"))?;
@@ -405,12 +396,11 @@ pub async fn create_election(
                     election_event_id,
                     created_at,
                     last_updated_at,
-                    name,
-                    alias,
                     description,
                     presentation,
                     voting_channels,
-                    status
+                    status,
+                    external_id
                 )
                 VALUES
                 (
@@ -422,8 +412,7 @@ pub async fn create_election(
                     $4,
                     $5,
                     $6,
-                    $7,
-                    $8
+                    $7
                 )
                 RETURNING *;
             "#,
@@ -436,12 +425,11 @@ pub async fn create_election(
             &[
                 &Uuid::parse_str(&tenant_id)?,
                 &Uuid::parse_str(&election_event_id)?,
-                &name.to_string(),
-                &name.to_string(),
                 &description,
                 &presentation_value,
                 &voting_channels_value,
                 &status,
+                &external_id,
             ],
         )
         .await
@@ -485,7 +473,6 @@ pub async fn insert_elections(
                     last_updated_at,
                     labels,
                     annotations,
-                    name,
                     description,
                     presentation,
                     status,
@@ -493,7 +480,6 @@ pub async fn insert_elections(
                     num_allowed_revotes,
                     is_consolidated_ballot_encoding,
                     spoil_ballot_option,
-                    alias,
                     voting_channels,
                     is_kiosk,
                     image_document_id,
@@ -501,7 +487,8 @@ pub async fn insert_elections(
                     receipts,
                     permission_label,
                     keys_ceremony_id,
-                    initialization_report_generated
+                    initialization_report_generated,
+                    external_id
                 )
                 VALUES
                 (
@@ -527,8 +514,7 @@ pub async fn insert_elections(
                     $18,
                     $19,
                     $20,
-                    $21,
-                    $22
+                    $21
                 );
             "#,
             )
@@ -543,7 +529,6 @@ pub async fn insert_elections(
                     &Uuid::parse_str(&election.election_event_id)?,
                     &election.labels,
                     &election.annotations,
-                    &election.name,
                     &election.description,
                     &election.presentation,
                     &election.status,
@@ -553,7 +538,6 @@ pub async fn insert_elections(
                         .and_then(|val| Some(val as i32)),
                     &election.is_consolidated_ballot_encoding,
                     &election.spoil_ballot_option,
-                    &election.alias,
                     &election.voting_channels,
                     &election.is_kiosk,
                     &election.image_document_id,
@@ -562,10 +546,11 @@ pub async fn insert_elections(
                     &election.permission_label,
                     &keys_ceremony_id_uuid_opt,
                     &election.initialization_report_generated,
+                    &election.external_id,
                 ],
             )
             .await
-            .map_err(|err| anyhow!("Error running the document query: {err}"))?;
+            .map_err(|err| anyhow!("Error running the insert election query: {err}"))?;
     }
 
     Ok(())

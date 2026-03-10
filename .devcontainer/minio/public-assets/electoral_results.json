@@ -12,6 +12,7 @@
     {
       "election_id": "1",
       "election_name": "TOKYO PE",
+      "election_alias": "TOKYO",
       "election_description": "",
       "election_dates": {
         "first_started_at": "2024-11-08T00:00:00Z",
@@ -284,6 +285,7 @@
     {
       "election_id": "1",
       "election_name": "NEW YORK PCG",
+      "election_alias": "NEW YORK",
       "election_description": "",
       "area_annotations": {
         "registered_voters": "10000000"

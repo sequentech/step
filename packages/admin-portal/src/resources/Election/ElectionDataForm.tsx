@@ -285,8 +285,7 @@ export const ElectionDataForm: React.FC = () => {
             if (!temp.presentation?.i18n?.en) {
                 temp.presentation.i18n.en = {}
             }
-            temp.presentation.i18n.en.name = temp.name
-            temp.presentation.i18n.en.alias = temp.alias
+
             temp.presentation.i18n.en.description = temp.description
 
             // receipts
@@ -608,6 +607,11 @@ export const ElectionDataForm: React.FC = () => {
                                 </ElectionStyles.Wrapper>
                             </AccordionSummary>
                             <AccordionDetails>
+                                <TextInput
+                                    source="external_id"
+                                    label={String(t("electionScreen.field.externalId"))}
+                                    readOnly={!!record.external_id}
+                                />
                                 <Tabs value={value} onChange={handleChange}>
                                     {renderTabs(parsedValue)}
                                 </Tabs>

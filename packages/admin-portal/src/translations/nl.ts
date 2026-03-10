@@ -582,6 +582,7 @@ const dutchTranslation: TranslationType = {
                 alias: "Alias",
                 description: "Beschrijving",
                 securityConfirmationHtml: "Beveiligingsbevestiging HTML",
+                externalId: "Externe ID",
             },
             securityConfirmationPolicy: {
                 label: "Beleid voor selectievakje van beveiligingsbevestiging",
