@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useContext, useMemo, useState} from "react"
 import {useTranslation} from "react-i18next"
+import {useAliasRenderer} from "@/hooks/useAliasRenderer"
 import {useGetList, useNotify} from "react-admin"
 import {useMutation} from "@apollo/client"
 import {
@@ -64,6 +65,7 @@ export const TallyResolutionPanel: React.FC<TallyResolutionPanelProps> = ({
     onResolutionSubmitted,
 }) => {
     const {t, i18n} = useTranslation()
+    const aliasRenderer = useAliasRenderer()
     const notify = useNotify()
     const {globalSettings} = useContext(SettingsContext)
     const [selectedResolutionId, setSelectedResolutionId] = useState<string | null>(null)
@@ -191,10 +193,10 @@ export const TallyResolutionPanel: React.FC<TallyResolutionPanelProps> = ({
     const electionMap = useMemo(() => {
         const map = new Map<string, string>()
         for (const e of elections) {
-            map.set(e.id, e.name)
+            map.set(e.id, aliasRenderer(e.presentation))
         }
         return map
-    }, [elections])
+    }, [elections, i18n.language])
 
     const areaMap = useMemo(() => {
         const map = new Map<string, string>()
@@ -466,7 +468,7 @@ export const TallyResolutionPanel: React.FC<TallyResolutionPanelProps> = ({
         if (contest) {
             const electionName = electionMap.get(contest.election_id)
             if (electionName) parts.push(electionName)
-            if (contest.name) parts.push(contest.name)
+            parts.push(aliasRenderer(contest.presentation))
         }
         if (contestId) {
             const areaLabel = contestAreaLabel.get(contestId)
@@ -579,7 +581,7 @@ export const TallyResolutionPanel: React.FC<TallyResolutionPanelProps> = ({
         tiedVoteCount !== undefined && totalVotes
             ? ((tiedVoteCount / totalVotes) * 100).toFixed(1)
             : undefined
-    const tiedCandidateNames = tiedCandidatesForSelected.map((c) => c.name ?? c.id).join(", ")
+    const tiedCandidateNames = tiedCandidatesForSelected.map((c) => aliasRenderer(c.presentation)).join(", ")
     // Draft value: show the draft selection if set, otherwise fall back to the committed selection
     const currentDraftValue = selectedResolution?.contest_id
         ? (draftSelections[selectedResolution.contest_id] ??
@@ -657,7 +659,7 @@ export const TallyResolutionPanel: React.FC<TallyResolutionPanelProps> = ({
                                     multiple
                                     size="small"
                                     options={relevantElections}
-                                    getOptionLabel={(o) => o.name ?? ""}
+                                    getOptionLabel={(o) => aliasRenderer(o.presentation)}
                                     isOptionEqualToValue={(o, v) => o.id === v.id}
                                     value={relevantElections.filter((e) =>
                                         filterElections.includes(e.id)
@@ -675,7 +677,7 @@ export const TallyResolutionPanel: React.FC<TallyResolutionPanelProps> = ({
                                     multiple
                                     size="small"
                                     options={relevantContests}
-                                    getOptionLabel={(o) => o.name ?? ""}
+                                    getOptionLabel={(o) => aliasRenderer(o.presentation)}
                                     isOptionEqualToValue={(o, v) => o.id === v.id}
                                     value={relevantContests.filter((c) =>
                                         filterContests.includes(c.id)
@@ -857,7 +859,7 @@ export const TallyResolutionPanel: React.FC<TallyResolutionPanelProps> = ({
 
                                 <Autocomplete
                                     options={tiedCandidatesForSelected}
-                                    getOptionLabel={(c) => c.name ?? c.id}
+                                    getOptionLabel={(c) => aliasRenderer(c.presentation)}
                                     isOptionEqualToValue={(o, v) => o.id === v.id}
                                     disabled={
                                         !(

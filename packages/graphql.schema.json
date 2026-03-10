@@ -114492,6 +114492,18 @@
             "deprecationReason": null
           },
           {
+            "name": "contest",
+            "description": "An object relationship",
+            "args": [],
+            "type": {
+              "kind": "OBJECT",
+              "name": "sequent_backend_contest",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "contest_id",
             "description": null,
             "args": [],
@@ -114670,6 +114682,18 @@
           },
           {
             "name": "resolved_by_user",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "uuid",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "results_contest_id",
             "description": null,
             "args": [],
             "type": {
@@ -115167,6 +115191,16 @@
             "defaultValue": null
           },
           {
+            "name": "contest",
+            "description": null,
+            "type": {
+              "kind": "INPUT_OBJECT",
+              "name": "sequent_backend_contest_bool_exp",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
             "name": "contest_id",
             "description": null,
             "type": {
@@ -115268,6 +115302,16 @@
           },
           {
             "name": "resolved_by_user",
+            "description": null,
+            "type": {
+              "kind": "INPUT_OBJECT",
+              "name": "uuid_comparison_exp",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
+            "name": "results_contest_id",
             "description": null,
             "type": {
               "kind": "INPUT_OBJECT",
@@ -115550,6 +115594,16 @@
             "defaultValue": null
           },
           {
+            "name": "contest",
+            "description": null,
+            "type": {
+              "kind": "INPUT_OBJECT",
+              "name": "sequent_backend_contest_obj_rel_insert_input",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
             "name": "contest_id",
             "description": null,
             "type": {
@@ -115651,6 +115705,16 @@
           },
           {
             "name": "resolved_by_user",
+            "description": null,
+            "type": {
+              "kind": "SCALAR",
+              "name": "uuid",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
+            "name": "results_contest_id",
             "description": null,
             "type": {
               "kind": "SCALAR",
@@ -115816,6 +115880,18 @@
             "deprecationReason": null
           },
           {
+            "name": "results_contest_id",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "uuid",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "results_event_id",
             "description": null,
             "args": [],
@@ -115947,6 +116023,16 @@
           },
           {
             "name": "resolved_by_user",
+            "description": null,
+            "type": {
+              "kind": "ENUM",
+              "name": "order_by",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
+            "name": "results_contest_id",
             "description": null,
             "type": {
               "kind": "ENUM",
@@ -116102,6 +116188,18 @@
             "deprecationReason": null
           },
           {
+            "name": "results_contest_id",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "uuid",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "results_event_id",
             "description": null,
             "args": [],
@@ -116233,6 +116331,16 @@
           },
           {
             "name": "resolved_by_user",
+            "description": null,
+            "type": {
+              "kind": "ENUM",
+              "name": "order_by",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
+            "name": "results_contest_id",
             "description": null,
             "type": {
               "kind": "ENUM",
@@ -116411,6 +116519,16 @@
             "defaultValue": null
           },
           {
+            "name": "contest",
+            "description": null,
+            "type": {
+              "kind": "INPUT_OBJECT",
+              "name": "sequent_backend_contest_order_by",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
             "name": "contest_id",
             "description": null,
             "type": {
@@ -116512,6 +116630,16 @@
           },
           {
             "name": "resolved_by_user",
+            "description": null,
+            "type": {
+              "kind": "ENUM",
+              "name": "order_by",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
+            "name": "results_contest_id",
             "description": null,
             "type": {
               "kind": "ENUM",
@@ -116732,6 +116860,12 @@
             "deprecationReason": null
           },
           {
+            "name": "results_contest_id",
+            "description": "column name",
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "results_event_id",
             "description": "column name",
             "isDeprecated": false,
@@ -116876,6 +117010,16 @@
           },
           {
             "name": "resolved_by_user",
+            "description": null,
+            "type": {
+              "kind": "SCALAR",
+              "name": "uuid",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
+            "name": "results_contest_id",
             "description": null,
             "type": {
               "kind": "SCALAR",
@@ -117091,6 +117235,16 @@
             "defaultValue": null
           },
           {
+            "name": "results_contest_id",
+            "description": null,
+            "type": {
+              "kind": "SCALAR",
+              "name": "uuid",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
             "name": "results_event_id",
             "description": null,
             "type": {
@@ -117211,6 +117365,12 @@
           },
           {
             "name": "resolved_by_user",
+            "description": "column name",
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "results_contest_id",
             "description": "column name",
             "isDeprecated": false,
             "deprecationReason": null

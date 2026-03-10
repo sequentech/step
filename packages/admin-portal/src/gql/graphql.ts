@@ -17915,6 +17915,7 @@ export type Sequent_Backend_Tally_Session_Resolution_Bool_Exp = {
   _not?: InputMaybe<Sequent_Backend_Tally_Session_Resolution_Bool_Exp>;
   _or?: InputMaybe<Array<Sequent_Backend_Tally_Session_Resolution_Bool_Exp>>;
   annotations?: InputMaybe<Jsonb_Comparison_Exp>;
+  contest?: InputMaybe<Sequent_Backend_Contest_Bool_Exp>;
   contest_id?: InputMaybe<Uuid_Comparison_Exp>;
   created_at?: InputMaybe<Timestamptz_Comparison_Exp>;
   election_event_id?: InputMaybe<Uuid_Comparison_Exp>;
@@ -17926,6 +17927,7 @@ export type Sequent_Backend_Tally_Session_Resolution_Bool_Exp = {
   resolution_type?: InputMaybe<String_Comparison_Exp>;
   resolved_at?: InputMaybe<Timestamptz_Comparison_Exp>;
   resolved_by_user?: InputMaybe<Uuid_Comparison_Exp>;
+  results_contest_id?: InputMaybe<Uuid_Comparison_Exp>;
   results_event_id?: InputMaybe<Uuid_Comparison_Exp>;
   status?: InputMaybe<String_Comparison_Exp>;
   tally_session?: InputMaybe<Sequent_Backend_Tally_Session_Bool_Exp>;
@@ -17966,6 +17968,7 @@ export type Sequent_Backend_Tally_Session_Resolution_Delete_Key_Input = {
 /** input type for inserting data into table "sequent_backend.tally_session_resolution" */
 export type Sequent_Backend_Tally_Session_Resolution_Insert_Input = {
   annotations?: InputMaybe<Scalars['jsonb']['input']>;
+  contest?: InputMaybe<Sequent_Backend_Contest_Obj_Rel_Insert_Input>;
   contest_id?: InputMaybe<Scalars['uuid']['input']>;
   created_at?: InputMaybe<Scalars['timestamptz']['input']>;
   election_event_id?: InputMaybe<Scalars['uuid']['input']>;
@@ -17977,6 +17980,7 @@ export type Sequent_Backend_Tally_Session_Resolution_Insert_Input = {
   resolution_type?: InputMaybe<Scalars['String']['input']>;
   resolved_at?: InputMaybe<Scalars['timestamptz']['input']>;
   resolved_by_user?: InputMaybe<Scalars['uuid']['input']>;
+  results_contest_id?: InputMaybe<Scalars['uuid']['input']>;
   results_event_id?: InputMaybe<Scalars['uuid']['input']>;
   status?: InputMaybe<Scalars['String']['input']>;
   tally_session?: InputMaybe<Sequent_Backend_Tally_Session_Obj_Rel_Insert_Input>;
@@ -17995,6 +17999,7 @@ export type Sequent_Backend_Tally_Session_Resolution_Max_Fields = {
   resolution_type?: Maybe<Scalars['String']['output']>;
   resolved_at?: Maybe<Scalars['timestamptz']['output']>;
   resolved_by_user?: Maybe<Scalars['uuid']['output']>;
+  results_contest_id?: Maybe<Scalars['uuid']['output']>;
   results_event_id?: Maybe<Scalars['uuid']['output']>;
   status?: Maybe<Scalars['String']['output']>;
   tally_session_id?: Maybe<Scalars['uuid']['output']>;
@@ -18011,6 +18016,7 @@ export type Sequent_Backend_Tally_Session_Resolution_Max_Order_By = {
   resolution_type?: InputMaybe<Order_By>;
   resolved_at?: InputMaybe<Order_By>;
   resolved_by_user?: InputMaybe<Order_By>;
+  results_contest_id?: InputMaybe<Order_By>;
   results_event_id?: InputMaybe<Order_By>;
   status?: InputMaybe<Order_By>;
   tally_session_id?: InputMaybe<Order_By>;
@@ -18028,6 +18034,7 @@ export type Sequent_Backend_Tally_Session_Resolution_Min_Fields = {
   resolution_type?: Maybe<Scalars['String']['output']>;
   resolved_at?: Maybe<Scalars['timestamptz']['output']>;
   resolved_by_user?: Maybe<Scalars['uuid']['output']>;
+  results_contest_id?: Maybe<Scalars['uuid']['output']>;
   results_event_id?: Maybe<Scalars['uuid']['output']>;
   status?: Maybe<Scalars['String']['output']>;
   tally_session_id?: Maybe<Scalars['uuid']['output']>;
@@ -18044,6 +18051,7 @@ export type Sequent_Backend_Tally_Session_Resolution_Min_Order_By = {
   resolution_type?: InputMaybe<Order_By>;
   resolved_at?: InputMaybe<Order_By>;
   resolved_by_user?: InputMaybe<Order_By>;
+  results_contest_id?: InputMaybe<Order_By>;
   results_event_id?: InputMaybe<Order_By>;
   status?: InputMaybe<Order_By>;
   tally_session_id?: InputMaybe<Order_By>;
@@ -18069,6 +18077,7 @@ export type Sequent_Backend_Tally_Session_Resolution_On_Conflict = {
 /** Ordering options when selecting data from "sequent_backend.tally_session_resolution". */
 export type Sequent_Backend_Tally_Session_Resolution_Order_By = {
   annotations?: InputMaybe<Order_By>;
+  contest?: InputMaybe<Sequent_Backend_Contest_Order_By>;
   contest_id?: InputMaybe<Order_By>;
   created_at?: InputMaybe<Order_By>;
   election_event_id?: InputMaybe<Order_By>;
@@ -18080,6 +18089,7 @@ export type Sequent_Backend_Tally_Session_Resolution_Order_By = {
   resolution_type?: InputMaybe<Order_By>;
   resolved_at?: InputMaybe<Order_By>;
   resolved_by_user?: InputMaybe<Order_By>;
+  results_contest_id?: InputMaybe<Order_By>;
   results_event_id?: InputMaybe<Order_By>;
   status?: InputMaybe<Order_By>;
   tally_session?: InputMaybe<Sequent_Backend_Tally_Session_Order_By>;
@@ -18127,6 +18137,8 @@ export enum Sequent_Backend_Tally_Session_Resolution_Select_Column {
   /** column name */
   ResolvedByUser = 'resolved_by_user',
   /** column name */
+  ResultsContestId = 'results_contest_id',
+  /** column name */
   ResultsEventId = 'results_event_id',
   /** column name */
   Status = 'status',
@@ -18150,6 +18162,7 @@ export type Sequent_Backend_Tally_Session_Resolution_Set_Input = {
   resolution_type?: InputMaybe<Scalars['String']['input']>;
   resolved_at?: InputMaybe<Scalars['timestamptz']['input']>;
   resolved_by_user?: InputMaybe<Scalars['uuid']['input']>;
+  results_contest_id?: InputMaybe<Scalars['uuid']['input']>;
   results_event_id?: InputMaybe<Scalars['uuid']['input']>;
   status?: InputMaybe<Scalars['String']['input']>;
   tally_session_id?: InputMaybe<Scalars['uuid']['input']>;
@@ -18178,6 +18191,7 @@ export type Sequent_Backend_Tally_Session_Resolution_Stream_Cursor_Value_Input =
   resolution_type?: InputMaybe<Scalars['String']['input']>;
   resolved_at?: InputMaybe<Scalars['timestamptz']['input']>;
   resolved_by_user?: InputMaybe<Scalars['uuid']['input']>;
+  results_contest_id?: InputMaybe<Scalars['uuid']['input']>;
   results_event_id?: InputMaybe<Scalars['uuid']['input']>;
   status?: InputMaybe<Scalars['String']['input']>;
   tally_session_id?: InputMaybe<Scalars['uuid']['input']>;
@@ -18210,6 +18224,8 @@ export enum Sequent_Backend_Tally_Session_Resolution_Update_Column {
   ResolvedAt = 'resolved_at',
   /** column name */
   ResolvedByUser = 'resolved_by_user',
+  /** column name */
+  ResultsContestId = 'results_contest_id',
   /** column name */
   ResultsEventId = 'results_event_id',
   /** column name */
