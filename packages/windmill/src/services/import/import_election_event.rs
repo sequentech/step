@@ -329,7 +329,6 @@ pub async fn insert_election_event_db(
     let new_election_input = ElectionEvent {
         id: election_event_id.clone(),
         tenant_id: object.tenant_id.clone(),
-        name: object.name.clone(),
         description: object.description.clone(),
         public_key: object.public_key.clone(),
         status: object.status.clone(),
@@ -348,11 +347,11 @@ pub async fn insert_election_event_db(
             .unwrap_or("RSA256".to_string()),
         is_audit: object.is_audit.clone(),
         audit_election_event_id: object.audit_election_event_id.clone(),
-        alias: object.alias.clone(),
         statistics: Some(json!({
             "num_emails_sent": 0,
             "num_sms_sent": 0
         })),
+        external_id: None,
     };
 
     insert_election_event(&hasura_transaction, &new_election_input).await?;

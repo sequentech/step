@@ -87,7 +87,7 @@ export type CastVotesByIp = {
   __typename?: 'CastVotesByIp';
   country?: Maybe<Scalars['String']['output']>;
   election_id?: Maybe<Scalars['String']['output']>;
-  election_name?: Maybe<Scalars['String']['output']>;
+  election_presentation?: Maybe<Scalars['jsonb']['output']>;
   id?: Maybe<Scalars['String']['output']>;
   ip?: Maybe<Scalars['String']['output']>;
   vote_count?: Maybe<Scalars['Int']['output']>;
@@ -1747,7 +1747,7 @@ export type Mutation_RootCreate_Ballot_ReceiptArgs = {
 export type Mutation_RootCreate_ElectionArgs = {
   description?: InputMaybe<Scalars['String']['input']>;
   election_event_id: Scalars['String']['input'];
-  name: Scalars['String']['input'];
+  external_id: Scalars['String']['input'];
   presentation?: InputMaybe<Scalars['jsonb']['input']>;
 };
 
@@ -7344,18 +7344,17 @@ export type Sequent_Backend_Ballot_Style_Updates = {
 /** columns and relationships of "sequent_backend.candidate" */
 export type Sequent_Backend_Candidate = {
   __typename?: 'sequent_backend_candidate';
-  alias?: Maybe<Scalars['String']['output']>;
   annotations?: Maybe<Scalars['jsonb']['output']>;
   contest_id?: Maybe<Scalars['uuid']['output']>;
   created_at?: Maybe<Scalars['timestamptz']['output']>;
   description?: Maybe<Scalars['String']['output']>;
   election_event_id: Scalars['uuid']['output'];
+  external_id?: Maybe<Scalars['String']['output']>;
   id: Scalars['uuid']['output'];
   image_document_id?: Maybe<Scalars['String']['output']>;
   is_public?: Maybe<Scalars['Boolean']['output']>;
   labels?: Maybe<Scalars['jsonb']['output']>;
   last_updated_at?: Maybe<Scalars['timestamptz']['output']>;
-  name?: Maybe<Scalars['String']['output']>;
   presentation?: Maybe<Scalars['jsonb']['output']>;
   tenant_id: Scalars['uuid']['output'];
   type?: Maybe<Scalars['String']['output']>;
@@ -7454,18 +7453,17 @@ export type Sequent_Backend_Candidate_Bool_Exp = {
   _and?: InputMaybe<Array<Sequent_Backend_Candidate_Bool_Exp>>;
   _not?: InputMaybe<Sequent_Backend_Candidate_Bool_Exp>;
   _or?: InputMaybe<Array<Sequent_Backend_Candidate_Bool_Exp>>;
-  alias?: InputMaybe<String_Comparison_Exp>;
   annotations?: InputMaybe<Jsonb_Comparison_Exp>;
   contest_id?: InputMaybe<Uuid_Comparison_Exp>;
   created_at?: InputMaybe<Timestamptz_Comparison_Exp>;
   description?: InputMaybe<String_Comparison_Exp>;
   election_event_id?: InputMaybe<Uuid_Comparison_Exp>;
+  external_id?: InputMaybe<String_Comparison_Exp>;
   id?: InputMaybe<Uuid_Comparison_Exp>;
   image_document_id?: InputMaybe<String_Comparison_Exp>;
   is_public?: InputMaybe<Boolean_Comparison_Exp>;
   labels?: InputMaybe<Jsonb_Comparison_Exp>;
   last_updated_at?: InputMaybe<Timestamptz_Comparison_Exp>;
-  name?: InputMaybe<String_Comparison_Exp>;
   presentation?: InputMaybe<Jsonb_Comparison_Exp>;
   tenant_id?: InputMaybe<Uuid_Comparison_Exp>;
   type?: InputMaybe<String_Comparison_Exp>;
@@ -7500,18 +7498,17 @@ export type Sequent_Backend_Candidate_Delete_Key_Input = {
 
 /** input type for inserting data into table "sequent_backend.candidate" */
 export type Sequent_Backend_Candidate_Insert_Input = {
-  alias?: InputMaybe<Scalars['String']['input']>;
   annotations?: InputMaybe<Scalars['jsonb']['input']>;
   contest_id?: InputMaybe<Scalars['uuid']['input']>;
   created_at?: InputMaybe<Scalars['timestamptz']['input']>;
   description?: InputMaybe<Scalars['String']['input']>;
   election_event_id?: InputMaybe<Scalars['uuid']['input']>;
+  external_id?: InputMaybe<Scalars['String']['input']>;
   id?: InputMaybe<Scalars['uuid']['input']>;
   image_document_id?: InputMaybe<Scalars['String']['input']>;
   is_public?: InputMaybe<Scalars['Boolean']['input']>;
   labels?: InputMaybe<Scalars['jsonb']['input']>;
   last_updated_at?: InputMaybe<Scalars['timestamptz']['input']>;
-  name?: InputMaybe<Scalars['String']['input']>;
   presentation?: InputMaybe<Scalars['jsonb']['input']>;
   tenant_id?: InputMaybe<Scalars['uuid']['input']>;
   type?: InputMaybe<Scalars['String']['input']>;
@@ -7520,30 +7517,28 @@ export type Sequent_Backend_Candidate_Insert_Input = {
 /** aggregate max on columns */
 export type Sequent_Backend_Candidate_Max_Fields = {
   __typename?: 'sequent_backend_candidate_max_fields';
-  alias?: Maybe<Scalars['String']['output']>;
   contest_id?: Maybe<Scalars['uuid']['output']>;
   created_at?: Maybe<Scalars['timestamptz']['output']>;
   description?: Maybe<Scalars['String']['output']>;
   election_event_id?: Maybe<Scalars['uuid']['output']>;
+  external_id?: Maybe<Scalars['String']['output']>;
   id?: Maybe<Scalars['uuid']['output']>;
   image_document_id?: Maybe<Scalars['String']['output']>;
   last_updated_at?: Maybe<Scalars['timestamptz']['output']>;
-  name?: Maybe<Scalars['String']['output']>;
   tenant_id?: Maybe<Scalars['uuid']['output']>;
   type?: Maybe<Scalars['String']['output']>;
 };
 
 /** order by max() on columns of table "sequent_backend.candidate" */
 export type Sequent_Backend_Candidate_Max_Order_By = {
-  alias?: InputMaybe<Order_By>;
   contest_id?: InputMaybe<Order_By>;
   created_at?: InputMaybe<Order_By>;
   description?: InputMaybe<Order_By>;
   election_event_id?: InputMaybe<Order_By>;
+  external_id?: InputMaybe<Order_By>;
   id?: InputMaybe<Order_By>;
   image_document_id?: InputMaybe<Order_By>;
   last_updated_at?: InputMaybe<Order_By>;
-  name?: InputMaybe<Order_By>;
   tenant_id?: InputMaybe<Order_By>;
   type?: InputMaybe<Order_By>;
 };
@@ -7551,30 +7546,28 @@ export type Sequent_Backend_Candidate_Max_Order_By = {
 /** aggregate min on columns */
 export type Sequent_Backend_Candidate_Min_Fields = {
   __typename?: 'sequent_backend_candidate_min_fields';
-  alias?: Maybe<Scalars['String']['output']>;
   contest_id?: Maybe<Scalars['uuid']['output']>;
   created_at?: Maybe<Scalars['timestamptz']['output']>;
   description?: Maybe<Scalars['String']['output']>;
   election_event_id?: Maybe<Scalars['uuid']['output']>;
+  external_id?: Maybe<Scalars['String']['output']>;
   id?: Maybe<Scalars['uuid']['output']>;
   image_document_id?: Maybe<Scalars['String']['output']>;
   last_updated_at?: Maybe<Scalars['timestamptz']['output']>;
-  name?: Maybe<Scalars['String']['output']>;
   tenant_id?: Maybe<Scalars['uuid']['output']>;
   type?: Maybe<Scalars['String']['output']>;
 };
 
 /** order by min() on columns of table "sequent_backend.candidate" */
 export type Sequent_Backend_Candidate_Min_Order_By = {
-  alias?: InputMaybe<Order_By>;
   contest_id?: InputMaybe<Order_By>;
   created_at?: InputMaybe<Order_By>;
   description?: InputMaybe<Order_By>;
   election_event_id?: InputMaybe<Order_By>;
+  external_id?: InputMaybe<Order_By>;
   id?: InputMaybe<Order_By>;
   image_document_id?: InputMaybe<Order_By>;
   last_updated_at?: InputMaybe<Order_By>;
-  name?: InputMaybe<Order_By>;
   tenant_id?: InputMaybe<Order_By>;
   type?: InputMaybe<Order_By>;
 };
@@ -7597,18 +7590,17 @@ export type Sequent_Backend_Candidate_On_Conflict = {
 
 /** Ordering options when selecting data from "sequent_backend.candidate". */
 export type Sequent_Backend_Candidate_Order_By = {
-  alias?: InputMaybe<Order_By>;
   annotations?: InputMaybe<Order_By>;
   contest_id?: InputMaybe<Order_By>;
   created_at?: InputMaybe<Order_By>;
   description?: InputMaybe<Order_By>;
   election_event_id?: InputMaybe<Order_By>;
+  external_id?: InputMaybe<Order_By>;
   id?: InputMaybe<Order_By>;
   image_document_id?: InputMaybe<Order_By>;
   is_public?: InputMaybe<Order_By>;
   labels?: InputMaybe<Order_By>;
   last_updated_at?: InputMaybe<Order_By>;
-  name?: InputMaybe<Order_By>;
   presentation?: InputMaybe<Order_By>;
   tenant_id?: InputMaybe<Order_By>;
   type?: InputMaybe<Order_By>;
@@ -7631,8 +7623,6 @@ export type Sequent_Backend_Candidate_Prepend_Input = {
 /** select columns of table "sequent_backend.candidate" */
 export enum Sequent_Backend_Candidate_Select_Column {
   /** column name */
-  Alias = 'alias',
-  /** column name */
   Annotations = 'annotations',
   /** column name */
   ContestId = 'contest_id',
@@ -7643,6 +7633,8 @@ export enum Sequent_Backend_Candidate_Select_Column {
   /** column name */
   ElectionEventId = 'election_event_id',
   /** column name */
+  ExternalId = 'external_id',
+  /** column name */
   Id = 'id',
   /** column name */
   ImageDocumentId = 'image_document_id',
@@ -7652,8 +7644,6 @@ export enum Sequent_Backend_Candidate_Select_Column {
   Labels = 'labels',
   /** column name */
   LastUpdatedAt = 'last_updated_at',
-  /** column name */
-  Name = 'name',
   /** column name */
   Presentation = 'presentation',
   /** column name */
@@ -7676,18 +7666,17 @@ export enum Sequent_Backend_Candidate_Select_Column_Sequent_Backend_Candidate_Ag
 
 /** input type for updating data in table "sequent_backend.candidate" */
 export type Sequent_Backend_Candidate_Set_Input = {
-  alias?: InputMaybe<Scalars['String']['input']>;
   annotations?: InputMaybe<Scalars['jsonb']['input']>;
   contest_id?: InputMaybe<Scalars['uuid']['input']>;
   created_at?: InputMaybe<Scalars['timestamptz']['input']>;
   description?: InputMaybe<Scalars['String']['input']>;
   election_event_id?: InputMaybe<Scalars['uuid']['input']>;
+  external_id?: InputMaybe<Scalars['String']['input']>;
   id?: InputMaybe<Scalars['uuid']['input']>;
   image_document_id?: InputMaybe<Scalars['String']['input']>;
   is_public?: InputMaybe<Scalars['Boolean']['input']>;
   labels?: InputMaybe<Scalars['jsonb']['input']>;
   last_updated_at?: InputMaybe<Scalars['timestamptz']['input']>;
-  name?: InputMaybe<Scalars['String']['input']>;
   presentation?: InputMaybe<Scalars['jsonb']['input']>;
   tenant_id?: InputMaybe<Scalars['uuid']['input']>;
   type?: InputMaybe<Scalars['String']['input']>;
@@ -7703,18 +7692,17 @@ export type Sequent_Backend_Candidate_Stream_Cursor_Input = {
 
 /** Initial value of the column from where the streaming should start */
 export type Sequent_Backend_Candidate_Stream_Cursor_Value_Input = {
-  alias?: InputMaybe<Scalars['String']['input']>;
   annotations?: InputMaybe<Scalars['jsonb']['input']>;
   contest_id?: InputMaybe<Scalars['uuid']['input']>;
   created_at?: InputMaybe<Scalars['timestamptz']['input']>;
   description?: InputMaybe<Scalars['String']['input']>;
   election_event_id?: InputMaybe<Scalars['uuid']['input']>;
+  external_id?: InputMaybe<Scalars['String']['input']>;
   id?: InputMaybe<Scalars['uuid']['input']>;
   image_document_id?: InputMaybe<Scalars['String']['input']>;
   is_public?: InputMaybe<Scalars['Boolean']['input']>;
   labels?: InputMaybe<Scalars['jsonb']['input']>;
   last_updated_at?: InputMaybe<Scalars['timestamptz']['input']>;
-  name?: InputMaybe<Scalars['String']['input']>;
   presentation?: InputMaybe<Scalars['jsonb']['input']>;
   tenant_id?: InputMaybe<Scalars['uuid']['input']>;
   type?: InputMaybe<Scalars['String']['input']>;
@@ -7722,8 +7710,6 @@ export type Sequent_Backend_Candidate_Stream_Cursor_Value_Input = {
 
 /** update columns of table "sequent_backend.candidate" */
 export enum Sequent_Backend_Candidate_Update_Column {
-  /** column name */
-  Alias = 'alias',
   /** column name */
   Annotations = 'annotations',
   /** column name */
@@ -7735,6 +7721,8 @@ export enum Sequent_Backend_Candidate_Update_Column {
   /** column name */
   ElectionEventId = 'election_event_id',
   /** column name */
+  ExternalId = 'external_id',
+  /** column name */
   Id = 'id',
   /** column name */
   ImageDocumentId = 'image_document_id',
@@ -7744,8 +7732,6 @@ export enum Sequent_Backend_Candidate_Update_Column {
   Labels = 'labels',
   /** column name */
   LastUpdatedAt = 'last_updated_at',
-  /** column name */
-  Name = 'name',
   /** column name */
   Presentation = 'presentation',
   /** column name */
@@ -8088,7 +8074,6 @@ export type Sequent_Backend_Cast_Vote_Updates = {
 /** columns and relationships of "sequent_backend.contest" */
 export type Sequent_Backend_Contest = {
   __typename?: 'sequent_backend_contest';
-  alias?: Maybe<Scalars['String']['output']>;
   annotations?: Maybe<Scalars['jsonb']['output']>;
   /** An array relationship */
   candidates: Array<Sequent_Backend_Candidate>;
@@ -8100,6 +8085,7 @@ export type Sequent_Backend_Contest = {
   description?: Maybe<Scalars['String']['output']>;
   election_event_id: Scalars['uuid']['output'];
   election_id: Scalars['uuid']['output'];
+  external_id?: Maybe<Scalars['String']['output']>;
   id: Scalars['uuid']['output'];
   image_document_id?: Maybe<Scalars['String']['output']>;
   is_acclaimed?: Maybe<Scalars['Boolean']['output']>;
@@ -8109,7 +8095,6 @@ export type Sequent_Backend_Contest = {
   last_updated_at?: Maybe<Scalars['timestamptz']['output']>;
   max_votes?: Maybe<Scalars['Int']['output']>;
   min_votes?: Maybe<Scalars['Int']['output']>;
-  name?: Maybe<Scalars['String']['output']>;
   presentation?: Maybe<Scalars['jsonb']['output']>;
   tally_configuration?: Maybe<Scalars['jsonb']['output']>;
   tenant_id: Scalars['uuid']['output'];
@@ -8275,7 +8260,6 @@ export type Sequent_Backend_Contest_Bool_Exp = {
   _and?: InputMaybe<Array<Sequent_Backend_Contest_Bool_Exp>>;
   _not?: InputMaybe<Sequent_Backend_Contest_Bool_Exp>;
   _or?: InputMaybe<Array<Sequent_Backend_Contest_Bool_Exp>>;
-  alias?: InputMaybe<String_Comparison_Exp>;
   annotations?: InputMaybe<Jsonb_Comparison_Exp>;
   candidates?: InputMaybe<Sequent_Backend_Candidate_Bool_Exp>;
   candidates_aggregate?: InputMaybe<Sequent_Backend_Candidate_Aggregate_Bool_Exp>;
@@ -8285,6 +8269,7 @@ export type Sequent_Backend_Contest_Bool_Exp = {
   description?: InputMaybe<String_Comparison_Exp>;
   election_event_id?: InputMaybe<Uuid_Comparison_Exp>;
   election_id?: InputMaybe<Uuid_Comparison_Exp>;
+  external_id?: InputMaybe<String_Comparison_Exp>;
   id?: InputMaybe<Uuid_Comparison_Exp>;
   image_document_id?: InputMaybe<String_Comparison_Exp>;
   is_acclaimed?: InputMaybe<Boolean_Comparison_Exp>;
@@ -8294,7 +8279,6 @@ export type Sequent_Backend_Contest_Bool_Exp = {
   last_updated_at?: InputMaybe<Timestamptz_Comparison_Exp>;
   max_votes?: InputMaybe<Int_Comparison_Exp>;
   min_votes?: InputMaybe<Int_Comparison_Exp>;
-  name?: InputMaybe<String_Comparison_Exp>;
   presentation?: InputMaybe<Jsonb_Comparison_Exp>;
   tally_configuration?: InputMaybe<Jsonb_Comparison_Exp>;
   tenant_id?: InputMaybe<Uuid_Comparison_Exp>;
@@ -8344,7 +8328,6 @@ export type Sequent_Backend_Contest_Inc_Input = {
 
 /** input type for inserting data into table "sequent_backend.contest" */
 export type Sequent_Backend_Contest_Insert_Input = {
-  alias?: InputMaybe<Scalars['String']['input']>;
   annotations?: InputMaybe<Scalars['jsonb']['input']>;
   candidates?: InputMaybe<Sequent_Backend_Candidate_Arr_Rel_Insert_Input>;
   conditions?: InputMaybe<Scalars['jsonb']['input']>;
@@ -8353,6 +8336,7 @@ export type Sequent_Backend_Contest_Insert_Input = {
   description?: InputMaybe<Scalars['String']['input']>;
   election_event_id?: InputMaybe<Scalars['uuid']['input']>;
   election_id?: InputMaybe<Scalars['uuid']['input']>;
+  external_id?: InputMaybe<Scalars['String']['input']>;
   id?: InputMaybe<Scalars['uuid']['input']>;
   image_document_id?: InputMaybe<Scalars['String']['input']>;
   is_acclaimed?: InputMaybe<Scalars['Boolean']['input']>;
@@ -8362,7 +8346,6 @@ export type Sequent_Backend_Contest_Insert_Input = {
   last_updated_at?: InputMaybe<Scalars['timestamptz']['input']>;
   max_votes?: InputMaybe<Scalars['Int']['input']>;
   min_votes?: InputMaybe<Scalars['Int']['input']>;
-  name?: InputMaybe<Scalars['String']['input']>;
   presentation?: InputMaybe<Scalars['jsonb']['input']>;
   tally_configuration?: InputMaybe<Scalars['jsonb']['input']>;
   tenant_id?: InputMaybe<Scalars['uuid']['input']>;
@@ -8373,18 +8356,17 @@ export type Sequent_Backend_Contest_Insert_Input = {
 /** aggregate max on columns */
 export type Sequent_Backend_Contest_Max_Fields = {
   __typename?: 'sequent_backend_contest_max_fields';
-  alias?: Maybe<Scalars['String']['output']>;
   counting_algorithm?: Maybe<Scalars['String']['output']>;
   created_at?: Maybe<Scalars['timestamptz']['output']>;
   description?: Maybe<Scalars['String']['output']>;
   election_event_id?: Maybe<Scalars['uuid']['output']>;
   election_id?: Maybe<Scalars['uuid']['output']>;
+  external_id?: Maybe<Scalars['String']['output']>;
   id?: Maybe<Scalars['uuid']['output']>;
   image_document_id?: Maybe<Scalars['String']['output']>;
   last_updated_at?: Maybe<Scalars['timestamptz']['output']>;
   max_votes?: Maybe<Scalars['Int']['output']>;
   min_votes?: Maybe<Scalars['Int']['output']>;
-  name?: Maybe<Scalars['String']['output']>;
   tenant_id?: Maybe<Scalars['uuid']['output']>;
   voting_type?: Maybe<Scalars['String']['output']>;
   winning_candidates_num?: Maybe<Scalars['Int']['output']>;
@@ -8392,18 +8374,17 @@ export type Sequent_Backend_Contest_Max_Fields = {
 
 /** order by max() on columns of table "sequent_backend.contest" */
 export type Sequent_Backend_Contest_Max_Order_By = {
-  alias?: InputMaybe<Order_By>;
   counting_algorithm?: InputMaybe<Order_By>;
   created_at?: InputMaybe<Order_By>;
   description?: InputMaybe<Order_By>;
   election_event_id?: InputMaybe<Order_By>;
   election_id?: InputMaybe<Order_By>;
+  external_id?: InputMaybe<Order_By>;
   id?: InputMaybe<Order_By>;
   image_document_id?: InputMaybe<Order_By>;
   last_updated_at?: InputMaybe<Order_By>;
   max_votes?: InputMaybe<Order_By>;
   min_votes?: InputMaybe<Order_By>;
-  name?: InputMaybe<Order_By>;
   tenant_id?: InputMaybe<Order_By>;
   voting_type?: InputMaybe<Order_By>;
   winning_candidates_num?: InputMaybe<Order_By>;
@@ -8412,18 +8393,17 @@ export type Sequent_Backend_Contest_Max_Order_By = {
 /** aggregate min on columns */
 export type Sequent_Backend_Contest_Min_Fields = {
   __typename?: 'sequent_backend_contest_min_fields';
-  alias?: Maybe<Scalars['String']['output']>;
   counting_algorithm?: Maybe<Scalars['String']['output']>;
   created_at?: Maybe<Scalars['timestamptz']['output']>;
   description?: Maybe<Scalars['String']['output']>;
   election_event_id?: Maybe<Scalars['uuid']['output']>;
   election_id?: Maybe<Scalars['uuid']['output']>;
+  external_id?: Maybe<Scalars['String']['output']>;
   id?: Maybe<Scalars['uuid']['output']>;
   image_document_id?: Maybe<Scalars['String']['output']>;
   last_updated_at?: Maybe<Scalars['timestamptz']['output']>;
   max_votes?: Maybe<Scalars['Int']['output']>;
   min_votes?: Maybe<Scalars['Int']['output']>;
-  name?: Maybe<Scalars['String']['output']>;
   tenant_id?: Maybe<Scalars['uuid']['output']>;
   voting_type?: Maybe<Scalars['String']['output']>;
   winning_candidates_num?: Maybe<Scalars['Int']['output']>;
@@ -8431,18 +8411,17 @@ export type Sequent_Backend_Contest_Min_Fields = {
 
 /** order by min() on columns of table "sequent_backend.contest" */
 export type Sequent_Backend_Contest_Min_Order_By = {
-  alias?: InputMaybe<Order_By>;
   counting_algorithm?: InputMaybe<Order_By>;
   created_at?: InputMaybe<Order_By>;
   description?: InputMaybe<Order_By>;
   election_event_id?: InputMaybe<Order_By>;
   election_id?: InputMaybe<Order_By>;
+  external_id?: InputMaybe<Order_By>;
   id?: InputMaybe<Order_By>;
   image_document_id?: InputMaybe<Order_By>;
   last_updated_at?: InputMaybe<Order_By>;
   max_votes?: InputMaybe<Order_By>;
   min_votes?: InputMaybe<Order_By>;
-  name?: InputMaybe<Order_By>;
   tenant_id?: InputMaybe<Order_By>;
   voting_type?: InputMaybe<Order_By>;
   winning_candidates_num?: InputMaybe<Order_By>;
@@ -8473,7 +8452,6 @@ export type Sequent_Backend_Contest_On_Conflict = {
 
 /** Ordering options when selecting data from "sequent_backend.contest". */
 export type Sequent_Backend_Contest_Order_By = {
-  alias?: InputMaybe<Order_By>;
   annotations?: InputMaybe<Order_By>;
   candidates_aggregate?: InputMaybe<Sequent_Backend_Candidate_Aggregate_Order_By>;
   conditions?: InputMaybe<Order_By>;
@@ -8482,6 +8460,7 @@ export type Sequent_Backend_Contest_Order_By = {
   description?: InputMaybe<Order_By>;
   election_event_id?: InputMaybe<Order_By>;
   election_id?: InputMaybe<Order_By>;
+  external_id?: InputMaybe<Order_By>;
   id?: InputMaybe<Order_By>;
   image_document_id?: InputMaybe<Order_By>;
   is_acclaimed?: InputMaybe<Order_By>;
@@ -8491,7 +8470,6 @@ export type Sequent_Backend_Contest_Order_By = {
   last_updated_at?: InputMaybe<Order_By>;
   max_votes?: InputMaybe<Order_By>;
   min_votes?: InputMaybe<Order_By>;
-  name?: InputMaybe<Order_By>;
   presentation?: InputMaybe<Order_By>;
   tally_configuration?: InputMaybe<Order_By>;
   tenant_id?: InputMaybe<Order_By>;
@@ -8518,8 +8496,6 @@ export type Sequent_Backend_Contest_Prepend_Input = {
 /** select columns of table "sequent_backend.contest" */
 export enum Sequent_Backend_Contest_Select_Column {
   /** column name */
-  Alias = 'alias',
-  /** column name */
   Annotations = 'annotations',
   /** column name */
   Conditions = 'conditions',
@@ -8533,6 +8509,8 @@ export enum Sequent_Backend_Contest_Select_Column {
   ElectionEventId = 'election_event_id',
   /** column name */
   ElectionId = 'election_id',
+  /** column name */
+  ExternalId = 'external_id',
   /** column name */
   Id = 'id',
   /** column name */
@@ -8551,8 +8529,6 @@ export enum Sequent_Backend_Contest_Select_Column {
   MaxVotes = 'max_votes',
   /** column name */
   MinVotes = 'min_votes',
-  /** column name */
-  Name = 'name',
   /** column name */
   Presentation = 'presentation',
   /** column name */
@@ -8587,7 +8563,6 @@ export enum Sequent_Backend_Contest_Select_Column_Sequent_Backend_Contest_Aggreg
 
 /** input type for updating data in table "sequent_backend.contest" */
 export type Sequent_Backend_Contest_Set_Input = {
-  alias?: InputMaybe<Scalars['String']['input']>;
   annotations?: InputMaybe<Scalars['jsonb']['input']>;
   conditions?: InputMaybe<Scalars['jsonb']['input']>;
   counting_algorithm?: InputMaybe<Scalars['String']['input']>;
@@ -8595,6 +8570,7 @@ export type Sequent_Backend_Contest_Set_Input = {
   description?: InputMaybe<Scalars['String']['input']>;
   election_event_id?: InputMaybe<Scalars['uuid']['input']>;
   election_id?: InputMaybe<Scalars['uuid']['input']>;
+  external_id?: InputMaybe<Scalars['String']['input']>;
   id?: InputMaybe<Scalars['uuid']['input']>;
   image_document_id?: InputMaybe<Scalars['String']['input']>;
   is_acclaimed?: InputMaybe<Scalars['Boolean']['input']>;
@@ -8604,7 +8580,6 @@ export type Sequent_Backend_Contest_Set_Input = {
   last_updated_at?: InputMaybe<Scalars['timestamptz']['input']>;
   max_votes?: InputMaybe<Scalars['Int']['input']>;
   min_votes?: InputMaybe<Scalars['Int']['input']>;
-  name?: InputMaybe<Scalars['String']['input']>;
   presentation?: InputMaybe<Scalars['jsonb']['input']>;
   tally_configuration?: InputMaybe<Scalars['jsonb']['input']>;
   tenant_id?: InputMaybe<Scalars['uuid']['input']>;
@@ -8667,7 +8642,6 @@ export type Sequent_Backend_Contest_Stream_Cursor_Input = {
 
 /** Initial value of the column from where the streaming should start */
 export type Sequent_Backend_Contest_Stream_Cursor_Value_Input = {
-  alias?: InputMaybe<Scalars['String']['input']>;
   annotations?: InputMaybe<Scalars['jsonb']['input']>;
   conditions?: InputMaybe<Scalars['jsonb']['input']>;
   counting_algorithm?: InputMaybe<Scalars['String']['input']>;
@@ -8675,6 +8649,7 @@ export type Sequent_Backend_Contest_Stream_Cursor_Value_Input = {
   description?: InputMaybe<Scalars['String']['input']>;
   election_event_id?: InputMaybe<Scalars['uuid']['input']>;
   election_id?: InputMaybe<Scalars['uuid']['input']>;
+  external_id?: InputMaybe<Scalars['String']['input']>;
   id?: InputMaybe<Scalars['uuid']['input']>;
   image_document_id?: InputMaybe<Scalars['String']['input']>;
   is_acclaimed?: InputMaybe<Scalars['Boolean']['input']>;
@@ -8684,7 +8659,6 @@ export type Sequent_Backend_Contest_Stream_Cursor_Value_Input = {
   last_updated_at?: InputMaybe<Scalars['timestamptz']['input']>;
   max_votes?: InputMaybe<Scalars['Int']['input']>;
   min_votes?: InputMaybe<Scalars['Int']['input']>;
-  name?: InputMaybe<Scalars['String']['input']>;
   presentation?: InputMaybe<Scalars['jsonb']['input']>;
   tally_configuration?: InputMaybe<Scalars['jsonb']['input']>;
   tenant_id?: InputMaybe<Scalars['uuid']['input']>;
@@ -8710,8 +8684,6 @@ export type Sequent_Backend_Contest_Sum_Order_By = {
 /** update columns of table "sequent_backend.contest" */
 export enum Sequent_Backend_Contest_Update_Column {
   /** column name */
-  Alias = 'alias',
-  /** column name */
   Annotations = 'annotations',
   /** column name */
   Conditions = 'conditions',
@@ -8725,6 +8697,8 @@ export enum Sequent_Backend_Contest_Update_Column {
   ElectionEventId = 'election_event_id',
   /** column name */
   ElectionId = 'election_id',
+  /** column name */
+  ExternalId = 'external_id',
   /** column name */
   Id = 'id',
   /** column name */
@@ -8743,8 +8717,6 @@ export enum Sequent_Backend_Contest_Update_Column {
   MaxVotes = 'max_votes',
   /** column name */
   MinVotes = 'min_votes',
-  /** column name */
-  Name = 'name',
   /** column name */
   Presentation = 'presentation',
   /** column name */
@@ -9175,7 +9147,6 @@ export type Sequent_Backend_Document_Variance_Fields = {
 /** columns and relationships of "sequent_backend.election" */
 export type Sequent_Backend_Election = {
   __typename?: 'sequent_backend_election';
-  alias?: Maybe<Scalars['String']['output']>;
   annotations?: Maybe<Scalars['jsonb']['output']>;
   /** An array relationship */
   contests: Array<Sequent_Backend_Contest>;
@@ -9185,6 +9156,7 @@ export type Sequent_Backend_Election = {
   description?: Maybe<Scalars['String']['output']>;
   election_event_id: Scalars['uuid']['output'];
   eml?: Maybe<Scalars['String']['output']>;
+  external_id?: Maybe<Scalars['String']['output']>;
   id: Scalars['uuid']['output'];
   image_document_id?: Maybe<Scalars['String']['output']>;
   initialization_report_generated?: Maybe<Scalars['Boolean']['output']>;
@@ -9193,7 +9165,6 @@ export type Sequent_Backend_Election = {
   keys_ceremony_id?: Maybe<Scalars['uuid']['output']>;
   labels?: Maybe<Scalars['jsonb']['output']>;
   last_updated_at?: Maybe<Scalars['timestamptz']['output']>;
-  name: Scalars['String']['output'];
   num_allowed_revotes?: Maybe<Scalars['Int']['output']>;
   permission_label?: Maybe<Scalars['String']['output']>;
   presentation?: Maybe<Scalars['jsonb']['output']>;
@@ -9373,7 +9344,6 @@ export type Sequent_Backend_Election_Bool_Exp = {
   _and?: InputMaybe<Array<Sequent_Backend_Election_Bool_Exp>>;
   _not?: InputMaybe<Sequent_Backend_Election_Bool_Exp>;
   _or?: InputMaybe<Array<Sequent_Backend_Election_Bool_Exp>>;
-  alias?: InputMaybe<String_Comparison_Exp>;
   annotations?: InputMaybe<Jsonb_Comparison_Exp>;
   contests?: InputMaybe<Sequent_Backend_Contest_Bool_Exp>;
   contests_aggregate?: InputMaybe<Sequent_Backend_Contest_Aggregate_Bool_Exp>;
@@ -9381,6 +9351,7 @@ export type Sequent_Backend_Election_Bool_Exp = {
   description?: InputMaybe<String_Comparison_Exp>;
   election_event_id?: InputMaybe<Uuid_Comparison_Exp>;
   eml?: InputMaybe<String_Comparison_Exp>;
+  external_id?: InputMaybe<String_Comparison_Exp>;
   id?: InputMaybe<Uuid_Comparison_Exp>;
   image_document_id?: InputMaybe<String_Comparison_Exp>;
   initialization_report_generated?: InputMaybe<Boolean_Comparison_Exp>;
@@ -9389,7 +9360,6 @@ export type Sequent_Backend_Election_Bool_Exp = {
   keys_ceremony_id?: InputMaybe<Uuid_Comparison_Exp>;
   labels?: InputMaybe<Jsonb_Comparison_Exp>;
   last_updated_at?: InputMaybe<Timestamptz_Comparison_Exp>;
-  name?: InputMaybe<String_Comparison_Exp>;
   num_allowed_revotes?: InputMaybe<Int_Comparison_Exp>;
   permission_label?: InputMaybe<String_Comparison_Exp>;
   presentation?: InputMaybe<Jsonb_Comparison_Exp>;
@@ -9443,7 +9413,6 @@ export type Sequent_Backend_Election_Delete_Key_Input = {
 /** columns and relationships of "sequent_backend.election_event" */
 export type Sequent_Backend_Election_Event = {
   __typename?: 'sequent_backend_election_event';
-  alias?: Maybe<Scalars['String']['output']>;
   annotations?: Maybe<Scalars['jsonb']['output']>;
   audit_election_event_id?: Maybe<Scalars['uuid']['output']>;
   bulletin_board_reference?: Maybe<Scalars['jsonb']['output']>;
@@ -9454,11 +9423,11 @@ export type Sequent_Backend_Election_Event = {
   /** An aggregate relationship */
   elections_aggregate: Sequent_Backend_Election_Aggregate;
   encryption_protocol: Scalars['String']['output'];
+  external_id?: Maybe<Scalars['String']['output']>;
   id: Scalars['uuid']['output'];
   is_archived: Scalars['Boolean']['output'];
   is_audit?: Maybe<Scalars['Boolean']['output']>;
   labels?: Maybe<Scalars['jsonb']['output']>;
-  name: Scalars['String']['output'];
   presentation?: Maybe<Scalars['jsonb']['output']>;
   public_key?: Maybe<Scalars['String']['output']>;
   statistics?: Maybe<Scalars['jsonb']['output']>;
@@ -9569,7 +9538,6 @@ export type Sequent_Backend_Election_Event_Bool_Exp = {
   _and?: InputMaybe<Array<Sequent_Backend_Election_Event_Bool_Exp>>;
   _not?: InputMaybe<Sequent_Backend_Election_Event_Bool_Exp>;
   _or?: InputMaybe<Array<Sequent_Backend_Election_Event_Bool_Exp>>;
-  alias?: InputMaybe<String_Comparison_Exp>;
   annotations?: InputMaybe<Jsonb_Comparison_Exp>;
   audit_election_event_id?: InputMaybe<Uuid_Comparison_Exp>;
   bulletin_board_reference?: InputMaybe<Jsonb_Comparison_Exp>;
@@ -9578,11 +9546,11 @@ export type Sequent_Backend_Election_Event_Bool_Exp = {
   elections?: InputMaybe<Sequent_Backend_Election_Bool_Exp>;
   elections_aggregate?: InputMaybe<Sequent_Backend_Election_Aggregate_Bool_Exp>;
   encryption_protocol?: InputMaybe<String_Comparison_Exp>;
+  external_id?: InputMaybe<String_Comparison_Exp>;
   id?: InputMaybe<Uuid_Comparison_Exp>;
   is_archived?: InputMaybe<Boolean_Comparison_Exp>;
   is_audit?: InputMaybe<Boolean_Comparison_Exp>;
   labels?: InputMaybe<Jsonb_Comparison_Exp>;
-  name?: InputMaybe<String_Comparison_Exp>;
   presentation?: InputMaybe<Jsonb_Comparison_Exp>;
   public_key?: InputMaybe<String_Comparison_Exp>;
   statistics?: InputMaybe<Jsonb_Comparison_Exp>;
@@ -9634,7 +9602,6 @@ export type Sequent_Backend_Election_Event_Delete_Key_Input = {
 
 /** input type for inserting data into table "sequent_backend.election_event" */
 export type Sequent_Backend_Election_Event_Insert_Input = {
-  alias?: InputMaybe<Scalars['String']['input']>;
   annotations?: InputMaybe<Scalars['jsonb']['input']>;
   audit_election_event_id?: InputMaybe<Scalars['uuid']['input']>;
   bulletin_board_reference?: InputMaybe<Scalars['jsonb']['input']>;
@@ -9642,11 +9609,11 @@ export type Sequent_Backend_Election_Event_Insert_Input = {
   description?: InputMaybe<Scalars['String']['input']>;
   elections?: InputMaybe<Sequent_Backend_Election_Arr_Rel_Insert_Input>;
   encryption_protocol?: InputMaybe<Scalars['String']['input']>;
+  external_id?: InputMaybe<Scalars['String']['input']>;
   id?: InputMaybe<Scalars['uuid']['input']>;
   is_archived?: InputMaybe<Scalars['Boolean']['input']>;
   is_audit?: InputMaybe<Scalars['Boolean']['input']>;
   labels?: InputMaybe<Scalars['jsonb']['input']>;
-  name?: InputMaybe<Scalars['String']['input']>;
   presentation?: InputMaybe<Scalars['jsonb']['input']>;
   public_key?: InputMaybe<Scalars['String']['input']>;
   statistics?: InputMaybe<Scalars['jsonb']['input']>;
@@ -9660,13 +9627,12 @@ export type Sequent_Backend_Election_Event_Insert_Input = {
 /** aggregate max on columns */
 export type Sequent_Backend_Election_Event_Max_Fields = {
   __typename?: 'sequent_backend_election_event_max_fields';
-  alias?: Maybe<Scalars['String']['output']>;
   audit_election_event_id?: Maybe<Scalars['uuid']['output']>;
   created_at?: Maybe<Scalars['timestamptz']['output']>;
   description?: Maybe<Scalars['String']['output']>;
   encryption_protocol?: Maybe<Scalars['String']['output']>;
+  external_id?: Maybe<Scalars['String']['output']>;
   id?: Maybe<Scalars['uuid']['output']>;
-  name?: Maybe<Scalars['String']['output']>;
   public_key?: Maybe<Scalars['String']['output']>;
   tenant_id?: Maybe<Scalars['uuid']['output']>;
   updated_at?: Maybe<Scalars['timestamptz']['output']>;
@@ -9676,13 +9642,12 @@ export type Sequent_Backend_Election_Event_Max_Fields = {
 /** aggregate min on columns */
 export type Sequent_Backend_Election_Event_Min_Fields = {
   __typename?: 'sequent_backend_election_event_min_fields';
-  alias?: Maybe<Scalars['String']['output']>;
   audit_election_event_id?: Maybe<Scalars['uuid']['output']>;
   created_at?: Maybe<Scalars['timestamptz']['output']>;
   description?: Maybe<Scalars['String']['output']>;
   encryption_protocol?: Maybe<Scalars['String']['output']>;
+  external_id?: Maybe<Scalars['String']['output']>;
   id?: Maybe<Scalars['uuid']['output']>;
-  name?: Maybe<Scalars['String']['output']>;
   public_key?: Maybe<Scalars['String']['output']>;
   tenant_id?: Maybe<Scalars['uuid']['output']>;
   updated_at?: Maybe<Scalars['timestamptz']['output']>;
@@ -9707,7 +9672,6 @@ export type Sequent_Backend_Election_Event_On_Conflict = {
 
 /** Ordering options when selecting data from "sequent_backend.election_event". */
 export type Sequent_Backend_Election_Event_Order_By = {
-  alias?: InputMaybe<Order_By>;
   annotations?: InputMaybe<Order_By>;
   audit_election_event_id?: InputMaybe<Order_By>;
   bulletin_board_reference?: InputMaybe<Order_By>;
@@ -9715,11 +9679,11 @@ export type Sequent_Backend_Election_Event_Order_By = {
   description?: InputMaybe<Order_By>;
   elections_aggregate?: InputMaybe<Sequent_Backend_Election_Aggregate_Order_By>;
   encryption_protocol?: InputMaybe<Order_By>;
+  external_id?: InputMaybe<Order_By>;
   id?: InputMaybe<Order_By>;
   is_archived?: InputMaybe<Order_By>;
   is_audit?: InputMaybe<Order_By>;
   labels?: InputMaybe<Order_By>;
-  name?: InputMaybe<Order_By>;
   presentation?: InputMaybe<Order_By>;
   public_key?: InputMaybe<Order_By>;
   statistics?: InputMaybe<Order_By>;
@@ -9749,8 +9713,6 @@ export type Sequent_Backend_Election_Event_Prepend_Input = {
 /** select columns of table "sequent_backend.election_event" */
 export enum Sequent_Backend_Election_Event_Select_Column {
   /** column name */
-  Alias = 'alias',
-  /** column name */
   Annotations = 'annotations',
   /** column name */
   AuditElectionEventId = 'audit_election_event_id',
@@ -9763,6 +9725,8 @@ export enum Sequent_Backend_Election_Event_Select_Column {
   /** column name */
   EncryptionProtocol = 'encryption_protocol',
   /** column name */
+  ExternalId = 'external_id',
+  /** column name */
   Id = 'id',
   /** column name */
   IsArchived = 'is_archived',
@@ -9770,8 +9734,6 @@ export enum Sequent_Backend_Election_Event_Select_Column {
   IsAudit = 'is_audit',
   /** column name */
   Labels = 'labels',
-  /** column name */
-  Name = 'name',
   /** column name */
   Presentation = 'presentation',
   /** column name */
@@ -9792,18 +9754,17 @@ export enum Sequent_Backend_Election_Event_Select_Column {
 
 /** input type for updating data in table "sequent_backend.election_event" */
 export type Sequent_Backend_Election_Event_Set_Input = {
-  alias?: InputMaybe<Scalars['String']['input']>;
   annotations?: InputMaybe<Scalars['jsonb']['input']>;
   audit_election_event_id?: InputMaybe<Scalars['uuid']['input']>;
   bulletin_board_reference?: InputMaybe<Scalars['jsonb']['input']>;
   created_at?: InputMaybe<Scalars['timestamptz']['input']>;
   description?: InputMaybe<Scalars['String']['input']>;
   encryption_protocol?: InputMaybe<Scalars['String']['input']>;
+  external_id?: InputMaybe<Scalars['String']['input']>;
   id?: InputMaybe<Scalars['uuid']['input']>;
   is_archived?: InputMaybe<Scalars['Boolean']['input']>;
   is_audit?: InputMaybe<Scalars['Boolean']['input']>;
   labels?: InputMaybe<Scalars['jsonb']['input']>;
-  name?: InputMaybe<Scalars['String']['input']>;
   presentation?: InputMaybe<Scalars['jsonb']['input']>;
   public_key?: InputMaybe<Scalars['String']['input']>;
   statistics?: InputMaybe<Scalars['jsonb']['input']>;
@@ -9824,18 +9785,17 @@ export type Sequent_Backend_Election_Event_Stream_Cursor_Input = {
 
 /** Initial value of the column from where the streaming should start */
 export type Sequent_Backend_Election_Event_Stream_Cursor_Value_Input = {
-  alias?: InputMaybe<Scalars['String']['input']>;
   annotations?: InputMaybe<Scalars['jsonb']['input']>;
   audit_election_event_id?: InputMaybe<Scalars['uuid']['input']>;
   bulletin_board_reference?: InputMaybe<Scalars['jsonb']['input']>;
   created_at?: InputMaybe<Scalars['timestamptz']['input']>;
   description?: InputMaybe<Scalars['String']['input']>;
   encryption_protocol?: InputMaybe<Scalars['String']['input']>;
+  external_id?: InputMaybe<Scalars['String']['input']>;
   id?: InputMaybe<Scalars['uuid']['input']>;
   is_archived?: InputMaybe<Scalars['Boolean']['input']>;
   is_audit?: InputMaybe<Scalars['Boolean']['input']>;
   labels?: InputMaybe<Scalars['jsonb']['input']>;
-  name?: InputMaybe<Scalars['String']['input']>;
   presentation?: InputMaybe<Scalars['jsonb']['input']>;
   public_key?: InputMaybe<Scalars['String']['input']>;
   statistics?: InputMaybe<Scalars['jsonb']['input']>;
@@ -9849,8 +9809,6 @@ export type Sequent_Backend_Election_Event_Stream_Cursor_Value_Input = {
 /** update columns of table "sequent_backend.election_event" */
 export enum Sequent_Backend_Election_Event_Update_Column {
   /** column name */
-  Alias = 'alias',
-  /** column name */
   Annotations = 'annotations',
   /** column name */
   AuditElectionEventId = 'audit_election_event_id',
@@ -9863,6 +9821,8 @@ export enum Sequent_Backend_Election_Event_Update_Column {
   /** column name */
   EncryptionProtocol = 'encryption_protocol',
   /** column name */
+  ExternalId = 'external_id',
+  /** column name */
   Id = 'id',
   /** column name */
   IsArchived = 'is_archived',
@@ -9870,8 +9830,6 @@ export enum Sequent_Backend_Election_Event_Update_Column {
   IsAudit = 'is_audit',
   /** column name */
   Labels = 'labels',
-  /** column name */
-  Name = 'name',
   /** column name */
   Presentation = 'presentation',
   /** column name */
@@ -9914,13 +9872,13 @@ export type Sequent_Backend_Election_Inc_Input = {
 
 /** input type for inserting data into table "sequent_backend.election" */
 export type Sequent_Backend_Election_Insert_Input = {
-  alias?: InputMaybe<Scalars['String']['input']>;
   annotations?: InputMaybe<Scalars['jsonb']['input']>;
   contests?: InputMaybe<Sequent_Backend_Contest_Arr_Rel_Insert_Input>;
   created_at?: InputMaybe<Scalars['timestamptz']['input']>;
   description?: InputMaybe<Scalars['String']['input']>;
   election_event_id?: InputMaybe<Scalars['uuid']['input']>;
   eml?: InputMaybe<Scalars['String']['input']>;
+  external_id?: InputMaybe<Scalars['String']['input']>;
   id?: InputMaybe<Scalars['uuid']['input']>;
   image_document_id?: InputMaybe<Scalars['String']['input']>;
   initialization_report_generated?: InputMaybe<Scalars['Boolean']['input']>;
@@ -9929,7 +9887,6 @@ export type Sequent_Backend_Election_Insert_Input = {
   keys_ceremony_id?: InputMaybe<Scalars['uuid']['input']>;
   labels?: InputMaybe<Scalars['jsonb']['input']>;
   last_updated_at?: InputMaybe<Scalars['timestamptz']['input']>;
-  name?: InputMaybe<Scalars['String']['input']>;
   num_allowed_revotes?: InputMaybe<Scalars['Int']['input']>;
   permission_label?: InputMaybe<Scalars['String']['input']>;
   presentation?: InputMaybe<Scalars['jsonb']['input']>;
@@ -9944,16 +9901,15 @@ export type Sequent_Backend_Election_Insert_Input = {
 /** aggregate max on columns */
 export type Sequent_Backend_Election_Max_Fields = {
   __typename?: 'sequent_backend_election_max_fields';
-  alias?: Maybe<Scalars['String']['output']>;
   created_at?: Maybe<Scalars['timestamptz']['output']>;
   description?: Maybe<Scalars['String']['output']>;
   election_event_id?: Maybe<Scalars['uuid']['output']>;
   eml?: Maybe<Scalars['String']['output']>;
+  external_id?: Maybe<Scalars['String']['output']>;
   id?: Maybe<Scalars['uuid']['output']>;
   image_document_id?: Maybe<Scalars['String']['output']>;
   keys_ceremony_id?: Maybe<Scalars['uuid']['output']>;
   last_updated_at?: Maybe<Scalars['timestamptz']['output']>;
-  name?: Maybe<Scalars['String']['output']>;
   num_allowed_revotes?: Maybe<Scalars['Int']['output']>;
   permission_label?: Maybe<Scalars['String']['output']>;
   tenant_id?: Maybe<Scalars['uuid']['output']>;
@@ -9961,16 +9917,15 @@ export type Sequent_Backend_Election_Max_Fields = {
 
 /** order by max() on columns of table "sequent_backend.election" */
 export type Sequent_Backend_Election_Max_Order_By = {
-  alias?: InputMaybe<Order_By>;
   created_at?: InputMaybe<Order_By>;
   description?: InputMaybe<Order_By>;
   election_event_id?: InputMaybe<Order_By>;
   eml?: InputMaybe<Order_By>;
+  external_id?: InputMaybe<Order_By>;
   id?: InputMaybe<Order_By>;
   image_document_id?: InputMaybe<Order_By>;
   keys_ceremony_id?: InputMaybe<Order_By>;
   last_updated_at?: InputMaybe<Order_By>;
-  name?: InputMaybe<Order_By>;
   num_allowed_revotes?: InputMaybe<Order_By>;
   permission_label?: InputMaybe<Order_By>;
   tenant_id?: InputMaybe<Order_By>;
@@ -9979,16 +9934,15 @@ export type Sequent_Backend_Election_Max_Order_By = {
 /** aggregate min on columns */
 export type Sequent_Backend_Election_Min_Fields = {
   __typename?: 'sequent_backend_election_min_fields';
-  alias?: Maybe<Scalars['String']['output']>;
   created_at?: Maybe<Scalars['timestamptz']['output']>;
   description?: Maybe<Scalars['String']['output']>;
   election_event_id?: Maybe<Scalars['uuid']['output']>;
   eml?: Maybe<Scalars['String']['output']>;
+  external_id?: Maybe<Scalars['String']['output']>;
   id?: Maybe<Scalars['uuid']['output']>;
   image_document_id?: Maybe<Scalars['String']['output']>;
   keys_ceremony_id?: Maybe<Scalars['uuid']['output']>;
   last_updated_at?: Maybe<Scalars['timestamptz']['output']>;
-  name?: Maybe<Scalars['String']['output']>;
   num_allowed_revotes?: Maybe<Scalars['Int']['output']>;
   permission_label?: Maybe<Scalars['String']['output']>;
   tenant_id?: Maybe<Scalars['uuid']['output']>;
@@ -9996,16 +9950,15 @@ export type Sequent_Backend_Election_Min_Fields = {
 
 /** order by min() on columns of table "sequent_backend.election" */
 export type Sequent_Backend_Election_Min_Order_By = {
-  alias?: InputMaybe<Order_By>;
   created_at?: InputMaybe<Order_By>;
   description?: InputMaybe<Order_By>;
   election_event_id?: InputMaybe<Order_By>;
   eml?: InputMaybe<Order_By>;
+  external_id?: InputMaybe<Order_By>;
   id?: InputMaybe<Order_By>;
   image_document_id?: InputMaybe<Order_By>;
   keys_ceremony_id?: InputMaybe<Order_By>;
   last_updated_at?: InputMaybe<Order_By>;
-  name?: InputMaybe<Order_By>;
   num_allowed_revotes?: InputMaybe<Order_By>;
   permission_label?: InputMaybe<Order_By>;
   tenant_id?: InputMaybe<Order_By>;
@@ -10029,13 +9982,13 @@ export type Sequent_Backend_Election_On_Conflict = {
 
 /** Ordering options when selecting data from "sequent_backend.election". */
 export type Sequent_Backend_Election_Order_By = {
-  alias?: InputMaybe<Order_By>;
   annotations?: InputMaybe<Order_By>;
   contests_aggregate?: InputMaybe<Sequent_Backend_Contest_Aggregate_Order_By>;
   created_at?: InputMaybe<Order_By>;
   description?: InputMaybe<Order_By>;
   election_event_id?: InputMaybe<Order_By>;
   eml?: InputMaybe<Order_By>;
+  external_id?: InputMaybe<Order_By>;
   id?: InputMaybe<Order_By>;
   image_document_id?: InputMaybe<Order_By>;
   initialization_report_generated?: InputMaybe<Order_By>;
@@ -10044,7 +9997,6 @@ export type Sequent_Backend_Election_Order_By = {
   keys_ceremony_id?: InputMaybe<Order_By>;
   labels?: InputMaybe<Order_By>;
   last_updated_at?: InputMaybe<Order_By>;
-  name?: InputMaybe<Order_By>;
   num_allowed_revotes?: InputMaybe<Order_By>;
   permission_label?: InputMaybe<Order_By>;
   presentation?: InputMaybe<Order_By>;
@@ -10386,8 +10338,6 @@ export type Sequent_Backend_Election_Result_Updates = {
 /** select columns of table "sequent_backend.election" */
 export enum Sequent_Backend_Election_Select_Column {
   /** column name */
-  Alias = 'alias',
-  /** column name */
   Annotations = 'annotations',
   /** column name */
   CreatedAt = 'created_at',
@@ -10397,6 +10347,8 @@ export enum Sequent_Backend_Election_Select_Column {
   ElectionEventId = 'election_event_id',
   /** column name */
   Eml = 'eml',
+  /** column name */
+  ExternalId = 'external_id',
   /** column name */
   Id = 'id',
   /** column name */
@@ -10413,8 +10365,6 @@ export enum Sequent_Backend_Election_Select_Column {
   Labels = 'labels',
   /** column name */
   LastUpdatedAt = 'last_updated_at',
-  /** column name */
-  Name = 'name',
   /** column name */
   NumAllowedRevotes = 'num_allowed_revotes',
   /** column name */
@@ -10461,12 +10411,12 @@ export enum Sequent_Backend_Election_Select_Column_Sequent_Backend_Election_Aggr
 
 /** input type for updating data in table "sequent_backend.election" */
 export type Sequent_Backend_Election_Set_Input = {
-  alias?: InputMaybe<Scalars['String']['input']>;
   annotations?: InputMaybe<Scalars['jsonb']['input']>;
   created_at?: InputMaybe<Scalars['timestamptz']['input']>;
   description?: InputMaybe<Scalars['String']['input']>;
   election_event_id?: InputMaybe<Scalars['uuid']['input']>;
   eml?: InputMaybe<Scalars['String']['input']>;
+  external_id?: InputMaybe<Scalars['String']['input']>;
   id?: InputMaybe<Scalars['uuid']['input']>;
   image_document_id?: InputMaybe<Scalars['String']['input']>;
   initialization_report_generated?: InputMaybe<Scalars['Boolean']['input']>;
@@ -10475,7 +10425,6 @@ export type Sequent_Backend_Election_Set_Input = {
   keys_ceremony_id?: InputMaybe<Scalars['uuid']['input']>;
   labels?: InputMaybe<Scalars['jsonb']['input']>;
   last_updated_at?: InputMaybe<Scalars['timestamptz']['input']>;
-  name?: InputMaybe<Scalars['String']['input']>;
   num_allowed_revotes?: InputMaybe<Scalars['Int']['input']>;
   permission_label?: InputMaybe<Scalars['String']['input']>;
   presentation?: InputMaybe<Scalars['jsonb']['input']>;
@@ -10530,12 +10479,12 @@ export type Sequent_Backend_Election_Stream_Cursor_Input = {
 
 /** Initial value of the column from where the streaming should start */
 export type Sequent_Backend_Election_Stream_Cursor_Value_Input = {
-  alias?: InputMaybe<Scalars['String']['input']>;
   annotations?: InputMaybe<Scalars['jsonb']['input']>;
   created_at?: InputMaybe<Scalars['timestamptz']['input']>;
   description?: InputMaybe<Scalars['String']['input']>;
   election_event_id?: InputMaybe<Scalars['uuid']['input']>;
   eml?: InputMaybe<Scalars['String']['input']>;
+  external_id?: InputMaybe<Scalars['String']['input']>;
   id?: InputMaybe<Scalars['uuid']['input']>;
   image_document_id?: InputMaybe<Scalars['String']['input']>;
   initialization_report_generated?: InputMaybe<Scalars['Boolean']['input']>;
@@ -10544,7 +10493,6 @@ export type Sequent_Backend_Election_Stream_Cursor_Value_Input = {
   keys_ceremony_id?: InputMaybe<Scalars['uuid']['input']>;
   labels?: InputMaybe<Scalars['jsonb']['input']>;
   last_updated_at?: InputMaybe<Scalars['timestamptz']['input']>;
-  name?: InputMaybe<Scalars['String']['input']>;
   num_allowed_revotes?: InputMaybe<Scalars['Int']['input']>;
   permission_label?: InputMaybe<Scalars['String']['input']>;
   presentation?: InputMaybe<Scalars['jsonb']['input']>;
@@ -10813,8 +10761,6 @@ export type Sequent_Backend_Election_Type_Updates = {
 /** update columns of table "sequent_backend.election" */
 export enum Sequent_Backend_Election_Update_Column {
   /** column name */
-  Alias = 'alias',
-  /** column name */
   Annotations = 'annotations',
   /** column name */
   CreatedAt = 'created_at',
@@ -10824,6 +10770,8 @@ export enum Sequent_Backend_Election_Update_Column {
   ElectionEventId = 'election_event_id',
   /** column name */
   Eml = 'eml',
+  /** column name */
+  ExternalId = 'external_id',
   /** column name */
   Id = 'id',
   /** column name */
@@ -10840,8 +10788,6 @@ export enum Sequent_Backend_Election_Update_Column {
   Labels = 'labels',
   /** column name */
   LastUpdatedAt = 'last_updated_at',
-  /** column name */
-  Name = 'name',
   /** column name */
   NumAllowedRevotes = 'num_allowed_revotes',
   /** column name */
@@ -21727,7 +21673,7 @@ export type CheckPrivateKeyMutation = { __typename?: 'mutation_root', check_priv
 
 export type CreateElectionMutationVariables = Exact<{
   electionEventId: Scalars['String']['input'];
-  name: Scalars['String']['input'];
+  externalId: Scalars['String']['input'];
   presentation?: InputMaybe<Scalars['jsonb']['input']>;
   description?: InputMaybe<Scalars['String']['input']>;
 }>;
@@ -22043,7 +21989,7 @@ export type Get_Area_With_Area_ContestsQueryVariables = Exact<{
 }>;
 
 
-export type Get_Area_With_Area_ContestsQuery = { __typename?: 'query_root', sequent_backend_area_contest: Array<{ __typename?: 'sequent_backend_area_contest', id: any, contest?: { __typename?: 'sequent_backend_contest', name?: string | null, alias?: string | null } | null }> };
+export type Get_Area_With_Area_ContestsQuery = { __typename?: 'query_root', sequent_backend_area_contest: Array<{ __typename?: 'sequent_backend_area_contest', id: any, contest?: { __typename?: 'sequent_backend_contest', presentation?: any | null } | null }> };
 
 export type Sequent_Backend_AreaQueryVariables = Exact<{
   electionEventId: Scalars['uuid']['input'];
@@ -22058,7 +22004,7 @@ export type Sequent_Backend_Area_ExtendedQueryVariables = Exact<{
 }>;
 
 
-export type Sequent_Backend_Area_ExtendedQuery = { __typename?: 'query_root', sequent_backend_area_contest: Array<{ __typename?: 'sequent_backend_area_contest', contest?: { __typename?: 'sequent_backend_contest', id: any, name?: string | null } | null }> };
+export type Sequent_Backend_Area_ExtendedQuery = { __typename?: 'query_root', sequent_backend_area_contest: Array<{ __typename?: 'sequent_backend_area_contest', contest?: { __typename?: 'sequent_backend_contest', id: any, presentation?: any | null } | null }> };
 
 export type GetBallotPublicationChangeMutationVariables = Exact<{
   ballotPublicationId: Scalars['uuid']['input'];
@@ -22151,7 +22097,7 @@ export type Election_Events_TreeQueryVariables = Exact<{
 }>;
 
 
-export type Election_Events_TreeQuery = { __typename?: 'query_root', sequent_backend_election_event: Array<{ __typename?: 'sequent_backend_election_event', id: any, name: string, alias?: string | null, presentation?: any | null, is_archived: boolean }> };
+export type Election_Events_TreeQuery = { __typename?: 'query_root', sequent_backend_election_event: Array<{ __typename?: 'sequent_backend_election_event', id: any, presentation?: any | null, is_archived: boolean }> };
 
 export type Election_TreeQueryVariables = Exact<{
   tenantId: Scalars['uuid']['input'];
@@ -22159,7 +22105,7 @@ export type Election_TreeQueryVariables = Exact<{
 }>;
 
 
-export type Election_TreeQuery = { __typename?: 'query_root', sequent_backend_election: Array<{ __typename?: 'sequent_backend_election', id: any, name: string, alias?: string | null, presentation?: any | null, election_event_id: any }> };
+export type Election_TreeQuery = { __typename?: 'query_root', sequent_backend_election: Array<{ __typename?: 'sequent_backend_election', id: any, presentation?: any | null, election_event_id: any }> };
 
 export type Contest_TreeQueryVariables = Exact<{
   tenantId: Scalars['uuid']['input'];
@@ -22167,7 +22113,7 @@ export type Contest_TreeQueryVariables = Exact<{
 }>;
 
 
-export type Contest_TreeQuery = { __typename?: 'query_root', sequent_backend_contest: Array<{ __typename?: 'sequent_backend_contest', id: any, name?: string | null, alias?: string | null, presentation?: any | null, election_event_id: any, election_id: any }> };
+export type Contest_TreeQuery = { __typename?: 'query_root', sequent_backend_contest: Array<{ __typename?: 'sequent_backend_contest', id: any, presentation?: any | null, election_event_id: any, election_id: any }> };
 
 export type Candidate_TreeQueryVariables = Exact<{
   tenantId: Scalars['uuid']['input'];
@@ -22175,7 +22121,7 @@ export type Candidate_TreeQueryVariables = Exact<{
 }>;
 
 
-export type Candidate_TreeQuery = { __typename?: 'query_root', sequent_backend_candidate: Array<{ __typename?: 'sequent_backend_candidate', id: any, name?: string | null, alias?: string | null, presentation?: any | null, election_event_id: any, contest_id?: any | null }> };
+export type Candidate_TreeQuery = { __typename?: 'query_root', sequent_backend_candidate: Array<{ __typename?: 'sequent_backend_candidate', id: any, presentation?: any | null, election_event_id: any, contest_id?: any | null }> };
 
 export type GetElectionStatsQueryVariables = Exact<{
   tenantId: Scalars['uuid']['input'];
@@ -22193,7 +22139,15 @@ export type GetElectionStatsQuery = { __typename?: 'query_root', stats?: { __typ
 export type GetElectionsQueryVariables = Exact<{ [key: string]: never; }>;
 
 
-export type GetElectionsQuery = { __typename?: 'query_root', sequent_backend_election: Array<{ __typename?: 'sequent_backend_election', annotations?: any | null, created_at?: any | null, description?: string | null, election_event_id: any, eml?: string | null, id: any, is_consolidated_ballot_encoding?: boolean | null, labels?: any | null, last_updated_at?: any | null, name: string, num_allowed_revotes?: number | null, presentation?: any | null, spoil_ballot_option?: boolean | null, status?: any | null, tenant_id: any, permission_label?: string | null, initialization_report_generated?: boolean | null }> };
+export type GetElectionsQuery = { __typename?: 'query_root', sequent_backend_election: Array<{ __typename?: 'sequent_backend_election', annotations?: any | null, created_at?: any | null, description?: string | null, election_event_id: any, eml?: string | null, id: any, is_consolidated_ballot_encoding?: boolean | null, labels?: any | null, last_updated_at?: any | null, num_allowed_revotes?: number | null, presentation?: any | null, spoil_ballot_option?: boolean | null, status?: any | null, tenant_id: any, permission_label?: string | null, initialization_report_generated?: boolean | null, external_id?: string | null }> };
+
+export type GetElectionsByExternalIdQueryVariables = Exact<{
+  external_ids: Array<Scalars['String']['input']> | Scalars['String']['input'];
+  election_event_id?: InputMaybe<Scalars['uuid']['input']>;
+}>;
+
+
+export type GetElectionsByExternalIdQuery = { __typename?: 'query_root', sequent_backend_election: Array<{ __typename?: 'sequent_backend_election', id: any, external_id?: string | null, election_event_id: any, presentation?: any | null }> };
 
 export type GetEventExecutionQueryVariables = Exact<{
   tenantId: Scalars['uuid']['input'];
@@ -22234,7 +22188,7 @@ export type GetTallyDataQueryVariables = Exact<{
 }>;
 
 
-export type GetTallyDataQuery = { __typename?: 'query_root', sequent_backend_area: Array<{ __typename?: 'sequent_backend_area', annotations?: any | null, created_at?: any | null, description?: string | null, election_event_id: any, id: any, labels?: any | null, last_updated_at?: any | null, name?: string | null, tenant_id: any, type?: string | null }>, sequent_backend_area_contest: Array<{ __typename?: 'sequent_backend_area_contest', tenant_id?: any | null, last_updated_at?: any | null, labels?: any | null, id: any, election_event_id?: any | null, created_at?: any | null, contest_id?: any | null, area_id?: any | null, annotations?: any | null }>, sequent_backend_election: Array<{ __typename?: 'sequent_backend_election', tenant_id: any, status?: any | null, alias?: string | null, statistics?: any | null, spoil_ballot_option?: boolean | null, receipts?: any | null, presentation?: any | null, num_allowed_revotes?: number | null, name: string, last_updated_at?: any | null, labels?: any | null, is_kiosk?: boolean | null, is_consolidated_ballot_encoding?: boolean | null, image_document_id?: string | null, id: any, eml?: string | null, election_event_id: any, description?: string | null, created_at?: any | null }>, sequent_backend_candidate: Array<{ __typename?: 'sequent_backend_candidate', type?: string | null, tenant_id: any, presentation?: any | null, name?: string | null, last_updated_at?: any | null, labels?: any | null, is_public?: boolean | null, image_document_id?: string | null, id: any, election_event_id: any, description?: string | null, created_at?: any | null, contest_id?: any | null, annotations?: any | null, alias?: string | null }>, sequent_backend_contest: Array<{ __typename?: 'sequent_backend_contest', winning_candidates_num?: number | null, voting_type?: string | null, tenant_id: any, tally_configuration?: any | null, presentation?: any | null, name?: string | null, min_votes?: number | null, max_votes?: number | null, last_updated_at?: any | null, labels?: any | null, is_encrypted?: boolean | null, is_active?: boolean | null, is_acclaimed?: boolean | null, image_document_id?: string | null, id: any, election_id: any, election_event_id: any, description?: string | null, created_at?: any | null, counting_algorithm?: string | null, conditions?: any | null, annotations?: any | null, alias?: string | null }>, sequent_backend_results_event: Array<{ __typename?: 'sequent_backend_results_event', tenant_id: any, name?: string | null, last_updated_at?: any | null, labels?: any | null, id: any, election_event_id: any, documents?: any | null, created_at?: any | null, annotations?: any | null }>, sequent_backend_results_election: Array<{ __typename?: 'sequent_backend_results_election', total_voters_percent?: any | null, total_voters?: number | null, tenant_id: any, results_event_id: any, name?: string | null, last_updated_at?: any | null, labels?: any | null, id: any, elegible_census?: number | null, election_id: any, election_event_id: any, documents?: any | null, created_at?: any | null, annotations?: any | null }>, sequent_backend_results_contest_candidate: Array<{ __typename?: 'sequent_backend_results_contest_candidate', winning_position?: number | null, tenant_id: any, results_event_id: any, points?: number | null, last_updated_at?: any | null, labels?: any | null, id: any, election_id: any, election_event_id: any, documents?: any | null, created_at?: any | null, contest_id: any, cast_votes_percent?: any | null, cast_votes?: number | null, candidate_id: any, annotations?: any | null }>, sequent_backend_results_contest: Array<{ __typename?: 'sequent_backend_results_contest', voting_type?: string | null, total_votes_percent?: any | null, total_votes?: number | null, total_auditable_votes?: number | null, total_auditable_votes_percent?: any | null, total_valid_votes_percent?: any | null, total_valid_votes?: number | null, total_invalid_votes_percent?: any | null, total_invalid_votes?: number | null, tenant_id: any, results_event_id: any, name?: string | null, last_updated_at?: any | null, labels?: any | null, implicit_invalid_votes_percent?: any | null, implicit_invalid_votes?: number | null, id: any, explicit_invalid_votes_percent?: any | null, explicit_invalid_votes?: number | null, elegible_census?: number | null, election_id: any, election_event_id: any, documents?: any | null, created_at?: any | null, counting_algorithm?: string | null, contest_id: any, blank_votes_percent?: any | null, blank_votes?: number | null, annotations?: any | null }>, sequent_backend_results_area_contest_candidate: Array<{ __typename?: 'sequent_backend_results_area_contest_candidate', winning_position?: number | null, tenant_id: any, results_event_id: any, points?: number | null, last_updated_at?: any | null, labels?: any | null, id: any, election_id: any, election_event_id: any, documents?: any | null, created_at?: any | null, contest_id: any, cast_votes_percent?: any | null, cast_votes?: number | null, candidate_id: any, area_id: any, annotations?: any | null }>, sequent_backend_results_area_contest: Array<{ __typename?: 'sequent_backend_results_area_contest', annotations?: any | null, area_id: any, blank_votes?: number | null, blank_votes_percent?: any | null, contest_id: any, created_at?: any | null, documents?: any | null, election_event_id: any, election_id: any, elegible_census?: number | null, explicit_invalid_votes?: number | null, explicit_invalid_votes_percent?: any | null, id: any, implicit_invalid_votes?: number | null, implicit_invalid_votes_percent?: any | null, labels?: any | null, last_updated_at?: any | null, results_event_id: any, tenant_id: any, total_invalid_votes?: number | null, total_invalid_votes_percent?: any | null, total_valid_votes?: number | null, total_valid_votes_percent?: any | null, total_votes?: number | null, total_votes_percent?: any | null, total_auditable_votes?: number | null, total_auditable_votes_percent?: any | null }>, sequent_backend_results_election_area: Array<{ __typename?: 'sequent_backend_results_election_area', id: any, tenant_id: any, election_event_id: any, election_id: any, area_id: any, results_event_id: any, created_at: any, last_updated_at: any, documents?: any | null, name?: string | null }> };
+export type GetTallyDataQuery = { __typename?: 'query_root', sequent_backend_area: Array<{ __typename?: 'sequent_backend_area', annotations?: any | null, created_at?: any | null, description?: string | null, election_event_id: any, id: any, labels?: any | null, last_updated_at?: any | null, name?: string | null, tenant_id: any, type?: string | null }>, sequent_backend_area_contest: Array<{ __typename?: 'sequent_backend_area_contest', tenant_id?: any | null, last_updated_at?: any | null, labels?: any | null, id: any, election_event_id?: any | null, created_at?: any | null, contest_id?: any | null, area_id?: any | null, annotations?: any | null }>, sequent_backend_election: Array<{ __typename?: 'sequent_backend_election', tenant_id: any, status?: any | null, statistics?: any | null, spoil_ballot_option?: boolean | null, receipts?: any | null, presentation?: any | null, num_allowed_revotes?: number | null, last_updated_at?: any | null, labels?: any | null, is_kiosk?: boolean | null, is_consolidated_ballot_encoding?: boolean | null, image_document_id?: string | null, id: any, eml?: string | null, election_event_id: any, description?: string | null, created_at?: any | null, external_id?: string | null }>, sequent_backend_candidate: Array<{ __typename?: 'sequent_backend_candidate', type?: string | null, tenant_id: any, presentation?: any | null, last_updated_at?: any | null, labels?: any | null, is_public?: boolean | null, image_document_id?: string | null, id: any, election_event_id: any, description?: string | null, created_at?: any | null, contest_id?: any | null, annotations?: any | null }>, sequent_backend_contest: Array<{ __typename?: 'sequent_backend_contest', winning_candidates_num?: number | null, voting_type?: string | null, tenant_id: any, tally_configuration?: any | null, presentation?: any | null, min_votes?: number | null, max_votes?: number | null, last_updated_at?: any | null, labels?: any | null, is_encrypted?: boolean | null, is_active?: boolean | null, is_acclaimed?: boolean | null, image_document_id?: string | null, id: any, election_id: any, election_event_id: any, description?: string | null, created_at?: any | null, counting_algorithm?: string | null, conditions?: any | null, annotations?: any | null }>, sequent_backend_results_event: Array<{ __typename?: 'sequent_backend_results_event', tenant_id: any, name?: string | null, last_updated_at?: any | null, labels?: any | null, id: any, election_event_id: any, documents?: any | null, created_at?: any | null, annotations?: any | null }>, sequent_backend_results_election: Array<{ __typename?: 'sequent_backend_results_election', total_voters_percent?: any | null, total_voters?: number | null, tenant_id: any, results_event_id: any, name?: string | null, last_updated_at?: any | null, labels?: any | null, id: any, elegible_census?: number | null, election_id: any, election_event_id: any, documents?: any | null, created_at?: any | null, annotations?: any | null }>, sequent_backend_results_contest_candidate: Array<{ __typename?: 'sequent_backend_results_contest_candidate', winning_position?: number | null, tenant_id: any, results_event_id: any, points?: number | null, last_updated_at?: any | null, labels?: any | null, id: any, election_id: any, election_event_id: any, documents?: any | null, created_at?: any | null, contest_id: any, cast_votes_percent?: any | null, cast_votes?: number | null, candidate_id: any, annotations?: any | null }>, sequent_backend_results_contest: Array<{ __typename?: 'sequent_backend_results_contest', voting_type?: string | null, total_votes_percent?: any | null, total_votes?: number | null, total_auditable_votes?: number | null, total_auditable_votes_percent?: any | null, total_valid_votes_percent?: any | null, total_valid_votes?: number | null, total_invalid_votes_percent?: any | null, total_invalid_votes?: number | null, tenant_id: any, results_event_id: any, name?: string | null, last_updated_at?: any | null, labels?: any | null, implicit_invalid_votes_percent?: any | null, implicit_invalid_votes?: number | null, id: any, explicit_invalid_votes_percent?: any | null, explicit_invalid_votes?: number | null, elegible_census?: number | null, election_id: any, election_event_id: any, documents?: any | null, created_at?: any | null, counting_algorithm?: string | null, contest_id: any, blank_votes_percent?: any | null, blank_votes?: number | null, annotations?: any | null }>, sequent_backend_results_area_contest_candidate: Array<{ __typename?: 'sequent_backend_results_area_contest_candidate', winning_position?: number | null, tenant_id: any, results_event_id: any, points?: number | null, last_updated_at?: any | null, labels?: any | null, id: any, election_id: any, election_event_id: any, documents?: any | null, created_at?: any | null, contest_id: any, cast_votes_percent?: any | null, cast_votes?: number | null, candidate_id: any, area_id: any, annotations?: any | null }>, sequent_backend_results_area_contest: Array<{ __typename?: 'sequent_backend_results_area_contest', annotations?: any | null, area_id: any, blank_votes?: number | null, blank_votes_percent?: any | null, contest_id: any, created_at?: any | null, documents?: any | null, election_event_id: any, election_id: any, elegible_census?: number | null, explicit_invalid_votes?: number | null, explicit_invalid_votes_percent?: any | null, id: any, implicit_invalid_votes?: number | null, implicit_invalid_votes_percent?: any | null, labels?: any | null, last_updated_at?: any | null, results_event_id: any, tenant_id: any, total_invalid_votes?: number | null, total_invalid_votes_percent?: any | null, total_valid_votes?: number | null, total_valid_votes_percent?: any | null, total_votes?: number | null, total_votes_percent?: any | null, total_auditable_votes?: number | null, total_auditable_votes_percent?: any | null }>, sequent_backend_results_election_area: Array<{ __typename?: 'sequent_backend_results_election_area', id: any, tenant_id: any, election_event_id: any, election_id: any, area_id: any, results_event_id: any, created_at: any, last_updated_at: any, documents?: any | null, name?: string | null }> };
 
 export type GetTallySessionExecutionQueryVariables = Exact<{
   tallySessionId: Scalars['uuid']['input'];
@@ -22664,7 +22618,7 @@ export type LimitAccessByCountriesMutation = { __typename?: 'mutation_root', lim
 export const CallPluginRouteDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"CallPluginRoute"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"path"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"data"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"jsonb"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"call_plugin_route"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"path"},"value":{"kind":"Variable","name":{"kind":"Name","value":"path"}}},{"kind":"Argument","name":{"kind":"Name","value":"data"},"value":{"kind":"Variable","name":{"kind":"Name","value":"data"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"data"}}]}}]}}]} as unknown as DocumentNode<CallPluginRouteMutation, CallPluginRouteMutationVariables>;
 export const ChangeApplicationStatusDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"ChangeApplicationStatus"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"election_event_id"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"user_id"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"id"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"tenant_id"}},"type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"area_id"}},"type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"rejection_reason"}},"type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"rejection_message"}},"type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"ApplicationChangeStatus"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"body"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"election_event_id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"election_event_id"}}},{"kind":"ObjectField","name":{"kind":"Name","value":"id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"id"}}},{"kind":"ObjectField","name":{"kind":"Name","value":"user_id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"user_id"}}},{"kind":"ObjectField","name":{"kind":"Name","value":"tenant_id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"tenant_id"}}},{"kind":"ObjectField","name":{"kind":"Name","value":"area_id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"area_id"}}},{"kind":"ObjectField","name":{"kind":"Name","value":"rejection_reason"},"value":{"kind":"Variable","name":{"kind":"Name","value":"rejection_reason"}}},{"kind":"ObjectField","name":{"kind":"Name","value":"rejection_message"},"value":{"kind":"Variable","name":{"kind":"Name","value":"rejection_message"}}}]}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"message"}},{"kind":"Field","name":{"kind":"Name","value":"error"}}]}}]}}]} as unknown as DocumentNode<ChangeApplicationStatusMutation, ChangeApplicationStatusMutationVariables>;
 export const CheckPrivateKeyDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"CheckPrivateKey"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"electionEventId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"keysCeremonyId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"privateKeyBase64"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"check_private_key"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"object"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"election_event_id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"electionEventId"}}},{"kind":"ObjectField","name":{"kind":"Name","value":"keys_ceremony_id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"keysCeremonyId"}}},{"kind":"ObjectField","name":{"kind":"Name","value":"private_key_base64"},"value":{"kind":"Variable","name":{"kind":"Name","value":"privateKeyBase64"}}}]}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"is_valid"}}]}}]}}]} as unknown as DocumentNode<CheckPrivateKeyMutation, CheckPrivateKeyMutationVariables>;
-export const CreateElectionDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"CreateElection"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"electionEventId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"name"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"presentation"}},"type":{"kind":"NamedType","name":{"kind":"Name","value":"jsonb"}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"description"}},"type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"create_election"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"election_event_id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"electionEventId"}}},{"kind":"Argument","name":{"kind":"Name","value":"name"},"value":{"kind":"Variable","name":{"kind":"Name","value":"name"}}},{"kind":"Argument","name":{"kind":"Name","value":"presentation"},"value":{"kind":"Variable","name":{"kind":"Name","value":"presentation"}}},{"kind":"Argument","name":{"kind":"Name","value":"description"},"value":{"kind":"Variable","name":{"kind":"Name","value":"description"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}}]}}]}}]} as unknown as DocumentNode<CreateElectionMutation, CreateElectionMutationVariables>;
+export const CreateElectionDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"CreateElection"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"electionEventId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"externalId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"presentation"}},"type":{"kind":"NamedType","name":{"kind":"Name","value":"jsonb"}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"description"}},"type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"create_election"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"election_event_id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"electionEventId"}}},{"kind":"Argument","name":{"kind":"Name","value":"external_id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"externalId"}}},{"kind":"Argument","name":{"kind":"Name","value":"presentation"},"value":{"kind":"Variable","name":{"kind":"Name","value":"presentation"}}},{"kind":"Argument","name":{"kind":"Name","value":"description"},"value":{"kind":"Variable","name":{"kind":"Name","value":"description"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}}]}}]}}]} as unknown as DocumentNode<CreateElectionMutation, CreateElectionMutationVariables>;
 export const CreateKeysCeremonyDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"CreateKeysCeremony"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"electionEventId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"threshold"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"Int"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"trusteeNames"}},"type":{"kind":"ListType","type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"electionId"}},"type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"name"}},"type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"isAutomaticCeremony"}},"type":{"kind":"NamedType","name":{"kind":"Name","value":"Boolean"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"create_keys_ceremony"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"object"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"election_event_id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"electionEventId"}}},{"kind":"ObjectField","name":{"kind":"Name","value":"threshold"},"value":{"kind":"Variable","name":{"kind":"Name","value":"threshold"}}},{"kind":"ObjectField","name":{"kind":"Name","value":"trustee_names"},"value":{"kind":"Variable","name":{"kind":"Name","value":"trusteeNames"}}},{"kind":"ObjectField","name":{"kind":"Name","value":"election_id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"electionId"}}},{"kind":"ObjectField","name":{"kind":"Name","value":"name"},"value":{"kind":"Variable","name":{"kind":"Name","value":"name"}}},{"kind":"ObjectField","name":{"kind":"Name","value":"is_automatic_ceremony"},"value":{"kind":"Variable","name":{"kind":"Name","value":"isAutomaticCeremony"}}}]}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"keys_ceremony_id"}},{"kind":"Field","name":{"kind":"Name","value":"error_message"}}]}}]}}]} as unknown as DocumentNode<CreateKeysCeremonyMutation, CreateKeysCeremonyMutationVariables>;
 export const InsertReportDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"InsertReport"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"object"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"sequent_backend_report_insert_input"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"insert_sequent_backend_report"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"objects"},"value":{"kind":"ListValue","values":[{"kind":"Variable","name":{"kind":"Name","value":"object"}}]}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"returning"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"election_event_id"}},{"kind":"Field","name":{"kind":"Name","value":"tenant_id"}},{"kind":"Field","name":{"kind":"Name","value":"election_id"}},{"kind":"Field","name":{"kind":"Name","value":"report_type"}},{"kind":"Field","name":{"kind":"Name","value":"template_alias"}},{"kind":"Field","name":{"kind":"Name","value":"cron_config"}},{"kind":"Field","name":{"kind":"Name","value":"encryption_policy"}}]}},{"kind":"Field","name":{"kind":"Name","value":"affected_rows"}}]}}]}}]} as unknown as DocumentNode<InsertReportMutation, InsertReportMutationVariables>;
 export const CreateRoleDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"CreateRole"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"tenantId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"role"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"KeycloakRole2"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"create_role"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"tenant_id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"tenantId"}}},{"kind":"Argument","name":{"kind":"Name","value":"role"},"value":{"kind":"Variable","name":{"kind":"Name","value":"role"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"name"}},{"kind":"Field","name":{"kind":"Name","value":"permissions"}},{"kind":"Field","name":{"kind":"Name","value":"access"}},{"kind":"Field","name":{"kind":"Name","value":"attributes"}},{"kind":"Field","name":{"kind":"Name","value":"client_roles"}}]}}]}}]} as unknown as DocumentNode<CreateRoleMutation, CreateRoleMutationVariables>;
@@ -22700,9 +22654,9 @@ export const GenerateReportDocument = {"kind":"Document","definitions":[{"kind":
 export const GenerateTemplateDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"GenerateTemplate"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"electionEventId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"electionId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"tallySessionId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"type"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"generate_template"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"election_event_id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"electionEventId"}}},{"kind":"Argument","name":{"kind":"Name","value":"election_id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"electionId"}}},{"kind":"Argument","name":{"kind":"Name","value":"tally_session_id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"tallySessionId"}}},{"kind":"Argument","name":{"kind":"Name","value":"type"},"value":{"kind":"Variable","name":{"kind":"Name","value":"type"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"document_id"}},{"kind":"Field","name":{"kind":"Name","value":"task_execution"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"name"}},{"kind":"Field","name":{"kind":"Name","value":"execution_status"}},{"kind":"Field","name":{"kind":"Name","value":"created_at"}},{"kind":"Field","name":{"kind":"Name","value":"start_at"}},{"kind":"Field","name":{"kind":"Name","value":"end_at"}},{"kind":"Field","name":{"kind":"Name","value":"logs"}},{"kind":"Field","name":{"kind":"Name","value":"annotations"}},{"kind":"Field","name":{"kind":"Name","value":"labels"}},{"kind":"Field","name":{"kind":"Name","value":"executed_by_user"}},{"kind":"Field","name":{"kind":"Name","value":"tenant_id"}},{"kind":"Field","name":{"kind":"Name","value":"election_event_id"}},{"kind":"Field","name":{"kind":"Name","value":"type"}}]}}]}}]}}]} as unknown as DocumentNode<GenerateTemplateMutation, GenerateTemplateMutationVariables>;
 export const Generate_Transmission_ReportDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"generate_transmission_report"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"tenantId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"electionEventId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"electionId"}},"type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"tallySessionId"}},"type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"generate_transmission_report"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"tenant_id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"tenantId"}}},{"kind":"Argument","name":{"kind":"Name","value":"election_event_id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"electionEventId"}}},{"kind":"Argument","name":{"kind":"Name","value":"election_id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"electionId"}}},{"kind":"Argument","name":{"kind":"Name","value":"tally_session_id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"tallySessionId"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"document_id"}},{"kind":"Field","name":{"kind":"Name","value":"encryption_policy"}},{"kind":"Field","name":{"kind":"Name","value":"task_execution"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"name"}},{"kind":"Field","name":{"kind":"Name","value":"execution_status"}},{"kind":"Field","name":{"kind":"Name","value":"created_at"}},{"kind":"Field","name":{"kind":"Name","value":"start_at"}},{"kind":"Field","name":{"kind":"Name","value":"end_at"}},{"kind":"Field","name":{"kind":"Name","value":"logs"}},{"kind":"Field","name":{"kind":"Name","value":"annotations"}},{"kind":"Field","name":{"kind":"Name","value":"labels"}},{"kind":"Field","name":{"kind":"Name","value":"executed_by_user"}},{"kind":"Field","name":{"kind":"Name","value":"tenant_id"}},{"kind":"Field","name":{"kind":"Name","value":"election_event_id"}},{"kind":"Field","name":{"kind":"Name","value":"type"}}]}}]}}]}}]} as unknown as DocumentNode<Generate_Transmission_ReportMutation, Generate_Transmission_ReportMutationVariables>;
 export const GetAllTenantsDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"GetAllTenants"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"sequent_backend_tenant"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"slug"}}]}}]}}]} as unknown as DocumentNode<GetAllTenantsQuery, GetAllTenantsQueryVariables>;
-export const Get_Area_With_Area_ContestsDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"get_area_with_area_contests"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"areaId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"uuid"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"electionEventId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"uuid"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"sequent_backend_area_contest"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"where"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"_and"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"area_id"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"_eq"},"value":{"kind":"Variable","name":{"kind":"Name","value":"areaId"}}}]}},{"kind":"ObjectField","name":{"kind":"Name","value":"election_event_id"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"_eq"},"value":{"kind":"Variable","name":{"kind":"Name","value":"electionEventId"}}}]}}]}}]}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"contest"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"name"}},{"kind":"Field","name":{"kind":"Name","value":"alias"}}]}},{"kind":"Field","name":{"kind":"Name","value":"id"}}]}}]}}]} as unknown as DocumentNode<Get_Area_With_Area_ContestsQuery, Get_Area_With_Area_ContestsQueryVariables>;
+export const Get_Area_With_Area_ContestsDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"get_area_with_area_contests"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"areaId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"uuid"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"electionEventId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"uuid"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"sequent_backend_area_contest"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"where"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"_and"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"area_id"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"_eq"},"value":{"kind":"Variable","name":{"kind":"Name","value":"areaId"}}}]}},{"kind":"ObjectField","name":{"kind":"Name","value":"election_event_id"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"_eq"},"value":{"kind":"Variable","name":{"kind":"Name","value":"electionEventId"}}}]}}]}}]}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"contest"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"presentation"}}]}},{"kind":"Field","name":{"kind":"Name","value":"id"}}]}}]}}]} as unknown as DocumentNode<Get_Area_With_Area_ContestsQuery, Get_Area_With_Area_ContestsQueryVariables>;
 export const Sequent_Backend_AreaDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"sequent_backend_area"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"electionEventId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"uuid"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"sequent_backend_area"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"where"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"election_event_id"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"_eq"},"value":{"kind":"Variable","name":{"kind":"Name","value":"electionEventId"}}}]}}]}},{"kind":"Argument","name":{"kind":"Name","value":"limit"},"value":{"kind":"IntValue","value":"1000"}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"name"}}]}}]}}]} as unknown as DocumentNode<Sequent_Backend_AreaQuery, Sequent_Backend_AreaQueryVariables>;
-export const Sequent_Backend_Area_ExtendedDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"sequent_backend_area_extended"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"electionEventId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"uuid"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"areaId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"uuid"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"sequent_backend_area_contest"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"where"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"_and"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"election_event_id"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"_eq"},"value":{"kind":"Variable","name":{"kind":"Name","value":"electionEventId"}}}]}},{"kind":"ObjectField","name":{"kind":"Name","value":"area_id"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"_eq"},"value":{"kind":"Variable","name":{"kind":"Name","value":"areaId"}}}]}}]}}]}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"contest"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"name"}}]}}]}}]}}]} as unknown as DocumentNode<Sequent_Backend_Area_ExtendedQuery, Sequent_Backend_Area_ExtendedQueryVariables>;
+export const Sequent_Backend_Area_ExtendedDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"sequent_backend_area_extended"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"electionEventId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"uuid"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"areaId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"uuid"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"sequent_backend_area_contest"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"where"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"_and"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"election_event_id"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"_eq"},"value":{"kind":"Variable","name":{"kind":"Name","value":"electionEventId"}}}]}},{"kind":"ObjectField","name":{"kind":"Name","value":"area_id"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"_eq"},"value":{"kind":"Variable","name":{"kind":"Name","value":"areaId"}}}]}}]}}]}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"contest"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"presentation"}}]}}]}}]}}]} as unknown as DocumentNode<Sequent_Backend_Area_ExtendedQuery, Sequent_Backend_Area_ExtendedQueryVariables>;
 export const GetBallotPublicationChangeDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"GetBallotPublicationChange"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"ballotPublicationId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"uuid"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"electionEventId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"uuid"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"limit"}},"type":{"kind":"NamedType","name":{"kind":"Name","value":"Int"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"get_ballot_publication_changes"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"ballot_publication_id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"ballotPublicationId"}}},{"kind":"Argument","name":{"kind":"Name","value":"election_event_id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"electionEventId"}}},{"kind":"Argument","name":{"kind":"Name","value":"limit"},"value":{"kind":"Variable","name":{"kind":"Name","value":"limit"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"current"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"ballot_publication_id"}},{"kind":"Field","name":{"kind":"Name","value":"ballot_styles"}}]}},{"kind":"Field","name":{"kind":"Name","value":"previous"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"ballot_publication_id"}},{"kind":"Field","name":{"kind":"Name","value":"ballot_styles"}}]}}]}}]}}]} as unknown as DocumentNode<GetBallotPublicationChangeMutation, GetBallotPublicationChangeMutationVariables>;
 export const GetBallotPublicationDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"GetBallotPublication"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"electionEventId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"uuid"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"electionIds"}},"type":{"kind":"ListType","type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"uuid"}}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"sequent_backend_ballot_publication"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"where"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"_and"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"election_event_id"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"_eq"},"value":{"kind":"Variable","name":{"kind":"Name","value":"electionEventId"}}}]}},{"kind":"ObjectField","name":{"kind":"Name","value":"election_ids"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"_contains"},"value":{"kind":"Variable","name":{"kind":"Name","value":"electionIds"}}}]}}]}}]}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"annotations"}},{"kind":"Field","name":{"kind":"Name","value":"created_at"}},{"kind":"Field","name":{"kind":"Name","value":"created_by_user_id"}},{"kind":"Field","name":{"kind":"Name","value":"deleted_at"}},{"kind":"Field","name":{"kind":"Name","value":"election_event_id"}},{"kind":"Field","name":{"kind":"Name","value":"election_ids"}},{"kind":"Field","name":{"kind":"Name","value":"is_generated"}},{"kind":"Field","name":{"kind":"Name","value":"labels"}},{"kind":"Field","name":{"kind":"Name","value":"published_at"}},{"kind":"Field","name":{"kind":"Name","value":"tenant_id"}},{"kind":"Field","name":{"kind":"Name","value":"id"}}]}}]}}]} as unknown as DocumentNode<GetBallotPublicationQuery, GetBallotPublicationQueryVariables>;
 export const GetBallotStylesDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"GetBallotStyles"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"sequent_backend_ballot_style"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"election_id"}},{"kind":"Field","name":{"kind":"Name","value":"election_event_id"}},{"kind":"Field","name":{"kind":"Name","value":"status"}},{"kind":"Field","name":{"kind":"Name","value":"tenant_id"}},{"kind":"Field","name":{"kind":"Name","value":"ballot_eml"}},{"kind":"Field","name":{"kind":"Name","value":"ballot_signature"}},{"kind":"Field","name":{"kind":"Name","value":"created_at"}},{"kind":"Field","name":{"kind":"Name","value":"area_id"}},{"kind":"Field","name":{"kind":"Name","value":"annotations"}},{"kind":"Field","name":{"kind":"Name","value":"labels"}},{"kind":"Field","name":{"kind":"Name","value":"last_updated_at"}}]}}]}}]} as unknown as DocumentNode<GetBallotStylesQuery, GetBallotStylesQueryVariables>;
@@ -22713,17 +22667,18 @@ export const Sequent_Backend_Contest_ExtendedDocument = {"kind":"Document","defi
 export const GetDocumentDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"GetDocument"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"id"}},"type":{"kind":"NamedType","name":{"kind":"Name","value":"uuid"}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"tenantId"}},"type":{"kind":"NamedType","name":{"kind":"Name","value":"uuid"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"sequent_backend_document"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"where"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"_and"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"tenant_id"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"_eq"},"value":{"kind":"Variable","name":{"kind":"Name","value":"tenantId"}}}]}},{"kind":"ObjectField","name":{"kind":"Name","value":"id"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"_eq"},"value":{"kind":"Variable","name":{"kind":"Name","value":"id"}}}]}}]}}]}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"name"}}]}}]}}]} as unknown as DocumentNode<GetDocumentQuery, GetDocumentQueryVariables>;
 export const GetDocumentByNameDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"GetDocumentByName"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"name"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"tenantId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"uuid"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"sequent_backend_document"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"where"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"_and"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"name"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"_eq"},"value":{"kind":"Variable","name":{"kind":"Name","value":"name"}}}]}},{"kind":"ObjectField","name":{"kind":"Name","value":"tenant_id"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"_eq"},"value":{"kind":"Variable","name":{"kind":"Name","value":"tenantId"}}}]}}]}}]}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}}]}}]}}]} as unknown as DocumentNode<GetDocumentByNameQuery, GetDocumentByNameQueryVariables>;
 export const GetElectionEventStatsDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"GetElectionEventStats"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"tenantId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"uuid"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"electionEventId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"uuid"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"startDate"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"endDate"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"userTimezone"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","alias":{"kind":"Name","value":"stats"},"name":{"kind":"Name","value":"getElectionEventStats"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"object"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"election_event_id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"electionEventId"}}},{"kind":"ObjectField","name":{"kind":"Name","value":"start_date"},"value":{"kind":"Variable","name":{"kind":"Name","value":"startDate"}}},{"kind":"ObjectField","name":{"kind":"Name","value":"end_date"},"value":{"kind":"Variable","name":{"kind":"Name","value":"endDate"}}},{"kind":"ObjectField","name":{"kind":"Name","value":"user_timezone"},"value":{"kind":"Variable","name":{"kind":"Name","value":"userTimezone"}}}]}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"total_eligible_voters"}},{"kind":"Field","name":{"kind":"Name","value":"total_distinct_voters"}},{"kind":"Field","name":{"kind":"Name","value":"total_areas"}},{"kind":"Field","name":{"kind":"Name","value":"total_elections"}},{"kind":"Field","name":{"kind":"Name","value":"votes_per_day"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"day"}},{"kind":"Field","name":{"kind":"Name","value":"day_count"}}]}}]}},{"kind":"Field","alias":{"kind":"Name","value":"election_event"},"name":{"kind":"Name","value":"sequent_backend_election_event"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"where"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"id"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"_eq"},"value":{"kind":"Variable","name":{"kind":"Name","value":"electionEventId"}}}]}},{"kind":"ObjectField","name":{"kind":"Name","value":"tenant_id"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"_eq"},"value":{"kind":"Variable","name":{"kind":"Name","value":"tenantId"}}}]}}]}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"statistics"}}]}}]}}]} as unknown as DocumentNode<GetElectionEventStatsQuery, GetElectionEventStatsQueryVariables>;
-export const Election_Events_TreeDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"election_events_tree"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"tenantId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"uuid"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"isArchived"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"Boolean"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"sequent_backend_election_event"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"where"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"is_archived"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"_eq"},"value":{"kind":"Variable","name":{"kind":"Name","value":"isArchived"}}}]}},{"kind":"ObjectField","name":{"kind":"Name","value":"_and"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"tenant_id"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"_eq"},"value":{"kind":"Variable","name":{"kind":"Name","value":"tenantId"}}}]}}]}}]}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"name"}},{"kind":"Field","name":{"kind":"Name","value":"alias"}},{"kind":"Field","name":{"kind":"Name","value":"presentation"}},{"kind":"Field","name":{"kind":"Name","value":"is_archived"}}]}}]}}]} as unknown as DocumentNode<Election_Events_TreeQuery, Election_Events_TreeQueryVariables>;
-export const Election_TreeDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"election_tree"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"tenantId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"uuid"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"electionEventId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"uuid"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"sequent_backend_election"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"where"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"election_event_id"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"_eq"},"value":{"kind":"Variable","name":{"kind":"Name","value":"electionEventId"}}}]}},{"kind":"ObjectField","name":{"kind":"Name","value":"_and"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"tenant_id"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"_eq"},"value":{"kind":"Variable","name":{"kind":"Name","value":"tenantId"}}}]}}]}}]}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"name"}},{"kind":"Field","name":{"kind":"Name","value":"alias"}},{"kind":"Field","name":{"kind":"Name","value":"presentation"}},{"kind":"Field","name":{"kind":"Name","value":"election_event_id"}}]}}]}}]} as unknown as DocumentNode<Election_TreeQuery, Election_TreeQueryVariables>;
-export const Contest_TreeDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"contest_tree"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"tenantId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"uuid"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"electionId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"uuid"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"sequent_backend_contest"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"where"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"election_id"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"_eq"},"value":{"kind":"Variable","name":{"kind":"Name","value":"electionId"}}}]}},{"kind":"ObjectField","name":{"kind":"Name","value":"_and"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"tenant_id"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"_eq"},"value":{"kind":"Variable","name":{"kind":"Name","value":"tenantId"}}}]}}]}}]}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"name"}},{"kind":"Field","name":{"kind":"Name","value":"alias"}},{"kind":"Field","name":{"kind":"Name","value":"presentation"}},{"kind":"Field","name":{"kind":"Name","value":"election_event_id"}},{"kind":"Field","name":{"kind":"Name","value":"election_id"}}]}}]}}]} as unknown as DocumentNode<Contest_TreeQuery, Contest_TreeQueryVariables>;
-export const Candidate_TreeDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"candidate_tree"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"tenantId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"uuid"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"contestId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"uuid"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"sequent_backend_candidate"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"where"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"contest_id"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"_eq"},"value":{"kind":"Variable","name":{"kind":"Name","value":"contestId"}}}]}},{"kind":"ObjectField","name":{"kind":"Name","value":"_and"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"tenant_id"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"_eq"},"value":{"kind":"Variable","name":{"kind":"Name","value":"tenantId"}}}]}}]}}]}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"name"}},{"kind":"Field","name":{"kind":"Name","value":"alias"}},{"kind":"Field","name":{"kind":"Name","value":"presentation"}},{"kind":"Field","name":{"kind":"Name","value":"election_event_id"}},{"kind":"Field","name":{"kind":"Name","value":"contest_id"}}]}}]}}]} as unknown as DocumentNode<Candidate_TreeQuery, Candidate_TreeQueryVariables>;
+export const Election_Events_TreeDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"election_events_tree"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"tenantId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"uuid"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"isArchived"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"Boolean"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"sequent_backend_election_event"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"where"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"is_archived"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"_eq"},"value":{"kind":"Variable","name":{"kind":"Name","value":"isArchived"}}}]}},{"kind":"ObjectField","name":{"kind":"Name","value":"_and"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"tenant_id"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"_eq"},"value":{"kind":"Variable","name":{"kind":"Name","value":"tenantId"}}}]}}]}}]}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"presentation"}},{"kind":"Field","name":{"kind":"Name","value":"is_archived"}}]}}]}}]} as unknown as DocumentNode<Election_Events_TreeQuery, Election_Events_TreeQueryVariables>;
+export const Election_TreeDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"election_tree"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"tenantId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"uuid"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"electionEventId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"uuid"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"sequent_backend_election"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"where"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"election_event_id"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"_eq"},"value":{"kind":"Variable","name":{"kind":"Name","value":"electionEventId"}}}]}},{"kind":"ObjectField","name":{"kind":"Name","value":"_and"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"tenant_id"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"_eq"},"value":{"kind":"Variable","name":{"kind":"Name","value":"tenantId"}}}]}}]}}]}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"presentation"}},{"kind":"Field","name":{"kind":"Name","value":"election_event_id"}}]}}]}}]} as unknown as DocumentNode<Election_TreeQuery, Election_TreeQueryVariables>;
+export const Contest_TreeDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"contest_tree"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"tenantId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"uuid"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"electionId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"uuid"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"sequent_backend_contest"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"where"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"election_id"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"_eq"},"value":{"kind":"Variable","name":{"kind":"Name","value":"electionId"}}}]}},{"kind":"ObjectField","name":{"kind":"Name","value":"_and"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"tenant_id"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"_eq"},"value":{"kind":"Variable","name":{"kind":"Name","value":"tenantId"}}}]}}]}}]}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"presentation"}},{"kind":"Field","name":{"kind":"Name","value":"election_event_id"}},{"kind":"Field","name":{"kind":"Name","value":"election_id"}}]}}]}}]} as unknown as DocumentNode<Contest_TreeQuery, Contest_TreeQueryVariables>;
+export const Candidate_TreeDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"candidate_tree"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"tenantId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"uuid"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"contestId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"uuid"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"sequent_backend_candidate"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"where"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"contest_id"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"_eq"},"value":{"kind":"Variable","name":{"kind":"Name","value":"contestId"}}}]}},{"kind":"ObjectField","name":{"kind":"Name","value":"_and"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"tenant_id"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"_eq"},"value":{"kind":"Variable","name":{"kind":"Name","value":"tenantId"}}}]}}]}}]}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"presentation"}},{"kind":"Field","name":{"kind":"Name","value":"election_event_id"}},{"kind":"Field","name":{"kind":"Name","value":"contest_id"}}]}}]}}]} as unknown as DocumentNode<Candidate_TreeQuery, Candidate_TreeQueryVariables>;
 export const GetElectionStatsDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"GetElectionStats"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"tenantId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"uuid"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"electionEventId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"uuid"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"electionId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"uuid"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"startDate"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"endDate"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"electionAlias"}},"type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"userTimezone"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","alias":{"kind":"Name","value":"stats"},"name":{"kind":"Name","value":"getElectionStats"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"object"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"election_event_id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"electionEventId"}}},{"kind":"ObjectField","name":{"kind":"Name","value":"election_id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"electionId"}}},{"kind":"ObjectField","name":{"kind":"Name","value":"start_date"},"value":{"kind":"Variable","name":{"kind":"Name","value":"startDate"}}},{"kind":"ObjectField","name":{"kind":"Name","value":"end_date"},"value":{"kind":"Variable","name":{"kind":"Name","value":"endDate"}}},{"kind":"ObjectField","name":{"kind":"Name","value":"user_timezone"},"value":{"kind":"Variable","name":{"kind":"Name","value":"userTimezone"}}}]}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"total_distinct_voters"}},{"kind":"Field","name":{"kind":"Name","value":"total_areas"}},{"kind":"Field","name":{"kind":"Name","value":"votes_per_day"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"day"}},{"kind":"Field","name":{"kind":"Name","value":"day_count"}}]}}]}},{"kind":"Field","alias":{"kind":"Name","value":"users"},"name":{"kind":"Name","value":"count_users"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"body"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"tenant_id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"tenantId"}}},{"kind":"ObjectField","name":{"kind":"Name","value":"election_event_id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"electionEventId"}}},{"kind":"ObjectField","name":{"kind":"Name","value":"election_id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"electionId"}}},{"kind":"ObjectField","name":{"kind":"Name","value":"authorized_to_election_alias"},"value":{"kind":"Variable","name":{"kind":"Name","value":"electionAlias"}}}]}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"count"}}]}},{"kind":"Field","alias":{"kind":"Name","value":"election"},"name":{"kind":"Name","value":"sequent_backend_election"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"where"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"tenant_id"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"_eq"},"value":{"kind":"Variable","name":{"kind":"Name","value":"tenantId"}}}]}},{"kind":"ObjectField","name":{"kind":"Name","value":"election_event_id"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"_eq"},"value":{"kind":"Variable","name":{"kind":"Name","value":"electionEventId"}}}]}},{"kind":"ObjectField","name":{"kind":"Name","value":"id"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"_eq"},"value":{"kind":"Variable","name":{"kind":"Name","value":"electionId"}}}]}}]}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"statistics"}}]}}]}}]} as unknown as DocumentNode<GetElectionStatsQuery, GetElectionStatsQueryVariables>;
-export const GetElectionsDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"GetElections"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"sequent_backend_election"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"annotations"}},{"kind":"Field","name":{"kind":"Name","value":"created_at"}},{"kind":"Field","name":{"kind":"Name","value":"description"}},{"kind":"Field","name":{"kind":"Name","value":"election_event_id"}},{"kind":"Field","name":{"kind":"Name","value":"eml"}},{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"is_consolidated_ballot_encoding"}},{"kind":"Field","name":{"kind":"Name","value":"labels"}},{"kind":"Field","name":{"kind":"Name","value":"last_updated_at"}},{"kind":"Field","name":{"kind":"Name","value":"name"}},{"kind":"Field","name":{"kind":"Name","value":"num_allowed_revotes"}},{"kind":"Field","name":{"kind":"Name","value":"presentation"}},{"kind":"Field","name":{"kind":"Name","value":"spoil_ballot_option"}},{"kind":"Field","name":{"kind":"Name","value":"status"}},{"kind":"Field","name":{"kind":"Name","value":"tenant_id"}},{"kind":"Field","name":{"kind":"Name","value":"permission_label"}},{"kind":"Field","name":{"kind":"Name","value":"initialization_report_generated"}}]}}]}}]} as unknown as DocumentNode<GetElectionsQuery, GetElectionsQueryVariables>;
+export const GetElectionsDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"GetElections"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"sequent_backend_election"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"annotations"}},{"kind":"Field","name":{"kind":"Name","value":"created_at"}},{"kind":"Field","name":{"kind":"Name","value":"description"}},{"kind":"Field","name":{"kind":"Name","value":"election_event_id"}},{"kind":"Field","name":{"kind":"Name","value":"eml"}},{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"is_consolidated_ballot_encoding"}},{"kind":"Field","name":{"kind":"Name","value":"labels"}},{"kind":"Field","name":{"kind":"Name","value":"last_updated_at"}},{"kind":"Field","name":{"kind":"Name","value":"num_allowed_revotes"}},{"kind":"Field","name":{"kind":"Name","value":"presentation"}},{"kind":"Field","name":{"kind":"Name","value":"spoil_ballot_option"}},{"kind":"Field","name":{"kind":"Name","value":"status"}},{"kind":"Field","name":{"kind":"Name","value":"tenant_id"}},{"kind":"Field","name":{"kind":"Name","value":"permission_label"}},{"kind":"Field","name":{"kind":"Name","value":"initialization_report_generated"}},{"kind":"Field","name":{"kind":"Name","value":"external_id"}}]}}]}}]} as unknown as DocumentNode<GetElectionsQuery, GetElectionsQueryVariables>;
+export const GetElectionsByExternalIdDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"GetElectionsByExternalId"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"external_ids"}},"type":{"kind":"NonNullType","type":{"kind":"ListType","type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"election_event_id"}},"type":{"kind":"NamedType","name":{"kind":"Name","value":"uuid"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"sequent_backend_election"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"where"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"external_id"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"_in"},"value":{"kind":"Variable","name":{"kind":"Name","value":"external_ids"}}}]}},{"kind":"ObjectField","name":{"kind":"Name","value":"_and"},"value":{"kind":"ListValue","values":[{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"election_event_id"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"_eq"},"value":{"kind":"Variable","name":{"kind":"Name","value":"election_event_id"}}}]}}]}]}}]}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"external_id"}},{"kind":"Field","name":{"kind":"Name","value":"election_event_id"}},{"kind":"Field","name":{"kind":"Name","value":"presentation"}}]}}]}}]} as unknown as DocumentNode<GetElectionsByExternalIdQuery, GetElectionsByExternalIdQueryVariables>;
 export const GetEventExecutionDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"GetEventExecution"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"tenantId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"uuid"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"scheduledEventId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"uuid"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"sequent_backend_event_execution"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"where"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"scheduled_event_id"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"_eq"},"value":{"kind":"Variable","name":{"kind":"Name","value":"scheduledEventId"}}}]}},{"kind":"ObjectField","name":{"kind":"Name","value":"tenant_id"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"_eq"},"value":{"kind":"Variable","name":{"kind":"Name","value":"tenantId"}}}]}}]}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"tenant_id"}},{"kind":"Field","name":{"kind":"Name","value":"election_event_id"}},{"kind":"Field","name":{"kind":"Name","value":"scheduled_event_id"}},{"kind":"Field","name":{"kind":"Name","value":"labels"}},{"kind":"Field","name":{"kind":"Name","value":"annotations"}},{"kind":"Field","name":{"kind":"Name","value":"execution_state"}},{"kind":"Field","name":{"kind":"Name","value":"execution_payload"}},{"kind":"Field","name":{"kind":"Name","value":"result_payload"}},{"kind":"Field","name":{"kind":"Name","value":"started_at"}},{"kind":"Field","name":{"kind":"Name","value":"ended_at"}}]}}]}}]} as unknown as DocumentNode<GetEventExecutionQuery, GetEventExecutionQueryVariables>;
 export const GetPermissionsDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"getPermissions"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"tenant_id"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}},"defaultValue":{"kind":"StringValue","value":"","block":false}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"get_permissions"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"body"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"tenant_id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"tenant_id"}}}]}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"items"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"attributes"}},{"kind":"Field","name":{"kind":"Name","value":"container_id"}},{"kind":"Field","name":{"kind":"Name","value":"description"}},{"kind":"Field","name":{"kind":"Name","value":"name"}}]}},{"kind":"Field","name":{"kind":"Name","value":"total"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"aggregate"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"count"}}]}}]}}]}}]}}]} as unknown as DocumentNode<GetPermissionsQuery, GetPermissionsQueryVariables>;
 export const GetPrivateKeyDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"GetPrivateKey"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"electionEventId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"keysCeremonyId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"get_private_key"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"object"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"election_event_id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"electionEventId"}}},{"kind":"ObjectField","name":{"kind":"Name","value":"keys_ceremony_id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"keysCeremonyId"}}}]}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"private_key_base64"}}]}}]}}]} as unknown as DocumentNode<GetPrivateKeyMutation, GetPrivateKeyMutationVariables>;
 export const GetRolesDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"getRoles"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"tenant_id"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}},"defaultValue":{"kind":"StringValue","value":"","block":false}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"get_roles"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"body"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"tenant_id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"tenant_id"}}}]}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"items"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"name"}},{"kind":"Field","name":{"kind":"Name","value":"permissions"}},{"kind":"Field","name":{"kind":"Name","value":"access"}},{"kind":"Field","name":{"kind":"Name","value":"attributes"}},{"kind":"Field","name":{"kind":"Name","value":"client_roles"}}]}},{"kind":"Field","name":{"kind":"Name","value":"total"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"aggregate"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"count"}}]}}]}}]}}]}}]} as unknown as DocumentNode<GetRolesQuery, GetRolesQueryVariables>;
-export const GetTallyDataDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"GetTallyData"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"tenantId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"uuid"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"resultsEventId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"uuid"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"electionEventId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"uuid"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"contestIds"}},"type":{"kind":"NonNullType","type":{"kind":"ListType","type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"uuid"}}}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"electionIds"}},"type":{"kind":"NonNullType","type":{"kind":"ListType","type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"uuid"}}}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"sequent_backend_area"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"where"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"election_event_id"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"_eq"},"value":{"kind":"Variable","name":{"kind":"Name","value":"electionEventId"}}}]}},{"kind":"ObjectField","name":{"kind":"Name","value":"tenant_id"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"_eq"},"value":{"kind":"Variable","name":{"kind":"Name","value":"tenantId"}}}]}}]}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"annotations"}},{"kind":"Field","name":{"kind":"Name","value":"created_at"}},{"kind":"Field","name":{"kind":"Name","value":"description"}},{"kind":"Field","name":{"kind":"Name","value":"election_event_id"}},{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"labels"}},{"kind":"Field","name":{"kind":"Name","value":"last_updated_at"}},{"kind":"Field","name":{"kind":"Name","value":"name"}},{"kind":"Field","name":{"kind":"Name","value":"tenant_id"}},{"kind":"Field","name":{"kind":"Name","value":"type"}}]}},{"kind":"Field","name":{"kind":"Name","value":"sequent_backend_area_contest"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"where"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"election_event_id"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"_eq"},"value":{"kind":"Variable","name":{"kind":"Name","value":"electionEventId"}}}]}},{"kind":"ObjectField","name":{"kind":"Name","value":"tenant_id"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"_eq"},"value":{"kind":"Variable","name":{"kind":"Name","value":"tenantId"}}}]}},{"kind":"ObjectField","name":{"kind":"Name","value":"contest_id"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"_in"},"value":{"kind":"Variable","name":{"kind":"Name","value":"contestIds"}}}]}}]}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"tenant_id"}},{"kind":"Field","name":{"kind":"Name","value":"last_updated_at"}},{"kind":"Field","name":{"kind":"Name","value":"labels"}},{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"election_event_id"}},{"kind":"Field","name":{"kind":"Name","value":"created_at"}},{"kind":"Field","name":{"kind":"Name","value":"contest_id"}},{"kind":"Field","name":{"kind":"Name","value":"area_id"}},{"kind":"Field","name":{"kind":"Name","value":"annotations"}}]}},{"kind":"Field","name":{"kind":"Name","value":"sequent_backend_election"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"where"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"election_event_id"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"_eq"},"value":{"kind":"Variable","name":{"kind":"Name","value":"electionEventId"}}}]}},{"kind":"ObjectField","name":{"kind":"Name","value":"tenant_id"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"_eq"},"value":{"kind":"Variable","name":{"kind":"Name","value":"tenantId"}}}]}},{"kind":"ObjectField","name":{"kind":"Name","value":"id"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"_in"},"value":{"kind":"Variable","name":{"kind":"Name","value":"electionIds"}}}]}}]}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"tenant_id"}},{"kind":"Field","name":{"kind":"Name","value":"status"}},{"kind":"Field","name":{"kind":"Name","value":"alias"}},{"kind":"Field","name":{"kind":"Name","value":"statistics"}},{"kind":"Field","name":{"kind":"Name","value":"spoil_ballot_option"}},{"kind":"Field","name":{"kind":"Name","value":"receipts"}},{"kind":"Field","name":{"kind":"Name","value":"presentation"}},{"kind":"Field","name":{"kind":"Name","value":"num_allowed_revotes"}},{"kind":"Field","name":{"kind":"Name","value":"name"}},{"kind":"Field","name":{"kind":"Name","value":"last_updated_at"}},{"kind":"Field","name":{"kind":"Name","value":"labels"}},{"kind":"Field","name":{"kind":"Name","value":"is_kiosk"}},{"kind":"Field","name":{"kind":"Name","value":"is_consolidated_ballot_encoding"}},{"kind":"Field","name":{"kind":"Name","value":"image_document_id"}},{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"eml"}},{"kind":"Field","name":{"kind":"Name","value":"election_event_id"}},{"kind":"Field","name":{"kind":"Name","value":"description"}},{"kind":"Field","name":{"kind":"Name","value":"created_at"}}]}},{"kind":"Field","name":{"kind":"Name","value":"sequent_backend_candidate"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"where"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"election_event_id"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"_eq"},"value":{"kind":"Variable","name":{"kind":"Name","value":"electionEventId"}}}]}},{"kind":"ObjectField","name":{"kind":"Name","value":"tenant_id"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"_eq"},"value":{"kind":"Variable","name":{"kind":"Name","value":"tenantId"}}}]}},{"kind":"ObjectField","name":{"kind":"Name","value":"contest_id"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"_in"},"value":{"kind":"Variable","name":{"kind":"Name","value":"contestIds"}}}]}}]}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"type"}},{"kind":"Field","name":{"kind":"Name","value":"tenant_id"}},{"kind":"Field","name":{"kind":"Name","value":"presentation"}},{"kind":"Field","name":{"kind":"Name","value":"name"}},{"kind":"Field","name":{"kind":"Name","value":"last_updated_at"}},{"kind":"Field","name":{"kind":"Name","value":"labels"}},{"kind":"Field","name":{"kind":"Name","value":"is_public"}},{"kind":"Field","name":{"kind":"Name","value":"image_document_id"}},{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"election_event_id"}},{"kind":"Field","name":{"kind":"Name","value":"description"}},{"kind":"Field","name":{"kind":"Name","value":"created_at"}},{"kind":"Field","name":{"kind":"Name","value":"contest_id"}},{"kind":"Field","name":{"kind":"Name","value":"annotations"}},{"kind":"Field","name":{"kind":"Name","value":"alias"}}]}},{"kind":"Field","name":{"kind":"Name","value":"sequent_backend_contest"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"where"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"election_event_id"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"_eq"},"value":{"kind":"Variable","name":{"kind":"Name","value":"electionEventId"}}}]}},{"kind":"ObjectField","name":{"kind":"Name","value":"tenant_id"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"_eq"},"value":{"kind":"Variable","name":{"kind":"Name","value":"tenantId"}}}]}},{"kind":"ObjectField","name":{"kind":"Name","value":"id"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"_in"},"value":{"kind":"Variable","name":{"kind":"Name","value":"contestIds"}}}]}}]}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"winning_candidates_num"}},{"kind":"Field","name":{"kind":"Name","value":"voting_type"}},{"kind":"Field","name":{"kind":"Name","value":"tenant_id"}},{"kind":"Field","name":{"kind":"Name","value":"tally_configuration"}},{"kind":"Field","name":{"kind":"Name","value":"presentation"}},{"kind":"Field","name":{"kind":"Name","value":"name"}},{"kind":"Field","name":{"kind":"Name","value":"min_votes"}},{"kind":"Field","name":{"kind":"Name","value":"max_votes"}},{"kind":"Field","name":{"kind":"Name","value":"last_updated_at"}},{"kind":"Field","name":{"kind":"Name","value":"labels"}},{"kind":"Field","name":{"kind":"Name","value":"is_encrypted"}},{"kind":"Field","name":{"kind":"Name","value":"is_active"}},{"kind":"Field","name":{"kind":"Name","value":"is_acclaimed"}},{"kind":"Field","name":{"kind":"Name","value":"image_document_id"}},{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"election_id"}},{"kind":"Field","name":{"kind":"Name","value":"election_event_id"}},{"kind":"Field","name":{"kind":"Name","value":"description"}},{"kind":"Field","name":{"kind":"Name","value":"created_at"}},{"kind":"Field","name":{"kind":"Name","value":"counting_algorithm"}},{"kind":"Field","name":{"kind":"Name","value":"conditions"}},{"kind":"Field","name":{"kind":"Name","value":"annotations"}},{"kind":"Field","name":{"kind":"Name","value":"alias"}}]}},{"kind":"Field","name":{"kind":"Name","value":"sequent_backend_results_event"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"where"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"election_event_id"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"_eq"},"value":{"kind":"Variable","name":{"kind":"Name","value":"electionEventId"}}}]}},{"kind":"ObjectField","name":{"kind":"Name","value":"tenant_id"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"_eq"},"value":{"kind":"Variable","name":{"kind":"Name","value":"tenantId"}}}]}},{"kind":"ObjectField","name":{"kind":"Name","value":"id"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"_eq"},"value":{"kind":"Variable","name":{"kind":"Name","value":"resultsEventId"}}}]}}]}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"tenant_id"}},{"kind":"Field","name":{"kind":"Name","value":"name"}},{"kind":"Field","name":{"kind":"Name","value":"last_updated_at"}},{"kind":"Field","name":{"kind":"Name","value":"labels"}},{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"election_event_id"}},{"kind":"Field","name":{"kind":"Name","value":"documents"}},{"kind":"Field","name":{"kind":"Name","value":"created_at"}},{"kind":"Field","name":{"kind":"Name","value":"annotations"}}]}},{"kind":"Field","name":{"kind":"Name","value":"sequent_backend_results_election"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"where"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"election_event_id"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"_eq"},"value":{"kind":"Variable","name":{"kind":"Name","value":"electionEventId"}}}]}},{"kind":"ObjectField","name":{"kind":"Name","value":"tenant_id"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"_eq"},"value":{"kind":"Variable","name":{"kind":"Name","value":"tenantId"}}}]}},{"kind":"ObjectField","name":{"kind":"Name","value":"results_event_id"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"_eq"},"value":{"kind":"Variable","name":{"kind":"Name","value":"resultsEventId"}}}]}}]}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"total_voters_percent"}},{"kind":"Field","name":{"kind":"Name","value":"total_voters"}},{"kind":"Field","name":{"kind":"Name","value":"tenant_id"}},{"kind":"Field","name":{"kind":"Name","value":"results_event_id"}},{"kind":"Field","name":{"kind":"Name","value":"name"}},{"kind":"Field","name":{"kind":"Name","value":"last_updated_at"}},{"kind":"Field","name":{"kind":"Name","value":"labels"}},{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"elegible_census"}},{"kind":"Field","name":{"kind":"Name","value":"election_id"}},{"kind":"Field","name":{"kind":"Name","value":"election_event_id"}},{"kind":"Field","name":{"kind":"Name","value":"documents"}},{"kind":"Field","name":{"kind":"Name","value":"created_at"}},{"kind":"Field","name":{"kind":"Name","value":"annotations"}}]}},{"kind":"Field","name":{"kind":"Name","value":"sequent_backend_results_contest_candidate"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"where"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"election_event_id"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"_eq"},"value":{"kind":"Variable","name":{"kind":"Name","value":"electionEventId"}}}]}},{"kind":"ObjectField","name":{"kind":"Name","value":"tenant_id"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"_eq"},"value":{"kind":"Variable","name":{"kind":"Name","value":"tenantId"}}}]}},{"kind":"ObjectField","name":{"kind":"Name","value":"results_event_id"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"_eq"},"value":{"kind":"Variable","name":{"kind":"Name","value":"resultsEventId"}}}]}}]}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"winning_position"}},{"kind":"Field","name":{"kind":"Name","value":"tenant_id"}},{"kind":"Field","name":{"kind":"Name","value":"results_event_id"}},{"kind":"Field","name":{"kind":"Name","value":"points"}},{"kind":"Field","name":{"kind":"Name","value":"last_updated_at"}},{"kind":"Field","name":{"kind":"Name","value":"labels"}},{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"election_id"}},{"kind":"Field","name":{"kind":"Name","value":"election_event_id"}},{"kind":"Field","name":{"kind":"Name","value":"documents"}},{"kind":"Field","name":{"kind":"Name","value":"created_at"}},{"kind":"Field","name":{"kind":"Name","value":"contest_id"}},{"kind":"Field","name":{"kind":"Name","value":"cast_votes_percent"}},{"kind":"Field","name":{"kind":"Name","value":"cast_votes"}},{"kind":"Field","name":{"kind":"Name","value":"candidate_id"}},{"kind":"Field","name":{"kind":"Name","value":"annotations"}}]}},{"kind":"Field","name":{"kind":"Name","value":"sequent_backend_results_contest"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"where"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"election_event_id"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"_eq"},"value":{"kind":"Variable","name":{"kind":"Name","value":"electionEventId"}}}]}},{"kind":"ObjectField","name":{"kind":"Name","value":"tenant_id"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"_eq"},"value":{"kind":"Variable","name":{"kind":"Name","value":"tenantId"}}}]}},{"kind":"ObjectField","name":{"kind":"Name","value":"results_event_id"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"_eq"},"value":{"kind":"Variable","name":{"kind":"Name","value":"resultsEventId"}}}]}}]}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"voting_type"}},{"kind":"Field","name":{"kind":"Name","value":"total_votes_percent"}},{"kind":"Field","name":{"kind":"Name","value":"total_votes"}},{"kind":"Field","name":{"kind":"Name","value":"total_auditable_votes"}},{"kind":"Field","name":{"kind":"Name","value":"total_auditable_votes_percent"}},{"kind":"Field","name":{"kind":"Name","value":"total_valid_votes_percent"}},{"kind":"Field","name":{"kind":"Name","value":"total_valid_votes"}},{"kind":"Field","name":{"kind":"Name","value":"total_invalid_votes_percent"}},{"kind":"Field","name":{"kind":"Name","value":"total_invalid_votes"}},{"kind":"Field","name":{"kind":"Name","value":"tenant_id"}},{"kind":"Field","name":{"kind":"Name","value":"results_event_id"}},{"kind":"Field","name":{"kind":"Name","value":"name"}},{"kind":"Field","name":{"kind":"Name","value":"last_updated_at"}},{"kind":"Field","name":{"kind":"Name","value":"labels"}},{"kind":"Field","name":{"kind":"Name","value":"implicit_invalid_votes_percent"}},{"kind":"Field","name":{"kind":"Name","value":"implicit_invalid_votes"}},{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"explicit_invalid_votes_percent"}},{"kind":"Field","name":{"kind":"Name","value":"explicit_invalid_votes"}},{"kind":"Field","name":{"kind":"Name","value":"elegible_census"}},{"kind":"Field","name":{"kind":"Name","value":"election_id"}},{"kind":"Field","name":{"kind":"Name","value":"election_event_id"}},{"kind":"Field","name":{"kind":"Name","value":"documents"}},{"kind":"Field","name":{"kind":"Name","value":"created_at"}},{"kind":"Field","name":{"kind":"Name","value":"counting_algorithm"}},{"kind":"Field","name":{"kind":"Name","value":"contest_id"}},{"kind":"Field","name":{"kind":"Name","value":"blank_votes_percent"}},{"kind":"Field","name":{"kind":"Name","value":"blank_votes"}},{"kind":"Field","name":{"kind":"Name","value":"annotations"}}]}},{"kind":"Field","name":{"kind":"Name","value":"sequent_backend_results_area_contest_candidate"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"where"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"election_event_id"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"_eq"},"value":{"kind":"Variable","name":{"kind":"Name","value":"electionEventId"}}}]}},{"kind":"ObjectField","name":{"kind":"Name","value":"tenant_id"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"_eq"},"value":{"kind":"Variable","name":{"kind":"Name","value":"tenantId"}}}]}},{"kind":"ObjectField","name":{"kind":"Name","value":"results_event_id"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"_eq"},"value":{"kind":"Variable","name":{"kind":"Name","value":"resultsEventId"}}}]}}]}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"winning_position"}},{"kind":"Field","name":{"kind":"Name","value":"tenant_id"}},{"kind":"Field","name":{"kind":"Name","value":"results_event_id"}},{"kind":"Field","name":{"kind":"Name","value":"points"}},{"kind":"Field","name":{"kind":"Name","value":"last_updated_at"}},{"kind":"Field","name":{"kind":"Name","value":"labels"}},{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"election_id"}},{"kind":"Field","name":{"kind":"Name","value":"election_event_id"}},{"kind":"Field","name":{"kind":"Name","value":"documents"}},{"kind":"Field","name":{"kind":"Name","value":"created_at"}},{"kind":"Field","name":{"kind":"Name","value":"contest_id"}},{"kind":"Field","name":{"kind":"Name","value":"cast_votes_percent"}},{"kind":"Field","name":{"kind":"Name","value":"cast_votes"}},{"kind":"Field","name":{"kind":"Name","value":"candidate_id"}},{"kind":"Field","name":{"kind":"Name","value":"area_id"}},{"kind":"Field","name":{"kind":"Name","value":"annotations"}}]}},{"kind":"Field","name":{"kind":"Name","value":"sequent_backend_results_area_contest"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"where"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"election_event_id"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"_eq"},"value":{"kind":"Variable","name":{"kind":"Name","value":"electionEventId"}}}]}},{"kind":"ObjectField","name":{"kind":"Name","value":"tenant_id"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"_eq"},"value":{"kind":"Variable","name":{"kind":"Name","value":"tenantId"}}}]}},{"kind":"ObjectField","name":{"kind":"Name","value":"results_event_id"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"_eq"},"value":{"kind":"Variable","name":{"kind":"Name","value":"resultsEventId"}}}]}}]}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"annotations"}},{"kind":"Field","name":{"kind":"Name","value":"area_id"}},{"kind":"Field","name":{"kind":"Name","value":"blank_votes"}},{"kind":"Field","name":{"kind":"Name","value":"blank_votes_percent"}},{"kind":"Field","name":{"kind":"Name","value":"contest_id"}},{"kind":"Field","name":{"kind":"Name","value":"created_at"}},{"kind":"Field","name":{"kind":"Name","value":"documents"}},{"kind":"Field","name":{"kind":"Name","value":"election_event_id"}},{"kind":"Field","name":{"kind":"Name","value":"election_id"}},{"kind":"Field","name":{"kind":"Name","value":"elegible_census"}},{"kind":"Field","name":{"kind":"Name","value":"explicit_invalid_votes"}},{"kind":"Field","name":{"kind":"Name","value":"explicit_invalid_votes_percent"}},{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"implicit_invalid_votes"}},{"kind":"Field","name":{"kind":"Name","value":"implicit_invalid_votes_percent"}},{"kind":"Field","name":{"kind":"Name","value":"labels"}},{"kind":"Field","name":{"kind":"Name","value":"last_updated_at"}},{"kind":"Field","name":{"kind":"Name","value":"results_event_id"}},{"kind":"Field","name":{"kind":"Name","value":"tenant_id"}},{"kind":"Field","name":{"kind":"Name","value":"total_invalid_votes"}},{"kind":"Field","name":{"kind":"Name","value":"total_invalid_votes_percent"}},{"kind":"Field","name":{"kind":"Name","value":"total_valid_votes"}},{"kind":"Field","name":{"kind":"Name","value":"total_valid_votes_percent"}},{"kind":"Field","name":{"kind":"Name","value":"total_votes"}},{"kind":"Field","name":{"kind":"Name","value":"total_votes_percent"}},{"kind":"Field","name":{"kind":"Name","value":"total_auditable_votes"}},{"kind":"Field","name":{"kind":"Name","value":"total_auditable_votes_percent"}}]}},{"kind":"Field","name":{"kind":"Name","value":"sequent_backend_results_election_area"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"where"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"election_event_id"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"_eq"},"value":{"kind":"Variable","name":{"kind":"Name","value":"electionEventId"}}}]}},{"kind":"ObjectField","name":{"kind":"Name","value":"tenant_id"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"_eq"},"value":{"kind":"Variable","name":{"kind":"Name","value":"tenantId"}}}]}},{"kind":"ObjectField","name":{"kind":"Name","value":"results_event_id"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"_eq"},"value":{"kind":"Variable","name":{"kind":"Name","value":"resultsEventId"}}}]}}]}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"tenant_id"}},{"kind":"Field","name":{"kind":"Name","value":"election_event_id"}},{"kind":"Field","name":{"kind":"Name","value":"election_id"}},{"kind":"Field","name":{"kind":"Name","value":"area_id"}},{"kind":"Field","name":{"kind":"Name","value":"results_event_id"}},{"kind":"Field","name":{"kind":"Name","value":"created_at"}},{"kind":"Field","name":{"kind":"Name","value":"last_updated_at"}},{"kind":"Field","name":{"kind":"Name","value":"documents"}},{"kind":"Field","name":{"kind":"Name","value":"name"}}]}}]}}]} as unknown as DocumentNode<GetTallyDataQuery, GetTallyDataQueryVariables>;
+export const GetTallyDataDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"GetTallyData"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"tenantId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"uuid"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"resultsEventId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"uuid"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"electionEventId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"uuid"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"contestIds"}},"type":{"kind":"NonNullType","type":{"kind":"ListType","type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"uuid"}}}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"electionIds"}},"type":{"kind":"NonNullType","type":{"kind":"ListType","type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"uuid"}}}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"sequent_backend_area"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"where"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"election_event_id"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"_eq"},"value":{"kind":"Variable","name":{"kind":"Name","value":"electionEventId"}}}]}},{"kind":"ObjectField","name":{"kind":"Name","value":"tenant_id"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"_eq"},"value":{"kind":"Variable","name":{"kind":"Name","value":"tenantId"}}}]}}]}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"annotations"}},{"kind":"Field","name":{"kind":"Name","value":"created_at"}},{"kind":"Field","name":{"kind":"Name","value":"description"}},{"kind":"Field","name":{"kind":"Name","value":"election_event_id"}},{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"labels"}},{"kind":"Field","name":{"kind":"Name","value":"last_updated_at"}},{"kind":"Field","name":{"kind":"Name","value":"name"}},{"kind":"Field","name":{"kind":"Name","value":"tenant_id"}},{"kind":"Field","name":{"kind":"Name","value":"type"}}]}},{"kind":"Field","name":{"kind":"Name","value":"sequent_backend_area_contest"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"where"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"election_event_id"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"_eq"},"value":{"kind":"Variable","name":{"kind":"Name","value":"electionEventId"}}}]}},{"kind":"ObjectField","name":{"kind":"Name","value":"tenant_id"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"_eq"},"value":{"kind":"Variable","name":{"kind":"Name","value":"tenantId"}}}]}},{"kind":"ObjectField","name":{"kind":"Name","value":"contest_id"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"_in"},"value":{"kind":"Variable","name":{"kind":"Name","value":"contestIds"}}}]}}]}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"tenant_id"}},{"kind":"Field","name":{"kind":"Name","value":"last_updated_at"}},{"kind":"Field","name":{"kind":"Name","value":"labels"}},{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"election_event_id"}},{"kind":"Field","name":{"kind":"Name","value":"created_at"}},{"kind":"Field","name":{"kind":"Name","value":"contest_id"}},{"kind":"Field","name":{"kind":"Name","value":"area_id"}},{"kind":"Field","name":{"kind":"Name","value":"annotations"}}]}},{"kind":"Field","name":{"kind":"Name","value":"sequent_backend_election"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"where"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"election_event_id"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"_eq"},"value":{"kind":"Variable","name":{"kind":"Name","value":"electionEventId"}}}]}},{"kind":"ObjectField","name":{"kind":"Name","value":"tenant_id"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"_eq"},"value":{"kind":"Variable","name":{"kind":"Name","value":"tenantId"}}}]}},{"kind":"ObjectField","name":{"kind":"Name","value":"id"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"_in"},"value":{"kind":"Variable","name":{"kind":"Name","value":"electionIds"}}}]}}]}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"tenant_id"}},{"kind":"Field","name":{"kind":"Name","value":"status"}},{"kind":"Field","name":{"kind":"Name","value":"statistics"}},{"kind":"Field","name":{"kind":"Name","value":"spoil_ballot_option"}},{"kind":"Field","name":{"kind":"Name","value":"receipts"}},{"kind":"Field","name":{"kind":"Name","value":"presentation"}},{"kind":"Field","name":{"kind":"Name","value":"num_allowed_revotes"}},{"kind":"Field","name":{"kind":"Name","value":"last_updated_at"}},{"kind":"Field","name":{"kind":"Name","value":"labels"}},{"kind":"Field","name":{"kind":"Name","value":"is_kiosk"}},{"kind":"Field","name":{"kind":"Name","value":"is_consolidated_ballot_encoding"}},{"kind":"Field","name":{"kind":"Name","value":"image_document_id"}},{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"eml"}},{"kind":"Field","name":{"kind":"Name","value":"election_event_id"}},{"kind":"Field","name":{"kind":"Name","value":"description"}},{"kind":"Field","name":{"kind":"Name","value":"created_at"}},{"kind":"Field","name":{"kind":"Name","value":"external_id"}}]}},{"kind":"Field","name":{"kind":"Name","value":"sequent_backend_candidate"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"where"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"election_event_id"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"_eq"},"value":{"kind":"Variable","name":{"kind":"Name","value":"electionEventId"}}}]}},{"kind":"ObjectField","name":{"kind":"Name","value":"tenant_id"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"_eq"},"value":{"kind":"Variable","name":{"kind":"Name","value":"tenantId"}}}]}},{"kind":"ObjectField","name":{"kind":"Name","value":"contest_id"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"_in"},"value":{"kind":"Variable","name":{"kind":"Name","value":"contestIds"}}}]}}]}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"type"}},{"kind":"Field","name":{"kind":"Name","value":"tenant_id"}},{"kind":"Field","name":{"kind":"Name","value":"presentation"}},{"kind":"Field","name":{"kind":"Name","value":"last_updated_at"}},{"kind":"Field","name":{"kind":"Name","value":"labels"}},{"kind":"Field","name":{"kind":"Name","value":"is_public"}},{"kind":"Field","name":{"kind":"Name","value":"image_document_id"}},{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"election_event_id"}},{"kind":"Field","name":{"kind":"Name","value":"description"}},{"kind":"Field","name":{"kind":"Name","value":"created_at"}},{"kind":"Field","name":{"kind":"Name","value":"contest_id"}},{"kind":"Field","name":{"kind":"Name","value":"annotations"}}]}},{"kind":"Field","name":{"kind":"Name","value":"sequent_backend_contest"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"where"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"election_event_id"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"_eq"},"value":{"kind":"Variable","name":{"kind":"Name","value":"electionEventId"}}}]}},{"kind":"ObjectField","name":{"kind":"Name","value":"tenant_id"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"_eq"},"value":{"kind":"Variable","name":{"kind":"Name","value":"tenantId"}}}]}},{"kind":"ObjectField","name":{"kind":"Name","value":"id"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"_in"},"value":{"kind":"Variable","name":{"kind":"Name","value":"contestIds"}}}]}}]}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"winning_candidates_num"}},{"kind":"Field","name":{"kind":"Name","value":"voting_type"}},{"kind":"Field","name":{"kind":"Name","value":"tenant_id"}},{"kind":"Field","name":{"kind":"Name","value":"tally_configuration"}},{"kind":"Field","name":{"kind":"Name","value":"presentation"}},{"kind":"Field","name":{"kind":"Name","value":"min_votes"}},{"kind":"Field","name":{"kind":"Name","value":"max_votes"}},{"kind":"Field","name":{"kind":"Name","value":"last_updated_at"}},{"kind":"Field","name":{"kind":"Name","value":"labels"}},{"kind":"Field","name":{"kind":"Name","value":"is_encrypted"}},{"kind":"Field","name":{"kind":"Name","value":"is_active"}},{"kind":"Field","name":{"kind":"Name","value":"is_acclaimed"}},{"kind":"Field","name":{"kind":"Name","value":"image_document_id"}},{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"election_id"}},{"kind":"Field","name":{"kind":"Name","value":"election_event_id"}},{"kind":"Field","name":{"kind":"Name","value":"description"}},{"kind":"Field","name":{"kind":"Name","value":"created_at"}},{"kind":"Field","name":{"kind":"Name","value":"counting_algorithm"}},{"kind":"Field","name":{"kind":"Name","value":"conditions"}},{"kind":"Field","name":{"kind":"Name","value":"annotations"}}]}},{"kind":"Field","name":{"kind":"Name","value":"sequent_backend_results_event"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"where"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"election_event_id"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"_eq"},"value":{"kind":"Variable","name":{"kind":"Name","value":"electionEventId"}}}]}},{"kind":"ObjectField","name":{"kind":"Name","value":"tenant_id"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"_eq"},"value":{"kind":"Variable","name":{"kind":"Name","value":"tenantId"}}}]}},{"kind":"ObjectField","name":{"kind":"Name","value":"id"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"_eq"},"value":{"kind":"Variable","name":{"kind":"Name","value":"resultsEventId"}}}]}}]}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"tenant_id"}},{"kind":"Field","name":{"kind":"Name","value":"name"}},{"kind":"Field","name":{"kind":"Name","value":"last_updated_at"}},{"kind":"Field","name":{"kind":"Name","value":"labels"}},{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"election_event_id"}},{"kind":"Field","name":{"kind":"Name","value":"documents"}},{"kind":"Field","name":{"kind":"Name","value":"created_at"}},{"kind":"Field","name":{"kind":"Name","value":"annotations"}}]}},{"kind":"Field","name":{"kind":"Name","value":"sequent_backend_results_election"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"where"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"election_event_id"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"_eq"},"value":{"kind":"Variable","name":{"kind":"Name","value":"electionEventId"}}}]}},{"kind":"ObjectField","name":{"kind":"Name","value":"tenant_id"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"_eq"},"value":{"kind":"Variable","name":{"kind":"Name","value":"tenantId"}}}]}},{"kind":"ObjectField","name":{"kind":"Name","value":"results_event_id"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"_eq"},"value":{"kind":"Variable","name":{"kind":"Name","value":"resultsEventId"}}}]}}]}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"total_voters_percent"}},{"kind":"Field","name":{"kind":"Name","value":"total_voters"}},{"kind":"Field","name":{"kind":"Name","value":"tenant_id"}},{"kind":"Field","name":{"kind":"Name","value":"results_event_id"}},{"kind":"Field","name":{"kind":"Name","value":"name"}},{"kind":"Field","name":{"kind":"Name","value":"last_updated_at"}},{"kind":"Field","name":{"kind":"Name","value":"labels"}},{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"elegible_census"}},{"kind":"Field","name":{"kind":"Name","value":"election_id"}},{"kind":"Field","name":{"kind":"Name","value":"election_event_id"}},{"kind":"Field","name":{"kind":"Name","value":"documents"}},{"kind":"Field","name":{"kind":"Name","value":"created_at"}},{"kind":"Field","name":{"kind":"Name","value":"annotations"}}]}},{"kind":"Field","name":{"kind":"Name","value":"sequent_backend_results_contest_candidate"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"where"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"election_event_id"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"_eq"},"value":{"kind":"Variable","name":{"kind":"Name","value":"electionEventId"}}}]}},{"kind":"ObjectField","name":{"kind":"Name","value":"tenant_id"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"_eq"},"value":{"kind":"Variable","name":{"kind":"Name","value":"tenantId"}}}]}},{"kind":"ObjectField","name":{"kind":"Name","value":"results_event_id"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"_eq"},"value":{"kind":"Variable","name":{"kind":"Name","value":"resultsEventId"}}}]}}]}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"winning_position"}},{"kind":"Field","name":{"kind":"Name","value":"tenant_id"}},{"kind":"Field","name":{"kind":"Name","value":"results_event_id"}},{"kind":"Field","name":{"kind":"Name","value":"points"}},{"kind":"Field","name":{"kind":"Name","value":"last_updated_at"}},{"kind":"Field","name":{"kind":"Name","value":"labels"}},{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"election_id"}},{"kind":"Field","name":{"kind":"Name","value":"election_event_id"}},{"kind":"Field","name":{"kind":"Name","value":"documents"}},{"kind":"Field","name":{"kind":"Name","value":"created_at"}},{"kind":"Field","name":{"kind":"Name","value":"contest_id"}},{"kind":"Field","name":{"kind":"Name","value":"cast_votes_percent"}},{"kind":"Field","name":{"kind":"Name","value":"cast_votes"}},{"kind":"Field","name":{"kind":"Name","value":"candidate_id"}},{"kind":"Field","name":{"kind":"Name","value":"annotations"}}]}},{"kind":"Field","name":{"kind":"Name","value":"sequent_backend_results_contest"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"where"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"election_event_id"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"_eq"},"value":{"kind":"Variable","name":{"kind":"Name","value":"electionEventId"}}}]}},{"kind":"ObjectField","name":{"kind":"Name","value":"tenant_id"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"_eq"},"value":{"kind":"Variable","name":{"kind":"Name","value":"tenantId"}}}]}},{"kind":"ObjectField","name":{"kind":"Name","value":"results_event_id"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"_eq"},"value":{"kind":"Variable","name":{"kind":"Name","value":"resultsEventId"}}}]}}]}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"voting_type"}},{"kind":"Field","name":{"kind":"Name","value":"total_votes_percent"}},{"kind":"Field","name":{"kind":"Name","value":"total_votes"}},{"kind":"Field","name":{"kind":"Name","value":"total_auditable_votes"}},{"kind":"Field","name":{"kind":"Name","value":"total_auditable_votes_percent"}},{"kind":"Field","name":{"kind":"Name","value":"total_valid_votes_percent"}},{"kind":"Field","name":{"kind":"Name","value":"total_valid_votes"}},{"kind":"Field","name":{"kind":"Name","value":"total_invalid_votes_percent"}},{"kind":"Field","name":{"kind":"Name","value":"total_invalid_votes"}},{"kind":"Field","name":{"kind":"Name","value":"tenant_id"}},{"kind":"Field","name":{"kind":"Name","value":"results_event_id"}},{"kind":"Field","name":{"kind":"Name","value":"name"}},{"kind":"Field","name":{"kind":"Name","value":"last_updated_at"}},{"kind":"Field","name":{"kind":"Name","value":"labels"}},{"kind":"Field","name":{"kind":"Name","value":"implicit_invalid_votes_percent"}},{"kind":"Field","name":{"kind":"Name","value":"implicit_invalid_votes"}},{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"explicit_invalid_votes_percent"}},{"kind":"Field","name":{"kind":"Name","value":"explicit_invalid_votes"}},{"kind":"Field","name":{"kind":"Name","value":"elegible_census"}},{"kind":"Field","name":{"kind":"Name","value":"election_id"}},{"kind":"Field","name":{"kind":"Name","value":"election_event_id"}},{"kind":"Field","name":{"kind":"Name","value":"documents"}},{"kind":"Field","name":{"kind":"Name","value":"created_at"}},{"kind":"Field","name":{"kind":"Name","value":"counting_algorithm"}},{"kind":"Field","name":{"kind":"Name","value":"contest_id"}},{"kind":"Field","name":{"kind":"Name","value":"blank_votes_percent"}},{"kind":"Field","name":{"kind":"Name","value":"blank_votes"}},{"kind":"Field","name":{"kind":"Name","value":"annotations"}}]}},{"kind":"Field","name":{"kind":"Name","value":"sequent_backend_results_area_contest_candidate"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"where"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"election_event_id"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"_eq"},"value":{"kind":"Variable","name":{"kind":"Name","value":"electionEventId"}}}]}},{"kind":"ObjectField","name":{"kind":"Name","value":"tenant_id"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"_eq"},"value":{"kind":"Variable","name":{"kind":"Name","value":"tenantId"}}}]}},{"kind":"ObjectField","name":{"kind":"Name","value":"results_event_id"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"_eq"},"value":{"kind":"Variable","name":{"kind":"Name","value":"resultsEventId"}}}]}}]}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"winning_position"}},{"kind":"Field","name":{"kind":"Name","value":"tenant_id"}},{"kind":"Field","name":{"kind":"Name","value":"results_event_id"}},{"kind":"Field","name":{"kind":"Name","value":"points"}},{"kind":"Field","name":{"kind":"Name","value":"last_updated_at"}},{"kind":"Field","name":{"kind":"Name","value":"labels"}},{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"election_id"}},{"kind":"Field","name":{"kind":"Name","value":"election_event_id"}},{"kind":"Field","name":{"kind":"Name","value":"documents"}},{"kind":"Field","name":{"kind":"Name","value":"created_at"}},{"kind":"Field","name":{"kind":"Name","value":"contest_id"}},{"kind":"Field","name":{"kind":"Name","value":"cast_votes_percent"}},{"kind":"Field","name":{"kind":"Name","value":"cast_votes"}},{"kind":"Field","name":{"kind":"Name","value":"candidate_id"}},{"kind":"Field","name":{"kind":"Name","value":"area_id"}},{"kind":"Field","name":{"kind":"Name","value":"annotations"}}]}},{"kind":"Field","name":{"kind":"Name","value":"sequent_backend_results_area_contest"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"where"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"election_event_id"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"_eq"},"value":{"kind":"Variable","name":{"kind":"Name","value":"electionEventId"}}}]}},{"kind":"ObjectField","name":{"kind":"Name","value":"tenant_id"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"_eq"},"value":{"kind":"Variable","name":{"kind":"Name","value":"tenantId"}}}]}},{"kind":"ObjectField","name":{"kind":"Name","value":"results_event_id"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"_eq"},"value":{"kind":"Variable","name":{"kind":"Name","value":"resultsEventId"}}}]}}]}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"annotations"}},{"kind":"Field","name":{"kind":"Name","value":"area_id"}},{"kind":"Field","name":{"kind":"Name","value":"blank_votes"}},{"kind":"Field","name":{"kind":"Name","value":"blank_votes_percent"}},{"kind":"Field","name":{"kind":"Name","value":"contest_id"}},{"kind":"Field","name":{"kind":"Name","value":"created_at"}},{"kind":"Field","name":{"kind":"Name","value":"documents"}},{"kind":"Field","name":{"kind":"Name","value":"election_event_id"}},{"kind":"Field","name":{"kind":"Name","value":"election_id"}},{"kind":"Field","name":{"kind":"Name","value":"elegible_census"}},{"kind":"Field","name":{"kind":"Name","value":"explicit_invalid_votes"}},{"kind":"Field","name":{"kind":"Name","value":"explicit_invalid_votes_percent"}},{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"implicit_invalid_votes"}},{"kind":"Field","name":{"kind":"Name","value":"implicit_invalid_votes_percent"}},{"kind":"Field","name":{"kind":"Name","value":"labels"}},{"kind":"Field","name":{"kind":"Name","value":"last_updated_at"}},{"kind":"Field","name":{"kind":"Name","value":"results_event_id"}},{"kind":"Field","name":{"kind":"Name","value":"tenant_id"}},{"kind":"Field","name":{"kind":"Name","value":"total_invalid_votes"}},{"kind":"Field","name":{"kind":"Name","value":"total_invalid_votes_percent"}},{"kind":"Field","name":{"kind":"Name","value":"total_valid_votes"}},{"kind":"Field","name":{"kind":"Name","value":"total_valid_votes_percent"}},{"kind":"Field","name":{"kind":"Name","value":"total_votes"}},{"kind":"Field","name":{"kind":"Name","value":"total_votes_percent"}},{"kind":"Field","name":{"kind":"Name","value":"total_auditable_votes"}},{"kind":"Field","name":{"kind":"Name","value":"total_auditable_votes_percent"}}]}},{"kind":"Field","name":{"kind":"Name","value":"sequent_backend_results_election_area"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"where"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"election_event_id"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"_eq"},"value":{"kind":"Variable","name":{"kind":"Name","value":"electionEventId"}}}]}},{"kind":"ObjectField","name":{"kind":"Name","value":"tenant_id"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"_eq"},"value":{"kind":"Variable","name":{"kind":"Name","value":"tenantId"}}}]}},{"kind":"ObjectField","name":{"kind":"Name","value":"results_event_id"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"_eq"},"value":{"kind":"Variable","name":{"kind":"Name","value":"resultsEventId"}}}]}}]}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"tenant_id"}},{"kind":"Field","name":{"kind":"Name","value":"election_event_id"}},{"kind":"Field","name":{"kind":"Name","value":"election_id"}},{"kind":"Field","name":{"kind":"Name","value":"area_id"}},{"kind":"Field","name":{"kind":"Name","value":"results_event_id"}},{"kind":"Field","name":{"kind":"Name","value":"created_at"}},{"kind":"Field","name":{"kind":"Name","value":"last_updated_at"}},{"kind":"Field","name":{"kind":"Name","value":"documents"}},{"kind":"Field","name":{"kind":"Name","value":"name"}}]}}]}}]} as unknown as DocumentNode<GetTallyDataQuery, GetTallyDataQueryVariables>;
 export const GetTallySessionExecutionDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"GetTallySessionExecution"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"tallySessionId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"uuid"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"tenantId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"uuid"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"resultsEventId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"uuid"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"sequent_backend_tally_session_execution"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"where"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"tally_session_id"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"_eq"},"value":{"kind":"Variable","name":{"kind":"Name","value":"tallySessionId"}}}]}},{"kind":"ObjectField","name":{"kind":"Name","value":"tenant_id"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"_eq"},"value":{"kind":"Variable","name":{"kind":"Name","value":"tenantId"}}}]}},{"kind":"ObjectField","name":{"kind":"Name","value":"results_event_id"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"_eq"},"value":{"kind":"Variable","name":{"kind":"Name","value":"resultsEventId"}}}]}}]}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"tenant_id"}},{"kind":"Field","name":{"kind":"Name","value":"election_event_id"}},{"kind":"Field","name":{"kind":"Name","value":"created_at"}},{"kind":"Field","name":{"kind":"Name","value":"last_updated_at"}},{"kind":"Field","name":{"kind":"Name","value":"labels"}},{"kind":"Field","name":{"kind":"Name","value":"annotations"}},{"kind":"Field","name":{"kind":"Name","value":"current_message_id"}},{"kind":"Field","name":{"kind":"Name","value":"tally_session_id"}},{"kind":"Field","name":{"kind":"Name","value":"session_ids"}},{"kind":"Field","name":{"kind":"Name","value":"status"}},{"kind":"Field","name":{"kind":"Name","value":"results_event_id"}},{"kind":"Field","name":{"kind":"Name","value":"documents"}}]}}]}}]} as unknown as DocumentNode<GetTallySessionExecutionQuery, GetTallySessionExecutionQueryVariables>;
 export const GetTaskByIdDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"GetTaskById"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"task_id"}},"type":{"kind":"NamedType","name":{"kind":"Name","value":"uuid"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"sequent_backend_tasks_execution"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"where"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"id"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"_eq"},"value":{"kind":"Variable","name":{"kind":"Name","value":"task_id"}}}]}}]}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"election_event_id"}},{"kind":"Field","name":{"kind":"Name","value":"tenant_id"}},{"kind":"Field","name":{"kind":"Name","value":"execution_status"}},{"kind":"Field","name":{"kind":"Name","value":"type"}},{"kind":"Field","name":{"kind":"Name","value":"start_at"}},{"kind":"Field","name":{"kind":"Name","value":"end_at"}},{"kind":"Field","name":{"kind":"Name","value":"logs"}},{"kind":"Field","name":{"kind":"Name","value":"annotations"}},{"kind":"Field","name":{"kind":"Name","value":"executed_by_user"}}]}}]}}]} as unknown as DocumentNode<GetTaskByIdQuery, GetTaskByIdQueryVariables>;
 export const TrusteeNamesDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"TrusteeNames"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"tenantId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"uuid"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"sequent_backend_trustee"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"where"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"tenant_id"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"_eq"},"value":{"kind":"Variable","name":{"kind":"Name","value":"tenantId"}}}]}}]}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"name"}}]}}]}}]} as unknown as DocumentNode<TrusteeNamesQuery, TrusteeNamesQueryVariables>;

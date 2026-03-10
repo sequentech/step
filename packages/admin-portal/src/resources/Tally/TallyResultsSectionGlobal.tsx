@@ -20,6 +20,7 @@ import {ICountingAlgorithm} from "@sequentech/ui-core"
 import {winningPositionComparator, parseProcessResults} from "./utils"
 import {RunoffStatus} from "./types"
 import {LoadingResults} from "./TallyElectionsResults"
+import {useAliasRenderer} from "@/hooks/useAliasRenderer"
 
 interface TallyResultsGlobalCandidatesProps {
     contestId: string
@@ -33,9 +34,10 @@ interface TallyResultsGlobalCandidatesProps {
 export const TallyResultsSectionGlobal: React.FC<TallyResultsGlobalCandidatesProps> = (props) => {
     const {contestId, electionId, electionEventId, tenantId, resultsEventId, counting_algorithm} =
         props
-    const {t} = useTranslation()
+    const {t, i18n} = useTranslation()
     const {globalSettings} = useContext(SettingsContext)
     const tallyData = useAtomValue(tallyQueryData)
+    const aliasRenderer = useAliasRenderer()
 
     const [resultsData, setResultsData] = useState<Array<Sequent_Backend_Candidate_Extended>>([])
     const orderedResultsData = useMemo(() => {
@@ -70,12 +72,23 @@ export const TallyResultsSectionGlobal: React.FC<TallyResultsGlobalCandidatesPro
         [tallyData?.sequent_backend_results_contest_candidate, contestId, electionId]
     )
 
-    const electionName: string | undefined = useMemo(
-        () =>
-            tallyData?.sequent_backend_election?.find((election) => election.id === electionId)
-                ?.name,
-        [tallyData?.sequent_backend_election, electionId]
-    )
+    const contestName = useMemo(() => {
+        if (!contestId || !tallyData) return undefined
+
+        const contest = tallyData?.sequent_backend_contest?.find(
+            (contest) => contest.id === contestId
+        )
+        if (!contest?.presentation) return undefined
+
+        return aliasRenderer(contest.presentation)
+    }, [contestId, tallyData, i18n.language])
+
+    const electionName: string | undefined = useMemo(() => {
+        const election = tallyData?.sequent_backend_election?.find(
+            (election) => election.id === electionId
+        )
+        return election?.presentation ? aliasRenderer(election.presentation) : undefined
+    }, [tallyData?.sequent_backend_election, electionId])
 
     const processResults = useMemo(
         () =>
@@ -86,7 +99,7 @@ export const TallyResultsSectionGlobal: React.FC<TallyResultsGlobalCandidatesPro
         [general?.[0]?.annotations, counting_algorithm]
     )
 
-    const getChartName = (contestName: string | undefined) => {
+    const getChartName = () => {
         if (electionName && contestName) {
             return `${electionName} - ${contestName} - ` + t("tally.common.global")
         } else {
@@ -107,11 +120,12 @@ export const TallyResultsSectionGlobal: React.FC<TallyResultsGlobalCandidatesPro
                 (candidate, index): Sequent_Backend_Candidate_Extended => {
                     let candidateResult = results.find((r) => r.candidate_id === candidate.id)
 
+                    let candidateName = aliasRenderer(candidate.presentation)
                     return {
                         ...candidate,
                         rowId: index,
                         id: candidate.id || "",
-                        name: candidate.name,
+                        name: candidateName,
                         status: "",
                         cast_votes: candidateResult?.cast_votes,
                         cast_votes_percent: candidateResult?.cast_votes_percent,
@@ -122,7 +136,7 @@ export const TallyResultsSectionGlobal: React.FC<TallyResultsGlobalCandidatesPro
 
             setResultsData(temp)
         }
-    }, [results, candidates])
+    }, [results, candidates, i18n.language])
 
     return (
         <>
@@ -130,15 +144,12 @@ export const TallyResultsSectionGlobal: React.FC<TallyResultsGlobalCandidatesPro
                 <LoadingResults />
             ) : (
                 <>
-                    <TallyResultsSummary
-                        general={general}
-                        chartName={getChartName(general?.[0]?.name ?? undefined)}
-                    />
+                    <TallyResultsSummary general={general} chartName={getChartName()} />
                     {counting_algorithm === ICountingAlgorithm.PLURALITY_AT_LARGE && (
                         <TallyResultsCandidatesPlurality
                             resultsData={resultsData}
                             orderedResultsData={orderedResultsData}
-                            chartName={getChartName(general?.[0]?.name ?? undefined)}
+                            chartName={getChartName()}
                         />
                     )}
                     {counting_algorithm === ICountingAlgorithm.INSTANT_RUNOFF && processResults && (

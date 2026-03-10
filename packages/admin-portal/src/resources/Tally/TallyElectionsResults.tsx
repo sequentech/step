@@ -82,6 +82,7 @@ const GeneralInformationCharts: React.FC<GeneralInformationChartsProps> = ({
     }
 
     const result = selectedResult
+    const election_name = aliasRenderer(result.presentation)
     const eligibleCensus = result.elegible_census as number
     const totalVoters = result.total_voters as number
     const nonVoters = eligibleCensus - totalVoters
@@ -131,7 +132,7 @@ const GeneralInformationCharts: React.FC<GeneralInformationChartsProps> = ({
                 maxWidth: {xs: "100%", lg: 450},
             }}
         >
-            <CardChart title={aliasRenderer(result)} collapsible={true}>
+            <CardChart title={election_name} collapsible={true}>
                 <Chart
                     options={chartOptions.options}
                     series={chartOptions.series}
@@ -146,7 +147,7 @@ const GeneralInformationCharts: React.FC<GeneralInformationChartsProps> = ({
 
 export const TallyElectionsResults: React.FC<TallyElectionsResultsProps> = (props) => {
     const {tenantId, electionEventId, resultsEventId, electionIds} = props
-    const {t} = useTranslation()
+    const {t, i18n} = useTranslation()
     const {globalSettings} = useContext(SettingsContext)
     const [resultsData, setResultsData] = useState<Array<Sequent_Backend_Election_Extended>>([])
     const [selectedElectionId, setSelectedElectionId] = useState<string | null>(null)
@@ -190,7 +191,6 @@ export const TallyElectionsResults: React.FC<TallyElectionsResultsProps> = (prop
                         ...item,
                         rowId: index,
                         id: item.id || "",
-                        name: item.name,
                         status: item.status || "",
                         elegible_census: result?.elegible_census ?? "-",
                         total_voters: result?.total_voters ?? "-",
@@ -213,12 +213,12 @@ export const TallyElectionsResults: React.FC<TallyElectionsResultsProps> = (prop
 
     const columns: GridColDef[] = [
         {
-            field: "name",
+            field: `presentation.i18n[${i18n.language}].alias`,
             headerName: t("tally.table.elections"),
             flex: 1,
             editable: false,
             valueGetter(value, row) {
-                return aliasRenderer(row)
+                return value ? value : aliasRenderer(row.presentation)
             },
         },
         {

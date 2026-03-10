@@ -34,7 +34,7 @@ export const GetCastVotesByIp = (params: any) => {
                     id
                     ip
                     country
-                    election_name
+                    election_presentation
                     vote_count
                     voters_id
                 }

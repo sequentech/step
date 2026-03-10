@@ -433,20 +433,9 @@ export const ContestDataForm: React.FC = () => {
             if (!newContest.presentation.i18n.en) {
                 newContest.presentation.i18n.en = {}
             }
-            if (!newContest.presentation.i18n.en.name && newContest.name) {
-                newContest.presentation.i18n.en.name = newContest.name
-            }
-            if (!newContest.presentation.i18n.en.name && newContest.name) {
-                newContest.presentation.i18n.en.name = newContest.name
-            }
-            if (!newContest.presentation.i18n.en.alias && newContest.alias) {
-                newContest.presentation.i18n.en.alias = newContest.alias
-            }
             if (!newContest.presentation.i18n.en.description && newContest.description) {
                 newContest.presentation.i18n.en.description = newContest.description
             }
-            newContest.name = newContest.presentation.i18n.en.name
-            newContest.alias = newContest.presentation.i18n.en.alias
             newContest.description = newContest.presentation.i18n.en.description
 
             // defaults

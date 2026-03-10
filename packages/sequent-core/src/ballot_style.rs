@@ -10,6 +10,7 @@ use crate::ballot::{
 };
 
 use crate::serialization::deserialize_with_path::deserialize_value;
+use crate::services::translations::{Alias, Name};
 use crate::types::ceremonies::CountingAlgType;
 use crate::types::hasura::core::{self as hasura_types};
 use anyhow::{anyhow, Context, Result};
@@ -91,6 +92,8 @@ pub fn create_ballot_style(
         .map_err(|err| anyhow!("Error parsing election annotations {:?}", err))?
         .unwrap_or_default();
 
+    let default_language = election.get_default_language();
+
     let contests: Vec<ballot::Contest> = sorted_contests
         .into_iter()
         .map(|contest| {
@@ -100,7 +103,11 @@ pub fn create_ballot_style(
                 .filter(|c| c.contest_id == Some(contest.id.clone()))
                 .collect::<Vec<hasura_types::Candidate>>();
 
-            create_contest(contest, election_candidates)
+            create_contest(
+                contest,
+                election_candidates,
+                default_language.clone(),
+            )
         })
         .collect::<Result<Vec<ballot::Contest>>>()?;
 
@@ -160,6 +167,7 @@ pub fn create_ballot_style(
 fn create_contest(
     contest: hasura_types::Contest,
     candidates: Vec<hasura_types::Candidate>,
+    default_language: String,
 ) -> Result<ballot::Contest> {
     let mut sorted_candidates = candidates.clone();
     sorted_candidates.sort_by_key(|k| k.id.clone());
@@ -191,17 +199,26 @@ fn create_contest(
             let alias_i18n =
                 parse_i18n_field(&candidate_presentation.i18n, "alias");
 
+            let candidate_name = name_i18n
+                .as_ref()
+                .and_then(|i18n| i18n.get(&default_language))
+                .and_then(|name| name.clone());
+            let candidate_alias = alias_i18n
+                .as_ref()
+                .and_then(|i18n| i18n.get(&default_language))
+                .and_then(|alias| alias.clone());
+
             Ok(ballot::Candidate {
                 id: candidate.id.clone(),
                 tenant_id: (candidate.tenant_id.clone()),
                 election_event_id: (candidate.election_event_id.clone()),
                 election_id: (contest.election_id.clone()),
                 contest_id: (contest.id.clone()),
-                name: candidate.name.clone(),
+                name: candidate_name.clone(),
                 name_i18n,
                 description: candidate.description.clone(),
                 description_i18n,
-                alias: candidate.alias.clone(),
+                alias: candidate_alias.clone(),
                 alias_i18n: alias_i18n,
                 candidate_type: candidate.r#type.clone(),
                 presentation: Some(candidate_presentation),
@@ -224,6 +241,15 @@ fn create_contest(
         )
     })?;
 
+    let contest_name = name_i18n
+        .as_ref()
+        .and_then(|i18n| i18n.get(&default_language))
+        .and_then(|name| name.clone());
+    let contest_alias = alias_i18n
+        .as_ref()
+        .and_then(|i18n| i18n.get(&default_language))
+        .and_then(|alias| alias.clone());
+
     // Extract tie_breaking_policy from tally_configuration JSON
     let tie_breaking_policy = contest
         .tally_configuration
@@ -238,11 +264,11 @@ fn create_contest(
         tenant_id: (contest.tenant_id),
         election_event_id: (contest.election_event_id),
         election_id: (contest.election_id.clone()),
-        name: contest.name,
+        name: contest_name,
         name_i18n,
         description: contest.description,
         description_i18n,
-        alias: contest.alias.clone(),
+        alias: contest_alias.clone(),
         alias_i18n,
         max_votes: (contest.max_votes.unwrap_or(0)),
         min_votes: (contest.min_votes.unwrap_or(0)),

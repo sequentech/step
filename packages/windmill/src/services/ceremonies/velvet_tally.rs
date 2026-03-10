@@ -769,7 +769,7 @@ async fn populate_sqlite_election_event_data(
                     get_elections_by_ids(hasura_transaction, tenant_id, election_event_id, &ids)
                         .await
                 }
-                None => get_elections(hasura_transaction, tenant_id, election_event_id, None).await,
+                None => get_elections(hasura_transaction, tenant_id, election_event_id).await,
             }
             .context("Failed to get elections")?;
 
