@@ -345,7 +345,7 @@ impl BallotChoices {
                 // preferencial multiballot. When decoding, we
                 // will take the order of the
                 // vector to determine the order of preference of each choice.
-                // The invalid ones with selected = -1 will be at the beginning
+                // The invalid ones with seected = -1 will be at the beginning
                 // but will be ignored when decoding anyway
                 // because are marked to 0.
                 let mut pref_choices: Vec<ContestChoice> =
@@ -357,8 +357,9 @@ impl BallotChoices {
         };
 
         // We set all values as unset (0) by default
-        let mut contest_choices = vec![0u64; sorted_candidates.len()];
+        let mut contest_choices = vec![0u64; max_votes];
         let mut marked = 0;
+
         for p in &choices_order {
             let (position, _candidate) =
                 candidates_map.get(&p.candidate_id).ok_or_else(|| {
@@ -377,19 +378,36 @@ impl BallotChoices {
             // list, sorted by id. The same sorting order must be used
             // to interpret choices when decoding.
             let mark = if p.selected > -1 {
-               (p.selected + 1).try_into().map_err(|_| {
-                        format!("u64 conversion on candidate position")
-                    })?
+                (position + 1).try_into().map_err(|_| {
+                    format!("u64 conversion on candidate position")
+                })?
             } else {
                 // unset
                 0
             };
 
-            contest_choices[*position] = mark;
+            match self.counting_algorithm.is_preferential() {
+                true => {
+                    if p.selected > -1 {
+                        //position the choice in the array in the selected order
+                        //for the decode know restore the selected value
+                        let index =
+                            usize::try_from(p.selected).map_err(|_| {
+                                format!(
+                                    "uzise conversion on choice selected value"
+                                )
+                            })?;
+                        contest_choices[index] = mark;
+                    }
+                }
+                false => {
+                    contest_choices[marked] = mark;
+                }
+            }
+
             marked += 1;
 
             if marked == max_votes {
-                //TODO: need??
                 break;
             }
         }
@@ -509,13 +527,11 @@ impl BallotChoices {
                 format!("i64 -> usize conversion on contest max_votes")
             })?;
 
-        let num_of_choices = choices.iter().filter(|&&v| v > 0).count();
-
         // The first slot is used for explicit invalid ballot, so + 1
-        if num_of_choices != expected_choices {
+        if choices.len() != expected_choices + 1 {
             return Err(format!(
                 "Unexpected number of choices {} != {}",
-                num_of_choices,
+                choices.len(),
                 expected_choices
             ));
         }
@@ -532,19 +548,16 @@ impl BallotChoices {
         let mut choice_index = 1;
 
         for contest in sorted_contests {
-
-            let num_valid_candidates = contest
-                .candidates
-                .iter()
-                .filter(|candidate| !candidate.is_explicit_invalid())
-                .count();
-
+            let max_votes: usize =
+                contest.max_votes.try_into().map_err(|_| {
+                    format!("i64 -> usize conversion on contest max_votes")
+                })?;
             let next = Self::decode_contest(
                 &contest,
                 &choices[choice_index..],
                 is_explicit_invalid,
             )?;
-            choice_index += num_valid_candidates;
+            choice_index += max_votes;
             contest_choices.push(next);
         }
 
@@ -596,15 +609,6 @@ impl BallotChoices {
 
         sorted_candidates.sort_by_key(|c| c.id.clone());
 
-        // Note how the position for the candidate is mapped to the first
-        // element in the tuple. This position will be used below when
-        // marking choices.
-        let candidates_map = sorted_candidates
-            .iter()
-            .enumerate()
-            .map(|c| (c.1.id.clone(), (c.0, c.1)))
-            .collect::<HashMap<String, (usize, &Candidate)>>();
-
         let max_votes: usize = contest.max_votes.try_into().map_err(|_| {
             format!("i64 -> usize conversion on contest max_votes")
         })?;
@@ -613,29 +617,39 @@ impl BallotChoices {
         })?;
 
         let mut next_choices = vec![];
-        for i in 0..sorted_candidates.len() {
-            let selected = choices[i];
-            let selected = usize::try_from(selected).map_err(|_| {
+        for i in 0..max_votes {
+            let next = choices[i];
+            let next = usize::try_from(next).map_err(|_| {
                 format!("u64 -> usize conversion on plaintext choice")
             })?;
             // Unset
-            if selected == 0 {
+            if next == 0 {
                 continue;
             }
             // choices are offset by 1 to allow for the unset value at 0
-            let selected = selected - 1;
+            let next = next - 1;
 
             // A choice of a candidate is represented as that
             // candidate's position in the candidate
             // list, sorted by id. The same sorting order must be used
             // to interpret choices when encoding.
-            let candidate = sorted_candidates.get(i);
+            let candidate = sorted_candidates.get(next);
             let Some(candidate) = candidate else {
                 return Err(format!(
                     "Candidate selection out of range {} (length: {})",
-                    i,
+                    next,
                     sorted_candidates.len()
                 ));
+            };
+
+            let selected: usize = if contest
+                .counting_algorithm
+                .as_ref()
+                .map_or(false, |a| a.is_preferential())
+            {
+                i
+            } else {
+                0
             };
 
             let choice = DecodedContestChoice {
@@ -771,7 +785,7 @@ impl BallotChoices {
                 num_valid_candidates.map_err(|e| e.to_string())?;
 
             let max_selections = contest.max_votes;
-            for _ in 1..=num_valid_candidates {
+            for _ in 1..=max_selections {
                 // + 1: include a per-ballot invalid flag
                 bases.push(u64::from(num_valid_candidates + 1));
             }
