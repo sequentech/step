@@ -2,6 +2,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useContext, useMemo, useState} from "react"
+import {useAtomValue} from "jotai"
+import {tallyQueryData} from "@/atoms/tally-candidates"
 import {useTranslation} from "react-i18next"
 import {useAliasRenderer} from "@/hooks/useAliasRenderer"
 import {useGetList, useNotify} from "react-admin"
@@ -23,8 +25,6 @@ import InfoOutlineIcon from "@mui/icons-material/InfoOutlined"
 import AssignmentIcon from "@mui/icons-material/Assignment"
 import ChevronRightIcon from "@mui/icons-material/ChevronRight"
 import {
-    Sequent_Backend_Area,
-    Sequent_Backend_Candidate,
     Sequent_Backend_Contest,
     Sequent_Backend_Election,
     Sequent_Backend_Tally_Session,
@@ -68,6 +68,7 @@ export const TallyResolutionPanel: React.FC<TallyResolutionPanelProps> = ({
     const aliasRenderer = useAliasRenderer()
     const notify = useNotify()
     const {globalSettings} = useContext(SettingsContext)
+    const tallyData = useAtomValue(tallyQueryData)
     const [selectedResolutionId, setSelectedResolutionId] = useState<string | null>(null)
     // draftSelections: temporary, updated by radio onChange (not yet committed)
     const [draftSelections, setDraftSelections] = useState<Record<string, string>>({})
@@ -117,14 +118,7 @@ export const TallyResolutionPanel: React.FC<TallyResolutionPanelProps> = ({
         {enabled: !!tallySession.id && !!tenantId}
     )
 
-    const {data: areas} = useGetList<Sequent_Backend_Area>(
-        "sequent_backend_area",
-        {
-            pagination: {page: 1, perPage: 9999},
-            filter: {election_event_id: electionEventId, tenant_id: tenantId},
-        },
-        {enabled: !!electionEventId && !!tenantId}
-    )
+    const areas = tallyData?.sequent_backend_area ?? []
 
     // Keep only the latest pending resolution per contest (handles re-submissions)
     const latestPendingResolutions = useMemo(() => {
@@ -170,24 +164,12 @@ export const TallyResolutionPanel: React.FC<TallyResolutionPanelProps> = ({
         return Array.from(ids)
     }, [allDisplayResolutions])
 
-    const {data: candidates} = useGetList<Sequent_Backend_Candidate>(
-        "sequent_backend_candidate",
-        {
-            pagination: {page: 1, perPage: 9999},
-            filter: {
-                tenant_id: tenantId,
-                contest_id:
-                    allContestIds.length > 0
-                        ? {
-                              format: "hasura-raw-query",
-                              value: {_in: allContestIds},
-                          }
-                        : undefined,
-            },
-        },
-        {
-            enabled: allContestIds.length > 0,
-        }
+    const candidates = useMemo(
+        () =>
+            (tallyData?.sequent_backend_candidate ?? []).filter((c) =>
+                allContestIds.includes(c.contest_id)
+            ),
+        [tallyData, allContestIds]
     )
 
     const electionMap = useMemo(() => {
@@ -354,6 +336,15 @@ export const TallyResolutionPanel: React.FC<TallyResolutionPanelProps> = ({
         const candidateId = selectedResolution.resolution.resolved_by_candidate_id
         return (candidates ?? []).find((c) => c.id === candidateId) ?? null
     }, [selectedResolution, candidates])
+
+    const totalVotes: number | undefined = useMemo(() => {
+        if (!selectedResolution?.results_contest_id) return undefined
+        return (
+            (tallyData?.sequent_backend_results_contest ?? []).find(
+                (rc) => rc.id === selectedResolution.results_contest_id
+            )?.total_votes ?? undefined
+        )
+    }, [selectedResolution, tallyData])
 
     const hasResolvedRedecisions = resolvedResolutions.some(
         (r) =>
@@ -575,7 +566,6 @@ export const TallyResolutionPanel: React.FC<TallyResolutionPanelProps> = ({
         !isPendingSelected &&
         !!(selectedResolution?.contest_id && pendingSelections[selectedResolution.contest_id])
     const voteCounts: number[] = selectedResolution?.resolution_data?.vote_counts ?? []
-    const totalVotes: number | undefined = selectedResolution?.resolution_data?.total_votes
     const tiedVoteCount: number | undefined = voteCounts[0]
     const tiedVotePercent: string | undefined =
         tiedVoteCount !== undefined && totalVotes
