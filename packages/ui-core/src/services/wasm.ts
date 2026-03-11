@@ -34,6 +34,8 @@ import {
     check_voting_error_dialog,
     verify_ballot_signature_js,
     verify_multi_ballot_signature_js,
+    get_default_duplicated_rank_policy_js,
+    get_default_preference_gaps_policy_js,
 } from "sequent-core"
 import {
     CandidatesOrder,
@@ -49,6 +51,8 @@ import {
     IHashableMultiBallot,
     ISignedContent,
     ICountingAlgorithm,
+    EDuplicatedRankPolicy,
+    EPreferenceGapsPolicy,
 } from ".."
 
 export type {
@@ -411,5 +415,23 @@ export const generateSampleAuditableBallot = (): IAuditableSingleBallot | null =
     } catch (error) {
         console.log(error)
         return null
+    }
+}
+
+export const getDefaultDuplicatedRankPolicy = (): EDuplicatedRankPolicy => {
+    try {
+        return get_default_duplicated_rank_policy_js() as EDuplicatedRankPolicy
+    } catch (error) {
+        console.log(error)
+        throw error
+    }
+}
+
+export const getDefaultPreferenceGapsPolicy = (): EPreferenceGapsPolicy => {
+    try {
+        return get_default_preference_gaps_policy_js() as EPreferenceGapsPolicy
+    } catch (error) {
+        console.log(error)
+        throw error
     }
 }

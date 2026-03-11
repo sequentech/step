@@ -1372,6 +1372,18 @@ const galegoTranslation: TranslationType = {
                 "not-allowed-with-msg-and-disable":
                     "Non Permitido con Mensaxe de Aviso e Desactivar seleccións adicionais",
             },
+            duplicatedRankPolicy: {
+                "label": "Voto non válido - Política de posición duplicada",
+                "allowed-warn-and-dialog": "Mostrar aviso e diálogo (o votante pode continuar)",
+                "not-allowed-warn-and-dialog":
+                    "Mostrar aviso e diálogo (o votante non pode continuar)",
+            },
+            preferenceGapsPolicy: {
+                "label": "Voto non válido - Política de rangos omitidos",
+                "allowed-warn-and-dialog": "Mostrar aviso e diálogo (o votante pode continuar)",
+                "not-allowed-warn-and-dialog":
+                    "Mostrar aviso e diálogo (o votante non pode continuar)",
+            },
             paginationPolicy: {
                 label: "Nome da Páxina",
             },

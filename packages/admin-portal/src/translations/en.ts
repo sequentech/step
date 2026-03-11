@@ -1360,6 +1360,18 @@ const englishTranslation = {
                 "not-allowed-with-msg-and-disable":
                     "Not Allowed with Warning message and Disable further selections",
             },
+            duplicatedRankPolicy: {
+                "label": "Invalid Vote - Duplicate Rank Policy",
+                "allowed-warn-and-dialog": "Show Warning and Dialog (voter can proceed)",
+                "not-allowed-warn-and-dialog":
+                    "Show Warning and Dialog (voter not allowed to proceed)",
+            },
+            preferenceGapsPolicy: {
+                "label": "Invalid Vote - Skipped Ranks Policy",
+                "allowed-warn-and-dialog": "Show Warning and Dialog (voter can proceed)",
+                "not-allowed-warn-and-dialog":
+                    "Show Warning and Dialog (voter not allowed to proceed)",
+            },
             paginationPolicy: {
                 label: "Page Name",
             },

@@ -436,7 +436,10 @@ fn test_preferential_order_error_duplicated_position() {
     };
 
     let result = vote.validate_preferencial_order();
-    assert_eq!(result, Err(PreferencialOrderErrorType::DuplicatedPosition));
+    assert_eq!(
+        result,
+        Err(vec![PreferencialOrderErrorType::DuplicatedPosition])
+    );
 }
 
 #[test]
@@ -458,7 +461,7 @@ fn test_preferential_order_error_preference_order_with_gaps() {
     let result = vote.validate_preferencial_order();
     assert_eq!(
         result,
-        Err(PreferencialOrderErrorType::PreferenceOrderWithGaps)
+        Err(vec![PreferencialOrderErrorType::PreferenceOrderWithGaps])
     );
 }
 
