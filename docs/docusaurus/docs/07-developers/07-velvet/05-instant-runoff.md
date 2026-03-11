@@ -30,8 +30,7 @@ In IRV, if no candidate receives a majority of first-preference votes, the candi
 
 ### Limitations
 
-Currently IRV is only implemented for single-contest encoding.Make sure you're 
-not using multi-contest encoding as the Election Event level policy.
+In multi-contest encoding, IRV is supported only when the contest-level Duplicate Rank Policy is disabled (i.e., voters are not allowed to proceed with duplicate rankings).
 
 ### Location
 
