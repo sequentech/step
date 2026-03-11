@@ -98,7 +98,10 @@ export const CreateElection: React.FC = () => {
             external_id: string
             presentation: IElectionPresentation
         }
-        let i18n = addDefaultTranslationsToElement(electionSubmit)
+        let i18n = addDefaultTranslationsToElement({
+            ...electionSubmit,
+            alias: electionSubmit.external_id,
+        })
         let tenantLangConf = (tenant?.settings as ITenantSettings | undefined)?.language_conf ?? {
             enabled_language_codes: settings?.languages ?? ["en"],
             default_language_code: "en",
@@ -124,7 +127,6 @@ export const CreateElection: React.FC = () => {
             const {data} = await createElection({
                 variables: {
                     electionEventId: electionEventId,
-                    externalId: electionSubmit.external_id,
                     name: electionSubmit.name,
                     presentation: electionSubmit.presentation,
                     description: electionSubmit.description,
