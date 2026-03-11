@@ -5801,6 +5801,10 @@ type area {
   last_updated_at: timestamptz
   name: String
   parent_id: uuid
+  presentation(
+    """JSON select path"""
+    path: String
+  ): jsonb
   tenant_id: uuid!
   type: String
 }
@@ -5826,6 +5830,7 @@ type area_aggregate_fields {
 input area_append_input {
   annotations: jsonb
   labels: jsonb
+  presentation: jsonb
 }
 
 """
@@ -5844,6 +5849,7 @@ input area_bool_exp {
   last_updated_at: timestamptz_comparison_exp
   name: String_comparison_exp
   parent_id: uuid_comparison_exp
+  presentation: jsonb_comparison_exp
   tenant_id: uuid_comparison_exp
   type: String_comparison_exp
 }
@@ -6161,6 +6167,7 @@ delete the field or element with specified path (for JSON arrays, negative integ
 input area_delete_at_path_input {
   annotations: [String!]
   labels: [String!]
+  presentation: [String!]
 }
 
 """
@@ -6169,6 +6176,7 @@ delete the array element with specified index (negative integers count from the 
 input area_delete_elem_input {
   annotations: Int
   labels: Int
+  presentation: Int
 }
 
 """
@@ -6177,6 +6185,7 @@ delete key/value pair or string element. key/value pairs are matched based on th
 input area_delete_key_input {
   annotations: String
   labels: String
+  presentation: String
 }
 
 """
@@ -6192,6 +6201,7 @@ input area_insert_input {
   last_updated_at: timestamptz
   name: String
   parent_id: uuid
+  presentation: jsonb
   tenant_id: uuid
   type: String
 }
@@ -6261,6 +6271,7 @@ input area_order_by {
   last_updated_at: order_by
   name: order_by
   parent_id: order_by
+  presentation: order_by
   tenant_id: order_by
   type: order_by
 }
@@ -6276,6 +6287,7 @@ input area_pk_columns_input {
 input area_prepend_input {
   annotations: jsonb
   labels: jsonb
+  presentation: jsonb
 }
 
 """
@@ -6301,6 +6313,8 @@ enum area_select_column {
   """column name"""
   parent_id
   """column name"""
+  presentation
+  """column name"""
   tenant_id
   """column name"""
   type
@@ -6319,6 +6333,7 @@ input area_set_input {
   last_updated_at: timestamptz
   name: String
   parent_id: uuid
+  presentation: jsonb
   tenant_id: uuid
   type: String
 }
@@ -6344,6 +6359,7 @@ input area_stream_cursor_value_input {
   last_updated_at: timestamptz
   name: String
   parent_id: uuid
+  presentation: jsonb
   tenant_id: uuid
   type: String
 }
@@ -6370,6 +6386,8 @@ enum area_update_column {
   name
   """column name"""
   parent_id
+  """column name"""
+  presentation
   """column name"""
   tenant_id
   """column name"""
