@@ -20,6 +20,7 @@ use crate::types::miru_plugin::MiruSbeiUser;
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::Transaction;
 use sequent_core::ballot::StringifiedPeriodDates;
+use sequent_core::services::translations::{Alias, Name};
 use sequent_core::types::hasura::core::{Area, Election, ElectionEvent};
 use sequent_core::types::keycloak::AREA_ID_ATTR_NAME;
 use sequent_core::types::scheduled_event::ScheduledEvent;
@@ -449,9 +450,14 @@ pub async fn process_elections(
         let election_dates = get_election_dates(&election, scheduled_events.clone())
             .map_err(|e| anyhow::anyhow!("Error getting election dates {e}"))?;
 
+        let default_language = election.get_default_language();
+        let election_name = election
+            .get_alias(&default_language)
+            .unwrap_or(election.get_name(&default_language));
+
         elections_data.push(UserDataElection {
             election_dates,
-            election_name: election.alias.unwrap_or(election.name),
+            election_name: election_name,
             election_annotations: election_general_data,
         });
     }

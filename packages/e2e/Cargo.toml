@@ -6,6 +6,8 @@
 name = "e2e"
 version = "0.1.0"
 edition = "2021"
+default-run = "e2e"
+
 
 [[bin]]
 name = "e2e"
