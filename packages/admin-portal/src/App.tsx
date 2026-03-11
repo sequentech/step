@@ -65,7 +65,7 @@ import {UpsertArea} from "./resources/Area/UpsertArea"
 
 interface AppProps {}
 
-const StyledApp = styled(Box)<{customCssss: string}>`
+const StyledApp = styled(Box)<{customCss: string}>`
     ${({customCss}) => customCss}
 `
 
