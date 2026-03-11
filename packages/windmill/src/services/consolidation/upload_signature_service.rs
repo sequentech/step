@@ -50,13 +50,16 @@ use anyhow::{anyhow, Context, Result};
 use chrono::{Local, Utc};
 use deadpool_postgres::{Client as DbClient, Transaction};
 use reqwest::multipart;
-use sequent_core::util::temp_path::{generate_temp_file, get_file_size, read_temp_file};
 use sequent_core::{
     ballot::Annotations,
     serialization::deserialize_with_path::{deserialize_str, deserialize_value},
     services::date::ISO8601,
     types::hasura::core::{ElectionEvent, Trustee},
     util::date_time::PHILIPPINO_TIMEZONE,
+};
+use sequent_core::{
+    services::translations::Name,
+    util::temp_path::{generate_temp_file, get_file_size, read_temp_file},
 };
 use std::collections::HashMap;
 use tempfile::NamedTempFile;
@@ -434,12 +437,14 @@ pub async fn upload_transmission_package_signature_service(
     new_signatures.push(server_signature.clone());
     // generate zip of zips
     let mut new_transmission_package_data = transmission_area_election.clone();
+
+    let election_name = election.get_name(&election.get_default_language());
     new_transmission_package_data
         .logs
         .push(sign_transmission_package_log(
             &now_local,
             election_id,
-            &election.name,
+            &election_name,
             area_id,
             &area_name,
             &sbei_user.miru_id,

@@ -256,7 +256,6 @@ export const sequent_backend_template: Sequent_Backend_Template = {
 
 export const sequent_backend_contest: Sequent_Backend_Contest = {
     __typename: undefined,
-    alias: undefined,
     annotations: undefined,
     candidates: [],
     candidates_aggregate: {} as any,
@@ -275,7 +274,6 @@ export const sequent_backend_contest: Sequent_Backend_Contest = {
     last_updated_at: undefined,
     max_votes: undefined,
     min_votes: undefined,
-    name: undefined,
     presentation: undefined,
     tally_configuration: undefined,
     tenant_id: "",
@@ -300,7 +298,6 @@ export const sequent_backend_document: Sequent_Backend_Document = {
 
 export const sequent_backend_election: Sequent_Backend_Election = {
     __typename: undefined,
-    alias: undefined,
     annotations: undefined,
     contests: [],
     contests_aggregate: {} as any,
@@ -308,13 +305,13 @@ export const sequent_backend_election: Sequent_Backend_Election = {
     description: undefined,
     election_event_id: "",
     eml: undefined,
+    external_id: undefined,
     id: "",
     image_document_id: undefined,
     is_consolidated_ballot_encoding: undefined,
     is_kiosk: undefined,
     labels: undefined,
     last_updated_at: undefined,
-    name: "",
     num_allowed_revotes: undefined,
     presentation: undefined,
     receipts: undefined,
@@ -327,7 +324,6 @@ export const sequent_backend_election: Sequent_Backend_Election = {
 
 export const sequent_backend_election_event: Sequent_Backend_Election_Event = {
     __typename: undefined,
-    alias: undefined,
     annotations: undefined,
     audit_election_event_id: undefined,
     bulletin_board_reference: undefined,
@@ -340,7 +336,6 @@ export const sequent_backend_election_event: Sequent_Backend_Election_Event = {
     is_archived: true,
     is_audit: undefined,
     labels: undefined,
-    name: "",
     presentation: undefined,
     public_key: undefined,
     statistics: undefined,
@@ -623,7 +618,7 @@ export const COLUMNS_MAP: {[key: string]: Array<string>} = {
     sequent_backend_election: [
         ...Object.keys(sequent_backend_election),
         "keys_ceremony_id",
-        "name@_ilike,alias@_ilike",
+        "external_id",
     ],
     sequent_backend_election_event: Object.keys(sequent_backend_election_event),
     sequent_backend_election_result: Object.keys(sequent_backend_election_result),
