@@ -11,6 +11,7 @@ use rocket::http::Status;
 use rocket::serde::json::Json;
 use sequent_core::ballot::ElectionPresentation;
 use sequent_core::services::jwt::JwtClaims;
+use sequent_core::services::translations::{Alias, DEFAULT_LANG};
 use sequent_core::types::permissions::Permissions;
 use serde::{Deserialize, Serialize};
 use tracing::{event, instrument, Level};
@@ -22,7 +23,6 @@ use windmill::services::import::import_election_event::upsert_b3_and_elog;
 pub struct CreateElectionInput {
     election_event_id: String,
     name: String,
-    external_id: String,
     presentation: ElectionPresentation,
     description: Option<String>,
 }
@@ -56,12 +56,13 @@ pub async fn create_election(
         .await
         .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
 
+    let alias = body.presentation.get_alias(DEFAULT_LANG);
     let election = election::create_election(
         &hasura_transaction,
         &claims.hasura_claims.tenant_id,
         &body.election_event_id,
         &body.name,
-        &body.external_id,
+        &alias,
         &body.presentation,
         body.description.clone(),
     )

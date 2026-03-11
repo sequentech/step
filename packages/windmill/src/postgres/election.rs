@@ -386,7 +386,7 @@ pub async fn create_election(
     tenant_id: &str,
     election_event_id: &str,
     name: &str,
-    external_id: &str,
+    alias: &str,
     presentation: &ElectionPresentation,
     description: Option<String>,
 ) -> Result<Election> {
@@ -433,7 +433,7 @@ pub async fn create_election(
                 &Uuid::parse_str(&tenant_id)?,
                 &Uuid::parse_str(&election_event_id)?,
                 &name.to_string(),
-                &external_id.to_string(),
+                &alias.to_string(),
                 &description,
                 &presentation_value,
                 &voting_channels_value,
