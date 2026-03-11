@@ -1184,6 +1184,7 @@ impl Pipe for GenerateReports {
 
                     let summary_election_report = ReportData {
                         election_name: election_input.name.clone(),
+                        election_alias: election_input.alias.clone(),
                         election_id: election_input.id.to_string(),
                         tenant_id: contest.tenant_id.clone(),
                         election_event_id: contest.election_event_id.clone(),
