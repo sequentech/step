@@ -134,7 +134,8 @@ impl Alias for Election {
 
 impl Alias for ElectionPresentation {
     fn get_alias(&self, language: &str) -> String {
-        let name = i18n_field(&self.i18n, language, "name").unwrap_or_else(|| "-".into());
+        let name = i18n_field(&self.i18n, language, "name")
+            .unwrap_or_else(|| "-".into());
         i18n_field(&self.i18n, language, "alias").unwrap_or(name)
     }
 }
