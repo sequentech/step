@@ -12,6 +12,7 @@ use std::collections::HashMap;
 // Function used to decide if the voter needs to change his/her ballot before
 // continuing
 pub fn check_voting_not_allowed_next_util(
+    is_multi_contest: bool,
     contests: Vec<Contest>,
     decoded_contests: HashMap<String, DecodedVoteContest>,
 ) -> bool {
@@ -37,11 +38,21 @@ pub fn check_voting_not_allowed_next_util(
             .unwrap_or_default();
 
         let default_duplicated_rank_policy = EDuplicatedRankPolicy::default();
-        let duplicated_rank_policy = contest
-            .presentation
+        let is_preferencial = contest
+            .counting_algorithm
             .as_ref()
-            .and_then(|p| p.duplicated_rank_policy.as_ref())
-            .unwrap_or(&default_duplicated_rank_policy);
+            .map_or(false, |a| a.is_preferential());
+
+        //Preferential voting in multi-contest encoding does not support the Duplicate Rank Policy.
+        let duplicated_rank_policy = if is_preferencial && is_multi_contest {
+            &EDuplicatedRankPolicy::NOT_ALLOWED_WARN_AND_DIALOG
+        } else {
+            contest
+                .presentation
+                .as_ref()
+                .and_then(|p| p.duplicated_rank_policy.as_ref())
+                .unwrap_or(&default_duplicated_rank_policy)
+        };
 
         let default_preference_gaps_policy = EPreferenceGapsPolicy::default();
         let preference_gaps_policy = contest
@@ -114,6 +125,7 @@ pub fn check_voting_not_allowed_next_util(
 // if returns true, when the user click next, there will be a dialog that
 // prompts the user to confirm before going to the next screen
 pub fn check_voting_error_dialog_util(
+    is_multi_contest: bool,
     contests: Vec<Contest>,
     decoded_contests: HashMap<String, DecodedVoteContest>,
 ) -> bool {
@@ -144,11 +156,21 @@ pub fn check_voting_error_dialog_util(
             .unwrap_or_default();
 
         let default_duplicated_rank_policy = EDuplicatedRankPolicy::default();
-        let duplicated_rank_policy = contest
-            .presentation
+        let is_preferencial = contest
+            .counting_algorithm
             .as_ref()
-            .and_then(|p| p.duplicated_rank_policy.as_ref())
-            .unwrap_or(&default_duplicated_rank_policy);
+            .map_or(false, |a| a.is_preferential());
+
+        //Preferential voting in multi-contest encoding does not support the Duplicate Rank Policy.
+        let duplicated_rank_policy = if is_preferencial && is_multi_contest {
+            &EDuplicatedRankPolicy::NOT_ALLOWED_WARN_AND_DIALOG
+        } else {
+            contest
+                .presentation
+                .as_ref()
+                .and_then(|p| p.duplicated_rank_policy.as_ref())
+                .unwrap_or(&default_duplicated_rank_policy)
+        };
 
         let default_preference_gaps_policy = EPreferenceGapsPolicy::default();
         let preference_gaps_policy = contest

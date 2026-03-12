@@ -356,11 +356,12 @@ export const verifyMultiBallotSignature = (
 }
 
 export const check_voting_not_allowed_next_bool = (
+    isMultiContest: boolean,
     contests: IContest[] | undefined,
     decodedContests: Record<string, IDecodedVoteContest>
 ): boolean => {
     try {
-        return check_voting_not_allowed_next(contests, decodedContests)
+        return check_voting_not_allowed_next(isMultiContest, contests, decodedContests)
     } catch (error) {
         console.log(error)
         throw error
@@ -368,11 +369,12 @@ export const check_voting_not_allowed_next_bool = (
 }
 
 export const check_voting_error_dialog_bool = (
+    isMultiContest: boolean,
     contests: IContest[] | undefined,
     decodedContests: Record<string, IDecodedVoteContest>
 ): boolean => {
     try {
-        return check_voting_error_dialog(contests, decodedContests)
+        return check_voting_error_dialog(isMultiContest, contests, decodedContests)
     } catch (error) {
         console.log(error)
         throw error
@@ -418,9 +420,9 @@ export const generateSampleAuditableBallot = (): IAuditableSingleBallot | null =
     }
 }
 
-export const getDefaultDuplicatedRankPolicy = (): EDuplicatedRankPolicy => {
+export const getDefaultDuplicatedRankPolicy = (isMultiContest: boolean): EDuplicatedRankPolicy => {
     try {
-        return get_default_duplicated_rank_policy_js() as EDuplicatedRankPolicy
+        return get_default_duplicated_rank_policy_js(isMultiContest) as EDuplicatedRankPolicy
     } catch (error) {
         console.log(error)
         throw error

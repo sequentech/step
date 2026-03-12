@@ -923,6 +923,7 @@ pub fn check_is_blank_js(
 
 #[wasm_bindgen]
 pub fn check_voting_not_allowed_next(
+    is_multi_contest: bool,
     contests: JsValue,
     decoded_contests: JsValue,
 ) -> Result<JsValue, JsValue> {
@@ -938,14 +939,18 @@ pub fn check_voting_not_allowed_next(
             ))
         })?;
 
-    let voting_not_allowed =
-        check_voting_not_allowed_next_util(all_contests, all_decoded_contests);
+    let voting_not_allowed = check_voting_not_allowed_next_util(
+        is_multi_contest,
+        all_contests,
+        all_decoded_contests,
+    );
 
     Ok(JsValue::from_bool(voting_not_allowed))
 }
 
 #[wasm_bindgen]
 pub fn check_voting_error_dialog(
+    is_multi_contest: bool,
     contests: JsValue,
     decoded_contests: JsValue,
 ) -> Result<JsValue, JsValue> {
@@ -961,8 +966,11 @@ pub fn check_voting_error_dialog(
             ))
         })?;
 
-    let show_voting_alert =
-        check_voting_error_dialog_util(all_contests, all_decoded_contests);
+    let show_voting_alert = check_voting_error_dialog_util(
+        is_multi_contest,
+        all_contests,
+        all_decoded_contests,
+    );
 
     Ok(JsValue::from_bool(show_voting_alert))
 }
@@ -1107,8 +1115,14 @@ pub fn sign_hashable_multi_ballot_with_ephemeral_voter_signing_key_js(
 }
 
 #[wasm_bindgen]
-pub fn get_default_duplicated_rank_policy_js() -> Result<JsValue, JsValue> {
-    let policy = EDuplicatedRankPolicy::default();
+pub fn get_default_duplicated_rank_policy_js(
+    is_multi_contest: bool,
+) -> Result<JsValue, JsValue> {
+    let policy = if is_multi_contest {
+        EDuplicatedRankPolicy::NOT_ALLOWED_WARN_AND_DIALOG
+    } else {
+        EDuplicatedRankPolicy::default()
+    };
     serde_wasm_bindgen::to_value(&policy).map_err(|err| {
         JsValue::from_str(&format!(
             "Error serializing default duplicated rank policy: {err}"

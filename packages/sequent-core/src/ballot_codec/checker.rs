@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::ballot_codec::multi_ballot::DecodedContestChoices;
-use crate::plaintext::DecodedVoteContest;
+use crate::plaintext::{DecodedVoteContest, PreferencialOrderErrorType};
 use crate::{
     ballot::{
         ContestPresentation, EBlankVotePolicy, EDuplicatedRankPolicy,
@@ -12,7 +12,7 @@ use crate::{
     },
     plaintext::{InvalidPlaintextError, InvalidPlaintextErrorType},
 };
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 #[derive(Default, PartialEq, Eq, Debug, Clone)]
 pub struct CheckerResult {
@@ -308,4 +308,44 @@ pub fn check_invalid_vote_policy(
         }
     }
     checker_result
+}
+
+/// Check the validity of the preference order.
+/// //Recive choices filter and sorted by the selected value (choice.selected >= 0)
+/// Note: PreferenceOrderWithGaps is returned as an error if there are gaps,
+/// but this is generally not considered invalid, so the caller can
+/// handle it depending on the policy or jurisdiction rules.
+/// Returns Ok if the order is valid after sorting it and if it is
+/// contiguous, e.g. 1,2,3,4 or 1,4,2,3.
+/// Returns Err with a Vec of all errors found (may contain multiple variants).
+pub fn validate_contest_preferencial_order(
+    choices: Vec<i64>,
+) -> Result<(), Vec<PreferencialOrderErrorType>> {
+    let mut errors: Vec<PreferencialOrderErrorType> = Vec::new();
+
+    // After removing the unselected choices we check that there are no duplicates in
+    // the preference order
+    let choices_unique_set = choices.iter().collect::<HashSet<_>>();
+
+    if choices.len() != choices_unique_set.len() {
+        errors.push(PreferencialOrderErrorType::DuplicatedPosition);
+    }
+
+    // Check that there are no gaps in the ordered choices
+    let mut ordered_choices = choices_unique_set
+        .into_iter()
+        .cloned()
+        .collect::<Vec<i64>>();
+    ordered_choices.sort();
+    let expected_order: Vec<i64> = (0..ordered_choices.len() as i64).collect();
+
+    if ordered_choices != expected_order {
+        errors.push(PreferencialOrderErrorType::PreferenceOrderWithGaps);
+    }
+
+    if errors.is_empty() {
+        Ok(())
+    } else {
+        Err(errors)
+    }
 }

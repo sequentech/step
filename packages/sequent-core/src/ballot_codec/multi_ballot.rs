@@ -10,15 +10,18 @@ use crate::ballot::{
     AreaPresentation, BallotStyle, Candidate, Contest, EUnderVotePolicy,
 };
 use crate::ballot_codec::{
-    check_blank_vote_policy, check_invalid_vote_policy,
-    check_max_min_votes_policy, check_min_vote_policy, check_over_vote_policy,
-    check_under_vote_policy,
+    check_blank_vote_policy, check_duplicated_rank_policy,
+    check_invalid_vote_policy, check_max_min_votes_policy,
+    check_min_vote_policy, check_over_vote_policy,
+    check_preference_gaps_policy, check_under_vote_policy,
+    validate_contest_preferencial_order, CheckerResult,
 };
 use crate::error::BallotError;
 use crate::mixed_radix;
 use crate::plaintext::{
     map_decoded_ballot_choices_to_decoded_contests, DecodedVoteContest,
     InvalidPlaintextError, InvalidPlaintextErrorType,
+    PreferencialOrderErrorType,
 };
 use crate::types::ceremonies::CountingAlgType;
 use num_bigint::BigUint;
@@ -149,6 +152,21 @@ impl DecodedContestChoices {
             invalid_errors,
             invalid_alerts,
         }
+    }
+
+    pub fn validate_preferencial_order(
+        &self,
+    ) -> Result<(), Vec<PreferencialOrderErrorType>> {
+        let mut errors: Vec<PreferencialOrderErrorType> = Vec::new();
+        // Discard the unselected choices and sort the selected ones by their preference order
+        let choices: Vec<i64> = self
+            .choices
+            .iter()
+            .filter(|choice| choice.selected >= 0)
+            .map(|choice| choice.selected)
+            .collect();
+
+        validate_contest_preferencial_order(choices)
     }
 }
 #[derive(Serialize, Deserialize, JsonSchema, PartialEq, Eq, Debug, Clone)]
@@ -616,6 +634,11 @@ impl BallotChoices {
             format!("i64 -> usize conversion on contest min_votes")
         })?;
 
+        let is_preferencial = contest
+            .counting_algorithm
+            .as_ref()
+            .map_or(false, |a| a.is_preferential());
+
         let mut next_choices = vec![];
         for i in 0..max_votes {
             let next = choices[i];
@@ -642,15 +665,7 @@ impl BallotChoices {
                 ));
             };
 
-            let selected: usize = if contest
-                .counting_algorithm
-                .as_ref()
-                .map_or(false, |a| a.is_preferential())
-            {
-                i
-            } else {
-                0
-            };
+            let selected: usize = if is_preferencial { i } else { 0 };
 
             let choice = DecodedContestChoice {
                 id: candidate.id.clone(),
@@ -721,6 +736,24 @@ impl BallotChoices {
             is_explicit_invalid,
         );
         decoded_contest.update(blank_vote_check);
+
+        if is_preferencial {
+            match decoded_contest.validate_preferencial_order() {
+                Ok(()) => {}
+                Err(errors) => {
+                    for error in errors {
+                        match error {
+                            PreferencialOrderErrorType::DuplicatedPosition => {
+                                let check =
+                                    check_duplicated_rank_policy(&presentation);
+                                decoded_contest.update(check);
+                            }
+                            _ => {}
+                        }
+                    }
+                }
+            }
+        }
 
         Ok(decoded_contest)
     }
@@ -911,18 +944,57 @@ impl BallotChoices {
     }
 }
 
+pub fn check_multi_contest_irv_duplicated_rank_policy(
+    decoded_multi_contests: &Vec<DecodedVoteContest>,
+) -> (bool, Vec<DecodedVoteContest>) {
+    let mut found_duplicate_rank_irv = false;
+    let mut decoded_multi_contests = decoded_multi_contests.clone();
+    for dvc in decoded_multi_contests.iter_mut() {
+        if let Err(errors) = dvc.validate_preferencial_order() {
+            if errors.iter().any(|e| {
+                matches!(e, PreferencialOrderErrorType::DuplicatedPosition)
+            }) {
+                let mut checker_result: CheckerResult = Default::default();
+                checker_result.invalid_errors.push(InvalidPlaintextError {
+                    error_type: InvalidPlaintextErrorType::Implicit,
+                    candidate_id: None,
+                    message: Some(
+                        "errors.implicit.duplicatedPosition".to_string(),
+                    ),
+                    message_map: HashMap::new(),
+                });
+
+                dvc.update(checker_result);
+                found_duplicate_rank_irv = true;
+
+                break;
+            }
+        }
+    }
+    (found_duplicate_rank_irv, decoded_multi_contests)
+}
 /// Test multi-contest reencoding functionality
 pub fn test_multi_contest_reencoding(
     decoded_multi_contests: &Vec<DecodedVoteContest>,
     ballot_style: &BallotStyle,
 ) -> Result<Vec<DecodedVoteContest>, String> {
     // encode ballot
-    let (plaintext, _ballot_choices) =
+    let (plaintext, ballot_choices) =
         encode_to_plaintext_decoded_multi_contest(
             decoded_multi_contests,
             ballot_style,
         )
         .map_err(|err| format!("Error encoded decoded contests {:?}", err))?;
+
+    if (ballot_choices.counting_algorithm.is_preferential()) {
+        let (found_duplicate_rank_irv, decoded_multi_contests) =
+            check_multi_contest_irv_duplicated_rank_policy(
+                decoded_multi_contests,
+            );
+        if found_duplicate_rank_irv {
+            return Ok(decoded_multi_contests.clone());
+        }
+    }
 
     let decoded_ballot_choices =
         BallotChoices::decode_from_30_bytes(&plaintext, ballot_style).map_err(
@@ -937,7 +1009,7 @@ pub fn test_multi_contest_reencoding(
         .map_err(|err| format!("Error mapping decoded contests {:?}", err))?;
 
     let input_compare =
-        normalize_election(decoded_multi_contests, ballot_style, true)
+        normalize_election(&decoded_multi_contests, ballot_style, true)
             .map_err(|err| format!("Error normalizing input {:?}", err))?;
 
     let output_compare =
@@ -1072,11 +1144,11 @@ mod tests {
             "choices": [
                 {
                     "id": "05614f41-720a-4fd5-842f-58355c0bbdc0",
-                    "selected": 0
+                    "selected": 1
                 },
                 {
                     "id": "dfc5a43d-2276-4859-8f76-b0f18f859e59",
-                    "selected": 2
+                    "selected": 1
                 },
                 {
                     "id": "3d3c78cc-df19-447d-a5d1-391268970d67",
@@ -1158,7 +1230,6 @@ mod tests {
 
         // Verify the output maintains the explicit invalid flag
         let output_contests = result.unwrap();
-        println!("output_contests={output_contests:?}");
 
         let mut in_choices = decoded_multi_contests[0].choices.clone();
         in_choices.sort_by_key(|c| c.id.clone());
