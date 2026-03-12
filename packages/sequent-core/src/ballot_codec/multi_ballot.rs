@@ -44,25 +44,21 @@ use std::hash::{Hash, Hasher};
 /// can be computed with BallotChoices::maximum_size_bytes, given a list
 /// of contests.
 ///
-/// This ballot only supports plurality counting
-/// algorithms. It does not support write-ins.
+/// This ballot does not support write-ins.
 /// It does not support per-contest invalid flags.
 #[derive(Serialize, Deserialize, JsonSchema, PartialEq, Eq, Debug, Clone)]
 pub struct BallotChoices {
     pub is_explicit_invalid: bool,
     pub choices: Vec<ContestChoices>,
-    pub counting_algorithm: CountingAlgType,
 }
 impl BallotChoices {
     pub fn new(
         is_explicit_invalid: bool,
         choices: Vec<ContestChoices>,
-        counting_algorithm: CountingAlgType,
     ) -> Self {
         BallotChoices {
             is_explicit_invalid,
             choices,
-            counting_algorithm,
         }
     }
 }
@@ -75,13 +71,19 @@ impl BallotChoices {
 pub struct ContestChoices {
     pub contest_id: String,
     pub choices: Vec<ContestChoice>,
+    pub counting_algorithm: CountingAlgType,
 }
 impl ContestChoices {
-    pub fn new(contest_id: String, choices: Vec<ContestChoice>) -> Self {
+    pub fn new(
+        contest_id: String,
+        choices: Vec<ContestChoice>,
+        counting_algorithm: CountingAlgType,
+    ) -> Self {
         ContestChoices {
             contest_id,
             // is_explicit_invalid,
             choices,
+            counting_algorithm,
         }
     }
 
@@ -89,7 +91,10 @@ impl ContestChoices {
     ///
     /// Used in testing when generating ballots with the non-sparse
     /// encoding (non multi-contest ballots)
-    pub fn from_decoded_vote_contest(dcv: &DecodedVoteContest) -> Self {
+    pub fn from_decoded_vote_contest(
+        dcv: &DecodedVoteContest,
+        counting_algorithm: &CountingAlgType,
+    ) -> Self {
         let choices: Vec<ContestChoice> = dcv
             .choices
             .iter()
@@ -105,6 +110,7 @@ impl ContestChoices {
         ContestChoices {
             contest_id: dcv.contest_id.clone(),
             choices,
+            counting_algorithm: counting_algorithm.clone(),
         }
     }
 }
@@ -192,25 +198,16 @@ pub struct DecodedBallotChoices {
 }
 
 impl BallotStyle {
-    /// Returns Error if all counting algorithms are not the same.
-    pub fn get_counting_algorithm(
+    /// Returns a map containint the
+    pub fn get_counting_algorithms(
         &self,
-    ) -> Result<CountingAlgType, BallotError> {
-        let first_counting_algorithm: CountingAlgType = self
-            .contests
-            .first()
-            .map(|c| c.get_counting_algorithm())
-            .unwrap_or_default();
-        match self
-            .contests
+    ) -> Result<HashMap<String, CountingAlgType>, BallotError> {
+        self.contests
             .iter()
-            .all(|c| c.get_counting_algorithm() == first_counting_algorithm)
-        {
-            true => Ok(first_counting_algorithm),
-            false => Err(BallotError::ConsistencyCheck(
-                "Mixing different counting algorithms".to_string(),
-            )),
-        }
+            .map(|contest| {
+                Ok((contest.id.clone(), contest.get_counting_algorithm()))
+            })
+            .collect()
     }
 }
 
@@ -357,7 +354,8 @@ impl BallotChoices {
             ));
         }
 
-        let choices_order = match self.counting_algorithm.is_preferential() {
+        let choices_order = match plaintext.counting_algorithm.is_preferential()
+        {
             true => {
                 // Setting the choices in order of preference to support
                 // preferencial multiballot. When decoding, we
@@ -404,7 +402,7 @@ impl BallotChoices {
                 0
             };
 
-            match self.counting_algorithm.is_preferential() {
+            match plaintext.counting_algorithm.is_preferential() {
                 true => {
                     if p.selected > -1 {
                         //position the choice in the array in the selected order
@@ -944,34 +942,49 @@ impl BallotChoices {
     }
 }
 
-pub fn check_multi_contest_irv_duplicated_rank_policy(
+// Multi-contest encoding does not support duplicate ranks for preferential voting.
+// This function checks for duplicate ranks when the contest counting algorithm is preferential
+// and adds an error to `invalid_errors` in the corresponding contest vote.
+// Call this function before the encoding/decoding process with the original ballot to avoid runtime errors.
+pub fn check_multi_contest_irv_duplicate_rank(
+    ballot_style: &BallotStyle,
     decoded_multi_contests: &Vec<DecodedVoteContest>,
-) -> (bool, Vec<DecodedVoteContest>) {
+) -> Result<(bool, Vec<DecodedVoteContest>), String> {
+    let counting_algorithms =
+        ballot_style.get_counting_algorithms().map_err(|err| {
+            format!("Error get contests counting algorithm {:?}", err)
+        })?;
+
     let mut found_duplicate_rank_irv = false;
     let mut decoded_multi_contests = decoded_multi_contests.clone();
+
     for dvc in decoded_multi_contests.iter_mut() {
-        if let Err(errors) = dvc.validate_preferencial_order() {
-            if errors.iter().any(|e| {
-                matches!(e, PreferencialOrderErrorType::DuplicatedPosition)
-            }) {
-                let mut checker_result: CheckerResult = Default::default();
-                checker_result.invalid_errors.push(InvalidPlaintextError {
-                    error_type: InvalidPlaintextErrorType::Implicit,
-                    candidate_id: None,
-                    message: Some(
-                        "errors.implicit.duplicatedPosition".to_string(),
-                    ),
-                    message_map: HashMap::new(),
-                });
+        let contest_counting_algorithm = counting_algorithms
+            .get(&dvc.contest_id)
+            .map_or(CountingAlgType::default(), |v| *v);
 
-                dvc.update(checker_result);
-                found_duplicate_rank_irv = true;
+        if contest_counting_algorithm.is_preferential() {
+            if let Err(errors) = dvc.validate_preferencial_order() {
+                if errors.iter().any(|e| {
+                    matches!(e, PreferencialOrderErrorType::DuplicatedPosition)
+                }) {
+                    let mut checker_result: CheckerResult = Default::default();
+                    checker_result.invalid_errors.push(InvalidPlaintextError {
+                        error_type: InvalidPlaintextErrorType::Implicit,
+                        candidate_id: None,
+                        message: Some(
+                            "errors.implicit.duplicatedPosition".to_string(),
+                        ),
+                        message_map: HashMap::new(),
+                    });
 
-                break;
+                    dvc.update(checker_result);
+                    found_duplicate_rank_irv = true;
+                }
             }
         }
     }
-    (found_duplicate_rank_irv, decoded_multi_contests)
+    Ok((found_duplicate_rank_irv, decoded_multi_contests))
 }
 /// Test multi-contest reencoding functionality
 pub fn test_multi_contest_reencoding(
@@ -979,21 +992,21 @@ pub fn test_multi_contest_reencoding(
     ballot_style: &BallotStyle,
 ) -> Result<Vec<DecodedVoteContest>, String> {
     // encode ballot
-    let (plaintext, ballot_choices) =
+    let (plaintext, _ballot_choices) =
         encode_to_plaintext_decoded_multi_contest(
             decoded_multi_contests,
             ballot_style,
         )
         .map_err(|err| format!("Error encoded decoded contests {:?}", err))?;
 
-    if (ballot_choices.counting_algorithm.is_preferential()) {
-        let (found_duplicate_rank_irv, decoded_multi_contests) =
-            check_multi_contest_irv_duplicated_rank_policy(
-                decoded_multi_contests,
-            );
-        if found_duplicate_rank_irv {
-            return Ok(decoded_multi_contests.clone());
-        }
+    let (found_duplicate_rank_irv, decoded_multi_contests_checked) =
+        check_multi_contest_irv_duplicate_rank(
+            &ballot_style,
+            decoded_multi_contests,
+        )
+        .map_err(|err| format!("Error check duplicated rank {:?}", err))?;
+    if found_duplicate_rank_irv {
+        return Ok(decoded_multi_contests_checked.clone());
     }
 
     let decoded_ballot_choices =
@@ -1468,15 +1481,14 @@ mod tests {
             })
             .collect();
 
-        let allow_duplicate_choice_rank = !counting_algorithm.is_preferential();
         let choices: Vec<ContestChoices> = contests
             .iter()
-            .map(|c| random_contest_choices(&c, allow_duplicate_choice_rank))
+            .map(|c| random_contest_choices(&c, &counting_algorithm))
             .collect();
 
         let ballot_style = random_ballot_style(contests);
 
-        let ballot = BallotChoices::new(false, choices, counting_algorithm);
+        let ballot = BallotChoices::new(false, choices);
 
         (ballot, ballot_style)
     }
@@ -1493,8 +1505,9 @@ mod tests {
 
     fn random_contest_choices(
         contest: &Contest,
-        allow_duplicate: bool,
+        counting_algorithm: &CountingAlgType,
     ) -> ContestChoices {
+        let allow_duplicate_choice_rank = !counting_algorithm.is_preferential();
         let mut rng = rand::thread_rng();
         let count = rng.gen_range(contest.min_votes..=contest.max_votes);
 
@@ -1507,7 +1520,7 @@ mod tests {
             .iter()
             .take(count as usize)
             .map(|c| {
-                let choice = if allow_duplicate {
+                let choice = if allow_duplicate_choice_rank {
                     random_choice(c.id.clone(), contest.max_votes)
                 } else {
                     loop {
@@ -1522,7 +1535,11 @@ mod tests {
             })
             .collect();
 
-        ContestChoices::new(contest.id.clone(), choices)
+        ContestChoices::new(
+            contest.id.clone(),
+            choices,
+            counting_algorithm.clone(),
+        )
     }
     fn random_contest(
         id: String,

@@ -338,14 +338,23 @@ pub fn generate_mcballots(
             Ok::<(), Error>(())
         })?;
 
+        let counting_algorithms: HashMap<String, CountingAlgType> = contests
+            .iter()
+            .map(|contest| (contest.id.clone(), contest.get_counting_algorithm()))
+            .collect();
+
         let mut ballots = vec![];
         for (key, choices) in dvcs_by_area {
             let contest_choices = choices
                 .iter()
-                .map(ContestChoices::from_decoded_vote_contest)
+                .map(|dvc| {
+                    let contest_counting_algorithm = counting_algorithms
+                        .get(&dvc.contest_id)
+                        .map_or(CountingAlgType::default(), |v| *v);
+                    ContestChoices::from_decoded_vote_contest(dvc, &contest_counting_algorithm)
+                })
                 .collect();
-            let ballot =
-                BallotChoices::new(false, contest_choices, CountingAlgType::PluralityAtLarge);
+            let ballot = BallotChoices::new(false, contest_choices);
 
             let ballot_style = generate_ballot_style(
                 &election.tenant_id,
