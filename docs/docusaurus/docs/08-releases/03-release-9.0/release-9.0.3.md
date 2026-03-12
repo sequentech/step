@@ -27,9 +27,6 @@ See [sequentech/meta#6191](https://github.com/sequentech/meta/issues/6191) for d
 
 ### 🛠 Bug Fixes
 
-- 🐞 Tally: arbitrary votes instead of the last one on voter re-votes ([sequentech/step#2488](https://github.com/sequentech/step/pull/2488))
-  by @Findeton
-
 
 - 🐞 Ballot Verifier > Custom CSS not properly applied ([sequentech/meta#8476](https://github.com/sequentech/meta/issues/8476))
   by @yuvalkom-M
@@ -49,6 +46,9 @@ See [sequentech/meta#6191](https://github.com/sequentech/meta/issues/6191) for d
 
 - 🐞 Tally > Ballot Image fails on second time: duplicate ACM key ([sequentech/meta#8679](https://github.com/sequentech/meta/issues/8679))
   by @BelSequent
+
+- 🐞 Tally: arbitrary votes instead of the last one on voter re-votes ([sequentech/step#2488](https://github.com/sequentech/step/pull/2488))
+  by @Findeton
 
 
 - 🐞 sequentech-bot is not in the allow list for CLA ([sequentech/step#2313](https://github.com/sequentech/step/pull/2313))
@@ -138,10 +138,6 @@ To
   by @yuvalkom-M
 
 
-- ✨ Prepare Release 10.0 ([sequentech/step#2474](https://github.com/sequentech/step/pull/2474))
-  by @Findeton
-
-
 - 🐞 Windmill - Duplicate Key error caused by race condition while Logging Electoral logs in process_electoral_log_events_batch task ([sequentech/step#2445](https://github.com/sequentech/step/pull/2445))
   by @xalsina-sequent
 
@@ -150,7 +146,7 @@ To
   by @yuvalkom-M
 
 
-- fix release yml output version release/9.0 ([sequentech/step#2413](https://github.com/sequentech/step/pull/2413))
+- 🐞 fix release yml output version release/9.0 ([sequentech/step#2413](https://github.com/sequentech/step/pull/2413))
   by @oded-eid-sequentech
 
 
