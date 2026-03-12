@@ -586,6 +586,7 @@ const spanishTranslation: TranslationType = {
                 alias: "Alias",
                 description: "Descripción",
                 securityConfirmationHtml: "Confirmación de seguridad HTML",
+                externalId: "ID externo",
             },
             securityConfirmationPolicy: {
                 label: "Política de la casilla de confirmación de seguridad",
