@@ -9,14 +9,7 @@ SPDX-FileCopyrightText: 2025 Sequent Tech <legal@sequentech.io>
 SPDX-License-Identifier: AGPL-3.0-only
 -->
 
-<video controls width="100%">
-  <source src="./assets/publish_election.mp4" type="video/mp4" />
-  Your browser does not support the video tag.
-</video>
-
 <GoogleVideo id="1RUe2XgKsC36bZiJ8Io1iAVXYn3KDhBht" />
-
-
 
 Every time an administrator modifies data at the electoral event, election, contest, or candidate level, those changes must be published to become visible in the **Voter Portal**. This ensures that the voting interface remains accurate and synchronized with the latest administrative configurations.
 
