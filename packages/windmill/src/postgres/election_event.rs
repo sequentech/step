@@ -24,7 +24,6 @@ impl TryFrom<Row> for ElectionEventWrapper {
             labels: item.try_get("labels")?,
             annotations: item.try_get("annotations")?,
             tenant_id: item.try_get::<_, Uuid>("tenant_id")?.to_string(),
-            name: item.get("name"),
             description: item.get("description"),
             presentation: item.try_get("presentation")?,
             bulletin_board_reference: item.try_get("bulletin_board_reference")?,
@@ -38,8 +37,8 @@ impl TryFrom<Row> for ElectionEventWrapper {
                 .try_get::<_, Option<Uuid>>("audit_election_event_id")?
                 .map(|val| val.to_string()),
             public_key: item.get("public_key"),
-            alias: item.get("alias"),
             statistics: item.try_get("statistics")?,
+            external_id: item.try_get("external_id")?,
         }))
     }
 }
@@ -55,9 +54,9 @@ pub async fn insert_election_event(
         .prepare(
             r#"
                 INSERT INTO sequent_backend.election_event
-                (id, created_at, updated_at, labels, annotations, tenant_id, name, description, presentation, bulletin_board_reference, is_archived, voting_channels, status, user_boards, encryption_protocol, is_audit, audit_election_event_id, public_key, alias, statistics)
+                (id, created_at, updated_at, labels, annotations, tenant_id, description, presentation, bulletin_board_reference, is_archived, voting_channels, status, user_boards, encryption_protocol, is_audit, audit_election_event_id, public_key, statistics, external_id)
                 VALUES
-                ($1, NOW(), NOW(), $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18);
+                ($1, NOW(), NOW(), $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17);
             "#,
         )
         .await?;
@@ -70,7 +69,6 @@ pub async fn insert_election_event(
                 &election_event.labels,
                 &election_event.annotations,
                 &Uuid::parse_str(&election_event.tenant_id)?,
-                &election_event.name,
                 &election_event.description,
                 &election_event.presentation,
                 &election_event.bulletin_board_reference,
@@ -85,8 +83,8 @@ pub async fn insert_election_event(
                     .as_ref()
                     .and_then(|s| Uuid::parse_str(&s).ok()),
                 &election_event.public_key,
-                &election_event.alias,
                 &election_event.statistics,
+                &election_event.external_id,
             ],
         )
         .await
@@ -193,7 +191,7 @@ pub async fn get_all_tenant_election_events(
         .prepare(
             r#"
                 SELECT
-                    id, created_at, updated_at, labels, annotations, tenant_id, name, description, presentation, bulletin_board_reference, is_archived, voting_channels, status, user_boards, encryption_protocol, is_audit, audit_election_event_id, public_key, alias, statistics
+                    id, created_at, updated_at, labels, annotations, tenant_id, description, presentation, bulletin_board_reference, is_archived, voting_channels, status, user_boards, encryption_protocol, is_audit, audit_election_event_id, public_key, statistics
                 FROM
                     sequent_backend.election_event
                 WHERE
