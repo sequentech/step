@@ -1369,6 +1369,20 @@ const basqueTranslation: TranslationType = {
                 "not-allowed-with-msg-and-disable":
                     "Ez Baimenduta Abisu mezuarekin eta Gehiago hautatzea Desgaitu",
             },
+            duplicatedRankPolicy: {
+                "label": "Boto baliogabea - Bikoiztutako Rankaren Politika",
+                "allowed-warn-and-dialog":
+                    "Erakutsi ohartarazpena eta elkarrizketa-koadroa (botatzaileak aurrera egin dezake)",
+                "not-allowed-warn-and-dialog":
+                    "Erakutsi ohartarazpena eta elkarrizketa-koadroa (botatzaileak ezin du aurrera egin)",
+            },
+            preferenceGapsPolicy: {
+                "label": "Boto baliogabea - Saltatutako Ranken Politika",
+                "allowed-warn-and-dialog":
+                    "Erakutsi ohartarazpena eta elkarrizketa-koadroa (botatzaileak aurrera egin dezake)",
+                "not-allowed-warn-and-dialog":
+                    "Erakutsi ohartarazpena eta elkarrizketa-koadroa (botatzaileak ezin du aurrera egin)",
+            },
             paginationPolicy: {
                 label: "Orri Izena",
             },

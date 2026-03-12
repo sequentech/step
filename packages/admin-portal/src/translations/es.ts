@@ -1373,6 +1373,20 @@ const spanishTranslation: TranslationType = {
                 "not-allowed-with-msg-and-disable":
                     "No permitido con un mensaje de warning y dehabilitar selecciones adicionales",
             },
+            duplicatedRankPolicy: {
+                "label": "Voto inválido - Política de rango duplicado",
+                "allowed-warn-and-dialog":
+                    "Mostrar advertencia y diálogo (el votante puede continuar)",
+                "not-allowed-warn-and-dialog":
+                    "Mostrar advertencia y diálogo (el votante no puede continuar)",
+            },
+            preferenceGapsPolicy: {
+                "label": "Voto inválido - Política de rangos omitidos",
+                "allowed-warn-and-dialog":
+                    "Mostrar advertencia y diálogo (el votante puede continuar)",
+                "not-allowed-warn-and-dialog":
+                    "Mostrar advertencia y diálogo (el votante no puede continuar)",
+            },
             paginationPolicy: {
                 label: "Nombre de la página",
             },

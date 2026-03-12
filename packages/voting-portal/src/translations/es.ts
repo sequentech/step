@@ -321,8 +321,10 @@ const spanishTranslation: TranslationType = {
                 overVoteDisabled:
                     "Máximo alcanzado: Has seleccionado el máximo de {{numSelected}} opciones. Para cambiar tu selección, por favor, desmarca primero otra opción.",
                 blankVote: "Voto en Blanco: 0 opciones seleccionadas",
-                preferenceOrderWithGaps: "El orden de preferencia tiene uno o más huecos.",
-                duplicatedPosition: "La misma posición fue seleccionada para dos o más candidatos.",
+                preferenceOrderWithGaps:
+                    "¡Voto inválido! El orden de preferencia tiene uno o más huecos.",
+                duplicatedPosition:
+                    "¡Voto inválido! La misma posición fue seleccionada para dos o más candidatos.",
             },
             explicit: {
                 notAllowed:
