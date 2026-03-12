@@ -131,6 +131,9 @@ Import advanced settings for this Election and define vote limits, confirmations
 - **Start Screen Title Policy**
 
   - Set the title of the Start Screen (Voting Portal) to either the election title or the Election Event Title. The default value is the Election title.
+  
+- **Consolidated Report Policy**
+  - If `Generate` option is selected, consolidated election results for all areas will be generated in the Tally.
 
 ---
 

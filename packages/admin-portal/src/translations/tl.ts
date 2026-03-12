@@ -640,6 +640,13 @@ const tagalogTranslation: TranslationType = {
                     "election-event": "Pamagat ng kaganapan ng halalan",
                 },
             },
+            consolidatedReportPolicy: {
+                label: "Patakaran sa Pinagsamang Ulat",
+                options: {
+                    "generate": "Bumuo",
+                    "do-not-generate": "Huwag bumuo",
+                },
+            },
         },
         tenantScreen: {
             common: {
@@ -1693,6 +1700,8 @@ const tagalogTranslation: TranslationType = {
                 totalVoters: "Kabuuang mga Botante",
                 nonVoters: "Hindi Bumoto",
             },
+            exportAllAreas:
+                "I-export ang resulta ng lahat ng lugar sa format na {{format}} para kay '{{item}}'",
         },
         publish: {
             preview: {
