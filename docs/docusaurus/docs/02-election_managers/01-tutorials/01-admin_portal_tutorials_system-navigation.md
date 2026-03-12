@@ -1,22 +1,20 @@
+
 ---
 id: admin_portal_tutorials_system-navigation
 title: System Navigation
 ---
-
 <!--
 -- SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 SPDX-License-Identifier: AGPL-3.0-only
 -->
 
+import GoogleVideo from '@site/src/components/GoogleVideo';
+
 # Basic Navigation
 
-<video controls width="600">
-  <source src="./assets/system_navigation.mp4" type="video/mp4" />
-  Your browser does not support the video tag.
-</video>
+<GoogleVideo id="1SRsbPGWiA8woHHrjtmoL9PuwBkJZQY4_" />
 
-![System Landing Page](/img/system_introduction/basic_navigation.png)
-
+![System Landing Page](./assets/basic_navigation.png)
 
 The system's user interface (UI) is divided into four main areas, each serving a specific function:
 
