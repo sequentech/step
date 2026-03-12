@@ -3,15 +3,15 @@ id: admin_portal_tutorials_import-elections
 title: Import/Export of Elections
 ---
 
+import GoogleVideo from '@site/src/components/GoogleVideo';
+
 <!--
 SPDX-FileCopyrightText: 2025 Sequent Tech <legal@sequentech.io>
 SPDX-License-Identifier: AGPL-3.0-only
 -->
+---
 
-<video controls width="100%">
-  <source src="./assets/Import and Export Election.mp4" type="video/mp4" />
-  Your browser does not support the video tag.
-</video>
+<GoogleVideo id="13KrQtqIfsw24sZCCBjO0-f6wM_kcDUI-" />
 
 The Sequent Admin Portal provides tools to export election data for backup or auditing and to import existing election configurations to quickly set up new events.
 
