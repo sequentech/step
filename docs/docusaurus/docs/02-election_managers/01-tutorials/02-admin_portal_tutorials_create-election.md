@@ -8,10 +8,9 @@ SPDX-FileCopyrightText: 2025 Sequent Tech <legal@sequentech.io>
 SPDX-License-Identifier: AGPL-3.0-only
 -->
 
-<video controls width="100%">
-  <source src="./assets/create_election.mp4" type="video/mp4" />
-  Your browser does not support the video tag.
-</video>
+import GoogleVideo from '@site/src/components/GoogleVideo';
+
+<GoogleVideo id="1-LhcFt6-RG6X0wvkO5EvOJzgT2hL2jpK" />
 
 This tutorial guides you through the process of creating a new election event, setting up specific elections, and adding contests and candidates within the Sequent Admin Portal.
 
