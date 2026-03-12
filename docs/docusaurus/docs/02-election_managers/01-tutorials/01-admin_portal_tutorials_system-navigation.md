@@ -1,14 +1,14 @@
-
 ---
 id: admin_portal_tutorials_system-navigation
 title: System Navigation
 ---
+
+import GoogleVideo from '@site/src/components/GoogleVideo';
+
 <!--
 -- SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 SPDX-License-Identifier: AGPL-3.0-only
 -->
-
-import GoogleVideo from '@site/src/components/GoogleVideo';
 
 # Basic Navigation
 
