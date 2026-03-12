@@ -3,15 +3,14 @@ id: admin_portal_tutorials_archive-elections
 title: Active/Archive Elections
 ---
 
+import GoogleVideo from '@site/src/components/GoogleVideo';
+
 <!--
 SPDX-FileCopyrightText: 2025 Sequent Tech <legal@sequentech.io>
 SPDX-License-Identifier: AGPL-3.0-only
 -->
 
-<video controls width="100%">
-  <source src="./assets/archive_elections.mp4" type="video/mp4" />
-  Your browser does not support the video tag.
-</video>
+<GoogleVideo id="1nC-EvQ7Xso6eAn5-PU67vKgl6zKTROC9" />
 
 The Sequent Admin Portal allows you to manage the visibility of your electoral events by categorizing them as either Active or Archived. This helps maintain a clean workspace by separating ongoing elections from historical data.
 
