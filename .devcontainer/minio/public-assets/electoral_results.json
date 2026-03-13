@@ -11,6 +11,8 @@
   "reports": [
     {
       "election_id": "1",
+      "election_event_id": "12",
+      "tenant_id": "123",
       "election_name": "TOKYO PE",
       "election_alias": "TOKYO",
       "election_description": "",
@@ -283,7 +285,9 @@
       "channel_type": "Online Voting"
     },
     {
-      "election_id": "1",
+      "election_id": "2",
+      "election_event_id": "21",
+      "tenant_id": "213",
       "election_name": "NEW YORK PCG",
       "election_alias": "NEW YORK",
       "election_description": "",

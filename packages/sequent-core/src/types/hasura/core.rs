@@ -10,8 +10,8 @@ use std::str::FromStr;
 
 use crate::{
     ballot::{
-        ContestEncryptionPolicy, DecodedBallotsInclusionPolicy,
-        DelegatedVotingPolicy,
+        ConsolidatedReportPolicy, ContestEncryptionPolicy,
+        DecodedBallotsInclusionPolicy, DelegatedVotingPolicy,
     },
     serialization::deserialize_with_path::deserialize_value,
     types::{
@@ -369,6 +369,7 @@ pub struct TallySessionConfiguration {
     pub contest_encryption_policy: Option<ContestEncryptionPolicy>,
     pub decoded_ballots_inclusion_policy: Option<DecodedBallotsInclusionPolicy>,
     pub delegated_voting_policy: Option<DelegatedVotingPolicy>,
+    pub consolidated_report_policy: Option<ConsolidatedReportPolicy>,
 }
 
 impl TallySessionConfiguration {
@@ -382,6 +383,9 @@ impl TallySessionConfiguration {
         self.decoded_ballots_inclusion_policy
             .clone()
             .unwrap_or_default()
+    }
+    pub fn get_consolidated_report_policy(&self) -> ConsolidatedReportPolicy {
+        self.consolidated_report_policy.clone().unwrap_or_default()
     }
 }
 
