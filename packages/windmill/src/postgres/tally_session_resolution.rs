@@ -4,8 +4,10 @@
 
 use anyhow::{anyhow, Result};
 use deadpool_postgres::Transaction;
-use sequent_core::types::ceremonies::{ResolutionStatus, ResolutionType, TallySessionResolution};
-use serde_json::Value;
+use sequent_core::types::ceremonies::{
+    IrvTieBreakResolution, IrvTieBreakResolutionData, ResolutionStatus, ResolutionType,
+    TallySessionResolution,
+};
 use tokio_postgres::Row;
 use tracing::{info, instrument};
 use uuid::Uuid;
@@ -25,8 +27,14 @@ fn map_row_to_resolution(row: &Row) -> Result<TallySessionResolution> {
         last_updated_at: row.get(8),
         resolution_type: serde_json::from_value(serde_json::Value::String(resolution_type_str))?,
         status: serde_json::from_value(serde_json::Value::String(status_str))?,
-        resolution_data: row.get(11),
-        resolution: row.get(12),
+        resolution_data: row
+            .get::<_, Option<serde_json::Value>>(11)
+            .map(serde_json::from_value)
+            .transpose()?,
+        resolution: row
+            .get::<_, Option<serde_json::Value>>(12)
+            .map(serde_json::from_value)
+            .transpose()?,
         resolved_by_user: row.get::<_, Option<Uuid>>(13).map(|u| u.to_string()),
         resolved_at: row.get(14),
         labels: row.get(15),
@@ -45,7 +53,7 @@ pub async fn create_tally_session_resolution(
     contest_id: &str,
     results_event_id: &str,
     resolution_type: ResolutionType,
-    resolution_data: Value,
+    resolution_data: IrvTieBreakResolutionData,
 ) -> Result<String> {
     let query = r#"
         INSERT INTO sequent_backend.tally_session_resolution
@@ -54,6 +62,7 @@ pub async fn create_tally_session_resolution(
         RETURNING id
     "#;
 
+    let resolution_data_value = serde_json::to_value(&resolution_data)?;
     let row = hasura_transaction
         .query_one(
             query,
@@ -65,7 +74,7 @@ pub async fn create_tally_session_resolution(
                 &Uuid::parse_str(contest_id)?,
                 &Uuid::parse_str(results_event_id)?,
                 &resolution_type.to_string(),
-                &resolution_data,
+                &resolution_data_value,
             ],
         )
         .await?;
@@ -168,7 +177,7 @@ pub async fn submit_resolution(
     tenant_id: &str,
     election_event_id: &str,
     resolution_id: &str,
-    resolution: Value,
+    resolution: IrvTieBreakResolution,
     resolved_by_user: &str,
 ) -> Result<()> {
     let query = r#"
@@ -183,11 +192,12 @@ pub async fn submit_resolution(
           AND status = 'pending'
     "#;
 
+    let resolution_value = serde_json::to_value(&resolution)?;
     let affected = hasura_transaction
         .execute(
             query,
             &[
-                &resolution,
+                &resolution_value,
                 &Uuid::parse_str(resolved_by_user)?,
                 &Uuid::parse_str(resolution_id)?,
                 &Uuid::parse_str(tenant_id)?,
@@ -214,7 +224,7 @@ pub async fn update_resolution(
     tenant_id: &str,
     election_event_id: &str,
     resolution_id: &str,
-    resolution: Value,
+    resolution: IrvTieBreakResolution,
     resolved_by_user: &str,
 ) -> Result<()> {
     let query = r#"
@@ -227,11 +237,12 @@ pub async fn update_resolution(
           AND election_event_id = $5
     "#;
 
+    let resolution_value = serde_json::to_value(&resolution)?;
     let affected = hasura_transaction
         .execute(
             query,
             &[
-                &resolution,
+                &resolution_value,
                 &Uuid::parse_str(resolved_by_user)?,
                 &Uuid::parse_str(resolution_id)?,
                 &Uuid::parse_str(tenant_id)?,

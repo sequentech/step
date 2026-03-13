@@ -60,7 +60,7 @@ pub async fn create_tally_session_resolutions_sqlite(
             r.last_updated_at.map(|dt| dt.to_rfc3339()),
             r.resolution_type.to_string(),
             r.status.to_string(),
-            to_string(&r.resolution_data)?,
+            r.resolution_data.as_ref().map(to_string).transpose()?,
             r.resolution.as_ref().map(to_string).transpose()?,
             r.resolved_by_user,
             r.resolved_at.map(|dt| dt.to_rfc3339()),

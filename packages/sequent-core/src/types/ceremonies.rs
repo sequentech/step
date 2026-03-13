@@ -230,6 +230,26 @@ pub struct TallyResolution {
     pub selected_candidate_id: String,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub enum TieBreakingMethod {
+    Random,
+    ExternalProcedure,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct IrvTieBreakResolutionData {
+    pub round_number: u64,
+    pub tied_candidate_ids: Vec<String>,
+    pub vote_counts: Vec<u64>,
+    pub method_used: TieBreakingMethod,
+    pub resolved_by_candidate_id: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct IrvTieBreakResolution {
+    pub resolved_by_candidate_id: String,
+}
+
 #[derive(
     Debug, Clone, Serialize, Deserialize, PartialEq, Display, EnumString,
 )]
@@ -264,8 +284,8 @@ pub struct TallySessionResolution {
     pub last_updated_at: Option<chrono::DateTime<chrono::Utc>>,
     pub resolution_type: ResolutionType,
     pub status: ResolutionStatus,
-    pub resolution_data: Value,
-    pub resolution: Option<Value>,
+    pub resolution_data: Option<IrvTieBreakResolutionData>,
+    pub resolution: Option<IrvTieBreakResolution>,
     pub resolved_by_user: Option<String>,
     pub resolved_at: Option<chrono::DateTime<chrono::Utc>>,
     pub labels: Option<Value>,

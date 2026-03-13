@@ -13,7 +13,9 @@ use rand::seq::SliceRandom;
 use rand::thread_rng;
 use sequent_core::ballot::{Candidate, Contest, TieBreakingPolicy, Weight};
 use sequent_core::plaintext::{DecodedVoteChoice, DecodedVoteContest};
-use sequent_core::types::ceremonies::{ScopeOperation, TallyOperation};
+use sequent_core::types::ceremonies::{
+    IrvTieBreakResolutionData, ScopeOperation, TallyOperation, TieBreakingMethod,
+};
 use serde::{Deserialize, Serialize};
 use serde_json;
 use std::cmp;
@@ -191,28 +193,11 @@ pub struct RunoffStatus {
     pub round_count: u64,
     pub rounds: Vec<Round>,
     pub max_rounds: u64,
-    pub tie_resolutions: Vec<TieBreakingState>, // Tracks all tie resolutions (random and external)
+    pub tie_resolutions: Vec<IrvTieBreakResolutionData>, // Tracks all tie resolutions (random and external)
     pub tie_breaking_policy: TieBreakingPolicy,
     #[serde(skip)]
     pub tie_resolutions_map: HashMap<u64, String>,
-    pub pending_tie_resolution: Option<TieBreakingState>, // Some = tally paused waiting for external input
-}
-
-/// Method used to break a tie
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-pub enum TieBreakingMethod {
-    Random,
-    ExternalProcedure,
-}
-
-/// State of a tie that requires external resolution
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct TieBreakingState {
-    pub round_number: u64,
-    pub tied_candidate_ids: Vec<String>,
-    pub vote_counts: Vec<u64>,
-    pub method_used: TieBreakingMethod,
-    pub resolved_by_candidate_id: Option<String>,
+    pub pending_tie_resolution: Option<IrvTieBreakResolutionData>, // Some = tally paused waiting for external input
 }
 
 /// Internal enum for round-by-round execution
@@ -379,7 +364,7 @@ impl RunoffStatus {
                         candidates_to_eliminate.len(),
                         resolved_candidate_id
                     );
-                    self.tie_resolutions.push(TieBreakingState {
+                    self.tie_resolutions.push(IrvTieBreakResolutionData {
                         round_number: self.round_count + 1,
                         tied_candidate_ids: candidates_to_eliminate.clone(),
                         vote_counts,
@@ -414,7 +399,7 @@ impl RunoffStatus {
                     winner_name,
                     winner_id
                 );
-                self.tie_resolutions.push(TieBreakingState {
+                self.tie_resolutions.push(IrvTieBreakResolutionData {
                     round_number: self.round_count + 1,
                     tied_candidate_ids: candidates_to_eliminate.clone(),
                     vote_counts,
@@ -682,7 +667,7 @@ impl RunoffStatus {
                         })
                         .collect();
 
-                    self.pending_tie_resolution = Some(TieBreakingState {
+                    self.pending_tie_resolution = Some(IrvTieBreakResolutionData {
                         round_number,
                         tied_candidate_ids: candidates_to_eliminate,
                         vote_counts,

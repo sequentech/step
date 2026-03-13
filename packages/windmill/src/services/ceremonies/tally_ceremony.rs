@@ -943,10 +943,9 @@ pub async fn submit_tally_resolution(
             ));
         }
 
-        let resolution_value = serde_json::json!({
-            "resolved_by_candidate_id": tie_resolution.selected_candidate_id,
-            "resolved_at": chrono::Utc::now().to_rfc3339(),
-        });
+        let resolution_value = IrvTieBreakResolution {
+            resolved_by_candidate_id: tie_resolution.selected_candidate_id.clone(),
+        };
 
         let resolution_id = latest_resolution.id.clone();
         let resubmission = is_resubmission(latest_resolution);
@@ -1061,10 +1060,10 @@ pub fn extract_tied_candidate_ids(
     resolution: &TallySessionResolution,
     contest_id: &str,
 ) -> Result<Vec<String>, (Status, String)> {
-    let tied_candidates = resolution
+    resolution
         .resolution_data
-        .get("tied_candidate_ids")
-        .and_then(|v| v.as_array())
+        .as_ref()
+        .map(|d| d.tied_candidate_ids.clone())
         .ok_or_else(|| {
             (
                 Status::BadRequest,
@@ -1073,12 +1072,7 @@ pub fn extract_tied_candidate_ids(
                     contest_id
                 ),
             )
-        })?;
-
-    Ok(tied_candidates
-        .iter()
-        .filter_map(|v| v.as_str().map(String::from))
-        .collect())
+        })
 }
 
 /// Returns `true` when the resolution already has a decision recorded (i.e. this is
@@ -1093,7 +1087,8 @@ mod tally_resolution_tests {
     use rocket::http::Status;
     use sequent_core::types::ceremonies::TallyExecutionStatus;
     use sequent_core::types::ceremonies::{
-        ResolutionStatus, ResolutionType, TallySessionResolution,
+        IrvTieBreakResolutionData, ResolutionStatus, ResolutionType, TallySessionResolution,
+        TieBreakingMethod,
     };
 
     fn make_resolution(
@@ -1113,9 +1108,12 @@ mod tally_resolution_tests {
             last_updated_at: None,
             resolution_type: ResolutionType::IrvTieBreak,
             status,
-            resolution_data: serde_json::json!({
-                "tied_candidate_ids": tied_ids,
-                "round_number": 2
+            resolution_data: Some(IrvTieBreakResolutionData {
+                round_number: 2,
+                tied_candidate_ids: tied_ids.iter().map(|s| s.to_string()).collect(),
+                vote_counts: vec![],
+                method_used: TieBreakingMethod::ExternalProcedure,
+                resolved_by_candidate_id: None,
             }),
             resolution: None,
             resolved_by_user: None,

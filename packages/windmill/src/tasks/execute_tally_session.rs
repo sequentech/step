@@ -81,7 +81,10 @@ use sequent_core::types::ceremonies::TallyExecutionStatus;
 use sequent_core::types::ceremonies::TallyTrusteeStatus;
 use sequent_core::types::ceremonies::TallyType;
 use sequent_core::types::ceremonies::{CeremoniesPolicy, TallyCeremonyStatus};
-use sequent_core::types::ceremonies::{ResolutionStatus, ResolutionType, TallySessionResolution};
+use sequent_core::types::ceremonies::{
+    IrvTieBreakResolutionData, ResolutionStatus, ResolutionType, TallySessionResolution,
+    TieBreakingMethod,
+};
 use sequent_core::types::hasura::core::Area;
 use sequent_core::types::hasura::core::BallotStyle as BallotStyleHasura;
 use sequent_core::types::hasura::core::ElectionEvent;
@@ -105,8 +108,8 @@ use tracing::{event, info, instrument, warn, Level};
 use uuid::Uuid;
 
 struct TieResolutionMetadata {
-    // Vec of (results_contest_id, contest_id, tie_metadata)
-    pending: Vec<(String, String, serde_json::Value)>,
+    // Vec of (results_contest_id, contest_id, resolution_data)
+    pending: Vec<(String, String, IrvTieBreakResolutionData)>,
 }
 
 /// Groups resolved IRV tie-break rows into a per-contest map keyed by the
@@ -125,23 +128,15 @@ pub(crate) fn build_tie_resolutions_map(
         let Some(actual_contest_id) = r.contest_id.as_deref() else {
             continue;
         };
-        let Some(candidate_id) = r
-            .resolution
-            .as_ref()
-            .and_then(|v| v.get("resolved_by_candidate_id"))
-        else {
+        let Some(resolution) = r.resolution.as_ref() else {
             continue;
         };
-        let round_number = r
-            .resolution_data
-            .get("round_number")
-            .and_then(|v| v.as_u64())
-            .unwrap_or(0);
+        let round_number = r.resolution_data.as_ref().map(|d| d.round_number).unwrap_or(0);
         map.entry(actual_contest_id.to_string())
             .or_default()
             .push(serde_json::json!({
                 "round_number": round_number,
-                "resolved_by_candidate_id": candidate_id,
+                "resolved_by_candidate_id": resolution.resolved_by_candidate_id,
             }));
     }
     map
@@ -169,13 +164,13 @@ pub(crate) fn parse_pending_tie_from_annotations(
 pub(crate) fn pending_resolution_exists(
     existing: &[TallySessionResolution],
     contest_id: &str,
-    tie_metadata: &serde_json::Value,
+    tie_metadata: &IrvTieBreakResolutionData,
 ) -> bool {
-    let tie_round = tie_metadata.get("round_number");
     existing.iter().any(|r| {
         r.contest_id.as_deref() == Some(contest_id)
             && r.resolution_type == ResolutionType::IrvTieBreak
-            && r.resolution_data.get("round_number") == tie_round
+            && r.resolution_data.as_ref().map(|d| d.round_number)
+                == Some(tie_metadata.round_number)
     })
 }
 
@@ -220,7 +215,9 @@ async fn check_for_tie_resolutions(
         let annotations: serde_json::Value = row.get(2);
 
         if let Some(tie_metadata) = parse_pending_tie_from_annotations(&annotations) {
-            pending.push((results_contest_id_str, contest_id_str, tie_metadata));
+            let resolution_data: IrvTieBreakResolutionData =
+                serde_json::from_value(tie_metadata)?;
+            pending.push((results_contest_id_str, contest_id_str, resolution_data));
         }
     }
 
@@ -1809,7 +1806,8 @@ mod tests {
         build_tie_resolutions_map, parse_pending_tie_from_annotations, pending_resolution_exists,
     };
     use sequent_core::types::ceremonies::{
-        ResolutionStatus, ResolutionType, TallySessionResolution,
+        IrvTieBreakResolution, IrvTieBreakResolutionData, ResolutionStatus, ResolutionType,
+        TallySessionResolution, TieBreakingMethod,
     };
 
     fn make_resolution(
@@ -1830,8 +1828,16 @@ mod tests {
             last_updated_at: None,
             resolution_type,
             status: ResolutionStatus::Resolved,
-            resolution_data: serde_json::json!({"round_number": round_number}),
-            resolution: Some(serde_json::json!({"resolved_by_candidate_id": candidate_id})),
+            resolution_data: Some(IrvTieBreakResolutionData {
+                round_number,
+                tied_candidate_ids: vec![],
+                vote_counts: vec![],
+                method_used: TieBreakingMethod::ExternalProcedure,
+                resolved_by_candidate_id: None,
+            }),
+            resolution: Some(IrvTieBreakResolution {
+                resolved_by_candidate_id: candidate_id.to_string(),
+            }),
             resolved_by_user: None,
             resolved_at: None,
             labels: None,
@@ -1907,39 +1913,6 @@ mod tests {
     fn test_build_tie_resolutions_map_empty_input() {
         let map = build_tie_resolutions_map(&[]);
         assert!(map.is_empty());
-    }
-
-    /// When resolution_data carries no "round_number" key the entry must be
-    /// stored with round_number = 0 rather than being discarded.
-    #[test]
-    fn test_build_tie_resolutions_map_defaults_round_to_zero_when_missing() {
-        let mut row = make_resolution("contest-1", 99, "candidate-a", ResolutionType::IrvTieBreak);
-        // Overwrite resolution_data with an object that lacks round_number
-        row.resolution_data = serde_json::json!({"other_field": "value"});
-
-        let map = build_tie_resolutions_map(&[row]);
-        let entries = map.get("contest-1").unwrap();
-        assert_eq!(entries.len(), 1);
-        assert_eq!(
-            entries[0].get("round_number").and_then(|v| v.as_u64()),
-            Some(0),
-            "Missing round_number must default to 0"
-        );
-    }
-
-    /// A resolved row whose resolution object does not contain
-    /// "resolved_by_candidate_id" must be silently skipped.
-    #[test]
-    fn test_build_tie_resolutions_map_skips_row_missing_candidate_id() {
-        let mut row = make_resolution("contest-1", 1, "candidate-a", ResolutionType::IrvTieBreak);
-        // resolution exists but contains no resolved_by_candidate_id key
-        row.resolution = Some(serde_json::json!({"some_other_key": "value"}));
-
-        let map = build_tie_resolutions_map(&[row]);
-        assert!(
-            map.is_empty(),
-            "Row missing resolved_by_candidate_id must be excluded"
-        );
     }
 
     // -------------------------------------------------------------------------
@@ -2025,7 +1998,13 @@ mod tests {
             last_updated_at: None,
             resolution_type: ResolutionType::IrvTieBreak,
             status: ResolutionStatus::Pending,
-            resolution_data: serde_json::json!({"round_number": round_number}),
+            resolution_data: Some(IrvTieBreakResolutionData {
+                round_number,
+                tied_candidate_ids: vec![],
+                vote_counts: vec![],
+                method_used: TieBreakingMethod::ExternalProcedure,
+                resolved_by_candidate_id: None,
+            }),
             resolution: None,
             resolved_by_user: None,
             resolved_at: None,
@@ -2034,10 +2013,20 @@ mod tests {
         }
     }
 
+    fn make_irv_metadata(round_number: u64) -> IrvTieBreakResolutionData {
+        IrvTieBreakResolutionData {
+            round_number,
+            tied_candidate_ids: vec![],
+            vote_counts: vec![],
+            method_used: TieBreakingMethod::ExternalProcedure,
+            resolved_by_candidate_id: None,
+        }
+    }
+
     /// Empty list must never report an existing resolution (default SkipCandidateResults path).
     #[test]
     fn test_pending_resolution_exists_false_when_list_empty() {
-        let tie_metadata = serde_json::json!({"round_number": 2});
+        let tie_metadata = make_irv_metadata(2);
         assert!(!pending_resolution_exists(&[], "contest-x", &tie_metadata));
     }
 
@@ -2045,7 +2034,7 @@ mod tests {
     #[test]
     fn test_pending_resolution_exists_true_for_same_contest_and_round() {
         let existing = vec![make_pending_resolution("contest-x", 2)];
-        let tie_metadata = serde_json::json!({"round_number": 2});
+        let tie_metadata = make_irv_metadata(2);
         assert!(pending_resolution_exists(
             &existing,
             "contest-x",
@@ -2058,7 +2047,7 @@ mod tests {
     #[test]
     fn test_pending_resolution_exists_false_for_same_contest_different_round() {
         let existing = vec![make_pending_resolution("contest-x", 2)];
-        let tie_metadata = serde_json::json!({"round_number": 3});
+        let tie_metadata = make_irv_metadata(3);
         assert!(!pending_resolution_exists(
             &existing,
             "contest-x",
@@ -2070,7 +2059,7 @@ mod tests {
     #[test]
     fn test_pending_resolution_exists_false_for_different_contest() {
         let existing = vec![make_pending_resolution("contest-x", 2)];
-        let tie_metadata = serde_json::json!({"round_number": 2});
+        let tie_metadata = make_irv_metadata(2);
         assert!(!pending_resolution_exists(
             &existing,
             "contest-y",
@@ -2084,7 +2073,7 @@ mod tests {
     fn test_pending_resolution_exists_ignores_non_irv_type() {
         let mut r = make_pending_resolution("contest-x", 2);
         r.resolution_type = ResolutionType::ManualRecount;
-        let tie_metadata = serde_json::json!({"round_number": 2});
+        let tie_metadata = make_irv_metadata(2);
         assert!(!pending_resolution_exists(&[r], "contest-x", &tie_metadata));
     }
 
@@ -2098,15 +2087,12 @@ mod tests {
         let existing = vec![round2, round3];
 
         // Querying for round 2 finds it.
-        let meta_r2 = serde_json::json!({"round_number": 2});
-        assert!(pending_resolution_exists(&existing, "contest-x", &meta_r2));
+        assert!(pending_resolution_exists(&existing, "contest-x", &make_irv_metadata(2)));
 
         // Querying for round 3 finds it.
-        let meta_r3 = serde_json::json!({"round_number": 3});
-        assert!(pending_resolution_exists(&existing, "contest-x", &meta_r3));
+        assert!(pending_resolution_exists(&existing, "contest-x", &make_irv_metadata(3)));
 
         // Round 4 has no record yet.
-        let meta_r4 = serde_json::json!({"round_number": 4});
-        assert!(!pending_resolution_exists(&existing, "contest-x", &meta_r4));
+        assert!(!pending_resolution_exists(&existing, "contest-x", &make_irv_metadata(4)));
     }
 }
