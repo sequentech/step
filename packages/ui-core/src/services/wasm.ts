@@ -9,6 +9,7 @@ import SequentCoreLibInit, {
     get_candidate_points_js,
     get_layout_properties_from_contest_js,
     set_hooks,
+    get_default_consolidated_report_policy_js,
 } from "sequent-core"
 import {
     sort_elections_list_js,
@@ -49,6 +50,7 @@ import {
     IHashableMultiBallot,
     ISignedContent,
     ICountingAlgorithm,
+    EConsolidatedReportPolicy,
 } from ".."
 
 export type {
@@ -411,5 +413,14 @@ export const generateSampleAuditableBallot = (): IAuditableSingleBallot | null =
     } catch (error) {
         console.log(error)
         return null
+    }
+}
+
+export const getDefaultConsolidatedReportPolicy = (): EConsolidatedReportPolicy => {
+    try {
+        return get_default_consolidated_report_policy_js() as EConsolidatedReportPolicy
+    } catch (error) {
+        console.log(error)
+        throw error
     }
 }

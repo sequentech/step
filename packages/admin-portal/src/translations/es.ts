@@ -641,6 +641,13 @@ const spanishTranslation: TranslationType = {
                     "election-event": "Evento Electoral",
                 },
             },
+            consolidatedReportPolicy: {
+                label: "Política de informe consolidado",
+                options: {
+                    "generate": "Generar",
+                    "do-not-generate": "No generar",
+                },
+            },
         },
         tenantScreen: {
             common: {
@@ -1692,6 +1699,8 @@ const spanishTranslation: TranslationType = {
                 totalVoters: "Total de Votantes",
                 nonVoters: "No Votantes",
             },
+            exportAllAreas:
+                "Exportar los resultados de todas las áreas en formato {{format}} para '{{item}}'",
         },
         publish: {
             preview: {
