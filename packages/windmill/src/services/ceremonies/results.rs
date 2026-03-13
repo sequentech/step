@@ -74,31 +74,33 @@ pub async fn save_results(
         });
 
         for contest in &election.reports {
-            let total_votes_percent: f64 = contest.contest_result.percentage_total_votes / 100.0;
-            let auditable_votes_percent: f64 =
-                contest.contest_result.percentage_auditable_votes / 100.0;
-            let total_valid_votes_percent: f64 =
-                contest.contest_result.percentage_total_valid_votes / 100.0;
-            let total_invalid_votes_percent: f64 =
-                contest.contest_result.percentage_total_invalid_votes / 100.0;
-            let explicit_invalid_votes_percent: f64 =
-                contest.contest_result.percentage_invalid_votes_explicit / 100.0;
-            let implicit_invalid_votes_percent: f64 =
-                contest.contest_result.percentage_invalid_votes_implicit / 100.0;
-            let total_blank_votes_percent: f64 =
-                contest.contest_result.percentage_total_blank_votes / 100.0;
+            if contest.contest_result.is_none() || contest.contest.is_none() {
+                continue;
+            }
+            let contest_result = contest.contest_result.clone().unwrap();
+            let current_contest = contest.contest.clone().unwrap();
 
-            let contest_result_ext_metrics = contest
-                .contest_result
-                .extended_metrics
-                .clone()
-                .unwrap_or_default();
+            let total_votes_percent: f64 = contest_result.percentage_total_votes / 100.0;
+            let auditable_votes_percent: f64 = contest_result.percentage_auditable_votes / 100.0;
+            let total_valid_votes_percent: f64 =
+                contest_result.percentage_total_valid_votes / 100.0;
+            let total_invalid_votes_percent: f64 =
+                contest_result.percentage_total_invalid_votes / 100.0;
+            let explicit_invalid_votes_percent: f64 =
+                contest_result.percentage_invalid_votes_explicit / 100.0;
+            let implicit_invalid_votes_percent: f64 =
+                contest_result.percentage_invalid_votes_implicit / 100.0;
+            let total_blank_votes_percent: f64 =
+                contest_result.percentage_total_blank_votes / 100.0;
+
+            let contest_result_ext_metrics =
+                contest_result.extended_metrics.clone().unwrap_or_default();
             let extended_metrics_value = serde_json::to_value(contest_result_ext_metrics.clone())
                 .expect("Failed to convert to JSON");
             let votes_base: f64 = cmp::max(contest_result_ext_metrics.total_weight, 1) as f64;
             let mut annotations = json!({});
             annotations[EXTENDED_METRICS] = extended_metrics_value;
-            if let Some(process_results) = contest.contest_result.process_results.clone() {
+            if let Some(process_results) = contest_result.process_results.clone() {
                 annotations[PROCESS_RESULTS] = process_results;
             }
 
@@ -108,37 +110,33 @@ pub async fn save_results(
                     tenant_id: tenant_id.into(),
                     election_event_id: election_event_id.into(),
                     election_id: election.election_id.clone(),
-                    contest_id: contest.contest.id.clone(),
+                    contest_id: current_contest.id.clone(),
                     area_id: area.id.clone(),
                     results_event_id: results_event_id.into(),
-                    elegible_census: Some(contest.contest_result.census as i64),
-                    total_votes: Some(contest.contest_result.total_votes as i64),
+                    elegible_census: Some(contest_result.census as i64),
+                    total_votes: Some(contest_result.total_votes as i64),
                     total_votes_percent: Some(total_votes_percent.clamp(0.0, 1.0).try_into()?),
-                    total_auditable_votes: Some(contest.contest_result.auditable_votes as i64),
+                    total_auditable_votes: Some(contest_result.auditable_votes as i64),
                     total_auditable_votes_percent: Some(
                         auditable_votes_percent.clamp(0.0, 1.0).try_into()?,
                     ),
-                    total_valid_votes: Some(contest.contest_result.total_valid_votes as i64),
+                    total_valid_votes: Some(contest_result.total_valid_votes as i64),
                     total_valid_votes_percent: Some(
                         total_valid_votes_percent.clamp(0.0, 1.0).try_into()?,
                     ),
-                    total_invalid_votes: Some(contest.contest_result.total_invalid_votes as i64),
+                    total_invalid_votes: Some(contest_result.total_invalid_votes as i64),
                     total_invalid_votes_percent: Some(
                         total_invalid_votes_percent.clamp(0.0, 1.0).try_into()?,
                     ),
-                    explicit_invalid_votes: Some(
-                        contest.contest_result.invalid_votes.explicit as i64,
-                    ),
+                    explicit_invalid_votes: Some(contest_result.invalid_votes.explicit as i64),
                     explicit_invalid_votes_percent: Some(
                         explicit_invalid_votes_percent.clamp(0.0, 1.0).try_into()?,
                     ),
-                    implicit_invalid_votes: Some(
-                        contest.contest_result.invalid_votes.implicit as i64,
-                    ),
+                    implicit_invalid_votes: Some(contest_result.invalid_votes.implicit as i64),
                     implicit_invalid_votes_percent: Some(
                         implicit_invalid_votes_percent.clamp(0.0, 1.0).try_into()?,
                     ),
-                    blank_votes: Some(contest.contest_result.total_blank_votes as i64),
+                    blank_votes: Some(contest_result.total_blank_votes as i64),
                     blank_votes_percent: Some(
                         total_blank_votes_percent.clamp(0.0, 1.0).try_into()?,
                     ),
@@ -156,7 +154,7 @@ pub async fn save_results(
                         tenant_id: tenant_id.into(),
                         election_event_id: election_event_id.into(),
                         election_id: election.election_id.clone(),
-                        contest_id: contest.contest.id.clone(),
+                        contest_id: current_contest.id.clone(),
                         candidate_id: candidate.candidate.id.clone(),
                         results_event_id: results_event_id.into(),
                         area_id: area.id.clone(),
@@ -177,28 +175,23 @@ pub async fn save_results(
                     tenant_id: tenant_id.into(),
                     election_event_id: election_event_id.into(),
                     election_id: election.election_id.clone(),
-                    contest_id: contest.contest.id.clone(),
+                    contest_id: current_contest.id.clone(),
                     results_event_id: results_event_id.into(),
-                    elegible_census: Some(contest.contest_result.census as i64),
-                    total_valid_votes: Some(contest.contest_result.total_valid_votes as i64),
-                    explicit_invalid_votes: Some(
-                        contest.contest_result.invalid_votes.explicit as i64,
-                    ),
-                    implicit_invalid_votes: Some(
-                        contest.contest_result.invalid_votes.implicit as i64,
-                    ),
-                    blank_votes: Some(contest.contest_result.total_blank_votes as i64),
-                    voting_type: contest.contest.voting_type.clone(),
-                    counting_algorithm: contest
-                        .contest
+                    elegible_census: Some(contest_result.census as i64),
+                    total_valid_votes: Some(contest_result.total_valid_votes as i64),
+                    explicit_invalid_votes: Some(contest_result.invalid_votes.explicit as i64),
+                    implicit_invalid_votes: Some(contest_result.invalid_votes.implicit as i64),
+                    blank_votes: Some(contest_result.total_blank_votes as i64),
+                    voting_type: current_contest.voting_type.clone(),
+                    counting_algorithm: current_contest
                         .counting_algorithm
                         .map(|val| val.to_string()),
-                    name: contest.contest.name.clone(),
+                    name: current_contest.name.clone(),
                     created_at: None,
                     last_updated_at: None,
                     labels: None,
                     annotations: Some(annotations),
-                    total_invalid_votes: Some(contest.contest_result.total_invalid_votes as i64),
+                    total_invalid_votes: Some(contest_result.total_invalid_votes as i64),
                     total_invalid_votes_percent: Some(
                         total_invalid_votes_percent.clamp(0.0, 1.0).try_into()?,
                     ),
@@ -214,10 +207,10 @@ pub async fn save_results(
                     blank_votes_percent: Some(
                         total_blank_votes_percent.clamp(0.0, 1.0).try_into()?,
                     ),
-                    total_votes: Some(contest.contest_result.total_votes as i64),
+                    total_votes: Some(contest_result.total_votes as i64),
                     total_votes_percent: Some(total_votes_percent.clamp(0.0, 1.0).try_into()?),
                     documents: None,
-                    total_auditable_votes: Some(contest.contest_result.auditable_votes as i64),
+                    total_auditable_votes: Some(contest_result.auditable_votes as i64),
                     total_auditable_votes_percent: Some(
                         auditable_votes_percent.clamp(0.0, 1.0).try_into()?,
                     ),
@@ -230,7 +223,7 @@ pub async fn save_results(
                         tenant_id: tenant_id.into(),
                         election_event_id: election_event_id.into(),
                         election_id: election.election_id.clone(),
-                        contest_id: contest.contest.id.clone(),
+                        contest_id: current_contest.id.clone(),
                         candidate_id: candidate.candidate.id.clone(),
                         results_event_id: results_event_id.into(),
                         cast_votes: Some(candidate.total_count as i64),

@@ -642,6 +642,13 @@ const frenchTranslation: TranslationType = {
                     "election-event": "Titre de l'événement électoral",
                 },
             },
+            consolidatedReportPolicy: {
+                label: "Politique de rapport consolidé",
+                options: {
+                    "generate": "Générer",
+                    "do-not-generate": "Ne pas générer",
+                },
+            },
         },
         tenantScreen: {
             common: {
@@ -1738,6 +1745,8 @@ const frenchTranslation: TranslationType = {
                 totalVoters: "Total des Électeurs",
                 nonVoters: "Non-Électeurs",
             },
+            exportAllAreas:
+                "Exporter les résultats de toutes les zones au format {{format}} pour '{{item}}'",
         },
         publish: {
             preview: {
