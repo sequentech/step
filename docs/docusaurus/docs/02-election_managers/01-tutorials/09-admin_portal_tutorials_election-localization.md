@@ -8,10 +8,10 @@ SPDX-FileCopyrightText: 2025 Sequent Tech <legal@sequentech.io>
 SPDX-License-Identifier: AGPL-3.0-only
 -->
 
-<video controls width="100%">
-  <source src="./assets/localization.mp4" type="video/mp4" />
-  Your browser does not support the video tag.
-</video>
+import GoogleVideo from '@site/src/components/GoogleVideo';
+
+<GoogleVideo id="1v0kyahg1n7SqxOx24lwjj4zIRGO-0YGt" />
+
 
 The Sequent platform allows administrators to overwrite or customize any text appearing in the Admin Portal or the Voter Portal. This is achieved through the **Localization** feature, which maps specific system "keys" to custom display values in different languages.
 
