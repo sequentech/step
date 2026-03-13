@@ -8,10 +8,9 @@ SPDX-FileCopyrightText: 2025 Sequent Tech <legal@sequentech.io>
 SPDX-License-Identifier: AGPL-3.0-only
 -->
 
-<video controls width="100%">
-  <source src="./assets/create_areas.mp4" type="video/mp4" />
-  Your browser does not support the video tag.
-</video>
+import GoogleVideo from '@site/src/components/GoogleVideo';
+
+<GoogleVideo id="1mt0vOfcXRwW0cviJMwzawJWe6hC9Mf0L" />
 
 Areas allow you to organize an election into specific geographic or logical divisions, such as wards or districts. This structure enables you to assign specific contests to relevant groups of voters.
 
