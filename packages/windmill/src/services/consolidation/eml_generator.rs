@@ -820,18 +820,22 @@ pub fn render_eml_contest(
     report: &ReportData,
     area_annotations: &MiruAreaAnnotations,
 ) -> Result<EMLContest> {
+    let contest = report.contest.as_ref().expect("report is missing contest");
+    let contest_result = report
+        .contest_result
+        .as_ref()
+        .expect("report is missing contest_result");
+
     // Extract contest annotations
-    let contest_annotations = report
-        .contest
+    let contest_annotations = contest
         .get_annotations()
         .with_context(|| "render_eml_contest: ")?;
 
     let registered_voters = area_annotations.registered_voters;
 
-    let count_metrics = report.contest_result.get_metrics(registered_voters);
+    let count_metrics = contest_result.get_metrics(registered_voters);
 
-    let selections: Vec<EMLSelection> = report
-        .contest_result
+    let selections: Vec<EMLSelection> = contest_result
         .candidate_result
         .iter()
         .map(|candidate_result| -> Result<EMLSelection> {
