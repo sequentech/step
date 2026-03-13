@@ -15,6 +15,7 @@ use crate::types::ceremonies::{
 };
 use crate::types::hasura::core::{self, Area, ElectionEvent};
 use ::core::convert::TryInto;
+use anyhow::anyhow;
 use borsh::{BorshDeserialize, BorshSerialize};
 use chrono::DateTime;
 use chrono::Utc;
@@ -1234,6 +1235,7 @@ pub struct ElectionPresentation {
     pub tally: Option<Tally>,
     pub initialization_report_policy: Option<EInitializeReportPolicy>,
     pub security_confirmation_policy: Option<ESecurityConfirmationPolicy>,
+    pub consolidated_report_policy: Option<ConsolidatedReportPolicy>,
 }
 
 impl core::Election {
@@ -1269,6 +1271,9 @@ impl Default for ElectionPresentation {
             grace_period_secs: None,
             initialization_report_policy: None,
             security_confirmation_policy: None,
+            consolidated_report_policy: Some(
+                ConsolidatedReportPolicy::default(),
+            ),
         }
     }
 }
@@ -2355,12 +2360,15 @@ impl Area {
     pub fn read_annotations(
         &self,
     ) -> Result<Option<AreaAnnotations>, Error<serde_json::Error>> {
-        let area_annotations: Option<AreaAnnotations> =
-            self.annotations.clone().map(|annotations_value| {
-                deserialize_value(annotations_value)
-                    .unwrap_or_else(|_| AreaAnnotations::default())
-            });
-        Ok(area_annotations)
+        self.annotations
+            .as_ref()
+            .map(|v| {
+                deserialize_value::<AreaAnnotations>(v.clone()).map_err(|e| {
+                    anyhow!("failed to deserialize AreaAnnotations: error={e} raw={v}");
+                    e
+                })
+            })
+            .transpose()
     }
 }
 
@@ -2406,4 +2414,28 @@ pub enum DelegatedVotingPolicy {
     DISABLED,
     #[serde(rename = "enabled")]
     ENABLED,
+}
+
+#[derive(
+    BorshSerialize,
+    BorshDeserialize,
+    Display,
+    Serialize,
+    Deserialize,
+    Debug,
+    PartialEq,
+    Eq,
+    Clone,
+    EnumString,
+    Default,
+    JsonSchema,
+)]
+pub enum ConsolidatedReportPolicy {
+    #[default]
+    #[strum(serialize = "do-not-generate")]
+    #[serde(rename = "do-not-generate")]
+    DO_NOT_GENERATE,
+    #[strum(serialize = "generate")]
+    #[serde(rename = "generate")]
+    GENERATE,
 }

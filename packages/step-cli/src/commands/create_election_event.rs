@@ -7,7 +7,9 @@ use crate::utils::read_config::read_config;
 use clap::Args;
 use colored::Colorize;
 use graphql_client::{GraphQLQuery, Response};
+use sequent_core::ballot::ElectionEventPresentation;
 use serde_json::Value;
+use std::collections::HashMap;
 
 #[derive(Args, Debug)]
 #[command(about = "Create a new election event", long_about = None)]
@@ -71,6 +73,13 @@ fn create_election_event(
     let config = read_config()?;
     let client = reqwest::blocking::Client::new();
 
+    let mut presentation = ElectionEventPresentation::default();
+
+    presentation.i18n = Some(HashMap::from([(
+        "en".to_string(),
+        HashMap::from([("name".to_string(), Some(name.to_string()))]),
+    )]));
+
     let variables = create_election_event::Variables {
         election_event: create_election_event::CreateElectionEventInput {
             tenant_id: config.tenant_id.clone(),
@@ -78,9 +87,8 @@ fn create_election_event(
             description: Some(description.to_string()),
             encryption_protocol: Some(encryption_protocol.to_string()),
             is_archived: Some(is_archived),
-
             id: None,
-            presentation: None,
+            presentation: Some(serde_json::to_value(&presentation)?),
             created_at: None,
             updated_at: None,
             labels: None,

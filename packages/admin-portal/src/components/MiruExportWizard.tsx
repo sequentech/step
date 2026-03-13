@@ -55,12 +55,13 @@ import {useAtomValue} from "jotai"
 import {tallyQueryData} from "@/atoms/tally-candidates"
 import {CREATE_TRANSMISSION_PACKAGE} from "@/queries/CreateTransmissionPackage"
 import {GET_UPLOAD_URL} from "@/queries/GetUploadUrl"
-import {translateElection} from "@sequentech/ui-core"
+import {translateFromPresentation} from "@sequentech/ui-core"
 import {ETasksExecution} from "@/types/tasksExecution"
 import {useWidgetStore} from "@/providers/WidgetsContextProvider"
 import {WidgetProps} from "@/components/Widget"
 import {CancelButton} from "@/resources/Tally/styles"
 import ArrowBackIosIcon from "@mui/icons-material/ArrowBackIos"
+import {useAliasRenderer} from "@/hooks/useAliasRenderer"
 
 interface IMiruExportWizardProps {}
 
@@ -86,6 +87,7 @@ export const MiruExportWizard: React.FC<IMiruExportWizardProps> = () => {
     const [passwordState, setPasswordState] = useState<string>("")
     const [signatureId, setSignatureId] = useState<string>("")
     const authContext = useContext(AuthContext)
+    const aliasRenderer = useAliasRenderer()
     const [addWidget, setWidgetTaskId, updateWidgetFail] = useWidgetStore()
 
     const {data: areaData} = useGetOne<Sequent_Backend_Area>(
@@ -556,13 +558,7 @@ export const MiruExportWizard: React.FC<IMiruExportWizardProps> = () => {
         [tallySessionData, tally]
     )
 
-    const eventName =
-        (election &&
-            (translateElection(election, "alias", i18n.language) ||
-                translateElection(election, "name", i18n.language))) ||
-        election?.alias ||
-        election?.name ||
-        "-"
+    const eventName = aliasRenderer(election)
 
     const canDownloadMiru = authContext.hasRole(IPermissions.MIRU_DOWNLOAD)
     const canSendMiru = authContext.hasRole(IPermissions.MIRU_SEND)

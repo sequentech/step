@@ -44,7 +44,7 @@ type Mutation {
 type Mutation {
     create_election(
         election_event_id: String!
-        name: String!
+        external_id: String!
         presentation: jsonb
         description: String
     ): CreateElectionOutput
@@ -1493,7 +1493,7 @@ type CastVotesByIp {
     ip: String
     country: String
     vote_count: Int
-    election_name: String
+    election_presentation: jsonb
     election_id: String
     voters_id: [String]
 }

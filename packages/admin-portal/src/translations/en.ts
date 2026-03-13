@@ -584,6 +584,7 @@ const englishTranslation = {
                 alias: "Alias",
                 description: "Description",
                 securityConfirmationHtml: "Security Confirmation Html",
+                externalId: "External ID",
             },
             securityConfirmationPolicy: {
                 label: "Security Confirmation Checkbox Policy",
@@ -636,6 +637,13 @@ const englishTranslation = {
                 options: {
                     "election": "Election title",
                     "election-event": "Election event title",
+                },
+            },
+            consolidatedReportPolicy: {
+                label: "Consolidated Report Policy",
+                options: {
+                    "generate": "Generate",
+                    "do-not-generate": "Do Not Generate",
                 },
             },
         },
@@ -1677,6 +1685,7 @@ const englishTranslation = {
                 totalVoters: "Total Voters",
                 nonVoters: "Non Voters",
             },
+            exportAllAreas: "Export All Areas Results in {{format}} format for '{{item}}'",
         },
         publish: {
             preview: {

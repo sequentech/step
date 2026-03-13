@@ -585,6 +585,7 @@ const galegoTranslation: TranslationType = {
                 alias: "Alias",
                 description: "Descrición",
                 securityConfirmationHtml: "Confirmación de seguridade HTML",
+                externalId: "ID externo",
             },
             securityConfirmationPolicy: {
                 label: "Política da caixa de confirmación de seguridade",
@@ -637,6 +638,13 @@ const galegoTranslation: TranslationType = {
                 options: {
                     "election": "Título da elección",
                     "election-event": "Título do evento electoral",
+                },
+            },
+            consolidatedReportPolicy: {
+                label: "Política de informe consolidado",
+                options: {
+                    "generate": "Xerar",
+                    "do-not-generate": "Non xerar",
                 },
             },
         },
@@ -1691,6 +1699,8 @@ const galegoTranslation: TranslationType = {
                 totalVoters: "Total de Votantes",
                 nonVoters: "Non Votantes",
             },
+            exportAllAreas:
+                "Exportar os resultados de todas as áreas en formato {{format}} para '{{item}}'",
         },
         publish: {
             preview: {
