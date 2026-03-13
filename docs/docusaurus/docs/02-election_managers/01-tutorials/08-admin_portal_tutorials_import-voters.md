@@ -8,10 +8,9 @@ SPDX-FileCopyrightText: 2025 Sequent Tech <legal@sequentech.io>
 SPDX-License-Identifier: AGPL-3.0-only
 -->
 
-<video controls width="100%">
-  <source src="./assets/import_voters.mp4" type="video/mp4" />
-  Your browser does not support the video tag.
-</video>
+import GoogleVideo from '@site/src/components/GoogleVideo';
+
+<GoogleVideo id="1jyp8LNfbWkeAs6iocX7gca5jpkOJZOhU" />
 
 The Sequent Admin Portal allows for the bulk import of voter data using CSV files, enabling administrators to register large numbers of participants efficiently.
 
