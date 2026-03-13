@@ -8,10 +8,9 @@ SPDX-FileCopyrightText: 2025 Sequent Tech <legal@sequentech.io>
 SPDX-License-Identifier: AGPL-3.0-only
 -->
 
-<video controls width="100%">
-  <source src="./assets/add_voters.mp4" type="video/mp4" />
-  Your browser does not support the video tag.
-</video>
+import GoogleVideo from '@site/src/components/GoogleVideo';
+
+<GoogleVideo id="1jyp8LNfbWkeAs6iocX7gca5jpkOJZOhU" />
 
 Managing your voter registry is a core administrative task. The Sequent Admin Portal allows you to add individual voters, assign them to specific elections and areas, and manage their credentials.
 
