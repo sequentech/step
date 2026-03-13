@@ -72,7 +72,7 @@ type CastVoteEntry {
 type CastVotesByIp {
   country: String
   election_id: String
-  election_name: String
+  election_presentation: jsonb
   id: String
   ip: String
   vote_count: Int
@@ -362,6 +362,10 @@ type FetchDocumentOutput {
 
 type GenerateGoogleMeetOutput {
   meet_link: String
+}
+
+type GeneratePreviewUrlOutput {
+  preview_url: String!
 }
 
 type GenerateTemplateOutput {
@@ -1006,7 +1010,7 @@ type mutation_root {
   createScheduledEvent(created_by: String, cron_config: String, election_event_id: uuid, event_payload: jsonb!, event_processor: String!, tenant_id: String!): ScheduledEventOutput3
   """create_ballot_receipt"""
   create_ballot_receipt(ballot_id: String!, ballot_tracker_url: String!, election_event_id: uuid!, election_id: uuid!, tenant_id: uuid!): createBallotReceiptOutput
-  create_election(description: String, election_event_id: String!, name: String!, presentation: jsonb): CreateElectionOutput
+  create_election(description: String, election_event_id: String!, external_id: String!, presentation: jsonb): CreateElectionOutput
   """create keys ceremony"""
   create_keys_ceremony(object: CreateKeysCeremonyInput!): CreateKeysCeremonyOutput
   create_permission(body: CreatePermissionInput!): KeycloakPermission
@@ -1205,6 +1209,17 @@ type mutation_root {
   delete single row from the table: "sequent_backend.notification"
   """
   delete_sequent_backend_notification_by_pk(id: uuid!): notification
+  """
+  delete data from the table: "sequent_backend.preview"
+  """
+  delete_sequent_backend_preview(
+    """filter the rows which have to be deleted"""
+    where: preview_bool_exp!
+  ): preview_mutation_response
+  """
+  delete single row from the table: "sequent_backend.preview"
+  """
+  delete_sequent_backend_preview_by_pk(id: uuid!): preview
   """
   delete data from the table: "sequent_backend.report"
   """
@@ -1435,6 +1450,7 @@ type mutation_root {
   generate_ballot_publication(election_event_id: uuid!, election_id: uuid): PublishBallotOutput
   """generate Google Meet link for election events"""
   generate_google_meet(attendee_emails: [String!]!, description: String!, end_date_time: String!, start_date_time: String!, summary: String!, time_zone: String!): GenerateGoogleMeetOutput
+  generate_preview_url(document_id: String!, tenant_id: String!): GeneratePreviewUrlOutput
   generate_report(election_event_id: String, report_id: String!, report_mode: String!, tenant_id: String!): generateReportOutput
   generate_template(election_event_id: String!, election_id: String!, tally_session_id: String!, type: String!): GenerateTemplateOutput
   generate_transmission_report(election_event_id: String!, election_id: String, tally_session_id: String, tenant_id: String!): generateReportOutput
@@ -1764,6 +1780,24 @@ type mutation_root {
     """upsert condition"""
     on_conflict: notification_on_conflict
   ): notification
+  """
+  insert data into the table: "sequent_backend.preview"
+  """
+  insert_sequent_backend_preview(
+    """the rows to be inserted"""
+    objects: [preview_insert_input!]!
+    """upsert condition"""
+    on_conflict: preview_on_conflict
+  ): preview_mutation_response
+  """
+  insert a single row into the table: "sequent_backend.preview"
+  """
+  insert_sequent_backend_preview_one(
+    """the row to be inserted"""
+    object: preview_insert_input!
+    """upsert condition"""
+    on_conflict: preview_on_conflict
+  ): preview
   """
   insert data into the table: "sequent_backend.report"
   """
@@ -3057,6 +3091,62 @@ type mutation_root {
     """updates to execute, in order"""
     updates: [notification_updates!]!
   ): [notification_mutation_response]
+  """
+  update data of the table: "sequent_backend.preview"
+  """
+  update_sequent_backend_preview(
+    """append existing jsonb value of filtered columns with new jsonb value"""
+    _append: preview_append_input
+    """
+    delete the field or element with specified path (for JSON arrays, negative integers count from the end)
+    """
+    _delete_at_path: preview_delete_at_path_input
+    """
+    delete the array element with specified index (negative integers count from the end). throws an error if top level container is not an array
+    """
+    _delete_elem: preview_delete_elem_input
+    """
+    delete key/value pair or string element. key/value pairs are matched based on their key value
+    """
+    _delete_key: preview_delete_key_input
+    """prepend existing jsonb value of filtered columns with new jsonb value"""
+    _prepend: preview_prepend_input
+    """sets the columns of the filtered rows to the given values"""
+    _set: preview_set_input
+    """filter the rows which have to be updated"""
+    where: preview_bool_exp!
+  ): preview_mutation_response
+  """
+  update single row of the table: "sequent_backend.preview"
+  """
+  update_sequent_backend_preview_by_pk(
+    """append existing jsonb value of filtered columns with new jsonb value"""
+    _append: preview_append_input
+    """
+    delete the field or element with specified path (for JSON arrays, negative integers count from the end)
+    """
+    _delete_at_path: preview_delete_at_path_input
+    """
+    delete the array element with specified index (negative integers count from the end). throws an error if top level container is not an array
+    """
+    _delete_elem: preview_delete_elem_input
+    """
+    delete key/value pair or string element. key/value pairs are matched based on their key value
+    """
+    _delete_key: preview_delete_key_input
+    """prepend existing jsonb value of filtered columns with new jsonb value"""
+    _prepend: preview_prepend_input
+    """sets the columns of the filtered rows to the given values"""
+    _set: preview_set_input
+    pk_columns: preview_pk_columns_input!
+  ): preview
+  """
+  update multiples rows of table: "sequent_backend.preview"
+  """
+  update_sequent_backend_preview_many(
+    """updates to execute, in order"""
+    updates: [preview_updates!]!
+  ): [preview_mutation_response]
   """
   update data of the table: "sequent_backend.report"
   """
@@ -4799,6 +4889,40 @@ type query_root {
   fetch data from the table: "sequent_backend.notification" using primary key columns
   """
   sequent_backend_notification_by_pk(id: uuid!): notification
+  """
+  fetch data from the table: "sequent_backend.preview"
+  """
+  sequent_backend_preview(
+    """distinct select on columns"""
+    distinct_on: [preview_select_column!]
+    """limit the number of rows returned"""
+    limit: Int
+    """skip the first n rows. Use only with order_by"""
+    offset: Int
+    """sort the rows by one or more columns"""
+    order_by: [preview_order_by!]
+    """filter the rows returned"""
+    where: preview_bool_exp
+  ): [preview!]!
+  """
+  fetch aggregated fields from the table: "sequent_backend.preview"
+  """
+  sequent_backend_preview_aggregate(
+    """distinct select on columns"""
+    distinct_on: [preview_select_column!]
+    """limit the number of rows returned"""
+    limit: Int
+    """skip the first n rows. Use only with order_by"""
+    offset: Int
+    """sort the rows by one or more columns"""
+    order_by: [preview_order_by!]
+    """filter the rows returned"""
+    where: preview_bool_exp
+  ): preview_aggregate!
+  """
+  fetch data from the table: "sequent_backend.preview" using primary key columns
+  """
+  sequent_backend_preview_by_pk(id: uuid!): preview
   """
   fetch data from the table: "sequent_backend.report"
   """
@@ -7101,7 +7225,6 @@ input ballot_style_updates {
 columns and relationships of "sequent_backend.candidate"
 """
 type candidate {
-  alias: String
   annotations(
     """JSON select path"""
     path: String
@@ -7110,6 +7233,7 @@ type candidate {
   created_at: timestamptz
   description: String
   election_event_id: uuid!
+  external_id: String
   id: uuid!
   image_document_id: String
   is_public: Boolean
@@ -7118,7 +7242,6 @@ type candidate {
     path: String
   ): jsonb
   last_updated_at: timestamptz
-  name: String
   presentation(
     """JSON select path"""
     path: String
@@ -7203,18 +7326,17 @@ input candidate_bool_exp {
   _and: [candidate_bool_exp!]
   _not: candidate_bool_exp
   _or: [candidate_bool_exp!]
-  alias: String_comparison_exp
   annotations: jsonb_comparison_exp
   contest_id: uuid_comparison_exp
   created_at: timestamptz_comparison_exp
   description: String_comparison_exp
   election_event_id: uuid_comparison_exp
+  external_id: String_comparison_exp
   id: uuid_comparison_exp
   image_document_id: String_comparison_exp
   is_public: Boolean_comparison_exp
   labels: jsonb_comparison_exp
   last_updated_at: timestamptz_comparison_exp
-  name: String_comparison_exp
   presentation: jsonb_comparison_exp
   tenant_id: uuid_comparison_exp
   type: String_comparison_exp
@@ -7261,18 +7383,17 @@ input candidate_delete_key_input {
 input type for inserting data into table "sequent_backend.candidate"
 """
 input candidate_insert_input {
-  alias: String
   annotations: jsonb
   contest_id: uuid
   created_at: timestamptz
   description: String
   election_event_id: uuid
+  external_id: String
   id: uuid
   image_document_id: String
   is_public: Boolean
   labels: jsonb
   last_updated_at: timestamptz
-  name: String
   presentation: jsonb
   tenant_id: uuid
   type: String
@@ -7280,15 +7401,14 @@ input candidate_insert_input {
 
 """aggregate max on columns"""
 type candidate_max_fields {
-  alias: String
   contest_id: uuid
   created_at: timestamptz
   description: String
   election_event_id: uuid
+  external_id: String
   id: uuid
   image_document_id: String
   last_updated_at: timestamptz
-  name: String
   tenant_id: uuid
   type: String
 }
@@ -7297,30 +7417,28 @@ type candidate_max_fields {
 order by max() on columns of table "sequent_backend.candidate"
 """
 input candidate_max_order_by {
-  alias: order_by
   contest_id: order_by
   created_at: order_by
   description: order_by
   election_event_id: order_by
+  external_id: order_by
   id: order_by
   image_document_id: order_by
   last_updated_at: order_by
-  name: order_by
   tenant_id: order_by
   type: order_by
 }
 
 """aggregate min on columns"""
 type candidate_min_fields {
-  alias: String
   contest_id: uuid
   created_at: timestamptz
   description: String
   election_event_id: uuid
+  external_id: String
   id: uuid
   image_document_id: String
   last_updated_at: timestamptz
-  name: String
   tenant_id: uuid
   type: String
 }
@@ -7329,15 +7447,14 @@ type candidate_min_fields {
 order by min() on columns of table "sequent_backend.candidate"
 """
 input candidate_min_order_by {
-  alias: order_by
   contest_id: order_by
   created_at: order_by
   description: order_by
   election_event_id: order_by
+  external_id: order_by
   id: order_by
   image_document_id: order_by
   last_updated_at: order_by
-  name: order_by
   tenant_id: order_by
   type: order_by
 }
@@ -7363,18 +7480,17 @@ input candidate_on_conflict {
 
 """Ordering options when selecting data from "sequent_backend.candidate"."""
 input candidate_order_by {
-  alias: order_by
   annotations: order_by
   contest_id: order_by
   created_at: order_by
   description: order_by
   election_event_id: order_by
+  external_id: order_by
   id: order_by
   image_document_id: order_by
   is_public: order_by
   labels: order_by
   last_updated_at: order_by
-  name: order_by
   presentation: order_by
   tenant_id: order_by
   type: order_by
@@ -7399,8 +7515,6 @@ select columns of table "sequent_backend.candidate"
 """
 enum candidate_select_column {
   """column name"""
-  alias
-  """column name"""
   annotations
   """column name"""
   contest_id
@@ -7411,6 +7525,8 @@ enum candidate_select_column {
   """column name"""
   election_event_id
   """column name"""
+  external_id
+  """column name"""
   id
   """column name"""
   image_document_id
@@ -7420,8 +7536,6 @@ enum candidate_select_column {
   labels
   """column name"""
   last_updated_at
-  """column name"""
-  name
   """column name"""
   presentation
   """column name"""
@@ -7450,18 +7564,17 @@ enum candidate_select_column_sequent_backend_candidate_aggregate_bool_exp_bool_o
 input type for updating data in table "sequent_backend.candidate"
 """
 input candidate_set_input {
-  alias: String
   annotations: jsonb
   contest_id: uuid
   created_at: timestamptz
   description: String
   election_event_id: uuid
+  external_id: String
   id: uuid
   image_document_id: String
   is_public: Boolean
   labels: jsonb
   last_updated_at: timestamptz
-  name: String
   presentation: jsonb
   tenant_id: uuid
   type: String
@@ -7479,18 +7592,17 @@ input candidate_stream_cursor_input {
 
 """Initial value of the column from where the streaming should start"""
 input candidate_stream_cursor_value_input {
-  alias: String
   annotations: jsonb
   contest_id: uuid
   created_at: timestamptz
   description: String
   election_event_id: uuid
+  external_id: String
   id: uuid
   image_document_id: String
   is_public: Boolean
   labels: jsonb
   last_updated_at: timestamptz
-  name: String
   presentation: jsonb
   tenant_id: uuid
   type: String
@@ -7500,8 +7612,6 @@ input candidate_stream_cursor_value_input {
 update columns of table "sequent_backend.candidate"
 """
 enum candidate_update_column {
-  """column name"""
-  alias
   """column name"""
   annotations
   """column name"""
@@ -7513,6 +7623,8 @@ enum candidate_update_column {
   """column name"""
   election_event_id
   """column name"""
+  external_id
+  """column name"""
   id
   """column name"""
   image_document_id
@@ -7522,8 +7634,6 @@ enum candidate_update_column {
   labels
   """column name"""
   last_updated_at
-  """column name"""
-  name
   """column name"""
   presentation
   """column name"""
@@ -7892,7 +8002,6 @@ input cast_vote_updates {
 columns and relationships of "sequent_backend.contest"
 """
 type contest {
-  alias: String
   annotations(
     """JSON select path"""
     path: String
@@ -7932,6 +8041,7 @@ type contest {
   description: String
   election_event_id: uuid!
   election_id: uuid!
+  external_id: String
   id: uuid!
   image_document_id: String
   is_acclaimed: Boolean
@@ -7944,7 +8054,6 @@ type contest {
   last_updated_at: timestamptz
   max_votes: Int
   min_votes: Int
-  name: String
   presentation(
     """JSON select path"""
     path: String
@@ -8068,7 +8177,6 @@ input contest_bool_exp {
   _and: [contest_bool_exp!]
   _not: contest_bool_exp
   _or: [contest_bool_exp!]
-  alias: String_comparison_exp
   annotations: jsonb_comparison_exp
   candidates: candidate_bool_exp
   candidates_aggregate: candidate_aggregate_bool_exp
@@ -8078,6 +8186,7 @@ input contest_bool_exp {
   description: String_comparison_exp
   election_event_id: uuid_comparison_exp
   election_id: uuid_comparison_exp
+  external_id: String_comparison_exp
   id: uuid_comparison_exp
   image_document_id: String_comparison_exp
   is_acclaimed: Boolean_comparison_exp
@@ -8087,7 +8196,6 @@ input contest_bool_exp {
   last_updated_at: timestamptz_comparison_exp
   max_votes: Int_comparison_exp
   min_votes: Int_comparison_exp
-  name: String_comparison_exp
   presentation: jsonb_comparison_exp
   tally_configuration: jsonb_comparison_exp
   tenant_id: uuid_comparison_exp
@@ -8151,7 +8259,6 @@ input contest_inc_input {
 input type for inserting data into table "sequent_backend.contest"
 """
 input contest_insert_input {
-  alias: String
   annotations: jsonb
   candidates: candidate_arr_rel_insert_input
   conditions: jsonb
@@ -8160,6 +8267,7 @@ input contest_insert_input {
   description: String
   election_event_id: uuid
   election_id: uuid
+  external_id: String
   id: uuid
   image_document_id: String
   is_acclaimed: Boolean
@@ -8169,7 +8277,6 @@ input contest_insert_input {
   last_updated_at: timestamptz
   max_votes: Int
   min_votes: Int
-  name: String
   presentation: jsonb
   tally_configuration: jsonb
   tenant_id: uuid
@@ -8179,18 +8286,17 @@ input contest_insert_input {
 
 """aggregate max on columns"""
 type contest_max_fields {
-  alias: String
   counting_algorithm: String
   created_at: timestamptz
   description: String
   election_event_id: uuid
   election_id: uuid
+  external_id: String
   id: uuid
   image_document_id: String
   last_updated_at: timestamptz
   max_votes: Int
   min_votes: Int
-  name: String
   tenant_id: uuid
   voting_type: String
   winning_candidates_num: Int
@@ -8200,18 +8306,17 @@ type contest_max_fields {
 order by max() on columns of table "sequent_backend.contest"
 """
 input contest_max_order_by {
-  alias: order_by
   counting_algorithm: order_by
   created_at: order_by
   description: order_by
   election_event_id: order_by
   election_id: order_by
+  external_id: order_by
   id: order_by
   image_document_id: order_by
   last_updated_at: order_by
   max_votes: order_by
   min_votes: order_by
-  name: order_by
   tenant_id: order_by
   voting_type: order_by
   winning_candidates_num: order_by
@@ -8219,18 +8324,17 @@ input contest_max_order_by {
 
 """aggregate min on columns"""
 type contest_min_fields {
-  alias: String
   counting_algorithm: String
   created_at: timestamptz
   description: String
   election_event_id: uuid
   election_id: uuid
+  external_id: String
   id: uuid
   image_document_id: String
   last_updated_at: timestamptz
   max_votes: Int
   min_votes: Int
-  name: String
   tenant_id: uuid
   voting_type: String
   winning_candidates_num: Int
@@ -8240,18 +8344,17 @@ type contest_min_fields {
 order by min() on columns of table "sequent_backend.contest"
 """
 input contest_min_order_by {
-  alias: order_by
   counting_algorithm: order_by
   created_at: order_by
   description: order_by
   election_event_id: order_by
   election_id: order_by
+  external_id: order_by
   id: order_by
   image_document_id: order_by
   last_updated_at: order_by
   max_votes: order_by
   min_votes: order_by
-  name: order_by
   tenant_id: order_by
   voting_type: order_by
   winning_candidates_num: order_by
@@ -8287,7 +8390,6 @@ input contest_on_conflict {
 
 """Ordering options when selecting data from "sequent_backend.contest"."""
 input contest_order_by {
-  alias: order_by
   annotations: order_by
   candidates_aggregate: candidate_aggregate_order_by
   conditions: order_by
@@ -8296,6 +8398,7 @@ input contest_order_by {
   description: order_by
   election_event_id: order_by
   election_id: order_by
+  external_id: order_by
   id: order_by
   image_document_id: order_by
   is_acclaimed: order_by
@@ -8305,7 +8408,6 @@ input contest_order_by {
   last_updated_at: order_by
   max_votes: order_by
   min_votes: order_by
-  name: order_by
   presentation: order_by
   tally_configuration: order_by
   tenant_id: order_by
@@ -8334,8 +8436,6 @@ select columns of table "sequent_backend.contest"
 """
 enum contest_select_column {
   """column name"""
-  alias
-  """column name"""
   annotations
   """column name"""
   conditions
@@ -8349,6 +8449,8 @@ enum contest_select_column {
   election_event_id
   """column name"""
   election_id
+  """column name"""
+  external_id
   """column name"""
   id
   """column name"""
@@ -8367,8 +8469,6 @@ enum contest_select_column {
   max_votes
   """column name"""
   min_votes
-  """column name"""
-  name
   """column name"""
   presentation
   """column name"""
@@ -8409,7 +8509,6 @@ enum contest_select_column_sequent_backend_contest_aggregate_bool_exp_bool_or_ar
 input type for updating data in table "sequent_backend.contest"
 """
 input contest_set_input {
-  alias: String
   annotations: jsonb
   conditions: jsonb
   counting_algorithm: String
@@ -8417,6 +8516,7 @@ input contest_set_input {
   description: String
   election_event_id: uuid
   election_id: uuid
+  external_id: String
   id: uuid
   image_document_id: String
   is_acclaimed: Boolean
@@ -8426,7 +8526,6 @@ input contest_set_input {
   last_updated_at: timestamptz
   max_votes: Int
   min_votes: Int
-  name: String
   presentation: jsonb
   tally_configuration: jsonb
   tenant_id: uuid
@@ -8494,7 +8593,6 @@ input contest_stream_cursor_input {
 
 """Initial value of the column from where the streaming should start"""
 input contest_stream_cursor_value_input {
-  alias: String
   annotations: jsonb
   conditions: jsonb
   counting_algorithm: String
@@ -8502,6 +8600,7 @@ input contest_stream_cursor_value_input {
   description: String
   election_event_id: uuid
   election_id: uuid
+  external_id: String
   id: uuid
   image_document_id: String
   is_acclaimed: Boolean
@@ -8511,7 +8610,6 @@ input contest_stream_cursor_value_input {
   last_updated_at: timestamptz
   max_votes: Int
   min_votes: Int
-  name: String
   presentation: jsonb
   tally_configuration: jsonb
   tenant_id: uuid
@@ -8540,8 +8638,6 @@ update columns of table "sequent_backend.contest"
 """
 enum contest_update_column {
   """column name"""
-  alias
-  """column name"""
   annotations
   """column name"""
   conditions
@@ -8555,6 +8651,8 @@ enum contest_update_column {
   election_event_id
   """column name"""
   election_id
+  """column name"""
+  external_id
   """column name"""
   id
   """column name"""
@@ -8573,8 +8671,6 @@ enum contest_update_column {
   max_votes
   """column name"""
   min_votes
-  """column name"""
-  name
   """column name"""
   presentation
   """column name"""
@@ -9028,7 +9124,6 @@ type document_variance_fields {
 columns and relationships of "sequent_backend.election"
 """
 type election {
-  alias: String
   annotations(
     """JSON select path"""
     path: String
@@ -9063,6 +9158,7 @@ type election {
   description: String
   election_event_id: uuid!
   eml: String
+  external_id: String
   id: uuid!
   image_document_id: String
   initialization_report_generated: Boolean
@@ -9074,7 +9170,6 @@ type election {
     path: String
   ): jsonb
   last_updated_at: timestamptz
-  name: String!
   num_allowed_revotes: Int
   permission_label: String
   presentation(
@@ -9209,7 +9304,6 @@ input election_bool_exp {
   _and: [election_bool_exp!]
   _not: election_bool_exp
   _or: [election_bool_exp!]
-  alias: String_comparison_exp
   annotations: jsonb_comparison_exp
   contests: contest_bool_exp
   contests_aggregate: contest_aggregate_bool_exp
@@ -9217,6 +9311,7 @@ input election_bool_exp {
   description: String_comparison_exp
   election_event_id: uuid_comparison_exp
   eml: String_comparison_exp
+  external_id: String_comparison_exp
   id: uuid_comparison_exp
   image_document_id: String_comparison_exp
   initialization_report_generated: Boolean_comparison_exp
@@ -9225,7 +9320,6 @@ input election_bool_exp {
   keys_ceremony_id: uuid_comparison_exp
   labels: jsonb_comparison_exp
   last_updated_at: timestamptz_comparison_exp
-  name: String_comparison_exp
   num_allowed_revotes: Int_comparison_exp
   permission_label: String_comparison_exp
   presentation: jsonb_comparison_exp
@@ -9290,7 +9384,6 @@ input election_delete_key_input {
 columns and relationships of "sequent_backend.election_event"
 """
 type election_event {
-  alias: String
   annotations(
     """JSON select path"""
     path: String
@@ -9329,6 +9422,7 @@ type election_event {
     where: election_bool_exp
   ): election_aggregate!
   encryption_protocol: String!
+  external_id: String
   id: uuid!
   is_archived: Boolean!
   is_audit: Boolean
@@ -9336,7 +9430,6 @@ type election_event {
     """JSON select path"""
     path: String
   ): jsonb
-  name: String!
   presentation(
     """JSON select path"""
     path: String
@@ -9394,7 +9487,6 @@ input election_event_bool_exp {
   _and: [election_event_bool_exp!]
   _not: election_event_bool_exp
   _or: [election_event_bool_exp!]
-  alias: String_comparison_exp
   annotations: jsonb_comparison_exp
   audit_election_event_id: uuid_comparison_exp
   bulletin_board_reference: jsonb_comparison_exp
@@ -9403,11 +9495,11 @@ input election_event_bool_exp {
   elections: election_bool_exp
   elections_aggregate: election_aggregate_bool_exp
   encryption_protocol: String_comparison_exp
+  external_id: String_comparison_exp
   id: uuid_comparison_exp
   is_archived: Boolean_comparison_exp
   is_audit: Boolean_comparison_exp
   labels: jsonb_comparison_exp
-  name: String_comparison_exp
   presentation: jsonb_comparison_exp
   public_key: String_comparison_exp
   statistics: jsonb_comparison_exp
@@ -9471,7 +9563,6 @@ input election_event_delete_key_input {
 input type for inserting data into table "sequent_backend.election_event"
 """
 input election_event_insert_input {
-  alias: String
   annotations: jsonb
   audit_election_event_id: uuid
   bulletin_board_reference: jsonb
@@ -9479,11 +9570,11 @@ input election_event_insert_input {
   description: String
   elections: election_arr_rel_insert_input
   encryption_protocol: String
+  external_id: String
   id: uuid
   is_archived: Boolean
   is_audit: Boolean
   labels: jsonb
-  name: String
   presentation: jsonb
   public_key: String
   statistics: jsonb
@@ -9496,13 +9587,12 @@ input election_event_insert_input {
 
 """aggregate max on columns"""
 type election_event_max_fields {
-  alias: String
   audit_election_event_id: uuid
   created_at: timestamptz
   description: String
   encryption_protocol: String
+  external_id: String
   id: uuid
-  name: String
   public_key: String
   tenant_id: uuid
   updated_at: timestamptz
@@ -9511,13 +9601,12 @@ type election_event_max_fields {
 
 """aggregate min on columns"""
 type election_event_min_fields {
-  alias: String
   audit_election_event_id: uuid
   created_at: timestamptz
   description: String
   encryption_protocol: String
+  external_id: String
   id: uuid
-  name: String
   public_key: String
   tenant_id: uuid
   updated_at: timestamptz
@@ -9547,7 +9636,6 @@ input election_event_on_conflict {
 Ordering options when selecting data from "sequent_backend.election_event".
 """
 input election_event_order_by {
-  alias: order_by
   annotations: order_by
   audit_election_event_id: order_by
   bulletin_board_reference: order_by
@@ -9555,11 +9643,11 @@ input election_event_order_by {
   description: order_by
   elections_aggregate: election_aggregate_order_by
   encryption_protocol: order_by
+  external_id: order_by
   id: order_by
   is_archived: order_by
   is_audit: order_by
   labels: order_by
-  name: order_by
   presentation: order_by
   public_key: order_by
   statistics: order_by
@@ -9591,8 +9679,6 @@ select columns of table "sequent_backend.election_event"
 """
 enum election_event_select_column {
   """column name"""
-  alias
-  """column name"""
   annotations
   """column name"""
   audit_election_event_id
@@ -9605,6 +9691,8 @@ enum election_event_select_column {
   """column name"""
   encryption_protocol
   """column name"""
+  external_id
+  """column name"""
   id
   """column name"""
   is_archived
@@ -9612,8 +9700,6 @@ enum election_event_select_column {
   is_audit
   """column name"""
   labels
-  """column name"""
-  name
   """column name"""
   presentation
   """column name"""
@@ -9636,18 +9722,17 @@ enum election_event_select_column {
 input type for updating data in table "sequent_backend.election_event"
 """
 input election_event_set_input {
-  alias: String
   annotations: jsonb
   audit_election_event_id: uuid
   bulletin_board_reference: jsonb
   created_at: timestamptz
   description: String
   encryption_protocol: String
+  external_id: String
   id: uuid
   is_archived: Boolean
   is_audit: Boolean
   labels: jsonb
-  name: String
   presentation: jsonb
   public_key: String
   statistics: jsonb
@@ -9670,18 +9755,17 @@ input election_event_stream_cursor_input {
 
 """Initial value of the column from where the streaming should start"""
 input election_event_stream_cursor_value_input {
-  alias: String
   annotations: jsonb
   audit_election_event_id: uuid
   bulletin_board_reference: jsonb
   created_at: timestamptz
   description: String
   encryption_protocol: String
+  external_id: String
   id: uuid
   is_archived: Boolean
   is_audit: Boolean
   labels: jsonb
-  name: String
   presentation: jsonb
   public_key: String
   statistics: jsonb
@@ -9697,8 +9781,6 @@ update columns of table "sequent_backend.election_event"
 """
 enum election_event_update_column {
   """column name"""
-  alias
-  """column name"""
   annotations
   """column name"""
   audit_election_event_id
@@ -9711,6 +9793,8 @@ enum election_event_update_column {
   """column name"""
   encryption_protocol
   """column name"""
+  external_id
+  """column name"""
   id
   """column name"""
   is_archived
@@ -9718,8 +9802,6 @@ enum election_event_update_column {
   is_audit
   """column name"""
   labels
-  """column name"""
-  name
   """column name"""
   presentation
   """column name"""
@@ -9772,13 +9854,13 @@ input election_inc_input {
 input type for inserting data into table "sequent_backend.election"
 """
 input election_insert_input {
-  alias: String
   annotations: jsonb
   contests: contest_arr_rel_insert_input
   created_at: timestamptz
   description: String
   election_event_id: uuid
   eml: String
+  external_id: String
   id: uuid
   image_document_id: String
   initialization_report_generated: Boolean
@@ -9787,7 +9869,6 @@ input election_insert_input {
   keys_ceremony_id: uuid
   labels: jsonb
   last_updated_at: timestamptz
-  name: String
   num_allowed_revotes: Int
   permission_label: String
   presentation: jsonb
@@ -9801,16 +9882,15 @@ input election_insert_input {
 
 """aggregate max on columns"""
 type election_max_fields {
-  alias: String
   created_at: timestamptz
   description: String
   election_event_id: uuid
   eml: String
+  external_id: String
   id: uuid
   image_document_id: String
   keys_ceremony_id: uuid
   last_updated_at: timestamptz
-  name: String
   num_allowed_revotes: Int
   permission_label: String
   tenant_id: uuid
@@ -9820,16 +9900,15 @@ type election_max_fields {
 order by max() on columns of table "sequent_backend.election"
 """
 input election_max_order_by {
-  alias: order_by
   created_at: order_by
   description: order_by
   election_event_id: order_by
   eml: order_by
+  external_id: order_by
   id: order_by
   image_document_id: order_by
   keys_ceremony_id: order_by
   last_updated_at: order_by
-  name: order_by
   num_allowed_revotes: order_by
   permission_label: order_by
   tenant_id: order_by
@@ -9837,16 +9916,15 @@ input election_max_order_by {
 
 """aggregate min on columns"""
 type election_min_fields {
-  alias: String
   created_at: timestamptz
   description: String
   election_event_id: uuid
   eml: String
+  external_id: String
   id: uuid
   image_document_id: String
   keys_ceremony_id: uuid
   last_updated_at: timestamptz
-  name: String
   num_allowed_revotes: Int
   permission_label: String
   tenant_id: uuid
@@ -9856,16 +9934,15 @@ type election_min_fields {
 order by min() on columns of table "sequent_backend.election"
 """
 input election_min_order_by {
-  alias: order_by
   created_at: order_by
   description: order_by
   election_event_id: order_by
   eml: order_by
+  external_id: order_by
   id: order_by
   image_document_id: order_by
   keys_ceremony_id: order_by
   last_updated_at: order_by
-  name: order_by
   num_allowed_revotes: order_by
   permission_label: order_by
   tenant_id: order_by
@@ -9892,13 +9969,13 @@ input election_on_conflict {
 
 """Ordering options when selecting data from "sequent_backend.election"."""
 input election_order_by {
-  alias: order_by
   annotations: order_by
   contests_aggregate: contest_aggregate_order_by
   created_at: order_by
   description: order_by
   election_event_id: order_by
   eml: order_by
+  external_id: order_by
   id: order_by
   image_document_id: order_by
   initialization_report_generated: order_by
@@ -9907,7 +9984,6 @@ input election_order_by {
   keys_ceremony_id: order_by
   labels: order_by
   last_updated_at: order_by
-  name: order_by
   num_allowed_revotes: order_by
   permission_label: order_by
   presentation: order_by
@@ -10269,8 +10345,6 @@ select columns of table "sequent_backend.election"
 """
 enum election_select_column {
   """column name"""
-  alias
-  """column name"""
   annotations
   """column name"""
   created_at
@@ -10280,6 +10354,8 @@ enum election_select_column {
   election_event_id
   """column name"""
   eml
+  """column name"""
+  external_id
   """column name"""
   id
   """column name"""
@@ -10296,8 +10372,6 @@ enum election_select_column {
   labels
   """column name"""
   last_updated_at
-  """column name"""
-  name
   """column name"""
   num_allowed_revotes
   """column name"""
@@ -10350,12 +10424,12 @@ enum election_select_column_sequent_backend_election_aggregate_bool_exp_bool_or_
 input type for updating data in table "sequent_backend.election"
 """
 input election_set_input {
-  alias: String
   annotations: jsonb
   created_at: timestamptz
   description: String
   election_event_id: uuid
   eml: String
+  external_id: String
   id: uuid
   image_document_id: String
   initialization_report_generated: Boolean
@@ -10364,7 +10438,6 @@ input election_set_input {
   keys_ceremony_id: uuid
   labels: jsonb
   last_updated_at: timestamptz
-  name: String
   num_allowed_revotes: Int
   permission_label: String
   presentation: jsonb
@@ -10424,12 +10497,12 @@ input election_stream_cursor_input {
 
 """Initial value of the column from where the streaming should start"""
 input election_stream_cursor_value_input {
-  alias: String
   annotations: jsonb
   created_at: timestamptz
   description: String
   election_event_id: uuid
   eml: String
+  external_id: String
   id: uuid
   image_document_id: String
   initialization_report_generated: Boolean
@@ -10438,7 +10511,6 @@ input election_stream_cursor_value_input {
   keys_ceremony_id: uuid
   labels: jsonb
   last_updated_at: timestamptz
-  name: String
   num_allowed_revotes: Int
   permission_label: String
   presentation: jsonb
@@ -10731,8 +10803,6 @@ update columns of table "sequent_backend.election"
 """
 enum election_update_column {
   """column name"""
-  alias
-  """column name"""
   annotations
   """column name"""
   created_at
@@ -10742,6 +10812,8 @@ enum election_update_column {
   election_event_id
   """column name"""
   eml
+  """column name"""
+  external_id
   """column name"""
   id
   """column name"""
@@ -10758,8 +10830,6 @@ enum election_update_column {
   labels
   """column name"""
   last_updated_at
-  """column name"""
-  name
   """column name"""
   num_allowed_revotes
   """column name"""
@@ -12126,6 +12196,273 @@ input notification_updates {
   _set: notification_set_input
   """filter the rows which have to be updated"""
   where: notification_bool_exp!
+}
+
+"""
+columns and relationships of "sequent_backend.preview"
+"""
+type preview {
+  annotations(
+    """JSON select path"""
+    path: String
+  ): jsonb
+  created_at: timestamptz!
+  document_id: uuid!
+  id: uuid!
+  requested_by: String!
+  tenant_id: uuid!
+  updated_at: timestamptz!
+  url: String!
+}
+
+"""
+aggregated selection of "sequent_backend.preview"
+"""
+type preview_aggregate {
+  aggregate: preview_aggregate_fields
+  nodes: [preview!]!
+}
+
+"""
+aggregate fields of "sequent_backend.preview"
+"""
+type preview_aggregate_fields {
+  count(columns: [preview_select_column!], distinct: Boolean): Int!
+  max: preview_max_fields
+  min: preview_min_fields
+}
+
+"""append existing jsonb value of filtered columns with new jsonb value"""
+input preview_append_input {
+  annotations: jsonb
+}
+
+"""
+Boolean expression to filter rows from the table "sequent_backend.preview". All fields are combined with a logical 'AND'.
+"""
+input preview_bool_exp {
+  _and: [preview_bool_exp!]
+  _not: preview_bool_exp
+  _or: [preview_bool_exp!]
+  annotations: jsonb_comparison_exp
+  created_at: timestamptz_comparison_exp
+  document_id: uuid_comparison_exp
+  id: uuid_comparison_exp
+  requested_by: String_comparison_exp
+  tenant_id: uuid_comparison_exp
+  updated_at: timestamptz_comparison_exp
+  url: String_comparison_exp
+}
+
+"""
+unique or primary key constraints on table "sequent_backend.preview"
+"""
+enum preview_constraint {
+  """
+  unique or primary key constraint on columns "id"
+  """
+  preview_pkey
+}
+
+"""
+delete the field or element with specified path (for JSON arrays, negative integers count from the end)
+"""
+input preview_delete_at_path_input {
+  annotations: [String!]
+}
+
+"""
+delete the array element with specified index (negative integers count from the end). throws an error if top level container is not an array
+"""
+input preview_delete_elem_input {
+  annotations: Int
+}
+
+"""
+delete key/value pair or string element. key/value pairs are matched based on their key value
+"""
+input preview_delete_key_input {
+  annotations: String
+}
+
+"""
+input type for inserting data into table "sequent_backend.preview"
+"""
+input preview_insert_input {
+  annotations: jsonb
+  created_at: timestamptz
+  document_id: uuid
+  id: uuid
+  requested_by: String
+  tenant_id: uuid
+  updated_at: timestamptz
+  url: String
+}
+
+"""aggregate max on columns"""
+type preview_max_fields {
+  created_at: timestamptz
+  document_id: uuid
+  id: uuid
+  requested_by: String
+  tenant_id: uuid
+  updated_at: timestamptz
+  url: String
+}
+
+"""aggregate min on columns"""
+type preview_min_fields {
+  created_at: timestamptz
+  document_id: uuid
+  id: uuid
+  requested_by: String
+  tenant_id: uuid
+  updated_at: timestamptz
+  url: String
+}
+
+"""
+response of any mutation on the table "sequent_backend.preview"
+"""
+type preview_mutation_response {
+  """number of rows affected by the mutation"""
+  affected_rows: Int!
+  """data from the rows affected by the mutation"""
+  returning: [preview!]!
+}
+
+"""
+on_conflict condition type for table "sequent_backend.preview"
+"""
+input preview_on_conflict {
+  constraint: preview_constraint!
+  update_columns: [preview_update_column!]! = []
+  where: preview_bool_exp
+}
+
+"""Ordering options when selecting data from "sequent_backend.preview"."""
+input preview_order_by {
+  annotations: order_by
+  created_at: order_by
+  document_id: order_by
+  id: order_by
+  requested_by: order_by
+  tenant_id: order_by
+  updated_at: order_by
+  url: order_by
+}
+
+"""primary key columns input for table: sequent_backend.preview"""
+input preview_pk_columns_input {
+  id: uuid!
+}
+
+"""prepend existing jsonb value of filtered columns with new jsonb value"""
+input preview_prepend_input {
+  annotations: jsonb
+}
+
+"""
+select columns of table "sequent_backend.preview"
+"""
+enum preview_select_column {
+  """column name"""
+  annotations
+  """column name"""
+  created_at
+  """column name"""
+  document_id
+  """column name"""
+  id
+  """column name"""
+  requested_by
+  """column name"""
+  tenant_id
+  """column name"""
+  updated_at
+  """column name"""
+  url
+}
+
+"""
+input type for updating data in table "sequent_backend.preview"
+"""
+input preview_set_input {
+  annotations: jsonb
+  created_at: timestamptz
+  document_id: uuid
+  id: uuid
+  requested_by: String
+  tenant_id: uuid
+  updated_at: timestamptz
+  url: String
+}
+
+"""
+Streaming cursor of the table "sequent_backend_preview"
+"""
+input preview_stream_cursor_input {
+  """Stream column input with initial value"""
+  initial_value: preview_stream_cursor_value_input!
+  """cursor ordering"""
+  ordering: cursor_ordering
+}
+
+"""Initial value of the column from where the streaming should start"""
+input preview_stream_cursor_value_input {
+  annotations: jsonb
+  created_at: timestamptz
+  document_id: uuid
+  id: uuid
+  requested_by: String
+  tenant_id: uuid
+  updated_at: timestamptz
+  url: String
+}
+
+"""
+update columns of table "sequent_backend.preview"
+"""
+enum preview_update_column {
+  """column name"""
+  annotations
+  """column name"""
+  created_at
+  """column name"""
+  document_id
+  """column name"""
+  id
+  """column name"""
+  requested_by
+  """column name"""
+  tenant_id
+  """column name"""
+  updated_at
+  """column name"""
+  url
+}
+
+input preview_updates {
+  """append existing jsonb value of filtered columns with new jsonb value"""
+  _append: preview_append_input
+  """
+  delete the field or element with specified path (for JSON arrays, negative integers count from the end)
+  """
+  _delete_at_path: preview_delete_at_path_input
+  """
+  delete the array element with specified index (negative integers count from the end). throws an error if top level container is not an array
+  """
+  _delete_elem: preview_delete_elem_input
+  """
+  delete key/value pair or string element. key/value pairs are matched based on their key value
+  """
+  _delete_key: preview_delete_key_input
+  """prepend existing jsonb value of filtered columns with new jsonb value"""
+  _prepend: preview_prepend_input
+  """sets the columns of the filtered rows to the given values"""
+  _set: preview_set_input
+  """filter the rows which have to be updated"""
+  where: preview_bool_exp!
 }
 
 """
@@ -20480,6 +20817,51 @@ type subscription_root {
     """filter the rows returned"""
     where: notification_bool_exp
   ): [notification!]!
+  """
+  fetch data from the table: "sequent_backend.preview"
+  """
+  sequent_backend_preview(
+    """distinct select on columns"""
+    distinct_on: [preview_select_column!]
+    """limit the number of rows returned"""
+    limit: Int
+    """skip the first n rows. Use only with order_by"""
+    offset: Int
+    """sort the rows by one or more columns"""
+    order_by: [preview_order_by!]
+    """filter the rows returned"""
+    where: preview_bool_exp
+  ): [preview!]!
+  """
+  fetch aggregated fields from the table: "sequent_backend.preview"
+  """
+  sequent_backend_preview_aggregate(
+    """distinct select on columns"""
+    distinct_on: [preview_select_column!]
+    """limit the number of rows returned"""
+    limit: Int
+    """skip the first n rows. Use only with order_by"""
+    offset: Int
+    """sort the rows by one or more columns"""
+    order_by: [preview_order_by!]
+    """filter the rows returned"""
+    where: preview_bool_exp
+  ): preview_aggregate!
+  """
+  fetch data from the table: "sequent_backend.preview" using primary key columns
+  """
+  sequent_backend_preview_by_pk(id: uuid!): preview
+  """
+  fetch data from the table in a streaming manner: "sequent_backend.preview"
+  """
+  sequent_backend_preview_stream(
+    """maximum number of rows returned in a single batch"""
+    batch_size: Int!
+    """cursor to stream the results returned by the query"""
+    cursor: [preview_stream_cursor_input]!
+    """filter the rows returned"""
+    where: preview_bool_exp
+  ): [preview!]!
   """
   fetch data from the table: "sequent_backend.report"
   """
