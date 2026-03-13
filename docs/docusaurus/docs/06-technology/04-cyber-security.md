@@ -10,10 +10,6 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 This page provides supplementary cybersecurity information for the Sequent Voting Platform (SVP), including how to report vulnerabilities and how security issues are handled.
 
-:::info BSI EUCC Certification
-This document fulfills the ALC_FLR.2 (Flaw Reporting Procedures) requirement for BSI EUCC certification under EU Regulation 2024/482. It documents both our public vulnerability disclosure policy and internal flaw management procedures.
-:::
-
 ## Reporting security vulnerabilities
 
 To report a suspected vulnerability, use **GitHub Security Advisories**:
@@ -148,28 +144,3 @@ For BSI EUCC certification compliance, we notify BSI within **48 hours** for cer
 
 Security-relevant changes are communicated through release notes in this documentation.
 See the [Release Notes](../08-releases/).
-
-## ALC_FLR.2 Compliance (Common Criteria)
-
-This vulnerability management process fulfills Common Criteria ALC_FLR.2 (Flaw Reporting Procedures) requirements for BSI EUCC certification:
-
-**ALC_FLR.2.1C - Flaw remediation procedures describe:**
-- ✅ **How users can report flaws:** [GitHub Security Advisories](https://github.com/sequentech/step/security/advisories/new)
-- ✅ **Procedures for processing reported flaws:** Triage within 7 business days, severity assessment using CVSS v3.1, tracking via GitHub Security Advisories in sequentech/step repository
-- ✅ **Procedures for correcting flaws:** Remediation process with mandatory security-focused code review (minimum 2 reviewers), unit/integration/security regression testing, and security team validation
-- ✅ **Procedures for issuing corrected TOE:** Security patch release process with customer notification, coordinated public disclosure, and security advisories published publicly on GitHub
-
-**ALC_FLR.2.2C - Flaw remediation procedures describe:**
-- ✅ **How security flaws are tracked:** GitHub Security Advisories in sequentech/step repository provide complete audit trail with unique identifiers, severity classifications, affected versions, remediation status, and disclosure dates
-- ✅ **Corrective actions for reported flaws:** Structured remediation workflow including assignment to development team, fix development following Secure Development Lifecycle procedures, code review, testing, validation, release, and customer/public communication
-
-## EU Regulation 2024/482 Compliance
-
-Vulnerability management procedures comply with:
-- **Article 55:** Cybersecurity information (public disclosure policy documented above)
-- **Article 8(6):** Vulnerability disclosure requirements (coordinated disclosure with response SLAs)
-- **Regulation (EU) 2019/881:** Cybersecurity Act requirements (vulnerability handling and transparency)
-
-## Encryption and cryptographic design
-
-For deeper cryptographic and security design references, see [Reference](../05-reference/).
