@@ -3,12 +3,12 @@ id: admin_portal_tutorials_archive-elections
 title: Active/Archive Elections
 ---
 
-import GoogleVideo from '@site/src/components/GoogleVideo';
-
 <!--
 SPDX-FileCopyrightText: 2025 Sequent Tech <legal@sequentech.io>
 SPDX-License-Identifier: AGPL-3.0-only
 -->
+
+import GoogleVideo from '@site/src/components/GoogleVideo';
 
 <GoogleVideo id="1nC-EvQ7Xso6eAn5-PU67vKgl6zKTROC9" />
 
@@ -18,12 +18,16 @@ The Sequent Admin Portal allows you to manage the visibility of your electoral e
 
 The sidebar contains two primary tabs to help you organize your events:
 
+![Active and Archived Election Events](./assets/archive_tab.png)
+
 * **Active:** This tab displays elections that are currently ongoing or are scheduled to open in the near future.
 * **Archived:** This tab stores past elections that have concluded but are being retained for records or auditing purposes.
 
 ## Archiving an Election
 
 Once an election has ended, you can move it to the Archived list to declutter your active dashboard.
+
+![Archive Election Event](./assets/archive_button.png)
 
 1.  Locate the election in the **Active** tab.
 2.  Click the **three-dot icon** next to the election name.
@@ -32,6 +36,8 @@ Once an election has ended, you can move it to the Archived list to declutter yo
 ## Unarchiving and Restoring Elections
 
 If you need to reactivate an archived election or simply view its data in the active list, you can unarchive it at any time.
+
+![Unarchive Election Event](./assets/unarchive_button.png)
 
 1.  Switch to the **Archived** tab in the sidebar.
 2.  Locate the desired electoral event.
