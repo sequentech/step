@@ -22,7 +22,11 @@ impl Drop for LocalPostgresProcess {
         let _ = Command::new("pg_ctl")
             .args([
                 "-D",
-                self.data_dir.path().as_os_str().to_str().unwrap_or_default(),
+                self.data_dir
+                    .path()
+                    .as_os_str()
+                    .to_str()
+                    .unwrap_or_default(),
                 "-m",
                 "immediate",
                 "stop",
@@ -101,7 +105,9 @@ async fn bootstrap_backend_database(client: &Client) -> Result<()> {
         client
             .batch_execute(migration_sql.as_str())
             .await
-            .with_context(|| format!("Could not apply backend migration {}", migration.display()))?;
+            .with_context(|| {
+                format!("Could not apply backend migration {}", migration.display())
+            })?;
     }
 
     Ok(())
@@ -147,7 +153,10 @@ fn backend_migration_paths() -> Result<Vec<PathBuf>> {
     migrations.sort();
 
     if migrations.is_empty() {
-        bail!("Could not find backend migrations in {}", migrations_dir.display());
+        bail!(
+            "Could not find backend migrations in {}",
+            migrations_dir.display()
+        );
     }
 
     Ok(migrations)
