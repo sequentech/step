@@ -63,6 +63,8 @@ import {
     IElectionEventPresentation,
     IElectionPresentation,
     EAllowTally,
+    EConsolidatedReportPolicy,
+    getDefaultConsolidatedReportPolicy,
 } from "@sequentech/ui-core"
 import {DropFile} from "@sequentech/ui-essentials"
 import FileJsonInput from "../../components/FileJsonInput"
@@ -253,6 +255,7 @@ export const ElectionDataForm: React.FC = () => {
             temp.presentation.initialization_report_policy ??= EInitializeReportPolicy.NOT_REQUIRED
             temp.presentation.grace_period_policy ??= EGracePeriodPolicy.NO_GRACE_PERIOD
             temp.presentation.grace_period_secs ??= 0
+            temp.presentation.consolidated_report_policy ??= getDefaultConsolidatedReportPolicy()
 
             const votingSettings = data?.voting_channels || tenantData?.voting_channels
 
@@ -285,8 +288,7 @@ export const ElectionDataForm: React.FC = () => {
             if (!temp.presentation?.i18n?.en) {
                 temp.presentation.i18n.en = {}
             }
-            temp.presentation.i18n.en.name = temp.name
-            temp.presentation.i18n.en.alias = temp.alias
+
             temp.presentation.i18n.en.description = temp.description
 
             // receipts
@@ -547,6 +549,13 @@ export const ElectionDataForm: React.FC = () => {
         }))
     }
 
+    const consolidatedReportPolicyChoices = (): Array<EnumChoice<EConsolidatedReportPolicy>> => {
+        return Object.values(EConsolidatedReportPolicy).map((value) => ({
+            id: value,
+            name: t(`electionScreen.consolidatedReportPolicy.options.${value.toLowerCase()}`),
+        }))
+    }
+
     const updateCustomFilters = (
         values: Sequent_Backend_Election_Extended,
         {newData}: UpdateFunctionProps
@@ -608,6 +617,11 @@ export const ElectionDataForm: React.FC = () => {
                                 </ElectionStyles.Wrapper>
                             </AccordionSummary>
                             <AccordionDetails>
+                                <TextInput
+                                    source="external_id"
+                                    label={String(t("electionScreen.field.externalId"))}
+                                    readOnly={!!record.external_id}
+                                />
                                 <Tabs value={value} onChange={handleChange}>
                                     {renderTabs(parsedValue)}
                                 </Tabs>
@@ -892,6 +906,15 @@ export const ElectionDataForm: React.FC = () => {
                                         t(`electionScreen.securityConfirmationPolicy.label`)
                                     )}
                                     defaultValue={ESecurityConfirmationPolicy.NONE}
+                                />
+                                <SelectInput
+                                    source={`presentation.consolidated_report_policy`}
+                                    choices={consolidatedReportPolicyChoices()}
+                                    label={String(
+                                        t("electionScreen.consolidatedReportPolicy.label")
+                                    )}
+                                    validate={required()}
+                                    defaultValue={getDefaultConsolidatedReportPolicy()}
                                 />
                             </AccordionDetails>
                         </Accordion>

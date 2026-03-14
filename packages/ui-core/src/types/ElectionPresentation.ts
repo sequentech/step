@@ -30,6 +30,11 @@ export enum EStartScreenTitlePolicy {
     ELECTION_EVENT = "election-event",
 }
 
+export enum EConsolidatedReportPolicy {
+    GENERATE = "generate",
+    DO_NOT_GENERATE = "do-not-generate",
+}
+
 export interface IScheduledEventDates {
     scheduled_at?: string
     stopped_at?: string
@@ -60,6 +65,7 @@ export interface IElectionPresentation {
     initialization_report_generated?: EInitializeReportPolicy
     voting_period_end?: EVotingPeriodEnd
     security_confirmation_policy?: ESecurityConfirmationPolicy
+    consolidated_report_policy: EConsolidatedReportPolicy
     // more missing
 }
 

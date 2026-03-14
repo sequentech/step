@@ -587,6 +587,7 @@ const frenchTranslation: TranslationType = {
                 alias: "Alias",
                 description: "Description",
                 securityConfirmationHtml: "Confirmation de sécurité HTML",
+                externalId: "ID externe",
             },
             securityConfirmationPolicy: {
                 label: "Politique de la case à cocher de confirmation de sécurité",
@@ -639,6 +640,13 @@ const frenchTranslation: TranslationType = {
                 options: {
                     "election": "Titre de l'élection",
                     "election-event": "Titre de l'événement électoral",
+                },
+            },
+            consolidatedReportPolicy: {
+                label: "Politique de rapport consolidé",
+                options: {
+                    "generate": "Générer",
+                    "do-not-generate": "Ne pas générer",
                 },
             },
         },
@@ -1716,6 +1724,8 @@ const frenchTranslation: TranslationType = {
                 totalVoters: "Total des Électeurs",
                 nonVoters: "Non-Électeurs",
             },
+            exportAllAreas:
+                "Exporter les résultats de toutes les zones au format {{format}} pour '{{item}}'",
         },
         publish: {
             preview: {

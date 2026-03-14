@@ -50,6 +50,7 @@ export const TallyResultsAreasTabs: React.FC<TallyResultsContestAreasProps> = (p
     const [selectedArea, setSelectedArea] = useState<string | null>(null)
     const {globalSettings} = useContext(SettingsContext)
     const tallyData = useAtomValue(tallyQueryData)
+    const aliasRenderer = useAliasRenderer()
 
     const {canExportCeremony} = useKeysPermissions()
 
@@ -148,7 +149,7 @@ export const TallyResultsAreasTabs: React.FC<TallyResultsContestAreasProps> = (p
         return parsedDocuments
             ? {
                   documents: parsedDocuments,
-                  name: contest?.name ?? "contest",
+                  name: aliasRenderer(contest) ?? "contest",
                   class_type: "contest-area",
               }
             : null
@@ -158,10 +159,7 @@ export const TallyResultsAreasTabs: React.FC<TallyResultsContestAreasProps> = (p
         resultsContests,
         resultsContests?.[0]?.contest_id,
         resultsContests?.[0]?.area_id,
-        contest?.name,
     ])
-
-    const aliasRenderer = useAliasRenderer()
 
     return (
         <>
@@ -199,7 +197,7 @@ export const TallyResultsAreasTabs: React.FC<TallyResultsContestAreasProps> = (p
                     <ExportElectionMenu
                         documentsList={[documents]}
                         electionEventId={electionEventId}
-                        itemName={contest?.name ?? "contest"}
+                        itemName={aliasRenderer(contest) ?? "contest"}
                         tallySessionId={tallySessionId}
                     />
                 ) : null}

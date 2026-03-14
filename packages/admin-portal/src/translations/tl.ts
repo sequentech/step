@@ -585,6 +585,7 @@ const tagalogTranslation: TranslationType = {
                 alias: "Alias",
                 description: "Paglalarawan",
                 securityConfirmationHtml: "HTML ng Kumpirmasyon sa Seguridad",
+                externalId: "Panlabas na ID",
             },
             securityConfirmationPolicy: {
                 label: "Patakaran sa Checkbox ng Kumpirmasyon sa Seguridad",
@@ -637,6 +638,13 @@ const tagalogTranslation: TranslationType = {
                 options: {
                     "election": "Pamagat ng halalan",
                     "election-event": "Pamagat ng kaganapan ng halalan",
+                },
+            },
+            consolidatedReportPolicy: {
+                label: "Patakaran sa Pinagsamang Ulat",
+                options: {
+                    "generate": "Bumuo",
+                    "do-not-generate": "Huwag bumuo",
                 },
             },
         },
@@ -1706,6 +1714,8 @@ const tagalogTranslation: TranslationType = {
                 totalVoters: "Kabuuang mga Botante",
                 nonVoters: "Hindi Bumoto",
             },
+            exportAllAreas:
+                "I-export ang resulta ng lahat ng lugar sa format na {{format}} para kay '{{item}}'",
         },
         publish: {
             preview: {

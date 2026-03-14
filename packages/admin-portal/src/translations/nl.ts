@@ -582,6 +582,7 @@ const dutchTranslation: TranslationType = {
                 alias: "Alias",
                 description: "Beschrijving",
                 securityConfirmationHtml: "Beveiligingsbevestiging HTML",
+                externalId: "Externe ID",
             },
             securityConfirmationPolicy: {
                 label: "Beleid voor selectievakje van beveiligingsbevestiging",
@@ -634,6 +635,13 @@ const dutchTranslation: TranslationType = {
                 options: {
                     "election": "Verkiezingstitel",
                     "election-event": "Verkiezingsevenementtitel",
+                },
+            },
+            consolidatedReportPolicy: {
+                label: "Beleid voor geconsolideerd rapport",
+                options: {
+                    "generate": "Genereren",
+                    "do-not-generate": "Niet genereren",
                 },
             },
         },
@@ -1698,6 +1706,8 @@ const dutchTranslation: TranslationType = {
                 totalVoters: "Totaal Kiezers",
                 nonVoters: "Niet-kiezers",
             },
+            exportAllAreas:
+                "Exporteer de resultaten van alle gebieden in {{format}}-formaat voor '{{item}}'",
         },
         publish: {
             preview: {
