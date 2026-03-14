@@ -102,12 +102,8 @@ pub async fn find_area_ballots(
     election_id: &str,
     output_file: &PathBuf,
 ) -> Result<()> {
-    let areas_statement = build_area_ballots_select_sql(
-        tenant_id,
-        election_event_id,
-        area_id,
-        election_id,
-    )?;
+    let areas_statement =
+        build_area_ballots_select_sql(tenant_id, election_event_id, area_id, election_id)?;
 
     let tokio_temp_file = File::create(output_file)
         .await
@@ -790,7 +786,12 @@ mod tests {
                 INSERT INTO sequent_backend.area (id, tenant_id, election_event_id, presentation)
                 VALUES ($1, $2, $3, $4)
                 "#,
-                &[&area_id, &tenant_id, &election_event_id, &json!({"i18n": {"en": {"name": "Area"}}})],
+                &[
+                    &area_id,
+                    &tenant_id,
+                    &election_event_id,
+                    &json!({"i18n": {"en": {"name": "Area"}}}),
+                ],
             )
             .await?;
 
