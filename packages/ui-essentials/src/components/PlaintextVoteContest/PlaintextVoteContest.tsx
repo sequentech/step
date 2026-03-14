@@ -32,6 +32,33 @@ const CandidatesWrapper = styled(Box)`
     margin: 12px 0;
 `
 
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+    typeof value === "object" && value !== null && !Array.isArray(value)
+
+const normalizeMessageMap = (messageMap: unknown): Record<string, unknown> | undefined => {
+    if (!messageMap) {
+        return undefined
+    }
+
+    if (messageMap instanceof Map) {
+        return Object.fromEntries(messageMap)
+    }
+
+    if (Array.isArray(messageMap)) {
+        const isEntryTupleArray = messageMap.every(
+            (entry): entry is [string, unknown] =>
+                Array.isArray(entry) && entry.length === 2 && typeof entry[0] === "string"
+        )
+        return isEntryTupleArray ? Object.fromEntries(messageMap) : undefined
+    }
+
+    if (isRecord(messageMap)) {
+        return messageMap
+    }
+
+    return undefined
+}
+
 interface VoteChoiceProps {
     text?: string
     points: number | null
@@ -134,10 +161,7 @@ export const PlaintextVoteContest: React.FC<PlaintextVoteContestProps> = ({
             {isBlank ? <BlankAnswer /> : null}
             {questionPlaintext.invalid_errors.map((error, index) => (
                 <WarnBox variant="warning" key={index}>
-                    {t(
-                        error.message || "",
-                        error.message_map && Object.fromEntries(error.message_map)
-                    )}
+                    {t(error.message || "", normalizeMessageMap(error.message_map))}
                 </WarnBox>
             ))}
             {questionPlaintext.is_explicit_invalid ? (

@@ -297,36 +297,6 @@ const basqueTranslation: TranslationType = {
             },
         },
         errors: {
-            encoding: {
-                notEnoughChoices: "Ez dago nahikoa aukera deskodetzeko",
-                writeInChoiceOutOfRange: "Idatzitako aukera barrutitik kanpo: {{index}}",
-                writeInNotEndInZero: "Idatzitakoa ez da 0n amaitzen",
-                writeInCharsExceeded:
-                    "Idatzitakoak gehienezko karaktere kopurua {{numCharsExceeded}}z gainditu du. Konponketa behar du.",
-                bytesToUtf8Conversion:
-                    "Errorea idatzitakoa byte-etatik UTF-8 kate-ra bihurtzerakoan: {{errorMessage}}",
-                ballotTooLarge: "Bozketa esperotakoa baino handiagoa",
-            },
-            implicit: {
-                selectedMax:
-                    "Gainfoto: Hautatutako aukeren kopurua {{numSelected}} gehienezko {{max}} baino gehiago da",
-                selectedMin:
-                    "Hautatutako aukeren kopurua {{numSelected}} gutxieneko {{min}} baino gutxiago da",
-                maxSelectionsPerType:
-                    "{{type}} zerrendako hautatutako aukeren kopurua {{numSelected}} gehienezko {{max}} baino gehiago da",
-                underVote:
-                    "Azpifoto: Hautatutako aukeren kopurua {{numSelected}} gehienezko {{max}} baino gutxiago da",
-                overVoteDisabled:
-                    "Gehienezkora heldu: Gehienezko {{numSelected}} aukera hautatu dituzu. Zure hautaketa aldatzeko, mesedez ezgaitu beste aukera bat lehenik.",
-                blankVote: "Boto Zuria: 0 aukera hautatu",
-                preferenceOrderWithGaps: "Lehentasunaren ordenak hutsune bat edo gehiago ditu.",
-                duplicatedPosition: "Posizio bera hautatu da bi kandidatu edo gehiagorentzat.",
-            },
-            explicit: {
-                notAllowed:
-                    "Bozketa espresuki baliogabe markatu da baina galderak ez du baimentzen",
-                alert: "Markatutako hautaketa baliogabeko bototzat hartuko da.",
-            },
             page: {
                 oopsWithStatus: "Hara! {{status}}",
                 oopsWithoutStatus: "Hara! Ustekabeko Errorea",

@@ -327,6 +327,12 @@ nix-collect-garbage
 cargo clean
 ```
 
+Also you can try, inside the ssh'd machine:
+
+```bash
+/home/<username>/step/packages
+```
+
 ### Fix starting/restarting containers
 
 If you see an error when starting/restarting a container, remove the .docker folder:
