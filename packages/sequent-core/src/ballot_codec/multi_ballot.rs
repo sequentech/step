@@ -1046,8 +1046,18 @@ mod tests {
     use crate::ballot::{BallotStyle, Candidate, Contest};
     use crate::serialization::deserialize_with_path::deserialize_value;
     use rand::{seq::SliceRandom, Rng};
-    use serde_json::json;
+    use serde_json::{json, Value};
     use std::collections::HashSet;
+    use uuid::Uuid;
+
+    #[derive(Debug, Clone)]
+    pub struct ContestInput {
+        pub name: String,
+        pub max_votes: usize,
+        pub min_votes: usize,
+        pub counting_algorithm: CountingAlgType,
+        pub candidates_num: usize,
+    }
 
     #[test]
     fn test_multi_contest_reencoding_with_explicit_invalid() {
@@ -1157,11 +1167,11 @@ mod tests {
             "choices": [
                 {
                     "id": "05614f41-720a-4fd5-842f-58355c0bbdc0",
-                    "selected": 1
+                    "selected": 0
                 },
                 {
                     "id": "dfc5a43d-2276-4859-8f76-b0f18f859e59",
-                    "selected": 1
+                    "selected": 2
                 },
                 {
                     "id": "3d3c78cc-df19-447d-a5d1-391268970d67",
@@ -1190,7 +1200,7 @@ mod tests {
                 "max_votes": 3,
                 "min_votes": 0,
                 "winning_candidates_num": 1,
-                "voting_type": "non-preferential",
+                "voting_type": "preferential",
                 "counting_algorithm": CountingAlgType::InstantRunoff,
                 "is_encrypted": true,
                 "candidates": [
@@ -1237,7 +1247,7 @@ mod tests {
 
         assert!(
             result.is_ok(),
-            "Multi-contest reencoding with explicit invalid candidate failed: {:?}",
+            "Multi-contest reencoding irv with gap failed: {:?}",
             result.err()
         );
 
@@ -1274,7 +1284,7 @@ mod tests {
                 },
                 {
                     "id": "dfc5a43d-2276-4859-8f76-b0f18f859e59",
-                    "selected": 2
+                    "selected": 1
                 },
                 {
                     "id": "3d3c78cc-df19-447d-a5d1-391268970d67",
@@ -1303,7 +1313,7 @@ mod tests {
                 "max_votes": 3,
                 "min_votes": 0,
                 "winning_candidates_num": 1,
-                "voting_type": "non-preferential",
+                "voting_type": "preferential",
                 "counting_algorithm": CountingAlgType::InstantRunoff,
                 "is_encrypted": true,
                 "candidates": [
@@ -1349,6 +1359,82 @@ mod tests {
         );
 
         assert_eq!(result.is_err(), true, "Duplicate rank should cause error");
+    }
+
+    #[test]
+    fn test_multi_contest_with_different_counting_algorithms() {
+        let (election_json, ballot_selection_json) =
+            create_random_ballot_election_json(vec![
+                ContestInput {
+                    name: "Contest 1".to_string(),
+                    max_votes: 3,
+                    min_votes: 0,
+                    counting_algorithm: CountingAlgType::InstantRunoff,
+                    candidates_num: 4,
+                },
+                ContestInput {
+                    name: "Contest 2".to_string(),
+                    max_votes: 2,
+                    min_votes: 0,
+                    counting_algorithm: CountingAlgType::PluralityAtLarge,
+                    candidates_num: 3,
+                },
+                ContestInput {
+                    name: "Contest 3".to_string(),
+                    max_votes: 6,
+                    min_votes: 0,
+                    counting_algorithm: CountingAlgType::InstantRunoff,
+                    candidates_num: 6,
+                },
+                ContestInput {
+                    name: "Contest 4".to_string(),
+                    max_votes: 4,
+                    min_votes: 0,
+                    counting_algorithm: CountingAlgType::PluralityAtLarge,
+                    candidates_num: 8,
+                },
+            ]);
+
+        let decoded_multi_contests: Vec<DecodedVoteContest> =
+            deserialize_value(ballot_selection_json)
+                .expect("Failed to parse ballot selection");
+        let ballot_style: BallotStyle =
+            deserialize_value(election_json).expect("Failed to parse election");
+
+        let result = test_multi_contest_reencoding(
+            &decoded_multi_contests,
+            &ballot_style,
+        );
+
+        // Verify the output maintains the explicit invalid flag
+        let output_contests = result.unwrap();
+
+        let mut in_choices = decoded_multi_contests.clone();
+        in_choices.sort_by_key(|c| c.contest_id.clone());
+
+        let mut out_choices = output_contests.clone();
+        out_choices.sort_by_key(|c| c.contest_id.clone());
+
+        assert_eq!(in_choices.len(), out_choices.len());
+
+        for (i, inc) in in_choices.iter().enumerate() {
+            let outc = out_choices[i].clone();
+
+            assert_eq!(inc.contest_id, outc.contest_id);
+            assert_eq!(inc.choices.len(), outc.choices.len());
+
+            let mut inc = inc.choices.clone();
+            inc.sort_by_key(|c| c.id.clone());
+
+            let mut outc = outc.choices.clone();
+            outc.sort_by_key(|c| c.clone().id);
+
+            for (j, ic) in inc.iter().enumerate() {
+                let oc = outc[j].clone();
+
+                assert_eq!(ic.id, oc.id);
+            }
+        }
     }
 
     #[test]
@@ -1613,6 +1699,185 @@ mod tests {
             election_annotations: None,
             area_annotations: None,
         }
+    }
+
+    /// Creates both:
+    /// - election_json
+    /// - ballot_selection_json
+    ///
+    /// Rules:
+    /// - Preferential contest:
+    ///   selected is either -1 or a unique rank in 0..max_votes-1
+    /// - Non-preferential contest:
+    ///   selected is either -1 or 0
+    ///   and at most max_votes
+    pub fn create_random_ballot_election_json(
+        contests_input: Vec<ContestInput>,
+    ) -> (Value, Value) {
+        let tenant_id = Uuid::new_v4().to_string();
+        let election_event_id = Uuid::new_v4().to_string();
+        let election_id = Uuid::new_v4().to_string();
+        let area_id = Uuid::new_v4().to_string();
+
+        let mut contests_json = Vec::new();
+        let mut ballot_selection_json = Vec::new();
+
+        let mut rng = rand::thread_rng();
+
+        for contest_input in contests_input {
+            let contest_id = Uuid::new_v4().to_string();
+
+            let mut candidates_json = Vec::new();
+            let mut candidate_ids = Vec::new();
+
+            for i in 0..contest_input.candidates_num {
+                let candidate_id = Uuid::new_v4().to_string();
+                candidate_ids.push(candidate_id.clone());
+
+                candidates_json.push(json!({
+                    "id": candidate_id,
+                    "tenant_id": tenant_id,
+                    "election_event_id": election_event_id,
+                    "election_id": election_id,
+                    "contest_id": contest_id,
+                    "name": format!("Candidate {}", i + 1),
+                }));
+            }
+
+            // Build choices for ballot_selection_json
+            let choices = if contest_input.counting_algorithm.is_preferential()
+            {
+                build_preferential_choices(
+                    &candidate_ids,
+                    contest_input.max_votes,
+                    &mut rng,
+                )
+            } else {
+                build_non_preferential_choices(
+                    &candidate_ids,
+                    contest_input.max_votes,
+                    &mut rng,
+                )
+            };
+
+            ballot_selection_json.push(json!({
+                "contest_id": contest_id,
+                "is_explicit_invalid": false,
+                "invalid_errors": [],
+                "invalid_alerts": [],
+                "choices": choices
+            }));
+
+            contests_json.push(json!({
+            "id": contest_id,
+            "tenant_id": tenant_id,
+            "election_event_id": election_event_id,
+            "election_id": election_id,
+            "name": contest_input.name,
+            "max_votes": contest_input.max_votes,
+            "min_votes": contest_input.min_votes,
+            "winning_candidates_num": 1,
+            "voting_type": if contest_input.counting_algorithm.is_preferential() {
+                "preferential"
+            } else {
+                "non-preferential"
+            },
+            "counting_algorithm": contest_input.counting_algorithm,
+            "is_encrypted": true,
+            "candidates": candidates_json
+        }));
+        }
+
+        let election_json = json!({
+            "id": Uuid::new_v4().to_string(),
+            "tenant_id": tenant_id,
+            "election_event_id": election_event_id,
+            "election_id": election_id,
+            "public_key": {
+                "public_key": "dummy-public-key",
+                "is_demo": false
+            },
+            "area_id": area_id,
+            "contests": contests_json,
+            "election_event_presentation": {
+                "contest_encryption_policy": "multiple-contests"
+            }
+        });
+
+        (election_json, Value::Array(ballot_selection_json))
+    }
+
+    fn build_preferential_choices(
+        candidate_ids: &[String],
+        max_votes: usize,
+        rng: &mut impl Rng,
+    ) -> Vec<Value> {
+        let candidates_len = candidate_ids.len();
+
+        // how many candidates will get a rank
+        let num_ranked = rng.gen_range(0..=max_votes.min(candidates_len));
+
+        // pick random candidate positions
+        let mut shuffled_candidate_indexes: Vec<usize> =
+            (0..candidates_len).collect();
+        shuffled_candidate_indexes.shuffle(rng);
+        let ranked_candidate_indexes =
+            &shuffled_candidate_indexes[..num_ranked];
+
+        let mut possible_ranks: Vec<i64> = (0..max_votes as i64).collect();
+        possible_ranks.shuffle(rng);
+        let chosen_ranks = &possible_ranks[..num_ranked];
+
+        // default all candidates to -1
+        let mut selected_values = vec![-1_i64; candidates_len];
+
+        // assign unique random ranks, gaps allowed
+        for (&candidate_idx, &rank_value) in
+            ranked_candidate_indexes.iter().zip(chosen_ranks.iter())
+        {
+            selected_values[candidate_idx] = rank_value;
+        }
+
+        candidate_ids
+            .iter()
+            .enumerate()
+            .map(|(idx, candidate_id)| {
+                json!({
+                    "id": candidate_id,
+                    "selected": selected_values[idx]
+                })
+            })
+            .collect()
+    }
+
+    fn build_non_preferential_choices(
+        candidate_ids: &[String],
+        max_votes: usize,
+        rng: &mut impl Rng,
+    ) -> Vec<Value> {
+        let candidates_len = candidate_ids.len();
+        let num_selected = rng.gen_range(0..=max_votes.min(candidates_len));
+
+        let mut shuffled_indexes: Vec<usize> = (0..candidates_len).collect();
+        shuffled_indexes.shuffle(rng);
+
+        let selected_indexes = &shuffled_indexes[..num_selected];
+
+        let mut selected_values = vec![-1_i64; candidates_len];
+        for &candidate_idx in selected_indexes {
+            selected_values[candidate_idx] = 0;
+        }
+
+        candidate_ids
+            .iter()
+            .enumerate()
+            .map(|(idx, candidate_id)| {
+                json!({
+                    "id": candidate_id,
+                    "selected": selected_values[idx]
+                })
+            })
+            .collect()
     }
 
     use ptree::item::TreeItem;
