@@ -12,7 +12,7 @@ import {
     check_voting_not_allowed_next_bool,
     stringToHtml,
     isUndefined,
-    translateElection,
+    translateFromPresentation,
     IContest,
     IAuditableMultiBallot,
     IAuditableSingleBallot,
@@ -471,7 +471,7 @@ const VotingScreen: React.FC = () => {
             </Box>
             <StyledTitle variant="h4" className="title-container">
                 <Box className="selected-election-title">
-                    {translateElection(election, "name", i18n.language) ?? "-"}
+                    {translateFromPresentation(election, "name", i18n.language) ?? "-"}
                 </Box>
                 <IconButton
                     className="title-question"
@@ -496,7 +496,9 @@ const VotingScreen: React.FC = () => {
                     variant="body2"
                     sx={{color: theme.palette.customGrey.main}}
                 >
-                    {stringToHtml(translateElection(election, "description", i18n.language) ?? "-")}
+                    {stringToHtml(
+                        translateFromPresentation(election, "description", i18n.language) ?? "-"
+                    )}
                 </Typography>
             ) : null}
 

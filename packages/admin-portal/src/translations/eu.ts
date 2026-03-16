@@ -576,6 +576,7 @@ const basqueTranslation: TranslationType = {
                 alias: "Ezizena",
                 description: "Deskribapena",
                 securityConfirmationHtml: "Segurtasun-berrespena HTML",
+                externalId: "Kanpoko IDa",
             },
             securityConfirmationPolicy: {
                 label: "Segurtasun-berrespeneko kontrol-laukiaren politika",

@@ -100,7 +100,7 @@ pub async fn insert_ballots_messages(
         get_election_event_elections(&hasura_transaction, tenant_id, election_event_id)
             .await?
             .into_iter()
-            .filter_map(|election| election.alias.map(|x| (election.id.clone(), x)))
+            .filter_map(|election| election.external_id.map(|x| (election.id.clone(), x)))
             .collect();
 
     // Collect all futures for parallel execution
