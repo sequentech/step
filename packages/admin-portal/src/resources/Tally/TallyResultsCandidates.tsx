@@ -27,6 +27,7 @@ import {Sequent_Backend_Candidate_Extended} from "./types"
 import {formatPercentOne, isNumber} from "@sequentech/ui-core"
 import {useAtomValue} from "jotai"
 import {tallyQueryData} from "@/atoms/tally-candidates"
+import {useAliasRenderer} from "@/hooks/useAliasRenderer"
 
 interface TallyResultsCandidatesProps {
     areaId: string | null | undefined
@@ -53,6 +54,7 @@ export const TallyResultsCandidates: React.FC<TallyResultsCandidatesProps> = (pr
     const {t} = useTranslation()
     const {globalSettings} = useContext(SettingsContext)
     const tallyData = useAtomValue(tallyQueryData)
+    const aliasRenderer = useAliasRenderer()
 
     const candidates: Array<Sequent_Backend_Candidate> | undefined = useMemo(
         () =>
@@ -114,6 +116,9 @@ export const TallyResultsCandidates: React.FC<TallyResultsCandidatesProps> = (pr
             flex: 1,
             editable: false,
             align: "left",
+            renderCell: (props: GridRenderCellParams<any, string>) => {
+                return aliasRenderer(props.row.presentation)
+            },
         },
         {
             field: "cast_votes",

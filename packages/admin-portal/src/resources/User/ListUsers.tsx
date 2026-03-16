@@ -90,6 +90,9 @@ import {Check, FilterAltOff} from "@mui/icons-material"
 import {useLocation} from "react-router-dom"
 import {getPreferenceKey} from "@/lib/helpers"
 import {isEqual} from "lodash"
+import {AuthorizedElectionsField} from "./AuthrizedElectionsField"
+
+export const AUTHORIZED_ELECTION_IDS = "authorized-election-ids"
 
 const DataGridContainerStyle = styled(DatagridConfigurable, {
     shouldForwardProp: (prop) => prop !== "isOpenSideBar", // Prevent `isOpenSideBar` from being passed to the DOM
@@ -890,6 +893,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
 
     const renderFields = (fields: UserProfileAttribute[]) => {
         const allFields = fields.map((attr) => {
+            if (attr.name === AUTHORIZED_ELECTION_IDS) return null
             if (attr.annotations?.inputType === "html5-date") {
                 return (
                     <FunctionField
@@ -1016,6 +1020,14 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
             }
         }, [isFetching, filtersChanged])
 
+        const hasAuthorizedElectionIdsAttributes = useMemo(
+            () =>
+                userAttributes?.get_user_profile_attributes.find(
+                    (attr) => attr.name === AUTHORIZED_ELECTION_IDS
+                ),
+            [userAttributes?.get_user_profile_attributes]
+        )
+
         if (isLoading || (isFetching && filtersChanged)) {
             return <TableSkeleton rowCount={perPage} />
         }
@@ -1049,6 +1061,16 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                                         "-"
                                     )
                                 }
+                            />
+                        )}
+                        {electionEventId && hasAuthorizedElectionIdsAttributes && (
+                            <FunctionField
+                                label={t(
+                                    "usersAndRolesScreen.users.fields.authorized-election-ids"
+                                )}
+                                render={() => (
+                                    <AuthorizedElectionsField electionEventId={electionEventId} />
+                                )}
                             />
                         )}
                         {renderFields(listFields.attributesFields)}

@@ -26,6 +26,7 @@ use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
 use deadpool_postgres::Transaction;
 use sequent_core::services::pdf;
+use sequent_core::services::translations::Alias;
 use sequent_core::types::ceremonies::TallyType;
 use sequent_core::util::temp_path::get_public_assets_path_env_var;
 use sequent_core::{
@@ -285,11 +286,11 @@ impl TemplateRenderer for OVCSEventsTemplate {
             .map(|(name, events)| Region { name, events })
             .collect();
 
+        let language = election_event.get_default_language();
+        let election_title: String = election_event.get_alias(&language);
+
         Ok(UserData {
-            election_event_title: election_event
-                .alias
-                .clone()
-                .unwrap_or(election_event.name.clone()),
+            election_event_title: election_title,
             execution_annotations: ExecutionAnnotations {
                 date_printed,
                 report_hash,

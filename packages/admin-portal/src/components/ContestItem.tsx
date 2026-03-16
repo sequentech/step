@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+import {useAliasRenderer} from "@/hooks/useAliasRenderer"
 import {GET_AREA_WITH_AREA_CONTESTS} from "@/queries/GetAreaWithAreaContest"
 import {useQuery} from "@apollo/client"
 import styled from "@emotion/styled"
@@ -26,8 +27,9 @@ interface ContestItemProps {
 
 export const ContestItem: React.FC<ContestItemProps> = (props) => {
     const {record} = props
+    const aliasRendere = useAliasRenderer()
 
     const {data} = useGetOne("sequent_backend_contest", {id: record})
 
-    return <>{data ? <Chip label={data?.name} /> : null}</>
+    return <>{data ? <Chip label={aliasRendere(data)} /> : null}</>
 }

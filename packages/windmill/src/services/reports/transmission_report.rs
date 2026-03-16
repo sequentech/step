@@ -26,6 +26,7 @@ use sequent_core::ballot::StringifiedPeriodDates;
 use sequent_core::services::keycloak::get_event_realm;
 use sequent_core::services::pdf;
 use sequent_core::services::s3::get_minio_url;
+use sequent_core::services::translations::Name;
 use sequent_core::types::scheduled_event::generate_voting_period_dates;
 use sequent_core::util::temp_path::*;
 use serde::{Deserialize, Serialize};
@@ -168,7 +169,8 @@ impl TemplateRenderer for TransmissionReport {
         .await?;
 
         let date_printed = get_date_and_time();
-        let election_title = election_event.name.clone();
+        let language = election_event.get_default_language();
+        let election_title: String = election_event.get_name(&language);
 
         // get election instace
         let election = match get_election_by_id(

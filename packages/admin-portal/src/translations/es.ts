@@ -533,6 +533,7 @@ const spanishTranslation: TranslationType = {
                 scheduledClosing: "Cierre Programado",
                 alias: "Alias",
                 description: "Descripción",
+                externalId: "ID externo",
             },
             error: {
                 endDate: "La fecha de finalización debe ser posterior a la fecha de inicio",

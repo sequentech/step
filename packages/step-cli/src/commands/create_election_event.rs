@@ -2,10 +2,13 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+use std::collections::HashMap;
+
 use crate::types::hasura_types::*;
 use crate::utils::read_config::read_config;
 use clap::Args;
 use graphql_client::{GraphQLQuery, Response};
+use sequent_core::ballot::ElectionEventPresentation;
 use serde_json::Value;
 
 #[derive(Args, Debug)]
@@ -63,6 +66,13 @@ fn create_election_event(
     let config = read_config()?;
     let client = reqwest::blocking::Client::new();
 
+    let mut presentation = ElectionEventPresentation::default();
+
+    presentation.i18n = Some(HashMap::from([(
+        "en".to_string(),
+        HashMap::from([("name".to_string(), Some(name.to_string()))]),
+    )]));
+
     let variables = create_election_event::Variables {
         election_event: create_election_event::CreateElectionEventInput {
             tenant_id: config.tenant_id.clone(),
@@ -72,7 +82,7 @@ fn create_election_event(
             is_archived: Some(is_archived),
 
             id: None,
-            presentation: None,
+            presentation: Some(serde_json::to_value(presentation)?),
             created_at: None,
             updated_at: None,
             labels: None,
