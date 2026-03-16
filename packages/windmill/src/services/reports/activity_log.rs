@@ -369,6 +369,7 @@ impl TemplateRenderer for ActivityLogsTemplate {
         } else {
             // Generate CSV file using generate_export_csv_data
             let name = format!("export-election-event-logs-{}", election_event_id);
+            let full_name = format!("{}.csv", name);
             let temp_file = self
                 .generate_export_csv_data(&name)
                 .await
@@ -387,7 +388,7 @@ impl TemplateRenderer for ActivityLogsTemplate {
                 "text/csv",
                 tenant_id,
                 Some(election_event_id.to_string()),
-                &name.clone(),
+                &full_name.clone(),
                 Some(document_id.to_string()),
                 false,
             )
