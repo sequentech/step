@@ -1237,3 +1237,13 @@ pub fn verify_multi_ballot_signature_js(
         .map_err(|err| format!("Error writing javascript string: {err}",))
         .into_json()
 }
+
+#[wasm_bindgen]
+pub fn get_default_consolidated_report_policy_js() -> Result<JsValue, JsValue> {
+    let policy: ConsolidatedReportPolicy = ConsolidatedReportPolicy::default();
+    serde_wasm_bindgen::to_value(&policy).map_err(|err| {
+        JsValue::from_str(&format!(
+            "Error serializing default consolidated report policy: {err}"
+        ))
+    })
+}

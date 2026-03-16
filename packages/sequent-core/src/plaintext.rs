@@ -63,8 +63,6 @@ impl DecodedVoteContest {
     pub fn validate_preferencial_order(
         &self,
     ) -> Result<(), Vec<PreferencialOrderErrorType>> {
-        let mut errors: Vec<PreferencialOrderErrorType> = Vec::new();
-
         // Discard the unselected choices and sort the selected ones by their preference order
         let choices: Vec<i64> = self
             .choices
