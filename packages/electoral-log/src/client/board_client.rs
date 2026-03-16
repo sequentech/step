@@ -916,8 +916,8 @@ pub(crate) mod tests {
     async fn set_up() -> BoardClient {
         // Allow the ignored integration test to run both in local/devcontainer setups
         // and in container networks where the ImmuDB hostname is different.
-        let immudb_url = env::var(IMMUDB_URL_ENV_VAR)
-            .unwrap_or_else(|_| DEFAULT_IMMUDB_URL.to_string());
+        let immudb_url =
+            env::var(IMMUDB_URL_ENV_VAR).unwrap_or_else(|_| DEFAULT_IMMUDB_URL.to_string());
 
         let mut b = BoardClient::new(immudb_url.as_str(), "immudb", "immudb")
             .await
