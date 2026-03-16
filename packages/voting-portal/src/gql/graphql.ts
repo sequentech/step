@@ -1683,7 +1683,6 @@ export type Mutation_RootCreate_Ballot_ReceiptArgs = {
 export type Mutation_RootCreate_ElectionArgs = {
   description?: InputMaybe<Scalars['String']['input']>;
   election_event_id: Scalars['String']['input'];
-  external_id: Scalars['String']['input'];
   name: Scalars['String']['input'];
   presentation?: InputMaybe<Scalars['jsonb']['input']>;
 };

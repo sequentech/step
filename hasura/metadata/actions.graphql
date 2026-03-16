@@ -41,7 +41,6 @@ type Mutation {
     create_election(
         election_event_id: String!
         name: String!
-        external_id: String!
         presentation: jsonb
         description: String
     ): CreateElectionOutput
