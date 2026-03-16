@@ -20,17 +20,9 @@ struct LocalPostgresProcess {
 impl Drop for LocalPostgresProcess {
     fn drop(&mut self) {
         let _ = Command::new("pg_ctl")
-            .args([
-                "-D",
-                self.data_dir
-                    .path()
-                    .as_os_str()
-                    .to_str()
-                    .unwrap_or_default(),
-                "-m",
-                "immediate",
-                "stop",
-            ])
+            .args(["-D"])
+            .arg(self.data_dir.path())
+            .args(["-m", "immediate", "stop"])
             .output();
     }
 }
@@ -124,10 +116,11 @@ fn extract_postgres_init_sql() -> Result<String> {
     for line in init_script.lines() {
         if in_sql_block {
             if line.trim() == "EOSQL" {
-                break;
+                in_sql_block = false;
+                continue;
             }
             sql_lines.push(line);
-        } else if line.contains("<<-'EOSQL'") || line.contains("<<'EOSQL'") {
+        } else if is_eosql_heredoc_start(line) {
             in_sql_block = true;
         }
     }
@@ -140,6 +133,26 @@ fn extract_postgres_init_sql() -> Result<String> {
     }
 
     Ok(sql_lines.join("\n"))
+}
+
+fn is_eosql_heredoc_start(line: &str) -> bool {
+    let Some(heredoc_start) = line.find("<<") else {
+        return false;
+    };
+
+    let mut chars = line[heredoc_start + 2..].chars().peekable();
+
+    while let Some(&next) = chars.peek() {
+        if next == '-' || next.is_whitespace() {
+            chars.next();
+        } else {
+            break;
+        }
+    }
+
+    let rest: String = chars.collect();
+
+    rest.starts_with("'EOSQL'") || rest.starts_with("\"EOSQL\"") || rest.starts_with("EOSQL")
 }
 
 fn backend_migration_paths() -> Result<Vec<PathBuf>> {
@@ -184,12 +197,9 @@ fn start_local_postgres_process() -> Result<(String, LocalPostgresProcess)> {
     let server_options = format!("-F -h 127.0.0.1 -k {} -p {port}", data_dir.path().display());
 
     let initdb_output = Command::new("initdb")
-        .args([
-            "-D",
-            data_dir.path().as_os_str().to_str().unwrap_or_default(),
-            "--username=postgres",
-            "--auth=trust",
-        ])
+        .arg("-D")
+        .arg(data_dir.path())
+        .args(["--username=postgres", "--auth=trust"])
         .output()
         .context("Could not initialize a local Postgres data directory")?;
 
@@ -201,16 +211,13 @@ fn start_local_postgres_process() -> Result<(String, LocalPostgresProcess)> {
     }
 
     let start_output = Command::new("pg_ctl")
-        .args([
-            "-D",
-            data_dir.path().as_os_str().to_str().unwrap_or_default(),
-            "-l",
-            log_file_path.as_os_str().to_str().unwrap_or_default(),
-            "-o",
-            server_options.as_str(),
-            "-w",
-            "start",
-        ])
+        .arg("-D")
+        .arg(data_dir.path())
+        .arg("-l")
+        .arg(&log_file_path)
+        .arg("-o")
+        .arg(server_options.as_str())
+        .args(["-w", "start"])
         .output()
         .context("Could not start a local Postgres process")?;
 
@@ -228,4 +235,28 @@ fn start_local_postgres_process() -> Result<(String, LocalPostgresProcess)> {
         format!("postgresql://postgres@127.0.0.1:{port}/postgres"),
         LocalPostgresProcess { data_dir },
     ))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::is_eosql_heredoc_start;
+
+    #[test]
+    fn detects_quoted_eosql_heredoc_start() {
+        assert!(is_eosql_heredoc_start("    <<-'EOSQL'"));
+        assert!(is_eosql_heredoc_start("<<'EOSQL'"));
+    }
+
+    #[test]
+    fn detects_unquoted_eosql_heredoc_start() {
+        assert!(is_eosql_heredoc_start("<<-EOSQL"));
+        assert!(is_eosql_heredoc_start("<< EOSQL"));
+        assert!(is_eosql_heredoc_start("<<- 'EOSQL'"));
+    }
+
+    #[test]
+    fn ignores_other_heredoc_tokens() {
+        assert!(!is_eosql_heredoc_start("<<-SQL"));
+        assert!(!is_eosql_heredoc_start("echo hi"));
+    }
 }

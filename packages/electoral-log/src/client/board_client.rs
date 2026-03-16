@@ -907,11 +907,19 @@ impl BoardClient {
 pub(crate) mod tests {
     use super::*;
     use serial_test::serial;
+    use std::env;
 
     const BOARD_DB: &'static str = "testdb";
+    const IMMUDB_URL_ENV_VAR: &str = "ELECTORAL_LOG_IMMUDB_URL";
+    const DEFAULT_IMMUDB_URL: &str = "http://immudb:3322";
 
     async fn set_up() -> BoardClient {
-        let mut b = BoardClient::new("http://localhost:3322", "immudb", "immudb")
+        // Allow the ignored integration test to run both in local/devcontainer setups
+        // and in container networks where the ImmuDB hostname is different.
+        let immudb_url = env::var(IMMUDB_URL_ENV_VAR)
+            .unwrap_or_else(|_| DEFAULT_IMMUDB_URL.to_string());
+
+        let mut b = BoardClient::new(immudb_url.as_str(), "immudb", "immudb")
             .await
             .unwrap();
 
@@ -965,9 +973,9 @@ pub(crate) mod tests {
             ),
         ]);
         let ret = b
-            .get_electoral_log_messages_filtered(
+            .get_electoral_log_messages_filtered::<String, String>(
                 BOARD_DB,
-                Some(cols_match),
+                Some(cols_match.clone()),
                 None,
                 None,
                 None,
@@ -978,9 +986,9 @@ pub(crate) mod tests {
             .unwrap();
         assert_eq!(messages, ret);
         let ret = b
-            .get_electoral_log_messages_filtered(
+            .get_electoral_log_messages_filtered::<String, String>(
                 BOARD_DB,
-                Some(cols_match),
+                Some(cols_match.clone()),
                 Some(1i64),
                 None,
                 None,
@@ -991,9 +999,9 @@ pub(crate) mod tests {
             .unwrap();
         assert_eq!(messages, ret);
         let ret = b
-            .get_electoral_log_messages_filtered(
+            .get_electoral_log_messages_filtered::<String, String>(
                 BOARD_DB,
-                Some(cols_match),
+                Some(cols_match.clone()),
                 None,
                 Some(556i64),
                 None,
@@ -1004,9 +1012,9 @@ pub(crate) mod tests {
             .unwrap();
         assert_eq!(messages, ret);
         let ret = b
-            .get_electoral_log_messages_filtered(
+            .get_electoral_log_messages_filtered::<String, String>(
                 BOARD_DB,
-                Some(cols_match),
+                Some(cols_match.clone()),
                 Some(1i64),
                 Some(556i64),
                 None,
@@ -1017,7 +1025,7 @@ pub(crate) mod tests {
             .unwrap();
         assert_eq!(messages, ret);
         let ret = b
-            .get_electoral_log_messages_filtered(
+            .get_electoral_log_messages_filtered::<String, String>(
                 BOARD_DB,
                 Some(cols_match),
                 Some(556i64),
