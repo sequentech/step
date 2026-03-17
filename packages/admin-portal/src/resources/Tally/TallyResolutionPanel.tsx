@@ -338,10 +338,10 @@ export const TallyResolutionPanel: React.FC<TallyResolutionPanelProps> = ({
     }, [selectedResolution, candidates])
 
     const totalVotes: number | undefined = useMemo(() => {
-        if (!selectedResolution?.results_contest_id) return undefined
+        if (!selectedResolution?.contest_id) return undefined
         return (
             (tallyData?.sequent_backend_results_contest ?? []).find(
-                (rc) => rc.id === selectedResolution.results_contest_id
+                (rc) => rc.contest_id === selectedResolution.contest_id
             )?.total_votes ?? undefined
         )
     }, [selectedResolution, tallyData])
@@ -568,9 +568,11 @@ export const TallyResolutionPanel: React.FC<TallyResolutionPanelProps> = ({
     const voteCounts: number[] = selectedResolution?.resolution_data?.vote_counts ?? []
     const tiedVoteCount: number | undefined = voteCounts[0]
     const tiedVotePercent: string | undefined =
-        tiedVoteCount !== undefined && totalVotes
+        tiedVoteCount !== undefined && totalVotes !== undefined && totalVotes > 0
             ? ((tiedVoteCount / totalVotes) * 100).toFixed(1)
-            : undefined
+            : totalVotes === 0
+              ? "0.0"
+              : undefined
     const tiedCandidateNames = tiedCandidatesForSelected
         .map((c) => aliasRenderer(c.presentation))
         .join(", ")

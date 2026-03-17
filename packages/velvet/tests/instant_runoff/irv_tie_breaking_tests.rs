@@ -6,8 +6,8 @@ use anyhow::Result;
 use sequent_core::ballot::{Candidate, Contest, TieBreakingPolicy, Weight};
 use sequent_core::plaintext::{DecodedVoteChoice, DecodedVoteContest};
 use sequent_core::types::ceremonies::CountingAlgType;
-use std::collections::HashMap;
 use sequent_core::types::ceremonies::TieBreakingMethod;
+use std::collections::HashMap;
 use velvet::pipes::do_tally::counting_algorithm::instant_runoff::{BallotsStatus, RunoffStatus};
 
 /// Helper: Create a simple 3-candidate contest

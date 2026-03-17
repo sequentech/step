@@ -131,7 +131,11 @@ pub(crate) fn build_tie_resolutions_map(
         let Some(resolution) = r.resolution.as_ref() else {
             continue;
         };
-        let round_number = r.resolution_data.as_ref().map(|d| d.round_number).unwrap_or(0);
+        let round_number = r
+            .resolution_data
+            .as_ref()
+            .map(|d| d.round_number)
+            .unwrap_or(0);
         map.entry(actual_contest_id.to_string())
             .or_default()
             .push(serde_json::json!({
@@ -169,8 +173,7 @@ pub(crate) fn pending_resolution_exists(
     existing.iter().any(|r| {
         r.contest_id.as_deref() == Some(contest_id)
             && r.resolution_type == ResolutionType::IrvTieBreak
-            && r.resolution_data.as_ref().map(|d| d.round_number)
-                == Some(tie_metadata.round_number)
+            && r.resolution_data.as_ref().map(|d| d.round_number) == Some(tie_metadata.round_number)
     })
 }
 
@@ -215,8 +218,7 @@ async fn check_for_tie_resolutions(
         let annotations: serde_json::Value = row.get(2);
 
         if let Some(tie_metadata) = parse_pending_tie_from_annotations(&annotations) {
-            let resolution_data: IrvTieBreakResolutionData =
-                serde_json::from_value(tie_metadata)?;
+            let resolution_data: IrvTieBreakResolutionData = serde_json::from_value(tie_metadata)?;
             pending.push((results_contest_id_str, contest_id_str, resolution_data));
         }
     }
@@ -2087,12 +2089,24 @@ mod tests {
         let existing = vec![round2, round3];
 
         // Querying for round 2 finds it.
-        assert!(pending_resolution_exists(&existing, "contest-x", &make_irv_metadata(2)));
+        assert!(pending_resolution_exists(
+            &existing,
+            "contest-x",
+            &make_irv_metadata(2)
+        ));
 
         // Querying for round 3 finds it.
-        assert!(pending_resolution_exists(&existing, "contest-x", &make_irv_metadata(3)));
+        assert!(pending_resolution_exists(
+            &existing,
+            "contest-x",
+            &make_irv_metadata(3)
+        ));
 
         // Round 4 has no record yet.
-        assert!(!pending_resolution_exists(&existing, "contest-x", &make_irv_metadata(4)));
+        assert!(!pending_resolution_exists(
+            &existing,
+            "contest-x",
+            &make_irv_metadata(4)
+        ));
     }
 }
