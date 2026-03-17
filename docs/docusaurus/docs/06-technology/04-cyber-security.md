@@ -8,7 +8,7 @@ SPDX-FileCopyrightText: 2025 Sequent Tech <legal@sequentech.io>
 SPDX-License-Identifier: AGPL-3.0-only
 -->
 
-This page provides supplementary cybersecurity information for the Sequent Voting Platform (SVP), including how to report vulnerabilities and how security issues are handled.
+This page provides supplementary cybersecurity information for the `Sequent Voting Platform - uniWAHL Version`, including how to report vulnerabilities and how security issues are handled.
 
 ## Reporting security vulnerabilities
 
