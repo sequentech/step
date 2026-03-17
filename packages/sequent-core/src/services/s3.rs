@@ -29,6 +29,7 @@ use tracing::{info, instrument};
 const MAX_CHUNK_SIZE: u64 = 16 * 1024 * 1024;
 const AWS_HOSTED_S3_HOST_DELIMITER: &str = ".s3.";
 const AWS_HOSTED_S3_DOMAIN_SUFFIX: &str = "amazonaws.com";
+const AWS_S3_SERVICE_HOST_PREFIX: &str = "s3";
 
 #[derive(Debug, PartialEq, Eq)]
 struct ResolvedS3ListTargetParts {
@@ -74,7 +75,10 @@ fn join_s3_path(prefix: &str, suffix: &str) -> String {
 /// plus bucket name so list operations can address AWS correctly.
 fn parse_aws_bucket_endpoint(
     endpoint_uri: &str,
+    aws_region: Option<&str>,
 ) -> Result<Option<(String, String)>> {
+    // Parse once so we can reason about the hostname shape without doing any
+    // string slicing against the raw env var value.
     let url = reqwest::Url::parse(endpoint_uri)
         .with_context(|| format!("Invalid S3 endpoint URL `{endpoint_uri}`"))?;
     let host = match url.host_str() {
@@ -82,17 +86,45 @@ fn parse_aws_bucket_endpoint(
         None => return Ok(None),
     };
 
-    let (bucket_name, service_host) =
-        match host.split_once(AWS_HOSTED_S3_HOST_DELIMITER) {
-            Some((bucket_name, suffix)) if !bucket_name.is_empty() => {
-                if !suffix.ends_with(AWS_HOSTED_S3_DOMAIN_SUFFIX) {
-                    return Ok(None);
-                }
-                (bucket_name, format!("s3.{suffix}"))
+    // AWS bucket-hosted endpoints look like `<bucket>.s3.amazonaws.com` or
+    // `<bucket>.s3.<region>.amazonaws.com`. MinIO and other custom endpoints do
+    // not match this shape, so they must be left untouched.
+    let (bucket_name, service_host) = match host
+        .split_once(AWS_HOSTED_S3_HOST_DELIMITER)
+    {
+        Some((bucket_name, suffix)) if !bucket_name.is_empty() => {
+            // Only rewrite real AWS S3 hosts. This avoids accidentally
+            // treating custom domains as bucket-hosted AWS endpoints.
+            if !suffix.ends_with(AWS_HOSTED_S3_DOMAIN_SUFFIX) {
+                return Ok(None);
             }
-            _ => return Ok(None),
-        };
 
+            let service_host = if suffix == AWS_HOSTED_S3_DOMAIN_SUFFIX {
+                // The global host form does not encode the bucket region.
+                // Prefer the resolved SDK region so SigV4 targets the
+                // correct regional S3 endpoint outside us-east-1.
+                match aws_region {
+                        Some(region) if !region.is_empty() => format!(
+                            "{AWS_S3_SERVICE_HOST_PREFIX}.{region}.{AWS_HOSTED_S3_DOMAIN_SUFFIX}"
+                        ),
+                        _ => format!(
+                            "{AWS_S3_SERVICE_HOST_PREFIX}.{AWS_HOSTED_S3_DOMAIN_SUFFIX}"
+                        ),
+                    }
+            } else {
+                // Regional bucket-hosted endpoints already tell us which
+                // service host to talk to, so we preserve that region.
+                format!("{AWS_S3_SERVICE_HOST_PREFIX}.{suffix}")
+            };
+
+            (bucket_name, service_host)
+        }
+        _ => return Ok(None),
+    };
+
+    // Rebuild the endpoint URL without the bucket in the hostname. The caller
+    // will use the returned bucket name plus this service endpoint for list and
+    // delete operations that require bucket + prefix semantics on AWS.
     let mut service_endpoint = format!("{}://{}", url.scheme(), service_host);
     if let Some(port) = url.port() {
         service_endpoint.push_str(&format!(":{port}"));
@@ -106,9 +138,10 @@ fn parse_aws_bucket_endpoint(
 fn resolve_s3_list_target_parts(
     endpoint_uri: &str,
     logical_bucket: &str,
+    aws_region: Option<&str>,
 ) -> Result<ResolvedS3ListTargetParts> {
     if let Some((service_endpoint, bucket_name)) =
-        parse_aws_bucket_endpoint(endpoint_uri)?
+        parse_aws_bucket_endpoint(endpoint_uri, aws_region)?
     {
         return Ok(ResolvedS3ListTargetParts {
             service_endpoint: Some(service_endpoint),
@@ -171,22 +204,19 @@ async fn get_s3_list_target(
     };
     let endpoint_uri = env::var(env_var_name)
         .with_context(|| format!("{env_var_name} must be set"))?;
-    let target_parts =
-        resolve_s3_list_target_parts(&endpoint_uri, logical_bucket)?;
+    let sdk_config = get_from_env_aws_config().await?;
+    let aws_region = sdk_config.region().map(|region| region.as_ref());
+    let target_parts = resolve_s3_list_target_parts(
+        &endpoint_uri,
+        logical_bucket,
+        aws_region,
+    )?;
+    let resolved_endpoint = target_parts
+        .service_endpoint
+        .as_deref()
+        .unwrap_or(&endpoint_uri);
+    let config = build_s3_config_for_endpoint(&sdk_config, resolved_endpoint);
 
-    if let Some(service_endpoint) = target_parts.service_endpoint {
-        let sdk_config = get_from_env_aws_config().await?;
-        let config =
-            build_s3_config_for_endpoint(&sdk_config, &service_endpoint);
-
-        return Ok(ResolvedS3ListTarget {
-            client: get_s3_client(config).await?,
-            bucket: target_parts.bucket,
-            prefix_root: target_parts.prefix_root,
-        });
-    }
-
-    let config = get_s3_aws_config(use_server_endpoint).await?;
     Ok(ResolvedS3ListTarget {
         client: get_s3_client(config).await?,
         bucket: target_parts.bucket,
@@ -328,8 +358,8 @@ pub async fn get_upload_url(
         true => get_public_bucket()?,
         false => get_private_bucket()?,
     };
-    // We always use the public aws config since we are generating a client-side
-    // upload url. is_public is only used to define the upload bucket
+    // Select the AWS endpoint that the caller can reach: when `is_local` is true
+    // we use the server-only endpoint; `is_public` only determines the upload bucket.
     let config =
         get_s3_aws_config(/* use_server_endpoint = */ is_local).await?;
     let client = get_s3_client(config.clone()).await?;
@@ -939,6 +969,7 @@ mod tests {
     fn parse_region_aware_aws_bucket_endpoint() {
         let parsed = parse_aws_bucket_endpoint(
             "https://sequent-dev-bucket-eu-west-1-123.s3.eu-west-1.amazonaws.com",
+            Some("eu-west-1"),
         )
         .unwrap();
 
@@ -955,6 +986,24 @@ mod tests {
     fn parse_global_aws_bucket_endpoint() {
         let parsed = parse_aws_bucket_endpoint(
             "https://sequent-dev-bucket-eu-west-1-123.s3.amazonaws.com",
+            Some("eu-west-1"),
+        )
+        .unwrap();
+
+        assert_eq!(
+            parsed,
+            Some((
+                "https://s3.eu-west-1.amazonaws.com".to_string(),
+                "sequent-dev-bucket-eu-west-1-123".to_string(),
+            ))
+        );
+    }
+
+    #[test]
+    fn parse_global_aws_bucket_endpoint_without_region_keeps_global_host() {
+        let parsed = parse_aws_bucket_endpoint(
+            "https://sequent-dev-bucket-eu-west-1-123.s3.amazonaws.com",
+            None,
         )
         .unwrap();
 
@@ -969,15 +1018,20 @@ mod tests {
 
     #[test]
     fn ignores_non_aws_endpoints() {
-        let parsed = parse_aws_bucket_endpoint("http://minio:9000").unwrap();
+        let parsed =
+            parse_aws_bucket_endpoint("http://minio:9000", Some("eu-west-1"))
+                .unwrap();
 
         assert_eq!(parsed, None);
     }
 
     #[test]
     fn ignores_localhost_non_aws_endpoints() {
-        let parsed =
-            parse_aws_bucket_endpoint("http://127.0.0.1:9000").unwrap();
+        let parsed = parse_aws_bucket_endpoint(
+            "http://127.0.0.1:9000",
+            Some("eu-west-1"),
+        )
+        .unwrap();
 
         assert_eq!(parsed, None);
     }
@@ -987,6 +1041,7 @@ mod tests {
         let resolved = resolve_s3_list_target_parts(
             "http://minio:9000",
             "election-event-documents",
+            Some("us-east-1"),
         )
         .unwrap();
 
@@ -1002,9 +1057,12 @@ mod tests {
 
     #[test]
     fn resolves_local_public_bucket_without_rewriting() {
-        let resolved =
-            resolve_s3_list_target_parts("http://127.0.0.1:9000", "public")
-                .unwrap();
+        let resolved = resolve_s3_list_target_parts(
+            "http://127.0.0.1:9000",
+            "public",
+            Some("us-east-1"),
+        )
+        .unwrap();
 
         assert_eq!(
             resolved,
@@ -1021,13 +1079,16 @@ mod tests {
         let resolved = resolve_s3_list_target_parts(
             "https://sequent-dev-bucket-eu-west-1-133529410358.s3.amazonaws.com",
             "public",
+            Some("eu-west-1"),
         )
         .unwrap();
 
         assert_eq!(
             resolved,
             ResolvedS3ListTargetParts {
-                service_endpoint: Some("https://s3.amazonaws.com".to_string(),),
+                service_endpoint: Some(
+                    "https://s3.eu-west-1.amazonaws.com".to_string(),
+                ),
                 bucket: "sequent-dev-bucket-eu-west-1-133529410358".to_string(),
                 prefix_root: Some("public".to_string()),
             }
@@ -1039,13 +1100,16 @@ mod tests {
         let resolved = resolve_s3_list_target_parts(
             "https://sequent-dev-bucket-eu-west-1-133529410358.s3.amazonaws.com",
             "election-event-documents",
+            Some("eu-west-1"),
         )
         .unwrap();
 
         assert_eq!(
             resolved,
             ResolvedS3ListTargetParts {
-                service_endpoint: Some("https://s3.amazonaws.com".to_string(),),
+                service_endpoint: Some(
+                    "https://s3.eu-west-1.amazonaws.com".to_string(),
+                ),
                 bucket: "sequent-dev-bucket-eu-west-1-133529410358".to_string(),
                 prefix_root: Some("election-event-documents".to_string(),),
             }
