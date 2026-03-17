@@ -53,7 +53,6 @@ export const TallyElectionsProgress: React.FC<TallyElectionsProgressProps> = ({
                     ...election,
                     rowId: index,
                     id: election.id || "",
-                    name: election.name,
                     status: election.status || "",
                     progress: 0,
                 })

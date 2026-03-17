@@ -31,13 +31,14 @@ const TallyResultsElectionsTabs: React.MemoExoticComponent<React.FC<TallyResults
     (props: TallyResultsProps): React.JSX.Element => {
         const {tally, resultsEventId, onCreateTransmissionPackage, loading} = props
 
-        const {t} = useTranslation()
+        const {t, i18n} = useTranslation()
         const [value, setValue] = React.useState<number | null>(0)
         const [electionsData, setElectionsData] = useState<Array<Sequent_Backend_Election>>([])
         const [electionId, setElectionId] = useState<string | null>(null)
         const [data, setData] = useState<Sequent_Backend_Tally_Session | undefined>()
         const [areasData, setAreasData] = useState<RaRecord<Identifier>[]>()
         const tallyData = useAtomValue(tallyQueryData)
+        const aliasRenderer = useAliasRenderer()
 
         const {canExportCeremony} = useKeysPermissions()
 
@@ -96,6 +97,14 @@ const TallyResultsElectionsTabs: React.MemoExoticComponent<React.FC<TallyResults
             }
         }, [elections])
 
+        const currentElection = useMemo(() => {
+            return elections?.find((election) => election.id === electionId)
+        }, [elections, electionId])
+
+        const getElectionAlias = (election: Sequent_Backend_Election) => {
+            return aliasRenderer(election.presentation)
+        }
+
         interface TabPanelProps {
             children?: React.ReactNode | Iterable<React.ReactNode>
             index: number
@@ -141,11 +150,17 @@ const TallyResultsElectionsTabs: React.MemoExoticComponent<React.FC<TallyResults
             return parsedDocuments
                 ? {
                       documents: parsedDocuments,
-                      name: resultsElection?.[0]?.name ?? "election",
+                      name: currentElection ? getElectionAlias(currentElection) : "election",
                       class_type: "election",
                   }
                 : null
-        }, [resultsEventId, resultsElection, resultsElection?.[0]?.id, resultsElection?.[0]?.name])
+        }, [
+            resultsEventId,
+            resultsElection,
+            resultsElection?.[0]?.id,
+            currentElection,
+            i18n.language,
+        ])
 
         let areasDocuments: IResultDocumentsData[] | null = useMemo(
             () =>
@@ -169,8 +184,6 @@ const TallyResultsElectionsTabs: React.MemoExoticComponent<React.FC<TallyResults
                 null,
             [resultsEventId, resultsElectionArea]
         )
-
-        const aliasRenderer = useAliasRenderer()
 
         const documentsList: IResultDocumentsData[] | null = useMemo(() => {
             if (documents && areasDocuments) {
@@ -204,7 +217,7 @@ const TallyResultsElectionsTabs: React.MemoExoticComponent<React.FC<TallyResults
                         {electionsData?.map((election, index) => (
                             <Tab
                                 key={index}
-                                label={aliasRenderer(election)}
+                                label={getElectionAlias(election)}
                                 onClick={() => tabClicked(election.id, index)}
                             />
                         ))}
@@ -213,7 +226,9 @@ const TallyResultsElectionsTabs: React.MemoExoticComponent<React.FC<TallyResults
                         <ExportElectionMenu
                             documentsList={documentsList}
                             electionEventId={data?.election_event_id}
-                            itemName={resultsElection?.[0]?.name ?? "election"}
+                            itemName={
+                                currentElection ? getElectionAlias(currentElection) : "election"
+                            }
                             tallyType={data?.tally_type}
                             electionId={electionId}
                             onCreateTransmissionPackage={onCreateTransmissionPackage}

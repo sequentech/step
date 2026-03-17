@@ -19,6 +19,7 @@ import {WizardStyles} from "@/components/styles/WizardStyles"
 import {GET_PRIVATE_KEY} from "@/queries/GetPrivateKey"
 import {Dialog} from "@sequentech/ui-essentials"
 import {useNotify} from "react-admin"
+import {useAliasRenderer} from "@/hooks/useAliasRenderer"
 
 export interface DownloadStepProps {
     electionEvent: Sequent_Backend_Election_Event
@@ -40,6 +41,8 @@ export const DownloadStep: React.FC<DownloadStepProps> = ({
     const [openConfirmationModal, setOpenConfirmationModal] = useState(false)
     const [errors, setErrors] = useState<String | null>(null)
     const notify = useNotify()
+    const aliasRenderer = useAliasRenderer()
+
     const [checkboxState, setCheckboxState] = React.useState({
         firstCheckbox: false,
         secondCheckbox: false,
@@ -81,7 +84,7 @@ export const DownloadStep: React.FC<DownloadStepProps> = ({
                 const blob = new Blob([privateKey], {type: "text/plain"})
                 const blobUrl = window.URL.createObjectURL(blob)
                 const username = authContext.username
-                const electionName = electionEvent.alias || electionEvent.name
+                const electionName = aliasRenderer(electionEvent.presentation)
                 const fileName = `encrypted_private_key_trustee_${username}_${electionName}.txt`
                 var tempLink = document.createElement("a")
                 tempLink.href = blobUrl
