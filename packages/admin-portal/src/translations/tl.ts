@@ -533,6 +533,7 @@ const tagalogTranslation: TranslationType = {
                 scheduledClosing: "Naka-iskedyul na Pagsasara",
                 alias: "Alias",
                 description: "Paglalarawan",
+                externalId: "Panlabas na ID",
             },
             error: {
                 fileError: "Error sa pag-upload ng file",

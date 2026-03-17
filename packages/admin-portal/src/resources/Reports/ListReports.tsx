@@ -316,7 +316,7 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
             label={t("reportsScreen.fields.electionId")}
             choices={elections?.map((election) => ({
                 id: election.id,
-                name: election.alias || election.name || "-",
+                name: aliasRenderer(election),
             }))}
         />,
         <FilterTextInput label="Template" source="template_alias" key={0} />,

@@ -21,6 +21,7 @@ use sequent_core::ballot::StringifiedPeriodDates;
 use sequent_core::services::keycloak::get_event_realm;
 use sequent_core::services::pdf;
 use sequent_core::services::s3::get_minio_url;
+use sequent_core::services::translations::Alias;
 use sequent_core::util::temp_path::*;
 use serde::{Deserialize, Serialize};
 use tracing::{info, instrument};
@@ -159,7 +160,8 @@ impl TemplateRenderer for OVCSInformationTemplate {
         .map_err(|err| anyhow!("Error at get_areas_by_election_id: {err:?}"))?;
 
         let date_printed = get_date_and_time();
-        let election_title = election_event.name.clone();
+        let language = election_event.get_default_language();
+        let election_title: String = election_event.get_alias(&language);
 
         // Fetch election's voting periods
         let scheduled_events = find_scheduled_event_by_election_event_id(

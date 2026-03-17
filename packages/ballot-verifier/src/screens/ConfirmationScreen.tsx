@@ -502,7 +502,7 @@ export const ConfirmationScreen: React.FC<IProps> = ({
     }, [confirmationBallot])
 
     return (
-        <PageLimit maxWidth="md">
+        <PageLimit maxWidth="md" className="confirmation-screen screen">
             <Box marginTop="48px" marginBottom="24px">
                 <BreadCrumbSteps
                     labels={[

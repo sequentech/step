@@ -33,6 +33,7 @@ use rayon::ThreadPoolBuilder;
 use sequent_core::ballot::StringifiedPeriodDates;
 use sequent_core::services::keycloak::{self, get_event_realm};
 use sequent_core::services::s3::get_minio_url;
+use sequent_core::services::translations::Alias;
 use sequent_core::services::{pdf, reports};
 use sequent_core::types::hasura::core::Election;
 use sequent_core::types::hasura::core::TasksExecution;
@@ -463,11 +464,13 @@ impl TemplateRenderer for PreEnrolledManualUsersTemplate {
                     .await
                     .map_err(|err| anyhow!("Error at get_areas_by_election_id: {err:?}"))?;
 
+                    let language = election.get_default_language();
+
                     for area in election_areas.iter() {
                         areas.push(UserDataArea {
                             election_id: election_id.clone(),
                             area_id: area.id.clone(),
-                            election_title: election.alias.clone().unwrap_or(election.name.clone()),
+                            election_title: election.get_alias(&language),
                             election_dates: election_dates.clone(),
                             post: election_general_data.post.clone(),
                             area_name: area.clone().name.unwrap_or("-".to_string()),

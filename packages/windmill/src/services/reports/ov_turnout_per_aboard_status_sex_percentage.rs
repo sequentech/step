@@ -25,6 +25,7 @@ use sequent_core::ballot::StringifiedPeriodDates;
 use sequent_core::services::keycloak::get_event_realm;
 use sequent_core::services::pdf;
 use sequent_core::services::s3::get_minio_url;
+use sequent_core::services::translations::Alias;
 use sequent_core::types::hasura::core::Election;
 use sequent_core::util::temp_path::*;
 use serde::{Deserialize, Serialize};
@@ -344,11 +345,11 @@ impl TemplateRenderer for OVTurnoutPerAboardAndSexPercentageReport {
 
         let regions: Vec<RegionData> = region_map.into_values().collect();
 
+        let language = election_event.get_default_language();
+        let election_title: String = election_event.get_alias(&language);
+
         Ok(UserData {
-            election_event_title: election_event
-                .alias
-                .clone()
-                .unwrap_or(election_event.name.clone()),
+            election_event_title: election_title,
             regions: regions,
             elections: elections_data,
             execution_annotations: ExecutionAnnotations {

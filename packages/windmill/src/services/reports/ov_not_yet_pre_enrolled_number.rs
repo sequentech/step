@@ -26,6 +26,7 @@ use sequent_core::ballot::StringifiedPeriodDates;
 use sequent_core::services::keycloak::get_event_realm;
 use sequent_core::services::pdf;
 use sequent_core::services::s3::get_minio_url;
+use sequent_core::services::translations::Alias;
 use sequent_core::types::hasura::core::Election;
 use sequent_core::util::temp_path::get_public_assets_path_env_var;
 use serde::{Deserialize, Serialize};
@@ -157,10 +158,8 @@ impl TemplateRenderer for NumOVNotPreEnrolledReport {
             .map_err(|e| anyhow::anyhow!("Error in get_elections: {}", e))?,
         };
 
-        let election_title: String = election_event
-            .alias
-            .clone()
-            .unwrap_or(election_event.name.clone());
+        let language = election_event.get_default_language();
+        let election_title: String = election_event.get_alias(&language);
 
         let scheduled_events = find_scheduled_event_by_election_event_id(
             &hasura_transaction,
@@ -202,7 +201,8 @@ impl TemplateRenderer for NumOVNotPreEnrolledReport {
             let election_dates = get_election_dates(&election, scheduled_events.clone())
                 .map_err(|e| anyhow::anyhow!("Error getting election dates {e}"))?;
 
-            let election_name = election.alias.clone().unwrap_or(election.name.clone());
+            let language = election.get_default_language();
+            let election_name = election.get_alias(&language);
 
             let election_areas = get_areas_by_election_id(
                 &hasura_transaction,

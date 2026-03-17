@@ -535,6 +535,7 @@ const frenchTranslation: TranslationType = {
                 scheduledClosing: "Fermeture Prévue",
                 alias: "Alias",
                 description: "Description",
+                externalId: "ID externe",
             },
             error: {
                 endDate: "La date de fin doit être postérieure à la date de début",
