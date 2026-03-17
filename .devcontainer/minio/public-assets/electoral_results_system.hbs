@@ -20,6 +20,15 @@
         padding: 0 30px;
       }
 
+      .page {
+        break-after: page;
+        page-break-after: always;
+      }
+
+      .section {
+        break-before: page;
+      }
+
       @media print {
         @page {
           size: auto;

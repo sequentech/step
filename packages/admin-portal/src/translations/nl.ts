@@ -582,6 +582,7 @@ const dutchTranslation: TranslationType = {
                 alias: "Alias",
                 description: "Beschrijving",
                 securityConfirmationHtml: "Beveiligingsbevestiging HTML",
+                externalId: "Externe ID",
             },
             securityConfirmationPolicy: {
                 label: "Beleid voor selectievakje van beveiligingsbevestiging",
@@ -634,6 +635,13 @@ const dutchTranslation: TranslationType = {
                 options: {
                     "election": "Verkiezingstitel",
                     "election-event": "Verkiezingsevenementtitel",
+                },
+            },
+            consolidatedReportPolicy: {
+                label: "Beleid voor geconsolideerd rapport",
+                options: {
+                    "generate": "Genereren",
+                    "do-not-generate": "Niet genereren",
                 },
             },
         },
@@ -1369,6 +1377,18 @@ const dutchTranslation: TranslationType = {
                 "not-allowed-with-msg-and-disable":
                     "Niet Toegestaan met Waarschuwing en Verdere Selecties Uitschakelen",
             },
+            duplicatedRankPolicy: {
+                "label": "Ongeldige stem - Beleid Gedupliceerde Rang",
+                "allowed-warn-and-dialog": "Toon waarschuwing en dialoog (kiezer kan doorgaan)",
+                "not-allowed-warn-and-dialog":
+                    "Toon waarschuwing en dialoog (kiezer mag niet doorgaan)",
+            },
+            preferenceGapsPolicy: {
+                "label": "Ongeldige stem - Beleid Overgeslagen Rangen",
+                "allowed-warn-and-dialog": "Toon waarschuwing en dialoog (kiezer kan doorgaan)",
+                "not-allowed-warn-and-dialog":
+                    "Toon waarschuwing en dialoog (kiezer mag niet doorgaan)",
+            },
             paginationPolicy: {
                 label: "Paginanaam",
             },
@@ -1686,6 +1706,8 @@ const dutchTranslation: TranslationType = {
                 totalVoters: "Totaal Kiezers",
                 nonVoters: "Niet-kiezers",
             },
+            exportAllAreas:
+                "Exporteer de resultaten van alle gebieden in {{format}}-formaat voor '{{item}}'",
         },
         publish: {
             preview: {

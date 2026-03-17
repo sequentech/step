@@ -585,6 +585,7 @@ const galegoTranslation: TranslationType = {
                 alias: "Alias",
                 description: "Descrición",
                 securityConfirmationHtml: "Confirmación de seguridade HTML",
+                externalId: "ID externo",
             },
             securityConfirmationPolicy: {
                 label: "Política da caixa de confirmación de seguridade",
@@ -637,6 +638,13 @@ const galegoTranslation: TranslationType = {
                 options: {
                     "election": "Título da elección",
                     "election-event": "Título do evento electoral",
+                },
+            },
+            consolidatedReportPolicy: {
+                label: "Política de informe consolidado",
+                options: {
+                    "generate": "Xerar",
+                    "do-not-generate": "Non xerar",
                 },
             },
         },
@@ -1372,6 +1380,18 @@ const galegoTranslation: TranslationType = {
                 "not-allowed-with-msg-and-disable":
                     "Non Permitido con Mensaxe de Aviso e Desactivar seleccións adicionais",
             },
+            duplicatedRankPolicy: {
+                "label": "Voto non válido - Política de posición duplicada",
+                "allowed-warn-and-dialog": "Mostrar aviso e diálogo (o votante pode continuar)",
+                "not-allowed-warn-and-dialog":
+                    "Mostrar aviso e diálogo (o votante non pode continuar)",
+            },
+            preferenceGapsPolicy: {
+                "label": "Voto non válido - Política de rangos omitidos",
+                "allowed-warn-and-dialog": "Mostrar aviso e diálogo (o votante pode continuar)",
+                "not-allowed-warn-and-dialog":
+                    "Mostrar aviso e diálogo (o votante non pode continuar)",
+            },
             paginationPolicy: {
                 label: "Nome da Páxina",
             },
@@ -1691,6 +1711,8 @@ const galegoTranslation: TranslationType = {
                 totalVoters: "Total de Votantes",
                 nonVoters: "Non Votantes",
             },
+            exportAllAreas:
+                "Exportar os resultados de todas as áreas en formato {{format}} para '{{item}}'",
         },
         publish: {
             preview: {

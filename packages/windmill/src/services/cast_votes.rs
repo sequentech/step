@@ -13,6 +13,7 @@ use deadpool_postgres::Transaction;
 use futures::TryStreamExt;
 use sequent_core::types::keycloak::{User, VotesInfo};
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 use std::collections::HashMap;
 use std::path::PathBuf;
 use strand::signature::{StrandSignaturePk, StrandSignatureSk};
@@ -82,7 +83,7 @@ pub async fn find_area_ballots(
                         election_event_id = '{election_event_id}' AND
                         area_id = '{area_id}' AND
                         election_id = '{election_id}'
-                    ORDER BY voter_id_string
+                    ORDER BY election_id, voter_id_string, created_at DESC
                 "#
     );
 
@@ -421,7 +422,7 @@ pub struct CastVoteCountByIp {
     ip: Option<String>,
     country: Option<String>,
     vote_count: Option<i64>,
-    election_name: String,
+    election_presentation: Option<Value>,
     election_id: String,
     voters_id: Vec<String>,
 }
@@ -433,7 +434,7 @@ impl TryFrom<Row> for CastVoteCountByIp {
             ip: item.try_get("ip").unwrap_or(None),
             country: item.try_get("country").unwrap_or(None),
             vote_count: item.try_get("vote_count")?,
-            election_name: item.try_get("election_name")?,
+            election_presentation: item.try_get("election_presentation")?,
             election_id: item.try_get::<_, Uuid>("election_id")?.to_string(),
             voters_id: item.try_get("voters_id")?,
         })
@@ -489,33 +490,34 @@ pub async fn get_top_count_votes_by_ip(
     let statement = hasura_transaction
         .prepare(
             r#"
-            SELECT 
-                ROW_NUMBER() OVER (ORDER BY COUNT(*) DESC) AS id,
-                cv.annotations->>'ip' AS ip,         
-                cv.annotations->>'country' AS country,
-                array_agg(COALESCE(cv.voter_id_string, '')) AS voters_id,
-                cv.election_id as election_id,
-                COUNT(*) AS vote_count,
-                e.name AS election_name
-            FROM 
-                sequent_backend.cast_vote cv
-            JOIN 
-                sequent_backend.election e ON cv.election_id = e.id
-            WHERE 
-                cv.tenant_id = $1
-                AND cv.election_event_id = $2
-                AND cv.annotations ? 'ip'                
-                AND cv.annotations ? 'country'    
-                AND ($3::VARCHAR IS NULL OR cv.annotations->>'ip' ILIKE $3)
-                AND ($4::VARCHAR IS NULL OR cv.annotations->>'country' ILIKE $4)
-                AND ($5::UUID IS NULL OR cv.election_id = $5)
-            GROUP BY 
-                cv.annotations->>'ip',               
-                cv.annotations->>'country',     
-                cv.election_id,
-                e.name
-            ORDER BY 
-                vote_count DESC
+            SELECT
+                ROW_NUMBER() OVER (ORDER BY vote_count DESC) AS id,
+                *
+            FROM (
+                SELECT 
+                    cv.annotations->>'ip' AS ip,         
+                    cv.annotations->>'country' AS country,
+                    array_agg(COALESCE(cv.voter_id_string, '')) AS voters_id,
+                    cv.election_id,
+                    COUNT(*) AS vote_count,
+                    e.presentation AS election_presentation
+                FROM sequent_backend.cast_vote cv
+                JOIN sequent_backend.election e ON cv.election_id = e.id
+                WHERE 
+                    cv.tenant_id = $1
+                    AND cv.election_event_id = $2
+                    AND cv.annotations ? 'ip'                
+                    AND cv.annotations ? 'country'    
+                    AND ($3::VARCHAR IS NULL OR cv.annotations->>'ip' ILIKE $3)
+                    AND ($4::VARCHAR IS NULL OR cv.annotations->>'country' ILIKE $4)
+                    AND ($5::UUID IS NULL OR cv.election_id = $5)
+                GROUP BY 
+                    cv.annotations->>'ip',
+                    cv.annotations->>'country',
+                    cv.election_id,
+                    e.presentation
+            ) t
+            ORDER BY vote_count DESC
             LIMIT $6 OFFSET $7;
             "#,
         )

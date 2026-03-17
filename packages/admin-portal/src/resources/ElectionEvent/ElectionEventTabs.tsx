@@ -20,10 +20,11 @@ import {useTranslation} from "react-i18next"
 import {useElectionEventTallyStore} from "@/providers/ElectionEventTallyProvider"
 import {v4 as uuidv4} from "uuid"
 import {EPublishType} from "../Publish/EPublishType"
-import {EElectionEventLockedDown, i18n, translateElection} from "@sequentech/ui-core"
+import {EElectionEventLockedDown, i18n, translateFromPresentation} from "@sequentech/ui-core"
 import {Box, CircularProgress} from "@mui/material"
 import {Tabs} from "@/components/Tabs"
 import {useNavigate, useLocation} from "react-router-dom"
+import {useAliasRenderer} from "@/hooks/useAliasRenderer"
 
 // ---------------------------------------------------------------------
 // Lazy load all tab contents
@@ -184,6 +185,7 @@ export const ElectionEventTabs: React.FC = () => {
     const refreshRef = useRef<HTMLButtonElement | null>(null)
     const {setTallyId} = useElectionEventTallyStore()
     const [open] = useSidebarState()
+    const aliasRenderer = useAliasRenderer()
 
     // State for tab-specific triggers
     const [showKeysList, setShowKeysList] = useState<string | null>(null)
@@ -442,13 +444,7 @@ export const ElectionEventTabs: React.FC = () => {
             className="events-box"
         >
             <ElectionHeader
-                title={
-                    translateElection(record, "alias", i18n.language) ||
-                    translateElection(record, "name", i18n.language) ||
-                    record.alias ||
-                    record.name ||
-                    "-"
-                }
+                title={aliasRenderer(record)}
                 subtitle="electionEventScreen.common.subtitle"
             />
             <Box sx={{bgcolor: "background.paper"}}>

@@ -586,6 +586,7 @@ const spanishTranslation: TranslationType = {
                 alias: "Alias",
                 description: "Descripción",
                 securityConfirmationHtml: "Confirmación de seguridad HTML",
+                externalId: "ID externo",
             },
             securityConfirmationPolicy: {
                 label: "Política de la casilla de confirmación de seguridad",
@@ -638,6 +639,13 @@ const spanishTranslation: TranslationType = {
                 options: {
                     "election": "Elección",
                     "election-event": "Evento Electoral",
+                },
+            },
+            consolidatedReportPolicy: {
+                label: "Política de informe consolidado",
+                options: {
+                    "generate": "Generar",
+                    "do-not-generate": "No generar",
                 },
             },
         },
@@ -1372,6 +1380,20 @@ const spanishTranslation: TranslationType = {
                 "not-allowed-with-msg-and-disable":
                     "No permitido con un mensaje de warning y dehabilitar selecciones adicionales",
             },
+            duplicatedRankPolicy: {
+                "label": "Voto inválido - Política de rango duplicado",
+                "allowed-warn-and-dialog":
+                    "Mostrar advertencia y diálogo (el votante puede continuar)",
+                "not-allowed-warn-and-dialog":
+                    "Mostrar advertencia y diálogo (el votante no puede continuar)",
+            },
+            preferenceGapsPolicy: {
+                "label": "Voto inválido - Política de rangos omitidos",
+                "allowed-warn-and-dialog":
+                    "Mostrar advertencia y diálogo (el votante puede continuar)",
+                "not-allowed-warn-and-dialog":
+                    "Mostrar advertencia y diálogo (el votante no puede continuar)",
+            },
             paginationPolicy: {
                 label: "Nombre de la página",
             },
@@ -1691,6 +1713,8 @@ const spanishTranslation: TranslationType = {
                 totalVoters: "Total de Votantes",
                 nonVoters: "No Votantes",
             },
+            exportAllAreas:
+                "Exportar los resultados de todas las áreas en formato {{format}} para '{{item}}'",
         },
         publish: {
             preview: {

@@ -586,6 +586,7 @@ const basqueTranslation: TranslationType = {
                 alias: "Ezizena",
                 description: "Deskribapena",
                 securityConfirmationHtml: "Segurtasun-berrespena HTML",
+                externalId: "Kanpoko IDa",
             },
             securityConfirmationPolicy: {
                 label: "Segurtasun-berrespeneko kontrol-laukiaren politika",
@@ -638,6 +639,13 @@ const basqueTranslation: TranslationType = {
                 options: {
                     "election": "Hauteskundearen titulua",
                     "election-event": "Hauteskunde-ekitaldiaren titulua",
+                },
+            },
+            consolidatedReportPolicy: {
+                label: "Txosten bateratuaren politika",
+                options: {
+                    "generate": "Sortu",
+                    "do-not-generate": "Ez sortu",
                 },
             },
         },
@@ -1368,6 +1376,20 @@ const basqueTranslation: TranslationType = {
                 "not-allowed-with-msg-and-disable":
                     "Ez Baimenduta Abisu mezuarekin eta Gehiago hautatzea Desgaitu",
             },
+            duplicatedRankPolicy: {
+                "label": "Boto baliogabea - Bikoiztutako Rankaren Politika",
+                "allowed-warn-and-dialog":
+                    "Erakutsi ohartarazpena eta elkarrizketa-koadroa (botatzaileak aurrera egin dezake)",
+                "not-allowed-warn-and-dialog":
+                    "Erakutsi ohartarazpena eta elkarrizketa-koadroa (botatzaileak ezin du aurrera egin)",
+            },
+            preferenceGapsPolicy: {
+                "label": "Boto baliogabea - Saltatutako Ranken Politika",
+                "allowed-warn-and-dialog":
+                    "Erakutsi ohartarazpena eta elkarrizketa-koadroa (botatzaileak aurrera egin dezake)",
+                "not-allowed-warn-and-dialog":
+                    "Erakutsi ohartarazpena eta elkarrizketa-koadroa (botatzaileak ezin du aurrera egin)",
+            },
             paginationPolicy: {
                 label: "Orri Izena",
             },
@@ -1686,6 +1708,8 @@ const basqueTranslation: TranslationType = {
                 totalVoters: "Bozkatzaile Guztiak",
                 nonVoters: "Ez-bozkatzaileak",
             },
+            exportAllAreas:
+                "Eremu guztien emaitzak {{format}} formatuan esportatu '{{item}}'-rentzat",
         },
         publish: {
             preview: {

@@ -277,6 +277,9 @@ pub fn create_election_configs_blocking(
             })
             .unwrap_or(Default::default());
 
+        let election_presentation =
+            election_opt.map(|election| election.get_presentation().unwrap_or_default());
+
         let election_cast_votes_count = cast_votes_count
             .iter()
             .find(|data| data.election_id == election_id);
@@ -310,6 +313,7 @@ pub fn create_election_configs_blocking(
                     .unwrap_or(0),
                 ballot_styles: vec![],
                 areas: areas.clone(),
+                presentation: election_presentation.clone(),
             },
         };
 
@@ -600,6 +604,7 @@ async fn build_reports_pipe_config(
         system_template: report_system_template,
         pdf_options,
         extra_data: serde_json::to_value(extra_data)?,
+        tally_type: tally_type.clone(),
     })
 }
 
@@ -747,7 +752,7 @@ async fn populate_sqlite_election_event_data(
                     get_elections_by_ids(hasura_transaction, tenant_id, election_event_id, &ids)
                         .await
                 }
-                None => get_elections(hasura_transaction, tenant_id, election_event_id, None).await,
+                None => get_elections(hasura_transaction, tenant_id, election_event_id).await,
             }
             .context("Failed to get elections")?;
 

@@ -15,6 +15,7 @@ use crate::types::ceremonies::{
 };
 use crate::types::hasura::core::{self, Area, ElectionEvent};
 use ::core::convert::TryInto;
+use anyhow::anyhow;
 use borsh::{BorshDeserialize, BorshSerialize};
 use chrono::DateTime;
 use chrono::Utc;
@@ -1204,6 +1205,58 @@ pub enum EOverVotePolicy {
     NOT_ALLOWED_WITH_MSG_AND_DISABLE,
 }
 
+#[allow(non_camel_case_types)]
+#[derive(
+    Debug,
+    BorshSerialize,
+    BorshDeserialize,
+    Serialize,
+    Deserialize,
+    PartialEq,
+    Eq,
+    JsonSchema,
+    Copy,
+    Clone,
+    EnumString,
+    Display,
+    Default,
+)]
+pub enum EDuplicatedRankPolicy {
+    #[strum(serialize = "allowed-warn-and-dialog")]
+    #[serde(rename = "allowed-warn-and-dialog")]
+    #[default]
+    ALLOWED_WARN_AND_DIALOG,
+    #[strum(serialize = "not-allowed-warn-and-dialog")]
+    #[serde(rename = "not-allowed-warn-and-dialog")]
+    NOT_ALLOWED_WARN_AND_DIALOG,
+}
+
+#[allow(non_camel_case_types)]
+#[derive(
+    Debug,
+    BorshSerialize,
+    BorshDeserialize,
+    Serialize,
+    Deserialize,
+    PartialEq,
+    Eq,
+    JsonSchema,
+    Copy,
+    Clone,
+    EnumString,
+    Display,
+    Default,
+)]
+pub enum EPreferenceGapsPolicy {
+    #[strum(serialize = "allowed-warn-and-dialog")]
+    #[serde(rename = "allowed-warn-and-dialog")]
+    #[default]
+    ALLOWED_WARN_AND_DIALOG,
+    #[strum(serialize = "not-allowed-warn-and-dialog")]
+    #[serde(rename = "not-allowed-warn-and-dialog")]
+    NOT_ALLOWED_WARN_AND_DIALOG,
+}
+
 #[derive(
     BorshSerialize,
     BorshDeserialize,
@@ -1234,6 +1287,7 @@ pub struct ElectionPresentation {
     pub tally: Option<Tally>,
     pub initialization_report_policy: Option<EInitializeReportPolicy>,
     pub security_confirmation_policy: Option<ESecurityConfirmationPolicy>,
+    pub consolidated_report_policy: Option<ConsolidatedReportPolicy>,
 }
 
 impl core::Election {
@@ -1269,6 +1323,9 @@ impl Default for ElectionPresentation {
             grace_period_secs: None,
             initialization_report_policy: None,
             security_confirmation_policy: None,
+            consolidated_report_policy: Some(
+                ConsolidatedReportPolicy::default(),
+            ),
         }
     }
 }
@@ -1353,6 +1410,8 @@ pub struct ContestPresentation {
     pub under_vote_policy: Option<EUnderVotePolicy>,
     pub blank_vote_policy: Option<EBlankVotePolicy>,
     pub over_vote_policy: Option<EOverVotePolicy>,
+    pub duplicated_rank_policy: Option<EDuplicatedRankPolicy>,
+    pub preference_gaps_policy: Option<EPreferenceGapsPolicy>,
     pub pagination_policy: Option<String>,
     pub cumulative_number_of_checkboxes: Option<u64>,
     pub shuffle_categories: Option<bool>,
@@ -1390,6 +1449,8 @@ impl ContestPresentation {
             types_presentation: None,
             sort_order: None,
             under_vote_policy: Some(EUnderVotePolicy::ALLOWED),
+            duplicated_rank_policy: Some(EDuplicatedRankPolicy::default()),
+            preference_gaps_policy: Some(EPreferenceGapsPolicy::default()),
             columns: None,
         }
     }
@@ -2355,12 +2416,15 @@ impl Area {
     pub fn read_annotations(
         &self,
     ) -> Result<Option<AreaAnnotations>, Error<serde_json::Error>> {
-        let area_annotations: Option<AreaAnnotations> =
-            self.annotations.clone().map(|annotations_value| {
-                deserialize_value(annotations_value)
-                    .unwrap_or_else(|_| AreaAnnotations::default())
-            });
-        Ok(area_annotations)
+        self.annotations
+            .as_ref()
+            .map(|v| {
+                deserialize_value::<AreaAnnotations>(v.clone()).map_err(|e| {
+                    anyhow!("failed to deserialize AreaAnnotations: error={e} raw={v}");
+                    e
+                })
+            })
+            .transpose()
     }
 }
 
@@ -2406,4 +2470,28 @@ pub enum DelegatedVotingPolicy {
     DISABLED,
     #[serde(rename = "enabled")]
     ENABLED,
+}
+
+#[derive(
+    BorshSerialize,
+    BorshDeserialize,
+    Display,
+    Serialize,
+    Deserialize,
+    Debug,
+    PartialEq,
+    Eq,
+    Clone,
+    EnumString,
+    Default,
+    JsonSchema,
+)]
+pub enum ConsolidatedReportPolicy {
+    #[default]
+    #[strum(serialize = "do-not-generate")]
+    #[serde(rename = "do-not-generate")]
+    DO_NOT_GENERATE,
+    #[strum(serialize = "generate")]
+    #[serde(rename = "generate")]
+    GENERATE,
 }

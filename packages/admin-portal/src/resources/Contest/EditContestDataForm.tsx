@@ -58,6 +58,10 @@ import {
     EBlankVotePolicy,
     EOverVotePolicy,
     ECandidatesIconCheckboxPolicy,
+    EDuplicatedRankPolicy,
+    EPreferenceGapsPolicy,
+    getDefaultDuplicatedRankPolicy,
+    getDefaultPreferenceGapsPolicy,
 } from "@sequentech/ui-core"
 import {DropFile} from "@sequentech/ui-essentials"
 import {IVotingType} from "./constants"
@@ -407,6 +411,20 @@ export const ContestDataForm: React.FC = () => {
         }))
     }
 
+    const duplicatedRankPolicyChoices = () => {
+        return Object.values(EDuplicatedRankPolicy).map((value) => ({
+            id: value,
+            name: t(`contestScreen.duplicatedRankPolicy.${value}`),
+        }))
+    }
+
+    const preferenceGapsPolicyChoices = () => {
+        return Object.values(EPreferenceGapsPolicy).map((value) => ({
+            id: value,
+            name: t(`contestScreen.preferenceGapsPolicy.${value}`),
+        }))
+    }
+
     const parseValues = useCallback(
         (incoming: Sequent_Backend_Contest_Extended): Sequent_Backend_Contest_Extended => {
             if (!electionEvent) {
@@ -426,20 +444,9 @@ export const ContestDataForm: React.FC = () => {
             if (!newContest.presentation.i18n.en) {
                 newContest.presentation.i18n.en = {}
             }
-            if (!newContest.presentation.i18n.en.name && newContest.name) {
-                newContest.presentation.i18n.en.name = newContest.name
-            }
-            if (!newContest.presentation.i18n.en.name && newContest.name) {
-                newContest.presentation.i18n.en.name = newContest.name
-            }
-            if (!newContest.presentation.i18n.en.alias && newContest.alias) {
-                newContest.presentation.i18n.en.alias = newContest.alias
-            }
             if (!newContest.presentation.i18n.en.description && newContest.description) {
                 newContest.presentation.i18n.en.description = newContest.description
             }
-            newContest.name = newContest.presentation.i18n.en.name
-            newContest.alias = newContest.presentation.i18n.en.alias
             newContest.description = newContest.presentation.i18n.en.description
 
             // defaults
@@ -470,6 +477,12 @@ export const ContestDataForm: React.FC = () => {
 
             newContest.presentation.over_vote_policy =
                 newContest.presentation.over_vote_policy || EOverVotePolicy.ALLOWED
+
+            newContest.presentation.duplicated_rank_policy =
+                newContest.presentation.duplicated_rank_policy || getDefaultDuplicatedRankPolicy()
+
+            newContest.presentation.preference_gaps_policy =
+                newContest.presentation.preference_gaps_policy || getDefaultPreferenceGapsPolicy()
 
             newContest.presentation.pagination_policy =
                 newContest.presentation.pagination_policy || ""
@@ -802,6 +815,39 @@ export const ContestDataForm: React.FC = () => {
                                     defaultValue={EOverVotePolicy.ALLOWED}
                                     validate={required()}
                                 />
+
+                                <FormDataConsumer>
+                                    {({formData}) =>
+                                        formData?.counting_algorithm ===
+                                        ICountingAlgorithm.INSTANT_RUNOFF ? (
+                                            <>
+                                                <SelectInput
+                                                    source={`presentation.duplicated_rank_policy`}
+                                                    choices={duplicatedRankPolicyChoices()}
+                                                    label={String(
+                                                        t(
+                                                            `contestScreen.duplicatedRankPolicy.label`
+                                                        )
+                                                    )}
+                                                    defaultValue={getDefaultDuplicatedRankPolicy()}
+                                                    validate={required()}
+                                                />
+
+                                                <SelectInput
+                                                    source={`presentation.preference_gaps_policy`}
+                                                    choices={preferenceGapsPolicyChoices()}
+                                                    label={String(
+                                                        t(
+                                                            `contestScreen.preferenceGapsPolicy.label`
+                                                        )
+                                                    )}
+                                                    defaultValue={getDefaultPreferenceGapsPolicy()}
+                                                    validate={required()}
+                                                />
+                                            </>
+                                        ) : null
+                                    }
+                                </FormDataConsumer>
 
                                 <SelectInput
                                     source={`presentation.candidates_icon_checkbox_policy`}

@@ -585,6 +585,7 @@ const tagalogTranslation: TranslationType = {
                 alias: "Alias",
                 description: "Paglalarawan",
                 securityConfirmationHtml: "HTML ng Kumpirmasyon sa Seguridad",
+                externalId: "Panlabas na ID",
             },
             securityConfirmationPolicy: {
                 label: "Patakaran sa Checkbox ng Kumpirmasyon sa Seguridad",
@@ -637,6 +638,13 @@ const tagalogTranslation: TranslationType = {
                 options: {
                     "election": "Pamagat ng halalan",
                     "election-event": "Pamagat ng kaganapan ng halalan",
+                },
+            },
+            consolidatedReportPolicy: {
+                label: "Patakaran sa Pinagsamang Ulat",
+                options: {
+                    "generate": "Bumuo",
+                    "do-not-generate": "Huwag bumuo",
                 },
             },
         },
@@ -1374,6 +1382,20 @@ const tagalogTranslation: TranslationType = {
                 "not-allowed-with-msg-and-disable":
                     "Dai Tinutugutan an mensahe nin Patanid asin I-disable an mga dugang pang pagpili",
             },
+            duplicatedRankPolicy: {
+                "label": "Di-wastong Boto - Patakaran sa Dobleng Ranggo",
+                "allowed-warn-and-dialog":
+                    "Ipakita ang babala at dialog (maaaring magpatuloy ang botante)",
+                "not-allowed-warn-and-dialog":
+                    "Ipakita ang babala at dialog (hindi maaaring magpatuloy ang botante)",
+            },
+            preferenceGapsPolicy: {
+                "label": "Di-wastong Boto - Patakaran sa Nilaktawang Ranggo",
+                "allowed-warn-and-dialog":
+                    "Ipakita ang babala at dialog (maaaring magpatuloy ang botante)",
+                "not-allowed-warn-and-dialog":
+                    "Ipakita ang babala at dialog (hindi maaaring magpatuloy ang botante)",
+            },
             paginationPolicy: {
                 label: "Pangalan ng Pahina",
             },
@@ -1692,6 +1714,8 @@ const tagalogTranslation: TranslationType = {
                 totalVoters: "Kabuuang mga Botante",
                 nonVoters: "Hindi Bumoto",
             },
+            exportAllAreas:
+                "I-export ang resulta ng lahat ng lugar sa format na {{format}} para kay '{{item}}'",
         },
         publish: {
             preview: {
