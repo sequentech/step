@@ -221,7 +221,7 @@ See [sequentech/meta#7996](https://github.com/sequentech/meta/issues/7996) for d
 
 ### 📖 Documentation
 
-- ✨ Add AI Agent Documentation Structure ([sequentech/step#2417](https://github.com/sequentech/step/pull/2417))
+- 📖 Add AI Agent Documentation Structure ([sequentech/step#2417](https://github.com/sequentech/step/pull/2417))
   by @Findeton
 
 
