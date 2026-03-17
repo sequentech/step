@@ -84,7 +84,9 @@ The following files must exist before starting the containers:
 | `.devcontainer/certs/nginx-tls.key` | Corresponding private key |
 | `.devcontainer/minio/public-assets/client-ca.pem` | CA certificate bundle. nginx uses this to verify client certs; Keycloak fetches it from MinIO. |
 
-Generate the nginx TLS server certificate (valid for `127.0.0.1`, 365 days):
+Generate the nginx TLS server certificate (valid for `127.0.0.1`, `localhost`, and
+`keycloak-nginx` — the last one is needed for `curl` tests run inside the dev
+container, where the nginx proxy is reached by its Docker service name):
 
 ```bash
 openssl req -x509 -newkey rsa:2048 -nodes \
@@ -92,7 +94,7 @@ openssl req -x509 -newkey rsa:2048 -nodes \
   -out    .devcontainer/certs/nginx-tls.crt \
   -days 365 \
   -subj "/CN=localhost" \
-  -addext "subjectAltName=IP:127.0.0.1"
+  -addext "subjectAltName=IP:127.0.0.1,DNS:localhost,DNS:keycloak-nginx"
 ```
 
 Generate the client CA (the CA that signs voter certificates):
@@ -338,13 +340,21 @@ check that the voter account is a member of the `voter` group in Keycloak.
 
 ### 5.1 Verify nginx is forwarding the certificate
 
-Test that Keycloak receives an auth code when a valid client certificate is presented:
+Test that Keycloak receives an auth code when a valid client certificate is presented.
+
+> **Note on hostname:** From inside the dev container, `127.0.0.1` is the
+> container's own loopback — nothing listens there. Use `keycloak-nginx` (the
+> Docker service name) instead. The TLS certificate includes `DNS:keycloak-nginx`
+> as a SAN so `--cacert` verification still passes.
+>
+> From your laptop/browser, the VS Code port-forwarding tunnel maps
+> `localhost:8443` → `keycloak-nginx:8443`, so `127.0.0.1:8443` works there.
 
 ```bash
-# Inside the dev container
+# Inside the dev container — use the Docker service name, not 127.0.0.1
 curl -v --cacert .devcontainer/certs/nginx-tls.crt \
-  --cert voter.crt --key voter.key \
-  "https://127.0.0.1:8443/realms/<realm>/protocol/openid-connect/auth\
+  --cert .devcontainer/certs/voter.pem --key .devcontainer/certs/voter.key \
+  "https://keycloak-nginx:8443/realms/<realm>/protocol/openid-connect/auth\
 ?client_id=voting-portal&response_type=code&scope=openid\
 &redirect_uri=http://localhost:3000/callback"
 ```

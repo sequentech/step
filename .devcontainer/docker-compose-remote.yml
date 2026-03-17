@@ -35,7 +35,9 @@ services:
       KC_HOSTNAME: ${KC_HOSTNAME}
       KC_HOSTNAME_STRICT: ${KC_HOSTNAME_STRICT}
       KC_HTTP_PORT: ${KC_HTTP_PORT}
-      KC_PROXY: edge
+      # Trust the RFC 7239 Forwarded header set by Cloudflare / the nginx ingress
+      # controller in production. KC_PROXY was deprecated in KC 24 in favour of
+      # KC_PROXY_HEADERS and is a no-op on KC 26+.
       KC_PROXY_HEADERS: forwarded
       KC_DB: ${KC_DB}
       KC_LOG_LEVEL: ${LOG_LEVEL}
