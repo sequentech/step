@@ -1205,6 +1205,58 @@ pub enum EOverVotePolicy {
     NOT_ALLOWED_WITH_MSG_AND_DISABLE,
 }
 
+#[allow(non_camel_case_types)]
+#[derive(
+    Debug,
+    BorshSerialize,
+    BorshDeserialize,
+    Serialize,
+    Deserialize,
+    PartialEq,
+    Eq,
+    JsonSchema,
+    Copy,
+    Clone,
+    EnumString,
+    Display,
+    Default,
+)]
+pub enum EDuplicatedRankPolicy {
+    #[strum(serialize = "allowed-warn-and-dialog")]
+    #[serde(rename = "allowed-warn-and-dialog")]
+    #[default]
+    ALLOWED_WARN_AND_DIALOG,
+    #[strum(serialize = "not-allowed-warn-and-dialog")]
+    #[serde(rename = "not-allowed-warn-and-dialog")]
+    NOT_ALLOWED_WARN_AND_DIALOG,
+}
+
+#[allow(non_camel_case_types)]
+#[derive(
+    Debug,
+    BorshSerialize,
+    BorshDeserialize,
+    Serialize,
+    Deserialize,
+    PartialEq,
+    Eq,
+    JsonSchema,
+    Copy,
+    Clone,
+    EnumString,
+    Display,
+    Default,
+)]
+pub enum EPreferenceGapsPolicy {
+    #[strum(serialize = "allowed-warn-and-dialog")]
+    #[serde(rename = "allowed-warn-and-dialog")]
+    #[default]
+    ALLOWED_WARN_AND_DIALOG,
+    #[strum(serialize = "not-allowed-warn-and-dialog")]
+    #[serde(rename = "not-allowed-warn-and-dialog")]
+    NOT_ALLOWED_WARN_AND_DIALOG,
+}
+
 #[derive(
     BorshSerialize,
     BorshDeserialize,
@@ -1358,6 +1410,8 @@ pub struct ContestPresentation {
     pub under_vote_policy: Option<EUnderVotePolicy>,
     pub blank_vote_policy: Option<EBlankVotePolicy>,
     pub over_vote_policy: Option<EOverVotePolicy>,
+    pub duplicated_rank_policy: Option<EDuplicatedRankPolicy>,
+    pub preference_gaps_policy: Option<EPreferenceGapsPolicy>,
     pub pagination_policy: Option<String>,
     pub cumulative_number_of_checkboxes: Option<u64>,
     pub shuffle_categories: Option<bool>,
@@ -1395,6 +1449,8 @@ impl ContestPresentation {
             types_presentation: None,
             sort_order: None,
             under_vote_policy: Some(EUnderVotePolicy::ALLOWED),
+            duplicated_rank_policy: Some(EDuplicatedRankPolicy::default()),
+            preference_gaps_policy: Some(EPreferenceGapsPolicy::default()),
             columns: None,
         }
     }

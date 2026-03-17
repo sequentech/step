@@ -1393,6 +1393,18 @@ const catalanTranslation: TranslationType = {
                 "not-allowed-with-msg-and-disable":
                     "No es permet amb missatge d'avís i desactiva més seleccions",
             },
+            duplicatedRankPolicy: {
+                "label": "Vot invàlid - Política de rang duplicat",
+                "allowed-warn-and-dialog": "Mostrar advertiment i diàleg (el votant pot continuar)",
+                "not-allowed-warn-and-dialog":
+                    "Mostrar advertiment i diàleg (el votant no pot continuar)",
+            },
+            preferenceGapsPolicy: {
+                "label": "Vot invàlid - Política de rangs omesos",
+                "allowed-warn-and-dialog": "Mostrar advertiment i diàleg (el votant pot continuar)",
+                "not-allowed-warn-and-dialog":
+                    "Mostrar advertiment i diàleg (el votant no pot continuar)",
+            },
             paginationPolicy: {
                 label: "Nom de la pàgina",
             },
