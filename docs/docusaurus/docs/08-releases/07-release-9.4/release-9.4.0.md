@@ -8,42 +8,6 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 # Release 9.4.0-rc.25
 
-## 🔄 Migrations
-
-### 🐞 Admin Portal > Reports > Timezone shown is not showing timezone
-In order to see the change the default receipt template ballot_receipt_user.hbs needs some changes.
-From
-```
-<span class="value" class="timestamp-content">{{timestamp}}</span>
-```
-To
-```
-<span class="value" class="timestamp-content">{{datetime from_rfc3339=timestamp output_format="%B %d, %Y %H:%M GMT %:z"}}</span>
-```
-See [sequentech/meta#6191](https://github.com/sequentech/meta/issues/6191) for details.
-
-### 📖 [doc] Adding a section: `Reference/Third-Party Libraries`
-### For Developers
-1. **Rust Version**: All developers must use Rust 1.90.0. Run `rustc --version` in `devenv shell` to verify.
-2. **Dependency Updates**: After pulling this branch, run:
-```bash
-devenv shell
-cd packages/
-cargo build
-```
-3. **Frontend Updates**: For frontend work:
-```bash
-cd packages/
-yarn install
-```
-4. **ESLint Migration**: Projects now use flat config (`eslint.config.js`). Old `.eslintrc.json` files have been removed.
-5. **New Documentation**: Review the new developer documentation:
-- `docs/docusaurus/docs/developers/11-Updates/updating-rust-version.md`
-- `docs/docusaurus/docs/reference/third_party_deps/third_party_deps.md`
-- `docs/docusaurus/docs/developers/03-Development-Environment/nvd-api-key-setup.md`
-
-See [sequentech/meta#7996](https://github.com/sequentech/meta/issues/7996) for details.
-
 ## 📝 Highlights
 
 ### 📖 [doc] Adding a section: `Reference/Third-Party Libraries`
@@ -95,6 +59,14 @@ See [sequentech/meta#7996](https://github.com/sequentech/meta/issues/7996) for d
 - ✨ Automatic Launch of E2E tests for environments and during release process ([sequentech/meta#7004](https://github.com/sequentech/meta/issues/7004))
   by @Findeton
 
+- ✨ Prepare Release 10.0 ([sequentech/step#2474](https://github.com/sequentech/step/pull/2474))
+  by @Findeton
+
+- ✨ Docusaurus - Tutorial on how to make calls to hasura/graphql ([sequentech/step#2429](https://github.com/sequentech/step/pull/2429))
+  by @xalsina-sequent
+
+- ✨ Move From Self-Hosted Runners using Runs-On in AWS to using GHA controller in a Google Cloud Project ([sequentech/meta#6511](https://github.com/sequentech/meta/issues/6511))
+  by @oded-eid-sequentech
 
 
 ### 🛠 Bug Fixes
@@ -212,35 +184,8 @@ See [sequentech/meta#7996](https://github.com/sequentech/meta/issues/7996) for d
 - 🐞 Default Invalid vote policy mismatch ([sequentech/meta#8855](https://github.com/sequentech/meta/issues/8855))
   by @Findeton
 
-
-
-### 📖 Documentation
-
-- ✨ Add AI Agent Documentation Structure ([sequentech/step#2417](https://github.com/sequentech/step/pull/2417))
-  by @Findeton
-
-
-- 📖 [doc] v9.0.2 documentation ([sequentech/meta#9156](https://github.com/sequentech/meta/issues/9156))
-  by @Findeton
-
-
-
-### 🛡 Security Updates
-
-- 🛡 Security updates: ring ([sequentech/meta#9133](https://github.com/sequentech/meta/issues/9133))
-  by @Findeton
-
-
-
-### Other
-
 - 🐞 Admin Portal: Heterogeneus use of name/alias ([sequentech/step#2440](https://github.com/sequentech/step/pull/2440))
   by @yuvalkom-M
-
-
-- ✨ Prepare Release 10.0 ([sequentech/step#2474](https://github.com/sequentech/step/pull/2474))
-  by @Findeton
-
 
 - 🐞 Windmill - Duplicate Key error caused by race condition while Logging Electoral logs in process_electoral_log_events_batch task ([sequentech/step#2448](https://github.com/sequentech/step/pull/2448))
   by @xalsina-sequent
@@ -251,18 +196,6 @@ See [sequentech/meta#7996](https://github.com/sequentech/meta/issues/7996) for d
 
 
 - 🐞 Unneeded "Or Sign With"/simplesaml in Keycloak Login ([sequentech/step#2333](https://github.com/sequentech/step/pull/2333))
-  by @yuvalkom-M
-
-
-- ✨ Docusaurus - Tutorial on how to make calls to hasura/graphql ([sequentech/step#2429](https://github.com/sequentech/step/pull/2429))
-  by @xalsina-sequent
-
-
-- Feat/meta 10603 fix release output version/release/9.4 ([sequentech/step#2411](https://github.com/sequentech/step/pull/2411))
-  by @oded-eid-sequentech
-
-
-- 🛡 Security updates ([sequentech/step#2379](https://github.com/sequentech/step/pull/2379))
   by @yuvalkom-M
 
 
@@ -286,7 +219,56 @@ See [sequentech/meta#7996](https://github.com/sequentech/meta/issues/7996) for d
   by @Findeton
 
 
-- ✨ Move From Self-Hosted Runners using Runs-On in AWS to using GHA controller in a Google Cloud Project ([sequentech/meta#6511](https://github.com/sequentech/meta/issues/6511))
-  by @oded-eid-sequentech
+### 📖 Documentation
+
+- ✨ Add AI Agent Documentation Structure ([sequentech/step#2417](https://github.com/sequentech/step/pull/2417))
+  by @Findeton
 
 
+- 📖 [doc] v9.0.2 documentation ([sequentech/meta#9156](https://github.com/sequentech/meta/issues/9156))
+  by @Findeton
+
+
+### 🛡 Security Updates
+
+- 🛡 Security updates: ring ([sequentech/meta#9133](https://github.com/sequentech/meta/issues/9133))
+  by @Findeton
+
+- 🛡 Security updates ([sequentech/step#2379](https://github.com/sequentech/step/pull/2379))
+  by @yuvalkom-M
+
+## 🔄 Migrations
+
+### 🐞 Admin Portal > Reports > Timezone shown is not showing timezone
+In order to see the change the default receipt template ballot_receipt_user.hbs needs some changes.
+From
+```
+<span class="value" class="timestamp-content">{{timestamp}}</span>
+```
+To
+```
+<span class="value" class="timestamp-content">{{datetime from_rfc3339=timestamp output_format="%B %d, %Y %H:%M GMT %:z"}}</span>
+```
+See [sequentech/meta#6191](https://github.com/sequentech/meta/issues/6191) for details.
+
+### 📖 [doc] Adding a section: `Reference/Third-Party Libraries`
+### For Developers
+1. **Rust Version**: All developers must use Rust 1.90.0. Run `rustc --version` in `devenv shell` to verify.
+2. **Dependency Updates**: After pulling this branch, run:
+```bash
+devenv shell
+cd packages/
+cargo build
+```
+3. **Frontend Updates**: For frontend work:
+```bash
+cd packages/
+yarn install
+```
+4. **ESLint Migration**: Projects now use flat config (`eslint.config.js`). Old `.eslintrc.json` files have been removed.
+5. **New Documentation**: Review the new developer documentation:
+- `docs/docusaurus/docs/developers/11-Updates/updating-rust-version.md`
+- `docs/docusaurus/docs/reference/third_party_deps/third_party_deps.md`
+- `docs/docusaurus/docs/developers/03-Development-Environment/nvd-api-key-setup.md`
+
+See [sequentech/meta#7996](https://github.com/sequentech/meta/issues/7996) for details.
