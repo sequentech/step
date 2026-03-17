@@ -590,8 +590,6 @@ pub async fn count_keycloak_users(
     );
     debug!("Count query: {count_query:?}");
 
-    // AND u.service_account_client_link IS NULL
-
     // Prepare and execute the count query.
     let stmt = keycloak_transaction.prepare(&count_query).await?;
     let row: Row = keycloak_transaction
@@ -764,7 +762,6 @@ pub async fn list_users(
                 {enabled_condition}
                 {email_verified_condition}
                 {dynamic_attr_clause}
-                AND u.service_account_client_link IS NULL
             {sort_clause}
             LIMIT {query_limit} OFFSET {query_offset}
         )
@@ -1041,7 +1038,6 @@ pub async fn list_users_ids(
                 {enabled_condition}
                 {email_verified_condition}
                 {dynamic_attr_clause}
-                AND u.service_account_client_link IS NULL
             {sort_clause}
             LIMIT {query_limit} OFFSET {query_offset}
         "#
@@ -1116,9 +1112,8 @@ pub async fn count_keycloak_enabled_users(
                 INNER JOIN
                     realm AS ra ON ra.id = u.realm_id
                 WHERE
-                    ra.name = $1 AND
-                    u.enabled IS TRUE AND
-                    u.service_account_client_link IS NULL
+                    ra.name = $1 AND 
+                    u.enabled IS TRUE
                 "#
             )
             .as_str(),
