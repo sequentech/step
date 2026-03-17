@@ -10,7 +10,7 @@ use crate::services::protocol_manager::get_protocol_manager;
 use crate::services::protocol_manager::{create_named_param, get_board_client, get_immudb_client};
 use crate::services::vault;
 use crate::tasks::electoral_log::{
-    enqueue_electoral_log_event, LogEventInput, INTERNAL_MESSAGE_TYPE,
+    enqueue_electoral_log_event, LogEventBody, LogEventInput, LogMessageType,
 };
 use crate::types::resources::{Aggregate, DataList, OrderDirection, TotalAggregate};
 use anyhow::{anyhow, ensure, Context, Result};
@@ -236,12 +236,14 @@ impl ElectoralLog {
         })?;
         let input = LogEventInput {
             election_event_id: event_id.to_string(),
-            message_type: INTERNAL_MESSAGE_TYPE.into(),
+            message_type: LogMessageType::Internal,
             user_id: Some(user_id.to_string()),
             username: None,
             tenant_id: tenant_id.to_string(),
-            body: serde_json::to_string(&board_message)
-                .with_context(|| "Error serializing ElectoralLogMessage")?,
+            body: LogEventBody::Plain(
+                serde_json::to_string(&board_message)
+                    .with_context(|| "Error serializing ElectoralLogMessage")?,
+            ),
         };
 
         let celery_app = get_celery_app().await;
@@ -346,12 +348,14 @@ impl ElectoralLog {
         })?;
         let input = LogEventInput {
             election_event_id: event_id,
-            message_type: INTERNAL_MESSAGE_TYPE.into(),
+            message_type: LogMessageType::Internal,
             user_id: Some(voter_id),
             username: voter_username,
             tenant_id,
-            body: serde_json::to_string(&board_message)
-                .with_context(|| "Error serializing ElectoralLogMessage")?,
+            body: LogEventBody::Plain(
+                serde_json::to_string(&board_message)
+                    .with_context(|| "Error serializing ElectoralLogMessage")?,
+            ),
         };
         let celery_app = get_celery_app().await;
         celery_app
@@ -396,12 +400,14 @@ impl ElectoralLog {
         })?;
         let input = LogEventInput {
             election_event_id: event_id,
-            message_type: INTERNAL_MESSAGE_TYPE.into(),
+            message_type: LogMessageType::Internal,
             user_id: Some(voter_id),
             username: voter_username.clone(),
             tenant_id,
-            body: serde_json::to_string(&board_message)
-                .with_context(|| "Error serializing post cast vote")?,
+            body: LogEventBody::Plain(
+                serde_json::to_string(&board_message)
+                    .with_context(|| "Error serializing post cast vote")?,
+            ),
         };
         let celery_app = get_celery_app().await;
         celery_app

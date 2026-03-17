@@ -70,17 +70,13 @@ export const EditElectionData: React.FC = () => {
         // is alll object, no change needed
         delete data.enabled_languages
 
-        // name, alias and description fields
+        // name and description fields
         const fromPresentationName =
             data?.presentation?.i18n?.en?.name ||
             data?.presentation?.i18n[Object.keys(data.presentation.i18n)[0]].name ||
             ""
         data.name = fromPresentationName
-        const fromPresentationAlias =
-            data?.presentation?.i18n?.en?.alias ||
-            data?.presentation?.i18n[Object.keys(data.presentation.i18n)[0]].alias ||
-            ""
-        data.alias = fromPresentationAlias
+
         const fromPresentationDescription =
             data?.presentation?.i18n?.en?.description ||
             data?.presentation?.i18n[Object.keys(data.presentation.i18n)[0]].description ||

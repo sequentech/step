@@ -429,9 +429,6 @@ export const ContestDataForm: React.FC = () => {
             if (!newContest.presentation.i18n.en.name && newContest.name) {
                 newContest.presentation.i18n.en.name = newContest.name
             }
-            if (!newContest.presentation.i18n.en.name && newContest.name) {
-                newContest.presentation.i18n.en.name = newContest.name
-            }
             if (!newContest.presentation.i18n.en.alias && newContest.alias) {
                 newContest.presentation.i18n.en.alias = newContest.alias
             }

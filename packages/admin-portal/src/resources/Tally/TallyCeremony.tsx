@@ -90,6 +90,7 @@ import {ETasksExecution} from "@/types/tasksExecution"
 import {useWidgetStore} from "@/providers/WidgetsContextProvider"
 import {LIST_KEYS_CEREMONY} from "@/queries/ListKeysCeremonies"
 import {useKeysPermissions} from "../ElectionEvent/useKeysPermissions"
+import {useAliasRenderer} from "@/hooks/useAliasRenderer"
 
 const WizardSteps = {
     Start: 0,
@@ -122,6 +123,7 @@ export const TallyCeremony: React.FC = () => {
     } = useElectionEventTallyStore()
     const notify = useNotify()
     const {globalSettings} = useContext(SettingsContext)
+    const aliasRenderer = useAliasRenderer()
 
     // const [selectedTallySessionData, setSelectedTallySessionData] =
     // useState<IMiruTransmissionPackageData | null>(null)
@@ -291,6 +293,8 @@ export const TallyCeremony: React.FC = () => {
         }
     }, [tallySession?.annotations?.[MIRU_TALLY_SESSION_ANNOTATION_KEY]])
     const tallySessionDataRef = useRef(tallySessionData)
+
+    const electionEventName = record ? aliasRenderer(record) : "event"
 
     useEffect(() => {
         tallySessionDataRef.current = tallySessionData
@@ -670,11 +674,17 @@ export const TallyCeremony: React.FC = () => {
         return parsedDocuments
             ? {
                   documents: parsedDocuments,
-                  name: resultsEvent?.[0]?.name ?? "event",
+                  name: electionEventName,
                   class_type: "event",
               }
             : null
-    }, [resultsEventId, resultsEvent, resultsEvent?.[0]?.id, resultsEvent?.[0]?.name])
+    }, [
+        resultsEventId,
+        resultsEvent,
+        resultsEvent?.[0]?.id,
+        resultsEvent?.[0]?.name,
+        i18n.language,
+    ])
 
     const handleMiruExportSuccess = (e: {
         election_id?: string
@@ -796,6 +806,8 @@ export const TallyCeremony: React.FC = () => {
         steps.push("tally.breadcrumbSteps.results")
         return steps
     }
+
+    console.log({record})
 
     return (
         <TallyStyles.WizardContainer>
@@ -1132,7 +1144,7 @@ export const TallyCeremony: React.FC = () => {
                                                 electionEventId={
                                                     resultsEvent?.[0].election_event_id
                                                 }
-                                                itemName={resultsEvent?.[0]?.name ?? "event"}
+                                                itemName={electionEventName}
                                                 tenantId={tenantId}
                                                 resultsEventId={resultsEventId}
                                             />
