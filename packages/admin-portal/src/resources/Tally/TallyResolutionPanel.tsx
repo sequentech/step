@@ -37,6 +37,7 @@ import {SUBMIT_TALLY_RESOLUTION} from "@/queries/SubmitTallyResolution"
 import {IPermissions} from "@/types/keycloak"
 import {ITallyExecutionStatus} from "@/types/ceremonies"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
+import {ITieBreakingPolicy} from "@sequentech/ui-core"
 
 const GLOBAL_AREA_ID = "__global__"
 
@@ -54,6 +55,14 @@ interface TallyResolutionPanelProps {
     electionEventId: string
     tenantId: string | null
     onResolutionSubmitted: () => void
+}
+
+interface TallySessionResolutionData {
+    round_number?: number
+    tied_candidate_ids: Array<string>
+    vote_count: number
+    method_used: ITieBreakingPolicy
+    resolved_by_candidate_id?: string
 }
 
 export const TallyResolutionPanel: React.FC<TallyResolutionPanelProps> = ({
@@ -320,20 +329,18 @@ export const TallyResolutionPanel: React.FC<TallyResolutionPanelProps> = ({
         [allResolutions, selectedResolutionId]
     )
 
-    const selectedContestId = useMemo(
-        () => (selectedResolution ? getContestId(selectedResolution) : undefined),
-        [selectedResolution]
-    )
-
     const tiedCandidatesForSelected = useMemo(() => {
         if (!selectedResolution?.resolution_data) return []
-        const tiedIds: string[] = selectedResolution.resolution_data.tied_candidate_ids ?? []
+        const tiedIds: string[] =
+            (selectedResolution.resolution_data as TallySessionResolutionData).tied_candidate_ids ??
+            []
         return (candidates ?? []).filter((c) => tiedIds.includes(c.id))
     }, [selectedResolution, candidates])
 
     const resolvedCandidateForSelected = useMemo(() => {
         if (!selectedResolution?.resolution_data) return null
-        const candidateId = selectedResolution.resolution_data.resolved_by_candidate_id
+        const candidateId = (selectedResolution.resolution_data as TallySessionResolutionData)
+            .resolved_by_candidate_id
         return (candidates ?? []).find((c) => c.id === candidateId) ?? null
     }, [selectedResolution, candidates])
 
@@ -350,7 +357,8 @@ export const TallyResolutionPanel: React.FC<TallyResolutionPanelProps> = ({
         (r) =>
             r.contest_id &&
             pendingSelections[r.contest_id] &&
-            pendingSelections[r.contest_id] !== r.resolution_data?.resolved_by_candidate_id
+            pendingSelections[r.contest_id] !==
+                (r.resolution_data as TallySessionResolutionData)?.resolved_by_candidate_id
     )
 
     // Apply button is enabled when:
@@ -398,7 +406,8 @@ export const TallyResolutionPanel: React.FC<TallyResolutionPanelProps> = ({
 
     const handleStartResolvedEdit = () => {
         if (!selectedResolution?.contest_id) return
-        const currentCandidate = selectedResolution.resolution_data?.resolved_by_candidate_id
+        const currentCandidate = (selectedResolution.resolution_data as TallySessionResolutionData)
+            ?.resolved_by_candidate_id
         if (currentCandidate) {
             setDraftSelections((prev) => ({
                 ...prev,
@@ -465,7 +474,7 @@ export const TallyResolutionPanel: React.FC<TallyResolutionPanelProps> = ({
             const areaLabel = contestAreaLabel.get(contestId)
             if (areaLabel) parts.push(areaLabel)
         }
-        const round = r.resolution_data?.round_number
+        const round = (r.resolution_data as TallySessionResolutionData)?.round_number
         if (round !== undefined && round !== null) {
             parts.push(t("tally.pendingResolutions.round", {round}))
         }
@@ -480,7 +489,7 @@ export const TallyResolutionPanel: React.FC<TallyResolutionPanelProps> = ({
             !isPending &&
             !!(resolution.contest_id && pendingSelections[resolution.contest_id]) &&
             pendingSelections[resolution.contest_id] !==
-                resolution.resolution_data?.resolved_by_candidate_id
+                (resolution.resolution_data as TallySessionResolutionData)?.resolved_by_candidate_id
         const isSelected = selectedResolutionId === resolution.id
         const subtitle = getResolutionSubtitle(resolution)
         const titleKey = isPending
@@ -565,8 +574,8 @@ export const TallyResolutionPanel: React.FC<TallyResolutionPanelProps> = ({
     const isResolvedRedecided =
         !isPendingSelected &&
         !!(selectedResolution?.contest_id && pendingSelections[selectedResolution.contest_id])
-    const voteCounts: number[] = selectedResolution?.resolution_data?.vote_counts ?? []
-    const tiedVoteCount: number | undefined = voteCounts[0]
+    const tiedVoteCount: number =
+        (selectedResolution?.resolution_data as TallySessionResolutionData)?.vote_count ?? 0
     const tiedVotePercent: string | undefined =
         tiedVoteCount !== undefined && totalVotes !== undefined && totalVotes > 0
             ? ((tiedVoteCount / totalVotes) * 100).toFixed(1)
