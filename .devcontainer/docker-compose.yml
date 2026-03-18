@@ -99,7 +99,7 @@ services:
       dockerfile: keycloak-nginx/Dockerfile
     image: sequentech.local/keycloak-nginx
     ports:
-      - "8444:8443"
+      - "8443:8443"
     depends_on:
       keycloak:
         condition: service_healthy
