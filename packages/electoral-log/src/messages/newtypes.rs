@@ -104,3 +104,8 @@ pub struct VoterCountryString(pub String);
     BorshSerialize, BorshDeserialize, Deserialize, Serialize, Clone, PartialEq, Eq, Hash, Debug,
 )]
 pub struct VotingChannelString(pub String);
+
+#[derive(
+    BorshSerialize, BorshDeserialize, Deserialize, Serialize, Clone, PartialEq, Eq, Hash, Debug,
+)]
+pub struct ResolutionIdsString(pub Vec<String>);

@@ -10,11 +10,16 @@ use crate::postgres::reports::get_template_alias_for_report;
 use crate::postgres::reports::ReportType;
 use crate::postgres::results_event::insert_results_event;
 use crate::postgres::tally_session::get_tally_session_by_id;
+use crate::postgres::tally_session::{
+    update_tally_session_annotation, update_tally_session_status,
+};
 use crate::postgres::tally_session_contest::update_tally_session_contests_annotations;
 use crate::postgres::tally_session_execution::insert_tally_session_execution;
+use crate::postgres::tally_session_resolution::get_resolution_by_tally_session;
 use crate::postgres::tally_sheet::get_published_tally_sheets_by_event;
 use crate::postgres::template::get_template_by_alias;
 use crate::services::cast_votes::{count_cast_votes_election, ElectionCastVotes};
+use crate::services::celery_app::get_celery_app;
 use crate::services::ceremonies::insert_ballots::{
     get_elections_end_dates, insert_ballots_messages,
 };
@@ -28,12 +33,17 @@ use crate::services::ceremonies::tally_ceremony::{
     get_tally_ceremony_status, set_tally_session_completed,
 };
 use crate::services::ceremonies::tally_progress::generate_tally_progress;
+use crate::services::ceremonies::tally_resolution::{
+    build_tie_resolutions_map, handle_pending_irv_resolutions,
+};
 use crate::services::ceremonies::tally_session_error::handle_tally_session_error;
 use crate::services::ceremonies::velvet_tally::run_velvet_tally;
 use crate::services::ceremonies::velvet_tally::AreaContestDataType;
 use crate::services::database::{get_hasura_pool, get_keycloak_pool};
 use crate::services::election::get_election_event_elections;
+use crate::services::election_event_board::get_election_event_board;
 use crate::services::election_event_status::get_election_event_status;
+use crate::services::electoral_log::ElectoralLog;
 use crate::services::pg_lock::PgLock;
 use crate::services::protocol_manager;
 use crate::services::reports::electoral_results::ElectoralResults;
@@ -72,6 +82,10 @@ use sequent_core::types::ceremonies::TallyExecutionStatus;
 use sequent_core::types::ceremonies::TallyTrusteeStatus;
 use sequent_core::types::ceremonies::TallyType;
 use sequent_core::types::ceremonies::{CeremoniesPolicy, TallyCeremonyStatus};
+use sequent_core::types::ceremonies::{
+    TallySessionResolution, TallySessionResolutionData, TallySessionResolutionStatus,
+    TallySessionResolutionType, TieBreakingMethod,
+};
 use sequent_core::types::hasura::core::Area;
 use sequent_core::types::hasura::core::BallotStyle as BallotStyleHasura;
 use sequent_core::types::hasura::core::ElectionEvent;
@@ -84,6 +98,7 @@ use sequent_core::types::hasura::core::TallySheet;
 use sequent_core::types::templates::PrintToPdfOptionsLocal;
 use sequent_core::types::templates::ReportExtraConfig;
 use sequent_core::types::templates::SendTemplateBody;
+use serde_json;
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::str::FromStr;
@@ -786,24 +801,52 @@ async fn map_plaintext_data(
         return Ok(None);
     }
 
-    // find a new board message
-    let next_new_board_message_opt = board_messages
-        .iter()
-        .find(|board_message| board_message.id > last_message_id);
+    // Determine whether this is a tie-break re-run by checking if any resolved
+    // resolutions exist for this session.
+    let (tie_break_rerun, resolved_resolution_ids) = {
+        let all_resolutions = get_resolution_by_tally_session(
+            hasura_transaction,
+            &tenant_id,
+            &election_event_id,
+            &tally_session_id,
+        )
+        .await
+        .unwrap_or_default();
+        let is_rerun = !build_tie_resolutions_map(&all_resolutions).is_empty();
+        let ids = all_resolutions
+            .iter()
+            .filter(|r| r.status == TallySessionResolutionStatus::Resolved)
+            .map(|r| r.id.clone())
+            .collect::<Vec<_>>();
+        (is_rerun, ids)
+    };
 
     let newest_message_id = board_messages
         .last()
         .map(|board_message| board_message.id)
         .unwrap_or(-1);
 
-    let Some(next_new_board_message) = next_new_board_message_opt else {
-        event!(Level::INFO, "Board has no new messages",);
-        return Ok(None);
+    // In a tie-break re-run the tally replays from the last processed message;
+    // normally we require a new (unprocessed) message to proceed.
+    let board_message_to_process = match board_messages.iter().find(|m| m.id > last_message_id) {
+        Some(msg) => msg,
+        None if tie_break_rerun => {
+            event!(
+                Level::INFO,
+                "Replaying last board message for tie-break re-run"
+            );
+            board_messages
+                .last()
+                .ok_or_else(|| anyhow::anyhow!("No board messages found for tie-break re-run"))?
+        }
+        None => {
+            event!(Level::INFO, "No new board messages — skipping");
+            return Ok(None);
+        }
     };
 
-    // find the timestamp of the new board message.
-    // We do this because once we convert into a Message, we lose the link to the board message id
-    let mut next_timestamp = Message::strand_deserialize(&next_new_board_message.message)?
+    // Extract the timestamp before deserializing — once converted to Message the board message id is lost.
+    let mut next_timestamp = Message::strand_deserialize(&board_message_to_process.message)?
         .statement
         .get_timestamp();
     next_timestamp = std::cmp::max(tally_session_created_at_timestamp_secs, next_timestamp);
@@ -845,6 +888,26 @@ async fn map_plaintext_data(
         let mut logs = new_status.logs.clone();
         logs.append(&mut new_logs);
         new_status.logs = sort_logs(&logs);
+    }
+
+    if tie_break_rerun {
+        let board_name = get_election_event_board(election_event.bulletin_board_reference.clone())
+            .with_context(|| "missing bulletin board")?;
+        let electoral_log = ElectoralLog::new(
+            hasura_transaction,
+            &tenant_id,
+            Some(&election_event_id),
+            board_name.as_str(),
+        )
+        .await?;
+        electoral_log
+            .post_tally_resumed_with_resolution(
+                election_event_id.clone(),
+                tally_session.election_ids.clone(),
+                resolved_resolution_ids,
+            )
+            .await
+            .with_context(|| "error posting tally resumed to electoral log")?;
     }
 
     // get ballot styles, from where we'll get the Contest(s)
@@ -1060,6 +1123,21 @@ pub async fn execute_tally_session_wrapped(
 
     let status = get_tally_ceremony_status(tally_session_execution.status.clone())?;
 
+    // Fetch resolved tie-break resolutions to pass into the velvet tally and
+    // to determine has_resolved_tie_break for populate_results_tables.
+    let tie_resolutions: HashMap<String, Vec<TallySessionResolutionData>> = {
+        let all_resolutions = get_resolution_by_tally_session(
+            hasura_transaction,
+            &tenant_id,
+            &election_event_id,
+            &tally_session_id,
+        )
+        .await
+        .unwrap_or_default();
+        build_tie_resolutions_map(&all_resolutions)
+    };
+    let has_resolved_tie_break = !tie_resolutions.is_empty();
+
     // map plaintexts to contests
     let plaintexts_data_opt = map_plaintext_data(
         hasura_transaction,
@@ -1101,23 +1179,29 @@ pub async fn execute_tally_session_wrapped(
         get_event_areas(hasura_transaction, &tenant_id, &election_event_id).await?;
 
     let status = if !plaintexts_data.is_empty() {
-        Some(
-            run_velvet_tally(
-                base_tempdir.path().to_path_buf(),
-                &plaintexts_data,
-                &cast_votes_count,
-                &tally_sheets,
-                report_content_template,
-                report_system_template,
-                pdf_options,
-                &areas,
-                hasura_transaction,
-                &election_event,
-                &tally_session,
-                tally_type_enum.clone(),
-            )
-            .await?,
+        match run_velvet_tally(
+            base_tempdir.path().to_path_buf(),
+            &plaintexts_data,
+            &cast_votes_count,
+            &tally_sheets,
+            report_content_template,
+            report_system_template,
+            pdf_options,
+            &areas,
+            hasura_transaction,
+            &election_event,
+            &tally_session,
+            tally_type_enum.clone(),
+            tie_resolutions,
         )
+        .await
+        {
+            Ok(state) => Some(state),
+            Err(err) => {
+                // Propagate error - ties are no longer errors, they're detected via metadata
+                return Err(err.into());
+            }
+        }
     } else {
         None
     };
@@ -1130,14 +1214,68 @@ pub async fn execute_tally_session_wrapped(
         status,
         &tenant_id,
         &election_event_id,
+        &tally_session_id,
         session_ids.clone(),
         tally_session_execution.clone(),
         &areas,
         &default_language,
         tally_type_enum.clone(),
         plaintexts_data.is_empty(), // &tally_session,
+        has_resolved_tie_break,
     )
     .await?;
+
+    // Check if results contain pending IRV tie-break resolutions.
+    // On a re-run after partial resolution the new results_event_id ensures
+    // handle_pending_irv_resolutions only returns ties from the freshly-computed
+    // results, so old annotations are not accidentally re-processed.
+    if let Some(ref results_event_id_str) = results_event_id {
+        let pending_resolution_ids = handle_pending_irv_resolutions(
+            hasura_transaction,
+            &tenant_id,
+            &election_event_id,
+            results_event_id_str,
+            &tally_session_id,
+            election_event.bulletin_board_reference.clone(),
+            tally_session.election_ids.clone(),
+        )
+        .await?;
+
+        if !pending_resolution_ids.is_empty() {
+            // Insert execution record so frontend can load partial results
+            let session_ids_i32: Option<Vec<i32>> = session_ids
+                .clone()
+                .map(|values| values.into_iter().map(|int| int as i32).collect());
+            new_status.logs =
+                append_tally_updated(&new_status.logs, &election_ids.clone().unwrap_or_default());
+            insert_tally_session_execution(
+                hasura_transaction,
+                &tenant_id,
+                &election_event_id,
+                newest_message_id as i32,
+                &tally_session_id,
+                Some(new_status),
+                results_event_id,
+                session_ids_i32,
+                tally_session_execution_documents,
+            )
+            .await?;
+
+            // Update status to AWAITING_INPUT
+            update_tally_session_status(
+                hasura_transaction,
+                &tenant_id,
+                &election_event_id,
+                &tally_session_id,
+                TallyExecutionStatus::AWAITING_INPUT,
+                false,
+            )
+            .await?;
+
+            return Ok(());
+        }
+    }
+
     // map_plaintext_data also calls this but at this point the credentials
     // could be expired
 
