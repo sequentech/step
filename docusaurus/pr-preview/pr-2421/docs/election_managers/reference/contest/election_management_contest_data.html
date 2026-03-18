@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.9.2">
 <title data-rh="true">Data | Sequent Online Voting</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:url" content="https://sequentech.github.io/docusaurus/pr-preview/pr-2421/docs/election_managers/reference/contest/election_management_contest_data"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Data | Sequent Online Voting"><meta data-rh="true" name="description" content="&lt;!--"><meta data-rh="true" property="og:description" content="&lt;!--"><link data-rh="true" rel="icon" href="/docusaurus/pr-preview/pr-2421/img/favicon.ico"><link data-rh="true" rel="canonical" href="https://sequentech.github.io/docusaurus/pr-preview/pr-2421/docs/election_managers/reference/contest/election_management_contest_data"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-2421/docs/election_managers/reference/contest/election_management_contest_data" hreflang="en"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-2421/docs/election_managers/reference/contest/election_management_contest_data" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Data","item":"https://sequentech.github.io/docusaurus/pr-preview/pr-2421/docs/election_managers/reference/contest/election_management_contest_data"}]}</script><link rel="stylesheet" href="/docusaurus/pr-preview/pr-2421/assets/css/styles.b012d36e.css">
-<script src="/docusaurus/pr-preview/pr-2421/assets/js/runtime~main.bfc31f7f.js" defer="defer"></script>
+<script src="/docusaurus/pr-preview/pr-2421/assets/js/runtime~main.4ee5c407.js" defer="defer"></script>
 <script src="/docusaurus/pr-preview/pr-2421/assets/js/main.9bebb79f.js" defer="defer"></script>
 </head>
 <body class="navigation-with-keyboard">
@@ -188,6 +188,20 @@ with the same position will invalidate the vote.</li>
 <li class=""><strong>Warn</strong>: Warning during ballot and review phases.</li>
 <li class=""><strong>Warn in Review</strong>: Warning only in review phase.</li>
 <li class=""><strong>Not Allowed</strong>: Cannot submit blank ballot.</li>
+</ul>
+<h4 class="anchor anchorTargetStickyNavbar_Vzrq" id="invalid-vote---duplicate-rank-policy">Invalid Vote - Duplicate Rank Policy<a href="#invalid-vote---duplicate-rank-policy" class="hash-link" aria-label="Direct link to Invalid Vote - Duplicate Rank Policy" title="Direct link to Invalid Vote - Duplicate Rank Policy" translate="no">​</a></h4>
+<p><em>Applies to preferential voting (e.g. Instant Runoff) only.</em></p>
+<p>When a voter assigns the same ranking position to two or more candidates, the vote is considered invalid. This policy controls the UX response:</p>
+<ul>
+<li class=""><strong>Show Warning and Dialog (voter can proceed)</strong>: A warning dialog is shown, but the voter is allowed to submit the ballot as-is.</li>
+<li class=""><strong>Show Warning and Dialog (voter not allowed to proceed)</strong>: A warning dialog is shown and the voter is blocked from submitting until the duplicated rank is resolved.</li>
+</ul>
+<h4 class="anchor anchorTargetStickyNavbar_Vzrq" id="invalid-vote---skipped-ranks-policy">Invalid Vote - Skipped Ranks Policy<a href="#invalid-vote---skipped-ranks-policy" class="hash-link" aria-label="Direct link to Invalid Vote - Skipped Ranks Policy" title="Direct link to Invalid Vote - Skipped Ranks Policy" translate="no">​</a></h4>
+<p><em>Applies to preferential voting (e.g. Instant Runoff) only.</em></p>
+<p>When a voter&#x27;s ranking has gaps (e.g. positions 1, 2, 4, 5 — skipping 3), this policy controls the UX response:</p>
+<ul>
+<li class=""><strong>Show Warning and Dialog (voter can proceed)</strong>: A warning dialog is shown, but the voter is allowed to submit the ballot with the gap.</li>
+<li class=""><strong>Show Warning and Dialog (voter not allowed to proceed)</strong>: A warning dialog is shown and the voter is blocked from submitting until the gap is filled.</li>
 </ul>
 <h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="page-name">Page Name<a href="#page-name" class="hash-link" aria-label="Direct link to Page Name" title="Direct link to Page Name" translate="no">​</a></h3>
 <ul>

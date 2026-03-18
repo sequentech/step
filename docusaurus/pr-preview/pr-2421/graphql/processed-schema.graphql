@@ -17236,7 +17236,7 @@ type tally_session {
   execution_status: String
   id: uuid!
   is_execution_completed: Boolean!
-  keys_ceremony_id: uuid
+  keys_ceremony_id: uuid!
   labels(
     """JSON select path"""
     path: String
@@ -18313,10 +18313,6 @@ type tally_session_resolution {
     path: String
   ): jsonb
   last_updated_at: timestamptz!
-  resolution(
-    """JSON select path"""
-    path: String
-  ): jsonb
   resolution_data(
     """JSON select path"""
     path: String
@@ -18324,8 +18320,6 @@ type tally_session_resolution {
   resolution_type: String!
   resolved_at: timestamptz
   resolved_by_user: uuid
-  results_contest_id: uuid
-  results_event_id: uuid
   status: String!
   """An object relationship"""
   tally_session: tally_session
@@ -18374,7 +18368,6 @@ input tally_session_resolution_aggregate_order_by {
 input tally_session_resolution_append_input {
   annotations: jsonb
   labels: jsonb
-  resolution: jsonb
   resolution_data: jsonb
 }
 
@@ -18402,13 +18395,10 @@ input tally_session_resolution_bool_exp {
   id: uuid_comparison_exp
   labels: jsonb_comparison_exp
   last_updated_at: timestamptz_comparison_exp
-  resolution: jsonb_comparison_exp
   resolution_data: jsonb_comparison_exp
   resolution_type: String_comparison_exp
   resolved_at: timestamptz_comparison_exp
   resolved_by_user: uuid_comparison_exp
-  results_contest_id: uuid_comparison_exp
-  results_event_id: uuid_comparison_exp
   status: String_comparison_exp
   tally_session: tally_session_bool_exp
   tally_session_id: uuid_comparison_exp
@@ -18431,7 +18421,6 @@ delete the field or element with specified path (for JSON arrays, negative integ
 input tally_session_resolution_delete_at_path_input {
   annotations: [String!]
   labels: [String!]
-  resolution: [String!]
   resolution_data: [String!]
 }
 
@@ -18441,7 +18430,6 @@ delete the array element with specified index (negative integers count from the 
 input tally_session_resolution_delete_elem_input {
   annotations: Int
   labels: Int
-  resolution: Int
   resolution_data: Int
 }
 
@@ -18451,7 +18439,6 @@ delete key/value pair or string element. key/value pairs are matched based on th
 input tally_session_resolution_delete_key_input {
   annotations: String
   labels: String
-  resolution: String
   resolution_data: String
 }
 
@@ -18467,13 +18454,10 @@ input tally_session_resolution_insert_input {
   id: uuid
   labels: jsonb
   last_updated_at: timestamptz
-  resolution: jsonb
   resolution_data: jsonb
   resolution_type: String
   resolved_at: timestamptz
   resolved_by_user: uuid
-  results_contest_id: uuid
-  results_event_id: uuid
   status: String
   tally_session: tally_session_obj_rel_insert_input
   tally_session_id: uuid
@@ -18490,8 +18474,6 @@ type tally_session_resolution_max_fields {
   resolution_type: String
   resolved_at: timestamptz
   resolved_by_user: uuid
-  results_contest_id: uuid
-  results_event_id: uuid
   status: String
   tally_session_id: uuid
   tenant_id: uuid
@@ -18509,8 +18491,6 @@ input tally_session_resolution_max_order_by {
   resolution_type: order_by
   resolved_at: order_by
   resolved_by_user: order_by
-  results_contest_id: order_by
-  results_event_id: order_by
   status: order_by
   tally_session_id: order_by
   tenant_id: order_by
@@ -18526,8 +18506,6 @@ type tally_session_resolution_min_fields {
   resolution_type: String
   resolved_at: timestamptz
   resolved_by_user: uuid
-  results_contest_id: uuid
-  results_event_id: uuid
   status: String
   tally_session_id: uuid
   tenant_id: uuid
@@ -18545,8 +18523,6 @@ input tally_session_resolution_min_order_by {
   resolution_type: order_by
   resolved_at: order_by
   resolved_by_user: order_by
-  results_contest_id: order_by
-  results_event_id: order_by
   status: order_by
   tally_session_id: order_by
   tenant_id: order_by
@@ -18583,13 +18559,10 @@ input tally_session_resolution_order_by {
   id: order_by
   labels: order_by
   last_updated_at: order_by
-  resolution: order_by
   resolution_data: order_by
   resolution_type: order_by
   resolved_at: order_by
   resolved_by_user: order_by
-  results_contest_id: order_by
-  results_event_id: order_by
   status: order_by
   tally_session: tally_session_order_by
   tally_session_id: order_by
@@ -18607,7 +18580,6 @@ input tally_session_resolution_pk_columns_input {
 input tally_session_resolution_prepend_input {
   annotations: jsonb
   labels: jsonb
-  resolution: jsonb
   resolution_data: jsonb
 }
 
@@ -18630,8 +18602,6 @@ enum tally_session_resolution_select_column {
   """column name"""
   last_updated_at
   """column name"""
-  resolution
-  """column name"""
   resolution_data
   """column name"""
   resolution_type
@@ -18639,10 +18609,6 @@ enum tally_session_resolution_select_column {
   resolved_at
   """column name"""
   resolved_by_user
-  """column name"""
-  results_contest_id
-  """column name"""
-  results_event_id
   """column name"""
   status
   """column name"""
@@ -18662,13 +18628,10 @@ input tally_session_resolution_set_input {
   id: uuid
   labels: jsonb
   last_updated_at: timestamptz
-  resolution: jsonb
   resolution_data: jsonb
   resolution_type: String
   resolved_at: timestamptz
   resolved_by_user: uuid
-  results_contest_id: uuid
-  results_event_id: uuid
   status: String
   tally_session_id: uuid
   tenant_id: uuid
@@ -18693,13 +18656,10 @@ input tally_session_resolution_stream_cursor_value_input {
   id: uuid
   labels: jsonb
   last_updated_at: timestamptz
-  resolution: jsonb
   resolution_data: jsonb
   resolution_type: String
   resolved_at: timestamptz
   resolved_by_user: uuid
-  results_contest_id: uuid
-  results_event_id: uuid
   status: String
   tally_session_id: uuid
   tenant_id: uuid
@@ -18724,8 +18684,6 @@ enum tally_session_resolution_update_column {
   """column name"""
   last_updated_at
   """column name"""
-  resolution
-  """column name"""
   resolution_data
   """column name"""
   resolution_type
@@ -18733,10 +18691,6 @@ enum tally_session_resolution_update_column {
   resolved_at
   """column name"""
   resolved_by_user
-  """column name"""
-  results_contest_id
-  """column name"""
-  results_event_id
   """column name"""
   status
   """column name"""
