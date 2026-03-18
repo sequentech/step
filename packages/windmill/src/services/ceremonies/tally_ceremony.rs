@@ -40,7 +40,9 @@ use sequent_core::services::area_tree::ContestsData;
 use sequent_core::services::area_tree::TreeNode;
 use sequent_core::services::jwt::JwtClaims;
 use sequent_core::types::ceremonies::*;
-use sequent_core::types::ceremonies::{ResolutionStatus, ResolutionType, TallySessionResolution};
+use sequent_core::types::ceremonies::{
+    TallySessionResolution, TallySessionResolutionStatus, TallySessionResolutionType,
+};
 use sequent_core::types::hasura::core::KeysCeremony;
 use sequent_core::types::hasura::core::{AreaContest, TallySessionConfiguration};
 use sequent_core::types::hasura::core::{
@@ -918,7 +920,7 @@ pub async fn submit_tally_resolution(
         let latest_resolution = all_resolutions
             .iter()
             .filter(|r| {
-                r.resolution_type == ResolutionType::IrvTieBreak
+                r.resolution_type == TallySessionResolutionType::IrvTieBreak
                     && r.contest_id.as_ref() == Some(&tie_resolution.contest_id)
             })
             .max_by_key(|r| r.created_at)
@@ -943,8 +945,15 @@ pub async fn submit_tally_resolution(
             ));
         }
 
-        let resolution_value = IrvTieBreakResolution {
-            resolved_by_candidate_id: tie_resolution.selected_candidate_id.clone(),
+        let pending_data = latest_resolution.resolution_data.clone().ok_or_else(|| {
+            anyhow!(
+                "Missing resolution data for contest {}",
+                tie_resolution.contest_id
+            )
+        })?;
+        let resolution_value = TallySessionResolutionData {
+            resolved_by_candidate_id: Some(tie_resolution.selected_candidate_id.clone()),
+            ..pending_data
         };
 
         let resolution_id = latest_resolution.id.clone();
@@ -1039,7 +1048,7 @@ pub fn validate_resolution_allowed(
         let all_are_resolved_updates = input_contest_ids.iter().all(|contest_id| {
             all_resolutions.iter().any(|r| {
                 r.contest_id.as_deref() == Some(contest_id)
-                    && r.status == ResolutionStatus::Resolved
+                    && r.status == TallySessionResolutionStatus::Resolved
             })
         });
         if !all_are_resolved_updates {
@@ -1078,7 +1087,7 @@ pub fn extract_tied_candidate_ids(
 /// Returns `true` when the resolution already has a decision recorded (i.e. this is
 /// an admin changing their mind rather than the first submission).
 pub fn is_resubmission(resolution: &TallySessionResolution) -> bool {
-    resolution.status != ResolutionStatus::Pending
+    resolution.status != TallySessionResolutionStatus::Pending
 }
 
 #[cfg(test)]
@@ -1087,7 +1096,7 @@ mod tally_resolution_tests {
     use rocket::http::Status;
     use sequent_core::types::ceremonies::TallyExecutionStatus;
     use sequent_core::types::ceremonies::{
-        IrvTieBreakResolutionData, ResolutionStatus, ResolutionType, TallySessionResolution,
+        ResolutionStatus, ResolutionType, TallySessionResolution, TallySessionResolutionData,
         TieBreakingMethod,
     };
 
@@ -1097,25 +1106,22 @@ mod tally_resolution_tests {
         tied_ids: &[&str],
     ) -> TallySessionResolution {
         TallySessionResolution {
-            id: "00000000-0000-0000-0000-000000000001".to_string(),
-            tenant_id: "00000000-0000-0000-0000-000000000002".to_string(),
-            election_event_id: "00000000-0000-0000-0000-000000000003".to_string(),
-            tally_session_id: "00000000-0000-0000-0000-000000000004".to_string(),
-            results_contest_id: None,
+            id: "1".to_string(),
+            tenant_id: "2".to_string(),
+            election_event_id: "3".to_string(),
+            tally_session_id: "4".to_string(),
             contest_id: Some(contest_id.to_string()),
-            results_event_id: None,
             created_at: None,
             last_updated_at: None,
-            resolution_type: ResolutionType::IrvTieBreak,
+            resolution_type: TallySessionResolutionType::IrvTieBreak,
             status,
-            resolution_data: Some(IrvTieBreakResolutionData {
-                round_number: 2,
+            resolution_data: Some(TallySessionResolutionData {
+                round_number: Some(2),
                 tied_candidate_ids: tied_ids.iter().map(|s| s.to_string()).collect(),
-                vote_counts: vec![],
+                vote_count: 10,
                 method_used: TieBreakingMethod::ExternalProcedure,
                 resolved_by_candidate_id: None,
             }),
-            resolution: None,
             resolved_by_user: None,
             resolved_at: None,
             labels: None,
@@ -1125,7 +1131,11 @@ mod tally_resolution_tests {
 
     #[test]
     fn test_submit_resolution_fails_if_not_awaiting_input() {
-        let resolution = make_resolution("contest-1", ResolutionStatus::Pending, &["c-1", "c-2"]);
+        let resolution = make_resolution(
+            "contest-1",
+            TallySessionResolutionStatus::Pending,
+            &["c-1", "c-2"],
+        );
         let result = validate_resolution_allowed(
             &TallyExecutionStatus::IN_PROGRESS,
             &["contest-1"],
@@ -1142,7 +1152,11 @@ mod tally_resolution_tests {
 
     #[test]
     fn test_submit_resolution_fails_if_candidate_not_tied() {
-        let resolution = make_resolution("contest-1", ResolutionStatus::Pending, &["c-1", "c-2"]);
+        let resolution = make_resolution(
+            "contest-1",
+            TallySessionResolutionStatus::Pending,
+            &["c-1", "c-2"],
+        );
         let tied_ids = extract_tied_candidate_ids(&resolution, "contest-1")
             .expect("tied_candidate_ids should parse");
         assert!(!tied_ids.contains(&"c-99".to_string()));
@@ -1152,7 +1166,11 @@ mod tally_resolution_tests {
 
     #[test]
     fn test_submit_resolution_success_updates_status() {
-        let resolution = make_resolution("contest-1", ResolutionStatus::Pending, &["c-1", "c-2"]);
+        let resolution = make_resolution(
+            "contest-1",
+            TallySessionResolutionStatus::Pending,
+            &["c-1", "c-2"],
+        );
         let result = validate_resolution_allowed(
             &TallyExecutionStatus::AWAITING_INPUT,
             &["contest-1"],
@@ -1167,7 +1185,11 @@ mod tally_resolution_tests {
 
     #[test]
     fn test_resubmit_resolution_updates_existing_record() {
-        let resolution = make_resolution("contest-1", ResolutionStatus::Resolved, &["c-1", "c-2"]);
+        let resolution = make_resolution(
+            "contest-1",
+            TallySessionResolutionStatus::Resolved,
+            &["c-1", "c-2"],
+        );
         assert!(
             is_resubmission(&resolution),
             "Resolved resolution should be treated as a re-submission"

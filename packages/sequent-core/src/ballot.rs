@@ -10,6 +10,7 @@ use crate::plaintext::{
 };
 use crate::serialization::base64::{Base64Deserialize, Base64Serialize};
 use crate::serialization::deserialize_with_path::deserialize_value;
+use crate::types::ceremonies::TallySessionResolutionData;
 use crate::types::ceremonies::{
     CeremoniesPolicy, CountingAlgType, TallyOperation,
 };
@@ -1580,22 +1581,15 @@ impl Contest {
             .unwrap_or_default()
     }
 
-    pub(crate) fn insert_tie_resolutions(
+    pub fn insert_tie_resolutions(
         contest: &mut Contest,
-        contest_tie_resolutions: &Vec<TallySessionResolution>,
+        contest_tie_resolutions: &Vec<TallySessionResolutionData>,
     ) -> anyhow::Result<()> {
-        // Extract the resolution_data from the wrapper struct
-        let resolution_data_vec: Vec<TallySessionResolutionData> =
-            contest_tie_resolutions
-                .iter()
-                .filter_map(|res| res.resolution_data.clone())
-                .collect();
-
         // Only inject if there is actually data to add
-        if !resolution_data_vec.is_empty() {
+        if !contest_tie_resolutions.is_empty() {
             // Serialize the data back into a JSON string
             let tie_res_json_string =
-                serde_json::to_string(&resolution_data_vec)?;
+                serde_json::to_string(&contest_tie_resolutions)?;
 
             // Clone existing annotations or create a new map if it's None
             let mut annotations =

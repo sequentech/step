@@ -227,30 +227,39 @@ pub enum ScopeOperation {
     Contest(TallyOperation),
 }
 
-#[derive(Serialize, Deserialize, Debug)]
-pub struct TallyResolution {
-    pub contest_id: String,
-    pub selected_candidate_id: String,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(
+    Debug,
+    Clone,
+    Serialize,
+    Deserialize,
+    BorshSerialize,
+    BorshDeserialize,
+    JsonSchema,
+    PartialEq,
+    Eq,
+)]
 pub enum TieBreakingMethod {
     Random,
     ExternalProcedure,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct IrvTieBreakResolutionData {
-    pub round_number: u64,
+#[derive(
+    Debug,
+    Clone,
+    Serialize,
+    Deserialize,
+    BorshSerialize,
+    BorshDeserialize,
+    JsonSchema,
+    PartialEq,
+    Eq,
+)]
+pub struct TallySessionResolutionData {
+    pub round_number: Option<u64>,
     pub tied_candidate_ids: Vec<String>,
-    pub vote_counts: Vec<u64>,
+    pub vote_count: u64,
     pub method_used: TieBreakingMethod,
     pub resolved_by_candidate_id: Option<String>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct IrvTieBreakResolution {
-    pub resolved_by_candidate_id: String,
 }
 
 #[derive(
@@ -258,10 +267,8 @@ pub struct IrvTieBreakResolution {
 )]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
-pub enum ResolutionType {
+pub enum TallySessionResolutionType {
     IrvTieBreak,
-    ManualRecount,
-    ExternalValidation,
 }
 
 #[derive(
@@ -269,7 +276,7 @@ pub enum ResolutionType {
 )]
 #[serde(rename_all = "lowercase")]
 #[strum(serialize_all = "lowercase")]
-pub enum ResolutionStatus {
+pub enum TallySessionResolutionStatus {
     Pending,
     Resolved,
 }
@@ -280,19 +287,22 @@ pub struct TallySessionResolution {
     pub tenant_id: String,
     pub election_event_id: String,
     pub tally_session_id: String,
-    pub results_contest_id: Option<String>,
     pub contest_id: Option<String>,
-    pub results_event_id: Option<String>,
     pub created_at: Option<chrono::DateTime<chrono::Utc>>,
     pub last_updated_at: Option<chrono::DateTime<chrono::Utc>>,
-    pub resolution_type: ResolutionType,
-    pub status: ResolutionStatus,
-    pub resolution_data: Option<IrvTieBreakResolutionData>,
-    pub resolution: Option<IrvTieBreakResolution>,
+    pub resolution_type: TallySessionResolutionType,
+    pub status: TallySessionResolutionStatus,
+    pub resolution_data: Option<TallySessionResolutionData>,
     pub resolved_by_user: Option<String>,
     pub resolved_at: Option<chrono::DateTime<chrono::Utc>>,
     pub labels: Option<Value>,
     pub annotations: Option<Value>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TallyResolution {
+    pub contest_id: String,
+    pub selected_candidate_id: String,
 }
 
 #[derive(

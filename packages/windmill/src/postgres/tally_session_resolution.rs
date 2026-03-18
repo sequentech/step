@@ -5,40 +5,34 @@
 use anyhow::{anyhow, Result};
 use deadpool_postgres::Transaction;
 use sequent_core::types::ceremonies::{
-    IrvTieBreakResolution, IrvTieBreakResolutionData, ResolutionStatus, ResolutionType,
-    TallySessionResolution,
+    TallySessionResolution, TallySessionResolutionData, TallySessionResolutionStatus,
+    TallySessionResolutionType,
 };
 use tokio_postgres::Row;
 use tracing::{info, instrument};
 use uuid::Uuid;
 
 fn map_row_to_resolution(row: &Row) -> Result<TallySessionResolution> {
-    let resolution_type_str: String = row.get(9);
-    let status_str: String = row.get(10);
+    let resolution_type_str: String = row.get(7);
+    let status_str: String = row.get(8);
     Ok(TallySessionResolution {
         id: row.get::<_, Uuid>(0).to_string(),
         tenant_id: row.get::<_, Uuid>(1).to_string(),
         election_event_id: row.get::<_, Uuid>(2).to_string(),
         tally_session_id: row.get::<_, Uuid>(3).to_string(),
-        results_contest_id: row.get::<_, Option<Uuid>>(4).map(|u| u.to_string()),
-        contest_id: row.get::<_, Option<Uuid>>(5).map(|u| u.to_string()),
-        results_event_id: row.get::<_, Option<Uuid>>(6).map(|u| u.to_string()),
-        created_at: row.get(7),
-        last_updated_at: row.get(8),
+        contest_id: row.get::<_, Option<Uuid>>(4).map(|u| u.to_string()),
+        created_at: row.get(5),
+        last_updated_at: row.get(6),
         resolution_type: serde_json::from_value(serde_json::Value::String(resolution_type_str))?,
         status: serde_json::from_value(serde_json::Value::String(status_str))?,
         resolution_data: row
-            .get::<_, Option<serde_json::Value>>(11)
+            .get::<_, Option<serde_json::Value>>(9)
             .map(serde_json::from_value)
             .transpose()?,
-        resolution: row
-            .get::<_, Option<serde_json::Value>>(12)
-            .map(serde_json::from_value)
-            .transpose()?,
-        resolved_by_user: row.get::<_, Option<Uuid>>(13).map(|u| u.to_string()),
-        resolved_at: row.get(14),
-        labels: row.get(15),
-        annotations: row.get(16),
+        resolved_by_user: row.get::<_, Option<Uuid>>(10).map(|u| u.to_string()),
+        resolved_at: row.get(11),
+        labels: row.get(12),
+        annotations: row.get(13),
     })
 }
 
@@ -49,16 +43,14 @@ pub async fn create_tally_session_resolution(
     tenant_id: &str,
     election_event_id: &str,
     tally_session_id: &str,
-    results_contest_id: &str,
     contest_id: &str,
-    results_event_id: &str,
-    resolution_type: ResolutionType,
-    resolution_data: IrvTieBreakResolutionData,
+    resolution_type: TallySessionResolutionType,
+    resolution_data: TallySessionResolutionData,
 ) -> Result<String> {
     let query = r#"
         INSERT INTO sequent_backend.tally_session_resolution
-        (tenant_id, election_event_id, tally_session_id, results_contest_id, contest_id, results_event_id, resolution_type, status, resolution_data)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, 'pending', $8)
+        (tenant_id, election_event_id, tally_session_id, contest_id, resolution_type, status, resolution_data)
+        VALUES ($1, $2, $3, $4, $5, 'pending', $6)
         RETURNING id
     "#;
 
@@ -70,9 +62,7 @@ pub async fn create_tally_session_resolution(
                 &Uuid::parse_str(tenant_id)?,
                 &Uuid::parse_str(election_event_id)?,
                 &Uuid::parse_str(tally_session_id)?,
-                &Uuid::parse_str(results_contest_id)?,
                 &Uuid::parse_str(contest_id)?,
-                &Uuid::parse_str(results_event_id)?,
                 &resolution_type.to_string(),
                 &resolution_data_value,
             ],
@@ -98,9 +88,9 @@ pub async fn get_pending_resolutions(
     let query = r#"
         SELECT
             id, tenant_id, election_event_id, tally_session_id,
-            results_contest_id, contest_id, results_event_id,
+            contest_id,
             created_at, last_updated_at, resolution_type, status,
-            resolution_data, resolution, resolved_by_user, resolved_at,
+            resolution_data, resolved_by_user, resolved_at,
             labels, annotations
         FROM sequent_backend.tally_session_resolution
         WHERE tenant_id = $1
@@ -140,9 +130,9 @@ pub async fn get_resolution_by_tally_session(
     let query = r#"
         SELECT
             id, tenant_id, election_event_id, tally_session_id,
-            results_contest_id, contest_id, results_event_id,
+            contest_id,
             created_at, last_updated_at, resolution_type, status,
-            resolution_data, resolution, resolved_by_user, resolved_at,
+            resolution_data, resolved_by_user, resolved_at,
             labels, annotations
         FROM sequent_backend.tally_session_resolution
         WHERE tenant_id = $1
@@ -177,12 +167,12 @@ pub async fn submit_resolution(
     tenant_id: &str,
     election_event_id: &str,
     resolution_id: &str,
-    resolution: IrvTieBreakResolution,
+    resolution: TallySessionResolutionData,
     resolved_by_user: &str,
 ) -> Result<()> {
     let query = r#"
         UPDATE sequent_backend.tally_session_resolution
-        SET resolution = $1,
+        SET resolution_data = $1,
             status = 'resolved',
             resolved_by_user = $2,
             resolved_at = NOW()
@@ -224,12 +214,12 @@ pub async fn update_resolution(
     tenant_id: &str,
     election_event_id: &str,
     resolution_id: &str,
-    resolution: IrvTieBreakResolution,
+    resolution: TallySessionResolutionData,
     resolved_by_user: &str,
 ) -> Result<()> {
     let query = r#"
         UPDATE sequent_backend.tally_session_resolution
-        SET resolution = $1,
+        SET resolution_data = $1,
             resolved_by_user = $2,
             resolved_at = NOW()
         WHERE id = $3

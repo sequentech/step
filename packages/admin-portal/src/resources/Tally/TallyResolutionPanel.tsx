@@ -332,8 +332,8 @@ export const TallyResolutionPanel: React.FC<TallyResolutionPanelProps> = ({
     }, [selectedResolution, candidates])
 
     const resolvedCandidateForSelected = useMemo(() => {
-        if (!selectedResolution?.resolution) return null
-        const candidateId = selectedResolution.resolution.resolved_by_candidate_id
+        if (!selectedResolution?.resolution_data) return null
+        const candidateId = selectedResolution.resolution_data.resolved_by_candidate_id
         return (candidates ?? []).find((c) => c.id === candidateId) ?? null
     }, [selectedResolution, candidates])
 
@@ -350,7 +350,7 @@ export const TallyResolutionPanel: React.FC<TallyResolutionPanelProps> = ({
         (r) =>
             r.contest_id &&
             pendingSelections[r.contest_id] &&
-            pendingSelections[r.contest_id] !== r.resolution?.resolved_by_candidate_id
+            pendingSelections[r.contest_id] !== r.resolution_data?.resolved_by_candidate_id
     )
 
     // Apply button is enabled when:
@@ -398,7 +398,7 @@ export const TallyResolutionPanel: React.FC<TallyResolutionPanelProps> = ({
 
     const handleStartResolvedEdit = () => {
         if (!selectedResolution?.contest_id) return
-        const currentCandidate = selectedResolution.resolution?.resolved_by_candidate_id
+        const currentCandidate = selectedResolution.resolution_data?.resolved_by_candidate_id
         if (currentCandidate) {
             setDraftSelections((prev) => ({
                 ...prev,
@@ -480,7 +480,7 @@ export const TallyResolutionPanel: React.FC<TallyResolutionPanelProps> = ({
             !isPending &&
             !!(resolution.contest_id && pendingSelections[resolution.contest_id]) &&
             pendingSelections[resolution.contest_id] !==
-                resolution.resolution?.resolved_by_candidate_id
+                resolution.resolution_data?.resolved_by_candidate_id
         const isSelected = selectedResolutionId === resolution.id
         const subtitle = getResolutionSubtitle(resolution)
         const titleKey = isPending

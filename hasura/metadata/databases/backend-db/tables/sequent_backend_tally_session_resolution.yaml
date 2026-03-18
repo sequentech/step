@@ -34,7 +34,6 @@ insert_permissions:
               - annotations
               - election_event_id
               - labels
-              - resolution
               - resolution_data
               - resolution_type
               - resolved_at
@@ -50,7 +49,6 @@ insert_permissions:
               - annotations
               - election_event_id
               - labels
-              - resolution
               - resolution_data
               - resolution_type
               - resolved_at
@@ -71,13 +69,10 @@ select_permissions:
               - id
               - labels
               - last_updated_at
-              - resolution
               - resolution_data
               - resolution_type
               - resolved_at
               - resolved_by_user
-              - results_contest_id
-              - results_event_id
               - status
               - tally_session_id
               - tenant_id
@@ -96,13 +91,10 @@ select_permissions:
               - id
               - labels
               - last_updated_at
-              - resolution
               - resolution_data
               - resolution_type
               - resolved_at
               - resolved_by_user
-              - results_contest_id
-              - results_event_id
               - status
               - tally_session_id
               - tenant_id
@@ -119,13 +111,10 @@ select_permissions:
               - id
               - labels
               - last_updated_at
-              - resolution
               - resolution_data
               - resolution_type
               - resolved_at
               - resolved_by_user
-              - results_contest_id
-              - results_event_id
               - status
               - tally_session_id
               - tenant_id
@@ -142,7 +131,7 @@ update_permissions:
           columns:
               - annotations
               - labels
-              - resolution
+              - resolution_data
               - resolved_at
               - resolved_by_user
               - status
@@ -156,7 +145,7 @@ update_permissions:
           columns:
               - annotations
               - labels
-              - resolution
+              - resolution_data
               - resolved_at
               - resolved_by_user
               - status

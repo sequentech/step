@@ -16776,7 +16776,7 @@ export type Sequent_Backend_Tally_Session = {
   execution_status?: Maybe<Scalars['String']['output']>;
   id: Scalars['uuid']['output'];
   is_execution_completed: Scalars['Boolean']['output'];
-  keys_ceremony_id?: Maybe<Scalars['uuid']['output']>;
+  keys_ceremony_id: Scalars['uuid']['output'];
   labels?: Maybe<Scalars['jsonb']['output']>;
   last_updated_at?: Maybe<Scalars['timestamptz']['output']>;
   permission_label?: Maybe<Array<Scalars['String']['output']>>;
@@ -17816,13 +17816,10 @@ export type Sequent_Backend_Tally_Session_Resolution = {
   id: Scalars['uuid']['output'];
   labels?: Maybe<Scalars['jsonb']['output']>;
   last_updated_at: Scalars['timestamptz']['output'];
-  resolution?: Maybe<Scalars['jsonb']['output']>;
   resolution_data: Scalars['jsonb']['output'];
   resolution_type: Scalars['String']['output'];
   resolved_at?: Maybe<Scalars['timestamptz']['output']>;
   resolved_by_user?: Maybe<Scalars['uuid']['output']>;
-  results_contest_id?: Maybe<Scalars['uuid']['output']>;
-  results_event_id?: Maybe<Scalars['uuid']['output']>;
   status: Scalars['String']['output'];
   /** An object relationship */
   tally_session?: Maybe<Sequent_Backend_Tally_Session>;
@@ -17839,12 +17836,6 @@ export type Sequent_Backend_Tally_Session_ResolutionAnnotationsArgs = {
 
 /** columns and relationships of "sequent_backend.tally_session_resolution" */
 export type Sequent_Backend_Tally_Session_ResolutionLabelsArgs = {
-  path?: InputMaybe<Scalars['String']['input']>;
-};
-
-
-/** columns and relationships of "sequent_backend.tally_session_resolution" */
-export type Sequent_Backend_Tally_Session_ResolutionResolutionArgs = {
   path?: InputMaybe<Scalars['String']['input']>;
 };
 
@@ -17898,7 +17889,6 @@ export type Sequent_Backend_Tally_Session_Resolution_Aggregate_Order_By = {
 export type Sequent_Backend_Tally_Session_Resolution_Append_Input = {
   annotations?: InputMaybe<Scalars['jsonb']['input']>;
   labels?: InputMaybe<Scalars['jsonb']['input']>;
-  resolution?: InputMaybe<Scalars['jsonb']['input']>;
   resolution_data?: InputMaybe<Scalars['jsonb']['input']>;
 };
 
@@ -17922,13 +17912,10 @@ export type Sequent_Backend_Tally_Session_Resolution_Bool_Exp = {
   id?: InputMaybe<Uuid_Comparison_Exp>;
   labels?: InputMaybe<Jsonb_Comparison_Exp>;
   last_updated_at?: InputMaybe<Timestamptz_Comparison_Exp>;
-  resolution?: InputMaybe<Jsonb_Comparison_Exp>;
   resolution_data?: InputMaybe<Jsonb_Comparison_Exp>;
   resolution_type?: InputMaybe<String_Comparison_Exp>;
   resolved_at?: InputMaybe<Timestamptz_Comparison_Exp>;
   resolved_by_user?: InputMaybe<Uuid_Comparison_Exp>;
-  results_contest_id?: InputMaybe<Uuid_Comparison_Exp>;
-  results_event_id?: InputMaybe<Uuid_Comparison_Exp>;
   status?: InputMaybe<String_Comparison_Exp>;
   tally_session?: InputMaybe<Sequent_Backend_Tally_Session_Bool_Exp>;
   tally_session_id?: InputMaybe<Uuid_Comparison_Exp>;
@@ -17945,7 +17932,6 @@ export enum Sequent_Backend_Tally_Session_Resolution_Constraint {
 export type Sequent_Backend_Tally_Session_Resolution_Delete_At_Path_Input = {
   annotations?: InputMaybe<Array<Scalars['String']['input']>>;
   labels?: InputMaybe<Array<Scalars['String']['input']>>;
-  resolution?: InputMaybe<Array<Scalars['String']['input']>>;
   resolution_data?: InputMaybe<Array<Scalars['String']['input']>>;
 };
 
@@ -17953,7 +17939,6 @@ export type Sequent_Backend_Tally_Session_Resolution_Delete_At_Path_Input = {
 export type Sequent_Backend_Tally_Session_Resolution_Delete_Elem_Input = {
   annotations?: InputMaybe<Scalars['Int']['input']>;
   labels?: InputMaybe<Scalars['Int']['input']>;
-  resolution?: InputMaybe<Scalars['Int']['input']>;
   resolution_data?: InputMaybe<Scalars['Int']['input']>;
 };
 
@@ -17961,7 +17946,6 @@ export type Sequent_Backend_Tally_Session_Resolution_Delete_Elem_Input = {
 export type Sequent_Backend_Tally_Session_Resolution_Delete_Key_Input = {
   annotations?: InputMaybe<Scalars['String']['input']>;
   labels?: InputMaybe<Scalars['String']['input']>;
-  resolution?: InputMaybe<Scalars['String']['input']>;
   resolution_data?: InputMaybe<Scalars['String']['input']>;
 };
 
@@ -17975,13 +17959,10 @@ export type Sequent_Backend_Tally_Session_Resolution_Insert_Input = {
   id?: InputMaybe<Scalars['uuid']['input']>;
   labels?: InputMaybe<Scalars['jsonb']['input']>;
   last_updated_at?: InputMaybe<Scalars['timestamptz']['input']>;
-  resolution?: InputMaybe<Scalars['jsonb']['input']>;
   resolution_data?: InputMaybe<Scalars['jsonb']['input']>;
   resolution_type?: InputMaybe<Scalars['String']['input']>;
   resolved_at?: InputMaybe<Scalars['timestamptz']['input']>;
   resolved_by_user?: InputMaybe<Scalars['uuid']['input']>;
-  results_contest_id?: InputMaybe<Scalars['uuid']['input']>;
-  results_event_id?: InputMaybe<Scalars['uuid']['input']>;
   status?: InputMaybe<Scalars['String']['input']>;
   tally_session?: InputMaybe<Sequent_Backend_Tally_Session_Obj_Rel_Insert_Input>;
   tally_session_id?: InputMaybe<Scalars['uuid']['input']>;
@@ -17999,8 +17980,6 @@ export type Sequent_Backend_Tally_Session_Resolution_Max_Fields = {
   resolution_type?: Maybe<Scalars['String']['output']>;
   resolved_at?: Maybe<Scalars['timestamptz']['output']>;
   resolved_by_user?: Maybe<Scalars['uuid']['output']>;
-  results_contest_id?: Maybe<Scalars['uuid']['output']>;
-  results_event_id?: Maybe<Scalars['uuid']['output']>;
   status?: Maybe<Scalars['String']['output']>;
   tally_session_id?: Maybe<Scalars['uuid']['output']>;
   tenant_id?: Maybe<Scalars['uuid']['output']>;
@@ -18016,8 +17995,6 @@ export type Sequent_Backend_Tally_Session_Resolution_Max_Order_By = {
   resolution_type?: InputMaybe<Order_By>;
   resolved_at?: InputMaybe<Order_By>;
   resolved_by_user?: InputMaybe<Order_By>;
-  results_contest_id?: InputMaybe<Order_By>;
-  results_event_id?: InputMaybe<Order_By>;
   status?: InputMaybe<Order_By>;
   tally_session_id?: InputMaybe<Order_By>;
   tenant_id?: InputMaybe<Order_By>;
@@ -18034,8 +18011,6 @@ export type Sequent_Backend_Tally_Session_Resolution_Min_Fields = {
   resolution_type?: Maybe<Scalars['String']['output']>;
   resolved_at?: Maybe<Scalars['timestamptz']['output']>;
   resolved_by_user?: Maybe<Scalars['uuid']['output']>;
-  results_contest_id?: Maybe<Scalars['uuid']['output']>;
-  results_event_id?: Maybe<Scalars['uuid']['output']>;
   status?: Maybe<Scalars['String']['output']>;
   tally_session_id?: Maybe<Scalars['uuid']['output']>;
   tenant_id?: Maybe<Scalars['uuid']['output']>;
@@ -18051,8 +18026,6 @@ export type Sequent_Backend_Tally_Session_Resolution_Min_Order_By = {
   resolution_type?: InputMaybe<Order_By>;
   resolved_at?: InputMaybe<Order_By>;
   resolved_by_user?: InputMaybe<Order_By>;
-  results_contest_id?: InputMaybe<Order_By>;
-  results_event_id?: InputMaybe<Order_By>;
   status?: InputMaybe<Order_By>;
   tally_session_id?: InputMaybe<Order_By>;
   tenant_id?: InputMaybe<Order_By>;
@@ -18084,13 +18057,10 @@ export type Sequent_Backend_Tally_Session_Resolution_Order_By = {
   id?: InputMaybe<Order_By>;
   labels?: InputMaybe<Order_By>;
   last_updated_at?: InputMaybe<Order_By>;
-  resolution?: InputMaybe<Order_By>;
   resolution_data?: InputMaybe<Order_By>;
   resolution_type?: InputMaybe<Order_By>;
   resolved_at?: InputMaybe<Order_By>;
   resolved_by_user?: InputMaybe<Order_By>;
-  results_contest_id?: InputMaybe<Order_By>;
-  results_event_id?: InputMaybe<Order_By>;
   status?: InputMaybe<Order_By>;
   tally_session?: InputMaybe<Sequent_Backend_Tally_Session_Order_By>;
   tally_session_id?: InputMaybe<Order_By>;
@@ -18106,7 +18076,6 @@ export type Sequent_Backend_Tally_Session_Resolution_Pk_Columns_Input = {
 export type Sequent_Backend_Tally_Session_Resolution_Prepend_Input = {
   annotations?: InputMaybe<Scalars['jsonb']['input']>;
   labels?: InputMaybe<Scalars['jsonb']['input']>;
-  resolution?: InputMaybe<Scalars['jsonb']['input']>;
   resolution_data?: InputMaybe<Scalars['jsonb']['input']>;
 };
 
@@ -18127,8 +18096,6 @@ export enum Sequent_Backend_Tally_Session_Resolution_Select_Column {
   /** column name */
   LastUpdatedAt = 'last_updated_at',
   /** column name */
-  Resolution = 'resolution',
-  /** column name */
   ResolutionData = 'resolution_data',
   /** column name */
   ResolutionType = 'resolution_type',
@@ -18136,10 +18103,6 @@ export enum Sequent_Backend_Tally_Session_Resolution_Select_Column {
   ResolvedAt = 'resolved_at',
   /** column name */
   ResolvedByUser = 'resolved_by_user',
-  /** column name */
-  ResultsContestId = 'results_contest_id',
-  /** column name */
-  ResultsEventId = 'results_event_id',
   /** column name */
   Status = 'status',
   /** column name */
@@ -18157,13 +18120,10 @@ export type Sequent_Backend_Tally_Session_Resolution_Set_Input = {
   id?: InputMaybe<Scalars['uuid']['input']>;
   labels?: InputMaybe<Scalars['jsonb']['input']>;
   last_updated_at?: InputMaybe<Scalars['timestamptz']['input']>;
-  resolution?: InputMaybe<Scalars['jsonb']['input']>;
   resolution_data?: InputMaybe<Scalars['jsonb']['input']>;
   resolution_type?: InputMaybe<Scalars['String']['input']>;
   resolved_at?: InputMaybe<Scalars['timestamptz']['input']>;
   resolved_by_user?: InputMaybe<Scalars['uuid']['input']>;
-  results_contest_id?: InputMaybe<Scalars['uuid']['input']>;
-  results_event_id?: InputMaybe<Scalars['uuid']['input']>;
   status?: InputMaybe<Scalars['String']['input']>;
   tally_session_id?: InputMaybe<Scalars['uuid']['input']>;
   tenant_id?: InputMaybe<Scalars['uuid']['input']>;
@@ -18186,13 +18146,10 @@ export type Sequent_Backend_Tally_Session_Resolution_Stream_Cursor_Value_Input =
   id?: InputMaybe<Scalars['uuid']['input']>;
   labels?: InputMaybe<Scalars['jsonb']['input']>;
   last_updated_at?: InputMaybe<Scalars['timestamptz']['input']>;
-  resolution?: InputMaybe<Scalars['jsonb']['input']>;
   resolution_data?: InputMaybe<Scalars['jsonb']['input']>;
   resolution_type?: InputMaybe<Scalars['String']['input']>;
   resolved_at?: InputMaybe<Scalars['timestamptz']['input']>;
   resolved_by_user?: InputMaybe<Scalars['uuid']['input']>;
-  results_contest_id?: InputMaybe<Scalars['uuid']['input']>;
-  results_event_id?: InputMaybe<Scalars['uuid']['input']>;
   status?: InputMaybe<Scalars['String']['input']>;
   tally_session_id?: InputMaybe<Scalars['uuid']['input']>;
   tenant_id?: InputMaybe<Scalars['uuid']['input']>;
@@ -18215,8 +18172,6 @@ export enum Sequent_Backend_Tally_Session_Resolution_Update_Column {
   /** column name */
   LastUpdatedAt = 'last_updated_at',
   /** column name */
-  Resolution = 'resolution',
-  /** column name */
   ResolutionData = 'resolution_data',
   /** column name */
   ResolutionType = 'resolution_type',
@@ -18224,10 +18179,6 @@ export enum Sequent_Backend_Tally_Session_Resolution_Update_Column {
   ResolvedAt = 'resolved_at',
   /** column name */
   ResolvedByUser = 'resolved_by_user',
-  /** column name */
-  ResultsContestId = 'results_contest_id',
-  /** column name */
-  ResultsEventId = 'results_event_id',
   /** column name */
   Status = 'status',
   /** column name */

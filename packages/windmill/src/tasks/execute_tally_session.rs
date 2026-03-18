@@ -15,9 +15,7 @@ use crate::postgres::tally_session::{
 };
 use crate::postgres::tally_session_contest::update_tally_session_contests_annotations;
 use crate::postgres::tally_session_execution::insert_tally_session_execution;
-use crate::postgres::tally_session_resolution::{
-    create_tally_session_resolution, get_pending_resolutions, get_resolution_by_tally_session,
-};
+use crate::postgres::tally_session_resolution::get_resolution_by_tally_session;
 use crate::postgres::tally_sheet::get_published_tally_sheets_by_event;
 use crate::postgres::template::get_template_by_alias;
 use crate::services::cast_votes::{count_cast_votes_election, ElectionCastVotes};
@@ -51,6 +49,9 @@ use crate::services::reports::template_renderer::{
     ReportOriginatedFrom, ReportOrigins, TemplateRenderer,
 };
 use crate::services::reports::utils::get_public_asset_template;
+use crate::services::tally_resolution::{
+    build_tie_resolutions_map, handle_pending_irv_resolutions,
+};
 use crate::services::tally_sheets::validation::validate_tally_sheet;
 use crate::services::tasks_semaphore::acquire_semaphore;
 use crate::services::temp_path::{
@@ -82,8 +83,8 @@ use sequent_core::types::ceremonies::TallyTrusteeStatus;
 use sequent_core::types::ceremonies::TallyType;
 use sequent_core::types::ceremonies::{CeremoniesPolicy, TallyCeremonyStatus};
 use sequent_core::types::ceremonies::{
-    IrvTieBreakResolutionData, ResolutionStatus, ResolutionType, TallySessionResolution,
-    TieBreakingMethod,
+    TallySessionResolution, TallySessionResolutionData, TallySessionResolutionStatus,
+    TallySessionResolutionType, TieBreakingMethod,
 };
 use sequent_core::types::hasura::core::Area;
 use sequent_core::types::hasura::core::BallotStyle as BallotStyleHasura;
@@ -814,7 +815,7 @@ async fn map_plaintext_data(
         let is_rerun = !build_tie_resolutions_map(&all_resolutions).is_empty();
         let ids = all_resolutions
             .iter()
-            .filter(|r| r.status == ResolutionStatus::Resolved)
+            .filter(|r| r.status == TallySessionResolutionStatus::Resolved)
             .map(|r| r.id.clone())
             .collect::<Vec<_>>();
         (is_rerun, ids)
@@ -1124,7 +1125,7 @@ pub async fn execute_tally_session_wrapped(
 
     // Fetch resolved tie-break resolutions to pass into the velvet tally and
     // to determine has_resolved_tie_break for populate_results_tables.
-    let tie_resolutions: HashMap<String, Vec<serde_json::Value>> = {
+    let tie_resolutions: HashMap<String, Vec<TallySessionResolutionData>> = {
         let all_resolutions = get_resolution_by_tally_session(
             hasura_transaction,
             &tenant_id,
@@ -1224,69 +1225,23 @@ pub async fn execute_tally_session_wrapped(
     )
     .await?;
 
-    // Check if results contain tie resolution metadata (pending or resolved)
+    // Check if results contain pending IRV tie-break resolutions.
+    // On a re-run after partial resolution the new results_event_id ensures
+    // handle_pending_irv_resolutions only returns ties from the freshly-computed
+    // results, so old annotations are not accidentally re-processed.
     if let Some(ref results_event_id_str) = results_event_id {
-        let tie_resolutions = check_for_tie_resolutions(
+        let pending_resolution_ids = handle_pending_irv_resolutions(
             hasura_transaction,
             &tenant_id,
             &election_event_id,
             results_event_id_str,
+            &tally_session_id,
+            election_event.bulletin_board_reference.clone(),
+            tally_session.election_ids.clone(),
         )
         .await?;
 
-        // Handle pending tie resolutions (external procedure requiring input).
-        // On a re-run after partial resolution the new results_event_id ensures
-        // check_for_tie_resolutions only returns ties from the freshly-computed
-        // results, so old annotations are not accidentally re-processed.
-        if !tie_resolutions.pending.is_empty() {
-            info!(
-                "Detected {} pending tie resolution(s) in results - creating resolution records",
-                tie_resolutions.pending.len()
-            );
-
-            // Get all existing pending resolutions for this tally session
-            let existing_pending_resolutions = get_pending_resolutions(
-                hasura_transaction,
-                &tenant_id,
-                &election_event_id,
-                &tally_session_id,
-            )
-            .await?;
-
-            let mut pending_resolution_ids: Vec<String> = vec![];
-            for (results_contest_id, contest_id, tie_metadata) in &tie_resolutions.pending {
-                let resolution_exists = pending_resolution_exists(
-                    &existing_pending_resolutions,
-                    contest_id,
-                    tie_metadata,
-                );
-
-                if !resolution_exists {
-                    let resolution_id = create_tally_session_resolution(
-                        hasura_transaction,
-                        &tenant_id,
-                        &election_event_id,
-                        &tally_session_id,
-                        results_contest_id,
-                        contest_id,
-                        results_event_id_str,
-                        ResolutionType::IrvTieBreak,
-                        tie_metadata.clone(),
-                    )
-                    .await?;
-                    info!(
-                        "Created pending resolution {} for IRV tie-break in contest {}",
-                        resolution_id, contest_id
-                    );
-                    pending_resolution_ids.push(resolution_id);
-                } else if let Some(existing) = existing_pending_resolutions
-                    .iter()
-                    .find(|r| r.contest_id.as_ref() == Some(contest_id))
-                {
-                    pending_resolution_ids.push(existing.id.clone());
-                }
-            }
-
+        if !pending_resolution_ids.is_empty() {
             // Insert execution record so frontend can load partial results
             let session_ids_i32: Option<Vec<i32>> = session_ids
                 .clone()
@@ -1317,28 +1272,6 @@ pub async fn execute_tally_session_wrapped(
             )
             .await?;
 
-            info!(
-                "Tally paused - awaiting administrator tie-break decisions for {} contest(s)",
-                tie_resolutions.pending.len()
-            );
-            let board_name =
-                get_election_event_board(election_event.bulletin_board_reference.clone())
-                    .with_context(|| "missing bulletin board")?;
-            let electoral_log = ElectoralLog::new(
-                hasura_transaction,
-                &tenant_id,
-                Some(&election_event_id),
-                board_name.as_str(),
-            )
-            .await?;
-            electoral_log
-                .post_tally_paused_pending_resolution(
-                    election_event_id.clone(),
-                    tally_session.election_ids.clone(),
-                    pending_resolution_ids,
-                )
-                .await
-                .with_context(|| "error posting tally paused to electoral log")?;
             return Ok(());
         }
     }
@@ -1679,315 +1612,5 @@ mod tests {
         assert_eq!(election_ee1e2.cast_votes, 3);
 
         Ok(())
-    }
-
-    // -------------------------------------------------------------------------
-    // Tests for build_tie_resolutions_map
-    // -------------------------------------------------------------------------
-
-    use crate::tasks::execute_tally_session::{
-        build_tie_resolutions_map, parse_pending_tie_from_annotations, pending_resolution_exists,
-    };
-    use sequent_core::types::ceremonies::{
-        IrvTieBreakResolution, IrvTieBreakResolutionData, ResolutionStatus, ResolutionType,
-        TallySessionResolution, TieBreakingMethod,
-    };
-
-    fn make_resolution(
-        contest_id: &str,
-        round_number: u64,
-        candidate_id: &str,
-        resolution_type: ResolutionType,
-    ) -> TallySessionResolution {
-        TallySessionResolution {
-            id: uuid::Uuid::new_v4().to_string(),
-            tenant_id: "tenant-1".to_string(),
-            election_event_id: "event-1".to_string(),
-            tally_session_id: "session-1".to_string(),
-            results_contest_id: None,
-            contest_id: Some(contest_id.to_string()),
-            results_event_id: None,
-            created_at: None,
-            last_updated_at: None,
-            resolution_type,
-            status: ResolutionStatus::Resolved,
-            resolution_data: Some(IrvTieBreakResolutionData {
-                round_number,
-                tied_candidate_ids: vec![],
-                vote_counts: vec![],
-                method_used: TieBreakingMethod::ExternalProcedure,
-                resolved_by_candidate_id: None,
-            }),
-            resolution: Some(IrvTieBreakResolution {
-                resolved_by_candidate_id: candidate_id.to_string(),
-            }),
-            resolved_by_user: None,
-            resolved_at: None,
-            labels: None,
-            annotations: None,
-        }
-    }
-
-    /// Multiple resolved rows for the same contest_id (different rounds) must
-    /// all be preserved under the single contest key, not overwritten.
-    #[test]
-    fn test_build_tie_resolutions_map_groups_by_contest() {
-        let rows = vec![
-            make_resolution("contest-1", 1, "candidate-a", ResolutionType::IrvTieBreak),
-            make_resolution("contest-1", 3, "candidate-c", ResolutionType::IrvTieBreak),
-            make_resolution("contest-2", 2, "candidate-b", ResolutionType::IrvTieBreak),
-        ];
-        let map = build_tie_resolutions_map(&rows);
-
-        assert_eq!(map.len(), 2, "Two distinct contest IDs expected");
-
-        let contest1 = map.get("contest-1").unwrap();
-        assert_eq!(
-            contest1.len(),
-            2,
-            "Both round-1 and round-3 entries must be present"
-        );
-        let rounds: Vec<u64> = contest1
-            .iter()
-            .filter_map(|v| v.get("round_number").and_then(|n| n.as_u64()))
-            .collect();
-        assert!(rounds.contains(&1));
-        assert!(rounds.contains(&3));
-
-        let contest2 = map.get("contest-2").unwrap();
-        assert_eq!(contest2.len(), 1);
-        assert_eq!(
-            contest2[0]
-                .get("resolved_by_candidate_id")
-                .and_then(|v| v.as_str()),
-            Some("candidate-b")
-        );
-    }
-
-    /// Rows whose resolution_type is not IrvTieBreak must be ignored.
-    #[test]
-    fn test_build_tie_resolutions_map_ignores_non_irv_rows() {
-        let rows = vec![
-            make_resolution("contest-1", 1, "candidate-a", ResolutionType::IrvTieBreak),
-            make_resolution("contest-1", 2, "candidate-b", ResolutionType::ManualRecount),
-        ];
-        let map = build_tie_resolutions_map(&rows);
-        let contest1 = map.get("contest-1").unwrap();
-        assert_eq!(contest1.len(), 1, "ManualRecount row must be excluded");
-    }
-
-    /// Rows with a missing contest_id or no resolution must be skipped.
-    #[test]
-    fn test_build_tie_resolutions_map_skips_incomplete_rows() {
-        let mut no_contest_id =
-            make_resolution("contest-1", 1, "candidate-a", ResolutionType::IrvTieBreak);
-        no_contest_id.contest_id = None;
-
-        let mut no_resolution =
-            make_resolution("contest-1", 2, "candidate-a", ResolutionType::IrvTieBreak);
-        no_resolution.resolution = None;
-
-        let map = build_tie_resolutions_map(&[no_contest_id, no_resolution]);
-        assert!(map.is_empty(), "Incomplete rows must produce an empty map");
-    }
-
-    /// An empty slice must produce an empty map (no panics).
-    #[test]
-    fn test_build_tie_resolutions_map_empty_input() {
-        let map = build_tie_resolutions_map(&[]);
-        assert!(map.is_empty());
-    }
-
-    // -------------------------------------------------------------------------
-    // Tests for parse_pending_tie_from_annotations
-    // -------------------------------------------------------------------------
-
-    /// Well-formed annotations must return the pending_tie_resolution object.
-    #[test]
-    fn test_parse_pending_tie_from_annotations_extracts_pending() {
-        let tie_metadata = serde_json::json!({
-            "round_number": 2,
-            "tied_candidate_ids": ["candidate-a", "candidate-c"],
-        });
-        let annotations = serde_json::json!({
-            "process_results": {
-                "pending_tie_resolution": tie_metadata,
-            }
-        });
-
-        let result = parse_pending_tie_from_annotations(&annotations);
-        assert!(result.is_some(), "Should extract pending_tie_resolution");
-        let extracted = result.unwrap();
-        assert_eq!(extracted["round_number"], 2);
-        assert_eq!(
-            extracted["tied_candidate_ids"],
-            serde_json::json!(["candidate-a", "candidate-c"])
-        );
-    }
-
-    /// Annotations without pending_tie_resolution must return None.
-    #[test]
-    fn test_parse_pending_tie_from_annotations_returns_none_when_absent() {
-        let annotations = serde_json::json!({"process_results": {"some_other_key": 1}});
-        assert!(parse_pending_tie_from_annotations(&annotations).is_none());
-
-        let no_process_results = serde_json::json!({"other": "data"});
-        assert!(parse_pending_tie_from_annotations(&no_process_results).is_none());
-    }
-
-    /// When process_results is not a JSON object (e.g. a string or array) the
-    /// as_object() guard must prevent a panic and return None.
-    #[test]
-    fn test_parse_pending_tie_when_process_results_is_not_an_object() {
-        let string_value = serde_json::json!({"process_results": "unexpected string"});
-        assert!(parse_pending_tie_from_annotations(&string_value).is_none());
-
-        let array_value = serde_json::json!({"process_results": [1, 2, 3]});
-        assert!(parse_pending_tie_from_annotations(&array_value).is_none());
-    }
-
-    /// pending_tie_resolution: null is stored as JSON null; the function must
-    /// return Some(Value::Null) because the key exists.
-    #[test]
-    fn test_parse_pending_tie_returns_null_value_when_key_is_null() {
-        let annotations = serde_json::json!({
-            "process_results": {"pending_tie_resolution": null}
-        });
-        let result = parse_pending_tie_from_annotations(&annotations);
-        assert!(
-            result.is_some(),
-            "Key present with null value must return Some"
-        );
-        assert!(result.unwrap().is_null());
-    }
-
-    // -------------------------------------------------------------------------
-    // Tests for pending_resolution_exists
-    // These cover the (contest_id, round_number) uniqueness key used when
-    // ProcessBallotsAll is set at area level and the same contest can tie in
-    // different rounds across areas within a single tally run.
-    // -------------------------------------------------------------------------
-
-    fn make_pending_resolution(contest_id: &str, round_number: u64) -> TallySessionResolution {
-        TallySessionResolution {
-            id: uuid::Uuid::new_v4().to_string(),
-            tenant_id: "tenant-1".to_string(),
-            election_event_id: "event-1".to_string(),
-            tally_session_id: "session-1".to_string(),
-            results_contest_id: None,
-            contest_id: Some(contest_id.to_string()),
-            results_event_id: None,
-            created_at: None,
-            last_updated_at: None,
-            resolution_type: ResolutionType::IrvTieBreak,
-            status: ResolutionStatus::Pending,
-            resolution_data: Some(IrvTieBreakResolutionData {
-                round_number,
-                tied_candidate_ids: vec![],
-                vote_counts: vec![],
-                method_used: TieBreakingMethod::ExternalProcedure,
-                resolved_by_candidate_id: None,
-            }),
-            resolution: None,
-            resolved_by_user: None,
-            resolved_at: None,
-            labels: None,
-            annotations: None,
-        }
-    }
-
-    fn make_irv_metadata(round_number: u64) -> IrvTieBreakResolutionData {
-        IrvTieBreakResolutionData {
-            round_number,
-            tied_candidate_ids: vec![],
-            vote_counts: vec![],
-            method_used: TieBreakingMethod::ExternalProcedure,
-            resolved_by_candidate_id: None,
-        }
-    }
-
-    /// Empty list must never report an existing resolution (default SkipCandidateResults path).
-    #[test]
-    fn test_pending_resolution_exists_false_when_list_empty() {
-        let tie_metadata = make_irv_metadata(2);
-        assert!(!pending_resolution_exists(&[], "contest-x", &tie_metadata));
-    }
-
-    /// Same contest and same round — the existing pending record must be found.
-    #[test]
-    fn test_pending_resolution_exists_true_for_same_contest_and_round() {
-        let existing = vec![make_pending_resolution("contest-x", 2)];
-        let tie_metadata = make_irv_metadata(2);
-        assert!(pending_resolution_exists(
-            &existing,
-            "contest-x",
-            &tie_metadata
-        ));
-    }
-
-    /// Same contest but different round — area-level ProcessBallotsAll can produce
-    /// independent ties per round; they must be treated as distinct and both created.
-    #[test]
-    fn test_pending_resolution_exists_false_for_same_contest_different_round() {
-        let existing = vec![make_pending_resolution("contest-x", 2)];
-        let tie_metadata = make_irv_metadata(3);
-        assert!(!pending_resolution_exists(
-            &existing,
-            "contest-x",
-            &tie_metadata
-        ));
-    }
-
-    /// Different contest, same round — must not collide.
-    #[test]
-    fn test_pending_resolution_exists_false_for_different_contest() {
-        let existing = vec![make_pending_resolution("contest-x", 2)];
-        let tie_metadata = make_irv_metadata(2);
-        assert!(!pending_resolution_exists(
-            &existing,
-            "contest-y",
-            &tie_metadata
-        ));
-    }
-
-    /// A pending record with a non-IrvTieBreak type must not match even if contest
-    /// and round match.
-    #[test]
-    fn test_pending_resolution_exists_ignores_non_irv_type() {
-        let mut r = make_pending_resolution("contest-x", 2);
-        r.resolution_type = ResolutionType::ManualRecount;
-        let tie_metadata = make_irv_metadata(2);
-        assert!(!pending_resolution_exists(&[r], "contest-x", &tie_metadata));
-    }
-
-    /// Two areas produce ties for the same contest in different rounds
-    /// (ProcessBallotsAll at area level). Both rounds must be independently
-    /// detectable — neither should suppress the other.
-    #[test]
-    fn test_pending_resolution_exists_area_level_different_rounds_are_independent() {
-        let round2 = make_pending_resolution("contest-x", 2);
-        let round3 = make_pending_resolution("contest-x", 3);
-        let existing = vec![round2, round3];
-
-        // Querying for round 2 finds it.
-        assert!(pending_resolution_exists(
-            &existing,
-            "contest-x",
-            &make_irv_metadata(2)
-        ));
-
-        // Querying for round 3 finds it.
-        assert!(pending_resolution_exists(
-            &existing,
-            "contest-x",
-            &make_irv_metadata(3)
-        ));
-
-        // Round 4 has no record yet.
-        assert!(!pending_resolution_exists(
-            &existing,
-            "contest-x",
-            &make_irv_metadata(4)
-        ));
     }
 }

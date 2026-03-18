@@ -46,6 +46,7 @@ in
     postgresql_18
     python3
     openssh
+    docker
 
     # immudb
     go

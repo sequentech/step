@@ -39,6 +39,7 @@ use sequent_core::sqlite::contests::create_contest_sqlite;
 use sequent_core::sqlite::election::create_election_sqlite;
 use sequent_core::sqlite::election_event::create_election_event_sqlite;
 use sequent_core::types::ceremonies::TallyType;
+use sequent_core::types::ceremonies::{TallySessionResolution, TallySessionResolutionData};
 use sequent_core::types::hasura::core::{
     Area, Election, ElectionEvent, TallySession, TallySessionContest, TallySheet,
 };
@@ -122,7 +123,7 @@ pub fn prepare_tally_for_area_contest(
     area_contest: &AreaContestDataType,
     tally_sheets: &HashMap<(String, String), Vec<TallySheet>>,
     tally_session: &TallySession,
-    contest_tie_resolutions: &Vec<TallySessionResolution>,
+    contest_tie_resolutions: Option<&Vec<TallySessionResolutionData>>,
 ) -> Result<()> {
     let contest_encryption_policy = tally_session
         .configuration
@@ -211,7 +212,11 @@ pub fn prepare_tally_for_area_contest(
 
     // Prepare contest data, potentially injecting tie resolution
     let mut contest = area_contest.contest.clone();
-    insert_tie_resolutions(&mut contest, tie_resolutions)?;
+    let empty_resolutions = vec![];
+    Contest::insert_tie_resolutions(
+        &mut contest,
+        contest_tie_resolutions.unwrap_or(&empty_resolutions),
+    )?;
 
     writeln!(contest_config_file, "{}", serde_json::to_string(&contest)?)?;
 
@@ -870,7 +875,7 @@ pub async fn run_velvet_tally(
     election_event: &ElectionEvent,
     tally_session: &TallySession,
     tally_type: TallyType,
-    tie_resolutions: HashMap<String, Vec<TallySessionResolution>>,
+    tie_resolutions: HashMap<String, Vec<TallySessionResolutionData>>,
 ) -> Result<State> {
     let basic_areas: Vec<TreeNodeArea> = areas.into_iter().map(|area| area.into()).collect();
     // map<(area_id,contest_id), tally_sheet>
@@ -881,7 +886,7 @@ pub async fn run_velvet_tally(
             area_contest,
             &tally_sheet_map,
             tally_session,
-            &tie_resolutions,
+            tie_resolutions.get(&area_contest.contest.id),
         )?;
     }
     create_election_configs(
