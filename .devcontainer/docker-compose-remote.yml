@@ -40,7 +40,7 @@ services:
       # KC_PROXY_HEADERS and is a no-op on KC 26+.
       KC_PROXY_HEADERS: forwarded
       KC_DB: ${KC_DB}
-      KC_LOG_LEVEL: ${LOG_LEVEL}
+      KC_LOG_LEVEL: ${KC_LOG_LEVEL}
       KC_DB_USERNAME: ${KC_DB_USERNAME}
       KC_DB_PASSWORD: ${KC_DB_PASSWORD}
       KC_DB_SCHEMA: ${KC_DB_SCHEMA}
@@ -106,7 +106,7 @@ services:
       dockerfile: keycloak-nginx/Dockerfile
     image: sequentech.local/keycloak-nginx
     ports:
-      - "8443:8443"
+      - "8444:8443"
     depends_on:
       keycloak:
         condition: service_healthy
