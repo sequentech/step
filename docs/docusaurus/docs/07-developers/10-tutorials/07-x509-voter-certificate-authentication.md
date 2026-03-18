@@ -233,10 +233,10 @@ openssl pkcs12 -export \
   -inkey voter.key \
   -in    voter.crt \
   -out   voter.p12 \
-  -passout pass:
+  -passout pass:password
 ```
 
-Import `voter.p12` into your browser's certificate store. When navigating to the
+Import `voter.p12` into your browser's certificate store (password: `password`). When navigating to the
 voting portal, the browser will offer the certificate for the `127.0.0.1:8443`
 origin.
 

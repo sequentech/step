@@ -150,7 +150,7 @@ SPDX-License-Identifier: AGPL-3.0-only
             <hr/>
             <a id="kc-cert-login"
                class="${properties.kcButtonClass!} ${properties.kcButtonDefaultClass!} ${properties.kcButtonBlockClass!} ${properties.kcButtonLargeClass!}"
-               href="${properties.mtlsLoginUrl}/realms/${realm.name}/protocol/openid-connect/auth?${url.loginAction?keep_after('?')}">
+               href="${properties.mtlsLoginUrl}/realms/${realm.name}/login-actions/authenticate?${url.loginAction?keep_after('?')}">
                 ${msg("loginWithCertificate")}
             </a>
         </#if>
