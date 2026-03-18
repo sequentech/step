@@ -275,14 +275,25 @@ pub async fn submit_tally_resolution(
     let mut resolved_count = 0;
 
     for tie_resolution in resolutions {
-        // Find the latest resolution for this contest (by created_at)
+        // First submission: find the single Pending record for this contest.
+        // Re-submission: no Pending record exists, fall back to the most recently
+        // created Resolved record (admin is changing a prior decision).
         let latest_resolution = all_resolutions
             .iter()
-            .filter(|r| {
+            .find(|r| {
                 r.resolution_type == TallySessionResolutionType::IrvTieBreak
                     && r.contest_id.as_ref() == Some(&tie_resolution.contest_id)
+                    && r.status == TallySessionResolutionStatus::Pending
             })
-            .max_by_key(|r| r.created_at)
+            .or_else(|| {
+                all_resolutions
+                    .iter()
+                    .filter(|r| {
+                        r.resolution_type == TallySessionResolutionType::IrvTieBreak
+                            && r.contest_id.as_ref() == Some(&tie_resolution.contest_id)
+                    })
+                    .max_by_key(|r| r.created_at)
+            })
             .ok_or_else(|| {
                 anyhow!(
                     "No resolution found for contest {}",

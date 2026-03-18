@@ -624,7 +624,6 @@ pub async fn create_config_file(
     pdf_options: Option<PrintToPdfOptionsLocal>,
     tally_session: &TallySession,
     tally_type: TallyType,
-    tie_resolution: Option<serde_json::Value>,
 ) -> Result<()> {
     let contest_encryption_policy = tally_session
         .configuration
@@ -677,7 +676,7 @@ pub async fn create_config_file(
                     velvet::config::PipeConfig {
                         id: "do-tally".to_string(),
                         pipe: PipeName::DoTally,
-                        config: tie_resolution.or(Some(serde_json::Value::Null)),
+                        config: Some(serde_json::Value::Null),
                     },
                     velvet::config::PipeConfig {
                         id: "mark-winners".to_string(),
@@ -912,91 +911,7 @@ pub async fn run_velvet_tally(
         pdf_options,
         tally_session,
         tally_type,
-        None,
     )
     .await?;
     call_velvet(base_tally_path.clone(), "decode-ballots").await
-}
-
-#[cfg(test)]
-mod tests {
-    use sequent_core::ballot::Contest;
-    use sequent_core::types::ceremonies::{TallySessionResolutionData, TieBreakingMethod};
-
-    /// Passing a non-empty resolutions vec must serialize it as a JSON string
-    /// and store it under the "tie_resolutions" annotation key.
-    #[test]
-    fn test_prepare_tally_for_area_contest_injects_annotations() {
-        let mut contest = Contest {
-            id: "contest-abc".to_string(),
-            ..Default::default()
-        };
-        let resolutions = vec![TallySessionResolutionData {
-            round_number: Some(2),
-            tied_candidate_ids: vec![],
-            vote_count: 0,
-            method_used: TieBreakingMethod::ExternalProcedure,
-            resolved_by_candidate_id: Some("candidate-x".to_string()),
-        }];
-
-        Contest::insert_tie_resolutions(&mut contest, &resolutions).unwrap();
-
-        let annotations = contest.annotations.expect("annotations should be set");
-        let json_str = annotations
-            .get("tie_resolutions")
-            .expect("tie_resolutions key should exist");
-        let parsed: Vec<serde_json::Value> = serde_json::from_str(json_str).unwrap();
-        assert_eq!(parsed.len(), 1);
-        assert_eq!(parsed[0]["round_number"], 2);
-        assert_eq!(parsed[0]["resolved_by_candidate_id"], "candidate-x");
-    }
-
-    /// Existing annotation entries must be preserved; only "tie_resolutions"
-    /// should be added (or updated).  Other keys must survive unchanged.
-    #[test]
-    fn test_inject_tie_resolutions_preserves_existing_annotations() {
-        let mut existing = std::collections::HashMap::new();
-        existing.insert("other_key".to_string(), "other_value".to_string());
-
-        let mut contest = Contest {
-            id: "contest-abc".to_string(),
-            annotations: Some(existing),
-            ..Default::default()
-        };
-
-        let resolutions = vec![TallySessionResolutionData {
-            round_number: Some(1),
-            tied_candidate_ids: vec![],
-            vote_count: 0,
-            method_used: TieBreakingMethod::ExternalProcedure,
-            resolved_by_candidate_id: Some("candidate-y".to_string()),
-        }];
-
-        Contest::insert_tie_resolutions(&mut contest, &resolutions).unwrap();
-
-        let annotations = contest.annotations.expect("annotations should be set");
-        assert_eq!(
-            annotations.get("other_key").map(|s| s.as_str()),
-            Some("other_value"),
-            "Pre-existing annotations must not be removed"
-        );
-        assert!(
-            annotations.contains_key("tie_resolutions"),
-            "tie_resolutions must be injected"
-        );
-    }
-
-    /// An empty resolutions slice must leave annotations untouched (None).
-    #[test]
-    fn test_inject_tie_resolutions_empty_slice_leaves_annotations_unchanged() {
-        let mut contest = Contest {
-            id: "contest-abc".to_string(),
-            ..Default::default()
-        };
-
-        let contest_tie_resolutions = Vec::new();
-        Contest::insert_tie_resolutions(&mut contest, &contest_tie_resolutions).unwrap();
-
-        assert!(contest.annotations.is_none());
-    }
 }

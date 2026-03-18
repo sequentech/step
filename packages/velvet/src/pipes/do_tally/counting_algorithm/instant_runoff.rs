@@ -332,6 +332,8 @@ impl RunoffStatus {
         candidates_to_eliminate: &Vec<String>,
         candidates_wins: &CandidatesOutcomes,
     ) -> Option<(CandidateReference, Vec<CandidateReference>)> {
+        // FULL TIE: All active candidates have the same (lowest) number of votes
+        // No meaningful elimination possible → winner decided by tiebreak policy
         let mut rng = thread_rng();
         let Some(winner_id) = candidates_to_eliminate.choose(&mut rng) else {
             return None;
@@ -348,7 +350,7 @@ impl RunoffStatus {
             id: winner_id.to_string(),
             name: winner_name.clone(),
         };
-
+        // Mark all others as eliminated, keep only the random winner active
         let mut eliminated = Vec::new();
         for candidate_id in candidates_to_eliminate {
             if candidate_id == winner_id {
@@ -570,7 +572,6 @@ impl RunoffStatus {
                 let eliminated_candidates =
                     self.do_round_eliminations(&candidates_wins, &candidates_to_eliminate);
                 let continue_next_round = eliminated_candidates.is_some();
-
                 if let Some(eliminated_candidates) = eliminated_candidates {
                     round.eliminated_candidates = Some(eliminated_candidates);
                 } else {
@@ -588,7 +589,7 @@ impl RunoffStatus {
                     if let Some((winner, eliminated_candidates)) = tie_resolution {
                         round.winner = Some(winner);
                         round.eliminated_candidates = Some(eliminated_candidates);
-                    }
+                    };
                 };
                 continue_next_round
             }
