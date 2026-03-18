@@ -66,6 +66,12 @@ Add the `tie_breaking_policy` field to your contest configuration:
 - Existing tallies continue to work unchanged
 - No database migration required
 
+### Tenant Permission Migration
+
+- Existing tenant role/group configurations created before this feature will not automatically include the new `tally-resolution-submit` permission.
+- In upgraded environments, update the affected admin groups manually in Keycloak or re-import the Roles & Permissions configuration so the users who handle tally tie-breaks receive `tally-resolution-submit`.
+- Admin Portal visibility for pending resolutions depends on being able to read `tally_session_resolution`, which is granted through `tally-resolution-submit` or `admin-user`.
+
 ---
 
 ## Data Flow
