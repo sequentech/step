@@ -43,8 +43,8 @@ pub type I18nContent<T = Option<String>> = HashMap<String, T>;
 /// Annotations for ballots or contests, as key-value pairs.
 pub type Annotations = HashMap<String, String>;
 
-/// Represents a choice in a replicated contest.
 #[derive(BorshSerialize, BorshDeserialize, PartialEq, Eq, Debug, Clone)]
+/// Represents a choice in a contest.
 pub struct ReplicationChoice<C: Ctx> {
     /// Encrypted choice.
     pub ciphertext: Ciphertext<C>,
@@ -54,7 +54,6 @@ pub struct ReplicationChoice<C: Ctx> {
     pub randomness: C::X,
 }
 
-/// Configuration for a public key.
 #[derive(
     BorshSerialize,
     BorshDeserialize,
@@ -66,6 +65,7 @@ pub struct ReplicationChoice<C: Ctx> {
     Debug,
     Clone,
 )]
+/// Configuration for a public key.
 pub struct PublicKeyConfig {
     /// Public key as a string.
     pub public_key: String,
@@ -73,14 +73,14 @@ pub struct PublicKeyConfig {
     pub is_demo: bool,
 }
 
-/// An auditable contest on a ballot.
 #[derive(BorshSerialize, BorshDeserialize, PartialEq, Eq, Debug, Clone)]
+/// An auditable contest on a ballot.
 pub struct AuditableBallotContest<C: Ctx> {
     /// Contest identifier.
     pub contest_id: String,
     /// The selected choice for the contest.
     pub choice: ReplicationChoice<C>,
-    /// proof for the choice.
+    /// Proof for the choice.
     pub proof: Schnorr<C>,
 }
 /*
@@ -93,8 +93,8 @@ pub struct RawAuditableBallot<C: Ctx> {
     pub ballot_hash: String,
 }*/
 
-/// An auditable ballot.
 #[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone)]
+/// An auditable ballot.
 pub struct AuditableBallot {
     /// Ballot version.
     pub version: u32,
@@ -106,9 +106,9 @@ pub struct AuditableBallot {
     pub contests: Vec<String>, // Vec<AuditableBallotContest<C>>,
     /// Hash of the ballot.
     pub ballot_hash: String,
-    /// Voter's public signing key.
+    /// Voter's public signing key (if present).
     pub voter_signing_pk: Option<String>,
-    /// Voter's ballot signature.
+    /// Voter's ballot signature (if present).
     pub voter_ballot_signature: Option<String>,
 }
 
@@ -144,38 +144,60 @@ impl AuditableBallot {
 }
 
 #[derive(BorshSerialize, BorshDeserialize, PartialEq, Eq, Debug, Clone)]
+/// Contest data for hashable ballots.
 pub struct HashableBallotContest<C: Ctx> {
+    /// Contest identifier.
     pub contest_id: String,
+    /// Encrypted contest data.
     pub ciphertext: Ciphertext<C>,
+    /// Proof for the contest.
     pub proof: Schnorr<C>,
 }
 
 #[derive(
     BorshSerialize, Serialize, Deserialize, PartialEq, Eq, Debug, Clone,
 )]
+/// Hashable ballot.
 pub struct HashableBallot {
+    /// Ballot version.
     pub version: u32,
+    /// Date the ballot was issued.
     pub issue_date: String,
+    /// Serialized contests.
     pub contests: Vec<String>, // Vec<HashableBallotContest<C>>,
+    /// Ballot style configuration as a string.
     pub config: String,
+    /// Hash of the ballot style.
     pub ballot_style_hash: String,
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone)]
+/// Signed hashable ballot.
 pub struct SignedHashableBallot {
+    /// Ballot version.
     pub version: u32,
+    /// Date the ballot was issued.
     pub issue_date: String,
+    /// Serialized contests (base64-encoded).
     pub contests: Vec<String>,
+    /// Configuration as a string.
     pub config: String,
+    /// Hash of the ballot style.
     pub ballot_style_hash: String,
+    /// Voter's public signing key (if present).
     pub voter_signing_pk: Option<String>,
+    /// Voter's ballot signature (if present).
     pub voter_ballot_signature: Option<String>,
 }
 
 #[derive(BorshSerialize, BorshDeserialize, PartialEq, Eq, Debug, Clone)]
+/// Raw hashable ballot data.
 pub struct RawHashableBallot<C: Ctx> {
+    /// Ballot version.
     pub version: u32,
+    /// Date the ballot was issued.
     pub issue_date: String,
+    /// Contests data for the ballot.
     pub contests: Vec<HashableBallotContest<C>>,
 }
 
@@ -316,8 +338,11 @@ impl TryFrom<&SignedHashableBallot> for HashableBallot {
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone)]
+/// Content for a signed ballot, including the public key and signature.
 pub struct SignedContent {
+    /// Public key used for signing.
     pub public_key: String,
+    /// Signature value.
     pub signature: String,
 }
 
@@ -441,6 +466,7 @@ pub fn get_ballot_bytes_for_signing(
     ret
 }
 
+/// URL and metadata for a candidate's resource (e.g., website or image).
 #[derive(
     BorshSerialize,
     BorshDeserialize,
@@ -453,9 +479,13 @@ pub fn get_ballot_bytes_for_signing(
     Clone,
 )]
 pub struct CandidateUrl {
+    /// The URL string.
     pub url: String,
+    /// The kind/type of the URL.
     pub kind: Option<String>,
+    /// The title or label for the URL.
     pub title: Option<String>,
+    /// True if the URL points to an image resource.
     pub is_image: bool,
 }
 
@@ -471,16 +501,27 @@ pub struct CandidateUrl {
     Clone,
     Default,
 )]
+/// Presentation configuration for a candidate, including i18n, status, and display options.
 pub struct CandidatePresentation {
+    /// Internationalized content for the candidate.
     pub i18n: Option<I18nContent<I18nContent<Option<String>>>>,
+    /// True if the candidate is explicitly marked as invalid.
     pub is_explicit_invalid: Option<bool>,
+    /// True if the candidate is explicitly marked as blank.
     pub is_explicit_blank: Option<bool>,
+    /// True if the candidate is disabled.
     pub is_disabled: Option<bool>,
+    /// True if the candidate is a category list.
     pub is_category_list: Option<bool>,
-    pub invalid_vote_position: Option<String>, // top|bottom
+    /// Position for invalid votes ("top" or "bottom").
+    pub invalid_vote_position: Option<String>,
+    /// True if the candidate is a write-in.
     pub is_write_in: Option<bool>,
+    /// Sort order for display.
     pub sort_order: Option<i64>,
+    /// List of URLs associated with the candidate.
     pub urls: Option<Vec<CandidateUrl>>,
+    /// Subtype identifier for the candidate.
     pub subtype: Option<String>,
 }
 
@@ -513,24 +554,41 @@ impl CandidatePresentation {
     Clone,
     Default,
 )]
+/// Candidate data structure.
 pub struct Candidate {
+    /// Unique candidate identifier.
     pub id: String,
+    /// Tenant identifier.
     pub tenant_id: String,
+    /// Election event identifier.
     pub election_event_id: String,
+    /// Election identifier.
     pub election_id: String,
+    /// Contest identifier.
     pub contest_id: String,
+    /// Candidate name.
     pub name: Option<String>,
+    /// Internationalized candidate name.
     pub name_i18n: Option<I18nContent>,
+    /// Candidate description.
     pub description: Option<String>,
+    /// Internationalized candidate description.
     pub description_i18n: Option<I18nContent>,
+    /// Candidate alias.
     pub alias: Option<String>,
+    /// Internationalized candidate alias.
     pub alias_i18n: Option<I18nContent>,
+    /// Candidate type.
     pub candidate_type: Option<String>,
+    /// Presentation configuration for the candidate.
     pub presentation: Option<CandidatePresentation>,
+    /// Annotations for the candidate.
     pub annotations: Option<Annotations>,
 }
 
 impl Candidate {
+    #[must_use]
+    /// Checks if the candidate is a category list based on its presentation configuration.
     pub fn is_category_list(&self) -> bool {
         self.presentation
             .as_ref()
@@ -539,6 +597,8 @@ impl Candidate {
             .unwrap_or(false)
     }
 
+    #[must_use]
+    /// Checks if the candidate is explicitly marked as invalid based on its presentation configuration.
     pub fn is_explicit_invalid(&self) -> bool {
         self.presentation
             .as_ref()
@@ -547,6 +607,8 @@ impl Candidate {
             .unwrap_or(false)
     }
 
+    #[must_use]
+    /// Checks if the candidate is explicitly marked as blank based on its presentation configuration.
     pub fn is_explicit_blank(&self) -> bool {
         self.presentation
             .as_ref()
@@ -555,6 +617,8 @@ impl Candidate {
             .unwrap_or(false)
     }
 
+    #[must_use]
+    /// Checks if the candidate is disabled based on its presentation configuration.
     pub fn is_disabled(&self) -> bool {
         self.presentation
             .as_ref()
@@ -563,6 +627,8 @@ impl Candidate {
             .unwrap_or(false)
     }
 
+    #[must_use]
+    /// Checks if the candidate is a write-in based on its presentation configuration.
     pub fn is_write_in(&self) -> bool {
         self.presentation
             .as_ref()
@@ -571,6 +637,7 @@ impl Candidate {
             .unwrap_or(false)
     }
 
+    /// Sets the write-in status for the candidate.
     pub fn set_is_write_in(&mut self, is_write_in: bool) {
         let mut presentation =
             self.presentation.clone().unwrap_or(Default::default());
@@ -593,13 +660,17 @@ impl Candidate {
     Display,
     Default,
 )]
+/// Specifies the order in which candidates are displayed on the ballot.
 pub enum CandidatesOrder {
+    /// Candidates order is randomized.
     #[strum(serialize = "random")]
     #[serde(rename = "random")]
     Random,
+    /// Candidates order is custom-defined.
     #[strum(serialize = "custom")]
     #[serde(rename = "custom")]
     Custom,
+    /// Candidates order is alphabetical (default).
     #[strum(serialize = "alphabetical")]
     #[serde(rename = "alphabetical")]
     #[default]
@@ -621,10 +692,13 @@ pub enum CandidatesOrder {
     Display,
     Default,
 )]
+/// Policy for allowing or disallowing early voting.
 pub enum EarlyVotingPolicy {
+    /// Early voting is allowed.
     #[strum(serialize = "allow_early_voting")]
     #[serde(rename = "allow_early_voting")]
     AllowEarlyVoting,
+    /// Early voting is not allowed (default).
     #[strum(serialize = "no_early_voting")]
     #[serde(rename = "no_early_voting")]
     #[default]
@@ -645,13 +719,17 @@ pub enum EarlyVotingPolicy {
     Display,
     Default,
 )]
+/// Specifies the order in which contests are displayed on the ballot.
 pub enum ContestsOrder {
+    /// Contests order is randomized.
     #[strum(serialize = "random")]
     #[serde(rename = "random")]
     Random,
+    /// Contests order is custom-defined.
     #[strum(serialize = "custom")]
     #[serde(rename = "custom")]
     Custom,
+    /// Contests order is alphabetical (default).
     #[strum(serialize = "alphabetical")]
     #[serde(rename = "alphabetical")]
     #[default]
@@ -672,10 +750,13 @@ pub enum ContestsOrder {
     Display,
     Default,
 )]
+/// Policy for requiring gold level authentication when casting a vote.
 pub enum CastVoteGoldLevelPolicy {
+    /// Gold level Authentication is required for cast vote.
     #[strum(serialize = "gold-level")]
     #[serde(rename = "gold-level")]
     GoldLevel,
+    /// Gold level Authentication is not required for cast vote (default).
     #[strum(serialize = "no-gold-level")]
     #[serde(rename = "no-gold-level")]
     #[default]
@@ -696,11 +777,14 @@ pub enum CastVoteGoldLevelPolicy {
     Display,
     Default,
 )]
+/// Policy for the title shown on the start screen of the voting portal.
 pub enum StartScreenTitlePolicy {
+    /// Start screen title should be of the election (default).
     #[strum(serialize = "election")]
     #[serde(rename = "election")]
     #[default]
     Election,
+    /// Start screen title should be of the election event.
     #[strum(serialize = "election-event")]
     #[serde(rename = "election-event")]
     ElectionEvent,
@@ -720,11 +804,14 @@ pub enum StartScreenTitlePolicy {
     Display,
     Default,
 )]
+/// Policy for requiring security confirmation before voting.
 pub enum ESecurityConfirmationPolicy {
+    /// No security confirmation required (default).
     #[strum(serialize = "none")]
     #[serde(rename = "none")]
     #[default]
     NONE,
+    /// Security confirmation is mandatory.
     #[strum(serialize = "mandatory")]
     #[serde(rename = "mandatory")]
     MANDATORY,
@@ -745,14 +832,18 @@ pub enum ESecurityConfirmationPolicy {
     Display,
     Default,
 )]
+/// Configuration for the audit button in the voting portal.
 pub enum AuditButtonCfg {
+    /// Show audit button (default).
     #[strum(serialize = "show")]
     #[serde(rename = "show")]
     #[default]
     SHOW,
+    /// Do not show audit button.
     #[strum(serialize = "not-show")]
     #[serde(rename = "not-show")]
     NOT_SHOW,
+    /// Show audit button in help section.
     #[strum(serialize = "show-in-help")]
     #[serde(rename = "show-in-help")]
     SHOW_IN_HELP,
@@ -772,10 +863,13 @@ pub enum AuditButtonCfg {
     Display,
     Default,
 )]
+/// Policy for showing or hiding the cast vote logs tab.
 pub enum ShowCastVoteLogs {
+    /// Show logs tab.
     #[strum(serialize = "show-logs-tab")]
     #[serde(rename = "show-logs-tab")]
     ShowLogsTab,
+    /// Hide logs tab (default).
     #[strum(serialize = "hide-logs-tab")]
     #[serde(rename = "hide-logs-tab")]
     #[default]
@@ -796,13 +890,17 @@ pub enum ShowCastVoteLogs {
     Display,
     Default,
 )]
+/// Policy for the order in which elections are displayed on the ballot.
 pub enum ElectionsOrder {
+    /// Elections order is randomized.
     #[strum(serialize = "random")]
     #[serde(rename = "random")]
     Random,
+    /// Elections order is custom-defined.
     #[strum(serialize = "custom")]
     #[serde(rename = "custom")]
     Custom,
+    /// Elections order is alphabetical (default).
     #[strum(serialize = "alphabetical")]
     #[serde(rename = "alphabetical")]
     #[default]
@@ -820,19 +918,33 @@ pub enum ElectionsOrder {
     Debug,
     Clone,
 )]
+/// Election data structure.
 pub struct Election {
+    /// Unique election identifier.
     pub id: String,
+    /// Election event identifier.
     pub election_event_id: String,
+    /// Tenant identifier.
     pub tenant_id: String,
+    /// Election name.
     pub name: Option<String>,
+    /// Internationalized election name.
     pub name_i18n: Option<I18nContent>,
+    /// Election description.
     pub description: Option<String>,
+    /// Internationalized election description.
     pub description_i18n: Option<I18nContent>,
+    /// Election alias.
     pub alias: Option<String>,
+    /// Internationalized election alias.
     pub alias_i18n: Option<I18nContent>,
+    /// Image document ID.
     pub image_document_id: Option<String>,
+    /// List of contests in the election.
     pub contests: Vec<Contest>,
+    /// Presentation configuration for the election.
     pub presentation: Option<ElectionPresentation>,
+    /// Annotations for the election.
     pub annotations: Option<Annotations>,
 }
 
@@ -851,17 +963,22 @@ pub struct Election {
     Display,
     Default,
 )]
+/// Policy for handling invalid votes.
 pub enum InvalidVotePolicy {
+    /// Invalid votes are allowed (default).
     #[strum(serialize = "allowed")]
     #[serde(rename = "allowed")]
     #[default]
     ALLOWED,
+    /// Warn on invalid votes.
     #[strum(serialize = "warn")]
     #[serde(rename = "warn")]
     WARN,
+    /// Warn on both implicit and explicit invalid votes.
     #[strum(serialize = "warn-invalid-implicit-and-explicit")]
     #[serde(rename = "warn-invalid-implicit-and-explicit")]
     WARN_INVALID_IMPLICIT_AND_EXPLICIT,
+    /// Invalid votes are not allowed.
     #[strum(serialize = "not-allowed")]
     #[serde(rename = "not-allowed")]
     NOT_ALLOWED,
@@ -880,13 +997,16 @@ pub enum InvalidVotePolicy {
     EnumString,
     Display,
 )]
+/// Policy for candidate selection behavior
 pub enum CandidatesSelectionPolicy {
+    /// if you select one, the previously selected one gets unselected
     #[strum(serialize = "radio")]
     #[serde(rename = "radio")]
-    RADIO, // if you select one, the previously selected one gets unselected
+    RADIO,
+    /// default behaviour
     #[strum(serialize = "cumulative")]
     #[serde(rename = "cumulative")]
-    CUMULATIVE, // default behaviour
+    CUMULATIVE,
 }
 
 #[derive(
@@ -903,14 +1023,17 @@ pub enum CandidatesSelectionPolicy {
     Display,
     Default,
 )]
+/// Policy for the icon used for candidate selection.
 pub enum CandidatesIconCheckboxPolicy {
+    /// Checkbox icon by default
     #[strum(serialize = "square-checkbox")]
     #[serde(rename = "square-checkbox")]
     #[default]
-    SQUARE_CHECKBOX, // Checkbox icon by default
+    SQUARE_CHECKBOX,
+    /// RadioButton icon
     #[strum(serialize = "round-checkbox")]
     #[serde(rename = "round-checkbox")]
-    ROUND_CHECKBOX, // RadioButton icon
+    ROUND_CHECKBOX,
 }
 
 #[allow(non_camel_case_types)]
@@ -928,16 +1051,21 @@ pub enum CandidatesIconCheckboxPolicy {
     Display,
     Default,
 )]
+/// Policy for whether executing key ceremonies at the election event level
+/// or election level.
 pub enum KeysCeremonyPolicy {
+    /// Key ceremonies execute in election event level (default).
     #[strum(serialize = "ELECTION_EVENT")]
     #[serde(rename = "ELECTION_EVENT")]
     #[default]
     ELECTION_EVENT,
+    /// Key ceremonies execute in election level.
     #[strum(serialize = "ELECTION")]
     #[serde(rename = "ELECTION")]
     ELECTION,
 }
 
+/// Election event materials configuration.
 #[derive(
     BorshSerialize,
     BorshDeserialize,
@@ -950,7 +1078,9 @@ pub enum KeysCeremonyPolicy {
     Clone,
     Default,
 )]
+/// Materials configuration for an election event.
 pub struct ElectionEventMaterials {
+    /// True if the election event materials are activated.
     pub activated: Option<bool>,
 }
 
@@ -966,8 +1096,11 @@ pub struct ElectionEventMaterials {
     Clone,
     Default,
 )]
+/// Language configuration for an election event.
 pub struct ElectionEventLanguageConf {
+    /// List of enabled language codes.
     pub enabled_language_codes: Option<Vec<String>>,
+    /// Default language code.
     pub default_language_code: Option<String>,
 }
 
@@ -983,29 +1116,54 @@ pub struct ElectionEventLanguageConf {
     Clone,
     Default,
 )]
+/// Presentation configuration for an election event.
 pub struct ElectionEventPresentation {
+    /// Internationalized content for the event.
     pub i18n: Option<I18nContent<I18nContent<Option<String>>>>,
-    pub materials: Option<ElectionEventMaterials>,
+    /// Materials configuration for the event.
+    pub activated: Option<ElectionEventMaterials>,
+    /// Language configuration for the event.
     pub language_conf: Option<ElectionEventLanguageConf>,
+    /// Logo URL for the event.
     pub logo_url: Option<String>,
+    /// Redirect URL after finishing voting.
     pub redirect_finish_url: Option<String>,
+    /// Custom CSS for the event.
     pub css: Option<String>,
+    /// True if the election list should be skipped.
     pub skip_election_list: Option<bool>,
-    pub show_user_profile: Option<bool>, // default is true
+    /// True if the user profile should be shown (default true).
+    pub show_user_profile: Option<bool>,
+    /// Show cast vote logs configuration.
     pub show_cast_vote_logs: Option<ShowCastVoteLogs>,
+    /// Order in which elections are displayed.
     pub elections_order: Option<ElectionsOrder>,
+    /// Countdown policy for the voting portal.
     pub voting_portal_countdown_policy: Option<VotingPortalCountdownPolicy>,
+    /// Custom URLs for the event.
     pub custom_urls: Option<CustomUrls>,
+    /// Key ceremony policy.
     pub keys_ceremony_policy: Option<KeysCeremonyPolicy>,
+    /// Contest encryption policy.
     pub contest_encryption_policy: Option<ContestEncryptionPolicy>,
+    /// Decoded ballot inclusion policy.
     pub decoded_ballot_inclusion_policy: Option<DecodedBallotsInclusionPolicy>,
+    /// Locked down policy.
     pub locked_down: Option<LockedDown>,
+    /// Publish policy.
     pub publish_policy: Option<Publish>,
+    /// Enrollment policy.
     pub enrollment: Option<Enrollment>,
+    /// OTP policy.
     pub otp: Option<Otp>,
+    /// Voter signing policy.
     pub voter_signing_policy: Option<VoterSigningPolicy>,
+    /// Policy for weighted voting.
     pub weighted_voting_policy: Option<WeightedVotingPolicy>,
+    /// Ceremonies policy.
+    /// (Whether the ceremonies should be automated)
     pub ceremonies_policy: Option<CeremoniesPolicy>,
+    /// Policy for delegated voting.
     pub delegated_voting_policy: Option<DelegatedVotingPolicy>,
 }
 
@@ -1035,10 +1193,13 @@ impl ElectionEvent {
     EnumString,
     Display,
 )]
+/// Policy for grace period.
 pub enum EGracePeriodPolicy {
+    /// No grace period(default).
     #[strum(serialize = "no-grace-period")]
     #[serde(rename = "no-grace-period")]
     NO_GRACE_PERIOD,
+    /// Grace period without alert.
     #[strum(serialize = "grace-period-without-alert")]
     #[serde(rename = "grace-period-without-alert")]
     GRACE_PERIOD_WITHOUT_ALERT,
@@ -1056,8 +1217,11 @@ pub enum EGracePeriodPolicy {
     Clone,
     Default,
 )]
+/// Voting period dates.
 pub struct VotingPeriodDates {
+    /// Start date of the voting period.
     pub start_date: Option<String>,
+    /// End date of the voting period.
     pub end_date: Option<String>,
 }
 
@@ -1074,20 +1238,19 @@ pub struct VotingPeriodDates {
     Clone,
     EnumString,
     Display,
+    Default,
 )]
+/// Policy for whether Initialize Report is required to start voting.
 pub enum EInitializeReportPolicy {
+    /// Initialize Report is required.
     #[strum(serialize = "required")]
     #[serde(rename = "required")]
     REQUIRED,
+    /// Initialize Report is not required (default).
     #[strum(serialize = "not-required")]
     #[serde(rename = "not-required")]
+    #[default]
     NOT_REQUIRED,
-}
-
-impl Default for EInitializeReportPolicy {
-    fn default() -> Self {
-        EInitializeReportPolicy::NOT_REQUIRED
-    }
 }
 
 #[derive(
@@ -1102,9 +1265,14 @@ impl Default for EInitializeReportPolicy {
     Clone,
     Default,
 )]
+/// Configuration for the voting portal countdown Policy.
 pub struct VotingPortalCountdownPolicy {
+    /// Countdown policy
     pub policy: Option<ECountdownPolicy>,
+    /// Countdown anticipation seconds.
+    ///  i.e how many seconds before the countdown should start and for how long.
     pub countdown_anticipation_secs: Option<u64>,
+    /// Countdown alert anticipation seconds.
     pub countdown_alert_anticipation_secs: Option<u64>,
 }
 
@@ -1122,9 +1290,13 @@ pub struct VotingPortalCountdownPolicy {
     EnumString,
     Display,
 )]
+/// Policy for the voting portal countdown.
 pub enum ECountdownPolicy {
+    /// No countdown
     NO_COUNTDOWN,
+    /// Show countdown without alert.
     COUNTDOWN,
+    /// Show countdown with alert.
     COUNTDOWN_WITH_ALERT,
 }
 
@@ -1144,17 +1316,23 @@ pub enum ECountdownPolicy {
     Display,
     Default,
 )]
+
+/// Policy for undervotes.
 pub enum EUnderVotePolicy {
+    /// Undervotes are allowed (default).
     #[strum(serialize = "allowed")]
     #[serde(rename = "allowed")]
     #[default]
     ALLOWED,
+    /// Warn on undervotes.
     #[strum(serialize = "warn")]
     #[serde(rename = "warn")]
     WARN,
+    /// Warn on undervotes only in review screen.
     #[strum(serialize = "warn-only-in-review")]
     #[serde(rename = "warn-only-in-review")]
     WARN_ONLY_IN_REVIEW,
+    /// Warn on undervotes and show alert.
     #[strum(serialize = "warn-and-alert")]
     #[serde(rename = "warn-and-alert")]
     WARN_AND_ALERT,
@@ -1176,17 +1354,22 @@ pub enum EUnderVotePolicy {
     Display,
     Default,
 )]
+/// Policy for blank votes.
 pub enum EBlankVotePolicy {
+    /// Blank votes are allowed (default).
     #[strum(serialize = "allowed")]
     #[serde(rename = "allowed")]
     #[default]
     ALLOWED,
+    /// Warn on blank votes.
     #[strum(serialize = "warn")]
     #[serde(rename = "warn")]
     WARN,
+    /// Warn on blank votes only in review screen.
     #[strum(serialize = "warn-only-in-review")]
     #[serde(rename = "warn-only-in-review")]
     WARN_ONLY_IN_REVIEW,
+    /// Blank votes are not allowed.
     #[strum(serialize = "not-allowed")]
     #[serde(rename = "not-allowed")]
     NOT_ALLOWED,
@@ -1208,20 +1391,26 @@ pub enum EBlankVotePolicy {
     Display,
     Default,
 )]
+/// Policy for overvotes.
 pub enum EOverVotePolicy {
+    /// Overvotes are allowed (default).
     #[strum(serialize = "allowed")]
     #[serde(rename = "allowed")]
     ALLOWED,
+    /// Overvotes are allowed with a message.
     #[strum(serialize = "allowed-with-msg")]
     #[serde(rename = "allowed-with-msg")]
     ALLOWED_WITH_MSG,
+    /// Overvotes are allowed with a message and alert.
     #[strum(serialize = "allowed-with-msg-and-alert")]
     #[serde(rename = "allowed-with-msg-and-alert")]
     #[default]
     ALLOWED_WITH_MSG_AND_ALERT,
+    /// Overvotes are not allowed and show a message with alert.
     #[strum(serialize = "not-allowed-with-msg-and-alert")]
     #[serde(rename = "not-allowed-with-msg-and-alert")]
     NOT_ALLOWED_WITH_MSG_AND_ALERT,
+    /// Overvotes are not allowed and show a message.
     #[strum(serialize = "not-allowed-with-msg-and-disable")]
     #[serde(rename = "not-allowed-with-msg-and-disable")]
     NOT_ALLOWED_WITH_MSG_AND_DISABLE,
@@ -1243,11 +1432,14 @@ pub enum EOverVotePolicy {
     Display,
     Default,
 )]
+/// Policy for duplicated ranks in preferential voting.
 pub enum EDuplicatedRankPolicy {
+    /// Duplicated ranks are allowed (default) but shows a warning and dialog.
     #[strum(serialize = "allowed-warn-and-dialog")]
     #[serde(rename = "allowed-warn-and-dialog")]
     #[default]
     ALLOWED_WARN_AND_DIALOG,
+    /// Duplicated ranks are not allowed and shows a warning and dialog.
     #[strum(serialize = "not-allowed-warn-and-dialog")]
     #[serde(rename = "not-allowed-warn-and-dialog")]
     NOT_ALLOWED_WARN_AND_DIALOG,
@@ -1269,11 +1461,14 @@ pub enum EDuplicatedRankPolicy {
     Display,
     Default,
 )]
+/// Policy for preference gaps in preferential voting.
 pub enum EPreferenceGapsPolicy {
+    /// Preference gaps are allowed (default) but shows a warning and dialog.
     #[strum(serialize = "allowed-warn-and-dialog")]
     #[serde(rename = "allowed-warn-and-dialog")]
     #[default]
     ALLOWED_WARN_AND_DIALOG,
+    /// Preference gaps are not allowed and shows a warning and dialog.
     #[strum(serialize = "not-allowed-warn-and-dialog")]
     #[serde(rename = "not-allowed-warn-and-dialog")]
     NOT_ALLOWED_WARN_AND_DIALOG,
@@ -1520,6 +1715,7 @@ pub struct Contest {
 }
 
 impl Contest {
+    #[must_use]
     pub fn allow_writeins(&self) -> bool {
         self.presentation
             .as_ref()
@@ -1528,10 +1724,12 @@ impl Contest {
             .unwrap_or(false)
     }
 
+    #[must_use]
     pub fn get_counting_algorithm(&self) -> CountingAlgType {
         self.counting_algorithm.unwrap_or_default()
     }
 
+    #[must_use]
     pub fn base32_writeins(&self) -> bool {
         self.presentation
             .as_ref()
@@ -1540,6 +1738,7 @@ impl Contest {
             .unwrap_or(true)
     }
 
+    #[must_use]
     /// Get the invalid vote policy configuration value from the presentation.
     /// If the value or the parent object is not set, return the default value.
     pub fn get_invalid_vote_policy(&self) -> InvalidVotePolicy {
@@ -1553,6 +1752,7 @@ impl Contest {
         }
     }
 
+    #[must_use]
     pub fn cumulative_number_of_checkboxes(&self) -> u64 {
         self.presentation
             .as_ref()
@@ -1562,6 +1762,7 @@ impl Contest {
             .unwrap_or(1)
     }
 
+    #[must_use]
     pub fn show_points(&self) -> bool {
         self.presentation
             .as_ref()
@@ -1570,6 +1771,7 @@ impl Contest {
             .unwrap_or(false)
     }
 
+    #[must_use]
     pub fn get_invalid_candidate_ids(&self) -> Vec<String> {
         self.candidates
             .iter()
@@ -1818,12 +2020,14 @@ impl ElectionEventStatus {
         }
     }
 
+    /// Sets the voting status for the given channel and updates the
+    /// corresponding period dates.
     pub fn set_status_by_channel(
         &mut self,
         channel: VotingStatusChannel,
         new_status: VotingStatus,
     ) {
-        let mut period_dates = match channel {
+        let period_dates = match channel {
             VotingStatusChannel::ONLINE => {
                 self.voting_status = new_status.clone();
                 &mut self.voting_period_dates
@@ -1867,47 +2071,58 @@ pub enum VotingStatus {
 }
 
 impl VotingStatus {
-    pub fn is_not_started(&self) -> bool {
+    #[must_use]
+    /// Returns true if the voting status is NOT_STARTED.
+    pub const fn is_not_started(&self) -> bool {
         match self {
             VotingStatus::NOT_STARTED => true,
-            VotingStatus::OPEN => false,
-            VotingStatus::PAUSED => false,
-            VotingStatus::CLOSED => false,
+            VotingStatus::OPEN
+            | VotingStatus::PAUSED
+            | VotingStatus::CLOSED => false,
         }
     }
 
-    pub fn is_started(&self) -> bool {
+    #[must_use]
+    /// Returns true if the voting status is any but NOT_STARTED.
+    pub const fn is_started(&self) -> bool {
         !self.is_not_started()
     }
 
-    pub fn is_open(&self) -> bool {
+    #[must_use]
+    /// Returns true if the voting status is OPEN or PAUSED.
+    pub const fn is_open(&self) -> bool {
         match self {
-            VotingStatus::NOT_STARTED => false,
             VotingStatus::OPEN => true,
-            VotingStatus::PAUSED => true,
-            VotingStatus::CLOSED => false,
+            VotingStatus::NOT_STARTED
+            | VotingStatus::PAUSED
+            | VotingStatus::CLOSED => false,
         }
     }
 
-    pub fn is_paused(&self) -> bool {
+    /// Returns true if the voting status is PAUSED.
+    pub const fn is_paused(&self) -> bool {
         match self {
-            VotingStatus::NOT_STARTED => false,
-            VotingStatus::OPEN => false,
             VotingStatus::PAUSED => true,
-            VotingStatus::CLOSED => false,
+            VotingStatus::NOT_STARTED
+            | VotingStatus::OPEN
+            | VotingStatus::CLOSED => false,
         }
     }
 
-    pub fn is_closed(&self) -> bool {
+    #[must_use]
+    /// Returns true if the voting status is CLOSED.
+    pub const fn is_closed(&self) -> bool {
         match self {
-            VotingStatus::NOT_STARTED => false,
-            VotingStatus::OPEN => false,
-            VotingStatus::PAUSED => false,
             VotingStatus::CLOSED => true,
+            VotingStatus::NOT_STARTED
+            | VotingStatus::OPEN
+            | VotingStatus::PAUSED => false,
         }
     }
 
-    pub fn is_closed_or_never_started(&self) -> bool {
+    #[must_use]
+    /// Returns true if the voting status is NOT_STARTED or CLOSED.
+    pub const fn is_closed_or_never_started(&self) -> bool {
         match self {
             VotingStatus::NOT_STARTED => true,
             VotingStatus::OPEN => false,
@@ -1969,6 +2184,7 @@ pub enum VotingStatusChannel {
 }
 
 impl VotingStatusChannel {
+    /// Returns the channel status from VotingChannels.
     pub fn channel_from(
         &self,
         channels: &core::VotingChannels,
@@ -2190,6 +2406,7 @@ pub struct ScheduledEventDates {
 }
 
 impl PeriodDates {
+    /// Updates the period dates based on the new voting status.
     fn update_period_dates(&mut self, new_status: &VotingStatus) {
         let (first, last) = match new_status {
             VotingStatus::NOT_STARTED => {
@@ -2212,6 +2429,8 @@ impl PeriodDates {
         }
     }
 
+    #[must_use]
+    /// Converts period dates to string fields.
     pub fn to_string_fields(&self) -> StringifiedPeriodDates {
         StringifiedPeriodDates {
             first_started_at: format_date_opt(&self.first_started_at),
@@ -2225,11 +2444,14 @@ impl PeriodDates {
     }
 }
 
-// Helper method to format the date or return "-"
+/// Helper method to format the date or return `default`.
+#[must_use]
 pub fn format_date(date: &Option<DateTime<Utc>>, default: &str) -> String {
     date.map_or(default.to_string(), |d| d.to_rfc3339())
 }
 
+/// Helper method to format the date or return `None`.
+#[must_use]
 pub fn format_date_opt(date: &Option<DateTime<Utc>>) -> Option<String> {
     date.map(|d| d.to_rfc3339())
 }
@@ -2265,6 +2487,8 @@ impl Default for ElectionStatus {
 }
 
 impl ElectionStatus {
+    #[must_use]
+    /// Returns the voting status of the given channel.
     pub fn status_by_channel(
         &self,
         channel: VotingStatusChannel,
@@ -2278,6 +2502,8 @@ impl ElectionStatus {
         }
     }
 
+    #[must_use]
+    /// Returns the period dates of the given channel.
     pub fn dates_by_channel(
         &self,
         channel: VotingStatusChannel,
@@ -2315,6 +2541,8 @@ impl ElectionStatus {
         }
     }
 
+    /// Sets the voting status for the given channel and updates the
+    /// corresponding period dates.
     pub fn set_status_by_channel(
         &mut self,
         channel: VotingStatusChannel,
@@ -2464,10 +2692,13 @@ impl Area {
     Default,
     JsonSchema,
 )]
+/// Policy to determine if and when weighted voting is allowed (by areas).
 pub enum WeightedVotingPolicy {
+    /// Weighted voting is not allowed.
     #[default]
     #[serde(rename = "disabled-weighted-voting")]
     DISABLED_WEIGHTED_VOTING,
+    /// Weighted voting is allowed for areas.
     #[serde(rename = "areas-weighted-voting")]
     AREAS_WEIGHTED_VOTING,
 }
@@ -2486,10 +2717,13 @@ pub enum WeightedVotingPolicy {
     Default,
     JsonSchema,
 )]
+/// Policy to determine if and when delegated voting is allowed.
 pub enum DelegatedVotingPolicy {
+    /// Delegated voting is not allowed.
     #[default]
     #[serde(rename = "disabled")]
     DISABLED,
+    /// Delegated voting is allowed.
     #[serde(rename = "enabled")]
     ENABLED,
 }
@@ -2508,11 +2742,14 @@ pub enum DelegatedVotingPolicy {
     Default,
     JsonSchema,
 )]
+/// Policy to determine if and when the consolidated report should be generated.
 pub enum ConsolidatedReportPolicy {
+    /// The consolidated report will not be generated.
     #[default]
     #[strum(serialize = "do-not-generate")]
     #[serde(rename = "do-not-generate")]
     DO_NOT_GENERATE,
+    /// The consolidated report will be generated.
     #[strum(serialize = "generate")]
     #[serde(rename = "generate")]
     GENERATE,
