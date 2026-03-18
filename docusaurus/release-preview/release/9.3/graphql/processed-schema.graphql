@@ -998,7 +998,7 @@ type mutation_root {
   createScheduledEvent(created_by: String, cron_config: String, election_event_id: uuid, event_payload: jsonb!, event_processor: String!, tenant_id: String!): ScheduledEventOutput3
   """create_ballot_receipt"""
   create_ballot_receipt(ballot_id: String!, ballot_tracker_url: String!, election_event_id: uuid!, election_id: uuid!, tenant_id: uuid!): createBallotReceiptOutput
-  create_election(description: String, election_event_id: String!, external_id: String!, name: String!, presentation: jsonb): CreateElectionOutput
+  create_election(description: String, election_event_id: String!, name: String!, presentation: jsonb): CreateElectionOutput
   """create keys ceremony"""
   create_keys_ceremony(object: CreateKeysCeremonyInput!): CreateKeysCeremonyOutput
   create_permission(body: CreatePermissionInput!): KeycloakPermission
