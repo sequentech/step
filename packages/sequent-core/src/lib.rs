@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+//! Shared core types and services for Step crates.
 #[macro_use]
 extern crate quick_error;
 extern crate cfg_if;
@@ -13,6 +14,7 @@ pub mod ballot_style;
 pub mod error;
 #[cfg(feature = "default_features")]
 pub mod multi_ballot;
+/// shared type module
 pub mod types;
 //pub use ballot::*;
 #[cfg(feature = "default_features")]

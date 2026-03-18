@@ -15,6 +15,7 @@ use serde_wasm_bindgen::Serializer;
 use std::collections::HashMap;
 use std::panic;
 
+/// Creates a tree structure from areas JSON for JS interop.
 #[allow(clippy::all)]
 #[wasm_bindgen]
 pub fn create_tree_js(
@@ -42,6 +43,7 @@ pub fn create_tree_js(
         .into_json()
 }
 
+/// Gets contest matches from a contests tree JS object.
 #[allow(clippy::all)]
 #[wasm_bindgen]
 pub fn get_contest_matches_js(

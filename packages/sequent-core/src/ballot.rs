@@ -34,19 +34,27 @@ use strand::zkp::Schnorr;
 use strand::{backend::ristretto::RistrettoCtx, context::Ctx};
 use strum_macros::{Display, EnumString, IntoStaticStr};
 
+/// Version number for ballot.
 pub const TYPES_VERSION: u32 = 1;
 
+/// Internationalized content map, keyed by language code.
 pub type I18nContent<T = Option<String>> = HashMap<String, T>;
 
+/// Annotations for ballots or contests, as key-value pairs.
 pub type Annotations = HashMap<String, String>;
 
+/// Represents a choice in a replicated contest.
 #[derive(BorshSerialize, BorshDeserialize, PartialEq, Eq, Debug, Clone)]
 pub struct ReplicationChoice<C: Ctx> {
+    /// Encrypted choice.
     pub ciphertext: Ciphertext<C>,
+    /// Plaintext value of the choice.
     pub plaintext: C::P,
+    /// Randomness used for encryption.
     pub randomness: C::X,
 }
 
+/// Configuration for a public key.
 #[derive(
     BorshSerialize,
     BorshDeserialize,
@@ -59,14 +67,20 @@ pub struct ReplicationChoice<C: Ctx> {
     Clone,
 )]
 pub struct PublicKeyConfig {
+    /// Public key as a string.
     pub public_key: String,
+    /// Whether this is a demo key.
     pub is_demo: bool,
 }
 
+/// An auditable contest on a ballot.
 #[derive(BorshSerialize, BorshDeserialize, PartialEq, Eq, Debug, Clone)]
 pub struct AuditableBallotContest<C: Ctx> {
+    /// Contest identifier.
     pub contest_id: String,
+    /// The selected choice for the contest.
     pub choice: ReplicationChoice<C>,
+    /// proof for the choice.
     pub proof: Schnorr<C>,
 }
 /*
@@ -79,14 +93,22 @@ pub struct RawAuditableBallot<C: Ctx> {
     pub ballot_hash: String,
 }*/
 
+/// An auditable ballot.
 #[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone)]
 pub struct AuditableBallot {
+    /// Ballot version.
     pub version: u32,
+    /// Date the ballot was issued.
     pub issue_date: String,
+    /// Ballot style configuration.
     pub config: BallotStyle,
+    /// Serialized contests.
     pub contests: Vec<String>, // Vec<AuditableBallotContest<C>>,
+    /// Hash of the ballot.
     pub ballot_hash: String,
+    /// Voter's public signing key.
     pub voter_signing_pk: Option<String>,
+    /// Voter's ballot signature.
     pub voter_ballot_signature: Option<String>,
 }
 

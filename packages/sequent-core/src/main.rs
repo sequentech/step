@@ -2,6 +2,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+//! Main entry point for the sequent-core crate.
+
 fn main() {
     //let schema = schema_for!(AuditableBallot);
     //println!("{}", serde_json::to_string_pretty(&schema).unwrap());

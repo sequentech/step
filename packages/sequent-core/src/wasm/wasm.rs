@@ -99,6 +99,7 @@ pub fn set_hooks() {
     panic::set_hook(Box::new(console_error_panic_hook::hook));
 }
 
+/// Converts an auditable ballot JSON to a hashable ballot representation for JS interop.
 #[allow(clippy::all)]
 #[wasm_bindgen]
 pub fn to_hashable_ballot_js(
@@ -162,6 +163,7 @@ pub fn to_hashable_ballot_js(
     })
 }
 
+/// Converts an auditable multi-ballot JSON to a hashable multi-ballot representation for JS interop.
 #[allow(clippy::all)]
 #[wasm_bindgen]
 pub fn to_hashable_multi_ballot_js(
@@ -234,6 +236,7 @@ pub fn to_hashable_multi_ballot_js(
     })
 }
 
+/// Computes the hash of an auditable ballot JSON for JS interop.
 #[allow(clippy::all)]
 #[wasm_bindgen]
 pub fn hash_auditable_ballot_js(
@@ -274,6 +277,7 @@ pub fn hash_auditable_ballot_js(
         .into_json()
 }
 
+/// Computes the hash of an auditable multi-ballot JSON for JS interop.
 #[allow(clippy::all)]
 #[wasm_bindgen]
 pub fn hash_auditable_multi_ballot_js(
@@ -309,6 +313,7 @@ pub fn hash_auditable_multi_ballot_js(
         .into_json()
 }
 
+/// Encrypts a decoded contest JSON for JS interop.
 #[allow(clippy::all)]
 #[wasm_bindgen]
 pub fn encrypt_decoded_contest_js(
@@ -352,6 +357,7 @@ pub fn encrypt_decoded_contest_js(
         .into_json()
 }
 
+/// Encrypts a decoded multi-contest JSON for JS interop.
 #[allow(clippy::all)]
 #[wasm_bindgen]
 pub fn encrypt_decoded_multi_contest_js(
@@ -396,6 +402,7 @@ pub fn encrypt_decoded_multi_contest_js(
 }
 
 // before: map_to_decoded_ballot
+/// Decodes an auditable ballot JSON for JS interop.
 #[allow(clippy::all)]
 #[wasm_bindgen]
 pub fn decode_auditable_ballot_js(
@@ -432,6 +439,7 @@ pub fn decode_auditable_ballot_js(
 }
 
 // before: map_to_decoded_ballot
+/// Decodes an auditable multi-ballot JSON for JS interop.
 #[allow(clippy::all)]
 #[wasm_bindgen]
 pub fn decode_auditable_multi_ballot_js(
@@ -967,6 +975,7 @@ pub fn check_voting_error_dialog(
     Ok(JsValue::from_bool(show_voting_alert))
 }
 
+/// Gets the authentication URL for JS interop.
 #[allow(clippy::all)]
 #[wasm_bindgen]
 pub fn get_auth_url_js(
