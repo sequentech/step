@@ -72,28 +72,24 @@ Add the `tie_breaking_policy` field to your contest configuration:
 
 ### 1. Tie Detection
 
-When IRV algorithm detects an unbreakable tie:
+When the IRV algorithm detects an unbreakable tie with the `external-procedure` policy, it records the tie information in `RunoffStatus.pending_tie_resolution` and stops:
 
 ```rust
 // Velvet: instant_runoff.rs
-let result = runoff.run_with_policy(&mut ballots, &tie_breaking_policy);
+let mut runoff = RunoffStatus::initialize_runoff(&contest);
+runoff.run(&mut ballots_status);
 
-match result {
-    RunoffResult::RequiresExternalInput { state, tie_info } => {
-        // Pause needed
-    }
-    RunoffResult::Completed(status) => {
-        // Normal completion
-    }
+if let Some(tie_info) = &runoff.pending_tie_resolution {
+    // Pause needed — tie_info describes the round and tied candidates
 }
 ```
 
-**TieBreakingState Structure:**
+**`TallySessionResolutionData` (pending tie info):**
 ```json
 {
   "round_number": 3,
   "tied_candidate_ids": ["candidate-a", "candidate-b"],
-  "vote_counts": [150, 150],
+  "vote_count": 150,
   "method_used": "ExternalProcedure",
   "resolved_by_candidate_id": null
 }
@@ -101,32 +97,23 @@ match result {
 
 ### 2. Pause
 
-Windmill saves state and updates status:
+Windmill saves results and updates status. The pending tie info is stored in `results_contest.annotations.process_results.pending_tie_resolution`:
 
-```rust
-// Save full RunoffStatus to annotations["paused_runoff_state"]
-// Save tie info to annotations["tie_break"]
-// Update execution_status to AWAITING_INPUT
-// Create a tally_session_resolution row per tied contest
-```
-
-**Annotations Structure:**
 ```json
 {
-  "executer_username": "admin@example.com",
-  "executer_user_id": "user-123",
-  "paused_runoff_state": {
-    "rounds": [...],
-    "candidates_status": {...}
-  },
-  "tie_break": {
-    "round_number": 3,
-    "tied_candidates": ["cand-a-uuid", "cand-b-uuid"],
-    "vote_counts": [150, 150],
-    "paused_at": "2026-02-11T10:30:00Z"
+  "process_results": {
+    "pending_tie_resolution": {
+      "round_number": 3,
+      "tied_candidate_ids": ["candidate-a-uuid", "candidate-b-uuid"],
+      "vote_count": 150,
+      "method_used": "ExternalProcedure",
+      "resolved_by_candidate_id": null
+    }
   }
 }
 ```
+
+A `tally_session_resolution` row is created per tied contest with `status = pending`. The tally session `execution_status` is set to `AWAITING_INPUT`.
 
 ### 3. Admin Resolution
 
@@ -152,7 +139,7 @@ Authorization: Bearer <token>
 
 **Via CLI:**
 ```bash
-cli step submit-tally-resolution \
+step-cli submit-tally-resolution \
   --election-event-id event-123 \
   --tally-id tally-456 \
   --resolution contest-uuid:candidate-a-uuid
@@ -160,13 +147,13 @@ cli step submit-tally-resolution \
 
 ### 4. Resume
 
-System automatically resumes tally:
+System processes the resolution:
 
-1. Marks each resolution as `resolved` in `tally_session_resolution`, recording the chosen candidate, resolver, and timestamp
-2. Changes status from `AWAITING_INPUT` to `IN_PROGRESS` (or `STARTED` on re-submission, to trigger re-execution)
-4. Loads paused RunoffStatus from annotations
-5. Applies decision: eliminates all candidates except chosen winner
-6. Continues IRV algorithm to completion
+1. Validates that the selected candidate is in the tied candidates list
+2. Updates the `tally_session_resolution` row to `status = resolved`, recording the chosen candidate, resolver, and timestamp
+3. Changes tally session status from `AWAITING_INPUT` to `IN_PROGRESS`
+4. Windmill re-runs the tally; pre-loaded resolutions in `RunoffStatus.tie_resolutions` are consumed by `determine_winner_by_external_procedure`, which eliminates all candidates except the chosen winner
+5. IRV algorithm continues to completion
 
 ---
 
@@ -174,7 +161,7 @@ System automatically resumes tally:
 
 ### Endpoint: `POST /submit-tally-resolution`
 
-**Authentication:** Bearer token with `ADMIN_CEREMONY` permission
+**Authentication:** Bearer token with `tally-resolution-submit` permission
 
 **Request:**
 ```json
@@ -201,45 +188,32 @@ Multiple contests can be resolved in one request by adding more entries to `reso
 }
 ```
 
-**Response (Error):**
-```json
-{
-  "error": "Tally session is not awaiting input. Current status: IN_PROGRESS"
-}
-```
-
 **Validation Rules:**
 1. ✅ Tally session must exist
-2. ✅ Status must be `AWAITING_INPUT`
-3. ✅ At least one resolution must be provided
-4. ✅ User must have `ADMIN_CEREMONY` permission
+2. ✅ At least one resolution must be provided
+3. ✅ User must have `tally-resolution-submit` permission
+4. ✅ If the tally is not in `AWAITING_INPUT`, all submitted contests must already have a resolved record (re-submission only)
+5. ✅ Selected candidate must be present in the tied candidates list
 
 **HTTP Status Codes:**
 - `200` - Success
-- `400` - Bad request (invalid status, missing resolutions)
+- `400` - Bad request (invalid status, missing resolutions, candidate not in tie)
 - `401` - Unauthorized
-- `404` - Tally session not found
 - `500` - Server error
 
 ### Re-submission
 
-If a resolution is submitted again for the same contest, the existing `tally_session_resolution` row is updated in place (overwriting `resolution`, `resolved_by_user`, and `resolved_at`), and the tally status is reset to `STARTED` to trigger re-execution with the new decision.
+If an admin changes their mind and submits a resolution for a contest that already has a resolved record, the existing `tally_session_resolution` row is updated in place (overwriting `resolution_data`, `resolved_by_user`, and `resolved_at`). The tally session status is reset to `IN_PROGRESS` to trigger re-execution with the new decision.
 
 ---
 
 ## CLI Usage
 
-### Command: `cli step submit-tally-resolution`
-
-**Installation:**
-Ensure step-cli is installed and configured:
-```bash
-cli step config --endpoint https://api.example.com --token <your-token>
-```
+### Command: `step-cli submit-tally-resolution`
 
 **Usage:**
 ```bash
-cli step submit-tally-resolution \
+step-cli submit-tally-resolution \
   --election-event-id <EVENT_ID> \
   --tally-id <TALLY_SESSION_ID> \
   --resolution <CONTEST_ID>:<CANDIDATE_ID>
@@ -247,7 +221,7 @@ cli step submit-tally-resolution \
 
 The `--resolution` flag can be repeated to resolve multiple contests at once:
 ```bash
-cli step submit-tally-resolution \
+step-cli submit-tally-resolution \
   --election-event-id <EVENT_ID> \
   --tally-id <TALLY_SESSION_ID> \
   --resolution <CONTEST_ID_1>:<CANDIDATE_ID_1> \
@@ -256,7 +230,7 @@ cli step submit-tally-resolution \
 
 **Example:**
 ```bash
-cli step submit-tally-resolution \
+step-cli submit-tally-resolution \
   --election-event-id a1b2c3d4-e5f6-7890-abcd-ef1234567890 \
   --tally-id b2c3d4e5-f6a7-8901-bcde-f12345678901 \
   --resolution d4e5f6a7-b8c9-0123-def0-123456789012:c3d4e5f6-a7b8-9012-cdef-123456789012
@@ -285,12 +259,14 @@ cargo test -p velvet irv_tie_breaking
 ```
 
 **Test Coverage:**
-- ✅ `test_tie_breaking_policy_default_is_random` - Default policy validation
-- ✅ `test_full_tie_with_random_policy_completes` - Random policy completes normally
+- ✅ `test_tie_breaking_policy_default_is_random` - Default policy is `random`
+- ✅ `test_full_tie_with_random_policy_completes` - Random policy resolves tie and completes
 - ✅ `test_full_tie_with_external_policy_pauses` - External policy pauses on tie
-- ✅ `test_no_tie_with_external_policy_completes` - No pause when clear winner
-- ✅ `test_resume_after_external_decision` - Resume continues correctly
-- ✅ `test_backward_compatibility_with_run` - Old code still works
+- ✅ `test_no_tie_with_external_policy_completes` - No pause when there is a clear winner
+- ✅ `test_multi_round_tie_with_external_policy` - Pauses at round 2; completes with resolution
+- ✅ `test_ignored_resolution_for_non_tied_candidate` - Resolution with wrong tied set is ignored
+- ✅ `test_ignored_resolution_for_wrong_round` - Resolution for wrong round is ignored
+- ✅ `test_tie_breaking_state_history_recorded` - Resolution history recorded for both policies
 
 ### Manual Testing
 
@@ -317,17 +293,18 @@ Ballot 3: Charlie > Alice > Bob
 
 **3. Start Tally:**
 ```bash
-cli step start-tally --election-event-id <ID> --election-ids <ID>
+step-cli start-tally --election-event-id <ID> --election-ids <ID>
 ```
 
 **4. Verify Pause:**
 Check tally session status:
 - `execution_status` should be `AWAITING_INPUT`
-- `annotations.tie_break` should contain tie information
+- A `tally_session_resolution` row with `status = pending` should exist for the tied contest
+- `results_contest.annotations.process_results.pending_tie_resolution` should contain the tie info
 
 **5. Submit Decision:**
 ```bash
-cli step submit-tally-resolution \
+step-cli submit-tally-resolution \
   --election-event-id <EVENT_ID> \
   --tally-id <TALLY_ID> \
   --resolution <CONTEST_ID>:cand-a
@@ -336,7 +313,7 @@ cli step submit-tally-resolution \
 **6. Verify Completion:**
 - Status changes to `IN_PROGRESS` → `SUCCESS`
 - Winner is "Alice"
-- Resolution is recorded in `tally_session_resolution` table with timestamp and user
+- `tally_session_resolution` row is updated to `status = resolved` with timestamp and user
 
 ---
 
@@ -346,37 +323,40 @@ cli step submit-tally-resolution \
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│ Admin Portal UI (Future)                                │
+│ Admin Portal UI                                         │
 │ - Show tie notification                                 │
-│ - Display tied candidates with vote counts              │
-│ - Input decision and method used                        │
+│ - Display tied candidates with names and vote counts    │
+│ - Submit resolution via tally-resolution-submit role    │
 └───────────────────┬─────────────────────────────────────┘
                     │
                     ▼
 ┌─────────────────────────────────────────────────────────┐
 │ Harvest API                                              │
 │ POST /submit-tally-resolution                           │
-│ - Validates status (AWAITING_INPUT)                     │
+│ - Validates status and candidate membership             │
 │ - Resolves (or updates) the resolution row per contest  │
-│ - Changes status to IN_PROGRESS (or STARTED on re-sub) │
+│ - Changes status to IN_PROGRESS                         │
 └───────────────────┬─────────────────────────────────────┘
                     │
                     ▼
 ┌─────────────────────────────────────────────────────────┐
 │ Windmill (Orchestration)                                │
-│ - Detects pause needed (RequiresExternalInput)         │
-│ - Saves RunoffStatus to annotations                     │
-│ - Creates pending resolution rows in DB                 │
+│ - Detects pause needed (pending_tie_resolution set)     │
+│ - Stores tie info in results_contest annotations        │
+│ - Creates pending tally_session_resolution rows         │
 │ - Updates execution_status to AWAITING_INPUT            │
-│ - On resume: loads state, applies latest resolution    │
+│ - On resume: loads resolved resolutions from DB,        │
+│   injects into RunoffStatus.tie_resolutions             │
 └───────────────────┬─────────────────────────────────────┘
                     │
                     ▼
 ┌─────────────────────────────────────────────────────────┐
 │ Velvet (IRV Algorithm)                                  │
 │ instant_runoff.rs                                       │
-│ - run_with_policy() - accepts tie-breaking policy      │
-│ - Returns RunoffResult enum                             │
+│ - run() — mutates RunoffStatus in place                 │
+│ - pending_tie_resolution — set when paused              │
+│ - tie_resolutions — pre-loaded resolutions consumed     │
+│   by determine_winner_by_external_procedure()           │
 └─────────────────────────────────────────────────────────┘
 ```
 
@@ -384,45 +364,39 @@ cli step submit-tally-resolution \
 
 | Component | File | Description |
 |-----------|------|-------------|
-| **Types** | `sequent-core/src/ballot.rs` | TieBreakingPolicy enum |
-| | `sequent-core/src/types/ceremonies.rs` | AWAITING_INPUT status |
-| **Velvet** | `velvet/src/pipes/do_tally/counting_algorithm/instant_runoff.rs` | Core IRV logic with tie-breaking |
-| **Windmill** | `windmill/src/postgres/tally_session.rs` | Annotation management |
-| | `windmill/src/postgres/tally_session_resolution.rs` | Resolution table operations |
-| **Harvest** | `harvest/src/routes/tally_ceremony.rs` | API endpoint |
-| **CLI** | `step-cli/src/commands/submit_tally_resolution.rs` | CLI command |
-| **Tests** | `velvet/tests/instant_runoff/irv_tie_breaking_tests.rs` | Test suite |
+| **Types** | `sequent-core/src/ballot.rs` | `TieBreakingPolicy` enum |
+| | `sequent-core/src/types/ceremonies.rs` | `TallySessionResolutionData`, `AWAITING_INPUT` status |
+| **Velvet** | `velvet/src/pipes/do_tally/counting_algorithm/instant_runoff.rs` | Core IRV logic; `RunoffStatus.pending_tie_resolution`, `tie_resolutions` |
+| **Windmill** | `windmill/src/services/ceremonies/tally_resolution.rs` | Tie detection, resolution record creation, electoral log |
+| | `windmill/src/postgres/tally_session_resolution.rs` | Resolution table CRUD |
+| **Harvest** | `harvest/src/routes/tally_ceremony.rs` | `POST /submit-tally-resolution` endpoint |
+| **CLI** | `step-cli/src/commands/submit_tally_resolution.rs` | CLI command (calls API via GraphQL) |
+| **Tests** | `velvet/tests/instant_runoff/irv_tie_breaking_tests.rs` | IRV tie-breaking test suite |
 
 ### State Machine
 
 ```
                     ┌─────────────┐
-                    │ NOT_STARTED │
+                    │   STARTED   │
                     └──────┬──────┘
                            │
                            ▼
                     ┌─────────────┐
-                    │   STARTED   │◄──────────────────┐
-                    └──────┬──────┘                   │
-                           │                           │ Re-submission
-                           ▼                           │ (new resolution row)
-                    ┌─────────────┐                   │
-                    │  CONNECTED  │                   │
-                    └──────┬──────┘                   │
-                           │                           │
-                           ▼                           │
-                    ┌─────────────┐           ┌───────┴──────┐
-         ┌──────────│ IN_PROGRESS │◄──────────│AWAITING_INPUT│
-         │          └──────┬──────┘  First    └──────┬───────┘
-         │                 │         submission       │
-         │ Tie Detected    │ No Tie                   │ Re-submission
-         │ (External       │                           │ (new resolution row
-         │  Policy)        │                           │  → STARTED)
+                    │  CONNECTED  │
+                    └──────┬──────┘
+                           │
+                           ▼
+                    ┌─────────────┐
+         ┌──────────│ IN_PROGRESS │◄──────────────────┐
+         │          └──────┬──────┘                   │
+         │ Tie Detected    │ No Tie          Resolution submitted
+         │ (External       │               (status → IN_PROGRESS,
+         │  Policy)        │                tally re-runs)
          │                 │                           │
          ▼                 ▼                           │
-  ┌──────────────┐  ┌─────────────┐                  │
-  │AWAITING_INPUT├──►   SUCCESS   │◄─────────────────┘
-  └──────────────┘  └─────────────┘    (after re-execution)
+  ┌──────────────┐  ┌─────────────┐           ┌───────┴──────┐
+  │AWAITING_INPUT├──►   SUCCESS   │           │AWAITING_INPUT│
+  └──────────────┘  └─────────────┘           └──────────────┘
 ```
 
 ---
@@ -450,12 +424,12 @@ WHERE id = 'your-contest-id';
 **Symptom:** API returns "Tally session is not awaiting input"
 
 **Causes:**
-1. ✅ Status is not `AWAITING_INPUT` (already resumed or never paused)
+1. ✅ Status is not `AWAITING_INPUT` (already resumed or never paused) and the contest does not yet have a resolved record
 2. ✅ Multiple admins submitted simultaneously (race condition)
 
 **Solution:** Check current status:
 ```sql
-SELECT execution_status, annotations
+SELECT execution_status
 FROM sequent_backend.tally_session
 WHERE id = 'your-tally-id';
 ```
@@ -464,7 +438,7 @@ WHERE id = 'your-tally-id';
 
 To view the full audit trail of all resolutions submitted for a tally session:
 ```sql
-SELECT contest_id, selected_candidate_id, resolved_by_user_id, created_at
+SELECT contest_id, resolution_data, resolved_by_user, resolved_at
 FROM sequent_backend.tally_session_resolution
 WHERE tally_session_id = 'your-tally-id'
 ORDER BY created_at DESC;
@@ -474,17 +448,16 @@ ORDER BY created_at DESC;
 
 ## Future Enhancements
 
-### Admin Portal UI (Pending Design)
+### Admin Portal UI
 - Visual notification when tally pauses
 - Display tied candidates with names and vote counts
-- Input field for external method used (dropdown or text)
+- Input field for external method used
 - Resume button after decision entered
 - Audit trail viewer showing all submitted resolutions
 
 ### Additional Features
 - Custom tie-breaking method documentation
 - Email notifications to admins when pause occurs
-- Webhook integration for external systems
 - Export tie-break decisions to PDF report
 
 ---
@@ -501,12 +474,12 @@ A: The tally remains in `AWAITING_INPUT` status indefinitely. It will not time o
 A: Currently, this feature is only implemented for IRV (Instant Runoff). Other algorithms would need similar modifications.
 
 **Q: Is the tie-break decision reversible?**
-A: Yes, a resolution can be re-submitted. The existing `tally_session_resolution` row is updated in place with the new decision, and the tally re-executes automatically.
+A: Yes, a resolution can be re-submitted. The existing `tally_session_resolution` row is updated in place with the new decision, and the tally status is reset to `IN_PROGRESS` to trigger re-execution.
 
 **Q: What if two admins submit different decisions simultaneously?**
 A: The last write wins — both updates succeed but only the final state is kept. The tally re-executes with whichever decision was committed last.
 
-**Q: Can multiple tie contests be resolved in one call?**
+**Q: Can multiple tied contests be resolved in one call?**
 A: Yes, the `--resolution` flag in the CLI and the `resolutions` array in the API both accept multiple entries, one per tied contest.
 
 ---
@@ -516,4 +489,3 @@ A: Yes, the `--resolution` flag in the CLI and the `resolutions` array in the AP
 For questions or issues:
 - GitHub Issues: https://github.com/sequentech/step/issues
 - Documentation: https://docs.sequentech.io
-- Email: support@sequentech.io

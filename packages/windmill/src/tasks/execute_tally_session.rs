@@ -33,6 +33,9 @@ use crate::services::ceremonies::tally_ceremony::{
     get_tally_ceremony_status, set_tally_session_completed,
 };
 use crate::services::ceremonies::tally_progress::generate_tally_progress;
+use crate::services::ceremonies::tally_resolution::{
+    build_tie_resolutions_map, handle_pending_irv_resolutions,
+};
 use crate::services::ceremonies::tally_session_error::handle_tally_session_error;
 use crate::services::ceremonies::velvet_tally::run_velvet_tally;
 use crate::services::ceremonies::velvet_tally::AreaContestDataType;
@@ -49,9 +52,6 @@ use crate::services::reports::template_renderer::{
     ReportOriginatedFrom, ReportOrigins, TemplateRenderer,
 };
 use crate::services::reports::utils::get_public_asset_template;
-use crate::services::ceremonies::tally_resolution::{
-    build_tie_resolutions_map, handle_pending_irv_resolutions,
-};
 use crate::services::tally_sheets::validation::validate_tally_sheet;
 use crate::services::tasks_semaphore::acquire_semaphore;
 use crate::services::temp_path::{
@@ -1087,7 +1087,7 @@ pub async fn execute_tally_session_wrapped(
             tenant_id.clone(),
             election_event_id.clone(),
             tally_session_id.clone(),
-            election_ids.clone().unwrap_or_default(),
+            election_ids.clone().unwrap_or(vec![]),
         )
         .await?
     else {
@@ -1284,9 +1284,9 @@ pub async fn execute_tally_session_wrapped(
         .map(|values| values.clone().into_iter().map(|int| int as i32).collect());
 
     new_status.logs = if is_execution_completed {
-        append_tally_finished(&new_status.logs, &election_ids.clone().unwrap_or_default())
+        append_tally_finished(&new_status.logs, &election_ids.clone().unwrap_or(vec![]))
     } else {
-        append_tally_updated(&new_status.logs, &election_ids.clone().unwrap_or_default())
+        append_tally_updated(&new_status.logs, &election_ids.clone().unwrap_or(vec![]))
     };
 
     // insert tally_session_execution

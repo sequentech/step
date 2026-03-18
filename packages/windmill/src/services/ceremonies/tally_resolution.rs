@@ -78,6 +78,7 @@ pub async fn check_for_tie_resolutions(
     election_event_id: &str,
     results_event_id: &str,
 ) -> Result<TieResolutionCheck> {
+    // TODO Instead of checking for the annotations of results_contest in hasura check either in sqlite or add an output file for velvet with all resolutions
     let rows = hasura_transaction
         .query(
             r#"
@@ -212,7 +213,6 @@ pub async fn handle_pending_irv_resolutions(
 
     Ok(pending_resolution_ids)
 }
-
 
 /// Submit multiple tally resolutions for a paused tally (batch operation).
 /// Returns the number of resolutions processed.

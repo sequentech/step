@@ -215,7 +215,11 @@ fn test_multi_round_tie_with_external_policy() -> Result<()> {
     let tie_info = runoff
         .pending_tie_resolution
         .expect("Expected pause at Round 2, got completion");
-    assert_eq!(tie_info.round_number, Some(2), "Tie should occur at Round 2");
+    assert_eq!(
+        tie_info.round_number,
+        Some(2),
+        "Tie should occur at Round 2"
+    );
     assert_eq!(tie_info.tied_candidate_ids.len(), 2);
     assert!(tie_info
         .tied_candidate_ids
@@ -304,7 +308,8 @@ fn test_ignored_resolution_for_wrong_round() -> Result<()> {
         .pending_tie_resolution
         .expect("Round 1 resolution should not be used for a Round 2 tie");
     assert_eq!(
-        tie_info.round_number, Some(2),
+        tie_info.round_number,
+        Some(2),
         "Round 1 resolution must not resolve the Round 2 tie"
     );
 

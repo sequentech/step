@@ -6,7 +6,7 @@ use crate::{types::hasura_types::*, utils::read_config::read_config};
 use clap::Args;
 use colored::Colorize;
 use graphql_client::{GraphQLQuery, Response};
-use sequent_core::types::ceremonies::{TallyResolutionResolution, TallyResolutionResolutionData};
+use sequent_core::types::ceremonies::TallyResolution;
 use serde::{Deserialize, Serialize};
 
 #[derive(Args)]
@@ -46,7 +46,7 @@ impl SubmitTallyResolution {
                 );
                 return;
             }
-            resolutions.push(TallySessionResolutionData {
+            resolutions.push(TallyResolution {
                 contest_id: parts[0].to_string(),
                 selected_candidate_id: parts[1].to_string(),
             });
@@ -74,7 +74,7 @@ impl SubmitTallyResolution {
 pub fn submit_tally_resolution(
     election_event_id: &str,
     tally_id: &str,
-    resolutions: Vec<TallyResolutionResolution>,
+    resolutions: Vec<TallyResolution>,
 ) -> Result<usize, Box<dyn std::error::Error>> {
     let config = read_config()?;
     let client = reqwest::blocking::Client::new();
