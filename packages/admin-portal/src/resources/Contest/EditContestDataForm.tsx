@@ -65,7 +65,7 @@ import {
 } from "@sequentech/ui-core"
 import {DropFile} from "@sequentech/ui-essentials"
 import {IVotingType} from "./constants"
-import {ICountingAlgorithm} from "@sequentech/ui-core"
+import {ICountingAlgorithm, ITieBreakingPolicy} from "@sequentech/ui-core"
 import {ContestStyles} from "../../components/styles/ContestStyles"
 import FileJsonInput from "../../components/FileJsonInput"
 import {useMutation} from "@apollo/client"
@@ -362,6 +362,13 @@ export const ContestDataForm: React.FC = () => {
         }))
     }
 
+    const tieBreakingPolicyChoices = (): Array<EnumChoice<ITieBreakingPolicy>> => {
+        return Object.values(ITieBreakingPolicy).map((value) => ({
+            id: value,
+            name: t(`contestScreen.options.${value.toLowerCase()}`),
+        }))
+    }
+
     const orderAnswerChoices = (): Array<EnumChoice<CandidatesOrder>> => {
         return Object.values(CandidatesOrder).map((value) => ({
             id: value,
@@ -461,6 +468,11 @@ export const ContestDataForm: React.FC = () => {
             newContest.voting_type = newContest.voting_type || IVotingType.NON_PREFERENTIAL
             newContest.counting_algorithm =
                 newContest.counting_algorithm || ICountingAlgorithm.PLURALITY_AT_LARGE
+            const tallyConfig = (newContest.tally_configuration ?? {}) as Record<string, unknown>
+            if (!tallyConfig.tie_breaking_policy) {
+                tallyConfig.tie_breaking_policy = ITieBreakingPolicy.RANDOM
+            }
+            newContest.tally_configuration = tallyConfig
             newContest.min_votes = newContest.min_votes || 0
 
             newContest.presentation.candidates_order =
@@ -681,6 +693,19 @@ export const ContestDataForm: React.FC = () => {
                                     choices={countingAlgorithmChoices()}
                                     validate={required()}
                                 />
+                                <FormDataConsumer>
+                                    {({formData}) =>
+                                        formData?.counting_algorithm ===
+                                        ICountingAlgorithm.INSTANT_RUNOFF ? (
+                                            <SelectInput
+                                                source="tally_configuration.tie_breaking_policy"
+                                                label={t("contestScreen.tieBreakingPolicy.label")}
+                                                choices={tieBreakingPolicyChoices()}
+                                                validate={required()}
+                                            />
+                                        ) : null
+                                    }
+                                </FormDataConsumer>
                             </AccordionDetails>
                         </Accordion>
 

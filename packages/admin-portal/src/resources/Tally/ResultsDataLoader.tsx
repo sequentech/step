@@ -178,42 +178,58 @@ export const ResultsDataLoader: React.FC<ResultsDataLoaderProps> = ({
         }
     )
 
-    let tallyData: GetTallyDataQuery = {
-        sequent_backend_area: area as Sequent_Backend_Area[],
-        sequent_backend_area_contest: area_contest as Sequent_Backend_Area_Contest[],
-        sequent_backend_election: election as Sequent_Backend_Election[],
-        sequent_backend_election_event: electionEvent as Sequent_Backend_Election_Event[],
-        sequent_backend_candidate: candidate as Sequent_Backend_Candidate[],
-        sequent_backend_contest: contest as Sequent_Backend_Contest[],
-        sequent_backend_results_event: results_event as Sequent_Backend_Results_Event[],
-        sequent_backend_results_election: results_election as Sequent_Backend_Results_Election[],
-        sequent_backend_results_contest_candidate:
-            results_contest_candidate as Sequent_Backend_Results_Contest_Candidate[],
-        sequent_backend_results_contest: results_contest.map((contest) => {
-            if (isString(contest.documents)) {
-                try {
-                    contest.documents = JSON.parse(contest.documents) as IResultDocuments
-                } catch (e) {
-                    console.error("error parsing contest documents" + e)
+    const tallyData = useMemo<GetTallyDataQuery>(
+        () => ({
+            sequent_backend_area: area as Sequent_Backend_Area[],
+            sequent_backend_area_contest: area_contest as Sequent_Backend_Area_Contest[],
+            sequent_backend_election: election as Sequent_Backend_Election[],
+            sequent_backend_candidate: candidate as Sequent_Backend_Candidate[],
+            sequent_backend_contest: contest as Sequent_Backend_Contest[],
+            sequent_backend_results_event: results_event as Sequent_Backend_Results_Event[],
+            sequent_backend_results_election:
+                results_election as Sequent_Backend_Results_Election[],
+            sequent_backend_results_contest_candidate:
+                results_contest_candidate as Sequent_Backend_Results_Contest_Candidate[],
+            sequent_backend_results_contest: results_contest.map((contest) => {
+                if (isString(contest.documents)) {
+                    try {
+                        contest.documents = JSON.parse(contest.documents) as IResultDocuments
+                    } catch (e) {
+                        console.error("error parsing contest documents" + e)
+                    }
                 }
-            }
-            return contest
-        }) as Sequent_Backend_Results_Contest[],
-        sequent_backend_results_area_contest_candidate:
-            results_area_contest_candidate as Sequent_Backend_Results_Area_Contest_Candidate[],
-        sequent_backend_results_area_contest: results_area_contest.map((contest) => {
-            if (isString(contest.documents)) {
-                try {
-                    contest.documents = JSON.parse(contest.documents) as IResultDocuments
-                } catch (e) {
-                    console.error("error parsing contest documents" + e)
+                return contest
+            }) as Sequent_Backend_Results_Contest[],
+            sequent_backend_results_area_contest_candidate:
+                results_area_contest_candidate as Sequent_Backend_Results_Area_Contest_Candidate[],
+            sequent_backend_results_area_contest: results_area_contest.map((contest) => {
+                if (isString(contest.documents)) {
+                    try {
+                        contest.documents = JSON.parse(contest.documents) as IResultDocuments
+                    } catch (e) {
+                        console.error("error parsing contest documents" + e)
+                    }
                 }
-            }
-            return contest
-        }) as Sequent_Backend_Results_Area_Contest[],
-        sequent_backend_results_election_area:
-            results_election_area as Sequent_Backend_Results_Election_Area[],
-    }
+                return contest
+            }) as Sequent_Backend_Results_Area_Contest[],
+            sequent_backend_results_election_area:
+                results_election_area as Sequent_Backend_Results_Election_Area[],
+        }),
+        [
+            area,
+            area_contest,
+            election,
+            candidate,
+            contest,
+            results_event,
+            results_election,
+            results_contest_candidate,
+            results_contest,
+            results_area_contest_candidate,
+            results_area_contest,
+            results_election_area,
+        ]
+    )
 
     useEffect(() => {
         setTallyQueryData(tallyData ?? null)

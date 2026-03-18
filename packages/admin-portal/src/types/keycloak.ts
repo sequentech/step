@@ -196,4 +196,5 @@ export enum IPermissions {
     GOOGLE_MEET_LINK = "google-meet-link",
     PREVIEW_READ = "preview-read",
     GENERATE_PREVIEW = "generate-preview",
+    TALLY_RESOLUTION_SUBMIT = "tally-resolution-submit",
 }
