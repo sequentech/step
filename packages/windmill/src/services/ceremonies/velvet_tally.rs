@@ -116,31 +116,13 @@ fn decode_plaintexts_to_biguints(
         .collect::<Vec<_>>()
 }
 
-pub(crate) fn inject_tie_resolutions_into_contest(
-    contest: &mut Contest,
-    tie_resolutions: &HashMap<String, Vec<serde_json::Value>>,
-) -> anyhow::Result<()> {
-    if let Some(tie_res_vec) = tie_resolutions.get(&contest.id) {
-        let mut annotations = contest.annotations.clone().unwrap_or_default();
-        let tie_res_json_string = serde_json::to_string(tie_res_vec)?;
-        info!(
-            "Injecting {} tie resolution(s) into contest {} annotations",
-            tie_res_vec.len(),
-            contest.id
-        );
-        annotations.insert("tie_resolutions".to_string(), tie_res_json_string);
-        contest.annotations = Some(annotations);
-    }
-    Ok(())
-}
-
 #[instrument(skip_all, err)]
 pub fn prepare_tally_for_area_contest(
     base_tempdir: PathBuf,
     area_contest: &AreaContestDataType,
     tally_sheets: &HashMap<(String, String), Vec<TallySheet>>,
     tally_session: &TallySession,
-    tie_resolutions: &HashMap<String, Vec<serde_json::Value>>,
+    contest_tie_resolutions: &Vec<TallySessionResolution>,
 ) -> Result<()> {
     let contest_encryption_policy = tally_session
         .configuration
@@ -229,7 +211,7 @@ pub fn prepare_tally_for_area_contest(
 
     // Prepare contest data, potentially injecting tie resolution
     let mut contest = area_contest.contest.clone();
-    inject_tie_resolutions_into_contest(&mut contest, tie_resolutions)?;
+    insert_tie_resolutions(&mut contest, tie_resolutions)?;
 
     writeln!(contest_config_file, "{}", serde_json::to_string(&contest)?)?;
 
@@ -888,7 +870,7 @@ pub async fn run_velvet_tally(
     election_event: &ElectionEvent,
     tally_session: &TallySession,
     tally_type: TallyType,
-    tie_resolutions: HashMap<String, Vec<serde_json::Value>>,
+    tie_resolutions: HashMap<String, Vec<TallySessionResolution>>,
 ) -> Result<State> {
     let basic_areas: Vec<TreeNodeArea> = areas.into_iter().map(|area| area.into()).collect();
     // map<(area_id,contest_id), tally_sheet>

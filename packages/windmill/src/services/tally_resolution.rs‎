@@ -1,0 +1,123 @@
+// SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+
+
+struct TieResolutionMetadata {
+    // Vec of (results_contest_id, contest_id, resolution_data)
+    pending: Vec<(String, String, IrvTieBreakResolutionData)>,
+}
+
+/// Groups resolved IRV tie-break rows into a per-contest map keyed by the
+/// actual contest UUID. Each entry is an array of
+/// `{round_number, resolved_by_candidate_id}` objects so that multi-round
+/// resumes can supply the correct decision for every past round.
+pub fn build_tie_resolutions_map(
+    resolutions: &[TallySessionResolution],
+) -> HashMap<String, Vec<serde_json::Value>> {
+    let mut map: HashMap<String, Vec<serde_json::Value>> = HashMap::new();
+    for r in resolutions
+        .iter()
+        .filter(|r| r.resolution_type == ResolutionType::IrvTieBreak)
+        .filter(|r| r.resolution.is_some())
+    {
+        let Some(actual_contest_id) = r.contest_id.as_deref() else {
+            continue;
+        };
+        let Some(resolution) = r.resolution.as_ref() else {
+            continue;
+        };
+        let round_number = r
+            .resolution_data
+            .as_ref()
+            .map(|d| d.round_number)
+            .unwrap_or(0);
+        map.entry(actual_contest_id.to_string())
+            .or_default()
+            .push(serde_json::json!({
+                "round_number": round_number,
+                "resolved_by_candidate_id": resolution.resolved_by_candidate_id,
+            }));
+    }
+    map
+}
+
+/// Extracts a `pending_tie_resolution` value from a results_contest annotations
+/// blob, if present. The annotations JSON is expected to have the shape:
+/// `{"process_results": {"pending_tie_resolution": {...}}}`.
+pub fn parse_pending_tie_from_annotations(
+    annotations: &serde_json::Value,
+) -> Option<serde_json::Value> {
+    annotations
+        .get("process_results")?
+        .as_object()?
+        .get("pending_tie_resolution")
+        .cloned()
+}
+
+/// Returns true if `existing` already contains a pending IRV tie-break resolution
+/// for the given `contest_id` and the same `round_number` as in `tie_metadata`.
+///
+/// Using `(contest_id, round_number)` as the key — rather than `contest_id` alone —
+/// allows area-level `ProcessBallotsAll` runs to produce independent resolutions for
+/// different rounds of the same contest without silently dropping any of them.
+pub fn pending_resolution_exists(
+    existing: &[TallySessionResolution],
+    contest_id: &str,
+    tie_metadata: &IrvTieBreakResolutionData,
+) -> bool {
+    existing.iter().any(|r| {
+        r.contest_id.as_deref() == Some(contest_id)
+            && r.resolution_type == ResolutionType::IrvTieBreak
+            && r.resolution_data.as_ref().map(|d| d.round_number) == Some(tie_metadata.round_number)
+    })
+}
+
+/// Checks if the results contain pending tie resolution metadata and returns them.
+/// Resolved ties are tracked in tally_session_resolution by harvest — not created here.
+async fn check_for_tie_resolutions(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    results_event_id: &str,
+) -> AnyhowResult<TieResolutionMetadata> {
+    let query = r#"
+        SELECT id, contest_id, annotations
+        FROM sequent_backend.results_contest
+        WHERE tenant_id = $1
+          AND election_event_id = $2
+          AND results_event_id = $3
+          AND annotations IS NOT NULL
+          AND annotations->'process_results'->>'pending_tie_resolution' IS NOT NULL
+    "#;
+
+    let rows = hasura_transaction
+        .query(
+            query,
+            &[
+                &Uuid::parse_str(tenant_id).context("Failed to parse tenant_id")?,
+                &Uuid::parse_str(election_event_id).context("Failed to parse election_event_id")?,
+                &Uuid::parse_str(results_event_id).context("Failed to parse results_event_id")?,
+            ],
+        )
+        .await?;
+
+    let mut pending = Vec::new();
+
+    for row in rows {
+        // results_contest.id is what tally_session_resolution.contest_id FK references
+        let results_contest_id: Uuid = row.get(0);
+        let results_contest_id_str = results_contest_id.to_string();
+        // results_contest.contest_id is the actual contest identifier
+        let contest_id: Uuid = row.get(1);
+        let contest_id_str = contest_id.to_string();
+        let annotations: serde_json::Value = row.get(2);
+
+        if let Some(tie_metadata) = parse_pending_tie_from_annotations(&annotations) {
+            let resolution_data: IrvTieBreakResolutionData = serde_json::from_value(tie_metadata)?;
+            pending.push((results_contest_id_str, contest_id_str, resolution_data));
+        }
+    }
+
+    Ok(TieResolutionMetadata { pending })
+}

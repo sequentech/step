@@ -1566,28 +1566,49 @@ impl Contest {
     }
 
     /// Get per-round tie resolutions from contest annotations.
-    /// Returns a map of round_number → resolved_by_candidate_id.
-    pub fn get_tie_resolutions(&self) -> HashMap<u64, String> {
+    pub fn get_tie_resolutions(&self) -> Vec<TallySessionResolutionData> {
         self.annotations
             .as_ref()
             .and_then(|annotations| annotations.get("tie_resolutions"))
             .and_then(|json_str| {
-                serde_json::from_str::<Vec<serde_json::Value>>(json_str).ok()
-            })
-            .map(|vec| {
-                vec.into_iter()
-                    .filter_map(|v| {
-                        let round_number =
-                            v.get("round_number").and_then(|n| n.as_u64())?;
-                        let candidate_id = v
-                            .get("resolved_by_candidate_id")
-                            .and_then(|s| s.as_str())?
-                            .to_string();
-                        Some((round_number, candidate_id))
-                    })
-                    .collect()
+                // Since Annotations stores strings, we just parse the string directly into our Vec
+                serde_json::from_str::<Vec<TallySessionResolutionData>>(
+                    json_str,
+                )
+                .ok()
             })
             .unwrap_or_default()
+    }
+
+    pub(crate) fn insert_tie_resolutions(
+        contest: &mut Contest,
+        contest_tie_resolutions: &Vec<TallySessionResolution>,
+    ) -> anyhow::Result<()> {
+        // Extract the resolution_data from the wrapper struct
+        let resolution_data_vec: Vec<TallySessionResolutionData> =
+            contest_tie_resolutions
+                .iter()
+                .filter_map(|res| res.resolution_data.clone())
+                .collect();
+
+        // Only inject if there is actually data to add
+        if !resolution_data_vec.is_empty() {
+            // Serialize the data back into a JSON string
+            let tie_res_json_string =
+                serde_json::to_string(&resolution_data_vec)?;
+
+            // Clone existing annotations or create a new map if it's None
+            let mut annotations =
+                contest.annotations.clone().unwrap_or_default();
+
+            // Insert the stringified JSON into the annotations map
+            annotations
+                .insert("tie_resolutions".to_string(), tie_res_json_string);
+
+            contest.annotations = Some(annotations);
+        }
+
+        Ok(())
     }
 }
 
