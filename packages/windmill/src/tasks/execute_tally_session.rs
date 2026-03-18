@@ -49,7 +49,7 @@ use crate::services::reports::template_renderer::{
     ReportOriginatedFrom, ReportOrigins, TemplateRenderer,
 };
 use crate::services::reports::utils::get_public_asset_template;
-use crate::services::tally_resolution::{
+use crate::services::ceremonies::tally_resolution::{
     build_tie_resolutions_map, handle_pending_irv_resolutions,
 };
 use crate::services::tally_sheets::validation::validate_tally_sheet;

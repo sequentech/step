@@ -26,6 +26,7 @@ use windmill::postgres::tally_session::{
     get_tally_session_by_id, update_tally_session_status,
 };
 use windmill::services::ceremonies::tally_ceremony::{self};
+use windmill::services::ceremonies::tally_resolution;
 use windmill::services::database::get_hasura_pool;
 use windmill::services::providers::transactions_provider::provide_hasura_transaction;
 
@@ -385,7 +386,7 @@ pub async fn submit_tally_resolution(
             )
         })?;
 
-    let resolved_count = tally_ceremony::submit_tally_resolution(
+    let resolved_count = tally_resolution::submit_tally_resolution(
         &hasura_transaction,
         &tenant_id,
         &input.election_event_id,

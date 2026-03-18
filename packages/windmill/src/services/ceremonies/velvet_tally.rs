@@ -920,27 +920,26 @@ pub async fn run_velvet_tally(
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use sequent_core::ballot::Contest;
+    use sequent_core::types::ceremonies::{TallySessionResolutionData, TieBreakingMethod};
 
-    /// Passing a tie_resolutions map whose key matches the contest id must
-    /// serialize the Vec as a JSON string and store it under the
-    /// "tie_resolutions" annotation key.
+    /// Passing a non-empty resolutions vec must serialize it as a JSON string
+    /// and store it under the "tie_resolutions" annotation key.
     #[test]
     fn test_prepare_tally_for_area_contest_injects_annotations() {
-        let contest_id = "contest-abc";
         let mut contest = Contest {
-            id: contest_id.to_string(),
+            id: "contest-abc".to_string(),
             ..Default::default()
         };
-        let resolutions = vec![serde_json::json!({
-            "round_number": 2,
-            "resolved_by_candidate_id": "candidate-x"
-        })];
-        let mut map: HashMap<String, Vec<serde_json::Value>> = HashMap::new();
-        map.insert(contest_id.to_string(), resolutions);
+        let resolutions = vec![TallySessionResolutionData {
+            round_number: Some(2),
+            tied_candidate_ids: vec![],
+            vote_count: 0,
+            method_used: TieBreakingMethod::ExternalProcedure,
+            resolved_by_candidate_id: Some("candidate-x".to_string()),
+        }];
 
-        inject_tie_resolutions_into_contest(&mut contest, &map).unwrap();
+        Contest::insert_tie_resolutions(&mut contest, &resolutions).unwrap();
 
         let annotations = contest.annotations.expect("annotations should be set");
         let json_str = annotations
@@ -956,24 +955,24 @@ mod tests {
     /// should be added (or updated).  Other keys must survive unchanged.
     #[test]
     fn test_inject_tie_resolutions_preserves_existing_annotations() {
-        let contest_id = "contest-abc";
-        let mut existing = HashMap::new();
+        let mut existing = std::collections::HashMap::new();
         existing.insert("other_key".to_string(), "other_value".to_string());
 
         let mut contest = Contest {
-            id: contest_id.to_string(),
+            id: "contest-abc".to_string(),
             annotations: Some(existing),
             ..Default::default()
         };
 
-        let resolutions = vec![serde_json::json!({
-            "round_number": 1,
-            "resolved_by_candidate_id": "candidate-y"
-        })];
-        let mut map: HashMap<String, Vec<serde_json::Value>> = HashMap::new();
-        map.insert(contest_id.to_string(), resolutions);
+        let resolutions = vec![TallySessionResolutionData {
+            round_number: Some(1),
+            tied_candidate_ids: vec![],
+            vote_count: 0,
+            method_used: TieBreakingMethod::ExternalProcedure,
+            resolved_by_candidate_id: Some("candidate-y".to_string()),
+        }];
 
-        inject_tie_resolutions_into_contest(&mut contest, &map).unwrap();
+        Contest::insert_tie_resolutions(&mut contest, &resolutions).unwrap();
 
         let annotations = contest.annotations.expect("annotations should be set");
         assert_eq!(
@@ -987,17 +986,16 @@ mod tests {
         );
     }
 
-    /// When the map has no entry for the contest id the annotations field must
-    /// remain untouched (None).
+    /// An empty resolutions slice must leave annotations untouched (None).
     #[test]
-    fn test_inject_tie_resolutions_no_match_leaves_annotations_unchanged() {
+    fn test_inject_tie_resolutions_empty_slice_leaves_annotations_unchanged() {
         let mut contest = Contest {
             id: "contest-abc".to_string(),
             ..Default::default()
         };
-        let map: HashMap<String, Vec<serde_json::Value>> = HashMap::new();
 
-        inject_tie_resolutions_into_contest(&mut contest, &map).unwrap();
+        let contest_tie_resolutions = Vec::new();
+        Contest::insert_tie_resolutions(&mut contest, &contest_tie_resolutions).unwrap();
 
         assert!(contest.annotations.is_none());
     }

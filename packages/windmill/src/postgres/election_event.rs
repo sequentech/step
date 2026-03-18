@@ -38,7 +38,7 @@ impl TryFrom<Row> for ElectionEventWrapper {
                 .map(|val| val.to_string()),
             public_key: item.get("public_key"),
             statistics: item.try_get("statistics")?,
-            external_id: item.try_get("external_id").ok().flatten(),
+            external_id: item.try_get("external_id")?,
         }))
     }
 }

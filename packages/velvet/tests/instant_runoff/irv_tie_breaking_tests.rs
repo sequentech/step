@@ -6,8 +6,7 @@ use anyhow::Result;
 use sequent_core::ballot::{Candidate, Contest, TieBreakingPolicy, Weight};
 use sequent_core::plaintext::{DecodedVoteChoice, DecodedVoteContest};
 use sequent_core::types::ceremonies::CountingAlgType;
-use sequent_core::types::ceremonies::TieBreakingMethod;
-use std::collections::HashMap;
+use sequent_core::types::ceremonies::{TallySessionResolutionData, TieBreakingMethod};
 use velvet::pipes::do_tally::counting_algorithm::instant_runoff::{BallotsStatus, RunoffStatus};
 
 /// Helper: Create a simple 3-candidate contest
@@ -97,15 +96,14 @@ fn test_full_tie_with_random_policy_completes() -> Result<()> {
 
     let mut ballots_status = BallotsStatus::initialize_ballots_status(&votes, &contest);
     let mut runoff = RunoffStatus::initialize_runoff(&contest);
-
-    let result = runoff.run_with_policy(&mut ballots_status);
+    runoff.run(&mut ballots_status);
 
     // Should complete with a randomly selected winner
     assert!(
-        result.pending_tie_resolution.is_none(),
+        runoff.pending_tie_resolution.is_none(),
         "RANDOM policy should not require external input"
     );
-    let last_round = result.get_last_round().unwrap();
+    let last_round = runoff.get_last_round().unwrap();
     assert!(
         last_round.winner.is_some(),
         "Should have a winner with RANDOM policy"
@@ -133,16 +131,15 @@ fn test_full_tie_with_external_policy_pauses() -> Result<()> {
 
     let mut ballots_status = BallotsStatus::initialize_ballots_status(&votes, &contest);
     let mut runoff = RunoffStatus::initialize_runoff(&contest);
-
-    let result = runoff.run_with_policy(&mut ballots_status);
+    runoff.run(&mut ballots_status);
 
     // Should require external input
-    let tie_info = result
+    let tie_info = runoff
         .pending_tie_resolution
         .expect("EXTERNAL_PROCEDURE policy should pause on tie");
     assert_eq!(tie_info.tied_candidate_ids.len(), 3);
-    assert_eq!(tie_info.round_number, 1);
-    assert_eq!(tie_info.vote_counts, vec![1, 1, 1]);
+    assert_eq!(tie_info.round_number, Some(1));
+    assert_eq!(tie_info.vote_count, 1);
 
     // Verify all candidates are tied
     assert!(tie_info
@@ -172,15 +169,14 @@ fn test_no_tie_with_external_policy_completes() -> Result<()> {
 
     let mut ballots_status = BallotsStatus::initialize_ballots_status(&votes, &contest);
     let mut runoff = RunoffStatus::initialize_runoff(&contest);
-
-    let result = runoff.run_with_policy(&mut ballots_status);
+    runoff.run(&mut ballots_status);
 
     // Should complete normally without pausing
     assert!(
-        result.pending_tie_resolution.is_none(),
+        runoff.pending_tie_resolution.is_none(),
         "Should complete without pausing when there's a clear winner"
     );
-    let last_round = result.get_last_round().unwrap();
+    let last_round = runoff.get_last_round().unwrap();
     let winner = last_round.winner.as_ref().unwrap();
     assert_eq!(winner.id, "candidate_a");
 
@@ -215,11 +211,11 @@ fn test_multi_round_tie_with_external_policy() -> Result<()> {
     // Without any resolution: algorithm should pause at Round 2
     let mut ballots_status = BallotsStatus::initialize_ballots_status(&votes, &contest);
     let mut runoff = RunoffStatus::initialize_runoff(&contest);
-    let result = runoff.run_with_policy(&mut ballots_status);
-    let tie_info = result
+    runoff.run(&mut ballots_status);
+    let tie_info = runoff
         .pending_tie_resolution
         .expect("Expected pause at Round 2, got completion");
-    assert_eq!(tie_info.round_number, 2, "Tie should occur at Round 2");
+    assert_eq!(tie_info.round_number, Some(2), "Tie should occur at Round 2");
     assert_eq!(tie_info.tied_candidate_ids.len(), 2);
     assert!(tie_info
         .tied_candidate_ids
@@ -231,15 +227,19 @@ fn test_multi_round_tie_with_external_policy() -> Result<()> {
     // With resolution for Round 2: algorithm completes with A winning
     let mut ballots_status2 = BallotsStatus::initialize_ballots_status(&votes, &contest);
     let mut runoff2 = RunoffStatus::initialize_runoff(&contest);
-    runoff2
-        .tie_resolutions_map
-        .insert(2u64, "candidate_a".to_string());
-    let result2 = runoff2.run_with_policy(&mut ballots_status2);
+    runoff2.tie_resolutions.push(TallySessionResolutionData {
+        round_number: Some(2),
+        tied_candidate_ids: vec!["candidate_a".to_string(), "candidate_c".to_string()],
+        vote_count: 0,
+        method_used: TieBreakingMethod::ExternalProcedure,
+        resolved_by_candidate_id: Some("candidate_a".to_string()),
+    });
+    runoff2.run(&mut ballots_status2);
     assert!(
-        result2.pending_tie_resolution.is_none(),
+        runoff2.pending_tie_resolution.is_none(),
         "Expected completion when Round 2 resolution is provided"
     );
-    let last_round = result2.get_last_round().unwrap();
+    let last_round = runoff2.get_last_round().unwrap();
     let winner = last_round.winner.as_ref().unwrap();
     assert_eq!(winner.id, "candidate_a");
 
@@ -257,14 +257,20 @@ fn test_ignored_resolution_for_non_tied_candidate() -> Result<()> {
     // candidate_b was already eliminated in Round 1 — not in the Round 2 tie [A, C]
     let mut ballots_status = BallotsStatus::initialize_ballots_status(&votes, &contest);
     let mut runoff = RunoffStatus::initialize_runoff(&contest);
-    runoff
-        .tie_resolutions_map
-        .insert(2u64, "candidate_b".to_string());
-    let result = runoff.run_with_policy(&mut ballots_status);
-    let tie_info = result
+    // tied_candidate_ids references B, which is not in the actual Round 2 tie [A, C],
+    // so the resolution does not match and must be ignored.
+    runoff.tie_resolutions.push(TallySessionResolutionData {
+        round_number: Some(2),
+        tied_candidate_ids: vec!["candidate_a".to_string(), "candidate_b".to_string()],
+        vote_count: 0,
+        method_used: TieBreakingMethod::ExternalProcedure,
+        resolved_by_candidate_id: Some("candidate_b".to_string()),
+    });
+    runoff.run(&mut ballots_status);
+    let tie_info = runoff
         .pending_tie_resolution
         .expect("Should have ignored the invalid resolution and paused");
-    assert_eq!(tie_info.round_number, 2);
+    assert_eq!(tie_info.round_number, Some(2));
     assert!(
         !tie_info
             .tied_candidate_ids
@@ -286,15 +292,19 @@ fn test_ignored_resolution_for_wrong_round() -> Result<()> {
     // Resolution exists only for Round 1; the actual tie is in Round 2
     let mut ballots_status = BallotsStatus::initialize_ballots_status(&votes, &contest);
     let mut runoff = RunoffStatus::initialize_runoff(&contest);
-    runoff
-        .tie_resolutions_map
-        .insert(1u64, "candidate_a".to_string());
-    let result = runoff.run_with_policy(&mut ballots_status);
-    let tie_info = result
+    runoff.tie_resolutions.push(TallySessionResolutionData {
+        round_number: Some(1),
+        tied_candidate_ids: vec!["candidate_a".to_string(), "candidate_c".to_string()],
+        vote_count: 0,
+        method_used: TieBreakingMethod::ExternalProcedure,
+        resolved_by_candidate_id: Some("candidate_a".to_string()),
+    });
+    runoff.run(&mut ballots_status);
+    let tie_info = runoff
         .pending_tie_resolution
         .expect("Round 1 resolution should not be used for a Round 2 tie");
     assert_eq!(
-        tie_info.round_number, 2,
+        tie_info.round_number, Some(2),
         "Round 1 resolution must not resolve the Round 2 tie"
     );
 
@@ -318,18 +328,18 @@ fn test_tie_breaking_state_history_recorded() -> Result<()> {
     let mut ballots_status =
         BallotsStatus::initialize_ballots_status(&three_way_tie_votes, &contest);
     let mut runoff = RunoffStatus::initialize_runoff(&contest);
-    let result = runoff.run_with_policy(&mut ballots_status);
+    runoff.run(&mut ballots_status);
     assert!(
-        result.pending_tie_resolution.is_none(),
+        runoff.pending_tie_resolution.is_none(),
         "RANDOM policy on a full tie should always complete"
     );
     assert_eq!(
-        result.tie_resolutions.len(),
+        runoff.tie_resolutions.len(),
         1,
         "Should record one tie resolution"
     );
-    let entry = &result.tie_resolutions[0];
-    assert_eq!(entry.round_number, 1);
+    let entry = &runoff.tie_resolutions[0];
+    assert_eq!(entry.round_number, Some(1));
     assert_eq!(entry.method_used, TieBreakingMethod::Random);
     assert!(
         entry.resolved_by_candidate_id.is_some(),
@@ -342,17 +352,25 @@ fn test_tie_breaking_state_history_recorded() -> Result<()> {
     let mut ballots_status2 =
         BallotsStatus::initialize_ballots_status(&three_way_tie_votes, &contest2);
     let mut runoff2 = RunoffStatus::initialize_runoff(&contest2);
-    runoff2
-        .tie_resolutions_map
-        .insert(1u64, "candidate_a".to_string());
-    let result2 = runoff2.run_with_policy(&mut ballots_status2);
+    runoff2.tie_resolutions.push(TallySessionResolutionData {
+        round_number: Some(1),
+        tied_candidate_ids: vec![
+            "candidate_a".to_string(),
+            "candidate_b".to_string(),
+            "candidate_c".to_string(),
+        ],
+        vote_count: 0,
+        method_used: TieBreakingMethod::ExternalProcedure,
+        resolved_by_candidate_id: Some("candidate_a".to_string()),
+    });
+    runoff2.run(&mut ballots_status2);
     assert!(
-        result2.pending_tie_resolution.is_none(),
+        runoff2.pending_tie_resolution.is_none(),
         "EXTERNAL_PROCEDURE with a valid resolution should complete"
     );
-    assert_eq!(result2.tie_resolutions.len(), 1);
-    let entry2 = &result2.tie_resolutions[0];
-    assert_eq!(entry2.round_number, 1);
+    assert_eq!(runoff2.tie_resolutions.len(), 1);
+    let entry2 = &runoff2.tie_resolutions[0];
+    assert_eq!(entry2.round_number, Some(1));
     assert_eq!(entry2.method_used, TieBreakingMethod::ExternalProcedure);
     assert_eq!(
         entry2.resolved_by_candidate_id.as_deref(),

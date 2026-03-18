@@ -46,7 +46,6 @@ pub mod public_keys;
 pub mod reports;
 pub mod reports_vault;
 pub mod serialize_tasks_logs;
-pub mod tally_resolution;
 pub mod tally_sheets;
 pub mod tasks_execution;
 pub mod tasks_semaphore;
