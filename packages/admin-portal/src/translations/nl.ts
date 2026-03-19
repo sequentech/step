@@ -436,6 +436,7 @@ const dutchTranslation: TranslationType = {
                 notifications: "Meldingen",
                 reports: "Rapporten",
                 approvals: "Goedkeuringen",
+                cas: "CAs",
             },
             tally: {
                 emptyHeader: "Nog geen telling.",
@@ -2155,6 +2156,44 @@ const dutchTranslation: TranslationType = {
                 title: "Testen",
                 testElectionVoterCount: "Aantal Kiezers Testverkiezing",
             },
+        },
+        certificateAuthorities: {
+            importButton: "Import Certificates",
+            type: {
+                root: "Root",
+                intermediate: "Intermediate",
+            },
+            expiry: {
+                expired: "Expired",
+                expiringSoon: "Expiring soon",
+                valid: "Valid",
+            },
+            columns: {
+                commonName: "Common Name",
+                type: "Type",
+                issuerCn: "Issuer CN",
+                notBefore: "Valid From",
+                notAfter: "Expires",
+                fingerprint: "SHA256 Fingerprint",
+            },
+            importDialog: {
+                title: "Import Certificate Authorities",
+                description:
+                    "Select a PEM file containing one or more certificates. Bundles are supported — each certificate is imported individually.",
+                selectFile: "Select PEM file",
+                fileLoaded: "File loaded ({{bytes}} bytes)",
+                importButton: "Import",
+            },
+            notify: {
+                importSuccess:
+                    "Imported {{inserted}} certificate(s). {{skipped}} skipped (already present).",
+                importError: "Import failed: {{error}}",
+                deleteSuccess: "Certificate deleted.",
+                deleteError: "Error deleting certificate.",
+            },
+            emptyHeader:
+                "No certificate authorities have been imported for this election event.",
+            fileReadError: "Failed to read the file.",
         },
     },
 }

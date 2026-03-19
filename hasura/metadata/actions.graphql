@@ -1637,3 +1637,16 @@ type GenerateGoogleMeetOutput {
 type GeneratePreviewUrlOutput {
     preview_url: String!
 }
+
+type Mutation {
+    import_certificate_authority(
+        election_event_id: uuid!
+        pem_content: String!
+    ): ImportCertificateAuthorityOutput
+}
+
+type ImportCertificateAuthorityOutput {
+    inserted_count: Int!
+    skipped_count: Int!
+    errors: [String!]!
+}

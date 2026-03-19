@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 pub mod application;
+pub mod certificate_authority;
 pub mod area;
 pub mod area_contest;
 pub mod ballot_publication;
