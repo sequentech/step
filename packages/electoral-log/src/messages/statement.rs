@@ -132,6 +132,28 @@ impl StatementHead {
                 description: "Tally closed, session completed.".to_string(),
                 ..default_head
             },
+            StatementBody::TallyResumedWithResolution(_, _) => StatementHead {
+                kind: StatementType::TallyResumedWithResolution,
+                description: "Tally resumed after tie-break resolution.".to_string(),
+                ..default_head
+            },
+            StatementBody::TallyPausedPendingResolution(_, _) => StatementHead {
+                kind: StatementType::TallyPausedPendingResolution,
+                description: "Tally paused pending tie-break resolution.".to_string(),
+                ..default_head
+            },
+            StatementBody::TallyTieResolved(_, contest, _) => StatementHead {
+                kind: StatementType::TallyTieResolved,
+                event_type: StatementEventType::USER,
+                description: format!("Tie-break resolved for contest {}.", contest.0),
+                ..default_head
+            },
+            StatementBody::TallyTieResolutionUpdated(_, contest, _) => StatementHead {
+                kind: StatementType::TallyTieResolutionUpdated,
+                event_type: StatementEventType::USER,
+                description: format!("Tie-break resolution updated for contest {}.", contest.0),
+                ..default_head
+            },
             StatementBody::SendTemplate => StatementHead {
                 kind: StatementType::SendTemplate,
                 description: "Template sent to user.".to_string(),
@@ -230,6 +252,10 @@ pub enum StatementBody {
     //
     // "Apertura y cierre de la bóveda de votos"
     TallyClose(ElectionIdString),
+    TallyResumedWithResolution(ElectionIdString, ResolutionIdsString),
+    TallyPausedPendingResolution(ElectionIdString, ResolutionIdsString),
+    TallyTieResolved(ElectionIdString, ContestIdString, ResolutionIdsString),
+    TallyTieResolutionUpdated(ElectionIdString, ContestIdString, ResolutionIdsString),
 
     SendTemplate,
     SendCommunications(Option<String>),
@@ -270,6 +296,10 @@ pub enum StatementType {
     KeyInsertionCeremony,
     TallyOpen,
     TallyClose,
+    TallyResumedWithResolution,
+    TallyPausedPendingResolution,
+    TallyTieResolved,
+    TallyTieResolutionUpdated,
     SendTemplate,
     SendCommunications,
     KeycloakUserEvent,
