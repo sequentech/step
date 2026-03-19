@@ -8,6 +8,8 @@ pub mod ceremonies;
 pub mod date_time;
 /// Unified error type and result alias for sequent-core.
 pub mod error;
+
+/// Types for integrating with Hasura.
 #[cfg(feature = "default_features")]
 pub mod hasura;
 /// Keycloak integration types.

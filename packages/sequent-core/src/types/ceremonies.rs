@@ -299,8 +299,11 @@ pub enum ScopeOperation {
     PartialEq,
     Eq,
 )]
+/// Specifies the method used to break ties in preferential voting.
 pub enum TieBreakingMethod {
+    /// Random selection among tied candidates.
     Random,
+    /// Election officials use hat procedure to select winner among tied candidates.
     ExternalProcedure,
 }
 
@@ -315,11 +318,17 @@ pub enum TieBreakingMethod {
     PartialEq,
     Eq,
 )]
+/// Data related to the resolution of a tie in a tally session.
 pub struct TallySessionResolutionData {
+    /// Round number in which the tie occurred, if applicable.
     pub round_number: Option<u64>,
+    /// Candidate IDs that were tied.
     pub tied_candidate_ids: Vec<String>,
+    /// Number of votes each tied candidate received.
     pub vote_count: u64,
+    /// Method used to break the tie.
     pub method_used: TieBreakingMethod,
+    /// Candidate ID selected as the winner of the tie, if resolved.
     pub resolved_by_candidate_id: Option<String>,
 }
 
@@ -328,7 +337,9 @@ pub struct TallySessionResolutionData {
 )]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
+/// Types of resolutions that can be applied to a tally session.
 pub enum TallySessionResolutionType {
+    /// Resolution based on a IRV tiebreaking method.
     IrvTieBreak,
 }
 
@@ -337,32 +348,54 @@ pub enum TallySessionResolutionType {
 )]
 #[serde(rename_all = "lowercase")]
 #[strum(serialize_all = "lowercase")]
+/// Status of a tally session resolution.
 pub enum TallySessionResolutionStatus {
+    /// Resolution is pending and has not been applied yet.
     Pending,
+    /// Resolution has been resolved and applied to the tally session.
     Resolved,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Represents the resolution of a tally session,
+/// including details about the tie and how it was resolved.
 pub struct TallySessionResolution {
+    /// Unique identifier for the tally session resolution.
     pub id: String,
+    /// Identifier for the tenant associated with the tally session.
     pub tenant_id: String,
+    /// Identifier for the election event associated with the tally session.
     pub election_event_id: String,
+    /// Identifier for the tally session associated with this resolution.
     pub tally_session_id: String,
+    /// Identifier for the contest associated with this resolution, if applicable.
     pub contest_id: Option<String>,
+    /// Timestamp when the tally session resolution was created.
     pub created_at: Option<chrono::DateTime<chrono::Utc>>,
+    /// Timestamp when the tally session resolution was last updated.
     pub last_updated_at: Option<chrono::DateTime<chrono::Utc>>,
+    /// Type of resolution applied to the tally session.
     pub resolution_type: TallySessionResolutionType,
+    /// Status of the tally session resolution.
     pub status: TallySessionResolutionStatus,
+    /// Data related to the resolution of the tally session, if applicable.
     pub resolution_data: Option<TallySessionResolutionData>,
+    /// Identifier for the user who resolved the tally session.
     pub resolved_by_user: Option<String>,
+    /// Timestamp when the tally session resolution was resolved.
     pub resolved_at: Option<chrono::DateTime<chrono::Utc>>,
+    /// Labels associated with the tally session resolution.
     pub labels: Option<Value>,
+    /// Annotations associated with the tally session resolution.
     pub annotations: Option<Value>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Represents the resolution of a tally for a specific contest, including the selected candidate.
 pub struct TallyResolution {
+    /// contest ID for which the tally resolution applies.
     pub contest_id: String,
+    /// candidate ID that was selected as the winner of the contest after resolution.
     pub selected_candidate_id: String,
 }
 
@@ -381,6 +414,7 @@ pub struct TallyResolution {
     Clone,
     Copy,
 )]
+/// Specifies the counting algorithm used for tallying votes.
 pub enum CountingAlgType {
     /// Plurality-at-large voting.
     #[strum(serialize = "plurality-at-large")]
