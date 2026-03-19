@@ -148,9 +148,12 @@ SPDX-License-Identifier: AGPL-3.0-only
         </#if>
         <#if properties.mtlsLoginUrl?has_content>
             <hr/>
+            <#assign tenantId = realm.name?keep_after('tenant-')?keep_before('-event-')>
+            <#assign eventId = realm.name?keep_after('-event-')>
+            <#assign certRedirectUri = properties.mtlsRedirectUri + '/tenant/' + tenantId + '/event/' + eventId>
             <a id="kc-cert-login"
                class="${properties.kcButtonClass!} ${properties.kcButtonDefaultClass!} ${properties.kcButtonBlockClass!} ${properties.kcButtonLargeClass!}"
-               href="${properties.mtlsLoginUrl}/realms/${realm.name}/login-actions/authenticate?${url.loginAction?keep_after('?')}">
+               href="${properties.mtlsLoginUrl}/realms/${realm.name}/protocol/openid-connect/auth?client_id=${client.clientId}&redirect_uri=${certRedirectUri?url('UTF-8')}&response_type=code&scope=openid">
                 ${msg("loginWithCertificate")}
             </a>
         </#if>
