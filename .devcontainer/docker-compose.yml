@@ -100,6 +100,8 @@ services:
     image: sequentech.local/keycloak-nginx
     ports:
       - "8443:8443"
+    environment:
+      VOTING_PORTAL_URL: ${VOTING_PORTAL_URL}
     depends_on:
       keycloak:
         condition: service_healthy

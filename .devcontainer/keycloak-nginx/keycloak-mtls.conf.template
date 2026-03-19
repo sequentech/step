@@ -34,9 +34,20 @@ server {
 
     access_log /dev/stdout mtls;
 
+    # Redirect Keycloak-proxied 400s (e.g. X.509 auth rejection) to the
+    # voting portal error page. Must be in the server block so
+    # proxy_intercept_errors in the location block can trigger it.
+    error_page 400 =302 ${VOTING_PORTAL_URL}/cert-auth-error;
+
     location / {
         set $keycloak_upstream http://keycloak:8090;
         proxy_pass $keycloak_upstream;
+
+        # Intercept Keycloak-proxied 400s so the server-block error_page above
+        # can redirect them. proxy_buffering on is required with variable-based
+        # proxy_pass, otherwise proxy_intercept_errors has no effect.
+        proxy_buffering on;
+        proxy_intercept_errors on;
 
         proxy_set_header Host               $host;
         proxy_set_header X-Real-IP          $remote_addr;
