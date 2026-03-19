@@ -369,6 +369,8 @@ pub enum Permissions {
     GENERATE_PREVIEW,
     #[strum(serialize = "preview-read")]
     PREVIEW_READ,
+    #[strum(serialize = "tally-resolution-submit")]
+    TALLY_RESOLUTION_SUBMIT,
 }
 
 #[allow(non_camel_case_types)]
