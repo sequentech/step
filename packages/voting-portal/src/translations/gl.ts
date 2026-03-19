@@ -332,6 +332,8 @@ const galegoTranslation: TranslationType = {
                 oopsWithStatus: "Oops! {{status}}",
                 oopsWithoutStatus: "Oops! Erro inesperado",
                 somethingWrong: "Algo saiu mal.",
+                certAuthFailedTitle: "Erro de Autenticación con Certificado",
+                certAuthFailedMessage: "Non foi posible verificar o seu certificado. Comprobe que está a usar un certificado de votante válido e ténteo de novo.",
             },
         },
         materials: {

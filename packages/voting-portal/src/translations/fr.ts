@@ -332,6 +332,8 @@ const frenchTranslation: TranslationType = {
                 oopsWithStatus: "Oups ! {{status}}",
                 oopsWithoutStatus: "Oups ! Erreur inattendue",
                 somethingWrong: "Quelque chose s'est mal passé.",
+                certAuthFailedTitle: "Échec de l'Authentification par Certificat",
+                certAuthFailedMessage: "Votre certificat n'a pas pu être vérifié. Veuillez vérifier que vous utilisez un certificat de votant valide et réessayez.",
             },
         },
         materials: {
