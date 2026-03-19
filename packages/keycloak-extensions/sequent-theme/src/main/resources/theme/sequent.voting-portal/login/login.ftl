@@ -148,12 +148,12 @@ SPDX-License-Identifier: AGPL-3.0-only
         </#if>
         <#if properties.mtlsLoginUrl?has_content>
             <hr/>
-            <#assign tenantId = realm.name?keep_after('tenant-')?keep_before('-event-')>
-            <#assign eventId = realm.name?keep_after('-event-')>
-            <#assign certRedirectUri = properties.mtlsRedirectUri + '/tenant/' + tenantId + '/event/' + eventId>
+            <#assign sessionCode = url.loginAction?keep_after('session_code=')?keep_before('&')>
+            <#assign tabId = url.loginAction?keep_after('tab_id=')>
+            <#if tabId?contains('&')><#assign tabId = tabId?keep_before('&')></#if>
             <a id="kc-cert-login"
                class="${properties.kcButtonClass!} ${properties.kcButtonDefaultClass!} ${properties.kcButtonBlockClass!} ${properties.kcButtonLargeClass!}"
-               href="${properties.mtlsLoginUrl}/realms/${realm.name}/protocol/openid-connect/auth?client_id=${client.clientId}&redirect_uri=${certRedirectUri?url('UTF-8')}&response_type=code&scope=openid">
+               href="${properties.mtlsLoginUrl}/realms/${realm.name}/login-actions/restart?session_code=${sessionCode}&client_id=${client.clientId}&tab_id=${tabId}">
                 ${msg("loginWithCertificate")}
             </a>
         </#if>

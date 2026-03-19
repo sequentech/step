@@ -66,7 +66,6 @@ services:
       KC_SPI_TRUSTSTORE_URL_URL: ${KC_SPI_TRUSTSTORE_URL_URL:-}
       KC_SPI_TRUSTSTORE_URL_REFRESH_INTERVAL_SECONDS: ${KC_SPI_TRUSTSTORE_URL_REFRESH_INTERVAL_SECONDS:-0}
       KC_MTLS_LOGIN_URL: ${KC_MTLS_LOGIN_URL:-}
-      VOTING_PORTAL_URL: ${VOTING_PORTAL_URL}
     volumes:
       - ./keycloak/import:/opt/keycloak/data/import:z
     entrypoint: >
