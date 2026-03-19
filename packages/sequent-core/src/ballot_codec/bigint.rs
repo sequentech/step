@@ -48,10 +48,7 @@ fn remove_character(raw_ballot: &RawBallotContest) -> RawBallotContest {
     }
     choices.remove(i);
     bases.remove(i);
-    RawBallotContest {
-        bases: bases,
-        choices: choices,
-    }
+    RawBallotContest { bases, choices }
 }
 
 fn add_character(raw_ballot: &RawBallotContest) -> RawBallotContest {
@@ -63,10 +60,7 @@ fn add_character(raw_ballot: &RawBallotContest) -> RawBallotContest {
     }
     choices.insert(i, bases[i] - 1);
     bases.insert(i, bases[i]);
-    RawBallotContest {
-        bases: bases,
-        choices: choices,
-    }
+    RawBallotContest { bases, choices }
 }
 
 impl BigUIntCodec for Contest {

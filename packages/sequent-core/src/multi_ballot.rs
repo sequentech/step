@@ -165,7 +165,7 @@ impl TryFrom<&AuditableMultiBallot> for HashableMultiBallot {
                 &hashable_ballot_contests,
             )?,
             config: value.config.id.clone(),
-            ballot_style_hash: ballot_style_hash,
+            ballot_style_hash,
         })
     }
 }
@@ -201,7 +201,7 @@ impl TryFrom<&AuditableMultiBallot> for SignedHashableMultiBallot {
                 &hashable_ballot_contests,
             )?,
             config: value.config.id.clone(),
-            ballot_style_hash: ballot_style_hash,
+            ballot_style_hash,
             voter_signing_pk: value.voter_signing_pk.clone(),
             voter_ballot_signature: value.voter_ballot_signature.clone(),
         })
@@ -239,7 +239,7 @@ impl<C: Ctx> TryFrom<&HashableMultiBallot> for RawHashableMultiBallot<C> {
         Ok(RawHashableMultiBallot {
             version: value.version,
             issue_date: value.issue_date.clone(),
-            contests: contests,
+            contests,
         })
     }
 }

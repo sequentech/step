@@ -207,7 +207,7 @@ fn create_contest(
                 description: candidate.description.clone(),
                 description_i18n,
                 alias: candidate_alias.clone(),
-                alias_i18n: alias_i18n,
+                alias_i18n,
                 candidate_type: candidate.r#type.clone(),
                 presentation: Some(candidate_presentation),
                 annotations: candidate

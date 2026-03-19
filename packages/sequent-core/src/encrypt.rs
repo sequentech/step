@@ -76,9 +76,9 @@ pub fn encrypt_plaintext_candidate<C: Ctx>(
 
     Ok((
         ReplicationChoice {
-            ciphertext: ciphertext,
-            plaintext: plaintext,
-            randomness: randomness,
+            ciphertext,
+            plaintext,
+            randomness,
         },
         proof,
     ))
@@ -139,7 +139,7 @@ fn recreate_encrypt_candidate<C: Ctx>(
 
     // convert to output format
     Ok(ReplicationChoice {
-        ciphertext: ciphertext,
+        ciphertext,
         plaintext: choice.plaintext.clone(),
         randomness: choice.randomness.clone(),
     })
@@ -260,8 +260,8 @@ pub fn encrypt_decoded_contest<C: Ctx<P = [u8; 30]>>(
         )?;
         contests.push(AuditableBallotContest::<C> {
             contest_id: contest.id.clone(),
-            choice: choice,
-            proof: proof,
+            choice,
+            proof,
         });
     }
 
@@ -332,7 +332,6 @@ pub fn hash_ballot(
 ////////////////////////////////////////////////////////////////
 /// Multi ballots
 ////////////////////////////////////////////////////////////////
-
 pub fn encrypt_multi_ballot<C: Ctx<P = [u8; 30]>>(
     ctx: &C,
     ballot_choices: &BallotChoices,
