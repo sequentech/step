@@ -61,3 +61,6 @@ packages/ballot-verifier/logs
 
 # ignore artifacts for airgapped environments
 airgapped-artifacts
+
+# nested private repo checkout used locally inside the codespace
+beyond/
