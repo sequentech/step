@@ -10,7 +10,6 @@ insert_permissions:
           columns:
               - id
               - tenant_id
-              - election_event_id
               - common_name
               - subject
               - issuer_common_name
@@ -27,7 +26,6 @@ insert_permissions:
           columns:
               - id
               - tenant_id
-              - election_event_id
               - common_name
               - subject
               - issuer_common_name
@@ -46,7 +44,6 @@ select_permissions:
           columns:
               - id
               - tenant_id
-              - election_event_id
               - common_name
               - subject
               - issuer_common_name
@@ -67,7 +64,6 @@ select_permissions:
           columns:
               - id
               - tenant_id
-              - election_event_id
               - common_name
               - subject
               - issuer_common_name
@@ -84,31 +80,9 @@ select_permissions:
       role: ca-read
     - comment: ""
       permission:
-          allow_aggregations: true
           columns:
               - id
               - tenant_id
-              - election_event_id
-              - common_name
-              - subject
-              - issuer_common_name
-              - issuer
-              - not_before
-              - not_after
-              - fingerprint_sha256
-              - serial_number
-              - created_at
-              - pem
-          filter:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
-      role: election-event-cas-tab
-    - comment: ""
-      permission:
-          columns:
-              - id
-              - tenant_id
-              - election_event_id
               - common_name
               - subject
               - issuer_common_name

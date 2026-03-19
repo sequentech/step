@@ -24,6 +24,7 @@ import {SettingsCountries} from "@/resources/Settings/SettingsCountries"
 import SettingsLocalization from "@/resources/Settings/SettingsLocalization"
 import {SettingsBackupRestore} from "@/resources/Settings/SettingsBackupRestore"
 import {SettingsPreviews} from "@/resources/Settings/SettingsPreviews"
+import {SettingsCAs} from "@/resources/Settings/SettingsCAs"
 
 export const SettingsScreen: React.FC = () => {
     const {t} = useTranslation()
@@ -126,6 +127,15 @@ export const SettingsScreen: React.FC = () => {
                         label: t("settings.previewScreen.label"),
                         component: () => (
                             <Resource name="sequent_backend_preview" list={SettingsPreviews} />
+                        ),
+                    },
+                    {
+                        label: t("electionTypeScreen.tabs.certificateAuthorities"),
+                        component: () => (
+                            <Resource
+                                name="sequent_backend_certificate_authority"
+                                list={SettingsCAs}
+                            />
                         ),
                     },
                 ]}

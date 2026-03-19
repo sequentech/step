@@ -45,9 +45,6 @@ const EditElectionEventAreas = lazy(() =>
 const EditElectionEventKeys = lazy(() =>
     import("./EditElectionEventKeys").then((m) => ({default: m.EditElectionEventKeys}))
 )
-const EditElectionEventCAs = lazy(() =>
-    import("./EditElectionEventCAs").then((m) => ({default: m.EditElectionEventCAs}))
-)
 const EditElectionEventTally = lazy(() =>
     import("./EditElectionEventTally").then((m) => ({default: m.EditElectionEventTally}))
 )
@@ -119,12 +116,6 @@ const AreasTab: React.FC = () => (
 const KeysTab: React.FC<{showKeysList: string | null}> = ({showKeysList}) => (
     <Suspense fallback={<div>Loading Keys...</div>}>
         <EditElectionEventKeys isShowCeremony={showKeysList} isShowTrusteeCeremony={showKeysList} />
-    </Suspense>
-)
-
-const CAsTab: React.FC = () => (
-    <Suspense fallback={<div>Loading CAs...</div>}>
-        <EditElectionEventCAs />
     </Suspense>
 )
 
@@ -294,12 +285,6 @@ export const ElectionEventTabs: React.FC = () => {
             authContext.tenantId,
             IPermissions.ELECTION_EVENT_APPROVALS_TAB
         )
-    const showCAs = authContext.isAuthorized(
-        true,
-        authContext.tenantId,
-        IPermissions.ELECTION_EVENT_CAS_TAB
-    )
-
     // -----------------------------------------------------------------
     // Build tabs with 100% stable references
     // -----------------------------------------------------------------
@@ -351,11 +336,6 @@ export const ElectionEventTabs: React.FC = () => {
                 props: {showKeysList},
                 action: () => setShowKeysList(uuidv4()),
             })
-        }
-
-        // CAs
-        if (showCAs) {
-            result.push({label: t("electionEventScreen.tabs.cas"), component: CAsTab})
         }
 
         // Tally
@@ -436,7 +416,6 @@ export const ElectionEventTabs: React.FC = () => {
         showEvents,
         showReports,
         showApprovalsExecution,
-        showCAs,
         t,
         showKeysList,
         showPublishList,

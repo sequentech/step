@@ -168,6 +168,7 @@ const tagalogTranslation: TranslationType = {
                 schedules: "NAISKEDYUL NA MGA KAGANAPAN",
                 trustees: "TAGAPANGALAGA",
                 BackupRestore: "Backup / Ibalik",
+                certificateAuthorities: "Mga awtoridad sa sertipikasyon",
             },
         },
         trusteesSettingsScreen: {
@@ -2202,8 +2203,7 @@ const tagalogTranslation: TranslationType = {
                 deleteSuccess: "Nabura ang sertipiko.",
                 deleteError: "Error sa pagbura ng sertipiko.",
             },
-            emptyHeader:
-                "Walang mga awtoridad sa sertipikasyon na na-import para sa electoral event na ito.",
+            emptyHeader: "Walang mga awtoridad sa sertipikasyon na na-import.",
             fileReadError: "Nabigo ang pagbasa ng file.",
             viewDialog: {
                 title: "Mga detalye ng awtoridad sa sertipikasyon",
@@ -2214,7 +2214,7 @@ const tagalogTranslation: TranslationType = {
             },
             confirmDelete: "Burahin ang awtoridad sa sertipikasyon",
             confirmDeleteDescription:
-                "Sigurado ka bang nais mong burahin ang sertipikong \"{{name}}\" (fingerprint: {{fingerprint}})?",
+                'Sigurado ka bang nais mong burahin ang sertipikong "{{name}}" (fingerprint: {{fingerprint}})?',
         },
     },
 }

@@ -1351,7 +1351,7 @@ actions:
       permissions:
           - role: admin-user
           - role: ca-write
-      comment: Import certificate authorities from a PEM string for an election event
+      comment: Import certificate authorities from a PEM string (super-tenant only)
 custom_types:
     enums:
         - name: EarlyVotingPolicy

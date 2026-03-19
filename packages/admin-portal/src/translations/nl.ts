@@ -166,6 +166,7 @@ const dutchTranslation: TranslationType = {
                 schedules: "GEPLANDE GEBEURTENISSEN",
                 trustees: "TRUSTEES",
                 BackupRestore: "BACK-UP / HERSTELLEN",
+                certificateAuthorities: "Certificaatautoriteiten",
             },
         },
         trusteesSettingsScreen: {
@@ -2192,8 +2193,7 @@ const dutchTranslation: TranslationType = {
                 deleteSuccess: "Certificaat verwijderd.",
                 deleteError: "Fout bij verwijderen van certificaat.",
             },
-            emptyHeader:
-                "Er zijn geen certificaatautoriteiten geïmporteerd voor dit verkiezingsevenement.",
+            emptyHeader: "Er zijn geen certificaatautoriteiten geïmporteerd.",
             fileReadError: "Bestand lezen mislukt.",
             viewDialog: {
                 title: "Details van certificaatautoriteit",
@@ -2204,7 +2204,7 @@ const dutchTranslation: TranslationType = {
             },
             confirmDelete: "Certificaatautoriteit verwijderen",
             confirmDeleteDescription:
-                "Weet u zeker dat u het certificaat \"{{name}}\" (vingerafdruk: {{fingerprint}}) wilt verwijderen?",
+                'Weet u zeker dat u het certificaat "{{name}}" (vingerafdruk: {{fingerprint}}) wilt verwijderen?',
         },
     },
 }

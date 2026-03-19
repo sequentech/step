@@ -11,7 +11,6 @@ use uuid::Uuid;
 pub struct CertificateAuthorityRecord {
     pub id: Uuid,
     pub tenant_id: Uuid,
-    pub election_event_id: Uuid,
     pub common_name: String,
     pub subject: String,
     pub issuer_common_name: String,
@@ -25,7 +24,7 @@ pub struct CertificateAuthorityRecord {
 
 /// Inserts a certificate authority record into the database.
 /// Returns `true` if the record was inserted, `false` if it was skipped
-/// due to a duplicate fingerprint for the same election event.
+/// due to a duplicate fingerprint for the same tenant.
 #[instrument(skip(hasura_transaction, record), err)]
 pub async fn insert_certificate_authority(
     hasura_transaction: &Transaction<'_>,
@@ -35,11 +34,11 @@ pub async fn insert_certificate_authority(
         .prepare(
             r#"
                 INSERT INTO sequent_backend.certificate_authority
-                    (id, tenant_id, election_event_id, common_name, subject,
+                    (id, tenant_id, common_name, subject,
                      issuer_common_name, issuer, not_before, not_after,
                      fingerprint_sha256, serial_number, pem)
-                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
-                ON CONFLICT (tenant_id, election_event_id, fingerprint_sha256) DO NOTHING
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+                ON CONFLICT (tenant_id, fingerprint_sha256) DO NOTHING
             "#,
         )
         .await?;
@@ -50,7 +49,6 @@ pub async fn insert_certificate_authority(
             &[
                 &record.id,
                 &record.tenant_id,
-                &record.election_event_id,
                 &record.common_name,
                 &record.subject,
                 &record.issuer_common_name,
@@ -68,26 +66,22 @@ pub async fn insert_certificate_authority(
     Ok(rows_affected > 0)
 }
 
-/// Returns the PEM strings for all certificate authorities belonging to the
-/// given election event, ordered by creation time.
+/// Returns the PEM strings for all certificate authorities, ordered by
+/// creation time.
 #[instrument(skip(client), err)]
-pub async fn get_certificate_authorities_pem(
-    client: &Client,
-    election_event_id: Uuid,
-) -> Result<Vec<String>> {
+pub async fn get_certificate_authorities_pem(client: &Client) -> Result<Vec<String>> {
     let statement = client
         .prepare(
             r#"
                 SELECT pem
                 FROM sequent_backend.certificate_authority
-                WHERE election_event_id = $1
                 ORDER BY created_at ASC
             "#,
         )
         .await?;
 
     let rows = client
-        .query(&statement, &[&election_event_id])
+        .query(&statement, &[])
         .await
         .map_err(|err| anyhow!("Error fetching certificate authority PEMs: {err}"))?;
 
