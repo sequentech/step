@@ -2166,6 +2166,7 @@ const englishTranslation = {
             },
             importDialog: {
                 title: "Import Certificate Authorities",
+                subtitle: "Import one or more CA certificates from a PEM file",
                 description:
                     "Select a PEM file containing one or more certificates. Bundles are supported — each certificate is imported individually.",
                 selectFile: "Select PEM file",
@@ -2182,6 +2183,16 @@ const englishTranslation = {
             emptyHeader:
                 "No certificate authorities have been imported for this election event.",
             fileReadError: "Failed to read the file.",
+            viewDialog: {
+                title: "Certificate Authority Details",
+                subject: "Subject",
+                issuer: "Issuer",
+                serialNumber: "Serial Number",
+                pemContent: "PEM Content",
+            },
+            confirmDelete: "Delete Certificate Authority",
+            confirmDeleteDescription:
+                "Are you sure you want to delete the certificate \"{{name}}\" (fingerprint: {{fingerprint}})?",
         },
     },
 }

@@ -4,7 +4,7 @@
 
 use anyhow::{anyhow, Result};
 use chrono::{DateTime, Utc};
-use deadpool_postgres::Transaction;
+use deadpool_postgres::{Client, Transaction};
 use tracing::instrument;
 use uuid::Uuid;
 
@@ -66,4 +66,30 @@ pub async fn insert_certificate_authority(
         .map_err(|err| anyhow!("Error inserting certificate authority: {err}"))?;
 
     Ok(rows_affected > 0)
+}
+
+/// Returns the PEM strings for all certificate authorities belonging to the
+/// given election event, ordered by creation time.
+#[instrument(skip(client), err)]
+pub async fn get_certificate_authorities_pem(
+    client: &Client,
+    election_event_id: Uuid,
+) -> Result<Vec<String>> {
+    let statement = client
+        .prepare(
+            r#"
+                SELECT pem
+                FROM sequent_backend.certificate_authority
+                WHERE election_event_id = $1
+                ORDER BY created_at ASC
+            "#,
+        )
+        .await?;
+
+    let rows = client
+        .query(&statement, &[&election_event_id])
+        .await
+        .map_err(|err| anyhow!("Error fetching certificate authority PEMs: {err}"))?;
+
+    Ok(rows.into_iter().map(|row| row.get::<_, String>(0)).collect())
 }

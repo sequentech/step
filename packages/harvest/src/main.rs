@@ -137,6 +137,7 @@ async fn rocket() -> _ {
                 routes::google_meet::generate_google_meeting,
                 routes::generate_preview_url::generate_preview_url,
                 routes::import_certificate_authority::import_certificate_authority,
+                routes::get_certificate_authorities_pem::get_cas_pem,
             ],
         )
         .mount("/", routes![routes::plugins::plugin_routes])

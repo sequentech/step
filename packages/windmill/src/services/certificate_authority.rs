@@ -89,7 +89,7 @@ fn parse_openssl_x509_output(output: &str, pem: &str) -> Result<ParsedCertificat
             not_before_str = v.trim().to_string();
         } else if let Some(v) = line.strip_prefix("notAfter=") {
             not_after_str = v.trim().to_string();
-        } else if let Some(v) = line.strip_prefix("SHA256 Fingerprint=") {
+        } else if let Some(v) = line.strip_prefix("sha256 Fingerprint=") {
             fingerprint_sha256 = v.trim().to_string();
         } else if let Some(v) = line.strip_prefix("serial=") {
             serial_number = v.trim().to_string();

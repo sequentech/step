@@ -2,67 +2,55 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import React, {useContext, useRef, useState} from "react"
-import {useRecordContext, useNotify} from "react-admin"
-import {useQuery, useMutation} from "@apollo/client"
+import React, {useContext, useState} from "react"
+import {
+    DatagridConfigurable,
+    FunctionField,
+    Identifier,
+    List,
+    TextField,
+    WrapperField,
+    useDelete,
+    useGetOne,
+    useNotify,
+    useRecordContext,
+    useRefresh,
+} from "react-admin"
+import {useMutation} from "@apollo/client"
 import {
     Alert,
     Box,
     Button,
     Chip,
     CircularProgress,
-    Dialog,
-    DialogActions,
-    DialogContent,
-    DialogContentText,
-    DialogTitle,
-    Paper,
-    Table,
-    TableBody,
-    TableCell,
-    TableContainer,
-    TableHead,
-    TableRow,
+    Drawer,
     Tooltip,
     Typography,
 } from "@mui/material"
 import DeleteIcon from "@mui/icons-material/Delete"
 import UploadFileIcon from "@mui/icons-material/UploadFile"
+import VisibilityIcon from "@mui/icons-material/Visibility"
+import {Dialog, DropFile} from "@sequentech/ui-essentials"
+import {Action, ActionsColumn} from "@/components/ActionButons"
 import {useTranslation} from "react-i18next"
 import {AuthContext} from "@/providers/AuthContextProvider"
 import {IPermissions} from "@/types/keycloak"
 import {Sequent_Backend_Election_Event} from "@/gql/graphql"
-import {GET_CERTIFICATE_AUTHORITIES} from "@/queries/GetCertificateAuthorities"
 import {IMPORT_CERTIFICATE_AUTHORITY} from "@/queries/ImportCertificateAuthority"
-import {DELETE_CERTIFICATE_AUTHORITY} from "@/queries/DeleteCertificateAuthority"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import {ResourceListStyles} from "@/components/styles/ResourceListStyles"
+import {DrawerStyles} from "@/components/styles/DrawerStyles"
+import ElectionHeader from "@/components/ElectionHeader"
+import {ListActions} from "@/components/ListActions"
 
-interface CertificateAuthority {
-    id: string
-    common_name: string
-    issuer_common_name: string
-    subject: string
-    issuer: string
-    not_before: string
-    not_after: string
-    fingerprint_sha256: string
-    serial_number: string
-    created_at: string
-}
-
-const FINGERPRINT_TRUNCATE_LENGTH = 23
+const RESOURCE = "sequent_backend_certificate_authority"
+const FINGERPRINT_TRUNCATE_LENGTH = 24
 
 const getExpiryStatus = (notAfter: string): "expired" | "expiringSoon" | "valid" => {
     const expiry = new Date(notAfter)
     const now = new Date()
-    if (expiry < now) {
-        return "expired"
-    }
-    const thirtyDaysMs = 30 * 24 * 3600 * 1000
-    if (expiry.getTime() - now.getTime() < thirtyDaysMs) {
-        return "expiringSoon"
-    }
+    if (expiry < now) return "expired"
+    if (expiry.getTime() - now.getTime() < 30 * 24 * 3600 * 1000) return "expiringSoon"
     return "valid"
 }
 
@@ -72,12 +60,140 @@ const expiryChipColor = (status: "expired" | "expiringSoon" | "valid") => {
     return "success"
 }
 
-const getCertType = (subject: string, issuer: string, t: (key: string) => string) =>
-    subject === issuer
-        ? t("certificateAuthorities.type.root")
-        : t("certificateAuthorities.type.intermediate")
-
 const formatDate = (iso: string) => new Date(iso).toLocaleDateString()
+
+const LabelValue: React.FC<{label: string; value?: string | null; mono?: boolean}> = ({
+    label,
+    value,
+    mono,
+}) => (
+    <Box>
+        <Typography variant="caption" color="text.secondary">
+            {label}
+        </Typography>
+        <Typography
+            variant="body2"
+            sx={mono ? {fontFamily: "monospace", fontSize: "0.75rem", wordBreak: "break-all"} : {}}
+        >
+            {value || "—"}
+        </Typography>
+    </Box>
+)
+
+const ViewCAContent: React.FC<{id: Identifier; onClose: () => void}> = ({id, onClose}) => {
+    const {t} = useTranslation()
+    const {data: ca, isLoading} = useGetOne(RESOURCE, {id})
+
+    if (isLoading) {
+        return (
+            <Box sx={{display: "flex", justifyContent: "center", p: 4}}>
+                <CircularProgress />
+            </Box>
+        )
+    }
+    if (!ca) return null
+
+    const expiryStatus = getExpiryStatus(ca.not_after)
+
+    return (
+        <Box sx={{p: 2}}>
+            <ElectionHeader
+                title={t("certificateAuthorities.viewDialog.title")}
+                subtitle={ca.common_name}
+            />
+            <DrawerStyles.Wrapper>
+                <Box sx={{display: "flex", flexDirection: "column", gap: 2}}>
+                    <LabelValue
+                        label={t("certificateAuthorities.columns.commonName")}
+                        value={ca.common_name}
+                    />
+                    <Box>
+                        <Typography variant="caption" color="text.secondary">
+                            {t("certificateAuthorities.columns.type")}
+                        </Typography>
+                        <Box sx={{mt: 0.5}}>
+                            <Chip
+                                label={
+                                    ca.subject === ca.issuer
+                                        ? t("certificateAuthorities.type.root")
+                                        : t("certificateAuthorities.type.intermediate")
+                                }
+                                size="small"
+                                variant="outlined"
+                            />
+                        </Box>
+                    </Box>
+                    <LabelValue
+                        label={t("certificateAuthorities.columns.issuerCn")}
+                        value={ca.issuer_common_name}
+                    />
+                    <LabelValue
+                        label={t("certificateAuthorities.viewDialog.subject")}
+                        value={ca.subject}
+                        mono
+                    />
+                    <LabelValue
+                        label={t("certificateAuthorities.viewDialog.issuer")}
+                        value={ca.issuer}
+                        mono
+                    />
+                    <LabelValue
+                        label={t("certificateAuthorities.columns.notBefore")}
+                        value={formatDate(ca.not_before)}
+                    />
+                    <Box>
+                        <Typography variant="caption" color="text.secondary">
+                            {t("certificateAuthorities.columns.notAfter")}
+                        </Typography>
+                        <Box sx={{display: "flex", alignItems: "center", gap: 1, mt: 0.5}}>
+                            <Typography variant="body2">{formatDate(ca.not_after)}</Typography>
+                            <Chip
+                                label={t(`certificateAuthorities.expiry.${expiryStatus}`)}
+                                color={expiryChipColor(expiryStatus)}
+                                size="small"
+                            />
+                        </Box>
+                    </Box>
+                    <LabelValue
+                        label={t("certificateAuthorities.viewDialog.serialNumber")}
+                        value={ca.serial_number}
+                        mono
+                    />
+                    <LabelValue
+                        label={t("certificateAuthorities.columns.fingerprint")}
+                        value={ca.fingerprint_sha256}
+                        mono
+                    />
+                    <Box>
+                        <Typography variant="caption" color="text.secondary">
+                            {t("certificateAuthorities.viewDialog.pemContent")}
+                        </Typography>
+                        <Box
+                            component="pre"
+                            sx={{
+                                mt: 0.5,
+                                p: 1,
+                                bgcolor: "grey.100",
+                                borderRadius: 1,
+                                fontFamily: "monospace",
+                                fontSize: "0.7rem",
+                                whiteSpace: "pre",
+                                overflowX: "auto",
+                                maxHeight: 300,
+                                overflowY: "auto",
+                            }}
+                        >
+                            {ca.pem}
+                        </Box>
+                    </Box>
+                </Box>
+                <Box sx={{mt: 3}}>
+                    <Button onClick={onClose}>{t("common.label.close")}</Button>
+                </Box>
+            </DrawerStyles.Wrapper>
+        </Box>
+    )
+}
 
 export const EditElectionEventCAs: React.FC = () => {
     const record = useRecordContext<Sequent_Backend_Election_Event>()
@@ -85,19 +201,17 @@ export const EditElectionEventCAs: React.FC = () => {
     const [tenantId] = useTenantStore()
     const {t} = useTranslation()
     const notify = useNotify()
+    const refresh = useRefresh()
+    const [deleteOne] = useDelete()
 
-    const [importDialogOpen, setImportDialogOpen] = useState(false)
-    const [deleteDialogId, setDeleteDialogId] = useState<string | null>(null)
+    const [importDrawerOpen, setImportDrawerOpen] = useState(false)
+    const [viewId, setViewId] = useState<Identifier | undefined>()
+    const [openDeleteModal, setOpenDeleteModal] = useState(false)
+    const [deleteId, setDeleteId] = useState<Identifier | undefined>()
     const [pemContent, setPemContent] = useState<string>("")
     const [fileError, setFileError] = useState<string | null>(null)
-    const fileInputRef = useRef<HTMLInputElement>(null)
 
     const canWrite = authContext.isAuthorized(true, tenantId, IPermissions.CA_WRITE)
-
-    const {data, loading, refetch} = useQuery(GET_CERTIFICATE_AUTHORITIES, {
-        variables: {electionEventId: record?.id},
-        skip: !record?.id,
-    })
 
     const [importCA, {loading: importing}] = useMutation(IMPORT_CERTIFICATE_AUTHORITY, {
         context: {
@@ -121,10 +235,10 @@ export const EditElectionEventCAs: React.FC = () => {
                     {type: "success"}
                 )
             }
-            setImportDialogOpen(false)
+            setImportDrawerOpen(false)
             setPemContent("")
             setFileError(null)
-            refetch()
+            refresh()
         },
         onError: (err) => {
             notify(t("certificateAuthorities.notify.importError", {error: err.message}), {
@@ -133,266 +247,248 @@ export const EditElectionEventCAs: React.FC = () => {
         },
     })
 
-    const [deleteCA, {loading: deleting}] = useMutation(DELETE_CERTIFICATE_AUTHORITY, {
-        context: {
-            headers: {
-                "x-hasura-role": IPermissions.CA_WRITE,
-            },
-        },
-        onCompleted: () => {
-            notify(t("certificateAuthorities.notify.deleteSuccess"), {type: "success"})
-            setDeleteDialogId(null)
-            refetch()
-        },
-        onError: (err) => {
-            notify(t("certificateAuthorities.notify.deleteError", {error: err.message}), {
-                type: "error",
-            })
-        },
-    })
-
-    const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-        const file = event.target.files?.[0]
-        if (!file) {
-            return
-        }
+    const handleDropFiles = (files: FileList) => {
+        const file = files[0]
+        if (!file) return
         const reader = new FileReader()
         reader.onload = (e) => {
             setPemContent((e.target?.result as string) ?? "")
             setFileError(null)
         }
-        reader.onerror = () => {
-            setFileError(t("certificateAuthorities.fileReadError"))
-        }
+        reader.onerror = () => setFileError(t("certificateAuthorities.fileReadError"))
         reader.readAsText(file)
-        // Reset input so the same file can be re-selected if needed
-        event.target.value = ""
     }
 
     const handleImport = () => {
-        if (!pemContent || !record?.id) {
-            return
-        }
+        if (!pemContent || !record?.id) return
         importCA({variables: {electionEventId: record.id, pemContent}})
     }
 
-    const handleDeleteConfirm = () => {
-        if (!deleteDialogId) {
-            return
-        }
-        deleteCA({variables: {id: deleteDialogId}})
-    }
-
-    const handleImportDialogClose = () => {
-        setImportDialogOpen(false)
+    const handleImportDrawerClose = () => {
+        setImportDrawerOpen(false)
         setPemContent("")
         setFileError(null)
     }
 
-    const cas: CertificateAuthority[] =
-        data?.sequent_backend_certificate_authority ?? []
-
-    if (loading) {
-        return (
-            <Box sx={{display: "flex", justifyContent: "center", p: 4}}>
-                <CircularProgress />
-            </Box>
-        )
+    const deleteAction = (id: Identifier) => {
+        setOpenDeleteModal(true)
+        setDeleteId(id)
     }
 
-    return (
-        <Box sx={{p: 2}}>
+    const confirmDeleteAction = () => {
+        deleteOne(
+            RESOURCE,
+            {id: deleteId},
+            {
+                onSuccess() {
+                    refresh()
+                },
+                onError() {
+                    notify(t("certificateAuthorities.notify.deleteError", {error: ""}), {
+                        type: "error",
+                    })
+                    refresh()
+                },
+            }
+        )
+        setDeleteId(undefined)
+    }
+
+    const actions: Action[] = [
+        {
+            icon: <VisibilityIcon className="view-ca-icon" />,
+            action: (id) => setViewId(id),
+        },
+        {
+            icon: <DeleteIcon className="delete-ca-icon" />,
+            action: deleteAction,
+            showAction: () => canWrite,
+        },
+    ]
+
+    const Empty = () => (
+        <ResourceListStyles.EmptyBox>
+            <Typography variant="h6">{t("certificateAuthorities.emptyHeader")}</Typography>
             {canWrite && (
-                <Box sx={{mb: 2}}>
-                    <Button
-                        variant="contained"
-                        startIcon={<UploadFileIcon />}
-                        onClick={() => setImportDialogOpen(true)}
-                    >
-                        {t("certificateAuthorities.importButton")}
-                    </Button>
-                </Box>
+                <Button
+                    startIcon={<UploadFileIcon />}
+                    onClick={() => setImportDrawerOpen(true)}
+                    sx={{mt: 2}}
+                >
+                    {t("certificateAuthorities.importButton")}
+                </Button>
             )}
+        </ResourceListStyles.EmptyBox>
+    )
 
-            {cas.length === 0 ? (
-                <ResourceListStyles.EmptyBox>
-                    <Typography variant="h6" paragraph>
-                        {t("certificateAuthorities.emptyHeader")}
-                    </Typography>
-                </ResourceListStyles.EmptyBox>
-            ) : (
-                <TableContainer component={Paper}>
-                    <Table size="small">
-                        <TableHead>
-                            <TableRow>
-                                <TableCell>
-                                    {t("certificateAuthorities.columns.commonName")}
-                                </TableCell>
-                                <TableCell>{t("certificateAuthorities.columns.type")}</TableCell>
-                                <TableCell>
-                                    {t("certificateAuthorities.columns.issuerCn")}
-                                </TableCell>
-                                <TableCell>
-                                    {t("certificateAuthorities.columns.notBefore")}
-                                </TableCell>
-                                <TableCell>
-                                    {t("certificateAuthorities.columns.notAfter")}
-                                </TableCell>
-                                <TableCell>
-                                    {t("certificateAuthorities.columns.fingerprint")}
-                                </TableCell>
-                                {canWrite && <TableCell />}
-                            </TableRow>
-                        </TableHead>
-                        <TableBody>
-                            {cas.map((ca) => {
-                                const expiryStatus = getExpiryStatus(ca.not_after)
-                                return (
-                                    <TableRow key={ca.id}>
-                                        <TableCell>{ca.common_name}</TableCell>
-                                        <TableCell>
-                                            <Chip
-                                                label={getCertType(ca.subject, ca.issuer, t)}
-                                                size="small"
-                                                variant="outlined"
-                                            />
-                                        </TableCell>
-                                        <TableCell>{ca.issuer_common_name}</TableCell>
-                                        <TableCell>{formatDate(ca.not_before)}</TableCell>
-                                        <TableCell>
-                                            <Box
-                                                sx={{
-                                                    display: "flex",
-                                                    alignItems: "center",
-                                                    gap: 1,
-                                                }}
-                                            >
-                                                {formatDate(ca.not_after)}
-                                                <Chip
-                                                    label={t(
-                                                        `certificateAuthorities.expiry.${expiryStatus}`
-                                                    )}
-                                                    color={expiryChipColor(expiryStatus)}
-                                                    size="small"
-                                                />
-                                            </Box>
-                                        </TableCell>
-                                        <TableCell>
-                                            <Tooltip
-                                                title={ca.fingerprint_sha256}
-                                                placement="top"
-                                            >
-                                                <Typography
-                                                    variant="body2"
-                                                    sx={{fontFamily: "monospace", fontSize: "0.75rem"}}
-                                                >
-                                                    {ca.fingerprint_sha256.slice(
-                                                        0,
-                                                        FINGERPRINT_TRUNCATE_LENGTH
-                                                    )}
-                                                    …
-                                                </Typography>
-                                            </Tooltip>
-                                        </TableCell>
-                                        {canWrite && (
-                                            <TableCell>
-                                                <Button
-                                                    size="small"
-                                                    color="error"
-                                                    startIcon={<DeleteIcon />}
-                                                    onClick={() => setDeleteDialogId(ca.id)}
-                                                    disabled={deleting}
-                                                >
-                                                    {t("common.delete")}
-                                                </Button>
-                                            </TableCell>
-                                        )}
-                                    </TableRow>
-                                )
-                            })}
-                        </TableBody>
-                    </Table>
-                </TableContainer>
-            )}
-
-            {/* Import Dialog */}
-            <Dialog
-                open={importDialogOpen}
-                onClose={handleImportDialogClose}
-                maxWidth="sm"
-                fullWidth
-            >
-                <DialogTitle>{t("certificateAuthorities.importDialog.title")}</DialogTitle>
-                <DialogContent>
-                    <DialogContentText sx={{mb: 2}}>
-                        {t("certificateAuthorities.importDialog.description")}
-                    </DialogContentText>
-                    <input
-                        ref={fileInputRef}
-                        type="file"
-                        accept=".pem,.cer,.crt"
-                        style={{display: "none"}}
-                        onChange={handleFileChange}
+    return (
+        <>
+            <List
+                resource={RESOURCE}
+                actions={
+                    <ListActions
+                        withImport={canWrite}
+                        doImport={() => setImportDrawerOpen(true)}
+                        withExport={false}
+                        withFilter={false}
                     />
-                    <Button
-                        variant="outlined"
-                        startIcon={<UploadFileIcon />}
-                        onClick={() => fileInputRef.current?.click()}
-                    >
-                        {t("certificateAuthorities.importDialog.selectFile")}
-                    </Button>
-                    {pemContent && (
-                        <Typography variant="caption" sx={{mt: 1, display: "block"}}>
-                            {t("certificateAuthorities.importDialog.fileLoaded", {
-                                bytes: pemContent.length,
-                            })}
-                        </Typography>
-                    )}
-                    {fileError && (
-                        <Alert severity="error" sx={{mt: 1}}>
-                            {fileError}
-                        </Alert>
-                    )}
-                </DialogContent>
-                <DialogActions>
-                    <Button onClick={handleImportDialogClose}>
-                        {t("common.cancel")}
-                    </Button>
-                    <Button
-                        onClick={handleImport}
-                        variant="contained"
-                        disabled={!pemContent || importing}
-                    >
-                        {importing ? (
-                            <CircularProgress size={20} />
-                        ) : (
-                            t("certificateAuthorities.importDialog.importButton")
+                }
+                empty={<Empty />}
+                storeKey={false}
+                disableSyncWithLocation
+                filter={{
+                    tenant_id: tenantId || undefined,
+                    election_event_id: record?.id || undefined,
+                }}
+            >
+                <DatagridConfigurable rowClick={false}>
+                    <TextField
+                        source="common_name"
+                        label={t("certificateAuthorities.columns.commonName")}
+                    />
+                    <FunctionField
+                        label={t("certificateAuthorities.columns.type")}
+                        render={(ca: any) => (
+                            <Chip
+                                label={
+                                    ca.subject === ca.issuer
+                                        ? t("certificateAuthorities.type.root")
+                                        : t("certificateAuthorities.type.intermediate")
+                                }
+                                size="small"
+                                variant="outlined"
+                            />
                         )}
-                    </Button>
-                </DialogActions>
-            </Dialog>
+                    />
+                    <TextField
+                        source="issuer_common_name"
+                        label={t("certificateAuthorities.columns.issuerCn")}
+                    />
+                    <FunctionField
+                        source="not_before"
+                        label={t("certificateAuthorities.columns.notBefore")}
+                        render={(ca: any) => formatDate(ca.not_before)}
+                    />
+                    <FunctionField
+                        source="not_after"
+                        label={t("certificateAuthorities.columns.notAfter")}
+                        render={(ca: any) => {
+                            const status = getExpiryStatus(ca.not_after)
+                            return (
+                                <Box sx={{display: "flex", alignItems: "center", gap: 1}}>
+                                    {formatDate(ca.not_after)}
+                                    <Chip
+                                        label={t(`certificateAuthorities.expiry.${status}`)}
+                                        color={expiryChipColor(status)}
+                                        size="small"
+                                    />
+                                </Box>
+                            )
+                        }}
+                    />
+                    <FunctionField
+                        source="fingerprint_sha256"
+                        label={t("certificateAuthorities.columns.fingerprint")}
+                        render={(ca: any) =>
+                            ca.fingerprint_sha256 ? (
+                                <Tooltip title={ca.fingerprint_sha256} placement="top">
+                                    <Typography
+                                        variant="body2"
+                                        sx={{fontFamily: "monospace", fontSize: "0.75rem"}}
+                                    >
+                                        {ca.fingerprint_sha256.slice(0, FINGERPRINT_TRUNCATE_LENGTH)}
+                                        …
+                                    </Typography>
+                                </Tooltip>
+                            ) : (
+                                "—"
+                            )
+                        }
+                    />
+                    <WrapperField source="actions" label="Actions">
+                        <ActionsColumn actions={actions} />
+                    </WrapperField>
+                </DatagridConfigurable>
+            </List>
+
+            {/* View Drawer */}
+            <Drawer
+                anchor="right"
+                open={!!viewId}
+                onClose={() => setViewId(undefined)}
+                PaperProps={{sx: {width: "40%"}}}
+            >
+                {viewId && <ViewCAContent id={viewId} onClose={() => setViewId(undefined)} />}
+            </Drawer>
+
+            {/* Import Drawer */}
+            <Drawer
+                anchor="right"
+                open={importDrawerOpen}
+                onClose={handleImportDrawerClose}
+                PaperProps={{sx: {width: "30%"}}}
+            >
+                <Box sx={{padding: "16px"}}>
+                    <ElectionHeader
+                        title={t("certificateAuthorities.importDialog.title")}
+                        subtitle={t("certificateAuthorities.importDialog.subtitle")}
+                    />
+                    <DrawerStyles.Wrapper>
+                        <DrawerStyles.SubTitle>
+                            {t("certificateAuthorities.importDialog.description")}
+                        </DrawerStyles.SubTitle>
+                        <Box sx={{mt: 2}}>
+                            <DropFile handleFiles={handleDropFiles} />
+                            {pemContent && (
+                                <Typography variant="caption" sx={{mt: 1, display: "block"}}>
+                                    {t("certificateAuthorities.importDialog.fileLoaded", {
+                                        bytes: pemContent.length,
+                                    })}
+                                </Typography>
+                            )}
+                            {fileError && (
+                                <Alert severity="error" sx={{mt: 1}}>
+                                    {fileError}
+                                </Alert>
+                            )}
+                        </Box>
+                        <Box sx={{mt: 3, display: "flex", gap: 1}}>
+                            <Button onClick={handleImportDrawerClose}>
+                                {t("common.label.cancel")}
+                            </Button>
+                            <Button
+                                onClick={handleImport}
+                                variant="contained"
+                                disabled={!pemContent || importing}
+                            >
+                                {importing ? (
+                                    <CircularProgress size={20} />
+                                ) : (
+                                    t("certificateAuthorities.importDialog.importButton")
+                                )}
+                            </Button>
+                        </Box>
+                    </DrawerStyles.Wrapper>
+                </Box>
+            </Drawer>
 
             {/* Delete Confirmation Dialog */}
-            <Dialog open={!!deleteDialogId} onClose={() => setDeleteDialogId(null)}>
-                <DialogTitle>{t("common.confirmDelete")}</DialogTitle>
-                <DialogContent>
-                    <DialogContentText>
-                        {t("common.confirmDeleteDescription")}
-                    </DialogContentText>
-                </DialogContent>
-                <DialogActions>
-                    <Button onClick={() => setDeleteDialogId(null)}>{t("common.cancel")}</Button>
-                    <Button
-                        onClick={handleDeleteConfirm}
-                        color="error"
-                        variant="contained"
-                        disabled={deleting}
-                    >
-                        {deleting ? <CircularProgress size={20} /> : t("common.delete")}
-                    </Button>
-                </DialogActions>
+            <Dialog
+                variant="warning"
+                open={openDeleteModal}
+                ok={String(t("common.label.delete"))}
+                cancel={String(t("common.label.cancel"))}
+                title={String(t("common.label.warning"))}
+                handleClose={(result: boolean) => {
+                    if (result) {
+                        confirmDeleteAction()
+                    }
+                    setOpenDeleteModal(false)
+                }}
+            >
+                {t("common.message.delete")}
             </Dialog>
-        </Box>
+        </>
     )
 }
 
