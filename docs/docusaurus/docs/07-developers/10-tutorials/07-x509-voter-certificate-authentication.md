@@ -97,7 +97,7 @@ openssl req -x509 -newkey rsa:2048 -nodes \
   -addext "subjectAltName=IP:127.0.0.1,DNS:localhost,DNS:keycloak-nginx"
 ```
 
-Generate the client CA (the CA that signs voter certificates):
+Generate the client CA (the CA that signs voter certificates for testing purposes):
 
 ```bash
 openssl req -x509 -newkey rsa:2048 -nodes \
@@ -140,10 +140,16 @@ KC_SPI_TRUSTSTORE_URL_REFRESH_INTERVAL_SECONDS=3600
 #   "nginx"    — reads cert from ssl-client-cert header (nginx mTLS proxy)
 #   "rfc9440"  — reads cert from Client-Cert header (Cloudflare mTLS)
 KC_SPI_X509CERT_LOOKUP_PROVIDER=nginx
+
+# Base URL of the mTLS Keycloak endpoint (the nginx mTLS proxy).
+# When set, a "Login with Certificate" button is shown on the voting portal
+# login page. Leave empty (or unset) to hide the button.
+KC_MTLS_LOGIN_URL=https://127.0.0.1:8443
 ```
 
 To develop without nginx (password-only mode), comment out or remove
-`KC_SPI_X509CERT_LOOKUP_PROVIDER=nginx` so it defaults to `default`.
+`KC_SPI_X509CERT_LOOKUP_PROVIDER=nginx` so it defaults to `default`, and
+leave `KC_MTLS_LOGIN_URL` empty.
 
 ### 1.3 Docker Compose Services
 
@@ -197,48 +203,92 @@ environment:
 
 ### 1.4 Voting Portal
 
-The voting portal must point to the nginx proxy (HTTPS on port 8443) instead of
-directly to Keycloak (HTTP on port 8090):
+The voting portal connects to Keycloak via its **normal HTTP URL** (port 8090)
+for all token operations. The mTLS proxy (port 8443) is only used when the voter
+clicks the "Login with Certificate" button — the button redirects the existing
+Keycloak auth session through nginx so that the TLS handshake happens and the
+client cert is presented. No change to `global-settings.json` is needed for
+certificate authentication to work.
 
 ```json
-// packages/voting-portal/public/global-settings.json
+// packages/voting-portal/public/global-settings.json — no change required
 {
-  "KEYCLOAK_URL": "https://127.0.0.1:8443/"
+  "KEYCLOAK_URL": "http://127.0.0.1:8090/"
 }
 ```
 
-### 1.5 Generate a Test Voter Certificate
+### 1.5 Keycloak Realm Configuration
 
-Issue a certificate for a voter using the client CA created above. The CN must match
-the voter's email address in Keycloak:
+Each election event realm needs the X.509 authenticator configured and a user
+profile attribute that stores the cert identity.
+
+#### 1.5.1 Add the `usercertificate` user profile attribute
+
+1. In the election event realm, go to **Realm Settings** → **User Profile**
+2. Click **Add attribute**, set the name to `usercertificate`
+3. Save
+
+This attribute holds the voter's certificate identity (e.g. the cert's CN). It
+must exist in the user profile before the authenticator can use it.
+
+#### 1.5.2 Configure the X509/Validate Username Form execution
+
+In the realm's browser authentication flow (see [Keycloak realm configuration
+section](#4-keycloak-realm-configuration) for flow setup):
+
+1. Open the **X509/Validate Username Form** execution's config (⚙)
+2. Set:
+   - **User Identity Source**: `Subject's Common Name`
+   - **User Mapping Method**: `Custom Attribute Mapper`
+   - **Custom Attribute Name**: `usercertificate`
+3. Save
+
+With this config, Keycloak extracts the CN from the cert (e.g.
+`voter@sequent.test`) and looks for a voter whose `usercertificate` attribute
+equals that value.
+
+#### 1.5.3 Set the attribute on each test voter
+
+On the voter's Keycloak user account:
+
+1. Go to **Users** → select the voter → **Attributes** tab
+2. Add key `usercertificate`, value matching the cert's CN (e.g.
+   `voter@sequent.test`)
+3. Save
+
+### 1.6 Generate a Test Voter Certificate
+
+Issue a certificate for a voter using the client CA created above. The CN must
+match the value stored in the voter's `usercertificate` user profile attribute
+in Keycloak (see section 1.5.3):
 
 ```bash
 # Generate voter private key and CSR
 openssl req -newkey rsa:2048 -nodes \
-  -keyout voter.key \
-  -out    voter.csr \
-  -subj "/CN=voter@sequent.test"
+  -keyout .devcontainer/certs/fake-voter.key \
+  -out    .devcontainer/certs/fake-voter.csr \
+  -subj   "/CN=voter@sequent.test/O=Sequent Test/C=US"
 
-# Sign with the client CA
+# Sign with the fake client CA
 openssl x509 -req \
-  -in     voter.csr \
+  -in     .devcontainer/certs/fake-voter.csr \
   -CA     .devcontainer/minio/public-assets/client-ca.pem \
-  -CAkey  client-ca.key \
+  -CAkey  .devcontainer/certs/fake-client-ca.key \
   -CAcreateserial \
-  -out    voter.crt \
-  -days   365
+  -out    .devcontainer/certs/fake-voter.crt \
+  -days   730
 
 # Bundle into a PKCS#12 file for browser import
 openssl pkcs12 -export \
-  -inkey voter.key \
-  -in    voter.crt \
-  -out   voter.p12 \
-  -passout pass:password
+  -inkey .devcontainer/certs/fake-voter.key \
+  -in    .devcontainer/certs/fake-voter.crt \
+  -out   .devcontainer/certs/fake-voter.p12 \
+  -name  "fake-voter@sequent.test"
 ```
 
-Import `voter.p12` into your browser's certificate store (password: `password`). When navigating to the
-voting portal, the browser will offer the certificate for the `127.0.0.1:8443`
-origin.
+Import `.devcontainer/certs/fake-voter.p12` into your browser's certificate
+store. When the browser connects to `127.0.0.1:8443`, it will offer this cert
+during the TLS handshake.
 
 ---
 
@@ -353,7 +403,8 @@ Test that Keycloak receives an auth code when a valid client certificate is pres
 ```bash
 # Inside the dev container — use the Docker service name, not 127.0.0.1
 curl -v --cacert .devcontainer/certs/nginx-tls.crt \
-  --cert .devcontainer/certs/voter.pem --key .devcontainer/certs/voter.key \
+  --cert .devcontainer/certs/fake-voter.crt \
+  --key  .devcontainer/certs/fake-voter.key \
   "https://keycloak-nginx:8443/realms/<realm>/protocol/openid-connect/auth\
 ?client_id=voting-portal&response_type=code&scope=openid\
 &redirect_uri=http://localhost:3000/callback"
@@ -412,7 +463,8 @@ docker compose up -d --no-deps keycloak-nginx
 - The voter certificate must be signed by the CA whose PEM is in `client-ca.pem`.
 - Check the cert chain with:
   ```bash
-  openssl verify -CAfile .devcontainer/minio/public-assets/client-ca.pem voter.crt
+  openssl verify -CAfile .devcontainer/minio/public-assets/client-ca.pem \
+    .devcontainer/certs/fake-voter.crt
   ```
 - If the CA bundle was recently updated in MinIO, wait for the next refresh interval
   or restart Keycloak to force an immediate re-fetch.

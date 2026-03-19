@@ -238,38 +238,71 @@ or infrastructure change is needed.
 
 ### "Login with Certificate" Button in the Keycloak Login Page
 
-The voting portal uses the `sequent.voting-portal` Keycloak theme. This theme
-currently inherits its `login.ftl` from the parent theme `sequent.admin-portal`
-(via `theme.properties`: `parent=sequent.admin-portal`). There is no `login.ftl`
-in `sequent.voting-portal/login/` today, so the login page renders the parent's
-template.
+The voting portal uses the `sequent.voting-portal` Keycloak theme. A
+`login.ftl` exists in `sequent.voting-portal/login/`, overriding the parent
+theme's template. In Keycloak's FTL theme system, a file in a child theme
+completely replaces the parent's file of the same name (no partial override).
+The `login.ftl` is based on the parent's template with one addition: a "Login
+with Certificate" button rendered when `mtlsLoginUrl` is configured.
 
-To add the mTLS button, a `login.ftl` is created in
-`sequent.voting-portal/login/`. In Keycloak's FTL theme system, a file in a
-child theme completely replaces the parent's file of the same name (no partial
-override). The new `login.ftl` is based on the parent's template with one
-addition: a "Login with Certificate" button rendered conditionally on the realm
-attribute `mtls_login_url`.
+#### How the button works
+
+The button does **not** start a new OIDC authorization request. Instead, it
+restarts the current Keycloak auth session from step 1 via the mTLS proxy.
+This is critical because the voting portal uses keycloak.js with **PKCE
+(S256)**: when keycloak.js calls `keycloak.login()`, it generates a
+`code_verifier` / `code_challenge` pair and stores them in session storage.
+Starting an independent new auth request from the FTL template would bypass
+this PKCE state, causing the token exchange to fail when the code returns.
+
+By using `login-actions/restart`, the existing auth session (including the
+PKCE challenge, `state`, and `redirect_uri` that keycloak.js stored) is
+preserved. The flow restarts from step 1 through the mTLS proxy, the X.509
+authenticator sees the forwarded client certificate and authenticates the voter,
+and the code is issued for the same session that keycloak.js is expecting.
 
 ```freemarker
 <#-- Added to the socialProviders section, after any existing social buttons -->
-<#if realm.attributes['mtls_login_url']??>
+<#if properties.mtlsLoginUrl?has_content>
     <hr/>
+    <#assign sessionCode = url.loginAction?keep_after('session_code=')?keep_before('&')>
+    <#assign tabId = url.loginAction?keep_after('tab_id=')>
+    <#if tabId?contains('&')><#assign tabId = tabId?keep_before('&')></#if>
     <a id="kc-cert-login"
        class="${properties.kcButtonClass!} ${properties.kcButtonDefaultClass!} ${properties.kcButtonBlockClass!} ${properties.kcButtonLargeClass!}"
-       href="${realm.attributes['mtls_login_url']?no_esc}/realms/${realm.name}/protocol/openid-connect/auth?${url.loginAction?keep_after('?')}">
+       href="${properties.mtlsLoginUrl}/realms/${realm.name}/login-actions/restart?session_code=${sessionCode}&client_id=${client.clientId}&tab_id=${tabId}">
         ${msg("loginWithCertificate")}
     </a>
 </#if>
 ```
 
-The `mtls_login_url` realm attribute holds the base URL of the mTLS Keycloak
-endpoint (e.g. `https://login-mtls-{env}.sequent.vote/auth`). The button
-preserves the existing OIDC state so Keycloak continues the same auth session
-on the mTLS subdomain.
+The `mtlsLoginUrl` theme property is set from the `KC_MTLS_LOGIN_URL`
+environment variable in `theme.properties`:
 
-If `mtls_login_url` is not set on the realm, the button is not rendered —
-existing realms without cert auth continue to work identically.
+```properties
+mtlsLoginUrl=${env.KC_MTLS_LOGIN_URL}
+```
+
+`KC_MTLS_LOGIN_URL` holds the base URL of the mTLS proxy endpoint
+(e.g. `https://login-mtls-{env}.sequent.vote` in production,
+`https://127.0.0.1:8443` in dev). When unset or empty, the button is not
+rendered — existing realms without cert auth continue to work identically.
+
+#### X.509 authenticator user mapping
+
+The X.509 authenticator is configured to map the certificate's CN to a voter
+via a custom user attribute:
+
+- **User Identity Source**: `Subject's Common Name` — extracts the CN from the
+  cert's Subject DN
+- **User Mapping Method**: `Custom Attribute Mapper`
+- **Custom Attribute Name**: `usercertificate` — the voter's Keycloak user must
+  have this attribute set to a value matching the cert CN
+
+The `usercertificate` attribute must be added to the realm's **User Profile**
+(Realm Settings → User Profile → Add attribute) before the authenticator can
+use it. This approach decouples the voter's Keycloak username/email from their
+certificate identity.
 
 ---
 
@@ -403,7 +436,7 @@ Design decisions needed:
 | `sequent-core` | S3 read/write helpers for the CA bundle (reuse `packages/sequent-core/src/services/s3.rs` pattern) | `packages/sequent-core/src/services/s3.rs` |
 | Hasura | GraphQL action wiring for the new Harvest endpoint; permission check for `voter-auth-ca-write` | Hasura metadata / migration |
 | Admin portal | "Voter Authentication CAs" section in tenant settings | `packages/admin-portal/src/` |
-| Keycloak theme | `login.ftl` in `sequent.voting-portal` with conditional mTLS button | `packages/keycloak-extensions/sequent-theme/src/main/resources/theme/sequent.voting-portal/login/login.ftl` |
+| Keycloak theme | `login.ftl` in `sequent.voting-portal` with conditional mTLS button — uses `login-actions/restart` to preserve PKCE session | `packages/keycloak-extensions/sequent-theme/src/main/resources/theme/sequent.voting-portal/login/login.ftl` ✅ implemented |
 | Keycloak theme | `loginWithCertificate` message key | `packages/keycloak-extensions/sequent-theme/src/main/resources/theme/sequent.voting-portal/login/messages/messages_en.properties` |
 | Windmill | Set `voter_ca_bundle_url` realm attribute when creating election event realm | Windmill task for realm creation |
 
@@ -547,22 +580,33 @@ Keycloak admin UI.
 > deployed by a developer. You need Keycloak admin access for the election event
 > realm (e.g. `tenant-{UUID}-event-{UUID}`).
 
-### Step 1: Set the mTLS URL realm attribute
+### Step 1: Configure the mTLS login URL
 
-1. Navigate to the election event realm (`tenant-{UUID}-event-{UUID}`)
-2. Go to **Realm Settings** → **General** tab
-3. Scroll to **Attributes** at the bottom
-4. Add attribute:
-   - Key: `mtls_login_url`
-   - Value: `https://login-mtls-{client}.sequent.vote/auth`
-5. Save
+The "Login with Certificate" button is shown when the `KC_MTLS_LOGIN_URL`
+environment variable is set on the Keycloak instance. In production, set this
+to the mTLS subdomain base URL:
 
-This causes the "Login with Certificate" button to appear on the voter login
-page. Remove this attribute to hide the button.
+```bash
+KC_MTLS_LOGIN_URL=https://login-mtls-{client}.sequent.vote
+```
+
+This is an instance-level setting (all realms on that Keycloak instance share
+it). Setting it to empty hides the button across all realms.
 
 > **Note:** The `voter_ca_bundle_url` realm attribute is set automatically by
 > Windmill when the realm is created. It points to the tenant's CA bundle in
 > S3. You should not need to set or change it manually.
+
+### Step 1b: Add the `usercertificate` user profile attribute
+
+1. Navigate to the election event realm
+2. Go to **Realm Settings** → **User Profile**
+3. Click **Add attribute**, name it `usercertificate`
+4. Save
+
+This must exist before the X.509 authenticator can map certificate identities
+to voters. Set the `usercertificate` attribute on each voter user account to
+the value that will appear in the cert's CN field.
 
 ### Step 2: Create the x509 authentication flow
 
@@ -581,7 +625,16 @@ the next.
    | X509/Validate Username Form (cert type B) | ALTERNATIVE | Second cert type (if needed) |
    | Username Password Form | ALTERNATIVE | Password fallback |
 
-4. Configure each **X509/Validate Username Form** execution independently (click ⚙):
+4. Configure each **X509/Validate Username Form** execution independently (click ⚙).
+
+   The standard dev/production configuration uses:
+   - **User Identity Source**: `Subject's Common Name`
+   - **User Mapping Method**: `Custom Attribute Mapper`
+   - **Custom Attribute Name**: `usercertificate`
+
+   The `usercertificate` attribute must be added to the realm's User Profile
+   first (see Step 1b). Each voter's Keycloak account must have `usercertificate`
+   set to the CN of their certificate.
 
    **Available User Identity Sources:**
 
