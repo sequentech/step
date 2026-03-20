@@ -11,6 +11,8 @@ extern crate quick_error;
 pub mod postgres;
 pub mod services;
 pub mod tasks;
+#[cfg(test)]
+pub mod test_database;
 pub mod types;
 
 #[cfg(test)]

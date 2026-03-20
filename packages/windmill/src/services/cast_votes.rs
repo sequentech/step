@@ -62,6 +62,37 @@ impl TryFrom<Row> for CastVote {
     }
 }
 
+fn build_area_ballots_select_sql(
+    tenant_id: &str,
+    election_event_id: &str,
+    area_id: &str,
+    election_id: &str,
+) -> Result<String> {
+    let tenant_uuid = Uuid::parse_str(tenant_id)
+        .map_err(|err| anyhow!("Error parsing tenant_id as UUID: {}", err))?;
+    let election_event_uuid = Uuid::parse_str(election_event_id)
+        .map_err(|err| anyhow!("Error parsing election_event_id as UUID: {}", err))?;
+    let area_uuid = Uuid::parse_str(area_id)
+        .map_err(|err| anyhow!("Error parsing area_id as UUID: {}", err))?;
+    let election_uuid = Uuid::parse_str(election_id)
+        .map_err(|err| anyhow!("Error parsing election_id as UUID: {}", err))?;
+
+    Ok(format!(
+        r#"
+                    SELECT DISTINCT ON (election_id, voter_id_string)
+                        voter_id_string,
+                        content
+                    FROM "sequent_backend".cast_vote
+                    WHERE
+                        tenant_id = '{tenant_uuid}' AND
+                        election_event_id = '{election_event_uuid}' AND
+                        area_id = '{area_uuid}' AND
+                        election_id = '{election_uuid}'
+                    ORDER BY election_id, voter_id_string, created_at DESC
+                "#
+    ))
+}
+
 #[instrument(err)]
 pub async fn find_area_ballots(
     hasura_transaction: &Transaction<'_>,
@@ -71,21 +102,8 @@ pub async fn find_area_ballots(
     election_id: &str,
     output_file: &PathBuf,
 ) -> Result<()> {
-    // COPY does not support parameters so we have to add them using format
-    let areas_statement = format!(
-        r#"
-                    SELECT DISTINCT ON (election_id, voter_id_string)
-                        voter_id_string,
-                        content
-                    FROM "sequent_backend".cast_vote
-                    WHERE
-                        tenant_id = '{tenant_id}' AND
-                        election_event_id = '{election_event_id}' AND
-                        area_id = '{area_id}' AND
-                        election_id = '{election_id}'
-                    ORDER BY election_id, voter_id_string, created_at DESC
-                "#
-    );
+    let areas_statement =
+        build_area_ballots_select_sql(tenant_id, election_event_id, area_id, election_id)?;
 
     let tokio_temp_file = File::create(output_file)
         .await
@@ -693,4 +711,200 @@ pub async fn count_cast_votes_election_event(
     let count = rows.try_get::<_, i64>("voter_count")?;
 
     Ok(count)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::build_area_ballots_select_sql;
+    use crate::test_database::TestDatabase;
+    use anyhow::{Context, Result};
+    use chrono::{Duration, Utc};
+    use serde_json::json;
+    use uuid::Uuid;
+
+    #[tokio::test]
+    #[ignore = "Requires Postgres bootstrap. Run with cargo test -p windmill find_area_ballots_returns_latest_vote_per_voter -- --ignored"]
+    async fn find_area_ballots_returns_latest_vote_per_voter() -> Result<()> {
+        let database = TestDatabase::bootstrap().await?;
+
+        let tenant_id = Uuid::new_v4();
+        let election_event_id = Uuid::new_v4();
+        let election_id = Uuid::new_v4();
+        let area_id = Uuid::new_v4();
+        let duplicated_voter_id = "voter-1";
+        let other_voter_id = "voter-2";
+        let older_vote_time = Utc::now() - Duration::minutes(2);
+        let newer_vote_time = older_vote_time + Duration::minutes(1);
+
+        database
+            .client
+            .execute(
+                r#"
+                INSERT INTO sequent_backend.tenant (id, slug)
+                VALUES ($1, $2)
+                "#,
+                &[&tenant_id, &"tenant"],
+            )
+            .await?;
+
+        database
+            .client
+            .execute(
+                r#"
+                INSERT INTO sequent_backend.election_event (
+                    id,
+                    tenant_id,
+                    presentation,
+                    encryption_protocol
+                )
+                VALUES ($1, $2, $3, $4)
+                "#,
+                &[
+                    &election_event_id,
+                    &tenant_id,
+                    &json!({"i18n": {"en": {"name": "Event"}}}),
+                    &"protocol-test",
+                ],
+            )
+            .await?;
+
+        database
+            .client
+            .execute(
+                r#"
+                INSERT INTO sequent_backend.election (id, tenant_id, election_event_id, presentation)
+                VALUES ($1, $2, $3, $4)
+                "#,
+                &[&election_id, &tenant_id, &election_event_id, &json!({"i18n": {"en": {"name": "Election"}}})],
+            )
+            .await?;
+
+        database
+            .client
+            .execute(
+                r#"
+                INSERT INTO sequent_backend.area (id, tenant_id, election_event_id, presentation)
+                VALUES ($1, $2, $3, $4)
+                "#,
+                &[
+                    &area_id,
+                    &tenant_id,
+                    &election_event_id,
+                    &json!({"i18n": {"en": {"name": "Area"}}}),
+                ],
+            )
+            .await?;
+
+        database
+            .client
+            .execute(
+                r#"
+                INSERT INTO sequent_backend.cast_vote (
+                    id,
+                    tenant_id,
+                    election_event_id,
+                    election_id,
+                    area_id,
+                    voter_id_string,
+                    content,
+                    created_at,
+                    last_updated_at
+                )
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $8)
+                "#,
+                &[
+                    &Uuid::new_v4(),
+                    &tenant_id,
+                    &election_event_id,
+                    &election_id,
+                    &area_id,
+                    &duplicated_voter_id,
+                    &"older-ballot",
+                    &older_vote_time,
+                ],
+            )
+            .await?;
+
+        database
+            .client
+            .execute(
+                r#"
+                INSERT INTO sequent_backend.cast_vote (
+                    id,
+                    tenant_id,
+                    election_event_id,
+                    election_id,
+                    area_id,
+                    voter_id_string,
+                    content,
+                    created_at,
+                    last_updated_at
+                )
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $8)
+                "#,
+                &[
+                    &Uuid::new_v4(),
+                    &tenant_id,
+                    &election_event_id,
+                    &election_id,
+                    &area_id,
+                    &duplicated_voter_id,
+                    &"newer-ballot",
+                    &newer_vote_time,
+                ],
+            )
+            .await?;
+
+        database
+            .client
+            .execute(
+                r#"
+                INSERT INTO sequent_backend.cast_vote (
+                    id,
+                    tenant_id,
+                    election_event_id,
+                    election_id,
+                    area_id,
+                    voter_id_string,
+                    content,
+                    created_at,
+                    last_updated_at
+                )
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $8)
+                "#,
+                &[
+                    &Uuid::new_v4(),
+                    &tenant_id,
+                    &election_event_id,
+                    &election_id,
+                    &area_id,
+                    &other_voter_id,
+                    &"other-ballot",
+                    &(newer_vote_time + Duration::minutes(1)),
+                ],
+            )
+            .await?;
+
+        let sql = build_area_ballots_select_sql(
+            tenant_id.to_string().as_str(),
+            election_event_id.to_string().as_str(),
+            area_id.to_string().as_str(),
+            election_id.to_string().as_str(),
+        )?;
+
+        let rows = database.client.query(sql.as_str(), &[]).await?;
+        assert_eq!(rows.len(), 2);
+
+        let latest_vote = rows
+            .iter()
+            .find(|row| row.get::<_, String>("voter_id_string") == duplicated_voter_id)
+            .context("Could not find duplicated voter in area ballots query result")?;
+
+        assert_eq!(
+            latest_vote.get::<_, Option<String>>("content"),
+            Some("newer-ballot".to_string())
+        );
+
+        Ok(())
+    }
 }
