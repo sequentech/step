@@ -57,7 +57,7 @@ xz2 = "0.1"
 zip = "2.1"
 
 # WASM plugin management
-wasmtime = "41.0.2"
+wasmtime = "41.0.4"
 wasmtime-wasi = "41.0.2"
 
 # logging
