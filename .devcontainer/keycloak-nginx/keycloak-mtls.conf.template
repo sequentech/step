@@ -11,7 +11,7 @@
 #   fall through to password auth in Keycloak as normal.
 # - Large proxy buffers: client certs in headers can be ~2 KB URL-encoded.
 
-log_format mtls '$remote_addr - ssl_verify=$ssl_client_verify cert_len=$ssl_client_escaped_cert';
+log_format mtls '$remote_addr - ssl_verify=$ssl_client_verify';
 
 server {
     listen 8443 ssl;

@@ -61,7 +61,7 @@ public class X509CertClassifierAuthenticator implements Authenticator {
     String certType = issuerCn != null ? issuerCn : CERT_TYPE_NOT_ALLOWED;
     log.infov("authenticate(): setting auth note {0}={1}", AUTH_NOTE_CERT_TYPE, certType);
     context.getAuthenticationSession().setAuthNote(AUTH_NOTE_CERT_TYPE, certType);
-    context.attempted();
+    context.success();
   }
 
   private X509Certificate parseCert(String headerValue) {

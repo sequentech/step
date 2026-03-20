@@ -2259,7 +2259,7 @@
     }, {
       "authenticatorFlow" : true,
       "requirement" : "ALTERNATIVE",
-      "priority" : 31,
+      "priority" : 5,
       "autheticatorFlow" : true,
       "flowAlias" : "Type of certificate",
       "userSetupAllowed" : false
@@ -2830,12 +2830,12 @@
       "x509-cert-auth.crl-checking-enabled": "false",
       "x509-cert-auth.crldp-checking-enabled": "false",
       "x509-cert-auth.extendedkeyusage": "",
-      "x509-cert-auth.keyusage": "clientAuth",
+      "x509-cert-auth.keyusage": "",
       "x509-cert-auth.revalidate-certificate-enabled": "true",
       "x509-cert-auth.mapper-selection": "Username or Email",
-      "x509-cert-auth.mapping-source-selection": "Certificate Serial Number",
+      "x509-cert-auth.mapping-source-selection": "Subject's DN",
       "x509-cert-auth.ocsp-checking-enabled": "false",
-      "x509-cert-auth.regular-expression": "IDCES-([0-9XYZ][0-9]{7}[A-Z])",
+      "x509-cert-auth.regular-expression": "SERIALNUMBER=IDCES-([0-9XYZxyz][0-9]{7}[A-Za-z])",
       "x509-cert-auth.timestamp-validation-enabled": "true"
     }
   }, {
@@ -2845,10 +2845,10 @@
       "x509-cert-auth.crl-checking-enabled": "false",
       "x509-cert-auth.crldp-checking-enabled": "false",
       "x509-cert-auth.extendedkeyusage": "",
-      "x509-cert-auth.keyusage": "clientAuth",
+      "x509-cert-auth.keyusage": "",
       "x509-cert-auth.revalidate-certificate-enabled": "true",
       "x509-cert-auth.mapper-selection": "Username or Email",
-      "x509-cert-auth.mapping-source-selection": "Certificate Serial Number",
+      "x509-cert-auth.mapping-source-selection": "Subject's DN",
       "x509-cert-auth.ocsp-checking-enabled": "false",
       "x509-cert-auth.regular-expression": "(.*?)(?:$)",
       "x509-cert-auth.timestamp-validation-enabled": "true"
