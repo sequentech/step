@@ -2243,14 +2243,6 @@
       "autheticatorFlow" : false,
       "userSetupAllowed" : false
     }, {
-        "authenticator": "auth-x509-client-username-form",
-        "authenticatorConfig": "x509-voter-cert",
-        "authenticatorFlow": false,
-        "autheticatorFlow": false,
-        "priority": 27,
-        "requirement": "ALTERNATIVE",
-        "userSetupAllowed": false
-    }, {
       "authenticator" : "identity-provider-redirector",
       "authenticatorFlow" : false,
       "requirement" : "ALTERNATIVE",
@@ -2423,7 +2415,7 @@
       }
     ]
   }, {
-    "alias": "DNIE",
+    "alias": "AC DNIE 006",
     "description": "",
     "providerId": "basic-flow",
     "topLevel": false,
@@ -2476,7 +2468,7 @@
         "requirement": "CONDITIONAL",
         "priority": 20,
         "autheticatorFlow": true,
-        "flowAlias": "DNIE",
+        "flowAlias": "AC DNIE 006",
         "userSetupAllowed": false
       }
     ]
@@ -2818,22 +2810,6 @@
       "conditional-client" : "voting-portal"
     }
   }, {
-    "alias": "x509-voter-cert",
-    "config": {
-    "x509-cert-auth.confirmation-page-disallowed": "true",
-    "x509-cert-auth.crl-checking-enabled": "false",
-    "x509-cert-auth.crldp-checking-enabled": "false",
-    "x509-cert-auth.extendedkeyusage": "",
-    "x509-cert-auth.keyusage": "clientAuth",
-    "x509-cert-auth.revalidate-certificate-enabled": "true",
-    "x509-cert-auth.mapper-selection": "Username or Email",
-    "x509-cert-auth.mapping-source-selection": "Subject's Common Name",
-    "x509-cert-auth.ocsp-checking-enabled": "false",
-    "x509-cert-auth.regular-expression": "(.*?)(?:$)",
-    "x509-cert-auth.timestamp-validation-enabled": "true"
-    },
-    "id": "d4e8a1f2-3c7b-4a9e-8d5f-1b2c3d4e5f6a"
-  }, {
     "alias": "cert-type-fnmt",
     "config": {
       "conditional-auth-note-key": "cert-type",
@@ -2844,7 +2820,7 @@
     "alias": "cert-type-dnie",
     "config": {
       "conditional-auth-note-key": "cert-type",
-      "conditional-auth-note-value": "DNIE",
+      "conditional-auth-note-value": "AC DNIE 006",
       "negate": "false"
     }
   }, {
@@ -2857,9 +2833,9 @@
       "x509-cert-auth.keyusage": "clientAuth",
       "x509-cert-auth.revalidate-certificate-enabled": "true",
       "x509-cert-auth.mapper-selection": "Username or Email",
-      "x509-cert-auth.mapping-source-selection": "Subject's Common Name",
+      "x509-cert-auth.mapping-source-selection": "Certificate Serial Number",
       "x509-cert-auth.ocsp-checking-enabled": "false",
-      "x509-cert-auth.regular-expression": "(.*?)(?:$)",
+      "x509-cert-auth.regular-expression": "IDCES-([0-9XYZ][0-9]{7}[A-Z])",
       "x509-cert-auth.timestamp-validation-enabled": "true"
     }
   }, {
@@ -2872,7 +2848,7 @@
       "x509-cert-auth.keyusage": "clientAuth",
       "x509-cert-auth.revalidate-certificate-enabled": "true",
       "x509-cert-auth.mapper-selection": "Username or Email",
-      "x509-cert-auth.mapping-source-selection": "Subject's Common Name",
+      "x509-cert-auth.mapping-source-selection": "Certificate Serial Number",
       "x509-cert-auth.ocsp-checking-enabled": "false",
       "x509-cert-auth.regular-expression": "(.*?)(?:$)",
       "x509-cert-auth.timestamp-validation-enabled": "true"
