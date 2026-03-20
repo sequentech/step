@@ -645,10 +645,8 @@ pub fn generate_ids_map(
     // Account for each folder prefix so that prefix + name + __ + uuid <= FOLDER_MAX_CHARS
     const ELECTION_PREFIX_LEN: usize = 10; // len("election__")
     const CONTEST_PREFIX_LEN: usize = 9; // len("contest__")
-    const MAX_ELECTION_NAME_LEN: usize =
-        FOLDER_MAX_CHARS - UUID_LEN - 2 - ELECTION_PREFIX_LEN; // = 152
-    const MAX_CONTEST_NAME_LEN: usize =
-        FOLDER_MAX_CHARS - UUID_LEN - 2 - CONTEST_PREFIX_LEN; // = 153
+    const MAX_ELECTION_NAME_LEN: usize = FOLDER_MAX_CHARS - UUID_LEN - 2 - ELECTION_PREFIX_LEN; // = 152
+    const MAX_CONTEST_NAME_LEN: usize = FOLDER_MAX_CHARS - UUID_LEN - 2 - CONTEST_PREFIX_LEN; // = 153
 
     for election_report in election_reports {
         let election_name = election_report.election_name;

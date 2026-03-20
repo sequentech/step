@@ -475,6 +475,14 @@ impl GenerateReports {
                 .iter()
                 .map(|area| (area.id.clone(), area.clone()))
                 .collect();
+
+            // Name used in results_documents.rs:generate_ids_map and renamer.rs:rename_folders
+            let election_name_for_folder = if election_input.alias.is_empty() {
+                election_input.name.clone()
+            } else {
+                election_input.alias.clone()
+            };
+
             for contest_input in &election_input.contest_list {
                 let contest_result = self.read_contest_result(
                     &election_input.id,
@@ -524,7 +532,7 @@ impl GenerateReports {
                     )?;
 
                     reports.push(ReportData {
-                        election_name: election_input.alias.clone(),
+                        election_name: election_name_for_folder.clone(),
                         election_id: election_input.id.to_string(),
                         election_description: election_input.description.clone(),
                         election_dates: election_input.dates.clone(),
