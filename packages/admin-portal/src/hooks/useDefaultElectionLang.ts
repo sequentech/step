@@ -13,8 +13,9 @@ export function useDefaultElectionLang(electionId: string): string | undefined {
         const election = tallyData?.sequent_backend_election?.find((e) => e.id === electionId)
         if (!election?.presentation) return undefined
         try {
-            return JSON.parse(election.presentation)?.language_conf
-                ?.default_language_code as string | undefined
+            return JSON.parse(election.presentation)?.language_conf?.default_language_code as
+                | string
+                | undefined
         } catch {
             return undefined
         }
