@@ -637,6 +637,13 @@ const dutchTranslation: TranslationType = {
                     "election-event": "Verkiezingsevenementtitel",
                 },
             },
+            consolidatedReportPolicy: {
+                label: "Beleid voor geconsolideerd rapport",
+                options: {
+                    "generate": "Genereren",
+                    "do-not-generate": "Niet genereren",
+                },
+            },
         },
         tenantScreen: {
             common: {
@@ -1319,8 +1326,12 @@ const dutchTranslation: TranslationType = {
                 "plurality-at-large": "Meerderheidsstelsel (meervoudig)",
                 "instant-runoff": "Instant-runoff stemmen",
                 "random": "Willekeurig",
+                "external-procedure": "Externe procedure",
                 "custom": "Aangepast",
                 "alphabetical": "Alfabetisch",
+            },
+            tieBreakingPolicy: {
+                label: "Beleid voor gelijkspel",
             },
             auditButtonConfig: {
                 "label": "Weergaveopties Auditknop",
@@ -1369,6 +1380,18 @@ const dutchTranslation: TranslationType = {
                 "not-allowed-with-msg-and-alert": "Niet Toegestaan met Waarschuwing en Melding",
                 "not-allowed-with-msg-and-disable":
                     "Niet Toegestaan met Waarschuwing en Verdere Selecties Uitschakelen",
+            },
+            duplicatedRankPolicy: {
+                "label": "Ongeldige stem - Beleid Gedupliceerde Rang",
+                "allowed-warn-and-dialog": "Toon waarschuwing en dialoog (kiezer kan doorgaan)",
+                "not-allowed-warn-and-dialog":
+                    "Toon waarschuwing en dialoog (kiezer mag niet doorgaan)",
+            },
+            preferenceGapsPolicy: {
+                "label": "Ongeldige stem - Beleid Overgeslagen Rangen",
+                "allowed-warn-and-dialog": "Toon waarschuwing en dialoog (kiezer kan doorgaan)",
+                "not-allowed-warn-and-dialog":
+                    "Toon waarschuwing en dialoog (kiezer mag niet doorgaan)",
             },
             paginationPolicy: {
                 label: "Paginanaam",
@@ -1680,6 +1703,37 @@ const dutchTranslation: TranslationType = {
                     round: "Ronde",
                 },
             },
+            pendingResolutions: {
+                round: "Ronde {{round}}",
+                tieResolutionRequired: "Stemgelijkheid vereist oplossing",
+                tieResolved: "Stemgelijkheid opgelost",
+                globalArea: "Global",
+                pendingResolutionsHeader: "Openstaande resoluties",
+                pendingResolutionStatus: "Resolutie in behandeling",
+                resolvedStatus: "Opgelost",
+                resolutionTitle: "Beslissing",
+                selectContest: "Selecteer een item aan de linkerkant om de details te bekijken",
+                selectCandidateToAdvance: "Selecteer kandidaat om door te laten gaan",
+                undoResolution: "Beslissing ongedaan maken",
+                applyResolutions: "Beslissingen toepassen en herberekenen",
+                submitSuccess: "Beslissingen ingediend. De telling wordt hervat...",
+                submitError: "Fout bij het indienen van beslissingen. Probeer het opnieuw.",
+                filter: "Filteren",
+                save: "Opslaan",
+                pendingApplyStatus: "Berekening in afwachting",
+                filterElection: "Verkiezing",
+                filterContest: "Wedstrijd",
+                filterArea: "Gebied",
+                filterStatusLabel: "Status",
+                clearFilters: "Filters wissen",
+                candidateWithVotes: "{{name}} ({{votes}} stemmen)",
+                candidateWithVotesAndPercent: "{{name}} ({{votes}} stemmen, {{percent}}%)",
+                tieInfoTitle: "Telling gepauzeerd wegens onopgelost gelijkspel (Ronde {{round}})",
+                tieInfoBody:
+                    "Kandidaten gelijk ({{votes}} stemmen, {{percent}}%): {{candidates}}. Handmatige tiebreak vereist om de telling voort te zetten.",
+                tallyResumedTitle: "Telling hervat na toepassing van de resolutie",
+                tallyResumedBody: "De gelijkstand werd opgelost op {{date}} door {{user}}",
+            },
             chart: {
                 votesForCandidates: "Stemmen voor Kandidaten",
                 blankVotes: "Blanco Stemmen",
@@ -1687,6 +1741,8 @@ const dutchTranslation: TranslationType = {
                 totalVoters: "Totaal Kiezers",
                 nonVoters: "Niet-kiezers",
             },
+            exportAllAreas:
+                "Exporteer de resultaten van alle gebieden in {{format}}-formaat voor '{{item}}'",
         },
         publish: {
             preview: {

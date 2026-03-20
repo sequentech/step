@@ -1274,6 +1274,22 @@ actions:
       permissions:
           - role: trustee-read
           - role: admin-user
+    - name: submit_tally_resolution
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/submit-tally-resolution
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: admin-user
+          - role: admin-ceremony
+          - role: tally-resolution-submit
+      comment: Submit tally resolutions
     - name: upload_signature
       definition:
           kind: synchronous

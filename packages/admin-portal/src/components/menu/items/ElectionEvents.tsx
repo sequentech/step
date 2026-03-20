@@ -49,7 +49,6 @@ import {useLazyQuery} from "@apollo/client"
 import {
     FETCH_CANDIDATE_TREE,
     FETCH_CONTEST_TREE,
-    FETCH_ELECTION_EVENTS_TREE,
     FETCH_ELECTIONS_TREE,
 } from "@/queries/GetElectionEventsTree"
 import {useElectionEventTallyStore} from "@/providers/ElectionEventTallyProvider"
@@ -297,12 +296,6 @@ export default function ElectionEvents() {
             },
         }
     )
-    // Get subtrees
-    const [
-        getElectionEventTree,
-        {data: electionEventTreeData, refetch: _electionEventTreeRefetch},
-    ] = useLazyQuery(FETCH_ELECTION_EVENTS_TREE)
-
     const [getElectionTree, {data: electionTreeData, refetch: _electionTreeRefetch}] =
         useLazyQuery(FETCH_ELECTIONS_TREE)
 
@@ -315,12 +308,10 @@ export default function ElectionEvents() {
     // Wrapper refetch functions: only call the internal refetch if variables
     // are set
     const electionEventTreeRefetch = () => {
-        if (tenantId && electionEventId) {
-            getElectionEventTree({
-                variables: {
-                    tenantId,
-                    isArchived: isArchivedElectionEvents,
-                },
+        if (tenantId) {
+            originalRefetch({
+                tenantId,
+                isArchived: isArchivedElectionEvents,
             })
         }
     }
@@ -363,17 +354,12 @@ export default function ElectionEvents() {
     // Force reload election event data when tenant ID changes or component mounts
     useEffect(() => {
         if (tenantId) {
-            getElectionEventTree({
-                variables: {
-                    tenantId,
-                    isArchived: isArchivedElectionEvents,
-                },
+            originalRefetch({
+                tenantId,
+                isArchived: isArchivedElectionEvents,
             })
-
-            // Also reload other data that might depend on tenant ID
-            originalRefetch()
         }
-    }, [tenantId, isArchivedElectionEvents, getElectionEventTree, originalRefetch])
+    }, [tenantId, isArchivedElectionEvents, originalRefetch])
 
     useEffect(() => {
         if (tenantId && electionEventId) {
@@ -630,7 +616,6 @@ export default function ElectionEvents() {
         electionId,
         contestId,
         candidateId,
-        electionEventTreeData,
         electionTreeData,
         contestTreeData,
         candidateTreeData,

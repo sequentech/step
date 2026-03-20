@@ -641,6 +641,13 @@ const basqueTranslation: TranslationType = {
                     "election-event": "Hauteskunde-ekitaldiaren titulua",
                 },
             },
+            consolidatedReportPolicy: {
+                label: "Txosten bateratuaren politika",
+                options: {
+                    "generate": "Sortu",
+                    "do-not-generate": "Ez sortu",
+                },
+            },
         },
         tenantScreen: {
             common: {
@@ -1318,8 +1325,12 @@ const basqueTranslation: TranslationType = {
                 "plurality-at-large": "Pluralitatea Orokorrean",
                 "instant-runoff": "Berehalako Bigarren Itzulia",
                 "random": "Ausazkoa",
+                "external-procedure": "Kanpoko prozedura",
                 "custom": "Pertsonalizatua",
                 "alphabetical": "Alfabetikoa",
+            },
+            tieBreakingPolicy: {
+                label: "Berdinketa hausteko politika",
             },
             auditButtonConfig: {
                 "label": "Auditoria Botoi Erakutsi Aukerak",
@@ -1368,6 +1379,20 @@ const basqueTranslation: TranslationType = {
                 "not-allowed-with-msg-and-alert": "Ez Baimenduta Abisu mezu eta Alertarekin",
                 "not-allowed-with-msg-and-disable":
                     "Ez Baimenduta Abisu mezuarekin eta Gehiago hautatzea Desgaitu",
+            },
+            duplicatedRankPolicy: {
+                "label": "Boto baliogabea - Bikoiztutako Rankaren Politika",
+                "allowed-warn-and-dialog":
+                    "Erakutsi ohartarazpena eta elkarrizketa-koadroa (botatzaileak aurrera egin dezake)",
+                "not-allowed-warn-and-dialog":
+                    "Erakutsi ohartarazpena eta elkarrizketa-koadroa (botatzaileak ezin du aurrera egin)",
+            },
+            preferenceGapsPolicy: {
+                "label": "Boto baliogabea - Saltatutako Ranken Politika",
+                "allowed-warn-and-dialog":
+                    "Erakutsi ohartarazpena eta elkarrizketa-koadroa (botatzaileak aurrera egin dezake)",
+                "not-allowed-warn-and-dialog":
+                    "Erakutsi ohartarazpena eta elkarrizketa-koadroa (botatzaileak ezin du aurrera egin)",
             },
             paginationPolicy: {
                 label: "Orri Izena",
@@ -1680,6 +1705,37 @@ const basqueTranslation: TranslationType = {
                     round: "Txanda",
                 },
             },
+            pendingResolutions: {
+                round: "Txanda {{round}}",
+                tieResolutionRequired: "Berdinketa ebazpena beharrezkoa",
+                tieResolved: "Berdinketa ebatzita",
+                globalArea: "Global",
+                pendingResolutionsHeader: "Ebazpen zain",
+                pendingResolutionStatus: "Ebazpen zain",
+                resolvedStatus: "Ebatzita",
+                resolutionTitle: "Ebazpena",
+                selectContest: "Hautatu elementu bat ezkerraldean xehetasunak ikusteko",
+                selectCandidateToAdvance: "Hautatu aurreratzeko hautagaia",
+                undoResolution: "Ebazpena desegin",
+                applyResolutions: "Ebazpenak aplikatu eta birkalkulatu",
+                submitSuccess: "Ebazpenak bidali dira. Zenbaketa berriro hasten ari da...",
+                submitError: "Errorea ebazpenak bidaltzean. Saiatu berriro.",
+                filter: "Iragazi",
+                save: "Gorde",
+                pendingApplyStatus: "Kalkulua zain",
+                filterElection: "Hauteskundea",
+                filterContest: "Lehiaketa",
+                filterArea: "Eremua",
+                filterStatusLabel: "Egoera",
+                clearFilters: "Iragazkiak garbitu",
+                candidateWithVotes: "{{name}} ({{votes}} boto)",
+                candidateWithVotesAndPercent: "{{name}} ({{votes}} boto, {{percent}}%)",
+                tieInfoTitle: "Zenbaketa etenda berdinketa konpondu gabeagatik (Txanda {{round}})",
+                tieInfoBody:
+                    "Berdinketako hautagaiak ({{votes}} boto, {{percent}}%): {{candidates}}. Eskuzko desempatea behar da zenbaketa jarraitzeko.",
+                tallyResumedTitle: "Zenbaketa berriro hasi da ebazpena aplikatu ondoren",
+                tallyResumedBody: "Berdinketa {{date}} egunean {{user}} erabiltzaileak ebatzi zuen",
+            },
             chart: {
                 votesForCandidates: "Hautagaientzako Botoak",
                 blankVotes: "Boto Zuriak",
@@ -1687,6 +1743,8 @@ const basqueTranslation: TranslationType = {
                 totalVoters: "Bozkatzaile Guztiak",
                 nonVoters: "Ez-bozkatzaileak",
             },
+            exportAllAreas:
+                "Eremu guztien emaitzak {{format}} formatuan esportatu '{{item}}'-rentzat",
         },
         publish: {
             preview: {

@@ -47,10 +47,9 @@ impl PluginManager {
         for (file_name, wasm) in wasms_files {
             let plugin: Option<Plugin> =
                 Plugin::init_plugin_from_wasm_bytes(&self.engine, wasm, file_name).await?;
-            if plugin.is_none() {
+            let Some(plugin) = plugin else {
                 continue;
-            }
-            let plugin = plugin.unwrap();
+            };
             let plugin_name = plugin.name.clone();
             let plugin_manifest: Manifest = plugin.manifest.clone();
 
@@ -227,9 +226,9 @@ pub async fn get_plugin_manager() -> Result<&'static PluginManager> {
     let plugin_manager = match PLUGIN_MANAGER.get() {
         Some(manager) => manager,
         _ => {
-            let _ = init_plugin_manager()
+            init_plugin_manager()
                 .await
-                .map_err(|e| anyhow!("Failed to initialize PluginManager: {e}"));
+                .context("Failed to initialize PluginManager")?;
             PLUGIN_MANAGER
                 .get()
                 .expect("PluginManager should be initialized")
@@ -247,7 +246,7 @@ pub async fn init_plugin_manager() -> Result<()> {
     plugin_manager
         .load_plugins()
         .await
-        .map_err(|e| anyhow!("Failed to load plugins: {e}"))?;
+        .context("Failed to load plugins")?;
 
     PLUGIN_MANAGER
         .set(plugin_manager)

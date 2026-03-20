@@ -639,6 +639,13 @@ const englishTranslation = {
                     "election-event": "Election event title",
                 },
             },
+            consolidatedReportPolicy: {
+                label: "Consolidated Report Policy",
+                options: {
+                    "generate": "Generate",
+                    "do-not-generate": "Do Not Generate",
+                },
+            },
         },
         tenantScreen: {
             common: {
@@ -1311,8 +1318,12 @@ const englishTranslation = {
                 "plurality-at-large": "Plurality at Large",
                 "instant-runoff": "Instant Runoff",
                 "random": "Random",
+                "external-procedure": "External Procedure",
                 "custom": "Custom",
                 "alphabetical": "Alphabetical",
+            },
+            tieBreakingPolicy: {
+                label: "Tie-Breaking Policy",
             },
             auditButtonConfig: {
                 "label": "Audit Button Display Options",
@@ -1360,6 +1371,18 @@ const englishTranslation = {
                 "not-allowed-with-msg-and-alert": "Not Allowed with Warning message and Alert",
                 "not-allowed-with-msg-and-disable":
                     "Not Allowed with Warning message and Disable further selections",
+            },
+            duplicatedRankPolicy: {
+                "label": "Invalid Vote - Duplicate Rank Policy",
+                "allowed-warn-and-dialog": "Show Warning and Dialog (voter can proceed)",
+                "not-allowed-warn-and-dialog":
+                    "Show Warning and Dialog (voter not allowed to proceed)",
+            },
+            preferenceGapsPolicy: {
+                "label": "Invalid Vote - Skipped Ranks Policy",
+                "allowed-warn-and-dialog": "Show Warning and Dialog (voter can proceed)",
+                "not-allowed-warn-and-dialog":
+                    "Show Warning and Dialog (voter not allowed to proceed)",
             },
             paginationPolicy: {
                 label: "Page Name",
@@ -1671,6 +1694,37 @@ const englishTranslation = {
                     round: "Round",
                 },
             },
+            pendingResolutions: {
+                round: "Round {{round}}",
+                tieResolutionRequired: "Tie Resolution Required",
+                tieResolved: "Tie Resolved",
+                globalArea: "Global",
+                pendingResolutionsHeader: "Pending resolutions",
+                pendingResolutionStatus: "Pending Resolution",
+                resolvedStatus: "Resolved",
+                resolutionTitle: "Resolution",
+                selectContest: "Select an item from the left to view details",
+                selectCandidateToAdvance: "Select candidate to advance",
+                undoResolution: "Undo Resolution",
+                applyResolutions: "Apply Resolutions and Recalculate",
+                submitSuccess: "Resolutions submitted. Tally is resuming...",
+                submitError: "Failed to submit resolutions. Please try again.",
+                filter: "Filter",
+                save: "Save",
+                pendingApplyStatus: "Pending calculation",
+                filterElection: "Election",
+                filterContest: "Contest",
+                filterArea: "Area",
+                filterStatusLabel: "Status",
+                clearFilters: "Clear filters",
+                candidateWithVotes: "{{name}} ({{votes}} votes)",
+                candidateWithVotesAndPercent: "{{name}} ({{votes}} votes, {{percent}}%)",
+                tieInfoTitle: "Tally paused due to unresolved tie (Round {{round}})",
+                tieInfoBody:
+                    "Candidates tied ({{votes}} votes, {{percent}}%): {{candidates}}. Manual tie-break required to continue tally.",
+                tallyResumedTitle: "Tally resumed after resolution applied",
+                tallyResumedBody: "Candidates tie was resolved on {{date}} by {{user}}",
+            },
             chart: {
                 votesForCandidates: "Votes For Candidates",
                 blankVotes: "Blank Votes",
@@ -1678,6 +1732,7 @@ const englishTranslation = {
                 totalVoters: "Total Voters",
                 nonVoters: "Non Voters",
             },
+            exportAllAreas: "Export All Areas Results in {{format}} format for '{{item}}'",
         },
         publish: {
             preview: {

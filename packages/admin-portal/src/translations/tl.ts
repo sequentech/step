@@ -640,6 +640,13 @@ const tagalogTranslation: TranslationType = {
                     "election-event": "Pamagat ng kaganapan ng halalan",
                 },
             },
+            consolidatedReportPolicy: {
+                label: "Patakaran sa Pinagsamang Ulat",
+                options: {
+                    "generate": "Bumuo",
+                    "do-not-generate": "Huwag bumuo",
+                },
+            },
         },
         tenantScreen: {
             common: {
@@ -1323,8 +1330,12 @@ const tagalogTranslation: TranslationType = {
                 "plurality-at-large": "Pluralidad sa Lahat",
                 "instant-runoff": "Instant Runoff",
                 "random": "Random",
+                "external-procedure": "External Procedure",
                 "custom": "Pasadya",
                 "alphabetical": "Alpabetikal",
+            },
+            tieBreakingPolicy: {
+                label: "Patakaran sa Tie-Breaking",
             },
             auditButtonConfig: {
                 "label": "Mga Opsyon sa Pagpahiling kan Buton nin Pag-audit",
@@ -1374,6 +1385,20 @@ const tagalogTranslation: TranslationType = {
                     "Dai Tinotogotan an mensahe nin Patanid asin Alerto",
                 "not-allowed-with-msg-and-disable":
                     "Dai Tinutugutan an mensahe nin Patanid asin I-disable an mga dugang pang pagpili",
+            },
+            duplicatedRankPolicy: {
+                "label": "Di-wastong Boto - Patakaran sa Dobleng Ranggo",
+                "allowed-warn-and-dialog":
+                    "Ipakita ang babala at dialog (maaaring magpatuloy ang botante)",
+                "not-allowed-warn-and-dialog":
+                    "Ipakita ang babala at dialog (hindi maaaring magpatuloy ang botante)",
+            },
+            preferenceGapsPolicy: {
+                "label": "Di-wastong Boto - Patakaran sa Nilaktawang Ranggo",
+                "allowed-warn-and-dialog":
+                    "Ipakita ang babala at dialog (maaaring magpatuloy ang botante)",
+                "not-allowed-warn-and-dialog":
+                    "Ipakita ang babala at dialog (hindi maaaring magpatuloy ang botante)",
             },
             paginationPolicy: {
                 label: "Pangalan ng Pahina",
@@ -1686,6 +1711,39 @@ const tagalogTranslation: TranslationType = {
                     round: "Ikot",
                 },
             },
+            pendingResolutions: {
+                round: "Ikot {{round}}",
+                tieResolutionRequired: "Kinakailangan ang resolusyon sa ugnayan",
+                tieResolved: "Naresolba ang ugnayan",
+                globalArea: "Global",
+                pendingResolutionsHeader: "Mga nakabinbing resolusyon",
+                pendingResolutionStatus: "Nakabinbing resolusyon",
+                resolvedStatus: "Naresolba",
+                resolutionTitle: "Resolusyon",
+                selectContest: "Pumili ng aytem sa kaliwa upang tingnan ang mga detalye",
+                selectCandidateToAdvance: "Piliin ang kandidatong itataguyod",
+                undoResolution: "I-undo ang resolusyon",
+                applyResolutions: "Ilapat ang mga resolusyon at muling kalkulahin",
+                submitSuccess: "Mga resolusyon isinumite. Ang pagbibilang ay nagpapatuloy...",
+                submitError: "Nabigo ang pag-isumite ng mga resolusyon. Pakisubukan muli.",
+                filter: "I-filter",
+                save: "I-save",
+                pendingApplyStatus: "Nakabinbing kalkulasyon",
+                filterElection: "Eleksyon",
+                filterContest: "Paligsahan",
+                filterArea: "Lugar",
+                filterStatusLabel: "Katayuan",
+                clearFilters: "I-clear ang mga filter",
+                candidateWithVotes: "{{name}} ({{votes}} boto)",
+                candidateWithVotesAndPercent: "{{name}} ({{votes}} boto, {{percent}}%)",
+                tieInfoTitle:
+                    "Ang pagbibilang ay natigil dahil sa hindi naresolubasiyong ugnayan (Ikot {{round}})",
+                tieInfoBody:
+                    "Mga kandidatong nagtatali ({{votes}} boto, {{percent}}%): {{candidates}}. Kinakailangan ang manu-manong pagpili para magpatuloy ang pagbibilang.",
+                tallyResumedTitle:
+                    "Nagpapatuloy na ang pagbibilang pagkatapos ilapat ang resolusyon",
+                tallyResumedBody: "Ang ugnayan ay nalutas noong {{date}} ni {{user}}",
+            },
             chart: {
                 votesForCandidates: "Mga Boto para sa mga Kandidato",
                 blankVotes: "Mga Blankong Boto",
@@ -1693,6 +1751,8 @@ const tagalogTranslation: TranslationType = {
                 totalVoters: "Kabuuang mga Botante",
                 nonVoters: "Hindi Bumoto",
             },
+            exportAllAreas:
+                "I-export ang resulta ng lahat ng lugar sa format na {{format}} para kay '{{item}}'",
         },
         publish: {
             preview: {

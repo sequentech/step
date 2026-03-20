@@ -83,7 +83,7 @@ pub async fn find_area_ballots(
                         election_event_id = '{election_event_id}' AND
                         area_id = '{area_id}' AND
                         election_id = '{election_id}'
-                    ORDER BY voter_id_string
+                    ORDER BY election_id, voter_id_string, created_at DESC
                 "#
     );
 

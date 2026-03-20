@@ -640,6 +640,13 @@ const galegoTranslation: TranslationType = {
                     "election-event": "Título do evento electoral",
                 },
             },
+            consolidatedReportPolicy: {
+                label: "Política de informe consolidado",
+                options: {
+                    "generate": "Xerar",
+                    "do-not-generate": "Non xerar",
+                },
+            },
         },
         tenantScreen: {
             common: {
@@ -1323,8 +1330,12 @@ const galegoTranslation: TranslationType = {
                 "plurality-at-large": "Pluralidade en Xeral",
                 "instant-runoff": "Segunda Volta Instantánea",
                 "random": "Aleatorio",
+                "external-procedure": "Procedemento externo",
                 "custom": "Personalizado",
                 "alphabetical": "Alfabético",
+            },
+            tieBreakingPolicy: {
+                label: "Política de desempate",
             },
             auditButtonConfig: {
                 "label": "Opcións de Visualización do Botón de Auditoría",
@@ -1372,6 +1383,18 @@ const galegoTranslation: TranslationType = {
                 "not-allowed-with-msg-and-alert": "Non Permitido con Mensaxe de Aviso e Alerta",
                 "not-allowed-with-msg-and-disable":
                     "Non Permitido con Mensaxe de Aviso e Desactivar seleccións adicionais",
+            },
+            duplicatedRankPolicy: {
+                "label": "Voto non válido - Política de posición duplicada",
+                "allowed-warn-and-dialog": "Mostrar aviso e diálogo (o votante pode continuar)",
+                "not-allowed-warn-and-dialog":
+                    "Mostrar aviso e diálogo (o votante non pode continuar)",
+            },
+            preferenceGapsPolicy: {
+                "label": "Voto non válido - Política de rangos omitidos",
+                "allowed-warn-and-dialog": "Mostrar aviso e diálogo (o votante pode continuar)",
+                "not-allowed-warn-and-dialog":
+                    "Mostrar aviso e diálogo (o votante non pode continuar)",
             },
             paginationPolicy: {
                 label: "Nome da Páxina",
@@ -1685,6 +1708,37 @@ const galegoTranslation: TranslationType = {
                     round: "Rolda",
                 },
             },
+            pendingResolutions: {
+                round: "Rolda {{round}}",
+                tieResolutionRequired: "Resolución de empate necesaria",
+                tieResolved: "Empate resolto",
+                globalArea: "Global",
+                pendingResolutionsHeader: "Resolucións pendentes",
+                pendingResolutionStatus: "Resolución pendente",
+                resolvedStatus: "Resolto",
+                resolutionTitle: "Resolución",
+                selectContest: "Seleccione un elemento á esquerda para ver os detalles",
+                selectCandidateToAdvance: "Seleccione o candidato a avanzar",
+                undoResolution: "Desfacer resolución",
+                applyResolutions: "Aplicar resolucións e recalcular",
+                submitSuccess: "Resolucións enviadas. O escrutinio está a retomarse...",
+                submitError: "Erro ao enviar as resolucións. Por favor, ténteo de novo.",
+                filter: "Filtrar",
+                save: "Gardar",
+                pendingApplyStatus: "Cálculo pendente",
+                filterElection: "Elección",
+                filterContest: "Concurso",
+                filterArea: "Área",
+                filterStatusLabel: "Estado",
+                clearFilters: "Borrar filtros",
+                candidateWithVotes: "{{name}} ({{votes}} votos)",
+                candidateWithVotesAndPercent: "{{name}} ({{votes}} votos, {{percent}}%)",
+                tieInfoTitle: "Escrutinio pausado por empate sen resolver (Rolda {{round}})",
+                tieInfoBody:
+                    "Candidatos empatados ({{votes}} votos, {{percent}}%): {{candidates}}. Requírese desempate manual para continuar o escrutinio.",
+                tallyResumedTitle: "Escrutinio retomado tras aplicar a resolución",
+                tallyResumedBody: "O empate foi resolto o {{date}} por {{user}}",
+            },
             chart: {
                 votesForCandidates: "Votos polos Candidatos",
                 blankVotes: "Votos en Branco",
@@ -1692,6 +1746,8 @@ const galegoTranslation: TranslationType = {
                 totalVoters: "Total de Votantes",
                 nonVoters: "Non Votantes",
             },
+            exportAllAreas:
+                "Exportar os resultados de todas as áreas en formato {{format}} para '{{item}}'",
         },
         publish: {
             preview: {

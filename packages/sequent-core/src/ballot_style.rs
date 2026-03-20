@@ -5,7 +5,8 @@
 use crate::ballot::{
     self, AreaAnnotations, AreaPresentation, CandidatePresentation,
     ContestPresentation, ElectionEventPresentation, ElectionPresentation,
-    I18nContent, StringifiedPeriodDates, WeightedVotingPolicy,
+    I18nContent, StringifiedPeriodDates, TieBreakingPolicy,
+    WeightedVotingPolicy,
 };
 
 use crate::serialization::deserialize_with_path::deserialize_value;
@@ -110,18 +111,7 @@ pub fn create_ballot_style(
         })
         .collect::<Result<Vec<ballot::Contest>>>()?;
 
-    let event_weighted_voting_policy: WeightedVotingPolicy =
-        election_event_presentation
-            .weighted_voting_policy
-            .clone()
-            .unwrap_or(WeightedVotingPolicy::default());
-
-    let mut area_annotations: Option<AreaAnnotations> = None;
-    if event_weighted_voting_policy
-        == WeightedVotingPolicy::AREAS_WEIGHTED_VOTING
-    {
-        area_annotations = area.clone().read_annotations()?;
-    }
+    let area_annotations = area.clone().read_annotations()?;
     let area_presentation: AreaPresentation = area
         .presentation
         .clone()
@@ -248,6 +238,16 @@ fn create_contest(
         .as_ref()
         .and_then(|i18n| i18n.get(&default_language))
         .and_then(|alias| alias.clone());
+
+    // Extract tie_breaking_policy from tally_configuration JSON
+    let tie_breaking_policy = contest
+        .tally_configuration
+        .as_ref()
+        .and_then(|config| config.get("tie_breaking_policy"))
+        .and_then(|policy| {
+            serde_json::from_value::<TieBreakingPolicy>(policy.clone()).ok()
+        });
+
     Ok(ballot::Contest {
         id: contest.id.clone(),
         tenant_id: (contest.tenant_id),
@@ -273,5 +273,6 @@ fn create_contest(
             .clone()
             .map(|value| deserialize_value(value))
             .transpose()?,
+        tie_breaking_policy,
     })
 }
