@@ -2264,6 +2264,13 @@
       "autheticatorFlow" : true,
       "flowAlias" : "sequent browser flow forms",
       "userSetupAllowed" : false
+    }, {
+      "authenticatorFlow" : true,
+      "requirement" : "ALTERNATIVE",
+      "priority" : 31,
+      "autheticatorFlow" : true,
+      "flowAlias" : "Type of certificate",
+      "userSetupAllowed" : false
     } ]
   }, {
     "id" : "855aa7fc-2c12-4d9d-8824-97f31cf4c5d7",
@@ -2389,6 +2396,90 @@
     "id": "7a6aa873-a7e9-46a7-8621-ac91f4bb3bbf",
     "providerId": "basic-flow",
     "topLevel": true
+  }, {
+    "alias": "AC FNMT Usuarios",
+    "description": "",
+    "providerId": "basic-flow",
+    "topLevel": false,
+    "builtIn": false,
+    "authenticationExecutions": [
+      {
+        "authenticator": "conditional-auth-note",
+        "authenticatorConfig": "cert-type-fnmt",
+        "authenticatorFlow": false,
+        "requirement": "REQUIRED",
+        "priority": 0,
+        "autheticatorFlow": false,
+        "userSetupAllowed": false
+      },
+      {
+        "authenticator": "auth-x509-client-username-form",
+        "authenticatorConfig": "x509-voter-cert-fnmt",
+        "authenticatorFlow": false,
+        "requirement": "REQUIRED",
+        "priority": 1,
+        "autheticatorFlow": false,
+        "userSetupAllowed": false
+      }
+    ]
+  }, {
+    "alias": "DNIE",
+    "description": "",
+    "providerId": "basic-flow",
+    "topLevel": false,
+    "builtIn": false,
+    "authenticationExecutions": [
+      {
+        "authenticator": "conditional-auth-note",
+        "authenticatorConfig": "cert-type-dnie",
+        "authenticatorFlow": false,
+        "requirement": "REQUIRED",
+        "priority": 0,
+        "autheticatorFlow": false,
+        "userSetupAllowed": false
+      },
+      {
+        "authenticator": "auth-x509-client-username-form",
+        "authenticatorConfig": "x509-voter-cert-dnie",
+        "authenticatorFlow": false,
+        "requirement": "REQUIRED",
+        "priority": 1,
+        "autheticatorFlow": false,
+        "userSetupAllowed": false
+      }
+    ]
+  }, {
+    "alias": "Type of certificate",
+    "description": "",
+    "providerId": "basic-flow",
+    "topLevel": false,
+    "builtIn": false,
+    "authenticationExecutions": [
+      {
+        "authenticator": "x509-cert-classifier",
+        "authenticatorFlow": false,
+        "requirement": "REQUIRED",
+        "priority": 0,
+        "autheticatorFlow": false,
+        "userSetupAllowed": false
+      },
+      {
+        "authenticatorFlow": true,
+        "requirement": "CONDITIONAL",
+        "priority": 10,
+        "autheticatorFlow": true,
+        "flowAlias": "AC FNMT Usuarios",
+        "userSetupAllowed": false
+      },
+      {
+        "authenticatorFlow": true,
+        "requirement": "CONDITIONAL",
+        "priority": 20,
+        "autheticatorFlow": true,
+        "flowAlias": "DNIE",
+        "userSetupAllowed": false
+      }
+    ]
   } ],
   "authenticatorConfig" : [ {
     "id" : "372a26e6-91b8-4738-959b-2402eee8d8ec",
@@ -2741,7 +2832,52 @@
     "x509-cert-auth.regular-expression": "(.*?)(?:$)",
     "x509-cert-auth.timestamp-validation-enabled": "true"
     },
-    "id": "d4e8a1f2-3c7b-4a9e-8d5f-1b2c3d4e5f6a"} ],
+    "id": "d4e8a1f2-3c7b-4a9e-8d5f-1b2c3d4e5f6a"
+  }, {
+    "alias": "cert-type-fnmt",
+    "config": {
+      "conditional-auth-note-key": "cert-type",
+      "conditional-auth-note-value": "AC FNMT Usuarios",
+      "negate": "false"
+    }
+  }, {
+    "alias": "cert-type-dnie",
+    "config": {
+      "conditional-auth-note-key": "cert-type",
+      "conditional-auth-note-value": "DNIE",
+      "negate": "false"
+    }
+  }, {
+    "alias": "x509-voter-cert-fnmt",
+    "config": {
+      "x509-cert-auth.confirmation-page-disallowed": "true",
+      "x509-cert-auth.crl-checking-enabled": "false",
+      "x509-cert-auth.crldp-checking-enabled": "false",
+      "x509-cert-auth.extendedkeyusage": "",
+      "x509-cert-auth.keyusage": "clientAuth",
+      "x509-cert-auth.revalidate-certificate-enabled": "true",
+      "x509-cert-auth.mapper-selection": "Username or Email",
+      "x509-cert-auth.mapping-source-selection": "Subject's Common Name",
+      "x509-cert-auth.ocsp-checking-enabled": "false",
+      "x509-cert-auth.regular-expression": "(.*?)(?:$)",
+      "x509-cert-auth.timestamp-validation-enabled": "true"
+    }
+  }, {
+    "alias": "x509-voter-cert-dnie",
+    "config": {
+      "x509-cert-auth.confirmation-page-disallowed": "true",
+      "x509-cert-auth.crl-checking-enabled": "false",
+      "x509-cert-auth.crldp-checking-enabled": "false",
+      "x509-cert-auth.extendedkeyusage": "",
+      "x509-cert-auth.keyusage": "clientAuth",
+      "x509-cert-auth.revalidate-certificate-enabled": "true",
+      "x509-cert-auth.mapper-selection": "Username or Email",
+      "x509-cert-auth.mapping-source-selection": "Subject's Common Name",
+      "x509-cert-auth.ocsp-checking-enabled": "false",
+      "x509-cert-auth.regular-expression": "(.*?)(?:$)",
+      "x509-cert-auth.timestamp-validation-enabled": "true"
+    }
+  } ],
   "requiredActions" : [ {
     "alias" : "TERMS_AND_CONDITIONS",
     "name" : "Terms and Conditions",
