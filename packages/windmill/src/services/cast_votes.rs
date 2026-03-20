@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use super::database::PgConfig;
+use super::sql_utils::escape_sql_literal;
 use crate::services::datafix::utils::{
     is_datafix_election_event_by_id, voted_via_not_internet_channel,
 };
@@ -71,6 +72,10 @@ pub async fn find_area_ballots(
     output_file: &PathBuf,
 ) -> Result<()> {
     // COPY does not support parameters so we have to add them using format
+    let tenant_id = escape_sql_literal(tenant_id);
+    let election_event_id = escape_sql_literal(election_event_id);
+    let area_id = escape_sql_literal(area_id);
+    let election_id = escape_sql_literal(election_id);
     let areas_statement = format!(
         r#"
                     SELECT DISTINCT ON (election_id, voter_id_string)

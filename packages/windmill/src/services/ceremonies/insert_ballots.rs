@@ -58,6 +58,7 @@ pub async fn insert_ballots_messages(
     tally_session_contests: Vec<TallySessionContest>,
     contest_encryption_policy: ContestEncryptionPolicy,
     delegated_voting_policy: DelegatedVotingPolicy,
+    skip_board_posting: bool,
 ) -> Result<Vec<TallySessionContest>> {
     let trustees = get_trustees_by_name(hasura_transaction, &tenant_id, &trustee_names).await?;
 
@@ -290,20 +291,22 @@ pub async fn insert_ballots_messages(
                         ciphertexts.len()
                     );
 
-                    let mut board = get_b3_pgsql_client().await?;
-                    let batch = tally_session_contest.session_id.clone() as BatchNumber;
-                    add_ballots_to_board(
-                        &protocol_manager_arc_clone, // Use the Arc clone here
-                        &mut board,
-                        &board_name_clone,
-                        &board_messages_clone, // Use the cloned board_messages
-                        &configuration_clone,
-                        public_key_hash_clone,
-                        selected_trustees_clone,
-                        ciphertexts,
-                        batch,
-                    )
-                    .await?;
+                    if !skip_board_posting {
+                        let mut board = get_b3_pgsql_client().await?;
+                        let batch = tally_session_contest.session_id.clone() as BatchNumber;
+                        add_ballots_to_board(
+                            &protocol_manager_arc_clone, // Use the Arc clone here
+                            &mut board,
+                            &board_name_clone,
+                            &board_messages_clone, // Use the cloned board_messages
+                            &configuration_clone,
+                            public_key_hash_clone,
+                            selected_trustees_clone,
+                            ciphertexts,
+                            batch,
+                        )
+                        .await?;
+                    }
 
                     Ok(updated_tally_session_contest)
                 })

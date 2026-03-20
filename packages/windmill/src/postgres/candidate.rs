@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::services::import::import_election_event::ImportElectionEventSchema;
+use crate::services::sql_utils::escape_sql_literal;
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::{Client as DbClient, Transaction};
 use futures::pin_mut;
@@ -191,9 +192,12 @@ pub async fn export_candidate_csv(
 
     let contests_csv = contest_ids
         .iter()
-        .map(|id| format!("\"{}\"", id))
+        .map(|id| format!("\"{}\"", escape_sql_literal(id)))
         .collect::<Vec<_>>()
         .join(",");
+
+    let tenant_id = escape_sql_literal(tenant_id);
+    let election_event_id = escape_sql_literal(election_event_id);
 
     let copy_sql = format!(
         r#"COPY (

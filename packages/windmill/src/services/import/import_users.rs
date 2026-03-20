@@ -5,6 +5,7 @@
 use crate::postgres::area::get_areas_by_name;
 use crate::postgres::keycloak_realm;
 use crate::services::database::{get_hasura_pool, get_keycloak_pool};
+use crate::services::sql_utils::escape_sql_literal;
 use crate::types::error::{Error, Result};
 use anyhow::{anyhow, Context};
 use base64::prelude::*;
@@ -202,6 +203,9 @@ fn get_insert_user_query(
     voters_table: String,
     voters_table_columns: &Vec<String>,
 ) -> anyhow::Result<String> {
+    let realm_id = escape_sql_literal(&realm_id);
+    let tenant_id = escape_sql_literal(&tenant_id);
+
     // Build the INSERT query for user_entity
     let user_entity_columns = vec![
         "id",

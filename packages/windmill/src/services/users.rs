@@ -25,6 +25,8 @@ use std::{
     convert::From,
 };
 use strum_macros::{Display, EnumString};
+
+use crate::services::sql_utils::escape_sql_literal;
 use tokio::fs::File;
 use tokio::io::{copy, AsyncWriteExt, BufWriter};
 use tokio_postgres::row::Row;
@@ -155,7 +157,12 @@ pub async fn list_keycloak_enabled_users_by_area_id_and_authorized_elections(
         "".to_string()
     };
 
-    // COPY does not support parameters so we have to add them using format
+    // COPY does not support parameters so we have to add them using format.
+    // Escape single quotes to prevent SQL injection.
+    let realm_escaped = escape_sql_literal(realm);
+    let area_id_escaped = escape_sql_literal(area_id);
+    let election_alias_escaped = escape_sql_literal(election_alias);
+
     let statement = format!(
         r#"
         SELECT
@@ -170,10 +177,10 @@ pub async fn list_keycloak_enabled_users_by_area_id_and_authorized_elections(
         LEFT JOIN
             user_attribute ua_elections ON u.id = ua_elections.user_id AND ua_elections.name = '{AUTHORIZED_ELECTION_IDS_NAME}'
         WHERE
-            ra.name = '{realm}' AND
+            ra.name = '{realm_escaped}' AND
             u.enabled IS TRUE AND
-            ua_area.value = '{area_id}' AND
-            (ua_elections.value = '{election_alias}' OR ua_elections.value IS NULL)
+            ua_area.value = '{area_id_escaped}' AND
+            (ua_elections.value = '{election_alias_escaped}' OR ua_elections.value IS NULL)
         GROUP BY
             u.id
         ORDER BY
@@ -251,9 +258,10 @@ impl FilterOption {
             ),
             Self::IsLikeUnaccentHyphens(pattern) => {
                 let pattern = pattern.replace(" ", "_"); // replace blanks by single wildcards to detect hyphens
+                let escaped = escape_sql_literal(&pattern);
                 (
                     format!(
-                        r#"('{pattern}'::VARCHAR IS NULL OR UNACCENT({col_name}) ILIKE ${param_number}){operator} "#,
+                        r#"('{escaped}'::VARCHAR IS NULL OR UNACCENT({col_name}) ILIKE ${param_number}){operator} "#,
                     ),
                     Some(format!("%{}%", pattern)),
                 )

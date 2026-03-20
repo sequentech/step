@@ -541,28 +541,63 @@ pub async fn upsert_ballots_messages(
         })
         .collect();
 
+    // Contests where Ballots exist on board but annotations were not saved
+    // (e.g. due to a previous failed run where the board write succeeded
+    // but the Hasura transaction was rolled back).
+    let missing_annotations_batches: Vec<TallySessionContest> = tally_session_contests
+        .clone()
+        .into_iter()
+        .filter(|tally_session_contest| {
+            existing_ballots_batches.contains(&(tally_session_contest.session_id as i64))
+                && tally_session_contest.annotations.is_none()
+        })
+        .collect();
+
     event!(
         Level::INFO,
         "missing_ballots_batches num: {}",
         missing_ballots_batches.len()
     );
+    event!(
+        Level::INFO,
+        "missing_annotations_batches num: {}",
+        missing_annotations_batches.len()
+    );
 
-    let tally_session_contests_updated = if missing_ballots_batches.len() > 0 {
+    let mut tally_session_contests_updated = if !missing_ballots_batches.is_empty() {
         insert_ballots_messages(
             hasura_transaction,
             keycloak_transaction,
             tenant_id,
             election_event_id,
             board_name,
-            trustee_names,
+            trustee_names.clone(),
             missing_ballots_batches.clone(),
-            contest_encryption_policy,
-            delegated_voting_policy,
+            contest_encryption_policy.clone(),
+            delegated_voting_policy.clone(),
+            false,
         )
         .await?
     } else {
         vec![]
     };
+
+    if !missing_annotations_batches.is_empty() {
+        let recovered = insert_ballots_messages(
+            hasura_transaction,
+            keycloak_transaction,
+            tenant_id,
+            election_event_id,
+            board_name,
+            trustee_names,
+            missing_annotations_batches,
+            contest_encryption_policy,
+            delegated_voting_policy,
+            true,
+        )
+        .await?;
+        tally_session_contests_updated.extend(recovered);
+    }
 
     Ok(tally_session_contests_updated)
 }
