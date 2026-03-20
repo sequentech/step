@@ -111,7 +111,14 @@ export const TallyElectionsResults: React.FC<TallyElectionsResultsProps> = (prop
             flex: 1,
             editable: false,
             renderCell: (props: GridRenderCellParams<any, string>) => {
-                return aliasRenderer(props.row.presentation, JSON.parse(props.row.presentation).language_conf.default_language_code)
+                let defaultLang: string | undefined
+                try {
+                    defaultLang = JSON.parse(props.row.presentation)?.language_conf
+                        ?.default_language_code
+                } catch {
+                    defaultLang = undefined
+                }
+                return aliasRenderer(props.row.presentation, defaultLang)
             },
         },
         {

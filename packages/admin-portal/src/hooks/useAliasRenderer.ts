@@ -19,6 +19,8 @@ export function useAliasRenderer() {
                 ? translateFromPresentation(x, "alias", defaultLang) ||
                   translateFromPresentation(x, "name", defaultLang)
                 : undefined) ||
+            translateFromPresentation(x, "alias", "en") ||
+            translateFromPresentation(x, "name", "en") ||
             "-"
 
         if (item == null) return "-"
