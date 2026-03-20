@@ -653,6 +653,100 @@ impl ElectoralLog {
         self.post(&message).await
     }
 
+    #[instrument(skip(self))]
+    pub async fn post_tally_resumed_with_resolution(
+        &self,
+        event_id: String,
+        election_ids_vec: Option<Vec<String>>,
+        resolution_ids: Vec<String>,
+    ) -> Result<()> {
+        let event = EventIdString(event_id);
+        let election_ids = flatten_election_ids(election_ids_vec);
+        let election = ElectionIdString(election_ids);
+
+        let message =
+            Message::tally_resumed_with_resolution(event, election, resolution_ids, &self.sd)
+                .map_err(|e| anyhow!("Error posting tally resumed with resolution: {e:?}"))?;
+
+        self.post(&message).await
+    }
+
+    #[instrument(skip(self))]
+    pub async fn post_tally_paused_pending_resolution(
+        &self,
+        event_id: String,
+        election_ids_vec: Option<Vec<String>>,
+        resolution_ids: Vec<String>,
+    ) -> Result<()> {
+        let event = EventIdString(event_id);
+        let election_ids = flatten_election_ids(election_ids_vec);
+        let election = ElectionIdString(election_ids);
+
+        let message =
+            Message::tally_paused_pending_resolutions(event, election, resolution_ids, &self.sd)
+                .map_err(|e| anyhow!("Error posting tally paused pending resolution: {e:?}"))?;
+
+        self.post(&message).await
+    }
+
+    #[instrument(skip(self))]
+    pub async fn post_tally_tie_resolved(
+        &self,
+        event_id: String,
+        election_ids_vec: Option<Vec<String>>,
+        contest_id: String,
+        resolution_id: String,
+        user_id: Option<String>,
+        username: Option<String>,
+    ) -> Result<()> {
+        let event = EventIdString(event_id);
+        let election_ids = flatten_election_ids(election_ids_vec);
+        let election = ElectionIdString(election_ids);
+        let contest = ContestIdString(contest_id);
+
+        let message = Message::tally_tie_resolved(
+            event,
+            election,
+            contest,
+            resolution_id,
+            &self.sd,
+            user_id,
+            username,
+        )
+        .map_err(|e| anyhow!("Error posting tally tie resolved: {e:?}"))?;
+
+        self.post(&message).await
+    }
+
+    #[instrument(skip(self))]
+    pub async fn post_tally_tie_resolution_updated(
+        &self,
+        event_id: String,
+        election_ids_vec: Option<Vec<String>>,
+        contest_id: String,
+        resolution_id: String,
+        user_id: Option<String>,
+        username: Option<String>,
+    ) -> Result<()> {
+        let event = EventIdString(event_id);
+        let election_ids = flatten_election_ids(election_ids_vec);
+        let election = ElectionIdString(election_ids);
+        let contest = ContestIdString(contest_id);
+
+        let message = Message::tally_tie_resolution_updated(
+            event,
+            election,
+            contest,
+            resolution_id,
+            &self.sd,
+            user_id,
+            username,
+        )
+        .map_err(|e| anyhow!("Error posting tally tie resolution updated: {e:?}"))?;
+
+        self.post(&message).await
+    }
+
     #[instrument(skip(self), err)]
     async fn post(&self, message: &Message) -> Result<()> {
         let board_message: ElectoralLogMessage = message.try_into()?;
