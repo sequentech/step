@@ -111,6 +111,19 @@ export const TallyResultsGlobalCandidates: React.FC<TallyResultsGlobalCandidates
         }
     }, [results, candidates])
 
+    const defaultElectionLang = useMemo(() => {
+        const election = tallyData?.sequent_backend_election?.find(
+            (e) => e.id === electionId
+        )
+        if (!election?.presentation) return undefined
+        try {
+            const parsed = JSON.parse(election.presentation)
+            return parsed?.language_conf?.default_language_code as string | undefined
+        } catch {
+            return undefined
+        }
+    }, [tallyData?.sequent_backend_election, electionId])
+
     const columns: GridColDef[] = [
         {
             field: "name",
@@ -119,7 +132,7 @@ export const TallyResultsGlobalCandidates: React.FC<TallyResultsGlobalCandidates
             editable: false,
             align: "left",
             renderCell: (props: GridRenderCellParams<any, string>) => {
-                return aliasRenderer(props.row.presentation)
+                return aliasRenderer(props.row.presentation, defaultElectionLang)
             },
         },
         {

@@ -86,6 +86,20 @@ export const TallyResultsCandidates: React.FC<TallyResultsCandidatesProps> = (pr
         [tallyData?.sequent_backend_results_area_contest_candidate, contestId, electionId]
     )
 
+    const defaultElectionLang = useMemo(() => {
+        const election = tallyData?.sequent_backend_election?.find(
+            (e) => e.id === electionId
+        )
+        if (!election?.presentation) return undefined
+        try {
+            const parsed = JSON.parse(election.presentation)
+            return parsed?.language_conf?.default_language_code as string | undefined
+        } catch {
+            return undefined
+        }
+    }, [tallyData?.sequent_backend_election, electionId])
+    
+
     useEffect(() => {
         if (results && candidates) {
             const temp: Array<Sequent_Backend_Candidate_Extended> | undefined = candidates?.map(
@@ -117,7 +131,7 @@ export const TallyResultsCandidates: React.FC<TallyResultsCandidatesProps> = (pr
             editable: false,
             align: "left",
             renderCell: (props: GridRenderCellParams<any, string>) => {
-                return aliasRenderer(props.row.presentation)
+                return aliasRenderer(props.row.presentation, defaultElectionLang)
             },
         },
         {
