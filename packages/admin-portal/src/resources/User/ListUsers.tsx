@@ -580,12 +580,12 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                     updateWidgetFail(currWidget.identifier)
                     return
                 }
-                let documentId = exportUsersData.export_users?.document_id
                 const task_id = exportUsersData?.export_users?.task_execution?.id
-                setExportDocumentId(documentId)
                 task_id
                     ? setWidgetTaskId(currWidget.identifier, task_id)
                     : updateWidgetFail(currWidget.identifier)
+                setExporting(false)
+                setOpenExport(false)
             } else {
                 const {data: exportUsersData, errors} = await exportTenantUsers({
                     variables: {tenantId},

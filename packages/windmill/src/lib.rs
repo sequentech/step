@@ -14,3 +14,7 @@ pub mod services;
 pub mod sqlite;
 pub mod tasks;
 pub mod types;
+
+#[cfg(test)]
+#[global_allocator]
+static ALLOC: dhat::Alloc = dhat::Alloc;
