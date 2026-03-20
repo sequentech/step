@@ -10,18 +10,13 @@ use anyhow::{anyhow, Context, Result};
 use chrono::NaiveDate;
 use chrono::{DateTime, Utc};
 use deadpool_postgres::Transaction;
-use futures::TryStreamExt;
 use sequent_core::types::keycloak::{User, VotesInfo};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::HashMap;
-use std::path::PathBuf;
 use strand::signature::{StrandSignaturePk, StrandSignatureSk};
-use tokio::fs::File;
-use tokio::io::{copy, AsyncWriteExt, BufWriter};
 use tokio_postgres::row::Row;
-use tokio_util::io::StreamReader;
-use tracing::{debug, info, instrument};
+use tracing::{instrument};
 use uuid::Uuid;
 
 #[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone)]
@@ -60,59 +55,6 @@ impl TryFrom<Row> for CastVote {
             ballot_id: item.try_get("ballot_id")?,
         })
     }
-}
-
-#[instrument(err)]
-pub async fn find_area_ballots(
-    hasura_transaction: &Transaction<'_>,
-    tenant_id: &str,
-    election_event_id: &str,
-    area_id: &str,
-    election_id: &str,
-    output_file: &PathBuf,
-) -> Result<()> {
-    // COPY does not support parameters so we have to add them using format
-    let areas_statement = format!(
-        r#"
-                    SELECT DISTINCT ON (election_id, voter_id_string)
-                        voter_id_string,
-                        content
-                    FROM "sequent_backend".cast_vote
-                    WHERE
-                        tenant_id = '{tenant_id}' AND
-                        election_event_id = '{election_event_id}' AND
-                        area_id = '{area_id}' AND
-                        election_id = '{election_id}'
-                    ORDER BY election_id, voter_id_string, created_at DESC
-                "#
-    );
-
-    let tokio_temp_file = File::create(output_file)
-        .await
-        .expect("Could not create/open temporary file for tokio");
-
-    let copy_out_query = format!("COPY ({}) TO STDOUT WITH (FORMAT CSV)", areas_statement);
-    let mut writer = BufWriter::new(tokio_temp_file);
-
-    debug!("copy_out_query: {copy_out_query}");
-
-    let reader = hasura_transaction.copy_out(&copy_out_query).await?;
-
-    let adapt_pg_error_to_io_error = |pg_err: tokio_postgres::Error| {
-        std::io::Error::new(std::io::ErrorKind::Other, pg_err.to_string())
-    };
-    let io_error_stream = reader.map_err(adapt_pg_error_to_io_error);
-
-    let async_reader = StreamReader::new(io_error_stream);
-    tokio::pin!(async_reader);
-
-    let bytes_copied = copy(&mut async_reader, &mut writer).await?;
-
-    info!("ballot bytes_copied: {bytes_copied}");
-
-    writer.flush().await?;
-
-    Ok(())
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone)]

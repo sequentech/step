@@ -30,7 +30,6 @@ pub mod generate_preview_url;
 pub mod google_meet;
 pub mod import;
 pub mod insert_cast_vote;
-pub mod join;
 pub mod jwks;
 pub mod keycloak;
 pub mod keycloak_events;
