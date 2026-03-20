@@ -1137,6 +1137,28 @@ impl ElectoralLogRow {
     }
 }
 
+impl TryFrom<ElectoralLogMessage> for ElectoralLogRow {
+    type Error = anyhow::Error;
+
+    fn try_from(elog_msg: ElectoralLogMessage) -> Result<Self, Self::Error> {
+        let serialized = general_purpose::STANDARD_NO_PAD.encode(elog_msg.message.clone());
+        let deserialized_message = Message::strand_deserialize(&elog_msg.message)
+            .map_err(|e| anyhow!("Error deserializing message: {e:?}"))?;
+
+        Ok(ElectoralLogRow {
+            id: elog_msg.id,
+            created: elog_msg.created,
+            statement_timestamp: elog_msg.statement_timestamp,
+            statement_kind: elog_msg.statement_kind.clone(),
+            message: serde_json::to_string_pretty(&deserialized_message)
+                .with_context(|| "Error serializing message to json")?,
+            data: serialized,
+            user_id: elog_msg.user_id.clone(),
+            username: elog_msg.username.clone(),
+        })
+    }
+}
+
 impl TryFrom<&Row> for ElectoralLogRow {
     type Error = anyhow::Error;
 
@@ -1247,7 +1269,6 @@ pub async fn list_electoral_log(input: GetElectoralLogBody) -> Result<DataList<E
     );
 
     event!(Level::INFO, "database name = {board_name}");
-    info!("input = {:?}", input);
     client.open_session(&board_name).await?;
     let (clauses, params) = input.as_sql(false)?;
     let (clauses_to_count, count_params) = input.as_sql(true)?;
@@ -1271,7 +1292,7 @@ pub async fn list_electoral_log(input: GetElectoralLogBody) -> Result<DataList<E
     let sql_query_response = client.streaming_sql_query(&sql, params).await?;
 
     let limit: usize = input.limit.unwrap_or(IMMUDB_ROWS_LIMIT as i64).try_into()?;
-
+    info!("list_electoral_log: limit = {}", limit);
     let mut rows: Vec<ElectoralLogRow> = Vec::with_capacity(limit);
     let mut resp_stream = sql_query_response.into_inner();
     while let Some(streaming_batch) = resp_stream.next().await {
