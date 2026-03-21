@@ -515,12 +515,11 @@ pub async fn upsert_ballots_messages(
         .clone()
         .unwrap_or_default()
         .get_delegated_voting_policy();
-    let expected_batch_ids: Vec<i64> = tally_session_contests
-        .clone()
-        .into_iter()
-        .map(|tally_session_contest| tally_session_contest.session_id.clone() as i64)
+    let expected_batch_ids: HashSet<i64> = tally_session_contests
+        .iter()
+        .map(|tally_session_contest| tally_session_contest.session_id as i64)
         .collect();
-    let existing_ballots_batches: Vec<i64> = messages
+    let existing_ballots_batches: HashSet<i64> = messages
         .iter()
         .filter(|message| {
             expected_batch_ids.contains(&(message.statement.get_batch_number() as i64))

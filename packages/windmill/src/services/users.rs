@@ -26,7 +26,7 @@ use std::{
 };
 use strum_macros::{Display, EnumString};
 
-use crate::services::sql_utils::escape_sql_literal;
+use crate::services::sql_utils::{escape_sql_identifier, escape_sql_literal};
 use tokio::fs::File;
 use tokio::io::{copy, AsyncWriteExt, BufWriter};
 use tokio_postgres::row::Row;
@@ -216,6 +216,15 @@ pub async fn list_keycloak_enabled_users_by_area_id_and_authorized_elections(
     Ok(())
 }
 
+/// SQL boolean operator used to chain filter clauses in WHERE conditions.
+#[derive(Debug, Clone, Copy, EnumString, Display)]
+pub enum SqlBooleanOperator {
+    #[strum(serialize = " AND")]
+    And,
+    #[strum(serialize = "")]
+    None,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, EnumString, Display)]
 pub enum FilterOption {
     /// Those elements that contain the string are returned.
@@ -247,8 +256,12 @@ impl FilterOption {
         &self,
         col_name: &str,
         param_number: i32,
-        operator: &str,
+        operator: SqlBooleanOperator,
     ) -> (String, Option<String>) {
+        // col_name is always supplied by internal code (hardcoded string
+        // literals), never from user input. We still escape it as a SQL
+        // identifier as defense-in-depth.
+        let col_name = escape_sql_identifier(col_name);
         match self {
             Self::IsLike(pattern) => (
                 format!(
@@ -258,10 +271,9 @@ impl FilterOption {
             ),
             Self::IsLikeUnaccentHyphens(pattern) => {
                 let pattern = pattern.replace(" ", "_"); // replace blanks by single wildcards to detect hyphens
-                let escaped = escape_sql_literal(&pattern);
                 (
                     format!(
-                        r#"('{escaped}'::VARCHAR IS NULL OR UNACCENT({col_name}) ILIKE ${param_number}){operator} "#,
+                        r#"(${param_number}::VARCHAR IS NULL OR UNACCENT({col_name}) ILIKE ${param_number}){operator} "#,
                     ),
                     Some(format!("%{}%", pattern)),
                 )
@@ -487,8 +499,11 @@ pub async fn count_keycloak_users(
         ("username", &filter.username),
     ] {
         if let Some(filter_obj) = filter_option {
-            let (clause, param) =
-                filter_obj.get_sql_filter_clause(col_name, next_param_number, " AND");
+            let (clause, param) = filter_obj.get_sql_filter_clause(
+                col_name,
+                next_param_number,
+                SqlBooleanOperator::And,
+            );
             filters_clause.push_str(&clause);
             if let Some(param) = param {
                 next_param_number += 1;
@@ -636,8 +651,11 @@ pub async fn list_users(
         let (col_name, filter_option) = tuple;
         match filter_option {
             Some(filter_obj) => {
-                let (clause, param) =
-                    filter_obj.get_sql_filter_clause(col_name, next_param_number, " AND");
+                let (clause, param) = filter_obj.get_sql_filter_clause(
+                    col_name,
+                    next_param_number,
+                    SqlBooleanOperator::And,
+                );
                 filters_clause.push_str(&clause);
                 if let Some(param) = param {
                     next_param_number += 1;
@@ -921,8 +939,11 @@ pub async fn list_users_ids(
         let (col_name, filter_option) = tuple;
         match filter_option {
             Some(filter_obj) => {
-                let (clause, param) =
-                    filter_obj.get_sql_filter_clause(col_name, next_param_number, " AND");
+                let (clause, param) = filter_obj.get_sql_filter_clause(
+                    col_name,
+                    next_param_number,
+                    SqlBooleanOperator::And,
+                );
                 filters_clause.push_str(&clause);
                 if let Some(param) = param {
                     next_param_number += 1;
@@ -1171,8 +1192,11 @@ pub async fn lookup_users(
         let (col_name, filter_option) = tuple;
         match filter_option {
             Some(filter_obj) => {
-                let (clause, param) =
-                    filter_obj.get_sql_filter_clause(col_name, next_param_number, "");
+                let (clause, param) = filter_obj.get_sql_filter_clause(
+                    col_name,
+                    next_param_number,
+                    SqlBooleanOperator::None,
+                );
                 let clause = format!(
                     r#"
                     SELECT
@@ -1764,4 +1788,21 @@ pub async fn list_users_has_voted(
     };
 
     Ok((final_users, final_total))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_sql_boolean_operator_and_format() {
+        let clause = format!("(col = $1){}", SqlBooleanOperator::And);
+        assert_eq!(clause, "(col = $1) AND");
+    }
+
+    #[test]
+    fn test_sql_boolean_operator_none_format() {
+        let clause = format!("(col = $1){}", SqlBooleanOperator::None);
+        assert_eq!(clause, "(col = $1)");
+    }
 }

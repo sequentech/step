@@ -5,6 +5,13 @@
 use anyhow::{anyhow, Result};
 use deadpool_postgres::Pool;
 
+/// Escapes a SQL identifier (table name, column name, etc.) by wrapping
+/// it in double quotes and escaping any internal double quotes by doubling
+/// them. This prevents SQL injection when interpolating identifiers.
+pub fn escape_sql_identifier(name: &str) -> String {
+    format!("\"{}\"", name.replace('"', "\"\""))
+}
+
 /// Escapes a string value for safe interpolation into a SQL literal
 /// (i.e. inside single quotes). Use this for contexts where parameterized
 /// queries ($1, $2) are not available, such as COPY TO STDOUT.
@@ -18,7 +25,7 @@ pub fn escape_sql_literal(value: &str) -> String {
 
 /// Verifies that PostgreSQL has standard_conforming_strings = on, which is
 /// required for escape_sql_literal to be a complete defense against SQL
-/// injection. Panics if the setting is off.
+/// injection. Returns an error if the setting is off.
 pub async fn assert_standard_conforming_strings(pool: &Pool) -> Result<()> {
     let client = pool.get().await.map_err(|e| {
         anyhow!("Failed to get connection for standard_conforming_strings check: {e}")
@@ -40,6 +47,19 @@ pub async fn assert_standard_conforming_strings(pool: &Pool) -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_identifier_simple() {
+        assert_eq!(
+            escape_sql_identifier("temp_voters_123"),
+            "\"temp_voters_123\""
+        );
+    }
+
+    #[test]
+    fn test_identifier_with_double_quotes() {
+        assert_eq!(escape_sql_identifier("table\"name"), "\"table\"\"name\"");
+    }
 
     #[test]
     fn test_no_quotes() {
