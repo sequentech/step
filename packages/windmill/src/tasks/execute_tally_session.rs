@@ -563,6 +563,14 @@ pub async fn upsert_ballots_messages(
         missing_annotations_batches.len()
     );
 
+    // The two sets are mutually exclusive: missing_ballots_batches contains
+    // contests whose ballots have NOT been posted to the board yet, while
+    // missing_annotations_batches contains contests whose ballots ARE on the
+    // board but whose annotations were lost (e.g. the board write succeeded
+    // but the Hasura transaction was rolled back in a previous failed run).
+
+    // Post ballots to the board and compute annotations for contests that
+    // have not been processed at all yet.
     let mut tally_session_contests_updated = if !missing_ballots_batches.is_empty() {
         insert_ballots_messages(
             hasura_transaction,
@@ -581,6 +589,8 @@ pub async fn upsert_ballots_messages(
         vec![]
     };
 
+    // For contests whose ballots are already on the board, only recompute
+    // and persist the annotations (skip the board write).
     if !missing_annotations_batches.is_empty() {
         let recovered = insert_ballots_messages(
             hasura_transaction,
