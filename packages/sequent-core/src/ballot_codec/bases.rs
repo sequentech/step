@@ -1,12 +1,20 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use crate::{ballot::*, types::ceremonies::CountingAlgType};
-use anyhow::Result;
+use crate::ballot::Contest;
+use crate::types::ceremonies::CountingAlgType;
+use anyhow::{anyhow, Result};
 use std::convert::TryInto;
 
+/// Compute raw encoding bases for a contest's ballot representation.
+///
+/// Implementors return a vector of per-field bases used when decoding/encoding
+/// raw ballots.
 pub trait BasesCodec {
-    // get bases (no write-ins)
+    /// Get bases (no write-ins included by default).
+    ///
+    /// # Errors
+    /// Returns an error if any numeric conversions fail or values overflow.
     fn get_bases(&self) -> Result<Vec<u64>>;
 }
 
@@ -14,17 +22,26 @@ impl BasesCodec for Contest {
     fn get_bases(&self) -> Result<Vec<u64>> {
         // Calculate the base for candidates. It depends on the
         // `contest.counting_algorithm`:
-        // - plurality-at-large: base 2 (value can be either 0 o 1)
-        // - preferential (*bordas*): contest.max + 1
-        // - cummulative: contest.extra_options.cumulative_number_of_checkboxes
+        // - `plurality-at-large`: base 2 (value can be either 0 or 1)
+        // - `preferential` (`bordas`): `contest.max` + 1
+        // - `cumulative`: `contest.extra_options.cumulative_number_of_checkboxes`
         //   + 1
-
         let candidate_base: u64 = match self.get_counting_algorithm() {
             CountingAlgType::PluralityAtLarge => 2,
-            CountingAlgType::Cumulative => {
-                self.cumulative_number_of_checkboxes() + 1u64
+            CountingAlgType::Cumulative => self
+                .cumulative_number_of_checkboxes()
+                .checked_add(1)
+                .ok_or_else(|| {
+                    anyhow!("cumulative_number_of_checkboxes overflow")
+                })?,
+            _ => {
+                let sum = self
+                    .max_votes
+                    .checked_add(1)
+                    .ok_or_else(|| anyhow!("max_votes overflow"))?;
+                sum.try_into()
+                    .map_err(|e| anyhow!("invalid max_votes: {e}"))?
             }
-            _ => (self.max_votes + 1i64).try_into().unwrap(),
         };
 
         let num_valid_candidates: usize = self
@@ -44,7 +61,7 @@ impl BasesCodec for Contest {
         if self.allow_writeins() {
             let char_map = self.get_char_map();
             let write_in_base = char_map.base();
-            for candidate in self.candidates.iter() {
+            for candidate in &self.candidates {
                 if candidate.is_write_in() {
                     bases.push(write_in_base);
                 }
@@ -65,7 +82,7 @@ mod tests {
     fn test_contest_bases() {
         let fixtures = get_fixtures();
         for fixture in fixtures {
-            println!("fixture: {}", &fixture.title);
+            println!("fixture: {}", fixture.title);
 
             let expected_error =
                 fixture.expected_errors.and_then(|expected_map| {

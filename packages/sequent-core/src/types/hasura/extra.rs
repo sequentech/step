@@ -8,13 +8,14 @@ use crate::ballot::{
     ElectionEventStatistics, ElectionEventStatus, ElectionPresentation,
     ElectionStatistics, ElectionStatus,
 };
-use anyhow::{anyhow, Result};
-use borsh::{BorshDeserialize, BorshSerialize};
+use anyhow::Result;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::default::Default;
 use strum_macros::{Display, EnumString};
 
+/// Store if voting is enabled in each channel.
+#[allow(missing_docs)]
 #[derive(PartialEq, Eq, Debug, Clone, Deserialize)]
 pub struct VotingChannels {
     pub online: Option<bool>,
@@ -23,6 +24,8 @@ pub struct VotingChannels {
     pub paper: Option<bool>,
 }
 
+/// Reference to the bulletin board metadata in the database.
+#[allow(missing_docs)]
 #[derive(PartialEq, Eq, Debug, Clone, Deserialize)]
 pub struct BulletinBoardReference {
     pub id: i64,
@@ -31,6 +34,13 @@ pub struct BulletinBoardReference {
 }
 
 impl ElectionEvent {
+    /// Validate the content of the election event's necessary fields, such as
+    /// presentation, voting channels, status, statistics, and bulletin board
+    /// reference.
+    ///
+    /// # Errors
+    /// Returns an error if any of the JSON fields fail to deserialize into their
+    /// expected types.
     pub fn validate(&self) -> Result<()> {
         if let Some(presentation) = &self.presentation {
             serde_json::from_value::<ElectionEventPresentation>(
@@ -63,6 +73,12 @@ impl ElectionEvent {
 }
 
 impl Election {
+    /// Validate the content of the election's necessary fields, such as
+    /// presentation, voting channels, status, and statistics.
+    ///
+    /// # Errors
+    /// Returns an error if any of the JSON fields fail to deserialize into their
+    /// expected types.
     pub fn validate(&self) -> Result<()> {
         if let Some(presentation) = &self.presentation {
             serde_json::from_value::<ElectionPresentation>(
@@ -87,6 +103,11 @@ impl Election {
 }
 
 impl Contest {
+    /// Validate the content of the contest's necessary fields, such as
+    /// presentation.
+    ///
+    /// # Errors
+    /// Returns an error if the presentation JSON fails to deserialize.
     pub fn validate(&self) -> Result<()> {
         if let Some(presentation) = &self.presentation {
             serde_json::from_value::<ContestPresentation>(
@@ -99,6 +120,11 @@ impl Contest {
 }
 
 impl Candidate {
+    /// Validate the content of the candidate's necessary fields, such as
+    /// presentation.
+    ///
+    /// # Errors
+    /// Returns an error if the presentation JSON fails to deserialize.
     pub fn validate(&self) -> Result<()> {
         if let Some(presentation) = &self.presentation {
             serde_json::from_value::<CandidatePresentation>(
@@ -122,6 +148,10 @@ impl Candidate {
     Default,
     JsonSchema,
 )]
+
+/// Status of task execution.
+#[allow(missing_docs)]
+#[allow(non_camel_case_types)]
 pub enum TasksExecutionStatus {
     #[default]
     IN_PROGRESS,

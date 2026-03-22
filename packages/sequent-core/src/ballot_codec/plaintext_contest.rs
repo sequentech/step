@@ -1,31 +1,56 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use crate::ballot::*;
-use crate::ballot_codec::*;
-use crate::plaintext::*;
+use crate::ballot::Contest;
+use crate::ballot_codec::{
+    decode_array_to_vec, decode_bigint_from_bytes, encode_bigint_to_bytes,
+    encode_vec_to_array, BigUIntCodec,
+};
+use crate::plaintext::DecodedVoteContest;
 use num_bigint::BigUint;
 
+/// Codec for encoding and decoding plaintext contests.
 pub trait PlaintextCodec {
+    /// Encodes a plaintext contest into a fixed-size byte array.
+    ///
+    /// # Errors
+    /// Returns an error if encoding fails or the result cannot fit in 30 bytes.
     fn encode_plaintext_contest(
         &self,
         plaintext: &DecodedVoteContest,
     ) -> Result<[u8; 30], String>;
 
+    /// Decodes a plaintext contest from a fixed-size byte array.
+    ///
+    /// # Errors
+    /// Returns an error if decoding fails or the bytes are invalid.
     fn decode_plaintext_contest(
         &self,
         code: &[u8; 30],
     ) -> Result<DecodedVoteContest, String>;
+
+    /// Decodes a `BigUint` from a fixed-size byte array.
+    ///
+    /// # Errors
+    /// Returns an error if the bytes cannot be converted to a `BigUint`.
     fn decode_plaintext_contest_to_biguint(
         &self,
         code: &[u8; 30],
     ) -> Result<BigUint, String>;
 
+    /// Encodes a plaintext contest into a vector of bytes.
+    ///
+    /// # Errors
+    /// Returns an error if encoding fails.
     fn encode_plaintext_contest_to_bytes(
         &self,
         plaintext: &DecodedVoteContest,
     ) -> Result<Vec<u8>, String>;
 
+    /// Decodes a plaintext contest from a byte slice.
+    ///
+    /// # Errors
+    /// Returns an error if decoding fails or the bytes are invalid.
     fn decode_plaintext_contest_from_bytes(
         &self,
         bytes: &[u8],
@@ -71,7 +96,7 @@ impl PlaintextCodec for Contest {
         &self,
         bytes: &[u8],
     ) -> Result<DecodedVoteContest, String> {
-        let bigint = decode_bigint_from_bytes(&bytes)?;
+        let bigint = decode_bigint_from_bytes(bytes)?;
         self.decode_plaintext_contest_bigint(&bigint)
     }
 }
