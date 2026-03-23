@@ -2415,7 +2415,7 @@
       }
     ]
   }, {
-    "alias": "AC DNIE 006",
+    "alias": "Sequent Dev CA",
     "description": "",
     "providerId": "basic-flow",
     "topLevel": false,
@@ -2423,7 +2423,7 @@
     "authenticationExecutions": [
       {
         "authenticator": "conditional-auth-note",
-        "authenticatorConfig": "cert-type-dnie",
+        "authenticatorConfig": "cert-type-sequent",
         "authenticatorFlow": false,
         "requirement": "REQUIRED",
         "priority": 0,
@@ -2432,7 +2432,7 @@
       },
       {
         "authenticator": "auth-x509-client-username-form",
-        "authenticatorConfig": "x509-voter-cert-dnie",
+        "authenticatorConfig": "x509-voter-cert-sequent",
         "authenticatorFlow": false,
         "requirement": "REQUIRED",
         "priority": 1,
@@ -2468,7 +2468,7 @@
         "requirement": "CONDITIONAL",
         "priority": 20,
         "autheticatorFlow": true,
-        "flowAlias": "AC DNIE 006",
+        "flowAlias": "Sequent Dev CA",
         "userSetupAllowed": false
       }
     ]
@@ -2817,10 +2817,10 @@
       "negate": "false"
     }
   }, {
-    "alias": "cert-type-dnie",
+    "alias": "cert-type-sequent",
     "config": {
       "conditional-auth-note-key": "cert-type",
-      "conditional-auth-note-value": "AC DNIE 006",
+      "conditional-auth-note-value": "Sequent Dev CA",
       "negate": "false"
     }
   }, {
@@ -2839,7 +2839,7 @@
       "x509-cert-auth.timestamp-validation-enabled": "true"
     }
   }, {
-    "alias": "x509-voter-cert-dnie",
+    "alias": "x509-voter-cert-sequent",
     "config": {
       "x509-cert-auth.confirmation-page-disallowed": "true",
       "x509-cert-auth.crl-checking-enabled": "false",
@@ -2850,7 +2850,7 @@
       "x509-cert-auth.mapper-selection": "Username or Email",
       "x509-cert-auth.mapping-source-selection": "Subject's DN",
       "x509-cert-auth.ocsp-checking-enabled": "false",
-      "x509-cert-auth.regular-expression": "(.*?)(?:$)",
+      "x509-cert-auth.regular-expression": "(?:CN=)([^,]*)",
       "x509-cert-auth.timestamp-validation-enabled": "true"
     }
   } ],
