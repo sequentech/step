@@ -7,6 +7,7 @@ use serde::{Deserialize, Serialize};
 use crate::encrypt::hash_ballot_style;
 use crate::error::BallotError;
 use crate::serialization::base64::{Base64Deserialize, Base64Serialize};
+use crate::sqlite::contests;
 use strand::elgamal::Ciphertext;
 use strand::zkp::Schnorr;
 use strand::{backend::ristretto::RistrettoCtx, context::Ctx};
@@ -85,15 +86,23 @@ pub struct RawHashableMultiBallot<C: Ctx> {
 }
 
 impl AuditableMultiBallot {
+
+    /// Deserialize the contests field from base64.
+    ///
+    /// # Errors
+    /// Returns `BallotError::Serialization` if deserialization fails.
     pub fn deserialize_contests<C: Ctx>(
         &self,
     ) -> Result<AuditableMultiBallotContests<C>, BallotError> {
-        let ret = Base64Deserialize::deserialize(self.contests.clone())
-            .map_err(|err| BallotError::Serialization(err.to_string()));
-
-        ret
+        Base64Deserialize::deserialize(self.contests.clone())
+            .map_err(|err| BallotError::Serialization(err.to_string()))
     }
 
+
+    /// Serialize the contests field to base64.
+    ///
+    /// # Errors
+    /// Returns `BallotError::Serialization` if serialization fails.
     pub fn serialize_contests<C: Ctx>(
         contests: &AuditableMultiBallotContests<C>,
     ) -> Result<String, BallotError> {
@@ -102,15 +111,23 @@ impl AuditableMultiBallot {
 }
 
 impl HashableMultiBallot {
+
+    /// Deserialize the contests field from base64.
+    ///
+    /// # Errors
+    /// Returns `BallotError::Serialization` if deserialization fails.
     pub fn deserialize_contests<C: Ctx>(
         &self,
     ) -> Result<HashableMultiBallotContests<C>, BallotError> {
-        let ret = Base64Deserialize::deserialize(self.contests.clone())
-            .map_err(|err| BallotError::Serialization(err.to_string()));
-
-        ret
+        Base64Deserialize::deserialize(self.contests.clone())
+            .map_err(|err| BallotError::Serialization(err.to_string()))
     }
 
+
+    /// Serialize `HashableMultiBallotContests` to base64.
+    ///
+    /// # Errors
+    /// Returns `BallotError::Serialization` if serialization fails.
     pub fn serialize_contests<C: Ctx>(
         contest: &HashableMultiBallotContests<C>,
     ) -> Result<String, BallotError> {
@@ -119,14 +136,23 @@ impl HashableMultiBallot {
 }
 
 impl SignedHashableMultiBallot {
+
+    /// Deserialize `HashableMultiBallot`.
+    ///
+    /// # Errors
+    /// Returns `BallotError::Serialization` if deserialization fails or conversion fails.
     pub fn deserialize_contests<C: Ctx>(
         &self,
     ) -> Result<HashableMultiBallotContests<C>, BallotError> {
         let hashable_ballot = HashableMultiBallot::try_from(self)?;
-
         hashable_ballot.deserialize_contests()
     }
 
+
+    /// Serialize `HashableMultiBallotContests` to base64.
+    ///
+    /// # Errors
+    /// Returns `BallotError::Serialization` if serialization fails.
     pub fn serialize_contests<C: Ctx>(
         contest: &HashableMultiBallotContests<C>,
     ) -> Result<String, BallotError> {
@@ -137,6 +163,11 @@ impl SignedHashableMultiBallot {
 impl TryFrom<&AuditableMultiBallot> for HashableMultiBallot {
     type Error = BallotError;
 
+
+    /// Try to convert an `AuditableMultiBallot` to a `HashableMultiBallot`.
+    ///
+    /// # Errors
+    /// Returns `BallotError::Serialization` if version mismatch, contest deserialization, or hashing fails.
     fn try_from(value: &AuditableMultiBallot) -> Result<Self, Self::Error> {
         if TYPES_VERSION != value.version {
             return Err(BallotError::Serialization(format!(
@@ -153,17 +184,17 @@ impl TryFrom<&AuditableMultiBallot> for HashableMultiBallot {
         let ballot_style_hash =
             hash_ballot_style(&value.config).map_err(|error| {
                 BallotError::Serialization(format!(
-                    "Failed to hash ballot style: {}",
-                    error
+                    "Failed to hash ballot style: {error}"
                 ))
             })?;
+        let contests = HashableMultiBallot::serialize_contests::<RistrettoCtx>(
+            &hashable_ballot_contests,
+        )?;
 
         Ok(HashableMultiBallot {
             version: TYPES_VERSION,
             issue_date: value.issue_date.clone(),
-            contests: HashableMultiBallot::serialize_contests::<RistrettoCtx>(
-                &hashable_ballot_contests,
-            )?,
+            contests,
             config: value.config.id.clone(),
             ballot_style_hash,
         })
@@ -173,6 +204,11 @@ impl TryFrom<&AuditableMultiBallot> for HashableMultiBallot {
 impl TryFrom<&AuditableMultiBallot> for SignedHashableMultiBallot {
     type Error = BallotError;
 
+
+    /// Try to convert an `AuditableMultiBallot` to a `SignedHashableMultiBallot`.
+    ///
+    /// # Errors
+    /// Returns `BallotError::Serialization` if version mismatch, contest deserialization, or hashing fails.
     fn try_from(value: &AuditableMultiBallot) -> Result<Self, Self::Error> {
         if TYPES_VERSION != value.version {
             return Err(BallotError::Serialization(format!(
@@ -189,17 +225,17 @@ impl TryFrom<&AuditableMultiBallot> for SignedHashableMultiBallot {
         let ballot_style_hash =
             hash_ballot_style(&value.config).map_err(|error| {
                 BallotError::Serialization(format!(
-                    "Failed to hash ballot style: {}",
-                    error
+                    "Failed to hash ballot style: {error}"
                 ))
             })?;
+        let contests = HashableMultiBallot::serialize_contests::<RistrettoCtx>(
+            &hashable_ballot_contests,
+        )?;
 
         Ok(SignedHashableMultiBallot {
             version: TYPES_VERSION,
             issue_date: value.issue_date.clone(),
-            contests: HashableMultiBallot::serialize_contests::<RistrettoCtx>(
-                &hashable_ballot_contests,
-            )?,
+            contests,
             config: value.config.id.clone(),
             ballot_style_hash,
             voter_signing_pk: value.voter_signing_pk.clone(),
@@ -210,6 +246,11 @@ impl TryFrom<&AuditableMultiBallot> for SignedHashableMultiBallot {
 
 impl TryFrom<&SignedHashableMultiBallot> for HashableMultiBallot {
     type Error = BallotError;
+
+    /// Try to convert a `SignedHashableMultiBallot` to a `HashableMultiBallot`.
+    ///
+    /// # Errors
+    /// Returns `BallotError::Serialization` if version mismatch.
     fn try_from(
         value: &SignedHashableMultiBallot,
     ) -> Result<Self, Self::Error> {
@@ -234,6 +275,11 @@ impl TryFrom<&SignedHashableMultiBallot> for HashableMultiBallot {
 impl<C: Ctx> TryFrom<&HashableMultiBallot> for RawHashableMultiBallot<C> {
     type Error = BallotError;
 
+
+    /// Try to convert a `HashableMultiBallot` to a `RawHashableMultiBallot`.
+    ///
+    /// # Errors
+    /// Returns `BallotError::Serialization` if contest deserialization fails.
     fn try_from(value: &HashableMultiBallot) -> Result<Self, Self::Error> {
         let contests = value.deserialize_contests::<C>()?;
         Ok(RawHashableMultiBallot {

@@ -1824,11 +1824,13 @@ impl Contest {
 
     /// Get the tie-breaking policy configuration value.
     /// If the value is not set, return the default value (RANDOM).
+    #[must_use]
     pub fn get_tie_breaking_policy(&self) -> TieBreakingPolicy {
         self.tie_breaking_policy.clone().unwrap_or_default()
     }
 
     /// Get per-round tie resolutions from contest annotations.
+    #[must_use]
     pub fn get_tie_resolutions(&self) -> Vec<TallySessionResolutionData> {
         self.annotations
             .as_ref()
@@ -1843,6 +1845,10 @@ impl Contest {
             .unwrap_or_default()
     }
 
+    /// Insert tie resolutions into the contest's annotations.
+    ///
+    /// # Errors
+    /// Returns an error if serialization of the tie resolutions fails.
     pub fn insert_tie_resolutions(
         contest: &mut Contest,
         contest_tie_resolutions: &Vec<TallySessionResolutionData>,
@@ -2858,6 +2864,9 @@ impl AreaAnnotations {
 impl Area {
     /// Get the annotations for the area, deserializing them from the raw annotations if they are present.
     /// If the annotations are not present, return `None`. If deserialization fails, return an error.
+    ///
+    /// # Errors
+    /// Returns an error if deserialization fails.
     pub fn read_annotations(
         &self,
     ) -> Result<Option<AreaAnnotations>, Error<serde_json::Error>> {

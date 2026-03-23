@@ -22,6 +22,7 @@ use chrono::Duration;
 use deadpool_postgres::{Client as DbClient, Transaction};
 use futures::try_join;
 use rocket::http::Status;
+use sequent_core::ballot_style::create_ballot_style;
 use sequent_core::types::hasura::core::{
     self as hasura_type, Area, AreaContest, BallotPublication, BallotStyle, Candidate, Contest,
     Election, ElectionEvent, KeysCeremony,
@@ -156,15 +157,15 @@ pub async fn create_ballot_style_postgres(
             get_election_dates(election, scheduled_events.clone()).unwrap_or_default();
 
         let ballot_style_id = Uuid::new_v4();
-        let election_dto = sequent_core::ballot_style::create_ballot_style(
+        let election_dto = create_ballot_style(
             ballot_style_id.clone().to_string(),
-            area.clone(),
-            election_event.clone(),
-            election.clone(),
-            contests.clone(),
-            candidates.clone(),
-            election_dates.clone(),
-            public_key.clone(),
+            &area,
+            &election_event,
+            election,
+            contests.as_slice(),
+            candidates.as_slice(),
+            election_dates,
+            public_key,
         )?;
         let election_dto_json_string = serde_json::to_string(&election_dto)?;
         let _created_ballot_style = insert_ballot_style(
