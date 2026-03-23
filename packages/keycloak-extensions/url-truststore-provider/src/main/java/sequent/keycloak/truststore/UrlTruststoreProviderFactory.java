@@ -25,6 +25,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -32,8 +33,10 @@ import javax.security.auth.x500.X500Principal;
 import org.jboss.logging.Logger;
 import org.keycloak.Config;
 import org.keycloak.common.enums.HostnameVerificationPolicy;
+import org.keycloak.models.KeycloakContext;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.KeycloakSessionFactory;
+import org.keycloak.models.RealmModel;
 import org.keycloak.truststore.TruststoreProvider;
 import org.keycloak.truststore.TruststoreProviderFactory;
 
@@ -58,7 +61,25 @@ public class UrlTruststoreProviderFactory implements TruststoreProviderFactory {
   private static final String CFG_REFRESH_INTERVAL = "refresh-interval-seconds";
   private static final String CFG_HOSTNAME_VERIFICATION_POLICY = "hostname-verification-policy";
 
+  /**
+   * Realm attribute name. Set this on a Keycloak realm (via Admin API or Admin Console) to a URL
+   * pointing to a PEM bundle of CA certificates for that realm. When set, the X.509 authenticator
+   * will validate client certificates against only those CAs, providing per-realm isolation.
+   *
+   * <p>Example (KC Admin REST API):
+   *
+   * <pre>
+   *   PUT /admin/realms/{realm}
+   *   { "attributes": { "sequent.truststore.url": "https://minio.example.com/realm-ca.pem" } }
+   * </pre>
+   */
+  static final String REALM_ATTR_TRUSTSTORE_URL = "sequent.truststore.url";
+
+  private record RealmTruststoreEntry(String url, UrlTruststoreProvider provider) {}
+
   private volatile UrlTruststoreProvider provider;
+  private final ConcurrentHashMap<String, RealmTruststoreEntry> realmCache =
+      new ConcurrentHashMap<>();
   private ScheduledExecutorService scheduler;
   private String certUrl;
   private HostnameVerificationPolicy policy;
@@ -104,7 +125,45 @@ public class UrlTruststoreProviderFactory implements TruststoreProviderFactory {
 
   @Override
   public TruststoreProvider create(KeycloakSession session) {
+    KeycloakContext ctx = session.getContext();
+    if (ctx != null) {
+      RealmModel realm = ctx.getRealm();
+      if (realm != null) {
+        String realmUrl = realm.getAttribute(REALM_ATTR_TRUSTSTORE_URL);
+        if (realmUrl != null && !realmUrl.isBlank()) {
+          return realmProviderFor(realm.getId(), realmUrl);
+        }
+      }
+    }
     return provider;
+  }
+
+  /**
+   * Returns a cached realm-specific provider, re-fetching if the realm attribute URL has changed
+   * since the last load. Concurrent refreshes for the same realm are serialized.
+   */
+  private UrlTruststoreProvider realmProviderFor(String realmId, String realmUrl) {
+    RealmTruststoreEntry cached = realmCache.get(realmId);
+    if (cached != null && cached.url().equals(realmUrl)) {
+      return cached.provider();
+    }
+    // Stale or first load — serialize concurrent refreshes for this realm.
+    RealmTruststoreEntry[] result = {null};
+    realmCache.compute(
+        realmId,
+        (id, existing) -> {
+          if (existing != null && existing.url().equals(realmUrl)) {
+            result[0] = existing;
+            return existing;
+          }
+          log.infof(
+              "Loading realm-specific truststore for realm %s from: %s", id, realmUrl);
+          UrlTruststoreProvider fresh = fetchAndBuild(realmUrl, policy);
+          RealmTruststoreEntry entry = new RealmTruststoreEntry(realmUrl, fresh);
+          result[0] = entry;
+          return entry;
+        });
+    return result[0].provider();
   }
 
   @Override
@@ -115,6 +174,7 @@ public class UrlTruststoreProviderFactory implements TruststoreProviderFactory {
     if (scheduler != null) {
       scheduler.shutdownNow();
     }
+    realmCache.clear();
   }
 
   @Override
@@ -128,6 +188,22 @@ public class UrlTruststoreProviderFactory implements TruststoreProviderFactory {
       log.infof("URL TruststoreProvider refreshed from: %s", certUrl);
     } catch (Exception e) {
       log.errorf(e, "Failed to refresh URL TruststoreProvider from: %s", certUrl);
+    }
+    for (Map.Entry<String, RealmTruststoreEntry> entry : realmCache.entrySet()) {
+      String realmId = entry.getKey();
+      RealmTruststoreEntry current = entry.getValue();
+      try {
+        UrlTruststoreProvider fresh = fetchAndBuild(current.url(), policy);
+        realmCache.put(realmId, new RealmTruststoreEntry(current.url(), fresh));
+        log.infof(
+            "Realm truststore refreshed for realm %s from: %s", realmId, current.url());
+      } catch (Exception e) {
+        log.errorf(
+            e,
+            "Failed to refresh realm truststore for realm %s from: %s",
+            realmId,
+            current.url());
+      }
     }
   }
 
