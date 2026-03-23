@@ -12,6 +12,7 @@ use chrono::NaiveDate;
 use chrono::{DateTime, Utc};
 use deadpool_postgres::Transaction;
 use futures::TryStreamExt;
+use sequent_core::services::uuid_validation::parse_uuid_v4;
 use sequent_core::types::keycloak::{User, VotesInfo};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -71,7 +72,12 @@ pub async fn find_area_ballots(
     election_id: &str,
     output_file: &PathBuf,
 ) -> Result<()> {
-    // COPY does not support parameters so we have to add them using format
+    // COPY does not support parameters so we have to add them using format.
+    // Validate as v4 UUIDs before interpolating into SQL.
+    parse_uuid_v4(tenant_id)?;
+    parse_uuid_v4(election_event_id)?;
+    parse_uuid_v4(area_id)?;
+    parse_uuid_v4(election_id)?;
     let tenant_id = escape_sql_literal(tenant_id);
     let election_event_id = escape_sql_literal(election_event_id);
     let area_id = escape_sql_literal(area_id);
@@ -160,9 +166,9 @@ pub async fn count_cast_votes_election(
     election_event_id: &str,
     is_test_election: Option<bool>,
 ) -> Result<Vec<ElectionCastVotes>> {
-    let tenant_uuid: uuid::Uuid = Uuid::parse_str(tenant_id)
+    let tenant_uuid: uuid::Uuid = parse_uuid_v4(tenant_id)
         .map_err(|err| anyhow!("Error parsing tenant_id as UUID: {}", err))?;
-    let election_event_uuid: uuid::Uuid = Uuid::parse_str(election_event_id)
+    let election_event_uuid: uuid::Uuid = parse_uuid_v4(election_event_id)
         .map_err(|err| anyhow!("Error parsing election_event_id as UUID: {}", err))?;
 
     let test_elections_clause = match is_test_election {
@@ -217,7 +223,7 @@ pub async fn get_count_votes_per_day(
     let end_date_naive = NaiveDate::parse_from_str(end_date, "%Y-%m-%d")
         .with_context(|| "Error parsing end_date")?;
     let election_uuid = match election_id {
-        Some(ref election_id_r) => Some(Uuid::parse_str(election_id_r.as_str())?),
+        Some(ref election_id_r) => Some(parse_uuid_v4(election_id_r.as_str())?),
         None => None,
     };
     let total_areas_statement = transaction
@@ -269,8 +275,8 @@ pub async fn get_count_votes_per_day(
         .query(
             &total_areas_statement,
             &[
-                &Uuid::parse_str(tenant_id)?,
-                &Uuid::parse_str(election_event_id)?,
+                &parse_uuid_v4(tenant_id)?,
+                &parse_uuid_v4(election_event_id)?,
                 &start_date_naive,
                 &end_date_naive,
                 &user_timezone,
@@ -297,13 +303,13 @@ pub async fn get_users_with_vote_info(
     filter_by_has_voted: Option<bool>,
 ) -> Result<Vec<User>> {
     let tenant_uuid =
-        Uuid::parse_str(tenant_id).with_context(|| "Error parsing tenant_id as UUID")?;
-    let election_event_uuid = Uuid::parse_str(election_event_id)
+        parse_uuid_v4(tenant_id).with_context(|| "Error parsing tenant_id as UUID")?;
+    let election_event_uuid = parse_uuid_v4(election_event_id)
         .with_context(|| "Error parsing election_event_id as UUID")?;
 
     let election_uuid = match election_id {
         Some(ref election_id_s) => Some(
-            Uuid::parse_str(election_id_s)
+            parse_uuid_v4(election_id_s)
                 .with_context(|| format!("Error parsing election_id {election_id_s} as UUID"))?,
         ),
         None => None,
@@ -483,7 +489,7 @@ pub async fn get_top_count_votes_by_ip(
         None
     };
     let election_id_pattern: Option<Uuid> = if let Some(election_id_val) = filter.election_id {
-        match Uuid::parse_str(&election_id_val) {
+        match parse_uuid_v4(&election_id_val) {
             Ok(uuid) => Some(uuid),
             Err(e) => None,
         }
@@ -531,8 +537,8 @@ pub async fn get_top_count_votes_by_ip(
         .query(
             &statement,
             &[
-                &Uuid::parse_str(tenant_id)?,
-                &Uuid::parse_str(election_event_id)?,
+                &parse_uuid_v4(tenant_id)?,
+                &parse_uuid_v4(election_event_id)?,
                 &ip_pattern,
                 &country_pattern,
                 &election_id_pattern,
@@ -564,11 +570,11 @@ pub async fn count_ballots_by_election(
     election_event_id: &str,
     election_id: &str,
 ) -> Result<i64> {
-    let tenant_uuid: uuid::Uuid = Uuid::parse_str(tenant_id)
+    let tenant_uuid: uuid::Uuid = parse_uuid_v4(tenant_id)
         .map_err(|err| anyhow!("Error parsing tenant_id as UUID: {}", err))?;
-    let election_event_uuid: uuid::Uuid = Uuid::parse_str(election_event_id)
+    let election_event_uuid: uuid::Uuid = parse_uuid_v4(election_event_id)
         .map_err(|err| anyhow!("Error parsing election_event_id as UUID: {}", err))?;
-    let election_uuid: uuid::Uuid = Uuid::parse_str(election_id)
+    let election_uuid: uuid::Uuid = parse_uuid_v4(election_id)
         .map_err(|err| anyhow!("Error parsing election_id as UUID: {}", err))?;
 
     // Prepare and execute the statement
@@ -610,14 +616,14 @@ pub async fn count_ballots_by_area_id(
     election_id: &str,
     area_id: &str,
 ) -> Result<i64> {
-    let tenant_uuid: uuid::Uuid = Uuid::parse_str(tenant_id)
+    let tenant_uuid: uuid::Uuid = parse_uuid_v4(tenant_id)
         .map_err(|err| anyhow!("Error parsing tenant_id as UUID: {}", err))?;
-    let election_event_uuid: uuid::Uuid = Uuid::parse_str(election_event_id)
+    let election_event_uuid: uuid::Uuid = parse_uuid_v4(election_event_id)
         .map_err(|err| anyhow!("Error parsing election_event_id as UUID: {}", err))?;
-    let election_uuid: uuid::Uuid = Uuid::parse_str(election_id)
+    let election_uuid: uuid::Uuid = parse_uuid_v4(election_id)
         .map_err(|err| anyhow!("Error parsing election_id as UUID: {}", err))?;
-    let area_uuid: uuid::Uuid = Uuid::parse_str(area_id)
-        .map_err(|err| anyhow!("Error parsing area_id as UUID: {}", err))?;
+    let area_uuid: uuid::Uuid =
+        parse_uuid_v4(area_id).map_err(|err| anyhow!("Error parsing area_id as UUID: {}", err))?;
 
     let statement = hasura_transaction
         .prepare(
@@ -662,9 +668,9 @@ pub async fn count_cast_votes_election_event(
     election_event_id: &str,
     is_test_election: Option<bool>,
 ) -> Result<i64> {
-    let tenant_uuid: uuid::Uuid = Uuid::parse_str(tenant_id)
+    let tenant_uuid: uuid::Uuid = parse_uuid_v4(tenant_id)
         .map_err(|err| anyhow!("Error parsing tenant_id as UUID: {}", err))?;
-    let election_event_uuid: uuid::Uuid = Uuid::parse_str(election_event_id)
+    let election_event_uuid: uuid::Uuid = parse_uuid_v4(election_event_id)
         .map_err(|err| anyhow!("Error parsing election_event_id as UUID: {}", err))?;
 
     let test_elections_clause = match is_test_election {

@@ -19,6 +19,7 @@ use ring::{digest, pbkdf2};
 use sequent_core::services::keycloak::{
     get_event_realm, get_tenant_realm, MULTIVALUE_USER_ATTRIBUTE_SEPARATOR,
 };
+use sequent_core::services::uuid_validation::parse_uuid_v4;
 use sequent_core::types::keycloak::{AREA_ID_ATTR_NAME, TENANT_ID_ATTR_NAME};
 use std::num::NonZeroU32;
 use tempfile::NamedTempFile;
@@ -204,6 +205,10 @@ fn get_insert_user_query(
     voters_table: String,
     voters_table_columns: &Vec<String>,
 ) -> anyhow::Result<String> {
+    parse_uuid_v4(&tenant_id)
+        .with_context(|| format!("invalid v4 UUID for tenant_id: {}", tenant_id))?;
+    parse_uuid_v4(&realm_id)
+        .with_context(|| format!("invalid v4 UUID for realm_id: {}", realm_id))?;
     let realm_id = escape_sql_literal(&realm_id);
     let tenant_id = escape_sql_literal(&tenant_id);
     let voters_table = escape_sql_identifier(&voters_table);

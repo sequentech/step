@@ -27,6 +27,7 @@ use std::{
 use strum_macros::{Display, EnumString};
 
 use crate::services::sql_utils::{escape_sql_identifier, escape_sql_literal};
+use sequent_core::services::uuid_validation::parse_uuid_v4;
 use tokio::fs::File;
 use tokio::io::{copy, AsyncWriteExt, BufWriter};
 use tokio_postgres::row::Row;
@@ -49,9 +50,9 @@ async fn get_area_ids(
     area_id: Option<String>,
     param_number: i32,
 ) -> Result<(Option<Vec<String>>, String, String)> {
-    let tenant_uuid = Uuid::parse_str(&tenant_id)?;
+    let tenant_uuid = parse_uuid_v4(&tenant_id)?;
     let election_event_uuid: Option<Uuid> = election_event_id
-        .map(|val| Uuid::parse_str(&val))
+        .map(|val| parse_uuid_v4(&val))
         .transpose()
         .map_err(|err| anyhow!("Error parsing election_event_id as UUID: {}", err))?;
 
@@ -59,7 +60,7 @@ async fn get_area_ids(
         return Ok((None, "".to_string(), "".to_string()));
     }
     let election_uuid: Option<Uuid> = election_id
-        .map(|val| Uuid::parse_str(&val))
+        .map(|val| parse_uuid_v4(&val))
         .transpose()
         .map_err(|err| anyhow!("Error parsing election_id as UUID: {}", err))?;
 
@@ -158,7 +159,8 @@ pub async fn list_keycloak_enabled_users_by_area_id_and_authorized_elections(
     };
 
     // COPY does not support parameters so we have to add them using format.
-    // Escape single quotes to prevent SQL injection.
+    // Validate area_id as v4 UUID before interpolating into SQL.
+    parse_uuid_v4(area_id)?;
     let realm_escaped = escape_sql_literal(realm);
     let area_id_escaped = escape_sql_literal(area_id);
     let election_alias_escaped = escape_sql_literal(election_alias);
@@ -1632,20 +1634,20 @@ pub async fn count_have_voted(
     filter: &ListUsersFilter,
     tenant_id: &str,
 ) -> Result<(i32)> {
-    let tenant_uuid = Uuid::parse_str(tenant_id)?;
+    let tenant_uuid = parse_uuid_v4(tenant_id)?;
     let mut params: Vec<Box<dyn ToSql + Send + Sync>> = vec![Box::new(tenant_uuid)];
     let mut filter_clauses: Vec<String> = vec![];
     let mut next_param_number = 2;
 
     if let Some(election_event_id_str) = &filter.election_event_id {
-        let election_event_id_uuid = Uuid::parse_str(election_event_id_str)?;
+        let election_event_id_uuid = parse_uuid_v4(election_event_id_str)?;
         let clause = format!("election_event_id = ${next_param_number}");
         filter_clauses.push(clause);
         params.push(Box::new(election_event_id_uuid));
         next_param_number += 1;
     }
     if let Some(election_id_str) = &filter.election_id {
-        let election_id_uuid = Uuid::parse_str(election_id_str)?;
+        let election_id_uuid = parse_uuid_v4(election_id_str)?;
         let clause = format!("election_id = ${next_param_number}");
         filter_clauses.push(clause);
         params.push(Box::new(election_id_uuid));
