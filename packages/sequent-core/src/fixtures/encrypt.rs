@@ -5,6 +5,7 @@
 use crate::ballot::BallotStyle;
 use crate::plaintext::DecodedVoteContest;
 
+/// Returns a test fixture of decoded contests and a ballot style for encryption tests.
 pub fn get_encrypt_decoded_test_fixture(
 ) -> (Vec<DecodedVoteContest>, BallotStyle) {
     let election_str = r#"{
@@ -150,6 +151,7 @@ pub fn get_encrypt_decoded_test_fixture(
     (decoded_contests, election)
 }
 
+/// Returns a test fixture of decoded contests and a ballot style for voting portal tests.
 pub fn default_voting_portal_fixture() -> (Vec<DecodedVoteContest>, BallotStyle)
 {
     let ballot_selection_str = r#"[{"contest_id":"69f2f987-460c-48ac-ac7a-4d44d99b37e6","is_explicit_invalid":false,"invalid_errors":[],"choices":[{"id":"a24303de-5798-47cd-9b3e-4f391d1bae7b","selected":0},{"id":"d9249345-11be-4652-ad04-298d70931610","selected":-1},{"id":"1822089d-ae17-4a03-8935-25164b3f2142","selected":-1}]}]"#;

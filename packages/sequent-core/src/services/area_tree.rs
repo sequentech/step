@@ -1,13 +1,13 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use crate::types::hasura::core::{Area, AreaContest, Contest};
+use crate::types::hasura::core::{Area, AreaContest};
 use anyhow::{anyhow, Result};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::{HashMap, HashSet, VecDeque};
 
-// A tree node that corresponds to an area
+/// A tree node that corresponds to an area
 #[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
 pub struct TreeNodeArea {
     pub id: String, // area id
@@ -265,8 +265,8 @@ where
             .collect();
         TreeNode::<ContestsData> {
             area: self.area.clone(),
-            children: children,
-            data: data,
+            children,
+            data,
         }
     }
 }

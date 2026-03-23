@@ -5,18 +5,15 @@ use crate::serialization::deserialize_with_path::deserialize_str;
 use crate::services::{
     keycloak::KeycloakAdminClient, replace_uuids::replace_uuids,
 };
-use crate::types::keycloak::{Role, TENANT_ID_ATTR_NAME};
+use crate::types::keycloak::TENANT_ID_ATTR_NAME;
 use anyhow::{anyhow, Context, Result};
 use keycloak::types::{
     AuthenticationExecutionInfoRepresentation, GroupRepresentation,
     RealmRepresentation, RoleRepresentation,
 };
-use keycloak::{
-    KeycloakAdmin, KeycloakAdminToken, KeycloakError, KeycloakTokenSupplier,
-};
-use reqwest::Client;
-use serde_json::{json, Value};
-use std::collections::{HashMap, HashSet};
+use keycloak::{KeycloakError, KeycloakTokenSupplier};
+use serde_json::json;
+use std::collections::HashMap;
 use std::env;
 use std::hash::RandomState;
 use tracing::{error, info, instrument};
