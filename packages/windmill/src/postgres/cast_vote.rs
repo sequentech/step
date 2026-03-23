@@ -5,6 +5,7 @@ use crate::services::cast_votes::CastVote;
 use anyhow::{anyhow, Result};
 use chrono::{DateTime, Utc};
 use deadpool_postgres::Transaction;
+use sequent_core::services::uuid_validation::parse_uuid_v4;
 use serde_json::value::Value;
 use serde_json::{json, Map};
 use tokio_postgres::row::Row;
@@ -183,9 +184,9 @@ pub async fn get_cast_votes_by_election_id(
         .query(
             &statement,
             &[
-                &Uuid::parse_str(tenant_id)?,
-                &Uuid::parse_str(election_event_id)?,
-                &Uuid::parse_str(election_id)?,
+                &parse_uuid_v4(tenant_id)?,
+                &parse_uuid_v4(election_event_id)?,
+                &parse_uuid_v4(election_id)?,
             ],
         )
         .await
