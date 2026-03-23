@@ -476,8 +476,9 @@ impl GenerateReports {
                 .map(|area| (area.id.clone(), area.clone()))
                 .collect();
 
-            // Name used in results_documents.rs:generate_ids_map and renamer.rs:rename_folders
-            let election_name_for_folder = if election_input.alias.is_empty() {
+            // Effective display name: alias takes priority over name, used in report templates
+            // and as the folder name component in generate_ids_map / rename_folders
+            let election_display_name = if election_input.alias.is_empty() {
                 election_input.name.clone()
             } else {
                 election_input.alias.clone()
@@ -501,7 +502,7 @@ impl GenerateReports {
                 )?;
 
                 reports.push(ReportData {
-                    election_name: election_input.alias.clone(),
+                    election_name: election_display_name.clone(),
                     election_id: election_input.id.to_string(),
                     election_description: election_input.description.clone(),
                     election_dates: election_input.dates.clone(),
@@ -532,7 +533,7 @@ impl GenerateReports {
                     )?;
 
                     reports.push(ReportData {
-                        election_name: election_name_for_folder.clone(),
+                        election_name: election_display_name.clone(),
                         election_id: election_input.id.to_string(),
                         election_description: election_input.description.clone(),
                         election_dates: election_input.dates.clone(),
