@@ -24,6 +24,8 @@ import {
     RaRecord,
     PreferencesEditorContext,
     useListContext,
+    ReferenceArrayField,
+    SingleFieldList,
 } from "react-admin"
 import {faPlus} from "@fortawesome/free-solid-svg-icons"
 import {useTenantStore} from "@/providers/TenantContextProvider"
@@ -88,6 +90,9 @@ import {Check, FilterAltOff} from "@mui/icons-material"
 import {useLocation} from "react-router-dom"
 import {getPreferenceKey} from "@/lib/helpers"
 import {isEqual} from "lodash"
+import {useAliasRenderer} from "@/hooks/useAliasRenderer"
+
+export const AUTHORIZED_ELECTION_IDS = "authorized-election-ids"
 
 const DataGridContainerStyle = styled(DatagridConfigurable, {
     shouldForwardProp: (prop) => prop !== "isOpenSideBar", // Prevent `isOpenSideBar` from being passed to the DOM
@@ -125,6 +130,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
     const {globalSettings} = useContext(SettingsContext)
     const [isOpenSidebar] = useSidebarState()
     const location = useLocation()
+    const aliasRenderer = useAliasRenderer()
 
     const [open, setOpen] = useState(false)
     const [openExport, setOpenExport] = useState(false)
@@ -575,12 +581,12 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                     updateWidgetFail(currWidget.identifier)
                     return
                 }
-                let documentId = exportUsersData.export_users?.document_id
                 const task_id = exportUsersData?.export_users?.task_execution?.id
-                setExportDocumentId(documentId)
                 task_id
                     ? setWidgetTaskId(currWidget.identifier, task_id)
                     : updateWidgetFail(currWidget.identifier)
+                setExporting(false)
+                setOpenExport(false)
             } else {
                 const {data: exportUsersData, errors} = await exportTenantUsers({
                     variables: {tenantId},
@@ -891,6 +897,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
 
     const renderFields = (fields: UserProfileAttribute[]) => {
         const allFields = fields.map((attr) => {
+            if (attr.name === AUTHORIZED_ELECTION_IDS) return null
             if (attr.annotations?.inputType === "html5-date") {
                 return (
                     <FunctionField
@@ -1017,6 +1024,14 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
             }
         }, [isFetching, filtersChanged])
 
+        const hasAuthorizedElectionIdsAttributes = useMemo(
+            () =>
+                userAttributes?.get_user_profile_attributes.find(
+                    (attr) => attr.name === AUTHORIZED_ELECTION_IDS
+                ),
+            [userAttributes?.get_user_profile_attributes]
+        )
+
         if (isLoading || (isFetching && filtersChanged)) {
             return <TableSkeleton rowCount={perPage} />
         }
@@ -1053,6 +1068,30 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                                 }
                             />
                         )}
+                        {electionEventId && hasAuthorizedElectionIdsAttributes && (
+                            <ReferenceArrayField
+                                label={String(
+                                    t("usersAndRolesScreen.users.fields.authorized-election-ids")
+                                )}
+                                source="attributes.authorized-election-ids"
+                                reference="sequent_backend_election_by_external_id"
+                                queryOptions={{
+                                    meta: {filter: {election_event_id: electionEventId}},
+                                }}
+                            >
+                                <SingleFieldList linkType={false}>
+                                    <FunctionField
+                                        render={(e: any) => (
+                                            <Chip
+                                                key={e.id}
+                                                label={aliasRenderer(e.presentation)}
+                                            />
+                                        )}
+                                    />
+                                </SingleFieldList>
+                            </ReferenceArrayField>
+                        )}
+
                         {renderFields(listFields.attributesFields)}
                         {electionEventId && (
                             <FunctionField<IUser>

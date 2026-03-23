@@ -553,6 +553,114 @@ impl BoardClient {
         Ok(aggregate.count as i64)
     }
 
+    /// Returns a batch of electoral log messages at a given row offset, ordered by id.
+    /// Prefer `get_electoral_log_messages_batch` (cursor-based) when iterating sequentially.
+    /// This offset-based variant exists for parallel batch processing where offsets are
+    /// pre-computed and batches run concurrently.
+    #[instrument(skip(self), err)]
+    pub async fn get_electoral_log_messages_at_offset(
+        &mut self,
+        board_db: &str,
+        limit: i64,
+        offset: i64,
+    ) -> Result<Vec<ElectoralLogMessage>> {
+        self.client.use_database(board_db).await?;
+        let sql = format!(
+            r#"
+            SELECT
+                id,
+                created,
+                sender_pk,
+                statement_timestamp,
+                statement_kind,
+                message,
+                version,
+                user_id,
+                username
+            FROM {ELECTORAL_LOG_TABLE}
+            ORDER BY id
+            LIMIT {limit}
+            OFFSET {offset};
+            "#
+        );
+        let response_stream = self.client.streaming_sql_query(&sql, vec![]).await?;
+        let mut stream = response_stream.into_inner();
+        let mut messages: Vec<ElectoralLogMessage> = vec![];
+        while let Some(batch_result) = stream.next().await {
+            match batch_result {
+                Ok(batch) => {
+                    for row in &batch.rows {
+                        match ElectoralLogMessage::try_from(row) {
+                            Ok(msg) => messages.push(msg),
+                            Err(e) => {
+                                warn!("Failed to parse row: {e}");
+                            }
+                        }
+                    }
+                }
+                Err(e) => {
+                    error!("Error receiving batch from stream: {e}");
+                    break;
+                }
+            }
+        }
+        Ok(messages)
+    }
+
+    /// Returns a batch of electoral log messages with id > `after_id`, ordered by id,
+    /// using streaming to handle large result sets. Pass `after_id = 0` to start
+    /// from the beginning. Use the `id` of the last returned message as `after_id`
+    /// for the next page.
+    #[instrument(skip(self), err)]
+    pub async fn get_electoral_log_messages_batch(
+        &mut self,
+        board_db: &str,
+        limit: i64,
+        after_id: i64,
+    ) -> Result<Vec<ElectoralLogMessage>> {
+        self.client.use_database(board_db).await?;
+        let sql = format!(
+            r#"
+            SELECT
+                id,
+                created,
+                sender_pk,
+                statement_timestamp,
+                statement_kind,
+                message,
+                version,
+                user_id,
+                username
+            FROM {ELECTORAL_LOG_TABLE}
+            WHERE id > {after_id}
+            ORDER BY id
+            LIMIT {limit};
+            "#
+        );
+        let response_stream = self.client.streaming_sql_query(&sql, vec![]).await?;
+        let mut stream = response_stream.into_inner();
+        let mut messages: Vec<ElectoralLogMessage> = vec![];
+        while let Some(batch_result) = stream.next().await {
+            match batch_result {
+                Ok(batch) => {
+                    for row in &batch.rows {
+                        match ElectoralLogMessage::try_from(row) {
+                            Ok(msg) => messages.push(msg),
+                            Err(e) => {
+                                warn!("Failed to parse row: {e}");
+                            }
+                        }
+                    }
+                }
+                Err(e) => {
+                    error!("Error receiving batch from stream: {e}");
+                    break;
+                }
+            }
+        }
+        Ok(messages)
+    }
+
     pub async fn open_session(&mut self, database_name: &str) -> Result<()> {
         self.client.open_session(database_name).await
     }

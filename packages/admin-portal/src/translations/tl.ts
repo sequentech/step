@@ -575,6 +575,7 @@ const tagalogTranslation: TranslationType = {
                 alias: "Alias",
                 description: "Paglalarawan",
                 securityConfirmationHtml: "HTML ng Kumpirmasyon sa Seguridad",
+                externalId: "Panlabas na ID",
             },
             securityConfirmationPolicy: {
                 label: "Patakaran sa Checkbox ng Kumpirmasyon sa Seguridad",
