@@ -13,6 +13,7 @@ use anyhow::{anyhow, Context, Result as AnyhowResult};
 use celery::error::TaskError;
 use deadpool_postgres::Transaction;
 use sequent_core::serialization::deserialize_with_path::deserialize_str;
+use sequent_core::services::uuid_validation::parse_uuid_v4;
 use sequent_core::types::hasura::core::Application;
 use sequent_core::types::hasura::core::TasksExecution;
 use sequent_core::util::integrity_check::{integrity_check, HashFileVerifyError};
@@ -118,7 +119,7 @@ pub async fn import_applications_task(
 
         let new_template_id = Uuid::new_v4();
 
-        let tenant_id_parsed = match Uuid::parse_str(tenant_id) {
+        let tenant_id_parsed = match parse_uuid_v4(tenant_id) {
             Ok(uuid) => uuid.to_string(),
             Err(_) => {
                 tracing::warn!("Invalid UUID for tenant_id: {}", tenant_id);

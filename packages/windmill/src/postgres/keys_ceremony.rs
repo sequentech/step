@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::{Client as DbClient, Transaction};
+use sequent_core::services::uuid_validation::parse_uuid_v4;
 use sequent_core::types::hasura::core::KeysCeremony;
 use serde_json::Value;
 use tokio_postgres::row::Row;
@@ -63,8 +64,8 @@ pub async fn get_keys_ceremonies(
         .query(
             &statement,
             &[
-                &Uuid::parse_str(tenant_id)?,
-                &Uuid::parse_str(election_event_id)?,
+                &parse_uuid_v4(tenant_id)?,
+                &parse_uuid_v4(election_event_id)?,
             ],
         )
         .await?;
@@ -106,9 +107,9 @@ pub async fn get_keys_ceremony_by_id(
         .query(
             &statement,
             &[
-                &Uuid::parse_str(tenant_id)?,
-                &Uuid::parse_str(election_event_id)?,
-                &Uuid::parse_str(keys_ceremony_id)?,
+                &parse_uuid_v4(tenant_id)?,
+                &parse_uuid_v4(election_event_id)?,
+                &parse_uuid_v4(keys_ceremony_id)?,
             ],
         )
         .await?;
@@ -142,14 +143,14 @@ pub async fn insert_keys_ceremony(
     is_default: bool,
     permission_label: Vec<String>,
 ) -> Result<KeysCeremony> {
-    let id_uuid: uuid::Uuid = Uuid::parse_str(&id).with_context(|| "Error parsing id as UUID")?;
+    let id_uuid: uuid::Uuid = parse_uuid_v4(&id).with_context(|| "Error parsing id as UUID")?;
     let tenant_uuid: uuid::Uuid =
-        Uuid::parse_str(&tenant_id).with_context(|| "Error parsing tenant_id as UUID")?;
-    let election_event_uuid: uuid::Uuid = Uuid::parse_str(&election_event_id)
+        parse_uuid_v4(&tenant_id).with_context(|| "Error parsing tenant_id as UUID")?;
+    let election_event_uuid: uuid::Uuid = parse_uuid_v4(&election_event_id)
         .with_context(|| "Error parsing election_event_id as UUID")?;
     let trustee_uuids: Vec<uuid::Uuid> = trustee_ids
         .into_iter()
-        .map(|trustee_id| Uuid::parse_str(&trustee_id).map_err(|err| anyhow!("{:?}", err)))
+        .map(|trustee_id| parse_uuid_v4(&trustee_id).map_err(|err| anyhow!("{:?}", err)))
         .collect::<Result<Vec<uuid::Uuid>>>()
         .with_context(|| "Error parsing trustee_ids as UUIDs")?;
 
@@ -245,9 +246,9 @@ pub async fn update_keys_ceremony_status(
             &[
                 &status,
                 &execution_status.to_string(),
-                &Uuid::parse_str(keys_ceremony_id)?,
-                &Uuid::parse_str(tenant_id)?,
-                &Uuid::parse_str(election_event_id)?,
+                &parse_uuid_v4(keys_ceremony_id)?,
+                &parse_uuid_v4(tenant_id)?,
+                &parse_uuid_v4(election_event_id)?,
             ],
         )
         .await
@@ -293,8 +294,8 @@ pub async fn list_keys_ceremony(
         .query(
             &statement,
             &[
-                &Uuid::parse_str(tenant_id)?,
-                &Uuid::parse_str(election_event_id)?,
+                &parse_uuid_v4(tenant_id)?,
+                &parse_uuid_v4(election_event_id)?,
                 &permission_labels_slice,
             ],
         )
