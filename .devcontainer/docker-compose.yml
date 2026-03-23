@@ -89,7 +89,7 @@ services:
       interval: 5s
       timeout: 10s
       retries: 25
-      start_period: 5s
+      start_period: 120s
 
   keycloak-nginx:
     profiles: ["full", "base"]
