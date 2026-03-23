@@ -24,6 +24,7 @@ use sequent_core::serialization::deserialize_with_path::deserialize_value;
 use sequent_core::services::area_tree::TreeNodeArea;
 use sequent_core::services::s3;
 use sequent_core::services::translations::{Alias, Name};
+use sequent_core::services::uuid_validation::parse_uuid_v4;
 use sequent_core::signatures::ecies_encrypt::EciesKeyPair;
 use sequent_core::types::ceremonies::TallyType;
 use sequent_core::types::hasura::core::{
@@ -167,18 +168,18 @@ pub fn prepare_tally_for_area_contest(
     ));
 
     let area_config = AreaConfig {
-        id: Uuid::parse_str(&area_id)?,
+        id: parse_uuid_v4(&area_id)?,
         name: area_contest.area.name.clone().unwrap_or("".into()),
-        tenant_id: Uuid::parse_str(&area_contest.contest.tenant_id)?,
-        election_event_id: Uuid::parse_str(&area_contest.contest.election_event_id)?,
-        election_id: Uuid::parse_str(&election_id)?,
+        tenant_id: parse_uuid_v4(&area_contest.contest.tenant_id)?,
+        election_event_id: parse_uuid_v4(&area_contest.contest.election_event_id)?,
+        election_id: parse_uuid_v4(&election_id)?,
         census: area_contest.eligible_voters as u64,
         auditable_votes: area_contest.auditable_votes as u64,
         parent_id: area_contest
             .area
             .parent_id
             .clone()
-            .map(|parent_id| Uuid::parse_str(&parent_id))
+            .map(|parent_id| parse_uuid_v4(&parent_id))
             .transpose()?,
     };
     let mut area_config_file = fs::File::create(area_config_path)?;
@@ -276,15 +277,15 @@ pub fn create_election_configs_blocking(
         let mut velvet_election: ElectionConfig = match elections_map.get(&election_id) {
             Some(election) => election.clone(),
             None => ElectionConfig {
-                id: Uuid::parse_str(&election_id)?,
+                id: parse_uuid_v4(&election_id)?,
                 name: election_name_opt.unwrap_or("".to_string()),
                 alias: election_alias_otp.unwrap_or("".to_string()),
                 description: election_description,
                 annotations: election_annotations.clone(),
                 election_event_annotations: election_event_annotations.clone(),
                 dates: election_dates,
-                tenant_id: Uuid::parse_str(&area_contest.contest.tenant_id)?,
-                election_event_id: Uuid::parse_str(&area_contest.contest.election_event_id)?,
+                tenant_id: parse_uuid_v4(&area_contest.contest.tenant_id)?,
+                election_event_id: parse_uuid_v4(&area_contest.contest.election_event_id)?,
                 census: election_cast_votes_count
                     .map(|data| data.census as u64)
                     .unwrap_or(0),

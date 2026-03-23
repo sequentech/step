@@ -62,6 +62,8 @@ use uuid::Uuid;
 // Added imports
 use sequent_core::encrypt::hash_ballot;
 use sequent_core::encrypt::hash_multi_ballot;
+use sequent_core::services::uuid_validation::parse_uuid_v4;
+use serde_json::Serializer;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct InsertCastVoteInput {
@@ -583,14 +585,14 @@ pub async fn insert_cast_vote_and_commit<'a>(
 ) -> Result<CastVote, CastVoteError> {
     let election_id_string = input.election_id.to_string();
     let election_id = election_id_string.as_str();
-    let tenant_uuid = Uuid::parse_str(ids.tenant_id)
+    let tenant_uuid = parse_uuid_v4(ids.tenant_id)
         .map_err(|e| CastVoteError::UuidParseFailed(e.to_string(), "tenant_id".to_string()))?;
-    let election_event_uuid = Uuid::parse_str(ids.election_event_id).map_err(|e| {
+    let election_event_uuid = parse_uuid_v4(ids.election_event_id).map_err(|e| {
         CastVoteError::UuidParseFailed(e.to_string(), "election_event_id".to_string())
     })?;
-    let election_uuid = Uuid::parse_str(election_id)
+    let election_uuid = parse_uuid_v4(election_id)
         .map_err(|e| CastVoteError::UuidParseFailed(e.to_string(), "election_id".to_string()))?;
-    let area_uuid = Uuid::parse_str(ids.area_id)
+    let area_uuid = parse_uuid_v4(ids.area_id)
         .map_err(|e| CastVoteError::UuidParseFailed(e.to_string(), "area_id".to_string()))?;
     let (check_status, check_previous_votes, ballot_signature) = try_join!(
         // Check status is the most expensive call here, it takes around 2/3 of the time of the whole insert_cast_vote
@@ -929,7 +931,7 @@ async fn check_previous_votes(
 
     let (same, other): (Vec<Uuid>, Vec<Uuid>) = result
         .into_iter()
-        .filter_map(|cv| cv.area_id.and_then(|id| Uuid::parse_str(&id).ok()))
+        .filter_map(|cv| cv.area_id.and_then(|id| parse_uuid_v4(&id).ok()))
         .partition(|cv_area_id| cv_area_id.to_string() == area_id.to_string());
 
     info!("get cast votes returns same: {:?}", same);

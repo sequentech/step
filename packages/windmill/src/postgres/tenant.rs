@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::Transaction;
+use sequent_core::services::uuid_validation::parse_uuid_v4;
 use sequent_core::types::hasura::core::Tenant;
 use tokio_postgres::row::Row;
 use tracing::{event, instrument, Level};
@@ -39,7 +40,7 @@ pub async fn get_tenant_by_id(
     }
 
     let tenant_uuid =
-        Uuid::parse_str(tenant_id).map_err(|err| anyhow!("Error parsing tenant UUID: {}", err))?;
+        parse_uuid_v4(tenant_id).map_err(|err| anyhow!("Error parsing tenant UUID: {}", err))?;
 
     let statement = hasura_transaction
         .prepare(
@@ -79,7 +80,7 @@ pub async fn update_tenant(
     old_tenant_id: &str,
 ) -> Result<()> {
     let old_tenant_uuid =
-        Uuid::parse_str(old_tenant_id).context("Failed to parse old_tenant_id as UUID")?;
+        parse_uuid_v4(old_tenant_id).context("Failed to parse old_tenant_id as UUID")?;
 
     let statement = hasura_transaction
         .prepare(
@@ -156,7 +157,7 @@ pub async fn insert_tenant(
         .map_err(|err| anyhow!("Error preparing update_tenant statement: {}", err))?;
 
     let _rows = hasura_transaction
-        .execute(&statement, &[&Uuid::parse_str(&id)?, &slug])
+        .execute(&statement, &[&parse_uuid_v4(&id)?, &slug])
         .await
         .context("Failed to execute update tenant")?;
 
@@ -174,7 +175,7 @@ pub async fn get_tenant_by_id_if_exist(
     }
 
     let tenant_uuid =
-        Uuid::parse_str(tenant_id).map_err(|err| anyhow!("Error parsing tenant UUID: {}", err))?;
+        parse_uuid_v4(tenant_id).map_err(|err| anyhow!("Error parsing tenant UUID: {}", err))?;
 
     let statement = hasura_transaction
         .prepare(

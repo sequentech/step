@@ -5,6 +5,7 @@
 use crate::postgres::area::get_areas_by_name;
 use crate::postgres::keycloak_realm;
 use crate::services::database::{get_hasura_pool, get_keycloak_pool};
+use crate::services::sql_utils::{escape_sql_identifier, escape_sql_literal};
 use crate::types::error::{Error, Result};
 use anyhow::{anyhow, Context};
 use base64::prelude::*;
@@ -18,6 +19,7 @@ use ring::{digest, pbkdf2};
 use sequent_core::services::keycloak::{
     get_event_realm, get_tenant_realm, MULTIVALUE_USER_ATTRIBUTE_SEPARATOR,
 };
+use sequent_core::services::uuid_validation::parse_uuid_v4;
 use sequent_core::types::keycloak::{AREA_ID_ATTR_NAME, TENANT_ID_ATTR_NAME};
 use std::num::NonZeroU32;
 use tempfile::NamedTempFile;
@@ -160,9 +162,10 @@ fn get_copy_from_query(
         .collect::<Vec<String>>();
 
     // Create the table creation query
+    let quoted_table_name = escape_sql_identifier(&temp_table_name);
     let create_table_query = format!(
         "CREATE TEMP TABLE {} ({});",
-        temp_table_name,
+        quoted_table_name,
         processed_column_names
             .iter()
             .map(|name| format!("{} VARCHAR", sanitize_db_key(&name.to_string())))
@@ -171,7 +174,7 @@ fn get_copy_from_query(
     );
 
     // Create the COPY FROM STDIN query
-    let copy_from_query = format!("COPY {} FROM STDIN BINARY;", temp_table_name);
+    let copy_from_query = format!("COPY {} FROM STDIN BINARY;", quoted_table_name);
 
     let processed_column_types = processed_column_names
         .iter()
@@ -202,6 +205,14 @@ fn get_insert_user_query(
     voters_table: String,
     voters_table_columns: &Vec<String>,
 ) -> anyhow::Result<String> {
+    parse_uuid_v4(&tenant_id)
+        .with_context(|| format!("invalid v4 UUID for tenant_id: {}", tenant_id))?;
+    parse_uuid_v4(&realm_id)
+        .with_context(|| format!("invalid v4 UUID for realm_id: {}", realm_id))?;
+    let realm_id = escape_sql_literal(&realm_id);
+    let tenant_id = escape_sql_literal(&tenant_id);
+    let voters_table = escape_sql_identifier(&voters_table);
+
     // Build the INSERT query for user_entity
     let user_entity_columns = vec![
         "id",
