@@ -6,9 +6,7 @@ use std::num::TryFromIntError;
 // SPDX-License-Identifier: AGPL-3.0-only
 use super::bigint;
 use super::{vec, RawBallotContest};
-use crate::ballot::{
-    AreaPresentation, BallotStyle, Candidate, Contest, EUnderVotePolicy,
-};
+use crate::ballot::{BallotStyle, Candidate, Contest};
 use crate::ballot_codec::{
     check_blank_vote_policy, check_invalid_vote_policy,
     check_max_min_votes_policy, check_min_vote_policy, check_over_vote_policy,
@@ -18,7 +16,7 @@ use crate::error::BallotError;
 use crate::mixed_radix;
 use crate::plaintext::{
     map_decoded_ballot_choices_to_decoded_contests, DecodedVoteContest,
-    InvalidPlaintextError, InvalidPlaintextErrorType,
+    InvalidPlaintextError,
 };
 use crate::types::ceremonies::CountingAlgType;
 use num_bigint::BigUint;
@@ -182,7 +180,7 @@ impl BallotStyle {
         let first_counting_algorithm: CountingAlgType = self
             .contests
             .first()
-            .map(|c| c.get_counting_algorithm())
+            .map(Contest::get_counting_algorithm)
             .unwrap_or_default();
         if self
             .contests
@@ -256,7 +254,7 @@ impl BallotChoices {
         config: &BallotStyle,
     ) -> Result<RawBallotContest, String> {
         let contests = self.get_contests(config)?;
-        let bases = Self::get_bases(&contests).map_err(|e| e.to_string())?;
+        let bases = Self::get_bases(&contests).map_err(|e| e.clone())?;
         let mut choices: Vec<u64> = vec![];
 
         // Construct a map of plaintexts, this will allow us to
@@ -283,7 +281,7 @@ impl BallotChoices {
             let plaintext = plaintexts_map.get(&contest.id).ok_or_else(|| format!(
                 "Could not find plaintexts for contest {contest:?}",
             ))?;
-            let contest_choices = self.encode_contest(&contest, *plaintext)?;
+            let contest_choices = self.encode_contest(&contest, plaintext)?;
             choices.extend(contest_choices);
         }
         Ok(RawBallotContest { bases, choices })
@@ -378,7 +376,9 @@ impl BallotChoices {
             // list, sorted by id. The same sorting order must be used
             // to interpret choices when decoding.
             let mark = if p.selected > -1 {
-                let pos = *position + 1;
+                let pos = position.checked_add(1).ok_or_else(|| {
+                    "Overflow in candidate position addition".to_string()
+                })?;
                 pos.try_into().map_err(|_| {
                     "u64 conversion on candidate position".to_string()
                 })?
@@ -386,10 +386,15 @@ impl BallotChoices {
                 // unset
                 0
             };
-            if marked < contest_choices.len() {
-                contest_choices[marked] = mark;
+            if let Some(slot) = contest_choices.get_mut(marked) {
+                *slot = mark;
+            } else {
+                return Err("Index out of bounds when writing contest_choices"
+                    .to_string());
             }
-            marked += 1;
+            marked = marked
+                .checked_add(1)
+                .ok_or_else(|| "Overflow in marked addition".to_string())?;
         }
 
         // There can be no duplicates among the set values (!= 0)
@@ -426,7 +431,12 @@ impl BallotChoices {
     ///
     /// The following conditions will return an error.
     ///
-    /// =================================
+    ///
+    ///   =================================
+    ///
+    ///
+    /// # Errors
+    /// Returns an error if decoding fails at any step.
     /// FIXME
     /// In the current implementation these errors short
     /// circuit the operation.
@@ -441,7 +451,7 @@ impl BallotChoices {
     /// * `num_selected_candidates < min_votes`
     /// * `under_vote_policy != EUnderVotePolicy::ALLOWED && num_selected_candidates < max_votes && num_selected_candidates >= min_votes`
     /// * `if let Some(blank_vote_policy) = presentation.blank_vote_policy { if num_selected_candidates == 0`
-    /// =================================
+    ///    =================================
     ///
     /// * The number of overall choices does not match the expected value
     /// * A contest choice is out of range (larger than the number of candidates)
@@ -463,7 +473,7 @@ impl BallotChoices {
         bytes: &[u8; 30],
         style: &BallotStyle,
     ) -> Result<DecodedBallotChoices, String> {
-        let bytes = vec::decode_array_to_vec(&bytes);
+        let bytes = vec::decode_array_to_vec(bytes);
         let bigint = bigint::decode_bigint_from_bytes(&bytes)?;
 
         Self::decode_from_bigint(&bigint, &style.contests, None)
@@ -475,10 +485,10 @@ impl BallotChoices {
     /// Returns an error if decoding fails.
     pub fn decode_from_bigint(
         bigint: &BigUint,
-        contests: &Vec<Contest>,
+        contests: &[Contest],
         serial_number_counter: Option<&mut u32>,
     ) -> Result<DecodedBallotChoices, String> {
-        let raw_ballot = Self::bigint_to_raw_ballot(&bigint, contests)?;
+        let raw_ballot = Self::bigint_to_raw_ballot(bigint, contests)?;
 
         Self::decode(&raw_ballot, contests, serial_number_counter)
     }
@@ -497,17 +507,23 @@ impl BallotChoices {
         let choices = raw_ballot.choices.clone();
 
         // Each contest contributes max_votes slots
-        let expected_choices = contests.iter().fold(0, |a, b| a + b.max_votes);
+        let expected_choices = contests
+            .iter()
+            .try_fold(0i64, |a, b| a.checked_add(b.max_votes))
+            .ok_or_else(|| "Overflow in sum of max_votes".to_string())?;
         let expected_choices: usize =
             expected_choices.try_into().map_err(|_| {
                 "i64 -> usize conversion on contest max_votes".to_string()
             })?;
-        // The first slot is used for explicit invalid ballot, so + 1
-        if choices.len() != expected_choices + 1 {
+        // The first slot is used for explicit invalid ballot, so checked add 1
+        let expected_choices_plus_1 = expected_choices
+            .checked_add(1)
+            .ok_or_else(|| "Overflow in expected_choices + 1".to_string())?;
+        if choices.len() != expected_choices_plus_1 {
             return Err(format!(
                 "Unexpected number of choices {} != {}",
                 choices.len(),
-                expected_choices
+                expected_choices_plus_1
             ));
         }
 
@@ -518,32 +534,45 @@ impl BallotChoices {
         sorted_contests.sort_by_key(|c| c.id.clone());
 
         // This explicit invalid flag is at the ballot level
-        let is_explicit_invalid: bool = !choices.is_empty() && choices[0] > 0;
+        let is_explicit_invalid: bool = match choices.first() {
+            Some(val) => *val > 0,
+            None => false,
+        };
         // Skip past the explicit invalid slot
-        let mut choice_index = 1;
+        let mut choice_index: usize = 1;
 
         for contest in sorted_contests {
             let max_votes: usize =
                 contest.max_votes.try_into().map_err(|_| {
                     "i64 -> usize conversion on contest max_votes".to_string()
                 })?;
-            if choice_index + max_votes > choices.len() {
+            let end_index =
+                choice_index.checked_add(max_votes).ok_or_else(|| {
+                    "Overflow in choice_index + max_votes".to_string()
+                })?;
+            if end_index > choices.len() {
                 return Err("Choice index out of bounds when decoding contest"
                     .to_string());
             }
+            let choice_slice =
+                choices.get(choice_index..end_index).ok_or_else(|| {
+                    "Slicing error: invalid contest choice range".to_string()
+                })?;
             let next = Self::decode_contest(
                 &contest,
-                &choices[choice_index..choice_index + max_votes],
+                choice_slice,
                 is_explicit_invalid,
             )?;
-            choice_index += max_votes;
+            choice_index = end_index;
             contest_choices.push(next);
         }
 
         let serial_number = match serial_number_counter {
             Some(serial_number) => {
                 let sn = Some(format!("{:09}", *serial_number));
-                *serial_number += 1;
+                *serial_number = serial_number
+                    .checked_add(1)
+                    .ok_or_else(|| "serial_number overflow".to_string())?;
                 sn
             }
             None => None,
@@ -567,6 +596,9 @@ impl BallotChoices {
     ///
     /// # Errors
     /// Returns an error if decoding fails.
+    ///
+    /// # Panics
+    /// Panics if the serial number counter overflows (should not occur in normal operation).
     fn decode_contest(
         contest: &Contest,
         choices: &[u64],
@@ -596,7 +628,7 @@ impl BallotChoices {
         })?;
 
         let mut next_choices = vec![];
-        for (i, &raw_choice) in choices.iter().enumerate().take(max_votes) {
+        for (_i, &raw_choice) in choices.iter().enumerate().take(max_votes) {
             let next = usize::try_from(raw_choice).map_err(|_| {
                 "u64 -> usize conversion on plaintext choice".to_string()
             })?;
@@ -604,20 +636,21 @@ impl BallotChoices {
                 continue;
             }
             // choices are offset by 1 to allow for the unset value at 0
-            let next = next - 1;
+            let next = next
+                .checked_sub(1)
+                .ok_or_else(|| "Underflow in next - 1".to_string())?;
 
             // A choice of a candidate is represented as that
             // candidate's position in the candidate
             // list, sorted by id. The same sorting order must be used
             // to interpret choices when encoding.
-            if next >= sorted_candidates.len() {
-                return Err(format!(
+            let candidate = sorted_candidates.get(next).ok_or_else(|| {
+                format!(
                     "Candidate selection out of range {} (length: {})",
                     next,
                     sorted_candidates.len()
-                ));
-            }
-            let candidate = &sorted_candidates[next];
+                )
+            })?;
             let choice = DecodedContestChoice(candidate.id.clone());
             next_choices.push(choice);
         }
@@ -655,7 +688,7 @@ impl BallotChoices {
             check_max_min_votes_policy(contest.max_votes, contest.min_votes);
         decoded_contest.update(maxmin_errors);
 
-        if let Some(max_votes_val) = max_votes_opt.clone() {
+        if let Some(max_votes_val) = max_votes_opt {
             let overvote_check = check_over_vote_policy(
                 &presentation,
                 num_selected_candidates,
@@ -663,7 +696,7 @@ impl BallotChoices {
             );
             decoded_contest.update(overvote_check);
         }
-        if let Some(min_votes_val) = min_votes_opt.clone() {
+        if let Some(min_votes_val) = min_votes_opt {
             let min_check =
                 check_min_vote_policy(num_selected_candidates, min_votes_val);
             decoded_contest.update(min_check);
@@ -672,8 +705,8 @@ impl BallotChoices {
         let under_vote_check = check_under_vote_policy(
             &presentation,
             num_selected_candidates,
-            max_votes_opt.clone(),
-            min_votes_opt.clone(),
+            max_votes_opt,
+            min_votes_opt,
         );
         decoded_contest.update(under_vote_check);
 
@@ -760,7 +793,9 @@ impl BallotChoices {
             let max_selections = contest.max_votes;
             for _ in 1..=max_selections {
                 // + 1: include a per-ballot invalid flag
-                bases.push(num_valid_candidates + 1);
+                bases.push(num_valid_candidates.checked_add(1).ok_or_else(
+                    || "Overflow in num_valid_candidates + 1".to_string(),
+                )?);
             }
         }
 
@@ -798,19 +833,18 @@ impl BallotChoices {
     ///
     /// # Errors
     /// Returns an error if decoding fails.
-    #[must_use]
     pub fn bigint_to_raw_ballot(
         bigint: &BigUint,
         contests: &[Contest],
     ) -> Result<RawBallotContest, String> {
-        let bases = Self::get_bases(contests).map_err(|e| e.to_string())?;
+        let bases = Self::get_bases(contests).map_err(|e| e.clone())?;
         let choices = Self::decode_mixed_radix(&bases, bigint)?;
         Ok(RawBallotContest { bases, choices })
     }
 
     /// Decode the choices in the given mixed radix bigint
     ///
-    /// This function is adapted from mixed_radix::decode
+    /// This function is adapted from `mixed_radix::decode`
     /// to remove its write-in functionality.
     ///
     /// # Errors
@@ -824,24 +858,46 @@ impl BallotChoices {
         let mut index = 0usize;
 
         while accumulator > Zero::zero() {
-            let base: BigUint = bases[index].to_biguint().ok_or_else(|| {
-                format!(
-                    "Error converting to biguint: bases[index={index:?}]={val}",
-                    val = bases[index]
-                )
-            })?;
+            let base = bases
+                .get(index)
+                .ok_or_else(|| {
+                    format!(
+                "Index out of bounds in bases vector: index={index}, len={}",
+                bases.len()
+            )
+                })?
+                .to_biguint()
+                .ok_or_else(|| {
+                    "Could not convert base to BigUint".to_string()
+                })?;
+
+            if base.is_zero() {
+                return Err(format!("Base cannot be zero at index {index}"));
+            }
+
+            #[allow(clippy::arithmetic_side_effects)]
             let remainder = &accumulator % &base;
+
             values.push(remainder.to_u64().ok_or_else(|| {
                 format!("Error converting to u64 remainder={remainder}")
             })?);
-            accumulator = (&accumulator - &remainder) / &base;
-            index += 1;
+
+            #[allow(clippy::arithmetic_side_effects)]
+            {
+                accumulator = (&accumulator - &remainder) / &base;
+            }
+
+            index = index
+                .checked_add(1)
+                .ok_or_else(|| "Overflow in index addition".to_string())?;
         }
 
         // If we didn't run all the bases, fill the rest with zeros
         while index < bases.len() {
             values.push(0);
-            index += 1;
+            index = index.checked_add(1).ok_or_else(|| {
+                "Overflow in index addition (padding)".to_string()
+            })?;
         }
 
         Ok(values)
@@ -890,6 +946,9 @@ impl BallotChoices {
 }
 
 /// Test multi-contest reencoding functionality
+///
+/// # Errors
+/// Returns an error if encoding or decoding fails, or if the input and output contests do not match.
 pub fn test_multi_contest_reencoding(
     decoded_multi_contests: &Vec<DecodedVoteContest>,
     ballot_style: &BallotStyle,
@@ -934,7 +993,7 @@ pub fn test_multi_contest_reencoding(
 mod tests {
 
     use super::*;
-    use crate::ballot::{BallotStyle, Candidate, Contest};
+    use crate::ballot::{AreaPresentation, BallotStyle, Candidate, Contest};
     use crate::serialization::deserialize_with_path::deserialize_value;
     use rand::{seq::SliceRandom, Rng};
     use serde_json::json;
