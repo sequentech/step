@@ -82,6 +82,8 @@ services:
     depends_on:
       postgres-keycloak:
         condition: service_healthy
+      minio:
+        condition: service_healthy
       configure-minio:
         condition: service_completed_successfully
     healthcheck:
@@ -102,6 +104,8 @@ services:
       - "8443:8443"
     environment:
       VOTING_PORTAL_URL: ${VOTING_PORTAL_URL}
+      KC_HOSTNAME: ${KC_HOSTNAME}
+      KC_HTTP_PORT: ${KC_HTTP_PORT}
     depends_on:
       keycloak:
         condition: service_healthy
