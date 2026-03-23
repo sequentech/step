@@ -5,6 +5,7 @@ use crate::services::import::import_election_event::ImportElectionEventSchema;
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::Transaction;
 use sequent_core::ballot::VotingStatus;
+use sequent_core::services::uuid_validation::parse_uuid_v4;
 use sequent_core::types::hasura::core::ElectionEvent as ElectionEventData;
 use serde_json::Value;
 use tokio_postgres::row::Row;
@@ -65,10 +66,10 @@ pub async fn insert_election_event(
         .query(
             &statement,
             &[
-                &Uuid::parse_str(&election_event.id)?,
+                &parse_uuid_v4(&election_event.id)?,
                 &election_event.labels,
                 &election_event.annotations,
-                &Uuid::parse_str(&election_event.tenant_id)?,
+                &parse_uuid_v4(&election_event.tenant_id)?,
                 &election_event.description,
                 &election_event.presentation,
                 &election_event.bulletin_board_reference,
@@ -81,7 +82,7 @@ pub async fn insert_election_event(
                 &election_event
                     .audit_election_event_id
                     .as_ref()
-                    .and_then(|s| Uuid::parse_str(&s).ok()),
+                    .and_then(|s| parse_uuid_v4(&s).ok()),
                 &election_event.public_key,
                 &election_event.statistics,
                 &election_event.external_id,
@@ -117,8 +118,8 @@ pub async fn get_election_event_by_id(
         .query(
             &statement,
             &[
-                &Uuid::parse_str(tenant_id)?,
-                &Uuid::parse_str(election_event_id)?,
+                &parse_uuid_v4(tenant_id)?,
+                &parse_uuid_v4(election_event_id)?,
             ],
         )
         .await?;
@@ -161,8 +162,8 @@ pub async fn get_election_event_by_id_if_exist(
         .query(
             &statement,
             &[
-                &Uuid::parse_str(tenant_id)?,
-                &Uuid::parse_str(election_event_id)?,
+                &parse_uuid_v4(tenant_id)?,
+                &parse_uuid_v4(election_event_id)?,
             ],
         )
         .await?;
@@ -202,7 +203,7 @@ pub async fn get_all_tenant_election_events(
         .await?;
 
     let rows: Vec<Row> = hasura_transaction
-        .query(&statement, &[&Uuid::parse_str(tenant_id)?])
+        .query(&statement, &[&parse_uuid_v4(tenant_id)?])
         .await?;
 
     let election_events: Vec<ElectionEventDatafix> = rows
@@ -223,8 +224,8 @@ pub async fn update_election_event_annotations(
     annotations: Value,
 ) -> Result<()> {
     let tenant_uuid: uuid::Uuid =
-        Uuid::parse_str(tenant_id).with_context(|| "Error parsing tenant_id as UUID")?;
-    let election_event_uuid: uuid::Uuid = Uuid::parse_str(election_event_id)
+        parse_uuid_v4(tenant_id).with_context(|| "Error parsing tenant_id as UUID")?;
+    let election_event_uuid: uuid::Uuid = parse_uuid_v4(election_event_id)
         .with_context(|| "Error parsing election_event_id as UUID")?;
 
     let statement = hasura_transaction
@@ -259,8 +260,8 @@ pub async fn update_election_event_presentation(
     presentation: Value,
 ) -> Result<()> {
     let tenant_uuid: uuid::Uuid =
-        Uuid::parse_str(tenant_id).with_context(|| "Error parsing tenant_id as UUID")?;
-    let election_event_uuid: uuid::Uuid = Uuid::parse_str(election_event_id)
+        parse_uuid_v4(tenant_id).with_context(|| "Error parsing tenant_id as UUID")?;
+    let election_event_uuid: uuid::Uuid = parse_uuid_v4(election_event_id)
         .with_context(|| "Error parsing election_event_id as UUID")?;
 
     let statement = hasura_transaction
@@ -314,8 +315,8 @@ pub async fn update_elections_status_by_election_event(
             &statement,
             &[
                 &status,
-                &Uuid::parse_str(tenant_id)?,
-                &Uuid::parse_str(election_event_id)?,
+                &parse_uuid_v4(tenant_id)?,
+                &parse_uuid_v4(election_event_id)?,
             ],
         )
         .await
@@ -359,8 +360,8 @@ pub async fn update_election_event_status(
             &statement,
             &[
                 &status,
-                &Uuid::parse_str(tenant_id)?,
-                &Uuid::parse_str(election_event_id)?,
+                &parse_uuid_v4(tenant_id)?,
+                &parse_uuid_v4(election_event_id)?,
             ],
         )
         .await
@@ -405,9 +406,9 @@ pub async fn get_election_event_by_election_area(
         .query(
             &statement,
             &[
-                &Uuid::parse_str(tenant_id)?,
-                &Uuid::parse_str(election_id)?,
-                &Uuid::parse_str(area_id)?,
+                &parse_uuid_v4(tenant_id)?,
+                &parse_uuid_v4(election_id)?,
+                &parse_uuid_v4(area_id)?,
             ],
         )
         .await?;
@@ -479,8 +480,8 @@ pub async fn delete_election_event(
             .execute(
                 &statement,
                 &[
-                    &Uuid::parse_str(tenant_id)?,
-                    &Uuid::parse_str(election_event_id)?,
+                    &parse_uuid_v4(tenant_id)?,
+                    &parse_uuid_v4(election_event_id)?,
                 ],
             )
             .await
@@ -502,8 +503,8 @@ pub async fn delete_election_event(
         .execute(
             &statement,
             &[
-                &Uuid::parse_str(tenant_id)?,
-                &Uuid::parse_str(election_event_id)?,
+                &parse_uuid_v4(tenant_id)?,
+                &parse_uuid_v4(election_event_id)?,
             ],
         )
         .await
@@ -534,8 +535,8 @@ pub async fn update_bulletin_board(
              &update_bulletin_board,
              &[
                  &board,
-                 &Uuid::parse_str(tenant_id)?,
-                 &Uuid::parse_str(election_event_id)?,
+                 &parse_uuid_v4(tenant_id)?,
+                 &parse_uuid_v4(election_event_id)?,
              ],
          )
          .await
