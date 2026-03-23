@@ -8,6 +8,7 @@ use ordered_float::NotNan;
 use rust_decimal::prelude::ToPrimitive;
 use rust_decimal::Decimal;
 use sequent_core::serialization::deserialize_with_path::deserialize_value;
+use sequent_core::services::uuid_validation::parse_uuid_v4;
 use sequent_core::types::results::*;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -114,18 +115,18 @@ pub async fn update_results_area_contest_documents(
     documents: &ResultDocuments,
 ) -> Result<()> {
     let documents_value = serde_json::to_value(documents.clone())?;
-    let tenant_uuid: uuid::Uuid = Uuid::parse_str(&tenant_id)
+    let tenant_uuid: uuid::Uuid = parse_uuid_v4(&tenant_id)
         .map_err(|err| anyhow!("Error parsing tenant_id as UUID: {}", err))?;
-    let results_event_uuid: uuid::Uuid = Uuid::parse_str(&results_event_id)
+    let results_event_uuid: uuid::Uuid = parse_uuid_v4(&results_event_id)
         .map_err(|err| anyhow!("Error parsing results_event_id as UUID: {}", err))?;
-    let election_event_uuid: uuid::Uuid = Uuid::parse_str(&election_event_id)
+    let election_event_uuid: uuid::Uuid = parse_uuid_v4(&election_event_id)
         .map_err(|err| anyhow!("Error parsing election_event_id as UUID: {}", err))?;
-    let election_uuid: uuid::Uuid = Uuid::parse_str(&election_id)
+    let election_uuid: uuid::Uuid = parse_uuid_v4(&election_id)
         .map_err(|err| anyhow!("Error parsing election_id as UUID: {}", err))?;
-    let contest_uuid: uuid::Uuid = Uuid::parse_str(&contest_id)
+    let contest_uuid: uuid::Uuid = parse_uuid_v4(&contest_id)
         .map_err(|err| anyhow!("Error parsing contest_id as UUID: {}", err))?;
-    let area_uuid: uuid::Uuid = Uuid::parse_str(&area_id)
-        .map_err(|err| anyhow!("Error parsing area_id as UUID: {}", err))?;
+    let area_uuid: uuid::Uuid =
+        parse_uuid_v4(&area_id).map_err(|err| anyhow!("Error parsing area_id as UUID: {}", err))?;
 
     let statement = hasura_transaction
         .prepare(
@@ -183,18 +184,18 @@ pub async fn get_results_area_contest(
     contest_id: Option<&str>,
     area_id: &str,
 ) -> Result<Option<ResultsAreaContest>> {
-    let tenant_uuid: uuid::Uuid = Uuid::parse_str(&tenant_id)
+    let tenant_uuid: uuid::Uuid = parse_uuid_v4(&tenant_id)
         .map_err(|err| anyhow!("Error parsing tenant_id as UUID: {err:?}"))?;
-    let election_event_uuid: uuid::Uuid = Uuid::parse_str(&election_event_id)
+    let election_event_uuid: uuid::Uuid = parse_uuid_v4(&election_event_id)
         .map_err(|err| anyhow!("Error parsing election_event_id as UUID: {err:?}"))?;
-    let election_uuid: uuid::Uuid = Uuid::parse_str(&election_id)
+    let election_uuid: uuid::Uuid = parse_uuid_v4(&election_id)
         .map_err(|err| anyhow!("Error parsing election_id as UUID: {err:?}"))?;
-    let area_uuid: uuid::Uuid = Uuid::parse_str(&area_id)
-        .map_err(|err| anyhow!("Error parsing area_id as UUID: {err:?}"))?;
+    let area_uuid: uuid::Uuid =
+        parse_uuid_v4(&area_id).map_err(|err| anyhow!("Error parsing area_id as UUID: {err:?}"))?;
 
     let (contest_uuid, contest_clause): (Option<uuid::Uuid>, &str) = match contest_id {
         Some(contest_id) => {
-            let c_uuid = Uuid::parse_str(&contest_id)
+            let c_uuid = parse_uuid_v4(&contest_id)
                 .map_err(|err| anyhow!("Error parsing contest_id as UUID: {err:?}"))?;
             let clause = " AND contest_id = $5";
             (Some(c_uuid), clause)
@@ -283,9 +284,9 @@ pub async fn insert_results_area_contests(
         annotations: Option<serde_json::Value>,
     }
 
-    let tenant_uuid = Uuid::parse_str(tenant_id)?;
-    let election_event_uuid = Uuid::parse_str(election_event_id)?;
-    let results_event_uuid = Uuid::parse_str(results_event_id)?;
+    let tenant_uuid = parse_uuid_v4(tenant_id)?;
+    let election_event_uuid = parse_uuid_v4(election_event_id)?;
+    let results_event_uuid = parse_uuid_v4(results_event_id)?;
 
     let insert_data: Vec<InsertAreaContestData> = area_contests
         .iter()
@@ -293,9 +294,9 @@ pub async fn insert_results_area_contests(
             Ok(InsertAreaContestData {
                 tenant_id: tenant_uuid,
                 election_event_id: election_event_uuid,
-                election_id: Uuid::parse_str(&area_contest.election_id)?,
-                contest_id: Uuid::parse_str(&area_contest.contest_id)?,
-                area_id: Uuid::parse_str(&area_contest.area_id)?,
+                election_id: parse_uuid_v4(&area_contest.election_id)?,
+                contest_id: parse_uuid_v4(&area_contest.contest_id)?,
+                area_id: parse_uuid_v4(&area_contest.area_id)?,
                 results_event_id: results_event_uuid,
                 elegible_census: area_contest.elegible_census,
                 total_votes: area_contest.total_votes,
@@ -435,9 +436,9 @@ pub async fn get_event_results_area_contest(
     tenant_id: &str,
     election_event_id: &str,
 ) -> Result<Vec<ResultsAreaContest>> {
-    let tenant_uuid: uuid::Uuid = Uuid::parse_str(&tenant_id)
+    let tenant_uuid: uuid::Uuid = parse_uuid_v4(&tenant_id)
         .map_err(|err| anyhow!("Error parsing tenant_id as UUID: {err:?}"))?;
-    let election_event_uuid: uuid::Uuid = Uuid::parse_str(&election_event_id)
+    let election_event_uuid: uuid::Uuid = parse_uuid_v4(&election_event_id)
         .map_err(|err| anyhow!("Error parsing election_event_id as UUID: {err:?}"))?;
 
     let statement_str = format!(
@@ -517,13 +518,13 @@ pub async fn insert_many_results_area_contests(
             let documents_json = r.documents.map(|d| serde_json::to_value(&d)).transpose()?;
 
             Ok(InsertableResultsAreaContest {
-                id: Uuid::parse_str(&r.id)?,
-                tenant_id: Uuid::parse_str(&r.tenant_id)?,
-                election_event_id: Uuid::parse_str(&r.election_event_id)?,
-                election_id: Uuid::parse_str(&r.election_id)?,
-                contest_id: Uuid::parse_str(&r.contest_id)?,
-                area_id: Uuid::parse_str(&r.area_id)?,
-                results_event_id: Uuid::parse_str(&r.results_event_id)?,
+                id: parse_uuid_v4(&r.id)?,
+                tenant_id: parse_uuid_v4(&r.tenant_id)?,
+                election_event_id: parse_uuid_v4(&r.election_event_id)?,
+                election_id: parse_uuid_v4(&r.election_id)?,
+                contest_id: parse_uuid_v4(&r.contest_id)?,
+                area_id: parse_uuid_v4(&r.area_id)?,
+                results_event_id: parse_uuid_v4(&r.results_event_id)?,
                 elegible_census: r.elegible_census,
                 total_valid_votes: r.total_valid_votes,
                 explicit_invalid_votes: r.explicit_invalid_votes,

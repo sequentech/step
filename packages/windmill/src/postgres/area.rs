@@ -6,6 +6,7 @@ use crate::services::import::import_election_event::ImportElectionEventSchema;
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::Transaction;
 use sequent_core::services::area_tree::{TreeNode, TreeNodeArea};
+use sequent_core::services::uuid_validation::parse_uuid_v4;
 use sequent_core::types::{hasura::core::Area, keycloak::UserArea};
 use serde::{Deserialize, Serialize};
 use sha2::digest::const_oid::db::rfc5911::ID_AES_192_CBC;
@@ -49,8 +50,8 @@ pub async fn get_areas(
 ) -> Result<Vec<UserArea>> {
     let area_uuids: Vec<Uuid> = area_ids
         .iter()
-        .map(|id| Uuid::parse_str(id))
-        .collect::<Result<Vec<Uuid>, uuid::Error>>()
+        .map(|id| parse_uuid_v4(id))
+        .collect::<anyhow::Result<Vec<Uuid>>>()
         .with_context(|| "Error parsing as uuids the area_ids")?;
     let total_areas_statement = hasura_transaction
         .prepare(
@@ -71,8 +72,8 @@ pub async fn get_areas(
         .query(
             &total_areas_statement,
             &[
-                &Uuid::parse_str(tenant_id)?,
-                &Uuid::parse_str(election_event_id)?,
+                &parse_uuid_v4(tenant_id)?,
+                &parse_uuid_v4(election_event_id)?,
                 &area_uuids.as_slice(),
             ],
         )
@@ -126,8 +127,8 @@ pub async fn get_areas_by_name(
         .query(
             &total_areas_statement,
             &[
-                &Uuid::parse_str(tenant_id)?,
-                &Uuid::parse_str(election_event_id)?,
+                &parse_uuid_v4(tenant_id)?,
+                &parse_uuid_v4(election_event_id)?,
             ],
         )
         .await?;
@@ -176,8 +177,8 @@ pub async fn get_areas_by_id(
         .query(
             &total_areas_statement,
             &[
-                &Uuid::parse_str(tenant_id)?,
-                &Uuid::parse_str(election_event_id)?,
+                &parse_uuid_v4(tenant_id)?,
+                &parse_uuid_v4(election_event_id)?,
             ],
         )
         .await?;
@@ -238,8 +239,8 @@ pub async fn get_elections_by_area(
         .query(
             &total_areas_statement,
             &[
-                &Uuid::parse_str(tenant_id)?,
-                &Uuid::parse_str(election_event_id)?,
+                &parse_uuid_v4(tenant_id)?,
+                &parse_uuid_v4(election_event_id)?,
             ],
         )
         .await?;
@@ -296,7 +297,7 @@ pub async fn get_area_by_id(
     let rows: Vec<Row> = hasura_transaction
         .query(
             &total_areas_statement,
-            &[&Uuid::parse_str(tenant_id)?, &Uuid::parse_str(area_id)?],
+            &[&parse_uuid_v4(tenant_id)?, &parse_uuid_v4(area_id)?],
         )
         .await?;
 
@@ -332,7 +333,7 @@ pub async fn upsert_area_parents(
         let parent_id: Option<Uuid> = area
             .parent_id
             .clone()
-            .map(|parent_id| Uuid::parse_str(&parent_id).ok())
+            .map(|parent_id| parse_uuid_v4(&parent_id).ok())
             .flatten();
 
         let rows: Vec<Row> = hasura_transaction
@@ -340,9 +341,9 @@ pub async fn upsert_area_parents(
                 &statement,
                 &[
                     &parent_id,
-                    &Uuid::parse_str(&area.id)?,
-                    &Uuid::parse_str(&area.tenant_id)?,
-                    &Uuid::parse_str(&area.election_event_id)?,
+                    &parse_uuid_v4(&area.id)?,
+                    &parse_uuid_v4(&area.tenant_id)?,
+                    &parse_uuid_v4(&area.election_event_id)?,
                 ],
             )
             .await
@@ -382,16 +383,16 @@ pub async fn insert_areas(hasura_transaction: &Transaction<'_>, areas: &Vec<Area
         let parent_id: Option<Uuid> = area
             .parent_id
             .clone()
-            .map(|parent_id| Uuid::parse_str(&parent_id).ok())
+            .map(|parent_id| parse_uuid_v4(&parent_id).ok())
             .flatten();
 
         let _rows: Vec<Row> = hasura_transaction
             .query(
                 &statement,
                 &[
-                    &Uuid::parse_str(&area.id)?,
-                    &Uuid::parse_str(&area.tenant_id)?,
-                    &Uuid::parse_str(&area.election_event_id)?,
+                    &parse_uuid_v4(&area.id)?,
+                    &parse_uuid_v4(&area.tenant_id)?,
+                    &parse_uuid_v4(&area.election_event_id)?,
                     &area.labels,
                     &area.annotations,
                     &area.name,
@@ -431,8 +432,8 @@ pub async fn get_event_areas(
         .query(
             &statement,
             &[
-                &Uuid::parse_str(tenant_id)?,
-                &Uuid::parse_str(election_event_id)?,
+                &parse_uuid_v4(tenant_id)?,
+                &parse_uuid_v4(election_event_id)?,
             ],
         )
         .await?;
@@ -506,9 +507,9 @@ pub async fn get_areas_by_election_id(
         .query(
             &statement,
             &[
-                &Uuid::parse_str(tenant_id)?,
-                &Uuid::parse_str(election_event_id)?,
-                &Uuid::parse_str(election_id)?,
+                &parse_uuid_v4(tenant_id)?,
+                &parse_uuid_v4(election_event_id)?,
+                &parse_uuid_v4(election_id)?,
             ],
         )
         .await
@@ -530,11 +531,11 @@ pub async fn get_areas_by_ids(
     election_event_id: &str,
     area_ids: &Vec<String>,
 ) -> Result<Vec<Area>> {
-    let uuid_tenant_id = Uuid::parse_str(tenant_id)?;
-    let uuid_election_event_id = Uuid::parse_str(election_event_id)?;
+    let uuid_tenant_id = parse_uuid_v4(tenant_id)?;
+    let uuid_election_event_id = parse_uuid_v4(election_event_id)?;
     let uuid_area_ids: Vec<Uuid> = area_ids
         .iter()
-        .map(|id| Uuid::parse_str(id))
+        .map(|id| parse_uuid_v4(id))
         .collect::<Result<_, _>>()?;
 
     let statement = hasura_transaction
@@ -591,9 +592,9 @@ pub async fn delete_area_contests(
         .execute(
             &statement,
             &[
-                &Uuid::parse_str(tenant_id)?,
+                &parse_uuid_v4(tenant_id)?,
                 &election_event_id,
-                &Uuid::parse_str(area_id)?,
+                &parse_uuid_v4(area_id)?,
             ],
         )
         .await
@@ -624,7 +625,7 @@ pub async fn update_area(hasura_transaction: &Transaction<'_>, area: Area) -> Re
     let parent_id: Option<Uuid> = area
         .parent_id
         .clone()
-        .map(|parent_id| Uuid::parse_str(&parent_id).ok())
+        .map(|parent_id| parse_uuid_v4(&parent_id).ok())
         .flatten();
 
     let _rows: Vec<Row> = hasura_transaction
@@ -637,9 +638,9 @@ pub async fn update_area(hasura_transaction: &Transaction<'_>, area: Area) -> Re
                 &area.description,
                 &area.r#type,
                 &parent_id,
-                &Uuid::parse_str(&area.id)?,
-                &Uuid::parse_str(&area.tenant_id)?,
-                &Uuid::parse_str(&area.election_event_id)?,
+                &parse_uuid_v4(&area.id)?,
+                &parse_uuid_v4(&area.tenant_id)?,
+                &parse_uuid_v4(&area.election_event_id)?,
             ],
         )
         .await
@@ -664,16 +665,16 @@ pub async fn insert_area(hasura_transaction: &Transaction<'_>, area: Area) -> Re
     let parent_id: Option<Uuid> = area
         .parent_id
         .clone()
-        .map(|parent_id| Uuid::parse_str(&parent_id).ok())
+        .map(|parent_id| parse_uuid_v4(&parent_id).ok())
         .flatten();
 
     let _rows: Vec<Row> = hasura_transaction
         .query(
             &statement,
             &[
-                &Uuid::parse_str(&area.id)?,
-                &Uuid::parse_str(&area.tenant_id)?,
-                &Uuid::parse_str(&area.election_event_id)?,
+                &parse_uuid_v4(&area.id)?,
+                &parse_uuid_v4(&area.tenant_id)?,
+                &parse_uuid_v4(&area.election_event_id)?,
                 &area.labels,
                 &area.annotations,
                 &area.name,

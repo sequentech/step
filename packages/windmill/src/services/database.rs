@@ -11,6 +11,8 @@ use serde::{Deserialize, Serialize};
 use std::env;
 use tracing::instrument;
 
+use super::sql_utils::assert_standard_conforming_strings;
+
 #[cfg(any(feature = "fips_core", feature = "fips_full"))]
 use openssl::ssl::{SslConnector, SslMethod};
 
@@ -154,10 +156,20 @@ pub async fn generate_hasura_pool() -> Result<Arc<Pool>> {
 }
 
 lazy_static! {
-    static ref KEYCLOAK_POOL: AsyncOnce<Arc<Pool>> =
-        AsyncOnce::new(async { generate_keycloak_pool().await.unwrap() });
-    static ref HASURA_POOL: AsyncOnce<Arc<Pool>> =
-        AsyncOnce::new(async { generate_hasura_pool().await.unwrap() });
+    static ref KEYCLOAK_POOL: AsyncOnce<Arc<Pool>> = AsyncOnce::new(async {
+        let pool = generate_keycloak_pool().await.unwrap();
+        assert_standard_conforming_strings(&pool)
+            .await
+            .expect("Keycloak DB: standard_conforming_strings check failed");
+        pool
+    });
+    static ref HASURA_POOL: AsyncOnce<Arc<Pool>> = AsyncOnce::new(async {
+        let pool = generate_hasura_pool().await.unwrap();
+        assert_standard_conforming_strings(&pool)
+            .await
+            .expect("Hasura DB: standard_conforming_strings check failed");
+        pool
+    });
 }
 
 pub async fn get_keycloak_pool() -> Arc<Pool> {

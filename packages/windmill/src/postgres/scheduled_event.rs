@@ -4,6 +4,7 @@
 use anyhow::{anyhow, Context, Result};
 use chrono::{DateTime, Utc};
 use deadpool_postgres::Transaction;
+use sequent_core::services::uuid_validation::parse_uuid_v4;
 use sequent_core::types::scheduled_event::*;
 use sequent_core::{
     serialization::deserialize_with_path::deserialize_value,
@@ -106,18 +107,18 @@ pub async fn find_scheduled_event_by_id(
 ) -> Result<Option<ScheduledEvent>> {
     let tenant_uuid: Option<uuid::Uuid> = match tenant_id {
         Some(ref tenant_id) => {
-            Some(Uuid::parse_str(tenant_id).with_context(|| "Error parsing tenant_id as UUID")?)
+            Some(parse_uuid_v4(tenant_id).with_context(|| "Error parsing tenant_id as UUID")?)
         }
         None => None,
     };
     let election_event_uuid: Option<uuid::Uuid> = match election_event_id {
         Some(ref election_event_id) => Some(
-            Uuid::parse_str(election_event_id)
+            parse_uuid_v4(election_event_id)
                 .with_context(|| "Error parsing election_event_id as UUID")?,
         ),
         None => None,
     };
-    let id_uuid: uuid::Uuid = Uuid::parse_str(id).with_context(|| "Error parsing id as UUID")?;
+    let id_uuid: uuid::Uuid = parse_uuid_v4(id).with_context(|| "Error parsing id as UUID")?;
 
     let statement = hasura_transaction
         .prepare(
@@ -160,8 +161,8 @@ pub async fn find_scheduled_event_by_task_id(
     task_id: &str,
 ) -> Result<Option<ScheduledEvent>> {
     let tenant_uuid: uuid::Uuid =
-        Uuid::parse_str(tenant_id).with_context(|| "Error parsing tenant_id as UUID")?;
-    let election_event_uuid: uuid::Uuid = Uuid::parse_str(election_event_id)
+        parse_uuid_v4(tenant_id).with_context(|| "Error parsing tenant_id as UUID")?;
+    let election_event_uuid: uuid::Uuid = parse_uuid_v4(election_event_id)
         .with_context(|| "Error parsing election_event_id as UUID")?;
     let statement = hasura_transaction
         .prepare(
@@ -203,9 +204,9 @@ pub async fn stop_scheduled_event(
     id: &str,
 ) -> Result<()> {
     let tenant_uuid: uuid::Uuid =
-        Uuid::parse_str(tenant_id).with_context(|| "Error parsing tenant_id as UUID")?;
+        parse_uuid_v4(tenant_id).with_context(|| "Error parsing tenant_id as UUID")?;
     let id_uuid: uuid::Uuid =
-        Uuid::parse_str(id).with_context(|| "Error parsing election_event_id as UUID")?;
+        parse_uuid_v4(id).with_context(|| "Error parsing election_event_id as UUID")?;
 
     let statement = hasura_transaction
         .prepare(
@@ -237,9 +238,9 @@ pub async fn archive_scheduled_event(
     id: &str,
 ) -> Result<()> {
     let tenant_uuid: uuid::Uuid =
-        Uuid::parse_str(tenant_id).with_context(|| "Error parsing tenant_id as UUID")?;
+        parse_uuid_v4(tenant_id).with_context(|| "Error parsing tenant_id as UUID")?;
     let id_uuid: uuid::Uuid =
-        Uuid::parse_str(id).with_context(|| "Error parsing election_event_id as UUID")?;
+        parse_uuid_v4(id).with_context(|| "Error parsing election_event_id as UUID")?;
 
     let statement = hasura_transaction
         .prepare(
@@ -272,9 +273,9 @@ pub async fn update_scheduled_event(
     cron_config: CronConfig,
 ) -> Result<()> {
     let tenant_uuid: uuid::Uuid =
-        Uuid::parse_str(tenant_id).with_context(|| "Error parsing tenant_id as UUID")?;
+        parse_uuid_v4(tenant_id).with_context(|| "Error parsing tenant_id as UUID")?;
     let id_uuid: uuid::Uuid =
-        Uuid::parse_str(id).with_context(|| "Error parsing election_event_id as UUID")?;
+        parse_uuid_v4(id).with_context(|| "Error parsing election_event_id as UUID")?;
 
     let cron_config_js: Value = serde_json::to_value(cron_config)?;
 
@@ -312,8 +313,8 @@ pub async fn insert_scheduled_event(
     event_payload: Value,
 ) -> Result<ScheduledEvent> {
     let tenant_uuid: uuid::Uuid =
-        Uuid::parse_str(tenant_id).with_context(|| "Error parsing tenant_id as UUID")?;
-    let election_event_uuid: uuid::Uuid = Uuid::parse_str(election_event_id)
+        parse_uuid_v4(tenant_id).with_context(|| "Error parsing tenant_id as UUID")?;
+    let election_event_uuid: uuid::Uuid = parse_uuid_v4(election_event_id)
         .with_context(|| "Error parsing election_event_id as UUID")?;
     let cron_config_js: Value = serde_json::to_value(cron_config)?;
     let event_processor_s = event_processor.to_string();
@@ -395,8 +396,8 @@ pub async fn find_scheduled_event_by_election_event_id(
     election_event_id: &str,
 ) -> Result<Vec<ScheduledEvent>> {
     let tenant_uuid: uuid::Uuid =
-        Uuid::parse_str(tenant_id).with_context(|| "Error parsing tenant_id as UUID")?;
-    let election_event_uuid: uuid::Uuid = Uuid::parse_str(election_event_id)
+        parse_uuid_v4(tenant_id).with_context(|| "Error parsing tenant_id as UUID")?;
+    let election_event_uuid: uuid::Uuid = parse_uuid_v4(election_event_id)
         .with_context(|| "Error parsing election_event_id as UUID")?;
     let statement = hasura_transaction
         .prepare(
@@ -440,8 +441,8 @@ pub async fn find_scheduled_event_by_election_event_id_and_event_processor(
     event_processor: &str,
 ) -> Result<Vec<ScheduledEvent>> {
     let tenant_uuid: uuid::Uuid =
-        Uuid::parse_str(tenant_id).with_context(|| "Error parsing tenant_id as UUID")?;
-    let election_event_uuid: uuid::Uuid = Uuid::parse_str(election_event_id)
+        parse_uuid_v4(tenant_id).with_context(|| "Error parsing tenant_id as UUID")?;
+    let election_event_uuid: uuid::Uuid = parse_uuid_v4(election_event_id)
         .with_context(|| "Error parsing election_event_id as UUID")?;
     let statement = hasura_transaction
         .prepare(
@@ -485,13 +486,13 @@ pub async fn insert_new_scheduled_event(
 ) -> Result<ScheduledEvent> {
     let tenant_uuid: Option<uuid::Uuid> = match new_event.tenant_id {
         Some(ref tenant_id) => {
-            Some(Uuid::parse_str(tenant_id).with_context(|| "Error parsing tenant_id as UUID")?)
+            Some(parse_uuid_v4(tenant_id).with_context(|| "Error parsing tenant_id as UUID")?)
         }
         None => None,
     };
     let election_event_uuid: Option<uuid::Uuid> = match new_event.election_event_id {
         Some(ref election_event_id) => Some(
-            Uuid::parse_str(election_event_id)
+            parse_uuid_v4(election_event_id)
                 .with_context(|| "Error parsing election_event_id as UUID")?,
         ),
         None => None,
@@ -542,7 +543,7 @@ pub async fn insert_new_scheduled_event(
         .query(
             &statement,
             &[
-                &Uuid::parse_str(&new_event.id).with_context(|| "Error parsing id as UUID")?,
+                &parse_uuid_v4(&new_event.id).with_context(|| "Error parsing id as UUID")?,
                 &tenant_uuid,
                 &election_event_uuid,
                 &new_event.created_at,

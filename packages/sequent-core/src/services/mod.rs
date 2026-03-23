@@ -28,3 +28,6 @@ pub mod translations;
 
 #[cfg(feature = "keycloak")]
 pub mod replace_uuids;
+
+#[cfg(feature = "keycloak")]
+pub mod uuid_validation;
