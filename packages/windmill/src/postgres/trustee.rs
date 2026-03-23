@@ -4,6 +4,7 @@
 
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::{Client as DbClient, Transaction};
+use sequent_core::services::uuid_validation::parse_uuid_v4;
 use sequent_core::types::hasura::core::Trustee;
 use serde_json::value::Value;
 use tokio_postgres::row::Row;
@@ -38,7 +39,7 @@ pub async fn get_trustees_by_id(
     let trustee_uuids = trustee_ids
         .clone()
         .into_iter()
-        .map(|id| Uuid::parse_str(&id).map_err(|err| anyhow!("{:?}", err)))
+        .map(|id| parse_uuid_v4(&id).map_err(|err| anyhow!("{:?}", err)))
         .collect::<Result<Vec<Uuid>>>()?;
     let statement = hasura_transaction
         .prepare(
@@ -55,7 +56,7 @@ pub async fn get_trustees_by_id(
         .await?;
 
     let rows: Vec<Row> = hasura_transaction
-        .query(&statement, &[&Uuid::parse_str(tenant_id)?, &trustee_uuids])
+        .query(&statement, &[&parse_uuid_v4(tenant_id)?, &trustee_uuids])
         .await?;
 
     rows.into_iter()
@@ -87,7 +88,7 @@ pub async fn get_trustees_by_name(
         .await?;
 
     let rows: Vec<Row> = hasura_transaction
-        .query(&statement, &[&Uuid::parse_str(tenant_id)?, &names])
+        .query(&statement, &[&parse_uuid_v4(tenant_id)?, &names])
         .await?;
 
     rows.into_iter()
@@ -132,7 +133,7 @@ pub async fn get_all_trustees(
         .await?;
 
     let rows: Vec<Row> = hasura_transaction
-        .query(&statement, &[&Uuid::parse_str(tenant_id)?])
+        .query(&statement, &[&parse_uuid_v4(tenant_id)?])
         .await?;
 
     let elements: Vec<Trustee> = rows

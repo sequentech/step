@@ -2,8 +2,11 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::services::import::import_election_event::ImportElectionEventSchema;
+use crate::services::sql_utils::escape_sql_literal;
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::{Client as DbClient, Transaction};
+use futures::pin_mut;
+use sequent_core::services::uuid_validation::parse_uuid_v4;
 use sequent_core::types::hasura::core::Candidate;
 use tokio_postgres::row::Row;
 use tracing::{event, instrument, Level};
@@ -62,13 +65,13 @@ pub async fn insert_candidates(
             .query(
                 &statement,
                 &[
-                    &Uuid::parse_str(&candidate.id)?,
-                    &Uuid::parse_str(tenant_id)?,
-                    &Uuid::parse_str(election_event_id)?,
+                    &parse_uuid_v4(&candidate.id)?,
+                    &parse_uuid_v4(tenant_id)?,
+                    &parse_uuid_v4(election_event_id)?,
                     &candidate
                         .contest_id
                         .as_ref()
-                        .and_then(|id| Uuid::parse_str(&id).ok()),
+                        .and_then(|id| parse_uuid_v4(&id).ok()),
                     &candidate.labels,
                     &candidate.annotations,
                     &candidate.name,
@@ -111,8 +114,8 @@ pub async fn export_candidates(
         .query(
             &statement,
             &[
-                &Uuid::parse_str(tenant_id)?,
-                &Uuid::parse_str(election_event_id)?,
+                &parse_uuid_v4(tenant_id)?,
+                &parse_uuid_v4(election_event_id)?,
             ],
         )
         .await?;
@@ -154,9 +157,9 @@ pub async fn get_candidates_by_contest_id(
         .query(
             &statement,
             &[
-                &Uuid::parse_str(tenant_id)?,
-                &Uuid::parse_str(election_event_id)?,
-                &Uuid::parse_str(contest_id)?,
+                &parse_uuid_v4(tenant_id)?,
+                &parse_uuid_v4(election_event_id)?,
+                &parse_uuid_v4(contest_id)?,
             ],
         )
         .await?;

@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::{Client as DbClient, Transaction};
+use sequent_core::services::uuid_validation::parse_uuid_v4;
 use sequent_core::{
     serialization::deserialize_with_path::deserialize_value,
     types::{
@@ -83,11 +84,11 @@ pub async fn insert_tally_session(
         .transpose()?;
     let election_uuids: Vec<Uuid> = election_ids
         .iter()
-        .map(|id| Uuid::parse_str(&id).map_err(|err| anyhow!("{:?}", err)))
+        .map(|id| parse_uuid_v4(&id).map_err(|err| anyhow!("{:?}", err)))
         .collect::<Result<Vec<Uuid>>>()?;
     let area_uuids: Vec<Uuid> = area_ids
         .iter()
-        .map(|id| Uuid::parse_str(&id).map_err(|err| anyhow!("{:?}", err)))
+        .map(|id| parse_uuid_v4(&id).map_err(|err| anyhow!("{:?}", err)))
         .collect::<Result<Vec<Uuid>>>()?;
     let statement = hasura_transaction
         .prepare(
@@ -118,12 +119,12 @@ pub async fn insert_tally_session(
         .query(
             &statement,
             &[
-                &Uuid::parse_str(tenant_id)?,
-                &Uuid::parse_str(election_event_id)?,
+                &parse_uuid_v4(tenant_id)?,
+                &parse_uuid_v4(election_event_id)?,
                 &election_uuids,
                 &area_uuids,
-                &Uuid::parse_str(tally_session_id)?,
-                &Uuid::parse_str(keys_ceremony_id)?,
+                &parse_uuid_v4(tally_session_id)?,
+                &parse_uuid_v4(keys_ceremony_id)?,
                 &Some(execution_status.to_string()),
                 &threshold,
                 &configuration_json,
@@ -182,8 +183,8 @@ pub async fn get_tally_sessions_by_election_event_id(
         .query(
             &statement,
             &[
-                &Uuid::parse_str(tenant_id)?,
-                &Uuid::parse_str(election_event_id)?,
+                &parse_uuid_v4(tenant_id)?,
+                &parse_uuid_v4(election_event_id)?,
             ],
         )
         .await?;
@@ -225,9 +226,9 @@ pub async fn get_tally_session_by_id(
         .query(
             &statement,
             &[
-                &Uuid::parse_str(tenant_id)?,
-                &Uuid::parse_str(election_event_id)?,
-                &Uuid::parse_str(tally_session_id)?,
+                &parse_uuid_v4(tenant_id)?,
+                &parse_uuid_v4(election_event_id)?,
+                &parse_uuid_v4(tally_session_id)?,
             ],
         )
         .await?;
@@ -274,9 +275,9 @@ pub async fn update_tally_session_annotation(
             &statement,
             &[
                 &annotations,
-                &Uuid::parse_str(tally_session_id)?,
-                &Uuid::parse_str(tenant_id)?,
-                &Uuid::parse_str(&election_event_id)?,
+                &parse_uuid_v4(tally_session_id)?,
+                &parse_uuid_v4(tenant_id)?,
+                &parse_uuid_v4(&election_event_id)?,
             ],
         )
         .await
@@ -314,9 +315,9 @@ pub async fn get_tally_sessions_by_election_id(
         .query(
             &statement,
             &[
-                &Uuid::parse_str(tenant_id)?,
-                &Uuid::parse_str(&election_event_id)?,
-                &Uuid::parse_str(&election_id)?,
+                &parse_uuid_v4(tenant_id)?,
+                &parse_uuid_v4(&election_event_id)?,
+                &parse_uuid_v4(&election_id)?,
             ],
         )
         .await?;
@@ -360,9 +361,9 @@ pub async fn update_tally_session_status(
             &statement,
             &[
                 &execution_status.to_string(),
-                &Uuid::parse_str(tally_session_id)?,
-                &Uuid::parse_str(tenant_id)?,
-                &Uuid::parse_str(&election_event_id)?,
+                &parse_uuid_v4(tally_session_id)?,
+                &parse_uuid_v4(tenant_id)?,
+                &parse_uuid_v4(&election_event_id)?,
                 &is_execution_completed,
             ],
         )
@@ -401,9 +402,9 @@ pub async fn set_tally_session_completed(
             &statement,
             &[
                 &execution_status.to_string(),
-                &Uuid::parse_str(tally_session_id)?,
-                &Uuid::parse_str(tenant_id)?,
-                &Uuid::parse_str(&election_event_id)?,
+                &parse_uuid_v4(tally_session_id)?,
+                &parse_uuid_v4(tenant_id)?,
+                &parse_uuid_v4(&election_event_id)?,
             ],
         )
         .await
@@ -450,7 +451,7 @@ pub async fn insert_many_tally_sessions(
                 .unwrap_or_default()
                 .into_iter()
                 .map(|id| {
-                    Uuid::parse_str(&id).map_err(|e| anyhow!("Invalid election_id: {id} - {e}"))
+                    parse_uuid_v4(&id).map_err(|e| anyhow!("Invalid election_id: {id} - {e}"))
                 })
                 .collect::<Result<Vec<Uuid>>>()?;
 
@@ -458,14 +459,14 @@ pub async fn insert_many_tally_sessions(
                 .area_ids
                 .unwrap_or_default()
                 .into_iter()
-                .map(|id| Uuid::parse_str(&id).map_err(|e| anyhow!("Invalid area_id: {id} - {e}")))
+                .map(|id| parse_uuid_v4(&id).map_err(|e| anyhow!("Invalid area_id: {id} - {e}")))
                 .collect::<Result<Vec<Uuid>>>()?;
 
             Ok(InsertableTallySession {
-                tenant_id: Uuid::parse_str(&session.tenant_id)?,
-                election_event_id: Uuid::parse_str(&session.election_event_id)?,
-                id: Uuid::parse_str(&session.id)?,
-                keys_ceremony_id: Uuid::parse_str(&session.keys_ceremony_id)?,
+                tenant_id: parse_uuid_v4(&session.tenant_id)?,
+                election_event_id: parse_uuid_v4(&session.election_event_id)?,
+                id: parse_uuid_v4(&session.id)?,
+                keys_ceremony_id: parse_uuid_v4(&session.keys_ceremony_id)?,
                 election_ids,
                 area_ids,
                 execution_status: session.execution_status.clone(),
