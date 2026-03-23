@@ -510,12 +510,11 @@ pub async fn upsert_ballots_messages(
         .clone()
         .unwrap_or_default()
         .get_contest_encryption_policy();
-    let expected_batch_ids: Vec<i64> = tally_session_contests
-        .clone()
-        .into_iter()
-        .map(|tally_session_contest| tally_session_contest.session_id.clone() as i64)
+    let expected_batch_ids: HashSet<i64> = tally_session_contests
+        .iter()
+        .map(|tally_session_contest| tally_session_contest.session_id as i64)
         .collect();
-    let existing_ballots_batches: Vec<i64> = messages
+    let existing_ballots_batches: HashSet<i64> = messages
         .iter()
         .filter(|message| {
             expected_batch_ids.contains(&(message.statement.get_batch_number() as i64))
@@ -536,27 +535,72 @@ pub async fn upsert_ballots_messages(
         })
         .collect();
 
+    // Contests where Ballots exist on board but annotations were not saved
+    // (e.g. due to a previous failed run where the board write succeeded
+    // but the Hasura transaction was rolled back).
+    let missing_annotations_batches: Vec<TallySessionContest> = tally_session_contests
+        .clone()
+        .into_iter()
+        .filter(|tally_session_contest| {
+            existing_ballots_batches.contains(&(tally_session_contest.session_id as i64))
+                && tally_session_contest.annotations.is_none()
+        })
+        .collect();
+
     event!(
         Level::INFO,
         "missing_ballots_batches num: {}",
         missing_ballots_batches.len()
     );
+    event!(
+        Level::INFO,
+        "missing_annotations_batches num: {}",
+        missing_annotations_batches.len()
+    );
 
-    let tally_session_contests_updated = if missing_ballots_batches.len() > 0 {
+    // The two sets are mutually exclusive: missing_ballots_batches contains
+    // contests whose ballots have NOT been posted to the board yet, while
+    // missing_annotations_batches contains contests whose ballots ARE on the
+    // board but whose annotations were lost (e.g. the board write succeeded
+    // but the Hasura transaction was rolled back in a previous failed run).
+
+    // Post ballots to the board and compute annotations for contests that
+    // have not been processed at all yet.
+    let mut tally_session_contests_updated = if !missing_ballots_batches.is_empty() {
         insert_ballots_messages(
             hasura_transaction,
             keycloak_transaction,
             tenant_id,
             election_event_id,
             board_name,
-            trustee_names,
+            trustee_names.clone(),
             missing_ballots_batches.clone(),
-            contest_encryption_policy,
+            contest_encryption_policy.clone(),
+            false,
         )
         .await?
     } else {
         vec![]
     };
+
+    // For contests whose ballots are already on the board, only recompute
+    // and persist the annotations (skip the board write).
+    if !missing_annotations_batches.is_empty() {
+        let recovered = insert_ballots_messages(
+            hasura_transaction,
+            keycloak_transaction,
+            tenant_id,
+            election_event_id,
+            board_name,
+            trustee_names,
+            missing_annotations_batches,
+            contest_encryption_policy,
+            delegated_voting_policy,
+            true,
+        )
+        .await?;
+        tally_session_contests_updated.extend(recovered);
+    }
 
     Ok(tally_session_contests_updated)
 }
