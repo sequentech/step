@@ -155,7 +155,8 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
                 const searchParams = new URLSearchParams(window.location.search)
                 const isKiosk = searchParams.has("kiosk")
 
-                if (!isKiosk) {
+                return defaultUrl
+                /*if (!isKiosk) {
                     return defaultUrl
                 }
 
@@ -173,7 +174,7 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
                 } catch (error) {
                     console.error("Invalid URL provided:", defaultUrl)
                     return defaultUrl // Fallback to the original URL if an error occurs
-                }
+                }*/
             }
 
             /**
