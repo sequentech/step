@@ -14,7 +14,14 @@ Sequent Voting Platform — an end-to-end verifiable, secure online voting syste
 ## Build Commands
 
 ### Rust (from `packages/`)
+
+> **Note:** `cargo` is not on PATH by default. Use `devenv shell` (from the repo root) to enter the nix environment, and use the package-specific `rust-local-target/` dir to avoid permission errors (the shared `packages/target/` is owned by root because Docker service containers build into it as root).
+
 ```bash
+# Run any cargo command inside devenv:
+cd /workspaces/step && devenv shell bash -- -c 'cd packages && CARGO_TARGET_DIR=/workspaces/step/packages/<pkg>/rust-local-target cargo <command> -p <package>'
+
+# Examples:
 cargo build                          # Build all Rust packages
 cargo build -p <package>             # Build one package (e.g. braid, strand, windmill, sequent-core)
 cargo build --release                # Production build
