@@ -880,6 +880,10 @@ mod tests {
             id: contest_id.to_string(),
             election_id: election_id.to_string(),
             name: Some(contest_name.to_string()),
+            name_i18n: Some(HashMap::from([(
+                "en".to_string(),
+                Some(contest_name.to_string()),
+            )])),
             ..Default::default()
         };
         let report = ReportDataComputed {
