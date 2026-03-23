@@ -5,6 +5,7 @@ use crate::services::database::get_hasura_pool;
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::{Client as DbClient, Transaction};
 use sequent_core::services::date::ISO8601;
+use sequent_core::services::uuid_validation::parse_uuid_v4;
 use sequent_core::types::{
     ceremonies::Log,
     hasura::{core::TasksExecution, extra::TasksExecutionStatus},
@@ -61,12 +62,12 @@ pub async fn insert_tasks_execution(
         .map_err(|err| anyhow!("Error getting hasura db pool: {err}"))?;
 
     let tenant_uuid =
-        Uuid::parse_str(tenant_id).map_err(|err| anyhow!("Error parsing tenant UUID: {}", err))?;
+        parse_uuid_v4(tenant_id).map_err(|err| anyhow!("Error parsing tenant UUID: {}", err))?;
 
     let election_event_uuid = if let Some(event_id) = election_event_id {
         if !event_id.is_empty() {
             Some(
-                Uuid::parse_str(event_id)
+                parse_uuid_v4(event_id)
                     .map_err(|err| anyhow!("Error parsing election event UUID: {}", err))?,
             )
         } else {
@@ -132,9 +133,9 @@ pub async fn update_task_execution_status(
         .context("Failed to get database client from pool")?;
 
     let task_execution_uuid =
-        Uuid::parse_str(task_execution_id).context("Failed to parse task_execution_id as UUID")?;
+        parse_uuid_v4(task_execution_id).context("Failed to parse task_execution_id as UUID")?;
 
-    let tenant_uuid = Uuid::parse_str(tenant_id).context("Failed to parse tenant_id as UUID")?;
+    let tenant_uuid = parse_uuid_v4(tenant_id).context("Failed to parse tenant_id as UUID")?;
 
     let statement = db_client
         .prepare(
@@ -183,7 +184,7 @@ pub async fn get_task_by_id(task_id: &str) -> Result<TasksExecution> {
         .map_err(|err| anyhow!("Error getting hasura db pool: {err}"))?;
 
     let task_uuid =
-        Uuid::parse_str(task_id).map_err(|err| anyhow!("Error parsing task UUID: {}", err))?;
+        parse_uuid_v4(task_id).map_err(|err| anyhow!("Error parsing task UUID: {}", err))?;
 
     let statement = db_client
         .prepare(
@@ -219,8 +220,8 @@ pub async fn get_tasks_by_election_event_id(
     election_event_id: &str,
 ) -> Result<Vec<TasksExecution>> {
     let tenant_uuid =
-        Uuid::parse_str(tenant_id).map_err(|err| anyhow!("Error parsing tenant UUID: {}", err))?;
-    let election_event_uuid = Uuid::parse_str(election_event_id)
+        parse_uuid_v4(tenant_id).map_err(|err| anyhow!("Error parsing tenant UUID: {}", err))?;
+    let election_event_uuid = parse_uuid_v4(election_event_id)
         .map_err(|err| anyhow!("Error parsing task UUID: {}", err))?;
 
     let statement = hasura_transaction
