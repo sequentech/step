@@ -24,6 +24,17 @@ server {
     ssl_verify_client      optional;
     ssl_verify_depth       2;
 
+    # Disable TLS session resumption so every connection triggers a fresh
+    # TLS handshake with a new CertificateRequest. Without this, the browser
+    # reuses the session from a previous "no cert" choice and never prompts
+    # the user for a certificate again within the same browser session.
+    ssl_session_cache   off;
+    ssl_session_tickets off;
+
+    # Force new TCP connection per request so session resumption via
+    # keepalive connections is also prevented.
+    keepalive_timeout 0;
+
     proxy_buffer_size   16k;
     proxy_buffers       4 16k;
     proxy_busy_buffers_size 16k;
@@ -39,8 +50,39 @@ server {
     # proxy_intercept_errors in the location block can trigger it.
     error_page 400 =302 ${VOTING_PORTAL_URL}/cert-auth-error;
 
+    # When the user cancels the certificate picker, the browser still sends
+    # the request to port 8443 but without a certificate (ssl_client_verify=NONE).
+    # Redirect those no-cert restart requests back to the plain Keycloak port
+    # so the login page is shown at http://127.0.0.1:8090 instead of staying
+    # on the mTLS proxy URL.
+    location ~* /login-actions/restart {
+        if ($ssl_client_verify != "SUCCESS") {
+            # Redirect the browser to Keycloak directly (bypassing this mTLS
+            # proxy) so the login page is shown without the mTLS URL in the
+            # address bar. KEYCLOAK_URL must be browser-accessible here
+            # (port 8090 is forwarded in dev; use KEYCLOAK_PUBLIC_URL for
+            # remote deployments).
+            return 302 http://${KC_HOSTNAME}:${KC_HTTP_PORT}$request_uri;
+        }
+
+        set $keycloak_upstream http://keycloak:${KC_HTTP_PORT};
+        proxy_pass $keycloak_upstream;
+
+        proxy_buffering on;
+        proxy_intercept_errors on;
+
+        proxy_set_header Host               $host;
+        proxy_set_header X-Real-IP          $remote_addr;
+        proxy_set_header X-Forwarded-For    $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto  https;
+        proxy_set_header X-Forwarded-Host   $host;
+        proxy_set_header X-Forwarded-Port   8443;
+        proxy_set_header ssl-client-cert    $ssl_client_escaped_cert;
+        proxy_set_header ssl-client-verify  $ssl_client_verify;
+    }
+
     location / {
-        set $keycloak_upstream http://keycloak:8090;
+        set $keycloak_upstream http://keycloak:${KC_HTTP_PORT};
         proxy_pass $keycloak_upstream;
 
         # Intercept Keycloak-proxied 400s so the server-block error_page above
