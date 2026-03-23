@@ -60,7 +60,7 @@ fn sanitize_filename(filename: &str) -> String {
         .trim_end_matches(&[' ', '.'][..])
         .chars()
         .map(|c| {
-            if c.is_alphanumeric() || c == '_' {
+            if c.is_alphanumeric() || c == '_' || c == '-' {
                 c
             } else {
                 '_'
