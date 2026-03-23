@@ -176,14 +176,14 @@ export const ElectoralLogList: React.FC<ElectoralLogListProps> = ({
             source={"created"}
             label={t("logsScreen.column.created")}
             inputProps={{step: 1}}
-            parse={(value) => (value ? new Date(`${value}Z`).toISOString() : value)}
+            parse={(value) => (value ? new Date(value).toISOString() : value)}
         />,
         <DateTimeInput
             key={"statement_timestamp"}
             source={"statement_timestamp"}
             label={t("logsScreen.column.statement_timestamp")}
             inputProps={{step: 1}}
-            parse={(value) => (value ? new Date(`${value}Z`).toISOString() : value)}
+            parse={(value) => (value ? new Date(value).toISOString() : value)}
         />,
         <TextInput
             key={"statement_kind"}
@@ -246,13 +246,13 @@ export const ElectoralLogList: React.FC<ElectoralLogListProps> = ({
                     <FunctionField
                         source="created"
                         label={t("logsScreen.column.created")}
-                        render={(record: any) => new Date(record.created * 1000).toUTCString()}
+                        render={(record: any) => new Date(record.created * 1000).toLocaleString()}
                     />
                     <FunctionField
                         source="statement_timestamp"
                         label={t("logsScreen.column.statement_timestamp")}
                         render={(record: any) =>
-                            new Date(record.statement_timestamp * 1000).toUTCString()
+                            new Date(record.statement_timestamp * 1000).toLocaleString()
                         }
                     />
                     <TextField source="statement_kind" />
