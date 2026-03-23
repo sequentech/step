@@ -401,7 +401,7 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
             while (pathSegments.length > 5) {
                 pathSegments.pop() // Remove the last segment (To only keep the teanant and event params)
             }
-            return pathSegments.join("/")
+            return origin + pathSegments.join("/")
         }
     }
 
