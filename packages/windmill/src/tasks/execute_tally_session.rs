@@ -595,7 +595,6 @@ pub async fn upsert_ballots_messages(
             trustee_names,
             missing_annotations_batches,
             contest_encryption_policy,
-            delegated_voting_policy,
             true,
         )
         .await?;
