@@ -1,0 +1,58 @@
+{
+"area_contest": [
+	{
+		"id" : "70de720b-b63c-4c15-8a74-d55a4420e543",
+		"tenant_id" : "90505c8a-23a9-4cdf-a26b-4e19f6a097d5",
+		"election_event_id" : "20fc28e3-5fd5-4d1f-a62d-84d15fe83024",
+		"contest_id" : "75fa93fa-9f58-4396-8e86-3e5f2e97780e",
+		"area_id" : "ad08c005-5531-47ae-bc0a-a8d66b83a84c",
+		"created_at" : "2026-03-20 17:17:54.087108449 +00:00",
+		"last_updated_at" : "2026-03-20 17:17:54.087118020 +00:00",
+		"labels" : null,
+		"annotations" : null
+	},
+	{
+		"id" : "263fa6e0-e0ac-465a-bdec-9a4d14fe5960",
+		"tenant_id" : "90505c8a-23a9-4cdf-a26b-4e19f6a097d5",
+		"election_event_id" : "20fc28e3-5fd5-4d1f-a62d-84d15fe83024",
+		"contest_id" : "bae9fe0a-d5ff-4445-bf79-14c28de545e2",
+		"area_id" : "ad08c005-5531-47ae-bc0a-a8d66b83a84c",
+		"created_at" : "2026-03-20 17:17:54.087127471 +00:00",
+		"last_updated_at" : "2026-03-20 17:17:54.087128813 +00:00",
+		"labels" : null,
+		"annotations" : null
+	},
+	{
+		"id" : "b2d74dbd-9595-4fc8-86ee-433ee73ac9f5",
+		"tenant_id" : "90505c8a-23a9-4cdf-a26b-4e19f6a097d5",
+		"election_event_id" : "20fc28e3-5fd5-4d1f-a62d-84d15fe83024",
+		"contest_id" : "66a69519-3bad-4134-8f74-66fc20c2b91b",
+		"area_id" : "ad08c005-5531-47ae-bc0a-a8d66b83a84c",
+		"created_at" : "2026-03-20 17:17:54.087133959 +00:00",
+		"last_updated_at" : "2026-03-20 17:17:54.087135300 +00:00",
+		"labels" : null,
+		"annotations" : null
+	},
+	{
+		"id" : "208db0f6-7f11-4fbf-930f-420276a5c733",
+		"tenant_id" : "90505c8a-23a9-4cdf-a26b-4e19f6a097d5",
+		"election_event_id" : "20fc28e3-5fd5-4d1f-a62d-84d15fe83024",
+		"contest_id" : "9e980da9-d71f-4445-89ce-3dc7ec5a2713",
+		"area_id" : "ad08c005-5531-47ae-bc0a-a8d66b83a84c",
+		"created_at" : "2026-03-20 17:17:54.087139780 +00:00",
+		"last_updated_at" : "2026-03-20 17:17:54.087141043 +00:00",
+		"labels" : null,
+		"annotations" : null
+	},
+	{
+		"id" : "7e98e164-0738-4f4e-b04b-4ad9ff499646",
+		"tenant_id" : "90505c8a-23a9-4cdf-a26b-4e19f6a097d5",
+		"election_event_id" : "20fc28e3-5fd5-4d1f-a62d-84d15fe83024",
+		"contest_id" : "546dae13-cdc8-4344-8633-b1dcce41614e",
+		"area_id" : "ad08c005-5531-47ae-bc0a-a8d66b83a84c",
+		"created_at" : "2026-03-20 17:17:54.087145398 +00:00",
+		"last_updated_at" : "2026-03-20 17:17:54.087146622 +00:00",
+		"labels" : null,
+		"annotations" : null
+	}
+]}

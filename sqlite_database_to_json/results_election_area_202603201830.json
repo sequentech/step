@@ -1,0 +1,63 @@
+{
+"results_election_area": [
+	{
+		"id" : "d8be8291fca5ff7a802dd3d87d3e4537",
+		"tenant_id" : "90505c8a-23a9-4cdf-a26b-4e19f6a097d5",
+		"election_event_id" : "20fc28e3-5fd5-4d1f-a62d-84d15fe83024",
+		"election_id" : "c6f91010-07f2-4df8-9b88-3f7faef65e45",
+		"area_id" : "ad08c005-5531-47ae-bc0a-a8d66b83a84c",
+		"results_event_id" : "37345914-3796-4c68-b0d3-476741f879dc",
+		"created_at" : "2026-03-20 17:17:54",
+		"last_updated_at" : "2026-03-20 17:17:54",
+		"documents" : "{\"json\":\"2b0df2ae-3ba6-4d0c-bf78-75ee52d3d350\",\"pdf\":null,\"html\":\"db879d5b-d0e9-4ae1-8b05-b98f5a76570c\",\"tar_gz\":null,\"tar_gz_original\":null,\"vote_receipts_pdf\":null}",
+		"name" : "A1"
+	},
+	{
+		"id" : "d852fb01b716d6a800a7a4ae245ecad4",
+		"tenant_id" : "90505c8a-23a9-4cdf-a26b-4e19f6a097d5",
+		"election_event_id" : "20fc28e3-5fd5-4d1f-a62d-84d15fe83024",
+		"election_id" : "c53c9b53-9253-4c08-a27b-7427bd1fdc2f",
+		"area_id" : "ad08c005-5531-47ae-bc0a-a8d66b83a84c",
+		"results_event_id" : "37345914-3796-4c68-b0d3-476741f879dc",
+		"created_at" : "2026-03-20 17:17:54",
+		"last_updated_at" : "2026-03-20 17:17:54",
+		"documents" : "{\"json\":\"da83cf73-504c-422c-83d5-131954c8986d\",\"pdf\":null,\"html\":\"e4263ed8-8c29-4339-8638-3ca0b89df573\",\"tar_gz\":null,\"tar_gz_original\":null,\"vote_receipts_pdf\":null}",
+		"name" : "A1"
+	},
+	{
+		"id" : "89e373271cc7985de761231ad2f76fcd",
+		"tenant_id" : "90505c8a-23a9-4cdf-a26b-4e19f6a097d5",
+		"election_event_id" : "20fc28e3-5fd5-4d1f-a62d-84d15fe83024",
+		"election_id" : "e0f5c7f5-43f2-46bf-8a14-05f1ae99e1e8",
+		"area_id" : "ad08c005-5531-47ae-bc0a-a8d66b83a84c",
+		"results_event_id" : "37345914-3796-4c68-b0d3-476741f879dc",
+		"created_at" : "2026-03-20 17:17:54",
+		"last_updated_at" : "2026-03-20 17:17:54",
+		"documents" : "{\"json\":\"5c507cdc-8e27-4a2d-83a3-d7ed88ee5274\",\"pdf\":null,\"html\":\"25b9d40a-7f58-4385-854a-8919b120acd4\",\"tar_gz\":null,\"tar_gz_original\":null,\"vote_receipts_pdf\":null}",
+		"name" : "A1"
+	},
+	{
+		"id" : "8bf42c11c3ef9508c7aa7fb7dd020d96",
+		"tenant_id" : "90505c8a-23a9-4cdf-a26b-4e19f6a097d5",
+		"election_event_id" : "20fc28e3-5fd5-4d1f-a62d-84d15fe83024",
+		"election_id" : "3e008d5c-1369-4a6f-a748-6980f2ff8c28",
+		"area_id" : "ad08c005-5531-47ae-bc0a-a8d66b83a84c",
+		"results_event_id" : "37345914-3796-4c68-b0d3-476741f879dc",
+		"created_at" : "2026-03-20 17:17:54",
+		"last_updated_at" : "2026-03-20 17:17:54",
+		"documents" : "{\"json\":\"9ce0996d-8c53-4324-b83c-f59d1d743fa8\",\"pdf\":null,\"html\":\"ca000b33-a227-461f-9ec2-0df1f9084bf6\",\"tar_gz\":null,\"tar_gz_original\":null,\"vote_receipts_pdf\":null}",
+		"name" : "A1"
+	},
+	{
+		"id" : "c0211832cbc430bc5b6945ddbebb7685",
+		"tenant_id" : "90505c8a-23a9-4cdf-a26b-4e19f6a097d5",
+		"election_event_id" : "20fc28e3-5fd5-4d1f-a62d-84d15fe83024",
+		"election_id" : "b29fe640-d538-4579-b0c0-d5312a429d5f",
+		"area_id" : "ad08c005-5531-47ae-bc0a-a8d66b83a84c",
+		"results_event_id" : "37345914-3796-4c68-b0d3-476741f879dc",
+		"created_at" : "2026-03-20 17:17:54",
+		"last_updated_at" : "2026-03-20 17:17:54",
+		"documents" : "{\"json\":\"dddab207-2f77-47dd-b088-b1c0f4658f41\",\"pdf\":null,\"html\":\"e599b41b-73e6-4cb0-836a-02c075a0a269\",\"tar_gz\":null,\"tar_gz_original\":null,\"vote_receipts_pdf\":null}",
+		"name" : "A1"
+	}
+]}

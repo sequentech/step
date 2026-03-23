@@ -20,6 +20,7 @@
     (aws-sam-cli.overridePythonAttrs { doCheck = false; })
 
     git
+    gh
     hasura-cli
     reuse
     openssl

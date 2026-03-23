@@ -476,13 +476,8 @@ impl GenerateReports {
                 .map(|area| (area.id.clone(), area.clone()))
                 .collect();
 
-            // Effective display name: alias takes priority over name, used in report templates
-            // and as the folder name component in generate_ids_map / rename_folders
-            let election_display_name = if election_input.alias.is_empty() {
-                election_input.name.clone()
-            } else {
-                election_input.alias.clone()
-            };
+            let election_display_name =
+                resolve_election_display_name(&election_input.name, &election_input.alias);
 
             for contest_input in &election_input.contest_list {
                 let contest_result = self.read_contest_result(
@@ -1218,5 +1213,37 @@ fn sort_candidates(candidates: &mut Vec<CandidateResult>, order_field: Candidate
         CandidatesOrder::Random => {
             // We don't randomize in results
         }
+    }
+}
+
+/// Alias takes priority over name when deciding the election display name used
+/// as the folder component in the tally output tree (and in report templates).
+/// An empty alias is treated as absent.
+pub fn resolve_election_display_name(name: &str, alias: &str) -> String {
+    if alias.is_empty() {
+        name.to_string()
+    } else {
+        alias.to_string()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_resolve_election_display_name_prefers_alias() {
+        assert_eq!(
+            resolve_election_display_name("General Election 2024", "GE 2024"),
+            "GE 2024"
+        );
+    }
+
+    #[test]
+    fn test_resolve_election_display_name_falls_back_to_name_when_alias_empty() {
+        assert_eq!(
+            resolve_election_display_name("General Election 2024", ""),
+            "General Election 2024"
+        );
     }
 }

@@ -876,6 +876,16 @@ mod tests {
         contest_id: &str,
         contest_name: &str,
     ) -> ElectionReportDataComputed {
+        make_test_result_with_alias(election_name, election_id, contest_id, contest_name, None)
+    }
+
+    fn make_test_result_with_alias(
+        election_name: &str,
+        election_id: &str,
+        contest_id: &str,
+        contest_name: &str,
+        contest_alias: Option<&str>,
+    ) -> ElectionReportDataComputed {
         let contest = Contest {
             id: contest_id.to_string(),
             election_id: election_id.to_string(),
@@ -884,6 +894,8 @@ mod tests {
                 "en".to_string(),
                 Some(contest_name.to_string()),
             )])),
+            alias_i18n: contest_alias
+                .map(|a| HashMap::from([("en".to_string(), Some(a.to_string()))])),
             ..Default::default()
         };
         let report = ReportDataComputed {
@@ -1002,5 +1014,55 @@ mod tests {
 
         assert!(map.contains_key(&election_id));
         assert!(map.contains_key(&contest_id));
+    }
+
+    // When a contest has an alias set (via alias_i18n), generate_ids_map must
+    // use the alias as the folder component — not the name.  This mirrors the
+    // election-level rule enforced by velvet's resolve_election_display_name.
+    #[test]
+    fn test_generate_ids_map_uses_contest_alias_when_set() {
+        let election_id = "a1b2c3d4-0000-0000-0000-000000000000".to_string();
+        let contest_id = "b2c3d4e5-0000-0000-0000-000000000001".to_string();
+        let results = vec![make_test_result_with_alias(
+            "My Election",
+            &election_id,
+            &contest_id,
+            "Contest Name",
+            Some("Contest Alias"),
+        )];
+
+        let map = generate_ids_map(&results, &vec![], "en").unwrap();
+
+        let contest_folder = map.get(&contest_id).unwrap();
+        assert!(
+            contest_folder.starts_with("Contest Alias"),
+            "expected alias in contest folder, got: {contest_folder}"
+        );
+        assert!(
+            !contest_folder.contains("Contest Name"),
+            "expected name to be absent when alias is set, got: {contest_folder}"
+        );
+    }
+
+    // When a contest has no alias, generate_ids_map must fall back to name.
+    #[test]
+    fn test_generate_ids_map_uses_contest_name_when_no_alias() {
+        let election_id = "a1b2c3d4-0000-0000-0000-000000000000".to_string();
+        let contest_id = "b2c3d4e5-0000-0000-0000-000000000001".to_string();
+        let results = vec![make_test_result_with_alias(
+            "My Election",
+            &election_id,
+            &contest_id,
+            "Contest Name",
+            None,
+        )];
+
+        let map = generate_ids_map(&results, &vec![], "en").unwrap();
+
+        let contest_folder = map.get(&contest_id).unwrap();
+        assert!(
+            contest_folder.starts_with("Contest Name"),
+            "expected name in contest folder when no alias, got: {contest_folder}"
+        );
     }
 }
