@@ -32,7 +32,7 @@ pub fn parse_i18n_field(
     for (lang, details) in i18n {
         if let Some(field_value) = details.get(field) {
             content.insert(lang.clone(), field_value.clone());
-        };
+        }
     }
 
     Some(content)
@@ -111,7 +111,7 @@ pub fn create_ballot_style(
             create_contest(
                 contest,
                 election_candidates.as_slice(),
-                default_language.clone(),
+                &default_language,
             )
         })
         .collect::<Result<Vec<ballot::Contest>>>()?;
@@ -169,7 +169,7 @@ pub fn create_ballot_style(
 fn create_contest(
     contest: hasura_types::Contest,
     candidates: &[hasura_types::Candidate],
-    default_language: String,
+    default_language: &str,
 ) -> Result<ballot::Contest> {
     let mut sorted_candidates = candidates.to_owned();
     sorted_candidates.sort_by_key(|k| k.id.clone());
@@ -200,15 +200,15 @@ fn create_contest(
             let cand_alias_i18n =
                 parse_i18n_field(&candidate_presentation.i18n, "alias");
 
-            let candidate_name = name_i18n
+            let candidate_name = cand_name_i18n
                 .as_ref()
-                .and_then(|i18n| i18n.get(&default_language))
-                .and_then(|name| name.clone());
+                .and_then(|i18n| i18n.get(default_language))
+                .and_then(Clone::clone);
 
-            let candidate_alias = alias_i18n
+            let candidate_alias = cand_alias_i18n
                 .as_ref()
-                .and_then(|i18n| i18n.get(&default_language))
-                .and_then(|alias| alias.clone());
+                .and_then(|i18n| i18n.get(default_language))
+                .and_then(Clone::clone);
 
             Ok(ballot::Candidate {
                 id: candidate.id.clone(),
@@ -245,12 +245,13 @@ fn create_contest(
 
     let contest_name = name_i18n
         .as_ref()
-        .and_then(|i18n| i18n.get(&default_language))
-        .and_then(|name| name.clone());
+        .and_then(|i18n| i18n.get(default_language))
+        .and_then(Clone::clone);
+
     let contest_alias = alias_i18n
         .as_ref()
-        .and_then(|i18n| i18n.get(&default_language))
-        .and_then(|alias| alias.clone());
+        .and_then(|i18n| i18n.get(default_language))
+        .and_then(Clone::clone);
 
     // Extract tie_breaking_policy from tally_configuration JSON
     let tie_breaking_policy = contest

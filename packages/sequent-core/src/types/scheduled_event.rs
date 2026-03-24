@@ -66,11 +66,14 @@ pub struct ManageElectionDatePayload {
 pub struct ManageAllowInitPayload {
     pub election_id: Option<String>,
     #[serde(default = "default_allow_init")]
-    pub allow_init: Option<bool>,
+    pub allow_init: bool,
 }
 
-fn default_allow_init() -> Option<bool> {
-    Some(true)
+/// Default value for `allow_init` field in `ManageAllowInitPayload`.
+///
+/// Always returns true.
+const fn default_allow_init() -> bool {
+    true
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -100,22 +103,27 @@ pub struct ScheduledEvent {
     pub task_id: Option<String>,
 }
 
+#[must_use]
 pub fn generate_manage_date_task_name(
     tenant_id: &str,
     election_event_id: &str,
     election_id: Option<&str>,
     event_processor: &EventProcessors,
 ) -> String {
-    let base = format!("tenant_{}_event_{}_", tenant_id, election_event_id,);
+    let base = format!("tenant_{tenant_id}_event_{election_event_id}_");
 
     let base_with_election = match election_id {
-        Some(id) => format!("{}election_{}_", base, id),
+        Some(id) => format!("{base}election_{id}_"),
         None => base,
     };
 
-    format!("{}{}", base_with_election, event_processor,)
+    format!("{base_with_election}{event_processor}")
 }
 
+/// Generate voting period dates from scheduled events.
+///
+/// # Errors
+/// Returns an error if payload serialization or date extraction fails.
 pub fn generate_voting_period_dates(
     scheduled_events: Vec<ScheduledEvent>,
     tenant_id: &str,
@@ -123,7 +131,7 @@ pub fn generate_voting_period_dates(
     election_id: Option<&str>,
 ) -> Result<VotingPeriodDates> {
     let payload = ManageElectionDatePayload {
-        election_id: election_id.map(|s| s.to_string()),
+        election_id: election_id.map(std::string::ToString::to_string),
     };
     let payload_val = serde_json::to_value(&payload)?;
 
@@ -162,25 +170,22 @@ pub fn generate_voting_period_dates(
 
     Ok(VotingPeriodDates {
         start_date: start_date
-            .map(|val| val.cron_config.map(|val| val.scheduled_date))
-            .flatten()
-            .flatten(),
+            .and_then(|val| val.cron_config.and_then(|val| val.scheduled_date)),
         end_date: end_date
-            .map(|val| val.cron_config.map(|val| val.scheduled_date))
-            .flatten()
-            .flatten(),
+            .and_then(|val| val.cron_config.and_then(|val| val.scheduled_date)),
     })
 }
 
 /// Converts a list of schedule events to a map of date names and
-/// ScheduledEventDates.
+/// `ScheduledEventDates`.
 ///
-/// If election_id is None, it will contain only dates schedule for the election
-/// event.
-/// If the election_id is Some(_), it will contain also dates scheduled for this
-/// specific election.
+/// If `election_id` is None, it will contain only dates schedule for the election event.
+/// If the `election_id` is Some(_), it will contain also dates scheduled for this specific election.
+///
+/// # Errors
+/// Returns an error if deserialization or parsing fails.
 pub fn prepare_scheduled_dates(
-    scheduled_events: Vec<ScheduledEvent>,
+    scheduled_events: &[ScheduledEvent],
     election_id: Option<&str>,
 ) -> Result<HashMap<String, ScheduledEventDates>> {
     // List of event processors related to scheduled event dates
@@ -198,9 +203,7 @@ pub fn prepare_scheduled_dates(
     Ok(scheduled_events
         .iter()
         .filter_map(|scheduled_event| {
-            let Some(ref event_payload) = scheduled_event.event_payload else {
-                return None;
-            };
+            let event_payload = scheduled_event.event_payload.as_ref()?;
             let Ok(ManageElectionDatePayload {
                 election_id: se_election_id,
                 ..
@@ -208,18 +211,15 @@ pub fn prepare_scheduled_dates(
             else {
                 return None;
             };
-            let Some(ref event_processor) = scheduled_event.event_processor
-            else {
-                return None;
-            };
-            if !date_event_processors.contains(&event_processor)
+            let event_processor = scheduled_event.event_processor.as_ref()?;
+            if !date_event_processors.contains(event_processor)
                 || (se_election_id.is_some()
                     && election_id.is_some()
                     && se_election_id.as_deref() != election_id)
             {
                 return None;
             }
-            return Some((
+            Some((
                 event_processor.to_string(),
                 ScheduledEventDates {
                     scheduled_at: scheduled_event
@@ -231,7 +231,7 @@ pub fn prepare_scheduled_dates(
                         "-",
                     )),
                 },
-            ));
+            ))
         })
         .collect())
 }
