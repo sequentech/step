@@ -46,6 +46,17 @@ class UrlTruststoreProviderFactoryTest {
     return factory;
   }
 
+  /** Creates and initialises a factory with no global URL (falls back to JVM truststore). */
+  private static UrlTruststoreProviderFactory initFactoryNoGlobalUrl() {
+    Config.Scope config = mock(Config.Scope.class);
+    when(config.get("url")).thenReturn(null);
+    when(config.get("hostname-verification-policy", "DEFAULT")).thenReturn("DEFAULT");
+    when(config.getLong("refresh-interval-seconds", 0L)).thenReturn(0L);
+    UrlTruststoreProviderFactory factory = new UrlTruststoreProviderFactory();
+    factory.init(config);
+    return factory;
+  }
+
   /**
    * Creates a session mock whose realm returns the given realm name via {@code realm.getName()}.
    * The factory constructs the truststore URL as {@code {urlsPath}client-ca-{realmName}.pem}.
@@ -111,6 +122,34 @@ class UrlTruststoreProviderFactoryTest {
 
     assertFalse(roots.isEmpty(), "Expected root CA from chain.pem");
     assertFalse(intermediates.isEmpty(), "Expected intermediate CA from chain.pem");
+  }
+
+  @Test
+  void noGlobalUrlFallsBackToJvmTruststore() {
+    UrlTruststoreProviderFactory factory = initFactoryNoGlobalUrl();
+
+    // JVM cacerts contains well-known public CAs — should not be empty.
+    TruststoreProvider globalProvider = factory.create(sessionWithNoRealm());
+
+    assertNotNull(globalProvider);
+    assertFalse(
+        globalProvider.getRootCertificates().isEmpty(),
+        "JVM truststore should contain public root CAs");
+  }
+
+  @Test
+  void noGlobalUrlRealmCertNotFoundFallsBackToJvmTruststore() {
+    UrlTruststoreProviderFactory factory = initFactoryNoGlobalUrl();
+    factory.urlsPathSupplier = () -> certsBaseUrl();
+    // "master" has no client-ca-master.pem — should fall back to JVM truststore.
+    KeycloakSession masterSession = sessionWithRealm("master-id", "master");
+
+    TruststoreProvider result = factory.create(masterSession);
+
+    assertNotNull(result);
+    assertFalse(
+        result.getRootCertificates().isEmpty(),
+        "Fallback to JVM truststore should contain public root CAs");
   }
 
   @Test

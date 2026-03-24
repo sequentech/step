@@ -30,6 +30,9 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
+import javax.net.ssl.TrustManager;
+import javax.net.ssl.TrustManagerFactory;
+import javax.net.ssl.X509TrustManager;
 import javax.security.auth.x500.X500Principal;
 import org.jboss.logging.Logger;
 import org.keycloak.Config;
@@ -49,12 +52,15 @@ import org.keycloak.truststore.TruststoreProviderFactory;
  * {@code KEYCLOAK_REALM_CA_URLS_PATH} (base URL with trailing slash) combined with the realm name:
  * {@code <KEYCLOAK_REALM_CA_URLS_PATH>client-ca-<realmName>.pem}.
  *
+ * <p>{@code --spi-truststore-url-url} is optional. When omitted, the JVM default truststore
+ * (cacerts) is used as the global fallback for sessions without a matching realm CA.
+ *
  * <p>Activate via:
  *
  * <pre>
  *   --spi-truststore-provider=url
- *   --spi-truststore-url-url=https://example.com/global-ca.pem
- *   --spi-truststore-url-refresh-interval-seconds=3600
+ *   --spi-truststore-url-refresh-interval-seconds=3600   (optional)
+ *   --spi-truststore-url-url=https://example.com/global-ca.pem  (optional)
  *   KEYCLOAK_REALM_CA_URLS_PATH=http://minio:9000/public/public-assets/
  * </pre>
  */
@@ -92,11 +98,6 @@ public class UrlTruststoreProviderFactory implements TruststoreProviderFactory {
   @Override
   public void init(Config.Scope config) {
     certUrl = config.get(CFG_URL);
-    if (certUrl == null || certUrl.isBlank()) {
-      throw new RuntimeException(
-          "Missing required config 'url' for url TruststoreProvider"
-              + " (--spi-truststore-url-url=<https://...>)");
-    }
 
     String policyValue =
         config.get(CFG_HOSTNAME_VERIFICATION_POLICY, HostnameVerificationPolicy.DEFAULT.name());
@@ -111,8 +112,13 @@ public class UrlTruststoreProviderFactory implements TruststoreProviderFactory {
               + " (must be DEFAULT, ANY, or WILDCARD)");
     }
 
-    provider = fetchAndBuild(certUrl, policy);
-    log.infof("URL TruststoreProvider initialized from: %s", certUrl);
+    if (certUrl != null && !certUrl.isBlank()) {
+      provider = fetchAndBuild(certUrl, policy);
+      log.infof("URL TruststoreProvider global truststore initialized from: %s", certUrl);
+    } else {
+      provider = buildFromJvmTruststore(policy);
+      log.infof("URL TruststoreProvider global truststore initialized from JVM default (cacerts)");
+    }
 
     long refreshIntervalSeconds = config.getLong(CFG_REFRESH_INTERVAL, 0L);
     if (refreshIntervalSeconds > 0) {
@@ -138,11 +144,15 @@ public class UrlTruststoreProviderFactory implements TruststoreProviderFactory {
         log.debugf("ENV %s = %s", ENV_TRUSTSTORE_URLS_PATH, urlsPath);
         if (urlsPath != null && !urlsPath.isBlank()) {
           String realmName = realm.getName();
+          if ("master".equals(realmName)) {
+            log.debugf("Realm 'master' detected in create() — skipping per-realm CA lookup");
+            return provider;
+          }
           String realmUrl = urlsPath + "client-ca-" + realmName + ".pem";
           log.debugf(
               "Constructed realm-specific truststore URL for realm '%s': %s",
               realmName, realmUrl);
-          return realmProviderFor(realm.getId(), realmUrl);
+          return realmProviderFor(realm.getId(), realmName, realmUrl);
         }
       }
     }
@@ -154,7 +164,11 @@ public class UrlTruststoreProviderFactory implements TruststoreProviderFactory {
    * Returns a cached realm-specific provider, re-fetching if the constructed URL differs from what
    * was last loaded. Concurrent refreshes for the same realm are serialized.
    */
-  private UrlTruststoreProvider realmProviderFor(String realmId, String realmUrl) {
+  private UrlTruststoreProvider realmProviderFor(String realmId, String realmName, String realmUrl) {
+    if ("master".equals(realmName)) {
+      log.debugf("Realm 'master' detected in realmProviderFor() — returning global truststore");
+      return provider;
+    }
     RealmTruststoreEntry cached = realmCache.get(realmId);
     if (cached != null && cached.url().equals(realmUrl)) {
       // null provider is a sentinel meaning "no cert found, use global"
@@ -214,15 +228,22 @@ public class UrlTruststoreProviderFactory implements TruststoreProviderFactory {
   }
 
   private void refresh() {
-    try {
-      provider = fetchAndBuild(certUrl, policy);
-      log.infof("URL TruststoreProvider refreshed from: %s", certUrl);
-    } catch (Exception e) {
-      log.errorf(e, "Failed to refresh URL TruststoreProvider from: %s", certUrl);
+    if (certUrl != null && !certUrl.isBlank()) {
+      try {
+        provider = fetchAndBuild(certUrl, policy);
+        log.infof("URL TruststoreProvider refreshed from: %s", certUrl);
+      } catch (Exception e) {
+        log.errorf(e, "Failed to refresh URL TruststoreProvider from: %s", certUrl);
+      }
     }
     for (Map.Entry<String, RealmTruststoreEntry> entry : realmCache.entrySet()) {
       String realmId = entry.getKey();
       RealmTruststoreEntry current = entry.getValue();
+      if (current.provider() == null) {
+        // Sentinel entry — cert was not found on first load; skip rather than retrying.
+        log.debugf("Skipping refresh for realm %s — no CA cert was found at: %s", realmId, current.url());
+        continue;
+      }
       try {
         UrlTruststoreProvider fresh = fetchAndBuild(current.url(), policy);
         realmCache.put(realmId, new RealmTruststoreEntry(current.url(), fresh));
@@ -235,6 +256,38 @@ public class UrlTruststoreProviderFactory implements TruststoreProviderFactory {
             realmId,
             current.url());
       }
+    }
+  }
+
+  static UrlTruststoreProvider buildFromJvmTruststore(HostnameVerificationPolicy policy) {
+    try {
+      TrustManagerFactory tmf =
+          TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm());
+      tmf.init((KeyStore) null); // null = use JVM default truststore (cacerts)
+
+      KeyStore keyStore = KeyStore.getInstance("PKCS12");
+      keyStore.load(null, null);
+      int index = 0;
+      for (TrustManager tm : tmf.getTrustManagers()) {
+        if (tm instanceof X509TrustManager) {
+          for (X509Certificate cert : ((X509TrustManager) tm).getAcceptedIssuers()) {
+            keyStore.setCertificateEntry("jvm-" + index++, cert);
+          }
+        }
+      }
+      log.debugf("Loaded %d certificate(s) from JVM default truststore", index);
+
+      Map<X500Principal, List<X509Certificate>> rootCerts = new HashMap<>();
+      Map<X500Principal, List<X509Certificate>> intermediateCerts = new HashMap<>();
+      classifyCertificates(keyStore, rootCerts, intermediateCerts);
+
+      return new UrlTruststoreProvider(
+          keyStore,
+          policy,
+          Collections.unmodifiableMap(rootCerts),
+          Collections.unmodifiableMap(intermediateCerts));
+    } catch (Exception e) {
+      throw new RuntimeException("Failed to load JVM default truststore", e);
     }
   }
 
