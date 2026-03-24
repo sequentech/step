@@ -121,13 +121,19 @@ const TallyResultsMemo: React.MemoExoticComponent<React.FC<TallyResultsProps>> =
             setValue(index)
         }
 
+        const defaultLangByElectionId = useMemo(() => {
+            const map = new Map<string, string | undefined>()
+            elections?.forEach((election) => {
+                map.set(
+                    election.id,
+                    getDefaultElectionLang(tallyData, election.id, election.election_event_id)
+                )
+            })
+            return map
+        }, [elections, tallyData?.sequent_backend_election_event])
+
         const getElectionAlias = (election: Sequent_Backend_Election) => {
-            const defaultElectionLang = getDefaultElectionLang(
-                tallyData,
-                election.id,
-                election.election_event_id
-            )
-            return aliasRenderer(election.presentation, defaultElectionLang)
+            return aliasRenderer(election.presentation, defaultLangByElectionId.get(election.id))
         }
 
         const currentElection = useMemo(() => {
