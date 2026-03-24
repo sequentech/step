@@ -245,7 +245,11 @@ pub fn create_election_configs_blocking(
         // TODO: Refactor to just extract some Election Config with no subitems
         let election_name_opt = election_opt.map(|election| election.get_name(&default_lang));
 
-        let election_alias_otp = election_opt.map(|election| election.get_alias(&default_lang));
+        // Use get_raw_alias to avoid falling back to the election name.
+        // resolve_election_display_name (in velvet) handles the alias→name
+        // fallback, so we must pass an empty string when no alias is configured.
+        let election_alias_otp =
+            election_opt.map(|election| election.get_raw_alias(&default_lang));
 
         let election_description = election_opt
             .map(|election| election.description.clone().unwrap_or("".to_string()))

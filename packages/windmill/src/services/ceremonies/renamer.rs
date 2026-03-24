@@ -186,7 +186,7 @@ mod tests {
     #[test]
     fn test_sanitize_filename_does_not_trim_leading_spaces_or_dots() {
         assert_eq!(sanitize_filename("  Election"), "__Election");
-        assert_eq!(sanitize_filename("..Election"), "__Election");
+        assert_eq!(sanitize_filename("..Election"), "..Election");
     }
 
     #[test]

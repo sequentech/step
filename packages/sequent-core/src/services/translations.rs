@@ -95,6 +95,14 @@ impl Election {
             .and_then(|lc| lc.default_language_code)
             .unwrap_or_else(|| DEFAULT_LANG.into())
     }
+
+    /// Returns the raw alias from i18n without falling back to the name.
+    /// Returns an empty string when no alias is configured.
+    pub fn get_raw_alias(&self, language: &str) -> String {
+        parse_presentation::<ElectionPresentation>(&self.presentation)
+            .and_then(|p| i18n_field(&p.i18n, language, "alias"))
+            .unwrap_or_default()
+    }
 }
 
 impl Name for Election {
