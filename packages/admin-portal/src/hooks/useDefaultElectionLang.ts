@@ -46,6 +46,11 @@ export function useDefaultElectionLang(
 
     return useMemo(
         () => getDefaultElectionLang(tallyData, electionId, electionEventId),
-        [tallyData?.sequent_backend_election, electionId, electionEventId]
+        [
+            tallyData?.sequent_backend_election,
+            tallyData?.sequent_backend_election_event,
+            electionId,
+            electionEventId,
+        ]
     )
 }
