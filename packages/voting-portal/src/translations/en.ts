@@ -299,7 +299,8 @@ const englishTranslation = {
                 oopsWithoutStatus: "Oops! Unexpected Error",
                 somethingWrong: "Something went wrong.",
                 certAuthFailedTitle: "Certificate Authentication Failed",
-                certAuthFailedMessage: "Your certificate could not be verified. Please check that you are using a valid voter certificate and try again.",
+                certAuthFailedMessage:
+                    "Your certificate could not be verified. Please check that you are using a valid voter certificate and try again.",
             },
         },
         materials: {

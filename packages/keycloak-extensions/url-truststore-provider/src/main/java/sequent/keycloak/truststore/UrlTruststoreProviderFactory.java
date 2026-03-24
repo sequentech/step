@@ -29,6 +29,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.function.BiFunction;
 import java.util.function.Supplier;
 import javax.net.ssl.TrustManager;
 import javax.net.ssl.TrustManagerFactory;
@@ -45,12 +46,12 @@ import org.keycloak.truststore.TruststoreProvider;
 import org.keycloak.truststore.TruststoreProviderFactory;
 
 /**
- * TruststoreProviderFactory that loads CA certificates from a remote URL (HTTP/HTTPS, S3
- * pre-signed URLs). Supports optional background refresh at a configurable interval.
+ * TruststoreProviderFactory that loads CA certificates from a remote URL (HTTP/HTTPS, S3 pre-signed
+ * URLs). Supports optional background refresh at a configurable interval.
  *
- * <p>Per-realm client-CA PEM files are resolved dynamically from the environment variable
- * {@code KEYCLOAK_REALM_CA_URLS_PATH} (base URL with trailing slash) combined with the realm name:
- * {@code <KEYCLOAK_REALM_CA_URLS_PATH>client-ca-<realmName>.pem}.
+ * <p>Per-realm CA certificates are fetched from the harvest service using the {@code
+ * HARVEST_DOMAIN} environment variable. The URL is constructed as: {@code
+ * http://<HARVEST_DOMAIN>/election-event/<realmName>/certificate-authorities/pem}
  *
  * <p>{@code --spi-truststore-url-url} is optional. When omitted, the JVM default truststore
  * (cacerts) is used as the global fallback for sessions without a matching realm CA.
@@ -61,7 +62,7 @@ import org.keycloak.truststore.TruststoreProviderFactory;
  *   --spi-truststore-provider=url
  *   --spi-truststore-url-refresh-interval-seconds=3600   (optional)
  *   --spi-truststore-url-url=https://example.com/global-ca.pem  (optional)
- *   KEYCLOAK_REALM_CA_URLS_PATH=http://minio:9000/public/public-assets/
+ *   HARVEST_DOMAIN=harvest:8000
  * </pre>
  */
 @AutoService(TruststoreProviderFactory.class)
@@ -72,19 +73,23 @@ public class UrlTruststoreProviderFactory implements TruststoreProviderFactory {
   private static final String CFG_URL = "url";
   private static final String CFG_REFRESH_INTERVAL = "refresh-interval-seconds";
   private static final String CFG_HOSTNAME_VERIFICATION_POLICY = "hostname-verification-policy";
+  private static final String MASTER_REALM_NAME = "master";
+  private static final String EVENT_REALM_INFIX = "-event-";
 
   /**
-   * Environment variable whose value is the base URL (with trailing slash) under which per-realm
-   * client-CA PEM files are stored. The full URL for a realm is constructed as:
-   * {@code ${KEYCLOAK_REALM_CA_URLS_PATH}client-ca-<realmName>.pem}
-   *
-   * <p>Example: {@code KEYCLOAK_REALM_CA_URLS_PATH=http://minio:9000/public/public-assets/}
-   * resolves to {@code http://minio:9000/public/public-assets/client-ca-<realmName>.pem}.
+   * Environment variable containing the harvest service domain (host[:port]). Used to construct
+   * per-realm CA certificate URLs as: {@code
+   * http://<HARVEST_DOMAIN>/election-event/<realmName>/certificate-authorities/pem}
    */
-  static final String ENV_TRUSTSTORE_URLS_PATH = "KEYCLOAK_REALM_CA_URLS_PATH";
+  static final String ENV_HARVEST_DOMAIN = "HARVEST_DOMAIN";
 
   // package-private for testing — overridden in unit tests to avoid reading real env vars
-  Supplier<String> urlsPathSupplier = () -> System.getenv(ENV_TRUSTSTORE_URLS_PATH);
+  Supplier<String> harvestDomainSupplier = () -> System.getenv(ENV_HARVEST_DOMAIN);
+
+  // package-private for testing — overridden to redirect URL construction to local test resources
+  BiFunction<String, String, String> realmUrlBuilder =
+      (domain, realmName) ->
+          "http://" + domain + "/election-event/" + realmName + "/certificate-authorities/pem";
 
   private record RealmTruststoreEntry(String url, UrlTruststoreProvider provider) {}
 
@@ -122,11 +127,13 @@ public class UrlTruststoreProviderFactory implements TruststoreProviderFactory {
 
     long refreshIntervalSeconds = config.getLong(CFG_REFRESH_INTERVAL, 0L);
     if (refreshIntervalSeconds > 0) {
-      scheduler = Executors.newSingleThreadScheduledExecutor(r -> {
-        Thread t = new Thread(r, "url-truststore-refresh");
-        t.setDaemon(true);
-        return t;
-      });
+      scheduler =
+          Executors.newSingleThreadScheduledExecutor(
+              r -> {
+                Thread t = new Thread(r, "url-truststore-refresh");
+                t.setDaemon(true);
+                return t;
+              });
       scheduler.scheduleAtFixedRate(
           this::refresh, refreshIntervalSeconds, refreshIntervalSeconds, TimeUnit.SECONDS);
       log.infof(
@@ -140,18 +147,28 @@ public class UrlTruststoreProviderFactory implements TruststoreProviderFactory {
     if (ctx != null) {
       RealmModel realm = ctx.getRealm();
       if (realm != null) {
-        String urlsPath = urlsPathSupplier.get();
-        log.debugf("ENV %s = %s", ENV_TRUSTSTORE_URLS_PATH, urlsPath);
-        if (urlsPath != null && !urlsPath.isBlank()) {
+        String harvestDomain = harvestDomainSupplier.get();
+        log.debugf("ENV %s = %s", ENV_HARVEST_DOMAIN, harvestDomain);
+        if (harvestDomain != null && !harvestDomain.isBlank()) {
           String realmName = realm.getName();
-          if ("master".equals(realmName)) {
-            log.debugf("Realm 'master' detected in create() — skipping per-realm CA lookup");
+          if (MASTER_REALM_NAME.equals(realmName)) {
+            log.debugf(
+                "Realm '%s' detected in create() — skipping per-realm CA lookup",
+                MASTER_REALM_NAME);
             return provider;
           }
-          String realmUrl = urlsPath + "client-ca-" + realmName + ".pem";
+          int eventIdx = realmName.indexOf(EVENT_REALM_INFIX);
+          if (eventIdx < 0) {
+            log.debugf(
+                "Realm '%s' is not an event realm — skipping per-realm CA lookup", realmName);
+            return provider;
+          }
+          String electionEventId = realmName.substring(eventIdx + EVENT_REALM_INFIX.length());
+          String realmUrl = realmUrlBuilder.apply(harvestDomain, electionEventId);
           log.debugf(
-              "Constructed realm-specific truststore URL for realm '%s': %s",
-              realmName, realmUrl);
+              "Constructed realm-specific truststore URL for realm '%s'"
+                  + " (election event '%s'): %s",
+              realmName, electionEventId, realmUrl);
           return realmProviderFor(realm.getId(), realmName, realmUrl);
         }
       }
@@ -164,17 +181,16 @@ public class UrlTruststoreProviderFactory implements TruststoreProviderFactory {
    * Returns a cached realm-specific provider, re-fetching if the constructed URL differs from what
    * was last loaded. Concurrent refreshes for the same realm are serialized.
    */
-  private UrlTruststoreProvider realmProviderFor(String realmId, String realmName, String realmUrl) {
-    if ("master".equals(realmName)) {
+  private UrlTruststoreProvider realmProviderFor(
+      String realmId, String realmName, String realmUrl) {
+    if (MASTER_REALM_NAME.equals(realmName)) {
       log.debugf("Realm 'master' detected in realmProviderFor() — returning global truststore");
       return provider;
     }
     RealmTruststoreEntry cached = realmCache.get(realmId);
     if (cached != null && cached.url().equals(realmUrl)) {
       // null provider is a sentinel meaning "no cert found, use global"
-      log.infof(
-          "Using cached realm-specific truststore for realm %s from: %s",
-          realmId, realmUrl);
+      log.infof("Using cached realm-specific truststore for realm %s from: %s", realmId, realmUrl);
       return cached.provider() != null ? cached.provider() : provider;
     }
     // Stale or first load — serialize concurrent refreshes for this realm.
@@ -184,13 +200,11 @@ public class UrlTruststoreProviderFactory implements TruststoreProviderFactory {
         (id, existing) -> {
           if (existing != null && existing.url().equals(realmUrl)) {
             log.infof(
-                "Realm-specific truststore for realm %s already loaded from: %s",
-                id, realmUrl);
+                "Realm-specific truststore for realm %s already loaded from: %s", id, realmUrl);
             result[0] = existing;
             return existing;
           }
-          log.infof(
-              "Loading realm-specific truststore for realm %s from: %s", id, realmUrl);
+          log.infof("Loading realm-specific truststore for realm %s from: %s", id, realmUrl);
           UrlTruststoreProvider fresh;
           try {
             fresh = fetchAndBuild(realmUrl, policy);
@@ -241,20 +255,17 @@ public class UrlTruststoreProviderFactory implements TruststoreProviderFactory {
       RealmTruststoreEntry current = entry.getValue();
       if (current.provider() == null) {
         // Sentinel entry — cert was not found on first load; skip rather than retrying.
-        log.debugf("Skipping refresh for realm %s — no CA cert was found at: %s", realmId, current.url());
+        log.debugf(
+            "Skipping refresh for realm %s — no CA cert was found at: %s", realmId, current.url());
         continue;
       }
       try {
         UrlTruststoreProvider fresh = fetchAndBuild(current.url(), policy);
         realmCache.put(realmId, new RealmTruststoreEntry(current.url(), fresh));
-        log.infof(
-            "Realm truststore refreshed for realm %s from: %s", realmId, current.url());
+        log.infof("Realm truststore refreshed for realm %s from: %s", realmId, current.url());
       } catch (Exception e) {
         log.errorf(
-            e,
-            "Failed to refresh realm truststore for realm %s from: %s",
-            realmId,
-            current.url());
+            e, "Failed to refresh realm truststore for realm %s from: %s", realmId, current.url());
       }
     }
   }
@@ -371,7 +382,8 @@ public class UrlTruststoreProviderFactory implements TruststoreProviderFactory {
     } catch (SignatureException | InvalidKeyException e) {
       return false;
     } catch (CertificateException | NoSuchAlgorithmException | NoSuchProviderException e) {
-      log.warnf("Could not verify certificate signature for %s: %s",
+      log.warnf(
+          "Could not verify certificate signature for %s: %s",
           cert.getSubjectX500Principal(), e.getMessage());
       return false;
     }

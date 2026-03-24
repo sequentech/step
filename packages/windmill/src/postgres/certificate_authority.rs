@@ -91,5 +91,8 @@ pub async fn get_certificate_authorities_pem(
         .await
         .map_err(|err| anyhow!("Error fetching certificate authority PEMs: {err}"))?;
 
-    Ok(rows.into_iter().map(|row| row.get::<_, String>(0)).collect())
+    Ok(rows
+        .into_iter()
+        .map(|row| row.get::<_, String>(0))
+        .collect())
 }

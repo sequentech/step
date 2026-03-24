@@ -302,7 +302,8 @@ const dutchTranslation: TranslationType = {
                 oopsWithoutStatus: "Oeps! Onverwachte Fout",
                 somethingWrong: "Er is iets misgegaan.",
                 certAuthFailedTitle: "Certificaatauthenticatie Mislukt",
-                certAuthFailedMessage: "Uw certificaat kon niet worden geverifieerd. Controleer of u een geldig kiezercertificaat gebruikt en probeer het opnieuw.",
+                certAuthFailedMessage:
+                    "Uw certificaat kon niet worden geverifieerd. Controleer of u een geldig kiezercertificaat gebruikt en probeer het opnieuw.",
             },
         },
         materials: {

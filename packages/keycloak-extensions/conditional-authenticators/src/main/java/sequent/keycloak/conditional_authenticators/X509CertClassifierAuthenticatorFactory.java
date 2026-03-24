@@ -14,9 +14,7 @@ import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.KeycloakSessionFactory;
 import org.keycloak.provider.ProviderConfigProperty;
 
-/**
- * Factory for {@link X509CertClassifierAuthenticator}.
- */
+/** Factory for {@link X509CertClassifierAuthenticator}. */
 @AutoService(AuthenticatorFactory.class)
 public class X509CertClassifierAuthenticatorFactory implements AuthenticatorFactory {
 

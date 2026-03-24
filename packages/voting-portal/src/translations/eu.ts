@@ -302,7 +302,8 @@ const basqueTranslation: TranslationType = {
                 oopsWithoutStatus: "Hara! Ustekabeko Errorea",
                 somethingWrong: "Zerbait oker joan da.",
                 certAuthFailedTitle: "Ziurtagiriaren Autentifikazio Errorea",
-                certAuthFailedMessage: "Ezin izan da zure ziurtagiria egiaztatu. Mesedez, egiaztatu boto-emaile ziurtagiri baliogarri bat erabiltzen ari zarela eta saiatu berriro.",
+                certAuthFailedMessage:
+                    "Ezin izan da zure ziurtagiria egiaztatu. Mesedez, egiaztatu boto-emaile ziurtagiri baliogarri bat erabiltzen ari zarela eta saiatu berriro.",
             },
         },
         materials: {

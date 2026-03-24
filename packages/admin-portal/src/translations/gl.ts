@@ -2208,7 +2208,7 @@ const galegoTranslation: TranslationType = {
             },
             confirmDelete: "Eliminar autoridade de certificación",
             confirmDeleteDescription:
-                "¿Está seguro de que quere eliminar o certificado \"{{name}}\" (pegada: {{fingerprint}})?",
+                '¿Está seguro de que quere eliminar o certificado "{{name}}" (pegada: {{fingerprint}})?',
         },
     },
 }

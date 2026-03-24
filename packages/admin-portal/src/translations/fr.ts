@@ -2222,7 +2222,7 @@ const frenchTranslation: TranslationType = {
             },
             confirmDelete: "Supprimer l'autorité de certification",
             confirmDeleteDescription:
-                "Êtes-vous sûr de vouloir supprimer le certificat \"{{name}}\" (empreinte : {{fingerprint}}) ?",
+                'Êtes-vous sûr de vouloir supprimer le certificat "{{name}}" (empreinte : {{fingerprint}}) ?',
         },
     },
 }

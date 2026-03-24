@@ -14,7 +14,9 @@ use uuid::Uuid;
 use windmill::postgres::certificate_authority::{
     insert_certificate_authority, CertificateAuthorityRecord,
 };
-use windmill::services::certificate_authority::{parse_certificate_pem, split_pem_bundle};
+use windmill::services::certificate_authority::{
+    parse_certificate_pem, split_pem_bundle,
+};
 use windmill::services::database::get_hasura_pool;
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -90,7 +92,9 @@ pub async fn import_certificate_authority(
                     serial_number: parsed.serial_number,
                     pem: parsed.pem,
                 };
-                match insert_certificate_authority(&hasura_transaction, record).await {
+                match insert_certificate_authority(&hasura_transaction, record)
+                    .await
+                {
                     Ok(true) => inserted_count += 1,
                     Ok(false) => skipped_count += 1,
                     Err(e) => {

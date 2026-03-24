@@ -51,7 +51,8 @@ public class X509CertClassifierAuthenticator implements Authenticator {
 
     X509Certificate cert = parseCert(certHeader);
     if (cert == null) {
-      log.warnv("authenticate(): failed to parse certificate from {0} header", SSL_CLIENT_CERT_HEADER);
+      log.warnv(
+          "authenticate(): failed to parse certificate from {0} header", SSL_CLIENT_CERT_HEADER);
       context.getAuthenticationSession().setAuthNote(AUTH_NOTE_CERT_TYPE, CERT_TYPE_NOT_ALLOWED);
       context.attempted();
       return;

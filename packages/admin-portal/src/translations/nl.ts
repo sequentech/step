@@ -2204,7 +2204,7 @@ const dutchTranslation: TranslationType = {
             },
             confirmDelete: "Certificaatautoriteit verwijderen",
             confirmDeleteDescription:
-                "Weet u zeker dat u het certificaat \"{{name}}\" (vingerafdruk: {{fingerprint}}) wilt verwijderen?",
+                'Weet u zeker dat u het certificaat "{{name}}" (vingerafdruk: {{fingerprint}}) wilt verwijderen?',
         },
     },
 }

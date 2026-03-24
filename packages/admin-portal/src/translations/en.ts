@@ -2180,8 +2180,7 @@ const englishTranslation = {
                 deleteSuccess: "Certificate deleted.",
                 deleteError: "Error deleting certificate.",
             },
-            emptyHeader:
-                "No certificate authorities have been imported for this election event.",
+            emptyHeader: "No certificate authorities have been imported for this election event.",
             fileReadError: "Failed to read the file.",
             viewDialog: {
                 title: "Certificate Authority Details",
@@ -2192,7 +2191,7 @@ const englishTranslation = {
             },
             confirmDelete: "Delete Certificate Authority",
             confirmDeleteDescription:
-                "Are you sure you want to delete the certificate \"{{name}}\" (fingerprint: {{fingerprint}})?",
+                'Are you sure you want to delete the certificate "{{name}}" (fingerprint: {{fingerprint}})?',
         },
     },
 }

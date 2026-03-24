@@ -396,7 +396,10 @@ export const EditElectionEventCAs: React.FC = () => {
                                         variant="body2"
                                         sx={{fontFamily: "monospace", fontSize: "0.75rem"}}
                                     >
-                                        {ca.fingerprint_sha256.slice(0, FINGERPRINT_TRUNCATE_LENGTH)}
+                                        {ca.fingerprint_sha256.slice(
+                                            0,
+                                            FINGERPRINT_TRUNCATE_LENGTH
+                                        )}
                                         …
                                     </Typography>
                                 </Tooltip>

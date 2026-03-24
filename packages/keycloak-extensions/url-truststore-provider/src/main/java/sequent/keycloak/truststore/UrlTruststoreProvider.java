@@ -35,9 +35,7 @@ public class UrlTruststoreProvider implements TruststoreProvider {
 
     SSLSocketFactory jsseFactory = new JSSETruststoreConfigurator(this).getSSLSocketFactory();
     this.sslSocketFactory =
-        jsseFactory != null
-            ? jsseFactory
-            : (SSLSocketFactory) SSLSocketFactory.getDefault();
+        jsseFactory != null ? jsseFactory : (SSLSocketFactory) SSLSocketFactory.getDefault();
   }
 
   @Override

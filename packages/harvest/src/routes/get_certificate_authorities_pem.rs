@@ -18,8 +18,13 @@ use windmill::services::database::get_hasura_pool;
 pub async fn get_cas_pem(
     election_event_id: &str,
 ) -> Result<(ContentType, String), (Status, String)> {
-    let election_event_uuid = Uuid::parse_str(election_event_id)
-        .map_err(|e| (Status::BadRequest, format!("Invalid election_event_id: {e}")))?;
+    let election_event_uuid =
+        Uuid::parse_str(election_event_id).map_err(|e| {
+            (
+                Status::BadRequest,
+                format!("Invalid election_event_id: {e}"),
+            )
+        })?;
 
     let hasura_db_client = get_hasura_pool()
         .await
@@ -27,9 +32,10 @@ pub async fn get_cas_pem(
         .await
         .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
 
-    let pems = get_certificate_authorities_pem(&hasura_db_client, election_event_uuid)
-        .await
-        .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
+    let pems =
+        get_certificate_authorities_pem(&hasura_db_client, election_event_uuid)
+            .await
+            .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
 
     let bundle = pems.join("\n");
     Ok((ContentType::new("application", "x-pem-file"), bundle))

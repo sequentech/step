@@ -304,7 +304,8 @@ const spanishTranslation: TranslationType = {
                 oopsWithoutStatus: "¡Vaya! Error Inesperado",
                 somethingWrong: "Algo salió mal.",
                 certAuthFailedTitle: "Error de Autenticación con Certificado",
-                certAuthFailedMessage: "No se ha podido verificar su certificado. Compruebe que está usando un certificado de votante válido e inténtelo de nuevo.",
+                certAuthFailedMessage:
+                    "No se ha podido verificar su certificado. Compruebe que está usando un certificado de votante válido e inténtelo de nuevo.",
             },
         },
         materials: {

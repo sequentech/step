@@ -97,11 +97,13 @@ fn parse_openssl_x509_output(output: &str, pem: &str) -> Result<ParsedCertificat
     }
 
     if subject.is_empty() {
-        return Err(anyhow!("Failed to parse certificate: subject not found in openssl output"));
+        return Err(anyhow!(
+            "Failed to parse certificate: subject not found in openssl output"
+        ));
     }
 
-    let common_name = extract_cn(&subject)
-        .ok_or_else(|| anyhow!("CN not found in subject: {}", subject))?;
+    let common_name =
+        extract_cn(&subject).ok_or_else(|| anyhow!("CN not found in subject: {}", subject))?;
     let issuer_common_name = extract_cn(&issuer).unwrap_or_else(|| issuer.clone());
 
     let not_before = parse_openssl_date(&not_before_str)
@@ -177,7 +179,10 @@ mod tests {
 
     #[test]
     fn test_extract_cn_simple() {
-        assert_eq!(extract_cn("CN=My CA, O=Org, C=US"), Some("My CA".to_string()));
+        assert_eq!(
+            extract_cn("CN=My CA, O=Org, C=US"),
+            Some("My CA".to_string())
+        );
     }
 
     #[test]

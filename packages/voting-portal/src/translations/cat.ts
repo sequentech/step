@@ -304,7 +304,8 @@ const catalanTranslation: TranslationType = {
                 oopsWithoutStatus: "Vaja! Error Inesperat",
                 somethingWrong: "Alguna cosa ha anat malament.",
                 certAuthFailedTitle: "Error d'Autenticació amb Certificat",
-                certAuthFailedMessage: "No s'ha pogut verificar el vostre certificat. Comproveu que esteu utilitzant un certificat de votant vàlid i torneu-ho a intentar.",
+                certAuthFailedMessage:
+                    "No s'ha pogut verificar el vostre certificat. Comproveu que esteu utilitzant un certificat de votant vàlid i torneu-ho a intentar.",
             },
         },
         materials: {

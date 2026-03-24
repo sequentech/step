@@ -2218,7 +2218,7 @@ const catalanTranslation: TranslationType = {
             },
             confirmDelete: "Eliminar autoritat de certificació",
             confirmDeleteDescription:
-                "Esteu segurs que voleu eliminar el certificat \"{{name}}\" (empremta: {{fingerprint}})?",
+                'Esteu segurs que voleu eliminar el certificat "{{name}}" (empremta: {{fingerprint}})?',
         },
     },
 }

@@ -2211,7 +2211,7 @@ const spanishTranslation: TranslationType = {
             },
             confirmDelete: "Eliminar autoridad de certificación",
             confirmDeleteDescription:
-                "¿Está seguro de que desea eliminar el certificado \"{{name}}\" (huella: {{fingerprint}})?",
+                '¿Está seguro de que desea eliminar el certificado "{{name}}" (huella: {{fingerprint}})?',
         },
     },
 }

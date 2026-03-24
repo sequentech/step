@@ -2201,7 +2201,7 @@ const basqueTranslation: TranslationType = {
             },
             confirmDelete: "Ziurtagiri-agintaritza ezabatu",
             confirmDeleteDescription:
-                "Ziur al zaude \"{{name}}\" ziurtagiria (hatz-marka: {{fingerprint}}) ezabatu nahi duzula?",
+                'Ziur al zaude "{{name}}" ziurtagiria (hatz-marka: {{fingerprint}}) ezabatu nahi duzula?',
         },
     },
 }

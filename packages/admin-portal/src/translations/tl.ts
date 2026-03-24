@@ -2214,7 +2214,7 @@ const tagalogTranslation: TranslationType = {
             },
             confirmDelete: "Burahin ang awtoridad sa sertipikasyon",
             confirmDeleteDescription:
-                "Sigurado ka bang nais mong burahin ang sertipikong \"{{name}}\" (fingerprint: {{fingerprint}})?",
+                'Sigurado ka bang nais mong burahin ang sertipikong "{{name}}" (fingerprint: {{fingerprint}})?',
         },
     },
 }
