@@ -29,6 +29,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Supplier;
 import javax.security.auth.x500.X500Principal;
 import org.jboss.logging.Logger;
 import org.keycloak.Config;
@@ -44,12 +45,17 @@ import org.keycloak.truststore.TruststoreProviderFactory;
  * TruststoreProviderFactory that loads CA certificates from a remote URL (HTTP/HTTPS, S3
  * pre-signed URLs). Supports optional background refresh at a configurable interval.
  *
+ * <p>Per-realm client-CA PEM files are resolved dynamically from the environment variable
+ * {@code KEYCLOAK_REALM_CA_URLS_PATH} (base URL with trailing slash) combined with the realm name:
+ * {@code <KEYCLOAK_REALM_CA_URLS_PATH>client-ca-<realmName>.pem}.
+ *
  * <p>Activate via:
  *
  * <pre>
  *   --spi-truststore-provider=url
- *   --spi-truststore-url-url=https://example.com/client-ca.pem
+ *   --spi-truststore-url-url=https://example.com/global-ca.pem
  *   --spi-truststore-url-refresh-interval-seconds=3600
+ *   KEYCLOAK_REALM_CA_URLS_PATH=http://minio:9000/public/public-assets/
  * </pre>
  */
 @AutoService(TruststoreProviderFactory.class)
@@ -62,18 +68,17 @@ public class UrlTruststoreProviderFactory implements TruststoreProviderFactory {
   private static final String CFG_HOSTNAME_VERIFICATION_POLICY = "hostname-verification-policy";
 
   /**
-   * Realm attribute name. Set this on a Keycloak realm (via Admin API or Admin Console) to a URL
-   * pointing to a PEM bundle of CA certificates for that realm. When set, the X.509 authenticator
-   * will validate client certificates against only those CAs, providing per-realm isolation.
+   * Environment variable whose value is the base URL (with trailing slash) under which per-realm
+   * client-CA PEM files are stored. The full URL for a realm is constructed as:
+   * {@code ${KEYCLOAK_REALM_CA_URLS_PATH}client-ca-<realmName>.pem}
    *
-   * <p>Example (KC Admin REST API):
-   *
-   * <pre>
-   *   PUT /admin/realms/{realm}
-   *   { "attributes": { "sequent.truststore.url": "https://minio.example.com/realm-ca.pem" } }
-   * </pre>
+   * <p>Example: {@code KEYCLOAK_REALM_CA_URLS_PATH=http://minio:9000/public/public-assets/}
+   * resolves to {@code http://minio:9000/public/public-assets/client-ca-<realmName>.pem}.
    */
-  static final String REALM_ATTR_TRUSTSTORE_URL = "sequent.truststore.url";
+  static final String ENV_TRUSTSTORE_URLS_PATH = "KEYCLOAK_REALM_CA_URLS_PATH";
+
+  // package-private for testing — overridden in unit tests to avoid reading real env vars
+  Supplier<String> urlsPathSupplier = () -> System.getenv(ENV_TRUSTSTORE_URLS_PATH);
 
   private record RealmTruststoreEntry(String url, UrlTruststoreProvider provider) {}
 
@@ -129,23 +134,34 @@ public class UrlTruststoreProviderFactory implements TruststoreProviderFactory {
     if (ctx != null) {
       RealmModel realm = ctx.getRealm();
       if (realm != null) {
-        String realmUrl = realm.getAttribute(REALM_ATTR_TRUSTSTORE_URL);
-        if (realmUrl != null && !realmUrl.isBlank()) {
+        String urlsPath = urlsPathSupplier.get();
+        log.debugf("ENV %s = %s", ENV_TRUSTSTORE_URLS_PATH, urlsPath);
+        if (urlsPath != null && !urlsPath.isBlank()) {
+          String realmName = realm.getName();
+          String realmUrl = urlsPath + "client-ca-" + realmName + ".pem";
+          log.debugf(
+              "Constructed realm-specific truststore URL for realm '%s': %s",
+              realmName, realmUrl);
           return realmProviderFor(realm.getId(), realmUrl);
         }
       }
     }
+    log.infof("Using global truststore for session (no realm-specific CA)");
     return provider;
   }
 
   /**
-   * Returns a cached realm-specific provider, re-fetching if the realm attribute URL has changed
-   * since the last load. Concurrent refreshes for the same realm are serialized.
+   * Returns a cached realm-specific provider, re-fetching if the constructed URL differs from what
+   * was last loaded. Concurrent refreshes for the same realm are serialized.
    */
   private UrlTruststoreProvider realmProviderFor(String realmId, String realmUrl) {
     RealmTruststoreEntry cached = realmCache.get(realmId);
     if (cached != null && cached.url().equals(realmUrl)) {
-      return cached.provider();
+      // null provider is a sentinel meaning "no cert found, use global"
+      log.infof(
+          "Using cached realm-specific truststore for realm %s from: %s",
+          realmId, realmUrl);
+      return cached.provider() != null ? cached.provider() : provider;
     }
     // Stale or first load — serialize concurrent refreshes for this realm.
     RealmTruststoreEntry[] result = {null};
@@ -153,17 +169,32 @@ public class UrlTruststoreProviderFactory implements TruststoreProviderFactory {
         realmId,
         (id, existing) -> {
           if (existing != null && existing.url().equals(realmUrl)) {
+            log.infof(
+                "Realm-specific truststore for realm %s already loaded from: %s",
+                id, realmUrl);
             result[0] = existing;
             return existing;
           }
           log.infof(
               "Loading realm-specific truststore for realm %s from: %s", id, realmUrl);
-          UrlTruststoreProvider fresh = fetchAndBuild(realmUrl, policy);
+          UrlTruststoreProvider fresh;
+          try {
+            fresh = fetchAndBuild(realmUrl, policy);
+          } catch (RuntimeException e) {
+            log.warnf(
+                "No realm-specific CA exists at realm %s when fetching from %s — falling back to global"
+                    + " truststore. Cause: %s",
+                id, realmUrl, e.getMessage());
+            // Store sentinel (null provider) so we don't retry fetching on every request.
+            RealmTruststoreEntry sentinel = new RealmTruststoreEntry(realmUrl, null);
+            result[0] = sentinel;
+            return sentinel;
+          }
           RealmTruststoreEntry entry = new RealmTruststoreEntry(realmUrl, fresh);
           result[0] = entry;
           return entry;
         });
-    return result[0].provider();
+    return result[0].provider() != null ? result[0].provider() : provider;
   }
 
   @Override

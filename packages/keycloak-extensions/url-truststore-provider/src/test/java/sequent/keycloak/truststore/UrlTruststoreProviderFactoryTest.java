@@ -29,6 +29,12 @@ class UrlTruststoreProviderFactoryTest {
     return resource.toString();
   }
 
+  /** Returns the base URL for the test certs directory (with trailing slash). */
+  private static String certsBaseUrl() {
+    String url = certUrl("root-ca.pem");
+    return url.substring(0, url.lastIndexOf('/') + 1);
+  }
+
   /** Creates and initialises a factory using the given PEM URL as the global truststore. */
   private static UrlTruststoreProviderFactory initFactory(String globalUrl) {
     Config.Scope config = mock(Config.Scope.class);
@@ -40,16 +46,18 @@ class UrlTruststoreProviderFactoryTest {
     return factory;
   }
 
-  /** Creates a session mock whose realm returns the given truststore URL attribute (may be null). */
-  private static KeycloakSession sessionWithRealm(String realmId, String truststoreUrl) {
+  /**
+   * Creates a session mock whose realm returns the given realm name via {@code realm.getName()}.
+   * The factory constructs the truststore URL as {@code {urlsPath}client-ca-{realmName}.pem}.
+   */
+  private static KeycloakSession sessionWithRealm(String realmId, String realmName) {
     KeycloakSession session = mock(KeycloakSession.class);
     KeycloakContext ctx = mock(KeycloakContext.class);
     RealmModel realm = mock(RealmModel.class);
     when(session.getContext()).thenReturn(ctx);
     when(ctx.getRealm()).thenReturn(realm);
     when(realm.getId()).thenReturn(realmId);
-    when(realm.getAttribute(UrlTruststoreProviderFactory.REALM_ATTR_TRUSTSTORE_URL))
-        .thenReturn(truststoreUrl);
+    when(realm.getName()).thenReturn(realmName);
     return session;
   }
 
@@ -133,15 +141,16 @@ class UrlTruststoreProviderFactoryTest {
   // --- Realm-aware create() tests ---
 
   @Test
-  void createReturnsRealmSpecificProviderWhenAttributeIsSet() {
+  void createReturnsRealmSpecificProviderForRealm() {
     UrlTruststoreProviderFactory factory = initFactory(certUrl("root-ca.pem"));
-    // chain.pem contains both root + intermediate; root-ca.pem has only a root.
-    KeycloakSession session = sessionWithRealm("realm-1", certUrl("chain.pem"));
+    // Override env var reader — points to the test certs directory.
+    // realm-chain resolves to client-ca-realm-chain.pem (root + intermediate).
+    factory.urlsPathSupplier = () -> certsBaseUrl();
+    KeycloakSession session = sessionWithRealm("realm-1", "realm-chain");
 
     TruststoreProvider realmProvider = factory.create(session);
 
     assertNotNull(realmProvider);
-    // The realm provider was built from chain.pem — it should have both root and intermediate CAs.
     assertFalse(
         realmProvider.getRootCertificates().isEmpty(), "Expected root CA from realm truststore");
     assertFalse(
@@ -150,20 +159,22 @@ class UrlTruststoreProviderFactoryTest {
   }
 
   @Test
-  void createFallsBackToGlobalWhenNoRealmAttribute() {
+  void createFallsBackToGlobalWhenEnvVarNotSet() {
     UrlTruststoreProviderFactory factory = initFactory(certUrl("root-ca.pem"));
-    KeycloakSession sessionWithAttr = sessionWithRealm("realm-1", null);
+    factory.urlsPathSupplier = () -> null; // env var not configured
+    KeycloakSession sessionWithRealm = sessionWithRealm("realm-1", "realm-root");
     KeycloakSession sessionNoRealm = sessionWithNoRealm();
 
-    TruststoreProvider p1 = factory.create(sessionWithAttr);
+    TruststoreProvider p1 = factory.create(sessionWithRealm);
     TruststoreProvider p2 = factory.create(sessionNoRealm);
 
-    assertSame(p1, p2, "Both should be the global provider when no realm attribute is set");
+    assertSame(p1, p2, "Both should be the global provider when env var is not set");
   }
 
   @Test
   void createFallsBackToGlobalWhenNoRealmContext() {
     UrlTruststoreProviderFactory factory = initFactory(certUrl("root-ca.pem"));
+    factory.urlsPathSupplier = () -> certsBaseUrl();
 
     TruststoreProvider provider = factory.create(sessionWithNoRealm());
 
@@ -172,39 +183,61 @@ class UrlTruststoreProviderFactoryTest {
   }
 
   @Test
-  void createCachesRealmProviderForSameUrl() {
+  void createCachesRealmProvider() {
     UrlTruststoreProviderFactory factory = initFactory(certUrl("root-ca.pem"));
-    String realmUrl = certUrl("chain.pem");
+    factory.urlsPathSupplier = () -> certsBaseUrl();
 
-    TruststoreProvider p1 = factory.create(sessionWithRealm("realm-1", realmUrl));
-    TruststoreProvider p2 = factory.create(sessionWithRealm("realm-1", realmUrl));
+    TruststoreProvider p1 = factory.create(sessionWithRealm("realm-1", "realm-root"));
+    TruststoreProvider p2 = factory.create(sessionWithRealm("realm-1", "realm-root"));
 
-    assertSame(p1, p2, "Same realm + URL should return the cached provider instance");
+    assertSame(p1, p2, "Same realm should return the cached provider instance");
   }
 
   @Test
-  void createRefetchesWhenRealmUrlChanges() {
+  void createFallsBackToGlobalWhenRealmCertNotFound() {
     UrlTruststoreProviderFactory factory = initFactory(certUrl("root-ca.pem"));
+    factory.urlsPathSupplier = () -> certsBaseUrl();
+    // "master" has no matching client-ca-master.pem file — should silently use global provider.
+    KeycloakSession masterSession = sessionWithRealm("master-id", "master");
 
-    TruststoreProvider p1 = factory.create(sessionWithRealm("realm-1", certUrl("root-ca.pem")));
-    TruststoreProvider p2 = factory.create(sessionWithRealm("realm-1", certUrl("chain.pem")));
+    TruststoreProvider result = factory.create(masterSession);
 
-    assertNotSame(p1, p2, "Changed URL should cause a new provider to be loaded");
+    assertNotNull(result);
+    // Should be the global provider (built from root-ca.pem), not an error.
+    assertFalse(result.getRootCertificates().isEmpty(), "Should have global root CAs");
+    assertTrue(result.getIntermediateCertificates().isEmpty(), "Global provider has no intermediates");
+  }
+
+  @Test
+  void createCachesNotFoundSentinelToAvoidRetry() {
+    UrlTruststoreProviderFactory factory = initFactory(certUrl("root-ca.pem"));
+    factory.urlsPathSupplier = () -> certsBaseUrl();
+    KeycloakSession masterSession1 = sessionWithRealm("master-id", "master");
+    KeycloakSession masterSession2 = sessionWithRealm("master-id", "master");
+
+    TruststoreProvider p1 = factory.create(masterSession1);
+    TruststoreProvider p2 = factory.create(masterSession2);
+
+    // Both calls return the same global provider instance (sentinel is cached, no retry).
+    assertSame(p1, p2, "Missing-cert realms should return the same cached global provider");
   }
 
   @Test
   void differentRealmsGetIndependentProviders() {
     UrlTruststoreProviderFactory factory = initFactory(certUrl("root-ca.pem"));
+    factory.urlsPathSupplier = () -> certsBaseUrl();
 
-    TruststoreProvider pA = factory.create(sessionWithRealm("realm-a", certUrl("root-ca.pem")));
-    TruststoreProvider pB = factory.create(sessionWithRealm("realm-b", certUrl("chain.pem")));
+    // realm-a → client-ca-realm-root.pem (root only)
+    // realm-b → client-ca-realm-chain.pem (root + intermediate)
+    TruststoreProvider pA = factory.create(sessionWithRealm("realm-a", "realm-root"));
+    TruststoreProvider pB = factory.create(sessionWithRealm("realm-b", "realm-chain"));
 
     assertNotSame(pA, pB, "Different realms should get independent provider instances");
-    assertTrue(
-        pB.getIntermediateCertificates().isEmpty() == false,
-        "realm-b uses chain.pem so should have intermediate CAs");
+    assertFalse(
+        pB.getIntermediateCertificates().isEmpty(),
+        "realm-b uses realm-chain so should have intermediate CAs");
     assertTrue(
         pA.getIntermediateCertificates().isEmpty(),
-        "realm-a uses root-ca.pem so should have no intermediate CAs");
+        "realm-a uses realm-root so should have no intermediate CAs");
   }
 }
