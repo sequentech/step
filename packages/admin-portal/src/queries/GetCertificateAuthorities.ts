@@ -5,8 +5,11 @@
 import {gql} from "@apollo/client"
 
 export const GET_CERTIFICATE_AUTHORITIES = gql`
-    query GetCertificateAuthorities {
-        sequent_backend_certificate_authority(order_by: {created_at: asc}) {
+    query GetCertificateAuthorities($electionEventId: uuid!) {
+        sequent_backend_certificate_authority(
+            where: {election_event_id: {_eq: $electionEventId}}
+            order_by: {created_at: asc}
+        ) {
             id
             common_name
             issuer_common_name

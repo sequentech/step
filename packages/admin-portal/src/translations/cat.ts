@@ -167,7 +167,6 @@ const catalanTranslation: TranslationType = {
                 schedules: "ESDEVENIMENTS PROGRAMATS",
                 trustees: "AUTORITATS",
                 BackupRestore: "SAUVEGARDE / RESTAURATION",
-                certificateAuthorities: "Autoritats de certificació",
             },
         },
         trusteesSettingsScreen: {
@@ -2207,7 +2206,8 @@ const catalanTranslation: TranslationType = {
                 deleteSuccess: "Certificat eliminat.",
                 deleteError: "Error en eliminar el certificat.",
             },
-            emptyHeader: "No s'han importat autoritats de certificació.",
+            emptyHeader:
+                "No s'han importat autoritats de certificació per a aquest esdeveniment electoral.",
             fileReadError: "Error en llegir el fitxer.",
             viewDialog: {
                 title: "Detalls de l'autoritat de certificació",
@@ -2218,7 +2218,7 @@ const catalanTranslation: TranslationType = {
             },
             confirmDelete: "Eliminar autoritat de certificació",
             confirmDeleteDescription:
-                'Esteu segurs que voleu eliminar el certificat "{{name}}" (empremta: {{fingerprint}})?',
+                "Esteu segurs que voleu eliminar el certificat \"{{name}}\" (empremta: {{fingerprint}})?",
         },
     },
 }

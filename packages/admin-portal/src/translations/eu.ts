@@ -167,7 +167,6 @@ const basqueTranslation: TranslationType = {
                 schedules: "PROGRAMATUTAKO GERTAERAK",
                 trustees: "FIDEIKOMISARIOAK",
                 BackupRestore: "Babeskopia / Leheneratu",
-                certificateAuthorities: "Ziurtagiri-agintaritzak",
             },
         },
         trusteesSettingsScreen: {
@@ -2190,7 +2189,8 @@ const basqueTranslation: TranslationType = {
                 deleteSuccess: "Ziurtagiria ezabatuta.",
                 deleteError: "Errorea ziurtagiria ezabatzean.",
             },
-            emptyHeader: "Ez da ziurtagiri-agintaritzarik inportatu.",
+            emptyHeader:
+                "Ez da ziurtagiri-agintaritzarik inportatu hauteskunde-ekitaldi honetarako.",
             fileReadError: "Fitxategia irakurtzean huts egin du.",
             viewDialog: {
                 title: "Ziurtagiri-agintaritzaren xehetasunak",
@@ -2201,7 +2201,7 @@ const basqueTranslation: TranslationType = {
             },
             confirmDelete: "Ziurtagiri-agintaritza ezabatu",
             confirmDeleteDescription:
-                'Ziur al zaude "{{name}}" ziurtagiria (hatz-marka: {{fingerprint}}) ezabatu nahi duzula?',
+                "Ziur al zaude \"{{name}}\" ziurtagiria (hatz-marka: {{fingerprint}}) ezabatu nahi duzula?",
         },
     },
 }

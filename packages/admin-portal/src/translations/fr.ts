@@ -167,7 +167,6 @@ const frenchTranslation: TranslationType = {
                 schedules: "ÉVÉNEMENTS PROGRAMMÉS",
                 trustees: "AUTORITÉS",
                 BackupRestore: "SAUVEGARDE / RESTAURATION",
-                certificateAuthorities: "Autorités de certification",
             },
         },
         trusteesSettingsScreen: {
@@ -2211,7 +2210,8 @@ const frenchTranslation: TranslationType = {
                 deleteSuccess: "Certificat supprimé.",
                 deleteError: "Erreur lors de la suppression du certificat.",
             },
-            emptyHeader: "Aucune autorité de certification n'a été importée.",
+            emptyHeader:
+                "Aucune autorité de certification n'a été importée pour cet événement électoral.",
             fileReadError: "Échec de la lecture du fichier.",
             viewDialog: {
                 title: "Détails de l'autorité de certification",
@@ -2222,7 +2222,7 @@ const frenchTranslation: TranslationType = {
             },
             confirmDelete: "Supprimer l'autorité de certification",
             confirmDeleteDescription:
-                'Êtes-vous sûr de vouloir supprimer le certificat "{{name}}" (empreinte : {{fingerprint}}) ?',
+                "Êtes-vous sûr de vouloir supprimer le certificat \"{{name}}\" (empreinte : {{fingerprint}}) ?",
         },
     },
 }

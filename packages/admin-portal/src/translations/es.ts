@@ -168,7 +168,6 @@ const spanishTranslation: TranslationType = {
                 schedules: "EVENTOS PROGRAMADOS",
                 trustees: "AUTORIDADES",
                 BackupRestore: "COPIA DE SEGURIDAD / RESTAURAR",
-                certificateAuthorities: "Autoridades de certificación",
             },
         },
         trusteesSettingsScreen: {
@@ -2200,7 +2199,8 @@ const spanishTranslation: TranslationType = {
                 deleteSuccess: "Certificado eliminado.",
                 deleteError: "Error al eliminar el certificado.",
             },
-            emptyHeader: "No se han importado autoridades de certificación.",
+            emptyHeader:
+                "No se han importado autoridades de certificación para este evento electoral.",
             fileReadError: "Error al leer el archivo.",
             viewDialog: {
                 title: "Detalles de la autoridad de certificación",
@@ -2211,7 +2211,7 @@ const spanishTranslation: TranslationType = {
             },
             confirmDelete: "Eliminar autoridad de certificación",
             confirmDeleteDescription:
-                '¿Está seguro de que desea eliminar el certificado "{{name}}" (huella: {{fingerprint}})?',
+                "¿Está seguro de que desea eliminar el certificado \"{{name}}\" (huella: {{fingerprint}})?",
         },
     },
 }

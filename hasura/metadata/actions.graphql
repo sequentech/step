@@ -1640,6 +1640,7 @@ type GeneratePreviewUrlOutput {
 
 type Mutation {
     import_certificate_authority(
+        election_event_id: uuid!
         pem_content: String!
     ): ImportCertificateAuthorityOutput
 }

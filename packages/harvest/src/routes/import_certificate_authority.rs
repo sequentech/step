@@ -19,6 +19,7 @@ use windmill::services::database::get_hasura_pool;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct ImportCertificateAuthorityInput {
+    election_event_id: uuid::Uuid,
     pem_content: String,
 }
 
@@ -37,11 +38,10 @@ pub async fn import_certificate_authority(
 ) -> Result<Json<ImportCertificateAuthorityOutput>, (Status, String)> {
     let tenant_id_str = claims.hasura_claims.tenant_id.clone();
 
-    // Only the super-admin tenant is allowed to manage certificate authorities.
     authorize(
         &claims,
         true,
-        None,
+        Some(tenant_id_str.clone()),
         vec![Permissions::CA_WRITE],
     )?;
 
@@ -79,6 +79,7 @@ pub async fn import_certificate_authority(
                 let record = CertificateAuthorityRecord {
                     id: Uuid::new_v4(),
                     tenant_id: tenant_uuid,
+                    election_event_id: body.election_event_id,
                     common_name: parsed.common_name,
                     subject: parsed.subject,
                     issuer_common_name: parsed.issuer_common_name,

@@ -4,21 +4,30 @@
 
 use rocket::http::{ContentType, Status};
 use tracing::instrument;
+use uuid::Uuid;
 use windmill::postgres::certificate_authority::get_certificate_authorities_pem;
 use windmill::services::database::get_hasura_pool;
 
-/// Returns all CA certificates as a concatenated PEM bundle
-/// (plain text, no authentication required).
+/// Returns all CA certificates for the given election event as a
+/// concatenated PEM bundle (plain text, no authentication required).
 #[instrument]
-#[get("/certificate-authorities/pem", format = "any")]
-pub async fn get_cas_pem() -> Result<(ContentType, String), (Status, String)> {
+#[get(
+    "/election-event/<election_event_id>/certificate-authorities/pem",
+    format = "any"
+)]
+pub async fn get_cas_pem(
+    election_event_id: &str,
+) -> Result<(ContentType, String), (Status, String)> {
+    let election_event_uuid = Uuid::parse_str(election_event_id)
+        .map_err(|e| (Status::BadRequest, format!("Invalid election_event_id: {e}")))?;
+
     let hasura_db_client = get_hasura_pool()
         .await
         .get()
         .await
         .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
 
-    let pems = get_certificate_authorities_pem(&hasura_db_client)
+    let pems = get_certificate_authorities_pem(&hasura_db_client, election_event_uuid)
         .await
         .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
 
