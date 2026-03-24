@@ -15,6 +15,7 @@ import {useAtomValue} from "jotai"
 import {tallyQueryData} from "@/atoms/tally-candidates"
 import {Box} from "@mui/material"
 import {Loader} from "@sequentech/ui-essentials"
+import {getDefaultElectionLang} from "@/hooks/useDefaultElectionLang"
 
 interface TallyElectionsResultsProps {
     tenantId: string | null
@@ -70,6 +71,17 @@ export const TallyElectionsResults: React.FC<TallyElectionsResultsProps> = (prop
         [tallyData?.sequent_backend_results_election]
     )
 
+    const defaultLangByElectionId = useMemo(() => {
+        const map = new Map<string, string | undefined>()
+        elections?.forEach((election) => {
+            map.set(
+                election.id,
+                getDefaultElectionLang(tallyData, election.id, election.election_event_id)
+            )
+        })
+        return map
+    }, [elections, tallyData?.sequent_backend_election_event])
+
     const isTallyDataMatchCurrentResults = useMemo(() => {
         return !!tallyData?.sequent_backend_results_event.find(
             (event) => event.id === resultsEventId
@@ -110,9 +122,8 @@ export const TallyElectionsResults: React.FC<TallyElectionsResultsProps> = (prop
             headerName: t("tally.table.elections"),
             flex: 1,
             editable: false,
-            renderCell: (props: GridRenderCellParams<any, string>) => {
-                return aliasRenderer(props.row.presentation)
-            },
+            renderCell: (props: GridRenderCellParams<any, string>) =>
+                aliasRenderer(props.row.presentation, defaultLangByElectionId.get(props.row.id)),
         },
         {
             field: "elegible_census",

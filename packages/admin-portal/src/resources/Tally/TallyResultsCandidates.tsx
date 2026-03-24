@@ -28,6 +28,7 @@ import {formatPercentOne, isNumber} from "@sequentech/ui-core"
 import {useAtomValue} from "jotai"
 import {tallyQueryData} from "@/atoms/tally-candidates"
 import {useAliasRenderer} from "@/hooks/useAliasRenderer"
+import {useDefaultElectionLang} from "@/hooks/useDefaultElectionLang"
 
 interface TallyResultsCandidatesProps {
     areaId: string | null | undefined
@@ -86,6 +87,8 @@ export const TallyResultsCandidates: React.FC<TallyResultsCandidatesProps> = (pr
         [tallyData?.sequent_backend_results_area_contest_candidate, contestId, electionId]
     )
 
+    const defaultElectionLang = useDefaultElectionLang(electionId, electionEventId)
+
     useEffect(() => {
         if (results && candidates) {
             const temp: Array<Sequent_Backend_Candidate_Extended> | undefined = candidates?.map(
@@ -117,7 +120,7 @@ export const TallyResultsCandidates: React.FC<TallyResultsCandidatesProps> = (pr
             editable: false,
             align: "left",
             renderCell: (props: GridRenderCellParams<any, string>) => {
-                return aliasRenderer(props.row.presentation)
+                return aliasRenderer(props.row.presentation, defaultElectionLang)
             },
         },
         {
