@@ -155,7 +155,7 @@ impl Pipe for DecodeMCBallots {
 
                         for dbc in decoded_ballots {
                             let decoded_contests = map_decoded_ballot_choices_to_decoded_contests(
-                                dbc.clone(),
+                                &dbc,
                                 &contests,
                             )
                             .map_err(|err| Error::UnexpectedError(err))?;

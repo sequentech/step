@@ -10,22 +10,31 @@ use strum_macros::Display;
 use tempfile::NamedTempFile;
 
 #[derive(Debug, Display)]
+/// Errors that can occur during the integrity check of a file.
 pub enum HashFileVerifyError {
     #[strum(serialize = "io-error")]
-    IoError(String, std::io::Error), // Error reading voters file
+    /// Error reading voters file
+    IoError(String, std::io::Error),
     #[strum(serialize = "hash-mismatch")]
-    HashMismatch(String, String), // Voters file hash does not match
+    /// Voters file hash does not match
+    HashMismatch(String, String),
     #[strum(serialize = "hash-computing-error")]
-    HashComputingError(String, StrandError), // Error computing the hash
+    /// Error computing the hash
+    HashComputingError(String, StrandError),
 }
 
 impl std::error::Error for HashFileVerifyError {}
 
+/// Checks the integrity of a file by comparing its SHA-256 hash.
+///
+/// # Errors
+/// Returns an error if the file cannot be opened, read, or if the hash does not match.
 pub fn integrity_check(
     temp_file_path: &NamedTempFile,
     sha256: String,
 ) -> Result<(), HashFileVerifyError> {
-    let sha256 = sha256.to_lowercase();
+    let mut sha256 = sha256;
+    sha256.make_ascii_lowercase();
     let mut file = File::open(temp_file_path).map_err(|err| {
         HashFileVerifyError::IoError(
             "Error opening the temp file.".to_string(),

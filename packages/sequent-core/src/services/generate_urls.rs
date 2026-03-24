@@ -3,16 +3,20 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 #[derive(Debug)]
+/// Represents the type of authentication action.
+#[allow(missing_docs)]
 pub enum AuthAction {
     Login,
     Enroll,
 }
 
+#[must_use]
+/// Generate an authentication URL for a given tenant, event, and action (login or enroll).
 pub fn get_auth_url(
     base_url: &str,
     tenant_id: &str,
     event_id: &str,
-    auth_action: AuthAction,
+    auth_action: &AuthAction,
 ) -> String {
     let action_str = match auth_action {
         AuthAction::Login => "login",

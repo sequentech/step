@@ -950,7 +950,7 @@ impl BallotChoices {
 /// # Errors
 /// Returns an error if encoding or decoding fails, or if the input and output contests do not match.
 pub fn test_multi_contest_reencoding(
-    decoded_multi_contests: &Vec<DecodedVoteContest>,
+    decoded_multi_contests: &[DecodedVoteContest],
     ballot_style: &BallotStyle,
 ) -> Result<Vec<DecodedVoteContest>, String> {
     // encode ballot
@@ -967,7 +967,7 @@ pub fn test_multi_contest_reencoding(
 
     let output_decoded_contests =
         map_decoded_ballot_choices_to_decoded_contests(
-            decoded_ballot_choices,
+            &decoded_ballot_choices,
             &ballot_style.contests,
         )
         .map_err(|err| format!("Error mapping decoded contests {err}"))?;

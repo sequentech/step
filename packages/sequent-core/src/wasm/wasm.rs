@@ -1007,7 +1007,7 @@ pub fn get_auth_url_js(
 
     // return result
     let auth_url: String =
-        get_auth_url(&base_url, &tenant_id, &event_id, auth_action);
+        get_auth_url(&base_url, &tenant_id, &event_id, &auth_action);
     serde_wasm_bindgen::to_value(&auth_url)
         .map_err(|err| format!("Error writing javascript string: {err}",))
         .into_json()

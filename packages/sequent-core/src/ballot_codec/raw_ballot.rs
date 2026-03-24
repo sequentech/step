@@ -117,7 +117,6 @@ impl RawBallotCodec for Contest {
                 Ok(rem.div_ceil(base) as i32)
             }
         } else {
-            // div_floor for negative numbers
             #[allow(clippy::arithmetic_side_effects)]
             let div = remaining_bits / base_bits;
             #[allow(clippy::arithmetic_side_effects)]

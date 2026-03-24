@@ -11,11 +11,12 @@ use crate::{
     types::ceremonies::CountingAlgType,
 };
 
+#[must_use]
 pub fn normalize_vote_contest(
     input: &DecodedVoteContest,
     tally_type: CountingAlgType,
     remove_errors: bool,
-    invalid_choice_ids: &Vec<String>,
+    invalid_choice_ids: &[String],
 ) -> DecodedVoteContest {
     let mut original = input.clone();
     let filtered_choices: Vec<&DecodedVoteChoice> = original
@@ -36,8 +37,12 @@ pub fn normalize_vote_contest(
     original
 }
 
+/// Normalizes all contests in an election.
+///
+/// # Errors
+/// Returns an error if a contest cannot be found in the ballot style.
 pub fn normalize_election(
-    input: &Vec<DecodedVoteContest>,
+    input: &[DecodedVoteContest],
     ballot_style: &BallotStyle,
     remove_errors: bool,
 ) -> Result<Vec<DecodedVoteContest>> {
@@ -48,8 +53,7 @@ pub fn normalize_election(
         .map(|contest| (contest.id.clone(), contest))
         .collect();
     let mut result: Vec<DecodedVoteContest> = input
-        .clone()
-        .into_iter()
+        .iter()
         .map(|decoded_contest| -> Result<DecodedVoteContest> {
             let contest = contest_map
                 .get(&decoded_contest.contest_id)
@@ -60,7 +64,7 @@ pub fn normalize_election(
                 ))?;
             let invalid_candidate_ids = contest.get_invalid_candidate_ids();
             Ok(normalize_vote_contest(
-                &decoded_contest,
+                decoded_contest,
                 contest.get_counting_algorithm(),
                 remove_errors,
                 &invalid_candidate_ids,
@@ -73,6 +77,7 @@ pub fn normalize_election(
     Ok(result)
 }
 
+#[must_use]
 pub fn normalize_vote_choice(
     input: &DecodedVoteChoice,
     tally_type: CountingAlgType,
@@ -88,15 +93,7 @@ pub fn normalize_vote_choice(
         };
     }
 
-    original.write_in_text = match original.write_in_text {
-        Some(text) => {
-            if text.len() > 0 {
-                Some(text)
-            } else {
-                None
-            }
-        }
-        None => None,
-    };
+    original.write_in_text =
+        original.write_in_text.filter(|text| !text.is_empty());
     original
 }

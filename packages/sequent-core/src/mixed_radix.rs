@@ -2,9 +2,16 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use num_bigint::{BigUint, ToBigUint};
-use num_traits::{One, ToPrimitive, Zero};
+use num_traits::{CheckedAdd, CheckedMul, One, ToPrimitive, Zero};
 
-pub fn encode(values: &Vec<u64>, bases: &Vec<u64>) -> Result<BigUint, String> {
+/// Encodes a list of values into a single `BigUint`.
+///
+/// # Errors
+/// Returns an error if the input slices are not the same length.
+///
+/// # Panics
+/// Panics if a value or base cannot be converted to `BigUint` (should never happen for u64).
+pub fn encode(values: &[u64], bases: &[u64]) -> Result<BigUint, String> {
     if bases.len() != values.len() {
         return Err(
             format!("Invalid parameters: 'valueList' (size = {}) and 'baseList' (size = {}) must have the same length.", values.len(), bases.len())
@@ -13,15 +20,41 @@ pub fn encode(values: &Vec<u64>, bases: &Vec<u64>) -> Result<BigUint, String> {
     let mut encoded: BigUint = Zero::zero();
     let mut acc_base: BigUint = One::one();
 
-    for i in 0..bases.len() {
-        encoded += &acc_base * values[i].to_biguint().unwrap();
-        acc_base = &acc_base * bases[i].to_biguint().unwrap();
+    for (&value, &base) in values.iter().zip(bases.iter()) {
+        let value_bigint = value.to_biguint().ok_or_else(|| {
+            format!("Failed to convert value {value} to BigUint")
+        })?;
+
+        encoded = encoded
+            .checked_add(
+                &acc_base
+                    .checked_mul(&value_bigint)
+                    .expect("Multiplication overflow when encoding value"),
+            )
+            .ok_or_else(|| {
+                "Addition overflow when encoding value".to_string()
+            })?;
+
+        let base_bigint = base.to_biguint().ok_or_else(|| {
+            format!("Failed to convert base {base} to BigUint")
+        })?;
+        acc_base = acc_base
+            .checked_mul(&base_bigint)
+            .expect("Multiplication overflow when encoding base");
     }
+
     Ok(encoded)
 }
 
+/// Decodes a `BigUint` into a list of values.
+///
+/// # Errors
+/// Returns an error if a value cannot be converted to u64.
+///
+/// # Panics
+/// Panics if a base cannot be converted to `BigUint` (should never happen for u64).
 pub fn decode(
-    bases: &Vec<u64>,
+    bases: &[u64],
     encoded_value: &BigUint,
     last_base: u64,
 ) -> Result<Vec<u64>, String> {
@@ -29,24 +62,31 @@ pub fn decode(
     let mut accumulator: BigUint = encoded_value.clone();
     let mut index = 0usize;
 
+    #[allow(clippy::arithmetic_side_effects)]
     while accumulator > Zero::zero() {
-        let base: BigUint = (if index < bases.len() {
-            bases[index]
-        } else {
-            last_base
-        })
-        .to_biguint()
-        .unwrap();
+        let base_val = bases.get(index).copied().unwrap_or(last_base);
+        let base: BigUint = base_val
+            .to_biguint()
+            .expect("u64 to BigUint conversion failed");
         let remainder = &accumulator % &base;
-        values.push(remainder.to_u64().unwrap());
+        let value = remainder
+            .to_u64()
+            .ok_or_else(|| "Failed to convert BigUint to u64".to_string())?;
+        values.push(value);
+
         accumulator = (&accumulator - &remainder) / &base;
-        index += 1;
+
+        index = index
+            .checked_add(1)
+            .ok_or_else(|| "Index overflow".to_string())?;
     }
 
     // If we didn't run all the bases, fill the rest with zeros
     while index < bases.len() {
         values.push(0);
-        index += 1;
+        index = index
+            .checked_add(1)
+            .ok_or_else(|| "Index overflow".to_string())?;
     }
 
     // finish last write-in with a 0

@@ -114,11 +114,13 @@ pub fn get_points(
     match contest.get_counting_algorithm() {
         CountingAlgType::PluralityAtLarge => Some(1),
         CountingAlgType::Borda => {
-            Some((contest.max_votes as i64) - candidate.selected)
+            contest.max_votes.checked_sub(candidate.selected)
         }
         // "borda-mas-madrid" => return scope.contest.max -
         // scope.option.selected
-        CountingAlgType::BordaNauru => Some(1 + candidate.selected), /* 1 / (1 + candidate. */
+        CountingAlgType::BordaNauru | CountingAlgType::Cumulative => {
+            candidate.selected.checked_add(1)
+        } /* 1 / (1 + candidate. */
         // selected)
         /*"desborda3" => Some(cmp::max(
             1,
@@ -130,8 +132,7 @@ pub fn get_points(
             (((contest.num_winners as f64) * 1.3) - (candidate.selected as f64))
                 .trunc() as i64,
         )),*/
-        CountingAlgType::Desborda => Some(80 - candidate.selected),
-        CountingAlgType::Cumulative => Some(candidate.selected + 1),
+        CountingAlgType::Desborda => 80i64.checked_sub(candidate.selected),
         _ => None,
     }
 }

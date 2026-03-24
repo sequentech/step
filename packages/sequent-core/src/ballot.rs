@@ -1713,6 +1713,7 @@ impl Default for ContestPresentation {
     }
 }
 
+/// Contest data structure.
 #[derive(
     BorshSerialize,
     BorshDeserialize,
@@ -1725,6 +1726,7 @@ impl Default for ContestPresentation {
     Clone,
     Default,
 )]
+#[allow(missing_docs)]
 pub struct Contest {
     pub id: String,
     /// Tenant identifier.

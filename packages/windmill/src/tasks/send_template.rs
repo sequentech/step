@@ -78,7 +78,7 @@ fn get_variables(
                     .as_str(),
                 &tenant_id,
                 &election_event.id,
-                auth_action
+                &auth_action
             )),
         );
     }

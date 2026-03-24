@@ -4,6 +4,7 @@
 
 /// Returns all MIME types for the given file extension.
 /// Falls back to `["application/json"]` if none is found.
+#[must_use]
 pub fn get_mime_types(extension: &str) -> &'static [&'static str] {
     // Static array of (extension, list-of-mime-types) tuples.
     static MIME_TYPES: [(&str, &[&str]); 27] = [
@@ -47,7 +48,7 @@ pub fn get_mime_types(extension: &str) -> &'static [&'static str] {
     ];
 
     // Simple linear lookup through our static array
-    for (ext, mimes) in MIME_TYPES.iter() {
+    for (ext, mimes) in &MIME_TYPES {
         if *ext == extension {
             return mimes;
         }
@@ -58,6 +59,7 @@ pub fn get_mime_types(extension: &str) -> &'static [&'static str] {
 }
 
 /// Checks if a given extension is associated with the specified MIME type.
+#[must_use]
 pub fn matches_mime(extension: &str, mime_type: &str) -> bool {
     get_mime_types(extension).contains(&mime_type)
 }
