@@ -15,6 +15,8 @@ fn create_runoff_status_simple() -> RunoffStatus {
         rounds: Vec::new(),
         max_rounds: 1,
         name_references: Vec::new(),
+        tie_resolutions: vec![],
+        ..Default::default()
     }
 }
 
@@ -44,6 +46,8 @@ fn create_runoff_status(active_candidate_ids: Vec<&str>) -> RunoffStatus {
         rounds: Vec::new(),
         max_rounds,
         name_references,
+        tie_resolutions: vec![],
+        ..Default::default()
     }
 }
 
@@ -436,7 +440,10 @@ fn test_preferential_order_error_duplicated_position() {
     };
 
     let result = vote.validate_preferencial_order();
-    assert_eq!(result, Err(PreferencialOrderErrorType::DuplicatedPosition));
+    assert_eq!(
+        result,
+        Err(vec![PreferencialOrderErrorType::DuplicatedPosition])
+    );
 }
 
 #[test]
@@ -458,7 +465,7 @@ fn test_preferential_order_error_preference_order_with_gaps() {
     let result = vote.validate_preferencial_order();
     assert_eq!(
         result,
-        Err(PreferencialOrderErrorType::PreferenceOrderWithGaps)
+        Err(vec![PreferencialOrderErrorType::PreferenceOrderWithGaps])
     );
 }
 

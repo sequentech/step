@@ -439,6 +439,7 @@ const spanishTranslation: TranslationType = {
                 notifications: "Notificaciones",
                 reports: "Informe",
                 approvals: "Aprobaciones",
+                cas: "CAs",
             },
             tally: {
                 emptyHeader: "Ningún Recuento aún.",
@@ -639,6 +640,13 @@ const spanishTranslation: TranslationType = {
                 options: {
                     "election": "Elección",
                     "election-event": "Evento Electoral",
+                },
+            },
+            consolidatedReportPolicy: {
+                label: "Política de informe consolidado",
+                options: {
+                    "generate": "Generar",
+                    "do-not-generate": "No generar",
                 },
             },
         },
@@ -1323,8 +1331,12 @@ const spanishTranslation: TranslationType = {
                 "plurality-at-large": "Mayoría Plural",
                 "instant-runoff": "Segunda Vuelta Instantánea",
                 "random": "Aleatorias",
+                "external-procedure": "Procedimiento externo",
                 "custom": "Personalizado",
                 "alphabetical": "Alfabético",
+            },
+            tieBreakingPolicy: {
+                label: "Política de desempate",
             },
             auditButtonConfig: {
                 "label": "Opciones de visualización del botón de auditoría",
@@ -1372,6 +1384,20 @@ const spanishTranslation: TranslationType = {
                 "not-allowed-with-msg-and-alert": "No permitido con un mensaje de warning y alerta",
                 "not-allowed-with-msg-and-disable":
                     "No permitido con un mensaje de warning y dehabilitar selecciones adicionales",
+            },
+            duplicatedRankPolicy: {
+                "label": "Voto inválido - Política de rango duplicado",
+                "allowed-warn-and-dialog":
+                    "Mostrar advertencia y diálogo (el votante puede continuar)",
+                "not-allowed-warn-and-dialog":
+                    "Mostrar advertencia y diálogo (el votante no puede continuar)",
+            },
+            preferenceGapsPolicy: {
+                "label": "Voto inválido - Política de rangos omitidos",
+                "allowed-warn-and-dialog":
+                    "Mostrar advertencia y diálogo (el votante puede continuar)",
+                "not-allowed-warn-and-dialog":
+                    "Mostrar advertencia y diálogo (el votante no puede continuar)",
             },
             paginationPolicy: {
                 label: "Nombre de la página",
@@ -1685,6 +1711,37 @@ const spanishTranslation: TranslationType = {
                     round: "Ronda",
                 },
             },
+            pendingResolutions: {
+                round: "Ronda {{round}}",
+                tieResolutionRequired: "Resolución de empate necesaria",
+                tieResolved: "Empate resuelto",
+                globalArea: "Global",
+                pendingResolutionsHeader: "Resoluciones pendientes",
+                pendingResolutionStatus: "Resolución pendiente",
+                resolvedStatus: "Resuelta",
+                resolutionTitle: "Resolución",
+                selectContest: "Seleccione un elemento a la izquierda para ver los detalles",
+                selectCandidateToAdvance: "Seleccione el candidato a avanzar",
+                undoResolution: "Deshacer resolución",
+                applyResolutions: "Aplicar resoluciones y recalcular",
+                submitSuccess: "Resoluciones enviadas. El recuento está reanudando...",
+                submitError: "Error al enviar las resoluciones. Por favor, inténtelo de nuevo.",
+                filter: "Filtrar",
+                save: "Guardar",
+                pendingApplyStatus: "Cálculo pendiente",
+                filterElection: "Elección",
+                filterContest: "Concurso",
+                filterArea: "Área",
+                filterStatusLabel: "Estado",
+                clearFilters: "Borrar filtros",
+                candidateWithVotes: "{{name}} ({{votes}} votos)",
+                candidateWithVotesAndPercent: "{{name}} ({{votes}} votos, {{percent}}%)",
+                tieInfoTitle: "Recuento pausado por empate sin resolver (Ronda {{round}})",
+                tieInfoBody:
+                    "Candidatos empatados ({{votes}} votos, {{percent}}%): {{candidates}}. Se requiere desempate manual para continuar el recuento.",
+                tallyResumedTitle: "Recuento reanudado tras aplicar la resolución",
+                tallyResumedBody: "El empate fue resuelto el {{date}} por {{user}}",
+            },
             chart: {
                 votesForCandidates: "Votos por Candidatos",
                 blankVotes: "Votos en Blanco",
@@ -1692,6 +1749,8 @@ const spanishTranslation: TranslationType = {
                 totalVoters: "Total de Votantes",
                 nonVoters: "No Votantes",
             },
+            exportAllAreas:
+                "Exportar los resultados de todas las áreas en formato {{format}} para '{{item}}'",
         },
         publish: {
             preview: {
@@ -2104,6 +2163,55 @@ const spanishTranslation: TranslationType = {
                 title: "Pruebas",
                 testElectionVoterCount: "Conteo de Votantes en Elección de Prueba",
             },
+        },
+        certificateAuthorities: {
+            importButton: "Importar certificados",
+            type: {
+                root: "Raíz",
+                intermediate: "Intermedio",
+            },
+            expiry: {
+                expired: "Vencido",
+                expiringSoon: "Por vencer",
+                valid: "Válido",
+            },
+            columns: {
+                commonName: "Nombre común",
+                type: "Tipo",
+                issuerCn: "CN del emisor",
+                notBefore: "Válido desde",
+                notAfter: "Vence",
+                fingerprint: "Huella SHA256",
+            },
+            importDialog: {
+                title: "Importar autoridades de certificación",
+                subtitle: "Importar uno o más certificados CA desde un archivo PEM",
+                description:
+                    "Seleccione un archivo PEM que contenga uno o más certificados. Se admiten paquetes — cada certificado se importa individualmente.",
+                selectFile: "Seleccionar archivo PEM",
+                fileLoaded: "Archivo cargado ({{bytes}} bytes)",
+                importButton: "Importar",
+            },
+            notify: {
+                importSuccess:
+                    "Se importaron {{inserted}} certificado(s). {{skipped}} omitido(s) (ya presentes).",
+                importError: "Error al importar: {{error}}",
+                deleteSuccess: "Certificado eliminado.",
+                deleteError: "Error al eliminar el certificado.",
+            },
+            emptyHeader:
+                "No se han importado autoridades de certificación para este evento electoral.",
+            fileReadError: "Error al leer el archivo.",
+            viewDialog: {
+                title: "Detalles de la autoridad de certificación",
+                subject: "Asunto",
+                issuer: "Emisor",
+                serialNumber: "Número de serie",
+                pemContent: "Contenido PEM",
+            },
+            confirmDelete: "Eliminar autoridad de certificación",
+            confirmDeleteDescription:
+                "¿Está seguro de que desea eliminar el certificado \"{{name}}\" (huella: {{fingerprint}})?",
         },
     },
 }

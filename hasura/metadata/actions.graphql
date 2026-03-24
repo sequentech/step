@@ -613,6 +613,22 @@ type Mutation {
         tally_session_id: uuid!
         status: String!
     ): StartTallyOutput
+    submit_tally_resolution(
+        election_event_id: uuid!
+        tally_session_id: uuid!
+        resolutions: [TallyResolutionInput!]!
+    ): SubmitTallyResolutionOutput
+}
+
+input TallyResolutionInput {
+    contest_id: uuid!
+    selected_candidate_id: uuid!
+}
+
+type SubmitTallyResolutionOutput {
+    success: Boolean!
+    tally_session_id: String!
+    resolved_count: Int!
 }
 
 type Mutation {
@@ -1620,4 +1636,17 @@ type GenerateGoogleMeetOutput {
 
 type GeneratePreviewUrlOutput {
     preview_url: String!
+}
+
+type Mutation {
+    import_certificate_authority(
+        election_event_id: uuid!
+        pem_content: String!
+    ): ImportCertificateAuthorityOutput
+}
+
+type ImportCertificateAuthorityOutput {
+    inserted_count: Int!
+    skipped_count: Int!
+    errors: [String!]!
 }

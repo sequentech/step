@@ -438,6 +438,7 @@ const catalanTranslation: TranslationType = {
                 notifications: "Notificacions",
                 reports: "Informe",
                 approvals: "Aprovacions",
+                cas: "CAs",
             },
             tally: {
                 emptyHeader: "Encara no hi ha Recompte.",
@@ -639,6 +640,13 @@ const catalanTranslation: TranslationType = {
                 options: {
                     "election": "Títol de l'elecció",
                     "election-event": "Títol de l'esdeveniment electoral",
+                },
+            },
+            consolidatedReportPolicy: {
+                label: "Política d'informe consolidat",
+                options: {
+                    "generate": "Generar",
+                    "do-not-generate": "No generar",
                 },
             },
         },
@@ -1332,8 +1340,12 @@ const catalanTranslation: TranslationType = {
                 "plurality-at-large": "Majoria Plural",
                 "instant-runoff": "Segona Volta Instantània",
                 "random": "Aleatòries",
+                "external-procedure": "Procediment extern",
                 "custom": "Personalitzat",
                 "alphabetical": "Alfabètic",
+            },
+            tieBreakingPolicy: {
+                label: "Política de desempat",
             },
             auditButtonConfig: {
                 "label": "Opció de visualització del botó d'auditoria",
@@ -1381,6 +1393,18 @@ const catalanTranslation: TranslationType = {
                 "not-allowed-with-msg-and-alert": "No es permet amb missatge d'avís i alerta",
                 "not-allowed-with-msg-and-disable":
                     "No es permet amb missatge d'avís i desactiva més seleccions",
+            },
+            duplicatedRankPolicy: {
+                "label": "Vot invàlid - Política de rang duplicat",
+                "allowed-warn-and-dialog": "Mostrar advertiment i diàleg (el votant pot continuar)",
+                "not-allowed-warn-and-dialog":
+                    "Mostrar advertiment i diàleg (el votant no pot continuar)",
+            },
+            preferenceGapsPolicy: {
+                "label": "Vot invàlid - Política de rangs omesos",
+                "allowed-warn-and-dialog": "Mostrar advertiment i diàleg (el votant pot continuar)",
+                "not-allowed-warn-and-dialog":
+                    "Mostrar advertiment i diàleg (el votant no pot continuar)",
             },
             paginationPolicy: {
                 label: "Nom de la pàgina",
@@ -1694,6 +1718,37 @@ const catalanTranslation: TranslationType = {
                     round: "Ronda",
                 },
             },
+            pendingResolutions: {
+                round: "Ronda {{round}}",
+                tieResolutionRequired: "Cal resolució d'empat",
+                tieResolved: "Empat resolt",
+                globalArea: "Global",
+                pendingResolutionsHeader: "Resolucions pendents",
+                pendingResolutionStatus: "Resolució pendent",
+                resolvedStatus: "Resolta",
+                resolutionTitle: "Resolució",
+                selectContest: "Seleccioneu un element a l'esquerra per veure els detalls",
+                selectCandidateToAdvance: "Seleccioneu el candidat a avançar",
+                undoResolution: "Desfer la resolució",
+                applyResolutions: "Aplicar resolucions i recalcular",
+                submitSuccess: "Resolucions enviades. El recompte s'està reprenent...",
+                submitError: "Error en enviar les resolucions. Torneu-ho a intentar.",
+                filter: "Filtra",
+                save: "Desa",
+                pendingApplyStatus: "Càlcul pendent",
+                filterElection: "Elecció",
+                filterContest: "Concurs",
+                filterArea: "Àrea",
+                filterStatusLabel: "Estat",
+                clearFilters: "Esborrar filtres",
+                candidateWithVotes: "{{name}} ({{votes}} vots)",
+                candidateWithVotesAndPercent: "{{name}} ({{votes}} vots, {{percent}}%)",
+                tieInfoTitle: "Recompte pausat per empat sense resoldre (Ronda {{round}})",
+                tieInfoBody:
+                    "Candidats empatats ({{votes}} vots, {{percent}}%): {{candidates}}. Cal un desempat manual per continuar el recompte.",
+                tallyResumedTitle: "Recompte reprès després d'aplicar la resolució",
+                tallyResumedBody: "L'empat va ser resolt el {{date}} per {{user}}",
+            },
             chart: {
                 votesForCandidates: "Vots per Candidats",
                 blankVotes: "Vots en Blanc",
@@ -1701,6 +1756,8 @@ const catalanTranslation: TranslationType = {
                 totalVoters: "Total de Votants",
                 nonVoters: "No Votants",
             },
+            exportAllAreas:
+                "Exporta els resultats de totes les àrees en format {{format}} per a '{{item}}'",
         },
         publish: {
             preview: {
@@ -2113,6 +2170,55 @@ const catalanTranslation: TranslationType = {
                 title: "Proves",
                 testElectionVoterCount: "Comptatge de Votants a l'Elecció de Prova",
             },
+        },
+        certificateAuthorities: {
+            importButton: "Importar certificats",
+            type: {
+                root: "Arrel",
+                intermediate: "Intermedi",
+            },
+            expiry: {
+                expired: "Caducat",
+                expiringSoon: "Pròxim a caducar",
+                valid: "Vàlid",
+            },
+            columns: {
+                commonName: "Nom comú",
+                type: "Tipus",
+                issuerCn: "CN de l'emissor",
+                notBefore: "Vàlid des de",
+                notAfter: "Caduca",
+                fingerprint: "Empremta SHA256",
+            },
+            importDialog: {
+                title: "Importar autoritats de certificació",
+                subtitle: "Importar un o més certificats CA des d'un fitxer PEM",
+                description:
+                    "Seleccioneu un fitxer PEM que contingui un o més certificats. S'admeten paquets — cada certificat s'importa individualment.",
+                selectFile: "Seleccionar fitxer PEM",
+                fileLoaded: "Fitxer carregat ({{bytes}} bytes)",
+                importButton: "Importar",
+            },
+            notify: {
+                importSuccess:
+                    "S'han importat {{inserted}} certificat(s). {{skipped}} omès(os) (ja presents).",
+                importError: "Error en la importació: {{error}}",
+                deleteSuccess: "Certificat eliminat.",
+                deleteError: "Error en eliminar el certificat.",
+            },
+            emptyHeader:
+                "No s'han importat autoritats de certificació per a aquest esdeveniment electoral.",
+            fileReadError: "Error en llegir el fitxer.",
+            viewDialog: {
+                title: "Detalls de l'autoritat de certificació",
+                subject: "Assumpte",
+                issuer: "Emissor",
+                serialNumber: "Número de sèrie",
+                pemContent: "Contingut PEM",
+            },
+            confirmDelete: "Eliminar autoritat de certificació",
+            confirmDeleteDescription:
+                "Esteu segurs que voleu eliminar el certificat \"{{name}}\" (empremta: {{fingerprint}})?",
         },
     },
 }

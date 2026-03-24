@@ -234,12 +234,12 @@ export const WithValidationWarnings: Story = {
                     {
                         error_type: "Implicit",
                         message: "Too many candidates selected for this contest",
-                        message_map: new Map<string, string>(),
+                        message_map: {},
                     },
                     {
                         error_type: "Implicit",
                         message: "Minimum number of selections not met",
-                        message_map: new Map<string, string>(),
+                        message_map: {},
                     },
                 ] as any,
                 choices: [

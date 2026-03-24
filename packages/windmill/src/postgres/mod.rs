@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 pub mod application;
+pub mod certificate_authority;
 pub mod area;
 pub mod area_contest;
 pub mod ballot_publication;
@@ -32,6 +33,7 @@ pub mod secret;
 pub mod tally_session;
 pub mod tally_session_contest;
 pub mod tally_session_execution;
+pub mod tally_session_resolution;
 pub mod tally_sheet;
 pub mod tasks_execution;
 pub mod template;

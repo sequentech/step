@@ -4,6 +4,8 @@
 pub mod api_datafix;
 pub mod applications;
 pub mod areas;
+pub mod get_certificate_authorities_pem;
+pub mod import_certificate_authority;
 pub mod ballot_publication;
 pub mod ballot_publication_prepare_preview;
 pub mod create_ballot_receipt;
