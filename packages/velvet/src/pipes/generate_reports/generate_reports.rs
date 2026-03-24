@@ -475,6 +475,10 @@ impl GenerateReports {
                 .iter()
                 .map(|area| (area.id.clone(), area.clone()))
                 .collect();
+
+            let election_display_name =
+                resolve_election_display_name(&election_input.name, &election_input.alias);
+
             for contest_input in &election_input.contest_list {
                 let contest_result = self.read_contest_result(
                     &election_input.id,
@@ -493,7 +497,7 @@ impl GenerateReports {
                 )?;
 
                 reports.push(ReportData {
-                    election_name: election_input.alias.clone(),
+                    election_name: election_display_name.clone(),
                     election_id: election_input.id.to_string(),
                     election_description: election_input.description.clone(),
                     election_dates: election_input.dates.clone(),
@@ -524,7 +528,7 @@ impl GenerateReports {
                     )?;
 
                     reports.push(ReportData {
-                        election_name: election_input.name.clone(),
+                        election_name: election_display_name.clone(),
                         election_id: election_input.id.to_string(),
                         election_description: election_input.description.clone(),
                         election_dates: election_input.dates.clone(),
@@ -1209,5 +1213,37 @@ fn sort_candidates(candidates: &mut Vec<CandidateResult>, order_field: Candidate
         CandidatesOrder::Random => {
             // We don't randomize in results
         }
+    }
+}
+
+/// Alias takes priority over name when deciding the election display name used
+/// as the folder component in the tally output tree (and in report templates).
+/// An empty alias is treated as absent.
+pub fn resolve_election_display_name(name: &str, alias: &str) -> String {
+    if alias.is_empty() {
+        name.to_string()
+    } else {
+        alias.to_string()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_resolve_election_display_name_prefers_alias() {
+        assert_eq!(
+            resolve_election_display_name("General Election 2024", "GE 2024"),
+            "GE 2024"
+        );
+    }
+
+    #[test]
+    fn test_resolve_election_display_name_falls_back_to_name_when_alias_empty() {
+        assert_eq!(
+            resolve_election_display_name("General Election 2024", ""),
+            "General Election 2024"
+        );
     }
 }
