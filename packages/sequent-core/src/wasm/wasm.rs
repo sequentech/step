@@ -920,7 +920,7 @@ pub fn check_is_blank_js(
         serde_wasm_bindgen::from_value(decoded_contest_json)
             .map_err(|err| format!("Error parsing decoded contest: {}", err))
             .into_json()?;
-    let is_blank = check_is_blank(decoded_contest);
+    let is_blank = check_is_blank(&decoded_contest);
 
     serde_wasm_bindgen::to_value(&is_blank)
         .map_err(|err| {

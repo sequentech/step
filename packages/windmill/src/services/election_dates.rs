@@ -113,7 +113,7 @@ pub fn get_election_dates(
     let period_dates: PeriodDates = status.voting_period_dates;
     let mut dates = period_dates.to_string_fields();
 
-    if let Ok(scheduled_event_dates) = prepare_scheduled_dates(scheduled_events, Some(&election.id))
+    if let Ok(scheduled_event_dates) = prepare_scheduled_dates(scheduled_events.as_slice(), Some(&election.id))
     {
         dates.scheduled_event_dates = Some(scheduled_event_dates);
     }
