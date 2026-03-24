@@ -15,6 +15,7 @@ import {useAtomValue} from "jotai"
 import {tallyQueryData} from "@/atoms/tally-candidates"
 import {Box} from "@mui/material"
 import {Loader} from "@sequentech/ui-essentials"
+import {getDefaultElectionLang} from "@/hooks/useDefaultElectionLang"
 
 interface TallyElectionsResultsProps {
     tenantId: string | null
@@ -111,14 +112,12 @@ export const TallyElectionsResults: React.FC<TallyElectionsResultsProps> = (prop
             flex: 1,
             editable: false,
             renderCell: (props: GridRenderCellParams<any, string>) => {
-                let defaultLang: string | undefined
-                try {
-                    defaultLang = JSON.parse(props.row.presentation)?.language_conf
-                        ?.default_language_code
-                } catch {
-                    defaultLang = undefined
-                }
-                return aliasRenderer(props.row.presentation, defaultLang)
+                const defaultElectionLang = getDefaultElectionLang(
+                    tallyData,
+                    props.row.id,
+                    props.row.election_event_id
+                )
+                return aliasRenderer(props.row.presentation, defaultElectionLang)
             },
         },
         {

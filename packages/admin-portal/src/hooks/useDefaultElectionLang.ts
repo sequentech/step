@@ -5,19 +5,47 @@
 import {useMemo} from "react"
 import {useAtomValue} from "jotai"
 import {tallyQueryData} from "@/atoms/tally-candidates"
+import {GetTallyDataQuery} from "@/gql/graphql"
+import {IElectionEventPresentation, IElectionPresentation} from "@sequentech/ui-core"
 
-export function useDefaultElectionLang(electionId: string): string | undefined {
+export function getDefaultElectionLang(
+    tallyData: GetTallyDataQuery | null,
+    electionId: string,
+    electionEventId: string
+): string | undefined {
+    const election = tallyData?.sequent_backend_election?.find(
+        (e) => e.id === electionId && e.election_event_id === electionEventId
+    )
+    const electionEvent = tallyData?.sequent_backend_election_event?.find(
+        (ee) => ee.id === electionEventId
+    )
+    try {
+        let eventDefaultLang: string | undefined
+        let electionDefaultLang: string | undefined
+        if (electionEvent?.presentation) {
+            eventDefaultLang = (
+                JSON.parse(electionEvent.presentation) as IElectionEventPresentation
+            )?.language_conf?.default_language_code
+        }
+
+        if (election?.presentation) {
+            electionDefaultLang = (JSON.parse(election.presentation) as IElectionPresentation)
+                ?.language_conf?.default_language_code
+        }
+        return electionDefaultLang || (eventDefaultLang as string | undefined)
+    } catch {
+        return undefined
+    }
+}
+
+export function useDefaultElectionLang(
+    electionId: string,
+    electionEventId: string
+): string | undefined {
     const tallyData = useAtomValue(tallyQueryData)
 
-    return useMemo(() => {
-        const election = tallyData?.sequent_backend_election?.find((e) => e.id === electionId)
-        if (!election?.presentation) return undefined
-        try {
-            return JSON.parse(election.presentation)?.language_conf?.default_language_code as
-                | string
-                | undefined
-        } catch {
-            return undefined
-        }
-    }, [tallyData?.sequent_backend_election, electionId])
+    return useMemo(
+        () => getDefaultElectionLang(tallyData, electionId, electionEventId),
+        [tallyData?.sequent_backend_election, electionId, electionEventId]
+    )
 }

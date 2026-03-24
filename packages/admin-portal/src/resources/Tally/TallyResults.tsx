@@ -6,6 +6,7 @@ import {RaRecord, Identifier} from "react-admin"
 
 import {
     Sequent_Backend_Election,
+    Sequent_Backend_Election_Event,
     Sequent_Backend_Results_Election,
     Sequent_Backend_Results_Election_Area,
     Sequent_Backend_Tally_Session,
@@ -20,6 +21,7 @@ import {tallyQueryData} from "@/atoms/tally-candidates"
 import {useAliasRenderer} from "@/hooks/useAliasRenderer"
 import {useKeysPermissions} from "../ElectionEvent/useKeysPermissions"
 import {LoadingResults} from "./TallyElectionsResults"
+import {getDefaultElectionLang} from "@/hooks/useDefaultElectionLang"
 
 interface TallyResultsProps {
     tally: Sequent_Backend_Tally_Session | undefined
@@ -120,14 +122,12 @@ const TallyResultsMemo: React.MemoExoticComponent<React.FC<TallyResultsProps>> =
         }
 
         const getElectionAlias = (election: Sequent_Backend_Election) => {
-            let defaultLang: string | undefined
-            try {
-                defaultLang = JSON.parse(election.presentation)?.language_conf
-                    ?.default_language_code
-            } catch {
-                defaultLang = undefined
-            }
-            return aliasRenderer(election.presentation, defaultLang)
+            const defaultElectionLang = getDefaultElectionLang(
+                tallyData,
+                election.id,
+                election.election_event_id
+            )
+            return aliasRenderer(election.presentation, defaultElectionLang)
         }
 
         const currentElection = useMemo(() => {

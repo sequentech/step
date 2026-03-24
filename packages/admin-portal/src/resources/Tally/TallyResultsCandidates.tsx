@@ -87,7 +87,7 @@ export const TallyResultsCandidates: React.FC<TallyResultsCandidatesProps> = (pr
         [tallyData?.sequent_backend_results_area_contest_candidate, contestId, electionId]
     )
 
-    const defaultElectionLang = useDefaultElectionLang(electionId)
+    const defaultElectionLang = useDefaultElectionLang(electionId, electionEventId)
 
     useEffect(() => {
         if (results && candidates) {

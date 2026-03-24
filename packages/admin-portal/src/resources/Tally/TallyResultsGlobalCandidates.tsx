@@ -112,7 +112,7 @@ export const TallyResultsGlobalCandidates: React.FC<TallyResultsGlobalCandidates
         }
     }, [results, candidates])
 
-    const defaultElectionLang = useDefaultElectionLang(electionId)
+    const defaultElectionLang = useDefaultElectionLang(electionId, electionEventId)
 
     const columns: GridColDef[] = [
         {
