@@ -342,7 +342,7 @@ const basqueTranslation: TranslationType = {
                     "with-signature": "Sinadura batekin",
                 },
                 voterDigitalCertPolicy: {
-                    policyLabel: "Voter Digital Certificate Policy",
+                    "policyLabel": "Voter Digital Certificate Policy",
                     "allow": "Allow",
                     "not-allow": "Not allow",
                 },

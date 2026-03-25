@@ -342,7 +342,7 @@ const catalanTranslation: TranslationType = {
                     "with-signature": "Amb signatura",
                 },
                 voterDigitalCertPolicy: {
-                    policyLabel: "Voter Digital Certificate Policy",
+                    "policyLabel": "Voter Digital Certificate Policy",
                     "allow": "Allow",
                     "not-allow": "Not allow",
                 },

@@ -343,7 +343,7 @@ const spanishTranslation: TranslationType = {
                     "with-signature": "Con firma",
                 },
                 voterDigitalCertPolicy: {
-                    policyLabel: "Voter Digital Certificate Policy",
+                    "policyLabel": "Voter Digital Certificate Policy",
                     "allow": "Allow",
                     "not-allow": "Not allow",
                 },
