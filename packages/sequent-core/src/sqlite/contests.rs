@@ -64,8 +64,14 @@ CREATE TABLE contest (
             contest.tenant_id,
             contest.election_event_id,
             contest.election_id,
-            contest.created_at.as_ref().map(|dt| dt.to_string()),
-            contest.last_updated_at.as_ref().map(|dt| dt.to_string()),
+            contest
+                .created_at
+                .as_ref()
+                .map(std::string::ToString::to_string),
+            contest
+                .last_updated_at
+                .as_ref()
+                .map(std::string::ToString::to_string),
             contest.labels.as_ref().and_then(|v| to_string(v).ok()),
             contest.annotations.as_ref().and_then(|v| to_string(v).ok()),
             contest.is_acclaimed,

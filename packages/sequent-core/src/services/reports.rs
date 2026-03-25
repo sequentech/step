@@ -114,6 +114,7 @@ pub fn render_template(
     reg.render(template_name, &json!(variables_map))
 }
 
+#[must_use]
 pub fn helper_wrapper_or<'a>(
     func: Box<dyn HelperDef + Send + Sync + 'a>,
     or_val: String,
@@ -158,6 +159,7 @@ pub fn helper_wrapper_or<'a>(
     Box::new(WrapperHelper { func, or_val })
 }
 
+#[must_use]
 pub fn helper_wrapper<'a>(
     func: Box<dyn HelperDef + Send + Sync + 'a>,
 ) -> Box<dyn HelperDef + Send + Sync + 'a> {

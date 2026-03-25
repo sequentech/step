@@ -11,17 +11,17 @@ use uuid::Uuid;
 #[instrument(skip(input))]
 pub fn replace_uuids(
     input: &str,
-    keep: Vec<String>,
+    keep: &[String],
 ) -> (String, HashMap<String, String>) {
     let uuid_regex =
         Regex::new(r"[0-9a-fA-F]{8}(-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}")
             .unwrap();
     let fixed_uuids_from_config = env::var("ELECTION_EVENT_FIXED_UUIDS")
         .unwrap_or("".to_string())
-        .split(",")
-        .map(|s| s.to_string())
+        .split(',')
+        .map(std::string::ToString::to_string)
         .collect::<Vec<String>>();
-    let mut keep_all = keep.clone();
+    let mut keep_all = keep.to_vec();
     keep_all.extend(fixed_uuids_from_config);
 
     let mut seen_uuids = HashMap::new();

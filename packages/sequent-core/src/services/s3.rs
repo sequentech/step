@@ -40,6 +40,7 @@ struct ResolvedS3ListTargetParts {
 
 /// Carries the resolved S3 client, real bucket name, and optional logical
 /// prefix root for list-style operations that must work on both `MinIO` and `AWS`.
+#[allow(missing_docs)]
 struct ResolvedS3ListTarget {
     client: s3::Client,
     bucket: String,
@@ -205,7 +206,7 @@ async fn get_s3_list_target(
     let endpoint_uri = env::var(env_var_name)
         .with_context(|| format!("{env_var_name} must be set"))?;
     let sdk_config = get_from_env_aws_config().await?;
-    let aws_region = sdk_config.region().map(|region| region.as_ref());
+    let aws_region = sdk_config.region().map(std::convert::AsRef::as_ref);
     let target_parts = resolve_s3_list_target_parts(
         &endpoint_uri,
         logical_bucket,
@@ -280,7 +281,7 @@ async fn create_bucket_if_not_exists(
             .with_context(|| {
                 format!("Error creating bucket with name={bucket_name}")
             })?;
-        println!("Bucket {bucket_name} created");
+        info!("Bucket {bucket_name} created");
     }
     Ok(())
 }
@@ -470,6 +471,7 @@ pub async fn upload_file_to_s3(
 }
 
 #[instrument(err, skip_all)]
+#[allow(clippy::too_many_arguments)]
 /// Streams a large file through S3 multipart upload so oversized reports and
 /// exports do not need to be buffered at once.
 pub async fn upload_multipart_data_to_s3(

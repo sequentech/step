@@ -45,8 +45,12 @@ pub async fn create_area_sqlite(
             area.id,
             area.tenant_id,
             area.election_event_id,
-            area.created_at.as_ref().map(|dt| dt.to_string()),
-            area.last_updated_at.as_ref().map(|dt| dt.to_string()),
+            area.created_at
+                .as_ref()
+                .map(std::string::ToString::to_string),
+            area.last_updated_at
+                .as_ref()
+                .map(std::string::ToString::to_string),
             area.labels.as_ref().and_then(|v| to_string(v).ok()),
             area.annotations.as_ref().and_then(|v| to_string(v).ok()),
             area.name,

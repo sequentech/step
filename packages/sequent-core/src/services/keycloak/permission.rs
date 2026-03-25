@@ -57,8 +57,9 @@ impl KeycloakAdminClient {
             .map_err(|err| anyhow!("{err:?}"))?;
         let count = role_representations.len();
         let start = offset.unwrap_or(0);
+        #[allow(clippy::arithmetic_side_effects)]
         let end = match limit {
-            Some(num) => usize::min(count, start + num),
+            Some(num) => usize::min(count, start.saturating_add(num)),
             None => count,
         };
         let permissions =
@@ -187,6 +188,10 @@ impl KeycloakAdminClient {
         Ok(())
     }
 
+    /// Creates a permission in the given realm.
+    ///
+    /// # Errors
+    /// Returns an error if the Keycloak API call fails or the permission cannot be created.
     pub async fn create_permission(
         self,
         realm: &str,

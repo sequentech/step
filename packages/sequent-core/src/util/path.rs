@@ -5,6 +5,7 @@ use std::ffi::OsStr;
 use std::fs;
 use std::path::{Path, PathBuf};
 
+#[must_use]
 pub fn list_subfolders(path: &Path) -> Vec<PathBuf> {
     let mut subfolders = Vec::new();
     if let Ok(entries) = fs::read_dir(path) {
@@ -20,12 +21,13 @@ pub fn list_subfolders(path: &Path) -> Vec<PathBuf> {
     subfolders
 }
 
+#[must_use]
 pub fn get_folder_name(path: &Path) -> Option<String> {
     path.components()
         .last()
         .map(|component| component.as_os_str().to_str())
         .flatten()
-        .map(|component| component.to_string())
+        .map(std::string::ToString::to_string)
 }
 
 pub fn change_file_extension(

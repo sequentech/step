@@ -46,7 +46,7 @@ pub fn ecies_encrypt_string(
     );
     info!("command: '{command}'");
 
-    let result = run_shell_command(&command)?.replace("\n", "");
+    let result = run_shell_command(&command)?.replace('\n', "");
 
     info!("ecies_encrypt_string: '{result}'");
 
@@ -118,7 +118,7 @@ pub fn ecies_sign_data(
         "java -jar {ECIES_TOOL_PATH} sign {temp_pem_file_string} {temp_data_file_string}"
     );
 
-    let encrypted_base64 = run_shell_command(&command)?.replace("\n", "");
+    let encrypted_base64 = run_shell_command(&command)?.replace('\n', "");
 
     info!("ecies_sign_data: '{encrypted_base64}'");
 

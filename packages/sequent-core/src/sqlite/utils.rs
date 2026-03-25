@@ -5,10 +5,12 @@
 use ordered_float::NotNan;
 use serde_json::{to_string, Value};
 
+#[must_use]
 pub fn opt_json(opt: &Option<Value>) -> Option<String> {
     opt.as_ref().and_then(|v| to_string(v).ok())
 }
 
+#[must_use]
 pub fn opt_f64(opt: &Option<NotNan<f64>>) -> Option<f64> {
-    opt.map(|n| n.into_inner())
+    opt.map(ordered_float::NotNan::into_inner)
 }

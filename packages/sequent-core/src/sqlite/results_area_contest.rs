@@ -99,6 +99,7 @@ pub async fn create_results_area_contests_sqlite(
 }
 
 #[instrument(err, skip_all)]
+#[allow(clippy::too_many_arguments)]
 pub async fn update_results_area_contest_documents_sqlite(
     sqlite_transaction: &Transaction<'_>,
     tenant_id: &str,

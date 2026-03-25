@@ -12,6 +12,7 @@ use std::env;
 use tracing::{error, info, instrument};
 
 #[instrument(skip(claims))]
+#[allow(clippy::needless_pass_by_value)]
 pub fn authorize(
     claims: &JwtClaims,
     allow_super_admin_auth: bool, // Allow authorizing super admin tenant
@@ -31,7 +32,7 @@ pub fn authorize(
                 .map_err(|_| {
                     (
                         Status::Unauthorized,
-                        format!("SUPER_ADMIN_TENANT_ID must be set"),
+                        "SUPER_ADMIN_TENANT_ID must be set".to_string(),
                     )
                 })?;
             info!("super_admin_tenant_id: {super_admin_tenant_id}");

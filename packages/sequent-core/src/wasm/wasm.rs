@@ -468,8 +468,8 @@ pub fn decode_auditable_multi_ballot_js(
 #[wasm_bindgen]
 pub fn sort_candidates_list_js(
     all_candidates: JsValue,
-    order: JsValue,
-    apply_random: JsValue,
+    order: &JsValue,
+    apply_random: &JsValue,
 ) -> Result<JsValue, JsValue> {
     let all_candidates_js: Value =
         serde_wasm_bindgen::from_value(all_candidates)
@@ -537,8 +537,8 @@ pub fn sort_candidates_list_js(
 #[wasm_bindgen]
 pub fn sort_contests_list_js(
     contests_json: JsValue,
-    order: JsValue,
-    apply_random: JsValue,
+    order: &JsValue,
+    apply_random: &JsValue,
 ) -> Result<JsValue, JsValue> {
     let contests_js: Value = serde_wasm_bindgen::from_value(contests_json)
         .map_err(|err| format!("Error parsing contests: {err}"))
@@ -604,8 +604,8 @@ pub fn sort_contests_list_js(
 #[wasm_bindgen]
 pub fn sort_elections_list_js(
     elections_json: JsValue,
-    order: JsValue,
-    apply_random: JsValue,
+    order: &JsValue,
+    apply_random: &JsValue,
 ) -> Result<JsValue, JsValue> {
     let elections_js: Value = serde_wasm_bindgen::from_value(elections_json)
         .map_err(|err| format!("Error parsing elections: {err}"))
