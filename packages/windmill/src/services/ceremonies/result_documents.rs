@@ -627,12 +627,15 @@ pub fn generate_ids_map(
     const MAX_CONTEST_NAME_LEN: usize = FOLDER_MAX_CHARS - UUID_LEN - 2 - PREFIX_CONTEST.len();
 
     for election_report in election_reports {
-        let election_name = election_report.election_name;
+        let election_display_name = resolve_display_name(
+            &election_report.election_name,
+            &election_report.election_alias,
+        );
         rename_map.insert(
             election_report.contest.election_id.clone(),
             format!(
                 "{}__{}",
-                take_first_n_chars(&election_name, MAX_ELECTION_NAME_LEN),
+                take_first_n_chars(&election_display_name, MAX_ELECTION_NAME_LEN),
                 election_report.contest.election_id
             ),
         );
@@ -881,6 +884,7 @@ mod tests {
         };
         let report = ReportDataComputed {
             election_name: election_name.to_string(),
+            election_alias: election_alias.to_string(),
             election_id: election_id.to_string(),
             contest: contest.clone(),
             contest_result: ContestResult {
