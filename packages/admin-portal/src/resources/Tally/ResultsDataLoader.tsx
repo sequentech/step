@@ -14,6 +14,7 @@ import {
     Sequent_Backend_Results_Contest,
     Sequent_Backend_Results_Contest_Candidate,
     Sequent_Backend_Results_Election,
+    Sequent_Backend_Election_Event,
     Sequent_Backend_Results_Election_Area,
     Sequent_Backend_Results_Event,
 } from "@/gql/graphql"
@@ -80,6 +81,15 @@ export const ResultsDataLoader: React.FC<ResultsDataLoaderProps> = ({
         {
             databaseName: databaseName,
             enabled: !isDbLoading && !!electionEventId && !!tenantId && electionIds.length > 0,
+        }
+    )
+
+    const {data: electionEvent} = useSQLQuery(
+        `SELECT * FROM election_event WHERE id = ? and tenant_id = ?`,
+        [electionEventId, tenantId],
+        {
+            databaseName: databaseName,
+            enabled: !isDbLoading && !!electionEventId && !!tenantId,
         }
     )
 
@@ -172,6 +182,7 @@ export const ResultsDataLoader: React.FC<ResultsDataLoaderProps> = ({
         sequent_backend_area: area as Sequent_Backend_Area[],
         sequent_backend_area_contest: area_contest as Sequent_Backend_Area_Contest[],
         sequent_backend_election: election as Sequent_Backend_Election[],
+        sequent_backend_election_event: electionEvent as Sequent_Backend_Election_Event[],
         sequent_backend_candidate: candidate as Sequent_Backend_Candidate[],
         sequent_backend_contest: contest as Sequent_Backend_Contest[],
         sequent_backend_results_event: results_event as Sequent_Backend_Results_Event[],
