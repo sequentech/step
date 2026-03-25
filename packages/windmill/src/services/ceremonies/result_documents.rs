@@ -48,7 +48,6 @@ use velvet::pipes::generate_reports::{
     BasicArea, ElectionReportDataComputed, ReportDataComputed, OUTPUT_HTML, OUTPUT_JSON, OUTPUT_PDF,
 };
 use velvet::pipes::pipe_inputs::{PREFIX_CONTEST, PREFIX_ELECTION};
-use velvet::pipes::vote_receipts::VOTE_RECEIPT_OUTPUT_FILE_PDF as OUTPUT_RECEIPT_PDF;
 
 pub const MIME_PDF: &str = "application/pdf";
 pub const MIME_JSON: &str = "application/json";
@@ -628,12 +627,12 @@ pub fn generate_ids_map(
     const MAX_CONTEST_NAME_LEN: usize = FOLDER_MAX_CHARS - UUID_LEN - 2 - PREFIX_CONTEST.len();
 
     for election_report in election_reports {
-        let election_name = election_report.election_name;
+        let election_display_name = resolve_display_name(&election_report.election_name, &election_report.election_alias);
         rename_map.insert(
             election_report.contest.election_id.clone(),
             format!(
                 "{}__{}",
-                take_first_n_chars(&election_name, MAX_ELECTION_NAME_LEN),
+                take_first_n_chars(&election_display_name, MAX_ELECTION_NAME_LEN),
                 election_report.contest.election_id
             ),
         );

@@ -71,6 +71,17 @@ fn sanitize_filename(filename: &str) -> String {
     take_last_n_chars(&sanitized, FOLDER_MAX_CHARS)
 }
 
+/// Alias takes priority over name when deciding the election display name used
+/// as the folder component in the tally output tree (and in report templates).
+/// An empty alias is treated as absent.
+pub fn resolve_display_name(name: &str, alias: &str) -> String {
+    if alias.is_empty() {
+        name.to_string()
+    } else {
+        alias.to_string()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -192,5 +203,21 @@ mod tests {
     #[test]
     fn test_sanitize_filename_only_spaces_and_dots() {
         assert_eq!(sanitize_filename("  ...  "), "");
+    }
+
+    #[test]
+    fn test_resolve_election_display_name_prefers_alias() {
+        assert_eq!(
+            resolve_display_name("General Election 2024", "GE 2024"),
+            "GE 2024"
+        );
+    }
+
+    #[test]
+    fn test_resolve_election_display_name_falls_back_to_name_when_alias_empty() {
+        assert_eq!(
+            resolve_display_name("General Election 2024", ""),
+            "General Election 2024"
+        );
     }
 }
