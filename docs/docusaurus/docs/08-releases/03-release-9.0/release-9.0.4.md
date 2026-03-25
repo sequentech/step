@@ -1,6 +1,6 @@
 ---
 id: release-9.0.4
-title: Release 9.0.4
+title: Release Notes v9.0.4
 ---
 <!--
 SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
