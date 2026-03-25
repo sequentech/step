@@ -184,6 +184,10 @@ type DataListPgAudit {
   total: TotalAggregate!
 }
 
+type DeleteCertificateAuthorityOutput {
+  deleted: Boolean!
+}
+
 type DeleteElectionEvent {
   error_msg: String
   id: String
@@ -469,6 +473,12 @@ input GetUsersInput {
 type GetUsersOutput {
   items: [KeycloakUser!]!
   total: TotalAggregate!
+}
+
+type ImportCertificateAuthorityOutput {
+  errors: [String!]!
+  inserted_count: Int!
+  skipped_count: Int!
 }
 
 input ImportOptions {
@@ -827,6 +837,17 @@ input String_comparison_exp {
   _similar: String
 }
 
+type SubmitTallyResolutionOutput {
+  resolved_count: Int!
+  success: Boolean!
+  tally_session_id: String!
+}
+
+input TallyResolutionInput {
+  contest_id: uuid!
+  selected_candidate_id: uuid!
+}
+
 type TotalAggregate {
   aggregate: Aggregate!
 }
@@ -1018,6 +1039,8 @@ type mutation_root {
   create_tally_ceremony(configuration: jsonb, election_event_id: uuid!, election_ids: [uuid!]!, tally_type: String): CreateTallyOutput
   create_transmission_package(area_id: uuid!, election_event_id: uuid!, election_id: uuid!, force: Boolean!, tally_session_id: uuid!): createTransmissionPackageOutput
   create_user(election_event_id: String, tenant_id: String!, user: KeycloakUser2!, user_roles_ids: [String!]): KeycloakUser!
+  """Delete a certificate authority by id"""
+  delete_certificate_authority(election_event_id: uuid!, id: uuid!): DeleteCertificateAuthorityOutput
   delete_election_event(election_event_id: String!): DeleteElectionEvent
   delete_permission(permission_name: String!, tenant_id: String!): SetRolePermissionOutput
   delete_role(role_id: String!, tenant_id: String!): SetUserRoleOutput
@@ -1099,6 +1122,17 @@ type mutation_root {
   delete single row from the table: "sequent_backend.cast_vote"
   """
   delete_sequent_backend_cast_vote_by_pk(election_event_id: uuid!, id: uuid!, tenant_id: uuid!): cast_vote
+  """
+  delete data from the table: "sequent_backend.certificate_authority"
+  """
+  delete_sequent_backend_certificate_authority(
+    """filter the rows which have to be deleted"""
+    where: certificate_authority_bool_exp!
+  ): certificate_authority_mutation_response
+  """
+  delete single row from the table: "sequent_backend.certificate_authority"
+  """
+  delete_sequent_backend_certificate_authority_by_pk(id: uuid!): certificate_authority
   """
   delete data from the table: "sequent_backend.contest"
   """
@@ -1375,6 +1409,17 @@ type mutation_root {
   """
   delete_sequent_backend_tally_session_execution_by_pk(election_event_id: uuid!, id: uuid!, tenant_id: uuid!): tally_session_execution
   """
+  delete data from the table: "sequent_backend.tally_session_resolution"
+  """
+  delete_sequent_backend_tally_session_resolution(
+    """filter the rows which have to be deleted"""
+    where: tally_session_resolution_bool_exp!
+  ): tally_session_resolution_mutation_response
+  """
+  delete single row from the table: "sequent_backend.tally_session_resolution"
+  """
+  delete_sequent_backend_tally_session_resolution_by_pk(id: uuid!): tally_session_resolution
+  """
   delete data from the table: "sequent_backend.tally_sheet"
   """
   delete_sequent_backend_tally_sheet(
@@ -1464,6 +1509,8 @@ type mutation_root {
   import_application(document_id: String!, election_event_id: String, election_id: String, sha256: String, tenant_id: String!): applicationOutput
   import_areas(document_id: String!, election_event_id: String!, sha256: String): OptionalId
   import_candidates(document_id: String!, election_event_id: String!, sha256: String): documentTaskOutput
+  """Import certificate authorities from a PEM string for an election event"""
+  import_certificate_authority(election_event_id: uuid!, pem_content: String!): ImportCertificateAuthorityOutput
   """import_election_event"""
   import_election_event(check_only: Boolean, document_id: String!, password: String, sha256: String, tenant_id: String!): OptionalImportEvent
   import_templates(document_id: String!, sha256: String, tenant_id: String!): templateOutput
@@ -1600,6 +1647,24 @@ type mutation_root {
     """upsert condition"""
     on_conflict: cast_vote_on_conflict
   ): cast_vote
+  """
+  insert data into the table: "sequent_backend.certificate_authority"
+  """
+  insert_sequent_backend_certificate_authority(
+    """the rows to be inserted"""
+    objects: [certificate_authority_insert_input!]!
+    """upsert condition"""
+    on_conflict: certificate_authority_on_conflict
+  ): certificate_authority_mutation_response
+  """
+  insert a single row into the table: "sequent_backend.certificate_authority"
+  """
+  insert_sequent_backend_certificate_authority_one(
+    """the row to be inserted"""
+    object: certificate_authority_insert_input!
+    """upsert condition"""
+    on_conflict: certificate_authority_on_conflict
+  ): certificate_authority
   """
   insert data into the table: "sequent_backend.contest"
   """
@@ -2051,6 +2116,24 @@ type mutation_root {
     on_conflict: tally_session_on_conflict
   ): tally_session
   """
+  insert data into the table: "sequent_backend.tally_session_resolution"
+  """
+  insert_sequent_backend_tally_session_resolution(
+    """the rows to be inserted"""
+    objects: [tally_session_resolution_insert_input!]!
+    """upsert condition"""
+    on_conflict: tally_session_resolution_on_conflict
+  ): tally_session_resolution_mutation_response
+  """
+  insert a single row into the table: "sequent_backend.tally_session_resolution"
+  """
+  insert_sequent_backend_tally_session_resolution_one(
+    """the row to be inserted"""
+    object: tally_session_resolution_insert_input!
+    """upsert condition"""
+    on_conflict: tally_session_resolution_on_conflict
+  ): tally_session_resolution
+  """
   insert data into the table: "sequent_backend.tally_sheet"
   """
   insert_sequent_backend_tally_sheet(
@@ -2153,6 +2236,8 @@ type mutation_root {
   set_role_permission(permission_name: String!, role_id: String!, tenant_id: String!): SetRolePermissionOutput
   set_user_role(role_id: String!, tenant_id: String!, user_id: String!): SetUserRoleOutput
   set_voter_authentication(election_event_id: String!, enrollment: String!, otp: String!): SetVoterAuthenticationOutput
+  """Submit tally resolutions"""
+  submit_tally_resolution(election_event_id: uuid!, resolutions: [TallyResolutionInput!]!, tally_session_id: uuid!): SubmitTallyResolutionOutput
   update_election_voting_status(election_event_id: uuid!, election_id: uuid!, voting_channels: [VotingStatusChannel], voting_status: VotingStatus!): UpdateElectionVotingStatusOutput
   update_event_voting_status(election_event_id: uuid!, voting_channels: [VotingStatusChannel], voting_status: VotingStatus!): UpdateEventVotingStatusOutput
   """
@@ -2547,6 +2632,30 @@ type mutation_root {
     """updates to execute, in order"""
     updates: [cast_vote_updates!]!
   ): [cast_vote_mutation_response]
+  """
+  update data of the table: "sequent_backend.certificate_authority"
+  """
+  update_sequent_backend_certificate_authority(
+    """sets the columns of the filtered rows to the given values"""
+    _set: certificate_authority_set_input
+    """filter the rows which have to be updated"""
+    where: certificate_authority_bool_exp!
+  ): certificate_authority_mutation_response
+  """
+  update single row of the table: "sequent_backend.certificate_authority"
+  """
+  update_sequent_backend_certificate_authority_by_pk(
+    """sets the columns of the filtered rows to the given values"""
+    _set: certificate_authority_set_input
+    pk_columns: certificate_authority_pk_columns_input!
+  ): certificate_authority
+  """
+  update multiples rows of table: "sequent_backend.certificate_authority"
+  """
+  update_sequent_backend_certificate_authority_many(
+    """updates to execute, in order"""
+    updates: [certificate_authority_updates!]!
+  ): [certificate_authority_mutation_response]
   """
   update data of the table: "sequent_backend.contest"
   """
@@ -3964,6 +4073,62 @@ type mutation_root {
     updates: [tally_session_updates!]!
   ): [tally_session_mutation_response]
   """
+  update data of the table: "sequent_backend.tally_session_resolution"
+  """
+  update_sequent_backend_tally_session_resolution(
+    """append existing jsonb value of filtered columns with new jsonb value"""
+    _append: tally_session_resolution_append_input
+    """
+    delete the field or element with specified path (for JSON arrays, negative integers count from the end)
+    """
+    _delete_at_path: tally_session_resolution_delete_at_path_input
+    """
+    delete the array element with specified index (negative integers count from the end). throws an error if top level container is not an array
+    """
+    _delete_elem: tally_session_resolution_delete_elem_input
+    """
+    delete key/value pair or string element. key/value pairs are matched based on their key value
+    """
+    _delete_key: tally_session_resolution_delete_key_input
+    """prepend existing jsonb value of filtered columns with new jsonb value"""
+    _prepend: tally_session_resolution_prepend_input
+    """sets the columns of the filtered rows to the given values"""
+    _set: tally_session_resolution_set_input
+    """filter the rows which have to be updated"""
+    where: tally_session_resolution_bool_exp!
+  ): tally_session_resolution_mutation_response
+  """
+  update single row of the table: "sequent_backend.tally_session_resolution"
+  """
+  update_sequent_backend_tally_session_resolution_by_pk(
+    """append existing jsonb value of filtered columns with new jsonb value"""
+    _append: tally_session_resolution_append_input
+    """
+    delete the field or element with specified path (for JSON arrays, negative integers count from the end)
+    """
+    _delete_at_path: tally_session_resolution_delete_at_path_input
+    """
+    delete the array element with specified index (negative integers count from the end). throws an error if top level container is not an array
+    """
+    _delete_elem: tally_session_resolution_delete_elem_input
+    """
+    delete key/value pair or string element. key/value pairs are matched based on their key value
+    """
+    _delete_key: tally_session_resolution_delete_key_input
+    """prepend existing jsonb value of filtered columns with new jsonb value"""
+    _prepend: tally_session_resolution_prepend_input
+    """sets the columns of the filtered rows to the given values"""
+    _set: tally_session_resolution_set_input
+    pk_columns: tally_session_resolution_pk_columns_input!
+  ): tally_session_resolution
+  """
+  update multiples rows of table: "sequent_backend.tally_session_resolution"
+  """
+  update_sequent_backend_tally_session_resolution_many(
+    """updates to execute, in order"""
+    updates: [tally_session_resolution_updates!]!
+  ): [tally_session_resolution_mutation_response]
+  """
   update data of the table: "sequent_backend.tally_sheet"
   """
   update_sequent_backend_tally_sheet(
@@ -4549,6 +4714,40 @@ type query_root {
   fetch data from the table: "sequent_backend.cast_vote" using primary key columns
   """
   sequent_backend_cast_vote_by_pk(election_event_id: uuid!, id: uuid!, tenant_id: uuid!): cast_vote
+  """
+  fetch data from the table: "sequent_backend.certificate_authority"
+  """
+  sequent_backend_certificate_authority(
+    """distinct select on columns"""
+    distinct_on: [certificate_authority_select_column!]
+    """limit the number of rows returned"""
+    limit: Int
+    """skip the first n rows. Use only with order_by"""
+    offset: Int
+    """sort the rows by one or more columns"""
+    order_by: [certificate_authority_order_by!]
+    """filter the rows returned"""
+    where: certificate_authority_bool_exp
+  ): [certificate_authority!]!
+  """
+  fetch aggregated fields from the table: "sequent_backend.certificate_authority"
+  """
+  sequent_backend_certificate_authority_aggregate(
+    """distinct select on columns"""
+    distinct_on: [certificate_authority_select_column!]
+    """limit the number of rows returned"""
+    limit: Int
+    """skip the first n rows. Use only with order_by"""
+    offset: Int
+    """sort the rows by one or more columns"""
+    order_by: [certificate_authority_order_by!]
+    """filter the rows returned"""
+    where: certificate_authority_bool_exp
+  ): certificate_authority_aggregate!
+  """
+  fetch data from the table: "sequent_backend.certificate_authority" using primary key columns
+  """
+  sequent_backend_certificate_authority_by_pk(id: uuid!): certificate_authority
   """
   fetch data from the table: "sequent_backend.contest"
   """
@@ -5399,6 +5598,40 @@ type query_root {
   fetch data from the table: "sequent_backend.tally_session_execution" using primary key columns
   """
   sequent_backend_tally_session_execution_by_pk(election_event_id: uuid!, id: uuid!, tenant_id: uuid!): tally_session_execution
+  """
+  fetch data from the table: "sequent_backend.tally_session_resolution"
+  """
+  sequent_backend_tally_session_resolution(
+    """distinct select on columns"""
+    distinct_on: [tally_session_resolution_select_column!]
+    """limit the number of rows returned"""
+    limit: Int
+    """skip the first n rows. Use only with order_by"""
+    offset: Int
+    """sort the rows by one or more columns"""
+    order_by: [tally_session_resolution_order_by!]
+    """filter the rows returned"""
+    where: tally_session_resolution_bool_exp
+  ): [tally_session_resolution!]!
+  """
+  fetch aggregated fields from the table: "sequent_backend.tally_session_resolution"
+  """
+  sequent_backend_tally_session_resolution_aggregate(
+    """distinct select on columns"""
+    distinct_on: [tally_session_resolution_select_column!]
+    """limit the number of rows returned"""
+    limit: Int
+    """skip the first n rows. Use only with order_by"""
+    offset: Int
+    """sort the rows by one or more columns"""
+    order_by: [tally_session_resolution_order_by!]
+    """filter the rows returned"""
+    where: tally_session_resolution_bool_exp
+  ): tally_session_resolution_aggregate!
+  """
+  fetch data from the table: "sequent_backend.tally_session_resolution" using primary key columns
+  """
+  sequent_backend_tally_session_resolution_by_pk(id: uuid!): tally_session_resolution
   """
   fetch data from the table: "sequent_backend.tally_sheet"
   """
@@ -7996,6 +8229,293 @@ input cast_vote_updates {
   _set: cast_vote_set_input
   """filter the rows which have to be updated"""
   where: cast_vote_bool_exp!
+}
+
+"""
+columns and relationships of "sequent_backend.certificate_authority"
+"""
+type certificate_authority {
+  common_name: String!
+  created_at: timestamptz!
+  election_event_id: uuid!
+  fingerprint_sha256: String!
+  id: uuid!
+  issuer: String!
+  issuer_common_name: String!
+  not_after: timestamptz!
+  not_before: timestamptz!
+  pem: String!
+  serial_number: String!
+  subject: String!
+  tenant_id: uuid!
+}
+
+"""
+aggregated selection of "sequent_backend.certificate_authority"
+"""
+type certificate_authority_aggregate {
+  aggregate: certificate_authority_aggregate_fields
+  nodes: [certificate_authority!]!
+}
+
+"""
+aggregate fields of "sequent_backend.certificate_authority"
+"""
+type certificate_authority_aggregate_fields {
+  count(columns: [certificate_authority_select_column!], distinct: Boolean): Int!
+  max: certificate_authority_max_fields
+  min: certificate_authority_min_fields
+}
+
+"""
+Boolean expression to filter rows from the table "sequent_backend.certificate_authority". All fields are combined with a logical 'AND'.
+"""
+input certificate_authority_bool_exp {
+  _and: [certificate_authority_bool_exp!]
+  _not: certificate_authority_bool_exp
+  _or: [certificate_authority_bool_exp!]
+  common_name: String_comparison_exp
+  created_at: timestamptz_comparison_exp
+  election_event_id: uuid_comparison_exp
+  fingerprint_sha256: String_comparison_exp
+  id: uuid_comparison_exp
+  issuer: String_comparison_exp
+  issuer_common_name: String_comparison_exp
+  not_after: timestamptz_comparison_exp
+  not_before: timestamptz_comparison_exp
+  pem: String_comparison_exp
+  serial_number: String_comparison_exp
+  subject: String_comparison_exp
+  tenant_id: uuid_comparison_exp
+}
+
+"""
+unique or primary key constraints on table "sequent_backend.certificate_authority"
+"""
+enum certificate_authority_constraint {
+  """
+  unique or primary key constraint on columns "id"
+  """
+  certificate_authority_pkey
+  """
+  unique or primary key constraint on columns "tenant_id", "fingerprint_sha256", "election_event_id"
+  """
+  certificate_authority_tenant_id_election_event_id_fingerprint_s
+}
+
+"""
+input type for inserting data into table "sequent_backend.certificate_authority"
+"""
+input certificate_authority_insert_input {
+  common_name: String
+  created_at: timestamptz
+  election_event_id: uuid
+  fingerprint_sha256: String
+  id: uuid
+  issuer: String
+  issuer_common_name: String
+  not_after: timestamptz
+  not_before: timestamptz
+  pem: String
+  serial_number: String
+  subject: String
+  tenant_id: uuid
+}
+
+"""aggregate max on columns"""
+type certificate_authority_max_fields {
+  common_name: String
+  created_at: timestamptz
+  election_event_id: uuid
+  fingerprint_sha256: String
+  id: uuid
+  issuer: String
+  issuer_common_name: String
+  not_after: timestamptz
+  not_before: timestamptz
+  pem: String
+  serial_number: String
+  subject: String
+  tenant_id: uuid
+}
+
+"""aggregate min on columns"""
+type certificate_authority_min_fields {
+  common_name: String
+  created_at: timestamptz
+  election_event_id: uuid
+  fingerprint_sha256: String
+  id: uuid
+  issuer: String
+  issuer_common_name: String
+  not_after: timestamptz
+  not_before: timestamptz
+  pem: String
+  serial_number: String
+  subject: String
+  tenant_id: uuid
+}
+
+"""
+response of any mutation on the table "sequent_backend.certificate_authority"
+"""
+type certificate_authority_mutation_response {
+  """number of rows affected by the mutation"""
+  affected_rows: Int!
+  """data from the rows affected by the mutation"""
+  returning: [certificate_authority!]!
+}
+
+"""
+on_conflict condition type for table "sequent_backend.certificate_authority"
+"""
+input certificate_authority_on_conflict {
+  constraint: certificate_authority_constraint!
+  update_columns: [certificate_authority_update_column!]! = []
+  where: certificate_authority_bool_exp
+}
+
+"""
+Ordering options when selecting data from "sequent_backend.certificate_authority".
+"""
+input certificate_authority_order_by {
+  common_name: order_by
+  created_at: order_by
+  election_event_id: order_by
+  fingerprint_sha256: order_by
+  id: order_by
+  issuer: order_by
+  issuer_common_name: order_by
+  not_after: order_by
+  not_before: order_by
+  pem: order_by
+  serial_number: order_by
+  subject: order_by
+  tenant_id: order_by
+}
+
+"""
+primary key columns input for table: sequent_backend.certificate_authority
+"""
+input certificate_authority_pk_columns_input {
+  id: uuid!
+}
+
+"""
+select columns of table "sequent_backend.certificate_authority"
+"""
+enum certificate_authority_select_column {
+  """column name"""
+  common_name
+  """column name"""
+  created_at
+  """column name"""
+  election_event_id
+  """column name"""
+  fingerprint_sha256
+  """column name"""
+  id
+  """column name"""
+  issuer
+  """column name"""
+  issuer_common_name
+  """column name"""
+  not_after
+  """column name"""
+  not_before
+  """column name"""
+  pem
+  """column name"""
+  serial_number
+  """column name"""
+  subject
+  """column name"""
+  tenant_id
+}
+
+"""
+input type for updating data in table "sequent_backend.certificate_authority"
+"""
+input certificate_authority_set_input {
+  common_name: String
+  created_at: timestamptz
+  election_event_id: uuid
+  fingerprint_sha256: String
+  id: uuid
+  issuer: String
+  issuer_common_name: String
+  not_after: timestamptz
+  not_before: timestamptz
+  pem: String
+  serial_number: String
+  subject: String
+  tenant_id: uuid
+}
+
+"""
+Streaming cursor of the table "sequent_backend_certificate_authority"
+"""
+input certificate_authority_stream_cursor_input {
+  """Stream column input with initial value"""
+  initial_value: certificate_authority_stream_cursor_value_input!
+  """cursor ordering"""
+  ordering: cursor_ordering
+}
+
+"""Initial value of the column from where the streaming should start"""
+input certificate_authority_stream_cursor_value_input {
+  common_name: String
+  created_at: timestamptz
+  election_event_id: uuid
+  fingerprint_sha256: String
+  id: uuid
+  issuer: String
+  issuer_common_name: String
+  not_after: timestamptz
+  not_before: timestamptz
+  pem: String
+  serial_number: String
+  subject: String
+  tenant_id: uuid
+}
+
+"""
+update columns of table "sequent_backend.certificate_authority"
+"""
+enum certificate_authority_update_column {
+  """column name"""
+  common_name
+  """column name"""
+  created_at
+  """column name"""
+  election_event_id
+  """column name"""
+  fingerprint_sha256
+  """column name"""
+  id
+  """column name"""
+  issuer
+  """column name"""
+  issuer_common_name
+  """column name"""
+  not_after
+  """column name"""
+  not_before
+  """column name"""
+  pem
+  """column name"""
+  serial_number
+  """column name"""
+  subject
+  """column name"""
+  tenant_id
+}
+
+input certificate_authority_updates {
+  """sets the columns of the filtered rows to the given values"""
+  _set: certificate_authority_set_input
+  """filter the rows which have to be updated"""
+  where: certificate_authority_bool_exp!
 }
 
 """
@@ -17111,6 +17631,32 @@ type tally_session {
   ): jsonb
   last_updated_at: timestamptz
   permission_label: [String!]
+  """An array relationship"""
+  resolutions(
+    """distinct select on columns"""
+    distinct_on: [tally_session_resolution_select_column!]
+    """limit the number of rows returned"""
+    limit: Int
+    """skip the first n rows. Use only with order_by"""
+    offset: Int
+    """sort the rows by one or more columns"""
+    order_by: [tally_session_resolution_order_by!]
+    """filter the rows returned"""
+    where: tally_session_resolution_bool_exp
+  ): [tally_session_resolution!]!
+  """An aggregate relationship"""
+  resolutions_aggregate(
+    """distinct select on columns"""
+    distinct_on: [tally_session_resolution_select_column!]
+    """limit the number of rows returned"""
+    limit: Int
+    """skip the first n rows. Use only with order_by"""
+    offset: Int
+    """sort the rows by one or more columns"""
+    order_by: [tally_session_resolution_order_by!]
+    """filter the rows returned"""
+    where: tally_session_resolution_bool_exp
+  ): tally_session_resolution_aggregate!
   tally_type: String
   tenant_id: uuid!
   threshold: Int!
@@ -17173,6 +17719,8 @@ input tally_session_bool_exp {
   labels: jsonb_comparison_exp
   last_updated_at: timestamptz_comparison_exp
   permission_label: String_array_comparison_exp
+  resolutions: tally_session_resolution_bool_exp
+  resolutions_aggregate: tally_session_resolution_aggregate_bool_exp
   tally_type: String_comparison_exp
   tenant_id: uuid_comparison_exp
   threshold: Int_comparison_exp
@@ -18031,6 +18579,7 @@ input tally_session_insert_input {
   labels: jsonb
   last_updated_at: timestamptz
   permission_label: [String!]
+  resolutions: tally_session_resolution_arr_rel_insert_input
   tally_type: String
   tenant_id: uuid
   threshold: Int
@@ -18079,6 +18628,15 @@ type tally_session_mutation_response {
 }
 
 """
+input type for inserting object relation for remote table "sequent_backend.tally_session"
+"""
+input tally_session_obj_rel_insert_input {
+  data: tally_session_insert_input!
+  """upsert condition"""
+  on_conflict: tally_session_on_conflict
+}
+
+"""
 on_conflict condition type for table "sequent_backend.tally_session"
 """
 input tally_session_on_conflict {
@@ -18104,6 +18662,7 @@ input tally_session_order_by {
   labels: order_by
   last_updated_at: order_by
   permission_label: order_by
+  resolutions_aggregate: tally_session_resolution_aggregate_order_by
   tally_type: order_by
   tenant_id: order_by
   threshold: order_by
@@ -18121,6 +18680,434 @@ input tally_session_prepend_input {
   annotations: jsonb
   configuration: jsonb
   labels: jsonb
+}
+
+"""
+columns and relationships of "sequent_backend.tally_session_resolution"
+"""
+type tally_session_resolution {
+  annotations(
+    """JSON select path"""
+    path: String
+  ): jsonb
+  """An object relationship"""
+  contest: contest
+  contest_id: uuid
+  created_at: timestamptz!
+  election_event_id: uuid!
+  id: uuid!
+  labels(
+    """JSON select path"""
+    path: String
+  ): jsonb
+  last_updated_at: timestamptz!
+  resolution_data(
+    """JSON select path"""
+    path: String
+  ): jsonb!
+  resolution_type: String!
+  resolved_at: timestamptz
+  resolved_by_user: uuid
+  status: String!
+  """An object relationship"""
+  tally_session: tally_session
+  tally_session_id: uuid!
+  tenant_id: uuid!
+}
+
+"""
+aggregated selection of "sequent_backend.tally_session_resolution"
+"""
+type tally_session_resolution_aggregate {
+  aggregate: tally_session_resolution_aggregate_fields
+  nodes: [tally_session_resolution!]!
+}
+
+input tally_session_resolution_aggregate_bool_exp {
+  count: tally_session_resolution_aggregate_bool_exp_count
+}
+
+input tally_session_resolution_aggregate_bool_exp_count {
+  arguments: [tally_session_resolution_select_column!]
+  distinct: Boolean
+  filter: tally_session_resolution_bool_exp
+  predicate: Int_comparison_exp!
+}
+
+"""
+aggregate fields of "sequent_backend.tally_session_resolution"
+"""
+type tally_session_resolution_aggregate_fields {
+  count(columns: [tally_session_resolution_select_column!], distinct: Boolean): Int!
+  max: tally_session_resolution_max_fields
+  min: tally_session_resolution_min_fields
+}
+
+"""
+order by aggregate values of table "sequent_backend.tally_session_resolution"
+"""
+input tally_session_resolution_aggregate_order_by {
+  count: order_by
+  max: tally_session_resolution_max_order_by
+  min: tally_session_resolution_min_order_by
+}
+
+"""append existing jsonb value of filtered columns with new jsonb value"""
+input tally_session_resolution_append_input {
+  annotations: jsonb
+  labels: jsonb
+  resolution_data: jsonb
+}
+
+"""
+input type for inserting array relation for remote table "sequent_backend.tally_session_resolution"
+"""
+input tally_session_resolution_arr_rel_insert_input {
+  data: [tally_session_resolution_insert_input!]!
+  """upsert condition"""
+  on_conflict: tally_session_resolution_on_conflict
+}
+
+"""
+Boolean expression to filter rows from the table "sequent_backend.tally_session_resolution". All fields are combined with a logical 'AND'.
+"""
+input tally_session_resolution_bool_exp {
+  _and: [tally_session_resolution_bool_exp!]
+  _not: tally_session_resolution_bool_exp
+  _or: [tally_session_resolution_bool_exp!]
+  annotations: jsonb_comparison_exp
+  contest: contest_bool_exp
+  contest_id: uuid_comparison_exp
+  created_at: timestamptz_comparison_exp
+  election_event_id: uuid_comparison_exp
+  id: uuid_comparison_exp
+  labels: jsonb_comparison_exp
+  last_updated_at: timestamptz_comparison_exp
+  resolution_data: jsonb_comparison_exp
+  resolution_type: String_comparison_exp
+  resolved_at: timestamptz_comparison_exp
+  resolved_by_user: uuid_comparison_exp
+  status: String_comparison_exp
+  tally_session: tally_session_bool_exp
+  tally_session_id: uuid_comparison_exp
+  tenant_id: uuid_comparison_exp
+}
+
+"""
+unique or primary key constraints on table "sequent_backend.tally_session_resolution"
+"""
+enum tally_session_resolution_constraint {
+  """
+  unique or primary key constraint on columns "id"
+  """
+  tally_session_resolution_pkey
+}
+
+"""
+delete the field or element with specified path (for JSON arrays, negative integers count from the end)
+"""
+input tally_session_resolution_delete_at_path_input {
+  annotations: [String!]
+  labels: [String!]
+  resolution_data: [String!]
+}
+
+"""
+delete the array element with specified index (negative integers count from the end). throws an error if top level container is not an array
+"""
+input tally_session_resolution_delete_elem_input {
+  annotations: Int
+  labels: Int
+  resolution_data: Int
+}
+
+"""
+delete key/value pair or string element. key/value pairs are matched based on their key value
+"""
+input tally_session_resolution_delete_key_input {
+  annotations: String
+  labels: String
+  resolution_data: String
+}
+
+"""
+input type for inserting data into table "sequent_backend.tally_session_resolution"
+"""
+input tally_session_resolution_insert_input {
+  annotations: jsonb
+  contest: contest_obj_rel_insert_input
+  contest_id: uuid
+  created_at: timestamptz
+  election_event_id: uuid
+  id: uuid
+  labels: jsonb
+  last_updated_at: timestamptz
+  resolution_data: jsonb
+  resolution_type: String
+  resolved_at: timestamptz
+  resolved_by_user: uuid
+  status: String
+  tally_session: tally_session_obj_rel_insert_input
+  tally_session_id: uuid
+  tenant_id: uuid
+}
+
+"""aggregate max on columns"""
+type tally_session_resolution_max_fields {
+  contest_id: uuid
+  created_at: timestamptz
+  election_event_id: uuid
+  id: uuid
+  last_updated_at: timestamptz
+  resolution_type: String
+  resolved_at: timestamptz
+  resolved_by_user: uuid
+  status: String
+  tally_session_id: uuid
+  tenant_id: uuid
+}
+
+"""
+order by max() on columns of table "sequent_backend.tally_session_resolution"
+"""
+input tally_session_resolution_max_order_by {
+  contest_id: order_by
+  created_at: order_by
+  election_event_id: order_by
+  id: order_by
+  last_updated_at: order_by
+  resolution_type: order_by
+  resolved_at: order_by
+  resolved_by_user: order_by
+  status: order_by
+  tally_session_id: order_by
+  tenant_id: order_by
+}
+
+"""aggregate min on columns"""
+type tally_session_resolution_min_fields {
+  contest_id: uuid
+  created_at: timestamptz
+  election_event_id: uuid
+  id: uuid
+  last_updated_at: timestamptz
+  resolution_type: String
+  resolved_at: timestamptz
+  resolved_by_user: uuid
+  status: String
+  tally_session_id: uuid
+  tenant_id: uuid
+}
+
+"""
+order by min() on columns of table "sequent_backend.tally_session_resolution"
+"""
+input tally_session_resolution_min_order_by {
+  contest_id: order_by
+  created_at: order_by
+  election_event_id: order_by
+  id: order_by
+  last_updated_at: order_by
+  resolution_type: order_by
+  resolved_at: order_by
+  resolved_by_user: order_by
+  status: order_by
+  tally_session_id: order_by
+  tenant_id: order_by
+}
+
+"""
+response of any mutation on the table "sequent_backend.tally_session_resolution"
+"""
+type tally_session_resolution_mutation_response {
+  """number of rows affected by the mutation"""
+  affected_rows: Int!
+  """data from the rows affected by the mutation"""
+  returning: [tally_session_resolution!]!
+}
+
+"""
+on_conflict condition type for table "sequent_backend.tally_session_resolution"
+"""
+input tally_session_resolution_on_conflict {
+  constraint: tally_session_resolution_constraint!
+  update_columns: [tally_session_resolution_update_column!]! = []
+  where: tally_session_resolution_bool_exp
+}
+
+"""
+Ordering options when selecting data from "sequent_backend.tally_session_resolution".
+"""
+input tally_session_resolution_order_by {
+  annotations: order_by
+  contest: contest_order_by
+  contest_id: order_by
+  created_at: order_by
+  election_event_id: order_by
+  id: order_by
+  labels: order_by
+  last_updated_at: order_by
+  resolution_data: order_by
+  resolution_type: order_by
+  resolved_at: order_by
+  resolved_by_user: order_by
+  status: order_by
+  tally_session: tally_session_order_by
+  tally_session_id: order_by
+  tenant_id: order_by
+}
+
+"""
+primary key columns input for table: sequent_backend.tally_session_resolution
+"""
+input tally_session_resolution_pk_columns_input {
+  id: uuid!
+}
+
+"""prepend existing jsonb value of filtered columns with new jsonb value"""
+input tally_session_resolution_prepend_input {
+  annotations: jsonb
+  labels: jsonb
+  resolution_data: jsonb
+}
+
+"""
+select columns of table "sequent_backend.tally_session_resolution"
+"""
+enum tally_session_resolution_select_column {
+  """column name"""
+  annotations
+  """column name"""
+  contest_id
+  """column name"""
+  created_at
+  """column name"""
+  election_event_id
+  """column name"""
+  id
+  """column name"""
+  labels
+  """column name"""
+  last_updated_at
+  """column name"""
+  resolution_data
+  """column name"""
+  resolution_type
+  """column name"""
+  resolved_at
+  """column name"""
+  resolved_by_user
+  """column name"""
+  status
+  """column name"""
+  tally_session_id
+  """column name"""
+  tenant_id
+}
+
+"""
+input type for updating data in table "sequent_backend.tally_session_resolution"
+"""
+input tally_session_resolution_set_input {
+  annotations: jsonb
+  contest_id: uuid
+  created_at: timestamptz
+  election_event_id: uuid
+  id: uuid
+  labels: jsonb
+  last_updated_at: timestamptz
+  resolution_data: jsonb
+  resolution_type: String
+  resolved_at: timestamptz
+  resolved_by_user: uuid
+  status: String
+  tally_session_id: uuid
+  tenant_id: uuid
+}
+
+"""
+Streaming cursor of the table "sequent_backend_tally_session_resolution"
+"""
+input tally_session_resolution_stream_cursor_input {
+  """Stream column input with initial value"""
+  initial_value: tally_session_resolution_stream_cursor_value_input!
+  """cursor ordering"""
+  ordering: cursor_ordering
+}
+
+"""Initial value of the column from where the streaming should start"""
+input tally_session_resolution_stream_cursor_value_input {
+  annotations: jsonb
+  contest_id: uuid
+  created_at: timestamptz
+  election_event_id: uuid
+  id: uuid
+  labels: jsonb
+  last_updated_at: timestamptz
+  resolution_data: jsonb
+  resolution_type: String
+  resolved_at: timestamptz
+  resolved_by_user: uuid
+  status: String
+  tally_session_id: uuid
+  tenant_id: uuid
+}
+
+"""
+update columns of table "sequent_backend.tally_session_resolution"
+"""
+enum tally_session_resolution_update_column {
+  """column name"""
+  annotations
+  """column name"""
+  contest_id
+  """column name"""
+  created_at
+  """column name"""
+  election_event_id
+  """column name"""
+  id
+  """column name"""
+  labels
+  """column name"""
+  last_updated_at
+  """column name"""
+  resolution_data
+  """column name"""
+  resolution_type
+  """column name"""
+  resolved_at
+  """column name"""
+  resolved_by_user
+  """column name"""
+  status
+  """column name"""
+  tally_session_id
+  """column name"""
+  tenant_id
+}
+
+input tally_session_resolution_updates {
+  """append existing jsonb value of filtered columns with new jsonb value"""
+  _append: tally_session_resolution_append_input
+  """
+  delete the field or element with specified path (for JSON arrays, negative integers count from the end)
+  """
+  _delete_at_path: tally_session_resolution_delete_at_path_input
+  """
+  delete the array element with specified index (negative integers count from the end). throws an error if top level container is not an array
+  """
+  _delete_elem: tally_session_resolution_delete_elem_input
+  """
+  delete key/value pair or string element. key/value pairs are matched based on their key value
+  """
+  _delete_key: tally_session_resolution_delete_key_input
+  """prepend existing jsonb value of filtered columns with new jsonb value"""
+  _prepend: tally_session_resolution_prepend_input
+  """sets the columns of the filtered rows to the given values"""
+  _set: tally_session_resolution_set_input
+  """filter the rows which have to be updated"""
+  where: tally_session_resolution_bool_exp!
 }
 
 """
@@ -20368,6 +21355,51 @@ type subscription_root {
     where: cast_vote_bool_exp
   ): [cast_vote!]!
   """
+  fetch data from the table: "sequent_backend.certificate_authority"
+  """
+  sequent_backend_certificate_authority(
+    """distinct select on columns"""
+    distinct_on: [certificate_authority_select_column!]
+    """limit the number of rows returned"""
+    limit: Int
+    """skip the first n rows. Use only with order_by"""
+    offset: Int
+    """sort the rows by one or more columns"""
+    order_by: [certificate_authority_order_by!]
+    """filter the rows returned"""
+    where: certificate_authority_bool_exp
+  ): [certificate_authority!]!
+  """
+  fetch aggregated fields from the table: "sequent_backend.certificate_authority"
+  """
+  sequent_backend_certificate_authority_aggregate(
+    """distinct select on columns"""
+    distinct_on: [certificate_authority_select_column!]
+    """limit the number of rows returned"""
+    limit: Int
+    """skip the first n rows. Use only with order_by"""
+    offset: Int
+    """sort the rows by one or more columns"""
+    order_by: [certificate_authority_order_by!]
+    """filter the rows returned"""
+    where: certificate_authority_bool_exp
+  ): certificate_authority_aggregate!
+  """
+  fetch data from the table: "sequent_backend.certificate_authority" using primary key columns
+  """
+  sequent_backend_certificate_authority_by_pk(id: uuid!): certificate_authority
+  """
+  fetch data from the table in a streaming manner: "sequent_backend.certificate_authority"
+  """
+  sequent_backend_certificate_authority_stream(
+    """maximum number of rows returned in a single batch"""
+    batch_size: Int!
+    """cursor to stream the results returned by the query"""
+    cursor: [certificate_authority_stream_cursor_input]!
+    """filter the rows returned"""
+    where: certificate_authority_bool_exp
+  ): [certificate_authority!]!
+  """
   fetch data from the table: "sequent_backend.contest"
   """
   sequent_backend_contest(
@@ -21481,6 +22513,51 @@ type subscription_root {
     """filter the rows returned"""
     where: tally_session_execution_bool_exp
   ): [tally_session_execution!]!
+  """
+  fetch data from the table: "sequent_backend.tally_session_resolution"
+  """
+  sequent_backend_tally_session_resolution(
+    """distinct select on columns"""
+    distinct_on: [tally_session_resolution_select_column!]
+    """limit the number of rows returned"""
+    limit: Int
+    """skip the first n rows. Use only with order_by"""
+    offset: Int
+    """sort the rows by one or more columns"""
+    order_by: [tally_session_resolution_order_by!]
+    """filter the rows returned"""
+    where: tally_session_resolution_bool_exp
+  ): [tally_session_resolution!]!
+  """
+  fetch aggregated fields from the table: "sequent_backend.tally_session_resolution"
+  """
+  sequent_backend_tally_session_resolution_aggregate(
+    """distinct select on columns"""
+    distinct_on: [tally_session_resolution_select_column!]
+    """limit the number of rows returned"""
+    limit: Int
+    """skip the first n rows. Use only with order_by"""
+    offset: Int
+    """sort the rows by one or more columns"""
+    order_by: [tally_session_resolution_order_by!]
+    """filter the rows returned"""
+    where: tally_session_resolution_bool_exp
+  ): tally_session_resolution_aggregate!
+  """
+  fetch data from the table: "sequent_backend.tally_session_resolution" using primary key columns
+  """
+  sequent_backend_tally_session_resolution_by_pk(id: uuid!): tally_session_resolution
+  """
+  fetch data from the table in a streaming manner: "sequent_backend.tally_session_resolution"
+  """
+  sequent_backend_tally_session_resolution_stream(
+    """maximum number of rows returned in a single batch"""
+    batch_size: Int!
+    """cursor to stream the results returned by the query"""
+    cursor: [tally_session_resolution_stream_cursor_input]!
+    """filter the rows returned"""
+    where: tally_session_resolution_bool_exp
+  ): [tally_session_resolution!]!
   """
   fetch data from the table in a streaming manner: "sequent_backend.tally_session"
   """
