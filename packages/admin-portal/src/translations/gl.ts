@@ -341,6 +341,11 @@ const galegoTranslation: TranslationType = {
                     "no-signature": "Sin firma",
                     "with-signature": "Con firma",
                 },
+                voterDigitalCertPolicy: {
+                    policyLabel: "Voter Digital Certificate Policy",
+                    "allow": "Allow",
+                    "not-allow": "Not allow",
+                },
                 enrollment: {
                     policyLabel: "Inscripción",
                     options: {

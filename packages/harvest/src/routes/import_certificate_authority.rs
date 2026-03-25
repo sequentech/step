@@ -6,6 +6,7 @@ use crate::services::authorization::authorize;
 use deadpool_postgres::Client as DbClient;
 use rocket::http::Status;
 use rocket::serde::json::Json;
+use sequent_core::ballot::VoterDigitalCertPolicy;
 use sequent_core::services::jwt::JwtClaims;
 use sequent_core::types::permissions::Permissions;
 use serde::{Deserialize, Serialize};
@@ -14,6 +15,7 @@ use uuid::Uuid;
 use windmill::postgres::certificate_authority::{
     insert_certificate_authority, CertificateAuthorityRecord,
 };
+use windmill::postgres::election_event::get_election_event_by_id;
 use windmill::services::certificate_authority::{
     parse_certificate_pem, split_pem_bundle,
 };
@@ -70,6 +72,28 @@ pub async fn import_certificate_authority(
         .transaction()
         .await
         .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
+
+    let election_event = get_election_event_by_id(
+        &hasura_transaction,
+        &tenant_id_str,
+        &body.election_event_id.to_string(),
+    )
+    .await
+    .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
+
+    let voter_digital_cert_policy = election_event
+        .get_presentation()
+        .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?
+        .unwrap_or_default()
+        .voter_digital_cert_policy
+        .unwrap_or_default();
+
+    if voter_digital_cert_policy == VoterDigitalCertPolicy::NOT_ALLOW {
+        return Err((
+            Status::Forbidden,
+            "Digital certificate authentication is not allowed for this election event".to_string(),
+        ));
+    }
 
     let mut inserted_count: i32 = 0;
     let mut skipped_count: i32 = 0;

@@ -10,7 +10,6 @@ import {
     List,
     TextField,
     WrapperField,
-    useDelete,
     useGetOne,
     useNotify,
     useRecordContext,
@@ -37,6 +36,7 @@ import {AuthContext} from "@/providers/AuthContextProvider"
 import {IPermissions} from "@/types/keycloak"
 import {Sequent_Backend_Election_Event} from "@/gql/graphql"
 import {IMPORT_CERTIFICATE_AUTHORITY} from "@/queries/ImportCertificateAuthority"
+import {DELETE_CERTIFICATE_AUTHORITY} from "@/queries/DeleteCertificateAuthority"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import {ResourceListStyles} from "@/components/styles/ResourceListStyles"
 import {DrawerStyles} from "@/components/styles/DrawerStyles"
@@ -202,7 +202,6 @@ export const EditElectionEventCAs: React.FC = () => {
     const {t} = useTranslation()
     const notify = useNotify()
     const refresh = useRefresh()
-    const [deleteOne] = useDelete()
 
     const [importDrawerOpen, setImportDrawerOpen] = useState(false)
     const [viewId, setViewId] = useState<Identifier | undefined>()
@@ -212,6 +211,23 @@ export const EditElectionEventCAs: React.FC = () => {
     const [fileError, setFileError] = useState<string | null>(null)
 
     const canWrite = authContext.isAuthorized(true, tenantId, IPermissions.CA_WRITE)
+
+    const [deleteCA] = useMutation(DELETE_CERTIFICATE_AUTHORITY, {
+        context: {
+            headers: {
+                "x-hasura-role": IPermissions.CA_WRITE,
+            },
+        },
+        onCompleted: () => {
+            refresh()
+        },
+        onError: () => {
+            notify(t("certificateAuthorities.notify.deleteError", {error: ""}), {
+                type: "error",
+            })
+            refresh()
+        },
+    })
 
     const [importCA, {loading: importing}] = useMutation(IMPORT_CERTIFICATE_AUTHORITY, {
         context: {
@@ -276,21 +292,7 @@ export const EditElectionEventCAs: React.FC = () => {
     }
 
     const confirmDeleteAction = () => {
-        deleteOne(
-            RESOURCE,
-            {id: deleteId},
-            {
-                onSuccess() {
-                    refresh()
-                },
-                onError() {
-                    notify(t("certificateAuthorities.notify.deleteError", {error: ""}), {
-                        type: "error",
-                    })
-                    refresh()
-                },
-            }
-        )
+        deleteCA({variables: {id: deleteId, electionEventId: record?.id}})
         setDeleteId(undefined)
     }
 

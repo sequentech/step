@@ -20,7 +20,12 @@ import {useTranslation} from "react-i18next"
 import {useElectionEventTallyStore} from "@/providers/ElectionEventTallyProvider"
 import {v4 as uuidv4} from "uuid"
 import {EPublishType} from "../Publish/EPublishType"
-import {EElectionEventLockedDown, i18n, translateFromPresentation} from "@sequentech/ui-core"
+import {
+    EElectionEventLockedDown,
+    EVoterDigitalCertPolicy,
+    i18n,
+    translateFromPresentation,
+} from "@sequentech/ui-core"
 import {Box, CircularProgress} from "@mui/material"
 import {Tabs} from "@/components/Tabs"
 import {useNavigate, useLocation} from "react-router-dom"
@@ -294,11 +299,9 @@ export const ElectionEventTabs: React.FC = () => {
             authContext.tenantId,
             IPermissions.ELECTION_EVENT_APPROVALS_TAB
         )
-    const showCAs = authContext.isAuthorized(
-        true,
-        authContext.tenantId,
-        IPermissions.ELECTION_EVENT_CAS_TAB
-    )
+    const showCAs =
+        authContext.isAuthorized(true, authContext.tenantId, IPermissions.ELECTION_EVENT_CAS_TAB) &&
+        record?.presentation?.voter_digital_cert_policy !== EVoterDigitalCertPolicy.NOT_ALLOW
 
     // -----------------------------------------------------------------
     // Build tabs with 100% stable references

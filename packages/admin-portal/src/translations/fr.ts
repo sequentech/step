@@ -341,6 +341,11 @@ const frenchTranslation: TranslationType = {
                     "no-signature": "Sans signature",
                     "with-signature": "Avec signature",
                 },
+                voterDigitalCertPolicy: {
+                    policyLabel: "Voter Digital Certificate Policy",
+                    "allow": "Allow",
+                    "not-allow": "Not allow",
+                },
                 enrollment: {
                     policyLabel: "Inscription",
                     options: {

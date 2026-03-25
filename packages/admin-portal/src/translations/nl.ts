@@ -339,6 +339,11 @@ const dutchTranslation: TranslationType = {
                     "no-signature": "Geen handtekening",
                     "with-signature": "Met handtekening",
                 },
+                voterDigitalCertPolicy: {
+                    policyLabel: "Voter Digital Certificate Policy",
+                    "allow": "Allow",
+                    "not-allow": "Not allow",
+                },
                 enrollment: {
                     policyLabel: "Inschrijving",
                     options: {

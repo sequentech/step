@@ -340,6 +340,11 @@ const tagalogTranslation: TranslationType = {
                     "no-signature": "Walang pirma",
                     "with-signature": "May pirma",
                 },
+                voterDigitalCertPolicy: {
+                    policyLabel: "Voter Digital Certificate Policy",
+                    "allow": "Allow",
+                    "not-allow": "Not allow",
+                },
                 enrollment: {
                     policyLabel: "Pagpaparehistro",
                     options: {

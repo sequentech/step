@@ -341,6 +341,11 @@ const catalanTranslation: TranslationType = {
                     "no-signature": "Sense signatura",
                     "with-signature": "Amb signatura",
                 },
+                voterDigitalCertPolicy: {
+                    policyLabel: "Voter Digital Certificate Policy",
+                    "allow": "Allow",
+                    "not-allow": "Not allow",
+                },
                 enrollment: {
                     policyLabel: "Inscripció",
                     options: {

@@ -983,6 +983,7 @@ pub struct ElectionEventPresentation {
     pub enrollment: Option<Enrollment>,
     pub otp: Option<Otp>,
     pub voter_signing_policy: Option<VoterSigningPolicy>,
+    pub voter_digital_cert_policy: Option<VoterDigitalCertPolicy>,
     pub weighted_voting_policy: Option<WeightedVotingPolicy>,
     pub ceremonies_policy: Option<CeremoniesPolicy>,
     pub delegated_voting_policy: Option<DelegatedVotingPolicy>,
@@ -1729,6 +1730,31 @@ pub enum VoterSigningPolicy {
     #[strum(serialize = "with-signature")]
     #[serde(rename = "with-signature")]
     WITH_SIGNATURE,
+}
+
+#[allow(non_camel_case_types)]
+#[derive(
+    BorshSerialize,
+    BorshDeserialize,
+    Default,
+    Display,
+    Serialize,
+    Deserialize,
+    Debug,
+    PartialEq,
+    Eq,
+    Clone,
+    EnumString,
+    JsonSchema,
+)]
+pub enum VoterDigitalCertPolicy {
+    #[default]
+    #[strum(serialize = "not-allow")]
+    #[serde(rename = "not-allow")]
+    NOT_ALLOW,
+    #[strum(serialize = "allow")]
+    #[serde(rename = "allow")]
+    ALLOW,
 }
 
 #[allow(non_camel_case_types)]
