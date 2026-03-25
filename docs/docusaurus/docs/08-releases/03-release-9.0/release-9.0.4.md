@@ -23,7 +23,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 ### Other
 
-- 🐞 Voting portal: Can't login on kiosk channel ([sequentech/step#2545](https://github.com/sequentech/step/pull/2545))
+- 🐞 Voting Portal: Can't login on kiosk channel ([sequentech/step#2545](https://github.com/sequentech/step/pull/2545))
   by @Findeton
 
 
