@@ -856,15 +856,24 @@ mod tests {
 
     fn make_test_result(
         election_name: &str,
+        election_alias: &str,
         election_id: &str,
         contest_id: &str,
         contest_name: &str,
     ) -> ElectionReportDataComputed {
-        make_test_result_with_alias(election_name, election_id, contest_id, contest_name, None)
+        make_test_result_with_alias(
+            election_name,
+            election_alias,
+            election_id,
+            contest_id,
+            contest_name,
+            None,
+        )
     }
 
     fn make_test_result_with_alias(
         election_name: &str,
+        election_alias: &str,
         election_id: &str,
         contest_id: &str,
         contest_name: &str,
@@ -938,6 +947,7 @@ mod tests {
         let contest_id = "b2c3d4e5-0000-0000-0000-000000000001".to_string();
         let results = vec![make_test_result(
             &long_name,
+            "",
             &election_id,
             &contest_id,
             &long_name,
@@ -968,6 +978,7 @@ mod tests {
         let contest_id = "b2c3d4e5-0000-0000-0000-000000000001".to_string();
         let results = vec![make_test_result(
             "My Election 2024!",
+            "",
             &election_id,
             &contest_id,
             "Contest (Round 1)",
@@ -993,7 +1004,7 @@ mod tests {
     fn test_generate_ids_map_empty_election_name() {
         let election_id = "a1b2c3d4-0000-0000-0000-000000000000".to_string();
         let contest_id = "b2c3d4e5-0000-0000-0000-000000000001".to_string();
-        let results = vec![make_test_result("", &election_id, &contest_id, "")];
+        let results = vec![make_test_result("", "", &election_id, &contest_id, "")];
 
         let map = generate_ids_map(&results, &vec![], "en").unwrap();
 
@@ -1010,6 +1021,7 @@ mod tests {
         let contest_id = "b2c3d4e5-0000-0000-0000-000000000001".to_string();
         let results = vec![make_test_result_with_alias(
             "My Election",
+            "my-election",
             &election_id,
             &contest_id,
             "Contest Name",
@@ -1036,6 +1048,7 @@ mod tests {
         let contest_id = "b2c3d4e5-0000-0000-0000-000000000001".to_string();
         let results = vec![make_test_result_with_alias(
             "My Election",
+            "my-election",
             &election_id,
             &contest_id,
             "Contest Name",
