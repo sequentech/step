@@ -638,9 +638,51 @@ pub fn html_to_pdf(
     print_to_pdf(url_path.as_str(), pdf_options, None)
 }
 
-/// Uses headless_chrome to print the file to PDF.
+/// Uses headless_chrome to print the file to PDF, with retry on transient
+/// failures.
 #[instrument(skip_all, err)]
 fn print_to_pdf(
+    file_path: &str,
+    pdf_options: PrintToPdfOptions,
+    wait: Option<Duration>,
+) -> Result<Vec<u8>> {
+    // When multiple Rayon threads generate PDF batches concurrently (workers
+    // 29, 30, 31), each spawns its own headless Chrome process. Chrome can
+    // crash mid-print (due to --single-process flag instability or memory
+    // pressure from concurrent instances), closing the WebSocket connection and
+    // causing tab.print_to_pdf() to fail with ConnectionClosed: Unable to make
+    // method calls because underlying connection is closed
+    const MAX_RETRIES: u32 = 5;
+    let mut delay = Duration::from_secs(1);
+    // PrintToPdfOptions doesn't derive Clone, so serialize once and deserialize
+    // per attempt to get independent owned copies.
+    let pdf_options_json = serde_json::to_value(&pdf_options)
+        .with_context(|| "Error serializing pdf_options for retry")?;
+
+    for attempt in 1..=MAX_RETRIES {
+        let opts: PrintToPdfOptions =
+            serde_json::from_value(pdf_options_json.clone())
+                .with_context(|| "Error deserializing pdf_options for retry")?;
+
+        match print_to_pdf_once(file_path, opts, wait) {
+            Ok(bytes) => return Ok(bytes),
+            Err(e) if attempt < MAX_RETRIES => {
+                warn!(
+                    "print_to_pdf attempt {attempt}/{MAX_RETRIES} failed: {e:?}, \
+                     retrying in {delay:?}"
+                );
+                sleep(delay);
+                delay *= 2;
+            }
+            Err(e) => return Err(e),
+        }
+    }
+    unreachable!()
+}
+
+/// One attempt at printing via headless Chrome.
+#[instrument(skip_all, err)]
+fn print_to_pdf_once(
     file_path: &str,
     pdf_options: PrintToPdfOptions,
     wait: Option<Duration>,

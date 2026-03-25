@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::Transaction;
+use sequent_core::services::uuid_validation::parse_uuid_v4;
 use sequent_core::types::hasura::core::Template;
 use tokio_postgres::row::Row;
 use tracing::{event, instrument, Level};
@@ -60,7 +61,7 @@ pub async fn get_template_by_alias(
         .await?;
 
     let rows: Vec<Row> = hasura_transaction
-        .query(&statement, &[&Uuid::parse_str(tenant_id)?, &template_alias])
+        .query(&statement, &[&parse_uuid_v4(tenant_id)?, &template_alias])
         .await?;
 
     let elections: Vec<Template> = rows
@@ -85,7 +86,7 @@ pub async fn get_templates_by_tenant_id(
     }
 
     let tenant_uuid =
-        Uuid::parse_str(tenant_id).map_err(|err| anyhow!("Error parsing tenant UUID: {}", err))?;
+        parse_uuid_v4(tenant_id).map_err(|err| anyhow!("Error parsing tenant UUID: {}", err))?;
 
     let statement = hasura_transaction
         .prepare(
@@ -167,7 +168,7 @@ pub async fn insert_templates(
                 &statement,
                 &[
                     &template.alias,
-                    &Uuid::parse_str(&template.tenant_id)?,
+                    &parse_uuid_v4(&template.tenant_id)?,
                     &template.template,
                     &template.created_by,
                     &template.labels,
