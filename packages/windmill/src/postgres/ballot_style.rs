@@ -6,6 +6,7 @@ use anyhow::{anyhow, Context, Result};
 use chrono::{DateTime, Local};
 use deadpool_postgres::Transaction;
 use sequent_core::services::date::ISO8601;
+use sequent_core::services::uuid_validation::parse_uuid_v4;
 use sequent_core::types::hasura::core::BallotStyle;
 use tokio_postgres::row::Row;
 use tracing::instrument;
@@ -79,14 +80,14 @@ pub async fn insert_ballot_style(
         .query(
             &statement,
             &[
-                &Uuid::parse_str(ballot_style_id)?,
-                &Uuid::parse_str(tenant_id)?,
-                &Uuid::parse_str(election_event_id)?,
-                &Uuid::parse_str(election_id)?,
-                &Uuid::parse_str(area_id)?,
+                &parse_uuid_v4(ballot_style_id)?,
+                &parse_uuid_v4(tenant_id)?,
+                &parse_uuid_v4(election_event_id)?,
+                &parse_uuid_v4(election_id)?,
+                &parse_uuid_v4(area_id)?,
                 &ballot_eml,
                 &status,
-                &Uuid::parse_str(ballot_publication_id)?,
+                &parse_uuid_v4(ballot_publication_id)?,
             ],
         )
         .await
@@ -173,8 +174,8 @@ pub async fn export_event_ballot_styles(
         .query(
             &query,
             &[
-                &Uuid::parse_str(tenant_id)?,
-                &Uuid::parse_str(election_event_id)?,
+                &parse_uuid_v4(tenant_id)?,
+                &parse_uuid_v4(election_event_id)?,
             ],
         )
         .await?;
@@ -199,7 +200,7 @@ pub async fn get_ballot_styles_by_elections(
 ) -> Result<Vec<BallotStyle>> {
     let authorized_election_ids_uuids: Vec<Uuid> = authorized_election_ids
         .iter()
-        .map(|id| Uuid::parse_str(id))
+        .map(|id| parse_uuid_v4(id))
         .collect::<Result<_, _>>()?;
 
     let query: tokio_postgres::Statement = hasura_transaction
@@ -223,8 +224,8 @@ pub async fn get_ballot_styles_by_elections(
         .query(
             &query,
             &[
-                &Uuid::parse_str(tenant_id)?,
-                &Uuid::parse_str(election_event_id)?,
+                &parse_uuid_v4(tenant_id)?,
+                &parse_uuid_v4(election_event_id)?,
                 &authorized_election_ids_uuids,
             ],
         )
@@ -277,9 +278,9 @@ pub async fn get_publication_ballot_styles(
         .query(
             &query,
             &[
-                &Uuid::parse_str(election_event_id)?,
-                &Uuid::parse_str(tenant_id)?,
-                &Uuid::parse_str(ballot_publication_id)?,
+                &parse_uuid_v4(election_event_id)?,
+                &parse_uuid_v4(tenant_id)?,
+                &parse_uuid_v4(ballot_publication_id)?,
             ],
         )
         .await?;
