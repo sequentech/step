@@ -72,8 +72,7 @@ pub async fn import_candidate_sqlite(
                 _ if rec.get(13).unwrap_or("").is_empty() => None,
                 other => {
                     return Err(anyhow!(
-                        "Invalid boolean in is_public column: {}",
-                        other
+                        "Invalid boolean in is_public column: {other}"
                     ));
                 }
             };

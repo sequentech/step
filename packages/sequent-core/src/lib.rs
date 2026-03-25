@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 //! Shared core types and services for Step crates.
+#![allow(missing_docs)]
 #[macro_use]
 extern crate quick_error;
 extern crate cfg_if;

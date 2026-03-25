@@ -108,11 +108,7 @@ pub fn create_ballot_style(
                 .cloned()
                 .collect::<Vec<hasura_types::Candidate>>();
 
-            create_contest(
-                contest,
-                election_candidates.as_slice(),
-                &default_language,
-            )
+            create_contest(contest, &election_candidates, &default_language)
         })
         .collect::<Result<Vec<ballot::Contest>>>()?;
 

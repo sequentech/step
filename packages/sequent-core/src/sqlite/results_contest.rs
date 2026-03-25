@@ -116,7 +116,7 @@ pub async fn update_results_contest_documents_sqlite(
     documents: &ResultDocuments,
 ) -> Result<()> {
     let docs_json = to_string(documents)
-        .map_err(|e| anyhow!("Failed to serialize documents to JSON: {}", e))?;
+        .map_err(|e| anyhow!("Failed to serialize documents to JSON: {e}"))?;
 
     let insert_count = sqlite_transaction.execute(
         "
@@ -143,8 +143,7 @@ pub async fn update_results_contest_documents_sqlite(
         1 => Ok(()),
         0 => Err(anyhow!("Rows not found in table results_contest")),
         count => Err(anyhow!(
-            "Too many affected rows in table results_contest: {}",
-            count
+            "Too many affected rows in table results_contest: {count}"
         )),
     }
 }

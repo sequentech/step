@@ -7,16 +7,24 @@ use wasm_bindgen::prelude::*;
 
 extern crate console_error_panic_hook;
 
-#[cfg(feature = "wasm")]
+/// Logs to the browser console (WASM) or stdout (native).
+///
+/// # Examples
+/// ```
+/// console_log!("Hello, {}!", "world");
+/// ```
+#[macro_export]
 macro_rules! console_log {
     ($($t:tt)*) => {
-        ::web_sys::console::log_1(&format_args!($($t)*).to_string().into());
-    }
-}
-
-#[cfg(not(feature = "wasm"))]
-macro_rules! console_log {
-    ($($t:tt)*) => {
-        println!("{}", format_args!($($t)*));
+        {
+            #[cfg(feature = "wasm")]
+            {
+                ::web_sys::console::log_1(&format_args!($($t)*).to_string().into());
+            }
+            #[cfg(not(feature = "wasm"))]
+            {
+                println!("{}", format_args!($($t)*));
+            }
+        }
     }
 }

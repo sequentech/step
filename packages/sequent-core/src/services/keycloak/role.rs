@@ -60,7 +60,7 @@ impl KeycloakAdminClient {
                 None,
             )
             .await
-            .map_err(|err| anyhow!("{:?}", err))?;
+            .map_err(|err| anyhow!("{err:?}"))?;
 
         let count = group_representations.len();
         let start = offset.unwrap_or(0);
@@ -93,7 +93,7 @@ impl KeycloakAdminClient {
                 None,
             )
             .await
-            .map_err(|err| anyhow!("{:?}", err))?;
+            .map_err(|err| anyhow!("{err:?}"))?;
         let roles = groups.into_iter().map(|group| group.into()).collect();
         Ok(roles)
     }
@@ -110,7 +110,7 @@ impl KeycloakAdminClient {
                 realm, user_id, role_id,
             )
             .await
-            .map_err(|err| anyhow!("{:?}", err))?;
+            .map_err(|err| anyhow!("{err:?}"))?;
         Ok(())
     }
 
@@ -126,7 +126,7 @@ impl KeycloakAdminClient {
                 realm, user_id, role_id,
             )
             .await
-            .map_err(|err| anyhow!("{:?}", err))?;
+            .map_err(|err| anyhow!("{err:?}"))?;
         Ok(())
     }
 
@@ -135,7 +135,7 @@ impl KeycloakAdminClient {
         self.client
             .realm_groups_with_group_id_delete(realm, role_id)
             .await
-            .map_err(|err| anyhow!("{:?}", err))?;
+            .map_err(|err| anyhow!("{err:?}"))?;
         Ok(())
     }
 
@@ -144,7 +144,7 @@ impl KeycloakAdminClient {
         self.client
             .realm_groups_post(realm, role.clone().into())
             .await
-            .map_err(|err| anyhow!("{:?}", err))?;
+            .map_err(|err| anyhow!("{err:?}"))?;
         Ok(role.clone())
     }
 

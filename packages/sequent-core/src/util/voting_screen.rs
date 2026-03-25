@@ -2,8 +2,15 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use crate::ballot::*;
-use crate::plaintext::*;
+use crate::ballot::{
+    Candidate, CandidatePresentation, Contest, ContestPresentation,
+    EBlankVotePolicy, EDuplicatedRankPolicy, EOverVotePolicy,
+    EPreferenceGapsPolicy, EUnderVotePolicy, InvalidVotePolicy,
+};
+use crate::plaintext::{
+    DecodedVoteChoice, DecodedVoteContest, InvalidPlaintextError,
+    InvalidPlaintextErrorType,
+};
 use crate::types::ceremonies::CountingAlgType;
 use crate::util::console_log;
 
@@ -11,9 +18,14 @@ use std::collections::HashMap;
 
 /// Function used to decide if the voter needs to change his/her ballot before
 /// continuing
+///
+/// # Panics
+/// Panics if `choices_selected` cannot be converted to `i64` (should not happen for valid input).
+#[must_use]
+#[allow(clippy::implicit_hasher)]
 pub fn check_voting_not_allowed_next_util(
-    contests: Vec<Contest>,
-    decoded_contests: HashMap<String, DecodedVoteContest>,
+    contests: &[Contest],
+    decoded_contests: &HashMap<String, DecodedVoteContest>,
 ) -> bool {
     let voting_not_allowed = contests.iter().any(|contest| {
         let default_vote_policy = InvalidVotePolicy::default();
@@ -58,7 +70,7 @@ pub fn check_voting_not_allowed_next_util(
                 .iter()
                 .filter(|choice| choice.selected == 0)
                 .count();
-
+            let choices_selected_i64 = i64::try_from(choices_selected).expect("error convert choices_selected to i64");
             let invalid_errors: &Vec<InvalidPlaintextError> =
                 &decoded_contest.invalid_errors;
 
@@ -80,7 +92,7 @@ pub fn check_voting_not_allowed_next_util(
                     && *blank_policy == EBlankVotePolicy::NOT_ALLOWED)
             // - selection is more than maximum and over vote policy is
             //   NOT_ALLOWED_WITH_MSG_AND_ALERT
-                || (choices_selected as i64 > max
+                || (choices_selected_i64 > max
                     && over_vote_policy
                         == EOverVotePolicy::NOT_ALLOWED_WITH_MSG_AND_ALERT)
             // - duplicated rank policy is NOT_ALLOWED and there's a
@@ -113,9 +125,14 @@ pub fn check_voting_not_allowed_next_util(
 
 /// if returns true, when the user click next, there will be a dialog that
 /// prompts the user to confirm before going to the next screen
+///
+/// # Panics
+/// Panics if `choices_selected` cannot be converted to `i64` (should not happen for valid input).
+#[must_use]
+#[allow(clippy::implicit_hasher)]
 pub fn check_voting_error_dialog_util(
-    contests: Vec<Contest>,
-    decoded_contests: HashMap<String, DecodedVoteContest>,
+    contests: &[Contest],
+    decoded_contests: &HashMap<String, DecodedVoteContest>,
 ) -> bool {
     let show_voting_alert = contests.iter().any(|contest| {
         let invalid_vote_policy = contest
@@ -174,6 +191,7 @@ pub fn check_voting_error_dialog_util(
 
             console_log!("choices_selected={choices_selected:?}, explicit_invalid={explicit_invalid:?}");
 
+            let choices_selected_i64 = i64::try_from(choices_selected).expect("error convert choices_selected to i64");
             // Show Alert dialog if:
             // - there are invalid error and it's not allowed
             (!invalid_errors.is_empty()
@@ -188,15 +206,15 @@ pub fn check_voting_error_dialog_util(
                     && choices_selected == 0)
             // - more than max choices were selected and over vote policy is
             //   ALLOWED_WITH_MSG_AND_ALERT
-                || (choices_selected as i64 > max
+                || (choices_selected_i64 > max
                     && over_vote_policy
                         == EOverVotePolicy::ALLOWED_WITH_MSG_AND_ALERT)
             // - it's not a blank vote because there is at least one selection,
             //   the selection is less than the maximum (i.e. undervote) and
             //   undervote policy is WARN_AND_ALERT
-                || ((choices_selected > 0
-                    && (choices_selected as i64) >= min
-                    && (choices_selected as i64) < max)
+                || ((choices_selected_i64 > 0
+                    && choices_selected_i64 >= min
+                    && choices_selected_i64 < max)
                     && under_vote_policy == EUnderVotePolicy::WARN_AND_ALERT)
             // - duplicated rank policy is WARN_AND_ALERT and there's a
             //   duplicated position error
@@ -230,6 +248,8 @@ pub fn check_voting_error_dialog_util(
 
 /// This function is used to create a decoded contest with an invalid errors
 /// for plurality voting, which can be used in the voting screen tests.
+#[must_use]
+#[allow(clippy::too_many_lines)]
 pub fn get_contest_plurality(
     over_vote_policy: EOverVotePolicy,
     blank_vote_policy: EBlankVotePolicy,
@@ -432,6 +452,7 @@ pub fn get_contest_plurality(
 
 /// This function is used to create a decoded contest with an invalid alerts
 /// for plurality voting, which can be used in the voting screen tests.
+#[must_use]
 pub fn get_decoded_contest_plurality(contest: &Contest) -> DecodedVoteContest {
     let message_map = [
         ("max".to_string(), "1".to_string()),

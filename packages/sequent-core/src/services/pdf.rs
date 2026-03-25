@@ -135,7 +135,7 @@ pub mod sync {
             Ok(PdfRenderer { transport })
         }
 
-        /// Synchronous send_request using reqwest::blocking and our own retry
+        /// Synchronous `send_request` using `reqwest::blocking` and our own retry
         /// loop.
         fn send_request(
             &self,
@@ -254,12 +254,11 @@ pub mod sync {
                             return Err(anyhow!(
                                 "AWS Lambda request failed: {error:?}"
                             ));
-                        } else {
-                            error!("OpenWhisk request failed: {error:?}");
-                            return Err(anyhow!(
-                                "OpenWhisk request failed: {error:?}"
-                            ));
                         }
+                        error!("OpenWhisk request failed: {error:?}");
+                        return Err(anyhow!(
+                            "OpenWhisk request failed: {error:?}"
+                        ));
                     }
 
                     match &self.transport {
@@ -327,7 +326,7 @@ pub mod sync {
 
 /// --- ASYNC VERSION ---
 impl PdfRenderer {
-    /// Public async render_pdf that preserves the async signature.
+    /// Public async `render_pdf` that preserves the async signature.
     pub async fn render_pdf(
         html: String,
         pdf_options: Option<PrintToPdfOptions>,
@@ -335,7 +334,7 @@ impl PdfRenderer {
         Ok(PdfRenderer::new()?.do_render_pdf(html, pdf_options).await?)
     }
 
-    /// Creates a new PdfRenderer based on environment configuration.
+    /// Creates a new `PdfRenderer` based on environment configuration.
     pub fn new() -> Result<Self> {
         info!("PdfRenderer::new() [async] - Starting initialization");
 
@@ -380,7 +379,7 @@ impl PdfRenderer {
         Ok(PdfRenderer { transport })
     }
 
-    /// Async do_render_pdf uses retry_with_exponential_backoff for the HTTP
+    /// Async `do_render_pdf` uses `retry_with_exponential_backoff` for the HTTP
     /// request.
     pub async fn do_render_pdf(
         &self,
@@ -501,12 +500,9 @@ impl PdfRenderer {
                         return Err(anyhow!(
                             "AWS Lambda request failed: {error:?}"
                         ));
-                    } else {
-                        error!("OpenWhisk request failed: {error:?}");
-                        return Err(anyhow!(
-                            "OpenWhisk request failed: {error:?}"
-                        ));
                     }
+                    error!("OpenWhisk request failed: {error:?}");
+                    return Err(anyhow!("OpenWhisk request failed: {error:?}"));
                 }
 
                 match &self.transport {
@@ -597,7 +593,7 @@ cfg_if::cfg_if! {
     }
 }
 
-/// Converts HTML to PDF using headless_chrome.
+/// Converts HTML to PDF using `headless_chrome`.
 #[instrument(skip_all, err)]
 pub fn html_to_pdf(
     html: String,
@@ -609,7 +605,7 @@ pub fn html_to_pdf(
     let mut file = File::create(file_path.clone())?;
     let file_path_str = file_path.to_str().unwrap();
     file.write_all(html.as_bytes())?;
-    let url_path = format!("file://{}", file_path_str);
+    let url_path = format!("file://{file_path_str}");
 
     info!("html_to_pdf: {url_path:?}");
     debug!("options: {options:#?}");
@@ -638,7 +634,7 @@ pub fn html_to_pdf(
     print_to_pdf(url_path.as_str(), pdf_options, None)
 }
 
-/// Uses headless_chrome to print the file to PDF.
+/// Uses `headless_chrome` to print the file to PDF.
 #[instrument(skip_all, err)]
 fn print_to_pdf(
     file_path: &str,
@@ -653,7 +649,7 @@ fn print_to_pdf(
         .headless(true)
         // </WTF>
         .enable_logging(true)
-        .idle_browser_timeout(Duration::from_secs(99999999))
+        .idle_browser_timeout(Duration::from_secs(99_999_999))
         .args(vec![
             std::ffi::OsStr::new("--disable-setuid-sandbox"),
             std::ffi::OsStr::new("--disable-dev-shm-usage"),
@@ -670,7 +666,7 @@ fn print_to_pdf(
     info!("2. Opening tab");
     let tab = browser.new_tab()?;
 
-    tab.set_default_timeout(Duration::from_secs(99999999));
+    tab.set_default_timeout(Duration::from_secs(99_999_999));
     info!("3. Navigating to tab");
     tab.navigate_to(file_path)?
         .wait_until_navigated()

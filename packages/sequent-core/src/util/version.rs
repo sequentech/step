@@ -10,6 +10,10 @@ pub const DEV_APP_VERSION: &str = "dev";
 pub const ENV_VAR_APP_VERSION: &str = "APP_VERSION";
 pub const ENV_VAR_APP_HASH: &str = "APP_HASH";
 
+/// Checks if the imported version is compatible with the current version.
+///
+/// # Errors
+/// Returns an error if the imported version is not compatible with the current version.
 pub fn check_version_compatibility(
     imported_version: &str,
     current_version: &str,
@@ -30,32 +34,37 @@ pub fn check_version_compatibility(
     if imported_version == DEV_APP_VERSION {
         #[cfg(feature = "log")]
         info!("Imported version is 'dev' while system is not in dev mode, rejecting import");
-        return Err(anyhow!("Imported version is 'dev', which is not compatible with current version {}. Please use a different version.", current_version));
+        return Err(anyhow!("Imported version is 'dev', which is not compatible with current version {current_version}. Please use a different version."));
     }
 
-    let current_major_parsed = extract_major(&current_version)
+    let current_major_parsed = extract_major(current_version)
         .ok_or_else(|| anyhow!("Could not parse current version"))?;
     let imported_major_parsed = extract_major(imported_version)
         .ok_or_else(|| anyhow!("Could not parse imported version"))?;
 
     if current_major_parsed < imported_major_parsed {
         return Err(anyhow!(
-            "Version mismatch: Imported version {} is not compatible with current version {}. Please upgrade your system.",
-            imported_version,
-            current_version
+            "Version mismatch: Imported version {imported_version} is not compatible with current version {current_version}. Please upgrade your system."
         ));
     }
     Ok(())
 }
 
+/// Extracts the major version number from a version string.
+///
+/// # Arguments
+/// * `input` - The version string (e.g., "v1.2.3" or "1.2.3").
+///
+/// # Returns
+/// An `Option<u64>` containing the major version number if parsing succeeds.
 fn extract_major(input: &str) -> Option<u64> {
     // Trim optional 'v' or 'V' prefix
-    let trimmed = input.trim_start_matches(|c| c == 'v' || c == 'V');
+    let trimmed = input.trim_start_matches(['v', 'V'].as_ref());
 
     // We take characters from the start as long as they are digits.
     // This stops at the first dot '.', hyphen '-', or any non-digit.
     let major_str: String =
-        trimmed.chars().take_while(|c| c.is_ascii_digit()).collect();
+        trimmed.chars().take_while(char::is_ascii_digit).collect();
 
     // Parse the result into a u64
     // If the string was empty (e.g., input was "invalid"), this returns None.

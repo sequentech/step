@@ -84,7 +84,7 @@ impl User {
             .get(AUTHORIZED_ELECTION_IDS_NAME)
             .cloned();
 
-        info!("get_authorized_election_ids: {:?}", result);
+        info!("get_authorized_election_ids: {result:?}");
         info!("attributes: {:?}", self.attributes);
 
         result
@@ -220,14 +220,14 @@ impl KeycloakAdminClient {
                 None,
             )
             .await
-            .map_err(|err| anyhow!("{:?}", err))?;
+            .map_err(|err| anyhow!("{err:?}"))?;
         let count: i32 = self
             .client
             .realm_users_count_get(
                 realm, email, None, None, None, None, search, None, None,
             )
             .await
-            .map_err(|err| anyhow!("{:?}", err))?;
+            .map_err(|err| anyhow!("{err:?}"))?;
         let users = user_representations
             .clone()
             .into_iter()
@@ -242,7 +242,7 @@ impl KeycloakAdminClient {
             .client
             .realm_users_with_user_id_get(realm, user_id, None)
             .await
-            .map_err(|err| anyhow!("{:?}", err))?;
+            .map_err(|err| anyhow!("{err:?}"))?;
         Ok(current_user.into())
     }
 
@@ -308,12 +308,12 @@ impl KeycloakAdminClient {
         credentials: Option<Vec<CredentialRepresentation>>,
         temporary: Option<bool>,
     ) -> Result<User> {
-        info!("Editing user in keycloak ?: {:?}", attributes);
+        info!("Editing user in keycloak ?: {attributes:?}");
         let mut current_user: UserRepresentation = self
             .client
             .realm_users_with_user_id_get(realm, user_id, None)
             .await
-            .map_err(|err| anyhow!("{:?}", err))?;
+            .map_err(|err| anyhow!("{err:?}"))?;
 
         current_user.enabled = match enabled {
             Some(val) => Some(val),
@@ -368,7 +368,7 @@ impl KeycloakAdminClient {
         self.client
             .realm_users_with_user_id_put(realm, user_id, current_user.clone())
             .await
-            .map_err(|err| anyhow!("{:?}", err))?;
+            .map_err(|err| anyhow!("{err:?}"))?;
 
         Ok(current_user.into())
     }
@@ -378,7 +378,7 @@ impl KeycloakAdminClient {
         self.client
             .realm_users_with_user_id_delete(realm, user_id)
             .await
-            .map_err(|err| anyhow!("{:?}", err))?;
+            .map_err(|err| anyhow!("{err:?}"))?;
         Ok(())
     }
 
@@ -392,13 +392,13 @@ impl KeycloakAdminClient {
     ) -> Result<User> {
         let mut new_user_keycloak: UserRepresentation = user.clone().into();
         new_user_keycloak.attributes = attributes.clone();
-        info!("Creating user in keycloak ?: {:?}", new_user_keycloak);
+        info!("Creating user in keycloak ?: {new_user_keycloak:?}");
         new_user_keycloak.groups = groups.clone();
         self.client
             .realm_users_post(realm, new_user_keycloak.clone())
             .await
             .map_err(|err| {
-                anyhow!("Failed to create user in keycloak: {:?}", err)
+                anyhow!("Failed to create user in keycloak: {err:?}")
             })?;
         let found_users = self
             .client
@@ -421,7 +421,7 @@ impl KeycloakAdminClient {
             )
             .await
             .map_err(|err| {
-                anyhow!("Failed to find user in keycloak: {:?}", err)
+                anyhow!("Failed to find user in keycloak: {err:?}")
             })?;
 
         match found_users.first() {
@@ -439,7 +439,7 @@ impl KeycloakAdminClient {
             .client
             .realm_users_profile_get(&realm)
             .await
-            .map_err(|err| anyhow!("{:?}", err))?;
+            .map_err(|err| anyhow!("{err:?}"))?;
         match response.attributes {
             Some(attributes) => {
                 Ok(Self::get_formatted_attributes(&attributes.clone().into()))
@@ -460,7 +460,7 @@ impl KeycloakAdminClient {
                 &realm, user_id, None, None, None, None,
             )
             .await
-            .map_err(|err| anyhow!("{:?}", err))?;
+            .map_err(|err| anyhow!("{err:?}"))?;
         // Map to custom struct
         let groups: Vec<GroupInfo> = response
             .into_iter()

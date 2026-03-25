@@ -42,14 +42,13 @@ pub fn ecies_encrypt_string(
     // Encode the &[u8] to a Base64 string
 
     let command = format!(
-        "java -jar {} encrypt {} {}",
-        ECIES_TOOL_PATH, temp_pem_file_string, password
+        "java -jar {ECIES_TOOL_PATH} encrypt {temp_pem_file_string} {password}"
     );
-    info!("command: '{}'", command);
+    info!("command: '{command}'");
 
     let result = run_shell_command(&command)?.replace("\n", "");
 
-    info!("ecies_encrypt_string: '{}'", result);
+    info!("ecies_encrypt_string: '{result}'");
 
     Ok(result)
 }
@@ -67,10 +66,7 @@ pub fn generate_ecies_key_pair() -> Result<EciesKeyPair> {
         temp_public_pem_file_path.to_string_lossy().to_string();
 
     let command = format!(
-        "java -jar {} create-keys {} {}",
-        ECIES_TOOL_PATH,
-        temp_public_pem_file_string,
-        temp_private_pem_file_string
+        "java -jar {ECIES_TOOL_PATH} create-keys {temp_public_pem_file_string} {temp_private_pem_file_string}"
     );
     run_shell_command(&command)?;
 
@@ -80,8 +76,8 @@ pub fn generate_ecies_key_pair() -> Result<EciesKeyPair> {
     info!("generate_ecies_key_pair(): public_key_pem: {public_key_pem:?}");
 
     Ok(EciesKeyPair {
-        private_key_pem: private_key_pem,
-        public_key_pem: public_key_pem,
+        private_key_pem,
+        public_key_pem,
     })
 }
 
@@ -119,13 +115,12 @@ pub fn ecies_sign_data(
     }
 
     let command = format!(
-        "java -jar {} sign {} {}",
-        ECIES_TOOL_PATH, temp_pem_file_string, temp_data_file_string
+        "java -jar {ECIES_TOOL_PATH} sign {temp_pem_file_string} {temp_data_file_string}"
     );
 
     let encrypted_base64 = run_shell_command(&command)?.replace("\n", "");
 
-    info!("ecies_sign_data: '{}'", encrypted_base64);
+    info!("ecies_sign_data: '{encrypted_base64}'");
 
     Ok(encrypted_base64)
 }
@@ -164,14 +159,14 @@ pub fn ecies_sign_data_bulk(
     //    to track (id -> filename).
     let mut file_map: HashMap<String, PathBuf> = HashMap::new();
     for (i, req) in requests.iter().enumerate() {
-        let filename = format!("sign_{:04}.txt", i);
+        let filename = format!("sign_{i:04}.txt");
         let path = tmp_dir.path().join(&filename);
 
         {
             let mut f = File::create(&path)
-                .with_context(|| format!("Failed to create {}", filename))?;
+                .with_context(|| format!("Failed to create {filename}"))?;
             f.write_all(req.data.as_bytes())
-                .with_context(|| format!("Failed to write {}", filename))?;
+                .with_context(|| format!("Failed to write {filename}"))?;
         }
 
         file_map.insert(req.id.clone(), path);
@@ -188,7 +183,7 @@ pub fn ecies_sign_data_bulk(
         key = private_key_path.to_string_lossy(),
         folder = tmp_dir.path().to_string_lossy(),
     );
-    info!("Running sign-bulk => {}", cmd);
+    info!("Running sign-bulk => {cmd}");
 
     // 5. Execute the shell command (similar to your run_shell_command).
     run_shell_command(&cmd)?;

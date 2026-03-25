@@ -34,7 +34,7 @@ impl RoleAction {
 }
 
 pub fn get_event_realm(tenant_id: &str, election_event_id: &str) -> String {
-    format!("tenant-{}-event-{}", tenant_id, election_event_id)
+    format!("tenant-{tenant_id}-event-{election_event_id}")
 }
 pub fn parse_realm(realm: &str) -> Option<(String, Option<String>)> {
     let parts: Vec<&str> = realm.split('-').collect();
@@ -62,24 +62,24 @@ pub fn parse_realm(realm: &str) -> Option<(String, Option<String>)> {
 }
 
 pub fn get_tenant_realm(tenant_id: &str) -> String {
-    format!("tenant-{}", tenant_id)
+    format!("tenant-{tenant_id}")
 }
 
-/// Extracts tenant_id and election_event_id replacements from a realm config.
+/// Extracts `tenant_id` and `election_event_id` replacements from a realm config.
 ///
-/// This function parses the realm name to extract the old tenant_id and
-/// election_event_id, and compares them with the new values to determine if
+/// This function parses the realm name to extract the old `tenant_id` and
+/// `election_event_id`, and compares them with the new values to determine if
 /// replacements are needed.
 ///
 /// # Arguments
 /// * `realm_config` -  Realm config
-/// * `new_tenant_id` - The new tenant_id to use
-/// * `new_election_event_id` - Optional new election_event_id to use
+/// * `new_tenant_id` - The new `tenant_id` to use
+/// * `new_election_event_id` - Optional new `election_event_id` to use
 ///
 /// # Returns
 /// A tuple of:
-/// * Optional (old_tenant_id, new_tenant_id) for replacement
-/// * Optional (old_event_id, new_event_id) for replacement
+/// * Optional (`old_tenant_id`, `new_tenant_id`) for replacement
+/// * Optional (`old_event_id`, `new_event_id`) for replacement
 pub fn extract_realm_replacements(
     realm_config: &RealmRepresentation,
     new_tenant_id: &str,
@@ -126,15 +126,15 @@ pub fn extract_realm_replacements(
 /// * `json_realm_config` - The original JSON string representation of the realm
 ///   configuration
 /// * `keep` - A list of UUID strings that should NOT be replaced with new ones
-/// * `tenant_id_replacement` - Optional tuple of (old_tenant_id, new_tenant_id)
+/// * `tenant_id_replacement` - Optional tuple of (`old_tenant_id`, `new_tenant_id`)
 ///   for explicit replacement
-/// * `election_event_id_replacement` - Optional tuple of (old_event_id,
-///   new_event_id) for explicit replacement
+/// * `election_event_id_replacement` - Optional tuple of (`old_event_id`,
+///   `new_event_id`) for explicit replacement
 ///
 /// # Returns
 /// A tuple containing:
 /// * The modified JSON string with replaced UUIDs
-/// * A HashMap mapping old UUIDs to their new replacements
+/// * A `HashMap` mapping old UUIDs to their new replacements
 #[instrument(err, skip(json_realm_config))]
 pub fn replace_realm_ids(
     json_realm_config: &str,
@@ -301,7 +301,7 @@ impl KeycloakAdminClient {
             .send()
             .await
             .with_context(|| {
-                format!("Error sending update request to '{}'", req_url)
+                format!("Error sending update request to '{req_url}'")
             })?;
 
         error_check(response).await?;
@@ -318,7 +318,7 @@ impl KeycloakAdminClient {
         realm_roles: Vec<RoleRepresentation>,
         if_resource_exists: &str,
     ) -> Result<()> {
-        let realm = format!("tenant-{}", tenant_id);
+        let realm = format!("tenant-{tenant_id}");
 
         // Proceed with partial import
         let req_url =
@@ -353,7 +353,7 @@ impl KeycloakAdminClient {
         delete_by: &str,
         id: &str,
     ) -> Result<(), KeycloakError> {
-        let realm = format!("tenant-{}", tenant_id);
+        let realm = format!("tenant-{tenant_id}");
         let req_url = format!(
             "{}/admin/realms/{}/{}/{}",
             client.url, realm, delete_by, id
@@ -377,7 +377,7 @@ impl KeycloakAdminClient {
         group_name: &str,
         keycloak_client: &PubKeycloakAdmin,
     ) -> Result<Option<String>, KeycloakError> {
-        let realm = format!("tenant-{}", tenant_id);
+        let realm = format!("tenant-{tenant_id}");
         let url =
             format!("{}/admin/realms/{}/groups", keycloak_client.url, realm);
 
@@ -423,7 +423,7 @@ impl KeycloakAdminClient {
         roles: &Vec<RoleRepresentation>,
         action: RoleAction,
     ) -> Result<(), KeycloakError> {
-        let realm = format!("tenant-{}", tenant_id);
+        let realm = format!("tenant-{tenant_id}");
         let url = format!(
             "{}/admin/realms/{}/groups/{}/role-mappings/realm",
             keycloak_client.url, realm, group_id
@@ -474,7 +474,7 @@ impl KeycloakAdminClient {
         group_id: &str,
         keycloak_client: &PubKeycloakAdmin,
     ) -> Result<Vec<RoleRepresentation>, Box<dyn std::error::Error>> {
-        let realm = format!("tenant-{}", tenant_id);
+        let realm = format!("tenant-{tenant_id}");
         let url = format!(
             "{}/admin/realms/{}/groups/{}/role-mappings/realm",
             keycloak_client.url, realm, group_id
@@ -502,7 +502,7 @@ impl KeycloakAdminClient {
         group: &GroupRepresentation,
     ) -> Result<()> {
         let client = &KeycloakAdminClient::pub_new().await?;
-        let realm = format!("tenant-{}", tenant_id);
+        let realm = format!("tenant-{tenant_id}");
 
         let req_url = format!(
             "{}/admin/realms/{}/groups/{}",
@@ -534,11 +534,11 @@ impl KeycloakAdminClient {
         keycloak_client: &PubKeycloakAdmin,
         tenant_id: &str,
     ) -> Result<()> {
-        let realm = format!("tenant-{}", tenant_id);
+        let realm = format!("tenant-{tenant_id}");
 
         if let Some(localization_texts) = imported_localization_texts {
             for (locale, locale_texts) in localization_texts {
-                println!("Processing locale: {}", locale);
+                println!("Processing locale: {locale}");
 
                 let url = format!(
                     "{}/admin/realms/{}/localization/{}",
@@ -552,7 +552,7 @@ impl KeycloakAdminClient {
                 .json(&locale_texts)
                 .send()
                 .await
-                .context(format!("Failed to send request to update localization texts for locale '{}'", locale))?;
+                .context(format!("Failed to send request to update localization texts for locale '{locale}'"))?;
             }
         }
 
@@ -645,7 +645,7 @@ impl KeycloakAdminClient {
                 })
                 .collect::<Result<Vec<_>>>()
                 .map_err(|err| {
-                    anyhow!("Error setting the voting portal urls: {:?}", err)
+                    anyhow!("Error setting the voting portal urls: {err:?}")
                 })?,
         );
 
@@ -676,12 +676,12 @@ impl KeycloakAdminClient {
                 .client
                 .realm_put(&board_name, realm)
                 .await
-                .map_err(|err| anyhow!("Keycloak error: {:?}", err)),
+                .map_err(|err| anyhow!("Keycloak error: {err:?}")),
             Err(_) => self
                 .client
                 .post(realm)
                 .await
-                .map_err(|err| anyhow!("Keycloak error: {:?}", err)),
+                .map_err(|err| anyhow!("Keycloak error: {err:?}")),
         }
     }
 }

@@ -46,7 +46,7 @@ pub async fn create_results_election_area_sqlite(
     )?;
 
     let docs_json = to_string(documents)
-        .map_err(|e| anyhow!("Failed to serialize documents to JSON: {}", e))?;
+        .map_err(|e| anyhow!("Failed to serialize documents to JSON: {e}"))?;
 
     insert.execute(params![
         tenant_id,

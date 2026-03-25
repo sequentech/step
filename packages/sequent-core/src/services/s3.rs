@@ -39,7 +39,7 @@ struct ResolvedS3ListTargetParts {
 }
 
 /// Carries the resolved S3 client, real bucket name, and optional logical
-/// prefix root for list-style operations that must work on both MinIO and AWS.
+/// prefix root for list-style operations that must work on both `MinIO` and `AWS`.
 struct ResolvedS3ListTarget {
     client: s3::Client,
     bucket: String,
@@ -280,7 +280,7 @@ async fn create_bucket_if_not_exists(
             .with_context(|| {
                 format!("Error creating bucket with name={bucket_name}")
             })?;
-        println!("Bucket {} created", bucket_name);
+        println!("Bucket {bucket_name} created");
     }
     Ok(())
 }
@@ -319,7 +319,7 @@ pub fn get_public_document_key(
     document_id: &str,
     name: &str,
 ) -> String {
-    format!("tenant-{}/document-{}/{}", tenant_id, document_id, name)
+    format!("tenant-{tenant_id}/document-{document_id}/{name}")
 }
 
 #[instrument(err)]
@@ -619,27 +619,27 @@ pub async fn upload_data_to_s3(
     Ok(())
 }
 
-/// Returns the server-side MinIO URL used by backend services when they need a
+/// Returns the server-side `MinIO` URL used by backend services when they need a
 /// direct path to the public bucket.
 pub fn get_minio_url() -> Result<String> {
     let minio_private_uri = env::var(AWS_S3_PRIVATE_URI_ENV)
         .map_err(|_err| anyhow!("AWS_S3_PRIVATE_URI must be set"))?;
     let bucket = get_public_bucket()?;
 
-    Ok(format!("{}/{}", minio_private_uri, bucket))
+    Ok(format!("{minio_private_uri}/{bucket}"))
 }
 
-/// Returns the client-facing MinIO URL used when generated links must be
+/// Returns the client-facing `MinIO` URL used when generated links must be
 /// reachable from outside the backend network.
 pub fn get_minio_public_url() -> Result<String> {
     let minio_public_uri = env::var(AWS_S3_PUBLIC_URI_ENV)
         .map_err(|_err| anyhow!("AWS_S3_PUBLIC_URI must be set"))?;
     let bucket = get_public_bucket()?;
 
-    Ok(format!("{}/{}", minio_public_uri, bucket))
+    Ok(format!("{minio_public_uri}/{bucket}"))
 }
 
-/// Builds the URL for a public asset stored in S3 or MinIO so templates can
+/// Builds the URL for a public asset stored in S3 or `MinIO` so templates can
 /// reference it directly.
 pub fn get_public_asset_file_path(filename: &str) -> Result<String> {
     let minio_endpoint_base =
@@ -647,8 +647,7 @@ pub fn get_public_asset_file_path(filename: &str) -> Result<String> {
     let public_asset_path = get_public_assets_path_env_var()?;
 
     Ok(format!(
-        "{}/{}/{}",
-        minio_endpoint_base, public_asset_path, filename
+        "{minio_endpoint_base}/{public_asset_path}/{filename}"
     ))
 }
 
@@ -658,13 +657,12 @@ pub fn get_public_asset_file_path(filename: &str) -> Result<String> {
 pub async fn download_s3_file_to_string(file_url: &str) -> Result<String> {
     let client = reqwest::Client::new();
 
-    info!("Requesting HTTP GET {:?}", file_url);
+    info!("Requesting HTTP GET {file_url:?}");
     let response = client.get(file_url).send().await?;
 
     let unwrapped_response = if response.status() != reqwest::StatusCode::OK {
         return Err(anyhow!(
-            "Error during download_s3_file_to_string: {:?}",
-            response
+            "Error during download_s3_file_to_string: {response:?}"
         ));
     } else {
         response
@@ -710,14 +708,13 @@ pub async fn delete_files_from_s3(
             }
             Err(err) => {
                 // Check if it's a NoSuchKey error
-                let err_str = format!("{:?}", err);
+                let err_str = format!("{err:?}");
                 if err_str.contains("NoSuchKey") {
-                    info!("Key already absent in S3; continuing. {:?}", err);
+                    info!("Key already absent in S3; continuing. {err:?}");
                     return Ok(());
-                } else {
-                    // For other errors, fail the operation
-                    return Err(anyhow!("{:?}", err));
                 }
+                // For other errors, fail the operation
+                return Err(anyhow!("{err:?}"));
             }
         };
 
@@ -756,7 +753,7 @@ pub async fn delete_files_from_s3(
             }
             Err(err) => {
                 // Check if it's a NoSuchKey error
-                let err_str = format!("{:?}", err);
+                let err_str = format!("{err:?}");
                 if err_str.contains("NoSuchKey") {
                     tracing::warn!(
                         key = %key,
@@ -765,8 +762,7 @@ pub async fn delete_files_from_s3(
                 } else {
                     // For other errors, fail the operation
                     return Err(anyhow::Error::from(err).context(format!(
-                        "Failed to delete S3 object: {}",
-                        key
+                        "Failed to delete S3 object: {key}",
                     )));
                 }
             }
@@ -863,7 +859,7 @@ pub async fn get_files_from_s3(
 
             let file_name = document_id
                 .clone()
-                .map(|id| format!("document_{}_{}", id, s3_file_name))
+                .map(|id| format!("document_{id}_{s3_file_name}"))
                 .unwrap_or_else(|| s3_file_name.to_string());
 
             let temp_file = generate_temp_file("", &file_name)
@@ -912,8 +908,7 @@ pub async fn get_files_names_bytes_from_s3(
         .await
         .with_context(|| {
             format!(
-                "Error listing objects in bucket `{}` with prefix `{}`",
-                bucket_name, list_prefix
+                "Error listing objects in bucket `{bucket_name}` with prefix `{list_prefix}`"
             )
         })?;
 
@@ -929,15 +924,13 @@ pub async fn get_files_names_bytes_from_s3(
                     .key(&key)
                     .send()
                     .await
-                    .with_context(|| {
-                        format!("Error getting object `{}`", key)
-                    })?;
+                    .with_context(|| format!("Error getting object `{key}`"))?;
 
                 // ByteStream -> Bytes -> Vec<u8>
                 let bytes = ByteStream::collect(get_obj_output.body)
                     .await
                     .with_context(|| {
-                        format!("Error streaming object `{}` body", key)
+                        format!("Error streaming object `{key}` body")
                     })?
                     .into_bytes()
                     .to_vec();

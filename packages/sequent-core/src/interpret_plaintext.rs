@@ -7,8 +7,8 @@ use crate::types::ceremonies::CountingAlgType;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-#[derive(Serialize, Deserialize, JsonSchema, PartialEq, Eq, Debug, Clone)]
 /// Enum representing the different states of the contest UI.
+#[derive(Serialize, Deserialize, JsonSchema, PartialEq, Eq, Debug, Clone)]
 #[allow(missing_docs)]
 pub enum ContestState {
     ElectionChooserScreen,

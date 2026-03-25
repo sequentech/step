@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::services::keycloak::KeycloakAdminClient;
-use crate::types::keycloak::*;
+use crate::types::keycloak::Permission;
 use anyhow::{anyhow, Result};
 use keycloak::types::RoleRepresentation;
 use rocket::futures::future::join_all;
@@ -38,6 +38,10 @@ impl From<Permission> for RoleRepresentation {
 }
 
 impl KeycloakAdminClient {
+    /// List permissions for a realm, optionally filtered and paginated.
+    ///
+    /// # Errors
+    /// Returns an error if the Keycloak API call fails or if slicing fails due to invalid indices.
     #[instrument(skip(self), err)]
     pub async fn list_permissions(
         self,
@@ -50,21 +54,28 @@ impl KeycloakAdminClient {
             .client
             .realm_roles_get(realm.clone(), None, None, None, search.clone())
             .await
-            .map_err(|err| anyhow!("{:?}", err))?;
+            .map_err(|err| anyhow!("{err:?}"))?;
         let count = role_representations.len();
         let start = offset.unwrap_or(0);
         let end = match limit {
             Some(num) => usize::min(count, start + num),
             None => count,
         };
-        let slized_role_representations = &role_representations[start..end];
-        let permissions = slized_role_representations
-            .into_iter()
-            .map(|role| role.clone().into())
-            .collect();
+        let permissions =
+            if let Some(slice) = role_representations.get(start..end) {
+                slice.iter().map(|role| role.clone().into()).collect()
+            } else {
+                return Err(anyhow!(
+                    "Invalid slice indices for role representations"
+                ));
+            };
         Ok((permissions, count))
     }
 
+    /// Set a single role permission for a role in a realm.
+    ///
+    /// # Errors
+    /// Returns an error if the Keycloak API call fails.
     #[instrument(skip(self), err)]
     pub async fn set_role_permission(
         self,
@@ -76,7 +87,7 @@ impl KeycloakAdminClient {
             .client
             .realm_roles_with_role_name_get(realm, permission_name)
             .await
-            .map_err(|err| anyhow!("{:?}", err))?;
+            .map_err(|err| anyhow!("{err:?}"))?;
         self.client
             .realm_groups_with_group_id_role_mappings_realm_post(
                 realm,
@@ -84,10 +95,14 @@ impl KeycloakAdminClient {
                 vec![role_representation],
             )
             .await
-            .map_err(|err| anyhow!("{:?}", err))?;
+            .map_err(|err| anyhow!("{err:?}"))?;
         Ok(())
     }
 
+    /// Set multiple role permissions for a role in a realm.
+    ///
+    /// # Errors
+    /// Returns an error if the Keycloak API call fails.
     #[instrument(skip(self), err)]
     pub async fn set_role_permissions(
         self,
@@ -96,7 +111,7 @@ impl KeycloakAdminClient {
         permissions_name: &Vec<String>,
     ) -> Result<()> {
         let permission_roles: Vec<_> = permissions_name
-            .into_iter()
+            .iter()
             .map(|permission_name| {
                 self.client
                     .realm_roles_with_role_name_get(realm, permission_name)
@@ -112,7 +127,7 @@ impl KeycloakAdminClient {
             .filter_map(|result| match result {
                 Ok(value) => Some(value),
                 Err(e) => {
-                    eprintln!("Error processing item: {:?}", e);
+                    tracing::error!("Error processing item: {e:?}");
                     None
                 }
             })
@@ -124,10 +139,14 @@ impl KeycloakAdminClient {
                 successful_results,
             )
             .await
-            .map_err(|err| anyhow!("{:?}", err))?;
+            .map_err(|err| anyhow!("{err:?}"))?;
         Ok(())
     }
 
+    /// Delete a single role permission from a role in a realm.
+    ///
+    /// # Errors
+    /// Returns an error if the Keycloak API call fails.
     #[instrument(skip(self), err)]
     pub async fn delete_role_permission(
         self,
@@ -139,7 +158,7 @@ impl KeycloakAdminClient {
             .client
             .realm_roles_with_role_name_get(realm, permission_name)
             .await
-            .map_err(|err| anyhow!("{:?}", err))?;
+            .map_err(|err| anyhow!("{err:?}"))?;
         self.client
             .realm_groups_with_group_id_role_mappings_realm_delete(
                 realm,
@@ -147,10 +166,14 @@ impl KeycloakAdminClient {
                 vec![role_representation],
             )
             .await
-            .map_err(|err| anyhow!("{:?}", err))?;
+            .map_err(|err| anyhow!("{err:?}"))?;
         Ok(())
     }
 
+    /// Delete a permission from a realm.
+    ///
+    /// # Errors
+    /// Returns an error if the Keycloak API call fails.
     #[instrument(skip(self), err)]
     pub async fn delete_permission(
         self,
@@ -160,7 +183,7 @@ impl KeycloakAdminClient {
         self.client
             .realm_roles_with_role_name_delete(realm, permission_name)
             .await
-            .map_err(|err| anyhow!("{:?}", err))?;
+            .map_err(|err| anyhow!("{err:?}"))?;
         Ok(())
     }
 
@@ -172,7 +195,7 @@ impl KeycloakAdminClient {
         self.client
             .realm_roles_post(realm, permission.clone().into())
             .await
-            .map_err(|err| anyhow!("{:?}", err))?;
+            .map_err(|err| anyhow!("{err:?}"))?;
 
         Ok(permission.clone())
     }

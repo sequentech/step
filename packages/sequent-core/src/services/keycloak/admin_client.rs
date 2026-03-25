@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
+// SPDX-FileCopyrightText: 2022 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::serialization::deserialize_with_path::deserialize_str;
@@ -64,28 +64,28 @@ impl TryFrom<PubKeycloakAdminToken> for KeycloakAdminToken {
 /// Configuration for logging into Keycloak using client credentials.
 pub struct KeycloakLoginConfig {
     /// The base URL of the Keycloak server
-    #[allow(missing_docs)]
     pub url: String,
     /// The client ID for authentication.
-    #[allow(missing_docs)]
     pub client_id: String,
     /// The client secret for authentication.
-    #[allow(missing_docs)]
     pub client_secret: String,
     /// The realm to authenticate against.
-    #[allow(missing_docs)]
     pub realm: String,
 }
 
 impl KeycloakLoginConfig {
     /// Create a new `KeycloakLoginConfig` from client credentials and tenant ID.
+    ///
+    /// # Panics
+    /// Panics if the `KEYCLOAK_URL` environment variable is not set.
+    #[must_use]
     pub fn new(
         client_id: String,
         client_secret: String,
-        tenant_id: String,
+        tenant_id: &str,
     ) -> KeycloakLoginConfig {
         let url = env::var("KEYCLOAK_URL").expect("KEYCLOAK_URL must be set");
-        let realm = get_tenant_realm(&tenant_id);
+        let realm = get_tenant_realm(tenant_id);
         Self {
             url,
             client_id,
@@ -106,7 +106,7 @@ fn get_keycloak_login_config() -> KeycloakLoginConfig {
         .expect("KEYCLOAK_CLIENT_SECRET must be set");
     let tenant_id = env::var("SUPER_ADMIN_TENANT_ID")
         .expect("SUPER_ADMIN_TENANT_ID must be set");
-    KeycloakLoginConfig::new(client_id, client_secret, tenant_id)
+    KeycloakLoginConfig::new(client_id, client_secret, &tenant_id)
 }
 
 /// Get a `KeycloakLoginConfig` for the admin client credentials.
@@ -120,7 +120,7 @@ fn get_keycloak_login_admin_config() -> KeycloakLoginConfig {
         .expect("KEYCLOAK_ADMIN_CLIENT_SECRET must be set");
     let tenant_id = env::var("SUPER_ADMIN_TENANT_ID")
         .expect("SUPER_ADMIN_TENANT_ID must be set");
-    KeycloakLoginConfig::new(client_id, client_secret, tenant_id)
+    KeycloakLoginConfig::new(client_id, client_secret, &tenant_id)
 }
 
 /// Acquire credentials from Keycloak using the provided login config.
@@ -178,7 +178,7 @@ pub async fn get_credentials_inner(
     res.text().await.map_err(|e| anyhow!(e))
 }
 
-/// Client Credentials OpenID Authentication flow.
+/// Client Credentials `OpenID` Authentication flow.
 /// This enables servers to authenticate, without using a browser.
 ///
 /// # Errors
@@ -232,7 +232,7 @@ pub async fn get_third_party_client_access_token(
     tenant_id: String,
 ) -> Result<KeycloakAdminToken> {
     let login_config =
-        KeycloakLoginConfig::new(client_id, client_secret, tenant_id);
+        KeycloakLoginConfig::new(client_id, client_secret, &tenant_id);
 
     let text = get_credentials_inner(login_config).await?;
     let keycloak_adm_tkn: KeycloakAdminToken =
@@ -263,16 +263,12 @@ pub struct PubKeycloakAdmin {
 /// `TokenResponse`, timestamp before sending the request and url to avoid having
 /// to retrieve it again from the ENV.
 #[derive(Debug, Clone)]
-#[allow(missing_docs)]
 struct TokenResponseAdminCli {
     /// The token response from Keycloak.
-    #[allow(missing_docs)]
     token_resp: PubKeycloakAdminToken,
     /// The timestamp when the token was acquired.
-    #[allow(missing_docs)]
     timestamp: Instant,
     /// The Keycloak server URL.
-    #[allow(missing_docs)]
     url: String,
 }
 
@@ -332,10 +328,10 @@ async fn write_access_token(
 impl KeycloakAdminClient {
     /// Tries to read the token from the cache, if expired requests it to
     /// Keycloak.
-    #[instrument(err)]
     ///
     /// # Errors
     /// Returns an error if credentials cannot be acquired or parsed.
+    #[instrument(err)]
     pub async fn new() -> Result<KeycloakAdminClient> {
         if let Some((token_resp, url)) = read_access_token().await {
             Self::new_with(token_resp.try_into()?, &url).await
@@ -392,7 +388,7 @@ impl KeycloakAdminClient {
         Ok(KeycloakAdminClient { client })
     }
 
-    /// Creates a KeycloakAdminClient with the provided token and url.
+    /// Creates a `KeycloakAdminClient` with the provided token and url.
     #[instrument(err, skip_all)]
     async fn new_with(
         admin_token: KeycloakAdminToken,
@@ -403,7 +399,10 @@ impl KeycloakAdminClient {
         Ok(KeycloakAdminClient { client })
     }
 
-    /// Creates a PubKeycloakAdmin with the admin token and client.
+    /// Creates a `PubKeycloakAdmin` with the admin token and client.
+    ///
+    /// # Errors
+    /// Returns an error if acquiring the Keycloak admin token fails.
     #[instrument(err)]
     pub async fn pub_new() -> Result<PubKeycloakAdmin> {
         let login_config = get_keycloak_login_admin_config();

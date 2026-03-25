@@ -12,7 +12,7 @@ pub fn run_shell_command(command: &str) -> Result<String> {
 
     // Check if the command was successful
     if !output.status.success() {
-        return Err(anyhow::anyhow!("Shell command failed: {:?}", output));
+        return Err(anyhow::anyhow!("Shell command failed: {output:?}"));
     }
 
     // Convert the output to a string

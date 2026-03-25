@@ -290,7 +290,7 @@ fn parse_u64_value(value: &JsonValue) -> Result<u64, RenderError> {
             ))
         }),
         JsonValue::String(s) => s.parse::<u64>().map_err(|_| {
-            RenderError::new(format!("Failed to parse '{}' as u64", s))
+            RenderError::new(format!("Failed to parse '{s}' as u64"))
         }),
         _ => Err(RenderError::new(
             "Expected u64 or a string representing an u64",
@@ -325,7 +325,7 @@ fn parse_f64_value(value: &JsonValue) -> Result<f64, RenderError> {
             ))
         }),
         JsonValue::String(s) => s.parse::<f64>().map_err(|_| {
-            RenderError::new(format!("Failed to parse '{}' as f64", s))
+            RenderError::new(format!("Failed to parse '{s}' as f64"))
         }),
         _ => Err(RenderError::new(
             "Expected f64 or a string representing an f64",
@@ -547,7 +547,7 @@ pub fn format_dec_percentage(
 
     let val = (val * 100.0).clamp(0.00, 100.00);
 
-    let formatted_number = format!("{:.2}", val);
+    let formatted_number = format!("{val:.2}");
 
     out.write(&formatted_number)?;
 
@@ -571,7 +571,7 @@ pub fn format_percentage(
 
     let val = parse_f64_value(val_json)?;
 
-    let formatted_number = format!("{:.2}", val);
+    let formatted_number = format!("{val:.2}");
 
     out.write(&formatted_number)?;
 
@@ -623,7 +623,7 @@ pub fn format_date(
         // Otherwise, assume it's just a date "YYYY-MM-DD" and add a time
         // placeholder
         DateTime::parse_from_str(
-            &format!("{} 00:00:00", date_str),
+            &format!("{date_str} 00:00:00"),
             "%Y-%m-%d %H:%M:%S",
         )
         .map_err(|err| {

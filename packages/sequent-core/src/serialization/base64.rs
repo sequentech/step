@@ -48,12 +48,10 @@ impl<T: StrandDeserialize> Base64Deserialize for T {
                     "Error decoding base64 string: {error}"
                 ))
             })?;
-        StrandDeserialize::strand_deserialize(bytes_vec.as_slice()).map_err(
-            |error| {
-                BallotError::Serialization(format!(
-                    "Error deserializing borsh/strand bytes: {error}"
-                ))
-            },
-        )
+        StrandDeserialize::strand_deserialize(&bytes_vec).map_err(|error| {
+            BallotError::Serialization(format!(
+                "Error deserializing borsh/strand bytes: {error}"
+            ))
+        })
     }
 }

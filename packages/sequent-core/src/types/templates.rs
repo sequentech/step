@@ -68,9 +68,10 @@ pub struct SmsConfig {
     pub message: String,
 }
 
-/// A replica of headless_chrome::types::PrintToPdfOptions version = "1.0.12"
+/// A replica of `headless_chrome::types::PrintToPdfOptions` version = "1.0.12"
 /// that implements Clone
 #[derive(Deserialize, Debug, Serialize, Clone, Default)]
+#[allow(missing_docs)]
 pub struct PrintToPdfOptionsLocal {
     pub landscape: Option<bool>,
     pub display_header_footer: Option<bool>,
@@ -93,8 +94,9 @@ pub struct PrintToPdfOptionsLocal {
 }
 
 impl PrintToPdfOptionsLocal {
+    #[must_use]
     pub fn from_pdf_options(
-        pdf_options: PrintToPdfOptions,
+        pdf_options: &PrintToPdfOptions,
     ) -> PrintToPdfOptionsLocal {
         PrintToPdfOptionsLocal {
             landscape: pdf_options.landscape,
@@ -119,6 +121,7 @@ impl PrintToPdfOptionsLocal {
     }
 
     /// Ignores Transfer mode which is private and not clonable
+    #[must_use]
     pub fn to_print_to_pdf_options(&self) -> PrintToPdfOptions {
         PrintToPdfOptions {
             landscape: self.landscape,
@@ -159,7 +162,7 @@ pub struct SendTemplateBody {
     pub report_options: Option<ReportOptions>,
 }
 
-/// Struct for the DEFAULT extra_config JSON file.
+/// Struct for the DEFAULT `extra_config` JSON file.
 #[derive(Serialize, Deserialize, Debug)]
 pub struct ReportExtraConfig {
     pub pdf_options: PrintToPdfOptionsLocal,
@@ -167,14 +170,14 @@ pub struct ReportExtraConfig {
     pub report_options: ReportOptions,
 }
 
-/// Struct for DEFAULT Communication Templates in extra_config JSON file.
+/// Struct for DEFAULT Communication Templates in `extra_config` JSON file.
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct CommunicationTemplatesExtraConfig {
     pub email_config: EmailConfig,
     pub sms_config: SmsConfig,
 }
 
-/// Struct for DEFAULT ReportOptions in extra_config JSON file.
+/// Struct for DEFAULT `ReportOptions` in `extra_config` JSON file.
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
 pub struct ReportOptions {
     pub max_items_per_report: Option<usize>,

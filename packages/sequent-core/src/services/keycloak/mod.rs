@@ -1,7 +1,8 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-
+//! Keycloak service module: provides admin client, permission,
+//!  realm, role, and user management for Keycloak integration.
 mod admin_client;
 mod permission;
 mod realm;
