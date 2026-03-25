@@ -20,6 +20,7 @@ use std::collections::{HashMap, HashSet};
 use std::env;
 use std::hash::RandomState;
 use tracing::{error, info, instrument};
+use uuid::Uuid;
 
 use super::PubKeycloakAdmin;
 
