@@ -1650,3 +1650,14 @@ type ImportCertificateAuthorityOutput {
     skipped_count: Int!
     errors: [String!]!
 }
+
+type Mutation {
+    delete_certificate_authority(
+        id: uuid!
+        election_event_id: uuid!
+    ): DeleteCertificateAuthorityOutput
+}
+
+type DeleteCertificateAuthorityOutput {
+    deleted: Boolean!
+}

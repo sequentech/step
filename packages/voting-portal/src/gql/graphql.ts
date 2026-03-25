@@ -208,6 +208,11 @@ export type DataListPgAudit = {
   total: TotalAggregate;
 };
 
+export type DeleteCertificateAuthorityOutput = {
+  __typename?: 'DeleteCertificateAuthorityOutput';
+  deleted: Scalars['Boolean']['output'];
+};
+
 export type DeleteElectionEvent = {
   __typename?: 'DeleteElectionEvent';
   error_msg?: Maybe<Scalars['String']['output']>;
@@ -1098,6 +1103,8 @@ export type Mutation_Root = {
   create_tally_ceremony?: Maybe<CreateTallyOutput>;
   create_transmission_package?: Maybe<CreateTransmissionPackageOutput>;
   create_user: KeycloakUser;
+  /** Delete a certificate authority by id */
+  delete_certificate_authority?: Maybe<DeleteCertificateAuthorityOutput>;
   delete_election_event?: Maybe<DeleteElectionEvent>;
   delete_permission?: Maybe<SetRolePermissionOutput>;
   delete_role?: Maybe<SetUserRoleOutput>;
@@ -1819,6 +1826,13 @@ export type Mutation_RootCreate_UserArgs = {
   tenant_id: Scalars['String']['input'];
   user: KeycloakUser2;
   user_roles_ids?: InputMaybe<Array<Scalars['String']['input']>>;
+};
+
+
+/** mutation root */
+export type Mutation_RootDelete_Certificate_AuthorityArgs = {
+  election_event_id: Scalars['uuid']['input'];
+  id: Scalars['uuid']['input'];
 };
 
 

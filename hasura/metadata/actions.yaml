@@ -1352,6 +1352,24 @@ actions:
           - role: admin-user
           - role: ca-write
       comment: Import certificate authorities from a PEM string for an election event
+    - name: delete_certificate_authority
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/delete-certificate-authority
+          forward_client_headers: true
+          headers:
+              - name: X-Hasura-Admin-Secret
+                value_from_env: ACTIONS_ADMIN_SECRET
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: admin-user
+          - role: ca-write
+      comment: Delete a certificate authority by id
 custom_types:
     enums:
         - name: EarlyVotingPolicy
