@@ -338,7 +338,8 @@ public class UrlTruststoreProviderFactory implements TruststoreProviderFactory {
       CertificateFactory cf = CertificateFactory.getInstance("X.509");
       Collection<? extends Certificate> certs = cf.generateCertificates(stream);
       if (certs.isEmpty()) {
-        throw new RuntimeException("No certificates found at URL: " + url);
+        log.warnf("No certificates found at URL: " + url);
+        return Collections.emptyList();
       }
       log.debugf("Fetched %d certificate(s) from: %s", certs.size(), url);
       return certs;

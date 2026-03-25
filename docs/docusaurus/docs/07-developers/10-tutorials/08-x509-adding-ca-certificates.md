@@ -71,7 +71,7 @@ chain at the application layer.
 To add a new CA, append its PEM to the bundle:
 
 ```bash
-cat <ca-certificate-file>.pem >> .devcontainer/minio/public-assets/client-ca.pem
+cat <ca-certificate-file>.pem >> .devcontainer/minio/keycloak-nginx/client-ca.pem
 ```
 
 If the CA has an intermediate certificate that must also be trusted, append it
@@ -79,13 +79,13 @@ in the same way — order within the bundle does not matter for OpenSSL chain
 verification:
 
 ```bash
-cat <intermediate-ca-file>.pem >> .devcontainer/minio/public-assets/client-ca.pem
+cat <intermediate-ca-file>.pem >> .devcontainer/minio/keycloak-nginx/client-ca.pem
 ```
 
 Verify the bundle contains the expected entries:
 
 ```bash
-openssl crl2pkcs7 -nocrl -certfile .devcontainer/minio/public-assets/client-ca.pem \
+openssl crl2pkcs7 -nocrl -certfile .devcontainer/minio/keycloak-nginx/client-ca.pem \
   | openssl pkcs7 -print_certs -noout
 ```
 

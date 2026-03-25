@@ -82,7 +82,7 @@ The following files must exist before starting the containers:
 |------|---------|
 | `.devcontainer/certs/nginx-tls.crt` | TLS server certificate for the nginx proxy (self-signed, for `127.0.0.1`) |
 | `.devcontainer/certs/nginx-tls.key` | Corresponding private key |
-| `.devcontainer/minio/public-assets/client-ca.pem` | CA certificate bundle. nginx uses this to verify client certs; Keycloak fetches it from MinIO. |
+| `keycloak-nginx/client-ca.pem` | CA certificate bundle. nginx uses this to verify client certs; Keycloak fetches it from MinIO. |
 
 Generate the nginx TLS server certificate (valid for `127.0.0.1`, `localhost`, and
 `keycloak-nginx` — the last one is needed for `curl` tests run inside the dev
@@ -102,7 +102,7 @@ Generate the client CA (the CA that signs voter certificates for testing purpose
 ```bash
 openssl req -x509 -newkey rsa:2048 -nodes \
   -keyout client-ca.key \
-  -out    .devcontainer/minio/public-assets/client-ca.pem \
+  -out    .devcontainer/minio/keycloak-nginx/client-ca.pem \
   -days 3650 \
   -subj "/CN=Voter CA"
 ```
@@ -130,7 +130,7 @@ EOF
 ```bash
 # UrlTruststoreProvider — fetches the client CA bundle from MinIO
 KC_SPI_TRUSTSTORE_PROVIDER=url
-KC_SPI_TRUSTSTORE_URL_URL=http://minio:9000/public/public-assets/client-ca.pem
+KC_SPI_TRUSTSTORE_URL_URL=http://minio:9000/public/keycloak-nginx/client-ca.pem
 KC_SPI_TRUSTSTORE_URL_REFRESH_INTERVAL_SECONDS=3600
 
 # X509 cert header source:
@@ -180,7 +180,7 @@ FROM nginx:alpine
 COPY keycloak-nginx/keycloak-mtls.conf /etc/nginx/conf.d/keycloak-mtls.conf
 COPY certs/nginx-tls.crt               /etc/nginx/certs/nginx-tls.crt
 COPY certs/nginx-tls.key               /etc/nginx/certs/nginx-tls.key
-COPY minio/public-assets/client-ca.pem /etc/nginx/client-ca/client-ca.pem
+COPY keycloak-nginx/client-ca.pem /etc/nginx/client-ca/client-ca.pem
 ```
 
 Keycloak is configured to trust the `X-Forwarded-*` headers from nginx and to use
@@ -272,7 +272,7 @@ openssl req -newkey rsa:2048 -nodes \
 # Sign with the fake client CA
 openssl x509 -req \
   -in     .devcontainer/certs/fake-voter.csr \
-  -CA     .devcontainer/minio/public-assets/client-ca.pem \
+  -CA     .devcontainer/minio/keycloak-nginx/client-ca.pem \
   -CAkey  .devcontainer/certs/fake-client-ca.key \
   -CAcreateserial \
   -out    .devcontainer/certs/fake-voter.crt \
@@ -463,7 +463,7 @@ docker compose up -d --no-deps keycloak-nginx
 - The voter certificate must be signed by the CA whose PEM is in `client-ca.pem`.
 - Check the cert chain with:
   ```bash
-  openssl verify -CAfile .devcontainer/minio/public-assets/client-ca.pem \
+  openssl verify -CAfile .devcontainer/minio/keycloak-nginx/client-ca.pem \
     .devcontainer/certs/fake-voter.crt
   ```
 - If the CA bundle was recently updated in MinIO, wait for the next refresh interval
