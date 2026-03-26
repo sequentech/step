@@ -6,6 +6,10 @@ use std::process::Command;
 use tracing::{info, instrument};
 
 #[instrument(err, ret)]
+/// Runs a shell command and returns its output as a string.
+///
+/// # Errors
+/// Returns an error if the command fails to execute or returns a non-zero exit code.
 pub fn run_shell_command(command: &str) -> Result<String> {
     // Run the shell command
     let output = Command::new("sh").arg("-c").arg(command).output()?;

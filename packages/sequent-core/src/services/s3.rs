@@ -234,7 +234,7 @@ async fn get_s3_list_target(
     let config = build_s3_config_for_endpoint(&sdk_config, resolved_endpoint);
 
     Ok(ResolvedS3ListTarget {
-        client: get_s3_client(config).await?,
+        client: get_s3_client(config)?,
         bucket: target_parts.bucket,
         prefix_root: target_parts.prefix_root,
     })
@@ -314,7 +314,7 @@ async fn create_bucket_if_not_exists(
 /// client conversion.
 /// # Errors
 /// This function does not currently return errors, but is defined for consistency.
-pub async fn get_s3_client(config: s3::Config) -> Result<s3::Client> {
+pub fn get_s3_client(config: s3::Config) -> Result<s3::Client> {
     let client = s3::Client::from_conf(config);
     Ok(client)
 }
@@ -360,7 +360,7 @@ pub async fn get_document_url(
     s3_bucket: String,
 ) -> Result<String> {
     let config = get_s3_aws_config(/* use_server_endpoint = */ false).await?;
-    let client = get_s3_client(config).await?;
+    let client = get_s3_client(config)?;
 
     let presigning_config = PresigningConfig::expires_in(Duration::from_secs(
         get_fetch_expiration_secs()?,
@@ -396,7 +396,7 @@ pub async fn get_upload_url(
     // we use the server-only endpoint; `is_public` only determines the upload bucket.
     let config =
         get_s3_aws_config(/* use_server_endpoint = */ is_local).await?;
-    let client = get_s3_client(config.clone()).await?;
+    let client = get_s3_client(config.clone())?;
 
     let presigning_config = PresigningConfig::expires_in(Duration::from_secs(
         get_upload_expiration_secs()?,
@@ -426,7 +426,7 @@ pub async fn get_object_into_temp_file(
     let config = get_s3_aws_config(/* use_server_endpoint = */ true)
         .await
         .with_context(|| "Error obtaining aws config")?;
-    let client = get_s3_client(config.clone()).await?;
+    let client = get_s3_client(config.clone())?;
 
     let response = client
         .get_object()
@@ -553,7 +553,6 @@ pub async fn upload_multipart_data_to_s3(
         .await
         .with_context(|| "Error getting s3 aws config")?;
     let client = get_s3_client(config.clone())
-        .await
         .with_context(|| "Error getting s3 client")?;
 
     let mut multipart_builder = client
@@ -664,7 +663,6 @@ pub async fn upload_data_to_s3(
         .await
         .with_context(|| "Error getting s3 aws config")?;
     let client = get_s3_client(config.clone())
-        .await
         .with_context(|| "Error getting s3 client")?;
 
     let mut request = client
@@ -877,7 +875,6 @@ pub async fn get_file_from_s3(
         .await
         .with_context(|| "Error getting s3 aws config")?;
     let client = get_s3_client(config.clone())
-        .await
         .with_context(|| "Error getting s3 client")?;
 
     let mut object = client

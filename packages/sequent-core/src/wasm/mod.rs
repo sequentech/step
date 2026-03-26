@@ -13,4 +13,5 @@ pub mod wasm_plaintext;
 pub mod areas;
 
 #[cfg(feature = "wasmtest")]
+#[allow(clippy::module_inception)]
 pub mod wasm;
