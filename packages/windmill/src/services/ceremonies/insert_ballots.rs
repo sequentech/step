@@ -58,6 +58,7 @@ pub async fn insert_ballots_messages(
     tally_session_contests: Vec<TallySessionContest>,
     contest_encryption_policy: ContestEncryptionPolicy,
     delegated_voting_policy: DelegatedVotingPolicy,
+    skip_board_posting: bool,
 ) -> Result<Vec<TallySessionContest>> {
     let trustees = get_trustees_by_name(hasura_transaction, &tenant_id, &trustee_names).await?;
 
@@ -227,40 +228,6 @@ pub async fn insert_ballots_messages(
                             delegate_count_index,
                         )?;
 
-                    let ciphertexts = ballot_contents
-                        .into_iter()
-                        .map(|ballot_str| {
-                            info!("ballot_str: {ballot_str}");
-                            let ciphertext: Ciphertext<RistrettoCtx> =
-                                if ContestEncryptionPolicy::MULTIPLE_CONTESTS
-                                    == contest_encryption_policy_clone
-                                {
-                                    let hashable_multi_ballot: HashableMultiBallot =
-                                        deserialize_str(&ballot_str)?;
-
-                                    let hashable_multi_ballot_contests = hashable_multi_ballot
-                                        .deserialize_contests()
-                                        .map_err(|err| anyhow!("{:?}", err))?;
-                                    Some(hashable_multi_ballot_contests.ciphertext)
-                                } else {
-                                    let hashable_ballot: HashableBallot =
-                                        deserialize_str(&ballot_str)?;
-                                    let contests = hashable_ballot
-                                        .deserialize_contests()
-                                        .map_err(|err| anyhow!("{:?}", err))?;
-                                    contests
-                                        .iter()
-                                        .find(|contest| {
-                                            contest.contest_id
-                                                == contest_id.clone().unwrap_or_default()
-                                        })
-                                        .map(|contest| contest.ciphertext.clone())
-                                }
-                                .ok_or(anyhow!("Could not get ciphertext"))?;
-                            Ok(ciphertext)
-                        })
-                        .collect::<Result<Vec<_>>>()?;
-
                     let annotations = TallySessionContestAnnotations {
                         elegible_voters,
                         ballots_without_voter,
@@ -284,26 +251,62 @@ pub async fn insert_ballots_messages(
                         election_id: tally_session_contest.election_id.clone(),
                     };
 
-                    event!(
-                        Level::INFO,
-                        "insertable_ballots len: {:?}",
-                        ciphertexts.len()
-                    );
+                    if !skip_board_posting {
+                        let ciphertexts = ballot_contents
+                            .into_iter()
+                            .map(|ballot_str| {
+                                info!("ballot_str: {ballot_str}");
+                                let ciphertext: Ciphertext<RistrettoCtx> =
+                                    if ContestEncryptionPolicy::MULTIPLE_CONTESTS
+                                        == contest_encryption_policy_clone
+                                    {
+                                        let hashable_multi_ballot: HashableMultiBallot =
+                                            deserialize_str(&ballot_str)?;
 
-                    let mut board = get_b3_pgsql_client().await?;
-                    let batch = tally_session_contest.session_id.clone() as BatchNumber;
-                    add_ballots_to_board(
-                        &protocol_manager_arc_clone, // Use the Arc clone here
-                        &mut board,
-                        &board_name_clone,
-                        &board_messages_clone, // Use the cloned board_messages
-                        &configuration_clone,
-                        public_key_hash_clone,
-                        selected_trustees_clone,
-                        ciphertexts,
-                        batch,
-                    )
-                    .await?;
+                                        let hashable_multi_ballot_contests = hashable_multi_ballot
+                                            .deserialize_contests()
+                                            .map_err(|err| anyhow!("{:?}", err))?;
+                                        Some(hashable_multi_ballot_contests.ciphertext)
+                                    } else {
+                                        let hashable_ballot: HashableBallot =
+                                            deserialize_str(&ballot_str)?;
+                                        let contests = hashable_ballot
+                                            .deserialize_contests()
+                                            .map_err(|err| anyhow!("{:?}", err))?;
+                                        contests
+                                            .iter()
+                                            .find(|contest| {
+                                                contest.contest_id
+                                                    == contest_id.clone().unwrap_or_default()
+                                            })
+                                            .map(|contest| contest.ciphertext.clone())
+                                    }
+                                    .ok_or(anyhow!("Could not get ciphertext"))?;
+                                Ok(ciphertext)
+                            })
+                            .collect::<Result<Vec<_>>>()?;
+
+                        event!(
+                            Level::INFO,
+                            "insertable_ballots len: {:?}",
+                            ciphertexts.len()
+                        );
+
+                        let mut board = get_b3_pgsql_client().await?;
+                        let batch = tally_session_contest.session_id.clone() as BatchNumber;
+                        add_ballots_to_board(
+                            &protocol_manager_arc_clone, // Use the Arc clone here
+                            &mut board,
+                            &board_name_clone,
+                            &board_messages_clone, // Use the cloned board_messages
+                            &configuration_clone,
+                            public_key_hash_clone,
+                            selected_trustees_clone,
+                            ciphertexts,
+                            batch,
+                        )
+                        .await?;
+                    }
 
                     Ok(updated_tally_session_contest)
                 })
