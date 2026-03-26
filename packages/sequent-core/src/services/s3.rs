@@ -26,24 +26,35 @@ use tempfile::{NamedTempFile, TempPath};
 use tokio::io::{self, AsyncReadExt};
 use tracing::{info, instrument};
 
+/// Maximum chunk size for S3 multipart uploads (16 MiB).
 const MAX_CHUNK_SIZE: u64 = 16 * 1024 * 1024;
+/// Delimiter used in AWS hosted S3 hostnames.
 const AWS_HOSTED_S3_HOST_DELIMITER: &str = ".s3.";
+/// Domain suffix for AWS hosted S3 endpoints.
 const AWS_HOSTED_S3_DOMAIN_SUFFIX: &str = "amazonaws.com";
+/// Prefix for AWS S3 service host.
 const AWS_S3_SERVICE_HOST_PREFIX: &str = "s3";
 
 #[derive(Debug, PartialEq, Eq)]
+
+/// Parts resolved from an S3 list target, including endpoint, bucket, and prefix root.
 struct ResolvedS3ListTargetParts {
+    /// The resolved service endpoint, if any.
     service_endpoint: Option<String>,
+    /// The bucket name.
     bucket: String,
+    /// The prefix root, if any.
     prefix_root: Option<String>,
 }
 
 /// Carries the resolved S3 client, real bucket name, and optional logical
 /// prefix root for list-style operations that must work on both `MinIO` and `AWS`.
-#[allow(missing_docs)]
 struct ResolvedS3ListTarget {
+    /// The S3 client.
     client: s3::Client,
+    /// The bucket name.
     bucket: String,
+    /// The prefix root, if any.
     prefix_root: Option<String>,
 }
 
@@ -82,9 +93,8 @@ fn parse_aws_bucket_endpoint(
     // string slicing against the raw env var value.
     let url = reqwest::Url::parse(endpoint_uri)
         .with_context(|| format!("Invalid S3 endpoint URL `{endpoint_uri}`"))?;
-    let host = match url.host_str() {
-        Some(host) => host,
-        None => return Ok(None),
+    let Some(host) = url.host_str() else {
+        return Ok(None);
     };
 
     // AWS bucket-hosted endpoints look like `<bucket>.s3.amazonaws.com` or
@@ -127,8 +137,10 @@ fn parse_aws_bucket_endpoint(
     // will use the returned bucket name plus this service endpoint for list and
     // delete operations that require bucket + prefix semantics on AWS.
     let mut service_endpoint = format!("{}://{}", url.scheme(), service_host);
+
     if let Some(port) = url.port() {
-        service_endpoint.push_str(&format!(":{port}"));
+        use std::fmt::Write as _;
+        let _ = write!(service_endpoint, ":{port}");
     }
 
     Ok(Some((service_endpoint, bucket_name.to_string())))
@@ -194,6 +206,9 @@ fn build_s3_config_for_endpoint(
 ///
 /// When `use_server_endpoint` is `false`, the helper uses the client endpoint
 /// instead of the server endpoint.
+///
+/// # Errors
+/// Returns an error if environment variables are missing or AWS config cannot be loaded.
 async fn get_s3_list_target(
     logical_bucket: &str,
     use_server_endpoint: bool,
@@ -228,6 +243,9 @@ async fn get_s3_list_target(
 #[instrument(err, skip_all)]
 /// Returns the logical private bucket or root prefix so callers can separate
 /// storage scope from endpoint selection.
+///
+/// # Errors
+/// Returns an error if the environment variable is not set.
 pub fn get_private_bucket() -> Result<String> {
     let s3_bucket = env::var("AWS_S3_BUCKET")
         .map_err(|err| anyhow!("AWS_S3_BUCKET must be set: {err}"))?;
@@ -237,6 +255,9 @@ pub fn get_private_bucket() -> Result<String> {
 #[instrument(err, skip_all)]
 /// Returns the logical public bucket or root prefix used for public assets and
 /// plugin storage.
+///
+/// # Errors
+/// Returns an error if the environment variable is not set.
 pub fn get_public_bucket() -> Result<String> {
     let s3_bucket = env::var("AWS_S3_PUBLIC_BUCKET")
         .map_err(|err| anyhow!("AWS_S3_PUBLIC_BUCKET must be set: {err}"))?;
@@ -246,6 +267,9 @@ pub fn get_public_bucket() -> Result<String> {
 #[instrument(skip(client, config))]
 /// Creates a bucket when running against environments that manage buckets
 /// directly instead of pre-provisioning them.
+///
+/// # Errors
+/// Returns an error if the bucket cannot be created or region cannot be determined.
 async fn create_bucket_if_not_exists(
     client: &s3::Client,
     config: &s3::Config,
@@ -288,6 +312,8 @@ async fn create_bucket_if_not_exists(
 
 /// Wraps S3 client construction so callers rely on one place for config to
 /// client conversion.
+/// # Errors
+/// This function does not currently return errors, but is defined for consistency.
 pub async fn get_s3_client(config: s3::Config) -> Result<s3::Client> {
     let client = s3::Client::from_conf(config);
     Ok(client)
@@ -326,6 +352,9 @@ pub fn get_public_document_key(
 #[instrument(err)]
 /// Creates a presigned download URL for a document so clients can fetch files
 /// without proxying the bytes through the backend.
+///
+/// # Errors
+/// Returns an error if AWS config, S3 client, or presigning fails.
 pub async fn get_document_url(
     key: String,
     s3_bucket: String,
@@ -350,14 +379,18 @@ pub async fn get_document_url(
 #[instrument(err, ret)]
 /// Creates a presigned upload URL and selects the endpoint that the caller can
 /// actually reach.
+///
+/// # Errors
+/// Returns an error if AWS config, S3 client, or presigning fails.
 pub async fn get_upload_url(
     key: String,
     is_public: bool,
     is_local: bool,
 ) -> Result<String> {
-    let s3_bucket = match is_public {
-        true => get_public_bucket()?,
-        false => get_private_bucket()?,
+    let s3_bucket = if is_public {
+        get_public_bucket()?
+    } else {
+        get_private_bucket()?
     };
     // Select the AWS endpoint that the caller can reach: when `is_local` is true
     // we use the server-only endpoint; `is_public` only determines the upload bucket.
@@ -381,6 +414,9 @@ pub async fn get_upload_url(
 #[instrument(err, skip_all)]
 /// Downloads one object into a temporary file so downstream code can work with
 /// a filesystem path instead of holding the full payload in memory.
+///
+/// # Errors
+/// Returns an error if AWS config, S3 client, download, or file I/O fails.
 pub async fn get_object_into_temp_file(
     s3_bucket: &str,
     key: &str,
@@ -413,8 +449,12 @@ pub async fn get_object_into_temp_file(
             break; // End of file
         }
         temp_file
-            .write_all(&buffer[..size])
-            .with_context(|| "Error writting to the text file")?;
+            .write_all(
+                buffer
+                    .get(..size)
+                    .ok_or_else(|| anyhow!("Buffer slice out of bounds"))?,
+            )
+            .with_context(|| "Error writing to the temp file")?;
     }
 
     // The file is now downloaded to a temporary file
@@ -424,6 +464,9 @@ pub async fn get_object_into_temp_file(
 #[instrument(err, skip_all)]
 /// Uploads a file path to S3 and switches to multipart uploads only when the
 /// payload is large enough to need chunking.
+///
+/// # Errors
+/// Returns an error if file metadata, S3 upload, or file reading fails.
 pub async fn upload_file_to_s3(
     key: String,
     is_public: bool,
@@ -474,6 +517,12 @@ pub async fn upload_file_to_s3(
 #[allow(clippy::too_many_arguments)]
 /// Streams a large file through S3 multipart upload so oversized reports and
 /// exports do not need to be buffered at once.
+///
+/// # Errors
+/// Returns an error if S3 upload or file reading fails.
+///
+/// # Panics
+/// Panics if `ByteStream::read_from().build().await` fails (should be handled).
 pub async fn upload_multipart_data_to_s3(
     path: &Path,
     key: String,
@@ -484,11 +533,20 @@ pub async fn upload_multipart_data_to_s3(
     download_filename: Option<String>,
     file_size: u64,
 ) -> Result<()> {
-    let mut chunk_count = (file_size / MAX_CHUNK_SIZE) + 1;
-    let mut size_of_last_chunk = file_size % MAX_CHUNK_SIZE;
+    // --- begin clippy fixes ---
+    let mut chunk_count = file_size
+        .checked_div(MAX_CHUNK_SIZE)
+        .ok_or_else(|| anyhow!("Division by zero in chunk count"))?
+        .checked_add(1)
+        .ok_or_else(|| anyhow!("Addition overflow in chunk count"))?;
+    let mut size_of_last_chunk = file_size
+        .checked_rem(MAX_CHUNK_SIZE)
+        .ok_or_else(|| anyhow!("Remainder overflow in size_of_last_chunk"))?;
     if size_of_last_chunk == 0 {
         size_of_last_chunk = MAX_CHUNK_SIZE;
-        chunk_count -= 1;
+        chunk_count = chunk_count
+            .checked_sub(1)
+            .ok_or_else(|| anyhow!("Subtraction overflow in chunk_count"))?;
     }
 
     let config = get_s3_aws_config(!is_public)
@@ -528,21 +586,30 @@ pub async fn upload_multipart_data_to_s3(
     let mut upload_parts: Vec<aws_sdk_s3::types::CompletedPart> = Vec::new();
     for chunk_index in 0..chunk_count {
         info!("chunk {}", chunk_index);
-        let this_chunk = if chunk_index == chunk_count - 1 {
+        let this_chunk = if chunk_index
+            == chunk_count.checked_sub(1).ok_or_else(|| {
+                anyhow!("Subtraction overflow in chunk_count for this_chunk")
+            })? {
             size_of_last_chunk
         } else {
             MAX_CHUNK_SIZE
         };
+        let offset = chunk_index
+            .checked_mul(MAX_CHUNK_SIZE)
+            .ok_or_else(|| anyhow!("Multiplication overflow in offset"))?;
         let stream = ByteStream::read_from()
             .path(path)
-            .offset(chunk_index * MAX_CHUNK_SIZE)
+            .offset(offset)
             .length(Length::Exact(this_chunk))
             .build()
             .await
-            .unwrap();
+            .expect("Failed to build ByteStream for multipart upload");
 
         // Chunk index needs to start at 0, but part numbers start at 1.
-        let part_number = (chunk_index as i32) + 1;
+        let part_number = i32::try_from(chunk_index)
+            .map_err(|_| anyhow!("Chunk index too large for i32 part_number"))?
+            .checked_add(1)
+            .ok_or_else(|| anyhow!("Addition overflow in part_number"))?;
         let upload_part_res = client
             .upload_part()
             .key(&key)
@@ -581,6 +648,9 @@ pub async fn upload_multipart_data_to_s3(
 #[instrument(err, skip_all)]
 /// Uploads a single in-memory body to S3 for smaller files where multipart
 /// upload would add unnecessary overhead.
+///
+/// # Errors
+/// Returns an error if S3 upload fails.
 pub async fn upload_data_to_s3(
     data: ByteStream,
     key: String,
@@ -623,6 +693,9 @@ pub async fn upload_data_to_s3(
 
 /// Returns the server-side `MinIO` URL used by backend services when they need a
 /// direct path to the public bucket.
+///
+/// # Errors
+/// Returns an error if required environment variables are not set.
 pub fn get_minio_url() -> Result<String> {
     let minio_private_uri = env::var(AWS_S3_PRIVATE_URI_ENV)
         .map_err(|_err| anyhow!("AWS_S3_PRIVATE_URI must be set"))?;
@@ -633,6 +706,9 @@ pub fn get_minio_url() -> Result<String> {
 
 /// Returns the client-facing `MinIO` URL used when generated links must be
 /// reachable from outside the backend network.
+///
+/// # Errors
+/// Returns an error if required environment variables are not set.
 pub fn get_minio_public_url() -> Result<String> {
     let minio_public_uri = env::var(AWS_S3_PUBLIC_URI_ENV)
         .map_err(|_err| anyhow!("AWS_S3_PUBLIC_URI must be set"))?;
@@ -643,6 +719,9 @@ pub fn get_minio_public_url() -> Result<String> {
 
 /// Builds the URL for a public asset stored in S3 or `MinIO` so templates can
 /// reference it directly.
+///
+/// # Errors
+/// Returns an error if the `MinIO` URL or public assets path cannot be fetched.
 pub fn get_public_asset_file_path(filename: &str) -> Result<String> {
     let minio_endpoint_base =
         get_minio_url().with_context(|| "Error fetching get_minio_url")?;
@@ -656,18 +735,21 @@ pub fn get_public_asset_file_path(filename: &str) -> Result<String> {
 #[instrument(err)]
 /// Downloads a file via HTTP into a string for flows that consume public text
 /// assets rather than raw S3 SDK responses.
+///
+/// # Errors
+/// Returns an error if the HTTP request or response parsing fails.
 pub async fn download_s3_file_to_string(file_url: &str) -> Result<String> {
     let client = reqwest::Client::new();
 
     info!("Requesting HTTP GET {file_url:?}");
     let response = client.get(file_url).send().await?;
 
-    let unwrapped_response = if response.status() != reqwest::StatusCode::OK {
+    let unwrapped_response = if response.status() == reqwest::StatusCode::OK {
+        response
+    } else {
         return Err(anyhow!(
             "Error during download_s3_file_to_string: {response:?}"
         ));
-    } else {
-        response
     };
     let bytes = unwrapped_response.bytes().await?;
     Ok(String::from_utf8(bytes.to_vec())?)
@@ -676,6 +758,9 @@ pub async fn download_s3_file_to_string(file_url: &str) -> Result<String> {
 #[instrument(err, ret)]
 /// Deletes every object under a prefix and resolves AWS bucket-hosted endpoints
 /// into the real bucket plus key prefix before listing.
+///
+/// # Errors
+/// Returns an error if S3 list or delete operations fail.
 pub async fn delete_files_from_s3(
     s3_bucket: String,
     prefix: String,
@@ -781,6 +866,9 @@ pub async fn delete_files_from_s3(
 
 #[instrument(err)]
 /// Downloads one object into memory when callers need its bytes immediately.
+///
+/// # Errors
+/// Returns an error if S3 download or stream reading fails.
 pub async fn get_file_from_s3(
     s3_bucket: String,
     path: String,
@@ -812,6 +900,9 @@ pub async fn get_file_from_s3(
 #[instrument(err)]
 /// Lists a prefix and streams each matching file into a temporary path so export
 /// code can package files without buffering them all in memory.
+///
+/// # Errors
+/// Returns an error if S3 listing, download, or file I/O fails.
 pub async fn get_files_from_s3(
     s3_bucket: String,
     prefix: String,
@@ -832,7 +923,7 @@ pub async fn get_files_from_s3(
         .send()
         .await?;
 
-    for object in result.contents().iter() {
+    for object in result.contents() {
         let key = object.key().ok_or(anyhow!("s3 object key is missing"))?;
 
         if !key.contains("export") {
@@ -859,10 +950,10 @@ pub async fn get_files_from_s3(
 
             let s3_body_stream = s3_object.body;
 
-            let file_name = document_id
-                .clone()
-                .map(|id| format!("document_{id}_{s3_file_name}"))
-                .unwrap_or_else(|| s3_file_name.to_string());
+            let file_name = document_id.clone().map_or_else(
+                || s3_file_name.to_string(),
+                |id| format!("document_{id}_{s3_file_name}"),
+            );
 
             let temp_file = generate_temp_file("", &file_name)
                 .context("generating temp file")?;
@@ -888,6 +979,9 @@ pub async fn get_files_from_s3(
 #[instrument(err)]
 /// Lists a prefix and returns each file as name plus bytes for startup paths,
 /// such as plugin loading, that need the content in memory.
+///
+/// # Errors
+/// Returns an error if S3 listing or download fails.
 pub async fn get_files_names_bytes_from_s3(
     s3_bucket: String,
     prefix: String,
@@ -918,7 +1012,9 @@ pub async fn get_files_names_bytes_from_s3(
     if let Some(contents) = list_output.contents {
         for object in contents {
             if let Some(key) = object.key {
-                let file_name = key.split('/').last().unwrap();
+                let file_name = key.split('/').next_back().ok_or(anyhow!(
+                    "Error extracting file name from key `{key}`"
+                ))?;
 
                 let get_obj_output = client
                     .get_object()

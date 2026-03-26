@@ -163,7 +163,7 @@ pub mod sync {
                 if let Some(basic_auth) = basic_auth {
                     let parts: Vec<&str> = basic_auth.split(':').collect();
                     if let (Some(user), Some(pass)) =
-                        (parts.get(0), parts.get(1))
+                        (parts.first(), parts.get(1))
                     {
                         builder = builder.basic_auth(user, Some(pass));
                     } else {
@@ -188,6 +188,14 @@ pub mod sync {
             }
         }
 
+        /// Renders HTML to PDF using the configured options.
+        ///
+        /// # Errors
+        /// Returns an error if the HTTP request fails, or PDF generation fails.
+        ///
+        /// # Panics
+        /// Panics if index calculations overflow or if file operations fail unexpectedly.
+        #[allow(clippy::too_many_lines)]
         pub fn do_render_pdf(
             &self,
             html: String,
@@ -296,8 +304,9 @@ pub mod sync {
                         PdfTransport::OpenWhisk { .. } => {
                             let response_json =
                                 response.json::<serde_json::Value>()?;
-                            let pdf_base64 = response_json["pdf_base64"]
-                                .as_str()
+                            let pdf_base64 = response_json
+                                .get("pdf_base64")
+                                .and_then(|v| v.as_str())
                                 .ok_or_else(|| {
                                     anyhow!("Missing pdf_base64 in response")
                                 })?;
@@ -305,7 +314,7 @@ pub mod sync {
                                 .decode(pdf_base64)
                                 .map_err(|e| anyhow!("{e:?}"))
                         }
-                        _ => unreachable!(),
+                        PdfTransport::InPlace => unreachable!(),
                     }
                 }
                 PdfTransport::InPlace => {
@@ -342,14 +351,21 @@ pub mod sync {
 /// --- ASYNC VERSION ---
 impl PdfRenderer {
     /// Public async `render_pdf` that preserves the async signature.
+    /// Async wrapper for rendering HTML to PDF.
+    ///
+    /// # Errors
+    /// Returns an error if PDF rendering fails.
     pub async fn render_pdf(
         html: String,
         pdf_options: Option<PrintToPdfOptions>,
     ) -> Result<Vec<u8>> {
-        Ok(PdfRenderer::new()?.do_render_pdf(html, pdf_options).await?)
+        PdfRenderer::new()?.do_render_pdf(html, pdf_options).await
     }
 
     /// Creates a new `PdfRenderer` based on environment configuration.
+    ///
+    /// # Errors
+    /// Returns an error if the backend is misconfigured or environment variables are missing.
     pub fn new() -> Result<Self> {
         info!("PdfRenderer::new() [async] - Starting initialization");
 
@@ -396,6 +412,12 @@ impl PdfRenderer {
 
     /// Async `do_render_pdf` uses `retry_with_exponential_backoff` for the HTTP
     /// request.
+    ///
+    /// # Errors
+    /// Returns an error if the backend fails, the HTTP request fails, or PDF generation fails.
+    ///
+    /// # Panics
+    /// Panics if index calculations overflow or if file operations fail unexpectedly.
     #[allow(clippy::too_many_lines)]
     pub async fn do_render_pdf(
         &self,
@@ -478,7 +500,7 @@ impl PdfRenderer {
                 if let Some(basic_auth) = basic_auth {
                     let parts: Vec<&str> = basic_auth.split(':').collect();
                     if let (Some(user), Some(pass)) =
-                        (parts.get(0), parts.get(1))
+                        (parts.first(), parts.get(1))
                     {
                         request_builder =
                             request_builder.basic_auth(user, Some(pass));
@@ -555,7 +577,7 @@ impl PdfRenderer {
                             })?;
                         BASE64.decode(pdf_base64).map_err(|e| anyhow!("{e:?}"))
                     }
-                    _ => unreachable!(),
+                    PdfTransport::InPlace => unreachable!(),
                 }
             }
             PdfTransport::InPlace => {
@@ -590,24 +612,30 @@ impl PdfRenderer {
 /// S3 helper functions.
 cfg_if::cfg_if! {
     if #[cfg(feature = "s3")] {
+        /// Returns the private S3 bucket name, or None if unavailable.
         fn s3_private_bucket() -> Option<String> {
             s3::get_private_bucket().ok()
         }
-        const fn s3_bucket_path(path: String) -> Option<String> {
-            Some(path)
+        /// Returns the S3 bucket path as a string.
+        const fn s3_bucket_path(path: String) -> String {
+            path
         }
+        /// Retrieves a file from S3 as bytes.
         async fn get_file_from_s3(bucket: String, output_filename: String) -> Result<Vec<u8>> {
             s3::get_file_from_s3(bucket, output_filename)
                 .await
                 .map_err(|err| anyhow!("could not retrieve file from S3: {err:?}"))
         }
     } else {
+        /// Returns None for private S3 bucket when S3 is not enabled.
         fn s3_private_bucket() -> Option<String> {
             None
         }
-        fn s3_bucket_path(path: String) -> Option<String> {
-            None
+        /// Returns an empty string for S3 bucket path when S3 is not enabled.
+        fn s3_bucket_path(_path: String) -> String {
+            String::new()
         }
+        /// Unimplemented: S3 file retrieval is not available without S3 feature.
         async fn get_file_from_s3(_bucket: String, _output_filename: String) -> Result<Vec<u8>> {
             unimplemented!()
         }
@@ -615,6 +643,9 @@ cfg_if::cfg_if! {
 }
 
 /// Converts HTML to PDF using `headless_chrome`.
+///
+/// # Errors
+/// Returns an error if file creation, writing, or PDF generation fails.
 #[instrument(skip_all, err)]
 pub fn html_to_pdf(
     html: String,

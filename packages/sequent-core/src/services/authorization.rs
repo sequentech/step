@@ -13,6 +13,10 @@ use tracing::{error, info, instrument};
 
 #[instrument(skip(claims))]
 #[allow(clippy::needless_pass_by_value)]
+/// Authorizes a user based on JWT claims, tenant, and permissions.
+///
+/// # Errors
+/// Returns an error if the user is not authorized or required environment variables are missing.
 pub fn authorize(
     claims: &JwtClaims,
     allow_super_admin_auth: bool, // Allow authorizing super admin tenant
@@ -59,18 +63,22 @@ pub fn authorize(
     let all_contained =
         perms_str.iter().all(|item| permissions_set.contains(&item));
 
-    if !all_contained {
+    if all_contained {
+        Ok(())
+    } else {
         Err((
             Status::Unauthorized,
             format!("Unathorized: {perms_str:?} not in {permissions_set:?}"),
         ))
-    } else {
-        Ok(())
     }
 }
 
-// returns area_id
 #[instrument(skip(claims))]
+/// Authorizes a voter for an election based on JWT claims and permissions.
+// / Returns area_id
+///
+/// # Errors
+/// Returns an error if the voter is not authorized for the election or required claims are missing.
 pub fn authorize_voter_election(
     claims: &JwtClaims,
     permissions: Vec<VoterPermissions>,
@@ -86,7 +94,7 @@ pub fn authorize_voter_election(
         perms_str.iter().all(|item| permissions_set.contains(&item));
 
     if !all_contained {
-        return Err((Status::Unauthorized, "".into()));
+        return Err((Status::Unauthorized, String::new()));
     }
 
     let Some(area_id) = claims.hasura_claims.area_id.clone() else {

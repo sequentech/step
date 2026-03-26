@@ -542,8 +542,7 @@ impl GenerateResultDocuments for ElectionReportDataComputed {
                 &election_id,
                 &documents,
                 &json_hash,
-            )
-            .await?;
+            )?;
         }
 
         Ok(documents)
@@ -642,8 +641,7 @@ impl GenerateResultDocuments for ReportDataComputed {
                         &contest.id,
                         &area.id,
                         &documents,
-                    )
-                    .await?;
+                    )?;
                 }
             } else {
                 update_results_contest_documents(
@@ -666,8 +664,7 @@ impl GenerateResultDocuments for ReportDataComputed {
                         &self.election_id,
                         &contest.id,
                         &documents,
-                    )
-                    .await?;
+                    )?;
                 }
             }
         }
@@ -908,8 +905,7 @@ async fn save_area_documents(
             &area.id,
             &area.name,
             &documents,
-        )
-        .await?;
+        )?;
     }
 
     Ok(documents)

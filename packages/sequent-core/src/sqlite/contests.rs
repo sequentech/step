@@ -9,7 +9,11 @@ use serde_json::to_string;
 use tracing::instrument;
 
 #[instrument(err, skip_all)]
-pub async fn create_contest_sqlite(
+/// Creates contests in a `SQLite` database.
+///
+/// # Errors
+/// Returns an error if the table creation or insertion fails.
+pub fn create_contest_sqlite(
     sqlite_transaction: &Transaction<'_>,
     contests: Vec<Contest>,
 ) -> Result<()> {

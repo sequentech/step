@@ -7,9 +7,13 @@ use rusqlite::{params, Transaction};
 use serde_json::to_string;
 use tracing::instrument;
 
+/// Creates results election area in a `SQLite` database.
+///
+/// # Errors
+/// Returns an error if the table creation or insertion fails.
 #[instrument(err, skip_all)]
 #[allow(clippy::too_many_arguments)]
-pub async fn create_results_election_area_sqlite(
+pub fn create_results_election_area_sqlite(
     sqlite_transaction: &Transaction<'_>,
     tenant_id: &str,
     results_event_id: &str,

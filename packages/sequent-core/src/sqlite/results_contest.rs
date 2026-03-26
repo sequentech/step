@@ -10,7 +10,11 @@ use serde_json::to_string;
 use tracing::instrument;
 
 #[instrument(err, skip_all)]
-pub async fn create_results_contest_sqlite(
+/// Creates results contests in a `SQLite` database.
+///
+/// # Errors
+/// Returns an error if the table creation or insertion fails.
+pub fn create_results_contest_sqlite(
     sqlite_transaction: &Transaction<'_>,
     contests: Vec<ResultsContest>,
 ) -> Result<()> {
@@ -106,7 +110,11 @@ pub async fn create_results_contest_sqlite(
 }
 
 #[instrument(err, skip_all)]
-pub async fn update_results_contest_documents_sqlite(
+/// Updates the documents for a results contest in a `SQLite` database.
+///
+/// # Errors
+/// Returns an error if the update fails.
+pub fn update_results_contest_documents_sqlite(
     sqlite_transaction: &Transaction<'_>,
     tenant_id: &str,
     results_event_id: &str,

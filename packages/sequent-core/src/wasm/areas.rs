@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use crate::services::area_tree::*;
+use crate::services::area_tree::{ContestsData, TreeNode, TreeNodeArea};
 use crate::types::hasura::core::AreaContest;
 use crate::wasm::wasm::IntoResult;
 use std::collections::HashSet;
@@ -16,6 +16,9 @@ use std::collections::HashMap;
 use std::panic;
 
 /// Creates a tree structure from areas JSON for JS interop.
+///
+/// # Errors
+/// Returns an error if parsing or serialization fails.
 #[allow(clippy::all)]
 #[wasm_bindgen]
 pub fn create_tree_js(
@@ -43,6 +46,9 @@ pub fn create_tree_js(
 }
 
 /// Gets contest matches from a contests tree JS object.
+///
+/// # Errors
+/// Returns an error if parsing or serialization fails.
 #[allow(clippy::all)]
 #[wasm_bindgen]
 pub fn get_contest_matches_js(

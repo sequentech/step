@@ -14,6 +14,12 @@ use tracing::{info, instrument};
 ///   each time (`initial_backoff`, `2 * initial_backoff`, etc.)
 ///
 /// Returns `Ok(T)` on success or the last `Err(E)` on failure.
+///
+/// # Errors
+/// Returns the last error from the operation if all retries fail, or an error if arithmetic overflows.
+///
+/// # Panics
+/// Panics if attempts or backoff overflows (should not occur in normal use).
 #[instrument(skip(op))]
 pub async fn retry_with_exponential_backoff<F, Fut, T, E>(
     mut op: F,
@@ -36,14 +42,14 @@ where
             }
             Err(err) if attempts < max_retries => {
                 // Failure, but we can try again after a backoff delay
-                attempts += 1;
+                attempts = attempts.checked_add(1).expect("Attempt overflow");
                 info!(
                     "Failed attempt {attempts}, sleeping {:?} ms, error: {:?}",
                     backoff, err
                 );
                 sleep(backoff).await;
                 // Exponential backoff: double the delay
-                backoff *= 2;
+                backoff = backoff.checked_mul(2).expect("Backoff overflow");
             }
             Err(err) => {
                 info!("Failed attempt {attempts}, run out of retries, error: {:?}", err);

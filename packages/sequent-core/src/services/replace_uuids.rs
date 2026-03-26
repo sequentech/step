@@ -9,15 +9,19 @@ use tracing::instrument;
 use uuid::Uuid;
 
 #[instrument(skip(input))]
+/// Replaces UUIDs in the input string, except those in the keep list or fixed config.
+///
+/// # Panics
+/// Panics if the UUID regex is invalid or if a capture group is missing (should not happen).
 pub fn replace_uuids(
     input: &str,
     keep: &[String],
 ) -> (String, HashMap<String, String>) {
     let uuid_regex =
         Regex::new(r"[0-9a-fA-F]{8}(-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}")
-            .unwrap();
+            .expect("Invalid UUID regex");
     let fixed_uuids_from_config = env::var("ELECTION_EVENT_FIXED_UUIDS")
-        .unwrap_or("".to_string())
+        .unwrap_or_default()
         .split(',')
         .map(std::string::ToString::to_string)
         .collect::<Vec<String>>();
@@ -29,7 +33,11 @@ pub fn replace_uuids(
 
     let result = uuid_regex
         .replace_all(input, |caps: &regex::Captures| {
-            let old_uuid = caps.get(0).unwrap().as_str().to_string();
+            let old_uuid = caps
+                .get(0)
+                .expect("capture group 0 should always be present")
+                .as_str()
+                .to_string();
             if keep_set.contains(&old_uuid) {
                 old_uuid.clone()
             } else {

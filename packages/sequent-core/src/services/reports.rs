@@ -15,6 +15,7 @@ use std::collections::{HashMap, HashSet};
 use std::str::FromStr;
 use tracing::{info, instrument, warn};
 
+/// Returns a Handlebars registry with all helpers registered.
 fn get_registry<'reg>() -> Handlebars<'reg> {
     let mut reg = Handlebars::new();
     reg.set_strict_mode(false);
@@ -87,6 +88,10 @@ fn get_registry<'reg>() -> Handlebars<'reg> {
     reg
 }
 
+/// Renders a Handlebars template from a string and variables map.
+///
+/// # Errors
+/// Returns an error if template rendering fails.
 #[instrument(skip_all, err)]
 pub fn render_template_text(
     template: &str,
@@ -98,7 +103,12 @@ pub fn render_template_text(
     reg.render_template(template, &json!(variables_map))
 }
 
+/// Renders a Handlebars template by name from a template map and variables map.
+///
+/// # Errors
+/// Returns an error if template registration or rendering fails.
 #[instrument(skip_all, err)]
+#[allow(clippy::implicit_hasher)]
 pub fn render_template(
     template_name: &str,
     template_map: HashMap<String, String>,
@@ -124,7 +134,7 @@ pub fn helper_wrapper_or<'a>(
         or_val: String,
     }
 
-    impl<'a> HelperDef for WrapperHelper<'a> {
+    impl HelperDef for WrapperHelper<'_> {
         fn call<'reg: 'rc, 'rc>(
             &self,
             helper: &Helper<'rc>,
@@ -167,7 +177,7 @@ pub fn helper_wrapper<'a>(
         func: Box<dyn HelperDef + Send + Sync + 'a>,
     }
 
-    impl<'a> HelperDef for WrapperHelper<'a> {
+    impl HelperDef for WrapperHelper<'_> {
         fn call<'reg: 'rc, 'rc>(
             &self,
             helper: &Helper<'rc>,
@@ -200,6 +210,10 @@ pub fn helper_wrapper<'a>(
     Box::new(WrapperHelper { func })
 }
 
+/// Writes the first parameter as a string to the output.
+///
+/// # Errors
+/// Returns an error if the parameter is missing or output fails.
 pub fn expr_helper<'reg, 'rc>(
     h: &Helper<'rc>,
     _r: &'reg Handlebars<'reg>,
@@ -225,6 +239,13 @@ pub fn expr_helper<'reg, 'rc>(
     Ok(())
 }
 
+/// Sets a variable in the Handlebars render context.
+///
+/// # Errors
+/// Returns an error if the parameter is missing or of the wrong type.
+///
+/// # Panics
+/// Panics if the variable cannot be set in the context.
 pub fn let_helper<'reg, 'rc>(
     h: &Helper<'rc>,
     _r: &'reg Handlebars<'reg>,
@@ -253,13 +274,19 @@ pub fn let_helper<'reg, 'rc>(
         .map(|v| v.value().to_owned())
         .ok_or_else(|| RenderErrorReason::ParamNotFoundForIndex("let", 2))?;
 
-    let block = rc.block_mut().unwrap();
+    let block = rc
+        .block_mut()
+        .expect("block_mut should be available in let_helper");
 
     block.set_block_param(name_constant, BlockParamHolder::Value(value));
 
     Ok(())
 }
 
+/// Sanitizes HTML input.
+///
+/// # Errors
+/// Returns an error if writing to the output fails.
 pub fn sanitize_html(
     helper: &Helper,
     _: &Handlebars,
@@ -273,7 +300,7 @@ pub fn sanitize_html(
         .unwrap_or("");
 
     let tags: HashSet<&str> =
-        ["strong", "em", "b", "i", "br"].iter().cloned().collect();
+        ["strong", "em", "b", "i", "br"].iter().copied().collect();
 
     let mut builder = ammonia::Builder::default();
     let builder = builder.tags(tags);
@@ -284,6 +311,10 @@ pub fn sanitize_html(
     Ok(())
 }
 
+/// Parses a u64 value from a JSON value.
+///
+/// # Errors
+/// Returns an error if the value is not a valid u64 or cannot be parsed as u64.
 fn parse_u64_value(value: &JsonValue) -> Result<u64, RenderError> {
     match value {
         JsonValue::Number(n) => n.as_u64().ok_or_else(|| {
@@ -300,6 +331,10 @@ fn parse_u64_value(value: &JsonValue) -> Result<u64, RenderError> {
     }
 }
 
+/// Formats a u64 value with locale-specific separators.
+///
+/// # Errors
+/// Returns an error if the parameter is missing, not a valid u64, or output fails.
 pub fn format_u64(
     helper: &Helper,
     _: &Handlebars,
@@ -319,6 +354,10 @@ pub fn format_u64(
     Ok(())
 }
 
+/// Parses a f64 value from a JSON value.
+///
+/// # Errors
+/// Returns an error if the value is not a valid f64 or cannot be parsed as f64.
 fn parse_f64_value(value: &JsonValue) -> Result<f64, RenderError> {
     match value {
         JsonValue::Number(n) => n.as_f64().ok_or_else(|| {
@@ -459,7 +498,9 @@ impl HelperDef for modulo {
             return Err(RenderError::new("Modulo by zero"));
         }
 
-        let result = dividend % divisor;
+        let result = dividend.checked_rem(divisor).ok_or_else(|| {
+            RenderError::new("Overflow or modulo by zero in modulo helper")
+        })?;
         Ok(ScopedJson::Derived(JsonValue::from(result)))
     }
 }
@@ -494,7 +535,18 @@ impl HelperDef for next {
         })?;
 
         // Calculate next index
-        let next_index = (index + 1) as usize;
+        let next_index = index
+            .checked_add(1)
+            .ok_or_else(|| {
+                RenderError::new("Index overflow when calculating next index")
+            })
+            .and_then(|val| {
+                usize::try_from(val).map_err(|_| {
+                    RenderError::new(
+                        "Index overflow when calculating next index",
+                    )
+                })
+            })?;
 
         // Return the next element or null if it doesn't exist
         let result = array.get(next_index).cloned().unwrap_or(JsonValue::Null);
@@ -530,6 +582,10 @@ impl HelperDef for parse_i64 {
     }
 }
 
+/// Formats a decimal as a percentage with two decimal places.
+///
+/// # Errors
+/// Returns an error if the parameter is missing or not a valid number, or if writing to output fails.
 pub fn format_dec_percentage(
     helper: &Helper,
     _: &Handlebars,
@@ -556,6 +612,10 @@ pub fn format_dec_percentage(
     Ok(())
 }
 
+/// Formats a number as a percentage with two decimal places.
+///
+/// # Errors
+/// Returns an error if the parameter is missing or not a valid number, or if writing to output fails.
 pub fn format_percentage(
     helper: &Helper,
     _: &Handlebars,
@@ -580,6 +640,10 @@ pub fn format_percentage(
     Ok(())
 }
 
+/// Formats a date string using a dynamic format string.
+///
+/// # Errors
+/// Returns an error if parameters are missing, not valid strings, or if date parsing/formatting fails.
 pub fn format_date(
     helper: &Helper,
     _: &Handlebars,
@@ -595,7 +659,6 @@ pub fn format_date(
 
     let date_str: &str = date_json.as_str().ok_or_else(|| {
         warn!("couldn't parse as &str: date_json={date_json:?}");
-
         RenderErrorReason::InvalidParamType("couldn't parse as &str")
     })?;
 
@@ -607,7 +670,6 @@ pub fn format_date(
 
     let format_str: &str = format_json.as_str().ok_or_else(|| {
         warn!("couldn't parse as &str: format_json={format_json:?}");
-
         RenderErrorReason::InvalidParamType("couldn't parse as &str")
     })?;
 
@@ -645,8 +707,10 @@ pub fn format_date(
     Ok(())
 }
 
-/// Convert unix time to RFC2822 date and time format, like: Tue, 1 Jul 2003
-/// 10:52:37 +0200.
+/// Convert unix time to RFC2822 date and time format, like: Tue, 1 Jul 2003 10:52:37 +0200.
+///
+/// # Errors
+/// Returns an error if the timestamp cannot be parsed or formatted.
 pub fn timestamp_to_rfc2822(timestamp: i64) -> Result<String> {
     let dt = DateTime::<Utc>::from_timestamp(timestamp, 0)
         .with_context(|| "Error parsing timestamp")?;
@@ -656,7 +720,10 @@ pub fn timestamp_to_rfc2822(timestamp: i64) -> Result<String> {
     Ok(statement_timestamp)
 }
 
-/// Convert unix time to the given format
+/// Convert unix time to the given format.
+///
+/// # Errors
+/// Returns an error if the timestamp cannot be parsed or formatted.
 pub fn format_datetime(unix_time: i64, fmt: &str) -> Result<String> {
     let dt = DateTime::<Utc>::from_timestamp(unix_time, 0)
         .with_context(|| "Error parsing creation timestamp")?;
@@ -664,6 +731,13 @@ pub fn format_datetime(unix_time: i64, fmt: &str) -> Result<String> {
     Ok(formatted_str)
 }
 
+/// Increments an integer by 1 and writes it to output.
+///
+/// # Errors
+/// Returns an error if the parameter is missing, not a valid integer, or if writing to output fails.
+///
+/// # Panics
+/// Panics if the increment would overflow.
 pub fn inc(
     helper: &Helper,
     _: &Handlebars,
@@ -678,13 +752,22 @@ pub fn inc(
         .as_u64()
         .ok_or(RenderErrorReason::InvalidParamType("couldn't parse as u64"))?;
 
-    let inc_index = index + 1;
+    let inc_index = index
+        .checked_add(1)
+        .ok_or(RenderErrorReason::InvalidParamType("Overflow in inc"))?;
 
     out.write(&inc_index.to_string())?;
 
     Ok(())
 }
 
+/// Increments an integer by 2 and writes it to output.
+///
+/// # Errors
+/// Returns an error if the parameter is missing, not a valid integer, or if writing to output fails.
+///
+/// # Panics
+/// Panics if the increment would overflow.
 pub fn inc2(
     helper: &Helper,
     _: &Handlebars,
@@ -699,13 +782,19 @@ pub fn inc2(
         .as_u64()
         .ok_or(RenderErrorReason::InvalidParamType("couldn't parse as u64"))?;
 
-    let inc_index = index + 2;
+    let inc_index = index
+        .checked_add(2)
+        .ok_or(RenderErrorReason::InvalidParamType("Overflow in inc2"))?;
 
     out.write(&inc_index.to_string())?;
 
     Ok(())
 }
 
+/// Serializes a parameter to JSON and writes it to output.
+///
+/// # Errors
+/// Returns an error if serialization or writing to output fails.
 pub fn to_json(
     h: &Helper,
     _: &Handlebars,

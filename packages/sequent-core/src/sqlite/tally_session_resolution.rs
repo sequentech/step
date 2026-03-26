@@ -9,7 +9,11 @@ use serde_json::to_string;
 use tracing::instrument;
 
 #[instrument(err, skip_all)]
-pub async fn create_tally_session_resolutions_sqlite(
+/// Creates tally session resolutions in a `SQLite` database.
+///
+/// # Errors
+/// Returns an error if the table creation or insertion fails.
+pub fn create_tally_session_resolutions_sqlite(
     sqlite_transaction: &Transaction<'_>,
     resolutions: Vec<TallySessionResolution>,
 ) -> Result<()> {

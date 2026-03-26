@@ -9,7 +9,11 @@ use serde_json::to_string;
 use tracing::instrument;
 
 #[instrument(err, skip_all)]
-pub async fn create_area_sqlite(
+/// Creates areas in a `SQLite` database.
+///
+/// # Errors
+/// Returns an error if the table creation or insertion fails.
+pub fn create_area_sqlite(
     sqlite_transaction: &Transaction<'_>,
     areas: Vec<Area>,
 ) -> Result<()> {

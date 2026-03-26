@@ -9,6 +9,10 @@ use tracing_subscriber::{filter, reload};
 use tracing_subscriber::{layer::SubscriberExt, registry::Registry};
 use tracing_tree::HierarchicalLayer;
 
+/// Initializes the logging system.
+///
+/// # Panics
+/// Panics if the log level is invalid, or if setting the global subscriber or initializing the log tracer fails.
 pub fn init_log(set_global: bool) -> Handle<LevelFilter, Registry> {
     let layer = HierarchicalLayer::default()
         .with_writer(std::io::stdout)
@@ -21,14 +25,16 @@ pub fn init_log(set_global: bool) -> Handle<LevelFilter, Registry> {
         .with_targets(false);
 
     let level_str = std::env::var("LOG_LEVEL").unwrap_or("info".to_string());
-    let level = Level::from_str(&level_str).unwrap();
+    let level = Level::from_str(&level_str)
+        .expect("Invalid log level in LOG_LEVEL env var");
     let filter = filter::LevelFilter::from_level(level);
     let (filter, reload_handle) = reload::Layer::new(filter);
     let subscriber = Registry::default().with(filter).with(layer);
 
     if set_global {
-        tracing::subscriber::set_global_default(subscriber).unwrap();
+        tracing::subscriber::set_global_default(subscriber)
+            .expect("Failed to set global tracing subscriber");
     }
-    tracing_log::LogTracer::init().unwrap();
+    tracing_log::LogTracer::init().expect("Failed to initialize log tracer");
     reload_handle
 }

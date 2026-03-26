@@ -23,6 +23,10 @@ pub struct EciesKeyPair {
 }
 
 #[instrument(skip(password), err)]
+/// Encrypts a string using ECIES with the given public key and password.
+///
+/// # Errors
+/// Returns an error if encryption fails or file operations fail.
 pub fn ecies_encrypt_string(
     public_key_pem: &str,
     password: &str,
@@ -54,6 +58,10 @@ pub fn ecies_encrypt_string(
 }
 
 #[instrument(err)]
+/// Generates an ECIES key pair.
+///
+/// # Errors
+/// Returns an error if key generation fails or file operations fail.
 pub fn generate_ecies_key_pair() -> Result<EciesKeyPair> {
     let temp_private_pem_file = generate_temp_file("private_key", ".pem")?;
     let temp_private_pem_file_path = temp_private_pem_file.path();
@@ -82,6 +90,10 @@ pub fn generate_ecies_key_pair() -> Result<EciesKeyPair> {
 }
 
 #[instrument(skip(data), err)]
+/// Signs data using ECIES.
+///
+/// # Errors
+/// Returns an error if signing fails or file operations fail.
 pub fn ecies_sign_data(
     acm_key_pair: &EciesKeyPair,
     data: &str,
@@ -132,6 +144,10 @@ pub struct SignRequest {
 }
 
 #[instrument(skip_all, err)]
+/// Signs multiple data items using ECIES in bulk.
+///
+/// # Errors
+/// Returns an error if signing fails or file operations fail.
 pub fn ecies_sign_data_bulk(
     acm_key_pair: &EciesKeyPair,
     requests: &[SignRequest],
@@ -192,7 +208,7 @@ pub fn ecies_sign_data_bulk(
     //    sign_xxxx.txt, the tool should have produced sign_xxxx.txt.sign We'll
     //    read them into a map of (id -> signature_base64)
     let mut signature_map = HashMap::new();
-    for (id, path) in file_map.iter() {
+    for (id, path) in &file_map {
         // the Java tool will create the file with .sign appended
         let sign_file = path.with_extension("txt.sign");
         if !sign_file.exists() {
