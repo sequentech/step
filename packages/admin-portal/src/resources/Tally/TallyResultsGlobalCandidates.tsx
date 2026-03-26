@@ -29,6 +29,7 @@ import {formatPercentOne, isNumber} from "@sequentech/ui-core"
 import {useAtomValue} from "jotai"
 import {tallyQueryData} from "@/atoms/tally-candidates"
 import {useAliasRenderer} from "@/hooks/useAliasRenderer"
+import {useDefaultElectionLang} from "@/hooks/useDefaultElectionLang"
 
 interface TallyResultsGlobalCandidatesProps {
     contestId: string
@@ -111,6 +112,8 @@ export const TallyResultsGlobalCandidates: React.FC<TallyResultsGlobalCandidates
         }
     }, [results, candidates])
 
+    const defaultElectionLang = useDefaultElectionLang(electionId, electionEventId)
+
     const columns: GridColDef[] = [
         {
             field: "name",
@@ -119,7 +122,7 @@ export const TallyResultsGlobalCandidates: React.FC<TallyResultsGlobalCandidates
             editable: false,
             align: "left",
             renderCell: (props: GridRenderCellParams<any, string>) => {
-                return aliasRenderer(props.row.presentation)
+                return aliasRenderer(props.row.presentation, defaultElectionLang)
             },
         },
         {

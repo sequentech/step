@@ -155,7 +155,8 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
                 const searchParams = new URLSearchParams(window.location.search)
                 const isKiosk = searchParams.has("kiosk")
 
-                if (!isKiosk) {
+                return defaultUrl
+                /*if (!isKiosk) {
                     return defaultUrl
                 }
 
@@ -173,7 +174,7 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
                 } catch (error) {
                     console.error("Invalid URL provided:", defaultUrl)
                     return defaultUrl // Fallback to the original URL if an error occurs
-                }
+                }*/
             }
 
             /**
@@ -388,12 +389,18 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
         if (redirectUrl) {
             return redirectUrl
         } else {
+            const origin = window.location.origin
+            const searchParams = new URLSearchParams(window.location.search)
+            const isKiosk = searchParams.has("kiosk")
+            if (isKiosk) {
+                return `${origin}/tenant/${tenantId}/event/${eventId}/?kiosk`
+            }
             const currentPath = window.location.pathname
             const pathSegments = currentPath.split("/")
             while (pathSegments.length > 5) {
                 pathSegments.pop() // Remove the last segment (To only keep the teanant and event params)
             }
-            return pathSegments.join("/")
+            return origin + pathSegments.join("/")
         }
     }
 
