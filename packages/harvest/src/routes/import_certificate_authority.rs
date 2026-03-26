@@ -124,7 +124,10 @@ pub async fn import_certificate_authority(
                         inserted_count += 1;
                     }
                     Ok(false) => {
-                        info!(cert_index = i + 1, "Certificate skipped (duplicate)");
+                        info!(
+                            cert_index = i + 1,
+                            "Certificate skipped (duplicate)"
+                        );
                         skipped_count += 1;
                     }
                     Err(e) => {
