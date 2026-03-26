@@ -1205,7 +1205,7 @@ export const EditElectionEventDataForm: React.FC = () => {
                             label={String(
                                 t("electionEventScreen.field.voterDigitalCertPolicy.policyLabel")
                             )}
-                            defaultValue={EVoterDigitalCertPolicy.NOT_ALLOW}
+                            defaultValue={EVoterDigitalCertPolicy.DISABLED}
                             emptyText={undefined}
                             validate={required()}
                         />

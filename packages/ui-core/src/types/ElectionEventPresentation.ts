@@ -86,8 +86,8 @@ export enum EElectionEventDelegatedVotingPolicy {
 }
 
 export enum EVoterDigitalCertPolicy {
-    ALLOW = "allow",
-    NOT_ALLOW = "not-allow",
+    ENABLED = "enabled",
+    DISABLED = "disabled",
 }
 
 export interface IElectionEventPresentation {

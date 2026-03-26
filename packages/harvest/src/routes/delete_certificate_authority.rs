@@ -73,7 +73,7 @@ pub async fn delete_certificate_authority_route(
         .voter_digital_cert_policy
         .unwrap_or_default();
 
-    if voter_digital_cert_policy == VoterDigitalCertPolicy::NOT_ALLOW {
+    if voter_digital_cert_policy != VoterDigitalCertPolicy::ENABLED {
         return Err((
             Status::Forbidden,
             "Digital certificate authentication is not allowed for this election event".to_string(),

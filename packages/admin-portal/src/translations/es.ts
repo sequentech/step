@@ -343,9 +343,9 @@ const spanishTranslation: TranslationType = {
                     "with-signature": "Con firma",
                 },
                 voterDigitalCertPolicy: {
-                    "policyLabel": "Voter Digital Certificate Policy",
-                    "allow": "Allow",
-                    "not-allow": "Not allow",
+                    policyLabel: "Voter Digital Certificate Policy",
+                    enabled: "Habilitado",
+                    disabled: "Deshabilitado",
                 },
                 enrollment: {
                     policyLabel: "Inscripción",
@@ -444,7 +444,7 @@ const spanishTranslation: TranslationType = {
                 notifications: "Notificaciones",
                 reports: "Informe",
                 approvals: "Aprobaciones",
-                cas: "CAs",
+                cas: "Certificados",
             },
             tally: {
                 emptyHeader: "Ningún Recuento aún.",

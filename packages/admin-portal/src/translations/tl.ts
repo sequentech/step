@@ -341,9 +341,9 @@ const tagalogTranslation: TranslationType = {
                     "with-signature": "May pirma",
                 },
                 voterDigitalCertPolicy: {
-                    "policyLabel": "Voter Digital Certificate Policy",
-                    "allow": "Allow",
-                    "not-allow": "Not allow",
+                    policyLabel: "Voter Digital Certificate Policy",
+                    enabled: "Naka-enable",
+                    disabled: "Naka-disable",
                 },
                 enrollment: {
                     policyLabel: "Pagpaparehistro",
@@ -442,7 +442,7 @@ const tagalogTranslation: TranslationType = {
                 notifications: "Mga Abiso",
                 reports: "Ulat",
                 approvals: "Approvals",
-                cas: "CAs",
+                cas: "Mga Sertipiko",
             },
             tally: {
                 emptyHeader: "Walang pang Tally.",

@@ -301,7 +301,7 @@ export const ElectionEventTabs: React.FC = () => {
         )
     const showCAs =
         authContext.isAuthorized(true, authContext.tenantId, IPermissions.ELECTION_EVENT_CAS_TAB) &&
-        record?.presentation?.voter_digital_cert_policy !== EVoterDigitalCertPolicy.NOT_ALLOW
+        record?.presentation?.voter_digital_cert_policy === EVoterDigitalCertPolicy.ENABLED
 
     // -----------------------------------------------------------------
     // Build tabs with 100% stable references

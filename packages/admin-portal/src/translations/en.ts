@@ -341,9 +341,9 @@ const englishTranslation = {
                     "with-signature": "With signature",
                 },
                 voterDigitalCertPolicy: {
-                    "policyLabel": "Voter Digital Certificate Policy",
-                    "allow": "Allow",
-                    "not-allow": "Not allow",
+                    policyLabel: "Voter Digital Certificate Policy",
+                    enabled: "Enabled",
+                    disabled: "Disabled",
                 },
                 enrollment: {
                     policyLabel: "Enrollment",
@@ -442,7 +442,7 @@ const englishTranslation = {
                 notifications: "Notifications",
                 reports: "Reports",
                 approvals: "Approvals",
-                cas: "CAs",
+                cas: "Certificates",
             },
             tally: {
                 emptyHeader: "No Tally yet.",

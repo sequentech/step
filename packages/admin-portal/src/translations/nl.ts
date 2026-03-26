@@ -340,9 +340,9 @@ const dutchTranslation: TranslationType = {
                     "with-signature": "Met handtekening",
                 },
                 voterDigitalCertPolicy: {
-                    "policyLabel": "Voter Digital Certificate Policy",
-                    "allow": "Allow",
-                    "not-allow": "Not allow",
+                    policyLabel: "Voter Digital Certificate Policy",
+                    enabled: "Ingeschakeld",
+                    disabled: "Uitgeschakeld",
                 },
                 enrollment: {
                     policyLabel: "Inschrijving",
@@ -441,7 +441,7 @@ const dutchTranslation: TranslationType = {
                 notifications: "Meldingen",
                 reports: "Rapporten",
                 approvals: "Goedkeuringen",
-                cas: "CAs",
+                cas: "Certificaten",
             },
             tally: {
                 emptyHeader: "Nog geen telling.",

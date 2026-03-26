@@ -342,9 +342,9 @@ const catalanTranslation: TranslationType = {
                     "with-signature": "Amb signatura",
                 },
                 voterDigitalCertPolicy: {
-                    "policyLabel": "Voter Digital Certificate Policy",
-                    "allow": "Allow",
-                    "not-allow": "Not allow",
+                    policyLabel: "Voter Digital Certificate Policy",
+                    enabled: "Habilitat",
+                    disabled: "Deshabilitat",
                 },
                 enrollment: {
                     policyLabel: "Inscripció",
@@ -443,7 +443,7 @@ const catalanTranslation: TranslationType = {
                 notifications: "Notificacions",
                 reports: "Informe",
                 approvals: "Aprovacions",
-                cas: "CAs",
+                cas: "Certificats",
             },
             tally: {
                 emptyHeader: "Encara no hi ha Recompte.",

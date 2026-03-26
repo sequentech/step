@@ -1749,12 +1749,12 @@ pub enum VoterSigningPolicy {
 )]
 pub enum VoterDigitalCertPolicy {
     #[default]
-    #[strum(serialize = "not-allow")]
-    #[serde(rename = "not-allow")]
-    NOT_ALLOW,
-    #[strum(serialize = "allow")]
-    #[serde(rename = "allow")]
-    ALLOW,
+    #[strum(serialize = "disabled")]
+    #[serde(rename = "disabled")]
+    DISABLED,
+    #[strum(serialize = "enabled")]
+    #[serde(rename = "enabled")]
+    ENABLED,
 }
 
 #[allow(non_camel_case_types)]

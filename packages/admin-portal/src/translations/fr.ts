@@ -342,9 +342,9 @@ const frenchTranslation: TranslationType = {
                     "with-signature": "Avec signature",
                 },
                 voterDigitalCertPolicy: {
-                    "policyLabel": "Voter Digital Certificate Policy",
-                    "allow": "Allow",
-                    "not-allow": "Not allow",
+                    policyLabel: "Voter Digital Certificate Policy",
+                    enabled: "Activé",
+                    disabled: "Désactivé",
                 },
                 enrollment: {
                     policyLabel: "Inscription",
@@ -443,7 +443,7 @@ const frenchTranslation: TranslationType = {
                 notifications: "Notifications",
                 reports: "Rapport",
                 approvals: "Approvals",
-                cas: "CAs",
+                cas: "Certificats",
             },
             tally: {
                 emptyHeader: "Aucun Comptage pour l'instant.",

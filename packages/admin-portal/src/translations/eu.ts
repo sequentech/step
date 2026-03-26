@@ -342,9 +342,9 @@ const basqueTranslation: TranslationType = {
                     "with-signature": "Sinadura batekin",
                 },
                 voterDigitalCertPolicy: {
-                    "policyLabel": "Voter Digital Certificate Policy",
-                    "allow": "Allow",
-                    "not-allow": "Not allow",
+                    policyLabel: "Voter Digital Certificate Policy",
+                    enabled: "Gaituta",
+                    disabled: "Desgaituta",
                 },
                 enrollment: {
                     policyLabel: "Matrikula",
@@ -443,7 +443,7 @@ const basqueTranslation: TranslationType = {
                 notifications: "Jakinarazpenak",
                 reports: "Txostenak",
                 approvals: "Onespenak",
-                cas: "CAs",
+                cas: "Ziurtagiriak",
             },
             tally: {
                 emptyHeader: "Ez dago Zenbaketarik oraindik.",
