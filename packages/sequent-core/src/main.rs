@@ -4,7 +4,7 @@
 
 //! Main entry point for the sequent-core crate.
 
-fn main() {
+const fn main() {
     //let schema = schema_for!(AuditableBallot);
     //println!("{}", serde_json::to_string_pretty(&schema).unwrap());
 }
