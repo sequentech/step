@@ -1569,4 +1569,5 @@ custom_types:
         - name: GenerateGoogleMeetOutput
         - name: GeneratePreviewUrlOutput
         - name: ImportCertificateAuthorityOutput
+        - name: DeleteCertificateAuthorityOutput
     scalars: []
