@@ -15,60 +15,70 @@ how to configure it for local development and production environments.
 
 ## Overview
 
-Sequent supports an optional authentication mode where voters identify themselves
-using a client TLS certificate instead of (or in addition to) a password. The
-certificate is issued by a trusted Certificate Authority (CA) managed by the election
-operator, and the voter's certificate is presented in the browser during the HTTPS
-handshake.
+Voters can identify themselves using a client TLS certificate instead of (or in
+addition to) a password. The certificate is issued by a trusted CA managed by the
+election operator through the admin portal. Certificate presentation is
+**optional** — voters without a certificate fall through to password-based
+authentication as normal.
 
-This approach is used when a high-assurance, hardware-token-based voter identity is
-required — for example, when voters hold smartcard credentials issued by a national
-identity system.
-
-**Key design points:**
-
-- Certificate presentation is **optional** (`ssl_verify_client optional`). Voters
-  without a certificate fall through to password-based authentication in Keycloak as
-  normal — no disruption to existing flows.
-- The CA bundle that Keycloak trusts is fetched from a URL (S3 / MinIO pre-signed
-  URL), not from Keycloak's local filesystem, so it can be managed externally without
-  restarting Keycloak.
-- TLS termination is done by a reverse proxy (nginx in development, Cloudflare in
-  production). Keycloak runs on plain HTTP and receives the client certificate in an
-  HTTP header.
+**See also:** [X.509 Architecture](../06-keycloak/x509_client_cert_architecture) — design, components, and multi-tenancy.
 
 ---
 
 ## Architecture
 
+### Dev (Codespaces)
+
 ```mermaid
 sequenceDiagram
     participant Browser
-    participant Proxy as Reverse Proxy<br/>(nginx / Cloudflare)
-    participant KC as Keycloak
-    participant MinIO as MinIO / S3
+    participant Proxy as nginx mTLS proxy<br/>(dev: port 8443)<br/>optional_no_ca
+    participant KC as Keycloak<br/>trust-proxy-verification=false
+    participant H as Harvest
 
     Browser->>Proxy: HTTPS + client cert (TLS handshake)
-    Proxy->>Proxy: Verify cert against CA bundle
-    Proxy->>KC: HTTP (plain) + ssl-client-cert header<br/>+ ssl-client-verify header
-    KC->>KC: X509 lookup reads headers
-    KC->>KC: UrlTruststoreProvider validates cert chain
+    Proxy->>KC: HTTP + ssl-client-cert header (URL-encoded PEM)<br/>no CA validation by nginx
+    KC->>KC: X509CertClassifierAuthenticator sets cert-type auth note
+    KC->>H: UrlTruststoreProvider fetches per-realm CA bundle
+    H-->>KC: PEM bundle (from DB)
+    KC->>KC: Validate cert chain against CA bundle
     KC-->>Browser: Auth code / session
-    Note over KC,MinIO: At startup (and periodically),<br/>Keycloak fetches client-ca.pem<br/>from MinIO / S3
-    KC->>MinIO: GET client-ca.pem
-    MinIO-->>KC: PEM bundle (root + intermediates)
 ```
+
+### Production
+
+```mermaid
+sequenceDiagram
+    participant Browser
+    participant CF as Cloudflare edge<br/>orange cloud + mTLS
+    participant KC as Keycloak<br/>trust-proxy-verification=false
+    participant H as Harvest
+
+    Browser->>CF: HTTPS + client cert (TLS handshake)
+    CF->>CF: Validate cert against Cloudflare mTLS truststore
+    CF->>KC: HTTP + Cf-Tls-Client-Cert header (URL-encoded PEM)
+    KC->>KC: X509CertClassifierAuthenticator sets cert-type auth note
+    KC->>H: UrlTruststoreProvider fetches per-realm CA bundle
+    H-->>KC: PEM bundle (from DB)
+    KC->>KC: Re-validate cert chain against CA bundle
+    KC-->>Browser: Auth code / session
+```
+
+In both environments Keycloak always re-validates the cert independently
+(`trust-proxy-verification=false`). The difference is the proxy layer: in dev,
+nginx passes the cert through without CA validation; in production, Cloudflare
+validates against its own mTLS truststore before forwarding.
 
 ### Components
 
 | Component | Role |
 |-----------|------|
-| `UrlTruststoreProvider` | Custom Keycloak SPI. Fetches the CA certificate bundle from a URL at startup (and optionally on a refresh schedule). Replaces Keycloak's built-in `file` truststore provider. |
-| Keycloak `nginx` x509cert lookup | Reads the client certificate from the `ssl-client-cert` HTTP header (URL-encoded PEM) and the verification result from `ssl-client-verify`. Configured via `KC_SPI_X509CERT_LOOKUP_PROVIDER=nginx`. |
-| Keycloak `rfc9440` x509cert lookup | Reads the client certificate from the `Client-Cert` HTTP header (RFC 9440 format). Used when Cloudflare terminates mTLS. Configured via `KC_SPI_X509CERT_LOOKUP_PROVIDER=rfc9440`. |
-| nginx mTLS proxy | Terminates TLS + optional mTLS in front of Keycloak. Used in local development. Configured in `.devcontainer/keycloak-nginx/`. |
-| Cloudflare mTLS | Terminates TLS + optional mTLS in production. Cloudflare issues client certificates and forwards them via the `Client-Cert` header. |
-| Election event realm | Each election event has its own Keycloak realm. The X.509 authenticator is added as an `ALTERNATIVE` execution in the browser authentication flow, so cert login and password login coexist. |
+| `UrlTruststoreProvider` | Custom Keycloak SPI. Fetches the CA bundle per election event realm from Harvest. Results are in-memory cached by realm ID. Configured via `KC_SPI_TRUSTSTORE_PROVIDER=url`. |
+| `X509CertClassifierAuthenticator` | Custom SPI. Reads the client cert from the configured HTTP header, extracts issuer CN, sets the `cert-type` auth note. Runs first in the X.509 flow. |
+| Keycloak `nginx` x509cert lookup | Reads the client certificate from a configurable HTTP header. Named "nginx" but works for any reverse proxy header. |
+| nginx mTLS proxy (dev only) | Terminates TLS in front of Keycloak. Uses `optional_no_ca` — no CA validation at this layer. The cert is forwarded raw to Keycloak. |
+| Cloudflare mTLS (production) | Terminates TLS and validates the client cert against the Cloudflare mTLS truststore. Forwards the cert via `Cf-Tls-Client-Cert` header. |
+| Election event realm | Each election event has its own Keycloak realm. The X.509 flow uses `X509CertClassifierAuthenticator` + conditional sub-flows, one per cert type (CA issuer). |
 
 ---
 
@@ -82,11 +92,14 @@ The following files must exist before starting the containers:
 |------|---------|
 | `.devcontainer/certs/nginx-tls.crt` | TLS server certificate for the nginx proxy (self-signed, for `127.0.0.1`) |
 | `.devcontainer/certs/nginx-tls.key` | Corresponding private key |
-| `keycloak-nginx/client-ca.pem` | CA certificate bundle. nginx uses this to verify client certs; Keycloak fetches it from MinIO. |
 
-Generate the nginx TLS server certificate (valid for `127.0.0.1`, `localhost`, and
-`keycloak-nginx` — the last one is needed for `curl` tests run inside the dev
-container, where the nginx proxy is reached by its Docker service name):
+No client CA file is needed in the nginx image — `optional_no_ca` means nginx
+forwards any presented cert without validating it. CAs are managed exclusively
+through the admin portal and stored in Postgres.
+
+Generate the nginx TLS server certificate (valid for `127.0.0.1`, `localhost`,
+and `keycloak-nginx` — the last one is needed for `curl` tests run inside the
+dev container):
 
 ```bash
 openssl req -x509 -newkey rsa:2048 -nodes \
@@ -97,30 +110,16 @@ openssl req -x509 -newkey rsa:2048 -nodes \
   -addext "subjectAltName=IP:127.0.0.1,DNS:localhost,DNS:keycloak-nginx"
 ```
 
-Generate the client CA (the CA that signs voter certificates for testing purposes):
+Add REUSE license sidecar files:
 
 ```bash
-openssl req -x509 -newkey rsa:2048 -nodes \
-  -keyout client-ca.key \
-  -out    .devcontainer/minio/keycloak-nginx/client-ca.pem \
-  -days 3650 \
-  -subj "/CN=Voter CA"
-```
-
-Add REUSE license sidecar files for both certificate files:
-
-```bash
-cat > .devcontainer/certs/nginx-tls.crt.license <<'EOF'
+for f in .devcontainer/certs/nginx-tls.crt .devcontainer/certs/nginx-tls.key; do
+  cat > "${f}.license" <<'EOF'
 SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 
 SPDX-License-Identifier: AGPL-3.0-only
 EOF
-
-cat > .devcontainer/certs/nginx-tls.key.license <<'EOF'
-SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
-
-SPDX-License-Identifier: AGPL-3.0-only
-EOF
+done
 ```
 
 ### 1.2 Environment Variables
@@ -128,157 +127,68 @@ EOF
 `.devcontainer/.env.development` contains the relevant settings:
 
 ```bash
-# UrlTruststoreProvider — fetches the client CA bundle from MinIO
+# UrlTruststoreProvider — fetches per-realm CA bundles from Harvest.
 KC_SPI_TRUSTSTORE_PROVIDER=url
-KC_SPI_TRUSTSTORE_URL_URL=http://minio:9000/public/keycloak-nginx/client-ca.pem
-KC_SPI_TRUSTSTORE_URL_REFRESH_INTERVAL_SECONDS=3600
+KC_SPI_TRUSTSTORE_URL_REFRESH_INTERVAL_SECONDS=60
 
 # X509 cert header source:
-#   "default"  — reads cert from TLS connection directly (no proxy; cert is never
-#                found when Keycloak runs on plain HTTP, so X.509 auth is silently
-#                skipped in that mode — useful for devs who don't need cert login)
-#   "nginx"    — reads cert from ssl-client-cert header (nginx mTLS proxy)
-#   "rfc9440"  — reads cert from Client-Cert header (Cloudflare mTLS)
+#   "nginx"   — reads cert from ssl-client-cert header (nginx mTLS proxy)
+#   "default" — reads cert from TLS connection directly (no proxy; X.509 auth
+#               is silently skipped in plain HTTP dev mode)
 KC_SPI_X509CERT_LOOKUP_PROVIDER=nginx
 
-# Base URL of the mTLS Keycloak endpoint (the nginx mTLS proxy).
-# When set, a "Login with Certificate" button is shown on the voting portal
-# login page. Leave empty (or unset) to hide the button.
+# Base URL of the mTLS Keycloak endpoint.
+# When set, a "Login with Certificate" button is shown on the login page.
 KC_MTLS_LOGIN_URL=https://127.0.0.1:8443
 ```
 
-To develop without nginx (password-only mode), comment out or remove
-`KC_SPI_X509CERT_LOOKUP_PROVIDER=nginx` so it defaults to `default`, and
-leave `KC_MTLS_LOGIN_URL` empty.
+To develop without nginx (password-only mode), set `KC_SPI_X509CERT_LOOKUP_PROVIDER`
+to `default` and leave `KC_MTLS_LOGIN_URL` empty.
 
 ### 1.3 Docker Compose Services
 
-The `docker-compose.yml` starts an nginx container (`keycloak-nginx`) alongside
-Keycloak. It is included in the `full` and `base` profiles:
+The `docker-compose.yml` starts a `keycloak-nginx` container alongside Keycloak.
+The image is built from `.devcontainer/keycloak-nginx/Dockerfile` and bakes in
+only the TLS server cert and config — no CA bundle is required.
+
+Keycloak is configured with:
 
 ```yaml
-keycloak-nginx:
-  profiles: ["full", "base"]
-  container_name: keycloak-nginx
-  build:
-    context: .
-    dockerfile: keycloak-nginx/Dockerfile
-  image: sequentech.local/keycloak-nginx
-  ports:
-    - "8443:8443"
-  depends_on:
-    keycloak:
-      condition: service_healthy
+--spi-x509cert-lookup-nginx-trust-proxy-verification=false
 ```
 
-The nginx image is built from `.devcontainer/keycloak-nginx/Dockerfile`, which bakes
-the TLS certs and the nginx config into the image (avoiding Docker-in-Docker
-bind-mount issues):
+This means Keycloak re-validates every cert itself via `UrlTruststoreProvider`,
+identical to production. nginx only passes the cert through.
 
-```dockerfile
-FROM nginx:alpine
-COPY keycloak-nginx/keycloak-mtls.conf /etc/nginx/conf.d/keycloak-mtls.conf
-COPY certs/nginx-tls.crt               /etc/nginx/certs/nginx-tls.crt
-COPY certs/nginx-tls.key               /etc/nginx/certs/nginx-tls.key
-COPY keycloak-nginx/client-ca.pem /etc/nginx/client-ca/client-ca.pem
-```
+### 1.4 Generate a Test Client CA and Voter Certificate
 
-Keycloak is configured to trust the `X-Forwarded-*` headers from nginx and to use
-the nginx x509cert lookup provider:
-
-```yaml
-entrypoint: >
-  /opt/keycloak/bin/kc.sh start-dev
-  --spi-truststore-provider=${KC_SPI_TRUSTSTORE_PROVIDER:-file}
-  --spi-x509cert-lookup-provider=${KC_SPI_X509CERT_LOOKUP_PROVIDER:-default}
-  --spi-x509cert-lookup-nginx-ssl-client-cert=ssl-client-cert
-  --spi-x509cert-lookup-nginx-trust-proxy-verification=true
-  ...
-environment:
-  KC_PROXY_HEADERS: xforwarded
-  KC_SPI_TRUSTSTORE_PROVIDER: ${KC_SPI_TRUSTSTORE_PROVIDER:-}
-  KC_SPI_TRUSTSTORE_URL_URL: ${KC_SPI_TRUSTSTORE_URL_URL:-}
-  KC_SPI_TRUSTSTORE_URL_REFRESH_INTERVAL_SECONDS: ${KC_SPI_TRUSTSTORE_URL_REFRESH_INTERVAL_SECONDS:-0}
-```
-
-### 1.4 Voting Portal
-
-The voting portal connects to Keycloak via its **normal HTTP URL** (port 8090)
-for all token operations. The mTLS proxy (port 8443) is only used when the voter
-clicks the "Login with Certificate" button — the button redirects the existing
-Keycloak auth session through nginx so that the TLS handshake happens and the
-client cert is presented. No change to `global-settings.json` is needed for
-certificate authentication to work.
-
-```json
-// packages/voting-portal/public/global-settings.json — no change required
-{
-  "KEYCLOAK_URL": "http://127.0.0.1:8090/"
-}
-```
-
-### 1.5 Keycloak Realm Configuration
-
-Each election event realm needs the X.509 authenticator configured and a user
-profile attribute that stores the cert identity.
-
-#### 1.5.1 Add the `usercertificate` user profile attribute
-
-1. In the election event realm, go to **Realm Settings** → **User Profile**
-2. Click **Add attribute**, set the name to `usercertificate`
-3. Save
-
-This attribute holds the voter's certificate identity (e.g. the cert's CN). It
-must exist in the user profile before the authenticator can use it.
-
-#### 1.5.2 Configure the X509/Validate Username Form execution
-
-In the realm's browser authentication flow (see [Keycloak realm configuration
-section](#4-keycloak-realm-configuration) for flow setup):
-
-1. Open the **X509/Validate Username Form** execution's config (⚙)
-2. Set:
-   - **User Identity Source**: `Subject's Common Name`
-   - **User Mapping Method**: `Custom Attribute Mapper`
-   - **Custom Attribute Name**: `usercertificate`
-3. Save
-
-With this config, Keycloak extracts the CN from the cert (e.g.
-`voter@sequent.test`) and looks for a voter whose `usercertificate` attribute
-equals that value.
-
-#### 1.5.3 Set the attribute on each test voter
-
-On the voter's Keycloak user account:
-
-1. Go to **Users** → select the voter → **Attributes** tab
-2. Add key `usercertificate`, value matching the cert's CN (e.g.
-   `voter@sequent.test`)
-3. Save
-
-### 1.6 Generate a Test Voter Certificate
-
-Issue a certificate for a voter using the client CA created above. The CN must
-match the value stored in the voter's `usercertificate` user profile attribute
-in Keycloak (see section 1.5.3):
+To test X.509 login in dev, create a CA and sign a voter cert with it, then
+import the CA into the admin portal.
 
 ```bash
-# Generate voter private key and CSR
+# Generate a dev CA (signs voter certs for testing)
+openssl req -x509 -newkey rsa:2048 -nodes \
+  -keyout .devcontainer/certs/client-ca.key \
+  -out    .devcontainer/certs/client-ca.pem \
+  -days 3650 \
+  -subj "/CN=Sequent Dev CA"
+
+# Generate voter key and CSR
 openssl req -newkey rsa:2048 -nodes \
   -keyout .devcontainer/certs/fake-voter.key \
   -out    .devcontainer/certs/fake-voter.csr \
   -subj   "/CN=voter@sequent.test/O=Sequent Test/C=US"
 
-# Sign with the fake client CA
+# Sign with the dev CA
 openssl x509 -req \
   -in     .devcontainer/certs/fake-voter.csr \
-  -CA     .devcontainer/minio/keycloak-nginx/client-ca.pem \
-  -CAkey  .devcontainer/certs/fake-client-ca.key \
+  -CA     .devcontainer/certs/client-ca.pem \
+  -CAkey  .devcontainer/certs/client-ca.key \
   -CAcreateserial \
   -out    .devcontainer/certs/fake-voter.crt \
   -days   730
 
-# Bundle into a PKCS#12 file for browser import
+# Bundle into PKCS#12 for browser import
 openssl pkcs12 -export \
   -inkey .devcontainer/certs/fake-voter.key \
   -in    .devcontainer/certs/fake-voter.crt \
@@ -286,122 +196,83 @@ openssl pkcs12 -export \
   -name  "fake-voter@sequent.test"
 ```
 
-Import `.devcontainer/certs/fake-voter.p12` into your browser's certificate
-store. When the browser connects to `127.0.0.1:8443`, it will offer this cert
-during the TLS handshake.
+Import `.devcontainer/certs/fake-voter.p12` into your browser's certificate store.
+
+Then import `.devcontainer/certs/client-ca.pem` into the election event via the
+admin portal **Certificate Authorities** tab. This is the only step needed to
+make Keycloak trust that CA — no nginx rebuild required.
+
+### 1.5 Voting Portal
+
+The voting portal connects to Keycloak via its normal HTTP URL (port 8090) for
+all token operations. The mTLS proxy (port 8443) is only used when the voter
+clicks "Login with Certificate". No change to `global-settings.json` is needed.
+
+### 1.6 Keycloak Realm Configuration
+
+Each election event realm needs the X.509 authenticator flow configured.
+
+#### 1.6.1 Add the `usercertificate` user profile attribute
+
+1. In the election event realm, go to **Realm Settings** → **User Profile**
+2. Click **Add attribute**, set the name to `usercertificate`
+3. Save
+
+#### 1.6.2 Create the X.509 authentication flow
+
+1. Go to **Authentication** → **Flows** → **Create flow**, name it `x509-browser`
+2. Add these top-level executions:
+
+   | Execution | Requirement |
+   |---|---|
+   | **X509 Cert Classifier** (`sequent-x509-cert-classifier`) | REQUIRED |
+   | Conditional sub-flow for CA type A | CONDITIONAL |
+   | Conditional sub-flow for CA type B (if needed) | CONDITIONAL |
+   | Username Password Form | ALTERNATIVE |
+
+3. For each conditional sub-flow:
+   - Add **Condition - Auth Note** with key `cert-type` = the CA issuer CN
+     (e.g. `Sequent Dev CA`).
+   - Add **X509/Validate Username Form** inside the sub-flow.
+   - Configure the X509 execution (⚙):
+     - **User Identity Source**: `Subject's Common Name`
+     - **User Mapping Method**: `Custom Attribute Mapper`
+     - **Custom Attribute Name**: `usercertificate`
+
+4. Bind the flow: **Realm Settings** → **Authentication flow bindings** →
+   **Browser Flow** → `x509-browser`
+
+#### 1.6.3 Set the attribute on each test voter
+
+1. Go to **Users** → select the voter → **Attributes** tab
+2. Add key `usercertificate`, value matching the cert's CN (e.g. `voter@sequent.test`)
+3. Save
 
 ---
 
-## 2. Production Setup (Cloudflare mTLS)
+## 2. UrlTruststoreProvider Plugin
 
-In production, Cloudflare terminates TLS and optional mTLS. It forwards the client
-certificate to Keycloak via the `Client-Cert` HTTP header (RFC 9440 format).
+The `url-truststore-provider` (`packages/keycloak-extensions/url-truststore-provider/`)
+replaces Keycloak's built-in `file` truststore provider with a `url` provider that:
 
-### 2.1 Cloudflare mTLS Certificate Issuance
+1. Constructs a per-realm CA bundle URL from `HARVEST_DOMAIN` and the election
+   event ID extracted from the realm name (`tenant-{UUID}-event-{UUID}`).
+2. Fetches the PEM bundle from Harvest at first use and caches it by realm ID.
+3. Refreshes the cached bundle in the background at a configurable interval
+   (`KC_SPI_TRUSTSTORE_URL_REFRESH_INTERVAL_SECONDS`).
 
-Cloudflare can issue client certificates via its mTLS API, or you can upload your own
-CA root to Cloudflare and issue client certificates from it. Configure Cloudflare to
-require (or optionally require) client certificates for the Keycloak hostname.
+---
 
-Cloudflare's documentation covers the configuration steps for mTLS. The key output is
-a CA certificate (PEM format) that Cloudflare trusts when issuing client certs — this
-same CA cert is what Keycloak needs to validate incoming client certificates.
+## 3. Testing
 
-### 2.2 Upload the CA Certificate to S3
+### 3.1 Verify nginx is forwarding the certificate
 
-Upload the PEM-encoded CA bundle to an S3 bucket (or pre-signed URL) that Keycloak
-can reach:
+> **Note:** From inside the dev container, use `keycloak-nginx` (the Docker
+> service name) instead of `127.0.0.1`. The TLS cert includes `DNS:keycloak-nginx`
+> as a SAN.
 
 ```bash
-aws s3 cp client-ca.pem s3://your-bucket/keycloak/client-ca.pem
-```
-
-If using a pre-signed URL, generate one with sufficient expiry (or use the
-`refresh-interval-seconds` setting to re-fetch before the URL expires).
-
-### 2.3 Keycloak Environment Variables
-
-Set the following environment variables in production:
-
-```bash
-KC_SPI_TRUSTSTORE_PROVIDER=url
-KC_SPI_TRUSTSTORE_URL_URL=https://your-bucket.s3.amazonaws.com/keycloak/client-ca.pem
-KC_SPI_TRUSTSTORE_URL_REFRESH_INTERVAL_SECONDS=3600
-
-KC_SPI_X509CERT_LOOKUP_PROVIDER=rfc9440
-KC_PROXY_HEADERS=xforwarded
-```
-
-No nginx proxy is needed in production — Cloudflare acts as the reverse proxy.
-
----
-
-## 3. UrlTruststoreProvider Plugin
-
-The `url-truststore-provider` is a custom Keycloak SPI extension located in
-`packages/keycloak-extensions/url-truststore-provider/`.
-
-It replaces Keycloak's built-in `file` truststore provider (SPI id `file`) with a
-`url` provider that:
-
-1. Fetches a PEM file from any HTTP/HTTPS URL (including S3 pre-signed URLs) at
-   startup.
-2. Parses all certificates in the bundle and classifies them as root (self-signed) or
-   intermediate.
-3. Optionally re-fetches the bundle in the background at a configurable interval
-   (`--spi-truststore-url-refresh-interval-seconds`), so the CA bundle can be rotated
-   without restarting Keycloak.
-
-### Configuration
-
-| SPI parameter | Env var | Description |
-|---------------|---------|-------------|
-| `--spi-truststore-provider=url` | `KC_SPI_TRUSTSTORE_PROVIDER=url` | Activate the plugin |
-| `--spi-truststore-url-url=<url>` | `KC_SPI_TRUSTSTORE_URL_URL=<url>` | URL to the PEM file |
-| `--spi-truststore-url-refresh-interval-seconds=<n>` | `KC_SPI_TRUSTSTORE_URL_REFRESH_INTERVAL_SECONDS=<n>` | Re-fetch interval; `0` = fetch once at startup |
-
----
-
-## 4. Keycloak Realm Configuration
-
-Each election event has its own Keycloak realm. The X.509 authenticator must be
-present in that realm's browser authentication flow as an `ALTERNATIVE` execution.
-
-The realm import template at
-`.devcontainer/keycloak/import/tenant-...-event-....json` already includes the X.509
-authenticator in the correct position. When Windmill creates a new election event, it
-uses this template.
-
-### Voter Group Membership
-
-Voters must belong to the `voter` group in their election event realm. This group
-carries the `user` realm role, which is required for Hasura queries. If a voter
-successfully authenticates via certificate but Hasura returns:
-
-```json
-{"errors": [{"message": "Your requested role is not in allowed roles"}]}
-```
-
-check that the voter account is a member of the `voter` group in Keycloak.
-
----
-
-## 5. Testing
-
-### 5.1 Verify nginx is forwarding the certificate
-
-Test that Keycloak receives an auth code when a valid client certificate is presented.
-
-> **Note on hostname:** From inside the dev container, `127.0.0.1` is the
-> container's own loopback — nothing listens there. Use `keycloak-nginx` (the
-> Docker service name) instead. The TLS certificate includes `DNS:keycloak-nginx`
-> as a SAN so `--cacert` verification still passes.
->
-> From your laptop/browser, the VS Code port-forwarding tunnel maps
-> `localhost:8443` → `keycloak-nginx:8443`, so `127.0.0.1:8443` works there.
-
-```bash
-# Inside the dev container — use the Docker service name, not 127.0.0.1
+# Inside the dev container
 curl -v --cacert .devcontainer/certs/nginx-tls.crt \
   --cert .devcontainer/certs/fake-voter.crt \
   --key  .devcontainer/certs/fake-voter.key \
@@ -410,75 +281,72 @@ curl -v --cacert .devcontainer/certs/nginx-tls.crt \
 &redirect_uri=http://localhost:3000/callback"
 ```
 
-A successful response is an HTTP `302` redirect to the `redirect_uri` with a `code`
-query parameter. Without the client certificate, Keycloak should return HTTP `200`
-(the login page).
+A successful response is an HTTP `302` redirect with a `code` query parameter.
+Without the client certificate, Keycloak returns HTTP `200` (the login page).
 
-### 5.2 Check Keycloak logs
+### 3.2 Check Keycloak logs
 
 ```bash
 docker compose logs -f keycloak | grep -i "x509\|cert\|ssl\|truststore"
 ```
 
-Common messages and their meanings:
-
 | Log message | Meaning |
 |-------------|---------|
-| `HTTP header "" is empty` | `--spi-x509cert-lookup-nginx-ssl-client-cert` was not set; Keycloak doesn't know which header to read. |
-| `nginx could not verify the certificate: ssl-client-verify: null` | nginx is not forwarding `ssl-client-verify`; add `proxy_set_header ssl-client-verify $ssl_client_verify;` to the nginx config. |
-| `UrlTruststoreProvider: loaded N certificate(s) from <url>` | Plugin initialised successfully. |
-| `UrlTruststoreProvider: refresh failed` | Background fetch failed; the previous bundle is still in use. |
+| `X509CertClassifierAuthenticator: setting auth note cert-type=<CN>` | Cert classified successfully |
+| `X509CertClassifierAuthenticator: no ssl-client-cert header present` | No cert presented; flow falls through to password |
+| `Loading realm-specific truststore for realm <id>` | First fetch for this realm (cold cache) |
+| `Using cached realm-specific truststore for realm <id>` | Subsequent fetch served from cache |
 
 ---
 
-## 6. Troubleshooting
+## 4. Troubleshooting
 
 ### Browser does not offer the certificate
 
-- Ensure the voter certificate was imported into the browser's certificate store for
-  the correct origin (`127.0.0.1:8443` in dev, your production domain in production).
-- The certificate must be signed by the CA in `client-ca.pem`.
-- Restart the browser after importing the certificate.
-
-### Keycloak uses `default` provider despite env var being set
-
-`docker compose restart` reuses the existing container configuration. To pick up
-changed env vars, recreate the container:
-
-```bash
-docker compose up -d --no-deps keycloak
-```
+- Import the voter certificate into the browser's certificate store for
+  `127.0.0.1:8443` in dev.
+- Restart the browser after importing.
 
 ### nginx image is stale
 
-After editing `keycloak-mtls.conf` or replacing the cert files, rebuild and recreate:
+After editing the nginx config or replacing the TLS server cert, rebuild:
 
 ```bash
 docker compose build keycloak-nginx
 docker compose up -d --no-deps keycloak-nginx
 ```
 
-### Certificate verification fails with `FAILED:...`
+### Keycloak uses `default` provider despite env var being set
 
-- The voter certificate must be signed by the CA whose PEM is in `client-ca.pem`.
-- Check the cert chain with:
-  ```bash
-  openssl verify -CAfile .devcontainer/minio/keycloak-nginx/client-ca.pem \
-    .devcontainer/certs/fake-voter.crt
-  ```
-- If the CA bundle was recently updated in MinIO, wait for the next refresh interval
-  or restart Keycloak to force an immediate re-fetch.
+`docker compose restart` reuses the existing container. Recreate:
 
-### `ssl-client-verify` is `NONE` instead of `SUCCESS`
+```bash
+docker compose up -d --no-deps keycloak
+```
 
-This means nginx validated the connection but the client did not present a
-certificate. Ensure the voter certificate is correctly installed in the browser and
-that the browser is connecting to the nginx proxy (port 8443), not directly to
-Keycloak (port 8090).
+### Certificate verification fails (Keycloak rejects the cert)
+
+The CA was not imported into the admin portal for this election event. Import
+`.devcontainer/certs/client-ca.pem` via the **Certificate Authorities** tab.
+
+### `ssl-client-verify` is `NONE`
+
+The client did not present a certificate. Ensure the voter certificate is
+installed in the browser and the browser is connecting to the nginx proxy
+(port 8443), not directly to Keycloak (port 8090).
+
+### Voter authenticates but Hasura returns permission error
+
+```json
+{"errors": [{"message": "Your requested role is not in allowed roles"}]}
+```
+
+The voter account is not in the `voter` group in Keycloak. Add the user to the
+`voter` group in their election event realm.
 
 ---
 
 ## See Also
 
-- [IdP-Initiated SSO Design](../06-keycloak/idp_initiated_sso_design_implementation) — SAML-based SSO for election events
-- [API Authentication with Keycloak](./05-api-authentication) — password-based token flow for CLI and admin tools
+- [X.509 Architecture](../06-keycloak/x509_client_cert_architecture) — end-to-end flow, infrastructure, multi-tenancy
+- [X.509 — Adding CA Certificates](./08-x509-adding-ca-certificates) — adding external PKI CA certs to the trust bundle

@@ -5,6 +5,7 @@ title: X.509 — Adding CA Certificates to the Trust Bundle
 
 <!--
 SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
+
 SPDX-License-Identifier: AGPL-3.0-only
 -->
 
@@ -12,8 +13,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 This guide explains how to take a CA certificate issued by an external PKI
 (such as a national identity authority), convert it to the correct format, and
-add it to the Sequent trust bundle so that voter certificates signed by that CA
-are accepted.
+add it so that voter certificates signed by that CA are accepted.
 
 **See also:** [X.509 Certificate Voter Authentication](./07-x509-voter-certificate-authentication) — full dev and production setup.
 
@@ -43,8 +43,6 @@ xxd <ca-certificate-file> | head -1
 
 ## 2. Convert DER to PEM (if needed)
 
-If the file is DER-encoded, convert it to PEM before proceeding:
-
 ```bash
 openssl x509 -inform DER -in <ca-certificate-file> -out <ca-certificate-file>.pem
 ```
@@ -55,90 +53,75 @@ Verify the result:
 openssl x509 -in <ca-certificate-file>.pem -text -noout | head -20
 ```
 
-You should see human-readable fields such as `Issuer`, `Subject`, and
-`Validity`. If you see an error, the source file may be corrupt or in an
-unexpected format (e.g. PKCS#7 bundle — see [section 4](#4-pkcs7-bundles)).
-
 ---
 
-## 3. Append to the Trust Bundle
+## 3. PKCS#7 Bundles
 
-The Sequent trust bundle is a single PEM file that concatenates one or more CA
-certificates. nginx uses it to verify client certificates at the TLS layer;
-Keycloak fetches the same file from MinIO/S3 to re-validate the certificate
-chain at the application layer.
-
-To add a new CA, append its PEM to the bundle:
-
-```bash
-cat <ca-certificate-file>.pem >> .devcontainer/minio/keycloak-nginx/client-ca.pem
-```
-
-If the CA has an intermediate certificate that must also be trusted, append it
-in the same way — order within the bundle does not matter for OpenSSL chain
-verification:
-
-```bash
-cat <intermediate-ca-file>.pem >> .devcontainer/minio/keycloak-nginx/client-ca.pem
-```
-
-Verify the bundle contains the expected entries:
-
-```bash
-openssl crl2pkcs7 -nocrl -certfile .devcontainer/minio/keycloak-nginx/client-ca.pem \
-  | openssl pkcs7 -print_certs -noout
-```
-
-This lists each certificate's `Subject` and `Issuer` lines.
-
----
-
-## 4. PKCS#7 Bundles
-
-Some authorities distribute certificates as a PKCS#7 file (`.p7b` or `.p7c`
-extension, or a PEM file starting with `-----BEGIN PKCS7-----`). These are
-containers that may hold multiple certificates at once. Extract all certificates
-from them with:
+Some authorities distribute certificates as a PKCS#7 file (`.p7b` / `.p7c`
+or a PEM file starting with `-----BEGIN PKCS7-----`). Extract all certs with:
 
 ```bash
 openssl pkcs7 -print_certs -in <bundle-file> -out extracted.pem
 ```
 
-Then append `extracted.pem` to the trust bundle as in section 3.
+---
+
+## 4. Add the CA via the Admin Portal
+
+CA certificates are stored in the database per election event and served by
+Harvest. This applies to both dev and production.
+
+1. Log in and navigate to the election event
+2. Open the **Certificate Authorities** tab
+3. Click **Import**, upload the PEM file
+4. Confirm
+
+Keycloak picks up the new CA within the next refresh cycle (at most
+`KC_SPI_TRUSTSTORE_URL_REFRESH_INTERVAL_SECONDS`, default 1 hour in production,
+60 seconds in dev). No Keycloak restart is required.
+
+> To force an immediate pickup, reduce the refresh interval temporarily or
+> restart Keycloak.
+
+Permissions required: `ca-write` on the election event.
 
 ---
 
-## 5. Reload Services
+## 5. Update the Cloudflare mTLS Truststore (production only)
 
-After updating the bundle file, restart the relevant services so they pick up
-the change:
+In production, Cloudflare terminates the TLS connection and validates the client
+certificate against its own mTLS truststore **before** forwarding the request to
+Keycloak. Cloudflare and Keycloak maintain independent truststores:
 
-```bash
-# In the dev container — restart nginx and Keycloak
-docker compose stop keycloak-nginx keycloak
-docker compose up -d --no-deps keycloak-nginx keycloak
-```
+| Truststore | Updated by | When |
+|---|---|---|
+| Keycloak (`UrlTruststoreProvider`) | Admin portal → Postgres → Harvest | Automatic, within refresh cycle |
+| Cloudflare mTLS truststore | Operator, manually | Must be done separately |
 
-In production, re-upload the updated PEM to S3. The
-`UrlTruststoreProvider` Keycloak SPI will fetch the new bundle on its next
-refresh cycle (configurable via `KC_SPI_TRUSTSTORE_URL_REFRESH_INTERVAL_SECONDS`)
-without requiring a Keycloak restart.
+**When you add or remove a CA via the admin portal, you must also update the
+Cloudflare mTLS truststore** in the Cloudflare dashboard (Access → Service Auth
+→ mTLS). If this step is skipped, Cloudflare will reject voter certificates
+signed by the new CA at the edge, and they will never reach Keycloak.
+
+Note: in dev, nginx uses `optional_no_ca` and performs no CA validation, so
+there is no equivalent manual step — only the admin portal import is needed.
 
 ---
 
 ## 6. Verify End-to-End
 
-After reloading, confirm the CA is trusted at both layers:
+After adding the CA, confirm it is trusted:
 
 ```bash
-# 1. nginx TLS layer — should complete the handshake without SSL error
-curl -v --cert <voter-cert.pem> --key <voter-key.pem> \
-  https://127.0.0.1:8443/
+# 1. Check Keycloak truststore logs
+docker compose logs keycloak | grep -i "truststore\|Loading realm-specific\|Using cached"
 
-# 2. Keycloak truststore — check logs for "Fetched N certificate(s)"
-docker compose logs keycloak | grep -i "truststore\|certificate"
+# 2. Test the full mTLS flow (from inside dev container)
+curl -v --cacert .devcontainer/certs/nginx-tls.crt \
+  --cert <voter-cert.pem> --key <voter-key.pem> \
+  https://keycloak-nginx:8443/
 ```
 
-If the voter certificate is signed by the newly added CA and the regex in the
-Keycloak X.509 authenticator config correctly extracts the user identifier, the
-authentication flow should proceed without error.
+If the voter certificate is signed by the newly added CA and the Keycloak X.509
+authenticator correctly extracts the user identifier, the authentication flow
+should proceed without error.
