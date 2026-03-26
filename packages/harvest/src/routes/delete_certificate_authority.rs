@@ -80,10 +80,14 @@ pub async fn delete_certificate_authority_route(
         ));
     }
 
-    let deleted =
-        delete_certificate_authority(&hasura_transaction, body.id, tenant_uuid)
-            .await
-            .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
+    let deleted = delete_certificate_authority(
+        &hasura_transaction,
+        body.id,
+        body.election_event_id,
+        tenant_uuid,
+    )
+    .await
+    .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
 
     hasura_transaction
         .commit()

@@ -74,19 +74,20 @@ pub async fn insert_certificate_authority(
 pub async fn delete_certificate_authority(
     hasura_transaction: &Transaction<'_>,
     id: Uuid,
+    election_event_id: Uuid,
     tenant_id: Uuid,
 ) -> Result<bool> {
     let statement = hasura_transaction
         .prepare(
             r#"
                 DELETE FROM sequent_backend.certificate_authority
-                WHERE id = $1 AND tenant_id = $2
+                WHERE id = $1 AND tenant_id = $2 AND election_event_id = $3
             "#,
         )
         .await?;
 
     let rows_affected = hasura_transaction
-        .execute(&statement, &[&id, &tenant_id])
+        .execute(&statement, &[&id, &tenant_id, &election_event_id])
         .await
         .map_err(|err| anyhow!("Error deleting certificate authority: {err}"))?;
 
