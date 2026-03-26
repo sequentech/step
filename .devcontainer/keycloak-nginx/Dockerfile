@@ -7,4 +7,6 @@ FROM nginx:alpine
 COPY keycloak-nginx/keycloak-mtls.conf.template /etc/nginx/templates/keycloak-mtls.conf.template
 COPY certs/nginx-tls.crt               /etc/nginx/certs/nginx-tls.crt
 COPY certs/nginx-tls.key               /etc/nginx/certs/nginx-tls.key
-COPY keycloak-nginx/client-ca.pem /etc/nginx/client-ca/client-ca.pem
+# Uncomment the following line if you want to enable client certificate authentication
+# at nginx. Make sure to provide the appropriate client CA certificate at the specified path.
+# COPY keycloak-nginx/client-ca.pem /etc/nginx/client-ca/client-ca.pem

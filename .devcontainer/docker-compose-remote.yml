@@ -77,7 +77,7 @@ services:
       --spi-truststore-provider=${KC_SPI_TRUSTSTORE_PROVIDER:-file}
       --spi-x509cert-lookup-provider=${KC_SPI_X509CERT_LOOKUP_PROVIDER:-default}
       --spi-x509cert-lookup-nginx-ssl-client-cert=ssl-client-cert
-      --spi-x509cert-lookup-nginx-trust-proxy-verification=true
+      --spi-x509cert-lookup-nginx-trust-proxy-verification=false
       --spi-email-sender-provider=dummy
       --spi-email-sender-dummy-enabled=true
       --spi-email-sender-default-enabled=false

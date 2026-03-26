@@ -7,8 +7,11 @@
 # ssl-client-cert header, which is read by the nginx x509cert lookup
 # provider (KC_SPI_X509CERT_LOOKUP_PROVIDER=nginx).
 #
-# - ssl_verify_client optional: cert is never forced; voters without a cert
-#   fall through to password auth in Keycloak as normal.
+# - ssl_verify_client optional_no_ca: cert is never forced; if presented,
+#   nginx forwards it raw without validating it against any CA. All cert
+#   chain validation is done by Keycloak via UrlTruststoreProvider
+#   (trust-proxy-verification=false). This mirrors production behaviour
+#   and means no CA bundle is needed in the nginx image.
 # - Large proxy buffers: client certs in headers can be ~2 KB URL-encoded.
 
 log_format mtls '$remote_addr - ssl_verify=$ssl_client_verify';
@@ -20,10 +23,14 @@ server {
     ssl_certificate     /etc/nginx/certs/nginx-tls.crt;
     ssl_certificate_key /etc/nginx/certs/nginx-tls.key;
 
-    ssl_client_certificate /etc/nginx/client-ca/client-ca.pem;
-    ssl_verify_client      optional;
-    ssl_verify_depth       2;
-
+    ssl_verify_client      optional_no_ca;
+    
+    # Uncomment the following lines if you want to enable client certificate authentication
+    # at nginx. Make sure to provide the appropriate client CA certificate at the specified path.
+    # ssl_client_certificate /etc/nginx/client-ca/client-ca.pem;
+    # ssl_verify_client      optional;
+    # ssl_verify_depth       2;
+    
     # Disable TLS session resumption so every connection triggers a fresh
     # TLS handshake with a new CertificateRequest. Without this, the browser
     # reuses the session from a previous "no cert" choice and never prompts
@@ -44,6 +51,8 @@ server {
     resolver 127.0.0.11 valid=10s;
 
     access_log /dev/stdout mtls;
+    # Note: with optional_no_ca, $ssl_client_verify is "NONE" (no cert) or
+    # "FAILED:..." (cert present but unverified). It is never "SUCCESS".
 
     # Redirect Keycloak-proxied 400s (e.g. X.509 auth rejection) to the
     # voting portal error page. Must be in the server block so
@@ -55,8 +64,13 @@ server {
     # Redirect those no-cert restart requests back to the plain Keycloak port
     # so the login page is shown at http://127.0.0.1:8090 instead of staying
     # on the mTLS proxy URL.
+    #
+    # With optional_no_ca, $ssl_client_verify is never "SUCCESS" — it is "NONE"
+    # when no cert is presented and "FAILED:..." when a cert is present (because
+    # nginx has no CA to verify against). Check for "NONE" specifically so the
+    # redirect only fires when no cert was sent.
     location ~* /login-actions/restart {
-        if ($ssl_client_verify != "SUCCESS") {
+        if ($ssl_client_verify = "NONE") {
             # Redirect the browser to Keycloak directly (bypassing this mTLS
             # proxy) so the login page is shown without the mTLS URL in the
             # address bar. KEYCLOAK_URL must be browser-accessible here
@@ -78,7 +92,6 @@ server {
         proxy_set_header X-Forwarded-Host   $host;
         proxy_set_header X-Forwarded-Port   8443;
         proxy_set_header ssl-client-cert    $ssl_client_escaped_cert;
-        proxy_set_header ssl-client-verify  $ssl_client_verify;
     }
 
     location / {
@@ -102,9 +115,5 @@ server {
         # Empty string when no cert is presented — Keycloak treats that as
         # "no cert" and falls through to the next authenticator.
         proxy_set_header ssl-client-cert    $ssl_client_escaped_cert;
-        # Verification status ("SUCCESS", "FAILED:…", or "NONE").
-        # Required by Keycloak's nginx x509cert lookup when
-        # trust-proxy-verification=true.
-        proxy_set_header ssl-client-verify  $ssl_client_verify;
     }
 }
