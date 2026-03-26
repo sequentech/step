@@ -2,6 +2,7 @@ use crate::serialization::deserialize_with_path::deserialize_str;
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+use crate::services::uuid_validation::parse_uuid_v4;
 use crate::services::{
     keycloak::KeycloakAdminClient, replace_uuids::replace_uuids,
 };
@@ -17,7 +18,6 @@ use std::collections::HashMap;
 use std::env;
 use std::hash::RandomState;
 use tracing::{error, info, instrument};
-use uuid::Uuid;
 
 use super::PubKeycloakAdmin;
 
@@ -195,7 +195,7 @@ pub fn replace_realm_ids(
             };
             // Check each config value to see if it's a valid UUID
             for (_key, value) in config {
-                if Uuid::parse_str(&value).is_ok() {
+                if parse_uuid_v4(&value).is_ok() {
                     keep.push(value.clone());
                 }
             }

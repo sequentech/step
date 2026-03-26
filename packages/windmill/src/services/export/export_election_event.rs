@@ -31,6 +31,7 @@ use futures::try_join;
 use sequent_core::services::keycloak::get_event_realm;
 use sequent_core::services::keycloak::KeycloakAdminClient;
 use sequent_core::services::s3;
+use sequent_core::services::uuid_validation::parse_uuid_v4;
 use sequent_core::temp_path::generate_temp_file;
 use sequent_core::types::hasura::core::KeysCeremony;
 use sequent_core::types::hasura::core::{Candidate, Contest, Election};
@@ -145,7 +146,7 @@ pub async fn read_export_data(
         std::env::var(ENV_VAR_APP_VERSION).unwrap_or_else(|_| DEV_APP_VERSION.to_string());
 
     let import_election_event_schema = ImportElectionEventSchema {
-        tenant_id: Uuid::parse_str(&tenant_id)?,
+        tenant_id: parse_uuid_v4(&tenant_id)?,
         keycloak_event_realm: Some(realm),
         election_event: election_event,
         elections: export_elections,

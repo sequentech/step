@@ -31,3 +31,6 @@ pub mod replace_uuids;
 
 #[cfg(feature = "keycloak")]
 pub mod authorization;
+
+#[cfg(feature = "keycloak")]
+pub mod uuid_validation;
