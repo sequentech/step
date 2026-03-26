@@ -127,11 +127,14 @@ const KeysTab: React.FC<{showKeysList: string | null}> = ({showKeysList}) => (
     </Suspense>
 )
 
-const CAsTab: React.FC = () => (
-    <Suspense fallback={<div>Loading CAs...</div>}>
-        <EditElectionEventCAs />
-    </Suspense>
-)
+const CAsTab: React.FC = () => {
+    const {t} = useTranslation()
+    return (
+        <Suspense fallback={<div>{t("common.label.loadingData")}</div>}>
+            <EditElectionEventCAs />
+        </Suspense>
+    )
+}
 
 const TallyTab: React.FC = () => (
     <Suspense fallback={<div>Loading Tally...</div>}>
