@@ -10,6 +10,7 @@ use sequent_core::serialization::deserialize_with_path::deserialize_str;
 use sequent_core::types::hasura::core::Template;
 use sequent_core::util::integrity_check::integrity_check;
 
+use sequent_core::services::uuid_validation::parse_uuid_v4;
 use std::io::Seek;
 use tracing::{info, instrument};
 use uuid::Uuid;
@@ -64,7 +65,7 @@ pub async fn import_templates_task(
         let communication_method = record.get(8).unwrap_or("");
         let template_type = record.get(9).unwrap_or("");
 
-        let tenant_id_parsed = match Uuid::parse_str(tenant_id) {
+        let tenant_id_parsed = match parse_uuid_v4(tenant_id) {
             Ok(uuid) => uuid.to_string(),
             Err(_) => {
                 tracing::warn!("Invalid UUID for tenant_id: {}", tenant_id);
