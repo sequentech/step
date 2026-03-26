@@ -5,8 +5,8 @@ use crate::services::keycloak::KeycloakAdminClient;
 use crate::types::keycloak::{
     UPAttributePermissions, UPAttributeRequired, UPAttributeSelector, User,
     UserProfileAttribute, VotesInfo, AREA_ID_ATTR_NAME,
-    AUTHORIZED_ELECTION_IDS_NAME, MOBILE_PHONE_ATTR_NAME, PERMISSION_TO_EDIT,
-    TENANT_ID_ATTR_NAME,
+    AUTHORIZED_ELECTION_IDS_NAME, FIRST_NAME, LAST_NAME,
+    MOBILE_PHONE_ATTR_NAME, PERMISSION_TO_EDIT, TENANT_ID_ATTR_NAME,
 };
 use crate::util::convert_vec::convert_map;
 use anyhow::{anyhow, Result};
