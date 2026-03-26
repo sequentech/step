@@ -4,6 +4,7 @@
 use crate::services::import::import_election_event::ImportElectionEventSchema;
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::{Client as DbClient, Transaction};
+use sequent_core::services::uuid_validation::parse_uuid_v4;
 use sequent_core::types::hasura::core::Contest;
 use tokio_postgres::row::Row;
 use tracing::{event, instrument, Level};
@@ -70,10 +71,10 @@ pub async fn insert_contest(
             .query(
                 &statement,
                 &[
-                    &Uuid::parse_str(&contest.id)?,
-                    &Uuid::parse_str(&contest.tenant_id)?,
-                    &Uuid::parse_str(&contest.election_event_id)?,
-                    &Uuid::parse_str(&contest.election_id)?,
+                    &parse_uuid_v4(&contest.id)?,
+                    &parse_uuid_v4(&contest.tenant_id)?,
+                    &parse_uuid_v4(&contest.election_event_id)?,
+                    &parse_uuid_v4(&contest.election_id)?,
                     &contest.labels,
                     &contest.annotations,
                     &contest.is_acclaimed,
@@ -126,8 +127,8 @@ pub async fn export_contests(
         .query(
             &statement,
             &[
-                &Uuid::parse_str(tenant_id)?,
-                &Uuid::parse_str(election_event_id)?,
+                &parse_uuid_v4(tenant_id)?,
+                &parse_uuid_v4(election_event_id)?,
             ],
         )
         .await?;
@@ -168,9 +169,9 @@ pub async fn get_contest_by_id(
         .query_opt(
             &statement,
             &[
-                &Uuid::parse_str(tenant_id)?,
-                &Uuid::parse_str(election_event_id)?,
-                &Uuid::parse_str(contest_id)?,
+                &parse_uuid_v4(tenant_id)?,
+                &parse_uuid_v4(election_event_id)?,
+                &parse_uuid_v4(contest_id)?,
             ],
         )
         .await?;
@@ -211,9 +212,9 @@ pub async fn get_contest_by_election_id(
         .query(
             &statement,
             &[
-                &Uuid::parse_str(tenant_id)?,
-                &Uuid::parse_str(election_event_id)?,
-                &Uuid::parse_str(election_id)?,
+                &parse_uuid_v4(tenant_id)?,
+                &parse_uuid_v4(election_event_id)?,
+                &parse_uuid_v4(election_id)?,
             ],
         )
         .await?;
@@ -236,12 +237,12 @@ pub async fn get_contest_by_election_ids(
     election_event_id: &str,
     election_ids: &Vec<String>,
 ) -> Result<Vec<Contest>> {
-    let uuid_tenant_id = Uuid::parse_str(tenant_id)?;
-    let uuid_election_event_id = Uuid::parse_str(election_event_id)?;
+    let uuid_tenant_id = parse_uuid_v4(tenant_id)?;
+    let uuid_election_event_id = parse_uuid_v4(election_event_id)?;
 
     let uuid_election_ids: Vec<Uuid> = election_ids
         .iter()
-        .map(|id| Uuid::parse_str(id))
+        .map(|id| parse_uuid_v4(id))
         .collect::<Result<_, _>>()?;
 
     let statement = hasura_transaction

@@ -21,6 +21,7 @@ import {winningPositionComparator, parseProcessResults} from "./utils"
 import {RunoffStatus} from "./types"
 import {LoadingResults} from "./TallyElectionsResults"
 import {useAliasRenderer} from "@/hooks/useAliasRenderer"
+import {useDefaultElectionLang} from "@/hooks/useDefaultElectionLang"
 
 interface TallyResultsGlobalCandidatesProps {
     contestId: string
@@ -114,13 +115,15 @@ export const TallyResultsSectionGlobal: React.FC<TallyResultsGlobalCandidatesPro
         )
     }, [tallyData?.sequent_backend_results_event, resultsEventId])
 
+    const defaultElectionLang = useDefaultElectionLang(electionId, electionEventId)
+
     useEffect(() => {
         if (results && candidates) {
             const temp: Array<Sequent_Backend_Candidate_Extended> | undefined = candidates?.map(
                 (candidate, index): Sequent_Backend_Candidate_Extended => {
                     let candidateResult = results.find((r) => r.candidate_id === candidate.id)
 
-                    let candidateName = aliasRenderer(candidate.presentation)
+                    let candidateName = aliasRenderer(candidate.presentation, defaultElectionLang)
                     return {
                         ...candidate,
                         rowId: index,
@@ -150,10 +153,17 @@ export const TallyResultsSectionGlobal: React.FC<TallyResultsGlobalCandidatesPro
                             resultsData={resultsData}
                             orderedResultsData={orderedResultsData}
                             chartName={getChartName()}
+                            electionId={electionId}
+                            electionEventId={electionEventId}
                         />
                     )}
                     {counting_algorithm === ICountingAlgorithm.INSTANT_RUNOFF && processResults && (
-                        <TallyResultsCandidatesIRV processResults={processResults} />
+                        <TallyResultsCandidatesIRV
+                            resultsData={resultsData as Sequent_Backend_Candidate_Extended[]}
+                            processResults={processResults}
+                            electionId={electionId}
+                            electionEventId={electionEventId}
+                        />
                     )}
                 </>
             )}

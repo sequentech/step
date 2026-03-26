@@ -184,10 +184,17 @@ export const TallyResultsSectionArea: React.FC<TallyResultsCandidatesProps> = (p
                             resultsData={resultsData as Sequent_Backend_Candidate_Extended[]}
                             orderedResultsData={orderedResultsData}
                             chartName={getChartName()}
+                            electionId={electionId}
+                            electionEventId={electionEventId}
                         />
                     )}
                     {counting_algorithm === ICountingAlgorithm.INSTANT_RUNOFF && processResults && (
-                        <TallyResultsCandidatesIRV processResults={processResults} />
+                        <TallyResultsCandidatesIRV
+                            resultsData={resultsData as Sequent_Backend_Candidate_Extended[]}
+                            processResults={processResults}
+                            electionId={electionId}
+                            electionEventId={electionEventId}
+                        />
                     )}
                 </>
             )}

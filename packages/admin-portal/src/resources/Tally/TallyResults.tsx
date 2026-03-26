@@ -7,6 +7,7 @@ import {RaRecord, Identifier} from "react-admin"
 import {
     Sequent_Backend_Election,
     Sequent_Backend_Results_Election,
+    Sequent_Backend_Election_Event,
     Sequent_Backend_Results_Election_Area,
     Sequent_Backend_Tally_Session,
 } from "../../gql/graphql"
@@ -19,6 +20,7 @@ import {useAtomValue} from "jotai"
 import {tallyQueryData} from "@/atoms/tally-candidates"
 import {useAliasRenderer} from "@/hooks/useAliasRenderer"
 import {useKeysPermissions} from "../ElectionEvent/useKeysPermissions"
+import {getDefaultElectionLang} from "@/hooks/useDefaultElectionLang"
 
 interface TallyResultsProps {
     tally: Sequent_Backend_Tally_Session | undefined
@@ -101,8 +103,19 @@ const TallyResultsElectionsTabs: React.MemoExoticComponent<React.FC<TallyResults
             return elections?.find((election) => election.id === electionId)
         }, [elections, electionId])
 
+        const defaultLangByElectionId = useMemo(() => {
+            const map = new Map<string, string | undefined>()
+            elections?.forEach((election) => {
+                map.set(
+                    election.id,
+                    getDefaultElectionLang(tallyData, election.id, election.election_event_id)
+                )
+            })
+            return map
+        }, [elections, tallyData?.sequent_backend_election_event])
+
         const getElectionAlias = (election: Sequent_Backend_Election) => {
-            return aliasRenderer(election.presentation)
+            return aliasRenderer(election.presentation, defaultLangByElectionId.get(election.id))
         }
 
         interface TabPanelProps {
