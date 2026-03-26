@@ -50,8 +50,10 @@ import org.keycloak.truststore.TruststoreProviderFactory;
  * URLs). Supports optional background refresh at a configurable interval.
  *
  * <p>Per-realm CA certificates are fetched from the harvest service using the {@code
- * HARVEST_DOMAIN} environment variable. The URL is constructed as: {@code
- * http://<HARVEST_DOMAIN>/election-event/<realmName>/certificate-authorities/pem}
+ * HARVEST_DOMAIN} environment variable. The election event id is extracted from the realm name
+ * (realms follow the pattern {@code tenant-<tenantId>-event-<electionEventId>}) and the URL is
+ * constructed as: {@code
+ * http://<HARVEST_DOMAIN>/election-event/<electionEventId>/certificate-authorities/pem}
  *
  * <p>{@code --spi-truststore-url-url} is optional. When omitted, the JVM default truststore
  * (cacerts) is used as the global fallback for sessions without a matching realm CA.
@@ -78,8 +80,8 @@ public class UrlTruststoreProviderFactory implements TruststoreProviderFactory {
 
   /**
    * Environment variable containing the harvest service domain (host[:port]). Used to construct
-   * per-realm CA certificate URLs as: {@code
-   * http://<HARVEST_DOMAIN>/election-event/<realmName>/certificate-authorities/pem}
+   * per-election-event CA certificate URLs as: {@code
+   * http://<HARVEST_DOMAIN>/election-event/<electionEventId>/certificate-authorities/pem}
    */
   static final String ENV_HARVEST_DOMAIN = "HARVEST_DOMAIN";
 
@@ -88,8 +90,12 @@ public class UrlTruststoreProviderFactory implements TruststoreProviderFactory {
 
   // package-private for testing — overridden to redirect URL construction to local test resources
   BiFunction<String, String, String> realmUrlBuilder =
-      (domain, realmName) ->
-          "http://" + domain + "/election-event/" + realmName + "/certificate-authorities/pem";
+      (domain, electionEventId) ->
+          "http://"
+              + domain
+              + "/election-event/"
+              + electionEventId
+              + "/certificate-authorities/pem";
 
   private record RealmTruststoreEntry(String url, UrlTruststoreProvider provider) {}
 

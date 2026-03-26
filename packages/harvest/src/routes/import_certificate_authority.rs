@@ -10,6 +10,7 @@ use sequent_core::ballot::VoterDigitalCertPolicy;
 use sequent_core::services::jwt::JwtClaims;
 use sequent_core::types::permissions::Permissions;
 use serde::{Deserialize, Serialize};
+use tokio::task;
 use tracing::{info, instrument, warn};
 use uuid::Uuid;
 use windmill::postgres::certificate_authority::{
@@ -100,7 +101,14 @@ pub async fn import_certificate_authority(
     let mut errors: Vec<String> = Vec::new();
 
     for (i, pem_chunk) in pem_chunks.iter().enumerate() {
-        match parse_certificate_pem(pem_chunk) {
+        let pem_chunk_owned = pem_chunk.clone();
+        let parse_result = task::spawn_blocking(move || {
+            parse_certificate_pem(&pem_chunk_owned)
+        })
+        .await
+        .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
+
+        match parse_result {
             Ok(parsed) => {
                 let record = CertificateAuthorityRecord {
                     id: Uuid::new_v4(),

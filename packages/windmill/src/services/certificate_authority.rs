@@ -31,13 +31,14 @@ pub fn split_pem_bundle(pem_content: &str) -> Vec<String> {
     let mut in_cert = false;
 
     for line in pem_content.lines() {
-        if line.trim() == CERT_BEGIN {
+        let trimmed = line.trim();
+        if trimmed == CERT_BEGIN {
             in_cert = true;
             current.clear();
-            current.push_str(line);
+            current.push_str(trimmed);
             current.push('\n');
-        } else if line.trim() == CERT_END {
-            current.push_str(line);
+        } else if trimmed == CERT_END {
+            current.push_str(trimmed);
             current.push('\n');
             if in_cert {
                 certs.push(current.clone());
@@ -45,7 +46,7 @@ pub fn split_pem_bundle(pem_content: &str) -> Vec<String> {
             }
             in_cert = false;
         } else if in_cert {
-            current.push_str(line);
+            current.push_str(trimmed);
             current.push('\n');
         }
     }

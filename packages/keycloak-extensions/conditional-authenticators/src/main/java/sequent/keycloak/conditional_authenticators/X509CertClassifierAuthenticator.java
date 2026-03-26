@@ -13,14 +13,20 @@ import javax.security.auth.x500.X500Principal;
 import lombok.extern.jbosslog.JBossLog;
 import org.keycloak.authentication.AuthenticationFlowContext;
 import org.keycloak.authentication.Authenticator;
+import org.keycloak.models.AuthenticatorConfigModel;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.RealmModel;
 import org.keycloak.models.UserModel;
 
 /**
- * Reads the client certificate forwarded by nginx via the ssl-client-cert header, extracts the
- * issuer CN, and sets the auth note "cert-type" to that CN value. If no certificate is present or
- * it cannot be parsed, sets "cert-type" to "not-allowed".
+ * Reads the client certificate forwarded by a reverse proxy, extracts the issuer CN, and sets the
+ * auth note "cert-type" to that CN value. If no certificate is present or it cannot be parsed, sets
+ * "cert-type" to "not-allowed".
+ *
+ * <p>The header name is configurable via the authenticator config key {@code cert-header-name} (see
+ * {@link X509CertClassifierAuthenticatorFactory#CONF_CERT_HEADER_NAME}). It defaults to {@code
+ * ssl-client-cert} (nginx default) but can be set to {@code Cf-Tls-Client-Cert} for Cloudflare or
+ * {@code Client-Cert} for RFC 9440 proxies.
  *
  * <p>This authenticator runs first in the X.509 flow. Downstream conditional sub-flows use
  * Condition - Auth Note (cert-type = &lt;CN&gt;) to select the correct X509/Validate Username Form
@@ -29,21 +35,19 @@ import org.keycloak.models.UserModel;
 @JBossLog
 public class X509CertClassifierAuthenticator implements Authenticator {
 
-  public static final X509CertClassifierAuthenticator SINGLETON =
-      new X509CertClassifierAuthenticator();
+  /** Default HTTP header name when no authenticator config is provided. */
+  public static final String DEFAULT_CERT_HEADER = "ssl-client-cert";
 
   public static final String AUTH_NOTE_CERT_TYPE = "cert-type";
   public static final String CERT_TYPE_NOT_ALLOWED = "not-allowed";
 
-  private static final String SSL_CLIENT_CERT_HEADER = "ssl-client-cert";
-
   @Override
   public void authenticate(AuthenticationFlowContext context) {
-    String certHeader =
-        context.getHttpRequest().getHttpHeaders().getHeaderString(SSL_CLIENT_CERT_HEADER);
+    String headerName = resolveHeaderName(context);
+    String certHeader = context.getHttpRequest().getHttpHeaders().getHeaderString(headerName);
 
     if (certHeader == null || certHeader.isBlank()) {
-      log.infov("authenticate(): no {0} header present", SSL_CLIENT_CERT_HEADER);
+      log.infov("authenticate(): no {0} header present", headerName);
       context.getAuthenticationSession().setAuthNote(AUTH_NOTE_CERT_TYPE, CERT_TYPE_NOT_ALLOWED);
       context.attempted();
       return;
@@ -51,8 +55,7 @@ public class X509CertClassifierAuthenticator implements Authenticator {
 
     X509Certificate cert = parseCert(certHeader);
     if (cert == null) {
-      log.warnv(
-          "authenticate(): failed to parse certificate from {0} header", SSL_CLIENT_CERT_HEADER);
+      log.warnv("authenticate(): failed to parse certificate from {0} header", headerName);
       context.getAuthenticationSession().setAuthNote(AUTH_NOTE_CERT_TYPE, CERT_TYPE_NOT_ALLOWED);
       context.attempted();
       return;
@@ -63,6 +66,18 @@ public class X509CertClassifierAuthenticator implements Authenticator {
     log.infov("authenticate(): setting auth note {0}={1}", AUTH_NOTE_CERT_TYPE, certType);
     context.getAuthenticationSession().setAuthNote(AUTH_NOTE_CERT_TYPE, certType);
     context.success();
+  }
+
+  private String resolveHeaderName(AuthenticationFlowContext context) {
+    AuthenticatorConfigModel config = context.getAuthenticatorConfig();
+    if (config != null && config.getConfig() != null) {
+      String configured =
+          config.getConfig().get(X509CertClassifierAuthenticatorFactory.CONF_CERT_HEADER_NAME);
+      if (configured != null && !configured.isBlank()) {
+        return configured.trim();
+      }
+    }
+    return DEFAULT_CERT_HEADER;
   }
 
   private X509Certificate parseCert(String headerValue) {
