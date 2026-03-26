@@ -186,7 +186,7 @@ table, scoped per election event. Harvest exposes:
   `delete_certificate_authority`) for the admin portal
 
 Permissions: `ca-read` (view) and `ca-write` (add/remove), scoped by
-`election_event_id`.
+`election_event_id`. `election-event-cas-tab` to allow showing the CAs import tab.
 
 When the admin portal updates the CA list, Keycloak picks up the change within
 the next refresh cycle (default: 1 hour) without restart. **The Cloudflare
