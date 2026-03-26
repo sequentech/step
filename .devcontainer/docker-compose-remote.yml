@@ -106,6 +106,10 @@ services:
     image: sequentech.local/keycloak-nginx
     ports:
       - "8444:8443"
+    environment:
+      - KC_HOSTNAME=${KC_HOSTNAME}
+      - KC_HTTP_PORT=${KC_HTTP_PORT}
+      - VOTING_PORTAL_URL=${VOTING_PORTAL_URL}
     depends_on:
       keycloak:
         condition: service_healthy
