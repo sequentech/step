@@ -68,7 +68,7 @@ export const KeycloakProviderContainer: React.FC<React.PropsWithChildren> = ({ch
     return <KeycloakProvider disable={globalSettings.DISABLE_AUTH}>{children}</KeycloakProvider>
 }
 
-function ThrowCertAuthError() {
+export const ThrowCertAuthError = (): React.ReactElement => {
     throw new VotingPortalError(VotingPortalErrorType.CERT_AUTH_FAILED)
 }
 
