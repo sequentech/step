@@ -55,6 +55,10 @@ pub struct GenerateApplications {
     pub annotations: HashMap<String, Value>,
 }
 
+/// Loads the external config from the given working directory.
+///
+/// # Errors
+/// Returns an error if the config file cannot be opened or parsed.
 pub fn load_external_config(
     working_dir: &str,
 ) -> Result<ExternalConfigData, Box<dyn Error>> {

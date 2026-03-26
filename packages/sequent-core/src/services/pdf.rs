@@ -688,8 +688,8 @@ pub fn html_to_pdf(
     print_to_pdf(url_path.as_str(), pdf_options, None)
 }
 
-/// Uses headless_chrome to print the file to PDF, with retry on transient
-/// failures.
+/// Uses `headless_chrome` to print the file to PDF, with retry on transient
+///  failures.
 #[instrument(skip_all, err)]
 fn print_to_pdf(
     file_path: &str,
@@ -722,7 +722,7 @@ fn print_to_pdf(
                      retrying in {delay:?}"
                 );
                 sleep(delay);
-                delay *= 2;
+                delay = delay.checked_mul(2).expect("delay overflow");
             }
             Err(e) => return Err(e),
         }
@@ -730,7 +730,7 @@ fn print_to_pdf(
     unreachable!()
 }
 
-/// One attempt at printing via headless Chrome.
+/// One attempt at printing via `headless_chrome`.
 #[instrument(skip_all, err)]
 fn print_to_pdf_once(
     file_path: &str,
