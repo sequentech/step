@@ -10,7 +10,7 @@ use sequent_core::ballot::VoterDigitalCertPolicy;
 use sequent_core::services::jwt::JwtClaims;
 use sequent_core::types::permissions::Permissions;
 use serde::{Deserialize, Serialize};
-use tracing::instrument;
+use tracing::{info, instrument, warn};
 use uuid::Uuid;
 use windmill::postgres::certificate_authority::{
     insert_certificate_authority, CertificateAuthorityRecord,
@@ -119,14 +119,22 @@ pub async fn import_certificate_authority(
                 match insert_certificate_authority(&hasura_transaction, record)
                     .await
                 {
-                    Ok(true) => inserted_count += 1,
-                    Ok(false) => skipped_count += 1,
+                    Ok(true) => {
+                        info!(cert_index = i + 1, "Certificate inserted");
+                        inserted_count += 1;
+                    }
+                    Ok(false) => {
+                        info!(cert_index = i + 1, "Certificate skipped (duplicate)");
+                        skipped_count += 1;
+                    }
                     Err(e) => {
+                        warn!(cert_index = i + 1, error = %e, "Failed to insert certificate");
                         errors.push(format!("Certificate {}: {}", i + 1, e));
                     }
                 }
             }
             Err(e) => {
+                warn!(cert_index = i + 1, error = %e, "Failed to parse certificate");
                 errors.push(format!("Certificate {}: {}", i + 1, e));
             }
         }

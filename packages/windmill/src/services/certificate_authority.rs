@@ -102,8 +102,7 @@ fn parse_openssl_x509_output(output: &str, pem: &str) -> Result<ParsedCertificat
         ));
     }
 
-    let common_name =
-        extract_cn(&subject).ok_or_else(|| anyhow!("CN not found in subject: {}", subject))?;
+    let common_name = extract_cn(&subject).unwrap_or_else(|| subject.clone());
     let issuer_common_name = extract_cn(&issuer).unwrap_or_else(|| issuer.clone());
 
     let not_before = parse_openssl_date(&not_before_str)
