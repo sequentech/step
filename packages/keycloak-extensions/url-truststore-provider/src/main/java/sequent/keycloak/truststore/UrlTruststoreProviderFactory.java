@@ -5,9 +5,12 @@
 package sequent.keycloak.truststore;
 
 import com.google.auto.service.AutoService;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.HttpURLConnection;
 import java.net.URI;
+import java.net.URLConnection;
 import java.security.InvalidKeyException;
 import java.security.KeyStore;
 import java.security.KeyStoreException;
@@ -179,7 +182,7 @@ public class UrlTruststoreProviderFactory implements TruststoreProviderFactory {
         }
       }
     }
-    log.infof("Using global truststore for session (no realm-specific CA)");
+    log.debugf("Using global truststore for session (no realm-specific CA)");
     return provider;
   }
 
@@ -215,20 +218,32 @@ public class UrlTruststoreProviderFactory implements TruststoreProviderFactory {
           try {
             fresh = fetchAndBuild(realmUrl, policy);
           } catch (RuntimeException e) {
+            if (e.getCause() instanceof FileNotFoundException) {
+              // 404: no CA certificate exists for this realm. Cache a sentinel to avoid
+              // hammering harvest on every request. The refresh cycle will retry periodically.
+              log.warnf(
+                  "No realm-specific CA found for realm %s at %s — caching absent, falling back"
+                      + " to global truststore.",
+                  id, realmUrl);
+              RealmTruststoreEntry sentinel = new RealmTruststoreEntry(realmUrl, null);
+              result[0] = sentinel;
+              return sentinel;
+            }
+            // Transient error (timeout, network issue, etc.) — do not cache so the next
+            // request or refresh cycle can retry.
             log.warnf(
-                "No realm-specific CA exists at realm %s when fetching from %s — falling back to global"
-                    + " truststore. Cause: %s",
+                "Transient error fetching realm CA for realm %s from %s — using global truststore"
+                    + " for this request. Cause: %s",
                 id, realmUrl, e.getMessage());
-            // Store sentinel (null provider) so we don't retry fetching on every request.
-            RealmTruststoreEntry sentinel = new RealmTruststoreEntry(realmUrl, null);
-            result[0] = sentinel;
-            return sentinel;
+            result[0] = existing; // keep existing entry if present
+            return existing;
           }
           RealmTruststoreEntry entry = new RealmTruststoreEntry(realmUrl, fresh);
           result[0] = entry;
           return entry;
         });
-    return result[0].provider() != null ? result[0].provider() : provider;
+    // result[0] is null when a transient error occurred and no previous entry existed.
+    return result[0] != null && result[0].provider() != null ? result[0].provider() : provider;
   }
 
   @Override
@@ -259,19 +274,28 @@ public class UrlTruststoreProviderFactory implements TruststoreProviderFactory {
     for (Map.Entry<String, RealmTruststoreEntry> entry : realmCache.entrySet()) {
       String realmId = entry.getKey();
       RealmTruststoreEntry current = entry.getValue();
-      if (current.provider() == null) {
-        // Sentinel entry — cert was not found on first load; skip rather than retrying.
-        log.debugf(
-            "Skipping refresh for realm %s — no CA cert was found at: %s", realmId, current.url());
-        continue;
-      }
       try {
         UrlTruststoreProvider fresh = fetchAndBuild(current.url(), policy);
         realmCache.put(realmId, new RealmTruststoreEntry(current.url(), fresh));
-        log.infof("Realm truststore refreshed for realm %s from: %s", realmId, current.url());
-      } catch (Exception e) {
-        log.errorf(
-            e, "Failed to refresh realm truststore for realm %s from: %s", realmId, current.url());
+        if (current.provider() == null) {
+          log.infof("Realm CA now available for realm %s from: %s", realmId, current.url());
+        } else {
+          log.infof("Realm truststore refreshed for realm %s from: %s", realmId, current.url());
+        }
+      } catch (RuntimeException e) {
+        if (e.getCause() instanceof FileNotFoundException) {
+          // Still absent — keep sentinel and wait for next refresh cycle.
+          log.debugf(
+              "Realm CA still absent for realm %s at: %s — keeping sentinel.",
+              realmId, current.url());
+        } else {
+          // Transient error — keep current entry and retry next cycle.
+          log.errorf(
+              e,
+              "Failed to refresh realm truststore for realm %s from: %s",
+              realmId,
+              current.url());
+        }
       }
     }
   }
@@ -339,18 +363,34 @@ public class UrlTruststoreProviderFactory implements TruststoreProviderFactory {
         Collections.unmodifiableMap(intermediateCerts));
   }
 
+  private static final int FETCH_CONNECT_TIMEOUT_MS = 5_000;
+  private static final int FETCH_READ_TIMEOUT_MS = 10_000;
+
   private static Collection<? extends Certificate> fetchCertificates(String url) {
-    try (InputStream stream = URI.create(url).toURL().openStream()) {
+    URLConnection connection;
+    try {
+      connection = URI.create(url).toURL().openConnection();
+      connection.setConnectTimeout(FETCH_CONNECT_TIMEOUT_MS);
+      connection.setReadTimeout(FETCH_READ_TIMEOUT_MS);
+      connection.connect();
+    } catch (IOException e) {
+      throw new RuntimeException("Failed to connect to certificate URL: " + url, e);
+    }
+    try (InputStream stream = connection.getInputStream()) {
       CertificateFactory cf = CertificateFactory.getInstance("X.509");
       Collection<? extends Certificate> certs = cf.generateCertificates(stream);
       if (certs.isEmpty()) {
-        log.warnf("No certificates found at URL: " + url);
+        log.warnf("No certificates found at URL: %s", url);
         return Collections.emptyList();
       }
       log.debugf("Fetched %d certificate(s) from: %s", certs.size(), url);
       return certs;
     } catch (IOException | CertificateException e) {
       throw new RuntimeException("Failed to fetch certificates from URL: " + url, e);
+    } finally {
+      if (connection instanceof HttpURLConnection http) {
+        http.disconnect();
+      }
     }
   }
 

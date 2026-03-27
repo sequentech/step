@@ -4,9 +4,9 @@
 
 use anyhow::{anyhow, Context, Result};
 use chrono::{DateTime, NaiveDateTime, Utc};
-use sequent_core::signatures::shell::run_shell_command;
 use sequent_core::util::temp_path::generate_temp_file;
 use std::fs;
+use std::process::Command;
 
 const CERT_BEGIN: &str = "-----BEGIN CERTIFICATE-----";
 const CERT_END: &str = "-----END CERTIFICATE-----";
@@ -59,16 +59,33 @@ pub fn split_pem_bundle(pem_content: &str) -> Vec<String> {
 pub fn parse_certificate_pem(pem: &str) -> Result<ParsedCertificate> {
     let cert_temp_file =
         generate_temp_file("cert", ".pem").with_context(|| "Error creating temp PEM file")?;
-    let cert_path = cert_temp_file.path().to_string_lossy().to_string();
-    fs::write(&cert_path, pem)
-        .with_context(|| format!("Error writing PEM to temp file {cert_path}"))?;
+    let cert_path = cert_temp_file.path();
+    fs::write(cert_path, pem)
+        .with_context(|| format!("Error writing PEM to temp file {}", cert_path.display()))?;
 
-    let command = format!(
-        "openssl x509 -in {} -noout -subject -issuer -startdate -enddate -fingerprint -sha256 -serial",
-        cert_path
-    );
-    let output = run_shell_command(&command)
+    let raw_output = Command::new("openssl")
+        .args([
+            "x509",
+            "-in",
+            &cert_path.to_string_lossy(),
+            "-noout",
+            "-subject",
+            "-issuer",
+            "-startdate",
+            "-enddate",
+            "-fingerprint",
+            "-sha256",
+            "-serial",
+        ])
+        .output()
         .with_context(|| "Error running openssl x509 to parse certificate")?;
+    if !raw_output.status.success() {
+        return Err(anyhow!(
+            "openssl x509 failed: {}",
+            String::from_utf8_lossy(&raw_output.stderr)
+        ));
+    }
+    let output = String::from_utf8_lossy(&raw_output.stdout).into_owned();
 
     parse_openssl_x509_output(&output, pem)
 }

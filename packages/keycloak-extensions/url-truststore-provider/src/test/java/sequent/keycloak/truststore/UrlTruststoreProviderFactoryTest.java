@@ -174,7 +174,8 @@ class UrlTruststoreProviderFactoryTest {
                 UrlTruststoreProviderFactory.fetchAndBuild(
                     "https://127.0.0.1:19999/nonexistent.pem", HostnameVerificationPolicy.DEFAULT));
     assertTrue(
-        ex.getMessage().contains("Failed to fetch certificates"),
+        ex.getMessage().contains("Failed to connect to certificate URL")
+            || ex.getMessage().contains("Failed to fetch certificates"),
         "Expected fetch error message, got: " + ex.getMessage());
   }
 
