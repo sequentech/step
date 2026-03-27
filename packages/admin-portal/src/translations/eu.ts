@@ -341,6 +341,11 @@ const basqueTranslation: TranslationType = {
                     "no-signature": "Sinadurarik ez",
                     "with-signature": "Sinadura batekin",
                 },
+                voterDigitalCertPolicy: {
+                    policyLabel: "Voter Digital Certificate Policy",
+                    enabled: "Gaituta",
+                    disabled: "Desgaituta",
+                },
                 enrollment: {
                     policyLabel: "Matrikula",
                     options: {
@@ -438,6 +443,7 @@ const basqueTranslation: TranslationType = {
                 notifications: "Jakinarazpenak",
                 reports: "Txostenak",
                 approvals: "Onespenak",
+                cas: "Ziurtagiriak",
             },
             tally: {
                 emptyHeader: "Ez dago Zenbaketarik oraindik.",
@@ -2152,6 +2158,55 @@ const basqueTranslation: TranslationType = {
                 title: "Probak",
                 testElectionVoterCount: "Proba Hauteskunde Bozkatzaile Kopurua",
             },
+        },
+        certificateAuthorities: {
+            importButton: "Ziurtagiriak inportatu",
+            type: {
+                root: "Erroa",
+                intermediate: "Tartekoa",
+            },
+            expiry: {
+                expired: "Iraungita",
+                expiringSoon: "Laster iraungiko da",
+                valid: "Baliozkoa",
+            },
+            columns: {
+                commonName: "Izen arrunta",
+                type: "Mota",
+                issuerCn: "Eragilearen CN",
+                notBefore: "Baliozko hasieratik",
+                notAfter: "Iraungitzen da",
+                fingerprint: "SHA256 Hatz-marka",
+            },
+            importDialog: {
+                title: "Ziurtagiri-agintaritzak inportatu",
+                subtitle: "PEM fitxategi batetik CA ziurtagiri bat edo gehiago inportatu",
+                description:
+                    "Hautatu ziurtagiri bat edo gehiago dituen PEM fitxategia. Multzoak onartzen dira — ziurtagiri bakoitza banaka inportatzen da.",
+                selectFile: "PEM fitxategia hautatu",
+                fileLoaded: "Fitxategia kargatuta ({{bytes}} byte)",
+                importButton: "Inportatu",
+            },
+            notify: {
+                importSuccess:
+                    "{{inserted}} ziurtagiri inportatuta. {{skipped}} saltatu (dagoeneko badaude).",
+                importError: "Inportazioa huts egin du: {{error}}",
+                deleteSuccess: "Ziurtagiria ezabatuta.",
+                deleteError: "Errorea ziurtagiria ezabatzean.",
+            },
+            emptyHeader:
+                "Ez da ziurtagiri-agintaritzarik inportatu hauteskunde-ekitaldi honetarako.",
+            fileReadError: "Fitxategia irakurtzean huts egin du.",
+            viewDialog: {
+                title: "Ziurtagiri-agintaritzaren xehetasunak",
+                subject: "Gaia",
+                issuer: "Eragilea",
+                serialNumber: "Serie-zenbakia",
+                pemContent: "PEM edukia",
+            },
+            confirmDelete: "Ziurtagiri-agintaritza ezabatu",
+            confirmDeleteDescription:
+                'Ziur al zaude "{{name}}" ziurtagiria (hatz-marka: {{fingerprint}}) ezabatu nahi duzula?',
         },
     },
 }

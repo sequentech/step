@@ -341,6 +341,11 @@ const catalanTranslation: TranslationType = {
                     "no-signature": "Sense signatura",
                     "with-signature": "Amb signatura",
                 },
+                voterDigitalCertPolicy: {
+                    policyLabel: "Voter Digital Certificate Policy",
+                    enabled: "Habilitat",
+                    disabled: "Deshabilitat",
+                },
                 enrollment: {
                     policyLabel: "Inscripció",
                     options: {
@@ -438,6 +443,7 @@ const catalanTranslation: TranslationType = {
                 notifications: "Notificacions",
                 reports: "Informe",
                 approvals: "Aprovacions",
+                cas: "Certificats",
             },
             tally: {
                 emptyHeader: "Encara no hi ha Recompte.",
@@ -2169,6 +2175,55 @@ const catalanTranslation: TranslationType = {
                 title: "Proves",
                 testElectionVoterCount: "Comptatge de Votants a l'Elecció de Prova",
             },
+        },
+        certificateAuthorities: {
+            importButton: "Importar certificats",
+            type: {
+                root: "Arrel",
+                intermediate: "Intermedi",
+            },
+            expiry: {
+                expired: "Caducat",
+                expiringSoon: "Pròxim a caducar",
+                valid: "Vàlid",
+            },
+            columns: {
+                commonName: "Nom comú",
+                type: "Tipus",
+                issuerCn: "CN de l'emissor",
+                notBefore: "Vàlid des de",
+                notAfter: "Caduca",
+                fingerprint: "Empremta SHA256",
+            },
+            importDialog: {
+                title: "Importar autoritats de certificació",
+                subtitle: "Importar un o més certificats CA des d'un fitxer PEM",
+                description:
+                    "Seleccioneu un fitxer PEM que contingui un o més certificats. S'admeten paquets — cada certificat s'importa individualment.",
+                selectFile: "Seleccionar fitxer PEM",
+                fileLoaded: "Fitxer carregat ({{bytes}} bytes)",
+                importButton: "Importar",
+            },
+            notify: {
+                importSuccess:
+                    "S'han importat {{inserted}} certificat(s). {{skipped}} omès(os) (ja presents).",
+                importError: "Error en la importació: {{error}}",
+                deleteSuccess: "Certificat eliminat.",
+                deleteError: "Error en eliminar el certificat.",
+            },
+            emptyHeader:
+                "No s'han importat autoritats de certificació per a aquest esdeveniment electoral.",
+            fileReadError: "Error en llegir el fitxer.",
+            viewDialog: {
+                title: "Detalls de l'autoritat de certificació",
+                subject: "Assumpte",
+                issuer: "Emissor",
+                serialNumber: "Número de sèrie",
+                pemContent: "Contingut PEM",
+            },
+            confirmDelete: "Eliminar autoritat de certificació",
+            confirmDeleteDescription:
+                'Esteu segurs que voleu eliminar el certificat "{{name}}" (empremta: {{fingerprint}})?',
         },
     },
 }

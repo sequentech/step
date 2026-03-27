@@ -10,6 +10,7 @@ export enum VotingPortalErrorType {
     UNABLE_TO_CAST_BALLOT = "UNABLE_TO_CAST_BALLOT",
     NO_BALLOT_STYLE = "NO_BALLOT_STYLE",
     INCONSISTENT_HASH = "INCONSISTENT_HASH",
+    CERT_AUTH_FAILED = "CERT_AUTH_FAILED",
 }
 
 export enum ElectionScreenErrorType {
