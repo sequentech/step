@@ -51,6 +51,11 @@ const AdminOperationMap: Record<string, IPermissions> = {
     update_sequent_backend_candidates: IPermissions.CANDIDATE_WRITE,
     delete_sequent_backend_candidate: IPermissions.CANDIDATE_DELETE,
     delete_sequent_backend_candidates: IPermissions.CANDIDATE_DELETE,
+    // certificate_authority
+    sequent_backend_certificate_authority: IPermissions.CA_READ,
+    sequent_backend_certificate_authorities: IPermissions.CA_READ,
+    delete_sequent_backend_certificate_authority_by_pk: IPermissions.CA_WRITE,
+    delete_sequent_backend_certificate_authorities: IPermissions.CA_WRITE,
     // cast_vote
     sequent_backend_cast_vote: IPermissions.CAST_VOTE_READ,
     sequent_backend_cast_votes: IPermissions.CAST_VOTE_READ,

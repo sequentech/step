@@ -214,6 +214,7 @@ const App: React.FC<AppProps> = () => {
                     create={CreateBallotStyle}
                     options={{label: "Ballot Styles"}}
                 />
+                <Resource name="sequent_backend_certificate_authority" />
                 <Resource
                     name="sequent_backend_area"
                     edit={UpsertArea}
