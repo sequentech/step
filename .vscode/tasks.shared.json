@@ -352,7 +352,7 @@
             "command": "bash",
             "args": [
                 "-c",
-                "docker compose stop keycloak; docker compose build keycloak && docker compose up -d --no-deps keycloak && docker compose logs -f --tail 100 keycloak",
+                "docker compose stop keycloak keycloak-nginx; docker compose build keycloak keycloak-nginx && docker compose up -d --no-deps keycloak && docker compose up -d --no-deps keycloak-nginx && docker compose logs -f --tail 100 keycloak keycloak-nginx"
             ],
             "options": {
                 "env": {
@@ -592,6 +592,65 @@
                     "COMPOSE_PROJECT_NAME": "step_devcontainer",
                     "COMPOSE_PROFILES": "base",
                 }
+            },
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "dedicated",
+                "showReuseMessage": true,
+                "clear": false
+            },
+            "isBackground": true,
+            "runOptions": {
+                "runOn": "default"
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "logs.keycloak-nginx",
+            "command": "docker",
+            "args": [
+                "compose",
+                "logs",
+                "-f",
+                "--tail",
+                "200",
+                "keycloak-nginx"
+            ],
+            "options": {
+                "env": {
+                    "COMPOSE_PROJECT_NAME": "step_devcontainer",
+                    "COMPOSE_PROFILES": "base"
+                }
+            },
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "dedicated",
+                "showReuseMessage": true,
+                "clear": false
+            },
+            "isBackground": true,
+            "runOptions": {
+                "runOn": "default"
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "logs.restart.keycloak-nginx",
+            "command": "bash",
+            "args": [
+                "-c",
+                "docker compose stop keycloak-nginx; docker compose build keycloak-nginx && docker compose up -d --no-deps keycloak-nginx && docker compose logs -f --tail 100 keycloak-nginx"
+            ],
+            "options": {
+                "env": {
+                    "COMPOSE_PROJECT_NAME": "step_devcontainer",
+                    "COMPOSE_PROFILES": "base"
+                },
+                "cwd": "${workspaceFolder}/.devcontainer"
             },
             "presentation": {
                 "echo": true,

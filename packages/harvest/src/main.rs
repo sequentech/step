@@ -133,7 +133,10 @@ async fn rocket() -> _ {
                 routes::set_voter_authentication::set_voter_authentication,
                 routes::export_tally_results::export_tally_results_route,
                 routes::google_meet::generate_google_meeting,
-                routes::generate_preview_url::generate_preview_url
+                routes::generate_preview_url::generate_preview_url,
+                routes::import_certificate_authority::import_certificate_authority,
+                routes::delete_certificate_authority::delete_certificate_authority_route,
+                routes::get_certificate_authorities_pem::get_cas_pem,
             ],
         )
         .manage(LastDatafixAccessToken::init())

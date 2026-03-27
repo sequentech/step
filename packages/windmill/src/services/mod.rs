@@ -7,6 +7,7 @@ pub mod ballot_styles;
 pub mod cast_votes;
 pub mod celery_app;
 pub mod ceremonies;
+pub mod certificate_authority;
 pub mod cloudflare;
 pub mod compress;
 pub mod consolidation;
