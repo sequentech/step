@@ -4,7 +4,7 @@
 
 import React, {Suspense, useContext, useEffect, useMemo, useState} from "react"
 import {useTranslation} from "react-i18next"
-import {useRecordContext, useSidebarState, Identifier, RecordContextProvider} from "react-admin"
+import {useRecordContext, useSidebarState, RecordContextProvider} from "react-admin"
 import {v4 as uuidv4} from "uuid"
 
 import {AuthContext} from "@/providers/AuthContextProvider"
@@ -21,9 +21,7 @@ import {Box, Typography} from "@mui/material"
 import {EElectionEventLockedDown, i18n, translateElection} from "@sequentech/ui-core"
 import {EditElectionEventApprovals} from "../ElectionEvent/EditElectionEventApprovals"
 import {Tabs} from "@/components/Tabs"
-import {TallySheetWizard, WizardSteps} from "../TallySheet/TallySheetWizard"
-import {Sequent_Backend_Contest} from "../../gql/graphql"
-import {ListTallySheet} from "../TallySheet/ListTallySheet"
+import {TallySheets} from "../TallySheet/TallySheets"
 
 // ---------------------------------------------------------------------
 // Stable Tab Components
@@ -77,19 +75,7 @@ const ApprovalsTab: React.FC = () => {
 }
 
 const TallySheetsTab: React.FC = () => {
-    const [action, setAction] = useState<number>(WizardSteps.List)
-    const [refresh, setRefresh] = useState<string | null>(null)
-    const [tallySheetId, setTallySheetId] = useState<Identifier | undefined>()
     const electionRecord = useRecordContext<Sequent_Backend_Election>()
-    const {t} = useTranslation()
-
-    const handleAction = (action: number, id?: Identifier) => {
-        setAction(action)
-        setRefresh(new Date().getTime().toString())
-        if (id) {
-            setTallySheetId(id)
-        }
-    }
 
     if (!electionRecord) {
         return null
@@ -97,41 +83,7 @@ const TallySheetsTab: React.FC = () => {
 
     return (
         <Suspense fallback={<div>Loading Tally Sheets...</div>}>
-            <ElectionHeader title={t("tallysheet.title")} subtitle="tallysheet.subtitle" />
-            {action === WizardSteps.List ? (
-                <ListTallySheet
-                    election={electionRecord}
-                    doAction={handleAction}
-                    reload={refresh}
-                />
-            ) : action === WizardSteps.Start ? (
-                <TallySheetWizard
-                    election={electionRecord}
-                    action={action}
-                    doAction={handleAction}
-                />
-            ) : action === WizardSteps.Edit ? (
-                <TallySheetWizard
-                    tallySheetId={tallySheetId}
-                    election={electionRecord}
-                    action={action}
-                    doAction={handleAction}
-                />
-            ) : action === WizardSteps.Confirm ? (
-                <TallySheetWizard
-                    tallySheetId={tallySheetId}
-                    election={electionRecord}
-                    action={action}
-                    doAction={handleAction}
-                />
-            ) : action === WizardSteps.View ? (
-                <TallySheetWizard
-                    tallySheetId={tallySheetId}
-                    election={electionRecord}
-                    action={action}
-                    doAction={handleAction}
-                />
-            ) : null}
+            <TallySheets election={electionRecord} />
         </Suspense>
     )
 }

@@ -49,7 +49,7 @@ const StyledError = styled(Typography)`
     font-size: 0.85rem;
 `
 
-const votingChannels = [
+export const votingChannels = [
     {id: "PAPER", name: "PAPER"},
     {id: "POSTAL", name: "POSTAL"},
 ]

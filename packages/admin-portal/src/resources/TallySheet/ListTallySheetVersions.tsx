@@ -1,44 +1,38 @@
 // SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, {ReactElement, useContext, useEffect} from "react"
+import React, {ReactElement, useContext} from "react"
 import {
     DatagridConfigurable,
     List,
     TextField,
-    DateField,
     TextInput,
     Identifier,
-    useDelete,
     WrapperField,
     FunctionField,
-    useRefresh,
     useNotify,
-    useGetList,
+    SelectInput,
+    RaRecord,
 } from "react-admin"
 import {ListActions} from "../../components/ListActions"
 import {ListActionsMenu} from "../../components/ListActionsMenu"
-import {Button, Tooltip, Typography} from "@mui/material"
+import {Tooltip, Typography} from "@mui/material"
 import {
     ReviewTallySheetMutation,
-    Sequent_Backend_Contest,
     Sequent_Backend_Election,
     Sequent_Backend_Tally_Sheet,
 } from "../../gql/graphql"
-import {Dialog, IconButton} from "@sequentech/ui-essentials"
-import {Action, ActionsColumn} from "../../components/ActionButons"
+import {Dialog} from "@sequentech/ui-essentials"
+import {Action} from "../../components/ActionButons"
 import {useTranslation} from "react-i18next"
 import {ResourceListStyles} from "@/components/styles/ResourceListStyles"
-import {faPlus} from "@fortawesome/free-solid-svg-icons"
 import VisibilityIcon from "@mui/icons-material/Visibility"
-import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline"
 import UnpublishedIcon from "@mui/icons-material/Unpublished"
 import PublishedWithChangesIcon from "@mui/icons-material/PublishedWithChanges"
-import {WizardSteps} from "./TallySheetWizard"
+import {WizardSteps} from "./TallySheetWizardCopy"
 import {useMutation} from "@apollo/client"
 import {ContestItem} from "@/components/ContestItem"
 import {AreaItem} from "@/components/AreaItem"
-import {Add, WorkHistory} from "@mui/icons-material"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import {IPermissions} from "@/types/keycloak"
@@ -46,54 +40,54 @@ import {AuthContext} from "@/providers/AuthContextProvider"
 import {EStatus} from "@/types/TallySheets"
 import {WizardStyles} from "@/components/styles/WizardStyles"
 import ArrowBackIosIcon from "@mui/icons-material/ArrowBackIos"
+import {REVIEW_TALLY_SHEET} from "@/queries/reviewTallySheet"
 
 const OMIT_FIELDS = ["id"]
 
-const Filters: Array<ReactElement> = [
-    <TextInput label="Area" source="area_id" key={0} />,
-    <TextInput label="Contest" source="contest_id" key={1} />,
-    <TextInput label="ID" source="id" key={2} />,
-    <TextInput label="Channel" source="channel" key={3} />,
-    <TextInput label="Version" source="version" key={4} />,
-    <TextInput label="Created by" source="created_by" key={5} />,
-    <TextInput label="Reviewed by" source="reviewed_by" key={6} />,
-    <TextInput label="Status" source="status" key={7} />,
+export const tallySheetStatusChoices = [
+    {id: "PENDING", name: "PENDING"},
+    {id: "APPROVED", name: "APPROVED"},
+    {id: "DISAPPROVED", name: "DISAPPROVED"},
 ]
 
+const Filters: Array<ReactElement> = [
+    <TextInput label="Version" source="version" key={1} />,
+    <SelectInput label="Status" source="status" key={4} choices={tallySheetStatusChoices} />,
+]
 interface TTallySheetListVersions {
+    election: Sequent_Backend_Election
     tallySheet: Sequent_Backend_Tally_Sheet
-    approveAction: (id: Identifier) => void
-    disapproveAction: (id: Identifier) => void
     doAction: (action: number, id?: Identifier) => void
-    reload: string | null
     setShowVersionsTable: (show: boolean) => void
+    setTallySheetRecord: React.Dispatch<React.SetStateAction<RaRecord<Identifier> | undefined>>
 }
 
 export const ListTallySheetVersions: React.FC<TTallySheetListVersions> = (props) => {
-    const {
-        tallySheet: tallySheet,
-        doAction,
-        reload,
-        approveAction,
-        disapproveAction,
-        setShowVersionsTable,
-    } = props
+    const {election, tallySheet, doAction, setShowVersionsTable, setTallySheetRecord} = props
 
     const {t} = useTranslation()
     const [tenantId] = useTenantStore()
-    const refresh = useRefresh()
     const {globalSettings} = useContext(SettingsContext)
     const notify = useNotify()
     const [openDisapproveDialog, setOpenDisapproveDialog] = React.useState(false)
     const [openApproveDialog, setOpenApproveDialog] = React.useState(false)
-    const [tallySheetId, setTallySheetId] = React.useState<Identifier | undefined>()
 
     const authContext = useContext(AuthContext)
     const canView = authContext.isAuthorized(true, tenantId, IPermissions.TALLY_SHEET_VIEW)
     const canReview = authContext.isAuthorized(true, tenantId, IPermissions.TALLY_SHEET_REVIEW)
 
+    const [reviewTallySheet] = useMutation<ReviewTallySheetMutation>(REVIEW_TALLY_SHEET)
+
     const viewAction = (id: Identifier) => {
-        doAction(WizardSteps.View, id)
+        doAction(WizardSteps.Review)
+    }
+
+    const approveAction = (id: Identifier) => {
+        setOpenApproveDialog(true)
+    }
+
+    const disapproveAction = (id: Identifier) => {
+        setOpenDisapproveDialog(true)
     }
 
     const actions: (record: Sequent_Backend_Tally_Sheet) => Action[] = (record) => [
@@ -102,6 +96,7 @@ export const ListTallySheetVersions: React.FC<TTallySheetListVersions> = (props)
             action: viewAction,
             showAction: () => canView,
             label: t("tallysheet.common.show"),
+            saveRecordAction: setTallySheetRecord,
         },
         {
             icon: (
@@ -112,6 +107,7 @@ export const ListTallySheetVersions: React.FC<TTallySheetListVersions> = (props)
             action: approveAction,
             showAction: () => canReview && record.status === EStatus.PENDING,
             label: t("tallysheet.common.approve"),
+            saveRecordAction: setTallySheetRecord,
         },
         {
             icon: (
@@ -122,6 +118,7 @@ export const ListTallySheetVersions: React.FC<TTallySheetListVersions> = (props)
             action: disapproveAction,
             showAction: () => canReview && record.status === EStatus.PENDING,
             label: t("tallysheet.common.disapprove"),
+            saveRecordAction: setTallySheetRecord,
         },
     ]
     const Empty = () => (
@@ -133,6 +130,21 @@ export const ListTallySheetVersions: React.FC<TTallySheetListVersions> = (props)
     )
     function goBack() {
         setShowVersionsTable(false)
+    }
+
+    const confirmReviewAction = async (newStatus: EStatus) => {
+        const {data, errors} = await reviewTallySheet({
+            variables: {
+                electionEventId: election.election_event_id,
+                tallySheetId: tallySheet?.id,
+                newStatus,
+            },
+        })
+        if (errors) {
+            notify(t("tallysheet.message.reviewError"), {type: "error"})
+        } else {
+            notify(t("tallysheet.message.reviewSuccess"), {type: "success"})
+        }
     }
 
     return (
@@ -154,6 +166,7 @@ export const ListTallySheetVersions: React.FC<TTallySheetListVersions> = (props)
                 }}
                 filters={Filters}
                 empty={<Empty />}
+                sort={{field: "version", order: "ASC"}}
             >
                 <DatagridConfigurable
                     omit={OMIT_FIELDS}
@@ -181,11 +194,7 @@ export const ListTallySheetVersions: React.FC<TTallySheetListVersions> = (props)
                         )}
                     />
 
-                    <FunctionField
-                        key={"Version"}
-                        label={t("tallysheet.versionsTable.version")}
-                        render={(record: any) => <TextField source="version" />}
-                    />
+                    <TextField source="version" label={t("tallysheet.versionsTable.version")} />
 
                     <FunctionField
                         key={"Created by"}
@@ -231,6 +240,37 @@ export const ListTallySheetVersions: React.FC<TTallySheetListVersions> = (props)
                     {t("common.label.back")}
                 </WizardStyles.BackButton>
             </WizardStyles.Toolbar>
+            <Dialog
+                variant="warning"
+                open={openDisapproveDialog}
+                ok={String(t("tallysheet.common.disapprove"))}
+                cancel={String(t("common.label.cancel"))}
+                title={String(t("tallysheet.common.disapprove"))}
+                handleClose={(result: boolean) => {
+                    if (result) {
+                        confirmReviewAction(EStatus.DISAPPROVED)
+                    }
+                    setOpenDisapproveDialog(false)
+                }}
+            >
+                {t("tallysheet.common.warningDisapprove")}
+            </Dialog>
+
+            <Dialog
+                variant="info"
+                open={openApproveDialog}
+                ok={String(t("tallysheet.common.approve"))}
+                cancel={String(t("common.label.cancel"))}
+                title={String(t("tallysheet.common.disapprove"))}
+                handleClose={(result: boolean) => {
+                    if (result) {
+                        confirmReviewAction(EStatus.APPROVED)
+                    }
+                    setOpenApproveDialog(false)
+                }}
+            >
+                {t("tallysheet.common.warningApprove")}
+            </Dialog>
         </>
     )
 }
