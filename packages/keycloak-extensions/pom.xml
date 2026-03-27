@@ -25,6 +25,7 @@ SPDX-License-Identifier: AGPL-3.0-only
         <module>security-question-authenticator</module>
         <module>sequent-theme</module>
         <module>custom-event-listener</module>
+        <module>url-truststore-provider</module>
     </modules>
 
 	<properties>

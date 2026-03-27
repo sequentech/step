@@ -11,6 +11,7 @@
 		"minio:9001",
 		"minio:9000",
 		"keycloak:8090",
+		"keycloak-nginx:8443",
 		"hasura:8080",
 		"vault:8200",
 		"vault:8201",

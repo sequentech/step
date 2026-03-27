@@ -340,6 +340,11 @@ const englishTranslation = {
                     "no-signature": "No signature",
                     "with-signature": "With signature",
                 },
+                voterDigitalCertPolicy: {
+                    policyLabel: "Voter Digital Certificate Policy",
+                    enabled: "Enabled",
+                    disabled: "Disabled",
+                },
                 enrollment: {
                     policyLabel: "Enrollment",
                     options: {
@@ -437,6 +442,7 @@ const englishTranslation = {
                 notifications: "Notifications",
                 reports: "Reports",
                 approvals: "Approvals",
+                cas: "Certificates",
             },
             tally: {
                 emptyHeader: "No Tally yet.",
@@ -2143,6 +2149,54 @@ const englishTranslation = {
                 title: "Testing",
                 testElectionVoterCount: "Test Election Voter Count",
             },
+        },
+        certificateAuthorities: {
+            importButton: "Import Certificates",
+            type: {
+                root: "Root",
+                intermediate: "Intermediate",
+            },
+            expiry: {
+                expired: "Expired",
+                expiringSoon: "Expiring soon",
+                valid: "Valid",
+            },
+            columns: {
+                commonName: "Common Name",
+                type: "Type",
+                issuerCn: "Issuer CN",
+                notBefore: "Valid From",
+                notAfter: "Expires",
+                fingerprint: "SHA256 Fingerprint",
+            },
+            importDialog: {
+                title: "Import Certificate Authorities",
+                subtitle: "Import one or more CA certificates from a PEM file",
+                description:
+                    "Select a PEM file containing one or more certificates. Bundles are supported — each certificate is imported individually.",
+                selectFile: "Select PEM file",
+                fileLoaded: "File loaded ({{bytes}} bytes)",
+                importButton: "Import",
+            },
+            notify: {
+                importSuccess:
+                    "Imported {{inserted}} certificate(s). {{skipped}} skipped (already present).",
+                importError: "Import failed: {{error}}",
+                deleteSuccess: "Certificate deleted.",
+                deleteError: "Error deleting certificate.",
+            },
+            emptyHeader: "No certificate authorities have been imported for this election event.",
+            fileReadError: "Failed to read the file.",
+            viewDialog: {
+                title: "Certificate Authority Details",
+                subject: "Subject",
+                issuer: "Issuer",
+                serialNumber: "Serial Number",
+                pemContent: "PEM Content",
+            },
+            confirmDelete: "Delete Certificate Authority",
+            confirmDeleteDescription:
+                'Are you sure you want to delete the certificate "{{name}}" (fingerprint: {{fingerprint}})?',
         },
     },
 }
