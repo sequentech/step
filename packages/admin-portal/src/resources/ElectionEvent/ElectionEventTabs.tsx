@@ -20,7 +20,12 @@ import {useTranslation} from "react-i18next"
 import {useElectionEventTallyStore} from "@/providers/ElectionEventTallyProvider"
 import {v4 as uuidv4} from "uuid"
 import {EPublishType} from "../Publish/EPublishType"
-import {EElectionEventLockedDown, i18n, translateFromPresentation} from "@sequentech/ui-core"
+import {
+    EElectionEventLockedDown,
+    EVoterDigitalCertPolicy,
+    i18n,
+    translateFromPresentation,
+} from "@sequentech/ui-core"
 import {Box, CircularProgress} from "@mui/material"
 import {Tabs} from "@/components/Tabs"
 import {useNavigate, useLocation} from "react-router-dom"
@@ -44,6 +49,9 @@ const EditElectionEventAreas = lazy(() =>
 )
 const EditElectionEventKeys = lazy(() =>
     import("./EditElectionEventKeys").then((m) => ({default: m.EditElectionEventKeys}))
+)
+const EditElectionEventCAs = lazy(() =>
+    import("./EditElectionEventCAs").then((m) => ({default: m.EditElectionEventCAs}))
 )
 const EditElectionEventTally = lazy(() =>
     import("./EditElectionEventTally").then((m) => ({default: m.EditElectionEventTally}))
@@ -118,6 +126,15 @@ const KeysTab: React.FC<{showKeysList: string | null}> = ({showKeysList}) => (
         <EditElectionEventKeys isShowCeremony={showKeysList} isShowTrusteeCeremony={showKeysList} />
     </Suspense>
 )
+
+const CAsTab: React.FC = () => {
+    const {t} = useTranslation()
+    return (
+        <Suspense fallback={<div>{t("common.label.loadingData")}</div>}>
+            <EditElectionEventCAs />
+        </Suspense>
+    )
+}
 
 const TallyTab: React.FC = () => (
     <Suspense fallback={<div>Loading Tally...</div>}>
@@ -285,6 +302,9 @@ export const ElectionEventTabs: React.FC = () => {
             authContext.tenantId,
             IPermissions.ELECTION_EVENT_APPROVALS_TAB
         )
+    const showCAs =
+        authContext.isAuthorized(true, authContext.tenantId, IPermissions.ELECTION_EVENT_CAS_TAB) &&
+        record?.presentation?.voter_digital_cert_policy === EVoterDigitalCertPolicy.ENABLED
 
     // -----------------------------------------------------------------
     // Build tabs with 100% stable references
@@ -337,6 +357,11 @@ export const ElectionEventTabs: React.FC = () => {
                 props: {showKeysList},
                 action: () => setShowKeysList(uuidv4()),
             })
+        }
+
+        // CAs
+        if (showCAs) {
+            result.push({label: t("electionEventScreen.tabs.cas"), component: CAsTab})
         }
 
         // Tally
@@ -417,6 +442,7 @@ export const ElectionEventTabs: React.FC = () => {
         showEvents,
         showReports,
         showApprovalsExecution,
+        showCAs,
         t,
         showKeysList,
         showPublishList,

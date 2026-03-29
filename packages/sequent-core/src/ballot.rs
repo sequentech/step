@@ -1163,6 +1163,8 @@ pub struct ElectionEventPresentation {
     pub otp: Option<Otp>,
     /// Voter signing policy.
     pub voter_signing_policy: Option<VoterSigningPolicy>,
+    /// Policy for voter digital certificate.
+    pub voter_digital_cert_policy: Option<VoterDigitalCertPolicy>,
     /// Policy for weighted voting.
     pub weighted_voting_policy: Option<WeightedVotingPolicy>,
     /// Ceremonies policy.
@@ -2014,6 +2016,33 @@ pub enum VoterSigningPolicy {
     #[serde(rename = "with-signature")]
     /// Votes are signed with the voter's signature.
     WITH_SIGNATURE,
+}
+
+#[allow(non_camel_case_types)]
+#[derive(
+    BorshSerialize,
+    BorshDeserialize,
+    Default,
+    Display,
+    Serialize,
+    Deserialize,
+    Debug,
+    PartialEq,
+    Eq,
+    Clone,
+    EnumString,
+    JsonSchema,
+)]
+/// Configuration for voter digital certificate policy.
+#[allow(missing_docs)]
+pub enum VoterDigitalCertPolicy {
+    #[default]
+    #[strum(serialize = "disabled")]
+    #[serde(rename = "disabled")]
+    DISABLED,
+    #[strum(serialize = "enabled")]
+    #[serde(rename = "enabled")]
+    ENABLED,
 }
 
 #[allow(non_camel_case_types)]

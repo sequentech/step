@@ -327,10 +327,10 @@ nix-collect-garbage
 cargo clean
 ```
 
-Also you can try, inside the ssh'd machine:
+Also you can run:
 
 ```bash
-/home/<username>/step/packages
+sudo rm -rf /workspaces/step/packages/target
 ```
 
 ### Fix starting/restarting containers

@@ -85,6 +85,11 @@ export enum EElectionEventDelegatedVotingPolicy {
     DISABLED = "disabled",
 }
 
+export enum EVoterDigitalCertPolicy {
+    ENABLED = "enabled",
+    DISABLED = "disabled",
+}
+
 export interface IElectionEventPresentation {
     i18n?: Record<string, Record<string, string>>
     materials?: IElectionEventMaterials
@@ -106,5 +111,6 @@ export interface IElectionEventPresentation {
     ceremonies_policy?: EElectionEventCeremoniesPolicy
     weighted_voting_policy?: EElectionEventWeightedVotingPolicy
     voter_signing_policy?: EVoterSigningPolicy
+    voter_digital_cert_policy?: EVoterDigitalCertPolicy
     delegated_voting_policy: EElectionEventDelegatedVotingPolicy
 }

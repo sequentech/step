@@ -342,6 +342,11 @@ const spanishTranslation: TranslationType = {
                     "no-signature": "Sin firma",
                     "with-signature": "Con firma",
                 },
+                voterDigitalCertPolicy: {
+                    policyLabel: "Voter Digital Certificate Policy",
+                    enabled: "Habilitado",
+                    disabled: "Deshabilitado",
+                },
                 enrollment: {
                     policyLabel: "Inscripción",
                     options: {
@@ -439,6 +444,7 @@ const spanishTranslation: TranslationType = {
                 notifications: "Notificaciones",
                 reports: "Informe",
                 approvals: "Aprobaciones",
+                cas: "Certificados",
             },
             tally: {
                 emptyHeader: "Ningún Recuento aún.",
@@ -2162,6 +2168,55 @@ const spanishTranslation: TranslationType = {
                 title: "Pruebas",
                 testElectionVoterCount: "Conteo de Votantes en Elección de Prueba",
             },
+        },
+        certificateAuthorities: {
+            importButton: "Importar certificados",
+            type: {
+                root: "Raíz",
+                intermediate: "Intermedio",
+            },
+            expiry: {
+                expired: "Vencido",
+                expiringSoon: "Por vencer",
+                valid: "Válido",
+            },
+            columns: {
+                commonName: "Nombre común",
+                type: "Tipo",
+                issuerCn: "CN del emisor",
+                notBefore: "Válido desde",
+                notAfter: "Vence",
+                fingerprint: "Huella SHA256",
+            },
+            importDialog: {
+                title: "Importar autoridades de certificación",
+                subtitle: "Importar uno o más certificados CA desde un archivo PEM",
+                description:
+                    "Seleccione un archivo PEM que contenga uno o más certificados. Se admiten paquetes — cada certificado se importa individualmente.",
+                selectFile: "Seleccionar archivo PEM",
+                fileLoaded: "Archivo cargado ({{bytes}} bytes)",
+                importButton: "Importar",
+            },
+            notify: {
+                importSuccess:
+                    "Se importaron {{inserted}} certificado(s). {{skipped}} omitido(s) (ya presentes).",
+                importError: "Error al importar: {{error}}",
+                deleteSuccess: "Certificado eliminado.",
+                deleteError: "Error al eliminar el certificado.",
+            },
+            emptyHeader:
+                "No se han importado autoridades de certificación para este evento electoral.",
+            fileReadError: "Error al leer el archivo.",
+            viewDialog: {
+                title: "Detalles de la autoridad de certificación",
+                subject: "Asunto",
+                issuer: "Emisor",
+                serialNumber: "Número de serie",
+                pemContent: "Contenido PEM",
+            },
+            confirmDelete: "Eliminar autoridad de certificación",
+            confirmDeleteDescription:
+                '¿Está seguro de que desea eliminar el certificado "{{name}}" (huella: {{fingerprint}})?',
         },
     },
 }
