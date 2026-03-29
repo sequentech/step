@@ -36,6 +36,11 @@ impl DecodeBallots {
 
 impl DecodeBallots {
     #[instrument(err, skip(contest))]
+    /// Decodes ballots from a file using the specified contest configuration.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the file cannot be read or if ballot format is invalid.
     fn decode_ballots(path: &Path, contest: &Contest) -> Result<Vec<DecodedVoteContest>> {
         let file = fs::File::open(path).map_err(|e| Error::FileAccess(path.to_path_buf(), e))?;
         let reader = std::io::BufReader::new(file);

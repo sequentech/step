@@ -58,18 +58,10 @@ impl CliRun {
         let config: Config = parse_file(file)?;
 
         for stage in &config.stages.order {
-            if !config.stages.stages_def.contains_key(stage) {
+            let Some(stage_def) = config.stages.stages_def.get(stage) else {
                 return Err(Error::StageDefinition(format!(
                     "Stage '{stage}', defined in stages.order, is not defined in stages."
                 )));
-            }
-            let stage_def = match config.stages.stages_def.get(stage) {
-                Some(def) => def,
-                None => {
-                    return Err(Error::StageDefinition(format!(
-                        "Stage '{stage}', defined in stages.order, is not defined in stages."
-                    )))
-                }
             };
             let pipeline = &stage_def.pipeline;
             let hash_set: HashSet<_> = pipeline.iter().map(|p| p.pipe.as_ref()).collect();

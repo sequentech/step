@@ -47,6 +47,11 @@ impl BallotImages {
     }
 
     #[instrument(skip_all, err)]
+    /// Generates ballot images (PDF and HTML) for a contest.
+    ///
+    /// # Errors
+    /// Returns an error if tally creation, template rendering, or PDF generation fails.
+    #[allow(clippy::unused_self)]
     fn print_ballot_images(
         &self,
         path: &Path,
@@ -118,10 +123,10 @@ impl BallotImages {
                 ))
             })?;
 
-        let pdf_options = match pipe_config.pdf_options.clone() {
-            Some(options) => Some(options.to_print_to_pdf_options()),
-            None => None,
-        };
+        let pdf_options = pipe_config
+            .pdf_options
+            .clone()
+            .map(|options| options.to_print_to_pdf_options());
 
         let bytes_pdf = if pipe_config.enable_pdfs {
             let bytes_html = bytes_html.clone();
@@ -137,13 +142,17 @@ impl BallotImages {
     }
 
     #[instrument(err, skip_all)]
+    /// Gets the ballot images pipe configuration.
+    ///
+    /// # Errors
+    /// Returns an error if deserialization of the pipe config fails.
     pub fn get_config(&self) -> Result<PipeConfigBallotImages> {
         let pipe_config: PipeConfigBallotImages = self
             .pipe_inputs
             .stage
             .pipe_config(self.pipe_inputs.stage.current_pipe)
             .and_then(|pc| pc.config)
-            .map(|value| serde_json::from_value(value))
+            .map(serde_json::from_value)
             .transpose()?
             .unwrap_or_default();
         Ok(pipe_config)
@@ -151,6 +160,7 @@ impl BallotImages {
 }
 
 #[instrument(skip_all)]
+/// Returns the ballot images pipe metadata.
 fn get_pipe_data() -> BallotImagesPipeData {
     BallotImagesPipeData {
         output_file_pdf: BALLOT_IMAGES_OUTPUT_FILE_PDF.to_string(),
@@ -189,14 +199,13 @@ impl Pipe for BallotImages {
                         let (bytes_pdf, bytes_html) = self.print_ballot_images(
                             decoded_ballots_file.as_path(),
                             &contest_input.contest,
-                            &election_input,
+                            election_input,
                             &pipe_config,
                             &area_input.area.name,
                         )?;
 
                         let path = PipeInputs::build_path(
-                            &self
-                                .pipe_inputs
+                            self.pipe_inputs
                                 .cli
                                 .output_dir
                                 .join(&pipe_type_data.pipe_name_output_dir)
@@ -215,7 +224,7 @@ impl Pipe for BallotImages {
                                 .truncate(true)
                                 .create(true)
                                 .open(file)?;
-                            file.write_all(&some_bytes_pdf)?;
+                            file.write_all(some_bytes_pdf)?;
                         }
 
                         let file = path.join(&pipe_type_data.output_file_html);
@@ -226,11 +235,11 @@ impl Pipe for BallotImages {
                             .open(file)?;
                         file.write_all(&bytes_html)?;
                     } else {
-                        println!(
+                        tracing::warn!(
                             "[{}] File not found: {} -- Not processed",
                             pipe_type_data.pipe_name,
                             decoded_ballots_file.display()
-                        )
+                        );
                     }
                 }
             }
@@ -241,13 +250,21 @@ impl Pipe for BallotImages {
 }
 
 #[derive(Serialize)]
+/// Template data for rendering ballot images.
 struct TemplateData {
+    /// The contest configuration.
     pub contest: Contest,
+    /// The decoded ballot choices.
     pub ballots: Vec<DecodedVoteContest>,
+    /// The election name.
     pub election_name: String,
+    /// The election alias.
     pub election_alias: String,
+    /// The area name.
     pub area: String,
+    /// The election dates.
     pub election_dates: Option<StringifiedPeriodDates>,
+    /// The election annotations.
     pub election_annotations: HashMap<String, String>,
 }
 
@@ -286,6 +303,7 @@ pub struct DecodedChoice {
 }
 
 #[instrument(skip_all)]
+/// Computes template data by processing ballot data for rendering.
 fn compute_data(data: TemplateData) -> ComputedTemplateData {
     let receipts = data
         .ballots
@@ -311,17 +329,19 @@ fn compute_data(data: TemplateData) -> ComputedTemplateData {
                 .filter(|can| can.is_selected())
                 .count();
 
-            let is_blank = selected_candidates.len() == 0;
-            let undervotes = data.contest.max_votes - (num_selected as i64);
-            let mut overvotes = 0;
-            if (num_selected as i64) > data.contest.max_votes {
-                overvotes = (num_selected as i64) - data.contest.max_votes;
+            let is_blank = selected_candidates.is_empty();
+            let num_selected_i64 =
+                i64::try_from(num_selected).expect("num_selected should fit in i64");
+            let undervotes = data.contest.max_votes.saturating_sub(num_selected_i64);
+            let mut overvotes = 0i64;
+            if num_selected_i64 > data.contest.max_votes {
+                overvotes = num_selected_i64.saturating_sub(data.contest.max_votes);
             }
 
             let encoded_vote_contest = data
                 .contest
                 .encode_plaintext_contest_bigint(decoded_vote_contest)
-                .unwrap()
+                .expect("Failed to encode plaintext contest")
                 .to_string();
 
             let decoded_choices = decoded_vote_contest

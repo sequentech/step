@@ -36,6 +36,7 @@ pub const ELECTION_CONFIG_FILE: &str = "election-config.json";
 pub const CONTEST_CONFIG_FILE: &str = "contest-config.json";
 pub const AREA_CONFIG_FILE: &str = "area-config.json";
 pub const BALLOTS_FILE: &str = "ballots.csv";
+/// Length of a UUID string representation.
 const UUID_LEN: usize = 36;
 
 #[derive(Debug)]
@@ -51,6 +52,10 @@ pub struct PipeInputs {
 
 impl PipeInputs {
     #[instrument(err, skip_all, name = "PipeInputs::new")]
+    /// Creates a new `PipeInputs` instance from CLI arguments and stage configuration.
+    ///
+    /// # Errors
+    /// Returns an error if input directory reading or election configuration parsing fails.
     pub fn new(cli: CliRun, stage: Stage) -> Result<Self> {
         let root_path_config = &cli.input_dir.join(DEFAULT_DIR_CONFIGS);
         let root_path_ballots = &cli.input_dir.join(DEFAULT_DIR_BALLOTS);
@@ -60,10 +65,10 @@ impl PipeInputs {
         let election_list = Self::read_input_dir_config(root_path_config.as_path())?;
         Ok(Self {
             cli,
-            root_path_config: root_path_config.to_path_buf(),
-            root_path_ballots: root_path_ballots.to_path_buf(),
-            root_path_tally_sheets: root_path_tally_sheets.to_path_buf(),
-            root_path_database: root_path_database.to_path_buf(),
+            root_path_config: root_path_config.clone(),
+            root_path_ballots: root_path_ballots.clone(),
+            root_path_tally_sheets: root_path_tally_sheets.clone(),
+            root_path_database: root_path_database.clone(),
             stage,
             election_list,
         })
@@ -79,7 +84,7 @@ impl PipeInputs {
         let mut path = PathBuf::new();
 
         path.push(root);
-        path.push(format!("{}{}", PREFIX_ELECTION, election_id));
+        path.push(format!("{PREFIX_ELECTION}{election_id}"));
 
         if let Some(contest_id) = contest_id {
             path.push(format!("{PREFIX_CONTEST}{contest_id}"));
@@ -98,7 +103,7 @@ impl PipeInputs {
 
         path.push(root);
         path.push(format!("{PREFIX_ELECTION}{election_id}"));
-        path.push(PREFIX_ALL_AREAS.to_string());
+        path.push(PREFIX_ALL_AREAS);
 
         path
     }
@@ -154,19 +159,21 @@ impl PipeInputs {
 
     #[instrument(skip_all)]
     pub fn get_tally_sheet_id_from_path(path: &Path) -> Option<String> {
-        let Some(folder_name) = get_folder_name(path) else {
-            return None;
-        };
+        let folder_name = get_folder_name(path)?;
         if folder_name.starts_with(PREFIX_TALLY_SHEET) {
             folder_name
                 .strip_prefix(PREFIX_TALLY_SHEET)
-                .map(|val| val.to_string())
+                .map(std::string::ToString::to_string)
         } else {
             None
         }
     }
 
     #[instrument(err)]
+    /// Reads and parses all election configurations from the input directory.
+    ///
+    /// # Errors
+    /// Returns an error if directory reading or election config parsing fails.
     fn read_input_dir_config(input_dir: &Path) -> Result<Vec<InputElectionConfig>> {
         let entries = fs::read_dir(input_dir)?;
 
@@ -180,6 +187,10 @@ impl PipeInputs {
     }
 
     #[instrument(err)]
+    /// Reads and parses election configuration from a directory.
+    ///
+    /// # Errors
+    /// Returns an error if file access, config parsing, or contest reading fails.
     fn read_election_list_config(path: &Path) -> Result<InputElectionConfig> {
         let entries = fs::read_dir(path)?;
 
@@ -196,9 +207,9 @@ impl PipeInputs {
 
         let mut configs = vec![];
         for entry in entries {
-            let path = entry?.path();
-            if path.is_dir() {
-                let config = Self::read_contest_list_config(&path, election_id)?;
+            let entry_path = entry?.path();
+            if entry_path.is_dir() {
+                let config = Self::read_contest_list_config(&entry_path, election_id)?;
                 configs.push(config);
             }
         }
@@ -222,6 +233,10 @@ impl PipeInputs {
     }
 
     #[instrument(err)]
+    /// Reads and parses contest configuration from a directory.
+    ///
+    /// # Errors
+    /// Returns an error if file access, config parsing, or area reading fails.
     fn read_contest_list_config(path: &Path, election_id: Uuid) -> Result<InputContestConfig> {
         let contest_id =
             Self::parse_path_components(path, PREFIX_CONTEST).ok_or(Error::IDNotFound)?;
@@ -249,9 +264,9 @@ impl PipeInputs {
                     return Err(Error::AreaConfigNotFound(area_id));
                 }
 
-                let config_file = fs::File::open(&config_path_area)
+                let config_file_area = fs::File::open(&config_path_area)
                     .map_err(|e| Error::FileAccess(config_path_area.clone(), e))?;
-                let area_config: AreaConfig = parse_file(config_file)?;
+                let area_config: AreaConfig = parse_file(config_file_area)?;
 
                 configs.push(InputAreaConfig {
                     id: area_id,
@@ -275,12 +290,17 @@ impl PipeInputs {
     }
 
     #[instrument]
+    /// Parses UUID from path components with a given prefix.
+    ///
+    /// # Errors (implicit - returns None)
+    /// Returns `None` if the prefix is not found in the path or UUID parsing fails.
     fn parse_path_components(path: &Path, prefix: &str) -> Option<Uuid> {
         for component in path.components() {
             let part = component.as_os_str().to_string_lossy();
 
             if let Some(res) = part.strip_prefix(prefix) {
-                let slice = &res[res.len() - UUID_LEN..];
+                let start = res.len().saturating_sub(UUID_LEN);
+                let slice = &res[start..];
                 // Check if the string length is at least 36
                 if res.len() >= UUID_LEN {
                     // Use the last 36 characters for UUID parsing
@@ -319,6 +339,7 @@ pub struct AreaContest {
 
 impl InputElectionConfig {
     #[instrument(skip_all)]
+    /// Creates a map of area IDs to their associated contest information.
     pub(crate) fn get_area_contest_map(&self) -> HashMap<Uuid, AreaContest> {
         let mut ret: HashMap<Uuid, AreaContest> = HashMap::new();
 
@@ -395,14 +416,14 @@ pub struct AreaConfig {
     pub auditable_votes: u64,
 }
 
-impl Into<TreeNodeArea> for &AreaConfig {
-    fn into(self) -> TreeNodeArea {
+impl From<&AreaConfig> for TreeNodeArea {
+    fn from(area: &AreaConfig) -> Self {
         TreeNodeArea {
-            id: self.id.to_string(),
-            tenant_id: self.tenant_id.to_string(),
-            annotations: Default::default(),
-            election_event_id: self.election_event_id.to_string(),
-            parent_id: self.parent_id.clone().map(|val| val.to_string()),
+            id: area.id.to_string(),
+            tenant_id: area.tenant_id.to_string(),
+            annotations: None,
+            election_event_id: area.election_event_id.to_string(),
+            parent_id: area.parent_id.map(|val| val.to_string()),
         }
     }
 }

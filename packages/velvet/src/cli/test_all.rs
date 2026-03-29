@@ -49,7 +49,7 @@ pub fn generate_ballots(
 
     (0..election_num).try_for_each(|_| {
         let areas: Vec<Uuid> = (0..area_num).map(|_| Uuid::new_v4()).collect();
-        let mut election = fixture.create_election_config(&election_event_id, areas)?;
+        let mut election = fixture.create_election_config(&election_event_id, &areas)?;
         election.ballot_styles.clear();
 
         (0..contest_num).try_for_each(|_| {
@@ -141,7 +141,7 @@ pub fn generate_ballots(
                                 choice.selected = 0;
                             }
                         }
-                        2 => {
+                        2 | _ => {
                             if let Some(choice) = choices.get_mut(1) {
                                 choice.selected = 0;
                             }
@@ -173,11 +173,6 @@ pub fn generate_ballots(
                         15 => {
                             if let Some(choice3) = choices.get_mut(3) {
                                 choice3.selected = 42;
-                            }
-                        }
-                        _ => {
-                            if let Some(choice) = choices.get_mut(1) {
-                                choice.selected = 0;
                             }
                         }
                     }
@@ -231,7 +226,7 @@ pub fn generate_mcballots(
 
     (0..election_num).try_for_each(|_| {
         let areas: Vec<Uuid> = (0..area_num).map(|_| Uuid::new_v4()).collect();
-        let mut election = fixture.create_election_config(&election_event_id, areas)?;
+        let mut election = fixture.create_election_config(&election_event_id, &areas)?;
         election.ballot_styles.clear();
 
         let mut dvcs_by_area: HashMap<(String, u32), Vec<DecodedVoteContest>> = HashMap::new();
@@ -337,15 +332,19 @@ pub fn generate_mcballots(
                                 choice.selected = 0;
                             }
                         }
-                        2 => {
+                        2 | _ => {
                             if let Some(choice) = choices.get_mut(1) {
                                 choice.selected = 0;
                             }
                         }
-                        3 => {
+                        3 | 14 => {
                             if let Some(choice) = choices.get_mut(2) {
                                 choice.selected = 0;
                             }
+                            // For 14: We are not yet testing errors due to more than max allowed votes
+                            // if let Some(choice) = choices.get_mut(3) {
+                            //     choice.selected = 42;
+                            // }
                         }
                         4 | 8 | 9 => {
                             if let Some(choice) = choices.get_mut(3) {
@@ -358,23 +357,9 @@ pub fn generate_mcballots(
                             }
                         }
                         10..=12 => (),
-                        14 => {
-                            if let Some(choice) = choices.get_mut(2) {
-                                choice.selected = 0;
-                            }
-                            // We are not yet testing errors due to more than max allowed votes
-                            // if let Some(choice) = choices.get_mut(3) {
-                            //     choice.selected = 42;
-                            // }
-                        }
                         15 => {
                             if let Some(choice) = choices.get_mut(3) {
                                 choice.selected = 42;
-                            }
-                        }
-                        _ => {
-                            if let Some(choice) = choices.get_mut(1) {
-                                choice.selected = 0;
                             }
                         }
                     }
@@ -468,6 +453,9 @@ mod tests {
     use crate::pipes::pipe_inputs::{PREFIX_AREA, PREFIX_CONTEST, PREFIX_ELECTION};
     use crate::pipes::pipe_name::PipeNameOutputDir;
     use anyhow::{Error, Result};
+    use sequent_core::ballot::EBlankVotePolicy;
+    use sequent_core::ballot::EOverVotePolicy;
+    use sequent_core::ballot::InvalidVotePolicy;
     use sequent_core::ballot_codec::BigUIntCodec;
     use sequent_core::plaintext::{DecodedVoteChoice, DecodedVoteContest};
     use sequent_core::serialization::deserialize_with_path::deserialize_str;
@@ -486,7 +474,7 @@ mod tests {
 
         let election_event_id = Uuid::new_v4();
         let areas: Vec<Uuid> = vec![Uuid::new_v4()];
-        let election = fixture.create_election_config(&election_event_id, areas)?;
+        let election = fixture.create_election_config(&election_event_id, &areas)?;
         let contest =
             fixture.create_contest_config(&election.tenant_id, &election_event_id, &election.id)?;
 
@@ -848,7 +836,7 @@ mod tests {
         let election_event_id = Uuid::new_v4();
         let areas: Vec<Uuid> = vec![Uuid::new_v4(), Uuid::new_v4()];
 
-        let mut election = fixture.create_election_config(&election_event_id, areas)?;
+        let mut election = fixture.create_election_config(&election_event_id, &areas)?;
         election.ballot_styles.clear();
 
         // First ballot style
@@ -1293,7 +1281,7 @@ mod tests {
         let election_event_id = Uuid::new_v4();
         let areas: Vec<Uuid> = vec![Uuid::new_v4()];
 
-        let mut election = fixture.create_election_config(&election_event_id, areas)?;
+        let mut election = fixture.create_election_config(&election_event_id, &areas)?;
         election.ballot_styles.clear();
 
         // First ballot style
@@ -1399,7 +1387,7 @@ mod tests {
         let election_event_id = Uuid::new_v4();
         let areas: Vec<Uuid> = vec![Uuid::new_v4()];
 
-        let mut election = fixture.create_election_config(&election_event_id, areas)?;
+        let mut election = fixture.create_election_config(&election_event_id, &areas)?;
         election.ballot_styles.clear();
 
         // First ballot style
@@ -1555,7 +1543,7 @@ mod tests {
         let election_event_id = Uuid::new_v4();
         let areas: Vec<Uuid> = vec![Uuid::new_v4()];
 
-        let mut election = fixture.create_election_config(&election_event_id, areas)?;
+        let mut election = fixture.create_election_config(&election_event_id, &areas)?;
         election.ballot_styles.clear();
 
         // First ballot style
@@ -1722,7 +1710,7 @@ mod tests {
 
         let mut election = fixture.create_election_config_2(
             &election_event_id,
-            vec![
+            &[
                 (child_area_id, Some(parent_area_id)),
                 (parent_area_id, None),
             ],

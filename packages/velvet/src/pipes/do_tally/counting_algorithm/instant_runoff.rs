@@ -5,8 +5,8 @@
 use super::Result;
 use super::{CountingAlgorithm, Error};
 use crate::pipes::do_tally::{
-    counting_algorithm::utils::*, tally::Tally, CandidateResult, ContestResult,
-    ExtendedMetricsContest, InvalidVotes,
+    counting_algorithm::utils::update_extended_metrics, tally::Tally, CandidateResult,
+    ContestResult, ExtendedMetricsContest, InvalidVotes,
 };
 use rand::prelude::IndexedRandom;
 use rand::seq::SliceRandom;
@@ -37,25 +37,36 @@ pub enum ECandidateStatus {
 }
 
 impl ECandidateStatus {
-    fn is_active(&self) -> bool {
-        self == &ECandidateStatus::Active
+    /// Checks if this candidate status is active.
+    fn is_active(self) -> bool {
+        self == ECandidateStatus::Active
     }
 }
 
 #[derive(PartialEq, Debug, Copy, Clone)]
+/// Status classification for a ballot during counting.
 enum BallotStatus {
+    /// Ballot is valid and contains valid votes.
     Valid,
+    /// Ballot is exhausted (no more valid choices available).
     Exhausted,
+    /// Ballot contains invalid votes.
     Invalid,
+    /// Ballot is blank (no votes selected).
     Blank,
 }
 
 #[derive(Debug)]
 pub struct BallotsStatus<'a> {
+    /// List of ballots with their status, decoded votes, and weight.
     ballots: Vec<(BallotStatus, &'a DecodedVoteContest, Weight)>,
+    /// Count of valid ballots.
     count_valid: u64,
+    /// Count of ballots with invalid votes.
     count_invalid_votes: InvalidVotes,
+    /// Count of blank ballots.
     count_blank: u64,
+    /// Extended metrics for ballot analysis.
     extended_metrics: ExtendedMetricsContest,
 }
 
@@ -79,33 +90,35 @@ impl BallotsStatus<'_> {
             let status = match (vote.is_invalid(), vote.is_blank()) {
                 (true, _) => {
                     if vote.is_explicit_invalid {
-                        count_invalid_votes.explicit += 1;
+                        count_invalid_votes.explicit =
+                            count_invalid_votes.explicit.saturating_add(1);
                     } else {
-                        count_invalid_votes.implicit += 1;
+                        count_invalid_votes.implicit =
+                            count_invalid_votes.implicit.saturating_add(1);
                     }
                     BallotStatus::Invalid
                 }
                 (false, true) => {
-                    count_blank += 1;
+                    count_blank = count_blank.saturating_add(1);
                     BallotStatus::Blank
                 }
                 (false, false) => BallotStatus::Valid,
             };
             extended_metrics = update_extended_metrics(vote, &extended_metrics, contest);
-            ballots.push((status, vote, weight.clone()));
+            ballots.push((status, vote, *weight));
         }
         let total_ballots = votes.len() as u64;
         extended_metrics.total_ballots = total_ballots;
         let count_valid = total_ballots
-            - count_invalid_votes.explicit
-            - count_invalid_votes.implicit
-            - count_blank;
+            .saturating_sub(count_invalid_votes.explicit)
+            .saturating_sub(count_invalid_votes.implicit)
+            .saturating_sub(count_blank);
         BallotsStatus {
             ballots,
             count_valid,
             count_invalid_votes,
-            extended_metrics,
             count_blank,
+            extended_metrics,
         }
     }
 }
@@ -119,6 +132,7 @@ pub struct CandidateOutcome {
     pub percentage: f64,
 }
 
+/// Mapping of candidate IDs to their outcomes in a counting round.
 type CandidatesOutcomes = HashMap<String, CandidateOutcome>;
 
 #[derive(Debug, Default, Serialize, Deserialize)]
@@ -139,14 +153,15 @@ impl DerefMut for CandidatesStatus {
 
 impl CandidatesStatus {
     #[instrument(skip_all)]
+    /// Initializes candidate outcomes with zero wins for all active candidates.
     fn initialize_candidates_wins(&self) -> CandidatesOutcomes {
         let mut candidates_wins: CandidatesOutcomes = HashMap::new();
-        for (candidate_id, status) in self.0.iter() {
+        for (candidate_id, status) in &self.0 {
             if status.is_active() {
                 candidates_wins.insert(
                     candidate_id.clone(),
                     CandidateOutcome {
-                        name: "".to_string(),
+                        name: String::new(),
                         wins: 0,
                         transference: 0,
                         percentage: 0.0,
@@ -158,6 +173,7 @@ impl CandidatesStatus {
     }
 
     #[instrument(skip_all)]
+    /// Gets the list of candidate IDs that are currently active.
     fn get_active_candidate_ids(&self) -> Vec<String> {
         self.0
             .iter()
@@ -172,6 +188,7 @@ impl CandidatesStatus {
     }
 
     #[instrument(skip_all)]
+    /// Marks a candidate as eliminated.
     fn set_candidate_to_eliminated(&mut self, candidate_id: &str) {
         self.insert(candidate_id.to_string(), ECandidateStatus::Eliminated);
     }
@@ -202,7 +219,7 @@ pub struct RunoffStatus {
 impl RunoffStatus {
     #[instrument(skip_all)]
     pub fn initialize_runoff(contest: &Contest) -> RunoffStatus {
-        let max_rounds = contest.candidates.len() as u64 + 1; // At least 1 candidate is eliminated per round
+        let max_rounds = (contest.candidates.len() as u64).saturating_add(1); // At least 1 candidate is eliminated per round
         let mut candidates_status = CandidatesStatus(HashMap::new());
         let mut name_references = vec![];
         for candidate in &contest.candidates {
@@ -281,13 +298,13 @@ impl RunoffStatus {
         let previous_round = self.get_last_round();
         let mut new_current_wins = current_wins.clone();
         if let Some(prev_round) = previous_round {
-            for (candidate_id, outcome) in new_current_wins.iter_mut() {
+            for (candidate_id, outcome) in &mut new_current_wins {
                 let prev_wins = prev_round
                     .candidates_wins
                     .get(candidate_id)
-                    .map(|o| o.wins)
-                    .unwrap_or(0);
-                outcome.transference = outcome.wins as i64 - prev_wins as i64;
+                    .map_or(0, |o| o.wins);
+                outcome.transference =
+                    (outcome.wins.cast_signed()).saturating_sub(prev_wins.cast_signed());
             }
         }
         // If no previous round, transference stays at 0 (initial values)
@@ -334,9 +351,7 @@ impl RunoffStatus {
         // FULL TIE: All active candidates have the same (lowest) number of votes
         // No meaningful elimination possible → winner decided by tiebreak policy
         let mut rng = thread_rng();
-        let Some(winner_id) = candidates_to_eliminate.choose(&mut rng) else {
-            return None;
-        };
+        let winner_id = candidates_to_eliminate.choose(&mut rng)?;
         let winner_name = self.get_candidate_name(winner_id).unwrap_or_default();
         info!(
             "IRV full tie detected among {} candidates. Selecting winner by lot: {} ({})",
@@ -346,7 +361,7 @@ impl RunoffStatus {
         );
 
         let winner = CandidateReference {
-            id: winner_id.to_string(),
+            id: winner_id.clone(),
             name: winner_name.clone(),
         };
         // Mark all others as eliminated, keep only the random winner active
@@ -358,7 +373,7 @@ impl RunoffStatus {
             self.candidates_status
                 .set_candidate_to_eliminated(candidate_id);
             eliminated.push(CandidateReference {
-                id: candidate_id.to_string(),
+                id: candidate_id.clone(),
                 name: self.get_candidate_name(candidate_id).unwrap_or_default(),
             });
         }
@@ -367,7 +382,7 @@ impl RunoffStatus {
         let winner_votes = candidates_wins.get(winner_id).map_or(0, |o| o.wins);
 
         let resolution_data = TallySessionResolutionData {
-            round_number: Some(self.round_count + 1),
+            round_number: Some(self.round_count.saturating_add(1)),
             tied_candidate_ids: candidates_to_eliminate.clone(),
             vote_count: winner_votes,
             method_used: TieBreakingMethod::Random,
@@ -376,7 +391,7 @@ impl RunoffStatus {
 
         self.tie_resolutions.push(resolution_data);
 
-        return Some((winner, eliminated));
+        Some((winner, eliminated))
     }
 
     pub fn determine_winner_by_external_procedure(
@@ -384,7 +399,7 @@ impl RunoffStatus {
         candidates_to_eliminate: &Vec<String>,
         candidates_wins: &CandidatesOutcomes,
     ) -> Option<(CandidateReference, Vec<CandidateReference>)> {
-        let current_round = self.round_count + 1;
+        let current_round = self.round_count.saturating_add(1);
 
         // Check if there's a resolution that matches the tie.
         let existing_resolution = self.tie_resolutions.iter().find(|data| {
@@ -403,7 +418,7 @@ impl RunoffStatus {
                 let winner_name = self.get_candidate_name(winner_id).unwrap_or_default();
 
                 let winner = CandidateReference {
-                    id: winner_id.to_string(),
+                    id: winner_id.clone(),
                     name: winner_name,
                 };
 
@@ -415,7 +430,7 @@ impl RunoffStatus {
                     self.candidates_status
                         .set_candidate_to_eliminated(candidate_id);
                     eliminated.push(CandidateReference {
-                        id: candidate_id.to_string(),
+                        id: candidate_id.clone(),
                         name: self.get_candidate_name(candidate_id).unwrap_or_default(),
                     });
                 }
@@ -482,13 +497,13 @@ impl RunoffStatus {
 
     /// Returns None if the ballot is Exhausted.
     /// We take into account the redristribution of votes here...
-    /// The first choice is the first not eliminated candidate_id in order of preference.
+    /// The first choice is the first not eliminated `candidate_id` in order of preference.
     /// This avoids having to modify the ballots list in memory.
     #[instrument(skip_all)]
     pub fn find_first_active_choice(
         &self,
-        choices: &Vec<DecodedVoteChoice>,
-        active_candidate_ids: &Vec<String>,
+        choices: &[DecodedVoteChoice],
+        active_candidate_ids: &[String],
     ) -> Option<String> {
         let mut choices: Vec<DecodedVoteChoice> = choices
             .iter()
@@ -513,13 +528,13 @@ impl RunoffStatus {
         let mut candidates_wins = self.candidates_status.initialize_candidates_wins();
         let act_candidate_ids = self.candidates_status.get_active_candidate_ids();
         let act_candidates_count = act_candidate_ids.len() as u64;
-        let mut act_ballots = 0;
+        let mut act_ballots: u64 = 0;
         let mut exhausted_ballots = self
             .get_last_round()
             .unwrap_or_default()
             .exhausted_ballots_count;
 
-        for (ballot_st, ballot, weight) in ballots_status.ballots.iter_mut() {
+        for (ballot_st, ballot, weight) in &mut ballots_status.ballots {
             if *ballot_st != BallotStatus::Valid {
                 continue;
             }
@@ -527,70 +542,70 @@ impl RunoffStatus {
             let w = weight.unwrap_or_default();
             if let Some(candidate_id) = candidate_id {
                 if let Some(outcome) = candidates_wins.get_mut(&candidate_id) {
-                    outcome.wins += w;
+                    outcome.wins = outcome.wins.saturating_add(w);
                 }
-                act_ballots += 1;
+                act_ballots = act_ballots.saturating_add(1);
             } else {
                 *ballot_st = BallotStatus::Exhausted;
-                exhausted_ballots += 1;
+                exhausted_ballots = exhausted_ballots.saturating_add(1);
             }
         }
 
         candidates_wins = self.calculate_transferences(&candidates_wins);
 
         // Calculate percentages using act_ballots as denominator
+        #[allow(clippy::cast_precision_loss)]
         let act_ballots_f64 = cmp::max(1, act_ballots) as f64;
         for outcome in candidates_wins.values_mut() {
-            outcome.percentage = ((outcome.wins as f64) / act_ballots_f64).clamp(0.0, 1.0);
+            #[allow(clippy::cast_precision_loss)]
+            let wins_f64 = outcome.wins as f64;
+            outcome.percentage = (wins_f64 / act_ballots_f64).clamp(0.0, 1.0);
         }
 
         // Check if there is a winner
         let max_wins = candidates_wins.values().map(|o| o.wins).max().unwrap_or(0);
-        if 2 * max_wins > act_ballots {
+        if max_wins.saturating_mul(2) > act_ballots {
             let winner_id = self
                 .filter_candidates_by_number_of_wins(&candidates_wins, max_wins)
                 .first()
                 .cloned();
-            round.winner = winner_id.and_then(|id| {
-                Some(CandidateReference {
-                    id: id.clone(),
-                    name: self.get_candidate_name(&id).unwrap_or_default(),
-                })
+            round.winner = winner_id.map(|id| CandidateReference {
+                id: id.clone(),
+                name: self.get_candidate_name(&id).unwrap_or_default(),
             });
         }
 
         // Eliminate candidates for the next round
-        let continue_next_round = match round.winner.is_some() {
-            true => false,
-            false => {
-                // Find the Active candidate(s) with the fewest votes
-                let least_wins = candidates_wins.values().map(|o| o.wins).min().unwrap_or(0);
-                let candidates_to_eliminate: Vec<String> =
-                    self.filter_candidates_by_number_of_wins(&candidates_wins, least_wins);
-                let eliminated_candidates =
-                    self.do_round_eliminations(&candidates_wins, &candidates_to_eliminate);
-                let continue_next_round = eliminated_candidates.is_some();
-                if let Some(eliminated_candidates) = eliminated_candidates {
-                    round.eliminated_candidates = Some(eliminated_candidates);
-                } else {
-                    let tie_resolution = match self.tie_breaking_policy {
-                        TieBreakingPolicy::RANDOM => {
-                            self.determine_winner_by_lot(&candidates_to_eliminate, &candidates_wins)
-                        }
-                        TieBreakingPolicy::EXTERNAL_PROCEDURE => self
-                            .determine_winner_by_external_procedure(
-                                &candidates_to_eliminate,
-                                &candidates_wins,
-                            ),
-                    };
-
-                    if let Some((winner, eliminated_candidates)) = tie_resolution {
-                        round.winner = Some(winner);
-                        round.eliminated_candidates = Some(eliminated_candidates);
-                    };
+        let continue_next_round = if round.winner.is_some() {
+            false
+        } else {
+            // Find the Active candidate(s) with the fewest votes
+            let least_wins = candidates_wins.values().map(|o| o.wins).min().unwrap_or(0);
+            let candidates_to_eliminate: Vec<String> =
+                self.filter_candidates_by_number_of_wins(&candidates_wins, least_wins);
+            let eliminated_candidates =
+                self.do_round_eliminations(&candidates_wins, &candidates_to_eliminate);
+            let continue_next_round = eliminated_candidates.is_some();
+            if let Some(elim_candidates) = eliminated_candidates {
+                round.eliminated_candidates = Some(elim_candidates);
+            } else {
+                let tie_resolution = match self.tie_breaking_policy {
+                    TieBreakingPolicy::RANDOM => {
+                        self.determine_winner_by_lot(&candidates_to_eliminate, &candidates_wins)
+                    }
+                    TieBreakingPolicy::EXTERNAL_PROCEDURE => self
+                        .determine_winner_by_external_procedure(
+                            &candidates_to_eliminate,
+                            &candidates_wins,
+                        ),
                 };
-                continue_next_round
+
+                if let Some((winner, eliminated_candidates)) = tie_resolution {
+                    round.winner = Some(winner);
+                    round.eliminated_candidates = Some(eliminated_candidates);
+                }
             }
+            continue_next_round
         };
         round.active_ballots_count = act_ballots;
         round.active_candidates_count = act_candidates_count;
@@ -598,12 +613,12 @@ impl RunoffStatus {
         round.candidates_wins = candidates_wins;
         round = self.fill_candidate_wins_names(&round);
         self.rounds.push(round);
-        self.round_count += 1;
+        self.round_count = self.round_count.saturating_add(1);
 
-        return continue_next_round;
+        continue_next_round
     }
 
-    /// Order name_references to have the best results at the beginning
+    /// Order `name_references` to have the best results at the beginning
     #[instrument(skip_all)]
     pub fn order_name_references_by_result(&self) -> Vec<CandidateReference> {
         let mut new_name_references: Vec<CandidateReference> = vec![];
@@ -612,15 +627,11 @@ impl RunoffStatus {
         }
         for round in self.rounds.iter().rev() {
             for (candidate_id, candidate_outcome) in &round.candidates_wins {
-                if new_name_references
-                    .iter()
-                    .find(|c| &c.id == candidate_id)
-                    .is_none()
-                {
+                if !new_name_references.iter().any(|c| &c.id == candidate_id) {
                     new_name_references.push(CandidateReference {
                         id: candidate_id.clone(),
                         name: candidate_outcome.name.clone(),
-                    })
+                    });
                 }
             }
         }
@@ -633,7 +644,7 @@ impl RunoffStatus {
 
         let mut iterations = 0;
         while self.run_next_round(ballots_status) && iterations < self.max_rounds {
-            iterations += 1;
+            iterations = iterations.saturating_add(1);
         }
         self.name_references = self.order_name_references_by_result();
     }
@@ -650,6 +661,11 @@ impl InstantRunoff {
     }
 
     #[instrument(err, skip_all)]
+    /// Processes ballots using instant runoff voting.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the ballot processing fails.
     pub fn process_ballots(&self, op: TallyOperation) -> Result<ContestResult> {
         let contest = &self.tally.contest;
         let votes: &Vec<(DecodedVoteContest, Weight)> = &self.tally.ballots;
@@ -658,9 +674,11 @@ impl InstantRunoff {
         let count_blank = ballots_status.count_blank;
         let count_valid = ballots_status.count_valid;
         let count_invalid_votes = ballots_status.count_invalid_votes;
-        let count_invalid = count_invalid_votes.explicit + count_invalid_votes.implicit;
+        let count_invalid = count_invalid_votes
+            .explicit
+            .saturating_add(count_invalid_votes.implicit);
         let extended_metrics = ballots_status.extended_metrics;
-        let percentage_votes_denominator = count_valid - count_blank;
+        let percentage_votes_denominator = count_valid.saturating_sub(count_blank);
 
         let (candidate_result, process_results) = match op {
             TallyOperation::SkipCandidateResults => (vec![], None),

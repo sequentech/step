@@ -11,10 +11,13 @@ use std::io::Read;
 use crate::pipes::pipe_inputs::InputElectionConfig;
 use sequent_core::plaintext::DecodedVoteChoice;
 
+/// Trait for types that have a unique identifier.
 pub trait HasId {
+    /// Returns the unique identifier as a string slice.
     fn id(&self) -> &str;
 }
 
+/// Parses the contents of a file into the specified type.
 pub fn parse_file<T: for<'a> Deserialize<'a>>(mut file: File) -> Result<T> {
     let mut contents = String::new();
     file.read_to_string(&mut contents)?;

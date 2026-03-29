@@ -9,12 +9,13 @@ use crate::pipes::pipe_inputs::ElectionConfig;
 use sequent_core::{ballot::ElectionPresentation, services::area_tree::TreeNodeArea};
 use uuid::Uuid;
 
-/// Returns a sample ElectionConfig for testing.
+/// Returns a sample `ElectionConfig` for testing.
 ///
 /// # Panics
 /// Panics if `areas` is empty.
 #[must_use]
 #[allow(unused)]
+/// Generate an election configuration.
 pub fn get_election_config_1(election_event_id: &Uuid, areas: &[Uuid]) -> ElectionConfig {
     let tenant_id = Uuid::new_v4();
     let election_id = Uuid::new_v4();
@@ -54,7 +55,7 @@ pub fn get_election_config_1(election_event_id: &Uuid, areas: &[Uuid]) -> Electi
     }
 }
 
-/// Returns a second sample ElectionConfig for testing.
+/// Returns a second sample `ElectionConfig` for testing.
 #[must_use]
 #[allow(unused)]
 pub fn get_election_config_2() -> ElectionConfig {
@@ -103,7 +104,7 @@ pub fn get_election_config_2() -> ElectionConfig {
     }
 }
 
-/// Returns a third sample ElectionConfig for testing.
+/// Returns a third sample `ElectionConfig` for testing.
 ///
 /// # Panics
 /// Panics if `areas` is empty.

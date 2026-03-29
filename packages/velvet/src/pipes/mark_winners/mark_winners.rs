@@ -24,19 +24,24 @@ use crate::pipes::{
 };
 use crate::utils::parse_file;
 
+/// Output filename for the winners JSON file.
 pub const OUTPUT_WINNERS: &str = "winners.json";
 
+/// Pipe for identifying and marking winning candidates in a contest.
 pub struct MarkWinners {
+    /// Pipe input configuration containing election and file paths.
     pub pipe_inputs: PipeInputs,
 }
 
 impl MarkWinners {
     #[instrument(skip_all, name = "MarkWinners::new")]
+    /// Creates a new winner marker with the given pipe inputs.
     pub fn new(pipe_inputs: PipeInputs) -> Self {
         Self { pipe_inputs }
     }
 
     #[instrument(skip_all)]
+    /// Extracts and orders winners from contest results.
     pub fn get_winners(contest_result: &ContestResult) -> Vec<WinnerResult> {
         let mut winners = contest_result.candidate_result.clone();
 
@@ -63,6 +68,7 @@ impl MarkWinners {
     }
 
     #[instrument(err, skip_all)]
+    /// Creates breakdown winner reports for all contests and areas.
     pub fn create_breakdown_winners(
         base_input_path: &PathBuf,
         base_output_path: &PathBuf,
@@ -228,8 +234,12 @@ impl Pipe for MarkWinners {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, serde::Deserialize)]
+/// Result data for a winning candidate.
 pub struct WinnerResult {
+    /// Information about the candidate.
     pub candidate: Candidate,
+    /// Total votes the candidate received.
     pub total_count: u64,
+    /// Position in the winners list.
     pub winning_position: usize,
 }

@@ -21,9 +21,10 @@ pub enum PipeName {
     GenerateDatabase,
 }
 
+/// Visitor for deserializing `PipeName` from strings.
 struct PipeNameVisitor;
 
-impl<'de> Visitor<'de> for PipeNameVisitor {
+impl Visitor<'_> for PipeNameVisitor {
     type Value = PipeName;
 
     fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
@@ -35,6 +36,10 @@ impl<'de> Visitor<'de> for PipeNameVisitor {
     }
 }
 
+/// Deserializes a `PipeName` from a string.
+///
+/// # Errors
+/// Returns a deserialization error if the string is not a valid `PipeName` variant.
 pub fn deserialize_pipe<'de, D: Deserializer<'de>>(deserializer: D) -> Result<PipeName, D::Error> {
     deserializer.deserialize_str(PipeNameVisitor)
 }

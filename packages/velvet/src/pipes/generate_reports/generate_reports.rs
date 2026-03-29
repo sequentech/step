@@ -49,34 +49,49 @@ use crate::{
     utils::parse_file,
 };
 
+/// Output filename for PDF reports.
 pub const OUTPUT_PDF: &str = "report.pdf";
+/// Output filename for HTML reports.
 pub const OUTPUT_HTML: &str = "report.html";
+/// Output filename for JSON reports.
 pub const OUTPUT_JSON: &str = "report.json";
+/// Output filename for all areas JSON results.
 pub const OUTPUT_ALL_AREAS_JSON: &str = "all_areas_results.json";
+/// Output filename for all areas HTML results.
 pub const OUTPUT_ALL_AREAS_HTML: &str = "all_areas_results.html";
+/// Chunk size for parallel processing of reports.
 pub const PARALLEL_CHUNK_SIZE: usize = 8;
 
+/// Pipe for generating election reports in multiple formats.
 #[derive(Debug)]
 pub struct GenerateReports {
+    /// Pipe input configuration containing election and file paths.
     pub pipe_inputs: PipeInputs,
+    /// Input directory containing report data.
     pub input_dir: PathBuf,
+    /// Output directory for generated reports.
     pub output_dir: PathBuf,
 }
 
+/// Contains the byte contents of generated reports in different formats.
 pub struct GeneratedReportsBytes {
     bytes_pdf: Option<Vec<u8>>,
     bytes_html: Vec<u8>,
     bytes_json: Vec<u8>,
 }
 
+/// Data structure containing template variables for report generation.
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct TemplateData {
+    /// Annotations from extra data to be used in the report template.
     pub execution_annotations: HashMap<String, String>,
+    /// List of computed reports to include in the template.
     pub reports: Vec<ReportDataComputed>,
 }
 
 impl GenerateReports {
     #[instrument(skip_all, name = "GenerateReports::new")]
+    /// Creates a new report generator with the given pipe inputs.
     pub fn new(pipe_inputs: PipeInputs) -> Self {
         let input_dir = pipe_inputs
             .cli
@@ -96,6 +111,7 @@ impl GenerateReports {
         }
     }
     #[instrument(skip_all)]
+    /// Retrieves the report generation configuration.
     pub fn get_config(&self) -> Result<PipeConfigGenerateReports> {
         let pipe_config: PipeConfigGenerateReports = self
             .pipe_inputs
@@ -109,6 +125,7 @@ impl GenerateReports {
     }
 
     #[instrument(err, skip_all)]
+    /// Computes and formats reports for rendering.
     pub fn compute_reports(
         &self,
         reports: Vec<ReportData>,
@@ -275,6 +292,7 @@ impl GenerateReports {
     }
 
     #[instrument(err, skip_all)]
+    /// Generates reports in PDF, HTML, and JSON formats.
     pub fn generate_report(
         &self,
         reports: Vec<ReportData>,
@@ -504,6 +522,7 @@ impl GenerateReports {
     }
 
     #[instrument(err, skip(self))]
+    /// Reads and parses all computed reports from storage.
     pub fn read_reports(&self) -> Result<Vec<ElectionReportDataComputed>> {
         let mut election_reports: Vec<ElectionReportDataComputed> = vec![];
 
@@ -899,9 +918,13 @@ struct InputConfigAreaContest<'a> {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
+/// Results and statistics for an election.
 pub struct ElectionResultReport {
+    /// Total registered voters (census).
     pub census: u64,
+    /// Total number of votes cast.
     pub total_votes: u64,
+    /// Percentage of census that voted.
     pub percentage_total_votes: f64,
 }
 
@@ -1221,8 +1244,11 @@ impl Pipe for GenerateReports {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Basic information about an area.
 pub struct BasicArea {
+    /// Unique identifier for the area.
     pub id: String,
+    /// Display name of the area.
     pub name: String,
 }
 
@@ -1236,52 +1262,93 @@ impl From<AreaConfig> for BasicArea {
 }
 
 #[derive(Debug, Clone)]
+/// Complete data for generating a single report.
 pub struct ReportData {
+    /// Name of the election.
     pub election_name: String,
+    /// Alias/shortname of the election.
     pub election_alias: String,
+    /// Unique election identifier.
     pub election_id: String,
+    /// Election event identifier.
     pub election_event_id: String,
+    /// Tenant/organization identifier.
     pub tenant_id: String,
+    /// Detailed description of the election.
     pub election_description: String,
+    /// Start and end dates of the election period.
     pub election_dates: Option<StringifiedPeriodDates>,
+    /// Annotations for the election.
     pub election_annotations: HashMap<String, String>,
+    /// Annotations for the election event.
     pub election_event_annotations: HashMap<String, String>,
+    /// Contest being reported on.
     pub contest: Option<Contest>,
+    /// Area for the report if applicable.
     pub area: Option<BasicArea>,
+    /// Tally results for the contest.
     pub contest_result: Option<ContestResult>,
+    /// List of winning candidates.
     pub winners: Vec<WinnerResult>,
+    /// Type of communication channel used.
     pub channel_type: Option<String>,
+    /// Overall election results if applicable.
     pub election_results: Option<ElectionResultReport>,
 }
 
 #[derive(Debug, Serialize, Clone)]
+/// Computed election report data with aggregated statistics.
 pub struct ElectionReportDataComputed {
+    /// Unique election identifier.
     pub election_id: String,
+    /// Area covered by the report.
     pub area: Option<BasicArea>,
+    /// Total registered voters.
     pub census: u64,
+    /// Total votes cast.
     pub total_votes: u64,
+    /// List of computed reports for contests.
     pub reports: Vec<ReportDataComputed>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
+/// Fully computed report data ready for template rendering.
 pub struct ReportDataComputed {
+    /// Name of the election.
     pub election_name: String,
+    /// Alias/shortname of the election.
     pub election_alias: String,
+    /// Unique election identifier.
     pub election_id: String,
+    /// Election event identifier.
     pub election_event_id: String,
+    /// Tenant/organization identifier.
     pub tenant_id: String,
+    /// Detailed description of the election.
     pub election_description: String,
+    /// Start and end dates of the election period.
     pub election_dates: Option<StringifiedPeriodDates>,
+    /// Annotations for the election.
     pub election_annotations: HashMap<String, String>,
+    /// Annotations for the election event.
     pub election_event_annotations: HashMap<String, String>,
+    /// Contest being reported on.
     pub contest: Option<Contest>,
+    /// Area for the report if applicable.
     pub area: Option<BasicArea>,
+    /// Annotations for the area.
     pub area_annotations: HashMap<String, String>,
+    /// Whether this is an aggregate report.
     pub is_aggregate: bool,
+    /// Identifier for the tally sheet.
     pub tally_sheet_id: Option<String>,
+    /// Tally results for the contest.
     pub contest_result: Option<ContestResult>,
+    /// Results for each candidate.
     pub candidate_result: Vec<CandidateResultForReport>,
+    /// Type of communication channel used.
     pub channel_type: Option<String>,
+    /// Overall election results if applicable.
     pub election_results: Option<ElectionResultReport>,
 }
 
@@ -1312,10 +1379,15 @@ impl From<ReportDataComputed> for ReportData {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
+/// Report data for a single candidate's results.
 pub struct CandidateResultForReport {
+    /// Information about the candidate.
     pub candidate: Candidate,
+    /// Total votes the candidate received.
     pub total_count: u64,
+    /// Percentage of votes received (0.0 to 100.0).
     pub percentage_votes: f64,
+    /// Position in the winning list.
     pub winning_position: Option<usize>,
 }
 

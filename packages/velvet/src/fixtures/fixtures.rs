@@ -29,7 +29,7 @@ pub struct TestFixture {
 }
 
 impl TestFixture {
-    /// Create a new TestFixture.
+    /// Create a new `TestFixture`.
     ///
     /// # Errors
     /// Returns an error if the temp directory or config file cannot be created.
@@ -63,7 +63,7 @@ impl TestFixture {
         })
     }
 
-    /// Create a new TestFixture for multi-contest ballots.
+    /// Create a new `TestFixture` for multi-contest ballots.
     ///
     /// # Errors
     /// Returns an error if the temp directory or config file cannot be created.
@@ -98,12 +98,16 @@ impl TestFixture {
     }
 
     #[instrument]
+    /// Create an election configuration.
+    ///
+    /// # Errors
+    /// Returns an error if directory creation or file writing fails.
     pub fn create_election_config(
         &self,
         election_event_id: &Uuid,
-        areas: Vec<Uuid>,
+        areas: &[Uuid],
     ) -> Result<ElectionConfig> {
-        let election = super::elections::get_election_config_1(election_event_id, &areas);
+        let election = super::elections::get_election_config_1(election_event_id, areas);
 
         let mut path = self
             .input_dir_configs
@@ -118,12 +122,16 @@ impl TestFixture {
     }
 
     #[instrument]
+    /// Create an election configuration with parent areas.
+    ///
+    /// # Errors
+    /// Returns an error if directory creation or file writing fails.
     pub fn create_election_config_2(
         &self,
         election_event_id: &Uuid,
-        areas: Vec<(Uuid, Option<Uuid>)>,
+        areas: &[(Uuid, Option<Uuid>)],
     ) -> Result<ElectionConfig> {
-        let election = super::elections::get_election_config_3(election_event_id, &areas);
+        let election = super::elections::get_election_config_3(election_event_id, areas);
 
         let mut path = self
             .input_dir_configs
@@ -138,6 +146,10 @@ impl TestFixture {
     }
 
     #[instrument]
+    /// Create a contest configuration.
+    ///
+    /// # Errors
+    /// Returns an error if directory creation or file writing fails.
     pub fn create_contest_config(
         &self,
         tenant_id: &Uuid,
@@ -159,6 +171,10 @@ impl TestFixture {
     }
 
     #[instrument]
+    /// Create a contest configuration with custom vote limits.
+    ///
+    /// # Errors
+    /// Returns an error if directory creation or file writing fails.
     pub fn create_contest_config_with_min_max_votes(
         &self,
         tenant_id: &Uuid,
@@ -188,6 +204,11 @@ impl TestFixture {
     }
 
     #[instrument]
+    /// Create an area configuration.
+    ///
+    /// # Errors
+    /// Returns an error if directory creation or file writing fails.
+    #[allow(clippy::too_many_arguments)]
     pub fn create_area_config(
         &self,
         tenant_id: &Uuid,
@@ -233,16 +254,20 @@ impl Drop for TestFixture {
     fn drop(&mut self) {
         if env::var("CLEANUP_FILES").unwrap_or_else(|_| "true".to_string()) == "true" {
             if let Err(e) = fs::remove_file(&self.config_path) {
-                eprintln!("Failed to remove config file: {e}");
+                tracing::warn!("Failed to remove config file: {}", e);
             }
             if let Err(e) = fs::remove_dir_all(&self.root_dir) {
-                eprintln!("Failed to remove root dir: {e}");
+                tracing::warn!("Failed to remove root dir: {}", e);
             }
         }
     }
 }
 
 #[instrument]
+/// Generate a default Velvet configuration.
+///
+/// # Errors
+/// Returns an error if configuration serialization fails.
 pub fn get_config() -> Result<Config> {
     let ballot_images_pipe_config = PipeConfigBallotImages::new();
     let database_pipe_config = PipeConfigGenerateDatabase {
@@ -306,6 +331,10 @@ pub fn get_config() -> Result<Config> {
 }
 
 #[instrument]
+/// Returns a test configuration for multi-contest ballot testing.
+///
+/// # Errors
+/// Returns an error if JSON serialization of pipe configurations fails.
 pub fn get_config_mcballots() -> Result<Config> {
     let mut ballot_images_pipe_config = PipeConfigBallotImages::new();
     ballot_images_pipe_config.enable_pdfs = false;

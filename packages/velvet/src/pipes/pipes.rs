@@ -17,14 +17,18 @@ use crate::pipes::do_tally::DoTally;
 use crate::pipes::generate_db::GenerateDatabase;
 use tracing::instrument;
 
+/// Trait for implementing election processing pipeline stages.
 pub trait Pipe {
+    /// Executes the pipe's processing logic.
     fn exec(&self) -> Result<()>;
 }
 
+/// Manager for creating and routing pipeline instances.
 pub struct PipeManager;
 
 impl PipeManager {
     #[instrument(err, skip_all, name = "PipeManager::get_pipe")]
+    /// Retrieves the appropriate pipe implementation for the specified stage.
     pub fn get_pipe(cli: CliRun, stage: Stage) -> Result<Option<Box<dyn Pipe>>> {
         let pipe_inputs = PipeInputs::new(cli, stage)?;
 
