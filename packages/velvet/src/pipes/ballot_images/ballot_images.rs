@@ -95,8 +95,7 @@ impl BallotImages {
         let rendered_user_template = reports::render_template_text(&pipe_config.template, map)
             .map_err(|e| {
                 Error::UnexpectedError(format!(
-                    "Error during render_template_text from report.hbs template file: {}",
-                    e
+                    "Error during render_template_text from report.hbs template file: {e}"
                 ))
             })?;
 
@@ -115,8 +114,7 @@ impl BallotImages {
         let bytes_html = reports::render_template_text(&pipe_config.system_template, system_map)
             .map_err(|e| {
                 Error::UnexpectedError(format!(
-                    "Error during render_template_text from report.hbs template file: {}",
-                    e
+                    "Error during render_template_text from report.hbs template file: {e}"
                 ))
             })?;
 
@@ -127,10 +125,8 @@ impl BallotImages {
 
         let bytes_pdf = if pipe_config.enable_pdfs {
             let bytes_html = bytes_html.clone();
-            let bytes_pdf =
-                pdf::sync::PdfRenderer::render_pdf(bytes_html, pdf_options).map_err(|e| {
-                    Error::UnexpectedError(format!("Error during PDF rendering: {}", e))
-                })?;
+            let bytes_pdf = pdf::sync::PdfRenderer::render_pdf(bytes_html, pdf_options)
+                .map_err(|e| Error::UnexpectedError(format!("Error during PDF rendering: {e}")))?;
 
             Some(bytes_pdf)
         } else {

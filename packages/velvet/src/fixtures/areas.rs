@@ -7,6 +7,19 @@ use uuid::Uuid;
 use crate::pipes::pipe_inputs::AreaConfig;
 
 #[allow(unused)]
+/// Generate an `AreaConfig` for test fixtures.
+///
+/// # Arguments
+/// * `tenant_id` - Tenant UUID
+/// * `election_event_id` - Election event UUID
+/// * `election_id` - Election UUID
+/// * `census` - Census value
+/// * `auditable_votes` - Auditable votes value
+/// * `parent_id` - Optional parent area UUID
+/// * `area_id` - Optional area UUID as string
+///
+/// # Panics
+/// Panics if `area_id` is provided but is not a valid UUID string.
 pub fn get_area_config(
     tenant_id: &Uuid,
     election_event_id: &Uuid,
@@ -16,12 +29,12 @@ pub fn get_area_config(
     parent_id: Option<Uuid>,
     area_id: Option<String>,
 ) -> AreaConfig {
-    let area_uuid = area_id
-        .map(|val| Uuid::parse_str(&val).unwrap())
-        .unwrap_or(Uuid::new_v4());
+    let area_uuid = area_id.map_or_else(Uuid::new_v4, |val| {
+        Uuid::parse_str(&val).expect("Invalid UUID in area_id")
+    });
     AreaConfig {
         id: area_uuid,
-        name: "".into(),
+        name: String::new(),
         tenant_id: *tenant_id,
         election_event_id: *election_event_id,
         election_id: *election_id,

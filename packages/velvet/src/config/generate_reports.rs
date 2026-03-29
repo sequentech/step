@@ -38,4 +38,4 @@ pub struct ContestReportConfig {
     pub candidates_order: CandidatesOrderPolicy,
 }
 
-pub const CONTEST_REPORT_CONFIG: &'static str = "sequent:velvet:contest-report-config";
+pub const CONTEST_REPORT_CONFIG: &str = "sequent:velvet:contest-report-config";

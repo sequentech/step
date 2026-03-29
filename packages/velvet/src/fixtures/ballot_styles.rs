@@ -7,6 +7,7 @@ use uuid::Uuid;
 
 use super::contests;
 
+#[must_use]
 #[allow(unused)]
 pub fn get_ballot_style_1(
     tenant_id: &Uuid,
@@ -32,8 +33,8 @@ pub fn get_ballot_style_1(
             election_event_id,
             election_id,
         )],
-        election_event_annotations: Default::default(),
-        election_annotations: Default::default(),
+        election_event_annotations: Option::default(),
+        election_annotations: Option::default(),
         election_event_presentation: None,
         election_presentation: None,
         election_dates: None,
@@ -41,6 +42,7 @@ pub fn get_ballot_style_1(
     }
 }
 
+#[must_use]
 #[allow(unused)]
 pub fn generate_ballot_style(
     tenant_id: &Uuid,
@@ -66,8 +68,8 @@ pub fn generate_ballot_style(
         election_event_presentation: None,
         election_presentation: None,
         election_dates: None,
-        election_event_annotations: Default::default(),
-        election_annotations: Default::default(),
+        election_event_annotations: Option::default(),
+        election_annotations: Option::default(),
         area_annotations: None,
     }
 }

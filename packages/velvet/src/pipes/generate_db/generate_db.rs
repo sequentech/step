@@ -245,17 +245,17 @@ pub async fn process_decoded_ballots(
                 .map_or(false, |name| name == "decoded_ballots.json")
         {
             // A 'decoded_ballots.json' file has been found.
-            tracing::info!("Found decoded_ballots.json at: {:?}", path);
+            tracing::info!("Found decoded_ballots.json at: {path:?}");
 
             // Extract the election, contest, and area IDs from the file's path.
             // This helper function parses the directory names to get the required IDs.
             let (election_id, contest_id, area_id) = extract_ids_from_path(path)
-                .with_context(|| format!("Failed to extract IDs from path: {:?}", path))?;
+                .with_context(|| format!("Failed to extract IDs from path: {path:?}"))?;
 
             // Read the entire content of the decoded_ballots.json file asynchronously.
             // The content will be stored as a byte vector (Vec<u8>), suitable for BLOB.
-            let decoded_ballot_json_content = fs::read(path)
-                .with_context(|| format!("Failed to read file content: {:?}", path))?;
+            let decoded_ballot_json_content =
+                fs::read(path).with_context(|| format!("Failed to read file content: {path:?}"))?;
 
             // Insert or replace the data into the 'ballot' table.
             // `INSERT OR REPLACE` is used to handle cases where the same ballot might be
@@ -269,15 +269,11 @@ pub async fn process_decoded_ballots(
                     decoded_ballot_json_content   // Parameter for decoded_ballot_json BLOB
                 ],
             ).with_context(|| format!(
-                "Failed to insert/replace ballot data for election: {}, contest: {}, area: {}",
-                election_id, contest_id, area_id
+                "Failed to insert/replace ballot data for election: {election_id}, contest: {contest_id}, area: {area_id}"
             ))?;
 
             tracing::info!(
-                "Successfully processed ballot for election: {}, contest: {}, area: {}",
-                election_id,
-                contest_id,
-                area_id
+                "Successfully processed ballot for election: {election_id}, contest: {contest_id}, area: {area_id}"
             );
         }
     }
@@ -319,8 +315,7 @@ fn extract_ids_from_path(path: &Path) -> anyhow::Result<(String, String, String)
     match (election_id, contest_id, area_id) {
         (Some(e), Some(c), Some(a)) => Ok((e, c, a)),
         _ => Err(anyhow::anyhow!(
-            "Could not extract all required IDs (election, contest, area) from path: {:?}",
-            path
+            "Could not extract all required IDs (election, contest, area) from path: {path:?}"
         )),
     }
 }
@@ -380,7 +375,7 @@ pub async fn save_results(
     let mut results_contest_candidates: Vec<ResultsContestCandidate> = Vec::new();
     let mut results_area_contest_candidates: Vec<ResultsAreaContestCandidate> = Vec::new();
     for election in &results {
-        let total_voters_percent: f64 =
+        let election_total_voters_percent: f64 =
             (election.total_votes as f64) / (cmp::max(election.census, 1) as f64);
         results_elections.push(ResultsElection {
             id: Uuid::new_v4().into(),
@@ -395,7 +390,7 @@ pub async fn save_results(
             last_updated_at: None,
             labels: None,
             annotations: None,
-            total_voters_percent: Some(total_voters_percent.clamp(0.0, 1.0).try_into()?),
+            total_voters_percent: Some(election_total_voters_percent.clamp(0.0, 1.0).try_into()?),
             documents: None,
         });
 

@@ -319,10 +319,9 @@ impl RunoffStatus {
             let losers = self.filter_candidates_by_number_of_wins(&candidates_to_untie, min_wins);
             if losers.len() == 1 {
                 return losers;
-            } else {
-                // Continue the loop back until the tie is broken
-                round_possible_losers = losers;
             }
+            // Continue the loop back until the tie is broken
+            round_possible_losers = losers;
         }
         round_possible_losers
     }
@@ -464,22 +463,21 @@ impl RunoffStatus {
         if active_count == reduced_list.len() {
             // if all active candidates have the same wins (all to be eliminated) then there is a winner tie, so end the election and the winner will be decided by tie breaking policy.
             return None;
-        } else {
-            // Simultaneous Elimination can create corner cases where a winner is decided unfairly.
-            // So many electoral systems pick a random candidate from the reduced list instead.
-            // Note: Some systems can do simultaneous elimination when it is mathematically safe,
-            // this is if the distance to the next more voted candidate is big enough.
-            let mut eliminated = vec![];
-            for candidate_id in &reduced_list {
-                self.candidates_status
-                    .set_candidate_to_eliminated(candidate_id);
-                eliminated.push(CandidateReference {
-                    id: candidate_id.clone(),
-                    name: self.get_candidate_name(candidate_id).unwrap_or_default(),
-                });
-            }
-            return Some(eliminated);
         }
+        // Simultaneous Elimination can create corner cases where a winner is decided unfairly.
+        // So many electoral systems pick a random candidate from the reduced list instead.
+        // Note: Some systems can do simultaneous elimination when it is mathematically safe,
+        // this is if the distance to the next more voted candidate is big enough.
+        let mut eliminated = vec![];
+        for candidate_id in &reduced_list {
+            self.candidates_status
+                .set_candidate_to_eliminated(candidate_id);
+            eliminated.push(CandidateReference {
+                id: candidate_id.clone(),
+                name: self.get_candidate_name(candidate_id).unwrap_or_default(),
+            });
+        }
+        Some(eliminated)
     }
 
     /// Returns None if the ballot is Exhausted.

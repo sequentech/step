@@ -197,8 +197,7 @@ impl Pipe for DecodeMCBallots {
                 for (area_id, dvcs) in area_dcv_map {
                     let contest_uuid = Uuid::from_str(&contest_id).map_err(|e| {
                         Error::UnexpectedError(format!(
-                            "Could not parse uuid for contest {}, {}",
-                            contest_id, e
+                            "Could not parse uuid for contest {contest_id}, {e}"
                         ))
                     })?;
 

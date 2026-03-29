@@ -29,6 +29,10 @@ pub struct TestFixture {
 }
 
 impl TestFixture {
+    /// Create a new TestFixture.
+    ///
+    /// # Errors
+    /// Returns an error if the temp directory or config file cannot be created.
     #[instrument]
     pub fn new() -> Result<Self> {
         let temp_folder = env::temp_dir();
@@ -45,6 +49,7 @@ impl TestFixture {
             temp_folder.join(format!("velvet/test-velvet-config-{}.json", Uuid::new_v4()));
         let mut file = fs::OpenOptions::new()
             .write(true)
+            .truncate(true)
             .create(true)
             .open(&config_path)?;
 
@@ -58,6 +63,10 @@ impl TestFixture {
         })
     }
 
+    /// Create a new TestFixture for multi-contest ballots.
+    ///
+    /// # Errors
+    /// Returns an error if the temp directory or config file cannot be created.
     #[instrument]
     pub fn new_mc() -> Result<Self> {
         let root_dir = PathBuf::from(format!("/tmp/velvet/tests-input__{}", Uuid::new_v4()));
@@ -74,6 +83,7 @@ impl TestFixture {
         ));
         let mut file = fs::OpenOptions::new()
             .write(true)
+            .truncate(true)
             .create(true)
             .open(&config_path)?;
 
@@ -93,7 +103,7 @@ impl TestFixture {
         election_event_id: &Uuid,
         areas: Vec<Uuid>,
     ) -> Result<ElectionConfig> {
-        let election = super::elections::get_election_config_1(election_event_id, areas);
+        let election = super::elections::get_election_config_1(election_event_id, &areas);
 
         let mut path = self
             .input_dir_configs
@@ -113,7 +123,7 @@ impl TestFixture {
         election_event_id: &Uuid,
         areas: Vec<(Uuid, Option<Uuid>)>,
     ) -> Result<ElectionConfig> {
-        let election = super::elections::get_election_config_3(election_event_id, areas);
+        let election = super::elections::get_election_config_3(election_event_id, &areas);
 
         let mut path = self
             .input_dir_configs
@@ -221,9 +231,13 @@ impl TestFixture {
 
 impl Drop for TestFixture {
     fn drop(&mut self) {
-        if env::var("CLEANUP_FILES").unwrap_or("true".to_string()) == "true" {
-            fs::remove_file(&self.config_path).unwrap();
-            fs::remove_dir_all(&self.root_dir).unwrap();
+        if env::var("CLEANUP_FILES").unwrap_or_else(|_| "true".to_string()) == "true" {
+            if let Err(e) = fs::remove_file(&self.config_path) {
+                eprintln!("Failed to remove config file: {e}");
+            }
+            if let Err(e) = fs::remove_dir_all(&self.root_dir) {
+                eprintln!("Failed to remove root dir: {e}");
+            }
         }
     }
 }

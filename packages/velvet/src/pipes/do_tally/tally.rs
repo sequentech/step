@@ -249,7 +249,7 @@ impl Tally {
             percentage_census: 100.0,
             auditable_votes: self.auditable_votes,
             percentage_auditable_votes: percentage_auditable_votes.clamp(0.0, 100.0),
-            total_votes: total_votes,
+            total_votes,
             percentage_total_votes: percentage_total_votes.clamp(0.0, 100.0),
             total_valid_votes: count_valid,
             percentage_total_valid_votes: percentage_total_valid_votes.clamp(0.0, 100.0),
@@ -270,19 +270,21 @@ impl Tally {
 
 #[instrument(err, skip_all)]
 pub fn process_tally_sheet(tally_sheet: &TallySheet, contest: &Contest) -> Result<ContestResult> {
-    let Some(content) = tally_sheet.content.clone() else {
+    let Some(tally_sheet_content) = tally_sheet.content.clone() else {
         return Err("missing tally sheet content".into());
     };
-    let invalid_votes = content.invalid_votes.unwrap_or(Default::default());
+    let invalid_votes = tally_sheet_content
+        .invalid_votes
+        .unwrap_or(Default::default());
 
     let count_invalid_votes = InvalidVotes {
         explicit: invalid_votes.explicit_invalid.unwrap_or(0),
         implicit: invalid_votes.implicit_invalid.unwrap_or(0),
     };
     let count_invalid: u64 = count_invalid_votes.explicit + count_invalid_votes.implicit;
-    let count_blank: u64 = content.total_blank_votes.unwrap_or(0);
+    let count_blank: u64 = tally_sheet_content.total_blank_votes.unwrap_or(0);
 
-    let candidate_results = content
+    let candidate_results = tally_sheet_content
         .candidate_results
         .values()
         .map(|candidate| -> Result<CandidateResult> {
@@ -311,11 +313,11 @@ pub fn process_tally_sheet(tally_sheet: &TallySheet, contest: &Contest) -> Resul
 
     let contest_result = ContestResult {
         contest: contest.clone(),
-        census: content.census.unwrap_or(0),
+        census: tally_sheet_content.census.unwrap_or(0),
         percentage_census: 100.0,
         auditable_votes: 0,
         percentage_auditable_votes: 0.0,
-        total_votes: total_votes,
+        total_votes,
         percentage_total_votes: 0.0,
         total_valid_votes: count_valid,
         percentage_total_valid_votes: 0.0,

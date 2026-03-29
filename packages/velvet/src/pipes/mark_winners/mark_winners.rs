@@ -128,11 +128,12 @@ impl Pipe for MarkWinners {
                         let contest_result_file =
                             base_input_aggregate_path.join(OUTPUT_CONTEST_RESULT_FILE);
 
-                        let contest_results_file = fs::File::open(&contest_result_file)
+                        let contest_results_file_agg = fs::File::open(&contest_result_file)
                             .map_err(|e| Error::FileAccess(contest_result_file.clone(), e))?;
-                        let contest_result: ContestResult = parse_file(contest_results_file)?;
+                        let contest_result_agg: ContestResult =
+                            parse_file(contest_results_file_agg)?;
 
-                        let winners = MarkWinners::get_winners(&contest_result);
+                        let winners_agg = MarkWinners::get_winners(&contest_result_agg);
 
                         let aggregate_output_path = base_output_path
                             .join(OUTPUT_CONTEST_RESULT_AREA_CHILDREN_AGGREGATE_FOLDER);
@@ -141,7 +142,7 @@ impl Pipe for MarkWinners {
                         let winners_file_path = aggregate_output_path.join(OUTPUT_WINNERS);
                         let winners_file = fs::File::create(winners_file_path)?;
 
-                        serde_json::to_writer(winners_file, &winners)?;
+                        serde_json::to_writer(winners_file, &winners_agg)?;
                     }
 
                     // do tally sheet winners
@@ -150,11 +151,12 @@ impl Pipe for MarkWinners {
                         let contest_result_file =
                             tally_sheet_folder.join(OUTPUT_CONTEST_RESULT_FILE);
 
-                        let contest_results_file = fs::File::open(&contest_result_file)
+                        let contest_results_file_tally_sheet = fs::File::open(&contest_result_file)
                             .map_err(|e| Error::FileAccess(contest_result_file.clone(), e))?;
-                        let contest_result: ContestResult = parse_file(contest_results_file)?;
+                        let contest_result_tally: ContestResult =
+                            parse_file(contest_results_file_tally_sheet)?;
 
-                        let winners = MarkWinners::get_winners(&contest_result);
+                        let winners_tally = MarkWinners::get_winners(&contest_result_tally);
 
                         let Some(tally_sheet_id) =
                             PipeInputs::get_tally_sheet_id_from_path(&tally_sheet_folder)
@@ -170,24 +172,23 @@ impl Pipe for MarkWinners {
                         let winners_file_path = tally_sheet_folder.join(OUTPUT_WINNERS);
                         let winners_file = fs::File::create(winners_file_path)?;
 
-                        serde_json::to_writer(winners_file, &winners)?;
+                        serde_json::to_writer(winners_file, &winners_tally)?;
                     }
 
                     // do area winners
 
                     let contest_result_file = base_input_path.join(OUTPUT_CONTEST_RESULT_FILE);
-
-                    let contest_results_file = fs::File::open(&contest_result_file)
+                    let contest_results_file_area = fs::File::open(&contest_result_file)
                         .map_err(|e| Error::FileAccess(contest_result_file.clone(), e))?;
-                    let contest_result: ContestResult = parse_file(contest_results_file)?;
+                    let contest_result_area: ContestResult = parse_file(contest_results_file_area)?;
 
-                    let winners = MarkWinners::get_winners(&contest_result);
+                    let winners_area = MarkWinners::get_winners(&contest_result_area);
 
                     fs::create_dir_all(&base_output_path)?;
                     let winners_file_path = base_output_path.join(OUTPUT_WINNERS);
                     let winners_file = fs::File::create(winners_file_path)?;
 
-                    serde_json::to_writer(winners_file, &winners)?;
+                    serde_json::to_writer(winners_file, &winners_area)?;
                 }
 
                 let contest_result_path = PipeInputs::build_path(

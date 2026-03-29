@@ -1,12 +1,13 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-
+#![allow(clippy::all)]
+#![allow(rustdoc::all)]
 use crate::fixtures::ballot_styles::generate_ballot_style;
 use crate::fixtures::TestFixture;
 use crate::pipes::pipe_inputs::BALLOTS_FILE;
 use anyhow::{Error, Result};
-use sequent_core::ballot::*;
+use sequent_core::ballot::Contest;
 use sequent_core::ballot_codec::multi_ballot::{BallotChoices, ContestChoices};
 use sequent_core::ballot_codec::BigUIntCodec;
 use sequent_core::plaintext::{DecodedVoteChoice, DecodedVoteContest};
@@ -22,7 +23,16 @@ use std::str::FromStr;
 use tracing::instrument;
 use uuid::Uuid;
 
+/// Generate ballots for test fixtures.
+///
+/// # Errors
+/// Returns an error if any ballot or area config creation fails, or if
+/// file operations fail.
+///
+/// # Panics
+/// Panics if `ballots_num` is between 1 and 19 (inclusive).
 #[instrument(skip_all)]
+#[allow(clippy::too_many_lines)]
 pub fn generate_ballots(
     fixture: &TestFixture,
     election_num: u32,
@@ -53,7 +63,7 @@ pub fn generate_ballots(
                     &election.tenant_id,
                     &election_event_id,
                     &election.id,
-                    &Uuid::from_str(&contest.id).unwrap(),
+                    &Uuid::from_str(&contest.id).expect("Invalid UUID in contest.id"),
                     100,
                     0,
                     None,
@@ -84,7 +94,6 @@ pub fn generate_ballots(
                 }
 
                 let mut file = fs::OpenOptions::new()
-                    .write(true)
                     .append(true)
                     .create(true)
                     .open(file.join(BALLOTS_FILE))?;
@@ -127,35 +136,59 @@ pub fn generate_ballots(
                     };
 
                     match i {
-                        1 => choices[0].selected = 0,
-                        2 => choices[1].selected = 0,
-                        3 => choices[2].selected = 0,
-                        4 => choices[3].selected = 0,
-                        5 => choices[4].selected = 0,
-                        6 => choices[0].selected = 0,
-                        7 => choices[0].selected = 0,
-                        8 => choices[3].selected = 0,
-                        9 => choices[3].selected = 0,
-                        10 => (),
-                        11 => (),
-                        12 => (),
+                        1 | 6 | 7 => {
+                            if let Some(choice) = choices.get_mut(0) {
+                                choice.selected = 0;
+                            }
+                        }
+                        2 => {
+                            if let Some(choice) = choices.get_mut(1) {
+                                choice.selected = 0;
+                            }
+                        }
+                        3 => {
+                            if let Some(choice) = choices.get_mut(2) {
+                                choice.selected = 0;
+                            }
+                        }
+                        4 | 8 | 9 => {
+                            if let Some(choice) = choices.get_mut(3) {
+                                choice.selected = 0;
+                            }
+                        }
+                        5 => {
+                            if let Some(choice) = choices.get_mut(4) {
+                                choice.selected = 0;
+                            }
+                        }
+                        10..=12 => (),
                         14 => {
-                            choices[2].selected = 0;
-                            choices[3].selected = 42;
+                            if let Some(choice2) = choices.get_mut(2) {
+                                choice2.selected = 0;
+                            }
+                            if let Some(choice3) = choices.get_mut(3) {
+                                choice3.selected = 42;
+                            }
                         }
                         15 => {
-                            choices[3].selected = 42;
+                            if let Some(choice3) = choices.get_mut(3) {
+                                choice3.selected = 42;
+                            }
                         }
-                        _ => choices[1].selected = 0,
+                        _ => {
+                            if let Some(choice) = choices.get_mut(1) {
+                                choice.selected = 0;
+                            }
+                        }
                     }
 
                     plaintext_prepare.choices = choices;
 
                     let plaintext = contest
                         .encode_plaintext_contest_bigint(&plaintext_prepare)
-                        .unwrap();
+                        .expect("Failed to encode plaintext contest");
 
-                    writeln!(file, "{}", plaintext)?;
+                    writeln!(file, "{plaintext}")?;
 
                     Ok::<(), Error>(())
                 })?;
@@ -172,7 +205,16 @@ pub fn generate_ballots(
     Ok(())
 }
 
+/// Generate multi-contest ballots for test fixtures.
+///
+/// # Errors
+/// Returns an error if any ballot or area config creation fails, or if
+/// file operations fail.
+///
+/// # Panics
+/// Panics if `ballots_num` is between 1 and 19 (inclusive), or if contest.id is not a valid UUID.
 #[instrument(skip_all)]
+#[allow(clippy::too_many_lines)]
 pub fn generate_mcballots(
     fixture: &TestFixture,
     election_num: u32,
@@ -208,7 +250,7 @@ pub fn generate_mcballots(
                     &election.tenant_id,
                     &election_event_id,
                     &election.id,
-                    &Uuid::from_str(&contest.id).unwrap(),
+                    &Uuid::from_str(&contest.id).expect("Invalid UUID in contest.id"),
                     100,
                     0,
                     None,
@@ -220,11 +262,11 @@ pub fn generate_mcballots(
                 )?;
 
                 // create the directory for multi-ballots
-                let file = fixture
+                let file_path = fixture
                     .input_dir_ballots
                     .join(format!("election__{}", &election.id))
                     .join(format!("area__{}", area_config.id));
-                fs::create_dir_all(&file)?;
+                fs::create_dir_all(&file_path)?;
 
                 election.ballot_styles.push(generate_ballot_style(
                     &election.tenant_id,
@@ -290,27 +332,51 @@ pub fn generate_mcballots(
                     };
 
                     match i {
-                        1 => choices[0].selected = 0,
-                        2 => choices[1].selected = 0,
-                        3 => choices[2].selected = 0,
-                        4 => choices[3].selected = 0,
-                        5 => choices[4].selected = 0,
-                        6 => choices[0].selected = 0,
-                        7 => choices[0].selected = 0,
-                        8 => choices[3].selected = 0,
-                        9 => choices[3].selected = 0,
-                        10 => (),
-                        11 => (),
-                        12 => (),
+                        1 | 6 | 7 => {
+                            if let Some(choice) = choices.get_mut(0) {
+                                choice.selected = 0;
+                            }
+                        }
+                        2 => {
+                            if let Some(choice) = choices.get_mut(1) {
+                                choice.selected = 0;
+                            }
+                        }
+                        3 => {
+                            if let Some(choice) = choices.get_mut(2) {
+                                choice.selected = 0;
+                            }
+                        }
+                        4 | 8 | 9 => {
+                            if let Some(choice) = choices.get_mut(3) {
+                                choice.selected = 0;
+                            }
+                        }
+                        5 => {
+                            if let Some(choice) = choices.get_mut(4) {
+                                choice.selected = 0;
+                            }
+                        }
+                        10..=12 => (),
                         14 => {
-                            choices[2].selected = 0;
+                            if let Some(choice) = choices.get_mut(2) {
+                                choice.selected = 0;
+                            }
                             // We are not yet testing errors due to more than max allowed votes
-                            // choices[3].selected = 42;
+                            // if let Some(choice) = choices.get_mut(3) {
+                            //     choice.selected = 42;
+                            // }
                         }
                         15 => {
-                            choices[3].selected = 42;
+                            if let Some(choice) = choices.get_mut(3) {
+                                choice.selected = 42;
+                            }
                         }
-                        _ => choices[1].selected = 0,
+                        _ => {
+                            if let Some(choice) = choices.get_mut(1) {
+                                choice.selected = 0;
+                            }
+                        }
                     }
 
                     plaintext_prepare.choices = choices;
@@ -325,9 +391,9 @@ pub fn generate_mcballots(
 
                     let plaintext = contest
                         .encode_plaintext_contest_bigint(&plaintext_prepare)
-                        .unwrap();
+                        .expect("Failed to encode plaintext contest");
 
-                    writeln!(file, "{}", plaintext)?;
+                    writeln!(file, "{plaintext}")?;
 
                     Ok::<(), Error>(())
                 })?;
@@ -351,11 +417,13 @@ pub fn generate_mcballots(
                 &election.tenant_id,
                 &election.election_event_id,
                 &election.id,
-                &Uuid::from_str(&key.0).unwrap(),
+                &Uuid::from_str(&key.0).expect("Invalid UUID in ballot key"),
                 contests.clone(),
             );
 
-            let bigint = ballot.encode_to_bigint(&ballot_style).unwrap();
+            let bigint = ballot
+                .encode_to_bigint(&ballot_style)
+                .expect("Failed to encode ballot to bigint");
 
             ballots.push((key, bigint));
         }
@@ -376,7 +444,7 @@ pub fn generate_mcballots(
                 .create(true)
                 .open(file.join(BALLOTS_FILE))?;
 
-            writeln!(file, "{}", bigint)?;
+            writeln!(file, "{bigint}")?;
         }
 
         Ok::<(), Error>(())

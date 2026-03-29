@@ -82,10 +82,10 @@ impl PipeInputs {
         path.push(format!("{}{}", PREFIX_ELECTION, election_id));
 
         if let Some(contest_id) = contest_id {
-            path.push(format!("{}{}", PREFIX_CONTEST, contest_id));
+            path.push(format!("{PREFIX_CONTEST}{contest_id}"));
 
             if let Some(area_id) = area_id {
-                path.push(format!("{}{}", PREFIX_AREA, area_id));
+                path.push(format!("{PREFIX_AREA}{area_id}"));
             }
         }
 
@@ -97,8 +97,8 @@ impl PipeInputs {
         let mut path = PathBuf::new();
 
         path.push(root);
-        path.push(format!("{}{}", PREFIX_ELECTION, election_id));
-        path.push(format!("{}", PREFIX_ALL_AREAS));
+        path.push(format!("{PREFIX_ELECTION}{election_id}"));
+        path.push(PREFIX_ALL_AREAS.to_string());
 
         path
     }
@@ -113,14 +113,14 @@ impl PipeInputs {
         let mut path = PathBuf::new();
 
         path.push(root);
-        path.push(format!("{}{}", PREFIX_ELECTION, election_id));
+        path.push(format!("{PREFIX_ELECTION}{election_id}"));
 
         if let Some(area_id) = area_id {
-            path.push(format!("{}{}", PREFIX_AREA, area_id));
+            path.push(format!("{PREFIX_AREA}{area_id}"));
         }
 
         if let Some(contest_id) = contest_id {
-            path.push(format!("{}{}", PREFIX_CONTEST, contest_id));
+            path.push(format!("{PREFIX_CONTEST}{contest_id}"));
         }
 
         path
@@ -137,8 +137,8 @@ impl PipeInputs {
         let mut path = PathBuf::new();
 
         path.push(root);
-        path.push(format!("{}{}", PREFIX_ELECTION, election_id));
-        path.push(format!("{}{}", PREFIX_AREA, area_id));
+        path.push(format!("{PREFIX_ELECTION}{election_id}"));
+        path.push(format!("{PREFIX_AREA}{area_id}"));
 
         path
     }
@@ -148,7 +148,7 @@ impl PipeInputs {
         let mut path = PathBuf::new();
 
         path.push(root);
-        path.push(format!("{}{}", PREFIX_TALLY_SHEET, tally_sheet_id));
+        path.push(format!("{PREFIX_TALLY_SHEET}{tally_sheet_id}"));
         path
     }
 

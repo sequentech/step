@@ -20,7 +20,7 @@ pub fn parse_file<T: for<'a> Deserialize<'a>>(mut file: File) -> Result<T> {
     file.read_to_string(&mut contents)?;
 
     deserialize_str(&contents).map_err(|err| {
-        Error::UnexpectedError(format!("Parse error: {:?} . Contents {contents}", err))
+        Error::UnexpectedError(format!("Parse error: {err:?} . Contents {contents}"))
     })
 }
 

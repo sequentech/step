@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+//! Configuration types and helpers for Velvet pipelines.
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 

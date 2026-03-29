@@ -335,8 +335,7 @@ impl GenerateReports {
         )
         .map_err(|e| {
             Error::UnexpectedError(format!(
-                "Error during render_template_text from report.hbs template file: {}",
-                e
+                "Error during render_template_text from report.hbs template file: {e}"
             ))
         })?;
 
@@ -356,8 +355,7 @@ impl GenerateReports {
             reports::render_template_text(&config.system_template, template_system_vars.clone())
                 .map_err(|e| {
                     Error::UnexpectedError(format!(
-                        "Error during render_template_text from report.hbs template file: {}",
-                        e
+                        "Error during render_template_text from report.hbs template file: {e}"
                     ))
                 })?;
 
@@ -366,8 +364,7 @@ impl GenerateReports {
                 reports::render_template("report_base_pdf", template_map, template_vars.clone())
                     .map_err(|e| {
                         Error::UnexpectedError(format!(
-                            "Error during render_template_text from report.hbs template file: {}",
-                            e
+                            "Error during render_template_text from report.hbs template file: {e}"
                         ))
                     })?;
 
@@ -380,8 +377,7 @@ impl GenerateReports {
                 reports::render_template_text(&config.system_template, template_system_vars)
                     .map_err(|e| {
                         Error::UnexpectedError(format!(
-                            "Error during render_template_text from report.hbs template file: {}",
-                            e
+                            "Error during render_template_text from report.hbs template file: {e}"
                         ))
                     })?;
 
@@ -393,7 +389,7 @@ impl GenerateReports {
             let rt = tokio::runtime::Runtime::new().unwrap();
             let bytes_pdf =
                 pdf::sync::PdfRenderer::render_pdf(render_pdf, pdf_options).map_err(|e| {
-                    Error::UnexpectedError(format!("Error during html_to_pdf conversion: {}", e))
+                    Error::UnexpectedError(format!("Error during html_to_pdf conversion: {e}"))
                 })?;
 
             Some(bytes_pdf)
@@ -402,9 +398,9 @@ impl GenerateReports {
         };
 
         let generated_report_bytes = GeneratedReportsBytes {
-            bytes_pdf: bytes_pdf,
+            bytes_pdf,
             bytes_html: render_html.as_bytes().to_vec(),
-            bytes_json: bytes_json,
+            bytes_json,
         };
 
         Ok((generated_report_bytes, results_hash))
@@ -744,7 +740,7 @@ impl GenerateReports {
             .clone()
             .map(|value| Uuid::parse_str(&value.id))
             .transpose()
-            .map_err(|err| Error::UnexpectedError(format!("{}", err)))?;
+            .map_err(|err| Error::UnexpectedError(format!("{err}")))?;
         let contest_result = self.read_contest_result(
             election_id,
             contest_id,
@@ -1096,7 +1092,7 @@ impl Pipe for GenerateReports {
                             .entry(area.id.to_string())
                             .and_modify(|entry| entry.contests.push(contest)) // Ensure contest is cloneable or references are fine
                             .or_insert_with(|| InputConfigAreaContest {
-                                area: area, // Ensure lifetime of area is suitable or it's cloned
+                                area, // Ensure lifetime of area is suitable or it's cloned
                                 contests: vec![contest],
                             });
                     });

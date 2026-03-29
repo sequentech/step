@@ -155,8 +155,7 @@ impl Pipe for DoTally {
                         TreeNode::<()>::from_areas(election_input.areas.clone()).map_err(
                             |err| {
                                 Error::UnexpectedError(format!(
-                                    "Error building area tree for contest {}: {:?}",
-                                    contest_id_for_contest, err
+                                    "Error building area tree for contest {contest_id_for_contest}: {err:?}"
                                 ))
                             },
                         )?,

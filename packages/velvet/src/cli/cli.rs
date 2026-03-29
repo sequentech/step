@@ -36,12 +36,19 @@ pub struct CliRun {
 }
 
 impl CliRun {
+    /// Validate the configuration for this CLI run.
+    ///
+    /// # Errors
+    /// Returns an error if the config file is missing, cannot be opened, or is invalid.
     pub fn validate(&self) -> Result<Config> {
         let config = self.parse_config()?;
-
         Ok(config)
     }
 
+    /// Parse the configuration file for this CLI run.
+    ///
+    /// # Errors
+    /// Returns an error if the config file is missing, cannot be opened, or is invalid.
     fn parse_config(&self) -> Result<Config> {
         if !self.config.exists() {
             return Err(Error::ConfigNotFound);
@@ -55,13 +62,19 @@ impl CliRun {
                 return Err(Error::StageDefinition(format!(
                     "Stage '{stage}', defined in stages.order, is not defined in stages."
                 )));
-            } else {
-                let stage_def = config.stages.stages_def.get(stage).unwrap();
-                let pipeline = &stage_def.pipeline;
-                let hash_set: HashSet<_> = pipeline.iter().map(|p| p.pipe.as_ref()).collect();
-                if hash_set.len() != pipeline.len() {
-                    return Err(Error::StageDefinition(format!("Pipeline, defined in stages[{stage}].pipeline, should have unique pipe definition")));
+            }
+            let stage_def = match config.stages.stages_def.get(stage) {
+                Some(def) => def,
+                None => {
+                    return Err(Error::StageDefinition(format!(
+                        "Stage '{stage}', defined in stages.order, is not defined in stages."
+                    )))
                 }
+            };
+            let pipeline = &stage_def.pipeline;
+            let hash_set: HashSet<_> = pipeline.iter().map(|p| p.pipe.as_ref()).collect();
+            if hash_set.len() != pipeline.len() {
+                return Err(Error::StageDefinition(format!("Pipeline, defined in stages[{stage}].pipeline, should have unique pipe definition")));
             }
         }
 
@@ -138,6 +151,8 @@ mod tests {
         Ok(())
     }
 
+    /// # Panics
+    /// This test will panic if the config file does not exist, as expected.
     #[test]
     #[should_panic]
     fn test_clirun_validate_not_found() {

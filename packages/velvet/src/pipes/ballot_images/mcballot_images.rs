@@ -218,7 +218,7 @@ impl MCBallotImages {
                     );
                     // We'll push this into our bulk_sign_requests
                     // We also need a unique ID to correlate the signature
-                    let sign_id = format!("b{}_c{}_p{}", b_idx, c_idx, page_number);
+                    let sign_id = format!("b{b_idx}_c{c_idx}_p{page_number}");
 
                     bulk_sign_requests.push(SignRequest {
                         id: sign_id.clone(),
@@ -278,7 +278,7 @@ impl MCBallotImages {
         if let Some(acm_key) = &pipe_config.acm_key {
             if !bulk_sign_requests.is_empty() {
                 signatures_map = ecies_sign_data_bulk(acm_key, &bulk_sign_requests)
-                    .map_err(|e| Error::UnexpectedError(format!("Error in bulk signing: {}", e)))?;
+                    .map_err(|e| Error::UnexpectedError(format!("Error in bulk signing: {e}")))?;
             }
         }
 
@@ -327,8 +327,7 @@ impl MCBallotImages {
         let rendered_user_template = reports::render_template_text(&pipe_config.template, map)
             .map_err(|e| {
                 Error::UnexpectedError(format!(
-                    "Error during render_template_text from report.hbs template file: {}",
-                    e
+                    "Error during render_template_text from report.hbs template file: {e}"
                 ))
             })?;
 
@@ -347,8 +346,7 @@ impl MCBallotImages {
         let bytes_html = reports::render_template_text(&pipe_config.system_template, system_map)
             .map_err(|e| {
                 Error::UnexpectedError(format!(
-                    "Error during render_template_text from report.hbs template file: {}",
-                    e
+                    "Error during render_template_text from report.hbs template file: {e}"
                 ))
             })?;
 
@@ -360,7 +358,7 @@ impl MCBallotImages {
         let bytes_pdf = if pipe_config.enable_pdfs {
             Some(
                 pdf::sync::PdfRenderer::render_pdf(bytes_html.clone(), pdf_options).map_err(
-                    |e| Error::UnexpectedError(format!("Error during PDF rendering: {}", e)),
+                    |e| Error::UnexpectedError(format!("Error during PDF rendering: {e}")),
                 )?,
             )
         } else {
@@ -484,7 +482,7 @@ impl Pipe for MCBallotImages {
                         .num_threads(max_threads)
                         .build()
                         .map_err(|e| {
-                            Error::UnexpectedError(format!("Error building thread pool: {}", e))
+                            Error::UnexpectedError(format!("Error building thread pool: {e}"))
                         })?;
 
                     let max_items_per_report =
@@ -531,8 +529,7 @@ impl Pipe for MCBallotImages {
                                     let pdf_hash =
                                         hash_sha256(some_bytes_pdf.as_slice()).map_err(|e| {
                                             Error::UnexpectedError(format!(
-                                                "Error during hash pdf bytes: {}",
-                                                e
+                                                "Error during hash pdf bytes: {e}"
                                             ))
                                         })?;
 
@@ -562,8 +559,7 @@ impl Pipe for MCBallotImages {
                                     )
                                     .map_err(|e| {
                                         Error::UnexpectedError(format!(
-                                            "Error during hash pdf bytes: {}",
-                                            e
+                                            "Error during hash pdf bytes: {e}"
                                         ))
                                     })?;
 
@@ -585,10 +581,7 @@ impl Pipe for MCBallotImages {
 
                                     // Lock the mutex before modifying the vector
                                     let mut files_lock = files.lock().map_err(|e| {
-                                        Error::UnexpectedError(format!(
-                                            "Error locking files: {}",
-                                            e
-                                        ))
+                                        Error::UnexpectedError(format!("Error locking files: {e}"))
                                     })?;
                                     files_lock.push(BallotCsvData {
                                         file_name: file_name.to_string(),
@@ -620,10 +613,10 @@ impl Pipe for MCBallotImages {
 
                         // Write the CSV file of file names and hashes ONLY for `ballot` type
                         if pipe_data.output_file.clone() == BALLOT_IMAGES_OUTPUT_FILE {
-                            let csv_filename = format!("ballots_files.csv");
+                            let csv_filename = "ballots_files.csv".to_string();
                             let csv_path = path.join(csv_filename);
                             let files_lock = files.lock().map_err(|e| {
-                                Error::UnexpectedError(format!("Error locking files: {}", e))
+                                Error::UnexpectedError(format!("Error locking files: {e}"))
                             })?;
 
                             let rt = Runtime::new()?;
@@ -632,8 +625,7 @@ impl Pipe for MCBallotImages {
                                     .await
                                     .map_err(|e| {
                                         Error::UnexpectedError(format!(
-                                            "Error writing file hash CSV: {}",
-                                            e
+                                            "Error writing file hash CSV: {e}"
                                         ))
                                     })
                             })?;
@@ -643,7 +635,7 @@ impl Pipe for MCBallotImages {
                     });
 
                     if let Err(e) = result {
-                        eprintln!("Error processing: {}", e);
+                        eprintln!("Error processing: {e}");
                     }
                 } else {
                     println!(
@@ -758,9 +750,9 @@ fn convert_ballots(
                         marked.selected = 1;
                         next.insert(choice.0.clone(), marked);
                     } else {
-                        return Err(Error::UnexpectedError(format!(
-                            "could not find candidate for choice"
-                        )));
+                        return Err(Error::UnexpectedError(
+                            "could not find candidate for choice".to_string(),
+                        ));
                     }
                 }
                 let mut values: Vec<DecodedVoteChoice> = next.into_values().collect();
@@ -777,9 +769,9 @@ fn convert_ballots(
                 };
                 ballot_dvcs.push(marked_contest);
             } else {
-                return Err(Error::UnexpectedError(format!(
-                    "could not find choices for contest"
-                )));
+                return Err(Error::UnexpectedError(
+                    "could not find choices for contest".to_string(),
+                ));
             }
         }
         ret.push(Bridge::new(dbc, ballot_dvcs));
@@ -793,19 +785,19 @@ pub async fn write_file_hash_csv(data: Vec<BallotCsvData>, path: PathBuf) -> Res
 
     let mut writer = Writer::from_writer(vec![]);
 
-    writer.write_record(&headers).map_err(|e| {
-        Error::UnexpectedError(format!("Failed to write headers to CSV file: {}", e))
-    })?;
+    writer
+        .write_record(&headers)
+        .map_err(|e| Error::UnexpectedError(format!("Failed to write headers to CSV file: {e}")))?;
 
     for entry in data {
         writer
             .write_record(&[entry.file_name, entry.hash])
-            .map_err(|e| Error::UnexpectedError(format!("Failed to write record: {}", e)))?;
+            .map_err(|e| Error::UnexpectedError(format!("Failed to write record: {e}")))?;
     }
 
     let data_bytes = writer
         .into_inner()
-        .map_err(|e| Error::UnexpectedError(format!("Failed to flush CSV writer: {}", e)))?;
+        .map_err(|e| Error::UnexpectedError(format!("Failed to flush CSV writer: {e}")))?;
 
     let mut file = OpenOptions::new()
         .write(true)
