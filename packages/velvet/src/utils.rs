@@ -26,9 +26,8 @@ pub fn parse_file<T: for<'a> Deserialize<'a>>(mut file: File) -> Result<T> {
     let mut contents = String::new();
     file.read_to_string(&mut contents)?;
 
-    deserialize_str(&contents).map_err(|err| {
-        Error::UnexpectedError(format!("Parse error: {err:?} . Contents {contents}"))
-    })
+    deserialize_str(&contents)
+        .map_err(|err| Error::Unexpected(format!("Parse error: {err:?} . Contents {contents}")))
 }
 /// Unmarked choices
 /// Creates a map of decoded vote choices indexed by contest and candidate IDs.

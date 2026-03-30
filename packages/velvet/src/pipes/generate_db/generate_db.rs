@@ -42,31 +42,43 @@ use rusqlite::Transaction as SqliteTransaction;
 
 use serde::{Deserialize, Serialize};
 
+/// Configuration for `SQLite` database generation pipeline.
 #[derive(Serialize, Deserialize, Debug, Default)]
 pub struct PipeConfigGenerateDatabase {
+    /// Whether to include decoded ballots in the database.
     pub include_decoded_ballots: bool,
+    /// Tenant identifier.
     pub tenant_id: String,
+    /// Election event identifier.
     pub election_event_id: String,
+    /// Output filename for the database.
     pub database_filename: String,
 }
 
 impl PipeConfigGenerateDatabase {
+    /// Creates a new database generation configuration with default values.
     #[instrument(skip_all, name = "PipeConfigGenerateDatabase::new")]
     pub fn new() -> Self {
         Self::default()
     }
 }
 
+/// Default filename for the generated election database.
 pub const DATABASE_FILENAME: &str = "results.db";
 
+/// Database generation pipe implementation.
 #[derive(Debug)]
 pub struct GenerateDatabase {
+    /// Pipeline input configuration.
     pub pipe_inputs: PipeInputs,
+    /// Base input directory for results.
     pub input_dir: PathBuf,
+    /// Base output directory for the generated database.
     pub output_dir: PathBuf,
 }
 
 impl GenerateDatabase {
+    /// Creates a new database generation pipe instance.
     #[instrument(skip_all, name = "GenerateDatabase::new")]
     pub fn new(pipe_inputs: PipeInputs) -> Self {
         let input_dir = pipe_inputs

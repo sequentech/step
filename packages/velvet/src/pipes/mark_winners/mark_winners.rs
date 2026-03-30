@@ -180,7 +180,7 @@ impl Pipe for MarkWinners {
                         let Some(tally_sheet_id) =
                             PipeInputs::get_tally_sheet_id_from_path(&tally_sheet_folder)
                         else {
-                            return Err(Error::UnexpectedError(
+                            return Err(Error::Unexpected(
                                 "Can't read tally sheet id from path".into(),
                             ));
                         };

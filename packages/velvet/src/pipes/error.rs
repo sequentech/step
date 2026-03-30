@@ -25,7 +25,7 @@ pub enum Error {
     /// JSON deserialization or parsing error.
     JsonParse(serde_json::Error),
     /// Unexpected error with a custom message.
-    UnexpectedError(String),
+    Unexpected(String),
     /// Wrapper for anyhow errors.
     Anyhow(anyhow::Error),
 }

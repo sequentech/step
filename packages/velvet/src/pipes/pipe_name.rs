@@ -8,16 +8,26 @@ use std::fmt;
 use std::str::FromStr;
 use strum_macros::{AsRefStr, Display, EnumString};
 
+/// Names of the different election processing pipelines.
 #[derive(Debug, Serialize, Deserialize, Clone, Copy, PartialEq, EnumString, Display, AsRefStr)]
 pub enum PipeName {
+    /// Decode standard ballots pipeline.
     DecodeBallots,
+    /// Decode multi-contest ballots pipeline.
     DecodeMCBallots,
+    /// Generate ballot images pipeline.
     BallotImages,
+    /// Generate multi-contest ballot receipts pipeline.
     MCBallotReceipts,
+    /// Generate multi-contest ballot images pipeline.
     MCBallotImages,
+    /// Tally votes pipeline.
     DoTally,
+    /// Mark election winners pipeline.
     MarkWinners,
+    /// Generate election reports pipeline.
     GenerateReports,
+    /// Generate election database pipeline.
     GenerateDatabase,
 }
 
@@ -45,23 +55,33 @@ pub fn deserialize_pipe<'de, D: Deserializer<'de>>(deserializer: D) -> Result<Pi
 }
 
 #[derive(Debug, AsRefStr)]
+/// Output directory names for each pipeline's results.
 pub enum PipeNameOutputDir {
+    /// Output directory for decoded ballots pipeline.
     #[strum(serialize = "velvet-decode-ballots")]
     DecodeBallots,
+    /// Output directory for decoded multi-contest ballots pipeline.
     #[strum(serialize = "velvet-decode-mcballots")]
     DecodeMCBallots,
+    /// Output directory for multi-contest ballot receipts pipeline.
     #[strum(serialize = "velvet-mcballot-receipts")]
     MCBallotReceipts,
+    /// Output directory for tally pipeline.
     #[strum(serialize = "velvet-do-tally")]
     DoTally,
+    /// Output directory for mark winners pipeline.
     #[strum(serialize = "velvet-mark-winners")]
     MarkWinners,
+    /// Output directory for generate reports pipeline.
     #[strum(serialize = "velvet-generate-reports")]
     GenerateReports,
+    /// Output directory for generate database pipeline.
     #[strum(serialize = "velvet-generate-database")]
     GenerateDatabase,
+    /// Output directory for ballot images pipeline.
     #[strum(serialize = "velvet-ballot-images")]
     BallotImages,
+    /// Output directory for multi-contest ballot images pipeline.
     #[strum(serialize = "velvet-mcballot-images")]
     MCBallotImages,
 }

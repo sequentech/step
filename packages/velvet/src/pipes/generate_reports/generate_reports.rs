@@ -76,11 +76,11 @@ pub struct GenerateReports {
 /// Contains the byte contents of generated reports in different formats.
 pub struct GeneratedReportsBytes {
     /// PDF report content (optional).
-    pub bytes_pdf: Option<Vec<u8>>,
+    pub pdf: Option<Vec<u8>>,
     /// HTML report content.
-    pub bytes_html: Vec<u8>,
+    pub html: Vec<u8>,
     /// JSON report content.
-    pub bytes_json: Vec<u8>,
+    pub json: Vec<u8>,
 }
 
 /// Data structure containing template variables for report generation.
@@ -144,7 +144,6 @@ impl GenerateReports {
     #[instrument(err, skip_all)]
     #[allow(clippy::too_many_lines)]
     pub fn compute_reports(
-        &self,
         reports: Vec<ReportData>,
         areas_map: &HashMap<String, TreeNodeArea>,
         is_consolidated: bool,
@@ -327,7 +326,8 @@ impl GenerateReports {
         let config = self.get_config()?;
         let mut execution_annotations = config.execution_annotations;
 
-        let computed_reports = self.compute_reports(reports.clone(), areas_map, is_consolidated)?;
+        let computed_reports =
+            GenerateReports::compute_reports(reports.clone(), areas_map, is_consolidated)?;
         let template_data = TemplateData {
             execution_annotations: execution_annotations.clone(),
             reports: computed_reports.clone(),
@@ -341,7 +341,7 @@ impl GenerateReports {
             election_hash
         } else {
             hash_b64(&bytes_json).map_err(|err| {
-                Error::UnexpectedError(format!("Error hashing the results file: {err:?}"))
+                Error::Unexpected(format!("Error hashing the results file: {err:?}"))
             })?
         };
 
@@ -356,7 +356,7 @@ impl GenerateReports {
             .clone()
             .to_map()
             // TODO: Fix neededing to do a Map Err
-            .map_err(|err| Error::UnexpectedError(format!("serialization error: {err:?}")))?;
+            .map_err(|err| Error::Unexpected(format!("serialization error: {err:?}")))?;
 
         let mut template_map = HashMap::new();
         let report_base_html = include_str!("../../resources/report_base_html.hbs");
@@ -374,7 +374,7 @@ impl GenerateReports {
             template_vars.clone(),
         )
         .map_err(|e| {
-            Error::UnexpectedError(format!(
+            Error::Unexpected(format!(
                 "Error during render_template_text from report.hbs template file: {e}"
             ))
         })?;
@@ -394,7 +394,7 @@ impl GenerateReports {
         let render_html =
             reports::render_template_text(&config.system_template, template_system_vars.clone())
                 .map_err(|e| {
-                    Error::UnexpectedError(format!(
+                    Error::Unexpected(format!(
                         "Error during render_template_text from report.hbs template file: {e}"
                     ))
                 })?;
@@ -403,7 +403,7 @@ impl GenerateReports {
             let render_pdf_user: String =
                 reports::render_template("report_base_pdf", template_map, template_vars.clone())
                     .map_err(|e| {
-                        Error::UnexpectedError(format!(
+                        Error::Unexpected(format!(
                             "Error during render_template_text from report.hbs template file: {e}"
                         ))
                     })?;
@@ -416,7 +416,7 @@ impl GenerateReports {
             let render_pdf =
                 reports::render_template_text(&config.system_template, template_system_vars)
                     .map_err(|e| {
-                        Error::UnexpectedError(format!(
+                        Error::Unexpected(format!(
                             "Error during render_template_text from report.hbs template file: {e}"
                         ))
                     })?;
@@ -429,7 +429,7 @@ impl GenerateReports {
             let rt = tokio::runtime::Runtime::new().expect("Failed to create Tokio runtime");
             let bytes_pdf =
                 pdf::sync::PdfRenderer::render_pdf(render_pdf, pdf_options).map_err(|e| {
-                    Error::UnexpectedError(format!("Error during html_to_pdf conversion: {e}"))
+                    Error::Unexpected(format!("Error during html_to_pdf conversion: {e}"))
                 })?;
 
             Some(bytes_pdf)
@@ -438,14 +438,17 @@ impl GenerateReports {
         };
 
         let generated_report_bytes = GeneratedReportsBytes {
-            bytes_pdf,
-            bytes_html: render_html.as_bytes().to_vec(),
-            bytes_json,
+            pdf: bytes_pdf,
+            html: render_html.as_bytes().to_vec(),
+            json: bytes_json,
         };
 
         Ok((generated_report_bytes, results_hash))
     }
 
+    /// Checks if an aggregate result exists for the given `election/contest/area path`.
+    ///
+    /// Returns true if the aggregate folder exists and contains a contest result file.
     #[instrument(skip(self))]
     pub fn has_aggregate(
         &self,
@@ -646,7 +649,7 @@ impl GenerateReports {
                 }
             }
 
-            let computed_reports = self.compute_reports(reports, &areas_map, false)?;
+            let computed_reports = GenerateReports::compute_reports(reports, &areas_map, false)?;
 
             election_reports.push(ElectionReportDataComputed {
                 election_id: election_input.id.clone().to_string(),
@@ -810,7 +813,7 @@ impl GenerateReports {
             .clone()
             .map(|value| Uuid::parse_str(&value.id))
             .transpose()
-            .map_err(|err| Error::UnexpectedError(format!("{err}")))?;
+            .map_err(|err| Error::Unexpected(format!("{err}")))?;
         let contest_result = self.read_contest_result(
             election_id,
             contest_id,
@@ -935,7 +938,7 @@ impl GenerateReports {
 
         fs::create_dir_all(&base_path)?;
 
-        if let Some(bytes_pdf) = reports.bytes_pdf.clone() {
+        if let Some(bytes_pdf) = reports.pdf.clone() {
             let pdf_path = base_path.join(OUTPUT_PDF);
             let mut pdf_file = OpenOptions::new()
                 .write(true)
@@ -957,7 +960,7 @@ impl GenerateReports {
             .truncate(true)
             .create(true)
             .open(html_path)?;
-        html_file.write_all(&reports.bytes_html)?;
+        html_file.write_all(&reports.html)?;
 
         let json_path = base_path.join(json_path);
         let mut json_file = OpenOptions::new()
@@ -965,7 +968,7 @@ impl GenerateReports {
             .truncate(true)
             .create(true)
             .open(json_path)?;
-        json_file.write_all(&reports.bytes_json)?;
+        json_file.write_all(&reports.json)?;
 
         Ok(result_hash)
     }
@@ -1053,7 +1056,7 @@ impl Pipe for GenerateReports {
                                     .iter()
                                     .map(|tally_sheet_path| -> Result<String> {
                                         PipeInputs::get_tally_sheet_id_from_path(tally_sheet_path)
-                                            .ok_or(Error::UnexpectedError(
+                                            .ok_or(Error::Unexpected(
                                                 "Can't read tally sheet id from path".into(),
                                             ))
                                     })

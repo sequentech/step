@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-/// Database generation pipe for processing election results.
+/// `SQLite` Database generation pipe for processing election results.
 #[allow(clippy::module_inception)]
 mod generate_db;
 pub use generate_db::*;

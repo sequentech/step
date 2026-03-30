@@ -33,21 +33,27 @@ use strand::hash::{hash_b64, hash_sha256};
 use tokio::runtime::Runtime;
 use tracing::{info, instrument};
 
+/// Output filename for multi-contest ballot images.
 pub const BALLOT_IMAGES_OUTPUT_FILE: &str = "ballots";
 
+/// Multi-contest ballot images pipe implementation.
 pub struct MCBallotImages {
+    /// Pipeline input configuration.
     pub pipe_inputs: PipeInputs,
 }
 
+/// Ballot images pipe data for multi-contest ballots.
 pub struct BallotImagesPipeData {
+    /// Output filename for ballot images.
     pub output_file: String,
+    /// Pipeline name string.
     pub pipe_name: String,
+    /// Pipeline output directory name.
     pub pipe_name_output_dir: String,
 }
 
-// QR code = containing header of the report and voted candidates per position
-// (if no votes, the content of QR code should be header of the report and "ABSTENTION")
-
+/// QR code = containing header of the report and voted candidates per position
+/// (if no votes, the content of QR code should be header of the report and "ABSTENTION")
 #[instrument(skip_all)]
 pub fn qr_encode_choices(contests: &[ContestData], title: &str) -> String {
     let is_blank: bool = contests.iter().all(ContestData::is_blank);
@@ -131,6 +137,7 @@ fn sort_candidates(candidates: &mut [DecodedChoice], order_field: &CandidatesOrd
 }
 
 impl MCBallotImages {
+    /// Creates a new multi-contest ballot images pipe instance.
     #[instrument(skip_all, name = "MCBallotImages::new")]
     pub fn new(pipe_inputs: PipeInputs) -> Self {
         Self { pipe_inputs }
@@ -192,7 +199,7 @@ impl MCBallotImages {
             for (c_idx, contest_choices) in ballot.choices.iter().enumerate() {
                 let contest = contest_map
                     .get(&contest_choices.contest_id)
-                    .ok_or_else(|| Error::UnexpectedError("Can't get contest".into()))?;
+                    .ok_or_else(|| Error::Unexpected("Can't get contest".into()))?;
 
                 let mut choices = DecodedChoice::from_dvcs(contest_choices, contest);
 
@@ -287,7 +294,7 @@ impl MCBallotImages {
         if let Some(acm_key) = &pipe_config.acm_key {
             if !bulk_sign_requests.is_empty() {
                 signatures_map = ecies_sign_data_bulk(acm_key, &bulk_sign_requests)
-                    .map_err(|e| Error::UnexpectedError(format!("Error in bulk signing: {e}")))?;
+                    .map_err(|e| Error::Unexpected(format!("Error in bulk signing: {e}")))?;
             }
         }
 
@@ -299,14 +306,14 @@ impl MCBallotImages {
                     if let Some(cd) = bd.contest_choices.get_mut(locator.contest_index) {
                         cd.digital_signature = Some(sig_base64.clone());
                     } else {
-                        return Err(Error::UnexpectedError(format!(
+                        return Err(Error::Unexpected(format!(
                             "index out of bounds for contest_index {} and length {}",
                             locator.contest_index,
                             bd.contest_choices.len()
                         )));
                     }
                 } else {
-                    return Err(Error::UnexpectedError(format!(
+                    return Err(Error::Unexpected(format!(
                         "index out of bounds for ballot_index {} and length {}",
                         locator.ballot_index,
                         ballot_data.len()
@@ -334,7 +341,7 @@ impl MCBallotImages {
 
         let rendered_user_template = reports::render_template_text(&pipe_config.template, map)
             .map_err(|e| {
-                Error::UnexpectedError(format!(
+                Error::Unexpected(format!(
                     "Error during render_template_text from report.hbs template file: {e}"
                 ))
             })?;
@@ -353,7 +360,7 @@ impl MCBallotImages {
 
         let bytes_html = reports::render_template_text(&pipe_config.system_template, system_map)
             .map_err(|e| {
-                Error::UnexpectedError(format!(
+                Error::Unexpected(format!(
                     "Error during render_template_text from report.hbs template file: {e}"
                 ))
             })?;
@@ -365,9 +372,8 @@ impl MCBallotImages {
 
         let bytes_pdf = if pipe_config.enable_pdfs {
             Some(
-                pdf::sync::PdfRenderer::render_pdf(bytes_html.clone(), pdf_options).map_err(
-                    |e| Error::UnexpectedError(format!("Error during PDF rendering: {e}")),
-                )?,
+                pdf::sync::PdfRenderer::render_pdf(bytes_html.clone(), pdf_options)
+                    .map_err(|e| Error::Unexpected(format!("Error during PDF rendering: {e}")))?,
             )
         } else {
             None
@@ -499,7 +505,7 @@ impl Pipe for MCBallotImages {
                         .num_threads(max_threads)
                         .build()
                         .map_err(|e| {
-                            Error::UnexpectedError(format!("Error building thread pool: {e}"))
+                            Error::Unexpected(format!("Error building thread pool: {e}"))
                         })?;
 
                     let max_items_per_report = report_options.max_items_per_report.unwrap_or(100);
@@ -542,7 +548,7 @@ impl Pipe for MCBallotImages {
                                     // pdf file creation
                                     let pdf_hash =
                                         hash_sha256(some_bytes_pdf.as_slice()).map_err(|e| {
-                                            Error::UnexpectedError(format!(
+                                            Error::Unexpected(format!(
                                                 "Error during hash pdf bytes: {e}"
                                             ))
                                         })?;
@@ -551,7 +557,7 @@ impl Pipe for MCBallotImages {
                                     let from_ballot = if ballots.is_empty() {
                                         None
                                     } else {
-                                        Some(chunk.first().ok_or(Error::UnexpectedError(
+                                        Some(chunk.first().ok_or(Error::Unexpected(
                                             "Can't get first chunk".into(),
                                         ))?)
                                     };
@@ -559,7 +565,7 @@ impl Pipe for MCBallotImages {
                                     let to_ballot = if ballots.is_empty() {
                                         None
                                     } else {
-                                        Some(chunk.last().ok_or(Error::UnexpectedError(
+                                        Some(chunk.last().ok_or(Error::Unexpected(
                                             "Can't get last chunk".into(),
                                         ))?)
                                     };
@@ -574,30 +580,26 @@ impl Pipe for MCBallotImages {
                                         to_ballot,
                                     )
                                     .map_err(|e| {
-                                        Error::UnexpectedError(format!(
+                                        Error::Unexpected(format!(
                                             "Error during hash pdf bytes: {e}"
                                         ))
                                     })?;
 
                                     let file_name = file
                                         .file_name()
-                                        .ok_or(Error::UnexpectedError(
-                                            "Can't get file name".into(),
-                                        ))?
+                                        .ok_or(Error::Unexpected("Can't get file name".into()))?
                                         .to_str()
-                                        .ok_or(Error::UnexpectedError(
-                                            "Can't get file name".into(),
-                                        ))?;
+                                        .ok_or(Error::Unexpected("Can't get file name".into()))?;
                                     let bytes_json = file_name.as_bytes().to_vec();
                                     let file_hash = hash_b64(&bytes_json).map_err(|err| {
-                                        Error::UnexpectedError(format!(
+                                        Error::Unexpected(format!(
                                             "Error hashing the results file: {err:?}"
                                         ))
                                     })?;
 
                                     // Lock the mutex before modifying the vector
                                     let mut files_lock = files.lock().map_err(|e| {
-                                        Error::UnexpectedError(format!("Error locking files: {e}"))
+                                        Error::Unexpected(format!("Error locking files: {e}"))
                                     })?;
                                     files_lock.push(BallotCsvData {
                                         file_name: file_name.to_string(),
@@ -632,15 +634,13 @@ impl Pipe for MCBallotImages {
                             let csv_filename = "ballots_files.csv".to_string();
                             let csv_path = path.join(csv_filename);
                             let files_lock = files.lock().map_err(|e| {
-                                Error::UnexpectedError(format!("Error locking files: {e}"))
+                                Error::Unexpected(format!("Error locking files: {e}"))
                             })?;
 
                             let rt = Runtime::new()?;
                             rt.block_on(async {
                                 write_file_hash_csv(files_lock.clone(), csv_path).map_err(|e| {
-                                    Error::UnexpectedError(format!(
-                                        "Error writing file hash CSV: {e}"
-                                    ))
+                                    Error::Unexpected(format!("Error writing file hash CSV: {e}"))
                                 })
                             })?;
                         }
@@ -666,37 +666,60 @@ impl Pipe for MCBallotImages {
 }
 
 #[derive(Serialize, Debug)]
+/// Template data for rendering multi-contest ballot images.
 pub struct TemplateData {
+    /// All ballot data to render.
     pub ballot_data: Vec<BallotData>,
+    /// Name of the election.
     pub election_name: String,
+    /// Alias for the election.
     pub election_alias: String,
+    /// Area name for this ballot set.
     pub area: String,
+    /// Election start and end dates if specified.
     pub election_dates: Option<StringifiedPeriodDates>,
+    /// Election-wide annotations.
     pub election_annotations: HashMap<String, String>,
+    /// Execution annotations for extra information.
     pub execution_annotations: HashMap<String, String>,
 }
 
 #[derive(Serialize, Debug)]
+/// Ballot data for rendering includes decoded votes and tracking information.
 pub struct BallotData {
+    /// Ballot identifier.
     pub id: String,
+    /// Encoded vote representation.
     pub encoded_vote: String,
+    /// Whether the ballot is marked as invalid.
     pub is_invalid: bool,
+    /// Whether the ballot is blank (no votes).
     pub is_blank: bool,
+    /// Contest choices for this ballot.
     pub contest_choices: Vec<ContestData>,
 }
 
 #[derive(Serialize, Debug)]
+/// Contest data for rendering includes decoded choices and signature information.
 pub struct ContestData {
+    /// Contest configuration.
     pub contest: Contest,
+    /// Decoded choices for this contest.
     pub decoded_choices: Vec<DecodedChoice>,
+    /// Number of undervotes for this contest.
     pub undervotes: i64,
+    /// Number of overvotes for this contest.
     pub overvotes: i64,
+    /// Digital signature for the ballot.
     pub digital_signature: Option<String>,
+    /// Signing data for the ballot.
     pub sign_data: Option<String>,
+    /// Page number for this contest.
     pub page_number: Option<i64>,
 }
 
 impl ContestData {
+    /// Checks if this contest has no selected choices (blank).
     #[must_use]
     pub fn is_blank(&self) -> bool {
         self.decoded_choices
@@ -777,7 +800,7 @@ fn convert_ballots(
                         marked.selected = 1;
                         next.insert(choice.0.clone(), marked);
                     } else {
-                        return Err(Error::UnexpectedError(
+                        return Err(Error::Unexpected(
                             "could not find candidate for choice".to_string(),
                         ));
                     }
@@ -796,7 +819,7 @@ fn convert_ballots(
                 };
                 ballot_dvcs.push(marked_contest);
             } else {
-                return Err(Error::UnexpectedError(
+                return Err(Error::Unexpected(
                     "could not find choices for contest".to_string(),
                 ));
             }
@@ -818,17 +841,17 @@ pub fn write_file_hash_csv(data: Vec<BallotCsvData>, path: PathBuf) -> Result<()
 
     writer
         .write_record(&headers)
-        .map_err(|e| Error::UnexpectedError(format!("Failed to write headers to CSV file: {e}")))?;
+        .map_err(|e| Error::Unexpected(format!("Failed to write headers to CSV file: {e}")))?;
 
     for entry in data {
         writer
             .write_record(&[entry.file_name, entry.hash])
-            .map_err(|e| Error::UnexpectedError(format!("Failed to write record: {e}")))?;
+            .map_err(|e| Error::Unexpected(format!("Failed to write record: {e}")))?;
     }
 
     let data_bytes = writer
         .into_inner()
-        .map_err(|e| Error::UnexpectedError(format!("Failed to flush CSV writer: {e}")))?;
+        .map_err(|e| Error::Unexpected(format!("Failed to flush CSV writer: {e}")))?;
 
     let mut file = OpenOptions::new()
         .write(true)

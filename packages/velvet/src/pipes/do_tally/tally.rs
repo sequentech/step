@@ -24,14 +24,24 @@ use std::{fs, path::PathBuf};
 use strum_macros::{Display, EnumString};
 use tracing::instrument;
 
+/// Tally data structure containing contest information and ballots for counting.
+#[allow(clippy::struct_field_names)]
 pub struct Tally {
+    /// The counting algorithm type used for this tally.
     pub id: CountingAlgType,
+    /// The scope and operation being performed on this tally.
     pub scope_operation: ScopeOperation,
+    /// The contest being tallied.
     pub contest: Contest,
+    /// Decoded ballots with their weights.
     pub ballots: Vec<(DecodedVoteContest, Weight)>,
+    /// Total number of registered voters.
     pub census: u64,
+    /// Number of auditable votes.
     pub auditable_votes: u64,
+    /// Results from tally sheet processing.
     pub tally_sheet_results: Vec<ContestResult>,
+    /// Final tally results.
     pub tally_results: Vec<ContestResult>,
 }
 

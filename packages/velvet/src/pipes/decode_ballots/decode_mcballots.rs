@@ -70,14 +70,14 @@ impl DecodeMCBallots {
             }
 
             let plaintext =
-                plaintext.map_err(|_| Error::UnexpectedError("Wrong ballot format".into()))?;
+                plaintext.map_err(|_| Error::Unexpected("Wrong ballot format".into()))?;
 
             let decoded = BallotChoices::decode_from_bigint(
                 &plaintext,
                 contests,
                 Some(serial_number_counter),
             )
-            .map_err(|_| Error::UnexpectedError("Wrong ballot format".into()))?;
+            .map_err(|_| Error::Unexpected("Wrong ballot format".into()))?;
 
             decoded_ballots.push(decoded);
         }
@@ -171,7 +171,7 @@ impl Pipe for DecodeMCBallots {
                                 dbc.clone(),
                                 &contests,
                             )
-                            .map_err(Error::UnexpectedError)?;
+                            .map_err(Error::Unexpected)?;
 
                             for decoded_contest in decoded_contests {
                                 if !output_map.contains_key(&decoded_contest.contest_id) {
@@ -207,7 +207,7 @@ impl Pipe for DecodeMCBallots {
             for (contest_id, area_dcv_map) in output_map {
                 for (area_id, dvcs) in area_dcv_map {
                     let contest_uuid = Uuid::from_str(&contest_id).map_err(|e| {
-                        Error::UnexpectedError(format!(
+                        Error::Unexpected(format!(
                             "Could not parse uuid for contest {contest_id}, {e}"
                         ))
                     })?;

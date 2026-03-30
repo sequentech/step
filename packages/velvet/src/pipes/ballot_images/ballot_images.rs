@@ -26,21 +26,31 @@ use tracing::info;
 use tracing::instrument;
 use uuid::Uuid;
 
+/// Output filename for ballot images PDF file.
 pub const BALLOT_IMAGES_OUTPUT_FILE_PDF: &str = "ballot_images.pdf";
+/// Output filename for ballot images HTML file.
 pub const BALLOT_IMAGES_OUTPUT_FILE_HTML: &str = "ballot_images.html";
 
+/// Ballot images pipe implementation for generating ballot representations.
 pub struct BallotImages {
+    /// Pipeline input configuration.
     pub pipe_inputs: PipeInputs,
 }
 
+/// Ballot images pipe data containing output filenames and paths.
 pub struct BallotImagesPipeData {
+    /// Output filename for PDF file.
     pub output_file_pdf: String,
+    /// Output filename for HTML file.
     pub output_file_html: String,
+    /// Pipeline name string.
     pub pipe_name: String,
+    /// Pipeline output directory name.
     pub pipe_name_output_dir: String,
 }
 
 impl BallotImages {
+    /// Creates a new ballot images pipe instance.
     #[instrument(skip_all, name = "BallotImages::new")]
     pub fn new(pipe_inputs: PipeInputs) -> Self {
         Self { pipe_inputs }
@@ -69,7 +79,7 @@ impl BallotImages {
             vec![],
             vec![],
         )
-        .map_err(|e| Error::UnexpectedError(e.to_string()))?;
+        .map_err(|e| Error::Unexpected(e.to_string()))?;
 
         let ballots = tally
             .ballots
@@ -99,7 +109,7 @@ impl BallotImages {
 
         let rendered_user_template = reports::render_template_text(&pipe_config.template, map)
             .map_err(|e| {
-                Error::UnexpectedError(format!(
+                Error::Unexpected(format!(
                     "Error during render_template_text from report.hbs template file: {e}"
                 ))
             })?;
@@ -118,7 +128,7 @@ impl BallotImages {
 
         let bytes_html = reports::render_template_text(&pipe_config.system_template, system_map)
             .map_err(|e| {
-                Error::UnexpectedError(format!(
+                Error::Unexpected(format!(
                     "Error during render_template_text from report.hbs template file: {e}"
                 ))
             })?;
@@ -131,7 +141,7 @@ impl BallotImages {
         let bytes_pdf = if pipe_config.enable_pdfs {
             let bytes_html = bytes_html.clone();
             let bytes_pdf = pdf::sync::PdfRenderer::render_pdf(bytes_html, pdf_options)
-                .map_err(|e| Error::UnexpectedError(format!("Error during PDF rendering: {e}")))?;
+                .map_err(|e| Error::Unexpected(format!("Error during PDF rendering: {e}")))?;
 
             Some(bytes_pdf)
         } else {
@@ -269,36 +279,58 @@ struct TemplateData {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
+/// Ballot data for rendering includes decoded votes and invalid/blank status.
 pub struct BallotData {
+    /// Ballot identifier.
     pub id: String,
+    /// Encoded vote representation.
     pub encoded_vote: String,
+    /// Whether the ballot is marked as invalid.
     pub is_invalid: bool,
+    /// Whether the ballot is blank (no votes).
     pub is_blank: bool,
+    /// Contest choices for this ballot.
     pub contest_choices: Vec<ContestData>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
+/// Contest data for rendering includes decoded choices and vote counts.
 pub struct ContestData {
+    /// Contest configuration.
     pub contest: Contest,
+    /// Decoded choices for this contest.
     pub decoded_choices: Vec<DecodedChoice>,
+    /// Number of undervotes for this contest.
     pub undervotes: i64,
+    /// Number of overvotes for this contest.
     pub overvotes: i64,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
+/// Computed template data prepared for rendering ballot images.
 pub struct ComputedTemplateData {
+    /// All ballot data to render.
     pub ballot_data: Vec<BallotData>,
+    /// Name of the election.
     pub election_name: String,
+    /// Alias for the election.
     pub election_alias: String,
+    /// Area name for this ballot set.
     pub area: String,
+    /// Election start and end dates if specified.
     pub election_dates: Option<StringifiedPeriodDates>,
+    /// Election annotations.
     pub election_annotations: HashMap<String, String>,
+    /// Extra execution annotations such as date printed.
     pub execution_annotations: HashMap<String, String>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
+/// Decoded choice data with candidate information.
 pub struct DecodedChoice {
+    /// The decoded vote choice.
     pub choice: DecodedVoteChoice,
+    /// The candidate if found, or None if not a valid choice.
     pub candidate: Option<Candidate>,
 }
 

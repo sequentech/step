@@ -66,6 +66,9 @@ fn calculate_overvotes(vote: &DecodedVoteContest, contest: &Contest) -> u64 {
     actual_votes.saturating_sub(max_votes_u64)
 }
 
+/// Updates extended metrics for a contest based on a decoded vote.
+///
+/// Calculates valid votes, undervotes, and overvotes and updates the metrics accordingly.
 #[instrument(skip_all)]
 pub fn update_extended_metrics(
     vote: &DecodedVoteContest,
@@ -94,6 +97,7 @@ pub fn update_extended_metrics(
     result
 }
 
+/// Gets the tally operation for a contest from its annotations.
 #[instrument(skip_all)]
 pub fn get_contest_tally_operation(contest: &Contest) -> TallyOperation {
     let default_tally_op = contest
@@ -107,6 +111,7 @@ pub fn get_contest_tally_operation(contest: &Contest) -> TallyOperation {
     TallyOperation::from_str(&operation).unwrap_or(default_tally_op)
 }
 
+/// Gets the tally operation for an area based on ballot styles and counting algorithm.
 #[instrument(skip_all)]
 pub fn get_area_tally_operation(
     ballot_styles: &[BallotStyle],
@@ -126,6 +131,7 @@ pub fn get_area_tally_operation(
     }
 }
 
+/// Gets the weight for an area from ballot styles.
 #[instrument(skip_all)]
 pub fn get_area_weight(ballot_styles: &[BallotStyle], area_id: &Uuid) -> Weight {
     let area_ballot_style: Option<&BallotStyle> = ballot_styles

@@ -139,11 +139,6 @@ pub fn generate_ballots(
                                 choice.selected = 0;
                             }
                         }
-                        2 | _ => {
-                            if let Some(choice) = choices.get_mut(1) {
-                                choice.selected = 0;
-                            }
-                        }
                         3 => {
                             if let Some(choice) = choices.get_mut(2) {
                                 choice.selected = 0;
@@ -171,6 +166,11 @@ pub fn generate_ballots(
                         15 => {
                             if let Some(choice3) = choices.get_mut(3) {
                                 choice3.selected = 42;
+                            }
+                        }
+                        _ => {
+                            if let Some(choice) = choices.get_mut(1) {
+                                choice.selected = 0;
                             }
                         }
                     }
@@ -281,7 +281,6 @@ pub fn generate_mcballots(
                 }
 
                 let mut file = fs::OpenOptions::new()
-                    .write(true)
                     .append(true)
                     .create(true)
                     .open(file.join(BALLOTS_FILE))?;
@@ -330,11 +329,6 @@ pub fn generate_mcballots(
                                 choice.selected = 0;
                             }
                         }
-                        2 | _ => {
-                            if let Some(choice) = choices.get_mut(1) {
-                                choice.selected = 0;
-                            }
-                        }
                         3 | 14 => {
                             if let Some(choice) = choices.get_mut(2) {
                                 choice.selected = 0;
@@ -358,6 +352,11 @@ pub fn generate_mcballots(
                         15 => {
                             if let Some(choice) = choices.get_mut(3) {
                                 choice.selected = 42;
+                            }
+                        }
+                        _ => {
+                            if let Some(choice) = choices.get_mut(1) {
+                                choice.selected = 0;
                             }
                         }
                     }
@@ -422,7 +421,6 @@ pub fn generate_mcballots(
                 .join(format!("area__{}", key.0));
 
             let mut file = fs::OpenOptions::new()
-                .write(true)
                 .append(true)
                 .create(true)
                 .open(file.join(BALLOTS_FILE))?;

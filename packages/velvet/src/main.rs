@@ -2,10 +2,17 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+#![warn(missing_docs)]
+
+//! Election tallying and result processing system.
+
 mod cli;
 mod config;
+/// Test fixtures for Velvet.
 mod fixtures;
+/// Vote tallying and processing pipelines.
 mod pipes;
+/// Utility and helper functions.
 mod utils;
 
 use clap::Parser;

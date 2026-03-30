@@ -120,7 +120,7 @@ fn test_first_preference_is_active() {
         create_choice("c3d4e5f6-a7b8-4c5d-8e9f-2a3b4c5d6e7f", 2), // Third preference
     ];
 
-    let result = runoff.find_first_active_choice(&choices, &active_candidates);
+    let result = RunoffStatus::find_first_active_choice(&choices, &active_candidates);
     assert_eq!(
         result,
         Some("a1b2c3d4-e5f6-4a5b-8c9d-0e1f2a3b4c5d".to_string())
@@ -144,7 +144,7 @@ fn test_first_preference_eliminated_returns_second() {
         create_choice("c3d4e5f6-a7b8-4c5d-8e9f-2a3b4c5d6e7f", 2), // Third preference (active)
     ];
 
-    let result = runoff.find_first_active_choice(&choices, &active_candidates);
+    let result = RunoffStatus::find_first_active_choice(&choices, &active_candidates);
     assert_eq!(
         result,
         Some("b2c3d4e5-f6a7-4b5c-8d9e-1f2a3b4c5d6e".to_string())
@@ -162,7 +162,7 @@ fn test_multiple_eliminated_skips_to_first_active() {
         create_choice("c3d4e5f6-a7b8-4c5d-8e9f-2a3b4c5d6e7f", 2), // Third preference (active)
     ];
 
-    let result = runoff.find_first_active_choice(&choices, &active_candidates);
+    let result = RunoffStatus::find_first_active_choice(&choices, &active_candidates);
     assert_eq!(
         result,
         Some("c3d4e5f6-a7b8-4c5d-8e9f-2a3b4c5d6e7f".to_string())
@@ -180,7 +180,7 @@ fn test_no_active_candidates_returns_none() {
         create_choice("c3d4e5f6-a7b8-4c5d-8e9f-2a3b4c5d6e7f", 2),
     ];
 
-    let result = runoff.find_first_active_choice(&choices, &active_candidates);
+    let result = RunoffStatus::find_first_active_choice(&choices, &active_candidates);
     assert_eq!(result, None);
 }
 
@@ -195,7 +195,7 @@ fn test_all_choices_eliminated_returns_none() {
         create_choice("c3d4e5f6-a7b8-4c5d-8e9f-2a3b4c5d6e7f", 2),
     ];
 
-    let result = runoff.find_first_active_choice(&choices, &active_candidates);
+    let result = RunoffStatus::find_first_active_choice(&choices, &active_candidates);
     assert_eq!(result, None);
 }
 
@@ -206,7 +206,7 @@ fn test_empty_choices_returns_none() {
 
     let choices = vec![];
 
-    let result = runoff.find_first_active_choice(&choices, &active_candidates);
+    let result = RunoffStatus::find_first_active_choice(&choices, &active_candidates);
     assert_eq!(result, None);
 }
 
@@ -229,7 +229,7 @@ fn test_all_choices_unselected_returns_none() {
         create_choice("c3d4e5f6-a7b8-4c5d-8e9f-2a3b4c5d6e7f", -1), // Not selected
     ];
 
-    let result = runoff.find_first_active_choice(&choices, &active_candidates);
+    let result = RunoffStatus::find_first_active_choice(&choices, &active_candidates);
     assert_eq!(result, None);
 }
 
@@ -252,7 +252,7 @@ fn test_mixed_selected_and_unselected() {
         create_choice("c3d4e5f6-a7b8-4c5d-8e9f-2a3b4c5d6e7f", -1), // Not selected
     ];
 
-    let result = runoff.find_first_active_choice(&choices, &active_candidates);
+    let result = RunoffStatus::find_first_active_choice(&choices, &active_candidates);
     assert_eq!(
         result,
         Some("b2c3d4e5-f6a7-4b5c-8d9e-1f2a3b4c5d6e".to_string())
@@ -279,7 +279,7 @@ fn test_unordered_selected_values_sorted_correctly() {
         create_choice("c3d4e5f6-a7b8-4c5d-8e9f-2a3b4c5d6e7f", 1), // Second preference
     ];
 
-    let result = runoff.find_first_active_choice(&choices, &active_candidates);
+    let result = RunoffStatus::find_first_active_choice(&choices, &active_candidates);
     assert_eq!(
         result,
         Some("a1b2c3d4-e5f6-4a5b-8c9d-0e1f2a3b4c5d".to_string())
@@ -305,7 +305,7 @@ fn test_gap_in_selected_values() {
         create_choice("c3d4e5f6-a7b8-4c5d-8e9f-2a3b4c5d6e7f", -1), // Not selected
     ];
 
-    let result = runoff.find_first_active_choice(&choices, &active_candidates);
+    let result = RunoffStatus::find_first_active_choice(&choices, &active_candidates);
     assert_eq!(
         result,
         Some("a1b2c3d4-e5f6-4a5b-8c9d-0e1f2a3b4c5d".to_string())
@@ -323,7 +323,7 @@ fn test_only_second_preference_active() {
         create_choice("c3d4e5f6-a7b8-4c5d-8e9f-2a3b4c5d6e7f", -1), // Not selected
     ];
 
-    let result = runoff.find_first_active_choice(&choices, &active_candidates);
+    let result = RunoffStatus::find_first_active_choice(&choices, &active_candidates);
     assert_eq!(
         result,
         Some("b2c3d4e5-f6a7-4b5c-8d9e-1f2a3b4c5d6e".to_string())
@@ -337,7 +337,7 @@ fn test_single_choice_active() {
 
     let choices = vec![create_choice("a1b2c3d4-e5f6-4a5b-8c9d-0e1f2a3b4c5d", 0)];
 
-    let result = runoff.find_first_active_choice(&choices, &active_candidates);
+    let result = RunoffStatus::find_first_active_choice(&choices, &active_candidates);
     assert_eq!(
         result,
         Some("a1b2c3d4-e5f6-4a5b-8c9d-0e1f2a3b4c5d".to_string())
@@ -351,7 +351,7 @@ fn test_single_choice_not_active() {
 
     let choices = vec![create_choice("a1b2c3d4-e5f6-4a5b-8c9d-0e1f2a3b4c5d", 0)];
 
-    let result = runoff.find_first_active_choice(&choices, &active_candidates);
+    let result = RunoffStatus::find_first_active_choice(&choices, &active_candidates);
     assert_eq!(result, None);
 }
 
@@ -362,7 +362,7 @@ fn test_single_choice_unselected() {
 
     let choices = vec![create_choice("a1b2c3d4-e5f6-4a5b-8c9d-0e1f2a3b4c5d", -1)];
 
-    let result = runoff.find_first_active_choice(&choices, &active_candidates);
+    let result = RunoffStatus::find_first_active_choice(&choices, &active_candidates);
     assert_eq!(result, None);
 }
 
@@ -390,7 +390,7 @@ fn test_many_candidates_first_active_with_highest_preference() {
         create_choice("f6a7b8c9-d0e1-4f5a-8b9c-5d6e7f8a9b0c", 9), // Second active candidate
     ];
 
-    let result = runoff.find_first_active_choice(&choices, &active_candidates);
+    let result = RunoffStatus::find_first_active_choice(&choices, &active_candidates);
     assert_eq!(
         result,
         Some("e5f6a7b8-c9d0-4e5f-8a9b-4c5d6e7f8a9b".to_string())
@@ -415,7 +415,7 @@ fn test_duplicate_selected_values() {
         create_choice("b2c3d4e5-f6a7-4b5c-8d9e-1f2a3b4c5d6e", 0), // Same selected value
     ];
 
-    let result = runoff.find_first_active_choice(&choices, &active_candidates);
+    let result = RunoffStatus::find_first_active_choice(&choices, &active_candidates);
     // Should return one of them (order depends on sort stability)
     assert!(
         result == Some("a1b2c3d4-e5f6-4a5b-8c9d-0e1f2a3b4c5d".to_string())

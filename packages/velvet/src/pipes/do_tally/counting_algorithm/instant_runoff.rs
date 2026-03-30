@@ -25,14 +25,20 @@ use std::ops::{Deref, DerefMut};
 use tracing::{info, instrument};
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
+/// Reference to a candidate with ID and name.
 pub struct CandidateReference {
+    /// Unique candidate identifier.
     pub id: String,
+    /// Name of the candidate.
     pub name: String,
 }
 
 #[derive(PartialEq, Debug, Copy, Clone, Deserialize, Serialize)]
+/// Status of a candidate during instant runoff counting.
 pub enum ECandidateStatus {
+    /// Candidate is still active in the counting process.
     Active,
+    /// Candidate has been eliminated from consideration.
     Eliminated,
 }
 
@@ -57,6 +63,7 @@ enum BallotStatus {
 }
 
 #[derive(Debug)]
+/// Status of ballots during instant runoff counting including valid, invalid, and blank counts.
 pub struct BallotsStatus<'a> {
     /// List of ballots with their status, decoded votes, and weight.
     ballots: Vec<(BallotStatus, &'a DecodedVoteContest, Weight)>,
@@ -123,18 +130,23 @@ impl BallotsStatus<'_> {
     }
 }
 
-/// Outcome for each candidate in a round
+/// Outcome for each candidate in a counting round.
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct CandidateOutcome {
+    /// Candidate name.
     pub name: String,
+    /// Number of wins in this round (first-place votes).
     pub wins: u64,
+    /// Transference value for this candidate.
     pub transference: i64,
+    /// Percentage of votes received.
     pub percentage: f64,
 }
 
 /// Mapping of candidate IDs to their outcomes in a counting round.
 type CandidatesOutcomes = HashMap<String, CandidateOutcome>;
 
+/// Current status of all candidates in the runoff voting process.
 #[derive(Debug, Default, Serialize, Deserialize)]
 pub struct CandidatesStatus(pub HashMap<String, ECandidateStatus>);
 
@@ -194,29 +206,48 @@ impl CandidatesStatus {
     }
 }
 
+/// Results from a single round of instant runoff voting.
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
 pub struct Round {
+    /// Candidate elected in this round if any.
     pub winner: Option<CandidateReference>,
+    /// Vote counts and statistics for each candidate in this round.
     pub candidates_wins: CandidatesOutcomes,
+    /// Candidates eliminated in this round if any.
     pub eliminated_candidates: Option<Vec<CandidateReference>>,
-    pub active_candidates_count: u64, // Number of active candidates when starting this round
-    pub active_ballots_count: u64,    // Number of active ballots when starting this round
-    pub exhausted_ballots_count: u64, // Number of exhausted ballots in this round
+    /// Number of active candidates when starting this round
+    pub active_candidates_count: u64,
+    /// Number of active ballots when starting this round
+    pub active_ballots_count: u64,
+    /// Number of exhausted ballots in this round
+    pub exhausted_ballots_count: u64,
 }
 
 #[derive(Default, Debug, Serialize, Deserialize)]
+/// Status tracking instant runoff voting process through rounds of elimination.
 pub struct RunoffStatus {
+    /// Current status of each candidate (active or eliminated).
     pub candidates_status: CandidatesStatus,
-    pub name_references: Vec<CandidateReference>, // Maps candidate ID to name and serves as an ordered by results list in the end.
+    /// Maps candidate ID to name and serves as an ordered by results list in the end.
+    pub name_references: Vec<CandidateReference>,
+    /// Number of rounds completed.
     pub round_count: u64,
+    /// All completed rounds.
     pub rounds: Vec<Round>,
+    /// Maximum number of rounds expected.
     pub max_rounds: u64,
+    /// Policy for breaking ties when candidates have equal votes.
     pub tie_breaking_policy: TieBreakingPolicy,
+    /// Records of resolved tie situations.
     pub tie_resolutions: Vec<TallySessionResolutionData>,
+    /// Tie resolution awaiting user input.
     pub pending_tie_resolution: Option<TallySessionResolutionData>,
 }
 
 impl RunoffStatus {
+    /// Initializes the runoff voting status from a contest configuration.
+    ///
+    /// Sets up all candidates as active and initializes the tracking structures for the counting process.
     #[instrument(skip_all)]
     pub fn initialize_runoff(contest: &Contest) -> RunoffStatus {
         let max_rounds = (contest.candidates.len() as u64).saturating_add(1); // At least 1 candidate is eliminated per round
@@ -239,6 +270,9 @@ impl RunoffStatus {
         }
     }
 
+    /// Retrieves the name of a candidate by their ID.
+    ///
+    /// Returns `Some(name)` if the candidate is found, otherwise `None`.
     #[instrument(skip_all)]
     pub fn get_candidate_name(&self, candidate_id: &str) -> Option<String> {
         self.name_references
@@ -247,6 +281,9 @@ impl RunoffStatus {
             .map(|c| c.name.clone())
     }
 
+    /// Fills in candidate names for all outcomes in a round.
+    ///
+    /// Replaces placeholder names with actual candidate names from the name references.
     #[instrument(skip_all)]
     pub fn fill_candidate_wins_names(&self, round: &Round) -> Round {
         let candidates_wins = round
@@ -269,11 +306,17 @@ impl RunoffStatus {
         }
     }
 
+    /// Gets the last completed round.
+    ///
+    /// Returns `Some(round)` if rounds exist, otherwise `None`.
     #[instrument(skip_all)]
     pub fn get_last_round(&self) -> Option<Round> {
         self.rounds.last().cloned()
     }
 
+    /// Filters candidates by the number of wins they received.
+    ///
+    /// Returns a list of candidate IDs that received exactly `n` votes.
     #[instrument]
     pub fn filter_candidates_by_number_of_wins(
         &self,
@@ -343,6 +386,10 @@ impl RunoffStatus {
         round_possible_losers
     }
 
+    /// Determines the winner or eliminated candidates using lot drawing (random selection).
+    ///
+    /// When candidates are tied, uses random chance to select winners/losers based on tie-breaking policy.
+    /// Returns the winning candidate and list of eliminated candidates if successful.
     pub fn determine_winner_by_lot(
         &mut self,
         candidates_to_eliminate: &Vec<String>,
@@ -394,6 +441,9 @@ impl RunoffStatus {
         Some((winner, eliminated))
     }
 
+    /// Determines the winner or eliminated candidates using external procedure.
+    ///
+    /// When candidates are tied, defers to an external resolution procedure (user input or audit).
     pub fn determine_winner_by_external_procedure(
         &mut self,
         candidates_to_eliminate: &Vec<String>,
@@ -501,7 +551,6 @@ impl RunoffStatus {
     /// This avoids having to modify the ballots list in memory.
     #[instrument(skip_all)]
     pub fn find_first_active_choice(
-        &self,
         choices: &[DecodedVoteChoice],
         active_candidate_ids: &[String],
     ) -> Option<String> {
@@ -538,7 +587,8 @@ impl RunoffStatus {
             if *ballot_st != BallotStatus::Valid {
                 continue;
             }
-            let candidate_id = self.find_first_active_choice(&ballot.choices, &act_candidate_ids);
+            let candidate_id =
+                RunoffStatus::find_first_active_choice(&ballot.choices, &act_candidate_ids);
             let w = weight.unwrap_or_default();
             if let Some(candidate_id) = candidate_id {
                 if let Some(outcome) = candidates_wins.get_mut(&candidate_id) {
@@ -638,6 +688,9 @@ impl RunoffStatus {
         new_name_references
     }
 
+    /// Runs the instant runoff voting counting process.
+    ///
+    /// Iteratively eliminates candidates with the fewest votes until a winner is determined.
     #[instrument(skip_all)]
     pub fn run(&mut self, ballots_status: &mut BallotsStatus) {
         self.pending_tie_resolution = None;
@@ -650,11 +703,14 @@ impl RunoffStatus {
     }
 }
 
+/// Instant runoff voting algorithm implementation.
 pub struct InstantRunoff {
+    /// Tally containing ballots and contest information.
     pub tally: Tally,
 }
 
 impl InstantRunoff {
+    /// Creates a new instant runoff voting algorithm with a tally.
     #[instrument(skip_all)]
     pub fn new(tally: Tally) -> Self {
         Self { tally }
@@ -697,7 +753,7 @@ impl InstantRunoff {
 
             // Create a json value from runoff object.
             let runoff_value =
-                serde_json::to_value(runoff).map_err(|e| Error::UnexpectedError(e.to_string()))?;
+                serde_json::to_value(runoff).map_err(|e| Error::Unexpected(e.to_string()))?;
 
             let candidate_result = self.tally.create_candidate_results(
                 vote_count,

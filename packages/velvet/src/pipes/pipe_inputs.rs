@@ -455,33 +455,57 @@ pub struct InputAreaConfig {
     pub area: AreaConfig,
 }
 
+/// Election configuration data deserialized from election-config.json.
 #[derive(Serialize, Deserialize, Clone)]
 pub struct ElectionConfig {
+    /// Unique election identifier.
     pub id: Uuid,
+    /// Name of the election.
     pub name: String,
+    /// Alias for the election.
     pub alias: String,
+    /// Description of the election.
     pub description: String,
+    /// Custom annotations associated with the election.
     pub annotations: HashMap<String, String>,
+    /// Annotations from the election event.
     pub election_event_annotations: HashMap<String, String>,
+    /// Tenant identifier.
     pub tenant_id: Uuid,
+    /// Election event identifier.
     pub election_event_id: Uuid,
+    /// Total number of registered voters (census).
     pub census: u64,
+    /// Total votes cast in the election.
     pub total_votes: u64,
+    /// Ballot styles used in the election.
     pub ballot_styles: Vec<BallotStyle>,
+    /// Areas involved in the election.
     pub areas: Vec<TreeNodeArea>,
+    /// Start and end dates of the election if specified.
     pub dates: Option<StringifiedPeriodDates>,
+    /// Display presentation settings for the election.
     pub presentation: Option<ElectionPresentation>,
 }
 
+/// Area configuration data deserialized from area-config.json.
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct AreaConfig {
+    /// Unique area identifier.
     pub id: Uuid,
+    /// Name of the area.
     pub name: String,
+    /// Tenant identifier.
     pub tenant_id: Uuid,
+    /// Election event identifier.
     pub election_event_id: Uuid,
+    /// Election identifier this area belongs to.
     pub election_id: Uuid,
+    /// Number of registered voters in this area.
     pub census: u64,
+    /// Parent area identifier if this is a sub-area.
     pub parent_id: Option<Uuid>,
+    /// Number of auditable votes cast in this area.
     pub auditable_votes: u64,
 }
 

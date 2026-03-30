@@ -14,11 +14,14 @@ use tracing::{info, instrument};
 
 use super::Result;
 
+/// Plurality at large voting algorithm implementation.
 pub struct PluralityAtLarge {
+    /// Tally containing ballots and contest information.
     pub tally: Tally,
 }
 
 impl PluralityAtLarge {
+    /// Creates a new plurality at large voting algorithm with a tally.
     #[instrument(skip_all)]
     pub fn new(tally: Tally) -> Self {
         Self { tally }

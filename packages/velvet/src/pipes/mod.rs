@@ -16,7 +16,7 @@ pub mod ballot_images;
 pub mod decode_ballots;
 /// Tally computation and vote counting.
 pub mod do_tally;
-/// Database generation from election results.
+/// `SQLite` Database generation from election results.
 pub mod generate_db;
 /// Report generation for election results.
 pub mod generate_reports;
