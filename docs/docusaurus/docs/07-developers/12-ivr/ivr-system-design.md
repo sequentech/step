@@ -20,7 +20,8 @@ This document outlines the technical design for an IVR (Interactive Voice Respon
 - **State Management**: DynamoDB for call session state
 - **Authentication**: Keycloak OIDC Direct Grant (ROPC) with configurable multi-factor authentication
 - **Election Config**: Published ballot publication on public S3 (same data as voting portal)
-- **API Integration**: Harvest API for real-time status checks and vote submission
+- **Election Status**: Hasura GraphQL for real-time status checks
+- **Vote Casting**: Harvest API for vote submission
 
 ---
 
@@ -334,7 +335,10 @@ pub struct IvrSession {
 
     // Authentication
     pub voter_id: Option<String>,
-    pub jwt_token: Option<String>,
+    pub access_token: Option<String>,
+    pub refresh_token: Option<String>,
+    pub access_token_expires_at: Option<i64>,  // Unix timestamp, from token `exp` claim
+    pub session_started_at: Option<i64>,
     pub area_id: Option<Uuid>,
     pub auth_attempts: u8,
 
@@ -772,18 +776,7 @@ enum RefreshErrorType {
 }
 ```
 
-**Session State in DynamoDB**:
-```rust
-pub struct IvrSession {
-    // ... existing fields ...
-
-    // Token management
-    pub access_token: String,
-    pub refresh_token: String,
-    pub access_token_expires_at: i64,  // Unix timestamp
-    pub session_started_at: i64,        // For tracking max session lifespan
-}
-```
+**Session State in DynamoDB**: Token management fields are part of `IvrSession` (see Section 4.1): `access_token`, `refresh_token`, `access_token_expires_at`, `session_started_at`.
 
 **When to Refresh**:
 1. **Before vote submission** (critical path): Always refresh if within threshold
@@ -1418,7 +1411,7 @@ pub enum IvrError {
 
 ### 9.2 Data Protection
 - PIN never stored in DynamoDB session
-- JWT tokens have short TTL (15 minutes)
+- JWT access tokens have short TTL (determined from `exp` claim after login; configurable in Keycloak, default 5 min); proactive refresh via `TokenManager` (see 5.1.7)
 - Session data TTL: 1 hour (auto-cleanup)
 - Phone numbers hashed in logs
 
@@ -2044,6 +2037,7 @@ Stored in `ElectionEvent.presentation.i18n[lang]["ivr"]`
 | `eligibility_check` | `eligibility_check` | Eligibility validation in progress |
 | `not_eligible` | `eligibility_check` | Not authorized to vote |
 | `not_active` | `eligibility_check` | Credentials deactivated |
+| `election_closed` | `ballot_loop` | Telephone voting not open (played when `telephone_voting_status` is not `OPEN`) |
 | `declaration_text` | `declaration` | Legal declaration text |
 | `pre_voting_statement` | `pre_voting_statement` | Disconnect warning / info |
 | `receipt_info` | `receipt` | About to read confirmation number |
