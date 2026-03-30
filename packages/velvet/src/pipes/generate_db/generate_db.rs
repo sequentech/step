@@ -471,15 +471,17 @@ pub fn save_results(
                 .expect("Failed to convert to JSON");
             let votes_base: f64 = cmp::max(contest_result_ext_metrics.total_weight, 1) as f64;
             let mut annotations = json!({});
-            if let Some(ext_metrics) = annotations.get_mut(EXTENDED_METRICS) {
-                *ext_metrics = extended_metrics_value;
-            }
-            if let Some(process_results) = contest_result.process_results.clone() {
-                if let Some(proc_res) = annotations.get_mut(PROCESS_RESULTS) {
-                    *proc_res = process_results;
-                }
-            }
+            annotations
+                .as_object_mut()
+                .expect("annotations must be an object")
+                .insert(EXTENDED_METRICS.to_string(), extended_metrics_value);
 
+            if let Some(process_results) = contest_result.process_results.clone() {
+                annotations
+                    .as_object_mut()
+                    .expect("annotations must be an object")
+                    .insert(PROCESS_RESULTS.to_string(), process_results);
+            }
             if let Some(area) = &contest.area {
                 results_area_contests.push(ResultsAreaContest {
                     id: Uuid::new_v4().into(),
