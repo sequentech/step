@@ -11,7 +11,7 @@ use serde_json::to_string;
 use tracing::instrument;
 
 #[instrument(err, skip_all)]
-pub async fn create_results_event_sqlite(
+pub fn create_results_event_sqlite(
     sqlite_transaction: &Transaction<'_>,
     tenant_id: &str,
     election_event_id: &str,

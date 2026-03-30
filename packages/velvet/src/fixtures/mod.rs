@@ -17,4 +17,4 @@ pub mod elections;
 #[allow(clippy::module_inception)]
 mod fixtures;
 
-pub use fixtures::TestFixture;
+pub use fixtures::*;

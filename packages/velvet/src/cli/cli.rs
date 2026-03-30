@@ -8,29 +8,39 @@ use super::error::{Error, Result};
 use clap::{Parser, Subcommand};
 use std::{collections::HashSet, fs::File, path::PathBuf};
 
+/// Velvet command-line interface root.
 #[derive(Parser)]
 #[command(name = "Velvet")]
 pub struct Cli {
+    /// Subcommand to execute.
     #[command(subcommand)]
     pub command: Commands,
 }
 
+/// Available CLI commands.
 #[derive(Subcommand)]
 pub enum Commands {
+    /// Run a pipeline stage.
     Run(CliRun),
 }
 
+/// Configuration for the Run command.
 #[derive(Parser, Debug, Clone)]
 pub struct CliRun {
+    /// Pipeline stage to execute.
     pub stage: String,
+    /// Pipe identifier within the stage.
     pub pipe_id: String,
 
+    /// Path to the configuration file.
     #[arg(short, long)]
     pub config: PathBuf,
 
+    /// Input directory for ballots and data.
     #[arg(short, long)]
     pub input_dir: PathBuf,
 
+    /// Output directory for results.
     #[arg(short, long)]
     pub output_dir: PathBuf,
 }

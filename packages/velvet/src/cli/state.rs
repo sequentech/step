@@ -13,17 +13,25 @@ use crate::pipes::PipeManager;
 use crate::{config::Config, pipes::pipe_name::PipeName};
 use tracing::instrument;
 
+/// CLI execution state and configuration.
 #[derive(Debug, Clone)]
 pub struct State {
+    /// Command-line arguments and configuration.
     pub cli: CliRun,
+    /// Execution stages in the pipeline.
     pub stages: Vec<Stage>,
 }
 
+/// A single pipeline stage configuration.
 #[derive(Debug, Clone)]
 pub struct Stage {
+    /// Stage name.
     pub name: String,
+    /// Pipeline components within this stage.
     pub pipeline: Vec<PipeConfig>,
+    /// Current active pipe in this stage.
     pub current_pipe: Option<PipeName>,
+    /// Previously executed pipe in this stage.
     pub previous_pipe: Option<PipeName>,
 }
 
@@ -69,6 +77,9 @@ impl State {
     }
 
     #[instrument(skip_all)]
+    /// Gets the next pipe to execute in the pipeline.
+    ///
+    /// Returns `None` if the current pipe is the same as the previous pipe.
     pub fn get_next(&self) -> Option<PipeName> {
         let stage_name = self.cli.stage.clone();
         self.get_stage(&stage_name).and_then(|stage| {

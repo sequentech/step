@@ -600,9 +600,9 @@ impl RunoffStatus {
                         ),
                 };
 
-                if let Some((winner, eliminated_candidates)) = tie_resolution {
+                if let Some((winner, elim_from_tie)) = tie_resolution {
                     round.winner = Some(winner);
-                    round.eliminated_candidates = Some(eliminated_candidates);
+                    round.eliminated_candidates = Some(elim_from_tie);
                 }
             }
             continue_next_round
@@ -680,36 +680,35 @@ impl InstantRunoff {
         let extended_metrics = ballots_status.extended_metrics;
         let percentage_votes_denominator = count_valid.saturating_sub(count_blank);
 
-        let (candidate_result, process_results) = match op {
-            TallyOperation::SkipCandidateResults => (vec![], None),
-            _ => {
-                let mut runoff = RunoffStatus::initialize_runoff(&contest);
-                runoff.run(&mut ballots_status);
+        let (candidate_result, process_results) = if op == TallyOperation::SkipCandidateResults {
+            (vec![], None)
+        } else {
+            let mut runoff = RunoffStatus::initialize_runoff(contest);
+            runoff.run(&mut ballots_status);
 
-                let mut vote_count: HashMap<String, u64> = HashMap::new(); // vote_count has only the last round results or it could be left empty because the full results are in runoff_value
-                if let Some(results) = runoff.get_last_round() {
-                    vote_count = results
-                        .candidates_wins
-                        .into_iter()
-                        .map(|(candidate_id, outcome)| (candidate_id, outcome.wins))
-                        .collect();
-                }
-
-                // Create a json value from runoff object.
-                let runoff_value = serde_json::to_value(runoff)
-                    .map_err(|e| Error::UnexpectedError(e.to_string()))?;
-
-                let candidate_result = self.tally.create_candidate_results(
-                    vote_count,
-                    count_blank,
-                    count_invalid_votes.clone(),
-                    extended_metrics.clone(),
-                    count_valid,
-                    count_invalid,
-                    percentage_votes_denominator,
-                )?;
-                (candidate_result, Some(runoff_value))
+            let mut vote_count: HashMap<String, u64> = HashMap::new(); // vote_count has only the last round results or it could be left empty because the full results are in runoff_value
+            if let Some(results) = runoff.get_last_round() {
+                vote_count = results
+                    .candidates_wins
+                    .into_iter()
+                    .map(|(candidate_id, outcome)| (candidate_id, outcome.wins))
+                    .collect();
             }
+
+            // Create a json value from runoff object.
+            let runoff_value =
+                serde_json::to_value(runoff).map_err(|e| Error::UnexpectedError(e.to_string()))?;
+
+            let candidate_result = self.tally.create_candidate_results(
+                vote_count,
+                count_blank,
+                count_invalid_votes,
+                extended_metrics,
+                count_valid,
+                count_invalid,
+                percentage_votes_denominator,
+            )?;
+            (candidate_result, Some(runoff_value))
         };
 
         self.tally.create_contest_result(
@@ -729,7 +728,7 @@ impl CountingAlgorithm for InstantRunoff {
     #[instrument(err, skip_all)]
     fn tally(&self) -> Result<ContestResult> {
         let contest_result = match self.tally.scope_operation {
-            ScopeOperation::Contest(op) if op == TallyOperation::AggregateResults => {
+            ScopeOperation::Contest(TallyOperation::AggregateResults) => {
                 self.tally.aggregate_results()?
             }
             ScopeOperation::Contest(op) => self.process_ballots(op)?,

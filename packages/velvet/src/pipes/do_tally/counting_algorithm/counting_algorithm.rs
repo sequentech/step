@@ -6,5 +6,10 @@ pub use super::error::{Error, Result};
 use crate::pipes::do_tally::ContestResult;
 
 pub trait CountingAlgorithm {
+    /// Performs the tally operation for a contest.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the tally operation fails.
     fn tally(&self) -> Result<ContestResult>;
 }

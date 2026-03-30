@@ -75,9 +75,12 @@ pub struct GenerateReports {
 
 /// Contains the byte contents of generated reports in different formats.
 pub struct GeneratedReportsBytes {
-    bytes_pdf: Option<Vec<u8>>,
-    bytes_html: Vec<u8>,
-    bytes_json: Vec<u8>,
+    /// PDF report content (optional).
+    pub bytes_pdf: Option<Vec<u8>>,
+    /// HTML report content.
+    pub bytes_html: Vec<u8>,
+    /// JSON report content.
+    pub bytes_json: Vec<u8>,
 }
 
 /// Data structure containing template variables for report generation.
@@ -112,13 +115,17 @@ impl GenerateReports {
     }
     #[instrument(skip_all)]
     /// Retrieves the report generation configuration.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the configuration cannot be parsed.
     pub fn get_config(&self) -> Result<PipeConfigGenerateReports> {
         let pipe_config: PipeConfigGenerateReports = self
             .pipe_inputs
             .stage
             .pipe_config(self.pipe_inputs.stage.current_pipe)
             .and_then(|pc| pc.config)
-            .map(|value| serde_json::from_value(value))
+            .map(serde_json::from_value)
             .transpose()?
             .unwrap_or_default();
         Ok(pipe_config)
@@ -126,6 +133,16 @@ impl GenerateReports {
 
     #[instrument(err, skip_all)]
     /// Computes and formats reports for rendering.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if report computation fails.
+    ///
+    /// # Panics
+    ///
+    /// May panic if `contest_result` is None for a contest.
+    #[instrument(err, skip_all)]
+    #[allow(clippy::too_many_lines)]
     pub fn compute_reports(
         &self,
         reports: Vec<ReportData>,
@@ -140,15 +157,14 @@ impl GenerateReports {
                 let area_annotations: HashMap<String, String> = report
                     .area
                     .clone()
-                    .map(|area| {
+                    .and_then(|area| {
                         areas_map
                             .get(&area.id)
                             .cloned()
                             .map(|area| area.annotations)
                     })
                     .flatten()
-                    .flatten()
-                    .map(|annotations| deserialize_value::<HashMap<String, String>>(annotations))
+                    .map(deserialize_value::<HashMap<String, String>>)
                     .transpose()
                     .unwrap_or(Some(default_area_annotations.clone()))
                     .unwrap_or(default_area_annotations.clone());
@@ -169,7 +185,9 @@ impl GenerateReports {
                 let mut candidate_result = vec![];
 
                 if (contest_result_opt.is_some()) {
-                    let mut contest_result = contest_result_opt.clone().unwrap();
+                    let mut contest_result = contest_result_opt
+                        .clone()
+                        .expect("contest_result should be present");
 
                     contest_result.contest.name =
                         contest_result.contest.name.as_ref().map(|name| {
@@ -180,29 +198,26 @@ impl GenerateReports {
                                 .to_string()
                         });
 
-                    sort_candidates(
-                        &mut contest_result.candidate_result,
-                        contest_result
-                            .contest
-                            .presentation
-                            .clone()
-                            .unwrap_or_default()
-                            .candidates_order
-                            .unwrap_or_default(),
-                    );
+                    let candidates_order = contest_result
+                        .contest
+                        .presentation
+                        .clone()
+                        .unwrap_or_default()
+                        .candidates_order
+                        .unwrap_or_default();
+
+                    sort_candidates(&mut contest_result.candidate_result, &candidates_order);
 
                     // And we will sort the candidates in candidate_result by
                     // winning position
                     candidate_result = contest_result
                         .candidate_result
                         .iter()
-                        .map(|candidate_result| CandidateResultForReport {
-                            candidate: candidate_result.candidate.clone(),
-                            total_count: candidate_result.total_count,
-                            percentage_votes: candidate_result.percentage_votes,
-                            winning_position: map_winners
-                                .get(&candidate_result.candidate.id)
-                                .cloned(),
+                        .map(|cand_result| CandidateResultForReport {
+                            candidate: cand_result.candidate.clone(),
+                            total_count: cand_result.total_count,
+                            percentage_votes: cand_result.percentage_votes,
+                            winning_position: map_winners.get(&cand_result.candidate.id).copied(),
                         })
                         .collect();
 
@@ -215,7 +230,7 @@ impl GenerateReports {
                         .map(|contest_report_config| {
                             deserialize_str(contest_report_config)
                                 .map_err(|err| {
-                                    warn!("Error deserializing contest_report_config: {err:?}")
+                                    warn!("Error deserializing contest_report_config: {err:?}");
                                 })
                                 .unwrap_or_default()
                         })
@@ -232,7 +247,7 @@ impl GenerateReports {
                                     .then_with(|| a.candidate.name.cmp(&b.candidate.name))
                             });
                         }
-                    };
+                    }
                     contest_result_opt = Some(contest_result);
                 }
 
@@ -293,6 +308,14 @@ impl GenerateReports {
 
     #[instrument(err, skip_all)]
     /// Generates reports in PDF, HTML, and JSON formats.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if report generation fails.
+    ///
+    /// # Panics
+    ///
+    /// May panic if Tokio runtime creation fails.
     pub fn generate_report(
         &self,
         reports: Vec<ReportData>,
@@ -304,8 +327,7 @@ impl GenerateReports {
         let config = self.get_config()?;
         let mut execution_annotations = config.execution_annotations;
 
-        let computed_reports =
-            self.compute_reports(reports.clone(), areas_map, is_consolidated.clone())?;
+        let computed_reports = self.compute_reports(reports.clone(), areas_map, is_consolidated)?;
         let template_data = TemplateData {
             execution_annotations: execution_annotations.clone(),
             reports: computed_reports.clone(),
@@ -325,12 +347,12 @@ impl GenerateReports {
 
         // Insert the results_hash into the execution_annotations and re-render the template for both PDF and HTML
         execution_annotations.insert("results_hash".to_string(), results_hash.clone());
-        let template_data = TemplateData {
+        let template_data_with_hash = TemplateData {
             execution_annotations,
             reports: computed_reports,
         };
 
-        let template_vars = template_data
+        let template_vars = template_data_with_hash
             .clone()
             .to_map()
             // TODO: Fix neededing to do a Map Err
@@ -404,7 +426,7 @@ impl GenerateReports {
                 .map(|val| Some(val.to_print_to_pdf_options()))
                 .unwrap_or_default();
 
-            let rt = tokio::runtime::Runtime::new().unwrap();
+            let rt = tokio::runtime::Runtime::new().expect("Failed to create Tokio runtime");
             let bytes_pdf =
                 pdf::sync::PdfRenderer::render_pdf(render_pdf, pdf_options).map_err(|e| {
                     Error::UnexpectedError(format!("Error during html_to_pdf conversion: {e}"))
@@ -440,13 +462,18 @@ impl GenerateReports {
                 .join(PipeNameOutputDir::DoTally.as_ref()),
             election_id,
             contest_id,
-            Some(area_id.clone()).as_ref(),
+            Some(*area_id).as_ref(),
         );
         let aggregate_path = base_path.join(OUTPUT_CONTEST_RESULT_AREA_CHILDREN_AGGREGATE_FOLDER);
         aggregate_path.exists() && aggregate_path.is_dir()
     }
 
     #[instrument(err, skip(self))]
+    /// Reads the contest result for an election and contest.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the contest result cannot be read.
     fn read_contest_result(
         &self,
         election_id: &Uuid,
@@ -483,6 +510,11 @@ impl GenerateReports {
         Ok(contest_result)
     }
 
+    /// Reads the winners for a contest in an election.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the winners file cannot be read or parsed.
     #[instrument(err, skip(self))]
     fn read_winners(
         &self,
@@ -521,8 +553,12 @@ impl GenerateReports {
         Ok(res)
     }
 
-    #[instrument(err, skip(self))]
     /// Reads and parses all computed reports from storage.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if reports cannot be read or parsed.
+    #[instrument(err, skip(self))]
     pub fn read_reports(&self) -> Result<Vec<ElectionReportDataComputed>> {
         let mut election_reports: Vec<ElectionReportDataComputed> = vec![];
 
@@ -569,7 +605,7 @@ impl GenerateReports {
                 });
 
                 for area in &contest_input.area_list {
-                    let contest_result = self.read_contest_result(
+                    let area_contest_result = self.read_contest_result(
                         &election_input.id,
                         Some(&contest_input.id),
                         Some(&area.id),
@@ -577,7 +613,7 @@ impl GenerateReports {
                         None,
                     )?;
 
-                    let winners = self.read_winners(
+                    let area_winners = self.read_winners(
                         &election_input.id,
                         Some(&contest_input.id),
                         Some(&area.id),
@@ -598,12 +634,12 @@ impl GenerateReports {
                             .election_event_annotations
                             .clone(),
                         contest: Some(contest_input.contest.clone()),
-                        contest_result: Some(contest_result),
+                        contest_result: Some(area_contest_result),
                         area: Some(BasicArea {
                             id: area.id.to_string(),
                             name: area.area.name.clone(),
                         }),
-                        winners,
+                        winners: area_winners,
                         channel_type: None,
                         election_results: None,
                     });
@@ -623,7 +659,13 @@ impl GenerateReports {
         Ok(election_reports)
     }
 
+    /// Reads report breakdowns for an election and contest by channel type.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if report files cannot be read or parsed.
     #[instrument(err, skip_all)]
+    #[allow(clippy::too_many_arguments, clippy::ref_option)]
     fn read_breakdowns(
         &self,
         election_id: &Uuid,
@@ -696,7 +738,7 @@ impl GenerateReports {
                 .map_err(|e| Error::FileAccess(contest_results_file_path.clone(), e))?;
             let contest_result: ContestResult = parse_file(contest_results_file)?;
 
-            let subfolder_name = subfolder.file_name().unwrap();
+            let subfolder_name = subfolder.file_name().expect("subfolder name should exist");
             let winners_subfolder = winners_base_breakdown_path.join(subfolder_name);
             let winners_file_path = winners_subfolder.join(OUTPUT_WINNERS);
             let winners_file = fs::File::open(&winners_file_path)
@@ -725,6 +767,15 @@ impl GenerateReports {
         Ok(reports)
     }
 
+    /// Generates a report for a contest in an election.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if reports cannot be generated or read.
+    ///
+    /// # Panics
+    ///
+    /// May panic during UUID parsing.
     #[instrument(
         skip(
             self,
@@ -735,7 +786,7 @@ impl GenerateReports {
         ),
         err
     )]
-    #[instrument(err, skip_all)]
+    #[allow(clippy::too_many_arguments, clippy::ref_option)]
     fn make_report(
         &self,
         election_id: &Uuid,
@@ -782,8 +833,8 @@ impl GenerateReports {
             election_alias,
             election_description,
             election_dates,
-            &election_annotations,
-            &election_event_annotations,
+            election_annotations,
+            election_event_annotations,
             contest_id,
             &contest,
             area_id.as_ref(),
@@ -833,7 +884,17 @@ impl GenerateReports {
         Ok(report)
     }
 
+    /// Writes generated reports to storage.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if reports cannot be written to storage.
+    ///
+    /// # Panics
+    ///
+    /// May panic if cloning `is_consolidated` on Copy types.
     #[instrument(err, skip(self, reports, areas_map), err)]
+    #[allow(clippy::too_many_arguments, clippy::fn_params_excessive_bools)]
     fn write_report(
         &self,
         election_id: &Uuid,
@@ -853,17 +914,15 @@ impl GenerateReports {
             enable_pdfs,
             election_hash,
             areas_map,
-            is_consolidated.clone(),
+            is_consolidated,
         )?;
 
-        let mut base_path = match area_based {
-            true => {
-                PipeInputs::build_path_by_area(&self.output_dir, election_id, contest_id, area_id)
-            }
-            false => match is_consolidated {
-                true => PipeInputs::build_consolidated_report_path(&self.output_dir, election_id),
-                false => PipeInputs::build_path(&self.output_dir, election_id, contest_id, area_id),
-            },
+        let mut base_path = if area_based {
+            PipeInputs::build_path_by_area(&self.output_dir, election_id, contest_id, area_id)
+        } else if is_consolidated {
+            PipeInputs::build_consolidated_report_path(&self.output_dir, election_id)
+        } else {
+            PipeInputs::build_path(&self.output_dir, election_id, contest_id, area_id)
         };
 
         if let Some(tally_sheet) = tally_sheet_id.clone() {
@@ -884,11 +943,12 @@ impl GenerateReports {
                 .create(true)
                 .open(pdf_path)?;
             pdf_file.write_all(&bytes_pdf)?;
-        };
+        }
 
-        let (html_path, json_path) = match is_consolidated {
-            true => (OUTPUT_ALL_AREAS_HTML, OUTPUT_ALL_AREAS_JSON),
-            false => (OUTPUT_HTML, OUTPUT_JSON),
+        let (html_path, json_path) = if is_consolidated {
+            (OUTPUT_ALL_AREAS_HTML, OUTPUT_ALL_AREAS_JSON)
+        } else {
+            (OUTPUT_HTML, OUTPUT_JSON)
         };
 
         let html_path = base_path.join(html_path);
@@ -911,9 +971,12 @@ impl GenerateReports {
     }
 }
 
+/// Configuration for an area with its associated contests.
 #[derive(Debug, Clone)]
 struct InputConfigAreaContest<'a> {
+    /// The area configuration.
     area: &'a InputAreaConfig,
+    /// The list of contest configurations for this area.
     contests: Vec<&'a InputContestConfig>,
 }
 
@@ -930,6 +993,7 @@ pub struct ElectionResultReport {
 
 impl Pipe for GenerateReports {
     #[instrument(err, skip_all, name = "GenerateReports::exec")]
+    #[allow(clippy::too_many_lines)]
     fn exec(&self) -> Result<()> {
         let mark_winners_dir = self
             .pipe_inputs
@@ -988,7 +1052,7 @@ impl Pipe for GenerateReports {
                                 let tally_sheet_ids = tally_sheet_paths
                                     .iter()
                                     .map(|tally_sheet_path| -> Result<String> {
-                                        PipeInputs::get_tally_sheet_id_from_path(&tally_sheet_path)
+                                        PipeInputs::get_tally_sheet_id_from_path(tally_sheet_path)
                                             .ok_or(Error::UnexpectedError(
                                                 "Can't read tally sheet id from path".into(),
                                             ))
@@ -1185,20 +1249,26 @@ impl Pipe for GenerateReports {
                     .flatten()
                     .collect(); // End of par_iter().try_for_each over area_contests_map
 
-                if (is_consolidated_report && area_contests_reports.len() > 0) {
-                    let election_census = election_input.clone().census;
-                    let total_votes = election_input.total_votes.clone();
+                if is_consolidated_report && !area_contests_reports.is_empty() {
+                    let election_census = election_input.census;
+                    let total_votes = election_input.total_votes;
+                    #[allow(clippy::cast_precision_loss)]
                     let census_base = cmp::max(1, election_census) as f64;
 
                     let election_results = ElectionResultReport {
-                        census: election_census.clone(),
-                        total_votes: total_votes.clone(),
-                        percentage_total_votes: (total_votes as f64) * 100.0 / census_base,
+                        census: election_census,
+                        total_votes,
+                        percentage_total_votes: {
+                            #[allow(clippy::cast_precision_loss)]
+                            {
+                                (total_votes as f64) * 100.0 / census_base
+                            }
+                        },
                     };
 
                     let contest = area_contests_reports
                         .first()
-                        .map(|r| r.contest.clone().unwrap())
+                        .map(|r| r.contest.clone().expect("contest should be present"))
                         .expect("area_contests_reports is empty");
 
                     let summary_election_report = ReportData {
@@ -1207,7 +1277,7 @@ impl Pipe for GenerateReports {
                         election_id: election_input.id.to_string(),
                         tenant_id: contest.tenant_id.clone(),
                         election_event_id: contest.election_event_id.clone(),
-                        election_description: election_input.description.to_string(),
+                        election_description: election_input.description.clone(),
                         election_dates: election_input.dates.clone(),
                         election_annotations: election_input.annotations.clone(),
                         election_event_annotations: election_input
@@ -1223,7 +1293,7 @@ impl Pipe for GenerateReports {
                     area_contests_reports.push(summary_election_report);
                     area_contests_reports.extend(contest_reports);
 
-                    let result_hash = self.write_report(
+                    self.write_report(
                         &election_input.id,
                         None,
                         None,
@@ -1368,7 +1438,7 @@ impl From<ReportDataComputed> for ReportData {
             winners: item
                 .candidate_result
                 .into_iter()
-                .filter_map(|winner| winner.into())
+                .filter_map(std::convert::Into::into)
                 .collect(),
             channel_type: item.channel_type.clone(),
             election_results: item.election_results.clone(),
@@ -1393,9 +1463,7 @@ pub struct CandidateResultForReport {
 
 impl From<CandidateResultForReport> for Option<WinnerResult> {
     fn from(item: CandidateResultForReport) -> Self {
-        let Some(winning_position) = item.winning_position.clone() else {
-            return None;
-        };
+        let winning_position = item.winning_position?;
         Some(WinnerResult {
             candidate: item.candidate,
             total_count: item.total_count,
@@ -1404,8 +1472,9 @@ impl From<CandidateResultForReport> for Option<WinnerResult> {
     }
 }
 
+/// Sorts candidates according to the specified order.
 #[instrument(skip_all)]
-fn sort_candidates(candidates: &mut Vec<CandidateResult>, order_field: CandidatesOrder) {
+fn sort_candidates(candidates: &mut [CandidateResult], order_field: &CandidatesOrder) {
     match order_field {
         CandidatesOrder::Alphabetical => {
             candidates.sort_by(|a, b| {

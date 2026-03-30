@@ -20,6 +20,10 @@ use tracing::instrument;
 /// Trait for implementing election processing pipeline stages.
 pub trait Pipe {
     /// Executes the pipe's processing logic.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if execution fails at any stage.
     fn exec(&self) -> Result<()>;
 }
 
@@ -29,6 +33,10 @@ pub struct PipeManager;
 impl PipeManager {
     #[instrument(err, skip_all, name = "PipeManager::get_pipe")]
     /// Retrieves the appropriate pipe implementation for the specified stage.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the stage or pipe configuration is invalid.
     pub fn get_pipe(cli: CliRun, stage: Stage) -> Result<Option<Box<dyn Pipe>>> {
         let pipe_inputs = PipeInputs::new(cli, stage)?;
 
@@ -37,8 +45,9 @@ impl PipeManager {
                 PipeName::DecodeBallots => Some(Box::new(DecodeBallots::new(pipe_inputs))),
                 PipeName::BallotImages => Some(Box::new(BallotImages::new(pipe_inputs))),
                 PipeName::DecodeMCBallots => Some(Box::new(DecodeMCBallots::new(pipe_inputs))),
-                PipeName::MCBallotReceipts => Some(Box::new(MCBallotImages::new(pipe_inputs))),
-                PipeName::MCBallotImages => Some(Box::new(MCBallotImages::new(pipe_inputs))),
+                PipeName::MCBallotReceipts | PipeName::MCBallotImages => {
+                    Some(Box::new(MCBallotImages::new(pipe_inputs)))
+                }
                 PipeName::DoTally => Some(Box::new(DoTally::new(pipe_inputs))),
                 PipeName::MarkWinners => Some(Box::new(MarkWinners::new(pipe_inputs))),
                 PipeName::GenerateReports => Some(Box::new(GenerateReports::new(pipe_inputs))),

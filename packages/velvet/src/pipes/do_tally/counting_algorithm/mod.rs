@@ -8,5 +8,7 @@ pub mod instant_runoff;
 pub mod plurality_at_large;
 pub mod utils;
 
+/// Tally counting algorithm implementation.
+#[allow(clippy::module_inception)]
 mod counting_algorithm;
 pub use counting_algorithm::*;

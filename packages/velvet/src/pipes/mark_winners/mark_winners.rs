@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::{cmp::Ordering, fs};
 
 use sequent_core::ballot::Candidate;
@@ -42,6 +42,10 @@ impl MarkWinners {
 
     #[instrument(skip_all)]
     /// Extracts and orders winners from contest results.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the winning candidates number cannot be converted to usize.
     pub fn get_winners(contest_result: &ContestResult) -> Vec<WinnerResult> {
         let mut winners = contest_result.candidate_result.clone();
 
@@ -57,22 +61,30 @@ impl MarkWinners {
 
         winners
             .into_iter()
-            .take(contest_result.contest.winning_candidates_num as usize)
+            .take(
+                usize::try_from(contest_result.contest.winning_candidates_num)
+                    .expect("winning candidates number must be convertible to usize"),
+            )
             .enumerate()
             .map(|(index, w)| WinnerResult {
                 candidate: w.candidate.clone(),
                 total_count: w.total_count,
-                winning_position: index + 1,
+                winning_position: index.saturating_add(1),
             })
             .collect()
     }
 
-    #[instrument(err, skip_all)]
     /// Creates breakdown winner reports for all contests and areas.
-    pub fn create_breakdown_winners(
-        base_input_path: &PathBuf,
-        base_output_path: &PathBuf,
-    ) -> Result<()> {
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if files cannot be read or written.
+    ///
+    /// # Panics
+    ///
+    /// Panics if subfolder name cannot be determined.
+    #[instrument(err, skip_all)]
+    pub fn create_breakdown_winners(base_input_path: &Path, base_output_path: &Path) -> Result<()> {
         let base_input_breakdown_path = base_input_path.join(OUTPUT_BREAKDOWNS_FOLDER);
         let base_output_breakdown_path = base_output_path.join(OUTPUT_BREAKDOWNS_FOLDER);
         let subfolders = list_subfolders(&base_input_breakdown_path);
@@ -84,7 +96,7 @@ impl MarkWinners {
 
             let winners = MarkWinners::get_winners(&contest_result);
 
-            let subfolder_name = subfolder.file_name().unwrap();
+            let subfolder_name = subfolder.file_name().expect("subfolder name must exist");
             let output_subfolder = base_output_breakdown_path.join(subfolder_name);
             fs::create_dir_all(&output_subfolder)?;
             let winners_file_path = output_subfolder.join(OUTPUT_WINNERS);
@@ -97,6 +109,7 @@ impl MarkWinners {
 
 impl Pipe for MarkWinners {
     #[instrument(err, skip_all, name = "MarkWinners::new")]
+    #[allow(clippy::too_many_lines)]
     fn exec(&self) -> Result<()> {
         let input_dir = self
             .pipe_inputs
@@ -171,11 +184,11 @@ impl Pipe for MarkWinners {
                                 "Can't read tally sheet id from path".into(),
                             ));
                         };
-                        let tally_sheet_folder =
+                        let tally_sheet_output =
                             PipeInputs::build_tally_sheet_path(&base_output_path, &tally_sheet_id);
-                        fs::create_dir_all(&tally_sheet_folder)?;
+                        fs::create_dir_all(&tally_sheet_output)?;
 
-                        let winners_file_path = tally_sheet_folder.join(OUTPUT_WINNERS);
+                        let winners_file_path = tally_sheet_output.join(OUTPUT_WINNERS);
                         let winners_file = fs::File::create(winners_file_path)?;
 
                         serde_json::to_writer(winners_file, &winners_tally)?;

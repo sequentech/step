@@ -637,13 +637,11 @@ impl Pipe for MCBallotImages {
 
                             let rt = Runtime::new()?;
                             rt.block_on(async {
-                                write_file_hash_csv(files_lock.clone(), csv_path)
-                                    .await
-                                    .map_err(|e| {
-                                        Error::UnexpectedError(format!(
-                                            "Error writing file hash CSV: {e}"
-                                        ))
-                                    })
+                                write_file_hash_csv(files_lock.clone(), csv_path).map_err(|e| {
+                                    Error::UnexpectedError(format!(
+                                        "Error writing file hash CSV: {e}"
+                                    ))
+                                })
                             })?;
                         }
 
@@ -813,7 +811,7 @@ fn convert_ballots(
 ///
 /// # Errors
 /// Returns an error if file operations or CSV writing fails.
-pub async fn write_file_hash_csv(data: Vec<BallotCsvData>, path: PathBuf) -> Result<()> {
+pub fn write_file_hash_csv(data: Vec<BallotCsvData>, path: PathBuf) -> Result<()> {
     let headers = vec!["file_name".to_string(), "hash".to_string()];
 
     let mut writer = Writer::from_writer(vec![]);

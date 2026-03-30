@@ -36,6 +36,11 @@ pub struct Tally {
 }
 
 impl Tally {
+    /// Creates a new Tally instance for a contest.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if ballot loading or tally type retrieval fails.
     #[instrument(err, skip(contest, tally_results), name = "Tally::new")]
     pub fn new(
         contest: &Contest,
@@ -63,6 +68,11 @@ impl Tally {
         })
     }
 
+    /// Retrieves the counting algorithm type for a contest.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the tally type is not found.
     #[instrument(err, skip_all)]
     fn get_tally_type(contest: &Contest) -> Result<CountingAlgType> {
         contest
@@ -70,6 +80,11 @@ impl Tally {
             .ok_or_else(|| Box::new(Error::TallyTypeNotFound) as Box<dyn std::error::Error>)
     }
 
+    /// Loads and decodes ballots from the provided files.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if file reading or parsing fails.
     #[instrument(err, skip_all)]
     fn get_ballots(files: Vec<(PathBuf, Weight)>) -> Result<Vec<(DecodedVoteContest, Weight)>> {
         let mut res = vec![];
@@ -88,13 +103,20 @@ impl Tally {
             .collect::<Vec<(DecodedVoteContest, Weight)>>())
     }
 
+    /// Aggregates tally result data from multiple tally operations.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the tally results are empty.
     #[instrument(skip_all)]
     pub fn aggregate_results(&self) -> Result<ContestResult, CntAlgError> {
         if self.tally_results.is_empty() {
             return Err(CntAlgError::EmptyTallyResults);
         }
-        let mut contest_result = ContestResult::default();
-        contest_result.contest = self.contest.clone();
+        let mut contest_result = ContestResult {
+            contest: self.contest.clone(),
+            ..Default::default()
+        };
         let aggregated = self
             .tally_results
             .iter()
@@ -102,7 +124,13 @@ impl Tally {
         Ok(aggregated)
     }
 
+    /// Creates candidate result data structures from vote counts.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if candidate result creation fails.
     #[instrument(err, skip_all)]
+    #[allow(clippy::too_many_arguments, clippy::cast_precision_loss)]
     pub fn create_candidate_results(
         &self,
         vote_count: HashMap<String, u64>,
@@ -213,7 +241,13 @@ impl Tally {
         Ok(candidate_result)
     }
 
+    /// Creates the final contest result from counts and metrics.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if contest result creation fails.
     #[instrument(err, skip_all)]
+    #[allow(clippy::too_many_arguments, clippy::cast_precision_loss)]
     pub fn create_contest_result(
         &self,
         process_results: Option<Value>,
@@ -228,7 +262,7 @@ impl Tally {
         let contest = &self.contest;
 
         // Calculate percentages
-        let total_votes = count_valid + count_invalid;
+        let total_votes = count_valid.saturating_add(count_invalid);
         let total_votes_base = cmp::max(1, total_votes) as f64;
 
         let census_base = cmp::max(1, self.census) as f64;
@@ -268,20 +302,25 @@ impl Tally {
     }
 }
 
+/// Processes a tally sheet and creates a contest result.
+///
+/// # Errors
+///
+/// Returns an error if tally sheet processing fails.
 #[instrument(err, skip_all)]
 pub fn process_tally_sheet(tally_sheet: &TallySheet, contest: &Contest) -> Result<ContestResult> {
     let Some(tally_sheet_content) = tally_sheet.content.clone() else {
         return Err("missing tally sheet content".into());
     };
-    let invalid_votes = tally_sheet_content
-        .invalid_votes
-        .unwrap_or(Default::default());
+    let invalid_votes = tally_sheet_content.invalid_votes.unwrap_or_default();
 
     let count_invalid_votes = InvalidVotes {
         explicit: invalid_votes.explicit_invalid.unwrap_or(0),
         implicit: invalid_votes.implicit_invalid.unwrap_or(0),
     };
-    let count_invalid: u64 = count_invalid_votes.explicit + count_invalid_votes.implicit;
+    let count_invalid: u64 = count_invalid_votes
+        .explicit
+        .saturating_add(count_invalid_votes.implicit);
     let count_blank: u64 = tally_sheet_content.total_blank_votes.unwrap_or(0);
 
     let candidate_results = tally_sheet_content
@@ -309,7 +348,7 @@ pub fn process_tally_sheet(tally_sheet: &TallySheet, contest: &Contest) -> Resul
         .map(|candidate_result| candidate_result.total_count)
         .sum();
 
-    let total_votes = count_valid + count_invalid;
+    let total_votes = count_valid.saturating_add(count_invalid);
 
     let contest_result = ContestResult {
         contest: contest.clone(),
@@ -336,6 +375,11 @@ pub fn process_tally_sheet(tally_sheet: &TallySheet, contest: &Contest) -> Resul
 }
 
 #[instrument(err, skip_all)]
+/// Creates a tally instance for a contest and the associated counting algorithm.
+///
+/// # Errors
+///
+/// Returns an error if the tally cannot be created.
 pub fn create_tally(
     contest: &Contest,
     scope_operation: ScopeOperation,
@@ -350,15 +394,15 @@ pub fn create_tally(
         .filter(|(f, _weight)| {
             let exist = f.exists();
             if !exist {
-                println!(
+                tracing::warn!(
                     "[{}] File not found: {} -- Not processed",
                     PipeName::DoTally.as_ref(),
                     f.display()
-                )
+                );
             }
             exist
         })
-        .map(|(p, weight)| (PathBuf::from(p.as_path()), weight.clone()))
+        .map(|(p, weight)| (PathBuf::from(p.as_path()), *weight))
         .collect();
 
     let tally = Tally::new(

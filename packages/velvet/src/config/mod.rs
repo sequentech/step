@@ -3,7 +3,9 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+/// Ballot image generation configuration.
 pub mod ballot_images_config;
+/// Report generation configuration.
 pub mod generate_reports;
 
 #[allow(clippy::module_inception)]

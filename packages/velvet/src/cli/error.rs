@@ -5,15 +5,23 @@
 use crate::pipes;
 use pipes::error::Error as PipesError;
 
+/// Result type alias for CLI operations.
 pub type Result<T, E = Error> = std::result::Result<T, E>;
 
+/// Error types for CLI operations.
 #[derive(Debug)]
 pub enum Error {
+    /// Configuration file not found.
     ConfigNotFound,
+    /// Cannot open configuration file.
     CannotOpenConfig,
+    /// JSON serialization/deserialization error.
     Json(serde_json::Error),
+    /// Invalid stage definition.
     StageDefinition(String),
+    /// Pipeline not found.
     PipeNotFound,
+    /// Error from pipeline operation.
     FromPipe(PipesError),
 }
 

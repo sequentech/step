@@ -20,11 +20,16 @@ use crate::pipes::generate_db::DATABASE_FILENAME;
 use crate::pipes::pipe_inputs::{AreaConfig, ElectionConfig};
 use crate::pipes::pipe_name::PipeName;
 
+/// Test fixture for creating temporary election directories and configurations.
 #[derive(Debug)]
 pub struct TestFixture {
+    /// Path to the generated configuration file.
     pub config_path: PathBuf,
+    /// Root directory for all test data.
     pub root_dir: PathBuf,
+    /// Directory containing configuration inputs.
     pub input_dir_configs: PathBuf,
+    /// Directory containing ballot data.
     pub input_dir_ballots: PathBuf,
 }
 

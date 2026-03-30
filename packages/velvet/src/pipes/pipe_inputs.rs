@@ -21,32 +21,53 @@ use std::{
 use tracing::{info, instrument};
 use uuid::Uuid;
 
+/// Prefix for election folder names.
 pub const PREFIX_ELECTION: &str = "election__";
+/// Prefix for contest folder names.
 pub const PREFIX_CONTEST: &str = "contest__";
+/// Prefix for area folder names.
 pub const PREFIX_AREA: &str = "area__";
+/// Prefix for tally sheet folder names.
 pub const PREFIX_TALLY_SHEET: &str = "tally_sheet__";
+/// Prefix for all areas folder name.
 pub const PREFIX_ALL_AREAS: &str = "all_areas";
 
+/// Default directory for configuration files.
 pub const DEFAULT_DIR_CONFIGS: &str = "default/configs";
+/// Default directory for ballot files.
 pub const DEFAULT_DIR_BALLOTS: &str = "default/ballots";
+/// Default directory for tally sheets.
 pub const DEFAULT_DIR_TALLY_SHEETS: &str = "default/tally_sheets";
+/// Default directory for database files.
 pub const DEFAULT_DIR_DATABASE: &str = "default/database";
 
+/// Filename of election configuration file.
 pub const ELECTION_CONFIG_FILE: &str = "election-config.json";
+/// Filename of contest configuration file.
 pub const CONTEST_CONFIG_FILE: &str = "contest-config.json";
+/// Filename of area configuration file.
 pub const AREA_CONFIG_FILE: &str = "area-config.json";
+/// Filename of ballots file.
 pub const BALLOTS_FILE: &str = "ballots.csv";
 /// Length of a UUID string representation.
 const UUID_LEN: usize = 36;
 
+/// Pipeline input configuration holding paths and election data.
 #[derive(Debug)]
 pub struct PipeInputs {
+    /// CLI runtime arguments.
     pub cli: CliRun,
+    /// Root path to configuration files.
     pub root_path_config: PathBuf,
+    /// Root path to ballot files.
     pub root_path_ballots: PathBuf,
+    /// Root path to tally sheet files.
     pub root_path_tally_sheets: PathBuf,
+    /// Root path to database files.
     pub root_path_database: PathBuf,
+    /// Current processing stage.
     pub stage: Stage,
+    /// List of elections to process.
     pub election_list: Vec<InputElectionConfig>,
 }
 
@@ -74,6 +95,9 @@ impl PipeInputs {
         })
     }
 
+    /// Builds a path for a specific election, contest, and area combination.
+    ///
+    /// The path hierarchy is: `root/election_id/contest_id/area_id`
     #[instrument(skip_all)]
     pub fn build_path(
         root: &Path,
@@ -97,6 +121,9 @@ impl PipeInputs {
         path
     }
 
+    /// Builds a consolidated report path for all areas of a given election.
+    ///
+    /// The path hierarchy is: `root/election_id/all_areas`
     #[instrument(skip_all)]
     pub fn build_consolidated_report_path(root: &Path, election_id: &Uuid) -> PathBuf {
         let mut path = PathBuf::new();
@@ -108,6 +135,9 @@ impl PipeInputs {
         path
     }
 
+    /// Builds a path organized by area, then contest within that area.
+    ///
+    /// The path hierarchy is: `root/election_id/area_id/contest_id`
     #[instrument(skip_all)]
     pub fn build_path_by_area(
         root: &Path,
@@ -148,6 +178,9 @@ impl PipeInputs {
         path
     }
 
+    /// Builds a path for a specific tally sheet.
+    ///
+    /// The path hierarchy is: `root/tally_sheet_id`
     #[instrument(skip_all)]
     pub fn build_tally_sheet_path(root: &Path, tally_sheet_id: &str) -> PathBuf {
         let mut path = PathBuf::new();
@@ -157,6 +190,10 @@ impl PipeInputs {
         path
     }
 
+    /// Extracts the tally sheet ID from a file path.
+    ///
+    /// Returns `Some(id)` if the path ends with a folder prefixed with `PREFIX_TALLY_SHEET`,
+    /// otherwise returns `None`.
     #[instrument(skip_all)]
     pub fn get_tally_sheet_id_from_path(path: &Path) -> Option<String> {
         let folder_name = get_folder_name(path)?;
@@ -313,27 +350,45 @@ impl PipeInputs {
     }
 }
 
+/// Election configuration data loaded from input files.
 #[derive(Debug)]
 pub struct InputElectionConfig {
+    /// Unique election identifier.
     pub id: Uuid,
+    /// Name of the election.
     pub name: String,
+    /// Alias for the election.
     pub alias: String,
+    /// Description of the election.
     pub description: String,
+    /// Start and end dates of the election if specified.
     pub dates: Option<StringifiedPeriodDates>,
+    /// Annotations associated with the election.
     pub annotations: HashMap<String, String>,
+    /// Annotations from the election event.
     pub election_event_annotations: HashMap<String, String>,
+    /// Ballot styles used in the election.
     pub ballot_styles: Vec<BallotStyle>,
+    /// Contest configurations for this election.
     pub contest_list: Vec<InputContestConfig>,
+    /// File path to the election configuration.
     pub path: PathBuf,
+    /// Total number of registered voters (census).
     pub census: u64,
+    /// Total votes cast in the election.
     pub total_votes: u64,
+    /// Areas involved in the election.
     pub areas: Vec<TreeNodeArea>,
+    /// Display presentation settings for the election.
     pub presentation: Option<ElectionPresentation>,
 }
 
 #[derive(Debug, Clone)]
+/// Contest associated with a specific area.
 pub struct AreaContest {
+    /// Name of the area.
     pub area_name: String,
+    /// Contests in this area.
     pub contests: Vec<Contest>,
 }
 
@@ -366,23 +421,37 @@ impl InputElectionConfig {
     }
 }
 
+/// Contest configuration data.
 #[derive(Debug)]
 pub struct InputContestConfig {
+    /// Unique contest identifier.
     pub id: Uuid,
+    /// Election ID this contest belongs to.
     pub election_id: Uuid,
+    /// Contest details.
     pub contest: Contest,
+    /// Areas where this contest is held.
     pub area_list: Vec<InputAreaConfig>,
+    /// File path to the contest configuration.
     pub path: PathBuf,
 }
 
+/// Area configuration data.
 #[derive(Debug)]
 pub struct InputAreaConfig {
+    /// Unique area identifier.
     pub id: Uuid,
+    /// Election ID this area is part of.
     pub election_id: Uuid,
+    /// Contest ID for this area configuration.
     pub contest_id: Uuid,
+    /// Number of registered voters in this area.
     pub census: u64,
+    /// Number of auditable votes cast in this area.
     pub auditable_votes: u64,
+    /// File path to the area configuration.
     pub path: PathBuf,
+    /// Area configuration details.
     pub area: AreaConfig,
 }
 

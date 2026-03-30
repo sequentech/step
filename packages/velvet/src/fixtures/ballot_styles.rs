@@ -7,6 +7,7 @@ use uuid::Uuid;
 
 use super::contests;
 
+/// Creates a standard ballot style.
 #[must_use]
 #[allow(unused)]
 pub fn get_ballot_style_1(
@@ -42,6 +43,7 @@ pub fn get_ballot_style_1(
     }
 }
 
+/// Generates a custom ballot style with the provided contests.
 #[must_use]
 #[allow(unused)]
 pub fn generate_ballot_style(

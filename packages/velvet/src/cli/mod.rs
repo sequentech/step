@@ -3,8 +3,11 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+/// Error types for CLI operations.
 pub mod error;
+/// CLI state and stage configuration.
 pub mod state;
+/// Test harness for comprehensive validation.
 pub mod test_all;
 
 /// Private CLI module containing command handling.

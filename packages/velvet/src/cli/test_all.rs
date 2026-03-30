@@ -1,8 +1,6 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-#![allow(clippy::all)]
-#![allow(rustdoc::all)]
 use crate::fixtures::ballot_styles::generate_ballot_style;
 use crate::fixtures::TestFixture;
 use crate::pipes::pipe_inputs::BALLOTS_FILE;
