@@ -340,7 +340,7 @@ const englishTranslation = {
                     "no-signature": "No signature",
                     "with-signature": "With signature",
                 },
-                voterDigitalCertPolicy: {
+                VoterCertificatePolicy: {
                     policyLabel: "Voter Digital Certificate Policy",
                     enabled: "Enabled",
                     disabled: "Disabled",

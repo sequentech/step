@@ -146,7 +146,7 @@ SPDX-License-Identifier: AGPL-3.0-only
                 </ul>
             </div>
         </#if>
-        <#if properties.mtlsLoginUrl?has_content && (realm.attributes['voter-digital-cert-policy']!'disabled') == 'enabled'>
+        <#if properties.mtlsLoginUrl?has_content && (realm.attributes['voter-certificate-policy']!'disabled') == 'enabled'>
             <hr/>
             <#assign sessionCode = url.loginAction?keep_after('session_code=')?keep_before('&')>
             <#assign tabId = url.loginAction?keep_after('tab_id=')>

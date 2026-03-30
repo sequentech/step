@@ -52,7 +52,7 @@ import {
     EElectionEventOTP,
     EElectionEventContestEncryptionPolicy,
     EVoterSigningPolicy,
-    EVoterDigitalCertPolicy,
+    EVoterCertificatePolicy,
     EShowCastVoteLogsPolicy,
     EElectionEventDecodedBallots,
     EElectionEventCeremoniesPolicy,
@@ -532,10 +532,10 @@ export const EditElectionEventDataForm: React.FC = () => {
         }))
     }
 
-    const voterDigitalCertPolicyChoices = () => {
-        return Object.values(EVoterDigitalCertPolicy).map((value) => ({
+    const VoterCertificatePolicyChoices = () => {
+        return Object.values(EVoterCertificatePolicy).map((value) => ({
             id: value,
-            name: t(`electionEventScreen.field.voterDigitalCertPolicy.${value}`),
+            name: t(`electionEventScreen.field.VoterCertificatePolicy.${value}`),
         }))
     }
 
@@ -1200,12 +1200,12 @@ export const EditElectionEventDataForm: React.FC = () => {
                             validate={required()}
                         />
                         <SelectInput
-                            source={"presentation.voter_digital_cert_policy"}
-                            choices={voterDigitalCertPolicyChoices()}
+                            source={"presentation.voter_certificate_policy"}
+                            choices={VoterCertificatePolicyChoices()}
                             label={String(
-                                t("electionEventScreen.field.voterDigitalCertPolicy.policyLabel")
+                                t("electionEventScreen.field.VoterCertificatePolicy.policyLabel")
                             )}
-                            defaultValue={EVoterDigitalCertPolicy.DISABLED}
+                            defaultValue={EVoterCertificatePolicy.DISABLED}
                             emptyText={undefined}
                             validate={required()}
                         />

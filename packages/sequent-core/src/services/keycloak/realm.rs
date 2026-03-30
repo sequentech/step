@@ -572,7 +572,7 @@ impl KeycloakAdminClient {
         display_name: Option<String>,
         election_event_id: Option<String>,
     ) -> Result<()> {
-        let real_get_result = self.client.realm_get(board_name).await;
+        let realm_get_result = self.client.realm_get(board_name).await;
         let replaced_ids_config = if replace_ids {
             let realm_config: RealmRepresentation =
                 deserialize_str(&json_realm_config)?;
@@ -674,7 +674,7 @@ impl KeycloakAdminClient {
                 .collect(),
         );
 
-        match real_get_result {
+        match realm_get_result {
             Ok(_) => self
                 .client
                 .realm_put(&board_name, realm)

@@ -19,6 +19,7 @@ use deadpool_postgres::Transaction;
 use sequent_core::ballot::ElectionEventStatus;
 use sequent_core::serialization::deserialize_with_path::*;
 use sequent_core::services::connection;
+use sequent_core::services::keycloak::update_realm_attributes;
 use sequent_core::services::date::ISO8601;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -142,7 +143,7 @@ pub async fn update_publish_ballot(
     .await?;
 
     let mut new_status: ElectionEventStatus =
-        get_election_event_status(election_event.status).unwrap_or(Default::default());
+        get_election_event_status(election_event.status.clone()).unwrap_or(Default::default());
     new_status.is_published = Some(true);
     let new_status_js = serde_json::to_value(new_status)?;
 
@@ -153,6 +154,10 @@ pub async fn update_publish_ballot(
         new_status_js,
     )
     .await?;
+
+    update_realm_attributes(&election_event)
+    .await
+    .map_err(|e| anyhow!("Error updating Keycloak realm attributes: {e:?}"))?;
 
     // Update elections status
     let election_ids = ballot_publication.election_ids.clone().unwrap_or(vec![]);

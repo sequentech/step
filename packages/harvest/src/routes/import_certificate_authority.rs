@@ -6,7 +6,7 @@ use crate::services::authorization::authorize;
 use deadpool_postgres::Client as DbClient;
 use rocket::http::Status;
 use rocket::serde::json::Json;
-use sequent_core::ballot::VoterDigitalCertPolicy;
+use sequent_core::ballot::VoterCertificatePolicy;
 use sequent_core::services::jwt::JwtClaims;
 use sequent_core::types::permissions::Permissions;
 use serde::{Deserialize, Serialize};
@@ -82,14 +82,14 @@ pub async fn import_certificate_authority(
     .await
     .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
 
-    let voter_digital_cert_policy = election_event
+    let voter_certificate_policy = election_event
         .get_presentation()
         .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?
         .unwrap_or_default()
-        .voter_digital_cert_policy
+        .voter_certificate_policy
         .unwrap_or_default();
 
-    if voter_digital_cert_policy != VoterDigitalCertPolicy::ENABLED {
+    if voter_certificate_policy != VoterCertificatePolicy::ENABLED {
         return Err((
             Status::Forbidden,
             "Digital certificate authentication is not allowed for this election event".to_string(),

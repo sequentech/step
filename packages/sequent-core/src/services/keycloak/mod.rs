@@ -5,6 +5,7 @@
 mod admin_client;
 mod permission;
 mod realm;
+mod realm_attributes;
 mod role;
 mod user;
 
@@ -13,3 +14,4 @@ pub use self::permission::*;
 pub use self::realm::*;
 pub use self::role::*;
 pub use self::user::*;
+pub use self::realm_attributes::*;

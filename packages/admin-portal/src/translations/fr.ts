@@ -341,7 +341,7 @@ const frenchTranslation: TranslationType = {
                     "no-signature": "Sans signature",
                     "with-signature": "Avec signature",
                 },
-                voterDigitalCertPolicy: {
+                VoterCertificatePolicy: {
                     policyLabel: "Voter Digital Certificate Policy",
                     enabled: "Activé",
                     disabled: "Désactivé",
