@@ -18,10 +18,16 @@ use crate::postgres::tally_session_execution::insert_tally_session_execution;
 use crate::postgres::tally_session_resolution::get_resolution_by_tally_session;
 use crate::postgres::tally_sheet::get_published_tally_sheets_by_event;
 use crate::postgres::template::get_template_by_alias;
+use crate::repositories::ballots::postgres::HasuraBallotRepository;
+use crate::repositories::election_event::postgres::HasuraElectionEventRepository;
+use crate::repositories::trustees::postgres::HasuraTrusteeRepository;
+use crate::repositories::voters::postgres::KeycloakEligibleUserRepository;
 use crate::services::cast_votes::{count_cast_votes_election, ElectionCastVotes};
 use crate::services::celery_app::get_celery_app;
+use crate::services::ceremonies::election_dates::get_elections_end_dates;
 use crate::services::ceremonies::insert_ballots::{
-    get_elections_end_dates, insert_ballots_messages,
+    ContestBallotUpserter, InsertBallotsService, ProtocolManagerBoardPort,
+    TrusteePublicKeysService, UpsertBallotsMessagesRequest,
 };
 use crate::services::ceremonies::keys_ceremony::get_keys_ceremony_board;
 use crate::services::ceremonies::results::populate_results_tables;
@@ -508,124 +514,6 @@ pub async fn count_cast_votes_election_with_census(
     Ok(cast_votes_map.into_values().collect())
 }
 
-#[instrument(skip_all, err)]
-pub async fn upsert_ballots_messages(
-    hasura_transaction: &Transaction<'_>,
-    keycloak_transaction: &Transaction<'_>,
-    tenant_id: &str,
-    election_event_id: &str,
-    board_name: &str,
-    trustee_names: Vec<String>,
-    messages: &Vec<Message>,
-    tally_session_contests: &Vec<TallySessionContest>,
-    tally_session_hasura: &TallySession,
-) -> Result<Vec<TallySessionContest>> {
-    let contest_encryption_policy = tally_session_hasura
-        .configuration
-        .clone()
-        .unwrap_or_default()
-        .get_contest_encryption_policy();
-    let delegated_voting_policy = tally_session_hasura
-        .configuration
-        .clone()
-        .unwrap_or_default()
-        .get_delegated_voting_policy();
-    let expected_batch_ids: HashSet<i64> = tally_session_contests
-        .iter()
-        .map(|tally_session_contest| tally_session_contest.session_id as i64)
-        .collect();
-    let existing_ballots_batches: HashSet<i64> = messages
-        .iter()
-        .filter(|message| {
-            expected_batch_ids.contains(&(message.statement.get_batch_number() as i64))
-                && StatementType::Ballots == message.statement.get_kind()
-        })
-        .map(|message| message.statement.get_batch_number() as i64)
-        .collect();
-    event!(
-        Level::INFO,
-        "existing_ballots_batches: '{:?}'",
-        existing_ballots_batches
-    );
-    let missing_ballots_batches: Vec<TallySessionContest> = tally_session_contests
-        .clone()
-        .into_iter()
-        .filter(|tally_session_contest| {
-            !existing_ballots_batches.contains(&(tally_session_contest.session_id as i64))
-        })
-        .collect();
-
-    // Contests where Ballots exist on board but annotations were not saved
-    // (e.g. due to a previous failed run where the board write succeeded
-    // but the Hasura transaction was rolled back).
-    let missing_annotations_batches: Vec<TallySessionContest> = tally_session_contests
-        .clone()
-        .into_iter()
-        .filter(|tally_session_contest| {
-            existing_ballots_batches.contains(&(tally_session_contest.session_id as i64))
-                && tally_session_contest.annotations.is_none()
-        })
-        .collect();
-
-    event!(
-        Level::INFO,
-        "missing_ballots_batches num: {}",
-        missing_ballots_batches.len()
-    );
-    event!(
-        Level::INFO,
-        "missing_annotations_batches num: {}",
-        missing_annotations_batches.len()
-    );
-
-    // The two sets are mutually exclusive: missing_ballots_batches contains
-    // contests whose ballots have NOT been posted to the board yet, while
-    // missing_annotations_batches contains contests whose ballots ARE on the
-    // board but whose annotations were lost (e.g. the board write succeeded
-    // but the Hasura transaction was rolled back in a previous failed run).
-
-    // Post ballots to the board and compute annotations for contests that
-    // have not been processed at all yet.
-    let mut tally_session_contests_updated = if !missing_ballots_batches.is_empty() {
-        insert_ballots_messages(
-            hasura_transaction,
-            keycloak_transaction,
-            tenant_id,
-            election_event_id,
-            board_name,
-            trustee_names.clone(),
-            missing_ballots_batches.clone(),
-            contest_encryption_policy.clone(),
-            delegated_voting_policy.clone(),
-            false,
-        )
-        .await?
-    } else {
-        vec![]
-    };
-
-    // For contests whose ballots are already on the board, only recompute
-    // and persist the annotations (skip the board write).
-    if !missing_annotations_batches.is_empty() {
-        let recovered = insert_ballots_messages(
-            hasura_transaction,
-            keycloak_transaction,
-            tenant_id,
-            election_event_id,
-            board_name,
-            trustee_names,
-            missing_annotations_batches,
-            contest_encryption_policy,
-            delegated_voting_policy,
-            true,
-        )
-        .await?;
-        tally_session_contests_updated.extend(recovered);
-    }
-
-    Ok(tally_session_contests_updated)
-}
-
 fn get_tally_session_created_at_timestamp_secs(tally_session: &TallySession) -> Result<i64> {
     let Some(created_at) = &tally_session.created_at.clone() else {
         return Err(Error::String(format!(
@@ -685,8 +573,8 @@ pub fn clean_tally_sheets(
 
 #[instrument(skip_all, err)]
 async fn map_plaintext_data(
+    ballot_upserter: &impl ContestBallotUpserter,
     hasura_transaction: &Transaction<'_>,
-    keycloak_transaction: &Transaction<'_>,
     tenant_id: String,
     election_event_id: String,
     tally_session_id: String,
@@ -820,18 +708,17 @@ async fn map_plaintext_data(
     let messages: Vec<Message> = protocol_manager::convert_board_messages(&board_messages)?;
     print_messages(&messages, &bulletin_board)?;
 
-    let new_ballots_messages = upsert_ballots_messages(
-        hasura_transaction,
-        keycloak_transaction,
-        &tenant_id,
-        &election_event_id,
-        &bulletin_board,
-        trustee_names,
-        &messages,
-        &tally_session_contest,
-        &tally_session,
-    )
-    .await?;
+    let new_ballots_messages = ballot_upserter
+        .upsert_ballots(UpsertBallotsMessagesRequest {
+            tenant_id: tenant_id.to_string(),
+            election_event_id: election_event_id.to_string(),
+            board_name: bulletin_board.to_string(),
+            trustee_names,
+            messages: &messages,
+            tally_session_contests: tally_session_contest.clone(),
+            tally_session: tally_session.clone(),
+        })
+        .await?;
 
     if !new_ballots_messages.is_empty() {
         update_tally_session_contests_annotations(hasura_transaction, &new_ballots_messages)
@@ -1115,13 +1002,13 @@ async fn build_reports_template_data(
     Ok((report_content_template, report_system_template, pdf_options))
 }
 
-#[instrument(err, skip(hasura_transaction, keycloak_transaction))]
+#[instrument(err, skip(ballot_upserter, hasura_transaction))]
 pub async fn execute_tally_session_wrapped(
+    ballot_upserter: &impl ContestBallotUpserter,
     tenant_id: String,
     election_event_id: String,
     tally_session_id: String,
     hasura_transaction: &Transaction<'_>,
-    keycloak_transaction: &Transaction<'_>,
     tally_type: Option<String>,
     election_ids: Option<Vec<String>>,
 ) -> Result<()> {
@@ -1184,8 +1071,8 @@ pub async fn execute_tally_session_wrapped(
 
     // map plaintexts to contests
     let plaintexts_data_opt = map_plaintext_data(
+        ballot_upserter,
         hasura_transaction,
-        keycloak_transaction,
         tenant_id.clone(),
         election_event_id.clone(),
         tally_session_id.clone(),
@@ -1414,12 +1301,27 @@ pub async fn transactions_wrapper(
         .await
         .with_context(|| "Error acquiring hasura transaction")?;
 
+    let trustee_repository = HasuraTrusteeRepository::new(&hasura_transaction);
+    let trustee_public_key_resolver = TrusteePublicKeysService::new(&trustee_repository);
+    let election_event_repository = HasuraElectionEventRepository::new(&hasura_transaction);
+    let ballot_repository = HasuraBallotRepository::new(&hasura_transaction);
+    let eligible_user_repository = KeycloakEligibleUserRepository::new(&keycloak_transaction);
+    let board_port = ProtocolManagerBoardPort::new(&hasura_transaction);
+    let upsert_ballots_service = InsertBallotsService::new(
+        &trustee_public_key_resolver,
+        &election_event_repository,
+        &ballot_repository,
+        &eligible_user_repository,
+        &board_port,
+        crate::services::celery_app::get_worker_threads(),
+    );
+
     let res = execute_tally_session_wrapped(
+        &upsert_ballots_service,
         tenant_id.clone(),
         election_event_id.clone(),
         tally_session_id.clone(),
         &hasura_transaction,
-        &keycloak_transaction,
         tally_type.clone(),
         election_ids.clone(),
     )

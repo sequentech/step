@@ -137,6 +137,7 @@ rustls = { version = "0.23.32", features = ["ring"] }
 
 [dev-dependencies]
 dhat = "0.3"
+mockall = "0.13"
 
 [package.metadata.component]
 

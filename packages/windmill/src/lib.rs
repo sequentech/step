@@ -9,6 +9,7 @@ extern crate lazy_static;
 extern crate quick_error;
 
 pub mod postgres;
+pub mod repositories;
 pub mod services;
 pub mod tasks;
 pub mod types;
