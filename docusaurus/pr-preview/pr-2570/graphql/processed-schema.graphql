@@ -310,6 +310,7 @@ input ExportOptions {
   activity_logs: Boolean
   applications: Boolean
   bulletin_board: Boolean
+  include_certificates: Boolean
   include_voters: Boolean
   is_encrypted: Boolean
   password: String
