@@ -6,7 +6,11 @@ import React, {useEffect, useContext, useMemo} from "react"
 import {Outlet, ScrollRestoration, useLocation, useParams} from "react-router-dom"
 import {styled} from "@mui/material/styles"
 import {Footer, Header, PageBanner} from "@sequentech/ui-essentials"
-import {EVotingPortalCountdownPolicy, IElectionEventPresentation} from "@sequentech/ui-core"
+import {
+    EVotingPortalCountdownPolicy,
+    IElectionEventPresentation,
+    applyPresentationLanguagePolicy,
+} from "@sequentech/ui-core"
 import Stack from "@mui/material/Stack"
 import {useNavigate} from "react-router-dom"
 import {AuthContext} from "./providers/AuthContextProvider"
@@ -150,6 +154,14 @@ const App = () => {
             )
         }
     }, [tenantId, eventId, isAuthenticated, setTenantEvent, globalSettings.DISABLE_AUTH])
+
+    useEffect(() => {
+        // Apply language policy from presentation
+        // Priority: query param > FORCE_DEFAULT policy > browser detection
+        if (ballotStyle?.ballot_eml.election_event_presentation) {
+            applyPresentationLanguagePolicy(ballotStyle.ballot_eml.election_event_presentation)
+        }
+    }, [ballotStyle?.ballot_eml.election_event_presentation?.language_conf])
 
     return (
         <StyledAppWrapper

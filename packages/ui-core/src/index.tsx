@@ -9,6 +9,8 @@ export {
     getLanguages,
     initializeLanguages,
     overwriteTranslations,
+    applyLanguagePolicy,
+    applyPresentationLanguagePolicy,
 } from "./services/i18n"
 export {useForwardedRef} from "./utils/ref"
 export {sleep} from "./services/sleep"

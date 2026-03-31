@@ -14,6 +14,7 @@ import galegoTranslation from "../translations/gl"
 import dutchTranslation from "../translations/nl"
 import basqueTranslation from "../translations/eu"
 import {IElectionEventPresentation} from "../types/ElectionEventPresentation"
+import {ELanguageDetectionPolicy, ILanguageConf} from "@root/types/LanguageConf"
 
 export const initializeLanguages = (externalTranslations: Resource, language?: string) => {
     const libTranslations: Resource = {
@@ -88,6 +89,43 @@ export const initializeLanguages = (externalTranslations: Resource, language?: s
 
 export const getLanguages = (i18n: I18N) => Object.keys(i18n.services.resourceStore.data)
 
+export const applyLanguagePolicy = (languageConf: ILanguageConf | undefined): boolean => {
+    if (!languageConf || !languageConf.language_detection_policy) {
+        return false
+    }
+
+    const {language_detection_policy, default_language_code} = languageConf
+
+    // If policy exists and equals FORCE_DEFAULT, force default language
+    if (
+        language_detection_policy === ELanguageDetectionPolicy.FORCE_DEFAULT &&
+        default_language_code
+    ) {
+        i18n.changeLanguage(default_language_code)
+        return true
+    }
+
+    return false
+}
+
+export const applyPresentationLanguagePolicy = (
+    presentation: IElectionEventPresentation | undefined
+): boolean => {
+    if (!presentation?.language_conf) {
+        return false
+    }
+
+    // If query param "lang" exists, skip applying presentation policy to allow manual override
+    if (typeof window !== "undefined") {
+        const params = new URLSearchParams(window.location.search)
+        if (params.get("lang")) {
+            return false
+        }
+    }
+
+    return applyLanguagePolicy(presentation.language_conf)
+}
+
 export const overwriteTranslations = (
     electionEventPresentation: IElectionEventPresentation | undefined,
     changeDefaultLanguage: boolean = true
@@ -118,19 +156,8 @@ export const overwriteTranslations = (
     })
 
     if (changeDefaultLanguage) {
-        let languageConf = electionEventPresentation?.language_conf
-        let enabledLanguages = languageConf?.enabled_language_codes ?? ["en"]
-        let defaultLanguage = languageConf?.default_language_code
-        let currentLanguage = i18n.language
-        if (
-            !!enabledLanguages &&
-            !!defaultLanguage &&
-            defaultLanguage !== currentLanguage &&
-            enabledLanguages.includes(defaultLanguage)
-        ) {
-            i18n.changeLanguage(defaultLanguage)
-            hasChangedDefaultLanguage = true
-        }
+        // Apply language policy: skip if query param provided, otherwise check for FORCE_DEFAULT
+        hasChangedDefaultLanguage = applyPresentationLanguagePolicy(electionEventPresentation)
     }
     return hasChangedDefaultLanguage
 }

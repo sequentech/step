@@ -1,4 +1,6 @@
-import React from "react"
+// SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
 import {Box, Radio, Typography} from "@mui/material"
 import {BooleanInput, useInput} from "react-admin"
 import {useTranslation} from "react-i18next"
