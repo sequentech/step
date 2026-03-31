@@ -124,15 +124,16 @@ SPDX-License-Identifier: AGPL-3.0-only
             </div>
         </#if>
     <#elseif section = "socialProviders" >
-        <#if realm.password && social.providers??>
+        <#assign visibleProviders = social.providers?filter(p -> p.alias != 'digital-certificates' || (realm.attributes['voter-certificate-policy']!'disabled') == 'enabled')>
+        <#if realm.password && visibleProviders?has_content>
             <div id="kc-social-providers" class="${properties.kcFormSocialAccountSectionClass!}">
                 <hr/>
                 <h4>${msg("identity-provider-login-label")}</h4>
 
-                <ul class="${properties.kcFormSocialAccountListClass!} <#if social.providers?size gt 3>${properties.kcFormSocialAccountListGridClass!}</#if>">
-                    <#list social.providers as p>
+                <ul class="${properties.kcFormSocialAccountListClass!} <#if visibleProviders?size gt 3>${properties.kcFormSocialAccountListGridClass!}</#if>">
+                    <#list visibleProviders as p>
                         <li>
-                            <a id="social-${p.alias}" class="${properties.kcFormSocialAccountListButtonClass!} <#if social.providers?size gt 3>${properties.kcFormSocialAccountGridItem!}</#if>"
+                            <a id="social-${p.alias}" class="${properties.kcFormSocialAccountListButtonClass!} <#if visibleProviders?size gt 3>${properties.kcFormSocialAccountGridItem!}</#if>"
                                     type="button" href="${p.loginUrl}">
                                 <#if p.iconClasses?has_content>
                                     <i class="${properties.kcCommonLogoIdP!} ${p.iconClasses!}" aria-hidden="true"></i>
@@ -146,7 +147,7 @@ SPDX-License-Identifier: AGPL-3.0-only
                 </ul>
             </div>
         </#if>
-        <#if properties.mtlsLoginUrl?has_content && (realm.attributes['voter-certificate-policy']!'disabled') == 'enabled'>
+        <#--  <#if properties.mtlsLoginUrl?has_content && (realm.attributes['voter-certificate-policy']!'disabled') == 'enabled'>
             <hr/>
             <#assign sessionCode = url.loginAction?keep_after('session_code=')?keep_before('&')>
             <#assign tabId = url.loginAction?keep_after('tab_id=')>
@@ -179,7 +180,7 @@ SPDX-License-Identifier: AGPL-3.0-only
                     });
                 }());
             </script>
-        </#if>
+        </#if>  -->
     </#if>
 
 </@layout.registrationLayout>
