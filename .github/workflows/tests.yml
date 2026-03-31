@@ -12,11 +12,8 @@ on:
 jobs:
   run-tests:
     name: Run Rust tests
-    runs-on:
-      - env=infra-euw1
-      - runs-on=${{ github.run_id }}
-      - runner=2cpu-linux-x64
-      - image=ubuntu24-full-x64
+    runs-on: gcp-selfhosted-ubuntu24
+    timeout-minutes: 35
     strategy:
       matrix:
         include:
@@ -39,15 +36,38 @@ jobs:
       - name: Install Rust
         uses: actions-rs/toolchain@v1
         with:
-          profile: minimal
-          toolchain: nightly-2024-08-02
+          toolchain: 1.90.0
           components: rustfmt
-          override: true
+          targets: x86_64-unknown-linux-musl
+
+      - name: Cache Cargo registry
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+          key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-registry-
+
+      - name: Cache Cargo build
+        uses: actions/cache@v4
+        with:
+          path: packages/${{ matrix.service }}/target
+          key: ${{ runner.os }}-cargo-test-${{ matrix.service }}-${{ hashFiles('packages/${{ matrix.service }}/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-test-${{ matrix.service }}-
 
       - name: Install system dependencies
         run: |
             sudo apt-get update
-            sudo apt-get install -y protobuf-compiler libprotobuf-dev
+            sudo apt-get install -y build-essential pkg-config libssl-dev protobuf-compiler libprotobuf-dev
+
+      - name: Install Chrome
+        run: |
+            sudo apt-get install -y wget
+            wget -O chrome.deb https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
+            sudo apt-get install -y ./chrome.deb
 
       - name: Run tests
         env:
@@ -68,4 +88,5 @@ jobs:
           LOW_SQL_LIMIT: "1000"
           DEFAULT_SQL_LIMIT: "20"
           DEFAULT_SQL_BATCH_SIZE: "1000"
+          CARGO_BUILD_JOBS: 4
         run: cd packages/${{ matrix.service }} && cargo test ${{ matrix.extra }}
