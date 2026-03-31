@@ -548,6 +548,7 @@ const tagalogTranslation: TranslationType = {
                 reports: "Mga Ulat",
                 applications: "Mga Aplikasyon",
                 tally: "Bilang",
+                certificates: "Mga Sertipiko",
             },
             taskNotification:
                 "{{action}} ay nagsimula na. Maaari mong makita ang status nito sa Talahanayan ng Pagpapatupad ng Mga Gawain.",

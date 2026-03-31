@@ -549,6 +549,7 @@ const spanishTranslation: TranslationType = {
                 reports: "Informes",
                 applications: "Aplicaciones",
                 tally: "Recuento",
+                certificates: "Certificados",
             },
             taskNotification:
                 "{{action}} ha comenzado. Puedes ver su estado en la tabla de Ejecución de Tareas.",

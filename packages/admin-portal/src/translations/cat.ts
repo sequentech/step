@@ -549,6 +549,7 @@ const catalanTranslation: TranslationType = {
                 reports: "Informes",
                 applications: "Aplicacions",
                 tally: "Recompte",
+                certificates: "Certificats",
             },
             taskNotification:
                 "{{action}} ha començat. Podeu veure el seu estat a la taula d'Execució de Tasques.",

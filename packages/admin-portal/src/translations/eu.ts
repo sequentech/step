@@ -549,6 +549,7 @@ const basqueTranslation: TranslationType = {
                 reports: "Txostenak",
                 applications: "Aplikazioak",
                 tally: "Zenbaketa",
+                certificates: "Ziurtagiriak",
             },
             taskNotification:
                 "{{action}} hasi da. Bere egoera Ataza Exekuzio taulan ikus dezakezu.",

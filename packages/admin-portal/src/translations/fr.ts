@@ -550,6 +550,7 @@ const frenchTranslation: TranslationType = {
                 reports: "Rapports",
                 applications: "Applications",
                 tally: "Décompte",
+                certificates: "Certificats",
             },
             taskNotification:
                 "{{action}} a commencé. Vous pouvez voir son statut dans le tableau d'Exécution des Tâches.",

@@ -548,6 +548,7 @@ const galegoTranslation: TranslationType = {
                 reports: "Informes",
                 applications: "Aplicaciones",
                 tally: "Recuento",
+                certificates: "Certificados",
             },
             taskNotification:
                 "{{action}} comezou. Podes ver o seu estado na táboa de Execución de Tarefas.",

@@ -545,6 +545,7 @@ const dutchTranslation: TranslationType = {
                 reports: "Rapporten",
                 applications: "Applicaties",
                 tally: "Telling",
+                certificates: "Certificaten",
             },
             taskNotification:
                 "{{action}} is gestart. U kunt de status ervan zien in de tabel Taakuitvoering.",

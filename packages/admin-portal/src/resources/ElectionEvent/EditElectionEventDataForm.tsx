@@ -156,8 +156,9 @@ export const EditElectionEventDataForm: React.FC = () => {
         enrollment: "",
         otp: "",
     })
-    const [voterCertificatePolicy, setVoterCertificatePolicy] =
-        useState<EVoterCertificatePolicy>(EVoterCertificatePolicy.DISABLED)
+    const [voterCertificatePolicy, setVoterCertificatePolicy] = useState<EVoterCertificatePolicy>(
+        EVoterCertificatePolicy.DISABLED
+    )
     const [manageCustomUrls, response] = useMutation<SetCustomUrlsMutation>(SET_CUSTOM_URLS, {
         context: {
             headers: {
@@ -1255,9 +1256,7 @@ export const EditElectionEventDataForm: React.FC = () => {
                             emptyText={undefined}
                             validate={required()}
                             onChange={(e) =>
-                                setVoterCertificatePolicy(
-                                    e.target.value as EVoterCertificatePolicy
-                                )
+                                setVoterCertificatePolicy(e.target.value as EVoterCertificatePolicy)
                             }
                         />
                         <Box

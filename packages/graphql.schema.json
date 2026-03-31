@@ -2625,6 +2625,16 @@
             "defaultValue": null
           },
           {
+            "name": "include_certificates",
+            "description": null,
+            "type": {
+              "kind": "SCALAR",
+              "name": "Boolean",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
             "name": "include_voters",
             "description": null,
             "type": {

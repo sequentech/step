@@ -95,13 +95,13 @@ pub async fn delete_certificate_authority(
 }
 
 /// Returns the PEM strings for all certificate authorities belonging to the
-/// given election event, ordered by creation time.
-#[instrument(skip(client), err)]
+/// given election event, ordered by creation time. Uses a transaction.
+#[instrument(skip(transaction), err)]
 pub async fn get_certificate_authorities_pem(
-    client: &Client,
+    transaction: &Transaction<'_>,
     election_event_id: Uuid,
 ) -> Result<Vec<String>> {
-    let statement = client
+    let statement = transaction
         .prepare(
             r#"
                 SELECT pem
@@ -112,7 +112,7 @@ pub async fn get_certificate_authorities_pem(
         )
         .await?;
 
-    let rows = client
+    let rows = transaction
         .query(&statement, &[&election_event_id])
         .await
         .map_err(|err| anyhow!("Error fetching certificate authority PEMs: {err}"))?;

@@ -957,6 +957,7 @@ input ExportOptions {
     reports: Boolean
     applications: Boolean
     tally: Boolean
+    include_certificates: Boolean
 }
 
 input ApplicationVerifyBody {

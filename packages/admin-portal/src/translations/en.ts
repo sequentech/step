@@ -547,6 +547,7 @@ const englishTranslation = {
                 reports: "Reports",
                 applications: "Applications",
                 tally: "Tally",
+                certificates: "Certificates",
             },
             taskNotification:
                 "{{action}} has started. You can see its status at Tasks Execution table.",
