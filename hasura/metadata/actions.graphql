@@ -132,6 +132,13 @@ type Mutation {
 }
 
 type Mutation {
+    update_realm_attributes(
+        election_event_id: String!
+        attributes: jsonb!
+    ): UpdateRealmAttributesOutput
+}
+
+type Mutation {
     delete_users(
         tenant_id: String!
         election_event_id: String
@@ -1660,4 +1667,8 @@ type Mutation {
 
 type DeleteCertificateAuthorityOutput {
     deleted: Boolean!
+}
+
+type UpdateRealmAttributesOutput {
+    updated: Boolean!
 }

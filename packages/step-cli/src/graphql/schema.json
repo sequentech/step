@@ -7297,6 +7297,33 @@
       },
       {
         "kind": "OBJECT",
+        "name": "UpdateRealmAttributesOutput",
+        "description": null,
+        "fields": [
+          {
+            "name": "updated",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "Boolean",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          }
+        ],
+        "inputFields": null,
+        "interfaces": [],
+        "enumValues": null,
+        "possibleTypes": null
+      },
+      {
+        "kind": "OBJECT",
         "name": "UpsertAreaOutput",
         "description": null,
         "fields": [
@@ -18767,6 +18794,47 @@
             "type": {
               "kind": "OBJECT",
               "name": "UpdateEventVotingStatusOutput",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "update_realm_attributes",
+            "description": null,
+            "args": [
+              {
+                "name": "attributes",
+                "description": null,
+                "type": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "kind": "SCALAR",
+                    "name": "jsonb",
+                    "ofType": null
+                  }
+                },
+                "defaultValue": null
+              },
+              {
+                "name": "election_event_id",
+                "description": null,
+                "type": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "kind": "SCALAR",
+                    "name": "String",
+                    "ofType": null
+                  }
+                },
+                "defaultValue": null
+              }
+            ],
+            "type": {
+              "kind": "OBJECT",
+              "name": "UpdateRealmAttributesOutput",
               "ofType": null
             },
             "isDeprecated": false,

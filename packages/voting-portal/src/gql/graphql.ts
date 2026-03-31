@@ -933,6 +933,11 @@ export type UpdateEventVotingStatusOutput = {
   election_event_id?: Maybe<Scalars['uuid']['output']>;
 };
 
+export type UpdateRealmAttributesOutput = {
+  __typename?: 'UpdateRealmAttributesOutput';
+  updated: Scalars['Boolean']['output'];
+};
+
 export type UpsertAreaOutput = {
   __typename?: 'UpsertAreaOutput';
   id: Scalars['String']['output'];
@@ -1485,6 +1490,7 @@ export type Mutation_Root = {
   submit_tally_resolution?: Maybe<SubmitTallyResolutionOutput>;
   update_election_voting_status?: Maybe<UpdateElectionVotingStatusOutput>;
   update_event_voting_status?: Maybe<UpdateEventVotingStatusOutput>;
+  update_realm_attributes?: Maybe<UpdateRealmAttributesOutput>;
   /** update data of the table: "sequent_backend.applications" */
   update_sequent_backend_applications?: Maybe<Sequent_Backend_Applications_Mutation_Response>;
   /** update single row of the table: "sequent_backend.applications" */
@@ -3356,6 +3362,13 @@ export type Mutation_RootUpdate_Event_Voting_StatusArgs = {
   election_event_id: Scalars['uuid']['input'];
   voting_channels?: InputMaybe<Array<InputMaybe<VotingStatusChannel>>>;
   voting_status: VotingStatus;
+};
+
+
+/** mutation root */
+export type Mutation_RootUpdate_Realm_AttributesArgs = {
+  attributes: Scalars['jsonb']['input'];
+  election_event_id: Scalars['String']['input'];
 };
 
 
