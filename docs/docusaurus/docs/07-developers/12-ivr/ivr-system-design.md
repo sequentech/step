@@ -752,7 +752,7 @@ pub enum PhaseState {
 /// Single phase in the flow pipeline
 #[derive(Serialize, Deserialize, Clone)]
 pub struct FlowPhase {
-    pub phase_type: String,                      // "welcome", "auth", "ballot_loop", etc.
+    pub phase: String,                           // "welcome", "auth", "ballot_loop", etc.
     pub config: Option<HashMap<String, Value>>,  // phase-specific config (optional)
 }
 
