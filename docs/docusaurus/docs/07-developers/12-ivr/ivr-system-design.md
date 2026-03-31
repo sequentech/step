@@ -204,13 +204,13 @@ flowchart TD
 | Sub-Phase | Input | Behavior |
 |---|---|---|
 | `ElectionSelect` | DTMF | Present sorted elections (by `elections_order`). Single-digit if ≤9, multi-digit otherwise. **Skipped** if `skip_election_list=true` and only 1 election |
-| `ElectionIntro` | None (auto-advance) | Play `election_intro` prompt with `\{election_name\}`, announce contest count |
+| `ElectionIntro` | None (auto-advance) | Play `election_intro` prompt with `{election_name}`, announce contest count |
 | `LanguageSwitch` | DTMF (1=keep, 2=switch) | Offer only if election's `language_conf` differs from session language. Switch affects prompts for this election only |
-| `AcclaimAnnounce` | None (auto-advance) | Play `acclamation` prompt with `\{candidate_name\}`. Auto-advance to next contest |
-| `ContestIntro` | None (auto-advance) or DTMF to repeat | Play `contest_intro` with `\{contest_name\}`, `\{max_votes\}`, `\{min_votes\}`. Explain rules: "Select up to \{max_votes\} candidates" |
+| `AcclaimAnnounce` | None (auto-advance) | Play `acclamation` prompt with `{candidate_name}`. Auto-advance to next contest |
+| `ContestIntro` | None (auto-advance) or DTMF to repeat | Play `contest_intro` with `{contest_name}`, `{max_votes}`, `{min_votes}`. Explain rules: "Select up to {max_votes} candidates" |
 | `CandidateSelect` | DTMF per candidate | Present candidates sorted by `candidates_order`. Single-digit (1-9) or multi-digit (01-99#) based on count. Accumulate selections until voter signals done (`#` or `0`) or `max_votes` reached. Reject already-selected with `already_selected` prompt |
 | `SelectionCheck` | DTMF (confirm/restart) | Validate selections against `min_votes`/`max_votes`. Apply `blank_vote_policy`: if no selections and `allowed`→`blank_ballot_confirm`; if `not_allowed`→re-prompt. Apply `under_vote_policy`: if under minimum and `warn`→play warning then confirm |
-| `VoteConfirm` | DTMF (1=confirm, 2=change) | Read back selected candidates. "You selected \{candidate_name\} for \{contest_name\}. Press 1 to confirm, 2 to change your selection" |
+| `VoteConfirm` | DTMF (1=confirm, 2=change) | Read back selected candidates. "You selected {candidate_name} for {contest_name}. Press 1 to confirm, 2 to change your selection" |
 
 #### 3.3.4 BallotLoopState (Session Cursor)
 
