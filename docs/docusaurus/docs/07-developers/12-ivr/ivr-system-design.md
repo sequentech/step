@@ -133,33 +133,142 @@ Each phase type has an execution engine in the Lambda. The engine handles prompt
 
 ### 3.3 Ballot Loop (Inner Flow)
 
-The `ballot_loop` phase is the most complex. It iterates through elections and contests, but its behavior is driven by the **published election/contest data**, not IVR-specific config. The IVR Lambda reads the same ballot structure as the voting portal.
+The `ballot_loop` phase is the most complex. Rather than implementing it as a single monolith, it is decomposed into **sub-phases** — each one a small, testable unit. The outer `ballot_loop` phase engine advances through sub-phases like a mini flow engine within the main flow.
 
-Contest-level behaviors derived from existing election data:
-- **Acclamation**: contest has candidates with acclamation flag → announce, skip voting
-- **Allow blank ballot**: from contest config → if no selection, prompt for blank confirmation
-- **Allow decline**: from election config → offer decline-to-vote option
-- **Min/max votes**: from contest config → enforce during candidate selection
-- **Per-ballot language switch**: from election `language_conf` → offer language switch if election has different language than current session
+All behavior is driven by the **published election/contest data** — the same structures the voting portal reads. The IVR Lambda honors the same config fields:
+
+#### 3.3.1 Config Fields Consumed by the Ballot Loop
+
+| Config Field | Source | IVR Behavior |
+|---|---|---|
+| `skip_election_list` | `ElectionEventPresentation` | If `true` and only 1 election: skip election selection, enter contest loop directly (same as voting portal behavior) |
+| `elections_order` | `ElectionEventPresentation` | Sort elections before presenting: `alphabetical` (by alias/name), `custom` (by `sort_order`), `random` (shuffled once at session init) |
+| `contests_order` | `ElectionPresentation` | Sort contests within an election: `alphabetical`, `custom`, `random` |
+| `candidates_order` | `ContestPresentation` | Sort candidates within a contest: `alphabetical`, `custom`, `random`. Determines DTMF assignment order |
+| `is_acclaimed` | `Contest` | If `true`: announce acclamation result, auto-advance (no voting) |
+| `blank_vote_policy` | `ContestPresentation` | `allowed`: offer blank ballot confirmation. `warn`/`warn_only_in_review`: play warning then allow. `not_allowed`: require at least one selection |
+| `under_vote_policy` | `ContestPresentation` | `allowed`: accept silently. `warn`/`warn_and_alert`: play warning before confirming. `warn_only_in_review`: warn during summary only |
+| `language_conf` | `ElectionPresentation` | If election's language differs from session language → offer per-ballot language switch |
+| `min_votes` / `max_votes` | Contest | Enforce selection count. `max_votes=1` → stop after 1 selection. `min_votes>0` + `blank_vote_policy=not_allowed` → force selection |
+| `is_explicit_invalid` | `CandidatePresentation` | Skip candidates marked as explicit invalid vote options (not applicable to IVR) |
+| `is_explicit_blank` | `CandidatePresentation` | Skip candidates marked as explicit blank (IVR uses dedicated blank/decline sub-phase instead) |
+
+#### 3.3.2 Ballot Loop Sub-Phases
+
+The ballot loop is a **nested state machine** with three levels: election → contest → candidate selection. Each level has its own sub-phases:
 
 ```mermaid
 flowchart TD
-    A[For each election] --> B[Election info<br/>play election_intro]
-    A --> C{Per-ballot<br/>language switch?}
-    C -->|language_conf differs| D[Offer language switch]
-    A --> E[For each contest]
-    E --> F{Acclamation?}
-    F -->|Yes| G[Announce, auto-advance]
-    F -->|No| H[Contest info<br/>play contest_intro, read rules]
-    H --> I[Candidate selection<br/>DTMF, enforce min/max]
-    I --> J{Already selected?}
-    J -->|Yes| K[Play already_selected, re-prompt]
-    I --> L{No selection +<br/>blank allowed?}
-    L -->|Yes| M[Blank ballot confirmation]
-    I --> N{Decline option?}
-    N -->|Yes| O[Decline confirmation]
-    I --> P[Vote confirmation<br/>read back, allow change]
+    Start[ballot_loop Entry] --> SkipCheck{skip_election_list<br/>AND 1 election?}
+    SkipCheck -->|Yes| ContestLoop
+    SkipCheck -->|No| ElectionSelect
+
+    subgraph ElectionLevel [Election Level]
+        ElectionSelect[ElectionSelect<br/>list elections, DTMF]
+        ElectionIntro[ElectionIntro<br/>play election name + info]
+        LanguageSwitch[LanguageSwitch<br/>offer if language differs]
+    end
+
+    ElectionSelect --> ElectionIntro
+    ElectionIntro --> LangCheck{language_conf<br/>differs from session?}
+    LangCheck -->|Yes| LanguageSwitch --> ContestLoop
+    LangCheck -->|No| ContestLoop
+
+    subgraph ContestLevel [Contest Level]
+        ContestLoop[ContestLoop<br/>for each sorted contest]
+        AcclaimCheck{is_acclaimed?}
+        AcclaimAnnounce[AcclaimAnnounce<br/>announce result, auto-advance]
+        ContestIntro[ContestIntro<br/>read name, rules, min/max]
+        CandidateSelect[CandidateSelect<br/>present candidates, DTMF]
+        SelectionCheck[SelectionCheck<br/>enforce min/max, blank/under policy]
+        VoteConfirm[VoteConfirm<br/>read back, allow change]
+    end
+
+    ContestLoop --> AcclaimCheck
+    AcclaimCheck -->|Yes| AcclaimAnnounce --> NextContest
+    AcclaimCheck -->|No| ContestIntro --> CandidateSelect
+    CandidateSelect --> SelectionCheck
+    SelectionCheck --> VoteConfirm
+    VoteConfirm -->|Change| CandidateSelect
+    VoteConfirm -->|Confirm| NextContest
+
+    NextContest{More contests?}
+    NextContest -->|Yes| ContestLoop
+    NextContest -->|No| MoreElections{More elections?}
+    MoreElections -->|Yes| ElectionSelect
+    MoreElections -->|No| Done[Advance to next<br/>outer phase]
 ```
+
+#### 3.3.3 Sub-Phase Descriptions
+
+| Sub-Phase | Input | Behavior |
+|---|---|---|
+| `ElectionSelect` | DTMF | Present sorted elections (by `elections_order`). Single-digit if ≤9, multi-digit otherwise. **Skipped** if `skip_election_list=true` and only 1 election |
+| `ElectionIntro` | None (auto-advance) | Play `election_intro` prompt with `\{election_name\}`, announce contest count |
+| `LanguageSwitch` | DTMF (1=keep, 2=switch) | Offer only if election's `language_conf` differs from session language. Switch affects prompts for this election only |
+| `ContestLoop` | None (cursor management) | Initialize contest iteration. Sort contests by `contests_order`. Track current index in `BallotLoopState` |
+| `AcclaimAnnounce` | None (auto-advance) | Play `acclamation` prompt with `\{candidate_name\}`. Auto-advance to next contest |
+| `ContestIntro` | None (auto-advance) or DTMF to repeat | Play `contest_intro` with `\{contest_name\}`, `\{max_votes\}`, `\{min_votes\}`. Explain rules: "Select up to \{max_votes\} candidates" |
+| `CandidateSelect` | DTMF per candidate | Present candidates sorted by `candidates_order`. Single-digit (1-9) or multi-digit (01-99#) based on count. Accumulate selections until voter signals done (`#` or `0`) or `max_votes` reached. Reject already-selected with `already_selected` prompt |
+| `SelectionCheck` | DTMF (confirm/restart) | Validate selections against `min_votes`/`max_votes`. Apply `blank_vote_policy`: if no selections and `allowed`→`blank_ballot_confirm`; if `not_allowed`→re-prompt. Apply `under_vote_policy`: if under minimum and `warn`→play warning then confirm |
+| `VoteConfirm` | DTMF (1=confirm, 2=change) | Read back selected candidates. "You selected \{candidate_name\} for \{contest_name\}. Press 1 to confirm, 2 to change your selection" |
+
+#### 3.3.4 BallotLoopState (Session Cursor)
+
+The ballot loop's position is tracked in `PhaseState::BallotLoop`, which acts as a cursor into the nested election→contest→sub-phase structure:
+
+```rust
+#[derive(Serialize, Deserialize, Clone)]
+pub struct BallotLoopState {
+    pub election_index: usize,
+    pub contest_index: usize,
+    pub sub_phase: BallotSubPhase,
+    /// Sorted election IDs (computed once at entry using elections_order)
+    pub sorted_election_ids: Vec<Uuid>,
+    /// Sorted contest IDs for current election (recomputed on election change)
+    pub sorted_contest_ids: Vec<Uuid>,
+    /// Sorted candidate IDs for current contest (recomputed on contest change)
+    pub sorted_candidate_ids: Vec<Uuid>,
+    /// Accumulator for multi-selection contests
+    pub pending_selections: Vec<Uuid>,
+    /// Whether election selection was skipped (skip_election_list)
+    pub election_list_skipped: bool,
+}
+
+#[derive(Serialize, Deserialize, Clone)]
+pub enum BallotSubPhase {
+    ElectionSelect,
+    ElectionIntro,
+    LanguageSwitch,
+    AcclaimAnnounce,
+    ContestIntro,
+    CandidateSelect,
+    SelectionCheck,
+    VoteConfirm,
+}
+```
+
+#### 3.3.5 Candidate Selection Detail
+
+Candidate presentation follows the same ordering as the voting portal (`candidates_order`), then assigns DTMF mappings:
+
+```rust
+fn assign_dtmf_mappings(
+    candidates: &[CandidateContext],
+) -> Vec<(CandidateContext, String)> {
+    let use_multi_digit = candidates.len() > 9;
+    candidates.iter().enumerate().map(|(i, c)| {
+        let dtmf = if use_multi_digit {
+            format!("{:02}", i + 1)  // "01", "02", ..., "99"
+        } else {
+            format!("{}", i + 1)     // "1", "2", ..., "9"
+        };
+        (c.clone(), dtmf)
+    }).collect()
+}
+```
+
+Candidates with `is_explicit_invalid: true` or `is_explicit_blank: true` in `CandidatePresentation` are **excluded** from the IVR candidate list — the IVR handles blank/decline through dedicated sub-phases instead of special candidate entries.
 
 ### 3.4 Multi-Digit DTMF Input Handling
 
@@ -192,31 +301,140 @@ Amazon Connect supports multi-digit DTMF collection, enabling support for more t
 - Prompts adapt based on mode: "Press 1" vs "Enter 0-1 followed by pound"
 - Listing >20 candidates takes several minutes; consider pagination or summary mode
 
-### 3.5 Flow Engine Implementation
+### 3.5 Hexagonal Architecture & Flow Engine
+
+The IVR Lambda follows **hexagonal architecture** (ports & adapters). The domain logic (flow engine, phase engines, ballot loop) has zero knowledge of AWS, DynamoDB, S3, or HTTP. All external dependencies are behind **port traits**, with concrete **adapters** injected at startup.
+
+#### 3.5.1 Architecture Overview
+
+```mermaid
+flowchart LR
+    subgraph Adapters_In [Driving Adapters — Inbound]
+        ConnectAdapter[Amazon Connect<br/>Lambda Handler]
+    end
+
+    subgraph Domain [Domain — Pure Logic]
+        FlowEngine[FlowEngine]
+        PhaseEngines[Phase Engines<br/>welcome, auth,<br/>ballot_loop, ...]
+        BallotLoop[BallotLoop<br/>sub-phase engines]
+        PromptResolver[PromptResolver]
+        TokenManager[TokenManager]
+    end
+
+    subgraph Ports [Ports — Trait Boundaries]
+        SessionPort[SessionPort]
+        AuthPort[AuthPort]
+        ElectionConfigPort[ElectionConfigPort]
+        ElectionStatusPort[ElectionStatusPort]
+        VoteCastingPort[VoteCastingPort]
+        PhoneConfigPort[PhoneConfigPort]
+    end
+
+    subgraph Adapters_Out [Driven Adapters — Outbound]
+        DynamoSession[DynamoDB<br/>Session Adapter]
+        KeycloakAuth[Keycloak<br/>Auth Adapter]
+        S3Config[S3<br/>Config Adapter]
+        HasuraStatus[Hasura<br/>Status Adapter]
+        HarvestVote[Harvest<br/>Vote Adapter]
+        DynamoPhone[DynamoDB<br/>Phone Config Adapter]
+    end
+
+    ConnectAdapter --> FlowEngine
+    FlowEngine --> PhaseEngines
+    PhaseEngines --> BallotLoop
+    FlowEngine --> PromptResolver
+
+    PhaseEngines -.-> SessionPort
+    PhaseEngines -.-> AuthPort
+    PhaseEngines -.-> ElectionStatusPort
+    PhaseEngines -.-> VoteCastingPort
+    FlowEngine -.-> ElectionConfigPort
+    FlowEngine -.-> PhoneConfigPort
+
+    SessionPort --> DynamoSession
+    AuthPort --> KeycloakAuth
+    ElectionConfigPort --> S3Config
+    ElectionStatusPort --> HasuraStatus
+    VoteCastingPort --> HarvestVote
+    PhoneConfigPort --> DynamoPhone
+```
+
+#### 3.5.2 Port Traits
+
+```rust
+/// --- Outbound Ports (driven side) ---
+
+#[async_trait]
+pub trait SessionPort: Send + Sync {
+    async fn get_session(&self, contact_id: &str) -> Result<Option<IvrSession>, IvrError>;
+    async fn save_session(&self, session: &IvrSession) -> Result<(), IvrError>;
+    async fn delete_session(&self, contact_id: &str) -> Result<(), IvrError>;
+}
+
+#[async_trait]
+pub trait AuthPort: Send + Sync {
+    async fn authenticate(&self, realm: &str, credentials: &AuthCredentials) -> Result<TokenPair, AuthError>;
+    async fn refresh_token(&self, realm: &str, refresh_token: &str) -> Result<TokenPair, AuthError>;
+}
+
+#[async_trait]
+pub trait ElectionConfigPort: Send + Sync {
+    async fn get_published_config(
+        &self,
+        base_url: &str,
+        tenant_id: &Uuid,
+        document_id: &Uuid,
+        publication_id: &Uuid,
+    ) -> Result<PublishedBallotPublication, IvrError>;
+}
+
+#[async_trait]
+pub trait ElectionStatusPort: Send + Sync {
+    async fn get_election_event_status(
+        &self,
+        base_url: &str,
+        jwt: &str,
+        event_id: &Uuid,
+    ) -> Result<ElectionEventStatus, IvrError>;
+}
+
+#[async_trait]
+pub trait VoteCastingPort: Send + Sync {
+    async fn cast_vote(
+        &self,
+        base_url: &str,
+        jwt: &str,
+        ballot: &EncryptedBallot,
+    ) -> Result<CastVoteResponse, IvrError>;
+}
+
+#[async_trait]
+pub trait PhoneConfigPort: Send + Sync {
+    async fn get_config(&self, phone_number: &str) -> Result<Option<PhoneConfig>, IvrError>;
+}
+```
+
+#### 3.5.3 Domain: Flow Engine
 
 **Key Concept:** Lambda is **stateless**. Each invocation reads session from DynamoDB (including the flow position), executes the current phase, saves the updated position, and responds.
-
-#### Lambda Invocation Flow
 
 ```mermaid
 flowchart TD
     A[Amazon Connect invokes Lambda] --> B[Lambda receives:<br/>contact_id, user_input]
-    B --> C[Load IvrSession from DynamoDB<br/>by contact_id]
-    C --> D[Load flow config from session cache<br/>originally from published S3]
+    B --> C[SessionPort.get_session]
+    C --> D[Load flow config from session cache<br/>originally from ElectionConfigPort]
     D --> E[Look up current phase:<br/>flow session.position.phase_index]
     E --> F[Dispatch to phase execution engine]
     F --> G[Engine returns:<br/>new_position, ConnectResponse]
-    G --> H[Save updated session to DynamoDB]
+    G --> H[SessionPort.save_session]
     H --> I[Return ConnectResponse to Amazon Connect]
 ```
 
-#### Flow Engine
-
 ```rust
+/// Domain service — no AWS/HTTP/DB dependencies
 pub struct FlowEngine {
     flow_config: Vec<FlowPhase>,
     prompts: IvrPromptResolver,
-    // API clients, election data, etc.
 }
 
 impl FlowEngine {
@@ -224,73 +442,214 @@ impl FlowEngine {
         &self,
         session: &mut IvrSession,
         input: Option<&str>,
+        ports: &dyn PhasePorts,  // trait object combining needed ports
     ) -> Result<ConnectResponse, IvrError> {
         let phase = &self.flow_config[session.position.phase_index];
 
         match phase.phase_type.as_str() {
-            "welcome" => self.exec_welcome(session),
-            "language_select" => self.exec_language_select(session, input),
-            "blacklist_check" => self.exec_blacklist_check(session),
-            "auth" => self.exec_auth(session, input),
-            "eligibility_check" => self.exec_eligibility_check(session),
-            "declaration" => self.exec_declaration(session, input, &phase.config),
-            "pre_voting_statement" => self.exec_statement(session, &phase.config),
-            "ballot_loop" => self.exec_ballot_loop(session, input),
-            "summary" => self.exec_summary(session, input),
-            "final_confirm" => self.exec_final_confirm(session, input),
-            "submit" => self.exec_submit(session),
-            "receipt" => self.exec_receipt(session, input, &phase.config),
-            "goodbye" => self.exec_goodbye(session),
+            "welcome" => WelcomePhase.execute(session, input, &self.prompts),
+            "language_select" => LanguageSelectPhase.execute(session, input, &self.prompts),
+            "blacklist_check" => BlacklistCheckPhase.execute(session, input, &self.prompts),
+            "auth" => AuthPhase.execute(session, input, &self.prompts, ports.auth()),
+            "eligibility_check" => EligibilityCheckPhase.execute(session, input, &self.prompts),
+            "declaration" => DeclarationPhase.execute(session, input, &self.prompts, &phase.config),
+            "pre_voting_statement" => StatementPhase.execute(session, input, &self.prompts, &phase.config),
+            "ballot_loop" => BallotLoopPhase.execute(session, input, &self.prompts),
+            "summary" => SummaryPhase.execute(session, input, &self.prompts),
+            "final_confirm" => FinalConfirmPhase.execute(session, input, &self.prompts),
+            "submit" => SubmitPhase.execute(session, input, &self.prompts, ports.vote_casting()),
+            "receipt" => ReceiptPhase.execute(session, input, &self.prompts, &phase.config),
+            "goodbye" => GoodbyePhase.execute(session, input, &self.prompts),
             unknown => Err(IvrError::UnknownPhaseType(unknown.to_string())),
         }
     }
+}
 
-    fn advance_phase(&self, session: &mut IvrSession) {
-        session.position.phase_index += 1;
-        session.position.phase_state = PhaseState::Entry;
+/// Trait that groups the ports a phase might need (subset injection)
+pub trait PhasePorts: Send + Sync {
+    fn auth(&self) -> &dyn AuthPort;
+    fn election_status(&self) -> &dyn ElectionStatusPort;
+    fn vote_casting(&self) -> &dyn VoteCastingPort;
+}
+
+/// Each phase implements this trait
+pub trait PhaseEngine {
+    fn execute(
+        &self,
+        session: &mut IvrSession,
+        input: Option<&str>,
+        prompts: &IvrPromptResolver,
+    ) -> Result<ConnectResponse, IvrError>;
+}
+```
+
+#### 3.5.4 Domain: Ballot Loop Phase (Sub-Phase Dispatch)
+
+The `BallotLoopPhase` delegates to sub-phase engines based on the `BallotSubPhase` cursor in session state:
+
+```rust
+pub struct BallotLoopPhase;
+
+impl BallotLoopPhase {
+    pub fn execute(
+        session: &mut IvrSession,
+        input: Option<&str>,
+        prompts: &IvrPromptResolver,
+    ) -> Result<ConnectResponse, IvrError> {
+        // Initialize on first entry
+        let ballot_state = match &session.position.phase_state {
+            PhaseState::BallotLoop(state) => state.clone(),
+            PhaseState::Entry => {
+                let state = Self::init_ballot_loop(session)?;
+                session.position.phase_state = PhaseState::BallotLoop(state.clone());
+                state
+            }
+            _ => return Err(IvrError::InvalidState),
+        };
+
+        // Dispatch to current sub-phase
+        match ballot_state.sub_phase {
+            BallotSubPhase::ElectionSelect =>
+                ElectionSelectSubPhase::execute(session, input, prompts),
+            BallotSubPhase::ElectionIntro =>
+                ElectionIntroSubPhase::execute(session, input, prompts),
+            BallotSubPhase::LanguageSwitch =>
+                LanguageSwitchSubPhase::execute(session, input, prompts),
+            BallotSubPhase::AcclaimAnnounce =>
+                AcclaimAnnounceSubPhase::execute(session, input, prompts),
+            BallotSubPhase::ContestIntro =>
+                ContestIntroSubPhase::execute(session, input, prompts),
+            BallotSubPhase::CandidateSelect =>
+                CandidateSelectSubPhase::execute(session, input, prompts),
+            BallotSubPhase::SelectionCheck =>
+                SelectionCheckSubPhase::execute(session, input, prompts),
+            BallotSubPhase::VoteConfirm =>
+                VoteConfirmSubPhase::execute(session, input, prompts),
+        }
+    }
+
+    fn init_ballot_loop(session: &IvrSession) -> Result<BallotLoopState, IvrError> {
+        let event_presentation = &session.election_event_presentation;
+        let elections = &session.elections;
+
+        // Sort elections using the same logic as voting portal
+        let sorted_election_ids = sort_elections(
+            elections,
+            event_presentation.elections_order.as_ref(),
+        );
+
+        // Check skip_election_list (same condition as voting portal)
+        let skip = event_presentation.skip_election_list.unwrap_or(false)
+            && sorted_election_ids.len() == 1;
+
+        let initial_sub_phase = if skip {
+            BallotSubPhase::ElectionIntro
+        } else {
+            BallotSubPhase::ElectionSelect
+        };
+
+        Ok(BallotLoopState {
+            election_index: 0,
+            contest_index: 0,
+            sub_phase: initial_sub_phase,
+            sorted_election_ids,
+            sorted_contest_ids: vec![],
+            sorted_candidate_ids: vec![],
+            pending_selections: vec![],
+            election_list_skipped: skip,
+        })
     }
 }
 ```
 
-#### Main Lambda Handler
+#### 3.5.5 Driving Adapter: Lambda Handler
+
+The handler is a thin adapter — it wires ports together and delegates to the domain:
 
 ```rust
 async fn handler(event: ConnectEvent) -> Result<ConnectResponse, LambdaError> {
-    let contact_id = event.Details.ContactData.ContactId;
+    let contact_id = &event.Details.ContactData.ContactId;
     let user_input = event.Details.Parameters.get("user_input");
 
-    // Load or create session from DynamoDB
-    let mut session = match session_repo.get_session(&contact_id).await? {
+    // Adapters (created once, reused across invocations via Lambda runtime)
+    let session_port: &dyn SessionPort = &dynamo_session_adapter;
+    let phone_config_port: &dyn PhoneConfigPort = &dynamo_phone_adapter;
+    let config_port: &dyn ElectionConfigPort = &s3_config_adapter;
+    let ports: &dyn PhasePorts = &live_ports;  // groups auth, status, vote casting
+
+    // Load or create session
+    let mut session = match session_port.get_session(contact_id).await? {
         Some(s) => s,
         None => {
-            // New call: read phone config, fetch published election data from S3
-            let phone_config = phone_config_repo.get(&caller_phone).await?;
-            let election_data = s3_client.get_published_ivr_config(&phone_config).await?;
-            session_repo.create_session(&contact_id, &phone_config, &election_data).await?
+            let caller_phone = &event.Details.ContactData.CustomerEndpoint.Address;
+            let phone_config = phone_config_port.get_config(caller_phone).await?
+                .ok_or(IvrError::UnknownPhoneNumber)?;
+            let published = config_port.get_published_config(
+                &phone_config.s3_public_base_url,
+                &phone_config.tenant_id,
+                &phone_config.document_id,
+                &phone_config.publication_id,
+            ).await?;
+            IvrSession::new(contact_id, &phone_config, &published)
         }
     };
 
-    // Create flow engine from session's cached config
-    let engine = FlowEngine::new(&session.flow_config, &session.election_data);
+    // Domain logic — pure, testable, no AWS dependencies
+    let engine = FlowEngine::new(&session.flow_config);
+    let response = engine.execute(&mut session, user_input.as_deref(), ports)?;
 
-    // Execute current phase
-    let response = engine.execute(&mut session, user_input.as_deref())?;
-
-    // Save session back to DynamoDB
-    session_repo.update_session(&session).await?;
-
+    session_port.save_session(&session).await?;
     Ok(response)
 }
 ```
 
-#### Why This Pattern Works
+#### 3.5.6 Testing Strategy
 
-1. **Config-driven** - Flow composition is data, not code. Adding/removing phases = config change
-2. **Stateless Lambda** - Each invocation is independent, scalable
-3. **Persistent State** - DynamoDB session survives Lambda cold starts and call interruptions
-4. **Testable** - Each phase engine is independently testable with mock config
-5. **Extensible** - New phase types are isolated code additions, existing phases are unaffected
-6. **Ballot behavior from source of truth** - Contest rules (blank, decline, acclamation, min/max) read from published election data, same as voting portal
+Hexagonal architecture makes every layer independently testable:
+
+```rust
+// Unit test: domain logic with mock ports
+#[test]
+fn ballot_loop_skips_election_select_when_single_election() {
+    let mut session = test_session_with_one_election();
+    session.election_event_presentation.skip_election_list = Some(true);
+
+    let result = BallotLoopPhase::execute(&mut session, None, &test_prompts());
+
+    // Should jump straight to ElectionIntro, not ElectionSelect
+    match &session.position.phase_state {
+        PhaseState::BallotLoop(state) => {
+            assert!(state.election_list_skipped);
+            assert_eq!(state.sub_phase, BallotSubPhase::ElectionIntro);
+        }
+        _ => panic!("Expected BallotLoop state"),
+    }
+}
+
+#[tokio::test]
+async fn submit_phase_refreshes_token_before_casting() {
+    let mock_auth = MockAuthPort::new()
+        .expect_refresh_token()
+        .returning(|_, _| Ok(fresh_token_pair()));
+    let mock_vote = MockVoteCastingPort::new()
+        .expect_cast_vote()
+        .returning(|_, _, _| Ok(cast_vote_response()));
+    let ports = TestPorts::new(mock_auth, mock_vote);
+
+    let mut session = test_session_authenticated();
+    let result = SubmitPhase::execute(&mut session, None, &test_prompts(), ports.vote_casting());
+    assert!(result.is_ok());
+}
+```
+
+#### 3.5.7 Why Hexagonal Architecture
+
+1. **Testable** — Domain logic tested with mock ports; no DynamoDB/S3/HTTP in unit tests
+2. **Portable** — Same domain could run in a different runtime (e.g., local CLI for testing) by swapping adapters
+3. **Isolated changes** — Switching from DynamoDB to Redis = new adapter, zero domain changes. Adding a new external service = new port + adapter
+4. **Phase engines are pure** — Given session state + input, produce new state + response. No side effects except through ports
+5. **Config-driven** — Flow composition is data, not code. Adding/removing phases = config change
+6. **Ballot behavior from source of truth** — Contest rules (blank, decline, acclamation, min/max, ordering) read from published election data, same as voting portal
 
 #### Channel-Specific Voting Periods
 
@@ -359,6 +718,7 @@ pub struct IvrSession {
     // Cached config (loaded from S3 at session init)
     pub flow_config: Vec<FlowPhase>,
     pub auth_config: AuthConfig,
+    pub election_event_presentation: ElectionEventPresentationCache,
     pub prompts: HashMap<String, HashMap<String, String>>, // lang -> key -> text
 
     // TTL for DynamoDB cleanup
@@ -382,25 +742,10 @@ pub enum PhaseState {
     AuthCollecting { step_index: usize },
     AuthOtpWait,
 
-    // Ballot loop
-    BallotLoop {
-        election_index: usize,
-        contest_index: usize,
-        contest_phase: ContestPhase,
-    },
+    // Ballot loop — uses BallotLoopState (see 3.3.4)
+    BallotLoop(BallotLoopState),
 
     Done,
-}
-
-#[derive(Serialize, Deserialize, Clone)]
-pub enum ContestPhase {
-    LanguageSwitch,     // per-ballot language switch offer
-    Acclamation,        // announce acclamation, auto-advance
-    Info,               // read contest name/rules
-    CandidateSelect,    // present candidates, capture votes
-    BlankBallotConfirm, // confirm blank ballot intent
-    DeclineConfirm,     // confirm decline-to-vote
-    VoteConfirm,        // read back selection, allow change
 }
 
 /// Single phase in the flow pipeline
@@ -410,11 +755,23 @@ pub struct FlowPhase {
     pub config: Option<HashMap<String, Value>>,  // phase-specific config (optional)
 }
 
+/// Cached subset of ElectionEventPresentation relevant to IVR flow
+#[derive(Serialize, Deserialize, Clone)]
+pub struct ElectionEventPresentationCache {
+    pub skip_election_list: Option<bool>,
+    pub elections_order: Option<ElectionsOrder>,
+    pub language_conf: Option<ElectionEventLanguageConf>,
+}
+
 #[derive(Serialize, Deserialize)]
 pub struct ElectionContext {
     pub election_id: Uuid,
     pub election_name: String,
     pub contests: Vec<ContestContext>,
+    // Ordering & presentation (from ElectionPresentation)
+    pub sort_order: Option<i64>,
+    pub contests_order: Option<ContestsOrder>,
+    pub language_conf: Option<ElectionEventLanguageConf>,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -424,16 +781,21 @@ pub struct ContestContext {
     pub max_votes: u8,
     pub min_votes: u8,
     pub candidates: Vec<CandidateContext>,
-    // Ballot behavior from published election data (not IVR config)
+    // Ordering & presentation (from ContestPresentation)
+    pub sort_order: Option<i64>,
+    pub candidates_order: Option<CandidatesOrder>,
+    pub blank_vote_policy: Option<EBlankVotePolicy>,
+    pub under_vote_policy: Option<EUnderVotePolicy>,
+    // Ballot behavior from published election data
     pub is_acclamation: bool,
-    pub allow_blank: bool,
 }
 
 #[derive(Serialize, Deserialize)]
 pub struct CandidateContext {
     pub candidate_id: Uuid,
     pub candidate_name: String,
-    pub dtmf_option: String,  // "1" through "99"
+    pub sort_order: Option<i64>,
+    pub dtmf_option: String,  // assigned at session init based on candidates_order
 }
 
 #[derive(Serialize, Deserialize)]
@@ -611,7 +973,7 @@ If the election uses simple voter ID + PIN (where PIN = Keycloak password), no c
 
 All election config is loaded from the **published ballot publication** on the **public S3 bucket**. This is the same file the voting portal uses in preview mode, generated by `prepare_publication_preview` in Windmill and uploaded via `upload_and_return_document()` in `packages/windmill/src/services/documents.rs` with `is_public: true`.
 
-**Published ballot publication structure** (`tenant-{tenantId}/document-{documentId}/{publicationId}.json`):
+**Published ballot publication structure** (`tenant-\{tenantId\}/document-\{documentId\}/\{publicationId\}.json`):
 ```json
 {
   "ballot_styles": [
@@ -655,7 +1017,7 @@ All election config is loaded from the **published ballot publication** on the *
 3. All config (IVR flow, prompts, election structure, candidates, public keys) extracted and cached in DynamoDB session
 4. Flow engine begins executing the configured phase pipeline
 
-**Keycloak Realm**: `tenant-{tenantId}-event-{eventId}`
+**Keycloak Realm**: `tenant-\{tenantId\}-event-\{eventId\}`
 
 **Required Keycloak Configuration**:
 - Create `ivr-voting` client with `direct-access-grants` enabled (see Appendix C.8)
@@ -980,7 +1342,7 @@ sequenceDiagram
 ```
 
 **Headers:**
-- `Authorization: Bearer {jwt}`
+- `Authorization: Bearer \{jwt\}`
 - JWT must have `azp: "ivr-voting"` to identify TELEPHONE channel
 - Harvest extracts `area_id` from JWT claims
 
@@ -1103,7 +1465,7 @@ The IVR system can serve multiple clusters and environments. Clusters are infras
 
 **Isolation**:
 - Cluster-level: Per-cluster Lambda deployment naturally isolates clusters
-- Environment-level: Keycloak realms provide tenant isolation (`tenant-{id}-event-{id}`), URLs are environment-scoped
+- Environment-level: Keycloak realms provide tenant isolation (`tenant-\{id\}-event-\{id\}`), URLs are environment-scoped
 - Phone-level: Only enabled entries in `ivr-phone-config` table work
 
 ---
@@ -2041,7 +2403,7 @@ Stored in `ElectionEvent.presentation.i18n[lang]["ivr"]`
 | `declaration_text` | `declaration` | Legal declaration text |
 | `pre_voting_statement` | `pre_voting_statement` | Disconnect warning / info |
 | `receipt_info` | `receipt` | About to read confirmation number |
-| `receipt_number` | `receipt` | Confirmation number readback (uses `{confirmation_number}`) |
+| `receipt_number` | `receipt` | Confirmation number readback (uses `\{confirmation_number\}`) |
 | `session_expired` | (any) | Session timeout |
 
 ### Election-Level Prompts
@@ -2050,16 +2412,16 @@ Stored in `Election.presentation.i18n[lang]["ivr"]`
 
 | Key | Phase | Template Variables | Description |
 |-----|-------|-------------------|-------------|
-| `election_intro` | `ballot_loop` | `{election_name}` | Election introduction |
-| `contest_intro` | `ballot_loop` | `{contest_name}`, `{max_votes}` | Contest introduction |
-| `candidate_option` | `ballot_loop` | `{number}`, `{candidate_name}` | Candidate option |
-| `vote_confirm` | `ballot_loop` | `{candidate_name}`, `{contest_name}` | Vote confirmation |
+| `election_intro` | `ballot_loop` | `\{election_name\}` | Election introduction |
+| `contest_intro` | `ballot_loop` | `\{contest_name\}`, `\{max_votes\}` | Contest introduction |
+| `candidate_option` | `ballot_loop` | `\{number\}`, `\{candidate_name\}` | Candidate option |
+| `vote_confirm` | `ballot_loop` | `\{candidate_name\}`, `\{contest_name\}` | Vote confirmation |
 | `already_selected` | `ballot_loop` | - | Duplicate selection |
 | `blank_ballot_confirm` | `ballot_loop` | - | Blank ballot confirmation |
 | `decline_confirm` | `ballot_loop` | - | Decline-to-vote confirmation |
-| `acclamation` | `ballot_loop` | `{candidate_name}` | Acclamation announcement |
+| `acclamation` | `ballot_loop` | `\{candidate_name\}` | Acclamation announcement |
 | `summary_intro` | `summary` | - | Summary introduction |
-| `summary_item` | `summary` | `{contest_name}`, `{candidate_name}` | Summary line item |
+| `summary_item` | `summary` | `\{contest_name\}`, `\{candidate_name\}` | Summary line item |
 | `final_confirm` | `final_confirm` | - | Final confirmation |
 | `vote_success` | `submit` | - | Vote submitted |
 | `vote_failed` | `submit` | - | Vote submission failed |
@@ -2070,12 +2432,12 @@ Stored in `Election.presentation.i18n[lang]["ivr"]`
 
 | Variable | Source | Example |
 |----------|--------|---------|
-| `{election_name}` | `election.get_name(lang)` | "Municipal Council" |
-| `{contest_name}` | `contest.get_name(lang)` | "Mayor" |
-| `{candidate_name}` | candidate.name | "Jane Smith" |
-| `{number}` | DTMF mapping | "1" |
-| `{max_votes}` | contest.max_votes | "3" |
-| `{min_votes}` | contest.min_votes | "1" |
-| `{confirmation_number}` | API response | "ABC123" |
-| `{assistance_phone}` | `ivr.assistance_phone` config | "1-800-555-0199" |
+| `\{election_name\}` | `election.get_name(lang)` | "Municipal Council" |
+| `\{contest_name\}` | `contest.get_name(lang)` | "Mayor" |
+| `\{candidate_name\}` | candidate.name | "Jane Smith" |
+| `\{number\}` | DTMF mapping | "1" |
+| `\{max_votes\}` | contest.max_votes | "3" |
+| `\{min_votes\}` | contest.min_votes | "1" |
+| `\{confirmation_number\}` | API response | "ABC123" |
+| `\{assistance_phone\}` | `ivr.assistance_phone` config | "1-800-555-0199" |
 
