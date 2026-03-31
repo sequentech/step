@@ -380,6 +380,13 @@ const tagalogTranslation: TranslationType = {
                         disabled: "Hindi pinagana",
                     },
                 },
+                languageDetectionPolicy: {
+                    policyLabel: "Patakaran sa Pag-detect ng Wika",
+                    options: {
+                        "browser-detect": "Awtomatikong tuklasin mula sa browser",
+                        "force-default": "Ipatupad ang default",
+                    },
+                },
             },
             error: {
                 endDate: "Ang pagtatapos na petsa ay dapat pagkalipas ng petsa ng pagsisimula",
@@ -2097,6 +2104,9 @@ const tagalogTranslation: TranslationType = {
                     document: "Dokumento",
                     url: "URL",
                 },
+            },
+            languages: {
+                default: "Default na Wika",
             },
         },
         approvalsScreen: {

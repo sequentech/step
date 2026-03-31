@@ -1233,3 +1233,13 @@ pub fn get_default_consolidated_report_policy_js() -> Result<JsValue, JsValue> {
         ))
     })
 }
+
+#[wasm_bindgen]
+pub fn get_default_language_detection_policy_js() -> Result<JsValue, JsValue> {
+    let policy: LanguageDetectionPolicy = LanguageDetectionPolicy::default();
+    serde_wasm_bindgen::to_value(&policy).map_err(|err| {
+        JsValue::from_str(&format!(
+            "Error serializing default language detection policy: {err}"
+        ))
+    })
+}

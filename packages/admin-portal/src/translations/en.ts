@@ -2,6 +2,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+import {de} from "intl-tel-input/i18n"
+
 const englishTranslation = {
     translations: {
         philippinePassport: "Philippine Passport",
@@ -378,6 +380,13 @@ const englishTranslation = {
                     options: {
                         enabled: "Enabled",
                         disabled: "Disabled",
+                    },
+                },
+                languageDetectionPolicy: {
+                    policyLabel: "Language Detection Policy",
+                    options: {
+                        "browser-detect": "Browser Detect",
+                        "force-default": "Force Default",
                     },
                 },
             },
@@ -2075,6 +2084,9 @@ const englishTranslation = {
                     document: "Document",
                     url: "URL",
                 },
+            },
+            languages: {
+                default: "Default Language",
             },
         },
         approvalsScreen: {

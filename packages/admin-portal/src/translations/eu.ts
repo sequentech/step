@@ -381,6 +381,13 @@ const basqueTranslation: TranslationType = {
                         disabled: "Desgaituta",
                     },
                 },
+                languageDetectionPolicy: {
+                    policyLabel: "Hizkuntza detekzio politika",
+                    options: {
+                        "browser-detect": "Arakatzailetik detektatu",
+                        "force-default": "Lehenetsia behartu",
+                    },
+                },
             },
             error: {
                 endDate: "Amaiera data hasiera data baino beranduagokoa izan behar da",
@@ -2084,6 +2091,9 @@ const basqueTranslation: TranslationType = {
                     document: "Dokumentua",
                     url: "URLa",
                 },
+            },
+            languages: {
+                default: "Lehenetsitako hizkuntza",
             },
         },
         approvalsScreen: {

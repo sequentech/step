@@ -381,6 +381,13 @@ const galegoTranslation: TranslationType = {
                         disabled: "Desactivado",
                     },
                 },
+                languageDetectionPolicy: {
+                    policyLabel: "Política de detección de idioma",
+                    options: {
+                        "browser-detect": "Detectar desde o navegador",
+                        "force-default": "Forzar predeterminado",
+                    },
+                },
             },
             error: {
                 endDate: "A data de fin debe ser posterior á data de inicio",
@@ -2091,6 +2098,9 @@ const galegoTranslation: TranslationType = {
                     document: "Documento",
                     url: "URL",
                 },
+            },
+            languages: {
+                default: "Idioma predeterminado",
             },
         },
         approvalsScreen: {

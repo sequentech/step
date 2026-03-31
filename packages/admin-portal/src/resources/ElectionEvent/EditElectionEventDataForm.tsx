@@ -12,7 +12,6 @@ import {
     Identifier,
     useEditController,
     useRecordContext,
-    RadioButtonGroupInput,
     useNotify,
     Button,
     SelectInput,
@@ -58,6 +57,8 @@ import {
     EElectionEventCeremoniesPolicy,
     EElectionEventWeightedVotingPolicy,
     EElectionEventDelegatedVotingPolicy,
+    ELanguageDetectionPolicy,
+    getDefaultLanguageDetectionPolicy,
 } from "@sequentech/ui-core"
 import {ListActions} from "@/components/ListActions"
 import {ImportDataDrawer} from "@/components/election-event/import-data/ImportDataDrawer"
@@ -90,6 +91,7 @@ import {JsonEditor, UpdateFunction} from "json-edit-react"
 import {CustomFilter} from "@/types/filters"
 import {SET_VOTER_AOTHENTICATION} from "@/queries/SetVoterAuthentication"
 import {GoogleMeetLinkGenerator} from "@/components/election-event/google-meet/GoogleMeetLinkGenerator"
+import {SettingsLanguageSelector} from "../../components/SettingsLanguageSelector"
 
 export type Sequent_Backend_Election_Event_Extended = RaRecord<Identifier> & {
     enabled_languages?: {[key: string]: boolean}
@@ -295,37 +297,6 @@ export const EditElectionEventDataForm: React.FC = () => {
     const formValidator = (values: any): any => {
         const errors: any = {dates: {}}
         return errors
-    }
-
-    const renderDefaultLangs = (_parsedValue: Sequent_Backend_Election_Event_Extended) => {
-        let langNodes = languageSettings.map((lang) => ({
-            id: lang,
-            name: t(`electionScreen.edit.default`),
-        }))
-
-        return (
-            <RadioButtonGroupInput
-                label={false}
-                source="presentation.language_conf.default_language_code"
-                choices={langNodes}
-                row={true}
-            />
-        )
-    }
-
-    const renderLangs = (parsedValue: Sequent_Backend_Election_Event_Extended) => {
-        return (
-            <Box>
-                {languageSettings.map((lang) => (
-                    <BooleanInput
-                        key={lang}
-                        disabled={!canEdit}
-                        source={`enabled_languages.${lang}`}
-                        label={String(t(`common.language.${lang}`))}
-                    />
-                ))}
-            </Box>
-        )
     }
 
     const renderVotingChannels = (parsedValue: Sequent_Backend_Election_Event_Extended) => {
@@ -574,6 +545,13 @@ export const EditElectionEventDataForm: React.FC = () => {
         }))
     }
 
+    const languageDetectionPolicyOptions = () => {
+        return Object.values(ELanguageDetectionPolicy).map((value) => ({
+            id: value,
+            name: t(`electionEventScreen.field.languageDetectionPolicy.options.${value}`),
+        }))
+    }
+
     type UpdateFunctionProps = Parameters<UpdateFunction>[0]
 
     const updateCustomFilters = (
@@ -704,6 +682,8 @@ export const EditElectionEventDataForm: React.FC = () => {
     }
 
     const onSave = async () => {
+        console.log(parsedValue.presentation)
+
         await handleUpdateCustomUrls(
             parsedValue.presentation as IElectionEventPresentation,
             record?.id
@@ -742,9 +722,7 @@ export const EditElectionEventDataForm: React.FC = () => {
                     <Toolbar>
                         {canEdit && (
                             <SaveButton
-                                onClick={() => {
-                                    onSave()
-                                }}
+                                onClick={onSave}
                                 type="button"
                                 alwaysEnable={activateSave}
                             />
@@ -803,8 +781,23 @@ export const EditElectionEventDataForm: React.FC = () => {
                     <AccordionDetails>
                         <ElectionStyles.AccordionContainer>
                             <ElectionStyles.AccordionWrapper>
-                                {renderLangs(parsedValue)}
-                                {renderDefaultLangs(parsedValue)}
+                                <Box sx={{display: "flex", flexDirection: "column", gap: 2}}>
+                                    <SettingsLanguageSelector languageSettings={languageSettings} />
+                                    <SelectInput
+                                        source={
+                                            "presentation.language_conf.language_detection_policy"
+                                        }
+                                        choices={languageDetectionPolicyOptions()}
+                                        label={String(
+                                            t(
+                                                "electionEventScreen.field.languageDetectionPolicy.policyLabel"
+                                            )
+                                        )}
+                                        defaultValue={getDefaultLanguageDetectionPolicy()}
+                                        emptyText={undefined}
+                                        validate={required()}
+                                    />
+                                </Box>
                             </ElectionStyles.AccordionWrapper>
                         </ElectionStyles.AccordionContainer>
                     </AccordionDetails>
