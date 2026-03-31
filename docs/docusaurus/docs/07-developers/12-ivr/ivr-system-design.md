@@ -444,7 +444,10 @@ impl FlowEngine {
         input: Option<&str>,
         ports: &dyn PhasePorts,  // trait object combining needed ports
     ) -> Result<ConnectResponse, IvrError> {
-        let phase = &self.flow_config[session.position.phase_index];
+        let phase = self
+            .flow_config
+            .get(session.position.phase_index)
+            .ok_or(IvrError::InvalidPhaseIndex(session.position.phase_index))?;
 
         match phase.phase_type.as_str() {
             "welcome" => WelcomePhase.execute(session, input, &self.prompts),
