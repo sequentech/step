@@ -118,7 +118,7 @@ const DateAttributeInput: React.FC<DateAttributeInputProps> = ({
     return (
         <FormStyles.TextField
             type="date"
-            label={required ? `${label} *` : label}
+            label={label}
             value={draftValue}
             onChange={(event) => setDraftValue(event.target.value)}
             onFocus={() => setIsFocused(true)}
@@ -532,7 +532,7 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
         [user, equalToPassword]
     )
 
-    const handleDateChange = (attrName: string) => async (value: string) => {
+    const handleDateChange = (attrName: string) => (value: string) => {
         setUser((prev) => {
             return {
                 ...prev,
