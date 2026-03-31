@@ -206,7 +206,6 @@ flowchart TD
 | `ElectionSelect` | DTMF | Present sorted elections (by `elections_order`). Single-digit if ≤9, multi-digit otherwise. **Skipped** if `skip_election_list=true` and only 1 election |
 | `ElectionIntro` | None (auto-advance) | Play `election_intro` prompt with `\{election_name\}`, announce contest count |
 | `LanguageSwitch` | DTMF (1=keep, 2=switch) | Offer only if election's `language_conf` differs from session language. Switch affects prompts for this election only |
-| `ContestLoop` | None (cursor management) | Initialize contest iteration. Sort contests by `contests_order`. Track current index in `BallotLoopState` |
 | `AcclaimAnnounce` | None (auto-advance) | Play `acclamation` prompt with `\{candidate_name\}`. Auto-advance to next contest |
 | `ContestIntro` | None (auto-advance) or DTMF to repeat | Play `contest_intro` with `\{contest_name\}`, `\{max_votes\}`, `\{min_votes\}`. Explain rules: "Select up to \{max_votes\} candidates" |
 | `CandidateSelect` | DTMF per candidate | Present candidates sorted by `candidates_order`. Single-digit (1-9) or multi-digit (01-99#) based on count. Accumulate selections until voter signals done (`#` or `0`) or `max_votes` reached. Reject already-selected with `already_selected` prompt |
@@ -379,12 +378,13 @@ pub trait AuthPort: Send + Sync {
 
 #[async_trait]
 pub trait ElectionConfigPort: Send + Sync {
+    /// Adapter resolves the S3 path internally (e.g., via well-known key convention
+    /// or by listing the publication directory for the event).
     async fn get_published_config(
         &self,
         base_url: &str,
         tenant_id: &Uuid,
-        document_id: &Uuid,
-        publication_id: &Uuid,
+        election_event_id: &Uuid,
     ) -> Result<PublishedBallotPublication, IvrError>;
 }
 
@@ -454,7 +454,7 @@ impl FlowEngine {
             "eligibility_check" => EligibilityCheckPhase.execute(session, input, &self.prompts),
             "declaration" => DeclarationPhase.execute(session, input, &self.prompts, &phase.config),
             "pre_voting_statement" => StatementPhase.execute(session, input, &self.prompts, &phase.config),
-            "ballot_loop" => BallotLoopPhase.execute(session, input, &self.prompts),
+            "ballot_loop" => BallotLoopPhase.execute(session, input, &self.prompts, ports),
             "summary" => SummaryPhase.execute(session, input, &self.prompts),
             "final_confirm" => FinalConfirmPhase.execute(session, input, &self.prompts),
             "submit" => SubmitPhase.execute(session, input, &self.prompts, ports.vote_casting()),
@@ -495,6 +495,7 @@ impl BallotLoopPhase {
         session: &mut IvrSession,
         input: Option<&str>,
         prompts: &IvrPromptResolver,
+        ports: &dyn PhasePorts,  // available if sub-phases need election status
     ) -> Result<ConnectResponse, IvrError> {
         // Initialize on first entry
         let ballot_state = match &session.position.phase_state {
@@ -587,8 +588,7 @@ async fn handler(event: ConnectEvent) -> Result<ConnectResponse, LambdaError> {
             let published = config_port.get_published_config(
                 &phone_config.s3_public_base_url,
                 &phone_config.tenant_id,
-                &phone_config.document_id,
-                &phone_config.publication_id,
+                &phone_config.election_event_id,
             ).await?;
             IvrSession::new(contact_id, &phone_config, &published)
         }
@@ -614,7 +614,8 @@ fn ballot_loop_skips_election_select_when_single_election() {
     let mut session = test_session_with_one_election();
     session.election_event_presentation.skip_election_list = Some(true);
 
-    let result = BallotLoopPhase::execute(&mut session, None, &test_prompts());
+    let mock_ports = TestPorts::default();
+    let result = BallotLoopPhase::execute(&mut session, None, &test_prompts(), &mock_ports);
 
     // Should jump straight to ElectionIntro, not ElectionSelect
     match &session.position.phase_state {
@@ -651,7 +652,7 @@ async fn submit_phase_refreshes_token_before_casting() {
 5. **Config-driven** — Flow composition is data, not code. Adding/removing phases = config change
 6. **Ballot behavior from source of truth** — Contest rules (blank, decline, acclamation, min/max, ordering) read from published election data, same as voting portal
 
-#### Channel-Specific Voting Periods
+### 3.6 Channel-Specific Voting Periods
 
 Phone voting can have independent start/stop times from online voting, following the same pattern as KIOSK and EARLY_VOTING channels:
 
@@ -1165,17 +1166,32 @@ pub enum AuthError {
 **Critical Path - Vote Submission with Failure Handling**:
 
 ```rust
-async fn submit_vote(&self, session: &mut IvrSession) -> Result<VoteResult, IvrError> {
-    // ALWAYS refresh before submitting vote
-    match self.token_manager.ensure_valid_token(&self.keycloak).await {
-        Ok(token) => {
-            // Update session with potentially new tokens
-            session.access_token = self.token_manager.access_token().to_string();
-            session.refresh_token = self.token_manager.refresh_token().to_string();
-            session.access_token_expires_at = self.token_manager.expires_at_unix();
+async fn submit_vote(
+    session: &mut IvrSession,
+    auth: &dyn AuthPort,
+    vote_casting: &dyn VoteCastingPort,
+) -> Result<VoteResult, IvrError> {
+    // Proactively refresh token before the critical vote submission path
+    let refresh_token = session.refresh_token.as_deref()
+        .ok_or(IvrError::SessionExpired { prompt_key: "session_expired", should_disconnect: true })?;
+    let realm = &session.keycloak_realm();
 
-            // Now safe to submit vote
-            self.harvest_client.cast_vote(token, &session.area_id, &ballot).await
+    match auth.refresh_token(realm, refresh_token).await {
+        Ok(tokens) => {
+            // Update session with new tokens
+            session.access_token = Some(tokens.access_token.clone());
+            session.refresh_token = Some(tokens.refresh_token);
+            session.access_token_expires_at = Some(tokens.expires_at);
+
+            let area_id = session.area_id
+                .ok_or(IvrError::InvalidState)?;
+
+            // Submit via port trait — no knowledge of Harvest/HTTP
+            vote_casting.cast_vote(
+                &session.harvest_url(),
+                &tokens.access_token,
+                &ballot,
+            ).await
         }
         Err(AuthError::SessionExpired) => {
             // Voter session expired - cannot recover
@@ -1213,28 +1229,35 @@ async fn submit_vote(&self, session: &mut IvrSession) -> Result<VoteResult, IvrE
 For operations that are NOT vote submission (e.g., checking election status), we can be more lenient:
 
 ```rust
-async fn check_election_status(&self, session: &IvrSession) -> Result<VotingStatus, IvrError> {
-    // Try to refresh token, but if it fails, try with existing token first
-    let token = match self.token_manager.ensure_valid_token(&self.keycloak).await {
-        Ok(t) => t,
-        Err(AuthError::KeycloakUnavailable) => {
-            // Keycloak down but maybe existing token still valid
-            // Log warning but proceed
-            tracing::warn!("Keycloak unavailable, using existing token");
-            &session.access_token
-        }
-        Err(e) => return Err(e.into()),
-    };
+async fn check_election_status(
+    session: &IvrSession,
+    auth: &dyn AuthPort,
+    election_status: &dyn ElectionStatusPort,
+) -> Result<VotingStatus, IvrError> {
+    let access_token = session.access_token.as_deref()
+        .ok_or(IvrError::SessionExpired { prompt_key: "session_expired", should_disconnect: true })?;
+    let event_id = session.election_event_id
+        .ok_or(IvrError::InvalidState)?;
 
-    // Query Hasura for real-time election event status
-    match self.hasura_client.get_election_event_status(token, &session.election_event_id).await {
+    // Try with current token first; if expired, attempt refresh then retry
+    match election_status.get_election_event_status(
+        &session.hasura_url(), access_token, &event_id,
+    ).await {
         Ok(status) => Ok(status.telephone_voting_status),
         Err(api_err) if api_err.is_unauthorized() => {
-            // Token was indeed expired and we couldn't refresh
-            Err(IvrError::SessionExpired {
-                prompt_key: "session_expired",
-                should_disconnect: true,
-            })
+            // Token expired — try refresh via auth port
+            let refresh_token = session.refresh_token.as_deref()
+                .ok_or(IvrError::SessionExpired { prompt_key: "session_expired", should_disconnect: true })?;
+            let tokens = auth.refresh_token(&session.keycloak_realm(), refresh_token).await
+                .map_err(|_| IvrError::SessionExpired { prompt_key: "session_expired", should_disconnect: true })?;
+
+            // Retry with fresh token
+            match election_status.get_election_event_status(
+                &session.hasura_url(), &tokens.access_token, &event_id,
+            ).await {
+                Ok(status) => Ok(status.telephone_voting_status),
+                Err(e) => Err(e.into()),
+            }
         }
         Err(api_err) => Err(api_err.into()),
     }
@@ -1750,14 +1773,19 @@ pub enum IvrError {
     AuthenticationFailed,
     NoOpenElections,
     ElectionClosed,
-    DuplicateVote,
-    VoterNotEligible,
-    ApiTimeout,
-    ApiError(String),
     InvalidInput,
     MaxRetriesExceeded,
-    SessionExpired,
-    SystemError,
+    UnknownPhoneNumber,
+    UnknownPhaseType(String),
+    InvalidState,
+
+    // Struct variants used by phase engines (prompt_key resolved to i18n message)
+    SessionExpired { prompt_key: &'static str, should_disconnect: bool },
+    VoteRejected { prompt_key: &'static str, should_disconnect: bool },
+    ApiTimeout { prompt_key: &'static str, should_disconnect: bool },
+    SystemTemporarilyUnavailable { prompt_key: &'static str, should_disconnect: bool, is_critical: bool },
+    SystemConfigurationError { prompt_key: &'static str, should_disconnect: bool },
+    ApiError(String),
 }
 ```
 
