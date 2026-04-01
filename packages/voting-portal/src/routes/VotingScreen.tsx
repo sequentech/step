@@ -582,6 +582,8 @@ export async function action({request}: {request: Request}) {
             VotingPortalErrorType[error as keyof typeof VotingPortalErrorType]
         )
     }
+    const url = new URL(request.url)
+    const search = url.search || ""
 
-    return redirect(`../review`)
+    return redirect(`../review${search}`)
 }

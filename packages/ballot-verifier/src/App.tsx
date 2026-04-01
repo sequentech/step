@@ -5,7 +5,7 @@ import React, {useContext, useEffect, useMemo, useState} from "react"
 import {Routes, Route, useNavigate, Navigate} from "react-router-dom"
 import {styled} from "@mui/material/styles"
 import {Footer, Header, NotFoundScreen, PageBanner} from "@sequentech/ui-essentials"
-import {IElectionEventPresentation} from "@sequentech/ui-core"
+import {applyPresentationLanguagePolicy, IElectionEventPresentation} from "@sequentech/ui-core"
 import {HomeScreen} from "./screens/HomeScreen"
 import {ConfirmationScreen} from "./screens/ConfirmationScreen"
 import Stack from "@mui/material/Stack"
@@ -89,6 +89,13 @@ const App = () => {
             )
         }
     }, [navigate])
+
+    useEffect(() => {
+        const presentation = ballotStyle?.ballot_eml.election_event_presentation
+        if (presentation) {
+            applyPresentationLanguagePolicy(presentation)
+        }
+    }, [ballotStyle?.ballot_eml.election_event_presentation])
 
     const customCss = useMemo(
         () =>

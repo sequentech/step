@@ -9,6 +9,12 @@ import frenchTranslation from "../translations/fr"
 import tagalogTranslation from "../translations/tl"
 import galegoTranslation from "../translations/gl"
 
+export const getLanguageFromURL = () => {
+    const params = new URLSearchParams(window.location.search)
+    return params.get("lang") || undefined
+}
+
+
 initializeLanguages({
     en: englishTranslation,
     es: spanishTranslation,
@@ -16,4 +22,4 @@ initializeLanguages({
     fr: frenchTranslation,
     tl: tagalogTranslation,
     gl: galegoTranslation,
-})
+}, getLanguageFromURL())
