@@ -2171,6 +2171,9 @@ const spanishTranslation: TranslationType = {
             },
         },
         certificateAuthorities: {
+            title: "Certificados",
+            subtitle:
+                "Autoridades de certificación (CA) de confianza para este evento electoral. Los CA importados se usan para validar los certificados de los votantes.",
             importButton: "Importar certificados",
             type: {
                 root: "Raíz",

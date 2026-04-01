@@ -2182,6 +2182,9 @@ const frenchTranslation: TranslationType = {
             },
         },
         certificateAuthorities: {
+            title: "Certificats",
+            subtitle:
+                "Autorités de certification (CA) de confiance pour cet événement électoral. Les CA importées sont utilisées pour valider les certificats des électeurs.",
             importButton: "Importer des certificats",
             type: {
                 root: "Racine",

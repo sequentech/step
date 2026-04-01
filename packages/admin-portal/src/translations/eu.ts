@@ -2161,6 +2161,9 @@ const basqueTranslation: TranslationType = {
             },
         },
         certificateAuthorities: {
+            title: "Ziurtagiriak",
+            subtitle:
+                "Hauteskunde-ekitaldi honetarako fidagarriak diren ziurtagiri-agintariak (CA). Inportatutako CA-k hautesleen ziurtagiriak egiaztatzeko erabiltzen dira.",
             importButton: "Ziurtagiriak inportatu",
             type: {
                 root: "Erroa",

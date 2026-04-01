@@ -2152,6 +2152,9 @@ const englishTranslation = {
             },
         },
         certificateAuthorities: {
+            title: "Certificates",
+            subtitle:
+                "Certificate Authorities (CAs) trusted for this election event. Imported CAs are used to validate voter certificates.",
             importButton: "Import Certificates",
             type: {
                 root: "Root",

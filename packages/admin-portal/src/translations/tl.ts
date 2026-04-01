@@ -2174,6 +2174,9 @@ const tagalogTranslation: TranslationType = {
             },
         },
         certificateAuthorities: {
+            title: "Mga Sertipiko",
+            subtitle:
+                "Mga pinagkakatiwalaang awtoridad sa sertipikasyon (CA) para sa kaganapang ito ng eleksyon. Ang mga na-import na CA ay ginagamit upang mapatunayan ang mga sertipiko ng botante.",
             importButton: "Mag-import ng mga sertipiko",
             type: {
                 root: "Ugat",

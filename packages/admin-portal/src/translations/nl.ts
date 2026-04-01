@@ -2164,6 +2164,9 @@ const dutchTranslation: TranslationType = {
             },
         },
         certificateAuthorities: {
+            title: "Certificaten",
+            subtitle:
+                "Vertrouwde certificeringsinstanties (CA's) voor dit verkiezingsevenement. Geïmporteerde CA's worden gebruikt om kiezercertificaten te valideren.",
             importButton: "Certificaten importeren",
             type: {
                 root: "Wortel",

@@ -2178,6 +2178,9 @@ const catalanTranslation: TranslationType = {
             },
         },
         certificateAuthorities: {
+            title: "Certificats",
+            subtitle:
+                "Autoritats de certificació (CA) de confiança per a aquest esdeveniment electoral. Les CA importades s'utilitzen per validar els certificats dels votants.",
             importButton: "Importar certificats",
             type: {
                 root: "Arrel",
