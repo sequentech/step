@@ -35,7 +35,8 @@ use sequent_core::serialization::deserialize_with_path::deserialize_str;
 use sequent_core::serialization::deserialize_with_path::deserialize_value;
 use sequent_core::services::connection;
 use sequent_core::services::keycloak::{
-    get_client_credentials, get_event_realm, replace_realm_ids, KeycloakAdminClient,
+    generate_client_secret, get_client_credentials, get_event_realm, replace_realm_ids,
+    KeycloakAdminClient,
 };
 use sequent_core::services::replace_uuids::replace_uuids;
 use sequent_core::types::hasura::core::Application;
@@ -66,18 +67,18 @@ use zip::read::ZipArchive;
 
 use super::import_users::import_users_file;
 use crate::postgres;
-use crate::postgres::certificate_authority::{
-    insert_certificate_authority, CertificateAuthorityRecord,
-};
-use crate::services::certificate_authority::{parse_certificate_pem, split_pem_bundle};
 use crate::postgres::area::insert_areas;
 use crate::postgres::area_contest::insert_area_contests;
 use crate::postgres::candidate::insert_candidates;
+use crate::postgres::certificate_authority::{
+    insert_certificate_authority, CertificateAuthorityRecord,
+};
 use crate::postgres::contest::insert_contest;
 use crate::postgres::election::insert_elections;
 use crate::postgres::election_event::insert_election_event;
 use crate::postgres::keys_ceremony;
 use crate::postgres::scheduled_event::insert_scheduled_event;
+use crate::services::certificate_authority::{parse_certificate_pem, split_pem_bundle};
 use crate::services::consolidation::aes_256_cbc_encrypt::decrypt_file_aes_256_cbc;
 use crate::services::documents;
 use crate::services::documents::upload_and_return_document;
@@ -221,23 +222,57 @@ pub fn read_default_election_event_realm() -> Result<RealmRepresentation> {
 
 #[instrument(skip(realm))]
 pub fn remove_keycloak_realm_secrets(realm: &RealmRepresentation) -> Result<RealmRepresentation> {
-    // set a specific client secret for a specific client id by env config
-    let client_id = env::var("KEYCLOAK_CLIENT_ID").with_context(|| "missing KEYCLOAK_CLIENT_ID")?;
-    let client_secret =
+    let keycloak_client_id =
+        env::var("KEYCLOAK_CLIENT_ID").with_context(|| "missing KEYCLOAK_CLIENT_ID")?;
+    let keycloak_client_secret =
         env::var("KEYCLOAK_CLIENT_SECRET").with_context(|| "missing KEYCLOAK_CLIENT_SECRET")?;
-    // we remove secrets and certs so that keycloak regenerates them
-    // remove client secrets
     let mut realm_copy = realm.clone();
+
+    // For each IDP that has both clientId and clientSecret configured, generate a
+    // new secret, update the IDP config, and record (clientId -> newSecret) so the
+    // matching Keycloak client can be given the same credential.
+    let mut idps_config: HashMap<String, String> = HashMap::new();
+    if let Some(identity_providers) = realm_copy.identity_providers.clone() {
+        let new_identity_providers = identity_providers
+            .iter()
+            .map(|idp| {
+                let mut idp_copy = idp.clone();
+                if let Some(config) = idp_copy.config.clone() {
+                    let mut new_config = config.clone();
+                    if let Some(idp_client_id) = new_config.get("clientId").cloned() {
+                        if new_config.contains_key("clientSecret") {
+                            let new_secret = generate_client_secret();
+                            new_config.insert("clientSecret".to_string(), new_secret.clone());
+                            idps_config.insert(idp_client_id, new_secret);
+                        }
+                    }
+                    idp_copy.config = Some(new_config);
+                }
+                idp_copy
+            })
+            .collect();
+        realm_copy.identity_providers = Some(new_identity_providers);
+    }
+
+    // For each client, assign its secret based on priority:
+    // 1. The designated Keycloak client gets the configured env var secret.
+    // 2. Clients that appear as IDP clients get the generated IDP secret.
+    // 3. All others have their secret cleared so Keycloak regenerates it.
     realm_copy.clients = realm_copy.clients.map(|clients| {
         clients
             .iter()
             .map(|client| {
                 let mut client_copy = client.clone();
-                if client.client_id == Some(client_id.clone()) {
-                    client_copy.secret = Some(client_secret.clone());
-                } else {
-                    client_copy.secret = None;
-                }
+                client_copy.secret = match client.client_id.as_deref() {
+                    Some(id) if id == keycloak_client_id => {
+                        Some(keycloak_client_secret.clone())
+                    }
+                    Some(id) => match idps_config.get(id) {
+                        Some(secret) => Some(secret.clone()),
+                        None => None,
+                    },
+                    None => None,
+                };
                 client_copy
             })
             .collect()
@@ -372,7 +407,7 @@ pub async fn insert_election_event_db(
 /// # Arguments
 /// * `data_str` - The original JSON string representation of the import data
 /// * `original_data` - The parsed ImportElectionEventSchema structure
-/// * `id_opt` - Optional election event ID to use. If None, a new UUID will be generated
+/// * `event_id` - Optional election event ID to use. If None, a new UUID will be generated
 /// * `tenant_id` - The tenant ID to use (may differ from the original)
 ///
 /// # Returns
@@ -383,14 +418,14 @@ pub async fn insert_election_event_db(
 pub fn replace_ids(
     data_str: &str,
     original_data: &ImportElectionEventSchema,
-    id_opt: Option<String>,
+    event_id: Option<String>,
     tenant_id: String,
 ) -> Result<(ImportElectionEventSchema, HashMap<String, String>)> {
     // Prepare tenant_id replacement - always replace to ensure consistency
     let tenant_id_replacement = Some((original_data.tenant_id.to_string(), tenant_id.clone()));
 
     // Prepare election_event_id replacement if a specific one was provided
-    let election_event_id_replacement = id_opt
+    let election_event_id_replacement = event_id
         .as_ref()
         .map(|new_id| (original_data.election_event.id.clone(), new_id.clone()));
 
@@ -475,17 +510,20 @@ pub async fn decrypt_document(
     Ok(temp_file_path)
 }
 
+/// Get the election event schma and also:
+/// - Check version compatibility
+/// - Replace IDs and return a mapping of old to new IDs (for preserving references in other documents like voters)
 #[instrument(err, skip_all)]
 pub async fn get_election_event_schema(
     data_str: &str,
-    id: Option<String>,
+    event_id: Option<String>,
     tenant_id: String,
 ) -> Result<(ImportElectionEventSchema, HashMap<String, String>)> {
     let original_data: ImportElectionEventSchema = deserialize_str(data_str)?;
     let current_version =
         std::env::var(ENV_VAR_APP_VERSION).unwrap_or_else(|_| DEV_APP_VERSION.to_string());
     check_version_compatibility(&original_data.version, &current_version)?;
-    replace_ids(data_str, &original_data, id, tenant_id.clone())
+    replace_ids(data_str, &original_data, event_id, tenant_id.clone())
 }
 
 #[instrument(err, skip_all)]
@@ -1288,9 +1326,8 @@ pub async fn process_document(
                 let pem_content = String::from_utf8(file_contents.clone())
                     .context("Failed to decode certificates PEM as UTF-8")?;
                 let tenant_uuid = election_event_schema.tenant_id;
-                let election_event_uuid =
-                    Uuid::parse_str(&election_event_schema.election_event.id)
-                        .context("Failed to parse election event UUID")?;
+                let election_event_uuid = Uuid::parse_str(&election_event_schema.election_event.id)
+                    .context("Failed to parse election event UUID")?;
                 let pem_chunks = split_pem_bundle(&pem_content);
                 for pem_chunk in pem_chunks {
                     let pem_chunk_owned = pem_chunk.clone();

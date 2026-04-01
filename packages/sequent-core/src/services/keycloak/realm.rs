@@ -1,7 +1,7 @@
-use crate::serialization::deserialize_with_path::deserialize_str;
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+use crate::serialization::deserialize_with_path::deserialize_str;
 use crate::services::uuid_validation::parse_uuid_v4;
 use crate::services::{
     keycloak::KeycloakAdminClient, replace_uuids::replace_uuids,
@@ -15,6 +15,8 @@ use keycloak::types::{
 use keycloak::{
     KeycloakAdmin, KeycloakAdminToken, KeycloakError, KeycloakTokenSupplier,
 };
+use rand::distributions::Alphanumeric;
+use rand::Rng;
 use reqwest::Client;
 use serde_json::{json, Value};
 use std::collections::{HashMap, HashSet};
@@ -192,6 +194,16 @@ pub fn replace_realm_ids(
     }
 
     Ok((new_data, replacement_map))
+}
+
+/// Generates a Keycloak-style client secret: a 32-character random alphanumeric
+/// string matching the output of Keycloak's `SecretGenerator.randomSecret(32)`.
+pub fn generate_client_secret() -> String {
+    rand::thread_rng()
+        .sample_iter(&Alphanumeric)
+        .take(32)
+        .map(char::from)
+        .collect()
 }
 
 async fn error_check(
