@@ -12,6 +12,6 @@ mod user;
 pub use self::admin_client::*;
 pub use self::permission::*;
 pub use self::realm::*;
+pub use self::realm_attributes::*;
 pub use self::role::*;
 pub use self::user::*;
-pub use self::realm_attributes::*;

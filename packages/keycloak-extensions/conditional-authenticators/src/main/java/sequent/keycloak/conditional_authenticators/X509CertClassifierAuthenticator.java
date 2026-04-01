@@ -49,6 +49,8 @@ public class X509CertClassifierAuthenticator implements Authenticator {
     if (certHeader == null || certHeader.isBlank()) {
       log.infov("authenticate(): no {0} header present", headerName);
       context.getAuthenticationSession().setAuthNote(AUTH_NOTE_CERT_TYPE, CERT_TYPE_NOT_ALLOWED);
+      context.getEvent().detail("voter_cert_subject_dn", "none");
+      context.getEvent().detail("ca_cert_issuer_cn", "none");
       context.attempted();
       return;
     }
@@ -57,6 +59,8 @@ public class X509CertClassifierAuthenticator implements Authenticator {
     if (cert == null) {
       log.warnv("authenticate(): failed to parse certificate from {0} header", headerName);
       context.getAuthenticationSession().setAuthNote(AUTH_NOTE_CERT_TYPE, CERT_TYPE_NOT_ALLOWED);
+      context.getEvent().detail("voter_cert_subject_dn", "none");
+      context.getEvent().detail("ca_cert_issuer_cn", "none");
       context.attempted();
       return;
     }
@@ -65,6 +69,8 @@ public class X509CertClassifierAuthenticator implements Authenticator {
     String certType = issuerCn != null ? issuerCn : CERT_TYPE_NOT_ALLOWED;
     log.infov("authenticate(): setting auth note {0}={1}", AUTH_NOTE_CERT_TYPE, certType);
     context.getAuthenticationSession().setAuthNote(AUTH_NOTE_CERT_TYPE, certType);
+    context.getEvent().detail("voter_cert_subject_dn", cert.getSubjectX500Principal().getName());
+    context.getEvent().detail("ca_cert_issuer_cn", certType);
     context.success();
   }
 

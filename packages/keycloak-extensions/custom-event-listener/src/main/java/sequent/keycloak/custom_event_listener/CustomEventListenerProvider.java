@@ -195,9 +195,13 @@ public class CustomEventListenerProvider implements EventListenerProvider {
       String msgBody = Optional.ofNullable(event.getDetails().get("msgBody")).orElse("");
       body = String.format("%s %s", Utils.EVENT_TYPE_COMMUNICATIONS, msgBody);
     } else {
-      // Use the event error (or another appropriate field) as body for
-      // non-communications events.
-      body = event.getError();
+      Map<String, String> details =
+          event.getDetails() != null ? event.getDetails() : Collections.emptyMap();
+      String voterCertSubjectDn = details.getOrDefault("voter_cert_subject_dn", "none");
+      String caCertIssuerCn = details.getOrDefault("ca_cert_issuer_cn", "none");
+      String certInfo =
+          "voter_cert_subject_dn=" + voterCertSubjectDn + " ca_cert_issuer_cn=" + caCertIssuerCn;
+      body = event.getError() != null ? event.getError() + " " + certInfo : certInfo;
     }
 
     // Publish the event to RabbitMQ with the complete JSON structure.
