@@ -14,12 +14,14 @@ export const getLanguageFromURL = () => {
     return params.get("lang") || undefined
 }
 
-
-initializeLanguages({
-    en: englishTranslation,
-    es: spanishTranslation,
-    cat: catalanTranslation,
-    fr: frenchTranslation,
-    tl: tagalogTranslation,
-    gl: galegoTranslation,
-}, getLanguageFromURL())
+initializeLanguages(
+    {
+        en: englishTranslation,
+        es: spanishTranslation,
+        cat: catalanTranslation,
+        fr: frenchTranslation,
+        tl: tagalogTranslation,
+        gl: galegoTranslation,
+    },
+    getLanguageFromURL()
+)

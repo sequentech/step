@@ -158,7 +158,7 @@ const App = () => {
     useEffect(() => {
         // Apply language policy from presentation
         // Priority: query param > FORCE_DEFAULT policy > browser detection
-        if (ballotStyle?.ballot_eml.election_event_presentation) {            
+        if (ballotStyle?.ballot_eml.election_event_presentation) {
             applyPresentationLanguagePolicy(ballotStyle.ballot_eml.election_event_presentation)
         }
     }, [ballotStyle?.ballot_eml.election_event_presentation?.language_conf])

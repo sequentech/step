@@ -90,13 +90,6 @@ const App = () => {
         }
     }, [navigate])
 
-    useEffect(() => {
-        const presentation = ballotStyle?.ballot_eml.election_event_presentation
-        if (presentation) {
-            applyPresentationLanguagePolicy(presentation)
-        }
-    }, [ballotStyle?.ballot_eml.election_event_presentation])
-
     const customCss = useMemo(
         () =>
             confirmationBallot?.election_config?.election_event_presentation?.css ??
