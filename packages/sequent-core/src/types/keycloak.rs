@@ -40,6 +40,7 @@ pub const LAST_NAME: &str = "lastName";
 pub const PERMISSION_LABELS: &str = "permission_labels";
 pub const REALM_ATTR_VOTER_CERTIFICATE_POLICY: &str =
     "voter-certificate-policy";
+pub const CERTIFICATES_IDP_ALIAS: &str = "digital-certificates";
 
 #[derive(Serialize, Deserialize, JsonSchema, PartialEq, Eq, Debug, Clone)]
 pub struct UserArea {

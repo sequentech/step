@@ -96,6 +96,7 @@ use crate::tasks::import_election_event::ImportElectionEventBody;
 use crate::types::documents::EDocuments;
 use regex::Regex;
 use sequent_core::types::hasura::core::{Area, Candidate, Contest, Election, ElectionEvent};
+use sequent_core::types::keycloak::CERTIFICATES_IDP_ALIAS;
 use sequent_core::types::scheduled_event::*;
 use sequent_core::util::temp_path::{generate_temp_file, get_file_size};
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -228,22 +229,24 @@ pub fn remove_keycloak_realm_secrets(realm: &RealmRepresentation) -> Result<Real
         env::var("KEYCLOAK_CLIENT_SECRET").with_context(|| "missing KEYCLOAK_CLIENT_SECRET")?;
     let mut realm_copy = realm.clone();
 
-    // For each IDP that has both clientId and clientSecret configured, generate a
+    // For each IDP that has both clientId and clientSecret configured, 
+    // look if it is the special CERTIFICATES_IDP_ALIAS, then generate a
     // new secret, update the IDP config, and record (clientId -> newSecret) so the
-    // matching Keycloak client can be given the same credential.
-    let mut idps_config: HashMap<String, String> = HashMap::new();
+    // matching Keycloak client can be given the same credential in the client's loop below.
+    let mut certs_client: Option<(String, String)> = None;
     if let Some(identity_providers) = realm_copy.identity_providers.clone() {
         let new_identity_providers = identity_providers
             .iter()
             .map(|idp| {
                 let mut idp_copy = idp.clone();
-                if let Some(config) = idp_copy.config.clone() {
+                if let Some(config) = idp_copy.config.clone() 
+                        && &idp.alias.as_deref() == Some(CERTIFICATES_IDP_ALIAS) {
                     let mut new_config = config.clone();
                     if let Some(idp_client_id) = new_config.get("clientId").cloned() {
                         if new_config.contains_key("clientSecret") {
                             let new_secret = generate_client_secret();
                             new_config.insert("clientSecret".to_string(), new_secret.clone());
-                            idps_config.insert(idp_client_id, new_secret);
+                            certs_client = Some((idp_client_id, new_secret));
                         }
                     }
                     idp_copy.config = Some(new_config);
@@ -256,7 +259,7 @@ pub fn remove_keycloak_realm_secrets(realm: &RealmRepresentation) -> Result<Real
 
     // For each client, assign its secret based on priority:
     // 1. The designated Keycloak client gets the configured env var secret.
-    // 2. Clients that appear as IDP clients get the generated IDP secret.
+    // 2. Client that appear configured in IDP CERTIFICATES_IDP_ALIAS get the generated client secret.
     // 3. All others have their secret cleared so Keycloak regenerates it.
     realm_copy.clients = realm_copy.clients.map(|clients| {
         clients
@@ -265,9 +268,9 @@ pub fn remove_keycloak_realm_secrets(realm: &RealmRepresentation) -> Result<Real
                 let mut client_copy = client.clone();
                 client_copy.secret = match client.client_id.as_deref() {
                     Some(id) if id == keycloak_client_id => Some(keycloak_client_secret.clone()),
-                    Some(id) => match idps_config.get(id) {
-                        Some(secret) => Some(secret.clone()),
-                        None => None,
+                    Some(id) => match certs_client {
+                        Some((certs_client_id, secret)) if id == &certs_client_id => Some(secret),
+                        _ => None,
                     },
                     None => None,
                 };
