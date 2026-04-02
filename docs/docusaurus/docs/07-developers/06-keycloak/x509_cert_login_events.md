@@ -68,6 +68,9 @@ LOGIN:        voter_cert_subject_dn=<dn> ca_cert_issuer_cn=<cn>
 LOGIN_ERROR:  <error_code> voter_cert_subject_dn=<dn> ca_cert_issuer_cn=<cn>
 ```
 
+`<error_code>` is the value of `event.getError()`, which Keycloak populates from
+[`org.keycloak.events.Errors`](https://github.com/keycloak/keycloak/blob/26.4.0/server-spi-private/src/main/java/org/keycloak/events/Errors.java).
+
 Events that do not have both cert detail fields fall through to the default
 behaviour: `body = event.getError()`.
 
