@@ -65,6 +65,9 @@ import sequent.keycloak.authenticator.otl.OTLActionToken;
 @UtilityClass
 @JBossLog
 public class Utils {
+  public final String VOTER_CERT_SUBJECT_DN = "voter_cert_subject_dn";
+  public final String CA_CERT_ISSUER_CN = "ca_cert_issuer_cn";
+
   public final String CODE = "code";
   public final String CODE_LENGTH = "length";
   public final String CODE_TTL = "ttl";
