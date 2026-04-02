@@ -18,7 +18,9 @@ use windmill::postgres::certificate_authority::{
     insert_certificate_authority, CertificateAuthorityRecord,
 };
 use windmill::postgres::election_event::get_election_event_by_id;
-use windmill::services::certificate_authority::{parse_certificate_pem, split_pem_bundle};
+use windmill::services::certificate_authority::{
+    parse_certificate_pem, split_pem_bundle,
+};
 use windmill::services::database::get_hasura_pool;
 use windmill::services::election_event_board::get_election_event_board;
 use windmill::services::electoral_log::ElectoralLog;
@@ -104,10 +106,11 @@ pub async fn import_certificate_authority(
 
     for (i, pem_chunk) in pem_chunks.iter().enumerate() {
         let pem_chunk_owned = pem_chunk.clone();
-        let parse_result =
-            task::spawn_blocking(move || parse_certificate_pem(&pem_chunk_owned))
-                .await
-                .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
+        let parse_result = task::spawn_blocking(move || {
+            parse_certificate_pem(&pem_chunk_owned)
+        })
+        .await
+        .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
 
         match parse_result {
             Ok(parsed) => {
@@ -125,14 +128,19 @@ pub async fn import_certificate_authority(
                     serial_number: parsed.serial_number,
                     pem: parsed.pem,
                 };
-                match insert_certificate_authority(&hasura_transaction, record).await {
+                match insert_certificate_authority(&hasura_transaction, record)
+                    .await
+                {
                     Ok(true) => {
                         info!(cert_index = i + 1, "Certificate inserted");
                         inserted_count += 1;
                         inserted_subjects.push(parsed.subject);
                     }
                     Ok(false) => {
-                        info!(cert_index = i + 1, "Certificate skipped (duplicate)");
+                        info!(
+                            cert_index = i + 1,
+                            "Certificate skipped (duplicate)"
+                        );
                         skipped_count += 1;
                     }
                     Err(e) => {
@@ -149,8 +157,14 @@ pub async fn import_certificate_authority(
     }
 
     let electoral_log = if !inserted_subjects.is_empty() {
-        let board_name = get_election_event_board(election_event.bulletin_board_reference)
-            .ok_or_else(|| (Status::InternalServerError, "Missing bulletin board".to_string()))?;
+        let board_name =
+            get_election_event_board(election_event.bulletin_board_reference)
+                .ok_or_else(|| {
+                (
+                    Status::InternalServerError,
+                    "Missing bulletin board".to_string(),
+                )
+            })?;
         match ElectoralLog::for_admin_user(
             &hasura_transaction,
             &board_name,

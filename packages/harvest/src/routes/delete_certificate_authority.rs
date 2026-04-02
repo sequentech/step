@@ -93,8 +93,14 @@ pub async fn delete_certificate_authority_route(
     .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
 
     let electoral_log = if deleted_subject.is_some() {
-        let board_name = get_election_event_board(election_event.bulletin_board_reference)
-            .ok_or_else(|| (Status::InternalServerError, "Missing bulletin board".to_string()))?;
+        let board_name =
+            get_election_event_board(election_event.bulletin_board_reference)
+                .ok_or_else(|| {
+                (
+                    Status::InternalServerError,
+                    "Missing bulletin board".to_string(),
+                )
+            })?;
         match ElectoralLog::for_admin_user(
             &hasura_transaction,
             &board_name,
@@ -122,7 +128,9 @@ pub async fn delete_certificate_authority_route(
         .await
         .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
 
-    if let (Some(subject), Some(log)) = (deleted_subject.as_ref(), electoral_log) {
+    if let (Some(subject), Some(log)) =
+        (deleted_subject.as_ref(), electoral_log)
+    {
         if let Err(e) = log
             .post_certificate_auth_event(
                 body.election_event_id.to_string(),

@@ -18,7 +18,9 @@ use crate::messages::statement::StatementBody;
 use crate::messages::statement::StatementHead;
 
 use super::newtypes::*;
-use crate::messages::newtypes::{CertificateAuthEventAction, CertificateSubjectDnsString, EventIdString};
+use crate::messages::newtypes::{
+    CertificateAuthEventAction, CertificateSubjectDnsString, EventIdString,
+};
 use std::fmt;
 
 /// We use this when the statement is not related to any election event
