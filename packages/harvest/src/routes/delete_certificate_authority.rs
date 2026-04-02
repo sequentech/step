@@ -4,17 +4,20 @@
 
 use crate::services::authorization::authorize;
 use deadpool_postgres::Client as DbClient;
+use electoral_log::messages::newtypes::CertificateAuthEventAction;
 use rocket::http::Status;
 use rocket::serde::json::Json;
 use sequent_core::ballot::VoterCertificatePolicy;
 use sequent_core::services::jwt::JwtClaims;
 use sequent_core::types::permissions::Permissions;
 use serde::{Deserialize, Serialize};
-use tracing::instrument;
+use tracing::{error, instrument};
 use uuid::Uuid;
 use windmill::postgres::certificate_authority::delete_certificate_authority;
 use windmill::postgres::election_event::get_election_event_by_id;
 use windmill::services::database::get_hasura_pool;
+use windmill::services::election_event_board::get_election_event_board;
+use windmill::services::electoral_log::ElectoralLog;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct DeleteCertificateAuthorityInput {
@@ -80,7 +83,7 @@ pub async fn delete_certificate_authority_route(
         ));
     }
 
-    let deleted = delete_certificate_authority(
+    let deleted_subject = delete_certificate_authority(
         &hasura_transaction,
         body.id,
         body.election_event_id,
@@ -89,10 +92,52 @@ pub async fn delete_certificate_authority_route(
     .await
     .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
 
+    let electoral_log = if deleted_subject.is_some() {
+        let board_name = get_election_event_board(election_event.bulletin_board_reference)
+            .ok_or_else(|| (Status::InternalServerError, "Missing bulletin board".to_string()))?;
+        match ElectoralLog::for_admin_user(
+            &hasura_transaction,
+            &board_name,
+            &tenant_id_str,
+            &body.election_event_id.to_string(),
+            &claims.hasura_claims.user_id,
+            claims.preferred_username.clone(),
+            None,
+            None,
+        )
+        .await
+        {
+            Ok(log) => Some(log),
+            Err(e) => {
+                error!("Error initializing electoral log for CA delete: {e:?}");
+                None
+            }
+        }
+    } else {
+        None
+    };
+
     hasura_transaction
         .commit()
         .await
         .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
 
-    Ok(Json(DeleteCertificateAuthorityOutput { deleted }))
+    if let (Some(subject), Some(log)) = (deleted_subject.as_ref(), electoral_log) {
+        if let Err(e) = log
+            .post_certificate_auth_event(
+                body.election_event_id.to_string(),
+                CertificateAuthEventAction::Delete,
+                vec![subject.clone()],
+                Some(claims.hasura_claims.user_id.clone()),
+                claims.preferred_username.clone(),
+            )
+            .await
+        {
+            error!("Error posting CA delete event to electoral log: {e:?}");
+        }
+    }
+
+    Ok(Json(DeleteCertificateAuthorityOutput {
+        deleted: deleted_subject.is_some(),
+    }))
 }

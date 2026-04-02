@@ -18,7 +18,7 @@ use crate::messages::statement::StatementBody;
 use crate::messages::statement::StatementHead;
 
 use super::newtypes::*;
-use crate::messages::newtypes::EventIdString;
+use crate::messages::newtypes::{CertificateAuthEventAction, CertificateSubjectDnsString, EventIdString};
 use std::fmt;
 
 /// We use this when the statement is not related to any election event
@@ -366,6 +366,19 @@ impl Message {
             ResolutionIdsString(vec![resolution_id]),
         );
         Self::from_body(event, body, sd, user_id, username, election.0, None, None)
+    }
+
+    pub fn certificate_auth_event_message(
+        event: EventIdString,
+        action: CertificateAuthEventAction,
+        subject_dns: Vec<String>,
+        sd: &SigningData,
+        user_id: Option<String>,
+        username: Option<String>,
+    ) -> Result<Self> {
+        let subjects = CertificateSubjectDnsString(subject_dns);
+        let body = StatementBody::CertificateAuthEvent(action, subjects);
+        Self::from_body(event, body, sd, user_id, username, None, None, None)
     }
 
     pub fn admin_public_key_message(

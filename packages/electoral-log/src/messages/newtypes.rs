@@ -5,6 +5,7 @@
 use borsh::{BorshDeserialize, BorshSerialize};
 use serde::{Deserialize, Serialize};
 use strand::hash::{Hash, HashWrapper};
+use strum_macros::Display;
 
 #[derive(
     BorshSerialize, BorshDeserialize, Deserialize, Serialize, Clone, PartialEq, Eq, Hash, Debug,
@@ -89,6 +90,15 @@ impl CastVoteHash {
 }
 
 pub type Timestamp = u64;
+
+#[derive(BorshSerialize, BorshDeserialize, Deserialize, Serialize, Clone, PartialEq, Eq, Hash, Debug, Display)]
+pub enum CertificateAuthEventAction {
+    Import,
+    Delete,
+}
+
+#[derive(BorshSerialize, BorshDeserialize, Deserialize, Serialize, Clone, PartialEq, Eq, Hash, Debug)]
+pub struct CertificateSubjectDnsString(pub Vec<String>);
 
 #[derive(
     BorshSerialize, BorshDeserialize, Deserialize, Serialize, Clone, PartialEq, Eq, Hash, Debug,
