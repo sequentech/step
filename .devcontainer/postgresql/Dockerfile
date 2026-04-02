@@ -12,4 +12,5 @@ RUN apt-get update \
 
 RUN mkdir -p /docker-entrypoint-initdb.d /etc/postgresql
 COPY init.sh /docker-entrypoint-initdb.d/
+COPY init.sql /docker-entrypoint-initdb.d/
 COPY postgresql.conf /etc/postgresql/postgresql.conf

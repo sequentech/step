@@ -4,13 +4,15 @@
 
 use anyhow::Result;
 use chrono::{DateTime, Utc};
-use deadpool_postgres::{Config, Runtime};
+use deadpool_postgres::Transaction;
 use tempfile::NamedTempFile;
-use testcontainers::runners::AsyncRunner;
-use testcontainers_modules::postgres::Postgres;
 use uuid::Uuid;
 use windmill::repositories::ballots::postgres::HasuraBallotRepository;
 use windmill::repositories::ballots::BallotRepository;
+
+mod support;
+
+use support::postgres::shared_pool;
 
 #[tokio::test]
 async fn export_area_ballots_returns_all_voters_when_each_has_one_vote() -> Result<()> {
@@ -58,8 +60,6 @@ async fn export_area_ballots_returns_only_latest_vote_per_voter() -> Result<()> 
 }
 
 struct BallotRepositoryHarness {
-    _postgres: testcontainers::ContainerAsync<Postgres>,
-    pool: deadpool_postgres::Pool,
     tenant_id: Uuid,
     election_event_id: Uuid,
     area_id: Uuid,
@@ -85,15 +85,7 @@ impl<'a> VoteSeed<'a> {
 
 impl BallotRepositoryHarness {
     async fn new() -> Result<Self> {
-        let postgres = Postgres::default().start().await?;
-        let pool = create_pool(&postgres).await?;
-        let client = pool.get().await?;
-
-        create_cast_vote_schema(&client).await?;
-
         Ok(Self {
-            _postgres: postgres,
-            pool,
             tenant_id: Uuid::new_v4(),
             election_event_id: Uuid::new_v4(),
             area_id: Uuid::new_v4(),
@@ -101,12 +93,12 @@ impl BallotRepositoryHarness {
         })
     }
 
-    async fn seed_votes(&self, votes: &[VoteSeed<'_>]) -> Result<()> {
-        let client = self.pool.get().await?;
+    async fn seed_votes(&self, transaction: &Transaction<'_>, votes: &[VoteSeed<'_>]) -> Result<()> {
+        self.seed_reference_rows(transaction).await?;
 
         for vote in votes {
             insert_cast_vote(
-                &client,
+                transaction,
                 self.tenant_id,
                 self.election_event_id,
                 self.area_id,
@@ -121,9 +113,67 @@ impl BallotRepositoryHarness {
         Ok(())
     }
 
-    async fn export_rows(&self) -> Result<Vec<(String, String)>> {
-        let mut client = self.pool.get().await?;
-        let transaction = client.transaction().await?;
+    async fn seed_reference_rows(&self, transaction: &Transaction<'_>) -> Result<()> {
+        transaction
+            .execute(
+                r#"
+                INSERT INTO sequent_backend.tenant (id, slug)
+                VALUES ($1, $2)
+                "#,
+                &[&self.tenant_id, &"tenant-test"],
+            )
+            .await?;
+
+        transaction
+            .execute(
+                r#"
+                INSERT INTO sequent_backend.election_event (
+                    id,
+                    tenant_id,
+                    encryption_protocol
+                )
+                VALUES ($1, $2, $3)
+                "#,
+                &[
+                    &self.election_event_id,
+                    &self.tenant_id,
+                    &"test-protocol",
+                ],
+            )
+            .await?;
+
+        transaction
+            .execute(
+                r#"
+                INSERT INTO sequent_backend.election (
+                    id,
+                    tenant_id,
+                    election_event_id
+                )
+                VALUES ($1, $2, $3)
+                "#,
+                &[&self.election_id, &self.tenant_id, &self.election_event_id],
+            )
+            .await?;
+
+        transaction
+            .execute(
+                r#"
+                INSERT INTO sequent_backend.area (
+                    id,
+                    tenant_id,
+                    election_event_id
+                )
+                VALUES ($1, $2, $3)
+                "#,
+                &[&self.area_id, &self.tenant_id, &self.election_event_id],
+            )
+            .await?;
+
+        Ok(())
+    }
+
+    async fn export_rows(&self, transaction: &Transaction<'_>) -> Result<Vec<(String, String)>> {
         let repository = HasuraBallotRepository::new(&transaction);
         let output_file = NamedTempFile::new()?;
 
@@ -140,8 +190,6 @@ impl BallotRepositoryHarness {
         let mut rows = read_exported_rows(output_file.path())?;
         rows.sort();
 
-        transaction.rollback().await?;
-
         Ok(rows)
     }
 }
@@ -151,10 +199,15 @@ async fn assert_export_case(
     expected_rows: &[(String, String)],
 ) -> Result<()> {
     let harness = BallotRepositoryHarness::new().await?;
+    let pool = shared_pool().await?;
+    let mut client = pool.get().await?;
+    let transaction = client.transaction().await?;
 
-    harness.seed_votes(votes).await?;
+    harness.seed_votes(&transaction, votes).await?;
 
-    assert_eq!(harness.export_rows().await?, expected_rows);
+    assert_eq!(harness.export_rows(&transaction).await?, expected_rows);
+
+    transaction.rollback().await?;
 
     Ok(())
 }
@@ -163,48 +216,8 @@ fn row(voter_id_string: &str, content: &str) -> (String, String) {
     (voter_id_string.to_string(), content.to_string())
 }
 
-async fn create_pool(
-    postgres: &testcontainers::ContainerAsync<Postgres>,
-) -> Result<deadpool_postgres::Pool> {
-    let host = postgres.get_host().await?;
-    let port = postgres.get_host_port_ipv4(5432).await?;
-
-    let mut config = Config::new();
-    config.host = Some(host.to_string());
-    config.port = Some(port);
-    config.user = Some("postgres".to_string());
-    config.password = Some("postgres".to_string());
-    config.dbname = Some("postgres".to_string());
-
-    Ok(config.create_pool(Some(Runtime::Tokio1), tokio_postgres::NoTls)?)
-}
-
-async fn create_cast_vote_schema(client: &deadpool_postgres::Client) -> Result<()> {
-    client
-        .batch_execute(
-            r#"
-            CREATE EXTENSION IF NOT EXISTS pgcrypto;
-            CREATE SCHEMA IF NOT EXISTS sequent_backend;
-            CREATE TABLE sequent_backend.cast_vote (
-                id uuid NOT NULL DEFAULT gen_random_uuid(),
-                tenant_id uuid NOT NULL,
-                election_event_id uuid NOT NULL,
-                election_id uuid NOT NULL,
-                area_id uuid NOT NULL,
-                created_at timestamptz NOT NULL DEFAULT now(),
-                voter_id_string varchar NOT NULL,
-                content text,
-                PRIMARY KEY (id, tenant_id, election_event_id)
-            );
-            "#,
-        )
-        .await?;
-
-    Ok(())
-}
-
 async fn insert_cast_vote(
-    client: &deadpool_postgres::Client,
+    transaction: &Transaction<'_>,
     tenant_id: Uuid,
     election_event_id: Uuid,
     area_id: Uuid,
@@ -213,7 +226,7 @@ async fn insert_cast_vote(
     content: &str,
     created_at: DateTime<Utc>,
 ) -> Result<()> {
-    client
+    transaction
         .execute(
             r#"
             INSERT INTO sequent_backend.cast_vote (
