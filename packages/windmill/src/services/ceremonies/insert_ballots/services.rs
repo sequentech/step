@@ -9,7 +9,6 @@
 //! orchestration testable while allowing the caller to control transaction
 //! propagation and retries.
 
-use super::adapters::{extract_ciphertexts, merge_ballots_and_voters};
 use super::{
     BallotBoardPort, ContestBallotUpserter, InsertBallotsBoardContext, PrepareBoardContextRequest,
     TrusteePublicKeyResolver, UpsertBallotsMessagesRequest,
@@ -19,17 +18,26 @@ use crate::repositories::election_event::ElectionEventRepository;
 use crate::repositories::trustees::TrusteeRepository;
 use crate::repositories::voters::EligibleUserRepository;
 use crate::services::public_keys::deserialize_public_key;
+use crate::services::join::merge_join_csv;
 use anyhow::{anyhow, Result};
 use async_trait::async_trait;
 use b3::messages::statement::StatementType;
 use futures::stream::{self, StreamExt, TryStreamExt};
-use sequent_core::ballot::{ContestEncryptionPolicy, DelegatedVotingPolicy};
+use sequent_core::ballot::{ContestEncryptionPolicy, DelegatedVotingPolicy, HashableBallot};
 use sequent_core::services::keycloak::get_event_realm;
 use sequent_core::types::hasura::core::{TallySessionContest, TallySessionContestAnnotations};
 use std::collections::HashMap;
 use std::collections::HashSet;
 use tempfile::NamedTempFile;
 use tracing::{event, instrument, Level};
+use sequent_core::multi_ballot::HashableMultiBallot;
+use sequent_core::serialization::deserialize_with_path::deserialize_str;
+use std::fs::File;
+use std::path::Path;
+use std::sync::Arc;
+use strand::backend::ristretto::RistrettoCtx;
+use strand::elgamal::Ciphertext;
+use strand::signature::StrandSignaturePk;
 
 #[derive(Clone)]
 pub(super) struct InsertBallotsRequest {
@@ -455,6 +463,62 @@ where
     ) -> Result<Vec<TallySessionContest>> {
         self.execute(request).await
     }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(super) struct BallotProcessingOutput {
+    pub ballot_contents: Vec<String>,
+    pub elegible_voters: u64,
+    pub ballots_without_voter: u64,
+    pub casted_ballots: u64,
+}
+
+pub(super) fn merge_ballots_and_voters(
+    ballots_file: &File,
+    voters_file: &File,
+    delegated_voting_enabled: bool,
+) -> Result<BallotProcessingOutput> {
+    let delegate_count_index = delegated_voting_enabled.then_some(1);
+    let (ballot_contents, elegible_voters, ballots_without_voter, casted_ballots) =
+        merge_join_csv(ballots_file, voters_file, 0, 0, 1, delegate_count_index)?;
+
+    Ok(BallotProcessingOutput {
+        ballot_contents,
+        elegible_voters,
+        ballots_without_voter,
+        casted_ballots,
+    })
+}
+
+pub(super) fn extract_ciphertexts(
+    ballot_contents: Vec<String>,
+    contest_encryption_policy: &ContestEncryptionPolicy,
+    contest_id: Option<&str>,
+) -> Result<Vec<Ciphertext<RistrettoCtx>>> {
+    ballot_contents
+        .into_iter()
+        .map(|ballot_str| {
+            let ciphertext =
+                if ContestEncryptionPolicy::MULTIPLE_CONTESTS == *contest_encryption_policy {
+                    let hashable_multi_ballot: HashableMultiBallot = deserialize_str(&ballot_str)?;
+                    let contests = hashable_multi_ballot
+                        .deserialize_contests()
+                        .map_err(|err| anyhow!("{:?}", err))?;
+                    Some(contests.ciphertext)
+                } else {
+                    let hashable_ballot: HashableBallot = deserialize_str(&ballot_str)?;
+                    let contests = hashable_ballot
+                        .deserialize_contests()
+                        .map_err(|err| anyhow!("{:?}", err))?;
+                    contests
+                        .iter()
+                        .find(|contest| contest.contest_id == contest_id.unwrap_or_default())
+                        .map(|contest| contest.ciphertext.clone())
+                };
+
+            ciphertext.ok_or(anyhow!("Could not get ciphertext"))
+        })
+        .collect()
 }
 
 #[cfg(test)]

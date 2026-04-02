@@ -9,7 +9,7 @@
 //! thin and rely on caller-owned transactions supplied at construction time.
 
 use super::{BallotBoardPort, InsertBallotsBoardContext, PrepareBoardContextRequest};
-use crate::services::join::merge_join_csv;
+
 use crate::services::protocol_manager::{
     add_ballots_to_board, generate_trustee_set, get_b3_pgsql_client, get_board_messages,
     get_configuration, get_protocol_manager, get_public_key_hash,
@@ -27,62 +27,6 @@ use std::sync::Arc;
 use strand::backend::ristretto::RistrettoCtx;
 use strand::elgamal::Ciphertext;
 use strand::signature::StrandSignaturePk;
-
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub(super) struct BallotProcessingOutput {
-    pub ballot_contents: Vec<String>,
-    pub elegible_voters: u64,
-    pub ballots_without_voter: u64,
-    pub casted_ballots: u64,
-}
-
-pub(super) fn merge_ballots_and_voters(
-    ballots_file: &File,
-    voters_file: &File,
-    delegated_voting_enabled: bool,
-) -> Result<BallotProcessingOutput> {
-    let delegate_count_index = delegated_voting_enabled.then_some(1);
-    let (ballot_contents, elegible_voters, ballots_without_voter, casted_ballots) =
-        merge_join_csv(ballots_file, voters_file, 0, 0, 1, delegate_count_index)?;
-
-    Ok(BallotProcessingOutput {
-        ballot_contents,
-        elegible_voters,
-        ballots_without_voter,
-        casted_ballots,
-    })
-}
-
-pub(super) fn extract_ciphertexts(
-    ballot_contents: Vec<String>,
-    contest_encryption_policy: &ContestEncryptionPolicy,
-    contest_id: Option<&str>,
-) -> Result<Vec<Ciphertext<RistrettoCtx>>> {
-    ballot_contents
-        .into_iter()
-        .map(|ballot_str| {
-            let ciphertext =
-                if ContestEncryptionPolicy::MULTIPLE_CONTESTS == *contest_encryption_policy {
-                    let hashable_multi_ballot: HashableMultiBallot = deserialize_str(&ballot_str)?;
-                    let contests = hashable_multi_ballot
-                        .deserialize_contests()
-                        .map_err(|err| anyhow!("{:?}", err))?;
-                    Some(contests.ciphertext)
-                } else {
-                    let hashable_ballot: HashableBallot = deserialize_str(&ballot_str)?;
-                    let contests = hashable_ballot
-                        .deserialize_contests()
-                        .map_err(|err| anyhow!("{:?}", err))?;
-                    contests
-                        .iter()
-                        .find(|contest| contest.contest_id == contest_id.unwrap_or_default())
-                        .map(|contest| contest.ciphertext.clone())
-                };
-
-            ciphertext.ok_or(anyhow!("Could not get ciphertext"))
-        })
-        .collect()
-}
 
 /// Protocol-manager-backed implementation of `BallotBoardPort`.
 ///
