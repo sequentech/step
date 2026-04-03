@@ -229,7 +229,7 @@ pub fn remove_keycloak_realm_secrets(realm: &RealmRepresentation) -> Result<Real
         env::var("KEYCLOAK_CLIENT_SECRET").with_context(|| "missing KEYCLOAK_CLIENT_SECRET")?;
     let mut realm_copy = realm.clone();
 
-    // For each IDP that has both clientId and clientSecret configured, 
+    // For each IDP that has both clientId and clientSecret configured,
     // look if it is the special CERTIFICATES_IDP_ALIAS, then generate a
     // new secret, update the IDP config, and record (clientId -> newSecret) so the
     // matching Keycloak client can be given the same credential in the client's loop below.
@@ -239,17 +239,21 @@ pub fn remove_keycloak_realm_secrets(realm: &RealmRepresentation) -> Result<Real
             .iter()
             .map(|idp| {
                 let mut idp_copy = idp.clone();
-                if let Some(config) = idp_copy.config.clone() 
-                        && &idp.alias.as_deref() == Some(CERTIFICATES_IDP_ALIAS) {
-                    let mut new_config = config.clone();
-                    if let Some(idp_client_id) = new_config.get("clientId").cloned() {
-                        if new_config.contains_key("clientSecret") {
-                            let new_secret = generate_client_secret();
-                            new_config.insert("clientSecret".to_string(), new_secret.clone());
-                            certs_client = Some((idp_client_id, new_secret));
+                match idp_copy.config.clone() {
+                    Some(config) if idp.alias.as_deref() == Some(CERTIFICATES_IDP_ALIAS) => {
+                        let mut new_config = config.clone();
+                        if let Some(idp_client_id) = new_config.get("clientId").cloned() {
+                            if new_config.contains_key("clientSecret") {
+                                let new_secret = generate_client_secret();
+                                new_config.insert("clientSecret".to_string(), new_secret.clone());
+                                certs_client = Some((idp_client_id, new_secret));
+                            }
                         }
+                        idp_copy.config = Some(new_config);
                     }
-                    idp_copy.config = Some(new_config);
+                    _ => {
+                        // no config, nothing to do
+                    }
                 }
                 idp_copy
             })
@@ -268,8 +272,10 @@ pub fn remove_keycloak_realm_secrets(realm: &RealmRepresentation) -> Result<Real
                 let mut client_copy = client.clone();
                 client_copy.secret = match client.client_id.as_deref() {
                     Some(id) if id == keycloak_client_id => Some(keycloak_client_secret.clone()),
-                    Some(id) => match certs_client {
-                        Some((certs_client_id, secret)) if id == &certs_client_id => Some(secret),
+                    Some(id) => match &certs_client {
+                        Some((certs_client_id, secret)) if id == certs_client_id => {
+                            Some(secret.clone())
+                        }
                         _ => None,
                     },
                     None => None,
