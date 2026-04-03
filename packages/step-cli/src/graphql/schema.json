@@ -1520,7 +1520,7 @@
         "description": null,
         "fields": [
           {
-            "name": "deleted",
+            "name": "deleted_count",
             "description": null,
             "args": [],
             "type": {
@@ -1528,7 +1528,7 @@
               "name": null,
               "ofType": {
                 "kind": "SCALAR",
-                "name": "Boolean",
+                "name": "Int",
                 "ofType": null
               }
             },
@@ -9871,15 +9871,23 @@
                 "defaultValue": null
               },
               {
-                "name": "id",
+                "name": "ids",
                 "description": null,
                 "type": {
                   "kind": "NON_NULL",
                   "name": null,
                   "ofType": {
-                    "kind": "SCALAR",
-                    "name": "uuid",
-                    "ofType": null
+                    "kind": "LIST",
+                    "name": null,
+                    "ofType": {
+                      "kind": "NON_NULL",
+                      "name": null,
+                      "ofType": {
+                        "kind": "SCALAR",
+                        "name": "uuid",
+                        "ofType": null
+                      }
+                    }
                   }
                 },
                 "defaultValue": null

@@ -210,7 +210,7 @@ export type DataListPgAudit = {
 
 export type DeleteCertificateAuthorityOutput = {
   __typename?: 'DeleteCertificateAuthorityOutput';
-  deleted: Scalars['Boolean']['output'];
+  deleted_count: Scalars['Int']['output'];
 };
 
 export type DeleteElectionEvent = {
@@ -1847,7 +1847,7 @@ export type Mutation_RootCreate_UserArgs = {
 /** mutation root */
 export type Mutation_RootDelete_Certificate_AuthorityArgs = {
   election_event_id: Scalars['uuid']['input'];
-  id: Scalars['uuid']['input'];
+  ids: Array<Scalars['uuid']['input']>;
 };
 
 

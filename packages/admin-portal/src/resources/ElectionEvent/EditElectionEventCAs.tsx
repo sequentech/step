@@ -11,6 +11,7 @@ import {
     TextField,
     WrapperField,
     useGetOne,
+    useListContext,
     useNotify,
     useRecordContext,
     useRefresh,
@@ -211,11 +212,13 @@ export const EditElectionEventCAs: React.FC = () => {
     const [importDrawerOpen, setImportDrawerOpen] = useState(false)
     const [viewId, setViewId] = useState<Identifier | undefined>()
     const [openDeleteModal, setOpenDeleteModal] = useState(false)
-    const [deleteId, setDeleteId] = useState<Identifier | undefined>()
+    const [deleteIds, setDeleteIds] = useState<Identifier[]>([])
     const [pemContent, setPemContent] = useState<string>("")
     const [fileError, setFileError] = useState<string | null>(null)
     const [openExportModal, setOpenExportModal] = useState(false)
     const [exportIds, setExportIds] = useState<Identifier[]>([])
+    const [openBulkDeleteModal, setOpenBulkDeleteModal] = useState(false)
+    const [bulkDeleteIds, setBulkDeleteIds] = useState<Identifier[]>([])
 
     const canWrite = authContext.isAuthorized(true, tenantId, IPermissions.CA_WRITE)
     const canRead = authContext.isAuthorized(true, tenantId, IPermissions.CA_READ)
@@ -305,13 +308,18 @@ export const EditElectionEventCAs: React.FC = () => {
     }
 
     const deleteAction = (id: Identifier) => {
+        setDeleteIds([id])
         setOpenDeleteModal(true)
-        setDeleteId(id)
     }
 
     const confirmDeleteAction = () => {
-        deleteCA({variables: {id: deleteId, electionEventId: record?.id}})
-        setDeleteId(undefined)
+        deleteCA({variables: {ids: deleteIds, electionEventId: record?.id}})
+        setDeleteIds([])
+    }
+
+    const confirmBulkDeleteAction = () => {
+        deleteCA({variables: {ids: bulkDeleteIds, electionEventId: record?.id}})
+        setBulkDeleteIds([])
     }
 
     const handleExportAll = () => {
@@ -343,19 +351,31 @@ export const EditElectionEventCAs: React.FC = () => {
         setOpenExportModal(false)
     }
 
-    // @ts-ignore
-    function BulkActions(props) {
+    function BulkActions() {
+        const {selectedIds} = useListContext()
+
         return (
             <>
                 {canRead && (
                     <ReactAdminButton
                         onClick={() => {
-                            setExportIds(props.selectedIds ?? [])
+                            setExportIds(selectedIds)
                             setOpenExportModal(true)
                         }}
                         label={String(t("common.label.export"))}
                     >
                         <DownloadIcon />
+                    </ReactAdminButton>
+                )}
+                {canWrite && (
+                    <ReactAdminButton
+                        onClick={() => {
+                            setBulkDeleteIds(selectedIds)
+                            setOpenBulkDeleteModal(true)
+                        }}
+                        label={String(t("common.label.delete"))}
+                    >
+                        <DeleteIcon />
                     </ReactAdminButton>
                 )}
             </>
@@ -560,6 +580,23 @@ export const EditElectionEventCAs: React.FC = () => {
                         confirmDeleteAction()
                     }
                     setOpenDeleteModal(false)
+                }}
+            >
+                {t("common.message.delete")}
+            </Dialog>
+
+            {/* Bulk Delete Confirmation Dialog */}
+            <Dialog
+                variant="warning"
+                open={openBulkDeleteModal}
+                ok={String(t("common.label.delete"))}
+                cancel={String(t("common.label.cancel"))}
+                title={String(t("common.label.warning"))}
+                handleClose={(result: boolean) => {
+                    if (result) {
+                        confirmBulkDeleteAction()
+                    }
+                    setOpenBulkDeleteModal(false)
                 }}
             >
                 {t("common.message.delete")}

@@ -1661,13 +1661,13 @@ type ImportCertificateAuthorityOutput {
 
 type Mutation {
     delete_certificate_authority(
-        id: uuid!
+        ids: [uuid!]!
         election_event_id: uuid!
     ): DeleteCertificateAuthorityOutput
 }
 
 type DeleteCertificateAuthorityOutput {
-    deleted: Boolean!
+    deleted_count: Int!
 }
 
 type Mutation {

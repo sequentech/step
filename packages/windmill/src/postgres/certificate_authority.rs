@@ -68,31 +68,32 @@ pub async fn insert_certificate_authority(
     Ok(rows_affected > 0)
 }
 
-/// Deletes a certificate authority by id, scoped to the given tenant and election event.
-/// Returns `Some(subject)` if a row was deleted, `None` if not found.
+/// Deletes the certificate authorities matching the given ids, scoped to the
+/// given tenant and election event.
+/// Returns the subjects of all deleted rows.
 #[instrument(skip(hasura_transaction), err)]
-pub async fn delete_certificate_authority(
+pub async fn delete_certificate_authorities(
     hasura_transaction: &Transaction<'_>,
-    id: Uuid,
+    ids: &[Uuid],
     election_event_id: Uuid,
     tenant_id: Uuid,
-) -> Result<Option<String>> {
+) -> Result<Vec<String>> {
     let statement = hasura_transaction
         .prepare(
             r#"
                 DELETE FROM sequent_backend.certificate_authority
-                WHERE id = $1 AND tenant_id = $2 AND election_event_id = $3
+                WHERE id = ANY($1) AND tenant_id = $2 AND election_event_id = $3
                 RETURNING subject
             "#,
         )
         .await?;
 
     let rows = hasura_transaction
-        .query(&statement, &[&id, &tenant_id, &election_event_id])
+        .query(&statement, &[&ids, &tenant_id, &election_event_id])
         .await
-        .map_err(|err| anyhow!("Error deleting certificate authority: {err}"))?;
+        .map_err(|err| anyhow!("Error deleting certificate authorities: {err}"))?;
 
-    Ok(rows.into_iter().next().map(|row| row.get(0)))
+    Ok(rows.into_iter().map(|row| row.get(0)).collect())
 }
 
 /// Returns the PEM strings for all certificate authorities belonging to the

@@ -13,7 +13,7 @@ use sequent_core::types::permissions::Permissions;
 use serde::{Deserialize, Serialize};
 use tracing::{error, instrument};
 use uuid::Uuid;
-use windmill::postgres::certificate_authority::delete_certificate_authority;
+use windmill::postgres::certificate_authority::delete_certificate_authorities;
 use windmill::postgres::election_event::get_election_event_by_id;
 use windmill::services::database::get_hasura_pool;
 use windmill::services::election_event_board::get_election_event_board;
@@ -21,13 +21,13 @@ use windmill::services::electoral_log::ElectoralLog;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct DeleteCertificateAuthorityInput {
-    id: uuid::Uuid,
+    ids: Vec<uuid::Uuid>,
     election_event_id: uuid::Uuid,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct DeleteCertificateAuthorityOutput {
-    deleted: bool,
+    deleted_count: i32,
 }
 
 #[instrument(skip(claims, input))]
@@ -83,16 +83,16 @@ pub async fn delete_certificate_authority_route(
         ));
     }
 
-    let deleted_subject = delete_certificate_authority(
+    let deleted_subjects = delete_certificate_authorities(
         &hasura_transaction,
-        body.id,
+        &body.ids,
         body.election_event_id,
         tenant_uuid,
     )
     .await
     .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
 
-    let electoral_log = if deleted_subject.is_some() {
+    let electoral_log = if !deleted_subjects.is_empty() {
         let board_name =
             get_election_event_board(election_event.bulletin_board_reference)
                 .ok_or_else(|| {
@@ -123,19 +123,19 @@ pub async fn delete_certificate_authority_route(
         None
     };
 
+    let deleted_count = deleted_subjects.len();
+
     hasura_transaction
         .commit()
         .await
         .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
 
-    if let (Some(subject), Some(log)) =
-        (deleted_subject.as_ref(), electoral_log)
-    {
+    if let Some(log) = electoral_log {
         if let Err(e) = log
             .post_certificate_auth_event(
                 body.election_event_id.to_string(),
                 CertificateAuthEventAction::Delete,
-                vec![subject.clone()],
+                deleted_subjects,
                 Some(claims.hasura_claims.user_id.clone()),
                 claims.preferred_username.clone(),
             )
@@ -146,6 +146,6 @@ pub async fn delete_certificate_authority_route(
     }
 
     Ok(Json(DeleteCertificateAuthorityOutput {
-        deleted: deleted_subject.is_some(),
+        deleted_count: deleted_count as i32,
     }))
 }
