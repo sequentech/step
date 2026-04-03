@@ -185,7 +185,7 @@ type DataListPgAudit {
 }
 
 type DeleteCertificateAuthorityOutput {
-  deleted: Boolean!
+  deleted_count: Int!
 }
 
 type DeleteElectionEvent {
@@ -1050,7 +1050,7 @@ type mutation_root {
   create_transmission_package(area_id: uuid!, election_event_id: uuid!, election_id: uuid!, force: Boolean!, tally_session_id: uuid!): createTransmissionPackageOutput
   create_user(election_event_id: String, tenant_id: String!, user: KeycloakUser2!, user_roles_ids: [String!]): KeycloakUser!
   """Delete a certificate authority by id"""
-  delete_certificate_authority(election_event_id: uuid!, id: uuid!): DeleteCertificateAuthorityOutput
+  delete_certificate_authority(election_event_id: uuid!, ids: [uuid!]!): DeleteCertificateAuthorityOutput
   delete_election_event(election_event_id: String!): DeleteElectionEvent
   delete_permission(permission_name: String!, tenant_id: String!): SetRolePermissionOutput
   delete_role(role_id: String!, tenant_id: String!): SetUserRoleOutput
