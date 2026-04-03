@@ -1670,6 +1670,18 @@ type DeleteCertificateAuthorityOutput {
     deleted: Boolean!
 }
 
+type Mutation {
+    export_certificate_authority(
+        ids: [uuid!]!
+        election_event_id: uuid!
+    ): ExportCertificateAuthorityOutput
+}
+
+type ExportCertificateAuthorityOutput {
+    document_id: String!
+    task_execution: tasks_execution_type
+}
+
 type UpdateRealmAttributesOutput {
     updated: Boolean!
 }

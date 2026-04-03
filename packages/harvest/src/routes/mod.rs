@@ -18,6 +18,7 @@ pub mod electoral_log;
 pub mod error_catchers;
 pub mod export_application;
 pub mod export_ballot_publication;
+pub mod export_certificate_authority;
 pub mod export_election_event;
 pub mod export_election_event_logs;
 pub mod export_tally_results;

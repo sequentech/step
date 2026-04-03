@@ -329,6 +329,12 @@ export type ExportBallotPublicationOutput = {
   task_execution?: Maybe<Tasks_Execution_Type>;
 };
 
+export type ExportCertificateAuthorityOutput = {
+  __typename?: 'ExportCertificateAuthorityOutput';
+  document_id: Scalars['String']['output'];
+  task_execution?: Maybe<Tasks_Execution_Type>;
+};
+
 export type ExportElectionEventOutput = {
   __typename?: 'ExportElectionEventOutput';
   document_id: Scalars['String']['output'];
@@ -1280,6 +1286,8 @@ export type Mutation_Root = {
   exportTrustees?: Maybe<ExportTrusteesOutput>;
   export_application?: Maybe<ExportApplicationOutput>;
   export_ballot_publication?: Maybe<ExportBallotPublicationOutput>;
+  /** Export certificate authorities as a PEM bundle for an election event */
+  export_certificate_authority?: Maybe<ExportCertificateAuthorityOutput>;
   export_election_event?: Maybe<ExportElectionEventOutput>;
   export_election_event_logs?: Maybe<ExportLogsOutput>;
   export_election_event_tasks?: Maybe<ExportTasksOutput>;
@@ -2450,6 +2458,13 @@ export type Mutation_RootExport_Ballot_PublicationArgs = {
   election_event_id: Scalars['String']['input'];
   election_id?: InputMaybe<Scalars['String']['input']>;
   tenant_id: Scalars['String']['input'];
+};
+
+
+/** mutation root */
+export type Mutation_RootExport_Certificate_AuthorityArgs = {
+  election_event_id: Scalars['uuid']['input'];
+  ids: Array<Scalars['uuid']['input']>;
 };
 
 

@@ -87,6 +87,7 @@ const basqueTranslation: TranslationType = {
                 DELETE_ELECTION_EVENT: "Ezabatu Hauteskunde Gertaera",
                 PREPARE_PUBLICATION_PREVIEW: "Argitalpenaren aurrebista prestatu",
                 EXPORT_TALLY_RESULTS_XLSX: "Esportatu zenbaketa-emaitzak XLSX formatuan",
+                EXPORT_CERTIFICATE_AUTHORITIES: "Ziurtagiri-agintaritzak esportatu",
             },
             widget: {
                 taskTitle: "Ataza: {{title}}",
@@ -2197,6 +2198,13 @@ const basqueTranslation: TranslationType = {
                 importError: "Inportazioa huts egin du: {{error}}",
                 deleteSuccess: "Ziurtagiria ezabatuta.",
                 deleteError: "Errorea ziurtagiria ezabatzean.",
+                exportSuccess: "Ziurtagiri(ak) arrakastaz esportatu da(dira).",
+                exportError: "Errorea ziurtagiriak esportatzean.",
+            },
+            exportDialog: {
+                title: "Ziurtagiri-agintaritzak esportatu",
+                description: "{{amount}} ziurtagiri esportatuko duzu.",
+                all: "guztiak",
             },
             emptyHeader:
                 "Ez da ziurtagiri-agintaritzarik inportatu hauteskunde-ekitaldi honetarako.",

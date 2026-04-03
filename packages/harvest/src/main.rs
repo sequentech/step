@@ -139,6 +139,7 @@ async fn rocket() -> _ {
                 routes::generate_preview_url::generate_preview_url,
                 routes::import_certificate_authority::import_certificate_authority,
                 routes::delete_certificate_authority::delete_certificate_authority_route,
+                routes::export_certificate_authority::export_certificate_authority_route,
                 routes::get_certificate_authorities_pem::get_cas_pem,
             ],
         )

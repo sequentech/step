@@ -123,3 +123,39 @@ pub async fn get_certificate_authorities_pem(
         .map(|row| row.get::<_, String>(0))
         .collect())
 }
+
+/// Returns the PEM strings for the specified certificate authorities (by id),
+/// scoped to the given election event. If `ids` is empty, returns PEMs for all
+/// CAs in the election event (same behaviour as `get_certificate_authorities_pem`).
+#[instrument(skip(transaction), err)]
+pub async fn get_certificate_authorities_pem_by_ids(
+    transaction: &Transaction<'_>,
+    election_event_id: Uuid,
+    ids: &[Uuid],
+) -> Result<Vec<String>> {
+    if ids.is_empty() {
+        return get_certificate_authorities_pem(transaction, election_event_id).await;
+    }
+
+    let statement = transaction
+        .prepare(
+            r#"
+                SELECT pem
+                FROM sequent_backend.certificate_authority
+                WHERE election_event_id = $1
+                  AND id = ANY($2)
+                ORDER BY created_at ASC
+            "#,
+        )
+        .await?;
+
+    let rows = transaction
+        .query(&statement, &[&election_event_id, &ids])
+        .await
+        .map_err(|err| anyhow!("Error fetching certificate authority PEMs by ids: {err}"))?;
+
+    Ok(rows
+        .into_iter()
+        .map(|row| row.get::<_, String>(0))
+        .collect())
+}

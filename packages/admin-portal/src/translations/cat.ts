@@ -54,6 +54,7 @@ const catalanTranslation: TranslationType = {
                 DELETE_ELECTION_EVENT: "Esborrar esdeveniment electoral",
                 PREPARE_PUBLICATION_PREVIEW: "Preparar la vista prèvia de la publicació",
                 EXPORT_TALLY_RESULTS_XLSX: "Exporta els resultats del recompte en format XLSX",
+                EXPORT_CERTIFICATE_AUTHORITIES: "Exportar autoritats de certificació",
             },
             widget: {
                 taskTitle: "Tasca: {{title}}",
@@ -2214,6 +2215,13 @@ const catalanTranslation: TranslationType = {
                 importError: "Error en la importació: {{error}}",
                 deleteSuccess: "Certificat eliminat.",
                 deleteError: "Error en eliminar el certificat.",
+                exportSuccess: "Certificat(s) exportat(s) correctament.",
+                exportError: "Error en exportar els certificats.",
+            },
+            exportDialog: {
+                title: "Exportar autoritats de certificació",
+                description: "Esteu a punt d'exportar {{amount}} certificat(s).",
+                all: "tots",
             },
             emptyHeader:
                 "No s'han importat autoritats de certificació per a aquest esdeveniment electoral.",

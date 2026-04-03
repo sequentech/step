@@ -86,6 +86,7 @@ const dutchTranslation: TranslationType = {
                 DELETE_ELECTION_EVENT: "Verkiezingsevenement Verwijderen",
                 PREPARE_PUBLICATION_PREVIEW: "De publicatievoorbeeldweergave voorbereiden",
                 EXPORT_TALLY_RESULTS_XLSX: "Exporteer de telresultaten in XLSX-indeling",
+                EXPORT_CERTIFICATE_AUTHORITIES: "Certificaatautoriteiten exporteren",
             },
             widget: {
                 taskTitle: "Taak: {{title}}",
@@ -2200,6 +2201,13 @@ const dutchTranslation: TranslationType = {
                 importError: "Importeren mislukt: {{error}}",
                 deleteSuccess: "Certificaat verwijderd.",
                 deleteError: "Fout bij verwijderen van certificaat.",
+                exportSuccess: "Certificaat(-en) succesvol geëxporteerd.",
+                exportError: "Fout bij exporteren van certificaten.",
+            },
+            exportDialog: {
+                title: "Certificaatautoriteiten exporteren",
+                description: "U staat op het punt {{amount}} certificaat(-en) te exporteren.",
+                all: "alle",
             },
             emptyHeader:
                 "Er zijn geen certificaatautoriteiten geïmporteerd voor dit verkiezingsevenement.",

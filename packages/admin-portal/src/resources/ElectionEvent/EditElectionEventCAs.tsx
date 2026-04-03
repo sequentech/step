@@ -27,6 +27,7 @@ import {
     Typography,
 } from "@mui/material"
 import DeleteIcon from "@mui/icons-material/Delete"
+import DownloadIcon from "@mui/icons-material/Download"
 import UploadFileIcon from "@mui/icons-material/UploadFile"
 import VisibilityIcon from "@mui/icons-material/Visibility"
 import {Dialog, DropFile} from "@sequentech/ui-essentials"
@@ -37,11 +38,15 @@ import {IPermissions} from "@/types/keycloak"
 import {Sequent_Backend_Election_Event} from "@/gql/graphql"
 import {IMPORT_CERTIFICATE_AUTHORITY} from "@/queries/ImportCertificateAuthority"
 import {DELETE_CERTIFICATE_AUTHORITY} from "@/queries/DeleteCertificateAuthority"
+import {EXPORT_CERTIFICATE_AUTHORITY} from "@/queries/ExportCertificateAuthority"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import {ResourceListStyles} from "@/components/styles/ResourceListStyles"
 import {DrawerStyles} from "@/components/styles/DrawerStyles"
 import ElectionHeader from "@/components/ElectionHeader"
 import {ListActions} from "@/components/ListActions"
+import {Button as ReactAdminButton} from "react-admin"
+import {useWidgetStore} from "@/providers/WidgetsContextProvider"
+import {ETasksExecution} from "@/types/tasksExecution"
 
 const RESOURCE = "sequent_backend_certificate_authority"
 const FINGERPRINT_TRUNCATE_LENGTH = 24
@@ -209,8 +214,13 @@ export const EditElectionEventCAs: React.FC = () => {
     const [deleteId, setDeleteId] = useState<Identifier | undefined>()
     const [pemContent, setPemContent] = useState<string>("")
     const [fileError, setFileError] = useState<string | null>(null)
+    const [openExportModal, setOpenExportModal] = useState(false)
+    const [exportIds, setExportIds] = useState<Identifier[]>([])
 
     const canWrite = authContext.isAuthorized(true, tenantId, IPermissions.CA_WRITE)
+    const canRead = authContext.isAuthorized(true, tenantId, IPermissions.CA_READ)
+
+    const [addWidget, setWidgetTaskId, updateWidgetFail] = useWidgetStore()
 
     const [deleteCA] = useMutation(DELETE_CERTIFICATE_AUTHORITY, {
         context: {
@@ -226,6 +236,14 @@ export const EditElectionEventCAs: React.FC = () => {
                 type: "error",
             })
             refresh()
+        },
+    })
+
+    const [exportCA] = useMutation(EXPORT_CERTIFICATE_AUTHORITY, {
+        context: {
+            headers: {
+                "x-hasura-role": IPermissions.CA_READ,
+            },
         },
     })
 
@@ -296,6 +314,54 @@ export const EditElectionEventCAs: React.FC = () => {
         setDeleteId(undefined)
     }
 
+    const handleExportAll = () => {
+        setExportIds([])
+        setOpenExportModal(true)
+    }
+
+    const confirmExportAction = async () => {
+        if (!record?.id) return
+        const currWidget = addWidget(ETasksExecution.EXPORT_CERTIFICATE_AUTHORITIES, undefined)
+        try {
+            const {data, errors} = await exportCA({
+                variables: {
+                    ids: exportIds,
+                    electionEventId: record.id,
+                },
+            })
+            if (errors || !data) {
+                updateWidgetFail(currWidget.identifier)
+                return
+            }
+            const taskId = data.export_certificate_authority?.task_execution?.id
+            taskId
+                ? setWidgetTaskId(currWidget.identifier, taskId)
+                : updateWidgetFail(currWidget.identifier)
+        } catch {
+            updateWidgetFail(currWidget.identifier)
+        }
+        setOpenExportModal(false)
+    }
+
+    // @ts-ignore
+    function BulkActions(props) {
+        return (
+            <>
+                {canRead && (
+                    <ReactAdminButton
+                        onClick={() => {
+                            setExportIds(props.selectedIds ?? [])
+                            setOpenExportModal(true)
+                        }}
+                        label={String(t("common.label.export"))}
+                    >
+                        <DownloadIcon />
+                    </ReactAdminButton>
+                )}
+            </>
+        )
+    }
+
     const actions: Action[] = [
         {
             icon: <VisibilityIcon className="view-ca-icon" />,
@@ -335,7 +401,8 @@ export const EditElectionEventCAs: React.FC = () => {
                     <ListActions
                         withImport={canWrite}
                         doImport={() => setImportDrawerOpen(true)}
-                        withExport={false}
+                        withExport={true}
+                        doExport={handleExportAll}
                         withFilter={false}
                     />
                 }
@@ -347,7 +414,7 @@ export const EditElectionEventCAs: React.FC = () => {
                     election_event_id: record?.id || undefined,
                 }}
             >
-                <DatagridConfigurable rowClick={false}>
+                <DatagridConfigurable rowClick={false} bulkActionButtons={<BulkActions />}>
                     <TextField
                         source="common_name"
                         label={t("certificateAuthorities.columns.commonName")}
@@ -496,6 +563,29 @@ export const EditElectionEventCAs: React.FC = () => {
                 }}
             >
                 {t("common.message.delete")}
+            </Dialog>
+
+            {/* Export Confirmation Dialog */}
+            <Dialog
+                variant="info"
+                open={openExportModal}
+                ok={String(t("common.label.export"))}
+                cancel={String(t("common.label.cancel"))}
+                title={String(t("certificateAuthorities.exportDialog.title"))}
+                handleClose={(result: boolean) => {
+                    if (result) {
+                        confirmExportAction()
+                    } else {
+                        setOpenExportModal(false)
+                    }
+                }}
+            >
+                {t("certificateAuthorities.exportDialog.description", {
+                    amount:
+                        exportIds.length === 0
+                            ? t("certificateAuthorities.exportDialog.all")
+                            : exportIds.length,
+                })}
             </Dialog>
         </>
     )

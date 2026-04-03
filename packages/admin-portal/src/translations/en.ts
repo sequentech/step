@@ -86,6 +86,7 @@ const englishTranslation = {
                 DELETE_ELECTION_EVENT: "Delete Election Event",
                 PREPARE_PUBLICATION_PREVIEW: "Prepare Publication Preview",
                 EXPORT_TALLY_RESULTS_XLSX: "Export Tally Results in XLSX format",
+                EXPORT_CERTIFICATE_AUTHORITIES: "Export Certificate Authorities",
             },
             widget: {
                 taskTitle: "Task: {{title}}",
@@ -2188,6 +2189,13 @@ const englishTranslation = {
                 importError: "Import failed: {{error}}",
                 deleteSuccess: "Certificate deleted.",
                 deleteError: "Error deleting certificate.",
+                exportSuccess: "Certificate(s) exported successfully.",
+                exportError: "Error exporting certificates.",
+            },
+            exportDialog: {
+                title: "Export Certificate Authorities",
+                description: "You are about to export {{amount}} certificate(s).",
+                all: "all",
             },
             emptyHeader: "No certificate authorities have been imported for this election event.",
             fileReadError: "Failed to read the file.",
