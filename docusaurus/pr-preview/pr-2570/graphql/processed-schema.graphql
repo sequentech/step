@@ -295,6 +295,11 @@ type ExportBallotPublicationOutput {
   task_execution: tasks_execution_type
 }
 
+type ExportCertificateAuthorityOutput {
+  document_id: String!
+  task_execution: tasks_execution_type
+}
+
 type ExportElectionEventOutput {
   document_id: String!
   password: String
@@ -1488,6 +1493,8 @@ type mutation_root {
   exportTrustees(password: String!): ExportTrusteesOutput
   export_application(election_event_id: String, election_id: String, tenant_id: String!): ExportApplicationOutput
   export_ballot_publication(ballot_publication_id: String!, election_event_id: String!, election_id: String, tenant_id: String!): ExportBallotPublicationOutput
+  """Export certificate authorities as a PEM bundle for an election event"""
+  export_certificate_authority(election_event_id: uuid!, ids: [uuid!]!): ExportCertificateAuthorityOutput
   export_election_event(election_event_id: String, export_configurations: ExportOptions): ExportElectionEventOutput
   export_election_event_logs(election_event_id: String!, format: String!): ExportLogsOutput
   export_election_event_tasks(election_event_id: String): ExportTasksOutput
