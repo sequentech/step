@@ -22,8 +22,8 @@ use chrono::format;
 use chrono::{DateTime, Utc};
 use deadpool_postgres::{Client as DbClient, Transaction};
 use futures::future::try_join_all;
+use keycloak::types::RealmEventsConfigRepresentation;
 use once_cell::sync::Lazy;
-use sequent_core::ballot::AllowTallyStatus;
 use sequent_core::ballot::ElectionEventStatistics;
 use sequent_core::ballot::ElectionEventStatus;
 use sequent_core::ballot::ElectionStatistics;
@@ -31,6 +31,7 @@ use sequent_core::ballot::ElectionStatus;
 use sequent_core::ballot::PeriodDates;
 use sequent_core::ballot::VotingPeriodDates;
 use sequent_core::ballot::VotingStatus;
+use sequent_core::ballot::{AllowTallyStatus, LanguageDetectionPolicy};
 use sequent_core::serialization::deserialize_with_path::deserialize_str;
 use sequent_core::serialization::deserialize_with_path::deserialize_value;
 use sequent_core::services::connection;
@@ -48,7 +49,7 @@ use sequent_core::util::version::{
     check_version_compatibility, DEV_APP_VERSION, ENV_VAR_APP_VERSION,
 };
 use serde::{Deserialize, Serialize};
-use serde_json::{json, Map, Value};
+use serde_json::{de, json, Map, Value};
 use std::collections::HashMap;
 use std::env;
 use std::fs;
@@ -273,6 +274,7 @@ pub async fn upsert_keycloak_realm(
     tenant_id: &str,
     election_event_id: &str,
     keycloak_event_realm: Option<RealmRepresentation>,
+    default_locale: Option<String>,
 ) -> Result<()> {
     let mut realm = if let Some(realm) = keycloak_event_realm.clone() {
         realm
@@ -280,6 +282,11 @@ pub async fn upsert_keycloak_realm(
         let realm = read_default_election_event_realm()?;
         realm
     };
+
+    if let Some(default_language) = default_locale {
+        realm.default_locale = Some(default_language.clone());
+    }
+
     realm = remove_keycloak_realm_secrets(&realm)?;
     let realm_config = serde_json::to_string(&realm)?;
     let client = KeycloakAdminClient::new().await?;
@@ -555,10 +562,18 @@ pub async fn process_election_event_file(
         .collect::<Result<Vec<Election>>>()
         .with_context(|| "Error processing elections")?;
 
+    let language_detection_policy = data.election_event.get_language_detection_policy();
+    let mut default_language = None;
+    println!("Language detection policy: {language_detection_policy:?}");
+    if language_detection_policy == LanguageDetectionPolicy::FORCE_DEFAULT {
+        default_language = Some(data.election_event.get_default_language());
+    }
+
     upsert_keycloak_realm(
         tenant_id.as_str(),
         &election_event_id,
         data.keycloak_event_realm.clone(),
+        default_language
     )
     .await
     .with_context(|| format!("Error upserting Keycloak realm for tenant ID {tenant_id} and election event ID {election_event_id}"))?;

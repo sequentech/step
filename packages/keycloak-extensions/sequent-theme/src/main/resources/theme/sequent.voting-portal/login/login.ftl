@@ -179,6 +179,31 @@ SPDX-License-Identifier: AGPL-3.0-only
                     });
                 }());
             </script>
+            <script>
+            (function () {
+                function setSessionLangCookie(lang) {
+                document.cookie =
+                    "KEYCLOAK_LANG=" + encodeURIComponent(lang) +
+                    "; Path=/" +
+                    "; Max-Age=" + (60 * 60 * 24) + // 1 day
+                    "; SameSite=Lax";
+                }
+
+                function getLangFromHref(href) {
+                const u = new URL(href, window.location.origin);
+                return u.searchParams.get("kc_locale") || u.searchParams.get("locale");
+                }
+
+                document.querySelectorAll('#language-switch1 a[href]').forEach(function (link) {
+                link.addEventListener('click', function () {
+                    const lang = getLangFromHref(link.href);
+                    if (lang) {
+                    setSessionLangCookie(lang);
+                    }
+                });
+                });
+            })();
+            </script>
         </#if>
     </#if>
 

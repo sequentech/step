@@ -10,9 +10,9 @@ import tagalotTranslation from "../translations/tl"
 import galegoTranslation from "../translations/gl"
 import dutchTranslation from "../translations/nl"
 import basqueTranslation from "../translations/eu"
-import {getLanguageFromURL} from "../utils/queryParams"
+import {getLanguageFromCookie, getLanguageFromURL} from "../utils/queryParams"
 
-const language = getLanguageFromURL()
+const language = getLanguageFromURL() || getLanguageFromCookie()
 
 initializeLanguages(
     {

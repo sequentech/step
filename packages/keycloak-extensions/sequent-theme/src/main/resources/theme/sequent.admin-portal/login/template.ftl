@@ -99,7 +99,7 @@ SPDX-License-Identifier: AGPL-3.0-only
                                 <#assign i = 1>
                                 <#list locale.supported as l>
                                     <li class="${properties.kcLocaleListItemClass!}" role="none">
-                                        <a role="menuitem" id="language-${i}" class="${properties.kcLocaleItemClass!}" href="${l.url}">${l.label}</a>
+                                        <a role="menuitem" id="language-${i}" class="${properties.kcLocaleItemClass!}" href="${l.url}" data-lang="${l.languageTag!}">${l.label}</a>
                                     </li>
                                     <#assign i++>
                                 </#list>
