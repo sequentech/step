@@ -19,43 +19,58 @@ pub enum TaskOutcome {
     Retry,
 }
 
+const METRIC_TASKS_TOTAL: &str = "windmill_tasks_total";
+const METRIC_TASK_DURATION_SECONDS: &str = "windmill_task_duration_seconds";
+const METRIC_QUEUE_MESSAGES: &str = "windmill_queue_messages";
+const METRIC_QUEUE_CONSUMERS: &str = "windmill_queue_consumers";
+
 lazy_static! {
     /// Total tasks processed, labelled by task type and outcome
     /// (success | failure | retry).
     pub static ref TASKS_TOTAL: CounterVec = register_counter_vec!(
-        "windmill_tasks_total",
+        METRIC_TASKS_TOTAL,
         "Total number of tasks processed by windmill",
         &["task_type", "status"]
     )
-    .unwrap();
+    .expect("Failed to register windmill_tasks_total metric");
 
     /// Wall-clock duration from task enqueue to completion, in seconds.
     pub static ref TASK_DURATION_SECONDS: HistogramVec = register_histogram_vec!(
-        "windmill_task_duration_seconds",
+        METRIC_TASK_DURATION_SECONDS,
         "Task execution duration in seconds",
         &["task_type"],
         // Buckets cover quick ops (1 s) up to long-running tally ceremonies (30 min).
         vec![1.0, 5.0, 15.0, 30.0, 60.0, 120.0, 300.0, 600.0, 1800.0]
     )
-    .unwrap();
+    .expect("Failed to register windmill_task_duration_seconds metric");
 
     /// Number of messages waiting in each RabbitMQ queue (sampled on each
     /// liveness probe).
     pub static ref QUEUE_MESSAGES: GaugeVec = register_gauge_vec!(
-        "windmill_queue_messages",
+        METRIC_QUEUE_MESSAGES,
         "Number of messages in each RabbitMQ queue",
         &["queue"]
     )
-    .unwrap();
+    .expect("Failed to register windmill_queue_messages metric");
 
     /// Number of active consumers per RabbitMQ queue (sampled on each
     /// liveness probe).
     pub static ref QUEUE_CONSUMERS: GaugeVec = register_gauge_vec!(
-        "windmill_queue_consumers",
+        METRIC_QUEUE_CONSUMERS,
         "Number of active consumers per RabbitMQ queue",
         &["queue"]
     )
-    .unwrap();
+    .expect("Failed to register windmill_queue_consumers metric");
+}
+
+/// Force all metric statics to initialize and register with the prometheus
+/// global registry. Call once at startup so metrics appear in `/metrics`
+/// before the first task runs.
+pub fn init_metrics() {
+    let _ = &*TASKS_TOTAL;
+    let _ = &*TASK_DURATION_SECONDS;
+    let _ = &*QUEUE_MESSAGES;
+    let _ = &*QUEUE_CONSUMERS;
 }
 
 /// Celery `on_failure` callback — add to every `#[celery::task]` annotation.

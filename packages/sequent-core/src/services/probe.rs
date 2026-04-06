@@ -72,7 +72,7 @@ impl ProbeHandler {
                         Response::builder()
                             .status(warp::http::StatusCode::INTERNAL_SERVER_ERROR)
                             .body("Failed to encode metrics".to_string())
-                            .unwrap(),
+                            .expect("build HTTP response"),
                     );
                 }
 
@@ -86,7 +86,7 @@ impl ProbeHandler {
                                     warp::http::StatusCode::INTERNAL_SERVER_ERROR,
                                 )
                                 .body("Failed to render metrics".to_string())
-                                .unwrap(),
+                                .expect("build HTTP response"),
                         );
                     }
                 };
@@ -96,7 +96,7 @@ impl ProbeHandler {
                         .status(warp::http::StatusCode::OK)
                         .header("Content-Type", encoder.format_type())
                         .body(body)
-                        .unwrap(),
+                        .expect("build HTTP response"),
                 )
             });
         let filter = warp::get().and(
@@ -113,14 +113,14 @@ impl ProbeHandler {
                                 Response::builder()
                                     .status(warp::http::StatusCode::OK)
                                     .body("Live".to_string())
-                                    .unwrap(),
+                                    .expect("build HTTP response"),
                             )
                         } else {
                             Ok::<_, warp::Rejection>(
                                 Response::builder()
                                     .status(warp::http::StatusCode::BAD_REQUEST)
                                     .body("Not live".to_string())
-                                    .unwrap(),
+                                    .expect("build HTTP response"),
                             )
                         }
                     }
@@ -136,7 +136,7 @@ impl ProbeHandler {
                                     Response::builder()
                                         .status(warp::http::StatusCode::OK)
                                         .body("Ready".to_string())
-                                        .unwrap(),
+                                        .expect("build HTTP response"),
                                 )
                             } else {
                                 Ok::<_, warp::Rejection>(
@@ -145,7 +145,7 @@ impl ProbeHandler {
                                             warp::http::StatusCode::BAD_REQUEST,
                                         )
                                         .body("Not ready".to_string())
-                                        .unwrap(),
+                                        .expect("build HTTP response"),
                                 )
                             }
                         }

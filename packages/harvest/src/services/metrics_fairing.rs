@@ -11,20 +11,25 @@ use rocket::fairing::{Fairing, Info, Kind};
 use rocket::{Data, Request, Response};
 use std::time::Instant;
 
+const METRIC_HTTP_REQUESTS_TOTAL: &str = "harvest_http_requests_total";
+const METRIC_HTTP_REQUEST_DURATION_SECONDS: &str =
+    "harvest_http_request_duration_seconds";
+const METRIC_HTTP_REQUESTS_IN_FLIGHT: &str = "harvest_http_requests_in_flight";
+
 /// Label used for requests that don't match any registered Rocket route
 /// (e.g. 404s or pre-routing failures).
 const UNKNOWN_ROUTE: &str = "unknown";
 
 lazy_static! {
     static ref HTTP_REQUESTS_TOTAL: CounterVec = register_counter_vec!(
-        "harvest_http_requests_total",
+        METRIC_HTTP_REQUESTS_TOTAL,
         "Total number of HTTP requests handled by harvest",
         &["method", "route", "status"]
     )
-    .unwrap();
+    .expect("Failed to register harvest_http_requests_total metric");
     static ref HTTP_REQUEST_DURATION_SECONDS: HistogramVec =
         register_histogram_vec!(
-            "harvest_http_request_duration_seconds",
+            METRIC_HTTP_REQUEST_DURATION_SECONDS,
             "HTTP request duration in seconds",
             &["method", "route"],
             vec![
@@ -32,15 +37,26 @@ lazy_static! {
                 30.0
             ]
         )
-        .unwrap();
+        .expect(
+            "Failed to register harvest_http_request_duration_seconds metric"
+        );
     static ref HTTP_REQUESTS_IN_FLIGHT: IntGauge = register_int_gauge!(
-        "harvest_http_requests_in_flight",
+        METRIC_HTTP_REQUESTS_IN_FLIGHT,
         "Number of HTTP requests currently being handled"
     )
-    .unwrap();
+    .expect("Failed to register harvest_http_requests_in_flight metric");
 }
 
 struct RequestStart(Instant);
+
+/// Force all metric statics to initialize and register with the prometheus
+/// global registry. Call once at startup so metrics appear in `/metrics`
+/// before the first HTTP request arrives.
+pub fn init_metrics() {
+    let _ = &*HTTP_REQUESTS_TOTAL;
+    let _ = &*HTTP_REQUEST_DURATION_SECONDS;
+    let _ = &*HTTP_REQUESTS_IN_FLIGHT;
+}
 
 pub struct MetricsFairing;
 
@@ -54,12 +70,6 @@ impl Fairing for MetricsFairing {
     }
 
     async fn on_request(&self, req: &mut Request<'_>, _: &mut Data<'_>) {
-        // Force lazy_static initialization so metrics appear in the registry
-        // even before the first completed request.
-        let _ = &*HTTP_REQUESTS_TOTAL;
-        let _ = &*HTTP_REQUEST_DURATION_SECONDS;
-        let _ = &*HTTP_REQUESTS_IN_FLIGHT;
-
         HTTP_REQUESTS_IN_FLIGHT.inc();
         req.local_cache(|| RequestStart(Instant::now()));
     }
@@ -97,7 +107,6 @@ mod tests {
 
     #[test]
     fn test_metrics_are_registered() {
-        // Force initialization
         let _ = &*HTTP_REQUESTS_TOTAL;
         let _ = &*HTTP_REQUEST_DURATION_SECONDS;
         let _ = &*HTTP_REQUESTS_IN_FLIGHT;
