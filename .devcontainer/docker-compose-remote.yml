@@ -35,10 +35,12 @@ services:
       KC_HOSTNAME: ${KC_HOSTNAME}
       KC_HOSTNAME_STRICT: ${KC_HOSTNAME_STRICT}
       KC_HTTP_PORT: ${KC_HTTP_PORT}
-      KC_PROXY: edge
+      # Trust the RFC 7239 Forwarded header set by Cloudflare / the nginx ingress
+      # controller in production. KC_PROXY was deprecated in KC 24 in favour of
+      # KC_PROXY_HEADERS and is a no-op on KC 26+.
       KC_PROXY_HEADERS: forwarded
       KC_DB: ${KC_DB}
-      KC_LOG_LEVEL: ${LOG_LEVEL}
+      KC_LOG_LEVEL: ${KC_LOG_LEVEL}
       KC_DB_USERNAME: ${KC_DB_USERNAME}
       KC_DB_PASSWORD: ${KC_DB_PASSWORD}
       KC_DB_SCHEMA: ${KC_DB_SCHEMA}
@@ -60,6 +62,9 @@ services:
       TWILIO_AUTH_TOKEN: ${TWILIO_AUTH_TOKEN}
       TWILIO_SERVICE_SID: ${TWILIO_SERVICE_SID}
       ENV_SLUG: ${ENV_SLUG}
+      KC_SPI_TRUSTSTORE_PROVIDER: ${KC_SPI_TRUSTSTORE_PROVIDER:-}
+      KC_SPI_TRUSTSTORE_URL_REFRESH_INTERVAL_SECONDS: ${KC_SPI_TRUSTSTORE_URL_REFRESH_INTERVAL_SECONDS:-0}
+      KC_MTLS_LOGIN_URL: ${KC_MTLS_LOGIN_URL:-}
     volumes:
       - ./keycloak/import:/opt/keycloak/data/import:z
     entrypoint: >
@@ -69,6 +74,10 @@ services:
       --spi-user-profile-declarative-user-profile-read-only-attributes=area-id,tenant-id
       --spi-user-profile-declarative-user-profile-admin-read-only-attributes=sequent.admin-read-only.*
       -Dkeycloak.profile.feature.upload_scripts=enabled
+      --spi-truststore-provider=${KC_SPI_TRUSTSTORE_PROVIDER:-file}
+      --spi-x509cert-lookup-provider=${KC_SPI_X509CERT_LOOKUP_PROVIDER:-default}
+      --spi-x509cert-lookup-nginx-ssl-client-cert=ssl-client-cert
+      --spi-x509cert-lookup-nginx-trust-proxy-verification=false
       --spi-email-sender-provider=dummy
       --spi-email-sender-dummy-enabled=true
       --spi-email-sender-default-enabled=false
@@ -79,12 +88,31 @@ services:
     depends_on:
       postgres-keycloak:
         condition: service_healthy
+      configure-minio:
+        condition: service_completed_successfully
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://127.0.0.1:8090/health/live"]
+      test: ["CMD-SHELL", "exec 3<>/dev/tcp/127.0.0.1/8090"]
       interval: 5s
       timeout: 10s
       retries: 25
       start_period: 5s
+
+  keycloak-nginx:
+    profiles: ["full", "base"]
+    container_name: keycloak-nginx
+    build:
+      context: .
+      dockerfile: keycloak-nginx/Dockerfile
+    image: sequentech.local/keycloak-nginx
+    ports:
+      - "8444:8443"
+    environment:
+      - KC_HOSTNAME=${KC_HOSTNAME}
+      - KC_HTTP_PORT=${KC_HTTP_PORT}
+      - VOTING_PORTAL_URL=${VOTING_PORTAL_URL}
+    depends_on:
+      keycloak:
+        condition: service_healthy
 
   simplesamlphp:
     profiles: ["full"]

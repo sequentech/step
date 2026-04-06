@@ -64,6 +64,20 @@ export function ErrorPage() {
                 )}
             </>
         )
+    } else if (
+        error instanceof VotingPortalError &&
+        error.type === VotingPortalErrorType.CERT_AUTH_FAILED
+    ) {
+        content = (
+            <>
+                <StyledTitle variant="h3" sx={{marginBottom: "24px"}}>
+                    {t("errors.page.certAuthFailedTitle")}
+                </StyledTitle>
+                <Typography variant="h6" sx={{marginBottom: "24px"}}>
+                    {t("errors.page.certAuthFailedMessage")}
+                </Typography>
+            </>
+        )
     } else if (isErrorType) {
         content = (
             <>

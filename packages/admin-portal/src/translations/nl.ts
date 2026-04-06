@@ -339,6 +339,11 @@ const dutchTranslation: TranslationType = {
                     "no-signature": "Geen handtekening",
                     "with-signature": "Met handtekening",
                 },
+                voterDigitalCertPolicy: {
+                    policyLabel: "Voter Digital Certificate Policy",
+                    enabled: "Ingeschakeld",
+                    disabled: "Uitgeschakeld",
+                },
                 enrollment: {
                     policyLabel: "Inschrijving",
                     options: {
@@ -436,6 +441,7 @@ const dutchTranslation: TranslationType = {
                 notifications: "Meldingen",
                 reports: "Rapporten",
                 approvals: "Goedkeuringen",
+                cas: "Certificaten",
             },
             tally: {
                 emptyHeader: "Nog geen telling.",
@@ -1326,8 +1332,12 @@ const dutchTranslation: TranslationType = {
                 "plurality-at-large": "Meerderheidsstelsel (meervoudig)",
                 "instant-runoff": "Instant-runoff stemmen",
                 "random": "Willekeurig",
+                "external-procedure": "Externe procedure",
                 "custom": "Aangepast",
                 "alphabetical": "Alfabetisch",
+            },
+            tieBreakingPolicy: {
+                label: "Beleid voor gelijkspel",
             },
             auditButtonConfig: {
                 "label": "Weergaveopties Auditknop",
@@ -1698,6 +1708,37 @@ const dutchTranslation: TranslationType = {
                     eliminated: "Geëlimineerd",
                     round: "Ronde",
                 },
+            },
+            pendingResolutions: {
+                round: "Ronde {{round}}",
+                tieResolutionRequired: "Stemgelijkheid vereist oplossing",
+                tieResolved: "Stemgelijkheid opgelost",
+                globalArea: "Global",
+                pendingResolutionsHeader: "Openstaande resoluties",
+                pendingResolutionStatus: "Resolutie in behandeling",
+                resolvedStatus: "Opgelost",
+                resolutionTitle: "Beslissing",
+                selectContest: "Selecteer een item aan de linkerkant om de details te bekijken",
+                selectCandidateToAdvance: "Selecteer kandidaat om door te laten gaan",
+                undoResolution: "Beslissing ongedaan maken",
+                applyResolutions: "Beslissingen toepassen en herberekenen",
+                submitSuccess: "Beslissingen ingediend. De telling wordt hervat...",
+                submitError: "Fout bij het indienen van beslissingen. Probeer het opnieuw.",
+                filter: "Filteren",
+                save: "Opslaan",
+                pendingApplyStatus: "Berekening in afwachting",
+                filterElection: "Verkiezing",
+                filterContest: "Wedstrijd",
+                filterArea: "Gebied",
+                filterStatusLabel: "Status",
+                clearFilters: "Filters wissen",
+                candidateWithVotes: "{{name}} ({{votes}} stemmen)",
+                candidateWithVotesAndPercent: "{{name}} ({{votes}} stemmen, {{percent}}%)",
+                tieInfoTitle: "Telling gepauzeerd wegens onopgelost gelijkspel (Ronde {{round}})",
+                tieInfoBody:
+                    "Kandidaten gelijk ({{votes}} stemmen, {{percent}}%): {{candidates}}. Handmatige tiebreak vereist om de telling voort te zetten.",
+                tallyResumedTitle: "Telling hervat na toepassing van de resolutie",
+                tallyResumedBody: "De gelijkstand werd opgelost op {{date}} door {{user}}",
             },
             chart: {
                 votesForCandidates: "Stemmen voor Kandidaten",
@@ -2120,6 +2161,55 @@ const dutchTranslation: TranslationType = {
                 title: "Testen",
                 testElectionVoterCount: "Aantal Kiezers Testverkiezing",
             },
+        },
+        certificateAuthorities: {
+            importButton: "Certificaten importeren",
+            type: {
+                root: "Wortel",
+                intermediate: "Tussenliggend",
+            },
+            expiry: {
+                expired: "Verlopen",
+                expiringSoon: "Verloopt binnenkort",
+                valid: "Geldig",
+            },
+            columns: {
+                commonName: "Gewone naam",
+                type: "Type",
+                issuerCn: "CN van uitgever",
+                notBefore: "Geldig vanaf",
+                notAfter: "Verloopt",
+                fingerprint: "SHA256 Vingerafdruk",
+            },
+            importDialog: {
+                title: "Certificaatautoriteiten importeren",
+                subtitle: "Importeer een of meer CA-certificaten vanuit een PEM-bestand",
+                description:
+                    "Selecteer een PEM-bestand met een of meer certificaten. Bundels worden ondersteund — elk certificaat wordt afzonderlijk geïmporteerd.",
+                selectFile: "PEM-bestand selecteren",
+                fileLoaded: "Bestand geladen ({{bytes}} bytes)",
+                importButton: "Importeren",
+            },
+            notify: {
+                importSuccess:
+                    "{{inserted}} certificaat(-en) geïmporteerd. {{skipped}} overgeslagen (al aanwezig).",
+                importError: "Importeren mislukt: {{error}}",
+                deleteSuccess: "Certificaat verwijderd.",
+                deleteError: "Fout bij verwijderen van certificaat.",
+            },
+            emptyHeader:
+                "Er zijn geen certificaatautoriteiten geïmporteerd voor dit verkiezingsevenement.",
+            fileReadError: "Bestand lezen mislukt.",
+            viewDialog: {
+                title: "Details van certificaatautoriteit",
+                subject: "Onderwerp",
+                issuer: "Uitgever",
+                serialNumber: "Serienummer",
+                pemContent: "PEM-inhoud",
+            },
+            confirmDelete: "Certificaatautoriteit verwijderen",
+            confirmDeleteDescription:
+                'Weet u zeker dat u het certificaat "{{name}}" (vingerafdruk: {{fingerprint}}) wilt verwijderen?',
         },
     },
 }

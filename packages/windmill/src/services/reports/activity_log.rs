@@ -4,30 +4,29 @@
 
 use super::template_renderer::*;
 use crate::postgres::reports::{Report, ReportType};
-use crate::services::database::PgConfig;
 use crate::services::documents::upload_and_return_document;
-use crate::services::electoral_log::{
-    count_electoral_log, list_electoral_log, ElectoralLogRow, GetElectoralLogBody,
-};
+use crate::services::electoral_log::{ElectoralLogRow, IMMUDB_ROWS_LIMIT};
+use crate::services::protocol_manager::{get_board_client, get_event_board};
 use crate::services::providers::email_sender::{Attachment, EmailSender};
-use crate::services::temp_path::*;
-use crate::types::resources::DataList;
 use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
 use csv::WriterBuilder;
 use deadpool_postgres::Transaction;
+use electoral_log::messages::message::Message;
+use electoral_log::ElectoralLogMessage;
 use sequent_core::services::date::ISO8601;
-use sequent_core::services::keycloak::{self};
 use sequent_core::services::s3::get_minio_url;
 use sequent_core::types::hasura::core::TasksExecution;
 use sequent_core::types::templates::{ReportExtraConfig, SendTemplateBody};
 use sequent_core::util::temp_path::*;
 use serde::{Deserialize, Serialize};
+use std::mem;
+use strand::serialization::StrandDeserialize;
 use strum_macros::EnumString;
 use tempfile::NamedTempFile;
 use tracing::{debug, info, instrument, warn};
 
-#[derive(Serialize, Deserialize, Debug, Clone, EnumString, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, EnumString, PartialEq, Copy)]
 pub enum ReportFormat {
     CSV,
     PDF,
@@ -47,6 +46,8 @@ pub struct ActivityLogRow {
 }
 
 /// Struct for User Data
+/// act_log is for PDF
+/// electoral_log is for CSV
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct UserData {
     pub act_log: Vec<ActivityLogRow>,
@@ -69,6 +70,63 @@ pub struct ActivityLogsTemplate {
 impl ActivityLogsTemplate {
     pub fn new(ids: ReportOrigins, report_format: ReportFormat) -> Self {
         ActivityLogsTemplate { ids, report_format }
+    }
+
+    // Export data using the electoral-log board client, streaming in batches
+    #[instrument(err, skip(self))]
+    pub async fn generate_export_csv_data(&self, name: &str) -> Result<NamedTempFile> {
+        let limit = IMMUDB_ROWS_LIMIT as i64;
+        let mut last_id: i64 = 0;
+        let slug = std::env::var("ENV_SLUG").with_context(|| "missing env var ENV_SLUG")?;
+        let board_name = get_event_board(
+            self.ids.tenant_id.as_str(),
+            self.ids.election_event_id.as_str(),
+            &slug,
+        );
+
+        let mut board_client = get_board_client().await?;
+
+        let mut temp_file =
+            generate_temp_file(name, ".csv").with_context(|| "Error creating named temp file")?;
+        let mut csv_writer = WriterBuilder::new().from_writer(temp_file.as_file_mut());
+
+        loop {
+            info!("last_id: {last_id}");
+            let msgs = board_client
+                .get_electoral_log_messages_batch(&board_name, limit, last_id)
+                .await
+                .map_err(|e| anyhow!("Error fetching electoral log batch: {e:?}"))?;
+
+            let batch_size = msgs.len() * mem::size_of::<ElectoralLogMessage>();
+            info!(
+                "Logs batch size: {} entries ({} bytes)",
+                msgs.len(),
+                batch_size
+            );
+            let is_last_batch = msgs.len() < limit as usize;
+
+            for entry in msgs {
+                last_id = entry.id;
+                let mut row: ElectoralLogRow = entry
+                    .try_into()
+                    .map_err(|e| anyhow!("Error converting log entry to row: {e:?}"))?;
+                row.message = row.message.replace('\n', " ").replace('\r', " ");
+                csv_writer
+                    .serialize(row)
+                    .map_err(|e| anyhow!("Error serializing to CSV: {e:?}"))?;
+            }
+
+            if is_last_batch {
+                break;
+            }
+        }
+
+        csv_writer
+            .flush()
+            .map_err(|e| anyhow!("Error flushing CSV writer: {e:?}"))?;
+        drop(csv_writer);
+
+        Ok(temp_file)
     }
 }
 
@@ -106,7 +164,7 @@ impl TryFrom<ElectoralLogRow> for ActivityLogRow {
 
         Ok(ActivityLogRow {
             id: electoral_log.id(),
-            user_id: user_id,
+            user_id,
             created,
             statement_timestamp,
             statement_kind: electoral_log.statement_kind().to_string(),
@@ -114,6 +172,53 @@ impl TryFrom<ElectoralLogRow> for ActivityLogRow {
             log_type,
             description,
             message: electoral_log.message().to_string(),
+        })
+    }
+}
+
+impl TryFrom<ElectoralLogMessage> for ActivityLogRow {
+    type Error = anyhow::Error;
+
+    fn try_from(electoral_log: ElectoralLogMessage) -> Result<Self, Self::Error> {
+        let user_id = match electoral_log.user_id {
+            Some(user_id) => user_id.to_string(),
+            None => "-".to_string(),
+        };
+
+        let statement_timestamp: String = if let Ok(datetime_parsed) =
+            ISO8601::timestamp_secs_utc_to_date_opt(electoral_log.statement_timestamp)
+        {
+            datetime_parsed.to_rfc3339()
+        } else {
+            return Err(anyhow::anyhow!("Error parsing statement_timestamp"));
+        };
+
+        let created: String = if let Ok(datetime_parsed) =
+            ISO8601::timestamp_secs_utc_to_date_opt(electoral_log.created)
+        {
+            datetime_parsed.to_rfc3339()
+        } else {
+            return Err(anyhow::anyhow!("Error parsing created"));
+        };
+
+        let deserialized_message = Message::strand_deserialize(&electoral_log.message)
+            .map_err(|e| anyhow!("Error deserializing message: {e:?}"))?;
+
+        let head_data = deserialized_message.statement.head.clone();
+        let event_type = head_data.event_type.to_string();
+        let log_type = head_data.log_type.to_string();
+        let description = head_data.description;
+
+        Ok(ActivityLogRow {
+            id: electoral_log.id,
+            user_id,
+            created,
+            statement_timestamp,
+            statement_kind: electoral_log.statement_kind,
+            event_type,
+            log_type,
+            description,
+            message: deserialized_message.to_string(),
         })
     }
 }
@@ -151,20 +256,20 @@ impl TemplateRenderer for ActivityLogsTemplate {
         format!("activity_logs_{}", rand::random::<u64>())
     }
     async fn count_items(&self, _hasura_transaction: &Transaction<'_>) -> Result<Option<i64>> {
-        let input = GetElectoralLogBody {
-            tenant_id: self.ids.tenant_id.clone(),
-            election_event_id: self.ids.election_event_id.clone(),
-            limit: None,
-            offset: None,
-            filter: None,
-            order_by: None,
-            area_ids: None,
-            only_with_user: None,
-            election_id: None,
-            statement_kind: None,
-        };
-        Ok(count_electoral_log(input).await.ok())
+        let mut client = get_board_client().await?;
+        let slug = std::env::var("ENV_SLUG").with_context(|| "missing env var ENV_SLUG")?;
+        let board_name = get_event_board(
+            self.ids.tenant_id.as_str(),
+            self.ids.election_event_id.as_str(),
+            &slug,
+        );
+        let total = client
+            .count_electoral_log_messages(&board_name, None)
+            .await
+            .map_err(|e| anyhow!("Error counting electoral log messages: {e:?}"))?;
+        Ok(Some(total))
     }
+
     #[instrument(err, skip_all)]
     async fn prepare_user_data_batch(
         &self,
@@ -174,116 +279,48 @@ impl TemplateRenderer for ActivityLogsTemplate {
         limit: i64,
     ) -> Result<Self::UserData> {
         let mut act_log: Vec<ActivityLogRow> = vec![];
-        let mut elect_logs: Vec<ElectoralLogRow> = vec![];
-
-        let electoral_logs: DataList<ElectoralLogRow> = list_electoral_log(GetElectoralLogBody {
-            tenant_id: self.ids.tenant_id.clone(),
-            election_event_id: self.ids.election_event_id.clone(),
-            limit: Some(limit),
-            offset: Some(*offset),
-            filter: None,
-            order_by: None,
-            area_ids: None,
-            only_with_user: None,
-            election_id: None,
-            statement_kind: None,
-        })
-        .await
-        .map_err(|e| anyhow!("Error listing electoral logs: {e:?}"))?;
-
-        let is_empty = electoral_logs.items.is_empty();
-
-        for electoral_log in electoral_logs.items {
-            elect_logs.push(electoral_log.clone());
-            let head_data = electoral_log
-                .statement_head_data()
-                .with_context(|| "Error to get head data.")?;
-            let event_type = head_data.event_type;
-            let log_type = head_data.log_type;
-            let description = head_data.description;
-            let activity_log = electoral_log.try_into()?;
-            info!("activity_log = {activity_log:?}");
-            let activity_log = ActivityLogRow {
-                event_type,
-                log_type,
-                description,
-                ..activity_log
-            };
-            info!("activity_log = {activity_log:?}");
-            act_log.push(activity_log);
+        let mut electoral_log: Vec<ElectoralLogRow> = vec![];
+        let mut client = get_board_client().await?;
+        let slug = std::env::var("ENV_SLUG").with_context(|| "missing env var ENV_SLUG")?;
+        let board_name = get_event_board(
+            self.ids.tenant_id.as_str(),
+            self.ids.election_event_id.as_str(),
+            &slug,
+        );
+        // Uses offset-based pagination because the caller framework pre-computes
+        // `offset = batch_index * limit` and processes batches in parallel (rayon),
+        // which is incompatible with cursor-based pagination.
+        let msgs = client
+            .get_electoral_log_messages_at_offset(&board_name, limit, *offset)
+            .await
+            .map_err(|e| anyhow!("Failed to get electoral log messages batch: {e:?}"))?;
+        info!("Format: {:#?}", self.report_format);
+        for entry in msgs {
+            match self.report_format {
+                ReportFormat::PDF => {
+                    act_log.push(entry.try_into()?);
+                }
+                ReportFormat::CSV => {
+                    electoral_log.push(entry.try_into()?);
+                }
+            }
         }
-
-        let total = electoral_logs.total.aggregate.count;
 
         Ok(UserData {
             act_log,
-            electoral_log: elect_logs,
+            electoral_log,
         })
     }
+
     #[instrument(err, skip_all)]
     async fn prepare_user_data(
         &self,
         _hasura_transaction: &Transaction<'_>,
         _keycloak_transaction: &Transaction<'_>,
     ) -> Result<Self::UserData> {
-        let mut act_log: Vec<ActivityLogRow> = vec![];
-        let mut elect_logs: Vec<ElectoralLogRow> = vec![];
-        let mut offset = 0;
-        let limit = PgConfig::from_env()
-            .with_context(|| "Error obtaining Pg config from env.")?
-            .default_sql_batch_size as i64;
-
-        loop {
-            let electoral_logs: DataList<ElectoralLogRow> =
-                list_electoral_log(GetElectoralLogBody {
-                    tenant_id: self.ids.tenant_id.clone(),
-                    election_event_id: self.ids.election_event_id.clone(),
-                    limit: Some(limit),
-                    offset: Some(offset),
-                    filter: None,
-                    order_by: None,
-                    area_ids: None,
-                    only_with_user: None,
-                    election_id: None,
-                    statement_kind: None,
-                })
-                .await
-                .map_err(|e| anyhow!("Error listing electoral logs: {e:?}"))?;
-
-            let is_empty = electoral_logs.items.is_empty();
-
-            for electoral_log in electoral_logs.items {
-                elect_logs.push(electoral_log.clone());
-                let head_data = electoral_log
-                    .statement_head_data()
-                    .with_context(|| "Error to get head data.")?;
-                let event_type = head_data.event_type;
-                let log_type = head_data.log_type;
-                let description = head_data.description;
-                let activity_log = electoral_log.try_into()?;
-                info!("activity_log = {activity_log:?}");
-                let activity_log = ActivityLogRow {
-                    event_type,
-                    log_type,
-                    description,
-                    ..activity_log
-                };
-                info!("activity_log = {activity_log:?}");
-                act_log.push(activity_log);
-            }
-
-            let total = electoral_logs.total.aggregate.count;
-            if is_empty || offset >= total {
-                break;
-            }
-
-            offset += limit;
-        }
-
-        Ok(UserData {
-            act_log,
-            electoral_log: elect_logs,
-        })
+        Err(anyhow!(
+            "prepare_user_data should not be used for this report type, use prepare_user_data_batch instead"
+        ))
     }
 
     #[instrument(err, skip_all)]
@@ -330,16 +367,11 @@ impl TemplateRenderer for ActivityLogsTemplate {
             )
             .await
         } else {
-            // Generate CSV report
-            // Prepare user data
-            let user_data = self
-                .prepare_user_data(hasura_transaction, keycloak_transaction)
-                .await
-                .map_err(|e| anyhow!("Error preparing activity logs data into CSV: {e:?}"))?;
-
-            // Generate CSV file using generate_report_data
+            // Generate CSV file using generate_export_csv_data
             let name = format!("export-election-event-logs-{}", election_event_id);
-            let temp_file = generate_report_data(&user_data.act_log, &name)
+            let full_name = format!("{}.csv", name);
+            let temp_file = self
+                .generate_export_csv_data(&name)
                 .await
                 .map_err(|e| anyhow!("Error generating export data: {e:?}"))?;
 
@@ -356,7 +388,7 @@ impl TemplateRenderer for ActivityLogsTemplate {
                 "text/csv",
                 tenant_id,
                 Some(election_event_id.to_string()),
-                &name.clone(),
+                &full_name.clone(),
                 Some(document_id.to_string()),
                 false,
             )
@@ -414,34 +446,6 @@ impl TemplateRenderer for ActivityLogsTemplate {
     }
 }
 
-/// Maintains the generate_export_data function as before.
-/// This function can be used by other report types that need to generate CSV files.
-#[instrument(err, skip(act_log))]
-pub async fn generate_report_data(act_log: &[ActivityLogRow], name: &str) -> Result<NamedTempFile> {
-    // Create a temporary file to write CSV data
-    let mut temp_file =
-        generate_temp_file(&name, ".csv").with_context(|| "Error creating named temp file")?;
-    let mut csv_writer = WriterBuilder::new().from_writer(temp_file.as_file_mut());
-
-    for item in act_log {
-        let mut item_clean = item.clone();
-
-        // Replace newline characters in the message field
-        item_clean.message = item_clean.message.replace('\n', " ").replace('\r', " ");
-        // Serialize each item to CSV
-        csv_writer
-            .serialize(item_clean)
-            .map_err(|e| anyhow!("Error serializing to CSV: {e:?}"))?;
-    }
-    // Flush and finish writing to the temporary file
-    csv_writer
-        .flush()
-        .map_err(|e| anyhow!("Error flushing CSV writer: {e:?}"))?;
-    drop(csv_writer);
-
-    Ok(temp_file)
-}
-
 // Export data
 #[instrument(err, skip(act_log))]
 pub async fn generate_export_data(
@@ -470,4 +474,146 @@ pub async fn generate_export_data(
     drop(csv_writer);
 
     Ok(temp_file)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::services::protocol_manager::get_event_board;
+    use crate::services::reports::template_renderer::ReportOriginatedFrom;
+    use chrono::Utc;
+    use electoral_log::BoardClient;
+    use sequent_core::util::external_config::load_external_config;
+    use std::env;
+    use std::io::BufRead;
+    use std::process::Command;
+
+    const NUM_LOGS: usize = 120_000;
+    const STEP_CLI_DATA_DIR: &str = "/workspaces/step/packages/step-cli/data";
+    const STEP_CLI_BIN: &str =
+        "/workspaces/step/packages/step-cli/rust-local-target/release/step-cli";
+
+    // Run: cargo test --release test_generate_export_csv_data_120k_memory -- --nocapture --ignored
+    // To visualize results, open DHAT Viewer in a browser and upload the generated dhat-heap.json file.
+    #[tokio::test]
+    #[ignore]
+    async fn test_generate_export_csv_data_120k_memory() -> Result<()> {
+        let config = load_external_config(STEP_CLI_DATA_DIR)
+            .map_err(|e| anyhow!("Failed to load external config: {e}"))?;
+        let tenant_id = config.tenant_id;
+        let election_event_id = config.election_event_id;
+
+        let test_env_slug = format!("t{}", chrono::Utc::now().timestamp());
+        env::set_var("ENV_SLUG", &test_env_slug);
+
+        let immudb_user = env::var("IMMUDB_USER").context("IMMUDB_USER must be set")?;
+        let immudb_password = env::var("IMMUDB_PASSWORD").context("IMMUDB_PASSWORD must be set")?;
+        let immudb_server_url =
+            env::var("IMMUDB_SERVER_URL").context("IMMUDB_SERVER_URL must be set")?;
+
+        let board_name = get_event_board(&tenant_id, &election_event_id, &test_env_slug);
+        println!("board_name: {board_name}");
+
+        let mut board_client = BoardClient::new(&immudb_server_url, &immudb_user, &immudb_password)
+            .await
+            .map_err(|e| anyhow!("Failed to create BoardClient: {e:?}"))?;
+        board_client
+            .upsert_electoral_log_db(&board_name)
+            .await
+            .map_err(|e| anyhow!("Failed to create immudb database: {e:?}"))?;
+        println!("Set up immudb database: {board_name}");
+
+        let output = Command::new(STEP_CLI_BIN)
+            .args([
+                "step",
+                "create-electoral-logs",
+                "--working-directory",
+                STEP_CLI_DATA_DIR,
+                "--num-logs",
+                &NUM_LOGS.to_string(),
+            ])
+            .env("ENV_SLUG", &test_env_slug)
+            .env("IMMUDB_USER", &immudb_user)
+            .env("IMMUDB_PASSWORD", &immudb_password)
+            .env("IMMUDB_SERVER_URL", &immudb_server_url)
+            .env("DEFAULT_SQL_BATCH_SIZE", "500")
+            .env(
+                "KC_DB_URL_HOST",
+                env::var("KC_DB_URL_HOST").context("KC_DB_URL_HOST must be set")?,
+            )
+            .env(
+                "KC_DB_URL_PORT",
+                env::var("KC_DB_URL_PORT").context("KC_DB_URL_PORT must be set")?,
+            )
+            .env(
+                "KC_DB_USERNAME",
+                env::var("KC_DB_USERNAME").context("KC_DB_USERNAME must be set")?,
+            )
+            .env(
+                "KC_DB_PASSWORD",
+                env::var("KC_DB_PASSWORD").context("KC_DB_PASSWORD must be set")?,
+            )
+            .env("KC_DB", env::var("KC_DB").context("KC_DB must be set")?)
+            .output()
+            .map_err(|e| anyhow!("Failed to run step-cli: {e:?}"))?;
+
+        assert!(
+            output.status.success(),
+            "step-cli failed with status: {}",
+            output.status
+        );
+
+        let ids = ReportOrigins {
+            tenant_id: tenant_id.clone(),
+            election_event_id: election_event_id.clone(),
+            election_id: None,
+            template_alias: None,
+            voter_id: None,
+            report_origin: ReportOriginatedFrom::ReportsTab,
+            executer_username: None,
+            tally_session_id: None,
+        };
+        let template = ActivityLogsTemplate::new(ids, ReportFormat::CSV);
+        let name = format!("test-export-{election_event_id}");
+
+        // Start the profiler here so stats reflect only generate_export_csv_data
+        let _profiler = dhat::Profiler::new_heap();
+        let temp_file = template
+            .generate_export_csv_data(&name)
+            .await
+            .map_err(|e| anyhow!("generate_export_csv_data failed: {e:?}"))?;
+        let stats = dhat::HeapStats::get();
+
+        println!("Peak live heap:   {} bytes", stats.max_bytes);
+        println!(
+            "Total allocated:  {} bytes in {} blocks",
+            stats.total_bytes, stats.total_blocks,
+        );
+        println!(
+            "Current live:     {} bytes in {} blocks",
+            stats.curr_bytes, stats.curr_blocks
+        );
+
+        let metadata = std::fs::metadata(temp_file.path())
+            .map_err(|e| anyhow!("Failed to get temp file metadata: {e:?}"))?;
+        println!("CSV file size:    {} bytes", metadata.len());
+
+        let file = std::fs::File::open(temp_file.path())
+            .map_err(|e| anyhow!("Failed to open temp file: {e:?}"))?;
+        let line_count = std::io::BufReader::new(file).lines().count();
+        println!(
+            "CSV line count:   {} lines ({} data rows)",
+            line_count,
+            line_count.saturating_sub(1)
+        );
+        assert_eq!(
+            line_count - 1,
+            NUM_LOGS,
+            "expected {NUM_LOGS} data rows but got {}",
+            line_count - 1
+        );
+
+        // _profiler drops here → writes dhat-heap.json in the working directory
+        Ok(())
+    }
 }

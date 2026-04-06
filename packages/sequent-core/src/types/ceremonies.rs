@@ -6,6 +6,7 @@
 use borsh::{BorshDeserialize, BorshSerialize};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 use std::default::Default;
 use strum_macros::{Display, EnumString};
 
@@ -78,6 +79,7 @@ pub enum TallyExecutionStatus {
     STARTED,
     CONNECTED,
     IN_PROGRESS,
+    AWAITING_INPUT,
     SUCCESS,
     CANCELLED,
 }
@@ -223,6 +225,84 @@ pub enum TallyOperation {
 pub enum ScopeOperation {
     Area(TallyOperation),
     Contest(TallyOperation),
+}
+
+#[derive(
+    Debug,
+    Clone,
+    Serialize,
+    Deserialize,
+    BorshSerialize,
+    BorshDeserialize,
+    JsonSchema,
+    PartialEq,
+    Eq,
+)]
+pub enum TieBreakingMethod {
+    Random,
+    ExternalProcedure,
+}
+
+#[derive(
+    Debug,
+    Clone,
+    Serialize,
+    Deserialize,
+    BorshSerialize,
+    BorshDeserialize,
+    JsonSchema,
+    PartialEq,
+    Eq,
+)]
+pub struct TallySessionResolutionData {
+    pub round_number: Option<u64>,
+    pub tied_candidate_ids: Vec<String>,
+    pub vote_count: u64,
+    pub method_used: TieBreakingMethod,
+    pub resolved_by_candidate_id: Option<String>,
+}
+
+#[derive(
+    Debug, Clone, Serialize, Deserialize, PartialEq, Display, EnumString,
+)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum TallySessionResolutionType {
+    IrvTieBreak,
+}
+
+#[derive(
+    Debug, Clone, Serialize, Deserialize, PartialEq, Display, EnumString,
+)]
+#[serde(rename_all = "lowercase")]
+#[strum(serialize_all = "lowercase")]
+pub enum TallySessionResolutionStatus {
+    Pending,
+    Resolved,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TallySessionResolution {
+    pub id: String,
+    pub tenant_id: String,
+    pub election_event_id: String,
+    pub tally_session_id: String,
+    pub contest_id: Option<String>,
+    pub created_at: Option<chrono::DateTime<chrono::Utc>>,
+    pub last_updated_at: Option<chrono::DateTime<chrono::Utc>>,
+    pub resolution_type: TallySessionResolutionType,
+    pub status: TallySessionResolutionStatus,
+    pub resolution_data: Option<TallySessionResolutionData>,
+    pub resolved_by_user: Option<String>,
+    pub resolved_at: Option<chrono::DateTime<chrono::Utc>>,
+    pub labels: Option<Value>,
+    pub annotations: Option<Value>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TallyResolution {
+    pub contest_id: String,
+    pub selected_candidate_id: String,
 }
 
 #[derive(

@@ -340,6 +340,11 @@ const tagalogTranslation: TranslationType = {
                     "no-signature": "Walang pirma",
                     "with-signature": "May pirma",
                 },
+                voterDigitalCertPolicy: {
+                    policyLabel: "Voter Digital Certificate Policy",
+                    enabled: "Naka-enable",
+                    disabled: "Naka-disable",
+                },
                 enrollment: {
                     policyLabel: "Pagpaparehistro",
                     options: {
@@ -437,6 +442,7 @@ const tagalogTranslation: TranslationType = {
                 notifications: "Mga Abiso",
                 reports: "Ulat",
                 approvals: "Approvals",
+                cas: "Mga Sertipiko",
             },
             tally: {
                 emptyHeader: "Walang pang Tally.",
@@ -1330,8 +1336,12 @@ const tagalogTranslation: TranslationType = {
                 "plurality-at-large": "Pluralidad sa Lahat",
                 "instant-runoff": "Instant Runoff",
                 "random": "Random",
+                "external-procedure": "External Procedure",
                 "custom": "Pasadya",
                 "alphabetical": "Alpabetikal",
+            },
+            tieBreakingPolicy: {
+                label: "Patakaran sa Tie-Breaking",
             },
             auditButtonConfig: {
                 "label": "Mga Opsyon sa Pagpahiling kan Buton nin Pag-audit",
@@ -1706,6 +1716,39 @@ const tagalogTranslation: TranslationType = {
                     eliminated: "Naalis",
                     round: "Ikot",
                 },
+            },
+            pendingResolutions: {
+                round: "Ikot {{round}}",
+                tieResolutionRequired: "Kinakailangan ang resolusyon sa ugnayan",
+                tieResolved: "Naresolba ang ugnayan",
+                globalArea: "Global",
+                pendingResolutionsHeader: "Mga nakabinbing resolusyon",
+                pendingResolutionStatus: "Nakabinbing resolusyon",
+                resolvedStatus: "Naresolba",
+                resolutionTitle: "Resolusyon",
+                selectContest: "Pumili ng aytem sa kaliwa upang tingnan ang mga detalye",
+                selectCandidateToAdvance: "Piliin ang kandidatong itataguyod",
+                undoResolution: "I-undo ang resolusyon",
+                applyResolutions: "Ilapat ang mga resolusyon at muling kalkulahin",
+                submitSuccess: "Mga resolusyon isinumite. Ang pagbibilang ay nagpapatuloy...",
+                submitError: "Nabigo ang pag-isumite ng mga resolusyon. Pakisubukan muli.",
+                filter: "I-filter",
+                save: "I-save",
+                pendingApplyStatus: "Nakabinbing kalkulasyon",
+                filterElection: "Eleksyon",
+                filterContest: "Paligsahan",
+                filterArea: "Lugar",
+                filterStatusLabel: "Katayuan",
+                clearFilters: "I-clear ang mga filter",
+                candidateWithVotes: "{{name}} ({{votes}} boto)",
+                candidateWithVotesAndPercent: "{{name}} ({{votes}} boto, {{percent}}%)",
+                tieInfoTitle:
+                    "Ang pagbibilang ay natigil dahil sa hindi naresolubasiyong ugnayan (Ikot {{round}})",
+                tieInfoBody:
+                    "Mga kandidatong nagtatali ({{votes}} boto, {{percent}}%): {{candidates}}. Kinakailangan ang manu-manong pagpili para magpatuloy ang pagbibilang.",
+                tallyResumedTitle:
+                    "Nagpapatuloy na ang pagbibilang pagkatapos ilapat ang resolusyon",
+                tallyResumedBody: "Ang ugnayan ay nalutas noong {{date}} ni {{user}}",
             },
             chart: {
                 votesForCandidates: "Mga Boto para sa mga Kandidato",
@@ -2128,6 +2171,55 @@ const tagalogTranslation: TranslationType = {
                 title: "Pagsubok",
                 testElectionVoterCount: "Bilang ng mga Botante sa Pagsubok na Halalan",
             },
+        },
+        certificateAuthorities: {
+            importButton: "Mag-import ng mga sertipiko",
+            type: {
+                root: "Ugat",
+                intermediate: "Panggitna",
+            },
+            expiry: {
+                expired: "Nag-expire na",
+                expiringSoon: "Malapit nang mag-expire",
+                valid: "Wasto",
+            },
+            columns: {
+                commonName: "Karaniwang pangalan",
+                type: "Uri",
+                issuerCn: "CN ng nagbigay",
+                notBefore: "Wasto mula",
+                notAfter: "Mag-e-expire",
+                fingerprint: "SHA256 Fingerprint",
+            },
+            importDialog: {
+                title: "Mag-import ng mga awtoridad sa sertipikasyon",
+                subtitle: "Mag-import ng isa o higit pang CA na sertipiko mula sa PEM file",
+                description:
+                    "Pumili ng PEM file na naglalaman ng isa o higit pang sertipiko. Sinusuportahan ang mga bundle — ang bawat sertipiko ay ina-import nang paisa-isa.",
+                selectFile: "Pumili ng PEM file",
+                fileLoaded: "Na-load ang file ({{bytes}} bytes)",
+                importButton: "I-import",
+            },
+            notify: {
+                importSuccess:
+                    "Na-import ang {{inserted}} sertipiko. {{skipped}} nilaktawan (mayroon na).",
+                importError: "Nabigo ang pag-import: {{error}}",
+                deleteSuccess: "Nabura ang sertipiko.",
+                deleteError: "Error sa pagbura ng sertipiko.",
+            },
+            emptyHeader:
+                "Walang mga awtoridad sa sertipikasyon na na-import para sa electoral event na ito.",
+            fileReadError: "Nabigo ang pagbasa ng file.",
+            viewDialog: {
+                title: "Mga detalye ng awtoridad sa sertipikasyon",
+                subject: "Paksa",
+                issuer: "Nagbigay",
+                serialNumber: "Serial number",
+                pemContent: "Nilalaman ng PEM",
+            },
+            confirmDelete: "Burahin ang awtoridad sa sertipikasyon",
+            confirmDeleteDescription:
+                'Sigurado ka bang nais mong burahin ang sertipikong "{{name}}" (fingerprint: {{fingerprint}})?',
         },
     },
 }

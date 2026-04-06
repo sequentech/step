@@ -295,6 +295,7 @@ pub async fn generate_results_id_if_necessary(
     session_ids_opt: Option<Vec<i64>>,
     previous_execution: TallySessionExecution,
     state_opt: &Option<State>,
+    force_new_id: bool,
 ) -> Result<Option<String>> {
     if state_opt.is_none() {
         return Ok(None);
@@ -302,7 +303,7 @@ pub async fn generate_results_id_if_necessary(
     let previous_session_ids = previous_execution.session_ids.unwrap_or(vec![]);
     let session_ids = session_ids_opt.unwrap_or(vec![]);
 
-    if !(session_ids.len() > previous_session_ids.len()) {
+    if !force_new_id && !(session_ids.len() > previous_session_ids.len()) {
         return Ok(None);
     }
 
@@ -331,12 +332,14 @@ pub async fn process_results_tables(
     state_opt: Option<State>,
     tenant_id: &str,
     election_event_id: &str,
+    tally_session_id: &str,
     session_ids: Option<Vec<i64>>,
     previous_execution: TallySessionExecution,
     areas: &Vec<Area>,
     default_language: &str,
     tally_type_enum: TallyType,
     sqlite_transaction_opt: Option<&SqliteTransaction<'_>>,
+    force_new_id: bool,
 ) -> Result<Option<String>> {
     let results_event_id_opt = generate_results_id_if_necessary(
         hasura_transaction,
@@ -346,6 +349,7 @@ pub async fn process_results_tables(
         session_ids,
         previous_execution.clone(),
         &state_opt,
+        force_new_id,
     )
     .await?;
 
@@ -373,6 +377,7 @@ pub async fn process_results_tables(
             )
             .await?;
         }
+
         Ok(results_event_id_opt)
     } else {
         Ok(previous_execution.results_event_id)
@@ -386,12 +391,14 @@ pub async fn populate_results_tables(
     state_opt: Option<State>,
     tenant_id: &str,
     election_event_id: &str,
+    tally_session_id: &str,
     session_ids: Option<Vec<i64>>,
     previous_execution: TallySessionExecution,
     areas: &Vec<Area>,
     default_language: &str,
     tally_type_enum: TallyType,
     is_empty: bool,
+    force_new_id: bool,
 ) -> Result<(Option<String>, Option<TallySessionDocuments>)> {
     let velvet_output_dir = base_tally_path.join("output");
     let base_database_path = velvet_output_dir.join(PipeNameOutputDir::GenerateDatabase.as_ref());
@@ -411,12 +418,14 @@ pub async fn populate_results_tables(
                         state_opt,
                         tenant_id,
                         election_event_id,
+                        tally_session_id,
                         session_ids,
                         previous_execution,
                         areas,
                         default_language,
                         tally_type_enum,
                         Some(&sqlite_transaction),
+                        force_new_id,
                     )
                     .await
                 })?;
@@ -434,12 +443,14 @@ pub async fn populate_results_tables(
                         state_opt,
                         tenant_id,
                         election_event_id,
+                        tally_session_id,
                         session_ids,
                         previous_execution,
                         areas,
                         default_language,
                         tally_type_enum,
                         None,
+                        force_new_id,
                     )
                     .await
                 })?;
