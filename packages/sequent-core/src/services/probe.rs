@@ -6,6 +6,7 @@ use std::net::SocketAddr;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
+use prometheus::{Encoder, TextEncoder};
 use warp::Future;
 use warp::{http::Response, Filter};
 
@@ -58,21 +59,58 @@ impl ProbeHandler {
         let il = Arc::clone(&self.is_live);
         let ir = Arc::clone(&self.is_ready);
 
-        let filter =
-            warp::get().and(
-                warp::path(self.live_path.to_string())
-                    .and_then(move || {
-                        // "Any code greater than or equal to 200 and less than
-                        // 400 indicates success. Any other code indicates failure". https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/
-                        let il = Arc::clone(&il);
+        let metrics_filter = warp::path("metrics").and_then(|| async move {
+            let encoder = TextEncoder::new();
+            let families = prometheus::gather();
+            let mut buf = vec![];
+            encoder.encode(&families, &mut buf).unwrap_or_default();
+            let body = String::from_utf8(buf).unwrap_or_default();
+            Ok::<_, warp::Rejection>(
+                Response::builder()
+                    .status(warp::http::StatusCode::OK)
+                    .header("Content-Type", encoder.format_type())
+                    .body(body)
+                    .unwrap(),
+            )
+        });
+
+        let filter = warp::get().and(
+            warp::path(self.live_path.to_string())
+                .and_then(move || {
+                    // "Any code greater than or equal to 200 and less than
+                    // 400 indicates success. Any other code indicates failure". https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/
+                    let il = Arc::clone(&il);
+                    async move {
+                        let is_live = il.lock().await;
+                        let is_live_future = is_live();
+                        if is_live_future.await {
+                            Ok::<_, warp::Rejection>(
+                                Response::builder()
+                                    .status(warp::http::StatusCode::OK)
+                                    .body("Live".to_string())
+                                    .unwrap(),
+                            )
+                        } else {
+                            Ok::<_, warp::Rejection>(
+                                Response::builder()
+                                    .status(warp::http::StatusCode::BAD_REQUEST)
+                                    .body("Not live".to_string())
+                                    .unwrap(),
+                            )
+                        }
+                    }
+                })
+                .or(warp::path(self.ready_path.to_string()).and_then(
+                    move || {
+                        let ir = Arc::clone(&ir);
                         async move {
-                            let is_live = il.lock().await;
-                            let is_live_future = is_live();
-                            if is_live_future.await {
+                            let is_ready = ir.lock().await;
+                            let is_ready_future = is_ready();
+                            if is_ready_future.await {
                                 Ok::<_, warp::Rejection>(
                                     Response::builder()
                                         .status(warp::http::StatusCode::OK)
-                                        .body("Live")
+                                        .body("Ready".to_string())
                                         .unwrap(),
                                 )
                             } else {
@@ -81,35 +119,15 @@ impl ProbeHandler {
                                         .status(
                                             warp::http::StatusCode::BAD_REQUEST,
                                         )
-                                        .body("Not live")
+                                        .body("Not ready".to_string())
                                         .unwrap(),
                                 )
                             }
                         }
-                    })
-                    .or(warp::path(self.ready_path.to_string()).and_then(
-                        move || {
-                            let ir = Arc::clone(&ir);
-                            async move {
-                                let is_ready = ir.lock().await;
-                                let is_ready_future = is_ready();
-                                if is_ready_future.await {
-                                    Ok::<_, warp::Rejection>(
-                                        Response::builder()
-                                            .status(warp::http::StatusCode::OK)
-                                            .body("Ready")
-                                            .unwrap(),
-                                    )
-                                } else {
-                                    Ok::<_, warp::Rejection>(Response::builder()
-                                .status(warp::http::StatusCode::BAD_REQUEST)
-                                .body("Not ready")
-                                .unwrap())
-                                }
-                            }
-                        },
-                    )),
-            );
+                    },
+                ))
+                .or(metrics_filter),
+        );
 
         warp::serve(filter).bind(self.address)
     }

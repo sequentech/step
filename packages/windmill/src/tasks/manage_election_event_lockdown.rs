@@ -7,6 +7,7 @@ use crate::postgres::election_event::{
 };
 use crate::postgres::scheduled_event::*;
 use crate::services::database::get_hasura_pool;
+use crate::services::metrics::{on_task_failure, on_task_success};
 use crate::services::pg_lock::PgLock;
 use crate::services::providers::transactions_provider::provide_hasura_transaction;
 use crate::services::voting_status::{self};
@@ -82,7 +83,7 @@ async fn manage_election_event_lockdown_wrapped(
 
 #[instrument(err)]
 #[wrap_map_err::wrap_map_err(TaskError)]
-#[celery::task(time_limit = 10, max_retries = 0, expires = 30)]
+#[celery::task(time_limit = 10, max_retries = 0, expires = 30, on_failure = on_task_failure, on_success = on_task_success)]
 pub async fn manage_election_event_lockdown(
     tenant_id: String,
     election_event_id: String,

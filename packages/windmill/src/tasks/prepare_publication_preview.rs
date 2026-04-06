@@ -8,6 +8,7 @@ use crate::services::ballot_styles::ballot_publication::get_publication_json;
 use crate::services::database::get_hasura_pool;
 use crate::services::documents::upload_and_return_document;
 use crate::services::election_event_status::get_election_status;
+use crate::services::metrics::{on_task_failure, on_task_success};
 use crate::{
     services::tasks_execution::{update_complete, update_fail},
     types::error::Result,
@@ -35,7 +36,7 @@ pub struct PublicationPreview {
 
 #[instrument(err)]
 #[wrap_map_err::wrap_map_err(TaskError)]
-#[celery::task(max_retries = 2)]
+#[celery::task(max_retries = 2, on_failure = on_task_failure, on_success = on_task_success)]
 pub async fn prepare_publication_preview(
     tenant_id: String,
     election_event_id: String,

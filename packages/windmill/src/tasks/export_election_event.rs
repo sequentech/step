@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::services::database::get_hasura_pool;
 use crate::services::export::export_election_event::process_export_zip;
+use crate::services::metrics::{on_task_failure, on_task_success};
 use crate::services::tasks_execution::*;
 use crate::types::error::{Error, Result};
 use anyhow::Context;
@@ -29,7 +30,7 @@ pub struct ExportOptions {
 
 #[instrument(err)]
 #[wrap_map_err::wrap_map_err(TaskError)]
-#[celery::task(max_retries = 0)]
+#[celery::task(max_retries = 0, on_failure = on_task_failure, on_success = on_task_success)]
 pub async fn export_election_event(
     tenant_id: String,
     election_event_id: String,

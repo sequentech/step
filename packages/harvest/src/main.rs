@@ -14,6 +14,8 @@ use windmill::services::{
     probe::{setup_probe, AppName},
 };
 
+use crate::services::metrics_fairing::MetricsFairing;
+
 mod routes;
 mod services;
 mod types;
@@ -28,6 +30,7 @@ async fn rocket() -> _ {
     init_plugin_manager().await.unwrap();
 
     rocket::build()
+        .attach(MetricsFairing)
         .register(
             "/",
             catchers![

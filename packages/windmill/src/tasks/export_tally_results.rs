@@ -4,6 +4,7 @@
 use crate::services::export::export_tally_results::{
     export_tally_results_to_xlsx, get_tally_session_execution_results_sqlite_file,
 };
+use crate::services::metrics::{on_task_failure, on_task_success};
 use crate::services::providers::transactions_provider::provide_hasura_transaction;
 use crate::services::tasks_execution::*;
 use crate::types::error::Result;
@@ -13,7 +14,7 @@ use tracing::instrument;
 
 #[instrument(err)]
 #[wrap_map_err::wrap_map_err(TaskError)]
-#[celery::task(max_retries = 0)]
+#[celery::task(max_retries = 0, on_failure = on_task_failure, on_success = on_task_success)]
 pub async fn export_tally_results_to_xlsx_task(
     tenant_id: String,
     election_event_id: String,

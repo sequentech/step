@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::postgres::application::insert_applications;
+use crate::services::metrics::{on_task_failure, on_task_success};
 use crate::services::providers::transactions_provider::provide_hasura_transaction;
 use crate::{
     postgres::document::get_document,
@@ -23,7 +24,7 @@ use uuid::Uuid;
 
 #[instrument(err)]
 #[wrap_map_err::wrap_map_err(TaskError)]
-#[celery::task(max_retries = 2)]
+#[celery::task(max_retries = 2, on_failure = on_task_failure, on_success = on_task_success)]
 pub async fn import_applications(
     tenant_id: String,
     election_event_id: String,

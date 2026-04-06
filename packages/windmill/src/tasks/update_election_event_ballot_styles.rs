@@ -6,11 +6,12 @@ use celery::error::TaskError;
 use tracing::instrument;
 
 use crate::services::ballot_styles::ballot_style;
+use crate::services::metrics::{on_task_failure, on_task_success};
 use crate::types::error::Result;
 
 #[instrument(err)]
 #[wrap_map_err::wrap_map_err(TaskError)]
-#[celery::task(max_retries = 0)]
+#[celery::task(max_retries = 0, on_failure = on_task_failure, on_success = on_task_success)]
 pub async fn update_election_event_ballot_styles(
     tenant_id: String,
     election_event_id: String,

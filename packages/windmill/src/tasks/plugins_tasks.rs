@@ -2,6 +2,7 @@ use crate::postgres::document;
 // SPDX-FileCopyrightText: 2025 Sequent Legal <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+use crate::services::metrics::{on_task_failure, on_task_success};
 use crate::services::plugins_manager::plugin_manager;
 use crate::services::tasks_execution::*;
 use crate::types::error::Error;
@@ -15,7 +16,7 @@ use tracing::{info, instrument};
 
 #[instrument(err)]
 #[wrap_map_err::wrap_map_err(TaskError)]
-#[celery::task(max_retries = 0)]
+#[celery::task(max_retries = 0, on_failure = on_task_failure, on_success = on_task_success)]
 pub async fn execute_plugin_task(
     task: String,
     data: Value,

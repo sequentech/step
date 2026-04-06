@@ -16,6 +16,7 @@ use crate::services::database::{get_hasura_pool, get_keycloak_pool, PgConfig};
 use crate::types::error::Error;
 use deadpool_postgres::{Client as DbClient, Transaction};
 
+use crate::services::metrics::{on_task_failure, on_task_success};
 use anyhow::{anyhow, Context};
 use aws_sdk_sesv2::types::{Body, Content, Destination, EmailContent, Message as AwsMessage};
 use aws_sdk_sesv2::Client as AwsSesClient;
@@ -320,7 +321,7 @@ async fn on_success_send_message(
 
 #[instrument(err)]
 #[wrap_map_err::wrap_map_err(TaskError)]
-#[celery::task]
+#[celery::task(on_failure = on_task_failure, on_success = on_task_success)]
 pub async fn send_template(
     body: SendTemplateBody,
     tenant_id: String,

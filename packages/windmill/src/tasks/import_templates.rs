@@ -14,6 +14,7 @@ use sequent_core::serialization::deserialize_with_path::deserialize_str;
 use sequent_core::types::hasura::core::{TasksExecution, Template};
 use sequent_core::util::integrity_check::{integrity_check, HashFileVerifyError};
 
+use crate::services::metrics::{on_task_failure, on_task_success};
 use sequent_core::services::uuid_validation::parse_uuid_v4;
 use std::io::Seek;
 use tracing::{info, instrument};
@@ -102,7 +103,7 @@ pub async fn import_templates(
 
 #[instrument(err)]
 #[wrap_map_err::wrap_map_err(TaskError)]
-#[celery::task(max_retries = 0)]
+#[celery::task(max_retries = 0, on_failure = on_task_failure, on_success = on_task_success)]
 pub async fn import_templates_task(
     tenant_id: String,
     document_id: String,

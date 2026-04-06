@@ -8,6 +8,7 @@ use crate::services::election_event_board::BoardSerializable;
 use crate::services::import::import_election_event::insert_election_event_db;
 use crate::services::import::import_election_event::upsert_b3_and_elog;
 use crate::services::import::import_election_event::upsert_keycloak_realm;
+use crate::services::metrics::{on_task_failure, on_task_success};
 use crate::services::tasks_execution::{update_complete, update_fail};
 use crate::types::error::Result;
 use anyhow::{anyhow, Context, Result as AnyhowResult};
@@ -147,7 +148,7 @@ pub struct CreateElectionEventInput {
 
 #[instrument(err)]
 #[wrap_map_err::wrap_map_err(TaskError)]
-#[celery::task]
+#[celery::task(on_failure = on_task_failure, on_success = on_task_success)]
 pub async fn insert_election_event_t(
     object: CreateElectionEventInput,
     id: String,

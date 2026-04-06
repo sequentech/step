@@ -4,6 +4,7 @@
 use crate::services::consolidation::create_transmission_package_service::create_transmission_package_service;
 use crate::services::consolidation::send_transmission_package_service::send_transmission_package_service;
 use crate::services::consolidation::upload_signature_service::upload_transmission_package_signature_service;
+use crate::services::metrics::{on_task_failure, on_task_success};
 use crate::services::tasks_execution::*;
 use crate::types::error::Error;
 use crate::types::error::Result;
@@ -15,7 +16,7 @@ use tracing::{info, instrument};
 
 #[instrument(err)]
 #[wrap_map_err::wrap_map_err(TaskError)]
-#[celery::task(max_retries = 0)]
+#[celery::task(max_retries = 0, on_failure = on_task_failure, on_success = on_task_success)]
 pub async fn create_transmission_package_task(
     tenant_id: String,
     election_id: String,
@@ -69,7 +70,7 @@ pub async fn create_transmission_package_task(
 
 #[instrument(err)]
 #[wrap_map_err::wrap_map_err(TaskError)]
-#[celery::task(max_retries = 0)]
+#[celery::task(max_retries = 0, on_failure = on_task_failure, on_success = on_task_success)]
 pub async fn send_transmission_package_task(
     tenant_id: String,
     election_id: String,

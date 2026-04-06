@@ -5,6 +5,7 @@ use crate::postgres::{
     election::{get_election_by_id, update_election_presentation},
     scheduled_event::find_all_active_events,
 };
+use crate::services::metrics::{on_task_failure, on_task_success};
 use crate::services::{
     celery_app::get_celery_app,
     database::{get_hasura_pool, get_keycloak_pool},
@@ -361,7 +362,7 @@ pub async fn handle_election_allow_tally(
 
 #[instrument(err)]
 #[wrap_map_err::wrap_map_err(TaskError)]
-#[celery::task(time_limit = 10, max_retries = 0, expires = 30)]
+#[celery::task(time_limit = 10, max_retries = 0, expires = 30, on_failure = on_task_failure, on_success = on_task_success)]
 pub async fn scheduled_events(rate_seconds: u64) -> Result<()> {
     let celery_app = get_celery_app().await;
     let now = ISO8601::now();

@@ -5,6 +5,7 @@ use crate::postgres::document::insert_document;
 use crate::services::database::{get_hasura_pool, get_keycloak_pool, PgConfig};
 use crate::services::documents::upload_and_return_document;
 use crate::services::export::export_users::{export_users_file, ExportBody};
+use crate::services::metrics::{on_task_failure, on_task_success};
 use crate::services::tasks_execution::{update_complete, update_fail};
 use crate::types::error::{Error, Result};
 use anyhow::{anyhow, Context};
@@ -26,7 +27,7 @@ pub struct ExportUsersOutput {
 
 #[instrument(err)]
 #[wrap_map_err::wrap_map_err(TaskError)]
-#[celery::task(max_retries = 0)]
+#[celery::task(max_retries = 0, on_failure = on_task_failure, on_success = on_task_success)]
 pub async fn export_users(
     body: ExportBody,
     document_id: String,

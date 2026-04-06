@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::services::database::{get_hasura_pool, get_keycloak_pool};
+use crate::services::metrics::{on_task_failure, on_task_success};
 use crate::services::reports::ballot_receipt::{BallotData, BallotTemplate};
 use crate::services::reports::template_renderer::{
     GenerateReportMode, ReportOriginatedFrom, ReportOrigins, TemplateRenderer,
@@ -19,7 +20,7 @@ use tracing::instrument;
 
 #[instrument(err)]
 #[wrap_map_err::wrap_map_err(TaskError)]
-#[celery::task]
+#[celery::task(on_failure = on_task_failure, on_success = on_task_success)]
 pub async fn create_ballot_receipt(
     document_id: String,
     ballot_id: String,

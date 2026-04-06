@@ -7,6 +7,7 @@ use crate::postgres::tenant::{
 use crate::services::database::get_hasura_pool;
 use crate::services::import::import_election_event::remove_keycloak_realm_secrets;
 use crate::services::jwks::upsert_realm_jwks;
+use crate::services::metrics::{on_task_failure, on_task_success};
 use crate::services::tasks_execution::{update_complete, update_fail};
 use crate::types::error::Result;
 use ::keycloak::types::RealmRepresentation;
@@ -114,7 +115,7 @@ pub async fn process_insert_tenant(tenant_id: String, slug: String) -> Result<()
 
 #[instrument(err)]
 #[wrap_map_err::wrap_map_err(TaskError)]
-#[celery::task]
+#[celery::task(on_failure = on_task_failure, on_success = on_task_success)]
 pub async fn insert_tenant(
     tenant_id: String,
     slug: String,

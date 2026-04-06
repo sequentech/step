@@ -5,6 +5,7 @@ use crate::postgres::election_event::get_batch_election_events;
 use crate::postgres::tenant::get_tenant_by_id;
 use crate::services::celery_app::get_celery_app;
 use crate::services::database::get_hasura_pool;
+use crate::services::metrics::{on_task_failure, on_task_success};
 use crate::tasks::insert_tenant::insert_tenant;
 use crate::tasks::process_board::process_board;
 use crate::types::error::Result;
@@ -18,7 +19,7 @@ use tracing::{event, Level};
 
 #[instrument(err)]
 #[wrap_map_err::wrap_map_err(TaskError)]
-#[celery::task(expires = 30)]
+#[celery::task(expires = 30, on_failure = on_task_failure, on_success = on_task_success)]
 pub async fn review_boards() -> Result<()> {
     let limit: i64 = 100;
     let mut offset: i64 = 0;

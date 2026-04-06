@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::services::export::export_trustees::read_trustees_config;
+use crate::services::metrics::{on_task_failure, on_task_success};
 use crate::services::providers::transactions_provider::provide_hasura_transaction;
 use crate::types::error::{Error, Result as TaskResult};
 use anyhow::{anyhow, Context, Result};
@@ -39,7 +40,7 @@ async fn export_trustees_service(
 
 #[instrument(err)]
 #[wrap_map_err::wrap_map_err(TaskError)]
-#[celery::task(max_retries = 0)]
+#[celery::task(max_retries = 0, on_failure = on_task_failure, on_success = on_task_success)]
 pub async fn export_trustees_task(
     tenant_id: String,
     document_id: String,

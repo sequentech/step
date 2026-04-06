@@ -3,9 +3,11 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::postgres::tasks_execution::{insert_tasks_execution, update_task_execution_status};
+use crate::services::metrics::TASK_DURATION_SECONDS;
 use crate::services::serialize_tasks_logs::*;
 use crate::types::tasks::ETasksExecution;
 use anyhow::{Context, Result};
+use chrono::Local;
 use sequent_core::types::hasura::core::TasksExecution;
 use sequent_core::types::hasura::extra::TasksExecutionStatus;
 use serde::{Deserialize, Serialize};
@@ -64,6 +66,12 @@ pub async fn update_complete(
     task: &TasksExecution,
     document_id: Option<String>,
 ) -> Result<(), anyhow::Error> {
+    let task_type = &task.task_type;
+    let duration_secs = (Local::now() - task.created_at).num_milliseconds().max(0) as f64 / 1000.0;
+    TASK_DURATION_SECONDS
+        .with_label_values(&[task_type])
+        .observe(duration_secs);
+
     let task_id = &task.id;
     let new_status = TasksExecutionStatus::SUCCESS;
     let logs = task.logs.clone();

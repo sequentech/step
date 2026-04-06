@@ -5,6 +5,7 @@
 use crate::postgres::reports::{get_all_active_reports, update_report_last_document_time, Report};
 use crate::services::celery_app::get_celery_app;
 use crate::services::database::get_hasura_pool;
+use crate::services::metrics::{on_task_failure, on_task_success};
 use crate::services::reports::template_renderer::GenerateReportMode;
 use crate::services::tasks_execution;
 use crate::tasks::generate_report::generate_report;
@@ -83,7 +84,7 @@ fn parse_last_document_produced(date_str: &str) -> Option<DateTime<Utc>> {
 /// The Celery task for scheduling reports based on cron configuration.
 #[instrument(err)]
 #[wrap_map_err::wrap_map_err(TaskError)]
-#[celery::task(time_limit = 10, max_retries = 0, expires = 30)]
+#[celery::task(time_limit = 10, max_retries = 0, expires = 30, on_failure = on_task_failure, on_success = on_task_success)]
 pub async fn scheduled_reports(rate_seconds: u64) -> Result<()> {
     // Get the Celery app for scheduling tasks
     let celery_app = get_celery_app().await;

@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::services::import::import_tenant_config::import_tenant_config_zip;
+use crate::services::metrics::{on_task_failure, on_task_success};
 use crate::services::providers::transactions_provider::provide_hasura_transaction;
 use crate::services::tasks_execution::{update_complete, update_fail};
 use crate::{
@@ -24,7 +25,7 @@ pub struct ImportOptions {
 
 #[instrument(err)]
 #[wrap_map_err::wrap_map_err(TaskError)]
-#[celery::task]
+#[celery::task(on_failure = on_task_failure, on_success = on_task_success)]
 pub async fn import_tenant_config(
     object: ImportOptions,
     tenant_id: String,

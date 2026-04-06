@@ -14,6 +14,7 @@ use crate::services::consolidation::create_transmission_package_service::downloa
 use crate::services::consolidation::zip::compress_folder_to_zip;
 use crate::services::database::get_hasura_pool;
 use crate::services::documents::upload_and_return_document;
+use crate::services::metrics::{on_task_failure, on_task_success};
 use crate::services::reports::utils::get_public_assets_path_env_var;
 use crate::services::tasks_execution::{update, update_complete, update_fail};
 use crate::services::tasks_semaphore::acquire_semaphore;
@@ -342,7 +343,7 @@ async fn generate_template_block(
 
 #[instrument(err)]
 #[wrap_map_err::wrap_map_err(TaskError)]
-#[celery::task]
+#[celery::task(on_failure = on_task_failure, on_success = on_task_success)]
 pub async fn generate_template(
     tenant_id: String,
     document_id: String,

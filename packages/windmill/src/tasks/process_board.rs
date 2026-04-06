@@ -14,6 +14,7 @@ use crate::postgres::tally_session::get_tally_session_by_election_event_id_pendi
 use crate::postgres::tally_session::get_tally_sessions_by_election_event_id;
 use crate::services::celery_app::get_celery_app;
 use crate::services::database::get_hasura_pool;
+use crate::services::metrics::{on_task_failure, on_task_success};
 use crate::tasks::create_keys::create_keys;
 use crate::tasks::execute_tally_session::execute_tally_session;
 use crate::tasks::post_tally::post_tally_task;
@@ -116,7 +117,7 @@ pub async fn process_board_impl(tenant_id: String, election_event_id: String) ->
 
 #[instrument(err)]
 #[wrap_map_err::wrap_map_err(TaskError)]
-#[celery::task(max_retries = 0)]
+#[celery::task(max_retries = 0, on_failure = on_task_failure, on_success = on_task_success)]
 pub async fn process_board(tenant_id: String, election_event_id: String) -> Result<()> {
     process_board_impl(tenant_id, election_event_id).await?;
 

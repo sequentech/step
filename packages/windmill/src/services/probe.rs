@@ -4,6 +4,7 @@
 use crate::services::celery_app::{get_celery_app, get_celery_connection, get_queues, Queue};
 use crate::services::database::{get_hasura_pool, get_keycloak_pool};
 use crate::services::jwks::get_jwks_secret_path;
+use crate::services::metrics::{QUEUE_CONSUMERS, QUEUE_MESSAGES};
 use crate::services::providers::sms_sender::{SmsSender, SmsTransport};
 use crate::services::vault::check_master_secret;
 use core::time::Duration;
@@ -72,6 +73,13 @@ async fn check_celery(_app_name: &AppName) -> Option<bool> {
                     health.message_count,
                     health.is_consuming
                 );
+
+                QUEUE_MESSAGES
+                    .with_label_values(&[&health.queue_name])
+                    .set(health.message_count as f64);
+                QUEUE_CONSUMERS
+                    .with_label_values(&[&health.queue_name])
+                    .set(health.consumer_count as f64);
 
                 // A queue is considered unhealthy if it's supposed to have consumers but doesn't
                 // For now, we'll be permissive and only require that the connection works

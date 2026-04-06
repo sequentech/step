@@ -5,6 +5,7 @@
 use crate::postgres::scheduled_event::*;
 use crate::services::database::get_hasura_pool;
 use crate::services::election_event_status::update_event_voting_status;
+use crate::services::metrics::{on_task_failure, on_task_success};
 use crate::services::pg_lock::PgLock;
 use crate::types::error::{Error, Result};
 use anyhow::{anyhow, Result as AnyhowResult};
@@ -72,7 +73,7 @@ pub async fn manage_election_event_date_wrapped(
 
 #[instrument(err)]
 #[wrap_map_err::wrap_map_err(TaskError)]
-#[celery::task(time_limit = 10, max_retries = 0, expires = 30)]
+#[celery::task(time_limit = 10, max_retries = 0, expires = 30, on_failure = on_task_failure, on_success = on_task_success)]
 pub async fn manage_election_event_date(
     tenant_id: String,
     election_event_id: String,

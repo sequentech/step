@@ -46,6 +46,7 @@ use crate::postgres::tally_session::set_post_tally_task_completed;
 use crate::services::documents::get_document_as_temp_file;
 use tokio::time::Duration as ChronoDuration;
 
+use crate::services::metrics::{on_task_failure, on_task_success};
 use rayon::iter::IntoParallelIterator;
 use rayon::iter::ParallelIterator;
 
@@ -376,7 +377,7 @@ pub async fn post_tally_task_impl(
 
 #[instrument(err)]
 #[wrap_map_err::wrap_map_err(TaskError)]
-#[celery::task(time_limit = 1200000, max_retries = 0, expires = 15)]
+#[celery::task(time_limit = 1200000, max_retries = 0, expires = 15, on_failure = on_task_failure, on_success = on_task_success)]
 pub async fn post_tally_task(
     tenant_id: String,
     election_event_id: String,

@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+use crate::services::metrics::{on_task_failure, on_task_success};
 use crate::{
     services::{export::export_application::process_export, tasks_execution::update_fail},
     types::error::{Error, Result},
@@ -13,7 +14,7 @@ use tracing::{event, info, instrument, Level};
 
 #[instrument(err)]
 #[wrap_map_err::wrap_map_err(TaskError)]
-#[celery::task(max_retries = 0)]
+#[celery::task(max_retries = 0, on_failure = on_task_failure, on_success = on_task_success)]
 pub async fn export_application(
     tenant_id: String,
     election_event_id: String,
