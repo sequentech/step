@@ -11,8 +11,8 @@ use prometheus::{
 };
 
 lazy_static! {
-    /// Total tasks processed, labelled by task type and final status
-    /// (success | failure).
+    /// Total tasks processed, labelled by task type and outcome
+    /// (success | failure | retry).
     pub static ref TASKS_TOTAL: CounterVec = register_counter_vec!(
         "windmill_tasks_total",
         "Total number of tasks processed by windmill",
