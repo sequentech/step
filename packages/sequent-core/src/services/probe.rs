@@ -59,21 +59,46 @@ impl ProbeHandler {
         let il = Arc::clone(&self.is_live);
         let ir = Arc::clone(&self.is_ready);
 
-        let metrics_filter = warp::path("metrics").and_then(|| async move {
-            let encoder = TextEncoder::new();
-            let families = prometheus::gather();
-            let mut buf = vec![];
-            encoder.encode(&families, &mut buf).unwrap_or_default();
-            let body = String::from_utf8(buf).unwrap_or_default();
-            Ok::<_, warp::Rejection>(
-                Response::builder()
-                    .status(warp::http::StatusCode::OK)
-                    .header("Content-Type", encoder.format_type())
-                    .body(body)
-                    .unwrap(),
-            )
-        });
+        let metrics_filter = warp::path("metrics")
+            .and(warp::path::end())
+            .and_then(|| async move {
+                let encoder = TextEncoder::new();
+                let families = prometheus::gather();
+                let mut buf = vec![];
 
+                if let Err(err) = encoder.encode(&families, &mut buf) {
+                    eprintln!("failed to encode prometheus metrics: {err}");
+                    return Ok::<_, warp::Rejection>(
+                        Response::builder()
+                            .status(warp::http::StatusCode::INTERNAL_SERVER_ERROR)
+                            .body("Failed to encode metrics".to_string())
+                            .unwrap(),
+                    );
+                }
+
+                let body = match String::from_utf8(buf) {
+                    Ok(body) => body,
+                    Err(err) => {
+                        eprintln!("failed to convert prometheus metrics to UTF-8: {err}");
+                        return Ok::<_, warp::Rejection>(
+                            Response::builder()
+                                .status(
+                                    warp::http::StatusCode::INTERNAL_SERVER_ERROR,
+                                )
+                                .body("Failed to render metrics".to_string())
+                                .unwrap(),
+                        );
+                    }
+                };
+
+                Ok::<_, warp::Rejection>(
+                    Response::builder()
+                        .status(warp::http::StatusCode::OK)
+                        .header("Content-Type", encoder.format_type())
+                        .body(body)
+                        .unwrap(),
+                )
+            });
         let filter = warp::get().and(
             warp::path(self.live_path.to_string())
                 .and_then(move || {
