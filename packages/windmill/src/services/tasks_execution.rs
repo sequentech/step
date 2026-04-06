@@ -87,6 +87,12 @@ pub async fn update_complete(
 // TODO filter also by tenant-id and document-id
 #[instrument(skip_all, err)]
 pub async fn update_fail(task: &TasksExecution, err_message: &str) -> Result<(), anyhow::Error> {
+    let task_type = &task.task_type;
+    let duration_secs = (Local::now() - task.created_at).num_milliseconds().max(0) as f64 / 1000.0;
+    TASK_DURATION_SECONDS
+        .with_label_values(&[task_type])
+        .observe(duration_secs);
+
     let task_id = &task.id;
     let new_status = TasksExecutionStatus::FAILED;
     let logs = task.logs.clone();

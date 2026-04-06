@@ -11,6 +11,10 @@ use rocket::fairing::{Fairing, Info, Kind};
 use rocket::{Data, Request, Response};
 use std::time::Instant;
 
+/// Label used for requests that don't match any registered Rocket route
+/// (e.g. 404s or pre-routing failures).
+const UNKNOWN_ROUTE: &str = "unknown";
+
 lazy_static! {
     static ref HTTP_REQUESTS_TOTAL: CounterVec = register_counter_vec!(
         "harvest_http_requests_total",
@@ -73,7 +77,7 @@ impl Fairing for MetricsFairing {
         let route = req
             .route()
             .map(|r| r.uri.to_string())
-            .unwrap_or_else(|| "unknown".to_string());
+            .unwrap_or_else(|| UNKNOWN_ROUTE.to_string());
         let status = res.status().code.to_string();
 
         HTTP_REQUESTS_TOTAL

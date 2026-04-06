@@ -9,6 +9,15 @@ use prometheus::{
     register_counter_vec, register_gauge_vec, register_histogram_vec, CounterVec, GaugeVec,
     HistogramVec,
 };
+use strum_macros::Display;
+
+#[derive(Display, Debug)]
+#[strum(serialize_all = "lowercase")]
+pub enum TaskOutcome {
+    Success,
+    Failure,
+    Retry,
+}
 
 lazy_static! {
     /// Total tasks processed, labelled by task type and outcome
@@ -55,18 +64,20 @@ lazy_static! {
 /// Retries are recorded separately so operators can distinguish transient noise
 /// from permanent failures.
 pub async fn on_task_failure<T: Task>(task: &T, err: &TaskError) {
-    let status = if matches!(err, TaskError::Retry(_)) {
-        "retry"
+    let outcome = if matches!(err, TaskError::Retry(_)) {
+        TaskOutcome::Retry
     } else {
-        "failure"
+        TaskOutcome::Failure
     };
-    TASKS_TOTAL.with_label_values(&[task.name(), status]).inc();
+    TASKS_TOTAL
+        .with_label_values(&[task.name(), &outcome.to_string()])
+        .inc();
 }
 
 /// Celery `on_success` callback — add to every `#[celery::task]` annotation.
 pub async fn on_task_success<T: Task>(task: &T, _ret: &T::Returns) {
     TASKS_TOTAL
-        .with_label_values(&[task.name(), "success"])
+        .with_label_values(&[task.name(), &TaskOutcome::Success.to_string()])
         .inc();
 }
 
@@ -91,12 +102,13 @@ mod tests {
     #[test]
     fn test_task_counter_labels() {
         let _ = &*TASKS_TOTAL;
+        let success = TaskOutcome::Success.to_string();
         TASKS_TOTAL
-            .with_label_values(&["IMPORT_USERS", "success"])
+            .with_label_values(&["IMPORT_USERS", &success])
             .inc();
         assert!(
             TASKS_TOTAL
-                .with_label_values(&["IMPORT_USERS", "success"])
+                .with_label_values(&["IMPORT_USERS", &success])
                 .get()
                 >= 1.0
         );
