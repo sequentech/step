@@ -15,6 +15,7 @@ use crate::postgres::election_event::get_election_event_by_id;
 use crate::postgres::keys_ceremony::get_keys_ceremonies;
 use crate::postgres::scheduled_event::find_scheduled_event_by_election_event_id;
 use crate::services::database::get_hasura_pool;
+use crate::services::documents::upload_and_return_public_event_document;
 use crate::services::election_dates::get_election_dates;
 use crate::types::error::{Error, Result};
 use anyhow::{anyhow, Context, Result as AnyhowResult};
@@ -29,6 +30,7 @@ use sequent_core::types::hasura::core::{
 use sequent_core::types::scheduled_event::ScheduledEvent;
 
 use std::collections::{HashMap, HashSet};
+use std::io::Write;
 use tracing::{event, instrument, Level};
 use uuid::Uuid;
 
@@ -184,6 +186,50 @@ pub async fn create_ballot_style_postgres(
     Ok(())
 }
 
+/// Creates a JSON file with the election event presentation and uploads it to S3 public bucket.
+pub async fn create_public_election_event_presentation_file(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event: &ElectionEvent,
+) -> AnyhowResult<()> {
+    let election_presentation = election_event.get_presentation()?;
+    if let Some(election_presentation) = election_presentation {
+        let id = Uuid::new_v4().to_string();
+
+        // Create JSON object with presentation data
+        let presentation_data = serde_json::json!({
+            "id": id,
+            "tenant_id": tenant_id,
+            "election_event_id": election_event.id,
+            "election_event_presentation": election_presentation
+        });
+
+        let presentation_json = serde_json::to_string(&presentation_data)?;
+
+        // Write to temp file
+        let mut temp_file = tempfile::NamedTempFile::new()?;
+        temp_file.write_all(presentation_json.as_bytes())?;
+
+        let temp_file_path = temp_file.path().to_string_lossy().to_string();
+        let file_size = presentation_json.len() as u64;
+
+        // Upload to S3 public bucket with election_event_id in path
+        let _document = upload_and_return_public_event_document(
+            hasura_transaction,
+            &temp_file_path,
+            file_size,
+            "application/json",
+            tenant_id,
+            election_event.id.as_str(),
+            "election_event_config.json",
+            Some(id),
+        )
+        .await?;
+    }
+
+    Ok(())
+}
+
 #[instrument(err)]
 pub async fn update_election_event_ballot_styles(
     tenant_id: &str,
@@ -291,6 +337,9 @@ pub async fn update_election_event_ballot_styles(
         None,
     )
     .await?;
+
+    create_public_election_event_presentation_file(&transaction, tenant_id, &election_event)
+        .await?;
 
     let _commit = transaction.commit().await.with_context(|| "Commit failed");
     lock.release().await?;

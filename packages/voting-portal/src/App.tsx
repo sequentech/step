@@ -2,11 +2,12 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import React, {useEffect, useContext, useMemo} from "react"
+import React, {useEffect, useContext, useMemo, useCallback} from "react"
 import {Outlet, ScrollRestoration, useLocation, useParams} from "react-router-dom"
 import {styled} from "@mui/material/styles"
 import {Footer, Header, PageBanner} from "@sequentech/ui-essentials"
 import {
+    ELanguageDetectionPolicy,
     EVotingPortalCountdownPolicy,
     IElectionEventPresentation,
     applyPresentationLanguagePolicy,
@@ -19,7 +20,7 @@ import {TenantEventType} from "."
 import {ApolloWrapper} from "./providers/ApolloContextProvider"
 import {VotingPortalError, VotingPortalErrorType} from "./services/VotingPortalError"
 import {useAppSelector} from "./store/hooks"
-import {selectElectionById, selectElectionIds} from "./store/elections/electionsSlice"
+import {selectElectionIds} from "./store/elections/electionsSlice"
 import {
     selectBallotStyleByElectionId,
     selectBallotStyleElectionIds,
@@ -29,7 +30,12 @@ import WatermarkBackground from "./components/WaterMark/Watermark"
 import SequentLogo from "@sequentech/ui-essentials/public/Sequent_logo.svg"
 import BlankLogoImg from "@sequentech/ui-essentials/public/blank_logo.svg"
 import {useElectionClassName} from "./hooks/useElectionClassName"
-
+interface ElectionEventConfigDocument {
+    id: string
+    tenant_id: string
+    election_event_id: string
+    election_event_presentation: IElectionEventPresentation
+}
 const StyledApp = styled(Stack)`
     min-height: 100vh;
 
@@ -112,7 +118,7 @@ const App = () => {
     const {globalSettings} = useContext(SettingsContext)
     const location = useLocation()
     const {tenantId, eventId} = useParams<TenantEventType>()
-    const {isAuthenticated, setTenantEvent} = useContext(AuthContext)
+    const {isAuthenticated, setTenantEvent, setDefaultLocale} = useContext(AuthContext)
 
     const electionIds = useAppSelector(selectElectionIds)
     const ballotStyleElectionIds = useAppSelector(selectBallotStyleElectionIds)
@@ -137,23 +143,62 @@ const App = () => {
         location.pathname,
     ])
 
+    const electionEventConfigUrl = `${globalSettings.PUBLIC_BUCKET_URL}tenant-${tenantId}/event-${eventId}/election_event_config.json`
+
+    // Set up tenant and event in AuthContext on initial load.
+    // It is needed to fetch the election event config file from S3
+    // and apply the language policy before loading any other data.
+    const setupTenantEvent = useCallback(async () => {
+        if (!tenantId || !eventId) {
+            return
+        }
+
+        const isRegisterFlow = location.pathname.includes("/enroll")
+        const mode = isRegisterFlow ? "register" : "login"
+
+        try {
+            const response = await fetch(electionEventConfigUrl)
+
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}`)
+            }
+
+            const config = (await response.json()) as ElectionEventConfigDocument
+            const presentation = config.election_event_presentation
+            const languageConf = presentation?.language_conf
+
+            if (
+                languageConf &&
+                languageConf.language_detection_policy === ELanguageDetectionPolicy.FORCE_DEFAULT
+            ) {
+                setDefaultLocale(languageConf.default_language_code)
+            }
+            setTenantEvent(tenantId, eventId, mode)
+        } catch (error) {
+            console.error("Error loading election event config:", error)
+            setTenantEvent(tenantId, eventId, mode)
+        }
+    }, [tenantId, eventId, electionEventConfigUrl, setTenantEvent, setDefaultLocale])
+
     useEffect(() => {
+        if (isAuthenticated) {
+            return
+        }
+
         const isDemo = sessionStorage.getItem("isDemo")
 
-        if (!isAuthenticated && !globalSettings.DISABLE_AUTH && isDemo) {
+        if (!globalSettings.DISABLE_AUTH && isDemo) {
             const areaId = sessionStorage.getItem("areaId")
             const documentId = sessionStorage.getItem("documentId")
             const publicationId = sessionStorage.getItem("publicationId")
+
             navigate(`/preview/${tenantId}/${documentId}/${areaId}/${publicationId}`)
             window.location.reload()
-        } else if (!isAuthenticated && !!tenantId && !!eventId) {
-            setTenantEvent(
-                tenantId,
-                eventId,
-                location.pathname.includes("/enroll") ? "register" : "login"
-            )
+            return
         }
-    }, [tenantId, eventId, isAuthenticated, setTenantEvent, globalSettings.DISABLE_AUTH])
+
+        void setupTenantEvent()
+    }, [isAuthenticated, globalSettings.DISABLE_AUTH, navigate, tenantId, setupTenantEvent])
 
     useEffect(() => {
         // Apply language policy from presentation

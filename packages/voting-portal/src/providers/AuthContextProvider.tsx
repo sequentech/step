@@ -73,6 +73,8 @@ export interface AuthContextValues {
     isGoldUser: () => boolean
 
     reauthWithGold: (redirectUri: string) => Promise<void>
+
+    setDefaultLocale: (locale?: string) => void
 }
 
 interface UserProfile {
@@ -101,6 +103,7 @@ const defaultAuthContextValues: AuthContextValues = {
     openProfileLink: () => new Promise(() => undefined),
     isGoldUser: () => false,
     reauthWithGold: async () => {},
+    setDefaultLocale: () => {},
 }
 
 /**
@@ -138,6 +141,7 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
     const [tenantId, setTenantId] = useState<string | null>(null)
     const [eventId, setEventId] = useState<string | null>(null)
     const [authType, setAuthType] = useState<"register" | "login" | null>(null)
+    const [defaultLocale, setDefaultLocale] = useState<string | undefined>(undefined)
 
     const {i18n} = useTranslation()
 
@@ -274,7 +278,7 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
                     // opening the app or reloading the page). If not authenticated the user will
                     // be send to the login form. If already authenticated the webapp will open.
                     checkLoginIframe: false,
-                    locale: getLanguageFromURL(),
+                    locale: getLanguageFromURL() || defaultLocale,
                 }
                 const isAuthenticatedResponse = await keycloak.init(keycloakInitOptions)
 
@@ -379,10 +383,16 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
         }
     }, [keycloak, isAuthenticated, isKeycloakInitialized])
 
-    const setTenantEvent = (tenantId: string, eventId: string, authType?: "register" | "login") => {
+    const setTenantEvent = (
+        tenantId: string,
+        eventId: string,
+        authType?: "register" | "login",
+        defaultLocale?: string
+    ) => {
         setTenantId(tenantId)
         setEventId(eventId)
         authType && setAuthType(authType)
+        defaultLocale && setDefaultLocale(defaultLocale)
     }
 
     const getRedirectUrl = (redirectUrl?: string) => {

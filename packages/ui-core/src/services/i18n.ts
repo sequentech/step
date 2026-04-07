@@ -15,6 +15,9 @@ import dutchTranslation from "../translations/nl"
 import basqueTranslation from "../translations/eu"
 import {IElectionEventPresentation} from "../types/ElectionEventPresentation"
 import {ELanguageDetectionPolicy, ILanguageConf} from "@root/types/LanguageConf"
+import {getValueFromCookie} from "@root/utils/cookies"
+
+export const KEYCLOAK_LANG_COOKIE_NAME = "KEYCLOAK_LANG"
 
 export const initializeLanguages = (externalTranslations: Resource, language?: string) => {
     const libTranslations: Resource = {
@@ -89,6 +92,7 @@ export const initializeLanguages = (externalTranslations: Resource, language?: s
 
 export const getLanguages = (i18n: I18N) => Object.keys(i18n.services.resourceStore.data)
 
+/// Applies language detection policy defined in language config, if any.
 export const applyLanguagePolicy = (languageConf: ILanguageConf | undefined): boolean => {
     if (!languageConf || !languageConf.language_detection_policy) {
         return false
@@ -108,6 +112,9 @@ export const applyLanguagePolicy = (languageConf: ILanguageConf | undefined): bo
     return false
 }
 
+/// Applies language policy defined in election event presentation, if any
+/// Url search param "lang" > cookie > presentation policy > browser settings
+/// The Url search param "lang" is checked in i18n initialization.
 export const applyPresentationLanguagePolicy = (
     presentation: IElectionEventPresentation | undefined
 ): boolean => {
@@ -123,6 +130,11 @@ export const applyPresentationLanguagePolicy = (
         }
     }
 
+    let langfromCookie: string | undefined = getValueFromCookie(KEYCLOAK_LANG_COOKIE_NAME)
+    if (langfromCookie) {
+        i18n.changeLanguage(langfromCookie)
+        return true
+    }
     return applyLanguagePolicy(presentation.language_conf)
 }
 
