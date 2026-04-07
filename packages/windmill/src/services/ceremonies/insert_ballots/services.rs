@@ -17,27 +17,27 @@ use crate::repositories::ballots::BallotRepository;
 use crate::repositories::election_event::ElectionEventRepository;
 use crate::repositories::trustees::TrusteeRepository;
 use crate::repositories::voters::EligibleUserRepository;
-use crate::services::public_keys::deserialize_public_key;
 use crate::services::join::merge_join_csv;
+use crate::services::public_keys::deserialize_public_key;
 use anyhow::{anyhow, Result};
 use async_trait::async_trait;
 use b3::messages::statement::StatementType;
 use futures::stream::{self, StreamExt, TryStreamExt};
 use sequent_core::ballot::{ContestEncryptionPolicy, DelegatedVotingPolicy, HashableBallot};
+use sequent_core::multi_ballot::HashableMultiBallot;
+use sequent_core::serialization::deserialize_with_path::deserialize_str;
 use sequent_core::services::keycloak::get_event_realm;
 use sequent_core::types::hasura::core::{TallySessionContest, TallySessionContestAnnotations};
 use std::collections::HashMap;
 use std::collections::HashSet;
-use tempfile::NamedTempFile;
-use tracing::{event, instrument, Level};
-use sequent_core::multi_ballot::HashableMultiBallot;
-use sequent_core::serialization::deserialize_with_path::deserialize_str;
 use std::fs::File;
 use std::path::Path;
 use std::sync::Arc;
 use strand::backend::ristretto::RistrettoCtx;
 use strand::elgamal::Ciphertext;
 use strand::signature::StrandSignaturePk;
+use tempfile::NamedTempFile;
+use tracing::{event, instrument, Level};
 
 #[derive(Clone)]
 pub(super) struct InsertBallotsRequest {

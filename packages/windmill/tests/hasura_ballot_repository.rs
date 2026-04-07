@@ -21,7 +21,10 @@ async fn export_area_ballots_returns_all_voters_when_each_has_one_vote() -> Resu
             VoteSeed::new("voter-a", "{\"ballot\":\"alpha\"}", "2026-01-01T09:00:00Z"),
             VoteSeed::new("voter-b", "{\"ballot\":\"beta\"}", "2026-01-01T09:05:00Z"),
         ],
-        &[row("voter-a", "{\"ballot\":\"alpha\"}"), row("voter-b", "{\"ballot\":\"beta\"}")],
+        &[
+            row("voter-a", "{\"ballot\":\"alpha\"}"),
+            row("voter-b", "{\"ballot\":\"beta\"}"),
+        ],
     )
     .await
 }
@@ -93,7 +96,11 @@ impl BallotRepositoryHarness {
         })
     }
 
-    async fn seed_votes(&self, transaction: &Transaction<'_>, votes: &[VoteSeed<'_>]) -> Result<()> {
+    async fn seed_votes(
+        &self,
+        transaction: &Transaction<'_>,
+        votes: &[VoteSeed<'_>],
+    ) -> Result<()> {
         self.seed_reference_rows(transaction).await?;
 
         for vote in votes {
@@ -134,11 +141,7 @@ impl BallotRepositoryHarness {
                 )
                 VALUES ($1, $2, $3)
                 "#,
-                &[
-                    &self.election_event_id,
-                    &self.tenant_id,
-                    &"test-protocol",
-                ],
+                &[&self.election_event_id, &self.tenant_id, &"test-protocol"],
             )
             .await?;
 

@@ -30,7 +30,8 @@ async fn shared_postgres() -> Result<&'static SharedPostgres> {
 }
 
 async fn init_shared_postgres() -> Result<SharedPostgres> {
-    let mut image = Postgres::default().with_init_sql(DEVCONTAINER_BOOTSTRAP_SQL.as_bytes().to_vec());
+    let mut image =
+        Postgres::default().with_init_sql(DEVCONTAINER_BOOTSTRAP_SQL.as_bytes().to_vec());
 
     for migration_sql in migration_sql_scripts()? {
         image = image.with_init_sql(migration_sql);
@@ -72,7 +73,10 @@ fn migration_sql_scripts() -> Result<Vec<Vec<u8>>> {
         .map(|dir| {
             let migration_path = dir.join("up.sql");
             fs::read(&migration_path).with_context(|| {
-                format!("failed to read migration script {}", migration_path.display())
+                format!(
+                    "failed to read migration script {}",
+                    migration_path.display()
+                )
             })
         })
         .collect()
