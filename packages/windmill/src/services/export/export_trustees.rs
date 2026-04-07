@@ -4,6 +4,7 @@
 use super::export_election_event::generate_encrypted_zip;
 use crate::postgres::trustee::get_all_trustees;
 use crate::services::documents::upload_and_return_document;
+use crate::services::metrics::PrometheusTaskObserver;
 use crate::services::tasks_execution::{update_complete, update_fail};
 use crate::services::vault::{self, get_vault, VaultManagerType};
 use anyhow::{anyhow, Context, Result};
@@ -120,16 +121,22 @@ pub async fn read_trustees_config(
 
     match res {
         Ok(_) => {
-            update_complete(&task_execution, Some(document_id.to_string()))
-                .await
-                .context("Failed to update task execution status to COMPLETED")?;
+            update_complete(
+                &task_execution,
+                Some(document_id.to_string()),
+                &PrometheusTaskObserver,
+            )
+            .await
+            .context("Failed to update task execution status to COMPLETED")?;
             Ok(())
         }
         Err(err) => {
             let err_str = format!("Failed reading trustees config: {err:?}");
-            update_fail(&task_execution, &err_str).await.context(
-                "Failed to update task reading trustees config execution status to FAILED",
-            )?;
+            update_fail(&task_execution, &err_str, &PrometheusTaskObserver)
+                .await
+                .context(
+                    "Failed to update task reading trustees config execution status to FAILED",
+                )?;
             Err(err)
         }
     }

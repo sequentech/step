@@ -5,7 +5,7 @@ use crate::postgres::document::insert_document;
 use crate::services::database::{get_hasura_pool, get_keycloak_pool, PgConfig};
 use crate::services::documents::upload_and_return_document;
 use crate::services::export::export_users::{export_users_file, ExportBody};
-use crate::services::metrics::{on_task_failure, on_task_success};
+use crate::services::metrics::{on_task_failure, on_task_success, PrometheusTaskObserver};
 use crate::services::tasks_execution::{update_complete, update_fail};
 use crate::types::error::{Error, Result};
 use anyhow::{anyhow, Context};
@@ -37,7 +37,12 @@ pub async fn export_users(
         Ok(client) => client,
         Err(err) => {
             if let Some(task_execution) = &task_execution {
-                update_fail(task_execution, "Failed to get Hasura DB pool").await;
+                update_fail(
+                    task_execution,
+                    "Failed to get Hasura DB pool",
+                    &PrometheusTaskObserver,
+                )
+                .await;
             }
             return Err(Error::String(format!(
                 "Error getting Hasura DB pool: {}",
@@ -50,7 +55,12 @@ pub async fn export_users(
         Ok(transaction) => transaction,
         Err(err) => {
             if let Some(task_execution) = &task_execution {
-                update_fail(&task_execution, "Failed to start Hasura transaction").await?;
+                update_fail(
+                    &task_execution,
+                    "Failed to start Hasura transaction",
+                    &PrometheusTaskObserver,
+                )
+                .await?;
             }
             return Err(Error::String(format!(
                 "Error starting Hasura transaction: {err}"
@@ -63,7 +73,7 @@ pub async fn export_users(
         Ok(result) => result,
         Err(err) => {
             if let Some(task_execution) = &task_execution {
-                update_fail(&task_execution, &err.to_string()).await?;
+                update_fail(&task_execution, &err.to_string(), &PrometheusTaskObserver).await?;
             }
             return Err(Error::String(format!("Error listing users: {err:?}")));
         }
@@ -87,7 +97,12 @@ pub async fn export_users(
         Ok(timestamp) => timestamp,
         Err(err) => {
             if let Some(task_execution) = &task_execution {
-                update_fail(&task_execution, "Failed to obtain timestamp").await?;
+                update_fail(
+                    &task_execution,
+                    "Failed to obtain timestamp",
+                    &PrometheusTaskObserver,
+                )
+                .await?;
             }
             return Err(Error::String(format!("Error obtaining timestamp: {err}")));
         }
@@ -112,7 +127,12 @@ pub async fn export_users(
         Ok(_) => (),
         Err(err) => {
             if let Some(task_execution) = &task_execution {
-                update_fail(&task_execution, "Failed to upload file to s3").await?;
+                update_fail(
+                    &task_execution,
+                    "Failed to upload file to s3",
+                    &PrometheusTaskObserver,
+                )
+                .await?;
             }
             return Err(Error::String(format!("Error uploading file to s3: {err}")));
         }
@@ -141,9 +161,13 @@ pub async fn export_users(
     .map_err(|err| format!("Error inserting document: {:?}", err))?;
 
     if let Some(task_execution) = &task_execution {
-        update_complete(&task_execution, Some(document_id.to_string()))
-            .await
-            .context("Failed to update task execution status to COMPLETED")?;
+        update_complete(
+            &task_execution,
+            Some(document_id.to_string()),
+            &PrometheusTaskObserver,
+        )
+        .await
+        .context("Failed to update task execution status to COMPLETED")?;
     }
 
     hasura_transaction

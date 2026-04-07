@@ -10,6 +10,7 @@ use crate::services::consolidation::aes_256_cbc_encrypt::encrypt_file_aes_256_cb
 use crate::services::consolidation::zip::compress_folder_to_zip;
 use crate::services::database::get_hasura_pool;
 use crate::services::documents::upload_and_return_document;
+use crate::services::metrics::PrometheusTaskObserver;
 use crate::services::providers::email_sender::{Attachment, EmailSender};
 use crate::services::reports_vault::get_report_secret_key;
 use crate::services::tasks_execution::{update_complete, update_fail};
@@ -493,6 +494,7 @@ pub trait TemplateRenderer: Debug {
                     block_on(update_fail(
                         task,
                         &format!("Failed to provide user template and extra config: {e:?}"),
+                        &PrometheusTaskObserver,
                     ))
                     .ok();
                 }
@@ -749,7 +751,7 @@ pub trait TemplateRenderer: Debug {
         }
 
         if let Some(task) = task_execution_ref {
-            update_complete(task, Some(document_id.to_string()))
+            update_complete(task, Some(document_id.to_string()), &PrometheusTaskObserver)
                 .await
                 .context("Failed to update task execution status to COMPLETED")?;
         }
@@ -780,9 +782,13 @@ pub trait TemplateRenderer: Debug {
             Ok(template) => template,
             Err(err) => {
                 if let Some(task) = task_execution.as_ref() {
-                    update_fail(task, &format!("Failed to generate report {err:?}"))
-                        .await
-                        .ok();
+                    update_fail(
+                        task,
+                        &format!("Failed to generate report {err:?}"),
+                        &PrometheusTaskObserver,
+                    )
+                    .await
+                    .ok();
                 }
                 return Err(anyhow!("Error rendering report: {err:?}"));
             }

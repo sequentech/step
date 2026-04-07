@@ -12,6 +12,7 @@ use serde::{Deserialize, Serialize};
 use tracing::instrument;
 use uuid::Uuid;
 use windmill::services::celery_app::get_celery_app;
+use windmill::services::metrics::PrometheusTaskObserver;
 use windmill::services::tasks_execution::*;
 use windmill::types::tasks::ETasksExecution;
 
@@ -83,6 +84,7 @@ pub async fn export_application_route(
             update_fail(
                 &task_execution,
                 &format!("Error sending export_application task: {error:?}"),
+                &PrometheusTaskObserver,
             )
             .await;
             return Err((
@@ -93,8 +95,12 @@ pub async fn export_application_route(
         Ok(task) => task,
     };
 
-    let _res =
-        update_complete(&task_execution, Some(document_id.clone())).await;
+    let _res = update_complete(
+        &task_execution,
+        Some(document_id.clone()),
+        &PrometheusTaskObserver,
+    )
+    .await;
 
     let output = ExportApplicationOutput {
         document_id,

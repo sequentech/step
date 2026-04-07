@@ -49,15 +49,6 @@ lazy_static! {
 
 struct RequestStart(Instant);
 
-/// Force all metric statics to initialize and register with the prometheus
-/// global registry. Call once at startup so metrics appear in `/metrics`
-/// before the first HTTP request arrives.
-pub fn init_metrics() {
-    let _ = &*HTTP_REQUESTS_TOTAL;
-    let _ = &*HTTP_REQUEST_DURATION_SECONDS;
-    let _ = &*HTTP_REQUESTS_IN_FLIGHT;
-}
-
 pub struct MetricsFairing;
 
 #[rocket::async_trait]

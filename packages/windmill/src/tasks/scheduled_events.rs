@@ -9,7 +9,6 @@ use crate::services::metrics::{on_task_failure, on_task_success};
 use crate::services::{
     celery_app::get_celery_app,
     database::{get_hasura_pool, get_keycloak_pool},
-    tasks_execution::update_fail,
 };
 use crate::tasks::{
     manage_election_allow_tally::manage_election_allow_tally,

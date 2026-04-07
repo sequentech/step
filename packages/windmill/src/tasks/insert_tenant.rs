@@ -7,7 +7,7 @@ use crate::postgres::tenant::{
 use crate::services::database::get_hasura_pool;
 use crate::services::import::import_election_event::remove_keycloak_realm_secrets;
 use crate::services::jwks::upsert_realm_jwks;
-use crate::services::metrics::{on_task_failure, on_task_success};
+use crate::services::metrics::{on_task_failure, on_task_success, PrometheusTaskObserver};
 use crate::services::tasks_execution::{update_complete, update_fail};
 use crate::types::error::Result;
 use ::keycloak::types::RealmRepresentation;
@@ -126,12 +126,12 @@ pub async fn insert_tenant(
         if let Err(err) = res {
             let err_str = format!("Error inserting tenant: {}", err);
             event!(Level::ERROR, err_str);
-            update_fail(&task_execution, &err_str)
+            update_fail(&task_execution, &err_str, &PrometheusTaskObserver)
                 .await
                 .context("Failed to update task insert tenant to FAILED")?;
             return Err(err);
         }
-        update_complete(&task_execution, None)
+        update_complete(&task_execution, None, &PrometheusTaskObserver)
             .await
             .context("Failed to update task execution status to COMPLETED")?;
     }

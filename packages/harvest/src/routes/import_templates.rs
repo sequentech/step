@@ -18,6 +18,7 @@ use windmill::{
 };
 
 use windmill::services::celery_app::get_celery_app;
+use windmill::services::metrics::PrometheusTaskObserver;
 use windmill::services::tasks_execution::*;
 use windmill::types::tasks::ETasksExecution;
 
@@ -71,6 +72,7 @@ pub async fn import_templates_route(
         let _ = update_fail(
             &task_execution,
             &format!("Failed to authorize executing the task: {error:?}"),
+            &PrometheusTaskObserver,
         )
         .await;
         return Err(error);

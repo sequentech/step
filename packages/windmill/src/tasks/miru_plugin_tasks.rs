@@ -4,7 +4,7 @@
 use crate::services::consolidation::create_transmission_package_service::create_transmission_package_service;
 use crate::services::consolidation::send_transmission_package_service::send_transmission_package_service;
 use crate::services::consolidation::upload_signature_service::upload_transmission_package_signature_service;
-use crate::services::metrics::{on_task_failure, on_task_success};
+use crate::services::metrics::{on_task_failure, on_task_success, PrometheusTaskObserver};
 use crate::services::tasks_execution::*;
 use crate::types::error::Error;
 use crate::types::error::Result;
@@ -46,7 +46,12 @@ pub async fn create_transmission_package_task(
                             "Captured backtrace inside spawn_blocking:\n{}",
                             err.backtrace()
                         );
-                        update_fail(&task_execution_clone, &err.to_string()).await?;
+                        update_fail(
+                            &task_execution_clone,
+                            &err.to_string(),
+                            &PrometheusTaskObserver,
+                        )
+                        .await?;
                         Err(anyhow::Error::from(err)
                             .context("Failed to create transmission package"))
                     }
@@ -61,7 +66,7 @@ pub async fn create_transmission_package_task(
         Err(join_error) => Err(Error::from(anyhow!("Task panicked: {}", join_error))),
     }?;
 
-    update_complete(&task_execution, None)
+    update_complete(&task_execution, None, &PrometheusTaskObserver)
         .await
         .context("Failed to update task execution status to COMPLETED")?;
 

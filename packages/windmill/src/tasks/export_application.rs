@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use crate::services::metrics::{on_task_failure, on_task_success};
+use crate::services::metrics::{on_task_failure, on_task_success, PrometheusTaskObserver};
 use crate::{
     services::{export::export_application::process_export, tasks_execution::update_fail},
     types::error::{Error, Result},
@@ -27,7 +27,7 @@ pub async fn export_application(
         Ok(_) => (),
         Err(err) => {
             let err_str = format!("Error sending export_application task: {err:?}");
-            update_fail(&task_execution, &err_str).await;
+            update_fail(&task_execution, &err_str, &PrometheusTaskObserver).await;
             return Err(Error::String(err_str));
         }
     }

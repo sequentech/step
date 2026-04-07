@@ -14,6 +14,7 @@ use serde::{Deserialize, Serialize};
 use tracing::{event, instrument, Level};
 use windmill::postgres::tenant;
 use windmill::services::celery_app::get_celery_app;
+use windmill::services::metrics::PrometheusTaskObserver;
 use windmill::services::tasks_execution::*;
 use windmill::services::tasks_execution::{update_complete, update_fail};
 use windmill::tasks::delete_election_event;
@@ -67,6 +68,7 @@ pub async fn delete_election_event_f(
         let _ = update_fail(
             &task_execution,
             &format!("Failed to authorize executing the task: {error:?}"),
+            &PrometheusTaskObserver,
         )
         .await;
         return Err(error);

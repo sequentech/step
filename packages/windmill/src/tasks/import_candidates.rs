@@ -5,6 +5,7 @@
 use crate::postgres::candidate::insert_candidates;
 use crate::postgres::contest::export_contests;
 use crate::postgres::election_event::get_election_event_by_id;
+use crate::services::metrics::PrometheusTaskObserver;
 use crate::services::tasks_execution::*;
 use crate::{
     postgres::document::get_document,
@@ -294,7 +295,12 @@ pub async fn import_candidates_task(
     let mut hasura_db_client: DbClient = match get_hasura_pool().await.get().await {
         Ok(client) => client,
         Err(err) => {
-            update_fail(&task_execution, "Failed to get Hasura DB pool").await?;
+            update_fail(
+                &task_execution,
+                "Failed to get Hasura DB pool",
+                &PrometheusTaskObserver,
+            )
+            .await?;
             return Err(anyhow!("Error getting Hasura DB pool: {}", err));
         }
     };
@@ -302,7 +308,12 @@ pub async fn import_candidates_task(
     let hasura_transaction = match hasura_db_client.transaction().await {
         Ok(transaction) => transaction,
         Err(err) => {
-            update_fail(&task_execution, "Failed to start Hasura transaction").await?;
+            update_fail(
+                &task_execution,
+                "Failed to start Hasura transaction",
+                &PrometheusTaskObserver,
+            )
+            .await?;
             return Err(anyhow!("Error starting Hasura transaction: {err}"));
         }
     };
@@ -310,11 +321,21 @@ pub async fn import_candidates_task(
     let document = match get_document(&hasura_transaction, &tenant_id, None, &document_id).await {
         Ok(Some(document)) => document,
         Ok(None) => {
-            update_fail(&task_execution, "Document not found").await?;
+            update_fail(
+                &task_execution,
+                "Document not found",
+                &PrometheusTaskObserver,
+            )
+            .await?;
             return Err(anyhow!("Document not found"));
         }
         Err(err) => {
-            update_fail(&task_execution, "Error obtaining the document").await?;
+            update_fail(
+                &task_execution,
+                "Error obtaining the document",
+                &PrometheusTaskObserver,
+            )
+            .await?;
             return Err(anyhow!("Error obtaining the document: {err:?}"));
         }
     };
@@ -323,7 +344,12 @@ pub async fn import_candidates_task(
     {
         Ok(contests) => contests,
         Err(err) => {
-            update_fail(&task_execution, "Document not found").await?;
+            update_fail(
+                &task_execution,
+                "Document not found",
+                &PrometheusTaskObserver,
+            )
+            .await?;
             return Err(anyhow!("Error obtaining the contests: {err:?}"));
         }
     };
@@ -331,7 +357,12 @@ pub async fn import_candidates_task(
     let mut temp_file = match get_document_as_temp_file(&tenant_id, &document).await {
         Ok(temp_file) => temp_file,
         Err(err) => {
-            update_fail(&task_execution, "Document not found").await?;
+            update_fail(
+                &task_execution,
+                "Document not found",
+                &PrometheusTaskObserver,
+            )
+            .await?;
             return Err(anyhow!("Error obtaining the tmp document: {err:?}"));
         }
     };
@@ -345,12 +376,12 @@ pub async fn import_candidates_task(
             }
             Err(HashFileVerifyError::HashMismatch(input_hash, gen_hash)) => {
                 let err_str = format!("Failed to verify the integrity: Hash of voters file: {gen_hash} does not match with the input hash: {input_hash}");
-                update_fail(&task_execution, &err_str).await?;
+                update_fail(&task_execution, &err_str, &PrometheusTaskObserver).await?;
                 return Err(anyhow!(err_str));
             }
             Err(err) => {
                 let err_str = format!("Failed to verify the integrity: {err:?}");
-                update_fail(&task_execution, &err_str).await?;
+                update_fail(&task_execution, &err_str, &PrometheusTaskObserver).await?;
                 return Err(anyhow!(err_str));
             }
         },
@@ -426,7 +457,12 @@ pub async fn import_candidates_task(
             }
             Err(err) => {
                 event!(Level::ERROR, "Error reading CSV record: {:?}", err);
-                update_fail(&task_execution, "Error reading CSV record").await?;
+                update_fail(
+                    &task_execution,
+                    "Error reading CSV record",
+                    &PrometheusTaskObserver,
+                )
+                .await?;
                 return Err(anyhow!("Error reading CSV record: {}", err));
             }
         }
@@ -442,7 +478,12 @@ pub async fn import_candidates_task(
     {
         Ok(_) => (),
         Err(err) => {
-            update_fail(&task_execution, "Error inserting candidates to db").await?;
+            update_fail(
+                &task_execution,
+                "Error inserting candidates to db",
+                &PrometheusTaskObserver,
+            )
+            .await?;
             return Err(anyhow!("Inserting candidates failed: {:?}", err));
         }
     }
@@ -450,14 +491,23 @@ pub async fn import_candidates_task(
     match hasura_transaction.commit().await {
         Ok(_) => (),
         Err(err) => {
-            update_fail(&task_execution, "Error updating db").await?;
+            update_fail(
+                &task_execution,
+                "Error updating db",
+                &PrometheusTaskObserver,
+            )
+            .await?;
             return Err(anyhow!("Commit failed: {}", err));
         }
     };
 
-    update_complete(&task_execution, Some(document_id.clone()))
-        .await
-        .context("Failed to update task execution status to COMPLETED")?;
+    update_complete(
+        &task_execution,
+        Some(document_id.clone()),
+        &PrometheusTaskObserver,
+    )
+    .await
+    .context("Failed to update task execution status to COMPLETED")?;
 
     Ok(())
 }

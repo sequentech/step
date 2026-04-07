@@ -25,7 +25,7 @@ async fn rocket() -> _ {
     dotenv().ok();
     init_log(true);
 
-    setup_probe(AppName::HARVEST).await;
+    setup_probe(AppName::Harvest).await;
     set_is_app_active(true);
     init_plugin_manager().await.unwrap();
 

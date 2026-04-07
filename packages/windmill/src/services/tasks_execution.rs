@@ -3,15 +3,35 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::postgres::tasks_execution::{insert_tasks_execution, update_task_execution_status};
-use crate::services::metrics::TASK_DURATION_SECONDS;
 use crate::services::serialize_tasks_logs::*;
 use crate::types::tasks::ETasksExecution;
 use anyhow::{Context, Result};
-use chrono::Local;
 use sequent_core::types::hasura::core::TasksExecution;
 use sequent_core::types::hasura::extra::TasksExecutionStatus;
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
+
+/// Observer notified when a tracked task transitions to a terminal state.
+///
+/// Implementations record task outcomes to an observability backend without
+/// coupling the persistence layer to any specific metrics infrastructure.
+/// This keeps `tasks_execution` testable with a no-op stand-in and makes
+/// the observability strategy swappable at the composition root.
+///
+/// # Contract
+///
+/// - `on_completed` is called after the DB record is successfully updated to
+///   `SUCCESS`. It must not be called when the DB update itself errors.
+/// - `on_failed` is called after the DB record is successfully updated to
+///   `FAILED`. Same constraint applies.
+/// - Implementations must never propagate panics or errors: an observability
+///   failure must never abort the application service call path.
+pub trait TaskObserver: Send + Sync {
+    /// Called when a task transitions to the `SUCCESS` state.
+    fn on_completed(&self, task: &TasksExecution);
+    /// Called when a task transitions to the `FAILED` state.
+    fn on_failed(&self, task: &TasksExecution);
+}
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct TaskAnnotations {
@@ -62,37 +82,32 @@ pub async fn update(
 
 // TODO filter also by tenant-id and document-id
 #[instrument(skip_all, err)]
-pub async fn update_complete(
+pub async fn update_complete<O: TaskObserver>(
     task: &TasksExecution,
     document_id: Option<String>,
+    observer: &O,
 ) -> Result<(), anyhow::Error> {
-    let task_type = &task.task_type;
-    let duration_secs = (Local::now() - task.created_at).num_milliseconds().max(0) as f64 / 1000.0;
-    TASK_DURATION_SECONDS
-        .with_label_values(&[task_type])
-        .observe(duration_secs);
-
     let task_id = &task.id;
     let new_status = TasksExecutionStatus::SUCCESS;
     let logs = task.logs.clone();
     let new_msg = "Task completed successfully";
     let new_logs = serde_json::to_value(append_general_log(&logs, new_msg))?;
 
-    update(&task.tenant_id, &task_id, new_status, new_logs, document_id)
+    update(&task.tenant_id, task_id, new_status, new_logs, document_id)
         .await
         .context("Failed to update task execution record")?;
+
+    observer.on_completed(task);
     Ok(())
 }
 
 // TODO filter also by tenant-id and document-id
 #[instrument(skip_all, err)]
-pub async fn update_fail(task: &TasksExecution, err_message: &str) -> Result<(), anyhow::Error> {
-    let task_type = &task.task_type;
-    let duration_secs = (Local::now() - task.created_at).num_milliseconds().max(0) as f64 / 1000.0;
-    TASK_DURATION_SECONDS
-        .with_label_values(&[task_type])
-        .observe(duration_secs);
-
+pub async fn update_fail<O: TaskObserver>(
+    task: &TasksExecution,
+    err_message: &str,
+    observer: &O,
+) -> Result<(), anyhow::Error> {
     let task_id = &task.id;
     let new_status = TasksExecutionStatus::FAILED;
     let logs = task.logs.clone();
@@ -112,5 +127,6 @@ pub async fn update_fail(task: &TasksExecution, err_message: &str) -> Result<(),
     .await
     .context("Failed to update task execution record with failure status")?;
 
+    observer.on_failed(task);
     Ok(())
 }

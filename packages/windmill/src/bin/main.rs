@@ -106,7 +106,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 async fn async_main(opt: CeleryOpt) -> Result<()> {
     init_log(true);
-    setup_probe(AppName::WINDMILL).await;
+    setup_probe(AppName::Windmill).await;
 
     let cpus = get_worker_threads();
     init_semaphore(cpus);

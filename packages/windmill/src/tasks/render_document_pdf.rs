@@ -7,7 +7,7 @@ use crate::services::compress::extract_archive_to_temp_dir;
 use crate::services::consolidation::create_transmission_package_service::download_tally_tar_gz_to_file;
 use crate::services::database::get_hasura_pool;
 use crate::services::documents::{get_document_as_temp_file, upload_and_return_document};
-use crate::services::metrics::{on_task_failure, on_task_success};
+use crate::services::metrics::{on_task_failure, on_task_success, PrometheusTaskObserver};
 use crate::services::tasks_execution::{update_complete, update_fail};
 use crate::types::error::{Error as WrapError, Result as WrapResult};
 use anyhow::{anyhow, Context, Result};
@@ -160,10 +160,20 @@ pub async fn render_document_pdf_task_wrap(
     .await
     {
         Ok(_) => {
-            update_complete(&task_execution, Some(output_document_id.clone())).await?;
+            update_complete(
+                &task_execution,
+                Some(output_document_id.clone()),
+                &PrometheusTaskObserver,
+            )
+            .await?;
         }
         Err(err) => {
-            update_fail(&task_execution, format!("{:?}", err).as_str()).await?;
+            update_fail(
+                &task_execution,
+                format!("{:?}", err).as_str(),
+                &PrometheusTaskObserver,
+            )
+            .await?;
             return Err(err);
         }
     };

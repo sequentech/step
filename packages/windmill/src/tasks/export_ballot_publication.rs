@@ -4,7 +4,7 @@
 use crate::postgres::ballot_publication::get_ballot_publication_by_id;
 use crate::services::database::get_hasura_pool;
 use crate::services::export::export_ballot_publication::process_export_ballot_publication;
-use crate::services::metrics::{on_task_failure, on_task_success};
+use crate::services::metrics::{on_task_failure, on_task_success, PrometheusTaskObserver};
 use crate::services::tasks_execution::*;
 use crate::types::error::{Error, Result};
 use anyhow::{anyhow, Context};
@@ -29,7 +29,7 @@ pub async fn export_ballot_publication(
         Ok(client) => client,
         Err(err) => {
             let err_str = format!("Error getting Hasura DB pool: {err:?}");
-            update_fail(&task_execution, &err_str).await;
+            update_fail(&task_execution, &err_str, &PrometheusTaskObserver).await;
             return Err(Error::String(err_str));
         }
     };
@@ -38,7 +38,7 @@ pub async fn export_ballot_publication(
         Ok(transaction) => transaction,
         Err(err) => {
             let err_str = format!("Failed to start Hasura transaction: {err:?}");
-            update_fail(&task_execution, &err_str).await;
+            update_fail(&task_execution, &err_str, &PrometheusTaskObserver).await;
             return Err(Error::String(err_str));
         }
     };
@@ -56,6 +56,7 @@ pub async fn export_ballot_publication(
             update_fail(
                 &task_execution,
                 &format!("Ballot Publication not found by id={ballot_publication_id:?}"),
+                &PrometheusTaskObserver,
             )
             .await?;
             return Err(Error::String(format!(
@@ -66,6 +67,7 @@ pub async fn export_ballot_publication(
             update_fail(
                 &task_execution,
                 &format!("Error obtaining ballot by id: {err:?}"),
+                &PrometheusTaskObserver,
             )
             .await?;
             return Err(Error::String(format!(
@@ -87,7 +89,7 @@ pub async fn export_ballot_publication(
     {
         Ok(_) => (),
         Err(err) => {
-            update_fail(&task_execution, &err.to_string()).await?;
+            update_fail(&task_execution, &err.to_string(), &PrometheusTaskObserver).await?;
             return Err(Error::String(format!(
                 "Failed to export ballot publication data: {err:?}"
             )));
@@ -98,14 +100,18 @@ pub async fn export_ballot_publication(
         Ok(_) => (),
         Err(err) => {
             let err_str = format!("Commit failed: {err:?}");
-            update_fail(&task_execution, &err_str).await;
+            update_fail(&task_execution, &err_str, &PrometheusTaskObserver).await;
             return Err(Error::String(err_str));
         }
     };
 
-    update_complete(&task_execution, Some(document_id.to_string()))
-        .await
-        .context("Failed to update task execution status to COMPLETED")?;
+    update_complete(
+        &task_execution,
+        Some(document_id.to_string()),
+        &PrometheusTaskObserver,
+    )
+    .await
+    .context("Failed to update task execution status to COMPLETED")?;
 
     Ok(())
 }

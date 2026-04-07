@@ -4,7 +4,7 @@
 
 use crate::services::database::get_hasura_pool;
 use crate::services::export::export_tenant_config::process_export_zip;
-use crate::services::metrics::{on_task_failure, on_task_success};
+use crate::services::metrics::{on_task_failure, on_task_success, PrometheusTaskObserver};
 use crate::services::tasks_execution::*;
 use crate::types::error::{Error, Result};
 use anyhow::Context;
@@ -26,7 +26,8 @@ pub async fn export_tenant_config(
         Ok(client) => client,
         Err(err) => {
             let err_str = format!("Failed to get Hasura DB pool: {err:?}");
-            if let Err(err) = update_fail(&task_execution, &err_str).await {
+            if let Err(err) = update_fail(&task_execution, &err_str, &PrometheusTaskObserver).await
+            {
                 event!(
                     Level::ERROR,
                     "Failed to update task execution status to FAILED: {:?}",
@@ -41,7 +42,8 @@ pub async fn export_tenant_config(
         Ok(transaction) => transaction,
         Err(err) => {
             let err_str = format!("Failed to start Hasura transaction: {err:?}");
-            if let Err(err) = update_fail(&task_execution, &err_str).await {
+            if let Err(err) = update_fail(&task_execution, &err_str, &PrometheusTaskObserver).await
+            {
                 event!(
                     Level::ERROR,
                     "Failed to update task execution status to FAILED: {:?}",
@@ -57,7 +59,9 @@ pub async fn export_tenant_config(
         Ok(_) => (),
         Err(err) => {
             let err_str = format!("Failed to export tenant config zip: {err:?}");
-            if let Err(update_err) = update_fail(&task_execution, &err_str).await {
+            if let Err(update_err) =
+                update_fail(&task_execution, &err_str, &PrometheusTaskObserver).await
+            {
                 event!(
                     Level::ERROR,
                     "Failed to update task execution status to FAILED: {:?}",
@@ -72,7 +76,8 @@ pub async fn export_tenant_config(
         Ok(_) => (),
         Err(err) => {
             let err_str = format!("Commit failed: {err:?}");
-            if let Err(err) = update_fail(&task_execution, &err_str).await {
+            if let Err(err) = update_fail(&task_execution, &err_str, &PrometheusTaskObserver).await
+            {
                 event!(
                     Level::ERROR,
                     "Failed to update task execution status to FAILED: {:?}",
@@ -83,9 +88,13 @@ pub async fn export_tenant_config(
         }
     };
 
-    update_complete(&task_execution, Some(document_id.to_string()))
-        .await
-        .context("Failed to update task execution status to COMPLETED")?;
+    update_complete(
+        &task_execution,
+        Some(document_id.to_string()),
+        &PrometheusTaskObserver,
+    )
+    .await
+    .context("Failed to update task execution status to COMPLETED")?;
 
     Ok(())
 }

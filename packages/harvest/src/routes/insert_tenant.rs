@@ -12,6 +12,7 @@ use serde::{Deserialize, Serialize};
 use tracing::{event, instrument, Level};
 use uuid::Uuid;
 use windmill::services::celery_app::get_celery_app;
+use windmill::services::metrics::PrometheusTaskObserver;
 use windmill::services::tasks_execution::*;
 use windmill::tasks;
 use windmill::types::tasks::ETasksExecution;
@@ -60,6 +61,7 @@ pub async fn insert_tenant(
         let _ = update_fail(
             &task_execution,
             &format!("Failed to authorize executing the task: {error:?}"),
+            &PrometheusTaskObserver,
         )
         .await;
         return Err(error);

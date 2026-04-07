@@ -14,7 +14,7 @@ use sequent_core::serialization::deserialize_with_path::deserialize_str;
 use sequent_core::types::hasura::core::{TasksExecution, Template};
 use sequent_core::util::integrity_check::{integrity_check, HashFileVerifyError};
 
-use crate::services::metrics::{on_task_failure, on_task_success};
+use crate::services::metrics::{on_task_failure, on_task_success, PrometheusTaskObserver};
 use sequent_core::services::uuid_validation::parse_uuid_v4;
 use std::io::Seek;
 use tracing::{info, instrument};
@@ -119,12 +119,18 @@ pub async fn import_templates_task(
     .await;
     match result {
         Ok(_) => {
-            let _res = update_complete(&task_execution, Some(document_id.clone())).await;
+            let _res = update_complete(
+                &task_execution,
+                Some(document_id.clone()),
+                &PrometheusTaskObserver,
+            )
+            .await;
             Ok(())
         }
         Err(err) => {
             let err_str = format!("Error importing templates: {err:?}");
-            let _res = update_fail(&task_execution, &err.to_string()).await;
+            let _res =
+                update_fail(&task_execution, &err.to_string(), &PrometheusTaskObserver).await;
             Err(err_str.into())
         }
     }

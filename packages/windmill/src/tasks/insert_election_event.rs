@@ -8,7 +8,7 @@ use crate::services::election_event_board::BoardSerializable;
 use crate::services::import::import_election_event::insert_election_event_db;
 use crate::services::import::import_election_event::upsert_b3_and_elog;
 use crate::services::import::import_election_event::upsert_keycloak_realm;
-use crate::services::metrics::{on_task_failure, on_task_success};
+use crate::services::metrics::{on_task_failure, on_task_success, PrometheusTaskObserver};
 use crate::services::tasks_execution::{update_complete, update_fail};
 use crate::types::error::Result;
 use anyhow::{anyhow, Context, Result as AnyhowResult};
@@ -40,7 +40,12 @@ pub async fn insert_election_event_anyhow(
     let mut db_client = match get_hasura_pool().await.get().await {
         Ok(client) => client,
         Err(err) => {
-            update_fail(&task_execution, "Failed to get Hasura DB pool").await?;
+            update_fail(
+                &task_execution,
+                "Failed to get Hasura DB pool",
+                &PrometheusTaskObserver,
+            )
+            .await?;
             return Err(anyhow!("Failed to get Hasura DB pool: {err}").into());
         }
     };
@@ -48,7 +53,12 @@ pub async fn insert_election_event_anyhow(
     let hasura_transaction = match db_client.transaction().await {
         Ok(transaction) => transaction,
         Err(err) => {
-            update_fail(&task_execution, "Failed to start Hasura transaction").await?;
+            update_fail(
+                &task_execution,
+                "Failed to start Hasura transaction",
+                &PrometheusTaskObserver,
+            )
+            .await?;
             return Err(anyhow!("Failed to start Hasura transaction: {err}").into());
         }
     };
@@ -64,6 +74,7 @@ pub async fn insert_election_event_anyhow(
             update_fail(
                 &task_execution,
                 "Failed to update task execution status to COMPLETED",
+                &PrometheusTaskObserver,
             )
             .await?;
             return Err(anyhow!(
@@ -78,6 +89,7 @@ pub async fn insert_election_event_anyhow(
             update_fail(
                 &task_execution,
                 "Failed to update task execution status to COMPLETED",
+                &PrometheusTaskObserver,
             )
             .await?;
             return Err(
@@ -112,12 +124,17 @@ pub async fn insert_election_event_anyhow(
     match hasura_transaction.commit().await {
         Ok(_) => (),
         Err(err) => {
-            update_fail(&task_execution, "Failed to commit Hasura transaction").await?;
+            update_fail(
+                &task_execution,
+                "Failed to commit Hasura transaction",
+                &PrometheusTaskObserver,
+            )
+            .await?;
             return Err(anyhow!("Failed to commit Hasura transaction: {err}").into());
         }
     };
 
-    update_complete(&task_execution, None)
+    update_complete(&task_execution, None, &PrometheusTaskObserver)
         .await
         .context("Failed to update task execution status to COMPLETED")
 }

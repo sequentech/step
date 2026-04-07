@@ -4,7 +4,7 @@
 use crate::services::export::export_tally_results::{
     export_tally_results_to_xlsx, get_tally_session_execution_results_sqlite_file,
 };
-use crate::services::metrics::{on_task_failure, on_task_success};
+use crate::services::metrics::{on_task_failure, on_task_success, PrometheusTaskObserver};
 use crate::services::providers::transactions_provider::provide_hasura_transaction;
 use crate::services::tasks_execution::*;
 use crate::types::error::Result;
@@ -50,12 +50,18 @@ pub async fn export_tally_results_to_xlsx_task(
 
     match result {
         Ok(_) => {
-            let _res = update_complete(&task_execution, Some(document_id.clone())).await;
+            let _res = update_complete(
+                &task_execution,
+                Some(document_id.clone()),
+                &PrometheusTaskObserver,
+            )
+            .await;
             Ok(())
         }
         Err(err) => {
             let err_str = format!("Error importing applications: {err:?}");
-            let _res = update_fail(&task_execution, &err.to_string()).await;
+            let _res =
+                update_fail(&task_execution, &err.to_string(), &PrometheusTaskObserver).await;
             Err(err_str.into())
         }
     }

@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use crate::services::metrics::{on_task_failure, on_task_success};
+use crate::services::metrics::{on_task_failure, on_task_success, PrometheusTaskObserver};
 use crate::types::error::Error;
 use crate::{
     services::{
@@ -27,12 +27,12 @@ pub async fn export_templates(
     let res = process_export(&tenant_id, &document_id).await;
     if let Err(err) = res {
         let err_str = format!("Error process export templates: {}", err);
-        update_fail(&task_execution, &err_str)
+        update_fail(&task_execution, &err_str, &PrometheusTaskObserver)
             .await
             .context("Failed to update task export templates to FAILED")?;
         return Err(Error::from(err));
     }
-    update_complete(&task_execution, None)
+    update_complete(&task_execution, None, &PrometheusTaskObserver)
         .await
         .context("Failed to update task execution status to COMPLETED")?;
     Ok(())
