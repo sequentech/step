@@ -99,7 +99,7 @@ SPDX-License-Identifier: AGPL-3.0-only
                                 <#assign i = 1>
                                 <#list locale.supported as l>
                                     <li class="${properties.kcLocaleListItemClass!}" role="none">
-                                        <a role="menuitem" id="language-${i}" class="${properties.kcLocaleItemClass!}" href="${l.url}" data-lang="${l.languageTag!}">${l.label}</a>
+                                        <a role="menuitem" id="language-${i}" class="${properties.kcLocaleItemClass!}" href="${l.url}">${l.label}</a>
                                     </li>
                                     <#assign i++>
                                 </#list>
@@ -216,29 +216,6 @@ SPDX-License-Identifier: AGPL-3.0-only
         <p>${kcSanitize(msg("loginFooter"))?no_esc}</p>
     </div>
   </main>
-  <script>
-        (function () {
-            function setSessionLangCookie(lang) {
-            document.cookie =
-                "KEYCLOAK_LANG=" + encodeURIComponent(lang) +
-                "; Path=/" +
-                "; Max-Age=" + (60 * 60 * 24) + // 1 day
-                "; SameSite=Lax";
-            }
-            function getLangFromHref(href) {
-            const u = new URL(href, window.location.origin);
-            return u.searchParams.get("kc_locale") || u.searchParams.get("locale");
-            }
-            document.querySelectorAll('#language-switch1 a[href]').forEach(function (link) {
-            link.addEventListener('click', function () {
-                const lang = getLangFromHref(link.href);
-                if (lang) {
-                setSessionLangCookie(lang);
-                }
-            });
-            });
-        })();
-    </script>
 </body>
 </html>
 </#macro>

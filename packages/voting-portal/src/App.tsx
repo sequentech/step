@@ -118,7 +118,8 @@ const App = () => {
     const {globalSettings} = useContext(SettingsContext)
     const location = useLocation()
     const {tenantId, eventId} = useParams<TenantEventType>()
-    const {isAuthenticated, setTenantEvent, setDefaultLocale} = useContext(AuthContext)
+    const {isAuthenticated, setTenantEvent, setDefaultLocale, userSelectedLocale} =
+        useContext(AuthContext)
 
     const electionIds = useAppSelector(selectElectionIds)
     const ballotStyleElectionIds = useAppSelector(selectBallotStyleElectionIds)
@@ -204,9 +205,12 @@ const App = () => {
         // Apply language policy from presentation
         // Priority: query param > FORCE_DEFAULT policy > browser detection
         if (ballotStyle?.ballot_eml.election_event_presentation) {
-            applyPresentationLanguagePolicy(ballotStyle.ballot_eml.election_event_presentation)
+            applyPresentationLanguagePolicy(
+                ballotStyle.ballot_eml.election_event_presentation,
+                userSelectedLocale
+            )
         }
-    }, [ballotStyle?.ballot_eml.election_event_presentation?.language_conf])
+    }, [ballotStyle?.ballot_eml.election_event_presentation?.language_conf, userSelectedLocale])
 
     return (
         <StyledAppWrapper

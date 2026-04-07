@@ -39,6 +39,8 @@ use sequent_core::services::date::ISO8601;
 
 use sequent_core::services::area_tree::TreeNode;
 
+pub const EVENT_PRESENTATION_DOCUMENT_NAME: &str = "election_event_config.json";
+
 /**
  * Returns a HashMap<election_id, set<contest_id>> with all
  * the election ids and contest ids related to an area,
@@ -221,7 +223,7 @@ pub async fn create_public_election_event_presentation_file(
             "application/json",
             tenant_id,
             election_event.id.as_str(),
-            "election_event_config.json",
+            EVENT_PRESENTATION_DOCUMENT_NAME,
             Some(id),
         )
         .await?;

@@ -13,8 +13,9 @@ use crate::postgres::election_event::get_election_event_by_id;
 use crate::postgres::keys_ceremony::get_keys_ceremonies;
 use crate::postgres::reports::get_reports_by_election_event_id;
 use crate::postgres::trustee::get_all_trustees;
+use crate::services::ballot_styles::ballot_style::EVENT_PRESENTATION_DOCUMENT_NAME;
 use crate::services::database::get_hasura_pool;
-use crate::services::export::export_ballot_publication;
+use crate::services::export::export_ballot_publication::{self, export_election_event_config_file};
 use crate::services::import::import_election_event::ImportElectionEventSchema;
 use crate::services::reports::activity_log;
 use crate::services::reports::activity_log::{ActivityLogsTemplate, ReportFormat};
@@ -630,6 +631,23 @@ pub async fn process_export_zip(
             .map_err(|e| anyhow!("Error opening temporary ballot publications file: {e:?}"))?;
         std::io::copy(&mut ballot_publication_file, &mut zip_writer)
             .map_err(|e| anyhow!("Error copying ballot publications file to ZIP: {e:?}"))?;
+
+        /// Handle election event config file (which is created in ballot publication)
+        let election_event_config =
+            format!("{EVENT_PRESENTATION_DOCUMENT_NAME}_{election_event_id}.json");
+
+        zip_writer
+            .start_file(&election_event_config, options)
+            .map_err(|e| anyhow!("Error starting election event config file in ZIP: {e:?}"))?;
+        let election_event_config_temp_path =
+            export_election_event_config_file(tenant_id, election_event_id)
+                .await
+                .map_err(|err| anyhow!("Error exporting election event config file: {err}"))?;
+
+        let mut election_event_config_file = File::open(election_event_config_temp_path)
+            .map_err(|e| anyhow!("Error opening temporary election event config file: {e:?}"))?;
+        std::io::copy(&mut election_event_config_file, &mut zip_writer)
+            .map_err(|e| anyhow!("Error copying election event config file to ZIP: {e:?}"))?;
     }
 
     // add protocol manager secrets

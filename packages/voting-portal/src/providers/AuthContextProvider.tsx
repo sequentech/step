@@ -75,6 +75,8 @@ export interface AuthContextValues {
     reauthWithGold: (redirectUri: string) => Promise<void>
 
     setDefaultLocale: (locale?: string) => void
+
+    userSelectedLocale: string | undefined
 }
 
 interface UserProfile {
@@ -104,6 +106,7 @@ const defaultAuthContextValues: AuthContextValues = {
     isGoldUser: () => false,
     reauthWithGold: async () => {},
     setDefaultLocale: () => {},
+    userSelectedLocale: undefined,
 }
 
 /**
@@ -142,6 +145,7 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
     const [eventId, setEventId] = useState<string | null>(null)
     const [authType, setAuthType] = useState<"register" | "login" | null>(null)
     const [defaultLocale, setDefaultLocale] = useState<string | undefined>(undefined)
+    const [userSelectedLocale, setUserSelectedLocale] = useState<string | undefined>(undefined)
 
     const {i18n} = useTranslation()
 
@@ -357,6 +361,7 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
 
             try {
                 const profile = await keycloak.loadUserProfile()
+
                 setUserProfile((val) => ({
                     ...val,
                     userId: profile?.id || val?.userId,
@@ -364,6 +369,11 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
                     firstName: profile?.firstName || val?.firstName,
                     username: profile?.username || val?.username,
                 }))
+
+                const localeArray = profile?.attributes?.locale as string[] | undefined
+                if (localeArray?.[0]) {
+                    setUserSelectedLocale(localeArray[0])
+                }
 
                 const newTenantId: string | undefined = (profile as any)?.attributes[
                     "tenant-id"
@@ -383,16 +393,10 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
         }
     }, [keycloak, isAuthenticated, isKeycloakInitialized])
 
-    const setTenantEvent = (
-        tenantId: string,
-        eventId: string,
-        authType?: "register" | "login",
-        defaultLocale?: string
-    ) => {
+    const setTenantEvent = (tenantId: string, eventId: string, authType?: "register" | "login") => {
         setTenantId(tenantId)
         setEventId(eventId)
         authType && setAuthType(authType)
-        defaultLocale && setDefaultLocale(defaultLocale)
     }
 
     const getRedirectUrl = (redirectUrl?: string) => {
@@ -490,6 +494,8 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
                 keycloakAccessToken,
                 isGoldUser,
                 reauthWithGold,
+                setDefaultLocale,
+                userSelectedLocale,
             }}
         >
             {props.children}
