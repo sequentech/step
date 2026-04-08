@@ -8313,7 +8313,7 @@ enum certificate_authority_constraint {
   """
   unique or primary key constraint on columns "tenant_id", "fingerprint_sha256", "election_event_id"
   """
-  certificate_authority_tenant_id_election_event_id_fingerprint_s
+  certificate_authority_tenant_id_election_event_id_fingerpri_key
 }
 
 """
