@@ -58027,7 +58027,7 @@
             "deprecationReason": null
           },
           {
-            "name": "certificate_authority_tenant_id_election_event_id_fingerprint_s",
+            "name": "certificate_authority_tenant_id_election_event_id_fingerpri_key",
             "description": "unique or primary key constraint on columns \"tenant_id\", \"fingerprint_sha256\", \"election_event_id\"",
             "isDeprecated": false,
             "deprecationReason": null

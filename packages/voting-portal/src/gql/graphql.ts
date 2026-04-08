@@ -8284,7 +8284,7 @@ export enum Sequent_Backend_Certificate_Authority_Constraint {
   /** unique or primary key constraint on columns "id" */
   CertificateAuthorityPkey = 'certificate_authority_pkey',
   /** unique or primary key constraint on columns "tenant_id", "fingerprint_sha256", "election_event_id" */
-  CertificateAuthorityTenantIdElectionEventIdFingerprintS = 'certificate_authority_tenant_id_election_event_id_fingerprint_s'
+  CertificateAuthorityTenantIdElectionEventIdFingerpriKey = 'certificate_authority_tenant_id_election_event_id_fingerpri_key'
 }
 
 /** input type for inserting data into table "sequent_backend.certificate_authority" */
