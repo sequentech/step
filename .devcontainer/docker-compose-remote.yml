@@ -64,7 +64,6 @@ services:
       ENV_SLUG: ${ENV_SLUG}
       KC_SPI_TRUSTSTORE_PROVIDER: ${KC_SPI_TRUSTSTORE_PROVIDER:-}
       KC_SPI_TRUSTSTORE_URL_REFRESH_INTERVAL_SECONDS: ${KC_SPI_TRUSTSTORE_URL_REFRESH_INTERVAL_SECONDS:-0}
-      KC_MTLS_LOGIN_URL: ${KC_MTLS_LOGIN_URL:-}
     volumes:
       - ./keycloak/import:/opt/keycloak/data/import:z
     entrypoint: >
