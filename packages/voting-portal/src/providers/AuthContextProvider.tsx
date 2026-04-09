@@ -75,8 +75,6 @@ export interface AuthContextValues {
     reauthWithGold: (redirectUri: string) => Promise<void>
 
     setDefaultLocale: (locale?: string) => void
-
-    userSelectedLocale: string | undefined
 }
 
 interface UserProfile {
@@ -106,7 +104,6 @@ const defaultAuthContextValues: AuthContextValues = {
     isGoldUser: () => false,
     reauthWithGold: async () => {},
     setDefaultLocale: () => {},
-    userSelectedLocale: undefined,
 }
 
 /**
@@ -145,7 +142,6 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
     const [eventId, setEventId] = useState<string | null>(null)
     const [authType, setAuthType] = useState<"register" | "login" | null>(null)
     const [defaultLocale, setDefaultLocale] = useState<string | undefined>(undefined)
-    const [userSelectedLocale, setUserSelectedLocale] = useState<string | undefined>(undefined)
 
     const {i18n} = useTranslation()
 
@@ -370,11 +366,6 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
                     username: profile?.username || val?.username,
                 }))
 
-                const localeArray = profile?.attributes?.locale as string[] | undefined
-                if (localeArray?.[0]) {
-                    setUserSelectedLocale(localeArray[0])
-                }
-
                 const newTenantId: string | undefined = (profile as any)?.attributes[
                     "tenant-id"
                 ]?.[0]
@@ -495,7 +486,6 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
                 isGoldUser,
                 reauthWithGold,
                 setDefaultLocale,
-                userSelectedLocale,
             }}
         >
             {props.children}

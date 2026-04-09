@@ -99,7 +99,7 @@ SPDX-License-Identifier: AGPL-3.0-only
                                 <#assign i = 1>
                                 <#list locale.supported as l>
                                     <li class="${properties.kcLocaleListItemClass!}" role="none">
-                                        <a role="menuitem" id="language-${i}" class="${properties.kcLocaleItemClass!}" href="${l.url}">${l.label}</a>
+                                        <a role="menuitem" id="language-${i}" class="${properties.kcLocaleItemClass!}" href="${l.url}" data-lang="${l.languageTag!}">${l.label}</a>
                                     </li>
                                     <#assign i++>
                                 </#list>
@@ -216,6 +216,46 @@ SPDX-License-Identifier: AGPL-3.0-only
         <p>${kcSanitize(msg("loginFooter"))?no_esc}</p>
     </div>
   </main>
+  <script>
+    (function () {
+        const domain = "${properties.domain?js_string!''}";
+        const systemVersion = "${properties.systemVersion?js_string!''}";
+
+        console.log("domain:", domain);
+        console.log("systemVersion:", systemVersion);
+
+        function setSessionLangCookie(lang) {
+            let cookie =
+                "USER_LANGUAGE=" + encodeURIComponent(lang) +
+                "; Path=/" +
+                "; SameSite=Lax";
+
+            if (domain) {
+                cookie += "; Domain=" + domain;
+            }
+
+            if (systemVersion !== "dev") {
+                cookie += "; Secure";
+            }
+
+            document.cookie = cookie;
+        }
+
+        function getLangFromHref(href) {
+            const u = new URL(href, window.location.origin);
+            return u.searchParams.get("kc_locale") || u.searchParams.get("locale");
+        }
+
+        document.querySelectorAll('#language-switch1 a[href]').forEach(function (link) {
+            link.addEventListener('click', function () {
+                const lang = getLangFromHref(link.href);
+                if (lang) {
+                    setSessionLangCookie(lang);
+                }
+            });
+        });
+    })();
+</script>
 </body>
 </html>
 </#macro>

@@ -15,8 +15,9 @@ import dutchTranslation from "../translations/nl"
 import basqueTranslation from "../translations/eu"
 import {IElectionEventPresentation} from "../types/ElectionEventPresentation"
 import {ELanguageDetectionPolicy, ILanguageConf} from "@root/types/LanguageConf"
+import {getValueFromCookie} from "@root/utils/cookies"
 
-export const KEYCLOAK_LANG_COOKIE_NAME = "KEYCLOAK_LANG"
+export const USER_LANGUAGE_COOKIE_NAME = "USER_LANGUAGE"
 
 export const initializeLanguages = (externalTranslations: Resource, language?: string) => {
     const libTranslations: Resource = {
@@ -112,11 +113,10 @@ export const applyLanguagePolicy = (languageConf: ILanguageConf | undefined): bo
 }
 
 /// Applies language policy defined in election event presentation, if any
-/// Url search param "lang" > user selected locale > presentation policy > browser settings
+/// Url search param "lang" > user selected locale (saved in cookie) >  language detection policy > browser settings
 /// The Url search param "lang" is checked in i18n initialization.
 export const applyPresentationLanguagePolicy = (
-    presentation: IElectionEventPresentation | undefined,
-    userSelectedLocale?: string
+    presentation: IElectionEventPresentation | undefined
 ): boolean => {
     if (!presentation?.language_conf) {
         return false
@@ -129,8 +129,13 @@ export const applyPresentationLanguagePolicy = (
             return false
         }
     }
-    if (userSelectedLocale) {
-        i18n.changeLanguage(userSelectedLocale)
+    let cookieLang: string | undefined
+    cookieLang = getValueFromCookie(USER_LANGUAGE_COOKIE_NAME)
+    console.log("cookieLang::: ", cookieLang)
+
+    if (cookieLang) {
+        console.log("inn")
+        i18n.changeLanguage(cookieLang)
         return true
     }
 
@@ -165,6 +170,8 @@ export const overwriteTranslations = (
 
         i18n.addResourceBundle(lang, "translations", mergedResources, true, true) // Overwriting existing resource for language
     })
+
+    console.log("changeDefaultLanguage:", changeDefaultLanguage)
 
     if (changeDefaultLanguage) {
         // Apply language policy: skip if query param provided, otherwise check for FORCE_DEFAULT

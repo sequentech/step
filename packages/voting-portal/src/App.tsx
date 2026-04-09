@@ -10,7 +10,8 @@ import {
     ELanguageDetectionPolicy,
     EVotingPortalCountdownPolicy,
     IElectionEventPresentation,
-    applyPresentationLanguagePolicy,
+    USER_LANGUAGE_COOKIE_NAME,
+    setCookie,
 } from "@sequentech/ui-core"
 import Stack from "@mui/material/Stack"
 import {useNavigate} from "react-router-dom"
@@ -89,6 +90,15 @@ const HeaderWithContext: React.FC = () => {
               ? SequentLogo
               : presentation?.logo_url
 
+    const onChangeLanguage = (lang: string) => {
+        setCookie(
+            USER_LANGUAGE_COOKIE_NAME,
+            lang,
+            globalSettings.APP_VERSION,
+            globalSettings.DOMAIN
+        )
+    }
+
     return (
         <Header
             appVersion={{main: globalSettings.APP_VERSION}}
@@ -109,6 +119,7 @@ const HeaderWithContext: React.FC = () => {
                 endTime: authContext.getExpiry(),
                 duration: countdownPolicy?.countdown_anticipation_secs,
             }}
+            onChangeLanguage={onChangeLanguage}
         />
     )
 }
@@ -118,8 +129,7 @@ const App = () => {
     const {globalSettings} = useContext(SettingsContext)
     const location = useLocation()
     const {tenantId, eventId} = useParams<TenantEventType>()
-    const {isAuthenticated, setTenantEvent, setDefaultLocale, userSelectedLocale} =
-        useContext(AuthContext)
+    const {isAuthenticated, setTenantEvent, setDefaultLocale} = useContext(AuthContext)
 
     const electionIds = useAppSelector(selectElectionIds)
     const ballotStyleElectionIds = useAppSelector(selectBallotStyleElectionIds)
@@ -200,17 +210,6 @@ const App = () => {
 
         void setupTenantEvent()
     }, [isAuthenticated, globalSettings.DISABLE_AUTH, navigate, tenantId, setupTenantEvent])
-
-    useEffect(() => {
-        // Apply language policy from presentation
-        // Priority: query param > FORCE_DEFAULT policy > browser detection
-        if (ballotStyle?.ballot_eml.election_event_presentation) {
-            applyPresentationLanguagePolicy(
-                ballotStyle.ballot_eml.election_event_presentation,
-                userSelectedLocale
-            )
-        }
-    }, [ballotStyle?.ballot_eml.election_event_presentation?.language_conf, userSelectedLocale])
 
     return (
         <StyledAppWrapper

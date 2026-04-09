@@ -11,6 +11,7 @@ export {
     overwriteTranslations,
     applyLanguagePolicy,
     applyPresentationLanguagePolicy,
+    USER_LANGUAGE_COOKIE_NAME,
 } from "./services/i18n"
 export {useForwardedRef} from "./utils/ref"
 export {sleep} from "./services/sleep"
@@ -35,3 +36,4 @@ export * from "./services/wasm"
 export * from "./services/sanitizeFilename"
 export * from "./types/AreaPresentation"
 export * from "./services/candidatePresentation"
+export * from "./utils/cookies"
