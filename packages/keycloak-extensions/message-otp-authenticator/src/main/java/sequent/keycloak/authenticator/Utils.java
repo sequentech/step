@@ -67,6 +67,7 @@ import sequent.keycloak.authenticator.otl.OTLActionToken;
 public class Utils {
   public final String VOTER_CERT_SUBJECT_DN = "voter_cert_subject_dn";
   public final String CA_CERT_ISSUER_CN = "ca_cert_issuer_cn";
+  public final String AUTH_NOTE_DENY_TYPE = "deny-type";
 
   public final String CODE = "code";
   public final String CODE_LENGTH = "length";

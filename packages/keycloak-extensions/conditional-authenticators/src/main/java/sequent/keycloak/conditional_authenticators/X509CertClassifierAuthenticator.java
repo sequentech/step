@@ -5,6 +5,7 @@
 package sequent.keycloak.conditional_authenticators;
 
 import static sequent.keycloak.authenticator.Utils.CA_CERT_ISSUER_CN;
+import static sequent.keycloak.authenticator.Utils.AUTH_NOTE_DENY_TYPE;
 import static sequent.keycloak.authenticator.Utils.VOTER_CERT_SUBJECT_DN;
 
 import java.io.ByteArrayInputStream;
@@ -40,9 +41,9 @@ public class X509CertClassifierAuthenticator implements Authenticator {
 
   /** Default HTTP header name when no authenticator config is provided. */
   public static final String DEFAULT_CERT_HEADER = "ssl-client-cert";
-
   public static final String AUTH_NOTE_CERT_TYPE = "cert-type";
   public static final String CERT_NOT_PROVIDED = "cert-not-provided";
+  public static final String CERT_TYPE_NONE = "none";
 
   @Override
   public void authenticate(AuthenticationFlowContext context) {
@@ -50,26 +51,30 @@ public class X509CertClassifierAuthenticator implements Authenticator {
     String certHeader = context.getHttpRequest().getHttpHeaders().getHeaderString(headerName);
 
     if (certHeader == null || certHeader.isBlank()) {
-      log.infov("authenticate(): no {0} header present", headerName);
-      context.getAuthenticationSession().setAuthNote(AUTH_NOTE_CERT_TYPE, CERT_NOT_PROVIDED);
-      context.getEvent().detail(VOTER_CERT_SUBJECT_DN, "none");
-      context.getEvent().detail(CA_CERT_ISSUER_CN, "none");
+      log.infov(
+          "authenticate(): no {0} header present, setting {1}={2}",
+          headerName, AUTH_NOTE_DENY_TYPE, CERT_NOT_PROVIDED);
+      context.getAuthenticationSession().setAuthNote(AUTH_NOTE_DENY_TYPE, CERT_NOT_PROVIDED);
+      context.getEvent().detail(VOTER_CERT_SUBJECT_DN, CERT_TYPE_NONE);
+      context.getEvent().detail(CA_CERT_ISSUER_CN, CERT_TYPE_NONE);
       context.attempted();
       return;
     }
 
     X509Certificate cert = parseCert(certHeader);
     if (cert == null) {
-      log.warnv("authenticate(): failed to parse certificate from {0} header", headerName);
-      context.getAuthenticationSession().setAuthNote(AUTH_NOTE_CERT_TYPE, CERT_NOT_PROVIDED);
-      context.getEvent().detail(VOTER_CERT_SUBJECT_DN, "none");
-      context.getEvent().detail(CA_CERT_ISSUER_CN, "none");
+      log.warnv(
+          "authenticate(): failed to parse certificate from {0} header, setting {1}={2}",
+          headerName, AUTH_NOTE_DENY_TYPE, CERT_NOT_PROVIDED);
+      context.getAuthenticationSession().setAuthNote(AUTH_NOTE_DENY_TYPE, CERT_NOT_PROVIDED);
+      context.getEvent().detail(VOTER_CERT_SUBJECT_DN, CERT_TYPE_NONE);
+      context.getEvent().detail(CA_CERT_ISSUER_CN, CERT_TYPE_NONE);
       context.attempted();
       return;
     }
 
     String issuerCn = extractCn(cert.getIssuerX500Principal());
-    String certType = issuerCn != null ? issuerCn : CERT_NOT_PROVIDED;
+    String certType = issuerCn != null ? issuerCn : CERT_TYPE_NONE;
     log.infov("authenticate(): setting auth note {0}={1}", AUTH_NOTE_CERT_TYPE, certType);
     context.getAuthenticationSession().setAuthNote(AUTH_NOTE_CERT_TYPE, certType);
     context.getEvent().detail(VOTER_CERT_SUBJECT_DN, cert.getSubjectX500Principal().getName());

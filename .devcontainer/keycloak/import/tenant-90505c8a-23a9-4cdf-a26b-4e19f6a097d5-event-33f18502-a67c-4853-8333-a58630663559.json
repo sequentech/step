@@ -464,7 +464,11 @@
   ],
   "localizationTexts": {
     "en": {
-      "loginAccountTitle": "Authenticate to vote"
+      "loginAccountTitle": "Authenticate to vote",
+        "loginCustomCss": "#kc-cert-login-container '{'     display: none !important; '}'",
+        "access-denied": "Authentication failed: Invalid certificate, access denied",
+        "user-not-found": "Authentication failed: Valid certificate detected, but no matching voter or user was found",
+        "cert-not-provided": "Authentication failed: No certificate was provided"
     }
   },
   "webAuthnPolicyRpEntityName": "keycloak",
@@ -2991,343 +2995,7 @@
       "topLevel": true
     },
     {
-      "alias": "AC CAMERFIRMA FOR NATURAL PERSONS - 2016",
-      "authenticationExecutions": [
-        {
-          "authenticator": "conditional-auth-note",
-          "authenticatorConfig": "cert-type-camerfirma-np-2016-conf",
-          "authenticatorFlow": false,
-          "autheticatorFlow": false,
-          "priority": 0,
-          "requirement": "REQUIRED",
-          "userSetupAllowed": false
-        },
-        {
-          "authenticator": "auth-x509-client-username-form",
-          "authenticatorConfig": "x509-voter-cert-camerfirma-np-2016-conf",
-          "authenticatorFlow": false,
-          "autheticatorFlow": false,
-          "priority": 1,
-          "requirement": "REQUIRED",
-          "userSetupAllowed": false
-        }
-      ],
-      "builtIn": false,
-      "description": "",
-      "id": "35d194e9-7cfe-4a81-9d01-596d7d2bf50b",
-      "providerId": "basic-flow",
-      "topLevel": false
-    },
-    {
-      "alias": "AC CAMERFIRMA GLOBAL FOR NATURAL PERSONS - 2016",
-      "authenticationExecutions": [
-        {
-          "authenticator": "conditional-auth-note",
-          "authenticatorConfig": "cert-type-camerfirma-global-np-2016-conf",
-          "authenticatorFlow": false,
-          "autheticatorFlow": false,
-          "priority": 0,
-          "requirement": "REQUIRED",
-          "userSetupAllowed": false
-        },
-        {
-          "authenticator": "auth-x509-client-username-form",
-          "authenticatorConfig": "x509-voter-cert-camerfirma-global-np-2016-conf",
-          "authenticatorFlow": false,
-          "autheticatorFlow": false,
-          "priority": 1,
-          "requirement": "REQUIRED",
-          "userSetupAllowed": false
-        }
-      ],
-      "builtIn": false,
-      "description": "",
-      "id": "c4c1351f-a3b2-4655-a363-ed216707882b",
-      "providerId": "basic-flow",
-      "topLevel": false
-    },
-    {
-      "alias": "AC DNIE 001",
-      "authenticationExecutions": [
-        {
-          "authenticator": "conditional-auth-note",
-          "authenticatorConfig": "cert-type-ac-dnie-001-conf",
-          "authenticatorFlow": false,
-          "autheticatorFlow": false,
-          "priority": 0,
-          "requirement": "REQUIRED",
-          "userSetupAllowed": false
-        },
-        {
-          "authenticator": "auth-x509-client-username-form",
-          "authenticatorConfig": "x509-voter-cert-ac-dnie-001-conf",
-          "authenticatorFlow": false,
-          "autheticatorFlow": false,
-          "priority": 1,
-          "requirement": "REQUIRED",
-          "userSetupAllowed": false
-        }
-      ],
-      "builtIn": false,
-      "description": "",
-      "id": "f7139955-59fb-4456-a85c-9e09e1501c41",
-      "providerId": "basic-flow",
-      "topLevel": false
-    },
-    {
-      "alias": "AC DNIE 002",
-      "authenticationExecutions": [
-        {
-          "authenticator": "conditional-auth-note",
-          "authenticatorConfig": "cert-type-ac-dnie-002-conf",
-          "authenticatorFlow": false,
-          "autheticatorFlow": false,
-          "priority": 0,
-          "requirement": "REQUIRED",
-          "userSetupAllowed": false
-        },
-        {
-          "authenticator": "auth-x509-client-username-form",
-          "authenticatorConfig": "x509-voter-cert-ac-dnie-002-conf",
-          "authenticatorFlow": false,
-          "autheticatorFlow": false,
-          "priority": 1,
-          "requirement": "REQUIRED",
-          "userSetupAllowed": false
-        }
-      ],
-      "builtIn": false,
-      "description": "",
-      "id": "7bfbaf5c-a388-448e-94bb-50d9b4c2488f",
-      "providerId": "basic-flow",
-      "topLevel": false
-    },
-    {
-      "alias": "AC DNIE 003",
-      "authenticationExecutions": [
-        {
-          "authenticator": "conditional-auth-note",
-          "authenticatorConfig": "cert-type-ac-dnie-003-conf",
-          "authenticatorFlow": false,
-          "autheticatorFlow": false,
-          "priority": 0,
-          "requirement": "REQUIRED",
-          "userSetupAllowed": false
-        },
-        {
-          "authenticator": "auth-x509-client-username-form",
-          "authenticatorConfig": "x509-voter-cert-ac-dnie-003-conf",
-          "authenticatorFlow": false,
-          "autheticatorFlow": false,
-          "priority": 1,
-          "requirement": "REQUIRED",
-          "userSetupAllowed": false
-        }
-      ],
-      "builtIn": false,
-      "description": "",
-      "id": "892c7d14-e786-490e-8e57-2b0a873cb3b7",
-      "providerId": "basic-flow",
-      "topLevel": false
-    },
-    {
-      "alias": "AC DNIE 004",
-      "authenticationExecutions": [
-        {
-          "authenticator": "conditional-auth-note",
-          "authenticatorConfig": "cert-type-ac-dnie-004-conf",
-          "authenticatorFlow": false,
-          "autheticatorFlow": false,
-          "priority": 0,
-          "requirement": "REQUIRED",
-          "userSetupAllowed": false
-        },
-        {
-          "authenticator": "auth-x509-client-username-form",
-          "authenticatorConfig": "x509-voter-cert-ac-dnie-004-conf",
-          "authenticatorFlow": false,
-          "autheticatorFlow": false,
-          "priority": 1,
-          "requirement": "REQUIRED",
-          "userSetupAllowed": false
-        }
-      ],
-      "builtIn": false,
-      "description": "",
-      "id": "2f251f0c-d5ce-4e18-bed8-2a3e25ce459b",
-      "providerId": "basic-flow",
-      "topLevel": false
-    },
-    {
-      "alias": "AC DNIE 005",
-      "authenticationExecutions": [
-        {
-          "authenticator": "conditional-auth-note",
-          "authenticatorConfig": "cert-type-ac-dnie-005-conf",
-          "authenticatorFlow": false,
-          "autheticatorFlow": false,
-          "priority": 0,
-          "requirement": "REQUIRED",
-          "userSetupAllowed": false
-        },
-        {
-          "authenticator": "auth-x509-client-username-form",
-          "authenticatorConfig": "x509-voter-cert-ac-dnie-005-conf",
-          "authenticatorFlow": false,
-          "autheticatorFlow": false,
-          "priority": 1,
-          "requirement": "REQUIRED",
-          "userSetupAllowed": false
-        }
-      ],
-      "builtIn": false,
-      "description": "",
-      "id": "b12b6c8a-b399-4d2c-ade2-2643db83be4f",
-      "providerId": "basic-flow",
-      "topLevel": false
-    },
-    {
-      "alias": "AC DNIE 006",
-      "authenticationExecutions": [
-        {
-          "authenticator": "conditional-auth-note",
-          "authenticatorConfig": "cert-type-ac-dnie-006-conf",
-          "authenticatorFlow": false,
-          "autheticatorFlow": false,
-          "priority": 0,
-          "requirement": "REQUIRED",
-          "userSetupAllowed": false
-        },
-        {
-          "authenticator": "auth-x509-client-username-form",
-          "authenticatorConfig": "x509-voter-cert-ac-dnie-006-conf",
-          "authenticatorFlow": false,
-          "autheticatorFlow": false,
-          "priority": 1,
-          "requirement": "REQUIRED",
-          "userSetupAllowed": false
-        }
-      ],
-      "builtIn": false,
-      "description": "",
-      "id": "ab6f0b68-5734-4102-af16-41e7a84c3d27",
-      "providerId": "basic-flow",
-      "topLevel": false
-    },
-    {
-      "alias": "AC FMNT",
-      "authenticationExecutions": [
-        {
-          "authenticator": "conditional-auth-note",
-          "authenticatorConfig": "cert-type-fnmt-conf",
-          "authenticatorFlow": false,
-          "autheticatorFlow": false,
-          "priority": 0,
-          "requirement": "REQUIRED",
-          "userSetupAllowed": false
-        },
-        {
-          "authenticator": "auth-x509-client-username-form",
-          "authenticatorConfig": "x509-voter-cert-fnmt-conf",
-          "authenticatorFlow": false,
-          "autheticatorFlow": false,
-          "priority": 1,
-          "requirement": "REQUIRED",
-          "userSetupAllowed": false
-        }
-      ],
-      "builtIn": false,
-      "description": "",
-      "id": "bb435027-e489-4111-a6da-d3804acd416f",
-      "providerId": "basic-flow",
-      "topLevel": false
-    },
-    {
-      "alias": "ACCV ECC1 CLIENTE",
-      "authenticationExecutions": [
-        {
-          "authenticator": "conditional-auth-note",
-          "authenticatorConfig": "cert-type-accv-ecc1-cliente-conf",
-          "authenticatorFlow": false,
-          "autheticatorFlow": false,
-          "priority": 0,
-          "requirement": "REQUIRED",
-          "userSetupAllowed": false
-        },
-        {
-          "authenticator": "auth-x509-client-username-form",
-          "authenticatorConfig": "x509-voter-cert-accv-ecc1-cliente-conf",
-          "authenticatorFlow": false,
-          "autheticatorFlow": false,
-          "priority": 1,
-          "requirement": "REQUIRED",
-          "userSetupAllowed": false
-        }
-      ],
-      "builtIn": false,
-      "description": "",
-      "id": "d7305437-2497-47d7-bb71-6b12ef270c10",
-      "providerId": "basic-flow",
-      "topLevel": false
-    },
-    {
-      "alias": "ACCV RSA1 CLIENTE",
-      "authenticationExecutions": [
-        {
-          "authenticator": "conditional-auth-note",
-          "authenticatorConfig": "cert-type-accv-rsa1-cliente-conf",
-          "authenticatorFlow": false,
-          "autheticatorFlow": false,
-          "priority": 0,
-          "requirement": "REQUIRED",
-          "userSetupAllowed": false
-        },
-        {
-          "authenticator": "auth-x509-client-username-form",
-          "authenticatorConfig": "x509-voter-cert-accv-rsa1-cliente-conf",
-          "authenticatorFlow": false,
-          "autheticatorFlow": false,
-          "priority": 1,
-          "requirement": "REQUIRED",
-          "userSetupAllowed": false
-        }
-      ],
-      "builtIn": false,
-      "description": "",
-      "id": "3475581c-16bb-4826-b614-dcdd28cac9b9",
-      "providerId": "basic-flow",
-      "topLevel": false
-    },
-    {
-      "alias": "ACCVCA-120",
-      "authenticationExecutions": [
-        {
-          "authenticator": "conditional-auth-note",
-          "authenticatorConfig": "cert-type-accvca120-conf",
-          "authenticatorFlow": false,
-          "autheticatorFlow": false,
-          "priority": 0,
-          "requirement": "REQUIRED",
-          "userSetupAllowed": false
-        },
-        {
-          "authenticator": "auth-x509-client-username-form",
-          "authenticatorConfig": "x509-voter-cert-accvca120-conf",
-          "authenticatorFlow": false,
-          "autheticatorFlow": false,
-          "priority": 1,
-          "requirement": "REQUIRED",
-          "userSetupAllowed": false
-        }
-      ],
-      "builtIn": false,
-      "description": "",
-      "id": "1aadf83e-eb6a-4522-9dbe-f7b4a57f6adb",
-      "providerId": "basic-flow",
-      "topLevel": false
-    },
-    {
-      "alias": "Credentials dubflow",
+      "alias": "Credentials subflow",
       "authenticationExecutions": [
         {
           "authenticator": "x509-cert-classifier",
@@ -3348,152 +3016,8 @@
         {
           "authenticatorFlow": true,
           "autheticatorFlow": true,
-          "flowAlias": "AC FMNT",
+          "flowAlias": "Other CA",
           "priority": 3,
-          "requirement": "CONDITIONAL",
-          "userSetupAllowed": false
-        },
-        {
-          "authenticatorFlow": true,
-          "autheticatorFlow": true,
-          "flowAlias": "ACCVCA-120",
-          "priority": 4,
-          "requirement": "CONDITIONAL",
-          "userSetupAllowed": false
-        },
-        {
-          "authenticatorFlow": true,
-          "autheticatorFlow": true,
-          "flowAlias": "ACCV ECC1 CLIENTE",
-          "priority": 5,
-          "requirement": "CONDITIONAL",
-          "userSetupAllowed": false
-        },
-        {
-          "authenticatorFlow": true,
-          "autheticatorFlow": true,
-          "flowAlias": "ACCV RSA1 CLIENTE",
-          "priority": 6,
-          "requirement": "CONDITIONAL",
-          "userSetupAllowed": false
-        },
-        {
-          "authenticatorFlow": true,
-          "autheticatorFlow": true,
-          "flowAlias": "SubCA CIUTADANIA Q (G3) A.2",
-          "priority": 7,
-          "requirement": "CONDITIONAL",
-          "userSetupAllowed": false
-        },
-        {
-          "authenticatorFlow": true,
-          "autheticatorFlow": true,
-          "flowAlias": "EC-Ciutadania",
-          "priority": 8,
-          "requirement": "CONDITIONAL",
-          "userSetupAllowed": false
-        },
-        {
-          "authenticatorFlow": true,
-          "autheticatorFlow": true,
-          "flowAlias": "AC CAMERFIRMA GLOBAL FOR NATURAL PERSONS - 2016",
-          "priority": 9,
-          "requirement": "CONDITIONAL",
-          "userSetupAllowed": false
-        },
-        {
-          "authenticatorFlow": true,
-          "autheticatorFlow": true,
-          "flowAlias": "AC CAMERFIRMA FOR NATURAL PERSONS - 2016",
-          "priority": 10,
-          "requirement": "CONDITIONAL",
-          "userSetupAllowed": false
-        },
-        {
-          "authenticatorFlow": true,
-          "autheticatorFlow": true,
-          "flowAlias": "UANATACA CA1 2016",
-          "priority": 11,
-          "requirement": "CONDITIONAL",
-          "userSetupAllowed": false
-        },
-        {
-          "authenticatorFlow": true,
-          "autheticatorFlow": true,
-          "flowAlias": "UANATACA CA2 2016",
-          "priority": 12,
-          "requirement": "CONDITIONAL",
-          "userSetupAllowed": false
-        },
-        {
-          "authenticatorFlow": true,
-          "autheticatorFlow": true,
-          "flowAlias": "UANATACA CA1 2021",
-          "priority": 13,
-          "requirement": "CONDITIONAL",
-          "userSetupAllowed": false
-        },
-        {
-          "authenticatorFlow": true,
-          "autheticatorFlow": true,
-          "flowAlias": "UANATACA CA2 2021",
-          "priority": 14,
-          "requirement": "CONDITIONAL",
-          "userSetupAllowed": false
-        },
-        {
-          "authenticatorFlow": true,
-          "autheticatorFlow": true,
-          "flowAlias": "AC DNIE 001",
-          "priority": 15,
-          "requirement": "CONDITIONAL",
-          "userSetupAllowed": false
-        },
-        {
-          "authenticatorFlow": true,
-          "autheticatorFlow": true,
-          "flowAlias": "AC DNIE 002",
-          "priority": 16,
-          "requirement": "CONDITIONAL",
-          "userSetupAllowed": false
-        },
-        {
-          "authenticatorFlow": true,
-          "autheticatorFlow": true,
-          "flowAlias": "AC DNIE 003",
-          "priority": 17,
-          "requirement": "CONDITIONAL",
-          "userSetupAllowed": false
-        },
-        {
-          "authenticatorFlow": true,
-          "autheticatorFlow": true,
-          "flowAlias": "AC DNIE 004",
-          "priority": 18,
-          "requirement": "CONDITIONAL",
-          "userSetupAllowed": false
-        },
-        {
-          "authenticatorFlow": true,
-          "autheticatorFlow": true,
-          "flowAlias": "AC DNIE 005",
-          "priority": 19,
-          "requirement": "CONDITIONAL",
-          "userSetupAllowed": false
-        },
-        {
-          "authenticatorFlow": true,
-          "autheticatorFlow": true,
-          "flowAlias": "AC DNIE 006",
-          "priority": 20,
-          "requirement": "CONDITIONAL",
-          "userSetupAllowed": false
-        },
-        {
-          "authenticatorFlow": true,
-          "autheticatorFlow": true,
-          "flowAlias": "No certificate",
-          "priority": 21,
           "requirement": "CONDITIONAL",
           "userSetupAllowed": false
         }
@@ -3508,8 +3032,51 @@
       "alias": "Deny Subflow",
       "authenticationExecutions": [
         {
+          "authenticatorFlow": true,
+          "autheticatorFlow": true,
+          "flowAlias": "Cert not provided",
+          "priority": 2,
+          "requirement": "CONDITIONAL",
+          "userSetupAllowed": false
+        },
+        {
+          "authenticatorFlow": true,
+          "autheticatorFlow": true,
+          "flowAlias": "User not found",
+          "priority": 3,
+          "requirement": "CONDITIONAL",
+          "userSetupAllowed": false
+        },
+        {
+          "authenticatorFlow": true,
+          "autheticatorFlow": true,
+          "flowAlias": "Access denied",
+          "priority": 4,
+          "requirement": "CONDITIONAL",
+          "userSetupAllowed": false
+        }
+      ],
+      "builtIn": false,
+      "description": "",
+      "id": "468d3161-8dd8-454a-a895-12e55a59b580",
+      "providerId": "basic-flow",
+      "topLevel": false
+    },
+    {
+      "alias": "Cert not provided",
+      "authenticationExecutions": [
+        {
+          "authenticator": "conditional-auth-note",
+          "authenticatorConfig": "Not allowed conditional",
+          "authenticatorFlow": false,
+          "autheticatorFlow": false,
+          "priority": 0,
+          "requirement": "REQUIRED",
+          "userSetupAllowed": false
+        },
+        {
           "authenticator": "deny-access-authenticator",
-          "authenticatorConfig": "deny_acess",
+          "authenticatorConfig": "deny-cert-not-provided",
           "authenticatorFlow": false,
           "autheticatorFlow": false,
           "priority": 1,
@@ -3519,7 +3086,63 @@
       ],
       "builtIn": false,
       "description": "",
-      "id": "468d3161-8dd8-454a-a895-12e55a59b580",
+      "id": "9373312d-78cb-483e-b298-9d3b12befd6d",
+      "providerId": "basic-flow",
+      "topLevel": false
+    },
+    {
+      "alias": "User not found",
+      "authenticationExecutions": [
+        {
+          "authenticator": "conditional-auth-note",
+          "authenticatorConfig": "not-not-allowed",
+          "authenticatorFlow": false,
+          "autheticatorFlow": false,
+          "priority": 0,
+          "requirement": "REQUIRED",
+          "userSetupAllowed": false
+        },
+        {
+          "authenticator": "deny-access-authenticator",
+          "authenticatorConfig": "user-not-found-config",
+          "authenticatorFlow": false,
+          "autheticatorFlow": false,
+          "priority": 1,
+          "requirement": "REQUIRED",
+          "userSetupAllowed": false
+        }
+      ],
+      "builtIn": false,
+      "description": "",
+      "id": "a400884b-f213-49f5-86f2-e37bc94204b9",
+      "providerId": "basic-flow",
+      "topLevel": false
+    },
+    {
+      "alias": "Access denied",
+      "authenticationExecutions": [
+        {
+          "authenticator": "conditional-auth-note",
+          "authenticatorConfig": "no user-not-found",
+          "authenticatorFlow": false,
+          "autheticatorFlow": false,
+          "priority": 0,
+          "requirement": "REQUIRED",
+          "userSetupAllowed": false
+        },
+        {
+          "authenticator": "deny-access-authenticator",
+          "authenticatorConfig": "deny_access",
+          "authenticatorFlow": false,
+          "autheticatorFlow": false,
+          "priority": 1,
+          "requirement": "REQUIRED",
+          "userSetupAllowed": false
+        }
+      ],
+      "builtIn": false,
+      "description": "",
+      "id": "3be3ae80-ba8c-4af5-8925-fdf8a6b86067",
       "providerId": "basic-flow",
       "topLevel": false
     },
@@ -3536,7 +3159,7 @@
           "userSetupAllowed": false
         },
         {
-          "authenticator": "auth-x509-client-username-form",
+          "authenticator": "x509-user-resolution",
           "authenticatorConfig": "x509-voter-cert-dev-conf",
           "authenticatorFlow": false,
           "autheticatorFlow": false,
@@ -3552,208 +3175,12 @@
       "topLevel": false
     },
     {
-      "alias": "EC-Ciutadania",
-      "authenticationExecutions": [
-        {
-          "authenticator": "conditional-auth-note",
-          "authenticatorConfig": "cert-type-ec-ciutadania-conf",
-          "authenticatorFlow": false,
-          "autheticatorFlow": false,
-          "priority": 0,
-          "requirement": "REQUIRED",
-          "userSetupAllowed": false
-        },
-        {
-          "authenticator": "auth-x509-client-username-form",
-          "authenticatorConfig": "x509-voter-cert-ec-ciutadania-conf",
-          "authenticatorFlow": false,
-          "autheticatorFlow": false,
-          "priority": 1,
-          "requirement": "REQUIRED",
-          "userSetupAllowed": false
-        }
-      ],
-      "builtIn": false,
-      "description": "",
-      "id": "bc3f7dfd-83d9-42da-90b0-8c20375398b8",
-      "providerId": "basic-flow",
-      "topLevel": false
-    },
-    {
-      "alias": "No certificate",
-      "authenticationExecutions": [
-        {
-          "authenticator": "conditional-auth-note",
-          "authenticatorConfig": "cert-type-not-allowed-conf",
-          "authenticatorFlow": false,
-          "autheticatorFlow": false,
-          "priority": 0,
-          "requirement": "REQUIRED",
-          "userSetupAllowed": false
-        },
-        {
-          "authenticator": "deny-access-authenticator",
-          "authenticatorConfig": "deny-not-allowed",
-          "authenticatorFlow": false,
-          "autheticatorFlow": false,
-          "priority": 1,
-          "requirement": "REQUIRED",
-          "userSetupAllowed": false
-        }
-      ],
-      "builtIn": false,
-      "description": "",
-      "id": "240af8a5-b814-4a98-9f52-5e7e5ec1b96d",
-      "providerId": "basic-flow",
-      "topLevel": false
-    },
-    {
-      "alias": "SubCA CIUTADANIA Q (G3) A.2",
-      "authenticationExecutions": [
-        {
-          "authenticator": "conditional-auth-note",
-          "authenticatorConfig": "cert-type-subca-ciutadania-q-g3-a2-conf",
-          "authenticatorFlow": false,
-          "autheticatorFlow": false,
-          "priority": 0,
-          "requirement": "REQUIRED",
-          "userSetupAllowed": false
-        },
-        {
-          "authenticator": "auth-x509-client-username-form",
-          "authenticatorConfig": "x509-voter-cert-subca-ciutadania-q-g3-a2-conf",
-          "authenticatorFlow": false,
-          "autheticatorFlow": false,
-          "priority": 1,
-          "requirement": "REQUIRED",
-          "userSetupAllowed": false
-        }
-      ],
-      "builtIn": false,
-      "description": "",
-      "id": "98bc1de7-c4f8-442b-8f27-46b872013c55",
-      "providerId": "basic-flow",
-      "topLevel": false
-    },
-    {
-      "alias": "UANATACA CA1 2016",
-      "authenticationExecutions": [
-        {
-          "authenticator": "conditional-auth-note",
-          "authenticatorConfig": "cert-type-uanataca-ca1-2016-conf",
-          "authenticatorFlow": false,
-          "autheticatorFlow": false,
-          "priority": 0,
-          "requirement": "REQUIRED",
-          "userSetupAllowed": false
-        },
-        {
-          "authenticator": "auth-x509-client-username-form",
-          "authenticatorConfig": "x509-voter-cert-uanataca-ca1-2016-conf",
-          "authenticatorFlow": false,
-          "autheticatorFlow": false,
-          "priority": 1,
-          "requirement": "REQUIRED",
-          "userSetupAllowed": false
-        }
-      ],
-      "builtIn": false,
-      "description": "",
-      "id": "0c875dbd-25d3-497d-99c7-1fc1661d8474",
-      "providerId": "basic-flow",
-      "topLevel": false
-    },
-    {
-      "alias": "UANATACA CA1 2021",
-      "authenticationExecutions": [
-        {
-          "authenticator": "conditional-auth-note",
-          "authenticatorConfig": "cert-type-uanataca-ca1-2021-conf",
-          "authenticatorFlow": false,
-          "autheticatorFlow": false,
-          "priority": 0,
-          "requirement": "REQUIRED",
-          "userSetupAllowed": false
-        },
-        {
-          "authenticator": "auth-x509-client-username-form",
-          "authenticatorConfig": "x509-voter-cert-uanataca-ca1-2021-conf",
-          "authenticatorFlow": false,
-          "autheticatorFlow": false,
-          "priority": 1,
-          "requirement": "REQUIRED",
-          "userSetupAllowed": false
-        }
-      ],
-      "builtIn": false,
-      "description": "",
-      "id": "6e49b4d7-06cf-4bcb-88a9-604c8a57907b",
-      "providerId": "basic-flow",
-      "topLevel": false
-    },
-    {
-      "alias": "UANATACA CA2 2016",
-      "authenticationExecutions": [
-        {
-          "authenticator": "conditional-auth-note",
-          "authenticatorConfig": "cert-type-uanataca-ca2-2016-conf",
-          "authenticatorFlow": false,
-          "autheticatorFlow": false,
-          "priority": 0,
-          "requirement": "REQUIRED",
-          "userSetupAllowed": false
-        },
-        {
-          "authenticator": "auth-x509-client-username-form",
-          "authenticatorConfig": "x509-voter-cert-uanataca-ca2-2016-conf",
-          "authenticatorFlow": false,
-          "autheticatorFlow": false,
-          "priority": 1,
-          "requirement": "REQUIRED",
-          "userSetupAllowed": false
-        }
-      ],
-      "builtIn": false,
-      "description": "",
-      "id": "3f833162-1634-4627-beee-b80c9acb2dc0",
-      "providerId": "basic-flow",
-      "topLevel": false
-    },
-    {
-      "alias": "UANATACA CA2 2021",
-      "authenticationExecutions": [
-        {
-          "authenticator": "conditional-auth-note",
-          "authenticatorConfig": "cert-type-uanataca-ca2-2021-conf",
-          "authenticatorFlow": false,
-          "autheticatorFlow": false,
-          "priority": 0,
-          "requirement": "REQUIRED",
-          "userSetupAllowed": false
-        },
-        {
-          "authenticator": "auth-x509-client-username-form",
-          "authenticatorConfig": "x509-voter-cert-uanataca-ca2-2021-conf",
-          "authenticatorFlow": false,
-          "autheticatorFlow": false,
-          "priority": 1,
-          "requirement": "REQUIRED",
-          "userSetupAllowed": false
-        }
-      ],
-      "builtIn": false,
-      "description": "",
-      "id": "25835949-3d04-4258-a685-f298011739e4",
-      "providerId": "basic-flow",
-      "topLevel": false
-    },
-    {
       "alias": "certificate browser flow",
       "authenticationExecutions": [
         {
           "authenticatorFlow": true,
           "autheticatorFlow": true,
-          "flowAlias": "Credentials dubflow",
+          "flowAlias": "Credentials subflow",
           "priority": 3,
           "requirement": "ALTERNATIVE",
           "userSetupAllowed": false
@@ -3798,6 +3225,34 @@
       "id": "2c237102-9b2d-4a95-ae9d-242154f09818",
       "providerId": "basic-flow",
       "topLevel": true
+    },
+    {
+      "alias": "Other CA",
+      "authenticationExecutions": [
+        {
+          "authenticator": "conditional-auth-note",
+          "authenticatorConfig": "cert-type-other-ca-conf",
+          "authenticatorFlow": false,
+          "autheticatorFlow": false,
+          "priority": 0,
+          "requirement": "REQUIRED",
+          "userSetupAllowed": false
+        },
+        {
+          "authenticator": "x509-user-resolution",
+          "authenticatorConfig": "x509-voter-cert-other-ca-conf",
+          "authenticatorFlow": false,
+          "autheticatorFlow": false,
+          "priority": 1,
+          "requirement": "REQUIRED",
+          "userSetupAllowed": false
+        }
+      ],
+      "builtIn": false,
+      "description": "",
+      "id": "3c3cc380-f04e-4fd7-9216-3bcede804e72",
+      "providerId": "basic-flow",
+      "topLevel": false
     }
   ],
   "authenticatorConfig": [
@@ -4177,105 +3632,6 @@
       }
     },
     {
-      "alias": "cert-type-ac-dnie-001-conf",
-      "config": {
-        "conditional-auth-note-key": "cert-type",
-        "conditional-auth-note-value": "AC DNIE 001",
-        "negate": "false"
-      },
-      "id": "7d39d7a0-f09e-4bc3-9698-930fea0795bf"
-    },
-    {
-      "alias": "cert-type-ac-dnie-002-conf",
-      "config": {
-        "conditional-auth-note-value": "AC DNIE 002",
-        "conditional-auth-note-key": "cert-type",
-        "negate": "false"
-      },
-      "id": "7c30df66-7586-4380-b7b2-ded6ab4ead6a"
-    },
-    {
-      "alias": "cert-type-ac-dnie-003-conf",
-      "config": {
-        "conditional-auth-note-value": "AC DNIE 003",
-        "negate": "false",
-        "conditional-auth-note-key": "cert-type"
-      },
-      "id": "bf9714c6-ec58-4e69-a9f2-6f57249fffe1"
-    },
-    {
-      "alias": "cert-type-ac-dnie-004-conf",
-      "config": {
-        "conditional-auth-note-key": "cert-type",
-        "negate": "false",
-        "conditional-auth-note-value": "AC DNIE 004"
-      },
-      "id": "0d12222a-3480-44a8-b708-f438c0a39923"
-    },
-    {
-      "alias": "cert-type-ac-dnie-005-conf",
-      "config": {
-        "negate": "false",
-        "conditional-auth-note-key": "cert-type",
-        "conditional-auth-note-value": "AC DNIE 005"
-      },
-      "id": "51939609-83a0-4b18-8028-5ff8a08def9c"
-    },
-    {
-      "alias": "cert-type-ac-dnie-006-conf",
-      "config": {
-        "negate": "false",
-        "conditional-auth-note-key": "cert-type",
-        "conditional-auth-note-value": "AC DNIE 006"
-      },
-      "id": "9d1752a9-eec7-4033-94ec-4b7d20dfe99c"
-    },
-    {
-      "alias": "cert-type-accv-ecc1-cliente-conf",
-      "config": {
-        "conditional-auth-note-key": "cert-type",
-        "negate": "false",
-        "conditional-auth-note-value": "ACCV ECC1 CLIENTE"
-      },
-      "id": "31e2d74e-376b-4eb8-ab62-a0c416ead3dc"
-    },
-    {
-      "alias": "cert-type-accv-rsa1-cliente-conf",
-      "config": {
-        "conditional-auth-note-value": "ACCV RSA1 CLIENTE",
-        "conditional-auth-note-key": "cert-type",
-        "negate": "false"
-      },
-      "id": "7cb08d86-e850-4c22-802f-842edb00bae9"
-    },
-    {
-      "alias": "cert-type-accvca120-conf",
-      "config": {
-        "conditional-auth-note-key": "cert-type",
-        "conditional-auth-note-value": "ACCVCA-120",
-        "negate": "false"
-      },
-      "id": "04951e3f-7ab8-4b48-852d-0fbbd2fd9241"
-    },
-    {
-      "alias": "cert-type-camerfirma-global-np-2016-conf",
-      "config": {
-        "conditional-auth-note-value": "AC CAMERFIRMA GLOBAL FOR NATURAL PERSONS - 2016",
-        "negate": "false",
-        "conditional-auth-note-key": "cert-type"
-      },
-      "id": "ac330b44-dc79-4248-9ea8-26d41d12295d"
-    },
-    {
-      "alias": "cert-type-camerfirma-np-2016-conf",
-      "config": {
-        "negate": "false",
-        "conditional-auth-note-value": "AC CAMERFIRMA FOR NATURAL PERSONS - 2016",
-        "conditional-auth-note-key": "cert-type"
-      },
-      "id": "41c148e0-3768-41a5-8af9-02f9de912722"
-    },
-    {
       "alias": "cert-type-dev-conf",
       "config": {
         "value-is-regex": "false",
@@ -4286,287 +3642,26 @@
       "id": "d3ca1195-8635-4e18-a678-3bde66add7df"
     },
     {
-      "alias": "cert-type-ec-ciutadania-conf",
-      "config": {
-        "conditional-auth-note-key": "cert-type",
-        "conditional-auth-note-value": "EC-Ciutadania",
-        "negate": "false"
-      },
-      "id": "f9c7f518-a0c8-43d8-85ab-5f0a2a41a086"
-    },
-    {
-      "alias": "cert-type-fnmt-conf",
-      "config": {
-        "conditional-auth-note-value": "AC FNMT Usuarios",
-        "conditional-auth-note-key": "cert-type",
-        "negate": "false"
-      },
-      "id": "53621e6c-1189-42de-aa11-7bc32c0032a0"
-    },
-    {
       "alias": "cert-type-not-allowed-conf",
       "config": {
         "negate": "false",
-        "conditional-auth-note-value": "not-allowed"
+        "conditional-auth-note-value": "cert-not-provided"
       },
       "id": "d155ce72-b8a1-4452-ae07-9ba464a17837"
     },
     {
-      "alias": "cert-type-subca-ciutadania-q-g3-a2-conf",
-      "config": {
-        "negate": "false",
-        "conditional-auth-note-key": "cert-type",
-        "conditional-auth-note-value": "SubCA CIUTADANIA Q (G3) A.2"
-      },
-      "id": "2e9bacc6-3d3f-403b-97dd-42e991887b9a"
-    },
-    {
-      "alias": "cert-type-uanataca-ca1-2016-conf",
-      "config": {
-        "negate": "false",
-        "conditional-auth-note-key": "cert-type",
-        "conditional-auth-note-value": "UANATACA CA1 2016"
-      },
-      "id": "d85ea789-679f-4648-97fe-7302b70ee947"
-    },
-    {
-      "alias": "cert-type-uanataca-ca1-2021-conf",
-      "config": {
-        "negate": "false",
-        "conditional-auth-note-key": "cert-type",
-        "conditional-auth-note-value": "UANATACA CA1 2021"
-      },
-      "id": "4bc22ce7-c085-422d-9e58-4acd0edc81b8"
-    },
-    {
-      "alias": "cert-type-uanataca-ca2-2016-conf",
-      "config": {
-        "conditional-auth-note-value": "UANATACA CA2 2016",
-        "conditional-auth-note-key": "cert-type",
-        "negate": "false"
-      },
-      "id": "8336e2fc-3508-4585-82fd-51fc7def4407"
-    },
-    {
-      "alias": "cert-type-uanataca-ca2-2021-conf",
-      "config": {
-        "conditional-auth-note-key": "cert-type",
-        "conditional-auth-note-value": "UANATACA CA2 2021",
-        "negate": "false"
-      },
-      "id": "f6981ed5-5e47-4408-993d-b942e9876b8c"
-    },
-    {
       "alias": "deny-not-allowed",
       "config": {
-        "denyErrorMessage": "not_allowed"
+        "denyErrorMessage": "cert-not-provided"
       },
       "id": "dfea6806-2e9e-43e9-a162-08b3cd2e65f8"
     },
     {
-      "alias": "deny_acess",
+      "alias": "deny_access",
       "config": {
-        "denyErrorMessage": "credential_invalid"
+        "denyErrorMessage": "access-denied"
       },
       "id": "7ab8056a-1a0e-4d66-9121-d78540824622"
-    },
-    {
-      "alias": "x509-voter-cert-ac-dnie-001-conf",
-      "config": {
-        "x509-cert-auth-crl-abort-if-non-updated": "true",
-        "x509-cert-auth.canonical-dn-enabled": "false",
-        "x509-cert-auth.regular-expression": "IDCES-([0-9XYZ][0-9]{7}[A-Z])",
-        "x509-cert-auth.crldp-checking-enabled": "false",
-        "x509-cert-auth.ocsp-fail-open": "false",
-        "x509-cert-auth.mapper-selection": "Username or Email",
-        "x509-cert-auth.certificate-policy-mode": "All",
-        "x509-cert-auth.serialnumber-hex-enabled": "false",
-        "x509-cert-auth.revalidate-certificate-enabled": "true",
-        "x509-cert-auth.timestamp-validation-enabled": "true",
-        "x509-cert-auth.confirmation-page-disallowed": "true",
-        "x509-cert-auth.mapping-source-selection": "Match SubjectDN using regular expression"
-      },
-      "id": "92c6ffec-b93e-4bb5-975e-7d22ffef1511"
-    },
-    {
-      "alias": "x509-voter-cert-ac-dnie-002-conf",
-      "config": {
-        "x509-cert-auth.ocsp-fail-open": "false",
-        "x509-cert-auth.canonical-dn-enabled": "false",
-        "x509-cert-auth.revalidate-certificate-enabled": "true",
-        "x509-cert-auth.crldp-checking-enabled": "false",
-        "x509-cert-auth.mapping-source-selection": "Match SubjectDN using regular expression",
-        "x509-cert-auth.confirmation-page-disallowed": "true",
-        "x509-cert-auth.certificate-policy-mode": "All",
-        "x509-cert-auth.mapper-selection": "Username or Email",
-        "x509-cert-auth.serialnumber-hex-enabled": "false",
-        "x509-cert-auth.regular-expression": "IDCES-([0-9XYZ][0-9]{7}[A-Z])",
-        "x509-cert-auth-crl-abort-if-non-updated": "true",
-        "x509-cert-auth.timestamp-validation-enabled": "true"
-      },
-      "id": "c69f1bd0-5368-4c48-99cc-a8a5a87dcff8"
-    },
-    {
-      "alias": "x509-voter-cert-ac-dnie-003-conf",
-      "config": {
-        "x509-cert-auth-crl-abort-if-non-updated": "true",
-        "x509-cert-auth.mapping-source-selection": "Match SubjectDN using regular expression",
-        "x509-cert-auth.canonical-dn-enabled": "false",
-        "x509-cert-auth.ocsp-fail-open": "false",
-        "x509-cert-auth.confirmation-page-disallowed": "true",
-        "x509-cert-auth.mapper-selection": "Username or Email",
-        "x509-cert-auth.crldp-checking-enabled": "false",
-        "x509-cert-auth.timestamp-validation-enabled": "true",
-        "x509-cert-auth.serialnumber-hex-enabled": "false",
-        "x509-cert-auth.revalidate-certificate-enabled": "true",
-        "x509-cert-auth.regular-expression": "IDCES-([0-9XYZ][0-9]{7}[A-Z])",
-        "x509-cert-auth.certificate-policy-mode": "All"
-      },
-      "id": "3392059a-3acd-485c-9185-8d5e24890a20"
-    },
-    {
-      "alias": "x509-voter-cert-ac-dnie-004-conf",
-      "config": {
-        "x509-cert-auth.crldp-checking-enabled": "false",
-        "x509-cert-auth.confirmation-page-disallowed": "true",
-        "x509-cert-auth.revalidate-certificate-enabled": "true",
-        "x509-cert-auth-crl-abort-if-non-updated": "true",
-        "x509-cert-auth.regular-expression": "IDCES-([0-9XYZ][0-9]{7}[A-Z])",
-        "x509-cert-auth.mapping-source-selection": "Match SubjectDN using regular expression",
-        "x509-cert-auth.ocsp-fail-open": "false",
-        "x509-cert-auth.timestamp-validation-enabled": "true",
-        "x509-cert-auth.canonical-dn-enabled": "false",
-        "x509-cert-auth.serialnumber-hex-enabled": "false",
-        "x509-cert-auth.certificate-policy-mode": "All",
-        "x509-cert-auth.mapper-selection": "Username or Email"
-      },
-      "id": "0781f279-3248-472e-8919-000168c2532d"
-    },
-    {
-      "alias": "x509-voter-cert-ac-dnie-005-conf",
-      "config": {
-        "x509-cert-auth.mapper-selection": "Username or Email",
-        "x509-cert-auth.canonical-dn-enabled": "false",
-        "x509-cert-auth.certificate-policy-mode": "All",
-        "x509-cert-auth.mapping-source-selection": "Match SubjectDN using regular expression",
-        "x509-cert-auth.crldp-checking-enabled": "false",
-        "x509-cert-auth.timestamp-validation-enabled": "true",
-        "x509-cert-auth.regular-expression": "IDCES-([0-9XYZ][0-9]{7}[A-Z])",
-        "x509-cert-auth.serialnumber-hex-enabled": "false",
-        "x509-cert-auth.confirmation-page-disallowed": "true",
-        "x509-cert-auth.revalidate-certificate-enabled": "true",
-        "x509-cert-auth.ocsp-fail-open": "false",
-        "x509-cert-auth-crl-abort-if-non-updated": "true"
-      },
-      "id": "ae089928-8377-4dcf-9951-bbeca59136d6"
-    },
-    {
-      "alias": "x509-voter-cert-ac-dnie-006-conf",
-      "config": {
-        "x509-cert-auth.regular-expression": "IDCES-([0-9XYZ][0-9]{7}[A-Z])",
-        "x509-cert-auth.revalidate-certificate-enabled": "true",
-        "x509-cert-auth-crl-abort-if-non-updated": "true",
-        "x509-cert-auth.mapper-selection": "Username or Email",
-        "x509-cert-auth.serialnumber-hex-enabled": "false",
-        "x509-cert-auth.crldp-checking-enabled": "false",
-        "x509-cert-auth.confirmation-page-disallowed": "true",
-        "x509-cert-auth.mapping-source-selection": "Match SubjectDN using regular expression",
-        "x509-cert-auth.certificate-policy-mode": "All",
-        "x509-cert-auth.canonical-dn-enabled": "false",
-        "x509-cert-auth.ocsp-fail-open": "false",
-        "x509-cert-auth.timestamp-validation-enabled": "true"
-      },
-      "id": "0049ef9a-5c29-445a-a91e-cbaa06677f91"
-    },
-    {
-      "alias": "x509-voter-cert-accv-ecc1-cliente-conf",
-      "config": {
-        "x509-cert-auth.canonical-dn-enabled": "false",
-        "x509-cert-auth.revalidate-certificate-enabled": "true",
-        "x509-cert-auth.regular-expression": "IDCES-([0-9XYZ][0-9]{7}[A-Z])",
-        "x509-cert-auth.ocsp-fail-open": "false",
-        "x509-cert-auth.mapper-selection": "Username or Email",
-        "x509-cert-auth.timestamp-validation-enabled": "true",
-        "x509-cert-auth.mapping-source-selection": "Match SubjectDN using regular expression",
-        "x509-cert-auth.serialnumber-hex-enabled": "false",
-        "x509-cert-auth.confirmation-page-disallowed": "true",
-        "x509-cert-auth.crldp-checking-enabled": "false",
-        "x509-cert-auth-crl-abort-if-non-updated": "true",
-        "x509-cert-auth.certificate-policy-mode": "All"
-      },
-      "id": "fa0468fb-81b5-4846-93fb-98197f8e5eb4"
-    },
-    {
-      "alias": "x509-voter-cert-accv-rsa1-cliente-conf",
-      "config": {
-        "x509-cert-auth.confirmation-page-disallowed": "true",
-        "x509-cert-auth.ocsp-fail-open": "false",
-        "x509-cert-auth-crl-abort-if-non-updated": "true",
-        "x509-cert-auth.mapping-source-selection": "Match SubjectDN using regular expression",
-        "x509-cert-auth.revalidate-certificate-enabled": "true",
-        "x509-cert-auth.canonical-dn-enabled": "false",
-        "x509-cert-auth.timestamp-validation-enabled": "true",
-        "x509-cert-auth.regular-expression": "IDCES-([0-9XYZ][0-9]{7}[A-Z])",
-        "x509-cert-auth.mapper-selection": "Username or Email",
-        "x509-cert-auth.certificate-policy-mode": "All",
-        "x509-cert-auth.serialnumber-hex-enabled": "false",
-        "x509-cert-auth.crldp-checking-enabled": "false"
-      },
-      "id": "7d49a088-3544-456b-801b-3265a7a81bc4"
-    },
-    {
-      "alias": "x509-voter-cert-accvca120-conf",
-      "config": {
-        "x509-cert-auth.mapping-source-selection": "Match SubjectDN using regular expression",
-        "x509-cert-auth.serialnumber-hex-enabled": "false",
-        "x509-cert-auth.mapper-selection": "Username or Email",
-        "x509-cert-auth.certificate-policy-mode": "All",
-        "x509-cert-auth.ocsp-fail-open": "false",
-        "x509-cert-auth-crl-abort-if-non-updated": "true",
-        "x509-cert-auth.canonical-dn-enabled": "false",
-        "x509-cert-auth.timestamp-validation-enabled": "true",
-        "x509-cert-auth.confirmation-page-disallowed": "true",
-        "x509-cert-auth.regular-expression": "IDCES-([0-9XYZ][0-9]{7}[A-Z])",
-        "x509-cert-auth.revalidate-certificate-enabled": "true",
-        "x509-cert-auth.crldp-checking-enabled": "false"
-      },
-      "id": "c6251aed-53c4-429d-9902-75f6656de993"
-    },
-    {
-      "alias": "x509-voter-cert-camerfirma-global-np-2016-conf",
-      "config": {
-        "x509-cert-auth.crldp-checking-enabled": "false",
-        "x509-cert-auth.ocsp-fail-open": "false",
-        "x509-cert-auth.regular-expression": "IDCES-([0-9XYZ][0-9]{7}[A-Z])",
-        "x509-cert-auth.revalidate-certificate-enabled": "true",
-        "x509-cert-auth.mapping-source-selection": "Match SubjectDN using regular expression",
-        "x509-cert-auth.canonical-dn-enabled": "false",
-        "x509-cert-auth.serialnumber-hex-enabled": "false",
-        "x509-cert-auth.mapper-selection": "Username or Email",
-        "x509-cert-auth.certificate-policy-mode": "All",
-        "x509-cert-auth.timestamp-validation-enabled": "true",
-        "x509-cert-auth.confirmation-page-disallowed": "true",
-        "x509-cert-auth-crl-abort-if-non-updated": "true"
-      },
-      "id": "7664bdef-d445-4a88-b52b-04015b707a36"
-    },
-    {
-      "alias": "x509-voter-cert-camerfirma-np-2016-conf",
-      "config": {
-        "x509-cert-auth.regular-expression": "IDCES-([0-9XYZ][0-9]{7}[A-Z])",
-        "x509-cert-auth.serialnumber-hex-enabled": "false",
-        "x509-cert-auth.confirmation-page-disallowed": "true",
-        "x509-cert-auth.revalidate-certificate-enabled": "true",
-        "x509-cert-auth.mapper-selection": "Username or Email",
-        "x509-cert-auth-crl-abort-if-non-updated": "true",
-        "x509-cert-auth.canonical-dn-enabled": "false",
-        "x509-cert-auth.certificate-policy-mode": "All",
-        "x509-cert-auth.crldp-checking-enabled": "false",
-        "x509-cert-auth.ocsp-fail-open": "false",
-        "x509-cert-auth.timestamp-validation-enabled": "true",
-        "x509-cert-auth.mapping-source-selection": "Match SubjectDN using regular expression"
-      },
-      "id": "1fb48f0b-9b12-440d-aef0-bb55bacba338"
     },
     {
       "alias": "x509-voter-cert-dev-conf",
@@ -4587,130 +3682,76 @@
       "id": "1517d261-2315-43b7-b91b-bb4124a0d496"
     },
     {
-      "alias": "x509-voter-cert-ec-ciutadania-conf",
+      "alias": "cert-type-other-ca-conf",
       "config": {
-        "x509-cert-auth-crl-abort-if-non-updated": "true",
-        "x509-cert-auth.timestamp-validation-enabled": "true",
-        "x509-cert-auth.crldp-checking-enabled": "false",
-        "x509-cert-auth.mapping-source-selection": "Match SubjectDN using regular expression",
-        "x509-cert-auth.revalidate-certificate-enabled": "true",
-        "x509-cert-auth.mapper-selection": "Username or Email",
-        "x509-cert-auth.canonical-dn-enabled": "false",
-        "x509-cert-auth.ocsp-fail-open": "false",
-        "x509-cert-auth.confirmation-page-disallowed": "true",
-        "x509-cert-auth.regular-expression": "IDCES-([0-9XYZ][0-9]{7}[A-Z])",
-        "x509-cert-auth.serialnumber-hex-enabled": "false",
-        "x509-cert-auth.certificate-policy-mode": "All"
+        "value-is-regex": "false",
+        "conditional-auth-note-key": "cert-type",
+        "negate": "false",
+        "conditional-auth-note-value": "Other CA"
       },
-      "id": "45c3df4c-fdf6-4e49-a5fa-d79cefa484b8"
+      "id": "692a604e-65e2-48ad-860a-37c49d20a830"
     },
     {
-      "alias": "x509-voter-cert-fnmt-conf",
+      "alias": "x509-voter-cert-other-ca-conf",
       "config": {
         "x509-cert-auth.revalidate-certificate-enabled": "true",
-        "x509-cert-auth.canonical-dn-enabled": "false",
+        "x509-cert-auth.ocsp-fail-open": "false",
+        "x509-cert-auth.mapper-selection": "Username or Email",
+        "x509-cert-auth.mapping-source-selection": "Match SubjectDN using regular expression",
         "x509-cert-auth.confirmation-page-disallowed": "true",
         "x509-cert-auth-crl-abort-if-non-updated": "true",
-        "x509-cert-auth.mapping-source-selection": "Match SubjectDN using regular expression",
         "x509-cert-auth.timestamp-validation-enabled": "true",
-        "x509-cert-auth.regular-expression": "IDCES-([0-9XYZ][0-9]{7}[A-Z])",
-        "x509-cert-auth.ocsp-fail-open": "false",
         "x509-cert-auth.serialnumber-hex-enabled": "false",
         "x509-cert-auth.certificate-policy-mode": "All",
-        "x509-cert-auth.mapper-selection": "Username or Email",
-        "x509-cert-auth.crldp-checking-enabled": "false"
-      },
-      "id": "e073793b-4b68-4b37-af35-226cae23bbaf"
-    },
-    {
-      "alias": "x509-voter-cert-subca-ciutadania-q-g3-a2-conf",
-      "config": {
-        "x509-cert-auth.revalidate-certificate-enabled": "true",
-        "x509-cert-auth.certificate-policy-mode": "All",
-        "x509-cert-auth.regular-expression": "IDCES-([0-9XYZ][0-9]{7}[A-Z])",
-        "x509-cert-auth.mapper-selection": "Username or Email",
-        "x509-cert-auth-crl-abort-if-non-updated": "true",
-        "x509-cert-auth.ocsp-fail-open": "false",
-        "x509-cert-auth.crldp-checking-enabled": "false",
-        "x509-cert-auth.confirmation-page-disallowed": "true",
-        "x509-cert-auth.canonical-dn-enabled": "false",
-        "x509-cert-auth.mapping-source-selection": "Match SubjectDN using regular expression",
-        "x509-cert-auth.timestamp-validation-enabled": "true",
-        "x509-cert-auth.serialnumber-hex-enabled": "false"
-      },
-      "id": "e5aa24e3-1f44-4c82-b687-389eda08452a"
-    },
-    {
-      "alias": "x509-voter-cert-uanataca-ca1-2016-conf",
-      "config": {
-        "x509-cert-auth.ocsp-fail-open": "false",
-        "x509-cert-auth.certificate-policy-mode": "All",
-        "x509-cert-auth.timestamp-validation-enabled": "true",
-        "x509-cert-auth.crldp-checking-enabled": "false",
-        "x509-cert-auth-crl-abort-if-non-updated": "true",
-        "x509-cert-auth.regular-expression": "IDCES-([0-9XYZ][0-9]{7}[A-Z])",
-        "x509-cert-auth.serialnumber-hex-enabled": "false",
-        "x509-cert-auth.revalidate-certificate-enabled": "true",
-        "x509-cert-auth.mapping-source-selection": "Match SubjectDN using regular expression",
-        "x509-cert-auth.confirmation-page-disallowed": "true",
-        "x509-cert-auth.mapper-selection": "Username or Email",
-        "x509-cert-auth.canonical-dn-enabled": "false"
-      },
-      "id": "cb3a5a1e-5f29-43b8-a6ff-3e56929d3a52"
-    },
-    {
-      "alias": "x509-voter-cert-uanataca-ca1-2021-conf",
-      "config": {
-        "x509-cert-auth.mapper-selection": "Username or Email",
-        "x509-cert-auth.serialnumber-hex-enabled": "false",
-        "x509-cert-auth.mapping-source-selection": "Match SubjectDN using regular expression",
-        "x509-cert-auth.timestamp-validation-enabled": "true",
-        "x509-cert-auth.crldp-checking-enabled": "false",
-        "x509-cert-auth.confirmation-page-disallowed": "true",
-        "x509-cert-auth.ocsp-fail-open": "false",
-        "x509-cert-auth.revalidate-certificate-enabled": "true",
-        "x509-cert-auth.certificate-policy-mode": "All",
-        "x509-cert-auth-crl-abort-if-non-updated": "true",
-        "x509-cert-auth.canonical-dn-enabled": "false",
-        "x509-cert-auth.regular-expression": "IDCES-([0-9XYZ][0-9]{7}[A-Z])"
-      },
-      "id": "6f93ef7c-3b1c-4734-a19b-9673eb371b9a"
-    },
-    {
-      "alias": "x509-voter-cert-uanataca-ca2-2016-conf",
-      "config": {
         "x509-cert-auth.canonical-dn-enabled": "false",
         "x509-cert-auth.crldp-checking-enabled": "false",
-        "x509-cert-auth.revalidate-certificate-enabled": "true",
-        "x509-cert-auth.mapper-selection": "Username or Email",
-        "x509-cert-auth.mapping-source-selection": "Match SubjectDN using regular expression",
-        "x509-cert-auth.ocsp-fail-open": "false",
-        "x509-cert-auth.certificate-policy-mode": "All",
-        "x509-cert-auth.timestamp-validation-enabled": "true",
-        "x509-cert-auth.confirmation-page-disallowed": "true",
-        "x509-cert-auth.serialnumber-hex-enabled": "false",
-        "x509-cert-auth-crl-abort-if-non-updated": "true",
-        "x509-cert-auth.regular-expression": "IDCES-([0-9XYZ][0-9]{7}[A-Z])"
+        "x509-cert-auth.regular-expression": "(?:CN=)([^,]*)"
       },
-      "id": "102e9480-3bc1-4fae-a03c-1b3e9509acb4"
+      "id": "8891a9eb-8301-4b4e-96db-e4d2f509394b"
     },
     {
-      "alias": "x509-voter-cert-uanataca-ca2-2021-conf",
+      "alias": "Not allowed conditional",
       "config": {
-        "x509-cert-auth.canonical-dn-enabled": "false",
-        "x509-cert-auth.confirmation-page-disallowed": "true",
-        "x509-cert-auth.timestamp-validation-enabled": "true",
-        "x509-cert-auth.mapping-source-selection": "Match SubjectDN using regular expression",
-        "x509-cert-auth.ocsp-fail-open": "false",
-        "x509-cert-auth.revalidate-certificate-enabled": "true",
-        "x509-cert-auth.regular-expression": "IDCES-([0-9XYZ][0-9]{7}[A-Z])",
-        "x509-cert-auth-crl-abort-if-non-updated": "true",
-        "x509-cert-auth.serialnumber-hex-enabled": "false",
-        "x509-cert-auth.certificate-policy-mode": "All",
-        "x509-cert-auth.mapper-selection": "Username or Email",
-        "x509-cert-auth.crldp-checking-enabled": "false"
+        "conditional-auth-note-key": "deny-type",
+        "value-is-regex": "false",
+        "negate": "false",
+        "conditional-auth-note-value": "cert-not-provided"
       },
-      "id": "4149c19e-3e0d-4b6f-8c4d-46dc05424cec"
+      "id": "4863bf73-3a7c-41b8-9da5-73190027e362"
+    },
+    {
+      "alias": "not-not-allowed",
+      "config": {
+        "value-is-regex": "false",
+        "negate": "false",
+        "conditional-auth-note-value": "user-not-found",
+        "conditional-auth-note-key": "deny-type"
+      },
+      "id": "2396e42e-44e1-4354-ae22-f448423bdcb2"
+    },
+    {
+      "alias": "no user-not-found",
+      "config": {
+        "negate": "true",
+        "conditional-auth-note-value": "user-not-found",
+        "value-is-regex": "false",
+        "conditional-auth-note-key": "deny-type"
+      },
+      "id": "7f427531-96d3-4b37-ad79-c6f48cd3f65b"
+    },
+    {
+      "alias": "deny-cert-not-provided",
+      "config": {
+        "denyErrorMessage": "cert-not-provided"
+      },
+      "id": "b62f3a6c-bfab-4e24-bbcc-3f2c2789e44d"
+    },
+    {
+      "alias": "user-not-found-config",
+      "config": {
+        "denyErrorMessage": "user-not-found"
+      },
+      "id": "f8a32029-15d8-4386-b332-0ab08a2fd166"
     }
   ],
   "requiredActions": [
