@@ -28,11 +28,11 @@ public class X509UserResolutionAuthenticator extends X509ClientCertificateAuthen
     String eventError = context.getEvent().getEvent().getError();
     log.infov("X509UserResolutionAuthenticator.authenticate: eventError={0}", eventError);
     // If there was an error the SPI do not set the user.
-    // We also check that the deny type is not already set by the X509CertClassifierAuthenticator, to avoid overwriting it with a generic access-denied
+    // We also check that the deny type is not already set by the X509CertClassifierAuthenticator,
+    // to avoid overwriting it with a generic access-denied
     if (context.getUser() == null
         && context.getAuthenticationSession().getAuthNote(AUTH_NOTE_DENY_TYPE) == null) {
-      String denyType =
-          Errors.USER_NOT_FOUND.equals(eventError) ? USER_NOT_FOUND : ACCESS_DENIED;
+      String denyType = Errors.USER_NOT_FOUND.equals(eventError) ? USER_NOT_FOUND : ACCESS_DENIED;
       log.infov(
           "authenticate(): user not resolved after X509 validation (eventError={0}), setting {1}={2}",
           eventError, AUTH_NOTE_DENY_TYPE, denyType);

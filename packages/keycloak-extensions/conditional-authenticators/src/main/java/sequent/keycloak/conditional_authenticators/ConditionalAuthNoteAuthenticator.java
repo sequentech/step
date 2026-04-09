@@ -79,8 +79,12 @@ public class ConditionalAuthNoteAuthenticator implements ConditionalAuthenticato
     }
     log.infov(
         "matchCondition(): key={0}, value={1}, note={2}, regex={3}, negate[{4}] != match[{5}]",
-        requiredAuthNoteKey, requiredAuthNoteValue, authNoteValue,
-        valueIsRegex, negateOutput, authNoteMatch);
+        requiredAuthNoteKey,
+        requiredAuthNoteValue,
+        authNoteValue,
+        valueIsRegex,
+        negateOutput,
+        authNoteMatch);
     return negateOutput != authNoteMatch;
   }
 

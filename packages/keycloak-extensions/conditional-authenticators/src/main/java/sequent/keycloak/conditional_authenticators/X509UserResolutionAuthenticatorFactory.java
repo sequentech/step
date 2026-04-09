@@ -12,7 +12,8 @@ import org.keycloak.models.KeycloakSession;
 
 /** Factory for {@link X509UserResolutionAuthenticator}. */
 @AutoService(AuthenticatorFactory.class)
-public class X509UserResolutionAuthenticatorFactory extends X509ClientCertificateAuthenticatorFactory {
+public class X509UserResolutionAuthenticatorFactory
+    extends X509ClientCertificateAuthenticatorFactory {
 
   public static final String PROVIDER_ID = "x509-user-resolution";
 

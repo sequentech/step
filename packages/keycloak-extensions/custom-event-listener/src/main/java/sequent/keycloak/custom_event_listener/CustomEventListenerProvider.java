@@ -4,9 +4,9 @@
 
 package sequent.keycloak.custom_event_listener;
 
+import static sequent.keycloak.authenticator.Utils.AUTH_NOTE_DENY_TYPE;
 import static sequent.keycloak.authenticator.Utils.CA_CERT_ISSUER_CN;
 import static sequent.keycloak.authenticator.Utils.VOTER_CERT_SUBJECT_DN;
-import static sequent.keycloak.authenticator.Utils.AUTH_NOTE_DENY_TYPE;
 import static sequent.keycloak.authenticator.Utils.sendErrorNotificationToUser;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -213,16 +213,15 @@ public class CustomEventListenerProvider implements EventListenerProvider {
     } else if (event.getType() == EventType.LOGIN_ERROR && isLoginWithCertificate) {
       String denyType = details.getOrDefault(AUTH_NOTE_DENY_TYPE, "none");
       if (userId == null) {
-        log.warn("Login error event with certificate details but no userId. Cannot retrieve username.");
+        log.warn(
+            "Login error event with certificate details but no userId. Cannot retrieve username.");
       }
       String certInfo =
-      AUTH_NOTE_DENY_TYPE
+          AUTH_NOTE_DENY_TYPE
               + "="
-              +
-          denyType
+              + denyType
               + " "
-              +
-          VOTER_CERT_SUBJECT_DN
+              + VOTER_CERT_SUBJECT_DN
               + "="
               + details.getOrDefault(VOTER_CERT_SUBJECT_DN, "unknown")
               + " "

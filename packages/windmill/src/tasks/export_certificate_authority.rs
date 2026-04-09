@@ -34,15 +34,13 @@ async fn export_certificate_authority_impl(
         .await
         .with_context(|| "Error starting transaction")?;
 
-    let pems =
-        get_certificate_authorities_pem_by_ids(&hasura_transaction, election_event_id, &ids)
-            .await
-            .with_context(|| "Error fetching certificate authority PEMs")?;
+    let pems = get_certificate_authorities_pem_by_ids(&hasura_transaction, election_event_id, &ids)
+        .await
+        .with_context(|| "Error fetching certificate authority PEMs")?;
 
     let pem_bundle = pems.join("\n");
 
-    let mut temp_file =
-        NamedTempFile::new().with_context(|| "Error creating temporary file")?;
+    let mut temp_file = NamedTempFile::new().with_context(|| "Error creating temporary file")?;
     temp_file
         .write_all(pem_bundle.as_bytes())
         .with_context(|| "Error writing PEM content to temporary file")?;
@@ -53,7 +51,10 @@ async fn export_certificate_authority_impl(
         .with_context(|| "Error reading temp file metadata")?
         .len();
 
-    let name = format!("{}.pem", crate::types::documents::EDocuments::CERTIFICATES.to_file_name());
+    let name = format!(
+        "{}.pem",
+        crate::types::documents::EDocuments::CERTIFICATES.to_file_name()
+    );
     let election_event_id_str = election_event_id.to_string();
     let key = s3::get_document_key(
         &tenant_id,
@@ -109,13 +110,8 @@ pub async fn export_certificate_authority(
     document_id: String,
     task_execution: TasksExecution,
 ) -> Result<()> {
-    match export_certificate_authority_impl(
-        tenant_id,
-        election_event_id,
-        ids,
-        document_id.clone(),
-    )
-    .await
+    match export_certificate_authority_impl(tenant_id, election_event_id, ids, document_id.clone())
+        .await
     {
         Ok(()) => {
             update_complete(&task_execution, Some(document_id))

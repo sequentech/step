@@ -4,8 +4,8 @@
 
 package sequent.keycloak.conditional_authenticators;
 
-import static sequent.keycloak.authenticator.Utils.CA_CERT_ISSUER_CN;
 import static sequent.keycloak.authenticator.Utils.AUTH_NOTE_DENY_TYPE;
+import static sequent.keycloak.authenticator.Utils.CA_CERT_ISSUER_CN;
 import static sequent.keycloak.authenticator.Utils.VOTER_CERT_SUBJECT_DN;
 
 import java.io.ByteArrayInputStream;
@@ -41,6 +41,7 @@ public class X509CertClassifierAuthenticator implements Authenticator {
 
   /** Default HTTP header name when no authenticator config is provided. */
   public static final String DEFAULT_CERT_HEADER = "ssl-client-cert";
+
   public static final String AUTH_NOTE_CERT_TYPE = "cert-type";
   public static final String CERT_NOT_PROVIDED = "cert-not-provided";
   public static final String CERT_TYPE_NONE = "none";

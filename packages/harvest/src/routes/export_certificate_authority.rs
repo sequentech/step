@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::services::authorization::authorize;
+use deadpool_postgres::Client as DbClient;
 use rocket::http::Status;
 use rocket::serde::json::Json;
 use sequent_core::ballot::VoterCertificatePolicy;
@@ -17,7 +18,6 @@ use windmill::services::celery_app::get_celery_app;
 use windmill::services::database::get_hasura_pool;
 use windmill::services::tasks_execution::post;
 use windmill::types::tasks::ETasksExecution;
-use deadpool_postgres::Client as DbClient;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct ExportCertificateAuthorityInput {
