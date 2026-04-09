@@ -91,12 +91,7 @@ const HeaderWithContext: React.FC = () => {
               : presentation?.logo_url
 
     const onChangeLanguage = (lang: string) => {
-        setCookie(
-            USER_LANGUAGE_COOKIE_NAME,
-            lang,
-            globalSettings.APP_VERSION,
-            globalSettings.DOMAIN
-        )
+        setCookie(USER_LANGUAGE_COOKIE_NAME, lang)
     }
 
     return (

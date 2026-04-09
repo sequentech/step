@@ -216,13 +216,15 @@ SPDX-License-Identifier: AGPL-3.0-only
         <p>${kcSanitize(msg("loginFooter"))?no_esc}</p>
     </div>
   </main>
-  <script>
+<script>
     (function () {
-        const domain = "${properties.domain?js_string!''}";
-        const systemVersion = "${properties.systemVersion?js_string!''}";
+        function getParentDomain() {
+            const hostname = window.location.hostname;
+            const match = hostname.match(/(sequent\..+)$/i);
+            return match ? match[1] : "";
+        }
 
-        console.log("domain:", domain);
-        console.log("systemVersion:", systemVersion);
+        const domain = getParentDomain();
 
         function setSessionLangCookie(lang) {
             let cookie =
@@ -234,7 +236,7 @@ SPDX-License-Identifier: AGPL-3.0-only
                 cookie += "; Domain=" + domain;
             }
 
-            if (systemVersion !== "dev") {
+            if (window.location.protocol === "https:") {
                 cookie += "; Secure";
             }
 
@@ -246,8 +248,8 @@ SPDX-License-Identifier: AGPL-3.0-only
             return u.searchParams.get("kc_locale") || u.searchParams.get("locale");
         }
 
-        document.querySelectorAll('#language-switch1 a[href]').forEach(function (link) {
-            link.addEventListener('click', function () {
+        document.querySelectorAll("#language-switch1 a[href]").forEach(function (link) {
+            link.addEventListener("click", function () {
                 const lang = getLangFromHref(link.href);
                 if (lang) {
                     setSessionLangCookie(lang);

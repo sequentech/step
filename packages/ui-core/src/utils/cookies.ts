@@ -9,23 +9,22 @@ export const getValueFromCookie = (cookieName: string) => {
     return value || undefined
 }
 
-export function setCookie(
-    name: string,
-    value: string,
-    systemVersion: string = "-",
-    domain?: string
-) {
+export function setCookie(name: string, value: string) {
+    // Extract the parent domain from the current hostname.
+    const hostname = window.location.hostname
+    const match = hostname.match(/(sequent\..+)$/i)
+    const domain = match ? match[1] : ""
+
     let cookie =
         `${encodeURIComponent(name)}=${encodeURIComponent(value)}` + `; Path=/` + `; SameSite=Lax`
 
-    // Add domain only if defined
     if (domain) {
         cookie += `; Domain=${domain}`
     }
 
-    // Add Secure only if NOT dev
-    if (systemVersion !== "-") {
+    if (window.location.protocol === "https:") {
         cookie += `; Secure`
     }
+
     document.cookie = cookie
 }

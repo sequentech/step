@@ -18,7 +18,6 @@ export interface GlobalSettings {
     PUBLIC_BUCKET_URL: string
     KEYCLOAK_ACCESS_TOKEN_LIFESPAN_SECS: number
     POLLING_DURATION_TIMEOUT: number
-    DOMAIN: string
 }
 
 interface SettingsContextValues {
@@ -45,7 +44,6 @@ const defaultSettingsValues: SettingsContextValues = {
         PUBLIC_BUCKET_URL: "http://127.0.0.1:9002/public/",
         KEYCLOAK_ACCESS_TOKEN_LIFESPAN_SECS: 900,
         POLLING_DURATION_TIMEOUT: 12000,
-        DOMAIN: "127.0.0.1",
     },
     defaultLanguageTouched: false,
     setDefaultLanguageTouched: () => {},

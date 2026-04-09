@@ -632,9 +632,12 @@ pub async fn process_export_zip(
         std::io::copy(&mut ballot_publication_file, &mut zip_writer)
             .map_err(|e| anyhow!("Error copying ballot publications file to ZIP: {e:?}"))?;
 
-        /// Handle election event config file (which is created in ballot publication)
-        let election_event_config =
-            format!("{EVENT_PRESENTATION_DOCUMENT_NAME}_{election_event_id}.json");
+        // Handle election event config file (which is created in ballot publication)
+        let election_event_config = format!(
+            "{}-{}.json",
+            EDocuments::ELECTION_EVENT_CONFIG.to_file_name(),
+            election_event_id
+        );
 
         zip_writer
             .start_file(&election_event_config, options)

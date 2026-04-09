@@ -23,11 +23,13 @@ use chrono::Duration;
 use deadpool_postgres::{Client as DbClient, Transaction};
 use futures::try_join;
 use rocket::http::Status;
+use sequent_core::ballot::ElectionEventPresentation;
 use sequent_core::types::hasura::core::{
     self as hasura_type, Area, AreaContest, BallotPublication, BallotStyle, Candidate, Contest,
     Election, ElectionEvent, KeysCeremony,
 };
 use sequent_core::types::scheduled_event::ScheduledEvent;
+use serde::{Deserialize, Serialize};
 
 use std::collections::{HashMap, HashSet};
 use std::io::Write;
@@ -40,6 +42,14 @@ use sequent_core::services::date::ISO8601;
 use sequent_core::services::area_tree::TreeNode;
 
 pub const EVENT_PRESENTATION_DOCUMENT_NAME: &str = "election_event_config.json";
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct ElectionEventConfig {
+    pub id: String,
+    pub election_event_id: String,
+    pub tenant_id: String,
+    pub election_event_presentation: ElectionEventPresentation,
+}
 
 /**
  * Returns a HashMap<election_id, set<contest_id>> with all
@@ -188,8 +198,9 @@ pub async fn create_ballot_style_postgres(
     Ok(())
 }
 
-/// Creates a JSON file with the election event presentation and uploads it to S3 public bucket.
-pub async fn create_public_election_event_presentation_file(
+/// Creates a JSON file with the election event config with presentation data
+///  and uploads it to S3 public bucket.
+pub async fn create_public_election_event_config_file(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
     election_event: &ElectionEvent,
@@ -198,22 +209,20 @@ pub async fn create_public_election_event_presentation_file(
     if let Some(election_presentation) = election_presentation {
         let id = Uuid::new_v4().to_string();
 
-        // Create JSON object with presentation data
-        let presentation_data = serde_json::json!({
-            "id": id,
-            "tenant_id": tenant_id,
-            "election_event_id": election_event.id,
-            "election_event_presentation": election_presentation
-        });
+        let config_data = ElectionEventConfig {
+            id: id.clone(),
+            tenant_id: tenant_id.to_string(),
+            election_event_id: election_event.id.clone(),
+            election_event_presentation: election_presentation,
+        };
 
-        let presentation_json = serde_json::to_string(&presentation_data)?;
-
+        let config_json = serde_json::to_string(&config_data)?;
         // Write to temp file
         let mut temp_file = tempfile::NamedTempFile::new()?;
-        temp_file.write_all(presentation_json.as_bytes())?;
+        temp_file.write_all(config_json.as_bytes())?;
 
         let temp_file_path = temp_file.path().to_string_lossy().to_string();
-        let file_size = presentation_json.len() as u64;
+        let file_size = config_json.len() as u64;
 
         // Upload to S3 public bucket with election_event_id in path
         let _document = upload_and_return_public_event_document(
@@ -340,8 +349,7 @@ pub async fn update_election_event_ballot_styles(
     )
     .await?;
 
-    create_public_election_event_presentation_file(&transaction, tenant_id, &election_event)
-        .await?;
+    create_public_election_event_config_file(&transaction, tenant_id, &election_event).await?;
 
     let _commit = transaction.commit().await.with_context(|| "Commit failed");
     lock.release().await?;

@@ -7,7 +7,9 @@ use crate::postgres::election_event::{get_election_event_by_id_if_exist, update_
 use crate::postgres::reports::insert_reports;
 use crate::postgres::reports::Report;
 use crate::postgres::trustee::get_all_trustees;
-use crate::services::import::import_publications::import_ballot_publications;
+use crate::services::import::import_publications::{
+    import_ballot_publications, import_election_event_config_file,
+};
 use crate::services::import::import_scheduled_events::import_scheduled_events;
 use crate::services::import::import_tally::process_tally_file;
 use crate::services::protocol_manager::get_event_board;
@@ -1243,6 +1245,28 @@ pub async fn process_document(
                 )
                 .await
                 .with_context(|| "Error importing publications")?;
+            }
+            if file_name.contains(&format!(
+                "{}",
+                EDocuments::ELECTION_EVENT_CONFIG.to_file_name()
+            )) {
+                let mut temp_file = NamedTempFile::new()
+                    .context("Failed to create election event config temporary file")?;
+
+                io::copy(&mut cursor, &mut temp_file).context(
+                    "Failed to copy contents of election event config file to temporary file",
+                )?;
+                temp_file.as_file_mut().rewind()?;
+
+                import_election_event_config_file(
+                    hasura_transaction,
+                    &election_event_schema.tenant_id.to_string(),
+                    &election_event_schema.election_event.id,
+                    temp_file,
+                    replacement_map.clone(),
+                )
+                .await
+                .with_context(|| "Error importing election event config file")?;
             }
 
             if file_name.contains(&format!(
