@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::postgres::ballot_publication::get_ballot_publication;
 use crate::postgres::ballot_style::export_event_ballot_styles;
-use crate::services::ballot_styles::ballot_style::EVENT_PRESENTATION_DOCUMENT_NAME;
+use crate::services::ballot_styles::ballot_style::EVENT_CONFIG_FILE_NAME;
 use crate::services::documents::upload_and_return_document;
 use anyhow::{anyhow, Context, Result};
 use csv::Writer;
@@ -151,7 +151,7 @@ pub async fn export_election_event_config_file(
 ) -> Result<TempPath> {
     let s3_bucket = get_public_bucket()?;
 
-    let document_name = EVENT_PRESENTATION_DOCUMENT_NAME;
+    let document_name = EVENT_CONFIG_FILE_NAME;
 
     // Obtain the key for the document in S3
     let document_s3_key =

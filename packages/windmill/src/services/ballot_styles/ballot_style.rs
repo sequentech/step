@@ -41,7 +41,7 @@ use sequent_core::services::date::ISO8601;
 
 use sequent_core::services::area_tree::TreeNode;
 
-pub const EVENT_PRESENTATION_DOCUMENT_NAME: &str = "election_event_config.json";
+pub const EVENT_CONFIG_FILE_NAME: &str = "election_event_config.json";
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ElectionEventConfig {
@@ -205,15 +205,15 @@ pub async fn create_public_election_event_config_file(
     tenant_id: &str,
     election_event: &ElectionEvent,
 ) -> AnyhowResult<()> {
-    let election_presentation = election_event.get_presentation()?;
-    if let Some(election_presentation) = election_presentation {
+    let event_presentation = election_event.get_presentation()?;
+    if let Some(presentation) = event_presentation {
         let id = Uuid::new_v4().to_string();
 
         let config_data = ElectionEventConfig {
             id: id.clone(),
             tenant_id: tenant_id.to_string(),
             election_event_id: election_event.id.clone(),
-            election_event_presentation: election_presentation,
+            election_event_presentation: presentation,
         };
 
         let config_json = serde_json::to_string(&config_data)?;
@@ -232,7 +232,7 @@ pub async fn create_public_election_event_config_file(
             "application/json",
             tenant_id,
             election_event.id.as_str(),
-            EVENT_PRESENTATION_DOCUMENT_NAME,
+            EVENT_CONFIG_FILE_NAME,
             Some(id),
         )
         .await?;

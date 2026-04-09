@@ -216,16 +216,10 @@ SPDX-License-Identifier: AGPL-3.0-only
         <p>${kcSanitize(msg("loginFooter"))?no_esc}</p>
     </div>
   </main>
+<script src="https://unpkg.com/tldts@6/dist/index.umd.min.js"></script>
 <script>
     (function () {
-        function getParentDomain() {
-            const hostname = window.location.hostname;
-            const match = hostname.match(/(sequent\..+)$/i);
-            return match ? match[1] : "";
-        }
-
-        const domain = getParentDomain();
-
+        const domain = tldts.getDomain(window.location.hostname);
         function setSessionLangCookie(lang) {
             let cookie =
                 "USER_LANGUAGE=" + encodeURIComponent(lang) +

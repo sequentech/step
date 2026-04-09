@@ -12,6 +12,7 @@ import {
     IElectionEventPresentation,
     USER_LANGUAGE_COOKIE_NAME,
     setCookie,
+    getValueFromCookie,
 } from "@sequentech/ui-core"
 import Stack from "@mui/material/Stack"
 import {useNavigate} from "react-router-dom"
@@ -91,7 +92,9 @@ const HeaderWithContext: React.FC = () => {
               : presentation?.logo_url
 
     const onChangeLanguage = (lang: string) => {
-        setCookie(USER_LANGUAGE_COOKIE_NAME, lang)
+        if (getValueFromCookie(USER_LANGUAGE_COOKIE_NAME) !== lang) {
+            setCookie(USER_LANGUAGE_COOKIE_NAME, lang)
+        }
     }
 
     return (

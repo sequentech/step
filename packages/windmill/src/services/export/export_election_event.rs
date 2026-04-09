@@ -13,7 +13,6 @@ use crate::postgres::election_event::get_election_event_by_id;
 use crate::postgres::keys_ceremony::get_keys_ceremonies;
 use crate::postgres::reports::get_reports_by_election_event_id;
 use crate::postgres::trustee::get_all_trustees;
-use crate::services::ballot_styles::ballot_style::EVENT_PRESENTATION_DOCUMENT_NAME;
 use crate::services::database::get_hasura_pool;
 use crate::services::export::export_ballot_publication::{self, export_election_event_config_file};
 use crate::services::import::import_election_event::ImportElectionEventSchema;

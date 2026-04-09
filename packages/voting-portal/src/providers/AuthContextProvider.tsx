@@ -5,7 +5,7 @@ import React, {useContext} from "react"
 
 import Keycloak, {KeycloakConfig, KeycloakInitOptions} from "keycloak-js"
 import {createContext, useEffect, useState} from "react"
-import {sleep} from "@sequentech/ui-core"
+import {getValueFromCookie, sleep, USER_LANGUAGE_COOKIE_NAME} from "@sequentech/ui-core"
 import {SettingsContext} from "./SettingsContextProvider"
 import {getLanguageFromURL} from "../utils/queryParams"
 import {useTranslation} from "react-i18next"
@@ -278,7 +278,10 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
                     // opening the app or reloading the page). If not authenticated the user will
                     // be send to the login form. If already authenticated the webapp will open.
                     checkLoginIframe: false,
-                    locale: getLanguageFromURL() || defaultLocale,
+                    locale:
+                        getLanguageFromURL() ||
+                        getValueFromCookie(USER_LANGUAGE_COOKIE_NAME) ||
+                        defaultLocale,
                 }
                 const isAuthenticatedResponse = await keycloak.init(keycloakInitOptions)
 

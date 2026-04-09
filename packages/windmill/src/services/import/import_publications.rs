@@ -19,9 +19,7 @@ use tempfile::NamedTempFile;
 use tracing::{info, instrument};
 use uuid::Uuid;
 
-use crate::services::ballot_styles::ballot_style::{
-    ElectionEventConfig, EVENT_PRESENTATION_DOCUMENT_NAME,
-};
+use crate::services::ballot_styles::ballot_style::{ElectionEventConfig, EVENT_CONFIG_FILE_NAME};
 use crate::services::documents::upload_and_return_public_event_document;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -88,7 +86,7 @@ pub async fn import_election_event_config_file(
         "application/json",
         tenant_id,
         election_event_id,
-        EVENT_PRESENTATION_DOCUMENT_NAME,
+        EVENT_CONFIG_FILE_NAME,
         Some(new_id.to_string()),
     )
     .await?;
