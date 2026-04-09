@@ -54,41 +54,6 @@ server {
     # Note: with optional_no_ca, $ssl_client_verify is "NONE" (no cert) or
     # "FAILED:..." (cert present but unverified). It is never "SUCCESS".
 
-    # When the user cancels the certificate picker, the browser still sends
-    # the request to port 8443 but without a certificate (ssl_client_verify=NONE).
-    # Redirect those no-cert restart requests back to the plain Keycloak port
-    # so the login page is shown at http://127.0.0.1:8090 instead of staying
-    # on the mTLS proxy URL.
-    #
-    # With optional_no_ca, $ssl_client_verify is never "SUCCESS" — it is "NONE"
-    # when no cert is presented and "FAILED:..." when a cert is present (because
-    # nginx has no CA to verify against). Check for "NONE" specifically so the
-    # redirect only fires when no cert was sent.
-    location ~* /login-actions/restart {
-        if ($ssl_client_verify = "NONE") {
-            # Redirect the browser to Keycloak directly (bypassing this mTLS
-            # proxy) so the login page is shown without the mTLS URL in the
-            # address bar. KEYCLOAK_URL must be browser-accessible here
-            # (port 8090 is forwarded in dev; use KEYCLOAK_PUBLIC_URL for
-            # remote deployments).
-            return 302 http://${KC_HOSTNAME}:${KC_HTTP_PORT}$request_uri;
-        }
-
-        set $keycloak_upstream http://keycloak:${KC_HTTP_PORT};
-        proxy_pass $keycloak_upstream;
-
-        proxy_buffering on;
-        proxy_intercept_errors on;
-
-        proxy_set_header Host               $host;
-        proxy_set_header X-Real-IP          $remote_addr;
-        proxy_set_header X-Forwarded-For    $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto  https;
-        proxy_set_header X-Forwarded-Host   $host;
-        proxy_set_header X-Forwarded-Port   8443;
-        proxy_set_header ssl-client-cert    $ssl_client_escaped_cert;
-    }
-
     location / {
         set $keycloak_upstream http://keycloak:${KC_HTTP_PORT};
         proxy_pass $keycloak_upstream;

@@ -3067,7 +3067,7 @@
       "authenticationExecutions": [
         {
           "authenticator": "conditional-auth-note",
-          "authenticatorConfig": "Not allowed conditional",
+          "authenticatorConfig": "Cert not provided conditional",
           "authenticatorFlow": false,
           "autheticatorFlow": false,
           "priority": 0,
@@ -3095,7 +3095,7 @@
       "authenticationExecutions": [
         {
           "authenticator": "conditional-auth-note",
-          "authenticatorConfig": "not-not-allowed",
+          "authenticatorConfig": "User not found conditional",
           "authenticatorFlow": false,
           "autheticatorFlow": false,
           "priority": 0,
@@ -3123,7 +3123,7 @@
       "authenticationExecutions": [
         {
           "authenticator": "conditional-auth-note",
-          "authenticatorConfig": "no user-not-found",
+          "authenticatorConfig": "Access denied conditional",
           "authenticatorFlow": false,
           "autheticatorFlow": false,
           "priority": 0,
@@ -3650,13 +3650,6 @@
       "id": "d155ce72-b8a1-4452-ae07-9ba464a17837"
     },
     {
-      "alias": "deny-not-allowed",
-      "config": {
-        "denyErrorMessage": "cert-not-provided"
-      },
-      "id": "dfea6806-2e9e-43e9-a162-08b3cd2e65f8"
-    },
-    {
       "alias": "deny_access",
       "config": {
         "denyErrorMessage": "access-denied"
@@ -3710,7 +3703,7 @@
       "id": "8891a9eb-8301-4b4e-96db-e4d2f509394b"
     },
     {
-      "alias": "Not allowed conditional",
+      "alias": "Cert not provided conditional",
       "config": {
         "conditional-auth-note-key": "deny-type",
         "value-is-regex": "false",
@@ -3720,7 +3713,7 @@
       "id": "4863bf73-3a7c-41b8-9da5-73190027e362"
     },
     {
-      "alias": "not-not-allowed",
+      "alias": "User not found conditional",
       "config": {
         "value-is-regex": "false",
         "negate": "false",
@@ -3730,10 +3723,10 @@
       "id": "2396e42e-44e1-4354-ae22-f448423bdcb2"
     },
     {
-      "alias": "no user-not-found",
+      "alias": "Access denied conditional",
       "config": {
-        "negate": "true",
-        "conditional-auth-note-value": "user-not-found",
+        "negate": "false",
+        "conditional-auth-note-value": "access-denied",
         "value-is-regex": "false",
         "conditional-auth-note-key": "deny-type"
       },
