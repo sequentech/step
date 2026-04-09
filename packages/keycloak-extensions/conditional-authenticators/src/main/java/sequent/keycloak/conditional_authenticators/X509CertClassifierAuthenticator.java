@@ -42,7 +42,7 @@ public class X509CertClassifierAuthenticator implements Authenticator {
   public static final String DEFAULT_CERT_HEADER = "ssl-client-cert";
 
   public static final String AUTH_NOTE_CERT_TYPE = "cert-type";
-  public static final String CERT_TYPE_NOT_ALLOWED = "not-allowed";
+  public static final String CERT_NOT_PROVIDED = "cert-not-provided";
 
   @Override
   public void authenticate(AuthenticationFlowContext context) {
@@ -51,7 +51,7 @@ public class X509CertClassifierAuthenticator implements Authenticator {
 
     if (certHeader == null || certHeader.isBlank()) {
       log.infov("authenticate(): no {0} header present", headerName);
-      context.getAuthenticationSession().setAuthNote(AUTH_NOTE_CERT_TYPE, CERT_TYPE_NOT_ALLOWED);
+      context.getAuthenticationSession().setAuthNote(AUTH_NOTE_CERT_TYPE, CERT_NOT_PROVIDED);
       context.getEvent().detail(VOTER_CERT_SUBJECT_DN, "none");
       context.getEvent().detail(CA_CERT_ISSUER_CN, "none");
       context.attempted();
@@ -61,7 +61,7 @@ public class X509CertClassifierAuthenticator implements Authenticator {
     X509Certificate cert = parseCert(certHeader);
     if (cert == null) {
       log.warnv("authenticate(): failed to parse certificate from {0} header", headerName);
-      context.getAuthenticationSession().setAuthNote(AUTH_NOTE_CERT_TYPE, CERT_TYPE_NOT_ALLOWED);
+      context.getAuthenticationSession().setAuthNote(AUTH_NOTE_CERT_TYPE, CERT_NOT_PROVIDED);
       context.getEvent().detail(VOTER_CERT_SUBJECT_DN, "none");
       context.getEvent().detail(CA_CERT_ISSUER_CN, "none");
       context.attempted();
@@ -69,7 +69,7 @@ public class X509CertClassifierAuthenticator implements Authenticator {
     }
 
     String issuerCn = extractCn(cert.getIssuerX500Principal());
-    String certType = issuerCn != null ? issuerCn : CERT_TYPE_NOT_ALLOWED;
+    String certType = issuerCn != null ? issuerCn : CERT_NOT_PROVIDED;
     log.infov("authenticate(): setting auth note {0}={1}", AUTH_NOTE_CERT_TYPE, certType);
     context.getAuthenticationSession().setAuthNote(AUTH_NOTE_CERT_TYPE, certType);
     context.getEvent().detail(VOTER_CERT_SUBJECT_DN, cert.getSubjectX500Principal().getName());
