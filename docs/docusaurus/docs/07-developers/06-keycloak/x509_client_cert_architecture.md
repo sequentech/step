@@ -141,7 +141,6 @@ KC_SPI_X509CERT_LOOKUP_NGINX_SSL_CLIENT_CERT: Cf-Tls-Client-Cert
 KC_SPI_X509CERT_LOOKUP_NGINX_TRUST_PROXY_VERIFICATION: "false"
 
 HARVEST_DOMAIN: "harvest:8400"
-KC_MTLS_LOGIN_URL: "https://login-mtls-{env}.sequent.vote"
 ```
 
 ### nginx mTLS proxy (dev only)
@@ -192,27 +191,65 @@ When the admin portal updates the CA list, Keycloak picks up the change within
 the next refresh cycle (default: 1 hour) without restart. **The Cloudflare
 truststore is not updated automatically.**
 
-### "Login with Certificate" Button
+### "Login with Certificate" Identity Provider
 
-The voting portal uses the `sequent.voting-portal` Keycloak theme. The `login.ftl`
-adds a conditional "Login with Certificate" button when `KC_MTLS_LOGIN_URL` is
-set.
+Certificate-based login is exposed through a Keycloak Identity Provider (IDP)
+that brokers back to the **same realm** over an mTLS-terminating endpoint. The
+IDP acts as a self-referential OIDC broker: the authorization URL points to the
+same realm but via a different network path (port 8443 in dev) that sits behind
+nginx configured for mutual-TLS client certificate extraction.
 
-The button uses `login-actions/restart` to restart the current auth session
-through the mTLS endpoint — it does **not** start a new OIDC request. This
-preserves the PKCE `code_verifier`/`code_challenge`, `state`, and `redirect_uri`
-that `keycloak.js` generated for the session.
+In the dev container, port 8443 is handled by nginx, which terminates the client
+certificate and forwards it to Keycloak. In production the equivalent endpoint is
+the mTLS-enabled ingress for that environment.
 
-`KC_MTLS_LOGIN_URL` is the base URL of the mTLS endpoint:
-- Production: `https://login-mtls-{env}.sequent.vote`
-- Dev: `https://127.0.0.1:8443`
+The IDP alias **must remain `digital-certificates`** — this value is hardcoded in
+three places and must stay in sync:
+
+- **Keycloak realm import** — `alias` field in the IDP entry of the realm JSON
+  (e.g. `.devcontainer/keycloak/import/tenant-*-event-*.json`)
+- **Theme template** — `login.ftl` filters the IDP out of the social-providers
+  list when `voter-certificate-policy` is not `enabled`:
+  ```
+  p.alias != 'digital-certificates'
+  ```
+- **Rust constant** — `sequent_core::types::keycloak::CERTIFICATES_IDP_ALIAS`
+  (`packages/sequent-core/src/types/keycloak.rs`)
+
+The `sequent.voting-portal` Keycloak theme (`login.ftl`) renders the
+`digital-certificates` IDP as a social-provider button only when the realm
+attribute `voter-certificate-policy` is set to `enabled`. All other IDPs are
+always shown.
 
 ### X509CertClassifierAuthenticator
 
 `X509CertClassifierAuthenticator` (`packages/keycloak-extensions/conditional-authenticators/`)
 runs first in the X.509 authentication flow. It reads the client certificate
-from the configured HTTP header, extracts the issuer CN, and sets the `cert-type`
-auth note. If no certificate is present, it sets `cert-type = not-allowed`.
+from the configured HTTP header (default: `ssl-client-cert`, URL-encoded PEM),
+parses it, and writes one of two auth notes depending on the outcome:
+
+**Happy path — certificate present and parseable:**
+
+| Auth note | Value |
+|-----------|-------|
+| `cert-type` | Issuer CN extracted from the certificate (e.g. `AC FNMT Usuarios`). Falls back to `none` if the CN cannot be extracted. |
+
+**Error path — certificate absent or unparseable:**
+
+| Auth note | Value |
+|-----------|-------|
+| `deny-type` | `cert-not-provided` |
+
+The `deny-type` / `cert-not-provided` constants are shared with
+`message-otp-authenticator` (`Utils.java`), which defines the full set of deny
+codes used across authenticators:
+
+| Constant | Value | Meaning |
+|----------|-------|---------|
+| `AUTH_NOTE_DENY_TYPE` | `deny-type` | Auth note key written on denial |
+| `CERT_NOT_PROVIDED` | `cert-not-provided` | No certificate header, or certificate could not be parsed |
+| `USER_NOT_FOUND` | `user-not-found` | Certificate valid but no matching user in the realm |
+| `ACCESS_DENIED` | `access-denied` | User found but not authorized |
 
 Downstream conditional sub-flows use `ConditionalAuthNoteAuthenticator` to check
 `cert-type` and route to the correct `X509/Validate Username Form` execution for

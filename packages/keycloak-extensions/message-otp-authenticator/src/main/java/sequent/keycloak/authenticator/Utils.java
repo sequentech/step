@@ -65,9 +65,15 @@ import sequent.keycloak.authenticator.otl.OTLActionToken;
 @UtilityClass
 @JBossLog
 public class Utils {
+  // Login details:
   public final String VOTER_CERT_SUBJECT_DN = "voter_cert_subject_dn";
   public final String CA_CERT_ISSUER_CN = "ca_cert_issuer_cn";
+  // Authentication notes:
   public final String AUTH_NOTE_DENY_TYPE = "deny-type";
+  // Deny codes:
+  public final String CERT_NOT_PROVIDED = "cert-not-provided";
+  public final String USER_NOT_FOUND = "user-not-found";
+  public final String ACCESS_DENIED = "access-denied";
 
   public final String CODE = "code";
   public final String CODE_LENGTH = "length";

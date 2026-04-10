@@ -5,6 +5,8 @@
 package sequent.keycloak.conditional_authenticators;
 
 import static sequent.keycloak.authenticator.Utils.AUTH_NOTE_DENY_TYPE;
+import static sequent.keycloak.authenticator.Utils.USER_NOT_FOUND;
+import static sequent.keycloak.authenticator.Utils.ACCESS_DENIED;
 
 import lombok.extern.jbosslog.JBossLog;
 import org.keycloak.authentication.AuthenticationFlowContext;
@@ -18,9 +20,6 @@ import org.keycloak.events.Errors;
  */
 @JBossLog
 public class X509UserResolutionAuthenticator extends X509ClientCertificateAuthenticator {
-
-  public static final String USER_NOT_FOUND = "user-not-found";
-  public static final String ACCESS_DENIED = "access-denied";
 
   @Override
   public void authenticate(AuthenticationFlowContext context) {

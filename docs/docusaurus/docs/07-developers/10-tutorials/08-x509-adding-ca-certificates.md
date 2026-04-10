@@ -72,8 +72,8 @@ CA certificates are stored in the database per election event and served by
 Harvest. This applies to both dev and production.
 
 1. Log in and navigate to the election event
-2. Open the **Certificate Authorities** tab
-3. Click **Import**, upload the PEM file
+2. Open the **CERTIFICATES** tab
+3. Click **Import**, upload the PEM file. If the file is list of concatenated CAs, all of them will be imported.
 4. Confirm
 
 Keycloak picks up the new CA within the next refresh cycle (at most
@@ -107,21 +107,3 @@ Note: in dev, nginx uses `optional_no_ca` and performs no CA validation, so
 there is no equivalent manual step — only the admin portal import is needed.
 
 ---
-
-## 6. Verify End-to-End
-
-After adding the CA, confirm it is trusted:
-
-```bash
-# 1. Check Keycloak truststore logs
-docker compose logs keycloak | grep -i "truststore\|Loading realm-specific\|Using cached"
-
-# 2. Test the full mTLS flow (from inside dev container)
-curl -v --cacert .devcontainer/certs/nginx-tls.crt \
-  --cert <voter-cert.pem> --key <voter-key.pem> \
-  https://keycloak-nginx:8443/
-```
-
-If the voter certificate is signed by the newly added CA and the Keycloak X.509
-authenticator correctly extracts the user identifier, the authentication flow
-should proceed without error.
