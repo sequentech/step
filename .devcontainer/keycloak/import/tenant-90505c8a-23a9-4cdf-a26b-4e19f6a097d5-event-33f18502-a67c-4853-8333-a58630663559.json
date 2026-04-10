@@ -465,10 +465,7 @@
   "localizationTexts": {
     "en": {
       "loginAccountTitle": "Authenticate to vote",
-        "loginCustomCss": "#kc-cert-login-container '{'     display: none !important; '}'",
-        "access-denied": "Authentication failed: Invalid certificate, access denied",
-        "user-not-found": "Authentication failed: Valid certificate detected, but no matching voter or user was found",
-        "cert-not-provided": "Authentication failed: No certificate was provided"
+        "loginCustomCss": "#kc-cert-login-container '{'     display: none !important; '}'"
     }
   },
   "webAuthnPolicyRpEntityName": "keycloak",
@@ -3652,7 +3649,7 @@
     {
       "alias": "deny_access",
       "config": {
-        "denyErrorMessage": "access-denied"
+        "denyErrorMessage": "accessDenied"
       },
       "id": "7ab8056a-1a0e-4d66-9121-d78540824622"
     },
@@ -3735,14 +3732,14 @@
     {
       "alias": "deny-cert-not-provided",
       "config": {
-        "denyErrorMessage": "cert-not-provided"
+        "denyErrorMessage": "certNotProvided"
       },
       "id": "b62f3a6c-bfab-4e24-bbcc-3f2c2789e44d"
     },
     {
       "alias": "user-not-found-config",
       "config": {
-        "denyErrorMessage": "user-not-found"
+        "denyErrorMessage": "userNotFound"
       },
       "id": "f8a32029-15d8-4386-b332-0ab08a2fd166"
     }
