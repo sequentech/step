@@ -315,7 +315,6 @@ input ExportOptions {
   activity_logs: Boolean
   applications: Boolean
   bulletin_board: Boolean
-  include_certificates: Boolean
   include_voters: Boolean
   is_encrypted: Boolean
   password: String
@@ -1050,7 +1049,7 @@ type mutation_root {
   create_transmission_package(area_id: uuid!, election_event_id: uuid!, election_id: uuid!, force: Boolean!, tally_session_id: uuid!): createTransmissionPackageOutput
   create_user(election_event_id: String, tenant_id: String!, user: KeycloakUser2!, user_roles_ids: [String!]): KeycloakUser!
   """Delete a certificate authority by id"""
-  delete_certificate_authority(election_event_id: uuid!, ids: [uuid!]!): DeleteCertificateAuthorityOutput
+  delete_certificate_authority(ids: [uuid!]!): DeleteCertificateAuthorityOutput
   delete_election_event(election_event_id: String!): DeleteElectionEvent
   delete_permission(permission_name: String!, tenant_id: String!): SetRolePermissionOutput
   delete_role(role_id: String!, tenant_id: String!): SetUserRoleOutput
@@ -1494,7 +1493,7 @@ type mutation_root {
   export_application(election_event_id: String, election_id: String, tenant_id: String!): ExportApplicationOutput
   export_ballot_publication(ballot_publication_id: String!, election_event_id: String!, election_id: String, tenant_id: String!): ExportBallotPublicationOutput
   """Export certificate authorities as a PEM bundle for an election event"""
-  export_certificate_authority(election_event_id: uuid!, ids: [uuid!]!): ExportCertificateAuthorityOutput
+  export_certificate_authority(ids: [uuid!]!): ExportCertificateAuthorityOutput
   export_election_event(election_event_id: String, export_configurations: ExportOptions): ExportElectionEventOutput
   export_election_event_logs(election_event_id: String!, format: String!): ExportLogsOutput
   export_election_event_tasks(election_event_id: String): ExportTasksOutput
@@ -1522,7 +1521,7 @@ type mutation_root {
   import_areas(document_id: String!, election_event_id: String!, sha256: String): OptionalId
   import_candidates(document_id: String!, election_event_id: String!, sha256: String): documentTaskOutput
   """Import certificate authorities from a PEM string for an election event"""
-  import_certificate_authority(election_event_id: uuid!, pem_content: String!): ImportCertificateAuthorityOutput
+  import_certificate_authority(pem_content: String!): ImportCertificateAuthorityOutput
   """import_election_event"""
   import_election_event(check_only: Boolean, document_id: String!, password: String, sha256: String, tenant_id: String!): OptionalImportEvent
   import_templates(document_id: String!, sha256: String, tenant_id: String!): templateOutput
@@ -8250,7 +8249,6 @@ columns and relationships of "sequent_backend.certificate_authority"
 type certificate_authority {
   common_name: String!
   created_at: timestamptz!
-  election_event_id: uuid!
   fingerprint_sha256: String!
   id: uuid!
   issuer: String!
@@ -8260,7 +8258,6 @@ type certificate_authority {
   pem: String!
   serial_number: String!
   subject: String!
-  tenant_id: uuid!
 }
 
 """
@@ -8289,7 +8286,6 @@ input certificate_authority_bool_exp {
   _or: [certificate_authority_bool_exp!]
   common_name: String_comparison_exp
   created_at: timestamptz_comparison_exp
-  election_event_id: uuid_comparison_exp
   fingerprint_sha256: String_comparison_exp
   id: uuid_comparison_exp
   issuer: String_comparison_exp
@@ -8299,7 +8295,6 @@ input certificate_authority_bool_exp {
   pem: String_comparison_exp
   serial_number: String_comparison_exp
   subject: String_comparison_exp
-  tenant_id: uuid_comparison_exp
 }
 
 """
@@ -8307,13 +8302,13 @@ unique or primary key constraints on table "sequent_backend.certificate_authorit
 """
 enum certificate_authority_constraint {
   """
+  unique or primary key constraint on columns "fingerprint_sha256"
+  """
+  certificate_authority_fingerprint_sha256_key
+  """
   unique or primary key constraint on columns "id"
   """
   certificate_authority_pkey
-  """
-  unique or primary key constraint on columns "tenant_id", "fingerprint_sha256", "election_event_id"
-  """
-  certificate_authority_tenant_id_election_event_id_fingerpri_key
 }
 
 """
@@ -8322,7 +8317,6 @@ input type for inserting data into table "sequent_backend.certificate_authority"
 input certificate_authority_insert_input {
   common_name: String
   created_at: timestamptz
-  election_event_id: uuid
   fingerprint_sha256: String
   id: uuid
   issuer: String
@@ -8332,14 +8326,12 @@ input certificate_authority_insert_input {
   pem: String
   serial_number: String
   subject: String
-  tenant_id: uuid
 }
 
 """aggregate max on columns"""
 type certificate_authority_max_fields {
   common_name: String
   created_at: timestamptz
-  election_event_id: uuid
   fingerprint_sha256: String
   id: uuid
   issuer: String
@@ -8349,14 +8341,12 @@ type certificate_authority_max_fields {
   pem: String
   serial_number: String
   subject: String
-  tenant_id: uuid
 }
 
 """aggregate min on columns"""
 type certificate_authority_min_fields {
   common_name: String
   created_at: timestamptz
-  election_event_id: uuid
   fingerprint_sha256: String
   id: uuid
   issuer: String
@@ -8366,7 +8356,6 @@ type certificate_authority_min_fields {
   pem: String
   serial_number: String
   subject: String
-  tenant_id: uuid
 }
 
 """
@@ -8394,7 +8383,6 @@ Ordering options when selecting data from "sequent_backend.certificate_authority
 input certificate_authority_order_by {
   common_name: order_by
   created_at: order_by
-  election_event_id: order_by
   fingerprint_sha256: order_by
   id: order_by
   issuer: order_by
@@ -8404,7 +8392,6 @@ input certificate_authority_order_by {
   pem: order_by
   serial_number: order_by
   subject: order_by
-  tenant_id: order_by
 }
 
 """
@@ -8423,8 +8410,6 @@ enum certificate_authority_select_column {
   """column name"""
   created_at
   """column name"""
-  election_event_id
-  """column name"""
   fingerprint_sha256
   """column name"""
   id
@@ -8442,8 +8427,6 @@ enum certificate_authority_select_column {
   serial_number
   """column name"""
   subject
-  """column name"""
-  tenant_id
 }
 
 """
@@ -8452,7 +8435,6 @@ input type for updating data in table "sequent_backend.certificate_authority"
 input certificate_authority_set_input {
   common_name: String
   created_at: timestamptz
-  election_event_id: uuid
   fingerprint_sha256: String
   id: uuid
   issuer: String
@@ -8462,7 +8444,6 @@ input certificate_authority_set_input {
   pem: String
   serial_number: String
   subject: String
-  tenant_id: uuid
 }
 
 """
@@ -8479,7 +8460,6 @@ input certificate_authority_stream_cursor_input {
 input certificate_authority_stream_cursor_value_input {
   common_name: String
   created_at: timestamptz
-  election_event_id: uuid
   fingerprint_sha256: String
   id: uuid
   issuer: String
@@ -8489,7 +8469,6 @@ input certificate_authority_stream_cursor_value_input {
   pem: String
   serial_number: String
   subject: String
-  tenant_id: uuid
 }
 
 """
@@ -8500,8 +8479,6 @@ enum certificate_authority_update_column {
   common_name
   """column name"""
   created_at
-  """column name"""
-  election_event_id
   """column name"""
   fingerprint_sha256
   """column name"""
@@ -8520,8 +8497,6 @@ enum certificate_authority_update_column {
   serial_number
   """column name"""
   subject
-  """column name"""
-  tenant_id
 }
 
 input certificate_authority_updates {
