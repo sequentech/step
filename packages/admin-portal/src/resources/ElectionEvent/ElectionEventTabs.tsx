@@ -22,7 +22,6 @@ import {v4 as uuidv4} from "uuid"
 import {EPublishType} from "../Publish/EPublishType"
 import {
     EElectionEventLockedDown,
-    EVoterCertificatePolicy,
     i18n,
     translateFromPresentation,
 } from "@sequentech/ui-core"
@@ -290,9 +289,6 @@ export const ElectionEventTabs: React.FC = () => {
             authContext.tenantId,
             IPermissions.ELECTION_EVENT_APPROVALS_TAB
         )
-    const showCAs =
-        authContext.isAuthorized(true, authContext.tenantId, IPermissions.ELECTION_EVENT_CAS_TAB) &&
-        record?.presentation?.voter_certificate_policy === EVoterCertificatePolicy.ENABLED
 
     // -----------------------------------------------------------------
     // Build tabs with 100% stable references
@@ -345,11 +341,6 @@ export const ElectionEventTabs: React.FC = () => {
                 props: {showKeysList},
                 action: () => setShowKeysList(uuidv4()),
             })
-        }
-
-        // CAs
-        if (showCAs) {
-            result.push({label: t("electionEventScreen.tabs.cas"), component: CAsTab})
         }
 
         // Tally
