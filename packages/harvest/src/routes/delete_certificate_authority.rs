@@ -52,12 +52,10 @@ pub async fn delete_certificate_authority_route(
         .await
         .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
 
-    let deleted_subjects = delete_certificate_authorities(
-        &hasura_transaction,
-        &body.ids,
-    )
-    .await
-    .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
+    let deleted_subjects =
+        delete_certificate_authorities(&hasura_transaction, &body.ids)
+            .await
+            .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
 
     let deleted_count = deleted_subjects.len();
 

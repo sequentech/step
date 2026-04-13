@@ -54,8 +54,7 @@ import org.keycloak.truststore.TruststoreProviderFactory;
  *
  * <p>Per-realm CA certificates are fetched from the harvest service using the {@code
  * HARVEST_DOMAIN} environment variable. For event realms (realm names containing {@code -event-})
- * the URL is constructed as: {@code
- * http://<HARVEST_DOMAIN>/certificate-authorities/pem}
+ * the URL is constructed as: {@code http://<HARVEST_DOMAIN>/certificate-authorities/pem}
  *
  * <p>{@code --spi-truststore-url-url} is optional. When omitted, the JVM default truststore
  * (cacerts) is used as the global fallback for sessions without a matching realm CA.
@@ -81,9 +80,8 @@ public class UrlTruststoreProviderFactory implements TruststoreProviderFactory {
   private static final String EVENT_REALM_INFIX = "-event-";
 
   /**
-   * Environment variable containing the harvest service domain (host[:port]). Used to construct
-   * the CA certificate URL as: {@code
-   * http://<HARVEST_DOMAIN>/certificate-authorities/pem}
+   * Environment variable containing the harvest service domain (host[:port]). Used to construct the
+   * CA certificate URL as: {@code http://<HARVEST_DOMAIN>/certificate-authorities/pem}
    */
   static final String ENV_HARVEST_DOMAIN = "HARVEST_DOMAIN";
 
@@ -168,8 +166,7 @@ public class UrlTruststoreProviderFactory implements TruststoreProviderFactory {
           }
           String realmUrl = realmUrlBuilder.apply(harvestDomain);
           log.debugf(
-              "Constructed realm-specific truststore URL for realm '%s': %s",
-              realmName, realmUrl);
+              "Constructed realm-specific truststore URL for realm '%s': %s", realmName, realmUrl);
           return realmProviderFor(realm.getId(), realmName, realmUrl);
         }
       }

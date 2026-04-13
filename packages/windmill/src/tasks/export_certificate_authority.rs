@@ -54,12 +54,7 @@ async fn export_certificate_authority_impl(
         "{}.pem",
         crate::types::documents::EDocuments::CERTIFICATES.to_file_name()
     );
-    let key = s3::get_document_key(
-        &tenant_id,
-        None,
-        &document_id,
-        &name,
-    );
+    let key = s3::get_document_key(&tenant_id, None, &document_id, &name);
 
     s3::upload_file_to_s3(
         key,
@@ -107,9 +102,7 @@ pub async fn export_certificate_authority(
     document_id: String,
     task_execution: TasksExecution,
 ) -> Result<()> {
-    match export_certificate_authority_impl(tenant_id, ids, document_id.clone())
-        .await
-    {
+    match export_certificate_authority_impl(tenant_id, ids, document_id.clone()).await {
         Ok(()) => {
             update_complete(&task_execution, Some(document_id))
                 .await

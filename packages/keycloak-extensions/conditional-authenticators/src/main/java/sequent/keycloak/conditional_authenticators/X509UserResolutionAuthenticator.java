@@ -4,9 +4,9 @@
 
 package sequent.keycloak.conditional_authenticators;
 
+import static sequent.keycloak.authenticator.Utils.ACCESS_DENIED;
 import static sequent.keycloak.authenticator.Utils.AUTH_NOTE_DENY_TYPE;
 import static sequent.keycloak.authenticator.Utils.USER_NOT_FOUND;
-import static sequent.keycloak.authenticator.Utils.ACCESS_DENIED;
 
 import lombok.extern.jbosslog.JBossLog;
 import org.keycloak.authentication.AuthenticationFlowContext;

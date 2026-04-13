@@ -92,9 +92,7 @@ pub async fn delete_certificate_authorities(
 /// Returns the PEM strings for all certificate authorities, ordered by creation time.
 /// Uses a transaction.
 #[instrument(skip(transaction), err)]
-pub async fn get_certificate_authorities_pem(
-    transaction: &Transaction<'_>,
-) -> Result<Vec<String>> {
+pub async fn get_certificate_authorities_pem(transaction: &Transaction<'_>) -> Result<Vec<String>> {
     let statement = transaction
         .prepare(
             r#"
