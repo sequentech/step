@@ -957,7 +957,6 @@ input ExportOptions {
     reports: Boolean
     applications: Boolean
     tally: Boolean
-    include_certificates: Boolean
 }
 
 input ApplicationVerifyBody {
@@ -1648,7 +1647,6 @@ type GeneratePreviewUrlOutput {
 
 type Mutation {
     import_certificate_authority(
-        election_event_id: uuid!
         pem_content: String!
     ): ImportCertificateAuthorityOutput
 }
@@ -1662,7 +1660,6 @@ type ImportCertificateAuthorityOutput {
 type Mutation {
     delete_certificate_authority(
         ids: [uuid!]!
-        election_event_id: uuid!
     ): DeleteCertificateAuthorityOutput
 }
 
@@ -1673,7 +1670,6 @@ type DeleteCertificateAuthorityOutput {
 type Mutation {
     export_certificate_authority(
         ids: [uuid!]!
-        election_event_id: uuid!
     ): ExportCertificateAuthorityOutput
 }
 

@@ -5,8 +5,8 @@
 import {gql} from "@apollo/client"
 
 export const DELETE_CERTIFICATE_AUTHORITY = gql`
-    mutation DeleteCertificateAuthority($ids: [uuid!]!, $electionEventId: uuid!) {
-        delete_certificate_authority(ids: $ids, election_event_id: $electionEventId) {
+    mutation DeleteCertificateAuthority($ids: [uuid!]!) {
+        delete_certificate_authority(ids: $ids) {
             deleted_count
         }
     }

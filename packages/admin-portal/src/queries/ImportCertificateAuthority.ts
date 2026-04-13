@@ -5,11 +5,8 @@
 import {gql} from "@apollo/client"
 
 export const IMPORT_CERTIFICATE_AUTHORITY = gql`
-    mutation ImportCertificateAuthority($electionEventId: uuid!, $pemContent: String!) {
-        import_certificate_authority(
-            election_event_id: $electionEventId
-            pem_content: $pemContent
-        ) {
+    mutation ImportCertificateAuthority($pemContent: String!) {
+        import_certificate_authority(pem_content: $pemContent) {
             inserted_count
             skipped_count
             errors

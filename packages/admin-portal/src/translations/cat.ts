@@ -168,6 +168,7 @@ const catalanTranslation: TranslationType = {
                 schedules: "ESDEVENIMENTS PROGRAMATS",
                 trustees: "AUTORITATS",
                 BackupRestore: "SAUVEGARDE / RESTAURATION",
+                certificates: "CERTIFICATS",
             },
         },
         trusteesSettingsScreen: {

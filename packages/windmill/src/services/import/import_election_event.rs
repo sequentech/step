@@ -1332,9 +1332,6 @@ pub async fn process_document(
             if file_name.contains(EDocuments::CERTIFICATES.to_file_name()) {
                 let pem_content = String::from_utf8(file_contents.clone())
                     .context("Failed to decode certificates PEM as UTF-8")?;
-                let tenant_uuid = election_event_schema.tenant_id;
-                let election_event_uuid = Uuid::parse_str(&election_event_schema.election_event.id)
-                    .context("Failed to parse election event UUID")?;
                 let pem_chunks = split_pem_bundle(&pem_content);
                 for pem_chunk in pem_chunks {
                     let pem_chunk_owned = pem_chunk.clone();
@@ -1346,8 +1343,6 @@ pub async fn process_document(
                     .context("Failed to parse certificate PEM")?;
                     let record = CertificateAuthorityRecord {
                         id: Uuid::new_v4(),
-                        tenant_id: tenant_uuid,
-                        election_event_id: election_event_uuid,
                         common_name: parsed.common_name,
                         subject: parsed.subject,
                         issuer_common_name: parsed.issuer_common_name,

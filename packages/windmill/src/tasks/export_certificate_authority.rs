@@ -19,7 +19,6 @@ use uuid::Uuid;
 
 async fn export_certificate_authority_impl(
     tenant_id: String,
-    election_event_id: Uuid,
     ids: Vec<Uuid>,
     document_id: String,
 ) -> AnyhowResult<()> {
@@ -34,7 +33,7 @@ async fn export_certificate_authority_impl(
         .await
         .with_context(|| "Error starting transaction")?;
 
-    let pems = get_certificate_authorities_pem_by_ids(&hasura_transaction, election_event_id, &ids)
+    let pems = get_certificate_authorities_pem_by_ids(&hasura_transaction, &ids)
         .await
         .with_context(|| "Error fetching certificate authority PEMs")?;
 
@@ -55,10 +54,9 @@ async fn export_certificate_authority_impl(
         "{}.pem",
         crate::types::documents::EDocuments::CERTIFICATES.to_file_name()
     );
-    let election_event_id_str = election_event_id.to_string();
     let key = s3::get_document_key(
         &tenant_id,
-        Some(&election_event_id_str),
+        None,
         &document_id,
         &name,
     );
@@ -82,7 +80,7 @@ async fn export_certificate_authority_impl(
     insert_document(
         &hasura_transaction,
         &tenant_id,
-        Some(election_event_id_str.clone()),
+        None,
         &name,
         "application/x-pem-file",
         file_size.try_into().with_context(|| "File size overflow")?,
@@ -105,12 +103,11 @@ async fn export_certificate_authority_impl(
 #[celery::task(max_retries = 0)]
 pub async fn export_certificate_authority(
     tenant_id: String,
-    election_event_id: Uuid,
     ids: Vec<Uuid>,
     document_id: String,
     task_execution: TasksExecution,
 ) -> Result<()> {
-    match export_certificate_authority_impl(tenant_id, election_event_id, ids, document_id.clone())
+    match export_certificate_authority_impl(tenant_id, ids, document_id.clone())
         .await
     {
         Ok(()) => {

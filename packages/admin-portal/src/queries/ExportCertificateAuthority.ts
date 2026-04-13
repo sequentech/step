@@ -5,8 +5,8 @@
 import {gql} from "@apollo/client"
 
 export const EXPORT_CERTIFICATE_AUTHORITY = gql`
-    mutation ExportCertificateAuthority($ids: [uuid!]!, $electionEventId: uuid!) {
-        export_certificate_authority(ids: $ids, election_event_id: $electionEventId) {
+    mutation ExportCertificateAuthority($ids: [uuid!]!) {
+        export_certificate_authority(ids: $ids) {
             document_id
             task_execution {
                 id

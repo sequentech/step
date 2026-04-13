@@ -13,7 +13,6 @@ import {
     useGetOne,
     useListContext,
     useNotify,
-    useRecordContext,
     useRefresh,
 } from "react-admin"
 import {useMutation} from "@apollo/client"
@@ -36,7 +35,6 @@ import {Action, ActionsColumn} from "@/components/ActionButons"
 import {useTranslation} from "react-i18next"
 import {AuthContext} from "@/providers/AuthContextProvider"
 import {IPermissions} from "@/types/keycloak"
-import {Sequent_Backend_Election_Event} from "@/gql/graphql"
 import {IMPORT_CERTIFICATE_AUTHORITY} from "@/queries/ImportCertificateAuthority"
 import {DELETE_CERTIFICATE_AUTHORITY} from "@/queries/DeleteCertificateAuthority"
 import {EXPORT_CERTIFICATE_AUTHORITY} from "@/queries/ExportCertificateAuthority"
@@ -201,8 +199,7 @@ const ViewCAContent: React.FC<{id: Identifier; onClose: () => void}> = ({id, onC
     )
 }
 
-export const EditElectionEventCAs: React.FC = () => {
-    const record = useRecordContext<Sequent_Backend_Election_Event>()
+export const EditSupertenantCertificates: React.FC = () => {
     const authContext = useContext(AuthContext)
     const [tenantId] = useTenantStore()
     const {t} = useTranslation()
@@ -297,8 +294,8 @@ export const EditElectionEventCAs: React.FC = () => {
     }
 
     const handleImport = () => {
-        if (!pemContent || !record?.id) return
-        importCA({variables: {electionEventId: record.id, pemContent}})
+        if (!pemContent) return
+        importCA({variables: {pemContent}})
     }
 
     const handleImportDrawerClose = () => {
@@ -313,12 +310,12 @@ export const EditElectionEventCAs: React.FC = () => {
     }
 
     const confirmDeleteAction = () => {
-        deleteCA({variables: {ids: deleteIds, electionEventId: record?.id}})
+        deleteCA({variables: {ids: deleteIds}})
         setDeleteIds([])
     }
 
     const confirmBulkDeleteAction = () => {
-        deleteCA({variables: {ids: bulkDeleteIds, electionEventId: record?.id}})
+        deleteCA({variables: {ids: bulkDeleteIds}})
         setBulkDeleteIds([])
     }
 
@@ -328,13 +325,11 @@ export const EditElectionEventCAs: React.FC = () => {
     }
 
     const confirmExportAction = async () => {
-        if (!record?.id) return
         const currWidget = addWidget(ETasksExecution.EXPORT_CERTIFICATE_AUTHORITIES, undefined)
         try {
             const {data, errors} = await exportCA({
                 variables: {
                     ids: exportIds,
-                    electionEventId: record.id,
                 },
             })
             if (errors || !data) {
@@ -429,10 +424,6 @@ export const EditElectionEventCAs: React.FC = () => {
                 empty={<Empty />}
                 storeKey={false}
                 disableSyncWithLocation
-                filter={{
-                    tenant_id: tenantId || undefined,
-                    election_event_id: record?.id || undefined,
-                }}
             >
                 <DatagridConfigurable rowClick={false} bulkActionButtons={<BulkActions />}>
                     <TextField
@@ -628,4 +619,4 @@ export const EditElectionEventCAs: React.FC = () => {
     )
 }
 
-export default EditElectionEventCAs
+export default EditSupertenantCertificates

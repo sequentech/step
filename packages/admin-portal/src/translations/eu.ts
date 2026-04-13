@@ -168,6 +168,7 @@ const basqueTranslation: TranslationType = {
                 schedules: "PROGRAMATUTAKO GERTAERAK",
                 trustees: "FIDEIKOMISARIOAK",
                 BackupRestore: "Babeskopia / Leheneratu",
+                certificates: "ZIURTAGIRIAK",
             },
         },
         trusteesSettingsScreen: {

@@ -167,6 +167,7 @@ const dutchTranslation: TranslationType = {
                 schedules: "GEPLANDE GEBEURTENISSEN",
                 trustees: "TRUSTEES",
                 BackupRestore: "BACK-UP / HERSTELLEN",
+                certificates: "CERTIFICATEN",
             },
         },
         trusteesSettingsScreen: {

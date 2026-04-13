@@ -168,6 +168,7 @@ const galegoTranslation: TranslationType = {
                 schedules: "EVENTOS PROGRAMADOS",
                 trustees: "FIDUCIARIOS",
                 BackupRestore: "COPIA DE SEGURIDAD / RESTAURAR",
+                certificates: "CERTIFICADOS",
             },
         },
         trusteesSettingsScreen: {

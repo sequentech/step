@@ -24,6 +24,7 @@ import {SettingsCountries} from "@/resources/Settings/SettingsCountries"
 import SettingsLocalization from "@/resources/Settings/SettingsLocalization"
 import {SettingsBackupRestore} from "@/resources/Settings/SettingsBackupRestore"
 import {SettingsPreviews} from "@/resources/Settings/SettingsPreviews"
+import {EditSupertenantCertificates} from "@/resources/Settings/EditSupertenantCertificates"
 
 export const SettingsScreen: React.FC = () => {
     const {t} = useTranslation()
@@ -90,6 +91,15 @@ export const SettingsScreen: React.FC = () => {
                         label: t("electionTypeScreen.tabs.localization"),
                         component: () => (
                             <Resource name="sequent_backend_tenant" list={SettingsLocalization} />
+                        ),
+                    },
+                    {
+                        label: t("electionTypeScreen.tabs.certificates"),
+                        component: () => (
+                            <Resource
+                                name="sequent_backend_certificate_authority"
+                                list={EditSupertenantCertificates}
+                            />
                         ),
                     },
                     {

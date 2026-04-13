@@ -2924,18 +2924,6 @@
             "deprecationReason": null
           },
           {
-            "name": "include_certificates",
-            "description": null,
-            "type": {
-              "kind": "SCALAR",
-              "name": "Boolean",
-              "ofType": null
-            },
-            "defaultValue": null,
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
             "name": "include_voters",
             "description": null,
             "type": {
@@ -10953,22 +10941,6 @@
             "description": "Delete a certificate authority by id",
             "args": [
               {
-                "name": "election_event_id",
-                "description": null,
-                "type": {
-                  "kind": "NON_NULL",
-                  "name": null,
-                  "ofType": {
-                    "kind": "SCALAR",
-                    "name": "uuid",
-                    "ofType": null
-                  }
-                },
-                "defaultValue": null,
-                "isDeprecated": false,
-                "deprecationReason": null
-              },
-              {
                 "name": "ids",
                 "description": null,
                 "type": {
@@ -14724,22 +14696,6 @@
             "description": "Export certificate authorities as a PEM bundle for an election event",
             "args": [
               {
-                "name": "election_event_id",
-                "description": null,
-                "type": {
-                  "kind": "NON_NULL",
-                  "name": null,
-                  "ofType": {
-                    "kind": "SCALAR",
-                    "name": "uuid",
-                    "ofType": null
-                  }
-                },
-                "defaultValue": null,
-                "isDeprecated": false,
-                "deprecationReason": null
-              },
-              {
                 "name": "ids",
                 "description": null,
                 "type": {
@@ -16056,22 +16012,6 @@
             "name": "import_certificate_authority",
             "description": "Import certificate authorities from a PEM string for an election event",
             "args": [
-              {
-                "name": "election_event_id",
-                "description": null,
-                "type": {
-                  "kind": "NON_NULL",
-                  "name": null,
-                  "ofType": {
-                    "kind": "SCALAR",
-                    "name": "uuid",
-                    "ofType": null
-                  }
-                },
-                "defaultValue": null,
-                "isDeprecated": false,
-                "deprecationReason": null
-              },
               {
                 "name": "pem_content",
                 "description": null,
@@ -57477,22 +57417,6 @@
             "deprecationReason": null
           },
           {
-            "name": "election_event_id",
-            "description": null,
-            "args": [],
-            "type": {
-              "kind": "NON_NULL",
-              "name": null,
-              "ofType": {
-                "kind": "SCALAR",
-                "name": "uuid",
-                "ofType": null
-              }
-            },
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
             "name": "fingerprint_sha256",
             "description": null,
             "args": [],
@@ -57630,22 +57554,6 @@
               "ofType": {
                 "kind": "SCALAR",
                 "name": "String",
-                "ofType": null
-              }
-            },
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
-            "name": "tenant_id",
-            "description": null,
-            "args": [],
-            "type": {
-              "kind": "NON_NULL",
-              "name": null,
-              "ofType": {
-                "kind": "SCALAR",
-                "name": "uuid",
                 "ofType": null
               }
             },
@@ -57875,18 +57783,6 @@
             "deprecationReason": null
           },
           {
-            "name": "election_event_id",
-            "description": null,
-            "type": {
-              "kind": "INPUT_OBJECT",
-              "name": "uuid_comparison_exp",
-              "ofType": null
-            },
-            "defaultValue": null,
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
             "name": "fingerprint_sha256",
             "description": null,
             "type": {
@@ -57993,18 +57889,6 @@
             "defaultValue": null,
             "isDeprecated": false,
             "deprecationReason": null
-          },
-          {
-            "name": "tenant_id",
-            "description": null,
-            "type": {
-              "kind": "INPUT_OBJECT",
-              "name": "uuid_comparison_exp",
-              "ofType": null
-            },
-            "defaultValue": null,
-            "isDeprecated": false,
-            "deprecationReason": null
           }
         ],
         "interfaces": null,
@@ -58021,14 +57905,14 @@
         "interfaces": null,
         "enumValues": [
           {
-            "name": "certificate_authority_pkey",
-            "description": "unique or primary key constraint on columns \"id\"",
+            "name": "certificate_authority_fingerprint_sha256_key",
+            "description": "unique or primary key constraint on columns \"fingerprint_sha256\"",
             "isDeprecated": false,
             "deprecationReason": null
           },
           {
-            "name": "certificate_authority_tenant_id_election_event_id_fingerpri_key",
-            "description": "unique or primary key constraint on columns \"tenant_id\", \"fingerprint_sha256\", \"election_event_id\"",
+            "name": "certificate_authority_pkey",
+            "description": "unique or primary key constraint on columns \"id\"",
             "isDeprecated": false,
             "deprecationReason": null
           }
@@ -58067,18 +57951,6 @@
             "deprecationReason": null
           },
           {
-            "name": "election_event_id",
-            "description": null,
-            "type": {
-              "kind": "SCALAR",
-              "name": "uuid",
-              "ofType": null
-            },
-            "defaultValue": null,
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
             "name": "fingerprint_sha256",
             "description": null,
             "type": {
@@ -58180,18 +58052,6 @@
             "type": {
               "kind": "SCALAR",
               "name": "String",
-              "ofType": null
-            },
-            "defaultValue": null,
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
-            "name": "tenant_id",
-            "description": null,
-            "type": {
-              "kind": "SCALAR",
-              "name": "uuid",
               "ofType": null
             },
             "defaultValue": null,
@@ -58234,18 +58094,6 @@
             "deprecationReason": null
           },
           {
-            "name": "election_event_id",
-            "description": null,
-            "args": [],
-            "type": {
-              "kind": "SCALAR",
-              "name": "uuid",
-              "ofType": null
-            },
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
             "name": "fingerprint_sha256",
             "description": null,
             "args": [],
@@ -58348,18 +58196,6 @@
             "type": {
               "kind": "SCALAR",
               "name": "String",
-              "ofType": null
-            },
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
-            "name": "tenant_id",
-            "description": null,
-            "args": [],
-            "type": {
-              "kind": "SCALAR",
-              "name": "uuid",
               "ofType": null
             },
             "isDeprecated": false,
@@ -58402,18 +58238,6 @@
             "deprecationReason": null
           },
           {
-            "name": "election_event_id",
-            "description": null,
-            "args": [],
-            "type": {
-              "kind": "SCALAR",
-              "name": "uuid",
-              "ofType": null
-            },
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
             "name": "fingerprint_sha256",
             "description": null,
             "args": [],
@@ -58516,18 +58340,6 @@
             "type": {
               "kind": "SCALAR",
               "name": "String",
-              "ofType": null
-            },
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
-            "name": "tenant_id",
-            "description": null,
-            "args": [],
-            "type": {
-              "kind": "SCALAR",
-              "name": "uuid",
               "ofType": null
             },
             "isDeprecated": false,
@@ -58687,18 +58499,6 @@
             "deprecationReason": null
           },
           {
-            "name": "election_event_id",
-            "description": null,
-            "type": {
-              "kind": "ENUM",
-              "name": "order_by",
-              "ofType": null
-            },
-            "defaultValue": null,
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
             "name": "fingerprint_sha256",
             "description": null,
             "type": {
@@ -58796,18 +58596,6 @@
           },
           {
             "name": "subject",
-            "description": null,
-            "type": {
-              "kind": "ENUM",
-              "name": "order_by",
-              "ofType": null
-            },
-            "defaultValue": null,
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
-            "name": "tenant_id",
             "description": null,
             "type": {
               "kind": "ENUM",
@@ -58873,12 +58661,6 @@
             "deprecationReason": null
           },
           {
-            "name": "election_event_id",
-            "description": "column name",
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
             "name": "fingerprint_sha256",
             "description": "column name",
             "isDeprecated": false,
@@ -58928,12 +58710,6 @@
           },
           {
             "name": "subject",
-            "description": "column name",
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
-            "name": "tenant_id",
             "description": "column name",
             "isDeprecated": false,
             "deprecationReason": null
@@ -58973,18 +58749,6 @@
             "deprecationReason": null
           },
           {
-            "name": "election_event_id",
-            "description": null,
-            "type": {
-              "kind": "SCALAR",
-              "name": "uuid",
-              "ofType": null
-            },
-            "defaultValue": null,
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
             "name": "fingerprint_sha256",
             "description": null,
             "type": {
@@ -59086,18 +58850,6 @@
             "type": {
               "kind": "SCALAR",
               "name": "String",
-              "ofType": null
-            },
-            "defaultValue": null,
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
-            "name": "tenant_id",
-            "description": null,
-            "type": {
-              "kind": "SCALAR",
-              "name": "uuid",
               "ofType": null
             },
             "defaultValue": null,
@@ -59181,18 +58933,6 @@
             "deprecationReason": null
           },
           {
-            "name": "election_event_id",
-            "description": null,
-            "type": {
-              "kind": "SCALAR",
-              "name": "uuid",
-              "ofType": null
-            },
-            "defaultValue": null,
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
             "name": "fingerprint_sha256",
             "description": null,
             "type": {
@@ -59294,18 +59034,6 @@
             "type": {
               "kind": "SCALAR",
               "name": "String",
-              "ofType": null
-            },
-            "defaultValue": null,
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
-            "name": "tenant_id",
-            "description": null,
-            "type": {
-              "kind": "SCALAR",
-              "name": "uuid",
               "ofType": null
             },
             "defaultValue": null,
@@ -59339,12 +59067,6 @@
             "deprecationReason": null
           },
           {
-            "name": "election_event_id",
-            "description": "column name",
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
             "name": "fingerprint_sha256",
             "description": "column name",
             "isDeprecated": false,
@@ -59394,12 +59116,6 @@
           },
           {
             "name": "subject",
-            "description": "column name",
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
-            "name": "tenant_id",
             "description": "column name",
             "isDeprecated": false,
             "deprecationReason": null

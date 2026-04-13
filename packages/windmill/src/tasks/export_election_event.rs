@@ -25,7 +25,6 @@ pub struct ExportOptions {
     pub reports: bool,
     pub applications: bool,
     pub tally: bool,
-    pub include_certificates: bool,
 }
 
 #[instrument(err)]

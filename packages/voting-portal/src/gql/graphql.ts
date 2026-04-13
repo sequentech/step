@@ -352,7 +352,6 @@ export type ExportOptions = {
   activity_logs?: InputMaybe<Scalars['Boolean']['input']>;
   applications?: InputMaybe<Scalars['Boolean']['input']>;
   bulletin_board?: InputMaybe<Scalars['Boolean']['input']>;
-  include_certificates?: InputMaybe<Scalars['Boolean']['input']>;
   include_voters?: InputMaybe<Scalars['Boolean']['input']>;
   is_encrypted?: InputMaybe<Scalars['Boolean']['input']>;
   password?: InputMaybe<Scalars['String']['input']>;
@@ -1846,7 +1845,6 @@ export type Mutation_RootCreate_UserArgs = {
 
 /** mutation root */
 export type Mutation_RootDelete_Certificate_AuthorityArgs = {
-  election_event_id: Scalars['uuid']['input'];
   ids: Array<Scalars['uuid']['input']>;
 };
 
@@ -2463,7 +2461,6 @@ export type Mutation_RootExport_Ballot_PublicationArgs = {
 
 /** mutation root */
 export type Mutation_RootExport_Certificate_AuthorityArgs = {
-  election_event_id: Scalars['uuid']['input'];
   ids: Array<Scalars['uuid']['input']>;
 };
 
@@ -2655,7 +2652,6 @@ export type Mutation_RootImport_CandidatesArgs = {
 
 /** mutation root */
 export type Mutation_RootImport_Certificate_AuthorityArgs = {
-  election_event_id: Scalars['uuid']['input'];
   pem_content: Scalars['String']['input'];
 };
 
@@ -8224,7 +8220,6 @@ export type Sequent_Backend_Certificate_Authority = {
   __typename?: 'sequent_backend_certificate_authority';
   common_name: Scalars['String']['output'];
   created_at: Scalars['timestamptz']['output'];
-  election_event_id: Scalars['uuid']['output'];
   fingerprint_sha256: Scalars['String']['output'];
   id: Scalars['uuid']['output'];
   issuer: Scalars['String']['output'];
@@ -8234,7 +8229,6 @@ export type Sequent_Backend_Certificate_Authority = {
   pem: Scalars['String']['output'];
   serial_number: Scalars['String']['output'];
   subject: Scalars['String']['output'];
-  tenant_id: Scalars['uuid']['output'];
 };
 
 /** aggregated selection of "sequent_backend.certificate_authority" */
@@ -8266,7 +8260,6 @@ export type Sequent_Backend_Certificate_Authority_Bool_Exp = {
   _or?: InputMaybe<Array<Sequent_Backend_Certificate_Authority_Bool_Exp>>;
   common_name?: InputMaybe<String_Comparison_Exp>;
   created_at?: InputMaybe<Timestamptz_Comparison_Exp>;
-  election_event_id?: InputMaybe<Uuid_Comparison_Exp>;
   fingerprint_sha256?: InputMaybe<String_Comparison_Exp>;
   id?: InputMaybe<Uuid_Comparison_Exp>;
   issuer?: InputMaybe<String_Comparison_Exp>;
@@ -8276,22 +8269,20 @@ export type Sequent_Backend_Certificate_Authority_Bool_Exp = {
   pem?: InputMaybe<String_Comparison_Exp>;
   serial_number?: InputMaybe<String_Comparison_Exp>;
   subject?: InputMaybe<String_Comparison_Exp>;
-  tenant_id?: InputMaybe<Uuid_Comparison_Exp>;
 };
 
 /** unique or primary key constraints on table "sequent_backend.certificate_authority" */
 export enum Sequent_Backend_Certificate_Authority_Constraint {
+  /** unique or primary key constraint on columns "fingerprint_sha256" */
+  CertificateAuthorityFingerprintSha256Key = 'certificate_authority_fingerprint_sha256_key',
   /** unique or primary key constraint on columns "id" */
-  CertificateAuthorityPkey = 'certificate_authority_pkey',
-  /** unique or primary key constraint on columns "tenant_id", "fingerprint_sha256", "election_event_id" */
-  CertificateAuthorityTenantIdElectionEventIdFingerpriKey = 'certificate_authority_tenant_id_election_event_id_fingerpri_key'
+  CertificateAuthorityPkey = 'certificate_authority_pkey'
 }
 
 /** input type for inserting data into table "sequent_backend.certificate_authority" */
 export type Sequent_Backend_Certificate_Authority_Insert_Input = {
   common_name?: InputMaybe<Scalars['String']['input']>;
   created_at?: InputMaybe<Scalars['timestamptz']['input']>;
-  election_event_id?: InputMaybe<Scalars['uuid']['input']>;
   fingerprint_sha256?: InputMaybe<Scalars['String']['input']>;
   id?: InputMaybe<Scalars['uuid']['input']>;
   issuer?: InputMaybe<Scalars['String']['input']>;
@@ -8301,7 +8292,6 @@ export type Sequent_Backend_Certificate_Authority_Insert_Input = {
   pem?: InputMaybe<Scalars['String']['input']>;
   serial_number?: InputMaybe<Scalars['String']['input']>;
   subject?: InputMaybe<Scalars['String']['input']>;
-  tenant_id?: InputMaybe<Scalars['uuid']['input']>;
 };
 
 /** aggregate max on columns */
@@ -8309,7 +8299,6 @@ export type Sequent_Backend_Certificate_Authority_Max_Fields = {
   __typename?: 'sequent_backend_certificate_authority_max_fields';
   common_name?: Maybe<Scalars['String']['output']>;
   created_at?: Maybe<Scalars['timestamptz']['output']>;
-  election_event_id?: Maybe<Scalars['uuid']['output']>;
   fingerprint_sha256?: Maybe<Scalars['String']['output']>;
   id?: Maybe<Scalars['uuid']['output']>;
   issuer?: Maybe<Scalars['String']['output']>;
@@ -8319,7 +8308,6 @@ export type Sequent_Backend_Certificate_Authority_Max_Fields = {
   pem?: Maybe<Scalars['String']['output']>;
   serial_number?: Maybe<Scalars['String']['output']>;
   subject?: Maybe<Scalars['String']['output']>;
-  tenant_id?: Maybe<Scalars['uuid']['output']>;
 };
 
 /** aggregate min on columns */
@@ -8327,7 +8315,6 @@ export type Sequent_Backend_Certificate_Authority_Min_Fields = {
   __typename?: 'sequent_backend_certificate_authority_min_fields';
   common_name?: Maybe<Scalars['String']['output']>;
   created_at?: Maybe<Scalars['timestamptz']['output']>;
-  election_event_id?: Maybe<Scalars['uuid']['output']>;
   fingerprint_sha256?: Maybe<Scalars['String']['output']>;
   id?: Maybe<Scalars['uuid']['output']>;
   issuer?: Maybe<Scalars['String']['output']>;
@@ -8337,7 +8324,6 @@ export type Sequent_Backend_Certificate_Authority_Min_Fields = {
   pem?: Maybe<Scalars['String']['output']>;
   serial_number?: Maybe<Scalars['String']['output']>;
   subject?: Maybe<Scalars['String']['output']>;
-  tenant_id?: Maybe<Scalars['uuid']['output']>;
 };
 
 /** response of any mutation on the table "sequent_backend.certificate_authority" */
@@ -8360,7 +8346,6 @@ export type Sequent_Backend_Certificate_Authority_On_Conflict = {
 export type Sequent_Backend_Certificate_Authority_Order_By = {
   common_name?: InputMaybe<Order_By>;
   created_at?: InputMaybe<Order_By>;
-  election_event_id?: InputMaybe<Order_By>;
   fingerprint_sha256?: InputMaybe<Order_By>;
   id?: InputMaybe<Order_By>;
   issuer?: InputMaybe<Order_By>;
@@ -8370,7 +8355,6 @@ export type Sequent_Backend_Certificate_Authority_Order_By = {
   pem?: InputMaybe<Order_By>;
   serial_number?: InputMaybe<Order_By>;
   subject?: InputMaybe<Order_By>;
-  tenant_id?: InputMaybe<Order_By>;
 };
 
 /** primary key columns input for table: sequent_backend.certificate_authority */
@@ -8385,8 +8369,6 @@ export enum Sequent_Backend_Certificate_Authority_Select_Column {
   /** column name */
   CreatedAt = 'created_at',
   /** column name */
-  ElectionEventId = 'election_event_id',
-  /** column name */
   FingerprintSha256 = 'fingerprint_sha256',
   /** column name */
   Id = 'id',
@@ -8403,16 +8385,13 @@ export enum Sequent_Backend_Certificate_Authority_Select_Column {
   /** column name */
   SerialNumber = 'serial_number',
   /** column name */
-  Subject = 'subject',
-  /** column name */
-  TenantId = 'tenant_id'
+  Subject = 'subject'
 }
 
 /** input type for updating data in table "sequent_backend.certificate_authority" */
 export type Sequent_Backend_Certificate_Authority_Set_Input = {
   common_name?: InputMaybe<Scalars['String']['input']>;
   created_at?: InputMaybe<Scalars['timestamptz']['input']>;
-  election_event_id?: InputMaybe<Scalars['uuid']['input']>;
   fingerprint_sha256?: InputMaybe<Scalars['String']['input']>;
   id?: InputMaybe<Scalars['uuid']['input']>;
   issuer?: InputMaybe<Scalars['String']['input']>;
@@ -8422,7 +8401,6 @@ export type Sequent_Backend_Certificate_Authority_Set_Input = {
   pem?: InputMaybe<Scalars['String']['input']>;
   serial_number?: InputMaybe<Scalars['String']['input']>;
   subject?: InputMaybe<Scalars['String']['input']>;
-  tenant_id?: InputMaybe<Scalars['uuid']['input']>;
 };
 
 /** Streaming cursor of the table "sequent_backend_certificate_authority" */
@@ -8437,7 +8415,6 @@ export type Sequent_Backend_Certificate_Authority_Stream_Cursor_Input = {
 export type Sequent_Backend_Certificate_Authority_Stream_Cursor_Value_Input = {
   common_name?: InputMaybe<Scalars['String']['input']>;
   created_at?: InputMaybe<Scalars['timestamptz']['input']>;
-  election_event_id?: InputMaybe<Scalars['uuid']['input']>;
   fingerprint_sha256?: InputMaybe<Scalars['String']['input']>;
   id?: InputMaybe<Scalars['uuid']['input']>;
   issuer?: InputMaybe<Scalars['String']['input']>;
@@ -8447,7 +8424,6 @@ export type Sequent_Backend_Certificate_Authority_Stream_Cursor_Value_Input = {
   pem?: InputMaybe<Scalars['String']['input']>;
   serial_number?: InputMaybe<Scalars['String']['input']>;
   subject?: InputMaybe<Scalars['String']['input']>;
-  tenant_id?: InputMaybe<Scalars['uuid']['input']>;
 };
 
 /** update columns of table "sequent_backend.certificate_authority" */
@@ -8456,8 +8432,6 @@ export enum Sequent_Backend_Certificate_Authority_Update_Column {
   CommonName = 'common_name',
   /** column name */
   CreatedAt = 'created_at',
-  /** column name */
-  ElectionEventId = 'election_event_id',
   /** column name */
   FingerprintSha256 = 'fingerprint_sha256',
   /** column name */
@@ -8475,9 +8449,7 @@ export enum Sequent_Backend_Certificate_Authority_Update_Column {
   /** column name */
   SerialNumber = 'serial_number',
   /** column name */
-  Subject = 'subject',
-  /** column name */
-  TenantId = 'tenant_id'
+  Subject = 'subject'
 }
 
 export type Sequent_Backend_Certificate_Authority_Updates = {

@@ -169,6 +169,7 @@ const spanishTranslation: TranslationType = {
                 schedules: "EVENTOS PROGRAMADOS",
                 trustees: "AUTORIDADES",
                 BackupRestore: "COPIA DE SEGURIDAD / RESTAURAR",
+                certificates: "CERTIFICADOS",
             },
         },
         trusteesSettingsScreen: {

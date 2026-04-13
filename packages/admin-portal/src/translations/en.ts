@@ -167,6 +167,7 @@ const englishTranslation = {
                 schedules: "SCHEDULED EVENTS",
                 trustees: "TRUSTEES",
                 BackupRestore: "Backup / Restore",
+                certificates: "CERTIFICATES",
             },
         },
         trusteesSettingsScreen: {

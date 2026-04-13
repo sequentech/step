@@ -32,7 +32,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
-import java.util.function.BiFunction;
+import java.util.function.Function;
 import java.util.function.Supplier;
 import javax.net.ssl.TrustManager;
 import javax.net.ssl.TrustManagerFactory;
@@ -53,10 +53,9 @@ import org.keycloak.truststore.TruststoreProviderFactory;
  * URLs). Supports optional background refresh at a configurable interval.
  *
  * <p>Per-realm CA certificates are fetched from the harvest service using the {@code
- * HARVEST_DOMAIN} environment variable. The election event id is extracted from the realm name
- * (realms follow the pattern {@code tenant-<tenantId>-event-<electionEventId>}) and the URL is
- * constructed as: {@code
- * http://<HARVEST_DOMAIN>/election-event/<electionEventId>/certificate-authorities/pem}
+ * HARVEST_DOMAIN} environment variable. For event realms (realm names containing {@code -event-})
+ * the URL is constructed as: {@code
+ * http://<HARVEST_DOMAIN>/certificate-authorities/pem}
  *
  * <p>{@code --spi-truststore-url-url} is optional. When omitted, the JVM default truststore
  * (cacerts) is used as the global fallback for sessions without a matching realm CA.
@@ -83,8 +82,8 @@ public class UrlTruststoreProviderFactory implements TruststoreProviderFactory {
 
   /**
    * Environment variable containing the harvest service domain (host[:port]). Used to construct
-   * per-election-event CA certificate URLs as: {@code
-   * http://<HARVEST_DOMAIN>/election-event/<electionEventId>/certificate-authorities/pem}
+   * the CA certificate URL as: {@code
+   * http://<HARVEST_DOMAIN>/certificate-authorities/pem}
    */
   static final String ENV_HARVEST_DOMAIN = "HARVEST_DOMAIN";
 
@@ -92,13 +91,8 @@ public class UrlTruststoreProviderFactory implements TruststoreProviderFactory {
   Supplier<String> harvestDomainSupplier = () -> System.getenv(ENV_HARVEST_DOMAIN);
 
   // package-private for testing — overridden to redirect URL construction to local test resources
-  BiFunction<String, String, String> realmUrlBuilder =
-      (domain, electionEventId) ->
-          "http://"
-              + domain
-              + "/election-event/"
-              + electionEventId
-              + "/certificate-authorities/pem";
+  Function<String, String> realmUrlBuilder =
+      domain -> "http://" + domain + "/certificate-authorities/pem";
 
   private record RealmTruststoreEntry(String url, UrlTruststoreProvider provider) {}
 
@@ -172,12 +166,10 @@ public class UrlTruststoreProviderFactory implements TruststoreProviderFactory {
                 "Realm '%s' is not an event realm — skipping per-realm CA lookup", realmName);
             return provider;
           }
-          String electionEventId = realmName.substring(eventIdx + EVENT_REALM_INFIX.length());
-          String realmUrl = realmUrlBuilder.apply(harvestDomain, electionEventId);
+          String realmUrl = realmUrlBuilder.apply(harvestDomain);
           log.debugf(
-              "Constructed realm-specific truststore URL for realm '%s'"
-                  + " (election event '%s'): %s",
-              realmName, electionEventId, realmUrl);
+              "Constructed realm-specific truststore URL for realm '%s': %s",
+              realmName, realmUrl);
           return realmProviderFor(realm.getId(), realmName, realmUrl);
         }
       }

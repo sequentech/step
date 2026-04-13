@@ -141,8 +141,7 @@ class UrlTruststoreProviderFactoryTest {
   void noGlobalUrlRealmCertNotFoundFallsBackToJvmTruststore() {
     UrlTruststoreProviderFactory factory = initFactoryNoGlobalUrl();
     factory.harvestDomainSupplier = () -> "test-harvest";
-    factory.realmUrlBuilder =
-        (domain, electionEventId) -> certsBaseUrl() + "client-ca-" + electionEventId + ".pem";
+    factory.realmUrlBuilder = domain -> certsBaseUrl() + "root-ca.pem";
     // "master" exits early — should fall back to JVM truststore.
     KeycloakSession masterSession = sessionWithRealm("master-id", "master");
 
@@ -185,9 +184,7 @@ class UrlTruststoreProviderFactoryTest {
   void createReturnsRealmSpecificProviderForRealm() {
     UrlTruststoreProviderFactory factory = initFactory(certUrl("root-ca.pem"));
     factory.harvestDomainSupplier = () -> "test-harvest";
-    // election event id "realm-chain" resolves to client-ca-realm-chain.pem (root + intermediate).
-    factory.realmUrlBuilder =
-        (domain, electionEventId) -> certsBaseUrl() + "client-ca-" + electionEventId + ".pem";
+    factory.realmUrlBuilder = domain -> certUrl("chain.pem");
     KeycloakSession session = sessionWithRealm("realm-1", "tenant-test-event-realm-chain");
 
     TruststoreProvider realmProvider = factory.create(session);
@@ -217,8 +214,7 @@ class UrlTruststoreProviderFactoryTest {
   void createFallsBackToGlobalForNonEventRealm() {
     UrlTruststoreProviderFactory factory = initFactory(certUrl("root-ca.pem"));
     factory.harvestDomainSupplier = () -> "test-harvest";
-    factory.realmUrlBuilder =
-        (domain, electionEventId) -> certsBaseUrl() + "client-ca-" + electionEventId + ".pem";
+    factory.realmUrlBuilder = domain -> certUrl("chain.pem");
     // Tenant-only realm names (no "-event-" infix) should fall back to global.
     KeycloakSession tenantSession = sessionWithRealm("tenant-id", "tenant-test");
 
@@ -234,8 +230,7 @@ class UrlTruststoreProviderFactoryTest {
   void createFallsBackToGlobalWhenNoRealmContext() {
     UrlTruststoreProviderFactory factory = initFactory(certUrl("root-ca.pem"));
     factory.harvestDomainSupplier = () -> "test-harvest";
-    factory.realmUrlBuilder =
-        (domain, electionEventId) -> certsBaseUrl() + "client-ca-" + electionEventId + ".pem";
+    factory.realmUrlBuilder = domain -> certUrl("chain.pem");
 
     TruststoreProvider provider = factory.create(sessionWithNoRealm());
 
@@ -247,8 +242,7 @@ class UrlTruststoreProviderFactoryTest {
   void createCachesRealmProvider() {
     UrlTruststoreProviderFactory factory = initFactory(certUrl("root-ca.pem"));
     factory.harvestDomainSupplier = () -> "test-harvest";
-    factory.realmUrlBuilder =
-        (domain, electionEventId) -> certsBaseUrl() + "client-ca-" + electionEventId + ".pem";
+    factory.realmUrlBuilder = domain -> certUrl("chain.pem");
 
     TruststoreProvider p1 =
         factory.create(sessionWithRealm("realm-1", "tenant-test-event-realm-root"));
@@ -262,8 +256,7 @@ class UrlTruststoreProviderFactoryTest {
   void createFallsBackToGlobalWhenRealmCertNotFound() {
     UrlTruststoreProviderFactory factory = initFactory(certUrl("root-ca.pem"));
     factory.harvestDomainSupplier = () -> "test-harvest";
-    factory.realmUrlBuilder =
-        (domain, electionEventId) -> certsBaseUrl() + "client-ca-" + electionEventId + ".pem";
+    factory.realmUrlBuilder = domain -> certUrl("root-ca.pem");
     // "master" exits early — should silently use global provider.
     KeycloakSession masterSession = sessionWithRealm("master-id", "master");
 
@@ -280,9 +273,8 @@ class UrlTruststoreProviderFactoryTest {
   void createCachesNotFoundSentinelToAvoidRetry() {
     UrlTruststoreProviderFactory factory = initFactory(certUrl("root-ca.pem"));
     factory.harvestDomainSupplier = () -> "test-harvest";
-    factory.realmUrlBuilder =
-        (domain, electionEventId) -> certsBaseUrl() + "client-ca-" + electionEventId + ".pem";
-    // Use an event realm whose cert file does not exist — should cache a sentinel.
+    // Use a URL that does not exist — should cache a sentinel.
+    factory.realmUrlBuilder = domain -> certsBaseUrl() + "nonexistent.pem";
     KeycloakSession masterSession1 =
         sessionWithRealm("missing-id", "tenant-test-event-nonexistent");
     KeycloakSession masterSession2 =
@@ -299,22 +291,18 @@ class UrlTruststoreProviderFactoryTest {
   void differentRealmsGetIndependentProviders() {
     UrlTruststoreProviderFactory factory = initFactory(certUrl("root-ca.pem"));
     factory.harvestDomainSupplier = () -> "test-harvest";
-    factory.realmUrlBuilder =
-        (domain, electionEventId) -> certsBaseUrl() + "client-ca-" + electionEventId + ".pem";
+    // All event realms share the same CA endpoint.
+    factory.realmUrlBuilder = domain -> certUrl("chain.pem");
 
-    // realm-a → client-ca-realm-root.pem (root only)
-    // realm-b → client-ca-realm-chain.pem (root + intermediate)
     TruststoreProvider pA =
-        factory.create(sessionWithRealm("realm-a", "tenant-test-event-realm-root"));
+        factory.create(sessionWithRealm("realm-a", "tenant-test-event-realm-1"));
     TruststoreProvider pB =
-        factory.create(sessionWithRealm("realm-b", "tenant-test-event-realm-chain"));
+        factory.create(sessionWithRealm("realm-b", "tenant-test-event-realm-2"));
 
     assertNotSame(pA, pB, "Different realms should get independent provider instances");
     assertFalse(
-        pB.getIntermediateCertificates().isEmpty(),
-        "realm-b uses realm-chain so should have intermediate CAs");
-    assertTrue(
-        pA.getIntermediateCertificates().isEmpty(),
-        "realm-a uses realm-root so should have no intermediate CAs");
+        pA.getRootCertificates().isEmpty(), "realm-a should have root CAs from shared endpoint");
+    assertFalse(
+        pB.getRootCertificates().isEmpty(), "realm-b should have root CAs from shared endpoint");
   }
 }

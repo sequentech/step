@@ -50,9 +50,6 @@ const EditElectionEventAreas = lazy(() =>
 const EditElectionEventKeys = lazy(() =>
     import("./EditElectionEventKeys").then((m) => ({default: m.EditElectionEventKeys}))
 )
-const EditElectionEventCAs = lazy(() =>
-    import("./EditElectionEventCAs").then((m) => ({default: m.EditElectionEventCAs}))
-)
 const EditElectionEventTally = lazy(() =>
     import("./EditElectionEventTally").then((m) => ({default: m.EditElectionEventTally}))
 )
@@ -126,15 +123,6 @@ const KeysTab: React.FC<{showKeysList: string | null}> = ({showKeysList}) => (
         <EditElectionEventKeys isShowCeremony={showKeysList} isShowTrusteeCeremony={showKeysList} />
     </Suspense>
 )
-
-const CAsTab: React.FC = () => {
-    const {t} = useTranslation()
-    return (
-        <Suspense fallback={<div>{t("common.label.loadingData")}</div>}>
-            <EditElectionEventCAs />
-        </Suspense>
-    )
-}
 
 const TallyTab: React.FC = () => (
     <Suspense fallback={<div>Loading Tally...</div>}>

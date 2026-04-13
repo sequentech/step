@@ -169,6 +169,7 @@ const tagalogTranslation: TranslationType = {
                 schedules: "NAISKEDYUL NA MGA KAGANAPAN",
                 trustees: "TAGAPANGALAGA",
                 BackupRestore: "Backup / Ibalik",
+                certificates: "MGA SERTIPIKO",
             },
         },
         trusteesSettingsScreen: {
