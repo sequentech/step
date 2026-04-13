@@ -464,6 +464,105 @@ button#resend-otp-btn:hover {
     width: 100% !important;
 }
 
+/* Error page */
+.login-pf-page:has(#kc-error-message) #kc-title {
+    display: none;
+}
+
+.card-pf:has(#kc-error-message) {
+    border: none;
+    box-shadow: none;
+    background: transparent;
+    max-width: 100%;
+    padding: 204px 20px;
+}
+
+#kc-error-message {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 30px;
+    zoom: 0.80;
+}
+
+.kc-error-title {
+    font-family: 'Manrope', sans-serif;
+    font-style: normal;
+    font-weight: 400;
+    font-size: 48px;
+    line-height: 66px;
+    text-align: center;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: #000000;
+    margin: 0 0 30px;
+}
+
+.kc-error-alert {
+    display: flex;
+    flex-direction: row;
+    align-items: flex-start;
+    padding: 6px 16px;
+    width: fit-content;
+    max-width: 600px;
+    background: #FDEDED;
+    border-radius: 4px;
+    box-sizing: border-box;
+}
+
+.kc-error-alert-icon-wrap {
+    display: flex;
+    align-items: flex-start;
+    padding: 7px 12px 7px 0;
+    flex-shrink: 0;
+}
+
+.kc-error-alert-icon {
+    width: 22px;
+    height: 22px;
+    fill: #D32F2F;
+}
+
+.kc-error-alert-text {
+    padding: 8px 0;
+    font-family: 'Roboto', sans-serif;
+    font-style: normal;
+    font-weight: 500;
+    font-size: 16px;
+    line-height: 150%;
+    letter-spacing: 0.15px;
+    color: #5F2120;
+}
+
+.kc-error-back-btn {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    padding: 8px 22px;
+    width: 100%;
+    max-width: 474px;
+    height: 42px;
+    background: #0F054C;
+    box-shadow: 0px 1px 5px rgba(0, 0, 0, 0.12), 0px 2px 2px rgba(0, 0, 0, 0.14), 0px 3px 1px -2px rgba(0, 0, 0, 0.2);
+    border-radius: 4px;
+    font-family: 'Roboto', sans-serif;
+    font-style: normal;
+    font-weight: 500;
+    font-size: 15px;
+    line-height: 26px;
+    letter-spacing: 0.46px;
+    text-transform: uppercase;
+    color: #FFFFFF !important;
+    text-decoration: none !important;
+    box-sizing: border-box;
+}
+
+.kc-error-back-btn:hover {
+    color: #FFFFFF !important;
+    text-decoration: none !important;
+}
+
 #kc-social-providers hr {
     display: none;
 }

@@ -127,11 +127,10 @@ SPDX-License-Identifier: AGPL-3.0-only
         <#assign visibleProviders = social.providers?filter(p -> p.alias != 'digital-certificates' || (realm.attributes['voter-certificate-policy']!'disabled') == 'enabled')>
         <#if realm.password && visibleProviders?has_content>
             <div id="kc-social-providers" class="${properties.kcFormSocialAccountSectionClass!}">
-                <hr/>
-                <h4>${msg("identity-provider-login-label")}</h4>
-
-                <ul class="${properties.kcFormSocialAccountListClass!} <#if visibleProviders?size gt 3>${properties.kcFormSocialAccountListGridClass!}</#if>">
-                    <#list visibleProviders as p>
+                <#list visibleProviders as p>
+                    <hr/>
+                    <h4>${msg("identity-provider-login-label")}</h4>
+                    <ul class="${properties.kcFormSocialAccountListClass!} <#if visibleProviders?size gt 3>${properties.kcFormSocialAccountListGridClass!}</#if>">
                         <li>
                             <a id="social-${p.alias}" class="${properties.kcFormSocialAccountListButtonClass!} <#if visibleProviders?size gt 3>${properties.kcFormSocialAccountGridItem!}</#if>"
                                     type="button" href="${p.loginUrl}">
@@ -143,8 +142,8 @@ SPDX-License-Identifier: AGPL-3.0-only
                                 </#if>
                             </a>
                         </li>
-                    </#list>
-                </ul>
+                    </ul>
+                </#list>
             </div>
         </#if>
     </#if>
