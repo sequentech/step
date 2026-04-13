@@ -20,11 +20,7 @@ import {useTranslation} from "react-i18next"
 import {useElectionEventTallyStore} from "@/providers/ElectionEventTallyProvider"
 import {v4 as uuidv4} from "uuid"
 import {EPublishType} from "../Publish/EPublishType"
-import {
-    EElectionEventLockedDown,
-    i18n,
-    translateFromPresentation,
-} from "@sequentech/ui-core"
+import {EElectionEventLockedDown, i18n, translateFromPresentation} from "@sequentech/ui-core"
 import {Box, CircularProgress} from "@mui/material"
 import {Tabs} from "@/components/Tabs"
 import {useNavigate, useLocation} from "react-router-dom"
@@ -421,7 +417,6 @@ export const ElectionEventTabs: React.FC = () => {
         showEvents,
         showReports,
         showApprovalsExecution,
-        showCAs,
         t,
         showKeysList,
         showPublishList,
