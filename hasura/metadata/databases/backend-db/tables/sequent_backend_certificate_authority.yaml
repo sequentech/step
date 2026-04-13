@@ -4,13 +4,9 @@ table:
 insert_permissions:
     - comment: ""
       permission:
-          check:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
+          check: {}
           columns:
               - id
-              - tenant_id
-              - election_event_id
               - common_name
               - subject
               - issuer_common_name
@@ -26,8 +22,6 @@ insert_permissions:
           check: {}
           columns:
               - id
-              - tenant_id
-              - election_event_id
               - common_name
               - subject
               - issuer_common_name
@@ -45,8 +39,6 @@ select_permissions:
           allow_aggregations: true
           columns:
               - id
-              - tenant_id
-              - election_event_id
               - common_name
               - subject
               - issuer_common_name
@@ -57,17 +49,13 @@ select_permissions:
               - serial_number
               - pem
               - created_at
-          filter:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
+          filter: {}
       role: admin-user
     - comment: ""
       permission:
           allow_aggregations: true
           columns:
               - id
-              - tenant_id
-              - election_event_id
               - common_name
               - subject
               - issuer_common_name
@@ -78,17 +66,13 @@ select_permissions:
               - serial_number
               - created_at
               - pem
-          filter:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
+          filter: {}
       role: ca-read
     - comment: ""
       permission:
           allow_aggregations: true
           columns:
               - id
-              - tenant_id
-              - election_event_id
               - common_name
               - subject
               - issuer_common_name
@@ -99,16 +83,12 @@ select_permissions:
               - serial_number
               - created_at
               - pem
-          filter:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
+          filter: {}
       role: election-event-cas-tab
     - comment: ""
       permission:
           columns:
               - id
-              - tenant_id
-              - election_event_id
               - common_name
               - subject
               - issuer_common_name
@@ -124,15 +104,11 @@ select_permissions:
 delete_permissions:
     - comment: ""
       permission:
-          filter:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
+          filter: {}
       role: admin-user
     - comment: ""
       permission:
-          filter:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
+          filter: {}
       role: ca-write
     - comment: ""
       permission:
