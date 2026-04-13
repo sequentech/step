@@ -112,6 +112,6 @@ pub async fn create_ballot_receipt(
         id: document_id,
         ballot_id: input.ballot_id,
         status: "pending".to_string(),
-        task_execution: task_execution,
+        task_execution,
     }))
 }

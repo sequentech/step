@@ -14,8 +14,13 @@ use serde::Serialize;
 use tracing::{error, info, instrument};
 use windmill::services;
 use windmill::services::database::{get_hasura_pool, get_keycloak_pool};
-use windmill::services::datafix::types::*;
+use windmill::services::datafix::types::{
+    DatafixResponse, JsonErrorResponse, MarkVotedBody, VoterInformationBody,
+};
 
+/// Adds a new voter to the datafix event.
+///
+/// Requires `DATAFIX_ACCOUNT` permission.
 #[instrument(skip(claims))]
 #[post("/add-voter", format = "json", data = "<body>")]
 pub async fn add_voter(
@@ -59,6 +64,9 @@ pub async fn add_voter(
     .await
 }
 
+/// Updates an existing voter's information in the datafix event.
+///
+/// Requires `DATAFIX_ACCOUNT` permission.
 #[instrument(skip(claims))]
 #[post("/update-voter", format = "json", data = "<body>")]
 pub async fn update_voter(
@@ -114,11 +122,16 @@ pub async fn update_voter(
     .await
 }
 
+/// Request body
 #[derive(Deserialize, Debug)]
 pub struct VoterIdBody {
+    /// The unique identifier of the voter
     voter_id: String,
 }
 
+/// Deletes a voter from the datafix event.
+///
+/// Requires `DATAFIX_ACCOUNT` permission.
 #[instrument(skip(claims))]
 #[post("/delete-voter", format = "json", data = "<body>")]
 pub async fn delete_voter(
@@ -174,6 +187,9 @@ pub async fn delete_voter(
     .await
 }
 
+/// Unmarks a voter as voted in the datafix event.
+///
+/// Requires `DATAFIX_ACCOUNT` permission.
 #[instrument(skip(claims))]
 #[post("/unmark-voted", format = "json", data = "<body>")]
 pub async fn unmark_voted(
@@ -229,6 +245,9 @@ pub async fn unmark_voted(
     .await
 }
 
+/// Marks a voter as voted in the datafix event.
+///
+/// Requires `DATAFIX_ACCOUNT` permission.
 #[instrument(skip(claims))]
 #[post("/mark-voted", format = "json", data = "<body>")]
 pub async fn mark_voted(
@@ -284,11 +303,16 @@ pub async fn mark_voted(
     .await
 }
 
+/// Response containing a replaced PIN for a voter.
 #[derive(Serialize, Debug)]
 pub struct ReplacePinOutput {
+    /// The newly generated PIN
     pin: String,
 }
 
+/// Generates and replaces a voter's PIN in the datafix event.
+///
+/// Requires `DATAFIX_ACCOUNT` permission.
 #[instrument(skip(claims))]
 #[post("/replace-pin", format = "json", data = "<body>")]
 pub async fn replace_pin(
@@ -313,23 +337,23 @@ pub async fn replace_pin(
 
     let mut hasura_db_client: DbClient =
         get_hasura_pool().await.get().await.map_err(|e| {
-            error!("Error getting hasura client {}", e);
+            error!("Error getting hasura client {e:?}");
             DatafixResponse::new(Status::InternalServerError)
         })?;
     let hasura_transaction =
         hasura_db_client.transaction().await.map_err(|e| {
-            error!("Error starting hasura transaction {}", e);
+            error!("Error starting hasura transaction {e:?}");
             DatafixResponse::new(Status::InternalServerError)
         })?;
 
     let mut keycloak_db_client: DbClient =
         get_keycloak_pool().await.get().await.map_err(|e| {
-            error!("Error getting keycloak client {}", e);
+            error!("Error getting keycloak client {e:?}");
             DatafixResponse::new(Status::InternalServerError)
         })?;
     let keycloak_transaction =
         keycloak_db_client.transaction().await.map_err(|e| {
-            error!("Error starting keycloak transaction {}", e);
+            error!("Error starting keycloak transaction {e:?}");
             DatafixResponse::new(Status::InternalServerError)
         })?;
 

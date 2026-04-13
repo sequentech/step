@@ -34,17 +34,28 @@ use windmill::types::application::{
     ApplicationStatus, ApplicationType, ApplicationsError,
 };
 
+/// Request body for verifying a user application.
 #[derive(Deserialize, Debug)]
 pub struct ApplicationVerifyBody {
+    /// The ID of the applicant
     applicant_id: String,
+    /// The applicant's data as key-value pairs
     applicant_data: HashMap<String, String>,
+    /// The tenant ID
     tenant_id: String,
+    /// The election event ID
     election_event_id: String,
+    /// Optional area ID
     area_id: Option<String>,
+    /// Optional labels for the application
     labels: Option<Value>,
+    /// Application annotations
     annotations: ApplicationAnnotations,
 }
 
+/// Verifies a user application against criteria.
+///
+/// Requires `SERVICE_ACCOUNT` permission.
 #[instrument(skip(claims))]
 #[post("/verify-application", format = "json", data = "<body>")]
 pub async fn verify_user_application(
@@ -66,7 +77,7 @@ pub async fn verify_user_application(
     .map_err(|e| {
         ErrorResponse::new(
             Status::Unauthorized,
-            &format!("{:?}", e),
+            &format!("{e:?}"),
             ErrorCode::Unauthorized,
         )
     })?;
@@ -75,7 +86,7 @@ pub async fn verify_user_application(
         get_hasura_pool().await.get().await.map_err(|e| {
             ErrorResponse::new(
                 Status::InternalServerError,
-                &format!("{:?}", e),
+                &format!("{e:?}"),
                 ErrorCode::InternalServerError,
             )
         })?;
@@ -84,7 +95,7 @@ pub async fn verify_user_application(
         hasura_db_client.transaction().await.map_err(|e| {
             ErrorResponse::new(
                 Status::InternalServerError,
-                &format!("{:?}", e),
+                &format!("{e:?}"),
                 ErrorCode::GetTransactionFailed,
             )
         })?;
@@ -93,7 +104,7 @@ pub async fn verify_user_application(
         get_keycloak_pool().await.get().await.map_err(|e| {
             ErrorResponse::new(
                 Status::InternalServerError,
-                &format!("{:?}", e),
+                &format!("{e:?}"),
                 ErrorCode::GetTransactionFailed,
             )
         })?;
@@ -101,7 +112,7 @@ pub async fn verify_user_application(
         keycloak_db_client.transaction().await.map_err(|e| {
             ErrorResponse::new(
                 Status::InternalServerError,
-                &format!("{:?}", e),
+                &format!("{e:?}"),
                 ErrorCode::GetTransactionFailed,
             )
         })?;
@@ -120,12 +131,12 @@ pub async fn verify_user_application(
     .map_err(|e| {
         ErrorResponse::new(
             Status::InternalServerError,
-            &format!("{:?}", e),
+            &format!("{e:?}"),
             ErrorCode::InternalServerError,
         )
     })?;
 
-    let _commit = hasura_transaction.commit().await.map_err(|e| {
+    hasura_transaction.commit().await.map_err(|e| {
         ErrorResponse::new(
             Status::InternalServerError,
             &format!("commit failed: {e:?}"),
@@ -136,24 +147,39 @@ pub async fn verify_user_application(
     Ok(Json(result))
 }
 
+/// Request body for changing application status.
 #[derive(Deserialize, Debug)]
 pub struct ApplicationChangeStatusBody {
+    /// The tenant ID
     tenant_id: String,
+    /// The election event ID
     election_event_id: String,
+    /// Optional area ID
     area_id: Option<String>,
+    /// The application ID
     id: String,
+    /// The user ID associated with the application
     user_id: String,
-    rejection_reason: Option<String>, // Optional for rejection
-    rejection_message: Option<String>, // Optional for rejection
+    /// Optional rejection reason
+    rejection_reason: Option<String>,
+    /// Optional rejection message
+    rejection_message: Option<String>,
 }
 
+/// Response for application status change operation.
 #[derive(Serialize, Deserialize, Debug)]
 pub struct ApplicationChangeStatusOutput {
+    /// Success message
     message: Option<String>,
+    /// Error message if any
     error: Option<String>,
 }
 
+/// Changes the status of an application.
+///
+/// Requires `APPLICATION_WRITE` permission.
 #[instrument(skip(claims))]
+#[allow(clippy::too_many_lines, clippy::large_futures)]
 #[post("/change-application-status", format = "json", data = "<body>")]
 pub async fn change_application_status(
     claims: jwt::JwtClaims,
@@ -162,7 +188,7 @@ pub async fn change_application_status(
     let input = body.into_inner();
 
     info!("Changing application status: {input:?}");
-    info!("claims::: {:?}", &claims);
+    info!("claims::: {claims:?}");
 
     let required_perm: Permissions = Permissions::APPLICATION_WRITE;
     authorize(
@@ -174,7 +200,7 @@ pub async fn change_application_status(
     .map_err(|e| {
         ErrorResponse::new(
             Status::Unauthorized,
-            &format!("{:?}", e),
+            &format!("{e:?}"),
             ErrorCode::Unauthorized,
         )
     })?;
@@ -183,7 +209,7 @@ pub async fn change_application_status(
         get_hasura_pool().await.get().await.map_err(|e| {
             ErrorResponse::new(
                 Status::InternalServerError,
-                &format!("Error obtaining hasura pool: {:?}", e),
+                &format!("Error obtaining hasura pool: {e:?}"),
                 ErrorCode::InternalServerError,
             )
         })?;
@@ -192,7 +218,7 @@ pub async fn change_application_status(
         hasura_db_client.transaction().await.map_err(|e| {
             ErrorResponse::new(
                 Status::InternalServerError,
-                &format!("Error obtaining transaction: {:?}", e),
+                &format!("Error obtaining transaction: {e:?}"),
                 ErrorCode::GetTransactionFailed,
             )
         })?;
@@ -203,7 +229,7 @@ pub async fn change_application_status(
         get_group_names(&tenant_realm, user_id).await.map_err(|e| {
             ErrorResponse::new(
                 Status::InternalServerError,
-                &format!("Error getting group names: {:#?}", e),
+                &format!("Error getting group names: {e:#?}"),
                 ErrorCode::InternalServerError,
             )
         })?;
@@ -230,7 +256,7 @@ pub async fn change_application_status(
         .map_err(|e| {
             ErrorResponse::new(
                 Status::InternalServerError,
-                &format!("Error rejecting application: {:?}", e),
+                &format!("Error rejecting application: {e:?}"),
                 ErrorCode::InternalServerError,
             )
         })?;
@@ -239,7 +265,7 @@ pub async fn change_application_status(
             get_keycloak_pool().await.get().await.map_err(|e| {
                 ErrorResponse::new(
                     Status::InternalServerError,
-                    &format!("{:?}", e),
+                    &format!("{e:?}"),
                     ErrorCode::GetTransactionFailed,
                 )
             })?;
@@ -247,7 +273,7 @@ pub async fn change_application_status(
             keycloak_db_client.transaction().await.map_err(|e| {
                 ErrorResponse::new(
                     Status::InternalServerError,
-                    &format!("{:?}", e),
+                    &format!("{e:?}"),
                     ErrorCode::GetTransactionFailed,
                 )
             })?;
@@ -263,7 +289,7 @@ pub async fn change_application_status(
         .map_err(|e| {
             ErrorResponse::new(
                 Status::InternalServerError,
-                &format!("Error in check_is_user_verified: {:?}", e),
+                &format!("Error in check_is_user_verified: {e:?}"),
                 ErrorCode::InternalServerError,
             )
         })?;
@@ -292,7 +318,7 @@ pub async fn change_application_status(
         .map_err(|e| {
             ErrorResponse::new(
                 Status::InternalServerError,
-                &format!("Error confirming application: {:?}", e),
+                &format!("Error confirming application: {e:?}"),
                 ErrorCode::InternalServerError,
             )
         })?;
@@ -302,7 +328,7 @@ pub async fn change_application_status(
             "Invalid request: rejection_reason and rejection_message must either both be present or both absent",
             ErrorCode::InternalServerError,
         )));
-    };
+    }
 
     hasura_transaction.commit().await.map_err(|e| {
         ErrorResponse::new(

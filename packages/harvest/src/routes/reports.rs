@@ -251,7 +251,7 @@ pub async fn generate_template(
         })?;
 
     Ok(Json(GenerateTemplateResponse {
-        document_id: document_id,
+        document_id,
         task_execution: task_execution.clone(),
     }))
 }
@@ -360,7 +360,7 @@ pub async fn generate_report(
         })?;
 
     Ok(Json(GenerateReportResponse {
-        document_id: document_id,
+        document_id,
         encryption_policy: report.encryption_policy,
         task_execution: task_execution.clone(),
     }))

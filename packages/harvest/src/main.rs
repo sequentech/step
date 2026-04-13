@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+//! Harvest REST API
 #![recursion_limit = "256"]
 #[macro_use]
 extern crate rocket;
@@ -14,8 +15,11 @@ use windmill::services::{
     probe::{setup_probe, AppName},
 };
 
+/// HTTP routes
 mod routes;
+/// Authorization and database services
 mod services;
+/// Types and data structures
 mod types;
 
 #[launch]

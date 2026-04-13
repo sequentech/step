@@ -254,7 +254,7 @@ async fn audit_list_service(
 
     let audit_table = input.audit_table;
     let sql = format!(
-        r#"
+        r"
         SELECT
             id,
             audit_type,
@@ -267,7 +267,7 @@ async fn audit_list_service(
             user
         FROM {audit_table}
         {clauses}
-        "#,
+        ",
     );
     let sql_query_response = client.sql_query(&sql, params).await?;
     let items = sql_query_response
@@ -278,12 +278,12 @@ async fn audit_list_service(
         .collect::<Result<Vec<PgAuditRow>>>()?;
 
     let sql = format!(
-        r#"
+        r"
         SELECT
             COUNT(*)
         FROM {audit_table}
         {clauses_to_count}
-        "#,
+        ",
     );
     let sql_query_response = client.sql_query(&sql, count_params).await?;
     let mut rows_iter = sql_query_response
@@ -298,10 +298,8 @@ async fn audit_list_service(
 
     client.close_session().await?;
     Ok(Json(DataList {
-        items: items,
-        total: TotalAggregate {
-            aggregate: aggregate,
-        },
+        items,
+        total: TotalAggregate { aggregate },
     }))
 }
 

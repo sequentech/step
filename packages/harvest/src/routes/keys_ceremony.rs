@@ -361,7 +361,7 @@ pub async fn list_keys_ceremonies(
     Ok(Json(DataList {
         items: keys_ceremonies,
         total: TotalAggregate {
-            aggregate: Aggregate { count: count },
+            aggregate: Aggregate { count },
         },
     }))
 }

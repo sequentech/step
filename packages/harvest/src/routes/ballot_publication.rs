@@ -27,17 +27,23 @@ use windmill::{
     },
 };
 
+/// Request body for generating a ballot publication.
 #[derive(Serialize, Deserialize, Debug)]
 pub struct GenerateBallotPublicationInput {
+    /// The election event ID
     election_event_id: String,
+    /// Optional election ID to filter specific election
     election_id: Option<String>,
 }
 
+/// Response containing the generated ballot publication ID.
 #[derive(Serialize, Deserialize, Debug)]
 pub struct GenerateBallotPublicationOutput {
+    /// The ballot publication ID
     ballot_publication_id: String,
 }
 
+/// Generates a new ballot publication for an election event/election.
 #[instrument(skip(claims))]
 #[post("/generate-ballot-publication", format = "json", data = "<body>")]
 pub async fn generate_ballot_publication(
@@ -75,7 +81,7 @@ pub async fn generate_ballot_publication(
         &input.election_event_id,
     )
     .await
-    .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+    .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
 
     if let Some(election_event_presentation) = election_event.presentation {
         info!(
@@ -90,13 +96,13 @@ pub async fn generate_ballot_publication(
         if deserialize_value::<ElectionEventPresentation>(
             election_event_presentation,
         )
-        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?
+        .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?
         .locked_down
             == Some(LockedDown::LOCKED_DOWN)
         {
             return Err((
                 Status::Forbidden,
-                format!("Election event is locked down"),
+                "Election event is locked down".to_string(),
             ));
         }
     }
@@ -109,9 +115,9 @@ pub async fn generate_ballot_publication(
         user_id.clone(),
     )
     .await
-    .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+    .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
 
-    let _commit = hasura_transaction.commit().await.map_err(|err| {
+    hasura_transaction.commit().await.map_err(|err| {
         (Status::InternalServerError, format!("Commit failed: {err}"))
     })?;
 
@@ -120,17 +126,23 @@ pub async fn generate_ballot_publication(
     }))
 }
 
+/// Request body for publishing a ballot.
 #[derive(Serialize, Deserialize, Debug)]
 pub struct PublishBallotInput {
+    /// The election event ID
     election_event_id: String,
+    /// The ballot publication ID to publish
     ballot_publication_id: String,
 }
 
+/// Response containing the published ballot publication ID.
 #[derive(Serialize, Deserialize, Debug)]
 pub struct PublishBallotOutput {
+    /// The published ballot publication ID
     ballot_publication_id: String,
 }
 
+/// Publishes a ballot publication for voting.
 #[instrument(skip(claims))]
 #[post("/publish-ballot", format = "json", data = "<body>")]
 pub async fn publish_ballot(
@@ -176,25 +188,36 @@ pub async fn publish_ballot(
     }))
 }
 
+/// Request body for retrieving ballot publication changes.
 #[derive(Serialize, Deserialize, Debug)]
 pub struct GetBallotPublicationChangesInput {
+    /// The election event ID
     election_event_id: String,
+    /// The ballot publication ID
     ballot_publication_id: String,
+    /// Optional limit on number of changes to retrieve
     limit: Option<usize>,
 }
 
+/// Ballot styles information of ballot publication.
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct BallotPublicationStyles {
+    /// The ballot publication ID
     ballot_publication_id: String,
+    /// The ballot styles as JSON
     ballot_styles: Value,
 }
 
+/// Ballot publication changes output.
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct GetBallotPublicationChangesOutput {
+    /// Current ballot publication styles
     current: BallotPublicationStyles,
+    /// Previous ballot publication styles if any
     previous: Option<BallotPublicationStyles>,
 }
 
+/// Retrieves changes between ballot publication versions.
 #[instrument(skip(claims))]
 #[post("/get-ballot-publication-changes", format = "json", data = "<body>")]
 pub async fn get_ballot_publication_changes(
@@ -214,12 +237,12 @@ pub async fn get_ballot_publication_changes(
         .await
         .get()
         .await
-        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+        .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
 
     let hasura_transaction = hasura_db_client
         .transaction()
         .await
-        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+        .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
 
     let diff = get_ballot_publication_diff(
         &hasura_transaction,

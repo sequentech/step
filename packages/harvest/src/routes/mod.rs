@@ -1,9 +1,13 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+/// Datafix API endpoints.
 pub mod api_datafix;
+/// Application verification and status management endpoints.
 pub mod applications;
+/// Area management endpoints.
 pub mod areas;
+/// Ballot publication and generation endpoints.
 pub mod ballot_publication;
 pub mod ballot_publication_prepare_preview;
 pub mod create_ballot_receipt;

@@ -971,7 +971,7 @@ pub async fn export_tenant_users_f(
     };
 
     let output = export_users::ExportUsersOutput {
-        document_id: document_id,
+        document_id,
         error_msg: None,
         task_execution: None,
     };
