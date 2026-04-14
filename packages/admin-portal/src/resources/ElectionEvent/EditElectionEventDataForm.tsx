@@ -52,6 +52,7 @@ import {
     EElectionEventOTP,
     EElectionEventContestEncryptionPolicy,
     EVoterSigningPolicy,
+    EVoterDigitalCertPolicy,
     EShowCastVoteLogsPolicy,
     EElectionEventDecodedBallots,
     EElectionEventCeremoniesPolicy,
@@ -528,6 +529,13 @@ export const EditElectionEventDataForm: React.FC = () => {
         return Object.values(EVoterSigningPolicy).map((value) => ({
             id: value,
             name: t(`electionEventScreen.field.voterSigningPolicy.${value}`),
+        }))
+    }
+
+    const voterDigitalCertPolicyChoices = () => {
+        return Object.values(EVoterDigitalCertPolicy).map((value) => ({
+            id: value,
+            name: t(`electionEventScreen.field.voterDigitalCertPolicy.${value}`),
         }))
     }
 
@@ -1188,6 +1196,16 @@ export const EditElectionEventDataForm: React.FC = () => {
                                 t("electionEventScreen.field.voterSigningPolicy.policyLabel")
                             )}
                             defaultValue={EVoterSigningPolicy.NO_SIGNATURE}
+                            emptyText={undefined}
+                            validate={required()}
+                        />
+                        <SelectInput
+                            source={"presentation.voter_digital_cert_policy"}
+                            choices={voterDigitalCertPolicyChoices()}
+                            label={String(
+                                t("electionEventScreen.field.voterDigitalCertPolicy.policyLabel")
+                            )}
+                            defaultValue={EVoterDigitalCertPolicy.DISABLED}
                             emptyText={undefined}
                             validate={required()}
                         />
