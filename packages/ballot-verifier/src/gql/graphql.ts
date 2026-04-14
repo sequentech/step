@@ -209,6 +209,11 @@ export type DataListPgAudit = {
     total: TotalAggregate
 }
 
+export type DeleteCertificateAuthorityOutput = {
+    __typename?: "DeleteCertificateAuthorityOutput"
+    deleted: Scalars["Boolean"]["output"]
+}
+
 export type DeleteElectionEvent = {
     __typename?: "DeleteElectionEvent"
     error_msg?: Maybe<Scalars["String"]["output"]>
@@ -525,6 +530,13 @@ export type GetUsersOutput = {
     __typename?: "GetUsersOutput"
     items: Array<KeycloakUser>
     total: TotalAggregate
+}
+
+export type ImportCertificateAuthorityOutput = {
+    __typename?: "ImportCertificateAuthorityOutput"
+    errors: Array<Scalars["String"]["output"]>
+    inserted_count: Scalars["Int"]["output"]
+    skipped_count: Scalars["Int"]["output"]
 }
 
 export type ImportOptions = {
@@ -1092,6 +1104,8 @@ export type Mutation_Root = {
     create_tally_ceremony?: Maybe<CreateTallyOutput>
     create_transmission_package?: Maybe<CreateTransmissionPackageOutput>
     create_user: KeycloakUser
+    /** Delete a certificate authority by id */
+    delete_certificate_authority?: Maybe<DeleteCertificateAuthorityOutput>
     delete_election_event?: Maybe<DeleteElectionEvent>
     delete_permission?: Maybe<SetRolePermissionOutput>
     delete_role?: Maybe<SetUserRoleOutput>
@@ -1124,6 +1138,10 @@ export type Mutation_Root = {
     delete_sequent_backend_cast_vote?: Maybe<Sequent_Backend_Cast_Vote_Mutation_Response>
     /** delete single row from the table: "sequent_backend.cast_vote" */
     delete_sequent_backend_cast_vote_by_pk?: Maybe<Sequent_Backend_Cast_Vote>
+    /** delete data from the table: "sequent_backend.certificate_authority" */
+    delete_sequent_backend_certificate_authority?: Maybe<Sequent_Backend_Certificate_Authority_Mutation_Response>
+    /** delete single row from the table: "sequent_backend.certificate_authority" */
+    delete_sequent_backend_certificate_authority_by_pk?: Maybe<Sequent_Backend_Certificate_Authority>
     /** delete data from the table: "sequent_backend.contest" */
     delete_sequent_backend_contest?: Maybe<Sequent_Backend_Contest_Mutation_Response>
     /** delete single row from the table: "sequent_backend.contest" */
@@ -1283,6 +1301,8 @@ export type Mutation_Root = {
     import_application?: Maybe<ApplicationOutput>
     import_areas?: Maybe<OptionalId>
     import_candidates?: Maybe<DocumentTaskOutput>
+    /** Import certificate authorities from a PEM string for an election event */
+    import_certificate_authority?: Maybe<ImportCertificateAuthorityOutput>
     /** import_election_event */
     import_election_event?: Maybe<OptionalImportEvent>
     import_templates?: Maybe<TemplateOutput>
@@ -1321,6 +1341,10 @@ export type Mutation_Root = {
     insert_sequent_backend_cast_vote?: Maybe<Sequent_Backend_Cast_Vote_Mutation_Response>
     /** insert a single row into the table: "sequent_backend.cast_vote" */
     insert_sequent_backend_cast_vote_one?: Maybe<Sequent_Backend_Cast_Vote>
+    /** insert data into the table: "sequent_backend.certificate_authority" */
+    insert_sequent_backend_certificate_authority?: Maybe<Sequent_Backend_Certificate_Authority_Mutation_Response>
+    /** insert a single row into the table: "sequent_backend.certificate_authority" */
+    insert_sequent_backend_certificate_authority_one?: Maybe<Sequent_Backend_Certificate_Authority>
     /** insert data into the table: "sequent_backend.contest" */
     insert_sequent_backend_contest?: Maybe<Sequent_Backend_Contest_Mutation_Response>
     /** insert a single row into the table: "sequent_backend.contest" */
@@ -1515,6 +1539,14 @@ export type Mutation_Root = {
     /** update multiples rows of table: "sequent_backend.cast_vote" */
     update_sequent_backend_cast_vote_many?: Maybe<
         Array<Maybe<Sequent_Backend_Cast_Vote_Mutation_Response>>
+    >
+    /** update data of the table: "sequent_backend.certificate_authority" */
+    update_sequent_backend_certificate_authority?: Maybe<Sequent_Backend_Certificate_Authority_Mutation_Response>
+    /** update single row of the table: "sequent_backend.certificate_authority" */
+    update_sequent_backend_certificate_authority_by_pk?: Maybe<Sequent_Backend_Certificate_Authority>
+    /** update multiples rows of table: "sequent_backend.certificate_authority" */
+    update_sequent_backend_certificate_authority_many?: Maybe<
+        Array<Maybe<Sequent_Backend_Certificate_Authority_Mutation_Response>>
     >
     /** update data of the table: "sequent_backend.contest" */
     update_sequent_backend_contest?: Maybe<Sequent_Backend_Contest_Mutation_Response>
@@ -1859,6 +1891,12 @@ export type Mutation_RootCreate_UserArgs = {
 }
 
 /** mutation root */
+export type Mutation_RootDelete_Certificate_AuthorityArgs = {
+    election_event_id: Scalars["uuid"]["input"]
+    id: Scalars["uuid"]["input"]
+}
+
+/** mutation root */
 export type Mutation_RootDelete_Election_EventArgs = {
     election_event_id: Scalars["String"]["input"]
 }
@@ -1962,6 +2000,16 @@ export type Mutation_RootDelete_Sequent_Backend_Cast_Vote_By_PkArgs = {
     election_event_id: Scalars["uuid"]["input"]
     id: Scalars["uuid"]["input"]
     tenant_id: Scalars["uuid"]["input"]
+}
+
+/** mutation root */
+export type Mutation_RootDelete_Sequent_Backend_Certificate_AuthorityArgs = {
+    where: Sequent_Backend_Certificate_Authority_Bool_Exp
+}
+
+/** mutation root */
+export type Mutation_RootDelete_Sequent_Backend_Certificate_Authority_By_PkArgs = {
+    id: Scalars["uuid"]["input"]
 }
 
 /** mutation root */
@@ -2530,6 +2578,12 @@ export type Mutation_RootImport_CandidatesArgs = {
 }
 
 /** mutation root */
+export type Mutation_RootImport_Certificate_AuthorityArgs = {
+    election_event_id: Scalars["uuid"]["input"]
+    pem_content: Scalars["String"]["input"]
+}
+
+/** mutation root */
 export type Mutation_RootImport_Election_EventArgs = {
     check_only?: InputMaybe<Scalars["Boolean"]["input"]>
     document_id: Scalars["String"]["input"]
@@ -2660,6 +2714,18 @@ export type Mutation_RootInsert_Sequent_Backend_Cast_VoteArgs = {
 export type Mutation_RootInsert_Sequent_Backend_Cast_Vote_OneArgs = {
     object: Sequent_Backend_Cast_Vote_Insert_Input
     on_conflict?: InputMaybe<Sequent_Backend_Cast_Vote_On_Conflict>
+}
+
+/** mutation root */
+export type Mutation_RootInsert_Sequent_Backend_Certificate_AuthorityArgs = {
+    objects: Array<Sequent_Backend_Certificate_Authority_Insert_Input>
+    on_conflict?: InputMaybe<Sequent_Backend_Certificate_Authority_On_Conflict>
+}
+
+/** mutation root */
+export type Mutation_RootInsert_Sequent_Backend_Certificate_Authority_OneArgs = {
+    object: Sequent_Backend_Certificate_Authority_Insert_Input
+    on_conflict?: InputMaybe<Sequent_Backend_Certificate_Authority_On_Conflict>
 }
 
 /** mutation root */
@@ -3325,6 +3391,23 @@ export type Mutation_RootUpdate_Sequent_Backend_Cast_Vote_By_PkArgs = {
 /** mutation root */
 export type Mutation_RootUpdate_Sequent_Backend_Cast_Vote_ManyArgs = {
     updates: Array<Sequent_Backend_Cast_Vote_Updates>
+}
+
+/** mutation root */
+export type Mutation_RootUpdate_Sequent_Backend_Certificate_AuthorityArgs = {
+    _set?: InputMaybe<Sequent_Backend_Certificate_Authority_Set_Input>
+    where: Sequent_Backend_Certificate_Authority_Bool_Exp
+}
+
+/** mutation root */
+export type Mutation_RootUpdate_Sequent_Backend_Certificate_Authority_By_PkArgs = {
+    _set?: InputMaybe<Sequent_Backend_Certificate_Authority_Set_Input>
+    pk_columns: Sequent_Backend_Certificate_Authority_Pk_Columns_Input
+}
+
+/** mutation root */
+export type Mutation_RootUpdate_Sequent_Backend_Certificate_Authority_ManyArgs = {
+    updates: Array<Sequent_Backend_Certificate_Authority_Updates>
 }
 
 /** mutation root */
@@ -4313,6 +4396,12 @@ export type Query_Root = {
     sequent_backend_cast_vote_aggregate: Sequent_Backend_Cast_Vote_Aggregate
     /** fetch data from the table: "sequent_backend.cast_vote" using primary key columns */
     sequent_backend_cast_vote_by_pk?: Maybe<Sequent_Backend_Cast_Vote>
+    /** fetch data from the table: "sequent_backend.certificate_authority" */
+    sequent_backend_certificate_authority: Array<Sequent_Backend_Certificate_Authority>
+    /** fetch aggregated fields from the table: "sequent_backend.certificate_authority" */
+    sequent_backend_certificate_authority_aggregate: Sequent_Backend_Certificate_Authority_Aggregate
+    /** fetch data from the table: "sequent_backend.certificate_authority" using primary key columns */
+    sequent_backend_certificate_authority_by_pk?: Maybe<Sequent_Backend_Certificate_Authority>
     /** fetch data from the table: "sequent_backend.contest" */
     sequent_backend_contest: Array<Sequent_Backend_Contest>
     /** fetch aggregated fields from the table: "sequent_backend.contest" */
@@ -4732,6 +4821,26 @@ export type Query_RootSequent_Backend_Cast_Vote_By_PkArgs = {
     election_event_id: Scalars["uuid"]["input"]
     id: Scalars["uuid"]["input"]
     tenant_id: Scalars["uuid"]["input"]
+}
+
+export type Query_RootSequent_Backend_Certificate_AuthorityArgs = {
+    distinct_on?: InputMaybe<Array<Sequent_Backend_Certificate_Authority_Select_Column>>
+    limit?: InputMaybe<Scalars["Int"]["input"]>
+    offset?: InputMaybe<Scalars["Int"]["input"]>
+    order_by?: InputMaybe<Array<Sequent_Backend_Certificate_Authority_Order_By>>
+    where?: InputMaybe<Sequent_Backend_Certificate_Authority_Bool_Exp>
+}
+
+export type Query_RootSequent_Backend_Certificate_Authority_AggregateArgs = {
+    distinct_on?: InputMaybe<Array<Sequent_Backend_Certificate_Authority_Select_Column>>
+    limit?: InputMaybe<Scalars["Int"]["input"]>
+    offset?: InputMaybe<Scalars["Int"]["input"]>
+    order_by?: InputMaybe<Array<Sequent_Backend_Certificate_Authority_Order_By>>
+    where?: InputMaybe<Sequent_Backend_Certificate_Authority_Bool_Exp>
+}
+
+export type Query_RootSequent_Backend_Certificate_Authority_By_PkArgs = {
+    id: Scalars["uuid"]["input"]
 }
 
 export type Query_RootSequent_Backend_ContestArgs = {
@@ -7648,6 +7757,273 @@ export type Sequent_Backend_Cast_Vote_Updates = {
     _set?: InputMaybe<Sequent_Backend_Cast_Vote_Set_Input>
     /** filter the rows which have to be updated */
     where: Sequent_Backend_Cast_Vote_Bool_Exp
+}
+
+/** columns and relationships of "sequent_backend.certificate_authority" */
+export type Sequent_Backend_Certificate_Authority = {
+    __typename?: "sequent_backend_certificate_authority"
+    common_name: Scalars["String"]["output"]
+    created_at: Scalars["timestamptz"]["output"]
+    election_event_id: Scalars["uuid"]["output"]
+    fingerprint_sha256: Scalars["String"]["output"]
+    id: Scalars["uuid"]["output"]
+    issuer: Scalars["String"]["output"]
+    issuer_common_name: Scalars["String"]["output"]
+    not_after: Scalars["timestamptz"]["output"]
+    not_before: Scalars["timestamptz"]["output"]
+    pem: Scalars["String"]["output"]
+    serial_number: Scalars["String"]["output"]
+    subject: Scalars["String"]["output"]
+    tenant_id: Scalars["uuid"]["output"]
+}
+
+/** aggregated selection of "sequent_backend.certificate_authority" */
+export type Sequent_Backend_Certificate_Authority_Aggregate = {
+    __typename?: "sequent_backend_certificate_authority_aggregate"
+    aggregate?: Maybe<Sequent_Backend_Certificate_Authority_Aggregate_Fields>
+    nodes: Array<Sequent_Backend_Certificate_Authority>
+}
+
+/** aggregate fields of "sequent_backend.certificate_authority" */
+export type Sequent_Backend_Certificate_Authority_Aggregate_Fields = {
+    __typename?: "sequent_backend_certificate_authority_aggregate_fields"
+    count: Scalars["Int"]["output"]
+    max?: Maybe<Sequent_Backend_Certificate_Authority_Max_Fields>
+    min?: Maybe<Sequent_Backend_Certificate_Authority_Min_Fields>
+}
+
+/** aggregate fields of "sequent_backend.certificate_authority" */
+export type Sequent_Backend_Certificate_Authority_Aggregate_FieldsCountArgs = {
+    columns?: InputMaybe<Array<Sequent_Backend_Certificate_Authority_Select_Column>>
+    distinct?: InputMaybe<Scalars["Boolean"]["input"]>
+}
+
+/** Boolean expression to filter rows from the table "sequent_backend.certificate_authority". All fields are combined with a logical 'AND'. */
+export type Sequent_Backend_Certificate_Authority_Bool_Exp = {
+    _and?: InputMaybe<Array<Sequent_Backend_Certificate_Authority_Bool_Exp>>
+    _not?: InputMaybe<Sequent_Backend_Certificate_Authority_Bool_Exp>
+    _or?: InputMaybe<Array<Sequent_Backend_Certificate_Authority_Bool_Exp>>
+    common_name?: InputMaybe<String_Comparison_Exp>
+    created_at?: InputMaybe<Timestamptz_Comparison_Exp>
+    election_event_id?: InputMaybe<Uuid_Comparison_Exp>
+    fingerprint_sha256?: InputMaybe<String_Comparison_Exp>
+    id?: InputMaybe<Uuid_Comparison_Exp>
+    issuer?: InputMaybe<String_Comparison_Exp>
+    issuer_common_name?: InputMaybe<String_Comparison_Exp>
+    not_after?: InputMaybe<Timestamptz_Comparison_Exp>
+    not_before?: InputMaybe<Timestamptz_Comparison_Exp>
+    pem?: InputMaybe<String_Comparison_Exp>
+    serial_number?: InputMaybe<String_Comparison_Exp>
+    subject?: InputMaybe<String_Comparison_Exp>
+    tenant_id?: InputMaybe<Uuid_Comparison_Exp>
+}
+
+/** unique or primary key constraints on table "sequent_backend.certificate_authority" */
+export enum Sequent_Backend_Certificate_Authority_Constraint {
+    /** unique or primary key constraint on columns "id" */
+    CertificateAuthorityPkey = "certificate_authority_pkey",
+    /** unique or primary key constraint on columns "tenant_id", "fingerprint_sha256", "election_event_id" */
+    CertificateAuthorityTenantIdElectionEventIdFingerprintS = "certificate_authority_tenant_id_election_event_id_fingerprint_s",
+}
+
+/** input type for inserting data into table "sequent_backend.certificate_authority" */
+export type Sequent_Backend_Certificate_Authority_Insert_Input = {
+    common_name?: InputMaybe<Scalars["String"]["input"]>
+    created_at?: InputMaybe<Scalars["timestamptz"]["input"]>
+    election_event_id?: InputMaybe<Scalars["uuid"]["input"]>
+    fingerprint_sha256?: InputMaybe<Scalars["String"]["input"]>
+    id?: InputMaybe<Scalars["uuid"]["input"]>
+    issuer?: InputMaybe<Scalars["String"]["input"]>
+    issuer_common_name?: InputMaybe<Scalars["String"]["input"]>
+    not_after?: InputMaybe<Scalars["timestamptz"]["input"]>
+    not_before?: InputMaybe<Scalars["timestamptz"]["input"]>
+    pem?: InputMaybe<Scalars["String"]["input"]>
+    serial_number?: InputMaybe<Scalars["String"]["input"]>
+    subject?: InputMaybe<Scalars["String"]["input"]>
+    tenant_id?: InputMaybe<Scalars["uuid"]["input"]>
+}
+
+/** aggregate max on columns */
+export type Sequent_Backend_Certificate_Authority_Max_Fields = {
+    __typename?: "sequent_backend_certificate_authority_max_fields"
+    common_name?: Maybe<Scalars["String"]["output"]>
+    created_at?: Maybe<Scalars["timestamptz"]["output"]>
+    election_event_id?: Maybe<Scalars["uuid"]["output"]>
+    fingerprint_sha256?: Maybe<Scalars["String"]["output"]>
+    id?: Maybe<Scalars["uuid"]["output"]>
+    issuer?: Maybe<Scalars["String"]["output"]>
+    issuer_common_name?: Maybe<Scalars["String"]["output"]>
+    not_after?: Maybe<Scalars["timestamptz"]["output"]>
+    not_before?: Maybe<Scalars["timestamptz"]["output"]>
+    pem?: Maybe<Scalars["String"]["output"]>
+    serial_number?: Maybe<Scalars["String"]["output"]>
+    subject?: Maybe<Scalars["String"]["output"]>
+    tenant_id?: Maybe<Scalars["uuid"]["output"]>
+}
+
+/** aggregate min on columns */
+export type Sequent_Backend_Certificate_Authority_Min_Fields = {
+    __typename?: "sequent_backend_certificate_authority_min_fields"
+    common_name?: Maybe<Scalars["String"]["output"]>
+    created_at?: Maybe<Scalars["timestamptz"]["output"]>
+    election_event_id?: Maybe<Scalars["uuid"]["output"]>
+    fingerprint_sha256?: Maybe<Scalars["String"]["output"]>
+    id?: Maybe<Scalars["uuid"]["output"]>
+    issuer?: Maybe<Scalars["String"]["output"]>
+    issuer_common_name?: Maybe<Scalars["String"]["output"]>
+    not_after?: Maybe<Scalars["timestamptz"]["output"]>
+    not_before?: Maybe<Scalars["timestamptz"]["output"]>
+    pem?: Maybe<Scalars["String"]["output"]>
+    serial_number?: Maybe<Scalars["String"]["output"]>
+    subject?: Maybe<Scalars["String"]["output"]>
+    tenant_id?: Maybe<Scalars["uuid"]["output"]>
+}
+
+/** response of any mutation on the table "sequent_backend.certificate_authority" */
+export type Sequent_Backend_Certificate_Authority_Mutation_Response = {
+    __typename?: "sequent_backend_certificate_authority_mutation_response"
+    /** number of rows affected by the mutation */
+    affected_rows: Scalars["Int"]["output"]
+    /** data from the rows affected by the mutation */
+    returning: Array<Sequent_Backend_Certificate_Authority>
+}
+
+/** on_conflict condition type for table "sequent_backend.certificate_authority" */
+export type Sequent_Backend_Certificate_Authority_On_Conflict = {
+    constraint: Sequent_Backend_Certificate_Authority_Constraint
+    update_columns?: Array<Sequent_Backend_Certificate_Authority_Update_Column>
+    where?: InputMaybe<Sequent_Backend_Certificate_Authority_Bool_Exp>
+}
+
+/** Ordering options when selecting data from "sequent_backend.certificate_authority". */
+export type Sequent_Backend_Certificate_Authority_Order_By = {
+    common_name?: InputMaybe<Order_By>
+    created_at?: InputMaybe<Order_By>
+    election_event_id?: InputMaybe<Order_By>
+    fingerprint_sha256?: InputMaybe<Order_By>
+    id?: InputMaybe<Order_By>
+    issuer?: InputMaybe<Order_By>
+    issuer_common_name?: InputMaybe<Order_By>
+    not_after?: InputMaybe<Order_By>
+    not_before?: InputMaybe<Order_By>
+    pem?: InputMaybe<Order_By>
+    serial_number?: InputMaybe<Order_By>
+    subject?: InputMaybe<Order_By>
+    tenant_id?: InputMaybe<Order_By>
+}
+
+/** primary key columns input for table: sequent_backend.certificate_authority */
+export type Sequent_Backend_Certificate_Authority_Pk_Columns_Input = {
+    id: Scalars["uuid"]["input"]
+}
+
+/** select columns of table "sequent_backend.certificate_authority" */
+export enum Sequent_Backend_Certificate_Authority_Select_Column {
+    /** column name */
+    CommonName = "common_name",
+    /** column name */
+    CreatedAt = "created_at",
+    /** column name */
+    ElectionEventId = "election_event_id",
+    /** column name */
+    FingerprintSha256 = "fingerprint_sha256",
+    /** column name */
+    Id = "id",
+    /** column name */
+    Issuer = "issuer",
+    /** column name */
+    IssuerCommonName = "issuer_common_name",
+    /** column name */
+    NotAfter = "not_after",
+    /** column name */
+    NotBefore = "not_before",
+    /** column name */
+    Pem = "pem",
+    /** column name */
+    SerialNumber = "serial_number",
+    /** column name */
+    Subject = "subject",
+    /** column name */
+    TenantId = "tenant_id",
+}
+
+/** input type for updating data in table "sequent_backend.certificate_authority" */
+export type Sequent_Backend_Certificate_Authority_Set_Input = {
+    common_name?: InputMaybe<Scalars["String"]["input"]>
+    created_at?: InputMaybe<Scalars["timestamptz"]["input"]>
+    election_event_id?: InputMaybe<Scalars["uuid"]["input"]>
+    fingerprint_sha256?: InputMaybe<Scalars["String"]["input"]>
+    id?: InputMaybe<Scalars["uuid"]["input"]>
+    issuer?: InputMaybe<Scalars["String"]["input"]>
+    issuer_common_name?: InputMaybe<Scalars["String"]["input"]>
+    not_after?: InputMaybe<Scalars["timestamptz"]["input"]>
+    not_before?: InputMaybe<Scalars["timestamptz"]["input"]>
+    pem?: InputMaybe<Scalars["String"]["input"]>
+    serial_number?: InputMaybe<Scalars["String"]["input"]>
+    subject?: InputMaybe<Scalars["String"]["input"]>
+    tenant_id?: InputMaybe<Scalars["uuid"]["input"]>
+}
+
+/** Streaming cursor of the table "sequent_backend_certificate_authority" */
+export type Sequent_Backend_Certificate_Authority_Stream_Cursor_Input = {
+    /** Stream column input with initial value */
+    initial_value: Sequent_Backend_Certificate_Authority_Stream_Cursor_Value_Input
+    /** cursor ordering */
+    ordering?: InputMaybe<Cursor_Ordering>
+}
+
+/** Initial value of the column from where the streaming should start */
+export type Sequent_Backend_Certificate_Authority_Stream_Cursor_Value_Input = {
+    common_name?: InputMaybe<Scalars["String"]["input"]>
+    created_at?: InputMaybe<Scalars["timestamptz"]["input"]>
+    election_event_id?: InputMaybe<Scalars["uuid"]["input"]>
+    fingerprint_sha256?: InputMaybe<Scalars["String"]["input"]>
+    id?: InputMaybe<Scalars["uuid"]["input"]>
+    issuer?: InputMaybe<Scalars["String"]["input"]>
+    issuer_common_name?: InputMaybe<Scalars["String"]["input"]>
+    not_after?: InputMaybe<Scalars["timestamptz"]["input"]>
+    not_before?: InputMaybe<Scalars["timestamptz"]["input"]>
+    pem?: InputMaybe<Scalars["String"]["input"]>
+    serial_number?: InputMaybe<Scalars["String"]["input"]>
+    subject?: InputMaybe<Scalars["String"]["input"]>
+    tenant_id?: InputMaybe<Scalars["uuid"]["input"]>
+}
+
+/** update columns of table "sequent_backend.certificate_authority" */
+export enum Sequent_Backend_Certificate_Authority_Update_Column {
+    /** column name */
+    CommonName = "common_name",
+    /** column name */
+    CreatedAt = "created_at",
+    /** column name */
+    ElectionEventId = "election_event_id",
+    /** column name */
+    FingerprintSha256 = "fingerprint_sha256",
+    /** column name */
+    Id = "id",
+    /** column name */
+    Issuer = "issuer",
+    /** column name */
+    IssuerCommonName = "issuer_common_name",
+    /** column name */
+    NotAfter = "not_after",
+    /** column name */
+    NotBefore = "not_before",
+    /** column name */
+    Pem = "pem",
+    /** column name */
+    SerialNumber = "serial_number",
+    /** column name */
+    Subject = "subject",
+    /** column name */
+    TenantId = "tenant_id",
+}
+
+export type Sequent_Backend_Certificate_Authority_Updates = {
+    /** sets the columns of the filtered rows to the given values */
+    _set?: InputMaybe<Sequent_Backend_Certificate_Authority_Set_Input>
+    /** filter the rows which have to be updated */
+    where: Sequent_Backend_Certificate_Authority_Bool_Exp
 }
 
 /** columns and relationships of "sequent_backend.contest" */
@@ -19538,6 +19914,14 @@ export type Subscription_Root = {
     sequent_backend_cast_vote_by_pk?: Maybe<Sequent_Backend_Cast_Vote>
     /** fetch data from the table in a streaming manner: "sequent_backend.cast_vote" */
     sequent_backend_cast_vote_stream: Array<Sequent_Backend_Cast_Vote>
+    /** fetch data from the table: "sequent_backend.certificate_authority" */
+    sequent_backend_certificate_authority: Array<Sequent_Backend_Certificate_Authority>
+    /** fetch aggregated fields from the table: "sequent_backend.certificate_authority" */
+    sequent_backend_certificate_authority_aggregate: Sequent_Backend_Certificate_Authority_Aggregate
+    /** fetch data from the table: "sequent_backend.certificate_authority" using primary key columns */
+    sequent_backend_certificate_authority_by_pk?: Maybe<Sequent_Backend_Certificate_Authority>
+    /** fetch data from the table in a streaming manner: "sequent_backend.certificate_authority" */
+    sequent_backend_certificate_authority_stream: Array<Sequent_Backend_Certificate_Authority>
     /** fetch data from the table: "sequent_backend.contest" */
     sequent_backend_contest: Array<Sequent_Backend_Contest>
     /** fetch aggregated fields from the table: "sequent_backend.contest" */
@@ -19980,6 +20364,32 @@ export type Subscription_RootSequent_Backend_Cast_Vote_StreamArgs = {
     batch_size: Scalars["Int"]["input"]
     cursor: Array<InputMaybe<Sequent_Backend_Cast_Vote_Stream_Cursor_Input>>
     where?: InputMaybe<Sequent_Backend_Cast_Vote_Bool_Exp>
+}
+
+export type Subscription_RootSequent_Backend_Certificate_AuthorityArgs = {
+    distinct_on?: InputMaybe<Array<Sequent_Backend_Certificate_Authority_Select_Column>>
+    limit?: InputMaybe<Scalars["Int"]["input"]>
+    offset?: InputMaybe<Scalars["Int"]["input"]>
+    order_by?: InputMaybe<Array<Sequent_Backend_Certificate_Authority_Order_By>>
+    where?: InputMaybe<Sequent_Backend_Certificate_Authority_Bool_Exp>
+}
+
+export type Subscription_RootSequent_Backend_Certificate_Authority_AggregateArgs = {
+    distinct_on?: InputMaybe<Array<Sequent_Backend_Certificate_Authority_Select_Column>>
+    limit?: InputMaybe<Scalars["Int"]["input"]>
+    offset?: InputMaybe<Scalars["Int"]["input"]>
+    order_by?: InputMaybe<Array<Sequent_Backend_Certificate_Authority_Order_By>>
+    where?: InputMaybe<Sequent_Backend_Certificate_Authority_Bool_Exp>
+}
+
+export type Subscription_RootSequent_Backend_Certificate_Authority_By_PkArgs = {
+    id: Scalars["uuid"]["input"]
+}
+
+export type Subscription_RootSequent_Backend_Certificate_Authority_StreamArgs = {
+    batch_size: Scalars["Int"]["input"]
+    cursor: Array<InputMaybe<Sequent_Backend_Certificate_Authority_Stream_Cursor_Input>>
+    where?: InputMaybe<Sequent_Backend_Certificate_Authority_Bool_Exp>
 }
 
 export type Subscription_RootSequent_Backend_ContestArgs = {
