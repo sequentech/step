@@ -234,9 +234,7 @@ export const Widget: React.FC<WidgetProps> = ({
                                     </ViewTaskTypography>
                                 </>
                             ) : null}
-                            {taskId &&
-                            lastTask?.election_event_id &&
-                            lastTask?.annotations?.document_id ? (
+                            {taskId && lastTask?.annotations?.document_id ? (
                                 <DownloaButton
                                     onClick={() => {
                                         setDownloading(true)
@@ -267,7 +265,7 @@ export const Widget: React.FC<WidgetProps> = ({
                 <>
                     <DownloadDocument
                         documentId={(downloading && exportDocumentId) || ""}
-                        electionEventId={lastTask?.election_event_id ?? ""}
+                        electionEventId={lastTask?.election_event_id ?? undefined}
                         fileName={null}
                         onDownload={() => {
                             setDownloading(false)

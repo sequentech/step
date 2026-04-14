@@ -15,7 +15,7 @@ import {
     useNotify,
     useRefresh,
 } from "react-admin"
-import {useMutation} from "@apollo/client"
+import {useLazyQuery, useMutation} from "@apollo/client"
 import {
     Alert,
     Box,
@@ -38,6 +38,7 @@ import {IPermissions} from "@/types/keycloak"
 import {IMPORT_CERTIFICATE_AUTHORITY} from "@/queries/ImportCertificateAuthority"
 import {DELETE_CERTIFICATE_AUTHORITY} from "@/queries/DeleteCertificateAuthority"
 import {EXPORT_CERTIFICATE_AUTHORITY} from "@/queries/ExportCertificateAuthority"
+import {GET_CERTIFICATE_AUTHORITY_IDS} from "@/queries/GetCertificateAuthorities"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import {ResourceListStyles} from "@/components/styles/ResourceListStyles"
 import {DrawerStyles} from "@/components/styles/DrawerStyles"
@@ -222,6 +223,15 @@ export const EditSupertenantCertificates: React.FC = () => {
 
     const [addWidget, setWidgetTaskId, updateWidgetFail] = useWidgetStore()
 
+    const [fetchAllIds] = useLazyQuery(GET_CERTIFICATE_AUTHORITY_IDS, {
+        context: {
+            headers: {
+                "x-hasura-role": IPermissions.CA_READ,
+            },
+        },
+        fetchPolicy: "network-only",
+    })
+
     const [deleteCA] = useMutation(DELETE_CERTIFICATE_AUTHORITY, {
         context: {
             headers: {
@@ -319,8 +329,12 @@ export const EditSupertenantCertificates: React.FC = () => {
         setBulkDeleteIds([])
     }
 
-    const handleExportAll = () => {
-        setExportIds([])
+    const handleExportAll = async () => {
+        const {data} = await fetchAllIds()
+        const ids = (data?.sequent_backend_certificate_authority ?? []).map(
+            (ca: {id: string}) => ca.id
+        )
+        setExportIds(ids)
         setOpenExportModal(true)
     }
 

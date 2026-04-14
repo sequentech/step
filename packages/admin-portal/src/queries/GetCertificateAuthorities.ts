@@ -20,3 +20,11 @@ export const GET_CERTIFICATE_AUTHORITIES = gql`
         }
     }
 `
+
+export const GET_CERTIFICATE_AUTHORITY_IDS = gql`
+    query GetCertificateAuthorityIds {
+        sequent_backend_certificate_authority(order_by: {created_at: asc}) {
+            id
+        }
+    }
+`
