@@ -80,11 +80,7 @@ The flow is an ordered array of phases stored in `presentation.ivr.flow`:
       { "phase": "eligibility_check" },
       { "phase": "declaration", "config": { "accept_key": "2" } },
       { "phase": "pre_voting_statement" },
-      { "phase": "ballot_loop" },
-      { "phase": "summary" },
-      { "phase": "final_confirm" },
-      { "phase": "submit" },
-      { "phase": "receipt", "config": { "read_confirmation_number": true } },
+      { "phase": "ballot_loop", "config": { "receipt_format": "bip39" } },
       { "phase": "goodbye" }
     ]
   }
@@ -101,9 +97,6 @@ A simpler deployment (voter ID + PIN, no frills):
       { "phase": "language_select" },
       { "phase": "auth" },
       { "phase": "ballot_loop" },
-      { "phase": "summary" },
-      { "phase": "final_confirm" },
-      { "phase": "submit" },
       { "phase": "goodbye" }
     ]
   }
@@ -121,16 +114,72 @@ Each phase type has an execution engine in the Lambda. The engine handles prompt
 | `welcome` | Play greeting, check system availability | None (auto-advance) | Play `greeting` prompt, advance to next phase |
 | `language_select` | Language selection menu | DTMF (1=English, 2=French, etc.) | Set session language from `language_conf.enabled_language_codes`, advance |
 | `blacklist_check` | Check caller phone against blacklist | None (auto-advance) | Query backend; if blocked, play `blacklist_message` and disconnect |
-| `auth` | Collect credentials via configured steps, authenticate with Keycloak | DTMF per step | Iterate through `ivr.auth.steps`, submit to Keycloak ROPC. On `otp_required` error, collect OTP. On failure, retry up to limit |
-| `eligibility_check` | Validate voter eligibility | None (auto-advance) | Play `eligibility_check` prompt, call API; if ineligible, play `not_eligible` and disconnect |
+| `auth` | Collect credentials, authenticate with Keycloak | DTMF per step | Iterate through auth steps discovered via Keycloak's `/realms/\{realm\}/ivr-config` endpoint (see §5.1), submit to Keycloak ROPC. On `otp_required` error, collect OTP and resubmit. On failure, retry up to limit |
+| `eligibility_check` | Validate voter eligibility and election status | None (auto-advance) | Play `eligibility_check` prompt. Check voter eligibility via API; if ineligible, play `not_eligible` and disconnect. Also query Hasura for `telephone_voting_status` (see §5.2); if not `OPEN`, play `election_closed` and disconnect |
 | `declaration` | Play legal declaration, require acceptance | DTMF (configurable `accept_key`) | Play `declaration_text` prompt, wait for acceptance key. Repeat on invalid input |
 | `pre_voting_statement` | Play informational statement (e.g., disconnect warning) | None (auto-advance) or DTMF to continue | Play `pre_voting_statement` prompt, advance |
-| `ballot_loop` | Iterate through elections and contests | DTMF per contest | The inner voting loop (see 3.3). Reads ballot behavior (blank, decline, acclamation, min/max) from published election/contest data |
-| `summary` | Read back all selections | DTMF (1=Continue, 2=Restart) | Play summary of all votes, allow restart |
-| `final_confirm` | Final confirmation before submission | DTMF (1=Confirm, 2=Go back) | Play `final_confirm` prompt. May offer decline option if election config allows it |
-| `submit` | Encrypt and submit ballot via API | None (auto-advance) | Call Harvest API, handle errors (duplicate, max revotes, etc.) |
-| `receipt` | Read back confirmation number | DTMF (*=Repeat) | Play `receipt_info` + confirmation number if config enables it |
+| `ballot_loop` | Per-election voting cycle: select → confirm → submit → receipt | DTMF | The inner voting loop (see 3.3). For each election: vote all contests, read back summary, confirm, encrypt and submit ballot via Harvest API, read receipt (ballot hash as BIP39 or short hex). Then advance to next election or finish. All behavior driven by published election/contest data |
 | `goodbye` | Farewell message, disconnect | None (disconnect) | Play `goodbye` prompt, disconnect |
+
+#### Overall Phase Flow
+
+The following diagram shows the complete end-to-end IVR call flow through all configured phases. Each box corresponds to a phase type from the table above. Diamond nodes represent phases where the call may terminate early.
+
+```mermaid
+flowchart TD
+    CALL([Incoming Call]) --> WELCOME[welcome<br/>Play greeting]
+
+    WELCOME --> LANG[language_select<br/>DTMF: choose language]
+    LANG --> BLACKLIST{blacklist_check<br/>Phone blocked?}
+    BLACKLIST -->|Blocked| BL_END([Disconnect])
+    BLACKLIST -->|OK| AUTH[auth<br/>Collect credentials via DTMF<br/>Authenticate via Keycloak ROPC]
+    AUTH -->|"Failure (max retries)"| AUTH_END([Disconnect])
+    AUTH -->|Success| ELIG{eligibility_check<br/>Voter eligible?<br/>telephone_voting_status = OPEN?}
+    ELIG -->|"Not eligible /<br/>channel not open"| ELIG_END([Disconnect])
+    ELIG -->|OK| DECL[declaration<br/>Play legal declaration<br/>DTMF: accept]
+    DECL --> STMT[pre_voting_statement<br/>Disconnect warning, info]
+    STMT --> BALLOT[ballot_loop<br/>Per-election cycle:<br/>vote contests → summary →<br/>confirm → submit → receipt<br/>— see §3.3]
+    BALLOT --> GOODBYE[goodbye<br/>Disconnect]
+    GOODBYE --> END_OK([Call Ended])
+```
+
+#### Per-Election Submission Cycle (inside ballot_loop)
+
+After all contests in one election are voted, the ballot loop enters the per-election submission sub-phases: `ElectionSummary` → `ElectionConfirm` → `ElectionSubmit` → `ElectionReceipt`. Only after the ballot for the current election is submitted does the voter proceed to the next election or finish.
+
+```mermaid
+flowchart TD
+    START([All contests voted<br/>for current election]) --> SUM[ElectionSummary<br/>Read back selections for<br/>this election's contests]
+    SUM --> SUM_INPUT{Voter DTMF}
+    SUM_INPUT -->|"1 = Continue"| FC[ElectionConfirm<br/>To submit this ballot press 1.<br/>To go back and change press 2.]
+    SUM_INPUT -->|"N = Edit contest N"| EDIT([Clear contest N selections<br/>→ CandidateSelect for contest N<br/>→ back to ElectionSummary])
+
+    FC --> FC_INPUT{Voter DTMF}
+    FC_INPUT -->|"2 = Go back"| SUM
+    FC_INPUT -->|"1 = Confirm"| TOKEN[ElectionSubmit: Refresh token]
+
+    TOKEN -->|"Session expired"| TOKEN_ERR([Play session_expired<br/>Disconnect])
+    TOKEN -->|"Keycloak down"| KC_ERR([Play system_unavailable<br/>Disconnect])
+    TOKEN -->|Token OK| ENCRYPT[Encrypt ballot for this<br/>election using its public keys]
+    ENCRYPT --> CAST[POST /insert-cast-vote<br/>with election_id + encrypted ballot]
+
+    CAST -->|Success| CAST_OK[Play vote_success]
+    CAST -->|"DUPLICATE_VOTE /<br/>MAX_REVOTES_EXCEEDED"| CAST_WARN[Play per-election<br/>error prompt]
+    CAST -->|"Timeout / Server Error"| SRV_ERR([Play system_error<br/>Disconnect])
+
+    CAST_OK --> RCPT{receipt_format<br/>configured?}
+    CAST_WARN --> NEXT
+
+    RCPT -->|No| NEXT
+    RCPT -->|Yes| RCPT_READ[ElectionReceipt<br/>Read ballot hash as BIP39<br/>phrase or short hex.<br/>Press * to repeat.]
+    RCPT_READ --> RCPT_INPUT{Voter DTMF}
+    RCPT_INPUT -->|"* = Repeat"| RCPT_READ
+    RCPT_INPUT -->|"Timeout / any other"| NEXT
+
+    NEXT{More elections?}
+    NEXT -->|Yes| ELEC_SEL([Back to ElectionSelect])
+    NEXT -->|No| DONE([Advance to next<br/>outer phase — goodbye])
+```
 
 ### 3.3 Ballot Loop (Inner Flow)
 
@@ -156,31 +205,31 @@ All behavior is driven by the **published election/contest data** — the same s
 
 #### 3.3.2 Ballot Loop Sub-Phases
 
-The ballot loop is a **nested state machine** with three levels: election → contest → candidate selection. Each level has its own sub-phases:
+The ballot loop is a **nested state machine** with three levels: election → contest → candidate selection. After all contests in an election are voted, the voter reviews, confirms, and submits the ballot for that election before moving to the next one. Each level has its own sub-phases:
 
 ```mermaid
 flowchart TD
     Start[ballot_loop Entry] --> SkipCheck{skip_election_list<br/>AND 1 election?}
-    SkipCheck -->|Yes| ContestLoop
+    SkipCheck -->|Yes| LangCheck
     SkipCheck -->|No| ElectionSelect
 
     subgraph ElectionLevel [Election Level]
         ElectionSelect[ElectionSelect<br/>list elections, DTMF]
-        ElectionIntro[ElectionIntro<br/>play election name + info]
         LanguageSwitch[LanguageSwitch<br/>offer if language differs]
+        ElectionIntro[ElectionIntro<br/>play election name + info]
     end
 
-    ElectionSelect --> ElectionIntro
-    ElectionIntro --> LangCheck{language_conf<br/>differs from session?}
-    LangCheck -->|Yes| LanguageSwitch --> ContestLoop
-    LangCheck -->|No| ContestLoop
+    ElectionSelect --> LangCheck{language_conf<br/>differs from session?}
+    LangCheck -->|Yes| LanguageSwitch --> ElectionIntro
+    LangCheck -->|No| ElectionIntro
+    ElectionIntro --> ContestLoop
 
     subgraph ContestLevel [Contest Level]
         ContestLoop[ContestLoop<br/>for each sorted contest]
         AcclaimCheck{is_acclaimed?}
         AcclaimAnnounce[AcclaimAnnounce<br/>announce result, auto-advance]
         ContestIntro[ContestIntro<br/>read name, rules, min/max]
-        CandidateSelect[CandidateSelect<br/>present candidates, DTMF]
+        CandidateSelect[CandidateSelect<br/>present unselected candidates, DTMF]
         SelectionCheck[SelectionCheck<br/>enforce min/max, blank/under policy]
         VoteConfirm[VoteConfirm<br/>read back, allow change]
     end
@@ -195,9 +244,25 @@ flowchart TD
 
     NextContest{More contests?}
     NextContest -->|Yes| ContestLoop
-    NextContest -->|No| MoreElections{More elections?}
+    NextContest -->|No| ElectionSummary
+
+    subgraph SubmissionLevel [Per-Election Submission]
+        ElectionSummary[ElectionSummary<br/>read back all selections<br/>for this election]
+        ElectionConfirm[ElectionConfirm<br/>DTMF: 1=Submit, 2=Go back]
+        ElectionSubmit[ElectionSubmit<br/>encrypt + POST /insert-cast-vote]
+        ElectionReceipt[ElectionReceipt<br/>read ballot hash as BIP39<br/>or short hex]
+    end
+
+    ElectionSummary -->|"N = Edit contest N"| EditContest[Clear contest N selections<br/>→ CandidateSelect → SelectionCheck<br/>→ VoteConfirm for that contest only]
+    EditContest --> ElectionSummary
+    ElectionSummary -->|"1 = Continue"| ElectionConfirm
+    ElectionConfirm -->|"2 = Go back"| ElectionSummary
+    ElectionConfirm -->|"1 = Submit"| ElectionSubmit
+    ElectionSubmit --> ElectionReceipt
+
+    ElectionReceipt --> MoreElections{More elections?}
     MoreElections -->|Yes| ElectionSelect
-    MoreElections -->|No| Done[Advance to next<br/>outer phase]
+    MoreElections -->|No| Done[Advance to next<br/>outer phase — goodbye]
 ```
 
 #### 3.3.3 Sub-Phase Descriptions
@@ -205,13 +270,17 @@ flowchart TD
 | Sub-Phase | Input | Behavior |
 |---|---|---|
 | `ElectionSelect` | DTMF | Present sorted elections (by `elections_order`). Single-digit if ≤9, multi-digit otherwise. **Skipped** if `skip_election_list=true` and only 1 election |
-| `ElectionIntro` | None (auto-advance) | Play `election_intro` prompt with `\{election_name\}`, announce contest count |
-| `LanguageSwitch` | DTMF (1=keep, 2=switch) | Offer only if election's `language_conf` differs from session language. Switch affects prompts for this election only |
+| `LanguageSwitch` | DTMF (1=keep, 2=switch) | Offer only if election's `language_conf` differs from session language. Switch affects prompts for this election only. Runs **before** `ElectionIntro` so the intro is read in the correct language |
+| `ElectionIntro` | None (auto-advance) | Play `election_intro` prompt with `\{election_name\}`, announce contest count (in the language selected by `LanguageSwitch` if applicable) |
 | `AcclaimAnnounce` | None (auto-advance) | Play `acclamation` prompt with `\{candidate_name\}`. Auto-advance to next contest |
 | `ContestIntro` | None (auto-advance) or DTMF to repeat | Play `contest_intro` with `\{contest_name\}`, `\{max_votes\}`, `\{min_votes\}`. Explain rules: "Select up to \{max_votes\} candidates" |
-| `CandidateSelect` | DTMF per candidate | Present candidates sorted by `candidates_order`. Single-digit (1-9) or multi-digit (01-99#) based on count. Accumulate selections until voter signals done (`#` or `0`) or `max_votes` reached. Reject already-selected with `already_selected` prompt |
+| `CandidateSelect` | DTMF per candidate | Present only **unselected** candidates sorted by `candidates_order`. Single-digit (1-9) or multi-digit (01-99#) based on remaining count. Accumulate selections until voter signals done (`#` or `0`) or `max_votes` reached. Already-selected candidates are omitted from the list (DTMF numbers are reassigned to remaining candidates) |
 | `SelectionCheck` | DTMF (confirm/restart) | Validate selections against `min_votes`/`max_votes`. Apply `blank_vote_policy`: if no selections and `allowed`→`blank_ballot_confirm`; if `not_allowed`→re-prompt. Apply `under_vote_policy`: if under minimum and `warn`→play warning then confirm |
 | `VoteConfirm` | DTMF (1=confirm, 2=change) | Read back selected candidates. "You selected \{candidate_name\} for \{contest_name\}. Press 1 to confirm, 2 to change your selection" |
+| `ElectionSummary` | DTMF (1=continue, N=edit contest) | Read back all selections for the current election, numbering each contest. "For contest 1, \{contest_name\}: you selected \{candidate_name\}. For contest 2, …" Press 1 to proceed to submission, or press a contest number to edit that contest's selection. Editing a contest clears its selections and re-enters `CandidateSelect` for that contest only — afterwards returns directly to `ElectionSummary` (not to the next contest) |
+| `ElectionConfirm` | DTMF (1=submit, 2=go back) | Final confirmation before submitting this election's ballot. "To submit your ballot for \{election_name\}, press 1. To go back and review, press 2." |
+| `ElectionSubmit` | None (auto-advance) | Refresh access token if needed, encrypt ballot with election public keys, POST `/insert-cast-vote` with `election_id`. On success → play `vote_success`, advance to `ElectionReceipt`. On per-election error (duplicate, max revotes) → play error prompt, advance to next election. On fatal error (timeout, session expired) → disconnect |
+| `ElectionReceipt` | DTMF (*=repeat) | Read the ballot hash (ballot_id) as a BIP39 mnemonic phrase or truncated hex string depending on `receipt_format` config. "Your confirmation number for \{election_name\} is \{confirmation_number\}. Press * to repeat." Skipped if `receipt_format` is not configured. **Note:** since the ballot locator only needs to be unique among the logged-in voter's own ballots (not globally), the hash could be reduced to as few as 4 hex characters — much easier to read back over the phone |
 
 #### 3.3.4 BallotLoopState (Session Cursor)
 
@@ -237,14 +306,21 @@ pub struct BallotLoopState {
 
 #[derive(Serialize, Deserialize, Clone)]
 pub enum BallotSubPhase {
+    // Election level
     ElectionSelect,
-    ElectionIntro,
     LanguageSwitch,
+    ElectionIntro,
+    // Contest level
     AcclaimAnnounce,
     ContestIntro,
     CandidateSelect,
     SelectionCheck,
     VoteConfirm,
+    // Per-election submission
+    ElectionSummary,
+    ElectionConfirm,
+    ElectionSubmit,
+    ElectionReceipt,
 }
 ```
 
@@ -459,10 +535,6 @@ impl FlowEngine {
             "declaration" => DeclarationPhase.execute(session, input, &self.prompts, &phase.config),
             "pre_voting_statement" => StatementPhase.execute(session, input, &self.prompts, &phase.config),
             "ballot_loop" => BallotLoopPhase.execute(session, input, &self.prompts, ports),
-            "summary" => SummaryPhase.execute(session, input, &self.prompts),
-            "final_confirm" => FinalConfirmPhase.execute(session, input, &self.prompts),
-            "submit" => SubmitPhase.execute(session, input, &self.prompts, ports.vote_casting()),
-            "receipt" => ReceiptPhase.execute(session, input, &self.prompts, &phase.config),
             "goodbye" => GoodbyePhase.execute(session, input, &self.prompts),
             unknown => Err(IvrError::UnknownPhaseType(unknown.to_string())),
         }
@@ -514,12 +586,14 @@ impl BallotLoopPhase {
 
         // Dispatch to current sub-phase
         match ballot_state.sub_phase {
+            // Election level
             BallotSubPhase::ElectionSelect =>
                 ElectionSelectSubPhase::execute(session, input, prompts),
-            BallotSubPhase::ElectionIntro =>
-                ElectionIntroSubPhase::execute(session, input, prompts),
             BallotSubPhase::LanguageSwitch =>
                 LanguageSwitchSubPhase::execute(session, input, prompts),
+            BallotSubPhase::ElectionIntro =>
+                ElectionIntroSubPhase::execute(session, input, prompts),
+            // Contest level
             BallotSubPhase::AcclaimAnnounce =>
                 AcclaimAnnounceSubPhase::execute(session, input, prompts),
             BallotSubPhase::ContestIntro =>
@@ -530,6 +604,15 @@ impl BallotLoopPhase {
                 SelectionCheckSubPhase::execute(session, input, prompts),
             BallotSubPhase::VoteConfirm =>
                 VoteConfirmSubPhase::execute(session, input, prompts),
+            // Per-election submission
+            BallotSubPhase::ElectionSummary =>
+                ElectionSummarySubPhase::execute(session, input, prompts),
+            BallotSubPhase::ElectionConfirm =>
+                ElectionConfirmSubPhase::execute(session, input, prompts),
+            BallotSubPhase::ElectionSubmit =>
+                ElectionSubmitSubPhase::execute(session, input, prompts, ports),
+            BallotSubPhase::ElectionReceipt =>
+                ElectionReceiptSubPhase::execute(session, input, prompts),
         }
     }
 
@@ -548,7 +631,7 @@ impl BallotLoopPhase {
             && sorted_election_ids.len() == 1;
 
         let initial_sub_phase = if skip {
-            BallotSubPhase::ElectionIntro
+            BallotSubPhase::LanguageSwitch
         } else {
             BallotSubPhase::ElectionSelect
         };
@@ -621,18 +704,18 @@ fn ballot_loop_skips_election_select_when_single_election() {
     let mock_ports = TestPorts::default();
     let result = BallotLoopPhase::execute(&mut session, None, &test_prompts(), &mock_ports);
 
-    // Should jump straight to ElectionIntro, not ElectionSelect
+    // Should jump straight to LanguageSwitch (then ElectionIntro), not ElectionSelect
     match &session.position.phase_state {
         PhaseState::BallotLoop(state) => {
             assert!(state.election_list_skipped);
-            assert_eq!(state.sub_phase, BallotSubPhase::ElectionIntro);
+            assert_eq!(state.sub_phase, BallotSubPhase::LanguageSwitch);
         }
         _ => panic!("Expected BallotLoop state"),
     }
 }
 
 #[tokio::test]
-async fn submit_phase_refreshes_token_before_casting() {
+async fn election_submit_refreshes_token_before_casting() {
     let mock_auth = MockAuthPort::new()
         .expect_refresh_token()
         .returning(|_, _| Ok(fresh_token_pair()));
@@ -642,7 +725,7 @@ async fn submit_phase_refreshes_token_before_casting() {
     let ports = TestPorts::new(mock_auth, mock_vote);
 
     let mut session = test_session_authenticated();
-    let result = SubmitPhase::execute(&mut session, None, &test_prompts(), ports.vote_casting());
+    let result = ElectionSubmitSubPhase::execute(&mut session, None, &test_prompts(), &ports);
     assert!(result.is_ok());
 }
 ```
@@ -713,16 +796,21 @@ pub struct IvrSession {
     pub election_event_id: Option<Uuid>,
     pub elections: Vec<ElectionContext>,
 
-    // Votes in progress
+    // Votes in progress (accumulated during ballot_loop)
     pub votes: HashMap<Uuid, ContestVote>, // contest_id -> vote
+
+    // Submission results (populated during ElectionSubmit sub-phase, one per election)
+    pub submission_results: Vec<ElectionSubmissionResult>,
 
     // Flow engine position (replaces hardcoded IvrState)
     pub position: FlowPosition,
     pub retry_count: u8,
 
-    // Cached config (loaded from S3 at session init)
+    // Cached config (loaded at session init)
+    // - flow_config, election_event_presentation, prompts come from S3 (published ballot publication)
+    // - auth_steps come from Keycloak /ivr-config endpoint (per-realm, TTL 5 min)
     pub flow_config: Vec<FlowPhase>,
-    pub auth_config: AuthConfig,
+    pub auth_steps: Vec<AuthStep>,
     pub election_event_presentation: ElectionEventPresentationCache,
     pub prompts: HashMap<String, HashMap<String, String>>, // lang -> key -> text
 
@@ -758,6 +846,17 @@ pub enum PhaseState {
 pub struct FlowPhase {
     pub phase: String,                           // "welcome", "auth", "ballot_loop", etc.
     pub config: Option<HashMap<String, Value>>,  // phase-specific config (optional)
+}
+
+/// One auth step — retrieved from Keycloak's /ivr-config endpoint, NOT from S3.
+/// The list of steps reflects the realm's Direct Grant flow execution order.
+#[derive(Serialize, Deserialize, Clone)]
+pub struct AuthStep {
+    pub field: String,           // Semantic name, e.g. "voter_id", "pin", "dob"
+    pub max_digits: u8,          // DTMF input max length
+    pub terminator: String,      // "#", "*", or ""
+    pub maps_to: String,         // ROPC form param: "username", "password", "dob", etc.
+    pub prompt_key: Option<String>, // Override; if None, derive from maps_to (see §5.1.3)
 }
 
 /// Cached subset of ElectionEventPresentation relevant to IVR flow
@@ -809,6 +908,25 @@ pub struct ContestVote {
     pub selected_candidate_ids: Vec<Uuid>,
     pub is_blank: bool,
     pub is_declined: bool,
+}
+
+/// Result of submitting one election's ballot during the ElectionSubmit sub-phase
+#[derive(Serialize, Deserialize)]
+pub struct ElectionSubmissionResult {
+    pub election_id: Uuid,
+    pub status: SubmissionStatus,
+    /// Ballot hash — used as confirmation number in ElectionReceipt sub-phase.
+    /// Read back as BIP39 phrase or truncated hex depending on receipt config.
+    pub ballot_hash: Option<String>,
+}
+
+#[derive(Serialize, Deserialize)]
+pub enum SubmissionStatus {
+    Success,
+    DuplicateVote,
+    MaxRevotesExceeded,
+    NotEligible,
+    Failed { error: String },
 }
 ```
 
@@ -876,75 +994,112 @@ pub struct ConnectResponse {
 
 ### 5.1 Authentication Flow
 
-Authentication uses **standard OIDC Direct Grant (ROPC)** via Keycloak's token endpoint. The Lambda does not know what authentication factors are required — it simply collects credentials as described by the `ivr.auth` config, submits them to Keycloak, and handles the response.
+Authentication uses **standard OIDC Direct Grant (ROPC)** via Keycloak's token endpoint. The Lambda does not know what authentication factors are required — it discovers them at runtime by asking Keycloak, collects credentials accordingly, and submits them to the token endpoint.
+
+**Design principle: Keycloak is the single source of truth for auth configuration.** The realm's Direct Grant flow already defines which credentials are required; duplicating that into `presentation.ivr.auth` in S3 would create drift between the two. Instead, the Lambda queries a small custom Keycloak REST endpoint that derives the auth step list from the realm's flow executions.
 
 #### 5.1.1 How It Works
 
-1. Lambda reads `ivr.auth.steps` from the published config (loaded at session init from S3)
-2. For each step, Lambda prompts for DTMF input using the step's `prompt_key`
-3. Lambda maps collected fields to ROPC form parameters and POSTs to Keycloak token endpoint
-4. If Keycloak returns `otp_required` error and `otp_enabled` is true, Lambda collects OTP via DTMF and resubmits with `otp` parameter
-5. On success, Lambda stores the JWT and proceeds to the next flow phase
+1. **At session init**, Lambda calls `GET {KEYCLOAK_URL}/realms/\{realm\}/ivr-config` — a custom Keycloak REST extension that walks the realm's Direct Grant flow and returns an ordered list of auth steps
+2. Lambda caches the response in the DynamoDB session record (same cache used for S3 election config)
+3. For each step, Lambda prompts for DTMF input using a **well-known prompt key** derived from the step's `maps_to` field (see 5.1.3)
+4. Lambda maps collected fields to ROPC form parameters and POSTs to Keycloak's token endpoint
+5. If Keycloak returns `otp_required` error, Lambda dynamically collects OTP via DTMF and resubmits with `otp` parameter — no pre-configuration needed
+6. On success, Lambda stores the JWT and proceeds to the next flow phase
 
 ```mermaid
 sequenceDiagram
     participant Lambda as IVR Lambda
     participant KC as Keycloak
 
-    Lambda->>KC: POST /realms/{realm}/protocol/openid-connect/token<br/>grant_type=password<br/>{mapped fields from auth.steps}<br/>client_id=ivr-voting, client_secret={secret}
+    Note over Lambda,KC: Session initialization
+    Lambda->>KC: GET /realms/{realm}/ivr-config
+    KC-->>Lambda: { steps: [{field, max_digits, terminator, maps_to}, ...] }
+
+    Note over Lambda,KC: Credential submission (after DTMF collection)
+    Lambda->>KC: POST /realms/{realm}/protocol/openid-connect/token<br/>grant_type=password<br/>{mapped fields}<br/>client_id=ivr-voting, client_secret={secret}
     alt Success
         KC-->>Lambda: { access_token, refresh_token }
     else OTP needed
         KC-->>Lambda: { error: "otp_required" }
+        Note over Lambda: Collect OTP via DTMF
+        Lambda->>KC: POST /token with same params + otp={code}
+        KC-->>Lambda: { access_token, refresh_token }
     else Failure
         KC-->>Lambda: { error: "invalid_grant" }
     end
 ```
 
-The Lambda doesn't know whether it's collecting a PIN, DoB, or any other credential. It just iterates the config steps, collects digits, and maps them to ROPC parameters. The Keycloak flow validates them.
+The Lambda doesn't know whether it's collecting a PIN, DoB, or any other credential — it just iterates the discovered steps, collects digits, and maps them to ROPC parameters. Keycloak validates them using the authenticators configured on the realm's Direct Grant flow.
 
-#### 5.1.2 Auth Config (part of `presentation.ivr`)
+#### 5.1.2 The `ivr-config` Keycloak Endpoint
 
+A new Keycloak REST extension (`ivr-config-resource`, see Appendix C.8.2) exposes a single endpoint:
+
+```
+GET /realms/{realm}/ivr-config
+```
+
+**Response:**
 ```json
 {
-  "ivr": {
-    "auth": {
-      "steps": [
-        {
-          "field": "voter_id",
-          "prompt_key": "auth_enter_voter_id",
-          "max_digits": 8,
-          "terminator": "#",
-          "maps_to": "username"
-        },
-        {
-          "field": "dob",
-          "prompt_key": "auth_enter_dob",
-          "max_digits": 8,
-          "terminator": "#",
-          "maps_to": "password"
-        }
-      ],
-      "otp_enabled": true
-    }
-  }
+  "steps": [
+    { "field": "voter_id", "max_digits": 8, "terminator": "#", "maps_to": "username" },
+    { "field": "dob",      "max_digits": 8, "terminator": "#", "maps_to": "password" }
+  ]
 }
 ```
 
-The `maps_to` field determines the ROPC parameter name: `username`, `password`, or any custom form parameter (e.g., `dob`, `pin`). This is how the Lambda stays generic — it doesn't interpret what the credentials mean.
+**How the endpoint builds the response** (~100 lines of Java — see Appendix C.8.2 for full implementation notes):
 
-#### 5.1.3 OTP Flow (Two ROPC Calls)
+1. Look up the effective Direct Grant flow for the `ivr-voting` client (client-level override if present, else realm default)
+2. Walk the flow's executions in order, filtering to `ENABLED` / `REQUIRED`
+3. For each execution, produce a step from one of two sources:
+   - **Stock Keycloak authenticators** — a small static lookup table baked into the extension:
+     - `direct-grant-validate-username` → `{ field: "voter_id", max_digits: 8, terminator: "#", maps_to: "username" }`
+     - `direct-grant-validate-password` → `{ field: "pin", max_digits: 8, terminator: "#", maps_to: "password" }`
+   - **Custom IVR authenticators** (`IvrDobAuthenticator`, etc.) — read the execution's `AuthenticatorConfig`, which the admin configures in the Keycloak admin UI. Each custom authenticator declares these keys in its `getConfigProperties()`: `field_name`, `max_digits`, `terminator`, `maps_to`
+4. Skip `IvrOtpDirectGrantAuthenticator` — OTP is discovered dynamically via the `otp_required` error response, not declared up front
+5. Return the list as JSON
 
-When `otp_enabled` is true and Keycloak returns `otp_required` after the first ROPC call:
+The endpoint is public (no auth required). The shape of auth steps is not sensitive — voters already know what to enter — and making it public avoids needing an admin or client-credentials token for every IVR session.
 
-1. Lambda transitions to `AuthOtpWait` phase state
-2. Plays `auth_otp_sent` prompt, collects OTP code via DTMF
-3. Resubmits all original credentials + `otp={code}` to the same token endpoint
-4. On success → JWT issued. On failure → retry or disconnect
+**If the admin adds a non-IVR-aware authenticator** to the flow, the endpoint returns `500 Internal Server Error` with a clear message identifying the unknown authenticator ID, so misconfigurations surface at deployment time instead of mid-call.
 
-This follows the same pattern Keycloak uses for TOTP in direct grants — an additional form parameter. The `IvrOtpDirectGrantAuthenticator` (see Appendix C.8.1) handles the server side.
+#### 5.1.3 Prompt Keys — Well-Known by `maps_to`
 
-#### 5.1.4 Keycloak Direct Grant Flow Configuration
+The Lambda uses a **fixed, well-known mapping** from ROPC parameter name to prompt key. This keeps the config minimal — since auth fields are essentially just "username", "password", and a few standard custom fields, admins only need to provide translations for a handful of prompt keys that never vary per election.
+
+| `maps_to` value | Prompt key | Typical content |
+|---|---|---|
+| `username` | `auth_enter_username` | "Please enter your voter ID followed by the number sign key." |
+| `password` | `auth_enter_password` | "Please enter your PIN (or date of birth) followed by the number sign key." |
+| `dob` (custom) | `auth_enter_dob` | "Please enter your date of birth as MMDDYYYY followed by the number sign key." |
+| `otp` (dynamic) | `auth_otp_sent` + `auth_enter_otp` | "A code has been sent to your phone. Please enter it followed by the number sign key." |
+
+These keys live in `presentation.i18n[lang].ivr`, same as all other IVR prompts. The admin provides translations in the admin portal's IVR Prompts editor. The Lambda ships sensible English/French defaults for each well-known key as a fallback.
+
+**If a custom authenticator uses a new `maps_to` value** that isn't in the table, the admin can override the prompt key via the authenticator's `AuthenticatorConfig` (`prompt_key` property). The endpoint passes it through in the step response:
+
+```json
+{ "field": "birth_year", "max_digits": 4, "terminator": "#", "maps_to": "birth_year", "prompt_key": "auth_enter_birth_year" }
+```
+
+Lambda precedence: step's explicit `prompt_key` (if present) > well-known mapping by `maps_to` > error.
+
+#### 5.1.4 OTP Flow (Discovered Dynamically)
+
+OTP is **not declared** in the config. The Lambda reacts to Keycloak's response:
+
+1. Lambda submits the first ROPC call with collected credentials
+2. Keycloak runs its Direct Grant flow. If `IvrOtpDirectGrantAuthenticator` is in the flow and no `otp` form param was supplied, it generates/sends a code and returns `{ error: "otp_required" }`
+3. Lambda transitions to `AuthOtpWait` phase state, plays `auth_otp_sent` prompt, collects the OTP code via DTMF
+4. Resubmits all original credentials + `otp={code}` to the same token endpoint
+5. On success → JWT issued. On failure → retry or disconnect
+
+This is the same pattern Keycloak uses for TOTP in direct grants. No IVR-side config is needed — whether OTP runs is purely a Keycloak flow decision. The `IvrOtpDirectGrantAuthenticator` (see Appendix C.8.1) handles the server side.
+
+#### 5.1.5 Keycloak Direct Grant Flow Configuration
 
 The realm's Direct Grant flow uses `ConditionalClientAuthenticator` (already in `packages/keycloak-extensions/conditional-authenticators/`) to branch by client ID:
 
@@ -957,14 +1112,27 @@ flowchart TD
     C -->|client != ivr-voting| F[Password Validation<br/>REQUIRED]
 ```
 
-The same realm handles both web portal and IVR authentication. The Keycloak admin configures which authenticators are active for the `ivr-voting` client — this is Keycloak configuration, not Lambda code. The Lambda's auth config steps must match what Keycloak expects (e.g., if Keycloak expects `dob` in the `password` field, the config step should have `maps_to: "password"`).
+The same realm handles both web portal and IVR authentication. The Keycloak admin configures which authenticators are active for the `ivr-voting` client in the Keycloak admin UI — **this is the one and only place** auth is configured. The IVR Lambda learns about it automatically via `/ivr-config`.
 
-#### 5.1.5 Custom Keycloak Authenticators
+#### 5.1.6 Custom Keycloak Authenticators & Extensions
 
-| Authenticator | When Needed | Complexity | Description |
+| Component | When Needed | Complexity | Description |
 |---|---|---|---|
-| `IvrDobAuthenticator` | DoB as custom form param (not password) | ~80 lines Java | Reads `dob` from form params, validates against user's `date_of_birth` attribute |
-| `IvrOtpDirectGrantAuthenticator` | OTP required | ~150 lines Java | If `otp` absent: generate/send/store code, return error. If `otp` present: validate, clear, succeed |
+| `ivr-config-resource` | **Always** (replaces S3 auth config) | ~100 lines Java | `RealmResourceProvider` exposing `GET /realms/\{realm\}/ivr-config`. Walks the Direct Grant flow and returns auth steps |
+| `IvrDobAuthenticator` | Optional — only if DoB is NOT stored as password | ~80 lines Java | Reads `dob` from form params, validates against user's `date_of_birth` attribute. Declares `field_name`/`max_digits`/`terminator`/`maps_to` as config properties |
+| `IvrOtpDirectGrantAuthenticator` | Required if OTP is used | ~150 lines Java | If `otp` absent: generate/send/store code, return error. If `otp` present: validate, clear, succeed |
+
+Custom authenticators must declare the IVR metadata fields in their `getConfigProperties()` so the `ivr-config-resource` can read them back:
+
+```java
+public static final List<ProviderConfigProperty> CONFIG_PROPERTIES = ProviderConfigurationBuilder.create()
+    .property().name("field_name").type(STRING_TYPE).label("IVR field name").add()
+    .property().name("max_digits").type(STRING_TYPE).label("IVR max DTMF digits").add()
+    .property().name("terminator").type(STRING_TYPE).label("IVR terminator key").defaultValue("#").add()
+    .property().name("maps_to").type(STRING_TYPE).label("ROPC form parameter").add()
+    .property().name("prompt_key").type(STRING_TYPE).label("IVR prompt key override (optional)").add()
+    .build();
+```
 
 The OTP authenticator reuses existing infrastructure from `packages/keycloak-extensions/message-otp-authenticator/`:
 - Code generation: `SecretGenerator` (from `Utils`)
@@ -972,11 +1140,22 @@ The OTP authenticator reuses existing infrastructure from `packages/keycloak-ext
 - Email: `EmailTemplateProvider` + `AwsSesEmailSenderProvider`
 - Validation: `Utils.constantTimeIsEqual()`
 
-If the election uses simple voter ID + PIN (where PIN = Keycloak password), no custom authenticators are needed at all.
+If the election uses simple voter ID + PIN (where PIN = Keycloak password), no custom authenticators are needed — only `ivr-config-resource` needs to be deployed.
 
-#### 5.1.6 IVR Config Discovery via Public S3
+#### 5.1.7 Caching & Invalidation
 
-All election config is loaded from the **published ballot publication** on the **public S3 bucket**. This is the same file the voting portal uses in preview mode, generated by `prepare_publication_preview` in Windmill and uploaded via `upload_and_return_document()` in `packages/windmill/src/services/documents.rs` with `is_public: true`.
+The Lambda caches the `/ivr-config` response per-realm in DynamoDB with a **5-minute TTL**. This bounds the blast radius of stale config after an admin change while keeping per-call overhead near zero.
+
+- Calls in flight when the admin updates the flow finish using the cached config (safe — the auth step list is forward-compatible with ROPC)
+- New calls pick up the change within 5 minutes
+- Ops can flush the cache manually (DynamoDB delete) for emergency rollout
+
+#### 5.1.8 IVR Config Discovery — S3 + Keycloak
+
+IVR session config comes from **two sources**:
+
+1. **Public S3 (published ballot publication)** — election structure, prompts, flow pipeline, presentation
+2. **Keycloak `/ivr-config` endpoint** — authentication step list (see 5.1.2)
 
 **Published ballot publication structure** (`tenant-\{tenantId\}/document-\{documentId\}/\{publicationId\}.json`):
 ```json
@@ -989,7 +1168,7 @@ All election config is loaded from the **published ballot publication** on the *
     // Note: voting_status is always "OPEN" in published data (static snapshot)
   ],
   "election_event": {
-    // Full event: presentation (including IVR flow, auth steps),
+    // Full event: presentation (IVR flow + prompts, NOT auth steps),
     // i18n (including IVR prompts), language_conf, voting_channels
   },
   "support_materials": [...],
@@ -999,40 +1178,46 @@ All election config is loaded from the **published ballot publication** on the *
 
 **What the IVR Lambda reads from published S3 data:**
 - `election_event.presentation.ivr.flow` — phase pipeline
-- `election_event.presentation.ivr.auth` — authentication steps
-- `election_event.presentation.i18n[lang]["ivr"]` — prompts
+- `election_event.presentation.i18n[lang]["ivr"]` — prompts (including the well-known auth prompt keys)
 - `election_event.presentation.language_conf` — enabled languages
 - `ballot_styles[].ballot_eml` — contests, candidates, min/max votes, public keys
 - `elections[].presentation` — per-election presentation and prompts
 - `elections[].voting_channels` — which channels are enabled
+
+**What the IVR Lambda reads from Keycloak `/ivr-config`:**
+- The ordered list of auth steps (field, max_digits, terminator, maps_to, optional prompt_key override)
 
 **What is NOT available from S3 (requires Harvest API):**
 - Real-time voting status (S3 always shows `voting_status: "OPEN"`)
 - Vote submission
 
 **Publication flow:**
-1. Admin configures IVR settings (flow, auth steps, prompts) in admin portal
-2. Settings stored in `presentation.ivr` and `presentation.i18n[lang]["ivr"]` in PostgreSQL
+1. Admin configures IVR flow + prompts in admin portal (**not** auth steps — those live in Keycloak)
+2. Settings stored in `presentation.ivr.flow` and `presentation.i18n[lang]["ivr"]` in PostgreSQL
 3. Ballot publication task generates the publication JSON and uploads to public S3
-4. Published data is publicly accessible — no authentication needed
+4. Auth flow is configured separately by the admin in the Keycloak admin UI (realm's Direct Grant flow)
+5. Published data is publicly accessible — no authentication needed
 
 **Lambda session initialization:**
-1. Call arrives → Lambda reads DynamoDB `ivr-phone-config` → gets S3 base URL + tenant_id + election_event_id
+1. Call arrives → Lambda reads DynamoDB `ivr-phone-config` → gets S3 base URL + tenant_id + election_event_id + keycloak realm
 2. Lambda fetches published ballot publication JSON from public S3
-3. All config (IVR flow, prompts, election structure, candidates, public keys) extracted and cached in DynamoDB session
-4. Flow engine begins executing the configured phase pipeline
+3. Lambda fetches auth step list from `{KEYCLOAK_URL}/realms/\{realm\}/ivr-config` (cached 5 min)
+4. Both sets cached in DynamoDB session
+5. Flow engine begins executing the configured phase pipeline
 
 **Keycloak Realm**: `tenant-\{tenantId\}-event-\{eventId\}`
 
 **Required Keycloak Configuration**:
+- Deploy `ivr-config-resource` extension (see Appendix C.8.2)
 - Create `ivr-voting` client with `direct-access-grants` enabled (see Appendix C.8)
-- Configure Direct Grant flow with conditional branching for `ivr-voting` client
+- Configure Direct Grant flow with conditional branching for `ivr-voting` client — **this is now the only place auth is configured**
 - Configure voters with voter ID as username
-- Credential storage matches `ivr.auth.steps` config (e.g., DoB as password, or via custom authenticator)
+- Credential storage matches the Direct Grant flow (e.g., password credential for PIN, or user attribute + `IvrDobAuthenticator` for DoB)
+- For custom authenticators (`IvrDobAuthenticator`, etc.): fill in their `AuthenticatorConfig` (`field_name`, `max_digits`, `terminator`, `maps_to`) so the `/ivr-config` endpoint can return them
 - If OTP: deploy `IvrOtpDirectGrantAuthenticator` and add to Direct Grant flow
 - JWT claims include `area_id` and `authorized_election_ids` (via existing `AuthorizedElectionsUserAttributeMapper`)
 
-#### 5.1.7 Token Expiry Handling (Critical)
+#### 5.1.9 Token Expiry Handling (Critical)
 
 **The Problem**:
 JWT tokens have limited lifetimes. From the current Keycloak configuration:
@@ -1304,7 +1489,7 @@ Consider adjusting IVR client-specific settings (can be per-client in Keycloak):
 
 ### 5.2 Check Election Status via Hasura GraphQL
 
-Election structure, contests, and candidates are loaded from the published S3 data (see 5.1.6). However, the published S3 data is a **static snapshot** where `voting_status` is always `"OPEN"`. The IVR Lambda needs to query Hasura to check the **real-time** status of telephone voting before proceeding. This is the same mechanism the voting portal uses (`GET_ELECTION_EVENT` query).
+Election structure, contests, and candidates are loaded from the published S3 data (see 5.1.8). However, the published S3 data is a **static snapshot** where `voting_status` is always `"OPEN"`. The IVR Lambda needs to query Hasura to check the **real-time** status of telephone voting before proceeding. This is the same mechanism the voting portal uses (`GET_ELECTION_EVENT` query).
 
 ```mermaid
 sequenceDiagram
@@ -1393,7 +1578,7 @@ match harvest_client.cast_vote(&input).await {
         Ok(VoteSubmitted { cast_vote_id: response.cast_vote_id })
     }
     Err(ApiError::BackendRejection { error_code, message }) => {
-        // Backend rejected vote (duplicate, max revotes, not eligible, etc.)
+        // Per-election rejection — play error prompt but continue to next election
         let prompt_key = match error_code.as_str() {
             "DUPLICATE_VOTE" => "duplicate_vote",
             "MAX_REVOTES_EXCEEDED" => "max_revotes_exceeded",
@@ -1401,12 +1586,16 @@ match harvest_client.cast_vote(&input).await {
             _ => "vote_failed"
         };
 
+        // Don't disconnect — record the per-election error and continue
+        // submitting remaining elections. Only disconnect after all
+        // elections have been attempted.
         Err(IvrError::VoteRejected {
             prompt_key,
-            should_disconnect: true,
+            should_disconnect: false,
         })
     }
     Err(ApiError::Timeout) => {
+        // Fatal: system-level error, disconnect immediately
         Err(IvrError::ApiTimeout {
             prompt_key: "system_error",
             should_disconnect: true,
@@ -1418,16 +1607,19 @@ match harvest_client.cast_vote(&input).await {
 
 **Error Prompts:**
 
-Backend errors use prompt keys from `i18n[lang]["ivr"]`:
-- `duplicate_vote`: "You have already voted in this election."
-- `max_revotes_exceeded`: "You have reached the maximum number of allowed votes for this election."
-- `not_eligible`: "You are not eligible to vote in this election."
-- `vote_failed`: "We were unable to record your vote. Please try again later."
+Backend errors use prompt keys from `i18n[lang]["ivr"]`. Per-election errors are announced but do not end the call — the `ElectionSubmit` sub-phase reports the error and the ballot loop advances to the next election:
+- `duplicate_vote`: "You have already voted in this election." (continue to next election)
+- `max_revotes_exceeded`: "You have reached the maximum number of allowed votes for this election." (continue to next election)
+- `not_eligible`: "You are not eligible to vote in this election." (continue to next election)
+- `vote_failed`: "We were unable to record your vote. Please try again later." (continue to next election)
+
+Fatal errors (network timeout, session expired, Keycloak unavailable) disconnect immediately since they affect all elections.
 
 **Simplicity:**
 - No frontend filtering needed
-- Backend is source of truth
-- IVR just translates backend errors to user-friendly messages
+- Backend is source of truth — Harvest validates per-election
+- IVR translates backend errors to user-friendly messages
+- Each election is submitted independently; one failure does not block others
 
 ---
 
@@ -1534,7 +1726,8 @@ presentation.i18n = {
     "alias": "Election Alias",
     "ivr": {  // ← IVR prompts stored here
       "greeting": "Welcome...",
-      "auth_enter_voter_id": "Please enter...",
+      "auth_enter_username": "Please enter your voter ID...",
+      "auth_enter_password": "Please enter your PIN...",
       ...
     }
   },
@@ -1588,20 +1781,9 @@ fn get_ivr_prompts(i18n: &I18nContent, lang: &str) -> IvrPrompts {
         { "phase": "eligibility_check" },
         { "phase": "declaration", "config": { "accept_key": "2" } },
         { "phase": "pre_voting_statement" },
-        { "phase": "ballot_loop" },
-        { "phase": "summary" },
-        { "phase": "final_confirm" },
-        { "phase": "submit" },
-        { "phase": "receipt", "config": { "read_confirmation_number": true } },
+        { "phase": "ballot_loop", "config": { "receipt_format": "bip39" } },
         { "phase": "goodbye" }
       ],
-      "auth": {
-        "steps": [
-          { "field": "voter_id", "prompt_key": "auth_enter_voter_id", "max_digits": 8, "terminator": "#", "maps_to": "username" },
-          { "field": "dob", "prompt_key": "auth_enter_dob", "max_digits": 8, "terminator": "#", "maps_to": "password" }
-        ],
-        "otp_enabled": false
-      },
       "retry_limits": { "auth": 3, "input": 3, "timeout": 3 },
       "assistance_phone": "1-800-555-0199"
     },
@@ -1611,8 +1793,8 @@ fn get_ivr_prompts(i18n: &I18nContent, lang: &str) -> IvrPrompts {
         "ivr": {
           "greeting": "Welcome to the phone voting service for the City of Barrie 2025 Municipal Election.",
           "language_select": "For English, press 1. Pour le français, appuyez sur 2.",
-          "auth_enter_voter_id": "Using your touch-tone phone, please enter your voter ID followed by the number sign key.",
-          "auth_enter_dob": "Using your touch-tone phone, please enter your date of birth using two digits for the month and day, and four digits for the year. Please press the number sign key following your date of birth entry.",
+          "auth_enter_username": "Using your touch-tone phone, please enter your voter ID followed by the number sign key.",
+          "auth_enter_password": "Using your touch-tone phone, please enter your date of birth using two digits for the month and day, and four digits for the year. Please press the number sign key following your date of birth entry.",
           "auth_failed": "Your voting credentials are not valid. Please refer to your voting instructions for the correct voter credentials and try again.",
           "auth_max_attempts": "You seem to be having trouble. Please contact the Voter Assistance Line if you need assistance at {assistance_phone}.",
           "blacklist_message": "Your telephone number is blocked. Please refer to your voting instructions and contact the Voter Assistance Line if you need assistance. Goodbye.",
@@ -1624,8 +1806,13 @@ fn get_ivr_prompts(i18n: &I18nContent, lang: &str) -> IvrPrompts {
           "already_selected": "You have already selected this option. Please enter your next selection now.",
           "blank_ballot_confirm": "You have not made a selection therefore your ballot will be cast as blank. To confirm your intent to cast a blank ballot, press the number sign key now. To repeat the list of options press the star key now.",
           "decline_confirm": "By selecting 'Decline to vote' you will not vote for any candidate in this election. To submit your declined ballot, press the number sign key now. To not decline and start your selection, press zero key now.",
-          "receipt_info": "You are about to be given a confirmation number. You may choose to write it down for your reference.",
-          "receipt_number": "Your confirmation number is {confirmation_number}. To repeat your confirmation number, please press the star key.",
+          "summary_intro": "Here is a summary of your selections for {election_name}.",
+          "summary_item": "For contest {contest_number}, {contest_name}: you selected {candidate_name}.",
+          "summary_edit_prompt": "Press 1 to continue to submission, or press a contest number to change your selection for that contest.",
+          "summary_edit_restart": "Changing your selection for {contest_name}. Your previous selections for this contest have been cleared.",
+          "election_confirm": "To submit your ballot for {election_name}, press 1. To go back and review your selections, press 2.",
+          "receipt_info": "You are about to be given a confirmation number for each election. You may choose to write them down for your reference.",
+          "receipt_number": "Your confirmation number for {election_name} is {confirmation_number}. To repeat, please press the star key.",
           "acclamation": "{candidate_name} is elected by acclamation.",
           "system_error": "We're experiencing technical difficulties. Please try your call again later.",
           "invalid_input": "That is an invalid input. Please re-enter your selection.",
@@ -1637,8 +1824,8 @@ fn get_ivr_prompts(i18n: &I18nContent, lang: &str) -> IvrPrompts {
         "name": "Élections municipales de Barrie 2025",
         "ivr": {
           "greeting": "Bienvenue au service de vote téléphonique des élections municipales 2025 de Barrie.",
-          "auth_enter_voter_id": "Veuillez entrer votre numéro d'électeur suivi de la touche carré.",
-          "auth_enter_dob": "Veuillez entrer votre date de naissance en utilisant deux chiffres pour le mois et le jour, et quatre chiffres pour l'année. Appuyez sur la touche carré après votre saisie.",
+          "auth_enter_username": "Veuillez entrer votre numéro d'électeur suivi de la touche carré.",
+          "auth_enter_password": "Veuillez entrer votre date de naissance en utilisant deux chiffres pour le mois et le jour, et quatre chiffres pour l'année. Appuyez sur la touche carré après votre saisie.",
           "auth_failed": "Vos informations de vote ne sont pas valides. Veuillez vous référer à vos instructions de vote et réessayer.",
           "goodbye": "Merci de votre participation. Au revoir."
         }
@@ -1662,26 +1849,16 @@ fn get_ivr_prompts(i18n: &I18nContent, lang: &str) -> IvrPrompts {
         { "phase": "language_select" },
         { "phase": "auth" },
         { "phase": "ballot_loop" },
-        { "phase": "summary" },
-        { "phase": "final_confirm" },
-        { "phase": "submit" },
         { "phase": "goodbye" }
-      ],
-      "auth": {
-        "steps": [
-          { "field": "voter_id", "prompt_key": "auth_enter_voter_id", "max_digits": 8, "terminator": "#", "maps_to": "username" },
-          { "field": "pin", "prompt_key": "auth_enter_pin", "max_digits": 4, "terminator": "#", "maps_to": "password" }
-        ],
-        "otp_enabled": false
-      }
+      ]
     },
     "i18n": {
       "en": {
         "name": "City of Toronto 2025 Elections",
         "ivr": {
           "greeting": "Welcome to the City of Toronto telephone voting system.",
-          "auth_enter_voter_id": "Please enter your 8-digit voter ID followed by the pound key.",
-          "auth_enter_pin": "Please enter your 4-digit PIN followed by the pound key.",
+          "auth_enter_username": "Please enter your 8-digit voter ID followed by the pound key.",
+          "auth_enter_password": "Please enter your 4-digit PIN followed by the pound key.",
           "auth_failed": "The voter ID or PIN you entered is incorrect.",
           "goodbye": "Thank you for using the telephone voting system. Goodbye."
         }
@@ -1691,20 +1868,30 @@ fn get_ivr_prompts(i18n: &I18nContent, lang: &str) -> IvrPrompts {
 }
 ```
 
-Same Lambda code handles both configurations. The Barrie deployment has declaration, receipt, blacklist, eligibility check — all through config.
+Note that neither example contains an `ivr.auth` section — the auth step list is no longer part of S3 config. It is fetched at session init from Keycloak's `/realms/\{realm\}/ivr-config` endpoint (see §5.1). The only auth-related data in S3 is the i18n for the well-known prompt keys (`auth_enter_username`, `auth_enter_password`, `auth_enter_otp`, etc. — see §5.1.3).
+
+Same Lambda code handles both configurations. The Barrie deployment has declaration, blacklist, eligibility check, and BIP39 receipt — all through config. The per-election summary/confirm/submit/receipt cycle is always part of `ballot_loop` and runs for every election. Which credentials are collected (voter ID + DoB for Barrie, voter ID + PIN for Toronto) is determined entirely by each realm's Direct Grant flow in Keycloak — **not** by the S3 config.
 
 ### 7.4 Admin Portal Integration
 
 When `telephone` channel is enabled in `voting_channels`:
 
 **ElectionEvent settings** → new "IVR Prompts" tab:
-- Text fields for event-level prompts
+- Text fields for event-level prompts — including the well-known auth prompt keys (`auth_enter_username`, `auth_enter_password`, `auth_enter_otp`, etc. — see §5.1.3)
 - Language tabs from `language_conf.enabled_language_codes`
 - Preview button (plays via Polly)
+
+**ElectionEvent settings** → "IVR Flow" tab:
+- Configure the flow pipeline (`presentation.ivr.flow`) — which phases run and in what order
+- Retry limits, assistance phone number, and other non-auth settings
 
 **Election settings** → new "IVR Prompts" section:
 - Text fields for election-specific prompts
 - Inherits languages from parent event
+
+**What is NOT configured in the admin portal — auth steps.** The authentication flow (which credentials to collect, in what order, validated against what) is configured in the **Keycloak admin UI** for the election event's realm, under *Authentication → Flows → IVR Direct Grant Flow*. The admin portal intentionally does not duplicate this — there is only one source of truth for auth, and it is Keycloak.
+
+For the common case, the admin portal can link directly to the Keycloak admin URL for the realm's Direct Grant flow to simplify the workflow.
 
 ### 7.5 Lambda Prompt Resolution (Fallback Chain)
 
@@ -1805,7 +1992,7 @@ pub enum IvrError {
 
 ### 9.2 Data Protection
 - PIN never stored in DynamoDB session
-- JWT access tokens have short TTL (determined from `exp` claim after login; configurable in Keycloak, default 5 min); proactive refresh via `TokenManager` (see 5.1.7)
+- JWT access tokens have short TTL (determined from `exp` claim after login; configurable in Keycloak, default 5 min); proactive refresh via `TokenManager` (see 5.1.9)
 - Session data TTL: 1 hour (auto-cleanup)
 - Phone numbers hashed in logs
 
@@ -2349,6 +2536,7 @@ The following authenticators may be needed depending on the election event's aut
 - Implements `Authenticator` for the Direct Grant flow
 - Reads `dob` from `context.getHttpRequest().getDecodedFormParameters().getFirst("dob")`
 - Validates against the user's `date_of_birth` attribute
+- `getConfigProperties()` returns the IVR metadata properties (`field_name`, `max_digits`, `terminator`, `maps_to`, optional `prompt_key`) so the `ivr-config-resource` endpoint can read them back
 - ~80 lines of Java, following the same pattern as existing authenticators in `packages/keycloak-extensions/`
 
 **`IvrOtpDirectGrantAuthenticator`** (required if OTP is used):
@@ -2371,6 +2559,105 @@ flowchart TD
 ```
 
 This ensures web portal authentication (via `voting-portal` client) is unaffected.
+
+### C.8.2 `ivr-config-resource` Keycloak Extension (required)
+
+**Location:** `packages/keycloak-extensions/ivr-config-resource/`
+
+This is a **new, always-required** Keycloak extension. It exposes a single REST endpoint that the IVR Lambda calls at session init to discover the auth step list for the realm, replacing the old `presentation.ivr.auth` S3 config.
+
+**Endpoint:**
+```
+GET /realms/{realm}/ivr-config
+```
+
+**Response:**
+```json
+{
+  "steps": [
+    { "field": "voter_id", "max_digits": 8, "terminator": "#", "maps_to": "username" },
+    { "field": "pin",      "max_digits": 4, "terminator": "#", "maps_to": "password" }
+  ]
+}
+```
+
+**Implementation** (~100 lines of Java):
+
+```java
+public class IvrConfigResourceProvider implements RealmResourceProvider {
+    private final KeycloakSession session;
+
+    // Well-known mapping for stock Keycloak authenticators
+    private static final Map<String, AuthStep> STOCK_AUTHENTICATORS = Map.of(
+        "direct-grant-validate-username",
+            new AuthStep("voter_id", 8, "#", "username", null),
+        "direct-grant-validate-password",
+            new AuthStep("pin",      8, "#", "password", null)
+    );
+
+    private static final Set<String> SKIPPED_AUTHENTICATORS = Set.of(
+        "ivr-otp-direct-grant"  // OTP is discovered dynamically via otp_required error
+    );
+
+    @GET
+    @Path("/")
+    @Produces(MediaType.APPLICATION_JSON)
+    public Response getIvrConfig() {
+        RealmModel realm = session.getContext().getRealm();
+
+        // 1. Find effective Direct Grant flow for ivr-voting client
+        ClientModel ivrClient = realm.getClientByClientId("ivr-voting");
+        AuthenticationFlowModel flow = (ivrClient != null && ivrClient.getAuthenticationFlowBindingOverride("direct_grant") != null)
+            ? realm.getAuthenticationFlowById(ivrClient.getAuthenticationFlowBindingOverride("direct_grant"))
+            : realm.getDirectGrantFlow();
+
+        // 2. Walk executions in order, filter to ENABLED/REQUIRED
+        List<AuthStep> steps = new ArrayList<>();
+        realm.getAuthenticationExecutionsStream(flow.getId())
+            .filter(e -> e.getRequirement() == REQUIRED || e.getRequirement() == CONDITIONAL)
+            .filter(e -> !SKIPPED_AUTHENTICATORS.contains(e.getAuthenticator()))
+            .forEachOrdered(e -> steps.add(buildStep(realm, e)));
+
+        return Response.ok(Map.of("steps", steps)).build();
+    }
+
+    private AuthStep buildStep(RealmModel realm, AuthenticationExecutionModel exec) {
+        // 3a. Stock authenticator — use static lookup
+        if (STOCK_AUTHENTICATORS.containsKey(exec.getAuthenticator())) {
+            return STOCK_AUTHENTICATORS.get(exec.getAuthenticator());
+        }
+        // 3b. Custom authenticator — read AuthenticatorConfig
+        AuthenticatorConfigModel cfg = realm.getAuthenticatorConfigById(exec.getAuthenticatorConfig());
+        if (cfg == null) {
+            throw new WebApplicationException(
+                "Unknown IVR authenticator '" + exec.getAuthenticator() +
+                "' has no AuthenticatorConfig — cannot derive IVR auth step",
+                Response.Status.INTERNAL_SERVER_ERROR);
+        }
+        Map<String, String> c = cfg.getConfig();
+        return new AuthStep(
+            c.get("field_name"),
+            Integer.parseInt(c.getOrDefault("max_digits", "10")),
+            c.getOrDefault("terminator", "#"),
+            c.get("maps_to"),
+            c.get("prompt_key")  // optional override
+        );
+    }
+
+    @Override public void close() {}
+}
+```
+
+**Factory** (`IvrConfigResourceProviderFactory implements RealmResourceProviderFactory`, ~20 lines) registers the provider under `/realms/{realm}/ivr-config`.
+
+**Key design points:**
+- **No authentication required** on the endpoint — returns non-sensitive metadata about auth shape. Voters already know what to enter.
+- **Stock authenticator lookup is hardcoded** in the extension. If Keycloak renames `direct-grant-validate-username` in a major upgrade, the extension must be updated — covered by a startup integration test that calls the endpoint against a well-known realm configuration.
+- **Skipped authenticators list** explicitly excludes `ivr-otp-direct-grant` because OTP is handled reactively by the Lambda (via the `otp_required` error response), not declared up front.
+- **Unknown authenticators fail loudly** with HTTP 500 — misconfigurations surface at deployment time (first call after deploy) instead of silently producing a broken auth flow mid-election.
+- **Custom authenticator config properties** (`field_name`, `max_digits`, `terminator`, `maps_to`, `prompt_key`) are declared by each custom authenticator's `getConfigProperties()` — Keycloak renders them as fields in the admin UI.
+
+**Build integration:** add a new Maven module under `packages/keycloak-extensions/ivr-config-resource/` and include it in the Keycloak image alongside `conditional-authenticators` and `message-otp-authenticator`.
 
 ### C.9 Update Default Values
 
@@ -2410,10 +2697,11 @@ Stored in `ElectionEvent.presentation.i18n[lang]["ivr"]`
 |-----|-------|-------------|
 | `greeting` | `welcome` | Welcome message |
 | `language_select` | `language_select` | Language menu |
-| `auth_enter_voter_id` | `auth` | Voter ID collection prompt |
-| `auth_enter_pin` | `auth` | PIN collection prompt |
-| `auth_enter_dob` | `auth` | Date of birth collection prompt |
-| `auth_otp_sent` | `auth` | OTP sent notification |
+| `auth_enter_username` | `auth` | Played for the step whose `maps_to` is `username` (typically voter ID) |
+| `auth_enter_password` | `auth` | Played for the step whose `maps_to` is `password` (typically PIN or DoB) |
+| `auth_enter_dob` | `auth` | Played for custom DoB step (`maps_to: dob`) if `IvrDobAuthenticator` is in the flow |
+| `auth_enter_otp` | `auth` | Played when collecting OTP after Keycloak returns `otp_required` |
+| `auth_otp_sent` | `auth` | Played before OTP collection (e.g., "A code has been sent to your phone") |
 | `auth_otp_invalid` | `auth` | OTP validation failed |
 | `auth_failed` | `auth` | Authentication failed |
 | `auth_max_attempts` | `auth` | Max auth retries exceeded |
@@ -2434,8 +2722,8 @@ Stored in `ElectionEvent.presentation.i18n[lang]["ivr"]`
 | `election_closed` | `ballot_loop` | Telephone voting not open (played when `telephone_voting_status` is not `OPEN`) |
 | `declaration_text` | `declaration` | Legal declaration text |
 | `pre_voting_statement` | `pre_voting_statement` | Disconnect warning / info |
-| `receipt_info` | `receipt` | About to read confirmation number |
-| `receipt_number` | `receipt` | Confirmation number readback (uses `\{confirmation_number\}`) |
+| `receipt_info` | `ballot_loop` (`ElectionReceipt`) | About to read confirmation number for this election |
+| `receipt_number` | `ballot_loop` (`ElectionReceipt`) | Per-election confirmation number readback — ballot hash as BIP39 phrase or short hex (uses `\{confirmation_number\}`, `\{election_name\}`) |
 | `session_expired` | (any) | Session timeout |
 
 ### Election-Level Prompts
@@ -2448,17 +2736,19 @@ Stored in `Election.presentation.i18n[lang]["ivr"]`
 | `contest_intro` | `ballot_loop` | `\{contest_name\}`, `\{max_votes\}` | Contest introduction |
 | `candidate_option` | `ballot_loop` | `\{number\}`, `\{candidate_name\}` | Candidate option |
 | `vote_confirm` | `ballot_loop` | `\{candidate_name\}`, `\{contest_name\}` | Vote confirmation |
-| `already_selected` | `ballot_loop` | - | Duplicate selection |
+| `already_selected` | `ballot_loop` | - | Duplicate selection (only reachable via race condition; normally unselected candidates are omitted from list) |
 | `blank_ballot_confirm` | `ballot_loop` | - | Blank ballot confirmation |
 | `decline_confirm` | `ballot_loop` | - | Decline-to-vote confirmation |
 | `acclamation` | `ballot_loop` | `\{candidate_name\}` | Acclamation announcement |
-| `summary_intro` | `summary` | - | Summary introduction |
-| `summary_item` | `summary` | `\{contest_name\}`, `\{candidate_name\}` | Summary line item |
-| `final_confirm` | `final_confirm` | - | Final confirmation |
-| `vote_success` | `submit` | - | Vote submitted |
-| `vote_failed` | `submit` | - | Vote submission failed |
-| `duplicate_vote` | `submit` | - | Already voted |
-| `max_revotes_exceeded` | `submit` | - | Max revotes exceeded |
+| `summary_intro` | `ballot_loop` (`ElectionSummary`) | - | Per-election summary introduction |
+| `summary_item` | `ballot_loop` (`ElectionSummary`) | `\{contest_name\}`, `\{candidate_name\}`, `\{contest_number\}` | Summary line item per contest — includes contest number for edit selection |
+| `summary_edit_prompt` | `ballot_loop` (`ElectionSummary`) | - | "Press 1 to continue to submission, or press a contest number to change your selection for that contest" |
+| `summary_edit_restart` | `ballot_loop` (`ElectionSummary`) | `\{contest_name\}` | "Changing your selection for \{contest_name\}. Your previous selections for this contest have been cleared." |
+| `election_confirm` | `ballot_loop` (`ElectionConfirm`) | `\{election_name\}` | Per-election final confirmation |
+| `vote_success` | `ballot_loop` (`ElectionSubmit`) | `\{election_name\}` | Ballot submitted for this election |
+| `vote_failed` | `ballot_loop` (`ElectionSubmit`) | - | Vote submission failed |
+| `duplicate_vote` | `ballot_loop` (`ElectionSubmit`) | - | Already voted in this election |
+| `max_revotes_exceeded` | `ballot_loop` (`ElectionSubmit`) | - | Max revotes exceeded for this election |
 
 ### Template Variables
 
@@ -2470,6 +2760,6 @@ Stored in `Election.presentation.i18n[lang]["ivr"]`
 | `\{number\}` | DTMF mapping | "1" |
 | `\{max_votes\}` | contest.max_votes | "3" |
 | `\{min_votes\}` | contest.min_votes | "1" |
-| `\{confirmation_number\}` | API response | "ABC123" |
+| `\{confirmation_number\}` | Ballot hash (ballot_id), formatted as BIP39 phrase or short hex per `ballot_loop.config.receipt_format` | "ocean tiger marble" (bip39) or "a3f2c9" (short_hash) |
 | `\{assistance_phone\}` | `ivr.assistance_phone` config | "1-800-555-0199" |
 
