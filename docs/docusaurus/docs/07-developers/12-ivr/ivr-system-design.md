@@ -73,14 +73,14 @@ The flow is an ordered array of phases stored in `presentation.ivr.flow`:
 {
   "ivr": {
     "flow": [
-      { "phase": "welcome" },
+      { "phase": "announcement", "name": "welcome", "prompt_key": "greeting" },
       { "phase": "language_select" },
       { "phase": "blacklist_check" },
       { "phase": "auth" },
       { "phase": "eligibility_check" },
-      { "phase": "declaration", "config": { "accept_key": "2" } },
-      { "phase": "pre_voting_statement" },
-      { "phase": "ballot_loop", "config": { "receipt_format": "bip39" } },
+      { "phase": "announcement", "name": "declaration", "prompt_key": "declaration_text", "accept_key": "2" },
+      { "phase": "announcement", "name": "pre_voting_statement", "prompt_key": "pre_voting_statement" },
+      { "phase": "ballot_loop", "receipt_format": "bip39" },
       { "phase": "goodbye" }
     ]
   }
@@ -93,7 +93,7 @@ A simpler deployment (voter ID + PIN, no frills):
 {
   "ivr": {
     "flow": [
-      { "phase": "welcome" },
+      { "phase": "announcement", "name": "welcome", "prompt_key": "greeting" },
       { "phase": "language_select" },
       { "phase": "auth" },
       { "phase": "ballot_loop" },
@@ -111,15 +111,15 @@ Each phase type has an execution engine in the Lambda. The engine handles prompt
 
 | Phase Type | Description | Input | Behavior |
 |------------|-------------|-------|----------|
-| `welcome` | Play greeting, check system availability | None (auto-advance) | Play `greeting` prompt, advance to next phase |
+| `announcement` | Play a prompt, optionally wait for an acceptance key | None (auto-advance) or DTMF if `accept_key` set | Play the configured `prompt_key`. If `accept_key` is set, wait for that DTMF and retry on invalid input up to `max_retries`. If not, auto-advance. Used for greeting, declaration, pre-voting statement, and any other play-and-continue or play-and-confirm prompts — one engine, different config |
 | `language_select` | Language selection menu | DTMF (1=English, 2=French, etc.) | Set session language from `language_conf.enabled_language_codes`, advance |
-| `blacklist_check` | Check caller phone against blacklist | None (auto-advance) | Query backend; if blocked, play `blacklist_message` and disconnect |
+| `blacklist_check` | Check caller phone against blacklist | None (auto-advance) | Query Hasura (see §6.3) for a blacklist entry matching the caller phone number; if present, play `blacklist_message` and disconnect |
 | `auth` | Collect credentials, authenticate with Keycloak | DTMF per step | Iterate through auth steps discovered via Keycloak's `/realms/\{realm\}/ivr-config` endpoint (see §5.1), submit to Keycloak ROPC. On `otp_required` error, collect OTP and resubmit. On failure, retry up to limit |
 | `eligibility_check` | Validate voter eligibility and election status | None (auto-advance) | Play `eligibility_check` prompt. Check voter eligibility via API; if ineligible, play `not_eligible` and disconnect. Also query Hasura for `telephone_voting_status` (see §5.2); if not `OPEN`, play `election_closed` and disconnect |
-| `declaration` | Play legal declaration, require acceptance | DTMF (configurable `accept_key`) | Play `declaration_text` prompt, wait for acceptance key. Repeat on invalid input |
-| `pre_voting_statement` | Play informational statement (e.g., disconnect warning) | None (auto-advance) or DTMF to continue | Play `pre_voting_statement` prompt, advance |
 | `ballot_loop` | Per-election voting cycle: select → confirm → submit → receipt | DTMF | The inner voting loop (see 3.3). For each election: vote all contests, read back summary, confirm, encrypt and submit ballot via Harvest API, read receipt (ballot hash as BIP39 or short hex). Then advance to next election or finish. All behavior driven by published election/contest data |
 | `goodbye` | Farewell message, disconnect | None (disconnect) | Play `goodbye` prompt, disconnect |
+
+**Note on the `announcement` phase.** Three previously-separate phase types (`welcome`, `declaration`, `pre_voting_statement`) are all the same pattern: play a prompt, optionally wait for a key, advance. Collapsing them into one engine saves three execution paths, three test surfaces, and three config schemas. Each instance in the flow carries a `name` field so logs and metrics remain distinguishable (`name: "welcome"`, `name: "declaration"`, etc.).
 
 #### Overall Phase Flow
 
@@ -127,7 +127,7 @@ The following diagram shows the complete end-to-end IVR call flow through all co
 
 ```mermaid
 flowchart TD
-    CALL([Incoming Call]) --> WELCOME[welcome<br/>Play greeting]
+    CALL([Incoming Call]) --> WELCOME[announcement: welcome<br/>Play greeting]
 
     WELCOME --> LANG[language_select<br/>DTMF: choose language]
     LANG --> BLACKLIST{blacklist_check<br/>Phone blocked?}
@@ -136,27 +136,23 @@ flowchart TD
     AUTH -->|"Failure (max retries)"| AUTH_END([Disconnect])
     AUTH -->|Success| ELIG{eligibility_check<br/>Voter eligible?<br/>telephone_voting_status = OPEN?}
     ELIG -->|"Not eligible /<br/>channel not open"| ELIG_END([Disconnect])
-    ELIG -->|OK| DECL[declaration<br/>Play legal declaration<br/>DTMF: accept]
-    DECL --> STMT[pre_voting_statement<br/>Disconnect warning, info]
-    STMT --> BALLOT[ballot_loop<br/>Per-election cycle:<br/>vote contests → summary →<br/>confirm → submit → receipt<br/>— see §3.3]
+    ELIG -->|OK| DECL[announcement: declaration<br/>Play legal declaration<br/>DTMF: accept]
+    DECL --> STMT[announcement: pre_voting_statement<br/>Disconnect warning, info]
+    STMT --> BALLOT[ballot_loop<br/>Per-election cycle:<br/>vote contests → summary →<br/>submit → receipt<br/>— see §3.3]
     BALLOT --> GOODBYE[goodbye<br/>Disconnect]
     GOODBYE --> END_OK([Call Ended])
 ```
 
 #### Per-Election Submission Cycle (inside ballot_loop)
 
-After all contests in one election are voted, the ballot loop enters the per-election submission sub-phases: `ElectionSummary` → `ElectionConfirm` → `ElectionSubmit` → `ElectionReceipt`. Only after the ballot for the current election is submitted does the voter proceed to the next election or finish.
+After all contests in one election are voted, the ballot loop enters the per-election submission sub-phases: `ElectionSummary` → `ElectionSubmit` → `ElectionReceipt`. Only after the ballot for the current election is submitted does the voter proceed to the next election or finish.
 
 ```mermaid
 flowchart TD
     START([All contests voted<br/>for current election]) --> SUM[ElectionSummary<br/>Read back selections for<br/>this election's contests]
     SUM --> SUM_INPUT{Voter DTMF}
-    SUM_INPUT -->|"1 = Continue"| FC[ElectionConfirm<br/>To submit this ballot press 1.<br/>To go back and change press 2.]
+    SUM_INPUT -->|"1 = Submit"| TOKEN[ElectionSubmit: Refresh token]
     SUM_INPUT -->|"N = Edit contest N"| EDIT([Clear contest N selections<br/>→ CandidateSelect for contest N<br/>→ back to ElectionSummary])
-
-    FC --> FC_INPUT{Voter DTMF}
-    FC_INPUT -->|"2 = Go back"| SUM
-    FC_INPUT -->|"1 = Confirm"| TOKEN[ElectionSubmit: Refresh token]
 
     TOKEN -->|"Session expired"| TOKEN_ERR([Play session_expired<br/>Disconnect])
     TOKEN -->|"Keycloak down"| KC_ERR([Play system_unavailable<br/>Disconnect])
@@ -247,17 +243,14 @@ flowchart TD
     NextContest -->|No| ElectionSummary
 
     subgraph SubmissionLevel [Per-Election Submission]
-        ElectionSummary[ElectionSummary<br/>read back all selections<br/>for this election]
-        ElectionConfirm[ElectionConfirm<br/>DTMF: 1=Submit, 2=Go back]
+        ElectionSummary[ElectionSummary<br/>read back all selections<br/>for this election<br/>DTMF: 1=Submit, N=Edit contest N]
         ElectionSubmit[ElectionSubmit<br/>encrypt + POST /insert-cast-vote]
         ElectionReceipt[ElectionReceipt<br/>read ballot hash as BIP39<br/>or short hex]
     end
 
     ElectionSummary -->|"N = Edit contest N"| EditContest[Clear contest N selections<br/>→ CandidateSelect → SelectionCheck<br/>→ VoteConfirm for that contest only]
     EditContest --> ElectionSummary
-    ElectionSummary -->|"1 = Continue"| ElectionConfirm
-    ElectionConfirm -->|"2 = Go back"| ElectionSummary
-    ElectionConfirm -->|"1 = Submit"| ElectionSubmit
+    ElectionSummary -->|"1 = Submit"| ElectionSubmit
     ElectionSubmit --> ElectionReceipt
 
     ElectionReceipt --> MoreElections{More elections?}
@@ -270,15 +263,14 @@ flowchart TD
 | Sub-Phase | Input | Behavior |
 |---|---|---|
 | `ElectionSelect` | DTMF | Present sorted elections (by `elections_order`). Single-digit if ≤9, multi-digit otherwise. **Skipped** if `skip_election_list=true` and only 1 election |
-| `LanguageSwitch` | DTMF (1=keep, 2=switch) | Offer only if election's `language_conf` differs from session language. Switch affects prompts for this election only. Runs **before** `ElectionIntro` so the intro is read in the correct language |
+| `LanguageSwitch` | DTMF (1=keep, 2=switch) | Offer only if the election's `language_conf` differs from the session language. Switch affects prompts for this election only. Runs **before** `ElectionIntro` so the intro is read in the correct language. **Invariant:** an election's `language_conf.enabled_language_codes` is always a subset of the election event's; additionally an election may override the `default_language_code`, so "different from session language" means either the session language is not in the election's enabled set, or the election's default differs from the currently-selected session language. Both cases trigger the offer; otherwise skip |
 | `ElectionIntro` | None (auto-advance) | Play `election_intro` prompt with `\{election_name\}`, announce contest count (in the language selected by `LanguageSwitch` if applicable) |
 | `AcclaimAnnounce` | None (auto-advance) | Play `acclamation` prompt with `\{candidate_name\}`. Auto-advance to next contest |
 | `ContestIntro` | None (auto-advance) or DTMF to repeat | Play `contest_intro` with `\{contest_name\}`, `\{max_votes\}`, `\{min_votes\}`. Explain rules: "Select up to \{max_votes\} candidates" |
 | `CandidateSelect` | DTMF per candidate | Present only **unselected** candidates sorted by `candidates_order`. Single-digit (1-9) or multi-digit (01-99#) based on remaining count. Accumulate selections until voter signals done (`#` or `0`) or `max_votes` reached. Already-selected candidates are omitted from the list (DTMF numbers are reassigned to remaining candidates) |
 | `SelectionCheck` | DTMF (confirm/restart) | Validate selections against `min_votes`/`max_votes`. Apply `blank_vote_policy`: if no selections and `allowed`→`blank_ballot_confirm`; if `not_allowed`→re-prompt. Apply `under_vote_policy`: if under minimum and `warn`→play warning then confirm |
 | `VoteConfirm` | DTMF (1=confirm, 2=change) | Read back selected candidates. "You selected \{candidate_name\} for \{contest_name\}. Press 1 to confirm, 2 to change your selection" |
-| `ElectionSummary` | DTMF (1=continue, N=edit contest) | Read back all selections for the current election, numbering each contest. "For contest 1, \{contest_name\}: you selected \{candidate_name\}. For contest 2, …" Press 1 to proceed to submission, or press a contest number to edit that contest's selection. Editing a contest clears its selections and re-enters `CandidateSelect` for that contest only — afterwards returns directly to `ElectionSummary` (not to the next contest) |
-| `ElectionConfirm` | DTMF (1=submit, 2=go back) | Final confirmation before submitting this election's ballot. "To submit your ballot for \{election_name\}, press 1. To go back and review, press 2." |
+| `ElectionSummary` | DTMF (1=submit, N=edit contest) | Read back all selections for the current election, numbering each contest. "For contest 1, \{contest_name\}: you selected \{candidate_name\}. For contest 2, …" Press 1 to submit this election's ballot, or press a contest number to edit that contest's selection. Editing a contest clears its selections and re-enters `CandidateSelect` for that contest only — afterwards returns directly to `ElectionSummary` (not to the next contest). **Note:** summary is its own explicit confirmation — there is no separate `ElectionConfirm` step before submission |
 | `ElectionSubmit` | None (auto-advance) | Refresh access token if needed, encrypt ballot with election public keys, POST `/insert-cast-vote` with `election_id`. On success → play `vote_success`, advance to `ElectionReceipt`. On per-election error (duplicate, max revotes) → play error prompt, advance to next election. On fatal error (timeout, session expired) → disconnect |
 | `ElectionReceipt` | DTMF (*=repeat) | Read the ballot hash (ballot_id) as a BIP39 mnemonic phrase or truncated hex string depending on `receipt_format` config. "Your confirmation number for \{election_name\} is \{confirmation_number\}. Press * to repeat." Skipped if `receipt_format` is not configured. **Note:** since the ballot locator only needs to be unique among the logged-in voter's own ballots (not globally), the hash could be reduced to as few as 4 hex characters — much easier to read back over the phone |
 
@@ -296,12 +288,19 @@ pub struct BallotLoopState {
     pub sorted_election_ids: Vec<Uuid>,
     /// Sorted contest IDs for current election (recomputed on election change)
     pub sorted_contest_ids: Vec<Uuid>,
-    /// Sorted candidate IDs for current contest (recomputed on contest change)
+    /// Sorted candidate IDs for current contest (recomputed on contest change).
+    /// Stays stable for the whole contest — `CandidateSelect` skips already-selected
+    /// candidates when reading the list, but the underlying sort order and DTMF
+    /// mapping do not change.
     pub sorted_candidate_ids: Vec<Uuid>,
     /// Accumulator for multi-selection contests
     pub pending_selections: Vec<Uuid>,
     /// Whether election selection was skipped (skip_election_list)
     pub election_list_skipped: bool,
+    /// Set when the voter entered a contest via `ElectionSummary` "edit contest N".
+    /// If `Some(idx)`, the contest-level flow returns to `ElectionSummary` after
+    /// `VoteConfirm` instead of advancing to the next contest. Cleared on return.
+    pub edit_target_contest: Option<usize>,
 }
 
 #[derive(Serialize, Deserialize, Clone)]
@@ -318,11 +317,12 @@ pub enum BallotSubPhase {
     VoteConfirm,
     // Per-election submission
     ElectionSummary,
-    ElectionConfirm,
     ElectionSubmit,
     ElectionReceipt,
 }
 ```
+
+When the voter enters "edit contest N" from `ElectionSummary`, the handler sets `edit_target_contest = Some(n)`, clears `pending_selections` and the corresponding `votes[contest_id]` entry, and transitions to `CandidateSelect`. The `VoteConfirm` sub-phase checks `edit_target_contest` on exit: if set, it clears the field and transitions directly to `ElectionSummary`; otherwise it advances to the next contest as normal.
 
 #### 3.3.5 Candidate Selection Detail
 
@@ -345,6 +345,28 @@ fn assign_dtmf_mappings(
 ```
 
 Candidates with `is_explicit_invalid: true` or `is_explicit_blank: true` in `CandidatePresentation` are **excluded** from the IVR candidate list — the IVR handles blank/decline through dedicated sub-phases instead of special candidate entries.
+
+#### 3.3.6 Shared `LanguageSelector` Component
+
+The outer `LanguageSelect` phase (event-level) and the inner `LanguageSwitch` sub-phase (per-election override) share the same logic: offer a set of enabled languages, collect a DTMF digit, update `session.language`, advance. They are implemented on top of a single `LanguageSelector` helper parameterized by scope:
+
+```rust
+pub enum LanguageScope {
+    Event,
+    Election { election_id: Uuid },
+}
+
+pub fn run_language_selector(
+    session: &mut IvrSession,
+    input: Option<&str>,
+    scope: LanguageScope,
+    enabled_codes: &[String],
+    default_code: &str,
+    prompts: &IvrPromptResolver,
+) -> Result<ConnectResponse, IvrError> { /* ... */ }
+```
+
+Both the outer phase engine and the ballot-loop sub-phase dispatch to this helper. One implementation, one set of tests, two call sites.
 
 ### 3.4 Multi-Digit DTMF Input Handling
 
@@ -508,13 +530,17 @@ flowchart TD
 ```
 
 ```rust
-/// Domain service — no AWS/HTTP/DB dependencies
-pub struct FlowEngine {
-    flow_config: Vec<FlowPhase>,
-    prompts: IvrPromptResolver,
+/// Domain service — no AWS/HTTP/DB dependencies.
+///
+/// Note that `FlowEngine` does not *own* the flow pipeline or prompts; it
+/// borrows them from the cached published config for the current call. The
+/// engine itself is zero-sized and stateless.
+pub struct FlowEngine<'a> {
+    flow_config: &'a [FlowPhase],
+    prompts: &'a IvrPromptResolver,
 }
 
-impl FlowEngine {
+impl FlowEngine<'_> {
     pub fn execute(
         &self,
         session: &mut IvrSession,
@@ -526,17 +552,24 @@ impl FlowEngine {
             .get(session.position.phase_index)
             .ok_or(IvrError::InvalidPhaseIndex(session.position.phase_index))?;
 
-        match phase.phase_type.as_str() {
-            "welcome" => WelcomePhase.execute(session, input, &self.prompts),
-            "language_select" => LanguageSelectPhase.execute(session, input, &self.prompts),
-            "blacklist_check" => BlacklistCheckPhase.execute(session, input, &self.prompts),
-            "auth" => AuthPhase.execute(session, input, &self.prompts, ports.auth()),
-            "eligibility_check" => EligibilityCheckPhase.execute(session, input, &self.prompts),
-            "declaration" => DeclarationPhase.execute(session, input, &self.prompts, &phase.config),
-            "pre_voting_statement" => StatementPhase.execute(session, input, &self.prompts, &phase.config),
-            "ballot_loop" => BallotLoopPhase.execute(session, input, &self.prompts, ports),
-            "goodbye" => GoodbyePhase.execute(session, input, &self.prompts),
-            unknown => Err(IvrError::UnknownPhaseType(unknown.to_string())),
+        // Typed exhaustive match — compiler verifies all variants are handled.
+        // No UnknownPhaseType error variant needed, because deserialization
+        // would have failed on an unknown `phase` tag.
+        match phase {
+            FlowPhase::Announcement(cfg) =>
+                AnnouncementPhase::execute(session, input, self.prompts, cfg),
+            FlowPhase::LanguageSelect =>
+                LanguageSelectPhase::execute(session, input, self.prompts),
+            FlowPhase::BlacklistCheck =>
+                BlacklistCheckPhase::execute(session, input, self.prompts, ports),
+            FlowPhase::Auth =>
+                AuthPhase::execute(session, input, self.prompts, ports.auth()),
+            FlowPhase::EligibilityCheck =>
+                EligibilityCheckPhase::execute(session, input, self.prompts, ports),
+            FlowPhase::BallotLoop(cfg) =>
+                BallotLoopPhase::execute(session, input, self.prompts, ports, cfg),
+            FlowPhase::Goodbye =>
+                GoodbyePhase::execute(session, input, self.prompts),
         }
     }
 }
@@ -607,8 +640,6 @@ impl BallotLoopPhase {
             // Per-election submission
             BallotSubPhase::ElectionSummary =>
                 ElectionSummarySubPhase::execute(session, input, prompts),
-            BallotSubPhase::ElectionConfirm =>
-                ElectionConfirmSubPhase::execute(session, input, prompts),
             BallotSubPhase::ElectionSubmit =>
                 ElectionSubmitSubPhase::execute(session, input, prompts, ports),
             BallotSubPhase::ElectionReceipt =>
@@ -616,18 +647,19 @@ impl BallotLoopPhase {
         }
     }
 
-    fn init_ballot_loop(session: &IvrSession) -> Result<BallotLoopState, IvrError> {
-        let event_presentation = &session.election_event_presentation;
-        let elections = &session.elections;
-
+    fn init_ballot_loop(
+        session: &IvrSession,
+        published: &PublishedBallotPublication,
+    ) -> Result<BallotLoopState, IvrError> {
         // Sort elections using the same logic as voting portal
         let sorted_election_ids = sort_elections(
-            elections,
-            event_presentation.elections_order.as_ref(),
+            &published.elections,
+            published.event_presentation.elections_order.as_ref(),
         );
 
-        // Check skip_election_list (same condition as voting portal)
-        let skip = event_presentation.skip_election_list.unwrap_or(false)
+        // `skip_election_list` is a presentation policy that lives in the
+        // published ballot publication — not a separate session field.
+        let skip = published.event_presentation.skip_election_list.unwrap_or(false)
             && sorted_election_ids.len() == 1;
 
         let initial_sub_phase = if skip {
@@ -645,6 +677,7 @@ impl BallotLoopPhase {
             sorted_candidate_ids: vec![],
             pending_selections: vec![],
             election_list_skipped: skip,
+            edit_target_contest: None,
         })
     }
 }
@@ -672,17 +705,27 @@ async fn handler(event: ConnectEvent) -> Result<ConnectResponse, LambdaError> {
             let caller_phone = &event.Details.ContactData.CustomerEndpoint.Address;
             let phone_config = phone_config_port.get_config(caller_phone).await?
                 .ok_or(IvrError::UnknownPhoneNumber)?;
-            let published = config_port.get_published_config(
-                &phone_config.s3_public_base_url,
-                &phone_config.tenant_id,
-                &phone_config.election_event_id,
-            ).await?;
-            IvrSession::new(contact_id, &phone_config, &published)
+            IvrSession::new(contact_id, &phone_config)
         }
     };
 
+    // Fetch the published config for this session. The adapter is
+    // responsible for caching at the Lambda process level keyed by
+    // (tenant_id, election_event_id, publication_id) — a warm container
+    // serves concurrent calls from a single shared copy. Session state
+    // stores only `publication_id`, not the config itself, to keep
+    // DynamoDB items well under the 400 KB per-item limit.
+    let published = config_port.get_published_config(
+        &session.tenant_id,
+        &session.election_event_id,
+        session.publication_id.as_deref(),
+    ).await?;
+
     // Domain logic — pure, testable, no AWS dependencies
-    let engine = FlowEngine::new(&session.flow_config);
+    let engine = FlowEngine {
+        flow_config: &published.ivr_flow,
+        prompts: &published.prompts,
+    };
     let response = engine.execute(&mut session, user_input.as_deref(), ports)?;
 
     session_port.save_session(&session).await?;
@@ -770,6 +813,17 @@ This allows administrators to configure phone voting hours independently (e.g., 
 **Primary Key**: `contact_id` (Amazon Connect Contact ID)
 
 ```rust
+/// Per-call session state stored in DynamoDB.
+///
+/// **Design note — what is NOT here.** The published ballot publication
+/// (`flow_config`, `prompts`, `elections`, `auth_steps`, `election_event_presentation`)
+/// is *not* duplicated in the session. It is fetched from public S3 and cached
+/// at the Lambda process level, keyed by `(tenant_id, election_event_id,
+/// publication_id)`, so all concurrent calls in a warm Lambda container share
+/// a single copy. This matters: DynamoDB items are capped at **400 KB** per
+/// row, and a large municipality (dozens of contests × hundreds of candidates
+/// × multiple languages of prompts) can blow past that if the config is cached
+/// per-session. See §5.1.8 for the publication-discovery flow.
 #[derive(Serialize, Deserialize)]
 pub struct IvrSession {
     // Primary key
@@ -779,6 +833,11 @@ pub struct IvrSession {
     pub caller_phone: String,
     pub call_start_time: DateTime<Utc>,
     pub tenant_id: Uuid,
+    pub election_event_id: Uuid,
+    /// Publication identifier — used as the key into the process-level
+    /// published-config cache. Resolving this once at session init pins the
+    /// call to a consistent snapshot even if a new publication lands mid-call.
+    pub publication_id: String,
 
     // Authentication
     pub voter_id: Option<String>,
@@ -787,14 +846,9 @@ pub struct IvrSession {
     pub access_token_expires_at: Option<i64>,  // Unix timestamp, from token `exp` claim
     pub session_started_at: Option<i64>,
     pub area_id: Option<Uuid>,
-    pub auth_attempts: u8,
 
     // Language
     pub language: String,  // language code, e.g., "en", "fr"
-
-    // Election context
-    pub election_event_id: Option<Uuid>,
-    pub elections: Vec<ElectionContext>,
 
     // Votes in progress (accumulated during ballot_loop)
     pub votes: HashMap<Uuid, ContestVote>, // contest_id -> vote
@@ -802,50 +856,128 @@ pub struct IvrSession {
     // Submission results (populated during ElectionSubmit sub-phase, one per election)
     pub submission_results: Vec<ElectionSubmissionResult>,
 
-    // Flow engine position (replaces hardcoded IvrState)
+    // Flow engine position — cursor + phase-local state
     pub position: FlowPosition,
-    pub retry_count: u8,
 
-    // Cached config (loaded at session init)
-    // - flow_config, election_event_presentation, prompts come from S3 (published ballot publication)
-    // - auth_steps come from Keycloak /ivr-config endpoint (per-realm, TTL 5 min)
-    pub flow_config: Vec<FlowPhase>,
-    pub auth_steps: Vec<AuthStep>,
-    pub election_event_presentation: ElectionEventPresentationCache,
-    pub prompts: HashMap<String, HashMap<String, String>>, // lang -> key -> text
+    /// Per-error-class retry counters. Reset semantics differ per counter —
+    /// see `RetryCounters` below and §8.1
+    pub retries: RetryCounters,
 
     // TTL for DynamoDB cleanup
     pub ttl: i64,
 }
 
-/// Flow position: cursor into the phase pipeline
+/// Separate retry counters by error class. A single counter would mix up
+/// unrelated kinds of failure — e.g. "3rd invalid DTMF while picking a
+/// candidate" would cross-contaminate "3rd auth attempt". Each counter has
+/// its own reset semantics:
+///
+/// - `auth` — cleared on successful authentication.
+/// - `invalid_input` — cleared on any phase or sub-phase transition (so each
+///   sub-phase gets a fresh budget of retries, mirroring Barrie's model).
+/// - `timeout` — cleared on any successful DTMF capture.
+///
+/// Maximums are configurable per flow via `ivr.retry_limits` (see §7.3), which
+/// is edited in the admin portal's "IVR Flow" tab.
+#[derive(Serialize, Deserialize, Clone, Default)]
+pub struct RetryCounters {
+    pub auth: u8,
+    pub invalid_input: u8,
+    pub timeout: u8,
+}
+
+/// Flow position: cursor into the phase pipeline plus per-phase state.
+///
+/// The state enum mirrors the `FlowPhase` enum: the variant at `state` must
+/// correspond to the variant of `flow_config[phase_index]`. Each phase carries
+/// its own state shape, so there is no generic "entry / waiting / done" state
+/// that every phase has to interpret.
 #[derive(Serialize, Deserialize, Clone)]
 pub struct FlowPosition {
-    pub phase_index: usize,          // index into flow[] array
-    pub phase_state: PhaseState,     // phase-internal state
+    pub phase_index: usize,
+    pub state: PhaseState,
 }
 
-/// Phase-internal state — each phase type uses the variant it needs
+/// Phase-internal state — one variant per `FlowPhase` variant.
 #[derive(Serialize, Deserialize, Clone)]
 pub enum PhaseState {
-    Entry,                           // first invocation of this phase
-    WaitingForInput,                 // prompted, waiting for DTMF
-
-    // Auth-specific
-    AuthCollecting { step_index: usize },
-    AuthOtpWait,
-
-    // Ballot loop — uses BallotLoopState (see 3.3.4)
+    Announcement(AnnouncementState),
+    LanguageSelect(SimpleState),
+    BlacklistCheck(SimpleState),
+    Auth(AuthState),
+    EligibilityCheck(SimpleState),
     BallotLoop(BallotLoopState),
-
-    Done,
+    Goodbye(SimpleState),
 }
 
-/// Single phase in the flow pipeline
+/// Fallback state for phases whose execution collapses to "play, optionally
+/// wait for input, advance." Every phase engine starts in `Entry` on first
+/// invocation and moves to `WaitingForInput` when it has asked for DTMF.
 #[derive(Serialize, Deserialize, Clone)]
-pub struct FlowPhase {
-    pub phase: String,                           // "welcome", "auth", "ballot_loop", etc.
-    pub config: Option<HashMap<String, Value>>,  // phase-specific config (optional)
+pub enum SimpleState {
+    Entry,
+    WaitingForInput,
+}
+
+#[derive(Serialize, Deserialize, Clone)]
+pub struct AnnouncementState {
+    pub simple: SimpleState,
+}
+
+#[derive(Serialize, Deserialize, Clone)]
+pub struct AuthState {
+    /// Which auth step (from the list discovered via /ivr-config) the Lambda
+    /// is currently collecting.
+    pub step_index: usize,
+    /// True once the Lambda has submitted credentials and Keycloak returned
+    /// `otp_required` — it is now collecting an OTP before resubmitting.
+    pub waiting_for_otp: bool,
+}
+
+/// The flow pipeline — a typed enum instead of a `{ phase: String, config:
+/// HashMap<String, Value> }` pair. This is a direct application of the
+/// CLAUDE.md rule "policies use enums, not booleans / magic strings." The
+/// dispatcher match in `FlowEngine::execute` becomes exhaustive (compiler-
+/// verified coverage), the admin portal's IVR Flow editor can render form
+/// fields from the variant shape, and a typo in a config key is caught at
+/// deserialization time instead of mid-call.
+#[derive(Serialize, Deserialize, Clone)]
+#[serde(tag = "phase", rename_all = "snake_case")]
+pub enum FlowPhase {
+    /// Play a prompt, optionally wait for an acceptance key. Covers the
+    /// former `welcome` / `declaration` / `pre_voting_statement` phases.
+    Announcement(AnnouncementConfig),
+    LanguageSelect,
+    BlacklistCheck,
+    Auth,
+    EligibilityCheck,
+    BallotLoop(BallotLoopConfig),
+    Goodbye,
+}
+
+#[derive(Serialize, Deserialize, Clone)]
+pub struct AnnouncementConfig {
+    /// Non-semantic label used for logs, metrics, and admin-portal rendering.
+    /// Examples: "welcome", "declaration", "pre_voting_statement".
+    pub name: String,
+    /// Prompt key looked up in the i18n bundle for the current language.
+    pub prompt_key: String,
+    /// If `Some("2")`, the voter must press `2` to advance (Barrie declaration
+    /// style). If `None`, the engine auto-advances after playing the prompt.
+    pub accept_key: Option<String>,
+}
+
+#[derive(Serialize, Deserialize, Clone, Default)]
+pub struct BallotLoopConfig {
+    /// BIP39 mnemonic, short hex, or none at all.
+    pub receipt_format: Option<ReceiptFormat>,
+}
+
+#[derive(Serialize, Deserialize, Clone)]
+#[serde(rename_all = "snake_case")]
+pub enum ReceiptFormat {
+    Bip39,
+    ShortHex,
 }
 
 /// One auth step — retrieved from Keycloak's /ivr-config endpoint, NOT from S3.
@@ -859,12 +991,13 @@ pub struct AuthStep {
     pub prompt_key: Option<String>, // Override; if None, derive from maps_to (see §5.1.3)
 }
 
-/// Cached subset of ElectionEventPresentation relevant to IVR flow
+/// The subset of `ElectionEventPresentation` relevant to the IVR flow. Lives
+/// in the process-level cached publication, NOT in the DynamoDB session.
 #[derive(Serialize, Deserialize, Clone)]
-pub struct ElectionEventPresentationCache {
-    pub skip_election_list: Option<bool>,
+pub struct IvrEventPresentation {
     pub elections_order: Option<ElectionsOrder>,
     pub language_conf: Option<ElectionEventLanguageConf>,
+    pub skip_election_list: Option<bool>,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -958,33 +1091,25 @@ pub struct Endpoint {
     pub Type: String,    // "TELEPHONE_NUMBER"
 }
 
-// Lambda returns this to Amazon Connect
+// Lambda returns this to Amazon Connect.
+//
+// Minimum viable shape — no SSML, no debug state, no error flags. Errors are
+// just prompts that set `should_disconnect = true`; the contact flow does not
+// need to know whether a given response is an "error" response. Internal
+// phase-state debugging belongs in CloudWatch structured logs (§10.2), not in
+// the Connect attribute bag.
 #[derive(Serialize)]
 pub struct ConnectResponse {
-    // Text-to-speech prompt to play
+    /// Text-to-speech prompt to play via Polly.
     pub prompt_text: String,
-
-    // SSML for better pronunciation (optional)
-    pub prompt_ssml: Option<String>,
-
-    // Should the flow capture DTMF input?
+    /// Whether the contact flow should capture DTMF after the prompt.
     pub expect_input: bool,
-
-    // Valid DTMF options for input validation
-    pub valid_inputs: String, // e.g., "123456789"
-
-    // Timeout in seconds for input
+    /// Valid DTMF digits (e.g. "123456789"). Empty if `expect_input = false`.
+    pub valid_inputs: String,
+    /// Seconds to wait for DTMF before timing out.
     pub input_timeout: u8,
-
-    // Should disconnect after prompt?
+    /// If true, contact flow disconnects after the prompt plays.
     pub should_disconnect: bool,
-
-    // Current state for debugging/logging
-    pub current_state: String,
-
-    // Error flag
-    pub has_error: bool,
-    pub error_message: Option<String>,
 }
 ```
 
@@ -1156,6 +1281,8 @@ IVR session config comes from **two sources**:
 
 1. **Public S3 (published ballot publication)** — election structure, prompts, flow pipeline, presentation
 2. **Keycloak `/ivr-config` endpoint** — authentication step list (see 5.1.2)
+
+**The IVR flow and prompts are part of the frozen ballot publication.** Once a publication is cut, its `ivr.flow` + `i18n[lang].ivr` prompt set is immutable — admin edits in the portal only take effect after a new publication is produced. This is a deliberate choice: the ballot publication is an attested, signed artifact used by the voting portal in preview mode, and pulling IVR presentation out of it would fragment the source of truth. Admins who need to change IVR prompts or flow after ballot freeze run a new publication, same as any other presentation edit. (The blacklist is the one exception — it changes too frequently to live in the publication; see §6.3.)
 
 **Published ballot publication structure** (`tenant-\{tenantId\}/document-\{documentId\}/\{publicationId\}.json`):
 ```json
@@ -1687,6 +1814,26 @@ The IVR system can serve multiple clusters and environments. Clusters are infras
 - Environment-level: Keycloak realms provide tenant isolation (`tenant-\{id\}-event-\{id\}`), URLs are environment-scoped
 - Phone-level: Only enabled entries in `ivr-phone-config` table work
 
+### 6.3 Phone Blacklist (Hasura-Backed)
+
+The `blacklist_check` phase consults a **Hasura table**, not DynamoDB. The blacklist is domain data — it is managed alongside the rest of the election event by the same admin users who manage voters, and it benefits from Hasura's row-level authorization, audit trails, and migration tooling rather than being a sidecar AWS table owned by the IVR.
+
+**What needs to be built:**
+
+1. **Hasura table** `sequent_backend.ivr_phone_blacklist` with columns:
+   - `phone_number` (E.164, primary key or unique per tenant)
+   - `tenant_id` (FK)
+   - `election_event_id` (nullable — blacklist can be scoped to an event or tenant-wide)
+   - `reason` (optional free text)
+   - `created_at`, `created_by`
+2. **Hasura permissions** — a new permission (e.g. `can_manage_phone_blacklist`) granted to admin roles that should be able to CRUD blacklist entries. Scoped to their tenant.
+3. **Harvest endpoints** to create, list, and delete blacklist entries (these wrap the Hasura mutations with the existing permission-check middleware). The IVR Lambda reads the blacklist via an authenticated Hasura GraphQL query during the `blacklist_check` phase — but the Lambda runs `blacklist_check` pre-auth, so either (a) Harvest exposes an anonymous read endpoint that only returns "blocked yes/no" for a given phone number, or (b) the Lambda uses a service account JWT for this query. Option (a) is simpler and surfaces less.
+4. **Admin-portal UI** — a "Phone Blacklist" management view under the Election Event settings, with list + add + remove actions, tied to the new Hasura permission.
+
+**Why not DynamoDB?** Same reason auth config went to Keycloak: it belongs to the domain. Putting it in DynamoDB would duplicate responsibilities, bypass Hasura's permission/migration/audit pipeline, and force the admin portal to talk to two different backends for data that is logically part of the election event. One source of truth wins.
+
+**Why not part of the published ballot publication (S3)?** Because blacklists change more often than ballots are published, and an admin needs to be able to block a phone mid-election without re-running the ballot publication pipeline. Keep the publication immutable and artifact-like; keep the blacklist mutable and operational.
+
 ---
 
 ## 7. Internationalization (i18n) & IVR Prompts
@@ -1774,17 +1921,17 @@ fn get_ivr_prompts(i18n: &I18nContent, lang: &str) -> IvrPrompts {
   "presentation": {
     "ivr": {
       "flow": [
-        { "phase": "welcome" },
+        { "phase": "announcement", "name": "welcome", "prompt_key": "greeting" },
         { "phase": "language_select" },
         { "phase": "blacklist_check" },
         { "phase": "auth" },
         { "phase": "eligibility_check" },
-        { "phase": "declaration", "config": { "accept_key": "2" } },
-        { "phase": "pre_voting_statement" },
-        { "phase": "ballot_loop", "config": { "receipt_format": "bip39" } },
+        { "phase": "announcement", "name": "declaration", "prompt_key": "declaration_text", "accept_key": "2" },
+        { "phase": "announcement", "name": "pre_voting_statement", "prompt_key": "pre_voting_statement" },
+        { "phase": "ballot_loop", "receipt_format": "bip39" },
         { "phase": "goodbye" }
       ],
-      "retry_limits": { "auth": 3, "input": 3, "timeout": 3 },
+      "retry_limits": { "auth": 3, "invalid_input": 3, "timeout": 3 },
       "assistance_phone": "1-800-555-0199"
     },
     "i18n": {
@@ -1883,11 +2030,14 @@ When `telephone` channel is enabled in `voting_channels`:
 
 **ElectionEvent settings** → "IVR Flow" tab:
 - Configure the flow pipeline (`presentation.ivr.flow`) — which phases run and in what order
-- Retry limits, assistance phone number, and other non-auth settings
+- Retry limits — three separate numeric inputs for `auth`, `invalid_input`, `timeout` (stored under `ivr.retry_limits`, see §8.1)
+- Assistance phone number and other non-auth settings
 
 **Election settings** → new "IVR Prompts" section:
 - Text fields for election-specific prompts
 - Inherits languages from parent event
+
+**Phone Blacklist management view** — separate admin portal section (not per-election-event) where operators with the `can_manage_phone_blacklist` Keycloak permission can add/remove/annotate blacklisted E.164 numbers backed by the `sequent_backend.ivr_phone_blacklist` Hasura table. See §6.3 for the full data model, Harvest endpoints, and rationale for why the blacklist lives in Hasura rather than in the frozen ballot publication.
 
 **What is NOT configured in the admin portal — auth steps.** The authentication flow (which credentials to collect, in what order, validated against what) is configured in the **Keycloak admin UI** for the election event's realm, under *Authentication → Flows → IVR Direct Grant Flow*. The admin portal intentionally does not duplicate this — there is only one source of truth for auth, and it is Keycloak.
 
@@ -1949,36 +2099,72 @@ Template variables and well-known prompt keys are listed in Appendix D.
 
 ### 8.1 Retry Logic
 
-| Error Type | Max Retries | Action on Exceed |
-|------------|-------------|------------------|
-| Invalid DTMF input | 3 | Disconnect with message |
-| Input timeout | 3 | Disconnect with message |
-| Authentication failure | 3 | Disconnect with message |
-| API timeout | 2 | Retry then error message |
-| API error | 1 | Error message, disconnect |
+Retry budgets are configured per flow in `ivr.retry_limits` (editable in the
+admin portal's **IVR Flow** tab) and tracked at runtime in
+`IvrSession.retries: RetryCounters` (see §4.1). Each class of retry has its
+own counter and its own reset semantics.
+
+| Error Class | Counter | Reset on | Default max | Action on exceed |
+|---|---|---|---|---|
+| Invalid DTMF input | `retries.invalid_input` | Any phase or sub-phase transition | 3 | Play `invalid_input_final` and disconnect |
+| Input timeout | `retries.timeout` | Any successful DTMF capture | 3 | Play `timeout_final` and disconnect |
+| Authentication failure | `retries.auth` | Successful authentication | 3 | Play `auth_max_attempts` and disconnect |
+| API timeout (internal) | — | — | 2 retries | After retries, return `IvrError::ApiTimeout` → disconnect |
+| API error (internal) | — | — | 1 retry | Return `IvrError::ApiError` → disconnect |
+
+Keeping the counters separate means "3rd invalid DTMF while picking a
+candidate" can never cross-contaminate "3rd auth attempt," and each sub-phase
+gets its own fresh `invalid_input` budget. Timeout resets on *any* successful
+DTMF (not just per-phase) so a voter who is pausing thoughtfully but still
+pressing keys does not run down their timeout budget unfairly.
 
 ### 8.2 Error States
 
+Every `IvrError` variant carries a `prompt_key: &'static str` (resolved to an
+i18n message at the adapter boundary) and a `should_disconnect: bool`. This
+forces every error path through a uniform presentation contract — there is
+nowhere in the domain layer that has to decide how to turn an error into a
+prompt, and there is no variant with a free-form `String` payload that leaks
+internal detail to voters.
+
 ```rust
 pub enum IvrError {
-    AuthenticationFailed,
-    NoOpenElections,
-    ElectionClosed,
-    InvalidInput,
-    MaxRetriesExceeded,
-    UnknownPhoneNumber,
-    UnknownPhaseType(String),
-    InvalidState,
-
-    // Struct variants used by phase engines (prompt_key resolved to i18n message)
-    SessionExpired { prompt_key: &'static str, should_disconnect: bool },
-    VoteRejected { prompt_key: &'static str, should_disconnect: bool },
-    ApiTimeout { prompt_key: &'static str, should_disconnect: bool },
+    // --- Presented-to-voter errors ---
+    // All variants carry the same shape so the adapter can turn them into a
+    // ConnectResponse uniformly.
+    AuthenticationFailed       { prompt_key: &'static str, should_disconnect: bool },
+    VoterNotEligible           { prompt_key: &'static str, should_disconnect: bool },
+    ElectionClosed             { prompt_key: &'static str, should_disconnect: bool },
+    InvalidInput               { prompt_key: &'static str, should_disconnect: bool },
+    MaxRetriesExceeded         { prompt_key: &'static str, should_disconnect: bool },
+    SessionExpired             { prompt_key: &'static str, should_disconnect: bool },
+    VoteRejected               { prompt_key: &'static str, should_disconnect: bool },
+    ApiTimeout                 { prompt_key: &'static str, should_disconnect: bool },
     SystemTemporarilyUnavailable { prompt_key: &'static str, should_disconnect: bool, is_critical: bool },
-    SystemConfigurationError { prompt_key: &'static str, should_disconnect: bool },
-    ApiError(String),
+    SystemConfigurationError   { prompt_key: &'static str, should_disconnect: bool },
+
+    // --- Internal / system errors (never reach the voter verbatim) ---
+    // Logged and converted to a generic `system_error` prompt at the
+    // handler boundary.
+    UnknownPhoneNumber,
+    InvalidState,
+    InvalidPhaseIndex(usize),
+    ApiError(ApiErrorKind),
+}
+
+#[derive(Debug, Clone)]
+pub enum ApiErrorKind {
+    Keycloak(String),
+    Hasura(String),
+    Harvest(String),
+    S3(String),
+    Dynamo(String),
 }
 ```
+
+Note the absence of `UnknownPhaseType(String)` — with the typed `FlowPhase`
+enum (§4.1), unknown phase strings fail at JSON deserialization time (i.e. at
+publication load), never at runtime mid-call.
 
 ---
 
@@ -2118,13 +2304,11 @@ flowchart TD
 | Attribute | Description |
 |-----------|-------------|
 | `prompt_text` | Text-to-speech content |
-| `prompt_ssml` | SSML for pronunciation |
 | `expect_input` | Whether to capture DTMF |
 | `valid_inputs` | Valid DTMF digits |
 | `input_timeout` | Seconds to wait |
 | `should_disconnect` | End call flag |
-| `current_state` | State machine state |
-| `user_input` | Captured DTMF input |
+| `user_input` | Captured DTMF input (inbound, set by Connect) |
 
 ---
 
@@ -2167,29 +2351,36 @@ Add to Election Event settings:
 - **Phone Voting Dashboard**: Real-time call statistics
 - **Call Logs**: Searchable call history (without PINs)
 - **Phone Number Management**: Assign/unassign numbers
+- **IVR Flow / IVR Prompts tabs** (per election event): flow pipeline editing plus `ivr.retry_limits` (`auth`, `invalid_input`, `timeout`) configuration — see §7.4
+- **Phone Blacklist**: manage the Hasura-backed `sequent_backend.ivr_phone_blacklist` table (add/remove/annotate E.164 numbers, optionally scoped to a specific election event). Gated by the `can_manage_phone_blacklist` Keycloak permission. See §6.3 for the data model and Harvest endpoints
 
 ---
 
 ## 15. Testing Strategy
 
 ### 15.1 Unit Tests
-- State machine transitions
-- Prompt generation
-- Input validation
-- Error handling
+- Each phase and sub-phase engine tested in isolation with mock ports (see §3.5.6)
+- Every `FlowPhase` / `BallotSubPhase` transition covered, including error paths
+- Prompt resolution / i18n fallback chain
+- Input validation per phase
+- `RetryCounters` reset semantics per phase transition
 
-### 15.2 Integration Tests
-- Keycloak authentication flow
-- Harvest API integration
-- DynamoDB operations
+### 15.2 Record-and-Replay Session Tests
+Since the engine is a pure function of `(session state, input) → (session state, response)`, the most valuable integration layer is a record-and-replay harness: a test file is a sequence of `(input, expected_prompt_key, expected_expect_input, expected_disconnect)` tuples driven through a fake `PhasePorts` implementation. Client IVR specs (e.g. Barrie) are encoded directly as replay fixtures, so regressions against a known-good script fail loudly at CI time.
 
-### 15.3 End-to-End Tests
-- Full voting flow simulation
+### 15.3 Integration Tests
+- Keycloak authentication via ROPC against a test realm
+- **Contract test** between the `ivr-config-resource` Keycloak extension and the Lambda: spin up Keycloak with a representative Direct Grant flow configuration and assert the `/ivr-config` response shape matches what the Lambda expects. This is the only way to catch auth-discovery drift between the two sides
+- Harvest API `/insert-cast-vote`
+- DynamoDB session round-trip
+
+### 15.4 End-to-End Tests
+- Full voting flow simulation via Amazon Connect test calls
 - Multi-language paths
 - Error scenarios
 - Timeout handling
 
-### 15.4 Load Testing
+### 15.5 Load Testing
 - Concurrent call simulation
 - API latency under load
 - DynamoDB throughput
@@ -2244,11 +2435,7 @@ Add to Election Event settings:
 
 1. **Scheduled Closing**: Should phone voting auto-close independently? (CTO mentioned this)
    - **Likely yes** — the `telephone_voting_status` / `telephone_voting_period_dates` fields support this
-2. **Blacklist Storage**: Where should phone number blacklists be stored?
-   - Option A: DynamoDB table (fast lookup, managed by admin portal)
-   - Option B: PostgreSQL via Harvest API (consistent with other data, but requires auth)
-   - Option C: Part of published election config in S3 (simple, but not real-time updatable)
-3. **Audio File Support**: Should the IVR support pre-recorded audio files in addition to TTS?
+2. **Audio File Support**: Should the IVR support pre-recorded audio files in addition to TTS?
    - Barrie specs reference `.mp3`/`.wav` files for all prompts
    - Amazon Connect supports both Polly TTS and S3-hosted audio
    - Could extend prompt values to support `{"type": "audio", "url": "s3://..."}` vs `{"type": "tts", "text": "..."}`
