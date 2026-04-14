@@ -73,7 +73,7 @@ validates against its own mTLS truststore before forwarding.
 
 | Component | Role |
 |-----------|------|
-| `UrlTruststoreProvider` | Custom Keycloak SPI. Fetches the CA bundle per election event realm from Harvest. Results are in-memory cached by realm ID. Configured via `KC_SPI_TRUSTSTORE_PROVIDER=url`. |
+| `UrlTruststoreProvider` | Custom Keycloak SPI. Fetches the shared CA bundle from Harvest. Results are in-memory cached by realm ID. Configured via `KC_SPI_TRUSTSTORE_PROVIDER=url`. |
 | `X509CertClassifierAuthenticator` | Custom SPI. Reads the client cert from the configured HTTP header, extracts issuer CN, sets the `cert-type` auth note. Runs first in the X.509 flow. |
 | Keycloak `nginx` x509cert lookup | Reads the client certificate from a configurable HTTP header. Named "nginx" but works for any reverse proxy header. |
 | nginx mTLS proxy (dev only) | Terminates TLS in front of Keycloak. Uses `optional_no_ca` — no CA validation at this layer. The cert is forwarded raw to Keycloak. |
@@ -191,9 +191,9 @@ openssl pkcs12 -export \
 
 Import `.devcontainer/certs/fake-voter.p12` into your browser's certificate store.
 
-Then import `.devcontainer/certs/client-ca.pem` into the election event via the
-admin portal **Certificate Authorities** tab. This is the only step needed to
-make Keycloak trust that CA — no nginx rebuild required.
+Then import the certificate authorities via the admin portal
+**Settings → CERTIFICATES** tab. This is the only step needed to make Keycloak
+trust that CA — no nginx/keycloak restart is required.
 
 ### 1.5 Voting Portal
 
@@ -239,8 +239,8 @@ Each election event realm needs the X.509 authenticator flow configured.
 The `url-truststore-provider` (`packages/keycloak-extensions/url-truststore-provider/`)
 replaces Keycloak's built-in `file` truststore provider with a `url` provider that:
 
-1. Constructs a per-realm CA bundle URL from `HARVEST_DOMAIN` and the election
-   event ID extracted from the realm name (`tenant-{UUID}-event-{UUID}`).
+1. For any event realm (realm name containing `-event-`), constructs the CA
+   bundle URL from `HARVEST_DOMAIN`: `http://<HARVEST_DOMAIN>/certificate-authorities/pem`.
 2. Fetches the PEM bundle from Harvest at first use and caches it by realm ID.
 3. Refreshes the cached bundle in the background at a configurable interval
    (`KC_SPI_TRUSTSTORE_URL_REFRESH_INTERVAL_SECONDS`).
@@ -310,8 +310,8 @@ docker compose up -d --no-deps keycloak
 
 ### Certificate verification fails (Keycloak rejects the cert)
 
-The CA was not imported into the admin portal for this election event. Import
-`.devcontainer/certs/client-ca.pem` via the **CERTIFICATES** tab.
+The CA was not imported into the admin portal. Import
+`.devcontainer/certs/client-ca.pem` via **Settings → CERTIFICATES**.
 
 ### `ssl-client-verify` is `NONE`
 

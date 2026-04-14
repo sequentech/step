@@ -109,8 +109,8 @@ No cert fields — the attempt did not go through `X509CertClassifierAuthenticat
 
 When Keycloak's built-in `X509ClientCertificateAuthenticator` cannot build the
 certificate path against the CA bundle — for example because the CA was not
-added to the election event's truststore, or because the Cloudflare mTLS
-truststore is out of sync — only `access_denied` appears:
+imported via the admin portal, or because the Cloudflare mTLS truststore is out
+of sync — only `access_denied` appears:
 
 ```
 LOGIN_ERROR: access_denied voter_cert_subject_dn=CN=fake-voter@sequent.test ca_cert_issuer_cn=Sequent Dev CA
@@ -127,8 +127,8 @@ to the Keycloak event system. The full stack trace is visible in the Keycloak po
 logs alongside the `LOGIN_ERROR` event timestamp.
 
 To diagnose a chain-of-trust failure, check:
-1. That the CA certificate is imported in the election event's "Certificate
-   Authorities" tab in the admin portal.
+1. That the CA certificate is imported via **Settings → CERTIFICATES** in the
+   admin portal.
 2. In production, that the same CA is also present in the Cloudflare mTLS
    truststore (requires a manual update — see the architecture doc).
 3. The Keycloak pod logs for the `CertPathBuilderException` that is logged at

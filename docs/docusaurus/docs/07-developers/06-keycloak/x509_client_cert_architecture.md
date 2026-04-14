@@ -19,7 +19,7 @@ goal is **fully dynamic certificate management**: a tech admin can add or remove
 trusted CA certificates through the admin portal UI without touching gitops or
 restarting any service.
 
-CA certificates are stored per election event in the database (Postgres, via
+CA certificates are stored at supertenant level in the database (Postgres, via
 Hasura/Harvest). The `UrlTruststoreProvider` Keycloak SPI fetches them at
 session time and caches them in memory.
 
@@ -161,14 +161,10 @@ production.
 
 `UrlTruststoreProvider` (`packages/keycloak-extensions/url-truststore-provider/`)
 is a custom Keycloak SPI that replaces Keycloak's built-in `file` truststore
-provider. It fetches CA certificates per election event realm from Harvest.
-
-**Per-realm URL:** If the realm name contains `-event-` (format:
-`tenant-{UUID}-event-{UUID}`), the provider extracts the election event ID and
-fetches:
+provider. It fetches the shared CA bundle from Harvest:
 
 ```
-http://<HARVEST_DOMAIN>/election-event/<eventId>/certificate-authorities/pem
+http://<HARVEST_DOMAIN>/certificate-authorities/pem
 ```
 
 Results are cached in-memory keyed by realm ID. If the Harvest fetch fails,
@@ -177,15 +173,15 @@ Keycloak logs a warning and falls back to the JVM default truststore.
 ### Harvest CA Bundle Storage
 
 CA certificates are stored in Postgres in the `sequent_backend_certificate_authority`
-table, scoped per election event. Harvest exposes:
+table at supertenant level (no election event or tenant scoping). Harvest exposes:
 
-- `GET /election-event/{id}/certificate-authorities/pem` — concatenated PEM
-  bundle (used by `UrlTruststoreProvider`)
+- `GET /certificate-authorities/pem` — concatenated PEM bundle for all CAs
+  (used by `UrlTruststoreProvider`)
 - GraphQL actions via Hasura (`import_certificate_authority`,
   `delete_certificate_authority`) for the admin portal
 
-Permissions: `ca-read` (view) and `ca-write` (add/remove), scoped by
-`election_event_id`. `election-event-cas-tab` to allow showing the CAs import tab.
+Permissions: `ca-read` (view) and `ca-write` (add/remove). CAs are managed
+through the **Settings → CERTIFICATES** tab in the admin portal.
 
 When the admin portal updates the CA list, Keycloak picks up the change within
 the next refresh cycle (default: 1 hour) without restart. **The Cloudflare
@@ -264,11 +260,12 @@ independently via `UrlTruststoreProvider`.
 ## Multi-Tenancy Design
 
 Each election event has its own Keycloak realm (`tenant-{UUID}-event-{UUID}`).
-`UrlTruststoreProvider` fetches only the CAs for that event's realm, providing
-full isolation:
+`UrlTruststoreProvider` fetches the shared CA bundle for any event realm —
+CAs are managed at the supertenant level and apply to all election events.
 
-- Adding a CA for election event A only affects voters in event A.
-- Removing a CA from event A does not affect event B.
+> **Note:** Because CAs are shared, adding or removing a CA affects certificate
+> trust for all active election events, not just a single one. Operators should
+> manage the CA list with this in mind.
 
 ---
 
@@ -276,7 +273,7 @@ full isolation:
 
 ```mermaid
 sequenceDiagram
-    participant UI as Admin Portal<br/>"Certificate Authorities" tab
+    participant UI as Admin Portal<br/>"Settings → CERTIFICATES" tab
     participant Hasura as Hasura
     participant Harvest as Harvest
     participant DB as Postgres DB
@@ -287,8 +284,8 @@ sequenceDiagram
     Hasura->>Harvest: POST action (ca-write permission check)
     Harvest->>DB: INSERT certificate_authority record
     Note over DB,KC: Within refresh-interval-seconds (default 1 hour)
-    KC->>Harvest: GET /election-event/{id}/certificate-authorities/pem
-    Harvest->>DB: SELECT CAs for event
+    KC->>Harvest: GET /certificate-authorities/pem
+    Harvest->>DB: SELECT all CAs
     DB->>Harvest: CA records
     Harvest->>KC: Concatenated PEM bundle
     KC->>KC: Update in-memory cache
