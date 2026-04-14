@@ -16,17 +16,23 @@ use windmill::postgres::certificate_authority::delete_certificate_authority;
 use windmill::postgres::election_event::get_election_event_by_id;
 use windmill::services::database::get_hasura_pool;
 
+/// Request body for deleting a certificate authority.
 #[derive(Serialize, Deserialize, Debug)]
 pub struct DeleteCertificateAuthorityInput {
+    /// The certificate authority ID
     id: uuid::Uuid,
+    /// The election event ID
     election_event_id: uuid::Uuid,
 }
 
+/// Response for certificate authority deletion.
 #[derive(Serialize, Deserialize, Debug)]
 pub struct DeleteCertificateAuthorityOutput {
+    /// Whether the deletion was successful
     deleted: bool,
 }
 
+/// Deletes a certificate authority.
 #[instrument(skip(claims, input))]
 #[post("/delete-certificate-authority", format = "json", data = "<input>")]
 pub async fn delete_certificate_authority_route(

@@ -9,12 +9,19 @@ pub mod applications;
 pub mod areas;
 /// Ballot publication and generation endpoints.
 pub mod ballot_publication;
+/// Ballot publication preview preparation endpoints.
 pub mod ballot_publication_prepare_preview;
+/// Ballot receipt creation endpoints.
 pub mod create_ballot_receipt;
+/// Custom URL management endpoints.
 pub mod custom_urls;
+/// Certificate authority deletion endpoints.
 pub mod delete_certificate_authority;
+/// Election event deletion endpoints.
 pub mod delete_election_event;
+/// Election dates management endpoints.
 pub mod election_dates;
+/// Election event statistics endpoints.
 pub mod election_event_stats;
 pub mod election_stats;
 pub mod elections;

@@ -80,7 +80,7 @@ pub async fn delete_user(
     let client = KeycloakAdminClient::new().await.map_err(|e| {
         (
             Status::InternalServerError,
-            format!("Error obtaining the client: {:?}", e),
+            format!("Error obtaining the client: {e:?}"),
         )
     })?;
     client
@@ -89,7 +89,7 @@ pub async fn delete_user(
         .map_err(|e| {
             (
                 Status::InternalServerError,
-                format!("Error deleting the user: {:?}", e),
+                format!("Error deleting the user: {e:?}"),
             )
         })?;
     Ok(Json(Default::default()))
@@ -128,13 +128,13 @@ pub async fn delete_users(
     };
     let client = KeycloakAdminClient::new()
         .await
-        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+        .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
 
     for id in input.users_id {
         client
             .delete_user(&realm, &id)
             .await
-            .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+            .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
     }
     Ok(Json(Default::default()))
 }
@@ -195,28 +195,28 @@ pub async fn count_users(
         get_keycloak_pool().await.get().await.map_err(|e| {
             (
                 Status::InternalServerError,
-                format!("Error acquiring keycloak db client from pool {:?}", e),
+                format!("Error acquiring keycloak db client from pool {e:?}"),
             )
         })?;
     let keycloak_transaction =
         keycloak_db_client.transaction().await.map_err(|e| {
             (
                 Status::InternalServerError,
-                format!("Error acquiring keycloak transaction {:?}", e),
+                format!("Error acquiring keycloak transaction {e:?}"),
             )
         })?;
     let mut hasura_db_client: DbClient =
         get_hasura_pool().await.get().await.map_err(|e| {
             (
                 Status::InternalServerError,
-                format!("Error acquiring hasura db client from pool {:?}", e),
+                format!("Error acquiring hasura db client from pool {e:?}"),
             )
         })?;
     let hasura_transaction =
         hasura_db_client.transaction().await.map_err(|e| {
             (
                 Status::InternalServerError,
-                format!("Error acquiring hasura transaction {:?}", e),
+                format!("Error acquiring hasura transaction {e:?}"),
             )
         })?;
 
@@ -251,7 +251,7 @@ pub async fn count_users(
     .map_err(|e| {
         (
             Status::InternalServerError,
-            format!("Error counting users {:?}", e),
+            format!("Error counting users {e:?}"),
         )
     })?;
 
@@ -290,28 +290,28 @@ pub async fn get_users(
         get_keycloak_pool().await.get().await.map_err(|e| {
             (
                 Status::InternalServerError,
-                format!("Error acquiring keycloak db client from pool {:?}", e),
+                format!("Error acquiring keycloak db client from pool {e:?}"),
             )
         })?;
     let keycloak_transaction =
         keycloak_db_client.transaction().await.map_err(|e| {
             (
                 Status::InternalServerError,
-                format!("Error acquiring keycloak transaction {:?}", e),
+                format!("Error acquiring keycloak transaction {e:?}"),
             )
         })?;
     let mut hasura_db_client: DbClient =
         get_hasura_pool().await.get().await.map_err(|e| {
             (
                 Status::InternalServerError,
-                format!("Error acquiring hasura db client from pool {:?}", e),
+                format!("Error acquiring hasura db client from pool {e:?}"),
             )
         })?;
     let hasura_transaction =
         hasura_db_client.transaction().await.map_err(|e| {
             (
                 Status::InternalServerError,
-                format!("Error acquiring hasura transaction {:?}", e),
+                format!("Error acquiring hasura transaction {e:?}"),
             )
         })?;
 
@@ -348,7 +348,7 @@ pub async fn get_users(
         .map_err(|e| {
             (
                 Status::InternalServerError,
-                format!("Error listing users that has_voted {:?}", e),
+                format!("Error listing users that has_voted {e:?}"),
             )
         })?;
 
@@ -356,7 +356,7 @@ pub async fn get_users(
             items: users,
             total: TotalAggregate {
                 aggregate: Aggregate {
-                    count: count as i64,
+                    count: i64::from(count),
                 },
             },
         }));
@@ -375,7 +375,7 @@ pub async fn get_users(
             .map_err(|e| {
                 (
                     Status::InternalServerError,
-                    format!("Error listing users with vote info {:?}", e),
+                    format!("Error listing users with vote info {e:?}"),
                 )
             })?
         }
@@ -386,7 +386,7 @@ pub async fn get_users(
             .map_err(|e| {
                 (
                     Status::InternalServerError,
-                    format!("Error listing users {:?}", e),
+                    format!("Error listing users {e:?}"),
                 )
             })?,
     };
@@ -395,7 +395,7 @@ pub async fn get_users(
         items: users,
         total: TotalAggregate {
             aggregate: Aggregate {
-                count: count as i64,
+                count: i64::from(count),
             },
         },
     }))
@@ -612,7 +612,7 @@ pub async fn edit_user(
         get_hasura_pool().await.get().await.map_err(|e| {
             (
                 Status::InternalServerError,
-                format!("Error acquiring hasura db client from pool {:?}", e),
+                format!("Error acquiring hasura db client from pool {e:?}"),
             )
         })?;
 
@@ -620,7 +620,7 @@ pub async fn edit_user(
         hasura_db_client.transaction().await.map_err(|e| {
             (
                 Status::InternalServerError,
-                format!("Error acquiring hasura transaction {:?}", e),
+                format!("Error acquiring hasura transaction {e:?}"),
             )
         })?;
 
@@ -641,20 +641,21 @@ pub async fn edit_user(
             .map_err(|e| {
                 (
                     Status::InternalServerError,
-                    format!("Error listing users with vote info {:?}", e),
+                    format!("Error listing users with vote info {e:?}"),
                 )
             })?;
             let Some(voter) = voters.first() else {
                 return Err((
                     Status::InternalServerError,
-                    format!("Error listing voter with vote info"),
+                    "Error listing voter with vote info".to_string(),
                 ));
             };
             if let Some(votes_info) = voter.votes_info.clone() {
                 if votes_info.len() > 0 {
                     return Err((
                         Status::Unauthorized,
-                        format!("Can't edit a voter that has already cast its ballot"),
+                        "Can't edit a voter that has already cast its ballot"
+                            .to_string(),
                     ));
                 }
             }
@@ -663,7 +664,7 @@ pub async fn edit_user(
 
     let client = KeycloakAdminClient::new()
         .await
-        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+        .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
 
     let new_attributes = input.attributes.clone().unwrap_or(HashMap::new());
 
@@ -678,7 +679,7 @@ pub async fn edit_user(
     if voter_email_tlf_edit {
         /*check_edit_email_tlf(&client, &input, &realm, &new_attributes)
         .await
-        .map_err(|e| (Status::Unauthorized, format!("{:?}", e)))?;*/
+        .map_err(|e| (Status::Unauthorized, format!("{e:?}")))?;*/
     }
 
     let user = client
@@ -695,7 +696,12 @@ pub async fn edit_user(
             input.temporary,
         )
         .await
-        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+        .map_err(|e| {
+            (
+                Status::InternalServerError,
+                format!("Error editing user {e:?}"),
+            )
+        })?;
 
     // If the user is disabled via EDIT: send a SetNotVoted request to
     // VoterView, it is a Datafix requirement
@@ -760,9 +766,12 @@ pub async fn get_user(
         }
         None => get_tenant_realm(&input.tenant_id),
     };
-    let client = KeycloakAdminClient::new()
-        .await
-        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+    let client = KeycloakAdminClient::new().await.map_err(|e| {
+        (
+            Status::InternalServerError,
+            format!("Error obtaining the client: {e:?}"),
+        )
+    })?;
     let user = client
         .get_user(&realm, &input.user_id)
         .await
@@ -781,7 +790,7 @@ pub async fn import_users_f(
     let tenant_id = claims.hasura_claims.tenant_id.clone();
     let election_event_id = input.election_event_id.clone().unwrap_or_default();
     let is_admin = election_event_id.is_empty();
-    info!("Calculated is_admin: {}", is_admin);
+    info!("Calculated is_admin: {is_admin}");
 
     let executer_name = claims
         .name
@@ -1013,14 +1022,22 @@ pub async fn get_user_profile_attributes(
         None => get_tenant_realm(&input.tenant_id),
     };
 
-    let client = KeycloakAdminClient::new()
-        .await
-        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+    let client = KeycloakAdminClient::new().await.map_err(|e| {
+        (
+            Status::InternalServerError,
+            format!("Error creating Keycloak client: {e:?}"),
+        )
+    })?;
 
     let attributes_res = client
         .get_user_profile_attributes(&realm)
         .await
-        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+        .map_err(|e| {
+            (
+                Status::InternalServerError,
+                format!("Error getting user profile attributes: {e:?}"),
+            )
+        })?;
 
     Ok(Json(attributes_res))
 }

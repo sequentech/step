@@ -13,22 +13,30 @@ use serde::{Deserialize, Serialize};
 use tracing::{info, instrument};
 use uuid::Uuid;
 use windmill::services::celery_app::get_celery_app;
-use windmill::services::tasks_execution::*;
+use windmill::services::tasks_execution::post;
 use windmill::types::tasks::ETasksExecution;
 
+/// Request body for preparing ballot publication preview.
 #[derive(Serialize, Deserialize, Debug)]
 pub struct PreparePublPreviewInput {
+    /// The election event ID
     election_event_id: String,
+    /// The ballot publication ID
     ballot_publication_id: String,
 }
 
+/// Response for ballot publication preview preparation.
 #[derive(Serialize, Deserialize, Debug)]
 pub struct PreparePublPreviewOutput {
+    /// Optional error message
     error_msg: Option<String>,
+    /// The generated document ID
     document_id: String,
+    /// Task execution information
     task_execution: Option<TasksExecution>,
 }
 
+/// Prepares a ballot publication preview for review.
 #[instrument(skip(claims))]
 #[post(
     "/prepare-ballot-publication-preview",
@@ -94,7 +102,7 @@ pub async fn prepare_ballot_publication_preview(
         Err(err) => {
             return Ok(Json(PreparePublPreviewOutput {
                 error_msg: Some(format!(
-                    "Error sending prepare_publication_preview task: ${err}"
+                    "Error sending prepare_publication_preview task: {err}"
                 )),
                 document_id,
                 task_execution: Some(task_execution),

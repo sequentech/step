@@ -68,12 +68,12 @@ pub async fn generate_ballot_publication(
         .await
         .get()
         .await
-        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+        .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
 
     let hasura_transaction = hasura_db_client
         .transaction()
         .await
-        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+        .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
 
     let election_event = get_election_event_by_id(
         &hasura_transaction,
@@ -252,7 +252,7 @@ pub async fn get_ballot_publication_changes(
         input.limit,
     )
     .await
-    .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+    .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
 
     Ok(Json(diff))
 }
