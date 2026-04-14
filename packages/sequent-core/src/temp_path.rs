@@ -10,23 +10,41 @@ use tempfile::Builder;
 use tempfile::{NamedTempFile, TempPath};
 use tracing::{event, instrument, Level};
 
+/// The template for the QR code in the public assets.
 pub const QR_CODE_TEMPLATE: &str = "<div id=\"qrcode\"></div>";
+/// The template html for the logo in the public assets.
 pub const LOGO_TEMPLATE: &str = "<div class=\"logo\"></div>";
+/// The filename for the logo image in the public assets.
 pub const PUBLIC_ASSETS_LOGO_IMG: &str = "sequent-logo.svg";
+/// The filename for the QR code library in the public assets.
 pub const PUBLIC_ASSETS_QRCODE_LIB: &str = "qrcode.min.js";
+/// The template for the ballot images page for the ballot images report.
 pub const PUBLIC_ASSETS_VELVET_BALLOT_IMAGES_TEMPLATE: &str =
     "ballot_images_user.hbs";
+
+/// The system template for the ballot images page for the ballot images report.
 pub const PUBLIC_ASSETS_VELVET_BALLOT_IMAGES_TEMPLATE_SYSTEM: &str =
     "ballot_images_system.hbs";
+
+/// The template for the ballot images page for the MC ballot images report.
 pub const PUBLIC_ASSETS_VELVET_MC_BALLOT_IMAGES_TEMPLATE: &str =
     "mc_ballot_images_user.hbs";
+
+/// The base template for EML documents.
 pub const PUBLIC_ASSETS_EML_BASE_TEMPLATE: &str = "eml_base.hbs";
+
+/// The title for the ballot images template.
 pub const VELVET_BALLOT_IMAGES_TEMPLATE_TITLE: &str =
     "Ballot images - Sequentech";
+
+/// The default i18n JSON file for public assets.
 pub const PUBLIC_ASSETS_I18N_DEFAULTS: &str = "i18n_defaults.json";
 
+/// The system template for the initialization report.
 pub const PUBLIC_ASSETS_INITIALIZATION_TEMPLATE_SYSTEM: &str =
     "initialization_report_system.hbs";
+
+/// The system template for the electoral results report.
 pub const PUBLIC_ASSETS_ELECTORAL_RESULTS_TEMPLATE_SYSTEM: &str =
     "electoral_results_system.hbs";
 

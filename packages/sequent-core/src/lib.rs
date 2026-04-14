@@ -2,7 +2,6 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 #![doc = include_str!("lib.docs.md")]
-#![allow(missing_docs)]
 #[macro_use]
 extern crate quick_error;
 extern crate cfg_if;

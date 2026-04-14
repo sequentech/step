@@ -44,6 +44,7 @@ pub struct ContestLayoutProperties {
 }
 
 #[must_use]
+/// Determines the layout properties of a contest based on its counting algorithm.
 pub fn get_layout_properties(
     contest: &Contest,
 ) -> Option<ContestLayoutProperties> {

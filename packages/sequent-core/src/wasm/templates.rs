@@ -15,6 +15,7 @@ enum IAudienceSelection {
 
 #[wasm_bindgen]
 extern "C" {
+    /// TypeScript interface describing the audience selection for a template.
     #[wasm_bindgen(typescript_type = "IAudienceSelection")]
     pub type IAudienceSelection;
 }
@@ -33,6 +34,7 @@ enum ITemplateType {
 
 #[wasm_bindgen]
 extern "C" {
+    /// TypeScript interface describing the type of a template.
     #[wasm_bindgen(typescript_type = "ITemplateType")]
     pub type ITemplateType;
 }
@@ -47,6 +49,7 @@ enum ITemplateMethod {
 
 #[wasm_bindgen]
 extern "C" {
+    /// TypeScript interface describing the communication method for a template.
     #[wasm_bindgen(typescript_type = "ITemplateMethod")]
     pub type ITemplateMethod;
 }
@@ -62,6 +65,7 @@ interface IEmailConfig {
 
 #[wasm_bindgen]
 extern "C" {
+    /// TypeScript interface describing the email configuration for a template.
     #[wasm_bindgen(typescript_type = "IEmailConfig")]
     pub type IEmailConfig;
 }
@@ -75,6 +79,7 @@ interface ISmsConfig {
 
 #[wasm_bindgen]
 extern "C" {
+    /// TypeScript interface describing the SMS configuration for a template.
     #[wasm_bindgen(typescript_type = "ISmsConfig")]
     pub type ISmsConfig;
 }
@@ -89,6 +94,7 @@ interface ICommTemplates {
 
 #[wasm_bindgen]
 extern "C" {
+    /// TypeScript interface describing the communication configuration for a template.
     #[wasm_bindgen(typescript_type = "ICommTemplates")]
     pub type ICommTemplates;
 }
@@ -104,6 +110,7 @@ interface IExtraConfig {
 
 #[wasm_bindgen]
 extern "C" {
+    /// TypeScript interface describing the extra configuration options for a template.
     #[wasm_bindgen(typescript_type = "IExtraConfig")]
     pub type IExtraConfig;
 }
@@ -126,6 +133,7 @@ interface ISendTemplateBody {
 
 #[wasm_bindgen]
 extern "C" {
+    /// TypeScript interface describing the body of a request to send a template.
     #[wasm_bindgen(typescript_type = "ISendTemplateBody")]
     pub type ISendTemplateBody;
 }

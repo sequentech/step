@@ -1614,9 +1614,13 @@ impl AreaPresentation {
     Clone,
     Default,
 )]
+/// Presentation settings for a candidate subtype.
 pub struct SubtypePresentation {
+    /// Name of the subtype.
     pub name: Option<String>,
+    /// Internationalized name of the subtype.
     pub name_i18n: Option<I18nContent<Option<String>>>,
+    /// Sort order for the subtype.
     pub sort_order: Option<i64>,
 }
 
@@ -1632,10 +1636,15 @@ pub struct SubtypePresentation {
     Clone,
     Default,
 )]
+/// Presentation settings for a candidate type, including its subtypes.
 pub struct TypePresentation {
+    /// Name type.
     pub name: Option<String>,
+    /// Internationalized name of type.
     pub name_i18n: Option<I18nContent<Option<String>>>,
+    /// Sort order for type.
     pub sort_order: Option<i64>,
+    /// Presentation settings for the subtypes of this candidate type, if applicable.
     pub subtypes_presentation:
         Option<HashMap<String, Option<SubtypePresentation>>>,
 }
@@ -2486,13 +2495,16 @@ pub enum ManualStartVotingPeriod {
     EnumString,
     JsonSchema,
 )]
+/// Policy for allowing voting period ends.
 pub enum VotingPeriodEnd {
     #[default]
     #[strum(serialize = "allowed")]
     #[serde(rename = "allowed")]
+    /// Voting period end is allowed, meaning that the voting period can be ended.
     ALLOWED,
     #[strum(serialize = "disallowed")]
     #[serde(rename = "disallowed")]
+    /// Voting period end is not allowed,
     DISALLOWED,
 }
 
@@ -2559,22 +2571,20 @@ pub struct PeriodDates {
 /// Struct to hold the stringified first and last timestamps for each
 ///  voting status change during a voting period.
 pub struct StringifiedPeriodDates {
+    /// The first time the voting period was started, in string format.
     pub first_started_at: Option<String>,
+    /// The last time the voting period was started, in string format.
     pub last_started_at: Option<String>,
+    /// The first time the voting period was paused, in string format.
     pub first_paused_at: Option<String>,
+    /// The last time the voting period was paused, in string format.
     pub last_paused_at: Option<String>,
+    /// The first time the voting period was stopped, in string format.
     pub first_stopped_at: Option<String>,
+    /// The last time the voting period was stopped, in string format.
     pub last_stopped_at: Option<String>,
+    /// The scheduled event dates, in string format.
     pub scheduled_event_dates: Option<HashMap<String, ScheduledEventDates>>,
-}
-
-#[derive(
-    Serialize, Deserialize, PartialEq, Eq, JsonSchema, Debug, Clone, Default,
-)]
-pub struct ReportDates {
-    pub start_date: String,
-    pub end_date: String,
-    pub election_date: String,
 }
 
 #[derive(
@@ -3005,12 +3015,15 @@ pub enum ConsolidatedReportPolicy {
     EnumString,
     JsonSchema,
 )]
+/// Policy to determine how ties are broken in the election.
 pub enum TieBreakingPolicy {
     #[default]
     #[strum(serialize = "random")]
     #[serde(rename = "random")]
+    /// Ties are broken randomly.
     RANDOM,
     #[strum(serialize = "external-procedure")]
     #[serde(rename = "external-procedure")]
+    /// Ties are broken using an external procedure.
     EXTERNAL_PROCEDURE,
 }

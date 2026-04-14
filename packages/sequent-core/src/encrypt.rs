@@ -33,6 +33,7 @@ use base64::engine::general_purpose;
 use base64::Engine;
 use strand::serialization::StrandSerialize;
 
+/// Default public key for Ristretto.
 pub const DEFAULT_PUBLIC_KEY_RISTRETTO_STR: &str =
     "ajR/I9RqyOwbpsVRucSNOgXVLCvLpfQxCgPoXGQ2RF4";
 
@@ -40,12 +41,13 @@ pub const DEFAULT_PUBLIC_KEY_RISTRETTO_STR: &str =
 /// only the first 32 bytes.
 pub const SHORT_SHA512_HASH_LENGTH_BYTES: usize = 32;
 
+/// Type alias for a shortened SHA-512 hash.
 pub type ShortHash = [u8; SHORT_SHA512_HASH_LENGTH_BYTES];
 
-// Labels are used to make the proof of knowledge unique.
-// This is a constant for now but when we implement voter signatures this will
-// be unique to the voter, and it will include the public key of the voter,
-// election event id, election id, contest id etc.
+/// Labels are used to make the proof of knowledge unique.
+/// This is a constant for now but when we implement voter signatures this will
+/// be unique to the voter, and it will include the public key of the voter,
+/// election event id, election id, contest id etc.
 pub const DEFAULT_PLAINTEXT_LABEL: [u8; 0] = [];
 
 /// Returns the default public key for Ristretto.

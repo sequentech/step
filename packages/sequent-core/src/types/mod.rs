@@ -19,7 +19,7 @@ pub mod permissions;
 /// Election tally results types.
 pub mod results;
 
-// scheduled events types.
+/// Scheduled events types.
 #[cfg(feature = "default_features")]
 pub mod scheduled_event;
 /// Tally sheet types.

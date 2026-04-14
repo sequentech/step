@@ -15,10 +15,14 @@ use strand::hash::hash_sha256;
 use tempfile::tempdir;
 use tracing::{info, instrument};
 
+/// The path to the ECIES tool JAR file.
 pub const ECIES_TOOL_PATH: &str = "/usr/local/bin/ecies-tool.jar";
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Represents an ECIES key pair.
 pub struct EciesKeyPair {
+    /// The private key in PEM format.
     pub private_key_pem: String,
+    /// The public key in PEM format.
     pub public_key_pem: String,
 }
 
@@ -137,10 +141,12 @@ pub fn ecies_sign_data(
     Ok(encrypted_base64)
 }
 
-// A struct you can use to keep track of each item you want to sign
+/// A struct you can use to keep track of each item you want to sign
 pub struct SignRequest {
-    pub id: String,   // or any key you want, to correlate back
-    pub data: String, // the sign_data string
+    /// or any key you want, to correlate back
+    pub id: String,
+    /// the sign data string
+    pub data: String,
 }
 
 #[instrument(skip_all, err)]

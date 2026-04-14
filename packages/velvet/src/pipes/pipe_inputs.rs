@@ -8,7 +8,7 @@ use crate::{
     utils::parse_file,
 };
 use sequent_core::{
-    ballot::{BallotStyle, Contest, ElectionPresentation, ReportDates, StringifiedPeriodDates},
+    ballot::{BallotStyle, Contest, ElectionPresentation, StringifiedPeriodDates},
     services::area_tree::TreeNodeArea,
     util::path::get_folder_name,
 };

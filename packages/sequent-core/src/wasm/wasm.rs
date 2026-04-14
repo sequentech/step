@@ -62,18 +62,28 @@ use std::panic;
 // }
 
 #[derive(Serialize, Deserialize, JsonSchema, PartialEq, Eq, Debug, Clone)]
+/// A structured error status for JS interop, containing an error type and message.
 pub struct ErrorStatus {
+    /// The type of error that occurred, categorized by `BallotError`.
     pub error_type: BallotError,
+    /// A message providing details about the error.
     pub error_msg: String,
 }
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, JsonSchema, Clone, Eq)]
+/// Error types for ballot processing.
 pub enum BallotError {
+    /// An error occurred while parsing the input JSON.
     PARSE_ERROR,
+    /// An error occurred while deserializing an auditable ballot.
     DESERIALIZE_AUDITABLE_ERROR,
+    /// An error occurred while deserializing a hashable ballot.
     DESERIALIZE_HASHABLE_ERROR,
+    /// An error occurred while converting between ballot types.
     CONVERT_ERROR,
+    /// An error occurred while serializing a ballot to JSON.
     SERIALIZE_ERROR,
+    /// An error occurred while hashing a ballot.
     INVALID_BALLOT,
 }
 
@@ -84,6 +94,7 @@ impl From<ErrorStatus> for JsValue {
     }
 }
 
+/// A trait to convert `Result<T, String>` into `Result<T, JsValue>` for better error handling in JS interop.
 pub trait IntoResult<T> {
     /// Converts a `Result<T, String>` into a `Result<T, JsValue>`.
     ///
@@ -113,6 +124,7 @@ extern "C" {
 }
 
 #[wasm_bindgen]
+/// Sets up panic hooks for better error messages in JS interop.
 pub fn set_hooks() {
     panic::set_hook(Box::new(console_error_panic_hook::hook));
 }

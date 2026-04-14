@@ -30,6 +30,7 @@ enum IContestStateEnum {
 
 #[wasm_bindgen]
 extern "C" {
+    /// TypeScript interface describing the state of a contest.
     #[wasm_bindgen(typescript_type = "IContestStateEnum")]
     pub type IContestStateEnum;
 }
@@ -44,6 +45,7 @@ interface ICandidateProperties {
 
 #[wasm_bindgen]
 extern "C" {
+    /// TypeScript interface describing the properties of a candidate in a decoded vote choice.
     #[wasm_bindgen(typescript_type = "ICandidateProperties")]
     pub type ICandidateProperties;
 }
@@ -59,6 +61,7 @@ interface IContestLayoutProperties {
 
 #[wasm_bindgen]
 extern "C" {
+    /// TypeScript interface describing the layout properties of a contest.
     #[wasm_bindgen(typescript_type = "IContestLayoutProperties")]
     pub type IContestLayoutProperties;
 }

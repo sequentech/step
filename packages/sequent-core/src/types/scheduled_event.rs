@@ -26,46 +26,66 @@ use strum_macros::EnumString;
     EnumString,
     Hash,
 )]
+/// Enum representing different types of event processors for scheduled events.
 pub enum EventProcessors {
     #[strum(serialize = "ALLOW_INIT_REPORT")]
+    /// Allow Initialization report to be generated.
     ALLOW_INIT_REPORT,
     #[strum(serialize = "CREATE_REPORT")]
+    /// Scheduled event to create a report.
     CREATE_REPORT,
     #[strum(serialize = "SEND_TEMPLATE")]
+    /// Scheduled event to send a template.
     SEND_TEMPLATE,
     #[strum(serialize = "START_VOTING_PERIOD")]
+    /// Start of the voting period.
     START_VOTING_PERIOD,
     #[strum(serialize = "END_VOTING_PERIOD")]
+    /// End of the voting period.
     END_VOTING_PERIOD,
     #[strum(serialize = "ALLOW_VOTING_PERIOD_END")]
+    /// Allow the voting period to end.
     ALLOW_VOTING_PERIOD_END,
     #[strum(serialize = "START_ENROLLMENT_PERIOD")]
+    /// Start of the enrollment period.
     START_ENROLLMENT_PERIOD,
     #[strum(serialize = "END_ENROLLMENT_PERIOD")]
+    /// End of the enrollment period.
     END_ENROLLMENT_PERIOD,
     #[strum(serialize = "START_LOCKDOWN_PERIOD")]
+    /// Start of the lockdown period.
     START_LOCKDOWN_PERIOD,
     #[strum(serialize = "END_LOCKDOWN_PERIOD")]
+    /// End of the lockdown period.
     END_LOCKDOWN_PERIOD,
     #[strum(serialize = "ALLOW_TALLY")]
+    /// Allow the tally to be performed.
     ALLOW_TALLY,
 }
 
 #[derive(Serialize, Deserialize, Eq, PartialEq, Debug, Clone)]
+/// Configuration for a cron job, including the cron expression and the scheduled date.
 pub struct CronConfig {
+    /// Cron expression defining the schedule for the event.
     pub cron: Option<String>,
+    /// Scheduled date for the event.
     pub scheduled_date: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
+/// Payload for managing election dates, containing an optional election ID.
 pub struct ManageElectionDatePayload {
+    /// Election ID associated with the election date management.
     pub election_id: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
+/// Payload for managing the allowance of initialization report.
 pub struct ManageAllowInitPayload {
+    /// Election ID associated with the initialization report.
     pub election_id: Option<String>,
     #[serde(default = "default_allow_init")]
+    /// Flag indicating whether the initialization report is allowed. Defaults to true.
     pub allow_init: bool,
 }
 
@@ -77,33 +97,52 @@ const fn default_allow_init() -> bool {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
+/// Payload for managing the allowance of voting period end.
 pub struct ManageAllowVotingPeriodEndPayload {
+    /// Election ID associated with the voting period end.
     pub election_id: Option<String>,
+    /// Flag indicating whether the voting period end is allowed.
     pub allow_voting_period_end: Option<bool>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
+/// Payload for managing the allowance of tally.
 pub struct ManageAllowTallyPayload {
+    /// Election ID associated with the tally.
     pub election_id: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone)]
+/// Represents a scheduled event in the system.
 pub struct ScheduledEvent {
+    /// Unique identifier for the scheduled event.
     pub id: String,
+    /// Optional tenant ID associated with the event.
     pub tenant_id: Option<String>,
+    /// Optional election event ID associated with the event.
     pub election_event_id: Option<String>,
+    /// Scheduled creation date for the event, if applicable.
     pub created_at: Option<DateTime<Utc>>,
+    /// Scheduled stop date for the event, if applicable.
     pub stopped_at: Option<DateTime<Utc>>,
+    /// Scheduled archive date for the event, if applicable.
     pub archived_at: Option<DateTime<Utc>>,
+    /// Labels associated with the event.
     pub labels: Option<Value>,
+    /// Annotations associated with the event.
     pub annotations: Option<Value>,
+    /// Event processor (type).
     pub event_processor: Option<EventProcessors>,
+    /// Cron configuration for the event.
     pub cron_config: Option<CronConfig>,
+    /// Event payload.
     pub event_payload: Option<Value>,
+    /// Task ID associated with the event.
     pub task_id: Option<String>,
 }
 
 #[must_use]
+/// Generates a task name for managing scheduled dates
 pub fn generate_manage_date_task_name(
     tenant_id: &str,
     election_event_id: &str,
