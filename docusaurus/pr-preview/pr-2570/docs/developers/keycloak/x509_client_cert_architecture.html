@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.9.2">
 <title data-rh="true">X.509 Client Certificate Authentication — Architecture | Sequent Online Voting</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:url" content="https://sequentech.github.io/docusaurus/pr-preview/pr-2570/docs/developers/keycloak/x509_client_cert_architecture"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="X.509 Client Certificate Authentication — Architecture | Sequent Online Voting"><meta data-rh="true" name="description" content="&lt;!--"><meta data-rh="true" property="og:description" content="&lt;!--"><link data-rh="true" rel="icon" href="/docusaurus/pr-preview/pr-2570/img/favicon.ico"><link data-rh="true" rel="canonical" href="https://sequentech.github.io/docusaurus/pr-preview/pr-2570/docs/developers/keycloak/x509_client_cert_architecture"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-2570/docs/developers/keycloak/x509_client_cert_architecture" hreflang="en"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-2570/docs/developers/keycloak/x509_client_cert_architecture" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"X.509 Client Certificate Authentication — Architecture","item":"https://sequentech.github.io/docusaurus/pr-preview/pr-2570/docs/developers/keycloak/x509_client_cert_architecture"}]}</script><link rel="stylesheet" href="/docusaurus/pr-preview/pr-2570/assets/css/styles.b012d36e.css">
-<script src="/docusaurus/pr-preview/pr-2570/assets/js/runtime~main.2386cbdc.js" defer="defer"></script>
+<script src="/docusaurus/pr-preview/pr-2570/assets/js/runtime~main.a0714219.js" defer="defer"></script>
 <script src="/docusaurus/pr-preview/pr-2570/assets/js/main.cd010fc9.js" defer="defer"></script>
 </head>
 <body class="navigation-with-keyboard">
@@ -18,7 +18,7 @@ authentication for voters in the Sequent voting platform. The central design
 goal is <strong>fully dynamic certificate management</strong>: a tech admin can add or remove
 trusted CA certificates through the admin portal UI without touching gitops or
 restarting any service.</p>
-<p>CA certificates are stored per election event in the database (Postgres, via
+<p>CA certificates are stored at supertenant level in the database (Postgres, via
 Hasura/Harvest). The <code>UrlTruststoreProvider</code> Keycloak SPI fetches them at
 session time and caches them in memory.</p>
 <p><strong>See also:</strong> <a class="" href="/docusaurus/pr-preview/pr-2570/docs/developers/10-tutorials/07-x509-voter-certificate-authentication">X.509 Dev Tutorial</a> — dev environment setup, testing, and troubleshooting.</p>
@@ -86,24 +86,21 @@ production.</p>
 <h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="urltruststoreprovider-dynamic-ca-bundle">UrlTruststoreProvider (Dynamic CA Bundle)<a href="#urltruststoreprovider-dynamic-ca-bundle" class="hash-link" aria-label="Direct link to UrlTruststoreProvider (Dynamic CA Bundle)" title="Direct link to UrlTruststoreProvider (Dynamic CA Bundle)" translate="no">​</a></h3>
 <p><code>UrlTruststoreProvider</code> (<code>packages/keycloak-extensions/url-truststore-provider/</code>)
 is a custom Keycloak SPI that replaces Keycloak&#x27;s built-in <code>file</code> truststore
-provider. It fetches CA certificates per election event realm from Harvest.</p>
-<p><strong>Per-realm URL:</strong> If the realm name contains <code>-event-</code> (format:
-<code>tenant-{UUID}-event-{UUID}</code>), the provider extracts the election event ID and
-fetches:</p>
-<div class="language-text codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#bfc7d5;--prism-background-color:#292d3e"><div class="codeBlockContent_QJqH"><pre tabindex="0" class="prism-code language-text codeBlock_bY9V thin-scrollbar" style="color:#bfc7d5;background-color:#292d3e"><code class="codeBlockLines_e6Vv"><span class="token-line" style="color:#bfc7d5"><span class="token plain">http://&lt;HARVEST_DOMAIN&gt;/election-event/&lt;eventId&gt;/certificate-authorities/pem</span><br></span></code></pre></div></div>
+provider. It fetches the shared CA bundle from Harvest:</p>
+<div class="language-text codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#bfc7d5;--prism-background-color:#292d3e"><div class="codeBlockContent_QJqH"><pre tabindex="0" class="prism-code language-text codeBlock_bY9V thin-scrollbar" style="color:#bfc7d5;background-color:#292d3e"><code class="codeBlockLines_e6Vv"><span class="token-line" style="color:#bfc7d5"><span class="token plain">http://&lt;HARVEST_DOMAIN&gt;/certificate-authorities/pem</span><br></span></code></pre></div></div>
 <p>Results are cached in-memory keyed by realm ID. If the Harvest fetch fails,
 Keycloak logs a warning and falls back to the JVM default truststore.</p>
 <h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="harvest-ca-bundle-storage">Harvest CA Bundle Storage<a href="#harvest-ca-bundle-storage" class="hash-link" aria-label="Direct link to Harvest CA Bundle Storage" title="Direct link to Harvest CA Bundle Storage" translate="no">​</a></h3>
 <p>CA certificates are stored in Postgres in the <code>sequent_backend_certificate_authority</code>
-table, scoped per election event. Harvest exposes:</p>
+table at supertenant level (no election event or tenant scoping). Harvest exposes:</p>
 <ul>
-<li class=""><code>GET /election-event/{id}/certificate-authorities/pem</code> — concatenated PEM
-bundle (used by <code>UrlTruststoreProvider</code>)</li>
+<li class=""><code>GET /certificate-authorities/pem</code> — concatenated PEM bundle for all CAs
+(used by <code>UrlTruststoreProvider</code>)</li>
 <li class="">GraphQL actions via Hasura (<code>import_certificate_authority</code>,
 <code>delete_certificate_authority</code>) for the admin portal</li>
 </ul>
-<p>Permissions: <code>ca-read</code> (view) and <code>ca-write</code> (add/remove), scoped by
-<code>election_event_id</code>. <code>election-event-cas-tab</code> to allow showing the CAs import tab.</p>
+<p>Permissions: <code>ca-read</code> (view) and <code>ca-write</code> (add/remove). CAs are managed
+through the <strong>Settings → CERTIFICATES</strong> tab in the admin portal.</p>
 <p>When the admin portal updates the CA list, Keycloak picks up the change within
 the next refresh cycle (default: 1 hour) without restart. <strong>The Cloudflare
 truststore is not updated automatically.</strong></p>
@@ -154,12 +151,13 @@ independently via <code>UrlTruststoreProvider</code>.</p>
 <hr>
 <h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="multi-tenancy-design">Multi-Tenancy Design<a href="#multi-tenancy-design" class="hash-link" aria-label="Direct link to Multi-Tenancy Design" title="Direct link to Multi-Tenancy Design" translate="no">​</a></h2>
 <p>Each election event has its own Keycloak realm (<code>tenant-{UUID}-event-{UUID}</code>).
-<code>UrlTruststoreProvider</code> fetches only the CAs for that event&#x27;s realm, providing
-full isolation:</p>
-<ul>
-<li class="">Adding a CA for election event A only affects voters in event A.</li>
-<li class="">Removing a CA from event A does not affect event B.</li>
-</ul>
+<code>UrlTruststoreProvider</code> fetches the shared CA bundle for any event realm —
+CAs are managed at the supertenant level and apply to all election events.</p>
+<blockquote>
+<p><strong>Note:</strong> Because CAs are shared, adding or removing a CA affects certificate
+trust for all active election events, not just a single one. Operators should
+manage the CA list with this in mind.</p>
+</blockquote>
 <hr>
 <h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="dynamic-certificate-management-flow">Dynamic Certificate Management Flow<a href="#dynamic-certificate-management-flow" class="hash-link" aria-label="Direct link to Dynamic Certificate Management Flow" title="Direct link to Dynamic Certificate Management Flow" translate="no">​</a></h2>
 <!-- -->

@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.9.2">
 <title data-rh="true">X.509 Certificate Login — Electoral Log Events | Sequent Online Voting</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:url" content="https://sequentech.github.io/docusaurus/pr-preview/pr-2570/docs/developers/keycloak/x509_cert_login_events"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="X.509 Certificate Login — Electoral Log Events | Sequent Online Voting"><meta data-rh="true" name="description" content="&lt;!--"><meta data-rh="true" property="og:description" content="&lt;!--"><link data-rh="true" rel="icon" href="/docusaurus/pr-preview/pr-2570/img/favicon.ico"><link data-rh="true" rel="canonical" href="https://sequentech.github.io/docusaurus/pr-preview/pr-2570/docs/developers/keycloak/x509_cert_login_events"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-2570/docs/developers/keycloak/x509_cert_login_events" hreflang="en"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-2570/docs/developers/keycloak/x509_cert_login_events" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"X.509 Certificate Login — Electoral Log Events","item":"https://sequentech.github.io/docusaurus/pr-preview/pr-2570/docs/developers/keycloak/x509_cert_login_events"}]}</script><link rel="stylesheet" href="/docusaurus/pr-preview/pr-2570/assets/css/styles.b012d36e.css">
-<script src="/docusaurus/pr-preview/pr-2570/assets/js/runtime~main.2386cbdc.js" defer="defer"></script>
+<script src="/docusaurus/pr-preview/pr-2570/assets/js/runtime~main.a0714219.js" defer="defer"></script>
 <script src="/docusaurus/pr-preview/pr-2570/assets/js/main.cd010fc9.js" defer="defer"></script>
 </head>
 <body class="navigation-with-keyboard">
@@ -69,8 +69,8 @@ sequence.</p>
 <h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="certificate-chain-not-trusted">Certificate chain not trusted<a href="#certificate-chain-not-trusted" class="hash-link" aria-label="Direct link to Certificate chain not trusted" title="Direct link to Certificate chain not trusted" translate="no">​</a></h3>
 <p>When Keycloak&#x27;s built-in <code>X509ClientCertificateAuthenticator</code> cannot build the
 certificate path against the CA bundle — for example because the CA was not
-added to the election event&#x27;s truststore, or because the Cloudflare mTLS
-truststore is out of sync — only <code>access_denied</code> appears:</p>
+imported via the admin portal, or because the Cloudflare mTLS truststore is out
+of sync — only <code>access_denied</code> appears:</p>
 <div class="language-text codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#bfc7d5;--prism-background-color:#292d3e"><div class="codeBlockContent_QJqH"><pre tabindex="0" class="prism-code language-text codeBlock_bY9V thin-scrollbar" style="color:#bfc7d5;background-color:#292d3e"><code class="codeBlockLines_e6Vv"><span class="token-line" style="color:#bfc7d5"><span class="token plain">LOGIN_ERROR: access_denied voter_cert_subject_dn=CN=fake-voter@sequent.test ca_cert_issuer_cn=Sequent Dev CA</span><br></span></code></pre></div></div>
 <h4 class="anchor anchorTargetStickyNavbar_Vzrq" id="why-the-specific-crypto-error-is-not-captured">Why the specific crypto error is not captured<a href="#why-the-specific-crypto-error-is-not-captured" class="hash-link" aria-label="Direct link to Why the specific crypto error is not captured" title="Direct link to Why the specific crypto error is not captured" translate="no">​</a></h4>
 <p>Keycloak logs the underlying <code>CertPathBuilderException</code> internally (e.g.
@@ -82,8 +82,8 @@ to the Keycloak event system. The full stack trace is visible in the Keycloak po
 logs alongside the <code>LOGIN_ERROR</code> event timestamp.</p>
 <p>To diagnose a chain-of-trust failure, check:</p>
 <ol>
-<li class="">That the CA certificate is imported in the election event&#x27;s &quot;Certificate
-Authorities&quot; tab in the admin portal.</li>
+<li class="">That the CA certificate is imported via <strong>Settings → CERTIFICATES</strong> in the
+admin portal.</li>
 <li class="">In production, that the same CA is also present in the Cloudflare mTLS
 truststore (requires a manual update — see the architecture doc).</li>
 <li class="">The Keycloak pod logs for the <code>CertPathBuilderException</code> that is logged at
