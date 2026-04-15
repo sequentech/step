@@ -77,7 +77,7 @@ jobs:
           dir: hasura/
 
   rust-fmt:
-    name: Check Rust format 
+    name: Check Rust format and linting
     runs-on: gcp-selfhosted-ubuntu24
     steps:
       - name: Check out code
@@ -92,6 +92,9 @@ jobs:
 
       - name: Check Rust code formatting
         run: cd packages/ && cargo fmt -- --check
+
+      - name: Check Rust Sequent Core Clippy
+        run: cd packages/sequent-core && cargo clippy --no-deps --all-features -- -A warnings
   
   java-spotless:
     name: Check Java format
