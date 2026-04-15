@@ -1328,36 +1328,6 @@ pub async fn process_document(
                 .await
                 .context("Failed to import tally_file")?;
             }
-
-            if file_name.contains(EDocuments::CERTIFICATES.to_file_name()) {
-                let pem_content = String::from_utf8(file_contents.clone())
-                    .context("Failed to decode certificates PEM as UTF-8")?;
-                let pem_chunks = split_pem_bundle(&pem_content);
-                for pem_chunk in pem_chunks {
-                    let pem_chunk_owned = pem_chunk.clone();
-                    let parsed = tokio::task::spawn_blocking(move || {
-                        parse_certificate_pem(&pem_chunk_owned)
-                    })
-                    .await
-                    .context("Failed to spawn blocking task for cert parsing")?
-                    .context("Failed to parse certificate PEM")?;
-                    let record = CertificateAuthorityRecord {
-                        id: Uuid::new_v4(),
-                        common_name: parsed.common_name,
-                        subject: parsed.subject,
-                        issuer_common_name: parsed.issuer_common_name,
-                        issuer: parsed.issuer,
-                        not_before: parsed.not_before,
-                        not_after: parsed.not_after,
-                        fingerprint_sha256: parsed.fingerprint_sha256,
-                        serial_number: parsed.serial_number,
-                        pem: parsed.pem,
-                    };
-                    insert_certificate_authority(hasura_transaction, record)
-                        .await
-                        .context("Failed to insert certificate authority")?;
-                }
-            }
         }
     };
 
