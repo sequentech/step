@@ -56,6 +56,7 @@ public class X509CertClassifierAuthenticator implements Authenticator {
           "authenticate(): no {0} header present, setting {1}={2}",
           headerName, AUTH_NOTE_DENY_TYPE, CERT_NOT_PROVIDED);
       context.getAuthenticationSession().setAuthNote(AUTH_NOTE_DENY_TYPE, CERT_NOT_PROVIDED);
+      context.getEvent().detail(AUTH_NOTE_DENY_TYPE, CERT_NOT_PROVIDED);
       context.getEvent().detail(VOTER_CERT_SUBJECT_DN, CERT_TYPE_NONE);
       context.getEvent().detail(CA_CERT_ISSUER_CN, CERT_TYPE_NONE);
       context.attempted();
@@ -68,6 +69,7 @@ public class X509CertClassifierAuthenticator implements Authenticator {
           "authenticate(): failed to parse certificate from {0} header, setting {1}={2}",
           headerName, AUTH_NOTE_DENY_TYPE, CERT_NOT_PROVIDED);
       context.getAuthenticationSession().setAuthNote(AUTH_NOTE_DENY_TYPE, CERT_NOT_PROVIDED);
+      context.getEvent().detail(AUTH_NOTE_DENY_TYPE, CERT_NOT_PROVIDED);
       context.getEvent().detail(VOTER_CERT_SUBJECT_DN, CERT_TYPE_NONE);
       context.getEvent().detail(CA_CERT_ISSUER_CN, CERT_TYPE_NONE);
       context.attempted();
