@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["VotingChannel"],"struct":["AreaContestResults","CandidateResults","InvalidVotes"]};

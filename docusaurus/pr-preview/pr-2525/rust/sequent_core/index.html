@@ -1,0 +1,35 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="`sequent-core` contains the shared Rust types, ballot-processing primitives, and service helpers used across the `Step` backend crates and frontend packages."><title>sequent_core - Rust</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2"href="../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../static.files/rustdoc-77263533.css"><meta name="rustdoc-vars" data-root-path="../" data-static-root-path="../static.files/" data-current-crate="sequent_core" data-themes="" data-resource-suffix="" data-rustdoc-version="1.94.1 (e408947bf 2026-03-25)" data-channel="1.94.1" data-search-js="search-9e2438ea.js" data-stringdex-js="stringdex-b897f86f.js" data-settings-js="settings-c38705f0.js" ><script src="../static.files/storage-e2aeef58.js"></script><script defer src="../crates.js"></script><script defer src="../static.files/main-7bab91a1.js"></script><noscript><link rel="stylesheet" href="../static.files/noscript-ffcac47a.css"></noscript><link rel="alternate icon" type="image/png" href="../static.files/favicon-32x32-eab170b8.png"><link rel="icon" type="image/svg+xml" href="../static.files/favicon-044be391.svg"></head><body class="rustdoc mod crate"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><rustdoc-topbar><h2><a href="#">Crate sequent_core</a></h2></rustdoc-topbar><nav class="sidebar"><div class="sidebar-crate"><h2><a href="../sequent_core/index.html">sequent_<wbr>core</a><span class="version">0.1.0</span></h2></div><div class="sidebar-elems"><ul class="block"><li><a id="all-types" href="all.html">All Items</a></li></ul><section id="rustdoc-toc"><h3><a href="#">Sections</a></h3><ul class="block top-toc"><li><a href="#module-guide" title="Module Guide">Module Guide</a></li><li><a href="#feature-flags" title="Feature Flags">Feature Flags</a></li><li><a href="#generating-docs" title="Generating Docs">Generating Docs</a></li></ul><h3><a href="#modules">Crate Items</a></h3><ul class="block"><li><a href="#modules" title="Modules">Modules</a></li></ul></section><div id="rustdoc-modnav"></div></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><div class="width-limiter"><section id="main-content" class="content"><div class="main-heading"><h1>Crate <span>sequent_<wbr>core</span>&nbsp;<button id="copy-path" title="Copy item path to clipboard">Copy item path</button></h1><rustdoc-toolbar></rustdoc-toolbar><span class="sub-heading"><a class="src" href="../src/sequent_core/lib.rs.html#4-71">Source</a> </span></div><details class="toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><!--
+ SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+
+ SPDX-License-Identifier: AGPL-3.0-only
+-->
+<p><code>sequent-core</code> contains the shared Rust types, ballot-processing primitives, and service helpers used across the <code>Step</code> backend crates and frontend packages.</p>
+<p>Most of the crate is feature-gated so consumers can keep their dependency surface small. The full API reference is most useful when documentation is generated with all features enabled.</p>
+<h3 id="module-guide"><a class="doc-anchor" href="#module-guide">§</a>Module Guide</h3>
+<ul>
+<li><code>types</code>: shared domain types that are used across services, reports, and frontend bindings.</li>
+<li><code>ballot</code>, <code>ballot_style</code>, <code>multi_ballot</code>, <code>plaintext</code>, <code>interpret_plaintext</code>, <code>mixed_radix</code>, and <code>ballot_codec</code>: ballot modeling, encoding, decoding, and normalization utilities.</li>
+<li><code>encrypt</code>: ballot encryption helpers built on the shared cryptographic primitives.</li>
+<li><code>serialization</code>: serialization helpers for the crate’s public data structures.</li>
+<li><code>services</code>: higher-level business logic used by the surrounding <code>Step</code> services.</li>
+<li><code>util</code>: cross-cutting helpers for dates, retries, configuration, MIME types, integrity checks, and related infrastructure concerns.</li>
+<li><code>plugins_wit</code>: <code>WIT</code> bindings for plugin integration.</li>
+<li><code>signatures</code>: signature helpers and verification utilities.</li>
+<li><code>sqlite</code>: <code>SQLite</code>-backed helpers.</li>
+<li><code>temp_path</code>: report-oriented temporary file helpers.</li>
+<li><code>wasm</code>: the <code>WebAssembly</code> API exported to frontend packages.</li>
+</ul>
+<h3 id="feature-flags"><a class="doc-anchor" href="#feature-flags">§</a>Feature Flags</h3>
+<ul>
+<li><code>default_features</code>: enables the core ballot-processing and service modules used by the main backend and frontend flows.</li>
+<li><code>wasm</code>: enables the <code>WebAssembly</code> bindings exposed under <code>wasm</code>.</li>
+<li><code>reports</code>: enables report-generation support, including temporary-path helpers.</li>
+<li><code>signatures</code>: enables signature-related helpers.</li>
+<li><code>sqlite</code>: enables <code>SQLite</code> support.</li>
+<li><code>plugins_wit</code>: enables plugin <code>WIT</code> bindings.</li>
+</ul>
+<h3 id="generating-docs"><a class="doc-anchor" href="#generating-docs">§</a>Generating Docs</h3>
+<p>Build the complete local API reference with all features enabled:</p>
+<div class="example-wrap"><pre class="language-bash"><code>cargo doc -p sequent-core --all-features --no-deps</code></pre></div>
+<p><code>docs.rs</code> is configured to build this crate with all features enabled as well.</p>
+</div></details><h2 id="modules" class="section-header">Modules<a href="#modules" class="anchor">§</a></h2><dl class="item-table"><dt><a class="mod" href="types/index.html" title="mod sequent_core::types">types</a></dt><dd>Shared domain types.</dd></dl></section></div></main></body></html>

@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["EXTENDED_METRICS","PROCESS_RESULTS"],"enum":["ResultDocumentType"],"struct":["ResultDocuments","ResultsAreaContest","ResultsAreaContestCandidate","ResultsContest","ResultsContestCandidate","ResultsElection","ResultsElectionArea","ResultsEvent"]};
