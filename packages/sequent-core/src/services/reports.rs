@@ -130,7 +130,9 @@ pub fn helper_wrapper_or<'a>(
     or_val: String,
 ) -> Box<dyn HelperDef + Send + Sync + 'a> {
     struct WrapperHelper<'a> {
+        /// Inner Handlebars helper; on error.
         func: Box<dyn HelperDef + Send + Sync + 'a>,
+        /// Fallback output when the inner helper returns an error.
         or_val: String,
     }
 
@@ -174,6 +176,7 @@ pub fn helper_wrapper<'a>(
     func: Box<dyn HelperDef + Send + Sync + 'a>,
 ) -> Box<dyn HelperDef + Send + Sync + 'a> {
     struct WrapperHelper<'a> {
+        /// Inner Handlebars helper.
         func: Box<dyn HelperDef + Send + Sync + 'a>,
     }
 

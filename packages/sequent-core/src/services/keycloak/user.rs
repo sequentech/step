@@ -430,9 +430,9 @@ impl KeycloakAdminClient {
         groups: Option<Vec<String>>,
     ) -> Result<User> {
         let mut new_user_keycloak: UserRepresentation = user.clone().into();
-        new_user_keycloak.attributes = attributes.clone();
+        new_user_keycloak.attributes.clone_from(&attributes);
         info!("Creating user in keycloak ?: {new_user_keycloak:?}");
-        new_user_keycloak.groups = groups.clone();
+        new_user_keycloak.groups.clone_from(&groups);
         self.client
             .realm_users_post(realm, new_user_keycloak.clone())
             .await
