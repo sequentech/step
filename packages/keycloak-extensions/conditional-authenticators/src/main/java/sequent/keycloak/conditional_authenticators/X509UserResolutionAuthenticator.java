@@ -36,6 +36,7 @@ public class X509UserResolutionAuthenticator extends X509ClientCertificateAuthen
           "authenticate(): user not resolved after X509 validation (eventError={0}), setting {1}={2}",
           eventError, AUTH_NOTE_DENY_TYPE, denyType);
       context.getAuthenticationSession().setAuthNote(AUTH_NOTE_DENY_TYPE, denyType);
+      context.getEvent().detail(AUTH_NOTE_DENY_TYPE, denyType);
     }
   }
 }
