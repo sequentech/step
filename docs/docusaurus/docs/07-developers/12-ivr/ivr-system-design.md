@@ -46,7 +46,7 @@ flowchart LR
 | **Amazon Connect** | Receive calls, play prompts via Polly, capture DTMF input, route to Lambda |
 | **IVR Lambda** | State machine logic, prompt generation, input validation, API orchestration |
 | **DynamoDB** | Phone number → cluster/environment/tenant/event routing; ephemeral call session state |
-| **Public S3** | Published ballot publication: election structure, ballot styles, contests, candidates, IVR flow config, auth steps, prompts, public keys (same data used by voting portal in preview mode) |
+| **Public S3** | Published ballot publication: election structure, ballot styles, contests, candidates, IVR flow config, prompts, IVR-only spoken-text overrides, public keys (same data used by voting portal in preview mode) |
 | **Keycloak** | Voter authentication via OIDC Direct Grant (ROPC) with configurable auth factors, JWT issuance |
 | **Hasura** | Real-time election event status query (same mechanism as voting portal) |
 | **Harvest API** | Cast votes via `/insert-cast-vote` |
@@ -73,14 +73,14 @@ The flow is an ordered array of phases stored in `presentation.ivr.flow`:
 {
   "ivr": {
     "flow": [
-      { "phase": "announcement", "name": "welcome", "prompt_key": "greeting" },
-      { "phase": "language_select" },
       { "phase": "blacklist_check" },
+      { "phase": "language_select" },
+      { "phase": "announcement", "name": "welcome", "prompt_key": "greeting" },
       { "phase": "auth" },
       { "phase": "eligibility_check" },
       { "phase": "announcement", "name": "declaration", "prompt_key": "declaration_text", "accept_key": "2" },
       { "phase": "announcement", "name": "pre_voting_statement", "prompt_key": "pre_voting_statement" },
-      { "phase": "ballot_loop", "receipt_format": "bip39" },
+      { "phase": "ballot_loop", "receipt_format": "phonetic_hex_4" },
       { "phase": "goodbye" }
     ]
   }
@@ -93,8 +93,8 @@ A simpler deployment (voter ID + PIN, no frills):
 {
   "ivr": {
     "flow": [
-      { "phase": "announcement", "name": "welcome", "prompt_key": "greeting" },
       { "phase": "language_select" },
+      { "phase": "announcement", "name": "welcome", "prompt_key": "greeting" },
       { "phase": "auth" },
       { "phase": "ballot_loop" },
       { "phase": "goodbye" }
@@ -112,11 +112,11 @@ Each phase type has an execution engine in the Lambda. The engine handles prompt
 | Phase Type | Description | Input | Behavior |
 |------------|-------------|-------|----------|
 | `announcement` | Play a prompt, optionally wait for an acceptance key | None (auto-advance) or DTMF if `accept_key` set | Play the configured `prompt_key`. If `accept_key` is set, wait for that DTMF and retry on invalid input up to `max_retries`. If not, auto-advance. Used for greeting, declaration, pre-voting statement, and any other play-and-continue or play-and-confirm prompts — one engine, different config |
-| `language_select` | Language selection menu | DTMF (1=English, 2=French, etc.) | Set session language from `language_conf.enabled_language_codes`, advance |
-| `blacklist_check` | Check caller phone against blacklist | None (auto-advance) | Query Hasura (see §6.3) for a blacklist entry matching the caller phone number; if present, play `blacklist_message` and disconnect |
+| `language_select` | Language selection menu | DTMF if more than 1 enabled language | If `language_conf.enabled_language_codes` contains exactly 1 language, set it automatically and advance without prompting. Otherwise collect DTMF (1=English, 2=French, etc.), set session language, advance |
+| `blacklist_check` | Check caller phone against blacklist | None (auto-advance) | Query Hasura (see §6.3) for a blacklist entry matching the caller phone number; if present, play `blacklist_message` and disconnect. Because this phase runs before language selection, the message should be authored to work before the caller has chosen a language, typically by making it bilingual |
 | `auth` | Collect credentials, authenticate with Keycloak | DTMF per step | Iterate through auth steps discovered via Keycloak's `/realms/\{realm\}/ivr-config` endpoint (see §5.1), submit to Keycloak ROPC. On `otp_required` error, collect OTP and resubmit. On failure, retry up to limit |
 | `eligibility_check` | Validate voter eligibility and election status | None (auto-advance) | Play `eligibility_check` prompt. Check voter eligibility via API; if ineligible, play `not_eligible` and disconnect. Also query Hasura for `telephone_voting_status` (see §5.2); if not `OPEN`, play `election_closed` and disconnect |
-| `ballot_loop` | Per-election voting cycle: select → confirm → submit → receipt | DTMF | The inner voting loop (see 3.3). For each election: vote all contests, read back summary, confirm, encrypt and submit ballot via Harvest API, read receipt (ballot hash as BIP39 or short hex). Then advance to next election or finish. All behavior driven by published election/contest data |
+| `ballot_loop` | Per-election voting cycle: select → confirm → submit → receipt | DTMF | The inner voting loop (see 3.3). For each election: vote all contests, read back summary, confirm, encrypt and submit ballot via Harvest API, read a ballot locator derived from the first 4 hex characters of `ballot_id` using phonetic spelling (`a3f2` → "alpha three foxtrot two"). Then advance to next election or finish. All behavior driven by published election/contest data |
 | `goodbye` | Farewell message, disconnect | None (disconnect) | Play `goodbye` prompt, disconnect |
 
 **Note on the `announcement` phase.** Three previously-separate phase types (`welcome`, `declaration`, `pre_voting_statement`) are all the same pattern: play a prompt, optionally wait for a key, advance. Collapsing them into one engine saves three execution paths, three test surfaces, and three config schemas. Each instance in the flow carries a `name` field so logs and metrics remain distinguishable (`name: "welcome"`, `name: "declaration"`, etc.).
@@ -127,12 +127,11 @@ The following diagram shows the complete end-to-end IVR call flow through all co
 
 ```mermaid
 flowchart TD
-    CALL([Incoming Call]) --> WELCOME[announcement: welcome<br/>Play greeting]
-
-    WELCOME --> LANG[language_select<br/>DTMF: choose language]
-    LANG --> BLACKLIST{blacklist_check<br/>Phone blocked?}
+    CALL([Incoming Call]) --> BLACKLIST{blacklist_check<br/>Phone blocked?}
     BLACKLIST -->|Blocked| BL_END([Disconnect])
-    BLACKLIST -->|OK| AUTH[auth<br/>Collect credentials via DTMF<br/>Authenticate via Keycloak ROPC]
+    BLACKLIST -->|OK| LANG[language_select<br/>DTMF if multiple enabled languages<br/>auto-select if only 1]
+    LANG --> WELCOME[announcement: welcome<br/>Play greeting]
+    WELCOME --> AUTH[auth<br/>Collect credentials via DTMF<br/>Authenticate via Keycloak ROPC]
     AUTH -->|"Failure (max retries)"| AUTH_END([Disconnect])
     AUTH -->|Success| ELIG{eligibility_check<br/>Voter eligible?<br/>telephone_voting_status = OPEN?}
     ELIG -->|"Not eligible /<br/>channel not open"| ELIG_END([Disconnect])
@@ -167,7 +166,7 @@ flowchart TD
     CAST_WARN --> NEXT
 
     RCPT -->|No| NEXT
-    RCPT -->|Yes| RCPT_READ[ElectionReceipt<br/>Read ballot hash as BIP39<br/>phrase or short hex.<br/>Press * to repeat.]
+    RCPT -->|Yes| RCPT_READ[ElectionReceipt<br/>Read first 4 hex chars of ballot_id<br/>using phonetic spelling.<br/>Press * to repeat.]
     RCPT_READ --> RCPT_INPUT{Voter DTMF}
     RCPT_INPUT -->|"* = Repeat"| RCPT_READ
     RCPT_INPUT -->|"Timeout / any other"| NEXT
@@ -191,13 +190,14 @@ All behavior is driven by the **published election/contest data** — the same s
 | `elections_order` | `ElectionEventPresentation` | Sort elections before presenting: `alphabetical` (by alias/name), `custom` (by `sort_order`), `random` (shuffled once at session init) |
 | `contests_order` | `ElectionPresentation` | Sort contests within an election: `alphabetical`, `custom`, `random` |
 | `candidates_order` | `ContestPresentation` | Sort candidates within a contest: `alphabetical`, `custom`, `random`. Determines DTMF assignment order |
-| `is_acclaimed` | `Contest` | If `true`: announce acclamation result, auto-advance (no voting) |
 | `blank_vote_policy` | `ContestPresentation` | `allowed`: offer blank ballot confirmation. `warn`/`warn_only_in_review`: play warning then allow. `not_allowed`: require at least one selection |
 | `under_vote_policy` | `ContestPresentation` | `allowed`: accept silently. `warn`/`warn_and_alert`: play warning before confirming. `warn_only_in_review`: warn during summary only |
-| `language_conf` | `ElectionPresentation` | If election's language differs from session language → offer per-ballot language switch |
+| `language_conf` | `ElectionPresentation` | If the election's enabled/default language differs from the session language, offer a per-ballot language switch. If exactly 1 language is enabled for the election, select it automatically without prompting |
 | `min_votes` / `max_votes` | Contest | Enforce selection count. `max_votes=1` → stop after 1 selection. `min_votes>0` + `blank_vote_policy=not_allowed` → force selection |
 | `is_explicit_invalid` | `CandidatePresentation` | Skip candidates marked as explicit invalid vote options (not applicable to IVR) |
 | `is_explicit_blank` | `CandidatePresentation` | Skip candidates marked as explicit blank (IVR uses dedicated blank/decline sub-phase instead) |
+
+**Current scope note:** acclaimed contests are out of scope for the initial IVR release. If any contest has `is_acclaimed=true`, telephone voting should be rejected at publication/validation time until a dedicated acclaimed-contest flow is designed.
 
 #### 3.3.2 Ballot Loop Sub-Phases
 
@@ -222,17 +222,13 @@ flowchart TD
 
     subgraph ContestLevel [Contest Level]
         ContestLoop[ContestLoop<br/>for each sorted contest]
-        AcclaimCheck{is_acclaimed?}
-        AcclaimAnnounce[AcclaimAnnounce<br/>announce result, auto-advance]
         ContestIntro[ContestIntro<br/>read name, rules, min/max]
         CandidateSelect[CandidateSelect<br/>present unselected candidates, DTMF]
         SelectionCheck[SelectionCheck<br/>enforce min/max, blank/under policy]
         VoteConfirm[VoteConfirm<br/>read back, allow change]
     end
 
-    ContestLoop --> AcclaimCheck
-    AcclaimCheck -->|Yes| AcclaimAnnounce --> NextContest
-    AcclaimCheck -->|No| ContestIntro --> CandidateSelect
+    ContestLoop --> ContestIntro --> CandidateSelect
     CandidateSelect --> SelectionCheck
     SelectionCheck --> VoteConfirm
     VoteConfirm -->|Change| CandidateSelect
@@ -245,7 +241,7 @@ flowchart TD
     subgraph SubmissionLevel [Per-Election Submission]
         ElectionSummary[ElectionSummary<br/>read back all selections<br/>for this election<br/>DTMF: 1=Submit, N=Edit contest N]
         ElectionSubmit[ElectionSubmit<br/>encrypt + POST /insert-cast-vote]
-        ElectionReceipt[ElectionReceipt<br/>read ballot hash as BIP39<br/>or short hex]
+        ElectionReceipt[ElectionReceipt<br/>read first 4 hex chars of<br/>ballot_id phonetically]
     end
 
     ElectionSummary -->|"N = Edit contest N"| EditContest[Clear contest N selections<br/>→ CandidateSelect → SelectionCheck<br/>→ VoteConfirm for that contest only]
@@ -263,16 +259,15 @@ flowchart TD
 | Sub-Phase | Input | Behavior |
 |---|---|---|
 | `ElectionSelect` | DTMF | Present sorted elections (by `elections_order`). Single-digit if ≤9, multi-digit otherwise. **Skipped** if `skip_election_list=true` and only 1 election |
-| `LanguageSwitch` | DTMF (1=keep, 2=switch) | Offer only if the election's `language_conf` differs from the session language. Switch affects prompts for this election only. Runs **before** `ElectionIntro` so the intro is read in the correct language. **Invariant:** an election's `language_conf.enabled_language_codes` is always a subset of the election event's; additionally an election may override the `default_language_code`, so "different from session language" means either the session language is not in the election's enabled set, or the election's default differs from the currently-selected session language. Both cases trigger the offer; otherwise skip |
+| `LanguageSwitch` | DTMF (1=keep, 2=switch) if multiple languages are available | Offer only if the election's `language_conf` differs from the session language. If the election exposes exactly 1 enabled language, switch automatically without prompting. Switch affects prompts for this election only. Runs **before** `ElectionIntro` so the intro is read in the correct language. **Invariant:** an election's `language_conf.enabled_language_codes` is always a subset of the election event's; additionally an election may override the `default_language_code`, so "different from session language" means either the session language is not in the election's enabled set, or the election's default differs from the currently-selected session language. Both cases trigger the offer; otherwise skip |
 | `ElectionIntro` | None (auto-advance) | Play `election_intro` prompt with `\{election_name\}`, announce contest count (in the language selected by `LanguageSwitch` if applicable) |
-| `AcclaimAnnounce` | None (auto-advance) | Play `acclamation` prompt with `\{candidate_name\}`. Auto-advance to next contest |
 | `ContestIntro` | None (auto-advance) or DTMF to repeat | Play `contest_intro` with `\{contest_name\}`, `\{max_votes\}`, `\{min_votes\}`. Explain rules: "Select up to \{max_votes\} candidates" |
 | `CandidateSelect` | DTMF per candidate | Present only **unselected** candidates sorted by `candidates_order`. Single-digit (1-9) or multi-digit (01-99#) based on remaining count. Accumulate selections until voter signals done (`#` or `0`) or `max_votes` reached. Already-selected candidates are omitted from the list (DTMF numbers are reassigned to remaining candidates) |
 | `SelectionCheck` | DTMF (confirm/restart) | Validate selections against `min_votes`/`max_votes`. Apply `blank_vote_policy`: if no selections and `allowed`→`blank_ballot_confirm`; if `not_allowed`→re-prompt. Apply `under_vote_policy`: if under minimum and `warn`→play warning then confirm |
 | `VoteConfirm` | DTMF (1=confirm, 2=change) | Read back selected candidates. "You selected \{candidate_name\} for \{contest_name\}. Press 1 to confirm, 2 to change your selection" |
 | `ElectionSummary` | DTMF (1=submit, N=edit contest) | Read back all selections for the current election, numbering each contest. "For contest 1, \{contest_name\}: you selected \{candidate_name\}. For contest 2, …" Press 1 to submit this election's ballot, or press a contest number to edit that contest's selection. Editing a contest clears its selections and re-enters `CandidateSelect` for that contest only — afterwards returns directly to `ElectionSummary` (not to the next contest). **Note:** summary is its own explicit confirmation — there is no separate `ElectionConfirm` step before submission |
 | `ElectionSubmit` | None (auto-advance) | Refresh access token if needed, encrypt ballot with election public keys, POST `/insert-cast-vote` with `election_id`. On success → play `vote_success`, advance to `ElectionReceipt`. On per-election error (duplicate, max revotes) → play error prompt, advance to next election. On fatal error (timeout, session expired) → disconnect |
-| `ElectionReceipt` | DTMF (*=repeat) | Read the ballot hash (ballot_id) as a BIP39 mnemonic phrase or truncated hex string depending on `receipt_format` config. "Your confirmation number for \{election_name\} is \{confirmation_number\}. Press * to repeat." Skipped if `receipt_format` is not configured. **Note:** since the ballot locator only needs to be unique among the logged-in voter's own ballots (not globally), the hash could be reduced to as few as 4 hex characters — much easier to read back over the phone |
+| `ElectionReceipt` | DTMF (*=repeat) | Read a ballot locator derived from the first 4 hex characters of `ballot_id`, rendered phonetically (`a3f2` → "alpha three foxtrot two"). "Your ballot locator for \{election_name\} is \{confirmation_number\}. Press * to repeat." Skipped if `receipt_format` is not configured. **Portal dependency:** the voting portal ballot locator lookup must be scoped to the authenticated voter and current election, so uniqueness only needs to hold within that smaller set |
 
 #### 3.3.4 BallotLoopState (Session Cursor)
 
@@ -310,7 +305,6 @@ pub enum BallotSubPhase {
     LanguageSwitch,
     ElectionIntro,
     // Contest level
-    AcclaimAnnounce,
     ContestIntro,
     CandidateSelect,
     SelectionCheck,
@@ -348,7 +342,7 @@ Candidates with `is_explicit_invalid: true` or `is_explicit_blank: true` in `Can
 
 #### 3.3.6 Shared `LanguageSelector` Component
 
-The outer `LanguageSelect` phase (event-level) and the inner `LanguageSwitch` sub-phase (per-election override) share the same logic: offer a set of enabled languages, collect a DTMF digit, update `session.language`, advance. They are implemented on top of a single `LanguageSelector` helper parameterized by scope:
+The outer `LanguageSelect` phase (event-level) and the inner `LanguageSwitch` sub-phase (per-election override) share the same logic: if only 1 language is enabled, select it automatically; otherwise offer the enabled set, collect a DTMF digit, update `session.language`, advance. They are implemented on top of a single `LanguageSelector` helper parameterized by scope:
 
 ```rust
 pub enum LanguageScope {
@@ -627,8 +621,6 @@ impl BallotLoopPhase {
             BallotSubPhase::ElectionIntro =>
                 ElectionIntroSubPhase::execute(session, input, prompts),
             // Contest level
-            BallotSubPhase::AcclaimAnnounce =>
-                AcclaimAnnounceSubPhase::execute(session, input, prompts),
             BallotSubPhase::ContestIntro =>
                 ContestIntroSubPhase::execute(session, input, prompts),
             BallotSubPhase::CandidateSelect =>
@@ -780,7 +772,7 @@ async fn election_submit_refreshes_token_before_casting() {
 3. **Isolated changes** — Switching from DynamoDB to Redis = new adapter, zero domain changes. Adding a new external service = new port + adapter
 4. **Phase engines are pure** — Given session state + input, produce new state + response. No side effects except through ports
 5. **Config-driven** — Flow composition is data, not code. Adding/removing phases = config change
-6. **Ballot behavior from source of truth** — Contest rules (blank, decline, acclamation, min/max, ordering) read from published election data, same as voting portal
+6. **Ballot behavior from source of truth** — Contest rules (blank, decline, min/max, ordering) read from published election data, same as voting portal
 
 ### 3.6 Channel-Specific Voting Periods
 
@@ -969,15 +961,14 @@ pub struct AnnouncementConfig {
 
 #[derive(Serialize, Deserialize, Clone, Default)]
 pub struct BallotLoopConfig {
-    /// BIP39 mnemonic, short hex, or none at all.
+    /// A 4-character ballot locator read back phonetically, or none at all.
     pub receipt_format: Option<ReceiptFormat>,
 }
 
 #[derive(Serialize, Deserialize, Clone)]
 #[serde(rename_all = "snake_case")]
 pub enum ReceiptFormat {
-    Bip39,
-    ShortHex,
+    PhoneticHex4,
 }
 
 /// One auth step — retrieved from Keycloak's /ivr-config endpoint, NOT from S3.
@@ -1023,7 +1014,7 @@ pub struct ContestContext {
     pub candidates_order: Option<CandidatesOrder>,
     pub blank_vote_policy: Option<EBlankVotePolicy>,
     pub under_vote_policy: Option<EUnderVotePolicy>,
-    // Ballot behavior from published election data
+    // Read during validation so IVR can reject currently-unsupported acclaimed contests.
     pub is_acclamation: bool,
 }
 
@@ -1048,8 +1039,8 @@ pub struct ContestVote {
 pub struct ElectionSubmissionResult {
     pub election_id: Uuid,
     pub status: SubmissionStatus,
-    /// Ballot hash — used as confirmation number in ElectionReceipt sub-phase.
-    /// Read back as BIP39 phrase or truncated hex depending on receipt config.
+    /// Ballot hash — used to derive the spoken ballot locator in ElectionReceipt.
+    /// Current format: first 4 hex characters, read back phonetically.
     pub ballot_hash: Option<String>,
 }
 
@@ -1202,7 +1193,7 @@ The Lambda uses a **fixed, well-known mapping** from ROPC parameter name to prom
 | `dob` (custom) | `auth_enter_dob` | "Please enter your date of birth as MMDDYYYY followed by the number sign key." |
 | `otp` (dynamic) | `auth_otp_sent` + `auth_enter_otp` | "A code has been sent to your phone. Please enter it followed by the number sign key." |
 
-These keys live in `presentation.i18n[lang].ivr`, same as all other IVR prompts. The admin provides translations in the admin portal's IVR Prompts editor. The Lambda ships sensible English/French defaults for each well-known key as a fallback.
+These keys live in `presentation.i18n[lang].ivr`, the same namespace used for all IVR prompts and IVR-only spoken-text overrides. The admin provides translations in the admin portal's IVR Prompts editor. The Lambda ships sensible English/French defaults for each well-known key as a fallback.
 
 **If a custom authenticator uses a new `maps_to` value** that isn't in the table, the admin can override the prompt key via the authenticator's `AuthenticatorConfig` (`prompt_key` property). The endpoint passes it through in the step response:
 
@@ -1282,7 +1273,7 @@ IVR session config comes from **two sources**:
 1. **Public S3 (published ballot publication)** — election structure, prompts, flow pipeline, presentation
 2. **Keycloak `/ivr-config` endpoint** — authentication step list (see 5.1.2)
 
-**The IVR flow and prompts are part of the frozen ballot publication.** Once a publication is cut, its `ivr.flow` + `i18n[lang].ivr` prompt set is immutable — admin edits in the portal only take effect after a new publication is produced. This is a deliberate choice: the ballot publication is an attested, signed artifact used by the voting portal in preview mode, and pulling IVR presentation out of it would fragment the source of truth. Admins who need to change IVR prompts or flow after ballot freeze run a new publication, same as any other presentation edit. (The blacklist is the one exception — it changes too frequently to live in the publication; see §6.3.)
+**The IVR flow, prompts, and IVR-only spoken-text overrides are part of the frozen ballot publication.** Once a publication is cut, its `ivr.flow` + `i18n[lang].ivr` data is immutable — admin edits in the portal only take effect after a new publication is produced. This is a deliberate choice: the ballot publication is an attested, signed artifact used by the voting portal in preview mode, and pulling IVR presentation out of it would fragment the source of truth. Admins who need to change IVR prompts or spoken overrides after ballot freeze run a new publication, same as any other presentation edit. (The blacklist is the one exception — it changes too frequently to live in the publication; see §6.3.)
 
 **Published ballot publication structure** (`tenant-\{tenantId\}/document-\{documentId\}/\{publicationId\}.json`):
 ```json
@@ -1296,7 +1287,7 @@ IVR session config comes from **two sources**:
   ],
   "election_event": {
     // Full event: presentation (IVR flow + prompts, NOT auth steps),
-    // i18n (including IVR prompts), language_conf, voting_channels
+    // i18n (including IVR prompts and spoken-text overrides), language_conf, voting_channels
   },
   "support_materials": [...],
   "documents": [...]
@@ -1305,10 +1296,11 @@ IVR session config comes from **two sources**:
 
 **What the IVR Lambda reads from published S3 data:**
 - `election_event.presentation.ivr.flow` — phase pipeline
-- `election_event.presentation.i18n[lang]["ivr"]` — prompts (including the well-known auth prompt keys)
+- `election_event.presentation.i18n[lang]["ivr"]` — event-level prompts and spoken-text overrides (including the well-known auth prompt keys)
 - `election_event.presentation.language_conf` — enabled languages
 - `ballot_styles[].ballot_eml` — contests, candidates, min/max votes, public keys
-- `elections[].presentation` — per-election presentation and prompts
+- `elections[].presentation.i18n[lang]["ivr"]` — election-level prompts and spoken-text overrides
+- `contests[].presentation.i18n[lang]["ivr"]` / `candidates[].presentation.i18n[lang]["ivr"]` — contest/candidate spoken-text overrides used only by IVR
 - `elections[].voting_channels` — which channels are enabled
 
 **What the IVR Lambda reads from Keycloak `/ivr-config`:**
@@ -1319,7 +1311,7 @@ IVR session config comes from **two sources**:
 - Vote submission
 
 **Publication flow:**
-1. Admin configures IVR flow + prompts in admin portal (**not** auth steps — those live in Keycloak)
+1. Admin configures IVR flow + prompts/overrides in admin portal (**not** auth steps — those live in Keycloak)
 2. Settings stored in `presentation.ivr.flow` and `presentation.i18n[lang]["ivr"]` in PostgreSQL
 3. Ballot publication task generates the publication JSON and uploads to public S3
 4. Auth flow is configured separately by the admin in the Keycloak admin UI (realm's Direct Grant flow)
@@ -1849,11 +1841,11 @@ The platform already supports:
 
 ### 7.2 IVR Prompt Storage - Inside Existing i18n Structure
 
-**Key Decision:** IVR prompts are stored **inside** the existing `presentation.i18n` object under an `"ivr"` key. This keeps all translations in one place and follows Felix's recommendation.
+**Key Decision:** IVR prompts and IVR-only spoken-text overrides are stored **inside** the existing `presentation.i18n` object under an `"ivr"` key. This keeps all translations in one place and follows Felix's recommendation.
 
 #### Structure Overview
 
-No changes needed to `ElectionEventPresentation` or `ElectionPresentation` structs. IVR prompts use the existing:
+No changes are needed to the existing presentation structs. `ElectionEventPresentation`, `ElectionPresentation`, `ContestPresentation`, and `CandidatePresentation` already expose the nested `i18n` shape that IVR can reuse for both prompt keys and spoken-text overrides:
 ```rust
 pub struct ElectionEventPresentation {
     pub i18n: Option<I18nContent<I18nContent<Option<String>>>>,
@@ -1864,14 +1856,17 @@ pub struct ElectionEventPresentation {
 
 #### Storage Pattern
 
-IVR prompts are nested inside `i18n` under the `"ivr"` key:
+IVR strings are nested inside `i18n` under the `"ivr"` key:
 
 ```
 presentation.i18n = {
   "en": {
     "name": "Election Name",
+    "description": "Portal-facing description",
     "alias": "Election Alias",
-    "ivr": {  // ← IVR prompts stored here
+    "ivr": {  // ← IVR prompts + IVR-only spoken-text overrides
+      "name": "Election name optimized for telephone readback",
+      "description": "Telephone version of the election description",
       "greeting": "Welcome...",
       "auth_enter_username": "Please enter your voter ID...",
       "auth_enter_password": "Please enter your PIN...",
@@ -1888,16 +1883,62 @@ presentation.i18n = {
 }
 ```
 
-#### Rust Type: Dynamic Prompt Map
+At contest and candidate scope, the same pattern lives under `presentation.i18n[lang]["ivr"]`, leaving the existing `name_i18n` / `description_i18n` fields untouched for the voting portal while giving IVR an override path when the spoken version needs to differ.
 
-IVR prompts are deserialized as `HashMap<String, String>`, not fixed structs. This means adding new prompt keys (e.g., `declaration_text`, `receipt_info`, `blank_ballot_confirm`) never requires code changes:
+#### IVR-Only Spoken Text Overrides
+
+The `ivr` namespace is an **override system**, not a second full copy of the translation tree. If an IVR-only value is absent, the Lambda falls back to the normal portal text.
+
+Typical keys:
+- `name`
+- `alias`
+- `description`
+
+Example candidate override:
+
+```json
+{
+  "presentation": {
+    "i18n": {
+      "en": {
+        "ivr": {
+          "name": "<lang xml:lang=\"fr-CA\">Jean-François Côté</lang>"
+        }
+      }
+    }
+  }
+}
+```
+
+In that example, the voting portal can continue showing the regular English or bilingual candidate name, while IVR gets a spoken-only override tailored for text-to-speech.
+
+#### Mixed-Language Readback with SSML
+
+Amazon Polly supports SSML `<lang xml:lang="...">` tags, and Amazon Connect supports passing SSML prompts through to Polly. That makes it reasonable to allow SSML fragments directly inside IVR overrides and prompt templates for short mixed-language phrases such as:
+
+```xml
+<speak>You selected <lang xml:lang="fr-CA">Jean-François Côté</lang> for Mayor.</speak>
+```
+
+Design note:
+- IVR overrides and prompt templates may contain SSML fragments such as `<lang>`, `<phoneme>`, or `<say-as>`
+- If any resolved string contains SSML markup, the final rendered prompt should be sent to Polly as SSML and wrapped once in `<speak>...</speak>`
+- This is best suited to names and short phrases; Polly's `lang` tag changes pronunciation rules, but many voices will still sound accented rather than fully native unless a bilingual voice is used
+
+Official references:
+- [Amazon Polly: Using the `lang` tag](https://docs.aws.amazon.com/polly/latest/dg/lang-tag.html)
+- [Amazon Connect: Supported SSML tags](https://docs.aws.amazon.com/connect/latest/adminguide/supported-ssml-tags.html)
+
+#### Rust Type: Dynamic IVR String Map
+
+IVR strings are deserialized as `HashMap<String, String>`, not fixed structs. This means adding new prompt keys or spoken-text overrides (e.g., `declaration_text`, `receipt_info`, `blank_ballot_confirm`, `name`) never requires code changes:
 
 ```rust
-/// IVR prompts: HashMap<prompt_key, prompt_text>
+/// IVR strings: HashMap<key, value>
 /// Deserialized from presentation.i18n[lang]["ivr"]
-type IvrPrompts = HashMap<String, String>;
+type IvrStrings = HashMap<String, String>;
 
-fn get_ivr_prompts(i18n: &I18nContent, lang: &str) -> IvrPrompts {
+fn get_ivr_strings(i18n: &I18nContent, lang: &str) -> IvrStrings {
     i18n.get(lang)
         .and_then(|lang_content| lang_content.get("ivr"))
         .and_then(|ivr_value| serde_json::from_value(ivr_value.clone()).ok())
@@ -1907,11 +1948,12 @@ fn get_ivr_prompts(i18n: &I18nContent, lang: &str) -> IvrPrompts {
 
 #### Benefits of This Approach
 
-1. **All translations in one place** - no separate `ivr_prompts` field
+1. **All IVR strings in one place** - no separate `ivr_prompts` or `ivr_overrides` field
 2. **Backward compatible** - missing `"ivr"` key means no IVR prompts (use defaults)
 3. **Follows existing pattern** - same structure as `"name"`, `"alias"`, etc.
-4. **Fully extensible** - any prompt key can be added in config without code changes
-5. **Admin portal simplicity** - edit within existing i18n editor
+4. **Override-based** - only spoken differences need to be entered; everything else falls back to portal text
+5. **Fully extensible** - any prompt key can be added in config without code changes
+6. **Admin portal simplicity** - edit within existing i18n editor
 
 ### 7.3 Example: Barrie-Style Full Configuration
 
@@ -1921,14 +1963,14 @@ fn get_ivr_prompts(i18n: &I18nContent, lang: &str) -> IvrPrompts {
   "presentation": {
     "ivr": {
       "flow": [
-        { "phase": "announcement", "name": "welcome", "prompt_key": "greeting" },
-        { "phase": "language_select" },
         { "phase": "blacklist_check" },
+        { "phase": "language_select" },
+        { "phase": "announcement", "name": "welcome", "prompt_key": "greeting" },
         { "phase": "auth" },
         { "phase": "eligibility_check" },
         { "phase": "announcement", "name": "declaration", "prompt_key": "declaration_text", "accept_key": "2" },
         { "phase": "announcement", "name": "pre_voting_statement", "prompt_key": "pre_voting_statement" },
-        { "phase": "ballot_loop", "receipt_format": "bip39" },
+        { "phase": "ballot_loop", "receipt_format": "phonetic_hex_4" },
         { "phase": "goodbye" }
       ],
       "retry_limits": { "auth": 3, "invalid_input": 3, "timeout": 3 },
@@ -1944,7 +1986,7 @@ fn get_ivr_prompts(i18n: &I18nContent, lang: &str) -> IvrPrompts {
           "auth_enter_password": "Using your touch-tone phone, please enter your date of birth using two digits for the month and day, and four digits for the year. Please press the number sign key following your date of birth entry.",
           "auth_failed": "Your voting credentials are not valid. Please refer to your voting instructions for the correct voter credentials and try again.",
           "auth_max_attempts": "You seem to be having trouble. Please contact the Voter Assistance Line if you need assistance at {assistance_phone}.",
-          "blacklist_message": "Your telephone number is blocked. Please refer to your voting instructions and contact the Voter Assistance Line if you need assistance. Goodbye.",
+          "blacklist_message": "Your telephone number is blocked. For English, please contact the Voter Assistance Line. Pour le français, veuillez communiquer avec la ligne d'assistance aux électeurs. Goodbye.",
           "eligibility_check": "The system will now validate your eligibility to vote. One moment please.",
           "not_eligible": "You are not authorized to vote in this election. Please refer to your voting instructions and contact the Voter Assistance Line if you need assistance. Goodbye.",
           "not_active": "Your voting credentials have been deactivated. Please refer to your voting instructions and contact the Voter Assistance Line if you need assistance. Goodbye.",
@@ -1957,10 +1999,8 @@ fn get_ivr_prompts(i18n: &I18nContent, lang: &str) -> IvrPrompts {
           "summary_item": "For contest {contest_number}, {contest_name}: you selected {candidate_name}.",
           "summary_edit_prompt": "Press 1 to continue to submission, or press a contest number to change your selection for that contest.",
           "summary_edit_restart": "Changing your selection for {contest_name}. Your previous selections for this contest have been cleared.",
-          "election_confirm": "To submit your ballot for {election_name}, press 1. To go back and review your selections, press 2.",
-          "receipt_info": "You are about to be given a confirmation number for each election. You may choose to write them down for your reference.",
-          "receipt_number": "Your confirmation number for {election_name} is {confirmation_number}. To repeat, please press the star key.",
-          "acclamation": "{candidate_name} is elected by acclamation.",
+          "receipt_info": "You are about to be given a 4-character ballot locator for each election. You may choose to write it down for your reference.",
+          "receipt_number": "Your ballot locator for {election_name} is {confirmation_number}. To repeat, please press the star key.",
           "system_error": "We're experiencing technical difficulties. Please try your call again later.",
           "invalid_input": "That is an invalid input. Please re-enter your selection.",
           "timeout": "We have not detected any input or the number sign key.",
@@ -1992,8 +2032,8 @@ fn get_ivr_prompts(i18n: &I18nContent, lang: &str) -> IvrPrompts {
   "presentation": {
     "ivr": {
       "flow": [
-        { "phase": "welcome" },
         { "phase": "language_select" },
+        { "phase": "announcement", "name": "welcome", "prompt_key": "greeting" },
         { "phase": "auth" },
         { "phase": "ballot_loop" },
         { "phase": "goodbye" }
@@ -2017,16 +2057,16 @@ fn get_ivr_prompts(i18n: &I18nContent, lang: &str) -> IvrPrompts {
 
 Note that neither example contains an `ivr.auth` section — the auth step list is no longer part of S3 config. It is fetched at session init from Keycloak's `/realms/\{realm\}/ivr-config` endpoint (see §5.1). The only auth-related data in S3 is the i18n for the well-known prompt keys (`auth_enter_username`, `auth_enter_password`, `auth_enter_otp`, etc. — see §5.1.3).
 
-Same Lambda code handles both configurations. The Barrie deployment has declaration, blacklist, eligibility check, and BIP39 receipt — all through config. The per-election summary/confirm/submit/receipt cycle is always part of `ballot_loop` and runs for every election. Which credentials are collected (voter ID + DoB for Barrie, voter ID + PIN for Toronto) is determined entirely by each realm's Direct Grant flow in Keycloak — **not** by the S3 config.
+Same Lambda code handles both configurations. The Barrie deployment has declaration, blacklist, eligibility check, and a 4-character phonetic ballot locator receipt — all through config. The per-election summary/confirm/submit/receipt cycle is always part of `ballot_loop` and runs for every election. Which credentials are collected (voter ID + DoB for Barrie, voter ID + PIN for Toronto) is determined entirely by each realm's Direct Grant flow in Keycloak — **not** by the S3 config.
 
 ### 7.4 Admin Portal Integration
 
 When `telephone` channel is enabled in `voting_channels`:
 
 **ElectionEvent settings** → new "IVR Prompts" tab:
-- Text fields for event-level prompts — including the well-known auth prompt keys (`auth_enter_username`, `auth_enter_password`, `auth_enter_otp`, etc. — see §5.1.3)
+- Text fields for event-level prompts and optional spoken-text overrides — including the well-known auth prompt keys (`auth_enter_username`, `auth_enter_password`, `auth_enter_otp`, etc. — see §5.1.3)
 - Language tabs from `language_conf.enabled_language_codes`
-- Preview button (plays via Polly)
+- SSML-aware preview button (plays via Polly)
 
 **ElectionEvent settings** → "IVR Flow" tab:
 - Configure the flow pipeline (`presentation.ivr.flow`) — which phases run and in what order
@@ -2034,8 +2074,12 @@ When `telephone` channel is enabled in `voting_channels`:
 - Assistance phone number and other non-auth settings
 
 **Election settings** → new "IVR Prompts" section:
-- Text fields for election-specific prompts
+- Text fields for election-specific prompts and optional IVR-only `name` / `alias` / `description` overrides
 - Inherits languages from parent event
+
+**Contest and candidate editors**:
+- Optional IVR-only `name` / `alias` / `description` override inputs beside the standard portal text
+- Empty override fields mean "reuse the portal translation"
 
 **Phone Blacklist management view** — separate admin portal section (not per-election-event) where operators with the `can_manage_phone_blacklist` Keycloak permission can add/remove/annotate blacklisted E.164 numbers backed by the `sequent_backend.ivr_phone_blacklist` Hasura table. See §6.3 for the full data model, Harvest endpoints, and rationale for why the blacklist lives in Hasura rather than in the frozen ballot publication.
 
@@ -2045,7 +2089,7 @@ For the common case, the admin portal can link directly to the Keycloak admin UR
 
 ### 7.5 Lambda Prompt Resolution (Fallback Chain)
 
-Since prompts are `HashMap<String, String>`, resolution is a simple key lookup with fallback:
+Since prompts and spoken-text overrides are `HashMap<String, String>`, resolution is a simple key lookup with fallback:
 
 ```rust
 impl IvrPromptResolver {
@@ -2054,13 +2098,13 @@ impl IvrPromptResolver {
         &self,
         key: &str,
         lang: &str,
-        election_prompts: Option<&IvrPrompts>,
-        event_prompts: &IvrPrompts,
+        election_strings: Option<&IvrStrings>,
+        event_strings: &IvrStrings,
         vars: &HashMap<String, String>,
     ) -> String {
-        let template = election_prompts
+        let template = election_strings
             .and_then(|p| p.get(key))
-            .or_else(|| event_prompts.get(key))
+            .or_else(|| event_strings.get(key))
             .or_else(|| self.defaults.get(key))
             .cloned()
             .unwrap_or_else(|| format!("[missing prompt: {}]", key));
@@ -2078,7 +2122,18 @@ impl IvrPromptResolver {
 }
 ```
 
-No match arms, no fixed struct fields. Any prompt key added to the i18n config is automatically available.
+Prompt/template fallback is:
+- election `presentation.i18n[lang]["ivr"][key]`
+- event `presentation.i18n[lang]["ivr"][key]`
+- built-in default prompt
+
+Spoken dynamic-text fallback is:
+- entity `presentation.i18n[lang]["ivr"][field]`
+- normal portal translation for that field
+- default-language translation
+- base non-i18n field
+
+If the resolved value contains SSML markup, the renderer should preserve it and emit the final prompt as SSML rather than escaping the tags.
 
 ### 7.6 Using Existing i18n for Dynamic Content
 
@@ -2090,6 +2145,8 @@ use sequent_core::services::translations::Name;
 let election_name = election.get_name(&language);  // From presentation.i18n
 let contest_name = contest.get_name(&language);    // From contest.name_i18n
 ```
+
+For IVR, these existing helpers become the **fallback path** after first checking optional `presentation.i18n[lang]["ivr"].name` / `alias` / `description` overrides on the relevant event, election, contest, or candidate.
 
 Template variables and well-known prompt keys are listed in Appendix D.
 
@@ -2872,7 +2929,7 @@ impl Default for ElectionEventStatus {
 
 ## Appendix D: IVR Prompt Keys Reference
 
-Prompt keys are **dynamic** — they are `HashMap<String, String>` entries, not fixed struct fields. Any key can be added to the i18n config without code changes. The tables below list **well-known keys** that the built-in phase engines reference, but deployments can add custom keys as needed.
+The `ivr` namespace is **dynamic** — it is a `HashMap<String, String>`, not a fixed struct. It can hold both prompt keys and spoken-text override keys without code changes. The tables below list **well-known keys** that the built-in phase engines reference, but deployments can add custom keys as needed.
 
 ### Event-Level Prompts
 
@@ -2882,7 +2939,7 @@ Stored in `ElectionEvent.presentation.i18n[lang]["ivr"]`
 
 | Key | Phase | Description |
 |-----|-------|-------------|
-| `greeting` | `welcome` | Welcome message |
+| `greeting` | `announcement: welcome` | Welcome message |
 | `language_select` | `language_select` | Language menu |
 | `auth_enter_username` | `auth` | Played for the step whose `maps_to` is `username` (typically voter ID) |
 | `auth_enter_password` | `auth` | Played for the step whose `maps_to` is `password` (typically PIN or DoB) |
@@ -2902,16 +2959,26 @@ Stored in `ElectionEvent.presentation.i18n[lang]["ivr"]`
 
 | Key | Phase | Description |
 |-----|-------|-------------|
-| `blacklist_message` | `blacklist_check` | Phone number blocked |
+| `blacklist_message` | `blacklist_check` | Phone number blocked. Since blacklist runs before language selection, this prompt should work before the caller has chosen a language |
 | `eligibility_check` | `eligibility_check` | Eligibility validation in progress |
 | `not_eligible` | `eligibility_check` | Not authorized to vote |
 | `not_active` | `eligibility_check` | Credentials deactivated |
 | `election_closed` | `ballot_loop` | Telephone voting not open (played when `telephone_voting_status` is not `OPEN`) |
-| `declaration_text` | `declaration` | Legal declaration text |
-| `pre_voting_statement` | `pre_voting_statement` | Disconnect warning / info |
-| `receipt_info` | `ballot_loop` (`ElectionReceipt`) | About to read confirmation number for this election |
-| `receipt_number` | `ballot_loop` (`ElectionReceipt`) | Per-election confirmation number readback — ballot hash as BIP39 phrase or short hex (uses `\{confirmation_number\}`, `\{election_name\}`) |
+| `declaration_text` | `announcement: declaration` | Legal declaration text |
+| `pre_voting_statement` | `announcement: pre_voting_statement` | Disconnect warning / info |
+| `receipt_info` | `ballot_loop` (`ElectionReceipt`) | About to read the ballot locator for this election |
+| `receipt_number` | `ballot_loop` (`ElectionReceipt`) | Per-election ballot locator readback — first 4 hex characters of `ballot_id`, spoken phonetically (uses `\{confirmation_number\}`, `\{election_name\}`) |
 | `session_expired` | (any) | Session timeout |
+
+### IVR-Only Spoken Text Overrides
+
+Stored in `*.presentation.i18n[lang]["ivr"]` at event, election, contest, and candidate scope
+
+| Key | Typical Scope | Fallback |
+|-----|---------------|----------|
+| `name` | Event, election, contest, candidate | Portal `name` / `name_i18n` |
+| `alias` | Event, election, contest, candidate | Portal `alias` / `alias_i18n` |
+| `description` | Event, election, contest, candidate | Portal `description` / `description_i18n` |
 
 ### Election-Level Prompts
 
@@ -2926,12 +2993,10 @@ Stored in `Election.presentation.i18n[lang]["ivr"]`
 | `already_selected` | `ballot_loop` | - | Duplicate selection (only reachable via race condition; normally unselected candidates are omitted from list) |
 | `blank_ballot_confirm` | `ballot_loop` | - | Blank ballot confirmation |
 | `decline_confirm` | `ballot_loop` | - | Decline-to-vote confirmation |
-| `acclamation` | `ballot_loop` | `\{candidate_name\}` | Acclamation announcement |
 | `summary_intro` | `ballot_loop` (`ElectionSummary`) | - | Per-election summary introduction |
 | `summary_item` | `ballot_loop` (`ElectionSummary`) | `\{contest_name\}`, `\{candidate_name\}`, `\{contest_number\}` | Summary line item per contest — includes contest number for edit selection |
 | `summary_edit_prompt` | `ballot_loop` (`ElectionSummary`) | - | "Press 1 to continue to submission, or press a contest number to change your selection for that contest" |
 | `summary_edit_restart` | `ballot_loop` (`ElectionSummary`) | `\{contest_name\}` | "Changing your selection for \{contest_name\}. Your previous selections for this contest have been cleared." |
-| `election_confirm` | `ballot_loop` (`ElectionConfirm`) | `\{election_name\}` | Per-election final confirmation |
 | `vote_success` | `ballot_loop` (`ElectionSubmit`) | `\{election_name\}` | Ballot submitted for this election |
 | `vote_failed` | `ballot_loop` (`ElectionSubmit`) | - | Vote submission failed |
 | `duplicate_vote` | `ballot_loop` (`ElectionSubmit`) | - | Already voted in this election |
@@ -2941,12 +3006,11 @@ Stored in `Election.presentation.i18n[lang]["ivr"]`
 
 | Variable | Source | Example |
 |----------|--------|---------|
-| `\{election_name\}` | `election.get_name(lang)` | "Municipal Council" |
-| `\{contest_name\}` | `contest.get_name(lang)` | "Mayor" |
-| `\{candidate_name\}` | candidate.name | "Jane Smith" |
+| `\{election_name\}` | IVR `name` override if present, else `election.get_name(lang)` | "Municipal Council" |
+| `\{contest_name\}` | IVR `name` override if present, else `contest.get_name(lang)` | "Mayor" |
+| `\{candidate_name\}` | IVR `name` override if present, else candidate `name` / `name_i18n` | `<lang xml:lang="fr-CA">Jean-François Côté</lang>` |
 | `\{number\}` | DTMF mapping | "1" |
 | `\{max_votes\}` | contest.max_votes | "3" |
 | `\{min_votes\}` | contest.min_votes | "1" |
-| `\{confirmation_number\}` | Ballot hash (ballot_id), formatted as BIP39 phrase or short hex per `ballot_loop.config.receipt_format` | "ocean tiger marble" (bip39) or "a3f2c9" (short_hash) |
+| `\{confirmation_number\}` | First 4 hex characters of `ballot_id`, formatted phonetically per `ballot_loop.config.receipt_format` | "alpha three foxtrot two" |
 | `\{assistance_phone\}` | `ivr.assistance_phone` config | "1-800-555-0199" |
-
