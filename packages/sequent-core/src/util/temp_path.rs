@@ -33,7 +33,7 @@ pub fn get_file_size(filepath: &str) -> Result<u64> {
 }
 
 /// Writes data into a named temp file. The temp file will have the
-///specificed prefix and suffix.
+/// specificed prefix and suffix.
 ///
 /// Returns the `TempPath` of the file, the stringified version of the path to
 /// the file and the bytes size of the file.

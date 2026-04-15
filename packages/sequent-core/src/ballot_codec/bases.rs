@@ -82,7 +82,7 @@ mod tests {
     fn test_contest_bases() {
         let fixtures = get_fixtures();
         for fixture in fixtures {
-            println!("fixture: {}", fixture.title);
+            info!("fixture: {}", fixture.title);
 
             let expected_error =
                 fixture.expected_errors.and_then(|expected_map| {

@@ -277,9 +277,11 @@ pub fn let_helper<'reg, 'rc>(
         .map(|v| v.value().to_owned())
         .ok_or_else(|| RenderErrorReason::ParamNotFoundForIndex("let", 2))?;
 
-    let block = rc
-        .block_mut()
-        .expect("block_mut should be available in let_helper");
+    let block = rc.block_mut().ok_or_else(|| {
+        RenderErrorReason::Other(
+            "block_mut should be available in let_helper".to_string(),
+        )
+    })?;
 
     block.set_block_param(name_constant, BlockParamHolder::Value(value));
 
@@ -738,9 +740,6 @@ pub fn format_datetime(unix_time: i64, fmt: &str) -> Result<String> {
 ///
 /// # Errors
 /// Returns an error if the parameter is missing, not a valid integer, or if writing to output fails.
-///
-/// # Panics
-/// Panics if the increment would overflow.
 pub fn inc(
     helper: &Helper,
     _: &Handlebars,
@@ -768,9 +767,6 @@ pub fn inc(
 ///
 /// # Errors
 /// Returns an error if the parameter is missing, not a valid integer, or if writing to output fails.
-///
-/// # Panics
-/// Panics if the increment would overflow.
 pub fn inc2(
     helper: &Helper,
     _: &Handlebars,

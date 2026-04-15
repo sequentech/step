@@ -9,7 +9,7 @@ use crate::ballot::VotingPeriodDates;
 use anyhow::{anyhow, Result};
 use chrono::DateTime;
 use chrono::Utc;
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize};
 use serde_json::Value;
 use std::collections::HashMap;
 use strum_macros::Display;
@@ -84,8 +84,13 @@ pub struct ManageElectionDatePayload {
 pub struct ManageAllowInitPayload {
     /// Election ID associated with the initialization report.
     pub election_id: Option<String>,
-    #[serde(default = "default_allow_init")]
+    #[serde(
+        default = "default_allow_init",
+        deserialize_with = "deserialize_allow_init"
+    )]
     /// Flag indicating whether the initialization report is allowed. Defaults to true.
+    ///
+    /// Absent field and JSON `null` deserialize as `true` for compatibility with older payloads.
     pub allow_init: bool,
 }
 
@@ -94,6 +99,15 @@ pub struct ManageAllowInitPayload {
 /// Always returns true.
 const fn default_allow_init() -> bool {
     true
+}
+
+/// Deserialize the `allow_init` field in `ManageAllowInitPayload`.
+fn deserialize_allow_init<'de, D>(deserializer: D) -> Result<bool, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let opt = Option::<bool>::deserialize(deserializer)?;
+    Ok(opt.unwrap_or(true))
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]

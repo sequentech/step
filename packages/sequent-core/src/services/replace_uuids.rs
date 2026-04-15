@@ -13,6 +13,7 @@ use uuid::Uuid;
 ///
 /// # Panics
 /// Panics if the UUID regex is invalid or if a capture group is missing (should not happen).
+#[allow(clippy::unwrap_used)] // Safe: regex is a static, known-valid constant; failure would indicate a programming error.
 pub fn replace_uuids(
     input: &str,
     keep: &[String],

@@ -38,11 +38,14 @@ pub fn encode_vec_to_array(data: &[u8]) -> Result<[u8; 30], String> {
     let mut plaintext_array = [0u8; 30];
     plaintext_array[0] = u8::try_from(plaintext_length)
         .map_err(|e| format!("Error converting plaintext length to u8: {e}"))?;
-    if let Some(slice) = plaintext_array.get_mut(1..=plaintext_length) {
-        slice.copy_from_slice(data);
-    } else {
-        return Err("Internal error: failed to copy data".to_string());
-    }
+    let end = plaintext_length
+        .checked_add(1)
+        .ok_or("Overflow in plaintext length addition")?;
+    let slice = plaintext_array
+        .get_mut(1..end)
+        .ok_or_else(|| "Internal error: failed to copy data".to_string())?;
+
+    slice.copy_from_slice(data);
     Ok(plaintext_array)
 }
 

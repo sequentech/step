@@ -41,21 +41,15 @@ impl<'r> FromRequest<'r> for AuthHeaders {
         request: &'r Request<'_>,
     ) -> Outcome<Self, Self::Error> {
         let headers = request.headers().clone();
-        if headers.contains("X-Hasura-Admin-Secret") {
+        if let Some(value) = headers.get_one("X-Hasura-Admin-Secret") {
             Outcome::Success(AuthHeaders {
                 key: "X-Hasura-Admin-Secret".to_string(),
-                value: headers
-                    .get_one("X-Hasura-Admin-Secret")
-                    .expect("Missing X-Hasura-Admin-Secret header")
-                    .to_string(),
+                value: value.to_string(),
             })
-        } else if headers.contains("authorization") {
+        } else if let Some(value) = headers.get_one("authorization") {
             Outcome::Success(AuthHeaders {
                 key: "authorization".to_string(),
-                value: headers
-                    .get_one("authorization")
-                    .expect("Missing authorization header")
-                    .to_string(),
+                value: value.to_string(),
             })
         } else {
             warn!("AuthHeaders guard: headers: {headers:?}");

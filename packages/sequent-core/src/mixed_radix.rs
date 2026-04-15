@@ -25,15 +25,13 @@ pub fn encode(values: &[u64], bases: &[u64]) -> Result<BigUint, String> {
             format!("Failed to convert value {value} to BigUint")
         })?;
 
-        encoded = encoded
-            .checked_add(
-                &acc_base
-                    .checked_mul(&value_bigint)
-                    .expect("Multiplication overflow when encoding value"),
-            )
-            .ok_or_else(|| {
-                "Addition overflow when encoding value".to_string()
-            })?;
+        let product = acc_base.checked_mul(&value_bigint).ok_or_else(|| {
+            "Multiplication overflow when encoding value".to_string()
+        })?;
+
+        encoded = encoded.checked_add(&product).ok_or_else(|| {
+            "Addition overflow when encoding value".to_string()
+        })?;
 
         let base_bigint = base.to_biguint().ok_or_else(|| {
             format!("Failed to convert base {base} to BigUint")

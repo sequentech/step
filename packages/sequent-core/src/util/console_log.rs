@@ -22,6 +22,8 @@ macro_rules! console_log {
                 ::web_sys::console::log_1(&format_args!($($t)*).to_string().into());
             }
             #[cfg(not(feature = "wasm"))]
+            // Allow stdout for lightweight, dependency-free debug logging.
+            #[allow(clippy::print_stdout)]
             {
                 println!("{}", format_args!($($t)*));
             }

@@ -54,7 +54,7 @@ jobs:
       - name: Generate cargo docs for sequent-core
         working-directory: ./packages
         run: |
-          cargo doc -p sequent-core --no-deps
+          cargo doc -p sequent-core --all-features --no-deps
 
       - name: Set BASE_URL and Build Docusaurus Preview
         id: build_docusaurus

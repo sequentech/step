@@ -51,7 +51,7 @@ pub fn authorize(
             tenant_id_opt: {tenant_id_opt:?}, claims tenant_id: {}",
             claims.hasura_claims.tenant_id
         );
-        return Err((Status::Unauthorized, format!("Unathorized: not a super admin or invalid tenant_id {tenant_id_opt:?}")));
+        return Err((Status::Unauthorized, format!("Unauthorized: not a super admin or invalid tenant_id {tenant_id_opt:?}")));
     }
 
     let perms_str: Vec<String> = permissions

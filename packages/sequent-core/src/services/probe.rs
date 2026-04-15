@@ -64,19 +64,17 @@ impl ProbeHandler {
                         let is_live = il.lock().await;
                         let is_live_future = is_live();
                         if is_live_future.await {
-                            Ok::<_, warp::Rejection>(
-                                Response::builder()
-                                    .status(warp::http::StatusCode::OK)
-                                    .body("Live")
-                                    .expect("Failed to build response"),
-                            )
+                            let response = Response::builder()
+                                .status(warp::http::StatusCode::OK)
+                                .body("Live")
+                                .unwrap_or_else(|_| Response::new("Live"));
+                            Ok::<_, warp::Rejection>(response)
                         } else {
-                            Ok::<_, warp::Rejection>(
-                                Response::builder()
-                                    .status(warp::http::StatusCode::BAD_REQUEST)
-                                    .body("Not live")
-                                    .expect("Failed to build response"),
-                            )
+                            let response = Response::builder()
+                                .status(warp::http::StatusCode::BAD_REQUEST)
+                                .body("Not live")
+                                .unwrap_or_else(|_| Response::new("Not live"));
+                            Ok::<_, warp::Rejection>(response)
                         }
                     }
                 })
@@ -86,19 +84,17 @@ impl ProbeHandler {
                         let is_ready = ir.lock().await;
                         let is_ready_future = is_ready();
                         if is_ready_future.await {
-                            Ok::<_, warp::Rejection>(
-                                Response::builder()
-                                    .status(warp::http::StatusCode::OK)
-                                    .body("Ready")
-                                    .expect("Failed to build response"),
-                            )
+                            let response = Response::builder()
+                                .status(warp::http::StatusCode::OK)
+                                .body("Ready")
+                                .unwrap_or_else(|_| Response::new("Ready"));
+                            Ok::<_, warp::Rejection>(response)
                         } else {
-                            Ok::<_, warp::Rejection>(
-                                Response::builder()
-                                    .status(warp::http::StatusCode::BAD_REQUEST)
-                                    .body("Not ready")
-                                    .expect("Failed to build response"),
-                            )
+                            let response = Response::builder()
+                                .status(warp::http::StatusCode::BAD_REQUEST)
+                                .body("Not ready")
+                                .unwrap_or_else(|_| Response::new("Not ready"));
+                            Ok::<_, warp::Rejection>(response)
                         }
                     }
                 })),

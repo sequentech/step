@@ -70,7 +70,9 @@ pub fn check_voting_not_allowed_next_util(
                 .iter()
                 .filter(|choice| choice.selected == 0)
                 .count();
-            let choices_selected_i64 = i64::try_from(choices_selected).expect("error convert choices_selected to i64");
+            let choices_selected_i64 = i64::try_from(choices_selected).expect("error convert choices_selected to i64") else {
+                return false;
+            };
             let invalid_errors: &Vec<InvalidPlaintextError> =
                 &decoded_contest.invalid_errors;
 
@@ -191,7 +193,9 @@ pub fn check_voting_error_dialog_util(
 
             console_log!("choices_selected={choices_selected:?}, explicit_invalid={explicit_invalid:?}");
 
-            let choices_selected_i64 = i64::try_from(choices_selected).expect("error convert choices_selected to i64");
+            let choices_selected_i64 = i64::try_from(choices_selected).expect("error convert choices_selected to i64") else {
+                return false;
+            };
             // Show Alert dialog if:
             // - there are invalid error and it's not allowed
             (!invalid_errors.is_empty()
