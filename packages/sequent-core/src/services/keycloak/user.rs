@@ -389,7 +389,7 @@ impl KeycloakAdminClient {
                     // the new credential
                     val,
                     // the filtered list, without password
-                    current_user.credentials.unwrap_or(vec![]).clone(),
+                    current_user.credentials.unwrap_or_default().clone(),
                 ]
                 .concat(),
             ),

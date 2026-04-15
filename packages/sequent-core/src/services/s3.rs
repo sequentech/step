@@ -928,6 +928,7 @@ pub async fn get_files_from_s3(
             let parts: Vec<&str> = key.split('/').collect();
             let s3_file_name = parts
                 .last()
+                .copied()
                 .ok_or(anyhow!("Can't find file name in path"))?;
             let document_id = parts.iter().find_map(|part| {
                 if part.starts_with("document-") {
