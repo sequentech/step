@@ -46,7 +46,7 @@ services:
       TWILIO_SERVICE_SID: ${TWILIO_SERVICE_SID}
       ENV_SLUG: ${ENV_SLUG}
       KC_SPI_TRUSTSTORE_PROVIDER: ${KC_SPI_TRUSTSTORE_PROVIDER:-}
-      KC_SPI_TRUSTSTORE_URL_REFRESH_INTERVAL_SECONDS: ${KC_SPI_TRUSTSTORE_URL_REFRESH_INTERVAL_SECONDS:-0}
+      KC_SPI_TRUSTSTORE_URL_REFRESH_INTERVAL_SECONDS: ${KC_SPI_TRUSTSTORE_URL_REFRESH_INTERVAL_SECONDS:-60}
       # Trust X-Forwarded-* headers set by the local nginx mTLS proxy
       # (.devcontainer/keycloak-nginx/keycloak-mtls.conf).
       KC_PROXY_HEADERS: xforwarded
@@ -104,6 +104,10 @@ services:
       VOTING_PORTAL_URL: ${VOTING_PORTAL_URL}
       KC_HOSTNAME: ${KC_HOSTNAME}
       KC_HTTP_PORT: ${KC_HTTP_PORT}
+      HARVEST_DOMAIN: ${HARVEST_DOMAIN}
+      KC_SPI_TRUSTSTORE_URL_REFRESH_INTERVAL_SECONDS: ${KC_SPI_TRUSTSTORE_URL_REFRESH_INTERVAL_SECONDS:-60}
     depends_on:
       keycloak:
         condition: service_healthy
+      harvest:
+        condition: service_started
