@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["EventProcessors"],"fn":["generate_manage_date_task_name","generate_voting_period_dates","prepare_scheduled_dates"],"struct":["CronConfig","ManageAllowInitPayload","ManageAllowTallyPayload","ManageAllowVotingPeriodEndPayload","ManageElectionDatePayload","ScheduledEvent"]};

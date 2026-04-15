@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"mod":["area","area_contest","candidate","contests","election","election_event","results_area_contest","results_area_contest_candidate","results_contest","results_contest_candidate","results_election","results_election_area","results_event","tally_session_resolution","utils"]};

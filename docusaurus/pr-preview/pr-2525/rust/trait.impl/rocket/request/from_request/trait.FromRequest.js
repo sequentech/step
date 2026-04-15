@@ -1,0 +1,9 @@
+(function() {
+    const implementors = Object.fromEntries([["sequent_core",[["impl&lt;'r&gt; <a class=\"trait\" href=\"https://api.rocket.rs/v0.5/rocket/request/from_request/trait.FromRequest.html\" title=\"trait rocket::request::from_request::FromRequest\">FromRequest</a>&lt;'r&gt; for <a class=\"struct\" href=\"sequent_core/services/connection/struct.AuthHeaders.html\" title=\"struct sequent_core::services::connection::AuthHeaders\">AuthHeaders</a>",0],["impl&lt;'r&gt; <a class=\"trait\" href=\"https://api.rocket.rs/v0.5/rocket/request/from_request/trait.FromRequest.html\" title=\"trait rocket::request::from_request::FromRequest\">FromRequest</a>&lt;'r&gt; for <a class=\"struct\" href=\"sequent_core/services/connection/struct.DatafixClaims.html\" title=\"struct sequent_core::services::connection::DatafixClaims\">DatafixClaims</a>",0],["impl&lt;'r&gt; <a class=\"trait\" href=\"https://api.rocket.rs/v0.5/rocket/request/from_request/trait.FromRequest.html\" title=\"trait rocket::request::from_request::FromRequest\">FromRequest</a>&lt;'r&gt; for <a class=\"struct\" href=\"sequent_core/services/connection/struct.UserLocation.html\" title=\"struct sequent_core::services::connection::UserLocation\">UserLocation</a>",0],["impl&lt;'r&gt; <a class=\"trait\" href=\"https://api.rocket.rs/v0.5/rocket/request/from_request/trait.FromRequest.html\" title=\"trait rocket::request::from_request::FromRequest\">FromRequest</a>&lt;'r&gt; for <a class=\"struct\" href=\"sequent_core/services/jwt/struct.JwtClaims.html\" title=\"struct sequent_core::services::jwt::JwtClaims\">JwtClaims</a>",0]]]]);
+    if (window.register_implementors) {
+        window.register_implementors(implementors);
+    } else {
+        window.pending_implementors = implementors;
+    }
+})()
+//{"start":59,"fragment_lengths":[1539]}

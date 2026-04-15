@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["PRE_EXPIRATION_SECS"],"struct":["AuthHeaders","DatafixClaims","LastDatafixAccessToken","UserLocation"]};

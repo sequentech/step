@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["create_tally_session_resolutions_sqlite"]};

@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["create_results_election_sqlite","update_results_election_documents_sqlite"]};

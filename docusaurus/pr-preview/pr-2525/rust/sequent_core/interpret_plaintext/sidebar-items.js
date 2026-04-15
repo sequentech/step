@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["ContestState"],"fn":["check_is_blank","get_layout_properties","get_points"],"struct":["ContestLayoutProperties"]};

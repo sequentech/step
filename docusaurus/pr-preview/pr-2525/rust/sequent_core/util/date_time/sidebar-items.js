@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["PHILIPPINO_TIMEZONE"],"fn":["generate_timestamp","get_date_and_time","get_system_timezone","verify_date_format_ymd"]};

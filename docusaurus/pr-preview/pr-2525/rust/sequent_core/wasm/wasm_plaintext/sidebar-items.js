@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"struct":["IDecodedVoteChoice","IDecodedVoteContest","IInvalidPlaintextError","IInvalidPlaintextErrorType"]};

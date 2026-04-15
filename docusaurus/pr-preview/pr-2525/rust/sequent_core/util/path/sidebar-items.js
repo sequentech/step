@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["change_file_extension","get_folder_name","list_subfolders"]};

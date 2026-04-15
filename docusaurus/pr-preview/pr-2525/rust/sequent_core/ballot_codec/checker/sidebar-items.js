@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["check_blank_vote_policy","check_duplicated_rank_policy","check_invalid_vote_policy","check_max_min_votes_policy","check_min_vote_policy","check_over_vote_policy","check_preference_gaps_policy","check_under_vote_policy"],"struct":["CheckerResult"]};

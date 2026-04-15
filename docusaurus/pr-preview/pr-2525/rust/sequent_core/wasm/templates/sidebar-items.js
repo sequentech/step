@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"struct":["IAudienceSelection","ICommTemplates","IEmailConfig","IExtraConfig","ISendTemplateBody","ISmsConfig","ITemplateMethod","ITemplateType"]};

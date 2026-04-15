@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["create_area_contest_sqlite"]};

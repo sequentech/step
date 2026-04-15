@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["AWS_S3_PRIVATE_URI_ENV","AWS_S3_PUBLIC_URI_ENV"],"fn":["get_fetch_expiration_secs","get_from_env_aws_config","get_max_upload_size","get_region","get_s3_aws_config","get_upload_expiration_secs"]};

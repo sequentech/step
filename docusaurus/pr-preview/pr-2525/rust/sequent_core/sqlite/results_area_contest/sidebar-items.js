@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["create_results_area_contests_sqlite","update_results_area_contest_documents_sqlite"]};

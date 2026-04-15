@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"mod":["types"]};
+window.SIDEBAR_ITEMS = {"macro":["console_log"],"mod":["ballot","ballot_codec","ballot_style","encrypt","error","fixtures","interpret_plaintext","mixed_radix","multi_ballot","plaintext","plugins_wit","serialization","services","signatures","sqlite","temp_path","types","util","wasm"]};

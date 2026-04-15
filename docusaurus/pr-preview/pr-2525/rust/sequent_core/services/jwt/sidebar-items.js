@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["StringOrVec"],"fn":["decode_jwt","decode_permission_labels","has_gold_permission"],"struct":["JwtClaims","JwtHasuraClaims","JwtRolesAccess"]};

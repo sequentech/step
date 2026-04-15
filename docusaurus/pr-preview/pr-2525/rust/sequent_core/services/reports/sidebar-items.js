@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["expr_helper","format_date","format_datetime","format_dec_percentage","format_percentage","format_u64","helper_wrapper","helper_wrapper_or","inc","inc2","let_helper","render_template","render_template_text","sanitize_html","timestamp_to_rfc2822","to_json"],"struct":["divide","eq","modulo","multiply","next","parse_i64","sum"]};

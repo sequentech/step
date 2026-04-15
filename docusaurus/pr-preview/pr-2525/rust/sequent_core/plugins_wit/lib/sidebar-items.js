@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"mod":["authorization_bindings","plugin_bindings","transactions_manager_bindings"]};

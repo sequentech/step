@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["add_to_linker"],"struct":["Manifest","PluginRoute"],"trait":["Host","HostWithStore"]};

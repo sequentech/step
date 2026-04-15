@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["EXTERNAL_CONFIG_FILE_NAME"],"fn":["load_external_config"],"struct":["DuplicateVotes","ExternalConfigData","GenerateApplications","GenerateVoters"]};

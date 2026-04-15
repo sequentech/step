@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["check_voting_error_dialog_util","check_voting_not_allowed_next_util","get_contest_plurality","get_decoded_contest_plurality"]};

@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"mod":["plugins_manager"],"struct":["TransactionsManager","TransactionsManagerIndices","TransactionsManagerPre"]};

@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"static":["TO_BYTE","TO_CHAR"],"struct":["Base32Map","Utf8Map"],"trait":["CharacterMap"]};

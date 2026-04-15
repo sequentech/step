@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["AudienceSelection","TemplateMethod","TemplateType"],"struct":["CommunicationTemplatesExtraConfig","EmailConfig","PrintToPdfOptionsLocal","ReportExtraConfig","ReportOptions","SendTemplateBody","SmsConfig"]};

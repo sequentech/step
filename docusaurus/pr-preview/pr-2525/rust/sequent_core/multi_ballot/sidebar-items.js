@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["sign_hashable_multi_ballot_with_ephemeral_voter_signing_key","verify_multi_ballot_signature"],"struct":["AuditableMultiBallot","AuditableMultiBallotContests","HashableMultiBallot","HashableMultiBallotContests","RawHashableMultiBallot","SignedHashableMultiBallot"]};

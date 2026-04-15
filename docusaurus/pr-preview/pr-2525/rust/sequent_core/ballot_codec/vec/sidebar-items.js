@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["decode_array_to_vec","encode_vec_to_array","vec_to_30_array"]};

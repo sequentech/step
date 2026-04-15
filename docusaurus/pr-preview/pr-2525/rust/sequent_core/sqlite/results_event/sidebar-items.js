@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["create_results_event_sqlite","find_results_event_sqlite","update_results_event_documents_sqlite"]};

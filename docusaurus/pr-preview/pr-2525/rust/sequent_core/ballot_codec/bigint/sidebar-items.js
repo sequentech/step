@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["decode_bigint_from_bytes","encode_bigint_to_bytes"],"trait":["BigUIntCodec"]};

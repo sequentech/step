@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"mod":["exports","plugins_manager"],"struct":["Plugin","PluginIndices","PluginPre"]};

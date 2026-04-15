@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["generate_temp_file","get_file_size","get_public_assets_path_env_var","read_temp_file","read_temp_path","write_into_named_temp_file"]};

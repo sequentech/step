@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"mod":["ceremonies","date_time","error","keycloak","permissions","results","tally_sheets","to_map"]};
+window.SIDEBAR_ITEMS = {"mod":["ceremonies","date_time","error","hasura","keycloak","permissions","results","scheduled_event","tally_sheets","templates","to_map"]};
