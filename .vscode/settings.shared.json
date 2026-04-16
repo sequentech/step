@@ -33,5 +33,7 @@
     "docker.views.dockerContexts.visibility": "collapsed",
     "workbench.editor.enablePreview": false,
     "terminal.integrated.scrollback": 100000000,
-    "extensions.supportNodeGlobalNavigator": true
+     // Fixes extensions that crash (like remote-ssh) because still rely on the presence of the navigator 
+     // object to detect the web environment https://code.visualstudio.com/updates/v1_101#_web-environment-detection
+    "extensions.supportNodeGlobalNavigator": true 
 }
