@@ -1,0 +1,262 @@
+<!--
+ SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
+
+ SPDX-License-Identifier: AGPL-3.0-only
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>AUTHENTICATION FAILED</title>
+    <style>
+        :root {
+            --pf-global--palette--black-800: #191D23;
+            --pf-global--BackgroundColor--100: #F7F9FE;
+            --pf-global--link--Color: #191D23;
+            --pf-global--link--TextDecoration: underline;
+        }
+
+        html, body {
+            overflow-x: hidden;
+            width: 100%;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background: #FFFFFF;
+        }
+
+        .login-pf-page {
+            padding-top: 0;
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+
+        .login-pf-page-header {
+            background-color: var(--pf-global--BackgroundColor--100);
+            padding: 16px 0;
+            display: flex;
+            flex-direction: row;
+            margin-bottom: 40px;
+        }
+
+        @media (max-width: 1170px) {
+            .login-pf-page-header {
+                padding: 9px;
+            }
+        }
+
+        #kc-header-wrapper {
+            display: flex;
+            width: 100%;
+            align-items: center;
+            max-width: 1170px;
+            margin: 0 auto;
+            padding: 0 8px;
+            background: none;
+        }
+
+        @media (min-width: 970px) {
+            #kc-header-wrapper {
+                height: 47px;
+                gap: 31px;
+            }
+        }
+
+        @media (max-width: 970px) {
+            #kc-header-wrapper {
+                gap: 11px;
+            }
+            #kc-header-wrapper div.logo {
+                width: 150px;
+            }
+        }
+
+        #kc-header-wrapper div.logo {
+            min-width: 251px;
+            height: 100%;
+            padding: 0 8px;
+            background: url(data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNTEiIGhlaWdodD0iNDciIGZpbGw9Im5vbmUiPjxnIGNsaXAtcGF0aD0idXJsKCNwcmVmaXhfX2NsaXAwXzEzOF8zMTAzKSI+PHBhdGggZD0iTTg4LjQgMjguMTFjMC0xMC44LTIwLjIxLTIuNjQtMjAuMjEtMTYuMzIgMC00Ljg5IDQtOS42IDExLjY3LTkuNnMxMS42MSA0LjggMTEuNzYgMTFoLTMuNDFDODguMDcgOC41MyA4NSA1LjM2IDc5LjkgNS4zNmMtNS4xIDAtOC4yIDIuNS04LjIgNi4yOSAwIDkuOTQgMjAuMyAyLjQ5IDIwLjMgMTYuMjIgMCA1LjkxLTUuMTMgOS44LTEyLjc3IDkuOC04Ljc4IDAtMTIuNDgtNS4xNC0xMi43Mi0xMWgzLjQ2Yy4zOCA1LjE0IDQgNy44MyA5LjM2IDcuODMgNS41MiAwIDkuMDctMi4yMSA5LjA3LTYuMzl6TTEwMC4yMSAyNS43NmMuMzMgNC45NSAzLjU1IDguNzQgOC42OSA4Ljc0YTcuOTA5IDcuOTA5IDAgMDA3LjY4LTUuMTRoMy41NWExMS40MTEgMTEuNDExIDAgMDEtMTEuMjggOC4yMWMtNy43MyAwLTEyLTUuOTUtMTItMTIuODJTMTAxLjQ2IDEyIDEwOC44IDEyYzcuMzQgMCAxMS43NiA1LjU3IDExLjc2IDEyLjQ5djEuMjlsLTIwLjM1LS4wMnptLjA5LTIuNzZoMTYuODVjLS40My00LjcxLTMuNTUtNy45Mi04LjM1LTcuOTJzLTcuOTIgMy4zOC04LjUgNy45MnpNMTM2LjI5OSAzNy41N2MtNy40OCAwLTExLjUyLTYuMDUtMTEuNTItMTIuNzdzNC4wNC0xMi44IDExLjUyLTEyLjhjNC40NyAwIDcuNTkgMiA5LjI3IDUuMDl2LTQuNTNoMy4yNlY0N2gtMy40MVYzMi41OGMtMS42MyAyLjk3LTQuNjUgNC45OS05LjEyIDQuOTl6bS43LTIyLjUxYy01LjQ4IDAtOC43NCA0LjMyLTguNzQgOS43NHMzLjI2IDkuNzUgOC43NCA5Ljc1IDguNTktNC4zNyA4LjU5LTkuNzUtMy4xNC05Ljc0LTguNTktOS43NHpNMTU2LjUxIDI3LjczVjEyLjU2aDMuNDF2MTQuOTNjMCA0LjQyIDIuMzUgNy4xIDYuNzIgNy4xIDQuMzcgMCA2LjcyLTIuNjggNi43Mi03LjFWMTIuNTZoMy40MXYxNS4xN2MwIDUuNDItMy4yMiA5Ljg0LTEwLjEzIDkuODRzLTEwLjEzLTQuNDItMTAuMTMtOS44NHpNMTg2IDI1Ljc2Yy4zNCA0Ljk1IDMuNTUgOC43NCA4LjY5IDguNzRhNy45IDcuOSAwIDAwNy42OC01LjE0aDMuNTVhMTEuNDExIDExLjQxMSAwIDAxLTExLjI4IDguMjFjLTcuNzMgMC0xMi4wNS01Ljk1LTEyLjA1LTEyLjgyUzE4Ny4yMyAxMiAxOTQuNTcgMTJjNy4zNCAwIDExLjc3IDUuNTcgMTEuNzcgMTIuNDkgMCAuNTItLjA1IDEuMjktLjA1IDEuMjlMMTg2IDI1Ljc2em0uMS0yLjc4aDE2Ljg1Yy0uNDMtNC43MS0zLjU2LTcuOTItOC4zNi03LjkyLTQuOCAwLTcuOTQgMy40LTguNTEgNy45NGwuMDItLjAyek0yMTUuNjQ5IDE2LjNhOC44NjkgOC44NjkgMCAwMTguMDYtNC4zYzYgMCA5LjI2IDQgOS4yNiA5LjQxVjM3aC0zLjRWMjIuMDdjMC00LjQyLTIuMDctNy4xMS02LjQ0LTcuMTEtNC4xMiAwLTcuMzQgMi41OS03LjM0IDcuNDlWMzdoLTMuNDFWMTIuNTZoMy4yN3YzLjc0ek0yNDUgMzdoLTMuNDFWMTUuNDRIMjM3di0yLjg4aDQuNjV2LTdIMjQ1djdoNXYyLjg4aC01VjM3ek00OS43OCAxNi40YTguMiA4LjIgMCAxMDAtMTYuNCA4LjIgOC4yIDAgMDAwIDE2LjR6TTguMiAxNi40QTguMiA4LjIgMCAxMDguMiAwYTguMiA4LjIgMCAwMDAgMTYuNHpNOC4yIDM2LjI1YTguMiA4LjIgMCAxMDAtMTYuNCA4LjIgOC4yIDAgMDAwIDE2LjR6TTI4Ljk5IDM2LjI1YTguMiA4LjIgMCAxMC0uMDAxLTE2LjQgOC4yIDguMiAwIDAwMCAxNi40eiIgZmlsbD0iIzBGMDU0QyIvPjxwYXRoIGQ9Ik0yOC45OSAxNi40QTguMiA4LjIgMCAxMDI4Ljk4OCAwYTguMiA4LjIgMCAwMDAgMTYuNHoiIGZpbGw9IiM0M0UzQTEiLz48L2c+PGRlZnM+PGNsaXBQYXRoIGlkPSJwcmVmaXhfX2NsaXAwXzEzOF8zMTAzIj48cGF0aCBmaWxsPSIjZmZmIiBkPSJNMCAwaDI1MC4wMXY0Ni45OEgweiIvPjwvY2xpcFBhdGg+PC9kZWZzPjwvc3ZnPg==) center left no-repeat;
+            background-origin: content-box;
+            background-size: contain;
+            background-position: left;
+            flex-grow: 4;
+            display: flex;
+        }
+
+        .login-pf-page a {
+            color: var(--pf-global--link--Color);
+            text-decoration: var(--pf-global--link--TextDecoration);
+        }
+
+        .card-pf {
+            border: none;
+            box-shadow: none;
+            background: transparent;
+            max-width: 100%;
+            width: 100%;
+            padding: 204px 20px;
+            margin-left: auto;
+            margin-right: auto;
+            margin-bottom: auto;
+            box-sizing: border-box;
+        }
+
+        #kc-error-message {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 30px;
+            zoom: 0.80;
+        }
+
+        .kc-error-title {
+            font-family: 'Manrope', sans-serif;
+            font-style: normal;
+            font-weight: 400;
+            font-size: 48px;
+            line-height: 66px;
+            text-align: center;
+            letter-spacing: 0.14em;
+            text-transform: uppercase;
+            color: #000000;
+            margin: 0 0 30px;
+        }
+
+        .kc-error-alert {
+            display: flex;
+            flex-direction: row;
+            align-items: flex-start;
+            padding: 6px 16px;
+            width: fit-content;
+            max-width: 600px;
+            background: #FDEDED;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+
+        .kc-error-alert-icon-wrap {
+            display: flex;
+            align-items: flex-start;
+            padding: 7px 12px 7px 0;
+            flex-shrink: 0;
+        }
+
+        .kc-error-alert-icon {
+            width: 22px;
+            height: 22px;
+            fill: #D32F2F;
+        }
+
+        .kc-error-alert-text {
+            padding: 8px 0;
+            font-family: 'Roboto', sans-serif;
+            font-style: normal;
+            font-weight: 500;
+            font-size: 16px;
+            line-height: 150%;
+            letter-spacing: 0.15px;
+            color: #5F2120;
+        }
+
+        .kc-error-back-btn {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 8px 22px;
+            width: 100%;
+            max-width: 474px;
+            height: 42px;
+            background: #0F054C;
+            box-shadow: 0px 1px 5px rgba(0, 0, 0, 0.12), 0px 2px 2px rgba(0, 0, 0, 0.14), 0px 3px 1px -2px rgba(0, 0, 0, 0.2);
+            border-radius: 4px;
+            font-family: 'Roboto', sans-serif;
+            font-style: normal;
+            font-weight: 500;
+            font-size: 15px;
+            line-height: 26px;
+            letter-spacing: 0.46px;
+            text-transform: uppercase;
+            color: #FFFFFF !important;
+            text-decoration: none !important;
+            box-sizing: border-box;
+        }
+
+        .kc-error-back-btn:hover {
+            color: #FFFFFF !important;
+            text-decoration: none !important;
+        }
+    </style>
+</head>
+<body class="login-pf">
+    <div class="login-pf-page">
+        <div class="login-pf-page-header">
+            <div id="kc-header-wrapper">
+                <div class="logo"></div>
+            </div>
+        </div>
+        <div class="card-pf">
+            <div id="kc-error-message">
+                <h1 id="error-title" class="kc-error-title">AUTHENTICATION FAILED</h1>
+                <div class="kc-error-alert">
+                    <div class="kc-error-alert-icon-wrap">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="kc-error-alert-icon" aria-hidden="true">
+                            <path d="M11 15h2v2h-2zm0-8h2v6h-2zm.99-5C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8z"/>
+                        </svg>
+                    </div>
+                    <span id="error-message" class="kc-error-alert-text">Authentication failed: Invalid certificate, access denied</span>
+                </div>
+                <a id="backToLogin" class="kc-error-back-btn" href="/">Back to login</a>
+            </div>
+        </div>
+    </div>
+    <script>
+        var T = {
+            en: { title: 'AUTHENTICATION FAILED',       message: 'Authentication failed: Invalid certificate, access denied',               back: 'Back to login' },
+            es: { title: 'AUTENTICACIÓN FALLIDA',       message: 'Error de autenticación: Certificado inválido, acceso denegado',           back: 'Volver al inicio de sesión' },
+            ca: { title: 'AUTENTICACIÓ FALLIDA',        message: "Error d'autenticació: Certificat no vàlid, accés denegat",               back: "Tornar a l'inici de sessió" },
+            eu: { title: 'AUTENTIFIKAZIO ERROREA',      message: 'Autentifikazio-errorea: Ziurtagiri baliogabea, sarbidea ukatuta',         back: 'Itzuli saioa hasteko orrialdera' },
+            fr: { title: "ÉCHEC DE L'AUTHENTIFICATION", message: "Échec de l'authentification : Certificat invalide, accès refusé",         back: 'Retour à la connexion' },
+            gl: { title: 'AUTENTICACIÓN FALLIDA',       message: 'Erro de autenticación: Certificado non válido, acceso denegado',          back: 'Volver ao inicio de sesión' },
+            nl: { title: 'AUTHENTICATIE MISLUKT',       message: 'Authenticatie mislukt: Ongeldig certificaat, toegang geweigerd',          back: 'Terug naar aanmelden' },
+            tl: { title: 'NABIGO ANG PAGPAPATUNAY',     message: 'Nabigo ang pagpapatunay: Hindi wastong sertipiko, tinanggihan ang access', back: 'Bumalik sa pag-login' }
+        };
+
+        (function () {
+            var locale = 'en';
+            // Priority order:
+            // 1. KEYCLOAK_LOCALE cookie injected by nginx via sub_filter —
+            //    nginx reads the cookie from the request headers (works even
+            //    when the cookie is HttpOnly and invisible to JS).
+            // 2. kc_locale query param — present on some Keycloak redirect URLs.
+            // 3. Browser language preference via navigator.languages.
+            var raw = '__KC_LOCALE__'
+                   || new URLSearchParams(window.location.search).get('kc_locale');
+            if (raw) {
+                var l = raw.toLowerCase().split('-')[0];
+                if (T[l]) { locale = l; }
+            } else {
+                var langs = navigator.languages || [navigator.language || 'en'];
+                for (var i = 0; i < langs.length; i++) {
+                    var lang = langs[i].toLowerCase().split('-')[0];
+                    if (T[lang]) { locale = lang; break; }
+                }
+            }
+            var t = T[locale];
+            document.documentElement.lang = locale;
+            document.title = t.title;
+            document.getElementById('error-title').textContent = t.title;
+            document.getElementById('error-message').textContent = t.message;
+            var btn = document.getElementById('backToLogin');
+            btn.textContent = t.back;
+            btn.onclick = function (e) {
+                if (history.length > 1) { e.preventDefault(); history.back(); }
+            };
+        })();
+    </script>
+</body>
+</html>

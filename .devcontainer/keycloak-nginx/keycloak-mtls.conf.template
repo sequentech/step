@@ -25,7 +25,7 @@ server {
     ssl_certificate_key /etc/nginx/certs/nginx-tls.key;
 
     ssl_client_certificate /etc/nginx/client-ca/client-ca.pem;
-    ssl_verify_client      optional_no_ca;
+    ssl_verify_client      optional;
     ssl_verify_depth       2;
     
     # Disable TLS session resumption so every connection triggers a fresh
@@ -50,6 +50,22 @@ server {
     access_log /dev/stdout mtls;
     # Note: with optional_no_ca, $ssl_client_verify is "NONE" (no cert) or
     # "FAILED:..." (cert present but unverified). It is never "SUCCESS".
+
+    # Serve a themed error page when nginx rejects the TLS handshake due to
+    # a bad or untrusted client certificate (400) or a cert-specific SSL
+    # error (495), before the request reaches Keycloak.
+    error_page 400 495 /ssl-error.html;
+    location = /ssl-error.html {
+        internal;
+        root /usr/share/nginx/html;
+        # Inject the KEYCLOAK_LOCALE cookie value into the placeholder before
+        # the page is sent to the browser. This works even when the cookie is
+        # HttpOnly (JS cannot read it, but nginx can from the request headers).
+        # When the cookie is absent $cookie_KEYCLOAK_LOCALE is empty, leaving
+        # the JS fallback chain (kc_locale param → navigator.languages) to run.
+        sub_filter '__KC_LOCALE__' '$cookie_KEYCLOAK_LOCALE';
+        sub_filter_once on;
+    }
 
     location / {
         set $keycloak_upstream http://keycloak:${KC_HTTP_PORT};
