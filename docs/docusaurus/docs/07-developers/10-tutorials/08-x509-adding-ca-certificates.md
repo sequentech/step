@@ -83,8 +83,7 @@ Keycloak picks up the new CA within the next refresh cycle (at most
 > To force an immediate pickup, reduce the refresh interval temporarily or
 > restart Keycloak.
 
-Permissions required: `ca-read` (view) and `ca-write` (add/remove), scoped by
-`election_event_id`. `election-event-cas-tab` to allow showing the CAs import tab.
+Permissions required: `ca-read` (view), `ca-write` (add/remove) and `election-event-cas-tab` to allow showing the CAs import tab.
 
 
 ---

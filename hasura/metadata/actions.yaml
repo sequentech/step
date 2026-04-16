@@ -1383,7 +1383,7 @@ actions:
       permissions:
           - role: admin-user
           - role: ca-write
-      comment: Delete certificate authorities by ids and return the deleted count  
+      comment: Delete certificate authorities by ids and return the deleted count
     - name: export_certificate_authority
       definition:
           kind: synchronous
