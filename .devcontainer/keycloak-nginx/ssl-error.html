@@ -254,7 +254,8 @@
             var btn = document.getElementById('backToLogin');
             btn.textContent = t.back;
             btn.onclick = function (e) {
-                if (history.length > 1) { e.preventDefault(); history.back(); }
+                // Go back twice
+                if (history.length > 2) { e.preventDefault(); history.back(); history.back(); }
             };
         })();
     </script>
