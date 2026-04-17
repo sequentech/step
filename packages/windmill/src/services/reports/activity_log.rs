@@ -14,8 +14,6 @@ use csv::WriterBuilder;
 use deadpool_postgres::Transaction;
 use electoral_log::client::types::*;
 use electoral_log::messages::message::{Message, SigningData};
-use electoral_log::messages::message::Message;
-use electoral_log::ElectoralLogMessage;
 use sequent_core::services::date::ISO8601;
 use sequent_core::services::s3::get_minio_url;
 use sequent_core::types::hasura::core::TasksExecution;
@@ -27,9 +25,6 @@ use strand::serialization::StrandDeserialize;
 use strum_macros::EnumString;
 use tempfile::NamedTempFile;
 use tracing::{debug, info, instrument, warn};
-
-const KB: f64 = 1024.0;
-const MB: f64 = 1024.0 * KB;
 
 #[derive(Serialize, Deserialize, Debug, Clone, EnumString, PartialEq, Copy)]
 pub enum ReportFormat {
@@ -179,99 +174,6 @@ impl ActivityLogsTemplate {
         drop(csv_writer);
 
         Ok(temp_file)
-    }
-}
-
-impl TryFrom<ElectoralLogRow> for ActivityLogRow {
-    type Error = anyhow::Error;
-
-    fn try_from(electoral_log: ElectoralLogRow) -> Result<Self, Self::Error> {
-        let user_id = match electoral_log.user_id() {
-            Some(user_id) => user_id.to_string(),
-            None => "-".to_string(),
-        };
-
-        let statement_timestamp: String = if let Ok(datetime_parsed) =
-            ISO8601::timestamp_secs_utc_to_date_opt(electoral_log.statement_timestamp())
-        {
-            datetime_parsed.to_rfc3339()
-        } else {
-            return Err(anyhow::anyhow!("Error parsing statement_timestamp"));
-        };
-
-        let created: String = if let Ok(datetime_parsed) =
-            ISO8601::timestamp_secs_utc_to_date_opt(electoral_log.created())
-        {
-            datetime_parsed.to_rfc3339()
-        } else {
-            return Err(anyhow::anyhow!("Error parsing created"));
-        };
-
-        let head_data = electoral_log
-            .statement_head_data()
-            .with_context(|| "Error to get head data.")?;
-        let event_type = head_data.event_type;
-        let log_type = head_data.log_type;
-        let description = head_data.description;
-
-        Ok(ActivityLogRow {
-            id: electoral_log.id(),
-            user_id,
-            created,
-            statement_timestamp,
-            statement_kind: electoral_log.statement_kind().to_string(),
-            event_type,
-            log_type,
-            description,
-            message: electoral_log.message().to_string(),
-        })
-    }
-}
-
-impl TryFrom<ElectoralLogMessage> for ActivityLogRow {
-    type Error = anyhow::Error;
-
-    fn try_from(electoral_log: ElectoralLogMessage) -> Result<Self, Self::Error> {
-        let user_id = match electoral_log.user_id {
-            Some(user_id) => user_id.to_string(),
-            None => "-".to_string(),
-        };
-
-        let statement_timestamp: String = if let Ok(datetime_parsed) =
-            ISO8601::timestamp_secs_utc_to_date_opt(electoral_log.statement_timestamp)
-        {
-            datetime_parsed.to_rfc3339()
-        } else {
-            return Err(anyhow::anyhow!("Error parsing statement_timestamp"));
-        };
-
-        let created: String = if let Ok(datetime_parsed) =
-            ISO8601::timestamp_secs_utc_to_date_opt(electoral_log.created)
-        {
-            datetime_parsed.to_rfc3339()
-        } else {
-            return Err(anyhow::anyhow!("Error parsing created"));
-        };
-
-        let deserialized_message = Message::strand_deserialize(&electoral_log.message)
-            .map_err(|e| anyhow!("Error deserializing message: {e:?}"))?;
-
-        let head_data = deserialized_message.statement.head.clone();
-        let event_type = head_data.event_type.to_string();
-        let log_type = head_data.log_type.to_string();
-        let description = head_data.description;
-
-        Ok(ActivityLogRow {
-            id: electoral_log.id,
-            user_id,
-            created,
-            statement_timestamp,
-            statement_kind: electoral_log.statement_kind,
-            event_type,
-            log_type,
-            description,
-            message: deserialized_message.to_string(),
-        })
     }
 }
 

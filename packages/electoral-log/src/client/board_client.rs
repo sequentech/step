@@ -53,87 +53,6 @@ impl BoardClient {
         Ok(BoardClient { client: client })
     }
 
-    /// Get all electoral log messages whose id is bigger than `last_id`
-    pub async fn get_electoral_log_messages(
-        &mut self,
-        board_db: &str,
-    ) -> Result<Vec<ElectoralLogMessage>> {
-        let mut offset: usize = 0;
-        let mut last_batch = self
-            .get_electoral_log_messages_from_db(
-                board_db,
-                0,
-                Some(IMMUDB_DEFAULT_LIMIT),
-                Some(offset),
-            )
-            .await?;
-        let mut messages = last_batch.clone();
-        while IMMUDB_DEFAULT_LIMIT == last_batch.len() {
-            offset += last_batch.len();
-            last_batch = self
-                .get_electoral_log_messages_from_db(
-                    board_db,
-                    0,
-                    Some(IMMUDB_DEFAULT_LIMIT),
-                    Some(offset),
-                )
-                .await?;
-            messages.extend(last_batch.clone());
-        }
-        Ok(messages)
-    }
-
-    async fn get_electoral_log_messages_from_db(
-        &mut self,
-        board_db: &str,
-        last_id: i64,
-        limit: Option<usize>,
-        offset: Option<usize>,
-    ) -> Result<Vec<ElectoralLogMessage>> {
-        self.client.use_database(board_db).await?;
-        let sql = format!(
-            r#"
-        SELECT
-            id,
-            created,
-            sender_pk,
-            statement_timestamp,
-            statement_kind,
-            message,
-            version,
-            user_id,
-            area_id,
-            ballot_id,
-            username
-        FROM {}
-        WHERE id > @last_id
-        ORDER BY id
-        LIMIT {}
-        OFFSET {};
-        "#,
-            ELECTORAL_LOG_TABLE,
-            limit.unwrap_or(IMMUDB_DEFAULT_LIMIT),
-            offset.unwrap_or(IMMUDB_DEFAULT_OFFSET),
-        );
-
-        let params = vec![NamedParam {
-            name: String::from("last_id"),
-            value: Some(SqlValue {
-                value: Some(Value::N(last_id)),
-            }),
-        }];
-
-        let sql_query_response = self.client.sql_query(&sql, params).await?;
-        let messages = sql_query_response
-            .get_ref()
-            .rows
-            .iter()
-            .map(ElectoralLogMessage::try_from)
-            .collect::<Result<Vec<ElectoralLogMessage>>>()?;
-
-        Ok(messages)
-    }
-
     /// columns_matcher represents the columns that will be used to filter the messages,
     /// The order as defined ElectoralLogVarCharColumn is important for preformance to match the indexes.
     /// BTreeMap ensures the order is preserved no matter the insertion sequence.
@@ -164,8 +83,12 @@ impl BoardClient {
         .await
     }
 
-    #[instrument(skip_all, err)]
-    pub async fn get_electoral_log_messages_batch(
+    /// Returns a batch of electoral log messages at a given row offset, ordered by id.
+    /// Prefer `get_electoral_log_messages_batch` (cursor-based) when iterating sequentially.
+    /// This offset-based variant exists for parallel batch processing where offsets are
+    /// pre-computed and batches run concurrently.
+    #[instrument(skip(self), err)]
+    pub async fn get_electoral_log_messages_at_offset(
         &mut self,
         board_db: &str,
         limit: i64,
@@ -362,6 +285,60 @@ impl BoardClient {
         Ok(messages)
     }
 
+    /// Returns a batch of electoral log messages with id > `after_id`, ordered by id,
+    /// using streaming to handle large result sets. Pass `after_id = 0` to start
+    /// from the beginning. Use the `id` of the last returned message as `after_id`
+    /// for the next page.
+    #[instrument(skip(self), err)]
+    pub async fn get_electoral_log_messages_batch(
+        &mut self,
+        board_db: &str,
+        limit: i64,
+        after_id: i64,
+    ) -> Result<Vec<ElectoralLogMessage>> {
+        self.client.use_database(board_db).await?;
+        let sql = format!(
+            r#"
+            SELECT
+                id,
+                created,
+                sender_pk,
+                statement_timestamp,
+                statement_kind,
+                message,
+                version,
+                user_id,
+                username
+            FROM {ELECTORAL_LOG_TABLE}
+            WHERE id > {after_id}
+            ORDER BY id
+            LIMIT {limit};
+            "#
+        );
+        let response_stream = self.client.streaming_sql_query(&sql, vec![]).await?;
+        let mut stream = response_stream.into_inner();
+        let mut messages: Vec<ElectoralLogMessage> = vec![];
+        while let Some(batch_result) = stream.next().await {
+            match batch_result {
+                Ok(batch) => {
+                    for row in &batch.rows {
+                        match ElectoralLogMessage::try_from(row) {
+                            Ok(msg) => messages.push(msg),
+                            Err(e) => {
+                                warn!("Failed to parse row: {e}");
+                            }
+                        }
+                    }
+                }
+                Err(e) => {
+                    error!("Error receiving batch from stream: {e}");
+                    break;
+                }
+            }
+        }
+        Ok(messages)
+    }
+
     #[instrument(skip(self, board_db), err)]
     pub async fn count_electoral_log_messages(
         &mut self,
@@ -450,114 +427,6 @@ impl BoardClient {
         let duration = start.elapsed();
         info!("COUNT query took {}ms", duration.as_millis());
         Ok(count as i64)
-    }
-
-    /// Returns a batch of electoral log messages at a given row offset, ordered by id.
-    /// Prefer `get_electoral_log_messages_batch` (cursor-based) when iterating sequentially.
-    /// This offset-based variant exists for parallel batch processing where offsets are
-    /// pre-computed and batches run concurrently.
-    #[instrument(skip(self), err)]
-    pub async fn get_electoral_log_messages_at_offset(
-        &mut self,
-        board_db: &str,
-        limit: i64,
-        offset: i64,
-    ) -> Result<Vec<ElectoralLogMessage>> {
-        self.client.use_database(board_db).await?;
-        let sql = format!(
-            r#"
-            SELECT
-                id,
-                created,
-                sender_pk,
-                statement_timestamp,
-                statement_kind,
-                message,
-                version,
-                user_id,
-                username
-            FROM {ELECTORAL_LOG_TABLE}
-            ORDER BY id
-            LIMIT {limit}
-            OFFSET {offset};
-            "#
-        );
-        let response_stream = self.client.streaming_sql_query(&sql, vec![]).await?;
-        let mut stream = response_stream.into_inner();
-        let mut messages: Vec<ElectoralLogMessage> = vec![];
-        while let Some(batch_result) = stream.next().await {
-            match batch_result {
-                Ok(batch) => {
-                    for row in &batch.rows {
-                        match ElectoralLogMessage::try_from(row) {
-                            Ok(msg) => messages.push(msg),
-                            Err(e) => {
-                                warn!("Failed to parse row: {e}");
-                            }
-                        }
-                    }
-                }
-                Err(e) => {
-                    error!("Error receiving batch from stream: {e}");
-                    break;
-                }
-            }
-        }
-        Ok(messages)
-    }
-
-    /// Returns a batch of electoral log messages with id > `after_id`, ordered by id,
-    /// using streaming to handle large result sets. Pass `after_id = 0` to start
-    /// from the beginning. Use the `id` of the last returned message as `after_id`
-    /// for the next page.
-    #[instrument(skip(self), err)]
-    pub async fn get_electoral_log_messages_batch(
-        &mut self,
-        board_db: &str,
-        limit: i64,
-        after_id: i64,
-    ) -> Result<Vec<ElectoralLogMessage>> {
-        self.client.use_database(board_db).await?;
-        let sql = format!(
-            r#"
-            SELECT
-                id,
-                created,
-                sender_pk,
-                statement_timestamp,
-                statement_kind,
-                message,
-                version,
-                user_id,
-                username
-            FROM {ELECTORAL_LOG_TABLE}
-            WHERE id > {after_id}
-            ORDER BY id
-            LIMIT {limit};
-            "#
-        );
-        let response_stream = self.client.streaming_sql_query(&sql, vec![]).await?;
-        let mut stream = response_stream.into_inner();
-        let mut messages: Vec<ElectoralLogMessage> = vec![];
-        while let Some(batch_result) = stream.next().await {
-            match batch_result {
-                Ok(batch) => {
-                    for row in &batch.rows {
-                        match ElectoralLogMessage::try_from(row) {
-                            Ok(msg) => messages.push(msg),
-                            Err(e) => {
-                                warn!("Failed to parse row: {e}");
-                            }
-                        }
-                    }
-                }
-                Err(e) => {
-                    error!("Error receiving batch from stream: {e}");
-                    break;
-                }
-            }
-        }
-        Ok(messages)
     }
 
     pub async fn open_session(&mut self, database_name: &str) -> Result<()> {
@@ -1012,7 +881,10 @@ pub(crate) mod tests {
             .await
             .unwrap();
 
-        let ret = b.get_electoral_log_messages(BOARD_DB).await.unwrap();
+        let ret = b
+            .get_electoral_log_messages_batch(BOARD_DB, 100, 0)
+            .await
+            .unwrap();
         assert_eq!(messages, ret);
 
         let cols_match = WhereClauseOrdMap::from(&[
