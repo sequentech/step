@@ -114,7 +114,7 @@ Each phase type has an execution engine in the Lambda. The engine handles prompt
 | `announcement` | Play a prompt, optionally wait for an acceptance key | None (auto-advance) or DTMF if `accept_key` set | Play the configured `prompt_key`. If `accept_key` is set, wait for that DTMF and retry on invalid input up to `max_retries`. If not, auto-advance. Used for greeting, declaration, pre-voting statement, and any other play-and-continue or play-and-confirm prompts — one engine, different config |
 | `language_select` | Language selection menu | DTMF if more than 1 enabled language | If `language_conf.enabled_language_codes` contains exactly 1 language, set it automatically and advance without prompting. Otherwise collect DTMF (1=English, 2=French, etc.), set session language, advance |
 | `blacklist_check` | Check caller phone against blacklist | None (auto-advance) | Query Hasura (see §6.3) for a blacklist entry matching the caller phone number; if present, play `blacklist_message` and disconnect. Because this phase runs before language selection, the message should be authored to work before the caller has chosen a language, typically by making it bilingual |
-| `auth` | Collect credentials, authenticate with Keycloak | DTMF per step | Iterate through auth steps discovered via Keycloak's `/realms/\{realm\}/ivr-config` endpoint (see §5.1), submit to Keycloak ROPC. On `otp_required` error, collect OTP and resubmit. On failure, retry up to limit |
+| `auth` | Collect credentials, authenticate with Keycloak | DTMF per step | Iterate through auth steps discovered via Keycloak's `/realms/\{realm\}/ivr-config` endpoint (see §5.1), submit to Keycloak ROPC. On failure, retry up to limit. (OTP over IVR is a possible future extension — see §5.1.4.) |
 | `eligibility_check` | Validate voter eligibility and election status | None (auto-advance) | Play `eligibility_check` prompt. Check voter eligibility via API; if ineligible, play `not_eligible` and disconnect. Also query Hasura for `telephone_voting_status` (see §5.2); if not `OPEN`, play `election_closed` and disconnect |
 | `ballot_loop` | Per-election voting cycle: select → confirm → submit → receipt | DTMF | The inner voting loop (see 3.3). For each election: vote all contests, read back summary, confirm, encrypt and submit ballot via Harvest API, read a ballot locator derived from the first 4 hex characters of `ballot_id` using phonetic spelling (`a3f2` → "alpha three foxtrot two"). Then advance to next election or finish. All behavior driven by published election/contest data |
 | `goodbye` | Farewell message, disconnect | None (disconnect) | Play `goodbye` prompt, disconnect |
@@ -186,18 +186,16 @@ All behavior is driven by the **published election/contest data** — the same s
 
 | Config Field | Source | IVR Behavior |
 |---|---|---|
-| `skip_election_list` | `ElectionEventPresentation` | If `true` and only 1 election: skip election selection, enter contest loop directly (same as voting portal behavior) |
+| `skip_election_list` | `ElectionEventPresentation` | If `true` and only 1 election: skip the election-selection sub-phase and go straight into that election's language check / intro / contest loop (same as voting portal behavior) |
 | `elections_order` | `ElectionEventPresentation` | Sort elections before presenting: `alphabetical` (by alias/name), `custom` (by `sort_order`), `random` (shuffled once at session init) |
 | `contests_order` | `ElectionPresentation` | Sort contests within an election: `alphabetical`, `custom`, `random` |
 | `candidates_order` | `ContestPresentation` | Sort candidates within a contest: `alphabetical`, `custom`, `random`. Determines DTMF assignment order |
-| `blank_vote_policy` | `ContestPresentation` | `allowed`: offer blank ballot confirmation. `warn`/`warn_only_in_review`: play warning then allow. `not_allowed`: require at least one selection |
-| `under_vote_policy` | `ContestPresentation` | `allowed`: accept silently. `warn`/`warn_and_alert`: play warning before confirming. `warn_only_in_review`: warn during summary only |
+| `blank_vote_policy` | `ContestPresentation` | `allowed`: offer blank ballot confirmation. `warn`/`warn-only-in-review`: play warning then allow. `not-allowed`: require at least one selection |
+| `under_vote_policy` | `ContestPresentation` | `allowed`: accept silently. `warn`/`warn-and-alert`: play warning before confirming. `warn-only-in-review`: warn during summary only |
 | `language_conf` | `ElectionPresentation` | If the election's enabled/default language differs from the session language, offer a per-ballot language switch. If exactly 1 language is enabled for the election, select it automatically without prompting |
 | `min_votes` / `max_votes` | Contest | Enforce selection count. `max_votes=1` → stop after 1 selection. `min_votes>0` + `blank_vote_policy=not_allowed` → force selection |
 | `is_explicit_invalid` | `CandidatePresentation` | Skip candidates marked as explicit invalid vote options (not applicable to IVR) |
 | `is_explicit_blank` | `CandidatePresentation` | Skip candidates marked as explicit blank (IVR uses dedicated blank/decline sub-phase instead) |
-
-**Current scope note:** acclaimed contests are out of scope for the initial IVR release. If any contest has `is_acclaimed=true`, telephone voting should be rejected at publication/validation time until a dedicated acclaimed-contest flow is designed.
 
 #### 3.3.2 Ballot Loop Sub-Phases
 
@@ -247,9 +245,10 @@ flowchart TD
     ElectionSummary -->|"N = Edit contest N"| EditContest[Clear contest N selections<br/>→ CandidateSelect → SelectionCheck<br/>→ VoteConfirm for that contest only]
     EditContest --> ElectionSummary
     ElectionSummary -->|"1 = Submit"| ElectionSubmit
-    ElectionSubmit --> ElectionReceipt
-
-    ElectionReceipt --> MoreElections{More elections?}
+    ElectionSubmit --> ReceiptGate{receipt_format<br/>configured?}
+    ReceiptGate -->|No| MoreElections{More elections?}
+    ReceiptGate -->|Yes| ElectionReceipt
+    ElectionReceipt --> MoreElections
     MoreElections -->|Yes| ElectionSelect
     MoreElections -->|No| Done[Advance to next<br/>outer phase — goodbye]
 ```
@@ -262,105 +261,34 @@ flowchart TD
 | `LanguageSwitch` | DTMF (1=keep, 2=switch) if multiple languages are available | Offer only if the election's `language_conf` differs from the session language. If the election exposes exactly 1 enabled language, switch automatically without prompting. Switch affects prompts for this election only. Runs **before** `ElectionIntro` so the intro is read in the correct language. **Invariant:** an election's `language_conf.enabled_language_codes` is always a subset of the election event's; additionally an election may override the `default_language_code`, so "different from session language" means either the session language is not in the election's enabled set, or the election's default differs from the currently-selected session language. Both cases trigger the offer; otherwise skip |
 | `ElectionIntro` | None (auto-advance) | Play `election_intro` prompt with `\{election_name\}`, announce contest count (in the language selected by `LanguageSwitch` if applicable) |
 | `ContestIntro` | None (auto-advance) or DTMF to repeat | Play `contest_intro` with `\{contest_name\}`, `\{max_votes\}`, `\{min_votes\}`. Explain rules: "Select up to \{max_votes\} candidates" |
-| `CandidateSelect` | DTMF per candidate | Present only **unselected** candidates sorted by `candidates_order`. Single-digit (1-9) or multi-digit (01-99#) based on remaining count. Accumulate selections until voter signals done (`#` or `0`) or `max_votes` reached. Already-selected candidates are omitted from the list (DTMF numbers are reassigned to remaining candidates) |
+| `CandidateSelect` | DTMF per candidate | Present only **unselected** candidates sorted by `candidates_order`. Single-digit (1-9) or multi-digit (01-99#) based on remaining count. Accumulate selections until `max_votes` is reached or the voter signals done with `#` (the Connect terminator). `0` means "skip/abstain" from this contest — never "end multi-select". Already-selected candidates are omitted from the list (DTMF numbers are reassigned to remaining candidates) |
 | `SelectionCheck` | DTMF (confirm/restart) | Validate selections against `min_votes`/`max_votes`. Apply `blank_vote_policy`: if no selections and `allowed`→`blank_ballot_confirm`; if `not_allowed`→re-prompt. Apply `under_vote_policy`: if under minimum and `warn`→play warning then confirm |
 | `VoteConfirm` | DTMF (1=confirm, 2=change) | Read back selected candidates. "You selected \{candidate_name\} for \{contest_name\}. Press 1 to confirm, 2 to change your selection" |
-| `ElectionSummary` | DTMF (1=submit, N=edit contest) | Read back all selections for the current election, numbering each contest. "For contest 1, \{contest_name\}: you selected \{candidate_name\}. For contest 2, …" Press 1 to submit this election's ballot, or press a contest number to edit that contest's selection. Editing a contest clears its selections and re-enters `CandidateSelect` for that contest only — afterwards returns directly to `ElectionSummary` (not to the next contest). **Note:** summary is its own explicit confirmation — there is no separate `ElectionConfirm` step before submission |
+| `ElectionSummary` | DTMF (`00#` = submit, `NN#` = edit contest N) | Read back all selections for the current election, numbering each contest. "For contest 1, \{contest_name\}: you selected \{candidate_name\}. For contest 2, …" Press `00#` to submit this election's ballot, or press a contest number followed by `#` to edit that contest's selection. Editing a contest clears its selections and re-enters `CandidateSelect` for that contest only — afterwards returns directly to `ElectionSummary` (not to the next contest). **Note:** summary is its own explicit confirmation — there is no separate `ElectionConfirm` step before submission. The summary uniformly uses multi-digit input regardless of contest count — contest indices always take the form `01#`–`NN#`, and `00#` is the unambiguous submit code (contest numbering starts at 1, so `00` cannot collide) |
 | `ElectionSubmit` | None (auto-advance) | Refresh access token if needed, encrypt ballot with election public keys, POST `/insert-cast-vote` with `election_id`. On success → play `vote_success`, advance to `ElectionReceipt`. On per-election error (duplicate, max revotes) → play error prompt, advance to next election. On fatal error (timeout, session expired) → disconnect |
-| `ElectionReceipt` | DTMF (*=repeat) | Read a ballot locator derived from the first 4 hex characters of `ballot_id`, rendered phonetically (`a3f2` → "alpha three foxtrot two"). "Your ballot locator for \{election_name\} is \{confirmation_number\}. Press * to repeat." Skipped if `receipt_format` is not configured. **Portal dependency:** the voting portal ballot locator lookup must be scoped to the authenticated voter and current election, so uniqueness only needs to hold within that smaller set |
+| `ElectionReceipt` | DTMF (`*`=repeat) | Read a ballot locator derived from the first 4 hex characters of `ballot_id`, rendered phonetically (`a3f2` → "alpha three foxtrot two"). "Your ballot locator for \{election_name\} is \{confirmation_number\}. Press star to repeat." Skipped if `receipt_format` is not configured. **Portal dependency:** the voting portal ballot locator lookup must be scoped to the authenticated voter and current election, so uniqueness only needs to hold within that smaller set |
 
 #### 3.3.4 BallotLoopState (Session Cursor)
 
 The ballot loop's position is tracked in `PhaseState::BallotLoop`, which acts as a cursor into the nested election→contest→sub-phase structure:
 
-```rust
-#[derive(Serialize, Deserialize, Clone)]
-pub struct BallotLoopState {
-    pub election_index: usize,
-    pub contest_index: usize,
-    pub sub_phase: BallotSubPhase,
-    /// Sorted election IDs (computed once at entry using elections_order)
-    pub sorted_election_ids: Vec<Uuid>,
-    /// Sorted contest IDs for current election (recomputed on election change)
-    pub sorted_contest_ids: Vec<Uuid>,
-    /// Sorted candidate IDs for current contest (recomputed on contest change).
-    /// Stays stable for the whole contest — `CandidateSelect` skips already-selected
-    /// candidates when reading the list, but the underlying sort order and DTMF
-    /// mapping do not change.
-    pub sorted_candidate_ids: Vec<Uuid>,
-    /// Accumulator for multi-selection contests
-    pub pending_selections: Vec<Uuid>,
-    /// Whether election selection was skipped (skip_election_list)
-    pub election_list_skipped: bool,
-    /// Set when the voter entered a contest via `ElectionSummary` "edit contest N".
-    /// If `Some(idx)`, the contest-level flow returns to `ElectionSummary` after
-    /// `VoteConfirm` instead of advancing to the next contest. Cleared on return.
-    pub edit_target_contest: Option<usize>,
-}
+The ballot-loop cursor carries:
 
-#[derive(Serialize, Deserialize, Clone)]
-pub enum BallotSubPhase {
-    // Election level
-    ElectionSelect,
-    LanguageSwitch,
-    ElectionIntro,
-    // Contest level
-    ContestIntro,
-    CandidateSelect,
-    SelectionCheck,
-    VoteConfirm,
-    // Per-election submission
-    ElectionSummary,
-    ElectionSubmit,
-    ElectionReceipt,
-}
-```
-
-When the voter enters "edit contest N" from `ElectionSummary`, the handler sets `edit_target_contest = Some(n)`, clears `pending_selections` and the corresponding `votes[contest_id]` entry, and transitions to `CandidateSelect`. The `VoteConfirm` sub-phase checks `edit_target_contest` on exit: if set, it clears the field and transitions directly to `ElectionSummary`; otherwise it advances to the next contest as normal.
+- **Position** — current election index, current contest index, and the current sub-phase (typed enum — see the sub-phase list in §3.3.2; a typed enum gives the dispatcher exhaustive coverage).
+- **Sorted ID snapshots** — sorted election IDs (computed once on entry using `elections_order`), sorted contest IDs for the current election (refreshed on election change), sorted candidate IDs for the current contest (refreshed on contest change). The candidate sort stays stable for the whole contest; `CandidateSelect` just skips already-selected IDs when reading the list — the underlying order and DTMF mapping do not change.
+- **Pending selections** — an accumulator used by multi-selection contests (`max_votes > 1`).
+- **`election_list_skipped`** — records whether `ElectionSelect` was bypassed via `skip_election_list`; `VoteConfirm` / `ElectionSummary` consult this to decide whether to offer navigation back to the election list.
+- **`edit_target_contest: Option<usize>`** — set when the voter enters a contest via `ElectionSummary` "edit contest N". When present, `VoteConfirm` returns to `ElectionSummary` instead of advancing to the next contest, and clears the field. Editing entry must also clear the old `votes[contest_id]` entry and any `pending_selections` — otherwise the edit would merge into the prior selection instead of replacing it.
 
 #### 3.3.5 Candidate Selection Detail
 
-Candidate presentation follows the same ordering as the voting portal (`candidates_order`), then assigns DTMF mappings:
+Candidate presentation follows the same ordering as the voting portal (`candidates_order`), then assigns DTMF mappings. The rule is simple: if the contest has ≤ 9 candidates, each gets a single-digit code `1`–`9`; if there are more, all candidates get zero-padded two-digit codes (`01`, `02`, … `99`). The choice is per-contest, not global — a short contest with 5 candidates keeps the fast single-digit UX even when the next contest has 20. `0` is never a candidate code — it is reserved for "skip/abstain" — and `*` is never a candidate code — it is reserved for "repeat instructions". See §3.4 for the full reserved-key table.
 
-```rust
-fn assign_dtmf_mappings(
-    candidates: &[CandidateContext],
-) -> Vec<(CandidateContext, String)> {
-    let use_multi_digit = candidates.len() > 9;
-    candidates.iter().enumerate().map(|(i, c)| {
-        let dtmf = if use_multi_digit {
-            format!("{:02}", i + 1)  // "01", "02", ..., "99"
-        } else {
-            format!("{}", i + 1)     // "1", "2", ..., "9"
-        };
-        (c.clone(), dtmf)
-    }).collect()
-}
-```
-
-Candidates with `is_explicit_invalid: true` or `is_explicit_blank: true` in `CandidatePresentation` are **excluded** from the IVR candidate list — the IVR handles blank/decline through dedicated sub-phases instead of special candidate entries.
+Candidates flagged `is_explicit_invalid` or `is_explicit_blank` in `CandidatePresentation` are **excluded** from the IVR candidate list — the IVR handles blank / decline through dedicated sub-phases instead of reusing special candidate entries.
 
 #### 3.3.6 Shared `LanguageSelector` Component
 
-The outer `LanguageSelect` phase (event-level) and the inner `LanguageSwitch` sub-phase (per-election override) share the same logic: if only 1 language is enabled, select it automatically; otherwise offer the enabled set, collect a DTMF digit, update `session.language`, advance. They are implemented on top of a single `LanguageSelector` helper parameterized by scope:
-
-```rust
-pub enum LanguageScope {
-    Event,
-    Election { election_id: Uuid },
-}
-
-pub fn run_language_selector(
-    session: &mut IvrSession,
-    input: Option<&str>,
-    scope: LanguageScope,
-    enabled_codes: &[String],
-    default_code: &str,
-    prompts: &IvrPromptResolver,
-) -> Result<ConnectResponse, IvrError> { /* ... */ }
-```
-
-Both the outer phase engine and the ballot-loop sub-phase dispatch to this helper. One implementation, one set of tests, two call sites.
+The outer `LanguageSelect` phase (event-level) and the inner `LanguageSwitch` sub-phase (per-election override) share the same logic: if only one language is enabled, select it automatically; otherwise offer the enabled set, collect a DTMF digit, update `session.language`, advance. Implement once as a helper parameterized by **scope** (event vs. a specific election) and have both the outer phase engine and the ballot-loop sub-phase dispatch to it. One implementation, one set of tests, two call sites — the scope argument tells the helper which `language_conf` to read (event-level vs. per-election) and whether to fall back to the session's current language.
 
 ### 3.4 Multi-Digit DTMF Input Handling
 
@@ -377,10 +305,22 @@ Amazon Connect supports multi-digit DTMF collection, enabling support for more t
 - Example: "Candidate 01: Alice Smith, Candidate 02: Bob Johnson... Candidate 15: Zoe Martinez"
 - Amazon Connect "Get customer input" block configured with "Maximum digits: 2" and terminator: "#"
 
-**Special Codes**:
-- `0` or `00#`: Skip/abstain (if allowed)
-- `99#`: Repeat instructions (in multi-digit mode)
-- `9`: Repeat instructions (in single-digit mode)
+**Reserved keys (uniform across every phase and sub-phase).** Each reserved
+key has exactly one meaning everywhere it appears — there are no
+context-dependent overloads:
+
+| Key | Meaning | Notes |
+|---|---|---|
+| `*` | Repeat instructions | Never a candidate number, never a contest number, never a terminator. Safe on every phone keypad |
+| `0` | Skip/abstain current contest | Gated by `EBlankVotePolicy`; rejected if `not_allowed`. Never doubles as "end of multi-select" |
+| `#` | Terminator for multi-digit input | Matches the Connect "Get customer input" block terminator. Also ends accumulation in a multi-select contest once `max_votes` selections have been made or the voter has entered fewer than `max_votes` and wants to stop |
+| `00#` | Submit on `ElectionSummary` | Unambiguous because contest numbering starts at `1`, so `00` cannot collide with a contest index |
+| `01#`–`NN#` | Edit contest N on `ElectionSummary` | Always multi-digit on summary, regardless of contest count — one rule, no edge cases |
+
+Single digits `1`–`9` are always candidate numbers (in single-digit mode)
+or are rejected (in multi-digit mode, where only two-digit entries are
+valid). Under this convention there are no collisions between candidate
+selection, contest editing, submit, skip, and repeat.
 
 **Practical Limits**:
 - **1-9 candidates**: Single-digit input (optimal UX)
@@ -451,65 +391,31 @@ flowchart LR
     PhoneConfigPort --> DynamoPhone
 ```
 
-#### 3.5.2 Port Traits
+#### 3.5.2 Ports
 
-```rust
-/// --- Outbound Ports (driven side) ---
+Ports are the seams between domain logic and the outside world. Each port has **one** external dependency behind it and a narrow responsibility. The exact trait signatures and method shapes are an implementation decision — below is *what each port is for* and *what guarantees it must preserve*, not a prescription for how to spell it in Rust.
 
-#[async_trait]
-pub trait SessionPort: Send + Sync {
-    async fn get_session(&self, contact_id: &str) -> Result<Option<IvrSession>, IvrError>;
-    async fn save_session(&self, session: &IvrSession) -> Result<(), IvrError>;
-    async fn delete_session(&self, contact_id: &str) -> Result<(), IvrError>;
-}
+| Port | Backed by | Responsibility | Must preserve |
+|---|---|---|---|
+| **Session** | DynamoDB | Load, save, delete per-call session state keyed by `contact_id` | Optimistic concurrency on save (see §4.1 blockquote) |
+| **Auth** | Keycloak | Exchange collected credentials for tokens; refresh tokens | Never persist credentials in the port; tokens carry an absolute expiry, not a relative `expires_in` |
+| **ElectionConfig** | Public S3 | Fetch the published ballot publication pinned to a specific `publication_id` | Process-level cache keyed by `(tenant_id, event_id, publication_id)` so concurrent calls share one copy |
+| **ElectionStatus** | Hasura | Query real-time per-channel voting status | Requires a voter JWT (same auth model as the portal) |
+| **VoteCasting** | Harvest | Submit an encrypted ballot | Must carry a deterministic idempotency key so retries can't double-submit (§4.1 blockquote) |
+| **PhoneConfig** | DynamoDB routing table | Map `caller_phone → tenant/event/URLs` | Read-only from the Lambda |
+| **Blacklist** | Hasura (+ service JWT, see §6.3) | Yes/no answer for a phone number before auth | Authenticated query — not an anonymous endpoint |
 
-#[async_trait]
-pub trait AuthPort: Send + Sync {
-    async fn authenticate(&self, realm: &str, credentials: &AuthCredentials) -> Result<TokenPair, AuthError>;
-    async fn refresh_token(&self, realm: &str, refresh_token: &str) -> Result<TokenPair, AuthError>;
-}
+Three domain types are referenced by the ports but **deliberately left abstract** in this document because the right definition depends on what the implementer chooses to reuse from `sequent-core`:
 
-#[async_trait]
-pub trait ElectionConfigPort: Send + Sync {
-    /// Adapter resolves the S3 path internally (e.g., via well-known key convention
-    /// or by listing the publication directory for the event).
-    async fn get_published_config(
-        &self,
-        base_url: &str,
-        tenant_id: &Uuid,
-        election_event_id: &Uuid,
-    ) -> Result<PublishedBallotPublication, IvrError>;
-}
+- **Published ballot publication.** The subset of the S3 publication JSON the IVR reads — event, sorted elections/contests/candidates, crypto config. Start from the portal's existing published-ballot types in `packages/sequent-core` rather than inventing a new one.
+- **Encrypted ballot.** The in-memory representation the Lambda builds before calling `/insert-cast-vote`. Must match the portal's ciphertext + proof layout so server-side acceptance rules do not diverge — mirror `sequent-core::ballot`.
+- **Auth credentials.** What the Lambda hands to the Auth port. Should be a narrow tagged type (one case per step kind: voter-id, password/PIN, DoB, …), not a `HashMap<String, String>` — the port signature then documents the contract. New step kinds (e.g. OTP, if ever added — see §5.1.4) show up as new cases.
 
-#[async_trait]
-pub trait ElectionStatusPort: Send + Sync {
-    async fn get_election_event_status(
-        &self,
-        base_url: &str,
-        jwt: &str,
-        event_id: &Uuid,
-    ) -> Result<ElectionEventStatus, IvrError>;
-}
-
-#[async_trait]
-pub trait VoteCastingPort: Send + Sync {
-    async fn cast_vote(
-        &self,
-        base_url: &str,
-        jwt: &str,
-        ballot: &EncryptedBallot,
-    ) -> Result<CastVoteResponse, IvrError>;
-}
-
-#[async_trait]
-pub trait PhoneConfigPort: Send + Sync {
-    async fn get_config(&self, phone_number: &str) -> Result<Option<PhoneConfig>, IvrError>;
-}
-```
+Adapter implementations are free to add methods (batch queries, streaming, etc.) as long as the responsibility above stays intact. Tests substitute in-memory adapters; the handler wires the live ones.
 
 #### 3.5.3 Domain: Flow Engine
 
-**Key Concept:** Lambda is **stateless**. Each invocation reads session from DynamoDB (including the flow position), executes the current phase, saves the updated position, and responds.
+**Key concept — the Lambda is stateless.** Every invocation loads the session from DynamoDB (including the cursor into the flow pipeline), executes exactly one phase, saves the updated session, and responds. There is no in-memory state that survives between invocations other than the process-level publication cache.
 
 ```mermaid
 flowchart TD
@@ -523,247 +429,47 @@ flowchart TD
     H --> I[Return ConnectResponse to Amazon Connect]
 ```
 
-```rust
-/// Domain service — no AWS/HTTP/DB dependencies.
-///
-/// Note that `FlowEngine` does not *own* the flow pipeline or prompts; it
-/// borrows them from the cached published config for the current call. The
-/// engine itself is zero-sized and stateless.
-pub struct FlowEngine<'a> {
-    flow_config: &'a [FlowPhase],
-    prompts: &'a IvrPromptResolver,
-}
+The flow engine's job is small:
 
-impl FlowEngine<'_> {
-    pub fn execute(
-        &self,
-        session: &mut IvrSession,
-        input: Option<&str>,
-        ports: &dyn PhasePorts,  // trait object combining needed ports
-    ) -> Result<ConnectResponse, IvrError> {
-        let phase = self
-            .flow_config
-            .get(session.position.phase_index)
-            .ok_or(IvrError::InvalidPhaseIndex(session.position.phase_index))?;
+1. **Look up the current phase** from the pipeline using the cursor in session state.
+2. **Dispatch to the right phase executor.** A typed (tagged-enum-style) pipeline makes the dispatch exhaustive — unknown phase tags fail at deserialization time, never mid-call.
+3. **Return the response unchanged** from the phase executor.
 
-        // Typed exhaustive match — compiler verifies all variants are handled.
-        // No UnknownPhaseType error variant needed, because deserialization
-        // would have failed on an unknown `phase` tag.
-        match phase {
-            FlowPhase::Announcement(cfg) =>
-                AnnouncementPhase::execute(session, input, self.prompts, cfg),
-            FlowPhase::LanguageSelect =>
-                LanguageSelectPhase::execute(session, input, self.prompts),
-            FlowPhase::BlacklistCheck =>
-                BlacklistCheckPhase::execute(session, input, self.prompts, ports),
-            FlowPhase::Auth =>
-                AuthPhase::execute(session, input, self.prompts, ports.auth()),
-            FlowPhase::EligibilityCheck =>
-                EligibilityCheckPhase::execute(session, input, self.prompts, ports),
-            FlowPhase::BallotLoop(cfg) =>
-                BallotLoopPhase::execute(session, input, self.prompts, ports, cfg),
-            FlowPhase::Goodbye =>
-                GoodbyePhase::execute(session, input, self.prompts),
-        }
-    }
-}
+The engine itself owns no state. It borrows the flow pipeline, the prompt resolver, and the published ballot publication for the duration of the invocation. Phase executors are pure functions of `(session, input, ports) → (new session, response)`; all external effects happen through ports.
 
-/// Trait that groups the ports a phase might need (subset injection)
-pub trait PhasePorts: Send + Sync {
-    fn auth(&self) -> &dyn AuthPort;
-    fn election_status(&self) -> &dyn ElectionStatusPort;
-    fn vote_casting(&self) -> &dyn VoteCastingPort;
-}
-
-/// Each phase implements this trait
-pub trait PhaseEngine {
-    fn execute(
-        &self,
-        session: &mut IvrSession,
-        input: Option<&str>,
-        prompts: &IvrPromptResolver,
-    ) -> Result<ConnectResponse, IvrError>;
-}
-```
+A **"phase ports" aggregate** (however it's expressed — a trait, a struct of references, a context object) groups the subset of ports a phase can reach. Most phases touch only one or two, so passing the whole set through is fine; phases that need nothing external can ignore it entirely.
 
 #### 3.5.4 Domain: Ballot Loop Phase (Sub-Phase Dispatch)
 
-The `BallotLoopPhase` delegates to sub-phase engines based on the `BallotSubPhase` cursor in session state:
+The ballot-loop phase is itself a tiny flow engine one level down: it holds a sub-phase cursor (which sub-phase of the loop is active) and dispatches to the matching sub-phase executor. On first entry — when the previous outer phase has just transitioned into the loop — it initializes the cursor: computes the sorted election IDs using `elections_order`, decides whether to skip `ElectionSelect` (per §3.3.1 `skip_election_list`), and seeds sub-phase state.
 
-```rust
-pub struct BallotLoopPhase;
+Sub-phase executors follow the same pure-function shape as outer phases. Most of them only need the session, the input, prompts, and the published publication; `ElectionSubmit` is the only one that reaches the Auth and VoteCasting ports.
 
-impl BallotLoopPhase {
-    pub fn execute(
-        session: &mut IvrSession,
-        input: Option<&str>,
-        prompts: &IvrPromptResolver,
-        ports: &dyn PhasePorts,  // available if sub-phases need election status
-    ) -> Result<ConnectResponse, IvrError> {
-        // Initialize on first entry
-        let ballot_state = match &session.position.phase_state {
-            PhaseState::BallotLoop(state) => state.clone(),
-            PhaseState::Entry => {
-                let state = Self::init_ballot_loop(session)?;
-                session.position.phase_state = PhaseState::BallotLoop(state.clone());
-                state
-            }
-            _ => return Err(IvrError::InvalidState),
-        };
-
-        // Dispatch to current sub-phase
-        match ballot_state.sub_phase {
-            // Election level
-            BallotSubPhase::ElectionSelect =>
-                ElectionSelectSubPhase::execute(session, input, prompts),
-            BallotSubPhase::LanguageSwitch =>
-                LanguageSwitchSubPhase::execute(session, input, prompts),
-            BallotSubPhase::ElectionIntro =>
-                ElectionIntroSubPhase::execute(session, input, prompts),
-            // Contest level
-            BallotSubPhase::ContestIntro =>
-                ContestIntroSubPhase::execute(session, input, prompts),
-            BallotSubPhase::CandidateSelect =>
-                CandidateSelectSubPhase::execute(session, input, prompts),
-            BallotSubPhase::SelectionCheck =>
-                SelectionCheckSubPhase::execute(session, input, prompts),
-            BallotSubPhase::VoteConfirm =>
-                VoteConfirmSubPhase::execute(session, input, prompts),
-            // Per-election submission
-            BallotSubPhase::ElectionSummary =>
-                ElectionSummarySubPhase::execute(session, input, prompts),
-            BallotSubPhase::ElectionSubmit =>
-                ElectionSubmitSubPhase::execute(session, input, prompts, ports),
-            BallotSubPhase::ElectionReceipt =>
-                ElectionReceiptSubPhase::execute(session, input, prompts),
-        }
-    }
-
-    fn init_ballot_loop(
-        session: &IvrSession,
-        published: &PublishedBallotPublication,
-    ) -> Result<BallotLoopState, IvrError> {
-        // Sort elections using the same logic as voting portal
-        let sorted_election_ids = sort_elections(
-            &published.elections,
-            published.event_presentation.elections_order.as_ref(),
-        );
-
-        // `skip_election_list` is a presentation policy that lives in the
-        // published ballot publication — not a separate session field.
-        let skip = published.event_presentation.skip_election_list.unwrap_or(false)
-            && sorted_election_ids.len() == 1;
-
-        let initial_sub_phase = if skip {
-            BallotSubPhase::LanguageSwitch
-        } else {
-            BallotSubPhase::ElectionSelect
-        };
-
-        Ok(BallotLoopState {
-            election_index: 0,
-            contest_index: 0,
-            sub_phase: initial_sub_phase,
-            sorted_election_ids,
-            sorted_contest_ids: vec![],
-            sorted_candidate_ids: vec![],
-            pending_selections: vec![],
-            election_list_skipped: skip,
-            edit_target_contest: None,
-        })
-    }
-}
-```
+Sub-phase transitions (what advances to what, when the loop goes back to `ElectionSummary` vs. forward to the next contest, how `edit_target_contest` interacts with `VoteConfirm`) are fully specified in §3.3 and the BallotLoop state section of §4.1; the dispatch code itself is mechanical.
 
 #### 3.5.5 Driving Adapter: Lambda Handler
 
-The handler is a thin adapter — it wires ports together and delegates to the domain:
+The handler is thin — it does not contain business logic, it wires things together:
 
-```rust
-async fn handler(event: ConnectEvent) -> Result<ConnectResponse, LambdaError> {
-    let contact_id = &event.Details.ContactData.ContactId;
-    let user_input = event.Details.Parameters.get("user_input");
+1. Read `contact_id` and the optional `user_input` DTMF from the Connect event.
+2. Load or create the session via the Session port. On create, look up the caller phone in the phone-config routing table and snapshot the URLs/realm into the session so later phases don't re-read the routing table.
+3. Fetch the published publication via the ElectionConfig port, pinned to the session's `publication_id` (§5.1.8).
+4. Construct the flow engine from the publication and invoke it.
+5. Save the session through the Session port (with optimistic concurrency, see §4.1) and return the response to Connect.
 
-    // Adapters (created once, reused across invocations via Lambda runtime)
-    let session_port: &dyn SessionPort = &dynamo_session_adapter;
-    let phone_config_port: &dyn PhoneConfigPort = &dynamo_phone_adapter;
-    let config_port: &dyn ElectionConfigPort = &s3_config_adapter;
-    let ports: &dyn PhasePorts = &live_ports;  // groups auth, status, vote casting
-
-    // Load or create session
-    let mut session = match session_port.get_session(contact_id).await? {
-        Some(s) => s,
-        None => {
-            let caller_phone = &event.Details.ContactData.CustomerEndpoint.Address;
-            let phone_config = phone_config_port.get_config(caller_phone).await?
-                .ok_or(IvrError::UnknownPhoneNumber)?;
-            IvrSession::new(contact_id, &phone_config)
-        }
-    };
-
-    // Fetch the published config for this session. The adapter is
-    // responsible for caching at the Lambda process level keyed by
-    // (tenant_id, election_event_id, publication_id) — a warm container
-    // serves concurrent calls from a single shared copy. Session state
-    // stores only `publication_id`, not the config itself, to keep
-    // DynamoDB items well under the 400 KB per-item limit.
-    let published = config_port.get_published_config(
-        &session.tenant_id,
-        &session.election_event_id,
-        session.publication_id.as_deref(),
-    ).await?;
-
-    // Domain logic — pure, testable, no AWS dependencies
-    let engine = FlowEngine {
-        flow_config: &published.ivr_flow,
-        prompts: &published.prompts,
-    };
-    let response = engine.execute(&mut session, user_input.as_deref(), ports)?;
-
-    session_port.save_session(&session).await?;
-    Ok(response)
-}
-```
+Errors bubble up through `IvrError`; the handler's only job with them is turning the "presented-to-voter" errors (§8.2) into a response whose prompt + `should_disconnect` match the error's intent, and logging the internal errors.
 
 #### 3.5.6 Testing Strategy
 
-Hexagonal architecture makes every layer independently testable:
+The pure-function shape of phase executors is the lever — every interesting scenario can be driven as `(session_in, input) → (session_out, response)`:
 
-```rust
-// Unit test: domain logic with mock ports
-#[test]
-fn ballot_loop_skips_election_select_when_single_election() {
-    let mut session = test_session_with_one_election();
-    session.election_event_presentation.skip_election_list = Some(true);
+- **Phase / sub-phase unit tests.** Construct a session, call the executor with in-memory adapters, assert on the resulting session cursor and response prompt key. No DynamoDB, S3, or HTTP.
+- **Record-and-replay session tests.** Because every turn is deterministic, a full call is a list of `(input, expected_prompt_key, expected_expect_input, expected_disconnect)` tuples. Client IVR specs (Barrie-style) become replay fixtures checked in alongside the code — regressions fail at CI time against a known-good script. (See §15.2.)
+- **Text-in / text-out harness.** The same pure-function shape lets the engine run without Amazon Connect at all — stdin/stdout (CLI), a fixture file, or a hosted endpoint — substituting only the Connect adapter. Used for automated scenarios, a `step-ivr` CLI for manual walkthroughs and reproducing production issues, and (later) for an admin-portal flow preview. (See §15.2.1.)
+- **Contract tests at port boundaries.** The `/ivr-config` response shape (§5.1.2) is verified by running a real Keycloak with a representative flow and asserting the JSON matches the Lambda's parser. (See §15.3.)
+- **End-to-end tests** exercise the Connect contact flow, Polly, and the live Harvest/Hasura/Keycloak stack.
 
-    let mock_ports = TestPorts::default();
-    let result = BallotLoopPhase::execute(&mut session, None, &test_prompts(), &mock_ports);
-
-    // Should jump straight to LanguageSwitch (then ElectionIntro), not ElectionSelect
-    match &session.position.phase_state {
-        PhaseState::BallotLoop(state) => {
-            assert!(state.election_list_skipped);
-            assert_eq!(state.sub_phase, BallotSubPhase::LanguageSwitch);
-        }
-        _ => panic!("Expected BallotLoop state"),
-    }
-}
-
-#[tokio::test]
-async fn election_submit_refreshes_token_before_casting() {
-    let mock_auth = MockAuthPort::new()
-        .expect_refresh_token()
-        .returning(|_, _| Ok(fresh_token_pair()));
-    let mock_vote = MockVoteCastingPort::new()
-        .expect_cast_vote()
-        .returning(|_, _, _| Ok(cast_vote_response()));
-    let ports = TestPorts::new(mock_auth, mock_vote);
-
-    let mut session = test_session_authenticated();
-    let result = ElectionSubmitSubPhase::execute(&mut session, None, &test_prompts(), &ports);
-    assert!(result.is_ok());
-}
-```
+The developer picks the concrete mock / trait-double style (`mockall`, hand-rolled fakes, `wiremock` for HTTP-level fakes, etc.) per port.
 
 #### 3.5.7 Why Hexagonal Architecture
 
@@ -776,23 +482,11 @@ async fn election_submit_refreshes_token_before_casting() {
 
 ### 3.6 Channel-Specific Voting Periods
 
-Phone voting can have independent start/stop times from online voting, following the same pattern as KIOSK and EARLY_VOTING channels:
+Phone voting can have independent start/stop times from online voting, following the same pattern as KIOSK and EARLY_VOTING channels.
 
-```rust
-pub struct ElectionEventStatus {
-    pub voting_status: VotingStatus,
-    pub kiosk_voting_status: VotingStatus,
-    pub early_voting_status: VotingStatus,
-    pub telephone_voting_status: VotingStatus,  // NEW
+**What must exist.** `ElectionEventStatus` in `sequent-core` already carries per-channel status + period pairs for `voting` (online), `kiosk`, and `early_voting`. The IVR feature adds a fourth channel — `telephone` — using the same shape: a `VotingStatus` field plus a `PeriodDates` field. Hasura permissions, admin-portal UI, and any code that iterates over channels must be updated to treat the new channel uniformly with the others; there is nothing IVR-specific about the status/period representation itself.
 
-    pub voting_period_dates: PeriodDates,
-    pub kiosk_voting_period_dates: PeriodDates,
-    pub early_voting_period_dates: PeriodDates,
-    pub telephone_voting_period_dates: PeriodDates,  // NEW
-}
-```
-
-This allows administrators to configure phone voting hours independently (e.g., phone voting 9am-5pm, online voting 24/7).
+This allows administrators to configure phone voting hours independently (e.g., phone voting 9am–5pm, online voting 24/7). The channel is selected at the authorization layer via the JWT `azp` claim (`ivr-voting`) — see §5.2 and [`sequent_core::services::authorization::authorize_voter_election`](../../../../packages/sequent-core/src/services/authorization.rs).
 
 ---
 
@@ -804,73 +498,103 @@ This allows administrators to configure phone voting hours independently (e.g., 
 
 **Primary Key**: `contact_id` (Amazon Connect Contact ID)
 
+> **Design review — concurrency & idempotency.** The session design assumes
+> one Lambda invocation per contact at a time, but Amazon Connect can issue
+> overlapping invocations (e.g. DTMF captured at the tail of one prompt lands
+> during the next `ProcessStep` call; a flaky retry of a deferred invocation
+> re-fires an old input). Today, two concurrent turns both do
+> `get_session → mutate → save_session`, and the later write silently clobbers
+> the earlier one. That can (a) drop a selection the voter just made,
+> (b) re-process the same DTMF twice, or (c) resubmit a vote that was already
+> accepted by Harvest.
+>
+> Required before implementation:
+>
+> 1. **Optimistic concurrency on `save_session`** — add `version: u64` to
+>    `IvrSession`, bump it on every write, and guard the `PutItem` with a
+>    `ConditionExpression: version = :expected`. A lost race returns a
+>    dedicated `IvrError::SessionRaced` that the handler maps to a
+>    "please try again" prompt instead of corrupting state.
+> 2. **Idempotency key for vote submission** — the `insert_cast_vote` call
+>    must use a deterministic idempotency key derived from `(voter_id,
+>    election_id, publication_id)` so a Lambda retry after a timeout cannot
+>    produce a second ballot. Harvest already keys on `ballot_id`, but the
+>    Lambda must generate that `ballot_id` deterministically (not random),
+>    otherwise every retry looks like a new ballot.
+> 3. **Connect-side: no input replay** — confirm the contact flow does not
+>    re-invoke `ProcessInput` on handler timeout; if it does, the Lambda's
+>    idempotency layer must cover `ProcessInput` too, not just vote submit.
+
+**Design principle.** The session is per-contact and stays well under DynamoDB's 400 KB limit — anything large (prompts, elections, candidates, auth steps, event presentation) lives in the process-level publication cache keyed by `(tenant_id, election_event_id, publication_id)`. A large municipality (dozens of contests × hundreds of candidates × multiple language bundles) can exceed 400 KB on its own, so duplicating the publication per call would be both wasteful and fragile. See §5.1.8 for the publication-discovery flow.
+
 ```rust
-/// Per-call session state stored in DynamoDB.
-///
-/// **Design note — what is NOT here.** The published ballot publication
-/// (`flow_config`, `prompts`, `elections`, `auth_steps`, `election_event_presentation`)
-/// is *not* duplicated in the session. It is fetched from public S3 and cached
-/// at the Lambda process level, keyed by `(tenant_id, election_event_id,
-/// publication_id)`, so all concurrent calls in a warm Lambda container share
-/// a single copy. This matters: DynamoDB items are capped at **400 KB** per
-/// row, and a large municipality (dozens of contests × hundreds of candidates
-/// × multiple languages of prompts) can blow past that if the config is cached
-/// per-session. See §5.1.8 for the publication-discovery flow.
+/// Per-call session state stored in DynamoDB. The ballot publication is
+/// NOT here — it is cached at the Lambda process level (see design note
+/// above and §5.1.8).
 #[derive(Serialize, Deserialize)]
 pub struct IvrSession {
-    // Primary key
+    // Identity — pins the call to one publication snapshot
     pub contact_id: String,
-
-    // Call metadata
     pub caller_phone: String,
     pub call_start_time: DateTime<Utc>,
     pub tenant_id: Uuid,
     pub election_event_id: Uuid,
-    /// Publication identifier — used as the key into the process-level
-    /// published-config cache. Resolving this once at session init pins the
-    /// call to a consistent snapshot even if a new publication lands mid-call.
+    /// Process-level publication cache key. Resolved once at session init
+    /// so a mid-call republish cannot change the ballot under the voter.
     pub publication_id: String,
+
+    // URL snapshot — copied once from PhoneConfig at session init
+    pub keycloak_url: String,
+    pub harvest_url: String,
+    pub hasura_url: String,
+    pub s3_public_base_url: String,
+    pub keycloak_realm: String,
 
     // Authentication
     pub voter_id: Option<String>,
     pub access_token: Option<String>,
     pub refresh_token: Option<String>,
-    pub access_token_expires_at: Option<i64>,  // Unix timestamp, from token `exp` claim
+    /// Absolute Unix timestamp from the JWT `exp` claim — not a relative
+    /// `expires_in`, so it round-trips through DynamoDB without rebasing.
+    pub access_token_expires_at: Option<i64>,
     pub session_started_at: Option<i64>,
     pub area_id: Option<Uuid>,
 
-    // Language
-    pub language: String,  // language code, e.g., "en", "fr"
+    // Language — chosen in LanguageSelect, used by every subsequent prompt
+    pub language: Language,
 
-    // Votes in progress (accumulated during ballot_loop)
-    pub votes: HashMap<Uuid, ContestVote>, // contest_id -> vote
+    // Votes in progress — accumulated during ballot loop, consumed by ElectionSubmit
+    pub votes: HashMap<Uuid, ContestVote>,
 
-    // Submission results (populated during ElectionSubmit sub-phase, one per election)
+    // Submission results — drives ElectionReceipt and the end-of-call summary
     pub submission_results: Vec<ElectionSubmissionResult>,
 
-    // Flow engine position — cursor + phase-local state
+    // Flow engine cursor + phase-local state
     pub position: FlowPosition,
 
-    /// Per-error-class retry counters. Reset semantics differ per counter —
-    /// see `RetryCounters` below and §8.1
+    /// Per-error-class retry counters. Distinct reset semantics — see
+    /// `RetryCounters` below and §8.1.
     pub retries: RetryCounters,
 
-    // TTL for DynamoDB cleanup
+    /// Optimistic-concurrency guard. Bumped on every write; the DynamoDB
+    /// `PutItem` is guarded by `ConditionExpression: version = :expected`.
+    /// Lost races surface as `IvrError::SessionRaced`.
+    pub version: u64,
+
+    /// DynamoDB TTL — background cleanup of abandoned sessions.
     pub ttl: i64,
 }
 
 /// Separate retry counters by error class. A single counter would mix up
-/// unrelated kinds of failure — e.g. "3rd invalid DTMF while picking a
-/// candidate" would cross-contaminate "3rd auth attempt". Each counter has
-/// its own reset semantics:
+/// unrelated kinds of failure — "3rd invalid DTMF while picking a candidate"
+/// must not cross-contaminate "3rd auth attempt". Reset semantics:
 ///
 /// - `auth` — cleared on successful authentication.
-/// - `invalid_input` — cleared on any phase or sub-phase transition (so each
-///   sub-phase gets a fresh budget of retries, mirroring Barrie's model).
+/// - `invalid_input` — cleared on any phase or sub-phase transition.
 /// - `timeout` — cleared on any successful DTMF capture.
 ///
-/// Maximums are configurable per flow via `ivr.retry_limits` (see §7.3), which
-/// is edited in the admin portal's "IVR Flow" tab.
+/// Maximums are configurable per event via `presentation.ivr.retry_limits`
+/// (§7.3). Default 3 for each counter; missing values fall back to this.
 #[derive(Serialize, Deserialize, Clone, Default)]
 pub struct RetryCounters {
     pub auth: u8,
@@ -879,18 +603,17 @@ pub struct RetryCounters {
 }
 
 /// Flow position: cursor into the phase pipeline plus per-phase state.
-///
-/// The state enum mirrors the `FlowPhase` enum: the variant at `state` must
-/// correspond to the variant of `flow_config[phase_index]`. Each phase carries
-/// its own state shape, so there is no generic "entry / waiting / done" state
-/// that every phase has to interpret.
+/// The `state` variant must correspond to the `FlowPhase` variant at
+/// `flow_config[phase_index]` — the engine enforces this.
 #[derive(Serialize, Deserialize, Clone)]
 pub struct FlowPosition {
     pub phase_index: usize,
     pub state: PhaseState,
 }
 
-/// Phase-internal state — one variant per `FlowPhase` variant.
+/// Phase-internal state — one variant per `FlowPhase` variant. Each phase
+/// carries its own state shape; no generic "entry / waiting / done" state
+/// every phase has to interpret.
 #[derive(Serialize, Deserialize, Clone)]
 pub enum PhaseState {
     Announcement(AnnouncementState),
@@ -902,9 +625,8 @@ pub enum PhaseState {
     Goodbye(SimpleState),
 }
 
-/// Fallback state for phases whose execution collapses to "play, optionally
-/// wait for input, advance." Every phase engine starts in `Entry` on first
-/// invocation and moves to `WaitingForInput` when it has asked for DTMF.
+/// Fallback state for phases that collapse to "play, optionally wait for
+/// input, advance."
 #[derive(Serialize, Deserialize, Clone)]
 pub enum SimpleState {
     Entry,
@@ -918,26 +640,24 @@ pub struct AnnouncementState {
 
 #[derive(Serialize, Deserialize, Clone)]
 pub struct AuthState {
-    /// Which auth step (from the list discovered via /ivr-config) the Lambda
-    /// is currently collecting.
+    /// Current index into the auth step list discovered via /ivr-config.
     pub step_index: usize,
-    /// True once the Lambda has submitted credentials and Keycloak returned
-    /// `otp_required` — it is now collecting an OTP before resubmitting.
-    pub waiting_for_otp: bool,
 }
+```
 
-/// The flow pipeline — a typed enum instead of a `{ phase: String, config:
-/// HashMap<String, Value> }` pair. This is a direct application of the
-/// CLAUDE.md rule "policies use enums, not booleans / magic strings." The
-/// dispatcher match in `FlowEngine::execute` becomes exhaustive (compiler-
-/// verified coverage), the admin portal's IVR Flow editor can render form
-/// fields from the variant shape, and a typo in a config key is caught at
-/// deserialization time instead of mid-call.
+**Flow phases (typed dispatch).** The flow is a list of typed phases, not
+a list of `{ phase: String, config: HashMap<String, Value> }` pairs —
+per CLAUDE.md's "policies use enums, not magic strings" rule. An
+exhaustive match in the dispatcher gives compile-time coverage, and the
+admin portal can render form fields from each variant's shape. A typo in
+a config key fails at deserialization time, not mid-call.
+
+```rust
 #[derive(Serialize, Deserialize, Clone)]
 #[serde(tag = "phase", rename_all = "snake_case")]
 pub enum FlowPhase {
-    /// Play a prompt, optionally wait for an acceptance key. Covers the
-    /// former `welcome` / `declaration` / `pre_voting_statement` phases.
+    /// Play a prompt, optionally wait for an acceptance key. Covers
+    /// welcome / declaration / pre-voting statement.
     Announcement(AnnouncementConfig),
     LanguageSelect,
     BlacklistCheck,
@@ -949,19 +669,19 @@ pub enum FlowPhase {
 
 #[derive(Serialize, Deserialize, Clone)]
 pub struct AnnouncementConfig {
-    /// Non-semantic label used for logs, metrics, and admin-portal rendering.
-    /// Examples: "welcome", "declaration", "pre_voting_statement".
+    /// Non-semantic label used for logs, metrics, and admin-portal
+    /// rendering. Examples: "welcome", "declaration", "pre_voting_statement".
     pub name: String,
     /// Prompt key looked up in the i18n bundle for the current language.
     pub prompt_key: String,
-    /// If `Some("2")`, the voter must press `2` to advance (Barrie declaration
-    /// style). If `None`, the engine auto-advances after playing the prompt.
+    /// If `Some("2")`, the voter must press `2` to advance (Barrie
+    /// declaration style). If `None`, the engine auto-advances.
     pub accept_key: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Default)]
 pub struct BallotLoopConfig {
-    /// A 4-character ballot locator read back phonetically, or none at all.
+    /// A 4-character ballot locator read back phonetically, or none.
     pub receipt_format: Option<ReceiptFormat>,
 }
 
@@ -971,61 +691,26 @@ pub enum ReceiptFormat {
     PhoneticHex4,
 }
 
-/// One auth step — retrieved from Keycloak's /ivr-config endpoint, NOT from S3.
-/// The list of steps reflects the realm's Direct Grant flow execution order.
+/// One auth step — retrieved from Keycloak's /ivr-config endpoint,
+/// NOT from S3. The list reflects the realm's Direct Grant flow
+/// execution order.
 #[derive(Serialize, Deserialize, Clone)]
 pub struct AuthStep {
-    pub field: String,           // Semantic name, e.g. "voter_id", "pin", "dob"
-    pub max_digits: u8,          // DTMF input max length
-    pub terminator: String,      // "#", "*", or ""
-    pub maps_to: String,         // ROPC form param: "username", "password", "dob", etc.
-    pub prompt_key: Option<String>, // Override; if None, derive from maps_to (see §5.1.3)
+    /// Semantic name, e.g. "voter_id", "pin", "dob".
+    pub field: String,
+    pub max_digits: u8,
+    /// "#", "*", or "".
+    pub terminator: String,
+    /// ROPC form param: "username", "password", "dob", etc.
+    pub maps_to: String,
+    /// Override; if `None`, derive from `maps_to` (see §5.1.3).
+    pub prompt_key: Option<String>,
 }
+```
 
-/// The subset of `ElectionEventPresentation` relevant to the IVR flow. Lives
-/// in the process-level cached publication, NOT in the DynamoDB session.
-#[derive(Serialize, Deserialize, Clone)]
-pub struct IvrEventPresentation {
-    pub elections_order: Option<ElectionsOrder>,
-    pub language_conf: Option<ElectionEventLanguageConf>,
-    pub skip_election_list: Option<bool>,
-}
+**Ballot loop context.** Rendering and validation need access to election / contest / candidate data from the publication (name, ordering, per-contest `max_votes` / `min_votes`, blank-vote policy, under-vote policy, the DTMF option assigned to each candidate at session init). Reuse the existing `sequent-core` types (`EBlankVotePolicy`, `EUnderVotePolicy`, `VoteBehavior`, candidate/contest/election models) rather than redeclaring them. Per-contest voter choices and per-election submission outcomes round-trip through DynamoDB:
 
-#[derive(Serialize, Deserialize)]
-pub struct ElectionContext {
-    pub election_id: Uuid,
-    pub election_name: String,
-    pub contests: Vec<ContestContext>,
-    // Ordering & presentation (from ElectionPresentation)
-    pub sort_order: Option<i64>,
-    pub contests_order: Option<ContestsOrder>,
-    pub language_conf: Option<ElectionEventLanguageConf>,
-}
-
-#[derive(Serialize, Deserialize)]
-pub struct ContestContext {
-    pub contest_id: Uuid,
-    pub contest_name: String,
-    pub max_votes: u8,
-    pub min_votes: u8,
-    pub candidates: Vec<CandidateContext>,
-    // Ordering & presentation (from ContestPresentation)
-    pub sort_order: Option<i64>,
-    pub candidates_order: Option<CandidatesOrder>,
-    pub blank_vote_policy: Option<EBlankVotePolicy>,
-    pub under_vote_policy: Option<EUnderVotePolicy>,
-    // Read during validation so IVR can reject currently-unsupported acclaimed contests.
-    pub is_acclamation: bool,
-}
-
-#[derive(Serialize, Deserialize)]
-pub struct CandidateContext {
-    pub candidate_id: Uuid,
-    pub candidate_name: String,
-    pub sort_order: Option<i64>,
-    pub dtmf_option: String,  // assigned at session init based on candidates_order
-}
-
+```rust
 #[derive(Serialize, Deserialize)]
 pub struct ContestVote {
     pub contest_id: Uuid,
@@ -1034,13 +719,15 @@ pub struct ContestVote {
     pub is_declined: bool,
 }
 
-/// Result of submitting one election's ballot during the ElectionSubmit sub-phase
+/// Result of submitting one election's ballot during ElectionSubmit.
+/// Extend at the enum, not with booleans.
 #[derive(Serialize, Deserialize)]
 pub struct ElectionSubmissionResult {
     pub election_id: Uuid,
     pub status: SubmissionStatus,
-    /// Ballot hash — used to derive the spoken ballot locator in ElectionReceipt.
-    /// Current format: first 4 hex characters, read back phonetically.
+    /// Ballot hash — used to derive the spoken ballot locator in
+    /// ElectionReceipt. Current format: first 4 hex characters read
+    /// phonetically.
     pub ballot_hash: Option<String>,
 }
 
@@ -1056,8 +743,9 @@ pub enum SubmissionStatus {
 
 ### 4.2 Lambda Request/Response Models
 
+**Request from Amazon Connect.** Connect's invocation payload shape is a fixed AWS contract — prefer the AWS Lambda Rust runtime's published types over redefining them. The Lambda reads only the fields the handler needs: `ContactId`, the E.164 `Address` from `CustomerEndpoint`, any DTMF captured in the previous turn from `Parameters`, and any attributes set by earlier contact-flow blocks.
+
 ```rust
-// Amazon Connect invokes Lambda with this structure
 #[derive(Deserialize)]
 pub struct ConnectEvent {
     pub Details: ContactDetails,
@@ -1066,6 +754,8 @@ pub struct ConnectEvent {
 #[derive(Deserialize)]
 pub struct ContactDetails {
     pub ContactData: ContactData,
+    /// Bag of `{ String: String }` set by the contact flow's "Invoke
+    /// Lambda" block — carries the DTMF captured on the previous turn.
     pub Parameters: HashMap<String, String>,
 }
 
@@ -1078,28 +768,32 @@ pub struct ContactData {
 
 #[derive(Deserialize)]
 pub struct Endpoint {
-    pub Address: String, // Phone number
-    pub Type: String,    // "TELEPHONE_NUMBER"
+    /// E.164 caller phone.
+    pub Address: String,
+    /// "TELEPHONE_NUMBER".
+    pub Type: String,
 }
+```
 
-// Lambda returns this to Amazon Connect.
-//
-// Minimum viable shape — no SSML, no debug state, no error flags. Errors are
-// just prompts that set `should_disconnect = true`; the contact flow does not
-// need to know whether a given response is an "error" response. Internal
-// phase-state debugging belongs in CloudWatch structured logs (§10.2), not in
-// the Connect attribute bag.
+**Response to Amazon Connect.** Deliberately minimal — just enough for the contact flow to play a prompt and optionally capture input. No SSML flag, no error flag, no debug dump. An "error" is just a prompt with `should_disconnect = true`; the contact flow does not need to know. Internal phase-state debugging belongs in CloudWatch structured logs (§10.2), not in the Connect attribute bag.
+
+```rust
 #[derive(Serialize)]
 pub struct ConnectResponse {
-    /// Text-to-speech prompt to play via Polly.
+    /// Text (plain or SSML) played via Polly. SSML is allowed; see §7.2
+    /// for language-tag usage and the required sanitizer.
     pub prompt_text: String,
     /// Whether the contact flow should capture DTMF after the prompt.
     pub expect_input: bool,
-    /// Valid DTMF digits (e.g. "123456789"). Empty if `expect_input = false`.
+    /// Characters allowed on this turn — digits `0`–`9`, `*`, `#`, or
+    /// multi-digit sequences like `00#`, `01#`, …. Empty when
+    /// `expect_input = false`. Enforced by the Lambda on the next turn;
+    /// the contact flow's input block does not filter. See §3.4 for the
+    /// reserved-key convention.
     pub valid_inputs: String,
     /// Seconds to wait for DTMF before timing out.
     pub input_timeout: u8,
-    /// If true, contact flow disconnects after the prompt plays.
+    /// If `true`, the contact flow plays the prompt and disconnects.
     pub should_disconnect: bool,
 }
 ```
@@ -1120,8 +814,7 @@ Authentication uses **standard OIDC Direct Grant (ROPC)** via Keycloak's token e
 2. Lambda caches the response in the DynamoDB session record (same cache used for S3 election config)
 3. For each step, Lambda prompts for DTMF input using a **well-known prompt key** derived from the step's `maps_to` field (see 5.1.3)
 4. Lambda maps collected fields to ROPC form parameters and POSTs to Keycloak's token endpoint
-5. If Keycloak returns `otp_required` error, Lambda dynamically collects OTP via DTMF and resubmits with `otp` parameter — no pre-configuration needed
-6. On success, Lambda stores the JWT and proceeds to the next flow phase
+5. On success, Lambda stores the JWT and proceeds to the next flow phase
 
 ```mermaid
 sequenceDiagram
@@ -1135,11 +828,6 @@ sequenceDiagram
     Note over Lambda,KC: Credential submission (after DTMF collection)
     Lambda->>KC: POST /realms/{realm}/protocol/openid-connect/token<br/>grant_type=password<br/>{mapped fields}<br/>client_id=ivr-voting, client_secret={secret}
     alt Success
-        KC-->>Lambda: { access_token, refresh_token }
-    else OTP needed
-        KC-->>Lambda: { error: "otp_required" }
-        Note over Lambda: Collect OTP via DTMF
-        Lambda->>KC: POST /token with same params + otp={code}
         KC-->>Lambda: { access_token, refresh_token }
     else Failure
         KC-->>Lambda: { error: "invalid_grant" }
@@ -1156,12 +844,22 @@ A new Keycloak REST extension (`ivr-config-resource`, see Appendix C.8.2) expose
 GET /realms/{realm}/ivr-config
 ```
 
-**Response:**
+**Response (voter_id + PIN deployment, both from stock authenticators):**
 ```json
 {
   "steps": [
     { "field": "voter_id", "max_digits": 8, "terminator": "#", "maps_to": "username" },
-    { "field": "dob",      "max_digits": 8, "terminator": "#", "maps_to": "password" }
+    { "field": "pin",      "max_digits": 8, "terminator": "#", "maps_to": "password" }
+  ]
+}
+```
+
+**Response (voter_id + DoB deployment, DoB coming from the custom `IvrDobAuthenticator`):**
+```json
+{
+  "steps": [
+    { "field": "voter_id", "max_digits": 8, "terminator": "#", "maps_to": "username" },
+    { "field": "dob",      "max_digits": 8, "terminator": "#", "maps_to": "dob" }
   ]
 }
 ```
@@ -1169,14 +867,13 @@ GET /realms/{realm}/ivr-config
 **How the endpoint builds the response** (~100 lines of Java — see Appendix C.8.2 for full implementation notes):
 
 1. Look up the effective Direct Grant flow for the `ivr-voting` client (client-level override if present, else realm default)
-2. Walk the flow's executions in order, filtering to `ENABLED` / `REQUIRED`
+2. Walk the flow's executions in order, filtering to `REQUIRED` / `CONDITIONAL` (matches the Java filter in Appendix C.8.2; `ALTERNATIVE` and `DISABLED` executions are ignored)
 3. For each execution, produce a step from one of two sources:
    - **Stock Keycloak authenticators** — a small static lookup table baked into the extension:
      - `direct-grant-validate-username` → `{ field: "voter_id", max_digits: 8, terminator: "#", maps_to: "username" }`
      - `direct-grant-validate-password` → `{ field: "pin", max_digits: 8, terminator: "#", maps_to: "password" }`
    - **Custom IVR authenticators** (`IvrDobAuthenticator`, etc.) — read the execution's `AuthenticatorConfig`, which the admin configures in the Keycloak admin UI. Each custom authenticator declares these keys in its `getConfigProperties()`: `field_name`, `max_digits`, `terminator`, `maps_to`
-4. Skip `IvrOtpDirectGrantAuthenticator` — OTP is discovered dynamically via the `otp_required` error response, not declared up front
-5. Return the list as JSON
+4. Return the list as JSON
 
 The endpoint is public (no auth required). The shape of auth steps is not sensitive — voters already know what to enter — and making it public avoids needing an admin or client-credentials token for every IVR session.
 
@@ -1191,7 +888,6 @@ The Lambda uses a **fixed, well-known mapping** from ROPC parameter name to prom
 | `username` | `auth_enter_username` | "Please enter your voter ID followed by the number sign key." |
 | `password` | `auth_enter_password` | "Please enter your PIN (or date of birth) followed by the number sign key." |
 | `dob` (custom) | `auth_enter_dob` | "Please enter your date of birth as MMDDYYYY followed by the number sign key." |
-| `otp` (dynamic) | `auth_otp_sent` + `auth_enter_otp` | "A code has been sent to your phone. Please enter it followed by the number sign key." |
 
 These keys live in `presentation.i18n[lang].ivr`, the same namespace used for all IVR prompts and IVR-only spoken-text overrides. The admin provides translations in the admin portal's IVR Prompts editor. The Lambda ships sensible English/French defaults for each well-known key as a fallback.
 
@@ -1203,17 +899,20 @@ These keys live in `presentation.i18n[lang].ivr`, the same namespace used for al
 
 Lambda precedence: step's explicit `prompt_key` (if present) > well-known mapping by `maps_to` > error.
 
-#### 5.1.4 OTP Flow (Discovered Dynamically)
+#### 5.1.4 OTP Flow — Possible Future Extension (Not In Scope)
 
-OTP is **not declared** in the config. The Lambda reacts to Keycloak's response:
+**OTP over IVR is not planned for the initial release.** None of the deployments currently on the roadmap require a second factor delivered over the phone channel — voter-ID + PIN (or voter-ID + DoB) is sufficient. This section documents the shape a future extension could take so the current architecture doesn't foreclose it, not a feature to build now.
 
-1. Lambda submits the first ROPC call with collected credentials
-2. Keycloak runs its Direct Grant flow. If `IvrOtpDirectGrantAuthenticator` is in the flow and no `otp` form param was supplied, it generates/sends a code and returns `{ error: "otp_required" }`
-3. Lambda transitions to `AuthOtpWait` phase state, plays `auth_otp_sent` prompt, collects the OTP code via DTMF
-4. Resubmits all original credentials + `otp={code}` to the same token endpoint
-5. On success → JWT issued. On failure → retry or disconnect
+**If it is ever added,** the natural shape — which this design deliberately leaves room for — is:
 
-This is the same pattern Keycloak uses for TOTP in direct grants. No IVR-side config is needed — whether OTP runs is purely a Keycloak flow decision. The `IvrOtpDirectGrantAuthenticator` (see Appendix C.8.1) handles the server side.
+1. Lambda submits the first ROPC call with the collected credentials (unchanged).
+2. Keycloak's Direct Grant flow can return an `otp_required` error the same way it does for TOTP today. No IVR-side config would be needed; whether OTP runs would be purely a Keycloak flow decision.
+3. On `otp_required`, the Lambda collects an OTP code via DTMF (new phase-internal state) and resubmits all original credentials plus `otp={code}` to the same token endpoint.
+4. On success → JWT issued. On failure → retry or disconnect.
+
+This fits cleanly because: (a) the auth credentials port (§3.5.2) is a tagged type that can grow a new `Otp` case, (b) the `/ivr-config` endpoint does not need to declare OTP — it would be discovered reactively, and (c) the well-known prompt-key table (§5.1.3) can grow new keys (`auth_otp_sent`, `auth_enter_otp`, `auth_otp_invalid`) without schema changes.
+
+**What the initial implementation should NOT do:** build the `IvrOtpDirectGrantAuthenticator` Keycloak extension, add OTP prompt keys to the default i18n bundle, or reserve DynamoDB session fields for OTP state. All of that can be added when a deployment actually needs it.
 
 #### 5.1.5 Keycloak Direct Grant Flow Configuration
 
@@ -1224,7 +923,6 @@ flowchart TD
     A[IVR Direct Grant Flow] --> B[Username Validation<br/>REQUIRED]
     B --> C{Client?}
     C -->|client = ivr-voting| D[Password Validation<br/>or IvrDobAuthenticator<br/>REQUIRED]
-    D --> E[IvrOtpDirectGrantAuthenticator<br/>REQUIRED - if OTP]
     C -->|client != ivr-voting| F[Password Validation<br/>REQUIRED]
 ```
 
@@ -1236,7 +934,7 @@ The same realm handles both web portal and IVR authentication. The Keycloak admi
 |---|---|---|---|
 | `ivr-config-resource` | **Always** (replaces S3 auth config) | ~100 lines Java | `RealmResourceProvider` exposing `GET /realms/\{realm\}/ivr-config`. Walks the Direct Grant flow and returns auth steps |
 | `IvrDobAuthenticator` | Optional — only if DoB is NOT stored as password | ~80 lines Java | Reads `dob` from form params, validates against user's `date_of_birth` attribute. Declares `field_name`/`max_digits`/`terminator`/`maps_to` as config properties |
-| `IvrOtpDirectGrantAuthenticator` | Required if OTP is used | ~150 lines Java | If `otp` absent: generate/send/store code, return error. If `otp` present: validate, clear, succeed |
+| `IvrOtpDirectGrantAuthenticator` | **Not in initial scope** — see §5.1.4 | — | Deferred. Would follow the same pattern as `message-otp-authenticator`, triggering the Direct Grant `otp_required` flow |
 
 Custom authenticators must declare the IVR metadata fields in their `getConfigProperties()` so the `ivr-config-resource` can read them back:
 
@@ -1250,11 +948,7 @@ public static final List<ProviderConfigProperty> CONFIG_PROPERTIES = ProviderCon
     .build();
 ```
 
-The OTP authenticator reuses existing infrastructure from `packages/keycloak-extensions/message-otp-authenticator/`:
-- Code generation: `SecretGenerator` (from `Utils`)
-- SMS: `SmsSenderProvider` SPI (`AwsSmsSenderProvider`, `TwilioVerifySenderProvider`, `DummySmsSenderProvider`)
-- Email: `EmailTemplateProvider` + `AwsSesEmailSenderProvider`
-- Validation: `Utils.constantTimeIsEqual()`
+If OTP is ever added as described in §5.1.4, the authenticator would reuse existing infrastructure from [`packages/keycloak-extensions/message-otp-authenticator/`](../../../../packages/keycloak-extensions/message-otp-authenticator/) (code generation, SMS/email couriers, constant-time validation) — it is not being built as part of the initial IVR release.
 
 If the election uses simple voter ID + PIN (where PIN = Keycloak password), no custom authenticators are needed — only `ivr-config-resource` needs to be deployed.
 
@@ -1265,6 +959,30 @@ The Lambda caches the `/ivr-config` response per-realm in DynamoDB with a **5-mi
 - Calls in flight when the admin updates the flow finish using the cached config (safe — the auth step list is forward-compatible with ROPC)
 - New calls pick up the change within 5 minutes
 - Ops can flush the cache manually (DynamoDB delete) for emergency rollout
+
+> **Design review — cache scope is inconsistent with publication pinning.**
+> The publication is pinned per-session (§4.1 / §5.1.8) so a call cannot see a
+> mid-flight ballot edit. The auth step list is **not** pinned: it is cached
+> *per-realm* with a 5-minute TTL and read on every Lambda invocation. That
+> creates a window where a single call can observe two different auth-step
+> lists: step 1 "enter PIN" uses the old list, then the admin edits the flow,
+> the cache expires, and step 2 asks for a newly-added DoB that the voter did
+> not expect. The in-flight-safe claim above assumes a *single* Lambda
+> invocation reads the list once; it breaks across invocations of the same
+> call.
+>
+> Two coherent options:
+>
+> 1. **Pin auth steps per-session** — read `/ivr-config` once at session init
+>    and store the resolved `Vec<AuthStep>` on `IvrSession`. Per-realm cache
+>    becomes an optimization for *new* sessions only, not mid-session lookups.
+>    Symmetric with publication pinning; recommended.
+> 2. **Treat the list as append-only** — document that admins must not remove
+>    or reorder steps while calls are in flight. Harder to enforce; relies on
+>    operational discipline.
+>
+> Either way the document should state the pinning rule explicitly so the
+> adapter implementation matches the invariant the domain depends on.
 
 #### 5.1.8 IVR Config Discovery — S3 + Keycloak
 
@@ -1333,7 +1051,6 @@ IVR session config comes from **two sources**:
 - Configure voters with voter ID as username
 - Credential storage matches the Direct Grant flow (e.g., password credential for PIN, or user attribute + `IvrDobAuthenticator` for DoB)
 - For custom authenticators (`IvrDobAuthenticator`, etc.): fill in their `AuthenticatorConfig` (`field_name`, `max_digits`, `terminator`, `maps_to`) so the `/ivr-config` endpoint can return them
-- If OTP: deploy `IvrOtpDirectGrantAuthenticator` and add to Direct Grant flow
 - JWT claims include `area_id` and `authorized_election_ids` (via existing `AuthorizedElectionsUserAttributeMapper`)
 
 #### 5.1.9 Token Expiry Handling (Critical)
@@ -1362,90 +1079,25 @@ Phone calls can easily exceed 5 minutes, especially for:
 
 **Proposed Solution - Proactive Token Refresh**:
 
-```rust
-pub struct TokenManager {
-    access_token: String,
-    refresh_token: String,
-    access_token_expires_at: Instant,
-    // We don't know exact refresh token expiry, but we track last activity
-    last_refresh_at: Instant,
-}
+`TokenManager` is reconstructed on each invocation from the serialized session
+fields (Lambda is stateless, so we can't keep an in-memory `Instant`). All time
+bookkeeping uses absolute Unix seconds so it round-trips through DynamoDB
+cleanly.
 
-impl TokenManager {
-    const ACCESS_TOKEN_REFRESH_THRESHOLD: Duration = Duration::from_secs(60); // Refresh 1 min before expiry
+**Contract.** A token manager — reconstructed on each invocation from the session's token fields, because Lambda is stateless — must:
 
-    pub fn access_token_needs_refresh(&self) -> bool {
-        Instant::now() + Self::ACCESS_TOKEN_REFRESH_THRESHOLD >= self.access_token_expires_at
-    }
+- Track access-token expiry as an **absolute Unix timestamp** (from the JWT `exp` claim), not a relative `expires_in`, so it round-trips through DynamoDB without rebasing.
+- Expose a `needs_refresh(now)` check with a **safety margin** (default 60 s) so a token about to expire during the current turn gets refreshed first.
+- Always persist the **new** refresh token returned by Keycloak — refresh tokens are single-use under `refreshTokenMaxReuse: 0`.
+- Retry on transient failures (network / 5xx) with short backoff; fail fast on `400/401` (refresh token dead) and `403` (client misconfigured).
 
-    pub async fn ensure_valid_token(&mut self, keycloak: &KeycloakClient) -> Result<&str, AuthError> {
-        if self.access_token_needs_refresh() {
-            self.refresh_with_retry(keycloak).await?;
-        }
-        Ok(&self.access_token)
-    }
+**Error classification.** The refresh path collapses HTTP and network outcomes into three categories, each with a different policy:
 
-    async fn refresh_with_retry(&mut self, keycloak: &KeycloakClient) -> Result<(), AuthError> {
-        const MAX_RETRIES: u32 = 2;
-        const RETRY_DELAY_MS: u64 = 500;
-
-        for attempt in 1..=MAX_RETRIES {
-            match keycloak.refresh_token(&self.refresh_token).await {
-                Ok(tokens) => {
-                    self.access_token = tokens.access_token;
-                    self.refresh_token = tokens.refresh_token; // New refresh token (single-use)
-                    self.access_token_expires_at = Instant::now()
-                        + Duration::from_secs(tokens.expires_in);
-                    self.last_refresh_at = Instant::now();
-                    return Ok(());
-                }
-                Err(e) => {
-                    // Classify the error
-                    match self.classify_refresh_error(&e) {
-                        RefreshErrorType::Transient if attempt < MAX_RETRIES => {
-                            // Retry on network errors
-                            tokio::time::sleep(Duration::from_millis(RETRY_DELAY_MS * attempt as u64)).await;
-                            continue;
-                        }
-                        RefreshErrorType::Transient => {
-                            // Max retries exceeded on transient error
-                            return Err(AuthError::KeycloakUnavailable);
-                        }
-                        RefreshErrorType::TokenExpired => {
-                            return Err(AuthError::SessionExpired);
-                        }
-                        RefreshErrorType::Unauthorized => {
-                            return Err(AuthError::ConfigurationError);
-                        }
-                    }
-                }
-            }
-        }
-        Err(AuthError::KeycloakUnavailable)
-    }
-
-    fn classify_refresh_error(&self, error: &reqwest::Error) -> RefreshErrorType {
-        if error.is_timeout() || error.is_connect() {
-            RefreshErrorType::Transient
-        } else if let Some(status) = error.status() {
-            match status.as_u16() {
-                400 | 401 => RefreshErrorType::TokenExpired,
-                403 => RefreshErrorType::Unauthorized,
-                500..=599 => RefreshErrorType::Transient,
-                _ => RefreshErrorType::TokenExpired,
-            }
-        } else {
-            RefreshErrorType::Transient
-        }
-    }
-}
-
-enum RefreshErrorType {
-    Transient,      // Network issues, Keycloak temporarily down
-    TokenExpired,   // Refresh token invalid/expired
-    Unauthorized,   // Client misconfigured or disabled
-}
-```
+| Category | Cause | Retry? | Maps to |
+|---|---|---|---|
+| Transient | Connection timeout, DNS, 5xx | Yes (≤2 retries, short backoff) | `KeycloakUnavailable` after budget |
+| TokenExpired | 400 / 401 — refresh token invalid or SSO session timed out | No | `SessionExpired` |
+| Unauthorized | 403 — IVR client disabled / realm misconfigured | No | `ConfigurationError` |
 
 **Session State in DynamoDB**: Token management fields are part of `IvrSession` (see Section 4.1): `access_token`, `refresh_token`, `access_token_expires_at`, `session_started_at`.
 
@@ -1462,115 +1114,25 @@ enum RefreshErrorType {
 | **TokenExpired** | Idle timeout (>30 min) or max lifespan (>10 hrs) | 400/401 from Keycloak | No | "Your session has expired. Please call back to vote again." |
 | **Unauthorized** | IVR client disabled, realm misconfigured | 403 from Keycloak | No | "The voting system is temporarily unavailable. Please try again later." |
 
-**Error Response Codes**:
+**Auth error enum.** Mapped from the categories above. Keep as an enum; don't collapse into strings or booleans.
+
 ```rust
 pub enum AuthError {
-    SessionExpired,          // 400/401 - refresh token invalid
-    KeycloakUnavailable,     // Transient errors after retries
-    ConfigurationError,      // 403 - client issue
+    /// 400 / 401 — refresh token invalid or SSO session timed out.
+    SessionExpired,
+    /// Transient network / 5xx after retry budget.
+    KeycloakUnavailable,
+    /// 403 — IVR client disabled or realm misconfigured.
+    ConfigurationError,
 }
 ```
 
-**Critical Path - Vote Submission with Failure Handling**:
+**Critical vs. non-critical refresh policy.**
 
-```rust
-async fn submit_vote(
-    session: &mut IvrSession,
-    auth: &dyn AuthPort,
-    vote_casting: &dyn VoteCastingPort,
-) -> Result<VoteResult, IvrError> {
-    // Proactively refresh token before the critical vote submission path
-    let refresh_token = session.refresh_token.as_deref()
-        .ok_or(IvrError::SessionExpired { prompt_key: "session_expired", should_disconnect: true })?;
-    let realm = &session.keycloak_realm();
+- **Vote submission (critical).** Proactively refresh immediately before calling Harvest. Any refresh failure is fatal for the call: `SessionExpired` → "your session has expired, please call back"; `KeycloakUnavailable` / `ConfigurationError` → emit a critical ops alert (see monitoring below) and play the generic "system unavailable" prompt with `should_disconnect = true`. Never submit a ballot with a stale token — a 401 from Harvest mid-submit is harder to recover from than a clean refusal up front.
+- **Non-critical reads (e.g. election-status check).** Be lenient: try the current token, and on `401` attempt one refresh-then-retry. If the retry also fails, map to `SessionExpired` and disconnect.
 
-    match auth.refresh_token(realm, refresh_token).await {
-        Ok(tokens) => {
-            // Update session with new tokens
-            session.access_token = Some(tokens.access_token.clone());
-            session.refresh_token = Some(tokens.refresh_token);
-            session.access_token_expires_at = Some(tokens.expires_at);
-
-            let area_id = session.area_id
-                .ok_or(IvrError::InvalidState)?;
-
-            // Submit via port trait — no knowledge of Harvest/HTTP
-            vote_casting.cast_vote(
-                &session.harvest_url(),
-                &tokens.access_token,
-                &ballot,
-            ).await
-        }
-        Err(AuthError::SessionExpired) => {
-            // Voter session expired - cannot recover
-            Err(IvrError::SessionExpired {
-                prompt_key: "session_expired",
-                should_disconnect: true,
-            })
-        }
-        Err(AuthError::KeycloakUnavailable) => {
-            // Keycloak is down - critical system error
-            // Log alert for operations team
-            self.emit_critical_alert("keycloak_unavailable_during_vote");
-
-            Err(IvrError::SystemTemporarilyUnavailable {
-                prompt_key: "system_unavailable",
-                should_disconnect: true,
-                is_critical: true,
-            })
-        }
-        Err(AuthError::ConfigurationError) => {
-            // IVR client misconfigured - critical config error
-            self.emit_critical_alert("ivr_client_unauthorized");
-
-            Err(IvrError::SystemConfigurationError {
-                prompt_key: "system_unavailable",
-                should_disconnect: true,
-            })
-        }
-    }
-}
-```
-
-**Graceful Degradation for Non-Critical Paths**:
-
-For operations that are NOT vote submission (e.g., checking election status), we can be more lenient:
-
-```rust
-async fn check_election_status(
-    session: &IvrSession,
-    auth: &dyn AuthPort,
-    election_status: &dyn ElectionStatusPort,
-) -> Result<VotingStatus, IvrError> {
-    let access_token = session.access_token.as_deref()
-        .ok_or(IvrError::SessionExpired { prompt_key: "session_expired", should_disconnect: true })?;
-    let event_id = session.election_event_id
-        .ok_or(IvrError::InvalidState)?;
-
-    // Try with current token first; if expired, attempt refresh then retry
-    match election_status.get_election_event_status(
-        &session.hasura_url(), access_token, &event_id,
-    ).await {
-        Ok(status) => Ok(status.telephone_voting_status),
-        Err(api_err) if api_err.is_unauthorized() => {
-            // Token expired — try refresh via auth port
-            let refresh_token = session.refresh_token.as_deref()
-                .ok_or(IvrError::SessionExpired { prompt_key: "session_expired", should_disconnect: true })?;
-            let tokens = auth.refresh_token(&session.keycloak_realm(), refresh_token).await
-                .map_err(|_| IvrError::SessionExpired { prompt_key: "session_expired", should_disconnect: true })?;
-
-            // Retry with fresh token
-            match election_status.get_election_event_status(
-                &session.hasura_url(), &tokens.access_token, &event_id,
-            ).await {
-                Ok(status) => Ok(status.telephone_voting_status),
-                Err(e) => Err(e.into()),
-            }
-        }
-        Err(api_err) => Err(api_err.into()),
-    }
-}
-```
+Both paths share the `refresh_token` port call and the `AuthError` classification — the difference is only in how aggressively refresh is attempted and how a failure is surfaced to the voter.
 
 **Operational Monitoring**:
 
@@ -1690,37 +1252,42 @@ Backend (Harvest) validates all vote submission rules including revotes, eligibi
 
 **Error Handling:**
 
-```rust
-match harvest_client.cast_vote(&input).await {
-    Ok(response) => {
-        // Success
-        Ok(VoteSubmitted { cast_vote_id: response.cast_vote_id })
-    }
-    Err(ApiError::BackendRejection { error_code, message }) => {
-        // Per-election rejection — play error prompt but continue to next election
-        let prompt_key = match error_code.as_str() {
-            "DUPLICATE_VOTE" => "duplicate_vote",
-            "MAX_REVOTES_EXCEEDED" => "max_revotes_exceeded",
-            "NOT_ELIGIBLE" => "not_eligible",
-            _ => "vote_failed"
-        };
+`CastVoteError` is the Harvest-adapter's error type, distinct from the generic
+transport-layer `ApiErrorKind` in §8.2. Keeping them separate means the
+adapter can classify Harvest's documented rejection codes (`DUPLICATE_VOTE`,
+`MAX_REVOTES_EXCEEDED`, `NOT_ELIGIBLE`) as a first-class variant without
+leaking strings into the domain error.
 
-        // Don't disconnect — record the per-election error and continue
-        // submitting remaining elections. Only disconnect after all
-        // elections have been attempted.
-        Err(IvrError::VoteRejected {
-            prompt_key,
-            should_disconnect: false,
-        })
-    }
-    Err(ApiError::Timeout) => {
-        // Fatal: system-level error, disconnect immediately
-        Err(IvrError::ApiTimeout {
-            prompt_key: "system_error",
-            should_disconnect: true,
-        })
-    }
-    // ... other error handling
+The Harvest adapter distinguishes three outcomes:
+
+| Adapter outcome | Domain mapping | Voter-facing effect |
+|---|---|---|
+| Business-rule rejection (Harvest returned a known error code) | Per-election error — record on `ElectionSubmissionResult`, play the matching prompt, **continue to next election** | Announce via prompt; do not disconnect |
+| Network / read timeout before any response | Fatal system error | Play `system_error` prompt and disconnect |
+| Other transport failure | Generic transport error (§8.2) | Play `system_error` prompt and disconnect |
+
+Known business-rule codes and their prompt keys: `DUPLICATE_VOTE` → `duplicate_vote`, `MAX_REVOTES_EXCEEDED` → `max_revotes_exceeded`, `NOT_ELIGIBLE` → `not_eligible`, anything else → `vote_failed`. Map via an exhaustive `match` in the adapter (not string comparisons in domain code) so a new code surfaces as a compiler warning.
+
+```rust
+/// Harvest-adapter error. Distinct from generic transport errors (§8.2)
+/// so business-rule rejections are a first-class variant.
+pub enum CastVoteError {
+    /// Harvest returned a documented rejection code.
+    Rejected(CastVoteRejection),
+    /// Network / read timeout before any response from Harvest.
+    Timeout,
+    /// Other transport failure (DNS, TLS, unexpected 5xx, malformed body).
+    Transport(String),
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub enum CastVoteRejection {
+    DuplicateVote,
+    MaxRevotesExceeded,
+    NotEligible,
+    /// Future code we haven't classified yet — surfaces as `vote_failed`
+    /// to the voter but logs the raw code for ops.
+    Unknown(String),
 }
 ```
 
@@ -1740,23 +1307,36 @@ Fatal errors (network timeout, session expired, Keycloak unavailable) disconnect
 - IVR translates backend errors to user-friendly messages
 - Each election is submitted independently; one failure does not block others
 
+> **Design review — per-election UX needs an end-of-call roll-up.** The
+> "continue on per-election error" behavior is correct policy but
+> information-thin on the voice channel: a voter who hears
+> "success … this election rejected … success" at the moments those events
+> happen has very little chance of reconstructing what actually landed,
+> especially with 3+ elections and elderly / accessibility voters.
+>
+> Add a mandatory summary phase between the last `ElectionSubmit` and
+> `goodbye`:
+>
+> - **`ballot_submission_summary`** — reads back each election, one line
+>   apiece: "Mayor: your ballot was recorded. Council: your ballot was
+>   recorded. School Board: we could not record your ballot because you
+>   have already voted. Please call back if you believe this is in error."
+> - Must be enumerated from `IvrSession.submission_results` (§4.1), which
+>   this design already populates. No new data, just a new phase.
+> - Becomes required regardless of `receipt_format` — the per-election
+>   receipt (`ElectionReceipt`) reads a ballot locator, but the summary
+>   states *what happened* which is a different piece of information.
+>
+> Without this, a dropped call in the middle of the per-election receipts
+> (§3.3.2) leaves the voter guessing.
+
 ---
 
 ## 6. Multi-Tenancy & Municipality Discrimination
 
-### 6.1 Phone Number to Tenant Mapping
+### 6.1 Phone Number to Election Event Mapping
 
-Since a single phone number may serve multiple municipalities, we need a way to determine which tenant/election event a caller should access.
-
-**Option A: Dedicated Phone Numbers per Municipality** (Recommended for Canada)
-- Each municipality gets a dedicated Amazon Connect phone number
-- Lambda maps phone number → tenant_id + election_event_id
-- Configuration stored in DynamoDB or Parameter Store
-
-**Option B: Single Phone Number with Municipality Selection**
-- Caller dials single number
-- IVR asks: "For Municipality A, press 1. For Municipality B, press 2..."
-- More complex UX but lower cost
+Each election event gets its own dedicated Amazon Connect phone number. The Lambda looks up the dialled number in the phone-config table (§6.2) and resolves it directly to `(tenant_id, election_event_id)` — no IVR-level "which municipality?" menu, no shared numbers. A municipality running multiple concurrent elections therefore operates multiple numbers, one per event. This keeps the voter-facing experience as short as possible (the caller reaches the right ballot on connect, without an extra menu) and makes routing, blacklisting, and per-event metrics trivially scoped by the dialled number.
 
 ### 6.2 Phone Number Configuration Table
 
@@ -1767,44 +1347,42 @@ This DynamoDB table serves as a **routing table** — it maps phone numbers to t
 ```rust
 #[derive(Serialize, Deserialize)]
 pub struct PhoneConfig {
-    pub phone_number: String,        // E.164 format: +1234567890
+    /// Primary key — E.164 format, e.g. "+14165551234".
+    pub phone_number: String,
+
+    // What this number resolves to
     pub tenant_id: Uuid,
     pub election_event_id: Uuid,
 
-    // Cluster + environment routing
-    pub cluster: String,             // e.g., "prod1-euw1", "testing-euw1"
-    pub environment: String,         // e.g., "qa", "dev", "staging", "cixug"
-    pub keycloak_url: String,        // https://keycloak.{environment}.{cluster}.sequentech.io
-    pub harvest_url: String,         // https://harvest.{environment}.{cluster}.sequentech.io
-    pub hasura_url: String,          // https://hasura.{environment}.{cluster}.sequentech.io
+    // Cluster + region routing (see "Multi-cluster / multi-region" below)
+    pub cluster_id: String,          // e.g. "prod1-euw1", "googleinfra-euw4"
+    pub region: String,              // AWS region hosting the cluster, e.g. "eu-west-1"
+    pub environment: String,         // e.g. "qa", "staging", "cixug"
+
+    // Full set of per-cluster URLs — snapshot into IvrSession at session init
+    pub keycloak_url: String,        // https://keycloak.{env}.{cluster}.sequentech.io
+    pub harvest_url: String,         // https://harvest.{env}.{cluster}.sequentech.io
+    pub hasura_url: String,          // https://hasura.{env}.{cluster}.sequentech.io
     pub s3_public_base_url: String,  // https://{public-bucket}.s3.amazonaws.com
 
+    /// First-turn language before `LanguageSelect` runs.
     pub default_language: Language,
+
+    /// Allowlist flag. Disabled or missing rows are rejected at session init.
     pub enabled: bool,
 }
 ```
 
-**Multi-Environment Support**:
+**Multi-cluster / multi-region support.**
 
-The IVR system can serve multiple clusters and environments. Clusters are infrastructure groups (e.g., `prod1-euw1`, `prod2-use1`, `testing-euw1`). Environments are tenants/deployments within a cluster (e.g., `qa`, `dev`, `staging`, `cixug`). Two deployment approaches:
+A single IVR Lambda deployment serves every cluster and every region that hosts a Sequent environment. Each row in `ivr-phone-config` carries the full set of per-cluster routing URLs (Keycloak, Harvest, Hasura, public S3) plus `cluster_id` and `region` labels, so the Lambda looks up the dialled number and dispatches every downstream call to the cluster that owns that election event — whether that cluster is in `prod1-euw1`, `prod2-use1`, `googleinfra-euw4`, or anywhere else. Clusters are infrastructure groups (e.g. `prod1-euw1`, `prod2-use1`, `testing-euw1`); environments are tenants/deployments within a cluster (`qa`, `dev`, `staging`, `cixug`). Both dimensions are carried in the phone-config row.
 
-**Approach 1: Shared Lambda with Dynamic Routing (Configuration-based)**
-- Single IVR Lambda deployment
-- Phone number lookup in `ivr-phone-config` determines cluster + environment URLs
-- Lambda routes API calls to the correct cluster/environment endpoints
-- Whitelisting: Only phone numbers in DynamoDB table with `enabled: true` can access the system
+In practice we may start with a single cluster hosting all IVR-enabled events, but the configuration schema and the Lambda dispatch must support the multi-cluster / multi-region case from day one — we do not want to retrofit routing when a second cluster is added mid-election-season.
 
-**Approach 2: Per-Cluster Lambda Deployment (Recommended)**
-- Deploy separate IVR Lambda per cluster (e.g., `ivr-lambda-prod1-euw1`, `ivr-lambda-testing-euw1`)
-- Each Lambda has cluster-level URLs in environment variables (simpler config)
-- Amazon Connect routing profiles direct phone numbers to correct Lambda
-- `ivr-phone-config` still stores environment + tenant + event mapping within the cluster
-- Cleaner separation, easier version management across clusters
-
-**Isolation**:
-- Cluster-level: Per-cluster Lambda deployment naturally isolates clusters
-- Environment-level: Keycloak realms provide tenant isolation (`tenant-\{id\}-event-\{id\}`), URLs are environment-scoped
-- Phone-level: Only enabled entries in `ivr-phone-config` table work
+**Isolation.**
+- **Cluster-level** — the phone-config row is the only place that binds a dialled number to a cluster's URLs; a misconfigured row cannot leak calls to the wrong cluster because Keycloak/Hasura/Harvest tokens are cluster-scoped.
+- **Environment-level** — Keycloak realms (`tenant-{id}-event-{id}`) provide tenant isolation; URLs are environment-scoped.
+- **Phone-level** — only rows with `enabled: true` are accepted at session init; a missing or disabled row rejects the call before any authentication is attempted.
 
 ### 6.3 Phone Blacklist (Hasura-Backed)
 
@@ -1826,6 +1404,28 @@ The `blacklist_check` phase consults a **Hasura table**, not DynamoDB. The black
 
 **Why not part of the published ballot publication (S3)?** Because blacklists change more often than ballots are published, and an admin needs to be able to block a phone mid-election without re-running the ballot publication pipeline. Keep the publication immutable and artifact-like; keep the blacklist mutable and operational.
 
+> **Design review — option (a) is a blacklist oracle, pick option (b).**
+> Option (a) "anonymous read endpoint that only returns blocked yes/no" is
+> an open oracle against the blacklist: anyone who can make an HTTP request
+> can probe any phone number and learn whether it is blocked. That leaks
+> moderation decisions, is likely a privacy problem under PIPEDA for a
+> Canadian deployment, and gives a harassment vector (check if the target's
+> number is blacklisted, then use that signal). Rate-limiting mitigates but
+> does not solve it.
+>
+> Recommend option (b): the IVR Lambda authenticates the blacklist query
+> with a **service-account JWT** minted for the `ivr-voting` client (client
+> credentials grant against the tenant's realm). Harvest already gates
+> blacklist mutations behind `can_manage_phone_blacklist`; add a read
+> permission (`can_read_phone_blacklist`) granted only to the service
+> account, and have the Lambda call an authenticated Hasura query. Costs
+> one extra Keycloak call per cold session (cache the service token in the
+> Lambda container like any other bearer token) and eliminates the oracle.
+>
+> If option (a) is chosen anyway for simplicity, the endpoint must at
+> minimum: (i) be rate-limited per source IP, (ii) return a constant-time
+> response so timing does not leak, (iii) log every query for audit.
+
 ---
 
 ## 7. Internationalization (i18n) & IVR Prompts
@@ -1833,11 +1433,11 @@ The `blacklist_check` phase consults a **Hasura table**, not DynamoDB. The black
 ### 7.1 Leveraging Existing Infrastructure
 
 The platform already supports:
-- **`telephone` channel** in `VotingChannels` struct (`packages/sequent-core/src/types/hasura/core.rs:207`)
+- **`telephone` channel** in `VotingChannels` struct (`packages/sequent-core/src/types/hasura/core.rs`, `pub struct VotingChannels`)
 - **i18n pattern** via `presentation.i18n` with nested structure `\{lang: \{key: value\}\}`
-- **Per-election presentation** via `ElectionPresentation` (`packages/sequent-core/src/ballot.rs:1218`)
-- **Per-event presentation** via `ElectionEventPresentation` (`packages/sequent-core/src/ballot.rs:963`)
-- **Channel-based authorization** via JWT `azp` claim (`packages/sequent-core/src/services/authorization.rs:110`)
+- **Per-election presentation** via `ElectionPresentation` (`packages/sequent-core/src/ballot.rs`, `pub struct ElectionPresentation`)
+- **Per-event presentation** via `ElectionEventPresentation` (`packages/sequent-core/src/ballot.rs`, `pub struct ElectionEventPresentation`)
+- **Channel-based authorization** via JWT `azp` claim (`packages/sequent-core/src/services/authorization.rs`, `authorize_voter_election`)
 
 ### 7.2 IVR Prompt Storage - Inside Existing i18n Structure
 
@@ -1925,6 +1525,40 @@ Design note:
 - If any resolved string contains SSML markup, the final rendered prompt should be sent to Polly as SSML and wrapped once in `<speak>...</speak>`
 - This is best suited to names and short phrases; Polly's `lang` tag changes pronunciation rules, but many voices will still sound accented rather than fully native unless a bilingual voice is used
 
+##### SSML sanitizer & allowlist (required)
+
+SSML in prompts is a trust boundary: i18n overrides are admin-editable, and raw SSML is effectively "arbitrary instructions to the TTS engine." An admin with prompt-edit permission could otherwise make Polly say fabricated candidate names, inject instructions that contradict the ballot, or insert `<break time="30s"/>` filibusters that stall a call. Plain-text portal values interpolated into an SSML template can also contain `<`, `&`, or `"` and silently break the whole prompt. Both problems are addressed by a single pipeline component — the **SSML renderer** — which every prompt sent to Polly MUST pass through. No code path should construct an SSML string and hand it to Polly without going through this renderer.
+
+The renderer has three responsibilities, applied in order:
+
+1. **Template interpolation with typed slots.** Templates distinguish two marker styles:
+   - `{var}` — **escaped slot.** The substituted value is XML-escaped (`<`, `>`, `&`, `"`, `'` → entities) before insertion. This is the default and applies to all placeholder variables listed in Appendix D (`{candidate_name}`, `{election_name}`, `{contest_name}`, `{number}`, `{confirmation_number}`, etc.) — even when the resolved value happens to contain SSML-looking characters, they are treated as literal text.
+   - `{{ssml:var}}` — **SSML include.** The substituted value is resolved from the same i18n scope chain as the template and is passed through without escaping, but still goes through the tag allowlist (step 2). This is the only path for mixed-language names such as `<lang xml:lang="fr-CA">Jean-François Côté</lang>` to reach Polly intact. Recursive resolution is bounded (max depth 3) to prevent cyclic overrides.
+
+2. **Tag allowlist.** After interpolation, the renderer parses the resulting fragment as XML and strips any element not in the allowlist. Attributes are also allowlisted per tag. Anything outside the list is dropped (element removed, inner text preserved) rather than escaped — silent degradation to plain text is safer than surfacing broken markup to Polly at runtime.
+
+   | Tag | Allowed attributes | Rationale |
+   |---|---|---|
+   | `speak` | — | Root wrapper; renderer always emits exactly one at the outermost level. |
+   | `lang` | `xml:lang` (value matched against a static locale allowlist: `en-CA`, `en-US`, `fr-CA`, `fr-FR`) | Mixed-language name readback. |
+   | `phoneme` | `alphabet` (`ipa` or `x-sampa`), `ph` | Pronunciation overrides for names. |
+   | `say-as` | `interpret-as` (`characters`, `spell-out`, `digits`, `telephone`, `date`, `time`), `format` | Ballot-locator and date/number readback. |
+   | `break` | `time` (capped at **2 s** by the renderer regardless of the input value), `strength` | Pacing. The time cap prevents long-pause filibuster; longer pauses must be composed of multiple shorter breaks, which show up clearly in the audit log. |
+   | `sub` | `alias` | Abbreviation expansion. |
+   | `p`, `s` | — | Paragraph / sentence pacing. |
+
+   Every other SSML tag that Polly supports (`prosody`, `emphasis`, `voice`, `audio`, `mark`, `w`, etc.) is **stripped**. `voice` and `audio` in particular are explicitly out of scope — changing voice mid-prompt or injecting external audio would make voter-audit of prompts much harder and has no justified use in a ballot readback.
+
+3. **Wrap and emit.** The sanitized fragment is wrapped once in `<speak>…</speak>` (the renderer strips any caller-supplied outer `<speak>` before wrapping, so double-wrapping is not possible). The final string is what is sent to Polly *and* what is recorded in the electoral audit log (§9.3) so post-election review can replay exactly what each voter heard.
+
+**Fail-loud vs fail-soft.** Malformed XML in a template (unbalanced tags after interpolation) is a fail-loud error: the renderer returns a domain error, the prompt is not sent to Polly, and the handler falls back to `system_error`. Unknown tags and attributes are fail-soft (stripped with a WARN-level structured log recording the dropped tag name and the prompt key) — this keeps a single bad override from taking down a live call while still surfacing the misconfiguration for ops.
+
+**Admin-portal editor requirement.** The prompt editor in the admin portal (§14.2) MUST invoke the same sanitizer on save and display the rendered audio preview (Polly synthesis of the sanitized output) before the value can be persisted. This means the sanitizer lives in `sequent-core` where both the Lambda and the admin portal (via its WASM build) can share it — do not implement it twice.
+
+**Testing.** The sanitizer gets its own unit-test suite (tag allowlist, attribute allowlist, locale allowlist for `xml:lang`, `break time` cap, depth bound on `{{ssml:…}}` recursion, escape correctness for every placeholder in Appendix D, malformed-XML handling). Record-and-replay fixtures (§15.2) assert the final sanitized SSML string, not just the prompt key, so regressions in the renderer surface immediately.
+
+Track this as part of the IVR prompt editor work, not as a separate ticket — the editor, escaper, and allowlist are one unit.
+
 Official references:
 - [Amazon Polly: Using the `lang` tag](https://docs.aws.amazon.com/polly/latest/dg/lang-tag.html)
 - [Amazon Connect: Supported SSML tags](https://docs.aws.amazon.com/connect/latest/adminguide/supported-ssml-tags.html)
@@ -1938,13 +1572,36 @@ IVR strings are deserialized as `HashMap<String, String>`, not fixed structs. Th
 /// Deserialized from presentation.i18n[lang]["ivr"]
 type IvrStrings = HashMap<String, String>;
 
-fn get_ivr_strings(i18n: &I18nContent, lang: &str) -> IvrStrings {
+fn get_ivr_strings(
+    i18n: &serde_json::Map<String, serde_json::Value>,
+    lang: &str,
+) -> IvrStrings {
     i18n.get(lang)
         .and_then(|lang_content| lang_content.get("ivr"))
         .and_then(|ivr_value| serde_json::from_value(ivr_value.clone()).ok())
         .unwrap_or_default()
 }
 ```
+
+> **Type-system note.** The published `I18nContent<T>` type alias in
+> [`sequent-core::ballot.rs`](https://github.com/sequentech/step/blob/main/packages/sequent-core/src/ballot.rs)
+> is `HashMap<String, T>` where `T` defaults to `Option<String>`, so the
+> portal-facing presentation types use shapes like
+> `Option<I18nContent<I18nContent<Option<String>>>>` (lang → key → leaf string).
+> The IVR `"ivr"` value is a *nested object*, not a leaf string, so it does **not**
+> fit that pre-existing shape. Two options for storing it without breaking the
+> portal types:
+>
+> 1. **Untyped escape hatch (chosen):** keep the IVR sub-tree as
+>    `serde_json::Value` inside the `i18n` blob and parse it lazily at the IVR
+>    Lambda boundary (the snippet above). The portal already ignores unknown
+>    keys, so this is non-breaking.
+> 2. **Widen the leaf type:** change the type alias's leaf parameter to a
+>    `serde_json::Value` (or an `untagged` enum of `String | Map`). Requires
+>    coordinating with every existing consumer of `I18nContent<I18nContent<…>>`
+>    and is therefore deferred.
+>
+> Either way, the IVR Lambda must not assume the leaf is a `String`.
 
 #### Benefits of This Approach
 
@@ -1997,7 +1654,7 @@ fn get_ivr_strings(i18n: &I18nContent, lang: &str) -> IvrStrings {
           "decline_confirm": "By selecting 'Decline to vote' you will not vote for any candidate in this election. To submit your declined ballot, press the number sign key now. To not decline and start your selection, press zero key now.",
           "summary_intro": "Here is a summary of your selections for {election_name}.",
           "summary_item": "For contest {contest_number}, {contest_name}: you selected {candidate_name}.",
-          "summary_edit_prompt": "Press 1 to continue to submission, or press a contest number to change your selection for that contest.",
+          "summary_edit_prompt": "Press zero zero pound to submit, or press a contest number followed by pound to change your selection for that contest.",
           "summary_edit_restart": "Changing your selection for {contest_name}. Your previous selections for this contest have been cleared.",
           "receipt_info": "You are about to be given a 4-character ballot locator for each election. You may choose to write it down for your reference.",
           "receipt_number": "Your ballot locator for {election_name} is {confirmation_number}. To repeat, please press the star key.",
@@ -2055,7 +1712,7 @@ fn get_ivr_strings(i18n: &I18nContent, lang: &str) -> IvrStrings {
 }
 ```
 
-Note that neither example contains an `ivr.auth` section — the auth step list is no longer part of S3 config. It is fetched at session init from Keycloak's `/realms/\{realm\}/ivr-config` endpoint (see §5.1). The only auth-related data in S3 is the i18n for the well-known prompt keys (`auth_enter_username`, `auth_enter_password`, `auth_enter_otp`, etc. — see §5.1.3).
+Note that neither example contains an `ivr.auth` section — the auth step list is no longer part of S3 config. It is fetched at session init from Keycloak's `/realms/\{realm\}/ivr-config` endpoint (see §5.1). The only auth-related data in S3 is the i18n for the well-known prompt keys (`auth_enter_username`, `auth_enter_password`, `auth_enter_dob`, etc. — see §5.1.3).
 
 Same Lambda code handles both configurations. The Barrie deployment has declaration, blacklist, eligibility check, and a 4-character phonetic ballot locator receipt — all through config. The per-election summary/confirm/submit/receipt cycle is always part of `ballot_loop` and runs for every election. Which credentials are collected (voter ID + DoB for Barrie, voter ID + PIN for Toronto) is determined entirely by each realm's Direct Grant flow in Keycloak — **not** by the S3 config.
 
@@ -2064,14 +1721,17 @@ Same Lambda code handles both configurations. The Barrie deployment has declarat
 When `telephone` channel is enabled in `voting_channels`:
 
 **ElectionEvent settings** → new "IVR Prompts" tab:
-- Text fields for event-level prompts and optional spoken-text overrides — including the well-known auth prompt keys (`auth_enter_username`, `auth_enter_password`, `auth_enter_otp`, etc. — see §5.1.3)
+- Text fields for event-level prompts and optional spoken-text overrides — including the well-known auth prompt keys (`auth_enter_username`, `auth_enter_password`, `auth_enter_dob`, etc. — see §5.1.3)
 - Language tabs from `language_conf.enabled_language_codes`
 - SSML-aware preview button (plays via Polly)
 
 **ElectionEvent settings** → "IVR Flow" tab:
-- Configure the flow pipeline (`presentation.ivr.flow`) — which phases run and in what order
-- Retry limits — three separate numeric inputs for `auth`, `invalid_input`, `timeout` (stored under `ivr.retry_limits`, see §8.1)
-- Assistance phone number and other non-auth settings
+- **Flow pipeline editor (`presentation.ivr.flow`)** — an ordered list of flow steps with drag-to-reorder, add, and remove controls. Each step surfaces type-specific configuration inline:
+  - **Announcement steps** (`announcement:welcome`, `announcement:declaration`, `announcement:pre_voting_statement`, …) — edited structurally: pick the announcement key from a dropdown (sourced from the prompt catalogue), tick whether `expect_input` is required, and link to the matching prompt in the **IVR Prompts** tab. No JSON required for the common case
+  - **Other step types** (`auth`, `language_select`, `blacklist_check`, `eligibility_check`, `ballot_loop`, `goodbye`, …) — if a step type exposes typed fields today, they appear as form inputs; otherwise the UI falls through to a raw-JSON editor for the step (see below)
+- **Raw-JSON editor (escape hatch).** A collapsible "Edit JSON" panel shows the underlying `presentation.ivr.flow` object. Saving runs the same `sequent-core` deserializer the Lambda uses, so any malformed or unknown-phase input fails loudly at save time rather than at runtime mid-call. This lets us support new phase types or unusual shapes immediately in `beyond`/Lambda without waiting on an admin-portal release
+- **Retry limits** — three separate numeric inputs for `auth`, `invalid_input`, `timeout` (stored under `ivr.retry_limits`, see §8.1), applied per **election event** (uniform across all elections in the event)
+- **Assistance phone number** and other non-auth settings
 
 **Election settings** → new "IVR Prompts" section:
 - Text fields for election-specific prompts and optional IVR-only `name` / `alias` / `description` overrides
@@ -2089,43 +1749,20 @@ For the common case, the admin portal can link directly to the Keycloak admin UR
 
 ### 7.5 Lambda Prompt Resolution (Fallback Chain)
 
-Since prompts and spoken-text overrides are `HashMap<String, String>`, resolution is a simple key lookup with fallback:
+Since prompts and spoken-text overrides are flat key/value maps, resolution is a simple key lookup with fallback. The resolver takes a **prompt scope** — the set of `ivr` maps visible on the current turn (candidate / contest / election / event) — and walks it narrowest-first, ending at a built-in default bundle. Each caller passes only the scopes that apply on its turn: `ContestIntro` fills election + contest; `blacklist_check` fills only event.
 
-```rust
-impl IvrPromptResolver {
-    /// Resolve a prompt key with fallback: election → event → defaults
-    pub fn get_prompt(
-        &self,
-        key: &str,
-        lang: &str,
-        election_strings: Option<&IvrStrings>,
-        event_strings: &IvrStrings,
-        vars: &HashMap<String, String>,
-    ) -> String {
-        let template = election_strings
-            .and_then(|p| p.get(key))
-            .or_else(|| event_strings.get(key))
-            .or_else(|| self.defaults.get(key))
-            .cloned()
-            .unwrap_or_else(|| format!("[missing prompt: {}]", key));
-
-        self.interpolate(&template, vars)
-    }
-
-    fn interpolate(&self, template: &str, vars: &HashMap<String, String>) -> String {
-        let mut result = template.to_string();
-        for (key, value) in vars {
-            result = result.replace(&format!("{{{}}}", key), value);
-        }
-        result
-    }
-}
-```
-
-Prompt/template fallback is:
+Prompt/template fallback order (narrowest first):
+- candidate `presentation.i18n[lang]["ivr"][key]` — only meaningful for
+  candidate-scoped prompts (e.g. a phonetic pronunciation override for a single
+  candidate's name)
+- contest `presentation.i18n[lang]["ivr"][key]`
 - election `presentation.i18n[lang]["ivr"][key]`
 - event `presentation.i18n[lang]["ivr"][key]`
 - built-in default prompt
+
+A missing key returns a visible sentinel (e.g. `[missing prompt: <key>]`) rather than an empty string, so a translator forgetting a key shows up loudly in a test call instead of producing silent dead air.
+
+**Template interpolation.** Resolved templates contain `{placeholder}` tokens (e.g. `{candidate_name}`, `{ballot_locator}`). Substitution happens after resolution, against a variables map supplied by the caller. See the design-review blockquote in §7.2 on SSML interpolation — placeholder content that may end up inside SSML must be escaped at the substitution point, not left to each prompt author.
 
 Spoken dynamic-text fallback is:
 - entity `presentation.i18n[lang]["ivr"][field]`
@@ -2137,16 +1774,7 @@ If the resolved value contains SSML markup, the renderer should preserve it and 
 
 ### 7.6 Using Existing i18n for Dynamic Content
 
-Election/contest names use existing helpers from `packages/sequent-core/src/services/translations.rs`:
-
-```rust
-use sequent_core::services::translations::Name;
-
-let election_name = election.get_name(&language);  // From presentation.i18n
-let contest_name = contest.get_name(&language);    // From contest.name_i18n
-```
-
-For IVR, these existing helpers become the **fallback path** after first checking optional `presentation.i18n[lang]["ivr"].name` / `alias` / `description` overrides on the relevant event, election, contest, or candidate.
+Election, contest, and candidate names already have translation helpers in [`sequent-core`](../../../../packages/sequent-core/src/services/translations.rs) that resolve from `presentation.i18n`. IVR reuses them directly: first check the optional IVR-only override at `presentation.i18n[lang]["ivr"].name` / `alias` / `description` on the relevant entity, then fall back to the standard portal helper. No new translation machinery.
 
 Template variables and well-known prompt keys are listed in Appendix D.
 
@@ -2156,8 +1784,12 @@ Template variables and well-known prompt keys are listed in Appendix D.
 
 ### 8.1 Retry Logic
 
-Retry budgets are configured per flow in `ivr.retry_limits` (editable in the
-admin portal's **IVR Flow** tab) and tracked at runtime in
+Retry budgets are configured **per election event** in
+`presentation.ivr.retry_limits` (editable in the admin portal's **IVR Flow**
+tab on the election event). The same budget applies to every election inside
+the event — we explicitly do not expose per-election retry limits, because
+retry semantics are voter-facing behaviour that should be uniform across the
+ballot within a single call. Runtime counters are tracked in
 `IvrSession.retries: RetryCounters` (see §4.1). Each class of retry has its
 own counter and its own reset semantics.
 
@@ -2177,51 +1809,12 @@ pressing keys does not run down their timeout budget unfairly.
 
 ### 8.2 Error States
 
-Every `IvrError` variant carries a `prompt_key: &'static str` (resolved to an
-i18n message at the adapter boundary) and a `should_disconnect: bool`. This
-forces every error path through a uniform presentation contract — there is
-nowhere in the domain layer that has to decide how to turn an error into a
-prompt, and there is no variant with a free-form `String` payload that leaks
-internal detail to voters.
+**Shape contract.** The domain error is an enum split into two groups, both exhaustively matched at the handler boundary:
 
-```rust
-pub enum IvrError {
-    // --- Presented-to-voter errors ---
-    // All variants carry the same shape so the adapter can turn them into a
-    // ConnectResponse uniformly.
-    AuthenticationFailed       { prompt_key: &'static str, should_disconnect: bool },
-    VoterNotEligible           { prompt_key: &'static str, should_disconnect: bool },
-    ElectionClosed             { prompt_key: &'static str, should_disconnect: bool },
-    InvalidInput               { prompt_key: &'static str, should_disconnect: bool },
-    MaxRetriesExceeded         { prompt_key: &'static str, should_disconnect: bool },
-    SessionExpired             { prompt_key: &'static str, should_disconnect: bool },
-    VoteRejected               { prompt_key: &'static str, should_disconnect: bool },
-    ApiTimeout                 { prompt_key: &'static str, should_disconnect: bool },
-    SystemTemporarilyUnavailable { prompt_key: &'static str, should_disconnect: bool, is_critical: bool },
-    SystemConfigurationError   { prompt_key: &'static str, should_disconnect: bool },
+1. **Presented-to-voter errors** — every variant carries the same pair: a static `prompt_key` (resolved to an i18n message at the adapter boundary) and a `should_disconnect` flag. This forces every voter-facing error through a uniform presentation contract: the domain never decides how to phrase something, and no variant carries a free-form string payload that could leak internal detail into a prompt. Variants needed today: authentication failed, voter not eligible, election closed, invalid input, max retries exceeded, session expired, session raced (§4.1 concurrency blockquote), vote rejected, API timeout, system temporarily unavailable (with a `is_critical` flag for alerting), system configuration error.
+2. **Internal / system errors** — unknown phone number, invalid state, invalid phase index, transport failures by backend (Keycloak / Hasura / Harvest / S3 / DynamoDB). These are logged verbatim, then mapped to a single generic `system_error` prompt at the handler boundary; the voter never hears the raw message.
 
-    // --- Internal / system errors (never reach the voter verbatim) ---
-    // Logged and converted to a generic `system_error` prompt at the
-    // handler boundary.
-    UnknownPhoneNumber,
-    InvalidState,
-    InvalidPhaseIndex(usize),
-    ApiError(ApiErrorKind),
-}
-
-#[derive(Debug, Clone)]
-pub enum ApiErrorKind {
-    Keycloak(String),
-    Hasura(String),
-    Harvest(String),
-    S3(String),
-    Dynamo(String),
-}
-```
-
-Note the absence of `UnknownPhaseType(String)` — with the typed `FlowPhase`
-enum (§4.1), unknown phase strings fail at JSON deserialization time (i.e. at
-publication load), never at runtime mid-call.
+Keep the backend-classified transport errors (`Keycloak` / `Hasura` / `Harvest` / `S3` / `Dynamo`) as enum variants, not strings — metrics and alerting rules key off the variant, not a parsed message. There is deliberately no `UnknownPhaseType` variant: with the typed `FlowPhase` enum (§4.1), unknown phase strings fail at JSON deserialization when the publication is loaded, never at runtime mid-call.
 
 ---
 
@@ -2237,13 +1830,168 @@ publication load), never at runtime mid-call.
 - PIN never stored in DynamoDB session
 - JWT access tokens have short TTL (determined from `exp` claim after login; configurable in Keycloak, default 5 min); proactive refresh via `TokenManager` (see 5.1.9)
 - Session data TTL: 1 hour (auto-cleanup)
-- Phone numbers hashed in logs
+- Phone numbers hashed in logs (see §9.2.1 for the full retention / salt policy)
+
+#### 9.2.1 PIPEDA-aligned phone-number retention
+
+Caller phone numbers are personal information under PIPEDA. The IVR stack
+handles them at three different tiers, each with its own rule:
+
+| Tier | What is stored | Retention | Notes |
+|---|---|---|---|
+| **In-flight session** (DynamoDB `ivr-sessions`) | Raw E.164 number, only for the duration of the call (needed for blacklist check, Hasura queries, and admin dashboard) | **DynamoDB TTL = 1 h sliding** (see §9.2 TTL blockquote); record hard-deleted | The record is keyed by `contact_id`, not by phone, so it is not queryable by phone after the call ends |
+| **Electoral audit log** (Harvest / ImmuDB, see §9.3) | **No phone number** — only voter attestations keyed by voter id + `ballot_id` | Follows Harvest's existing electoral retention policy | Channel is identified by `azp: ivr-voting` on the JWT; the phone number never reaches this tier |
+| **Operational log** (CloudWatch) | **Salted SHA-256 hash** of the E.164 number — never the raw value | 90 days (log group retention) then auto-deleted | See below for salt handling |
+| **Admin-portal dashboard** (see §14.2) | Raw E.164 at rest in Hasura (for `ivr_phone_blacklist` and live per-call rows); masked on display | Live-call rows expire when their DynamoDB session expires; blacklist rows are operator-managed | Display format masks all but the last four digits, e.g. `+1 ***-***-1234` |
+
+**Salt for the CloudWatch hash.** The salt is stored in AWS Secrets Manager
+(one entry per environment, e.g. `ivr/log-salt/prod`) and read by the Lambda
+at cold-start. Rotation policy:
+
+- **Rotate the salt on a fixed cadence** (quarterly by default, and
+  immediately on any suspected leak). After rotation the old salt is
+  retained only long enough for the previous-quarter logs to age out of the
+  90-day CloudWatch window — after which it is deleted from Secrets
+  Manager so even the operator cannot reverse old hashes.
+- **Never rotate the salt mid-election.** A rotation during an active
+  election event would sever correlation between pre- and post-rotation
+  events for the same caller. Pin salt rotations to between elections.
+- **Rotation is automated via gitops IaC** — no human sees the raw salt.
+
+**What this gives us.**
+
+- A full phone number is reversible for at most 1 h after hang-up
+  (DynamoDB session) plus the voter's own right to access under PIPEDA
+  (the blacklist table, explicitly operator-managed).
+- Operational analytics over CloudWatch logs work within a single
+  retention window (same hash identifies the same caller across calls
+  within the window), but cease to correlate across rotations — which is
+  the right trade-off: brute-force / abuse investigation is a short-window
+  concern, longitudinal tracking is not a legitimate use case.
+- Electoral audit remains intact because it never stored the phone
+  number in the first place.
+
+**Implementation notes.** The hashing helper lives in `sequent-core` so the
+Lambda and any batch export script use the same canonicalisation (E.164
+normalisation before hashing). Log lines tag the current salt's
+generation id (`salt_gen`: `2026Q1`) so dashboards can correctly group
+within a generation without needing to decrypt anything.
+
+> **Design review — DynamoDB session TTL vs. Keycloak session lifespan.**
+> The session record's TTL (1 hour) is **shorter** than the Keycloak realm's
+> `ssoSessionMaxLifespan` (10 hours, see §5.1.9). That means a voter on a long
+> call — e.g. an accessibility use case or a slow readback of 30 contests —
+> can still hold a valid refresh token while DynamoDB has already deleted the
+> `IvrSession` row, causing the next Lambda turn to fail with
+> `SessionExpired` even though the voter is still authenticated.
+>
+> Resolution options:
+>
+> 1. **Raise the session TTL to match `ssoSessionMaxLifespan`** (10 h) — safe
+>    because the record is keyed by `contact_id`, which is Connect-scoped and
+>    will not collide across calls.
+> 2. **Refresh the TTL on every save_session** — then the 1 h window is "since
+>    last activity" rather than "since session creation"; idle calls still get
+>    cleaned up.
+> 3. **Both** — bump the ceiling to match Keycloak *and* slide the TTL on each
+>    turn. Recommended.
+>
+> Pick before merge; silently lapsing mid-call is a worse failure mode than an
+> explicit timeout.
 
 ### 9.3 Vote Integrity
 - Votes only submitted after explicit confirmation
 - Dropped calls do not result in partial votes
+
+> **Design review — "no partial votes" is only true within a single
+> election.** For a single-election ballot, submit is atomic and a dropped
+> call before `ElectionSubmit` simply loses the work — correct. But the
+> ballot loop (§3.3) can submit to **multiple elections** in one call:
+> Mayor, Council, and School Board each go to their own `insert_cast_vote`
+> sequentially. A call dropped after the Mayor ballot commits but before
+> the Council ballot means the voter has cast one of three ballots they
+> intended to cast. On redial they get a fresh `contact_id` (new session),
+> and the Lambda has no memory of what already succeeded.
+>
+> Required:
+>
+> 1. **Re-entrant voting on call-back.** When `ballot_loop` begins, query
+>    Harvest for already-cast ballots by `(voter_id, election_event_id)`
+>    and **skip** elections that are already submitted for this voter. The
+>    voter hears "You have already voted in the Mayor election; let's
+>    continue with Council." The data for this query already exists —
+>    Harvest uses it to reject duplicates (§5.4 `DUPLICATE_VOTE`) — it just
+>    needs to be surfaced as a listing endpoint the IVR can call
+>    pre-ballot-loop.
+> 2. **Explicit partial-success announcement at end of call.** Before
+>    `goodbye`, summarize "Your ballots were recorded for Mayor and
+>    Council. You did not complete voting for School Board." This requires
+>    the submission-results array (§4.1 `ElectionSubmissionResult`) to be
+>    read back in `goodbye` or in a new `ballot_summary` phase.
+> 3. **If max-revotes is disabled** (one ballot per voter per election),
+>    this is also the voter's only path to recovery — without it, a dropped
+>    call means permanent disenfranchisement for the remaining elections.
+>    That is a showstopper for Canada-style municipal ballots with
+>    multiple simultaneous races.
 - All vote attempts logged to electoral log
 - Duplicate vote prevention via platform API
+
+> **Design review — "electoral log" is under-specified.** Sequent is an
+> end-to-end-verifiable platform, and the existing architecture uses ImmuDB
+> as the tamper-evident bulletin board for auditable events (see the project
+> overview in `CLAUDE.md`). This document mentions an "electoral log" in
+> passing but never says:
+>
+> - **Where it lives.** ImmuDB? A Harvest-owned Hasura table with append-only
+>   row-level security? CloudWatch Logs (which is *not* tamper-evident and
+>   therefore not acceptable for the auditable-events role)?
+> - **What is written.** Call start/auth success/vote submit/disconnect are
+>   needed for the audit narrative. Vote *content* must never appear — only
+>   attestations (voter voted, ballot hash X recorded at time T via TELEPHONE
+>   channel).
+> - **Who writes.** The Lambda over an authenticated channel, or Harvest as
+>   a side effect of `/insert-cast-vote`? If the Lambda writes directly,
+>   the Lambda gets a new privileged integration; if Harvest writes on the
+>   Lambda's behalf, the IVR channel inherits Harvest's existing audit
+>   guarantees without new attack surface.
+>
+> Recommendation: **Harvest's existing audit pipeline writes the vote-related
+> events (cast attempt, success, rejection) exactly as it does for portal
+> votes**, differentiated only by the `azp: ivr-voting` claim on the JWT.
+> Call-lifecycle events (started, auth attempted, abandoned) go to
+> CloudWatch structured logs (§10.2) — those are operational, not
+> auditable. This keeps the tamper-evident ledger uniform across channels
+> and avoids giving the IVR Lambda write access to ImmuDB.
+
+> **Design review — brute-force protection against hang-up-and-redial.** The
+> `retries.auth` counter (§8.1) is per-call: it is reset to zero on every new
+> `contact_id`. An attacker can place a call, try three credential
+> combinations, hang up, redial, and try three more — indefinitely. For a
+> voter-ID plus 4-digit PIN deployment that's 10 000 PIN combinations, each
+> voter ID falls in ≈3 300 calls of 90 s each, which is within reach of
+> inexpensive telephony bots. Caller-ID is spoofable and AWS-egress IPs are
+> shared, so IP/phone throttling at the Connect level is insufficient.
+>
+> Before go-live, the design must specify at least one of:
+>
+> 1. **Keycloak user-level brute-force detection** (`bruteforceProtected=true`
+>    on the realm, `failureFactor`, `maxFailureWaitSeconds`, `waitIncrementSeconds`
+>    tuned for voice latency). This locks a voter ID after N failed attempts
+>    across *all* calls, not per-call.
+> 2. **Per-voter-ID cooldown in a shared store** — e.g. a DynamoDB
+>    `ivr-auth-attempts` table keyed by `(tenant_id, voter_id_hash)` with a
+>    rolling-window counter, consulted before calling Keycloak and updated on
+>    failure. Survives the call boundary.
+> 3. **Rate-limiting at the phone-number layer** — Amazon Connect usage
+>    rules + caller-ID throttling. Useful but spoofable; only a secondary
+>    defense.
+>
+> Option (1) is the right primary defense because it reuses existing
+> Keycloak infrastructure and covers portal + IVR with the same policy.
+> The IVR-specific wrinkle is the failure UX: when Keycloak returns
+> `user_disabled`/`account_temporarily_disabled`, the Lambda must announce
+> "this account is temporarily locked; please contact support" rather than
+> looping on "incorrect PIN." Add a dedicated `auth_locked` prompt key.
 
 ---
 
@@ -2266,37 +2014,74 @@ publication load), never at runtime mid-call.
 
 ### 10.2 Structured Logging
 
-```rust
-#[derive(Serialize)]
-pub struct IvrLogEntry {
-    pub timestamp: DateTime<Utc>,
-    pub contact_id: String,
-    pub caller_phone_hash: String, // SHA-256 hash
-    pub event: IvrLogEvent,
-    pub phase: String,        // current phase type
-    pub phase_state: String,  // phase-internal state
-    pub tenant_id: Uuid,
-    pub election_event_id: Option<Uuid>,
-    pub election_id: Option<Uuid>,
-    pub latency_ms: Option<u64>,
-    pub error: Option<String>,
-}
+Each log line is a single structured JSON object. The required fields are:
 
-pub enum IvrLogEvent {
-    CallStarted,
-    LanguageSelected,
-    AuthAttempt,
-    AuthSuccess,
-    AuthFailed,
-    ElectionSelected,
-    VoteRecorded,
-    VoteSubmitted,
-    VoteRejected,
-    CallCompleted,
-    CallAbandoned,
-    Error,
-}
-```
+- **Timing / correlation** — ISO-8601 timestamp, `contact_id` (for correlating a whole call across invocations), latency in ms for this turn.
+- **Who / where (privacy-aware)** — a **salted SHA-256 hash** of the caller phone (never the raw number — see §9.1), `tenant_id`, and where applicable `election_event_id` / `election_id`. Nothing that could identify the voter on its own.
+- **What happened** — an event discriminator (typed enum, not a free string). The set needed today: `CallStarted`, `LanguageSelected`, `AuthAttempt` / `AuthSuccess` / `AuthFailed`, `ElectionSelected`, `VoteRecorded`, `VoteSubmitted`, `VoteRejected`, `CallCompleted`, `CallAbandoned`, `Error`. Extend at the enum when a new operational question can't be answered by existing variants.
+- **Flow position** — current phase and phase-internal state (for debugging stuck calls via CloudWatch Insights).
+- **Error detail** — only on error events; never contains credentials, token values, or raw DTMF bytes.
+
+Do **not** log: PINs, DOBs, any auth-step credential value, access/refresh tokens, raw phone numbers, ballot contents. Anything that would be considered voter-identifying or credential-adjacent must either be hashed with a rotated salt or dropped. See the electoral audit-log design-review blockquote in §9.3 — the **operational** log here is distinct from the **electoral** audit log, which has different retention and tamper-evidence requirements.
+
+### 10.3 Alerting
+
+Alerts are configured to flow into the **same Alertmanager + Slack + PagerDuty
+pipeline** that `gitops` already wires up for every cluster (see
+`gitops/unified/cluster-apps/<cluster>/prometheus/values.yaml` —
+`slack-notifications`, `slack-warning`, `slack-medium-critical`,
+`slack-pagerduty-critical` receivers). We do not introduce a new alerting
+channel for IVR.
+
+**Metric source.** CloudWatch alarms by themselves do not reach the
+cluster Alertmanager. Two viable integrations — pick one and standardise:
+
+1. **CloudWatch → SNS → Alertmanager webhook.** A lightweight receiver in
+   the infra cluster converts SNS messages into Alertmanager alerts.
+   Simplest path and closest to existing beyond patterns.
+2. **CloudWatch exporter → Prometheus scrape → PrometheusRule.** Run
+   `cloudwatch-exporter` (or `YACE`) as a scraped target in the infra
+   cluster and write IVR alert rules as `PrometheusRule` CRDs alongside
+   the existing rules for RabbitMQ / ImmuDB. Richer expression language,
+   aligns IVR alerts with the rest of the stack.
+
+Option 2 is the recommended direction because it lets alert severity,
+routing, and silencing reuse the existing labels and receiver tree
+(`severity: critical` → `slack-pagerduty-critical`, `severity: warning` →
+`slack-warning`).
+
+**Alert catalogue (initial).**
+
+| Alert | Condition | Severity / Receiver |
+|---|---|---|
+| `IvrLambdaErrorRateHigh` | Lambda error rate > 2 % over 5 min | warning → `slack-warning` |
+| `IvrLambdaErrorRateCritical` | Lambda error rate > 10 % over 5 min, during an active election window | critical → `slack-pagerduty-critical` |
+| `IvrLambdaLatencyHigh` | p99 invocation latency > 5 s over 10 min | warning → `slack-warning` |
+| `IvrAuthFailureSpike` | `ivr.auth.failure` rate > 3× baseline over 10 min | medium → `slack-medium-critical` (brute-force signal, §9.3) |
+| `IvrAbandonmentRateHigh` | `ivr.calls.abandoned` / `ivr.calls.total` > 20 % over 15 min during election window | medium → `slack-medium-critical` (Polly outage, broken prompt, or bad flow) |
+| `IvrPartialSubmitRatio` | completed elections / attempted elections per call < 0.9 rolling 30 min | medium → `slack-medium-critical` (multi-election partial-submit, §9.3) |
+| `IvrKeycloakUnreachable` | sustained `ivr.errors.api{backend="keycloak"}` > 1/min for 5 min | critical → `slack-pagerduty-critical` |
+| `IvrHarvestUnreachable` | sustained `ivr.errors.api{backend="harvest"}` > 1/min for 5 min | critical → `slack-pagerduty-critical` |
+| `IvrHasuraUnreachable` | sustained `ivr.errors.api{backend="hasura"}` > 1/min for 5 min | critical → `slack-pagerduty-critical` |
+| `IvrDynamoSessionWriteErrors` | DynamoDB conditional-write failure rate > 0.5 % over 10 min | warning → `slack-warning` (concurrency violation signal) |
+| `IvrNatGatewayErrorPortAllocation` | `ErrorPortAllocation > 0` for 5 min | critical → `slack-pagerduty-critical` (imminent NAT exhaustion) |
+| `IvrConnectConcurrentCallsNearQuota` | active calls > 80 % of Connect service quota | warning → `slack-warning` |
+| `IvrNoCallsDuringElection` | `ivr.calls.total` == 0 for 30 min while `telephone_voting_status` is OPEN | critical → `slack-pagerduty-critical` (dead-air canary) |
+
+**Election-window gating.** Alerts tagged "during an active election window"
+use a recording rule derived from Hasura's `telephone_voting_status` (scraped
+via the same cloudwatch/harvest exporter path) so severity can escalate
+only when an election is actually open — off-hours noise goes to `warning`
+instead of paging oncall.
+
+**Silencing.** Maintenance windows (Keycloak upgrades, contact-flow
+redeploys) are silenced via the normal Alertmanager silence flow —
+no IVR-specific tooling needed.
+
+**Definitions live in gitops.** All `PrometheusRule` definitions ship in
+`gitops/unified/cluster-apps/<cluster>/prometheus/resources/ivr-alerts.yaml`
+so severity/threshold changes go through the same PR/Atlantis flow as any
+other alert change.
 
 ---
 
@@ -2314,10 +2099,21 @@ pub enum IvrLogEvent {
 | **DynamoDB Table** | Phone number → cluster/environment/tenant/event routing |
 | **IAM Role** | Lambda execution role |
 | **VPC** | Network isolation |
-| **NAT Gateway** | Outbound API access |
+| **NAT Gateway** | Outbound API access (multi-AZ — see note below) |
 | **CloudWatch Log Group** | Lambda logs |
 | **CloudWatch Alarms** | Error alerting |
 | **Secrets Manager** | API credentials |
+
+> **Multi-AZ NAT for reliability.** A single NAT Gateway is a single-AZ SPOF:
+> if the AZ hosting it degrades, every outbound Lambda call (Keycloak, Hasura,
+> Harvest) fails and the IVR is offline for the duration. On an election day
+> that is unacceptable. Explore deploying **one NAT Gateway per AZ** that the
+> Lambda's VPC subnets span (typically two or three AZs in the chosen region),
+> with the Lambda attached to private subnets in each AZ so AWS routes
+> outbound traffic through the local-AZ NAT. Cost impact is roughly 2–3× the
+> single-NAT cost (~$32/mo per NAT plus data-transfer) but removes the AZ
+> SPOF. Decide before Phase 3 (Production Pilot) and reflect the decision in
+> the cost model (§17).
 
 ### 11.2 Lambda Configuration
 
@@ -2332,6 +2128,17 @@ Environment Variables:
   - DYNAMODB_PHONE_CONFIG_TABLE
   - LOG_LEVEL
 ```
+
+**Lambda region vs target cluster.** The Lambda is deployed in a single AWS
+region (chosen for Amazon Connect availability and proximity to the target
+voter base — for Canadian deployments, `ca-central-1` or `us-east-1`). It is
+*not* co-located with any particular Sequent cluster. The per-phone-number
+config record (§6.2) carries the cluster's Keycloak / Hasura / Harvest base
+URLs, so a single Lambda deployment routes each call to whichever cluster
+owns the dialled number — including clusters in other regions or clouds
+(e.g. `prod1-euw1`, `googleinfra-euw4`). This keeps Amazon Connect + Lambda
+as a single shared telephony-edge tier and avoids duplicating the IVR
+stack per cluster. Cross-region egress cost is covered in §17.
 
 ---
 
@@ -2362,10 +2169,21 @@ flowchart TD
 |-----------|-------------|
 | `prompt_text` | Text-to-speech content |
 | `expect_input` | Whether to capture DTMF |
-| `valid_inputs` | Valid DTMF digits |
+| `valid_inputs` | Valid DTMF digits — **advisory**; see note below |
 | `input_timeout` | Seconds to wait |
 | `should_disconnect` | End call flag |
 | `user_input` | Captured DTMF input (inbound, set by Connect) |
+
+> **`valid_inputs` is enforced in the Lambda, not by Connect.** Amazon Connect's
+> "Get customer input" block does not accept a per-invocation whitelist of
+> allowed digits from contact attributes — its `InputType=DTMF` just captures
+> whatever the caller presses (bounded by the static block configuration such
+> as max digits and terminator). The IVR Lambda therefore validates
+> `user_input` against `valid_inputs` on the *next* turn, and if the press is
+> outside the set it returns a "Sorry, please try again" prompt with
+> `expect_input=true` and the same phase state — i.e. retries are driven from
+> the domain layer, not the contact flow. Treat `valid_inputs` as documentation
+> of what the Lambda accepts, not as a Connect-level guard.
 
 ---
 
@@ -2411,6 +2229,66 @@ Add to Election Event settings:
 - **IVR Flow / IVR Prompts tabs** (per election event): flow pipeline editing plus `ivr.retry_limits` (`auth`, `invalid_input`, `timeout`) configuration — see §7.4
 - **Phone Blacklist**: manage the Hasura-backed `sequent_backend.ivr_phone_blacklist` table (add/remove/annotate E.164 numbers, optionally scoped to a specific election event). Gated by the `can_manage_phone_blacklist` Keycloak permission. See §6.3 for the data model and Harvest endpoints
 
+#### Per-election-event and per-election dashboards
+
+Both the **Election Event dashboard** and the **Election dashboard** in the
+admin portal gain two new widgets when the telephone channel is enabled.
+They parallel the existing IP-address view (see
+[ListIpAddress.tsx](../../../../packages/admin-portal/src/resources/ElectionEvent/ListIpAddress.tsx))
+and reuse the same patterns (react-admin `List`, filters, polling via
+`QUERY_POLL_INTERVAL_MS`, configurable columns).
+
+**1. Voters by channel, over time.** A time-series chart of ballots cast,
+grouped by `VotingStatusChannel` (`ONLINE`, `KIOSK`, `EARLY_VOTING`,
+`TELEPHONE`). Controls:
+
+- Time window filter (last hour / last 24 h / custom range), defaulting to
+  "since voting opened on this channel"
+- Granularity bucket (1 min / 15 min / 1 h) — auto-selected from the window
+- Cumulative toggle (stacked area = cumulative count per channel; line =
+  rate per bucket)
+- Channel toggle (show/hide each channel legend entry)
+
+Data source: existing `cast_vote` records in Hasura, grouped by the
+`channel` column (populated by Harvest from the JWT `azp` claim — no new
+pipeline). The telephone series starts populating as soon as the
+`TELEPHONE` variant lands (see Appendix C). Available at both **Election
+Event** scope (all elections within the event) and **Election** scope
+(single election), same as the existing IP view.
+
+**2. Phone-number activity list (obfuscated).** A list view of phone
+numbers that have placed calls, modelled on
+[ListIpAddress.tsx](../../../../packages/admin-portal/src/resources/ElectionEvent/ListIpAddress.tsx).
+Columns:
+
+| Column | Source | Notes |
+|---|---|---|
+| Phone (masked) | `ivr_call_log.phone_e164` | **Display-masked**: `+1 ***-***-1234` — only the country code and last four digits are shown in the UI. The raw number never leaves the server except inside blacklist actions |
+| Country | Derived from E.164 country code | For Canadian deployments typically a single value; kept for consistency with the IP view |
+| Call count | Aggregate | Total completed + abandoned calls from this number within the filter window |
+| Vote count | Aggregate | Ballots cast from this number (joined via the voter id recorded on success) |
+| Last call at | Max timestamp | |
+| Election | `election_presentation` | Mirrors the IP view |
+| Voter id | Aggregate | Present only where authentication succeeded; omitted by default in the `DatagridConfigurable` (same pattern as `voters_id` is omitted in the IP view) |
+
+Filters: masked-phone substring search (matches only against the visible
+last-four suffix server-side, to avoid exposing raw numbers through the
+filter input), country, election. Actions: **Add to blacklist** (one-click
+from a row, gated by `can_manage_phone_blacklist`) and **Export** (CSV
+export carries the masked form, not the raw number — an explicit "Export
+raw (privileged)" action requires a separate permission and produces an
+audit entry).
+
+Data source: a new Hasura view `sequent_backend.ivr_call_log` populated by
+the Lambda at call end. Row TTL follows §9.2.1 — live rows expire when
+their DynamoDB session does; aggregate totals persist for the election
+event's normal reporting window. Raw phone numbers are stored in Hasura
+server-side but row-level security denies `SELECT phone_e164` to all
+roles; only a masked computed column and aggregate counts are selectable.
+The "Add to blacklist" action calls a Hasura action that reads the raw
+value inside Harvest and inserts into `ivr_phone_blacklist` without
+surfacing the raw number to the client.
+
 ---
 
 ## 15. Testing Strategy
@@ -2424,6 +2302,28 @@ Add to Election Event settings:
 
 ### 15.2 Record-and-Replay Session Tests
 Since the engine is a pure function of `(session state, input) → (session state, response)`, the most valuable integration layer is a record-and-replay harness: a test file is a sequence of `(input, expected_prompt_key, expected_expect_input, expected_disconnect)` tuples driven through a fake `PhasePorts` implementation. Client IVR specs (e.g. Barrie) are encoded directly as replay fixtures, so regressions against a known-good script fail loudly at CI time.
+
+### 15.2.1 Text-In / Text-Out Harness
+
+Because the flow engine is a pure function of `(session state, input) → (session state, response)` and Amazon Connect only ever sees `prompt_text` + `valid_inputs` + `user_input` (§4.2), the entire voter-facing flow can be exercised **without Amazon Connect at all**. A text harness substitutes the Connect adapter with a pair of streams: stdin/stdout (CLI), a file (replay fixture), or an HTTP endpoint (admin portal). The Lambda's domain logic, flow engine, phase engines, port adapters for Keycloak/Hasura/Harvest, prompt resolution, SSML rendering, retry counters, and ballot construction all run unchanged — only the Connect adapter is swapped.
+
+**Initial deliverables.**
+
+- **Automated-test harness** — a Rust module in the IVR Lambda crate that drives the engine from a fixture describing `(input, expected prompt_key, expected_expect_input, expected_disconnect)` tuples, exactly as §15.2. The same harness also supports free-form scripting (send arbitrary input, assert on the rendered prompt text or the final session state) so scenarios that are not keyed off prompt keys (e.g. "after 3 invalid inputs the call ends") can be expressed naturally
+- **`step-ivr` command-line tool** — a small binary that boots the engine, points it at any environment's Keycloak/Hasura/Harvest (via the same config the Lambda consumes), and exposes an interactive REPL: the tool prints the rendered prompt text (optionally with SSML expanded, optionally with a Polly-synth preview), waits for a DTMF line on stdin, and loops. Non-interactive mode reads inputs from a fixture file and writes a transcript. Useful for: manual UX walkthroughs, reproducing production issues from a captured session, and local development when Connect is not available. Lives under `beyond/packages/ivr-lambda/src/bin/step-ivr.rs` (same crate as the Lambda itself — see §16.2)
+
+**Port substitutions.** The harness runs in two modes:
+
+| Mode | Session port | Keycloak / Hasura / Harvest ports |
+|---|---|---|
+| **Hermetic** (unit / CI) | In-memory `HashMap<contact_id, IvrSession>` | Recorded fixtures — deterministic, no network |
+| **Live** (admin-portal previews, manual dev) | In-memory or real DynamoDB (configurable) | Real endpoints with a real JWT — exercises the actual auth and Harvest path end-to-end |
+
+Hermetic mode is what CI runs on every PR; live mode is what an admin uses to dry-run a real election event's flow against real Keycloak without placing a phone call.
+
+**Future: admin-portal integration.** Once the CLI tool is stable, the same engine can be exposed through a privileged Harvest endpoint so the admin portal's **IVR Flow** tab (§7.4) renders an interactive transcript preview: enter DTMF in a text input, see the next prompt, step through the whole flow inside the browser. The admin portal would talk to a hosted `step-ivr` service (not the production Lambda) that is wired to the same environment's backends. This closes the loop between the flow-editor UX and the voter-facing behaviour — a flow authored in the admin portal can be dry-run without touching Connect, Polly minutes, or a phone number. Out of scope for the initial release; listed here so the harness is designed with that surface in mind (clean request/response boundary, no hidden CLI-only state).
+
+**What this harness is not.** It does not exercise Amazon Connect itself (the contact flow JSON, DTMF collection block behaviour, Polly voice synthesis quality, telephony jitter). Those remain the job of §15.4 end-to-end tests. The harness covers everything on the Lambda side of the Connect boundary, which is where essentially all of the risk lives.
 
 ### 15.3 Integration Tests
 - Keycloak authentication via ROPC against a test realm
@@ -2467,24 +2367,185 @@ Since the engine is a pure function of `(session state, input) → (session stat
 - Automated provisioning
 - Operational runbooks
 
+### 16.2 Repository Layout & GitOps
+
+The IVR stack is deliberately split across three repositories so that code
+lives near its domain and instantiation lives in GitOps, matching how every
+other Sequent service is shipped.
+
+| Artifact | Repo | Path (indicative) | Why |
+|---|---|---|---|
+| IVR Lambda (Rust) source | **`beyond`** | `beyond/packages/ivr-lambda/` | Source of truth for the Lambda code lives in `beyond` alongside the other Sequent-extension packages (Keycloak extensions, contact flows). The crate is pulled into `step`'s Cargo workspace as a workspace member (via a path reference from the `beyond` checkout, or a vendored/submoduled include) so it compiles against the exact same `sequent-core` revision that produces the portal WASM — ballot construction and encryption therefore cannot drift between channels. `step` owns the compilation and release artifact; `beyond` owns the code |
+| `ivr-config-resource` Keycloak extension (Java) | **`beyond`** | `beyond/packages/keycloak-extensions/ivr-config-resource/` | Lives alongside `conditional-authenticators` and other extensions already packaged into the Sequent Keycloak image in `beyond` |
+| `IvrDobAuthenticator` (if needed) | **`beyond`** | `packages/keycloak-extensions/ivr-dob-authenticator/` | Same reason as above |
+| Amazon Connect contact-flow JSON (source of truth) | **`beyond`** | `packages/ivr-contact-flows/<flow-name>.json` | Treated as code: PR-reviewed, versioned, diffed. Each flow is referenced by a stable name from IaC |
+| IaC to *instantiate* Connect instance, flows, phone numbers, Lambda alias, DynamoDB tables, NAT, CloudWatch alarms | **`gitops`** | `gitops/iac-aws/ivr/<env>/` | GitOps owns per-environment parameters (which region, which phone numbers, which cluster endpoints). Mirrors how `iac-aws/rds/`, `iac-aws/vpc/` are laid out today |
+| Per-phone-number routing records | **`gitops`** | `gitops/unified/global-config-apps/ivr/phone-map.yaml` | Each record maps a DID to (cluster, tenant, event). Change = PR in gitops, Atlantis applies |
+
+**Lambda deployment boundary.** The Lambda is deployed once per region that
+hosts an Amazon Connect instance (today: one region, covering all
+deployments). It is decoupled from Sequent clusters — a single Lambda
+deployment can dispatch calls to any cluster in any region by reading the
+cluster endpoints from the phone-config DynamoDB table. This keeps the
+IVR telephony edge as a shared tier, the way the Sequent CDN / edge
+services already work.
+
+**Contact-flow versioning discipline.** The contact-flow JSON in `beyond`
+is the source of truth. The `gitops` IaC reads the JSON at apply time
+(e.g. via Terraform `file()` or a released `beyond` artifact version) and
+calls `aws_connect_contact_flow` to create/update the flow in the target
+Connect instance. If an operator edits a flow in the Connect console for
+debugging, the ritual is: export the JSON, PR it into `beyond`, and
+re-apply from `gitops`. The console is never the source of truth.
+
+**Promotion flow.** A change that touches all three layers promotes in
+order: `beyond` merges the IVR-lambda source / Keycloak extension / contact-flow JSON change → `step` pulls the updated `beyond` revision into its workspace, builds the Lambda artifact, and releases it → `gitops` PR bumps the referenced Lambda version and (where relevant) the contact-flow or Keycloak-extension version, then applies via Atlantis. This matches the existing release cadence for the admin-portal / voting-portal stack.
+
+### 16.3 Build & Packaging
+
+`step`'s release pipeline (`.github/workflows/release.yml` → `reusable_build_push.yml`) builds every shipped service as a Docker image and pushes it to the shared ECR registry (`AWS_ECR_REGISTRY_GLOBALDOT`) tagged with `SHORT_SHA` + the release tag. The IVR introduces two deltas on that pipeline.
+
+#### 16.3.1 IVR Lambda — new ECR image
+
+**Yes — add a new ECR package.** The Lambda is a net-new deployable and must ship the same way every other service does, so it plugs directly into the existing matrix in [`reusable_build_push.yml`](../../../../.github/workflows/reusable_build_push.yml).
+
+| Field | Value |
+|---|---|
+| `service` | `ivr-lambda` |
+| `context` | `packages` |
+| `file` | `packages/ivr-lambda/Dockerfile.prod` (Dockerfile lives in `step`, sources pulled from the `beyond`-owned crate — see §16.2) |
+| Base image | `public.ecr.aws/lambda/provided:al2023` (Lambda custom-runtime base) |
+| Architecture | `linux/arm64` (matches §11.2) |
+| Registry | `${AWS_ECR_REGISTRY_GLOBALDOT}/ivr-lambda:<SHORT_SHA>` + `:<release-tag>` |
+
+The Lambda is deployed as a **container image** rather than a ZIP artifact because (a) it reuses the existing ECR + `docker/build-push-action` plumbing with zero new secrets or runners, (b) container-based Lambda publishes are idempotent and version-pinnable from gitops (`aws_lambda_function.image_uri = "${ecr}/ivr-lambda:<tag>"`), and (c) the existing `buildcache`-backed layer caching in `reusable_build_push.yml` applies to it without modification.
+
+Dockerfile outline: multi-stage — stage 1 uses `cargo-lambda` (or `cargo build --release --target aarch64-unknown-linux-gnu` with a `bootstrap` entrypoint) against the `step` Cargo workspace, which transitively compiles the `beyond`-hosted `ivr-lambda` crate against the workspace's pinned `sequent-core`. Stage 2 copies the `bootstrap` binary into `/var/task/` on the Lambda base image.
+
+Gitops deployment reads the tag from the same version-bump PR described in the promotion flow above and applies `aws_lambda_function` pointing to `image_uri = ...:<tag>`.
+
+#### 16.3.2 Keycloak image — pulling extensions from beyond
+
+Today [`packages/Dockerfile.keycloak`](../../../../packages/Dockerfile.keycloak) builds the Keycloak image by copying a local `./keycloak-extensions/` tree into a Maven build stage and then copying the resulting JARs (one per extension: `voter-enrollment`, `message-otp-authenticator`, `conditional-authenticators`, `sequent-theme`, `custom-event-listener`, `url-truststore-provider`, `aws-ses-email-sender-provider`, `security-question-authenticator`, `dummy-email-sender-provider`) into `/opt/keycloak/providers/`. The `ivr-config-resource` extension (and optionally `ivr-dob-authenticator`) live in `beyond`, so the Keycloak image build must reach into `beyond` to pick them up.
+
+Pick one of two integration patterns — they are equivalent for correctness, so the choice is about how `beyond` integrates into `step`'s build more broadly:
+
+1. **Source-level include (submodule / workspace pull).** `beyond`'s `keycloak-extensions/` subtree is made available inside the `step` checkout at build time (git submodule, sparse clone, or whatever mechanism `step` adopts for pulling in the `beyond`-owned Rust IVR crate — they should use the same mechanism). `Dockerfile.keycloak`'s first stage adds `COPY ./beyond/keycloak-extensions/ivr-config-resource/ /build/keycloak-extensions/ivr-config-resource/` (plus `ivr-dob-authenticator` if present) and extends the JAR-copy list in the second stage:
+   ```dockerfile
+   COPY --from=spis-build \
+     /build/keycloak-extensions/ivr-config-resource/target/sequent.ivr-config-resource.jar \
+     /build/keycloak-extensions/ivr-dob-authenticator/target/sequent.ivr-dob-authenticator.jar \
+     /opt/keycloak/providers/
+   ```
+2. **Pre-built JAR artifact from `beyond`.** `beyond` has its own release pipeline that builds the Keycloak extensions and publishes them as a versioned OCI artifact (or Maven package). `Dockerfile.keycloak` `COPY --from=<pinned-beyond-image>` pulls in the JARs directly. Promotion order becomes `beyond` publishes artifact version → `step` bumps the pinned artifact version in `Dockerfile.keycloak` (or an ARG) → `step` releases a new Keycloak image.
+
+Pattern 1 is simpler and matches today's monorepo feel; pattern 2 is more rigorous in isolating the build graphs and maps 1:1 onto how the Rust IVR crate could also be pulled in. Use the same pattern for both Rust and Java to keep the two pipelines symmetric.
+
+Either way, the `java_test.yml` workflow that currently runs `mvn verify` on `packages/keycloak-extensions/pom.xml` must also verify the `beyond`-hosted extensions (or be reorganised so those tests run in `beyond`'s own CI and `step` consumes a tested artifact). Don't let the `ivr-config-resource` JAR ship untested through the integration.
+
+**Nothing else in the Keycloak image changes.** The realm-template changes (new `ivr-voting` client, Direct Grant flow override — see Appendix C.8) are data, not code; they flow through the existing realm-bootstrap mechanism the same way any other Keycloak realm change does.
+
+#### 16.3.3 Summary
+
+- **IVR Lambda**: new ECR package (`ivr-lambda`), new row in the `reusable_build_push.yml` matrix, new Dockerfile in `packages/ivr-lambda/`. Released on the same cadence and tag as the rest of step.
+- **Keycloak image**: no new image — the existing `keycloak` ECR package continues to be the sole Keycloak artifact. What changes is its build input: the `Dockerfile.keycloak` build stage pulls the new `ivr-config-resource` extension (and optional `ivr-dob-authenticator`) from `beyond` and adds them to the providers directory. Same image, expanded set of bundled JARs.
+- **gitops**: references both the new `ivr-lambda` ECR tag and the existing `keycloak` ECR tag (the latter is already in gitops — only the tag bump is new).
+
 ---
 
 ## 17. Cost Considerations
 
-### 17.1 Per-Call Costs
-- Amazon Connect: ~$0.018/minute
-- Lambda: ~$0.0000001/ms (256MB)
-- DynamoDB: ~$0.00025/request
-- Polly: ~$4/1M characters
+All numbers below are list-price AWS as of the most recent published rates
+for `ca-central-1`; FX, private pricing, and committed-use discounts are
+ignored. Rates change — treat this model as a sanity-check, not a quote.
 
-### 17.2 Fixed Costs
-- Phone numbers: $1-6/month each (Canadian numbers)
-- NAT Gateway: ~$32/month + data transfer
+### 17.1 Per-Call Assumptions
 
-### 17.3 Cost Optimization
-- Use reserved capacity for DynamoDB if high volume
-- Cache election data in Lambda (short TTL)
-- Minimize prompt text length
+Realistic reference call for a Canadian municipal ballot (Mayor + Council +
+School Board, ~15 contests total, English/French readback, one re-listen):
+
+| Parameter | Value | Rationale |
+|---|---|---|
+| Call duration | **9 min** | 1 min auth + greeting, 7 min ballot readback + selection, 1 min summary + submit + receipt |
+| Lambda invocations | **~60** | one per DTMF press / timeout / announcement transition |
+| Avg Lambda duration | **400 ms** | cold-start ≤2%; most invocations are pure-compute + 1 DynamoDB read/write |
+| DynamoDB requests | **~120** | 2 per Lambda invocation (read + conditional write) |
+| S3 publication fetch | **1** | once per call, cached in-process thereafter |
+| Polly characters | **~12 000** | mixed English/French readback, with ~15% re-listens |
+| CloudWatch log volume | **~50 KB** | structured JSON, one line per Lambda turn + error detail |
+
+### 17.2 Per-Call Cost Breakdown (`ca-central-1`, list price)
+
+| Line item | Unit rate | Quantity | Cost |
+|---|---|---|---|
+| Amazon Connect voice (inbound) | $0.018/min | 9 min | **$0.162** |
+| Amazon Connect DID usage (per-minute) | $0.004/min (toll) | 9 min | **$0.036** |
+| Lambda invocations | $0.20 / 1M | 60 | ~$0.000012 |
+| Lambda compute (256 MB, arm64) | $0.0000133/GB·s | 60 × 0.4 s × 0.25 GB = 6 GB·s | ~$0.00008 |
+| DynamoDB on-demand (read + write avg) | ~$0.625 / 1M req (blended) | 120 | ~$0.000075 |
+| S3 GET | $0.0004 / 1 000 | 1 | negligible |
+| Polly Neural TTS | $16 / 1M chars | 12 000 | **$0.192** |
+| CloudWatch Logs ingestion | $0.76 / GB | 50 KB | ~$0.000038 |
+| Cross-region egress (Lambda → cluster in another region) | $0.02 / GB | ~0.5 MB per call | ~$0.00001 |
+| **Total per 9-min call** | | | **~$0.39** |
+
+Polly Standard TTS (not Neural) is ~$4 / 1M chars and drops the Polly line
+item to ~$0.05, bringing the total to ~$0.25 — but Neural voices are
+materially more intelligible for older voters and worth the premium for a
+public-election channel. A re-listen-heavy call (voter re-listens to every
+contest) pushes Polly characters to ~20 000 and the total to ~$0.50.
+
+### 17.3 Fixed Monthly Costs
+
+| Line item | Rate | Notes |
+|---|---|---|
+| Canadian DID phone number (toll) | $1.00/mo per number | per Connect pricing |
+| Canadian toll-free number | $2.00/mo per number | optional |
+| NAT Gateway (single-AZ, baseline) | $32/mo + $0.045/GB data | see §11.1 |
+| NAT Gateway (multi-AZ, recommended) | ~$96/mo + data | 3 × single-AZ; removes SPOF |
+| Amazon Connect instance | $0 | no per-instance charge; pay per usage |
+| DynamoDB storage (sessions, 1 h TTL) | negligible | < 1 GB at any point in time |
+| CloudWatch Logs retention (90 days) | $0.03/GB-mo | ~$3/mo at 100 GB stored |
+
+Phone-blacklist table and phone-config table are trivial (< $1/mo combined).
+
+### 17.4 Election-Day Capacity Example
+
+For a **50 000-voter municipality** with an expected **5 % telephone-channel
+turnout** (2 500 voters) concentrated into a 12-hour voting window:
+
+- Calls: 2 500 × ~1.1 (some retries / dropped calls) ≈ 2 750 calls
+- Variable cost: 2 750 × $0.39 ≈ **$1 070**
+- Peak concurrency: rough Erlang estimate at peak hour assuming 10 % of
+  daily calls in peak hour → ~275 calls/hour × 9 min / 60 min ≈ **~42
+  concurrent calls**. Well within default Connect + Lambda concurrency
+  limits but worth a pre-election load test (§15.5) and a Connect service
+  quota check for concurrent calls per instance.
+
+Add monthly fixed costs (multi-AZ NAT + DIDs + logs retention) for a rough
+**~$1 200 all-in for a one-day election** at this size. Scale is roughly
+linear in voters once fixed costs are amortised across multiple
+municipalities sharing the same Lambda + Connect instance.
+
+### 17.5 Cost Optimization
+
+- **Publication cache.** The in-process publication cache (§3.5.2) avoids
+  paying the S3 GET and JSON parse on every Lambda invocation — critical
+  because without it a 60-turn call pays 60× S3 GETs.
+- **Polly voice selection.** Standard voices are 4× cheaper than Neural;
+  Long-form is the most expensive tier and should not be used for IVR.
+  Cache Polly output for static prompts (greeting, goodbye, `invalid_input`)
+  in S3 and reference as pre-synthesised audio from the contact flow —
+  these prompts account for a large share of characters across all calls.
+- **DynamoDB.** On-demand is correct for bursty election-day traffic; only
+  switch to provisioned + autoscaling if running continuous high-volume
+  elections. Use short TTLs to keep storage cost near zero.
+- **Keep prompts concise.** Polly cost is the largest variable line item
+  after Connect voice; shaving 20 % off prompt length shaves ~$0.04 off
+  per-call cost.
+- **Share NAT across tenants.** The Lambda is one deployment serving many
+  clusters (§11.2), so the multi-AZ NAT cost amortises across every
+  tenant using the IVR channel.
 
 ---
 
@@ -2576,7 +2637,7 @@ To support scheduled phone voting with independent start/stop times, the followi
 
 ### C.1 Add TELEPHONE to VotingStatusChannel Enum
 
-**File:** `packages/sequent-core/src/ballot.rs:1882`
+**File:** `packages/sequent-core/src/ballot.rs` (`pub enum VotingStatusChannel`)
 
 ```rust
 #[allow(non_camel_case_types)]
@@ -2602,7 +2663,7 @@ pub enum VotingStatusChannel {
 
 ### C.2 Update channel_from() Method
 
-**File:** `packages/sequent-core/src/ballot.rs:1888`
+**File:** `packages/sequent-core/src/ballot.rs` (`impl VotingStatusChannel::channel_from`)
 
 ```rust
 impl VotingStatusChannel {
@@ -2622,7 +2683,7 @@ impl VotingStatusChannel {
 
 ### C.3 Add telephone_voting_status to ElectionEventStatus
 
-**File:** `packages/sequent-core/src/ballot.rs:1683`
+**File:** `packages/sequent-core/src/ballot.rs` (`pub struct ElectionEventStatus`)
 
 ```rust
 #[derive(
@@ -2704,7 +2765,7 @@ impl ElectionEventStatus {
 
 ### C.5 Add telephone_voting_status to ElectionStatus
 
-**File:** `packages/sequent-core/src/ballot.rs:2162`
+**File:** `packages/sequent-core/src/ballot.rs` (`pub struct ElectionStatus`)
 
 ```rust
 #[derive(
@@ -2743,7 +2804,35 @@ To include `VotingStatusChannel::TELEPHONE` cases.
 
 ### C.7 Update Authorization for IVR Client
 
-**File:** `packages/sequent-core/src/services/authorization.rs:110`
+**File:** `packages/sequent-core/src/services/authorization.rs` (the `azp` match inside `authorize_voter_election`)
+
+Per CLAUDE.md ("policies use enums, not magic strings") the `azp` match should not be keyed off ad-hoc string literals. Introduce an `AzpClient` enum in `sequent-core` that owns the canonical set of Keycloak client ids, annotated with the same `strum` derives already used elsewhere in `sequent-core` (see `VotingStatusChannel` in `ballot.rs` for the reference pattern: `EnumString`, `IntoStaticStr`, etc.). `FromStr` parses the string claim; the match on the enum is then exhaustive and compiler-checked.
+
+```rust
+// packages/sequent-core/src/types/auth.rs (new)
+#[derive(
+    Serialize,
+    Deserialize,
+    Debug,
+    PartialEq,
+    Eq,
+    Clone,
+    Copy,
+    EnumString,
+    IntoStaticStr,
+    Display,
+)]
+pub enum AzpClient {
+    #[strum(serialize = "voting-portal")]
+    VotingPortal,
+    #[strum(serialize = "voting-portal-kiosk")]
+    VotingPortalKiosk,
+    #[strum(serialize = "ivr-voting")]
+    IvrVoting,
+}
+```
+
+Then `authorize_voter_election` parses once and matches exhaustively:
 
 ```rust
 pub fn authorize_voter_election(
@@ -2753,14 +2842,26 @@ pub fn authorize_voter_election(
 ) -> Result<(String, VotingStatusChannel), (Status, String)> {
     // ... existing validation ...
 
-    match claims.azp.as_str() {
-        "voting-portal" => Ok((area_id, VotingStatusChannel::ONLINE)),
-        "voting-portal-kiosk" => Ok((area_id, VotingStatusChannel::KIOSK)),
-        "ivr-voting" => Ok((area_id, VotingStatusChannel::TELEPHONE)),  // ADD THIS
-        _ => Err((Status::Unauthorized, "Unknown Client".into())),
-    }
+    let client = AzpClient::from_str(claims.azp.as_str())
+        .map_err(|_| (Status::Unauthorized, "Unknown Client".into()))?;
+
+    let channel = match client {
+        AzpClient::VotingPortal       => VotingStatusChannel::ONLINE,
+        AzpClient::VotingPortalKiosk  => VotingStatusChannel::KIOSK,
+        AzpClient::IvrVoting          => VotingStatusChannel::TELEPHONE,
+    };
+    Ok((area_id, channel))
 }
 ```
+
+Because the match is on the enum, adding a new client (or a new `VotingStatusChannel` variant) forces a compile error here — the drift caught today only at runtime becomes a compile-time check.
+
+Any other call site that currently compares `claims.azp == "voting-portal"` (see e.g. `packages/sequent-core/src/services/keycloak/realm.rs`, which uses `"voting-portal"` and the separate string `"onsite-voting-portal"` that does not match what `authorization.rs` accepts as kiosk) should be migrated to the enum at the same time — the string drift between the two files is a pre-existing bug that the enum refactor fixes for free.
+
+> Pre-existing gap noted while touching this match: there is no `EARLY_VOTING`
+> branch today, which means the `EARLY_VOTING` variant of `VotingStatusChannel`
+> is unreachable via this code path. Out of scope for the IVR change, but worth
+> tracking as a separate ticket.
 
 ### C.8 Create Keycloak IVR Client
 
@@ -2770,7 +2871,7 @@ Create a new Keycloak client with:
 - **Direct Access Grants:** Enabled
 - **Valid Redirect URIs:** N/A (no browser flow)
 - **Service Accounts Enabled:** Optional (if using client credentials)
-- **Direct Grant Flow Override:** Set to a custom flow that uses `ConditionalClientAuthenticator` to branch IVR-specific authentication (DoB validation, OTP) away from the standard password flow used by web clients
+- **Direct Grant Flow Override:** Set to a custom flow that uses `ConditionalClientAuthenticator` to branch IVR-specific authentication (e.g. DoB validation) away from the standard password flow used by web clients
 
 ### C.8.1 Custom Keycloak Authenticators for IVR
 
@@ -2783,14 +2884,7 @@ The following authenticators may be needed depending on the election event's aut
 - `getConfigProperties()` returns the IVR metadata properties (`field_name`, `max_digits`, `terminator`, `maps_to`, optional `prompt_key`) so the `ivr-config-resource` endpoint can read them back
 - ~80 lines of Java, following the same pattern as existing authenticators in `packages/keycloak-extensions/`
 
-**`IvrOtpDirectGrantAuthenticator`** (required if OTP is used):
-- Implements `Authenticator` for the Direct Grant flow
-- On invocation, checks if `otp` parameter is present in the request form params
-- **If `otp` absent:** generates code via `SecretGenerator`, stores hash on user as a temporary credential or attribute with timestamp, sends via existing `SmsSenderProvider` (AWS SNS / Twilio) and/or `EmailTemplateProvider` (AWS SES), returns `context.failure()` with identifiable error
-- **If `otp` present:** reads stored hash from user, validates with `Utils.constantTimeIsEqual()`, clears stored code, returns `context.success()`
-- Reuses all existing OTP infrastructure from `packages/keycloak-extensions/message-otp-authenticator/`
-- ~150 lines of Java
-- Configurable: code length, TTL, message courier (SMS/email/both), sender ID — same config properties as `MessageOTPAuthenticatorFactory`
+**`IvrOtpDirectGrantAuthenticator`** — **deferred, not in initial scope.** OTP over IVR is a possible future extension (see §5.1.4) and does not need to be built now. If ever added, it would implement `Authenticator` for the Direct Grant flow, check for an `otp` form param, generate/send/validate the code via the existing infrastructure in [`message-otp-authenticator`](../../../../packages/keycloak-extensions/message-otp-authenticator/), and surface `otp_required` to the IVR Lambda through the standard Direct Grant error channel. No Rust, Keycloak, admin-portal, or i18n work for OTP should land in the initial IVR release.
 
 **Direct Grant Flow configuration per realm:**
 ```mermaid
@@ -2798,7 +2892,6 @@ flowchart TD
     A[IVR Direct Grant Flow] --> B[Username Validation<br/>REQUIRED]
     B --> C{Client?}
     C -->|client = ivr-voting| D[Password Validation<br/>or IvrDobAuthenticator<br/>REQUIRED]
-    D --> E[IvrOtpDirectGrantAuthenticator<br/>REQUIRED - if OTP]
     C -->|client != ivr-voting| F[Password Validation<br/>REQUIRED]
 ```
 
@@ -2839,9 +2932,10 @@ public class IvrConfigResourceProvider implements RealmResourceProvider {
             new AuthStep("pin",      8, "#", "password", null)
     );
 
-    private static final Set<String> SKIPPED_AUTHENTICATORS = Set.of(
-        "ivr-otp-direct-grant"  // OTP is discovered dynamically via otp_required error
-    );
+    // Authenticators that are present in the Direct Grant flow but should not
+    // surface as an IVR-collected step. Empty today; see §5.1.4 for why OTP is
+    // not listed here yet (it would be added if OTP-over-IVR is ever built).
+    private static final Set<String> SKIPPED_AUTHENTICATORS = Set.of();
 
     @GET
     @Path("/")
@@ -2897,11 +2991,11 @@ public class IvrConfigResourceProvider implements RealmResourceProvider {
 **Key design points:**
 - **No authentication required** on the endpoint — returns non-sensitive metadata about auth shape. Voters already know what to enter.
 - **Stock authenticator lookup is hardcoded** in the extension. If Keycloak renames `direct-grant-validate-username` in a major upgrade, the extension must be updated — covered by a startup integration test that calls the endpoint against a well-known realm configuration.
-- **Skipped authenticators list** explicitly excludes `ivr-otp-direct-grant` because OTP is handled reactively by the Lambda (via the `otp_required` error response), not declared up front.
+- **Skipped authenticators list** is a seam for authenticators that should not surface as an IVR-collected step — currently empty. If OTP-over-IVR is ever added (§5.1.4), its authenticator id would go here so it is reached reactively through the `otp_required` error response rather than declared up front.
 - **Unknown authenticators fail loudly** with HTTP 500 — misconfigurations surface at deployment time (first call after deploy) instead of silently producing a broken auth flow mid-election.
 - **Custom authenticator config properties** (`field_name`, `max_digits`, `terminator`, `maps_to`, `prompt_key`) are declared by each custom authenticator's `getConfigProperties()` — Keycloak renders them as fields in the admin UI.
 
-**Build integration:** add a new Maven module under `packages/keycloak-extensions/ivr-config-resource/` and include it in the Keycloak image alongside `conditional-authenticators` and `message-otp-authenticator`.
+**Build integration:** add a new Maven module under `packages/keycloak-extensions/ivr-config-resource/` and include it in the Keycloak image alongside `conditional-authenticators`.
 
 ### C.9 Update Default Values
 
@@ -2944,15 +3038,12 @@ Stored in `ElectionEvent.presentation.i18n[lang]["ivr"]`
 | `auth_enter_username` | `auth` | Played for the step whose `maps_to` is `username` (typically voter ID) |
 | `auth_enter_password` | `auth` | Played for the step whose `maps_to` is `password` (typically PIN or DoB) |
 | `auth_enter_dob` | `auth` | Played for custom DoB step (`maps_to: dob`) if `IvrDobAuthenticator` is in the flow |
-| `auth_enter_otp` | `auth` | Played when collecting OTP after Keycloak returns `otp_required` |
-| `auth_otp_sent` | `auth` | Played before OTP collection (e.g., "A code has been sent to your phone") |
-| `auth_otp_invalid` | `auth` | OTP validation failed |
 | `auth_failed` | `auth` | Authentication failed |
 | `auth_max_attempts` | `auth` | Max auth retries exceeded |
 | `system_error` | (any) | System error |
 | `invalid_input` | (any) | Invalid DTMF input |
 | `timeout` | (any) | Input timeout |
-| `repeat_instruction` | (any) | Repeat reminder |
+| `repeat_instruction` | (any) | Reminder that pressing `*` repeats the current prompt. Typically included once in the `greeting` and on long prompts where re-listening is likely |
 | `goodbye` | `goodbye` | Farewell message |
 
 **Extended prompts (Barrie-style deployments):**
@@ -2995,7 +3086,7 @@ Stored in `Election.presentation.i18n[lang]["ivr"]`
 | `decline_confirm` | `ballot_loop` | - | Decline-to-vote confirmation |
 | `summary_intro` | `ballot_loop` (`ElectionSummary`) | - | Per-election summary introduction |
 | `summary_item` | `ballot_loop` (`ElectionSummary`) | `\{contest_name\}`, `\{candidate_name\}`, `\{contest_number\}` | Summary line item per contest — includes contest number for edit selection |
-| `summary_edit_prompt` | `ballot_loop` (`ElectionSummary`) | - | "Press 1 to continue to submission, or press a contest number to change your selection for that contest" |
+| `summary_edit_prompt` | `ballot_loop` (`ElectionSummary`) | - | "Press `00#` to submit, or press a contest number followed by `#` to change your selection for that contest" |
 | `summary_edit_restart` | `ballot_loop` (`ElectionSummary`) | `\{contest_name\}` | "Changing your selection for \{contest_name\}. Your previous selections for this contest have been cleared." |
 | `vote_success` | `ballot_loop` (`ElectionSubmit`) | `\{election_name\}` | Ballot submitted for this election |
 | `vote_failed` | `ballot_loop` (`ElectionSubmit`) | - | Vote submission failed |
