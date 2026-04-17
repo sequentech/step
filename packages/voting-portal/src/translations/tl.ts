@@ -301,6 +301,9 @@ const tagalogTranslation: TranslationType = {
                 oopsWithStatus: "Oops! {{status}}",
                 oopsWithoutStatus: "Oops! Hindi inaasahang Error",
                 somethingWrong: "May nangyaring hindi tama.",
+                certAuthFailedTitle: "Nabigo ang Pagpapatunay ng Sertipiko",
+                certAuthFailedMessage:
+                    "Hindi ma-verify ang iyong sertipiko. Pakitiyak na gumagamit ka ng wastong sertipiko ng botante at subukang muli.",
             },
         },
         materials: {

@@ -5,6 +5,7 @@ use anyhow::{anyhow, Result};
 use chrono::{DateTime, Local};
 use deadpool_postgres::Transaction;
 use sequent_core::serialization::deserialize_with_path::deserialize_value;
+use sequent_core::services::uuid_validation::parse_uuid_v4;
 use sequent_core::types::results::*;
 use serde::Serialize;
 use serde_json::Value;
@@ -46,11 +47,11 @@ pub async fn update_results_event_documents(
     documents: &ResultDocuments,
 ) -> Result<()> {
     let documents_value = serde_json::to_value(documents.clone())?;
-    let tenant_uuid: uuid::Uuid = Uuid::parse_str(&tenant_id)
+    let tenant_uuid: uuid::Uuid = parse_uuid_v4(&tenant_id)
         .map_err(|err| anyhow!("Error parsing tenant_id as UUID: {}", err))?;
-    let results_event_uuid: uuid::Uuid = Uuid::parse_str(&results_event_id)
+    let results_event_uuid: uuid::Uuid = parse_uuid_v4(&results_event_id)
         .map_err(|err| anyhow!("Error parsing results_event_id as UUID: {}", err))?;
-    let election_event_uuid: uuid::Uuid = Uuid::parse_str(&election_event_id)
+    let election_event_uuid: uuid::Uuid = parse_uuid_v4(&election_event_id)
         .map_err(|err| anyhow!("Error parsing election_event_id as UUID: {}", err))?;
     let statement = hasura_transaction
         .prepare(
@@ -119,9 +120,9 @@ pub async fn get_results_event_by_id(
         .query(
             &statement,
             &[
-                &Uuid::parse_str(tenant_id)?,
-                &Uuid::parse_str(election_event_id)?,
-                &Uuid::parse_str(results_event_id)?,
+                &parse_uuid_v4(tenant_id)?,
+                &parse_uuid_v4(election_event_id)?,
+                &parse_uuid_v4(results_event_id)?,
             ],
         )
         .await?;
@@ -167,9 +168,9 @@ pub async fn insert_results_event(
         .query(
             &statement,
             &[
-                &Uuid::parse_str(results_id)?,
-                &Uuid::parse_str(tenant_id)?,
-                &Uuid::parse_str(election_event_id)?,
+                &parse_uuid_v4(results_id)?,
+                &parse_uuid_v4(tenant_id)?,
+                &parse_uuid_v4(election_event_id)?,
             ],
         )
         .await
@@ -213,8 +214,8 @@ pub async fn get_results_event_by_event_id(
         .query(
             &statement,
             &[
-                &Uuid::parse_str(tenant_id)?,
-                &Uuid::parse_str(election_event_id)?,
+                &parse_uuid_v4(tenant_id)?,
+                &parse_uuid_v4(election_event_id)?,
             ],
         )
         .await?;
@@ -261,9 +262,9 @@ pub async fn insert_many_results_events(
                 .transpose()?;
 
             Ok(InsertableResultsEvent {
-                id: Uuid::parse_str(&results_event.id)?,
-                tenant_id: Uuid::parse_str(&results_event.tenant_id)?,
-                election_event_id: Uuid::parse_str(&results_event.election_event_id)?,
+                id: parse_uuid_v4(&results_event.id)?,
+                tenant_id: parse_uuid_v4(&results_event.tenant_id)?,
+                election_event_id: parse_uuid_v4(&results_event.election_event_id)?,
                 name: results_event.name.clone(),
                 created_at: results_event.created_at,
                 last_updated_at: results_event.last_updated_at,
