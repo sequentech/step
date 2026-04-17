@@ -498,34 +498,13 @@ This allows administrators to configure phone voting hours independently (e.g., 
 
 **Primary Key**: `contact_id` (Amazon Connect Contact ID)
 
-> **Design review — concurrency & idempotency.** The session design assumes
-> one Lambda invocation per contact at a time, but Amazon Connect can issue
-> overlapping invocations (e.g. DTMF captured at the tail of one prompt lands
-> during the next `ProcessStep` call; a flaky retry of a deferred invocation
-> re-fires an old input). Today, two concurrent turns both do
-> `get_session → mutate → save_session`, and the later write silently clobbers
-> the earlier one. That can (a) drop a selection the voter just made,
-> (b) re-process the same DTMF twice, or (c) resubmit a vote that was already
-> accepted by Harvest.
->
-> Required before implementation:
->
-> 1. **Optimistic concurrency on `save_session`** — add `version: u64` to
->    `IvrSession`, bump it on every write, and guard the `PutItem` with a
->    `ConditionExpression: version = :expected`. A lost race returns a
->    dedicated `IvrError::SessionRaced` that the handler maps to a
->    "please try again" prompt instead of corrupting state.
-> 2. **Idempotency key for vote submission** — the `insert_cast_vote` call
->    must use a deterministic idempotency key derived from `(voter_id,
->    election_id, publication_id)` so a Lambda retry after a timeout cannot
->    produce a second ballot. Harvest already keys on `ballot_id`, but the
->    Lambda must generate that `ballot_id` deterministically (not random),
->    otherwise every retry looks like a new ballot.
-> 3. **Connect-side: no input replay** — confirm the contact flow does not
->    re-invoke `ProcessInput` on handler timeout; if it does, the Lambda's
->    idempotency layer must cover `ProcessInput` too, not just vote submit.
-
 **Design principle.** The session is per-contact and stays well under DynamoDB's 400 KB limit — anything large (prompts, elections, candidates, auth steps, event presentation) lives in the process-level publication cache keyed by `(tenant_id, election_event_id, publication_id)`. A large municipality (dozens of contests × hundreds of candidates × multiple language bundles) can exceed 400 KB on its own, so duplicating the publication per call would be both wasteful and fragile. See §5.1.8 for the publication-discovery flow.
+
+**Concurrency & idempotency.** Amazon Connect can issue overlapping Lambda invocations for the same contact — DTMF captured at the tail of one prompt can land during the next `ProcessStep` call, and a flaky retry of a deferred invocation can re-fire an old input. A naive `get_session → mutate → save_session` would let the later write silently clobber the earlier one, which could drop a selection the voter just made, re-process the same DTMF twice, or resubmit a vote already accepted by Harvest. Three layers prevent that:
+
+1. **Optimistic concurrency on `save_session`.** `IvrSession` carries a `version: u64` (see struct below). It is bumped on every write, and the DynamoDB `PutItem` is guarded by `ConditionExpression: version = :expected`. A lost race returns a dedicated `IvrError::SessionRaced`, which the handler maps to a "please try again" prompt — never a corrupted state.
+2. **Encrypt-once, resubmit-same for vote idempotency.** `ballot_id` is the SHA-256 of the encrypted ballot content — Harvest recomputes it and rejects `BallotIdMismatch`, so the Lambda cannot simply pick a deterministic ID. Instead, the Lambda encrypts each election's ballot **exactly once per session** and caches the encrypted payload + its `ballot_id` in the session (a per-election slot on `IvrSession`). A `ElectionSubmit` retry after a timeout resubmits the cached payload verbatim: same ciphertext → same hash → same `ballot_id` → Harvest's existing duplicate check rejects it as `DUPLICATE_VOTE` rather than recording a second ballot. Re-encrypting on retry would produce a new `ballot_id` (fresh ElGamal randomness) and defeat the de-dup, so the "encrypt once, store, resubmit" rule is a load-bearing invariant.
+3. **Connect-side input-replay contract.** The Amazon Connect contact flow MUST be authored so that `ProcessInput` is not re-invoked on handler timeout (the "Invoke Lambda" block's failure branch plays `system_error` and disconnects — it does not loop back into the same input capture). This contract is asserted in the contact-flow fixture tests (§15) so a flow edit that reintroduces a retry loop fails CI.
 
 ```rust
 /// Per-call session state stored in DynamoDB. The ballot publication is
@@ -559,12 +538,25 @@ pub struct IvrSession {
     pub access_token_expires_at: Option<i64>,
     pub session_started_at: Option<i64>,
     pub area_id: Option<Uuid>,
+    /// Auth step list pinned at session init from Keycloak's /ivr-config
+    /// (§5.1.7). Read once; every subsequent turn reads from here, not
+    /// from Keycloak — a mid-call admin edit to the Direct Grant flow
+    /// cannot change what credentials this call collects.
+    pub auth_steps: Vec<AuthStep>,
 
     // Language — chosen in LanguageSelect, used by every subsequent prompt
     pub language: Language,
 
     // Votes in progress — accumulated during ballot loop, consumed by ElectionSubmit
     pub votes: HashMap<Uuid, ContestVote>,
+
+    /// Per-election encrypted-ballot cache, populated the first time
+    /// `ElectionSubmit` is attempted for that election and reused on any
+    /// subsequent retry. Guarantees that an `ElectionSubmit` retry after a
+    /// timeout hashes to the same `ballot_id` (which is the SHA-256 of the
+    /// encrypted content — see §9.3), so Harvest rejects the resubmission
+    /// as a duplicate rather than recording a second ballot.
+    pub encrypted_ballots: HashMap<Uuid, EncryptedBallotCacheEntry>,
 
     // Submission results — drives ElectionReceipt and the end-of-call summary
     pub submission_results: Vec<ElectionSubmissionResult>,
@@ -581,7 +573,10 @@ pub struct IvrSession {
     /// Lost races surface as `IvrError::SessionRaced`.
     pub version: u64,
 
-    /// DynamoDB TTL — background cleanup of abandoned sessions.
+    /// DynamoDB TTL — sliding idle window (default 1 h) capped at a
+    /// hard ceiling of `session_started_at + ssoSessionMaxLifespan`, so
+    /// long calls don't lapse mid-flight but a looping contact flow
+    /// can't keep a row alive forever. See §9.2.1.
     pub ttl: i64,
 }
 
@@ -717,6 +712,20 @@ pub struct ContestVote {
     pub selected_candidate_ids: Vec<Uuid>,
     pub is_blank: bool,
     pub is_declined: bool,
+}
+
+/// Cached encrypted ballot for one election. Populated once when
+/// `ElectionSubmit` first runs for that election; reused verbatim on
+/// any retry so `ballot_id` (= SHA-256 of `content`) stays stable and
+/// Harvest's duplicate check catches the retry. See §9.3.
+#[derive(Serialize, Deserialize)]
+pub struct EncryptedBallotCacheEntry {
+    /// Serialized `SignedHashableBallot` — the exact bytes POSTed to
+    /// Harvest `/insert-cast-vote`.
+    pub content: String,
+    /// Hex-encoded SHA-256 of `content`; matches the `ballot_id`
+    /// Harvest will recompute and validate.
+    pub ballot_id: String,
 }
 
 /// Result of submitting one election's ballot during ElectionSubmit.
@@ -952,37 +961,19 @@ If OTP is ever added as described in §5.1.4, the authenticator would reuse exis
 
 If the election uses simple voter ID + PIN (where PIN = Keycloak password), no custom authenticators are needed — only `ivr-config-resource` needs to be deployed.
 
-#### 5.1.7 Caching & Invalidation
+#### 5.1.7 Pinning & Caching
 
-The Lambda caches the `/ivr-config` response per-realm in DynamoDB with a **5-minute TTL**. This bounds the blast radius of stale config after an admin change while keeping per-call overhead near zero.
+**Per-session pinning (required).** The resolved `Vec<AuthStep>` is read from `/ivr-config` exactly once, at session init, and stored on `IvrSession` (see §4.1). Every subsequent turn of the same call reads the auth step list from the session row, never from `/ivr-config`. This is symmetric with how the ballot publication is pinned per-session (§5.1.8) and guarantees a single call cannot observe two different auth-step lists — e.g. step 1 collecting PIN under the old flow, then step 2 being asked for a newly-added DoB after an admin edit.
 
-- Calls in flight when the admin updates the flow finish using the cached config (safe — the auth step list is forward-compatible with ROPC)
-- New calls pick up the change within 5 minutes
-- Ops can flush the cache manually (DynamoDB delete) for emergency rollout
+To make this a compile-time invariant rather than a convention, `IvrSession.auth_steps: Vec<AuthStep>` is populated during session construction and the `Auth` phase engine reads only from the session — it has no port to call `/ivr-config` mid-call.
 
-> **Design review — cache scope is inconsistent with publication pinning.**
-> The publication is pinned per-session (§4.1 / §5.1.8) so a call cannot see a
-> mid-flight ballot edit. The auth step list is **not** pinned: it is cached
-> *per-realm* with a 5-minute TTL and read on every Lambda invocation. That
-> creates a window where a single call can observe two different auth-step
-> lists: step 1 "enter PIN" uses the old list, then the admin edits the flow,
-> the cache expires, and step 2 asks for a newly-added DoB that the voter did
-> not expect. The in-flight-safe claim above assumes a *single* Lambda
-> invocation reads the list once; it breaks across invocations of the same
-> call.
->
-> Two coherent options:
->
-> 1. **Pin auth steps per-session** — read `/ivr-config` once at session init
->    and store the resolved `Vec<AuthStep>` on `IvrSession`. Per-realm cache
->    becomes an optimization for *new* sessions only, not mid-session lookups.
->    Symmetric with publication pinning; recommended.
-> 2. **Treat the list as append-only** — document that admins must not remove
->    or reorder steps while calls are in flight. Harder to enforce; relies on
->    operational discipline.
->
-> Either way the document should state the pinning rule explicitly so the
-> adapter implementation matches the invariant the domain depends on.
+**Per-realm cache (optimization for new sessions only).** New sessions hitting the same realm within a short window share a cached `/ivr-config` response to avoid hammering Keycloak during a call spike. The cache lives in DynamoDB, keyed by realm, with a TTL controlled by the Lambda env var **`IVR_CONFIG_CACHE_TTL_SECONDS`** (default `300`, i.e. 5 minutes). Setting it to `0` disables the cache entirely (every new session hits Keycloak).
+
+- Sessions already in flight are unaffected by cache expiry or invalidation — they read from their pinned session row.
+- New sessions pick up admin changes within `IVR_CONFIG_CACHE_TTL_SECONDS`.
+- Ops can flush the cache manually (DynamoDB delete) for emergency rollout, or drop the TTL to `0` during an incident.
+
+The cache is strictly an optimization: removing it (or setting TTL to `0`) only increases Keycloak load, never affects correctness, because pinning is the source of truth for any given call.
 
 #### 5.1.8 IVR Config Discovery — S3 + Keycloak
 
@@ -1307,29 +1298,6 @@ Fatal errors (network timeout, session expired, Keycloak unavailable) disconnect
 - IVR translates backend errors to user-friendly messages
 - Each election is submitted independently; one failure does not block others
 
-> **Design review — per-election UX needs an end-of-call roll-up.** The
-> "continue on per-election error" behavior is correct policy but
-> information-thin on the voice channel: a voter who hears
-> "success … this election rejected … success" at the moments those events
-> happen has very little chance of reconstructing what actually landed,
-> especially with 3+ elections and elderly / accessibility voters.
->
-> Add a mandatory summary phase between the last `ElectionSubmit` and
-> `goodbye`:
->
-> - **`ballot_submission_summary`** — reads back each election, one line
->   apiece: "Mayor: your ballot was recorded. Council: your ballot was
->   recorded. School Board: we could not record your ballot because you
->   have already voted. Please call back if you believe this is in error."
-> - Must be enumerated from `IvrSession.submission_results` (§4.1), which
->   this design already populates. No new data, just a new phase.
-> - Becomes required regardless of `receipt_format` — the per-election
->   receipt (`ElectionReceipt`) reads a ballot locator, but the summary
->   states *what happened* which is a different piece of information.
->
-> Without this, a dropped call in the middle of the per-election receipts
-> (§3.3.2) leaves the voter guessing.
-
 ---
 
 ## 6. Multi-Tenancy & Municipality Discrimination
@@ -1397,34 +1365,12 @@ The `blacklist_check` phase consults a **Hasura table**, not DynamoDB. The black
    - `reason` (optional free text)
    - `created_at`, `created_by`
 2. **Hasura permissions** — a new permission (e.g. `can_manage_phone_blacklist`) granted to admin roles that should be able to CRUD blacklist entries. Scoped to their tenant.
-3. **Harvest endpoints** to create, list, and delete blacklist entries (these wrap the Hasura mutations with the existing permission-check middleware). The IVR Lambda reads the blacklist via an authenticated Hasura GraphQL query during the `blacklist_check` phase — but the Lambda runs `blacklist_check` pre-auth, so either (a) Harvest exposes an anonymous read endpoint that only returns "blocked yes/no" for a given phone number, or (b) the Lambda uses a service account JWT for this query. Option (a) is simpler and surfaces less.
+3. **Harvest endpoints** to create, list, and delete blacklist entries (these wrap the Hasura mutations with the existing permission-check middleware). The IVR Lambda reads the blacklist with a **service-account JWT** — the Lambda obtains a token for the `ivr-voting` client via Keycloak's client-credentials grant against the tenant's realm at cold-start, caches it like any other bearer token, and uses it for the `blacklist_check` query (which runs pre-voter-auth). A new Hasura permission `can_read_phone_blacklist` is granted only to the service account; `can_manage_phone_blacklist` continues to gate CRUD from the admin portal. This avoids exposing an anonymous blacklist oracle (which would leak moderation decisions, conflict with PIPEDA, and create a harassment vector), and adds at most one extra Keycloak call per cold Lambda container.
 4. **Admin-portal UI** — a "Phone Blacklist" management view under the Election Event settings, with list + add + remove actions, tied to the new Hasura permission.
 
 **Why not DynamoDB?** Same reason auth config went to Keycloak: it belongs to the domain. Putting it in DynamoDB would duplicate responsibilities, bypass Hasura's permission/migration/audit pipeline, and force the admin portal to talk to two different backends for data that is logically part of the election event. One source of truth wins.
 
 **Why not part of the published ballot publication (S3)?** Because blacklists change more often than ballots are published, and an admin needs to be able to block a phone mid-election without re-running the ballot publication pipeline. Keep the publication immutable and artifact-like; keep the blacklist mutable and operational.
-
-> **Design review — option (a) is a blacklist oracle, pick option (b).**
-> Option (a) "anonymous read endpoint that only returns blocked yes/no" is
-> an open oracle against the blacklist: anyone who can make an HTTP request
-> can probe any phone number and learn whether it is blocked. That leaks
-> moderation decisions, is likely a privacy problem under PIPEDA for a
-> Canadian deployment, and gives a harassment vector (check if the target's
-> number is blacklisted, then use that signal). Rate-limiting mitigates but
-> does not solve it.
->
-> Recommend option (b): the IVR Lambda authenticates the blacklist query
-> with a **service-account JWT** minted for the `ivr-voting` client (client
-> credentials grant against the tenant's realm). Harvest already gates
-> blacklist mutations behind `can_manage_phone_blacklist`; add a read
-> permission (`can_read_phone_blacklist`) granted only to the service
-> account, and have the Lambda call an authenticated Hasura query. Costs
-> one extra Keycloak call per cold session (cache the service token in the
-> Lambda container like any other bearer token) and eliminates the oracle.
->
-> If option (a) is chosen anyway for simplicity, the endpoint must at
-> minimum: (i) be rate-limited per source IP, (ii) return a constant-time
-> response so timing does not leak, (iii) log every query for audit.
 
 ---
 
@@ -1877,121 +1823,42 @@ normalisation before hashing). Log lines tag the current salt's
 generation id (`salt_gen`: `2026Q1`) so dashboards can correctly group
 within a generation without needing to decrypt anything.
 
-> **Design review — DynamoDB session TTL vs. Keycloak session lifespan.**
-> The session record's TTL (1 hour) is **shorter** than the Keycloak realm's
-> `ssoSessionMaxLifespan` (10 hours, see §5.1.9). That means a voter on a long
-> call — e.g. an accessibility use case or a slow readback of 30 contests —
-> can still hold a valid refresh token while DynamoDB has already deleted the
-> `IvrSession` row, causing the next Lambda turn to fail with
-> `SessionExpired` even though the voter is still authenticated.
->
-> Resolution options:
->
-> 1. **Raise the session TTL to match `ssoSessionMaxLifespan`** (10 h) — safe
->    because the record is keyed by `contact_id`, which is Connect-scoped and
->    will not collide across calls.
-> 2. **Refresh the TTL on every save_session** — then the 1 h window is "since
->    last activity" rather than "since session creation"; idle calls still get
->    cleaned up.
-> 3. **Both** — bump the ceiling to match Keycloak *and* slide the TTL on each
->    turn. Recommended.
->
-> Pick before merge; silently lapsing mid-call is a worse failure mode than an
-> explicit timeout.
+**Sliding TTL with a hard ceiling.** The `IvrSession` row's DynamoDB TTL is refreshed on every `save_session` so long calls don't lapse mid-flight, but it is **capped at an absolute ceiling** so a misbehaving contact flow or hostile client cannot keep a row alive forever by poking it every <1 h. The adapter computes:
+
+```
+ttl = min(
+    now + IDLE_WINDOW,                         // sliding component
+    session_started_at + SSO_MAX_LIFESPAN,     // hard ceiling
+)
+```
+
+- `IDLE_WINDOW` — 1 hour by default. A voter turn that takes longer than this is already well outside the intended UX envelope, and the next Lambda invocation will fail cleanly with `SessionExpired`.
+- `SSO_MAX_LIFESPAN` — matches the Keycloak realm's `ssoSessionMaxLifespan` (10 h by default). Past this, the refresh token is dead and the Lambda cannot do anything useful anyway, so the row should evaporate with it.
+
+Written on every `PutItem` under the same `ConditionExpression: version = :expected` guard from §4.1. This closes both failure modes: the row vanishing mid-call while the refresh token is still valid (original bug), and a row living beyond its own authenticated lifespan (the "calls forever" hole a pure sliding TTL would open).
 
 ### 9.3 Vote Integrity
-- Votes only submitted after explicit confirmation
-- Dropped calls do not result in partial votes
 
-> **Design review — "no partial votes" is only true within a single
-> election.** For a single-election ballot, submit is atomic and a dropped
-> call before `ElectionSubmit` simply loses the work — correct. But the
-> ballot loop (§3.3) can submit to **multiple elections** in one call:
-> Mayor, Council, and School Board each go to their own `insert_cast_vote`
-> sequentially. A call dropped after the Mayor ballot commits but before
-> the Council ballot means the voter has cast one of three ballots they
-> intended to cast. On redial they get a fresh `contact_id` (new session),
-> and the Lambda has no memory of what already succeeded.
->
-> Required:
->
-> 1. **Re-entrant voting on call-back.** When `ballot_loop` begins, query
->    Harvest for already-cast ballots by `(voter_id, election_event_id)`
->    and **skip** elections that are already submitted for this voter. The
->    voter hears "You have already voted in the Mayor election; let's
->    continue with Council." The data for this query already exists —
->    Harvest uses it to reject duplicates (§5.4 `DUPLICATE_VOTE`) — it just
->    needs to be surfaced as a listing endpoint the IVR can call
->    pre-ballot-loop.
-> 2. **Explicit partial-success announcement at end of call.** Before
->    `goodbye`, summarize "Your ballots were recorded for Mayor and
->    Council. You did not complete voting for School Board." This requires
->    the submission-results array (§4.1 `ElectionSubmissionResult`) to be
->    read back in `goodbye` or in a new `ballot_summary` phase.
-> 3. **If max-revotes is disabled** (one ballot per voter per election),
->    this is also the voter's only path to recovery — without it, a dropped
->    call means permanent disenfranchisement for the remaining elections.
->    That is a showstopper for Canada-style municipal ballots with
->    multiple simultaneous races.
-- All vote attempts logged to electoral log
-- Duplicate vote prevention via platform API
+- Votes only submitted after explicit confirmation (§3.3 `VoteConfirm`).
+- Duplicate vote prevention via Harvest (`DUPLICATE_VOTE` rejection, §5.4).
+- Retry idempotency on vote submission (§4.1 concurrency): the Lambda encrypts the ballot **once per `(session, election)`**, caches the resulting encrypted payload and its content hash (`ballot_id`) in the session, and reuses that exact payload on retry. Because `ballot_id` is the SHA-256 hash of the encrypted ballot content — validated by Harvest (`computed_hash != input.ballot_id → BallotIdMismatch` at `packages/windmill/src/services/insert_cast_vote.rs`) — an identical resubmission hashes to the same `ballot_id` and hits Harvest's existing duplicate check. Re-encrypting on retry would produce a new `ballot_id` (new ElGamal randomness → different ciphertext) and defeat the de-dup, so "encrypt once, store, resubmit" is a load-bearing invariant, not an optimization.
 
-> **Design review — "electoral log" is under-specified.** Sequent is an
-> end-to-end-verifiable platform, and the existing architecture uses ImmuDB
-> as the tamper-evident bulletin board for auditable events (see the project
-> overview in `CLAUDE.md`). This document mentions an "electoral log" in
-> passing but never says:
->
-> - **Where it lives.** ImmuDB? A Harvest-owned Hasura table with append-only
->   row-level security? CloudWatch Logs (which is *not* tamper-evident and
->   therefore not acceptable for the auditable-events role)?
-> - **What is written.** Call start/auth success/vote submit/disconnect are
->   needed for the audit narrative. Vote *content* must never appear — only
->   attestations (voter voted, ballot hash X recorded at time T via TELEPHONE
->   channel).
-> - **Who writes.** The Lambda over an authenticated channel, or Harvest as
->   a side effect of `/insert-cast-vote`? If the Lambda writes directly,
->   the Lambda gets a new privileged integration; if Harvest writes on the
->   Lambda's behalf, the IVR channel inherits Harvest's existing audit
->   guarantees without new attack surface.
->
-> Recommendation: **Harvest's existing audit pipeline writes the vote-related
-> events (cast attempt, success, rejection) exactly as it does for portal
-> votes**, differentiated only by the `azp: ivr-voting` claim on the JWT.
-> Call-lifecycle events (started, auth attempted, abandoned) go to
-> CloudWatch structured logs (§10.2) — those are operational, not
-> auditable. This keeps the tamper-evident ledger uniform across channels
-> and avoids giving the IVR Lambda write access to ImmuDB.
+**Re-entrant voting across dropped calls.** The ballot loop can submit to multiple elections in one call (Mayor, Council, School Board…). A dropped call after one ballot commits but before the next means the voter has partially voted. On redial the Lambda gets a fresh `contact_id` with no memory of what already succeeded, so the handler must reconstruct progress from Harvest:
 
-> **Design review — brute-force protection against hang-up-and-redial.** The
-> `retries.auth` counter (§8.1) is per-call: it is reset to zero on every new
-> `contact_id`. An attacker can place a call, try three credential
-> combinations, hang up, redial, and try three more — indefinitely. For a
-> voter-ID plus 4-digit PIN deployment that's 10 000 PIN combinations, each
-> voter ID falls in ≈3 300 calls of 90 s each, which is within reach of
-> inexpensive telephony bots. Caller-ID is spoofable and AWS-egress IPs are
-> shared, so IP/phone throttling at the Connect level is insufficient.
->
-> Before go-live, the design must specify at least one of:
->
-> 1. **Keycloak user-level brute-force detection** (`bruteforceProtected=true`
->    on the realm, `failureFactor`, `maxFailureWaitSeconds`, `waitIncrementSeconds`
->    tuned for voice latency). This locks a voter ID after N failed attempts
->    across *all* calls, not per-call.
-> 2. **Per-voter-ID cooldown in a shared store** — e.g. a DynamoDB
->    `ivr-auth-attempts` table keyed by `(tenant_id, voter_id_hash)` with a
->    rolling-window counter, consulted before calling Keycloak and updated on
->    failure. Survives the call boundary.
-> 3. **Rate-limiting at the phone-number layer** — Amazon Connect usage
->    rules + caller-ID throttling. Useful but spoofable; only a secondary
->    defense.
->
-> Option (1) is the right primary defense because it reuses existing
-> Keycloak infrastructure and covers portal + IVR with the same policy.
-> The IVR-specific wrinkle is the failure UX: when Keycloak returns
-> `user_disabled`/`account_temporarily_disabled`, the Lambda must announce
-> "this account is temporarily locked; please contact support" rather than
-> looping on "incorrect PIN." Add a dedicated `auth_locked` prompt key.
+1. At `ballot_loop` entry, the election-selection sub-phase calls a Harvest listing endpoint that returns already-cast ballots for `(voter_id, election_event_id)` — the same data Harvest already uses to reject `DUPLICATE_VOTE`, just surfaced as a read endpoint. The selection UI renders the authoritative state: elections already submitted are marked "already voted" (and, if max-revotes is disabled, not selectable); eligible elections are selectable as normal. This is the summary surface — voters don't need a separate end-of-call roll-up because the selection screen always reflects Harvest's truth.
+2. Where max-revotes is disabled (one ballot per voter per election — the default for Canadian municipal ballots), this re-entrant path is the voter's only recovery route after a dropped call. Without it, a dropped call mid-ballot-loop means permanent disenfranchisement for the remaining elections.
+
+**Electoral audit log — existing pipeline, no new components.** Sequent already has a tamper-evident audit pipeline for vote events: Harvest's [`/insert-cast-vote`](../../../../packages/harvest/src/routes/insert_cast_vote.rs) calls [`windmill::services::insert_cast_vote::try_insert_cast_vote`](../../../../packages/windmill/src/services/insert_cast_vote.rs), which invokes [`ElectoralLog::post_cast_vote`](../../../../packages/windmill/src/services/electoral_log.rs) → enqueues an `ElectoralLogMessage` via Celery/RabbitMQ → Windmill workers drain the queue → the message is written to ImmuDB. The IVR inherits this end-to-end: vote attempts, successes, and Harvest-rule rejections are written exactly as for portal votes, differentiated only by the `azp: ivr-voting` JWT claim and the `VotingStatusChannel::TELEPHONE` value already propagated through `try_insert_cast_vote` (see `voting_channel: VotingStatusChannel` at `packages/windmill/src/services/insert_cast_vote.rs`). **No new Lambda → ImmuDB integration is needed** — giving the Lambda direct ImmuDB write access would expand attack surface for no gain.
+
+Call-lifecycle events (call started, auth attempted, abandoned) go to CloudWatch structured logs (§10.2) — those are operational, not auditable, and belong outside the tamper-evident ledger. If a future requirement surfaces that demands IVR-specific events in the electoral log (e.g. "voter began a session via TELEPHONE channel at T"), the clean extension is a new Harvest write endpoint that reuses the same Windmill/Celery/RabbitMQ/ImmuDB pipeline — not a parallel path from the Lambda.
+
+**Brute-force protection against hang-up-and-redial.** The per-call `retries.auth` counter (§8.1) resets on every new `contact_id`, so without additional controls an attacker could redial to reset their attempt budget. Defense in depth:
+
+1. **Keycloak user-level brute-force detection (primary).** Set `bruteforceProtected=true` on the tenant realm with `failureFactor`, `maxFailureWaitSeconds`, and `waitIncrementSeconds` tuned for voice latency (the defaults assume sub-second web retries and are too aggressive for IVR). Keycloak locks the voter account after N failed attempts across *all* calls and all channels, so the portal and the IVR share a single lockout policy. When Keycloak returns `user_disabled` / `account_temporarily_disabled`, the Lambda plays a dedicated `auth_locked` prompt ("this account is temporarily locked; please contact support") and disconnects — never looping on "incorrect PIN."
+2. **Phone blacklist (already in place, §6.3).** Operators can hard-block a number via the `ivr_phone_blacklist` Hasura table. This is the right tool for known-abusive callers, not for automated rate-limiting.
+3. **Alert on repeated calls from the same number.** The CloudWatch operational log already records a salted SHA-256 of the caller phone (§9.2.1). A Prometheus rule on the `salted_phone_hash` dimension — e.g. "more than 5 calls from the same hash within 30 minutes" — fires a medium-severity Alertmanager alert to the same receiver tree as the rest of the IVR alerts (§10.3). Operators decide whether the pattern is a legitimate accessibility use case (a supporter calling on behalf of multiple voters) or abuse that warrants adding the number to the blacklist. This is detection-and-respond, not automated throttling — the cost of a false positive on the detection path is an ops page, not a disenfranchised voter.
+
+A per-call DTMF cooldown is explicitly **not** added: it would punish voters with dexterity or accessibility challenges, and the controls above already close the bulk-guessing attack.
 
 ---
 
@@ -2058,6 +1925,7 @@ routing, and silencing reuse the existing labels and receiver tree
 | `IvrLambdaErrorRateCritical` | Lambda error rate > 10 % over 5 min, during an active election window | critical → `slack-pagerduty-critical` |
 | `IvrLambdaLatencyHigh` | p99 invocation latency > 5 s over 10 min | warning → `slack-warning` |
 | `IvrAuthFailureSpike` | `ivr.auth.failure` rate > 3× baseline over 10 min | medium → `slack-medium-critical` (brute-force signal, §9.3) |
+| `IvrRepeatedCallsSameNumber` | > 5 calls with the same `salted_phone_hash` within 30 min | medium → `slack-medium-critical` (possible abuse, §9.3 — operator decides whether to blacklist) |
 | `IvrAbandonmentRateHigh` | `ivr.calls.abandoned` / `ivr.calls.total` > 20 % over 15 min during election window | medium → `slack-medium-critical` (Polly outage, broken prompt, or bad flow) |
 | `IvrPartialSubmitRatio` | completed elections / attempted elections per call < 0.9 rolling 30 min | medium → `slack-medium-critical` (multi-election partial-submit, §9.3) |
 | `IvrKeycloakUnreachable` | sustained `ivr.errors.api{backend="keycloak"}` > 1/min for 5 min | critical → `slack-pagerduty-critical` |
@@ -2126,6 +1994,7 @@ VPC: Yes (for API access)
 Environment Variables:
   - DYNAMODB_SESSION_TABLE
   - DYNAMODB_PHONE_CONFIG_TABLE
+  - IVR_CONFIG_CACHE_TTL_SECONDS  # default 300; 0 disables the cache (§5.1.7)
   - LOG_LEVEL
 ```
 
@@ -2369,9 +2238,13 @@ Hermetic mode is what CI runs on every PR; live mode is what an admin uses to dr
 
 ### 16.2 Repository Layout & GitOps
 
-The IVR stack is deliberately split across three repositories so that code
-lives near its domain and instantiation lives in GitOps, matching how every
-other Sequent service is shipped.
+The long-term IVR stack is deliberately split across three repositories so
+that code lives near its domain and instantiation lives in GitOps, matching
+how every other Sequent service is shipped. The initial MVP that exists today
+lives in `playground/ivr/`, where the Rust Lambda, Terraform, and Amazon
+Connect contact-flow prototype are kept together for fast iteration. The
+repository split below describes the target steady-state layout once that MVP
+is promoted into the main Sequent repos.
 
 | Artifact | Repo | Path (indicative) | Why |
 |---|---|---|---|
@@ -2551,8 +2424,15 @@ municipalities sharing the same Lambda + Connect instance.
 
 ## 18. Open Questions / Decisions Needed
 
-1. **Scheduled Closing**: Should phone voting auto-close independently? (CTO mentioned this)
-   - **Likely yes** — the `telephone_voting_status` / `telephone_voting_period_dates` fields support this
+1. **Scheduled Opening/Closing**: Telephone voting opens and closes independently of the ONLINE and KIOSK channels, following the same model KIOSK already uses in [sequent-core/src/ballot.rs](/packages/sequent-core/src/ballot.rs): a dedicated status + period_dates pair, set via `ElectionEventStatus::set_status_by_channel(VotingStatusChannel::TELEPHONE, …)`. The only auto-coupling in the codebase is `close_early_voting_if_online_status_change` (EARLY_VOTING ↔ ONLINE); TELEPHONE stays decoupled.
+
+   Scheduled transitions reuse the existing infrastructure with no new machinery:
+   - **Data model**: `ScheduledEvent` rows in Hasura with `event_processor ∈ {START_VOTING_PERIOD, END_VOTING_PERIOD}` and a `CronConfig { cron, scheduled_date }` ([sequent-core/src/types/scheduled_event.rs](/packages/sequent-core/src/types/scheduled_event.rs)).
+   - **Execution**: Windmill's `manage_election_dates` / `manage_election_event_date` tasks ([packages/windmill/src/tasks/manage_election_dates.rs](/packages/windmill/src/tasks/manage_election_dates.rs)) fire on cron, map the event processor to a `VotingStatus`, and call `voting_status::update_election_status` with a `Vec<VotingStatusChannel>`. The channel list is already the extension point — today it hard-codes `[ONLINE, KIOSK]` for START and `[ONLINE]` for END; extending to TELEPHONE means either (a) adding TELEPHONE to those lists when the event event has a telephone channel configured, or (b) carrying the target channel set on the `ScheduledEvent` payload so admins can schedule per-channel transitions.
+   - **Admin Portal**: the scheduled-event editor that today produces `START_VOTING_PERIOD` / `END_VOTING_PERIOD` rows gains a per-channel selector so operators can schedule "open TELEPHONE on 2026-05-01 09:00, close 2026-05-03 20:00" independently from ONLINE/KIOSK.
+
+   **Possible breaking refactor (tracked separately, not a blocker for IVR MVP)**: the three parallel fields on `ElectionEventStatus` (`voting_status` / `kiosk_voting_status` / `early_voting_status` + their `*_period_dates`) should be collapsed into a single `BTreeMap<VotingStatusChannel, ChannelStatus>`. See [Appendix C.7](#c7-possible-refactor-generalize-voting-status-per-channel).
+
 2. **Audio File Support**: Should the IVR support pre-recorded audio files in addition to TTS?
    - Barrie specs reference `.mp3`/`.wav` files for all prompts
    - Amazon Connect supports both Polly TTS and S3-hosted audio
@@ -3018,6 +2898,52 @@ impl Default for ElectionEventStatus {
     }
 }
 ```
+
+### C.7 Possible Refactor: Generalize Voting Status Per Channel
+
+The per-channel fan-out in C.3–C.6 (adding a fourth parallel `telephone_voting_status` + `telephone_voting_period_dates` pair) is structurally identical to what already happened for KIOSK and EARLY_VOTING. Each new channel doubles a pair of fields and adds a match arm everywhere. This doesn't compose — per [CLAUDE.md](/CLAUDE.md) "Product Design Philosophy," channels should scale as data, not as struct fields.
+
+The refactor collapses the parallel fields into a single map keyed by channel:
+
+```rust
+pub struct ElectionEventStatus {
+    pub is_published: Option<bool>,
+    pub channels: BTreeMap<VotingStatusChannel, ChannelStatus>,
+}
+
+#[derive(Default, Serialize, Deserialize, …)]
+pub struct ChannelStatus {
+    pub status: VotingStatus,
+    pub period_dates: PeriodDates,
+}
+
+impl ElectionEventStatus {
+    pub fn status_by_channel(&self, channel: VotingStatusChannel) -> VotingStatus {
+        self.channels.get(&channel).map(|c| c.status.clone()).unwrap_or(VotingStatus::NOT_STARTED)
+    }
+
+    pub fn set_status_by_channel(&mut self, channel: VotingStatusChannel, new_status: VotingStatus) {
+        let entry = self.channels.entry(channel).or_default();
+        entry.status = new_status.clone();
+        entry.period_dates.update_period_dates(&new_status);
+    }
+}
+```
+
+With this shape, adding TELEPHONE (or any future channel) is a single enum variant — no struct changes, no new match arms in `status_by_channel` / `set_status_by_channel`, no new GraphQL columns or Hasura permissions per channel.
+
+**Why this is classified as "possible" and not a prerequisite for the IVR MVP:** `ElectionEventStatus` is serialized on the wire in many places — it is persisted in Hasura, exported/imported as part of election bundles, referenced by `close_early_voting_if_online_status_change`, read by admin-portal and voting-portal TypeScript, and signed as part of the bulletin board state. A refactor touches:
+
+- **sequent-core**: struct + `status_by_channel` / `set_status_by_channel` / `close_early_voting_if_online_status_change` + every match arm that pattern-matches on the flat fields.
+- **Hasura**: the PostgreSQL column (JSONB) is shape-compatible, but any computed fields, permissions, or subscriptions that project specific sub-fields (`voting_status`, `kiosk_voting_status`, …) need to be rewritten to index into `channels`.
+- **windmill**: `manage_election_dates` / `manage_election_event_date` / `voting_status::update_election_status`, plus import/export in [packages/windmill/src/services/import/import_election_event.rs](/packages/windmill/src/services/import/import_election_event.rs) and export counterpart. The scheduled-event pipeline already accepts `Vec<VotingStatusChannel>`, so the map shape is a natural fit.
+- **harvest**: any REST handlers returning or accepting `ElectionEventStatus`.
+- **admin-portal**: the election-status UI, the scheduled-event editor, and anything that reads `election_event.status.voting_status` directly. After the refactor, these all go through `channels[CHANNEL]`.
+- **voting-portal**: any gating UI that checks `voting_status` to decide whether the "Vote" button is active.
+- **GraphQL codegen**: `yarn generate:voting-portal` / `yarn generate:admin-portal` must be re-run.
+- **Migration**: a one-shot data migration reads the three-field shape and writes the map shape. Export bundles need a version bump so older bundles can still be imported (read old shape → write new). This is the same backwards-compatibility concern called out in [CLAUDE.md](/CLAUDE.md) "Code Quality Standards."
+
+**Recommended sequencing**: ship TELEPHONE using the C.3–C.6 parallel-field pattern (adds exactly one more channel to a pattern the codebase already tolerates), then do the map refactor as its own meta-issue. The IVR MVP does not block on it, but the refactor is worth doing before a *fifth* channel is ever added.
 
 ---
 
