@@ -4,22 +4,17 @@
 
 use crate::client::types::*;
 use anyhow::{anyhow, Context, Result};
-use chrono::format;
-use immudb_rs::{sql_value::Value, Client, CommittedSqlTx, NamedParam, Row, SqlValue, TxMode};
-use serde::{Deserialize, Serialize};
-use std::collections::BTreeMap;
+use immudb_rs::{sql_value::Value, Client, CommittedSqlTx, NamedParam, SqlValue, TxMode};
 use std::collections::HashMap;
 use std::fmt::Debug;
 use std::fmt::Display;
-use std::time::Duration;
 use std::time::Instant;
 use tokio_stream::StreamExt; // Added for streaming
 use tracing::{error, info, instrument, warn};
 
 const IMMUDB_DEFAULT_LIMIT: usize = 900;
-const IMMUDB_DEFAULT_ENTRIES_TX_LIMIT: usize = 50;
 const IMMUDB_DEFAULT_OFFSET: usize = 0;
-const ELECTORAL_LOG_TABLE: &'static str = "electoral_log_messages";
+const ELECTORAL_LOG_TABLE: &str = "electoral_log_messages";
 /// 36 chars + EOL + some padding
 const ID_VARCHAR_LENGTH: usize = 40;
 const ID_KEY_VARCHAR_LENGTH: usize = 4;
@@ -33,7 +28,7 @@ const BALLOT_ID_VARCHAR_LENGTH: usize = 70;
 ///
 /// Other columns that have no length constraint are not indexable.
 /// 'create' is not indexed, we use statement_timestamp intead.
-pub const MULTI_COLUMN_INDEXES: [&'static str; 3] = [
+pub const MULTI_COLUMN_INDEXES: [&str; 3] = [
     "(statement_kind, election_id, user_id_key, user_id, ballot_id)", // COUNT or SELECT cast_vote_messages and filter by ballot_id
     "(statement_kind, user_id_key, user_id)", // Filters in Admin portal LOGS tab.
     "(user_id_key, user_id)", // Filters in Admin portal LOGS tab and for the User´s logs.
