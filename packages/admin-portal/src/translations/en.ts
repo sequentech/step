@@ -344,6 +344,11 @@ const englishTranslation = {
                     "no-signature": "No signature",
                     "with-signature": "With signature",
                 },
+                voterDigitalCertPolicy: {
+                    policyLabel: "Voter Digital Certificate Policy",
+                    enabled: "Enabled",
+                    disabled: "Disabled",
+                },
                 enrollment: {
                     policyLabel: "Enrollment",
                     options: {
@@ -441,6 +446,7 @@ const englishTranslation = {
                 notifications: "Notifications",
                 reports: "Reports",
                 approvals: "Approvals",
+                cas: "Certificates",
             },
             tally: {
                 emptyHeader: "No Tally yet.",
@@ -588,6 +594,7 @@ const englishTranslation = {
                 alias: "Alias",
                 description: "Description",
                 securityConfirmationHtml: "Security Confirmation Html",
+                externalId: "External ID",
             },
             securityConfirmationPolicy: {
                 label: "Security Confirmation Checkbox Policy",
@@ -640,6 +647,13 @@ const englishTranslation = {
                 options: {
                     "election": "Election title",
                     "election-event": "Election event title",
+                },
+            },
+            consolidatedReportPolicy: {
+                label: "Consolidated Report Policy",
+                options: {
+                    "generate": "Generate",
+                    "do-not-generate": "Do Not Generate",
                 },
             },
         },
@@ -1314,8 +1328,12 @@ const englishTranslation = {
                 "plurality-at-large": "Plurality at Large",
                 "instant-runoff": "Instant Runoff",
                 "random": "Random",
+                "external-procedure": "External Procedure",
                 "custom": "Custom",
                 "alphabetical": "Alphabetical",
+            },
+            tieBreakingPolicy: {
+                label: "Tie-Breaking Policy",
             },
             auditButtonConfig: {
                 "label": "Audit Button Display Options",
@@ -1363,6 +1381,18 @@ const englishTranslation = {
                 "not-allowed-with-msg-and-alert": "Not Allowed with Warning message and Alert",
                 "not-allowed-with-msg-and-disable":
                     "Not Allowed with Warning message and Disable further selections",
+            },
+            duplicatedRankPolicy: {
+                "label": "Invalid Vote - Duplicate Rank Policy",
+                "allowed-warn-and-dialog": "Show Warning and Dialog (voter can proceed)",
+                "not-allowed-warn-and-dialog":
+                    "Show Warning and Dialog (voter not allowed to proceed)",
+            },
+            preferenceGapsPolicy: {
+                "label": "Invalid Vote - Skipped Ranks Policy",
+                "allowed-warn-and-dialog": "Show Warning and Dialog (voter can proceed)",
+                "not-allowed-warn-and-dialog":
+                    "Show Warning and Dialog (voter not allowed to proceed)",
             },
             paginationPolicy: {
                 label: "Page Name",
@@ -1674,6 +1704,37 @@ const englishTranslation = {
                     round: "Round",
                 },
             },
+            pendingResolutions: {
+                round: "Round {{round}}",
+                tieResolutionRequired: "Tie Resolution Required",
+                tieResolved: "Tie Resolved",
+                globalArea: "Global",
+                pendingResolutionsHeader: "Pending resolutions",
+                pendingResolutionStatus: "Pending Resolution",
+                resolvedStatus: "Resolved",
+                resolutionTitle: "Resolution",
+                selectContest: "Select an item from the left to view details",
+                selectCandidateToAdvance: "Select candidate to advance",
+                undoResolution: "Undo Resolution",
+                applyResolutions: "Apply Resolutions and Recalculate",
+                submitSuccess: "Resolutions submitted. Tally is resuming...",
+                submitError: "Failed to submit resolutions. Please try again.",
+                filter: "Filter",
+                save: "Save",
+                pendingApplyStatus: "Pending calculation",
+                filterElection: "Election",
+                filterContest: "Contest",
+                filterArea: "Area",
+                filterStatusLabel: "Status",
+                clearFilters: "Clear filters",
+                candidateWithVotes: "{{name}} ({{votes}} votes)",
+                candidateWithVotesAndPercent: "{{name}} ({{votes}} votes, {{percent}}%)",
+                tieInfoTitle: "Tally paused due to unresolved tie (Round {{round}})",
+                tieInfoBody:
+                    "Candidates tied ({{votes}} votes, {{percent}}%): {{candidates}}. Manual tie-break required to continue tally.",
+                tallyResumedTitle: "Tally resumed after resolution applied",
+                tallyResumedBody: "Candidates tie was resolved on {{date}} by {{user}}",
+            },
             chart: {
                 votesForCandidates: "Votes For Candidates",
                 blankVotes: "Blank Votes",
@@ -1681,6 +1742,7 @@ const englishTranslation = {
                 totalVoters: "Total Voters",
                 nonVoters: "Non Voters",
             },
+            exportAllAreas: "Export All Areas Results in {{format}} format for '{{item}}'",
         },
         publish: {
             preview: {
@@ -2091,6 +2153,54 @@ const englishTranslation = {
                 title: "Testing",
                 testElectionVoterCount: "Test Election Voter Count",
             },
+        },
+        certificateAuthorities: {
+            importButton: "Import Certificates",
+            type: {
+                root: "Root",
+                intermediate: "Intermediate",
+            },
+            expiry: {
+                expired: "Expired",
+                expiringSoon: "Expiring soon",
+                valid: "Valid",
+            },
+            columns: {
+                commonName: "Common Name",
+                type: "Type",
+                issuerCn: "Issuer CN",
+                notBefore: "Valid From",
+                notAfter: "Expires",
+                fingerprint: "SHA256 Fingerprint",
+            },
+            importDialog: {
+                title: "Import Certificate Authorities",
+                subtitle: "Import one or more CA certificates from a PEM file",
+                description:
+                    "Select a PEM file containing one or more certificates. Bundles are supported — each certificate is imported individually.",
+                selectFile: "Select PEM file",
+                fileLoaded: "File loaded ({{bytes}} bytes)",
+                importButton: "Import",
+            },
+            notify: {
+                importSuccess:
+                    "Imported {{inserted}} certificate(s). {{skipped}} skipped (already present).",
+                importError: "Import failed: {{error}}",
+                deleteSuccess: "Certificate deleted.",
+                deleteError: "Error deleting certificate.",
+            },
+            emptyHeader: "No certificate authorities have been imported for this election event.",
+            fileReadError: "Failed to read the file.",
+            viewDialog: {
+                title: "Certificate Authority Details",
+                subject: "Subject",
+                issuer: "Issuer",
+                serialNumber: "Serial Number",
+                pemContent: "PEM Content",
+            },
+            confirmDelete: "Delete Certificate Authority",
+            confirmDeleteDescription:
+                'Are you sure you want to delete the certificate "{{name}}" (fingerprint: {{fingerprint}})?',
         },
     },
 }

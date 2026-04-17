@@ -52,6 +52,7 @@ import {
     EElectionEventOTP,
     EElectionEventContestEncryptionPolicy,
     EVoterSigningPolicy,
+    EVoterDigitalCertPolicy,
     EShowCastVoteLogsPolicy,
     EElectionEventDecodedBallots,
     EElectionEventCeremoniesPolicy,
@@ -132,7 +133,6 @@ export const EditElectionEventDataForm: React.FC = () => {
     const [languageSettings, setLanguageSettings] = useState<Array<string>>(["en"])
     const [openExport, setOpenExport] = useState(false)
     const [loadingExport, setLoadingExport] = useState(false)
-    const [exportDocumentId, setExportDocumentId] = useState<string | undefined>()
     const [openDrawer, setOpenDrawer] = useState<boolean>(false)
     const [openImportCandidates, setOpenImportCandidates] = useState(false)
     const [openGoogleMeet, setOpenGoogleMeet] = useState(false)
@@ -529,6 +529,13 @@ export const EditElectionEventDataForm: React.FC = () => {
         return Object.values(EVoterSigningPolicy).map((value) => ({
             id: value,
             name: t(`electionEventScreen.field.voterSigningPolicy.${value}`),
+        }))
+    }
+
+    const voterDigitalCertPolicyChoices = () => {
+        return Object.values(EVoterDigitalCertPolicy).map((value) => ({
+            id: value,
+            name: t(`electionEventScreen.field.voterDigitalCertPolicy.${value}`),
         }))
     }
 
@@ -1192,6 +1199,16 @@ export const EditElectionEventDataForm: React.FC = () => {
                             emptyText={undefined}
                             validate={required()}
                         />
+                        <SelectInput
+                            source={"presentation.voter_digital_cert_policy"}
+                            choices={voterDigitalCertPolicyChoices()}
+                            label={String(
+                                t("electionEventScreen.field.voterDigitalCertPolicy.policyLabel")
+                            )}
+                            defaultValue={EVoterDigitalCertPolicy.DISABLED}
+                            emptyText={undefined}
+                            validate={required()}
+                        />
                         <Box
                             sx={{
                                 display: "flex",
@@ -1311,8 +1328,6 @@ export const EditElectionEventDataForm: React.FC = () => {
                 electionEventId={record?.id}
                 openExport={openExport}
                 setOpenExport={setOpenExport}
-                exportDocumentId={exportDocumentId}
-                setExportDocumentId={setExportDocumentId}
                 setLoadingExport={setLoadingExport}
             />
 

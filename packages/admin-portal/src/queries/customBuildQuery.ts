@@ -12,6 +12,7 @@ import {getRoles} from "./GetRoles"
 import {isString} from "lodash"
 import {COLUMNS_MAP} from "@/types/query"
 import {GetCastVotesByIp} from "./GetCastVotesByIp"
+import {GET_ELECTIONS_BY_EXTERNAL_ID} from "./GetElectionsByExternalID"
 
 export interface ParamsSort {
     field: string
@@ -346,6 +347,32 @@ export const customBuildQuery =
             ret.variables.where = transformedRawParams
 
             return ret
+        } else if (
+            resourceName === "sequent_backend_election_by_external_id" &&
+            raFetchType === "GET_MANY"
+        ) {
+            const externalIds: string[] = (params?.ids ?? []).map(String)
+            const electionEventId =
+                params?.meta?.filter?.election_event_id ??
+                params?.meta?.filter?.electionEventId ??
+                null
+
+            return {
+                query: GET_ELECTIONS_BY_EXTERNAL_ID,
+                variables: {
+                    external_ids: externalIds,
+                    election_event_id: electionEventId,
+                },
+                parseResponse: (res: any) => {
+                    const rows = res?.data?.sequent_backend_election ?? []
+                    return {
+                        data: rows.map((r: any) => ({
+                            ...r,
+                            id: r.external_id,
+                        })),
+                    }
+                },
+            }
         }
         return buildQuery(introspectionResults)(raFetchType, resourceName, params)
     }

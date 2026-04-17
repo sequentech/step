@@ -735,6 +735,33 @@
         "attributes": {}
       },
       {
+        "id": "d1c8e5b0-9c3a-4b8c-9f1e-7a2e5c6fbb3b",
+        "name": "election-event-cas-tab",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "b1c8e5b0-9c3a-4b8c-9f1e-7a2e5c6fbb3b",
+        "name": "ca-read",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "e1c8e5b0-9c3a-4b8c-9f1e-7a2e5c6fbb3b",
+        "name": "ca-write",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
         "id": "62e04181-bbc4-4b50-a54e-d66c5d5fd97c",
         "name": "election-events-logs-filters",
         "description": "",
@@ -1804,6 +1831,15 @@
         "clientRole": false,
         "containerId": "50ef5e3e-42c6-4588-b46a-bb938aa8d849",
         "attributes": {}
+      },
+      {
+        "id": "3a1e8f2b-7c4d-4e9a-b5f0-1d2c3e4a5b6c",
+        "name": "tally-resolution-submit",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
       }
     ],
     "client": {
@@ -2221,6 +2257,9 @@
         "support-material-write",
         "user-write",
         "election-event-write",
+        "election-event-cas-tab",
+        "ca-read",
+        "ca-write",
         "tally-sheet-create",
         "election-event-delete",
         "templates-menu",
@@ -2393,7 +2432,8 @@
         "voter-email-tlf-edit",
         "transmission-report-generate",
         "preview-read",
-        "generate-preview"
+        "generate-preview",
+        "tally-resolution-submit"
       ],
       "clientRoles": {}
     },
@@ -2425,6 +2465,9 @@
         "tally-write",
         "user-write",
         "election-event-write",
+        "election-event-cas-tab",
+        "ca-read",
+        "ca-write",
         "notification-send",
         "user-permission-write",
         "tally-sheet-create",

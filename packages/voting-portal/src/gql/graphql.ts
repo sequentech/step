@@ -87,7 +87,7 @@ export type CastVotesByIp = {
   __typename?: 'CastVotesByIp';
   country?: Maybe<Scalars['String']['output']>;
   election_id?: Maybe<Scalars['String']['output']>;
-  election_name?: Maybe<Scalars['String']['output']>;
+  election_presentation?: Maybe<Scalars['jsonb']['output']>;
   id?: Maybe<Scalars['String']['output']>;
   ip?: Maybe<Scalars['String']['output']>;
   vote_count?: Maybe<Scalars['Int']['output']>;
@@ -206,6 +206,11 @@ export type DataListPgAudit = {
   __typename?: 'DataListPgAudit';
   items: Array<Maybe<PgAuditRow>>;
   total: TotalAggregate;
+};
+
+export type DeleteCertificateAuthorityOutput = {
+  __typename?: 'DeleteCertificateAuthorityOutput';
+  deleted: Scalars['Boolean']['output'];
 };
 
 export type DeleteElectionEvent = {
@@ -526,6 +531,13 @@ export type GetUsersOutput = {
   __typename?: 'GetUsersOutput';
   items: Array<KeycloakUser>;
   total: TotalAggregate;
+};
+
+export type ImportCertificateAuthorityOutput = {
+  __typename?: 'ImportCertificateAuthorityOutput';
+  errors: Array<Scalars['String']['output']>;
+  inserted_count: Scalars['Int']['output'];
+  skipped_count: Scalars['Int']['output'];
 };
 
 export type ImportOptions = {
@@ -896,6 +908,18 @@ export type String_Comparison_Exp = {
   _similar?: InputMaybe<Scalars['String']['input']>;
 };
 
+export type SubmitTallyResolutionOutput = {
+  __typename?: 'SubmitTallyResolutionOutput';
+  resolved_count: Scalars['Int']['output'];
+  success: Scalars['Boolean']['output'];
+  tally_session_id: Scalars['String']['output'];
+};
+
+export type TallyResolutionInput = {
+  contest_id: Scalars['uuid']['input'];
+  selected_candidate_id: Scalars['uuid']['input'];
+};
+
 export type TotalAggregate = {
   __typename?: 'TotalAggregate';
   aggregate: Aggregate;
@@ -1081,6 +1105,8 @@ export type Mutation_Root = {
   create_tally_ceremony?: Maybe<CreateTallyOutput>;
   create_transmission_package?: Maybe<CreateTransmissionPackageOutput>;
   create_user: KeycloakUser;
+  /** Delete a certificate authority by id */
+  delete_certificate_authority?: Maybe<DeleteCertificateAuthorityOutput>;
   delete_election_event?: Maybe<DeleteElectionEvent>;
   delete_permission?: Maybe<SetRolePermissionOutput>;
   delete_role?: Maybe<SetUserRoleOutput>;
@@ -1113,6 +1139,10 @@ export type Mutation_Root = {
   delete_sequent_backend_cast_vote?: Maybe<Sequent_Backend_Cast_Vote_Mutation_Response>;
   /** delete single row from the table: "sequent_backend.cast_vote" */
   delete_sequent_backend_cast_vote_by_pk?: Maybe<Sequent_Backend_Cast_Vote>;
+  /** delete data from the table: "sequent_backend.certificate_authority" */
+  delete_sequent_backend_certificate_authority?: Maybe<Sequent_Backend_Certificate_Authority_Mutation_Response>;
+  /** delete single row from the table: "sequent_backend.certificate_authority" */
+  delete_sequent_backend_certificate_authority_by_pk?: Maybe<Sequent_Backend_Certificate_Authority>;
   /** delete data from the table: "sequent_backend.contest" */
   delete_sequent_backend_contest?: Maybe<Sequent_Backend_Contest_Mutation_Response>;
   /** delete single row from the table: "sequent_backend.contest" */
@@ -1213,6 +1243,10 @@ export type Mutation_Root = {
   delete_sequent_backend_tally_session_execution?: Maybe<Sequent_Backend_Tally_Session_Execution_Mutation_Response>;
   /** delete single row from the table: "sequent_backend.tally_session_execution" */
   delete_sequent_backend_tally_session_execution_by_pk?: Maybe<Sequent_Backend_Tally_Session_Execution>;
+  /** delete data from the table: "sequent_backend.tally_session_resolution" */
+  delete_sequent_backend_tally_session_resolution?: Maybe<Sequent_Backend_Tally_Session_Resolution_Mutation_Response>;
+  /** delete single row from the table: "sequent_backend.tally_session_resolution" */
+  delete_sequent_backend_tally_session_resolution_by_pk?: Maybe<Sequent_Backend_Tally_Session_Resolution>;
   /** delete data from the table: "sequent_backend.tally_sheet" */
   delete_sequent_backend_tally_sheet?: Maybe<Sequent_Backend_Tally_Sheet_Mutation_Response>;
   /** delete single row from the table: "sequent_backend.tally_sheet" */
@@ -1268,6 +1302,8 @@ export type Mutation_Root = {
   import_application?: Maybe<ApplicationOutput>;
   import_areas?: Maybe<OptionalId>;
   import_candidates?: Maybe<DocumentTaskOutput>;
+  /** Import certificate authorities from a PEM string for an election event */
+  import_certificate_authority?: Maybe<ImportCertificateAuthorityOutput>;
   /** import_election_event */
   import_election_event?: Maybe<OptionalImportEvent>;
   import_templates?: Maybe<TemplateOutput>;
@@ -1306,6 +1342,10 @@ export type Mutation_Root = {
   insert_sequent_backend_cast_vote?: Maybe<Sequent_Backend_Cast_Vote_Mutation_Response>;
   /** insert a single row into the table: "sequent_backend.cast_vote" */
   insert_sequent_backend_cast_vote_one?: Maybe<Sequent_Backend_Cast_Vote>;
+  /** insert data into the table: "sequent_backend.certificate_authority" */
+  insert_sequent_backend_certificate_authority?: Maybe<Sequent_Backend_Certificate_Authority_Mutation_Response>;
+  /** insert a single row into the table: "sequent_backend.certificate_authority" */
+  insert_sequent_backend_certificate_authority_one?: Maybe<Sequent_Backend_Certificate_Authority>;
   /** insert data into the table: "sequent_backend.contest" */
   insert_sequent_backend_contest?: Maybe<Sequent_Backend_Contest_Mutation_Response>;
   /** insert a single row into the table: "sequent_backend.contest" */
@@ -1406,6 +1446,10 @@ export type Mutation_Root = {
   insert_sequent_backend_tally_session_execution_one?: Maybe<Sequent_Backend_Tally_Session_Execution>;
   /** insert a single row into the table: "sequent_backend.tally_session" */
   insert_sequent_backend_tally_session_one?: Maybe<Sequent_Backend_Tally_Session>;
+  /** insert data into the table: "sequent_backend.tally_session_resolution" */
+  insert_sequent_backend_tally_session_resolution?: Maybe<Sequent_Backend_Tally_Session_Resolution_Mutation_Response>;
+  /** insert a single row into the table: "sequent_backend.tally_session_resolution" */
+  insert_sequent_backend_tally_session_resolution_one?: Maybe<Sequent_Backend_Tally_Session_Resolution>;
   /** insert data into the table: "sequent_backend.tally_sheet" */
   insert_sequent_backend_tally_sheet?: Maybe<Sequent_Backend_Tally_Sheet_Mutation_Response>;
   /** insert a single row into the table: "sequent_backend.tally_sheet" */
@@ -1439,6 +1483,8 @@ export type Mutation_Root = {
   set_role_permission?: Maybe<SetRolePermissionOutput>;
   set_user_role?: Maybe<SetUserRoleOutput>;
   set_voter_authentication?: Maybe<SetVoterAuthenticationOutput>;
+  /** Submit tally resolutions */
+  submit_tally_resolution?: Maybe<SubmitTallyResolutionOutput>;
   update_election_voting_status?: Maybe<UpdateElectionVotingStatusOutput>;
   update_event_voting_status?: Maybe<UpdateEventVotingStatusOutput>;
   /** update data of the table: "sequent_backend.applications" */
@@ -1483,6 +1529,12 @@ export type Mutation_Root = {
   update_sequent_backend_cast_vote_by_pk?: Maybe<Sequent_Backend_Cast_Vote>;
   /** update multiples rows of table: "sequent_backend.cast_vote" */
   update_sequent_backend_cast_vote_many?: Maybe<Array<Maybe<Sequent_Backend_Cast_Vote_Mutation_Response>>>;
+  /** update data of the table: "sequent_backend.certificate_authority" */
+  update_sequent_backend_certificate_authority?: Maybe<Sequent_Backend_Certificate_Authority_Mutation_Response>;
+  /** update single row of the table: "sequent_backend.certificate_authority" */
+  update_sequent_backend_certificate_authority_by_pk?: Maybe<Sequent_Backend_Certificate_Authority>;
+  /** update multiples rows of table: "sequent_backend.certificate_authority" */
+  update_sequent_backend_certificate_authority_many?: Maybe<Array<Maybe<Sequent_Backend_Certificate_Authority_Mutation_Response>>>;
   /** update data of the table: "sequent_backend.contest" */
   update_sequent_backend_contest?: Maybe<Sequent_Backend_Contest_Mutation_Response>;
   /** update single row of the table: "sequent_backend.contest" */
@@ -1633,6 +1685,12 @@ export type Mutation_Root = {
   update_sequent_backend_tally_session_execution_many?: Maybe<Array<Maybe<Sequent_Backend_Tally_Session_Execution_Mutation_Response>>>;
   /** update multiples rows of table: "sequent_backend.tally_session" */
   update_sequent_backend_tally_session_many?: Maybe<Array<Maybe<Sequent_Backend_Tally_Session_Mutation_Response>>>;
+  /** update data of the table: "sequent_backend.tally_session_resolution" */
+  update_sequent_backend_tally_session_resolution?: Maybe<Sequent_Backend_Tally_Session_Resolution_Mutation_Response>;
+  /** update single row of the table: "sequent_backend.tally_session_resolution" */
+  update_sequent_backend_tally_session_resolution_by_pk?: Maybe<Sequent_Backend_Tally_Session_Resolution>;
+  /** update multiples rows of table: "sequent_backend.tally_session_resolution" */
+  update_sequent_backend_tally_session_resolution_many?: Maybe<Array<Maybe<Sequent_Backend_Tally_Session_Resolution_Mutation_Response>>>;
   /** update data of the table: "sequent_backend.tally_sheet" */
   update_sequent_backend_tally_sheet?: Maybe<Sequent_Backend_Tally_Sheet_Mutation_Response>;
   /** update single row of the table: "sequent_backend.tally_sheet" */
@@ -1721,7 +1779,7 @@ export type Mutation_RootCreate_Ballot_ReceiptArgs = {
 export type Mutation_RootCreate_ElectionArgs = {
   description?: InputMaybe<Scalars['String']['input']>;
   election_event_id: Scalars['String']['input'];
-  name: Scalars['String']['input'];
+  external_id: Scalars['String']['input'];
   presentation?: InputMaybe<Scalars['jsonb']['input']>;
 };
 
@@ -1770,6 +1828,13 @@ export type Mutation_RootCreate_UserArgs = {
   tenant_id: Scalars['String']['input'];
   user: KeycloakUser2;
   user_roles_ids?: InputMaybe<Array<Scalars['String']['input']>>;
+};
+
+
+/** mutation root */
+export type Mutation_RootDelete_Certificate_AuthorityArgs = {
+  election_event_id: Scalars['uuid']['input'];
+  id: Scalars['uuid']['input'];
 };
 
 
@@ -1894,6 +1959,18 @@ export type Mutation_RootDelete_Sequent_Backend_Cast_Vote_By_PkArgs = {
   election_event_id: Scalars['uuid']['input'];
   id: Scalars['uuid']['input'];
   tenant_id: Scalars['uuid']['input'];
+};
+
+
+/** mutation root */
+export type Mutation_RootDelete_Sequent_Backend_Certificate_AuthorityArgs = {
+  where: Sequent_Backend_Certificate_Authority_Bool_Exp;
+};
+
+
+/** mutation root */
+export type Mutation_RootDelete_Sequent_Backend_Certificate_Authority_By_PkArgs = {
+  id: Scalars['uuid']['input'];
 };
 
 
@@ -2235,6 +2312,18 @@ export type Mutation_RootDelete_Sequent_Backend_Tally_Session_Execution_By_PkArg
 
 
 /** mutation root */
+export type Mutation_RootDelete_Sequent_Backend_Tally_Session_ResolutionArgs = {
+  where: Sequent_Backend_Tally_Session_Resolution_Bool_Exp;
+};
+
+
+/** mutation root */
+export type Mutation_RootDelete_Sequent_Backend_Tally_Session_Resolution_By_PkArgs = {
+  id: Scalars['uuid']['input'];
+};
+
+
+/** mutation root */
 export type Mutation_RootDelete_Sequent_Backend_Tally_SheetArgs = {
   where: Sequent_Backend_Tally_Sheet_Bool_Exp;
 };
@@ -2545,6 +2634,13 @@ export type Mutation_RootImport_CandidatesArgs = {
 
 
 /** mutation root */
+export type Mutation_RootImport_Certificate_AuthorityArgs = {
+  election_event_id: Scalars['uuid']['input'];
+  pem_content: Scalars['String']['input'];
+};
+
+
+/** mutation root */
 export type Mutation_RootImport_Election_EventArgs = {
   check_only?: InputMaybe<Scalars['Boolean']['input']>;
   document_id: Scalars['String']['input'];
@@ -2695,6 +2791,20 @@ export type Mutation_RootInsert_Sequent_Backend_Cast_VoteArgs = {
 export type Mutation_RootInsert_Sequent_Backend_Cast_Vote_OneArgs = {
   object: Sequent_Backend_Cast_Vote_Insert_Input;
   on_conflict?: InputMaybe<Sequent_Backend_Cast_Vote_On_Conflict>;
+};
+
+
+/** mutation root */
+export type Mutation_RootInsert_Sequent_Backend_Certificate_AuthorityArgs = {
+  objects: Array<Sequent_Backend_Certificate_Authority_Insert_Input>;
+  on_conflict?: InputMaybe<Sequent_Backend_Certificate_Authority_On_Conflict>;
+};
+
+
+/** mutation root */
+export type Mutation_RootInsert_Sequent_Backend_Certificate_Authority_OneArgs = {
+  object: Sequent_Backend_Certificate_Authority_Insert_Input;
+  on_conflict?: InputMaybe<Sequent_Backend_Certificate_Authority_On_Conflict>;
 };
 
 
@@ -3049,6 +3159,20 @@ export type Mutation_RootInsert_Sequent_Backend_Tally_Session_OneArgs = {
 
 
 /** mutation root */
+export type Mutation_RootInsert_Sequent_Backend_Tally_Session_ResolutionArgs = {
+  objects: Array<Sequent_Backend_Tally_Session_Resolution_Insert_Input>;
+  on_conflict?: InputMaybe<Sequent_Backend_Tally_Session_Resolution_On_Conflict>;
+};
+
+
+/** mutation root */
+export type Mutation_RootInsert_Sequent_Backend_Tally_Session_Resolution_OneArgs = {
+  object: Sequent_Backend_Tally_Session_Resolution_Insert_Input;
+  on_conflict?: InputMaybe<Sequent_Backend_Tally_Session_Resolution_On_Conflict>;
+};
+
+
+/** mutation root */
 export type Mutation_RootInsert_Sequent_Backend_Tally_SheetArgs = {
   objects: Array<Sequent_Backend_Tally_Sheet_Insert_Input>;
   on_conflict?: InputMaybe<Sequent_Backend_Tally_Sheet_On_Conflict>;
@@ -3209,6 +3333,14 @@ export type Mutation_RootSet_Voter_AuthenticationArgs = {
   election_event_id: Scalars['String']['input'];
   enrollment: Scalars['String']['input'];
   otp: Scalars['String']['input'];
+};
+
+
+/** mutation root */
+export type Mutation_RootSubmit_Tally_ResolutionArgs = {
+  election_event_id: Scalars['uuid']['input'];
+  resolutions: Array<TallyResolutionInput>;
+  tally_session_id: Scalars['uuid']['input'];
 };
 
 
@@ -3436,6 +3568,26 @@ export type Mutation_RootUpdate_Sequent_Backend_Cast_Vote_By_PkArgs = {
 /** mutation root */
 export type Mutation_RootUpdate_Sequent_Backend_Cast_Vote_ManyArgs = {
   updates: Array<Sequent_Backend_Cast_Vote_Updates>;
+};
+
+
+/** mutation root */
+export type Mutation_RootUpdate_Sequent_Backend_Certificate_AuthorityArgs = {
+  _set?: InputMaybe<Sequent_Backend_Certificate_Authority_Set_Input>;
+  where: Sequent_Backend_Certificate_Authority_Bool_Exp;
+};
+
+
+/** mutation root */
+export type Mutation_RootUpdate_Sequent_Backend_Certificate_Authority_By_PkArgs = {
+  _set?: InputMaybe<Sequent_Backend_Certificate_Authority_Set_Input>;
+  pk_columns: Sequent_Backend_Certificate_Authority_Pk_Columns_Input;
+};
+
+
+/** mutation root */
+export type Mutation_RootUpdate_Sequent_Backend_Certificate_Authority_ManyArgs = {
+  updates: Array<Sequent_Backend_Certificate_Authority_Updates>;
 };
 
 
@@ -4204,6 +4356,36 @@ export type Mutation_RootUpdate_Sequent_Backend_Tally_Session_ManyArgs = {
 
 
 /** mutation root */
+export type Mutation_RootUpdate_Sequent_Backend_Tally_Session_ResolutionArgs = {
+  _append?: InputMaybe<Sequent_Backend_Tally_Session_Resolution_Append_Input>;
+  _delete_at_path?: InputMaybe<Sequent_Backend_Tally_Session_Resolution_Delete_At_Path_Input>;
+  _delete_elem?: InputMaybe<Sequent_Backend_Tally_Session_Resolution_Delete_Elem_Input>;
+  _delete_key?: InputMaybe<Sequent_Backend_Tally_Session_Resolution_Delete_Key_Input>;
+  _prepend?: InputMaybe<Sequent_Backend_Tally_Session_Resolution_Prepend_Input>;
+  _set?: InputMaybe<Sequent_Backend_Tally_Session_Resolution_Set_Input>;
+  where: Sequent_Backend_Tally_Session_Resolution_Bool_Exp;
+};
+
+
+/** mutation root */
+export type Mutation_RootUpdate_Sequent_Backend_Tally_Session_Resolution_By_PkArgs = {
+  _append?: InputMaybe<Sequent_Backend_Tally_Session_Resolution_Append_Input>;
+  _delete_at_path?: InputMaybe<Sequent_Backend_Tally_Session_Resolution_Delete_At_Path_Input>;
+  _delete_elem?: InputMaybe<Sequent_Backend_Tally_Session_Resolution_Delete_Elem_Input>;
+  _delete_key?: InputMaybe<Sequent_Backend_Tally_Session_Resolution_Delete_Key_Input>;
+  _prepend?: InputMaybe<Sequent_Backend_Tally_Session_Resolution_Prepend_Input>;
+  _set?: InputMaybe<Sequent_Backend_Tally_Session_Resolution_Set_Input>;
+  pk_columns: Sequent_Backend_Tally_Session_Resolution_Pk_Columns_Input;
+};
+
+
+/** mutation root */
+export type Mutation_RootUpdate_Sequent_Backend_Tally_Session_Resolution_ManyArgs = {
+  updates: Array<Sequent_Backend_Tally_Session_Resolution_Updates>;
+};
+
+
+/** mutation root */
 export type Mutation_RootUpdate_Sequent_Backend_Tally_SheetArgs = {
   _append?: InputMaybe<Sequent_Backend_Tally_Sheet_Append_Input>;
   _delete_at_path?: InputMaybe<Sequent_Backend_Tally_Sheet_Delete_At_Path_Input>;
@@ -4491,6 +4673,12 @@ export type Query_Root = {
   sequent_backend_cast_vote_aggregate: Sequent_Backend_Cast_Vote_Aggregate;
   /** fetch data from the table: "sequent_backend.cast_vote" using primary key columns */
   sequent_backend_cast_vote_by_pk?: Maybe<Sequent_Backend_Cast_Vote>;
+  /** fetch data from the table: "sequent_backend.certificate_authority" */
+  sequent_backend_certificate_authority: Array<Sequent_Backend_Certificate_Authority>;
+  /** fetch aggregated fields from the table: "sequent_backend.certificate_authority" */
+  sequent_backend_certificate_authority_aggregate: Sequent_Backend_Certificate_Authority_Aggregate;
+  /** fetch data from the table: "sequent_backend.certificate_authority" using primary key columns */
+  sequent_backend_certificate_authority_by_pk?: Maybe<Sequent_Backend_Certificate_Authority>;
   /** fetch data from the table: "sequent_backend.contest" */
   sequent_backend_contest: Array<Sequent_Backend_Contest>;
   /** fetch aggregated fields from the table: "sequent_backend.contest" */
@@ -4641,6 +4829,12 @@ export type Query_Root = {
   sequent_backend_tally_session_execution_aggregate: Sequent_Backend_Tally_Session_Execution_Aggregate;
   /** fetch data from the table: "sequent_backend.tally_session_execution" using primary key columns */
   sequent_backend_tally_session_execution_by_pk?: Maybe<Sequent_Backend_Tally_Session_Execution>;
+  /** fetch data from the table: "sequent_backend.tally_session_resolution" */
+  sequent_backend_tally_session_resolution: Array<Sequent_Backend_Tally_Session_Resolution>;
+  /** fetch aggregated fields from the table: "sequent_backend.tally_session_resolution" */
+  sequent_backend_tally_session_resolution_aggregate: Sequent_Backend_Tally_Session_Resolution_Aggregate;
+  /** fetch data from the table: "sequent_backend.tally_session_resolution" using primary key columns */
+  sequent_backend_tally_session_resolution_by_pk?: Maybe<Sequent_Backend_Tally_Session_Resolution>;
   /** fetch data from the table: "sequent_backend.tally_sheet" */
   sequent_backend_tally_sheet: Array<Sequent_Backend_Tally_Sheet>;
   /** fetch aggregated fields from the table: "sequent_backend.tally_sheet" */
@@ -4940,6 +5134,29 @@ export type Query_RootSequent_Backend_Cast_Vote_By_PkArgs = {
   election_event_id: Scalars['uuid']['input'];
   id: Scalars['uuid']['input'];
   tenant_id: Scalars['uuid']['input'];
+};
+
+
+export type Query_RootSequent_Backend_Certificate_AuthorityArgs = {
+  distinct_on?: InputMaybe<Array<Sequent_Backend_Certificate_Authority_Select_Column>>;
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  offset?: InputMaybe<Scalars['Int']['input']>;
+  order_by?: InputMaybe<Array<Sequent_Backend_Certificate_Authority_Order_By>>;
+  where?: InputMaybe<Sequent_Backend_Certificate_Authority_Bool_Exp>;
+};
+
+
+export type Query_RootSequent_Backend_Certificate_Authority_AggregateArgs = {
+  distinct_on?: InputMaybe<Array<Sequent_Backend_Certificate_Authority_Select_Column>>;
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  offset?: InputMaybe<Scalars['Int']['input']>;
+  order_by?: InputMaybe<Array<Sequent_Backend_Certificate_Authority_Order_By>>;
+  where?: InputMaybe<Sequent_Backend_Certificate_Authority_Bool_Exp>;
+};
+
+
+export type Query_RootSequent_Backend_Certificate_Authority_By_PkArgs = {
+  id: Scalars['uuid']['input'];
 };
 
 
@@ -5552,6 +5769,29 @@ export type Query_RootSequent_Backend_Tally_Session_Execution_By_PkArgs = {
   election_event_id: Scalars['uuid']['input'];
   id: Scalars['uuid']['input'];
   tenant_id: Scalars['uuid']['input'];
+};
+
+
+export type Query_RootSequent_Backend_Tally_Session_ResolutionArgs = {
+  distinct_on?: InputMaybe<Array<Sequent_Backend_Tally_Session_Resolution_Select_Column>>;
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  offset?: InputMaybe<Scalars['Int']['input']>;
+  order_by?: InputMaybe<Array<Sequent_Backend_Tally_Session_Resolution_Order_By>>;
+  where?: InputMaybe<Sequent_Backend_Tally_Session_Resolution_Bool_Exp>;
+};
+
+
+export type Query_RootSequent_Backend_Tally_Session_Resolution_AggregateArgs = {
+  distinct_on?: InputMaybe<Array<Sequent_Backend_Tally_Session_Resolution_Select_Column>>;
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  offset?: InputMaybe<Scalars['Int']['input']>;
+  order_by?: InputMaybe<Array<Sequent_Backend_Tally_Session_Resolution_Order_By>>;
+  where?: InputMaybe<Sequent_Backend_Tally_Session_Resolution_Bool_Exp>;
+};
+
+
+export type Query_RootSequent_Backend_Tally_Session_Resolution_By_PkArgs = {
+  id: Scalars['uuid']['input'];
 };
 
 
@@ -7225,18 +7465,17 @@ export type Sequent_Backend_Ballot_Style_Updates = {
 /** columns and relationships of "sequent_backend.candidate" */
 export type Sequent_Backend_Candidate = {
   __typename?: 'sequent_backend_candidate';
-  alias?: Maybe<Scalars['String']['output']>;
   annotations?: Maybe<Scalars['jsonb']['output']>;
   contest_id?: Maybe<Scalars['uuid']['output']>;
   created_at?: Maybe<Scalars['timestamptz']['output']>;
   description?: Maybe<Scalars['String']['output']>;
   election_event_id: Scalars['uuid']['output'];
+  external_id?: Maybe<Scalars['String']['output']>;
   id: Scalars['uuid']['output'];
   image_document_id?: Maybe<Scalars['String']['output']>;
   is_public?: Maybe<Scalars['Boolean']['output']>;
   labels?: Maybe<Scalars['jsonb']['output']>;
   last_updated_at?: Maybe<Scalars['timestamptz']['output']>;
-  name?: Maybe<Scalars['String']['output']>;
   presentation?: Maybe<Scalars['jsonb']['output']>;
   tenant_id: Scalars['uuid']['output'];
   type?: Maybe<Scalars['String']['output']>;
@@ -7335,18 +7574,17 @@ export type Sequent_Backend_Candidate_Bool_Exp = {
   _and?: InputMaybe<Array<Sequent_Backend_Candidate_Bool_Exp>>;
   _not?: InputMaybe<Sequent_Backend_Candidate_Bool_Exp>;
   _or?: InputMaybe<Array<Sequent_Backend_Candidate_Bool_Exp>>;
-  alias?: InputMaybe<String_Comparison_Exp>;
   annotations?: InputMaybe<Jsonb_Comparison_Exp>;
   contest_id?: InputMaybe<Uuid_Comparison_Exp>;
   created_at?: InputMaybe<Timestamptz_Comparison_Exp>;
   description?: InputMaybe<String_Comparison_Exp>;
   election_event_id?: InputMaybe<Uuid_Comparison_Exp>;
+  external_id?: InputMaybe<String_Comparison_Exp>;
   id?: InputMaybe<Uuid_Comparison_Exp>;
   image_document_id?: InputMaybe<String_Comparison_Exp>;
   is_public?: InputMaybe<Boolean_Comparison_Exp>;
   labels?: InputMaybe<Jsonb_Comparison_Exp>;
   last_updated_at?: InputMaybe<Timestamptz_Comparison_Exp>;
-  name?: InputMaybe<String_Comparison_Exp>;
   presentation?: InputMaybe<Jsonb_Comparison_Exp>;
   tenant_id?: InputMaybe<Uuid_Comparison_Exp>;
   type?: InputMaybe<String_Comparison_Exp>;
@@ -7381,18 +7619,17 @@ export type Sequent_Backend_Candidate_Delete_Key_Input = {
 
 /** input type for inserting data into table "sequent_backend.candidate" */
 export type Sequent_Backend_Candidate_Insert_Input = {
-  alias?: InputMaybe<Scalars['String']['input']>;
   annotations?: InputMaybe<Scalars['jsonb']['input']>;
   contest_id?: InputMaybe<Scalars['uuid']['input']>;
   created_at?: InputMaybe<Scalars['timestamptz']['input']>;
   description?: InputMaybe<Scalars['String']['input']>;
   election_event_id?: InputMaybe<Scalars['uuid']['input']>;
+  external_id?: InputMaybe<Scalars['String']['input']>;
   id?: InputMaybe<Scalars['uuid']['input']>;
   image_document_id?: InputMaybe<Scalars['String']['input']>;
   is_public?: InputMaybe<Scalars['Boolean']['input']>;
   labels?: InputMaybe<Scalars['jsonb']['input']>;
   last_updated_at?: InputMaybe<Scalars['timestamptz']['input']>;
-  name?: InputMaybe<Scalars['String']['input']>;
   presentation?: InputMaybe<Scalars['jsonb']['input']>;
   tenant_id?: InputMaybe<Scalars['uuid']['input']>;
   type?: InputMaybe<Scalars['String']['input']>;
@@ -7401,30 +7638,28 @@ export type Sequent_Backend_Candidate_Insert_Input = {
 /** aggregate max on columns */
 export type Sequent_Backend_Candidate_Max_Fields = {
   __typename?: 'sequent_backend_candidate_max_fields';
-  alias?: Maybe<Scalars['String']['output']>;
   contest_id?: Maybe<Scalars['uuid']['output']>;
   created_at?: Maybe<Scalars['timestamptz']['output']>;
   description?: Maybe<Scalars['String']['output']>;
   election_event_id?: Maybe<Scalars['uuid']['output']>;
+  external_id?: Maybe<Scalars['String']['output']>;
   id?: Maybe<Scalars['uuid']['output']>;
   image_document_id?: Maybe<Scalars['String']['output']>;
   last_updated_at?: Maybe<Scalars['timestamptz']['output']>;
-  name?: Maybe<Scalars['String']['output']>;
   tenant_id?: Maybe<Scalars['uuid']['output']>;
   type?: Maybe<Scalars['String']['output']>;
 };
 
 /** order by max() on columns of table "sequent_backend.candidate" */
 export type Sequent_Backend_Candidate_Max_Order_By = {
-  alias?: InputMaybe<Order_By>;
   contest_id?: InputMaybe<Order_By>;
   created_at?: InputMaybe<Order_By>;
   description?: InputMaybe<Order_By>;
   election_event_id?: InputMaybe<Order_By>;
+  external_id?: InputMaybe<Order_By>;
   id?: InputMaybe<Order_By>;
   image_document_id?: InputMaybe<Order_By>;
   last_updated_at?: InputMaybe<Order_By>;
-  name?: InputMaybe<Order_By>;
   tenant_id?: InputMaybe<Order_By>;
   type?: InputMaybe<Order_By>;
 };
@@ -7432,30 +7667,28 @@ export type Sequent_Backend_Candidate_Max_Order_By = {
 /** aggregate min on columns */
 export type Sequent_Backend_Candidate_Min_Fields = {
   __typename?: 'sequent_backend_candidate_min_fields';
-  alias?: Maybe<Scalars['String']['output']>;
   contest_id?: Maybe<Scalars['uuid']['output']>;
   created_at?: Maybe<Scalars['timestamptz']['output']>;
   description?: Maybe<Scalars['String']['output']>;
   election_event_id?: Maybe<Scalars['uuid']['output']>;
+  external_id?: Maybe<Scalars['String']['output']>;
   id?: Maybe<Scalars['uuid']['output']>;
   image_document_id?: Maybe<Scalars['String']['output']>;
   last_updated_at?: Maybe<Scalars['timestamptz']['output']>;
-  name?: Maybe<Scalars['String']['output']>;
   tenant_id?: Maybe<Scalars['uuid']['output']>;
   type?: Maybe<Scalars['String']['output']>;
 };
 
 /** order by min() on columns of table "sequent_backend.candidate" */
 export type Sequent_Backend_Candidate_Min_Order_By = {
-  alias?: InputMaybe<Order_By>;
   contest_id?: InputMaybe<Order_By>;
   created_at?: InputMaybe<Order_By>;
   description?: InputMaybe<Order_By>;
   election_event_id?: InputMaybe<Order_By>;
+  external_id?: InputMaybe<Order_By>;
   id?: InputMaybe<Order_By>;
   image_document_id?: InputMaybe<Order_By>;
   last_updated_at?: InputMaybe<Order_By>;
-  name?: InputMaybe<Order_By>;
   tenant_id?: InputMaybe<Order_By>;
   type?: InputMaybe<Order_By>;
 };
@@ -7478,18 +7711,17 @@ export type Sequent_Backend_Candidate_On_Conflict = {
 
 /** Ordering options when selecting data from "sequent_backend.candidate". */
 export type Sequent_Backend_Candidate_Order_By = {
-  alias?: InputMaybe<Order_By>;
   annotations?: InputMaybe<Order_By>;
   contest_id?: InputMaybe<Order_By>;
   created_at?: InputMaybe<Order_By>;
   description?: InputMaybe<Order_By>;
   election_event_id?: InputMaybe<Order_By>;
+  external_id?: InputMaybe<Order_By>;
   id?: InputMaybe<Order_By>;
   image_document_id?: InputMaybe<Order_By>;
   is_public?: InputMaybe<Order_By>;
   labels?: InputMaybe<Order_By>;
   last_updated_at?: InputMaybe<Order_By>;
-  name?: InputMaybe<Order_By>;
   presentation?: InputMaybe<Order_By>;
   tenant_id?: InputMaybe<Order_By>;
   type?: InputMaybe<Order_By>;
@@ -7512,8 +7744,6 @@ export type Sequent_Backend_Candidate_Prepend_Input = {
 /** select columns of table "sequent_backend.candidate" */
 export enum Sequent_Backend_Candidate_Select_Column {
   /** column name */
-  Alias = 'alias',
-  /** column name */
   Annotations = 'annotations',
   /** column name */
   ContestId = 'contest_id',
@@ -7524,6 +7754,8 @@ export enum Sequent_Backend_Candidate_Select_Column {
   /** column name */
   ElectionEventId = 'election_event_id',
   /** column name */
+  ExternalId = 'external_id',
+  /** column name */
   Id = 'id',
   /** column name */
   ImageDocumentId = 'image_document_id',
@@ -7533,8 +7765,6 @@ export enum Sequent_Backend_Candidate_Select_Column {
   Labels = 'labels',
   /** column name */
   LastUpdatedAt = 'last_updated_at',
-  /** column name */
-  Name = 'name',
   /** column name */
   Presentation = 'presentation',
   /** column name */
@@ -7557,18 +7787,17 @@ export enum Sequent_Backend_Candidate_Select_Column_Sequent_Backend_Candidate_Ag
 
 /** input type for updating data in table "sequent_backend.candidate" */
 export type Sequent_Backend_Candidate_Set_Input = {
-  alias?: InputMaybe<Scalars['String']['input']>;
   annotations?: InputMaybe<Scalars['jsonb']['input']>;
   contest_id?: InputMaybe<Scalars['uuid']['input']>;
   created_at?: InputMaybe<Scalars['timestamptz']['input']>;
   description?: InputMaybe<Scalars['String']['input']>;
   election_event_id?: InputMaybe<Scalars['uuid']['input']>;
+  external_id?: InputMaybe<Scalars['String']['input']>;
   id?: InputMaybe<Scalars['uuid']['input']>;
   image_document_id?: InputMaybe<Scalars['String']['input']>;
   is_public?: InputMaybe<Scalars['Boolean']['input']>;
   labels?: InputMaybe<Scalars['jsonb']['input']>;
   last_updated_at?: InputMaybe<Scalars['timestamptz']['input']>;
-  name?: InputMaybe<Scalars['String']['input']>;
   presentation?: InputMaybe<Scalars['jsonb']['input']>;
   tenant_id?: InputMaybe<Scalars['uuid']['input']>;
   type?: InputMaybe<Scalars['String']['input']>;
@@ -7584,18 +7813,17 @@ export type Sequent_Backend_Candidate_Stream_Cursor_Input = {
 
 /** Initial value of the column from where the streaming should start */
 export type Sequent_Backend_Candidate_Stream_Cursor_Value_Input = {
-  alias?: InputMaybe<Scalars['String']['input']>;
   annotations?: InputMaybe<Scalars['jsonb']['input']>;
   contest_id?: InputMaybe<Scalars['uuid']['input']>;
   created_at?: InputMaybe<Scalars['timestamptz']['input']>;
   description?: InputMaybe<Scalars['String']['input']>;
   election_event_id?: InputMaybe<Scalars['uuid']['input']>;
+  external_id?: InputMaybe<Scalars['String']['input']>;
   id?: InputMaybe<Scalars['uuid']['input']>;
   image_document_id?: InputMaybe<Scalars['String']['input']>;
   is_public?: InputMaybe<Scalars['Boolean']['input']>;
   labels?: InputMaybe<Scalars['jsonb']['input']>;
   last_updated_at?: InputMaybe<Scalars['timestamptz']['input']>;
-  name?: InputMaybe<Scalars['String']['input']>;
   presentation?: InputMaybe<Scalars['jsonb']['input']>;
   tenant_id?: InputMaybe<Scalars['uuid']['input']>;
   type?: InputMaybe<Scalars['String']['input']>;
@@ -7603,8 +7831,6 @@ export type Sequent_Backend_Candidate_Stream_Cursor_Value_Input = {
 
 /** update columns of table "sequent_backend.candidate" */
 export enum Sequent_Backend_Candidate_Update_Column {
-  /** column name */
-  Alias = 'alias',
   /** column name */
   Annotations = 'annotations',
   /** column name */
@@ -7616,6 +7842,8 @@ export enum Sequent_Backend_Candidate_Update_Column {
   /** column name */
   ElectionEventId = 'election_event_id',
   /** column name */
+  ExternalId = 'external_id',
+  /** column name */
   Id = 'id',
   /** column name */
   ImageDocumentId = 'image_document_id',
@@ -7625,8 +7853,6 @@ export enum Sequent_Backend_Candidate_Update_Column {
   Labels = 'labels',
   /** column name */
   LastUpdatedAt = 'last_updated_at',
-  /** column name */
-  Name = 'name',
   /** column name */
   Presentation = 'presentation',
   /** column name */
@@ -7966,10 +8192,277 @@ export type Sequent_Backend_Cast_Vote_Updates = {
   where: Sequent_Backend_Cast_Vote_Bool_Exp;
 };
 
+/** columns and relationships of "sequent_backend.certificate_authority" */
+export type Sequent_Backend_Certificate_Authority = {
+  __typename?: 'sequent_backend_certificate_authority';
+  common_name: Scalars['String']['output'];
+  created_at: Scalars['timestamptz']['output'];
+  election_event_id: Scalars['uuid']['output'];
+  fingerprint_sha256: Scalars['String']['output'];
+  id: Scalars['uuid']['output'];
+  issuer: Scalars['String']['output'];
+  issuer_common_name: Scalars['String']['output'];
+  not_after: Scalars['timestamptz']['output'];
+  not_before: Scalars['timestamptz']['output'];
+  pem: Scalars['String']['output'];
+  serial_number: Scalars['String']['output'];
+  subject: Scalars['String']['output'];
+  tenant_id: Scalars['uuid']['output'];
+};
+
+/** aggregated selection of "sequent_backend.certificate_authority" */
+export type Sequent_Backend_Certificate_Authority_Aggregate = {
+  __typename?: 'sequent_backend_certificate_authority_aggregate';
+  aggregate?: Maybe<Sequent_Backend_Certificate_Authority_Aggregate_Fields>;
+  nodes: Array<Sequent_Backend_Certificate_Authority>;
+};
+
+/** aggregate fields of "sequent_backend.certificate_authority" */
+export type Sequent_Backend_Certificate_Authority_Aggregate_Fields = {
+  __typename?: 'sequent_backend_certificate_authority_aggregate_fields';
+  count: Scalars['Int']['output'];
+  max?: Maybe<Sequent_Backend_Certificate_Authority_Max_Fields>;
+  min?: Maybe<Sequent_Backend_Certificate_Authority_Min_Fields>;
+};
+
+
+/** aggregate fields of "sequent_backend.certificate_authority" */
+export type Sequent_Backend_Certificate_Authority_Aggregate_FieldsCountArgs = {
+  columns?: InputMaybe<Array<Sequent_Backend_Certificate_Authority_Select_Column>>;
+  distinct?: InputMaybe<Scalars['Boolean']['input']>;
+};
+
+/** Boolean expression to filter rows from the table "sequent_backend.certificate_authority". All fields are combined with a logical 'AND'. */
+export type Sequent_Backend_Certificate_Authority_Bool_Exp = {
+  _and?: InputMaybe<Array<Sequent_Backend_Certificate_Authority_Bool_Exp>>;
+  _not?: InputMaybe<Sequent_Backend_Certificate_Authority_Bool_Exp>;
+  _or?: InputMaybe<Array<Sequent_Backend_Certificate_Authority_Bool_Exp>>;
+  common_name?: InputMaybe<String_Comparison_Exp>;
+  created_at?: InputMaybe<Timestamptz_Comparison_Exp>;
+  election_event_id?: InputMaybe<Uuid_Comparison_Exp>;
+  fingerprint_sha256?: InputMaybe<String_Comparison_Exp>;
+  id?: InputMaybe<Uuid_Comparison_Exp>;
+  issuer?: InputMaybe<String_Comparison_Exp>;
+  issuer_common_name?: InputMaybe<String_Comparison_Exp>;
+  not_after?: InputMaybe<Timestamptz_Comparison_Exp>;
+  not_before?: InputMaybe<Timestamptz_Comparison_Exp>;
+  pem?: InputMaybe<String_Comparison_Exp>;
+  serial_number?: InputMaybe<String_Comparison_Exp>;
+  subject?: InputMaybe<String_Comparison_Exp>;
+  tenant_id?: InputMaybe<Uuid_Comparison_Exp>;
+};
+
+/** unique or primary key constraints on table "sequent_backend.certificate_authority" */
+export enum Sequent_Backend_Certificate_Authority_Constraint {
+  /** unique or primary key constraint on columns "id" */
+  CertificateAuthorityPkey = 'certificate_authority_pkey',
+  /** unique or primary key constraint on columns "tenant_id", "fingerprint_sha256", "election_event_id" */
+  CertificateAuthorityTenantIdElectionEventIdFingerprintS = 'certificate_authority_tenant_id_election_event_id_fingerprint_s'
+}
+
+/** input type for inserting data into table "sequent_backend.certificate_authority" */
+export type Sequent_Backend_Certificate_Authority_Insert_Input = {
+  common_name?: InputMaybe<Scalars['String']['input']>;
+  created_at?: InputMaybe<Scalars['timestamptz']['input']>;
+  election_event_id?: InputMaybe<Scalars['uuid']['input']>;
+  fingerprint_sha256?: InputMaybe<Scalars['String']['input']>;
+  id?: InputMaybe<Scalars['uuid']['input']>;
+  issuer?: InputMaybe<Scalars['String']['input']>;
+  issuer_common_name?: InputMaybe<Scalars['String']['input']>;
+  not_after?: InputMaybe<Scalars['timestamptz']['input']>;
+  not_before?: InputMaybe<Scalars['timestamptz']['input']>;
+  pem?: InputMaybe<Scalars['String']['input']>;
+  serial_number?: InputMaybe<Scalars['String']['input']>;
+  subject?: InputMaybe<Scalars['String']['input']>;
+  tenant_id?: InputMaybe<Scalars['uuid']['input']>;
+};
+
+/** aggregate max on columns */
+export type Sequent_Backend_Certificate_Authority_Max_Fields = {
+  __typename?: 'sequent_backend_certificate_authority_max_fields';
+  common_name?: Maybe<Scalars['String']['output']>;
+  created_at?: Maybe<Scalars['timestamptz']['output']>;
+  election_event_id?: Maybe<Scalars['uuid']['output']>;
+  fingerprint_sha256?: Maybe<Scalars['String']['output']>;
+  id?: Maybe<Scalars['uuid']['output']>;
+  issuer?: Maybe<Scalars['String']['output']>;
+  issuer_common_name?: Maybe<Scalars['String']['output']>;
+  not_after?: Maybe<Scalars['timestamptz']['output']>;
+  not_before?: Maybe<Scalars['timestamptz']['output']>;
+  pem?: Maybe<Scalars['String']['output']>;
+  serial_number?: Maybe<Scalars['String']['output']>;
+  subject?: Maybe<Scalars['String']['output']>;
+  tenant_id?: Maybe<Scalars['uuid']['output']>;
+};
+
+/** aggregate min on columns */
+export type Sequent_Backend_Certificate_Authority_Min_Fields = {
+  __typename?: 'sequent_backend_certificate_authority_min_fields';
+  common_name?: Maybe<Scalars['String']['output']>;
+  created_at?: Maybe<Scalars['timestamptz']['output']>;
+  election_event_id?: Maybe<Scalars['uuid']['output']>;
+  fingerprint_sha256?: Maybe<Scalars['String']['output']>;
+  id?: Maybe<Scalars['uuid']['output']>;
+  issuer?: Maybe<Scalars['String']['output']>;
+  issuer_common_name?: Maybe<Scalars['String']['output']>;
+  not_after?: Maybe<Scalars['timestamptz']['output']>;
+  not_before?: Maybe<Scalars['timestamptz']['output']>;
+  pem?: Maybe<Scalars['String']['output']>;
+  serial_number?: Maybe<Scalars['String']['output']>;
+  subject?: Maybe<Scalars['String']['output']>;
+  tenant_id?: Maybe<Scalars['uuid']['output']>;
+};
+
+/** response of any mutation on the table "sequent_backend.certificate_authority" */
+export type Sequent_Backend_Certificate_Authority_Mutation_Response = {
+  __typename?: 'sequent_backend_certificate_authority_mutation_response';
+  /** number of rows affected by the mutation */
+  affected_rows: Scalars['Int']['output'];
+  /** data from the rows affected by the mutation */
+  returning: Array<Sequent_Backend_Certificate_Authority>;
+};
+
+/** on_conflict condition type for table "sequent_backend.certificate_authority" */
+export type Sequent_Backend_Certificate_Authority_On_Conflict = {
+  constraint: Sequent_Backend_Certificate_Authority_Constraint;
+  update_columns?: Array<Sequent_Backend_Certificate_Authority_Update_Column>;
+  where?: InputMaybe<Sequent_Backend_Certificate_Authority_Bool_Exp>;
+};
+
+/** Ordering options when selecting data from "sequent_backend.certificate_authority". */
+export type Sequent_Backend_Certificate_Authority_Order_By = {
+  common_name?: InputMaybe<Order_By>;
+  created_at?: InputMaybe<Order_By>;
+  election_event_id?: InputMaybe<Order_By>;
+  fingerprint_sha256?: InputMaybe<Order_By>;
+  id?: InputMaybe<Order_By>;
+  issuer?: InputMaybe<Order_By>;
+  issuer_common_name?: InputMaybe<Order_By>;
+  not_after?: InputMaybe<Order_By>;
+  not_before?: InputMaybe<Order_By>;
+  pem?: InputMaybe<Order_By>;
+  serial_number?: InputMaybe<Order_By>;
+  subject?: InputMaybe<Order_By>;
+  tenant_id?: InputMaybe<Order_By>;
+};
+
+/** primary key columns input for table: sequent_backend.certificate_authority */
+export type Sequent_Backend_Certificate_Authority_Pk_Columns_Input = {
+  id: Scalars['uuid']['input'];
+};
+
+/** select columns of table "sequent_backend.certificate_authority" */
+export enum Sequent_Backend_Certificate_Authority_Select_Column {
+  /** column name */
+  CommonName = 'common_name',
+  /** column name */
+  CreatedAt = 'created_at',
+  /** column name */
+  ElectionEventId = 'election_event_id',
+  /** column name */
+  FingerprintSha256 = 'fingerprint_sha256',
+  /** column name */
+  Id = 'id',
+  /** column name */
+  Issuer = 'issuer',
+  /** column name */
+  IssuerCommonName = 'issuer_common_name',
+  /** column name */
+  NotAfter = 'not_after',
+  /** column name */
+  NotBefore = 'not_before',
+  /** column name */
+  Pem = 'pem',
+  /** column name */
+  SerialNumber = 'serial_number',
+  /** column name */
+  Subject = 'subject',
+  /** column name */
+  TenantId = 'tenant_id'
+}
+
+/** input type for updating data in table "sequent_backend.certificate_authority" */
+export type Sequent_Backend_Certificate_Authority_Set_Input = {
+  common_name?: InputMaybe<Scalars['String']['input']>;
+  created_at?: InputMaybe<Scalars['timestamptz']['input']>;
+  election_event_id?: InputMaybe<Scalars['uuid']['input']>;
+  fingerprint_sha256?: InputMaybe<Scalars['String']['input']>;
+  id?: InputMaybe<Scalars['uuid']['input']>;
+  issuer?: InputMaybe<Scalars['String']['input']>;
+  issuer_common_name?: InputMaybe<Scalars['String']['input']>;
+  not_after?: InputMaybe<Scalars['timestamptz']['input']>;
+  not_before?: InputMaybe<Scalars['timestamptz']['input']>;
+  pem?: InputMaybe<Scalars['String']['input']>;
+  serial_number?: InputMaybe<Scalars['String']['input']>;
+  subject?: InputMaybe<Scalars['String']['input']>;
+  tenant_id?: InputMaybe<Scalars['uuid']['input']>;
+};
+
+/** Streaming cursor of the table "sequent_backend_certificate_authority" */
+export type Sequent_Backend_Certificate_Authority_Stream_Cursor_Input = {
+  /** Stream column input with initial value */
+  initial_value: Sequent_Backend_Certificate_Authority_Stream_Cursor_Value_Input;
+  /** cursor ordering */
+  ordering?: InputMaybe<Cursor_Ordering>;
+};
+
+/** Initial value of the column from where the streaming should start */
+export type Sequent_Backend_Certificate_Authority_Stream_Cursor_Value_Input = {
+  common_name?: InputMaybe<Scalars['String']['input']>;
+  created_at?: InputMaybe<Scalars['timestamptz']['input']>;
+  election_event_id?: InputMaybe<Scalars['uuid']['input']>;
+  fingerprint_sha256?: InputMaybe<Scalars['String']['input']>;
+  id?: InputMaybe<Scalars['uuid']['input']>;
+  issuer?: InputMaybe<Scalars['String']['input']>;
+  issuer_common_name?: InputMaybe<Scalars['String']['input']>;
+  not_after?: InputMaybe<Scalars['timestamptz']['input']>;
+  not_before?: InputMaybe<Scalars['timestamptz']['input']>;
+  pem?: InputMaybe<Scalars['String']['input']>;
+  serial_number?: InputMaybe<Scalars['String']['input']>;
+  subject?: InputMaybe<Scalars['String']['input']>;
+  tenant_id?: InputMaybe<Scalars['uuid']['input']>;
+};
+
+/** update columns of table "sequent_backend.certificate_authority" */
+export enum Sequent_Backend_Certificate_Authority_Update_Column {
+  /** column name */
+  CommonName = 'common_name',
+  /** column name */
+  CreatedAt = 'created_at',
+  /** column name */
+  ElectionEventId = 'election_event_id',
+  /** column name */
+  FingerprintSha256 = 'fingerprint_sha256',
+  /** column name */
+  Id = 'id',
+  /** column name */
+  Issuer = 'issuer',
+  /** column name */
+  IssuerCommonName = 'issuer_common_name',
+  /** column name */
+  NotAfter = 'not_after',
+  /** column name */
+  NotBefore = 'not_before',
+  /** column name */
+  Pem = 'pem',
+  /** column name */
+  SerialNumber = 'serial_number',
+  /** column name */
+  Subject = 'subject',
+  /** column name */
+  TenantId = 'tenant_id'
+}
+
+export type Sequent_Backend_Certificate_Authority_Updates = {
+  /** sets the columns of the filtered rows to the given values */
+  _set?: InputMaybe<Sequent_Backend_Certificate_Authority_Set_Input>;
+  /** filter the rows which have to be updated */
+  where: Sequent_Backend_Certificate_Authority_Bool_Exp;
+};
+
 /** columns and relationships of "sequent_backend.contest" */
 export type Sequent_Backend_Contest = {
   __typename?: 'sequent_backend_contest';
-  alias?: Maybe<Scalars['String']['output']>;
   annotations?: Maybe<Scalars['jsonb']['output']>;
   /** An array relationship */
   candidates: Array<Sequent_Backend_Candidate>;
@@ -7981,6 +8474,7 @@ export type Sequent_Backend_Contest = {
   description?: Maybe<Scalars['String']['output']>;
   election_event_id: Scalars['uuid']['output'];
   election_id: Scalars['uuid']['output'];
+  external_id?: Maybe<Scalars['String']['output']>;
   id: Scalars['uuid']['output'];
   image_document_id?: Maybe<Scalars['String']['output']>;
   is_acclaimed?: Maybe<Scalars['Boolean']['output']>;
@@ -7990,7 +8484,6 @@ export type Sequent_Backend_Contest = {
   last_updated_at?: Maybe<Scalars['timestamptz']['output']>;
   max_votes?: Maybe<Scalars['Int']['output']>;
   min_votes?: Maybe<Scalars['Int']['output']>;
-  name?: Maybe<Scalars['String']['output']>;
   presentation?: Maybe<Scalars['jsonb']['output']>;
   tally_configuration?: Maybe<Scalars['jsonb']['output']>;
   tenant_id: Scalars['uuid']['output'];
@@ -8156,7 +8649,6 @@ export type Sequent_Backend_Contest_Bool_Exp = {
   _and?: InputMaybe<Array<Sequent_Backend_Contest_Bool_Exp>>;
   _not?: InputMaybe<Sequent_Backend_Contest_Bool_Exp>;
   _or?: InputMaybe<Array<Sequent_Backend_Contest_Bool_Exp>>;
-  alias?: InputMaybe<String_Comparison_Exp>;
   annotations?: InputMaybe<Jsonb_Comparison_Exp>;
   candidates?: InputMaybe<Sequent_Backend_Candidate_Bool_Exp>;
   candidates_aggregate?: InputMaybe<Sequent_Backend_Candidate_Aggregate_Bool_Exp>;
@@ -8166,6 +8658,7 @@ export type Sequent_Backend_Contest_Bool_Exp = {
   description?: InputMaybe<String_Comparison_Exp>;
   election_event_id?: InputMaybe<Uuid_Comparison_Exp>;
   election_id?: InputMaybe<Uuid_Comparison_Exp>;
+  external_id?: InputMaybe<String_Comparison_Exp>;
   id?: InputMaybe<Uuid_Comparison_Exp>;
   image_document_id?: InputMaybe<String_Comparison_Exp>;
   is_acclaimed?: InputMaybe<Boolean_Comparison_Exp>;
@@ -8175,7 +8668,6 @@ export type Sequent_Backend_Contest_Bool_Exp = {
   last_updated_at?: InputMaybe<Timestamptz_Comparison_Exp>;
   max_votes?: InputMaybe<Int_Comparison_Exp>;
   min_votes?: InputMaybe<Int_Comparison_Exp>;
-  name?: InputMaybe<String_Comparison_Exp>;
   presentation?: InputMaybe<Jsonb_Comparison_Exp>;
   tally_configuration?: InputMaybe<Jsonb_Comparison_Exp>;
   tenant_id?: InputMaybe<Uuid_Comparison_Exp>;
@@ -8225,7 +8717,6 @@ export type Sequent_Backend_Contest_Inc_Input = {
 
 /** input type for inserting data into table "sequent_backend.contest" */
 export type Sequent_Backend_Contest_Insert_Input = {
-  alias?: InputMaybe<Scalars['String']['input']>;
   annotations?: InputMaybe<Scalars['jsonb']['input']>;
   candidates?: InputMaybe<Sequent_Backend_Candidate_Arr_Rel_Insert_Input>;
   conditions?: InputMaybe<Scalars['jsonb']['input']>;
@@ -8234,6 +8725,7 @@ export type Sequent_Backend_Contest_Insert_Input = {
   description?: InputMaybe<Scalars['String']['input']>;
   election_event_id?: InputMaybe<Scalars['uuid']['input']>;
   election_id?: InputMaybe<Scalars['uuid']['input']>;
+  external_id?: InputMaybe<Scalars['String']['input']>;
   id?: InputMaybe<Scalars['uuid']['input']>;
   image_document_id?: InputMaybe<Scalars['String']['input']>;
   is_acclaimed?: InputMaybe<Scalars['Boolean']['input']>;
@@ -8243,7 +8735,6 @@ export type Sequent_Backend_Contest_Insert_Input = {
   last_updated_at?: InputMaybe<Scalars['timestamptz']['input']>;
   max_votes?: InputMaybe<Scalars['Int']['input']>;
   min_votes?: InputMaybe<Scalars['Int']['input']>;
-  name?: InputMaybe<Scalars['String']['input']>;
   presentation?: InputMaybe<Scalars['jsonb']['input']>;
   tally_configuration?: InputMaybe<Scalars['jsonb']['input']>;
   tenant_id?: InputMaybe<Scalars['uuid']['input']>;
@@ -8254,18 +8745,17 @@ export type Sequent_Backend_Contest_Insert_Input = {
 /** aggregate max on columns */
 export type Sequent_Backend_Contest_Max_Fields = {
   __typename?: 'sequent_backend_contest_max_fields';
-  alias?: Maybe<Scalars['String']['output']>;
   counting_algorithm?: Maybe<Scalars['String']['output']>;
   created_at?: Maybe<Scalars['timestamptz']['output']>;
   description?: Maybe<Scalars['String']['output']>;
   election_event_id?: Maybe<Scalars['uuid']['output']>;
   election_id?: Maybe<Scalars['uuid']['output']>;
+  external_id?: Maybe<Scalars['String']['output']>;
   id?: Maybe<Scalars['uuid']['output']>;
   image_document_id?: Maybe<Scalars['String']['output']>;
   last_updated_at?: Maybe<Scalars['timestamptz']['output']>;
   max_votes?: Maybe<Scalars['Int']['output']>;
   min_votes?: Maybe<Scalars['Int']['output']>;
-  name?: Maybe<Scalars['String']['output']>;
   tenant_id?: Maybe<Scalars['uuid']['output']>;
   voting_type?: Maybe<Scalars['String']['output']>;
   winning_candidates_num?: Maybe<Scalars['Int']['output']>;
@@ -8273,18 +8763,17 @@ export type Sequent_Backend_Contest_Max_Fields = {
 
 /** order by max() on columns of table "sequent_backend.contest" */
 export type Sequent_Backend_Contest_Max_Order_By = {
-  alias?: InputMaybe<Order_By>;
   counting_algorithm?: InputMaybe<Order_By>;
   created_at?: InputMaybe<Order_By>;
   description?: InputMaybe<Order_By>;
   election_event_id?: InputMaybe<Order_By>;
   election_id?: InputMaybe<Order_By>;
+  external_id?: InputMaybe<Order_By>;
   id?: InputMaybe<Order_By>;
   image_document_id?: InputMaybe<Order_By>;
   last_updated_at?: InputMaybe<Order_By>;
   max_votes?: InputMaybe<Order_By>;
   min_votes?: InputMaybe<Order_By>;
-  name?: InputMaybe<Order_By>;
   tenant_id?: InputMaybe<Order_By>;
   voting_type?: InputMaybe<Order_By>;
   winning_candidates_num?: InputMaybe<Order_By>;
@@ -8293,18 +8782,17 @@ export type Sequent_Backend_Contest_Max_Order_By = {
 /** aggregate min on columns */
 export type Sequent_Backend_Contest_Min_Fields = {
   __typename?: 'sequent_backend_contest_min_fields';
-  alias?: Maybe<Scalars['String']['output']>;
   counting_algorithm?: Maybe<Scalars['String']['output']>;
   created_at?: Maybe<Scalars['timestamptz']['output']>;
   description?: Maybe<Scalars['String']['output']>;
   election_event_id?: Maybe<Scalars['uuid']['output']>;
   election_id?: Maybe<Scalars['uuid']['output']>;
+  external_id?: Maybe<Scalars['String']['output']>;
   id?: Maybe<Scalars['uuid']['output']>;
   image_document_id?: Maybe<Scalars['String']['output']>;
   last_updated_at?: Maybe<Scalars['timestamptz']['output']>;
   max_votes?: Maybe<Scalars['Int']['output']>;
   min_votes?: Maybe<Scalars['Int']['output']>;
-  name?: Maybe<Scalars['String']['output']>;
   tenant_id?: Maybe<Scalars['uuid']['output']>;
   voting_type?: Maybe<Scalars['String']['output']>;
   winning_candidates_num?: Maybe<Scalars['Int']['output']>;
@@ -8312,18 +8800,17 @@ export type Sequent_Backend_Contest_Min_Fields = {
 
 /** order by min() on columns of table "sequent_backend.contest" */
 export type Sequent_Backend_Contest_Min_Order_By = {
-  alias?: InputMaybe<Order_By>;
   counting_algorithm?: InputMaybe<Order_By>;
   created_at?: InputMaybe<Order_By>;
   description?: InputMaybe<Order_By>;
   election_event_id?: InputMaybe<Order_By>;
   election_id?: InputMaybe<Order_By>;
+  external_id?: InputMaybe<Order_By>;
   id?: InputMaybe<Order_By>;
   image_document_id?: InputMaybe<Order_By>;
   last_updated_at?: InputMaybe<Order_By>;
   max_votes?: InputMaybe<Order_By>;
   min_votes?: InputMaybe<Order_By>;
-  name?: InputMaybe<Order_By>;
   tenant_id?: InputMaybe<Order_By>;
   voting_type?: InputMaybe<Order_By>;
   winning_candidates_num?: InputMaybe<Order_By>;
@@ -8354,7 +8841,6 @@ export type Sequent_Backend_Contest_On_Conflict = {
 
 /** Ordering options when selecting data from "sequent_backend.contest". */
 export type Sequent_Backend_Contest_Order_By = {
-  alias?: InputMaybe<Order_By>;
   annotations?: InputMaybe<Order_By>;
   candidates_aggregate?: InputMaybe<Sequent_Backend_Candidate_Aggregate_Order_By>;
   conditions?: InputMaybe<Order_By>;
@@ -8363,6 +8849,7 @@ export type Sequent_Backend_Contest_Order_By = {
   description?: InputMaybe<Order_By>;
   election_event_id?: InputMaybe<Order_By>;
   election_id?: InputMaybe<Order_By>;
+  external_id?: InputMaybe<Order_By>;
   id?: InputMaybe<Order_By>;
   image_document_id?: InputMaybe<Order_By>;
   is_acclaimed?: InputMaybe<Order_By>;
@@ -8372,7 +8859,6 @@ export type Sequent_Backend_Contest_Order_By = {
   last_updated_at?: InputMaybe<Order_By>;
   max_votes?: InputMaybe<Order_By>;
   min_votes?: InputMaybe<Order_By>;
-  name?: InputMaybe<Order_By>;
   presentation?: InputMaybe<Order_By>;
   tally_configuration?: InputMaybe<Order_By>;
   tenant_id?: InputMaybe<Order_By>;
@@ -8399,8 +8885,6 @@ export type Sequent_Backend_Contest_Prepend_Input = {
 /** select columns of table "sequent_backend.contest" */
 export enum Sequent_Backend_Contest_Select_Column {
   /** column name */
-  Alias = 'alias',
-  /** column name */
   Annotations = 'annotations',
   /** column name */
   Conditions = 'conditions',
@@ -8414,6 +8898,8 @@ export enum Sequent_Backend_Contest_Select_Column {
   ElectionEventId = 'election_event_id',
   /** column name */
   ElectionId = 'election_id',
+  /** column name */
+  ExternalId = 'external_id',
   /** column name */
   Id = 'id',
   /** column name */
@@ -8432,8 +8918,6 @@ export enum Sequent_Backend_Contest_Select_Column {
   MaxVotes = 'max_votes',
   /** column name */
   MinVotes = 'min_votes',
-  /** column name */
-  Name = 'name',
   /** column name */
   Presentation = 'presentation',
   /** column name */
@@ -8468,7 +8952,6 @@ export enum Sequent_Backend_Contest_Select_Column_Sequent_Backend_Contest_Aggreg
 
 /** input type for updating data in table "sequent_backend.contest" */
 export type Sequent_Backend_Contest_Set_Input = {
-  alias?: InputMaybe<Scalars['String']['input']>;
   annotations?: InputMaybe<Scalars['jsonb']['input']>;
   conditions?: InputMaybe<Scalars['jsonb']['input']>;
   counting_algorithm?: InputMaybe<Scalars['String']['input']>;
@@ -8476,6 +8959,7 @@ export type Sequent_Backend_Contest_Set_Input = {
   description?: InputMaybe<Scalars['String']['input']>;
   election_event_id?: InputMaybe<Scalars['uuid']['input']>;
   election_id?: InputMaybe<Scalars['uuid']['input']>;
+  external_id?: InputMaybe<Scalars['String']['input']>;
   id?: InputMaybe<Scalars['uuid']['input']>;
   image_document_id?: InputMaybe<Scalars['String']['input']>;
   is_acclaimed?: InputMaybe<Scalars['Boolean']['input']>;
@@ -8485,7 +8969,6 @@ export type Sequent_Backend_Contest_Set_Input = {
   last_updated_at?: InputMaybe<Scalars['timestamptz']['input']>;
   max_votes?: InputMaybe<Scalars['Int']['input']>;
   min_votes?: InputMaybe<Scalars['Int']['input']>;
-  name?: InputMaybe<Scalars['String']['input']>;
   presentation?: InputMaybe<Scalars['jsonb']['input']>;
   tally_configuration?: InputMaybe<Scalars['jsonb']['input']>;
   tenant_id?: InputMaybe<Scalars['uuid']['input']>;
@@ -8548,7 +9031,6 @@ export type Sequent_Backend_Contest_Stream_Cursor_Input = {
 
 /** Initial value of the column from where the streaming should start */
 export type Sequent_Backend_Contest_Stream_Cursor_Value_Input = {
-  alias?: InputMaybe<Scalars['String']['input']>;
   annotations?: InputMaybe<Scalars['jsonb']['input']>;
   conditions?: InputMaybe<Scalars['jsonb']['input']>;
   counting_algorithm?: InputMaybe<Scalars['String']['input']>;
@@ -8556,6 +9038,7 @@ export type Sequent_Backend_Contest_Stream_Cursor_Value_Input = {
   description?: InputMaybe<Scalars['String']['input']>;
   election_event_id?: InputMaybe<Scalars['uuid']['input']>;
   election_id?: InputMaybe<Scalars['uuid']['input']>;
+  external_id?: InputMaybe<Scalars['String']['input']>;
   id?: InputMaybe<Scalars['uuid']['input']>;
   image_document_id?: InputMaybe<Scalars['String']['input']>;
   is_acclaimed?: InputMaybe<Scalars['Boolean']['input']>;
@@ -8565,7 +9048,6 @@ export type Sequent_Backend_Contest_Stream_Cursor_Value_Input = {
   last_updated_at?: InputMaybe<Scalars['timestamptz']['input']>;
   max_votes?: InputMaybe<Scalars['Int']['input']>;
   min_votes?: InputMaybe<Scalars['Int']['input']>;
-  name?: InputMaybe<Scalars['String']['input']>;
   presentation?: InputMaybe<Scalars['jsonb']['input']>;
   tally_configuration?: InputMaybe<Scalars['jsonb']['input']>;
   tenant_id?: InputMaybe<Scalars['uuid']['input']>;
@@ -8591,8 +9073,6 @@ export type Sequent_Backend_Contest_Sum_Order_By = {
 /** update columns of table "sequent_backend.contest" */
 export enum Sequent_Backend_Contest_Update_Column {
   /** column name */
-  Alias = 'alias',
-  /** column name */
   Annotations = 'annotations',
   /** column name */
   Conditions = 'conditions',
@@ -8606,6 +9086,8 @@ export enum Sequent_Backend_Contest_Update_Column {
   ElectionEventId = 'election_event_id',
   /** column name */
   ElectionId = 'election_id',
+  /** column name */
+  ExternalId = 'external_id',
   /** column name */
   Id = 'id',
   /** column name */
@@ -8624,8 +9106,6 @@ export enum Sequent_Backend_Contest_Update_Column {
   MaxVotes = 'max_votes',
   /** column name */
   MinVotes = 'min_votes',
-  /** column name */
-  Name = 'name',
   /** column name */
   Presentation = 'presentation',
   /** column name */
@@ -9056,7 +9536,6 @@ export type Sequent_Backend_Document_Variance_Fields = {
 /** columns and relationships of "sequent_backend.election" */
 export type Sequent_Backend_Election = {
   __typename?: 'sequent_backend_election';
-  alias?: Maybe<Scalars['String']['output']>;
   annotations?: Maybe<Scalars['jsonb']['output']>;
   /** An array relationship */
   contests: Array<Sequent_Backend_Contest>;
@@ -9066,6 +9545,7 @@ export type Sequent_Backend_Election = {
   description?: Maybe<Scalars['String']['output']>;
   election_event_id: Scalars['uuid']['output'];
   eml?: Maybe<Scalars['String']['output']>;
+  external_id?: Maybe<Scalars['String']['output']>;
   id: Scalars['uuid']['output'];
   image_document_id?: Maybe<Scalars['String']['output']>;
   initialization_report_generated?: Maybe<Scalars['Boolean']['output']>;
@@ -9074,7 +9554,6 @@ export type Sequent_Backend_Election = {
   keys_ceremony_id?: Maybe<Scalars['uuid']['output']>;
   labels?: Maybe<Scalars['jsonb']['output']>;
   last_updated_at?: Maybe<Scalars['timestamptz']['output']>;
-  name: Scalars['String']['output'];
   num_allowed_revotes?: Maybe<Scalars['Int']['output']>;
   permission_label?: Maybe<Scalars['String']['output']>;
   presentation?: Maybe<Scalars['jsonb']['output']>;
@@ -9254,7 +9733,6 @@ export type Sequent_Backend_Election_Bool_Exp = {
   _and?: InputMaybe<Array<Sequent_Backend_Election_Bool_Exp>>;
   _not?: InputMaybe<Sequent_Backend_Election_Bool_Exp>;
   _or?: InputMaybe<Array<Sequent_Backend_Election_Bool_Exp>>;
-  alias?: InputMaybe<String_Comparison_Exp>;
   annotations?: InputMaybe<Jsonb_Comparison_Exp>;
   contests?: InputMaybe<Sequent_Backend_Contest_Bool_Exp>;
   contests_aggregate?: InputMaybe<Sequent_Backend_Contest_Aggregate_Bool_Exp>;
@@ -9262,6 +9740,7 @@ export type Sequent_Backend_Election_Bool_Exp = {
   description?: InputMaybe<String_Comparison_Exp>;
   election_event_id?: InputMaybe<Uuid_Comparison_Exp>;
   eml?: InputMaybe<String_Comparison_Exp>;
+  external_id?: InputMaybe<String_Comparison_Exp>;
   id?: InputMaybe<Uuid_Comparison_Exp>;
   image_document_id?: InputMaybe<String_Comparison_Exp>;
   initialization_report_generated?: InputMaybe<Boolean_Comparison_Exp>;
@@ -9270,7 +9749,6 @@ export type Sequent_Backend_Election_Bool_Exp = {
   keys_ceremony_id?: InputMaybe<Uuid_Comparison_Exp>;
   labels?: InputMaybe<Jsonb_Comparison_Exp>;
   last_updated_at?: InputMaybe<Timestamptz_Comparison_Exp>;
-  name?: InputMaybe<String_Comparison_Exp>;
   num_allowed_revotes?: InputMaybe<Int_Comparison_Exp>;
   permission_label?: InputMaybe<String_Comparison_Exp>;
   presentation?: InputMaybe<Jsonb_Comparison_Exp>;
@@ -9324,7 +9802,6 @@ export type Sequent_Backend_Election_Delete_Key_Input = {
 /** columns and relationships of "sequent_backend.election_event" */
 export type Sequent_Backend_Election_Event = {
   __typename?: 'sequent_backend_election_event';
-  alias?: Maybe<Scalars['String']['output']>;
   annotations?: Maybe<Scalars['jsonb']['output']>;
   audit_election_event_id?: Maybe<Scalars['uuid']['output']>;
   bulletin_board_reference?: Maybe<Scalars['jsonb']['output']>;
@@ -9335,11 +9812,11 @@ export type Sequent_Backend_Election_Event = {
   /** An aggregate relationship */
   elections_aggregate: Sequent_Backend_Election_Aggregate;
   encryption_protocol: Scalars['String']['output'];
+  external_id?: Maybe<Scalars['String']['output']>;
   id: Scalars['uuid']['output'];
   is_archived: Scalars['Boolean']['output'];
   is_audit?: Maybe<Scalars['Boolean']['output']>;
   labels?: Maybe<Scalars['jsonb']['output']>;
-  name: Scalars['String']['output'];
   presentation?: Maybe<Scalars['jsonb']['output']>;
   public_key?: Maybe<Scalars['String']['output']>;
   statistics?: Maybe<Scalars['jsonb']['output']>;
@@ -9450,7 +9927,6 @@ export type Sequent_Backend_Election_Event_Bool_Exp = {
   _and?: InputMaybe<Array<Sequent_Backend_Election_Event_Bool_Exp>>;
   _not?: InputMaybe<Sequent_Backend_Election_Event_Bool_Exp>;
   _or?: InputMaybe<Array<Sequent_Backend_Election_Event_Bool_Exp>>;
-  alias?: InputMaybe<String_Comparison_Exp>;
   annotations?: InputMaybe<Jsonb_Comparison_Exp>;
   audit_election_event_id?: InputMaybe<Uuid_Comparison_Exp>;
   bulletin_board_reference?: InputMaybe<Jsonb_Comparison_Exp>;
@@ -9459,11 +9935,11 @@ export type Sequent_Backend_Election_Event_Bool_Exp = {
   elections?: InputMaybe<Sequent_Backend_Election_Bool_Exp>;
   elections_aggregate?: InputMaybe<Sequent_Backend_Election_Aggregate_Bool_Exp>;
   encryption_protocol?: InputMaybe<String_Comparison_Exp>;
+  external_id?: InputMaybe<String_Comparison_Exp>;
   id?: InputMaybe<Uuid_Comparison_Exp>;
   is_archived?: InputMaybe<Boolean_Comparison_Exp>;
   is_audit?: InputMaybe<Boolean_Comparison_Exp>;
   labels?: InputMaybe<Jsonb_Comparison_Exp>;
-  name?: InputMaybe<String_Comparison_Exp>;
   presentation?: InputMaybe<Jsonb_Comparison_Exp>;
   public_key?: InputMaybe<String_Comparison_Exp>;
   statistics?: InputMaybe<Jsonb_Comparison_Exp>;
@@ -9515,7 +9991,6 @@ export type Sequent_Backend_Election_Event_Delete_Key_Input = {
 
 /** input type for inserting data into table "sequent_backend.election_event" */
 export type Sequent_Backend_Election_Event_Insert_Input = {
-  alias?: InputMaybe<Scalars['String']['input']>;
   annotations?: InputMaybe<Scalars['jsonb']['input']>;
   audit_election_event_id?: InputMaybe<Scalars['uuid']['input']>;
   bulletin_board_reference?: InputMaybe<Scalars['jsonb']['input']>;
@@ -9523,11 +9998,11 @@ export type Sequent_Backend_Election_Event_Insert_Input = {
   description?: InputMaybe<Scalars['String']['input']>;
   elections?: InputMaybe<Sequent_Backend_Election_Arr_Rel_Insert_Input>;
   encryption_protocol?: InputMaybe<Scalars['String']['input']>;
+  external_id?: InputMaybe<Scalars['String']['input']>;
   id?: InputMaybe<Scalars['uuid']['input']>;
   is_archived?: InputMaybe<Scalars['Boolean']['input']>;
   is_audit?: InputMaybe<Scalars['Boolean']['input']>;
   labels?: InputMaybe<Scalars['jsonb']['input']>;
-  name?: InputMaybe<Scalars['String']['input']>;
   presentation?: InputMaybe<Scalars['jsonb']['input']>;
   public_key?: InputMaybe<Scalars['String']['input']>;
   statistics?: InputMaybe<Scalars['jsonb']['input']>;
@@ -9541,13 +10016,12 @@ export type Sequent_Backend_Election_Event_Insert_Input = {
 /** aggregate max on columns */
 export type Sequent_Backend_Election_Event_Max_Fields = {
   __typename?: 'sequent_backend_election_event_max_fields';
-  alias?: Maybe<Scalars['String']['output']>;
   audit_election_event_id?: Maybe<Scalars['uuid']['output']>;
   created_at?: Maybe<Scalars['timestamptz']['output']>;
   description?: Maybe<Scalars['String']['output']>;
   encryption_protocol?: Maybe<Scalars['String']['output']>;
+  external_id?: Maybe<Scalars['String']['output']>;
   id?: Maybe<Scalars['uuid']['output']>;
-  name?: Maybe<Scalars['String']['output']>;
   public_key?: Maybe<Scalars['String']['output']>;
   tenant_id?: Maybe<Scalars['uuid']['output']>;
   updated_at?: Maybe<Scalars['timestamptz']['output']>;
@@ -9557,13 +10031,12 @@ export type Sequent_Backend_Election_Event_Max_Fields = {
 /** aggregate min on columns */
 export type Sequent_Backend_Election_Event_Min_Fields = {
   __typename?: 'sequent_backend_election_event_min_fields';
-  alias?: Maybe<Scalars['String']['output']>;
   audit_election_event_id?: Maybe<Scalars['uuid']['output']>;
   created_at?: Maybe<Scalars['timestamptz']['output']>;
   description?: Maybe<Scalars['String']['output']>;
   encryption_protocol?: Maybe<Scalars['String']['output']>;
+  external_id?: Maybe<Scalars['String']['output']>;
   id?: Maybe<Scalars['uuid']['output']>;
-  name?: Maybe<Scalars['String']['output']>;
   public_key?: Maybe<Scalars['String']['output']>;
   tenant_id?: Maybe<Scalars['uuid']['output']>;
   updated_at?: Maybe<Scalars['timestamptz']['output']>;
@@ -9588,7 +10061,6 @@ export type Sequent_Backend_Election_Event_On_Conflict = {
 
 /** Ordering options when selecting data from "sequent_backend.election_event". */
 export type Sequent_Backend_Election_Event_Order_By = {
-  alias?: InputMaybe<Order_By>;
   annotations?: InputMaybe<Order_By>;
   audit_election_event_id?: InputMaybe<Order_By>;
   bulletin_board_reference?: InputMaybe<Order_By>;
@@ -9596,11 +10068,11 @@ export type Sequent_Backend_Election_Event_Order_By = {
   description?: InputMaybe<Order_By>;
   elections_aggregate?: InputMaybe<Sequent_Backend_Election_Aggregate_Order_By>;
   encryption_protocol?: InputMaybe<Order_By>;
+  external_id?: InputMaybe<Order_By>;
   id?: InputMaybe<Order_By>;
   is_archived?: InputMaybe<Order_By>;
   is_audit?: InputMaybe<Order_By>;
   labels?: InputMaybe<Order_By>;
-  name?: InputMaybe<Order_By>;
   presentation?: InputMaybe<Order_By>;
   public_key?: InputMaybe<Order_By>;
   statistics?: InputMaybe<Order_By>;
@@ -9630,8 +10102,6 @@ export type Sequent_Backend_Election_Event_Prepend_Input = {
 /** select columns of table "sequent_backend.election_event" */
 export enum Sequent_Backend_Election_Event_Select_Column {
   /** column name */
-  Alias = 'alias',
-  /** column name */
   Annotations = 'annotations',
   /** column name */
   AuditElectionEventId = 'audit_election_event_id',
@@ -9644,6 +10114,8 @@ export enum Sequent_Backend_Election_Event_Select_Column {
   /** column name */
   EncryptionProtocol = 'encryption_protocol',
   /** column name */
+  ExternalId = 'external_id',
+  /** column name */
   Id = 'id',
   /** column name */
   IsArchived = 'is_archived',
@@ -9651,8 +10123,6 @@ export enum Sequent_Backend_Election_Event_Select_Column {
   IsAudit = 'is_audit',
   /** column name */
   Labels = 'labels',
-  /** column name */
-  Name = 'name',
   /** column name */
   Presentation = 'presentation',
   /** column name */
@@ -9673,18 +10143,17 @@ export enum Sequent_Backend_Election_Event_Select_Column {
 
 /** input type for updating data in table "sequent_backend.election_event" */
 export type Sequent_Backend_Election_Event_Set_Input = {
-  alias?: InputMaybe<Scalars['String']['input']>;
   annotations?: InputMaybe<Scalars['jsonb']['input']>;
   audit_election_event_id?: InputMaybe<Scalars['uuid']['input']>;
   bulletin_board_reference?: InputMaybe<Scalars['jsonb']['input']>;
   created_at?: InputMaybe<Scalars['timestamptz']['input']>;
   description?: InputMaybe<Scalars['String']['input']>;
   encryption_protocol?: InputMaybe<Scalars['String']['input']>;
+  external_id?: InputMaybe<Scalars['String']['input']>;
   id?: InputMaybe<Scalars['uuid']['input']>;
   is_archived?: InputMaybe<Scalars['Boolean']['input']>;
   is_audit?: InputMaybe<Scalars['Boolean']['input']>;
   labels?: InputMaybe<Scalars['jsonb']['input']>;
-  name?: InputMaybe<Scalars['String']['input']>;
   presentation?: InputMaybe<Scalars['jsonb']['input']>;
   public_key?: InputMaybe<Scalars['String']['input']>;
   statistics?: InputMaybe<Scalars['jsonb']['input']>;
@@ -9705,18 +10174,17 @@ export type Sequent_Backend_Election_Event_Stream_Cursor_Input = {
 
 /** Initial value of the column from where the streaming should start */
 export type Sequent_Backend_Election_Event_Stream_Cursor_Value_Input = {
-  alias?: InputMaybe<Scalars['String']['input']>;
   annotations?: InputMaybe<Scalars['jsonb']['input']>;
   audit_election_event_id?: InputMaybe<Scalars['uuid']['input']>;
   bulletin_board_reference?: InputMaybe<Scalars['jsonb']['input']>;
   created_at?: InputMaybe<Scalars['timestamptz']['input']>;
   description?: InputMaybe<Scalars['String']['input']>;
   encryption_protocol?: InputMaybe<Scalars['String']['input']>;
+  external_id?: InputMaybe<Scalars['String']['input']>;
   id?: InputMaybe<Scalars['uuid']['input']>;
   is_archived?: InputMaybe<Scalars['Boolean']['input']>;
   is_audit?: InputMaybe<Scalars['Boolean']['input']>;
   labels?: InputMaybe<Scalars['jsonb']['input']>;
-  name?: InputMaybe<Scalars['String']['input']>;
   presentation?: InputMaybe<Scalars['jsonb']['input']>;
   public_key?: InputMaybe<Scalars['String']['input']>;
   statistics?: InputMaybe<Scalars['jsonb']['input']>;
@@ -9730,8 +10198,6 @@ export type Sequent_Backend_Election_Event_Stream_Cursor_Value_Input = {
 /** update columns of table "sequent_backend.election_event" */
 export enum Sequent_Backend_Election_Event_Update_Column {
   /** column name */
-  Alias = 'alias',
-  /** column name */
   Annotations = 'annotations',
   /** column name */
   AuditElectionEventId = 'audit_election_event_id',
@@ -9744,6 +10210,8 @@ export enum Sequent_Backend_Election_Event_Update_Column {
   /** column name */
   EncryptionProtocol = 'encryption_protocol',
   /** column name */
+  ExternalId = 'external_id',
+  /** column name */
   Id = 'id',
   /** column name */
   IsArchived = 'is_archived',
@@ -9751,8 +10219,6 @@ export enum Sequent_Backend_Election_Event_Update_Column {
   IsAudit = 'is_audit',
   /** column name */
   Labels = 'labels',
-  /** column name */
-  Name = 'name',
   /** column name */
   Presentation = 'presentation',
   /** column name */
@@ -9795,13 +10261,13 @@ export type Sequent_Backend_Election_Inc_Input = {
 
 /** input type for inserting data into table "sequent_backend.election" */
 export type Sequent_Backend_Election_Insert_Input = {
-  alias?: InputMaybe<Scalars['String']['input']>;
   annotations?: InputMaybe<Scalars['jsonb']['input']>;
   contests?: InputMaybe<Sequent_Backend_Contest_Arr_Rel_Insert_Input>;
   created_at?: InputMaybe<Scalars['timestamptz']['input']>;
   description?: InputMaybe<Scalars['String']['input']>;
   election_event_id?: InputMaybe<Scalars['uuid']['input']>;
   eml?: InputMaybe<Scalars['String']['input']>;
+  external_id?: InputMaybe<Scalars['String']['input']>;
   id?: InputMaybe<Scalars['uuid']['input']>;
   image_document_id?: InputMaybe<Scalars['String']['input']>;
   initialization_report_generated?: InputMaybe<Scalars['Boolean']['input']>;
@@ -9810,7 +10276,6 @@ export type Sequent_Backend_Election_Insert_Input = {
   keys_ceremony_id?: InputMaybe<Scalars['uuid']['input']>;
   labels?: InputMaybe<Scalars['jsonb']['input']>;
   last_updated_at?: InputMaybe<Scalars['timestamptz']['input']>;
-  name?: InputMaybe<Scalars['String']['input']>;
   num_allowed_revotes?: InputMaybe<Scalars['Int']['input']>;
   permission_label?: InputMaybe<Scalars['String']['input']>;
   presentation?: InputMaybe<Scalars['jsonb']['input']>;
@@ -9825,16 +10290,15 @@ export type Sequent_Backend_Election_Insert_Input = {
 /** aggregate max on columns */
 export type Sequent_Backend_Election_Max_Fields = {
   __typename?: 'sequent_backend_election_max_fields';
-  alias?: Maybe<Scalars['String']['output']>;
   created_at?: Maybe<Scalars['timestamptz']['output']>;
   description?: Maybe<Scalars['String']['output']>;
   election_event_id?: Maybe<Scalars['uuid']['output']>;
   eml?: Maybe<Scalars['String']['output']>;
+  external_id?: Maybe<Scalars['String']['output']>;
   id?: Maybe<Scalars['uuid']['output']>;
   image_document_id?: Maybe<Scalars['String']['output']>;
   keys_ceremony_id?: Maybe<Scalars['uuid']['output']>;
   last_updated_at?: Maybe<Scalars['timestamptz']['output']>;
-  name?: Maybe<Scalars['String']['output']>;
   num_allowed_revotes?: Maybe<Scalars['Int']['output']>;
   permission_label?: Maybe<Scalars['String']['output']>;
   tenant_id?: Maybe<Scalars['uuid']['output']>;
@@ -9842,16 +10306,15 @@ export type Sequent_Backend_Election_Max_Fields = {
 
 /** order by max() on columns of table "sequent_backend.election" */
 export type Sequent_Backend_Election_Max_Order_By = {
-  alias?: InputMaybe<Order_By>;
   created_at?: InputMaybe<Order_By>;
   description?: InputMaybe<Order_By>;
   election_event_id?: InputMaybe<Order_By>;
   eml?: InputMaybe<Order_By>;
+  external_id?: InputMaybe<Order_By>;
   id?: InputMaybe<Order_By>;
   image_document_id?: InputMaybe<Order_By>;
   keys_ceremony_id?: InputMaybe<Order_By>;
   last_updated_at?: InputMaybe<Order_By>;
-  name?: InputMaybe<Order_By>;
   num_allowed_revotes?: InputMaybe<Order_By>;
   permission_label?: InputMaybe<Order_By>;
   tenant_id?: InputMaybe<Order_By>;
@@ -9860,16 +10323,15 @@ export type Sequent_Backend_Election_Max_Order_By = {
 /** aggregate min on columns */
 export type Sequent_Backend_Election_Min_Fields = {
   __typename?: 'sequent_backend_election_min_fields';
-  alias?: Maybe<Scalars['String']['output']>;
   created_at?: Maybe<Scalars['timestamptz']['output']>;
   description?: Maybe<Scalars['String']['output']>;
   election_event_id?: Maybe<Scalars['uuid']['output']>;
   eml?: Maybe<Scalars['String']['output']>;
+  external_id?: Maybe<Scalars['String']['output']>;
   id?: Maybe<Scalars['uuid']['output']>;
   image_document_id?: Maybe<Scalars['String']['output']>;
   keys_ceremony_id?: Maybe<Scalars['uuid']['output']>;
   last_updated_at?: Maybe<Scalars['timestamptz']['output']>;
-  name?: Maybe<Scalars['String']['output']>;
   num_allowed_revotes?: Maybe<Scalars['Int']['output']>;
   permission_label?: Maybe<Scalars['String']['output']>;
   tenant_id?: Maybe<Scalars['uuid']['output']>;
@@ -9877,16 +10339,15 @@ export type Sequent_Backend_Election_Min_Fields = {
 
 /** order by min() on columns of table "sequent_backend.election" */
 export type Sequent_Backend_Election_Min_Order_By = {
-  alias?: InputMaybe<Order_By>;
   created_at?: InputMaybe<Order_By>;
   description?: InputMaybe<Order_By>;
   election_event_id?: InputMaybe<Order_By>;
   eml?: InputMaybe<Order_By>;
+  external_id?: InputMaybe<Order_By>;
   id?: InputMaybe<Order_By>;
   image_document_id?: InputMaybe<Order_By>;
   keys_ceremony_id?: InputMaybe<Order_By>;
   last_updated_at?: InputMaybe<Order_By>;
-  name?: InputMaybe<Order_By>;
   num_allowed_revotes?: InputMaybe<Order_By>;
   permission_label?: InputMaybe<Order_By>;
   tenant_id?: InputMaybe<Order_By>;
@@ -9910,13 +10371,13 @@ export type Sequent_Backend_Election_On_Conflict = {
 
 /** Ordering options when selecting data from "sequent_backend.election". */
 export type Sequent_Backend_Election_Order_By = {
-  alias?: InputMaybe<Order_By>;
   annotations?: InputMaybe<Order_By>;
   contests_aggregate?: InputMaybe<Sequent_Backend_Contest_Aggregate_Order_By>;
   created_at?: InputMaybe<Order_By>;
   description?: InputMaybe<Order_By>;
   election_event_id?: InputMaybe<Order_By>;
   eml?: InputMaybe<Order_By>;
+  external_id?: InputMaybe<Order_By>;
   id?: InputMaybe<Order_By>;
   image_document_id?: InputMaybe<Order_By>;
   initialization_report_generated?: InputMaybe<Order_By>;
@@ -9925,7 +10386,6 @@ export type Sequent_Backend_Election_Order_By = {
   keys_ceremony_id?: InputMaybe<Order_By>;
   labels?: InputMaybe<Order_By>;
   last_updated_at?: InputMaybe<Order_By>;
-  name?: InputMaybe<Order_By>;
   num_allowed_revotes?: InputMaybe<Order_By>;
   permission_label?: InputMaybe<Order_By>;
   presentation?: InputMaybe<Order_By>;
@@ -10267,8 +10727,6 @@ export type Sequent_Backend_Election_Result_Updates = {
 /** select columns of table "sequent_backend.election" */
 export enum Sequent_Backend_Election_Select_Column {
   /** column name */
-  Alias = 'alias',
-  /** column name */
   Annotations = 'annotations',
   /** column name */
   CreatedAt = 'created_at',
@@ -10278,6 +10736,8 @@ export enum Sequent_Backend_Election_Select_Column {
   ElectionEventId = 'election_event_id',
   /** column name */
   Eml = 'eml',
+  /** column name */
+  ExternalId = 'external_id',
   /** column name */
   Id = 'id',
   /** column name */
@@ -10294,8 +10754,6 @@ export enum Sequent_Backend_Election_Select_Column {
   Labels = 'labels',
   /** column name */
   LastUpdatedAt = 'last_updated_at',
-  /** column name */
-  Name = 'name',
   /** column name */
   NumAllowedRevotes = 'num_allowed_revotes',
   /** column name */
@@ -10342,12 +10800,12 @@ export enum Sequent_Backend_Election_Select_Column_Sequent_Backend_Election_Aggr
 
 /** input type for updating data in table "sequent_backend.election" */
 export type Sequent_Backend_Election_Set_Input = {
-  alias?: InputMaybe<Scalars['String']['input']>;
   annotations?: InputMaybe<Scalars['jsonb']['input']>;
   created_at?: InputMaybe<Scalars['timestamptz']['input']>;
   description?: InputMaybe<Scalars['String']['input']>;
   election_event_id?: InputMaybe<Scalars['uuid']['input']>;
   eml?: InputMaybe<Scalars['String']['input']>;
+  external_id?: InputMaybe<Scalars['String']['input']>;
   id?: InputMaybe<Scalars['uuid']['input']>;
   image_document_id?: InputMaybe<Scalars['String']['input']>;
   initialization_report_generated?: InputMaybe<Scalars['Boolean']['input']>;
@@ -10356,7 +10814,6 @@ export type Sequent_Backend_Election_Set_Input = {
   keys_ceremony_id?: InputMaybe<Scalars['uuid']['input']>;
   labels?: InputMaybe<Scalars['jsonb']['input']>;
   last_updated_at?: InputMaybe<Scalars['timestamptz']['input']>;
-  name?: InputMaybe<Scalars['String']['input']>;
   num_allowed_revotes?: InputMaybe<Scalars['Int']['input']>;
   permission_label?: InputMaybe<Scalars['String']['input']>;
   presentation?: InputMaybe<Scalars['jsonb']['input']>;
@@ -10411,12 +10868,12 @@ export type Sequent_Backend_Election_Stream_Cursor_Input = {
 
 /** Initial value of the column from where the streaming should start */
 export type Sequent_Backend_Election_Stream_Cursor_Value_Input = {
-  alias?: InputMaybe<Scalars['String']['input']>;
   annotations?: InputMaybe<Scalars['jsonb']['input']>;
   created_at?: InputMaybe<Scalars['timestamptz']['input']>;
   description?: InputMaybe<Scalars['String']['input']>;
   election_event_id?: InputMaybe<Scalars['uuid']['input']>;
   eml?: InputMaybe<Scalars['String']['input']>;
+  external_id?: InputMaybe<Scalars['String']['input']>;
   id?: InputMaybe<Scalars['uuid']['input']>;
   image_document_id?: InputMaybe<Scalars['String']['input']>;
   initialization_report_generated?: InputMaybe<Scalars['Boolean']['input']>;
@@ -10425,7 +10882,6 @@ export type Sequent_Backend_Election_Stream_Cursor_Value_Input = {
   keys_ceremony_id?: InputMaybe<Scalars['uuid']['input']>;
   labels?: InputMaybe<Scalars['jsonb']['input']>;
   last_updated_at?: InputMaybe<Scalars['timestamptz']['input']>;
-  name?: InputMaybe<Scalars['String']['input']>;
   num_allowed_revotes?: InputMaybe<Scalars['Int']['input']>;
   permission_label?: InputMaybe<Scalars['String']['input']>;
   presentation?: InputMaybe<Scalars['jsonb']['input']>;
@@ -10694,8 +11150,6 @@ export type Sequent_Backend_Election_Type_Updates = {
 /** update columns of table "sequent_backend.election" */
 export enum Sequent_Backend_Election_Update_Column {
   /** column name */
-  Alias = 'alias',
-  /** column name */
   Annotations = 'annotations',
   /** column name */
   CreatedAt = 'created_at',
@@ -10705,6 +11159,8 @@ export enum Sequent_Backend_Election_Update_Column {
   ElectionEventId = 'election_event_id',
   /** column name */
   Eml = 'eml',
+  /** column name */
+  ExternalId = 'external_id',
   /** column name */
   Id = 'id',
   /** column name */
@@ -10721,8 +11177,6 @@ export enum Sequent_Backend_Election_Update_Column {
   Labels = 'labels',
   /** column name */
   LastUpdatedAt = 'last_updated_at',
-  /** column name */
-  Name = 'name',
   /** column name */
   NumAllowedRevotes = 'num_allowed_revotes',
   /** column name */
@@ -16715,6 +17169,10 @@ export type Sequent_Backend_Tally_Session = {
   labels?: Maybe<Scalars['jsonb']['output']>;
   last_updated_at?: Maybe<Scalars['timestamptz']['output']>;
   permission_label?: Maybe<Array<Scalars['String']['output']>>;
+  /** An array relationship */
+  resolutions: Array<Sequent_Backend_Tally_Session_Resolution>;
+  /** An aggregate relationship */
+  resolutions_aggregate: Sequent_Backend_Tally_Session_Resolution_Aggregate;
   tally_type?: Maybe<Scalars['String']['output']>;
   tenant_id: Scalars['uuid']['output'];
   threshold: Scalars['Int']['output'];
@@ -16736,6 +17194,26 @@ export type Sequent_Backend_Tally_SessionConfigurationArgs = {
 /** columns and relationships of "sequent_backend.tally_session" */
 export type Sequent_Backend_Tally_SessionLabelsArgs = {
   path?: InputMaybe<Scalars['String']['input']>;
+};
+
+
+/** columns and relationships of "sequent_backend.tally_session" */
+export type Sequent_Backend_Tally_SessionResolutionsArgs = {
+  distinct_on?: InputMaybe<Array<Sequent_Backend_Tally_Session_Resolution_Select_Column>>;
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  offset?: InputMaybe<Scalars['Int']['input']>;
+  order_by?: InputMaybe<Array<Sequent_Backend_Tally_Session_Resolution_Order_By>>;
+  where?: InputMaybe<Sequent_Backend_Tally_Session_Resolution_Bool_Exp>;
+};
+
+
+/** columns and relationships of "sequent_backend.tally_session" */
+export type Sequent_Backend_Tally_SessionResolutions_AggregateArgs = {
+  distinct_on?: InputMaybe<Array<Sequent_Backend_Tally_Session_Resolution_Select_Column>>;
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  offset?: InputMaybe<Scalars['Int']['input']>;
+  order_by?: InputMaybe<Array<Sequent_Backend_Tally_Session_Resolution_Order_By>>;
+  where?: InputMaybe<Sequent_Backend_Tally_Session_Resolution_Bool_Exp>;
 };
 
 /** aggregated selection of "sequent_backend.tally_session" */
@@ -16799,6 +17277,8 @@ export type Sequent_Backend_Tally_Session_Bool_Exp = {
   labels?: InputMaybe<Jsonb_Comparison_Exp>;
   last_updated_at?: InputMaybe<Timestamptz_Comparison_Exp>;
   permission_label?: InputMaybe<String_Array_Comparison_Exp>;
+  resolutions?: InputMaybe<Sequent_Backend_Tally_Session_Resolution_Bool_Exp>;
+  resolutions_aggregate?: InputMaybe<Sequent_Backend_Tally_Session_Resolution_Aggregate_Bool_Exp>;
   tally_type?: InputMaybe<String_Comparison_Exp>;
   tenant_id?: InputMaybe<Uuid_Comparison_Exp>;
   threshold?: InputMaybe<Int_Comparison_Exp>;
@@ -17615,6 +18095,7 @@ export type Sequent_Backend_Tally_Session_Insert_Input = {
   labels?: InputMaybe<Scalars['jsonb']['input']>;
   last_updated_at?: InputMaybe<Scalars['timestamptz']['input']>;
   permission_label?: InputMaybe<Array<Scalars['String']['input']>>;
+  resolutions?: InputMaybe<Sequent_Backend_Tally_Session_Resolution_Arr_Rel_Insert_Input>;
   tally_type?: InputMaybe<Scalars['String']['input']>;
   tenant_id?: InputMaybe<Scalars['uuid']['input']>;
   threshold?: InputMaybe<Scalars['Int']['input']>;
@@ -17663,6 +18144,13 @@ export type Sequent_Backend_Tally_Session_Mutation_Response = {
   returning: Array<Sequent_Backend_Tally_Session>;
 };
 
+/** input type for inserting object relation for remote table "sequent_backend.tally_session" */
+export type Sequent_Backend_Tally_Session_Obj_Rel_Insert_Input = {
+  data: Sequent_Backend_Tally_Session_Insert_Input;
+  /** upsert condition */
+  on_conflict?: InputMaybe<Sequent_Backend_Tally_Session_On_Conflict>;
+};
+
 /** on_conflict condition type for table "sequent_backend.tally_session" */
 export type Sequent_Backend_Tally_Session_On_Conflict = {
   constraint: Sequent_Backend_Tally_Session_Constraint;
@@ -17685,6 +18173,7 @@ export type Sequent_Backend_Tally_Session_Order_By = {
   labels?: InputMaybe<Order_By>;
   last_updated_at?: InputMaybe<Order_By>;
   permission_label?: InputMaybe<Order_By>;
+  resolutions_aggregate?: InputMaybe<Sequent_Backend_Tally_Session_Resolution_Aggregate_Order_By>;
   tally_type?: InputMaybe<Order_By>;
   tenant_id?: InputMaybe<Order_By>;
   threshold?: InputMaybe<Order_By>;
@@ -17702,6 +18191,406 @@ export type Sequent_Backend_Tally_Session_Prepend_Input = {
   annotations?: InputMaybe<Scalars['jsonb']['input']>;
   configuration?: InputMaybe<Scalars['jsonb']['input']>;
   labels?: InputMaybe<Scalars['jsonb']['input']>;
+};
+
+/** columns and relationships of "sequent_backend.tally_session_resolution" */
+export type Sequent_Backend_Tally_Session_Resolution = {
+  __typename?: 'sequent_backend_tally_session_resolution';
+  annotations?: Maybe<Scalars['jsonb']['output']>;
+  /** An object relationship */
+  contest?: Maybe<Sequent_Backend_Contest>;
+  contest_id?: Maybe<Scalars['uuid']['output']>;
+  created_at: Scalars['timestamptz']['output'];
+  election_event_id: Scalars['uuid']['output'];
+  id: Scalars['uuid']['output'];
+  labels?: Maybe<Scalars['jsonb']['output']>;
+  last_updated_at: Scalars['timestamptz']['output'];
+  resolution_data: Scalars['jsonb']['output'];
+  resolution_type: Scalars['String']['output'];
+  resolved_at?: Maybe<Scalars['timestamptz']['output']>;
+  resolved_by_user?: Maybe<Scalars['uuid']['output']>;
+  status: Scalars['String']['output'];
+  /** An object relationship */
+  tally_session?: Maybe<Sequent_Backend_Tally_Session>;
+  tally_session_id: Scalars['uuid']['output'];
+  tenant_id: Scalars['uuid']['output'];
+};
+
+
+/** columns and relationships of "sequent_backend.tally_session_resolution" */
+export type Sequent_Backend_Tally_Session_ResolutionAnnotationsArgs = {
+  path?: InputMaybe<Scalars['String']['input']>;
+};
+
+
+/** columns and relationships of "sequent_backend.tally_session_resolution" */
+export type Sequent_Backend_Tally_Session_ResolutionLabelsArgs = {
+  path?: InputMaybe<Scalars['String']['input']>;
+};
+
+
+/** columns and relationships of "sequent_backend.tally_session_resolution" */
+export type Sequent_Backend_Tally_Session_ResolutionResolution_DataArgs = {
+  path?: InputMaybe<Scalars['String']['input']>;
+};
+
+/** aggregated selection of "sequent_backend.tally_session_resolution" */
+export type Sequent_Backend_Tally_Session_Resolution_Aggregate = {
+  __typename?: 'sequent_backend_tally_session_resolution_aggregate';
+  aggregate?: Maybe<Sequent_Backend_Tally_Session_Resolution_Aggregate_Fields>;
+  nodes: Array<Sequent_Backend_Tally_Session_Resolution>;
+};
+
+export type Sequent_Backend_Tally_Session_Resolution_Aggregate_Bool_Exp = {
+  count?: InputMaybe<Sequent_Backend_Tally_Session_Resolution_Aggregate_Bool_Exp_Count>;
+};
+
+export type Sequent_Backend_Tally_Session_Resolution_Aggregate_Bool_Exp_Count = {
+  arguments?: InputMaybe<Array<Sequent_Backend_Tally_Session_Resolution_Select_Column>>;
+  distinct?: InputMaybe<Scalars['Boolean']['input']>;
+  filter?: InputMaybe<Sequent_Backend_Tally_Session_Resolution_Bool_Exp>;
+  predicate: Int_Comparison_Exp;
+};
+
+/** aggregate fields of "sequent_backend.tally_session_resolution" */
+export type Sequent_Backend_Tally_Session_Resolution_Aggregate_Fields = {
+  __typename?: 'sequent_backend_tally_session_resolution_aggregate_fields';
+  count: Scalars['Int']['output'];
+  max?: Maybe<Sequent_Backend_Tally_Session_Resolution_Max_Fields>;
+  min?: Maybe<Sequent_Backend_Tally_Session_Resolution_Min_Fields>;
+};
+
+
+/** aggregate fields of "sequent_backend.tally_session_resolution" */
+export type Sequent_Backend_Tally_Session_Resolution_Aggregate_FieldsCountArgs = {
+  columns?: InputMaybe<Array<Sequent_Backend_Tally_Session_Resolution_Select_Column>>;
+  distinct?: InputMaybe<Scalars['Boolean']['input']>;
+};
+
+/** order by aggregate values of table "sequent_backend.tally_session_resolution" */
+export type Sequent_Backend_Tally_Session_Resolution_Aggregate_Order_By = {
+  count?: InputMaybe<Order_By>;
+  max?: InputMaybe<Sequent_Backend_Tally_Session_Resolution_Max_Order_By>;
+  min?: InputMaybe<Sequent_Backend_Tally_Session_Resolution_Min_Order_By>;
+};
+
+/** append existing jsonb value of filtered columns with new jsonb value */
+export type Sequent_Backend_Tally_Session_Resolution_Append_Input = {
+  annotations?: InputMaybe<Scalars['jsonb']['input']>;
+  labels?: InputMaybe<Scalars['jsonb']['input']>;
+  resolution_data?: InputMaybe<Scalars['jsonb']['input']>;
+};
+
+/** input type for inserting array relation for remote table "sequent_backend.tally_session_resolution" */
+export type Sequent_Backend_Tally_Session_Resolution_Arr_Rel_Insert_Input = {
+  data: Array<Sequent_Backend_Tally_Session_Resolution_Insert_Input>;
+  /** upsert condition */
+  on_conflict?: InputMaybe<Sequent_Backend_Tally_Session_Resolution_On_Conflict>;
+};
+
+/** Boolean expression to filter rows from the table "sequent_backend.tally_session_resolution". All fields are combined with a logical 'AND'. */
+export type Sequent_Backend_Tally_Session_Resolution_Bool_Exp = {
+  _and?: InputMaybe<Array<Sequent_Backend_Tally_Session_Resolution_Bool_Exp>>;
+  _not?: InputMaybe<Sequent_Backend_Tally_Session_Resolution_Bool_Exp>;
+  _or?: InputMaybe<Array<Sequent_Backend_Tally_Session_Resolution_Bool_Exp>>;
+  annotations?: InputMaybe<Jsonb_Comparison_Exp>;
+  contest?: InputMaybe<Sequent_Backend_Contest_Bool_Exp>;
+  contest_id?: InputMaybe<Uuid_Comparison_Exp>;
+  created_at?: InputMaybe<Timestamptz_Comparison_Exp>;
+  election_event_id?: InputMaybe<Uuid_Comparison_Exp>;
+  id?: InputMaybe<Uuid_Comparison_Exp>;
+  labels?: InputMaybe<Jsonb_Comparison_Exp>;
+  last_updated_at?: InputMaybe<Timestamptz_Comparison_Exp>;
+  resolution_data?: InputMaybe<Jsonb_Comparison_Exp>;
+  resolution_type?: InputMaybe<String_Comparison_Exp>;
+  resolved_at?: InputMaybe<Timestamptz_Comparison_Exp>;
+  resolved_by_user?: InputMaybe<Uuid_Comparison_Exp>;
+  status?: InputMaybe<String_Comparison_Exp>;
+  tally_session?: InputMaybe<Sequent_Backend_Tally_Session_Bool_Exp>;
+  tally_session_id?: InputMaybe<Uuid_Comparison_Exp>;
+  tenant_id?: InputMaybe<Uuid_Comparison_Exp>;
+};
+
+/** unique or primary key constraints on table "sequent_backend.tally_session_resolution" */
+export enum Sequent_Backend_Tally_Session_Resolution_Constraint {
+  /** unique or primary key constraint on columns "id" */
+  TallySessionResolutionPkey = 'tally_session_resolution_pkey'
+}
+
+/** delete the field or element with specified path (for JSON arrays, negative integers count from the end) */
+export type Sequent_Backend_Tally_Session_Resolution_Delete_At_Path_Input = {
+  annotations?: InputMaybe<Array<Scalars['String']['input']>>;
+  labels?: InputMaybe<Array<Scalars['String']['input']>>;
+  resolution_data?: InputMaybe<Array<Scalars['String']['input']>>;
+};
+
+/** delete the array element with specified index (negative integers count from the end). throws an error if top level container is not an array */
+export type Sequent_Backend_Tally_Session_Resolution_Delete_Elem_Input = {
+  annotations?: InputMaybe<Scalars['Int']['input']>;
+  labels?: InputMaybe<Scalars['Int']['input']>;
+  resolution_data?: InputMaybe<Scalars['Int']['input']>;
+};
+
+/** delete key/value pair or string element. key/value pairs are matched based on their key value */
+export type Sequent_Backend_Tally_Session_Resolution_Delete_Key_Input = {
+  annotations?: InputMaybe<Scalars['String']['input']>;
+  labels?: InputMaybe<Scalars['String']['input']>;
+  resolution_data?: InputMaybe<Scalars['String']['input']>;
+};
+
+/** input type for inserting data into table "sequent_backend.tally_session_resolution" */
+export type Sequent_Backend_Tally_Session_Resolution_Insert_Input = {
+  annotations?: InputMaybe<Scalars['jsonb']['input']>;
+  contest?: InputMaybe<Sequent_Backend_Contest_Obj_Rel_Insert_Input>;
+  contest_id?: InputMaybe<Scalars['uuid']['input']>;
+  created_at?: InputMaybe<Scalars['timestamptz']['input']>;
+  election_event_id?: InputMaybe<Scalars['uuid']['input']>;
+  id?: InputMaybe<Scalars['uuid']['input']>;
+  labels?: InputMaybe<Scalars['jsonb']['input']>;
+  last_updated_at?: InputMaybe<Scalars['timestamptz']['input']>;
+  resolution_data?: InputMaybe<Scalars['jsonb']['input']>;
+  resolution_type?: InputMaybe<Scalars['String']['input']>;
+  resolved_at?: InputMaybe<Scalars['timestamptz']['input']>;
+  resolved_by_user?: InputMaybe<Scalars['uuid']['input']>;
+  status?: InputMaybe<Scalars['String']['input']>;
+  tally_session?: InputMaybe<Sequent_Backend_Tally_Session_Obj_Rel_Insert_Input>;
+  tally_session_id?: InputMaybe<Scalars['uuid']['input']>;
+  tenant_id?: InputMaybe<Scalars['uuid']['input']>;
+};
+
+/** aggregate max on columns */
+export type Sequent_Backend_Tally_Session_Resolution_Max_Fields = {
+  __typename?: 'sequent_backend_tally_session_resolution_max_fields';
+  contest_id?: Maybe<Scalars['uuid']['output']>;
+  created_at?: Maybe<Scalars['timestamptz']['output']>;
+  election_event_id?: Maybe<Scalars['uuid']['output']>;
+  id?: Maybe<Scalars['uuid']['output']>;
+  last_updated_at?: Maybe<Scalars['timestamptz']['output']>;
+  resolution_type?: Maybe<Scalars['String']['output']>;
+  resolved_at?: Maybe<Scalars['timestamptz']['output']>;
+  resolved_by_user?: Maybe<Scalars['uuid']['output']>;
+  status?: Maybe<Scalars['String']['output']>;
+  tally_session_id?: Maybe<Scalars['uuid']['output']>;
+  tenant_id?: Maybe<Scalars['uuid']['output']>;
+};
+
+/** order by max() on columns of table "sequent_backend.tally_session_resolution" */
+export type Sequent_Backend_Tally_Session_Resolution_Max_Order_By = {
+  contest_id?: InputMaybe<Order_By>;
+  created_at?: InputMaybe<Order_By>;
+  election_event_id?: InputMaybe<Order_By>;
+  id?: InputMaybe<Order_By>;
+  last_updated_at?: InputMaybe<Order_By>;
+  resolution_type?: InputMaybe<Order_By>;
+  resolved_at?: InputMaybe<Order_By>;
+  resolved_by_user?: InputMaybe<Order_By>;
+  status?: InputMaybe<Order_By>;
+  tally_session_id?: InputMaybe<Order_By>;
+  tenant_id?: InputMaybe<Order_By>;
+};
+
+/** aggregate min on columns */
+export type Sequent_Backend_Tally_Session_Resolution_Min_Fields = {
+  __typename?: 'sequent_backend_tally_session_resolution_min_fields';
+  contest_id?: Maybe<Scalars['uuid']['output']>;
+  created_at?: Maybe<Scalars['timestamptz']['output']>;
+  election_event_id?: Maybe<Scalars['uuid']['output']>;
+  id?: Maybe<Scalars['uuid']['output']>;
+  last_updated_at?: Maybe<Scalars['timestamptz']['output']>;
+  resolution_type?: Maybe<Scalars['String']['output']>;
+  resolved_at?: Maybe<Scalars['timestamptz']['output']>;
+  resolved_by_user?: Maybe<Scalars['uuid']['output']>;
+  status?: Maybe<Scalars['String']['output']>;
+  tally_session_id?: Maybe<Scalars['uuid']['output']>;
+  tenant_id?: Maybe<Scalars['uuid']['output']>;
+};
+
+/** order by min() on columns of table "sequent_backend.tally_session_resolution" */
+export type Sequent_Backend_Tally_Session_Resolution_Min_Order_By = {
+  contest_id?: InputMaybe<Order_By>;
+  created_at?: InputMaybe<Order_By>;
+  election_event_id?: InputMaybe<Order_By>;
+  id?: InputMaybe<Order_By>;
+  last_updated_at?: InputMaybe<Order_By>;
+  resolution_type?: InputMaybe<Order_By>;
+  resolved_at?: InputMaybe<Order_By>;
+  resolved_by_user?: InputMaybe<Order_By>;
+  status?: InputMaybe<Order_By>;
+  tally_session_id?: InputMaybe<Order_By>;
+  tenant_id?: InputMaybe<Order_By>;
+};
+
+/** response of any mutation on the table "sequent_backend.tally_session_resolution" */
+export type Sequent_Backend_Tally_Session_Resolution_Mutation_Response = {
+  __typename?: 'sequent_backend_tally_session_resolution_mutation_response';
+  /** number of rows affected by the mutation */
+  affected_rows: Scalars['Int']['output'];
+  /** data from the rows affected by the mutation */
+  returning: Array<Sequent_Backend_Tally_Session_Resolution>;
+};
+
+/** on_conflict condition type for table "sequent_backend.tally_session_resolution" */
+export type Sequent_Backend_Tally_Session_Resolution_On_Conflict = {
+  constraint: Sequent_Backend_Tally_Session_Resolution_Constraint;
+  update_columns?: Array<Sequent_Backend_Tally_Session_Resolution_Update_Column>;
+  where?: InputMaybe<Sequent_Backend_Tally_Session_Resolution_Bool_Exp>;
+};
+
+/** Ordering options when selecting data from "sequent_backend.tally_session_resolution". */
+export type Sequent_Backend_Tally_Session_Resolution_Order_By = {
+  annotations?: InputMaybe<Order_By>;
+  contest?: InputMaybe<Sequent_Backend_Contest_Order_By>;
+  contest_id?: InputMaybe<Order_By>;
+  created_at?: InputMaybe<Order_By>;
+  election_event_id?: InputMaybe<Order_By>;
+  id?: InputMaybe<Order_By>;
+  labels?: InputMaybe<Order_By>;
+  last_updated_at?: InputMaybe<Order_By>;
+  resolution_data?: InputMaybe<Order_By>;
+  resolution_type?: InputMaybe<Order_By>;
+  resolved_at?: InputMaybe<Order_By>;
+  resolved_by_user?: InputMaybe<Order_By>;
+  status?: InputMaybe<Order_By>;
+  tally_session?: InputMaybe<Sequent_Backend_Tally_Session_Order_By>;
+  tally_session_id?: InputMaybe<Order_By>;
+  tenant_id?: InputMaybe<Order_By>;
+};
+
+/** primary key columns input for table: sequent_backend.tally_session_resolution */
+export type Sequent_Backend_Tally_Session_Resolution_Pk_Columns_Input = {
+  id: Scalars['uuid']['input'];
+};
+
+/** prepend existing jsonb value of filtered columns with new jsonb value */
+export type Sequent_Backend_Tally_Session_Resolution_Prepend_Input = {
+  annotations?: InputMaybe<Scalars['jsonb']['input']>;
+  labels?: InputMaybe<Scalars['jsonb']['input']>;
+  resolution_data?: InputMaybe<Scalars['jsonb']['input']>;
+};
+
+/** select columns of table "sequent_backend.tally_session_resolution" */
+export enum Sequent_Backend_Tally_Session_Resolution_Select_Column {
+  /** column name */
+  Annotations = 'annotations',
+  /** column name */
+  ContestId = 'contest_id',
+  /** column name */
+  CreatedAt = 'created_at',
+  /** column name */
+  ElectionEventId = 'election_event_id',
+  /** column name */
+  Id = 'id',
+  /** column name */
+  Labels = 'labels',
+  /** column name */
+  LastUpdatedAt = 'last_updated_at',
+  /** column name */
+  ResolutionData = 'resolution_data',
+  /** column name */
+  ResolutionType = 'resolution_type',
+  /** column name */
+  ResolvedAt = 'resolved_at',
+  /** column name */
+  ResolvedByUser = 'resolved_by_user',
+  /** column name */
+  Status = 'status',
+  /** column name */
+  TallySessionId = 'tally_session_id',
+  /** column name */
+  TenantId = 'tenant_id'
+}
+
+/** input type for updating data in table "sequent_backend.tally_session_resolution" */
+export type Sequent_Backend_Tally_Session_Resolution_Set_Input = {
+  annotations?: InputMaybe<Scalars['jsonb']['input']>;
+  contest_id?: InputMaybe<Scalars['uuid']['input']>;
+  created_at?: InputMaybe<Scalars['timestamptz']['input']>;
+  election_event_id?: InputMaybe<Scalars['uuid']['input']>;
+  id?: InputMaybe<Scalars['uuid']['input']>;
+  labels?: InputMaybe<Scalars['jsonb']['input']>;
+  last_updated_at?: InputMaybe<Scalars['timestamptz']['input']>;
+  resolution_data?: InputMaybe<Scalars['jsonb']['input']>;
+  resolution_type?: InputMaybe<Scalars['String']['input']>;
+  resolved_at?: InputMaybe<Scalars['timestamptz']['input']>;
+  resolved_by_user?: InputMaybe<Scalars['uuid']['input']>;
+  status?: InputMaybe<Scalars['String']['input']>;
+  tally_session_id?: InputMaybe<Scalars['uuid']['input']>;
+  tenant_id?: InputMaybe<Scalars['uuid']['input']>;
+};
+
+/** Streaming cursor of the table "sequent_backend_tally_session_resolution" */
+export type Sequent_Backend_Tally_Session_Resolution_Stream_Cursor_Input = {
+  /** Stream column input with initial value */
+  initial_value: Sequent_Backend_Tally_Session_Resolution_Stream_Cursor_Value_Input;
+  /** cursor ordering */
+  ordering?: InputMaybe<Cursor_Ordering>;
+};
+
+/** Initial value of the column from where the streaming should start */
+export type Sequent_Backend_Tally_Session_Resolution_Stream_Cursor_Value_Input = {
+  annotations?: InputMaybe<Scalars['jsonb']['input']>;
+  contest_id?: InputMaybe<Scalars['uuid']['input']>;
+  created_at?: InputMaybe<Scalars['timestamptz']['input']>;
+  election_event_id?: InputMaybe<Scalars['uuid']['input']>;
+  id?: InputMaybe<Scalars['uuid']['input']>;
+  labels?: InputMaybe<Scalars['jsonb']['input']>;
+  last_updated_at?: InputMaybe<Scalars['timestamptz']['input']>;
+  resolution_data?: InputMaybe<Scalars['jsonb']['input']>;
+  resolution_type?: InputMaybe<Scalars['String']['input']>;
+  resolved_at?: InputMaybe<Scalars['timestamptz']['input']>;
+  resolved_by_user?: InputMaybe<Scalars['uuid']['input']>;
+  status?: InputMaybe<Scalars['String']['input']>;
+  tally_session_id?: InputMaybe<Scalars['uuid']['input']>;
+  tenant_id?: InputMaybe<Scalars['uuid']['input']>;
+};
+
+/** update columns of table "sequent_backend.tally_session_resolution" */
+export enum Sequent_Backend_Tally_Session_Resolution_Update_Column {
+  /** column name */
+  Annotations = 'annotations',
+  /** column name */
+  ContestId = 'contest_id',
+  /** column name */
+  CreatedAt = 'created_at',
+  /** column name */
+  ElectionEventId = 'election_event_id',
+  /** column name */
+  Id = 'id',
+  /** column name */
+  Labels = 'labels',
+  /** column name */
+  LastUpdatedAt = 'last_updated_at',
+  /** column name */
+  ResolutionData = 'resolution_data',
+  /** column name */
+  ResolutionType = 'resolution_type',
+  /** column name */
+  ResolvedAt = 'resolved_at',
+  /** column name */
+  ResolvedByUser = 'resolved_by_user',
+  /** column name */
+  Status = 'status',
+  /** column name */
+  TallySessionId = 'tally_session_id',
+  /** column name */
+  TenantId = 'tenant_id'
+}
+
+export type Sequent_Backend_Tally_Session_Resolution_Updates = {
+  /** append existing jsonb value of filtered columns with new jsonb value */
+  _append?: InputMaybe<Sequent_Backend_Tally_Session_Resolution_Append_Input>;
+  /** delete the field or element with specified path (for JSON arrays, negative integers count from the end) */
+  _delete_at_path?: InputMaybe<Sequent_Backend_Tally_Session_Resolution_Delete_At_Path_Input>;
+  /** delete the array element with specified index (negative integers count from the end). throws an error if top level container is not an array */
+  _delete_elem?: InputMaybe<Sequent_Backend_Tally_Session_Resolution_Delete_Elem_Input>;
+  /** delete key/value pair or string element. key/value pairs are matched based on their key value */
+  _delete_key?: InputMaybe<Sequent_Backend_Tally_Session_Resolution_Delete_Key_Input>;
+  /** prepend existing jsonb value of filtered columns with new jsonb value */
+  _prepend?: InputMaybe<Sequent_Backend_Tally_Session_Resolution_Prepend_Input>;
+  /** sets the columns of the filtered rows to the given values */
+  _set?: InputMaybe<Sequent_Backend_Tally_Session_Resolution_Set_Input>;
+  /** filter the rows which have to be updated */
+  where: Sequent_Backend_Tally_Session_Resolution_Bool_Exp;
 };
 
 /** select columns of table "sequent_backend.tally_session" */
@@ -19593,6 +20482,14 @@ export type Subscription_Root = {
   sequent_backend_cast_vote_by_pk?: Maybe<Sequent_Backend_Cast_Vote>;
   /** fetch data from the table in a streaming manner: "sequent_backend.cast_vote" */
   sequent_backend_cast_vote_stream: Array<Sequent_Backend_Cast_Vote>;
+  /** fetch data from the table: "sequent_backend.certificate_authority" */
+  sequent_backend_certificate_authority: Array<Sequent_Backend_Certificate_Authority>;
+  /** fetch aggregated fields from the table: "sequent_backend.certificate_authority" */
+  sequent_backend_certificate_authority_aggregate: Sequent_Backend_Certificate_Authority_Aggregate;
+  /** fetch data from the table: "sequent_backend.certificate_authority" using primary key columns */
+  sequent_backend_certificate_authority_by_pk?: Maybe<Sequent_Backend_Certificate_Authority>;
+  /** fetch data from the table in a streaming manner: "sequent_backend.certificate_authority" */
+  sequent_backend_certificate_authority_stream: Array<Sequent_Backend_Certificate_Authority>;
   /** fetch data from the table: "sequent_backend.contest" */
   sequent_backend_contest: Array<Sequent_Backend_Contest>;
   /** fetch aggregated fields from the table: "sequent_backend.contest" */
@@ -19791,6 +20688,14 @@ export type Subscription_Root = {
   sequent_backend_tally_session_execution_by_pk?: Maybe<Sequent_Backend_Tally_Session_Execution>;
   /** fetch data from the table in a streaming manner: "sequent_backend.tally_session_execution" */
   sequent_backend_tally_session_execution_stream: Array<Sequent_Backend_Tally_Session_Execution>;
+  /** fetch data from the table: "sequent_backend.tally_session_resolution" */
+  sequent_backend_tally_session_resolution: Array<Sequent_Backend_Tally_Session_Resolution>;
+  /** fetch aggregated fields from the table: "sequent_backend.tally_session_resolution" */
+  sequent_backend_tally_session_resolution_aggregate: Sequent_Backend_Tally_Session_Resolution_Aggregate;
+  /** fetch data from the table: "sequent_backend.tally_session_resolution" using primary key columns */
+  sequent_backend_tally_session_resolution_by_pk?: Maybe<Sequent_Backend_Tally_Session_Resolution>;
+  /** fetch data from the table in a streaming manner: "sequent_backend.tally_session_resolution" */
+  sequent_backend_tally_session_resolution_stream: Array<Sequent_Backend_Tally_Session_Resolution>;
   /** fetch data from the table in a streaming manner: "sequent_backend.tally_session" */
   sequent_backend_tally_session_stream: Array<Sequent_Backend_Tally_Session>;
   /** fetch data from the table: "sequent_backend.tally_sheet" */
@@ -20055,6 +20960,36 @@ export type Subscription_RootSequent_Backend_Cast_Vote_StreamArgs = {
   batch_size: Scalars['Int']['input'];
   cursor: Array<InputMaybe<Sequent_Backend_Cast_Vote_Stream_Cursor_Input>>;
   where?: InputMaybe<Sequent_Backend_Cast_Vote_Bool_Exp>;
+};
+
+
+export type Subscription_RootSequent_Backend_Certificate_AuthorityArgs = {
+  distinct_on?: InputMaybe<Array<Sequent_Backend_Certificate_Authority_Select_Column>>;
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  offset?: InputMaybe<Scalars['Int']['input']>;
+  order_by?: InputMaybe<Array<Sequent_Backend_Certificate_Authority_Order_By>>;
+  where?: InputMaybe<Sequent_Backend_Certificate_Authority_Bool_Exp>;
+};
+
+
+export type Subscription_RootSequent_Backend_Certificate_Authority_AggregateArgs = {
+  distinct_on?: InputMaybe<Array<Sequent_Backend_Certificate_Authority_Select_Column>>;
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  offset?: InputMaybe<Scalars['Int']['input']>;
+  order_by?: InputMaybe<Array<Sequent_Backend_Certificate_Authority_Order_By>>;
+  where?: InputMaybe<Sequent_Backend_Certificate_Authority_Bool_Exp>;
+};
+
+
+export type Subscription_RootSequent_Backend_Certificate_Authority_By_PkArgs = {
+  id: Scalars['uuid']['input'];
+};
+
+
+export type Subscription_RootSequent_Backend_Certificate_Authority_StreamArgs = {
+  batch_size: Scalars['Int']['input'];
+  cursor: Array<InputMaybe<Sequent_Backend_Certificate_Authority_Stream_Cursor_Input>>;
+  where?: InputMaybe<Sequent_Backend_Certificate_Authority_Bool_Exp>;
 };
 
 
@@ -20838,6 +21773,36 @@ export type Subscription_RootSequent_Backend_Tally_Session_Execution_StreamArgs 
 };
 
 
+export type Subscription_RootSequent_Backend_Tally_Session_ResolutionArgs = {
+  distinct_on?: InputMaybe<Array<Sequent_Backend_Tally_Session_Resolution_Select_Column>>;
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  offset?: InputMaybe<Scalars['Int']['input']>;
+  order_by?: InputMaybe<Array<Sequent_Backend_Tally_Session_Resolution_Order_By>>;
+  where?: InputMaybe<Sequent_Backend_Tally_Session_Resolution_Bool_Exp>;
+};
+
+
+export type Subscription_RootSequent_Backend_Tally_Session_Resolution_AggregateArgs = {
+  distinct_on?: InputMaybe<Array<Sequent_Backend_Tally_Session_Resolution_Select_Column>>;
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  offset?: InputMaybe<Scalars['Int']['input']>;
+  order_by?: InputMaybe<Array<Sequent_Backend_Tally_Session_Resolution_Order_By>>;
+  where?: InputMaybe<Sequent_Backend_Tally_Session_Resolution_Bool_Exp>;
+};
+
+
+export type Subscription_RootSequent_Backend_Tally_Session_Resolution_By_PkArgs = {
+  id: Scalars['uuid']['input'];
+};
+
+
+export type Subscription_RootSequent_Backend_Tally_Session_Resolution_StreamArgs = {
+  batch_size: Scalars['Int']['input'];
+  cursor: Array<InputMaybe<Sequent_Backend_Tally_Session_Resolution_Stream_Cursor_Input>>;
+  where?: InputMaybe<Sequent_Backend_Tally_Session_Resolution_Bool_Exp>;
+};
+
+
 export type Subscription_RootSequent_Backend_Tally_Session_StreamArgs = {
   batch_size: Scalars['Int']['input'];
   cursor: Array<InputMaybe<Sequent_Backend_Tally_Session_Stream_Cursor_Input>>;
@@ -21131,7 +22096,7 @@ export type GetElectionsQueryVariables = Exact<{
 }>;
 
 
-export type GetElectionsQuery = { __typename?: 'query_root', sequent_backend_election: Array<{ __typename?: 'sequent_backend_election', annotations?: any | null, created_at?: any | null, description?: string | null, election_event_id: any, eml?: string | null, id: any, is_consolidated_ballot_encoding?: boolean | null, labels?: any | null, last_updated_at?: any | null, name: string, num_allowed_revotes?: number | null, presentation?: any | null, spoil_ballot_option?: boolean | null, status?: any | null, tenant_id: any, alias?: string | null }> };
+export type GetElectionsQuery = { __typename?: 'query_root', sequent_backend_election: Array<{ __typename?: 'sequent_backend_election', annotations?: any | null, created_at?: any | null, description?: string | null, election_event_id: any, eml?: string | null, id: any, is_consolidated_ballot_encoding?: boolean | null, labels?: any | null, last_updated_at?: any | null, num_allowed_revotes?: number | null, presentation?: any | null, spoil_ballot_option?: boolean | null, status?: any | null, tenant_id: any }> };
 
 export type GetSupportMaterialsQueryVariables = Exact<{
   electionEventId: Scalars['uuid']['input'];
@@ -21171,7 +22136,7 @@ export const GetCastVoteDocument = {"kind":"Document","definitions":[{"kind":"Op
 export const GetCastVotesDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"GetCastVotes"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"sequent_backend_cast_vote"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"tenant_id"}},{"kind":"Field","name":{"kind":"Name","value":"election_id"}},{"kind":"Field","name":{"kind":"Name","value":"area_id"}},{"kind":"Field","name":{"kind":"Name","value":"created_at"}},{"kind":"Field","name":{"kind":"Name","value":"last_updated_at"}},{"kind":"Field","name":{"kind":"Name","value":"labels"}},{"kind":"Field","name":{"kind":"Name","value":"annotations"}},{"kind":"Field","name":{"kind":"Name","value":"content"}},{"kind":"Field","name":{"kind":"Name","value":"cast_ballot_signature"}},{"kind":"Field","name":{"kind":"Name","value":"voter_id_string"}},{"kind":"Field","name":{"kind":"Name","value":"election_event_id"}}]}}]}}]} as unknown as DocumentNode<GetCastVotesQuery, GetCastVotesQueryVariables>;
 export const GetDocumentDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"GetDocument"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"ids"}},"type":{"kind":"ListType","type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"uuid"}}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"tenantId"}},"type":{"kind":"NamedType","name":{"kind":"Name","value":"uuid"}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"electionEventId"}},"type":{"kind":"NamedType","name":{"kind":"Name","value":"uuid"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"sequent_backend_document"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"where"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"_and"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"tenant_id"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"_eq"},"value":{"kind":"Variable","name":{"kind":"Name","value":"tenantId"}}}]}},{"kind":"ObjectField","name":{"kind":"Name","value":"election_event_id"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"_eq"},"value":{"kind":"Variable","name":{"kind":"Name","value":"electionEventId"}}}]}},{"kind":"ObjectField","name":{"kind":"Name","value":"id"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"_in"},"value":{"kind":"Variable","name":{"kind":"Name","value":"ids"}}}]}}]}}]}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"tenant_id"}},{"kind":"Field","name":{"kind":"Name","value":"election_event_id"}},{"kind":"Field","name":{"kind":"Name","value":"name"}},{"kind":"Field","name":{"kind":"Name","value":"media_type"}},{"kind":"Field","name":{"kind":"Name","value":"size"}},{"kind":"Field","name":{"kind":"Name","value":"labels"}},{"kind":"Field","name":{"kind":"Name","value":"annotations"}},{"kind":"Field","name":{"kind":"Name","value":"created_at"}},{"kind":"Field","name":{"kind":"Name","value":"last_updated_at"}},{"kind":"Field","name":{"kind":"Name","value":"is_public"}}]}}]}}]} as unknown as DocumentNode<GetDocumentQuery, GetDocumentQueryVariables>;
 export const GetElectionEventDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"GetElectionEvent"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"electionEventId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"uuid"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"tenantId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"uuid"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"sequent_backend_election_event"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"where"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"_and"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"id"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"_eq"},"value":{"kind":"Variable","name":{"kind":"Name","value":"electionEventId"}}}]}},{"kind":"ObjectField","name":{"kind":"Name","value":"tenant_id"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"_eq"},"value":{"kind":"Variable","name":{"kind":"Name","value":"tenantId"}}}]}}]}}]}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"presentation"}},{"kind":"Field","name":{"kind":"Name","value":"status"}},{"kind":"Field","name":{"kind":"Name","value":"description"}}]}}]}}]} as unknown as DocumentNode<GetElectionEventQuery, GetElectionEventQueryVariables>;
-export const GetElectionsDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"GetElections"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"electionIds"}},"type":{"kind":"NonNullType","type":{"kind":"ListType","type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"uuid"}}}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"sequent_backend_election"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"where"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"id"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"_in"},"value":{"kind":"Variable","name":{"kind":"Name","value":"electionIds"}}}]}}]}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"annotations"}},{"kind":"Field","name":{"kind":"Name","value":"created_at"}},{"kind":"Field","name":{"kind":"Name","value":"description"}},{"kind":"Field","name":{"kind":"Name","value":"election_event_id"}},{"kind":"Field","name":{"kind":"Name","value":"eml"}},{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"is_consolidated_ballot_encoding"}},{"kind":"Field","name":{"kind":"Name","value":"labels"}},{"kind":"Field","name":{"kind":"Name","value":"last_updated_at"}},{"kind":"Field","name":{"kind":"Name","value":"name"}},{"kind":"Field","name":{"kind":"Name","value":"num_allowed_revotes"}},{"kind":"Field","name":{"kind":"Name","value":"presentation"}},{"kind":"Field","name":{"kind":"Name","value":"spoil_ballot_option"}},{"kind":"Field","name":{"kind":"Name","value":"status"}},{"kind":"Field","name":{"kind":"Name","value":"tenant_id"}},{"kind":"Field","name":{"kind":"Name","value":"alias"}}]}}]}}]} as unknown as DocumentNode<GetElectionsQuery, GetElectionsQueryVariables>;
+export const GetElectionsDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"GetElections"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"electionIds"}},"type":{"kind":"NonNullType","type":{"kind":"ListType","type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"uuid"}}}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"sequent_backend_election"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"where"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"id"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"_in"},"value":{"kind":"Variable","name":{"kind":"Name","value":"electionIds"}}}]}}]}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"annotations"}},{"kind":"Field","name":{"kind":"Name","value":"created_at"}},{"kind":"Field","name":{"kind":"Name","value":"description"}},{"kind":"Field","name":{"kind":"Name","value":"election_event_id"}},{"kind":"Field","name":{"kind":"Name","value":"eml"}},{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"is_consolidated_ballot_encoding"}},{"kind":"Field","name":{"kind":"Name","value":"labels"}},{"kind":"Field","name":{"kind":"Name","value":"last_updated_at"}},{"kind":"Field","name":{"kind":"Name","value":"num_allowed_revotes"}},{"kind":"Field","name":{"kind":"Name","value":"presentation"}},{"kind":"Field","name":{"kind":"Name","value":"spoil_ballot_option"}},{"kind":"Field","name":{"kind":"Name","value":"status"}},{"kind":"Field","name":{"kind":"Name","value":"tenant_id"}}]}}]}}]} as unknown as DocumentNode<GetElectionsQuery, GetElectionsQueryVariables>;
 export const GetSupportMaterialsDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"GetSupportMaterials"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"electionEventId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"uuid"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"tenantId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"uuid"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"sequent_backend_support_material"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"where"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"_and"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"is_hidden"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"_eq"},"value":{"kind":"BooleanValue","value":false}}]}},{"kind":"ObjectField","name":{"kind":"Name","value":"election_event_id"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"_eq"},"value":{"kind":"Variable","name":{"kind":"Name","value":"electionEventId"}}}]}},{"kind":"ObjectField","name":{"kind":"Name","value":"tenant_id"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"_eq"},"value":{"kind":"Variable","name":{"kind":"Name","value":"tenantId"}}}]}}]}}]}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"data"}},{"kind":"Field","name":{"kind":"Name","value":"document_id"}},{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"annotations"}},{"kind":"Field","name":{"kind":"Name","value":"created_at"}},{"kind":"Field","name":{"kind":"Name","value":"election_event_id"}},{"kind":"Field","name":{"kind":"Name","value":"kind"}},{"kind":"Field","name":{"kind":"Name","value":"labels"}},{"kind":"Field","name":{"kind":"Name","value":"last_updated_at"}},{"kind":"Field","name":{"kind":"Name","value":"tenant_id"}}]}}]}}]} as unknown as DocumentNode<GetSupportMaterialsQuery, GetSupportMaterialsQueryVariables>;
 export const InsertCastVoteDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"InsertCastVote"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"electionId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"uuid"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"ballotId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"content"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"insert_cast_vote"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"election_id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"electionId"}}},{"kind":"Argument","name":{"kind":"Name","value":"ballot_id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"ballotId"}}},{"kind":"Argument","name":{"kind":"Name","value":"content"},"value":{"kind":"Variable","name":{"kind":"Name","value":"content"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"ballot_id"}},{"kind":"Field","name":{"kind":"Name","value":"election_id"}},{"kind":"Field","name":{"kind":"Name","value":"election_event_id"}},{"kind":"Field","name":{"kind":"Name","value":"tenant_id"}},{"kind":"Field","name":{"kind":"Name","value":"election_id"}},{"kind":"Field","name":{"kind":"Name","value":"area_id"}},{"kind":"Field","name":{"kind":"Name","value":"created_at"}},{"kind":"Field","name":{"kind":"Name","value":"last_updated_at"}},{"kind":"Field","name":{"kind":"Name","value":"labels"}},{"kind":"Field","name":{"kind":"Name","value":"annotations"}},{"kind":"Field","name":{"kind":"Name","value":"content"}},{"kind":"Field","name":{"kind":"Name","value":"cast_ballot_signature"}},{"kind":"Field","name":{"kind":"Name","value":"voter_id_string"}},{"kind":"Field","name":{"kind":"Name","value":"election_event_id"}}]}}]}}]} as unknown as DocumentNode<InsertCastVoteMutation, InsertCastVoteMutationVariables>;
 export const ListCastVoteMessagesDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"listCastVoteMessages"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"tenantId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"electionEventId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"electionId"}},"type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"ballotId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"limit"}},"type":{"kind":"NamedType","name":{"kind":"Name","value":"Int"}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"offset"}},"type":{"kind":"NamedType","name":{"kind":"Name","value":"Int"}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"orderBy"}},"type":{"kind":"NamedType","name":{"kind":"Name","value":"ElectoralLogOrderBy"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"list_cast_vote_messages"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"tenant_id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"tenantId"}}},{"kind":"Argument","name":{"kind":"Name","value":"election_event_id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"electionEventId"}}},{"kind":"Argument","name":{"kind":"Name","value":"election_id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"electionId"}}},{"kind":"Argument","name":{"kind":"Name","value":"ballot_id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"ballotId"}}},{"kind":"Argument","name":{"kind":"Name","value":"limit"},"value":{"kind":"Variable","name":{"kind":"Name","value":"limit"}}},{"kind":"Argument","name":{"kind":"Name","value":"offset"},"value":{"kind":"Variable","name":{"kind":"Name","value":"offset"}}},{"kind":"Argument","name":{"kind":"Name","value":"order_by"},"value":{"kind":"Variable","name":{"kind":"Name","value":"orderBy"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"list"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"statement_timestamp"}},{"kind":"Field","name":{"kind":"Name","value":"statement_kind"}},{"kind":"Field","name":{"kind":"Name","value":"ballot_id"}},{"kind":"Field","name":{"kind":"Name","value":"username"}},{"kind":"Field","name":{"kind":"Name","value":"message"}}]}},{"kind":"Field","name":{"kind":"Name","value":"total"}}]}}]}}]} as unknown as DocumentNode<ListCastVoteMessagesQuery, ListCastVoteMessagesQueryVariables>;

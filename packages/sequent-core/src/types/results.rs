@@ -29,6 +29,8 @@ pub struct ResultDocuments {
     pub tar_gz: Option<String>,
     pub tar_gz_original: Option<String>,
     pub tar_gz_pdfs: Option<String>,
+    pub all_areas_html: Option<String>,
+    pub all_areas_json: Option<String>,
 }
 
 impl ResultDocuments {

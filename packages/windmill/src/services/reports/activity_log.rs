@@ -14,6 +14,8 @@ use csv::WriterBuilder;
 use deadpool_postgres::Transaction;
 use electoral_log::client::types::*;
 use electoral_log::messages::message::{Message, SigningData};
+use electoral_log::messages::message::Message;
+use electoral_log::ElectoralLogMessage;
 use sequent_core::services::date::ISO8601;
 use sequent_core::services::s3::get_minio_url;
 use sequent_core::types::hasura::core::TasksExecution;
@@ -122,54 +124,154 @@ impl ActivityLogsTemplate {
         ActivityLogsTemplate { ids, report_format }
     }
 
-    // Export data
+    // Export data using the electoral-log board client, streaming in batches
     #[instrument(err, skip(self))]
     pub async fn generate_export_csv_data(&self, name: &str) -> Result<NamedTempFile> {
         let limit = IMMUDB_ROWS_LIMIT as i64;
-        let mut offset: i64 = 0;
-        // Create a temporary file to write CSV data
+        let mut last_id: i64 = 0;
+        let slug = std::env::var("ENV_SLUG").with_context(|| "missing env var ENV_SLUG")?;
+        let board_name = get_event_board(
+            self.ids.tenant_id.as_str(),
+            self.ids.election_event_id.as_str(),
+            &slug,
+        );
+
+        let mut board_client = get_board_client().await?;
+
         let mut temp_file =
-            generate_temp_file(&name, ".csv").with_context(|| "Error creating named temp file")?;
+            generate_temp_file(name, ".csv").with_context(|| "Error creating named temp file")?;
         let mut csv_writer = WriterBuilder::new().from_writer(temp_file.as_file_mut());
-        let total = self
-            .count_items(None)
-            .await
-            .map_err(|e| anyhow!("Error count_items in activity logs data: {e:?}"))?
-            .unwrap_or(0);
-        while offset < total {
-            info!("offset: {offset}, total: {total}");
-            // Prepare user data
-            let user_data = self
-                .prepare_user_data_batch(None, None, &mut offset, limit)
+
+        loop {
+            info!("last_id: {last_id}");
+            let msgs = board_client
+                .get_electoral_log_messages_batch(&board_name, limit, last_id)
                 .await
-                .map_err(|e| anyhow!("Error preparing activity logs data: {e:?}"))?;
+                .map_err(|e| anyhow!("Error fetching electoral log batch: {e:?}"))?;
 
-            let s1 = user_data.electoral_log.len() * (mem::size_of::<ElectoralLogRow>());
-            let s2 = user_data.act_log.len() * (mem::size_of::<ActivityLogRow>());
-            let kb = (s1 + s2) as f64 / KB;
-            let mb = (s1 + s2) as f64 / MB;
-            info!("Logs batch size: {kb:.2} KB, {mb:.2} MB");
+            let batch_size = msgs.len() * mem::size_of::<ElectoralLogMessage>();
+            info!(
+                "Logs batch size: {} entries ({} bytes)",
+                msgs.len(),
+                batch_size
+            );
+            let is_last_batch = msgs.len() < limit as usize;
 
-            for item in user_data.electoral_log {
-                let mut item_clone = item.clone();
-
-                // Replace newline characters in the message field
-                item_clone.message = item_clone.message.replace('\n', " ").replace('\r', " ");
-                // Serialize each item to CSV
+            for entry in msgs {
+                last_id = entry.id;
+                let mut row: ElectoralLogRow = entry
+                    .try_into()
+                    .map_err(|e| anyhow!("Error converting log entry to row: {e:?}"))?;
+                row.message = row.message.replace('\n', " ").replace('\r', " ");
                 csv_writer
-                    .serialize(item_clone)
+                    .serialize(row)
                     .map_err(|e| anyhow!("Error serializing to CSV: {e:?}"))?;
             }
-            offset += limit;
+
+            if is_last_batch {
+                break;
+            }
         }
 
-        // Flush and finish writing to the temporary file
         csv_writer
             .flush()
             .map_err(|e| anyhow!("Error flushing CSV writer: {e:?}"))?;
         drop(csv_writer);
 
         Ok(temp_file)
+    }
+}
+
+impl TryFrom<ElectoralLogRow> for ActivityLogRow {
+    type Error = anyhow::Error;
+
+    fn try_from(electoral_log: ElectoralLogRow) -> Result<Self, Self::Error> {
+        let user_id = match electoral_log.user_id() {
+            Some(user_id) => user_id.to_string(),
+            None => "-".to_string(),
+        };
+
+        let statement_timestamp: String = if let Ok(datetime_parsed) =
+            ISO8601::timestamp_secs_utc_to_date_opt(electoral_log.statement_timestamp())
+        {
+            datetime_parsed.to_rfc3339()
+        } else {
+            return Err(anyhow::anyhow!("Error parsing statement_timestamp"));
+        };
+
+        let created: String = if let Ok(datetime_parsed) =
+            ISO8601::timestamp_secs_utc_to_date_opt(electoral_log.created())
+        {
+            datetime_parsed.to_rfc3339()
+        } else {
+            return Err(anyhow::anyhow!("Error parsing created"));
+        };
+
+        let head_data = electoral_log
+            .statement_head_data()
+            .with_context(|| "Error to get head data.")?;
+        let event_type = head_data.event_type;
+        let log_type = head_data.log_type;
+        let description = head_data.description;
+
+        Ok(ActivityLogRow {
+            id: electoral_log.id(),
+            user_id,
+            created,
+            statement_timestamp,
+            statement_kind: electoral_log.statement_kind().to_string(),
+            event_type,
+            log_type,
+            description,
+            message: electoral_log.message().to_string(),
+        })
+    }
+}
+
+impl TryFrom<ElectoralLogMessage> for ActivityLogRow {
+    type Error = anyhow::Error;
+
+    fn try_from(electoral_log: ElectoralLogMessage) -> Result<Self, Self::Error> {
+        let user_id = match electoral_log.user_id {
+            Some(user_id) => user_id.to_string(),
+            None => "-".to_string(),
+        };
+
+        let statement_timestamp: String = if let Ok(datetime_parsed) =
+            ISO8601::timestamp_secs_utc_to_date_opt(electoral_log.statement_timestamp)
+        {
+            datetime_parsed.to_rfc3339()
+        } else {
+            return Err(anyhow::anyhow!("Error parsing statement_timestamp"));
+        };
+
+        let created: String = if let Ok(datetime_parsed) =
+            ISO8601::timestamp_secs_utc_to_date_opt(electoral_log.created)
+        {
+            datetime_parsed.to_rfc3339()
+        } else {
+            return Err(anyhow::anyhow!("Error parsing created"));
+        };
+
+        let deserialized_message = Message::strand_deserialize(&electoral_log.message)
+            .map_err(|e| anyhow!("Error deserializing message: {e:?}"))?;
+
+        let head_data = deserialized_message.statement.head.clone();
+        let event_type = head_data.event_type.to_string();
+        let log_type = head_data.log_type.to_string();
+        let description = head_data.description;
+
+        Ok(ActivityLogRow {
+            id: electoral_log.id,
+            user_id,
+            created,
+            statement_timestamp,
+            statement_kind: electoral_log.statement_kind,
+            event_type,
+            log_type,
+            description,
+            message: deserialized_message.to_string(),
+        })
     }
 }
 
@@ -206,6 +308,7 @@ impl TemplateRenderer for ActivityLogsTemplate {
         format!("activity_logs_{}", rand::random::<u64>())
     }
 
+    #[instrument(err, skip_all)]
     async fn count_items(
         &self,
         _hasura_transaction: Option<&Transaction<'_>>,
@@ -241,18 +344,21 @@ impl TemplateRenderer for ActivityLogsTemplate {
             self.ids.election_event_id.as_str(),
             &slug,
         );
-        let electoral_log_msgs = client
-            .get_electoral_log_messages_batch(&board_name, limit, *offset)
+        // Uses offset-based pagination because the caller framework pre-computes
+        // `offset = batch_index * limit` and processes batches in parallel (rayon),
+        // which is incompatible with cursor-based pagination.
+        let msgs = client
+            .get_electoral_log_messages_at_offset(&board_name, limit, *offset)
             .await
-            .map_err(|err| anyhow!("Failed to get filtered messages: {:?}", err))?;
+            .map_err(|e| anyhow!("Failed to get electoral log messages batch: {e:?}"))?;
         info!("Format: {:#?}", self.report_format);
-        for entry in electoral_log_msgs {
+        for entry in msgs {
             match self.report_format {
                 ReportFormat::PDF => {
                     act_log.push(entry.try_into()?);
                 }
                 ReportFormat::CSV => {
-                    electoral_log.push(entry.clone().try_into()?);
+                    electoral_log.push(entry.try_into()?);
                 }
             }
         }
@@ -319,7 +425,8 @@ impl TemplateRenderer for ActivityLogsTemplate {
             .await
         } else {
             // Generate CSV file using generate_export_csv_data
-            let name = format!("export-election-event-logs-{}", election_event_id);
+            let name = format!("export-election-event-logs-{election_event_id}");
+            let full_name = format!("{name}.csv");
             let temp_file = self
                 .generate_export_csv_data(&name)
                 .await
@@ -338,7 +445,7 @@ impl TemplateRenderer for ActivityLogsTemplate {
                 "text/csv",
                 tenant_id,
                 Some(election_event_id.to_string()),
-                &name.clone(),
+                &full_name.clone(),
                 Some(document_id.to_string()),
                 false,
             )
@@ -393,5 +500,177 @@ impl TemplateRenderer for ActivityLogsTemplate {
 
             Ok(())
         }
+    }
+}
+
+// Export data
+#[instrument(err, skip(act_log))]
+pub async fn generate_export_data(
+    act_log: &[ElectoralLogRow],
+    name: &str,
+) -> Result<NamedTempFile> {
+    // Create a temporary file to write CSV data
+    let mut temp_file =
+        generate_temp_file(&name, ".csv").with_context(|| "Error creating named temp file")?;
+    let mut csv_writer = WriterBuilder::new().from_writer(temp_file.as_file_mut());
+
+    for item in act_log {
+        let mut item_clean = item.clone();
+
+        // Replace newline characters in the message field
+        item_clean.message = item_clean.message.replace('\n', " ").replace('\r', " ");
+        // Serialize each item to CSV
+        csv_writer
+            .serialize(item_clean)
+            .map_err(|e| anyhow!("Error serializing to CSV: {e:?}"))?;
+    }
+    // Flush and finish writing to the temporary file
+    csv_writer
+        .flush()
+        .map_err(|e| anyhow!("Error flushing CSV writer: {e:?}"))?;
+    drop(csv_writer);
+
+    Ok(temp_file)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::services::protocol_manager::get_event_board;
+    use crate::services::reports::template_renderer::ReportOriginatedFrom;
+    use chrono::Utc;
+    use electoral_log::BoardClient;
+    use sequent_core::util::external_config::load_external_config;
+    use std::env;
+    use std::io::BufRead;
+    use std::process::Command;
+
+    const NUM_LOGS: usize = 120_000;
+    const STEP_CLI_DATA_DIR: &str = "/workspaces/step/packages/step-cli/data";
+    const STEP_CLI_BIN: &str =
+        "/workspaces/step/packages/step-cli/rust-local-target/release/step-cli";
+
+    // Run: cargo test --release test_generate_export_csv_data_120k_memory -- --nocapture --ignored
+    // To visualize results, open DHAT Viewer in a browser and upload the generated dhat-heap.json file.
+    #[tokio::test]
+    #[ignore]
+    async fn test_generate_export_csv_data_120k_memory() -> Result<()> {
+        let config = load_external_config(STEP_CLI_DATA_DIR)
+            .map_err(|e| anyhow!("Failed to load external config: {e}"))?;
+        let tenant_id = config.tenant_id;
+        let election_event_id = config.election_event_id;
+
+        let test_env_slug = format!("t{}", chrono::Utc::now().timestamp());
+        env::set_var("ENV_SLUG", &test_env_slug);
+
+        let immudb_user = env::var("IMMUDB_USER").context("IMMUDB_USER must be set")?;
+        let immudb_password = env::var("IMMUDB_PASSWORD").context("IMMUDB_PASSWORD must be set")?;
+        let immudb_server_url =
+            env::var("IMMUDB_SERVER_URL").context("IMMUDB_SERVER_URL must be set")?;
+
+        let board_name = get_event_board(&tenant_id, &election_event_id, &test_env_slug);
+        println!("board_name: {board_name}");
+
+        let mut board_client = BoardClient::new(&immudb_server_url, &immudb_user, &immudb_password)
+            .await
+            .map_err(|e| anyhow!("Failed to create BoardClient: {e:?}"))?;
+        board_client
+            .upsert_electoral_log_db(&board_name)
+            .await
+            .map_err(|e| anyhow!("Failed to create immudb database: {e:?}"))?;
+        println!("Set up immudb database: {board_name}");
+
+        let output = Command::new(STEP_CLI_BIN)
+            .args([
+                "step",
+                "create-electoral-logs",
+                "--working-directory",
+                STEP_CLI_DATA_DIR,
+                "--num-logs",
+                &NUM_LOGS.to_string(),
+            ])
+            .env("ENV_SLUG", &test_env_slug)
+            .env("IMMUDB_USER", &immudb_user)
+            .env("IMMUDB_PASSWORD", &immudb_password)
+            .env("IMMUDB_SERVER_URL", &immudb_server_url)
+            .env("DEFAULT_SQL_BATCH_SIZE", "500")
+            .env(
+                "KC_DB_URL_HOST",
+                env::var("KC_DB_URL_HOST").context("KC_DB_URL_HOST must be set")?,
+            )
+            .env(
+                "KC_DB_URL_PORT",
+                env::var("KC_DB_URL_PORT").context("KC_DB_URL_PORT must be set")?,
+            )
+            .env(
+                "KC_DB_USERNAME",
+                env::var("KC_DB_USERNAME").context("KC_DB_USERNAME must be set")?,
+            )
+            .env(
+                "KC_DB_PASSWORD",
+                env::var("KC_DB_PASSWORD").context("KC_DB_PASSWORD must be set")?,
+            )
+            .env("KC_DB", env::var("KC_DB").context("KC_DB must be set")?)
+            .output()
+            .map_err(|e| anyhow!("Failed to run step-cli: {e:?}"))?;
+
+        assert!(
+            output.status.success(),
+            "step-cli failed with status: {}",
+            output.status
+        );
+
+        let ids = ReportOrigins {
+            tenant_id: tenant_id.clone(),
+            election_event_id: election_event_id.clone(),
+            election_id: None,
+            template_alias: None,
+            voter_id: None,
+            report_origin: ReportOriginatedFrom::ReportsTab,
+            executer_username: None,
+            tally_session_id: None,
+        };
+        let template = ActivityLogsTemplate::new(ids, ReportFormat::CSV);
+        let name = format!("test-export-{election_event_id}");
+
+        // Start the profiler here so stats reflect only generate_export_csv_data
+        let _profiler = dhat::Profiler::new_heap();
+        let temp_file = template
+            .generate_export_csv_data(&name)
+            .await
+            .map_err(|e| anyhow!("generate_export_csv_data failed: {e:?}"))?;
+        let stats = dhat::HeapStats::get();
+
+        println!("Peak live heap:   {} bytes", stats.max_bytes);
+        println!(
+            "Total allocated:  {} bytes in {} blocks",
+            stats.total_bytes, stats.total_blocks,
+        );
+        println!(
+            "Current live:     {} bytes in {} blocks",
+            stats.curr_bytes, stats.curr_blocks
+        );
+
+        let metadata = std::fs::metadata(temp_file.path())
+            .map_err(|e| anyhow!("Failed to get temp file metadata: {e:?}"))?;
+        println!("CSV file size:    {} bytes", metadata.len());
+
+        let file = std::fs::File::open(temp_file.path())
+            .map_err(|e| anyhow!("Failed to open temp file: {e:?}"))?;
+        let line_count = std::io::BufReader::new(file).lines().count();
+        println!(
+            "CSV line count:   {} lines ({} data rows)",
+            line_count,
+            line_count.saturating_sub(1)
+        );
+        assert_eq!(
+            line_count - 1,
+            NUM_LOGS,
+            "expected {NUM_LOGS} data rows but got {}",
+            line_count - 1
+        );
+
+        // _profiler drops here → writes dhat-heap.json in the working directory
+        Ok(())
     }
 }

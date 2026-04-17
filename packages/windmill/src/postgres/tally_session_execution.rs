@@ -4,6 +4,7 @@
 use anyhow::{anyhow, Context, Result};
 use chrono::{DateTime, Local};
 use deadpool_postgres::{Client as DbClient, Transaction};
+use sequent_core::services::uuid_validation::parse_uuid_v4;
 use sequent_core::types::{
     ceremonies::{TallyCeremonyStatus, TallySessionDocuments},
     hasura::core::TallySessionExecution,
@@ -57,7 +58,7 @@ pub async fn insert_tally_session_execution(
         None => None,
     };
     let results_event_uuid = match results_event_id {
-        Some(value) => Some(Uuid::parse_str(&value)?),
+        Some(value) => Some(parse_uuid_v4(&value)?),
         None => None,
     };
 
@@ -91,10 +92,10 @@ pub async fn insert_tally_session_execution(
         .query(
             &statement,
             &[
-                &Uuid::parse_str(tenant_id)?,
-                &Uuid::parse_str(election_event_id)?,
+                &parse_uuid_v4(tenant_id)?,
+                &parse_uuid_v4(election_event_id)?,
                 &current_message_id,
-                &Uuid::parse_str(tally_session_id)?,
+                &parse_uuid_v4(tally_session_id)?,
                 &json_status,
                 &results_event_uuid,
                 &session_ids,
@@ -145,9 +146,9 @@ pub async fn get_tally_session_executions(
         .query(
             &statement,
             &[
-                &Uuid::parse_str(tenant_id)?,
-                &Uuid::parse_str(election_event_id)?,
-                &Uuid::parse_str(tally_session_id)?,
+                &parse_uuid_v4(tenant_id)?,
+                &parse_uuid_v4(election_event_id)?,
+                &parse_uuid_v4(tally_session_id)?,
             ],
         )
         .await?;
@@ -191,9 +192,9 @@ pub async fn get_last_tally_session_execution(
         .query(
             &statement,
             &[
-                &Uuid::parse_str(tenant_id)?,
-                &Uuid::parse_str(election_event_id)?,
-                &Uuid::parse_str(tally_session_id)?,
+                &parse_uuid_v4(tenant_id)?,
+                &parse_uuid_v4(election_event_id)?,
+                &parse_uuid_v4(tally_session_id)?,
             ],
         )
         .await?;
@@ -232,8 +233,8 @@ pub async fn get_event_tally_session_executions(
         .query(
             &statement,
             &[
-                &Uuid::parse_str(tenant_id)?,
-                &Uuid::parse_str(election_event_id)?,
+                &parse_uuid_v4(tenant_id)?,
+                &parse_uuid_v4(election_event_id)?,
             ],
         )
         .await?;
@@ -278,19 +279,19 @@ pub async fn insert_many_tally_session_executions(
         .into_iter()
         .map(|e| {
             Ok(InsertableTallySessionExecution {
-                id: Uuid::parse_str(&e.id)?,
-                tenant_id: Uuid::parse_str(&e.tenant_id)?,
-                election_event_id: Uuid::parse_str(&e.election_event_id)?,
+                id: parse_uuid_v4(&e.id)?,
+                tenant_id: parse_uuid_v4(&e.tenant_id)?,
+                election_event_id: parse_uuid_v4(&e.election_event_id)?,
                 created_at: e.created_at,
                 last_updated_at: e.last_updated_at,
                 labels: e.labels.clone(),
                 annotations: e.annotations.clone(),
                 current_message_id: e.current_message_id,
-                tally_session_id: Uuid::parse_str(&e.tally_session_id)?,
+                tally_session_id: parse_uuid_v4(&e.tally_session_id)?,
                 session_ids: e.session_ids.clone(),
                 status: e.status.clone(),
                 results_event_id: match e.results_event_id {
-                    Some(ref id) => Some(Uuid::parse_str(id)?),
+                    Some(ref id) => Some(parse_uuid_v4(id)?),
                     None => None,
                 },
             })
@@ -378,9 +379,9 @@ pub async fn update_tally_session_execution_documents(
             &statement,
             &[
                 &documents_value,
-                &Uuid::parse_str(tally_session_execution_id)?,
-                &Uuid::parse_str(tenant_id)?,
-                &Uuid::parse_str(&election_event_id)?,
+                &parse_uuid_v4(tally_session_execution_id)?,
+                &parse_uuid_v4(tenant_id)?,
+                &parse_uuid_v4(&election_event_id)?,
             ],
         )
         .await

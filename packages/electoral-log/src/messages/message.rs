@@ -308,6 +308,66 @@ impl Message {
         Self::from_body(event, body, sd, user_id, username, None, area_id, None)
     }
 
+    pub fn tally_resumed_with_resolution(
+        event: EventIdString,
+        election: ElectionIdString,
+        resolution_ids: Vec<String>,
+        sd: &SigningData,
+    ) -> Result<Self> {
+        let body = StatementBody::TallyResumedWithResolution(
+            election.clone(),
+            ResolutionIdsString(resolution_ids),
+        );
+        Self::from_body(event, body, sd, None, None, election.0, None, None)
+    }
+
+    pub fn tally_paused_pending_resolutions(
+        event: EventIdString,
+        election: ElectionIdString,
+        resolution_ids: Vec<String>,
+        sd: &SigningData,
+    ) -> Result<Self> {
+        let body = StatementBody::TallyPausedPendingResolution(
+            election.clone(),
+            ResolutionIdsString(resolution_ids),
+        );
+        Self::from_body(event, body, sd, None, None, election.0, None, None)
+    }
+
+    pub fn tally_tie_resolved(
+        event: EventIdString,
+        election: ElectionIdString,
+        contest: ContestIdString,
+        resolution_id: String,
+        sd: &SigningData,
+        user_id: Option<String>,
+        username: Option<String>,
+    ) -> Result<Self> {
+        let body = StatementBody::TallyTieResolved(
+            election.clone(),
+            contest,
+            ResolutionIdsString(vec![resolution_id]),
+        );
+        Self::from_body(event, body, sd, user_id, username, election.0, None, None)
+    }
+
+    pub fn tally_tie_resolution_updated(
+        event: EventIdString,
+        election: ElectionIdString,
+        contest: ContestIdString,
+        resolution_id: String,
+        sd: &SigningData,
+        user_id: Option<String>,
+        username: Option<String>,
+    ) -> Result<Self> {
+        let body = StatementBody::TallyTieResolutionUpdated(
+            election.clone(),
+            contest,
+            ResolutionIdsString(vec![resolution_id]),
+        );
+        Self::from_body(event, body, sd, user_id, username, election.0, None, None)
+    }
+
     pub fn admin_public_key_message(
         tenant_id: TenantIdString,
         user_id: Option<String>,
