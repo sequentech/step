@@ -2600,14 +2600,13 @@
   ],
   "webAuthnPolicyPasswordlessRpId": "",
   "webAuthnPolicyPasswordlessAttestationConveyancePreference": "not specified",
-  "webAuthnPolicyPasswordlessAuthenticatorAttachment": "platform",
-  "webAuthnPolicyPasswordlessRequireResidentKey": "Yes",
-  "webAuthnPolicyPasswordlessUserVerificationRequirement": "required",
+  "webAuthnPolicyPasswordlessAuthenticatorAttachment": "not specified",
+  "webAuthnPolicyPasswordlessRequireResidentKey": "not specified",
+  "webAuthnPolicyPasswordlessUserVerificationRequirement": "not specified",
   "webAuthnPolicyPasswordlessCreateTimeout": 0,
   "webAuthnPolicyPasswordlessAvoidSameAuthenticatorRegister": false,
   "webAuthnPolicyPasswordlessAcceptableAaguids": [],
   "webAuthnPolicyPasswordlessExtraOrigins": [],
-  "webAuthnPolicyPasswordlessPasskeysEnabled": true,
   "users": [
     {
       "id": "a20376d6-e53a-4edf-afc3-cc18bb8e23e5",
@@ -3276,26 +3275,26 @@
           }
         },
         {
-        "id": "f1804544-7b49-4f44-8cea-8349be5875bc",
-        "name": "auth_time",
-        "protocol": "openid-connect",
-        "protocolMapper": "oidc-usersessionmodel-note-mapper",
-        "consentRequired": false,
-        "config": {
-          "user.session.note": "AUTH_TIME",
-          "introspection.token.claim": "true",
-          "userinfo.token.claim": "true",
-          "id.token.claim": "true",
-          "lightweight.claim": "false",
-          "access.token.claim": "true",
-          "claim.name": "https://hasura\\.io/jwt/auth_time",
-          "jsonType.label": "long",
-          "access.tokenResponse.claim": "false"
-        }
-      },
-       {
-        "id": "af4eccac-f71e-4c6d-8334-45ed550e8fac",
-        "name": "x-hasura-allowed-roles",
+          "id": "f1804544-7b49-4f44-8cea-8349be5875bc",
+          "name": "auth_time",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usersessionmodel-note-mapper",
+          "consentRequired": false,
+          "config": {
+            "user.session.note": "AUTH_TIME",
+            "introspection.token.claim": "true",
+            "userinfo.token.claim": "true",
+            "id.token.claim": "true",
+            "lightweight.claim": "false",
+            "access.token.claim": "true",
+            "claim.name": "https://hasura\\.io/jwt/auth_time",
+            "jsonType.label": "long",
+            "access.tokenResponse.claim": "false"
+          }
+        },
+        {
+          "id": "af4eccac-f71e-4c6d-8334-45ed550e8fac",
+          "name": "x-hasura-allowed-roles",
           "protocol": "openid-connect",
           "protocolMapper": "oidc-usermodel-realm-role-mapper",
           "consentRequired": false,
@@ -3307,58 +3306,58 @@
             "claim.name": "https://hasura\\.io/jwt/claims.x-hasura-allowed-roles",
             "jsonType.label": "String"
           }
-      },
-      {
-        "id": "31417714-666b-41c7-ae05-a9c3a4948443",
-        "name": "x-hasura-permission-labels",
-        "protocol": "openid-connect",
-        "protocolMapper": "hasura-multivalued-oidc-usermodel-attribute-mapper",
-        "consentRequired": false,
-        "config": {
-          "introspection.token.claim": "true",
-          "userinfo.token.claim": "true",
-          "user.attribute": "permission_labels",
-          "id.token.claim": "true",
-          "lightweight.claim": "false",
-          "access.token.claim": "true",
-          "claim.name": "https://hasura\\.io/jwt/claims.x-hasura-permission-labels",
-          "jsonType.label": "String"
-        }
-      },
-      {
-        "id": "04319485-b298-4701-a8db-76c1ab682378",
-        "name": "x-hasura-user-id",
-        "protocol": "openid-connect",
-        "protocolMapper": "oidc-usermodel-property-mapper",
-        "consentRequired": false,
-        "config": {
-          "introspection.token.claim": "true",
-          "userinfo.token.claim": "true",
-          "user.attribute": "id",
-          "id.token.claim": "true",
-          "lightweight.claim": "false",
-          "access.token.claim": "true",
-          "claim.name": "https://hasura\\.io/jwt/claims.x-hasura-user-id",
-          "jsonType.label": "String"
-        }
-      },
-      {
-        "id": "5c333dda-dcd9-49eb-b680-d5c082304e27",
-        "name": "trustee",
-        "protocol": "openid-connect",
-        "protocolMapper": "oidc-usermodel-attribute-mapper",
-        "consentRequired": false,
-        "config": {
-          "introspection.token.claim": "true",
-          "userinfo.token.claim": "true",
-          "user.attribute": "trustee",
-          "id.token.claim": "true",
-          "lightweight.claim": "false",
-          "access.token.claim": "true",
-          "claim.name": "trustee",
-          "jsonType.label": "String"
-        }
-      },
+        },
+        {
+          "id": "31417714-666b-41c7-ae05-a9c3a4948443",
+          "name": "x-hasura-permission-labels",
+          "protocol": "openid-connect",
+          "protocolMapper": "hasura-multivalued-oidc-usermodel-attribute-mapper",
+          "consentRequired": false,
+          "config": {
+            "introspection.token.claim": "true",
+            "userinfo.token.claim": "true",
+            "user.attribute": "permission_labels",
+            "id.token.claim": "true",
+            "lightweight.claim": "false",
+            "access.token.claim": "true",
+            "claim.name": "https://hasura\\.io/jwt/claims.x-hasura-permission-labels",
+            "jsonType.label": "String"
+          }
+        },
+        {
+          "id": "04319485-b298-4701-a8db-76c1ab682378",
+          "name": "x-hasura-user-id",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-property-mapper",
+          "consentRequired": false,
+          "config": {
+            "introspection.token.claim": "true",
+            "userinfo.token.claim": "true",
+            "user.attribute": "id",
+            "id.token.claim": "true",
+            "lightweight.claim": "false",
+            "access.token.claim": "true",
+            "claim.name": "https://hasura\\.io/jwt/claims.x-hasura-user-id",
+            "jsonType.label": "String"
+          }
+        },
+        {
+          "id": "5c333dda-dcd9-49eb-b680-d5c082304e27",
+          "name": "trustee",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-attribute-mapper",
+          "consentRequired": false,
+          "config": {
+            "introspection.token.claim": "true",
+            "userinfo.token.claim": "true",
+            "user.attribute": "trustee",
+            "id.token.claim": "true",
+            "lightweight.claim": "false",
+            "access.token.claim": "true",
+            "claim.name": "trustee",
+            "jsonType.label": "String"
+          }
+        },
         {
           "id": "046b121c-b86d-4bb5-82cf-98da389b7eb2",
           "name": "Client Host",
@@ -5015,36 +5014,40 @@
       ]
     },
     {
-    "id": "5d0c5ff8-1bf7-40b7-ae4c-fbfa0bfb4f98",
-    "alias": "LoA step-up",
-    "description": "",
-    "providerId": "basic-flow",
-    "topLevel": false,
-    "builtIn": false,
-    "authenticationExecutions": [ {
-      "authenticatorConfig": "gold - LoA2",
-      "authenticator": "conditional-level-of-authentication",
-      "authenticatorFlow": false,
-      "requirement": "REQUIRED",
-      "priority": 0,
-      "autheticatorFlow": false,
-      "userSetupAllowed": false
-    }, {
-      "authenticator": "direct-grant-validate-username",
-      "authenticatorFlow": false,
-      "requirement": "REQUIRED",
-      "priority": 1,
-      "autheticatorFlow": false,
-      "userSetupAllowed": false
-    }, {
-      "authenticator": "direct-grant-validate-password",
-      "authenticatorFlow": false,
-      "requirement": "DISABLED",
-      "priority": 2,
-      "autheticatorFlow": false,
-      "userSetupAllowed": false
-    } ]
-  },
+      "id": "5d0c5ff8-1bf7-40b7-ae4c-fbfa0bfb4f98",
+      "alias": "LoA step-up",
+      "description": "",
+      "providerId": "basic-flow",
+      "topLevel": false,
+      "builtIn": false,
+      "authenticationExecutions": [
+        {
+          "authenticatorConfig": "gold - LoA2",
+          "authenticator": "conditional-level-of-authentication",
+          "authenticatorFlow": false,
+          "requirement": "REQUIRED",
+          "priority": 0,
+          "autheticatorFlow": false,
+          "userSetupAllowed": false
+        },
+        {
+          "authenticator": "direct-grant-validate-username",
+          "authenticatorFlow": false,
+          "requirement": "REQUIRED",
+          "priority": 1,
+          "autheticatorFlow": false,
+          "userSetupAllowed": false
+        },
+        {
+          "authenticator": "direct-grant-validate-password",
+          "authenticatorFlow": false,
+          "requirement": "DISABLED",
+          "priority": 2,
+          "autheticatorFlow": false,
+          "userSetupAllowed": false
+        }
+      ]
+    },
     {
       "id": "14312dc7-73f8-4ff3-8da4-b90d7d15f885",
       "alias": "Message OTP Subflow",
@@ -5219,14 +5222,6 @@
           "priority": 1,
           "autheticatorFlow": false,
           "userSetupAllowed": false
-        },
-        {
-          "authenticatorFlow": true,
-          "requirement": "REQUIRED",
-          "priority": 2,
-          "autheticatorFlow": true,
-          "flowAlias": "WebAuthn Passwordless - gold conditional",
-          "userSetupAllowed": false
         }
       ]
     },
@@ -5287,14 +5282,6 @@
           "priority": 5,
           "autheticatorFlow": true,
           "flowAlias": "Normal OTP Subflow",
-          "userSetupAllowed": false
-        },
-        {
-          "authenticatorFlow": true,
-          "requirement": "REQUIRED",
-          "priority": 10,
-          "autheticatorFlow": true,
-          "flowAlias": "WebAuthn Passwordless - silver conditional",
           "userSetupAllowed": false
         }
       ]
@@ -5593,20 +5580,21 @@
       ]
     },
     {
-        "id": "7191847e-d249-4a3d-b513-84d16d1de9a2",
-        "alias": "gold direct grant",
-        "description": "OpenID Connect Resource Owner Grant",
-        "providerId": "basic-flow",
-        "topLevel": true,
-        "builtIn": false,
-        "authenticationExecutions": [ {
+      "id": "7191847e-d249-4a3d-b513-84d16d1de9a2",
+      "alias": "gold direct grant",
+      "description": "OpenID Connect Resource Owner Grant",
+      "providerId": "basic-flow",
+      "topLevel": true,
+      "builtIn": false,
+      "authenticationExecutions": [
+        {
           "authenticatorFlow": true,
           "requirement": "CONDITIONAL",
           "priority": 32,
           "autheticatorFlow": true,
           "flowAlias": "LoA step-up",
           "userSetupAllowed": false
-        } 
+        }
       ]
     },
     {
@@ -5841,60 +5829,6 @@
           "userSetupAllowed": false
         }
       ]
-    },
-    {
-      "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
-      "alias": "WebAuthn Passwordless - silver conditional",
-      "description": "Passkey or Email OTP as second factor for silver LoA",
-      "providerId": "basic-flow",
-      "topLevel": false,
-      "builtIn": false,
-      "authenticationExecutions": [
-        {
-          "authenticator": "webauthn-authenticator-passwordless",
-          "authenticatorFlow": false,
-          "requirement": "ALTERNATIVE",
-          "priority": 0,
-          "autheticatorFlow": false,
-          "userSetupAllowed": false
-        },
-        {
-          "authenticatorConfig": "Email OTP silver",
-          "authenticator": "message-otp-authenticator",
-          "authenticatorFlow": false,
-          "requirement": "ALTERNATIVE",
-          "priority": 1,
-          "autheticatorFlow": false,
-          "userSetupAllowed": false
-        }
-      ]
-    },
-    {
-      "id": "b2c3d4e5-f6a7-8901-bcde-f23456789012",
-      "alias": "WebAuthn Passwordless - gold conditional",
-      "description": "Passkey or Email OTP as second factor for gold LoA",
-      "providerId": "basic-flow",
-      "topLevel": false,
-      "builtIn": false,
-      "authenticationExecutions": [
-        {
-          "authenticator": "webauthn-authenticator-passwordless",
-          "authenticatorFlow": false,
-          "requirement": "ALTERNATIVE",
-          "priority": 0,
-          "autheticatorFlow": false,
-          "userSetupAllowed": false
-        },
-        {
-          "authenticatorConfig": "Email OTP gold",
-          "authenticator": "message-otp-authenticator",
-          "authenticatorFlow": false,
-          "requirement": "ALTERNATIVE",
-          "priority": 1,
-          "autheticatorFlow": false,
-          "userSetupAllowed": false
-        }
-      ]
     }
   ],
   "authenticatorConfig": [
@@ -5963,14 +5897,15 @@
         "loa-max-age": "0"
       }
     },
-      {
+    {
       "id": "d0b1b9bb-22c3-4585-b094-c4e10e32bbe2",
       "alias": "gold - LoA2",
       "config": {
         "loa-condition-level": "2",
         "loa-max-age": "0"
       }
-    }, {
+    },
+    {
       "id": "7caf408d-0ad1-45e7-89f6-095565b1b1a5",
       "alias": "gold - LoA2",
       "config": {
@@ -6056,7 +5991,7 @@
       "id": "14301189-f3d6-4e1e-babb-44b71d5abb2b",
       "alias": "user session count limiter config",
       "config": {
-        "errorMessage": "Sesión de voto ya iniciada. Cierre la sesión abierta en otra ventana para continuar.",
+        "errorMessage": "Sesi\u00f3n de voto ya iniciada. Cierre la sesi\u00f3n abierta en otra ventana para continuar.",
         "userClientLimit": "0",
         "behavior": "Deny new session",
         "userRealmLimit": "1"
@@ -6076,40 +6011,6 @@
       "config": {
         "negate": "false",
         "conditional-client": "admin-portal"
-      }
-    },
-    {
-      "id": "c3d4e5f6-a7b8-9012-cdef-345678901234",
-      "alias": "Email OTP silver",
-      "config": {
-        "one-time-link": "false",
-        "senderId": "Keycloak",
-        "test-mode-code": "123456",
-        "resendCoudActivationTimer": "60",
-        "telUserAttribute": "sequent.read-only.mobile-number",
-        "length": "6",
-        "max-receiver-reuse": "1",
-        "test-mode": "false",
-        "messageCourierAttribute": "EMAIL",
-        "ttl": "300",
-        "deferredUserAttribute": "false"
-      }
-    },
-    {
-      "id": "d4e5f6a7-b8c9-0123-defa-456789012345",
-      "alias": "Email OTP gold",
-      "config": {
-        "one-time-link": "false",
-        "senderId": "Keycloak",
-        "test-mode-code": "123456",
-        "resendCoudActivationTimer": "60",
-        "telUserAttribute": "sequent.read-only.mobile-number",
-        "length": "6",
-        "max-receiver-reuse": "1",
-        "test-mode": "false",
-        "messageCourierAttribute": "EMAIL",
-        "ttl": "300",
-        "deferredUserAttribute": "false"
       }
     }
   ],
@@ -6199,8 +6100,8 @@
       "alias": "webauthn-register-passwordless",
       "name": "Webauthn Register Passwordless",
       "providerId": "webauthn-register-passwordless",
-      "enabled": true,
-      "defaultAction": true,
+      "enabled": false,
+      "defaultAction": false,
       "priority": 80,
       "config": {}
     },
