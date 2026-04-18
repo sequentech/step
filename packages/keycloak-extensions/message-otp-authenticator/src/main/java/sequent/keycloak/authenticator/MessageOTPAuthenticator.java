@@ -20,6 +20,7 @@ import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.RealmModel;
 import org.keycloak.models.UserModel;
 import org.keycloak.sessions.AuthenticationSessionModel;
+import sequent.keycloak.authenticator.credential.MessageOTPCredentialModel;
 import sequent.keycloak.authenticator.credential.MessageOTPCredentialProvider;
 
 @JBossLog
@@ -144,6 +145,24 @@ public class MessageOTPAuthenticator
           if (messageCourier == Utils.MessageCourier.BOTH
               || messageCourier == Utils.MessageCourier.EMAIL) {
             authSession.setAuthNote(EMAIL_VERIFIED, "true");
+          }
+
+          // If the user doesn't have a MessageOTPCredential yet, create one now
+          // so that on subsequent logins the authenticator is "configured" and
+          // appears alongside other ALTERNATIVE authenticators (e.g. passkey)
+          // in the credential chooser. This avoids the need for a separate
+          // `message-otp-ra` required action on first login, which would result
+          // in the user receiving two OTP codes.
+          if (!deferredUser && user != null) {
+            MessageOTPCredentialProvider credentialProvider = getCredentialProvider(session);
+            if (!credentialProvider.isConfiguredFor(
+                context.getRealm(), user, credentialProvider.getType())) {
+              log.info("Creating MessageOTPCredential for user on successful authentication");
+              credentialProvider.createCredential(
+                  context.getRealm(),
+                  user,
+                  MessageOTPCredentialModel.create(/* isSetup= */ true));
+            }
           }
 
           // valid

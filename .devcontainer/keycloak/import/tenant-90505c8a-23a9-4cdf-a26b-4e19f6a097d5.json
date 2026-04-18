@@ -2600,13 +2600,14 @@
   ],
   "webAuthnPolicyPasswordlessRpId": "",
   "webAuthnPolicyPasswordlessAttestationConveyancePreference": "not specified",
-  "webAuthnPolicyPasswordlessAuthenticatorAttachment": "not specified",
-  "webAuthnPolicyPasswordlessRequireResidentKey": "not specified",
-  "webAuthnPolicyPasswordlessUserVerificationRequirement": "not specified",
+  "webAuthnPolicyPasswordlessAuthenticatorAttachment": "platform",
+  "webAuthnPolicyPasswordlessRequireResidentKey": "Yes",
+  "webAuthnPolicyPasswordlessUserVerificationRequirement": "required",
   "webAuthnPolicyPasswordlessCreateTimeout": 0,
   "webAuthnPolicyPasswordlessAvoidSameAuthenticatorRegister": false,
   "webAuthnPolicyPasswordlessAcceptableAaguids": [],
   "webAuthnPolicyPasswordlessExtraOrigins": [],
+  "webAuthnPolicyPasswordlessPasskeysEnabled": true,
   "users": [
     {
       "id": "a20376d6-e53a-4edf-afc3-cc18bb8e23e5",
@@ -5218,6 +5219,14 @@
           "priority": 1,
           "autheticatorFlow": false,
           "userSetupAllowed": false
+        },
+        {
+          "authenticatorFlow": true,
+          "requirement": "REQUIRED",
+          "priority": 2,
+          "autheticatorFlow": true,
+          "flowAlias": "WebAuthn Passwordless - gold conditional",
+          "userSetupAllowed": false
         }
       ]
     },
@@ -5278,6 +5287,14 @@
           "priority": 5,
           "autheticatorFlow": true,
           "flowAlias": "Normal OTP Subflow",
+          "userSetupAllowed": false
+        },
+        {
+          "authenticatorFlow": true,
+          "requirement": "REQUIRED",
+          "priority": 10,
+          "autheticatorFlow": true,
+          "flowAlias": "WebAuthn Passwordless - silver conditional",
           "userSetupAllowed": false
         }
       ]
@@ -5824,6 +5841,60 @@
           "userSetupAllowed": false
         }
       ]
+    },
+    {
+      "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+      "alias": "WebAuthn Passwordless - silver conditional",
+      "description": "Passkey or Email OTP as second factor for silver LoA",
+      "providerId": "basic-flow",
+      "topLevel": false,
+      "builtIn": false,
+      "authenticationExecutions": [
+        {
+          "authenticator": "webauthn-authenticator-passwordless",
+          "authenticatorFlow": false,
+          "requirement": "ALTERNATIVE",
+          "priority": 0,
+          "autheticatorFlow": false,
+          "userSetupAllowed": false
+        },
+        {
+          "authenticatorConfig": "Email OTP silver",
+          "authenticator": "message-otp-authenticator",
+          "authenticatorFlow": false,
+          "requirement": "ALTERNATIVE",
+          "priority": 1,
+          "autheticatorFlow": false,
+          "userSetupAllowed": false
+        }
+      ]
+    },
+    {
+      "id": "b2c3d4e5-f6a7-8901-bcde-f23456789012",
+      "alias": "WebAuthn Passwordless - gold conditional",
+      "description": "Passkey or Email OTP as second factor for gold LoA",
+      "providerId": "basic-flow",
+      "topLevel": false,
+      "builtIn": false,
+      "authenticationExecutions": [
+        {
+          "authenticator": "webauthn-authenticator-passwordless",
+          "authenticatorFlow": false,
+          "requirement": "ALTERNATIVE",
+          "priority": 0,
+          "autheticatorFlow": false,
+          "userSetupAllowed": false
+        },
+        {
+          "authenticatorConfig": "Email OTP gold",
+          "authenticator": "message-otp-authenticator",
+          "authenticatorFlow": false,
+          "requirement": "ALTERNATIVE",
+          "priority": 1,
+          "autheticatorFlow": false,
+          "userSetupAllowed": false
+        }
+      ]
     }
   ],
   "authenticatorConfig": [
@@ -6006,6 +6077,40 @@
         "negate": "false",
         "conditional-client": "admin-portal"
       }
+    },
+    {
+      "id": "c3d4e5f6-a7b8-9012-cdef-345678901234",
+      "alias": "Email OTP silver",
+      "config": {
+        "one-time-link": "false",
+        "senderId": "Keycloak",
+        "test-mode-code": "123456",
+        "resendCoudActivationTimer": "60",
+        "telUserAttribute": "sequent.read-only.mobile-number",
+        "length": "6",
+        "max-receiver-reuse": "1",
+        "test-mode": "false",
+        "messageCourierAttribute": "EMAIL",
+        "ttl": "300",
+        "deferredUserAttribute": "false"
+      }
+    },
+    {
+      "id": "d4e5f6a7-b8c9-0123-defa-456789012345",
+      "alias": "Email OTP gold",
+      "config": {
+        "one-time-link": "false",
+        "senderId": "Keycloak",
+        "test-mode-code": "123456",
+        "resendCoudActivationTimer": "60",
+        "telUserAttribute": "sequent.read-only.mobile-number",
+        "length": "6",
+        "max-receiver-reuse": "1",
+        "test-mode": "false",
+        "messageCourierAttribute": "EMAIL",
+        "ttl": "300",
+        "deferredUserAttribute": "false"
+      }
     }
   ],
   "requiredActions": [
@@ -6094,8 +6199,8 @@
       "alias": "webauthn-register-passwordless",
       "name": "Webauthn Register Passwordless",
       "providerId": "webauthn-register-passwordless",
-      "enabled": false,
-      "defaultAction": false,
+      "enabled": true,
+      "defaultAction": true,
       "priority": 80,
       "config": {}
     },
