@@ -159,7 +159,7 @@ flowchart TD
     ENCRYPT --> CAST[POST /insert-cast-vote<br/>with election_id + encrypted ballot]
 
     CAST -->|Success| CAST_OK[Play vote_success]
-    CAST -->|"DUPLICATE_VOTE /<br/>MAX_REVOTES_EXCEEDED"| CAST_WARN[Play per-election<br/>error prompt]
+    CAST -->|"CheckRevotesFailed /<br/>InsertFailedExceedsAllowedRevotes /<br/>VotingChannelNotEnabled /<br/>other per-election rejection"| CAST_WARN[Play per-election<br/>error prompt]
     CAST -->|"Timeout / Server Error"| SRV_ERR([Play system_error<br/>Disconnect])
 
     CAST_OK --> RCPT{receipt_format<br/>configured?}
@@ -265,7 +265,7 @@ flowchart TD
 | `SelectionCheck` | DTMF (confirm/restart) | Validate selections against `min_votes`/`max_votes`. Apply `blank_vote_policy`: if no selections and `allowed`→`blank_ballot_confirm`; if `not_allowed`→re-prompt. Apply `under_vote_policy`: if under minimum and `warn`→play warning then confirm |
 | `VoteConfirm` | DTMF (1=confirm, 2=change) | Read back selected candidates. "You selected \{candidate_name\} for \{contest_name\}. Press 1 to confirm, 2 to change your selection" |
 | `ElectionSummary` | DTMF (`00#` = submit, `NN#` = edit contest N) | Read back all selections for the current election, numbering each contest. "For contest 1, \{contest_name\}: you selected \{candidate_name\}. For contest 2, …" Press `00#` to submit this election's ballot, or press a contest number followed by `#` to edit that contest's selection. Editing a contest clears its selections and re-enters `CandidateSelect` for that contest only — afterwards returns directly to `ElectionSummary` (not to the next contest). **Note:** summary is its own explicit confirmation — there is no separate `ElectionConfirm` step before submission. The summary uniformly uses multi-digit input regardless of contest count — contest indices always take the form `01#`–`NN#`, and `00#` is the unambiguous submit code (contest numbering starts at 1, so `00` cannot collide) |
-| `ElectionSubmit` | None (auto-advance) | Refresh access token if needed, encrypt ballot with election public keys, POST `/insert-cast-vote` with `election_id`. On success → play `vote_success`, advance to `ElectionReceipt`. On per-election error (duplicate, max revotes) → play error prompt, advance to next election. On fatal error (timeout, session expired) → disconnect |
+| `ElectionSubmit` | None (auto-advance) | Refresh access token if needed, encrypt ballot with election public keys, POST `/insert-cast-vote` with `election_id`. On success → play `vote_success`, advance to `ElectionReceipt`. On per-election rejection from Harvest (revote limit reached, channel closed, etc. — see §5.4 for the full variant list) → play the matching error prompt, advance to next election. On fatal error (timeout, session expired) → disconnect |
 | `ElectionReceipt` | DTMF (`*`=repeat) | Read a ballot locator derived from the first 4 hex characters of `ballot_id`, rendered phonetically (`a3f2` → "alpha three foxtrot two"). "Your ballot locator for \{election_name\} is \{confirmation_number\}. Press star to repeat." Skipped if `receipt_format` is not configured. **Portal dependency:** the voting portal ballot locator lookup must be scoped to the authenticated voter and current election, so uniqueness only needs to hold within that smaller set |
 
 #### 3.3.4 BallotLoopState (Session Cursor)
@@ -486,7 +486,7 @@ Phone voting can have independent start/stop times from online voting, following
 
 **What must exist.** `ElectionEventStatus` in `sequent-core` already carries per-channel status + period pairs for `voting` (online), `kiosk`, and `early_voting`. The IVR feature adds a fourth channel — `telephone` — using the same shape: a `VotingStatus` field plus a `PeriodDates` field. Hasura permissions, admin-portal UI, and any code that iterates over channels must be updated to treat the new channel uniformly with the others; there is nothing IVR-specific about the status/period representation itself.
 
-This allows administrators to configure phone voting hours independently (e.g., phone voting 9am–5pm, online voting 24/7). The channel is selected at the authorization layer via the JWT `azp` claim (`ivr-voting`) — see §5.2 and [`sequent_core::services::authorization::authorize_voter_election`](../../../../packages/sequent-core/src/services/authorization.rs).
+This allows administrators to configure phone voting hours independently (e.g., phone voting 9am–5pm, online voting 24/7). TELEPHONE is selected at the authorization layer directly from the JWT `azp` claim (`ivr-voting`); the full `AzpClient` → `VotingStatusChannel` mapping — kiosk straight from `azp`, portal clients fanning out into ONLINE vs EARLY_VOTING via the area's early-voting window — lives in Appendix C.7. See also §5.2 and [`sequent_core::services::authorization::authorize_voter_election`](../../../../packages/sequent-core/src/services/authorization.rs).
 
 ---
 
@@ -500,11 +500,23 @@ This allows administrators to configure phone voting hours independently (e.g., 
 
 **Design principle.** The session is per-contact and stays well under DynamoDB's 400 KB limit — anything large (prompts, elections, candidates, auth steps, event presentation) lives in the process-level publication cache keyed by `(tenant_id, election_event_id, publication_id)`. A large municipality (dozens of contests × hundreds of candidates × multiple language bundles) can exceed 400 KB on its own, so duplicating the publication per call would be both wasteful and fragile. See §5.1.8 for the publication-discovery flow.
 
-**Concurrency & idempotency.** Amazon Connect can issue overlapping Lambda invocations for the same contact — DTMF captured at the tail of one prompt can land during the next `ProcessStep` call, and a flaky retry of a deferred invocation can re-fire an old input. A naive `get_session → mutate → save_session` would let the later write silently clobber the earlier one, which could drop a selection the voter just made, re-process the same DTMF twice, or resubmit a vote already accepted by Harvest. Three layers prevent that:
+**Concurrency & idempotency.** A given contact moves through its Connect flow strictly sequentially — Connect does not issue overlapping Lambda invocations for the same `contact_id`, and it does not auto-retry a synchronous `Invoke Lambda` block (unlike async `Event`-type invocations, Connect's sync calls fail over to the Error branch rather than being retried). The races that matter are therefore not Lambda-vs-Lambda *inside one call*; they are Lambda-vs-its-backends and Lambda-vs-other-callers:
 
-1. **Optimistic concurrency on `save_session`.** `IvrSession` carries a `version: u64` (see struct below). It is bumped on every write, and the DynamoDB `PutItem` is guarded by `ConditionExpression: version = :expected`. A lost race returns a dedicated `IvrError::SessionRaced`, which the handler maps to a "please try again" prompt — never a corrupted state.
-2. **Encrypt-once, resubmit-same for vote idempotency.** `ballot_id` is the SHA-256 of the encrypted ballot content — Harvest recomputes it and rejects `BallotIdMismatch`, so the Lambda cannot simply pick a deterministic ID. Instead, the Lambda encrypts each election's ballot **exactly once per session** and caches the encrypted payload + its `ballot_id` in the session (a per-election slot on `IvrSession`). A `ElectionSubmit` retry after a timeout resubmits the cached payload verbatim: same ciphertext → same hash → same `ballot_id` → Harvest's existing duplicate check rejects it as `DUPLICATE_VOTE` rather than recording a second ballot. Re-encrypting on retry would produce a new `ballot_id` (fresh ElGamal randomness) and defeat the de-dup, so the "encrypt once, store, resubmit" rule is a load-bearing invariant.
-3. **Connect-side input-replay contract.** The Amazon Connect contact flow MUST be authored so that `ProcessInput` is not re-invoked on handler timeout (the "Invoke Lambda" block's failure branch plays `system_error` and disconnects — it does not loop back into the same input capture). This contract is asserted in the contact-flow fixture tests (§15) so a flow edit that reintroduces a retry loop fails CI.
+- **Harvest partial completion.** The handler encrypts and submits a ballot, Harvest writes it and commits, then the response is lost — the Lambda times out mid-flight, the socket drops, or the process is OOM-killed. Connect follows the Error branch, `HandleError` runs on the next turn, and, absent a defense, it might resubmit — silently recording a second ballot for the voter. This is the common-case race, and it is a property of *any* non-idempotent HTTP backend, not of Connect.
+- **External invokers of a live session row.** The `step-ivr` CLI (§3.5.6), the text-in/text-out replay harness, the admin-portal flow preview (when built), and diagnostic replays during incident response can all re-enter the handler against a `contact_id` that also has a live Connect call. They must fail safely instead of clobbering state.
+- **Defense in depth against Connect edges we don't model.** Transfers, holds, and future Connect features could introduce interleavings the current design does not anticipate. A cheap conditional-write guard is durable against "something we didn't think of."
+
+A naive `get_session → mutate → save_session` in any of those scenarios would let the later write silently clobber the earlier one — potentially dropping a selection, double-submitting a vote already accepted by Harvest, or advancing the phase cursor to a position the voter never reached. Three layers prevent that:
+
+1. **Optimistic concurrency on `save_session`.** `IvrSession` carries a `version: u64` (see struct below). It is bumped on every write, and the DynamoDB `PutItem` is guarded by `ConditionExpression: version = :expected`. A lost race surfaces internally as `IvrError::SessionRaced`, but **is never presented to the voter as a user-facing prompt** — the scenarios the guard defends against (external invokers, defense in depth) are not voter-caused, so "please try again" would be both confusing and pointless. Instead, the handler applies a reload-and-decide policy:
+
+   - On `SessionRaced`, re-`get_session` to see what the winning writer committed.
+   - If the reloaded `position` has already advanced past this invocation's starting cursor, the other writer did our work for us — **drop silently and return a no-op response**, logging the conflict with full context (who the winning writer was, if derivable). This is option *(c)* — ignore and log — from the finding's list, and it is the correct answer for every race this defends against.
+   - If the reloaded session is still at our starting version but something else changed under us, retry the write exactly once against the fresh version. A second `SessionRaced` on the same turn indicates a degenerate situation that should not occur in production: log at `error` level with full context and return the generic `system_error` prompt with disconnect.
+
+   The result: `SessionRaced` has no voter-visible prompt, and the voter never hears a "please try again" for something they did not cause. The only voter-visible error that can come out of this path is `system_error` on the second-failure arm, which is already generic, already disconnects, and already covers arbitrary internal faults (§8.2).
+2. **Encrypt-once, resubmit-same for vote idempotency.** This is the defense against the Harvest partial-completion race, and it is load-bearing. `ballot_id` is the SHA-256 of the encrypted ballot content — Harvest recomputes it and rejects `BallotIdMismatch`, so the Lambda cannot simply pick a deterministic ID. Instead, the Lambda encrypts each election's ballot **exactly once per session** and caches the encrypted payload + its `ballot_id` in the session (a per-election slot on `IvrSession`). An `ElectionSubmit` retry after a timeout resubmits the cached payload verbatim: same ciphertext → same hash → same `ballot_id` → Harvest's existing revote check (`CheckRevotesFailed` / `InsertFailedExceedsAllowedRevotes` when `max_revotes = 1`, see §5.4) rejects the second attempt rather than recording a second ballot. Re-encrypting on retry would produce a new `ballot_id` (fresh ElGamal randomness) and defeat the de-dup, so the "encrypt once, store, resubmit" rule is a load-bearing invariant.
+3. **Connect-side input-replay contract.** Although Connect does not auto-retry `Invoke Lambda`, the contact flow itself must be authored so it doesn't *manually* reintroduce a retry loop. On the "Invoke Lambda" block's failure branch, the flow plays `system_error` and disconnects — it does not wire the Error branch back into the same "Get customer input" block. This makes each `(contact_id, turn)` pair at-most-once by construction. The contract is asserted in the contact-flow fixture tests (§15) so a flow edit that reintroduces a retry loop fails CI.
 
 ```rust
 /// Per-call session state stored in DynamoDB. The ballot publication is
@@ -570,7 +582,9 @@ pub struct IvrSession {
 
     /// Optimistic-concurrency guard. Bumped on every write; the DynamoDB
     /// `PutItem` is guarded by `ConditionExpression: version = :expected`.
-    /// Lost races surface as `IvrError::SessionRaced`.
+    /// Lost races surface internally as `IvrError::SessionRaced` and are
+    /// handled via the reload-and-decide policy described in §4.1 — never
+    /// surfaced to the voter as a prompt.
     pub version: u64,
 
     /// DynamoDB TTL — sliding idle window (default 1 h) capped at a
@@ -743,9 +757,12 @@ pub struct ElectionSubmissionResult {
 #[derive(Serialize, Deserialize)]
 pub enum SubmissionStatus {
     Success,
-    DuplicateVote,
-    MaxRevotesExceeded,
-    NotEligible,
+    /// Per-election rejection from Harvest — the adapter has already
+    /// classified the `CastVoteError` variant into a prompt-ready shape.
+    /// See §5.4 for the rejection taxonomy and the raw-variant mapping.
+    Rejected(CastVoteRejection),
+    /// Transport-level failure (timeout, 5xx, malformed body) — played
+    /// as `vote_failed`; the ballot loop advances to the next election.
     Failed { error: String },
 }
 ```
@@ -1233,37 +1250,65 @@ sequenceDiagram
 ### 5.4 Backend Error Handling for Vote Submission
 
 **Overview:**
-Backend (Harvest) validates all vote submission rules including revotes, eligibility, and duplicate votes. IVR Lambda simply handles error responses gracefully.
+Backend (Harvest) validates all vote submission rules — revote limits, channel enablement, ballot-hash integrity, area/election scoping. The IVR Lambda treats Harvest as the source of truth and maps its rejection variants to voter-facing prompts.
 
-**Backend Validation:**
-- Duplicate vote detection
-- Maximum revotes enforcement (per election configuration)
-- Voter eligibility checks
-- Voting period validation
-
-**Error Handling:**
-
-`CastVoteError` is the Harvest-adapter's error type, distinct from the generic
-transport-layer `ApiErrorKind` in §8.2. Keeping them separate means the
-adapter can classify Harvest's documented rejection codes (`DUPLICATE_VOTE`,
-`MAX_REVOTES_EXCEEDED`, `NOT_ELIGIBLE`) as a first-class variant without
-leaking strings into the domain error.
-
-The Harvest adapter distinguishes three outcomes:
+**Source of truth.** The authoritative error set lives in
+[`CastVoteError`](../../../../packages/windmill/src/services/insert_cast_vote.rs)
+and is surfaced over HTTP by
+[`packages/harvest/src/routes/insert_cast_vote.rs`](../../../../packages/harvest/src/routes/insert_cast_vote.rs).
+The IVR adapter classifies each variant into one of three adapter outcomes and
+does not invent codes of its own.
 
 | Adapter outcome | Domain mapping | Voter-facing effect |
 |---|---|---|
-| Business-rule rejection (Harvest returned a known error code) | Per-election error — record on `ElectionSubmissionResult`, play the matching prompt, **continue to next election** | Announce via prompt; do not disconnect |
+| Per-election rejection (Harvest returned a `CastVoteError` variant whose meaning is scoped to this one election) | Record on `ElectionSubmissionResult`, play the matching prompt, **continue to next election** | Announce via prompt; do not disconnect |
 | Network / read timeout before any response | Fatal system error | Play `system_error` prompt and disconnect |
 | Other transport failure | Generic transport error (§8.2) | Play `system_error` prompt and disconnect |
 
-Known business-rule codes and their prompt keys: `DUPLICATE_VOTE` → `duplicate_vote`, `MAX_REVOTES_EXCEEDED` → `max_revotes_exceeded`, `NOT_ELIGIBLE` → `not_eligible`, anything else → `vote_failed`. Map via an exhaustive `match` in the adapter (not string comparisons in domain code) so a new code surfaces as a compiler warning.
+**Relevant `CastVoteError` variants and their prompt keys.** Only the
+variants reachable on the IVR submission path are listed; every other variant
+(e.g. `DeserializeBallotFailed`, `BallotSignFailed`, `GetDbClientFailed`) is an
+internal/infra failure that collapses to `vote_failed` plus a raw-code log
+entry for ops.
+
+| `CastVoteError` variant | Prompt key | Notes |
+|---|---|---|
+| `CheckRevotesFailed(_)` | `duplicate_vote` when the election runs with `max_revotes = 1` (the Canadian municipal default); `max_revotes_exceeded` otherwise | Today this is the *only* signal that a voter has already cast a ballot in this election — there is no dedicated `DuplicateVote` variant (see design note below). The adapter reads the election's `max_revotes` from the session-cached publication to decide which prompt to play |
+| `InsertFailedExceedsAllowedRevotes` | same as `CheckRevotesFailed` | Race-condition surfacing of the same business rule at INSERT time. Mapped identically |
+| `CheckVotesInOtherAreasFailed(_)` | `vote_failed` with a raw-code log entry | Means the voter has already voted for this election in a *different* area. Rare on IVR (area is derived from the voter's own identity, not caller input); treat as `vote_failed` until product decides whether a dedicated prompt is warranted |
+| `VotingChannelNotEnabled(_)` | `election_closed` | The election's TELEPHONE channel flipped off between the `eligibility_check` and the ballot submission — the same prompt used for the pre-flight channel check in §5.2 applies |
+| `BallotIdMismatch(_)` | `vote_failed` (fatal for this election) | Cannot recover by re-encrypting (would defeat the retry-idempotency invariant in §9.3). Log as a hard integrity failure |
+| `CheckPreviousVotesFailed(_)` / `CheckStatusFailed(_)` / `CheckStatusInternalFailed(_)` / `CheckRevotesFailed` query-layer errors | `vote_failed` | These are database/query failures inside the pre-insert checks, not business-rule rejections. Per-election outcome, not fatal to the call |
+| `AreaNotFound` / `ElectionEventNotFound(_)` / `ElectoralLogNotFound(_)` | `system_error` (disconnect) | Indicates a config/routing mismatch between the session and Harvest — nothing the voter can do about it, and the same mismatch will hit every subsequent election. Fail the call, alert ops |
+| All other variants (`InsertFailed`, `CommitFailed`, `Deserialize*Failed`, `BallotSignFailed`, `UnknownError`, …) | `vote_failed` | Per-election fallback; raw variant name goes into the structured log |
+
+Mapping is implemented as an exhaustive `match` in the adapter (not string
+comparisons in domain code) so a new `CastVoteError` variant added upstream
+surfaces as a compiler warning here.
+
+> **Design note — first-class `DuplicateVote`.** Today, "voter already cast a
+> ballot in this election" is not a dedicated `CastVoteError`; it is inferred
+> from `CheckRevotesFailed` under `max_revotes = 1` (or from
+> `InsertFailedExceedsAllowedRevotes` on the INSERT-time race). Every channel
+> — portal, kiosk, IVR — has to duplicate the same "read `max_revotes`, decide
+> which message to show" logic. A small, self-contained improvement worth
+> doing alongside the IVR rollout is to add a `DuplicateVote` variant to
+> `CastVoteError` in `windmill/src/services/insert_cast_vote.rs`, emitted when
+> `max_revotes = 1` and a previous ballot exists. `CheckRevotesFailed` then
+> genuinely means "the voter has exceeded the allowed number of revotes" in
+> elections that permit more than one, which is what its name suggests. The
+> IVR adapter table above collapses to one line per variant with no
+> max-revotes conditional; the portal and kiosk benefit equally. Tracked
+> as a follow-up — see `CastVoteRejection::DuplicateVote` below, which is
+> already wired for that future variant.
 
 ```rust
-/// Harvest-adapter error. Distinct from generic transport errors (§8.2)
-/// so business-rule rejections are a first-class variant.
-pub enum CastVoteError {
-    /// Harvest returned a documented rejection code.
+/// IVR-adapter error. Distinct from the generic transport error
+/// (§8.2) so per-election rejections are a first-class variant.
+pub enum CastVoteAdapterError {
+    /// Harvest returned a `CastVoteError` variant (see the mapping
+    /// table above). The adapter has already collapsed it into the
+    /// prompt-ready `CastVoteRejection`.
     Rejected(CastVoteRejection),
     /// Network / read timeout before any response from Harvest.
     Timeout,
@@ -1271,31 +1316,43 @@ pub enum CastVoteError {
     Transport(String),
 }
 
+/// Prompt-ready classification of a per-election Harvest rejection.
+/// Shapes match the i18n prompt keys in Appendix D, not the raw
+/// `CastVoteError` variant names — the adapter bridges the two.
 #[derive(Debug, PartialEq, Eq)]
 pub enum CastVoteRejection {
+    /// Voter has already cast a ballot in this election
+    /// (today: `CheckRevotesFailed` / `InsertFailedExceedsAllowedRevotes`
+    /// when `max_revotes = 1`; future: a dedicated `DuplicateVote`
+    /// variant per the design note above).
     DuplicateVote,
+    /// Voter has exhausted the configured revote budget
+    /// (`max_revotes > 1` case).
     MaxRevotesExceeded,
-    NotEligible,
-    /// Future code we haven't classified yet — surfaces as `vote_failed`
-    /// to the voter but logs the raw code for ops.
-    Unknown(String),
+    /// TELEPHONE channel was closed between eligibility check and submit.
+    ChannelClosed,
+    /// Ballot-hash integrity failure — cannot recover for this election.
+    BallotIdMismatch,
+    /// Any other `CastVoteError` variant not classified above. Played
+    /// as `vote_failed`; the raw variant name is logged for ops.
+    Other(String),
 }
 ```
 
 **Error Prompts:**
 
-Backend errors use prompt keys from `i18n[lang]["ivr"]`. Per-election errors are announced but do not end the call — the `ElectionSubmit` sub-phase reports the error and the ballot loop advances to the next election:
+Backend errors use prompt keys from `i18n[lang]["ivr"]`. Per-election rejections are announced but do not end the call — the `ElectionSubmit` sub-phase reports the error and the ballot loop advances to the next election:
 - `duplicate_vote`: "You have already voted in this election." (continue to next election)
 - `max_revotes_exceeded`: "You have reached the maximum number of allowed votes for this election." (continue to next election)
-- `not_eligible`: "You are not eligible to vote in this election." (continue to next election)
+- `election_closed`: "Telephone voting is not currently open for this election." (continue to next election)
 - `vote_failed`: "We were unable to record your vote. Please try again later." (continue to next election)
 
-Fatal errors (network timeout, session expired, Keycloak unavailable) disconnect immediately since they affect all elections.
+Fatal errors (network timeout, session expired, Keycloak unavailable, area/election config mismatch) disconnect immediately since they affect all elections.
 
 **Simplicity:**
 - No frontend filtering needed
 - Backend is source of truth — Harvest validates per-election
-- IVR translates backend errors to user-friendly messages
+- IVR translates `CastVoteError` variants into user-friendly messages
 - Each election is submitted independently; one failure does not block others
 
 ---
@@ -1383,7 +1440,7 @@ The platform already supports:
 - **i18n pattern** via `presentation.i18n` with nested structure `\{lang: \{key: value\}\}`
 - **Per-election presentation** via `ElectionPresentation` (`packages/sequent-core/src/ballot.rs`, `pub struct ElectionPresentation`)
 - **Per-event presentation** via `ElectionEventPresentation` (`packages/sequent-core/src/ballot.rs`, `pub struct ElectionEventPresentation`)
-- **Channel-based authorization** via JWT `azp` claim (`packages/sequent-core/src/services/authorization.rs`, `authorize_voter_election`)
+- **Channel-based authorization** via the JWT `azp` claim, mapped into `VotingStatusChannel` by `authorize_voter_election` and the `AzpClient::to_voting_channel` resolver — portal clients fan out into ONLINE vs EARLY_VOTING via the area's early-voting window (`packages/sequent-core/src/services/authorization.rs`; see Appendix C.7 for the exhaustive match)
 
 ### 7.2 IVR Prompt Storage - Inside Existing i18n Structure
 
@@ -1499,7 +1556,7 @@ The renderer has three responsibilities, applied in order:
 
 **Fail-loud vs fail-soft.** Malformed XML in a template (unbalanced tags after interpolation) is a fail-loud error: the renderer returns a domain error, the prompt is not sent to Polly, and the handler falls back to `system_error`. Unknown tags and attributes are fail-soft (stripped with a WARN-level structured log recording the dropped tag name and the prompt key) — this keeps a single bad override from taking down a live call while still surfacing the misconfiguration for ops.
 
-**Admin-portal editor requirement.** The prompt editor in the admin portal (§14.2) MUST invoke the same sanitizer on save and display the rendered audio preview (Polly synthesis of the sanitized output) before the value can be persisted. This means the sanitizer lives in `sequent-core` where both the Lambda and the admin portal (via its WASM build) can share it — do not implement it twice.
+**Admin-portal editor requirement.** The prompt editor in the admin portal (§14.2) MUST invoke `validate_ivr_subtree` + the same sanitizer on save and display the rendered audio preview (Polly synthesis of the sanitized output) before the value can be persisted. The editor consumes and produces a `TypedIvrScope` (§7.2 Rust Type), not a raw `serde_json::Value`, so the sanitizer operates on validated `IvrTemplate` values rather than hunting through untyped JSON. Both the validator and the sanitizer live in `sequent-core` where the Lambda and the admin portal (via its WASM build) share them — do not implement either twice.
 
 **Testing.** The sanitizer gets its own unit-test suite (tag allowlist, attribute allowlist, locale allowlist for `xml:lang`, `break time` cap, depth bound on `{{ssml:…}}` recursion, escape correctness for every placeholder in Appendix D, malformed-XML handling). Record-and-replay fixtures (§15.2) assert the final sanitized SSML string, not just the prompt key, so regressions in the renderer surface immediately.
 
@@ -1509,45 +1566,113 @@ Official references:
 - [Amazon Polly: Using the `lang` tag](https://docs.aws.amazon.com/polly/latest/dg/lang-tag.html)
 - [Amazon Connect: Supported SSML tags](https://docs.aws.amazon.com/connect/latest/adminguide/supported-ssml-tags.html)
 
-#### Rust Type: Dynamic IVR String Map
+#### Rust Type: Validated IVR Sub-Tree
 
-IVR strings are deserialized as `HashMap<String, String>`, not fixed structs. This means adding new prompt keys or spoken-text overrides (e.g., `declaration_text`, `receipt_info`, `blank_ballot_confirm`, `name`) never requires code changes:
+Storage stays compatible with the existing `I18nContent<I18nContent<Option<String>>>` shape (the sub-tree under `"ivr"` is carried as `serde_json::Value` on the wire), but **every consumer — Lambda, admin editor, SSML sanitizer — reads the sub-tree through a single validator that produces a strongly-typed intermediate**. The untyped value never reaches domain code; it is an implementation detail of the serialization boundary.
 
 ```rust
-/// IVR strings: HashMap<key, value>
-/// Deserialized from presentation.i18n[lang]["ivr"]
-type IvrStrings = HashMap<String, String>;
+/// Typed view of presentation.i18n[lang]["ivr"] for one scope
+/// (event / election / contest / candidate). Produced by
+/// `validate_ivr_subtree` — no code path constructs one directly.
+pub struct TypedIvrScope {
+    /// Prompt overrides recognised by this Lambda version, keyed
+    /// by the prompt-key enum. Absence means "fall back to the
+    /// next scope up, or the built-in default".
+    pub prompts: BTreeMap<IvrPromptKey, IvrTemplate>,
+    /// Spoken-text overrides for this entity (`name`, `alias`,
+    /// `description`). Meaningful only on entity scopes.
+    pub overrides: IvrSpokenOverrides,
+    /// Keys we did not recognise — preserved verbatim so an older
+    /// admin-portal build cannot drop keys introduced by a newer
+    /// Lambda. Not rendered by this Lambda version; logged once
+    /// per publication load at INFO with the full key list.
+    pub unknown: BTreeMap<String, String>,
+}
 
-fn get_ivr_strings(
+/// Validated prompt template — still a `String`, but the
+/// placeholder set (`{var}`) and SSML allowlist have already been
+/// checked. `contains_ssml` lets the renderer skip the XML parse
+/// on pure-text prompts.
+pub struct IvrTemplate {
+    pub raw: String,
+    pub contains_ssml: bool,
+}
+
+pub struct IvrSpokenOverrides {
+    pub name: Option<IvrTemplate>,
+    pub alias: Option<IvrTemplate>,
+    pub description: Option<IvrTemplate>,
+}
+
+/// The validator boundary. Called at **admin-save time** by the
+/// prompt editor (so malformed input fails loudly before it ever
+/// reaches the publication), and at **publication-load time** by
+/// both the Lambda and the ballot-verifier as a defence-in-depth
+/// parse (so a publication produced by an older admin-portal
+/// cannot feed unsanitised markup to Polly). The two call sites
+/// MUST produce identical output for identical input — enforced by
+/// fixture tests that feed the same raw JSON through both paths
+/// and assert the `TypedIvrScope` is equal.
+pub fn validate_ivr_subtree(
+    raw: &serde_json::Value,
+    scope: IvrScope,
+    lang: Language,
+) -> Result<TypedIvrScope, IvrValidationError>;
+
+/// Thin loader used by the Lambda at publication-load time.
+fn load_ivr_scope(
     i18n: &serde_json::Map<String, serde_json::Value>,
     lang: &str,
-) -> IvrStrings {
-    i18n.get(lang)
+    scope: IvrScope,
+) -> Result<TypedIvrScope, IvrValidationError> {
+    let raw = i18n.get(lang)
         .and_then(|lang_content| lang_content.get("ivr"))
-        .and_then(|ivr_value| serde_json::from_value(ivr_value.clone()).ok())
-        .unwrap_or_default()
+        .cloned()
+        .unwrap_or(serde_json::Value::Object(Default::default()));
+    validate_ivr_subtree(&raw, scope, lang.parse()?)
 }
 ```
 
-> **Type-system note.** The published `I18nContent<T>` type alias in
+Adding a new prompt key means adding a variant to `IvrPromptKey` — a one-line change in `sequent-core` that the compiler then propagates to every match site. The admin-portal editor and the Lambda resolver pick up the new key at the same time because they both consume `TypedIvrScope`; they never hand-parse `serde_json::Value`.
+
+> **Type-system note — where the `I18nContent` shape starts and stops.** The
+> published `I18nContent<T>` type alias in
 > [`sequent-core::ballot.rs`](https://github.com/sequentech/step/blob/main/packages/sequent-core/src/ballot.rs)
 > is `HashMap<String, T>` where `T` defaults to `Option<String>`, so the
 > portal-facing presentation types use shapes like
 > `Option<I18nContent<I18nContent<Option<String>>>>` (lang → key → leaf string).
-> The IVR `"ivr"` value is a *nested object*, not a leaf string, so it does **not**
-> fit that pre-existing shape. Two options for storing it without breaking the
-> portal types:
+> The IVR `"ivr"` value is a *nested object*, not a leaf string, so it does
+> **not** fit that pre-existing shape. Three ways to reconcile this, in
+> increasing blast-radius order:
 >
-> 1. **Untyped escape hatch (chosen):** keep the IVR sub-tree as
->    `serde_json::Value` inside the `i18n` blob and parse it lazily at the IVR
->    Lambda boundary (the snippet above). The portal already ignores unknown
->    keys, so this is non-breaking.
-> 2. **Widen the leaf type:** change the type alias's leaf parameter to a
->    `serde_json::Value` (or an `untagged` enum of `String | Map`). Requires
->    coordinating with every existing consumer of `I18nContent<I18nContent<…>>`
->    and is therefore deferred.
+> 1. **Leak `serde_json::Value` everywhere.** Have every IVR consumer — the
+>    admin editor, the SSML sanitizer, the Lambda resolver — hand-parse
+>    `i18n[lang]["ivr"]` as untyped JSON. Rejected: the "typed dispatch"
+>    selling point of the i18n structure evaporates for the IVR sub-tree, the
+>    published shape silently diverges from what the Rust types describe, and
+>    every consumer re-implements the same schema with slightly different bugs.
+> 2. **Validated boundary (chosen).** Keep the `serde_json::Value` *only* at
+>    the serialization boundary and define a validator —
+>    `validate_ivr_subtree` above — that every consumer calls. The Rust types
+>    fully describe the sub-tree (`TypedIvrScope`, `IvrPromptKey`,
+>    `IvrTemplate`, `IvrSpokenOverrides`); the untyped value is an
+>    implementation detail of the two wire-boundary points (admin save and
+>    publication load). Cost: one extra parse per save/load, plus keeping
+>    the validator in lock-step with the prompt-key set — both small and
+>    localised.
+> 3. **Widen the leaf type** of `I18nContent<T>` (e.g. to an `untagged` enum
+>    of `String | Map`), so the sub-tree fits natively under
+>    `I18nContent<I18nContent<…>>`. The right answer in a greenfield codebase
+>    but touches every existing consumer of `I18nContent<I18nContent<…>>` in
+>    sequent-core, admin-portal, voting-portal, and ballot-verifier. Tracked
+>    as a follow-up meta issue; option 2's validator is the exact migration
+>    boundary that work would need, so option 2 is not throwaway scaffolding
+>    — it is the seam. Not a blocker for the IVR MVP.
 >
-> Either way, the IVR Lambda must not assume the leaf is a `String`.
+> The validator in option 2 is the single authoritative description of what
+> `i18n[lang]["ivr"]` may contain; the Rust type aliases above are its codomain.
+> No domain code should accept or produce a `serde_json::Value` for this
+> sub-tree outside of that one function.
 
 #### Benefits of This Approach
 
@@ -1555,7 +1680,7 @@ fn get_ivr_strings(
 2. **Backward compatible** - missing `"ivr"` key means no IVR prompts (use defaults)
 3. **Follows existing pattern** - same structure as `"name"`, `"alias"`, etc.
 4. **Override-based** - only spoken differences need to be entered; everything else falls back to portal text
-5. **Fully extensible** - any prompt key can be added in config without code changes
+5. **Extensible with typed well-known keys** - adding a well-known prompt means one `IvrPromptKey` variant in `sequent-core`; deployment-specific custom keys ride the overflow `unknown` map with no code change (§7.2)
 6. **Admin portal simplicity** - edit within existing i18n editor
 
 ### 7.3 Example: Barrie-Style Full Configuration
@@ -1670,6 +1795,7 @@ When `telephone` channel is enabled in `voting_channels`:
 - Text fields for event-level prompts and optional spoken-text overrides — including the well-known auth prompt keys (`auth_enter_username`, `auth_enter_password`, `auth_enter_dob`, etc. — see §5.1.3)
 - Language tabs from `language_conf.enabled_language_codes`
 - SSML-aware preview button (plays via Polly)
+- Editor state is a `TypedIvrScope` produced by `validate_ivr_subtree` on load and re-validated on save (§7.2). Malformed placeholders, stray SSML tags, and unknown prompt keys surface as inline field errors before the form can be persisted — the untyped `serde_json::Value` never reaches the UI layer
 
 **ElectionEvent settings** → "IVR Flow" tab:
 - **Flow pipeline editor (`presentation.ivr.flow`)** — an ordered list of flow steps with drag-to-reorder, add, and remove controls. Each step surfaces type-specific configuration inline:
@@ -1695,7 +1821,7 @@ For the common case, the admin portal can link directly to the Keycloak admin UR
 
 ### 7.5 Lambda Prompt Resolution (Fallback Chain)
 
-Since prompts and spoken-text overrides are flat key/value maps, resolution is a simple key lookup with fallback. The resolver takes a **prompt scope** — the set of `ivr` maps visible on the current turn (candidate / contest / election / event) — and walks it narrowest-first, ending at a built-in default bundle. Each caller passes only the scopes that apply on its turn: `ContestIntro` fills election + contest; `blacklist_check` fills only event.
+Since prompts and spoken-text overrides are flat key/value maps, resolution is a simple key lookup with fallback. The resolver takes a **prompt scope** — the set of `TypedIvrScope` views visible on the current turn (candidate / contest / election / event, each produced by `validate_ivr_subtree`, §7.2) — and walks it narrowest-first, ending at a built-in default bundle. Each caller passes only the scopes that apply on its turn: `ContestIntro` fills election + contest; `blacklist_check` fills only event.
 
 Prompt/template fallback order (narrowest first):
 - candidate `presentation.i18n[lang]["ivr"][key]` — only meaningful for
@@ -1757,7 +1883,7 @@ pressing keys does not run down their timeout budget unfairly.
 
 **Shape contract.** The domain error is an enum split into two groups, both exhaustively matched at the handler boundary:
 
-1. **Presented-to-voter errors** — every variant carries the same pair: a static `prompt_key` (resolved to an i18n message at the adapter boundary) and a `should_disconnect` flag. This forces every voter-facing error through a uniform presentation contract: the domain never decides how to phrase something, and no variant carries a free-form string payload that could leak internal detail into a prompt. Variants needed today: authentication failed, voter not eligible, election closed, invalid input, max retries exceeded, session expired, session raced (§4.1 concurrency blockquote), vote rejected, API timeout, system temporarily unavailable (with a `is_critical` flag for alerting), system configuration error.
+1. **Presented-to-voter errors** — every variant carries the same pair: a static `prompt_key` (resolved to an i18n message at the adapter boundary) and a `should_disconnect` flag. This forces every voter-facing error through a uniform presentation contract: the domain never decides how to phrase something, and no variant carries a free-form string payload that could leak internal detail into a prompt. Variants needed today: authentication failed, voter not eligible, election closed, invalid input, max retries exceeded, session expired, vote rejected, API timeout, system temporarily unavailable (with a `is_critical` flag for alerting), system configuration error. **`SessionRaced` is deliberately not in this list** — per §4.1 it is handled internally via reload-and-decide and never surfaces as a voter-facing prompt; the only voter-visible fallout is the generic `system_error` disconnect on the degenerate double-failure arm, which is already covered by the internal-error group below.
 2. **Internal / system errors** — unknown phone number, invalid state, invalid phase index, transport failures by backend (Keycloak / Hasura / Harvest / S3 / DynamoDB). These are logged verbatim, then mapped to a single generic `system_error` prompt at the handler boundary; the voter never hears the raw message.
 
 Keep the backend-classified transport errors (`Keycloak` / `Hasura` / `Harvest` / `S3` / `Dynamo`) as enum variants, not strings — metrics and alerting rules key off the variant, not a parsed message. There is deliberately no `UnknownPhaseType` variant: with the typed `FlowPhase` enum (§4.1), unknown phase strings fail at JSON deserialization when the publication is loaded, never at runtime mid-call.
@@ -1823,7 +1949,7 @@ normalisation before hashing). Log lines tag the current salt's
 generation id (`salt_gen`: `2026Q1`) so dashboards can correctly group
 within a generation without needing to decrypt anything.
 
-**Sliding TTL with a hard ceiling.** The `IvrSession` row's DynamoDB TTL is refreshed on every `save_session` so long calls don't lapse mid-flight, but it is **capped at an absolute ceiling** so a misbehaving contact flow or hostile client cannot keep a row alive forever by poking it every <1 h. The adapter computes:
+**Sliding TTL with a hard ceiling.** The `IvrSession` row's DynamoDB TTL is refreshed on every `save_session` so long calls don't lapse mid-flight, but it is **capped at an absolute ceiling** so a misbehaving contact flow or hostile client cannot keep a row alive forever by poking it every \<1 h. The adapter computes:
 
 ```
 ttl = min(
@@ -1840,12 +1966,12 @@ Written on every `PutItem` under the same `ConditionExpression: version = :expec
 ### 9.3 Vote Integrity
 
 - Votes only submitted after explicit confirmation (§3.3 `VoteConfirm`).
-- Duplicate vote prevention via Harvest (`DUPLICATE_VOTE` rejection, §5.4).
+- Duplicate vote prevention via Harvest — today surfaced through `CheckRevotesFailed` / `InsertFailedExceedsAllowedRevotes` when `max_revotes = 1` (see §5.4 for the full adapter mapping and the proposed dedicated `DuplicateVote` variant).
 - Retry idempotency on vote submission (§4.1 concurrency): the Lambda encrypts the ballot **once per `(session, election)`**, caches the resulting encrypted payload and its content hash (`ballot_id`) in the session, and reuses that exact payload on retry. Because `ballot_id` is the SHA-256 hash of the encrypted ballot content — validated by Harvest (`computed_hash != input.ballot_id → BallotIdMismatch` at `packages/windmill/src/services/insert_cast_vote.rs`) — an identical resubmission hashes to the same `ballot_id` and hits Harvest's existing duplicate check. Re-encrypting on retry would produce a new `ballot_id` (new ElGamal randomness → different ciphertext) and defeat the de-dup, so "encrypt once, store, resubmit" is a load-bearing invariant, not an optimization.
 
 **Re-entrant voting across dropped calls.** The ballot loop can submit to multiple elections in one call (Mayor, Council, School Board…). A dropped call after one ballot commits but before the next means the voter has partially voted. On redial the Lambda gets a fresh `contact_id` with no memory of what already succeeded, so the handler must reconstruct progress from Harvest:
 
-1. At `ballot_loop` entry, the election-selection sub-phase calls a Harvest listing endpoint that returns already-cast ballots for `(voter_id, election_event_id)` — the same data Harvest already uses to reject `DUPLICATE_VOTE`, just surfaced as a read endpoint. The selection UI renders the authoritative state: elections already submitted are marked "already voted" (and, if max-revotes is disabled, not selectable); eligible elections are selectable as normal. This is the summary surface — voters don't need a separate end-of-call roll-up because the selection screen always reflects Harvest's truth.
+1. At `ballot_loop` entry, the election-selection sub-phase calls a Harvest listing endpoint that returns already-cast ballots for `(voter_id, election_event_id)` — the same data the `check_previous_votes` / `check_revotes` pre-insert checks already consult (the ones that raise `CheckRevotesFailed` / `InsertFailedExceedsAllowedRevotes`), just surfaced as a read endpoint. The selection UI renders the authoritative state: elections already submitted are marked "already voted" (and, if max-revotes is disabled, not selectable); eligible elections are selectable as normal. This is the summary surface — voters don't need a separate end-of-call roll-up because the selection screen always reflects Harvest's truth.
 2. Where max-revotes is disabled (one ballot per voter per election — the default for Canadian municipal ballots), this re-entrant path is the voter's only recovery route after a dropped call. Without it, a dropped call mid-ballot-loop means permanent disenfranchisement for the remaining elections.
 
 **Electoral audit log — existing pipeline, no new components.** Sequent already has a tamper-evident audit pipeline for vote events: Harvest's [`/insert-cast-vote`](../../../../packages/harvest/src/routes/insert_cast_vote.rs) calls [`windmill::services::insert_cast_vote::try_insert_cast_vote`](../../../../packages/windmill/src/services/insert_cast_vote.rs), which invokes [`ElectoralLog::post_cast_vote`](../../../../packages/windmill/src/services/electoral_log.rs) → enqueues an `ElectoralLogMessage` via Celery/RabbitMQ → Windmill workers drain the queue → the message is written to ImmuDB. The IVR inherits this end-to-end: vote attempts, successes, and Harvest-rule rejections are written exactly as for portal votes, differentiated only by the `azp: ivr-voting` JWT claim and the `VotingStatusChannel::TELEPHONE` value already propagated through `try_insert_cast_vote` (see `voting_channel: VotingStatusChannel` at `packages/windmill/src/services/insert_cast_vote.rs`). **No new Lambda → ImmuDB integration is needed** — giving the Lambda direct ImmuDB write access would expand attack surface for no gain.
@@ -2032,6 +2158,50 @@ flowchart TD
     L -->|Error| O[Invoke Lambda:<br/>HandleError] --> F
 ```
 
+**Reading the diagram if you're new to Amazon Connect.** A Connect *contact
+flow* is an authored graph of *blocks* — each block performs a fixed
+operation (play a prompt, capture DTMF, branch on a condition, invoke a
+Lambda, etc.) and has a fixed set of output branches wired to whatever
+follows. The graph is the entire runtime: there is no scripting language,
+no shared in-memory state between blocks, and no way to do arithmetic or
+data transformation outside an "Invoke Lambda" block. Data flows block-to-block
+through *contact attributes* — a flat key/value map that persists for the
+duration of the call and is the only thing Connect can pass into a
+"Play Prompt" or "Invoke Lambda" block (hence the `$.Attributes.prompt_text`
+reference on the Play node). Every one of this design's five Invoke-Lambda
+calls returns its response as a set of attributes that the subsequent
+Connect blocks read.
+
+**Why there are four invoke blocks inside the loop, not one.** Connect's
+"Get customer input" block has three hardwired output branches — `DTMF
+Received`, `Timeout`, `Error` — and you cannot merge them inside Connect
+before calling Lambda, nor can you pass "which branch fired" as an attribute
+to a single common invoke block. So each branch must terminate in its own
+Invoke-Lambda node, and the Connect flow ends up with `ProcessInput`,
+`HandleTimeout`, and `HandleError` as three separate nodes even though, from
+the Lambda's point of view, each one is the same kind of event: *one turn
+of the phase engine, triggered by one input variant*. `ProcessStep` is the
+fourth — the no-input-expected case that still needs to advance the state
+machine after an announcement-style prompt. From inside the handler, all
+four (plus `InitSession`) are a single dispatch on `enum LambdaInput { Init,
+NoInput, Dtmf(String), Timeout, Error }`; the one-phase-per-invocation
+contract in §3.5.3 still holds. The multiplication in the diagram is a
+Connect-side authoring artifact, not five different handlers.
+
+**Other Connect-side constraints to know.** `Set Logging Behavior` at the
+entry point is contact-flow-level config (log retention, redaction policy)
+that fires once per call and has no per-turn state. "Play Prompt" with
+`$.Attributes.prompt_text` renders through Amazon Polly TTS — meaning the
+Lambda can return SSML in that attribute and Polly will interpret it, which
+is how this design supports phonetic ballot-ID readback and paced
+announcements (§7). An "Invoke Lambda" block has an 8-second hard total
+synchronous timeout — anything slower must either be chunked across turns
+or pre-fetched into the session on a fast turn; the session model in §4.1
+is deliberately shaped around that ceiling. And the contact-flow JSON is
+treated as code in this design (§16.2), not as something to be hand-edited
+in the Connect console, because the graph structure *is* the control flow
+and a console edit is equivalent to an unreviewed source-code change.
+
 ### 12.2 Contact Flow Attributes
 
 | Attribute | Description |
@@ -2119,8 +2289,10 @@ grouped by `VotingStatusChannel` (`ONLINE`, `KIOSK`, `EARLY_VOTING`,
 - Channel toggle (show/hide each channel legend entry)
 
 Data source: existing `cast_vote` records in Hasura, grouped by the
-`channel` column (populated by Harvest from the JWT `azp` claim — no new
-pipeline). The telephone series starts populating as soon as the
+`channel` column (populated by Harvest via `AzpClient::to_voting_channel`
+— straight from the JWT `azp` claim for kiosk and IVR, and from `azp`
+combined with the area's early-voting window for portal clients; see
+Appendix C.7 — no new pipeline). The telephone series starts populating as soon as the
 `TELEPHONE` variant lands (see Appendix C). Available at both **Election
 Event** scope (all elections within the event) and **Election** scope
 (single election), same as the existing IP view.
@@ -2238,22 +2410,48 @@ Hermetic mode is what CI runs on every PR; live mode is what an admin uses to dr
 
 ### 16.2 Repository Layout & GitOps
 
-The long-term IVR stack is deliberately split across three repositories so
-that code lives near its domain and instantiation lives in GitOps, matching
-how every other Sequent service is shipped. The initial MVP that exists today
-lives in `playground/ivr/`, where the Rust Lambda, Terraform, and Amazon
-Connect contact-flow prototype are kept together for fast iteration. The
-repository split below describes the target steady-state layout once that MVP
-is promoted into the main Sequent repos.
+**All paths in this section are proposed, not existing.** The long-term IVR
+stack is deliberately split across three repositories so that code lives
+near its domain and instantiation lives in GitOps, matching how every other
+Sequent service is shipped. The initial MVP that exists today lives in
+`playground/ivr/`, where the Rust Lambda, Terraform, and Amazon Connect
+contact-flow prototype are kept together for fast iteration. The repository
+split below describes the *target* steady-state layout once that MVP is
+promoted into the main Sequent repos — none of the target paths exist yet.
 
-| Artifact | Repo | Path (indicative) | Why |
+**Current state of the target locations (2026-04):**
+
+- `beyond/packages/` today contains only `ballot-audit/`. There is no
+  `keycloak-extensions/` tree in `beyond`, no `ivr-lambda/`, and no
+  `ivr-contact-flows/`. Every existing Keycloak extension
+  (`conditional-authenticators`, `message-otp-authenticator`,
+  `voter-enrollment`, `sequent-theme`, `custom-event-listener`,
+  `url-truststore-provider`, `aws-ses-email-sender-provider`,
+  `security-question-authenticator`, `dummy-email-sender-provider`) lives
+  in `step/packages/keycloak-extensions/`, not in `beyond`. The table below
+  puts IVR extensions under `beyond/packages/keycloak-extensions/` on the
+  working assumption that newly-added, non-core Sequent extensions belong
+  in `beyond` — but **that split is an unmade design decision**. A
+  reasonable alternative is to keep `ivr-config-resource` and
+  `IvrDobAuthenticator` in `step/packages/keycloak-extensions/` next to
+  the existing extensions and defer the `beyond` split to a broader
+  reorganisation. Pick one consciously in the promotion ticket.
+- `gitops/iac-aws/` today contains `cluster/`, `rds/`, `vpc/`,
+  `vpc-peering/`, `client-apps-setup/`, `client-apps-setup-infra-cluster/`,
+  `client-postgres-init/`, `tf-modules/`. The `ivr/<env>/` layout below is
+  proposed as parallel to those — it does not exist.
+- `gitops/unified/global-config-apps/` today holds one directory per Argo
+  app (admin-portal, harvest, keycloakx, hasura, windmill, voting-portal,
+  etc.). No `ivr/` subdir exists; the `phone-map.yaml` file below is new.
+
+| Artifact | Repo | Path (proposed — none exist today) | Why |
 |---|---|---|---|
-| IVR Lambda (Rust) source | **`beyond`** | `beyond/packages/ivr-lambda/` | Source of truth for the Lambda code lives in `beyond` alongside the other Sequent-extension packages (Keycloak extensions, contact flows). The crate is pulled into `step`'s Cargo workspace as a workspace member (via a path reference from the `beyond` checkout, or a vendored/submoduled include) so it compiles against the exact same `sequent-core` revision that produces the portal WASM — ballot construction and encryption therefore cannot drift between channels. `step` owns the compilation and release artifact; `beyond` owns the code |
-| `ivr-config-resource` Keycloak extension (Java) | **`beyond`** | `beyond/packages/keycloak-extensions/ivr-config-resource/` | Lives alongside `conditional-authenticators` and other extensions already packaged into the Sequent Keycloak image in `beyond` |
-| `IvrDobAuthenticator` (if needed) | **`beyond`** | `packages/keycloak-extensions/ivr-dob-authenticator/` | Same reason as above |
-| Amazon Connect contact-flow JSON (source of truth) | **`beyond`** | `packages/ivr-contact-flows/<flow-name>.json` | Treated as code: PR-reviewed, versioned, diffed. Each flow is referenced by a stable name from IaC |
-| IaC to *instantiate* Connect instance, flows, phone numbers, Lambda alias, DynamoDB tables, NAT, CloudWatch alarms | **`gitops`** | `gitops/iac-aws/ivr/<env>/` | GitOps owns per-environment parameters (which region, which phone numbers, which cluster endpoints). Mirrors how `iac-aws/rds/`, `iac-aws/vpc/` are laid out today |
-| Per-phone-number routing records | **`gitops`** | `gitops/unified/global-config-apps/ivr/phone-map.yaml` | Each record maps a DID to (cluster, tenant, event). Change = PR in gitops, Atlantis applies |
+| IVR Lambda (Rust) source | **`beyond`** (or `step` — see note above) | `beyond/packages/ivr-lambda/` | Source of truth for the Lambda code. If placed in `beyond`, the crate is pulled into `step`'s Cargo workspace as a workspace member (via a path reference from the `beyond` checkout, or a vendored/submoduled include) so it compiles against the exact same `sequent-core` revision that produces the portal WASM — ballot construction and encryption therefore cannot drift between channels. `step` owns the compilation and release artifact; `beyond` owns the code. If placed in `step`, the workspace reference is direct |
+| `ivr-config-resource` Keycloak extension (Java) | **`beyond`** (or `step` — see note above) | `beyond/packages/keycloak-extensions/ivr-config-resource/` *or* `step/packages/keycloak-extensions/ivr-config-resource/` | If `beyond`: forms a new `keycloak-extensions/` tree there, pulled into the Keycloak image build (see §16.3.2). If `step`: sits alongside existing extensions with no cross-repo build plumbing needed |
+| `IvrDobAuthenticator` (if needed) | same as above | `beyond/packages/keycloak-extensions/ivr-dob-authenticator/` | Same placement decision as `ivr-config-resource` |
+| Amazon Connect contact-flow JSON (source of truth) | **`beyond`** | `beyond/packages/ivr-contact-flows/<flow-name>.json` | Treated as code: PR-reviewed, versioned, diffed. Each flow is referenced by a stable name from IaC. New directory |
+| IaC to *instantiate* Connect instance, flows, phone numbers, Lambda alias, DynamoDB tables, NAT, CloudWatch alarms | **`gitops`** | `gitops/iac-aws/ivr/<env>/` | GitOps owns per-environment parameters (which region, which phone numbers, which cluster endpoints). Proposed as a new peer of `iac-aws/rds/`, `iac-aws/vpc/` |
+| Per-phone-number routing records | **`gitops`** | `gitops/unified/global-config-apps/ivr/phone-map.yaml` | Each record maps a DID to (cluster, tenant, event). Change = PR in gitops, Atlantis applies. New directory + file |
 
 **Lambda deployment boundary.** The Lambda is deployed once per region that
 hosts an Amazon Connect instance (today: one region, covering all
@@ -2299,7 +2497,9 @@ Gitops deployment reads the tag from the same version-bump PR described in the p
 
 #### 16.3.2 Keycloak image — pulling extensions from beyond
 
-Today [`packages/Dockerfile.keycloak`](../../../../packages/Dockerfile.keycloak) builds the Keycloak image by copying a local `./keycloak-extensions/` tree into a Maven build stage and then copying the resulting JARs (one per extension: `voter-enrollment`, `message-otp-authenticator`, `conditional-authenticators`, `sequent-theme`, `custom-event-listener`, `url-truststore-provider`, `aws-ses-email-sender-provider`, `security-question-authenticator`, `dummy-email-sender-provider`) into `/opt/keycloak/providers/`. The `ivr-config-resource` extension (and optionally `ivr-dob-authenticator`) live in `beyond`, so the Keycloak image build must reach into `beyond` to pick them up.
+Today [`packages/Dockerfile.keycloak`](../../../../packages/Dockerfile.keycloak) builds the Keycloak image by copying a local `./keycloak-extensions/` tree into a Maven build stage and then copying the resulting JARs (one per extension: `voter-enrollment`, `message-otp-authenticator`, `conditional-authenticators`, `sequent-theme`, `custom-event-listener`, `url-truststore-provider`, `aws-ses-email-sender-provider`, `security-question-authenticator`, `dummy-email-sender-provider`) into `/opt/keycloak/providers/`.
+
+This subsection only matters *if* the §16.2 placement decision puts the new `ivr-config-resource` extension (and optionally `ivr-dob-authenticator`) in `beyond` rather than next to the existing extensions in `step/packages/keycloak-extensions/`. If they stay in `step`, the existing build picks them up with no changes — add the new module directories, extend the JAR-copy list, done. The rest of this subsection covers the `beyond`-placement case, where the Keycloak image build must reach into a new (to-be-created) `beyond/packages/keycloak-extensions/` tree to pick them up.
 
 Pick one of two integration patterns — they are equivalent for correctness, so the choice is about how `beyond` integrates into `step`'s build more broadly:
 
@@ -2321,7 +2521,7 @@ Either way, the `java_test.yml` workflow that currently runs `mvn verify` on `pa
 #### 16.3.3 Summary
 
 - **IVR Lambda**: new ECR package (`ivr-lambda`), new row in the `reusable_build_push.yml` matrix, new Dockerfile in `packages/ivr-lambda/`. Released on the same cadence and tag as the rest of step.
-- **Keycloak image**: no new image — the existing `keycloak` ECR package continues to be the sole Keycloak artifact. What changes is its build input: the `Dockerfile.keycloak` build stage pulls the new `ivr-config-resource` extension (and optional `ivr-dob-authenticator`) from `beyond` and adds them to the providers directory. Same image, expanded set of bundled JARs.
+- **Keycloak image**: no new image — the existing `keycloak` ECR package continues to be the sole Keycloak artifact. What changes is its build input: the `Dockerfile.keycloak` build stage picks up the new `ivr-config-resource` extension (and optional `ivr-dob-authenticator`) from whichever repo §16.2 places them in (`step/packages/keycloak-extensions/` requires no new plumbing; `beyond/packages/keycloak-extensions/` requires the cross-repo integration in §16.3.2). Same image, expanded set of bundled JARs.
 - **gitops**: references both the new `ivr-lambda` ECR tag and the existing `keycloak` ECR tag (the latter is already in gitops — only the tag bump is new).
 
 ---
@@ -2513,7 +2713,9 @@ sequenceDiagram
 
 ## Appendix C: Required Code Changes for TELEPHONE Channel
 
-To support scheduled phone voting with independent start/stop times, the following code changes are required:
+To support scheduled phone voting with independent start/stop times, the following code changes are required.
+
+**What already exists (no code change needed).** The per-event channel-enablement flag `telephone: Option<bool>` is already present on `VotingChannels` in [`packages/sequent-core/src/types/hasura/core.rs`](../../../../packages/sequent-core/src/types/hasura/core.rs) alongside `online`, `kiosk`, `early_voting`, and `paper`. Admin-portal UI and Hasura schema already let operators toggle it. The changes in C.1 and C.2 below wire a matching `VotingStatusChannel::TELEPHONE` enum variant to that pre-existing data — they do not add the flag itself.
 
 ### C.1 Add TELEPHONE to VotingStatusChannel Enum
 
@@ -2545,6 +2747,8 @@ pub enum VotingStatusChannel {
 
 **File:** `packages/sequent-core/src/ballot.rs` (`impl VotingStatusChannel::channel_from`)
 
+One new match arm reads the pre-existing `VotingChannels.telephone` field:
+
 ```rust
 impl VotingStatusChannel {
     pub fn channel_from(
@@ -2555,7 +2759,9 @@ impl VotingStatusChannel {
             &VotingStatusChannel::ONLINE => channels.online.clone(),
             &VotingStatusChannel::KIOSK => channels.kiosk.clone(),
             &VotingStatusChannel::EARLY_VOTING => channels.early_voting.clone(),
-            &VotingStatusChannel::TELEPHONE => channels.telephone.clone(),  // ADD THIS
+            // Reads the existing `telephone: Option<bool>` flag on
+            // `VotingChannels` (core.rs). No struct change needed.
+            &VotingStatusChannel::TELEPHONE => channels.telephone.clone(),
         }
     }
 }
@@ -2712,36 +2918,113 @@ pub enum AzpClient {
 }
 ```
 
-Then `authorize_voter_election` parses once and matches exhaustively:
+`AzpClient` is 1:1 with the Keycloak client ID Keycloak emits in `azp` and intentionally has three variants, not four — the ONLINE and EARLY_VOTING channels share the `voting-portal` client. Early voting is a per-area policy (`AreaPresentation.allow_early_voting`) evaluated against the election event's `early_voting_period_dates`, not a distinct identity. The enum therefore models *who authenticated*; a second step resolves *which `VotingStatusChannel` this submission belongs to*, where the portal case fans out into ONLINE vs EARLY_VOTING:
+
+```rust
+/// Whether a portal-client submission falls inside the voter's
+/// early-voting window. Computed at the call site from the area's
+/// `allow_early_voting` presentation policy and the election event's
+/// `early_voting_period_dates`; ignored for kiosk and IVR.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PortalTimeWindow {
+    Online,
+    EarlyVoting,
+}
+
+impl AzpClient {
+    /// Resolve the Keycloak client ID to the `VotingStatusChannel`
+    /// the submission will be tagged with. The match is exhaustive
+    /// on `VotingStatusChannel`, so adding a new client **or** a new
+    /// channel variant forces a compile error here.
+    pub fn to_voting_channel(
+        self,
+        portal_window: PortalTimeWindow,
+    ) -> VotingStatusChannel {
+        match (self, portal_window) {
+            (AzpClient::VotingPortal, PortalTimeWindow::Online)
+                => VotingStatusChannel::ONLINE,
+            (AzpClient::VotingPortal, PortalTimeWindow::EarlyVoting)
+                => VotingStatusChannel::EARLY_VOTING,
+            (AzpClient::VotingPortalKiosk, _)
+                => VotingStatusChannel::KIOSK,
+            (AzpClient::IvrVoting, _)
+                => VotingStatusChannel::TELEPHONE,
+        }
+    }
+}
+```
+
+`authorize_voter_election` parses the claim once and hands the authenticated client back to the caller, which already loads the area and election event while building the cast-vote and is the right place to evaluate the early-voting window:
 
 ```rust
 pub fn authorize_voter_election(
     claims: &JwtClaims,
     permissions: Vec<VoterPermissions>,
     election_id: &String,
-) -> Result<(String, VotingStatusChannel), (Status, String)> {
+) -> Result<(String, AzpClient), (Status, String)> {
     // ... existing validation ...
 
     let client = AzpClient::from_str(claims.azp.as_str())
         .map_err(|_| (Status::Unauthorized, "Unknown Client".into()))?;
-
-    let channel = match client {
-        AzpClient::VotingPortal       => VotingStatusChannel::ONLINE,
-        AzpClient::VotingPortalKiosk  => VotingStatusChannel::KIOSK,
-        AzpClient::IvrVoting          => VotingStatusChannel::TELEPHONE,
-    };
-    Ok((area_id, channel))
+    Ok((area_id, client))
 }
 ```
 
-Because the match is on the enum, adding a new client (or a new `VotingStatusChannel` variant) forces a compile error here — the drift caught today only at runtime becomes a compile-time check.
+The `insert-cast-vote` route then composes the two:
 
-Any other call site that currently compares `claims.azp == "voting-portal"` (see e.g. `packages/sequent-core/src/services/keycloak/realm.rs`, which uses `"voting-portal"` and the separate string `"onsite-voting-portal"` that does not match what `authorization.rs` accepts as kiosk) should be migrated to the enum at the same time — the string drift between the two files is a pre-existing bug that the enum refactor fixes for free.
+```rust
+let (area_id, client) = authorize_voter_election(&claims, …, &election_id)?;
+// area + election event are already loaded further down the cast-vote
+// pipeline; `PortalTimeWindow` is a one-liner against
+// `area.presentation.allow_early_voting` and
+// `election_event.early_voting_period_dates`.
+let portal_window = portal_time_window_for(&area, &election_event, now);
+let voting_channel = client.to_voting_channel(portal_window);
+```
 
-> Pre-existing gap noted while touching this match: there is no `EARLY_VOTING`
-> branch today, which means the `EARLY_VOTING` variant of `VotingStatusChannel`
-> is unreachable via this code path. Out of scope for the IVR change, but worth
-> tracking as a separate ticket.
+Callers that do not care about the resulting channel (e.g. `voter_electoral_log.rs`, which discards `_voting_channel` today) can skip the resolution step entirely and match on `AzpClient` directly.
+
+All four `VotingStatusChannel` variants are now reachable through a single compile-checked match: ONLINE and EARLY_VOTING via `AzpClient::VotingPortal`, KIOSK via `AzpClient::VotingPortalKiosk`, TELEPHONE via `AzpClient::IvrVoting`. The previous runtime-only "unknown client" branch is gone, and the EARLY_VOTING gap that existed on `main` — `authorization.rs` had no arm for it — is closed as part of this refactor rather than deferred.
+
+Any other call site that currently compares `claims.azp == "voting-portal"` should be migrated to the enum at the same time. One of those sites deserves special attention because it has a wire-level consequence that cannot be hand-waved.
+
+**Kiosk client-ID migration: `voting-portal-kiosk` wins.** `authorization.rs` accepts the kiosk `azp` as `"voting-portal-kiosk"`, but `packages/sequent-core/src/services/keycloak/realm.rs` (line 625) also special-cases a second string — `"onsite-voting-portal"` — when it rewrites redirect URLs at realm-bootstrap time. That second string is a separate client in the COMELEC realm template ([`packages/windmill/external-bin/janitor/templates/COMELEC/keycloak.hbs`](../../../../packages/windmill/external-bin/janitor/templates/COMELEC/keycloak.hbs) ships both `onsite-voting-portal` and `voting-portal-kiosk` as distinct clients), and some fielded realms historically ship only one of the two as the polling-station client. Any realm whose polling stations authenticate through `onsite-voting-portal` emits `azp: "onsite-voting-portal"` on cast-vote, which `authorization.rs` today rejects as "Unknown Client" — a latent pre-existing bug, not just a cosmetic drift.
+
+The enum refactor forces the decision. Pick `voting-portal-kiosk` as the canonical kiosk client:
+
+- it is the name `authorization.rs` already accepts in production, so realms already standardised on it keep working with zero wire churn;
+- it matches the naming convention the rest of the realm uses (`voting-portal`, `voting-portal-kiosk`, `ivr-voting`) — the `-kiosk` suffix is semantically parallel to the `VotingStatusChannel::KIOSK` variant;
+- `onsite-voting-portal` in the COMELEC template is in fact a second, separately-deployed portal web app (different `rootUrl`/`baseUrl`, port 3003 in the template) whose purpose overlaps but is not identical to the kiosk auth client. Collapsing both names into one enum variant without picking a winner would silently paper over that deployment distinction.
+
+Migration for realms currently shipping `onsite-voting-portal` as the kiosk client (wire-level, non-cosmetic):
+
+1. **Realm templates and realm-bootstrap code** — rename `onsite-voting-portal` → `voting-portal-kiosk` in the COMELEC template and any tenant realm templates, and update the `realm.rs` URL-override arm at line 625 to match only the canonical string. (If an existing deployment genuinely needs two separate polling-station clients, that is a design decision worth its own ticket — not a reason to preserve the drift here.)
+2. **Transitional compatibility shim** in `AzpClient::FromStr` for the duration of the deployment rollout:
+   ```rust
+   impl FromStr for AzpClient {
+       type Err = strum::ParseError;
+       fn from_str(s: &str) -> Result<Self, Self::Err> {
+           match s {
+               // Canonical names — `#[strum(serialize = …)]` already
+               // generates these; listed here for clarity.
+               "voting-portal"       => Ok(AzpClient::VotingPortal),
+               "voting-portal-kiosk" => Ok(AzpClient::VotingPortalKiosk),
+               "ivr-voting"          => Ok(AzpClient::IvrVoting),
+               // Deprecated legacy kiosk name — some realms still ship
+               // this as their polling-station client. Accept it so the
+               // enum refactor does not become a breaking change for
+               // those deployments. Remove once every realm has been
+               // migrated (tracked on the rollout checklist below).
+               "onsite-voting-portal" => Ok(AzpClient::VotingPortalKiosk),
+               _ => Err(strum::ParseError::VariantNotFound),
+           }
+       }
+   }
+   ```
+   The shim is narrow by construction: one extra string, one extra arm, explicitly marked for removal. It stays out of the `Display` / `IntoStaticStr` direction — serialization always emits the canonical name, so no new clients start being issued under the legacy string.
+3. **Rollout checklist**: (a) merge enum + compat shim + realm-template rename; (b) per-deployment: re-run the realm-bootstrap so clients are renamed in each Keycloak realm, verify polling stations issue `azp: "voting-portal-kiosk"` after the re-import, update any integration test fixtures that hard-code the legacy string; (c) once every deployment reports the legacy string as unused (a Prometheus counter on the compat arm, incremented once per legacy-string parse, is the cheapest way to tell — the counter at zero across all prod realms for a full election cycle is the go-ahead), delete the compat arm and the `realm.rs` URL-override branch. Track as a single meta issue so the compat-shim removal is not forgotten.
+
+This migration is in scope for the IVR change because the refactor is the point where the drift becomes a compile-time invariant rather than a runtime surprise — deferring it would mean re-opening `authorization.rs` a second time for the same enum, which the refactor exists to avoid.
 
 ### C.8 Create Keycloak IVR Client
 
@@ -2779,7 +3062,7 @@ This ensures web portal authentication (via `voting-portal` client) is unaffecte
 
 ### C.8.2 `ivr-config-resource` Keycloak Extension (required)
 
-**Location:** `packages/keycloak-extensions/ivr-config-resource/`
+**Location (proposed):** `<repo>/packages/keycloak-extensions/ivr-config-resource/` — see §16.2 for the unmade `beyond` vs `step` placement decision. The directory does not exist yet in either repo; the snippet below is the extension to be written.
 
 This is a **new, always-required** Keycloak extension. It exposes a single REST endpoint that the IVR Lambda calls at session init to discover the auth step list for the realm, replacing the old `presentation.ivr.auth` S3 config.
 
@@ -2875,7 +3158,7 @@ public class IvrConfigResourceProvider implements RealmResourceProvider {
 - **Unknown authenticators fail loudly** with HTTP 500 — misconfigurations surface at deployment time (first call after deploy) instead of silently producing a broken auth flow mid-election.
 - **Custom authenticator config properties** (`field_name`, `max_digits`, `terminator`, `maps_to`, `prompt_key`) are declared by each custom authenticator's `getConfigProperties()` — Keycloak renders them as fields in the admin UI.
 
-**Build integration:** add a new Maven module under `packages/keycloak-extensions/ivr-config-resource/` and include it in the Keycloak image alongside `conditional-authenticators`.
+**Build integration (proposed):** create a new Maven module at the location chosen in §16.2 and include it in the Keycloak image alongside `conditional-authenticators`. If the module lands in `step/packages/keycloak-extensions/`, it slots into the existing `pom.xml` aggregator and `Dockerfile.keycloak` build stage with no cross-repo plumbing. If it lands in `beyond/packages/keycloak-extensions/` (a tree that does not yet exist), the Keycloak image build must additionally reach into `beyond` to pick up the JAR — see §16.3.2 for the two integration patterns.
 
 ### C.9 Update Default Values
 
@@ -2949,7 +3232,7 @@ With this shape, adding TELEPHONE (or any future channel) is a single enum varia
 
 ## Appendix D: IVR Prompt Keys Reference
 
-The `ivr` namespace is **dynamic** — it is a `HashMap<String, String>`, not a fixed struct. It can hold both prompt keys and spoken-text override keys without code changes. The tables below list **well-known keys** that the built-in phase engines reference, but deployments can add custom keys as needed.
+The `ivr` namespace is **strongly typed at the boundary** (see §7.2 "Rust Type: Validated IVR Sub-Tree"): every well-known prompt or spoken-text override is a variant of the `IvrPromptKey` enum and is consumed via `TypedIvrScope`, while deployment-specific custom keys are preserved on the overflow `unknown` map. Adding a new well-known key means adding an `IvrPromptKey` variant in `sequent-core`; adding a custom key for one deployment is a data-only change that flows through the overflow path. The tables below list the **well-known keys** that the built-in phase engines reference.
 
 ### Event-Level Prompts
 
