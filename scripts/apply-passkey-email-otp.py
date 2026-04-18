@@ -62,9 +62,11 @@ import urllib.parse
 import urllib.request
 
 
+USER_AGENT = "curl/8.0.0 apply-passkey-email-otp.py"
+
 def http(method, url, token=None, body=None, ignore_404=False):
     data = None
-    headers = {}
+    headers = {"User-Agent": USER_AGENT}
     if body is not None:
         data = json.dumps(body).encode()
         headers["Content-Type"] = "application/json"
@@ -94,7 +96,10 @@ def get_token(base, user, password):
             "client_id": "admin-cli", "username": user,
             "password": password, "grant_type": "password",
         }).encode(),
-        headers={"Content-Type": "application/x-www-form-urlencoded"},
+        headers={
+            "Content-Type": "application/x-www-form-urlencoded",
+            "User-Agent": USER_AGENT,
+        },
     )
     resp = urllib.request.urlopen(req)
     return json.loads(resp.read())["access_token"]
@@ -142,7 +147,7 @@ def enable_passkey_policy(base, token, realm):
 
 def fetch_flow_executions(base, token, realm, alias):
     res = http("GET",
-        f"{base}/admin/realms/{realm}/authentication/flows/{urllib.parse.quote(alias)}/executions",
+        f"{base}/admin/realms/{realm}/authentication/flows/{urllib.parse.quote(alias, safe='')}/executions",
         token, ignore_404=True)
     return res or []
 
@@ -153,7 +158,7 @@ def ensure_subflow(base, token, realm, parent_alias, child_alias):
             return  # Already present
     print(f"    creating subflow '{child_alias}' under '{parent_alias}'")
     http("POST",
-        f"{base}/admin/realms/{realm}/authentication/flows/{urllib.parse.quote(parent_alias)}/executions/flow",
+        f"{base}/admin/realms/{realm}/authentication/flows/{urllib.parse.quote(parent_alias, safe='')}/executions/flow",
         token, {"alias": child_alias, "type": "basic-flow",
                 "description": "Passkey or Email OTP as second factor",
                 "provider": "registration-page-form"})
@@ -161,7 +166,7 @@ def ensure_subflow(base, token, realm, parent_alias, child_alias):
 
 def set_exec_requirement(base, token, realm, parent_alias, execution_id, requirement):
     http("PUT",
-        f"{base}/admin/realms/{realm}/authentication/flows/{urllib.parse.quote(parent_alias)}/executions",
+        f"{base}/admin/realms/{realm}/authentication/flows/{urllib.parse.quote(parent_alias, safe='')}/executions",
         token, {"id": execution_id, "requirement": requirement})
 
 
@@ -171,7 +176,7 @@ def ensure_authenticator(base, token, realm, child_alias, provider):
             return e["id"]
     print(f"    adding authenticator '{provider}' to '{child_alias}'")
     http("POST",
-        f"{base}/admin/realms/{realm}/authentication/flows/{urllib.parse.quote(child_alias)}/executions/execution",
+        f"{base}/admin/realms/{realm}/authentication/flows/{urllib.parse.quote(child_alias, safe='')}/executions/execution",
         token, {"provider": provider})
     for e in fetch_flow_executions(base, token, realm, child_alias):
         if e.get("providerId") == provider:
