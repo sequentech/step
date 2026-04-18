@@ -2781,6 +2781,139 @@ municipalities sharing the same Lambda + Connect instance.
 
 ---
 
+## 19. Implementation Plan — Ticket Breakdown
+
+Survey of existing code vs. design:
+- `playground/ivr/` — throwaway number-collection demo (~300 lines), not a base
+- `ivr-lambdas/` — older parallel attempt, not promoted
+- `step/packages/keycloak-extensions/` — conditional-authenticators, message-otp-authenticator exist; IVR extensions do not
+- `step/packages/sequent-core/` — `VotingChannels.telephone` flag exists; `VotingStatusChannel::TELEPHONE` + status fields do not
+- `step/packages/harvest/` — `/insert-cast-vote` exists; blacklist endpoints do not
+- `beyond/packages/` — only `ballot-audit/`; no `ivr-lambda/`, `ivr-contact-flows/`, `keycloak-extensions/`
+- `gitops/iac-aws/`, `gitops/unified/` — no `ivr/` tree, no `phone-map.yaml`
+
+Every ticket below is TDD: write failing tests → implement → make green. Listed small enough to ship in a day or two each.
+
+### 19.1 Epic 0 — Placement & scaffolding
+
+1. **ADR: `beyond` vs `step` placement** for `ivr-lambda` crate, `ivr-config-resource` Keycloak extension, and contact-flow JSON (§16.2). Decision doc, no code.
+2. **Scaffold `ivr-lambda` crate** in chosen repo — empty binary, `cargo-lambda` build, `Dockerfile.prod`, wire into step's Cargo workspace.
+3. **Add `ivr-lambda` to `reusable_build_push.yml`** matrix + create ECR repo.
+
+### 19.2 Epic 1 — `sequent-core` TELEPHONE channel (Appendix C.1–C.9)
+
+4. **Add `VotingStatusChannel::TELEPHONE`** variant + `channel_from()` mapping.
+5. **Add `telephone_voting_status` + `telephone_voting_period_dates`** to `ElectionEventStatus` + `ElectionStatus` + `Default` impls + helper methods.
+6. **Wire `AzpClient::ivr-voting`** → `VotingStatusChannel::TELEPHONE` in `authorize_voter_election` (Appendix C.7).
+
+### 19.3 Epic 2 — Keycloak extensions
+
+7. **`ivr-config-resource` extension** — walk Direct Grant flow, stock-authenticator lookup, custom-authenticator config read, unknown-authenticator → 500.
+8. **Bearer-token gate on `ivr-config-resource`** — require `ivr-service` token with `can_read_phone_blacklist` role; 401/403 negatives covered (§5.1.2).
+9. **Realm-bootstrap additions** — `ivr-voting` client (ROPC), `ivr-service` client (client_credentials), Direct Grant flow override, service-account role mapping (Appendix C.8.a/b).
+10. **(Conditional) `IvrDobAuthenticator`** — only if first deployment needs DoB auth (Appendix C.8.1).
+
+### 19.4 Epic 3 — Blacklist backend
+
+11. **Hasura migration** — `sequent_backend.ivr_phone_blacklist` table + indexes + FKs.
+12. **Hasura permissions** — `can_read_phone_blacklist` (service role), `can_manage_phone_blacklist` (admin role).
+13. **Harvest CRUD endpoints** for blacklist entries, reusing existing permission middleware.
+14. **`TokenManager::get_service_token(realm)`** — per-realm token cache, Secrets Manager lookup, `AuthError` taxonomy reuse (§5.1.9).
+
+### 19.5 Epic 4 — Lambda ports & adapters
+
+15. **Port trait definitions** — all 9 ports (Session, Auth, ElectionConfig, ElectionStatus, CastVoteHistory, VoteCasting, PhoneConfig, Blacklist, PhoneHasher); object-safety enforced; in-memory fakes.
+16. **Shared `HasuraClient`** — one `reqwest::Client`, one retry/backoff/circuit-breaker, `Arc`-shared across Hasura-backed adapters (§3.5.2).
+17. **DynamoDB `Session` adapter** — conditional writes (`attribute_not_exists` + version CAS), round-trip against local DynamoDB.
+18. **S3 `ElectionConfig` adapter** — process cache keyed by `(tenant_id, event_id, publication_id)`.
+19. **S3 `PhoneConfig` adapter** — read-only, narrow IAM, process-cached (§6.2).
+20. **Keycloak `Auth` adapter** — ROPC, refresh, absolute expiry, 3-category error classifier (§5.1.9).
+21. **Hasura `Blacklist` adapter** using service token.
+22. **Hasura `ElectionStatus` + `CastVoteHistory` adapters** using voter JWT.
+23. **Harvest `VoteCasting` adapter** with deterministic idempotency key.
+24. **`PhoneHasher` adapter** — per-tenant salt in Secrets Manager, per-container cache, `(hash, salt_gen)` output (§9.2.1).
+
+### 19.6 Epic 5 — Domain & flow engine
+
+25. **`IvrSession` model** — full struct per §4.1 with version field + DynamoDB serde.
+26. **`FlowPhase` enum + `PhaseState` variants + `FlowPosition`** — invariant-enforced via `FlowPhase::initial_state()`, `FlowPosition::new`/`advance`, exhaustiveness unit test (§3.5.3).
+27. **Outer dispatcher** — `*` reserved-key interception, `last_response` cache, phase lookup.
+28. **`PhaseCtx<'a>`** struct of `&'a dyn Port` refs + `async_trait` (§3.5.3).
+29. **Phase: `announcement`** — one executor covering welcome / declaration / pre-voting / …
+30. **Phase: `language_select`**.
+31. **Phase: `blacklist_check`** (pre-auth, PhoneHasher + Blacklist).
+32. **Phase: `auth`** — iterates `auth_steps` from `/ivr-config`, ROPC submission.
+33. **Phase: `eligibility_check`**.
+34. **Phase: `goodbye`**.
+35. **`ballot_loop` shell + sub-phase dispatcher** (§3.5.4).
+36. **Sub-phase: `ElectionSelect`** (+`CastVoteHistoryPort` annotation, `skip_election_list` logic).
+37. **Sub-phases: `LanguageSwitch` + `ElectionIntro`**.
+38. **Sub-phases: `ContestLoop` + `ContestIntro`**.
+39. **Sub-phases: `CandidateSelect` + `SelectionCheck`** + multi-digit DTMF handling (§3.4).
+40. **Sub-phase: `VoteConfirm`** + edit mode.
+41. **Sub-phase: `ElectionSummary`** (edit-contest targeting, `enter_contest_edit` helper).
+42. **Sub-phase: `ElectionSubmit`** — pre-submit refresh, encrypt, POST, §5.4 error taxonomy.
+43. **Sub-phase: `ElectionReceipt`** — phonetic hex spelling + `*` repeat.
+
+### 19.7 Epic 6 — i18n, prompts, SSML
+
+44. **`validate_ivr_subtree` validator** in `sequent-core` → `TypedIvrScope` (WASM-compatible, §7.2).
+45. **Prompt fallback resolver** — candidate → contest → election → event → default with sentinel on miss (§7.5).
+46. **SSML placeholder interpolation** — structurally-safe vs user-supplied classes, `escape(x) == x` invariant on safe inputs (§7.2).
+47. **Default EN/FR bundle** for well-known prompt keys (Appendix D).
+
+### 19.8 Epic 7 — Connect & Lambda edge
+
+48. **Contact-flow JSON authoring** — `GetCallerPhoneNumber` → Lambda loop → Play/GetDigits → Disconnect (§12.1).
+49. **Lambda input/output types** — `ConnectEvent` / `ConnectResponse` serde round-trip tests (§4.2).
+
+### 19.9 Epic 8 — Security & PIPEDA
+
+50. **Per-tenant salt rotation** — AWSCURRENT/AWSPREVIOUS cycle, 90-day cleanup script (§9.2.1).
+51. **CloudWatch log redaction** — raw E.164 filter, hash-only emission.
+52. **Session TTL + post-call phone wipe** on DynamoDB (§9.2.1).
+
+### 19.10 Epic 9 — Monitoring
+
+53. **CloudWatch metrics + structured logging** (§10.1, §10.2).
+54. **Alerts** — token-error, vote-submission failure, backlog, blacklist spikes (§10.3, §5.1.9).
+
+### 19.11 Epic 10 — Admin portal
+
+55. **"IVR Prompts" tab** — text inputs per language, `TypedIvrScope` WASM validator inline errors (§7.4).
+56. **"IVR Flow" tab** — typed editor for announcement blocks + raw-JSON escape hatch using `sequent-core` deserializer (§7.4).
+57. **"Phone Blacklist" view** — list/add/remove/annotate gated by `can_manage_phone_blacklist` (§14.2, §6.3).
+58. **Per-election/contest/candidate IVR overrides** — optional `name`/`alias`/`description` inputs (§14.2).
+
+### 19.12 Epic 11 — GitOps / IaC
+
+59. **TF module: IVR Lambda** — function, alias, IAM role, log group (`gitops/iac-aws/ivr/<env>/`).
+60. **TF: DynamoDB session table** + TTL + autoscaling.
+61. **TF: S3 routing bucket** (versioned) + narrow IAM.
+62. **TF: Amazon Connect instance** + DIDs + contact-flow import.
+63. **phone-map YAML → JSON renderer** + Atlantis apply → S3 upload (§16.2).
+64. **Connect concurrent-calls quota raise** — AWS Support ticket template + runbook (§17.4, §16.1 Phase 3).
+
+### 19.13 Epic 12 — Cross-layer tests
+
+65. **Contract test** — `ivr-config-resource` ↔ Lambda parser, happy + auth negatives (§15.3).
+66. **Record-and-replay harness + `step-ivr` CLI** — text-in/text-out (§15.2.1).
+67. **E2E test** — scripted DTMF against dev Connect + real Keycloak + Hasura (§15.4).
+68. **Load test** — concurrent real telephony calls after quota raise (§15.5).
+
+### 19.14 Epic 13 — Docs & runbooks
+
+69. **Keycloak realm-bootstrap runbook** for IVR clients + secret provisioning.
+70. **Operator runbook** — blacklist ops, quota escalation, salt rotation.
+
+### 19.15 Dependencies & Parallelization
+
+**Critical path:** 2 → 15 → 25/26 → 27/28 → phase tickets 29–43 → 49 → 48 → 65 → 67 → 68.
+
+**Parallelizable once scaffolded:** Epic 1 (sequent-core), Epic 2 (Java/Keycloak), Epic 3 (Hasura/Harvest), Epic 6 (i18n in sequent-core), Epic 10 (admin portal), Epic 11 (gitops) — each team can pick up independently after Epic 0 lands.
+
+---
+
 ## Appendix A: Sequence Diagrams
 
 ### A.1 Complete Voting Flow
