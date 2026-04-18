@@ -105,6 +105,8 @@ def get_token(base, user, password):
     return json.loads(resp.read())["access_token"]
 
 
+SMTP_FROM_ADDRESS = "noreply@sequent.vote"
+
 EMAIL_OTP_CONFIG = {
     "one-time-link": "false",
     "senderId": "Keycloak",
@@ -207,6 +209,16 @@ def ensure_email_otp_config(base, token, realm, execution_id, config_alias):
         http("POST",
             f"{base}/admin/realms/{realm}/authentication/executions/{execution_id}/config",
             token, {"alias": config_alias, "config": EMAIL_OTP_CONFIG})
+
+
+def ensure_smtp_from(base, token, realm):
+    print("[0/4] Ensuring SMTP \"From\" address is configured")
+    r = http("GET", f"{base}/admin/realms/{realm}", token)
+    smtp = dict(r.get("smtpServer") or {})
+    if smtp.get("from") == SMTP_FROM_ADDRESS:
+        return
+    smtp["from"] = SMTP_FROM_ADDRESS
+    http("PUT", f"{base}/admin/realms/{realm}", token, {"smtpServer": smtp})
 
 
 def configure_subflows(base, token, realm):
@@ -335,6 +347,7 @@ def remove_required_action_from_users(base, token, realm):
 
 def do_apply(base, token, realm):
     print(f"Applying passkey+email-OTP config to realm '{realm}' at {base}")
+    ensure_smtp_from(base, token, realm)
     enable_passkey_policy(base, token, realm)
     configure_subflows(base, token, realm)
     enable_required_action(base, token, realm)
