@@ -59,12 +59,12 @@ pub async fn create_scheduled_event(
             )?;
         }
         _ => {}
-    };
+    }
 
     let element_id =
         services::worker::process_scheduled_event(input.clone(), claims)
             .await
-            .map_err(|e| (Status::BadRequest, format!("{:?}", e)))?;
+            .map_err(|e| (Status::BadRequest, format!("{e:?}")))?;
 
     Ok(Json(CreateEventOutput { id: element_id }))
 }

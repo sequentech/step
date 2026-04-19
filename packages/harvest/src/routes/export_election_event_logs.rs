@@ -15,21 +15,28 @@ use tracing::instrument;
 use uuid::Uuid;
 use windmill::services::celery_app::get_celery_app;
 use windmill::services::reports::activity_log::ReportFormat;
-use windmill::services::tasks_execution::*;
+use windmill::services::tasks_execution::post;
 use windmill::types::tasks::ETasksExecution;
 
 #[derive(Serialize, Deserialize, Debug)]
+/// Request body for exporting election event logs.
 pub struct ExportElectionEventInput {
+    /// The election event ID.
     election_event_id: String,
+    /// The format of the report.
     format: String,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
+/// Response containing the exported document.
 pub struct ExportElectionEventOutput {
+    /// The generated document ID.
     document_id: String,
+    /// Task execution record.
     task_execution: TasksExecution,
 }
 
+/// Genarate election event logs export file.
 #[instrument(skip(claims))]
 #[post("/export-election-event-logs", format = "json", data = "<input>")]
 pub async fn export_election_event_logs_route(

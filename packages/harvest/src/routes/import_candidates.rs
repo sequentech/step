@@ -84,7 +84,7 @@ pub async fn import_candidates_route(
                 task_execution: task_execution.clone(),
             }));
         }
-    };
+    }
 
     let output = ImportCandidatesOutput {
         error_msg: None,

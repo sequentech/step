@@ -75,7 +75,7 @@ pub async fn export_trustees_route(
             )
         })?;
         return Err(error);
-    };
+    }
 
     let document_id = Uuid::new_v4().to_string();
     let celery_app = get_celery_app().await;

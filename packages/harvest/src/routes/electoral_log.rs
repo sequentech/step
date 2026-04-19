@@ -16,6 +16,7 @@ use windmill::services::electoral_log::{
 };
 use windmill::types::resources::DataList;
 
+/// Returns a list of electoral log entries.
 #[instrument]
 #[post("/immudb/electoral-log", format = "json", data = "<body>")]
 pub async fn list_electoral_log(
@@ -31,7 +32,7 @@ pub async fn list_electoral_log(
     )?;
     let ret_val = get_logs(input)
         .await
-        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+        .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
 
     Ok(Json(ret_val))
 }

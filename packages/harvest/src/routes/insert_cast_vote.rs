@@ -28,6 +28,7 @@ use windmill::services::insert_cast_vote::{
 /// returning the error.
 #[instrument(skip_all)]
 #[post("/insert-cast-vote", format = "json", data = "<body>")]
+#[allow(clippy::too_many_lines)]
 pub async fn insert_cast_vote(
     body: Json<InsertCastVoteInput>,
     claims: JwtClaims,
@@ -45,7 +46,7 @@ pub async fn insert_cast_vote(
     .map_err(|e| {
         ErrorResponse::new(
             Status::Unauthorized,
-            &format!("{:?}", e),
+            &format!("{e:?}"),
             ErrorCode::Unauthorized,
         )
     })?;

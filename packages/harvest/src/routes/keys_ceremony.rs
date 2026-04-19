@@ -59,12 +59,12 @@ pub async fn check_private_key(
         .await
         .get()
         .await
-        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+        .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
 
     let hasura_transaction = hasura_db_client
         .transaction()
         .await
-        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+        .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
 
     let is_valid = keys_ceremony::check_private_key(
         &hasura_transaction,
@@ -75,7 +75,7 @@ pub async fn check_private_key(
         input.private_key_base64.clone(),
     )
     .await
-    .map_err(|e| (Status::BadRequest, format!("{:?}", e)))?;
+    .map_err(|e| (Status::BadRequest, format!("{e:?}")))?;
 
     event!(
         Level::INFO,
@@ -89,7 +89,7 @@ pub async fn check_private_key(
         .commit()
         .await
         .with_context(|| "error comitting transaction")
-        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+        .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
 
     Ok(Json(CheckPrivateKeyOutput { is_valid }))
 }
@@ -129,12 +129,12 @@ pub async fn get_private_key(
         .await
         .get()
         .await
-        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+        .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
 
     let hasura_transaction = hasura_db_client
         .transaction()
         .await
-        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+        .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
 
     let encrypted_private_key = keys_ceremony::get_private_key(
         &hasura_transaction,
@@ -144,7 +144,7 @@ pub async fn get_private_key(
         input.keys_ceremony_id.clone(),
     )
     .await
-    .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+    .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
 
     event!(
         Level::INFO,
@@ -157,7 +157,7 @@ pub async fn get_private_key(
         .commit()
         .await
         .with_context(|| "error comitting transaction")
-        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+        .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
 
     Ok(Json(GetPrivateKeyOutput {
         private_key_base64: encrypted_private_key,
@@ -214,12 +214,12 @@ pub async fn create_keys_ceremony(
         .await
         .get()
         .await
-        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+        .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
 
     let hasura_transaction = hasura_db_client
         .transaction()
         .await
-        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+        .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
 
     let valid_permissions_label = validate_permission_labels(
         &hasura_transaction,
@@ -232,7 +232,7 @@ pub async fn create_keys_ceremony(
     .map_err(|e| {
         (
             Status::BadRequest,
-            format!("Error validating permission labels: {:?}", e),
+            format!("Error validating permission labels: {e:?}"),
         )
     })?;
 
@@ -257,13 +257,13 @@ pub async fn create_keys_ceremony(
         input.is_automatic_ceremony,
     )
     .await
-    .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+    .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
 
     hasura_transaction
         .commit()
         .await
         .with_context(|| "error comitting transaction")
-        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+        .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
 
     event!(
         Level::INFO,
@@ -317,12 +317,12 @@ pub async fn list_keys_ceremonies(
         .await
         .get()
         .await
-        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+        .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
 
     let hasura_transaction = hasura_db_client
         .transaction()
         .await
-        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+        .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
 
     let elections = get_elections(
         &hasura_transaction,
@@ -330,7 +330,7 @@ pub async fn list_keys_ceremonies(
         &input.election_event_id,
     )
     .await
-    .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+    .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
     let election_permission_labels: Vec<_> = elections
         .into_iter()
         .filter_map(|election| election.permission_label)
@@ -349,13 +349,13 @@ pub async fn list_keys_ceremonies(
         &filtered_labels,
     )
     .await
-    .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+    .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
 
     hasura_transaction
         .commit()
         .await
         .with_context(|| "error comitting transaction")
-        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+        .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
 
     let count = keys_ceremonies.len() as i64;
     Ok(Json(DataList {

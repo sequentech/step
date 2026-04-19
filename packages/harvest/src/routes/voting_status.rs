@@ -54,13 +54,13 @@ pub async fn update_event_status(
         get_hasura_pool().await.get().await.map_err(|e| {
             (
                 Status::InternalServerError,
-                format!("Error getting hasura client {:?}", e),
+                format!("Error getting hasura client {e:?}"),
             )
         })?;
     let hasura_transaction = hasura_db_client
         .transaction()
         .await
-        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+        .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
 
     election_event_status::update_event_voting_status(
         &hasura_transaction,
@@ -72,12 +72,12 @@ pub async fn update_event_status(
         &input.voting_channels,
     )
     .await
-    .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+    .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
 
     let _commit = hasura_transaction
         .commit()
         .await
-        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+        .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
 
     Ok(Json(UpdateEventVotingStatusOutput {
         election_event_id: input.election_event_id.clone(),
@@ -113,14 +113,14 @@ pub async fn update_election_status(
         get_hasura_pool().await.get().await.map_err(|e| {
             (
                 Status::InternalServerError,
-                format!("Error getting hasura client {:?}", e),
+                format!("Error getting hasura client {e:?}"),
             )
         })?;
 
     let hasura_transaction: deadpool_postgres::Transaction = hasura_db_client
         .transaction()
         .await
-        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+        .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
     voting_status::update_election_status(
         tenant_id,
         Some(&user_id),
@@ -132,12 +132,12 @@ pub async fn update_election_status(
         &input.voting_channels,
     )
     .await
-    .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+    .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
 
     let _commit = hasura_transaction
         .commit()
         .await
-        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+        .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
 
     Ok(Json(voting_status::UpdateElectionVotingStatusOutput {
         election_id: input.election_id.clone(),

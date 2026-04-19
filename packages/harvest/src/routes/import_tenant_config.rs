@@ -88,7 +88,7 @@ pub async fn import_tenant_config_route(
         })?;
 
     let output = ImportTenantConfigOutput {
-        message: Some(format!("Upserted Tenant Config successfully")),
+        message: Some("Upserted Tenant Config successfully".to_string()),
         error: None,
         task_execution: Some(task_execution.clone()),
     };

@@ -63,7 +63,7 @@ pub async fn insert_tenant(
         )
         .await;
         return Err(error);
-    };
+    }
 
     let celery_app = get_celery_app().await;
 

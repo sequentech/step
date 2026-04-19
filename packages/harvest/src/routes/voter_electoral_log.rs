@@ -54,7 +54,7 @@ pub async fn list_cast_vote_messages(
     .map_err(|e| {
         ErrorResponse::new(
             Status::Unauthorized,
-            &format!("{:?}", e),
+            &format!("{e:?}"),
             ErrorCode::Unauthorized,
         )
     })?; // TODO: Temporary till merging the ballot performace inprovements.

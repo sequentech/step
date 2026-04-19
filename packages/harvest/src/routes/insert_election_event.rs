@@ -236,7 +236,7 @@ pub async fn import_election_event_f(
             return Ok(Json(ImportElectionEventOutput {
                 id: None,
                 message: None,
-                error: Some(format!("Error checking import: {:?}", err)),
+                error: Some(format!("Error checking import: {err:?}")),
                 task_execution: Some(task_execution),
             }));
         }
@@ -263,7 +263,7 @@ pub async fn import_election_event_f(
             return Ok(Json(ImportElectionEventOutput {
                 id: None,
                 message: None,
-                error: Some(format!("Error checking import: {:?}", err)),
+                error: Some(format!("Error checking import: {err:?}")),
                 task_execution: Some(task_execution),
             }));
         }

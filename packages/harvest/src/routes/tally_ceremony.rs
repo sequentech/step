@@ -93,7 +93,7 @@ pub async fn create_tally_ceremony(
         username,
     )
     .await
-    .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+    .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
 
     let _commit = hasura_transaction.commit().await.map_err(|err| {
         (Status::InternalServerError, format!("Commit failed: {err}"))
@@ -245,7 +245,7 @@ pub async fn update_tally_ceremony(
     .map_err(|e| {
         (
             Status::InternalServerError,
-            format!("Error with update_tally_ceremony: {:?}", e),
+            format!("Error with update_tally_ceremony: {e:?}"),
         )
     })?;
 
@@ -315,8 +315,7 @@ pub async fn restore_private_key(
         &input.private_key_base64,
     )
     .await
-    .map_err(|e| (Status::BadRequest, format!("{:?}", e)))?;
-
+    .map_err(|e| (Status::BadRequest, format!("{e:?}")))?;
     event!(
         Level::INFO,
         "Restoring given private key, election_event_id={}, tally_session_id={}, is_valid={}",
@@ -397,7 +396,6 @@ pub async fn submit_tally_resolution(
     )
     .await
     .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
-
     hasura_transaction.commit().await.map_err(|err| {
         (Status::InternalServerError, format!("Commit failed: {err}"))
     })?;

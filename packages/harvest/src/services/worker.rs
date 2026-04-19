@@ -13,7 +13,7 @@ use tracing::{event, instrument, Level};
 use uuid::Uuid;
 use windmill::services::celery_app::get_celery_app;
 use windmill::tasks::render_report;
-use windmill::tasks::send_template::*;
+use windmill::tasks::send_template::send_template;
 
 #[instrument(skip(claims), err)]
 pub async fn process_scheduled_event(

@@ -70,7 +70,7 @@ pub async fn get_upload_url(
         inner.election_event_id,
     )
     .await
-    .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+    .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
 
     hasura_transaction.commit().await.map_err(|err| {
         (

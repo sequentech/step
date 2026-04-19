@@ -38,32 +38,32 @@ pub async fn create_role(
     let realm = get_tenant_realm(&input.tenant_id);
     let client = KeycloakAdminClient::new()
         .await
-        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+        .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
     let role = client.create_role(&realm, &input.role).await.map_err(|e| {
-        event!(Level::INFO, "Error {:?}", e);
-        (Status::InternalServerError, format!("{:?}", e))
+        event!(Level::INFO, "Error {e:?}");
+        (Status::InternalServerError, format!("{e:?}"))
     })?;
     //client moved to create_role so need to create new one
     let client = KeycloakAdminClient::new()
         .await
-        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+        .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
     let role_with_id =
         client.get_role_by_name(&realm, &role).await.map_err(|e| {
-            event!(Level::INFO, "Error {:?}", e);
-            (Status::InternalServerError, format!("{:?}", e))
+            event!(Level::INFO, "Error {e:?}");
+            (Status::InternalServerError, format!("{e:?}"))
         })?;
 
     let client = KeycloakAdminClient::new()
         .await
-        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+        .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
     match (role.clone().permissions, role_with_id.id) {
         (Some(permissions), Some(id)) => {
             client
                 .set_role_permissions(&realm, &id, &permissions)
                 .await
                 .map_err(|e| {
-                    event!(Level::INFO, "Error {:?}", e);
-                    (Status::InternalServerError, format!("{:?}", e))
+                    event!(Level::INFO, "Error {e:?}");
+                    (Status::InternalServerError, format!("{e:?}"))
                 })?;
         }
         _ => {}
@@ -96,11 +96,11 @@ pub async fn get_roles(
     let realm = get_tenant_realm(&input.tenant_id);
     let client = KeycloakAdminClient::new()
         .await
-        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+        .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
     let (roles, count) = client
         .list_roles(&realm, input.search, input.limit, input.offset)
         .await
-        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+        .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
     Ok(Json(DataList {
         items: roles,
         total: TotalAggregate {
@@ -112,6 +112,7 @@ pub async fn get_roles(
 }
 
 #[derive(Deserialize, Debug)]
+#[allow(clippy::struct_field_names)] // enable same postfix for all fields
 pub struct ListUserRolesBody {
     tenant_id: String,
     user_id: String,
@@ -144,15 +145,16 @@ pub async fn list_user_roles(
     };
     let client = KeycloakAdminClient::new()
         .await
-        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+        .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
     let roles = client
         .list_user_roles(&realm, &input.user_id)
         .await
-        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+        .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
     Ok(Json(roles))
 }
 
 #[derive(Deserialize, Debug)]
+#[allow(clippy::struct_field_names)] // enable same postfix for all fields
 pub struct SetOrDeleteUserRoleBody {
     tenant_id: String,
     user_id: String,
@@ -175,11 +177,11 @@ pub async fn set_user_role(
     let realm = get_tenant_realm(&input.tenant_id);
     let client = KeycloakAdminClient::new()
         .await
-        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+        .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
     client
         .set_user_role(&realm, &input.user_id, &input.role_id)
         .await
-        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+        .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
     Ok(Json(Default::default()))
 }
 
@@ -199,15 +201,16 @@ pub async fn delete_user_role(
     let realm = get_tenant_realm(&input.tenant_id);
     let client = KeycloakAdminClient::new()
         .await
-        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+        .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
     client
         .delete_user_role(&realm, &input.user_id, &input.role_id)
         .await
-        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+        .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
     Ok(Json(Default::default()))
 }
 
 #[derive(Deserialize, Debug)]
+#[allow(clippy::struct_field_names)] // enable same postfix for all fields
 pub struct DeleteRoleBody {
     tenant_id: String,
     role_id: String,
@@ -229,10 +232,10 @@ pub async fn delete_role(
     let realm = get_tenant_realm(&input.tenant_id);
     let client = KeycloakAdminClient::new()
         .await
-        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+        .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
     client
         .delete_role(&realm, &input.role_id)
         .await
-        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+        .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
     Ok(Json(Default::default()))
 }

@@ -14,23 +14,31 @@ use serde::{Deserialize, Serialize};
 use tracing::{event, instrument, Level};
 use uuid::Uuid;
 use windmill::services::celery_app::get_celery_app;
-use windmill::services::{password, tasks_execution::*};
+use windmill::services::{password, tasks_execution::post};
 use windmill::tasks::export_election_event::{self, ExportOptions};
 use windmill::types::tasks::ETasksExecution;
 
 #[derive(Serialize, Deserialize, Debug)]
+/// Request body for exporting an election event.
 pub struct ExportElectionEventInput {
+    /// The election event ID.
     election_event_id: String,
+    /// The export configurations.
     export_configurations: ExportOptions,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
+/// Response containing the exported document.
 pub struct ExportElectionEventOutput {
+    /// The generated document ID.
     document_id: String,
+    /// Password for the exported document.
     password: Option<String>,
+    /// Task execution record.
     task_execution: TasksExecution,
 }
 
+/// Genarate election event export file.
 #[instrument(skip(claims))]
 #[post("/export-election-event", format = "json", data = "<input>")]
 pub async fn export_election_event_route(
@@ -84,7 +92,7 @@ pub async fn export_election_event_route(
     } else {
         None
     };
-    export_config.password = password.clone();
+    export_config.password.clone_from(&password);
 
     let celery_task = celery_app
         .send_task(export_election_event::export_election_event::new(

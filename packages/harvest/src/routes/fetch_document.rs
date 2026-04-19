@@ -63,7 +63,7 @@ pub async fn fetch_document(
         &input.document_id,
     )
     .await
-    .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?
+    .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?
     .ok_or_else(|| (Status::NotFound, "Document not found".to_string()))?;
 
     hasura_transaction.commit().await.map_err(|err| {

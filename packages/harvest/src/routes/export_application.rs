@@ -12,22 +12,32 @@ use serde::{Deserialize, Serialize};
 use tracing::instrument;
 use uuid::Uuid;
 use windmill::services::celery_app::get_celery_app;
-use windmill::services::tasks_execution::*;
+use windmill::services::tasks_execution::{post, update_complete, update_fail};
 use windmill::types::tasks::ETasksExecution;
 
 #[derive(Serialize, Deserialize, Debug)]
+/// Request body for exporting an application.
+#[allow(clippy::struct_field_names)] // enable same postfix for all fields
 pub struct ExportApplicationBody {
+    /// The tenant ID.
     tenant_id: String,
+    /// The election event ID.
     election_event_id: String,
+    /// The election ID.
     election_id: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
+/// Response containing the exported document.
 pub struct ExportApplicationOutput {
+    /// The document ID.
     document_id: String,
+    /// The error message.
     error_msg: Option<String>,
+    /// The task execution.
     task_execution: TasksExecution,
 }
+/// Genarate application export file.
 #[instrument(skip(claims))]
 #[post("/export-application", format = "json", data = "<input>")]
 pub async fn export_application_route(

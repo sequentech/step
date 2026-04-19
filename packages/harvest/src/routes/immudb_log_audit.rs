@@ -99,7 +99,7 @@ impl GetPgauditBody {
                 match field {
                     OrderField::Id => {
                         let int_value: i64 = value.parse()?;
-                        where_clauses.push(format!("id = @{}", param_name));
+                        where_clauses.push(format!("id = @{param_name}"));
                         params.push(create_named_param(
                             param_name,
                             Value::N(int_value),
@@ -108,7 +108,7 @@ impl GetPgauditBody {
                     OrderField::ServerTimestamp => {} // Not supported
                     _ => {
                         where_clauses
-                            .push(format!("{field} LIKE @{}", param_name));
+                            .push(format!("{field} LIKE @{param_name}"));
                         params.push(create_named_param(
                             param_name,
                             Value::S(value.to_string()),
@@ -152,7 +152,7 @@ impl GetPgauditBody {
         if !to_count && self.offset.is_some() {
             let offset_param_name = String::from("offset");
             let offset = std::cmp::max(self.offset.unwrap(), 0);
-            clauses.push(format!("OFFSET @{}", offset_param_name));
+            clauses.push(format!("OFFSET @{offset_param_name}"));
             params
                 .push(create_named_param(offset_param_name, Value::N(offset)));
         }
@@ -318,7 +318,7 @@ pub async fn list_pgaudit(
     )?;
     let result = audit_list_service(input)
         .await
-        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+        .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
     Ok(result)
 }
 

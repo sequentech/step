@@ -161,9 +161,9 @@ pub async fn get_election_event_stats(
             .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
 
     Ok(Json(ElectionEventStatsOutput {
+        total_eligible_voters,
         total_distinct_voters,
         total_areas,
-        total_eligible_voters,
         total_elections,
         votes_per_day,
     }))

@@ -32,6 +32,7 @@ use windmill::{
 };
 
 #[derive(Serialize, Deserialize, Debug)]
+#[allow(clippy::struct_field_names)] // enable same postfix for all fields
 pub struct RenderDocumentPdfInput {
     pub document_id: String,
     pub election_event_id: Option<String>,
@@ -92,7 +93,7 @@ pub async fn render_document_pdf(
     else {
         return Err((
             Status::NotFound,
-            format!("Document not found: {}", document_id),
+            format!("Document not found: {document_id}"),
         ));
     };
 
@@ -100,15 +101,15 @@ pub async fn render_document_pdf(
         if "text/html".to_string() != media_type {
             return Err((
                 Status::InternalServerError,
-                format!("Invalid document type: {}", media_type),
+                format!("Invalid document type: {media_type}"),
             ));
         }
     } else {
         return Err((
             Status::InternalServerError,
-            format!("Document {}: missing media type", document_id),
+            format!("Document {document_id}: missing media type"),
         ));
-    };
+    }
 
     let executer_name = claims
         .name
@@ -398,12 +399,12 @@ pub async fn encrypt_report_route(
         .await
         .get()
         .await
-        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+        .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
 
     let hasura_transaction = hasura_db_client
         .transaction()
         .await
-        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+        .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
 
     get_report_key_pair(
         &hasura_transaction,

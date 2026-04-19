@@ -179,7 +179,7 @@ pub struct ApplicationChangeStatusOutput {
 ///
 /// Requires `APPLICATION_WRITE` permission.
 #[instrument(skip(claims))]
-#[allow(clippy::too_many_lines, clippy::large_futures)]
+#[allow(clippy::too_many_lines)]
 #[post("/change-application-status", format = "json", data = "<body>")]
 pub async fn change_application_status(
     claims: jwt::JwtClaims,

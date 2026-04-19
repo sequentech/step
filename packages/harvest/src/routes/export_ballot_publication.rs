@@ -14,25 +14,35 @@ use serde::{Deserialize, Serialize};
 use tracing::{event, instrument, Level};
 use uuid::Uuid;
 use windmill::services::celery_app::get_celery_app;
-use windmill::services::tasks_execution::*;
+use windmill::services::tasks_execution::{post, update_fail};
 use windmill::tasks::export_ballot_publication::export_ballot_publication;
 use windmill::tasks::export_election_event::{self, ExportOptions};
 use windmill::types::tasks::ETasksExecution;
 
 #[derive(Serialize, Deserialize, Debug)]
+#[allow(clippy::struct_field_names)] // enable same postfix for all fields
+/// Request body for exporting a ballot publication.
 pub struct ExportBallotPublicationInput {
+    /// The tenant ID.
     tenant_id: String,
+    /// The election event ID.
     election_event_id: String,
+    /// The election ID.
     election_id: Option<String>,
+    /// The ballot publication ID.
     ballot_publication_id: String,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
+/// Response containing the exported document.
 pub struct ExportBallotPublicationOutput {
+    /// The generated document ID.
     document_id: String,
+    /// Task execution record.
     task_execution: TasksExecution,
 }
 
+/// Genarate ballot publication export file.
 #[instrument(skip(claims))]
 #[post("/export-ballot-publication", format = "json", data = "<input>")]
 pub async fn export_ballot_publication_route(
@@ -71,11 +81,11 @@ pub async fn export_ballot_publication_route(
     ) {
         update_fail(
             &task_execution,
-            &format!("Failed to authorize executing the task: {:?}", error),
+            &format!("Failed to authorize executing the task: {error:?}"),
         )
         .await;
         return Err(error);
-    };
+    }
 
     let document_id = Uuid::new_v4().to_string();
     let celery_app = get_celery_app().await;

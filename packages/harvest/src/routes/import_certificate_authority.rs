@@ -37,6 +37,7 @@ pub struct ImportCertificateAuthorityOutput {
 
 #[instrument(skip(claims, input))]
 #[post("/import-certificate-authority", format = "json", data = "<input>")]
+#[allow(clippy::too_many_lines)]
 pub async fn import_certificate_authority(
     claims: JwtClaims,
     input: Json<ImportCertificateAuthorityInput>,

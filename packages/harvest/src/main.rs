@@ -29,7 +29,7 @@ async fn rocket() -> _ {
 
     setup_probe(AppName::HARVEST).await;
     set_is_app_active(true);
-    init_plugin_manager().await.unwrap();
+    init_plugin_manager().await;
 
     rocket::build()
         .register(

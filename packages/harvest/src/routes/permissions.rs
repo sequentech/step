@@ -40,11 +40,11 @@ pub async fn get_permissions(
     let realm = get_tenant_realm(&input.tenant_id);
     let client = KeycloakAdminClient::new()
         .await
-        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+        .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
     let (permissions, count) = client
         .list_permissions(&realm, input.search, input.limit, input.offset)
         .await
-        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+        .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
     Ok(Json(DataList {
         items: permissions,
         total: TotalAggregate {
@@ -77,11 +77,11 @@ pub async fn create_permission(
     let realm = get_tenant_realm(&input.tenant_id);
     let client = KeycloakAdminClient::new()
         .await
-        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+        .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
     let permission = client
         .create_permission(&realm, &input.permission)
         .await
-        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+        .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
     Ok(Json(permission))
 }
 
@@ -108,11 +108,11 @@ pub async fn set_role_permission(
     let realm = get_tenant_realm(&input.tenant_id);
     let client = KeycloakAdminClient::new()
         .await
-        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+        .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
     client
         .set_role_permission(&realm, &input.role_id, &input.permission_name)
         .await
-        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+        .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
     Ok(Json(Default::default()))
 }
 
@@ -132,11 +132,11 @@ pub async fn delete_role_permission(
     let realm = get_tenant_realm(&input.tenant_id);
     let client = KeycloakAdminClient::new()
         .await
-        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+        .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
     client
         .delete_role_permission(&realm, &input.role_id, &input.permission_name)
         .await
-        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+        .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
     Ok(Json(Default::default()))
 }
 
@@ -162,10 +162,10 @@ pub async fn delete_permission(
     let realm = get_tenant_realm(&input.tenant_id);
     let client = KeycloakAdminClient::new()
         .await
-        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+        .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
     client
         .delete_permission(&realm, &input.permission_name)
         .await
-        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+        .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
     Ok(Json(Default::default()))
 }

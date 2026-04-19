@@ -47,20 +47,20 @@ pub async fn set_voter_authentication(
         vec![],
     )
     .map_err(|err| {
-        error!("Authorization failed: {:?}", err);
+        error!("Authorization failed: {err:?}");
         (Status::Forbidden, "Authorization failed".to_string())
     })?;
 
     let mut hasura_db_client =
         get_hasura_pool().await.get().await.map_err(|e| {
-            error!("Failed to get DB pool: {:?}", e);
-            (Status::InternalServerError, format!("{:?}", e))
+            error!("Failed to get DB pool: {e:?}");
+            (Status::InternalServerError, format!("{e:?}"))
         })?;
 
     let hasura_transaction =
         hasura_db_client.transaction().await.map_err(|e| {
-            error!("Failed to start transaction: {:?}", e);
-            (Status::InternalServerError, format!("{:?}", e))
+            error!("Failed to start transaction: {e:?}");
+            (Status::InternalServerError, format!("{e:?}"))
         })?;
 
     let election_event = get_election_event_by_id(
@@ -70,8 +70,8 @@ pub async fn set_voter_authentication(
     )
     .await
     .map_err(|e| {
-        error!("Failed to fetch election event: {:?}", e);
-        (Status::InternalServerError, format!("{:?}", e))
+        error!("Failed to fetch election event: {e:?}");
+        (Status::InternalServerError, format!("{e:?}"))
     })?;
 
     // Extract or set default enrollment and OTP values
@@ -109,7 +109,7 @@ pub async fn set_voter_authentication(
         )
         .await
         .map_err(|error| {
-            error!("Failed to update enrollment: {:?}", error);
+            error!("Failed to update enrollment: {error:?}");
             (
                 Status::InternalServerError,
                 format!("Error updating enrollment: {error:?}"),
@@ -133,7 +133,7 @@ pub async fn set_voter_authentication(
         )
         .await
         .map_err(|error| {
-            error!("Failed to update OTP: {:?}", error);
+            error!("Failed to update OTP: {error:?}");
             (
                 Status::InternalServerError,
                 format!("Error updating OTP: {error:?}"),
@@ -143,8 +143,8 @@ pub async fn set_voter_authentication(
 
     // Commit transaction
     hasura_transaction.commit().await.map_err(|e| {
-        error!("Transaction commit failed: {:?}", e);
-        (Status::InternalServerError, format!("{:?}", e))
+        error!("Transaction commit failed: {e:?}");
+        (Status::InternalServerError, format!("{e:?}"))
     })?;
 
     Ok(Json(SetVoterAuthenticationOutput {

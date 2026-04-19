@@ -45,12 +45,12 @@ pub async fn publish_tally_sheet(
         .await
         .get()
         .await
-        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+        .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
 
     let hasura_transaction = hasura_db_client
         .transaction()
         .await
-        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+        .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
 
     let found = tally_sheet::publish_tally_sheet(
         &hasura_transaction,
@@ -61,7 +61,7 @@ pub async fn publish_tally_sheet(
         input.publish,
     )
     .await
-    .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+    .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
 
     if let None = found {
         return Ok(Json(PublishTallySheetOutput {
@@ -73,7 +73,7 @@ pub async fn publish_tally_sheet(
         .commit()
         .await
         .with_context(|| "error comitting transaction")
-        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+        .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
 
     Ok(Json(PublishTallySheetOutput {
         tally_sheet_id: Some(input.tally_sheet_id.clone()),

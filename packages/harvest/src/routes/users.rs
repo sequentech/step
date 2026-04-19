@@ -47,6 +47,7 @@ use windmill::tasks::import_users::{self, ImportUsersOutput};
 use windmill::types::tasks::ETasksExecution;
 
 #[derive(Deserialize, Debug)]
+#[allow(clippy::struct_field_names)] // enable same postfix for all fields
 pub struct DeleteUserBody {
     tenant_id: String,
     election_event_id: Option<String>,
@@ -96,6 +97,7 @@ pub async fn delete_user(
 }
 
 #[derive(Deserialize, Debug)]
+#[allow(clippy::struct_field_names)] // enable same postfix for all fields
 pub struct DeleteUsersBody {
     tenant_id: String,
     election_event_id: Option<String>,
@@ -428,7 +430,7 @@ pub async fn create_user(
                 required_perms.push(Permissions::PERMISSION_LABEL_WRITE);
             }
         }
-    };
+    }
     authorize(&claims, true, Some(input.tenant_id.clone()), required_perms)?;
     let realm = match input.election_event_id.clone() {
         Some(election_event_id) => {
@@ -438,10 +440,10 @@ pub async fn create_user(
     };
     let client = KeycloakAdminClient::new()
         .await
-        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+        .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
     let (tenant_id_attribute, groups) = if input.election_event_id.is_some() {
         let voter_group_name = env::var("KEYCLOAK_VOTER_GROUP_NAME")
-            .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+            .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
         (
             Some(HashMap::from([(
                 TENANT_ID_ATTR_NAME.to_string(),
@@ -483,7 +485,7 @@ pub async fn create_user(
     let user = client
         .create_user(&realm, &user, user_attributes, groups)
         .await
-        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+        .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
 
     match (user.id.clone(), &input.user_roles_ids) {
         (Some(id), Some(user_roles_ids)) => {
@@ -495,7 +497,7 @@ pub async fn create_user(
             join_all(res).await;
         }
         _ => (),
-    };
+    }
 
     Ok(Json(user))
 }
@@ -554,7 +556,7 @@ pub async fn check_edit_email_tlf(
     }
 
     if changes.len() > 0 {
-        return Err(anyhow!("Can't change user properties: {:?}", changes));
+        return Err(anyhow!("Can't change user properties: {changes:?}"));
     }
 
     Ok(())
@@ -598,7 +600,7 @@ pub async fn edit_user(
                 required_perms.push(Permissions::PERMISSION_LABEL_WRITE);
             }
         }
-    };
+    }
 
     authorize(&claims, true, Some(input.tenant_id.clone()), required_perms)?;
     let realm = match input.election_event_id.clone() {
@@ -736,6 +738,7 @@ pub async fn edit_user(
 }
 
 #[derive(Deserialize, Debug)]
+#[allow(clippy::struct_field_names)] // enable same postfix for all fields
 pub struct GetUserBody {
     tenant_id: String,
     election_event_id: Option<String>,
@@ -775,7 +778,7 @@ pub async fn get_user(
     let user = client
         .get_user(&realm, &input.user_id)
         .await
-        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+        .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
 
     Ok(Json(user))
 }

@@ -111,6 +111,7 @@ pub async fn create_transmission_package(
 }
 
 #[derive(Serialize, Deserialize, Debug)]
+#[allow(clippy::struct_field_names)] // enable same postfix for all fields
 pub struct SendTransmissionPackageInput {
     election_id: String,
     area_id: String,
@@ -199,7 +200,7 @@ pub async fn upload_signature(
     .map_err(|err| {
         (
             Status::InternalServerError,
-            format!("Error creating signature {}", err),
+            format!("Error creating signature {err}"),
         )
     })?;
 

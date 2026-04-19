@@ -74,7 +74,7 @@ pub async fn import_templates_route(
         )
         .await;
         return Err(error);
-    };
+    }
 
     let celery_app = get_celery_app().await;
     let document_id = body.document_id.clone();
