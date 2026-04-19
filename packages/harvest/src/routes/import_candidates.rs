@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+#![allow(clippy::large_futures)]
 
 use crate::services::authorization::authorize;
 use anyhow::Result;
@@ -11,26 +12,35 @@ use sequent_core::types::hasura::core::TasksExecution;
 use sequent_core::types::permissions::Permissions;
 use serde::{Deserialize, Serialize};
 use tracing::{event, instrument, Level};
-use windmill::services::tasks_execution::*;
+use windmill::services::tasks_execution::post;
 use windmill::{
     tasks::import_candidates::import_candidates_task,
     types::tasks::ETasksExecution,
 };
 
 #[derive(Serialize, Deserialize, Debug)]
+/// Request body for importing candidates.
 pub struct ImportCandidatesInput {
+    /// The election event ID.
     election_event_id: String,
+    /// The document ID.
     document_id: String,
+    /// The SHA-256 hash of the document.
     sha256: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
+/// Response body for importing candidates.
 pub struct ImportCandidatesOutput {
+    /// The error message.
     error_msg: Option<String>,
+    /// The document ID.
     document_id: String,
+    /// The task execution.
     task_execution: TasksExecution,
 }
 
+/// Import candidates.
 #[instrument(skip(claims))]
 #[post("/import-candidates", format = "json", data = "<input>")]
 pub async fn import_candidates_route(
@@ -76,7 +86,7 @@ pub async fn import_candidates_route(
     )
     .await
     {
-        Ok(_) => (),
+        Ok(()) => (),
         Err(err) => {
             return Ok(Json(ImportCandidatesOutput {
                 error_msg: Some(err.to_string()),

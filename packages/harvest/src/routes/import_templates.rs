@@ -18,23 +18,32 @@ use windmill::{
 };
 
 use windmill::services::celery_app::get_celery_app;
-use windmill::services::tasks_execution::*;
+use windmill::services::tasks_execution::{post, update_fail};
 use windmill::types::tasks::ETasksExecution;
 
 #[derive(Serialize, Deserialize, Debug)]
+/// Request body for importing templates.
 pub struct ImportTemplatesInput {
+    /// The tenant ID.
     tenant_id: String,
+    /// The document ID.
     document_id: String,
+    /// The SHA-256 hash of the document.
     sha256: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
+/// Response body for importing templates.
 pub struct ImportTemplatesOutput {
+    /// The error message.
     error_msg: Option<String>,
+    /// The document ID.
     document_id: String,
+    /// The task execution.
     task_execution: TasksExecution,
 }
 
+/// Import templates.
 #[instrument(skip(claims))]
 #[post("/import-templates", format = "json", data = "<input>")]
 pub async fn import_templates_route(

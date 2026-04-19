@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+#![allow(clippy::large_futures)]
 
 use crate::services::authorization::authorize;
 use anyhow::Result;
@@ -19,18 +20,26 @@ use windmill::tasks::manage_election_event_enrollment::{
 };
 
 #[derive(Serialize, Deserialize, Debug)]
+/// Request body for setting voter authentication.
 pub struct SetVoterAuthentication {
+    /// The election event ID.
     pub election_event_id: String,
+    /// If enrollment is enabled.
     pub enrollment: String,
+    /// If OTP is enabled.
     pub otp: String,
 }
 
 #[derive(Serialize)]
-struct SetVoterAuthenticationOutput {
+/// Response body for setting voter authentication.
+pub struct SetVoterAuthenticationOutput {
+    /// Whether the operation was successful.
     success: bool,
+    /// The message.
     message: String,
 }
 
+/// Sets voter authentication.
 #[instrument(skip(claims))]
 #[post("/set-voter-authentication", format = "json", data = "<input>")]
 pub async fn set_voter_authentication(

@@ -29,6 +29,7 @@ use windmill::services::insert_cast_vote::{
 #[instrument(skip_all)]
 #[post("/insert-cast-vote", format = "json", data = "<body>")]
 #[allow(clippy::too_many_lines)]
+#[allow(clippy::large_futures)]
 pub async fn insert_cast_vote(
     body: Json<InsertCastVoteInput>,
     claims: JwtClaims,
@@ -53,10 +54,10 @@ pub async fn insert_cast_vote(
 
     info!("insert-cast-vote: starting");
 
-    let insert_result_wrapped = retry_with_exponential_backoff(
+    let insert_result_wrapped = Box::pin(retry_with_exponential_backoff(
         // The closure we want to call repeatedly
         || async {
-            try_insert_cast_vote(
+            Box::pin(try_insert_cast_vote(
                 input.clone(),
                 &claims.hasura_claims.tenant_id,
                 &claims.hasura_claims.user_id,
@@ -64,18 +65,15 @@ pub async fn insert_cast_vote(
                 voting_channel,
                 &claims.auth_time,
                 &user_info.ip.map(|ip| ip.to_string()),
-                &user_info
-                    .country_code
-                    .clone()
-                    .map(|country_code| country_code.to_string()),
-            )
+                &user_info.country_code,
+            ))
             .await
         },
         // Maximum number of retries:
         5,
         // Initial backoff:
         Duration::from_millis(100),
-    )
+    ))
     .await;
 
     // Unwrap SkipRetryFailure into a normal Result/Error
@@ -130,11 +128,6 @@ pub async fn insert_cast_vote(
                 ErrorCode::CheckStatusFailed.to_string().as_str(),
                 ErrorCode::CheckStatusFailed,
             ),
-            CastVoteError::CheckStatusInternalFailed(_) => ErrorResponse::new(
-                Status::InternalServerError,
-                ErrorCode::InternalServerError.to_string().as_str(),
-                ErrorCode::InternalServerError,
-            ),
             CastVoteError::CheckPreviousVotesFailed(msg) => {
                 ErrorResponse::new(
                     Status::BadRequest,
@@ -161,17 +154,11 @@ pub async fn insert_cast_vote(
                 ErrorCode::InsertFailedExceedsAllowedRevotes.to_string().as_str(),
                 ErrorCode::InsertFailedExceedsAllowedRevotes,
             ),
-            CastVoteError::InsertFailed(_) => ErrorResponse::new(
-                Status::InternalServerError,
-                ErrorCode::InternalServerError.to_string().as_str(),
-                ErrorCode::InternalServerError,
-            ),
-            CastVoteError::CommitFailed(_) => ErrorResponse::new(
-                Status::InternalServerError,
-                ErrorCode::InternalServerError.to_string().as_str(),
-                ErrorCode::InternalServerError,
-            ),
-            CastVoteError::GetDbClientFailed(_) => ErrorResponse::new(
+            CastVoteError::CheckStatusInternalFailed(_) | CastVoteError::InsertFailed(_)
+            | CastVoteError::CommitFailed(_) | CastVoteError::GetDbClientFailed(_)
+            | CastVoteError::SerializeVoterIdFailed(_) | CastVoteError::SerializeBallotFailed(_)
+            | CastVoteError::BallotSignFailed(_) | CastVoteError::BallotVoterSignatureFailed(_)
+             => ErrorResponse::new(
                 Status::InternalServerError,
                 ErrorCode::InternalServerError.to_string().as_str(),
                 ErrorCode::InternalServerError,
@@ -216,44 +203,20 @@ pub async fn insert_cast_vote(
                     ErrorCode::DeserializeAreaPresentationFailed,
                 )
             }
-            CastVoteError::SerializeVoterIdFailed(_) => {
-                ErrorResponse::new(
-                    Status::InternalServerError,
-                    ErrorCode::InternalServerError.to_string().as_str(),
-                    ErrorCode::InternalServerError,
-                )
-            }
-            CastVoteError::SerializeBallotFailed(_) => {
-                ErrorResponse::new(
-                    Status::InternalServerError,
-                    ErrorCode::InternalServerError.to_string().as_str(),
-                    ErrorCode::InternalServerError,
-                )
-            }
             CastVoteError::PokValidationFailed(_) => {
                 ErrorResponse::new(
                     Status::BadRequest,
                     ErrorCode::PokValidationFailed.to_string().as_str(),
                     ErrorCode::PokValidationFailed,
                 )
-            }
-            CastVoteError::BallotSignFailed(_) => ErrorResponse::new(
-                Status::InternalServerError,
-                ErrorCode::InternalServerError.to_string().as_str(),
-                ErrorCode::InternalServerError,
-            ),
-            CastVoteError::BallotVoterSignatureFailed(_) => ErrorResponse::new(
-                Status::InternalServerError,
-                ErrorCode::InternalServerError.to_string().as_str(),
-                ErrorCode::InternalServerError,
-            ),
+            },
             CastVoteError::UuidParseFailed(_, _) => {
                 ErrorResponse::new(
                     Status::BadRequest,
                     ErrorCode::UuidParseFailed.to_string().as_str(),
                     ErrorCode::UuidParseFailed,
                 )
-            }
+            },
             CastVoteError::UnknownError(_) => ErrorResponse::new(
                 Status::InternalServerError,
                 ErrorCode::UnknownError.to_string().as_str(),

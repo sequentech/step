@@ -17,13 +17,19 @@ use serde::Deserialize;
 use tracing::instrument;
 
 #[derive(Deserialize, Debug)]
+/// Request body for getting permissions.
 pub struct GetPermissionsBody {
+    /// The tenant ID.
     tenant_id: String,
+    /// The search query.
     search: Option<String>,
+    /// The limit.
     limit: Option<usize>,
+    /// The offset.
     offset: Option<usize>,
 }
 
+/// Get permissions.
 #[instrument(skip(claims))]
 #[post("/get-permissions", format = "json", data = "<body>")]
 pub async fn get_permissions(
@@ -45,22 +51,30 @@ pub async fn get_permissions(
         .list_permissions(&realm, input.search, input.limit, input.offset)
         .await
         .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
+    let count_i64 = i64::try_from(count).map_err(|_| {
+        (
+            Status::InternalServerError,
+            "permission list length does not fit in i64".to_string(),
+        )
+    })?;
     Ok(Json(DataList {
         items: permissions,
         total: TotalAggregate {
-            aggregate: Aggregate {
-                count: count as i64,
-            },
+            aggregate: Aggregate { count: count_i64 },
         },
     }))
 }
 
 #[derive(Deserialize, Debug)]
+/// Request body for creating a permission.
 pub struct CreatePermissionsBody {
+    /// The tenant ID.
     tenant_id: String,
+    /// The permission.
     permission: Permission,
 }
 
+/// Create permission in Keycloak realm.
 #[instrument(skip(claims))]
 #[post("/create-permission", format = "json", data = "<body>")]
 pub async fn create_permission(
@@ -86,12 +100,17 @@ pub async fn create_permission(
 }
 
 #[derive(Deserialize, Debug)]
+/// Request body for setting or deleting a role permission.
 pub struct SetOrDeleteRolePermissionsBody {
+    /// The tenant ID.
     tenant_id: String,
+    /// The role ID.
     role_id: String,
+    /// The permission name.
     permission_name: String,
 }
 
+/// Set role permission in Keycloak realm.
 #[instrument(skip(claims))]
 #[post("/set-role-permission", format = "json", data = "<body>")]
 pub async fn set_role_permission(
@@ -113,9 +132,10 @@ pub async fn set_role_permission(
         .set_role_permission(&realm, &input.role_id, &input.permission_name)
         .await
         .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
-    Ok(Json(Default::default()))
+    Ok(Json(OptionalId::default()))
 }
 
+/// Delete role permission in Keycloak realm.
 #[instrument(skip(claims))]
 #[post("/delete-role-permission", format = "json", data = "<body>")]
 pub async fn delete_role_permission(
@@ -137,15 +157,19 @@ pub async fn delete_role_permission(
         .delete_role_permission(&realm, &input.role_id, &input.permission_name)
         .await
         .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
-    Ok(Json(Default::default()))
+    Ok(Json(OptionalId::default()))
 }
 
 #[derive(Deserialize, Debug)]
+/// Request body for deleting a permission.
 pub struct DeletePermissionBody {
+    /// The tenant ID.
     tenant_id: String,
+    /// The permission name.
     permission_name: String,
 }
 
+/// Delete permission in Keycloak realm.
 #[instrument(skip(claims))]
 #[post("/delete-permission", format = "json", data = "<body>")]
 pub async fn delete_permission(
@@ -167,5 +191,5 @@ pub async fn delete_permission(
         .delete_permission(&realm, &input.permission_name)
         .await
         .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
-    Ok(Json(Default::default()))
+    Ok(Json(OptionalId::default()))
 }

@@ -14,22 +14,29 @@ use serde::{Deserialize, Serialize};
 use tracing::{event, instrument, Level};
 use uuid::Uuid;
 use windmill::services::celery_app::get_celery_app;
-use windmill::services::tasks_execution::*;
+use windmill::services::tasks_execution::post;
 use windmill::tasks::export_tenant_config::{self};
 use windmill::types::tasks::ETasksExecution;
 
 #[derive(Serialize, Deserialize, Debug)]
+/// Request body for exporting tenant config.
 pub struct ExportTenantConfigInput {
+    /// The tenant ID.
     tenant_id: String,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
+/// Response containing the exported document.
 pub struct ExportTenantConfigOutput {
+    /// The generated document ID.
     document_id: String,
+    /// Error message if any.
     error_msg: Option<String>,
+    /// Task execution record.
     task_execution: TasksExecution,
 }
 
+/// Genarate tenant config export file.
 #[instrument(skip(claims))]
 #[post("/export-tenant-config", format = "json", data = "<input>")]
 pub async fn export_tenant_config_route(

@@ -23,21 +23,30 @@ use windmill::services::certificate_authority::{
 use windmill::services::database::get_hasura_pool;
 
 #[derive(Serialize, Deserialize, Debug)]
+/// Request body for importing certificate authority.
 pub struct ImportCertificateAuthorityInput {
+    /// The election event ID.
     election_event_id: uuid::Uuid,
+    /// The PEM content of the certificate authority.
     pem_content: String,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
+/// Response body for importing certificate authority.
 pub struct ImportCertificateAuthorityOutput {
+    /// The number of inserted certificates.
     inserted_count: i32,
+    /// The number of skipped certificates.
     skipped_count: i32,
+    /// The errors.
     errors: Vec<String>,
 }
 
+/// Import certificate authority.
 #[instrument(skip(claims, input))]
 #[post("/import-certificate-authority", format = "json", data = "<input>")]
 #[allow(clippy::too_many_lines)]
+#[allow(clippy::arithmetic_side_effects)]
 pub async fn import_certificate_authority(
     claims: JwtClaims,
     input: Json<ImportCertificateAuthorityInput>,

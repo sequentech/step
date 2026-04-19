@@ -14,24 +14,34 @@ use serde::{Deserialize, Serialize};
 use tracing::{event, instrument, Level};
 use uuid::Uuid;
 use windmill::services::celery_app::get_celery_app;
-use windmill::services::tasks_execution::*;
+use windmill::services::tasks_execution::post;
 use windmill::tasks::import_tenant_config::{self, ImportOptions};
 use windmill::types::tasks::ETasksExecution;
 #[derive(Serialize, Deserialize, Debug)]
+/// Request body for importing tenant config.
 pub struct ImportTenantConfigInput {
+    /// The tenant ID.  
     tenant_id: String,
+    /// The document ID.
     document_id: String,
+    /// The import configurations.
     import_configurations: ImportOptions,
+    /// The SHA-256 hash of the document.
     sha256: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
+/// Response body for importing tenant config.
 pub struct ImportTenantConfigOutput {
+    /// The message.
     message: Option<String>,
+    /// The error message.
     error: Option<String>,
+    /// The task execution.
     task_execution: Option<TasksExecution>,
 }
 
+/// Import tenant config.
 #[instrument(skip(claims))]
 #[post("/import-tenant-config", format = "json", data = "<input>")]
 pub async fn import_tenant_config_route(

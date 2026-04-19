@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+#![allow(clippy::large_futures)]
 
 use std::collections::HashMap;
 use std::iter::Map;

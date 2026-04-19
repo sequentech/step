@@ -5,6 +5,8 @@ use serde::{Deserialize, Serialize};
 use std::default::Default;
 
 #[derive(Serialize, Deserialize, Debug, Default)]
+/// Response body for optional ID.
 pub struct OptionalId {
+    /// The ID.
     pub id: Option<String>,
 }

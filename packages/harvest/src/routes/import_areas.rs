@@ -16,15 +16,21 @@ use windmill::{
 };
 
 #[derive(Serialize, Deserialize, Debug)]
+/// Request body for importing areas.
 pub struct ImportAreasInput {
+    /// The election event ID.
     election_event_id: String,
+    /// The document ID.
     document_id: String,
+    /// The SHA-256 hash of the document.
     sha256: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
+/// Response body for importing areas.
 pub struct ImportAreasOutput {}
 
+/// Upsert areas.
 #[instrument(skip(claims))]
 #[post("/upsert-areas", format = "json", data = "<input>")]
 pub async fn upsert_areas_route(
@@ -54,6 +60,7 @@ pub async fn upsert_areas_route(
     Ok(Json(ImportAreasOutput {}))
 }
 
+/// Import areas.
 #[instrument(skip(claims))]
 #[post("/import-areas", format = "json", data = "<input>")]
 pub async fn import_areas_route(

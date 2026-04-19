@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 //! Harvest REST API
 #![recursion_limit = "256"]
+#![allow(clippy::too_many_lines)]
 #[macro_use]
 extern crate rocket;
 
@@ -23,6 +24,7 @@ mod services;
 mod types;
 
 #[launch]
+/// Launches the Rocket server.
 async fn rocket() -> _ {
     dotenv().ok();
     init_log(true);

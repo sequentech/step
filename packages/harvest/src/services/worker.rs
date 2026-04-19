@@ -5,9 +5,9 @@
 use crate::routes::scheduled_event;
 use crate::services::worker::scheduled_event::CreateEventBody;
 use anyhow::{anyhow, Result};
-use sequent_core::serialization::deserialize_with_path::*;
+use sequent_core::serialization::deserialize_with_path::deserialize_value;
 use sequent_core::services::jwt::JwtClaims;
-use sequent_core::types::scheduled_event::*;
+use sequent_core::types::scheduled_event::EventProcessors;
 use sequent_core::types::templates::SendTemplateBody;
 use tracing::{event, instrument, Level};
 use uuid::Uuid;
@@ -15,6 +15,7 @@ use windmill::services::celery_app::get_celery_app;
 use windmill::tasks::render_report;
 use windmill::tasks::send_template::send_template;
 
+/// Processes a scheduled event.
 #[instrument(skip(claims), err)]
 pub async fn process_scheduled_event(
     event: CreateEventBody,
@@ -52,15 +53,17 @@ pub async fn process_scheduled_event(
                 .await?;
             event!(Level::INFO, "Sent SEND_TEMPLATE task {}", task.task_id);
         }
-        EventProcessors::ALLOW_INIT_REPORT => {}
-        EventProcessors::START_VOTING_PERIOD => {}
-        EventProcessors::END_VOTING_PERIOD => {}
-        EventProcessors::ALLOW_VOTING_PERIOD_END => {}
-        EventProcessors::START_ENROLLMENT_PERIOD => {}
-        EventProcessors::END_ENROLLMENT_PERIOD => {}
-        EventProcessors::START_LOCKDOWN_PERIOD => {}
-        EventProcessors::END_LOCKDOWN_PERIOD => {}
-        EventProcessors::ALLOW_TALLY => {}
+        EventProcessors::ALLOW_INIT_REPORT
+        | EventProcessors::START_VOTING_PERIOD
+        | EventProcessors::END_VOTING_PERIOD
+        | EventProcessors::ALLOW_VOTING_PERIOD_END
+        | EventProcessors::START_ENROLLMENT_PERIOD
+        | EventProcessors::END_ENROLLMENT_PERIOD
+        | EventProcessors::START_LOCKDOWN_PERIOD
+        | EventProcessors::END_LOCKDOWN_PERIOD
+        | EventProcessors::ALLOW_TALLY => {
+            // Nothing to do for these event processors.
+        }
     }
     Ok(element_id)
 }

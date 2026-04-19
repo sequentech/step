@@ -22,6 +22,7 @@ use tracing::instrument;
 use windmill::services::database::PgConfig;
 
 #[instrument(err)]
+/// Get an immudb client.
 pub async fn get_immudb_client() -> Result<Client> {
     let username =
         env::var("IMMUDB_USER").context("IMMUDB_USER must be set")?;
@@ -36,27 +37,37 @@ pub async fn get_immudb_client() -> Result<Client> {
     Ok(client)
 }
 
-// Helper function to create a NamedParam
-pub fn create_named_param(name: String, value: Value) -> NamedParam {
+/// Helper function to create a `NamedParam`
+pub const fn create_named_param(name: String, value: Value) -> NamedParam {
     NamedParam {
         name,
         value: Some(SqlValue { value: Some(value) }),
     }
 }
 
-// Enumeration for the valid fields in the immudb table
+/// Enumeration for the valid fields in the immudb table
 #[derive(Debug, Deserialize, Hash, PartialEq, Eq, EnumString, Display)]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
+/// Enumeration for the valid fields in the immudb table
 enum OrderField {
+    /// The ID of the audit entry.
     Id,
+    /// The type of the audit entry.
     AuditType,
+    /// The class of the audit entry.
     Class,
+    /// The command of the audit entry.
     Command,
+    /// The database name of the audit entry.
     Dbname,
+    /// The server timestamp of the audit entry.
     ServerTimestamp,
+    /// The session ID of the audit entry.
     SessionId,
+    /// The statement of the audit entry.
     Statement,
+    /// The user of the audit entry.
     User,
 }
 
@@ -65,26 +76,37 @@ enum OrderField {
 )]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
+/// Enumeration for the valid audit tables in the immudb database
 enum AuditTable {
+    /// The Hasura audit table.
     #[default]
     PgauditHasura,
+    /// The Keycloak audit table.
     PgauditKeycloak,
 }
 
 #[derive(Deserialize, Debug)]
+/// Request body for getting a list of audit entries.
 pub struct GetPgauditBody {
+    /// The tenant ID.
     tenant_id: String,
+    /// The election event ID.
     election_event_id: String,
+    /// The limit of the audit entries.
     limit: Option<i64>,
+    /// The offset of the audit entries.
     offset: Option<i64>,
+    /// Filters for the audit entries.
     filter: Option<HashMap<OrderField, String>>,
+    /// Order by for the audit entries.
     order_by: Option<HashMap<OrderField, OrderDirection>>,
+    /// Audit table to use.
     #[serde(default)]
     audit_table: AuditTable,
 }
 
 impl GetPgauditBody {
-    // Returns the SQL clauses related to the request along with the parameters
+    /// Returns the SQL clauses related to the request along with the parameters
     #[instrument(ret)]
     fn as_sql(&self, to_count: bool) -> Result<(String, Vec<NamedParam>)> {
         let mut clauses = Vec::new();
@@ -111,7 +133,7 @@ impl GetPgauditBody {
                             .push(format!("{field} LIKE @{param_name}"));
                         params.push(create_named_param(
                             param_name,
-                            Value::S(value.to_string()),
+                            Value::S(value.clone()),
                         ));
                     }
                 }
@@ -123,15 +145,15 @@ impl GetPgauditBody {
         }
 
         // Handle order_by
-        if !to_count && self.order_by.is_some() {
-            let order_by_clauses: Vec<String> = self
-                .order_by
-                .as_ref()
-                .unwrap()
-                .iter()
-                .map(|(field, direction)| format!("{field} {direction}"))
-                .collect();
-            clauses.push(format!("ORDER BY {}", order_by_clauses.join(", ")));
+        if !to_count {
+            if let Some(order_by) = &self.order_by {
+                let order_by_clauses: Vec<String> = order_by
+                    .iter()
+                    .map(|(field, direction)| format!("{field} {direction}"))
+                    .collect();
+                clauses
+                    .push(format!("ORDER BY {}", order_by_clauses.join(", ")));
+            }
         }
 
         // Handle limit
@@ -149,12 +171,16 @@ impl GetPgauditBody {
         }
 
         // Handle offset
-        if !to_count && self.offset.is_some() {
-            let offset_param_name = String::from("offset");
-            let offset = std::cmp::max(self.offset.unwrap(), 0);
-            clauses.push(format!("OFFSET @{offset_param_name}"));
-            params
-                .push(create_named_param(offset_param_name, Value::N(offset)));
+        if !to_count {
+            if let Some(raw_offset) = self.offset {
+                let offset_param_name = String::from("offset");
+                let offset = std::cmp::max(raw_offset, 0);
+                clauses.push(format!("OFFSET @{offset_param_name}"));
+                params.push(create_named_param(
+                    offset_param_name,
+                    Value::N(offset),
+                ));
+            }
         }
 
         Ok((clauses.join(" "), params))
@@ -162,15 +188,25 @@ impl GetPgauditBody {
 }
 
 #[derive(Serialize, Deserialize, Debug)]
+/// Response containing the audit entry.    
 pub struct PgAuditRow {
+    /// The ID of the audit entry.
     id: i64,
+    /// The type of the audit entry.
     audit_type: String,
+    /// The class of the audit entry.
     class: String,
+    /// The command of the audit entry.
     command: String,
+    /// The database name of the audit entry.
     dbname: String,
+    /// The server timestamp of the audit entry.
     server_timestamp: i64,
+    /// The session ID of the audit entry.
     session_id: String,
+    /// The statement of the audit entry.
     statement: String,
+    /// The user of the audit entry.
     user: String,
 }
 
@@ -179,47 +215,47 @@ impl TryFrom<&Row> for PgAuditRow {
 
     fn try_from(row: &Row) -> Result<Self, Self::Error> {
         let mut id = 0;
-        let _audit_type = String::from("");
-        let mut class = String::from("");
-        let mut command = String::from("");
-        let mut dbname = String::from("");
+        let _audit_type = String::new();
+        let mut class = String::new();
+        let mut command = String::new();
+        let mut dbname = String::new();
         let mut server_timestamp: i64 = 0;
-        let mut session_id = String::from("");
-        let mut statement = String::from("");
-        let mut user = String::from("");
-        let mut audit_type = String::from("");
+        let mut session_id = String::new();
+        let mut statement = String::new();
+        let mut user = String::new();
+        let mut audit_type = String::new();
 
         for (column, value) in row.columns.iter().zip(row.values.iter()) {
             match column.as_str() {
                 c if c.ends_with(".id)") => {
-                    assign_value!(Value::N, value, id)
+                    assign_value!(Value::N, value, id);
                 }
                 c if c.ends_with(".audit_type)") => {
-                    assign_value!(Value::S, value, audit_type)
+                    assign_value!(Value::S, value, audit_type);
                 }
                 c if c.ends_with(".class)") => {
-                    assign_value!(Value::S, value, class)
+                    assign_value!(Value::S, value, class);
                 }
                 c if c.ends_with(".command)") => {
-                    assign_value!(Value::S, value, command)
+                    assign_value!(Value::S, value, command);
                 }
                 c if c.ends_with(".dbname)") => {
-                    assign_value!(Value::S, value, dbname)
+                    assign_value!(Value::S, value, dbname);
                 }
                 c if c.ends_with(".server_timestamp)") => {
-                    assign_value!(Value::Ts, value, server_timestamp)
+                    assign_value!(Value::Ts, value, server_timestamp);
                 }
                 c if c.ends_with(".session_id)") => {
-                    assign_value!(Value::S, value, session_id)
+                    assign_value!(Value::S, value, session_id);
                 }
                 c if c.ends_with(".statement)") => {
-                    assign_value!(Value::S, value, statement)
+                    assign_value!(Value::S, value, statement);
                 }
                 c if c.ends_with(".user)") => {
-                    assign_value!(Value::S, value, user)
+                    assign_value!(Value::S, value, user);
                 }
                 c if c.ends_with(".audit_type)") => {
-                    assign_value!(Value::S, value, audit_type)
+                    assign_value!(Value::S, value, audit_type);
                 }
                 _ => {
                     return Err(anyhow!(
@@ -243,6 +279,7 @@ impl TryFrom<&Row> for PgAuditRow {
     }
 }
 
+/// Get a list of audit entries.
 async fn audit_list_service(
     input: GetPgauditBody,
 ) -> Result<Json<DataList<PgAuditRow>>, Debug<anyhow::Error>> {
@@ -277,7 +314,7 @@ async fn audit_list_service(
         .map(PgAuditRow::try_from)
         .collect::<Result<Vec<PgAuditRow>>>()?;
 
-    let sql = format!(
+    let count_sql = format!(
         r"
         SELECT
             COUNT(*)
@@ -285,8 +322,9 @@ async fn audit_list_service(
         {clauses_to_count}
         ",
     );
-    let sql_query_response = client.sql_query(&sql, count_params).await?;
-    let mut rows_iter = sql_query_response
+    let count_sql_query_response =
+        client.sql_query(&count_sql, count_params).await?;
+    let mut rows_iter = count_sql_query_response
         .get_ref()
         .rows
         .iter()
@@ -303,7 +341,8 @@ async fn audit_list_service(
     }))
 }
 
-#[instrument]
+/// Get a list of audit entries endpoint.
+#[instrument(skip(claims))]
 #[post("/immudb/pgaudit-list", format = "json", data = "<body>")]
 pub async fn list_pgaudit(
     body: Json<GetPgauditBody>,

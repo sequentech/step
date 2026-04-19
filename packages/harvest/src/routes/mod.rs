@@ -43,6 +43,7 @@ pub mod export_election_event_logs;
 pub mod export_tally_results;
 /// Export tasks execution endpoints.
 pub mod export_tasks_execution;
+/// Export template endpoints.
 pub mod export_template;
 /// Export tenant config endpoints.
 pub mod export_tenant_config;
@@ -52,7 +53,9 @@ pub mod fetch_document;
 pub mod generate_preview_url;
 /// Get certificate authorities PEM endpoints.
 pub mod get_certificate_authorities_pem;
+/// Google meet endpoints.
 pub mod google_meet;
+/// Immudb log audit endpoints.
 pub mod immudb_log_audit;
 /// Import application endpoints.
 pub mod import_application;
@@ -60,6 +63,7 @@ pub mod import_application;
 pub mod import_areas;
 /// Import candidates endpoints.
 pub mod import_candidates;
+/// Import certificate authority endpoints.
 pub mod import_certificate_authority;
 /// Import templates endpoints.
 pub mod import_templates;
@@ -73,6 +77,7 @@ pub mod insert_election_event;
 pub mod insert_tenant;
 /// Keys ceremony endpoints.
 pub mod keys_ceremony;
+/// Limit access by countries endpoints.
 pub mod limit_access_by_countries;
 /// Miru plugin endpoints.
 pub mod miru_plugin;
@@ -84,6 +89,8 @@ pub mod plugins;
 pub mod reports;
 /// Roles endpoints.
 pub mod roles;
+
+/// Scheduled event endpoints.
 pub mod scheduled_event;
 /// Voter authentication endpoints.
 pub mod set_voter_authentication;

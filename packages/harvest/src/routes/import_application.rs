@@ -12,7 +12,7 @@ use sequent_core::types::permissions::Permissions;
 use serde::{Deserialize, Serialize};
 use tracing::{event, info, instrument, Level};
 use windmill::services::celery_app::get_celery_app;
-use windmill::services::tasks_execution::*;
+use windmill::services::tasks_execution::post;
 use windmill::types::tasks::ETasksExecution;
 use windmill::{
     services::providers::transactions_provider::provide_hasura_transaction,
@@ -20,21 +20,32 @@ use windmill::{
 };
 
 #[derive(Serialize, Deserialize, Debug)]
+/// Request body for importing applications.
 pub struct ImportApplicationsInput {
+    /// The tenant ID.
     tenant_id: String,
+    /// The election event ID.
     election_event_id: String,
+    /// The election ID.
     election_id: Option<String>,
+    /// The document ID.
     document_id: String,
+    /// The SHA-256 hash of the document.
     sha256: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
+/// Response body for importing applications.
 pub struct ImportApplicationsOutput {
+    /// The error message.
     error_msg: Option<String>,
+    /// The document ID.
     document_id: String,
+    /// The task execution.
     task_execution: Option<TasksExecution>,
 }
 
+/// Import applications.
 #[instrument(skip(claims))]
 #[post("/import-application", format = "json", data = "<input>")]
 pub async fn import_application_route(

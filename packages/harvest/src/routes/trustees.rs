@@ -13,22 +13,28 @@ use serde::{Deserialize, Serialize};
 use tracing::{event, instrument, Level};
 use uuid::Uuid;
 use windmill::services::celery_app::get_celery_app;
-use windmill::services::tasks_execution::*;
+use windmill::services::tasks_execution::{post, update_fail};
 use windmill::tasks::export_election_event::{self, ExportOptions};
 use windmill::tasks::export_trustees;
 use windmill::types::tasks::ETasksExecution;
 
 #[derive(Serialize, Deserialize, Debug)]
+/// Request body for exporting trustees.    
 pub struct ExportTrusteesInput {
+    /// Password used to protect the generated trustees export.
     password: String,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
+/// Response body for exporting trustees.
 pub struct ExportTrusteesOutput {
+    /// The document ID.
     document_id: String,
+    /// The task execution.
     task_execution: TasksExecution,
 }
 
+/// Exports trustees.
 #[instrument(skip(claims))]
 #[post("/export-trustees", format = "json", data = "<input>")]
 pub async fn export_trustees_route(

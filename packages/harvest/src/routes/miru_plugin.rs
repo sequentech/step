@@ -11,7 +11,7 @@ use sequent_core::types::hasura::core::TasksExecution;
 use sequent_core::types::permissions::Permissions;
 use serde::{Deserialize, Serialize};
 use tracing::{info, instrument};
-use windmill::services::tasks_execution::*;
+use windmill::services::tasks_execution::{post, update_fail};
 use windmill::tasks::miru_plugin_tasks::upload_signature_task;
 use windmill::types::tasks::ETasksExecution;
 use windmill::{
@@ -25,20 +25,30 @@ use windmill::{
 };
 
 #[derive(Serialize, Deserialize, Debug)]
+/// Request body for creating a transmission package.
 pub struct CreateTransmissionPackageInput {
+    /// The election event ID.
     election_event_id: String,
+    /// The election ID.
     election_id: String,
+    /// The area ID.
     area_id: String,
+    /// The tally session ID.
     tally_session_id: String,
+    /// The force flag.
     force: bool,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
+/// Response body for creating a transmission package.
 pub struct CreateTransmissionPackageOutput {
+    /// The task execution.
     task_execution: Option<TasksExecution>,
+    /// The error message.
     error_msg: Option<String>,
 }
 
+/// Create transmission package for Miru.
 #[instrument(skip(claims))]
 #[post("/miru/create-transmission-package", format = "json", data = "<input>")]
 pub async fn create_transmission_package(
@@ -112,15 +122,21 @@ pub async fn create_transmission_package(
 
 #[derive(Serialize, Deserialize, Debug)]
 #[allow(clippy::struct_field_names)] // enable same postfix for all fields
+/// Request body for sending a transmission package.
 pub struct SendTransmissionPackageInput {
+    /// The election ID.
     election_id: String,
+    /// The area ID.
     area_id: String,
+    /// The tally session ID.
     tally_session_id: String,
 }
 
+/// Response body for sending a transmission package.
 #[derive(Serialize, Deserialize, Debug)]
 pub struct SendTransmissionPackageOutput {}
 
+/// Send transmission package for Miru.
 #[instrument(skip(claims))]
 #[post("/miru/send-transmission-package", format = "json", data = "<input>")]
 pub async fn send_transmission_package(
@@ -155,17 +171,25 @@ pub async fn send_transmission_package(
 }
 
 #[derive(Serialize, Deserialize, Debug)]
+/// Request body for uploading a signature.
 pub struct UploadSignatureInput {
+    /// The election ID.
     election_id: String,
+    /// The area ID.
     area_id: String,
+    /// The tally session ID.
     tally_session_id: String,
+    /// The document ID.
     document_id: String,
+    /// The password.
     password: String,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
+/// Response body for uploading a signature.
 pub struct UploadSignatureOutput {}
 
+/// Upload signature for Miru.
 #[instrument(skip(claims))]
 #[post("/miru/upload-signature", format = "json", data = "<input>")]
 pub async fn upload_signature(

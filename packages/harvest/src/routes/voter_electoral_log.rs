@@ -23,16 +23,25 @@ use windmill::services::providers::transactions_provider::provide_hasura_transac
 use windmill::types::resources::OrderDirection;
 
 #[derive(Deserialize, Debug)]
+/// Request body for listing cast vote messages.
 pub struct CastVoteMessagesInput {
+    /// The tenant ID.
     pub tenant_id: String,
+    /// The election event ID.
     pub election_event_id: String,
+    /// The election ID.
     pub election_id: Option<String>,
+    /// The ballot ID.
     pub ballot_id: String,
+    /// The limit.
     pub limit: Option<i64>,
+    /// The offset.
     pub offset: Option<i64>,
+    /// The order by.
     pub order_by: Option<HashMap<OrderField, OrderDirection>>,
 }
 
+/// Lists cast vote messages.
 #[instrument]
 #[post("/list-cast-vote-messages", format = "json", data = "<body>")]
 pub async fn list_cast_vote_messages(

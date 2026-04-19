@@ -14,19 +14,25 @@ use tracing::instrument;
 use windmill::postgres::tally_sheet;
 use windmill::services::database::get_hasura_pool;
 
+/// Request body for [`publish_tally_sheet`].
 #[derive(Serialize, Deserialize, Debug)]
 pub struct PublishTallySheetInput {
+    /// Election event that owns the tally sheet.
     election_event_id: String,
+    /// Identifier of the tally sheet row to publish or unpublish.
     tally_sheet_id: String,
+    /// When true, publishes the sheet; when false, unpublishes it.
     publish: bool,
 }
 
+/// Response body for [`publish_tally_sheet`].
 #[derive(Serialize, Deserialize, Debug)]
 pub struct PublishTallySheetOutput {
+    /// Present when a tally sheet row was updated.
     tally_sheet_id: Option<String>,
 }
 
-// The main function to start a key ceremony
+/// The main function to start a key ceremony
 #[instrument(skip(claims))]
 #[post("/publish-tally-sheet", format = "json", data = "<body>")]
 pub async fn publish_tally_sheet(
@@ -63,7 +69,7 @@ pub async fn publish_tally_sheet(
     .await
     .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
 
-    if let None = found {
+    if found.is_none() {
         return Ok(Json(PublishTallySheetOutput {
             tally_sheet_id: None,
         }));

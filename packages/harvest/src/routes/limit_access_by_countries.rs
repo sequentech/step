@@ -13,16 +13,22 @@ use tracing::instrument;
 use windmill::services::limit_access_by_countries::handle_limit_ip_access_by_countries;
 
 #[derive(Serialize, Deserialize, Debug)]
+/// Request body for limiting access by countries.
 pub struct LimitAccessByCountriesInput {
+    /// The voting countries to limit access to.
     voting_countries: Vec<String>,
+    /// The enroll countries to limit access to.
     enroll_countries: Vec<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
+/// Response body for limiting access by countries.
 pub struct LimitAccessByCountriesOutput {
+    /// The success flag.
     success: bool,
 }
 
+/// Limit access by countries.
 #[instrument(skip(claims))]
 #[post("/limit-access-by-countries", format = "json", data = "<body>")]
 pub async fn limit_access_by_countries(
