@@ -250,6 +250,18 @@ public class MessageOTPAuthenticator
     boolean deferredUser = "true".equals(configMap.get(Utils.DEFERRED_USER_ATTRIBUTE));
     boolean codeJustSent = false;
     UserModel user = context.getUser();
+    // `requiresUser()` returns false so Keycloak may invoke this authenticator
+    // before a user has been identified (e.g. during pre-evaluation of the
+    // alternatives in a sub-flow). In that case there is no mobile number or
+    // email to send the OTP to, so mark this attempt as not applicable and let
+    // Keycloak move on to the next alternative (typically the passkey
+    // authenticator). This prevents a NullPointerException deep inside
+    // Utils.getMobile / Utils.getEmailAddress.
+    if (!deferredUser && user == null) {
+      log.info("intiateForm(): user is null and not in deferred mode -> attempted()");
+      context.attempted();
+      return;
+    }
     Utils.buildEventDetails(context, this.getClass().getSimpleName());
     // handle OTL
     boolean isOtl = "true".equals(configMap.get(Utils.ONE_TIME_LINK));

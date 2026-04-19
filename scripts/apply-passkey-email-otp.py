@@ -64,14 +64,28 @@ import urllib.request
 
 USER_AGENT = "curl/8.0.0 apply-passkey-email-otp.py"
 
-def http(method, url, token=None, body=None, ignore_404=False):
+class Token:
+    """Refreshable token holder. Re-fetches on demand (e.g. after a 401)."""
+    def __init__(self, base, user, password):
+        self.base = base
+        self.user = user
+        self.password = password
+        self.value = None
+        self.refresh()
+    def refresh(self):
+        self.value = _fetch_token(self.base, self.user, self.password)
+        return self.value
+
+
+def http(method, url, token=None, body=None, ignore_404=False, _retried=False):
     data = None
     headers = {"User-Agent": USER_AGENT}
     if body is not None:
         data = json.dumps(body).encode()
         headers["Content-Type"] = "application/json"
     if token:
-        headers["Authorization"] = f"Bearer {token}"
+        bearer = token.value if isinstance(token, Token) else token
+        headers["Authorization"] = f"Bearer {bearer}"
     req = urllib.request.Request(url, data=data, method=method, headers=headers)
     try:
         resp = urllib.request.urlopen(req)
@@ -85,11 +99,16 @@ def http(method, url, token=None, body=None, ignore_404=False):
     except urllib.error.HTTPError as e:
         if ignore_404 and e.code == 404:
             return None
+        if e.code == 401 and isinstance(token, Token) and not _retried:
+            # Token likely expired — refresh and retry once.
+            token.refresh()
+            return http(method, url, token=token, body=body,
+                        ignore_404=ignore_404, _retried=True)
         detail = e.read().decode()
         raise RuntimeError(f"{method} {url} -> {e.code}: {detail}") from None
 
 
-def get_token(base, user, password):
+def _fetch_token(base, user, password):
     req = urllib.request.Request(
         f"{base}/realms/master/protocol/openid-connect/token",
         data=urllib.parse.urlencode({
@@ -103,6 +122,10 @@ def get_token(base, user, password):
     )
     resp = urllib.request.urlopen(req)
     return json.loads(resp.read())["access_token"]
+
+
+def get_token(base, user, password):
+    return Token(base, user, password)
 
 
 SMTP_FROM_ADDRESS = "noreply@sequent.vote"
@@ -122,13 +145,16 @@ EMAIL_OTP_CONFIG = {
 }
 
 PARENT_FLOWS = [
-    # (parent flow alias, child OTP subflow alias, config alias to attach to message-otp)
-    ("basic / silver condition", "WebAuthn Passwordless - silver conditional", "Email OTP silver"),
-    ("advanced / gold condition", "WebAuthn Passwordless - gold conditional", "Email OTP gold"),
+    # (parent flow alias, child OTP subflow alias, Email-OTP config alias,
+    #  authenticator that MUST run before the OTP subflow so username is known)
+    ("basic / silver condition", "WebAuthn Passwordless - silver conditional",
+     "Email OTP silver", "auth-username-password-form"),
+    ("advanced / gold condition", "WebAuthn Passwordless - gold conditional",
+     "Email OTP gold", "auth-password-form"),
 ]
 
-EMAIL_OTP_CFG_ALIASES = {cfg for _, _, cfg in PARENT_FLOWS}
-CHILD_SUBFLOW_ALIASES = {child for _, child, _ in PARENT_FLOWS}
+EMAIL_OTP_CFG_ALIASES = {cfg for _, _, cfg, _ in PARENT_FLOWS}
+CHILD_SUBFLOW_ALIASES = {child for _, child, _, _ in PARENT_FLOWS}
 
 
 # ----------------------------- APPLY helpers -----------------------------
@@ -154,22 +180,49 @@ def fetch_flow_executions(base, token, realm, alias):
     return res or []
 
 
-def ensure_subflow(base, token, realm, parent_alias, child_alias):
+def ensure_subflow(base, token, realm, parent_alias, child_alias, priority=None):
+    """Create (if missing) the named sub-flow inside `parent_alias`.
+
+    If `priority` is given, the new sub-flow is created with that explicit
+    integer priority. On Keycloak 26.x the POST /executions/flow endpoint
+    accepts a numeric "priority" attribute, which is the only reliable way
+    to control the ordering of the sub-flow within its parent — otherwise
+    Keycloak assigns an unpredictable priority on some tenants.
+    """
     for e in fetch_flow_executions(base, token, realm, parent_alias):
         if e.get("displayName") == child_alias:
             return  # Already present
-    print(f"    creating subflow '{child_alias}' under '{parent_alias}'")
+    print(f"    creating subflow '{child_alias}' under '{parent_alias}'"
+          + (f" with priority={priority}" if priority is not None else ""))
+    body = {"alias": child_alias, "type": "basic-flow",
+            "description": "Passkey or Email OTP as second factor",
+            "provider": "registration-page-form"}
+    if priority is not None:
+        body["priority"] = priority
     http("POST",
         f"{base}/admin/realms/{realm}/authentication/flows/{urllib.parse.quote(parent_alias, safe='')}/executions/flow",
-        token, {"alias": child_alias, "type": "basic-flow",
-                "description": "Passkey or Email OTP as second factor",
-                "provider": "registration-page-form"})
+        token, body)
 
 
 def set_exec_requirement(base, token, realm, parent_alias, execution_id, requirement):
+    """Set the REQUIRED/ALTERNATIVE/DISABLED requirement on an execution.
+
+    The Keycloak PUT /flows/{flow}/executions endpoint resets the execution's
+    priority to 0 if priority is not included in the body. We therefore read
+    the execution's current priority first and pass it along explicitly so the
+    priority (e.g. the explicit ordering we set on sub-flow creation) survives.
+    """
+    current = next(
+        (e for e in fetch_flow_executions(base, token, realm, parent_alias)
+         if e["id"] == execution_id),
+        None,
+    )
+    body = {"id": execution_id, "requirement": requirement}
+    if current is not None:
+        body["priority"] = current["priority"]
     http("PUT",
         f"{base}/admin/realms/{realm}/authentication/flows/{urllib.parse.quote(parent_alias, safe='')}/executions",
-        token, {"id": execution_id, "requirement": requirement})
+        token, body)
 
 
 def ensure_authenticator(base, token, realm, child_alias, provider):
@@ -221,10 +274,94 @@ def ensure_smtp_from(base, token, realm):
     http("PUT", f"{base}/admin/realms/{realm}", token, {"smtpServer": smtp})
 
 
+def ensure_strict_priority_order(base, token, realm, parent_alias,
+                                   auth_provider, child_subflow_alias):
+    """Guarantee execution order: conditional-level-of-authentication < auth_provider
+    < child_subflow_alias within `parent_alias`.
+
+    Keycloak's `raise-priority` / `lower-priority` endpoints swap priorities
+    with the adjacent sibling, so they are no-ops when priorities tie (e.g. two
+    executions both at priority 0). The tie-breaker that Keycloak uses to sort
+    tied executions is not deterministic across tenants / environments.
+
+    To break ties reliably we delete and re-create `auth_provider`. Each new
+    execution receives `priority = max(existing priorities) + 1`, which forces
+    strictly monotonic priorities. The child sub-flow (passkey + email-OTP) is
+    created by our script after this step, so it naturally lands even higher.
+    """
+    execs = fetch_flow_executions(base, token, realm, parent_alias)
+    children = [e for e in execs if e["level"] == 0]
+    condition = next((e for e in children
+                      if e.get("providerId") == "conditional-level-of-authentication"), None)
+    auth = next((e for e in children if e.get("providerId") == auth_provider), None)
+    child = next((e for e in children if e.get("displayName") == child_subflow_alias), None)
+
+    if condition is None or auth is None:
+        print(f"    strict order: condition or '{auth_provider}' missing in '{parent_alias}'; skipping")
+        return
+
+    need_fix = (
+        auth["priority"] <= condition["priority"]
+        or (child is not None and child["priority"] <= auth["priority"])
+    )
+    if not need_fix:
+        print(f"    '{parent_alias}' already in strict order")
+        return
+
+    print(f"    '{parent_alias}': forcing strict priority order via delete+recreate of '{auth_provider}'")
+    # Remember existing state so we can delete the child sub-flow first (if any),
+    # then auth_provider, then re-add both in order.
+    child_flow_id = child.get("flowId") if child else None
+
+    # Delete child sub-flow (if present) so it gets re-created AFTER auth_provider,
+    # which will give it the highest priority in the parent. Its inner executions
+    # will be re-created by the caller afterwards.
+    if child is not None:
+        http("DELETE", f"{base}/admin/realms/{realm}/authentication/executions/{child['id']}",
+             token, ignore_404=True)
+        if child_flow_id:
+            http("DELETE", f"{base}/admin/realms/{realm}/authentication/flows/{child_flow_id}",
+                 token, ignore_404=True)
+
+    # Delete auth_provider execution.
+    http("DELETE", f"{base}/admin/realms/{realm}/authentication/executions/{auth['id']}",
+         token, ignore_404=True)
+
+    # Re-add auth_provider; it now has priority = max+1 (strictly greater than condition).
+    http("POST",
+        f"{base}/admin/realms/{realm}/authentication/flows/{urllib.parse.quote(parent_alias, safe='')}/executions/execution",
+        token, {"provider": auth_provider})
+
+    # Re-apply REQUIRED on the new auth_provider execution.
+    execs = fetch_flow_executions(base, token, realm, parent_alias)
+    new_auth = next((e for e in execs if e["level"] == 0
+                     and e.get("providerId") == auth_provider), None)
+    if new_auth is not None:
+        set_exec_requirement(base, token, realm, parent_alias, new_auth["id"], "REQUIRED")
+
+
+def _max_level0_priority(base, token, realm, parent_alias):
+    """Return max priority among direct children of `parent_alias`, or -1 if empty."""
+    execs = fetch_flow_executions(base, token, realm, parent_alias)
+    return max((e["priority"] for e in execs if e["level"] == 0), default=-1)
+
+
 def configure_subflows(base, token, realm):
     print("[2/4] Configuring silver/gold OTP sub-flows")
-    for parent_alias, child_alias, cfg_alias in PARENT_FLOWS:
-        ensure_subflow(base, token, realm, parent_alias, child_alias)
+    for parent_alias, child_alias, cfg_alias, auth_provider in PARENT_FLOWS:
+        # Make sure the parent's executions have a strict ordering (condition
+        # first, auth_provider somewhere, sub-flow last). This may delete and
+        # re-create the auth_provider and the sub-flow.
+        ensure_strict_priority_order(base, token, realm, parent_alias,
+                                     auth_provider, child_alias)
+        # Compute a priority strictly greater than all existing direct
+        # children of the parent flow so the sub-flow runs AFTER everything
+        # else (including auth_provider). Keycloak 26.x accepts the `priority`
+        # attribute in POST /executions/flow; without it the assigned priority
+        # is unpredictable on some tenants.
+        subflow_priority = _max_level0_priority(base, token, realm, parent_alias) + 10
+        ensure_subflow(base, token, realm, parent_alias, child_alias,
+                       priority=subflow_priority)
         for e in fetch_flow_executions(base, token, realm, parent_alias):
             if e.get("displayName") == child_alias and e["requirement"] != "REQUIRED":
                 set_exec_requirement(base, token, realm, parent_alias, e["id"], "REQUIRED")
@@ -239,7 +376,7 @@ def configure_subflows(base, token, realm):
 
 
 def enable_required_action(base, token, realm):
-    print("[3/4] Enabling webauthn-register-passwordless required action")
+    print("[3/4] Enabling required actions (passkey + email-OTP)")
     http("PUT",
         f"{base}/admin/realms/{realm}/authentication/required-actions/webauthn-register-passwordless",
         token, {"alias": "webauthn-register-passwordless",
@@ -247,21 +384,42 @@ def enable_required_action(base, token, realm):
                 "providerId": "webauthn-register-passwordless",
                 "enabled": True, "defaultAction": True,
                 "priority": 80, "config": {}})
+    http("PUT",
+        f"{base}/admin/realms/{realm}/authentication/required-actions/message-otp-ra",
+        token, {"alias": "message-otp-ra",
+                "name": "Reset Message OTP",
+                "providerId": "message-otp-ra",
+                "enabled": True, "defaultAction": True,
+                "priority": 1003, "config": {}})
+
+
+USER_REQUIRED_ACTIONS = [
+    "webauthn-register-passwordless",  # register a passkey
+    # Register a MessageOTPCredential so the email-OTP option also shows up in
+    # the credential chooser on subsequent logins. Without this, users would
+    # only see the passkey option after registering a passkey, unless the Java
+    # fix in MessageOTPAuthenticator (creating the credential on successful
+    # first email-OTP auth) is deployed.
+    "message-otp-ra",
+]
 
 
 def apply_required_action_to_users(base, token, realm):
-    print("[4/4] Adding required action to existing human users")
+    print("[4/4] Configuring existing human users")
     users = http("GET", f"{base}/admin/realms/{realm}/users?max=1000", token)
     for u in users:
         if u.get("username", "").startswith("service-account-"):
             continue
         ras = list(u.get("requiredActions") or [])
-        if "webauthn-register-passwordless" in ras:
-            continue
-        ras.append("webauthn-register-passwordless")
-        http("PUT", f"{base}/admin/realms/{realm}/users/{u['id']}",
-             token, {"requiredActions": ras})
-        print(f"    updated user {u['username']}")
+        changed = False
+        for ra in USER_REQUIRED_ACTIONS:
+            if ra not in ras:
+                ras.append(ra)
+                changed = True
+        if changed:
+            http("PUT", f"{base}/admin/realms/{realm}/users/{u['id']}",
+                 token, {"requiredActions": ras})
+            print(f"    updated {u['username']} requiredActions={ras}")
 
 
 # ----------------------------- REVERT helpers -----------------------------
@@ -286,7 +444,7 @@ def reset_passkey_policy(base, token, realm):
 def remove_subflows(base, token, realm):
     print("[2/4] Removing passkey/email-OTP sub-flows")
     # First: detach references inside the parent flows
-    for parent_alias, child_alias, _ in PARENT_FLOWS:
+    for parent_alias, child_alias, _, _ in PARENT_FLOWS:
         for e in fetch_flow_executions(base, token, realm, parent_alias):
             if e.get("displayName") == child_alias and e.get("authenticationFlow"):
                 print(f"    detaching '{child_alias}' from '{parent_alias}'")
@@ -320,7 +478,7 @@ def remove_email_otp_configs(base, token, realm):
 
 
 def disable_required_action(base, token, realm):
-    print("[3/4] Disabling webauthn-register-passwordless required action")
+    print("[3/4] Disabling passkey + email-OTP required actions")
     http("PUT",
         f"{base}/admin/realms/{realm}/authentication/required-actions/webauthn-register-passwordless",
         token, {"alias": "webauthn-register-passwordless",
@@ -328,19 +486,33 @@ def disable_required_action(base, token, realm):
                 "providerId": "webauthn-register-passwordless",
                 "enabled": False, "defaultAction": False,
                 "priority": 80, "config": {}})
+    http("PUT",
+        f"{base}/admin/realms/{realm}/authentication/required-actions/message-otp-ra",
+        token, {"alias": "message-otp-ra",
+                "name": "Reset Message OTP",
+                "providerId": "message-otp-ra",
+                "enabled": False, "defaultAction": False,
+                "priority": 1003, "config": {}})
 
 
 def remove_required_action_from_users(base, token, realm):
-    print("[4/4] Removing webauthn-register-passwordless from all users")
+    print("[4/4] Removing passkey + email-OTP required actions and credentials from users")
     users = http("GET", f"{base}/admin/realms/{realm}/users?max=1000", token)
     for u in users:
         ras = list(u.get("requiredActions") or [])
-        if "webauthn-register-passwordless" not in ras:
-            continue
-        ras = [x for x in ras if x != "webauthn-register-passwordless"]
-        http("PUT", f"{base}/admin/realms/{realm}/users/{u['id']}",
-             token, {"requiredActions": ras})
-        print(f"    updated user {u['username']}")
+        new_ras = [x for x in ras if x not in USER_REQUIRED_ACTIONS]
+        if new_ras != ras:
+            http("PUT", f"{base}/admin/realms/{realm}/users/{u['id']}",
+                 token, {"requiredActions": new_ras})
+            print(f"    cleared required actions for {u['username']}")
+        # Also delete any previously-seeded message-otp credential (no-op if absent).
+        creds = http("GET", f"{base}/admin/realms/{realm}/users/{u['id']}/credentials", token) or []
+        for c in creds:
+            if c.get("type") == "message-otp":
+                http("DELETE",
+                     f"{base}/admin/realms/{realm}/users/{u['id']}/credentials/{c['id']}",
+                     token, ignore_404=True)
+                print(f"    deleted email-OTP credential from {u['username']}")
 
 
 # ------------------------------- entry ---------------------------------
