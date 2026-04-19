@@ -143,13 +143,18 @@ impl Pipe for GenerateDatabase {
     }
 }
 
-#[instrument(skip(state_opt, config))]
+/// Converts unsigned result totals to `i64` for SQLite; saturates at `i64::MAX` if out of range.
+#[inline]
+fn result_count_u64_as_i64(n: u64) -> i64 {
+    i64::try_from(n).unwrap_or(i64::MAX)
+}
+
 /// Populates the database result tables from elections report data.
 ///
 /// # Errors
 ///
 /// Returns an error if database operations fail.
-#[instrument(err, skip_all)]
+#[instrument(skip(state_opt, config))]
 pub fn populate_results_tables(
     input_database_path: &Path,
     output_database_path: &Path,
@@ -491,34 +496,40 @@ pub fn save_results(
                     contest_id: current_contest.id.clone(),
                     area_id: area.id.clone(),
                     results_event_id: results_event_id.into(),
-                    elegible_census: Some(contest_result.census.cast_signed()),
-                    total_votes: Some(contest_result.total_votes.cast_signed()),
+                    elegible_census: Some(result_count_u64_as_i64(contest_result.census)),
+                    total_votes: Some(result_count_u64_as_i64(contest_result.total_votes)),
                     total_votes_percent: Some(total_votes_percent.clamp(0.0, 1.0).try_into()?),
-                    total_auditable_votes: Some(contest_result.auditable_votes.cast_signed()),
+                    total_auditable_votes: Some(result_count_u64_as_i64(
+                        contest_result.auditable_votes,
+                    )),
                     total_auditable_votes_percent: Some(
                         auditable_votes_percent.clamp(0.0, 1.0).try_into()?,
                     ),
-                    total_valid_votes: Some(contest_result.total_valid_votes.cast_signed()),
+                    total_valid_votes: Some(result_count_u64_as_i64(
+                        contest_result.total_valid_votes,
+                    )),
                     total_valid_votes_percent: Some(
                         total_valid_votes_percent.clamp(0.0, 1.0).try_into()?,
                     ),
-                    total_invalid_votes: Some(contest_result.total_invalid_votes.cast_signed()),
+                    total_invalid_votes: Some(result_count_u64_as_i64(
+                        contest_result.total_invalid_votes,
+                    )),
                     total_invalid_votes_percent: Some(
                         total_invalid_votes_percent.clamp(0.0, 1.0).try_into()?,
                     ),
-                    explicit_invalid_votes: Some(
-                        contest_result.invalid_votes.explicit.cast_signed(),
-                    ),
+                    explicit_invalid_votes: Some(result_count_u64_as_i64(
+                        contest_result.invalid_votes.explicit,
+                    )),
                     explicit_invalid_votes_percent: Some(
                         explicit_invalid_votes_percent.clamp(0.0, 1.0).try_into()?,
                     ),
-                    implicit_invalid_votes: Some(
-                        contest_result.invalid_votes.implicit.cast_signed(),
-                    ),
+                    implicit_invalid_votes: Some(result_count_u64_as_i64(
+                        contest_result.invalid_votes.implicit,
+                    )),
                     implicit_invalid_votes_percent: Some(
                         implicit_invalid_votes_percent.clamp(0.0, 1.0).try_into()?,
                     ),
-                    blank_votes: Some(contest_result.total_blank_votes.cast_signed()),
+                    blank_votes: Some(result_count_u64_as_i64(contest_result.total_blank_votes)),
                     blank_votes_percent: Some(
                         total_blank_votes_percent.clamp(0.0, 1.0).try_into()?,
                     ),
@@ -540,11 +551,11 @@ pub fn save_results(
                         candidate_id: candidate.candidate.id.clone(),
                         results_event_id: results_event_id.into(),
                         area_id: area.id.clone(),
-                        cast_votes: Some(candidate.total_count.cast_signed()),
+                        cast_votes: Some(result_count_u64_as_i64(candidate.total_count)),
                         cast_votes_percent: Some(cast_votes_percent.clamp(0.0, 1.0).try_into()?),
                         winning_position: candidate
                             .winning_position
-                            .map(|val| (val as u64).cast_signed()),
+                            .map(|val| result_count_u64_as_i64(val as u64)),
                         points: None,
                         created_at: None,
                         last_updated_at: None,
@@ -561,15 +572,17 @@ pub fn save_results(
                     election_id: election.election_id.clone(),
                     contest_id: current_contest.id.clone(),
                     results_event_id: results_event_id.into(),
-                    elegible_census: Some(contest_result.census.cast_signed()),
-                    total_valid_votes: Some(contest_result.total_valid_votes.cast_signed()),
-                    explicit_invalid_votes: Some(
-                        contest_result.invalid_votes.explicit.cast_signed(),
-                    ),
-                    implicit_invalid_votes: Some(
-                        contest_result.invalid_votes.implicit.cast_signed(),
-                    ),
-                    blank_votes: Some(contest_result.total_blank_votes.cast_signed()),
+                    elegible_census: Some(result_count_u64_as_i64(contest_result.census)),
+                    total_valid_votes: Some(result_count_u64_as_i64(
+                        contest_result.total_valid_votes,
+                    )),
+                    explicit_invalid_votes: Some(result_count_u64_as_i64(
+                        contest_result.invalid_votes.explicit,
+                    )),
+                    implicit_invalid_votes: Some(result_count_u64_as_i64(
+                        contest_result.invalid_votes.implicit,
+                    )),
+                    blank_votes: Some(result_count_u64_as_i64(contest_result.total_blank_votes)),
                     voting_type: current_contest.voting_type.clone(),
                     counting_algorithm: Some(
                         current_contest
@@ -582,7 +595,9 @@ pub fn save_results(
                     last_updated_at: None,
                     labels: None,
                     annotations: Some(annotations),
-                    total_invalid_votes: Some(contest_result.total_invalid_votes.cast_signed()),
+                    total_invalid_votes: Some(result_count_u64_as_i64(
+                        contest_result.total_invalid_votes,
+                    )),
                     total_invalid_votes_percent: Some(
                         total_invalid_votes_percent.clamp(0.0, 1.0).try_into()?,
                     ),
@@ -598,10 +613,12 @@ pub fn save_results(
                     blank_votes_percent: Some(
                         total_blank_votes_percent.clamp(0.0, 1.0).try_into()?,
                     ),
-                    total_votes: Some(contest_result.total_votes.cast_signed()),
+                    total_votes: Some(result_count_u64_as_i64(contest_result.total_votes)),
                     total_votes_percent: Some(total_votes_percent.clamp(0.0, 1.0).try_into()?),
                     documents: None,
-                    total_auditable_votes: Some(contest_result.auditable_votes.cast_signed()),
+                    total_auditable_votes: Some(result_count_u64_as_i64(
+                        contest_result.auditable_votes,
+                    )),
                     total_auditable_votes_percent: Some(
                         auditable_votes_percent.clamp(0.0, 1.0).try_into()?,
                     ),
@@ -617,10 +634,10 @@ pub fn save_results(
                         contest_id: current_contest.id.clone(),
                         candidate_id: candidate.candidate.id.clone(),
                         results_event_id: results_event_id.into(),
-                        cast_votes: Some(candidate.total_count.cast_signed()),
+                        cast_votes: Some(result_count_u64_as_i64(candidate.total_count)),
                         winning_position: candidate
                             .winning_position
-                            .map(|val| (val as u64).cast_signed()),
+                            .map(|val| result_count_u64_as_i64(val as u64)),
                         points: None,
                         created_at: None,
                         last_updated_at: None,

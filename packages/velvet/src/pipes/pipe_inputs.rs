@@ -78,10 +78,10 @@ impl PipeInputs {
     /// # Errors
     /// Returns an error if input directory reading or election configuration parsing fails.
     pub fn new(cli: CliRun, stage: Stage) -> Result<Self> {
-        let root_path_config = &cli.input_dir.join(DEFAULT_DIR_CONFIGS);
-        let root_path_ballots = &cli.input_dir.join(DEFAULT_DIR_BALLOTS);
-        let root_path_tally_sheets = &cli.input_dir.join(DEFAULT_DIR_TALLY_SHEETS);
-        let root_path_database = &cli.input_dir.join(DEFAULT_DIR_DATABASE);
+        let root_path_config = cli.input_dir.join(DEFAULT_DIR_CONFIGS);
+        let root_path_ballots = cli.input_dir.join(DEFAULT_DIR_BALLOTS);
+        let root_path_tally_sheets = cli.input_dir.join(DEFAULT_DIR_TALLY_SHEETS);
+        let root_path_database = cli.input_dir.join(DEFAULT_DIR_DATABASE);
 
         let election_list = Self::read_input_dir_config(root_path_config.as_path())?;
         Ok(Self {

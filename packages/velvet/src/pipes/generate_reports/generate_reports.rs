@@ -131,16 +131,11 @@ impl GenerateReports {
         Ok(pipe_config)
     }
 
-    #[instrument(err, skip_all)]
     /// Computes and formats reports for rendering.
     ///
     /// # Errors
     ///
     /// Returns an error if report computation fails.
-    ///
-    /// # Panics
-    ///
-    /// May panic if `contest_result` is None for a contest.
     #[instrument(err, skip_all)]
     #[allow(clippy::too_many_lines)]
     pub fn compute_reports(
@@ -183,11 +178,7 @@ impl GenerateReports {
                 let mut contest_result_opt = report.contest_result.clone();
                 let mut candidate_result = vec![];
 
-                if (contest_result_opt.is_some()) {
-                    let mut contest_result = contest_result_opt
-                        .clone()
-                        .expect("contest_result should be present");
-
+                if let Some(mut contest_result) = contest_result_opt.take() {
                     contest_result.contest.name =
                         contest_result.contest.name.as_ref().map(|name| {
                             name.split('/')
@@ -426,7 +417,8 @@ impl GenerateReports {
                 .map(|val| Some(val.to_print_to_pdf_options()))
                 .unwrap_or_default();
 
-            let rt = tokio::runtime::Runtime::new().expect("Failed to create Tokio runtime");
+            let _rt = tokio::runtime::Runtime::new()
+                .map_err(|e| Error::Unexpected(format!("Failed to create Tokio runtime: {e}")))?;
             let bytes_pdf =
                 pdf::sync::PdfRenderer::render_pdf(render_pdf, pdf_options).map_err(|e| {
                     Error::Unexpected(format!("Error during html_to_pdf conversion: {e}"))

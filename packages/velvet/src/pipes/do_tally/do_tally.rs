@@ -122,13 +122,12 @@ impl DoTally {
 }
 
 impl Pipe for DoTally {
-    #[instrument(err, skip_all, name = "DoTally::exec")]
     /// Processes tally operations and aggregates results.
     ///
     /// # Errors
     ///
     /// Returns an error if tally processing fails.
-    #[instrument(err, skip_all)]
+    #[instrument(err, skip_all, name = "DoTally::exec")]
     #[allow(clippy::too_many_lines)]
     fn exec(&self) -> Result<()> {
         let input_dir_base = self
