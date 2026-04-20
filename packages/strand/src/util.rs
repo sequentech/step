@@ -51,8 +51,8 @@ pub enum StrandError {
     SerializationError(#[from] std::io::Error),
     #[error("decode error: {0}")]
     DecodingError(#[from] base64::DecodeError),
-    #[error("ecdsa error: {0}")]
-    EcdsaError(#[from] ecdsa::Error),
+    #[error("signature error: {0}")]
+    SignatureError(#[from] ed25519_dalek::SignatureError),
     #[error("chacha20poly1305 error: {0}")]
     Chacha20Error(chacha20poly1305::Error),
     #[error("rcgen error: {0}")]

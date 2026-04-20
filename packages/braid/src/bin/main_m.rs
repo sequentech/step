@@ -163,7 +163,7 @@ async fn run(args: &Cli) -> Result<()> {
         };
 
         boards.retain(|b| !ignored_boards.contains(b));
-        let boards_len = boards.len();
+        let _boards_len = boards.len();
         master.refresh_sets(boards).await?;
 
         cfg_if::cfg_if! {
@@ -179,7 +179,7 @@ async fn run(args: &Cli) -> Result<()> {
                     if res > max_allocated {
                         max_allocated = res;
                     }
-                    info!("{} MB allocated / {} MB resident (max = {} MB) ({} boards)", (alloc / mb), (res / mb), (max_allocated / mb), boards_len);
+                    info!("{} MB allocated / {} MB resident (max = {} MB) ({} boards)", (alloc / mb), (res / mb), (max_allocated / mb), _boards_len);
                 }
             }
         }
