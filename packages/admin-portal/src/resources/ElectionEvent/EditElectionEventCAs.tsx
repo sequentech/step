@@ -428,7 +428,7 @@ export const EditElectionEventCAs: React.FC = () => {
         <>
             <ElectionHeader
                 title={String(t("certificateAuthorities.title"))}
-                subtitle="certificateAuthorities.subtitle"
+                subtitle={String(t("certificateAuthorities.subtitle"))}
             />
             <List
                 resource={RESOURCE}
