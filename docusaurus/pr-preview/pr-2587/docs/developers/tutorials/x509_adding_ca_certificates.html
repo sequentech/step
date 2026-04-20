@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.9.2">
 <title data-rh="true">X.509 — Adding CA Certificates to the Trust Bundle | Sequent Online Voting</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:url" content="https://sequentech.github.io/docusaurus/pr-preview/pr-2587/docs/developers/tutorials/x509_adding_ca_certificates"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="X.509 — Adding CA Certificates to the Trust Bundle | Sequent Online Voting"><meta data-rh="true" name="description" content="&lt;!--"><meta data-rh="true" property="og:description" content="&lt;!--"><link data-rh="true" rel="icon" href="/docusaurus/pr-preview/pr-2587/img/favicon.ico"><link data-rh="true" rel="canonical" href="https://sequentech.github.io/docusaurus/pr-preview/pr-2587/docs/developers/tutorials/x509_adding_ca_certificates"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-2587/docs/developers/tutorials/x509_adding_ca_certificates" hreflang="en"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-2587/docs/developers/tutorials/x509_adding_ca_certificates" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"X.509 — Adding CA Certificates to the Trust Bundle","item":"https://sequentech.github.io/docusaurus/pr-preview/pr-2587/docs/developers/tutorials/x509_adding_ca_certificates"}]}</script><link rel="stylesheet" href="/docusaurus/pr-preview/pr-2587/assets/css/styles.b012d36e.css">
-<script src="/docusaurus/pr-preview/pr-2587/assets/js/runtime~main.47c28149.js" defer="defer"></script>
+<script src="/docusaurus/pr-preview/pr-2587/assets/js/runtime~main.cceae4a6.js" defer="defer"></script>
 <script src="/docusaurus/pr-preview/pr-2587/assets/js/main.24e6b21e.js" defer="defer"></script>
 </head>
 <body class="navigation-with-keyboard">
@@ -15,7 +15,7 @@
 <p>This guide explains how to take a CA certificate issued by an external PKI
 (such as a national identity authority), convert it to the correct format, and
 add it so that voter certificates signed by that CA are accepted.</p>
-<p><strong>See also:</strong> <a class="" href="/docusaurus/pr-preview/pr-2587/docs/developers/tutorials/07-x509-voter-certificate-authentication">X.509 Certificate Voter Authentication</a> — full dev and production setup.</p>
+<p><strong>See also:</strong> <a class="" href="/docusaurus/pr-preview/pr-2587/docs/developers/tutorials/x509_voter_certificate_authentication">X.509 Certificate Voter Authentication</a> — full dev and production setup.</p>
 <hr>
 <h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="1-identify-the-certificate-format">1. Identify the Certificate Format<a href="#1-identify-the-certificate-format" class="hash-link" aria-label="Direct link to 1. Identify the Certificate Format" title="Direct link to 1. Identify the Certificate Format" translate="no">​</a></h2>
 <p>CA certificates are distributed in two common encodings:</p>
@@ -36,7 +36,7 @@ or a PEM file starting with <code>-----BEGIN PKCS7-----</code>). Extract all cer
 <hr>
 <h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="4-add-the-ca-via-the-admin-portal">4. Add the CA via the Admin Portal<a href="#4-add-the-ca-via-the-admin-portal" class="hash-link" aria-label="Direct link to 4. Add the CA via the Admin Portal" title="Direct link to 4. Add the CA via the Admin Portal" translate="no">​</a></h2>
 <p>CA certificates are stored in the database per election event and served by
-Harvest. This applies to both dev and production.</p>
+Harvest. This applies to both dev and production. See the <a class="" href="/docusaurus/pr-preview/pr-2587/docs/election_managers/reference/election-event/election_management_election_event_certificates">Certificates reference</a> for details on the admin portal UI.</p>
 <ol>
 <li class="">Log in and navigate to the election event</li>
 <li class="">Open the <strong>CERTIFICATES</strong> tab</li>
