@@ -2223,6 +2223,9 @@ const catalanTranslation: TranslationType = {
                 description: "Esteu a punt d'exportar {{amount}} certificat(s).",
                 all: "tots",
             },
+            deleteDialog: {
+                description: "Esteu segur que voleu suprimir {{count}} certificat(s)?",
+            },
             emptyHeader:
                 "No s'han importat autoritats de certificació per a aquest esdeveniment electoral.",
             fileReadError: "Error en llegir el fitxer.",

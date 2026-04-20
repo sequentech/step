@@ -2206,6 +2206,9 @@ const basqueTranslation: TranslationType = {
                 description: "{{amount}} ziurtagiri esportatuko duzu.",
                 all: "guztiak",
             },
+            deleteDialog: {
+                description: "Ziur zaude {{count}} ziurtagiri(ak) ezabatu nahi dituzula?",
+            },
             emptyHeader:
                 "Ez da ziurtagiri-agintaritzarik inportatu hauteskunde-ekitaldi honetarako.",
             fileReadError: "Fitxategia irakurtzean huts egin du.",

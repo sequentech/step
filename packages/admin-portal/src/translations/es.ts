@@ -2216,6 +2216,9 @@ const spanishTranslation: TranslationType = {
                 description: "Está a punto de exportar {{amount}} certificado(s).",
                 all: "todos",
             },
+            deleteDialog: {
+                description: "¿Está seguro de que desea eliminar {{count}} certificado(s)?",
+            },
             emptyHeader:
                 "No se han importado autoridades de certificación para este evento electoral.",
             fileReadError: "Error al leer el archivo.",

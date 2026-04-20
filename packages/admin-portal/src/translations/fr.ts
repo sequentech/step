@@ -2227,6 +2227,9 @@ const frenchTranslation: TranslationType = {
                 description: "Vous êtes sur le point d'exporter {{amount}} certificat(s).",
                 all: "tous",
             },
+            deleteDialog: {
+                description: "Êtes-vous sûr de vouloir supprimer {{count}} certificat(s) ?",
+            },
             emptyHeader:
                 "Aucune autorité de certification n'a été importée pour cet événement électoral.",
             fileReadError: "Échec de la lecture du fichier.",

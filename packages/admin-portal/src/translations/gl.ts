@@ -2213,6 +2213,9 @@ const galegoTranslation: TranslationType = {
                 description: "Está a punto de exportar {{amount}} certificado(s).",
                 all: "todos",
             },
+            deleteDialog: {
+                description: "¿Está seguro de que desexa eliminar {{count}} certificado(s)?",
+            },
             emptyHeader:
                 "Non se importaron autoridades de certificación para este evento electoral.",
             fileReadError: "Erro ao ler o ficheiro.",

@@ -2197,6 +2197,9 @@ const englishTranslation = {
                 description: "You are about to export {{amount}} certificate(s).",
                 all: "all",
             },
+            deleteDialog: {
+                description: "Are you sure you want to delete {{count}} certificate(s)?",
+            },
             emptyHeader: "No certificate authorities have been imported for this election event.",
             fileReadError: "Failed to read the file.",
             viewDialog: {

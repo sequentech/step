@@ -2209,6 +2209,9 @@ const dutchTranslation: TranslationType = {
                 description: "U staat op het punt {{amount}} certificaat(-en) te exporteren.",
                 all: "alle",
             },
+            deleteDialog: {
+                description: "Weet u zeker dat u {{count}} certificaat(-en) wilt verwijderen?",
+            },
             emptyHeader:
                 "Er zijn geen certificaatautoriteiten geïmporteerd voor dit verkiezingsevenement.",
             fileReadError: "Bestand lezen mislukt.",

@@ -2219,6 +2219,9 @@ const tagalogTranslation: TranslationType = {
                 description: "Ie-export mo ang {{amount}} sertipiko.",
                 all: "lahat",
             },
+            deleteDialog: {
+                description: "Sigurado ka bang gusto mong burahin ang {{count}} sertipiko?",
+            },
             emptyHeader:
                 "Walang mga awtoridad sa sertipikasyon na na-import para sa electoral event na ito.",
             fileReadError: "Nabigo ang pagbasa ng file.",

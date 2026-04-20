@@ -17,8 +17,8 @@ Voters can authenticate using client certificates issued by a Certificate Author
 Certificate authentication is disabled by default. To enable it:
 
 1. Go to the election event's **Data** tab.
-2. Open the **Advanced** section.
-3. Enable the **Voter Certificate Policy** setting.
+2. Open the **Advanced Configurations** section.
+3. Enable the **Voter Digital Certificate Policy** setting.
 
 Once enabled, a **Login with Certificate** button will appear on the voting portal login page, allowing voters to authenticate using their client certificate.
 

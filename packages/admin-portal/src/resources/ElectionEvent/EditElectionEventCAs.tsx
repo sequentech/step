@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import React, {useContext, useState} from "react"
+import React, {useContext, useRef, useState} from "react"
 import {
     DatagridConfigurable,
     FunctionField,
@@ -219,6 +219,7 @@ export const EditElectionEventCAs: React.FC = () => {
     const [exportIds, setExportIds] = useState<Identifier[]>([])
     const [openBulkDeleteModal, setOpenBulkDeleteModal] = useState(false)
     const [bulkDeleteIds, setBulkDeleteIds] = useState<Identifier[]>([])
+    const unselectAllRef = useRef<(() => void) | null>(null)
 
     const canWrite = authContext.isAuthorized(true, tenantId, IPermissions.CA_WRITE)
     const canRead = authContext.isAuthorized(true, tenantId, IPermissions.CA_READ)
@@ -320,6 +321,7 @@ export const EditElectionEventCAs: React.FC = () => {
     const confirmBulkDeleteAction = () => {
         deleteCA({variables: {ids: bulkDeleteIds, electionEventId: record?.id}})
         setBulkDeleteIds([])
+        unselectAllRef.current?.()
     }
 
     const handleExportAll = () => {
@@ -352,7 +354,8 @@ export const EditElectionEventCAs: React.FC = () => {
     }
 
     function BulkActions() {
-        const {selectedIds} = useListContext()
+        const {selectedIds, onUnselectItems} = useListContext()
+        unselectAllRef.current = onUnselectItems
 
         return (
             <>
@@ -606,7 +609,7 @@ export const EditElectionEventCAs: React.FC = () => {
                     setOpenBulkDeleteModal(false)
                 }}
             >
-                {t("common.message.delete")}
+                {t("certificateAuthorities.deleteDialog.description", {count: bulkDeleteIds.length})}
             </Dialog>
 
             {/* Export Confirmation Dialog */}
