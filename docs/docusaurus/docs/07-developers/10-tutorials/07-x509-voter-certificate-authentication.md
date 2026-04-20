@@ -21,7 +21,7 @@ election operator through the admin portal. Certificate presentation is
 **optional** — voters without a certificate fall through to password-based
 authentication as normal.
 
-**See also:** [X.509 Architecture](../06-keycloak/x509_client_cert_architecture) — design, components, and multi-tenancy.
+**See also:** [X.509 Architecture](../06-keycloak/x509_client_cert_architecture.md) — design, components, and multi-tenancy.
 
 ---
 
@@ -332,5 +332,5 @@ The voter account is not in the `voter` group in Keycloak. Add the user to the
 
 ## See Also
 
-- [X.509 Architecture](../06-keycloak/x509_client_cert_architecture) — end-to-end flow, infrastructure, multi-tenancy
-- [X.509 — Adding CA Certificates](./08-x509-adding-ca-certificates) — adding external PKI CA certs to the trust bundle
+- [X.509 Architecture](../06-keycloak/x509_client_cert_architecture.md) — end-to-end flow, infrastructure, multi-tenancy
+- [X.509 — Adding CA Certificates](./08-x509-adding-ca-certificates.md) — adding external PKI CA certs to the trust bundle

@@ -15,7 +15,7 @@ This guide explains how to take a CA certificate issued by an external PKI
 (such as a national identity authority), convert it to the correct format, and
 add it so that voter certificates signed by that CA are accepted.
 
-**See also:** [X.509 Certificate Voter Authentication](./07-x509-voter-certificate-authentication) — full dev and production setup.
+**See also:** [X.509 Certificate Voter Authentication](./07-x509-voter-certificate-authentication.md) — full dev and production setup.
 
 ---
 
@@ -69,7 +69,7 @@ openssl pkcs7 -print_certs -in <bundle-file> -out extracted.pem
 ## 4. Add the CA via the Admin Portal
 
 CA certificates are stored in the database per election event and served by
-Harvest. This applies to both dev and production.
+Harvest. This applies to both dev and production. See the [Certificates reference](../../02-election_managers/02-reference/02-election-event/15-election_management_election-event_certificates.md) for details on the admin portal UI.
 
 1. Log in and navigate to the election event
 2. Open the **CERTIFICATES** tab
