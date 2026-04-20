@@ -4,9 +4,9 @@
 
 package sequent.keycloak.conditional_authenticators;
 
+import static sequent.keycloak.authenticator.Utils.ACCESS_DENIED;
 import static sequent.keycloak.authenticator.Utils.AUTH_NOTE_DENY_TYPE;
 import static sequent.keycloak.authenticator.Utils.USER_NOT_FOUND;
-import static sequent.keycloak.authenticator.Utils.ACCESS_DENIED;
 
 import lombok.extern.jbosslog.JBossLog;
 import org.keycloak.authentication.AuthenticationFlowContext;
@@ -31,7 +31,10 @@ public class X509UserResolutionAuthenticator extends X509ClientCertificateAuthen
     // to avoid overwriting it with a generic access-denied
     if (context.getUser() == null
         && context.getAuthenticationSession().getAuthNote(AUTH_NOTE_DENY_TYPE) == null) {
-      String denyType = Errors.USER_NOT_FOUND.equals(eventError) || Errors.USER_DISABLED.equals(eventError) ? USER_NOT_FOUND : ACCESS_DENIED;
+      String denyType =
+          Errors.USER_NOT_FOUND.equals(eventError) || Errors.USER_DISABLED.equals(eventError)
+              ? USER_NOT_FOUND
+              : ACCESS_DENIED;
       log.infov(
           "authenticate(): user not resolved after X509 validation (eventError={0}), setting {1}={2}",
           eventError, AUTH_NOTE_DENY_TYPE, denyType);
