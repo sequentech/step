@@ -394,6 +394,21 @@ export const EditElectionEventCAs: React.FC = () => {
         },
     ]
 
+    function CertificateListActions() {
+        const {selectedIds} = useListContext()
+        return (
+            <div style={{visibility: selectedIds.length > 0 ? "hidden" : "visible"}}>
+                <ListActions
+                    withImport={canWrite}
+                    doImport={() => setImportDrawerOpen(true)}
+                    withExport={true}
+                    doExport={handleExportAll}
+                    withFilter={false}
+                />
+            </div>
+        )
+    }
+
     const Empty = () => (
         <ResourceListStyles.EmptyBox>
             <Typography variant="h6">{t("certificateAuthorities.emptyHeader")}</Typography>
@@ -417,15 +432,7 @@ export const EditElectionEventCAs: React.FC = () => {
             />
             <List
                 resource={RESOURCE}
-                actions={
-                    <ListActions
-                        withImport={canWrite}
-                        doImport={() => setImportDrawerOpen(true)}
-                        withExport={true}
-                        doExport={handleExportAll}
-                        withFilter={false}
-                    />
-                }
+                actions={<CertificateListActions />}
                 empty={<Empty />}
                 storeKey={false}
                 disableSyncWithLocation
