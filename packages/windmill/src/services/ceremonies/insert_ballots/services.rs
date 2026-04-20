@@ -10,8 +10,8 @@
 //! propagation and retries.
 
 use super::{
-    BallotBoardPort, ContestBallotUpserter, InsertBallotsBoardContext, PrepareBoardContextRequest,
-    TrusteePublicKeyResolver, UpsertBallotsMessagesRequest,
+    BallotBoardRepository, ContestBallotUpserter, InsertBallotsBoardContext,
+    PrepareBoardContextRequest, TrusteePublicKeyResolver, UpsertBallotsMessagesRequest,
 };
 use crate::repositories::ballots::BallotRepository;
 use crate::repositories::election_event::ElectionEventRepository;
@@ -135,7 +135,7 @@ where
     E: ElectionEventRepository,
     B: BallotRepository,
     U: EligibleUserRepository,
-    O: BallotBoardPort,
+    O: BallotBoardRepository,
 {
     trustee_public_key_resolver: &'a T,
     election_event_repository: &'a E,
@@ -151,7 +151,7 @@ where
     E: ElectionEventRepository,
     B: BallotRepository,
     U: EligibleUserRepository,
-    O: BallotBoardPort,
+    O: BallotBoardRepository,
 {
     /// Creates the insert-ballots application service.
     ///
@@ -455,7 +455,7 @@ where
     E: ElectionEventRepository,
     B: BallotRepository,
     U: EligibleUserRepository,
-    O: BallotBoardPort,
+    O: BallotBoardRepository,
 {
     async fn upsert_ballots(
         &self,
@@ -529,7 +529,7 @@ mod tests {
     use crate::repositories::trustees::TrusteeRepository;
     use crate::repositories::voters::EligibleUserRepository;
     use crate::services::ceremonies::insert_ballots::{
-        BallotBoardPort, InsertBallotsBoardContext, PrepareBoardContextRequest,
+        BallotBoardRepository, InsertBallotsBoardContext, PrepareBoardContextRequest,
         TrusteePublicKeyResolver,
     };
     use anyhow::Result;
@@ -641,7 +641,7 @@ mod tests {
         BallotBoardPortDouble {}
 
         #[async_trait]
-        impl BallotBoardPort for BallotBoardPortDouble {
+        impl BallotBoardRepository for BallotBoardPortDouble {
             async fn prepare_board_context(
                 &self,
                 request: PrepareBoardContextRequest,
