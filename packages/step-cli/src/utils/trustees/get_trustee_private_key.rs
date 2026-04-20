@@ -19,7 +19,6 @@ use std::error::Error;
     query_path = "src/graphql/get_private_key.graphql",
     response_derives = "Debug,Clone,Deserialize,Serialize"
 )]
-
 pub struct GetPrivateKey;
 
 pub struct GetTrusteePrivateKey;

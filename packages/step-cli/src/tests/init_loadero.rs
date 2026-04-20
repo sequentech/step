@@ -49,10 +49,9 @@ pub fn init_loadero_tests(
                 if e.to_string().contains("HTTP Status") {
                     eprintln!("HTTP Error checking status for test {}: {}", test_id, e);
                     break; // Exit the loop on HTTP errors
-                } else {
-                    // Wait before retrying
-                    thread::sleep(polling_interval);
                 }
+                // Wait before retrying
+                thread::sleep(polling_interval);
             }
         }
     }

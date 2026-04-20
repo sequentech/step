@@ -2,13 +2,16 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use crate::{types::hasura_types::*, utils::read_config::read_config};
+use crate::types::hasura_types::uuid;
+use crate::utils::read_config::read_config;
 use clap::Args;
 use colored::Colorize;
 use graphql_client::{GraphQLQuery, Response};
+use tracing::{error, info};
 
 #[derive(Args)]
 #[command(about = "Cast a vote", long_about = None)]
+/// Cast ote command arguments
 pub struct CastVote {
     /// Election id - the election to cast a vote for
     #[arg(long)]
@@ -21,22 +24,25 @@ pub struct CastVote {
     query_path = "src/graphql/insert_cast_vote.graphql",
     response_derives = "Debug,Clone,Deserialize,Serialize"
 )]
+/// Insert cast vote query
 pub struct InsertCastVote;
 
 impl CastVote {
+    /// Run the cast vote command
     pub fn run(&self) {
         match cast_vote(&self.election_id) {
             Ok(id) => {
-                println!("{} {}", "Success! Vote cast! ID:".green(), id.cyan());
+                info!("{} {}", "Success! Vote cast! ID:".green(), id.cyan());
             }
             Err(err) => {
-                eprintln!("Error! Failed to cast vote: {}", err)
+                error!("Error! Failed to cast vote: {err}");
             }
         }
     }
 }
 
-fn cast_vote(election_id: &str) -> Result<String, Box<dyn std::error::Error>> {
+/// Cast a vote and return the vote id
+pub fn cast_vote(election_id: &str) -> Result<String, Box<dyn std::error::Error>> {
     let config = read_config()?;
     let client = reqwest::blocking::Client::new();
 
@@ -71,7 +77,7 @@ fn cast_vote(election_id: &str) -> Result<String, Box<dyn std::error::Error>> {
     } else {
         let status = response.status();
         let error_message = response.text()?;
-        let error = format!("HTTP Status: {}\nError Message: {}", status, error_message);
+        let error = format!("HTTP Status: {status}\nError Message: {error_message}");
         Err(Box::from(error))
     }
 }

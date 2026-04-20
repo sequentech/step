@@ -9,9 +9,11 @@ use crate::{
 use clap::Args;
 use colored::Colorize;
 use graphql_client::{GraphQLQuery, Response};
+use tracing::{error, info};
 
 #[derive(Args)]
 #[command(about = "Confirm trustee key for tally ceremony", long_about = None)]
+/// Confirm key for tally ceremony command arguments
 pub struct ConfirmKeyForTally {
     /// Election event id - the election event to start the key ceremony for
     #[arg(long)]
@@ -28,25 +30,28 @@ pub struct ConfirmKeyForTally {
     query_path = "src/graphql/restore_private_key.graphql",
     response_derives = "Debug,Clone,Deserialize,Serialize"
 )]
+/// Restore private key query
 pub struct RestorePrivateKey;
 
 impl ConfirmKeyForTally {
+    /// Run the confirm key for tally ceremony command
     pub fn run(&self) {
         match confirm_key(&self.election_event_id, &self.tally_id) {
             Ok(is_valid) => {
                 if is_valid {
-                    println!("{}", "Success! Successfully confirmed key".green());
+                    info!("{}", "Success! Successfully confirmed key".green());
                 } else {
-                    eprintln!("{}", "Error! Failed to confirm key".red())
+                    error!("{}", "Error! Failed to confirm key".red());
                 }
             }
             Err(err) => {
-                eprintln!("Failed to confirm key: {}", err)
+                error!("Failed to confirm key: {err}");
             }
         }
     }
 }
 
+/// Confirm the key for trustee for the tally ceremony and return if the key is valid
 pub fn confirm_key(
     election_event_id: &str,
     tally_id: &str,
@@ -54,7 +59,7 @@ pub fn confirm_key(
     let config = read_config()?;
     let client = reqwest::blocking::Client::new();
 
-    let key = get_private_key_content(&election_event_id, &config.username)?;
+    let key = get_private_key_content(election_event_id, &config.username)?;
 
     let variables = restore_private_key::Variables {
         election_event_id: election_event_id.to_string(),
@@ -87,7 +92,7 @@ pub fn confirm_key(
     } else {
         let status = response.status();
         let error_message = response.text()?;
-        let error = format!("HTTP Status: {}\nError Message: {}", status, error_message);
+        let error = format!("HTTP Status: {status}\nError Message: {error_message}");
         Err(Box::from(error))
     }
 }

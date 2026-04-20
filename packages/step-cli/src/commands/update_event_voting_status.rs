@@ -33,7 +33,6 @@ impl From<VotingStatusChannel> for CliVotingStatusChannel {
 
 #[derive(Args)]
 #[command(about = "Update election event voting status", long_about = None)]
-
 pub struct UpdateElectionEventVotingStatus {
     #[arg(long)]
     election_event_id: String,

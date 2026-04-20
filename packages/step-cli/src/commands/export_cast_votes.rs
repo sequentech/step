@@ -2,8 +2,6 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use crate::utils::keycloak::get_keyckloak_pool;
-use crate::utils::read_config::load_external_config;
 use anyhow::{anyhow, Context, Result};
 use base64::engine::general_purpose;
 use base64::Engine;

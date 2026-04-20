@@ -2,13 +2,15 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use crate::{types::hasura_types::*, utils::read_config::read_config};
+use crate::{types::hasura_types::uuid, utils::read_config::read_config};
 use clap::Args;
 use colored::Colorize;
 use graphql_client::{GraphQLQuery, Response};
+use tracing::{error, info};
 
 #[derive(Args)]
 #[command(about = "Create a new area", long_about = None)]
+/// Create area command arguments
 pub struct CreateArea {
     /// Name of the area
     #[arg(long)]
@@ -29,25 +31,28 @@ pub struct CreateArea {
     query_path = "src/graphql/insert_area.graphql",
     response_derives = "Debug,Clone,Deserialize,Serialize"
 )]
+/// Insert area query
 pub struct InsertArea;
 
 impl CreateArea {
+    /// Run the create area command
     pub fn run(&self) {
         match create_area(&self.name, &self.description, &self.election_event_id) {
             Ok(id) => {
-                println!(
+                info!(
                     "{} {}",
                     "Success! Area created successfully! ID:".green(),
                     id.cyan()
                 );
             }
             Err(err) => {
-                eprintln!("Error! Failed to create Area: {}", err)
+                error!("Error! Failed to create Area: {err}");
             }
         }
     }
 }
 
+/// Create an area and return the area id
 fn create_area(
     name: &str,
     description: &str,
@@ -77,7 +82,10 @@ fn create_area(
         let response_body: Response<insert_area::ResponseData> = response.json()?;
         if let Some(data) = response_body.data {
             if let Some(e) = data.insert_sequent_backend_area {
-                Ok(e.returning[0].id.clone())
+                match e.returning.as_slice() {
+                    [first, ..] => Ok(first.id.clone()),
+                    [] => Err(Box::from("failed generating id")),
+                }
             } else {
                 Err(Box::from("failed generating id"))
             }
@@ -90,7 +98,7 @@ fn create_area(
     } else {
         let status = response.status();
         let error_message = response.text()?;
-        let error = format!("HTTP Status: {}\nError Message: {}", status, error_message);
+        let error = format!("HTTP Status: {status}\nError Message: {error_message}");
         Err(Box::from(error))
     }
 }

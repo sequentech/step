@@ -1,15 +1,20 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use crate::{types::hasura_types::*, utils::read_config::read_config};
+use crate::{
+    types::hasura_types::{jsonb, uuid},
+    utils::read_config::read_config,
+};
 use clap::Args;
 use colored::Colorize;
 use graphql_client::{GraphQLQuery, Response};
 use sequent_core::ballot::CandidatePresentation;
 use std::collections::HashMap;
+use tracing::{error, info};
 
 #[derive(Args)]
 #[command(about = "Create a new candidate", long_about = None)]
+/// Create candidate command arguments
 pub struct CreateCandidate {
     /// Name of the candidate
     #[arg(long)]
@@ -34,9 +39,11 @@ pub struct CreateCandidate {
     query_path = "src/graphql/insert_candidate.graphql",
     response_derives = "Debug,Clone,Deserialize,Serialize"
 )]
+/// Insert candidate query
 pub struct InsertCandidate;
 
 impl CreateCandidate {
+    /// Run the create candidate command
     pub fn run(&self) {
         match create_candidate(
             &self.name,
@@ -45,19 +52,20 @@ impl CreateCandidate {
             &self.contest_id,
         ) {
             Ok(id) => {
-                println!(
+                info!(
                     "{} {}",
                     "Success! Candidate created successfully! ID:".green(),
                     id.cyan()
                 );
             }
             Err(err) => {
-                eprintln!("Error! Failed to create candidate: {}", err)
+                error!("Error! Failed to create candidate: {err}");
             }
         }
     }
 }
 
+/// Create a candidate and return the candidate id
 fn create_candidate(
     name: &str,
     description: &str,
@@ -67,12 +75,13 @@ fn create_candidate(
     let config = read_config()?;
     let client = reqwest::blocking::Client::new();
 
-    let mut presentation = CandidatePresentation::default();
-
-    presentation.i18n = Some(HashMap::from([(
-        "en".to_string(),
-        HashMap::from([("name".to_string(), Some(name.to_string()))]),
-    )]));
+    let presentation = CandidatePresentation {
+        i18n: Some(HashMap::from([(
+            "en".to_string(),
+            HashMap::from([("name".to_string(), Some(name.to_string()))]),
+        )])),
+        ..Default::default()
+    };
 
     let variables = insert_candidate::Variables {
         description: Some(description.to_string()),
@@ -94,7 +103,10 @@ fn create_candidate(
         let response_body: Response<insert_candidate::ResponseData> = response.json()?;
         if let Some(data) = response_body.data {
             if let Some(e) = data.insert_sequent_backend_candidate {
-                Ok(e.returning[0].id.clone())
+                match e.returning.as_slice() {
+                    [first, ..] => Ok(first.id.clone()),
+                    [] => Err(Box::from("failed generating id")),
+                }
             } else {
                 Err(Box::from("failed generating id"))
             }
@@ -107,7 +119,7 @@ fn create_candidate(
     } else {
         let status = response.status();
         let error_message = response.text()?;
-        let error = format!("HTTP Status: {}\nError Message: {}", status, error_message);
+        let error = format!("HTTP Status: {status}\nError Message: {error_message}");
         Err(Box::from(error))
     }
 }

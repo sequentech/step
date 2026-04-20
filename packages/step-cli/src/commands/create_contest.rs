@@ -1,15 +1,20 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use crate::{types::hasura_types::*, utils::read_config::read_config};
+use crate::{
+    types::hasura_types::{jsonb, uuid},
+    utils::read_config::read_config,
+};
 use clap::Args;
 use colored::Colorize;
 use graphql_client::{GraphQLQuery, Response};
 use sequent_core::{ballot::ContestPresentation, types::ceremonies::CountingAlgType};
 use std::collections::HashMap;
+use tracing::{error, info};
 
 #[derive(Args)]
 #[command(about = "Create a new contest", long_about = None)]
+/// Create contest command arguments
 pub struct CreateContest {
     /// Name of the contest
     #[arg(long)]
@@ -38,9 +43,11 @@ pub struct CreateContest {
     query_path = "src/graphql/insert_contest.graphql",
     response_derives = "Debug,Clone,Deserialize,Serialize"
 )]
+/// Insert contest query
 pub struct InsertContest;
 
 impl CreateContest {
+    /// Run the create contest command
     pub fn run(&self) {
         match create_contest(
             &self.name,
@@ -50,19 +57,20 @@ impl CreateContest {
             self.counting_algorithm,
         ) {
             Ok(id) => {
-                println!(
+                info!(
                     "{} {}",
                     "Success! Contest created successfully! ID:".green(),
                     id.cyan()
                 );
             }
             Err(err) => {
-                eprintln!("Error! Failed to create contest: {}", err)
+                error!("Error! Failed to create contest: {err}");
             }
         }
     }
 }
 
+/// Create a contest and return the contest id
 fn create_contest(
     name: &str,
     description: &str,
@@ -73,12 +81,13 @@ fn create_contest(
     let config = read_config()?;
     let client = reqwest::blocking::Client::new();
 
-    let mut presentation = ContestPresentation::default();
-
-    presentation.i18n = Some(HashMap::from([(
-        "en".to_string(),
-        HashMap::from([("name".to_string(), Some(name.to_string()))]),
-    )]));
+    let presentation = ContestPresentation {
+        i18n: Some(HashMap::from([(
+            "en".to_string(),
+            HashMap::from([("name".to_string(), Some(name.to_string()))]),
+        )])),
+        ..Default::default()
+    };
 
     let variables = insert_contest::Variables {
         description: Some(description.to_string()),
@@ -108,7 +117,10 @@ fn create_contest(
         let response_body: Response<insert_contest::ResponseData> = response.json()?;
         if let Some(data) = response_body.data {
             if let Some(e) = data.insert_sequent_backend_contest {
-                Ok(e.returning[0].id.clone())
+                match e.returning.as_slice() {
+                    [first, ..] => Ok(first.id.clone()),
+                    [] => Err(Box::from("failed generating id")),
+                }
             } else {
                 Err(Box::from("failed generating id"))
             }
@@ -121,7 +133,7 @@ fn create_contest(
     } else {
         let status = response.status();
         let error_message = response.text()?;
-        let error = format!("HTTP Status: {}\nError Message: {}", status, error_message);
+        let error = format!("HTTP Status: {status}\nError Message: {error_message}");
         Err(Box::from(error))
     }
 }

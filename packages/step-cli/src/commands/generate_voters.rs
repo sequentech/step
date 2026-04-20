@@ -62,11 +62,7 @@ impl GenerateVoters {
         result
     }
 
-    fn run_generate_voters(
-        &self,
-        working_dir: &str,
-        num_users: usize,
-    ) -> Result<(), Box<dyn std::error::Error>> {
+    fn run_generate_voters(&self, working_dir: &str, num_users: usize) -> Result<()> {
         let config = load_external_config(working_dir)?;
 
         // Get election event file path from config (or default).

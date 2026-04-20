@@ -164,15 +164,12 @@ pub fn export_election_event(
                             break;
                         } else if status == "FAILED" {
                             return Err("Export task failed".into());
-                        } else {
-                            // Task is still running, check timeout
-                            if Instant::now().duration_since(start_time) >= timeout {
-                                return Err(
-                                    "Timeout while waiting for export task to complete".into()
-                                );
-                            }
-                            sleep(polling_interval);
                         }
+                        // Task is still running, check timeout
+                        if Instant::now().duration_since(start_time) >= timeout {
+                            return Err("Timeout while waiting for export task to complete".into());
+                        }
+                        sleep(polling_interval);
                     }
                     Err(e) => {
                         return Err(format!("Error checking task status: {}", e).into());

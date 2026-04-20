@@ -18,7 +18,6 @@ use super::read_config::read_config;
     query_path = "src/graphql/get_upload_url.graphql",
     response_derives = "Debug,Clone,Deserialize,Serialize"
 )]
-
 pub struct GetUploadUrl;
 
 impl GetUploadUrl {

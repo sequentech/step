@@ -9,9 +9,11 @@ use clap::Args;
 use colored::Colorize;
 use std::fs;
 use std::path::Path;
+use tracing::{error, info};
 
 #[derive(Args, Debug)]
 #[command(about = "Create a config file", long_about = None)]
+/// Config command arguments
 pub struct Config {
     /// Tenant ID
     #[arg(long)]
@@ -43,6 +45,7 @@ pub struct Config {
 }
 
 impl Config {
+    /// Run the config command
     pub fn run(&self) {
         match create_config(
             &self.endpoint_url,
@@ -53,14 +56,15 @@ impl Config {
             &self.keycloak_client_secret,
             &self.tenant_id,
         ) {
-            Ok(_) => {}
+            Ok(()) => {}
             Err(err) => {
-                eprintln!("Error! Failed to create configuration file: {}", err)
+                error!("Error! Failed to create configuration file: {err}");
             }
         }
     }
 }
 
+/// Create a configuration file
 pub fn create_config(
     endpoint_url: &str,
     keycloak_url: &str,
@@ -71,12 +75,12 @@ pub fn create_config(
     tenant_id: &str,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let auth_details = generate_keycloak_token(
-        &keycloak_url,
-        &username,
-        &password,
-        &client_id,
-        &client_secret,
-        &tenant_id,
+        keycloak_url,
+        username,
+        password,
+        client_id,
+        client_secret,
+        tenant_id,
     )?;
     let config_data = ConfigData {
         endpoint_url: endpoint_url.to_string(),
@@ -100,11 +104,11 @@ pub fn create_config(
 
     fs::write(&config_file, json_data)?;
 
-    println!(
+    info!(
         "{}",
         format!(
-            "Success! Configuration refreshed successfully at {:?}",
-            config_file
+            "Success! Configuration refreshed successfully at {}",
+            config_file.to_string_lossy()
         )
         .green(),
     );

@@ -78,15 +78,14 @@ pub fn publish_changes(
             Ok(is_generated) => {
                 if is_generated {
                     break;
-                } else {
-                    // Publication is not yet generated, retry after interval
-                    if Instant::now().duration_since(start_time) >= timeout {
-                        return Err(Box::from(
-                            "Timeout while waiting for publication to be available",
-                        ));
-                    }
-                    sleep(polling_interval);
                 }
+                // Publication is not yet generated, retry after interval
+                if Instant::now().duration_since(start_time) >= timeout {
+                    return Err(Box::from(
+                        "Timeout while waiting for publication to be available",
+                    ));
+                }
+                sleep(polling_interval);
             }
             Err(e) => {
                 // Error occurred while checking publication

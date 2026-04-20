@@ -1,10 +1,15 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 // //
 // // SPDX-License-Identifier: AGPL-3.0-only
+//! # CLI Tool for Managing Sequent Tasks
 
+/// Commands
 mod commands;
+/// Tests
 mod tests;
+/// Types
 mod types;
+/// Utils
 mod utils;
 
 use clap::{Parser, Subcommand};

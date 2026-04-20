@@ -2,17 +2,21 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use crate::types::hasura_types::*;
-use crate::utils::read_config::read_config;
+use crate::{
+    types::hasura_types::{jsonb, uuid},
+    utils::read_config::read_config,
+};
 use clap::Args;
 use colored::Colorize;
 use graphql_client::{GraphQLQuery, Response};
 use sequent_core::ballot::ElectionEventPresentation;
 use serde_json::Value;
 use std::collections::HashMap;
+use tracing::{error, info};
 
 #[derive(Args, Debug)]
 #[command(about = "Create a new election event", long_about = None)]
+/// Create election event command arguments
 pub struct CreateElectionEventCLI {
     /// Name of the election event
     #[arg(long)]
@@ -37,9 +41,11 @@ pub struct CreateElectionEventCLI {
     query_path = "src/graphql/insert_election_event.graphql",
     response_derives = "Debug,Clone,Deserialize,Serialize"
 )]
+/// Insert election event query
 pub struct CreateElectionEvent;
 
 impl CreateElectionEventCLI {
+    /// Run the create election event command
     pub fn run(&self) {
         match create_election_event(
             &self.name,
@@ -48,22 +54,23 @@ impl CreateElectionEventCLI {
             self.is_archived,
         ) {
             Ok(Some(id)) => {
-                println!(
+                info!(
                     "{} {}",
                     "Success! Election event created successfully! ID:".green(),
                     id.cyan()
                 );
             }
             Ok(None) => {
-                eprintln!("Error: election event was not created");
+                error!("Error: election event was not created");
             }
             Err(err) => {
-                eprintln!("Error! Failed to create election event: {}", err);
+                error!("Error! Failed to create election event: {err}");
             }
         }
     }
 }
 
+/// Create an election event and return the election event id
 fn create_election_event(
     name: &str,
     description: &str,
@@ -73,12 +80,13 @@ fn create_election_event(
     let config = read_config()?;
     let client = reqwest::blocking::Client::new();
 
-    let mut presentation = ElectionEventPresentation::default();
-
-    presentation.i18n = Some(HashMap::from([(
-        "en".to_string(),
-        HashMap::from([("name".to_string(), Some(name.to_string()))]),
-    )]));
+    let presentation = ElectionEventPresentation {
+        i18n: Some(HashMap::from([(
+            "en".to_string(),
+            HashMap::from([("name".to_string(), Some(name.to_string()))]),
+        )])),
+        ..Default::default()
+    };
 
     let variables = create_election_event::Variables {
         election_event: create_election_event::CreateElectionEventInput {
@@ -129,7 +137,7 @@ fn create_election_event(
     } else {
         let status = response.status();
         let error_message = response.text()?;
-        let error = format!("HTTP Status: {}\nError Message: {}", status, error_message);
+        let error = format!("HTTP Status: {status}\nError Message: {error_message}");
         Err(Box::from(error))
     }
 }

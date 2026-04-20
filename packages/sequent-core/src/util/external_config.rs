@@ -2,10 +2,10 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::HashMap;
-use std::error::Error;
 use std::fs::File;
 use std::io::BufReader;
 use std::path::PathBuf;
@@ -55,9 +55,7 @@ pub struct GenerateApplications {
     pub annotations: HashMap<String, Value>,
 }
 
-pub fn load_external_config(
-    working_dir: &str,
-) -> Result<ExternalConfigData, Box<dyn Error>> {
+pub fn load_external_config(working_dir: &str) -> Result<ExternalConfigData> {
     let config_path =
         PathBuf::from(working_dir).join(EXTERNAL_CONFIG_FILE_NAME);
     let file = File::open(config_path)?;

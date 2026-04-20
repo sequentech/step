@@ -2,20 +2,26 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use crate::{types::hasura_types::*, utils::read_config::read_config};
+use crate::{
+    types::hasura_types::{jsonb, uuid},
+    utils::read_config::read_config,
+};
 use clap::Args;
 use colored::Colorize;
 use graphql_client::{GraphQLQuery, Response};
 use sequent_core::ballot::ElectionPresentation;
 use std::collections::HashMap;
+use tracing::{error, info};
 
 #[derive(Args)]
 #[command(about = "Create a new election", long_about = None)]
+/// Create election command arguments
 pub struct CreateElection {
     /// Name of the election
     #[arg(long)]
     name: String,
 
+    /// External id of the election
     #[arg(long)]
     external_id: String,
 
@@ -34,9 +40,11 @@ pub struct CreateElection {
     query_path = "src/graphql/insert_election.graphql",
     response_derives = "Debug,Clone,Deserialize,Serialize"
 )]
+/// Insert election query
 pub struct InsertElection;
 
 impl CreateElection {
+    /// Run the create election command
     pub fn run(&self) {
         match create_election(
             &self.name,
@@ -45,19 +53,20 @@ impl CreateElection {
             &self.election_event_id,
         ) {
             Ok(id) => {
-                println!(
+                info!(
                     "{} {}",
                     "Success! Election created successfully! ID:".green(),
                     id.cyan()
                 );
             }
             Err(err) => {
-                eprintln!("Error! Failed to create election: {}", err)
+                error!("Error! Failed to create election: {err}");
             }
         }
     }
 }
 
+/// Create an election and return the election id
 fn create_election(
     name: &str,
     external_id: &str,
@@ -67,12 +76,13 @@ fn create_election(
     let config = read_config()?;
     let client = reqwest::blocking::Client::new();
 
-    let mut presentation = ElectionPresentation::default();
-
-    presentation.i18n = Some(HashMap::from([(
-        "en".to_string(),
-        HashMap::from([("name".to_string(), Some(name.to_string()))]),
-    )]));
+    let presentation = ElectionPresentation {
+        i18n: Some(HashMap::from([(
+            "en".to_string(),
+            HashMap::from([("name".to_string(), Some(name.to_string()))]),
+        )])),
+        ..Default::default()
+    };
 
     let variables = insert_election::Variables {
         external_id: external_id.to_string(),
@@ -94,7 +104,10 @@ fn create_election(
         let response_body: Response<insert_election::ResponseData> = response.json()?;
         if let Some(data) = response_body.data {
             if let Some(e) = data.insert_sequent_backend_election {
-                Ok(e.returning[0].id.clone())
+                match e.returning.as_slice() {
+                    [first, ..] => Ok(first.id.clone()),
+                    [] => Err(Box::from("failed generating id")),
+                }
             } else {
                 Err(Box::from("failed generating id"))
             }
@@ -107,7 +120,7 @@ fn create_election(
     } else {
         let status = response.status();
         let error_message = response.text()?;
-        let error = format!("HTTP Status: {}\nError Message: {}", status, error_message);
+        let error = format!("HTTP Status: {status}\nError Message: {error_message}");
         Err(Box::from(error))
     }
 }

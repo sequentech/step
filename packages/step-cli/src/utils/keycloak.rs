@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+use anyhow::Context;
 use deadpool_postgres::{Config as PgConfig, Pool, Runtime};
 use serde_json;
 use std::env;
@@ -101,12 +102,14 @@ pub fn read_token() -> Result<KeycloakTokenResponse, Box<dyn std::error::Error>>
     Ok(auth_data)
 }
 
-pub async fn get_keyckloak_pool() -> Result<Pool, Box<dyn std::error::Error>> {
+pub async fn get_keyckloak_pool() -> anyhow::Result<Pool> {
     let mut kc_cfg = PgConfig::default();
     kc_cfg.host = Some(env::var("KC_DB_URL_HOST")?);
     kc_cfg.port = Some(env::var("KC_DB_URL_PORT")?.parse::<u16>()?);
     kc_cfg.user = Some(env::var("KC_DB_USERNAME")?);
     kc_cfg.password = Some(env::var("KC_DB_PASSWORD")?);
     kc_cfg.dbname = Some(env::var("KC_DB")?);
-    Ok(kc_cfg.create_pool(Some(Runtime::Tokio1), NoTls)?)
+    Ok(kc_cfg
+        .create_pool(Some(Runtime::Tokio1), NoTls)
+        .context("failed to create Keycloak Postgres pool")?)
 }

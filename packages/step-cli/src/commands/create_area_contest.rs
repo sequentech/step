@@ -2,13 +2,16 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use crate::{types::hasura_types::*, utils::read_config::read_config};
+use crate::{types::hasura_types::uuid, utils::read_config::read_config};
 use clap::Args;
 use colored::Colorize;
 use graphql_client::{GraphQLQuery, Response};
+use tracing::{error, info};
 
 #[derive(Args)]
 #[command(about = "Create area contest", long_about = None)]
+/// Create area contest command arguments
+#[allow(clippy::struct_field_names)] // allow field names to have the same postfix
 pub struct CreateAreaContest {
     /// Election event id - the election event to be associated with
     #[arg(long)]
@@ -29,25 +32,28 @@ pub struct CreateAreaContest {
     query_path = "src/graphql/insert_area_contest.graphql",
     response_derives = "Debug,Clone,Deserialize,Serialize"
 )]
+/// Insert area contest query
 pub struct InsertAreaContest;
 
 impl CreateAreaContest {
+    /// Run the create area contest command
     pub fn run(&self) {
         match create_area_contest(&self.election_event_id, &self.contest_id, &self.area_id) {
             Ok(id) => {
-                println!(
+                info!(
                     "{} {}",
                     "Success! Area contest created successfully! ID:".green(),
                     id.cyan()
                 );
             }
             Err(err) => {
-                eprintln!("Error! Failed to create Area contest: {}", err)
+                error!("Error! Failed to create Area contest: {err}");
             }
         }
     }
 }
 
+/// Create an area contest and return the area contest id
 fn create_area_contest(
     election_event_id: &str,
     contest_id: &str,
@@ -75,7 +81,10 @@ fn create_area_contest(
         let response_body: Response<insert_area_contest::ResponseData> = response.json()?;
         if let Some(data) = response_body.data {
             if let Some(e) = data.insert_sequent_backend_area_contest {
-                Ok(e.returning[0].id.clone())
+                match e.returning.as_slice() {
+                    [first, ..] => Ok(first.id.clone()),
+                    [] => Err(Box::from("failed generating id")),
+                }
             } else {
                 Err(Box::from("failed generating id"))
             }
@@ -88,7 +97,7 @@ fn create_area_contest(
     } else {
         let status = response.status();
         let error_message = response.text()?;
-        let error = format!("HTTP Status: {}\nError Message: {}", status, error_message);
+        let error = format!("HTTP Status: {status}\nError Message: {error_message}");
         Err(Box::from(error))
     }
 }
