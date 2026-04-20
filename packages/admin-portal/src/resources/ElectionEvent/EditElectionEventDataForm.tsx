@@ -58,6 +58,7 @@ import {
     EElectionEventCeremoniesPolicy,
     EElectionEventWeightedVotingPolicy,
     EElectionEventDelegatedVotingPolicy,
+    REALM_ATTR_VOTER_CERTIFICATE_POLICY,
 } from "@sequentech/ui-core"
 import {ListActions} from "@/components/ListActions"
 import {ImportDataDrawer} from "@/components/election-event/import-data/ImportDataDrawer"
@@ -737,7 +738,7 @@ export const EditElectionEventDataForm: React.FC = () => {
                 variables: {
                     election_event_id: recordId,
                     attributes: {
-                        "voter-certificate-policy": voterCertificatePolicy,
+                        [REALM_ATTR_VOTER_CERTIFICATE_POLICY]: voterCertificatePolicy,
                     },
                 },
             })
