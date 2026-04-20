@@ -609,7 +609,9 @@ export const EditElectionEventCAs: React.FC = () => {
                     setOpenBulkDeleteModal(false)
                 }}
             >
-                {t("certificateAuthorities.deleteDialog.description", {count: bulkDeleteIds.length})}
+                {t("certificateAuthorities.deleteDialog.description", {
+                    count: bulkDeleteIds.length,
+                })}
             </Dialog>
 
             {/* Export Confirmation Dialog */}
