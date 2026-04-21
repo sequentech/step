@@ -14,6 +14,8 @@ use keycloak::types::{
 use keycloak::{
     KeycloakAdmin, KeycloakAdminToken, KeycloakError, KeycloakTokenSupplier,
 };
+use rand::distributions::Alphanumeric;
+use rand::Rng;
 use reqwest::Client;
 use serde_json::{json, Value};
 use std::collections::{HashMap, HashSet};
@@ -192,6 +194,16 @@ pub fn replace_realm_ids(
     }
 
     Ok((new_data, replacement_map))
+}
+
+/// Generates a Keycloak-style client secret: a 32-character random alphanumeric
+/// string matching the output of Keycloak's `SecretGenerator.randomSecret(32)`.
+pub fn generate_client_secret() -> String {
+    rand::thread_rng()
+        .sample_iter(&Alphanumeric)
+        .take(32)
+        .map(char::from)
+        .collect()
 }
 
 async fn error_check(
@@ -572,7 +584,7 @@ impl KeycloakAdminClient {
         display_name: Option<String>,
         election_event_id: Option<String>,
     ) -> Result<()> {
-        let real_get_result = self.client.realm_get(board_name).await;
+        let realm_get_result = self.client.realm_get(board_name).await;
         let replaced_ids_config = if replace_ids {
             let realm_config: RealmRepresentation =
                 deserialize_str(&json_realm_config)?;
@@ -674,7 +686,7 @@ impl KeycloakAdminClient {
                 .collect(),
         );
 
-        match real_get_result {
+        match realm_get_result {
             Ok(_) => self
                 .client
                 .realm_put(&board_name, realm)

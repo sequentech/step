@@ -20,7 +20,7 @@ use base64::Engine;
 use deadpool_postgres::Transaction;
 use electoral_log::assign_value;
 use electoral_log::messages::message::{Message, SigningData};
-use electoral_log::messages::newtypes::*;
+use electoral_log::messages::newtypes::{CertificateAuthEventAction, *};
 use electoral_log::messages::statement::{StatementBody, StatementType};
 use electoral_log::{
     ElectoralLogMessage, ElectoralLogVarCharColumn, SqlCompOperators, WhereClauseBTreeMap,
@@ -744,6 +744,27 @@ impl ElectoralLog {
         )
         .map_err(|e| anyhow!("Error posting tally tie resolution updated: {e:?}"))?;
 
+        self.post(&message).await
+    }
+
+    #[instrument(skip(self))]
+    pub async fn post_certificate_auth_event(
+        &self,
+        event_id: String,
+        action: CertificateAuthEventAction,
+        subject_dns: Vec<String>,
+        user_id: Option<String>,
+        username: Option<String>,
+    ) -> Result<()> {
+        let event = EventIdString(event_id);
+        let message = Message::certificate_auth_event_message(
+            event,
+            action,
+            subject_dns,
+            &self.sd,
+            user_id,
+            username,
+        )?;
         self.post(&message).await
     }
 

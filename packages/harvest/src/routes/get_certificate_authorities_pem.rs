@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+use deadpool_postgres::Client as DbClient;
 use rocket::http::{ContentType, Status};
 use tracing::instrument;
 use uuid::Uuid;
@@ -26,16 +27,22 @@ pub async fn get_cas_pem(
             )
         })?;
 
-    let hasura_db_client = get_hasura_pool()
+    let mut hasura_db_client: DbClient = get_hasura_pool()
         .await
         .get()
         .await
         .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
+    let hasura_transaction = hasura_db_client
+        .transaction()
+        .await
+        .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
 
-    let pems =
-        get_certificate_authorities_pem(&hasura_db_client, election_event_uuid)
-            .await
-            .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
+    let pems = get_certificate_authorities_pem(
+        &hasura_transaction,
+        election_event_uuid,
+    )
+    .await
+    .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
 
     let bundle = pems.join("\n");
     Ok((ContentType::new("application", "x-pem-file"), bundle))

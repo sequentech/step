@@ -5,7 +5,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <#import "template.ftl" as layout>
-<@layout.registrationLayout displayMessage=!messagesPerField.existsError('username','password') displayInfo=realm.password && realm.registrationAllowed && !registrationDisabled?? displaySocialProviders=social.providers?has_content || properties.mtlsLoginUrl?has_content; section>
+<@layout.registrationLayout displayMessage=!messagesPerField.existsError('username','password') displayInfo=realm.password && realm.registrationAllowed && !registrationDisabled?? displaySocialProviders=social.providers?has_content; section>
     <#if section = "header">
         ${msg("loginAccountTitle")}
     <#elseif section = "form">
@@ -124,61 +124,27 @@ SPDX-License-Identifier: AGPL-3.0-only
             </div>
         </#if>
     <#elseif section = "socialProviders" >
-        <#if realm.password && social.providers??>
+        <#assign visibleProviders = social.providers?filter(p -> p.alias != 'digital-certificates' || (realm.attributes['voter-certificate-policy']!'disabled') == 'enabled')>
+        <#if realm.password && visibleProviders?has_content>
+            <hr/>
+            <h4 style="text-align: center;">${msg("identity-provider-login-label")}</h4>
             <div id="kc-social-providers" class="${properties.kcFormSocialAccountSectionClass!}">
-                <hr/>
-                <h4>${msg("identity-provider-login-label")}</h4>
-
-                <ul class="${properties.kcFormSocialAccountListClass!} <#if social.providers?size gt 3>${properties.kcFormSocialAccountListGridClass!}</#if>">
-                    <#list social.providers as p>
+                <#list visibleProviders as p>
+                    <ul class="${properties.kcFormSocialAccountListClass!} <#if visibleProviders?size gt 3>${properties.kcFormSocialAccountListGridClass!}</#if>">
                         <li>
-                            <a id="social-${p.alias}" class="${properties.kcFormSocialAccountListButtonClass!} <#if social.providers?size gt 3>${properties.kcFormSocialAccountGridItem!}</#if>"
+                            <a id="social-${p.alias}" class="${properties.kcFormSocialAccountListButtonClass!} <#if visibleProviders?size gt 3>${properties.kcFormSocialAccountGridItem!}</#if>"
                                     type="button" href="${p.loginUrl}">
                                 <#if p.iconClasses?has_content>
                                     <i class="${properties.kcCommonLogoIdP!} ${p.iconClasses!}" aria-hidden="true"></i>
-                                    <span class="${properties.kcFormSocialAccountNameClass!} kc-social-icon-text">${p.displayName!}</span>
+                                    <span class="${properties.kcFormSocialAccountNameClass!} kc-social-icon-text"><#if p.alias == 'digital-certificates'>${msg("digitalCertificateButton")}<#else>${p.displayName!}</#if></span>
                                 <#else>
-                                    <span class="${properties.kcFormSocialAccountNameClass!}">${p.displayName!}</span>
+                                    <span class="${properties.kcFormSocialAccountNameClass!}"><#if p.alias == 'digital-certificates'>${msg("digitalCertificateButton")}<#else>${p.displayName!}</#if></span>
                                 </#if>
                             </a>
                         </li>
-                    </#list>
-                </ul>
+                    </ul>
+                </#list>
             </div>
-        </#if>
-        <#if properties.mtlsLoginUrl?has_content>
-            <hr/>
-            <#assign sessionCode = url.loginAction?keep_after('session_code=')?keep_before('&')>
-            <#assign tabId = url.loginAction?keep_after('tab_id=')>
-            <#if tabId?contains('&')><#assign tabId = tabId?keep_before('&')></#if>
-            <div id="kc-cert-login-container">
-                <a id="kc-cert-login"
-                   class="${properties.kcButtonClass!} ${properties.kcButtonDefaultClass!} ${properties.kcButtonBlockClass!} ${properties.kcButtonLargeClass!}"
-                   href="${properties.mtlsLoginUrl}/realms/${realm.name}/login-actions/restart?session_code=${sessionCode}&client_id=${client.clientId}&tab_id=${tabId}">
-                    ${msg("loginWithCertificate")}
-                </a>
-            </div>
-            <script>
-                (function () {
-                    var KEY = 'kc_cert_login_ts';
-                    // 5 s covers the nginx redirect round-trip (< 1 s in practice)
-                    // but is short enough to never trigger after a real login + logout.
-                    var MAX_MS = 5000;
-                    var btn = document.getElementById('kc-cert-login');
-                    var ts = sessionStorage.getItem(KEY);
-                    if (ts && (Date.now() - parseInt(ts, 10)) < MAX_MS) {
-                        sessionStorage.removeItem(KEY);
-                        btn.style.display = 'none';
-                        var msg = document.createElement('p');
-                        msg.id = 'kc-cert-no-cert-msg';
-                        msg.textContent = '${msg("noCertificate")?js_string}';
-                        btn.parentNode.insertBefore(msg, btn);
-                    }
-                    btn.addEventListener('click', function () {
-                        sessionStorage.setItem(KEY, String(Date.now()));
-                    });
-                }());
-            </script>
         </#if>
     </#if>
 

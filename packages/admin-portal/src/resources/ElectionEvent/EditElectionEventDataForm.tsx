@@ -52,12 +52,13 @@ import {
     EElectionEventOTP,
     EElectionEventContestEncryptionPolicy,
     EVoterSigningPolicy,
-    EVoterDigitalCertPolicy,
+    EVoterCertificatePolicy,
     EShowCastVoteLogsPolicy,
     EElectionEventDecodedBallots,
     EElectionEventCeremoniesPolicy,
     EElectionEventWeightedVotingPolicy,
     EElectionEventDelegatedVotingPolicy,
+    REALM_ATTR_VOTER_CERTIFICATE_POLICY,
 } from "@sequentech/ui-core"
 import {ListActions} from "@/components/ListActions"
 import {ImportDataDrawer} from "@/components/election-event/import-data/ImportDataDrawer"
@@ -89,6 +90,10 @@ import {StatusChip} from "@/components/StatusChip"
 import {JsonEditor, UpdateFunction} from "json-edit-react"
 import {CustomFilter} from "@/types/filters"
 import {SET_VOTER_AOTHENTICATION} from "@/queries/SetVoterAuthentication"
+import {
+    UPDATE_REALM_ATTRIBUTES,
+    UpdateRealmAttributesMutation,
+} from "@/queries/UpdateRealmAttributes"
 import {GoogleMeetLinkGenerator} from "@/components/election-event/google-meet/GoogleMeetLinkGenerator"
 
 export type Sequent_Backend_Election_Event_Extended = RaRecord<Identifier> & {
@@ -152,6 +157,9 @@ export const EditElectionEventDataForm: React.FC = () => {
         enrollment: "",
         otp: "",
     })
+    const [voterCertificatePolicy, setVoterCertificatePolicy] = useState<EVoterCertificatePolicy>(
+        EVoterCertificatePolicy.DISABLED
+    )
     const [manageCustomUrls, response] = useMutation<SetCustomUrlsMutation>(SET_CUSTOM_URLS, {
         context: {
             headers: {
@@ -161,6 +169,16 @@ export const EditElectionEventDataForm: React.FC = () => {
     })
 
     const [manageVoterAuthentication] = useMutation<SetCustomUrlsMutation>(SET_VOTER_AOTHENTICATION)
+    const [manageRealmAttributes] = useMutation<UpdateRealmAttributesMutation>(
+        UPDATE_REALM_ATTRIBUTES,
+        {
+            context: {
+                headers: {
+                    "x-hasura-role": IPermissions.ELECTION_EVENT_WRITE,
+                },
+            },
+        }
+    )
 
     const {record: tenant} = useEditController({
         resource: "sequent_backend_tenant",
@@ -497,6 +515,14 @@ export const EditElectionEventDataForm: React.FC = () => {
         }
     }, [parsedValue?.enabled_languages, setValue, setValueMaterials])
 
+    useEffect(() => {
+        const policy = (parsedValue?.presentation as IElectionEventPresentation)
+            ?.voter_certificate_policy
+        if (policy) {
+            setVoterCertificatePolicy(policy)
+        }
+    }, [parsedValue?.presentation])
+
     const decodedBallotsStateChoices = () => {
         return Object.values(EElectionEventDecodedBallots).map((value) => ({
             id: value,
@@ -532,10 +558,10 @@ export const EditElectionEventDataForm: React.FC = () => {
         }))
     }
 
-    const voterDigitalCertPolicyChoices = () => {
-        return Object.values(EVoterDigitalCertPolicy).map((value) => ({
+    const VoterCertificatePolicyChoices = () => {
+        return Object.values(EVoterCertificatePolicy).map((value) => ({
             id: value,
-            name: t(`electionEventScreen.field.voterDigitalCertPolicy.${value}`),
+            name: t(`electionEventScreen.field.VoterCertificatePolicy.${value}`),
         }))
     }
 
@@ -703,12 +729,34 @@ export const EditElectionEventDataForm: React.FC = () => {
         }
     }
 
+    const handleUpdateRealmAttributes = async (
+        presentation: IElectionEventPresentation,
+        recordId: string
+    ) => {
+        try {
+            await manageRealmAttributes({
+                variables: {
+                    election_event_id: recordId,
+                    attributes: {
+                        [REALM_ATTR_VOTER_CERTIFICATE_POLICY]: voterCertificatePolicy,
+                    },
+                },
+            })
+        } catch (err: any) {
+            console.error(err)
+        }
+    }
+
     const onSave = async () => {
         await handleUpdateCustomUrls(
             parsedValue.presentation as IElectionEventPresentation,
             record?.id
         )
         await handleUpdateVoterAuthentication(
+            parsedValue.presentation as IElectionEventPresentation,
+            record?.id
+        )
+        await handleUpdateRealmAttributes(
             parsedValue.presentation as IElectionEventPresentation,
             record?.id
         )
@@ -1200,14 +1248,17 @@ export const EditElectionEventDataForm: React.FC = () => {
                             validate={required()}
                         />
                         <SelectInput
-                            source={"presentation.voter_digital_cert_policy"}
-                            choices={voterDigitalCertPolicyChoices()}
+                            source={"presentation.voter_certificate_policy"}
+                            choices={VoterCertificatePolicyChoices()}
                             label={String(
-                                t("electionEventScreen.field.voterDigitalCertPolicy.policyLabel")
+                                t("electionEventScreen.field.VoterCertificatePolicy.policyLabel")
                             )}
-                            defaultValue={EVoterDigitalCertPolicy.DISABLED}
+                            defaultValue={EVoterCertificatePolicy.DISABLED}
                             emptyText={undefined}
                             validate={required()}
+                            onChange={(e) =>
+                                setVoterCertificatePolicy(e.target.value as EVoterCertificatePolicy)
+                            }
                         />
                         <Box
                             sx={{
