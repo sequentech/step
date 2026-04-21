@@ -1583,7 +1583,7 @@ impl Contest {
     }
 
     pub fn insert_tie_resolutions(
-        contest: &mut Contest,
+        &mut self,
         contest_tie_resolutions: &Vec<TallySessionResolutionData>,
     ) -> anyhow::Result<()> {
         // Only inject if there is actually data to add
@@ -1594,13 +1594,13 @@ impl Contest {
 
             // Clone existing annotations or create a new map if it's None
             let mut annotations =
-                contest.annotations.clone().unwrap_or_default();
+                self.annotations.clone().unwrap_or_default();
 
             // Insert the stringified JSON into the annotations map
             annotations
                 .insert("tie_resolutions".to_string(), tie_res_json_string);
 
-            contest.annotations = Some(annotations);
+            self.annotations = Some(annotations);
         }
 
         Ok(())

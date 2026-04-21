@@ -25,6 +25,7 @@ use deadpool_postgres::{Client as DbClient, Transaction};
 use rusqlite::Connection;
 use sequent_core::ballot::{
     Annotations, BallotStyle, Contest, ContestEncryptionPolicy, DecodedBallotsInclusionPolicy,
+    TieBreakingPolicy,
 };
 use sequent_core::ballot_codec::PlaintextCodec;
 use sequent_core::serialization::deserialize_with_path::deserialize_value;
@@ -125,6 +126,7 @@ pub fn prepare_tally_for_area_contest(
     tally_sheets: &HashMap<(String, String), Vec<TallySheet>>,
     tally_session: &TallySession,
     contest_tie_resolutions: Option<&Vec<TallySessionResolutionData>>,
+    tally_type: TallyType,
 ) -> Result<()> {
     let contest_encryption_policy = tally_session
         .configuration
@@ -213,11 +215,22 @@ pub fn prepare_tally_for_area_contest(
 
     // Prepare contest data, potentially injecting tie resolution
     let mut contest = area_contest.contest.clone();
-    let empty_resolutions = vec![];
-    Contest::insert_tie_resolutions(
-        &mut contest,
-        contest_tie_resolutions.unwrap_or(&empty_resolutions),
-    )?;
+
+    // Initialization reports must always use random tie-breaking regardless of
+    // the contest's configured policy, since no external procedure is available
+    // at that stage.
+
+    match tally_type {
+        TallyType::INITIALIZATION_REPORT => {
+            contest.tie_breaking_policy = Some(TieBreakingPolicy::RANDOM);
+        }
+        TallyType::ELECTORAL_RESULTS => {
+            let empty_resolutions = vec![];
+            contest.insert_tie_resolutions(
+                contest_tie_resolutions.unwrap_or(&empty_resolutions),
+            )?;
+        }
+    }
 
     writeln!(contest_config_file, "{}", serde_json::to_string(&contest)?)?;
 
@@ -617,6 +630,9 @@ async fn build_reports_pipe_config(
     })
 }
 
+/// writes velvet-config.json — the top-level pipeline orchestration file that defines
+///  the sequence of pipes (decode-ballots → do-tally → mark-winners → gen-report → gen-db)
+///  and their per-pipe JSON configs. This is distinct from the per-contest contest-config.json files.
 #[instrument(skip_all, err)]
 pub async fn create_config_file(
     base_tally_path: PathBuf,
@@ -887,6 +903,7 @@ pub async fn run_velvet_tally(
             &tally_sheet_map,
             tally_session,
             tie_resolutions.get(&area_contest.contest.id),
+            tally_type,
         )?;
     }
     create_election_configs(
