@@ -89,7 +89,7 @@ enum StepCommands {
     /// Create electoral logs command
     CreateElectoralLogs(commands::create_electoral_logs::CreateElectoralLogs),
     /// Hash password command
-        HashPassword(commands::hash_passwords::HashPasswords),
+    HashPassword(commands::hash_passwords::HashPasswords),
     /// Update event voting status command
     UpdateEventVotingStatus(commands::update_event_voting_status::UpdateElectionEventVotingStatus),
     /// Update election voting status command

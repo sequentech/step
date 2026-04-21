@@ -2,7 +2,10 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use crate::{types::hasura_types::{uuid, jsonb}, utils::read_config::read_config};
+use crate::{
+    types::hasura_types::{jsonb, uuid},
+    utils::read_config::read_config,
+};
 use ::uuid::Uuid;
 use graphql_client::{GraphQLQuery, Response};
 use serde_json::Value;

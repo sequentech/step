@@ -51,9 +51,8 @@ pub fn get_private_key_content(
         .ok_or("Failed to get executable directory")?;
 
     let dir_path = parent_dir.join("keys");
-    let file_path = format!(
-        "encrypted_private_key_trustee_{client_username}_{election_event_id}.txt"
-    );
+    let file_path =
+        format!("encrypted_private_key_trustee_{client_username}_{election_event_id}.txt");
 
     let path = dir_path.join(file_path);
 

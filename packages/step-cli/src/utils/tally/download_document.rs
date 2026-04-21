@@ -5,9 +5,9 @@
 use crate::{types::hasura_types::*, utils::read_config::read_config};
 use graphql_client::{GraphQLQuery, Response};
 use reqwest::blocking::Client;
-use tracing::info;
 use std::path::Path;
 use std::{fs, io};
+use tracing::info;
 use url::Url;
 
 #[derive(GraphQLQuery)]
@@ -69,7 +69,7 @@ pub fn fetch_document(
 }
 
 /// Download file
-    pub fn download_file(
+pub fn download_file(
     presigned_url: &str,
     output_path: &str,
 ) -> Result<(), Box<dyn std::error::Error>> {
