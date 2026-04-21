@@ -13,6 +13,7 @@ use crate::{
         tally_session::get_tally_sessions_by_election_event_id,
         tally_session_contest::get_event_tally_session_contest,
         tally_session_execution::get_event_tally_session_executions,
+        tally_session_resolution::get_resolutions_by_election_event,
     },
     types::documents::ETallyDocuments,
 };
@@ -646,6 +647,76 @@ pub async fn export_results_area_contest_candidate(
     Ok((file_name, temp_path))
 }
 
+#[instrument(err, skip(hasura_transaction))]
+pub async fn export_tally_session_resolution(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+) -> Result<(String, TempPath)> {
+    let resolutions = get_resolutions_by_election_event(
+        hasura_transaction,
+        tenant_id,
+        election_event_id,
+    )
+    .await
+    .map_err(|e| anyhow!("Error in get_resolutions_by_election_event: {e:?}"))?;
+
+    let file_name = ETallyDocuments::TALLY_SESSION_RESOLUTION
+        .to_file_name()
+        .to_string();
+
+    let mut writer = csv::WriterBuilder::new().delimiter(b',').from_writer(
+        generate_temp_file(&file_name, ".csv").with_context(|| "Error creating temporary file")?,
+    );
+
+    writer.write_record(&[
+        "id",
+        "tenant_id",
+        "election_event_id",
+        "tally_session_id",
+        "contest_id",
+        "created_at",
+        "last_updated_at",
+        "resolution_type",
+        "status",
+        "resolution_data",
+        "resolved_by_user",
+        "resolved_at",
+        "labels",
+        "annotations",
+    ])?;
+
+    for resolution in resolutions {
+        writer.write_record(&[
+            resolution.id,
+            resolution.tenant_id,
+            resolution.election_event_id,
+            resolution.tally_session_id,
+            serde_json::to_string(&resolution.contest_id)?,
+            serde_json::to_string(&resolution.created_at)?,
+            serde_json::to_string(&resolution.last_updated_at)?,
+            resolution.resolution_type.to_string(),
+            resolution.status.to_string(),
+            serde_json::to_string(&resolution.resolution_data)?,
+            serde_json::to_string(&resolution.resolved_by_user)?,
+            serde_json::to_string(&resolution.resolved_at)?,
+            serde_json::to_string(&resolution.labels)?,
+            serde_json::to_string(&resolution.annotations)?,
+        ])?;
+    }
+
+    writer
+        .flush()
+        .with_context(|| "Error flushing CSV writer")?;
+
+    let temp_path = writer
+        .into_inner()
+        .with_context(|| "Error getting inner writer")?
+        .into_temp_path();
+
+    Ok((file_name, temp_path))
+}
+
 fn get_export_tasks<'a>(
     hasura_transaction: &'a Transaction<'a>,
     tenant_id: &'a str,
@@ -698,6 +769,11 @@ fn get_export_tasks<'a>(
             election_event_id,
         )),
         Box::pin(export_tally_session_execution(
+            hasura_transaction,
+            tenant_id,
+            election_event_id,
+        )),
+        Box::pin(export_tally_session_resolution(
             hasura_transaction,
             tenant_id,
             election_event_id,

@@ -219,16 +219,14 @@ pub fn prepare_tally_for_area_contest(
     // Initialization reports must always use random tie-breaking regardless of
     // the contest's configured policy, since no external procedure is available
     // at that stage.
-
     match tally_type {
         TallyType::INITIALIZATION_REPORT => {
             contest.tie_breaking_policy = Some(TieBreakingPolicy::RANDOM);
         }
         TallyType::ELECTORAL_RESULTS => {
             let empty_resolutions = vec![];
-            contest.insert_tie_resolutions(
-                contest_tie_resolutions.unwrap_or(&empty_resolutions),
-            )?;
+            contest
+                .insert_tie_resolutions(contest_tie_resolutions.unwrap_or(&empty_resolutions))?;
         }
     }
 
@@ -630,7 +628,7 @@ async fn build_reports_pipe_config(
     })
 }
 
-/// writes velvet-config.json — the top-level pipeline orchestration file that defines
+/// Writes velvet-config.json — the top-level pipeline orchestration file that defines
 ///  the sequence of pipes (decode-ballots → do-tally → mark-winners → gen-report → gen-db)
 ///  and their per-pipe JSON configs. This is distinct from the per-contest contest-config.json files.
 #[instrument(skip_all, err)]

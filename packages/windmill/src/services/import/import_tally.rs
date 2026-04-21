@@ -12,6 +12,7 @@ use crate::{
         results_event::insert_many_results_events, tally_session::insert_many_tally_sessions,
         tally_session_contest::insert_many_tally_session_contests,
         tally_session_execution::insert_many_tally_session_executions,
+        tally_session_resolution::insert_many_tally_session_resolutions,
     },
     types::documents::ETallyDocuments,
 };
@@ -24,6 +25,10 @@ use sequent_core::serialization::deserialize_with_path::deserialize_str;
 use sequent_core::{
     services::date::ISO8601,
     types::{
+        ceremonies::{
+            TallySessionResolution, TallySessionResolutionData, TallySessionResolutionStatus,
+            TallySessionResolutionType,
+        },
         hasura::core::{TallySession, TallySessionContest, TallySessionExecution},
         results::{
             ResultsAreaContest, ResultsAreaContestCandidate, ResultsContest,
@@ -34,7 +39,7 @@ use sequent_core::{
 use serde_json::Value;
 use std::{collections::HashMap, fs::File};
 use tempfile::NamedTempFile;
-use tracing::{info, instrument};
+use tracing::{info, instrument, warn};
 use uuid::Uuid;
 
 #[instrument(err, skip_all)]
@@ -930,6 +935,100 @@ async fn process_results_area_contest_candidate_file(
 }
 
 #[instrument(err, skip_all)]
+async fn process_tally_session_resolution_file(
+    hasura_transaction: &Transaction<'_>,
+    temp_file: &NamedTempFile,
+    tenant_id: &str,
+    election_event_id: &str,
+    replacement_map: HashMap<String, String>,
+) -> Result<()> {
+    let file = File::open(temp_file)?;
+    let mut rdr = csv::Reader::from_reader(file);
+
+    let mut resolutions: Vec<TallySessionResolution> = Vec::new();
+
+    for result in rdr.records() {
+        let record = result.map_err(|e| anyhow!("Error reading CSV record: {e:?}"))?;
+
+        let id = get_replaced_id(&record, 0, &replacement_map).await?;
+        let tally_session_id = get_replaced_id(&record, 3, &replacement_map).await?;
+        let contest_id: Option<String> = get_string_or_null_item(&record, 4).await?;
+        let new_contest_id = contest_id
+            .map(|cid| {
+                replacement_map
+                    .get(&cid)
+                    .cloned()
+                    .ok_or_else(|| anyhow!("Can't find contest_id={cid:?} in replacement map"))
+            })
+            .transpose()?;
+
+        let created_at = get_opt_date(&record, 5)
+            .await?
+            .map(|d| d.with_timezone(&chrono::Utc));
+        let last_updated_at = get_opt_date(&record, 6)
+            .await?
+            .map(|d| d.with_timezone(&chrono::Utc));
+
+        let resolution_type: TallySessionResolutionType = record
+            .get(7)
+            .ok_or_else(|| anyhow!("Missing resolution_type column"))?
+            .parse()
+            .map_err(|e| anyhow!("Invalid resolution_type: {e:?}"))?;
+
+        let status: TallySessionResolutionStatus = record
+            .get(8)
+            .ok_or_else(|| anyhow!("Missing status column"))?
+            .parse()
+            .map_err(|e| anyhow!("Invalid status: {e:?}"))?;
+
+        let resolution_data: Option<TallySessionResolutionData> =
+            get_opt_json_value_item(&record, 9)
+                .await?
+                .map(serde_json::from_value)
+                .transpose()
+                .map_err(|e| anyhow!("Invalid resolution_data: {e:?}"))?;
+
+        let resolved_by_user: Option<String> = get_string_or_null_item(&record, 10).await?;
+        let new_resolved_by_user = resolved_by_user
+            .map(|uid| {
+                replacement_map.get(&uid).cloned().ok_or_else(|| {
+                    anyhow!("Can't find resolved_by_user={uid:?} in replacement map")
+                })
+            })
+            .transpose()?;
+
+        let resolved_at = get_opt_date(&record, 11)
+            .await?
+            .map(|d| d.with_timezone(&chrono::Utc));
+        let labels = get_opt_json_value_item(&record, 12).await?;
+        let annotations = get_opt_json_value_item(&record, 13).await?;
+
+        resolutions.push(TallySessionResolution {
+            id,
+            tenant_id: tenant_id.to_string(),
+            election_event_id: election_event_id.to_string(),
+            tally_session_id,
+            contest_id: new_contest_id,
+            created_at,
+            last_updated_at,
+            resolution_type,
+            status,
+            resolution_data,
+            resolved_by_user: new_resolved_by_user,
+            resolved_at,
+            labels,
+            annotations,
+        });
+    }
+
+    insert_many_tally_session_resolutions(hasura_transaction, resolutions)
+        .await
+        .map_err(|err| anyhow!("Error at insert_many_tally_session_resolutions {:?}", err))?;
+
+    Ok(())
+}
+
+#[instrument(err, skip_all)]
 pub async fn process_tally_file(
     hasura_transaction: &Transaction<'_>,
     temp_file: &NamedTempFile,
@@ -938,120 +1037,121 @@ pub async fn process_tally_file(
     election_event_id: &str,
     replacement_map: HashMap<String, String>,
 ) -> Result<()> {
-    if file_name == ETallyDocuments::TALLY_SESSION.to_file_name().to_string() {
-        process_tally_session_file(
-            hasura_transaction,
-            temp_file,
-            tenant_id,
-            election_event_id,
-            replacement_map.clone(),
-        )
-        .await?;
-    } else if file_name
-        == ETallyDocuments::TALLY_SESSION_CONTEST
-            .to_file_name()
-            .to_string()
-    {
-        process_tally_session_contest_file(
-            hasura_transaction,
-            temp_file,
-            tenant_id,
-            election_event_id,
-            replacement_map.clone(),
-        )
-        .await?;
-    } else if file_name == ETallyDocuments::RESULTS_EVENT.to_file_name().to_string() {
-        process_event_results_file(
-            hasura_transaction,
-            temp_file,
-            tenant_id,
-            election_event_id,
-            replacement_map.clone(),
-        )
-        .await?;
-    } else if file_name
-        == ETallyDocuments::TALLY_SESSION_EXECUTION
-            .to_file_name()
-            .to_string()
-    {
-        process_tally_session_execution_file(
-            hasura_transaction,
-            temp_file,
-            tenant_id,
-            election_event_id,
-            replacement_map.clone(),
-        )
-        .await?;
-    } else if file_name == ETallyDocuments::RESULTS_ELECTION.to_file_name().to_string() {
-        process_results_election_file(
-            hasura_transaction,
-            temp_file,
-            tenant_id,
-            election_event_id,
-            replacement_map.clone(),
-        )
-        .await?;
-    } else if file_name
-        == ETallyDocuments::RESULTS_ELECTION_AREA
-            .to_file_name()
-            .to_string()
-    {
-        process_results_election_area_file(
-            hasura_transaction,
-            temp_file,
-            tenant_id,
-            election_event_id,
-            replacement_map.clone(),
-        )
-        .await?;
-    } else if file_name == ETallyDocuments::RESULTS_CONTEST.to_file_name().to_string() {
-        process_results_contest_file(
-            hasura_transaction,
-            temp_file,
-            tenant_id,
-            election_event_id,
-            replacement_map.clone(),
-        )
-        .await?;
-    } else if file_name
-        == ETallyDocuments::RESULTS_CONTEST_CANDIDATE
-            .to_file_name()
-            .to_string()
-    {
-        process_results_contest_candidate_file(
-            hasura_transaction,
-            temp_file,
-            tenant_id,
-            election_event_id,
-            replacement_map.clone(),
-        )
-        .await?;
-    } else if file_name
-        == ETallyDocuments::RESULTS_AREA_CONTEST
-            .to_file_name()
-            .to_string()
-    {
-        process_results_area_contest_file(
-            hasura_transaction,
-            temp_file,
-            tenant_id,
-            election_event_id,
-            replacement_map.clone(),
-        )
-        .await?;
-    } else if file_name
-        == ETallyDocuments::RESULTS_AREA_CONTEST_CANDIDATE
-            .to_file_name()
-            .to_string()
-    {
-        process_results_area_contest_candidate_file(
-            hasura_transaction,
-            temp_file,
-            tenant_id,
-            election_event_id,
-            replacement_map.clone(),
-        )
-        .await?;
+    let Some(doc) = ETallyDocuments::from_file_name(&file_name) else {
+        warn!("File name {file_name} does not match any known document type. Skipping file.");
+        return Ok(());
+    };
+    match doc {
+        ETallyDocuments::TALLY_SESSION => {
+            process_tally_session_file(
+                hasura_transaction,
+                temp_file,
+                tenant_id,
+                election_event_id,
+                replacement_map,
+            )
+            .await?
+        }
+        ETallyDocuments::TALLY_SESSION_CONTEST => {
+            process_tally_session_contest_file(
+                hasura_transaction,
+                temp_file,
+                tenant_id,
+                election_event_id,
+                replacement_map,
+            )
+            .await?
+        }
+        ETallyDocuments::TALLY_SESSION_EXECUTION => {
+            process_tally_session_execution_file(
+                hasura_transaction,
+                temp_file,
+                tenant_id,
+                election_event_id,
+                replacement_map,
+            )
+            .await?
+        }
+        ETallyDocuments::TALLY_SESSION_RESOLUTION => {
+            process_tally_session_resolution_file(
+                hasura_transaction,
+                temp_file,
+                tenant_id,
+                election_event_id,
+                replacement_map,
+            )
+            .await?
+        }
+        ETallyDocuments::RESULTS_EVENT => {
+            process_event_results_file(
+                hasura_transaction,
+                temp_file,
+                tenant_id,
+                election_event_id,
+                replacement_map,
+            )
+            .await?
+        }
+        ETallyDocuments::RESULTS_ELECTION => {
+            process_results_election_file(
+                hasura_transaction,
+                temp_file,
+                tenant_id,
+                election_event_id,
+                replacement_map,
+            )
+            .await?
+        }
+        ETallyDocuments::RESULTS_ELECTION_AREA => {
+            process_results_election_area_file(
+                hasura_transaction,
+                temp_file,
+                tenant_id,
+                election_event_id,
+                replacement_map,
+            )
+            .await?
+        }
+        ETallyDocuments::RESULTS_CONTEST => {
+            process_results_contest_file(
+                hasura_transaction,
+                temp_file,
+                tenant_id,
+                election_event_id,
+                replacement_map,
+            )
+            .await?
+        }
+        ETallyDocuments::RESULTS_CONTEST_CANDIDATE => {
+            process_results_contest_candidate_file(
+                hasura_transaction,
+                temp_file,
+                tenant_id,
+                election_event_id,
+                replacement_map,
+            )
+            .await?
+        }
+        ETallyDocuments::RESULTS_AREA_CONTEST => {
+            process_results_area_contest_file(
+                hasura_transaction,
+                temp_file,
+                tenant_id,
+                election_event_id,
+                replacement_map,
+            )
+            .await?
+        }
+        ETallyDocuments::RESULTS_AREA_CONTEST_CANDIDATE => {
+            process_results_area_contest_candidate_file(
+                hasura_transaction,
+                temp_file,
+                tenant_id,
+                election_event_id,
+                replacement_map,
+            )
+            .await?
+        }
     }
 
     Ok(())

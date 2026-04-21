@@ -207,6 +207,104 @@ pub async fn submit_resolution(
     Ok(())
 }
 
+/// Get all resolutions for an election event (used for export)
+#[instrument(skip(hasura_transaction))]
+pub async fn get_resolutions_by_election_event(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+) -> Result<Vec<TallySessionResolution>> {
+    let query = r#"
+        SELECT
+            id, tenant_id, election_event_id, tally_session_id,
+            contest_id,
+            created_at, last_updated_at, resolution_type, status,
+            resolution_data, resolved_by_user, resolved_at,
+            labels, annotations
+        FROM sequent_backend.tally_session_resolution
+        WHERE tenant_id = $1
+          AND election_event_id = $2
+        ORDER BY created_at ASC
+    "#;
+
+    let rows = hasura_transaction
+        .query(
+            query,
+            &[
+                &Uuid::parse_str(tenant_id)?,
+                &Uuid::parse_str(election_event_id)?,
+            ],
+        )
+        .await?;
+
+    let mut resolutions = Vec::new();
+    for row in rows {
+        resolutions.push(map_row_to_resolution(&row)?);
+    }
+
+    Ok(resolutions)
+}
+
+/// Bulk-insert resolutions (used for import)
+#[instrument(skip(hasura_transaction, resolutions))]
+pub async fn insert_many_tally_session_resolutions(
+    hasura_transaction: &Transaction<'_>,
+    resolutions: Vec<TallySessionResolution>,
+) -> Result<()> {
+    if resolutions.is_empty() {
+        return Ok(());
+    }
+
+    for resolution in resolutions {
+        let query = r#"
+            INSERT INTO sequent_backend.tally_session_resolution
+            (id, tenant_id, election_event_id, tally_session_id, contest_id,
+             created_at, last_updated_at, resolution_type, status,
+             resolution_data, resolved_by_user, resolved_at, labels, annotations)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+            ON CONFLICT (id) DO NOTHING
+        "#;
+
+        let resolution_data = resolution
+            .resolution_data
+            .as_ref()
+            .map(serde_json::to_value)
+            .transpose()?;
+
+        hasura_transaction
+            .execute(
+                query,
+                &[
+                    &Uuid::parse_str(&resolution.id)?,
+                    &Uuid::parse_str(&resolution.tenant_id)?,
+                    &Uuid::parse_str(&resolution.election_event_id)?,
+                    &Uuid::parse_str(&resolution.tally_session_id)?,
+                    &resolution
+                        .contest_id
+                        .as_deref()
+                        .map(Uuid::parse_str)
+                        .transpose()?,
+                    &resolution.created_at,
+                    &resolution.last_updated_at,
+                    &resolution.resolution_type.to_string(),
+                    &resolution.status.to_string(),
+                    &resolution_data,
+                    &resolution
+                        .resolved_by_user
+                        .as_deref()
+                        .map(Uuid::parse_str)
+                        .transpose()?,
+                    &resolution.resolved_at,
+                    &resolution.labels,
+                    &resolution.annotations,
+                ],
+            )
+            .await?;
+    }
+
+    Ok(())
+}
+
 /// Update the resolution decision for an already-resolved record
 #[instrument(skip(hasura_transaction))]
 pub async fn update_resolution(
