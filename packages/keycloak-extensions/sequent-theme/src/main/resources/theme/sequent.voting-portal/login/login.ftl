@@ -127,7 +127,7 @@ SPDX-License-Identifier: AGPL-3.0-only
         <#assign visibleProviders = social.providers?filter(p -> p.alias != 'digital-certificates' || (realm.attributes['voter-certificate-policy']!'disabled') == 'enabled')>
         <#if realm.password && visibleProviders?has_content>
             <hr/>
-            <h4>${msg("identity-provider-login-label")}</h4>
+            <h4 style="text-align: center;">${msg("identity-provider-login-label")}</h4>
             <div id="kc-social-providers" class="${properties.kcFormSocialAccountSectionClass!}">
                 <#list visibleProviders as p>
                     <ul class="${properties.kcFormSocialAccountListClass!} <#if visibleProviders?size gt 3>${properties.kcFormSocialAccountListGridClass!}</#if>">
