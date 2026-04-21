@@ -9,9 +9,11 @@ use crate::{
 use clap::Args;
 use colored::Colorize;
 use graphql_client::{GraphQLQuery, Response};
+use tracing::{error, info};
 
 #[derive(Args)]
 #[command(about = "Start Key Ceremony", long_about = None)]
+/// Start key ceremony command arguments
 pub struct StartKeyCeremony {
     /// Election event id - the election event to start the key ceremony for
     #[arg(long)]
@@ -36,9 +38,11 @@ pub struct StartKeyCeremony {
     query_path = "src/graphql/create_keys_ceremony.graphql",
     response_derives = "Debug,Clone,Deserialize,Serialize"
 )]
+/// Create keys ceremony query
 pub struct CreateKeysCeremony;
 
 impl StartKeyCeremony {
+    /// Run the start key ceremony command
     pub fn run(&self) {
         match start_ceremony(
             &self.election_event_id,
@@ -47,19 +51,20 @@ impl StartKeyCeremony {
             self.name.as_deref(),
         ) {
             Ok(id) => {
-                println!(
+                info!(
                     "{} {}",
                     "Success! Successfully started Keys Ceremony. ID:".green(),
                     id.cyan()
                 );
             }
             Err(err) => {
-                eprintln!("Error! Failed to start Keys Ceremony: {}", err)
+                error!("Error! Failed to start Keys Ceremony: {err}");
             }
         }
     }
 }
 
+/// Start the key ceremony and return the key ceremony id
 pub fn start_ceremony(
     election_event_id: &str,
     threshold: i64,
@@ -69,13 +74,13 @@ pub fn start_ceremony(
     let config = read_config()?;
     let client = reqwest::blocking::Client::new();
     let trustees = GetTrustees::get_names()?;
-    println!("Trustees: {:?}", trustees);
+    info!("Trustees: {trustees:?}");
     let variables = create_keys_ceremony::Variables {
         election_event_id: election_event_id.to_string(),
         threshold,
         trustee_names: Some(trustees),
-        election_id: election_id.map(|id| id.to_string()),
-        name: name.map(|n| n.to_string()),
+        election_id: election_id.map(ToString::to_string),
+        name: name.map(ToString::to_string),
         is_automatic_ceremony: Some(false),
     };
 
@@ -104,7 +109,7 @@ pub fn start_ceremony(
     } else {
         let status = response.status();
         let error_message = response.text()?;
-        let error = format!("HTTP Status: {}\nError Message: {}", status, error_message);
+        let error = format!("HTTP Status: {status}\nError Message: {error_message}");
         Err(Box::from(error))
     }
 }

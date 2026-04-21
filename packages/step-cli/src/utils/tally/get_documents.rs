@@ -2,7 +2,10 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use crate::{types::hasura_types::*, utils::read_config::read_config};
+use crate::{
+    types::hasura_types::{jsonb, uuid},
+    utils::read_config::read_config,
+};
 use ::uuid::Uuid;
 use graphql_client::{GraphQLQuery, Response};
 use serde_json::Value;
@@ -13,8 +16,10 @@ use serde_json::Value;
     query_path = "src/graphql/get_results_event.graphql",
     response_derives = "Debug,Clone,Deserialize,Serialize"
 )]
+/// Get results event query
 pub struct GetResultsEvent;
 
+/// Get documents
 pub fn get_documents(results_event_id: &str) -> Result<Value, Box<dyn std::error::Error>> {
     let config = read_config()?;
     let client = reqwest::blocking::Client::new();
@@ -51,7 +56,7 @@ pub fn get_documents(results_event_id: &str) -> Result<Value, Box<dyn std::error
     } else {
         let status = response.status();
         let error_message = response.text()?;
-        let error = format!("HTTP Status: {}\nError Message: {}", status, error_message);
+        let error = format!("HTTP Status: {status}\nError Message: {error_message}");
         Err(Box::from(error))
     }
 }

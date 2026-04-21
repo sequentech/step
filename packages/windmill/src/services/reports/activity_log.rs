@@ -498,8 +498,8 @@ mod tests {
     #[tokio::test]
     #[ignore]
     async fn test_generate_export_csv_data_120k_memory() -> Result<()> {
-        let config = load_external_config(STEP_CLI_DATA_DIR)
-            .map_err(|e| anyhow!("Failed to load external config: {e}"))?;
+        let config =
+            load_external_config(STEP_CLI_DATA_DIR).context("Failed to load external config")?;
         let tenant_id = config.tenant_id;
         let election_event_id = config.election_event_id;
 

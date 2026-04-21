@@ -5,7 +5,10 @@
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug)]
+/// Keycloak token response
 pub struct KeycloakTokenResponse {
+    /// Access token
     pub access_token: String,
+    /// Refresh token
     pub refresh_token: String,
 }

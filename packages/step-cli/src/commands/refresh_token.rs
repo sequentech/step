@@ -9,22 +9,25 @@ use clap::Args;
 use colored::Colorize;
 use std::fs;
 use std::path::Path;
-
+use tracing::{error, info};
 #[derive(Args, Debug)]
 #[command(about = "Refresh auth jwt", long_about = None)]
+/// Refresh auth jwt command
 pub struct Refresh;
 
 impl Refresh {
+    /// Run the refresh token command
+    #[allow(clippy::unused_self)]
     pub fn run(&self) {
         match refresh_token() {
-            Ok(_) => {}
+            Ok(()) => {}
             Err(err) => {
-                eprintln!("Error! Failed to refresh token: {}", err)
+                error!("Error! Failed to refresh token: {err}");
             }
         }
     }
 }
-
+/// Refresh token and save the new token to the config file
 fn refresh_token() -> Result<(), Box<dyn std::error::Error>> {
     let config_data = read_config()?;
     let auth_details = refresh_keycloak_token(
@@ -57,11 +60,11 @@ fn refresh_token() -> Result<(), Box<dyn std::error::Error>> {
 
     fs::write(&config_file, json_data)?;
 
-    println!(
+    info!(
         "{}",
         format!(
-            "Success! Configuration refreshed successfully at {:?}",
-            config_file
+            "Success! Configuration refreshed successfully at {}",
+            config_file.to_string_lossy()
         )
         .green(),
     );

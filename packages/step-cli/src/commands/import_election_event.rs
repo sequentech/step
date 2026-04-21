@@ -9,14 +9,16 @@ use crate::{
 use clap::Args;
 use colored::Colorize;
 use graphql_client::{GraphQLQuery, Response};
-
+use tracing::{error, info};
 #[derive(Args)]
 #[command(about = "Import Election Event", long_about = None)]
+/// Import election event command arguments
 pub struct ImportElectionEventFile {
     /// Path of Election Event file - .json file
     #[arg(long)]
     file_path: String,
 
+    /// Whether the file is local or not
     #[arg(long, default_value_t = false)]
     is_local: bool,
 }
@@ -27,29 +29,32 @@ pub struct ImportElectionEventFile {
     query_path = "src/graphql/import_election_event.graphql",
     response_derives = "Debug,Clone,Deserialize,Serialize"
 )]
+/// Import election event query
 pub struct ImportElectionEvent;
 
 impl ImportElectionEventFile {
+    /// Run the import election event command
     pub fn run(&self) {
         match import(&self.file_path, self.is_local) {
             Ok(id) => {
-                println!(
+                info!(
                     "{} {}",
                     "Success! Election event created successfully! ID".green(),
                     id.cyan()
                 );
             }
             Err(err) => {
-                eprintln!("Error! Failed to create election event: {}", err)
+                error!("Error! Failed to create election event: {err}");
             }
         }
     }
 }
 
+/// Import an election event and return the election event id
 pub fn import(file_path: &str, is_local: bool) -> Result<String, Box<dyn std::error::Error>> {
     let config = read_config()?;
     let client = reqwest::blocking::Client::new();
-    let document_id = GetUploadUrl::upload(String::from(file_path), is_local)?;
+    let document_id = GetUploadUrl::upload(file_path, is_local)?;
 
     let variables = import_election_event::Variables {
         tenant_id: config.tenant_id.clone(),
@@ -87,7 +92,7 @@ pub fn import(file_path: &str, is_local: bool) -> Result<String, Box<dyn std::er
     } else {
         let status = response.status();
         let error_message = response.text()?;
-        let error = format!("HTTP Status: {}\nError Message: {}", status, error_message);
+        let error = format!("HTTP Status: {status}\nError Message: {error_message}");
         Err(Box::from(error))
     }
 }

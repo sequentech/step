@@ -9,11 +9,15 @@ use sequent_core::services::reports::render_template_text;
 use sequent_core::types::to_map::ToMap;
 use serde_json::{Map, Value};
 use std::fs;
+use tracing::{error, info};
 use windmill::services::reports::manual_verification;
 
 #[derive(clap::ValueEnum, Clone)]
+/// Template type
 pub enum TemplateType {
+    /// Custom template
     Custom,
+    /// Manual verification template
     ManualVerification,
 }
 
@@ -55,8 +59,8 @@ impl RenderTemplate {
     /// Execute the rendering process
     pub fn run(&self) {
         match self.generate_report() {
-            Ok(_) => println!("{}", "Successfully generated the report".green()),
-            Err(err) => eprintln!("Error! Failed to generate the report: {err:?}"),
+            Ok(()) => info!("{}", "Successfully generated the report".green()),
+            Err(err) => error!("Error! Failed to generate the report: {err:?}"),
         }
     }
 
@@ -96,7 +100,7 @@ impl RenderTemplate {
             }
         };
 
-        let rendered_output = self.render_template_with_vars(user_template, user_vars)?;
+        let rendered_output = self.render_template_with_vars(&user_template, user_vars)?;
 
         fs::write(&self.output, rendered_output)
             .map_err(|e| format!("Failed to write the output file: {e:?}"))?;
@@ -107,10 +111,10 @@ impl RenderTemplate {
     /// Render the template with the provided variables and base template
     fn render_template_with_vars(
         &self,
-        user_template: String,
+        user_template: &str,
         user_vars: Map<String, Value>,
     ) -> Result<String, String> {
-        let rendered_user_template: String = render_template_text(&user_template, user_vars)
+        let rendered_user_template: String = render_template_text(user_template, user_vars)
             .map_err(|e| format!("User template rendering error: {e:?}"))?;
 
         // Determine the system template content based on the template type
@@ -130,12 +134,10 @@ impl RenderTemplate {
         };
 
         let mut system_vars: Map<String, Value> = match self.template_type {
-            TemplateType::Custom => Default::default(),
+            TemplateType::Custom => Map::default(),
             TemplateType::ManualVerification => {
-                let vars_path: String = self
-                    .system_vars
-                    .clone()
-                    .ok_or(format!("System vars not provided"))?;
+                let vars_path: String =
+                    self.system_vars.clone().ok_or("System vars not provided")?;
                 let system_vars_content = fs::read_to_string(&vars_path)
                     .map_err(|e| format!("Could not read system variables file: {e:?}"))?;
                 let system_template_data: manual_verification::SystemData =

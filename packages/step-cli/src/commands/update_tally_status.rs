@@ -3,16 +3,18 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::{
-    types::{hasura_types::*, tally::TallyExecutionStatus},
+    types::{hasura_types::uuid, tally::TallyExecutionStatus},
     utils::read_config::read_config,
 };
 use clap::Args;
 use colored::Colorize;
 use graphql_client::{GraphQLQuery, Response};
 use std::str::FromStr;
+use tracing::{error, info};
 
 #[derive(Args)]
 #[command(about = "Update tally status", long_about = None)]
+/// Update tally status command arguments
 pub struct UpdateTallyStatus {
     /// Election event id - the election event to be associated with
     #[arg(long)]
@@ -33,25 +35,28 @@ pub struct UpdateTallyStatus {
     query_path = "src/graphql/update_tally_ceremony.graphql",
     response_derives = "Debug,Clone,Deserialize,Serialize"
 )]
+/// Update tally ceremony query
 pub struct UpdateTallyCeremony;
 
 impl UpdateTallyStatus {
+    /// Run the update tally status command
     pub fn run(&self) {
         match update_status(&self.election_event_id, &self.tally_id, &self.status) {
             Ok(id) => {
                 let status = &self.status;
-                println!(
+                info!(
                     "{}",
                     format!("Success! Updated status to {status} for tally {id}").green()
                 );
             }
             Err(err) => {
-                eprintln!("Error! Failed to update status: {}", err)
+                error!("Error! Failed to update status: {err}");
             }
         }
     }
 }
 
+/// Update the status of a tally ceremony
 pub fn update_status(
     election_event_id: &str,
     tally_id: &str,
@@ -61,7 +66,7 @@ pub fn update_status(
     let client = reqwest::blocking::Client::new();
 
     // Validate status
-    TallyExecutionStatus::from_str(status).map_err(|_| format!("Invalid status: {}", status))?;
+    TallyExecutionStatus::from_str(status).map_err(|_| format!("Invalid status: {status}"))?;
 
     let variables = update_tally_ceremony::Variables {
         election_event_id: election_event_id.to_string(),
@@ -92,9 +97,9 @@ pub fn update_status(
             Err(Box::from("Unknown error occurred"))
         }
     } else {
-        let status = response.status();
+        let response_status = response.status();
         let error_message = response.text()?;
-        let error = format!("HTTP Status: {}\nError Message: {}", status, error_message);
+        let error = format!("HTTP Status: {response_status}\nError Message: {error_message}");
         Err(Box::from(error))
     }
 }

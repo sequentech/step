@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use crate::{types::hasura_types::*, utils::read_config::read_config};
+use crate::{types::hasura_types::uuid, utils::read_config::read_config};
 use graphql_client::{GraphQLQuery, Response};
 
 #[derive(GraphQLQuery)]
@@ -11,16 +11,17 @@ use graphql_client::{GraphQLQuery, Response};
     query_path = "src/graphql/get_trustees.graphql",
     response_derives = "Debug,Clone,Deserialize,Serialize"
 )]
-
+/// Get trustees query
 pub struct GetTrustees;
 
 impl GetTrustees {
+    /// Get trustees names
     pub fn get_names() -> Result<Vec<String>, Box<dyn std::error::Error>> {
         let config = read_config()?;
         let client = reqwest::blocking::Client::new();
 
         let variables = get_trustees::Variables {
-            tenant_id: config.tenant_id.to_string(),
+            tenant_id: config.tenant_id.clone(),
         };
 
         let request_body = GetTrustees::build_query(variables);
@@ -49,7 +50,7 @@ impl GetTrustees {
         } else {
             let status = response.status();
             let error_message = response.text()?;
-            let error = format!("HTTP Status: {}\nError Message: {}", status, error_message);
+            let error = format!("HTTP Status: {status}\nError Message: {error_message}");
             Err(Box::from(error))
         }
     }

@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use crate::{types::hasura_types::*, utils::read_config::read_config};
+use crate::{types::hasura_types::uuid, utils::read_config::read_config};
 use ::uuid::Uuid;
 use graphql_client::{GraphQLQuery, Response};
 
@@ -12,8 +12,10 @@ use graphql_client::{GraphQLQuery, Response};
     query_path = "src/graphql/get_tally_session_execution.graphql",
     response_derives = "Debug,Clone,Deserialize,Serialize"
 )]
+/// Get tally session execution query
 pub struct GetTallySessionExecution;
 
+/// Get tally session execution
 pub fn get_tally_session_execution(
     tally_session_id: &str,
 ) -> Result<Option<String>, Box<dyn std::error::Error>> {
@@ -48,7 +50,7 @@ pub fn get_tally_session_execution(
     } else {
         let status = response.status();
         let error_message = response.text()?;
-        let error = format!("HTTP Status: {}\nError Message: {}", status, error_message);
+        let error = format!("HTTP Status: {status}\nError Message: {error_message}");
         Err(Box::from(error))
     }
 }

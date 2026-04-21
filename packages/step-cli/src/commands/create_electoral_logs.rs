@@ -19,23 +19,29 @@ use fake::Fake;
 use immudb_rs::{sql_value::Value as ImmudbValue, Client as ImmudbClient, NamedParam, SqlValue};
 use std::env;
 use strand::signature::{StrandSignature, StrandSignaturePk};
+use tracing::{error, info};
 use windmill::services::protocol_manager::get_event_board;
 use windmill::services::providers::transactions_provider::provide_immudb_transaction;
 
 #[derive(Args)]
 #[command(about)]
+/// Create electoral logs command arguments
 pub struct CreateElectoralLogs {
     /// Working directory for input/output
     #[arg(long)]
     working_directory: String,
 
     #[arg(long)]
+    /// Number of logs to create
     num_logs: usize,
 }
 
 #[derive(Debug, Clone)]
+/// Voter information
 struct Voter {
+    /// User ID
     id: Option<String>,
+    /// Username
     username: Option<String>,
 }
 
@@ -46,13 +52,13 @@ impl CreateElectoralLogs {
         match runtime
             .block_on(self.run_create_electoral_logs(&self.working_directory, self.num_logs))
         {
-            Ok(_) => println!("{}", "Successfully created electoral logs.".green()),
-            Err(err) => eprintln!("Error! Failed to create electoral logs: {err:?}"),
+            Ok(()) => info!("{}", "Successfully created electoral logs.".green()),
+            Err(err) => error!("Error! Failed to create electoral logs: {err:?}"),
         }
     }
 
+    /// Generate a log message
     fn generate_log_message(
-        &self,
         election_event_id: &str,
         election_id: &str,
         area_id: &str,
@@ -63,13 +69,13 @@ impl CreateElectoralLogs {
         let statement_timestamp = created;
 
         let dummy_bytes = [0u8; 64];
-        let sender_signature = StrandSignature::from_bytes(dummy_bytes.clone())
-            .expect("Dummy signature conversion failed");
+        let sender_signature =
+            StrandSignature::from_bytes(dummy_bytes).expect("Dummy signature conversion failed");
         let system_signature =
             StrandSignature::from_bytes(dummy_bytes).expect("Dummy signature conversion failed");
 
-        let dummy_bytes = [0u8; 32];
-        let sender_pk = StrandSignaturePk::from_bytes(dummy_bytes)
+        let dummy_bytes_pk = [0u8; 32];
+        let sender_pk = StrandSignaturePk::from_bytes(dummy_bytes_pk)
             .with_context(|| "Error in create Dummy StrandSignaturePk")?;
 
         let message = &Message {
@@ -77,13 +83,13 @@ impl CreateElectoralLogs {
                 name: username.clone().unwrap_or_default(),
                 pk: sender_pk,
             },
-            sender_signature: sender_signature,
-            system_signature: system_signature,
+            sender_signature,
+            system_signature,
             statement: Statement {
                 head: StatementHead {
                     event: EventIdString(election_event_id.to_string()),
                     kind: StatementType::SendCommunications,
-                    timestamp: statement_timestamp as u64,
+                    timestamp: statement_timestamp.cast_unsigned(),
                     event_type: StatementEventType::SYSTEM,
                     log_type: StatementLogType::INFO,
                     description: "Send Communications.".to_string(),
@@ -91,8 +97,8 @@ impl CreateElectoralLogs {
                 body: StatementBody::SendCommunications(None),
             },
             artifact: None,
-            user_id: user_id,
-            username: username.clone(),
+            user_id,
+            username,
             election_id: Some(election_id.to_string()),
             area_id: Some(area_id.to_string()),
             ballot_id: None,
@@ -102,11 +108,13 @@ impl CreateElectoralLogs {
         Ok(board_message)
     }
 
+    /// Create electoral logs
+    #[allow(clippy::too_many_lines)]
     async fn run_create_electoral_logs(
         &self,
         working_dir: &str,
         num_logs: usize,
-    ) -> Result<(), Box<dyn std::error::Error>> {
+    ) -> anyhow::Result<()> {
         let config = load_external_config(working_dir)?;
         let tenant_id = config.tenant_id;
         let election_event_id = config.election_event_id;
@@ -116,13 +124,13 @@ impl CreateElectoralLogs {
         let area_id = config.area_id;
         let realm_name = config.realm_name;
 
-        println!("immudb_db: {}", &immudb_db);
+        info!("immudb_db: {immudb_db}");
 
         let kc_client = get_keyckloak_pool()
             .await?
             .get()
             .await
-            .map_err(|e| anyhow::anyhow!("Error getting hasura client: {}", e.to_string()))?;
+            .map_err(|e| anyhow::anyhow!("Error getting hasura client: {e}"))?;
 
         let keycloak_query = "\
             SELECT ue.id, ue.username \
@@ -131,48 +139,49 @@ impl CreateElectoralLogs {
             WHERE r.name = $1 \
             LIMIT $2 OFFSET 0";
 
+        let limit = i64::try_from(num_logs)
+            .map_err(|_| anyhow::anyhow!("num_logs ({num_logs}) does not fit in i64"))?;
         let users = match kc_client
-            .query(keycloak_query, &[&realm_name, &(num_logs as i64)])
+            .query(keycloak_query, &[&realm_name, &limit])
             .await
         {
             Ok(rows) => rows,
             Err(e) => {
-                println!("It was not possible to query Keycloak: {e:?}");
+                error!("It was not possible to query Keycloak: {e:?}");
                 vec![]
             }
         };
 
         let existing_users: Vec<Voter> = users
             .iter()
-            .filter_map(|row| {
+            .map(|row| {
                 let id = row.get::<_, Option<String>>(0);
                 let username = row.get::<_, Option<String>>(1);
-                Some(Voter { id, username })
+                Voter { id, username }
             })
             .collect();
 
         let mut logs_params: Vec<Vec<NamedParam>> = Vec::new();
+        let mut users_iter = existing_users.iter().cycle();
         for i in 0..num_logs {
-            let user = if existing_users.is_empty() {
-                Voter {
+            let user = match users_iter.next() {
+                Some(user) => user.clone(),
+                None => Voter {
                     id: None,
                     username: None,
-                }
-            } else {
-                existing_users[i % existing_users.len()].clone()
+                },
             };
             let username = Some(user.username.clone().unwrap_or_else(|| Username(EN).fake()));
             let user_id_cloned = user.id.clone();
 
-            let message: ElectoralLogMessage = self
-                .generate_log_message(
-                    &election_event_id,
-                    &election_id,
-                    &area_id,
-                    user_id_cloned.clone(),
-                    username.clone(),
-                )
-                .with_context(|| "Error generating log message")?;
+            let message: ElectoralLogMessage = Self::generate_log_message(
+                &election_event_id,
+                &election_id.clone(),
+                &area_id.clone(),
+                user_id_cloned.clone(),
+                username.clone(),
+            )
+            .with_context(|| "Error generating log message")?;
 
             let params = vec![
                 NamedParam {
@@ -226,20 +235,20 @@ impl CreateElectoralLogs {
                 NamedParam {
                     name: "election_id".to_string(),
                     value: Some(SqlValue {
-                        value: Some(ImmudbValue::S(election_id.to_string())),
+                        value: Some(ImmudbValue::S(election_id.clone())),
                     }),
                 },
                 NamedParam {
                     name: "area_id".to_string(),
                     value: Some(SqlValue {
-                        value: Some(ImmudbValue::S(area_id.to_string())),
+                        value: Some(ImmudbValue::S(area_id.clone())),
                     }),
                 },
             ];
             logs_params.push(params);
         }
 
-        println!("Concatenated {} logs.", logs_params.len());
+        info!("Concatenated {} logs.", logs_params.len());
 
         let batch_size = 1000;
         for chunk in logs_params.chunks(batch_size) {
@@ -247,19 +256,20 @@ impl CreateElectoralLogs {
             provide_immudb_transaction(
                 |client, tx_id| {
                     let chunk = chunk.clone();
-                    Box::pin(async move { insert_logs(client, &tx_id, chunk).await })
+                    Box::pin(async move { insert_logs(client, tx_id, chunk).await })
                 },
                 immudb_db.as_str(),
             )
             .await?;
         }
 
-        println!("Inserted {} logs.", logs_params.len());
+        info!("Inserted {} logs.", logs_params.len());
 
         Ok(())
     }
 }
 
+/// Insert logs into immudb
 async fn insert_logs(
     client: &mut ImmudbClient,
     tx_id: &str,
@@ -268,19 +278,21 @@ async fn insert_logs(
     let mut query = String::from("INSERT INTO electoral_log_messages (created, sender_pk, statement_kind, statement_timestamp, message, version, user_id, username, election_id, area_id) VALUES ");
     let mut values_clauses = Vec::new();
     let mut all_params: Vec<NamedParam> = Vec::new();
-    let mut row_index = 1;
+    let mut row_index: i32 = 1;
 
     for row in &logs_params {
         let mut clause_parts = Vec::new();
         for param in row {
             let new_name = format!("{}{}", param.name, row_index);
-            clause_parts.push(format!("@{}", new_name));
+            clause_parts.push(format!("@{new_name}"));
             all_params.push(NamedParam {
                 name: new_name,
                 value: param.value.clone(),
             });
         }
-        row_index += 1;
+        row_index = row_index
+            .checked_add(1)
+            .ok_or_else(|| anyhow!("Row index overflow"))?;
         values_clauses.push(format!("({})", clause_parts.join(", ")));
     }
 
@@ -288,7 +300,7 @@ async fn insert_logs(
     client
         .tx_sql_exec(&query, &(tx_id.to_string()), all_params)
         .await
-        .map_err(|e| anyhow!("Failed to execute query: {:?}", e))?;
+        .map_err(|e| anyhow!("Failed to execute query: {e:?}"))?;
 
     Ok(())
 }

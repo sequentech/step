@@ -19,12 +19,14 @@ use std::error::Error;
     query_path = "src/graphql/get_private_key.graphql",
     response_derives = "Debug,Clone,Deserialize,Serialize"
 )]
-
+/// Get private key query
 pub struct GetPrivateKey;
 
+/// Get trustee private key
 pub struct GetTrusteePrivateKey;
 
 impl GetTrusteePrivateKey {
+    /// Get trustee private key
     pub fn get_trustee_private_key(
         election_event_id: &str,
         key_ceremony_id: &str,
@@ -50,7 +52,7 @@ impl GetTrusteePrivateKey {
         if response.status().is_success() {
             // Check for graphql errors - as it returns 200 when the action has errors
             let json: Value = response.json().map_err(|err| {
-                Box::<dyn Error>::from(format!("Error parsing JSON response: {:?}", err))
+                Box::<dyn Error>::from(format!("Error parsing JSON response: {err:?}"))
             })?;
             if let Some(errors) = json.get("errors").and_then(Value::as_array) {
                 let error_statuses: Vec<String> = errors
@@ -88,7 +90,7 @@ impl GetTrusteePrivateKey {
         } else {
             let status = response.status();
             let error_message = response.text()?;
-            let error = format!("HTTP Status: {}\nError Message: {}", status, error_message);
+            let error = format!("HTTP Status: {status}\nError Message: {error_message}");
             Err(Box::from(error))
         }
     }

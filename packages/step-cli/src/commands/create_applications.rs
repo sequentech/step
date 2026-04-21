@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+#![allow(clippy::too_many_lines)]
 use crate::utils::keycloak::get_keyckloak_pool;
 use crate::utils::read_config::load_external_config;
 use anyhow::Result;
@@ -19,18 +20,22 @@ use std::env;
 use strum::VariantNames;
 use tokio_postgres::types::ToSql;
 use tokio_postgres::Row;
+use tracing::error;
+use tracing::info;
 use uuid::Uuid;
 use windmill::services::providers::transactions_provider::provide_hasura_transaction;
 use windmill::types::application::{ApplicationStatus, ApplicationType};
 
 #[derive(Args)]
 #[command(about)]
+/// Create applications command
 pub struct CreateApplications {
     /// Working directory for input/output
     #[arg(long)]
     working_directory: String,
 
     #[arg(long)]
+    /// Number of applications to create
     num_applications: usize,
 
     /// Optional status: PENDING, ACCEPTED or REJECTED
@@ -52,18 +57,19 @@ impl CreateApplications {
             self.status.clone(),
             self.r#type.clone(),
         )) {
-            Ok(_) => println!("{}", "Successfully created applications".green()),
-            Err(err) => eprintln!("Error! Failed to create applications: {err:?}"),
+            Ok(()) => info!("{}", "Successfully created applications".green()),
+            Err(err) => error!("Error! Failed to create applications: {err:?}"),
         }
     }
 
+    /// Create applications
     pub async fn run_create_applications(
         &self,
         working_dir: &str,
         num_applications: usize,
         status: Option<ApplicationStatus>,
         verification_type: Option<ApplicationType>,
-    ) -> Result<(), Box<dyn std::error::Error>> {
+    ) -> anyhow::Result<()> {
         let config = load_external_config(working_dir)?;
         let realm_name = config.realm_name;
         let tenant_id = config.tenant_id;
@@ -76,7 +82,7 @@ impl CreateApplications {
             .await?
             .get()
             .await
-            .map_err(|e| anyhow::anyhow!("Error getting hasura client: {}", e.to_string()))?;
+            .map_err(|e| anyhow::anyhow!("Error getting hasura client: {e}"))?;
 
         // --- Query Keycloak for user details ---
         let query = "\
@@ -93,10 +99,11 @@ impl CreateApplications {
             FROM user_entity ue
             JOIN realm r ON ue.realm_id = r.id
             WHERE r.name = $1 LIMIT $2 OFFSET 0;";
-        let users = kc_client
-            .query(query, &[&realm_name, &(num_applications as i64)])
-            .await?;
-        println!("Number of existing user rows: {}", users.len());
+        let limit = i64::try_from(num_applications).map_err(|_| {
+            anyhow::anyhow!("num_applications ({num_applications}) does not fit in i64")
+        })?;
+        let users = kc_client.query(query, &[&realm_name, &limit]).await?;
+        info!("Number of existing user rows: {}", users.len());
 
         provide_hasura_transaction(|hasura_transaction| {
             let existing_users = users.clone();
@@ -111,12 +118,14 @@ impl CreateApplications {
                 set_applications(
                     hasura_transaction,
                     existing_users,
-                    status,
-                    verification_type,
-                    tenant_id,
-                    election_event_id,
-                    default_applicant_data,
-                    annotations,
+                    SetApplicationsContext {
+                        status,
+                        verification_type,
+                        tenant_id,
+                        election_event_id,
+                        default_applicant_data,
+                        annotations,
+                    },
                 )
                 .await
             })
@@ -127,13 +136,14 @@ impl CreateApplications {
     }
 }
 
+/// Get permission label for an area
 async fn get_permission_label(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
     election_event_id: &str,
     area_id: &str,
 ) -> Result<String> {
-    let permissions_label_query = r#"
+    let permissions_label_query = r"
         SELECT el.permission_label
         FROM sequent_backend.area a
             LEFT JOIN sequent_backend.area_contest ac ON a.id = ac.area_id
@@ -150,7 +160,7 @@ async fn get_permission_label(
             con.election_event_id = $3 AND
             el.election_event_id = $3
         LIMIT 1
-    "#;
+    ";
     let rows = hasura_transaction
         .query(
             permissions_label_query,
@@ -161,23 +171,35 @@ async fn get_permission_label(
             ],
         )
         .await?;
-    if let Some(row) = rows.get(0) {
+    if let Some(row) = rows.first() {
         let permission_label: String = row.get(0);
         Ok(permission_label)
     } else {
-        Ok("".to_string())
+        Ok(String::new())
     }
 }
 
+/// Context for bulk-inserting applications from Keycloak user rows.
+struct SetApplicationsContext {
+    /// Optional status: PENDING, ACCEPTED or REJECTED
+    status: Option<ApplicationStatus>,
+    /// Optional verification type: AUTOMATIC or MANUAL
+    verification_type: Option<ApplicationType>,
+    /// Tenant ID
+    tenant_id: String,
+    /// Election event ID
+    election_event_id: String,
+    /// Default applicant data
+    default_applicant_data: HashMap<String, Value>,
+    /// Annotations
+    annotations: Value,
+}
+
+/// Set applications in the database
 async fn set_applications(
     hasura_transaction: &Transaction<'_>,
     users: Vec<Row>,
-    status: Option<ApplicationStatus>,
-    verification_type: Option<ApplicationType>,
-    tenant_id: String,
-    election_event_id: String,
-    default_applicant_data: HashMap<String, Value>,
-    annotations: Value,
+    ctx: SetApplicationsContext,
 ) -> Result<()> {
     let mut permissions_labels: HashMap<String, String> = HashMap::new();
     // --- Build application rows as Vec<Vec<Box<dyn ToSql + Sync>>> ---
@@ -202,32 +224,32 @@ async fn set_applications(
         let embassy: Option<String> = user.get(7);
         let date_of_birth: Option<String> = user.get(8);
 
-        let application_status = match status.clone() {
+        let application_status = match ctx.status.clone() {
             Some(status) => status.to_string(),
             None => ApplicationStatus::VARIANTS
                 .choose(&mut rng())
-                .unwrap()
+                .ok_or_else(|| anyhow::anyhow!("ApplicationStatus has no variants"))?
                 .to_string(),
         };
 
-        let verification_type = match verification_type.clone() {
+        let verification_type = match ctx.verification_type.clone() {
             Some(vt) => vt.to_string(),
             None => {
                 if application_status == ApplicationStatus::PENDING.to_string() {
-                    println!("Setting verification type to MANUAL for PENDING application");
+                    info!("Setting verification type to MANUAL for PENDING application");
                     ApplicationType::MANUAL.to_string()
                 } else {
-                    println!("Setting verification no pendong");
+                    info!("Setting verification no pendong");
                     ApplicationType::VARIANTS
                         .choose(&mut rng())
-                        .unwrap()
+                        .ok_or_else(|| anyhow::anyhow!("ApplicationType has no variants"))?
                         .to_string()
                 }
             }
         };
 
         // Merge default applicant data with user details.
-        let mut applicant_data = default_applicant_data.clone();
+        let mut applicant_data = ctx.default_applicant_data.clone();
         applicant_data.insert("email".to_string(), Value::String(email.clone()));
         applicant_data.insert("firstName".to_string(), Value::String(first_name));
         applicant_data.insert("lastName".to_string(), Value::String(last_name));
@@ -257,10 +279,10 @@ async fn set_applications(
             label.clone()
         } else {
             let label = get_permission_label(
-                &hasura_transaction,
-                &tenant_id,
-                &election_event_id,
-                &area_id,
+                hasura_transaction,
+                &ctx.tenant_id,
+                &ctx.election_event_id,
+                area_id,
             )
             .await?;
             permissions_labels.insert(area_id_value.clone(), label.clone());
@@ -268,21 +290,22 @@ async fn set_applications(
         };
 
         // Build the vector of parameters.
-        let mut params: Vec<Box<dyn ToSql + Send + Sync>> = Vec::new();
-        params.push(Box::new(user_id));
-        params.push(Box::new(application_status));
-        params.push(Box::new(verification_type.clone()));
-        params.push(Box::new(applicant_data_value));
-        params.push(Box::new(Uuid::parse_str(&tenant_id)?));
-        params.push(Box::new(Uuid::parse_str(&election_event_id)?));
-        params.push(Box::new(Uuid::parse_str(area_id)?));
-        params.push(Box::new(&annotations));
-        params.push(Box::new(permission_label.clone()));
+        let params: Vec<Box<dyn ToSql + Send + Sync>> = vec![
+            Box::new(user_id),
+            Box::new(application_status),
+            Box::new(verification_type.clone()),
+            Box::new(applicant_data_value),
+            Box::new(Uuid::parse_str(&ctx.tenant_id)?),
+            Box::new(Uuid::parse_str(&ctx.election_event_id)?),
+            Box::new(Uuid::parse_str(area_id)?),
+            Box::new(&ctx.annotations),
+            Box::new(permission_label.clone()),
+        ];
 
         users_params.push(params);
     }
 
-    println!(
+    info!(
         "Number of application rows to insert: {}",
         users_params.len()
     );
@@ -299,17 +322,19 @@ async fn set_applications(
         let mut placeholders = Vec::new();
         // Build a vector of parameters as trait objects.
         let mut flat_params: Vec<&(dyn ToSql + Sync)> = Vec::new();
-        let mut param_index = 1;
         for appliciant in batch {
             let mut appliciant_placeholders = Vec::new();
             for (i, value) in appliciant.iter().enumerate() {
+                let param_index = flat_params
+                    .len()
+                    .checked_add(1)
+                    .ok_or_else(|| anyhow::anyhow!("SQL parameter placeholder index overflow"))?;
                 // For applicant_data (index 3) and annotations (index 7), add an explicit cast to jsonb.
                 if i == 3 || i == 7 {
-                    appliciant_placeholders.push(format!("${}::jsonb", param_index));
+                    appliciant_placeholders.push(format!("${param_index}::jsonb"));
                 } else {
-                    appliciant_placeholders.push(format!("${}", param_index));
+                    appliciant_placeholders.push(format!("${param_index}"));
                 }
-                param_index += 1;
                 flat_params.push(&**value);
             }
             placeholders.push(format!("({})", appliciant_placeholders.join(", ")));

@@ -2,8 +2,9 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use crate::{types::hasura_types::*, utils::read_config::read_config};
+use crate::{types::hasura_types::uuid, utils::read_config::read_config};
 use graphql_client::{GraphQLQuery, Response};
+use tracing::info;
 
 #[derive(GraphQLQuery)]
 #[graphql(
@@ -11,10 +12,11 @@ use graphql_client::{GraphQLQuery, Response};
     query_path = "src/graphql/generate_ballot_publication.graphql",
     response_derives = "Debug,Clone,Deserialize,Serialize"
 )]
-
+/// Generate ballot publication query
 pub struct GenerateBallotPublication;
 
 impl GenerateBallotPublication {
+    /// Generate ballot publication
     pub fn generate(
         election_event_id: &str,
         election_id: Option<&str>,
@@ -22,11 +24,8 @@ impl GenerateBallotPublication {
         let config = read_config()?;
         let client = reqwest::blocking::Client::new();
 
-        let maybe_election_id = match election_id {
-            Some(id) => Some(id.to_string()),
-            None => None,
-        };
-        println!("Election ID: {:?}", maybe_election_id);
+        let maybe_election_id = election_id.map(ToString::to_string);
+        info!("Election ID: {maybe_election_id:?}");
         let variables = generate_ballot_publication::Variables {
             election_event_id: election_event_id.to_string(),
             election_id: maybe_election_id,
@@ -58,7 +57,7 @@ impl GenerateBallotPublication {
         } else {
             let status = response.status();
             let error_message = response.text()?;
-            let error = format!("HTTP Status: {}\nError Message: {}", status, error_message);
+            let error = format!("HTTP Status: {status}\nError Message: {error_message}");
             Err(Box::from(error))
         }
     }

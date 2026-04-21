@@ -13,8 +13,10 @@ use crate::types::config::ConfigData;
 pub use sequent_core::util::external_config::load_external_config;
 pub use sequent_core::util::external_config::EXTERNAL_CONFIG_FILE_NAME;
 
+/// Config file name
 pub const CREATE_CONFIG_FILE_NAME: &str = "configuration.json";
 
+/// Get config directory
 pub fn get_config_dir() -> Result<PathBuf, Box<dyn Error>> {
     let exe_path = env::current_exe().map_err(|_| "Failed to get current executable path")?;
     let parent_dir = exe_path
@@ -23,6 +25,7 @@ pub fn get_config_dir() -> Result<PathBuf, Box<dyn Error>> {
     Ok(parent_dir.join("config"))
 }
 
+/// Read config
 pub fn read_config() -> Result<ConfigData, Box<dyn Error>> {
     let config_dir = get_config_dir()?;
     let config_file = config_dir.join(CREATE_CONFIG_FILE_NAME);

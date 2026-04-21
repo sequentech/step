@@ -2,8 +2,6 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use crate::utils::keycloak::get_keyckloak_pool;
-use crate::utils::read_config::load_external_config;
 use anyhow::{anyhow, Context, Result};
 use base64::engine::general_purpose;
 use base64::Engine;
@@ -23,19 +21,27 @@ use std::env;
 use std::fs::File;
 use strand::serialization::StrandDeserialize;
 use tokio_postgres::Transaction;
+use tracing::{error, info};
 use uuid::Uuid;
 use windmill::services::providers::transactions_provider::provide_hasura_transaction;
 #[derive(Serialize)]
+/// cast votes record
 struct Record {
+    /// Created timestamp
     created: i64,
+    /// Election id
     election_id: ElectionIdString,
+    /// Area id
     area_id: Option<String>,
+    /// Hash voter id
     hash_voter_id: String,
+    /// Ballot id
     ballot_id: String,
 }
 
 #[derive(Args)]
 #[command(about = "Export casted a vote", long_about = None)]
+/// Export cast votes command arguments
 pub struct ExportCastVotes {
     /// Server url - Url for connecting to immudb board
     #[arg(long)]
@@ -53,38 +59,40 @@ pub struct ExportCastVotes {
     #[arg(long)]
     board_db: String,
 
-    // Filename: Name of the output file
+    /// Filename: Name of the output file
     #[arg(long, default_value = "output.csv")]
     output: String,
 }
 
 impl ExportCastVotes {
+    /// Run the export cast votes command
     pub fn run(&self) {
         let runtime = tokio::runtime::Runtime::new().expect("Failed to create Tokio runtime");
         match runtime.block_on(self.run_export_cast_votes()) {
-            Ok(_) => println!("{}", "Successfully exported cast votes".green()),
-            Err(err) => eprintln!("Error! Failed to export cast votes: {err:?}"),
+            Ok(()) => info!("{}", "Successfully exported cast votes".green()),
+            Err(err) => error!("Error! Failed to export cast votes: {err:?}"),
         }
     }
 
+    /// Export cast votes
     pub async fn run_export_cast_votes(&self) -> Result<(), Box<dyn std::error::Error>> {
-        println!("Creating file {}", self.output);
+        info!("Creating file {}", self.output);
         let file = File::create(&self.output)?;
 
-        println!("Creating writer");
+        info!("Creating writer");
         let mut writer = WriterBuilder::new().from_writer(&file);
 
-        println!("Creating client");
+        info!("Creating client");
         let mut client = BoardClient::new(&self.server_url, &self.username, &self.password)
             .await
-            .map_err(|err| anyhow!("Failed to create the client: {:?}", err))?;
+            .map_err(|err| anyhow!("Failed to create the client: {err:?}"))?;
 
         let cols_match = BTreeMap::from([(
             ElectoralLogVarCharColumn::StatementKind,
             (SqlCompOperators::Equal, StatementType::CastVote.to_string()),
         )]);
         let order_by: Option<HashMap<String, String>> = None;
-        println!("Getting messages");
+        info!("Getting messages");
         let electoral_log_messages = client
             .get_electoral_log_messages_filtered(
                 &self.board_db,
@@ -96,12 +104,12 @@ impl ExportCastVotes {
                 order_by,
             )
             .await
-            .map_err(|err| anyhow!("Failed to get filtered messages: {:?}", err))?;
+            .map_err(|err| anyhow!("Failed to get filtered messages: {err:?}"))?;
 
-        println!("Parsing {} messages", electoral_log_messages.len());
+        info!("Parsing {} messages", electoral_log_messages.len());
         for electoral_log_message in electoral_log_messages {
             let message: &Message = &Message::strand_deserialize(&electoral_log_message.message)
-                .map_err(|err| anyhow!("Failed to deserialize message: {:?}", err))?;
+                .map_err(|err| anyhow!("Failed to deserialize message: {err:?}"))?;
 
             if let StatementBody::CastVote(
                 election_id_string,
@@ -119,13 +127,13 @@ impl ExportCastVotes {
                         ballot_id: hex::encode(shorten_hash(&cast_vote_hash.0.clone().to_inner())),
                         area_id: electoral_log_message.area_id.clone(),
                     })
-                    .map_err(|error| anyhow!("Failed to write row {}", error))?;
-            };
+                    .map_err(|error| anyhow!("Failed to write row {error}"))?;
+            }
         }
 
         writer
             .flush()
-            .map_err(|error| anyhow!("Failed to flush writer {}", error))?;
+            .map_err(|error| anyhow!("Failed to flush writer {error}"))?;
 
         Ok(())
     }

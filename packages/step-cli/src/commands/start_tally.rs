@@ -3,14 +3,16 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::{
-    types::hasura_types::*,
+    types::hasura_types::{jsonb, uuid},
     utils::{elections::get::GetElections, read_config::read_config},
 };
 use clap::Args;
 use colored::Colorize;
 use graphql_client::{GraphQLQuery, Response};
+use tracing::{error, info};
 #[derive(Args)]
 #[command(about = "Start Tally Ceremony", long_about = None)]
+/// Start tally ceremony command arguments
 pub struct StartTallyCeremony {
     /// Election event id - the election event to start the key ceremony for
     #[arg(long)]
@@ -20,7 +22,7 @@ pub struct StartTallyCeremony {
     #[arg(long)]
     election_ids: Option<Vec<String>>,
 
-    /// Tally type - the type of tally to perform (ELECTORAL_RESULTS or INITIALIZATION_REPORT)
+    /// Tally type - the type of tally to perform (`ELECTORAL_RESULTS` or `INITIALIZATION_REPORT`)
     #[arg(long)]
     tally_type: String,
 }
@@ -31,9 +33,11 @@ pub struct StartTallyCeremony {
     query_path = "src/graphql/create_tally_ceremony.graphql",
     response_derives = "Debug,Clone,Deserialize,Serialize"
 )]
+/// Create tally ceremony query
 pub struct CreateTallyCeremony;
 
 impl StartTallyCeremony {
+    /// Run the start tally ceremony command
     pub fn run(&self) {
         match start_ceremony(
             &self.election_event_id,
@@ -41,19 +45,20 @@ impl StartTallyCeremony {
             &self.tally_type,
         ) {
             Ok(id) => {
-                println!(
+                info!(
                     "{} {}",
                     "Success! Successfully started Tally ceremony. ID:".green(),
                     id.cyan()
                 );
             }
             Err(err) => {
-                eprintln!("Error! Failed to start Tally ceremony: {}", err)
+                error!("Error! Failed to start Tally ceremony: {err}");
             }
         }
     }
 }
 
+/// Start the tally ceremony and return the tally ceremony id
 pub fn start_ceremony(
     election_event_id: &str,
     election_ids: Option<Vec<String>>,
@@ -64,7 +69,7 @@ pub fn start_ceremony(
 
     let elections = match election_ids {
         Some(el) => el,
-        None => GetElections::get_by_election_event(&election_event_id)?,
+        None => GetElections::get_by_election_event(election_event_id)?,
     };
 
     let variables = create_tally_ceremony::Variables {
@@ -99,7 +104,7 @@ pub fn start_ceremony(
     } else {
         let status = response.status();
         let error_message = response.text()?;
-        let error = format!("HTTP Status: {}\nError Message: {}", status, error_message);
+        let error = format!("HTTP Status: {status}\nError Message: {error_message}");
         Err(Box::from(error))
     }
 }

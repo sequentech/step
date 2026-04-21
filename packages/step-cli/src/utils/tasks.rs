@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use crate::{types::hasura_types::*, utils::read_config::read_config};
+use crate::{types::hasura_types::uuid, utils::read_config::read_config};
 use ::uuid::Uuid;
 use graphql_client::{GraphQLQuery, Response};
 
@@ -12,8 +12,10 @@ use graphql_client::{GraphQLQuery, Response};
     query_path = "src/graphql/get_task_execution.graphql",
     response_derives = "Debug,Clone,Deserialize,Serialize"
 )]
+/// Get task execution query
 pub struct GetTaskExecution;
 
+/// Get task status
 pub fn get_task_status(task_execution_id: &str) -> Result<String, Box<dyn std::error::Error>> {
     let config = read_config()?;
     let client = reqwest::blocking::Client::new();

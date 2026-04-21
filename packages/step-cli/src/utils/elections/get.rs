@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use crate::{types::hasura_types::*, utils::read_config::read_config};
+use crate::{types::hasura_types::uuid, utils::read_config::read_config};
 use graphql_client::{GraphQLQuery, Response};
 
 #[derive(GraphQLQuery)]
@@ -11,10 +11,11 @@ use graphql_client::{GraphQLQuery, Response};
     query_path = "src/graphql/get_elections.graphql",
     response_derives = "Debug,Clone,Deserialize,Serialize"
 )]
-
+/// Get elections query
 pub struct GetElections;
 
 impl GetElections {
+    /// Get elections by election event id
     pub fn get_by_election_event(
         election_event_id: &str,
     ) -> Result<Vec<String>, Box<dyn std::error::Error>> {
@@ -51,7 +52,7 @@ impl GetElections {
         } else {
             let status = response.status();
             let error_message = response.text()?;
-            let error = format!("HTTP Status: {}\nError Message: {}", status, error_message);
+            let error = format!("HTTP Status: {status}\nError Message: {error_message}");
             Err(Box::from(error))
         }
     }

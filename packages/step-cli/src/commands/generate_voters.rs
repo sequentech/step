@@ -18,16 +18,19 @@ use std::collections::HashSet;
 use std::fs::File;
 use std::io::BufReader;
 use std::path::PathBuf;
+use tracing::{error, info};
 
 use crate::utils::read_config::load_external_config;
 
 #[derive(Args)]
 #[command(about)]
+/// Generate voters command arguments
 pub struct GenerateVoters {
     /// Working directory for input/output
     #[arg(long)]
     working_directory: String,
 
+    /// Number of users to generate
     #[arg(long)]
     num_users: usize,
 }
@@ -35,23 +38,40 @@ pub struct GenerateVoters {
 impl GenerateVoters {
     /// Execute the rendering process
     pub fn run(&self) {
-        match self.run_generate_voters(&self.working_directory, self.num_users) {
-            Ok(_) => println!("{}", "Successfully generated voters into csv".green()),
-            Err(err) => eprintln!("Error! Failed to generate voters: {err:?}"),
+        match Self::run_generate_voters(&self.working_directory, self.num_users) {
+            Ok(()) => info!("{}", "Successfully generated voters into csv".green()),
+            Err(err) => error!("Error! Failed to generate voters: {err:?}"),
         }
     }
 
-    fn generate_fake_dob(&self, min_age: i64, max_age: i64) -> NaiveDate {
+    /// Generate fake date of birth
+    fn generate_fake_dob(min_age: i64, max_age: i64) -> NaiveDate {
         let today = Utc::now().date_naive();
-        let max_date = today - Duration::days(min_age * 365);
-        let min_date = today - Duration::days(max_age * 365);
-        let days_diff = (max_date - min_date).num_days();
+
+        let min_age_days = min_age.checked_mul(365).unwrap_or(0);
+        let max_age_days = max_age.checked_mul(365).unwrap_or(0);
+
+        let max_date = today
+            .checked_sub_signed(Duration::days(min_age_days))
+            .unwrap_or(today);
+
+        let min_date = today
+            .checked_sub_signed(Duration::days(max_age_days))
+            .unwrap_or(today);
+
+        let days_diff = max_date.signed_duration_since(min_date).num_days();
+
+        let days_diff = days_diff.max(0);
+
         let random_days = rand::thread_rng().gen_range(0..=days_diff);
-        min_date + Duration::days(random_days)
+
+        min_date
+            .checked_add_signed(Duration::days(random_days))
+            .unwrap_or(min_date)
     }
 
     /// Deduplicate items while preserving order.
-    fn deduplicate_preserve_order<T: std::hash::Hash + Eq + Clone>(&self, items: &[T]) -> Vec<T> {
+    fn deduplicate_preserve_order<T: std::hash::Hash + Eq + Clone>(items: &[T]) -> Vec<T> {
         let mut seen = HashSet::new();
         let mut result = Vec::new();
         for item in items {
@@ -62,11 +82,9 @@ impl GenerateVoters {
         result
     }
 
-    fn run_generate_voters(
-        &self,
-        working_dir: &str,
-        num_users: usize,
-    ) -> Result<(), Box<dyn std::error::Error>> {
+    /// Generate voters
+    #[allow(clippy::too_many_lines)]
+    fn run_generate_voters(working_dir: &str, num_users: usize) -> Result<()> {
         let config = load_external_config(working_dir)?;
 
         // Get election event file path from config (or default).
@@ -100,26 +118,22 @@ impl GenerateVoters {
         let areas: &[serde_json::Value] = election_data
             .get("areas")
             .and_then(Value::as_array)
-            .map(|v| v.as_slice())
-            .unwrap_or(&[]);
+            .map_or(&[], |v| v.as_slice());
 
         let area_contests: &[serde_json::Value] = election_data
             .get("area_contests")
             .and_then(Value::as_array)
-            .map(|v| v.as_slice())
-            .unwrap_or(&[]);
+            .map_or(&[], |v| v.as_slice());
 
         let contests: &[serde_json::Value] = election_data
             .get("contests")
             .and_then(Value::as_array)
-            .map(|v| v.as_slice())
-            .unwrap_or(&[]);
+            .map_or(&[], |v| v.as_slice());
 
         let elections: &[serde_json::Value] = election_data
             .get("elections")
             .and_then(Value::as_array)
-            .map(|v| v.as_slice())
-            .unwrap_or(&[]);
+            .map_or(&[], |v| v.as_slice());
 
         // Build election mapping.
         let mut election_map = std::collections::HashMap::new();
@@ -172,7 +186,7 @@ impl GenerateVoters {
                 if let Some(uprovs) = components.get("org.keycloak.userprofile.UserProfileProvider")
                 {
                     let uprovs_arr = if uprovs.is_array() {
-                        uprovs.as_array().unwrap().clone()
+                        uprovs.as_array().cloned().unwrap_or_default()
                     } else {
                         vec![uprovs.clone()]
                     };
@@ -206,17 +220,23 @@ impl GenerateVoters {
                                                                 if let Some(opt_str) = opt.as_str()
                                                                 {
                                                                     if opt_str.contains('/') {
-                                                                        let parts: Vec<&str> =
-                                                                            opt_str
-                                                                                .splitn(2, '/')
-                                                                                .collect();
+                                                                        let mut iter =
+                                                                            opt_str.splitn(2, '/');
+
+                                                                        let first = iter
+                                                                            .next()
+                                                                            .unwrap_or("");
+                                                                        let second = iter
+                                                                            .next()
+                                                                            .unwrap_or("");
+
                                                                         cou_emb_dict.insert(
-                                                                            parts[1].to_lowercase(),
+                                                                            second.to_lowercase(),
                                                                             (
-                                                                                parts[0]
+                                                                                first
                                                                                     .trim()
                                                                                     .to_string(),
-                                                                                parts[1]
+                                                                                second
                                                                                     .trim()
                                                                                     .to_string(),
                                                                             ),
@@ -254,10 +274,9 @@ impl GenerateVoters {
         let mut wtr = Writer::from_path(&csv_file_path)?;
         wtr.write_record(&final_fields)?;
 
-        let mut username_counter = 0;
         let mut area_cycle = areas.iter().cycle();
 
-        for i in 0..num_users {
+        for (i, username_counter) in (0..num_users).enumerate() {
             let area = area_cycle.next().unwrap_or(&Value::Null);
             let area_id = area.get("id").and_then(Value::as_str).unwrap_or("Unknown");
             let area_name = area
@@ -267,30 +286,26 @@ impl GenerateVoters {
 
             let assigned_cids = area_contest_map
                 .get(area_id)
-                .map(|v| v.as_slice())
-                .unwrap_or(&[]);
+                .map_or(&[][..], |v| v.as_slice());
 
             let mut election_aliases = Vec::new();
             let mut precincts = Vec::new();
 
             for cid in assigned_cids {
                 let unknown_e_id = "Unknown".to_string();
-                let e_id = contest_election_map
-                    .get(cid)
-                    .unwrap_or(&unknown_e_id)
-                    .to_string();
+                let e_id = contest_election_map.get(cid).unwrap_or(&unknown_e_id);
                 let default_value = (String::from("Unknown"), String::from("Unknown"));
-                let (alias, cluster_prec) = election_map.get(&e_id).unwrap_or(&default_value);
+                let (alias, cluster_prec) = election_map.get(e_id).unwrap_or(&default_value);
                 election_aliases.push(alias.clone());
                 precincts.push(cluster_prec.clone());
             }
-            election_aliases = self.deduplicate_preserve_order(&election_aliases);
-            precincts = self.deduplicate_preserve_order(&precincts);
+            election_aliases = Self::deduplicate_preserve_order(&election_aliases);
+            precincts = Self::deduplicate_preserve_order(&precincts);
 
             let election_country_candidate = if let Some(first_alias) = election_aliases.first() {
                 if first_alias.contains(" - ") {
                     first_alias
-                        .splitn(2, " - ")
+                        .split(" - ")
                         .next()
                         .unwrap_or("Unknown")
                         .trim()
@@ -307,40 +322,43 @@ impl GenerateVoters {
                 .get(&lookup_key)
                 .cloned()
                 .unwrap_or_else(|| (election_country_candidate.clone(), "Unknown".to_string()));
-            let joined_aliases = if !election_aliases.is_empty() {
-                if authorized_elections_count > 0 {
-                    let amount =
-                        std::cmp::min(authorized_elections_count as usize, election_aliases.len());
-                    election_aliases
-                        .choose_multiple(&mut rand::thread_rng(), amount)
-                        .cloned()
-                        .collect::<Vec<String>>()
-                        .join("|")
-                } else {
-                    election_aliases.join("|")
-                }
-            } else {
+            let joined_aliases = if election_aliases.is_empty() {
                 "Unknown".to_string()
+            } else if authorized_elections_count > 0 {
+                let amount = std::cmp::min(
+                    usize::try_from(authorized_elections_count).unwrap_or(0),
+                    election_aliases.len(),
+                );
+                election_aliases
+                    .choose_multiple(&mut rand::thread_rng(), amount)
+                    .cloned()
+                    .collect::<Vec<String>>()
+                    .join("|")
+            } else {
+                election_aliases.join("|")
             };
-            let joined_precincts = if !precincts.is_empty() {
-                precincts.join("|")
-            } else {
+            let joined_precincts = if precincts.is_empty() {
                 "Unknown".to_string()
+            } else {
+                precincts.join("|")
             };
 
-            let dob = self.generate_fake_dob(min_age, max_age);
+            let dob = Self::generate_fake_dob(min_age, max_age);
             let dob_str = dob.format("%Y-%m-%d").to_string();
 
+            let i_64 = i64::try_from(i).unwrap_or(0);
             let email = if sequence_email_number {
                 format!(
                     "{}+{}@{}",
                     email_prefix,
-                    i as i64 + sequence_start_number,
+                    i_64.checked_add(sequence_start_number).unwrap_or(0),
                     domain
                 )
             } else {
-                let random_num: u32 = rand::random::<u32>() % 900_000_000 + 100_000;
-                format!("{}+{}@{}", email_prefix, random_num, domain)
+                let random_num: u32 = rand::random::<u32>()
+                    .wrapping_add(100_000)
+                    .wrapping_rem(900_000_000);
+                format!("{email_prefix}+{random_num}@{domain}")
             };
 
             // Instead of storing the user record in a vector, we build the CSV record directly.
@@ -351,43 +369,41 @@ impl GenerateVoters {
                     "username" => username_counter.to_string(),
                     "first_name" => FirstName(EN).fake(),
                     "last_name" => LastName(EN).fake(),
-                    "middleName" => String::new(),
                     "dateOfBirth" => dob_str.clone(),
                     "sex" => {
-                        if *[true, false].choose(&mut rand::rng()).unwrap() {
+                        if rand::random::<bool>() {
                             "M".to_string()
                         } else {
                             "F".to_string()
                         }
                     }
-                    "country" => format!("{}/{}", official_country, official_embassy),
+                    "country" => format!("{official_country}/{official_embassy}"),
                     "embassy" => official_embassy.clone(),
                     "clusteredPrecinct" => joined_precincts.clone(),
-                    "overseasReferences" => overseas_reference.to_string(),
+                    "overseasReferences" => overseas_reference.clone(),
                     "area_name" => area_name.to_string(),
                     "authorized-election-ids" => joined_aliases.clone(),
-                    "password" => voter_password.to_string(),
+                    "password" => voter_password.clone(),
                     "email" => email.clone(),
-                    "password_salt" => password_salt.to_string(),
-                    "hashed_password" => hashed_password.to_string(),
+                    "password_salt" => password_salt.clone(),
+                    "hashed_password" => hashed_password.clone(),
                     "email_verified" => email_verified.to_string(),
-                    _ => "".to_string(), // default empty if field not recognized
+                    _ => String::new(), // default empty if field not recognized or its middlename
                 };
                 record.push(value);
             }
 
             // Write the record to the CSV file.
             wtr.write_record(&record)?;
-            username_counter += 1;
 
             // Optionally, log progress every so often rather than every record.
             if i % 10000 == 0 {
-                println!("Generated {} users...", i);
+                info!("Generated {i} users...");
             }
         }
         wtr.flush()?;
 
-        println!(
+        info!(
             "Successfully generated {} users. CSV file created at: {}",
             num_users,
             csv_file_path.canonicalize()?.display()

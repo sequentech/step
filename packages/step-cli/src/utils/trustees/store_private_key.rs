@@ -9,6 +9,7 @@ use std::{env, fs};
 
 use crate::utils::read_config::read_config;
 
+/// Download private key
 pub fn download_private_key(
     election_event_id: &str,
     private_key: &str,
@@ -39,6 +40,7 @@ pub fn download_private_key(
     Ok(file_path)
 }
 
+/// Get private key content
 pub fn get_private_key_content(
     election_event_id: &str,
     client_username: &str,
@@ -49,10 +51,8 @@ pub fn get_private_key_content(
         .ok_or("Failed to get executable directory")?;
 
     let dir_path = parent_dir.join("keys");
-    let file_path = format!(
-        "encrypted_private_key_trustee_{}_{}.txt",
-        client_username, election_event_id
-    );
+    let file_path =
+        format!("encrypted_private_key_trustee_{client_username}_{election_event_id}.txt");
 
     let path = dir_path.join(file_path);
 

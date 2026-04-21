@@ -2,17 +2,17 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use std::collections::HashMap;
-
-use crate::{types::hasura_types::*, utils::read_config::read_config};
+use crate::{types::hasura_types::jsonb, utils::read_config::read_config};
 use clap::Args;
 use colored::Colorize;
 use create_user::KeycloakUser2;
 use graphql_client::{GraphQLQuery, Response};
 use serde_json::{Map, Value};
+use tracing::{error, info};
 
 #[derive(Args)]
 #[command(about = "Create a new voter", long_about = None)]
+/// Create voter command arguments
 pub struct CreateVoter {
     /// Election event id - the election event to be associated with
     #[arg(long)]
@@ -34,6 +34,7 @@ pub struct CreateVoter {
     #[arg(long, default_value = "")]
     email: String,
 
+    /// Area id
     #[arg(long)]
     area_id: String,
 }
@@ -44,9 +45,11 @@ pub struct CreateVoter {
     query_path = "src/graphql/create_user.graphql",
     response_derives = "Debug,Clone,Deserialize,Serialize"
 )]
+/// Create user query
 pub struct CreateUser;
 
 impl CreateVoter {
+    /// Run the create voter command
     pub fn run(&self) {
         match create_voter(
             &self.election_event_id,
@@ -57,19 +60,20 @@ impl CreateVoter {
             &self.area_id,
         ) {
             Ok(id) => {
-                println!(
+                info!(
                     "{} {}",
                     "Success! Voter created successfully! ID:".green(),
                     id.cyan()
                 );
             }
             Err(err) => {
-                eprintln!("Error! Failed to create voter: {}", err)
+                error!("Error! Failed to create voter: {err}");
             }
         }
     }
 }
 
+/// Create a voter and return the voter id
 pub fn create_voter(
     election_event_id: &str,
     first_name: &str,
@@ -151,7 +155,7 @@ pub fn create_voter(
     } else {
         let status = response.status();
         let error_message = response.text()?;
-        let error = format!("HTTP Status: {}\nError Message: {}", status, error_message);
+        let error = format!("HTTP Status: {status}\nError Message: {error_message}");
         Err(Box::from(error))
     }
 }
