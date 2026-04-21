@@ -15,7 +15,7 @@ use crate::postgres::tally_session::{
 };
 use crate::postgres::tally_session_contest::update_tally_session_contests_annotations;
 use crate::postgres::tally_session_execution::insert_tally_session_execution;
-use crate::postgres::tally_session_resolution::get_resolution_by_tally_session;
+use crate::postgres::tally_session_resolution::get_resolutions_by;
 use crate::postgres::tally_sheet::get_published_tally_sheets_by_event;
 use crate::postgres::template::get_template_by_alias;
 use crate::services::cast_votes::{count_cast_votes_election, ElectionCastVotes};
@@ -34,7 +34,7 @@ use crate::services::ceremonies::tally_ceremony::{
 };
 use crate::services::ceremonies::tally_progress::generate_tally_progress;
 use crate::services::ceremonies::tally_resolution::{
-    build_tie_resolutions_map, handle_pending_irv_resolutions,
+    handle_pending_irv_resolutions, per_contest_tie_resolutions_map,
 };
 use crate::services::ceremonies::tally_session_error::handle_tally_session_error;
 use crate::services::ceremonies::velvet_tally::run_velvet_tally;
@@ -848,18 +848,18 @@ async fn map_plaintext_data(
     // Determine whether this is a tie-break re-run by checking if any resolved
     // resolutions exist for this session.
     let (tie_break_rerun, resolved_resolution_ids) = {
-        let all_resolutions = get_resolution_by_tally_session(
+        let resolved_resolutions = get_resolutions_by(
             hasura_transaction,
             &tenant_id,
             &election_event_id,
-            &tally_session_id,
+            Some(&tally_session_id),
+            Some(TallySessionResolutionStatus::Resolved),
         )
         .await
         .unwrap_or_default();
-        let is_rerun = !build_tie_resolutions_map(&all_resolutions).is_empty();
-        let ids = all_resolutions
+        let is_rerun = !per_contest_tie_resolutions_map(&resolved_resolutions).is_empty();
+        let ids = resolved_resolutions
             .iter()
-            .filter(|r| r.status == TallySessionResolutionStatus::Resolved)
             .map(|r| r.id.clone())
             .collect::<Vec<_>>();
         (is_rerun, ids)
@@ -1169,18 +1169,19 @@ pub async fn execute_tally_session_wrapped(
 
     // Fetch resolved tie-break resolutions to pass into the velvet tally and
     // to determine has_resolved_tie_break for populate_results_tables.
-    let tie_resolutions: HashMap<String, Vec<TallySessionResolutionData>> = {
-        let all_resolutions = get_resolution_by_tally_session(
+    let resolved_ties_per_contest: HashMap<String, Vec<TallySessionResolutionData>> = {
+        let resolved_ties = get_resolutions_by(
             hasura_transaction,
             &tenant_id,
             &election_event_id,
-            &tally_session_id,
+            Some(&tally_session_id),
+            Some(TallySessionResolutionStatus::Resolved),
         )
         .await
         .unwrap_or_default();
-        build_tie_resolutions_map(&all_resolutions)
+        per_contest_tie_resolutions_map(&resolved_ties)
     };
-    let has_resolved_tie_break = !tie_resolutions.is_empty();
+    let has_resolved_tie_break = !resolved_ties_per_contest.is_empty();
 
     // map plaintexts to contests
     let plaintexts_data_opt = map_plaintext_data(
@@ -1236,7 +1237,7 @@ pub async fn execute_tally_session_wrapped(
             &election_event,
             &tally_session,
             tally_type_enum.clone(),
-            tie_resolutions,
+            resolved_ties_per_contest,
         )
         .await
         {

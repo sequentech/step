@@ -286,6 +286,12 @@ pub async fn save_results(
     Ok(())
 }
 
+/// Mints a new `results_event_id` and writes it to PostgreSQL when results
+/// need to be (re-)published. Returns `None` when no new ID is needed.
+///
+/// A new ID is generated when either:
+/// - `force_new_id` is set (tie-break re-run: same ballot sessions, fresh results), or
+/// - new ballot sessions have arrived since the previous execution.
 #[instrument(skip_all)]
 pub async fn generate_results_id_if_necessary(
     hasura_transaction: &Transaction<'_>,
@@ -303,7 +309,9 @@ pub async fn generate_results_id_if_necessary(
     let previous_session_ids = previous_execution.session_ids.unwrap_or(vec![]);
     let session_ids = session_ids_opt.unwrap_or(vec![]);
 
-    if !force_new_id && !(session_ids.len() > previous_session_ids.len()) {
+    let has_new_sessions = session_ids.len() > previous_session_ids.len();
+    let should_generate_new_id = force_new_id || has_new_sessions;
+    if !should_generate_new_id {
         return Ok(None);
     }
 

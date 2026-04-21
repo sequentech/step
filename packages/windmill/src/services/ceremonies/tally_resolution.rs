@@ -15,21 +15,19 @@ use uuid::Uuid;
 use crate::postgres::election_event::get_election_event_by_id;
 use crate::postgres::tally_session::{get_tally_session_by_id, update_tally_session_status};
 use crate::postgres::tally_session_resolution::{
-    create_tally_session_resolution, get_pending_resolutions, get_resolution_by_tally_session,
-    submit_resolution, update_resolution,
+    create_tally_session_resolution, get_resolutions_by, submit_resolution, update_resolution,
 };
 use crate::services::election_event_board::get_election_event_board;
 use crate::services::electoral_log::ElectoralLog;
 
 /// Groups resolved IRV tie-break rows into a per-contest map keyed by the
 /// actual contest UUID.
-pub fn build_tie_resolutions_map(
+pub fn per_contest_tie_resolutions_map(
     resolutions: &[TallySessionResolution],
 ) -> HashMap<String, Vec<TallySessionResolutionData>> {
     let mut map: HashMap<String, Vec<TallySessionResolutionData>> = HashMap::new();
     for r in resolutions
         .iter()
-        .filter(|r| r.status == TallySessionResolutionStatus::Resolved)
         .filter(|r| r.resolution_type == TallySessionResolutionType::IrvTieBreak)
         .filter(|r| r.resolution_data.is_some())
     {
@@ -155,11 +153,12 @@ pub async fn handle_pending_irv_resolutions(
         tie_resolutions.pending.len()
     );
 
-    let existing_pending_resolutions = get_pending_resolutions(
+    let existing_pending_resolutions = get_resolutions_by(
         hasura_transaction,
         tenant_id,
         election_event_id,
-        tally_session_id,
+        Some(tally_session_id),
+        Some(TallySessionResolutionStatus::Pending),
     )
     .await?;
 
@@ -240,11 +239,12 @@ pub async fn submit_tally_resolution(
         .ok_or_else(|| anyhow!("Missing execution status for tally session {tally_session_id}"))?;
 
     // Get all resolutions for this tally session (needed before status validation)
-    let all_resolutions = get_resolution_by_tally_session(
+    let all_resolutions = get_resolutions_by(
         hasura_transaction,
         tenant_id,
         election_event_id,
-        tally_session_id,
+        Some(tally_session_id),
+        None,
     )
     .await?;
 
@@ -461,8 +461,8 @@ pub fn is_resubmission(resolution: &TallySessionResolution) -> bool {
 #[cfg(test)]
 mod tally_resolution_tests {
     use super::{
-        build_tie_resolutions_map, extract_tied_candidate_ids, is_resubmission,
-        pending_resolution_exists, validate_resolution_allowed,
+        extract_tied_candidate_ids, is_resubmission, pending_resolution_exists,
+        per_contest_tie_resolutions_map, validate_resolution_allowed,
     };
     use rocket::http::Status;
     use sequent_core::types::ceremonies::{
@@ -626,7 +626,7 @@ mod tally_resolution_tests {
                 TallySessionResolutionType::IrvTieBreak,
             ),
         ];
-        let map = build_tie_resolutions_map(&rows);
+        let map = per_contest_tie_resolutions_map(&rows);
 
         assert_eq!(map.len(), 2, "Two distinct contest IDs expected");
 
@@ -667,14 +667,14 @@ mod tally_resolution_tests {
         );
         no_resolution.resolution_data = None;
 
-        let map = build_tie_resolutions_map(&[no_contest_id, no_resolution]);
+        let map = per_contest_tie_resolutions_map(&[no_contest_id, no_resolution]);
         assert!(map.is_empty(), "Incomplete rows must produce an empty map");
     }
 
     /// An empty slice must produce an empty map (no panics).
     #[test]
     fn test_build_tie_resolutions_map_empty_input() {
-        let map = build_tie_resolutions_map(&[]);
+        let map = per_contest_tie_resolutions_map(&[]);
         assert!(map.is_empty());
     }
 

@@ -13,7 +13,7 @@ use crate::{
         tally_session::get_tally_sessions_by_election_event_id,
         tally_session_contest::get_event_tally_session_contest,
         tally_session_execution::get_event_tally_session_executions,
-        tally_session_resolution::get_resolutions_by_election_event,
+        tally_session_resolution::get_resolutions_by,
     },
     types::documents::ETallyDocuments,
 };
@@ -653,13 +653,15 @@ pub async fn export_tally_session_resolution(
     tenant_id: &str,
     election_event_id: &str,
 ) -> Result<(String, TempPath)> {
-    let resolutions = get_resolutions_by_election_event(
+    let resolutions = get_resolutions_by(
         hasura_transaction,
         tenant_id,
         election_event_id,
+        None,
+        None,
     )
     .await
-    .map_err(|e| anyhow!("Error in get_resolutions_by_election_event: {e:?}"))?;
+    .map_err(|e| anyhow!("Error in get_resolutions_by: {e:?}"))?;
 
     let file_name = ETallyDocuments::TALLY_SESSION_RESOLUTION
         .to_file_name()

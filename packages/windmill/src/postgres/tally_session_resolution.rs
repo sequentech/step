@@ -77,14 +77,19 @@ pub async fn create_tally_session_resolution(
     Ok(id.to_string())
 }
 
-/// Get pending resolutions for a tally session
+/// Query resolutions filtered by optional `tally_session_id` and/or `status`.
+/// Passing `None` for either omits that filter (i.e. matches all values).
 #[instrument(skip(hasura_transaction))]
-pub async fn get_pending_resolutions(
+pub async fn get_resolutions_by(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
     election_event_id: &str,
-    tally_session_id: &str,
+    tally_session_id: Option<&str>,
+    status: Option<TallySessionResolutionStatus>,
 ) -> Result<Vec<TallySessionResolution>> {
+    let tally_session_uuid = tally_session_id.map(Uuid::parse_str).transpose()?;
+    let status_str = status.as_ref().map(|s| s.to_string());
+
     let query = r#"
         SELECT
             id, tenant_id, election_event_id, tally_session_id,
@@ -95,8 +100,8 @@ pub async fn get_pending_resolutions(
         FROM sequent_backend.tally_session_resolution
         WHERE tenant_id = $1
           AND election_event_id = $2
-          AND tally_session_id = $3
-          AND status = 'pending'
+          AND ($3::uuid IS NULL OR tally_session_id = $3)
+          AND ($4::text IS NULL OR status = $4)
         ORDER BY created_at ASC
     "#;
 
@@ -106,48 +111,8 @@ pub async fn get_pending_resolutions(
             &[
                 &Uuid::parse_str(tenant_id)?,
                 &Uuid::parse_str(election_event_id)?,
-                &Uuid::parse_str(tally_session_id)?,
-            ],
-        )
-        .await?;
-
-    let mut resolutions = Vec::new();
-    for row in rows {
-        resolutions.push(map_row_to_resolution(&row)?);
-    }
-
-    Ok(resolutions)
-}
-
-/// Get all resolutions for a tally session (both pending and resolved)
-#[instrument(skip(hasura_transaction))]
-pub async fn get_resolution_by_tally_session(
-    hasura_transaction: &Transaction<'_>,
-    tenant_id: &str,
-    election_event_id: &str,
-    tally_session_id: &str,
-) -> Result<Vec<TallySessionResolution>> {
-    let query = r#"
-        SELECT
-            id, tenant_id, election_event_id, tally_session_id,
-            contest_id,
-            created_at, last_updated_at, resolution_type, status,
-            resolution_data, resolved_by_user, resolved_at,
-            labels, annotations
-        FROM sequent_backend.tally_session_resolution
-        WHERE tenant_id = $1
-          AND election_event_id = $2
-          AND tally_session_id = $3
-        ORDER BY created_at ASC
-    "#;
-
-    let rows = hasura_transaction
-        .query(
-            query,
-            &[
-                &Uuid::parse_str(tenant_id)?,
-                &Uuid::parse_str(election_event_id)?,
-                &Uuid::parse_str(tally_session_id)?,
+                &tally_session_uuid,
+                &status_str,
             ],
         )
         .await?;
@@ -205,44 +170,6 @@ pub async fn submit_resolution(
 
     info!("Submitted resolution {}", resolution_id);
     Ok(())
-}
-
-/// Get all resolutions for an election event (used for export)
-#[instrument(skip(hasura_transaction))]
-pub async fn get_resolutions_by_election_event(
-    hasura_transaction: &Transaction<'_>,
-    tenant_id: &str,
-    election_event_id: &str,
-) -> Result<Vec<TallySessionResolution>> {
-    let query = r#"
-        SELECT
-            id, tenant_id, election_event_id, tally_session_id,
-            contest_id,
-            created_at, last_updated_at, resolution_type, status,
-            resolution_data, resolved_by_user, resolved_at,
-            labels, annotations
-        FROM sequent_backend.tally_session_resolution
-        WHERE tenant_id = $1
-          AND election_event_id = $2
-        ORDER BY created_at ASC
-    "#;
-
-    let rows = hasura_transaction
-        .query(
-            query,
-            &[
-                &Uuid::parse_str(tenant_id)?,
-                &Uuid::parse_str(election_event_id)?,
-            ],
-        )
-        .await?;
-
-    let mut resolutions = Vec::new();
-    for row in rows {
-        resolutions.push(map_row_to_resolution(&row)?);
-    }
-
-    Ok(resolutions)
 }
 
 /// Bulk-insert resolutions (used for import)
