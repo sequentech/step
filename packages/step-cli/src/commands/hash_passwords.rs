@@ -44,14 +44,14 @@ impl HashPasswords {
     /// Run the command
     pub fn run(&self) {
         let runtime = tokio::runtime::Runtime::new().expect("Failed to create Tokio runtime");
-        match runtime.block_on(self.run_hash_password()) {
+        match self.run_hash_password() {
             Ok(()) => info!("Successfully generated hashed passwords"),
             Err(err) => error!("Error! Failed to generate hashed password: {err:?}"),
         }
     }
 
     ///Hash password in the input file and save the results to the output file
-    pub async fn run_hash_password(&self) -> Result<()> {
+    pub fn run_hash_password(&self) -> Result<()> {
         let input = File::open(&self.input_file)?;
         let mut rdr = ReaderBuilder::new().from_reader(BufReader::new(input));
 

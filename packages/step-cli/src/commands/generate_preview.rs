@@ -48,7 +48,7 @@ impl GeneratePreview {
 pub fn generate_preview(file_path: &str) -> Result<String, Box<dyn std::error::Error>> {
     let config = read_config()?;
     let client = reqwest::blocking::Client::new();
-    let document_id = GetUploadUrl::upload(String::from(file_path), true)?;
+    let document_id = GetUploadUrl::upload(file_path, true)?;
 
     let variables = generate_preview_url::Variables {
         tenant_id: config.tenant_id.clone(),

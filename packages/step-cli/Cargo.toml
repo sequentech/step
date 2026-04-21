@@ -48,3 +48,35 @@ tracing = "0.1"
 [[bin]]
 name = "step-cli"
 path = "src/main.rs"
+
+[lints.rustdoc]
+missing_crate_level_docs = "deny"
+broken_intra_doc_links = "deny"
+
+[lints.rust]
+missing_docs = "deny"
+unsafe_code = "forbid"
+private_interfaces = "warn"
+private_bounds = "warn"
+unnameable_types = "warn"
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(coverage,coverage_nightly)'] }
+
+[lints.clippy]
+missing_docs_in_private_items = "deny"
+missing_errors_doc = "deny"
+missing_panics_doc = "deny"
+doc_markdown = "deny"
+unwrap_used = "deny"
+panic = "deny"
+shadow_unrelated = "deny"
+print_stdout = "deny"
+print_stderr = "deny"
+indexing_slicing = "deny"
+missing_const_for_fn = "deny"
+future_not_send = "deny"
+arithmetic_side_effects = "deny"
+suspicious = "deny"
+complexity = "deny"
+style = "deny"
+perf = "deny"
+pedantic = "deny"

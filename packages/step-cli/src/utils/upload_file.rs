@@ -18,26 +18,31 @@ use super::read_config::read_config;
     query_path = "src/graphql/get_upload_url.graphql",
     response_derives = "Debug,Clone,Deserialize,Serialize"
 )]
+/// Get upload url query
 pub struct GetUploadUrl;
 
 impl GetUploadUrl {
-    pub fn upload(file_path: String, is_local: bool) -> Result<String, Box<dyn std::error::Error>> {
+    /// Upload file
+    pub fn upload(file_path: &str, is_local: bool) -> Result<String, Box<dyn std::error::Error>> {
         let config = read_config()?;
         let client = reqwest::blocking::Client::new();
 
-        let path = Path::new(&file_path);
+        let path = Path::new(file_path);
         let file_name = path
             .file_name()
             .ok_or("Invalid file path")?
             .to_str()
             .ok_or("Invalid file name")?;
-        let file_size = metadata(&path)?.len() as i64;
+        let file_size = metadata(path)?.len().cast_signed();
 
         let extension = path
             .extension()
             .and_then(|ext| ext.to_str())
             .ok_or("Unable to determine file extension")?;
-        let mime_type = get_mime_types(extension)[0];
+        let mime_type = match get_mime_types(extension).first() {
+            Some(m) => *m,
+            None => return Err(Box::from(format!("Unknown file extension: {extension}"))),
+        };
 
         let variables = get_upload_url::Variables {
             name: String::from(file_name),
@@ -61,7 +66,7 @@ impl GetUploadUrl {
             if let Some(data) = response_body.data {
                 if let Some(e) = data.get_upload_url {
                     let upload_url = e.url.clone();
-                    let mut file = File::open(&file_path)?;
+                    let mut file = File::open(file_path)?;
                     let mut file_contents = Vec::new();
                     file.read_to_end(&mut file_contents)?;
                     let upload_response = match mime_type {
@@ -86,7 +91,7 @@ impl GetUploadUrl {
                         let status = upload_response.status();
                         let error_message = upload_response.text()?;
                         let error =
-                            format!("HTTP Status: {}\nError Message: {}", status, error_message);
+                            format!("HTTP Status: {status}\nError Message: {error_message}");
                         Err(Box::from(error))
                     }
                 } else {
@@ -101,7 +106,7 @@ impl GetUploadUrl {
         } else {
             let status = response.status();
             let error_message = response.text()?;
-            let error = format!("HTTP Status: {}\nError Message: {}", status, error_message);
+            let error = format!("HTTP Status: {status}\nError Message: {error_message}");
             Err(Box::from(error))
         }
     }

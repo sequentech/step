@@ -5,6 +5,7 @@
 use crate::{types::hasura_types::*, utils::read_config::read_config};
 use graphql_client::{GraphQLQuery, Response};
 use reqwest::blocking::Client;
+use tracing::info;
 use std::path::Path;
 use std::{fs, io};
 use url::Url;
@@ -15,12 +16,16 @@ use url::Url;
     query_path = "src/graphql/fetch_document.graphql",
     response_derives = "Debug,Clone,Deserialize,Serialize"
 )]
+/// Fetch document query
 pub struct FetchDocument;
 
+/// Fetch document output
 pub struct FetchDocumentOutput {
+    /// Document URL
     pub url: String,
 }
 
+/// Fetch document
 pub fn fetch_document(
     election_event_id: &str,
     document_id: &str,
@@ -58,12 +63,13 @@ pub fn fetch_document(
     } else {
         let status = response.status();
         let error_message = response.text()?;
-        let error = format!("HTTP Status: {}\nError Message: {}", status, error_message);
+        let error = format!("HTTP Status: {status}\nError Message: {error_message}");
         Err(Box::from(error))
     }
 }
 
-pub fn download_file(
+/// Download file
+    pub fn download_file(
     presigned_url: &str,
     output_path: &str,
 ) -> Result<(), Box<dyn std::error::Error>> {
@@ -78,13 +84,13 @@ pub fn download_file(
     if let Some(port) = original.port() {
         connect_url
             .set_port(Some(port))
-            .map_err(|_| "failed setting port")?;
+            .map_err(|()| "failed setting port")?;
     }
 
     // Build the Host header exactly as it was originally signed
     let host_header = match original.port() {
-        Some(port) => format!("{}:{}", original.host_str().unwrap(), port),
-        None => original.host_str().unwrap().to_string(),
+        Some(port) => format!("{}:{}", original.host_str().unwrap_or_default(), port),
+        None => original.host_str().unwrap_or_default().to_string(),
     };
 
     let client = Client::builder()
@@ -96,10 +102,10 @@ pub fn download_file(
 
     let mut response = client.get(connect_url).header("Host", host_header).send()?;
 
-    println!("response status: {}", response.status());
+    info!("response status: {}", response.status());
     if !response.status().is_success() {
         let error_text = response.text()?;
-        return Err(format!("Failed to download file: {}", error_text).into());
+        return Err(format!("Failed to download file: {error_text}").into());
     }
 
     let mut file = fs::File::create(output_path)?;

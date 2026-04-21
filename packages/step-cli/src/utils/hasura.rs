@@ -7,7 +7,7 @@ use std::env;
 use tokio_postgres::NoTls;
 
 /// Get hasura pool
-pub async fn get_hasura_pool() -> Result<Pool, Box<dyn std::error::Error>> {
+pub fn get_hasura_pool() -> Result<Pool, Box<dyn std::error::Error>> {
     let cfg = PgConfig {
         host: Some(env::var("HASURA_PG_HOST")?),
         port: Some(env::var("HASURA_PG_PORT")?.parse::<u16>()?),

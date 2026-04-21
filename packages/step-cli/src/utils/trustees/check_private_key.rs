@@ -11,9 +11,11 @@ use graphql_client::{GraphQLQuery, Response};
     query_path = "src/graphql/check_private_key.graphql",
     response_derives = "Debug,Clone,Deserialize,Serialize"
 )]
+/// Check private key query
 pub struct CheckPrivateKey;
 
 impl CheckPrivateKey {
+    /// Check private key
     pub fn check(
         election_event_id: &str,
         key_ceremony_id: &str,
@@ -53,7 +55,7 @@ impl CheckPrivateKey {
         } else {
             let status = response.status();
             let error_message = response.text()?;
-            let error = format!("HTTP Status: {}\nError Message: {}", status, error_message);
+            let error = format!("HTTP Status: {status}\nError Message: {error_message}");
             Err(Box::from(error))
         }
     }
