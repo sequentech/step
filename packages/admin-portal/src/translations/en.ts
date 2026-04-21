@@ -86,6 +86,7 @@ const englishTranslation = {
                 DELETE_ELECTION_EVENT: "Delete Election Event",
                 PREPARE_PUBLICATION_PREVIEW: "Prepare Publication Preview",
                 EXPORT_TALLY_RESULTS_XLSX: "Export Tally Results in XLSX format",
+                EXPORT_CERTIFICATE_AUTHORITIES: "Export Certificate Authorities",
             },
             widget: {
                 taskTitle: "Task: {{title}}",
@@ -340,7 +341,7 @@ const englishTranslation = {
                     "no-signature": "No signature",
                     "with-signature": "With signature",
                 },
-                voterDigitalCertPolicy: {
+                VoterCertificatePolicy: {
                     policyLabel: "Voter Digital Certificate Policy",
                     enabled: "Enabled",
                     disabled: "Disabled",
@@ -547,6 +548,7 @@ const englishTranslation = {
                 reports: "Reports",
                 applications: "Applications",
                 tally: "Tally",
+                certificates: "Certificates",
             },
             taskNotification:
                 "{{action}} has started. You can see its status at Tasks Execution table.",
@@ -2151,6 +2153,9 @@ const englishTranslation = {
             },
         },
         certificateAuthorities: {
+            title: "Certificates",
+            subtitle:
+                "Certificate Authorities (CAs) trusted for this election event. Imported CAs are used to validate voter certificates.",
             importButton: "Import Certificates",
             type: {
                 root: "Root",
@@ -2184,6 +2189,16 @@ const englishTranslation = {
                 importError: "Import failed: {{error}}",
                 deleteSuccess: "Certificate deleted.",
                 deleteError: "Error deleting certificate.",
+                exportSuccess: "Certificate(s) exported successfully.",
+                exportError: "Error exporting certificates.",
+            },
+            exportDialog: {
+                title: "Export Certificate Authorities",
+                description: "You are about to export {{amount}} certificate(s).",
+                all: "all",
+            },
+            deleteDialog: {
+                description: "Are you sure you want to delete {{count}} certificate(s)?",
             },
             emptyHeader: "No certificate authorities have been imported for this election event.",
             fileReadError: "Failed to read the file.",

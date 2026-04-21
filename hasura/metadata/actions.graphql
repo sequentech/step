@@ -132,6 +132,13 @@ type Mutation {
 }
 
 type Mutation {
+    update_realm_attributes(
+        election_event_id: String!
+        attributes: jsonb!
+    ): UpdateRealmAttributesOutput
+}
+
+type Mutation {
     delete_users(
         tenant_id: String!
         election_event_id: String
@@ -950,6 +957,7 @@ input ExportOptions {
     reports: Boolean
     applications: Boolean
     tally: Boolean
+    include_certificates: Boolean
 }
 
 input ApplicationVerifyBody {
@@ -1653,11 +1661,27 @@ type ImportCertificateAuthorityOutput {
 
 type Mutation {
     delete_certificate_authority(
-        id: uuid!
+        ids: [uuid!]!
         election_event_id: uuid!
     ): DeleteCertificateAuthorityOutput
 }
 
 type DeleteCertificateAuthorityOutput {
-    deleted: Boolean!
+    deleted_count: Int!
+}
+
+type Mutation {
+    export_certificate_authority(
+        ids: [uuid!]!
+        election_event_id: uuid!
+    ): ExportCertificateAuthorityOutput
+}
+
+type ExportCertificateAuthorityOutput {
+    document_id: String!
+    task_execution: tasks_execution_type
+}
+
+type UpdateRealmAttributesOutput {
+    updated: Boolean!
 }
