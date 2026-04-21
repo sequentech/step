@@ -88,6 +88,7 @@ const tagalogTranslation: TranslationType = {
                 PREPARE_PUBLICATION_PREVIEW: "Ihanda ang paunang tingin ng publikasyon",
                 EXPORT_TALLY_RESULTS_XLSX:
                     "I-export ang mga resulta ng pagbibilang sa format na XLSX",
+                EXPORT_CERTIFICATE_AUTHORITIES: "I-export ang mga awtoridad sa sertipikasyon",
             },
             widget: {
                 taskTitle: "Gawain: {{title}}",
@@ -340,7 +341,7 @@ const tagalogTranslation: TranslationType = {
                     "no-signature": "Walang pirma",
                     "with-signature": "May pirma",
                 },
-                voterDigitalCertPolicy: {
+                VoterCertificatePolicy: {
                     policyLabel: "Voter Digital Certificate Policy",
                     enabled: "Naka-enable",
                     disabled: "Naka-disable",
@@ -548,6 +549,7 @@ const tagalogTranslation: TranslationType = {
                 reports: "Mga Ulat",
                 applications: "Mga Aplikasyon",
                 tally: "Bilang",
+                certificates: "Mga Sertipiko",
             },
             taskNotification:
                 "{{action}} ay nagsimula na. Maaari mong makita ang status nito sa Talahanayan ng Pagpapatupad ng Mga Gawain.",
@@ -2173,6 +2175,9 @@ const tagalogTranslation: TranslationType = {
             },
         },
         certificateAuthorities: {
+            title: "Mga Sertipiko",
+            subtitle:
+                "Mga pinagkakatiwalaang awtoridad sa sertipikasyon (CA) para sa kaganapang ito ng eleksyon. Ang mga na-import na CA ay ginagamit upang mapatunayan ang mga sertipiko ng botante.",
             importButton: "Mag-import ng mga sertipiko",
             type: {
                 root: "Ugat",
@@ -2206,6 +2211,16 @@ const tagalogTranslation: TranslationType = {
                 importError: "Nabigo ang pag-import: {{error}}",
                 deleteSuccess: "Nabura ang sertipiko.",
                 deleteError: "Error sa pagbura ng sertipiko.",
+                exportSuccess: "Matagumpay na na-export ang sertipiko(s).",
+                exportError: "Error sa pag-export ng mga sertipiko.",
+            },
+            exportDialog: {
+                title: "I-export ang mga awtoridad sa sertipikasyon",
+                description: "Ie-export mo ang {{amount}} sertipiko.",
+                all: "lahat",
+            },
+            deleteDialog: {
+                description: "Sigurado ka bang gusto mong burahin ang {{count}} sertipiko?",
             },
             emptyHeader:
                 "Walang mga awtoridad sa sertipikasyon na na-import para sa electoral event na ito.",

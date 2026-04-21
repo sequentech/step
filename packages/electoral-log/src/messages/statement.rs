@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
 use strum_macros::Display;
 
-use crate::messages::newtypes::*;
+use crate::messages::newtypes::{CertificateAuthEventAction, *};
 use tracing::info;
 
 #[derive(BorshSerialize, BorshDeserialize, Deserialize, Serialize, Debug)]
@@ -165,18 +165,30 @@ impl StatementHead {
                 ..default_head
             },
             StatementBody::KeycloakUserEvent(error_message_string, error_message_type) => {
-                let description = if (error_message_string.0.trim() == "null")
-                    || (error_message_string.0.trim().is_empty())
-                {
-                    format!("{}", error_message_type.0)
+                let mut description = format!("{}", error_message_type.0);
+                let log_type = if error_message_type.0.contains("ERROR") {
+                    // Leave the first word in error_message_string which should be the error code.
+                    description = format!(
+                        "{} {}",
+                        description,
+                        error_message_string
+                            .0
+                            .split_whitespace()
+                            .next()
+                            .unwrap_or("")
+                    );
+                    StatementLogType::ERROR
                 } else {
-                    format!("{}: {}", error_message_type.0, error_message_string.0)
+                    // Remove ":" char from description if exists
+                    description = description.replace(":", "");
+                    StatementLogType::INFO
                 };
 
                 StatementHead {
                     kind: StatementType::KeycloakUserEvent,
                     event_type: StatementEventType::USER,
                     description,
+                    log_type,
                     ..default_head
                 }
             }
@@ -191,6 +203,24 @@ impl StatementHead {
                 description: "Admin has public key.".to_string(),
                 ..default_head
             },
+            StatementBody::CertificateAuthEvent(action, subjects) => {
+                let action_str = match action {
+                    CertificateAuthEventAction::Import => "imported",
+                    CertificateAuthEventAction::Delete => "deleted",
+                };
+                let subjects_str = subjects.0.join("; ");
+                let description = if subjects.0.len() == 1 {
+                    format!("CA certificate {action_str}. Subject: {subjects_str}")
+                } else {
+                    format!("CA certificates {action_str}. Subjects: {subjects_str}")
+                };
+                StatementHead {
+                    kind: StatementType::CertificateAuthEvent,
+                    event_type: StatementEventType::USER,
+                    description,
+                    ..default_head
+                }
+            }
         }
     }
 }
@@ -276,6 +306,9 @@ pub enum StatementBody {
     ///     the given admin user
     ///     hash has as their public key the given public key (in der_b64 format)
     AdminPublicKey(TenantIdString, Option<String>, PublicKeyDerB64),
+    /// Records that one or more CA certificates were imported or deleted for an election event.
+    /// Carries the action (Import/Delete) and the subject DNs of the affected certificates.
+    CertificateAuthEvent(CertificateAuthEventAction, CertificateSubjectDnsString),
 }
 
 // Note: When creating new variants, consider that the length limit STATEMENT_KIND_VARCHAR_LENGTH is 40.
@@ -305,6 +338,7 @@ pub enum StatementType {
     KeycloakUserEvent,
     VoterPublicKey,
     AdminPublicKey,
+    CertificateAuthEvent,
 }
 
 #[derive(BorshSerialize, BorshDeserialize, Display, Deserialize, Serialize, Debug, Clone)]

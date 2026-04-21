@@ -87,6 +87,7 @@ const frenchTranslation: TranslationType = {
                 DELETE_ELECTION_EVENT: "Supprimer l'événement électoral",
                 PREPARE_PUBLICATION_PREVIEW: "Préparer l'aperçu de la publication",
                 EXPORT_TALLY_RESULTS_XLSX: "Exporter les résultats du dépouillement au format XLSX",
+                EXPORT_CERTIFICATE_AUTHORITIES: "Exporter les autorités de certification",
             },
             widget: {
                 taskTitle: "Tâche: {{title}}",
@@ -341,7 +342,7 @@ const frenchTranslation: TranslationType = {
                     "no-signature": "Sans signature",
                     "with-signature": "Avec signature",
                 },
-                voterDigitalCertPolicy: {
+                VoterCertificatePolicy: {
                     policyLabel: "Voter Digital Certificate Policy",
                     enabled: "Activé",
                     disabled: "Désactivé",
@@ -550,6 +551,7 @@ const frenchTranslation: TranslationType = {
                 reports: "Rapports",
                 applications: "Applications",
                 tally: "Décompte",
+                certificates: "Certificats",
             },
             taskNotification:
                 "{{action}} a commencé. Vous pouvez voir son statut dans le tableau d'Exécution des Tâches.",
@@ -2181,6 +2183,9 @@ const frenchTranslation: TranslationType = {
             },
         },
         certificateAuthorities: {
+            title: "Certificats",
+            subtitle:
+                "Autorités de certification (CA) de confiance pour cet événement électoral. Les CA importées sont utilisées pour valider les certificats des électeurs.",
             importButton: "Importer des certificats",
             type: {
                 root: "Racine",
@@ -2214,6 +2219,16 @@ const frenchTranslation: TranslationType = {
                 importError: "Échec de l'importation : {{error}}",
                 deleteSuccess: "Certificat supprimé.",
                 deleteError: "Erreur lors de la suppression du certificat.",
+                exportSuccess: "Certificat(s) exporté(s) avec succès.",
+                exportError: "Erreur lors de l'exportation des certificats.",
+            },
+            exportDialog: {
+                title: "Exporter les autorités de certification",
+                description: "Vous êtes sur le point d'exporter {{amount}} certificat(s).",
+                all: "tous",
+            },
+            deleteDialog: {
+                description: "Êtes-vous sûr de vouloir supprimer {{count}} certificat(s) ?",
             },
             emptyHeader:
                 "Aucune autorité de certification n'a été importée pour cet événement électoral.",
