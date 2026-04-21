@@ -2,5 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+/// E2E tests
 pub mod e2e;
+/// Initialize Loadero tests
 pub mod init_loadero;

@@ -8,7 +8,7 @@ use std::{
 };
 
 use crate::{
-    types::hasura_types::*,
+    types::hasura_types::uuid,
     utils::{
         publication::{generate::GenerateBallotPublication, get::GetBallotPublicationStatus},
         read_config::read_config,
@@ -17,13 +17,16 @@ use crate::{
 use clap::Args;
 use colored::Colorize;
 use graphql_client::{GraphQLQuery, Response};
-
+use tracing::{error, info};
 #[derive(Args)]
 #[command(about = "Publish election event ballot changes", long_about = None)]
+/// Publish changes command arguments
 pub struct PublishChanges {
+    /// Election event id
     #[arg(long)]
     election_event_id: String,
 
+    /// Election id
     #[arg(long)]
     election_id: Option<String>,
 }
@@ -34,28 +37,29 @@ pub struct PublishChanges {
     query_path = "src/graphql/publish_ballot.graphql",
     response_derives = "Debug,Clone,Deserialize,Serialize"
 )]
+/// Publish ballot query
 pub struct PublishBallot;
 
 impl PublishChanges {
+    /// Run the publish changes command
+    #[allow(clippy::unused_self)]
     pub fn run(&self) {
-        match publish_changes(
-            &self.election_event_id,
-            self.election_id.as_ref().map(String::as_str),
-        ) {
+        match publish_changes(&self.election_event_id, self.election_id.as_deref()) {
             Ok(id) => {
-                println!(
+                info!(
                     "{} {}",
                     "Success! Published successfully! ID:".green(),
                     id.cyan()
                 );
             }
             Err(err) => {
-                eprintln!("Error! Failed to publish: {}", err)
+                error!("Error! Failed to publish: {err}");
             }
         }
     }
 }
 
+/// Publish changes and return the ballot publication id
 pub fn publish_changes(
     election_event_id: &str,
     election_id: Option<&str>,
@@ -124,7 +128,7 @@ pub fn publish_changes(
     } else {
         let status = response.status();
         let error_message = response.text()?;
-        let error = format!("HTTP Status: {}\nError Message: {}", status, error_message);
+        let error = format!("HTTP Status: {status}\nError Message: {error_message}");
         Err(Box::from(error))
     }
 }

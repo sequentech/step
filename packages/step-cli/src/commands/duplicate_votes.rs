@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::utils::keycloak::get_keyckloak_pool;
 use crate::utils::read_config::load_external_config;
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use clap::Args;
 use colored::Colorize;
 use serde_json::Value;
@@ -31,7 +31,7 @@ impl DuplicateVotes {
     pub fn run(&self) {
         let runtime = tokio::runtime::Runtime::new().expect("Failed to create Tokio runtime");
         match runtime.block_on(self.run_duplicate_votes(&self.working_directory, self.num_votes)) {
-            Ok(_) => info!("{}", "Successfully duplicate vote".green()),
+            Ok(()) => info!("{}", "Successfully duplicate vote".green()),
             Err(err) => error!("Error! Failed to duplicate vote: {err:?}"),
         }
     }
@@ -52,7 +52,7 @@ impl DuplicateVotes {
             .await?
             .get()
             .await
-            .map_err(|e| anyhow::anyhow!("Error getting hasura client: {e}"))?;
+            .map_err(|e| anyhow!("Error getting hasura client: {e}"))?;
 
         let keycloak_query = "\
             SELECT ue.id FROM user_entity AS ue \
@@ -60,7 +60,7 @@ impl DuplicateVotes {
             WHERE r.name = $1 LIMIT $2 OFFSET 0";
 
         let limit = i64::try_from(num_votes)
-            .map_err(|_| anyhow::anyhow!("num_votes ({num_votes}) does not fit in i64"))?;
+            .map_err(|_| anyhow!("num_votes ({num_votes}) does not fit in i64"))?;
         let kc_rows = kc_client
             .query(keycloak_query, &[&realm_name, &limit])
             .await?;
@@ -101,7 +101,7 @@ async fn insert_votes(
         info!("No row found to clone.");
         return Ok(());
     }
-    let row = base_row.unwrap();
+    let row = base_row.ok_or(anyhow::anyhow!("No row found to clone"))?;
     let tenant_id = row.try_get::<_, Uuid>(0)?;
     let election_event_id = row.try_get::<_, Uuid>(1)?;
     let election_id = row.try_get::<_, Uuid>(2)?;
@@ -122,10 +122,17 @@ async fn insert_votes(
         let total_params = batch
             .len()
             .checked_mul(row_param_count)
-            .ok_or(anyhow::anyhow!("Total parameters overflow"))?;
+            .ok_or_else(|| anyhow!("Total parameters overflow"))?;
 
         // Preallocate for efficiency
-        let mut query = String::with_capacity(100 + total_params * 3);
+        let capacity = 100usize
+            .checked_add(
+                total_params
+                    .checked_mul(3)
+                    .ok_or_else(|| anyhow!("capacity overflow"))?,
+            )
+            .ok_or_else(|| anyhow!("capacity overflow"))?;
+        let mut query = String::with_capacity(capacity);
         query.push_str("INSERT INTO sequent_backend.cast_vote (voter_id_string, election_id, tenant_id, area_id, annotations, content, cast_ballot_signature, election_event_id, ballot_id) VALUES ");
 
         let mut params: Vec<&(dyn tokio_postgres::types::ToSql + Sync)> =
@@ -134,8 +141,14 @@ async fn insert_votes(
         let mut placeholders = Vec::with_capacity(batch.len());
 
         for (i, uid) in batch.iter().enumerate() {
-            let start = i * row_param_count + 1;
-            let placeholder = (start..start + row_param_count)
+            let start = i
+                .checked_mul(row_param_count)
+                .and_then(|v| v.checked_add(1))
+                .ok_or_else(|| anyhow!("parameter index overflow"))?;
+            let end = start
+                .checked_add(row_param_count)
+                .ok_or_else(|| anyhow!("parameter range overflow"))?;
+            let placeholder = (start..end)
                 .map(|idx| format!("${idx}"))
                 .collect::<Vec<_>>()
                 .join(", ");

@@ -66,8 +66,9 @@ pub fn download_results(
     );
 
     // Extract the tar_gz document ID
-    let tar_gz_id = documents["tar_gz"]
-        .as_str()
+    let tar_gz_id = documents
+        .get("tar_gz")
+        .and_then(|v| v.as_str())
         .ok_or_else(|| Box::<dyn Error>::from("No tar_gz document found"))?;
 
     // Get the document URL and download it

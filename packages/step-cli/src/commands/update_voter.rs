@@ -2,15 +2,17 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use crate::{types::hasura_types::*, utils::read_config::read_config};
+use crate::{types::hasura_types::jsonb, utils::read_config::read_config};
 use clap::Args;
 use colored::Colorize;
 use edit_user::EditUsersInput;
 use graphql_client::{GraphQLQuery, Response};
 use serde_json::{Map, Value};
+use tracing::{error, info};
 
 #[derive(Args)]
 #[command(about = "Edit a voter", long_about = None)]
+/// Update voter command arguments
 pub struct UpdateVoter {
     /// Election event id - the election event to be associated with
     #[arg(long)]
@@ -44,10 +46,11 @@ pub struct UpdateVoter {
     #[arg(long, default_value = "")]
     area_id: String,
 
-    /// mobile - user mobile_number
+    /// mobile - user mobile number
     #[arg(long, default_value = "")]
     mobile: String,
 
+    /// Temporary - whether the password is temporary
     #[arg(long, default_value_t = false)]
     temporary: bool,
 }
@@ -58,9 +61,11 @@ pub struct UpdateVoter {
     query_path = "src/graphql/edit_user.graphql",
     response_derives = "Debug,Clone,Deserialize,Serialize"
 )]
+/// Edit user query
 pub struct EditUser;
 
 impl UpdateVoter {
+    /// Run the update voter command
     pub fn run(&self) {
         match edit_voter(
             &self.election_event_id,
@@ -72,22 +77,24 @@ impl UpdateVoter {
             &self.password,
             &self.area_id,
             &self.mobile,
-            &self.temporary,
+            self.temporary,
         ) {
             Ok(id) => {
-                println!(
+                info!(
                     "{} {}",
                     "Success! Voter updated successfully! ID:".green(),
                     id.cyan()
                 );
             }
             Err(err) => {
-                eprintln!("Error! Failed to update voter: {}", err)
+                error!("Error! Failed to update voter: {err}");
             }
         }
     }
 }
 
+/// Update a voter and return the voter id
+#[allow(clippy::too_many_arguments)]
 pub fn edit_voter(
     election_event_id: &str,
     user_id: &str,
@@ -98,7 +105,7 @@ pub fn edit_voter(
     password: &str,
     area_id: &str,
     mobile: &str,
-    temporary: &bool,
+    temporary: bool,
 ) -> Result<String, Box<dyn std::error::Error>> {
     let config = read_config()?;
     let client = reqwest::blocking::Client::new();
@@ -158,7 +165,7 @@ pub fn edit_voter(
             enabled: Some(true),
             groups: None,
             election_event_id: Some(election_event_id.to_string()),
-            temporary: Some(temporary.clone()),
+            temporary: Some(temporary),
         },
     };
 
@@ -188,7 +195,7 @@ pub fn edit_voter(
     } else {
         let status = response.status();
         let error_message = response.text()?;
-        let error = format!("HTTP Status: {}\nError Message: {}", status, error_message);
+        let error = format!("HTTP Status: {status}\nError Message: {error_message}");
         Err(Box::from(error))
     }
 }

@@ -10,9 +10,11 @@ use crate::{
 use clap::Args;
 use graphql_client::{GraphQLQuery, Response};
 use sequent_core::types::permissions::Permissions;
+use tracing::{error, info};
 
 #[derive(Args)]
 #[command(about = "Generate Preview Url", long_about = None)]
+/// Generate preview url command arguments
 pub struct GeneratePreview {
     /// Path of Preview file - .json file
     #[arg(long)]
@@ -25,21 +27,24 @@ pub struct GeneratePreview {
     query_path = "src/graphql/generate_preview_url.graphql",
     response_derives = "Debug,Clone,Deserialize,Serialize"
 )]
+/// Generate preview url query
 pub struct GeneratePreviewUrl;
 
 impl GeneratePreview {
+    /// Run the generate preview url command
     pub fn run(&self) {
         match generate_preview(&self.file_path) {
             Ok(url) => {
-                println!("Success! generated preview url: {}", url);
+                info!("Success! generated preview url: {url}");
             }
             Err(err) => {
-                eprintln!("Error! Failed to generated preview url: {}", err)
+                error!("Error! Failed to generated preview url: {err}");
             }
         }
     }
 }
 
+/// Generate preview url
 pub fn generate_preview(file_path: &str) -> Result<String, Box<dyn std::error::Error>> {
     let config = read_config()?;
     let client = reqwest::blocking::Client::new();
@@ -75,7 +80,7 @@ pub fn generate_preview(file_path: &str) -> Result<String, Box<dyn std::error::E
     } else {
         let status = response.status();
         let error_message = response.text()?;
-        let error = format!("HTTP Status: {}\nError Message: {}", status, error_message);
+        let error = format!("HTTP Status: {status}\nError Message: {error_message}");
         Err(Box::from(error))
     }
 }

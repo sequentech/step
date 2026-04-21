@@ -6,7 +6,9 @@ use std::{fs, thread, time::Duration};
 
 use reqwest::header::{HeaderMap, HeaderValue, AUTHORIZATION, CONTENT_TYPE};
 use serde_json::{json, Value};
+use tracing::{error, info};
 
+/// Initialize Loadero tests
 pub fn init_loadero_tests(
     election_event_id: &str,
     voting_portal_url: &str,
@@ -39,15 +41,12 @@ pub fn init_loadero_tests(
     loop {
         match check_test_status(&loadero_url, &test_id, &run_id) {
             Ok((pass, fail)) => {
-                println!(
-                    "Test {} (run ID {}): Passed {} times, Failed {} times",
-                    test_id, run_id, pass, fail
-                );
+                info!("Test {test_id} (run ID {run_id}): Passed {pass} times, Failed {fail} times",);
                 break; // Exit the loop when test is done
             }
             Err(e) => {
                 if e.to_string().contains("HTTP Status") {
-                    eprintln!("HTTP Error checking status for test {}: {}", test_id, e);
+                    error!("HTTP Error checking status for test {test_id}: {e}");
                     break; // Exit the loop on HTTP errors
                 }
                 // Wait before retrying
@@ -59,19 +58,21 @@ pub fn init_loadero_tests(
     Ok(())
 }
 
+/// Create a header for the Loadero API
 fn create_header() -> Result<HeaderMap, Box<dyn std::error::Error>> {
     let api_key = std::env::var("LOADERO_API_KEY")?;
 
     let mut headers = HeaderMap::new();
     headers.insert(
         AUTHORIZATION,
-        HeaderValue::from_str(&format!("LoaderoAuth {}", api_key))?,
+        HeaderValue::from_str(&format!("LoaderoAuth {api_key}"))?,
     );
     headers.insert(CONTENT_TYPE, HeaderValue::from_static("application/json"));
 
     Ok(headers)
 }
 
+/// Create a test in Loadero
 fn create_test(
     loadero_url: &str,
     election_event_id: &str,
@@ -87,6 +88,7 @@ fn create_test(
     let loadero_interval_sec = std::env::var("LOADERO_INTERVAL_TIME").unwrap_or("3.3".to_string()); // Fallback is 3.3 sec
     let loadero_interval_sec: f64 = loadero_interval_sec.parse()?;
 
+    #[allow(clippy::cast_precision_loss)]
     let start_interval_time = (participant_count as f64) * loadero_interval_sec;
 
     let json_body = json!({
@@ -99,7 +101,7 @@ fn create_test(
     });
 
     let response = client
-        .post(format!("{}/tests", &loadero_url))
+        .post(format!("{loadero_url}/tests"))
         .headers(headers)
         .json(&json_body)
         .send()?;
@@ -107,7 +109,7 @@ fn create_test(
     if response.status().is_success() {
         let response_json: Value = response.json()?;
 
-        if let Some(run_id) = response_json["id"].as_i64() {
+        if let Some(run_id) = response_json.get("id").and_then(serde_json::Value::as_i64) {
             Ok(run_id.to_string())
         } else {
             Err(Box::from("No run id found"))
@@ -115,11 +117,12 @@ fn create_test(
     } else {
         let status = response.status();
         let error_message = response.text()?;
-        let error = format!("HTTP Status: {}\nError Message: {}", status, error_message);
+        let error = format!("HTTP Status: {status}\nError Message: {error_message}");
         Err(Box::from(error))
     }
 }
 
+/// Create test participants in Loadero
 fn create_test_paricipants(
     loadero_url: &str,
     test_id: &str,
@@ -140,7 +143,7 @@ fn create_test_paricipants(
     });
 
     let response = client
-        .post(format!("{}/tests/{}/participants", &loadero_url, &test_id))
+        .post(format!("{loadero_url}/tests/{test_id}/participants"))
         .headers(headers)
         .json(&json_body)
         .send()?;
@@ -148,7 +151,7 @@ fn create_test_paricipants(
     if response.status().is_success() {
         let response_json: Value = response.json()?;
 
-        if let Some(participant_id) = response_json["id"].as_i64() {
+        if let Some(participant_id) = response_json.get("id").and_then(serde_json::Value::as_i64) {
             Ok(participant_id.to_string())
         } else {
             Err(Box::from("No id found"))
@@ -156,25 +159,29 @@ fn create_test_paricipants(
     } else {
         let status = response.status();
         let error_message = response.text()?;
-        let error = format!("HTTP Status: {}\nError Message: {}", status, error_message);
+        let error = format!("HTTP Status: {status}\nError Message: {error_message}");
         Err(Box::from(error))
     }
 }
 
+/// Get tests from Loadero
 fn get_tests(loadero_url: &str) -> Result<Vec<String>, Box<dyn std::error::Error>> {
     let client = reqwest::blocking::Client::new();
     let headers = create_header()?;
     let response = client
-        .get(format!("{}/tests", &loadero_url))
+        .get(format!("{loadero_url}/tests"))
         .headers(headers)
         .send()?;
     if response.status().is_success() {
         let response_json: Value = response.json()?;
         let mut test_ids = Vec::new();
 
-        if let Some(results) = response_json["results"].as_array() {
+        if let Some(results) = response_json
+            .get("results")
+            .and_then(serde_json::Value::as_array)
+        {
             for result in results {
-                if let Some(id) = result["id"].as_i64() {
+                if let Some(id) = result.get("id").and_then(serde_json::Value::as_i64) {
                     test_ids.push(id.to_string());
                 }
             }
@@ -184,24 +191,25 @@ fn get_tests(loadero_url: &str) -> Result<Vec<String>, Box<dyn std::error::Error
     } else {
         let status = response.status();
         let error_message = response.text()?;
-        let error = format!("HTTP Status: {}\nError Message: {}", status, error_message);
+        let error = format!("HTTP Status: {status}\nError Message: {error_message}");
         Err(Box::from(error))
     }
 }
 
+/// Launch a test in Loadero
 fn launch_test(loadero_url: &str, test_id: &str) -> Result<String, Box<dyn std::error::Error>> {
     let client = reqwest::blocking::Client::new();
     let headers = create_header()?;
 
     let response = client
-        .post(format!("{}/tests/{}/runs/", &loadero_url, test_id))
+        .post(format!("{loadero_url}/tests/{test_id}/runs/"))
         .headers(headers)
         .send()?;
 
     if response.status().is_success() {
         let response_json: Value = response.json()?;
 
-        if let Some(run_id) = response_json["id"].as_i64() {
+        if let Some(run_id) = response_json.get("id").and_then(serde_json::Value::as_i64) {
             Ok(run_id.to_string())
         } else {
             Err(Box::from("No run id found"))
@@ -209,11 +217,12 @@ fn launch_test(loadero_url: &str, test_id: &str) -> Result<String, Box<dyn std::
     } else {
         let status = response.status();
         let error_message = response.text()?;
-        let error = format!("HTTP Status: {}\nError Message: {}", status, error_message);
+        let error = format!("HTTP Status: {status}\nError Message: {error_message}");
         Err(Box::from(error))
     }
 }
 
+/// Check the status of a test in Loadero
 fn check_test_status(
     loadero_url: &str,
     test_id: &str,
@@ -223,30 +232,36 @@ fn check_test_status(
     let headers = create_header()?;
 
     let response = client
-        .get(format!(
-            "{}/tests/{}/runs/{}/",
-            &loadero_url, test_id, run_id
-        ))
+        .get(format!("{loadero_url}/tests/{test_id}/runs/{run_id}/",))
         .headers(headers)
         .send()?;
 
-    let status = response.status();
+    let response_status = response.status();
     let response_text = response.text()?;
 
-    if status.is_success() {
+    if response_status.is_success() {
         let response_json: Value = serde_json::from_str(&response_text)?;
-        if let Some(status) = response_json["status"].as_str() {
+        if let Some(status) = response_json
+            .get("status")
+            .and_then(serde_json::Value::as_str)
+        {
             if status == "done" {
-                if let Some(participant_results) = response_json["participant_results"].as_object()
+                if let Some(participant_results) = response_json
+                    .get("participant_results")
+                    .and_then(serde_json::Value::as_object)
                 {
-                    let pass = participant_results
-                        .get("pass")
-                        .and_then(Value::as_u64)
-                        .unwrap_or(0) as usize;
-                    let fail = participant_results
-                        .get("fail")
-                        .and_then(Value::as_u64)
-                        .unwrap_or(0) as usize;
+                    let pass = usize::try_from(
+                        participant_results
+                            .get("pass")
+                            .and_then(Value::as_u64)
+                            .unwrap_or(0),
+                    )?;
+                    let fail = usize::try_from(
+                        participant_results
+                            .get("fail")
+                            .and_then(Value::as_u64)
+                            .unwrap_or(0),
+                    )?;
                     return Ok((pass, fail));
                 }
             } else {
@@ -255,14 +270,16 @@ fn check_test_status(
         }
     }
 
-    let error = format!("HTTP Status: {}\nError Message: {}", status, response_text);
+    let error = format!("HTTP Status: {response_status}\nError Message: {response_text}");
     Err(Box::from(error))
 }
 
+/// Replace placeholders in a template
 fn replace_placeholder(template: &str, placeholder: &str, replacement: &str) -> String {
     template.replace(placeholder, replacement)
 }
 
+/// Generate a script for a test
 fn generate_script(url: &str, voter_count: u64) -> Result<String, Box<dyn std::error::Error>> {
     // Read the template file
     let template_path = "/workspaces/step/packages/step-cli/src/tests/template_script.txt";

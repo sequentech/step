@@ -34,6 +34,7 @@ pub struct CreateVoter {
     #[arg(long, default_value = "")]
     email: String,
 
+    /// Area id
     #[arg(long)]
     area_id: String,
 }

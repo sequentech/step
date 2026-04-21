@@ -1,12 +1,13 @@
 // SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use crate::{types::hasura_types::*, utils::read_config::read_config};
+use crate::{types::hasura_types::uuid, utils::read_config::read_config};
 use anyhow::{anyhow, Context, Result};
 use clap::Args;
 use colored::Colorize;
 use graphql_client::{GraphQLQuery, Response};
 use sequent_core::ballot::{VotingStatus, VotingStatusChannel};
+use tracing::{error, info};
 use update_election_voting_status::{
     VotingStatus as CliVotingStatus, VotingStatusChannel as CliVotingStatusChannel,
 };
@@ -48,6 +49,7 @@ pub struct UpdateElectionVotingStatusCommand {
     #[arg(long)]
     voting_status: VotingStatus,
 
+    /// The voting channel to set the status for
     #[arg(long)]
     voting_channel: Option<VotingStatusChannel>,
 }
@@ -58,28 +60,30 @@ pub struct UpdateElectionVotingStatusCommand {
     query_path = "src/graphql/update_election_voting_status.graphql",
     response_derives = "Debug,Clone,Deserialize,Serialize"
 )]
+/// Update election voting status query
 pub struct UpdateElectionVotingStatus;
 
 impl UpdateElectionVotingStatusCommand {
+    /// Run the update election voting status command
     pub fn run(&self) {
         match update_election_voting_status(
             &self.election_event_id,
             &self.election_id,
-            &self.voting_status,
-            &self.voting_channel,
+            self.voting_status,
+            self.voting_channel,
         ) {
             Ok(Some(id)) => {
-                println!(
+                info!(
                     "{} {}",
                     "Success! Updated successfully! ID:".green(),
                     id.cyan()
                 );
             }
             Ok(None) => {
-                eprintln!("Error! Failed to update election: {} ", self.election_id);
+                error!("Error! Failed to update election: {}", self.election_id);
             }
             Err(err) => {
-                eprintln!("Error! Failed to update: {}", err);
+                error!("Error! Failed to update: {err}");
             }
         }
     }
@@ -101,10 +105,10 @@ impl UpdateElectionVotingStatusCommand {
 pub fn update_election_voting_status(
     election_event_id: &str,
     election_id: &str,
-    voting_status: &VotingStatus,
-    voting_channel: &Option<VotingStatusChannel>,
+    voting_status: VotingStatus,
+    voting_channel: Option<VotingStatusChannel>,
 ) -> Result<Option<String>> {
-    let config = read_config().map_err(|e| anyhow::anyhow!("{}", e))?;
+    let config = read_config().map_err(|e| anyhow::anyhow!("{e:?}"))?;
 
     let client = reqwest::blocking::Client::new();
 
@@ -114,7 +118,7 @@ pub fn update_election_voting_status(
     let variables = update_election_voting_status::Variables {
         election_event_id: election_event_id.to_string(),
         election_id: election_id.to_string(),
-        voting_status: (*voting_status).into(),
+        voting_status: (voting_status).into(),
         voting_channels,
     };
 
@@ -130,7 +134,7 @@ pub fn update_election_voting_status(
     if response.status().is_success() {
         let response_body: Response<update_election_voting_status::ResponseData> =
             response.json().context("Failed to parse response JSON")?;
-        println!("Response body: {:?}", response_body);
+        info!("Response body: {response_body:?}");
         if let Some(data) = response_body.data {
             if let Some(update_election_voting_status) = data.update_election_voting_status {
                 Ok(update_election_voting_status.election_id)
@@ -138,9 +142,9 @@ pub fn update_election_voting_status(
                 Err(anyhow!("No data found in the response"))
             }
         } else if let Some(errors) = response_body.errors {
-            println!("Errors: {:?}", errors);
+            info!("Errors: {errors:?}");
             let error_messages: Vec<String> = errors.into_iter().map(|e| e.message).collect();
-            Err(anyhow!("GraphQL errors: {}", error_messages.join(", ")))
+            Err(anyhow!("GraphQL errors: {error_messages:?}"))
         } else {
             Err(anyhow!("Unknown error occurred"))
         }
@@ -151,9 +155,7 @@ pub fn update_election_voting_status(
             .context("Failed to read error response body")?;
 
         Err(anyhow!(
-            "Request failed with status {}: {}",
-            status,
-            error_message
+            "Request failed with status {status}: {error_message}",
         ))
     }
 }

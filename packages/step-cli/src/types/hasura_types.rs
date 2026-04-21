@@ -6,11 +6,19 @@
 
 use serde_json::Value;
 
+/// UUID type
 pub type uuid = String;
+/// JSONB type
 pub type jsonb = Value;
+/// Timestamptz type
 pub type timestamptz = String;
+/// Bytea type
 pub type bytea = String;
+/// Text type
 pub type text = String;
+/// Varchar type
 pub type varchar = String;
+/// Numeric type
 pub type numeric = f64;
+/// JSON type
 pub type json = Value;

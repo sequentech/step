@@ -89,7 +89,7 @@ impl CreateElectoralLogs {
                 head: StatementHead {
                     event: EventIdString(election_event_id.to_string()),
                     kind: StatementType::SendCommunications,
-                    timestamp: statement_timestamp as u64,
+                    timestamp: statement_timestamp.cast_unsigned(),
                     event_type: StatementEventType::SYSTEM,
                     log_type: StatementLogType::INFO,
                     description: "Send Communications.".to_string(),
@@ -98,7 +98,7 @@ impl CreateElectoralLogs {
             },
             artifact: None,
             user_id,
-            username: username.clone(),
+            username,
             election_id: Some(election_id.to_string()),
             area_id: Some(area_id.to_string()),
             ballot_id: None,
@@ -109,6 +109,7 @@ impl CreateElectoralLogs {
     }
 
     /// Create electoral logs
+    #[allow(clippy::too_many_lines)]
     async fn run_create_electoral_logs(
         &self,
         working_dir: &str,
@@ -153,22 +154,22 @@ impl CreateElectoralLogs {
 
         let existing_users: Vec<Voter> = users
             .iter()
-            .filter_map(|row| {
+            .map(|row| {
                 let id = row.get::<_, Option<String>>(0);
                 let username = row.get::<_, Option<String>>(1);
-                Some(Voter { id, username })
+                Voter { id, username }
             })
             .collect();
 
         let mut logs_params: Vec<Vec<NamedParam>> = Vec::new();
+        let mut users_iter = existing_users.iter().cycle();
         for i in 0..num_logs {
-            let user = if existing_users.is_empty() {
-                Voter {
+            let user = match users_iter.next() {
+                Some(user) => user.clone(),
+                None => Voter {
                     id: None,
                     username: None,
-                }
-            } else {
-                existing_users[i % existing_users.len()].clone()
+                },
             };
             let username = Some(user.username.clone().unwrap_or_else(|| Username(EN).fake()));
             let user_id_cloned = user.id.clone();
@@ -277,7 +278,7 @@ async fn insert_logs(
     let mut query = String::from("INSERT INTO electoral_log_messages (created, sender_pk, statement_kind, statement_timestamp, message, version, user_id, username, election_id, area_id) VALUES ");
     let mut values_clauses = Vec::new();
     let mut all_params: Vec<NamedParam> = Vec::new();
-    let mut row_index = 1;
+    let mut row_index: i32 = 1;
 
     for row in &logs_params {
         let mut clause_parts = Vec::new();
@@ -289,7 +290,9 @@ async fn insert_logs(
                 value: param.value.clone(),
             });
         }
-        row_index += 1;
+        row_index = row_index
+            .checked_add(1)
+            .ok_or_else(|| anyhow!("Row index overflow"))?;
         values_clauses.push(format!("({})", clause_parts.join(", ")));
     }
 

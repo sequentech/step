@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use crate::{types::hasura_types::*, utils::read_config::read_config};
+use crate::{types::hasura_types::uuid, utils::read_config::read_config};
 use graphql_client::{GraphQLQuery, Response};
 
 #[derive(GraphQLQuery)]
@@ -11,9 +11,11 @@ use graphql_client::{GraphQLQuery, Response};
     query_path = "src/graphql/get_ballot_publication_status.graphql",
     response_derives = "Debug,Clone,Deserialize,Serialize"
 )]
+/// Get ballot publication status query
 pub struct GetBallotPublicationStatus;
 
 impl GetBallotPublicationStatus {
+    /// Get ballot publication status
     pub fn get(ballot_publication_id: &str) -> Result<bool, Box<dyn std::error::Error>> {
         let config = read_config()?;
         let client = reqwest::blocking::Client::new();
@@ -34,7 +36,11 @@ impl GetBallotPublicationStatus {
             let response_body: Response<get_ballot_publication_status::ResponseData> =
                 response.json()?;
             if let Some(data) = response_body.data {
-                Ok(data.sequent_backend_ballot_publication[0].is_generated)
+                if let Some(ballot_publication) = data.sequent_backend_ballot_publication.first() {
+                    Ok(ballot_publication.is_generated)
+                } else {
+                    Err(Box::from("No ballot publication found"))
+                }
             } else if let Some(errors) = response_body.errors {
                 let error_messages: Vec<String> = errors.into_iter().map(|e| e.message).collect();
                 Err(Box::from(error_messages.join(", ")))
@@ -44,7 +50,7 @@ impl GetBallotPublicationStatus {
         } else {
             let status = response.status();
             let error_message = response.text()?;
-            let error = format!("HTTP Status: {}\nError Message: {}", status, error_message);
+            let error = format!("HTTP Status: {status}\nError Message: {error_message}");
             Err(Box::from(error))
         }
     }

@@ -2,15 +2,17 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use crate::{types::hasura_types::*, utils::read_config::read_config};
+use crate::{types::hasura_types::uuid, utils::read_config::read_config};
 use clap::Args;
 use colored::Colorize;
 use graphql_client::{GraphQLQuery, Response};
 use sequent_core::types::ceremonies::TallyResolution;
 use serde::{Deserialize, Serialize};
+use tracing::{error, info};
 
 #[derive(Args)]
 #[command(about = "Submit tally resolutions", long_about = None)]
+/// Submit tally resolution command arguments
 pub struct SubmitTallyResolution {
     /// Election event id
     #[arg(long)]
@@ -20,7 +22,7 @@ pub struct SubmitTallyResolution {
     #[arg(long)]
     tally_id: String,
 
-    /// Tally resolutions in format: contest_id:candidate_id (can be repeated)
+    /// Tally resolutions in format: `contest_id`:`candidate_id` (can be repeated)
     #[arg(long = "resolution", value_name = "CONTEST_ID:CANDIDATE_ID")]
     resolutions: Vec<String>,
 }
@@ -31,46 +33,49 @@ pub struct SubmitTallyResolution {
     query_path = "src/graphql/submit_tally_resolution.graphql",
     response_derives = "Debug,Clone,Deserialize,Serialize"
 )]
+/// Submit tally resolution mutation query
 pub struct SubmitTallyResolutionMutation;
 
 impl SubmitTallyResolution {
+    /// Run the submit tally resolution command
     pub fn run(&self) {
         // Parse resolutions
         let mut resolutions = Vec::new();
         for res_str in &self.resolutions {
-            let parts: Vec<&str> = res_str.split(':').collect();
-            if parts.len() != 2 {
-                eprintln!(
+            let Some((contest_id, candidate_id)) = res_str.split_once(':') else {
+                error!(
                     "Error! Invalid resolution format: {}. Expected format: contest_id:candidate_id",
                     res_str
                 );
                 return;
-            }
+            };
+
             resolutions.push(TallyResolution {
-                contest_id: parts[0].to_string(),
-                selected_candidate_id: parts[1].to_string(),
+                contest_id: contest_id.to_string(),
+                selected_candidate_id: candidate_id.to_string(),
             });
         }
 
         if resolutions.is_empty() {
-            eprintln!("Error! At least one resolution is required. Use --resolution CONTEST_ID:CANDIDATE_ID");
+            error!("Error! At least one resolution is required. Use --resolution CONTEST_ID:CANDIDATE_ID");
             return;
         }
 
         match submit_tally_resolution(&self.election_event_id, &self.tally_id, resolutions) {
             Ok(count) => {
-                println!(
+                info!(
                     "{}",
-                    format!("Success! {} tally resolution(s) submitted.", count).green()
+                    format!("Success! {count} tally resolution(s) submitted.").green()
                 );
             }
             Err(err) => {
-                eprintln!("Error! Failed to submit resolutions: {}", err)
+                error!("Error! Failed to submit resolutions: {err}");
             }
         }
     }
 }
 
+/// Submit the tally resolution and return the number of resolved resolutions
 pub fn submit_tally_resolution(
     election_event_id: &str,
     tally_id: &str,
@@ -104,7 +109,7 @@ pub fn submit_tally_resolution(
             response.json()?;
         if let Some(data) = response_body.data {
             if let Some(result) = data.submit_tally_resolution {
-                Ok(result.resolved_count as usize)
+                Ok(usize::try_from(result.resolved_count)?)
             } else {
                 Err(Box::from("failed submitting tally resolutions"))
             }
@@ -117,7 +122,7 @@ pub fn submit_tally_resolution(
     } else {
         let status = response.status();
         let error_message = response.text()?;
-        let error = format!("HTTP Status: {}\nError Message: {}", status, error_message);
+        let error = format!("HTTP Status: {status}\nError Message: {error_message}");
         Err(Box::from(error))
     }
 }
