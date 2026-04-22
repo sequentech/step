@@ -605,7 +605,7 @@ mod tally_resolution_tests {
     /// Multiple resolved rows for the same contest_id (different rounds) must
     /// all be preserved under the single contest key, not overwritten.
     #[test]
-    fn test_build_tie_resolutions_map_groups_by_contest() {
+    fn test_per_contest_tie_resolutions_map_groups_by_contest() {
         let rows = vec![
             make_resolution(
                 "contest-1",
@@ -650,7 +650,7 @@ mod tally_resolution_tests {
 
     /// Rows with a missing contest_id or no resolution_data must be skipped.
     #[test]
-    fn test_build_tie_resolutions_map_skips_incomplete_rows() {
+    fn test_per_contest_tie_resolutions_map_skips_incomplete_rows() {
         let mut no_contest_id = make_resolution(
             "contest-1",
             1,
@@ -673,7 +673,7 @@ mod tally_resolution_tests {
 
     /// An empty slice must produce an empty map (no panics).
     #[test]
-    fn test_build_tie_resolutions_map_empty_input() {
+    fn test_per_contest_tie_resolutions_map_empty_input() {
         let map = per_contest_tie_resolutions_map(&[]);
         assert!(map.is_empty());
     }

@@ -150,6 +150,7 @@ pub struct TallyCeremonyStatus {
     PartialEq,
     Eq,
     Clone,
+    Copy,
     EnumString,
     Default,
     JsonSchema,

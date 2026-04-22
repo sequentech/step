@@ -1584,23 +1584,16 @@ impl Contest {
 
     pub fn insert_tie_resolutions(
         &mut self,
-        contest_tie_resolutions: &Vec<TallySessionResolutionData>,
+        contest_tie_resolutions: &[TallySessionResolutionData],
     ) -> anyhow::Result<()> {
         // Only inject if there is actually data to add
         if !contest_tie_resolutions.is_empty() {
             // Serialize the data back into a JSON string
             let tie_res_json_string =
                 serde_json::to_string(&contest_tie_resolutions)?;
-
-            // Clone existing annotations or create a new map if it's None
-            let mut annotations =
-                self.annotations.clone().unwrap_or_default();
-
-            // Insert the stringified JSON into the annotations map
-            annotations
+            self.annotations
+                .get_or_insert_with(|| Annotations::default())
                 .insert("tie_resolutions".to_string(), tie_res_json_string);
-
-            self.annotations = Some(annotations);
         }
 
         Ok(())

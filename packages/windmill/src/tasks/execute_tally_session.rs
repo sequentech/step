@@ -1236,7 +1236,7 @@ pub async fn execute_tally_session_wrapped(
             hasura_transaction,
             &election_event,
             &tally_session,
-            tally_type_enum.clone(),
+            tally_type_enum,
             resolved_ties_per_contest,
         )
         .await
