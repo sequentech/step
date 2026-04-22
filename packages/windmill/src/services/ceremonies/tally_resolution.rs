@@ -13,6 +13,7 @@ use tracing::info;
 use uuid::Uuid;
 
 use crate::postgres::election_event::get_election_event_by_id;
+use crate::postgres::results_contest::get_event_results_contest;
 use crate::postgres::tally_session::{get_tally_session_by_id, update_tally_session_status};
 use crate::postgres::tally_session_resolution::{
     create_tally_session_resolution, get_resolutions_by, submit_resolution, update_resolution,
@@ -44,89 +45,11 @@ pub fn per_contest_tie_resolutions_map(
     map
 }
 
-/// Returns true if `existing` already contains a pending IRV tie-break resolution
-/// for the given `contest_id` and the same `round_number` as in `tie_metadata`.
-///
-/// Using `(contest_id, round_number)` as the key — rather than `contest_id` alone —
-/// allows area-level `ProcessBallotsAll` runs to produce independent resolutions for
-/// different rounds of the same contest without silently dropping any of them.
-pub fn pending_resolution_exists(
-    existing: &[TallySessionResolution],
-    contest_id: &str,
-    tie_metadata: &TallySessionResolutionData,
-) -> bool {
-    existing.iter().any(|r| {
-        r.contest_id.as_deref() == Some(contest_id)
-            && r.resolution_type == TallySessionResolutionType::IrvTieBreak
-            && r.resolution_data.as_ref().map(|d| d.round_number) == Some(tie_metadata.round_number)
-    })
-}
-
-/// Describes pending tie-breaks found in a set of results.
-pub struct TieResolutionCheck {
-    /// Pending ties: `(contest_id, tie_metadata)`.
-    pub pending: Vec<(String, TallySessionResolutionData)>,
-}
-
-/// Scans `results_area_contest` rows for the given `results_event_id` and
-/// returns any contests whose annotations contain a `pending_tie_resolution`.
-pub async fn check_for_tie_resolutions(
-    hasura_transaction: &Transaction<'_>,
-    tenant_id: &str,
-    election_event_id: &str,
-    results_event_id: &str,
-) -> Result<TieResolutionCheck> {
-    // TODO Instead of checking for the annotations of results_contest in hasura check either in sqlite or add an output file for velvet with all resolutions
-    let rows = hasura_transaction
-        .query(
-            r#"
-                SELECT contest_id, annotations
-                FROM sequent_backend.results_contest
-                WHERE tenant_id = $1
-                  AND election_event_id = $2
-                  AND results_event_id = $3
-            "#,
-            &[
-                &Uuid::parse_str(tenant_id)?,
-                &Uuid::parse_str(election_event_id)?,
-                &Uuid::parse_str(results_event_id)?,
-            ],
-        )
-        .await?;
-
-    let mut pending = Vec::new();
-    for row in rows {
-        let contest_id_uuid: Uuid = row.get(0);
-        let annotations: Option<serde_json::Value> = row.get(1);
-
-        let Some(annotations) = annotations else {
-            continue;
-        };
-        let Some(process_results) = annotations
-            .get("process_results")
-            .and_then(|v| v.as_object())
-        else {
-            continue;
-        };
-        let Some(pending_tie) = process_results.get("pending_tie_resolution") else {
-            continue;
-        };
-        if pending_tie.is_null() {
-            continue;
-        }
-
-        let tie_metadata: TallySessionResolutionData = serde_json::from_value(pending_tie.clone())?;
-        pending.push((contest_id_uuid.to_string(), tie_metadata));
-    }
-
-    Ok(TieResolutionCheck { pending })
-}
-
-/// Checks for pending IRV tie-breaks in the freshly-computed results, ensures a
-/// `tally_session_resolution` record exists for each, and posts a
+/// Checks for pending IRV tie-breaks in the freshly-computed results, creates a
+/// `tally_session_resolution` record for each, and posts a
 /// `tally_paused_pending_resolution` entry to the electoral log.
 ///
-/// Returns the IDs of all pending resolution records (empty if no ties detected).
+/// Returns the IDs of all created pending resolution records (empty if no ties detected).
 pub async fn handle_pending_irv_resolutions(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
@@ -136,56 +59,38 @@ pub async fn handle_pending_irv_resolutions(
     bulletin_board_reference: Option<serde_json::Value>,
     tally_session_election_ids: Option<Vec<String>>,
 ) -> Result<Vec<String>> {
-    let tie_resolutions = check_for_tie_resolutions(
+    let contest_results = get_event_results_contest(
         hasura_transaction,
         tenant_id,
         election_event_id,
-        results_event_id,
-    )
-    .await?;
-
-    if tie_resolutions.pending.is_empty() {
-        return Ok(vec![]);
-    }
-
-    info!(
-        "Detected {} pending tie resolution(s) in results - creating resolution records",
-        tie_resolutions.pending.len()
-    );
-
-    let existing_pending_resolutions = get_resolutions_by(
-        hasura_transaction,
-        tenant_id,
-        election_event_id,
-        Some(tally_session_id),
-        Some(TallySessionResolutionStatus::Pending),
+        Some(results_event_id),
     )
     .await?;
 
     let mut pending_resolution_ids: Vec<String> = vec![];
-    for (contest_id, tie_metadata) in &tie_resolutions.pending {
-        if !pending_resolution_exists(&existing_pending_resolutions, contest_id, tie_metadata) {
-            let resolution_id = create_tally_session_resolution(
-                hasura_transaction,
-                tenant_id,
-                election_event_id,
-                tally_session_id,
-                contest_id,
-                TallySessionResolutionType::IrvTieBreak,
-                tie_metadata.clone(),
-            )
-            .await?;
-            info!(
-                "Created pending resolution {} for IRV tie-break in contest {}",
-                resolution_id, contest_id
-            );
-            pending_resolution_ids.push(resolution_id);
-        } else if let Some(existing) = existing_pending_resolutions
-            .iter()
-            .find(|r| r.contest_id.as_deref() == Some(contest_id.as_str()))
-        {
-            pending_resolution_ids.push(existing.id.clone());
-        }
+    for contest_result in contest_results {
+        let Some(tie_metadata) = contest_result.get_pending_tie_resolution() else {
+            continue;
+        };
+        let resolution_id = create_tally_session_resolution(
+            hasura_transaction,
+            tenant_id,
+            election_event_id,
+            tally_session_id,
+            &contest_result.contest_id,
+            TallySessionResolutionType::IrvTieBreak,
+            tie_metadata,
+        )
+        .await?;
+        info!(
+            "Created pending resolution {} for IRV tie-break in contest {}",
+            resolution_id, contest_result.contest_id
+        );
+        pending_resolution_ids.push(resolution_id);
+    }
+
+    if pending_resolution_ids.is_empty() {
+        return Ok(vec![]);
     }
 
     info!(

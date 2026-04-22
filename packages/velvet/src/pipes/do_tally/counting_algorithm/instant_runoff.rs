@@ -195,7 +195,7 @@ pub struct RunoffStatus {
     pub rounds: Vec<Round>,
     pub max_rounds: u64,
     pub tie_breaking_policy: TieBreakingPolicy,
-    pub tie_resolutions: Vec<TallySessionResolutionData>,
+    pub resolved_tie_resolutions: Vec<TallySessionResolutionData>,
     pub pending_tie_resolution: Option<TallySessionResolutionData>,
 }
 
@@ -217,7 +217,7 @@ impl RunoffStatus {
             name_references,
             max_rounds,
             tie_breaking_policy: contest.get_tie_breaking_policy(),
-            tie_resolutions: contest.get_tie_resolutions(),
+            resolved_tie_resolutions: contest.get_resolved_tie_resolutions(),
             ..Default::default()
         }
     }
@@ -375,7 +375,7 @@ impl RunoffStatus {
             resolved_by_candidate_id: Some(winner_id.clone()),
         };
 
-        self.tie_resolutions.push(resolution_data);
+        self.resolved_tie_resolutions.push(resolution_data);
 
         return Some((winner, eliminated));
     }
@@ -388,7 +388,7 @@ impl RunoffStatus {
         let current_round = self.round_count + 1;
 
         // Check if there's a resolution that matches the tie.
-        let existing_resolution = self.tie_resolutions.iter().find(|data| {
+        let existing_resolution = self.resolved_tie_resolutions.iter().find(|data| {
             data.round_number == Some(current_round)
                 && data.tied_candidate_ids.len() == candidates_to_eliminate.len()
                 && data

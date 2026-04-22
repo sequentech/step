@@ -3,6 +3,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 #![allow(non_camel_case_types)]
 
+pub const RESOLVED_TIE_RESOLUTIONS_KEY: &str = "resolved_tie_resolutions";
+pub const PENDING_TIE_RESOLUTION_KEY: &str = "pending_tie_resolution";
+
 use borsh::{BorshDeserialize, BorshSerialize};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};

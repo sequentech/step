@@ -1306,6 +1306,10 @@ pub async fn execute_tally_session_wrapped(
             )
             .await?;
 
+            info!(
+                "Tally paused - awaiting administrator tie-break decisions for {} contest(s)",
+                pending_resolution_ids.len()
+            );
             // Update status to AWAITING_INPUT
             update_tally_session_status(
                 hasura_transaction,

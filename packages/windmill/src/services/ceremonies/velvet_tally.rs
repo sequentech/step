@@ -125,7 +125,7 @@ pub fn prepare_tally_for_area_contest(
     area_contest: &AreaContestDataType,
     tally_sheets: &HashMap<(String, String), Vec<TallySheet>>,
     tally_session: &TallySession,
-    contest_tie_resolutions: Option<&Vec<TallySessionResolutionData>>,
+    contest_resolved_tie_resolutions: Option<&Vec<TallySessionResolutionData>>,
     tally_type: TallyType,
 ) -> Result<()> {
     let contest_encryption_policy = tally_session
@@ -226,7 +226,7 @@ pub fn prepare_tally_for_area_contest(
         TallyType::ELECTORAL_RESULTS => {
             let empty_resolutions = vec![];
             contest
-                .insert_tie_resolutions(contest_tie_resolutions.unwrap_or(&empty_resolutions))?;
+                .insert_resolved_tie_resolutions(contest_resolved_tie_resolutions.unwrap_or(&empty_resolutions))?;
         }
     }
 
@@ -889,7 +889,7 @@ pub async fn run_velvet_tally(
     election_event: &ElectionEvent,
     tally_session: &TallySession,
     tally_type: TallyType,
-    tie_resolutions: HashMap<String, Vec<TallySessionResolutionData>>,
+    resolved_tie_resolutions: HashMap<String, Vec<TallySessionResolutionData>>,
 ) -> Result<State> {
     let basic_areas: Vec<TreeNodeArea> = areas.into_iter().map(|area| area.into()).collect();
     // map<(area_id,contest_id), tally_sheet>
@@ -900,7 +900,7 @@ pub async fn run_velvet_tally(
             area_contest,
             &tally_sheet_map,
             tally_session,
-            tie_resolutions.get(&area_contest.contest.id),
+            resolved_tie_resolutions.get(&area_contest.contest.id),
             tally_type,
         )?;
     }

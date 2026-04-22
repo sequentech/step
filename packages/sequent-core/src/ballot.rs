@@ -10,9 +10,9 @@ use crate::plaintext::{
 };
 use crate::serialization::base64::{Base64Deserialize, Base64Serialize};
 use crate::serialization::deserialize_with_path::deserialize_value;
-use crate::types::ceremonies::TallySessionResolutionData;
 use crate::types::ceremonies::{
-    CeremoniesPolicy, CountingAlgType, TallyOperation,
+    CeremoniesPolicy, CountingAlgType, TallyOperation, TallySessionResolutionData,
+    RESOLVED_TIE_RESOLUTIONS_KEY,
 };
 use crate::types::hasura::core::{self, Area, ElectionEvent};
 use ::core::convert::TryInto;
@@ -1567,33 +1567,27 @@ impl Contest {
         self.tie_breaking_policy.clone().unwrap_or_default()
     }
 
-    /// Get per-round tie resolutions from contest annotations.
-    pub fn get_tie_resolutions(&self) -> Vec<TallySessionResolutionData> {
+    /// Get per-round resolved tie resolutions from contest annotations.
+    pub fn get_resolved_tie_resolutions(&self) -> Vec<TallySessionResolutionData> {
         self.annotations
             .as_ref()
-            .and_then(|annotations| annotations.get("tie_resolutions"))
+            .and_then(|annotations| annotations.get(RESOLVED_TIE_RESOLUTIONS_KEY))
             .and_then(|json_str| {
-                // Since Annotations stores strings, we just parse the string directly into our Vec
-                serde_json::from_str::<Vec<TallySessionResolutionData>>(
-                    json_str,
-                )
-                .ok()
+                serde_json::from_str::<Vec<TallySessionResolutionData>>(json_str).ok()
             })
             .unwrap_or_default()
     }
 
-    pub fn insert_tie_resolutions(
+    pub fn insert_resolved_tie_resolutions(
         &mut self,
-        contest_tie_resolutions: &[TallySessionResolutionData],
+        contest_resolved_tie_resolutions: &[TallySessionResolutionData],
     ) -> anyhow::Result<()> {
-        // Only inject if there is actually data to add
-        if !contest_tie_resolutions.is_empty() {
-            // Serialize the data back into a JSON string
+        if !contest_resolved_tie_resolutions.is_empty() {
             let tie_res_json_string =
-                serde_json::to_string(&contest_tie_resolutions)?;
+                serde_json::to_string(&contest_resolved_tie_resolutions)?;
             self.annotations
                 .get_or_insert_with(|| Annotations::default())
-                .insert("tie_resolutions".to_string(), tie_res_json_string);
+                .insert(RESOLVED_TIE_RESOLUTIONS_KEY.to_string(), tie_res_json_string);
         }
 
         Ok(())

@@ -99,7 +99,7 @@ pub async fn save_results(
             let mut annotations = json!({});
             annotations[EXTENDED_METRICS] = extended_metrics_value;
             if let Some(process_results) = contest_result.process_results.clone() {
-                annotations[PROCESS_RESULTS] = process_results;
+                annotations[PROCESS_RESULTS_KEY] = process_results;
             }
 
             if let Some(area) = &contest.area {

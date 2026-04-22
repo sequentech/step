@@ -47,10 +47,11 @@ pub async fn create_tally_session_resolution(
     resolution_type: TallySessionResolutionType,
     resolution_data: TallySessionResolutionData,
 ) -> Result<String> {
+    let status = TallySessionResolutionStatus::Pending.to_string();
     let query = r#"
         INSERT INTO sequent_backend.tally_session_resolution
         (tenant_id, election_event_id, tally_session_id, contest_id, resolution_type, status, resolution_data)
-        VALUES ($1, $2, $3, $4, $5, 'pending', $6)
+        VALUES ($1, $2, $3, $4, $5, $6, $7)
         RETURNING id
     "#;
 
@@ -64,6 +65,7 @@ pub async fn create_tally_session_resolution(
                 &Uuid::parse_str(tally_session_id)?,
                 &Uuid::parse_str(contest_id)?,
                 &resolution_type.to_string(),
+                &status,
                 &resolution_data_value,
             ],
         )
@@ -135,16 +137,18 @@ pub async fn submit_resolution(
     resolution: TallySessionResolutionData,
     resolved_by_user: &str,
 ) -> Result<()> {
+    let status_resolved = TallySessionResolutionStatus::Resolved.to_string();
+    let status_pending = TallySessionResolutionStatus::Pending.to_string();
     let query = r#"
         UPDATE sequent_backend.tally_session_resolution
         SET resolution_data = $1,
-            status = 'resolved',
-            resolved_by_user = $2,
+            status = $2,
+            resolved_by_user = $3,
             resolved_at = NOW()
-        WHERE id = $3
-          AND tenant_id = $4
-          AND election_event_id = $5
-          AND status = 'pending'
+        WHERE id = $4
+          AND tenant_id = $5
+          AND election_event_id = $6
+          AND status = $7
     "#;
 
     let resolution_value = serde_json::to_value(&resolution)?;
@@ -153,10 +157,12 @@ pub async fn submit_resolution(
             query,
             &[
                 &resolution_value,
+                &status_resolved,
                 &Uuid::parse_str(resolved_by_user)?,
                 &Uuid::parse_str(resolution_id)?,
                 &Uuid::parse_str(tenant_id)?,
                 &Uuid::parse_str(election_event_id)?,
+                &status_pending,
             ],
         )
         .await?;

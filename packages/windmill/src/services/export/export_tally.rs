@@ -385,7 +385,7 @@ pub async fn export_results_contest(
     election_event_id: &str,
 ) -> Result<(String, TempPath)> {
     let results_contests: Vec<ResultsContest> =
-        get_event_results_contest(hasura_transaction, tenant_id, election_event_id)
+        get_event_results_contest(hasura_transaction, tenant_id, election_event_id, None)
             .await
             .map_err(|e| anyhow!("Error in get_event_results_contest: {e:?}"))?;
 
