@@ -64,6 +64,7 @@ Create an election within the previously created election event.
 ```bash
 cli step create-election \
   --name "Presidential Election" \
+  --external-id "presidential-election"
   --description "Presidential race" \
   --election-event-id 79aba105-f250-4375-a211-43dcaeadba64
 ```

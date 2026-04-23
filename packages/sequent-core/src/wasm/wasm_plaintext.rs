@@ -24,7 +24,7 @@ interface IInvalidPlaintextError {
     error_type: IInvalidPlaintextErrorType;
     candidate_id?: string;
     message?: string;
-    message_map: Map<string, string>;
+    message_map: { [key: string]: string };
 }
 "#;
 

@@ -199,6 +199,8 @@ fn get_contest_plurality() -> Contest {
             invalid_vote_policy: Some(InvalidVotePolicy::ALLOWED),
             blank_vote_policy: None,
             over_vote_policy: None,
+            duplicated_rank_policy: None,
+            preference_gaps_policy: None,
             pagination_policy: None,
             cumulative_number_of_checkboxes: None,
             shuffle_categories: Some(true),
@@ -214,6 +216,7 @@ fn get_contest_plurality() -> Contest {
             under_vote_policy: Some(EUnderVotePolicy::ALLOWED),
             columns: None,
         }),
+        tie_breaking_policy: None,
     }
 }
 
@@ -534,6 +537,8 @@ pub fn get_writein_ballot_style() -> BallotStyle {
                 invalid_vote_policy: Some(InvalidVotePolicy::ALLOWED),
                 blank_vote_policy: None,
                 over_vote_policy: None,
+                duplicated_rank_policy: None,
+                preference_gaps_policy: None,
                 pagination_policy: None,
                 cumulative_number_of_checkboxes: None,
                 shuffle_categories: Some(true),
@@ -549,6 +554,7 @@ pub fn get_writein_ballot_style() -> BallotStyle {
                 under_vote_policy: Some(EUnderVotePolicy::ALLOWED),
                 columns: None,
             }),
+            tie_breaking_policy: None,
         }],
         area_annotations: None,
     }
@@ -755,6 +761,8 @@ pub fn get_test_contest() -> Contest {
             invalid_vote_policy: Some(InvalidVotePolicy::ALLOWED),
             blank_vote_policy: None,
             over_vote_policy: None,
+            duplicated_rank_policy: None,
+            preference_gaps_policy: None,
             pagination_policy: None,
             cumulative_number_of_checkboxes: None,
             shuffle_categories: Some(true),
@@ -770,6 +778,7 @@ pub fn get_test_contest() -> Contest {
             under_vote_policy: Some(EUnderVotePolicy::ALLOWED),
             columns: None,
         }),
+        tie_breaking_policy: None,
     }
 }
 
@@ -1008,6 +1017,8 @@ pub(crate) fn get_configurable_contest(
             invalid_vote_policy: Some(InvalidVotePolicy::NOT_ALLOWED),
             blank_vote_policy: None,
             over_vote_policy: Some(EOverVotePolicy::ALLOWED),
+            duplicated_rank_policy: None,
+            preference_gaps_policy: None,
             pagination_policy: None,
             cumulative_number_of_checkboxes: None,
             shuffle_categories: Some(true),
@@ -1023,6 +1034,7 @@ pub(crate) fn get_configurable_contest(
             under_vote_policy: Some(EUnderVotePolicy::ALLOWED),
             columns: None,
         }),
+        tie_breaking_policy: None,
     };
 
     contest.counting_algorithm = Some(counting_algorithm);
@@ -1105,12 +1117,15 @@ pub(crate) fn get_contest_candidates_n(num_candidates: usize) -> Contest {
         counting_algorithm: Some(CountingAlgType::PluralityAtLarge),
         is_encrypted: (true),
         candidates,
+        tie_breaking_policy: None,
         presentation: Some(ContestPresentation {
             i18n: None,
             allow_writeins: Some(true),
             base32_writeins: Some(true),
             invalid_vote_policy: Some(InvalidVotePolicy::NOT_ALLOWED),
             blank_vote_policy: None,
+            duplicated_rank_policy: None,
+            preference_gaps_policy: None,
             pagination_policy: None,
             cumulative_number_of_checkboxes: None,
             shuffle_categories: Some(true),
@@ -1386,6 +1401,8 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                     invalid_vote_policy: Some(InvalidVotePolicy::WARN),
                     blank_vote_policy: None,
                     over_vote_policy: None,
+                    duplicated_rank_policy: None,
+                    preference_gaps_policy: None,
                     pagination_policy: None,
                     cumulative_number_of_checkboxes: None,
                     shuffle_categories: Some(true),
@@ -1401,6 +1418,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                     under_vote_policy: Some(EUnderVotePolicy::ALLOWED),
                     columns: None,
                 }),
+                tie_breaking_policy: None,
             },
             raw_ballot: RawBallotContest {
                 bases: vec![2u64, 2u64, 2u64, 2u64],
@@ -1586,6 +1604,8 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                     invalid_vote_policy: Some(InvalidVotePolicy::ALLOWED),
                     blank_vote_policy: None,
                     over_vote_policy: None,
+                    duplicated_rank_policy: None,
+                    preference_gaps_policy: None,
                     pagination_policy: None,
                     cumulative_number_of_checkboxes: None,
                     shuffle_categories: Some(true),
@@ -1601,6 +1621,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                     under_vote_policy: Some(EUnderVotePolicy::ALLOWED),
                     columns: None,
                 }),
+                tie_breaking_policy: None,
             },
             raw_ballot: RawBallotContest {
                 bases: vec![2u64, 2u64, 2u64, 2u64],
@@ -1766,6 +1787,8 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                     invalid_vote_policy: Some(InvalidVotePolicy::WARN),
                     blank_vote_policy: None,
                     over_vote_policy: Some(EOverVotePolicy::ALLOWED),
+                    duplicated_rank_policy: None,
+                    preference_gaps_policy: None,
                     pagination_policy: None,
                     cumulative_number_of_checkboxes: None,
                     shuffle_categories: Some(true),
@@ -1781,6 +1804,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                     under_vote_policy: Some(EUnderVotePolicy::ALLOWED),
                     columns: None,
                 }),
+                tie_breaking_policy: None,
             },
             raw_ballot: RawBallotContest {
                 bases: vec![2u64, 2u64, 2u64, 2u64],
@@ -1930,6 +1954,8 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                     invalid_vote_policy: Some(InvalidVotePolicy::ALLOWED),
                     blank_vote_policy: Some(EBlankVotePolicy::ALLOWED),
                     over_vote_policy: None,
+                    duplicated_rank_policy: None,
+                    preference_gaps_policy: None,
                     pagination_policy: None,
                     cumulative_number_of_checkboxes: None,
                     shuffle_categories: Some(true),
@@ -1945,6 +1971,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                     under_vote_policy: Some(EUnderVotePolicy::WARN),
                     columns: None,
                 }),
+                tie_breaking_policy: None,
             },
             raw_ballot: RawBallotContest {
                 bases: vec![2u64, 2u64, 2u64, 2u64],
@@ -2094,6 +2121,8 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                     invalid_vote_policy: Some(InvalidVotePolicy::ALLOWED),
                     blank_vote_policy: Some(EBlankVotePolicy::WARN),
                     over_vote_policy: None,
+                    duplicated_rank_policy: None,
+                    preference_gaps_policy: None,
                     pagination_policy: None,
                     cumulative_number_of_checkboxes: None,
                     shuffle_categories: Some(true),
@@ -2109,6 +2138,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                     under_vote_policy: Some(EUnderVotePolicy::WARN),
                     columns: None,
                 }),
+                tie_breaking_policy: None,
             },
             raw_ballot: RawBallotContest {
                 bases: vec![2u64, 2u64, 2u64, 2u64],
@@ -2268,6 +2298,8 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                     invalid_vote_policy: Some(InvalidVotePolicy::ALLOWED),
                     blank_vote_policy: Some(EBlankVotePolicy::NOT_ALLOWED),
                     over_vote_policy: None,
+                    duplicated_rank_policy: None,
+                    preference_gaps_policy: None,
                     pagination_policy: None,
                     cumulative_number_of_checkboxes: None,
                     shuffle_categories: Some(true),
@@ -2283,6 +2315,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                     under_vote_policy: Some(EUnderVotePolicy::ALLOWED),
                     columns: None,
                 }),
+                tie_breaking_policy: None,
             },
             raw_ballot: RawBallotContest {
                 bases: vec![2u64, 2u64, 2u64, 2u64],
@@ -2441,6 +2474,8 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                     invalid_vote_policy: Some(InvalidVotePolicy::ALLOWED),
                     blank_vote_policy: None,
                     over_vote_policy: None,
+                    duplicated_rank_policy: None,
+                    preference_gaps_policy: None,
                     pagination_policy: None,
                     cumulative_number_of_checkboxes: None,
                     shuffle_categories: Some(true),
@@ -2456,6 +2491,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                     under_vote_policy: Some(EUnderVotePolicy::ALLOWED),
                     columns: None,
                 }),
+                tie_breaking_policy: None,
             },
             raw_ballot: RawBallotContest {
                 bases: vec![2u64, 2u64, 2u64, 2u64, 2u64],

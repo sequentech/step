@@ -36,6 +36,20 @@ pub fn check_voting_not_allowed_next_util(
             .and_then(|p| p.over_vote_policy)
             .unwrap_or_default();
 
+        let default_duplicated_rank_policy = EDuplicatedRankPolicy::default();
+        let duplicated_rank_policy = contest
+            .presentation
+            .as_ref()
+            .and_then(|p| p.duplicated_rank_policy.as_ref())
+            .unwrap_or(&default_duplicated_rank_policy);
+
+        let default_preference_gaps_policy = EPreferenceGapsPolicy::default();
+        let preference_gaps_policy = contest
+            .presentation
+            .as_ref()
+            .and_then(|p| p.preference_gaps_policy.as_ref())
+            .unwrap_or(&default_preference_gaps_policy);
+
         let max = contest.max_votes;
 
         if let Some(decoded_contest) = decoded_contests.get(&contest.id) {
@@ -69,6 +83,26 @@ pub fn check_voting_not_allowed_next_util(
                 || (choices_selected as i64 > max
                     && over_vote_policy
                         == EOverVotePolicy::NOT_ALLOWED_WITH_MSG_AND_ALERT)
+            // - duplicated rank policy is NOT_ALLOWED and there's a
+            //   duplicated position error
+                || (*duplicated_rank_policy == EDuplicatedRankPolicy::NOT_ALLOWED_WARN_AND_DIALOG
+                    && invalid_errors.iter().any(|e| {
+                        e.message
+                            == Some(
+                                "errors.implicit.duplicatedPosition"
+                                    .to_string(),
+                            )
+                    }))
+            // - preference gaps policy is NOT_ALLOWED and there's a
+            //   preference order with gaps error
+                || (*preference_gaps_policy == EPreferenceGapsPolicy::NOT_ALLOWED_WARN_AND_DIALOG
+                    && invalid_errors.iter().any(|e| {
+                        e.message
+                            == Some(
+                                "errors.implicit.preferenceOrderWithGaps"
+                                    .to_string(),
+                            )
+                    }))
         } else {
             false
         }
@@ -108,6 +142,20 @@ pub fn check_voting_error_dialog_util(
             .as_ref()
             .and_then(|p| p.under_vote_policy)
             .unwrap_or_default();
+
+        let default_duplicated_rank_policy = EDuplicatedRankPolicy::default();
+        let duplicated_rank_policy = contest
+            .presentation
+            .as_ref()
+            .and_then(|p| p.duplicated_rank_policy.as_ref())
+            .unwrap_or(&default_duplicated_rank_policy);
+
+        let default_preference_gaps_policy = EPreferenceGapsPolicy::default();
+        let preference_gaps_policy = contest
+            .presentation
+            .as_ref()
+            .and_then(|p| p.preference_gaps_policy.as_ref())
+            .unwrap_or(&default_preference_gaps_policy);
 
         let max = contest.max_votes;
         let min = contest.min_votes;
@@ -150,6 +198,28 @@ pub fn check_voting_error_dialog_util(
                     && (choices_selected as i64) >= min
                     && (choices_selected as i64) < max)
                     && under_vote_policy == EUnderVotePolicy::WARN_AND_ALERT)
+            // - duplicated rank policy is WARN_AND_ALERT and there's a
+            //   duplicated position error
+                || (*duplicated_rank_policy
+                    == EDuplicatedRankPolicy::ALLOWED_WARN_AND_DIALOG
+                    && invalid_errors.iter().any(|e| {
+                        e.message
+                            == Some(
+                                "errors.implicit.duplicatedPosition"
+                                    .to_string(),
+                            )
+                    }))
+            // - preference gaps policy is WARN_AND_ALERT and there's a
+            //   preference order with gaps error
+                || (*preference_gaps_policy
+                    == EPreferenceGapsPolicy::ALLOWED_WARN_AND_DIALOG
+                    && invalid_errors.iter().any(|e| {
+                        e.message
+                            == Some(
+                                "errors.implicit.preferenceOrderWithGaps"
+                                    .to_string(),
+                            )
+                    }))
         } else {
             false
         }
@@ -349,9 +419,12 @@ pub fn get_contest_plurality(
             invalid_vote_policy: Some(invalid_vote_policy),
             blank_vote_policy: Some(blank_vote_policy),
             over_vote_policy: Some(over_vote_policy),
+            duplicated_rank_policy: None,
+            preference_gaps_policy: None,
             pagination_policy: None,
             columns: None,
         }),
+        tie_breaking_policy: None,
     }
 }
 

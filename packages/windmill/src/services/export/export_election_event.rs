@@ -1,11 +1,12 @@
-use crate::postgres::application::get_applications_by_election;
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+use crate::postgres::application::get_applications_by_election;
 use crate::postgres::area::get_event_areas;
 use crate::postgres::area_contest::export_area_contests;
 use crate::postgres::ballot_publication::get_ballot_publication;
 use crate::postgres::candidate::export_candidates;
+use crate::postgres::certificate_authority::get_certificate_authorities_pem;
 use crate::postgres::contest::export_contests;
 use crate::postgres::document::get_document;
 use crate::postgres::election::export_elections;
@@ -31,6 +32,7 @@ use futures::try_join;
 use sequent_core::services::keycloak::get_event_realm;
 use sequent_core::services::keycloak::KeycloakAdminClient;
 use sequent_core::services::s3;
+use sequent_core::services::uuid_validation::parse_uuid_v4;
 use sequent_core::temp_path::generate_temp_file;
 use sequent_core::types::hasura::core::KeysCeremony;
 use sequent_core::types::hasura::core::{Candidate, Contest, Election};
@@ -145,7 +147,7 @@ pub async fn read_export_data(
         std::env::var(ENV_VAR_APP_VERSION).unwrap_or_else(|_| DEV_APP_VERSION.to_string());
 
     let import_election_event_schema = ImportElectionEventSchema {
-        tenant_id: Uuid::parse_str(&tenant_id)?,
+        tenant_id: parse_uuid_v4(&tenant_id)?,
         keycloak_event_realm: Some(realm),
         election_event: election_event,
         elections: export_elections,
@@ -704,6 +706,27 @@ pub async fn process_export_zip(
                 .map_err(|e| anyhow!("Error opening {file_name} file: {e:?}"))?;
             std::io::copy(&mut tally_file, &mut zip_writer)
                 .map_err(|e| anyhow!("Error copying tally file to ZIP: {e:?}"))?;
+        }
+    }
+
+    if export_config.include_certificates {
+        let election_event_uuid = parse_uuid_v4(election_event_id)?;
+        let pems = get_certificate_authorities_pem(&hasura_transaction, election_event_uuid)
+            .await
+            .map_err(|e| anyhow!("Error fetching certificate authorities: {e:?}"))?;
+        if !pems.is_empty() {
+            let certs_filename = format!(
+                "{}-{}.pem",
+                EDocuments::CERTIFICATES.to_file_name(),
+                election_event_id
+            );
+            let pem_bundle = pems.join("\n");
+            zip_writer
+                .start_file(&certs_filename, options)
+                .map_err(|e| anyhow!("Error starting certificates file in ZIP: {e:?}"))?;
+            zip_writer
+                .write_all(pem_bundle.as_bytes())
+                .map_err(|e| anyhow!("Error writing certificates to ZIP: {e:?}"))?;
         }
     }
 

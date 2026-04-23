@@ -87,6 +87,7 @@ const galegoTranslation: TranslationType = {
                 DELETE_ELECTION_EVENT: "Eliminar evento electoral",
                 PREPARE_PUBLICATION_PREVIEW: "Preparar a vista previa da publicación",
                 EXPORT_TALLY_RESULTS_XLSX: "Exportar os resultados do reconto en formato XLSX",
+                EXPORT_CERTIFICATE_AUTHORITIES: "Exportar autoridades de certificación",
             },
             widget: {
                 taskTitle: "Tarefa: {{title}}",
@@ -341,6 +342,11 @@ const galegoTranslation: TranslationType = {
                     "no-signature": "Sin firma",
                     "with-signature": "Con firma",
                 },
+                VoterCertificatePolicy: {
+                    policyLabel: "Voter Digital Certificate Policy",
+                    enabled: "Habilitado",
+                    disabled: "Deshabilitado",
+                },
                 enrollment: {
                     policyLabel: "Inscripción",
                     options: {
@@ -438,6 +444,7 @@ const galegoTranslation: TranslationType = {
                 notifications: "Notificacións",
                 reports: "Informes",
                 approvals: "Aprobacións",
+                cas: "Certificados",
             },
             tally: {
                 emptyHeader: "Aínda non hai Escrutinio.",
@@ -542,6 +549,7 @@ const galegoTranslation: TranslationType = {
                 reports: "Informes",
                 applications: "Aplicaciones",
                 tally: "Recuento",
+                certificates: "Certificados",
             },
             taskNotification:
                 "{{action}} comezou. Podes ver o seu estado na táboa de Execución de Tarefas.",
@@ -585,6 +593,7 @@ const galegoTranslation: TranslationType = {
                 alias: "Alias",
                 description: "Descrición",
                 securityConfirmationHtml: "Confirmación de seguridade HTML",
+                externalId: "ID externo",
             },
             securityConfirmationPolicy: {
                 label: "Política da caixa de confirmación de seguridade",
@@ -637,6 +646,13 @@ const galegoTranslation: TranslationType = {
                 options: {
                     "election": "Título da elección",
                     "election-event": "Título do evento electoral",
+                },
+            },
+            consolidatedReportPolicy: {
+                label: "Política de informe consolidado",
+                options: {
+                    "generate": "Xerar",
+                    "do-not-generate": "Non xerar",
                 },
             },
         },
@@ -1322,8 +1338,12 @@ const galegoTranslation: TranslationType = {
                 "plurality-at-large": "Pluralidade en Xeral",
                 "instant-runoff": "Segunda Volta Instantánea",
                 "random": "Aleatorio",
+                "external-procedure": "Procedemento externo",
                 "custom": "Personalizado",
                 "alphabetical": "Alfabético",
+            },
+            tieBreakingPolicy: {
+                label: "Política de desempate",
             },
             auditButtonConfig: {
                 "label": "Opcións de Visualización do Botón de Auditoría",
@@ -1371,6 +1391,18 @@ const galegoTranslation: TranslationType = {
                 "not-allowed-with-msg-and-alert": "Non Permitido con Mensaxe de Aviso e Alerta",
                 "not-allowed-with-msg-and-disable":
                     "Non Permitido con Mensaxe de Aviso e Desactivar seleccións adicionais",
+            },
+            duplicatedRankPolicy: {
+                "label": "Voto non válido - Política de posición duplicada",
+                "allowed-warn-and-dialog": "Mostrar aviso e diálogo (o votante pode continuar)",
+                "not-allowed-warn-and-dialog":
+                    "Mostrar aviso e diálogo (o votante non pode continuar)",
+            },
+            preferenceGapsPolicy: {
+                "label": "Voto non válido - Política de rangos omitidos",
+                "allowed-warn-and-dialog": "Mostrar aviso e diálogo (o votante pode continuar)",
+                "not-allowed-warn-and-dialog":
+                    "Mostrar aviso e diálogo (o votante non pode continuar)",
             },
             paginationPolicy: {
                 label: "Nome da Páxina",
@@ -1684,6 +1716,37 @@ const galegoTranslation: TranslationType = {
                     round: "Rolda",
                 },
             },
+            pendingResolutions: {
+                round: "Rolda {{round}}",
+                tieResolutionRequired: "Resolución de empate necesaria",
+                tieResolved: "Empate resolto",
+                globalArea: "Global",
+                pendingResolutionsHeader: "Resolucións pendentes",
+                pendingResolutionStatus: "Resolución pendente",
+                resolvedStatus: "Resolto",
+                resolutionTitle: "Resolución",
+                selectContest: "Seleccione un elemento á esquerda para ver os detalles",
+                selectCandidateToAdvance: "Seleccione o candidato a avanzar",
+                undoResolution: "Desfacer resolución",
+                applyResolutions: "Aplicar resolucións e recalcular",
+                submitSuccess: "Resolucións enviadas. O escrutinio está a retomarse...",
+                submitError: "Erro ao enviar as resolucións. Por favor, ténteo de novo.",
+                filter: "Filtrar",
+                save: "Gardar",
+                pendingApplyStatus: "Cálculo pendente",
+                filterElection: "Elección",
+                filterContest: "Concurso",
+                filterArea: "Área",
+                filterStatusLabel: "Estado",
+                clearFilters: "Borrar filtros",
+                candidateWithVotes: "{{name}} ({{votes}} votos)",
+                candidateWithVotesAndPercent: "{{name}} ({{votes}} votos, {{percent}}%)",
+                tieInfoTitle: "Escrutinio pausado por empate sen resolver (Rolda {{round}})",
+                tieInfoBody:
+                    "Candidatos empatados ({{votes}} votos, {{percent}}%): {{candidates}}. Requírese desempate manual para continuar o escrutinio.",
+                tallyResumedTitle: "Escrutinio retomado tras aplicar a resolución",
+                tallyResumedBody: "O empate foi resolto o {{date}} por {{user}}",
+            },
             chart: {
                 votesForCandidates: "Votos polos Candidatos",
                 blankVotes: "Votos en Branco",
@@ -1691,6 +1754,8 @@ const galegoTranslation: TranslationType = {
                 totalVoters: "Total de Votantes",
                 nonVoters: "Non Votantes",
             },
+            exportAllAreas:
+                "Exportar os resultados de todas as áreas en formato {{format}} para '{{item}}'",
         },
         publish: {
             preview: {
@@ -2102,6 +2167,68 @@ const galegoTranslation: TranslationType = {
                 title: "Pruebas",
                 testElectionVoterCount: "Conteo de Votantes en Elección de Prueba",
             },
+        },
+        certificateAuthorities: {
+            title: "Certificados",
+            subtitle:
+                "Autoridades de certificación (CA) de confianza para este evento electoral. As CA importadas úsanse para validar os certificados dos votantes.",
+            importButton: "Importar certificados",
+            type: {
+                root: "Raíz",
+                intermediate: "Intermedio",
+            },
+            expiry: {
+                expired: "Caducado",
+                expiringSoon: "Próximo a caducar",
+                valid: "Válido",
+            },
+            columns: {
+                commonName: "Nome común",
+                type: "Tipo",
+                issuerCn: "CN do emisor",
+                notBefore: "Válido desde",
+                notAfter: "Caduca",
+                fingerprint: "Pegada SHA256",
+            },
+            importDialog: {
+                title: "Importar autoridades de certificación",
+                subtitle: "Importar un ou máis certificados CA desde un ficheiro PEM",
+                description:
+                    "Seleccione un ficheiro PEM que conteña un ou máis certificados. Admítense paquetes — cada certificado impórtase individualmente.",
+                selectFile: "Seleccionar ficheiro PEM",
+                fileLoaded: "Ficheiro cargado ({{bytes}} bytes)",
+                importButton: "Importar",
+            },
+            notify: {
+                importSuccess:
+                    "Importáronse {{inserted}} certificado(s). {{skipped}} omitido(s) (xa presentes).",
+                importError: "Erro ao importar: {{error}}",
+                deleteSuccess: "Certificado eliminado.",
+                deleteError: "Erro ao eliminar o certificado.",
+                exportSuccess: "Certificado(s) exportado(s) correctamente.",
+                exportError: "Erro ao exportar os certificados.",
+            },
+            exportDialog: {
+                title: "Exportar autoridades de certificación",
+                description: "Está a punto de exportar {{amount}} certificado(s).",
+                all: "todos",
+            },
+            deleteDialog: {
+                description: "¿Está seguro de que desexa eliminar {{count}} certificado(s)?",
+            },
+            emptyHeader:
+                "Non se importaron autoridades de certificación para este evento electoral.",
+            fileReadError: "Erro ao ler o ficheiro.",
+            viewDialog: {
+                title: "Detalles da autoridade de certificación",
+                subject: "Asunto",
+                issuer: "Emisor",
+                serialNumber: "Número de serie",
+                pemContent: "Contido PEM",
+            },
+            confirmDelete: "Eliminar autoridade de certificación",
+            confirmDeleteDescription:
+                '¿Está seguro de que quere eliminar o certificado "{{name}}" (pegada: {{fingerprint}})?',
         },
     },
 }

@@ -327,6 +327,12 @@ nix-collect-garbage
 cargo clean
 ```
 
+Also you can run:
+
+```bash
+sudo rm -rf /workspaces/step/packages/target
+```
+
 ### Fix starting/restarting containers
 
 If you see an error when starting/restarting a container, remove the .docker folder:

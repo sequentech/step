@@ -81,6 +81,60 @@ export interface Trustee {
     name: string
 }
 
+const getAttributeStringValue = (value: string | string[] | null | undefined): string => {
+    if (Array.isArray(value)) {
+        return value[0] ?? ""
+    }
+
+    return value ?? ""
+}
+
+interface DateAttributeInputProps {
+    disabled: boolean
+    label: string
+    onCommit: (value: string) => void
+    required: boolean
+    value: string | string[] | null | undefined
+}
+
+const DateAttributeInput: React.FC<DateAttributeInputProps> = ({
+    disabled,
+    label,
+    onCommit,
+    required,
+    value,
+}) => {
+    const normalizedValue = getAttributeStringValue(value)
+    const [draftValue, setDraftValue] = useState(normalizedValue)
+    const [isFocused, setIsFocused] = useState(false)
+
+    useEffect(() => {
+        if (!isFocused) {
+            setDraftValue(normalizedValue)
+        }
+    }, [isFocused, normalizedValue])
+
+    return (
+        <FormStyles.TextField
+            type="date"
+            label={label}
+            value={draftValue}
+            onChange={(event) => setDraftValue(event.target.value)}
+            onFocus={() => setIsFocused(true)}
+            onBlur={(event) => {
+                setIsFocused(false)
+                if (event.target.value !== normalizedValue) {
+                    onCommit(event.target.value)
+                }
+            }}
+            disabled={disabled}
+            required={required}
+            fullWidth
+            InputLabelProps={{shrink: true}}
+        />
+    )
+}
+
 export const ListUserRoles: React.FC<ListUserRolesProps> = ({
     userRoles,
     rolesList,
@@ -477,19 +531,17 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
         [user, equalToPassword]
     )
 
-    const handleDateChange =
-        (attrName: string) => async (e: React.ChangeEvent<HTMLInputElement>) => {
-            const {value} = e.target
-            setUser((prev) => {
-                return {
-                    ...prev,
-                    attributes: {
-                        ...(prev?.attributes ?? {}),
-                        [attrName]: [value],
-                    },
-                }
-            })
-        }
+    const handleDateChange = (attrName: string) => (value: string) => {
+        setUser((prev) => {
+            return {
+                ...prev,
+                attributes: {
+                    ...(prev?.attributes ?? {}),
+                    [attrName]: [value],
+                },
+            }
+        })
+    }
 
     const handleSelectChange = (attrName: string) => async (e: string) => {
         setUser((prev) => {
@@ -568,6 +620,14 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
         }
         return {"name@_ilike,alias@_ilike": searched.current}
     }
+
+    const formattedElections = electionsList?.map((e) => {
+        return {
+            external_id: e.external_id ?? "",
+            id: e.id,
+            name: aliasRenderer(e),
+        }
+    })
 
     const renderFormField = useCallback(
         (attr: UserProfileAttribute, index: number) => {
@@ -688,11 +748,12 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                     )
                 } else if (attr.annotations?.inputType === "html5-date") {
                     return (
-                        <FormStyles.DateInput
-                            key={index}
-                            source={`attributes.${attr.name}`}
-                            onChange={handleDateChange(attr.name)}
+                        <DateAttributeInput
+                            key={attr.name ?? index}
                             label={getTranslationLabel(attr.name, attr.display_name, t)}
+                            value={value}
+                            onCommit={handleDateChange(attr.name)}
+                            required={isRequired}
                             disabled={
                                 !(
                                     createMode ||
@@ -746,10 +807,10 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                                 label={getTranslationLabel(attr.name, attr.display_name, t)}
                                 className="elections-selector"
                                 fullWidth
-                                choices={electionsList || []}
+                                choices={formattedElections || []}
                                 source="attributes.authorized-election-ids"
-                                optionValue="alias"
-                                optionText={aliasRenderer}
+                                optionValue={"external_id"}
+                                optionText={"name"}
                                 onChange={handleArraySelectChange}
                                 disabled={
                                     !(

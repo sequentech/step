@@ -4,6 +4,7 @@
 use crate::services::import::import_election_event::ImportElectionEventSchema;
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::{Client as DbClient, Transaction};
+use sequent_core::services::uuid_validation::parse_uuid_v4;
 use sequent_core::types::hasura::core::Contest;
 use tokio_postgres::row::Row;
 use tracing::{event, instrument, Level};
@@ -30,8 +31,6 @@ impl TryFrom<Row> for ContestWrapper {
             annotations: item.try_get("annotations")?,
             is_acclaimed: item.try_get("is_acclaimed")?,
             is_active: item.try_get("is_active")?,
-            name: item.try_get("name")?,
-            alias: item.try_get("alias")?,
             description: item.try_get("description")?,
             presentation: item.try_get("presentation")?,
             min_votes: min_votes.map(|val| val as i64),
@@ -43,6 +42,7 @@ impl TryFrom<Row> for ContestWrapper {
             tally_configuration: item.try_get("tally_configuration")?,
             image_document_id: item.try_get("image_document_id")?,
             conditions: item.try_get("conditions")?,
+            external_id: item.try_get("external_id")?,
         }))
     }
 }
@@ -59,9 +59,9 @@ pub async fn insert_contest(
         .prepare(
             r#"
                 INSERT INTO sequent_backend.contest
-                (id, tenant_id, election_event_id, election_id, created_at, last_updated_at, labels, annotations, is_acclaimed, is_active, name, description, presentation, min_votes, max_votes, voting_type, counting_algorithm, is_encrypted, tally_configuration, conditions, winning_candidates_num, alias, image_document_id)
+                (id, tenant_id, election_event_id, election_id, created_at, last_updated_at, labels, annotations, is_acclaimed, is_active, description, presentation, min_votes, max_votes, voting_type, counting_algorithm, is_encrypted, tally_configuration, conditions, winning_candidates_num, image_document_id, external_id)
                 VALUES
-                ($1, $2, $3, $4, NOW(), NOW(), $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21);
+                ($1, $2, $3, $4, NOW(), NOW(), $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20);
             "#,
         )
         .await?;
@@ -70,15 +70,14 @@ pub async fn insert_contest(
             .query(
                 &statement,
                 &[
-                    &Uuid::parse_str(&contest.id)?,
-                    &Uuid::parse_str(&contest.tenant_id)?,
-                    &Uuid::parse_str(&contest.election_event_id)?,
-                    &Uuid::parse_str(&contest.election_id)?,
+                    &parse_uuid_v4(&contest.id)?,
+                    &parse_uuid_v4(&contest.tenant_id)?,
+                    &parse_uuid_v4(&contest.election_event_id)?,
+                    &parse_uuid_v4(&contest.election_id)?,
                     &contest.labels,
                     &contest.annotations,
                     &contest.is_acclaimed,
                     &contest.is_active,
-                    &contest.name,
                     &contest.description,
                     &contest.presentation,
                     &contest.min_votes.and_then(|val| Some(val as i32)),
@@ -91,8 +90,8 @@ pub async fn insert_contest(
                     &contest
                         .winning_candidates_num
                         .and_then(|val| Some(val as i32)),
-                    &contest.alias,
                     &contest.image_document_id,
+                    &contest.external_id,
                 ],
             )
             .await
@@ -112,7 +111,7 @@ pub async fn export_contests(
         .prepare(
             r#"
                 SELECT
-                    id, tenant_id, election_event_id, election_id, created_at, last_updated_at, labels, annotations, is_acclaimed, is_active, name, description, presentation, min_votes, max_votes, voting_type, counting_algorithm, is_encrypted, tally_configuration, conditions, winning_candidates_num, alias, image_document_id
+                    id, tenant_id, election_event_id, election_id, created_at, last_updated_at, labels, annotations, is_acclaimed, is_active, description, presentation, min_votes, max_votes, voting_type, counting_algorithm, is_encrypted, tally_configuration, conditions, winning_candidates_num, image_document_id, external_id
                 FROM
                     sequent_backend.contest
                 WHERE
@@ -126,8 +125,8 @@ pub async fn export_contests(
         .query(
             &statement,
             &[
-                &Uuid::parse_str(tenant_id)?,
-                &Uuid::parse_str(election_event_id)?,
+                &parse_uuid_v4(tenant_id)?,
+                &parse_uuid_v4(election_event_id)?,
             ],
         )
         .await?;
@@ -168,9 +167,9 @@ pub async fn get_contest_by_id(
         .query_opt(
             &statement,
             &[
-                &Uuid::parse_str(tenant_id)?,
-                &Uuid::parse_str(election_event_id)?,
-                &Uuid::parse_str(contest_id)?,
+                &parse_uuid_v4(tenant_id)?,
+                &parse_uuid_v4(election_event_id)?,
+                &parse_uuid_v4(contest_id)?,
             ],
         )
         .await?;
@@ -211,9 +210,9 @@ pub async fn get_contest_by_election_id(
         .query(
             &statement,
             &[
-                &Uuid::parse_str(tenant_id)?,
-                &Uuid::parse_str(election_event_id)?,
-                &Uuid::parse_str(election_id)?,
+                &parse_uuid_v4(tenant_id)?,
+                &parse_uuid_v4(election_event_id)?,
+                &parse_uuid_v4(election_id)?,
             ],
         )
         .await?;
@@ -236,12 +235,12 @@ pub async fn get_contest_by_election_ids(
     election_event_id: &str,
     election_ids: &Vec<String>,
 ) -> Result<Vec<Contest>> {
-    let uuid_tenant_id = Uuid::parse_str(tenant_id)?;
-    let uuid_election_event_id = Uuid::parse_str(election_event_id)?;
+    let uuid_tenant_id = parse_uuid_v4(tenant_id)?;
+    let uuid_election_event_id = parse_uuid_v4(election_event_id)?;
 
     let uuid_election_ids: Vec<Uuid> = election_ids
         .iter()
-        .map(|id| Uuid::parse_str(id))
+        .map(|id| parse_uuid_v4(id))
         .collect::<Result<_, _>>()?;
 
     let statement = hasura_transaction

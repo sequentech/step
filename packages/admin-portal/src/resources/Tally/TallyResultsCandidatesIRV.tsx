@@ -97,10 +97,16 @@ export const TallyResultsCandidatesIRV: React.FC<TallyResultsCandidatesIRVProps>
     // Get candidate status for a specific round
     const getCandidateStatusInRound = (candidateId: string, roundIndex: number) => {
         const round = rounds[roundIndex]
+        const isLastRound = roundIndex === rounds.length - 1
 
         // Check if candidate is winner
         if (round.winner?.id === candidateId) {
             return "winner"
+        }
+
+        // In the last round, non-winners don't get an eliminated chip
+        if (isLastRound) {
+            return "active"
         }
 
         // Check if candidate was eliminated in this round
@@ -109,7 +115,7 @@ export const TallyResultsCandidatesIRV: React.FC<TallyResultsCandidatesIRVProps>
         }
 
         // Check if candidate was eliminated in previous rounds
-        for (let i = 0; i <= roundIndex; i++) {
+        for (let i = 0; i < roundIndex; i++) {
             if (rounds[i].eliminated_candidates?.some((c) => c.id === candidateId)) {
                 return "eliminated"
             }

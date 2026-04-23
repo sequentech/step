@@ -1106,6 +1106,26 @@ pub fn sign_hashable_multi_ballot_with_ephemeral_voter_signing_key_js(
         .into_json()
 }
 
+#[wasm_bindgen]
+pub fn get_default_duplicated_rank_policy_js() -> Result<JsValue, JsValue> {
+    let policy = EDuplicatedRankPolicy::default();
+    serde_wasm_bindgen::to_value(&policy).map_err(|err| {
+        JsValue::from_str(&format!(
+            "Error serializing default duplicated rank policy: {err}"
+        ))
+    })
+}
+
+#[wasm_bindgen]
+pub fn get_default_preference_gaps_policy_js() -> Result<JsValue, JsValue> {
+    let policy = EPreferenceGapsPolicy::default();
+    serde_wasm_bindgen::to_value(&policy).map_err(|err| {
+        JsValue::from_str(&format!(
+            "Error serializing default preference gaps policy: {err}"
+        ))
+    })
+}
+
 // returns true/false if verified/no-signature, error if the signature can't be
 // verified
 #[wasm_bindgen]
@@ -1202,4 +1222,14 @@ pub fn verify_multi_ballot_signature_js(
     serde_wasm_bindgen::to_value(&result.is_some())
         .map_err(|err| format!("Error writing javascript string: {err}",))
         .into_json()
+}
+
+#[wasm_bindgen]
+pub fn get_default_consolidated_report_policy_js() -> Result<JsValue, JsValue> {
+    let policy: ConsolidatedReportPolicy = ConsolidatedReportPolicy::default();
+    serde_wasm_bindgen::to_value(&policy).map_err(|err| {
+        JsValue::from_str(&format!(
+            "Error serializing default consolidated report policy: {err}"
+        ))
+    })
 }

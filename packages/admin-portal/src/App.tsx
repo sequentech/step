@@ -65,14 +65,14 @@ import {UpsertArea} from "./resources/Area/UpsertArea"
 
 interface AppProps {}
 
-const StyledApp = styled(Box)<{css: string}>`
-    ${({css}) => css}
+const StyledApp = styled(Box)<{customCss: string}>`
+    ${({customCss}) => customCss}
 `
 
 export const StyledAppAtom: React.FC<{children: React.ReactNode}> = ({children}) => {
     const css = useAtomValue(cssInputLookAndFeel)
     return (
-        <StyledApp className="styled-app-atom" css={css}>
+        <StyledApp className="styled-app-atom" customCss={css}>
             {children}
         </StyledApp>
     )
@@ -214,6 +214,7 @@ const App: React.FC<AppProps> = () => {
                     create={CreateBallotStyle}
                     options={{label: "Ballot Styles"}}
                 />
+                <Resource name="sequent_backend_certificate_authority" />
                 <Resource
                     name="sequent_backend_area"
                     edit={UpsertArea}

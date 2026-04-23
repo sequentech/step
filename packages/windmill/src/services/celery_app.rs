@@ -24,6 +24,7 @@ use crate::tasks::electoral_log::{
 use crate::tasks::execute_tally_session::execute_tally_session;
 use crate::tasks::export_application::export_application;
 use crate::tasks::export_ballot_publication::export_ballot_publication;
+use crate::tasks::export_certificate_authority::export_certificate_authority;
 use crate::tasks::export_election_event::export_election_event;
 use crate::tasks::export_tally_results::export_tally_results_to_xlsx_task;
 use crate::tasks::export_tasks_execution::export_tasks_execution;
@@ -166,7 +167,11 @@ lazy_static! {
     /// CELERY_APP holds the high-level Celery application. Note: The Celery app is
     /// built separately from the Broker because it handles task routing/scheduling.
     static ref CELERY_APP: AsyncOnce<Arc<Celery>> =
-        AsyncOnce::new(async { generate_celery_app().await.unwrap() });
+        AsyncOnce::new(async { generate_celery_app().await.unwrap_or_else(|err| {
+            tracing::error!("{:#}", err);
+            panic!("{:#}", err);
+        })
+    });
 }
 
 /// Returns the global Celery app.
@@ -266,6 +271,7 @@ pub async fn generate_celery_app() -> Result<Arc<Celery>> {
             manage_election_date,
             export_election_event,
             generate_activity_logs_report,
+            export_certificate_authority,
             create_transmission_package_task,
             send_transmission_package_task,
             delete_election_event_t,
@@ -306,7 +312,7 @@ pub async fn generate_celery_app() -> Result<Arc<Celery>> {
             import_users::NAME => &Queue::ImportExport.queue_name(&slug),
             export_users::NAME => &Queue::ImportExport.queue_name(&slug),
             export_election_event::NAME => &Queue::ImportExport.queue_name(&slug),
-            generate_activity_logs_report::NAME => &Queue::ImportExport.queue_name(&slug),
+            generate_activity_logs_report::NAME => &Queue::Reports.queue_name(&slug), // Using reports queue because there is more memory allocated for that queue
             export_tasks_execution::NAME => &Queue::ImportExport.queue_name(&slug),
             export_trustees_task::NAME => &Queue::ImportExport.queue_name(&slug),
             import_election_event::NAME => &Queue::ImportExport.queue_name(&slug),
@@ -337,6 +343,7 @@ pub async fn generate_celery_app() -> Result<Arc<Celery>> {
             export_tally_results_to_xlsx_task::NAME => &Queue::ImportExport.queue_name(&slug),
             post_tally_task::NAME => &Queue::Reports.queue_name(&slug),
             import_templates_task::NAME => &Queue::ImportExport.queue_name(&slug),
+            export_certificate_authority::NAME => &Queue::ImportExport.queue_name(&slug),
         ],
         prefetch_count = prefetch_count,
         acks_late = acks_late,
