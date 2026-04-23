@@ -54,7 +54,10 @@ jobs:
       - name: Generate cargo docs (Rust crates)
         working-directory: ./packages
         run: |
-          cargo doc -p sequent-core -p velvet -p harvest -p step-cli --all-features --no-deps
+          cargo doc -p sequent-core --all-features --no-deps
+          cargo doc -p velvet --all-features --no-deps
+          cargo doc -p harvest --all-features --no-deps
+          cargo doc -p step-cli --all-features --no-deps
 
       - name: Set BASE_URL and Build Docusaurus Preview
         id: build_docusaurus
