@@ -1455,7 +1455,7 @@ const tagalogTranslation: TranslationType = {
                 },
                 filterTrustees: "I-filter ang mga trustee",
                 errorPermisionLabels:
-                    "Hindi maipagawa ang keys ceremony: may nawawala sa isa o higit pang permission label.",
+                    "Hindi maipagawa ang Key Ceremony: may nawawala sa isa o higit pang permission label.",
                 automaticCeremonyToggle: "Awtomatikong Seremonya",
             },
             ceremonyStep: {
@@ -1805,7 +1805,7 @@ const tagalogTranslation: TranslationType = {
                 action: "Lumikha ng Paglalathala",
             },
             forbidden: {
-                header: "Hindi mai-publish hanggang sa makumpleto ang Keys Ceremony.",
+                header: "Hindi mai-publish hanggang sa makumpleto ang Key Ceremony.",
             },
             dialog: {
                 title: "Kumpirmahin ang Aksyon",
