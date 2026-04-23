@@ -38,7 +38,8 @@ use sequent_core::serialization::deserialize_with_path::deserialize_str;
 use sequent_core::serialization::deserialize_with_path::deserialize_value;
 use sequent_core::services::connection;
 use sequent_core::services::keycloak::{
-    get_client_credentials, get_event_realm, replace_realm_ids, KeycloakAdminClient,
+    generate_client_secret, get_client_credentials, get_event_realm, replace_realm_ids,
+    KeycloakAdminClient,
 };
 use sequent_core::services::replace_uuids::replace_uuids;
 use sequent_core::types::hasura::core::Application;
@@ -73,11 +74,15 @@ use crate::postgres;
 use crate::postgres::area::insert_areas;
 use crate::postgres::area_contest::insert_area_contests;
 use crate::postgres::candidate::insert_candidates;
+use crate::postgres::certificate_authority::{
+    insert_certificate_authority, CertificateAuthorityRecord,
+};
 use crate::postgres::contest::insert_contest;
 use crate::postgres::election::insert_elections;
 use crate::postgres::election_event::insert_election_event;
 use crate::postgres::keys_ceremony;
 use crate::postgres::scheduled_event::insert_scheduled_event;
+use crate::services::certificate_authority::{parse_certificate_pem, split_pem_bundle};
 use crate::services::consolidation::aes_256_cbc_encrypt::decrypt_file_aes_256_cbc;
 use crate::services::documents;
 use crate::services::documents::upload_and_return_document;
@@ -95,6 +100,7 @@ use crate::tasks::import_election_event::ImportElectionEventBody;
 use crate::types::documents::EDocuments;
 use regex::Regex;
 use sequent_core::types::hasura::core::{Area, Candidate, Contest, Election, ElectionEvent};
+use sequent_core::types::keycloak::CERTIFICATES_IDP_ALIAS;
 use sequent_core::types::scheduled_event::*;
 use sequent_core::util::temp_path::{generate_temp_file, get_file_size};
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -221,23 +227,63 @@ pub fn read_default_election_event_realm() -> Result<RealmRepresentation> {
 
 #[instrument(skip(realm))]
 pub fn remove_keycloak_realm_secrets(realm: &RealmRepresentation) -> Result<RealmRepresentation> {
-    // set a specific client secret for a specific client id by env config
-    let client_id = env::var("KEYCLOAK_CLIENT_ID").with_context(|| "missing KEYCLOAK_CLIENT_ID")?;
-    let client_secret =
+    let keycloak_client_id =
+        env::var("KEYCLOAK_CLIENT_ID").with_context(|| "missing KEYCLOAK_CLIENT_ID")?;
+    let keycloak_client_secret =
         env::var("KEYCLOAK_CLIENT_SECRET").with_context(|| "missing KEYCLOAK_CLIENT_SECRET")?;
-    // we remove secrets and certs so that keycloak regenerates them
-    // remove client secrets
     let mut realm_copy = realm.clone();
+
+    // For each IDP that has both clientId and clientSecret configured,
+    // look if it is the special CERTIFICATES_IDP_ALIAS, then generate a
+    // new secret, update the IDP config, and record (clientId -> newSecret) so the
+    // matching Keycloak client can be given the same credential in the client's loop below.
+    let mut certs_client: Option<(String, String)> = None;
+    if let Some(identity_providers) = realm_copy.identity_providers.clone() {
+        let new_identity_providers = identity_providers
+            .iter()
+            .map(|idp| {
+                let mut idp_copy = idp.clone();
+                match idp_copy.config.clone() {
+                    Some(config) if idp.alias.as_deref() == Some(CERTIFICATES_IDP_ALIAS) => {
+                        let mut new_config = config.clone();
+                        if let Some(idp_client_id) = new_config.get("clientId").cloned() {
+                            if new_config.contains_key("clientSecret") {
+                                let new_secret = generate_client_secret();
+                                new_config.insert("clientSecret".to_string(), new_secret.clone());
+                                certs_client = Some((idp_client_id, new_secret));
+                            }
+                        }
+                        idp_copy.config = Some(new_config);
+                    }
+                    _ => {
+                        // no config, nothing to do
+                    }
+                }
+                idp_copy
+            })
+            .collect();
+        realm_copy.identity_providers = Some(new_identity_providers);
+    }
+
+    // For each client, assign its secret based on priority:
+    // 1. The designated Keycloak client gets the configured env var secret.
+    // 2. Client that appear configured in IDP CERTIFICATES_IDP_ALIAS get the generated client secret.
+    // 3. All others have their secret cleared so Keycloak regenerates it.
     realm_copy.clients = realm_copy.clients.map(|clients| {
         clients
             .iter()
             .map(|client| {
                 let mut client_copy = client.clone();
-                if client.client_id == Some(client_id.clone()) {
-                    client_copy.secret = Some(client_secret.clone());
-                } else {
-                    client_copy.secret = None;
-                }
+                client_copy.secret = match client.client_id.as_deref() {
+                    Some(id) if id == keycloak_client_id => Some(keycloak_client_secret.clone()),
+                    Some(id) => match &certs_client {
+                        Some((certs_client_id, secret)) if id == certs_client_id => {
+                            Some(secret.clone())
+                        }
+                        _ => None,
+                    },
+                    None => None,
+                };
                 client_copy
             })
             .collect()
@@ -388,7 +434,7 @@ pub async fn insert_election_event_db(
 /// # Arguments
 /// * `data_str` - The original JSON string representation of the import data
 /// * `original_data` - The parsed ImportElectionEventSchema structure
-/// * `id_opt` - Optional election event ID to use. If None, a new UUID will be generated
+/// * `event_id` - Optional election event ID to use. If None, a new UUID will be generated
 /// * `tenant_id` - The tenant ID to use (may differ from the original)
 ///
 /// # Returns
@@ -399,14 +445,14 @@ pub async fn insert_election_event_db(
 pub fn replace_ids(
     data_str: &str,
     original_data: &ImportElectionEventSchema,
-    id_opt: Option<String>,
+    event_id: Option<String>,
     tenant_id: String,
 ) -> Result<(ImportElectionEventSchema, HashMap<String, String>)> {
     // Prepare tenant_id replacement - always replace to ensure consistency
     let tenant_id_replacement = Some((original_data.tenant_id.to_string(), tenant_id.clone()));
 
     // Prepare election_event_id replacement if a specific one was provided
-    let election_event_id_replacement = id_opt
+    let election_event_id_replacement = event_id
         .as_ref()
         .map(|new_id| (original_data.election_event.id.clone(), new_id.clone()));
 
@@ -491,17 +537,20 @@ pub async fn decrypt_document(
     Ok(temp_file_path)
 }
 
+/// Get the election event schma and also:
+/// - Check version compatibility
+/// - Replace IDs and return a mapping of old to new IDs (for preserving references in other documents like voters)
 #[instrument(err, skip_all)]
 pub async fn get_election_event_schema(
     data_str: &str,
-    id: Option<String>,
+    event_id: Option<String>,
     tenant_id: String,
 ) -> Result<(ImportElectionEventSchema, HashMap<String, String>)> {
     let original_data: ImportElectionEventSchema = deserialize_str(data_str)?;
     let current_version =
         std::env::var(ENV_VAR_APP_VERSION).unwrap_or_else(|_| DEV_APP_VERSION.to_string());
     check_version_compatibility(&original_data.version, &current_version)?;
-    replace_ids(data_str, &original_data, id, tenant_id.clone())
+    replace_ids(data_str, &original_data, event_id, tenant_id.clone())
 }
 
 #[instrument(err, skip_all)]
@@ -1327,6 +1376,41 @@ pub async fn process_document(
                 )
                 .await
                 .context("Failed to import tally_file")?;
+            }
+
+            if file_name.contains(EDocuments::CERTIFICATES.to_file_name()) {
+                let pem_content = String::from_utf8(file_contents.clone())
+                    .context("Failed to decode certificates PEM as UTF-8")?;
+                let tenant_uuid = election_event_schema.tenant_id;
+                let election_event_uuid = Uuid::parse_str(&election_event_schema.election_event.id)
+                    .context("Failed to parse election event UUID")?;
+                let pem_chunks = split_pem_bundle(&pem_content);
+                for pem_chunk in pem_chunks {
+                    let pem_chunk_owned = pem_chunk.clone();
+                    let parsed = tokio::task::spawn_blocking(move || {
+                        parse_certificate_pem(&pem_chunk_owned)
+                    })
+                    .await
+                    .context("Failed to spawn blocking task for cert parsing")?
+                    .context("Failed to parse certificate PEM")?;
+                    let record = CertificateAuthorityRecord {
+                        id: Uuid::new_v4(),
+                        tenant_id: tenant_uuid,
+                        election_event_id: election_event_uuid,
+                        common_name: parsed.common_name,
+                        subject: parsed.subject,
+                        issuer_common_name: parsed.issuer_common_name,
+                        issuer: parsed.issuer,
+                        not_before: parsed.not_before,
+                        not_after: parsed.not_after,
+                        fingerprint_sha256: parsed.fingerprint_sha256,
+                        serial_number: parsed.serial_number,
+                        pem: parsed.pem,
+                    };
+                    insert_certificate_authority(hasura_transaction, record)
+                        .await
+                        .context("Failed to insert certificate authority")?;
+                }
             }
         }
     };

@@ -984,7 +984,7 @@ pub struct ElectionEventPresentation {
     pub enrollment: Option<Enrollment>,
     pub otp: Option<Otp>,
     pub voter_signing_policy: Option<VoterSigningPolicy>,
-    pub voter_digital_cert_policy: Option<VoterDigitalCertPolicy>,
+    pub voter_certificate_policy: Option<VoterCertificatePolicy>,
     pub weighted_voting_policy: Option<WeightedVotingPolicy>,
     pub ceremonies_policy: Option<CeremoniesPolicy>,
     pub delegated_voting_policy: Option<DelegatedVotingPolicy>,
@@ -1748,7 +1748,7 @@ pub enum VoterSigningPolicy {
     EnumString,
     JsonSchema,
 )]
-pub enum VoterDigitalCertPolicy {
+pub enum VoterCertificatePolicy {
     #[default]
     #[strum(serialize = "disabled")]
     #[serde(rename = "disabled")]

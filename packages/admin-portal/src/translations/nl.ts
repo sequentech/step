@@ -86,6 +86,7 @@ const dutchTranslation: TranslationType = {
                 DELETE_ELECTION_EVENT: "Verkiezingsevenement Verwijderen",
                 PREPARE_PUBLICATION_PREVIEW: "De publicatievoorbeeldweergave voorbereiden",
                 EXPORT_TALLY_RESULTS_XLSX: "Exporteer de telresultaten in XLSX-indeling",
+                EXPORT_CERTIFICATE_AUTHORITIES: "Certificaatautoriteiten exporteren",
             },
             widget: {
                 taskTitle: "Taak: {{title}}",
@@ -339,7 +340,7 @@ const dutchTranslation: TranslationType = {
                     "no-signature": "Geen handtekening",
                     "with-signature": "Met handtekening",
                 },
-                voterDigitalCertPolicy: {
+                VoterCertificatePolicy: {
                     policyLabel: "Voter Digital Certificate Policy",
                     enabled: "Ingeschakeld",
                     disabled: "Uitgeschakeld",
@@ -552,6 +553,7 @@ const dutchTranslation: TranslationType = {
                 reports: "Rapporten",
                 applications: "Applicaties",
                 tally: "Telling",
+                certificates: "Certificaten",
             },
             taskNotification:
                 "{{action}} is gestart. U kunt de status ervan zien in de tabel Taakuitvoering.",
@@ -2173,6 +2175,9 @@ const dutchTranslation: TranslationType = {
             },
         },
         certificateAuthorities: {
+            title: "Certificaten",
+            subtitle:
+                "Vertrouwde certificeringsinstanties (CA's) voor dit verkiezingsevenement. Geïmporteerde CA's worden gebruikt om kiezercertificaten te valideren.",
             importButton: "Certificaten importeren",
             type: {
                 root: "Wortel",
@@ -2206,6 +2211,16 @@ const dutchTranslation: TranslationType = {
                 importError: "Importeren mislukt: {{error}}",
                 deleteSuccess: "Certificaat verwijderd.",
                 deleteError: "Fout bij verwijderen van certificaat.",
+                exportSuccess: "Certificaat(-en) succesvol geëxporteerd.",
+                exportError: "Fout bij exporteren van certificaten.",
+            },
+            exportDialog: {
+                title: "Certificaatautoriteiten exporteren",
+                description: "U staat op het punt {{amount}} certificaat(-en) te exporteren.",
+                all: "alle",
+            },
+            deleteDialog: {
+                description: "Weet u zeker dat u {{count}} certificaat(-en) wilt verwijderen?",
             },
             emptyHeader:
                 "Er zijn geen certificaatautoriteiten geïmporteerd voor dit verkiezingsevenement.",

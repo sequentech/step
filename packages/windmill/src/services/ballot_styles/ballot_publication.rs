@@ -142,7 +142,7 @@ pub async fn update_publish_ballot(
     .await?;
 
     let mut new_status: ElectionEventStatus =
-        get_election_event_status(election_event.status).unwrap_or(Default::default());
+        get_election_event_status(election_event.status.clone()).unwrap_or(Default::default());
     new_status.is_published = Some(true);
     let new_status_js = serde_json::to_value(new_status)?;
 
