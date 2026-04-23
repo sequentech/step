@@ -8,6 +8,8 @@ mod admin_client;
 mod permission;
 /// Realm management for Keycloak.
 mod realm;
+/// Realm attributes management for Keycloak.
+mod realm_attributes;
 /// Role management for Keycloak.
 mod role;
 /// User management for Keycloak.
@@ -16,5 +18,6 @@ mod user;
 pub use self::admin_client::*;
 pub use self::permission::*;
 pub use self::realm::*;
+pub use self::realm_attributes::*;
 pub use self::role::*;
 pub use self::user::*;

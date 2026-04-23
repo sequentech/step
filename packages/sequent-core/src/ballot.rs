@@ -511,22 +511,16 @@ pub struct CandidateUrl {
     Default,
 )]
 /// Presentation configuration for a candidate, including i18n, status, and display options.
+#[allow(missing_docs)]
 pub struct CandidatePresentation {
-    /// Internationalized content for the candidate.
+    /// Internationalized text for the
     pub i18n: Option<I18nContent<I18nContent<Option<String>>>>,
-    /// True if the candidate is explicitly marked as invalid.
     pub is_explicit_invalid: Option<bool>,
-    /// True if the candidate is explicitly marked as blank.
     pub is_explicit_blank: Option<bool>,
-    /// True if the candidate is disabled.
     pub is_disabled: Option<bool>,
-    /// True if the candidate is a category list.
     pub is_category_list: Option<bool>,
-    /// Position for invalid votes ("top" or "bottom").
     pub invalid_vote_position: Option<String>,
-    /// True if the candidate is a write-in.
     pub is_write_in: Option<bool>,
-    /// Sort order for display.
     pub sort_order: Option<i64>,
     /// List of URLs associated with the candidate.
     pub urls: Option<Vec<CandidateUrl>>,
@@ -566,34 +560,21 @@ impl CandidatePresentation {
     Default,
 )]
 /// Candidate data structure.
+#[allow(missing_docs)]
 pub struct Candidate {
-    /// Unique candidate identifier.
     pub id: String,
-    /// Tenant identifier.
     pub tenant_id: String,
-    /// Election event identifier.
     pub election_event_id: String,
-    /// Election identifier.
     pub election_id: String,
-    /// Contest identifier.
     pub contest_id: String,
-    /// Candidate name.
     pub name: Option<String>,
-    /// Internationalized candidate name.
     pub name_i18n: Option<I18nContent>,
-    /// Candidate description.
     pub description: Option<String>,
-    /// Internationalized candidate description.
     pub description_i18n: Option<I18nContent>,
-    /// Candidate alias.
     pub alias: Option<String>,
-    /// Internationalized candidate alias.
     pub alias_i18n: Option<I18nContent>,
-    /// Candidate type.
     pub candidate_type: Option<String>,
-    /// Presentation configuration for the candidate.
     pub presentation: Option<CandidatePresentation>,
-    /// Annotations for the candidate.
     pub annotations: Option<Annotations>,
 }
 
@@ -924,32 +905,20 @@ pub enum ElectionsOrder {
     Clone,
 )]
 /// Election data structure.
+#[allow(missing_docs)]
 pub struct Election {
-    /// Unique election identifier.
     pub id: String,
-    /// Election event identifier.
     pub election_event_id: String,
-    /// Tenant identifier.
     pub tenant_id: String,
-    /// Election name.
     pub name: Option<String>,
-    /// Internationalized election name.
     pub name_i18n: Option<I18nContent>,
-    /// Election description.
     pub description: Option<String>,
-    /// Internationalized election description.
     pub description_i18n: Option<I18nContent>,
-    /// Election alias.
     pub alias: Option<String>,
-    /// Internationalized election alias.
     pub alias_i18n: Option<I18nContent>,
-    /// Image document ID.
     pub image_document_id: Option<String>,
-    /// List of contests in the election.
     pub contests: Vec<Contest>,
-    /// Presentation configuration for the election.
     pub presentation: Option<ElectionPresentation>,
-    /// Annotations for the election.
     pub annotations: Option<Annotations>,
 }
 
@@ -1122,16 +1091,13 @@ pub struct ElectionEventLanguageConf {
     Default,
 )]
 /// Presentation configuration for an election event.
+#[allow(missing_docs)]
 pub struct ElectionEventPresentation {
     /// Internationalized content for the event.
     pub i18n: Option<I18nContent<I18nContent<Option<String>>>>,
-    /// Materials configuration for the event.
     pub activated: Option<ElectionEventMaterials>,
-    /// Language configuration for the event.
     pub language_conf: Option<ElectionEventLanguageConf>,
-    /// Logo URL for the event.
     pub logo_url: Option<String>,
-    /// Redirect URL after finishing voting.
     pub redirect_finish_url: Option<String>,
     /// Custom CSS for the event.
     pub css: Option<String>,
@@ -1143,34 +1109,21 @@ pub struct ElectionEventPresentation {
     pub show_cast_vote_logs: Option<ShowCastVoteLogs>,
     /// Order in which elections are displayed.
     pub elections_order: Option<ElectionsOrder>,
-    /// Countdown policy for the voting portal.
     pub voting_portal_countdown_policy: Option<VotingPortalCountdownPolicy>,
-    /// Custom URLs for the event.
     pub custom_urls: Option<CustomUrls>,
-    /// Key ceremony policy.
     pub keys_ceremony_policy: Option<KeysCeremonyPolicy>,
-    /// Contest encryption policy.
     pub contest_encryption_policy: Option<ContestEncryptionPolicy>,
-    /// Decoded ballot inclusion policy.
     pub decoded_ballot_inclusion_policy: Option<DecodedBallotsInclusionPolicy>,
-    /// Locked down policy.
     pub locked_down: Option<LockedDown>,
-    /// Publish policy.
     pub publish_policy: Option<Publish>,
-    /// Enrollment policy.
     pub enrollment: Option<Enrollment>,
-    /// OTP policy.
     pub otp: Option<Otp>,
-    /// Voter signing policy.
     pub voter_signing_policy: Option<VoterSigningPolicy>,
-    /// Policy for voter digital certificate.
-    pub voter_digital_cert_policy: Option<VoterDigitalCertPolicy>,
-    /// Policy for weighted voting.
+    pub voter_certificate_policy: Option<VoterCertificatePolicy>,
     pub weighted_voting_policy: Option<WeightedVotingPolicy>,
     /// Ceremonies policy.
     /// (Whether the ceremonies should be automated)
     pub ceremonies_policy: Option<CeremoniesPolicy>,
-    /// Policy for delegated voting.
     pub delegated_voting_policy: Option<DelegatedVotingPolicy>,
 }
 
@@ -1494,6 +1447,7 @@ pub enum EPreferenceGapsPolicy {
     Clone,
 )]
 /// Presentation settings for an election event.
+#[allow(missing_docs)]
 pub struct ElectionPresentation {
     /// Internationalized text for the election.
     pub i18n: Option<I18nContent<I18nContent<Option<String>>>>,
@@ -1507,31 +1461,18 @@ pub struct ElectionPresentation {
     pub audit_button_cfg: Option<AuditButtonCfg>,
     /// UI sort order.
     pub sort_order: Option<i64>,
-    /// Whether to show a cast-vote confirm screen.
     pub cast_vote_confirm: Option<bool>,
-    /// Gold-level policy for cast vote confirmation.
     pub cast_vote_gold_level: Option<CastVoteGoldLevelPolicy>,
-    /// Start screen title policy.
     pub start_screen_title_policy: Option<StartScreenTitlePolicy>,
-    /// Whether grace period is enabled.
     pub is_grace_priod: Option<bool>,
-    /// Grace period policy.
     pub grace_period_policy: Option<EGracePeriodPolicy>,
-    /// Grace period duration in seconds.
     pub grace_period_secs: Option<u64>,
-    /// Initialize report policy.
     pub init_report: Option<InitReport>,
-    /// Manual start voting period policy.
     pub manual_start_voting_period: Option<ManualStartVotingPeriod>,
-    /// Voting period end policy.
     pub voting_period_end: Option<VotingPeriodEnd>,
-    /// Tally policy.
     pub tally: Option<Tally>,
-    /// Policy for whether Initialize Report is required to start voting.
     pub initialization_report_policy: Option<EInitializeReportPolicy>,
-    /// Security confirmation policy.
     pub security_confirmation_policy: Option<ESecurityConfirmationPolicy>,
-    /// Consolidated report policy.
     pub consolidated_report_policy: Option<ConsolidatedReportPolicy>,
 }
 
@@ -1740,7 +1681,6 @@ impl Default for ContestPresentation {
 #[allow(missing_docs)]
 pub struct Contest {
     pub id: String,
-    /// Tenant identifier.
     pub tenant_id: String,
     pub election_event_id: String,
     pub election_id: String,
@@ -2042,9 +1982,9 @@ pub enum VoterSigningPolicy {
     EnumString,
     JsonSchema,
 )]
-/// Configuration for voter digital certificate policy.
+/// Configuration for voter certificate policy.
 #[allow(missing_docs)]
-pub enum VoterDigitalCertPolicy {
+pub enum VoterCertificatePolicy {
     #[default]
     #[strum(serialize = "disabled")]
     #[serde(rename = "disabled")]
@@ -2788,38 +2728,23 @@ impl ElectionStatus {
 )]
 /// Struct representing the ballot style, which includes information
 /// about the contests, areas, and presentation settings for a specific ballot.
+#[allow(missing_docs)]
 pub struct BallotStyle {
-    /// Unique identifier for the ballot style.
     pub id: String,
-    /// Tenant identifier.
     pub tenant_id: String,
-    /// Election event identifier.
     pub election_event_id: String,
-    /// Election identifier.
     pub election_id: String,
-    /// Number of allowed revotes for this ballot style, if any.
     pub num_allowed_revotes: Option<i64>,
-    /// Description of the election.
     pub description: Option<String>,
-    /// Public key.
     pub public_key: Option<PublicKeyConfig>,
-    /// Unique identifier for the area associated with this ballot style.
     pub area_id: String,
-    /// Presentation settings for the area associated with this ballot style.
     pub area_presentation: Option<AreaPresentation>,
-    /// List of contests included in this ballot style.
     pub contests: Vec<Contest>,
-    /// Presentation settings for the election event.
     pub election_event_presentation: Option<ElectionEventPresentation>,
-    /// Presentation settings for the election.
     pub election_presentation: Option<ElectionPresentation>,
-    /// Dates related to the election, such as voting period dates.
     pub election_dates: Option<StringifiedPeriodDates>,
-    /// Annotations for the election event.
     pub election_event_annotations: Option<HashMap<String, String>>,
-    /// Annotations for the election.
     pub election_annotations: Option<HashMap<String, String>>,
-    /// Annotations for the election.
     pub area_annotations: Option<AreaAnnotations>,
 }
 

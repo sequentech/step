@@ -54,6 +54,7 @@ const catalanTranslation: TranslationType = {
                 DELETE_ELECTION_EVENT: "Esborrar esdeveniment electoral",
                 PREPARE_PUBLICATION_PREVIEW: "Preparar la vista prèvia de la publicació",
                 EXPORT_TALLY_RESULTS_XLSX: "Exporta els resultats del recompte en format XLSX",
+                EXPORT_CERTIFICATE_AUTHORITIES: "Exportar autoritats de certificació",
             },
             widget: {
                 taskTitle: "Tasca: {{title}}",
@@ -341,7 +342,7 @@ const catalanTranslation: TranslationType = {
                     "no-signature": "Sense signatura",
                     "with-signature": "Amb signatura",
                 },
-                voterDigitalCertPolicy: {
+                VoterCertificatePolicy: {
                     policyLabel: "Voter Digital Certificate Policy",
                     enabled: "Habilitat",
                     disabled: "Deshabilitat",
@@ -549,6 +550,7 @@ const catalanTranslation: TranslationType = {
                 reports: "Informes",
                 applications: "Aplicacions",
                 tally: "Recompte",
+                certificates: "Certificats",
             },
             taskNotification:
                 "{{action}} ha començat. Podeu veure el seu estat a la taula d'Execució de Tasques.",
@@ -2177,6 +2179,9 @@ const catalanTranslation: TranslationType = {
             },
         },
         certificateAuthorities: {
+            title: "Certificats",
+            subtitle:
+                "Autoritats de certificació (CA) de confiança per a aquest esdeveniment electoral. Les CA importades s'utilitzen per validar els certificats dels votants.",
             importButton: "Importar certificats",
             type: {
                 root: "Arrel",
@@ -2210,6 +2215,16 @@ const catalanTranslation: TranslationType = {
                 importError: "Error en la importació: {{error}}",
                 deleteSuccess: "Certificat eliminat.",
                 deleteError: "Error en eliminar el certificat.",
+                exportSuccess: "Certificat(s) exportat(s) correctament.",
+                exportError: "Error en exportar els certificats.",
+            },
+            exportDialog: {
+                title: "Exportar autoritats de certificació",
+                description: "Esteu a punt d'exportar {{amount}} certificat(s).",
+                all: "tots",
+            },
+            deleteDialog: {
+                description: "Esteu segur que voleu suprimir {{count}} certificat(s)?",
             },
             emptyHeader:
                 "No s'han importat autoritats de certificació per a aquest esdeveniment electoral.",

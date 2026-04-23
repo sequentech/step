@@ -8,6 +8,7 @@ use sequent_core::util::temp_path::generate_temp_file;
 use std::fs;
 use std::process::Command;
 
+// The standard PEM (Privacy-Enhanced Mail) file format conventionally requires five dashes
 const CERT_BEGIN: &str = "-----BEGIN CERTIFICATE-----";
 const CERT_END: &str = "-----END CERTIFICATE-----";
 

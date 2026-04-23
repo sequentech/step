@@ -211,7 +211,7 @@ export type DataListPgAudit = {
 
 export type DeleteCertificateAuthorityOutput = {
     __typename?: "DeleteCertificateAuthorityOutput"
-    deleted: Scalars["Boolean"]["output"]
+    deleted_count: Scalars["Int"]["output"]
 }
 
 export type DeleteElectionEvent = {
@@ -330,6 +330,12 @@ export type ExportBallotPublicationOutput = {
     task_execution?: Maybe<Tasks_Execution_Type>
 }
 
+export type ExportCertificateAuthorityOutput = {
+    __typename?: "ExportCertificateAuthorityOutput"
+    document_id: Scalars["String"]["output"]
+    task_execution?: Maybe<Tasks_Execution_Type>
+}
+
 export type ExportElectionEventOutput = {
     __typename?: "ExportElectionEventOutput"
     document_id: Scalars["String"]["output"]
@@ -347,6 +353,7 @@ export type ExportOptions = {
     activity_logs?: InputMaybe<Scalars["Boolean"]["input"]>
     applications?: InputMaybe<Scalars["Boolean"]["input"]>
     bulletin_board?: InputMaybe<Scalars["Boolean"]["input"]>
+    include_certificates?: InputMaybe<Scalars["Boolean"]["input"]>
     include_voters?: InputMaybe<Scalars["Boolean"]["input"]>
     is_encrypted?: InputMaybe<Scalars["Boolean"]["input"]>
     password?: InputMaybe<Scalars["String"]["input"]>
@@ -934,6 +941,11 @@ export type UpdateEventVotingStatusOutput = {
     election_event_id?: Maybe<Scalars["uuid"]["output"]>
 }
 
+export type UpdateRealmAttributesOutput = {
+    __typename?: "UpdateRealmAttributesOutput"
+    updated: Scalars["Boolean"]["output"]
+}
+
 export type UpsertAreaOutput = {
     __typename?: "UpsertAreaOutput"
     id: Scalars["String"]["output"]
@@ -1275,6 +1287,8 @@ export type Mutation_Root = {
     exportTrustees?: Maybe<ExportTrusteesOutput>
     export_application?: Maybe<ExportApplicationOutput>
     export_ballot_publication?: Maybe<ExportBallotPublicationOutput>
+    /** Export certificate authorities as a PEM bundle for an election event */
+    export_certificate_authority?: Maybe<ExportCertificateAuthorityOutput>
     export_election_event?: Maybe<ExportElectionEventOutput>
     export_election_event_logs?: Maybe<ExportLogsOutput>
     export_election_event_tasks?: Maybe<ExportTasksOutput>
@@ -1486,6 +1500,7 @@ export type Mutation_Root = {
     submit_tally_resolution?: Maybe<SubmitTallyResolutionOutput>
     update_election_voting_status?: Maybe<UpdateElectionVotingStatusOutput>
     update_event_voting_status?: Maybe<UpdateEventVotingStatusOutput>
+    update_realm_attributes?: Maybe<UpdateRealmAttributesOutput>
     /** update data of the table: "sequent_backend.applications" */
     update_sequent_backend_applications?: Maybe<Sequent_Backend_Applications_Mutation_Response>
     /** update single row of the table: "sequent_backend.applications" */
@@ -1893,7 +1908,7 @@ export type Mutation_RootCreate_UserArgs = {
 /** mutation root */
 export type Mutation_RootDelete_Certificate_AuthorityArgs = {
     election_event_id: Scalars["uuid"]["input"]
-    id: Scalars["uuid"]["input"]
+    ids: Array<Scalars["uuid"]["input"]>
 }
 
 /** mutation root */
@@ -2414,6 +2429,12 @@ export type Mutation_RootExport_Ballot_PublicationArgs = {
     election_event_id: Scalars["String"]["input"]
     election_id?: InputMaybe<Scalars["String"]["input"]>
     tenant_id: Scalars["String"]["input"]
+}
+
+/** mutation root */
+export type Mutation_RootExport_Certificate_AuthorityArgs = {
+    election_event_id: Scalars["uuid"]["input"]
+    ids: Array<Scalars["uuid"]["input"]>
 }
 
 /** mutation root */
@@ -3202,6 +3223,12 @@ export type Mutation_RootUpdate_Event_Voting_StatusArgs = {
     election_event_id: Scalars["uuid"]["input"]
     voting_channels?: InputMaybe<Array<InputMaybe<VotingStatusChannel>>>
     voting_status: VotingStatus
+}
+
+/** mutation root */
+export type Mutation_RootUpdate_Realm_AttributesArgs = {
+    attributes: Scalars["jsonb"]["input"]
+    election_event_id: Scalars["String"]["input"]
 }
 
 /** mutation root */
@@ -7823,7 +7850,7 @@ export enum Sequent_Backend_Certificate_Authority_Constraint {
     /** unique or primary key constraint on columns "id" */
     CertificateAuthorityPkey = "certificate_authority_pkey",
     /** unique or primary key constraint on columns "tenant_id", "fingerprint_sha256", "election_event_id" */
-    CertificateAuthorityTenantIdElectionEventIdFingerprintS = "certificate_authority_tenant_id_election_event_id_fingerprint_s",
+    CertificateAuthorityTenantIdElectionEventIdFingerpriKey = "certificate_authority_tenant_id_election_event_id_fingerpri_key",
 }
 
 /** input type for inserting data into table "sequent_backend.certificate_authority" */

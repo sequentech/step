@@ -51,6 +51,11 @@ pub const FIRST_NAME: &str = "firstName";
 pub const LAST_NAME: &str = "lastName";
 /// Attribute name for permission labels.
 pub const PERMISSION_LABELS: &str = "permission_labels";
+/// Realm attribute key storing the voter certificate policy.
+pub const REALM_ATTR_VOTER_CERTIFICATE_POLICY: &str =
+    "voter-certificate-policy";
+/// Identity-provider alias for the digital-certificates `IdP` configured on tenant realms.
+pub const CERTIFICATES_IDP_ALIAS: &str = "digital-certificates";
 
 /// Represents an area assigned to a user.
 #[derive(Serialize, Deserialize, JsonSchema, PartialEq, Eq, Debug, Clone)]

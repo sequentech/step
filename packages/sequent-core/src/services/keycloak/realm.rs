@@ -1,8 +1,7 @@
-use crate::serialization::deserialize_with_path::deserialize_str;
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use crate::services::uuid_validation::parse_uuid_v4;
+use crate::serialization::deserialize_with_path::deserialize_str;
 use crate::services::{
     keycloak::KeycloakAdminClient, replace_uuids::replace_uuids,
 };
@@ -12,12 +11,18 @@ use keycloak::types::{
     AuthenticationExecutionInfoRepresentation, GroupRepresentation,
     RealmRepresentation, RoleRepresentation,
 };
-use keycloak::{KeycloakError, KeycloakTokenSupplier};
-use serde_json::json;
-use std::collections::HashMap;
+use keycloak::{
+    KeycloakAdmin, KeycloakAdminToken, KeycloakError, KeycloakTokenSupplier,
+};
+use rand::distributions::Alphanumeric;
+use rand::Rng;
+use reqwest::Client;
+use serde_json::{json, Value};
+use std::collections::{HashMap, HashSet};
 use std::env;
 use std::hash::RandomState;
 use tracing::{error, info, instrument};
+use uuid::Uuid;
 
 use super::PubKeycloakAdmin;
 
@@ -195,7 +200,7 @@ pub fn replace_realm_ids(
             };
             // Check each config value to see if it's a valid UUID
             for (_key, value) in config {
-                if parse_uuid_v4(&value).is_ok() {
+                if Uuid::parse_str(&value).is_ok() {
                     keep.push(value.clone());
                 }
             }
@@ -220,6 +225,16 @@ pub fn replace_realm_ids(
     }
 
     Ok((new_data, replacement_map))
+}
+
+/// Generates a Keycloak-style client secret: a 32-character random alphanumeric
+/// string matching the output of Keycloak's `SecretGenerator.randomSecret(32)`.
+pub fn generate_client_secret() -> String {
+    rand::thread_rng()
+        .sample_iter(&Alphanumeric)
+        .take(32)
+        .map(char::from)
+        .collect()
 }
 
 /// Checks the response for errors and returns a `KeycloakError` if not successful.
@@ -651,7 +666,7 @@ impl KeycloakAdminClient {
         display_name: Option<String>,
         election_event_id: Option<String>,
     ) -> Result<()> {
-        let real_get_result = self.client.realm_get(board_name).await;
+        let realm_get_result = self.client.realm_get(board_name).await;
         let replaced_ids_config = if replace_ids {
             let realm_config: RealmRepresentation =
                 deserialize_str(json_realm_config)?;
@@ -751,7 +766,7 @@ impl KeycloakAdminClient {
                 .collect(),
         );
 
-        match real_get_result {
+        match realm_get_result {
             Ok(_) => self
                 .client
                 .realm_put(board_name, realm)

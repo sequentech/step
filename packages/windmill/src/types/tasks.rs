@@ -31,6 +31,7 @@ pub enum ETasksExecution {
     DELETE_ELECTION_EVENT,
     PREPARE_PUBLICATION_PREVIEW,
     EXPORT_TALLY_RESULTS_XLSX,
+    EXPORT_CERTIFICATE_AUTHORITIES,
 }
 
 impl ETasksExecution {
@@ -61,6 +62,7 @@ impl ETasksExecution {
             ETasksExecution::DELETE_ELECTION_EVENT => "Delete Election Event",
             ETasksExecution::PREPARE_PUBLICATION_PREVIEW => "Prepare Publication Preview",
             ETasksExecution::EXPORT_TALLY_RESULTS_XLSX => "Export Tally Results To XLSX",
+            ETasksExecution::EXPORT_CERTIFICATE_AUTHORITIES => "Export Certificate Authorities",
         }
     }
 }
