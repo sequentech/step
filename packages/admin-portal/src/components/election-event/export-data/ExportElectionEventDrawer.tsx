@@ -48,6 +48,7 @@ export const ExportElectionEventDrawer: React.FC<ExportWrapperProps> = ({
     const [reports, setReports] = useState(false)
     const [applications, setApplications] = useState(false)
     const [tally, setTally] = useState(false)
+    const [certificates, setCertificates] = useState(false)
 
     const [exportElectionEvent] = useMutation<ExportElectionEventMutation>(EXPORT_ELECTION_EVENT, {
         context: {
@@ -70,6 +71,7 @@ export const ExportElectionEventDrawer: React.FC<ExportWrapperProps> = ({
         setReports(false)
         setApplications(false)
         setTally(false)
+        setCertificates(false)
     }
 
     const confirmExportAction = async () => {
@@ -94,6 +96,7 @@ export const ExportElectionEventDrawer: React.FC<ExportWrapperProps> = ({
                         reports: reports,
                         applications: applications,
                         tally: tally,
+                        include_certificates: certificates,
                     },
                 },
             })
@@ -261,6 +264,15 @@ export const ExportElectionEventDrawer: React.FC<ExportWrapperProps> = ({
                             />
                         }
                         label={"Tally"}
+                    />
+                    <FormControlLabel
+                        control={
+                            <StyledCheckbox
+                                checked={certificates}
+                                onChange={() => setCertificates(!certificates)}
+                            />
+                        }
+                        label={String(t("electionEventScreen.export.certificates"))}
                     />
                 </FormGroup>
             </Dialog>

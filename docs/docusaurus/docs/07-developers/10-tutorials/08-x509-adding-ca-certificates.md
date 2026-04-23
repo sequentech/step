@@ -15,7 +15,7 @@ This guide explains how to take a CA certificate issued by an external PKI
 (such as a national identity authority), convert it to the correct format, and
 add it so that voter certificates signed by that CA are accepted.
 
-**See also:** [X.509 Certificate Voter Authentication](./07-x509-voter-certificate-authentication) — full dev and production setup.
+**See also:** [X.509 Certificate Voter Authentication](./07-x509-voter-certificate-authentication.md) — full dev and production setup.
 
 ---
 
@@ -69,11 +69,11 @@ openssl pkcs7 -print_certs -in <bundle-file> -out extracted.pem
 ## 4. Add the CA via the Admin Portal
 
 CA certificates are stored in the database per election event and served by
-Harvest. This applies to both dev and production.
+Harvest. This applies to both dev and production. See the [Certificates reference](../../02-election_managers/02-reference/02-election-event/15-election_management_election-event_certificates.md) for details on the admin portal UI.
 
 1. Log in and navigate to the election event
-2. Open the **Certificate Authorities** tab
-3. Click **Import**, upload the PEM file
+2. Open the **CERTIFICATES** tab
+3. Click **Import**, upload the PEM file. If the file is list of concatenated CAs, all of them will be imported.
 4. Confirm
 
 Keycloak picks up the new CA within the next refresh cycle (at most
@@ -83,7 +83,9 @@ Keycloak picks up the new CA within the next refresh cycle (at most
 > To force an immediate pickup, reduce the refresh interval temporarily or
 > restart Keycloak.
 
-Permissions required: `ca-write` on the election event.
+Permissions required: `ca-read` (view) and `ca-write` (add/remove), scoped by
+`election_event_id`. `election-event-cas-tab` to allow showing the CAs import tab.
+
 
 ---
 
@@ -107,21 +109,3 @@ Note: in dev, nginx uses `optional_no_ca` and performs no CA validation, so
 there is no equivalent manual step — only the admin portal import is needed.
 
 ---
-
-## 6. Verify End-to-End
-
-After adding the CA, confirm it is trusted:
-
-```bash
-# 1. Check Keycloak truststore logs
-docker compose logs keycloak | grep -i "truststore\|Loading realm-specific\|Using cached"
-
-# 2. Test the full mTLS flow (from inside dev container)
-curl -v --cacert .devcontainer/certs/nginx-tls.crt \
-  --cert <voter-cert.pem> --key <voter-key.pem> \
-  https://keycloak-nginx:8443/
-```
-
-If the voter certificate is signed by the newly added CA and the Keycloak X.509
-authenticator correctly extracts the user identifier, the authentication flow
-should proceed without error.

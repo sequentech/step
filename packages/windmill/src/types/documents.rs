@@ -21,6 +21,7 @@ pub enum EDocuments {
     PUBLICATIONS,
     TALLY,
     IMAGES,
+    CERTIFICATES,
 }
 
 impl EDocuments {
@@ -41,6 +42,7 @@ impl EDocuments {
             EDocuments::PUBLICATIONS => "export_publications",
             EDocuments::TALLY => "export_tally_data",
             EDocuments::IMAGES => "images",
+            EDocuments::CERTIFICATES => "export_certificates",
         }
     }
 }
