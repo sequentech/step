@@ -12,7 +12,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 <GoogleVideo id="1F7IVr_xcTzLdUQ3K7CkRtoObeVpakzuV" />
 
-The Keys Ceremony is a vital security procedure that ensures the integrity and secrecy of an election. It generates a fragmented cryptographic private key, ensuring that no single individual or organization can decrypt votes or manipulate the tally independently.
+The Key Ceremony is a vital security procedure that ensures the integrity and secrecy of an election. It generates a fragmented cryptographic private key, ensuring that no single individual or organization can decrypt votes or manipulate the tally independently.
 
 ## Core Concepts: Threshold Cryptography
 
@@ -29,7 +29,7 @@ The Platform Administrator acts as the coordinator for the ceremony.
 
 1.  Log in with **Administrator** permissions.
 2.  Select the **Electoral Event** and navigate to the **Keys** menu.
-3.  Click `+ Create Keys Ceremony`.
+3.  Click `+ Create Key Ceremony`.
 4.  **Configure the Threshold**: Set the minimum number of members needed to tally. Sequent recommends that the threshold be lower than the total number of Trustees (e.g., a threshold of 2 for 3 Trustees).
 5.  **Assign Trustees**: Use the filter to select specific authorized users (usually members of an electoral board).
 6.  Select the **Election** scope (one specific election or "All Elections") and confirm.
@@ -60,7 +60,7 @@ Once the ceremony is created, each assigned Trustee must perform their individua
 
 ## Step 3: Monitoring and Success
 
-The Administrator can monitor the **Keys Ceremony Progress** dashboard to track completions.
+The Administrator can monitor the **Key Ceremony Progress** dashboard to track completions.
 
 ![Key Ceremony Monitoring](./assets/keys_ceremony_status.png)
 
