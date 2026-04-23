@@ -225,4 +225,16 @@ mod tests {
     fn test_parse_openssl_date_invalid() {
         assert!(parse_openssl_date("not a date").is_err());
     }
+
+    #[test]
+    fn test_not_after_valid_cert_is_in_future() {
+        let not_after = parse_openssl_date("Jan  1 00:00:00 2099 GMT").unwrap();
+        assert!(not_after > Utc::now());
+    }
+
+    #[test]
+    fn test_not_after_expired_cert_is_in_past() {
+        let not_after = parse_openssl_date("Jan  1 00:00:00 2000 GMT").unwrap();
+        assert!(not_after < Utc::now());
+    }
 }

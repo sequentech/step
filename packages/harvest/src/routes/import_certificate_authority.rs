@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::services::authorization::authorize;
+use chrono::Utc;
 use deadpool_postgres::Client as DbClient;
 use electoral_log::messages::newtypes::CertificateAuthEventAction;
 use rocket::http::Status;
@@ -114,6 +115,20 @@ pub async fn import_certificate_authority(
 
         match parse_result {
             Ok(parsed) => {
+                if parsed.not_after < Utc::now() {
+                    warn!(
+                        cert_index = i + 1,
+                        common_name = %parsed.common_name,
+                        not_after = %parsed.not_after,
+                        "Certificate is expired, skipping"
+                    );
+                    errors.push(format!(
+                        "Certificate {}: expired on {}",
+                        i + 1,
+                        parsed.not_after.format("%Y-%m-%d")
+                    ));
+                    continue;
+                }
                 let record = CertificateAuthorityRecord {
                     id: Uuid::new_v4(),
                     tenant_id: tenant_uuid,
