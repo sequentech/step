@@ -26,7 +26,7 @@ function Write-Error { param($Message) Write-Host "[ERROR] $Message" -Foreground
 # Check if LocalStack is running
 Write-Host "Checking prerequisites..." -ForegroundColor Cyan
 try {
-    $response = Invoke-WebRequest -Uri "http://localhost:4566/_localstack/health" -TimeoutSec 2 -ErrorAction Stop
+    $response = Invoke-WebRequest -UseBasicParsing -Uri "http://localhost:4566/_localstack/health" -TimeoutSec 2 -ErrorAction Stop
     Write-Success "LocalStack is running"
 } catch {
     Write-Error "LocalStack is not running!"
@@ -187,7 +187,7 @@ while ($retryCount -lt $maxRetries -and -not $serverReady) {
     $retryCount++
     
     try {
-        $response = Invoke-WebRequest -Uri "http://127.0.0.1:3000/boards" -Method Get -TimeoutSec 2 -ErrorAction Stop
+        $response = Invoke-WebRequest -UseBasicParsing -Uri "http://127.0.0.1:3000/boards" -Method Get -TimeoutSec 2 -ErrorAction Stop
         $serverReady = $true
         Write-Success "B5 server is running and responding (PID: $($b5Process.Id))"
     } catch {
