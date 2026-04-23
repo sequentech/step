@@ -52,7 +52,7 @@ Once the ceremony is created, each assigned Trustee must perform their individua
 
 4.  **Secure Backups**: Trustees are required to confirm they have saved the fragment in at least two different secure locations, typically encrypted USB devices.
 
-![Trustee Key Download](./assets/keys_secure_backups.png)
+![Trustee Secure Backups](./assets/keys_secure_backups.png)
 
 5.  **Integrity Check**: The Trustee must upload the file back into the "Check" box to verify that the download was successful and the file is valid.
 
