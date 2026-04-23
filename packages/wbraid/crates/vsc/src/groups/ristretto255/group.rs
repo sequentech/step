@@ -101,6 +101,8 @@ impl CryptographicGroup for Ristretto255Group {
         Ok(joined)
     }
 
+    /// Generate independent generators by hashing the label and index
+    ///
     /// # Errors
     ///
     /// Infallible
