@@ -21,6 +21,9 @@ use crate::serialization::deserialize_with_path::deserialize_value;
 use crate::services::generate_urls::get_auth_url;
 use crate::services::generate_urls::AuthAction;
 use crate::types::ceremonies::CountingAlgType;
+use crate::util::locale::{
+    iso_639_2t_to_bcp47, locale_to_internal_language_code,
+};
 use crate::util::normalize_vote::*;
 use strand::backend::ristretto::RistrettoCtx;
 use wasm_bindgen::prelude::*;
@@ -1242,4 +1245,14 @@ pub fn get_default_language_detection_policy_js() -> Result<JsValue, JsValue> {
             "Error serializing default language detection policy: {err}"
         ))
     })
+}
+
+#[wasm_bindgen]
+pub fn iso_639_2t_to_bcp47_js(lang: &str) -> String {
+    iso_639_2t_to_bcp47(lang).to_string()
+}
+
+#[wasm_bindgen]
+pub fn locale_to_internal_language_code_js(lang: &str) -> String {
+    locale_to_internal_language_code(lang)
 }

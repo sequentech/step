@@ -12,6 +12,7 @@ export {
     applyLanguagePolicy,
     applyPresentationLanguagePolicy,
     USER_LANGUAGE_COOKIE_NAME,
+    toBCP47,
 } from "./services/i18n"
 export {useForwardedRef} from "./utils/ref"
 export {sleep} from "./services/sleep"

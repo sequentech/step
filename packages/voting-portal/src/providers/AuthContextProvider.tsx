@@ -5,7 +5,7 @@ import React, {useContext} from "react"
 
 import Keycloak, {KeycloakConfig, KeycloakInitOptions} from "keycloak-js"
 import {createContext, useEffect, useState} from "react"
-import {getValueFromCookie, sleep, USER_LANGUAGE_COOKIE_NAME} from "@sequentech/ui-core"
+import {getValueFromCookie, sleep, toBCP47, USER_LANGUAGE_COOKIE_NAME} from "@sequentech/ui-core"
 import {SettingsContext} from "./SettingsContextProvider"
 import {getLanguageFromURL} from "../utils/queryParams"
 import {useTranslation} from "react-i18next"
@@ -62,7 +62,12 @@ export interface AuthContextValues {
      */
     keycloakAccessToken: string | undefined
 
-    setTenantEvent: (tenantId: string, eventId: string, authType?: "register" | "login") => void
+    setTenantEvent: (
+        tenantId: string,
+        eventId: string,
+        authType?: "register" | "login",
+        defaultLocale?: string
+    ) => void
 
     /**
      * Open accountManagement from Keycloak
@@ -74,7 +79,6 @@ export interface AuthContextValues {
 
     reauthWithGold: (redirectUri: string) => Promise<void>
 
-    setDefaultLocale: (locale?: string) => void
 }
 
 interface UserProfile {
@@ -97,13 +101,12 @@ const defaultAuthContextValues: AuthContextValues = {
     keycloakAccessToken: undefined,
     logout: () => {},
     getExpiry: () => undefined,
-    setTenantEvent: (_tenantId: string, _eventId: string) => {},
+    setTenantEvent: (_tenantId: string, _eventId: string, _authType, _defaultLocale) => {},
     hasRole: () => false,
     isKiosk: () => false,
     openProfileLink: () => new Promise(() => undefined),
     isGoldUser: () => false,
     reauthWithGold: async () => {},
-    setDefaultLocale: () => {},
 }
 
 /**
@@ -273,15 +276,17 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
                 /**
                  * KeycloakInitOptions configures the Keycloak client.
                  */
+                const rawLocale =
+                    getLanguageFromURL() ||
+                    getValueFromCookie(USER_LANGUAGE_COOKIE_NAME) ||
+                    defaultLocale
                 const keycloakInitOptions: KeycloakInitOptions = {
                     // Configure that Keycloak will check if a user is already authenticated (when
                     // opening the app or reloading the page). If not authenticated the user will
                     // be send to the login form. If already authenticated the webapp will open.
                     checkLoginIframe: false,
-                    locale:
-                        getLanguageFromURL() ||
-                        getValueFromCookie(USER_LANGUAGE_COOKIE_NAME) ||
-                        defaultLocale,
+                    // Keycloak expects BCP 47 locale codes (e.g. "ca" for Catalan, not "cat")
+                    locale: rawLocale ? toBCP47(rawLocale) : undefined,
                 }
                 const isAuthenticatedResponse = await keycloak.init(keycloakInitOptions)
 
@@ -322,7 +327,7 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
         if (keycloak && !isAuthenticated && !isKeycloakInitialized) {
             initializeKeycloak()
         }
-    }, [keycloak, isAuthenticated, isKeycloakInitialized, authType])
+    }, [keycloak, isAuthenticated, isKeycloakInitialized, authType, defaultLocale])
 
     /**
      * Returns true only if the JWT has gold permissions and the JWT
@@ -345,7 +350,7 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
             await keycloak?.login({
                 acr: {essential: true, values: [IPermissions.GOLD_PERMISSION]},
                 redirectUri: redirectUri || window.location.href, // Use the passed URL or fallback to current URL
-                locale: i18n.language,
+                locale: toBCP47(i18n.language),
             })
         } catch (error) {
             console.error("Re-authentication failed:", error)
@@ -387,9 +392,15 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
         }
     }, [keycloak, isAuthenticated, isKeycloakInitialized])
 
-    const setTenantEvent = (tenantId: string, eventId: string, authType?: "register" | "login") => {
+    const setTenantEvent = (
+        tenantId: string,
+        eventId: string,
+        authType?: "register" | "login",
+        defaultLocale?: string
+    ) => {
         setTenantId(tenantId)
         setEventId(eventId)
+        setDefaultLocale(defaultLocale)
         authType && setAuthType(authType)
     }
 
@@ -488,7 +499,6 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
                 keycloakAccessToken,
                 isGoldUser,
                 reauthWithGold,
-                setDefaultLocale,
             }}
         >
             {props.children}

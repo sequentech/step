@@ -5,7 +5,13 @@ import React, {useContext, useEffect, useMemo, useState} from "react"
 import {Routes, Route, useNavigate, Navigate} from "react-router-dom"
 import {styled} from "@mui/material/styles"
 import {Footer, Header, NotFoundScreen, PageBanner} from "@sequentech/ui-essentials"
-import {applyPresentationLanguagePolicy, IElectionEventPresentation} from "@sequentech/ui-core"
+import {
+    applyPresentationLanguagePolicy,
+    IElectionEventPresentation,
+    setCookie,
+    USER_LANGUAGE_COOKIE_NAME,
+    getValueFromCookie,
+} from "@sequentech/ui-core"
 import {HomeScreen} from "./screens/HomeScreen"
 import {ConfirmationScreen} from "./screens/ConfirmationScreen"
 import Stack from "@mui/material/Stack"
@@ -50,6 +56,12 @@ const HeaderWithContext: React.FC = () => {
               ? SequentLogo
               : presentation?.logo_url
 
+    const onChangeLanguage = (lang: string) => {
+        if (getValueFromCookie(USER_LANGUAGE_COOKIE_NAME) !== lang) {
+            setCookie(USER_LANGUAGE_COOKIE_NAME, lang)
+        }
+    }
+
     return (
         <Header
             appVersion={{main: globalSettings.APP_VERSION}}
@@ -63,6 +75,7 @@ const HeaderWithContext: React.FC = () => {
             logoutFn={authContext.isAuthenticated ? authContext.logout : undefined}
             languagesList={languagesList}
             logoUrl={logoImg}
+            onChangeLanguage={onChangeLanguage}
         />
     )
 }
@@ -89,6 +102,12 @@ const App = () => {
             )
         }
     }, [navigate])
+
+    useEffect(() => {
+        applyPresentationLanguagePolicy(
+            ballotStyle?.ballot_eml?.election_event_presentation
+        )
+    }, [ballotStyle?.ballot_eml?.election_event_presentation])
 
     const customCss = useMemo(
         () =>

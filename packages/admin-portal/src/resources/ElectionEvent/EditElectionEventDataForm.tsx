@@ -682,8 +682,6 @@ export const EditElectionEventDataForm: React.FC = () => {
     }
 
     const onSave = async () => {
-        console.log(parsedValue.presentation)
-
         await handleUpdateCustomUrls(
             parsedValue.presentation as IElectionEventPresentation,
             record?.id

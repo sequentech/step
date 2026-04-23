@@ -5,7 +5,7 @@ import React, {useContext} from "react"
 
 import Keycloak, {KeycloakConfig, KeycloakInitOptions} from "keycloak-js"
 import {createContext, useEffect, useState} from "react"
-import {sleep} from "@sequentech/ui-core"
+import {getValueFromCookie, sleep, toBCP47, USER_LANGUAGE_COOKIE_NAME} from "@sequentech/ui-core"
 import {SettingsContext} from "./SettingsContextProvider"
 
 /**
@@ -108,6 +108,11 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
     const sleepSecs = 50
     const bufferSecs = 10
 
+    const getLanguageFromURL = () => {
+        const params = new URLSearchParams(window.location.search)
+        return params.get("lang") || undefined
+    }
+
     const createKeycloak = () => {
         if (keycloak) {
             return
@@ -150,6 +155,7 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
             return
         }
         try {
+            const rawLocale = getLanguageFromURL() || getValueFromCookie(USER_LANGUAGE_COOKIE_NAME)
             /**
              * KeycloakInitOptions configures the Keycloak client.
              */
@@ -159,13 +165,14 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
                 // be send to the login form. If already authenticated the webapp will open.
                 onLoad: "login-required",
                 checkLoginIframe: false,
+                locale: rawLocale ? toBCP47(rawLocale) : undefined,
             }
             const isAuthenticatedResponse = await keycloak.init(keycloakInitOptions)
 
             // If the authentication was not successfull the user is send back to the Keycloak login form
             if (!isAuthenticatedResponse) {
                 console.log("user is not yet authenticated. forwarding user to login.")
-                await keycloak.login()
+                await keycloak.login(keycloakInitOptions)
             }
             if (!keycloak.token) {
                 console.log("error authenticating user")

@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 pub mod convert_vec;
+pub mod locale;
 pub mod date;
 pub mod date_time;
 pub mod external_config;

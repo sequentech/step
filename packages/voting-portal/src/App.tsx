@@ -127,7 +127,7 @@ const App = () => {
     const {globalSettings} = useContext(SettingsContext)
     const location = useLocation()
     const {tenantId, eventId} = useParams<TenantEventType>()
-    const {isAuthenticated, setTenantEvent, setDefaultLocale} = useContext(AuthContext)
+    const {isAuthenticated, setTenantEvent} = useContext(AuthContext)
 
     const electionIds = useAppSelector(selectElectionIds)
     const ballotStyleElectionIds = useAppSelector(selectBallotStyleElectionIds)
@@ -176,18 +176,18 @@ const App = () => {
             const presentation = config.election_event_presentation
             const languageConf = presentation?.language_conf
 
-            if (
-                languageConf &&
-                languageConf.language_detection_policy === ELanguageDetectionPolicy.FORCE_DEFAULT
-            ) {
-                setDefaultLocale(languageConf.default_language_code)
-            }
-            setTenantEvent(tenantId, eventId, mode)
+            const defaultLocale =
+                languageConf?.language_detection_policy ===
+                ELanguageDetectionPolicy.FORCE_DEFAULT
+                    ? languageConf.default_language_code
+                    : undefined
+
+            setTenantEvent(tenantId, eventId, mode, defaultLocale)
         } catch (error) {
             console.error("Error loading election event config:", error)
-            setTenantEvent(tenantId, eventId, mode)
+            setTenantEvent(tenantId, eventId, mode, undefined)
         }
-    }, [tenantId, eventId, electionEventConfigUrl, setTenantEvent, setDefaultLocale])
+    }, [tenantId, eventId, electionEventConfigUrl, location.pathname, setTenantEvent])
 
     useEffect(() => {
         if (isAuthenticated) {

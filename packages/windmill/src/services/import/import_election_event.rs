@@ -46,12 +46,13 @@ use sequent_core::types::hasura::core::AreaContest;
 use sequent_core::types::hasura::core::Document;
 use sequent_core::types::hasura::core::KeysCeremony;
 use sequent_core::types::hasura::core::TasksExecution;
+use sequent_core::util::locale::iso_639_2t_to_bcp47;
 use sequent_core::util::mime::{get_mime_types, matches_mime};
 use sequent_core::util::version::{
     check_version_compatibility, DEV_APP_VERSION, ENV_VAR_APP_VERSION,
 };
 use serde::{Deserialize, Serialize};
-use serde_json::{de, json, Map, Value};
+use serde_json::{json, Map, Value};
 use std::collections::HashMap;
 use std::env;
 use std::fs;
@@ -286,7 +287,20 @@ pub async fn upsert_keycloak_realm(
     };
 
     if let Some(default_language) = default_locale {
-        realm.default_locale = Some(default_language.clone());
+        // Keycloak uses BCP 47 locale codes; convert from ISO 639-2/T if needed
+        let keycloak_locale = iso_639_2t_to_bcp47(&default_language).to_string();
+        realm.default_locale = Some(keycloak_locale);
+        let mut attrs = realm.attributes.clone().unwrap_or_default();
+        attrs.insert(
+            "language_detection_policy".to_string(),
+            "force-default".to_string(),
+        );
+        // Store the internal locale code so the login template can set USER_LANGUAGE correctly
+        attrs.insert(
+            "forced_language_code".to_string(),
+            default_language.clone(),
+        );
+        realm.attributes = Some(attrs);
     }
 
     realm = remove_keycloak_realm_secrets(&realm)?;
@@ -566,7 +580,6 @@ pub async fn process_election_event_file(
 
     let language_detection_policy = data.election_event.get_language_detection_policy();
     let mut default_language = None;
-    println!("Language detection policy: {language_detection_policy:?}");
     if language_detection_policy == LanguageDetectionPolicy::FORCE_DEFAULT {
         default_language = Some(data.election_event.get_default_language());
     }

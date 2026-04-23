@@ -229,6 +229,8 @@ body {
 
 .menu-button-links {
     margin-left: auto;
+    position: relative;
+    display: inline-flex;
 }
 
 button#kc-current-locale-link::after {
@@ -262,7 +264,7 @@ button#kc-current-locale-link img {
     }
 }
 
-.pf-c-dropdown__menu {
+#kc-locale-dropdown {
     position: relative;
 }
 
@@ -274,7 +276,12 @@ button#kc-current-locale-link img {
 }
 
 #kc-locale ul {
-    top: 0;
+    position: absolute;
+    top: calc(100% + 4px);
+    right: 0;
+    left: auto;
+    margin-top: 0;
+    z-index: 10000;
 }
 
 /* Move Language dropdown to top right */
