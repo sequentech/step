@@ -10,7 +10,7 @@ export {
     initializeLanguages,
     overwriteTranslations,
     applyLanguagePolicy,
-    applyPresentationLanguagePolicy,
+    applyConfigurationLanguagePolicy,
     USER_LANGUAGE_COOKIE_NAME,
     toBCP47,
 } from "./services/i18n"

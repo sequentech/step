@@ -6,7 +6,7 @@ import {Routes, Route, useNavigate, Navigate} from "react-router-dom"
 import {styled} from "@mui/material/styles"
 import {Footer, Header, NotFoundScreen, PageBanner} from "@sequentech/ui-essentials"
 import {
-    applyPresentationLanguagePolicy,
+    applyConfigurationLanguagePolicy,
     IElectionEventPresentation,
     setCookie,
     USER_LANGUAGE_COOKIE_NAME,
@@ -104,9 +104,7 @@ const App = () => {
     }, [navigate])
 
     useEffect(() => {
-        applyPresentationLanguagePolicy(
-            ballotStyle?.ballot_eml?.election_event_presentation
-        )
+        applyConfigurationLanguagePolicy(ballotStyle?.ballot_eml?.election_event_presentation)
     }, [ballotStyle?.ballot_eml?.election_event_presentation])
 
     const customCss = useMemo(

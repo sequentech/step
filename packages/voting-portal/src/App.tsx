@@ -177,8 +177,7 @@ const App = () => {
             const languageConf = presentation?.language_conf
 
             const defaultLocale =
-                languageConf?.language_detection_policy ===
-                ELanguageDetectionPolicy.FORCE_DEFAULT
+                languageConf?.language_detection_policy === ELanguageDetectionPolicy.FORCE_DEFAULT
                     ? languageConf.default_language_code
                     : undefined
 

@@ -78,7 +78,6 @@ export interface AuthContextValues {
     isGoldUser: () => boolean
 
     reauthWithGold: (redirectUri: string) => Promise<void>
-
 }
 
 interface UserProfile {

@@ -296,10 +296,7 @@ pub async fn upsert_keycloak_realm(
             "force-default".to_string(),
         );
         // Store the internal locale code so the login template can set USER_LANGUAGE correctly
-        attrs.insert(
-            "forced_language_code".to_string(),
-            default_language.clone(),
-        );
+        attrs.insert("forced_language_code".to_string(), default_language.clone());
         realm.attributes = Some(attrs);
     }
 

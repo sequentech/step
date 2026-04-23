@@ -45,7 +45,7 @@ export interface AuthContextValues {
      */
     getAccessToken: () => string | undefined
 
-    login: (tenantId: string, eventId: string) => void
+    login: (tenantId: string, eventId: string, defaultLocale?: string) => void
 
     /**
      * Open accountManagement from Keycloak
@@ -105,6 +105,9 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
     const [firstName, setFirstName] = useState<string>("")
     const [tenantId, setTenantId] = useState<string | null>(null)
     const [eventId, setEventId] = useState<string | null>(null)
+
+    const [defaultLocale, setDefaultLocale] = useState<string | undefined>(undefined)
+
     const sleepSecs = 50
     const bufferSecs = 10
 
@@ -155,7 +158,10 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
             return
         }
         try {
-            const rawLocale = getLanguageFromURL() || getValueFromCookie(USER_LANGUAGE_COOKIE_NAME)
+            const rawLocale =
+                getLanguageFromURL() ||
+                getValueFromCookie(USER_LANGUAGE_COOKIE_NAME) ||
+                defaultLocale
             /**
              * KeycloakInitOptions configures the Keycloak client.
              */
@@ -286,6 +292,7 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
     const login = (tenantId: string, eventId: string) => {
         setTenantId(tenantId)
         setEventId(eventId)
+        setDefaultLocale(defaultLocale || undefined)
     }
 
     /**

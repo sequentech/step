@@ -11,7 +11,7 @@ import {Sequent_Backend_Tenant} from "@/gql/graphql"
 import {useGetOne} from "react-admin"
 import cssInputLookAndFeel from "@/atoms/css-input-look-and-feel"
 import {useAtomValue, useSetAtom} from "jotai"
-import {applyLanguagePolicy, ITenantTheme} from "@sequentech/ui-core"
+import {applyConfigurationLanguagePolicy, ITenantSettings, ITenantTheme} from "@sequentech/ui-core"
 import {ImportDataDrawer} from "./election-event/import-data/ImportDataDrawer"
 import {
     CreateElectionEventProvider,
@@ -35,9 +35,9 @@ export const CustomCssReader: React.FC = () => {
     }, [tenantData?.annotations?.css, setAtomValue, css])
 
     useEffect(() => {
-        const languageConf = tenantData?.settings?.language_conf
-        if (languageConf) {
-            applyLanguagePolicy(languageConf)
+        const settings = tenantData?.settings
+        if (settings) {
+            applyConfigurationLanguagePolicy(settings as ITenantSettings)
         }
     }, [tenantData?.settings?.language_conf])
 

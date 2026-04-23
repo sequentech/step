@@ -17,6 +17,7 @@ import {IElectionEventPresentation} from "../types/ElectionEventPresentation"
 import {ELanguageDetectionPolicy, ILanguageConf} from "@root/types/LanguageConf"
 import {getValueFromCookie} from "@root/utils/cookies"
 import {iso_639_2t_to_bcp47_js, locale_to_internal_language_code_js} from "sequent-core"
+import {ITenantSettings} from "@root/types/TenantSettings"
 
 export const USER_LANGUAGE_COOKIE_NAME = "USER_LANGUAGE"
 
@@ -115,7 +116,6 @@ export const initializeLanguages = (externalTranslations: Resource, language?: s
         document.documentElement.setAttribute("lang", tag)
     }
 
-
     // Initial set and subscribe to changes
     updateHtmlLang(resolvedLanguage)
     i18n.on("languageChanged", updateHtmlLang)
@@ -143,13 +143,13 @@ export const applyLanguagePolicy = (languageConf: ILanguageConf | undefined): bo
     return false
 }
 
-/// Applies language policy defined in election event presentation, if any
+/// Applies language policy defined in election event presentation or tenant settings, if any
 /// Url search param "lang" > user selected locale (saved in cookie) >  language detection policy > browser settings
 /// The Url search param "lang" is checked in i18n initialization.
-export const applyPresentationLanguagePolicy = (
-    presentation: IElectionEventPresentation | undefined
+export const applyConfigurationLanguagePolicy = (
+    config: IElectionEventPresentation | ITenantSettings | undefined
 ): boolean => {
-    if (!presentation?.language_conf) {
+    if (!config?.language_conf) {
         return false
     }
 
@@ -168,7 +168,7 @@ export const applyPresentationLanguagePolicy = (
         return true
     }
 
-    return applyLanguagePolicy(presentation.language_conf)
+    return applyLanguagePolicy(config.language_conf)
 }
 
 export const overwriteTranslations = (
@@ -202,7 +202,7 @@ export const overwriteTranslations = (
 
     if (changeDefaultLanguage) {
         // Apply language policy: skip if query param provided, otherwise check for FORCE_DEFAULT
-        hasChangedDefaultLanguage = applyPresentationLanguagePolicy(electionEventPresentation)
+        hasChangedDefaultLanguage = applyConfigurationLanguagePolicy(electionEventPresentation)
     }
     return hasChangedDefaultLanguage
 }
