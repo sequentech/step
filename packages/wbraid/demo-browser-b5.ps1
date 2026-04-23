@@ -80,9 +80,9 @@ function Cleanup {
     Start-Sleep -Seconds 2
     
     # Remove database and message stores
-    if (Test-Path ".\b4.db") { Remove-Item -Path ".\b4.db" -Force }
-    if (Test-Path ".\b4.db-shm") { Remove-Item -Path ".\b4.db-shm" -Force }
-    if (Test-Path ".\b4.db-wal") { Remove-Item -Path ".\b4.db-wal" -Force }
+    if (Test-Path ".\b5.db") { Remove-Item -Path ".\b5.db" -Force }
+    if (Test-Path ".\b5.db-shm") { Remove-Item -Path ".\b5.db-shm" -Force }
+    if (Test-Path ".\b5.db-wal") { Remove-Item -Path ".\b5.db-wal" -Force }
     if (Test-Path ".\demo") { 
         Get-ChildItem -Path ".\demo" -Filter "message_store" -Recurse -Directory | Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
     }
@@ -126,9 +126,9 @@ if (-not $SkipCleanup) {
     
     Start-Sleep -Seconds 2
     
-    if (Test-Path ".\b4.db") { Remove-Item -Path ".\b4.db" -Force }
-    if (Test-Path ".\b4.db-shm") { Remove-Item -Path ".\b4.db-shm" -Force }
-    if (Test-Path ".\b4.db-wal") { Remove-Item -Path ".\b4.db-wal" -Force }
+    if (Test-Path ".\b5.db") { Remove-Item -Path ".\b5.db" -Force }
+    if (Test-Path ".\b5.db-shm") { Remove-Item -Path ".\b5.db-shm" -Force }
+    if (Test-Path ".\b5.db-wal") { Remove-Item -Path ".\b5.db-wal" -Force }
     if (Test-Path ".\demo") { 
         Get-ChildItem -Path ".\demo" -Filter "message_store" -Recurse -Directory | Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
     }
@@ -165,7 +165,7 @@ $b5Process = Start-Process powershell -ArgumentList @(
     "`$host.ui.RawUI.WindowTitle = 'b5 Bulletin Board Server'; " +
     "cd '$workingDir'; " +
     "`$env:RUST_LOG = 'b5=info'; " +
-    "`$env:DATABASE_URL = 'sqlite:b4.db?mode=rwc'; " +
+    "`$env:DATABASE_URL = 'sqlite:b5.db?mode=rwc'; " +
     "`$env:AWS_ENDPOINT_URL = 'http://localhost:4566'; " +
     "`$env:AWS_ACCESS_KEY_ID = 'test'; " +
     "`$env:AWS_SECRET_ACCESS_KEY = 'test'; " +

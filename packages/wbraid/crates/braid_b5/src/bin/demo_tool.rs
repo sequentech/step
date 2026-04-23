@@ -668,7 +668,7 @@ async fn init_clients(database_url: &Option<String>) -> Result<(SqlitePool, S3Cl
     let db_url = database_url.clone().or_else(|| env::var("DATABASE_URL").ok())
         .unwrap_or_else(|| {
             let mut path = env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
-            path.push("b4.db");
+            path.push("b5.db");
             format!("sqlite:{}?mode=rwc", path.display())
         });
     
@@ -756,7 +756,7 @@ async fn drop_database(database_url: &Option<String>) -> Result<()> {
     let db_path = database_url.clone().or_else(|| env::var("DATABASE_URL").ok())
         .unwrap_or_else(|| {
             let mut path = env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
-            path.push("b4.db");
+            path.push("b5.db");
             path.display().to_string()
         });
     
