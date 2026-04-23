@@ -2,6 +2,7 @@
 id: irv_tie_break_resolution_flow
 title: IRV Tie-Break Resolution Flow
 sidebar_position: 3
+hide_table_of_contents: true
 ---
 
 <!--
