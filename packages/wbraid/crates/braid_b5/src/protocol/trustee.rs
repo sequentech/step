@@ -101,8 +101,7 @@ const RETRIEVE_ALL_MESSAGES_PERIOD: i64 = 60 * 60;
 /// of actions that can be executed in parallel. Higher
 /// values may increase core utilization, but also
 /// peak memory usage.
-pub struct Trustee<C: Context, S: LocalBoardStorage> 
-{
+pub struct Trustee<C: Context, S: LocalBoardStorage> {
     pub(crate) name: String,
     #[allow(dead_code)]
     pub(crate) board_name: String,

@@ -140,6 +140,7 @@ native = [
 # WASM build with HTTP bulletin board and SQLite WASM storage
 wasm-core = [
     "dep:vsc",
+    "dep:toml",
     "vsc/wasm",
     "dep:wasm-bindgen",
     "dep:wasm-bindgen-futures",
