@@ -87,15 +87,21 @@ missing_errors_doc = "deny"
 missing_panics_doc = "deny"
 doc_markdown = "deny"
 unwrap_used = "deny"
+panic = "deny"
+shadow_unrelated = "deny"
 print_stdout = "deny"
 print_stderr = "deny"
+future_not_send = "deny"
 arithmetic_side_effects = "deny"
-shadow_unrelated = "deny"
-cognitive_complexity = "deny"
-disallowed_macros = "deny"
 # groups, not a single lint
-pedantic = "deny"
 suspicious = "deny"
 complexity = "deny"
-style = "warn"
-perf = "warn"
+style = "deny"
+perf = "deny"
+pedantic = "deny"
+# TODO
+# this probably should be on
+indexing_slicing = "warn"
+# We set this to allow as it is unclear whether we really want this
+missing_const_for_fn = "allow"
+
