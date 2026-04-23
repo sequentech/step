@@ -451,7 +451,10 @@ pub async fn get_event_results_contest(
         )
         .await?;
     let rows = hasura_transaction
-        .query(&statement, &[&tenant_uuid, &election_event_uuid, &results_event_uuid])
+        .query(
+            &statement,
+            &[&tenant_uuid, &election_event_uuid, &results_event_uuid],
+        )
         .await
         .map_err(|err| anyhow!("Error running the query: {}", err))?;
 

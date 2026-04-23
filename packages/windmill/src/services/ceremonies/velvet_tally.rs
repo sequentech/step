@@ -225,8 +225,9 @@ pub fn prepare_tally_for_area_contest(
         }
         TallyType::ELECTORAL_RESULTS => {
             let empty_resolutions = vec![];
-            contest
-                .insert_resolved_tie_resolutions(contest_resolved_tie_resolutions.unwrap_or(&empty_resolutions))?;
+            contest.insert_resolved_tie_resolutions(
+                contest_resolved_tie_resolutions.unwrap_or(&empty_resolutions),
+            )?;
         }
     }
 

@@ -653,15 +653,10 @@ pub async fn export_tally_session_resolution(
     tenant_id: &str,
     election_event_id: &str,
 ) -> Result<(String, TempPath)> {
-    let resolutions = get_resolutions_by(
-        hasura_transaction,
-        tenant_id,
-        election_event_id,
-        None,
-        None,
-    )
-    .await
-    .map_err(|e| anyhow!("Error in get_resolutions_by: {e:?}"))?;
+    let resolutions =
+        get_resolutions_by(hasura_transaction, tenant_id, election_event_id, None, None)
+            .await
+            .map_err(|e| anyhow!("Error in get_resolutions_by: {e:?}"))?;
 
     let file_name = ETallyDocuments::TALLY_SESSION_RESOLUTION
         .to_file_name()
