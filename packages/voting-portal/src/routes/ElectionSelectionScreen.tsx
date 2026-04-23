@@ -233,7 +233,8 @@ const ElectionSelectionScreen: React.FC = () => {
     const [openChooserHelp, setOpenChooserHelp] = useState(false)
     const [isMaterialsActivated, setIsMaterialsActivated] = useState<boolean>(false)
     const bypassChooser = useAppSelector(selectBypassChooser())
-    const [errorMsg, setErrorMsg] = useState<VotingPortalErrorType | ElectionScreenErrorType>()
+    const [errorMsg, setErrorMsg] = useState<ElectionScreenErrorType>()
+    const [errorMsgElectionIds, setErrorMsgElectionIds] = useState<string | undefined>()
     const [alertMsg, setAlertMsg] = useState<ElectionScreenMsgType>()
 
     const {
@@ -311,41 +312,38 @@ const ElectionSelectionScreen: React.FC = () => {
         }
         if (errorElections || errorElectionEvent || errorBallotStyles || errorCastVote) {
             if (errorBallotStyles?.message.includes("x-hasura-area-id")) {
-                setErrorMsg(t(`electionSelectionScreen.errors.${ElectionScreenErrorType.NO_AREA}`))
+                setErrorMsg(ElectionScreenErrorType.NO_AREA)
+                setErrorMsgElectionIds(undefined)
             } else if (
                 errorElections?.networkError ||
                 errorElectionEvent?.networkError ||
                 errorBallotStyles?.networkError ||
                 errorCastVote?.networkError
             ) {
-                setErrorMsg(t(`electionSelectionScreen.errors.${ElectionScreenErrorType.NETWORK}`))
+                setErrorMsg(ElectionScreenErrorType.NETWORK)
+                setErrorMsgElectionIds(undefined)
             } else {
-                setErrorMsg(
-                    t(`electionSelectionScreen.errors.${ElectionScreenErrorType.FETCH_DATA}`)
-                )
+                setErrorMsg(ElectionScreenErrorType.FETCH_DATA)
+                setErrorMsgElectionIds(undefined)
             }
         } else if (dataElectionEvent?.sequent_backend_election_event.length === 0) {
-            setErrorMsg(
-                t(`electionSelectionScreen.errors.${ElectionScreenErrorType.NO_ELECTION_EVENT}`)
-            )
+            setErrorMsg(ElectionScreenErrorType.NO_ELECTION_EVENT)
+            setErrorMsgElectionIds(undefined)
         } else if (!isPublished) {
-            setAlertMsg(t(`electionSelectionScreen.alerts.${ElectionScreenMsgType.NOT_PUBLISHED}`))
+            setAlertMsg(ElectionScreenMsgType.NOT_PUBLISHED)
+            setErrorMsgElectionIds(undefined)
         } else if (hasNoElections) {
             if (electionIds.length > 0) {
-                setErrorMsg(
-                    t(
-                        `electionSelectionScreen.errors.${ElectionScreenErrorType.OBTAINING_ELECTION}`,
-                        {electionIds: JSON.stringify(electionIds)}
-                    )
-                )
+                setErrorMsg(ElectionScreenErrorType.OBTAINING_ELECTION)
+                setErrorMsgElectionIds(JSON.stringify(electionIds))
             } else {
-                setAlertMsg(
-                    t(`electionSelectionScreen.alerts.${ElectionScreenMsgType.NO_ELECTIONS}`)
-                )
+                setAlertMsg(ElectionScreenMsgType.NO_ELECTIONS)
+                setErrorMsgElectionIds(undefined)
             }
         } else {
             setAlertMsg(undefined)
             setErrorMsg(undefined)
+            setErrorMsgElectionIds(undefined)
         }
     }, [
         errorBallotStyles,
@@ -363,9 +361,8 @@ const ElectionSelectionScreen: React.FC = () => {
             try {
                 updateBallotStyleAndSelection(dataBallotStyles, dispatch)
             } catch {
-                setErrorMsg(
-                    t(`electionSelectionScreen.errors.${ElectionScreenErrorType.BALLOT_STYLES_EML}`)
-                )
+                setErrorMsg(ElectionScreenErrorType.BALLOT_STYLES_EML)
+                setErrorMsgElectionIds(undefined)
             }
         } else if (globalSettings.DISABLE_AUTH) {
             //fakeUpdateBallotStyleAndSelection(dispatch)
@@ -485,7 +482,15 @@ const ElectionSelectionScreen: React.FC = () => {
                         </Dialog>
                     </StyledTitle>
                     {errorMsg || alertMsg ? (
-                        <Alert severity="warning">{errorMsg || alertMsg}</Alert>
+                        <Alert severity="warning">
+                            {errorMsg
+                                ? t(`electionSelectionScreen.errors.${errorMsg}`, {
+                                      electionIds: errorMsgElectionIds,
+                                  })
+                                : alertMsg
+                                ? t(`electionSelectionScreen.alerts.${alertMsg}`)
+                                : ""}
+                        </Alert>
                     ) : (
                         <Typography
                             variant="body1"
