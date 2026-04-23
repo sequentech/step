@@ -3,39 +3,39 @@ SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 SPDX-License-Identifier: AGPL-3.0-only
 -->
 
-# IRV Tie Resolution — Reference
-
-> **Suggested Docusaurus location:** `docs/docusaurus/docs/07-developers/08-windmill/03-irv-tie-resolution.md`
-> **Suggested title:** `IRV Tie-Break Resolution Flow`
-
 ---
+title: IRV Tie-Break Resolution Flow
+sidebar_label: IRV Tie-Break Resolution Flow
+---
+
+# IRV Tie-Break Resolution Flow
 
 ## Block Diagram
 
 ```mermaid
 flowchart TD
-    A([Windmill task starts]) --> B[Acquire PG lock\ntally_session_id]
-    B --> C[get_resolutions_by\nstatus=Resolved]
-    C --> D{Any resolved\ntie-breaks?}
-    D -- yes --> E[Build resolved_ties_per_contest map\nforce_new_id = true]
+    A([Windmill task starts]) --> B[Acquire PG lock<br/>tally_session_id]
+    B --> C[get_resolutions_by<br/>status=Resolved]
+    C --> D{Any resolved<br/>tie-breaks?}
+    D -- yes --> E[Build resolved_ties_per_contest map<br/>force_new_id = true]
     D -- no --> F[force_new_id = false]
     E --> G
-    F --> G[For each contest:\nprepare_tally_for_area_contest\ninsert_resolved_tie_resolutions\ninto contest-config.json]
-    G --> H[call_velvet\nRun IRV algorithm]
+    F --> G[For each contest:<br/>prepare_tally_for_area_contest<br/>insert_resolved_tie_resolutions<br/>into contest-config.json]
+    G --> H[call_velvet<br/>Run IRV algorithm]
     H --> I{Tie detected?}
-    I -- no tie --> J[state.get_results\ncontest_result.json\npending_tie_resolution = null]
-    I -- tie! --> K[RunoffStatus sets\npending_tie_resolution\nin contest_result.json]
-    J --> L[populate_results_tables\nmint results_event_id\nstore process_results in\nresults_contest.annotations]
+    I -- no tie --> J[state.get_results<br/>contest_result.json<br/>pending_tie_resolution = null]
+    I -- tie! --> K[RunoffStatus sets<br/>pending_tie_resolution<br/>in contest_result.json]
+    J --> L[populate_results_tables<br/>mint results_event_id<br/>store process_results in<br/>results_contest.annotations]
     K --> L
-    L --> M[handle_pending_irv_resolutions\nget_event_results_contest\nresults_event_id filter]
-    M --> N{Any contest has\nget_pending_tie_resolution?}
-    N -- none --> O([Tally completes\nstatus = SUCCESS])
-    N -- yes --> P[create_tally_session_resolution\nstatus = Pending]
-    P --> Q[Set tally_session\nexecution_status = AWAITING_INPUT]
+    L --> M[handle_pending_irv_resolutions<br/>get_event_results_contest<br/>results_event_id filter]
+    M --> N{Any contest has<br/>get_pending_tie_resolution?}
+    N -- none --> O([Tally completes<br/>status = SUCCESS])
+    N -- yes --> P[create_tally_session_resolution<br/>status = Pending]
+    P --> Q[Set tally_session<br/>execution_status = AWAITING_INPUT]
     Q --> R([Tally paused])
-    R --> S[Admin submits\nPOST /submit-tally-resolution]
-    S --> T[submit_resolution\nstatus = Resolved\nresolved_by_user set]
-    T --> U[Set tally_session\nexecution_status = IN_PROGRESS]
+    R --> S[Admin submits<br/>POST /submit-tally-resolution]
+    S --> T[submit_resolution<br/>status = Resolved<br/>resolved_by_user set]
+    T --> U[Set tally_session<br/>execution_status = IN_PROGRESS]
     U --> A
 ```
 
