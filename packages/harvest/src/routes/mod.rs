@@ -35,6 +35,8 @@ pub mod error_catchers;
 pub mod export_application;
 /// Export ballot publication endpoints.
 pub mod export_ballot_publication;
+/// Export certificate authority endpoints.
+pub mod export_certificate_authority;
 /// Export election event endpoints.
 pub mod export_election_event;
 /// Export election event logs endpoints.
@@ -85,6 +87,8 @@ pub mod miru_plugin;
 pub mod permissions;
 /// Plugins endpoints.
 pub mod plugins;
+/// Realm attributes endpoints.
+pub mod realm_attributes;
 /// Reports endpoints.
 pub mod reports;
 /// Roles endpoints.
