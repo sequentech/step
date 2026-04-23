@@ -15,7 +15,7 @@ fn create_runoff_status_simple() -> RunoffStatus {
         rounds: Vec::new(),
         max_rounds: 1,
         name_references: Vec::new(),
-        tie_resolutions: vec![],
+        resolved_tie_resolutions: vec![],
         ..Default::default()
     }
 }
@@ -46,7 +46,7 @@ fn create_runoff_status(active_candidate_ids: Vec<&str>) -> RunoffStatus {
         rounds: Vec::new(),
         max_rounds,
         name_references,
-        tie_resolutions: vec![],
+        resolved_tie_resolutions: vec![],
         ..Default::default()
     }
 }

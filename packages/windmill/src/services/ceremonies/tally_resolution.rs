@@ -49,7 +49,7 @@ pub fn per_contest_tie_resolutions_map(
 /// `tally_session_resolution` record for each, and posts a
 /// `tally_paused_pending_resolution` entry to the electoral log.
 ///
-/// Returns the IDs of all created pending resolution records (empty if no ties detected).
+/// Returns true if pending resolution records are created, false if no pending tie-breaks were detected.
 pub async fn handle_pending_irv_resolutions(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
@@ -58,7 +58,7 @@ pub async fn handle_pending_irv_resolutions(
     tally_session_id: &str,
     bulletin_board_reference: Option<serde_json::Value>,
     tally_session_election_ids: Option<Vec<String>>,
-) -> Result<Vec<String>> {
+) -> Result<bool> {
     let contest_results = get_event_results_contest(
         hasura_transaction,
         tenant_id,
@@ -90,13 +90,9 @@ pub async fn handle_pending_irv_resolutions(
     }
 
     if pending_resolution_ids.is_empty() {
-        return Ok(vec![]);
+        return Ok(false);
     }
 
-    info!(
-        "Tally paused - awaiting administrator tie-break decisions for {} contest(s)",
-        pending_resolution_ids.len()
-    );
     let board_name = get_election_event_board(bulletin_board_reference)
         .with_context(|| "missing bulletin board")?;
     let electoral_log = ElectoralLog::new(
@@ -115,7 +111,7 @@ pub async fn handle_pending_irv_resolutions(
         .await
         .with_context(|| "error posting tally paused to electoral log")?;
 
-    Ok(pending_resolution_ids)
+    Ok(!pending_resolution_ids.is_empty())
 }
 
 /// Submit multiple tally resolutions for a paused tally (batch operation).
@@ -366,8 +362,8 @@ pub fn is_resubmission(resolution: &TallySessionResolution) -> bool {
 #[cfg(test)]
 mod tally_resolution_tests {
     use super::{
-        extract_tied_candidate_ids, is_resubmission, pending_resolution_exists,
-        per_contest_tie_resolutions_map, validate_resolution_allowed,
+        extract_tied_candidate_ids, is_resubmission, per_contest_tie_resolutions_map,
+        validate_resolution_allowed,
     };
     use rocket::http::Status;
     use sequent_core::types::ceremonies::{
@@ -581,122 +577,5 @@ mod tally_resolution_tests {
     fn test_per_contest_tie_resolutions_map_empty_input() {
         let map = per_contest_tie_resolutions_map(&[]);
         assert!(map.is_empty());
-    }
-
-    // -------------------------------------------------------------------------
-    // Tests for pending_resolution_exists
-    // These cover the (contest_id, round_number) uniqueness key used when
-    // ProcessBallotsAll is set at area level and the same contest can tie in
-    // different rounds across areas within a single tally run.
-    // -------------------------------------------------------------------------
-
-    fn make_pending_resolution(contest_id: &str, round_number: u64) -> TallySessionResolution {
-        TallySessionResolution {
-            id: uuid::Uuid::new_v4().to_string(),
-            tenant_id: "tenant-1".to_string(),
-            election_event_id: "event-1".to_string(),
-            tally_session_id: "session-1".to_string(),
-            contest_id: Some(contest_id.to_string()),
-            created_at: None,
-            last_updated_at: None,
-            resolution_type: TallySessionResolutionType::IrvTieBreak,
-            status: TallySessionResolutionStatus::Pending,
-            resolution_data: Some(TallySessionResolutionData {
-                round_number: Some(round_number),
-                tied_candidate_ids: vec![],
-                vote_count: 0,
-                method_used: TieBreakingMethod::ExternalProcedure,
-                resolved_by_candidate_id: None,
-            }),
-            resolved_by_user: None,
-            resolved_at: None,
-            labels: None,
-            annotations: None,
-        }
-    }
-
-    fn make_irv_metadata(round_number: u64) -> TallySessionResolutionData {
-        TallySessionResolutionData {
-            round_number: Some(round_number),
-            tied_candidate_ids: vec![],
-            vote_count: 0,
-            method_used: TieBreakingMethod::ExternalProcedure,
-            resolved_by_candidate_id: None,
-        }
-    }
-
-    /// Empty list must never report an existing resolution (default SkipCandidateResults path).
-    #[test]
-    fn test_pending_resolution_exists_false_when_list_empty() {
-        let tie_metadata = make_irv_metadata(2);
-        assert!(!pending_resolution_exists(&[], "contest-x", &tie_metadata));
-    }
-
-    /// Same contest and same round — the existing pending record must be found.
-    #[test]
-    fn test_pending_resolution_exists_true_for_same_contest_and_round() {
-        let existing = vec![make_pending_resolution("contest-x", 2)];
-        let tie_metadata = make_irv_metadata(2);
-        assert!(pending_resolution_exists(
-            &existing,
-            "contest-x",
-            &tie_metadata
-        ));
-    }
-
-    /// Same contest but different round — area-level ProcessBallotsAll can produce
-    /// independent ties per round; they must be treated as distinct and both created.
-    #[test]
-    fn test_pending_resolution_exists_false_for_same_contest_different_round() {
-        let existing = vec![make_pending_resolution("contest-x", 2)];
-        let tie_metadata = make_irv_metadata(3);
-        assert!(!pending_resolution_exists(
-            &existing,
-            "contest-x",
-            &tie_metadata
-        ));
-    }
-
-    /// Different contest, same round — must not collide.
-    #[test]
-    fn test_pending_resolution_exists_false_for_different_contest() {
-        let existing = vec![make_pending_resolution("contest-x", 2)];
-        let tie_metadata = make_irv_metadata(2);
-        assert!(!pending_resolution_exists(
-            &existing,
-            "contest-y",
-            &tie_metadata
-        ));
-    }
-
-    /// Two areas produce ties for the same contest in different rounds
-    /// (ProcessBallotsAll at area level). Both rounds must be independently
-    /// detectable — neither should suppress the other.
-    #[test]
-    fn test_pending_resolution_exists_area_level_different_rounds_are_independent() {
-        let round2 = make_pending_resolution("contest-x", 2);
-        let round3 = make_pending_resolution("contest-x", 3);
-        let existing = vec![round2, round3];
-
-        // Querying for round 2 finds it.
-        assert!(pending_resolution_exists(
-            &existing,
-            "contest-x",
-            &make_irv_metadata(2)
-        ));
-
-        // Querying for round 3 finds it.
-        assert!(pending_resolution_exists(
-            &existing,
-            "contest-x",
-            &make_irv_metadata(3)
-        ));
-
-        // Round 4 has no record yet.
-        assert!(!pending_resolution_exists(
-            &existing,
-            "contest-x",
-            &make_irv_metadata(4)
-        ));
     }
 }

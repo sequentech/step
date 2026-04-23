@@ -1275,7 +1275,7 @@ pub async fn execute_tally_session_wrapped(
     // handle_pending_irv_resolutions only returns ties from the freshly-computed
     // results, so old annotations are not accidentally re-processed.
     if let Some(ref results_event_id_str) = results_event_id {
-        let pending_resolution_ids = handle_pending_irv_resolutions(
+        let pending_resolutions_detected = handle_pending_irv_resolutions(
             hasura_transaction,
             &tenant_id,
             &election_event_id,
@@ -1286,7 +1286,7 @@ pub async fn execute_tally_session_wrapped(
         )
         .await?;
 
-        if !pending_resolution_ids.is_empty() {
+        if pending_resolutions_detected {
             // Insert execution record so frontend can load partial results
             let session_ids_i32: Option<Vec<i32>> = session_ids
                 .clone()
@@ -1307,8 +1307,7 @@ pub async fn execute_tally_session_wrapped(
             .await?;
 
             info!(
-                "Tally paused - awaiting administrator tie-break decisions for {} contest(s)",
-                pending_resolution_ids.len()
+                "Tally paused - Pending resolutions detected, awaiting administrator tie-break decisions"
             );
             // Update status to AWAITING_INPUT
             update_tally_session_status(

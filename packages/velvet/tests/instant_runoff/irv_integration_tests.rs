@@ -116,7 +116,7 @@ fn test_tie_breaking_using_previous_round() {
             create_round(round2_wins, 3), // Round 2 has 3 active candidates (D was eliminated)
         ],
         name_references,
-        tie_resolutions: vec![],
+        resolved_tie_resolutions: vec![],
         ..Default::default()
     };
 
@@ -214,7 +214,7 @@ fn test_tie_persists_through_lookback() {
             create_round(round3_wins, 8),  // Round 3: 8 active (D, E, F also eliminated)
         ],
         name_references,
-        tie_resolutions: vec![],
+        resolved_tie_resolutions: vec![],
         ..Default::default()
     };
 
@@ -301,7 +301,7 @@ fn test_do_round_eliminations_with_tie_resolution() {
             create_round(round3_wins, 4), // Round 3: 4 active (A, C eliminated)
         ],
         name_references,
-        tie_resolutions: vec![],
+        resolved_tie_resolutions: vec![],
         ..Default::default()
     };
 
@@ -378,7 +378,7 @@ fn test_do_round_eliminations_unbreakable_tie_simultaneus_elimination() {
             create_round(round1_wins, 4), // Round 1: 4 active candidates
         ],
         name_references,
-        tie_resolutions: vec![],
+        resolved_tie_resolutions: vec![],
         ..Default::default()
     };
 
