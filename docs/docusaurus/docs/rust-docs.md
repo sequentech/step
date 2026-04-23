@@ -23,3 +23,6 @@ export const RustCrateLink = ({ path, children }) => {
 ### Crates
 
 - <RustCrateLink path="/rust/sequent_core/index.html">sequent-core</RustCrateLink>
+- <RustCrateLink path="/rust/velvet/index.html">velvet</RustCrateLink>
+- <RustCrateLink path="/rust/harvest/index.html">harvest</RustCrateLink>
+- <RustCrateLink path="/rust/step_cli/index.html">step-cli</RustCrateLink>

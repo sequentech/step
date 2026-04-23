@@ -95,6 +95,12 @@ jobs:
 
       - name: Check Rust Sequent Core Clippy
         run: cd packages/sequent-core && cargo clippy --no-deps --all-features -- -A warnings
+      - name: Check Rust Harvest Clippy
+        run: cd packages/harvest && cargo clippy --no-deps --all-features -- -A warnings
+      - name: Check Rust Step CLI Clippy
+        run: cd packages/step-cli && cargo clippy --no-deps --all-features -- -A warnings
+      - name: Check Rust Velvet Clippy
+        run: cd packages/velvet && cargo clippy --no-deps --all-features -- -A warnings
   
   java-spotless:
     name: Check Java format
