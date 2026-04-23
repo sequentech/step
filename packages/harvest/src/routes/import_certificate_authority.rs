@@ -166,7 +166,9 @@ pub async fn import_certificate_authority(
         }
     }
 
-    let electoral_log = if !inserted_subjects.is_empty() {
+    let electoral_log = if inserted_subjects.is_empty() {
+        None
+    } else {
         let board_name =
             get_election_event_board(election_event.bulletin_board_reference)
                 .ok_or_else(|| {
@@ -193,8 +195,6 @@ pub async fn import_certificate_authority(
                 None
             }
         }
-    } else {
-        None
     };
 
     hasura_transaction

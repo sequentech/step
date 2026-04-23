@@ -24,6 +24,7 @@ use windmill::services::electoral_log::ElectoralLog;
 pub struct DeleteCertificateAuthorityInput {
     /// The certificate IDs
     ids: Vec<uuid::Uuid>,
+    /// The election event ID
     election_event_id: uuid::Uuid,
 }
 
@@ -97,7 +98,9 @@ pub async fn delete_certificate_authority_route(
     .await
     .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
 
-    let electoral_log = if !deleted_subjects.is_empty() {
+    let electoral_log = if deleted_subjects.is_empty() {
+        None
+    } else {
         let board_name =
             get_election_event_board(election_event.bulletin_board_reference)
                 .ok_or_else(|| {
@@ -124,8 +127,6 @@ pub async fn delete_certificate_authority_route(
                 None
             }
         }
-    } else {
-        None
     };
 
     let deleted_count = deleted_subjects.len();
@@ -151,6 +152,7 @@ pub async fn delete_certificate_authority_route(
     }
 
     Ok(Json(DeleteCertificateAuthorityOutput {
-        deleted_count: deleted_count as i32,
+        deleted_count: i32::try_from(deleted_count)
+            .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?,
     }))
 }
