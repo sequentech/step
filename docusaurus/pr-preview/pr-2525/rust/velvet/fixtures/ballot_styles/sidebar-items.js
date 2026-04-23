@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["generate_ballot_style","get_ballot_style_1"]};

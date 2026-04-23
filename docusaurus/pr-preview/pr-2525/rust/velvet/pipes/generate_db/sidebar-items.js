@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["DATABASE_FILENAME"],"fn":["generate_results_id_if_necessary","populate_results_tables","process_decoded_ballots","process_results_tables","save_results"],"struct":["GenerateDatabase","PipeConfigGenerateDatabase"]};

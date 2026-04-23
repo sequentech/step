@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["confirm_key"],"mod":["restore_private_key"],"struct":["ConfirmKeyForTally","RestorePrivateKey"]};

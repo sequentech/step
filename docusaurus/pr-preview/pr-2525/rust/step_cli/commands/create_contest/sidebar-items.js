@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["create_contest"],"mod":["insert_contest"],"struct":["CreateContest","InsertContest"]};

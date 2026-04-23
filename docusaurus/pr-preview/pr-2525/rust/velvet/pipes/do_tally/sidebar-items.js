@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["INPUT_TALLY_SHEET_FILE","OUTPUT_BREAKDOWNS_FOLDER","OUTPUT_CONTEST_RESULT_AREA_CHILDREN_AGGREGATE_FOLDER","OUTPUT_CONTEST_RESULT_FILE"],"fn":["list_tally_sheet_subfolders"],"mod":["counting_algorithm","tally"],"struct":["CandidateResult","ContestResult","DoTally","ExtendedMetricsContest","ExtendedMetricsElection","InvalidVotes"]};

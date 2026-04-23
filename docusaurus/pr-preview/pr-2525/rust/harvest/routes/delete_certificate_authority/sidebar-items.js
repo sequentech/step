@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["delete_certificate_authority_route"],"struct":["DeleteCertificateAuthorityInput","DeleteCertificateAuthorityOutput"]};

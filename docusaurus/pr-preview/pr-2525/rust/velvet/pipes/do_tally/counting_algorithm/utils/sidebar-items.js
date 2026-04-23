@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["get_area_tally_operation","get_area_weight","get_contest_tally_operation","update_extended_metrics"]};

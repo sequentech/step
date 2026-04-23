@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["create_tally","process_tally_sheet"],"struct":["Tally"]};

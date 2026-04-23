@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["OUTPUT_WINNERS"],"struct":["MarkWinners","WinnerResult"]};

@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["publish_tally_sheet"],"struct":["PublishTallySheetInput","PublishTallySheetOutput"]};

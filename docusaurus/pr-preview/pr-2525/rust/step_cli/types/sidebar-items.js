@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"mod":["config","environments","hasura_types","keycloak","tally"]};

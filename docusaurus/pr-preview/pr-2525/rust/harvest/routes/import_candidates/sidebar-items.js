@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["import_candidates_route"],"struct":["ImportCandidatesInput","ImportCandidatesOutput"]};

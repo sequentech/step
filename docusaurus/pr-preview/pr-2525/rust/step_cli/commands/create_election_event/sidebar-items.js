@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["create_election_event"],"mod":["create_election_event"],"struct":["CreateElectionEvent","CreateElectionEventCLI"]};

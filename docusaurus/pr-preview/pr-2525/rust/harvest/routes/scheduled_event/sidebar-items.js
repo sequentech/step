@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["create_scheduled_event"],"struct":["CreateEventBody","CreateEventOutput"]};

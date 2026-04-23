@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["import_election_event_f","insert_election_event_f"],"struct":["CreateElectionEventOutput","ImportElectionEventOutput"]};

@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["update_status"],"mod":["update_tally_ceremony"],"struct":["UpdateTallyCeremony","UpdateTallyStatus"]};

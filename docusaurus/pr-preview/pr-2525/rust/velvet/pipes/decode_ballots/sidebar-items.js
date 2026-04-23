@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["OUTPUT_DECODED_BALLOTS_FILE"],"struct":["DecodeBallots"]};

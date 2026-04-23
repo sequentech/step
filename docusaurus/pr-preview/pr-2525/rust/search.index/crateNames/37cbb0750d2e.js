@@ -1,1 +1,0 @@
-rd_("lsequent_core")

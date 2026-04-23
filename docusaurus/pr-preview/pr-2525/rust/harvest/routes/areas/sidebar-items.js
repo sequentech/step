@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["upsert_area"],"struct":["UpsertAreaInput","UpsertAreaOutput"]};

@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["change_application_status","verify_user_application"],"struct":["ApplicationChangeStatusBody","ApplicationChangeStatusOutput","ApplicationVerifyBody"]};

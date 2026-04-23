@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["CREDENTIAL_LEN"],"fn":["hash_password"],"static":["PBKDF2_ALGORITHM"],"struct":["HashPasswords"],"type":["Credential"]};

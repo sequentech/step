@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["CREATE_CONFIG_FILE_NAME","EXTERNAL_CONFIG_FILE_NAME"],"fn":["get_config_dir","load_external_config","read_config"]};

@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["main","rocket"],"mod":["routes","services","types"]};

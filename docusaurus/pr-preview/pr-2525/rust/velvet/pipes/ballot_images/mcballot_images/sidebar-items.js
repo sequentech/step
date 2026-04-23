@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["BALLOT_IMAGES_OUTPUT_FILE"],"fn":["qr_encode_choices","write_file_hash_csv"],"struct":["BallotData","BallotImagesPipeData","ContestData","MCBallotImages","TemplateData"]};

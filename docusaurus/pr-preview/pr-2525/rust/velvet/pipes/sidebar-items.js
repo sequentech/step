@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"mod":["ballot_images","decode_ballots","do_tally","error","generate_db","generate_reports","mark_winners","pipe_inputs","pipe_name"],"struct":["PipeManager"],"trait":["Pipe"]};

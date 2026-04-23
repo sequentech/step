@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["get_election_event_stats","get_election_event_top_votes_by_ip"],"struct":["ElectionEventStatsInput","ElectionEventStatsOutput","GetTopCastVotesByIp"]};

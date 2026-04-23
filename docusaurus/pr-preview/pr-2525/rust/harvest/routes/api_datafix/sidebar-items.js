@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["add_voter","delete_voter","mark_voted","replace_pin","unmark_voted","update_voter"],"struct":["ReplacePinOutput","VoterIdBody"]};

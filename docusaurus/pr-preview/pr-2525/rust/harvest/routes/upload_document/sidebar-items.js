@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["get_upload_url"],"struct":["UploadDocumentInput","UploadDocumentOutput"]};

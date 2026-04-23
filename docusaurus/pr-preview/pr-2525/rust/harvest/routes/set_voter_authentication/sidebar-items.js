@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["set_voter_authentication"],"struct":["SetVoterAuthentication","SetVoterAuthenticationOutput"]};

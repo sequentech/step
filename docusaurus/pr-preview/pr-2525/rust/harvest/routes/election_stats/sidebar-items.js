@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["get_election_stats"],"struct":["ElectionStatsInput","ElectionStatsOutput"]};

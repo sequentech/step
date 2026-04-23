@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["get_permission_label","set_applications"],"struct":["CreateApplications"]};

@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["OPERATION_NAME","QUERY","__QUERY_WORKAROUND"],"struct":["CreateUserCreateUser","KeycloakUser2","ResponseData","Variables"],"type":["Boolean","Float","ID","Int","jsonb"]};

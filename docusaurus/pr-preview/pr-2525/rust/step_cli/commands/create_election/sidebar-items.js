@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["create_election"],"mod":["insert_election"],"struct":["CreateElection","InsertElection"]};

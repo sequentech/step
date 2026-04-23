@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["OPERATION_NAME","QUERY","__QUERY_WORKAROUND"],"enum":["VotingStatus","VotingStatusChannel"],"struct":["ResponseData","UpdateEventVotingStatusUpdateEventVotingStatus","Variables"],"type":["Boolean","Float","ID","Int","uuid"]};

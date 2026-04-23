@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["create_role","delete_role","delete_user_role","get_roles","list_user_roles","set_user_role"],"struct":["CreateRoleBody","DeleteRoleBody","GetRolesBody","ListUserRolesBody","SetOrDeleteUserRoleBody"]};

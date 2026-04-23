@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["import"],"mod":["import_election_event"],"struct":["ImportElectionEvent","ImportElectionEventFile"]};

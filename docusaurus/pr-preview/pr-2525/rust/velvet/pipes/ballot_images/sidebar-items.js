@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["BALLOT_IMAGES_OUTPUT_FILE_HTML","BALLOT_IMAGES_OUTPUT_FILE_PDF"],"mod":["mcballot_images"],"struct":["BallotData","BallotImages","BallotImagesPipeData","ComputedTemplateData","ContestData","DecodedChoice"]};

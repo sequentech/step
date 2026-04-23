@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["import_tenant_config_route"],"struct":["ImportTenantConfigInput","ImportTenantConfigOutput"]};

@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["start_ceremony"],"mod":["create_tally_ceremony"],"struct":["CreateTallyCeremony","StartTallyCeremony"]};

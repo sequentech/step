@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["AuditTable","OrderField"],"fn":["audit_list_service","create_named_param","get_immudb_client","list_pgaudit"],"struct":["GetPgauditBody","PgAuditRow"]};

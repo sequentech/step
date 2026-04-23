@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"mod":["ballot_styles","elections","fixtures"]};

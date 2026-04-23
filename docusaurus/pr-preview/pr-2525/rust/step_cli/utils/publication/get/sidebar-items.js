@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"mod":["get_ballot_publication_status"],"struct":["GetBallotPublicationStatus"]};

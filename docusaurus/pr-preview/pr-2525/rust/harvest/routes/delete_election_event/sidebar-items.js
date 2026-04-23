@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["delete_election_event_f"],"struct":["DeleteElectionEventInput","DeleteElectionEventOutput"]};

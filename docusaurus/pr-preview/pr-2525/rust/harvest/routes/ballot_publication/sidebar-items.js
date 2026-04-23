@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["generate_ballot_publication","get_ballot_publication_changes","publish_ballot"],"struct":["BallotPublicationStyles","GenerateBallotPublicationInput","GenerateBallotPublicationOutput","GetBallotPublicationChangesInput","GetBallotPublicationChangesOutput","PublishBallotInput","PublishBallotOutput"]};

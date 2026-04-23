@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["check_test_status","create_header","create_test","create_test_paricipants","generate_script","get_tests","init_loadero_tests","launch_test","replace_placeholder"]};

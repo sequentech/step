@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"type":["bytea","json","jsonb","numeric","text","timestamptz","uuid","varchar"]};

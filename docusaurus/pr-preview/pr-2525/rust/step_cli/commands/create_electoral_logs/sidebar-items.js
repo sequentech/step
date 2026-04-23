@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["insert_logs"],"struct":["CreateElectoralLogs","Voter"]};

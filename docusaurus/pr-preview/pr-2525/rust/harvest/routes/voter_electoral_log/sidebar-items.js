@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["list_cast_vote_messages"],"struct":["CastVoteMessagesInput"]};
