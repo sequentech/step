@@ -24,8 +24,8 @@ pub type Hash = crate::CryptographicHash;
 /// Zero hash constant for comparisons
 #[inline]
 pub fn zero_hash() -> Hash {
-    use sha3::digest::generic_array::GenericArray;
-    GenericArray::from_slice(&[0u8; 64]).clone()
+    use sha3::digest::array::Array;
+    Array::from_slice(&[0u8; 64]).clone()
 }
 
 ///////////////////////////////////////////////////////////////////////////

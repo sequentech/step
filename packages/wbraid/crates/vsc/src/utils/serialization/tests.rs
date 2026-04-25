@@ -402,17 +402,17 @@ mod tests {
         cts_lower: usize,
         cts_upper: usize,
     ) {
-        use rand::Rng;
+        use rand::RngExt;
 
         let mut map: BTreeMap<u64, Vec<Ciphertext<Ctx, W>>> = BTreeMap::new();
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
         for _ in 0..num_entries {
-            let mut key: u64 = rng.r#gen();
+            let mut key: u64 = rng.random();
             while map.contains_key(&key) {
-                key = rng.r#gen();
+                key = rng.random();
             }
             let mut ct_vec: Vec<Ciphertext<Ctx, W>> = Vec::new();
-            let num_ciphertexts = rng.gen_range(cts_lower..cts_upper);
+            let num_ciphertexts = rng.random_range(cts_lower..cts_upper);
             for _ in 0..num_ciphertexts {
                 let keypair = KeyPair::<Ctx>::generate();
                 let message: [Ctx::Element; W] = core::array::from_fn(|_| Ctx::random_element());

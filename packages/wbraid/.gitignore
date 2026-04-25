@@ -2,6 +2,9 @@
 b4.db
 b4.db-shm
 b4.db-wal
+b5.db
+b5.db-shm
+b5.db-wal
 
 # misc
 browser_trustee_config.json

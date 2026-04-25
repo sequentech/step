@@ -64,7 +64,7 @@ pub enum Error {
 
     /// Occurs when a hash to curve or hash to scalar error occurs in `p256`
     #[error("{0}")]
-    HashToScalarError(#[from] p256::elliptic_curve::Error),
+    HashToScalarError(#[from] p256::hash2curve::ExpandMsgXmdError),
 
     /// Occurs when a hash to curve or hash to scalar error occurs in `p256`
     #[error("{0}")]

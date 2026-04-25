@@ -5,7 +5,7 @@
 //! A cryptographic context instantiates a set of interdependent functionalities
 //! suitable for some application.
 
-use rand::rngs::OsRng;
+use rand::rngs::StdRng;
 
 use crate::groups::P256Group;
 use crate::groups::Ristretto255Group;
@@ -154,7 +154,7 @@ impl Context for P256Ctx {
     type Element = <Self::G as CryptographicGroup>::Element;
     type Scalar = <Self::G as CryptographicGroup>::Scalar;
     type Hasher = <Self::G as CryptographicGroup>::Hasher;
-    type Rng = OsRng;
+    type Rng = StdRng;
     type SignatureScheme = Ed25519<Self::Rng>;
 
     type G = P256Group;
@@ -176,7 +176,7 @@ impl Context for RistrettoCtx {
     type Element = <Self::G as CryptographicGroup>::Element;
     type Scalar = <Self::G as CryptographicGroup>::Scalar;
     type Hasher = <Self::G as CryptographicGroup>::Hasher;
-    type Rng = OsRng;
+    type Rng = StdRng;
     type SignatureScheme = Ed25519<Self::Rng>;
 
     type G = Ristretto255Group;

@@ -15,8 +15,8 @@ use crate::utils::serialization::{VDeserializable, VSerializable};
 
 #[test]
 fn test_ristretto_scalar_from_u32() {
-    use rand::Rng;
-    let u: u32 = Ctx::get_rng().r#gen();
+    use rand::RngExt;
+    let u: u32 = Ctx::get_rng().random();
 
     let _scalar: RistrettoScalar = u.into();
     let one: RistrettoScalar = 1u32.into();
@@ -199,7 +199,7 @@ fn test_ristretto_g_exp() {
 
 #[test]
 fn test_ristretto_encode_decode_30_bytes() {
-    use rand::Rng;
+    use rand::RngExt;
 
     let mut rng = Ctx::get_rng();
     let mut lhs = [0u8; 30];
@@ -213,7 +213,7 @@ fn test_ristretto_encode_decode_30_bytes() {
 
 #[test]
 fn test_ristretto_encode_decode_array() {
-    use rand::Rng;
+    use rand::RngExt;
 
     let mut rng = Ctx::get_rng();
 

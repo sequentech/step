@@ -12,7 +12,8 @@ use crate::traits::groups::GroupScalar;
 
 use p256::NistP256;
 use p256::ProjectivePoint;
-use p256::elliptic_curve::hash2curve::{ExpandMsgXmd, GroupDigest};
+use p256::hash2curve::{ExpandMsgXmd, GroupDigest, hash_to_scalar};
+use p256::elliptic_curve::array::sizes::U32;
 
 use crate::utils::error::Error;
 use crate::utils::rng;
@@ -40,7 +41,8 @@ impl CryptographicGroup for P256Group {
     /// - `HashToScalarError` if `NistP256::hash_to_scalar` returns error
     #[crate::warning("Panics on empty input")]
     fn hash_to_scalar(input_slices: &[&[u8]], ds_tags: &[&[u8]]) -> Result<Self::Scalar, Error> {
-        let ret = NistP256::hash_to_scalar::<ExpandMsgXmd<Self::Hasher>>(input_slices, ds_tags);
+        let ret = hash_to_scalar::<NistP256, ExpandMsgXmd<Self::Hasher>, U32>(input_slices, ds_tags)
+            .map_err(|e| Error::HashToScalarError(e));
 
         Ok(P256Scalar(ret?))
     }
@@ -50,7 +52,7 @@ impl CryptographicGroup for P256Group {
     /// - `HashToElementError` if `NistP256::hash_from_bytes` returns error
     #[crate::warning("Panics on empty input")]
     fn hash_to_element(input_slices: &[&[u8]], ds_tags: &[&[u8]]) -> Result<Self::Element, Error> {
-        let ret = NistP256::hash_from_bytes::<ExpandMsgXmd<Self::Hasher>>(input_slices, ds_tags);
+        let ret = NistP256::hash_from_bytes(input_slices, ds_tags);
         let ret: Result<ProjectivePoint, Error> =
             ret.map_err(|e| Error::HashToElementError(e.to_string()));
 
@@ -95,9 +97,10 @@ impl CryptographicGroup for P256Group {
             // Cannot use platform dependent type in random oracle
             let i_u64 = i as u64;
             let inputs = &[label, &i_u64.to_be_bytes()];
-            let point = NistP256::hash_from_bytes::<ExpandMsgXmd<Self::Hasher>>(inputs, ds_tags);
-            let point = point?;
-            ret.push(P256Element(point));
+            let point = NistP256::hash_from_bytes(inputs, ds_tags)
+                .map_err(|e| Error::HashToElementError(e.to_string()));
+            
+            ret.push(P256Element(point?));
         }
 
         Ok(ret)

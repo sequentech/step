@@ -18,7 +18,7 @@ use crate::utils::error::ErrorContext;
 use crate::utils::hash;
 use crate::utils::serialization::VSerializable;
 
-use rand::Rng;
+use rand::RngExt;
 use sha3::Digest;
 use vser_derive::VSerializable as VSer;
 
@@ -889,7 +889,7 @@ impl Permutation {
     /// Shuffle the given integers in place using the Fisher-Yates algorithm.
     fn shuffle<C: Context>(data: &mut [usize], rng: &mut C::Rng) {
         for i in (1..data.len()).rev() {
-            let j = rng.r#gen_range(0..=i);
+            let j = rng.random_range(0..=i);
             data.swap(i, j);
         }
     }

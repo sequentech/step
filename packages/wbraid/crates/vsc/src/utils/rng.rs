@@ -4,17 +4,18 @@
 
 //! Random number generation
 
-use rand::rngs::OsRng;
+use rand::rngs::{StdRng, SysRng};
+use rand::SeedableRng;
 
 /**
  * Marker trait to require a cryptographically secure random number generator.
  */
-pub trait CRng: rand::RngCore + rand::CryptoRng {}
+pub trait CRng: rand::Rng + rand::CryptoRng {}
 
 /**
  * `OsRng` is a cryptographically secure random number generator.
  */
-impl CRng for OsRng {}
+impl CRng for StdRng {}
 
 /**
  * Random number generation [context][`crate::context::Context`] dependency.
@@ -29,8 +30,12 @@ pub trait Rng: CRng {
 /**
  * Implements the random number generation [context][`crate::context::Context`] dependency with [`OsRng`].
  */
-impl Rng for OsRng {
-    fn rng() -> OsRng {
-        rand::rngs::OsRng
+impl Rng for StdRng {
+    fn rng() -> StdRng {
+        // rand::rngs::StdRng
+        // FIXME we will have to change our Rng trait to be fallible
+        // this fallibility is present only on construction, since once StdRng is constructed, it is deterministic and will not fail 
+        panic!();
+        StdRng::try_from_rng(&mut SysRng).unwrap()
     }
 }

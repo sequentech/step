@@ -23,7 +23,7 @@
 //! ```
 
 use vser_derive::VSerializable as VSer;
-use chacha20poly1305::{aead::Aead, aead::AeadCore, aead::KeyInit, ChaCha20Poly1305, Nonce};
+use chacha20poly1305::{aead::Aead, aead::Generate, aead::KeyInit, ChaCha20Poly1305, Nonce};
 use chacha20poly1305::aead::Key;
 
 use crate::utils::error::Error;
@@ -61,8 +61,8 @@ impl EncryptionData {
 ///     
 /// Returns `Error::EncryptionError` if key generation fails
 pub fn gen_key() -> Result<SymmetricKey, Error> {
-    ChaCha20Poly1305::generate_key()
-        .map_err(|e| Error::EncryptionError(format!("Failed to generate symmetric key: {e}")))
+    #[crate::warning("We should pass in our single rng entry point, instead of delegating to Key internal generator")]
+    Ok(Key::<ChaCha20Poly1305>::generate())
 }
 
 /// Encrypt data using ChaCha20-Poly1305
@@ -73,8 +73,8 @@ pub fn gen_key() -> Result<SymmetricKey, Error> {
 pub fn encrypt(key: SymmetricKey, data: &[u8]) -> Result<EncryptionData, Error> {
     // https://docs.rs/chacha20poly1305/latest/chacha20poly1305/trait.AeadCore.html#method.generate_nonce
     // 4,294,967,296 messages with random nonces can be encrypted under a given key
-    let nonce = ChaCha20Poly1305::generate_nonce()
-        .map_err(|e| Error::EncryptionError(format!("Failed to generate nonce: {e}")))?;
+    #[crate::warning("We should pass in our single rng entry point, instead of delegating to Nonce internal generator")]
+    let nonce = Nonce::generate();
     let cipher = ChaCha20Poly1305::new(&key);
     let encrypted = cipher
         .encrypt(&nonce, data)
@@ -112,13 +112,13 @@ pub fn sk_from_bytes(bytes: &[u8]) -> Result<SymmetricKey, Error> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use rand::RngCore;
+    use rand::Rng;
 
     #[test]
     fn test_chacha_poly() {
         let key = gen_key().unwrap();
         let mut data = [0u8; 256];
-        rand::thread_rng().fill_bytes(&mut data);
+        rand::rng().fill_bytes(&mut data);
 
         let encrypted = encrypt(key, &data).unwrap();
         let decrypted = decrypt(&key, &encrypted).unwrap();

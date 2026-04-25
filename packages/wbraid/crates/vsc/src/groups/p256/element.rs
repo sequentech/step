@@ -10,9 +10,9 @@ use crate::utils::error::Error as CryptographyError;
 use crate::utils::rng;
 use core::fmt::Debug;
 use p256::elliptic_curve::Group;
-use p256::elliptic_curve::sec1::{FromEncodedPoint, ToEncodedPoint};
+use p256::elliptic_curve::sec1::{FromSec1Point, ToSec1Point};
 use p256::elliptic_curve::subtle::CtOption;
-use p256::{EncodedPoint, ProjectivePoint};
+use p256::{Sec1Point, ProjectivePoint};
 
 /**
  * A [`GroupElement`] implementation for the P-256 curve.
@@ -65,7 +65,7 @@ impl PartialEq for P256Element {
 impl Eq for P256Element {}
 impl std::hash::Hash for P256Element {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        self.0.to_affine().to_encoded_point(true).hash(state);
+        self.0.to_affine().to_sec1_point(true).hash(state);
     }
 }
 
@@ -73,7 +73,7 @@ use crate::utils::serialization::{VDeserializable, VSerializable};
 
 impl VSerializable for P256Element {
     fn ser(&self) -> Vec<u8> {
-        let bytes = self.0.to_affine().to_encoded_point(true).to_bytes();
+        let bytes = self.0.to_affine().to_sec1_point(true).to_bytes();
         if bytes.len() == 33 {
             bytes.to_vec()
         } else {
@@ -93,13 +93,13 @@ impl VDeserializable for P256Element {
             return Ok(P256Element::one());
         }
 
-        let point = EncodedPoint::from_bytes(bytes).map_err(|_| {
+        let point = Sec1Point::from_bytes(bytes).map_err(|_| {
             CryptographyError::DeserializationError(
                 "Failed to parse P256 encoded point".to_string(),
             )
         })?;
         let point: CtOption<P256Element> =
-            ProjectivePoint::from_encoded_point(&point).map(P256Element);
+            ProjectivePoint::from_sec1_point(&point).map(P256Element).into();
 
         if point.is_some().into() {
             Ok(point.expect("point.is_some() == true"))
@@ -119,7 +119,7 @@ impl FSerializable for P256Element {
     }
 
     fn ser_into(&self, buffer: &mut Vec<u8>) {
-        let point = self.0.to_affine().to_encoded_point(true);
+        let point = self.0.to_affine().to_sec1_point(true);
         let bytes = point.as_bytes();
         if bytes.len() == 33 {
             buffer.extend_from_slice(bytes);
