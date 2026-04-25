@@ -50,14 +50,14 @@ pub type CryptographicHasher = crate::utils::hash::Hasher512;
  * // Defines the Ristretto context, with
  * // - Ristreto255 as the underlying group
  * // - The library's default hasher as the hashing function
- * // - OsRng as the random number generator
+ * // - StdRng as the random number generator
  * // - Ed25519 as the digital signature scheme
  * pub struct RistrettoCtx;
  * impl Context for RistrettoCtx {
  *   type Element = <Self::G as CryptographicGroup>::Element;
  *   type Scalar = <Self::G as CryptographicGroup>::Scalar;
  *   type Hasher = <Self::G as CryptographicGroup>::Hasher;
- *   type Rng = OsRng;
+ *   type Rng = StdRng;
  *   type SignatureScheme = Ed25519<Self::R>;
  *
  *   type G = Ristretto255Group;
@@ -141,7 +141,7 @@ where
  * Sets
  * - `p256` as the underlying curve.
  * - The library's default hasher as the hashing function
- * - `OsRng` as the random number generator.
+ * - `StdRng` as the random number generator.
  * - `Ed25519` as the digital signature scheme.
  * 
  * Note: hashing to curve and scalar uses the p256 crate's internal hasher (SHA-256),
@@ -154,6 +154,7 @@ impl Context for P256Ctx {
     type Element = <Self::G as CryptographicGroup>::Element;
     type Scalar = <Self::G as CryptographicGroup>::Scalar;
     type Hasher = <Self::G as CryptographicGroup>::Hasher;
+    // type Rng = rand::rand_core::UnwrapErr<rand::rngs::SysRng>;
     type Rng = StdRng;
     type SignatureScheme = Ed25519<Self::Rng>;
 
@@ -166,7 +167,7 @@ impl Context for P256Ctx {
  * Sets
  * - `Ristretto255` as the underlying group.
  * - `Sha3-512` as the hashing function.
- * - `OsRng` as the random number generator.
+ * - `StdRng` as the random number generator.
  * - `Ed25519` as the digital signature scheme.
  */
 #[derive(Debug, PartialEq, Clone, Hash)]
@@ -176,6 +177,7 @@ impl Context for RistrettoCtx {
     type Element = <Self::G as CryptographicGroup>::Element;
     type Scalar = <Self::G as CryptographicGroup>::Scalar;
     type Hasher = <Self::G as CryptographicGroup>::Hasher;
+    // type Rng = rand::rand_core::UnwrapErr<rand::rngs::SysRng>;
     type Rng = StdRng;
     type SignatureScheme = Ed25519<Self::Rng>;
 
