@@ -36,6 +36,6 @@ impl Rng for StdRng {
         // FIXME we will have to change our Rng trait to be fallible
         // this fallibility is present only on construction, since once StdRng is constructed, it is deterministic and will not fail 
         panic!();
-        StdRng::try_from_rng(&mut SysRng).unwrap()
+        // StdRng::try_from_rng(&mut SysRng).unwrap()
     }
 }
