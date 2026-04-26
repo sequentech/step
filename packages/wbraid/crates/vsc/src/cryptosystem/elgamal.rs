@@ -461,6 +461,9 @@ mod tests {
     use crate::context::Context;
     use crate::context::P256Ctx as PCtx;
     use crate::context::RistrettoCtx as RCtx;
+    use wasm_bindgen_test::*;
+
+    wasm_bindgen_test_configure!(run_in_node_experimental);
     use crate::cryptosystem::elgamal;
     use crate::cryptosystem::elgamal::{Ciphertext, KeyPair};
     use crate::groups::Ristretto255Group;
@@ -482,6 +485,12 @@ mod tests {
 
     #[test]
     fn test_elgamal_ristretto() {
+        test_elgamal::<RCtx>();
+    }
+
+    #[cfg(target_arch = "wasm32")]
+    #[wasm_bindgen_test]
+    fn test_elgamal_wasm() {
         test_elgamal::<RCtx>();
     }
 
@@ -560,7 +569,7 @@ mod tests {
     }
 
     #[test]
-    fn test_elgamal_r_encryption() {
+    fn test_elgamal_encrypt_scalar() {
         let keypair = KeyPair::<RCtx>::generate();
         let message = [RCtx::random_element(), RCtx::random_element()];
 

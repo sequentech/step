@@ -69,6 +69,15 @@ To run all tests _except_ doctests:
 cargo test --lib --bins --tests
 ```
 
+To run tests targeting webassembly:
+
+```bash
+cargo test --target wasm32-unknown-unknown --lib
+```
+
+This works via three pieces of setup: test functions are annotated with `#[wasm_bindgen_test]` (from the `wasm-bindgen-test` crate), `wasm_bindgen_test_configure!(run_in_node_experimental)` is called in the test module to select the Node.js runtime, and `.cargo/config.toml` sets `runner = "wasm-bindgen-test-runner"` for the `wasm32-unknown-unknown` target so Cargo knows how to execute the compiled `.wasm` test binary.
+
+
 ## Lints and static analysis
 
 ### Running [clippy](https://doc.rust-lang.org/clippy/)

@@ -1,4 +1,4 @@
-# DKG Cryptography Migration - Remaining Tasks
+# braid webassembly proof of concept - Remaining Tasks
 
 ## Critical Tasks
 
@@ -334,12 +334,3 @@
   In the previous version of braid, there was a way to save artifacts in the
   sqlite data base, and store only the row ids in the local board. This was lost
   in the wasm compatible version of braid, all artifacts will be in memory.
-
-## Notes
-
-- **Migration Status**: Core compilation complete (0 errors), WASM compilation successful ✅
-- **Next Steps**: Focus on items 1, 8, 9 (critical path: browser testing, integration tests, compatibility)
-- **Testing Strategy**: Browser integration testing, then full protocol integration tests
-- **WASM Achievement**: Successfully resolved dependency conflicts, b4→b5 migration in WASM code
-- **Next Steps**: Focus on items 1, 5, 8, 9 (critical path)
-- **Testing Strategy**: Start with WASM compilation, then integration tests

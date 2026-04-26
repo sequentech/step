@@ -89,7 +89,7 @@ pub(crate) fn dbg_hash(h: &Hash) -> String {
 /// Returns a fixed-size array Hash from the given vector.
 pub fn hash_from_vec(bytes: &[u8]) -> Result<Hash, CryptographyError> {
     if bytes.len() == 64 {
-        Ok(*Hash::from_slice(bytes))
+        Ok(Hash::try_from(bytes)?)
     } else {
         Err(CryptographyError::DeserializationError(
             format!("Expected 64 bytes, got {}", bytes.len()),

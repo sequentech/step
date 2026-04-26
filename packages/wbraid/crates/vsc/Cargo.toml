@@ -72,6 +72,7 @@ harness = true
 [dev-dependencies]
 serde = { version = "1.0.219", features=["derive"] }
 bincode = { version = "2.0.1", features=["serde"] }
+wasm-bindgen-test = "0.3"
 
 [lints.rustdoc]
 missing_crate_level_docs = "deny"

@@ -40,9 +40,9 @@ Context::get_rng() are very frequent in small functions.
 
 For now, we will use ThreadRng as the default rng implementation, which is infallible and cryptographically secure. 
 If we want to use StdRng in the future, we can change our Rng trait to be fallible and use some kind of thread
-local storage to store the StdRng instance, so that we only pay the cost of constructing it once per thread. This
-approach would allow us to control the seed of the StdRng instance, which can yield deterministic behaviour for testing
-and debugging purposes.
+local storage to store the StdRng instance, so that we only pay the cost of constructing it once per thread. Unlike
+using `ThreadRng`, this approach would allow us to control the seed of the StdRng instance, which can yield deterministic 
+behaviour for testing and debugging purposes.
  
 Implements the random number generation [context][`crate::context::Context`] dependency with [`StdRng`].
 
@@ -51,8 +51,7 @@ impl Rng for StdRng {
         // rand::rngs::StdRng
         // FIXME we would have to change our Rng trait to be fallible
         // this fallibility is present only on construction, since once StdRng is constructed, it is deterministic and will not fail 
-        StdRng::try_from_rng(&mut SysRng).unwrap();
-        panic!();
+        StdRng::try_from_rng(&mut SysRng).unwrap()
     }
 }*/
 
@@ -100,7 +99,8 @@ pub trait CTryRng: rand::TryRng + rand::TryCryptoRng {}
 /**
  * Fallible random number generation dependency.
  * 
- * Currently a cryptographic [context][`crate::context::Context`] depends on an infallible random number generator, but this trait allows for a fallible rng to be used in the future if needed.
+ * Currently a cryptographic [context][`crate::context::Context`] depends on an infallible random number 
+ * generator, but this trait allows for a fallible rng to be used in the future if needed.
  *
  * Allows retrieving an fallible rng instance in some [Context][`crate::context::Context`].
  */
@@ -117,7 +117,8 @@ impl CTryRng for SysRng {}
 /**
  * Implements the fallible random number generation [context][`crate::context::Context`] dependency with [`SysRng`].
  * 
- * Currently a cryptographic [context][`crate::context::Context`] depends on an infallible random number generator, but this trait allows for a fallible rng to be used in the future if needed.
+ * Currently a cryptographic [context][`crate::context::Context`] depends on an infallible random number generator, 
+ * but this trait allows for a fallible rng to be used in the future if needed.
  */
 impl TRng for SysRng {
     fn rng() -> SysRng {

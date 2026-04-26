@@ -668,7 +668,7 @@ pub(crate) mod tests {
         
         let cfg_hash = ConfigurationHash(crate::messages::newtypes::zero_hash());
         let cth1 = CiphertextsHash(crate::messages::newtypes::zero_hash());
-        let cth2 = CiphertextsHash(Array::from_slice(&[1u8; 64]).clone());
+        let cth2 = CiphertextsHash(Array([1u8; 64]));
         
         let stmt = Statement::Mix(
             22222,
@@ -704,9 +704,9 @@ pub(crate) mod tests {
         
         let cfg_hash = ConfigurationHash(crate::messages::newtypes::zero_hash());
         let pk_hash = PublicKeyHash(crate::messages::newtypes::zero_hash());
-        let pth = PlaintextsHash(Array::from_slice(&[2u8; 64]).clone());
+        let pth = PlaintextsHash(Array([2u8; 64]));
         let dfhs = DecryptionFactorsHashes([crate::messages::newtypes::zero_hash(); MAX_TRUSTEES]);
-        let cth = CiphertextsHash(Array::from_slice(&[3u8; 64]).clone());
+        let cth = CiphertextsHash(Array([3u8; 64]));
         
         let stmt = Statement::Plaintexts(
             33333,
