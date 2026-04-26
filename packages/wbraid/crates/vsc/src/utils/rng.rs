@@ -5,7 +5,6 @@
 //! Random number generation
 
 use rand::rngs::ThreadRng;
-// StdRng
 use rand::{rngs::StdRng, rngs::SysRng};
 
 /**
@@ -14,12 +13,10 @@ use rand::{rngs::StdRng, rngs::SysRng};
 pub trait CRng: rand::Rng + rand::CryptoRng {}
 
 /**
- * `StdRng` is a cryptographically secure random number generator.
- */
-impl CRng for StdRng {}
-
-/**
  * `ThreadRng` is a cryptographically secure random number generator.
+ * 
+ * When compiling to WebAssembly, the underlying [`getrandom`] crate sources entropy from the
+ * browser's Web Crypto API (`crypto.getRandomValues`) via JS interop.  
  */
 impl CRng for ThreadRng {}
 
@@ -33,10 +30,59 @@ pub trait Rng: CRng {
     fn rng() -> Self;
 }
 
+/**
+ * Implements the random number generation [context][`crate::context::Context`] dependency with [`ThreadRng`].
+ */
+impl Rng for ThreadRng {
+    fn rng() -> ThreadRng {
+        rand::rng()
+    }
+}
+
+use rand::rand_core::UnwrapErr;
+
+/**
+ * `SysRng` is a cryptographically secure random number generator.
+ * 
+ * When compiling to WebAssembly, the underlying [`getrandom`] crate sources entropy from the
+ * browser's Web Crypto API (`crypto.getRandomValues`) via JS interop.  
+ */
+impl CRng for UnwrapErr<SysRng> {}
+
+/**
+ * Implements the random number generation [context][`crate::context::Context`] dependency with [`UnwrapErr`] and [`SysRng`].
+ * 
+ * Note that this will panic if the underlying `SysRng` fails to generate random bytes. In practice, `SysRng`
+ * delegates directly to the OS or platform RNG (`getrandom` on Linux, `BCryptGenRandom` on Windows,
+ * `crypto.getRandomValues` in browsers), and failure of these primitives is considered a non-recoverable
+ * system fault. Propagating the error rather than panicking would add complexity to all call sites without
+ * any meaningful recovery path.
+ * 
+ * If we want to use a fallible RNG in the future, we can change our Rng trait to 
+ * be fallible and implement it for `SysRng` directly, without using `UnwrapErr`, for example starting
+ * with the following code:
+ * 
+ * pub trait CTryRng: rand::TryRng + rand::TryCryptoRng {}
+ */
+impl Rng for UnwrapErr<SysRng> {
+    fn rng() -> UnwrapErr<SysRng> {
+        UnwrapErr(SysRng)
+    }
+}
+
+/**
+ * `StdRng` is a cryptographically secure random number generator.
+ * 
+ * When compiling to WebAssembly, the underlying [`getrandom`] crate sources entropy from the
+ * browser's Web Crypto API (`crypto.getRandomValues`) via JS interop.  
+ */
+impl CRng for StdRng {}
+
 /*
 We cannot implement Rng for StdRng because StdRng::try_from_rng is fallible, and our Rng trait is infallible. 
 Additionally, even if constructing StdRng was infallible, it would not an efficient choice, as calls to
-Context::get_rng() are very frequent in small functions.
+Context::get_rng() are very frequent in small functions, and these calls would pay the cost of constructing 
+a new StdRng instance every time.   
 
 For now, we will use ThreadRng as the default rng implementation, which is infallible and cryptographically secure. 
 If we want to use StdRng in the future, we can change our Rng trait to be fallible and use some kind of thread
@@ -54,74 +100,3 @@ impl Rng for StdRng {
         StdRng::try_from_rng(&mut SysRng).unwrap()
     }
 }*/
-
-/**
- * Implements the random number generation [context][`crate::context::Context`] dependency with [`ThreadRng`].
- */
-impl Rng for ThreadRng {
-    fn rng() -> ThreadRng {
-        rand::rng()
-    }
-}
-
-use rand::rand_core::UnwrapErr;
-
-/**
- * `SysRng` is a cryptographically secure random number generator.
- */
-impl CRng for UnwrapErr<SysRng> {}
-
-/**
- * Implements the random number generation [context][`crate::context::Context`] dependency with [`UnwrapErr`] and [`SysRng`].
- * 
- * Note that this will panic if the underlying `SysRng` fails to generate random bytes. It is unclear at this time whether
- * this is a practical concern; for example, in the `ThreadRng` implementation, the following is stated in the documentation:
- * 
- * "Implementations of `TryRng` and Rng panic in case of `SysRng` failure during reseeding (highly unlikely)."
- * 
- * If this is not acceptable, we would have to use the `CTryRng` trait below, which would require changes to all
- * uses of the Rng to handle the potential failure. The benefit of this is questionable, since there is no
- * way to recover from an rng failure anyway.
- */
-impl Rng for UnwrapErr<SysRng> {
-    fn rng() -> UnwrapErr<SysRng> {
-        UnwrapErr(SysRng)
-    }
-}
-
-// Fallible random number generation
-
-/**
- * Marker trait to require a fallible, cryptographically secure random number generator.
- */
-pub trait CTryRng: rand::TryRng + rand::TryCryptoRng {}
-
-/**
- * Fallible random number generation dependency.
- * 
- * Currently a cryptographic [context][`crate::context::Context`] depends on an infallible random number 
- * generator, but this trait allows for a fallible rng to be used in the future if needed.
- *
- * Allows retrieving an fallible rng instance in some [Context][`crate::context::Context`].
- */
-pub trait TRng: CTryRng {
-    /// Returns an rng instance.
-    fn rng() -> Self;
-}
-
-/**
- * `SysRng` is a cryptographically secure random number generator.
- */
-impl CTryRng for SysRng {}
-
-/**
- * Implements the fallible random number generation [context][`crate::context::Context`] dependency with [`SysRng`].
- * 
- * Currently a cryptographic [context][`crate::context::Context`] depends on an infallible random number generator, 
- * but this trait allows for a fallible rng to be used in the future if needed.
- */
-impl TRng for SysRng {
-    fn rng() -> SysRng {
-        SysRng
-    }
-}
