@@ -860,12 +860,6 @@ pub struct Permutation {
 impl Permutation {
     /// Generate a random permutation and its inverse.
     ///
-    /// This function uses the [`SliceRandom`](https://rust-random.github.io/rand/rand/seq/trait.SliceRandom.html#tymethod.shuffle) trait generate the permutation, according
-    /// to which
-    ///
-    /// "The resulting permutation is picked uniformly from the set of all possible
-    /// permutations."
-    ///
     /// Returns a new `Permutation` instance containing the generated permutation and its inverse.
     #[must_use]
     pub fn generate<C: Context>(size: usize) -> Self {
@@ -892,6 +886,18 @@ impl Permutation {
             let j = rng.random_range(0..=i);
             data.swap(i, j);
         }
+    }
+
+    /// Shuffle the given integers in place, using `SliceRandom` from the rand crate.
+    /// 
+    /// This function uses the [`SliceRandom`](https://rust-random.github.io/rand/rand/seq/trait.SliceRandom.html#tymethod.shuffle) trait generate the permutation, according
+    /// to which
+    ///
+    /// "The resulting permutation is picked uniformly from the set of all possible
+    /// permutations."
+    fn shuffle_slice_random<C: Context>(data: &mut [usize], rng: &mut C::Rng) {
+        use rand::seq::SliceRandom;
+        data.shuffle(rng);
     }
 
     /// The length of the permutation and inverse permutation

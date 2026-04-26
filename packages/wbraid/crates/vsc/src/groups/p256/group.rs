@@ -42,7 +42,7 @@ impl CryptographicGroup for P256Group {
     #[crate::warning("Panics on empty input")]
     fn hash_to_scalar(input_slices: &[&[u8]], ds_tags: &[&[u8]]) -> Result<Self::Scalar, Error> {
         let ret = hash_to_scalar::<NistP256, ExpandMsgXmd<Self::Hasher>, U32>(input_slices, ds_tags)
-            .map_err(|e| Error::HashToScalarError(e));
+            .map_err(Error::HashToScalarError);
 
         Ok(P256Scalar(ret?))
     }

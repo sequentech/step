@@ -6,7 +6,7 @@
 
 use rand::rngs::ThreadRng;
 // StdRng
-use rand::{SeedableRng, rngs::StdRng, rngs::SysRng};
+use rand::{rngs::StdRng, rngs::SysRng};
 
 /**
  * Marker trait to require a cryptographically secure random number generator.
@@ -33,9 +33,19 @@ pub trait Rng: CRng {
     fn rng() -> Self;
 }
 
-/**
- * Implements the random number generation [context][`crate::context::Context`] dependency with [`StdRng`].
- */
+/*
+We cannot implement Rng for StdRng because StdRng::try_from_rng is fallible, and our Rng trait is infallible. 
+Additionally, even if constructing StdRng was infallible, it would not an efficient choice, as calls to
+Context::get_rng() are very frequent in small functions.
+
+For now, we will use ThreadRng as the default rng implementation, which is infallible and cryptographically secure. 
+If we want to use StdRng in the future, we can change our Rng trait to be fallible and use some kind of thread
+local storage to store the StdRng instance, so that we only pay the cost of constructing it once per thread. This
+approach would allow us to control the seed of the StdRng instance, which can yield deterministic behaviour for testing
+and debugging purposes.
+ 
+Implements the random number generation [context][`crate::context::Context`] dependency with [`StdRng`].
+
 impl Rng for StdRng {
     fn rng() -> StdRng {
         // rand::rngs::StdRng
@@ -44,7 +54,7 @@ impl Rng for StdRng {
         StdRng::try_from_rng(&mut SysRng).unwrap();
         panic!();
     }
-}
+}*/
 
 /**
  * Implements the random number generation [context][`crate::context::Context`] dependency with [`ThreadRng`].
@@ -64,6 +74,15 @@ impl CRng for UnwrapErr<SysRng> {}
 
 /**
  * Implements the random number generation [context][`crate::context::Context`] dependency with [`UnwrapErr`] and [`SysRng`].
+ * 
+ * Note that this will panic if the underlying `SysRng` fails to generate random bytes. It is unclear at this time whether
+ * this is a practical concern; for example, in the `ThreadRng` implementation, the following is stated in the documentation:
+ * 
+ * "Implementations of `TryRng` and Rng panic in case of `SysRng` failure during reseeding (highly unlikely)."
+ * 
+ * If this is not acceptable, we would have to use the `CTryRng` trait below, which would require changes to all
+ * uses of the Rng to handle the potential failure. The benefit of this is questionable, since there is no
+ * way to recover from an rng failure anyway.
  */
 impl Rng for UnwrapErr<SysRng> {
     fn rng() -> UnwrapErr<SysRng> {
