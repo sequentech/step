@@ -138,7 +138,7 @@ public class CustomAttributeIdpLinkingAuthenticator extends AbstractIdpAuthentic
    * <p>Well-known fields (email, username, id/sub, firstname, lastname) are resolved through their
    * dedicated accessors. Any other name is looked up in the mapped user-attribute collection.
    */
-  String extractClaimValue(BrokeredIdentityContext brokerContext, String claim) {
+  public String extractClaimValue(BrokeredIdentityContext brokerContext, String claim) {
     switch (claim.toLowerCase()) {
       case "email":
         return brokerContext.getEmail();
