@@ -238,6 +238,10 @@ impl Tally {
         let percentage_total_valid_votes = (count_valid as f64 * 100.0) / total_votes_base;
         let percentage_total_invalid_votes = (count_invalid as f64 * 100.0) / total_votes_base;
         let percentage_total_blank_votes = (count_blank as f64 * 100.0) / total_votes_base;
+        let percentage_blank_votes_explicit =
+            (blank_votes.explicit as f64 * 100.0) / total_votes_base;
+        let percentage_blank_votes_implicit =
+            (blank_votes.implicit as f64 * 100.0) / total_votes_base;
         let percentage_invalid_votes_explicit =
             (count_invalid_votes.explicit as f64 * 100.0) / total_votes_base;
         let percentage_invalid_votes_implicit =
@@ -259,8 +263,8 @@ impl Tally {
             total_blank_votes: count_blank,
             percentage_total_blank_votes: percentage_total_blank_votes.clamp(0.0, 100.0),
             blank_votes,
-            percentage_blank_votes_explicit: 0.0,
-            percentage_blank_votes_implicit: 0.0,
+            percentage_blank_votes_explicit: percentage_blank_votes_explicit.clamp(0.0, 100.0),
+            percentage_blank_votes_implicit: percentage_blank_votes_implicit.clamp(0.0, 100.0),
             percentage_invalid_votes_explicit: percentage_invalid_votes_explicit.clamp(0.0, 100.0),
             percentage_invalid_votes_implicit: percentage_invalid_votes_implicit.clamp(0.0, 100.0),
             invalid_votes: count_invalid_votes,
