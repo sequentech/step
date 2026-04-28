@@ -2218,8 +2218,9 @@ const galegoTranslation: TranslationType = {
                 importButton: "Importar",
             },
             notify: {
-                importSuccess:
-                    "Importáronse {{inserted}} certificado(s). {{skipped}} omitido(s) (xa presentes).",
+                importSuccess: "Importáronse {{inserted}} certificado(s).",
+                importSkipped: "{{count}} omitido(s) (xa presentes).",
+                importErrors: "Problemas na importación: {{errors}}",
                 importError: "Erro ao importar: {{error}}",
                 deleteSuccess: "Certificado eliminado.",
                 deleteError: "Erro ao eliminar o certificado.",
