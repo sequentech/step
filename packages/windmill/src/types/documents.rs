@@ -43,11 +43,8 @@ impl EDocuments {
             EDocuments::PUBLICATIONS => "export_publications",
             EDocuments::TALLY => "export_tally_data",
             EDocuments::IMAGES => "images",
-<<<<<<< HEAD
             EDocuments::ELECTION_EVENT_CONFIG => "election_event_config",
-=======
             EDocuments::CERTIFICATES => "export_certificates",
->>>>>>> main
         }
     }
 }
