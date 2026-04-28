@@ -17,6 +17,16 @@ COPY ./keycloak-extensions/ /build/keycloak-extensions/
 WORKDIR /build/keycloak-extensions/
 RUN mvn clean package
 
+# Build the oid4vp extension from source (requires Java 21)
+FROM maven:3-amazoncorretto-21 AS oid4vp-build
+RUN curl -fsSL -o /tmp/oid4vp.tar.gz \
+    https://github.com/ba-itsys/keycloak-extension-oid4vp/archive/refs/tags/v0.6.2.tar.gz \
+ && echo "f6cd968bc77fec4f8e1417d3caeefe4920941e01b119f152f1c9186bbd2b2e15  /tmp/oid4vp.tar.gz" | sha256sum -c - \
+ && mkdir /build \
+ && tar -xzf /tmp/oid4vp.tar.gz -C /build \
+ && cd /build/keycloak-extension-oid4vp-0.6.2 \
+ && mvn clean package -DskipTests
+
 FROM quay.io/keycloak/keycloak:26.4 as builder
 
 # Enable health and metrics support
@@ -53,6 +63,11 @@ COPY --chown=keycloak:keycloak \
    /build/keycloak-extensions/sequent-theme/target/sequent.sequent-theme.jar \
    /build/keycloak-extensions/custom-event-listener/target/sequent.custom-event-listener.jar \
    /build/keycloak-extensions/url-truststore-provider/target/sequent.url-truststore-provider.jar \
+   /opt/keycloak/providers/
+
+COPY --chown=keycloak:keycloak \
+   --from=oid4vp-build \
+   /build/keycloak-extension-oid4vp-0.6.2/target/keycloak-extension-oid4vp.jar \
    /opt/keycloak/providers/
 
 RUN /opt/keycloak/bin/kc.sh build 
