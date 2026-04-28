@@ -470,6 +470,27 @@ impl InvalidVotes {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default, Copy)]
+pub struct BlankVotes {
+    pub explicit: u64,
+    pub implicit: u64,
+}
+
+impl BlankVotes {
+    #[instrument]
+    pub fn aggregate(&self, other: &BlankVotes) -> BlankVotes {
+        let mut sum = *self;
+
+        sum.explicit += other.explicit;
+        sum.implicit += other.implicit;
+        sum
+    }
+
+    pub fn total(&self) -> u64 {
+        self.explicit + self.implicit
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default, Copy)]
 pub struct ExtendedMetricsContest {
     // Voted more candidates than the allowed amount per contest
     pub over_votes: u64,
@@ -523,7 +544,10 @@ pub struct ContestResult {
     pub percentage_total_invalid_votes: f64,
     pub total_blank_votes: u64,
     pub percentage_total_blank_votes: f64,
+    pub blank_votes: BlankVotes,
     pub invalid_votes: InvalidVotes,
+    pub percentage_blank_votes_explicit: f64,
+    pub percentage_blank_votes_implicit: f64,
     pub percentage_invalid_votes_explicit: f64,
     pub percentage_invalid_votes_implicit: f64,
     pub candidate_result: Vec<CandidateResult>,
@@ -570,6 +594,10 @@ impl ContestResult {
             (self.total_invalid_votes as f64 * 100.0) / total_votes_base;
         let percentage_total_blank_votes =
             (self.total_blank_votes as f64 * 100.0) / total_votes_base;
+        let percentage_blank_votes_explicit =
+            (self.blank_votes.explicit as f64 * 100.0) / total_votes_base;
+        let percentage_blank_votes_implicit =
+            (self.blank_votes.implicit as f64 * 100.0) / total_votes_base;
         let percentage_invalid_votes_explicit =
             (self.invalid_votes.explicit as f64 * 100.0) / total_votes_base;
         let percentage_invalid_votes_implicit =
@@ -585,6 +613,10 @@ impl ContestResult {
             percentage_total_invalid_votes.clamp(0.0, 100.0);
         contest_result.percentage_total_blank_votes =
             percentage_total_blank_votes.clamp(0.0, 100.0);
+        contest_result.percentage_blank_votes_explicit =
+            percentage_blank_votes_explicit.clamp(0.0, 100.0);
+        contest_result.percentage_blank_votes_implicit =
+            percentage_blank_votes_implicit.clamp(0.0, 100.0);
         contest_result.percentage_invalid_votes_explicit =
             percentage_invalid_votes_explicit.clamp(0.0, 100.0);
         contest_result.percentage_invalid_votes_implicit =
@@ -606,6 +638,7 @@ impl ContestResult {
         aggregate.total_valid_votes += other.total_valid_votes;
         aggregate.total_invalid_votes += other.total_invalid_votes;
         aggregate.total_blank_votes += other.total_blank_votes;
+        aggregate.blank_votes = aggregate.blank_votes.aggregate(&other.blank_votes);
         aggregate.invalid_votes = aggregate.invalid_votes.aggregate(&other.invalid_votes);
 
         let mut candidate_map: HashMap<String, CandidateResult> = HashMap::new();

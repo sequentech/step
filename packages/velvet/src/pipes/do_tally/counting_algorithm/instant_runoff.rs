@@ -5,7 +5,7 @@
 use super::Result;
 use super::{CountingAlgorithm, Error};
 use crate::pipes::do_tally::{
-    counting_algorithm::utils::*, tally::Tally, CandidateResult, ContestResult,
+    counting_algorithm::utils::*, tally::Tally, BlankVotes, CandidateResult, ContestResult,
     ExtendedMetricsContest, InvalidVotes,
 };
 use rand::prelude::IndexedRandom;
@@ -55,7 +55,7 @@ pub struct BallotsStatus<'a> {
     ballots: Vec<(BallotStatus, &'a DecodedVoteContest, Weight)>,
     count_valid: u64,
     count_invalid_votes: InvalidVotes,
-    count_blank: u64,
+    blank_votes: BlankVotes,
     extended_metrics: ExtendedMetricsContest,
 }
 
@@ -71,13 +71,17 @@ impl BallotsStatus<'_> {
             explicit: 0,
             implicit: 0,
         };
-        let mut count_blank: u64 = 0;
+        let mut blank_votes = BlankVotes::default();
         let mut extended_metrics = ExtendedMetricsContest::default();
         let mut ballots = Vec::with_capacity(votes.len());
 
         for (vote, weight) in votes {
-            let status = match (vote.is_invalid(), vote.is_blank()) {
-                (true, _) => {
+            let status = match (
+                vote.is_invalid(),
+                is_explicit_blank_vote(vote, contest),
+                vote.is_blank(),
+            ) {
+                (true, _, _) => {
                     if vote.is_explicit_invalid {
                         count_invalid_votes.explicit += 1;
                     } else {
@@ -85,17 +89,22 @@ impl BallotsStatus<'_> {
                     }
                     BallotStatus::Invalid
                 }
-                (false, true) => {
-                    count_blank += 1;
+                (false, true, _) => {
+                    blank_votes.explicit += 1;
                     BallotStatus::Blank
                 }
-                (false, false) => BallotStatus::Valid,
+                (false, false, true) => {
+                    blank_votes.implicit += 1;
+                    BallotStatus::Blank
+                }
+                (false, false, false) => BallotStatus::Valid,
             };
             extended_metrics = update_extended_metrics(vote, &extended_metrics, contest);
             ballots.push((status, vote, weight.clone()));
         }
         let total_ballots = votes.len() as u64;
         extended_metrics.total_ballots = total_ballots;
+        let count_blank = blank_votes.total();
         let count_valid = total_ballots
             - count_invalid_votes.explicit
             - count_invalid_votes.implicit
@@ -105,7 +114,7 @@ impl BallotsStatus<'_> {
             count_valid,
             count_invalid_votes,
             extended_metrics,
-            count_blank,
+            blank_votes,
         }
     }
 }
@@ -657,7 +666,8 @@ impl InstantRunoff {
         let votes: &Vec<(DecodedVoteContest, Weight)> = &self.tally.ballots;
 
         let mut ballots_status = BallotsStatus::initialize_ballots_status(votes, contest);
-        let count_blank = ballots_status.count_blank;
+        let blank_votes = ballots_status.blank_votes;
+        let count_blank = blank_votes.total();
         let count_valid = ballots_status.count_valid;
         let count_invalid_votes = ballots_status.count_invalid_votes;
         let count_invalid = count_invalid_votes.explicit + count_invalid_votes.implicit;
@@ -685,7 +695,7 @@ impl InstantRunoff {
 
                 let candidate_result = self.tally.create_candidate_results(
                     vote_count,
-                    count_blank,
+                    blank_votes,
                     count_invalid_votes.clone(),
                     extended_metrics.clone(),
                     count_valid,
@@ -699,7 +709,7 @@ impl InstantRunoff {
         self.tally.create_contest_result(
             process_results,
             candidate_result,
-            count_blank,
+            blank_votes,
             count_invalid_votes,
             extended_metrics,
             count_valid,

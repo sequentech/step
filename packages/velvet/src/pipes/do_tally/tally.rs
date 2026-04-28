@@ -7,7 +7,7 @@ use super::counting_algorithm::{
     instant_runoff::InstantRunoff, plurality_at_large::PluralityAtLarge, CountingAlgorithm,
 };
 use super::error::{Error, Result};
-use super::{CandidateResult, ContestResult, ExtendedMetricsContest, InvalidVotes};
+use super::{BlankVotes, CandidateResult, ContestResult, ExtendedMetricsContest, InvalidVotes};
 use crate::pipes::error::Error as PipesError;
 use crate::pipes::pipe_name::PipeName;
 use crate::utils::parse_file;
@@ -106,7 +106,7 @@ impl Tally {
     pub fn create_candidate_results(
         &self,
         vote_count: HashMap<String, u64>,
-        count_blank: u64,
+        blank_votes: BlankVotes,
         count_invalid_votes: InvalidVotes,
         extended_metrics: ExtendedMetricsContest,
         count_valid: u64,
@@ -131,14 +131,14 @@ impl Tally {
                 let is_explicit_invalid = candidate.is_explicit_invalid();
 
                 if is_explicit_blank {
-                    let percentage_votes = (count_blank as f64
+                    let percentage_votes = (blank_votes.explicit as f64
                         / cmp::max(1, extended_metrics.total_ballots) as f64)
                         * 100.0;
 
                     Ok(CandidateResult {
                         candidate,
                         percentage_votes: percentage_votes.clamp(0.0, 100.0),
-                        total_count: count_blank,
+                        total_count: blank_votes.explicit,
                     })
                 } else if is_explicit_invalid {
                     let percentage_votes = (count_invalid_votes.explicit as f64
@@ -181,14 +181,14 @@ impl Tally {
                     let is_explicit_invalid = candidate.is_explicit_invalid();
 
                     if is_explicit_blank {
-                        let percentage_votes = (count_blank as f64
+                        let percentage_votes = (blank_votes.explicit as f64
                             / cmp::max(1, extended_metrics.total_ballots) as f64)
                             * 100.0;
 
                         Ok(CandidateResult {
                             candidate: candidate.clone(),
                             percentage_votes: percentage_votes.clamp(0.0, 100.0),
-                            total_count: count_blank,
+                            total_count: blank_votes.explicit,
                         })
                     } else if is_explicit_invalid {
                         let percentage_votes = (count_invalid_votes.explicit as f64
@@ -218,7 +218,7 @@ impl Tally {
         &self,
         process_results: Option<Value>,
         candidate_result: Vec<CandidateResult>,
-        count_blank: u64,
+        blank_votes: BlankVotes,
         count_invalid_votes: InvalidVotes,
         extended_metrics: ExtendedMetricsContest,
         count_valid: u64,
@@ -226,6 +226,7 @@ impl Tally {
         percentage_votes_denominator: u64,
     ) -> Result<ContestResult, CntAlgError> {
         let contest = &self.contest;
+        let count_blank = blank_votes.total();
 
         // Calculate percentages
         let total_votes = count_valid + count_invalid;
@@ -257,6 +258,9 @@ impl Tally {
             percentage_total_invalid_votes: percentage_total_invalid_votes.clamp(0.0, 100.0),
             total_blank_votes: count_blank,
             percentage_total_blank_votes: percentage_total_blank_votes.clamp(0.0, 100.0),
+            blank_votes,
+            percentage_blank_votes_explicit: 0.0,
+            percentage_blank_votes_implicit: 0.0,
             percentage_invalid_votes_explicit: percentage_invalid_votes_explicit.clamp(0.0, 100.0),
             percentage_invalid_votes_implicit: percentage_invalid_votes_implicit.clamp(0.0, 100.0),
             invalid_votes: count_invalid_votes,
@@ -280,7 +284,11 @@ pub fn process_tally_sheet(tally_sheet: &TallySheet, contest: &Contest) -> Resul
         implicit: invalid_votes.implicit_invalid.unwrap_or(0),
     };
     let count_invalid: u64 = count_invalid_votes.explicit + count_invalid_votes.implicit;
-    let count_blank: u64 = content.total_blank_votes.unwrap_or(0);
+    let blank_votes = BlankVotes {
+        explicit: 0,
+        implicit: content.total_blank_votes.unwrap_or(0),
+    };
+    let count_blank = blank_votes.total();
 
     let candidate_results = content
         .candidate_results
@@ -323,6 +331,9 @@ pub fn process_tally_sheet(tally_sheet: &TallySheet, contest: &Contest) -> Resul
         percentage_total_invalid_votes: 0.0,
         total_blank_votes: count_blank,
         percentage_total_blank_votes: 0.0,
+        blank_votes,
+        percentage_blank_votes_explicit: 0.0,
+        percentage_blank_votes_implicit: 0.0,
         percentage_invalid_votes_explicit: 0.0,
         percentage_invalid_votes_implicit: 0.0,
         invalid_votes: count_invalid_votes,

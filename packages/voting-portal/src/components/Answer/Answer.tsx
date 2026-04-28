@@ -111,11 +111,7 @@ export const Answer: React.FC<IAnswerProps> = ({
         if (isInvalidVote) {
             return !isUndefined(questionState) && questionState.is_explicit_invalid
         } else if (isExplicitBlankVote) {
-            return (
-                !isUndefined(questionState) &&
-                !!ballotService.checkIsBlank(questionState) &&
-                explicitBlank
-            )
+            return !isUndefined(selectionState) && selectionState.selected > -1
         } else {
             return !isUndefined(selectionState) && selectionState.selected > -1
         }
@@ -136,6 +132,7 @@ export const Answer: React.FC<IAnswerProps> = ({
             setBallotSelectionBlankVote({
                 ballotStyle,
                 contestId,
+                candidateId: answer.id,
             })
         )
     }
@@ -175,6 +172,17 @@ export const Answer: React.FC<IAnswerProps> = ({
                 setBlankVote()
             } else {
                 setExplicitBlank(false)
+                dispatch(
+                    setBallotSelectionVoteChoice({
+                        ballotStyle,
+                        contestId,
+                        voteChoice: {
+                            id: answer.id,
+                            selected: -1,
+                            write_in_text: selectionState?.write_in_text,
+                        },
+                    })
+                )
             }
             return
         } else if (value && explicitBlank) {
@@ -232,10 +240,6 @@ export const Answer: React.FC<IAnswerProps> = ({
     }
 
     if (isReview && !isChecked()) {
-        return null
-    }
-
-    if (isReview && !!isExplicitBlankVote) {
         return null
     }
 

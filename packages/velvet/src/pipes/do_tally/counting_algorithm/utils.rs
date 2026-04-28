@@ -13,19 +13,37 @@ use std::str::FromStr;
 use tracing::{info, instrument};
 use uuid::Uuid;
 
+pub fn is_explicit_blank_vote(vote: &DecodedVoteContest, contest: &Contest) -> bool {
+    vote.choices.iter().any(|choice| {
+        choice.selected > -1
+            && contest
+                .candidates
+                .iter()
+                .find(|candidate| candidate.id == choice.id)
+                .map(|candidate| candidate.is_explicit_blank())
+                .unwrap_or(false)
+    })
+}
+
+fn count_actual_votes(vote: &DecodedVoteContest, contest: &Contest) -> u64 {
+    vote.choices.iter().fold(0u64, |acc, choice| {
+        let is_explicit_blank = contest
+            .candidates
+            .iter()
+            .find(|candidate| candidate.id == choice.id)
+            .map(|candidate| candidate.is_explicit_blank())
+            .unwrap_or(false);
+
+        if choice.selected > -1 && !is_explicit_blank {
+            acc + 1
+        } else {
+            acc
+        }
+    })
+}
+
 fn calculate_undervotes(vote: &DecodedVoteContest, contest: &Contest) -> u64 {
-    // Count actual votes (selected > -1)
-    let actual_votes: u64 =
-        vote.choices.iter().fold(
-            0u64,
-            |acc, choice| {
-                if choice.selected > -1 {
-                    acc + 1
-                } else {
-                    acc
-                }
-            },
-        );
+    let actual_votes = count_actual_votes(vote, contest);
 
     // Calculate undervotes based on max_votes
     let max_votes = contest.max_votes as u64;
@@ -37,18 +55,7 @@ fn calculate_undervotes(vote: &DecodedVoteContest, contest: &Contest) -> u64 {
 }
 
 fn calculate_valid_votes(vote: &DecodedVoteContest, contest: &Contest) -> u64 {
-    // Count actual votes (selected > -1)
-    let actual_votes: u64 =
-        vote.choices.iter().fold(
-            0u64,
-            |acc, choice| {
-                if choice.selected > -1 {
-                    acc + 1
-                } else {
-                    acc
-                }
-            },
-        );
+    let actual_votes = count_actual_votes(vote, contest);
 
     // Check if votes are within valid range
     if actual_votes >= (contest.min_votes as u64) && actual_votes <= (contest.max_votes as u64) {
@@ -59,18 +66,7 @@ fn calculate_valid_votes(vote: &DecodedVoteContest, contest: &Contest) -> u64 {
 }
 
 fn calculate_overvotes(vote: &DecodedVoteContest, contest: &Contest) -> u64 {
-    // Count actual votes (selected > -1)
-    let actual_votes: u64 =
-        vote.choices.iter().fold(
-            0u64,
-            |acc, choice| {
-                if choice.selected > -1 {
-                    acc + 1
-                } else {
-                    acc
-                }
-            },
-        );
+    let actual_votes = count_actual_votes(vote, contest);
 
     // Calculate overvotes if actual votes exceed max_votes
     if actual_votes > (contest.max_votes as u64) {

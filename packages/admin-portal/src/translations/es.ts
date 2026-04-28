@@ -1707,6 +1707,8 @@ const spanishTranslation: TranslationType = {
                 implicit_invalid_votes: "Votos implícitamente inválidos",
                 implicit_invalid_votes_percent: "Porcentaje de votos implícitamente inválidos",
                 blank_votes: "Votos en blanco",
+                explicit_blank_votes: "Votos en blanco explícitos",
+                implicit_blank_votes: "Votos en blanco implícitos",
                 blank_votes_percent: "Porcentaje de votos en blanco",
                 number_of_votes: "Número de votos",
                 winning_position: "Posición ganadora",

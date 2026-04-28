@@ -4,7 +4,7 @@
 
 use super::{CountingAlgorithm, Error};
 use crate::pipes::do_tally::{
-    counting_algorithm::utils::*, tally::Tally, CandidateResult, ContestResult,
+    counting_algorithm::utils::*, tally::Tally, BlankVotes, CandidateResult, ContestResult,
     ExtendedMetricsContest, InvalidVotes,
 };
 use sequent_core::types::ceremonies::{ScopeOperation, TallyOperation};
@@ -35,7 +35,7 @@ impl PluralityAtLarge {
         };
         let mut count_valid: u64 = 0;
         let mut count_invalid: u64 = 0;
-        let mut count_blank: u64 = 0;
+        let mut blank_votes = BlankVotes::default();
 
         let mut extended_metrics = ExtendedMetricsContest::default();
         let mut total_ballots = 0;
@@ -53,11 +53,21 @@ impl PluralityAtLarge {
                     count_invalid_votes.implicit += 1;
                 }
                 count_invalid += 1;
+            } else if is_explicit_blank_vote(vote, contest) {
+                blank_votes.explicit += 1;
+                count_valid += 1;
             } else {
                 let mut is_blank = true;
 
                 for choice in &vote.choices {
-                    if choice.selected >= 0 {
+                    let is_explicit_blank = contest
+                        .candidates
+                        .iter()
+                        .find(|candidate| candidate.id == choice.id)
+                        .map(|candidate| candidate.is_explicit_blank())
+                        .unwrap_or(false);
+
+                    if choice.selected >= 0 && !is_explicit_blank {
                         *vote_count.entry(choice.id.clone()).or_insert(0) += weight;
                         total_weight += weight;
                         if is_blank {
@@ -67,7 +77,7 @@ impl PluralityAtLarge {
                 }
 
                 if is_blank {
-                    count_blank += 1;
+                    blank_votes.implicit += 1;
                 }
 
                 count_valid += 1;
@@ -82,7 +92,7 @@ impl PluralityAtLarge {
             TallyOperation::SkipCandidateResults => Vec::new(),
             _ => self.tally.create_candidate_results(
                 vote_count,
-                count_blank,
+                blank_votes,
                 count_invalid_votes.clone(),
                 extended_metrics.clone(),
                 count_valid,
@@ -94,7 +104,7 @@ impl PluralityAtLarge {
         self.tally.create_contest_result(
             None,
             candidate_result,
-            count_blank,
+            blank_votes,
             count_invalid_votes,
             extended_metrics,
             count_valid,

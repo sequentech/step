@@ -1718,6 +1718,8 @@ const frenchTranslation: TranslationType = {
                 implicit_invalid_votes: "Votes implicitement invalides",
                 implicit_invalid_votes_percent: "Pourcentage de votes implicitement invalides",
                 blank_votes: "Votes blancs",
+                explicit_blank_votes: "Votes blancs explicites",
+                implicit_blank_votes: "Votes blancs implicites",
                 blank_votes_percent: "Pourcentage de votes blancs",
                 number_of_votes: "Nombre de votes",
                 winning_position: "Position gagnante",

@@ -155,6 +155,16 @@ SPDX-License-Identifier: AGPL-3.0-only
           <td style="width: 22.5%;">{{ format_percentage report.contest_result.percentage_total_blank_votes }}%</td>
         </tr>
         <tr>
+          <td style="width: 55%;">Explicit blank votes</td>
+          <td style="width: 22.5%;">{{ format_u64 report.contest_result.blank_votes.explicit }}</td>
+          <td style="width: 22.5%;">{{ format_percentage report.contest_result.percentage_blank_votes_explicit }}%</td>
+        </tr>
+        <tr>
+          <td style="width: 55%;">Implicit blank votes</td>
+          <td style="width: 22.5%;">{{ format_u64 report.contest_result.blank_votes.implicit }}</td>
+          <td style="width: 22.5%;">{{ format_percentage report.contest_result.percentage_blank_votes_implicit }}%</td>
+        </tr>
+        <tr>
           <td style="width: 55%;">Explicit invalid votes</td>
           <td style="width: 22.5%;">{{ format_u64 report.contest_result.invalid_votes.explicit }}</td>
           <td style="width: 22.5%;">{{ format_percentage report.contest_result.percentage_invalid_votes_explicit }}%

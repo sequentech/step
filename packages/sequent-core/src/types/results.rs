@@ -11,6 +11,7 @@ use std::default::Default;
 // Keys for annotations fields in ResultAreaContest
 pub const EXTENDED_METRICS: &str = "extended_metrics";
 pub const PROCESS_RESULTS: &str = "process_results";
+pub const BLANK_VOTES: &str = "blank_votes";
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 pub enum ResultDocumentType {

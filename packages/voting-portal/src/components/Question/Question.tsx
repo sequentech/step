@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, {useEffect, useState} from "react"
+import React, {useEffect, useMemo, useState} from "react"
 import {Box} from "@mui/material"
 import {
     stringToHtml,
@@ -142,6 +142,15 @@ export const Question: React.FC<IQuestionProps> = ({
         selectBallotSelectionQuestion(ballotStyle.election_id, question.id)
     )
     const {checkableLists, checkableCandidates} = getCheckableOptions(question)
+    const explicitBlankCandidateIds = useMemo(
+        () =>
+            new Set(
+                question.candidates
+                    .filter((candidate) => checkIsExplicitBlankVote(candidate))
+                    .map((candidate) => candidate.id)
+            ),
+        [question.candidates]
+    )
 
     // do the shuffling
     const candidatesOrderType = question.presentation?.candidates_order
@@ -173,6 +182,14 @@ export const Question: React.FC<IQuestionProps> = ({
         })
         setSelectedChoicesSum(selectedChoicesCount)
     }, [contestState])
+
+    useEffect(() => {
+        setExplicitBlank(
+            !!contestState?.choices.some(
+                (choice) => explicitBlankCandidateIds.has(choice.id) && choice.selected > -1
+            )
+        )
+    }, [contestState, explicitBlankCandidateIds])
 
     const maxVotesNum = question.max_votes
     const overVoteDisableMode =
