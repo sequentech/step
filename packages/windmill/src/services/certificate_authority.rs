@@ -67,8 +67,8 @@ pub fn split_pem_bundle(pem_content: &str) -> Vec<String> {
 
 /// Parses a single PEM-encoded X.509 certificate and extracts its metadata.
 pub fn parse_certificate_pem(pem: &str) -> Result<ParsedCertificate> {
-    let (_, pem_obj) = parse_x509_pem(pem.as_bytes())
-        .map_err(|e| anyhow!("Failed to parse PEM: {e}"))?;
+    let (_, pem_obj) =
+        parse_x509_pem(pem.as_bytes()).map_err(|e| anyhow!("Failed to parse PEM: {e}"))?;
 
     let cert = pem_obj
         .parse_x509()
@@ -281,5 +281,4 @@ mod tests {
         let certs = split_pem_bundle(pem);
         assert_eq!(certs.len(), 2);
     }
-
 }
