@@ -13,7 +13,7 @@ use uuid::Uuid;
 use x509_parser::pem::parse_x509_pem;
 
 use crate::postgres::certificate_authority::{
-    insert_certificate_authority, CertificateAuthorityRecord,
+    delete_certificate_authorities, insert_certificate_authority, CertificateAuthorityRecord,
 };
 use crate::services::election_event_board::get_election_event_board;
 use crate::services::electoral_log::ElectoralLog;
@@ -249,6 +249,71 @@ pub async fn import_certificate_authority(
         skipped_count,
         errors,
     })
+}
+
+pub async fn delete_certificate_authority(
+    hasura_transaction: Transaction<'_>,
+    ids: &[Uuid],
+    election_event_id: Uuid,
+    tenant_uuid: Uuid,
+    bulletin_board_reference: Option<Value>,
+    tenant_id: &str,
+    user_id: &str,
+    preferred_username: Option<String>,
+) -> Result<i32> {
+    let deleted_subjects =
+        delete_certificate_authorities(&hasura_transaction, ids, election_event_id, tenant_uuid)
+            .await
+            .context("Failed to delete certificate authorities")?;
+
+    let electoral_log = if !deleted_subjects.is_empty() {
+        let board_name = get_election_event_board(bulletin_board_reference)
+            .ok_or_else(|| anyhow!("Missing bulletin board"))?;
+        match ElectoralLog::for_admin_user(
+            &hasura_transaction,
+            &board_name,
+            tenant_id,
+            &election_event_id.to_string(),
+            user_id,
+            preferred_username.clone(),
+            None,
+            None,
+        )
+        .await
+        {
+            Ok(log) => Some(log),
+            Err(e) => {
+                error!("Error initializing electoral log for CA delete: {e:?}");
+                None
+            }
+        }
+    } else {
+        None
+    };
+
+    let deleted_count = deleted_subjects.len();
+
+    hasura_transaction
+        .commit()
+        .await
+        .context("Failed to commit transaction")?;
+
+    if let Some(log) = electoral_log {
+        if let Err(e) = log
+            .post_certificate_auth_event(
+                election_event_id.to_string(),
+                CertificateAuthEventAction::Delete,
+                deleted_subjects,
+                Some(user_id.to_string()),
+                preferred_username,
+            )
+            .await
+        {
+            error!("Error posting CA delete event to electoral log: {e:?}");
+        }
+    }
+
+    Ok(deleted_count as i32)
 }
 
 #[cfg(test)]
