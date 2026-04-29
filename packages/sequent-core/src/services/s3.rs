@@ -322,6 +322,17 @@ pub fn get_public_document_key(
     format!("tenant-{}/document-{}/{}", tenant_id, document_id, name)
 }
 
+#[instrument(skip_all)]
+/// Builds the public document key for an election event.
+/// Used for when the UI does not have access to the document ID.
+pub fn get_public_election_event_document_name_key(
+    tenant_id: &str,
+    election_event_id: &str,
+    name: &str,
+) -> String {
+    format!("tenant-{}/event-{}/{}", tenant_id, election_event_id, name)
+}
+
 #[instrument(err)]
 /// Creates a presigned download URL for a document so clients can fetch files
 /// without proxying the bytes through the backend.

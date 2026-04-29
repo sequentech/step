@@ -380,6 +380,13 @@ const dutchTranslation: TranslationType = {
                         disabled: "Uitgeschakeld",
                     },
                 },
+                languageDetectionPolicy: {
+                    policyLabel: "Taaldetectiebeleid",
+                    options: {
+                        "browser-detect": "Detecteren via browser",
+                        "force-default": "Standaard afdwingen",
+                    },
+                },
             },
             error: {
                 endDate: "Einddatum moet na startdatum liggen",
@@ -2091,6 +2098,9 @@ const dutchTranslation: TranslationType = {
                     document: "Document",
                     url: "URL",
                 },
+            },
+            languages: {
+                default: "Standaardtaal",
             },
         },
         approvalsScreen: {
