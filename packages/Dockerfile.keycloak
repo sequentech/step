@@ -11,6 +11,9 @@
 # To add more software to the image, take a look at
 # https://www.keycloak.org/server/containers#_installing_additional_rpm_packages
 
+ARG OID4VP_VERSION=0.6.2
+ARG OID4VP_SHA256=f6cd968bc77fec4f8e1417d3caeefe4920941e01b119f152f1c9186bbd2b2e15
+
 # Start with a Maven base image to compile the 2FA authenticator
 FROM maven:3-amazoncorretto-17 AS spis-build
 COPY ./keycloak-extensions/ /build/keycloak-extensions/
@@ -19,8 +22,8 @@ RUN mvn clean package
 
 # Build the oid4vp extension from source (requires Java 21)
 FROM maven:3-amazoncorretto-21 AS oid4vp-build
-ARG OID4VP_VERSION=0.6.2
-ARG OID4VP_SHA256=f6cd968bc77fec4f8e1417d3caeefe4920941e01b119f152f1c9186bbd2b2e15
+ARG OID4VP_VERSION
+ARG OID4VP_SHA256
 RUN curl -fsSL -o /tmp/oid4vp.tar.gz \
     https://github.com/ba-itsys/keycloak-extension-oid4vp/archive/refs/tags/v${OID4VP_VERSION}.tar.gz \
  && echo "${OID4VP_SHA256}  /tmp/oid4vp.tar.gz" | sha256sum -c - \
@@ -30,7 +33,7 @@ RUN curl -fsSL -o /tmp/oid4vp.tar.gz \
  && mvn -B clean package -DskipTests
 
 FROM quay.io/keycloak/keycloak:26.4 as builder
-ARG OID4VP_VERSION=0.6.2
+ARG OID4VP_VERSION
 
 # Enable health and metrics support
 ENV KC_HEALTH_ENABLED=true
