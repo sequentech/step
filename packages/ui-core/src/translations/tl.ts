@@ -108,7 +108,13 @@ const tagalogTranslation: TranslationType = {
             explicit: {
                 notAllowed:
                     "Ang balota ay tahasang minarkahan upang mapawalang-bisa ngunit hindi ito pinapayagan ng tanong",
-                alert: "An seleksyon na minarkahan ibibilang na bakong balidong boto.",
+                alert: "Ang minarkahang pagpili ay ituturing na hindi wastong boto.",
+            },
+            configuration: {
+                multipleExplicitInvalidCandidates:
+                    "Hindi wastong configuration ng balota: may {{count}} tahasang invalid na kandidato sa contest, ngunit isa lamang ang pinapayagan.",
+                multipleExplicitBlankCandidates:
+                    "Hindi wastong configuration ng balota: may {{count}} tahasang blankong kandidato sa contest, ngunit isa lamang ang pinapayagan.",
             },
         },
         ballotHash: "Ang Iyong Ballot ID: {{ballotId}}",

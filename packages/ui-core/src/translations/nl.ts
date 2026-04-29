@@ -110,6 +110,12 @@ const dutchTranslation: TranslationType = {
                     "Stembiljet expliciet ongeldig gemarkeerd maar vraag staat dit niet toe",
                 alert: "Gemarkeerde selectie wordt als ongeldige stem beschouwd.",
             },
+            configuration: {
+                multipleExplicitInvalidCandidates:
+                    "Ongeldige stemconfiguratie: de verkiezing definieert {{count}} expliciet ongeldige kandidaten, maar er is er maar één toegestaan.",
+                multipleExplicitBlankCandidates:
+                    "Ongeldige stemconfiguratie: de verkiezing definieert {{count}} expliciete blanco kandidaten, maar er is er maar één toegestaan.",
+            },
         },
         ballotHash: "Your Ballot ID: {{ballotId}}",
         version: {

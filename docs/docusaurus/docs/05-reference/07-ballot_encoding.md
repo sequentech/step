@@ -1,6 +1,6 @@
 ---
 id: ballot_encoding
-title: Ballot Encoding Reference
+title: Ballot Encoding Specification
 ---
 
 <!--
@@ -8,139 +8,425 @@ title: Ballot Encoding Reference
 SPDX-License-Identifier: AGPL-3.0-only
 -->
 
-This reference describes the single-contest ballot codec implemented in
-`packages/sequent-core/src/ballot_codec/`. It focuses on how a decoded contest
-is transformed into the mixed-radix representation that is later serialized
-into the encrypted 30-byte ballot payload.
+This document specifies the ballot encoding used to transform human-readable
+ballot selections into the compact numeric representation that is later
+serialized, encrypted, audited, decoded, and tallied.
 
-## Scope
+The goal of this specification is to be implementation-neutral. Any compatible
+encoder or decoder should be able to interoperate as long as it follows the
+rules below.
 
-The single-contest codec is used by the `RawBallotCodec`, `BasesCodec`, and
-`BigintCodec` traits in `sequent-core`. The flow is:
+## 1. Design goals
 
-1. `DecodedVoteContest`
-2. `RawBallotContest { bases, choices }`
-3. `BigUint`
-4. fixed-size byte array for encryption
+The codec is designed to satisfy the following requirements:
 
-The same codec is also used in reverse when a ballot is decoded for review,
-verification, and tallying.
+1. **Determinism** — the same ballot configuration and the same voter
+   selections must always produce the same encoded values.
+2. **Compactness** — the encoded ballot must fit in a fixed-size encrypted
+   payload.
+3. **Reversibility** — decoding must reconstruct the original ballot semantics,
+   including explicit invalid and explicit blank markers.
+4. **Auditability** — the representation must be stable enough for independent
+   verifiers and external implementations.
+5. **Policy preservation** — the codec must preserve the distinctions required
+   by ballot validation and tallying, especially the difference between:
+   - a normal vote,
+   - an explicit invalid vote,
+   - an implicit blank vote,
+   - an explicit blank vote.
 
-## Raw ballot structure
+## 2. Terms
 
-`RawBallotContest` is made of two parallel vectors:
+### 2.1 Contest
 
-- `bases`: the radix used for each position
-- `choices`: the value encoded at each position
+A contest is a single voting unit within a ballot. Each contest has its own:
 
-For plurality contests without write-ins, the raw ballot layout is:
+- candidate list,
+- counting algorithm,
+- minimum and maximum selections,
+- validation policies,
+- optional write-in support.
 
-| Position | Meaning | Base | Values |
-| --- | --- | --- | --- |
-| `0` | explicit invalid flag | `2` | `0 = normal`, `1 = explicit invalid` |
-| `1` | explicit blank flag, only if the contest has an explicit blank candidate | `2` | `0 = not selected`, `1 = selected` |
-| remaining positions | normal candidate selections in candidate-id order | `2` | `0 = not selected`, `1 = selected` |
+### 2.2 Candidate classes
 
-For preferential contests, the candidate slots use `contest.max_votes + 1` as
-their base:
+Each candidate belongs to exactly one of the following logical classes for
+encoding purposes:
 
-- `0` means “not selected”
-- `1..n` means rank/position plus one
+1. **Normal candidate**
+2. **Explicit invalid marker**
+3. **Explicit blank marker**
+4. **Write-in candidate**
 
-Write-in contests append character-map based slots after the candidate section.
+### 2.3 Ballot states relevant to encoding
 
-## Explicit versus implicit blank votes
+For each contest, the codec must distinguish the following states:
 
-Blank votes are represented in two different ways:
+- **Normal vote**: one or more normal candidates are selected
+- **Explicit invalid**: the contest is deliberately marked invalid
+- **Implicit blank**: no selectable option is chosen
+- **Explicit blank**: the dedicated blank option is chosen
 
-- **Implicit blank vote**: no candidate is selected and the explicit blank flag
-  is `0`
-- **Explicit blank vote**: the contest includes one explicit blank candidate and
-  the explicit blank flag is set to `1`
+## 3. Global rules
 
-Explicit blank candidates are **not** encoded as ordinary candidate selections.
-They are stored in the dedicated explicit blank flag so that:
+### 3.1 Stable ordering
 
-- explicit and implicit blank votes produce different encoded ballots
-- decoding can reconstruct the explicit blank candidate as selected
-- blank-vote validation still treats the contest as a blank vote instead of a
-  normal candidate selection
+Whenever a sequence of candidates must be encoded positionally, candidates are
+ordered by **candidate identifier in ascending order** unless a more specific
+rule is defined for a different codec mode.
 
-## Candidate ordering
+### 3.2 Uniqueness constraints
 
-Normal candidate slots are encoded using the contest candidates sorted by
-candidate id. Two candidate types are excluded from the ordinary candidate
-section:
+A valid contest configuration may contain:
 
-- explicit invalid candidates
-- explicit blank candidates
+- **at most one explicit invalid marker**
+- **at most one explicit blank marker**
 
-This keeps both flags orthogonal to the regular candidate marks.
+Configurations that violate either rule are invalid and must be rejected before
+the voter is allowed to proceed. An implementation must not silently choose one
+marker and ignore the others.
 
-## Examples
+### 3.3 Mixed-radix representation
+
+The codec produces two aligned vectors:
+
+- `bases`: the radix of each position
+- `choices`: the encoded value stored at that position
+
+The encoded integer is obtained by interpreting `choices` under the positional
+radices defined by `bases`.
+
+## 4. Single-contest codec
+
+The single-contest codec is the reference format for one contest encoded into a
+fixed ballot payload.
+
+### 4.1 Layout overview
+
+The encoded vector is composed in this order:
+
+1. **explicit invalid flag**
+2. **explicit blank flag**, if the contest defines an explicit blank marker
+3. **ordinary candidate section**
+4. **write-in text section**, if write-ins are enabled
+
+### 4.2 Explicit invalid flag
+
+The first position is always reserved for the explicit invalid flag.
+
+- base: `2`
+- values:
+  - `0` = contest is not explicitly invalid
+  - `1` = contest is explicitly invalid
+
+This flag is orthogonal to all candidate slots.
+
+### 4.3 Explicit blank flag
+
+If the contest defines an explicit blank marker, the second position is
+reserved for the explicit blank flag.
+
+- base: `2`
+- values:
+  - `0` = explicit blank not selected
+  - `1` = explicit blank selected
+
+The explicit blank marker is **not** encoded as an ordinary candidate choice.
+It has its own dedicated slot so that an explicit blank vote remains distinct
+from an implicit blank vote.
+
+### 4.4 Ordinary candidate section
+
+The ordinary candidate section contains all candidates that are **not**:
+
+- explicit invalid markers, and
+- explicit blank markers.
+
+These positions encode the actual voted options.
+
+#### 4.4.1 Plurality-style contests
+
+For plurality-style contests, each ordinary candidate receives one slot.
+
+- base: `2`
+- values:
+  - `0` = not selected
+  - `1` = selected
+
+#### 4.4.2 Ranked or preferential contests
+
+For preferential contests, each ordinary candidate receives one slot whose base
+is:
+
+```text
+max_votes + 1
+```
+
+Values are interpreted as:
+
+- `0` = candidate not ranked
+- `1` = first usable rank
+- `2` = second usable rank
+- `...`
+- `n` = rank `n`
+
+The zero value is therefore reserved for absence of selection, and positive
+values encode rank plus an offset of one.
+
+#### 4.4.3 Cumulative contests
+
+For cumulative contests, each ordinary candidate slot uses:
+
+```text
+cumulative_number_of_checkboxes + 1
+```
+
+The zero value means no selection, and positive values represent the configured
+selection strength according to the contest’s cumulative policy.
+
+### 4.5 Write-in section
+
+If write-ins are enabled, a text section is appended after the candidate
+section.
+
+Each write-in string is encoded as:
+
+1. zero or more character values using the configured character map
+2. a terminating zero value
+
+Therefore each write-in occupies a variable-length subsequence ending in a
+sentinel zero.
+
+An empty write-in is encoded as only the terminating zero.
+
+## 5. Meaning of blank votes
+
+### 5.1 Implicit blank
+
+A contest is an **implicit blank vote** if:
+
+- the explicit invalid flag is `0`
+- the explicit blank flag is either absent or `0`
+- all ordinary candidate slots are unset
+- all write-in values are empty
+
+### 5.2 Explicit blank
+
+A contest is an **explicit blank vote** if:
+
+- the explicit blank flag is `1`
+- no ordinary candidate is selected
+
+The explicit blank state must survive round-trip encode/decode unchanged.
+
+### 5.3 Tallying interpretation
+
+For tallying purposes:
+
+- implicit blank and explicit blank both contribute to the overall blank total
+- explicit blank must remain distinguishable from implicit blank in decoded and
+  reported data
+- explicit blank must **not** be counted as a normal candidate vote
+
+## 6. Meaning of explicit invalid votes
+
+An explicit invalid vote is represented only by the explicit invalid flag.
+
+It is not encoded as a candidate selection and must remain distinct from:
+
+- overvotes,
+- undervotes,
+- implicit blank votes,
+- explicit blank votes.
+
+## 7. Decoding rules for the single-contest codec
+
+A decoder must process the encoded vector in the following order:
+
+1. read the explicit invalid flag
+2. if present, read the explicit blank flag
+3. decode the ordinary candidate section
+4. decode the write-in section
+5. reconstruct the semantic contest state
+
+### 7.1 Reconstruction requirements
+
+After decoding:
+
+- an explicit invalid flag must reconstruct the explicit invalid state
+- an explicit blank flag must reconstruct the dedicated blank candidate as
+  selected
+- ordinary candidate slots must reconstruct normal candidate selections
+- write-in text must reconstruct the original text sequence
+
+## 8. Validation rules
+
+Validation happens at two distinct levels and both are required.
+
+### 8.1 Configuration validation
+
+Before any ballot is cast, the contest definition must be checked for structural
+consistency, including:
+
+- no more than one explicit invalid marker
+- no more than one explicit blank marker
+- valid numeric constraints for minimum and maximum votes
+- any other constraints required by the contest type
+
+If configuration validation fails, the voting flow must stop before casting.
+
+### 8.2 Ballot-state validation
+
+After decoding, the resulting selections are evaluated against the contest
+policies, including:
+
+- minimum selections
+- maximum selections
+- invalid vote policy
+- blank vote policy
+- undervote and overvote policies
+- duplicated rank policy
+- preference-gap policy
+
+An explicit blank vote must still be treated as a blank vote when applying blank
+vote policy. It must not be treated as a normal candidate selection.
+
+## 9. Error conditions
+
+Compatible implementations must detect and report at least the following error
+classes:
+
+### 9.1 Configuration errors
+
+- more than one explicit invalid marker
+- more than one explicit blank marker
+- invalid voting bounds
+
+### 9.2 Structural decoding errors
+
+- too few encoded positions
+- values outside the allowed base range
+- incomplete write-in terminators
+- trailing unexpected data
+- invalid character-map decoding
+
+### 9.3 Semantic ballot errors
+
+- overvote
+- undervote
+- disallowed explicit invalid vote
+- duplicated preference positions
+- gaps in ranked preferences
+
+## 10. Canonical examples
 
 Assume a plurality contest with:
 
-- one explicit blank candidate
+- one explicit invalid marker
+- one explicit blank marker
 - two normal candidates
 - no write-ins
 
-The bases are:
+The base vector is:
 
 ```text
 [2, 2, 2, 2]
 ```
 
-### Implicit blank vote
+The positions mean:
 
-No candidate selected:
+1. explicit invalid flag
+2. explicit blank flag
+3. first ordinary candidate
+4. second ordinary candidate
+
+### 10.1 Implicit blank
 
 ```text
 choices = [0, 0, 0, 0]
 ```
 
-### Explicit blank vote
-
-Explicit blank selected:
+### 10.2 Explicit blank
 
 ```text
 choices = [0, 1, 0, 0]
 ```
 
-### Explicit invalid vote
+### 10.3 Normal vote for the first ordinary candidate
 
-Explicit invalid selected:
+```text
+choices = [0, 0, 1, 0]
+```
+
+### 10.4 Explicit invalid
 
 ```text
 choices = [1, 0, 0, 0]
 ```
 
-## Decoding rules
+## 11. Multi-contest codec
 
-When decoding a raw ballot:
+The platform also defines a compact multi-contest codec for bundling several
+plurality contests into one encoded payload.
 
-1. the explicit invalid flag is read first
-2. if the contest has an explicit blank candidate, the explicit blank flag is
-   read second
-3. the remaining candidate slots are decoded in candidate-id order
-4. the decoded explicit blank candidate is reintroduced as a selected choice
-   when the explicit blank flag is set
+### 11.1 Scope
 
-The decoded contest therefore preserves the semantic difference between:
+This codec is intended for:
 
-- an empty contest
-- an explicit blank selection
-- an explicit invalid selection
+- plurality-at-large contests only
+- no write-ins
+- one ballot-level explicit invalid flag
 
-## Validation notes
+### 11.2 Layout
 
-Blank-vote policy checks continue to operate on the number of **non-explicit
-blank** candidate selections. This means an explicit blank selection is still
-validated as a blank vote, not as a regular candidate mark.
+The multi-contest representation is:
 
-## Related code
+1. one ballot-level explicit invalid flag
+2. a contiguous block of fixed-size contest segments
 
-- `packages/sequent-core/src/ballot_codec/bases.rs`
-- `packages/sequent-core/src/ballot_codec/raw_ballot.rs`
-- `packages/sequent-core/src/ballot_codec/bigint.rs`
-- `packages/sequent-core/src/fixtures/ballot_codec.rs`
+Each contest segment has exactly `max_votes` positions.
+
+### 11.3 Slot meaning
+
+Each position in a contest segment uses:
+
+```text
+number_of_ordinary_candidates + 1
+```
+
+Values are interpreted as:
+
+- `0` = unused slot
+- `1..n` = selected candidate position plus one
+
+Unlike the single-contest codec, the multi-contest codec is **sparse**: it
+stores up to `max_votes` selected candidate references rather than one boolean
+slot per ordinary candidate.
+
+### 11.4 Decoding
+
+To decode a multi-contest ballot:
+
+1. read the ballot-level explicit invalid flag
+2. partition the remaining positions by contest, in contest order
+3. decode each non-zero slot back to its candidate reference
+4. reconstruct the decoded contest selections
+5. apply the same semantic validation rules described earlier
+
+## 12. Interoperability requirements
+
+An implementation is compatible with this specification only if it:
+
+1. preserves the distinction between explicit blank and implicit blank
+2. preserves explicit invalid markers
+3. uses the same stable candidate ordering
+4. applies the same positional offsets and zero-value conventions
+5. rejects invalid configurations with duplicated explicit markers
+6. decodes write-ins using the same delimiter semantics
+7. applies policy validation after decoding
+
+## 13. Backward-compatibility expectation
+
+Consumers that only understand the aggregate blank count may continue to use the
+consolidated blank total. Consumers that need full semantic fidelity must retain
+the explicit-versus-implicit blank distinction exposed by decoding and tally
+results.

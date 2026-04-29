@@ -62,6 +62,7 @@ import {TenantEventType} from ".."
 import Stepper from "../components/Stepper"
 import {clearIsVoted, selectBypassChooser, setBypassChooser} from "../store/extra/extraSlice"
 import {updateBallotStyleAndSelection} from "../services/BallotStyles"
+import {BallotStyleConfigurationError} from "../services/BallotStyles"
 import useUpdateTranslation from "../hooks/useUpdateTranslation"
 import {GET_SUPPORT_MATERIALS} from "../queries/GetSupportMaterials"
 import {setSupportMaterial} from "../store/supportMaterials/supportMaterialsSlice"
@@ -419,10 +420,14 @@ const ElectionSelectionScreen: React.FC = () => {
         if (dataBallotStyles && dataBallotStyles.sequent_backend_ballot_style.length > 0) {
             try {
                 updateBallotStyleAndSelection(dataBallotStyles, dispatch)
-            } catch {
-                setErrorMsg(
-                    t(`electionSelectionScreen.errors.${ElectionScreenErrorType.BALLOT_STYLES_EML}`)
-                )
+            } catch (error) {
+                if (error instanceof BallotStyleConfigurationError) {
+                    setErrorMsg(t(error.translationKey, error.translationParams))
+                } else {
+                    setErrorMsg(
+                        t(`electionSelectionScreen.errors.${ElectionScreenErrorType.BALLOT_STYLES_EML}`)
+                    )
+                }
             }
         } else if (globalSettings.DISABLE_AUTH) {
             //fakeUpdateBallotStyleAndSelection(dispatch)

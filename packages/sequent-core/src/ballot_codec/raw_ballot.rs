@@ -41,20 +41,17 @@ pub trait RawBallotCodec {
 fn get_explicit_blank_candidate(
     contest: &Contest,
 ) -> Result<Option<&Candidate>, String> {
-    let mut explicit_blank_candidates = contest
-        .candidates
-        .iter()
-        .filter(|candidate| candidate.is_explicit_blank());
-
-    let explicit_blank_candidate = explicit_blank_candidates.next();
-    if explicit_blank_candidates.next().is_some() {
-        return Err(
-            "contest cannot contain more than one explicit blank candidate"
-                .to_string(),
-        );
+    let configuration_errors = check_contest_configuration(contest);
+    if let Some(error) = configuration_errors.invalid_errors.first() {
+        return Err(error.message.clone().unwrap_or_else(|| {
+            "contest has an invalid configuration".to_string()
+        }));
     }
 
-    Ok(explicit_blank_candidate)
+    Ok(contest
+        .candidates
+        .iter()
+        .find(|candidate| candidate.is_explicit_blank()))
 }
 
 impl RawBallotCodec for Contest {

@@ -110,6 +110,12 @@ const frenchTranslation: TranslationType = {
                     "Vote marqué explicitement comme invalide mais la question ne le permet pas",
                 alert: "La sélection marquée sera considérée comme un vote invalide.",
             },
+            configuration: {
+                multipleExplicitInvalidCandidates:
+                    "Configuration du bulletin invalide : le scrutin définit {{count}} candidats explicitement invalides, mais un seul est autorisé.",
+                multipleExplicitBlankCandidates:
+                    "Configuration du bulletin invalide : le scrutin définit {{count}} candidats de vote blanc explicite, mais un seul est autorisé.",
+            },
         },
         ballotHash: "Votre Localisateur de Vote : {{ballotId}}",
         version: {

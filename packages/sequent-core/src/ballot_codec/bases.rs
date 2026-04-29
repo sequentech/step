@@ -1,7 +1,10 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use crate::{ballot::*, types::ceremonies::CountingAlgType};
+use crate::{
+    ballot::*, ballot_codec::check_contest_configuration,
+    types::ceremonies::CountingAlgType,
+};
 use anyhow::Result;
 use std::convert::TryInto;
 
@@ -12,6 +15,16 @@ pub trait BasesCodec {
 
 impl BasesCodec for Contest {
     fn get_bases(&self) -> Result<Vec<u64>> {
+        let configuration_errors = check_contest_configuration(self);
+        if let Some(error) = configuration_errors.invalid_errors.first() {
+            return Err(anyhow::anyhow!(
+                "{}",
+                error.message.clone().unwrap_or_else(|| {
+                    "contest has an invalid configuration".to_string()
+                })
+            ));
+        }
+
         // Calculate the base for candidates. It depends on the
         // `contest.counting_algorithm`:
         // - plurality-at-large: base 2 (value can be either 0 o 1)

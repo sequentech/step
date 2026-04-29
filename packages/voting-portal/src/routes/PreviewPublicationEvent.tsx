@@ -13,7 +13,9 @@ import {
     Sequent_Backend_Election_Event,
     Sequent_Backend_Support_Material,
 } from "../gql/graphql"
-import {IBallotStyle as IElectionDTO} from "@sequentech/ui-core"
+import {
+    IBallotStyle as IElectionDTO,
+} from "@sequentech/ui-core"
 import {cloneDeep} from "lodash"
 import {useAppDispatch, useAppSelector} from "../store/hooks"
 import {
@@ -27,6 +29,10 @@ import {setElection} from "../store/elections/electionsSlice"
 import {setElectionEvent} from "../store/electionEvents/electionEventsSlice"
 import {setSupportMaterial} from "../store/supportMaterials/supportMaterialsSlice"
 import {setDocument} from "../store/documents/documentsSlice"
+import {
+    BallotStyleConfigurationError,
+    getBallotStyleConfigurationError,
+} from "../services/BallotStyles"
 
 interface PreviewDocument {
     ballot_styles: Array<IElectionDTO>
@@ -72,6 +78,10 @@ export const updateBallotStyleAndSelection = (
         }
         try {
             const eml: IElectionDTO = cloneDeep(ballotStyle)
+            const configurationError = getBallotStyleConfigurationError(eml)
+            if (configurationError) {
+                throw configurationError
+            }
 
             const formattedBallotStyle: IBallotStyle = {
                 id: ballotStyle.election_id,

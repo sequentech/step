@@ -10,9 +10,9 @@ use crate::ballot::{
     AreaPresentation, BallotStyle, Candidate, Contest, EUnderVotePolicy,
 };
 use crate::ballot_codec::{
-    check_blank_vote_policy, check_invalid_vote_policy,
-    check_max_min_votes_policy, check_min_vote_policy, check_over_vote_policy,
-    check_under_vote_policy,
+    check_blank_vote_policy, check_contest_configuration,
+    check_invalid_vote_policy, check_max_min_votes_policy,
+    check_min_vote_policy, check_over_vote_policy, check_under_vote_policy,
 };
 use crate::error::BallotError;
 use crate::mixed_radix;
@@ -291,6 +291,13 @@ impl BallotChoices {
         contest: &Contest,
         plaintext: &ContestChoices,
     ) -> Result<Vec<u64>, String> {
+        let configuration_errors = check_contest_configuration(contest);
+        if let Some(error) = configuration_errors.invalid_errors.first() {
+            return Err(error.message.clone().unwrap_or_else(|| {
+                "contest has an invalid configuration".to_string()
+            }));
+        }
+
         // A choice of a candidate is represented as that candidate's
         // position in the candidate list, sorted by id. The
         // same sorting order must be used to interpret
@@ -566,6 +573,13 @@ impl BallotChoices {
         choices: &[u64],
         is_explicit_invalid: bool,
     ) -> Result<DecodedContestChoices, String> {
+        let configuration_errors = check_contest_configuration(contest);
+        if let Some(error) = configuration_errors.invalid_errors.first() {
+            return Err(error.message.clone().unwrap_or_else(|| {
+                "contest has an invalid configuration".to_string()
+            }));
+        }
+
         let mut decoded_contest = DecodedContestChoices::new(
             contest.id.clone(),
             vec![],
@@ -735,6 +749,13 @@ impl BallotChoices {
         sorted_contests.sort_by_key(|c| c.id.clone());
 
         for contest in sorted_contests {
+            let configuration_errors = check_contest_configuration(&contest);
+            if let Some(error) = configuration_errors.invalid_errors.first() {
+                return Err(error.message.clone().unwrap_or_else(|| {
+                    "contest has an invalid configuration".to_string()
+                }));
+            }
+
             // Compact encoding only supports plurality
             if contest.get_counting_algorithm()
                 != CountingAlgType::PluralityAtLarge
