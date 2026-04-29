@@ -15,6 +15,7 @@ use crate::postgres::election_event::get_election_event_by_id;
 use crate::postgres::keys_ceremony::get_keys_ceremonies;
 use crate::postgres::scheduled_event::find_scheduled_event_by_election_event_id;
 use crate::services::database::get_hasura_pool;
+use crate::services::documents::upload_and_return_public_event_document;
 use crate::services::election_dates::get_election_dates;
 use crate::types::error::{Error, Result};
 use anyhow::{anyhow, Context, Result as AnyhowResult};
@@ -22,13 +23,16 @@ use chrono::Duration;
 use deadpool_postgres::{Client as DbClient, Transaction};
 use futures::try_join;
 use rocket::http::Status;
+use sequent_core::ballot::ElectionEventPresentation;
 use sequent_core::types::hasura::core::{
     self as hasura_type, Area, AreaContest, BallotPublication, BallotStyle, Candidate, Contest,
     Election, ElectionEvent, KeysCeremony,
 };
 use sequent_core::types::scheduled_event::ScheduledEvent;
+use serde::{Deserialize, Serialize};
 
 use std::collections::{HashMap, HashSet};
+use std::io::Write;
 use tracing::{event, instrument, Level};
 use uuid::Uuid;
 
@@ -36,6 +40,16 @@ use crate::services::pg_lock::PgLock;
 use sequent_core::services::date::ISO8601;
 
 use sequent_core::services::area_tree::TreeNode;
+
+pub const EVENT_CONFIG_FILE_NAME: &str = "election_event_config.json";
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct ElectionEventConfig {
+    pub id: String,
+    pub election_event_id: String,
+    pub tenant_id: String,
+    pub election_event_presentation: ElectionEventPresentation,
+}
 
 /**
  * Returns a HashMap<election_id, set<contest_id>> with all
@@ -184,6 +198,49 @@ pub async fn create_ballot_style_postgres(
     Ok(())
 }
 
+/// Creates a JSON file with the election event config with presentation data
+///  and uploads it to S3 public bucket.
+pub async fn create_public_election_event_config_file(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event: &ElectionEvent,
+) -> AnyhowResult<()> {
+    let event_presentation = election_event.get_presentation()?;
+    if let Some(presentation) = event_presentation {
+        let id = Uuid::new_v4().to_string();
+
+        let config_data = ElectionEventConfig {
+            id: id.clone(),
+            tenant_id: tenant_id.to_string(),
+            election_event_id: election_event.id.clone(),
+            election_event_presentation: presentation,
+        };
+
+        let config_json = serde_json::to_string(&config_data)?;
+        // Write to temp file
+        let mut temp_file = tempfile::NamedTempFile::new()?;
+        temp_file.write_all(config_json.as_bytes())?;
+
+        let temp_file_path = temp_file.path().to_string_lossy().to_string();
+        let file_size = config_json.len() as u64;
+
+        // Upload to S3 public bucket with election_event_id in path
+        let _document = upload_and_return_public_event_document(
+            hasura_transaction,
+            &temp_file_path,
+            file_size,
+            "application/json",
+            tenant_id,
+            election_event.id.as_str(),
+            EVENT_CONFIG_FILE_NAME,
+            Some(id),
+        )
+        .await?;
+    }
+
+    Ok(())
+}
+
 #[instrument(err)]
 pub async fn update_election_event_ballot_styles(
     tenant_id: &str,
@@ -291,6 +348,8 @@ pub async fn update_election_event_ballot_styles(
         None,
     )
     .await?;
+
+    create_public_election_event_config_file(&transaction, tenant_id, &election_event).await?;
 
     let _commit = transaction.commit().await.with_context(|| "Commit failed");
     lock.release().await?;

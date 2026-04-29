@@ -7,7 +7,9 @@ use crate::postgres::election_event::{get_election_event_by_id_if_exist, update_
 use crate::postgres::reports::insert_reports;
 use crate::postgres::reports::Report;
 use crate::postgres::trustee::get_all_trustees;
-use crate::services::import::import_publications::import_ballot_publications;
+use crate::services::import::import_publications::{
+    import_ballot_publications, import_election_event_config_file,
+};
 use crate::services::import::import_scheduled_events::import_scheduled_events;
 use crate::services::import::import_tally::process_tally_file;
 use crate::services::protocol_manager::get_event_board;
@@ -22,8 +24,8 @@ use chrono::format;
 use chrono::{DateTime, Utc};
 use deadpool_postgres::{Client as DbClient, Transaction};
 use futures::future::try_join_all;
+use keycloak::types::RealmEventsConfigRepresentation;
 use once_cell::sync::Lazy;
-use sequent_core::ballot::AllowTallyStatus;
 use sequent_core::ballot::ElectionEventStatistics;
 use sequent_core::ballot::ElectionEventStatus;
 use sequent_core::ballot::ElectionStatistics;
@@ -31,6 +33,7 @@ use sequent_core::ballot::ElectionStatus;
 use sequent_core::ballot::PeriodDates;
 use sequent_core::ballot::VotingPeriodDates;
 use sequent_core::ballot::VotingStatus;
+use sequent_core::ballot::{AllowTallyStatus, LanguageDetectionPolicy};
 use sequent_core::serialization::deserialize_with_path::deserialize_str;
 use sequent_core::serialization::deserialize_with_path::deserialize_value;
 use sequent_core::services::connection;
@@ -44,6 +47,7 @@ use sequent_core::types::hasura::core::AreaContest;
 use sequent_core::types::hasura::core::Document;
 use sequent_core::types::hasura::core::KeysCeremony;
 use sequent_core::types::hasura::core::TasksExecution;
+use sequent_core::util::locale::iso_639_2t_to_bcp47;
 use sequent_core::util::mime::{get_mime_types, matches_mime};
 use sequent_core::util::version::{
     check_version_compatibility, DEV_APP_VERSION, ENV_VAR_APP_VERSION,
@@ -319,6 +323,7 @@ pub async fn upsert_keycloak_realm(
     tenant_id: &str,
     election_event_id: &str,
     keycloak_event_realm: Option<RealmRepresentation>,
+    default_locale: Option<String>,
 ) -> Result<()> {
     let mut realm = if let Some(realm) = keycloak_event_realm.clone() {
         realm
@@ -326,6 +331,21 @@ pub async fn upsert_keycloak_realm(
         let realm = read_default_election_event_realm()?;
         realm
     };
+
+    if let Some(default_language) = default_locale {
+        // Keycloak uses BCP 47 locale codes; convert from ISO 639-2/T if needed
+        let keycloak_locale = iso_639_2t_to_bcp47(&default_language).to_string();
+        realm.default_locale = Some(keycloak_locale);
+        let mut attrs = realm.attributes.clone().unwrap_or_default();
+        attrs.insert(
+            "language_detection_policy".to_string(),
+            "force-default".to_string(),
+        );
+        // Store the internal locale code so the login template can set USER_LANGUAGE correctly
+        attrs.insert("forced_language_code".to_string(), default_language.clone());
+        realm.attributes = Some(attrs);
+    }
+
     realm = remove_keycloak_realm_secrets(&realm)?;
     let realm_config = serde_json::to_string(&realm)?;
     let client = KeycloakAdminClient::new().await?;
@@ -604,10 +624,17 @@ pub async fn process_election_event_file(
         .collect::<Result<Vec<Election>>>()
         .with_context(|| "Error processing elections")?;
 
+    let language_detection_policy = data.election_event.get_language_detection_policy();
+    let mut default_language = None;
+    if language_detection_policy == LanguageDetectionPolicy::FORCE_DEFAULT {
+        default_language = Some(data.election_event.get_default_language());
+    }
+
     upsert_keycloak_realm(
         tenant_id.as_str(),
         &election_event_id,
         data.keycloak_event_realm.clone(),
+        default_language
     )
     .await
     .with_context(|| format!("Error upserting Keycloak realm for tenant ID {tenant_id} and election event ID {election_event_id}"))?;
@@ -1277,6 +1304,28 @@ pub async fn process_document(
                 )
                 .await
                 .with_context(|| "Error importing publications")?;
+            }
+            if file_name.contains(&format!(
+                "{}",
+                EDocuments::ELECTION_EVENT_CONFIG.to_file_name()
+            )) {
+                let mut temp_file = NamedTempFile::new()
+                    .context("Failed to create election event config temporary file")?;
+
+                io::copy(&mut cursor, &mut temp_file).context(
+                    "Failed to copy contents of election event config file to temporary file",
+                )?;
+                temp_file.as_file_mut().rewind()?;
+
+                import_election_event_config_file(
+                    hasura_transaction,
+                    &election_event_schema.tenant_id.to_string(),
+                    &election_event_schema.election_event.id,
+                    temp_file,
+                    replacement_map.clone(),
+                )
+                .await
+                .with_context(|| "Error importing election event config file")?;
             }
 
             if file_name.contains(&format!(

@@ -381,6 +381,13 @@ const englishTranslation = {
                         disabled: "Disabled",
                     },
                 },
+                languageDetectionPolicy: {
+                    policyLabel: "Language Detection Policy",
+                    options: {
+                        "browser-detect": "Browser Detect",
+                        "force-default": "Force Default",
+                    },
+                },
             },
             error: {
                 endDate: "End date must be after start date",
@@ -2077,6 +2084,9 @@ const englishTranslation = {
                     document: "Document",
                     url: "URL",
                 },
+            },
+            languages: {
+                default: "Default Language",
             },
         },
         approvalsScreen: {
