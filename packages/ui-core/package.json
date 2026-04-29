@@ -32,7 +32,8 @@
     "i18next-browser-languagedetector": "^8.2.0",
     "moderndash": "4.0.0",
     "qrcode.react": "3.1.0",
-    "sanitize-html": "2.12.1"
+    "sanitize-html": "2.12.1",
+    "tldts": "^6.0.0"
   },
   "peerDependencies": {
     "react": "19.1.1",

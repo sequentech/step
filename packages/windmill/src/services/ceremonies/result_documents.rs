@@ -705,19 +705,21 @@ pub fn generate_ids_map(
             format!(
                 "{}__{}",
                 take_first_n_chars(&election_display_name, MAX_ELECTION_NAME_LEN),
-                election_report.contest.election_id
+                election_report.election_id
             ),
         );
 
-        let contest_name = election_report.contest.get_name(default_language);
-        rename_map.insert(
-            election_report.contest.id.clone(),
-            format!(
-                "{}__{}",
-                take_first_n_chars(&contest_name, MAX_CONTEST_NAME_LEN),
-                election_report.contest.id
-            ),
-        );
+        if let Some(contest) = election_report.contest.clone() {
+            let contest_name = contest.get_name(default_language);
+            rename_map.insert(
+                contest.id.clone(),
+                format!(
+                    "{}__{}",
+                    take_first_n_chars(&contest_name, MAX_CONTEST_NAME_LEN),
+                    contest.id
+                ),
+            );
+        }
     }
 
     for area in areas {

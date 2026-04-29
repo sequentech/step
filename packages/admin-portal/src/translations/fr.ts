@@ -382,6 +382,13 @@ const frenchTranslation: TranslationType = {
                         disabled: "Désactivé",
                     },
                 },
+                languageDetectionPolicy: {
+                    policyLabel: "Politique de détection de la langue",
+                    options: {
+                        "browser-detect": "Détection par le navigateur",
+                        "force-default": "Forcer par défaut",
+                    },
+                },
             },
             error: {
                 endDate: "La date de fin doit être postérieure à la date de début",
@@ -2107,6 +2114,9 @@ const frenchTranslation: TranslationType = {
                     document: "Document",
                     url: "URL",
                 },
+            },
+            languages: {
+                default: "Langue par défaut",
             },
         },
         approvalsScreen: {

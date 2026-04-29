@@ -9,7 +9,6 @@ import {
     useRecordContext,
     SimpleForm,
     useGetOne,
-    RadioButtonGroupInput,
     Toolbar,
     SaveButton,
     useNotify,
@@ -82,6 +81,7 @@ import {MANAGE_ELECTION_DATES} from "@/queries/ManageElectionDates"
 import {JsonEditor, UpdateFunction} from "json-edit-react"
 import {CustomFilter} from "@/types/filters"
 import {useGetDocumentUrl} from "@/hooks/useGetDocumentUrl"
+import {SettingsLanguageSelector} from "@/components/SettingsLanguageSelector"
 
 const LangsWrapper = styled(Box)`
     margin-top: 46px;
@@ -331,37 +331,6 @@ export const ElectionDataForm: React.FC = () => {
 
     const handleChange = (_event: React.SyntheticEvent, newValue: number) => {
         setValue(newValue)
-    }
-
-    const renderLangs = (parsedValue: Sequent_Backend_Election_Extended) => {
-        return (
-            <LangsWrapper>
-                {languageSettings.map((lang) => (
-                    <BooleanInput
-                        key={lang}
-                        source={`enabled_languages.${lang}`}
-                        label={String(t(`common.language.${lang}`))}
-                        helperText={false}
-                    />
-                ))}
-            </LangsWrapper>
-        )
-    }
-
-    const renderDefaultLangs = (_parsedValue: Sequent_Backend_Election_Extended) => {
-        let langNodes = languageSettings.map((lang) => ({
-            id: lang,
-            name: t(`electionScreen.edit.default`),
-        }))
-
-        return (
-            <RadioButtonGroupInput
-                label={false}
-                source="presentation.language_conf.default_language_code"
-                choices={langNodes}
-                row={true}
-            />
-        )
     }
 
     const renderVotingChannels = (parsedValue: Sequent_Backend_Election_Extended) => {
@@ -656,8 +625,10 @@ export const ElectionDataForm: React.FC = () => {
                             <AccordionDetails>
                                 <ElectionStyles.AccordionContainer>
                                     <ElectionStyles.AccordionWrapper>
-                                        {renderLangs(parsedValue)}
-                                        {renderDefaultLangs(parsedValue)}
+                                        <SettingsLanguageSelector
+                                            languageSettings={languageSettings}
+                                            canEdit={canEdit}
+                                        />
                                     </ElectionStyles.AccordionWrapper>
                                 </ElectionStyles.AccordionContainer>
                             </AccordionDetails>
