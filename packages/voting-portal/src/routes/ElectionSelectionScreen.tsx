@@ -420,7 +420,7 @@ const ElectionSelectionScreen: React.FC = () => {
         if (dataBallotStyles && dataBallotStyles.sequent_backend_ballot_style.length > 0) {
             try {
                 updateBallotStyleAndSelection(dataBallotStyles, dispatch)
-            } catch (error) {
+            } catch (error: unknown) {
                 if (error instanceof BallotStyleConfigurationError) {
                     setErrorMsg(t(error.translationKey, error.translationParams))
                 } else {
