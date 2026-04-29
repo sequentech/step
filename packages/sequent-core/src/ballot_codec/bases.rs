@@ -27,15 +27,26 @@ impl BasesCodec for Contest {
             _ => (self.max_votes + 1i64).try_into().unwrap(),
         };
 
+        let has_explicit_blank_candidate = self
+            .candidates
+            .iter()
+            .any(|candidate| candidate.is_explicit_blank());
+
         let num_valid_candidates: usize = self
             .candidates
             .iter()
-            .filter(|candidate| !candidate.is_explicit_invalid())
+            .filter(|candidate| {
+                !candidate.is_explicit_invalid()
+                    && !candidate.is_explicit_blank()
+            })
             .count();
 
         // Set the initial bases and raw ballot, populate bases using the valid
         // candidates list
         let mut bases: Vec<u64> = vec![2];
+        if has_explicit_blank_candidate {
+            bases.push(2);
+        }
         for _i in 0..num_valid_candidates {
             bases.push(candidate_base);
         }

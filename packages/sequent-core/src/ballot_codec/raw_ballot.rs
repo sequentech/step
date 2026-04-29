@@ -38,6 +38,25 @@ pub trait RawBallotCodec {
     ) -> Result<i32, String>;
 }
 
+fn get_explicit_blank_candidate(
+    contest: &Contest,
+) -> Result<Option<&Candidate>, String> {
+    let mut explicit_blank_candidates = contest
+        .candidates
+        .iter()
+        .filter(|candidate| candidate.is_explicit_blank());
+
+    let explicit_blank_candidate = explicit_blank_candidates.next();
+    if explicit_blank_candidates.next().is_some() {
+        return Err(
+            "contest cannot contain more than one explicit blank candidate"
+                .to_string(),
+        );
+    }
+
+    Ok(explicit_blank_candidate)
+}
+
 impl RawBallotCodec for Contest {
     fn available_write_in_characters_estimate(
         &self,
@@ -77,6 +96,7 @@ impl RawBallotCodec for Contest {
         let mut choices: Vec<u64> = vec![];
 
         let char_map = self.get_char_map();
+        let explicit_blank_candidate = get_explicit_blank_candidate(self)?;
 
         let candidates_map = self
             .candidates
@@ -95,13 +115,22 @@ impl RawBallotCodec for Contest {
         let invalid_vote: u64 =
             if plaintext.is_explicit_invalid { 1 } else { 0 };
         choices.push(invalid_vote);
+        if let Some(candidate) = explicit_blank_candidate {
+            let is_explicit_blank = sorted_choices
+                .iter()
+                .find(|choice| choice.id == candidate.id)
+                .map(|choice| choice.selected > -1)
+                .unwrap_or(false);
+            choices.push(u64::from(is_explicit_blank));
+        }
 
         for choice in sorted_choices.iter() {
             let candidate =
                 candidates_map.get(&choice.id).ok_or_else(|| {
                     "choice id is not a valid candidate".to_string()
                 })?;
-            if candidate.is_explicit_invalid() {
+            if candidate.is_explicit_invalid() || candidate.is_explicit_blank()
+            {
                 continue;
             }
             match self.get_counting_algorithm() {
@@ -182,6 +211,16 @@ impl RawBallotCodec for Contest {
 
         let choices = raw_ballot.choices.clone();
         let is_explicit_invalid: bool = !choices.is_empty() && (choices[0] > 0);
+        let explicit_blank_candidate = get_explicit_blank_candidate(self)?;
+        let mut index = 1usize;
+        let is_explicit_blank = if explicit_blank_candidate.is_some() {
+            let explicit_blank_flag =
+                choices.get(index).copied().unwrap_or(0) > 0;
+            index += 1;
+            explicit_blank_flag
+        } else {
+            false
+        };
 
         // Prepare the return value to pass it around, its values can still be
         // modified.
@@ -201,7 +240,10 @@ impl RawBallotCodec for Contest {
         // 2. sort & segment candidates
         let valid_candidates: Vec<&Candidate> = sorted_candidates
             .iter()
-            .filter(|candidate| !candidate.is_explicit_invalid())
+            .filter(|candidate| {
+                !candidate.is_explicit_invalid()
+                    && !candidate.is_explicit_blank()
+            })
             .collect();
         let write_in_candidates: Vec<&Candidate> = sorted_candidates
             .iter()
@@ -209,7 +251,10 @@ impl RawBallotCodec for Contest {
             .collect();
         // 4. Do some verifications on the number of choices: Checking that the
         //    raw_ballot has as many choices as required
-        if choices.len() < valid_candidates.len() + 1 {
+        let min_choices_len = valid_candidates.len()
+            + 1
+            + usize::from(explicit_blank_candidate.is_some());
+        if choices.len() < min_choices_len {
             // Invalid Ballot: Not enough choices to decode
             decoded_contest.invalid_errors.push(InvalidPlaintextError {
                 error_type: InvalidPlaintextErrorType::EncodingError,
@@ -224,8 +269,18 @@ impl RawBallotCodec for Contest {
         // in    raw_ballot["choices"]
         // we add 1 to the index because raw_ballot.choice[0] is just the
         // invalidVoteFlag
-        let mut index = 1usize;
-        for candidate in &valid_candidates {
+        for candidate in sorted_candidates
+            .iter()
+            .filter(|candidate| !candidate.is_explicit_invalid())
+        {
+            if candidate.is_explicit_blank() {
+                decoded_contest.choices.push(DecodedVoteChoice {
+                    id: candidate.id.clone(),
+                    selected: if is_explicit_blank { 0 } else { -1 },
+                    write_in_text: None,
+                });
+                continue;
+            }
             if choices.len() <= index {
                 break;
             }
@@ -348,7 +403,15 @@ impl RawBallotCodec for Contest {
         let num_selected_candidates = decoded_contest
             .choices
             .iter()
-            .filter(|choice| choice.selected > -1)
+            .filter(|choice| {
+                choice.selected > -1
+                    && self
+                        .candidates
+                        .iter()
+                        .find(|candidate| candidate.id == choice.id)
+                        .map(|candidate| !candidate.is_explicit_blank())
+                        .unwrap_or(true)
+            })
             .count();
 
         let (max_votes, min_votes, maxmin_errors) =
@@ -413,6 +476,7 @@ impl RawBallotCodec for Contest {
 
 #[cfg(test)]
 mod tests {
+    use super::*;
     use raw_ballot::EUnderVotePolicy;
 
     use crate::ballot;
@@ -645,5 +709,89 @@ mod tests {
                 idx
             );
         }
+    }
+
+    fn explicit_blank_fixture(
+    ) -> (Contest, DecodedVoteContest, DecodedVoteContest) {
+        let mut contest = get_configurable_contest(
+            1,
+            3,
+            CountingAlgType::PluralityAtLarge,
+            false,
+            None,
+            false,
+        );
+        contest.candidates[2]
+            .presentation
+            .get_or_insert_with(ballot::CandidatePresentation::default)
+            .is_explicit_blank = Some(true);
+        contest.candidates[2].name = Some("Blank vote".to_string());
+
+        let implicit_blank = DecodedVoteContest {
+            contest_id: contest.id.clone(),
+            is_explicit_invalid: false,
+            invalid_errors: vec![],
+            invalid_alerts: vec![],
+            choices: contest
+                .candidates
+                .iter()
+                .map(|candidate| DecodedVoteChoice {
+                    id: candidate.id.clone(),
+                    selected: -1,
+                    write_in_text: None,
+                })
+                .collect(),
+        };
+        let mut explicit_blank = implicit_blank.clone();
+        explicit_blank.choices[2].selected = 0;
+
+        (contest, implicit_blank, explicit_blank)
+    }
+
+    #[test]
+    fn test_explicit_blank_uses_dedicated_raw_ballot_flag() {
+        let (contest, implicit_blank, explicit_blank) =
+            explicit_blank_fixture();
+
+        let implicit_raw_ballot = contest
+            .encode_to_raw_ballot(&implicit_blank)
+            .expect("Expected implicit blank raw ballot");
+        let explicit_raw_ballot = contest
+            .encode_to_raw_ballot(&explicit_blank)
+            .expect("Expected explicit blank raw ballot");
+
+        assert_eq!(implicit_raw_ballot.bases, vec![2, 2, 2, 2]);
+        assert_eq!(implicit_raw_ballot.choices, vec![0, 0, 0, 0]);
+        assert_eq!(explicit_raw_ballot.bases, vec![2, 2, 2, 2]);
+        assert_eq!(explicit_raw_ballot.choices, vec![0, 1, 0, 0]);
+    }
+
+    #[test]
+    fn test_explicit_blank_round_trip_preserves_candidate_selection() {
+        let (contest, _implicit_blank, explicit_blank) =
+            explicit_blank_fixture();
+
+        let raw_ballot = contest
+            .encode_to_raw_ballot(&explicit_blank)
+            .expect("Expected explicit blank raw ballot");
+        let decoded = contest
+            .decode_from_raw_ballot(&raw_ballot)
+            .expect("Expected decoded contest");
+
+        let explicit_blank_choice = decoded
+            .choices
+            .iter()
+            .find(|choice| choice.id == contest.candidates[2].id)
+            .expect("Expected explicit blank choice");
+
+        assert_eq!(explicit_blank_choice.selected, 0);
+        assert_eq!(
+            decoded
+                .choices
+                .iter()
+                .filter(|choice| choice.selected > -1)
+                .count(),
+            1
+        );
     }
 }

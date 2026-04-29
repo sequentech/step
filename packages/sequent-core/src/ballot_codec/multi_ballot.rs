@@ -1206,6 +1206,7 @@ mod tests {
             is_encrypted: true,
             candidates,
             presentation: None,
+            tie_breaking_policy: None,
             created_at: None,
             annotations: None,
         }
