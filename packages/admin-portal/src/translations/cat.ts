@@ -382,6 +382,13 @@ const catalanTranslation: TranslationType = {
                         disabled: "Desactivada",
                     },
                 },
+                languageDetectionPolicy: {
+                    policyLabel: "Política de detecció de llengua",
+                    options: {
+                        "browser-detect": "Detectar del navegador",
+                        "force-default": "Forçar per defecte",
+                    },
+                },
             },
             error: {
                 endDate: "La data de finalització ha de ser posterior a la data d'inici",
@@ -2103,6 +2110,9 @@ const catalanTranslation: TranslationType = {
                     document: "Document",
                     url: "URL",
                 },
+            },
+            languages: {
+                default: "Llengua per defecte",
             },
         },
         approvalsScreen: {

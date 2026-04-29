@@ -948,6 +948,7 @@ pub struct ElectionEventMaterials {
 pub struct ElectionEventLanguageConf {
     pub enabled_language_codes: Option<Vec<String>>,
     pub default_language_code: Option<String>,
+    pub language_detection_policy: Option<LanguageDetectionPolicy>,
 }
 
 #[derive(
@@ -2592,4 +2593,33 @@ pub enum TieBreakingPolicy {
     #[strum(serialize = "external-procedure")]
     #[serde(rename = "external-procedure")]
     EXTERNAL_PROCEDURE,
+}
+
+#[allow(non_camel_case_types)]
+#[derive(
+    BorshSerialize,
+    BorshDeserialize,
+    Default,
+    Display,
+    Serialize,
+    Deserialize,
+    Debug,
+    PartialEq,
+    Eq,
+    Clone,
+    EnumString,
+    JsonSchema,
+)]
+/// Language detection policy.
+/// Used to determine which language to use initially across all surfaces
+pub enum LanguageDetectionPolicy {
+    #[default]
+    #[strum(serialize = "browser-detect")]
+    #[serde(rename = "browser-detect")]
+    /// detect user's language through their browser.
+    BROWSER_DETECT,
+    /// skip browser detection, use default_language_code
+    #[strum(serialize = "force-default")]
+    #[serde(rename = "force-default")]
+    FORCE_DEFAULT,
 }
