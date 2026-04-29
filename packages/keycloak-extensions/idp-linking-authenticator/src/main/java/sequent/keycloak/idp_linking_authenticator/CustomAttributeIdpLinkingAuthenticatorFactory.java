@@ -29,7 +29,7 @@ import org.keycloak.provider.ProviderConfigProperty;
 @AutoService(AuthenticatorFactory.class)
 public class CustomAttributeIdpLinkingAuthenticatorFactory implements AuthenticatorFactory {
 
-  public static final String PROVIDER_ID = "custom-attribute-idp-linking-authenticator";
+  public static final String PROVIDER_ID = "idp-linking-authenticator";
 
   public static final String CONF_IDP_CLAIM = "idp-claim";
   public static final String DEFAULT_IDP_CLAIM = "email";
