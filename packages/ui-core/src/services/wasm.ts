@@ -10,6 +10,7 @@ import SequentCoreLibInit, {
     get_layout_properties_from_contest_js,
     set_hooks,
     get_default_consolidated_report_policy_js,
+    get_default_language_detection_policy_js,
 } from "sequent-core"
 import {
     sort_elections_list_js,
@@ -55,6 +56,7 @@ import {
     EDuplicatedRankPolicy,
     EPreferenceGapsPolicy,
     EConsolidatedReportPolicy,
+    ELanguageDetectionPolicy,
 } from ".."
 
 export type {
@@ -441,6 +443,15 @@ export const getDefaultPreferenceGapsPolicy = (): EPreferenceGapsPolicy => {
 export const getDefaultConsolidatedReportPolicy = (): EConsolidatedReportPolicy => {
     try {
         return get_default_consolidated_report_policy_js() as EConsolidatedReportPolicy
+    } catch (error) {
+        console.log(error)
+        throw error
+    }
+}
+
+export const getDefaultLanguageDetectionPolicy = (): ELanguageDetectionPolicy => {
+    try {
+        return get_default_language_detection_policy_js() as ELanguageDetectionPolicy
     } catch (error) {
         console.log(error)
         throw error

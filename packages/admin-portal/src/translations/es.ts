@@ -383,6 +383,13 @@ const spanishTranslation: TranslationType = {
                         disabled: "Deshabilitado",
                     },
                 },
+                languageDetectionPolicy: {
+                    policyLabel: "Política de detección de idioma",
+                    options: {
+                        "browser-detect": "Detectar desde el navegador",
+                        "force-default": "Forzar predeterminado",
+                    },
+                },
             },
             error: {
                 endDate: "La fecha de finalización debe ser posterior a la fecha de inicio",
@@ -2096,6 +2103,9 @@ const spanishTranslation: TranslationType = {
                     document: "Documento",
                     url: "URL",
                 },
+            },
+            languages: {
+                default: "Idioma predeterminado",
             },
         },
         approvalsScreen: {
