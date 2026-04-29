@@ -22,7 +22,7 @@ FROM maven:3-amazoncorretto-21 AS oid4vp-build
 RUN curl -fsSL -o /tmp/oid4vp.tar.gz \
     https://github.com/ba-itsys/keycloak-extension-oid4vp/archive/refs/tags/v0.6.2.tar.gz \
  && echo "f6cd968bc77fec4f8e1417d3caeefe4920941e01b119f152f1c9186bbd2b2e15  /tmp/oid4vp.tar.gz" | sha256sum -c - \
- && mkdir /build \
+ && mkdir -p /build \
  && tar -xzf /tmp/oid4vp.tar.gz -C /build \
  && cd /build/keycloak-extension-oid4vp-0.6.2 \
  && mvn -B clean package -DskipTests
