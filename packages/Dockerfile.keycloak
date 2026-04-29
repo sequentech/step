@@ -25,7 +25,7 @@ RUN curl -fsSL -o /tmp/oid4vp.tar.gz \
  && mkdir /build \
  && tar -xzf /tmp/oid4vp.tar.gz -C /build \
  && cd /build/keycloak-extension-oid4vp-0.6.2 \
- && mvn clean package -DskipTests
+ && mvn -B clean package -DskipTests
 
 FROM quay.io/keycloak/keycloak:26.4 as builder
 
