@@ -13,7 +13,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 This guide covers how to test the [keycloak-extension-oid4vp](https://github.com/ba-itsys/keycloak-extension-oid4vp)
 (v0.6.2) that is bundled into the Keycloak image via `packages/Dockerfile.keycloak`.
 
-> **Note:** The extension requires Keycloak **26.5.5** or later. It references
+> **Note:** The extension requires Keycloak **26.6.1** or later. It references
 > `UserAuthenticationIdentityProvider` which was introduced in that version.
 
 ---
