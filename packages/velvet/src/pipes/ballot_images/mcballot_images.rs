@@ -755,7 +755,7 @@ fn convert_ballots(
                     let blank = next.get(&choice.id);
                     if let Some(blank) = blank {
                         let mut marked = blank.clone();
-                        marked.selected = (choice.selected + 1); //TODO:check
+                        marked.selected = (choice.selected + 1);
                         next.insert(choice.id.clone(), marked);
                     } else {
                         return Err(Error::UnexpectedError(format!(

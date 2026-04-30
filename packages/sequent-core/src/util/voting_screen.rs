@@ -67,7 +67,11 @@ pub fn check_voting_not_allowed_next_util(
             let choices_selected = decoded_contest
                 .choices
                 .iter()
-                .filter(|choice| choice.selected == 0)
+                .filter(|choice| if is_preferencial {
+                    choice.selected >= 0
+                } else {
+                    choice.selected == 0
+                })
                 .count();
 
             let invalid_errors: &Vec<InvalidPlaintextError> =
@@ -188,7 +192,11 @@ pub fn check_voting_error_dialog_util(
             let choices_selected = decoded_contest
                 .choices
                 .iter()
-                .filter(|choice| choice.selected == 0)
+                .filter(|choice| if is_preferencial {
+                    choice.selected >= 0
+                } else {
+                    choice.selected == 0
+                })
                 .count();
             let invalid_errors: &Vec<InvalidPlaintextError> =
                 &decoded_contest.invalid_errors;

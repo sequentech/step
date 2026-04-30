@@ -163,7 +163,6 @@ impl DecodedContestChoices {
     pub fn validate_preferencial_order(
         &self,
     ) -> Result<(), Vec<PreferencialOrderErrorType>> {
-        let mut errors: Vec<PreferencialOrderErrorType> = Vec::new();
         // Discard the unselected choices and sort the selected ones by their preference order
         let choices: Vec<i64> = self
             .choices
@@ -175,17 +174,11 @@ impl DecodedContestChoices {
         validate_contest_preferencial_order(choices)
     }
 }
-#[derive(Serialize, Deserialize, JsonSchema, PartialEq, Eq, Debug, Clone)]
+#[derive(Serialize, Deserialize, JsonSchema, PartialEq, Eq, Debug, Clone, Hash)]
 /// A decoded contest choice contains the candidate_id as a String.
 pub struct DecodedContestChoice {
     pub id: String,
     pub selected: i64,
-}
-
-impl Hash for DecodedContestChoice {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        self.id.hash(state);
-    }
 }
 
 /// The choices for the set of contests returned when decoding a multi-content
@@ -413,6 +406,12 @@ impl BallotChoices {
                                     "uzise conversion on choice selected value"
                                 )
                             })?;
+                            if index >= max_votes {
+                                return Err(format!(
+                                    "choice selected value {} is out of range [0, {})",
+                                    p.selected, max_votes
+                                ));
+                            }
                         contest_choices[index] = mark;
                     }
                 }

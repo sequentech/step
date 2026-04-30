@@ -311,13 +311,14 @@ pub fn check_invalid_vote_policy(
 }
 
 /// Check the validity of the preference order.
-/// //Recive choices filter and sorted by the selected value (choice.selected >= 0)
-/// Note: PreferenceOrderWithGaps is returned as an error if there are gaps,
+/// Receives selected ranks (for example, after filtering choices where
+/// `choice.selected >= 0`).
+/// Note: `PreferenceOrderWithGaps` is returned as an error if there are gaps,
 /// but this is generally not considered invalid, so the caller can
 /// handle it depending on the policy or jurisdiction rules.
-/// Returns Ok if the order is valid after sorting it and if it is
-/// contiguous, e.g. 1,2,3,4 or 1,4,2,3.
-/// Returns Err with a Vec of all errors found (may contain multiple variants).
+/// Returns `Ok(())` if the order is valid after sorting and is contiguous,
+/// e.g. `0,1,2,3` or `0,3,1,2`.
+/// Returns `Err` with a `Vec` of all errors found (may contain multiple variants).
 pub fn validate_contest_preferencial_order(
     choices: Vec<i64>,
 ) -> Result<(), Vec<PreferencialOrderErrorType>> {

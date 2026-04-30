@@ -357,7 +357,7 @@ export const ContestDataForm: React.FC = () => {
     }, [electionEvent?.presentation?.language_conf, election?.presentation?.language_conf])
 
     const isMultiContest =
-        electionEvent?.presentation?.contest_encryption_policy ==
+        electionEvent?.presentation?.contest_encryption_policy ===
         EElectionEventContestEncryptionPolicy.MULTIPLE_CONTESTS
 
     const countingAlgorithmChoices = (): Array<EnumChoice<ICountingAlgorithm>> => {
@@ -416,12 +416,12 @@ export const ContestDataForm: React.FC = () => {
         }))
     }
 
-    //On multi contest encoding Duplicated Rank Policy should only be not allowd
+    //In multi-contest encoding, Duplicated Rank Policy should only be not allowed.
     const duplicatedRankPolicyChoices = () => {
         return Object.values(EDuplicatedRankPolicy).map((value) => ({
             id: value,
             name: t(`contestScreen.duplicatedRankPolicy.${value}`),
-            disabled: isMultiContest && !String(value).toLocaleLowerCase().includes("not"),
+            disabled: isMultiContest && value !== EDuplicatedRankPolicy.NOT_ALLOWED_WARN_AND_DIALOG,
         }))
     }
 
