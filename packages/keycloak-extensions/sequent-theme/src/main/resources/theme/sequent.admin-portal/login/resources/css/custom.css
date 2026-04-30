@@ -589,6 +589,24 @@ button#resend-otp-btn:hover {
     color: rgba(0, 0, 0, 0.68);
 }
 
+/* ── OID4VP wallet page ──────────────────────────────────────────────────
+   Scoped via #oid4vpForm, a unique ID rendered by login-oid4vp-idp.ftl.
+   Now that our oid4vp-template.ftl delegates to template.ftl, the page
+   shares the standard admin-portal HTML structure. */
+
+#oid4vp-open-wallet {
+    width: auto;
+    max-width: 300px;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+#oid4vpForm ~ div p {
+    text-align: center;
+}
+
+/* ── End OID4VP wallet page ─────────────────────────────────────────────── */
+
 #social-digital-certificates {
     box-sizing: border-box;
     display: flex;
