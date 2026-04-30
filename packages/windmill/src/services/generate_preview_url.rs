@@ -51,7 +51,7 @@ pub async fn get_document_data(preview_file_path: &str) -> Result<(String, Strin
         .ok_or_else(|| anyhow!("ballot_styles is not an array"))?;
 
     let area_ballot_style = ballot_styles
-        .get(0)
+        .first()
         .ok_or_else(|| anyhow!("ballot_styles array is empty"))?;
 
     let area_id = area_ballot_style
@@ -97,7 +97,7 @@ pub async fn generate_preview_url(
         &temp_path_string,
         file_size,
         "application/json",
-        &tenant_id,
+        tenant_id,
         None,
         &doc_name,
         None,
@@ -106,7 +106,7 @@ pub async fn generate_preview_url(
     .await
     .map_err(|err| anyhow!("Error uploading document: {err:?}"))?;
 
-    let preview_url = construct_preview_url(&tenant_id, &document.id, &area_id, &ballot_style_id)?;
+    let preview_url = construct_preview_url(tenant_id, &document.id, &area_id, &ballot_style_id)?;
 
     insert_preview(
         hasura_transaction,

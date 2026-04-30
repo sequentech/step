@@ -55,7 +55,7 @@ static PBKDF2_ALGORITHM: pbkdf2::Algorithm = pbkdf2::PBKDF2_HMAC_SHA256;
 const CREDENTIAL_LEN: usize = digest::SHA256_OUTPUT_LEN;
 pub type Credential = [u8; CREDENTIAL_LEN];
 
-fn sanitize_db_key(key: &String) -> String {
+fn sanitize_db_key(key: &str) -> String {
     key.replace(".", "_").replace("-", "_")
 }
 
@@ -69,7 +69,7 @@ fn hash_password(password: &String, salt: &[u8]) -> Result<String> {
         &mut output,
     );
 
-    let generated_hash = BASE64_STANDARD.encode(&output);
+    let generated_hash = BASE64_STANDARD.encode(output);
     Ok(generated_hash)
 }
 
@@ -136,23 +136,20 @@ fn get_copy_from_query(
             column_name if column_name == *NUMBER_OF_ITERATIONS_COL_NAME => None,
             _ => Some(column_name.clone()),
         })
-        .chain(if headers_vec.contains(&PASSWORD_COL_NAME) {
-            vec![
-                SALT_COL_NAME.clone(),
-                HASHED_PASSWORD_COL_NAME.clone(),
-                NUMBER_OF_ITERATIONS_COL_NAME.clone(),
-            ]
-            .into_iter()
-        } else if headers_vec.contains(&HASHED_PASSWORD_COL_NAME) {
-            vec![
-                SALT_COL_NAME.clone(),
-                HASHED_PASSWORD_COL_NAME.clone(),
-                NUMBER_OF_ITERATIONS_COL_NAME.clone(),
-            ]
-            .into_iter()
-        } else {
-            Vec::new().into_iter()
-        })
+        .chain(
+            if headers_vec.contains(&PASSWORD_COL_NAME)
+                || headers_vec.contains(&HASHED_PASSWORD_COL_NAME)
+            {
+                vec![
+                    SALT_COL_NAME.clone(),
+                    HASHED_PASSWORD_COL_NAME.clone(),
+                    NUMBER_OF_ITERATIONS_COL_NAME.clone(),
+                ]
+                .into_iter()
+            } else {
+                Vec::new().into_iter()
+            },
+        )
         // note that in this case, username is at the end
         .chain(if !headers_vec.contains(&USERNAME_COL_NAME) {
             vec![USERNAME_COL_NAME.clone()].into_iter()
@@ -300,7 +297,7 @@ fn get_insert_user_query(
         .into_iter()
         .filter(|col| {
             !user_entity_columns.contains(&col.as_str())
-                && !RESERVED_COL_NAMES.contains(&col)
+                && !RESERVED_COL_NAMES.contains(col)
                 && !col.starts_with(&*ELECTION_COL_PREFIX)
         })
         .collect::<Vec<String>>();
@@ -498,7 +495,7 @@ pub async fn import_users_file(
     let areas_map = if !is_admin {
         match election_event_id {
             Some(ref event_id) => {
-                match get_areas_by_name(&hasura_transaction, tenant_id.as_str(), event_id.as_str())
+                match get_areas_by_name(hasura_transaction, tenant_id.as_str(), event_id.as_str())
                     .await
                 {
                     Ok(areas) => Some(areas),
@@ -640,23 +637,23 @@ pub async fn import_users_file(
                             }
                         }
                     }
-                    column_name if column_name == &*USERNAME_COL_NAME => data.to_lowercase(),
-                    column_name if column_name == &*EMAIL_COL_NAME => data.to_lowercase(),
-                    column_name if column_name == &*EMAIL_VERIFIED_COL_NAME => data.to_lowercase(),
+                    column_name if *column_name == *USERNAME_COL_NAME => data.to_lowercase(),
+                    column_name if *column_name == *EMAIL_COL_NAME => data.to_lowercase(),
+                    column_name if *column_name == *EMAIL_VERIFIED_COL_NAME => data.to_lowercase(),
                     _ => data.to_string(),
                 };
 
-            if column_name == &*PASSWORD_COL_NAME {
+            if *column_name == *PASSWORD_COL_NAME {
                 info!("password = {processed_data}");
                 password = Some(data.to_string());
-            } else if column_name == &*NUMBER_OF_ITERATIONS_COL_NAME {
+            } else if *column_name == *NUMBER_OF_ITERATIONS_COL_NAME {
                 num_of_iterations = match data.parse::<u32>() {
                     Ok(value) => NonZeroU32::new(value).unwrap_or(*PBKDF2_ITERATIONS),
                     Err(_) => *PBKDF2_ITERATIONS,
                 };
-            } else if column_name == &*SALT_COL_NAME {
+            } else if *column_name == *SALT_COL_NAME {
                 password_salt = Some(data.to_string());
-            } else if column_name == &*HASHED_PASSWORD_COL_NAME {
+            } else if *column_name == *HASHED_PASSWORD_COL_NAME {
                 hashed_password = Some(data.to_string());
             } else {
                 owned_data.push(processed_data);

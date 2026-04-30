@@ -220,7 +220,7 @@ impl ElectoralLog {
         let system_sk = protocol_manager.get_signing_key().clone();
         let sd = SigningData::new(system_sk.clone(), "", system_sk.clone());
 
-        let pseudonym = hash_voter_id(&user_id)?;
+        let pseudonym = hash_voter_id(user_id)?;
         let message = Message::voter_public_key_message(
             TenantIdString(tenant_id.to_string()),
             EventIdString(event_id.to_string()),
@@ -944,7 +944,7 @@ impl GetElectoralLogBody {
                     }
                     OrderField::StatementTimestamp | OrderField::Created => { // sql TIMESTAMP type
                         // these have their own column and are inside of Message´s column as well
-                        let datetime = ISO8601::to_date_utc(&value)
+                        let datetime = ISO8601::to_date_utc(value)
                             .map_err(|err| anyhow!("Failed to parse timestamp: {:?}", err))?;
                         let ts: i64 = datetime.timestamp();
                         let ts_end: i64 = ts + 60; // Search along that minute, the second is not specified by the front.
@@ -989,7 +989,7 @@ impl GetElectoralLogBody {
                         .enumerate()
                         .map(|(i, _)| format!("@param_area{}", i))
                         .collect();
-                    for (i, area) in area_ids.into_iter().enumerate() {
+                    for (i, area) in area_ids.iter().enumerate() {
                         let param_name = format!("param_area{}", i);
                         params.push(create_named_param(
                             param_name.clone(),
@@ -1051,7 +1051,7 @@ impl GetElectoralLogBody {
                 .iter()
                 .map(|(field, direction)| format!("{field} {direction}"))
                 .collect();
-            if order_by_clauses.len() > 0 {
+            if !order_by_clauses.is_empty() {
                 clauses.push(format!("ORDER BY {}", order_by_clauses.join(", ")));
             }
         }
@@ -1444,7 +1444,7 @@ pub async fn list_cast_vote_messages(
         let t_entries = electoral_log_messages.len();
         info!("Got {t_entries} entries. Offset: {offset}, limit: {limit}, total: {total}");
         for message in electoral_log_messages.iter() {
-            match CastVoteEntry::from_elog_message(&message)? {
+            match CastVoteEntry::from_elog_message(message)? {
                 Some(entry) if !ballot_id_filter.is_empty() => {
                     // If there is filter exit at the first match
                     filter_matched = true;

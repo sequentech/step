@@ -158,8 +158,8 @@ pub async fn upsert_b3_and_elog(
         );
         create_protocol_manager_keys(
             hasura_transaction,
-            &tenant_id,
-            &election_event_id,
+            tenant_id,
+            election_event_id,
             &board_name,
         )
         .await?;
@@ -301,7 +301,7 @@ pub fn remove_keycloak_realm_secrets(realm: &RealmRepresentation) -> Result<Real
                     if let Some(config) = elnew.config.clone() {
                         let mut newconfig = config.clone();
                         for k in config.keys() {
-                            if !valid_keys.contains(&k) {
+                            if !valid_keys.contains(k) {
                                 info!("Removing key {} from {}", k, key);
                                 newconfig.remove(k);
                             }
@@ -328,8 +328,7 @@ pub async fn upsert_keycloak_realm(
     let mut realm = if let Some(realm) = keycloak_event_realm.clone() {
         realm
     } else {
-        let realm = read_default_election_event_realm()?;
-        realm
+        read_default_election_event_realm()?
     };
 
     if let Some(default_language) = default_locale {
@@ -420,7 +419,7 @@ pub async fn insert_election_event_db(
         external_id: None,
     };
 
-    insert_election_event(&hasura_transaction, &new_election_input).await?;
+    insert_election_event(hasura_transaction, &new_election_input).await?;
     Ok(())
 }
 
@@ -513,15 +512,15 @@ pub async fn decrypt_document(
     password: Option<String>,
     mut temp_file_path: NamedTempFile,
 ) -> Result<NamedTempFile> {
-    let password = password.unwrap_or_else(|| "".to_string());
+    let password = password.unwrap_or_default();
     let is_encrypted = !password.is_empty();
 
     if is_encrypted {
         let decrypted_path = env::temp_dir().join("election-event.zip");
 
         decrypt_file_aes_256_cbc(
-            &temp_file_path.path().to_string_lossy().to_string(),
-            &decrypted_path.as_path().to_string_lossy().to_string(),
+            temp_file_path.path().to_string_lossy().as_ref(),
+            decrypted_path.as_path().to_string_lossy().as_ref(),
             &password,
         )
         .map_err(|err| anyhow!("Error generating decrypted file"))?;
@@ -556,7 +555,7 @@ pub async fn get_election_event_schema(
 #[instrument(err, skip_all)]
 pub async fn process_election_event_file(
     hasura_transaction: &Transaction<'_>,
-    document_type: &String,
+    document_type: &str,
     file_election_event_schema: &str,
     object: ImportElectionEventBody,
     election_event_id: String,
@@ -603,7 +602,7 @@ pub async fn process_election_event_file(
             let mut status: ElectionStatus = clone
                 .status
                 .clone()
-                .map(|value| deserialize_value::<ElectionStatus>(value))
+                .map(deserialize_value::<ElectionStatus>)
                 .transpose()
                 .unwrap_or_default()
                 .unwrap_or_default();
@@ -667,7 +666,7 @@ pub async fn process_election_event_file(
     })?;
 
     if let Some(keys_ceremonies) = data.keys_ceremonies.clone() {
-        let trustees = get_all_trustees(&hasura_transaction, &tenant_id).await?;
+        let trustees = get_all_trustees(hasura_transaction, &tenant_id).await?;
 
         let trustee_map: HashMap<String, String> = trustees
             .into_iter()
@@ -818,7 +817,7 @@ pub async fn process_reports_file(
             cron_config: match record.get(4) {
                 None => None,
                 Some(cron_config_str) if cron_config_str.is_empty() => None,
-                Some(cron_config_str) => deserialize_str(&cron_config_str).map_err(|err| {
+                Some(cron_config_str) => deserialize_str(cron_config_str).map_err(|err| {
                     anyhow!("Error parsing cron_config: {err:?}\nThe string: {cron_config_str}")
                 })?,
             },
@@ -887,8 +886,8 @@ async fn process_activity_logs_file(
 
     let electoral_log = ElectoralLog::new(
         hasura_transaction,
-        &tenant_id,
-        Some(&election_event_id),
+        tenant_id,
+        Some(election_event_id),
         board_name.as_str(),
     )
     .await?;
@@ -980,13 +979,13 @@ pub async fn process_s3_file(
         .map_err(|e| anyhow!("Error extracting document name from filename: {e}"))?
         .ok_or_else(|| anyhow!("Error getting document name as str"))?;
 
-    let new_file_name = replace_ids_in_filename(&file_name, &replacement_map);
+    let new_file_name = replace_ids_in_filename(file_name, &replacement_map);
     // Upload the file and return the document
     let _document = upload_and_return_document(
         hasura_transaction,
         &file_path_string.clone(),
         file_size,
-        &document_type,
+        document_type,
         &tenant_id,
         election_event_id,
         &new_file_name,
@@ -1166,7 +1165,7 @@ pub async fn process_document(
                 temp_file.as_file_mut().rewind()?;
 
                 process_voters_file(
-                    &hasura_transaction,
+                    hasura_transaction,
                     &temp_file,
                     &file_name,
                     Some(election_event_schema.election_event.id.clone()),
@@ -1186,7 +1185,7 @@ pub async fn process_document(
 
                 // Process the reports file
                 process_reports_file(
-                    &hasura_transaction,
+                    hasura_transaction,
                     &temp_file,
                     election_event_schema.tenant_id.to_string(),
                     Some(election_event_schema.election_event.id.clone()),
@@ -1205,7 +1204,7 @@ pub async fn process_document(
 
                 // Write the file contents to a new file within this directory
                 let mut temp_file =
-                    generate_temp_file(&folder_path[1], &folder_path[folder_path.len() - 1])
+                    generate_temp_file(folder_path[1], folder_path[folder_path.len() - 1])
                         .context("Error generating temp file")?;
 
                 io::copy(&mut cursor, &mut temp_file)
@@ -1213,7 +1212,7 @@ pub async fn process_document(
                 temp_file.as_file_mut().rewind()?;
 
                 process_s3_file(
-                    &hasura_transaction,
+                    hasura_transaction,
                     &temp_file,
                     &file_name,
                     Some(election_event_schema.election_event.id.clone()),
@@ -1229,7 +1228,7 @@ pub async fn process_document(
 
                 // Write the file contents to a new file within this directory
                 let mut temp_file =
-                    generate_temp_file(&folder_path[1], &folder_path[folder_path.len() - 1])
+                    generate_temp_file(folder_path[1], folder_path[folder_path.len() - 1])
                         .context("Error generating temp file")?;
 
                 io::copy(&mut cursor, &mut temp_file)
@@ -1237,7 +1236,7 @@ pub async fn process_document(
                 temp_file.as_file_mut().rewind()?;
 
                 process_s3_file(
-                    &hasura_transaction,
+                    hasura_transaction,
                     &temp_file,
                     &file_name,
                     None,
@@ -1503,10 +1502,7 @@ pub async fn maybe_create_scheduled_event(
     let start_task_id =
         generate_manage_date_task_name(tenant_id, election_event_id, election_id, &event_processor);
     let payload = ManageElectionDatePayload {
-        election_id: match election_id {
-            Some(id) => Some(id.to_string()),
-            None => None,
-        },
+        election_id: election_id.map(|id| id.to_string()),
     };
     let cron_config = CronConfig {
         cron: None,

@@ -63,7 +63,7 @@ pub async fn write_export_document(
     let mut writer = Writer::from_writer(vec![]);
     writer.write_record(&headers)?;
     for application in temp_file_path.clone() {
-        writer.write_record(&[
+        writer.write_record([
             &application.id,
             &application
                 .created_at
@@ -134,7 +134,7 @@ pub async fn process_export(
         Box::pin(async move {
             // Fetch the data into a temp file instead of a vector
             let temp_file = read_export_data(
-                &hasura_transaction,
+                hasura_transaction,
                 &tenant_id,
                 &election_event_id,
                 &election_id,
@@ -143,7 +143,7 @@ pub async fn process_export(
 
             // Pass the temp file to the write_export_document function
             write_export_document(
-                &hasura_transaction,
+                hasura_transaction,
                 temp_file,
                 &document_id,
                 &tenant_id,

@@ -102,17 +102,17 @@ async fn update_or_create_limit_ip_by_countries_rule(
     match rule_id {
         Some(id) => match countries.len() {
             0 => {
-                delete_ruleset_rule(&api_key, &zone_id, &ruleset_id, &id)
+                delete_ruleset_rule(api_key, zone_id, &ruleset_id, &id)
                     .await
                     .map_err(|err| anyhow!("{:?}", err))?;
             }
-            _ => update_ruleset_rule(&api_key, &zone_id, &ruleset_id, &id, rule.clone())
+            _ => update_ruleset_rule(api_key, zone_id, &ruleset_id, &id, rule.clone())
                 .await
                 .map_err(|err| anyhow!("{:?}", err))?,
         },
         None => match countries.len() {
             0 => (),
-            _ => create_ruleset_rule(&api_key, &zone_id, &ruleset_id, rule.clone())
+            _ => create_ruleset_rule(api_key, zone_id, &ruleset_id, rule.clone())
                 .await
                 .map_err(|err| anyhow!("{:?}", err))?,
         },
@@ -136,7 +136,7 @@ async fn create_limit_ip_by_countries_ruleset(
         is_enrollment,
     )?;
 
-    create_ruleset(&api_key, &zone_id, ruleset_phase, rule.clone())
+    create_ruleset(api_key, zone_id, ruleset_phase, rule.clone())
         .await
         .map_err(|err| anyhow!("{:?}", err))?;
 

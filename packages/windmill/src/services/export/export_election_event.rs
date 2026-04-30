@@ -81,16 +81,16 @@ pub async fn read_export_data(
         trustees,
         applications,
     ) = try_join!(
-        get_election_event_by_id(&transaction, tenant_id, election_event_id),
-        export_elections(&transaction, tenant_id, election_event_id),
-        export_contests(&transaction, tenant_id, election_event_id),
-        export_candidates(&transaction, tenant_id, election_event_id),
-        get_event_areas(&transaction, tenant_id, election_event_id),
-        export_area_contests(&transaction, tenant_id, election_event_id),
-        get_reports_by_election_event_id(&transaction, tenant_id, election_event_id),
-        get_keys_ceremonies(&transaction, tenant_id, election_event_id),
-        get_all_trustees(&transaction, tenant_id),
-        get_applications_by_election(&transaction, tenant_id, election_event_id, None),
+        get_election_event_by_id(transaction, tenant_id, election_event_id),
+        export_elections(transaction, tenant_id, election_event_id),
+        export_contests(transaction, tenant_id, election_event_id),
+        export_candidates(transaction, tenant_id, election_event_id),
+        get_event_areas(transaction, tenant_id, election_event_id),
+        export_area_contests(transaction, tenant_id, election_event_id),
+        get_reports_by_election_event_id(transaction, tenant_id, election_event_id),
+        get_keys_ceremonies(transaction, tenant_id, election_event_id),
+        get_all_trustees(transaction, tenant_id),
+        get_applications_by_election(transaction, tenant_id, election_event_id, None),
     )?;
 
     // map keys ceremonies to names
@@ -147,7 +147,7 @@ pub async fn read_export_data(
         std::env::var(ENV_VAR_APP_VERSION).unwrap_or_else(|_| DEV_APP_VERSION.to_string());
 
     let import_election_event_schema = ImportElectionEventSchema {
-        tenant_id: parse_uuid_v4(&tenant_id)?,
+        tenant_id: parse_uuid_v4(tenant_id)?,
         keycloak_event_realm: Some(realm),
         election_event,
         elections: export_elections,
@@ -163,7 +163,7 @@ pub async fn read_export_data(
     };
 
     let images_files_path =
-        process_event_images(&transaction, tenant_id, elections, contests, candidates).await?;
+        process_event_images(transaction, tenant_id, elections, contests, candidates).await?;
 
     Ok((import_election_event_schema, images_files_path))
 }
@@ -450,7 +450,7 @@ pub async fn process_export_zip(
             .map_err(|e| anyhow!("Error creating temporary reports file: {e:?}"))?;
         {
             let mut wtr = csv::Writer::from_writer(&temp_reports_file);
-            wtr.write_record(&[
+            wtr.write_record([
                 "ID",
                 "Election ID",
                 "Report Type",
@@ -682,7 +682,7 @@ pub async fn process_export_zip(
     // Add boards info
     let keys_ceremonies =
         get_keys_ceremonies(&hasura_transaction, tenant_id, election_event_id).await?;
-    if export_config.bulletin_board && keys_ceremonies.len() > 0 {
+    if export_config.bulletin_board && !keys_ceremonies.is_empty() {
         // read boards
         let bulletin_boards_filename = format!(
             "{}-{}.csv",
@@ -757,11 +757,11 @@ pub async fn process_export_zip(
 
     // Encrypt ZIP file if required
     let encryption_password = export_config.password.unwrap_or("".to_string());
-    if 0 == encryption_password.len() && (export_config.bulletin_board || export_config.reports) {
+    if encryption_password.is_empty() && (export_config.bulletin_board || export_config.reports) {
         return Err(anyhow!("Bulletin Board requires password"));
     }
     let encrypted_zip_path = zip_path.with_extension("ezip");
-    if encryption_password.len() > 0 {
+    if !encryption_password.is_empty() {
         generate_encrypted_zip(
             zip_path.to_string_lossy().to_string(),
             encrypted_zip_path.to_string_lossy().to_string(),
@@ -771,20 +771,20 @@ pub async fn process_export_zip(
     }
 
     // Use encrypted_zip_path if encryption is enabled, otherwise use zip_path
-    let upload_path = if encryption_password.len() > 0 && encrypted_zip_path.exists() {
+    let upload_path = if !encryption_password.is_empty() && encrypted_zip_path.exists() {
         &encrypted_zip_path
     } else {
         &zip_path
     };
 
-    let zip_size = std::fs::metadata(&upload_path)
+    let zip_size = std::fs::metadata(upload_path)
         .map_err(|e| anyhow!("Error getting ZIP file metadata: {e:?}"))?
         .len();
 
     let export_event_filename = get_export_election_event_filename(
         election_event_id,
         upload_path,
-        encryption_password.len() > 0,
+        !encryption_password.is_empty(),
     )
     .map_err(|e| anyhow!("Error generating the exported election event filename: {e:?}"))?;
 
@@ -796,7 +796,7 @@ pub async fn process_export_zip(
             .ok_or_else(|| anyhow!("Can't convert {:?} to string", upload_path))?,
         zip_size,
         "application/zip",
-        &tenant_id.to_string(),
+        tenant_id,
         Some(election_event_id.to_string()),
         &export_event_filename,
         Some(document_id.to_string()),

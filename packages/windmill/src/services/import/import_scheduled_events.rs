@@ -41,7 +41,7 @@ pub async fn import_scheduled_events(
 
     let headers = rdr
         .headers()
-        .map(|headers| headers.clone())
+        .cloned()
         .map_err(|err| anyhow!("Error reading CSV headers: {err:?}"))?;
 
     for header in headers.iter() {
@@ -78,7 +78,7 @@ pub async fn process_record(
     info!("record: {:?}", record);
     let old_election_id = record
         .get(10)
-        .map(|v| deserialize_str::<JsonValue>(v))
+        .map(deserialize_str::<JsonValue>)
         .transpose()?
         .and_then(|json| {
             json.get("election_id")
@@ -114,27 +114,26 @@ pub async fn process_record(
         .flatten();
     let event_processor: Option<EventProcessors> = record
         .get(8)
-        .map(|val| deserialize_str::<EventProcessors>(val))
+        .map(deserialize_str::<EventProcessors>)
         .transpose()
         .context("Error deserializing event_processor")?;
     let cron_config: Option<CronConfig> = record
         .get(9)
-        .map(|val| deserialize_str(val))
+        .map(deserialize_str)
         .transpose()
         .context("Error deserializing cron_config")?;
     let event_payload = ManageElectionDatePayload {
         election_id: election_id.clone(),
     };
     let event_payload = Some(serde_json::to_value(event_payload)?);
-    let task_id = match &event_processor {
-        Some(event_processor) => Some(generate_manage_date_task_name(
+    let task_id = event_processor.as_ref().map(|event_processor| {
+        generate_manage_date_task_name(
             tenant_id,
             election_event_id,
             election_id.as_deref(),
             event_processor,
-        )),
-        None => None,
-    };
+        )
+    });
 
     let scheduled_event = ScheduledEvent {
         id,

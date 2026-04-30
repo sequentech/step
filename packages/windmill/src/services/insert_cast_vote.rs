@@ -270,7 +270,7 @@ pub async fn try_insert_cast_vote(
     };
 
     let (electoral_log, signing_key) =
-        get_electoral_log(&hasura_transaction, &tenant_id, &election_event)
+        get_electoral_log(&hasura_transaction, tenant_id, &election_event)
             .await
             .map_err(|e| CastVoteError::ElectoralLogNotFound(e.to_string()))?;
 
@@ -684,8 +684,8 @@ pub async fn insert_cast_vote_and_commit<'a>(
         ids.voter_id,
         &input.ballot_id,
         &ballot_signature,
-        &voter_ip,
-        &voter_country,
+        voter_ip,
+        voter_country,
     );
 
     let cast_vote = insert.await.map_err(|e| {
@@ -737,7 +737,7 @@ async fn get_electoral_log(
         tenant_id,
         &election_event.id,
         board_name.as_str(),
-        &sk,
+        sk,
     )
     .await;
 
@@ -777,7 +777,7 @@ async fn check_status(
     };
 
     let election_opt = get_election_by_id(
-        &hasura_transaction,
+        hasura_transaction,
         tenant_id,
         election_event_id,
         election_id,
@@ -796,23 +796,20 @@ async fn check_status(
         .flatten()
         .unwrap_or(Default::default());
 
-    let scheduled_events = find_scheduled_event_by_election_event_id(
-        &hasura_transaction,
-        tenant_id,
-        election_event_id,
-    )
-    .await
-    .map_err(|e| CastVoteError::CheckStatusInternalFailed(e.to_string()))?;
+    let scheduled_events =
+        find_scheduled_event_by_election_event_id(hasura_transaction, tenant_id, election_event_id)
+            .await
+            .map_err(|e| CastVoteError::CheckStatusInternalFailed(e.to_string()))?;
 
     // these dates are used to check by scheduled event date
     // (even if the even hasn't been executed)
     let mut dates: VotingPeriodDates = generate_voting_period_dates(
         scheduled_events.clone(),
-        &tenant_id,
-        &election_event_id,
+        tenant_id,
+        election_event_id,
         Some(election_id),
     )
-    .unwrap_or(Default::default());
+    .unwrap_or_default();
 
     if VotingStatusChannel::ONLINE != voting_channel.clone() {
         dates.end_date = None;
@@ -983,7 +980,7 @@ async fn check_previous_votes(
             election_id,
         ),
         postgres::cast_vote::get_cast_votes(
-            &hasura_transaction,
+            hasura_transaction,
             tenant_uuid,
             election_event_uuid,
             election_uuid,
@@ -995,7 +992,7 @@ async fn check_previous_votes(
     let (same, other): (Vec<Uuid>, Vec<Uuid>) = result
         .into_iter()
         .filter_map(|cv| cv.area_id.and_then(|id| parse_uuid_v4(&id).ok()))
-        .partition(|cv_area_id| cv_area_id.to_string() == area_id.to_string());
+        .partition(|cv_area_id| cv_area_id.to_string() == area_id);
 
     info!("get cast votes returns same: {:?}", same);
 
@@ -1007,7 +1004,7 @@ async fn check_previous_votes(
             same.len()
         )));
     }
-    if other.len() > 0 {
+    if !other.is_empty() {
         return Err(CastVoteError::CheckVotesInOtherAreasFailed(format!(
             "Cannot insert cast vote, votes already present in other area(s) ({}, {:?})",
             voter_id_string, other

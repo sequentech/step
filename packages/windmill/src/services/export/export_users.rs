@@ -82,13 +82,10 @@ fn get_headers(
         "area_name".to_string(),
     ];
     for attr in user_attributes {
-        match (&attr.name) {
-            (Some(name)) => {
-                if (!USER_FIELDS.contains(&name.as_str())) {
-                    user_headers.push(name.clone())
-                }
+        if let Some(name) = (&attr.name) {
+            if (!USER_FIELDS.contains(&name.as_str())) {
+                user_headers.push(name.clone())
             }
-            _ => (),
         }
     }
     vec![
@@ -98,7 +95,7 @@ fn get_headers(
                 .iter()
                 .map(|election| match election.alias {
                     Some(ref election_alias) => {
-                        format!("election__{}", sanitize_name(&election_alias))
+                        format!("election__{}", sanitize_name(election_alias))
                     }
                     None => format!("election__{}", sanitize_name(&election.name)),
                 })
@@ -137,27 +134,24 @@ fn get_user_record(
         },
     ];
     for attr in user_attributes {
-        match &attr.name {
-            Some(name) => {
-                if !USER_FIELDS.contains(&name.as_str()) {
-                    if let Some(true) = &attr.multivalued {
-                        user_info.push(user.get_attribute_multival(name).unwrap_or_default())
-                    } else {
-                        user_info.push(user.get_attribute_val(name).unwrap_or_default())
-                    }
+        if let Some(name) = &attr.name {
+            if !USER_FIELDS.contains(&name.as_str()) {
+                if let Some(true) = &attr.multivalued {
+                    user_info.push(user.get_attribute_multival(name).unwrap_or_default())
+                } else {
+                    user_info.push(user.get_attribute_val(name).unwrap_or_default())
                 }
             }
-            _ => (),
         }
     }
-    return vec![
+    vec![
         user_info,
         match elections {
             Some(ref some_elections) => some_elections
                 .iter()
                 .map(|election: &ElectionHead| match votes_info_map_opt {
                     Some(ref votes_info_map) => match votes_info_map.get(&election.id) {
-                        Some(ref votes_info) => votes_info.last_voted_at.clone(),
+                        Some(votes_info) => votes_info.last_voted_at.clone(),
                         None => Default::default(),
                     },
                     None => Default::default(),
@@ -166,7 +160,7 @@ fn get_user_record(
             None => vec![],
         },
     ]
-    .concat();
+    .concat()
 }
 
 #[instrument(err, skip(hasura_transaction))]
@@ -202,7 +196,7 @@ pub async fn export_users_file(
             ..
         } => {
             let elections = get_election_event_elections(
-                &hasura_transaction,
+                hasura_transaction,
                 tenant_id,
                 election_event_id.as_deref().unwrap_or(""),
             )
@@ -210,7 +204,7 @@ pub async fn export_users_file(
             .with_context(|| "Error retrieving elections for the event")?;
 
             let areas_by_id = get_areas_by_id(
-                &hasura_transaction,
+                hasura_transaction,
                 tenant_id,
                 election_event_id.as_deref().unwrap_or(""),
             )
@@ -281,14 +275,12 @@ pub async fn export_users_file(
         let (users, count) = match &body {
             ExportBody::Users {
                 election_event_id, ..
-            } if election_event_id.is_some() => list_users_with_vote_info(
-                &hasura_transaction,
-                &keycloak_transaction,
-                filter.clone(),
-            )
-            .await
-            .with_context(|| "Error retrieving users with vote info")?,
-            _ => list_users(&hasura_transaction, &keycloak_transaction, filter.clone())
+            } if election_event_id.is_some() => {
+                list_users_with_vote_info(hasura_transaction, &keycloak_transaction, filter.clone())
+                    .await
+                    .with_context(|| "Error retrieving users with vote info")?
+            }
+            _ => list_users(hasura_transaction, &keycloak_transaction, filter.clone())
                 .await
                 .with_context(|| "Error listing users")?,
         };

@@ -129,7 +129,10 @@ pub fn merge_join_csv(
                 result.push(ballot_content.to_string());
 
                 // Add delegates if any (if delegate_count was 0, this does nothing).
-                result.extend(std::iter::repeat(ballot_content.to_string()).take(delegate_count));
+                result.extend(std::iter::repeat_n(
+                    ballot_content.to_string(),
+                    delegate_count,
+                ));
 
                 // Advance both iterators.
                 ballots_record = ballots_iterator.next();

@@ -36,7 +36,7 @@ pub async fn write_export_document(
     election_event_id: &str,
     to_upload: bool,
 ) -> Result<(TempPath)> {
-    let headers = if let Some(example_event) = data.get(0) {
+    let headers = if let Some(example_event) = data.first() {
         serde_json::to_value(example_event)?
             .as_object()
             .ok_or_else(|| anyhow!("Failed to convert ScheduledEvent to JSON object for headers"))?
@@ -116,13 +116,12 @@ pub async fn process_export(
 
         Box::pin(async move {
             // Fetch the data and reformat it
-            let data =
-                read_export_data(&hasura_transaction, &tenant_id, &election_event_id).await?;
+            let data = read_export_data(hasura_transaction, &tenant_id, &election_event_id).await?;
 
             // Pass the temp file to the write_export_document function
             write_export_document(
                 data,
-                &hasura_transaction,
+                hasura_transaction,
                 &document_id,
                 &tenant_id,
                 &election_event_id,

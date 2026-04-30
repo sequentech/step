@@ -100,7 +100,7 @@ pub async fn upsert_realm_jwks(realm: &str) -> Result<()> {
         .into_iter()
         .filter(|key| !existing_kids.contains(&key.kid))
         .collect();
-    if 0 == new_jwks.len() {
+    if new_jwks.is_empty() {
         event!(Level::INFO, "Jwks for realm {} already present", realm);
         return Ok(());
     }

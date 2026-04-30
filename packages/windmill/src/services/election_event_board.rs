@@ -14,12 +14,12 @@ pub struct BoardSerializable {
     pub is_archived: bool,
 }
 
-impl Into<BoardSerializable> for B3IndexRow {
-    fn into(self) -> BoardSerializable {
+impl From<B3IndexRow> for BoardSerializable {
+    fn from(val: B3IndexRow) -> Self {
         BoardSerializable {
-            id: self.id.into(),
-            database_name: self.board_name,
-            is_archived: self.is_archived,
+            id: val.id.into(),
+            database_name: val.board_name,
+            is_archived: val.is_archived,
         }
     }
 }

@@ -36,7 +36,7 @@ pub async fn upsert_tenant(
 
     let headers = rdr
         .headers()
-        .map(|headers| headers.clone())
+        .cloned()
         .map_err(|err| anyhow!("Error reading CSV headers: {err:?}"))?;
 
     for header in headers.iter() {

@@ -37,8 +37,7 @@ pub async fn update_event_voting_status(
         .await
         .with_context(|| "Error obtaining election event")?;
 
-    let mut status =
-        get_election_event_status(election_event.status.clone()).unwrap_or(Default::default());
+    let mut status = get_election_event_status(election_event.status.clone()).unwrap_or_default();
     let elections = get_elections(hasura_transaction, tenant_id, election_event_id)
         .await
         .with_context(|| "Error obtaining elections")?;
@@ -46,8 +45,7 @@ pub async fn update_event_voting_status(
     let mut elections_status = HashMap::new();
 
     for election in &elections {
-        let election_status =
-            get_election_status(election.status.clone()).unwrap_or(Default::default());
+        let election_status = get_election_status(election.status.clone()).unwrap_or_default();
 
         elections_status.insert(election.id.clone(), election_status);
     }
@@ -122,7 +120,7 @@ pub async fn update_event_voting_status(
             }
         };
 
-        if !expected_next_status.contains(&new_status) {
+        if !expected_next_status.contains(new_status) {
             return Err(anyhow!(
             "Unexpected next status {new_status:?}, expected {expected_next_status:?}, current {current_voting_status:?}",
         ));
@@ -152,7 +150,7 @@ pub async fn update_event_voting_status(
 
         update_board_on_status_change(
             hasura_transaction,
-            &tenant_id,
+            tenant_id,
             user_id,
             username,
             election_event.id.to_string(),
@@ -170,19 +168,19 @@ pub async fn update_event_voting_status(
         let election_status = elections_status.get(&election.id);
 
         update_election_voting_status(
-            &hasura_transaction,
-            &tenant_id,
-            &election_event_id,
+            hasura_transaction,
+            tenant_id,
+            election_event_id,
             &election.id,
-            serde_json::to_value(&election_status).with_context(|| "Error parsing status")?,
+            serde_json::to_value(election_status).with_context(|| "Error parsing status")?,
         )
         .await
         .with_context(|| "Error updating election voting status")?;
     }
 
     update_election_event_status(
-        &hasura_transaction,
-        &&tenant_id,
+        hasura_transaction,
+        tenant_id,
         election_event_id,
         serde_json::to_value(&status).with_context(|| "Error parsing status")?,
     )
@@ -299,7 +297,7 @@ pub async fn update_election_voting_status_impl(
     let status_js = serde_json::to_value(&status).with_context(|| "Error parsing status")?;
 
     update_election_voting_status(
-        &hasura_transaction,
+        hasura_transaction,
         &tenant_id,
         &election_event_id,
         &election_id,
@@ -309,7 +307,7 @@ pub async fn update_election_voting_status_impl(
     .with_context(|| "Error updating election voting status")?;
 
     update_board_on_status_change(
-        &hasura_transaction,
+        hasura_transaction,
         &tenant_id,
         user_id,
         username,

@@ -86,7 +86,7 @@ pub async fn list_keycloak_events_by_type(
     }
 
     let rows: Vec<Row> = keycloak_transaction
-        .query(&statement, &params.as_slice())
+        .query(&statement, params.as_slice())
         .await
         .map_err(|err| anyhow!("Error running list_keycloak_events_by_type query: {err}"))?;
 
@@ -174,7 +174,7 @@ pub async fn count_keycloak_events_by_type(
         })?;
 
     let row: Row = keycloak_transaction
-        .query_one(&statement, &params.as_slice())
+        .query_one(&statement, params.as_slice())
         .await
         .map_err(|err| anyhow!("Error running count_keycloak_events_by_type query: {err}"))?;
 
@@ -221,7 +221,7 @@ pub async fn count_keycloak_password_reset_event_by_area(
     let params: Vec<&(dyn ToSql + Sync)> = vec![&realm, &AREA_ID_ATTR_NAME, &area_id];
 
     let row: Row = keycloak_transaction
-        .query_one(&statement, &params.as_slice())
+        .query_one(&statement, params.as_slice())
         .await
         .map_err(|err| {
             anyhow!("Error running count_keycloak_password_reset_event_by_area query: {err}")
