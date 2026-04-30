@@ -351,7 +351,7 @@ pub async fn replace_voter_pin(
 
     let pin = datafix_annotations
         .password_policy
-        .generate_password(&username);
+        .generate_password(username);
     let password = Some(pin.clone());
 
     let client = KeycloakAdminClient::new().await.map_err(|e| {

@@ -61,22 +61,22 @@ pub async fn generate_base_compressed_xml(
     election_event_annotations: &MiruElectionEventAnnotations,
     election_annotations: &MiruElectionAnnotations,
     area_annotations: &MiruAreaAnnotations,
-    reports: &Vec<ReportData>,
+    reports: &[ReportData],
 ) -> Result<(Vec<u8>, String, String)> {
     let eml_data = render_eml_file(
         tally_id,
         transaction_id,
         time_zone,
         date_time,
-        &election_event_annotations,
-        &election_annotations,
+        election_event_annotations,
+        election_annotations,
         area_annotations,
-        &reports,
+        reports,
     )?;
     let mut variables_map: Map<String, Value> = Map::new();
     variables_map.insert("data".to_string(), serde_json::to_value(eml_data)?);
     let template_path = PUBLIC_ASSETS_EML_BASE_TEMPLATE;
-    let s3_template_url = get_public_asset_file_path(&template_path)
+    let s3_template_url = get_public_asset_file_path(template_path)
         .with_context(|| "Error fetching get_minio_url")?;
     let template_string = download_s3_file_to_string(&s3_template_url).await?;
     // render handlebars template

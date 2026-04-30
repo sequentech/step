@@ -106,7 +106,7 @@ pub async fn list_rulesets(
     let client = Client::new();
 
     let response = client
-        .get(&format!(
+        .get(format!(
             "https://api.cloudflare.com/client/v4/zones/{}/rulesets",
             zone_id
         ))
@@ -142,7 +142,7 @@ pub async fn get_ruleset_by_id(
     let client = Client::new();
 
     let response = client
-        .get(&format!(
+        .get(format!(
             "https://api.cloudflare.com/client/v4/zones/{}/rulesets/{}",
             zone_id, ruleset_id
         ))
@@ -175,7 +175,7 @@ pub async fn get_ruleset_by_phase(
     zone_id: &str,
     ruleset_phase: &str,
 ) -> Result<Option<Ruleset>, Box<dyn Error>> {
-    let rulesets = list_rulesets(&api_key, &zone_id).await?;
+    let rulesets = list_rulesets(api_key, zone_id).await?;
 
     let ruleset_id = match rulesets
         .into_iter()
@@ -187,7 +187,7 @@ pub async fn get_ruleset_by_phase(
 
     let ruleset: Option<Ruleset> = match ruleset_id {
         Some(id) => {
-            let ruleset = get_ruleset_by_id(&api_key, &zone_id, &id).await?;
+            let ruleset = get_ruleset_by_id(api_key, zone_id, &id).await?;
             Some(ruleset)
         }
         None => None,
@@ -212,7 +212,7 @@ pub async fn create_ruleset(
     };
 
     let response = client
-        .post(&format!(
+        .post(format!(
             "https://api.cloudflare.com/client/v4/zones/{}/rulesets",
             zone_id
         ))
@@ -251,7 +251,7 @@ pub async fn create_ruleset_rule(
     let client = Client::new();
 
     let response = client
-        .post(&format!(
+        .post(format!(
             "https://api.cloudflare.com/client/v4/zones/{}/rulesets/{}/rules",
             zone_id, ruleset_id
         ))
@@ -287,7 +287,7 @@ pub async fn update_ruleset_rule(
     let client = Client::new();
 
     let response = client
-        .patch(&format!(
+        .patch(format!(
             "https://api.cloudflare.com/client/v4/zones/{}/rulesets/{}/rules/{}",
             zone_id, ruleset_id, rule_id
         ))
@@ -322,7 +322,7 @@ pub async fn delete_ruleset_rule(
     let client = Client::new();
 
     let response = client
-        .delete(&format!(
+        .delete(format!(
             "https://api.cloudflare.com/client/v4/zones/{}/rulesets/{}/rules/{}",
             zone_id, ruleset_id, rule_id
         ))

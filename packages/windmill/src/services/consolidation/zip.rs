@@ -38,7 +38,7 @@ pub fn compress_folder_to_zip(src_dir: &Path, dst_file: &Path) -> Result<()> {
                 .with_context(|| format!("Failed to open file: {:?}", entry_path))?;
             io::copy(&mut f, &mut zip)
                 .with_context(|| format!("Failed to write file to zip: {:?}", entry_path))?;
-        } else if name.as_os_str().len() != 0 {
+        } else if !name.as_os_str().is_empty() {
             zip.add_directory_from_path(name, options)
                 .with_context(|| format!("Failed to add directory to zip: {:?}", entry_path))?;
         }

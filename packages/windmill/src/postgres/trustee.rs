@@ -109,8 +109,8 @@ pub async fn get_trustee_by_name(
         get_trustees_by_name(hasura_transaction, tenant_id, &vec![name.to_string()]).await?;
 
     trustees
-        .get(0)
-        .map(|tally_session: &Trustee| tally_session.clone())
+        .first()
+        .cloned()
         .ok_or(anyhow!("Trustee {name} not found"))
 }
 

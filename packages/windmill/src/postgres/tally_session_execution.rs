@@ -381,7 +381,7 @@ pub async fn update_tally_session_execution_documents(
                 &documents_value,
                 &parse_uuid_v4(tally_session_execution_id)?,
                 &parse_uuid_v4(tenant_id)?,
-                &parse_uuid_v4(&election_event_id)?,
+                &parse_uuid_v4(election_event_id)?,
             ],
         )
         .await

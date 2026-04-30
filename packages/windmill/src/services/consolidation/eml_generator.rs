@@ -893,7 +893,7 @@ pub fn render_eml_file(
     election_event_annotations: &MiruElectionEventAnnotations,
     election_annotations: &MiruElectionAnnotations,
     area_annotations: &MiruAreaAnnotations,
-    reports: &Vec<ReportData>,
+    reports: &[ReportData],
 ) -> Result<EMLFile> {
     let issue_date = generate_timestamp(
         Some(time_zone.clone()),
@@ -927,7 +927,7 @@ pub fn render_eml_file(
                     name: election_annotations.election_name.clone(),
                 },
                 contests: reports
-                    .into_iter()
+                    .iter()
                     .map(|report| Ok(render_eml_contest(report, area_annotations)?))
                     .collect::<Result<Vec<_>>>()
                     .with_context(|| "Error rendering EML Contest")?,

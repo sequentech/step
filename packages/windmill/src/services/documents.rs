@@ -134,11 +134,11 @@ pub async fn get_upload_url(
     election_event_id: Option<String>,
 ) -> Result<(Document, String)> {
     let document = insert_document(
-        &hasura_transaction,
-        &tenant_id,
+        hasura_transaction,
+        tenant_id,
         election_event_id.clone(),
-        &name,
-        &media_type,
+        name,
+        media_type,
         size.try_into()?,
         is_public,
         None,
@@ -147,12 +147,12 @@ pub async fn get_upload_url(
     .map_err(|err| format!("Error inserting document: {:?}", err))?;
 
     let path = match is_public {
-        true => s3::get_public_document_key(&tenant_id, &document.id, &name),
+        true => s3::get_public_document_key(tenant_id, &document.id, name),
         false => s3::get_document_key(
-            &tenant_id.to_string(),
+            tenant_id,
             election_event_id.clone().as_deref(),
             &document.id,
-            &name.to_string(),
+            name,
         ),
     };
     let url = s3::get_upload_url(path.to_string(), is_public, is_local.unwrap_or(false)).await?;

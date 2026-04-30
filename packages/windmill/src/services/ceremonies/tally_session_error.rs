@@ -51,7 +51,7 @@ pub async fn handle_tally_session_error(
         log_text: error.to_string(),
     };
     let mut last_log = new_logs.pop().unwrap_or(new_log.clone());
-    if last_log.log_text == error.to_string() {
+    if last_log.log_text == error {
         last_log.created_date = ISO8601::to_string(&now);
         new_logs.push(last_log);
     } else {

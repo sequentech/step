@@ -148,7 +148,7 @@ async fn process_and_upload_document(
     path_option: Option<String>,
     mime_type: &str,
     output_type: &str,
-    all_reports: &Vec<Report>,
+    all_reports: &[Report],
     report_type: Option<ReportType>,
     tenant_id: &str,
     election_event_id: &str,
@@ -190,11 +190,7 @@ async fn process_and_upload_document(
 }
 
 pub trait GenerateResultDocuments {
-    fn get_document_paths(
-        &self,
-        area_id: Option<String>,
-        base_path: &PathBuf,
-    ) -> ResultDocumentPaths;
+    fn get_document_paths(&self, area_id: Option<String>, base_path: &Path) -> ResultDocumentPaths;
     async fn save_documents(
         &self,
         hasura_transaction: &Transaction<'_>,
@@ -210,11 +206,7 @@ pub trait GenerateResultDocuments {
 
 impl GenerateResultDocuments for Vec<ElectionReportDataComputed> {
     #[instrument(skip_all, name = "Vec<ElectionReportDataComputed>::get_document_paths")]
-    fn get_document_paths(
-        &self,
-        area_id: Option<String>,
-        base_path: &PathBuf,
-    ) -> ResultDocumentPaths {
+    fn get_document_paths(&self, area_id: Option<String>, base_path: &Path) -> ResultDocumentPaths {
         ResultDocumentPaths {
             json: None,
             pdf: None,
@@ -260,7 +252,7 @@ impl GenerateResultDocuments for Vec<ElectionReportDataComputed> {
             let tar_gz_path_clone = tar_gz_path.clone();
             let original_handle = tokio::task::spawn_blocking(move || {
                 let path = Path::new(&tar_gz_path_clone);
-                create_archive_from_folder(&path, false)
+                create_archive_from_folder(path, false)
             });
 
             // Await the result
@@ -281,8 +273,8 @@ impl GenerateResultDocuments for Vec<ElectionReportDataComputed> {
             let mut upload_path = original_tarfile_path.clone();
             upload_path = encrypt_directory_contents_sql(
                 hasura_transaction,
-                &tenant_id,
-                &election_event_id,
+                tenant_id,
+                election_event_id,
                 Some(elections_ids_clone.clone()),
                 dir_report_type.clone(),
                 &original_tarfile_path,
@@ -297,7 +289,7 @@ impl GenerateResultDocuments for Vec<ElectionReportDataComputed> {
                 &upload_path,
                 original_tarfile_size,
                 "application/gzip",
-                &report_tenant_id,
+                report_tenant_id,
                 Some(report_election_event_id.to_string()),
                 "tally.tar.gz",
                 None,
@@ -322,7 +314,7 @@ impl GenerateResultDocuments for Vec<ElectionReportDataComputed> {
                 let path = Path::new(&tar_gz_path);
                 let temp_dir = copy_to_temp_dir(&path.to_path_buf())?;
                 let mut temp_dir_path = temp_dir.path().to_path_buf();
-                let renames = rename_map.unwrap_or(HashMap::new());
+                let renames = rename_map.unwrap_or_default();
                 let report_secrets_map = report_secrets_map.clone();
                 rename_folders(&renames, &temp_dir_path)?;
                 // Execute asynchronous encryption
@@ -347,8 +339,8 @@ impl GenerateResultDocuments for Vec<ElectionReportDataComputed> {
             // Encrypt the tar.gz folder if necessary before uploading
             upload_path = encrypt_directory_contents_sql(
                 hasura_transaction,
-                &tenant_id,
-                &election_event_id,
+                tenant_id,
+                election_event_id,
                 Some(elections_ids_clone),
                 dir_report_type,
                 &tarfile_path,
@@ -363,7 +355,7 @@ impl GenerateResultDocuments for Vec<ElectionReportDataComputed> {
                 &upload_path,
                 tarfile_size,
                 "application/gzip",
-                &report_tenant_id,
+                report_tenant_id,
                 Some(report_election_event_id.to_string()),
                 "tally.tar.gz",
                 None,
@@ -384,9 +376,9 @@ impl GenerateResultDocuments for Vec<ElectionReportDataComputed> {
 
             update_results_event_documents(
                 hasura_transaction,
-                &report_tenant_id,
+                report_tenant_id,
                 results_event_id,
-                &report_election_event_id,
+                report_election_event_id,
                 &documents,
             )
             .await?;
@@ -394,9 +386,9 @@ impl GenerateResultDocuments for Vec<ElectionReportDataComputed> {
             if let Some(sqlite_transaction) = sqlite_transaction_opt {
                 update_results_event_documents_sqlite(
                     sqlite_transaction,
-                    &report_tenant_id,
+                    report_tenant_id,
                     results_event_id,
-                    &report_election_event_id,
+                    report_election_event_id,
                     &documents,
                 )?;
             }
@@ -421,7 +413,7 @@ impl GenerateResultDocuments for ElectionReportDataComputed {
     fn get_document_paths(
         &self,
         _area_id: Option<String>,
-        base_path: &PathBuf,
+        base_path: &Path,
     ) -> ResultDocumentPaths {
         let folder_path = base_path.join(format!(
             "output/velvet-generate-reports/election__{}",
@@ -515,9 +507,9 @@ impl GenerateResultDocuments for ElectionReportDataComputed {
         // Save election results documents to S3 and Hasura
         let documents = generic_save_documents(
             document_paths,
-            &tenant_id.to_string(),
-            &election_event_id.to_string(),
-            &hasura_transaction,
+            &tenant_id,
+            &election_event_id,
+            hasura_transaction,
             tally_type_enum,
         )
         .await?;
@@ -551,11 +543,7 @@ impl GenerateResultDocuments for ElectionReportDataComputed {
 }
 
 impl GenerateResultDocuments for ReportDataComputed {
-    fn get_document_paths(
-        &self,
-        area_id: Option<String>,
-        base_path: &PathBuf,
-    ) -> ResultDocumentPaths {
+    fn get_document_paths(&self, area_id: Option<String>, base_path: &Path) -> ResultDocumentPaths {
         let contest = self.contest.as_ref().expect("report is missing contest");
 
         let folder_path = match area_id.clone() {
@@ -613,7 +601,7 @@ impl GenerateResultDocuments for ReportDataComputed {
             document_paths,
             &self.tenant_id.to_string(),
             &self.election_event_id.to_string(),
-            &hasura_transaction,
+            hasura_transaction,
             tally_type_enum,
         )
         .await?;
@@ -678,13 +666,13 @@ impl GenerateResultDocuments for ReportDataComputed {
 
 #[instrument(skip(results, areas), err)]
 pub fn generate_ids_map(
-    results: &Vec<ElectionReportDataComputed>,
+    results: &[ElectionReportDataComputed],
     areas: &Vec<Area>,
     default_language: &str,
 ) -> Result<HashMap<String, String>> {
     let mut rename_map: HashMap<String, String> = HashMap::new();
     let election_reports = results
-        .into_iter()
+        .iter()
         .map(|result| result.reports.clone())
         .flat_map(|inner_vec| inner_vec)
         .collect::<Vec<ReportDataComputed>>();
@@ -829,7 +817,7 @@ pub async fn save_result_documents(
 fn get_area_document_paths(
     area_id: String,
     election_id: String,
-    base_path: &PathBuf,
+    base_path: &Path,
 ) -> ResultDocumentPaths {
     let folder_path = base_path.join(format!(
         "output/velvet-generate-reports/election__{}/area__{}",
@@ -879,19 +867,19 @@ async fn save_area_documents(
 ) -> Result<ResultDocuments> {
     let documents = generic_save_documents(
         document_paths,
-        &tenant_id.to_string(),
-        &election_event_id.to_string(),
-        &hasura_transaction,
+        tenant_id,
+        election_event_id,
+        hasura_transaction,
         tally_type_enum.clone(),
     )
     .await?;
 
     insert_results_election_area_documents(
-        &hasura_transaction,
-        &tenant_id,
-        &results_event_id,
-        &election_event_id,
-        &election_id,
+        hasura_transaction,
+        tenant_id,
+        results_event_id,
+        election_event_id,
+        election_id,
         &area.id,
         &area.name,
         &documents,
@@ -901,10 +889,10 @@ async fn save_area_documents(
     if let Some(sqlite_transaction) = sqlite_transaction_opt {
         create_results_election_area_sqlite(
             sqlite_transaction,
-            &tenant_id,
-            &results_event_id,
-            &election_event_id,
-            &election_id,
+            tenant_id,
+            results_event_id,
+            election_event_id,
+            election_id,
             &area.id,
             &area.name,
             &documents,

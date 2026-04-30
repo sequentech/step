@@ -110,8 +110,8 @@ async fn send_package_to_ccs_server(
 }
 
 #[instrument(skip_all)]
-pub fn get_latest_miru_document(input_documents: &Vec<MiruDocument>) -> Option<MiruDocument> {
-    let mut documents = input_documents.clone();
+pub fn get_latest_miru_document(input_documents: &[MiruDocument]) -> Option<MiruDocument> {
+    let mut documents = input_documents.to_owned();
     documents.sort_by(|a, b| {
         let Ok(a_date) = ISO8601::to_date(&a.created_at) else {
             return Ordering::Equal;
@@ -166,9 +166,11 @@ async fn update_miru_document(
 
     let transmission_data = tally_session.get_annotations()?;
 
-    let Some(transmission_area_election) = transmission_data.clone().into_iter().find(|data| {
-        data.area_id == area_id.to_string() && data.election_id == election_id.to_string()
-    }) else {
+    let Some(transmission_area_election) = transmission_data
+        .clone()
+        .into_iter()
+        .find(|data| data.area_id == area_id && data.election_id == election_id)
+    else {
         return Err(anyhow!("transmission package not found, unexpected"));
     };
     let mut new_transmission_area_election = transmission_area_election.clone();
@@ -255,9 +257,11 @@ async fn record_new_log(
             .flatten()
             .unwrap_or(vec![]);
 
-    let Some(transmission_area_election) = transmission_data.clone().into_iter().find(|data| {
-        data.area_id == area_id.to_string() && data.election_id == election_id.to_string()
-    }) else {
+    let Some(transmission_area_election) = transmission_data
+        .clone()
+        .into_iter()
+        .find(|data| data.area_id == area_id && data.election_id == election_id)
+    else {
         return Err(anyhow!("transmission package not found, unexpected"));
     };
     let mut new_transmission_area_election = transmission_area_election.clone();
@@ -332,7 +336,7 @@ pub async fn send_transmission_package_service(
         return Ok(());
     };
     let election_annotations = election.get_annotations()?;
-    let area = get_area_by_id(&hasura_transaction, tenant_id, &area_id)
+    let area = get_area_by_id(&hasura_transaction, tenant_id, area_id)
         .await
         .with_context(|| format!("Error fetching area {}", area_id))?
         .ok_or_else(|| anyhow!("Can't find area {}", area_id))?;
@@ -349,9 +353,11 @@ pub async fn send_transmission_package_service(
     .with_context(|| "Error fetching tally session")?;
     let transmission_data = tally_session.get_annotations()?;
 
-    let Some(transmission_area_election) = transmission_data.clone().into_iter().find(|data| {
-        data.area_id == area_id.to_string() && data.election_id == election_id.to_string()
-    }) else {
+    let Some(transmission_area_election) = transmission_data
+        .clone()
+        .into_iter()
+        .find(|data| data.area_id == area_id && data.election_id == election_id)
+    else {
         info!("transmission package not found, skipping");
         return Ok(());
     };

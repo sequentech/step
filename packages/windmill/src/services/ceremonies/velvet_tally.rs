@@ -135,7 +135,7 @@ pub fn prepare_tally_for_area_contest(
     let contest_id = area_contest.contest.id.clone();
     let relevant_sheets = tally_sheets
         .get(&(area_id.clone(), contest_id.clone()))
-        .map(|val| val.clone())
+        .cloned()
         .unwrap_or(vec![]);
     let election_id = area_contest.contest.election_id.clone();
 
@@ -222,7 +222,7 @@ pub fn prepare_tally_for_area_contest(
     writeln!(contest_config_file, "{}", serde_json::to_string(&contest)?)?;
 
     //// create tally sheets files
-    if relevant_sheets.len() > 0 {
+    if !relevant_sheets.is_empty() {
         for tally_sheet in relevant_sheets {
             let Some(content) = tally_sheet.content.clone() else {
                 continue;
@@ -246,8 +246,8 @@ pub fn prepare_tally_for_area_contest(
 pub fn create_election_configs_blocking(
     base_tempdir: PathBuf,
     area_contests: &Vec<AreaContestDataType>,
-    cast_votes_count: &Vec<ElectionCastVotes>,
-    scheduled_events: &Vec<ScheduledEvent>,
+    cast_votes_count: &[ElectionCastVotes],
+    scheduled_events: &[ScheduledEvent],
     elections_single_map: HashMap<String, Election>,
     areas: Vec<TreeNodeArea>,
     default_lang: String,
@@ -259,7 +259,7 @@ pub fn create_election_configs_blocking(
         .annotations
         .clone()
         .map(|annotations| deserialize_value(annotations).unwrap_or(Default::default()))
-        .unwrap_or(Default::default());
+        .unwrap_or_default();
     for area_contest in area_contests {
         let election_id = area_contest.contest.election_id.clone();
         let election_event_id = area_contest.contest.election_event_id.clone();
@@ -283,7 +283,7 @@ pub fn create_election_configs_blocking(
                     .map(|annotations| deserialize_value(annotations).unwrap_or(Default::default()))
                     .unwrap_or(Default::default())
             })
-            .unwrap_or(Default::default());
+            .unwrap_or_default();
 
         let election_presentation =
             election_opt.map(|election| election.get_presentation().unwrap_or_default());
@@ -294,7 +294,7 @@ pub fn create_election_configs_blocking(
 
         let election_dates = if let Some(election) = election_opt {
             Some(
-                get_election_dates(&election, scheduled_events.clone())
+                get_election_dates(election, scheduled_events.to_owned())
                     .map_err(|e| anyhow::anyhow!("Error getting election dates {e}"))?,
             )
         } else {
@@ -369,9 +369,9 @@ pub fn create_election_configs_blocking(
 #[instrument(skip_all, err)]
 pub async fn create_election_configs(
     base_tempdir: PathBuf,
-    area_contests: &Vec<AreaContestDataType>,
-    cast_votes_count: &Vec<ElectionCastVotes>,
-    basic_areas: &Vec<TreeNodeArea>,
+    area_contests: &[AreaContestDataType],
+    cast_votes_count: &[ElectionCastVotes],
+    basic_areas: &[TreeNodeArea],
     election_event: &ElectionEvent,
 ) -> Result<()> {
     // aggregate all ballot styles for each election
@@ -406,10 +406,10 @@ pub async fn create_election_configs(
         .iter()
         .map(|election| (election.id.clone(), election.clone()))
         .collect();
-    let area_contests_r = area_contests.clone();
-    let cast_votes_count_r = cast_votes_count.clone();
+    let area_contests_r = area_contests.to_owned();
+    let cast_votes_count_r = cast_votes_count.to_owned();
 
-    let areas_clone = basic_areas.clone();
+    let areas_clone = basic_areas.to_owned();
 
     // Fetch election event data
     let scheduled_events = find_scheduled_event_by_election_event_id(
@@ -547,7 +547,7 @@ pub async fn build_ballot_images_pipe_config(
         ),
     };
 
-    let acm_key = get_acm_key_pair(hasura_transaction, &tenant_id, &election_event_id).await?;
+    let acm_key = get_acm_key_pair(hasura_transaction, tenant_id, election_event_id).await?;
 
     let ballot_images_pipe_config = PipeConfigBallotImages {
         template: user_tpl_document,
@@ -641,7 +641,7 @@ pub async fn create_config_file(
     let minio_endpoint_base = s3::get_minio_url()?;
 
     let gen_report_pipe_config = build_reports_pipe_config(
-        &tally_session,
+        tally_session,
         minio_endpoint_base,
         public_asset_path,
         report_content_template,
@@ -865,19 +865,19 @@ async fn populate_sqlite_election_event_data(
 pub async fn run_velvet_tally(
     base_tally_path: PathBuf,
     area_contests: &Vec<AreaContestDataType>,
-    cast_votes_count: &Vec<ElectionCastVotes>,
+    cast_votes_count: &[ElectionCastVotes],
     tally_sheets: &Vec<TallySheet>,
     report_content_template: Option<String>,
     report_system_template: String,
     pdf_options: Option<PrintToPdfOptionsLocal>,
-    areas: &Vec<Area>,
+    areas: &[Area],
     hasura_transaction: &Transaction<'_>,
     election_event: &ElectionEvent,
     tally_session: &TallySession,
     tally_type: TallyType,
     tie_resolutions: HashMap<String, Vec<TallySessionResolutionData>>,
 ) -> Result<State> {
-    let basic_areas: Vec<TreeNodeArea> = areas.into_iter().map(|area| area.into()).collect();
+    let basic_areas: Vec<TreeNodeArea> = areas.iter().map(|area| area.into()).collect();
     // map<(area_id,contest_id), tally_sheet>
     let tally_sheet_map = create_tally_sheets_map(tally_sheets);
     for area_contest in area_contests {

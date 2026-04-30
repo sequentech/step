@@ -98,9 +98,9 @@ pub fn check_certificate_cas(
 
     let verify_command = format!(
         "openssl verify -CAfile {} -untrusted {} {}",
-        root_ca_file_path.to_string_lossy().to_string(),
-        intermediate_ca_file_path.to_string_lossy().to_string(),
-        p12_cert_path.to_string_lossy().to_string(),
+        root_ca_file_path.to_string_lossy(),
+        intermediate_ca_file_path.to_string_lossy(),
+        p12_cert_path.to_string_lossy(),
     );
     let verify_result = run_shell_command(&verify_command)?.replace("\n", "");
 

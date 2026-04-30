@@ -60,7 +60,7 @@ pub async fn insert_ballots_messages(
     delegated_voting_policy: DelegatedVotingPolicy,
     skip_board_posting: bool,
 ) -> Result<Vec<TallySessionContest>> {
-    let trustees = get_trustees_by_name(hasura_transaction, &tenant_id, &trustee_names).await?;
+    let trustees = get_trustees_by_name(hasura_transaction, tenant_id, &trustee_names).await?;
 
     event!(Level::INFO, "trustees len: {:?}", trustees.len());
 
@@ -82,7 +82,7 @@ pub async fn insert_ballots_messages(
         deserialized_trustee_pks.len()
     );
 
-    let realm = get_event_realm(&tenant_id, &election_event_id);
+    let realm = get_event_realm(tenant_id, election_event_id);
     // Wrap protocol_manager in an Arc
     let protocol_manager = Arc::new(
         get_protocol_manager(
@@ -95,14 +95,14 @@ pub async fn insert_ballots_messages(
     );
     let mut board_client = get_b3_pgsql_client().await?;
     let board_messages =
-        Arc::new(get_board_messages::<RistrettoCtx>(board_name, &mut board_client).await?);
+        Arc::new(get_board_messages::<RistrettoCtx>(board_name, &board_client).await?);
     let configuration = get_configuration(&board_messages)?;
     let public_key_hash = get_public_key_hash::<RistrettoCtx>(&board_messages)?;
     let selected_trustees: TrusteeSet =
         generate_trustee_set(&configuration, deserialized_trustee_pks.clone());
 
     let election_ids_alias: HashMap<String, String> =
-        get_election_event_elections(&hasura_transaction, tenant_id, election_event_id)
+        get_election_event_elections(hasura_transaction, tenant_id, election_event_id)
             .await?
             .into_iter()
             .filter_map(|election| election.external_id.map(|x| (election.id.clone(), x)))
@@ -343,14 +343,11 @@ pub async fn get_elections_end_dates(
             let election_presentation: ElectionPresentation = election
                 .presentation
                 .clone()
-                .map(|presentation| deserialize_value(presentation))
+                .map(deserialize_value)
                 .transpose()
                 .map_err(|err| anyhow!("Error parsing election presentation {:?}", err))?
                 .unwrap_or(Default::default());
-            let current_dates = election_presentation
-                .dates
-                .clone()
-                .unwrap_or(Default::default());
+            let current_dates = election_presentation.dates.clone().unwrap_or_default();
             let end_date = current_dates
                 .end_date
                 .clone()

@@ -55,7 +55,7 @@ impl TryFrom<Row> for TallySessionWrapper {
             threshold: item.try_get::<_, i32>("threshold")? as i64,
             configuration: item
                 .try_get::<_, Option<Value>>("configuration")?
-                .map(|val| deserialize_value(val))
+                .map(deserialize_value)
                 .transpose()?,
             tally_type: item.try_get("tally_type")?,
             permission_label: item.get::<_, Option<Vec<String>>>("permission_label"),
@@ -84,11 +84,11 @@ pub async fn insert_tally_session(
         .transpose()?;
     let election_uuids: Vec<Uuid> = election_ids
         .iter()
-        .map(|id| parse_uuid_v4(&id).map_err(|err| anyhow!("{:?}", err)))
+        .map(|id| parse_uuid_v4(id).map_err(|err| anyhow!("{:?}", err)))
         .collect::<Result<Vec<Uuid>>>()?;
     let area_uuids: Vec<Uuid> = area_ids
         .iter()
-        .map(|id| parse_uuid_v4(&id).map_err(|err| anyhow!("{:?}", err)))
+        .map(|id| parse_uuid_v4(id).map_err(|err| anyhow!("{:?}", err)))
         .collect::<Result<Vec<Uuid>>>()?;
     let statement = hasura_transaction
         .prepare(
@@ -286,8 +286,8 @@ pub async fn get_tally_session_by_id(
         .collect::<Result<Vec<TallySession>>>()?;
 
     elements
-        .get(0)
-        .map(|tally_session: &TallySession| tally_session.clone())
+        .first()
+        .cloned()
         .ok_or(anyhow!("Tally Session {tally_session_id} not found"))
 }
 
@@ -321,7 +321,7 @@ pub async fn update_tally_session_annotation(
                 &annotations,
                 &parse_uuid_v4(tally_session_id)?,
                 &parse_uuid_v4(tenant_id)?,
-                &parse_uuid_v4(&election_event_id)?,
+                &parse_uuid_v4(election_event_id)?,
             ],
         )
         .await
@@ -360,8 +360,8 @@ pub async fn get_tally_sessions_by_election_id(
             &statement,
             &[
                 &parse_uuid_v4(tenant_id)?,
-                &parse_uuid_v4(&election_event_id)?,
-                &parse_uuid_v4(&election_id)?,
+                &parse_uuid_v4(election_event_id)?,
+                &parse_uuid_v4(election_id)?,
             ],
         )
         .await?;
@@ -407,7 +407,7 @@ pub async fn update_tally_session_status(
                 &execution_status.to_string(),
                 &parse_uuid_v4(tally_session_id)?,
                 &parse_uuid_v4(tenant_id)?,
-                &parse_uuid_v4(&election_event_id)?,
+                &parse_uuid_v4(election_event_id)?,
                 &is_execution_completed,
             ],
         )
@@ -445,7 +445,7 @@ pub async fn set_post_tally_task_completed(
             &[
                 &parse_uuid_v4(tally_session_id)?,
                 &parse_uuid_v4(tenant_id)?,
-                &parse_uuid_v4(&election_event_id)?,
+                &parse_uuid_v4(election_event_id)?,
             ],
         )
         .await
@@ -486,7 +486,7 @@ pub async fn set_tally_session_completed(
                 &execution_status.to_string(),
                 &parse_uuid_v4(tally_session_id)?,
                 &parse_uuid_v4(tenant_id)?,
-                &parse_uuid_v4(&election_event_id)?,
+                &parse_uuid_v4(election_event_id)?,
             ],
         )
         .await

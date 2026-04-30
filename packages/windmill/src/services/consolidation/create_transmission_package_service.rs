@@ -118,9 +118,7 @@ pub async fn update_transmission_package_annotations(
     let mut new_transmission_data: Vec<MiruTransmissionPackageData> = transmission_data
         .clone()
         .into_iter()
-        .filter(|data| {
-            data.area_id != area_id.to_string() || data.election_id != election_id.to_string()
-        })
+        .filter(|data| data.area_id != area_id || data.election_id != election_id)
         .collect();
     new_transmission_data.push(new_transmission_package_data);
     let new_transmission_data_str = serde_json::to_string(&new_transmission_data)?;
@@ -136,7 +134,7 @@ pub async fn update_transmission_package_annotations(
     );
 
     update_tally_session_annotation(
-        &hasura_transaction,
+        hasura_transaction,
         tenant_id,
         election_event_id,
         tally_session_id,
@@ -185,7 +183,7 @@ pub async fn generate_all_servers_document(
             area_annotations,
             &zip_file_path,
             &server_signatures,
-            &election_annotations,
+            election_annotations,
         )
         .await?;
         let with_logs = ccs_server.send_logs.clone().unwrap_or_default();
@@ -195,7 +193,7 @@ pub async fn generate_all_servers_document(
                 time_zone.clone(),
                 now_utc.clone(),
                 election_event_annotations,
-                &election_annotations,
+                election_annotations,
                 &acm_key_pair,
                 &ccs_server.public_key_pem,
                 area_annotations,
@@ -216,7 +214,7 @@ pub async fn generate_all_servers_document(
         get_file_size(dst_file_string.as_str()).with_context(|| "Error obtaining file size")?;
 
     let document = upload_and_return_document(
-        &hasura_transaction,
+        hasura_transaction,
         &dst_file_string,
         file_size,
         "applization/zip",
@@ -265,15 +263,16 @@ pub async fn create_transmission_package_service(
     let tally_annotations: Annotations = tally_session
         .annotations
         .clone()
-        .map(|value| deserialize_value(value))
+        .map(deserialize_value)
         .transpose()?
         .unwrap_or_default();
 
     let transmission_data: MiruTallySessionData = tally_session.get_annotations().unwrap_or(vec![]);
 
-    let found_package = transmission_data.clone().into_iter().find(|data| {
-        data.area_id == area_id.to_string() && data.election_id == election_id.to_string()
-    });
+    let found_package = transmission_data
+        .clone()
+        .into_iter()
+        .find(|data| data.area_id == area_id && data.election_id == election_id);
 
     if found_package.is_some() && !force {
         info!("transmission package already found, skipping");
@@ -293,9 +292,9 @@ pub async fn create_transmission_package_service(
     };
     let election_annotations = election.get_annotations()?;
 
-    let area = get_area_by_id(&hasura_transaction, tenant_id, &area_id)
+    let area = get_area_by_id(&hasura_transaction, tenant_id, area_id)
         .await
-        .with_context(|| format!("Error fetching area {}", area_id))?
+        .with_context(|| format!("Error fetching area {area_id}"))?
         .ok_or_else(|| anyhow!("Can't find area {}", area_id))?;
     let area_annotations = area.get_annotations()?;
 
@@ -344,7 +343,7 @@ pub async fn create_transmission_package_service(
             let Some(basic_area) = result.area.clone() else {
                 return false;
             };
-            return basic_area.id == area_id;
+            basic_area.id == area_id
         })
         .map(|report_computed| report_computed.into())
         .collect();
@@ -378,7 +377,7 @@ pub async fn create_transmission_package_service(
     .await?;
 
     // upload eml
-    let eml_name = format!("er_{}.xml", transaction_id);
+    let eml_name = format!("er_{transaction_id}.xml");
     let (temp_path, temp_path_string, file_size) =
         write_into_named_temp_file(&eml.as_bytes().to_vec(), &eml_name, ".eml")?;
     let eml_document = upload_and_return_document(

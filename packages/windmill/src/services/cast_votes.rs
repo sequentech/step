@@ -109,9 +109,8 @@ pub async fn find_area_ballots(
 
     let reader = hasura_transaction.copy_out(&copy_out_query).await?;
 
-    let adapt_pg_error_to_io_error = |pg_err: tokio_postgres::Error| {
-        std::io::Error::new(std::io::ErrorKind::Other, pg_err.to_string())
-    };
+    let adapt_pg_error_to_io_error =
+        |pg_err: tokio_postgres::Error| std::io::Error::other(pg_err.to_string());
     let io_error_stream = reader.map_err(adapt_pg_error_to_io_error);
 
     let async_reader = StreamReader::new(io_error_stream);
@@ -389,7 +388,7 @@ pub async fn get_users_with_vote_info(
 
         user_votes_map
             .entry(voter_id_string)
-            .or_insert_with(Vec::new)
+            .or_default()
             .push(VotesInfo {
                 election_id: election_id.to_string(),
                 num_votes: num_votes as usize,
@@ -411,7 +410,7 @@ pub async fn get_users_with_vote_info(
         // If this is a "datafix" event, adjust the votes_info by checking the user's attributes
         if is_datafix_event {
             if let Some(attributes) = &user.attributes {
-                if voted_via_not_internet_channel(&attributes) {
+                if voted_via_not_internet_channel(attributes) {
                     votes_info = vec![VotesInfo {
                         election_id: "".to_string(), // Not used for datafix
                         num_votes: 1,
@@ -478,17 +477,10 @@ pub async fn get_top_count_votes_by_ip(
         0
     };
 
-    let ip_pattern: Option<String> = if let Some(ip_val) = filter.ip {
-        Some(format!("%{ip_val}%"))
-    } else {
-        None
-    };
+    let ip_pattern: Option<String> = filter.ip.map(|ip_val| format!("%{ip_val}%"));
+    let country_pattern: Option<String> =
+        filter.country.map(|country_val| format!("%{country_val}%"));
 
-    let country_pattern: Option<String> = if let Some(country_val) = filter.country {
-        Some(format!("%{country_val}%"))
-    } else {
-        None
-    };
     let election_id_pattern: Option<Uuid> = if let Some(election_id_val) = filter.election_id {
         match parse_uuid_v4(&election_id_val) {
             Ok(uuid) => Some(uuid),

@@ -101,11 +101,12 @@ pub async fn get_private_key(
         .with_context(|| "error parsing keys ceremony current status")?;
 
     // check the trustee is part of this ceremony
-    if let None = current_status
+    if current_status
         .trustees
         .clone()
         .into_iter()
         .find(|trustee| trustee.name == trustee_name)
+        .is_none()
     {
         return Err(anyhow!("Trustee not part of the keys ceremony"));
     }
@@ -182,8 +183,7 @@ pub async fn find_trustee_private_key(
     keys_ceremony: &KeysCeremony,
 ) -> Result<String> {
     let (board_name, _) =
-        get_keys_ceremony_board(transaction, &tenant_id, &election_event_id, &keys_ceremony)
-            .await?;
+        get_keys_ceremony_board(transaction, tenant_id, election_event_id, keys_ceremony).await?;
 
     let trustee_public_key = trustee::get_trustee_by_name(transaction, tenant_id, trustee_name)
         .await?
@@ -232,12 +232,18 @@ pub async fn check_private_key(
         .with_context(|| "error parsing keys ceremony current status")?;
 
     // check the trustee is part of this ceremony
-    if let None = current_status.trustees.clone().into_iter().find(|trustee| {
-        (trustee.name == trustee_name
-            && (trustee.status == TrusteeStatus::KEY_GENERATED
-                || trustee.status == TrusteeStatus::KEY_RETRIEVED
-                || trustee.status == TrusteeStatus::KEY_CHECKED))
-    }) {
+    if current_status
+        .trustees
+        .clone()
+        .into_iter()
+        .find(|trustee| {
+            (trustee.name == trustee_name
+                && (trustee.status == TrusteeStatus::KEY_GENERATED
+                    || trustee.status == TrusteeStatus::KEY_RETRIEVED
+                    || trustee.status == TrusteeStatus::KEY_CHECKED))
+        })
+        .is_none()
+    {
         return Err(anyhow!(
             "Trustee not part of the keys ceremony or has invalid state"
         ));
@@ -325,7 +331,7 @@ pub async fn create_keys_ceremony(
     is_automatic_ceremony: bool,
 ) -> Result<String> {
     // verify trustee names and fetch their objects to get their ids
-    let trustees = trustee::get_trustees_by_name(&transaction, &tenant_id, &trustee_names)
+    let trustees = trustee::get_trustees_by_name(transaction, &tenant_id, &trustee_names)
         .await
         .with_context(|| "can't find trustees")?;
 
@@ -345,10 +351,10 @@ pub async fn create_keys_ceremony(
 
     // get the election event
     let election_event =
-        get_election_event_by_id(&transaction, &tenant_id, &election_event_id).await?;
+        get_election_event_by_id(transaction, &tenant_id, &election_event_id).await?;
 
     let keys_ceremonies =
-        keys_ceremony::get_keys_ceremonies(&transaction, &tenant_id, &election_event_id)
+        keys_ceremony::get_keys_ceremonies(transaction, &tenant_id, &election_event_id)
             .await
             .with_context(|| "error listing existing keys ceremonies")?;
 
@@ -378,7 +384,7 @@ pub async fn create_keys_ceremony(
         }
     } else {
         // it's an event ceremony, then there can be no other keys ceremony
-        if keys_ceremonies.len() > 0 {
+        if !keys_ceremonies.is_empty() {
             return Err(anyhow!("Can't create an election event keys ceremony when there are already existing keys ceremonies."));
         }
     };
@@ -404,7 +410,7 @@ pub async fn create_keys_ceremony(
     let is_default = election_id.is_none();
 
     let elections = set_election_keys_ceremony(
-        &transaction,
+        transaction,
         &tenant_id,
         &election_event_id,
         election_id.clone(),
@@ -432,7 +438,7 @@ pub async fn create_keys_ceremony(
 
     // insert keys-ceremony into the database using postgres
     keys_ceremony::insert_keys_ceremony(
-        &transaction,
+        transaction,
         keys_ceremony_id.clone(),
         tenant_id.clone(),
         election_event_id.clone(),
@@ -455,7 +461,7 @@ pub async fn create_keys_ceremony(
     // let electoral_log = ElectoralLog::new(board_name.as_str()).await?;
     let election_ids = election_id.clone().map(|id| vec![id]);
     let electoral_log = ElectoralLog::for_admin_user(
-        &transaction,
+        transaction,
         &board_name,
         &tenant_id,
         &election_event.id,

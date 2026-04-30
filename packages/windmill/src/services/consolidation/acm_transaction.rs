@@ -23,8 +23,6 @@ pub fn generate_transaction_id() -> u64 {
     let mut rng = rand::thread_rng();
     let random_part: u64 = rng.gen_range(1..=RANDOM_PART);
 
-    // Combine the two parts
-    let final_number = first_part * random_part;
-
-    final_number
+    // Combine the two parts and return the result
+    first_part * random_part
 }

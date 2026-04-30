@@ -314,8 +314,8 @@ pub async fn generate_results_id_if_necessary(
 
         insert_results_event(
             hasura_transaction,
-            &tenant_id,
-            &election_event_id,
+            tenant_id,
+            election_event_id,
             &results_event.id,
         )
         .await?;

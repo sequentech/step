@@ -72,7 +72,7 @@ pub async fn get_template_by_alias(
         })
         .collect::<Result<Vec<Template>>>()?;
 
-    Ok(elections.get(0).map(|election| election.clone()))
+    Ok(elections.first().cloned())
 }
 
 #[instrument(skip(hasura_transaction), err)]

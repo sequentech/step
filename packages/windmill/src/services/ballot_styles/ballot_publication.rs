@@ -97,7 +97,7 @@ pub async fn update_publish_ballot(
     ballot_publication_id: String,
 ) -> Result<()> {
     let ballot_publication = get_ballot_publication_by_id(
-        &hasura_transaction,
+        hasura_transaction,
         &tenant_id,
         &election_event_id,
         &ballot_publication_id,
@@ -116,7 +116,7 @@ pub async fn update_publish_ballot(
     }
 
     let _result = soft_delete_other_ballot_publications(
-        &hasura_transaction,
+        hasura_transaction,
         &ballot_publication_id,
         &election_event_id,
         &tenant_id,
@@ -142,7 +142,7 @@ pub async fn update_publish_ballot(
     .await?;
 
     let mut new_status: ElectionEventStatus =
-        get_election_event_status(election_event.status.clone()).unwrap_or(Default::default());
+        get_election_event_status(election_event.status.clone()).unwrap_or_default();
     new_status.is_published = Some(true);
     let new_status_js = serde_json::to_value(new_status)?;
 
@@ -158,7 +158,7 @@ pub async fn update_publish_ballot(
     let election_ids = ballot_publication.election_ids.clone().unwrap_or(vec![]);
     for election_id in election_ids.clone() {
         update_election_status(
-            &hasura_transaction,
+            hasura_transaction,
             &election_id,
             &tenant_id.clone(),
             &election_event_id.clone(),
@@ -206,7 +206,7 @@ pub async fn get_publication_json(
     limit: Option<usize>,
 ) -> Result<Value> {
     let ballot_style = get_publication_ballot_styles(
-        &hasura_transaction,
+        hasura_transaction,
         &tenant_id,
         &election_event_id,
         &ballot_publication_id,
@@ -256,7 +256,7 @@ pub async fn get_ballot_publication_diff(
     limit: Option<usize>,
 ) -> Result<PublicationDiff> {
     let ballot_publication = get_ballot_publication_by_id(
-        &hasura_transaction,
+        hasura_transaction,
         &tenant_id,
         &election_event_id,
         &ballot_publication_id,
@@ -267,7 +267,7 @@ pub async fn get_ballot_publication_diff(
     let previous_publication_id = if let Some(election_id) = ballot_publication.election_id.clone()
     {
         get_previous_publication_election(
-            &hasura_transaction,
+            hasura_transaction,
             &tenant_id,
             &election_event_id,
             ballot_publication.created_at.clone(),
@@ -285,7 +285,7 @@ pub async fn get_ballot_publication_diff(
         .ok()
     } else {
         get_previous_publication(
-            &hasura_transaction,
+            hasura_transaction,
             &tenant_id,
             &election_event_id,
             ballot_publication.created_at.clone(),
@@ -298,7 +298,7 @@ pub async fn get_ballot_publication_diff(
     };
 
     let current_json = get_publication_json(
-        &hasura_transaction,
+        hasura_transaction,
         tenant_id.clone(),
         election_event_id.clone(),
         ballot_publication.id.clone(),
@@ -314,7 +314,7 @@ pub async fn get_ballot_publication_diff(
 
     let previous = if let Some(previous_publication_id) = previous_publication_id {
         let previous_json = get_publication_json(
-            &hasura_transaction,
+            hasura_transaction,
             tenant_id.clone(),
             election_event_id.clone(),
             previous_publication_id.clone(),

@@ -96,7 +96,7 @@ pub async fn verify_application(
         None,
         realm,
         None,
-        &annotations,
+        annotations,
         applicant_data,
     )?;
 
@@ -105,7 +105,7 @@ pub async fn verify_application(
     debug!("Found users before verification: {:?}", users);
 
     // Finds an user from the list of found possible users
-    let result = automatic_verification(users.clone(), &annotations, applicant_data)?;
+    let result = automatic_verification(users.clone(), annotations, applicant_data)?;
     info!("Verification result: {:?}", result);
 
     // Set the annotations
@@ -183,8 +183,8 @@ async fn get_permission_label_and_area_from_applicant_data(
 
     return get_permission_label_from_post(
         hasura_transaction,
-        &post_name,
-        &post_description,
+        post_name,
+        post_description,
         tenant_id,
         election_event_id,
     )
@@ -441,18 +441,10 @@ fn automatic_verification(
                 rejection_reason = Some(ApplicationRejectReason::NO_VOTER);
                 rejection_message = None;
             }
-        } else if mismatches == 2 && !fields_match.get("embassy").unwrap_or(&false) {
-            matched_user = None;
-            matched_status = ApplicationStatus::PENDING;
-            matched_type = ApplicationType::MANUAL;
-            verification_mismatches = Some(mismatches);
-            verification_fields_match = Some(fields_match);
-            verification_attributes_unset = Some(attributes_unset);
-            rejection_reason = Some(ApplicationRejectReason::NO_VOTER);
-            rejection_message = None;
         } else if mismatches == 2
-            && !fields_match.get("middleName").unwrap_or(&false)
-            && !fields_match.get("lastName").unwrap_or(&false)
+            && (!fields_match.get("embassy").unwrap_or(&false)
+                || (!fields_match.get("middleName").unwrap_or(&false)
+                    && !fields_match.get("lastName").unwrap_or(&false)))
         {
             matched_user = None;
             matched_status = ApplicationStatus::PENDING;
@@ -626,7 +618,7 @@ fn check_mismatches(
         };
 
         let user_field_value = user_field_value.clone().map(|value| value.to_lowercase());
-        let is_set = user_field_value.unwrap_or_default().trim().len() > 0;
+        let is_set = !user_field_value.unwrap_or_default().trim().is_empty();
 
         // match is true only if the field is NOT set
         unset_result.insert(field_to_check.to_string(), !is_set);
@@ -697,7 +689,7 @@ pub async fn get_i18n_application_communication(
     communication_method: TemplateMethod,
 ) -> Result<ApplicationCommunicationChannels> {
     let mut application_channels =
-        get_i18n_default_application_communication(&lang, app_status.clone()).await?;
+        get_i18n_default_application_communication(lang, app_status.clone()).await?;
     let Some(localization_map) = presentation
         .i18n
         .map(|val| val.get(lang).cloned())
@@ -958,7 +950,7 @@ pub async fn reject_application(
         rejection_reason,
         rejection_message,
         admin_name,
-        &group_names,
+        group_names,
     )
     .await
     .map_err(|err| anyhow!("Error updating application: {}", err))?;
@@ -1120,7 +1112,7 @@ pub async fn get_group_names(realm: &str, user_id: &str) -> Result<Vec<String>> 
 
     // Fetch user groups from Keycloak
     let _groups = client
-        .get_user_groups(&realm, user_id)
+        .get_user_groups(realm, user_id)
         .await
         .map_err(|err| anyhow!("Error fetch group names: {err}"))?;
 

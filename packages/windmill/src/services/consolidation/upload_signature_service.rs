@@ -69,14 +69,14 @@ use tracing::{info, instrument};
 async fn update_election_event_sbei_users(
     hasura_transaction: &Transaction<'_>,
     election_event: &ElectionEvent,
-    sbei_users: &Vec<MiruSbeiUser>,
+    sbei_users: &[MiruSbeiUser],
     sbei_user: &MiruSbeiUser,
     certificate_fingerprint: &str,
 ) -> Result<()> {
     let mut new_sbei_users: Vec<_> = sbei_users
-        .clone()
-        .into_iter()
+        .iter()
         .filter(|user| !(user.username == sbei_user.username && user.miru_id == sbei_user.miru_id))
+        .cloned()
         .collect();
     let mut new_sbei_user = sbei_user.clone();
     new_sbei_user.certificate_fingerprint = Some(certificate_fingerprint.to_string());
@@ -108,7 +108,7 @@ async fn update_signatures(
     tenant_id: &str,
     election_event_id: &str,
     new_miru_signature: &MiruSignature,
-    current_miru_signatures: &Vec<MiruSignature>,
+    current_miru_signatures: &[MiruSignature],
 ) -> Result<(Vec<ACMTrustee>, Vec<MiruSignature>)> {
     let election_event =
         get_election_event_by_id(hasura_transaction, tenant_id, election_event_id).await?;
@@ -116,9 +116,9 @@ async fn update_signatures(
     let event_annotations = election_event.get_annotations()?;
 
     let mut new_miru_signatures: Vec<MiruSignature> = current_miru_signatures
-        .clone()
-        .into_iter()
+        .iter()
         .filter(|signature| signature.sbei_miru_id != new_miru_signature.sbei_miru_id)
+        .cloned()
         .collect();
     new_miru_signatures.push(new_miru_signature.clone());
 
@@ -301,7 +301,7 @@ pub async fn upload_transmission_package_signature_service(
     let election_annotations = election.get_annotations()?;
 
     // get area and annotations
-    let area = get_area_by_id(&hasura_transaction, tenant_id, &area_id)
+    let area = get_area_by_id(&hasura_transaction, tenant_id, area_id)
         .await
         .with_context(|| format!("Error fetching area {}", area_id))?
         .ok_or_else(|| anyhow!("Can't find area {}", area_id))?;
@@ -343,9 +343,11 @@ pub async fn upload_transmission_package_signature_service(
 
     let tally_annotations: Annotations = deserialize_value(tally_annotations_js)?;
 
-    let Some(transmission_area_election) = transmission_data.clone().into_iter().find(|data| {
-        data.area_id == area_id.to_string() && data.election_id == election_id.to_string()
-    }) else {
+    let Some(transmission_area_election) = transmission_data
+        .clone()
+        .into_iter()
+        .find(|data| data.area_id == area_id && data.election_id == election_id)
+    else {
         info!("transmission package not found, skipping");
         return Ok(());
     };
@@ -359,7 +361,7 @@ pub async fn upload_transmission_package_signature_service(
         &hasura_transaction,
         tenant_id,
         Some(election_event.id.clone()),
-        &document_id,
+        document_id,
     )
     .await?
     .ok_or_else(|| anyhow!("Can't find document {}", document_id))?;
