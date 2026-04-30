@@ -20,6 +20,7 @@ public class ConditionalAuthNoteAuthenticatorFactory implements ConditionalAuthe
 
   public static final String CONDITIONAL_AUTH_NOTE_KEY = "conditional-auth-note-key";
   public static final String CONDITIONAL_AUTH_NOTE_VALUE = "conditional-auth-note-value";
+  public static final String CONF_VALUE_IS_REGEX = "value-is-regex";
   public static final String CONF_NEGATE = "negate";
 
   private static final Requirement[] REQUIREMENT_CHOICES = {
@@ -86,6 +87,13 @@ public class ConditionalAuthNoteAuthenticatorFactory implements ConditionalAuthe
             "Auth Note Value that the Auth Note Key should have in the Auth Session executing this flow.",
             ProviderConfigProperty.STRING_TYPE,
             ""),
+        new ProviderConfigProperty(
+            CONF_VALUE_IS_REGEX,
+            "Value is a regular expression",
+            "When enabled, the Auth Note Value is treated as a Java regular expression "
+                + "and matched with Pattern.matches() instead of an exact string comparison.",
+            ProviderConfigProperty.BOOLEAN_TYPE,
+            false),
         new ProviderConfigProperty(
             CONF_NEGATE,
             "Negate output",

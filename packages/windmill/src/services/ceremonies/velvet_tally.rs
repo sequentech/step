@@ -31,6 +31,7 @@ use sequent_core::serialization::deserialize_with_path::deserialize_value;
 use sequent_core::services::area_tree::TreeNodeArea;
 use sequent_core::services::s3;
 use sequent_core::services::translations::{Alias, Name};
+use sequent_core::services::uuid_validation::parse_uuid_v4;
 use sequent_core::signatures::ecies_encrypt::EciesKeyPair;
 use sequent_core::sqlite::area::create_area_sqlite;
 use sequent_core::sqlite::area_contest::create_area_contest_sqlite;
@@ -39,6 +40,7 @@ use sequent_core::sqlite::contests::create_contest_sqlite;
 use sequent_core::sqlite::election::create_election_sqlite;
 use sequent_core::sqlite::election_event::create_election_event_sqlite;
 use sequent_core::types::ceremonies::TallyType;
+use sequent_core::types::ceremonies::{TallySessionResolution, TallySessionResolutionData};
 use sequent_core::types::hasura::core::{
     Area, Election, ElectionEvent, TallySession, TallySessionContest, TallySheet,
 };
@@ -122,6 +124,7 @@ pub fn prepare_tally_for_area_contest(
     area_contest: &AreaContestDataType,
     tally_sheets: &HashMap<(String, String), Vec<TallySheet>>,
     tally_session: &TallySession,
+    contest_tie_resolutions: Option<&Vec<TallySessionResolutionData>>,
 ) -> Result<()> {
     let contest_encryption_policy = tally_session
         .configuration
@@ -185,18 +188,18 @@ pub fn prepare_tally_for_area_contest(
     ));
 
     let area_config = AreaConfig {
-        id: Uuid::parse_str(&area_id)?,
+        id: parse_uuid_v4(&area_id)?,
         name: area_contest.area.name.clone().unwrap_or("".into()),
-        tenant_id: Uuid::parse_str(&area_contest.contest.tenant_id)?,
-        election_event_id: Uuid::parse_str(&area_contest.contest.election_event_id)?,
-        election_id: Uuid::parse_str(&election_id)?,
+        tenant_id: parse_uuid_v4(&area_contest.contest.tenant_id)?,
+        election_event_id: parse_uuid_v4(&area_contest.contest.election_event_id)?,
+        election_id: parse_uuid_v4(&election_id)?,
         census: area_contest.eligible_voters as u64,
         auditable_votes: area_contest.auditable_votes as u64,
         parent_id: area_contest
             .area
             .parent_id
             .clone()
-            .map(|parent_id| Uuid::parse_str(&parent_id))
+            .map(|parent_id| parse_uuid_v4(&parent_id))
             .transpose()?,
     };
     let mut area_config_file = fs::File::create(area_config_path)?;
@@ -207,11 +210,16 @@ pub fn prepare_tally_for_area_contest(
         "{DEFAULT_DIR_CONFIGS}/election__{election_id}/contest__{contest_id}/contest-config.json"
     ));
     let mut contest_config_file = fs::File::create(contest_config_path)?;
-    writeln!(
-        contest_config_file,
-        "{}",
-        serde_json::to_string(&area_contest.contest)?
+
+    // Prepare contest data, potentially injecting tie resolution
+    let mut contest = area_contest.contest.clone();
+    let empty_resolutions = vec![];
+    Contest::insert_tie_resolutions(
+        &mut contest,
+        contest_tie_resolutions.unwrap_or(&empty_resolutions),
     )?;
+
+    writeln!(contest_config_file, "{}", serde_json::to_string(&contest)?)?;
 
     //// create tally sheets files
     if relevant_sheets.len() > 0 {
@@ -296,15 +304,15 @@ pub fn create_election_configs_blocking(
         let mut velvet_election: ElectionConfig = match elections_map.get(&election_id) {
             Some(election) => election.clone(),
             None => ElectionConfig {
-                id: Uuid::parse_str(&election_id)?,
+                id: parse_uuid_v4(&election_id)?,
                 name: election_name_opt.unwrap_or("".to_string()),
                 alias: election_alias_otp.unwrap_or("".to_string()),
                 description: election_description,
                 annotations: election_annotations.clone(),
                 election_event_annotations: election_event_annotations.clone(),
                 dates: election_dates,
-                tenant_id: Uuid::parse_str(&area_contest.contest.tenant_id)?,
-                election_event_id: Uuid::parse_str(&area_contest.contest.election_event_id)?,
+                tenant_id: parse_uuid_v4(&area_contest.contest.tenant_id)?,
+                election_event_id: parse_uuid_v4(&area_contest.contest.election_event_id)?,
                 census: election_cast_votes_count
                     .map(|data| data.census as u64)
                     .unwrap_or(0),
@@ -580,12 +588,13 @@ async fn build_reports_pipe_config(
         .clone()
         .ok_or_else(|| anyhow!("Missing tally session annotations"))?;
 
-    let tally_annotations: Annotations = deserialize_value(tally_annotations_js)?;
-
-    let tally_executer_username = tally_annotations
+    // Don't deserialize to Annotations type since it may contain non-string fields like tie_break
+    // Just access the executer_username field directly
+    let tally_executer_username = tally_annotations_js
         .get("executer_username")
-        .cloned()
-        .unwrap_or(String::new());
+        .and_then(|v| v.as_str())
+        .unwrap_or("")
+        .to_string();
 
     let report_hash = get_report_hash(&tally_type.to_string()).await?;
 
@@ -866,6 +875,7 @@ pub async fn run_velvet_tally(
     election_event: &ElectionEvent,
     tally_session: &TallySession,
     tally_type: TallyType,
+    tie_resolutions: HashMap<String, Vec<TallySessionResolutionData>>,
 ) -> Result<State> {
     let basic_areas: Vec<TreeNodeArea> = areas.into_iter().map(|area| area.into()).collect();
     // map<(area_id,contest_id), tally_sheet>
@@ -876,6 +886,7 @@ pub async fn run_velvet_tally(
             area_contest,
             &tally_sheet_map,
             tally_session,
+            tie_resolutions.get(&area_contest.contest.id),
         )?;
     }
     create_election_configs(

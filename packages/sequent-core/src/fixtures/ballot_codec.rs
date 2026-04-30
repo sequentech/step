@@ -216,6 +216,7 @@ fn get_contest_plurality() -> Contest {
             under_vote_policy: Some(EUnderVotePolicy::ALLOWED),
             columns: None,
         }),
+        tie_breaking_policy: None,
     }
 }
 
@@ -553,6 +554,7 @@ pub fn get_writein_ballot_style() -> BallotStyle {
                 under_vote_policy: Some(EUnderVotePolicy::ALLOWED),
                 columns: None,
             }),
+            tie_breaking_policy: None,
         }],
         area_annotations: None,
     }
@@ -776,6 +778,7 @@ pub fn get_test_contest() -> Contest {
             under_vote_policy: Some(EUnderVotePolicy::ALLOWED),
             columns: None,
         }),
+        tie_breaking_policy: None,
     }
 }
 
@@ -1031,6 +1034,7 @@ pub(crate) fn get_configurable_contest(
             under_vote_policy: Some(EUnderVotePolicy::ALLOWED),
             columns: None,
         }),
+        tie_breaking_policy: None,
     };
 
     contest.counting_algorithm = Some(counting_algorithm);
@@ -1113,6 +1117,7 @@ pub(crate) fn get_contest_candidates_n(num_candidates: usize) -> Contest {
         counting_algorithm: Some(CountingAlgType::PluralityAtLarge),
         is_encrypted: (true),
         candidates,
+        tie_breaking_policy: None,
         presentation: Some(ContestPresentation {
             i18n: None,
             allow_writeins: Some(true),
@@ -1413,6 +1418,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                     under_vote_policy: Some(EUnderVotePolicy::ALLOWED),
                     columns: None,
                 }),
+                tie_breaking_policy: None,
             },
             raw_ballot: RawBallotContest {
                 bases: vec![2u64, 2u64, 2u64, 2u64],
@@ -1615,6 +1621,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                     under_vote_policy: Some(EUnderVotePolicy::ALLOWED),
                     columns: None,
                 }),
+                tie_breaking_policy: None,
             },
             raw_ballot: RawBallotContest {
                 bases: vec![2u64, 2u64, 2u64, 2u64],
@@ -1797,6 +1804,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                     under_vote_policy: Some(EUnderVotePolicy::ALLOWED),
                     columns: None,
                 }),
+                tie_breaking_policy: None,
             },
             raw_ballot: RawBallotContest {
                 bases: vec![2u64, 2u64, 2u64, 2u64],
@@ -1963,6 +1971,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                     under_vote_policy: Some(EUnderVotePolicy::WARN),
                     columns: None,
                 }),
+                tie_breaking_policy: None,
             },
             raw_ballot: RawBallotContest {
                 bases: vec![2u64, 2u64, 2u64, 2u64],
@@ -2129,6 +2138,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                     under_vote_policy: Some(EUnderVotePolicy::WARN),
                     columns: None,
                 }),
+                tie_breaking_policy: None,
             },
             raw_ballot: RawBallotContest {
                 bases: vec![2u64, 2u64, 2u64, 2u64],
@@ -2305,6 +2315,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                     under_vote_policy: Some(EUnderVotePolicy::ALLOWED),
                     columns: None,
                 }),
+                tie_breaking_policy: None,
             },
             raw_ballot: RawBallotContest {
                 bases: vec![2u64, 2u64, 2u64, 2u64],
@@ -2480,6 +2491,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                     under_vote_policy: Some(EUnderVotePolicy::ALLOWED),
                     columns: None,
                 }),
+                tie_breaking_policy: None,
             },
             raw_ballot: RawBallotContest {
                 bases: vec![2u64, 2u64, 2u64, 2u64, 2u64],

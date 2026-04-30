@@ -11,6 +11,7 @@
 		"minio:9001",
 		"minio:9000",
 		"keycloak:8090",
+		"keycloak-nginx:8443",
 		"hasura:8080",
 		"vault:8200",
 		"vault:8201",
@@ -92,9 +93,6 @@
 				
                 // Debugging
         		"vadimcn.vscode-lldb",
-				
-                // protobuf support
-        		"zxh404.vscode-proto3",
 
                 // Allows to use Alt+Q (or Option+Q in mac) to rewrap lines
                 "stkb.rewrap",
