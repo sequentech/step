@@ -1,4 +1,4 @@
-<#-- Copied from keycloak.v2/login/field.ftl (Keycloak 26.5.5).
+<#-- Copied from keycloak.v2/login/field.ftl (Keycloak 26.6.1).
      Required by the OID4VP extension's oid4vp-template.ftl, which is designed
      for keycloak.v2. Our theme inherits from keycloak (not keycloak.v2), so
      field.ftl is not in the resolution chain without this copy. -->
