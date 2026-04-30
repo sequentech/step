@@ -16,7 +16,7 @@
 # WORKDIR /build/keycloak-extensions/
 # RUN mvn -o clean package
 
-FROM quay.io/keycloak/26.5.5
+FROM quay.io/keycloak/26.6.1
 
 # Enable health and metrics support
 ENV KC_HEALTH_ENABLED=true
