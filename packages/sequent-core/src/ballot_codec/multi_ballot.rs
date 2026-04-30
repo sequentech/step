@@ -174,7 +174,9 @@ impl DecodedContestChoices {
         validate_contest_preferencial_order(choices)
     }
 }
-#[derive(Serialize, Deserialize, JsonSchema, PartialEq, Eq, Debug, Clone, Hash)]
+#[derive(
+    Serialize, Deserialize, JsonSchema, PartialEq, Eq, Debug, Clone, Hash,
+)]
 /// A decoded contest choice contains the candidate_id as a String.
 pub struct DecodedContestChoice {
     pub id: String,
@@ -406,12 +408,12 @@ impl BallotChoices {
                                     "uzise conversion on choice selected value"
                                 )
                             })?;
-                            if index >= max_votes {
-                                return Err(format!(
+                        if index >= max_votes {
+                            return Err(format!(
                                     "choice selected value {} is out of range [0, {})",
                                     p.selected, max_votes
                                 ));
-                            }
+                        }
                         contest_choices[index] = mark;
                     }
                 }

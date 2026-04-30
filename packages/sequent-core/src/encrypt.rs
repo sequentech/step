@@ -178,7 +178,6 @@ pub fn encode_to_plaintext_decoded_multi_contest(
             ))
         })
         .collect::<Result<Vec<ContestChoices>, BallotError>>()?;
-                
 
     let is_explicit_invalid = decoded_contests
         .iter()
