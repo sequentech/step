@@ -172,8 +172,8 @@ pub async fn get_area_contests_by_area_contest_ids(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
     election_event_id: &str,
-    area_ids: &Vec<String>,
-    contest_ids: &Vec<String>,
+    area_ids: &[String],
+    contest_ids: &[String],
 ) -> Result<Vec<AreaContest>> {
     let uuid_tenant_id = parse_uuid_v4(tenant_id)?;
     let uuid_election_event_id = parse_uuid_v4(election_event_id)?;

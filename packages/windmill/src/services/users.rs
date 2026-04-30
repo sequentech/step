@@ -903,7 +903,7 @@ pub async fn list_users(
             .map(|user| {
                 let area = get_area(&user);
                 User {
-                    area: area,
+                    area,
                     ..user.clone()
                 }
             })
@@ -1341,7 +1341,7 @@ pub async fn lookup_users(
             .map(|user| {
                 let area = get_area(&user);
                 User {
-                    area: area,
+                    area,
                     ..user.clone()
                 }
             })
@@ -1580,7 +1580,7 @@ pub async fn get_username_by_id(
     }
 }
 
-#[instrument(err, skip_all(keycloak_transaction))]
+#[instrument(err, skip(keycloak_transaction))]
 pub async fn get_user_area_id(
     keycloak_transaction: &Transaction<'_>,
     realm: &str,

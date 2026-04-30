@@ -177,7 +177,7 @@ impl Plugin {
 
         let plugin_store = PluginStore {
             resource_table: ResourceTable::new(),
-            wasi: wasi,
+            wasi,
             transactions_manager,
             plugin_auth: PluginAuth::new(),
         };

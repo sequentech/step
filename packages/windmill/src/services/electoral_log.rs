@@ -1349,9 +1349,7 @@ pub async fn list_electoral_log(input: GetElectoralLogBody) -> Result<DataList<E
     client.close_session().await?;
     Ok(DataList {
         items: rows,
-        total: TotalAggregate {
-            aggregate: aggregate,
-        },
+        total: TotalAggregate { aggregate },
     })
 }
 

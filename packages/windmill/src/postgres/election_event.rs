@@ -82,7 +82,7 @@ pub async fn insert_election_event(
                 &election_event
                     .audit_election_event_id
                     .as_ref()
-                    .and_then(|s| parse_uuid_v4(&s).ok()),
+                    .and_then(|s| parse_uuid_v4(s).ok()),
                 &election_event.public_key,
                 &election_event.statistics,
                 &election_event.external_id,
@@ -133,8 +133,8 @@ pub async fn get_election_event_by_id(
         .collect::<Result<Vec<ElectionEventData>>>()?;
 
     election_events
-        .get(0)
-        .map(|election_event| election_event.clone())
+        .first()
+        .cloned()
         .ok_or(anyhow!("Election event {election_event_id} not found"))
 }
 
@@ -176,9 +176,7 @@ pub async fn get_election_event_by_id_if_exist(
         })
         .collect::<Result<Vec<ElectionEventData>>>()?;
 
-    let election_event = election_events
-        .get(0)
-        .map(|election_event| election_event.clone());
+    let election_event = election_events.first().cloned();
     Ok((election_event))
 }
 
@@ -422,8 +420,8 @@ pub async fn get_election_event_by_election_area(
         .collect::<Result<Vec<ElectionEventData>>>()?;
 
     election_events
-        .get(0)
-        .map(|election_event| election_event.clone())
+        .first()
+        .cloned()
         .ok_or(anyhow!("Election event not found"))
 }
 

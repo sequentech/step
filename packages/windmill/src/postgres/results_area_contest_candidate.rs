@@ -23,9 +23,8 @@ impl TryFrom<Row> for ResultsAreaContestCandidateWrapper {
 
     fn try_from(item: Row) -> Result<Self> {
         let documents_value: Option<Value> = item.try_get("documents")?;
-        let documents: Option<ResultDocuments> = documents_value
-            .map(|value| deserialize_value(value))
-            .transpose()?;
+        let documents: Option<ResultDocuments> =
+            documents_value.map(deserialize_value).transpose()?;
 
         Ok(ResultsAreaContestCandidateWrapper(
             ResultsAreaContestCandidate {
@@ -70,15 +69,15 @@ pub async fn get_results_area_contest_candidates(
     contest_id: &str,
     candidate_id: &str,
 ) -> Result<(Option<ResultsAreaContestCandidate>)> {
-    let tenant_uuid: uuid::Uuid = parse_uuid_v4(&tenant_id)
+    let tenant_uuid: uuid::Uuid = parse_uuid_v4(tenant_id)
         .map_err(|err| anyhow!("Error parsing tenant_id as UUID: {}", err))?;
-    let election_event_uuid: uuid::Uuid = parse_uuid_v4(&election_event_id)
+    let election_event_uuid: uuid::Uuid = parse_uuid_v4(election_event_id)
         .map_err(|err| anyhow!("Error parsing election_event_id as UUID: {}", err))?;
-    let election_uuid: uuid::Uuid = parse_uuid_v4(&election_id)
+    let election_uuid: uuid::Uuid = parse_uuid_v4(election_id)
         .map_err(|err| anyhow!("Error parsing election_id as UUID: {}", err))?;
-    let contest_uuid: uuid::Uuid = parse_uuid_v4(&contest_id)
+    let contest_uuid: uuid::Uuid = parse_uuid_v4(contest_id)
         .map_err(|err| anyhow!("Error parsing contest_id as UUID: {}", err))?;
-    let candidate_uuid: uuid::Uuid = parse_uuid_v4(&candidate_id)
+    let candidate_uuid: uuid::Uuid = parse_uuid_v4(candidate_id)
         .map_err(|err| anyhow!("Error parsing candidate_id as UUID: {}", err))?;
 
     let statement = hasura_transaction
@@ -121,7 +120,7 @@ pub async fn get_results_area_contest_candidates(
         })
         .collect::<Result<Vec<ResultsAreaContestCandidate>>>()?;
 
-    Ok(results_area_contest_candidate.get(0).cloned())
+    Ok(results_area_contest_candidate.first().cloned())
 }
 
 #[instrument(err, skip(hasura_transaction, contest_candidates))]
@@ -248,9 +247,9 @@ pub async fn get_event_results_area_contest_candidates(
     tenant_id: &str,
     election_event_id: &str,
 ) -> Result<Vec<ResultsAreaContestCandidate>> {
-    let tenant_uuid: uuid::Uuid = parse_uuid_v4(&tenant_id)
+    let tenant_uuid: uuid::Uuid = parse_uuid_v4(tenant_id)
         .map_err(|err| anyhow!("Error parsing tenant_id as UUID: {}", err))?;
-    let election_event_uuid: uuid::Uuid = parse_uuid_v4(&election_event_id)
+    let election_event_uuid: uuid::Uuid = parse_uuid_v4(election_event_id)
         .map_err(|err| anyhow!("Error parsing election_event_id as UUID: {}", err))?;
 
     let statement = hasura_transaction

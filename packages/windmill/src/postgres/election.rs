@@ -99,7 +99,7 @@ pub async fn get_election_max_revotes(
         })
         .collect::<Result<Vec<usize>>>()?;
 
-    let data = revotes.get(0).unwrap_or(&1).clone();
+    let data = revotes.first().unwrap_or(&1).clone();
 
     Ok(data)
 }
@@ -147,7 +147,7 @@ pub async fn get_election_by_id(
         })
         .collect::<Result<Vec<Election>>>()?;
 
-    Ok(elections.get(0).map(|election| election.clone()))
+    Ok(elections.first().cloned())
 }
 
 #[instrument(skip(hasura_transaction), err)]
@@ -384,7 +384,7 @@ pub async fn create_election(
 ) -> Result<Election> {
     let presentation_value = serde_json::to_value(presentation)
         .map_err(|err| anyhow!("Error serializing election presentation: {err}"))?;
-    let voting_channels_value = serde_json::to_value(&VotingChannels::default())
+    let voting_channels_value = serde_json::to_value(VotingChannels::default())
         .map_err(|err| anyhow!("Error serializing voting_channels: {err}"))?;
     let status = serde_json::to_value(ElectionStatus::default())
         .map_err(|err| anyhow!("Error serializing election status: {err}"))?;
@@ -424,8 +424,8 @@ pub async fn create_election(
         .query(
             &statement,
             &[
-                &parse_uuid_v4(&tenant_id)?,
-                &parse_uuid_v4(&election_event_id)?,
+                &parse_uuid_v4(tenant_id)?,
+                &parse_uuid_v4(election_event_id)?,
                 &description,
                 &presentation_value,
                 &voting_channels_value,
@@ -640,7 +640,7 @@ pub async fn set_election_keys_ceremony(
         .await
         .map_err(|err| anyhow!("Error running the set_election_keys_ceremony query: {err}"))?;
 
-    if 0 == rows.len() {
+    if rows.is_empty() {
         return Err(anyhow!("No election found"));
     }
 
@@ -722,7 +722,7 @@ pub async fn update_election_status(
 
     // Prepare the statement
     let statement = hasura_transaction
-        .prepare(&query)
+        .prepare(query)
         .await
         .map_err(|err| anyhow!("Error preparing the update query: {err}"))?;
 
@@ -835,7 +835,7 @@ pub async fn get_election_permission_label(
         .await
         .map_err(|err| anyhow!("Error running the set_election_keys_ceremony query: {err}"))?;
 
-    if 0 == rows.len() {
+    if rows.is_empty() {
         return Err(anyhow!("No election found"));
     }
 

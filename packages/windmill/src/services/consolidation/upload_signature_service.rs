@@ -248,7 +248,7 @@ pub fn create_server_signature(
     Ok(MiruSignature {
         sbei_miru_id: sbei.miru_id.clone(),
         pub_key: public_key.to_string(),
-        signature: signature,
+        signature,
         certificate_fingerprint: certificate_fingerprint.to_string(),
     })
 }

@@ -47,7 +47,7 @@ pub async fn get_areas(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
     election_event_id: &str,
-    area_ids: &Vec<String>,
+    area_ids: &[String],
 ) -> Result<Vec<UserArea>> {
     let area_uuids: Vec<Uuid> = area_ids
         .iter()
@@ -308,7 +308,7 @@ pub async fn get_area_by_id(
         .map(|row| -> Result<Area> { row.try_into().map(|res: AreaWrapper| -> Area { res.0 }) })
         .collect::<Result<Vec<Area>>>()?;
 
-    Ok(areas.get(0).map(|area| area.clone()))
+    Ok(areas.first().cloned())
 }
 
 #[instrument(err, skip_all)]
@@ -356,7 +356,7 @@ pub async fn upsert_area_parents(
 }
 
 #[instrument(err, skip_all)]
-pub async fn insert_areas(hasura_transaction: &Transaction<'_>, areas: &Vec<Area>) -> Result<()> {
+pub async fn insert_areas(hasura_transaction: &Transaction<'_>, areas: &[Area]) -> Result<()> {
     let tree_node_areas: Vec<TreeNodeArea> = areas.iter().map(|area| area.into()).collect();
     let areas_tree = TreeNode::<()>::from_areas(tree_node_areas)?;
     let areas_map: HashMap<String, Area> = areas

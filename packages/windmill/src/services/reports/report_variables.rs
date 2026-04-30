@@ -457,7 +457,7 @@ pub async fn process_elections(
 
         elections_data.push(UserDataElection {
             election_dates,
-            election_name: election_name,
+            election_name,
             election_annotations: election_general_data,
         });
     }

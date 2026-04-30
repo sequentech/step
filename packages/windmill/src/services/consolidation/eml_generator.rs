@@ -910,7 +910,7 @@ pub fn render_eml_file(
         id: tally_id.to_string(),
         header: EMLHeader {
             transaction_id: transaction_id.to_string(),
-            issue_date: issue_date,
+            issue_date,
             official_status_detail: EMLOfficialStatusDetail {
                 official_status: OfficialStatus::OFFICIAL.to_string(),
                 status_date: official_status_date,

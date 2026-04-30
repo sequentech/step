@@ -60,19 +60,19 @@ fn get_board_record(record: StringRecord) -> Result<(String, B3MessageRow)> {
     let version = fields[9].clone();
 
     let row = B3MessageRow {
-        id: id,
-        created: created,
+        id,
+        created,
         // Base64 encoded spki der representation.
-        sender_pk: sender_pk,
-        statement_timestamp: statement_timestamp,
-        statement_kind: statement_kind,
-        batch: batch,
+        sender_pk,
+        statement_timestamp,
+        statement_kind,
+        batch,
         // When signing mixes, specifies which mix in the chain is being signed.
         // This allows creating a unique index for which otherwise there would be duplicate
         // mix signature messages
-        mix_number: mix_number,
-        message: message,
-        version: version,
+        mix_number,
+        message,
+        version,
     };
 
     Ok((election_id, row))

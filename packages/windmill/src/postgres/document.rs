@@ -124,7 +124,7 @@ pub async fn get_document(
         .collect::<Result<Vec<Document>>>()
         .with_context(|| "Error converting rows into documents")?;
 
-    Ok(documents.get(0).cloned())
+    Ok(documents.first().cloned())
 }
 
 /// Returns a vector of tuples of the (SupportMaterial, Document)s
@@ -279,7 +279,7 @@ pub async fn insert_document(
         .with_context(|| "Error converting rows into documents")?;
 
     documents
-        .get(0)
-        .map(|val| val.clone())
+        .first()
+        .cloned()
         .ok_or(anyhow!("Row not inserted"))
 }

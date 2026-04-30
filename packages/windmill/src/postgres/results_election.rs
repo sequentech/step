@@ -24,9 +24,8 @@ impl TryFrom<Row> for ResultsElectionWrapper {
 
     fn try_from(item: Row) -> Result<Self> {
         let documents_value: Option<Value> = item.try_get("documents")?;
-        let documents: Option<ResultDocuments> = documents_value
-            .map(|value| deserialize_value(value))
-            .transpose()?;
+        let documents: Option<ResultDocuments> =
+            documents_value.map(deserialize_value).transpose()?;
 
         Ok(ResultsElectionWrapper(ResultsElection {
             id: item.try_get::<_, Uuid>("id")?.to_string(),
@@ -67,13 +66,13 @@ pub async fn update_results_election_documents(
 ) -> Result<()> {
     let documents_value = serde_json::to_value(documents.clone())?;
     let json_hash_value = serde_json::Value::String(json_hash.to_string()); // Convert json_hash to JSON
-    let tenant_uuid: uuid::Uuid = parse_uuid_v4(&tenant_id)
+    let tenant_uuid: uuid::Uuid = parse_uuid_v4(tenant_id)
         .map_err(|err| anyhow!("Error parsing tenant_id as UUID: {}", err))?;
-    let results_event_uuid: uuid::Uuid = parse_uuid_v4(&results_event_id)
+    let results_event_uuid: uuid::Uuid = parse_uuid_v4(results_event_id)
         .map_err(|err| anyhow!("Error parsing results_id as UUID: {}", err))?;
-    let election_event_uuid: uuid::Uuid = parse_uuid_v4(&election_event_id)
+    let election_event_uuid: uuid::Uuid = parse_uuid_v4(election_event_id)
         .map_err(|err| anyhow!("Error parsing election_event_id as UUID: {}", err))?;
-    let election_uuid: uuid::Uuid = parse_uuid_v4(&election_id)
+    let election_uuid: uuid::Uuid = parse_uuid_v4(election_id)
         .map_err(|err| anyhow!("Error parsing election_id as UUID: {}", err))?;
     let statement = hasura_transaction
         .prepare(
@@ -116,11 +115,11 @@ pub async fn update_results_election_documents(
         Ok(())
     } else if rows.len() > 1 {
         Err(anyhow!(
-            "Too many affected rows in table results_contest: {}",
+            "Too many affected rows in table results_election: {}",
             rows.len()
         ))
     } else {
-        Err(anyhow!("Rows not found in table results_contest"))
+        Err(anyhow!("Rows not found in table results_election"))
     }
 }
 
@@ -307,8 +306,8 @@ pub async fn get_results_election_by_results_event_id(
         .collect::<Result<Vec<ResultsElection>>>()?;
 
     results
-        .get(0)
-        .map(|val| val.clone())
+        .first()
+        .cloned()
         .ok_or(anyhow!("Results election not found"))
 }
 

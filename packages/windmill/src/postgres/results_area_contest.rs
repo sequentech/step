@@ -23,9 +23,8 @@ impl TryFrom<Row> for ResultsAreaContestWrapper {
 
     fn try_from(item: Row) -> Result<Self> {
         let documents_value: Option<Value> = item.try_get("documents")?;
-        let documents: Option<ResultDocuments> = documents_value
-            .map(|value| deserialize_value(value))
-            .transpose()?;
+        let documents: Option<ResultDocuments> =
+            documents_value.map(deserialize_value).transpose()?;
 
         Ok(ResultsAreaContestWrapper(ResultsAreaContest {
             id: item.try_get::<_, Uuid>("id")?.to_string(),
@@ -115,18 +114,18 @@ pub async fn update_results_area_contest_documents(
     documents: &ResultDocuments,
 ) -> Result<()> {
     let documents_value = serde_json::to_value(documents.clone())?;
-    let tenant_uuid: uuid::Uuid = parse_uuid_v4(&tenant_id)
+    let tenant_uuid: uuid::Uuid = parse_uuid_v4(tenant_id)
         .map_err(|err| anyhow!("Error parsing tenant_id as UUID: {}", err))?;
-    let results_event_uuid: uuid::Uuid = parse_uuid_v4(&results_event_id)
+    let results_event_uuid: uuid::Uuid = parse_uuid_v4(results_event_id)
         .map_err(|err| anyhow!("Error parsing results_event_id as UUID: {}", err))?;
-    let election_event_uuid: uuid::Uuid = parse_uuid_v4(&election_event_id)
+    let election_event_uuid: uuid::Uuid = parse_uuid_v4(election_event_id)
         .map_err(|err| anyhow!("Error parsing election_event_id as UUID: {}", err))?;
-    let election_uuid: uuid::Uuid = parse_uuid_v4(&election_id)
+    let election_uuid: uuid::Uuid = parse_uuid_v4(election_id)
         .map_err(|err| anyhow!("Error parsing election_id as UUID: {}", err))?;
-    let contest_uuid: uuid::Uuid = parse_uuid_v4(&contest_id)
+    let contest_uuid: uuid::Uuid = parse_uuid_v4(contest_id)
         .map_err(|err| anyhow!("Error parsing contest_id as UUID: {}", err))?;
     let area_uuid: uuid::Uuid =
-        parse_uuid_v4(&area_id).map_err(|err| anyhow!("Error parsing area_id as UUID: {}", err))?;
+        parse_uuid_v4(area_id).map_err(|err| anyhow!("Error parsing area_id as UUID: {}", err))?;
 
     let statement = hasura_transaction
         .prepare(
@@ -184,18 +183,18 @@ pub async fn get_results_area_contest(
     contest_id: Option<&str>,
     area_id: &str,
 ) -> Result<Option<ResultsAreaContest>> {
-    let tenant_uuid: uuid::Uuid = parse_uuid_v4(&tenant_id)
+    let tenant_uuid: uuid::Uuid = parse_uuid_v4(tenant_id)
         .map_err(|err| anyhow!("Error parsing tenant_id as UUID: {err:?}"))?;
-    let election_event_uuid: uuid::Uuid = parse_uuid_v4(&election_event_id)
+    let election_event_uuid: uuid::Uuid = parse_uuid_v4(election_event_id)
         .map_err(|err| anyhow!("Error parsing election_event_id as UUID: {err:?}"))?;
-    let election_uuid: uuid::Uuid = parse_uuid_v4(&election_id)
+    let election_uuid: uuid::Uuid = parse_uuid_v4(election_id)
         .map_err(|err| anyhow!("Error parsing election_id as UUID: {err:?}"))?;
     let area_uuid: uuid::Uuid =
-        parse_uuid_v4(&area_id).map_err(|err| anyhow!("Error parsing area_id as UUID: {err:?}"))?;
+        parse_uuid_v4(area_id).map_err(|err| anyhow!("Error parsing area_id as UUID: {err:?}"))?;
 
     let (contest_uuid, contest_clause): (Option<uuid::Uuid>, &str) = match contest_id {
         Some(contest_id) => {
-            let c_uuid = parse_uuid_v4(&contest_id)
+            let c_uuid = parse_uuid_v4(contest_id)
                 .map_err(|err| anyhow!("Error parsing contest_id as UUID: {err:?}"))?;
             let clause = " AND contest_id = $5";
             (Some(c_uuid), clause)
@@ -233,7 +232,7 @@ pub async fn get_results_area_contest(
     }
 
     let rows = hasura_transaction
-        .query(&statement, &params.as_slice())
+        .query(&statement, params.as_slice())
         .await
         .map_err(|err| anyhow!("Error running the query: {:?}", err))?;
 
@@ -436,9 +435,9 @@ pub async fn get_event_results_area_contest(
     tenant_id: &str,
     election_event_id: &str,
 ) -> Result<Vec<ResultsAreaContest>> {
-    let tenant_uuid: uuid::Uuid = parse_uuid_v4(&tenant_id)
+    let tenant_uuid: uuid::Uuid = parse_uuid_v4(tenant_id)
         .map_err(|err| anyhow!("Error parsing tenant_id as UUID: {err:?}"))?;
-    let election_event_uuid: uuid::Uuid = parse_uuid_v4(&election_event_id)
+    let election_event_uuid: uuid::Uuid = parse_uuid_v4(election_event_id)
         .map_err(|err| anyhow!("Error parsing election_event_id as UUID: {err:?}"))?;
 
     let statement_str = format!(

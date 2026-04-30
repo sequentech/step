@@ -444,7 +444,7 @@ pub async fn create_transmission_package_service(
             signatures: vec![],
         }],
         logs,
-        threshold: threshold,
+        threshold,
     };
     update_transmission_package_annotations(
         &hasura_transaction,

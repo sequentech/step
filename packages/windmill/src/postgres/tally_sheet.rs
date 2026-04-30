@@ -35,7 +35,7 @@ impl TryFrom<Row> for TallySheetWrapper {
             annotations: item.try_get("annotations")?,
             published_at: item.get("published_at"),
             published_by_user_id: item.try_get("published_by_user_id")?,
-            content: content,
+            content,
             channel: item.try_get("channel")?,
             deleted_at: item.get("deleted_at"),
             created_by_user_id: item.try_get("created_by_user_id")?,

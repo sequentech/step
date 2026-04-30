@@ -739,7 +739,7 @@ pub trait TemplateRenderer: Debug {
                         email_config.html_body,
                         vec![Attachment {
                             filename: final_report_name,
-                            mimetype: mimetype,
+                            mimetype,
                             content: final_file_bytes,
                         }],
                     )

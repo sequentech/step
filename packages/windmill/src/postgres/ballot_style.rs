@@ -102,10 +102,7 @@ pub async fn insert_ballot_style(
         .collect::<Result<Vec<BallotStyle>>>()
         .with_context(|| "Error converting rows into documents")?;
 
-    elements
-        .get(0)
-        .map(|val| val.clone())
-        .ok_or(anyhow!("Row not inserted"))
+    elements.first().cloned().ok_or(anyhow!("Row not inserted"))
 }
 
 #[instrument(skip(hasura_transaction), err)]

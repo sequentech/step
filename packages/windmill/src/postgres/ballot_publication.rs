@@ -86,9 +86,7 @@ pub async fn get_ballot_publication_by_id(
         })
         .collect::<Result<Vec<BallotPublication>>>()?;
 
-    Ok(results
-        .get(0)
-        .map(|element: &BallotPublication| element.clone()))
+    Ok(results.first().cloned())
 }
 
 pub async fn update_ballot_publication_status(
@@ -139,9 +137,7 @@ pub async fn update_ballot_publication_status(
         })
         .collect::<Result<Vec<BallotPublication>>>()?;
 
-    Ok(results
-        .get(0)
-        .map(|element: &BallotPublication| element.clone()))
+    Ok(results.first().cloned())
 }
 
 pub async fn update_ballot_publication(
@@ -191,9 +187,7 @@ pub async fn update_ballot_publication(
         })
         .collect::<Result<Vec<BallotPublication>>>()?;
 
-    Ok(results
-        .get(0)
-        .map(|element: &BallotPublication| element.clone()))
+    Ok(results.first().cloned())
 }
 
 #[instrument(skip(hasura_transaction), err)]
@@ -336,9 +330,7 @@ pub async fn insert_ballot_publication(
         })
         .collect::<Result<Vec<BallotPublication>>>()?;
 
-    Ok(results
-        .get(0)
-        .map(|element: &BallotPublication| element.clone()))
+    Ok(results.first().cloned())
 }
 
 #[instrument(skip(hasura_transaction), err)]
@@ -397,7 +389,7 @@ pub async fn get_previous_publication_election(
         })
         .collect::<Result<Vec<BallotPublication>>>()?;
 
-    Ok(results.get(0).cloned())
+    Ok(results.first().cloned())
 }
 
 #[instrument(skip(hasura_transaction), err)]
@@ -454,7 +446,7 @@ pub async fn get_previous_publication(
         })
         .collect::<Result<Vec<BallotPublication>>>()?;
 
-    Ok(results.get(0).cloned())
+    Ok(results.first().cloned())
 }
 
 #[instrument(skip(hasura_transaction), err)]

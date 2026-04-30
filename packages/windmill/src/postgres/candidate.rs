@@ -74,7 +74,7 @@ pub async fn insert_candidates(
                     &candidate
                         .contest_id
                         .as_ref()
-                        .and_then(|id| parse_uuid_v4(&id).ok()),
+                        .and_then(|id| parse_uuid_v4(id).ok()),
                     &candidate.labels,
                     &candidate.annotations,
                     &candidate.description,

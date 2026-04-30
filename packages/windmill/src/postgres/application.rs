@@ -283,12 +283,9 @@ pub async fn update_application_status(
         .collect::<Result<Vec<Application>>>()?;
 
     // Return the updated application or error if none found
-    let application = results
-        .get(0)
-        .map(|element: &Application| element.clone())
-        .ok_or(anyhow!(
-            "Error updating application: No application with id {id} found."
-        ))?;
+    let application = results.first().cloned().ok_or(anyhow!(
+        "Error updating application: No application with id {id} found."
+    ))?;
 
     Ok(application)
 }

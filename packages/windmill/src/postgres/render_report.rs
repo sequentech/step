@@ -39,7 +39,7 @@ pub async fn render_report_task(
             write_into_named_temp_file(&render.into_bytes(), "reports-", ".html")
                 .with_context(|| "Error writing to file")?;
         upload_and_return_document(
-            &hasura_transaction,
+            hasura_transaction,
             &temp_path_string,
             file_size,
             "text/plain",
@@ -59,7 +59,7 @@ pub async fn render_report_task(
                 .with_context(|| "Error writing to file")?;
 
         let _document = upload_and_return_document(
-            &hasura_transaction,
+            hasura_transaction,
             &temp_path_string,
             file_size,
             "application/pdf",

@@ -36,7 +36,7 @@ use tempfile::NamedTempFile;
 use tracing::{info, instrument};
 use velvet::pipes::generate_reports::ReportData;
 
-pub const PUBLIC_ASSETS_EML_BASE_TEMPLATE: &'static str = "eml_base.hbs";
+pub const PUBLIC_ASSETS_EML_BASE_TEMPLATE: &str = "eml_base.hbs";
 
 // returns (base_compressed_xml, eml, eml_hash)
 #[instrument(skip_all, err)]
