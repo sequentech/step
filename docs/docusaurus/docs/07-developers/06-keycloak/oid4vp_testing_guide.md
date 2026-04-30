@@ -13,7 +13,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 This guide covers how to test the [keycloak-extension-oid4vp](https://github.com/ba-itsys/keycloak-extension-oid4vp)
 (v0.6.2) that is bundled into the Keycloak image via `packages/Dockerfile.keycloak`.
 
-> **Note:** The extension requires Keycloak **26.6.1** or later. It references
+> **Note:** The extension requires Keycloak **26.5.5** or later. It references
 > `UserAuthenticationIdentityProvider` which was introduced in that version.
 
 ---
@@ -24,61 +24,48 @@ The [oid4vc-dev](https://github.com/dominikschlosser/oid4vc-dev) tool ships a
 lightweight browser-based wallet with pre-loaded sample PID credentials, suitable
 for local OID4VP testing without a real mobile wallet.
 
-> **Run the wallet on your local machine (Windows, macOS, Linux), not inside the
-> dev container.** The wallet needs to share the same network as your browser so
-> that the `openid4vp://` request URI — which contains `127.0.0.1:8090` pointing
-> to Keycloak — is reachable when the wallet fetches it. Running inside the dev
-> container breaks this because `127.0.0.1` inside the container does not reach
-> Keycloak.
+`oid4vc-dev` is pre-installed in the dev container at `/usr/local/bin/oid4vc-dev`.
+Run all wallet commands from a **dev container terminal** (VS Code integrated terminal).
 
-### Install `oid4vc-dev`
+### Bridge port 8090 to Keycloak
 
-Download the prebuilt binary for your platform from the
-[releases page](https://github.com/dominikschlosser/oid4vc-dev/releases/tag/v1.9.4):
+Inside the dev container, `127.0.0.1:8090` is the container's own loopback — it
+does not reach Keycloak. Use `socat` to proxy it to Keycloak's Docker network IP:
 
-| Platform | Binary |
-|---|---|
-| Windows | `oid4vc-dev-v1.9.4-windows-amd64.exe` |
-| macOS (Apple Silicon) | `oid4vc-dev-v1.9.4-darwin-arm64` |
-| macOS (Intel) | `oid4vc-dev-v1.9.4-darwin-amd64` |
-| Linux x86\_64 | `oid4vc-dev-v1.9.4-linux-amd64` |
+```bash
+# Find Keycloak's Docker network IP
+docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' keycloak
+# e.g. 172.18.0.2
+
+socat TCP-LISTEN:8090,fork,reuseaddr TCP:<KC-IP>:8090
+```
+
+Leave this running in its own terminal tab.
+
+### Check wallet.json for port conflicts
+
+Before starting the wallet, verify that the `issuer_url` in `wallet.json` does not
+use a port already occupied by another service:
+
+```bash
+tail /home/vscode/.oid4vc-dev/wallet/wallet.json
+```
+
+Look for the `"issuer_url"` field (e.g. `"https://localhost:8086"`). If that port is
+in use, edit the file and change it to a free port. This URL is embedded in generated
+credentials and Keycloak will attempt to connect to it when checking revocation status.
 
 ### Start the wallet
 
-Generate sample PID credentials into it:
-
 ```bash
-oid4vc-dev wallet generate-pid
+oid4vc-dev wallet serve --pid --port 8089
 ```
 
-Then start the wallet:
+- `--pid` generates fresh PID credentials on startup (without a revocation status
+  list, so Keycloak will not attempt a revocation check).
 
-```bash
-oid4vc-dev wallet serve --port 8089
-```
-
-The wallet UI is accessible at **http://localhost:8089**.
-
-The startup output prints the trust list URLs — look for the `Trust Lists:` line:
-
-```
-Trust Lists:  http://localhost:8089/api/trustlists
-              https://localhost:8090/api/trustlists
-```
-
-When entering the URL in Keycloak (Step 2), replace `localhost` with
-`host.docker.internal` so the Keycloak Docker container can reach the wallet
-running on the host machine:
-
-```
-http://host.docker.internal:8089/api/trustlists
-```
-
-> On Linux Docker, `host.docker.internal` may not resolve. If it doesn't, find
-> the gateway IP and substitute it:
-> ```bash
-> docker network inspect bridge --format '{{range .IPAM.Config}}{{.Gateway}}{{end}}'
-> ```
+VS Code detects port 8089 and offers to forward it — accept, so the wallet UI is
+accessible from your browser at **http://localhost:8089**.
 
 ---
 
@@ -97,16 +84,23 @@ Navigate to **Identity Providers → Add provider → OID4VP**.
 | **Response mode** | `direct_post` |
 | **URI scheme** | `openid4vp://` |
 | **Client ID Scheme** | `plain` |
-| **Trust List URL** | `http://host.docker.internal:8089/api/trustlists` (see note below) |
+| **Trust List URL** | `http://<devcontainer-ip>:8089/api/trustlists/pid` (see note below) |
+| **Trust List Signing Certificate** | *(leave empty — acceptable for local testing)* |
 | **User Identifier Claim** | `personal_administrative_number` |
 | **Same-device flow** | enabled |
 | **Cross-device flow** | enabled |
 | **Request object lifespan** | `10` |
 
-> The Trust List URL is printed by `oid4vc-dev wallet serve` on startup under
-> `Trust Lists:`. Use the `host.docker.internal` variant of that URL (replacing
-> `localhost`) so the Keycloak Docker container can reach the wallet running on
-> the host.
+> **Finding the devcontainer IP** — Keycloak cannot use `localhost` to reach the
+> wallet (that resolves to Keycloak's own loopback). Use the devcontainer's Docker
+> network IP instead:
+> ```bash
+> docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' devcontainer
+> # e.g. 172.18.0.13
+> ```
+> The Trust List URL then becomes `http://172.18.0.13:8089/api/trustlists/pid`.
+> Note that `/api/trustlists` (without `/pid`) returns an index, not the trust list
+> JWT itself — the `/pid` suffix is required.
 
 ### Mappers
 
@@ -124,6 +118,11 @@ The mapper serves a dual purpose: it maps the credential claim onto a Keycloak
 user attribute **and** drives automatic DCQL query generation — the extension
 uses the mapper definitions to build the credential request sent to the wallet,
 so no manual DCQL query is needed for basic testing.
+
+> **Credential Type values** — `urn:eudi:pid:de:1` is the VCT for `dc+sd-jwt`
+> format. Do not confuse it with `eu.europa.ec.eudi.pid.1`, which is the doctype
+> for `mso_mdoc` format. Using the mDoc doctype with a dc+sd-jwt mapper causes
+> the DCQL query to match zero credentials.
 
 > The `oid4vc-dev` PID credential does not contain a `sub` claim. The stable
 > unique identifier is `personal_administrative_number` (e.g. `L01X00T47`),
@@ -206,10 +205,4 @@ attribute), add a filter for the OID4VP button keyed on a new realm attribute
 
 5. Open the wallet UI at **http://localhost:8089**, paste the URL into the
    **"Paste OID4VCI offer URI or OID4VC request URI"** field and submit.
-
-6. The wallet fetches the credential request from Keycloak, shows the claims
-   being requested, and asks for consent. Approve it to complete the login.
-
-
----
 
