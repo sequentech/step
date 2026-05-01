@@ -9,7 +9,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 # Release Next
 
-## 🛠 Bug Fixes
+## ✨ Enhancements
 
-- 🐞 Admin Portal: Participation Summary table rows now include stable CSS classes such as
+- ✨ Admin Portal: Participation Summary table rows now include stable CSS classes such as
   `.total-valid-votes` so custom CSS overrides can target whole tally summary rows.

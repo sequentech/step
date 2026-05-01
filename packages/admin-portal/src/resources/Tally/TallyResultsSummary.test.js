@@ -1,8 +1,8 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-const React = require("react")
-const {renderToStaticMarkup} = require("react-dom/server")
+import React from "react"
+import {renderToStaticMarkup} from "react-dom/server"
 
 jest.mock("./TallyResultsCharts", () => ({
     ParticipationSummaryChart: () => null,
@@ -17,7 +17,7 @@ jest.mock("@sequentech/ui-core", () => ({
     isNumber: (value) => typeof value === "number" && !Number.isNaN(value),
 }))
 
-const {TallyResultsSummary} = require("./TallyResultsSummary")
+import {TallyResultsSummary} from "./TallyResultsSummary"
 
 describe("TallyResultsSummary", () => {
     it("renders stable css classes for participation summary rows", () => {
