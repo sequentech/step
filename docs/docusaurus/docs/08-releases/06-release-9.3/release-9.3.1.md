@@ -1,12 +1,12 @@
 ---
-id: release-9.3.1
-title: Release 9.3.1
+id: release-v9.3.1
+title: Release v9.3.1
 ---
 <!--
 SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 SPDX-License-Identifier: AGPL-3.0-only
 -->
-# Release 9.3.1
+# Release v9.3.1
 
 ## 📝 Highlights
 
