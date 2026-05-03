@@ -56,7 +56,7 @@ pub async fn get_areas(
         .with_context(|| "Error parsing as uuids the area_ids")?;
     let total_areas_statement = hasura_transaction
         .prepare(
-            r#"
+            r"
             SELECT
                 id, name
             FROM
@@ -65,7 +65,7 @@ pub async fn get_areas(
                 a.tenant_id = $1 AND
                 a.election_event_id = $2 AND
                 a.id = ANY($3);
-            "#,
+            ",
         )
         .await?;
 
@@ -112,7 +112,7 @@ pub async fn get_areas_by_name(
 ) -> Result<HashMap<String, String>> {
     let total_areas_statement = hasura_transaction
         .prepare(
-            r#"
+            r"
             SELECT
                 id, name
             FROM
@@ -120,7 +120,7 @@ pub async fn get_areas_by_name(
             WHERE
                 a.tenant_id = $1 AND
                 a.election_event_id = $2;
-            "#,
+            ",
         )
         .await?;
 
@@ -162,7 +162,7 @@ pub async fn get_areas_by_id(
 ) -> Result<HashMap<String, String>> {
     let total_areas_statement = hasura_transaction
         .prepare(
-            r#"
+            r"
             SELECT
                 id, name
             FROM
@@ -170,7 +170,7 @@ pub async fn get_areas_by_id(
             WHERE
                 a.tenant_id = $1 AND
                 a.election_event_id = $2;
-            "#,
+            ",
         )
         .await?;
 
@@ -213,7 +213,7 @@ pub async fn get_elections_by_area(
 ) -> Result<HashMap<String, Vec<String>>> {
     let total_areas_statement = hasura_transaction
         .prepare(
-            r#"
+            r"
             SELECT
                 a.id AS area_id,
                 c.election_id AS election_id
@@ -232,7 +232,7 @@ pub async fn get_elections_by_area(
             WHERE
                 c.tenant_id = $1 AND
                 c.election_event_id = $2;
-            "#,
+            ",
         )
         .await?;
 
@@ -273,7 +273,7 @@ pub async fn get_area_by_id(
 ) -> Result<Option<Area>> {
     let total_areas_statement = hasura_transaction
         .prepare(
-            r#"
+            r"
             SELECT
                 id,
                 tenant_id,
@@ -292,7 +292,7 @@ pub async fn get_area_by_id(
             WHERE
                 tenant_id = $1 AND
                 id = $2;
-            "#,
+            ",
         )
         .await?;
 
@@ -319,7 +319,7 @@ pub async fn upsert_area_parents(
     for area in areas {
         let statement = hasura_transaction
             .prepare(
-                r#"
+                r"
                 UPDATE
                     sequent_backend.area
                 SET
@@ -328,7 +328,7 @@ pub async fn upsert_area_parents(
                     id = $2 AND
                     tenant_id = $3 AND
                     election_event_id = $4;
-            "#,
+            ",
             )
             .await?;
 
@@ -372,12 +372,12 @@ pub async fn insert_areas(hasura_transaction: &Transaction<'_>, areas: &[Area]) 
 
         let statement = hasura_transaction
         .prepare(
-            r#"
+            r"
                 INSERT INTO sequent_backend.area
                 (id, tenant_id, election_event_id, created_at, last_updated_at, labels, annotations, name, description, type, parent_id, presentation)
                 VALUES
                 ($1, $2, $3, NOW(), NOW(), $4, $5, $6, $7, $8, $9, $10);
-            "#,
+            ",
         )
         .await?;
 
@@ -417,7 +417,7 @@ pub async fn get_event_areas(
 ) -> Result<Vec<Area>> {
     let statement = hasura_transaction
         .prepare(
-            r#"
+            r"
                 SELECT
                     *
                 FROM
@@ -425,7 +425,7 @@ pub async fn get_event_areas(
                 WHERE
                     tenant_id = $1 AND
                     election_event_id = $2;
-            "#,
+            ",
         )
         .await?;
 
@@ -481,7 +481,7 @@ pub async fn get_areas_by_election_id(
 ) -> Result<Vec<Area>> {
     let statement: tokio_postgres::Statement = hasura_transaction
         .prepare(
-            r#"
+            r"
            SELECT DISTINCT ON (a.id)
                 *
             FROM
@@ -500,7 +500,7 @@ pub async fn get_areas_by_election_id(
                 c.tenant_id = $1 AND
                 c.election_event_id = $2 AND
                 c.election_id = $3;
-            "#,
+            ",
         )
         .await?;
 
@@ -541,7 +541,7 @@ pub async fn get_areas_by_ids(
 
     let statement = hasura_transaction
         .prepare(
-            r#"
+            r"
             SELECT
                 *
             FROM
@@ -550,7 +550,7 @@ pub async fn get_areas_by_ids(
                 tenant_id = $1 AND
                 election_event_id = $2 AND
                 id = ANY($3);
-            "#,
+            ",
         )
         .await?;
 
@@ -577,12 +577,12 @@ pub async fn delete_area_contests(
     area_id: &str,
 ) -> Result<()> {
     // Delete existing area_contest rows for this area
-    let query = r#"
+    let query = r"
             DELETE FROM sequent_backend.area_contest 
             WHERE tenant_id = $1 
             AND election_event_id = $2 
             AND area_id = $3;
-            "#;
+            ";
 
     // Now prepare the statement with the dynamically generated query
     let statement = hasura_transaction.prepare(query).await?;
@@ -606,7 +606,7 @@ pub async fn delete_area_contests(
 pub async fn update_area(hasura_transaction: &Transaction<'_>, area: Area) -> Result<()> {
     let statement = hasura_transaction
         .prepare(
-            r#"
+            r"
                 UPDATE sequent_backend.area
                 SET
                     last_updated_at = NOW(),
@@ -618,7 +618,7 @@ pub async fn update_area(hasura_transaction: &Transaction<'_>, area: Area) -> Re
                     parent_id = $6,
                     presentation = $10
                 WHERE id = $7 AND tenant_id = $8 AND election_event_id = $9;
-                "#,
+                ",
         )
         .await?;
 
@@ -653,12 +653,12 @@ pub async fn update_area(hasura_transaction: &Transaction<'_>, area: Area) -> Re
 pub async fn insert_area(hasura_transaction: &Transaction<'_>, area: Area) -> Result<()> {
     let statement = hasura_transaction
         .prepare(
-            r#"
+            r"
                 INSERT INTO sequent_backend.area
                 (id, tenant_id, election_event_id, created_at, last_updated_at, labels, annotations, name, description, type, parent_id, presentation)
                 VALUES
                 ($1, $2, $3, NOW(), NOW(), $4, $5, $6, $7, $8, $9, $10);
-            "#,
+            ",
         )
         .await?;
 

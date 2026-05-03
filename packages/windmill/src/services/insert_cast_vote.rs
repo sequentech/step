@@ -208,7 +208,7 @@ pub async fn try_insert_cast_vote(
     area_id: &str,
     voting_channel: VotingStatusChannel,
     auth_time: &Option<i64>,
-    voter_ip: &Option<String>,
+    voter_ip_addr: &Option<String>,
     voter_country: &Option<String>,
 ) -> Result<InsertCastVoteResult, CastVoteError> {
     let mut hasura_db_client: DbClient = get_hasura_pool()
@@ -308,14 +308,14 @@ pub async fn try_insert_cast_vote(
         ids,
         signing_key,
         auth_time,
-        voter_ip,
+        voter_ip_addr,
         voter_country,
         &voter_signature_data,
         is_early_voting_area,
     )
     .await;
 
-    let ip = format!("ip: {}", voter_ip.as_deref().unwrap_or(""),);
+    let ip = format!("ip: {}", voter_ip_addr.as_deref().unwrap_or(""),);
     let country = format!("country: {}", voter_country.as_deref().unwrap_or(""),);
     let realm = get_event_realm(tenant_id, election_event_id);
     let username = get_username_by_id(&keycloak_transaction, &realm, voter_id)

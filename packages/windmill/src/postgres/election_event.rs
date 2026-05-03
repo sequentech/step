@@ -53,12 +53,12 @@ pub async fn insert_election_event(
 
     let statement = hasura_transaction
         .prepare(
-            r#"
+            r"
                 INSERT INTO sequent_backend.election_event
                 (id, created_at, updated_at, labels, annotations, tenant_id, description, presentation, bulletin_board_reference, is_archived, voting_channels, status, user_boards, encryption_protocol, is_audit, audit_election_event_id, public_key, statistics, external_id)
                 VALUES
                 ($1, NOW(), NOW(), $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17);
-            "#,
+            ",
         )
         .await?;
 
@@ -102,7 +102,7 @@ pub async fn get_election_event_by_id(
 ) -> Result<ElectionEventData> {
     let statement = hasura_transaction
         .prepare(
-            r#"
+            r"
                 SELECT
                     *
                 FROM
@@ -110,7 +110,7 @@ pub async fn get_election_event_by_id(
                 WHERE
                     tenant_id = $1 AND
                     id = $2;
-            "#,
+            ",
         )
         .await?;
 
@@ -146,7 +146,7 @@ pub async fn get_election_event_by_id_if_exist(
 ) -> Result<Option<ElectionEventData>> {
     let statement = hasura_transaction
         .prepare(
-            r#"
+            r"
                 SELECT
                     *
                 FROM
@@ -154,7 +154,7 @@ pub async fn get_election_event_by_id_if_exist(
                 WHERE
                     tenant_id = $1 AND
                     id = $2;
-            "#,
+            ",
         )
         .await?;
 
@@ -188,7 +188,7 @@ pub async fn get_all_tenant_election_events(
 ) -> Result<Vec<ElectionEventDatafix>> {
     let statement = hasura_transaction
         .prepare(
-            r#"
+            r"
                 SELECT
                     id, created_at, updated_at, labels, annotations, tenant_id, description, presentation, bulletin_board_reference, is_archived, voting_channels, status, user_boards, encryption_protocol, is_audit, audit_election_event_id, public_key, statistics
                 FROM
@@ -196,7 +196,7 @@ pub async fn get_all_tenant_election_events(
                 WHERE
                     tenant_id = $1 AND
                     is_archived = false
-            "#,
+            ",
         )
         .await?;
 
@@ -298,13 +298,13 @@ pub async fn update_elections_status_by_election_event(
 ) -> Result<Vec<String>> {
     let statement = hasura_transaction
         .prepare(
-            r#"
+            r"
                 UPDATE sequent_backend.election
                 SET
                 status = $1
                 WHERE tenant_id = $2 AND election_event_id = $3
                 RETURNING id;
-            "#,
+            ",
         )
         .await?;
 
@@ -345,11 +345,11 @@ pub async fn update_election_event_status(
 ) -> Result<()> {
     let statement = hasura_transaction
         .prepare(
-            r#"
+            r"
                 UPDATE sequent_backend.election_event
                 SET status = $1
                 WHERE tenant_id = $2 AND id = $3;
-            "#,
+            ",
         )
         .await?;
 
@@ -377,7 +377,7 @@ pub async fn get_election_event_by_election_area(
 ) -> Result<ElectionEventData> {
     let statement = hasura_transaction
         .prepare(
-            r#"
+            r"
                 SELECT
                     election_event.*
                 FROM
@@ -396,7 +396,7 @@ pub async fn get_election_event_by_election_area(
                     contest.tenant_id = $1 AND
                     contest.election_id = $2 AND
                     election_event.tenant_id = $1;
-            "#,
+            ",
         )
         .await?;
 
@@ -465,10 +465,10 @@ pub async fn delete_election_event(
 
     for table in related_tables {
         let query: String = format!(
-            r#"
+            r"
             DELETE FROM sequent_backend.{}
             WHERE tenant_id = $1 AND election_event_id = $2;
-            "#,
+            ",
             table
         );
 
@@ -488,12 +488,12 @@ pub async fn delete_election_event(
 
     let statement = hasura_transaction
         .prepare(
-            r#"
+            r"
             DELETE FROM sequent_backend.election_event
             WHERE
                 tenant_id = $1 AND
                 id = $2;
-        "#,
+        ",
         )
         .await?;
 
@@ -520,11 +520,11 @@ pub async fn update_bulletin_board(
 ) -> Result<()> {
     let update_bulletin_board = hasura_transaction
         .prepare(
-            r#"
+            r"
              UPDATE sequent_backend.election_event
              SET bulletin_board_reference = $1
              WHERE tenant_id = $2 AND id = $3;
-             "#,
+             ",
         )
         .await?;
 
@@ -551,7 +551,7 @@ pub async fn get_batch_election_events(
 ) -> Result<Vec<ElectionEventData>> {
     let statement = hasura_transaction
         .prepare(
-            r#"
+            r"
             SELECT 
                 *
             FROM sequent_backend.election_event
@@ -559,7 +559,7 @@ pub async fn get_batch_election_events(
             ORDER BY created_at ASC
             LIMIT $1
             OFFSET $2;
-            "#,
+            ",
         )
         .await?;
 

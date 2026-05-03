@@ -19,14 +19,14 @@ pub async fn get_realm_id(
 ) -> Result<String> {
     let get_realm_statement = keycloak_transaction
         .prepare(
-            r#"
+            r"
             SELECT
                 id::VARCHAR AS id
             FROM
                 realm
             WHERE
                 realm.name = $1;
-            "#,
+            ",
         )
         .await
         .map_err(|err| anyhow!("Error preparing get_realm_id query: {}", err))?;

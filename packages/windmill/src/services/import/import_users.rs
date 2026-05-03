@@ -272,7 +272,7 @@ fn get_insert_user_query(
     };
 
     let user_entity_query = format!(
-        r#"INSERT INTO user_entity (
+        r"INSERT INTO user_entity (
                     realm_id,
                     email_verified,
                     created_timestamp,
@@ -285,7 +285,7 @@ fn get_insert_user_query(
                     {}
                 FROM
                     {}
-                RETURNING *"#,
+                RETURNING *",
         user_entity_columns.join(", "),
         select_columns.join(", "),
         voters_table,
@@ -309,7 +309,7 @@ fn get_insert_user_query(
                 .map(|attr| {
                     let sanitized_attr = sanitize_db_key(attr);
                     format!(
-                        r#"
+                        r"
                         SELECT
                             gen_random_uuid(),
                             nu.id,
@@ -320,14 +320,14 @@ fn get_insert_user_query(
                         JOIN
                             new_user nu ON
                                 nu.username = v.username
-                        "#
+                        ",
                     )
                 })
                 .collect::<Vec<String>>()
                 .join(" UNION ALL ");
 
         format!(
-            r#"
+            r"
                 INSERT
                 INTO user_attribute (id, user_id, name, value)
                 {values_subquery}
@@ -339,7 +339,7 @@ fn get_insert_user_query(
                     '{tenant_id}'
                 FROM
                     new_user nu
-                "#,
+                ",
         )
     } else {
         String::new()
@@ -352,7 +352,7 @@ fn get_insert_user_query(
     };
 
     let group_query = format!(
-        r#",
+        r",
             pre_user_group AS (
                 SELECT
                     kg.id AS group_id,
@@ -380,7 +380,7 @@ fn get_insert_user_query(
                     'UNMANAGED'
                 FROM pre_user_group pug
             )
-            "#
+            ",
     );
 
     // Inserts password credentials if need be
@@ -395,7 +395,7 @@ fn get_insert_user_query(
         };
         info!("num_iterations = {voters_table}");
         format!(
-            r#",
+            r",
                 pre_credentials AS (
                 SELECT
                     v.{salt_col_name} AS salt,
@@ -438,14 +438,14 @@ fn get_insert_user_query(
                     10
                 FROM pre_credentials pc
                 )
-                "#
+                ",
         )
     } else {
         String::new()
     };
 
     let ret = format!(
-        r#"
+        r"
             WITH 
                 new_user AS (
                     {user_entity_query}
@@ -453,7 +453,7 @@ fn get_insert_user_query(
                 {credentials_query}
                 {group_query}
             {user_attribute_query};
-            "#
+            ",
     );
     info!("ret = {ret}");
     Ok(ret)
@@ -484,9 +484,9 @@ pub async fn import_users_file(
 
     keycloak_transaction
         .simple_query(
-            r#"
+            r"
                 SET TRANSACTION ISOLATION LEVEL REPEATABLE READ;
-                "#,
+                ",
         )
         .await
         .with_context(|| "can't set transaction isolation level or encoding")?;

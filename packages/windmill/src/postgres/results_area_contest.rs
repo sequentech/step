@@ -129,7 +129,7 @@ pub async fn update_results_area_contest_documents(
 
     let statement = hasura_transaction
         .prepare(
-            r#"
+            r"
                 UPDATE
                     sequent_backend.results_area_contest
                 SET
@@ -143,7 +143,7 @@ pub async fn update_results_area_contest_documents(
                     area_id = $7
                 RETURNING
                     id;
-            "#,
+            ",
         )
         .await?;
     let rows: Vec<Row> = hasura_transaction
@@ -203,7 +203,7 @@ pub async fn get_results_area_contest(
     };
 
     let statement_str = format!(
-        r#"
+        r"
                 SELECT
                     *
                 FROM
@@ -215,7 +215,7 @@ pub async fn get_results_area_contest(
                     area_id = $4
                     {contest_clause}
                 ORDER BY created_at DESC
-            "#
+            "
     );
 
     let statement = hasura_transaction.prepare(statement_str.as_str()).await?;
@@ -328,7 +328,7 @@ pub async fn insert_results_area_contests(
     let json_data = serde_json::to_value(&insert_data)?;
 
     // Construct the SQL query using jsonb_to_recordset
-    let sql = r#"
+    let sql = r"
         WITH data AS (
             SELECT * FROM jsonb_to_recordset($1::jsonb) AS t(
                 tenant_id UUID,
@@ -404,7 +404,7 @@ pub async fn insert_results_area_contests(
             annotations
         FROM data
         RETURNING *;
-    "#;
+    ";
 
     info!("SQL statement: {}", sql);
 
@@ -433,7 +433,7 @@ pub async fn get_event_results_area_contest(
     let election_event_uuid: uuid::Uuid = parse_uuid_v4(election_event_id)
         .map_err(|err| anyhow!("Error parsing election_event_id as UUID: {err:?}"))?;
 
-    let statement_str = r#"
+    let statement_str = r"
                 SELECT
                     *
                 FROM
@@ -441,7 +441,7 @@ pub async fn get_event_results_area_contest(
                 WHERE
                     tenant_id = $1 AND
                     election_event_id = $2;
-            "#;
+            ";
 
     let statement = hasura_transaction.prepare(statement_str).await?;
 
@@ -547,7 +547,7 @@ pub async fn insert_many_results_area_contests(
 
     let json_data = serde_json::to_value(&insertable)?;
 
-    let sql = r#"
+    let sql = r"
         WITH data AS (
             SELECT * FROM jsonb_to_recordset($1::jsonb) AS t(
                 id UUID,
@@ -598,7 +598,7 @@ pub async fn insert_many_results_area_contests(
             documents, total_auditable_votes, total_auditable_votes_percent
         FROM data
         RETURNING *;
-    "#;
+    ";
 
     let statement = hasura_transaction.prepare(sql).await?;
     let rows = hasura_transaction.query(&statement, &[&json_data]).await?;

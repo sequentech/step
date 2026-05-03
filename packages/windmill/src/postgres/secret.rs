@@ -90,9 +90,8 @@ pub async fn get_secret_by_key(
         return Ok(None);
     } else if secrets.len() > 1 {
         return Err(anyhow!("Found too many secrets: {}", secrets.len()));
-    } else {
-        Ok(Some(secrets[0].clone()))
     }
+    Ok(Some(secrets[0].clone()))
 }
 
 #[instrument(skip(hasura_transaction), err)]

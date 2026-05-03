@@ -178,7 +178,7 @@ pub async fn count_cast_votes_election(
     };
 
     let statement_str = format!(
-        r#"
+        r"
             SELECT el.id AS election_id, COUNT(DISTINCT cv.voter_id_string) AS cast_votes
             FROM sequent_backend.election el
             LEFT JOIN (
@@ -191,7 +191,7 @@ pub async fn count_cast_votes_election(
                 {test_elections_clause}
             GROUP BY
                 el.id
-            "#
+            ",
     );
 
     let statement = hasura_transaction.prepare(statement_str.as_str()).await?;
@@ -228,7 +228,7 @@ pub async fn get_count_votes_per_day(
     };
     let total_areas_statement = transaction
         .prepare(
-            r#"
+            r"
             WITH date_series AS (
                 SELECT
                     (t.day)::date AS day
@@ -264,7 +264,7 @@ pub async fn get_count_votes_per_day(
                 OR v.created_at IS NULL
             GROUP BY ds.day
             ORDER BY ds.day;
-            "#,
+            ",
         )
         .await?;
 
@@ -335,7 +335,7 @@ pub async fn get_users_with_vote_info(
 
     let vote_info_statement = hasura_transaction
         .prepare(
-            r#"
+            r"
         SELECT
             v.voter_id_string AS voter_id_string,
             v.election_id     AS election_id,
@@ -349,7 +349,7 @@ pub async fn get_users_with_vote_info(
             AND ($4::uuid IS NULL OR v.election_id = $4::uuid)
         GROUP BY
             v.voter_id_string, v.election_id
-        "#,
+        ",
         )
         .await?;
 
@@ -486,7 +486,7 @@ pub async fn get_top_count_votes_by_ip(
 
     let statement = hasura_transaction
         .prepare(
-            r#"
+            r"
             SELECT
                 ROW_NUMBER() OVER (ORDER BY vote_count DESC) AS id,
                 *
@@ -516,7 +516,7 @@ pub async fn get_top_count_votes_by_ip(
             ) t
             ORDER BY vote_count DESC
             LIMIT $6 OFFSET $7;
-            "#,
+            ",
         )
         .await
         .map_err(|err| anyhow!("Error preparing the statement: {err}"))?;
@@ -668,7 +668,7 @@ pub async fn count_cast_votes_election_event(
     };
 
     let statement_str = format!(
-        r#"
+        r"
             SELECT COUNT(DISTINCT cv.voter_id_string) AS voter_count
             FROM sequent_backend.election el
             JOIN sequent_backend.cast_vote cv ON el.id = cv.election_id
@@ -677,7 +677,7 @@ pub async fn count_cast_votes_election_event(
                 el.tenant_id = $1 AND 
                 el.election_event_id = $2
                 {test_elections_clause};
-            "#
+            ",
     );
 
     let statement = hasura_transaction.prepare(statement_str.as_str()).await?;

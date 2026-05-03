@@ -43,7 +43,7 @@ pub async fn insert_preview(
 
     let statement = hasura_transaction
         .prepare(
-            r#"
+            r"
                 INSERT INTO
                     sequent_backend.preview
                 (
@@ -62,7 +62,7 @@ pub async fn insert_preview(
                     NOW(),
                     NOW()
                 );
-            "#,
+            ",
         )
         .await?;
 

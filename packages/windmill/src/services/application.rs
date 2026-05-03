@@ -517,13 +517,13 @@ fn check_mismatches(
         || card_type == ECardType::DRIVER_LICENSE.to_string();
 
     for field_to_check in fields_to_check.split(",") {
-        let field_to_check = field_to_check.trim();
+        let field = field_to_check.trim();
 
         // Special handling for firstName when card_type_flag is true
         if card_type_flag {
-            if field_to_check == "middleName" {
+            if field == "middleName" {
                 continue;
-            } else if field_to_check == "firstName" {
+            } else if field == "firstName" {
                 // Extract first and middle names from applicant_data
                 let applicant_first_name = applicant_data
                     .get("firstName")
@@ -572,11 +572,11 @@ fn check_mismatches(
 
         // Extract field from applicant_data
         let applicant_field_value = applicant_data
-            .get(field_to_check)
+            .get(field)
             .map(|value| value.to_string().to_lowercase());
 
         // Extract field from user
-        let user_field_value = match field_to_check {
+        let user_field_value = match field {
             "firstName" => &user.first_name,
             "lastName" => &user.last_name,
             "username" => &user.username,
@@ -603,10 +603,10 @@ fn check_mismatches(
     let mut unset_mismatches: usize = 0;
 
     for fields_to_check_unset in fields_to_check_unset.split(",") {
-        let field_to_check = fields_to_check_unset.trim();
+        let field_unset = fields_to_check_unset.trim();
 
         // Extract field from user
-        let user_field_value = match field_to_check {
+        let user_field_value = match field_unset {
             "firstName" => &user.first_name,
             "lastName" => &user.last_name,
             "username" => &user.username,
@@ -614,7 +614,7 @@ fn check_mismatches(
             _ => &user
                 .attributes
                 .as_ref()
-                .and_then(|attributes| attributes.get(field_to_check))
+                .and_then(|attributes| attributes.get(field_unset))
                 .and_then(|values| values.first())
                 .map(|value| value.to_string()),
         };
@@ -623,7 +623,7 @@ fn check_mismatches(
         let is_set = !user_field_value.unwrap_or_default().trim().is_empty();
 
         // match is true only if the field is NOT set
-        unset_result.insert(field_to_check.to_string(), !is_set);
+        unset_result.insert(field_unset.to_string(), !is_set);
         if is_set {
             unset_mismatches = unset_mismatches
                 .checked_add(1)

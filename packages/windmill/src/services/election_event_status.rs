@@ -45,9 +45,9 @@ pub async fn update_event_voting_status(
     let mut elections_status = HashMap::new();
 
     for election in &elections {
-        let election_status = get_election_status(election.status.clone()).unwrap_or_default();
+        let curr_election_status = get_election_status(election.status.clone()).unwrap_or_default();
 
-        elections_status.insert(election.id.clone(), election_status);
+        elections_status.insert(election.id.clone(), curr_election_status);
     }
 
     let channels: Vec<VotingStatusChannel> = if let Some(channel) = channels {
@@ -165,14 +165,14 @@ pub async fn update_event_voting_status(
     }
 
     for election in &elections {
-        let election_status = elections_status.get(&election.id);
+        let curr_election_status = elections_status.get(&election.id);
 
         update_election_voting_status(
             hasura_transaction,
             tenant_id,
             election_event_id,
             &election.id,
-            serde_json::to_value(election_status).with_context(|| "Error parsing status")?,
+            serde_json::to_value(curr_election_status).with_context(|| "Error parsing status")?,
         )
         .await
         .with_context(|| "Error updating election voting status")?;

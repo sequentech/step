@@ -62,7 +62,7 @@ pub async fn get_permission_label_from_post(
     tenant_id: &str,
     election_event_id: &str,
 ) -> Result<(Option<String>, Option<Uuid>)> {
-    let query = r#"
+    let query = r"
         SELECT el.permission_label, a.id
         FROM sequent_backend.area a
             LEFT JOIN sequent_backend.area_contest ac ON a.id = ac.area_id
@@ -80,7 +80,7 @@ pub async fn get_permission_label_from_post(
             con.election_event_id = $4 AND
             el.election_event_id = $4
         LIMIT 1
-        "#;
+        ";
 
     let statement = hasura_transaction
         .prepare(query)
@@ -122,7 +122,7 @@ pub async fn insert_application(
 ) -> Result<()> {
     let statement = hasura_transaction
         .prepare(
-            r#"
+            r"
             INSERT INTO sequent_backend.applications
             (
                 tenant_id,
@@ -148,7 +148,7 @@ pub async fn insert_application(
                 $9,
                 $10
             );
-            "#,
+            ",
         )
         .await
         .map_err(|err| anyhow!("Error preparing the insert application query: {err}"))?;
@@ -190,7 +190,7 @@ pub async fn update_application_status(
     group_names: &Vec<String>,
 ) -> Result<Application> {
     // Base query structure
-    let base_query = r#"
+    let base_query = r"
         UPDATE
             sequent_backend.applications
         SET
@@ -204,7 +204,7 @@ pub async fn update_application_status(
             tenant_id = $5 AND
             election_event_id = $6
         RETURNING *;
-    "#;
+    ";
     // Serialize group names to JSON string
     let group_names_json = serde_json::to_string(&group_names)?;
 
@@ -300,13 +300,13 @@ pub async fn get_applications(
     limit: Option<i64>,
     offset: Option<i64>,
 ) -> Result<(Vec<Application>, Option<i64>)> {
-    let mut query = r#"
+    let mut query = r"
         SELECT *
         FROM sequent_backend.applications
         WHERE area_id = $1
           AND tenant_id = $2
           AND election_event_id = $3
-    "#
+    "
     .to_string();
 
     let parsed_area_id = parse_uuid_v4(area_id)?;
@@ -409,14 +409,14 @@ pub async fn count_applications(
     };
 
     let mut query = format!(
-        r#"
+        r"
         SELECT COUNT(*)
         FROM sequent_backend.applications
         WHERE 
           tenant_id = $1
           AND election_event_id = $2
           {area_clause}
-    "#
+    "
     );
     // AND WHERE annotations ->'verified_by_role' @> '["admin"]'::jsonb
     let parsed_tenant_id = parse_uuid_v4(tenant_id)?;
@@ -506,12 +506,12 @@ pub async fn get_applications_by_election(
     election_event_id: &str,
     election_id: Option<&str>,
 ) -> Result<Vec<Application>> {
-    let mut query = r#"
+    let mut query = r"
         SELECT *
         FROM sequent_backend.applications
         WHERE tenant_id = $1
           AND election_event_id = $2
-    "#
+    "
     .to_string();
 
     let parsed_tenant_id = parse_uuid_v4(tenant_id)?;
@@ -547,7 +547,7 @@ pub async fn insert_applications(
 ) -> Result<()> {
     let statement = hasura_transaction
         .prepare(
-            r#"
+            r"
             INSERT INTO sequent_backend.applications
             (
                 id,
@@ -566,7 +566,7 @@ pub async fn insert_applications(
             VALUES (
                 $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12
             );
-            "#,
+            ",
         )
         .await
         .map_err(|err| anyhow!("Error preparing the insert applications query: {err}"))?;

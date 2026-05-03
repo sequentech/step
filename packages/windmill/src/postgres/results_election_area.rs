@@ -64,7 +64,7 @@ pub async fn insert_results_election_area_documents(
 
     let statement = hasura_transaction
         .prepare(
-            r#"
+            r"
                 INSERT INTO sequent_backend.results_election_area (
                     documents, 
                     tenant_id, 
@@ -76,7 +76,7 @@ pub async fn insert_results_election_area_documents(
                 )
                 VALUES ($1, $2, $3, $4, $5, $6, $7)
                 RETURNING id;
-            "#,
+            ",
         )
         .await?;
     let rows: Vec<Row> = hasura_transaction
@@ -110,7 +110,7 @@ pub async fn get_event_results_election_area(
 
     let statement = hasura_transaction
         .prepare(
-            r#"
+            r"
                 SELECT
                     *
                 FROM 
@@ -118,7 +118,7 @@ pub async fn get_event_results_election_area(
                 WHERE
                     tenant_id = $1 AND
                     election_event_id = $2;
-            "#,
+            ",
         )
         .await?;
 
@@ -185,7 +185,7 @@ pub async fn insert_many_results_elections_areas(
 
     let json_data = serde_json::to_value(&insertable)?;
 
-    let sql = r#"
+    let sql = r"
         WITH data AS (
             SELECT * FROM jsonb_to_recordset($1::jsonb) AS t(
                 id UUID,
@@ -211,7 +211,7 @@ pub async fn insert_many_results_elections_areas(
             documents, name
         FROM data
         RETURNING *;
-    "#;
+    ";
 
     let statement = hasura_transaction.prepare(sql).await?;
     let rows = hasura_transaction.query(&statement, &[&json_data]).await?;

@@ -48,7 +48,7 @@ pub async fn get_keys_ceremonies(
 ) -> Result<Vec<KeysCeremony>> {
     let statement = hasura_transaction
         .prepare(
-            r#"
+            r"
                 SELECT
                     *
                 FROM
@@ -56,7 +56,7 @@ pub async fn get_keys_ceremonies(
                 WHERE
                     tenant_id = $1 AND
                     election_event_id = $2;
-            "#,
+            ",
         )
         .await?;
 
@@ -90,7 +90,7 @@ pub async fn get_keys_ceremony_by_id(
 ) -> Result<KeysCeremony> {
     let statement = hasura_transaction
         .prepare(
-            r#"
+            r"
                 SELECT
                     *
                 FROM
@@ -99,7 +99,7 @@ pub async fn get_keys_ceremony_by_id(
                     tenant_id = $1 AND
                     election_event_id = $2 AND
                     id = $3;
-            "#,
+            ",
         )
         .await?;
 
@@ -156,7 +156,7 @@ pub async fn insert_keys_ceremony(
 
     let statement = hasura_transaction
         .prepare(
-            r#"
+            r"
                 INSERT INTO
                     sequent_backend.keys_ceremony
                 (id, tenant_id, election_event_id, trustee_ids, status, execution_status, threshold, name, settings, is_default, permission_label, created_at)
@@ -176,7 +176,7 @@ pub async fn insert_keys_ceremony(
                 )
                 RETURNING
                     *;
-            "#,
+            ",
         )
         .await?;
     let rows: Vec<Row> = hasura_transaction
@@ -221,7 +221,7 @@ pub async fn update_keys_ceremony_status(
 ) -> Result<()> {
     let statement = hasura_transaction
         .prepare(
-            r#"
+            r"
                 UPDATE
                     sequent_backend.keys_ceremony
                 SET
@@ -233,7 +233,7 @@ pub async fn update_keys_ceremony_status(
                     election_event_id = $5
                 RETURNING
                     id;
-            "#,
+            ",
         )
         .await?;
 
@@ -271,7 +271,7 @@ pub async fn list_keys_ceremony(
 
     let statement = hasura_transaction
         .prepare(
-            r#"
+            r"
                 SELECT
                     keys_ceremony.*
                 FROM
@@ -283,7 +283,7 @@ pub async fn list_keys_ceremony(
                         cardinality($3::text[]) = 0
                         OR keys_ceremony.permission_label && $3::text[]
                     );
-            "#,
+            ",
         )
         .await?;
 

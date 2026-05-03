@@ -79,7 +79,7 @@ pub async fn insert_tasks_execution(
 
     let statement = db_client
         .prepare(
-            r#"
+            r"
                 INSERT INTO
                     sequent_backend.tasks_execution
                 (tenant_id, election_event_id, name, type, execution_status, annotations, labels, logs, executed_by_user)
@@ -88,7 +88,7 @@ pub async fn insert_tasks_execution(
                 )
                 RETURNING
                     *;
-            "#,
+            ",
         )
         .await?;
 
@@ -139,7 +139,7 @@ pub async fn update_task_execution_status(
 
     let statement = db_client
         .prepare(
-            r#"
+            r"
             UPDATE sequent_backend.tasks_execution
             SET 
                 execution_status = $1,
@@ -152,7 +152,7 @@ pub async fn update_task_execution_status(
             WHERE
                 id = $4 AND
                 tenant_id = $5;
-            "#,
+            ",
         )
         .await
         .context("Failed to prepare SQL statement")?;
@@ -188,14 +188,14 @@ pub async fn get_task_by_id(task_id: &str) -> Result<TasksExecution> {
 
     let statement = db_client
         .prepare(
-            r#"
+            r"
                 SELECT
                     *
                 FROM 
                     sequent_backend.tasks_execution
                 WHERE
                     id = $1
-            "#,
+            ",
         )
         .await?;
 
@@ -226,7 +226,7 @@ pub async fn get_tasks_by_election_event_id(
 
     let statement = hasura_transaction
         .prepare(
-            r#"
+            r"
             SELECT
                 *
             FROM 
@@ -234,7 +234,7 @@ pub async fn get_tasks_by_election_event_id(
             WHERE
                 tenant_id = $1
                 AND election_event_id = $2
-        "#,
+        ",
         )
         .await?;
 

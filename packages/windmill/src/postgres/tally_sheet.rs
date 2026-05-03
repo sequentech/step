@@ -50,7 +50,7 @@ pub async fn get_published_tally_sheets_by_event(
 ) -> Result<Vec<TallySheet>> {
     let statement = hasura_transaction
         .prepare(
-            r#"
+            r"
                 SELECT
                     *
                 FROM
@@ -60,7 +60,7 @@ pub async fn get_published_tally_sheets_by_event(
                     election_event_id = $2 AND
                     published_at IS NOT NULL AND
                     deleted_at IS NULL;
-            "#,
+            ",
         )
         .await?;
 
@@ -99,7 +99,7 @@ pub async fn publish_tally_sheet(
     let publish_statement = hasura_transaction
         .prepare(
             format!(
-                r#"
+                r"
         UPDATE sequent_backend.tally_sheet tally_sheet
         SET
             published_at = {set_published_at},
@@ -111,7 +111,7 @@ pub async fn publish_tally_sheet(
             tally_sheet.deleted_at IS NULL AND
             tally_sheet.published_at IS {filter_published_at}
         RETURNING *
-    "#
+    "
             )
             .as_str(),
         )

@@ -44,14 +44,14 @@ pub async fn get_tenant_by_id(
 
     let statement = hasura_transaction
         .prepare(
-            r#"
+            r"
             SELECT
                 *
             FROM
                 sequent_backend.tenant
             WHERE
                 id = $1;
-            "#,
+            ",
         )
         .await?;
 
@@ -136,7 +136,7 @@ pub async fn insert_tenant(
 ) -> Result<()> {
     let statement = hasura_transaction
         .prepare(
-            r#"
+            r"
                 INSERT INTO sequent_backend.tenant
                 (id, slug, is_active)
                 VALUES ($1, $2, true)
@@ -148,7 +148,7 @@ pub async fn insert_tenant(
                 labels,
                 annotations,
                 is_active;
-            "#,
+            ",
         )
         .await
         .map_err(|err| anyhow!("Error preparing update_tenant statement: {}", err))?;
@@ -176,14 +176,14 @@ pub async fn get_tenant_by_id_if_exist(
 
     let statement = hasura_transaction
         .prepare(
-            r#"
+            r"
             SELECT
                 *
             FROM
                 sequent_backend.tenant
             WHERE
                 id = $1;
-            "#,
+            ",
         )
         .await?;
 
@@ -213,14 +213,14 @@ pub async fn get_tenant_by_slug_if_exist(
 ) -> Result<Option<Tenant>> {
     let statement = hasura_transaction
         .prepare(
-            r#"
+            r"
             SELECT
                 *
             FROM
                 sequent_backend.tenant
             WHERE
                 slug = $1;
-            "#,
+            ",
         )
         .await?;
 

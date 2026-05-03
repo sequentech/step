@@ -76,7 +76,7 @@ pub async fn update_results_election_documents(
         .map_err(|err| anyhow!("Error parsing election_id as UUID: {}", err))?;
     let statement = hasura_transaction
         .prepare(
-            r#"
+            r"
                 UPDATE
                     sequent_backend.results_election
                 SET
@@ -93,7 +93,7 @@ pub async fn update_results_election_documents(
                     election_id = $6
                 RETURNING
                     id;
-            "#,
+            ",
         )
         .await?;
     let rows: Vec<Row> = hasura_transaction
@@ -222,7 +222,7 @@ pub async fn get_election_results(
 
     let statement = hasura_transaction
         .prepare(
-            r#"
+            r"
                 SELECT
                     *
                 FROM 
@@ -232,7 +232,7 @@ pub async fn get_election_results(
                     election_event_id = $2 AND
                     election_id = $3
                 ORDER BY created_at DESC
-            "#,
+            ",
         )
         .await?;
 
@@ -273,7 +273,7 @@ pub async fn get_results_election_by_results_event_id(
 
     let statement = hasura_transaction
         .prepare(
-            r#"
+            r"
                 SELECT
                     *
                 FROM 
@@ -283,7 +283,7 @@ pub async fn get_results_election_by_results_event_id(
                     election_id = $2 AND
                     results_event_id = $3
                 ORDER BY created_at DESC
-            "#,
+            ",
         )
         .await?;
 
@@ -324,7 +324,7 @@ pub async fn get_event_results_election(
 
     let statement = hasura_transaction
         .prepare(
-            r#"
+            r"
                 SELECT
                     *
                 FROM 
@@ -332,7 +332,7 @@ pub async fn get_event_results_election(
                 WHERE
                     tenant_id = $1 AND
                     election_event_id = $2;
-            "#,
+            ",
         )
         .await?;
 
@@ -407,7 +407,7 @@ pub async fn insert_many_results_elections(
 
     let json_data = serde_json::to_value(&insertable)?;
 
-    let sql = r#"
+    let sql = r"
         WITH data AS (
             SELECT * FROM jsonb_to_recordset($1::jsonb) AS t(
                 id UUID,
@@ -439,7 +439,7 @@ pub async fn insert_many_results_elections(
             labels, annotations, documents
         FROM data
         RETURNING *;
-    "#;
+    ";
 
     let statement = hasura_transaction.prepare(sql).await?;
     let rows = hasura_transaction.query(&statement, &[&json_data]).await?;

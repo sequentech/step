@@ -69,7 +69,7 @@ pub async fn insert_tally_session_execution(
 
     let statement = hasura_transaction
         .prepare(
-            r#"
+            r"
                 INSERT INTO
                     sequent_backend.tally_session_execution
                 (tenant_id, election_event_id, current_message_id, tally_session_id, status, results_event_id, session_ids, documents)
@@ -85,7 +85,7 @@ pub async fn insert_tally_session_execution(
                 )
                 RETURNING
                     *;
-            "#,
+            ",
         )
         .await?;
     let rows: Vec<Row> = hasura_transaction
@@ -128,7 +128,7 @@ pub async fn get_tally_session_executions(
 ) -> Result<Vec<TallySessionExecution>> {
     let statement = hasura_transaction
         .prepare(
-            r#"
+            r"
                 SELECT
                     *
                 FROM
@@ -138,7 +138,7 @@ pub async fn get_tally_session_executions(
                     election_event_id = $2 AND
                     tally_session_id = $3
                 ORDER BY created_at DESC;
-            "#,
+            ",
         )
         .await?;
 
@@ -173,7 +173,7 @@ pub async fn get_last_tally_session_execution(
 ) -> Result<Option<TallySessionExecution>> {
     let statement = hasura_transaction
         .prepare(
-            r#"
+            r"
                 SELECT
                     *
                 FROM
@@ -184,7 +184,7 @@ pub async fn get_last_tally_session_execution(
                     tally_session_id = $3
                 ORDER BY created_at DESC
                 LIMIT 1;
-            "#,
+            ",
         )
         .await?;
 
@@ -217,7 +217,7 @@ pub async fn get_event_tally_session_executions(
 ) -> Result<Vec<TallySessionExecution>> {
     let statement = hasura_transaction
         .prepare(
-            r#"
+            r"
                 SELECT
                     *
                 FROM
@@ -225,7 +225,7 @@ pub async fn get_event_tally_session_executions(
                 WHERE
                     tenant_id = $1 AND
                     election_event_id = $2
-            "#,
+            ",
         )
         .await?;
 
@@ -300,7 +300,7 @@ pub async fn insert_many_tally_session_executions(
 
     let json_data = serde_json::to_value(&insertable)?;
 
-    let sql = r#"
+    let sql = r"
         WITH data AS (
             SELECT * FROM jsonb_to_recordset($1::jsonb) AS t(
                 id UUID,
@@ -328,7 +328,7 @@ pub async fn insert_many_tally_session_executions(
             session_ids, status, results_event_id
         FROM data
         RETURNING *;
-    "#;
+    ";
 
     let statement = hasura_transaction.prepare(sql).await?;
     let rows = hasura_transaction.query(&statement, &[&json_data]).await?;
@@ -361,7 +361,7 @@ pub async fn update_tally_session_execution_documents(
 
     let statement = hasura_transaction
         .prepare(
-            r#"
+            r"
             UPDATE
                 sequent_backend.tally_session_execution
             SET
@@ -370,7 +370,7 @@ pub async fn update_tally_session_execution_documents(
                 id = $2 AND
                 tenant_id = $3 AND
                 election_event_id = $4;
-        "#,
+        ",
         )
         .await?;
 

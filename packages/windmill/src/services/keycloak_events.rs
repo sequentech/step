@@ -60,7 +60,7 @@ pub async fn list_keycloak_events_by_type(
     let statement = keycloak_transaction
         .prepare(
             format!(
-                r#"
+                r"
         SELECT *
         FROM
             EVENT_ENTITY as e
@@ -70,7 +70,7 @@ pub async fn list_keycloak_events_by_type(
         ra.name = $1
         AND e.type = $2
         {event_action_clause}
-    "#
+    ",
             )
             .as_str(),
         )
@@ -135,9 +135,9 @@ pub async fn count_keycloak_events_by_type(
             (
                 "INNER JOIN user_attribute AS us ON us.user_id = e.user_id".to_string(),
                 format!(
-                    r#"
+                    r"
                 AND us.name = ${next_param_number}
-                AND us.value = ${param_count}"#
+                AND us.value = ${param_count}",
                 ),
             )
         }
@@ -147,7 +147,7 @@ pub async fn count_keycloak_events_by_type(
     let statement = keycloak_transaction
         .prepare(
             format!(
-                r#"
+                r"
                 SELECT 
                 {select_str}
                 FROM
@@ -160,7 +160,7 @@ pub async fn count_keycloak_events_by_type(
                     AND e.type = $2
                     {error_clause}
                     {area_id_clause}
-                "#
+                ",
             )
             .as_str(),
         )
@@ -187,7 +187,7 @@ pub async fn count_keycloak_password_reset_event_by_area(
 ) -> Result<i64> {
     let statement = keycloak_transaction
         .prepare(
-            r#"
+            r"
              SELECT COUNT(*)
             FROM (
                 SELECT *
@@ -202,7 +202,7 @@ pub async fn count_keycloak_password_reset_event_by_area(
                 ra.name = $1
                 AND us.name = $2
                 AND us.value = $3
-                "#,
+                ",
         )
         .await
         .map_err(|err| {

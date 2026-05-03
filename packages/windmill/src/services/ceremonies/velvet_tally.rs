@@ -224,13 +224,16 @@ pub fn prepare_tally_for_area_contest(
     //// create tally sheets files
     if !relevant_sheets.is_empty() {
         for tally_sheet in relevant_sheets {
-            let Some(content) = tally_sheet.content.clone() else {
+            let Some(tally_sheet_content) = tally_sheet.content.clone() else {
                 continue;
             };
             //// create tally sheets folder
             let tally_sheet_path: PathBuf = velvet_input_dir.join(format!(
                 "{DEFAULT_DIR_TALLY_SHEETS}/election__{}/contest__{}/area__{}/tally_sheet__{}",
-                election_id, content.contest_id, content.area_id, tally_sheet.id
+                election_id,
+                tally_sheet_content.contest_id,
+                tally_sheet_content.area_id,
+                tally_sheet.id
             ));
             fs::create_dir_all(&tally_sheet_path)?;
             let tally_sheet_file_path: PathBuf = tally_sheet_path.join("tally-sheet.json");

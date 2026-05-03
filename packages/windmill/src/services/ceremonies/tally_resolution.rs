@@ -81,13 +81,13 @@ pub async fn check_for_tie_resolutions(
     // TODO Instead of checking for the annotations of results_contest in hasura check either in sqlite or add an output file for velvet with all resolutions
     let rows = hasura_transaction
         .query(
-            r#"
+            r"
                 SELECT contest_id, annotations
                 FROM sequent_backend.results_contest
                 WHERE tenant_id = $1
                   AND election_event_id = $2
                   AND results_event_id = $3
-            "#,
+            ",
             &[
                 &Uuid::parse_str(tenant_id)?,
                 &Uuid::parse_str(election_event_id)?,

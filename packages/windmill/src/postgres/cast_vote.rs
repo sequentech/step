@@ -28,7 +28,7 @@ pub async fn insert_cast_vote(
 ) -> Result<CastVote> {
     let statement = hasura_transaction
         .prepare(
-            r#"
+                r"
                 INSERT INTO
                     sequent_backend.cast_vote
                 (tenant_id, election_event_id, election_id, area_id, voter_id_string, ballot_id, content, cast_ballot_signature, annotations)
@@ -59,7 +59,7 @@ pub async fn insert_cast_vote(
                     cast_ballot_signature,
                     voter_id_string,
                     election_event_id;
-            "#,
+            ",
         )
         .await?;
 
@@ -108,7 +108,7 @@ pub async fn get_cast_votes(
 ) -> Result<Vec<CastVote>> {
     let statement = hasura_transaction
         .prepare(
-            r#"
+            r"
                 SELECT 
                     id,
                     ballot_id,
@@ -133,7 +133,7 @@ pub async fn get_cast_votes(
                     election_id = $3 AND
                     voter_id_string = $4
                 ;
-            "#,
+            ",
         )
         .await?;
 
@@ -167,7 +167,7 @@ pub async fn get_cast_votes_by_election_id(
 ) -> Result<Vec<CastVote>> {
     let statement = hasura_transaction
         .prepare(
-            r#"
+            r"
                 SELECT 
                     *
                 FROM
@@ -176,7 +176,7 @@ pub async fn get_cast_votes_by_election_id(
                     tenant_id = $1 AND
                     election_event_id = $2 AND
                     election_id = $3;
-            "#,
+            ",
         )
         .await?;
 

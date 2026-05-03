@@ -39,7 +39,7 @@ pub async fn get_template_by_alias(
 ) -> Result<Option<Template>> {
     let statement = hasura_transaction
         .prepare(
-            r#"
+            r"
             SELECT
                 alias,
                 tenant_id,
@@ -56,7 +56,7 @@ pub async fn get_template_by_alias(
             WHERE
                 tenant_id = $1 AND
                 alias = $2;
-            "#,
+            ",
         )
         .await?;
 
@@ -90,7 +90,7 @@ pub async fn get_templates_by_tenant_id(
 
     let statement = hasura_transaction
         .prepare(
-            r#"
+            r"
             SELECT
                 alias,
                 tenant_id,
@@ -106,7 +106,7 @@ pub async fn get_templates_by_tenant_id(
                 sequent_backend.template
             WHERE
                 tenant_id = $1;
-            "#,
+            ",
         )
         .await?;
 
@@ -131,7 +131,7 @@ pub async fn insert_templates(
 ) -> Result<()> {
     let statement = hasura_transaction
         .prepare(
-            r#"
+            r"
             INSERT INTO sequent_backend.template
             (
                 alias,
@@ -157,7 +157,7 @@ pub async fn insert_templates(
                 $7,
                 $8
             );
-            "#,
+            ",
         )
         .await
         .map_err(|err| anyhow!("Error preparing the insert template query: {err}"))?;

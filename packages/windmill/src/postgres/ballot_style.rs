@@ -54,7 +54,7 @@ pub async fn insert_ballot_style(
 ) -> Result<BallotStyle> {
     let statement = hasura_transaction
         .prepare(
-            r#"
+            r"
                 INSERT INTO
                     sequent_backend.ballot_style
                 (id, tenant_id, election_event_id, election_id, area_id, ballot_eml, status, ballot_publication_id, created_at, last_updated_at)
@@ -72,7 +72,7 @@ pub async fn insert_ballot_style(
                 )
                 RETURNING
                     *;
-            "#,
+            ",
         )
         .await
         .map_err(|err| anyhow!("Error preparing insert statement: {}", err))?;
@@ -114,7 +114,7 @@ pub async fn get_all_ballot_styles(
 ) -> Result<Vec<BallotStyle>> {
     let query: tokio_postgres::Statement = hasura_transaction
         .prepare(
-            r#"
+            r"
             SELECT
                 *
             FROM
@@ -124,7 +124,7 @@ pub async fn get_all_ballot_styles(
                 area_id = $2 AND
                 election_id = ANY($3) AND
                 deleted_at IS NULL;
-            "#,
+            ",
         )
         .await
         .map_err(|err| anyhow!("Error preparing statement: {}", err))?;
@@ -154,7 +154,7 @@ pub async fn export_event_ballot_styles(
 ) -> Result<Vec<BallotStyle>> {
     let query: tokio_postgres::Statement = hasura_transaction
         .prepare(
-            r#"
+            r"
             SELECT
                 *
             FROM
@@ -163,7 +163,7 @@ pub async fn export_event_ballot_styles(
                 tenant_id = $1 AND
                 election_event_id = $2 AND
                 deleted_at IS NULL;
-            "#,
+            ",
         )
         .await?;
 
@@ -202,7 +202,7 @@ pub async fn get_ballot_styles_by_elections(
 
     let query: tokio_postgres::Statement = hasura_transaction
         .prepare(
-            r#"
+            r"
             SELECT
                 *
             FROM
@@ -212,7 +212,7 @@ pub async fn get_ballot_styles_by_elections(
                 election_event_id = $2 AND
                 election_id = ANY($3) AND
                 deleted_at IS NULL;
-            "#,
+            ",
         )
         .await
         .map_err(|err| anyhow!("Error preparing statement: {}", err))?;

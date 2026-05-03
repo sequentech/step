@@ -57,12 +57,12 @@ pub async fn insert_contest(
 
         let statement = hasura_transaction
         .prepare(
-            r#"
+            r"
                 INSERT INTO sequent_backend.contest
                 (id, tenant_id, election_event_id, election_id, created_at, last_updated_at, labels, annotations, is_acclaimed, is_active, description, presentation, min_votes, max_votes, voting_type, counting_algorithm, is_encrypted, tally_configuration, conditions, winning_candidates_num, image_document_id, external_id)
                 VALUES
                 ($1, $2, $3, $4, NOW(), NOW(), $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20);
-            "#,
+            ",
         )
         .await?;
 
@@ -107,7 +107,7 @@ pub async fn export_contests(
 ) -> Result<Vec<Contest>> {
     let statement = hasura_transaction
         .prepare(
-            r#"
+            r"
                 SELECT
                     id, tenant_id, election_event_id, election_id, created_at, last_updated_at, labels, annotations, is_acclaimed, is_active, description, presentation, min_votes, max_votes, voting_type, counting_algorithm, is_encrypted, tally_configuration, conditions, winning_candidates_num, image_document_id, external_id
                 FROM
@@ -115,7 +115,7 @@ pub async fn export_contests(
                 WHERE
                     tenant_id = $1 AND
                     election_event_id = $2;
-            "#,
+            ",
         )
         .await?;
 
@@ -149,7 +149,7 @@ pub async fn get_contest_by_id(
 ) -> Result<Contest> {
     let statement = hasura_transaction
         .prepare(
-            r#"
+            r"
                 SELECT *
                 FROM
                     sequent_backend.contest
@@ -157,7 +157,7 @@ pub async fn get_contest_by_id(
                     tenant_id = $1 AND
                     election_event_id = $2;
                     contest_id = $3;
-            "#,
+            ",
         )
         .await?;
 
@@ -191,7 +191,7 @@ pub async fn get_contest_by_election_id(
 ) -> Result<Vec<Contest>> {
     let statement = hasura_transaction
         .prepare(
-            r#"
+            r"
             SELECT
                 *
             FROM
@@ -200,7 +200,7 @@ pub async fn get_contest_by_election_id(
                 tenant_id = $1 AND
                 election_event_id = $2 AND
                 election_id = $3;
-            "#,
+            ",
         )
         .await?;
 
@@ -243,7 +243,7 @@ pub async fn get_contest_by_election_ids(
 
     let statement = hasura_transaction
         .prepare(
-            r#"
+            r"
             SELECT
                 *
             FROM
@@ -252,7 +252,7 @@ pub async fn get_contest_by_election_ids(
                 tenant_id = $1 AND
                 election_event_id = $2 AND
                 election_id = ANY($3);
-            "#,
+            ",
         )
         .await?;
 

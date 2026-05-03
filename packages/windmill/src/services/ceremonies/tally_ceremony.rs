@@ -142,9 +142,8 @@ pub async fn find_keys_ceremony(
     if 1 != keys_ceremonies_set.len() {
         if keys_ceremonies_set.is_empty() {
             return Err(anyhow!("Elections don't have  any keys ceremony"));
-        } else {
-            return Err(anyhow!("Elections have different keys ceremonies"));
         }
+        return Err(anyhow!("Elections have different keys ceremonies"));
     }
 
     let Some(keys_ceremony_id) = elections[0].keys_ceremony_id.clone() else {

@@ -655,18 +655,18 @@ pub fn clean_tally_sheets(
     tally_sheet_rows
         .iter()
         .map(|tally_sheet| -> Result<TallySheet> {
-            let Some(content) = tally_sheet.content.clone() else {
+            let Some(tally_sheet_content) = tally_sheet.content.clone() else {
                 return Err(
                     anyhow!("Invalid tally sheet {:?}, content missing", tally_sheet).into(),
                 );
             };
 
-            if tally_sheet.area_id != content.area_id {
+            if tally_sheet.area_id != tally_sheet_content.area_id {
                 return Err(
                     anyhow!("Invalid tally sheet {:?}, area not consistent", tally_sheet).into(),
                 );
             }
-            if tally_sheet.contest_id != content.contest_id {
+            if tally_sheet.contest_id != tally_sheet_content.contest_id {
                 return Err(anyhow!(
                     "Invalid tally sheet {:?}, contest not consistent",
                     tally_sheet
@@ -1455,7 +1455,7 @@ pub async fn transactions_wrapper(
 
 #[instrument(err)]
 #[wrap_map_err::wrap_map_err(TaskError)]
-#[celery::task(time_limit = 1200000, max_retries = 0, expires = 15)]
+#[celery::task(time_limit = 1_200_000, max_retries = 0, expires = 15)]
 pub async fn execute_tally_session(
     tenant_id: String,
     election_event_id: String,

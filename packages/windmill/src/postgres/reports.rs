@@ -301,9 +301,8 @@ pub async fn get_template_alias_for_report(
     if let Some(row) = rows.first() {
         let template_alias: Option<String> = row.get("template_alias");
         return Ok(template_alias);
-    } else {
-        return Ok(None);
     }
+    return Ok(None);
 }
 
 #[instrument(skip(hasura_transaction), err)]

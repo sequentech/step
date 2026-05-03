@@ -33,14 +33,14 @@ pub async fn insert_certificate_authority(
 ) -> Result<bool> {
     let statement = hasura_transaction
         .prepare(
-            r#"
+            r"
                 INSERT INTO sequent_backend.certificate_authority
                     (id, tenant_id, election_event_id, common_name, subject,
                      issuer_common_name, issuer, not_before, not_after,
                      fingerprint_sha256, serial_number, pem)
                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
                 ON CONFLICT (tenant_id, election_event_id, fingerprint_sha256) DO NOTHING
-            "#,
+            ",
         )
         .await?;
 
@@ -80,11 +80,11 @@ pub async fn delete_certificate_authorities(
 ) -> Result<Vec<String>> {
     let statement = hasura_transaction
         .prepare(
-            r#"
+            r"
                 DELETE FROM sequent_backend.certificate_authority
                 WHERE id = ANY($1) AND tenant_id = $2 AND election_event_id = $3
                 RETURNING subject
-            "#,
+            ",
         )
         .await?;
 
@@ -105,12 +105,12 @@ pub async fn get_certificate_authorities_pem(
 ) -> Result<Vec<String>> {
     let statement = transaction
         .prepare(
-            r#"
+            r"
                 SELECT pem
                 FROM sequent_backend.certificate_authority
                 WHERE election_event_id = $1
                 ORDER BY created_at ASC
-            "#,
+            ",
         )
         .await?;
 
@@ -140,13 +140,13 @@ pub async fn get_certificate_authorities_pem_by_ids(
 
     let statement = transaction
         .prepare(
-            r#"
+            r"
                 SELECT pem
                 FROM sequent_backend.certificate_authority
                 WHERE election_event_id = $1
                   AND id = ANY($2)
                 ORDER BY created_at ASC
-            "#,
+            ",
         )
         .await?;
 

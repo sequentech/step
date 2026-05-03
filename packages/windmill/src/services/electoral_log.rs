@@ -318,7 +318,7 @@ impl ElectoralLog {
         election_id: Option<String>,
         pseudonym_h: PseudonymHash,
         vote_h: CastVoteHash,
-        voter_ip: String,
+        voter_ip_addr: String,
         voter_country: String,
         voter_id: String,
         voter_username: Option<String>,
@@ -326,7 +326,7 @@ impl ElectoralLog {
     ) -> Result<()> {
         let event = EventIdString(event_id.clone());
         let election = ElectionIdString(election_id);
-        let ip = VoterIpString(voter_ip);
+        let ip = VoterIpString(voter_ip_addr);
         let country = VoterCountryString(voter_country);
 
         let message = Message::cast_vote_message(
@@ -370,7 +370,7 @@ impl ElectoralLog {
         election_id: Option<String>,
         pseudonym_h: PseudonymHash,
         error: String,
-        voter_ip: String,
+        voter_ip_addr: String,
         voter_country: String,
         voter_id: String,
         voter_username: Option<String>,
@@ -379,7 +379,7 @@ impl ElectoralLog {
         let event = EventIdString(event_id.clone());
         let election = ElectionIdString(election_id);
         let error = CastVoteErrorString(error);
-        let ip = VoterIpString(voter_ip);
+        let ip = VoterIpString(voter_ip_addr);
         let country = VoterCountryString(voter_country);
 
         let message = Message::cast_vote_error_message(
@@ -1295,7 +1295,7 @@ pub async fn list_electoral_log(input: GetElectoralLogBody) -> Result<DataList<E
     let (clauses_to_count, count_params) = input.as_sql(true)?;
     info!("clauses ?:= {clauses}");
     let sql = format!(
-        r#"
+        r"
         SELECT
             id,
             created,
@@ -1307,7 +1307,7 @@ pub async fn list_electoral_log(input: GetElectoralLogBody) -> Result<DataList<E
             username
         FROM electoral_log_messages
         {clauses}
-        "#,
+        ",
     );
     info!("query: {sql}");
     let sql_query_response = client.streaming_sql_query(&sql, params).await?;
@@ -1326,12 +1326,12 @@ pub async fn list_electoral_log(input: GetElectoralLogBody) -> Result<DataList<E
     }
 
     let sql = format!(
-        r#"
+        r"
         SELECT
             COUNT(*)
         FROM electoral_log_messages
         {clauses_to_count}
-        "#,
+        ",
     );
     let sql_query_response = client.sql_query(&sql, count_params).await?;
     let mut rows_iter = sql_query_response
@@ -1483,11 +1483,11 @@ pub async fn count_electoral_log(input: GetElectoralLogBody) -> Result<i64> {
 
     let (clauses_to_count, count_params) = input.as_sql(true)?;
     let sql = format!(
-        r#"
+        r"
         SELECT COUNT(*)
         FROM electoral_log_messages
         {clauses_to_count}
-        "#,
+        ",
     );
 
     info!("query: {sql}");

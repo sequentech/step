@@ -54,7 +54,7 @@ pub async fn get_ballot_publication_by_id(
 ) -> Result<Option<BallotPublication>> {
     let query = hasura_transaction
         .prepare(
-            r#"
+            r"
             SELECT
                 *
             FROM
@@ -63,7 +63,7 @@ pub async fn get_ballot_publication_by_id(
                 tenant_id = $1 AND
                 election_event_id = $2 AND
                 id = $3;
-            "#,
+            ",
         )
         .await?;
 
@@ -99,7 +99,7 @@ pub async fn update_ballot_publication_status(
 ) -> Result<Option<BallotPublication>> {
     let query = hasura_transaction
         .prepare(
-            r#"
+            r"
             UPDATE
                 sequent_backend.ballot_publication
             SET
@@ -112,7 +112,7 @@ pub async fn update_ballot_publication_status(
                 deleted_at IS NULL
             RETURNING
                 *;
-            "#,
+            ",
         )
         .await?;
 
@@ -150,7 +150,7 @@ pub async fn update_ballot_publication(
 ) -> Result<Option<BallotPublication>> {
     let query = hasura_transaction
         .prepare(
-            r#"
+            r"
             UPDATE
                 sequent_backend.ballot_publication
             SET
@@ -162,7 +162,7 @@ pub async fn update_ballot_publication(
                 id = $3
             RETURNING
                 *;
-            "#,
+            ",
         )
         .await?;
 
@@ -198,7 +198,7 @@ pub async fn get_latest_ballot_publication(
 ) -> Result<Option<BallotPublication>> {
     let query = hasura_transaction
         .prepare(
-            r#"
+            r"
             SELECT
                 *
             FROM
@@ -210,7 +210,7 @@ pub async fn get_latest_ballot_publication(
             ORDER BY
                 published_at DESC
             LIMIT 1;
-            "#,
+            ",
         )
         .await?;
 
@@ -243,7 +243,7 @@ pub async fn get_ballot_publication(
 ) -> Result<Vec<BallotPublication>> {
     let query = hasura_transaction
         .prepare(
-            r#"
+            r"
             SELECT
                 *
             FROM
@@ -252,7 +252,7 @@ pub async fn get_ballot_publication(
                 tenant_id = $1 AND
                 election_event_id = $2 AND
                 deleted_at IS NULL;
-            "#,
+            ",
         )
         .await?;
 
@@ -286,25 +286,25 @@ pub async fn insert_ballot_publication(
     user_id: String,
     election_id: Option<String>,
 ) -> Result<Option<BallotPublication>> {
-    let election_id_uuid = election_id
+    let election_uuid = election_id
         .map(|id_str| parse_uuid_v4(&id_str))
         .transpose()?;
 
-    let election_ids_uuid: Vec<Uuid> = election_ids
+    let all_elections_uuid: Vec<Uuid> = election_ids
         .iter()
         .map(|s| parse_uuid_v4(s))
         .collect::<Result<Vec<Uuid>, _>>()?;
 
     let query = hasura_transaction
         .prepare(
-            r#"
+            r"
             INSERT INTO sequent_backend.ballot_publication
                 (election_ids, election_event_id, tenant_id, created_by_user_id, election_id)
             VALUES
                 ($1, $2, $3, $4, $5)
             RETURNING
                 *;
-            "#,
+            ",
         )
         .await?;
 
@@ -312,11 +312,11 @@ pub async fn insert_ballot_publication(
         .query(
             &query,
             &[
-                &election_ids_uuid,
+                &all_elections_uuid,
                 &parse_uuid_v4(election_event_id)?,
                 &parse_uuid_v4(tenant_id)?,
                 &user_id,
-                &election_id_uuid,
+                &election_uuid,
             ],
         )
         .await?;
@@ -343,7 +343,7 @@ pub async fn get_previous_publication_election(
 ) -> Result<Option<BallotPublication>> {
     let query = hasura_transaction
         .prepare(
-            r#"
+            r"
             SELECT
                 id,
                 tenant_id,
@@ -365,7 +365,7 @@ pub async fn get_previous_publication_election(
               AND published_at < $4
             ORDER BY published_at DESC
             LIMIT 1;
-            "#,
+            ",
         )
         .await?;
 
@@ -401,7 +401,7 @@ pub async fn get_previous_publication(
 ) -> Result<Option<BallotPublication>> {
     let query = hasura_transaction
         .prepare(
-            r#"
+            r"
             SELECT
                 id,
                 tenant_id,
@@ -423,7 +423,7 @@ pub async fn get_previous_publication(
               AND published_at < $3
             ORDER BY published_at DESC
             LIMIT 1;
-            "#,
+            ",
         )
         .await?;
 
@@ -472,7 +472,7 @@ pub async fn soft_delete_other_ballot_publications(
 
     // Publication update query
     let pub_query_str = format!(
-        r#"
+        r"
         UPDATE sequent_backend.ballot_publication
         SET deleted_at = NOW()
         WHERE id <> $1
@@ -481,7 +481,7 @@ pub async fn soft_delete_other_ballot_publications(
           AND deleted_at IS NULL
           {}
         RETURNING id;
-        "#,
+        ",
         election_id_str
     );
 
@@ -495,7 +495,7 @@ pub async fn soft_delete_other_ballot_publications(
 
     // Ballot style update query string.
     let style_query_str = format!(
-        r#"
+        r"
         UPDATE sequent_backend.ballot_style
         SET deleted_at = NOW()
         WHERE ballot_publication_id <> $1
@@ -504,7 +504,7 @@ pub async fn soft_delete_other_ballot_publications(
           AND deleted_at IS NULL
           {}
         RETURNING id;
-        "#,
+        ",
         election_id_str
     );
 

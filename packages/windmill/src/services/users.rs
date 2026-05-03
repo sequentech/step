@@ -81,7 +81,7 @@ async fn get_area_ids(
         None => {
             let areas_statement = hasura_transaction
                 .prepare(
-                    r#"
+                    r"
                 SELECT DISTINCT
                     a.id::VARCHAR
                 FROM
@@ -98,7 +98,7 @@ async fn get_area_ids(
                     ac.election_event_id = $2 AND
                     c.election_event_id = $2 AND
                     ($3::uuid IS NULL OR c.election_id = $3::uuid);
-            "#,
+            ",
                 )
                 .await?;
             let rows: Vec<Row> = hasura_transaction
@@ -122,18 +122,18 @@ async fn get_area_ids(
 
     debug!("area_ids: {area_ids:?}");
     let area_ids_join_clause = String::from(
-        r#"
+        r"
     INNER JOIN 
         user_attribute AS area_attr ON u.id = area_attr.user_id
-    "#,
+    ",
     );
     let area_ids_where_clause = format!(
-        r#"
+        r"
     AND (
         area_attr.name = '{AREA_ID_ATTR_NAME}' AND
         area_attr.value = ANY(${})
     )
-    "#,
+    ",
         param_number,
     );
 
@@ -151,7 +151,7 @@ pub async fn list_keycloak_enabled_users_by_area_id_and_authorized_elections(
 ) -> Result<()> {
     let delegated_statement = if delegated_voting_enabled {
         format!(
-            r#"
+            r"
             ,(
                 SELECT
                     COUNT(delegator.id)
@@ -163,7 +163,7 @@ pub async fn list_keycloak_enabled_users_by_area_id_and_authorized_elections(
                     ua_delegate.name = '{DELEGATE_TO_ATTR_NAME}' AND
                     ua_delegate.value = u.username
             ) AS delegate_count
-        "#
+        ",
         )
     } else {
         "".to_string()
@@ -177,7 +177,7 @@ pub async fn list_keycloak_enabled_users_by_area_id_and_authorized_elections(
     let election_alias_escaped = escape_sql_literal(election_alias);
 
     let statement = format!(
-        r#"
+        r"
         SELECT
             u.id
             {delegated_statement}
@@ -198,7 +198,7 @@ pub async fn list_keycloak_enabled_users_by_area_id_and_authorized_elections(
             u.id
         ORDER BY
             u.id
-    "#
+    ",
     );
 
     let tokio_temp_file = File::create(output_file)
@@ -277,7 +277,7 @@ impl FilterOption {
         match self {
             Self::IsLike(pattern) => (
                 format!(
-                    r#"(${param_number}::VARCHAR IS NULL OR {col_name} ILIKE ${param_number}){operator}"#,
+                    r"(${param_number}::VARCHAR IS NULL OR {col_name} ILIKE ${param_number}){operator}",
                 ),
                 Some(format!("%{}%", pattern)),
             ),
@@ -285,38 +285,36 @@ impl FilterOption {
                 let pattern = pattern.replace(" ", "_"); // replace blanks by single wildcards to detect hyphens
                 (
                     format!(
-                        r#"(${param_number}::VARCHAR IS NULL OR UNACCENT({col_name}) ILIKE ${param_number}){operator} "#,
+                        r"(${param_number}::VARCHAR IS NULL OR UNACCENT({col_name}) ILIKE ${param_number}){operator} ",
                     ),
                     Some(format!("%{pattern}%")),
                 )
             }
             Self::IsEqualNormalized(pattern) => (
                 format!(
-                    r#"(normalize_text({col_name}) = normalize_text(${param_number})){operator} "#,
+                    r"(normalize_text({col_name}) = normalize_text(${param_number})){operator} ",
                 ),
                 Some(pattern.to_string()),
             ),
 
             Self::IsNotLike(pattern) => (
-                format!(
-                    r#"({col_name} IS NULL OR {col_name} NOT ILIKE ${param_number}){operator} "#,
-                ),
+                format!(r"({col_name} IS NULL OR {col_name} NOT ILIKE ${param_number}){operator} ",),
                 Some(format!("%{pattern}%")),
             ),
             Self::IsEqual(pattern) => (
-                format!(r#"({col_name} = ${param_number}){operator} "#,),
+                format!(r"({col_name} = ${param_number}){operator} ",),
                 Some(pattern.into()),
             ),
             Self::IsNotEqual(pattern) => (
-                format!(r#"({col_name} <> ${param_number}){operator} "#,),
+                format!(r"({col_name} <> ${param_number}){operator} ",),
                 Some(pattern.into()),
             ),
             Self::IsEmpty(true) => (
-                format!(r#"({col_name} IS NULL OR {col_name} = ''){operator} "#,),
+                format!(r"({col_name} IS NULL OR {col_name} = ''){operator} ",),
                 None,
             ),
             Self::IsEmpty(false) => (
-                format!(r#"({col_name} IS NOT NULL AND {col_name} <> ''){operator} "#,),
+                format!(r"({col_name} IS NOT NULL AND {col_name} <> ''){operator} ",),
                 None,
             ),
             Self::InvalidOrNull => {
@@ -437,8 +435,8 @@ impl ListUsersFilter {
 
 fn get_query_bool_condition(field: &str, value: Option<bool>) -> String {
     match value {
-        Some(true) => format!(r#"AND u.{} = true"#, field),
-        Some(false) => format!(r#"AND u.{} = false"#, field),
+        Some(true) => format!(r"AND u.{} = true", field),
+        Some(false) => format!(r"AND u.{} = false", field),
         None => "".to_string(),
     }
 }
@@ -478,12 +476,12 @@ fn get_sort_clause_and_field_param(
 
     match sort_field.as_str() {
         "id" | "email" | "first_name" | "last_name" | "username" | "enabled" | "email_verified" => {
-            (format!(r#"ORDER BY {sort_field} {verified_order}"#), None)
+            (format!(r"ORDER BY {sort_field} {verified_order}"), None)
         }
         "has_voted" | "actions" => ("".to_string(), None),
         _ => (
             format!(
-                r#"ORDER BY (SELECT value FROM user_attribute ua WHERE ua.user_id = u.id AND ua.name = ${}) {}"#,
+                r"ORDER BY (SELECT value FROM user_attribute ua WHERE ua.user_id = u.id AND ua.name = ${}) {}",
                 param_number, verified_order
             ),
             Some(sort_field),
@@ -551,16 +549,16 @@ pub async fn count_keycloak_users(
             (
                 Some(election_alias),
                 format!(
-                    r#"
+                    r"
                     LEFT JOIN 
                         user_attribute AS authorization_attr ON u.id = authorization_attr.user_id AND authorization_attr.name = ${}
-                    "#,
+                    ",
                     next_param_number
                 ),
                 format!(
-                    r#"
+                    r"
                     AND (authorization_attr.value = ${} OR authorization_attr.user_id IS NULL)
-                    "#,
+                    ",
                     authorized_value_param
                 ),
             )
@@ -585,12 +583,12 @@ pub async fn count_keycloak_users(
         for (key, value) in attributes {
             let attr_value_param = bump_sql_param_index(next_param_number, 1);
             dynamic_attr_conditions.push(format!(
-                r#"EXISTS (
+                r"EXISTS (
                     SELECT 1 FROM user_attribute ua 
                     WHERE ua.user_id = u.id 
                       AND ua.name = ${} 
                       AND UNACCENT(ua.value) ILIKE ${}
-                )"#,
+                )",
                 next_param_number, attr_value_param
             ));
             dynamic_attr_params.push(Some(key.trim_matches('\'').to_string()));
@@ -609,7 +607,7 @@ pub async fn count_keycloak_users(
 
     // Build the count query using only the necessary filtering clauses.
     let count_query = format!(
-        r#"
+        r"
         SELECT COUNT(*) AS total_count
         FROM user_entity AS u
         INNER JOIN realm AS ra ON ra.id = u.realm_id
@@ -624,7 +622,7 @@ pub async fn count_keycloak_users(
             {enabled_condition}
             {email_verified_condition}
             {dynamic_attr_clause}
-        "#,
+        ",
     );
     debug!("Count query: {count_query:?}");
 
@@ -705,18 +703,18 @@ pub async fn list_users(
             (
                 Some(election_alias),
                 format!(
-                    r#"
+                    r"
             LEFT JOIN 
                 user_attribute AS authorization_attr ON u.id = authorization_attr.user_id AND authorization_attr.name = ${}
-            "#,
+            ",
                     next_param_number
                 ),
                 format!(
-                    r#"
+                    r"
             AND (
                 authorization_attr.value = ${} OR authorization_attr.user_id IS NULL
             )
-            "#,
+            ",
                     authorized_value_param
                 ),
             )
@@ -741,7 +739,7 @@ pub async fn list_users(
         for (key, value) in attributes {
             let attr_value_param = bump_sql_param_index(next_param_number, 1);
             dynamic_attr_conditions.push(format!(
-                 r#"EXISTS (SELECT 1 FROM user_attribute ua WHERE ua.user_id = u.id AND ua.name = ${} AND UNACCENT(ua.value) ILIKE ${})"#,
+                 r"EXISTS (SELECT 1 FROM user_attribute ua WHERE ua.user_id = u.id AND ua.name = ${} AND UNACCENT(ua.value) ILIKE ${})",
                 next_param_number,
                 attr_value_param
             ));
@@ -759,7 +757,7 @@ pub async fn list_users(
     let dynamic_attr_clause = match dynamic_attr_conditions.is_empty() {
         true => "".to_string(),
         false => {
-            format!(r#"AND({})"#, dynamic_attr_conditions.join(" OR "))
+            format!(r"AND({})", dynamic_attr_conditions.join(" OR "))
         }
     };
 
@@ -781,7 +779,7 @@ pub async fn list_users(
     );
     debug!("params {:?}", params);
     let statement_str = format!(
-        r#"
+        r"
         WITH limited_users AS MATERIALIZED (
             SELECT
                 u.id,
@@ -835,7 +833,7 @@ pub async fn list_users(
                 GROUP BY ua.name
             ) attr
         ) attr_json ON TRUE;
-        "#
+        ",
     );
     debug!("statement_str {statement_str:?}");
 
@@ -852,7 +850,7 @@ pub async fn list_users(
 
     // Count the amount of users for pagination
     let count_statement_str = format!(
-        r#"
+        r"
     SELECT
         COUNT(*) as total_count
     FROM
@@ -871,7 +869,7 @@ pub async fn list_users(
         {email_verified_condition}
         {dynamic_attr_clause}
     ;
-    "#
+    ",
     );
     debug!("statement_str {count_statement_str:?}");
 
@@ -995,18 +993,18 @@ pub async fn list_users_ids(
             (
                 Some(election_alias),
                 format!(
-                    r#"
+                    r"
             LEFT JOIN 
                 user_attribute AS authorization_attr ON u.id = authorization_attr.user_id AND authorization_attr.name = ${}
-            "#,
+            ",
                     next_param_number
                 ),
                 format!(
-                    r#"
+                    r"
             AND (
                 authorization_attr.value = ${} OR authorization_attr.user_id IS NULL
             )
-            "#,
+            ",
                     authorized_value_param
                 ),
             )
@@ -1031,7 +1029,7 @@ pub async fn list_users_ids(
         for (key, value) in attributes {
             let attr_value_param = bump_sql_param_index(next_param_number, 1);
             dynamic_attr_conditions.push(format!(
-                 r#"EXISTS (SELECT 1 FROM user_attribute ua WHERE ua.user_id = u.id AND ua.name = ${} AND UNACCENT(ua.value) ILIKE ${})"#,
+                 r"EXISTS (SELECT 1 FROM user_attribute ua WHERE ua.user_id = u.id AND ua.name = ${} AND UNACCENT(ua.value) ILIKE ${})",
                 next_param_number,
                 attr_value_param
             ));
@@ -1049,7 +1047,7 @@ pub async fn list_users_ids(
     let dynamic_attr_clause = match dynamic_attr_conditions.is_empty() {
         true => "".to_string(),
         false => {
-            format!(r#"AND({})"#, dynamic_attr_conditions.join(" OR "))
+            format!(r"AND({})", dynamic_attr_conditions.join(" OR "))
         }
     };
 
@@ -1071,7 +1069,7 @@ pub async fn list_users_ids(
     );
     debug!("params {:?}", params);
     let statement_str = format!(
-        r#"
+        r"
             SELECT
                 u.id
             FROM
@@ -1091,7 +1089,7 @@ pub async fn list_users_ids(
                 {dynamic_attr_clause}
             {sort_clause}
             LIMIT {query_limit} OFFSET {query_offset}
-        "#
+        ",
     );
     debug!("statement_str {statement_str:?}");
 
@@ -1154,7 +1152,7 @@ pub async fn count_keycloak_enabled_users(
 ) -> Result<i64> {
     let statement = keycloak_transaction
         .prepare(
-            r#"
+            r"
                 SELECT
                     COUNT(DISTINCT u.id) AS total_users
                 FROM
@@ -1164,7 +1162,7 @@ pub async fn count_keycloak_enabled_users(
                 WHERE
                     ra.name = $1 AND 
                     u.enabled IS TRUE
-                "#,
+                ",
         )
         .await?;
 
@@ -1245,7 +1243,7 @@ pub async fn lookup_users(
         for (key, value) in attributes {
             let attr_value_param = bump_sql_param_index(next_param_number, 1);
             dynamic_attr_conditions.push(format!(
-                r#"(ua.name = ${} AND normalize_text(ua.value) = normalize_text(${}))"#,
+                r"(ua.name = ${} AND normalize_text(ua.value) = normalize_text(${}))",
                 next_param_number, attr_value_param
             ));
             let val = Some(value.to_string());
@@ -1271,7 +1269,7 @@ pub async fn lookup_users(
     debug!("params {:?}", params);
 
     let statement_str = format!(
-        r#"
+        r"
         WITH matched_ids AS (
             {filters_clause}
             SELECT
@@ -1311,7 +1309,7 @@ pub async fn lookup_users(
                 FROM score_matches
             )
         LIMIT $2
-        "#
+        ",
     );
     debug!("statement: {}", statement_str);
 
@@ -1441,15 +1439,15 @@ pub async fn count_keycloak_enabled_users_by_attrs(
     }
 
     let attr_conditions_sql = if attr_conditions.is_empty() {
-        r#"TRUE"#.to_string()
+        r"TRUE".to_string()
     } else {
-        attr_conditions.join(r#" AND "#)
+        attr_conditions.join(r" AND ")
     };
 
     let statement = keycloak_transaction
         .prepare(
             format!(
-                r#"
+                r"
             SELECT
                 COUNT(DISTINCT u.id) AS total_users
             FROM
@@ -1460,7 +1458,7 @@ pub async fn count_keycloak_enabled_users_by_attrs(
                 ra.name = $1 
                 AND u.enabled IS TRUE
                 AND ({attr_conditions_sql})
-            "#
+            ",
             )
             .as_str(),
         )
@@ -1493,7 +1491,7 @@ pub async fn check_is_user_verified(
     let statement = keycloak_transaction
         .prepare(
             format!(
-                r#"
+                r"
             SELECT EXISTS (
                 SELECT 1 
                 FROM user_attribute ua
@@ -1504,7 +1502,7 @@ pub async fn check_is_user_verified(
                 AND ua.name = '{VALIDATE_ID_ATTR_NAME}'
                 AND ua.value = '{VALIDATE_ID_REGISTERED_VOTER}'
             ) AS is_verified;
-            "#
+            ",
             )
             .as_str(),
         )
@@ -1533,7 +1531,7 @@ pub async fn get_users_by_username(
 
     let statement = keycloak_transaction
         .prepare(
-            r#"
+            r"
         SELECT 
             u.id
         FROM 
@@ -1550,7 +1548,7 @@ pub async fn get_users_by_username(
         WHERE
             ra.name = $1
             AND u.username = $2
-        "#,
+        ",
         )
         .await?;
 
@@ -1578,7 +1576,7 @@ pub async fn get_username_by_id(
 
     let statement = keycloak_transaction
         .prepare(
-            r#"
+            r"
         SELECT
             u.username
         FROM
@@ -1595,7 +1593,7 @@ pub async fn get_username_by_id(
         WHERE
             ra.name = $1
             AND u.id = $2
-        "#,
+        ",
         )
         .await?;
 
@@ -1624,7 +1622,7 @@ pub async fn get_user_area_id(
 
     let statement = keycloak_transaction
         .prepare(&format!(
-            r#"
+            r"
         SELECT
              attr_json.attributes ->> '{AREA_ID_ATTR_NAME}' AS area_id
         FROM
@@ -1644,7 +1642,7 @@ pub async fn get_user_area_id(
         WHERE
             ra.name = $1
             AND u.id = $2
-        "#
+        ",
         ))
         .await?;
 
@@ -1695,14 +1693,14 @@ pub async fn count_have_voted(
     };
 
     let statement_str = format!(
-        r#"
+        r"
                 SELECT COUNT(DISTINCT voter_id_string)
                 as total_count
                 FROM sequent_backend.cast_vote
                 WHERE
                     tenant_id = $1 AND
                     {filter_clause}
-                "#
+                ",
     );
 
     let statement = hasura_transaction.prepare(statement_str.as_str()).await?;

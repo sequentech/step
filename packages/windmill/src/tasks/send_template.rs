@@ -104,9 +104,8 @@ async fn send_template_sms(
             })
             .to_string(),
         ));
-    } else {
-        event!(Level::INFO, "Receiver empty, ignoring..");
     }
+    event!(Level::INFO, "Receiver empty, ignoring..");
     Ok(None)
 }
 
@@ -154,13 +153,12 @@ pub async fn send_template_email(
             })
             .to_string(),
         ));
-    } else {
-        // Log the event if the receiver or template is missing
-        event!(
-            Level::INFO,
-            "Receiver or template is empty, email not sent."
-        );
     }
+    // Log the event if the receiver or template is missing
+    event!(
+        Level::INFO,
+        "Receiver or template is empty, email not sent."
+    );
     Ok(None)
 }
 

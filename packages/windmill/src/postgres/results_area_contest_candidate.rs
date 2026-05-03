@@ -82,7 +82,7 @@ pub async fn get_results_area_contest_candidates(
 
     let statement = hasura_transaction
         .prepare(
-            r#"
+            r"
                 SELECT
                     *
                 FROM
@@ -93,7 +93,7 @@ pub async fn get_results_area_contest_candidates(
                     election_id = $3 AND
                     contest_id = $4 AND
                     candidate_id = $5;
-            "#,
+            ",
         )
         .await?;
 
@@ -251,7 +251,7 @@ pub async fn get_event_results_area_contest_candidates(
 
     let statement = hasura_transaction
         .prepare(
-            r#"
+            r"
                 SELECT
                     *
                 FROM
@@ -259,7 +259,7 @@ pub async fn get_event_results_area_contest_candidates(
                 WHERE
                     tenant_id = $1 AND
                     election_event_id = $2;
-            "#,
+            ",
         )
         .await?;
 
@@ -339,7 +339,7 @@ pub async fn insert_many_results_area_contest_candidates(
 
     let json_data = serde_json::to_value(&insertable)?;
 
-    let sql = r#"
+    let sql = r"
         WITH data AS (
             SELECT * FROM jsonb_to_recordset($1::jsonb) AS t(
                 id UUID,
@@ -374,7 +374,7 @@ pub async fn insert_many_results_area_contest_candidates(
             labels, annotations, cast_votes_percent, documents
         FROM data
         RETURNING *;
-    "#;
+    ";
 
     let statement = hasura_transaction.prepare(sql).await?;
     let rows = hasura_transaction.query(&statement, &[&json_data]).await?;

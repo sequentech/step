@@ -78,7 +78,7 @@ pub async fn save_results(
             let contest_result = contest.contest_result.clone().unwrap();
             let current_contest = contest.contest.clone().unwrap();
 
-            let total_votes_percent: f64 = contest_result.percentage_total_votes / 100.0;
+            let contest_total_votes_percent: f64 = contest_result.percentage_total_votes / 100.0;
             let auditable_votes_percent: f64 = contest_result.percentage_auditable_votes / 100.0;
             let total_valid_votes_percent: f64 =
                 contest_result.percentage_total_valid_votes / 100.0;
@@ -112,7 +112,9 @@ pub async fn save_results(
                     results_event_id: results_event_id.into(),
                     elegible_census: Some(contest_result.census as i64),
                     total_votes: Some(contest_result.total_votes as i64),
-                    total_votes_percent: Some(total_votes_percent.clamp(0.0, 1.0).try_into()?),
+                    total_votes_percent: Some(
+                        contest_total_votes_percent.clamp(0.0, 1.0).try_into()?,
+                    ),
                     total_auditable_votes: Some(contest_result.auditable_votes as i64),
                     total_auditable_votes_percent: Some(
                         auditable_votes_percent.clamp(0.0, 1.0).try_into()?,
@@ -205,7 +207,9 @@ pub async fn save_results(
                         total_blank_votes_percent.clamp(0.0, 1.0).try_into()?,
                     ),
                     total_votes: Some(contest_result.total_votes as i64),
-                    total_votes_percent: Some(total_votes_percent.clamp(0.0, 1.0).try_into()?),
+                    total_votes_percent: Some(
+                        contest_total_votes_percent.clamp(0.0, 1.0).try_into()?,
+                    ),
                     documents: None,
                     total_auditable_votes: Some(contest_result.auditable_votes as i64),
                     total_auditable_votes_percent: Some(

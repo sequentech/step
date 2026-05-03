@@ -92,7 +92,7 @@ pub async fn insert_tally_session(
         .collect::<Result<Vec<Uuid>>>()?;
     let statement = hasura_transaction
         .prepare(
-            r#"
+            r"
                 INSERT INTO
                     sequent_backend.tally_session
                 (tenant_id, election_event_id, election_ids, area_ids, id, keys_ceremony_id, execution_status, threshold, configuration, tally_type, annotations, permission_label)
@@ -112,7 +112,7 @@ pub async fn insert_tally_session(
                 )
                 RETURNING
                     *;
-            "#,
+            ",
         )
         .await?;
     let rows: Vec<Row> = hasura_transaction
@@ -202,7 +202,7 @@ pub async fn get_tally_sessions_by_election_event_id(
     only_active: bool,
 ) -> Result<Vec<TallySession>> {
     let query = format!(
-        r#"
+        r"
         SELECT
             *
         FROM
@@ -213,10 +213,10 @@ pub async fn get_tally_sessions_by_election_event_id(
             {}
         ORDER BY
             created_at DESC;
-    "#,
+    ",
         if only_active {
-            r#" AND is_execution_completed IS FALSE
-                AND execution_status = 'IN_PROGRESS'"#
+            r" AND is_execution_completed IS FALSE
+                AND execution_status = 'IN_PROGRESS'"
         } else {
             ""
         }
@@ -253,7 +253,7 @@ pub async fn get_tally_session_by_id(
 ) -> Result<TallySession> {
     let statement = hasura_transaction
         .prepare(
-            r#"
+            r"
                 SELECT
                     *
                 FROM
@@ -262,7 +262,7 @@ pub async fn get_tally_session_by_id(
                     tenant_id = $1 AND
                     election_event_id = $2 AND
                     id = $3;
-            "#,
+            ",
         )
         .await?;
 
@@ -301,7 +301,7 @@ pub async fn update_tally_session_annotation(
 ) -> Result<()> {
     let statement = hasura_transaction
         .prepare(
-            r#"
+            r"
             UPDATE
                 sequent_backend.tally_session
             SET
@@ -310,7 +310,7 @@ pub async fn update_tally_session_annotation(
                 id = $2 AND
                 tenant_id = $3 AND
                 election_event_id = $4;
-        "#,
+        ",
         )
         .await?;
 
@@ -337,7 +337,7 @@ pub async fn get_tally_sessions_by_election_id(
     election_event_id: &str,
     election_id: &str,
 ) -> Result<Vec<TallySession>> {
-    let query = r#"
+    let query = r"
         SELECT
             *
         FROM
@@ -348,7 +348,7 @@ pub async fn get_tally_sessions_by_election_id(
             AND $3 = ANY(election_ids)
         ORDER BY
             created_at DESC;
-        "#;
+        ";
 
     let statement = hasura_transaction.prepare(query).await?;
 
@@ -384,7 +384,7 @@ pub async fn update_tally_session_status(
     println!("Updating tally session status:{:?}", &tally_session_id);
     let statement = hasura_transaction
         .prepare(
-            r#"
+            r"
             UPDATE
                 sequent_backend.tally_session
             SET
@@ -394,7 +394,7 @@ pub async fn update_tally_session_status(
                 id = $2 AND
                 tenant_id = $3 AND
                 election_event_id = $4;
-        "#,
+        ",
         )
         .await?;
 
@@ -561,7 +561,7 @@ pub async fn insert_many_tally_sessions(
 
     let json_data = serde_json::to_value(&insertable_sessions)?;
 
-    let sql = r#"
+    let sql = r"
         WITH data AS (
             SELECT * FROM jsonb_to_recordset($1::jsonb) AS t(
                 tenant_id UUID,
@@ -589,7 +589,7 @@ pub async fn insert_many_tally_sessions(
             configuration, tally_type, annotations, permission_label
         FROM data
         RETURNING *;
-    "#;
+    ";
 
     let statement = hasura_transaction.prepare(sql).await?;
     let rows = hasura_transaction.query(&statement, &[&json_data]).await?;

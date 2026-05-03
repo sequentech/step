@@ -64,7 +64,7 @@ pub async fn get_election_max_revotes(
 ) -> Result<usize> {
     let statement = hasura_transaction
         .prepare(
-            r#"
+            r"
             SELECT
                 id, num_allowed_revotes
             FROM
@@ -73,7 +73,7 @@ pub async fn get_election_max_revotes(
                 tenant_id = $1 AND
                 election_event_id = $2 AND
                 id = $3;
-            "#,
+            ",
         )
         .await?;
 
@@ -115,7 +115,7 @@ pub async fn get_election_by_id(
 ) -> Result<Option<Election>> {
     let statement = hasura_transaction
         .prepare(
-            r#"
+            r"
             SELECT
                 *
             FROM
@@ -124,7 +124,7 @@ pub async fn get_election_by_id(
                 tenant_id = $1 AND
                 election_event_id = $2 AND
                 id = $3;
-            "#,
+            ",
         )
         .await?;
 
@@ -156,7 +156,7 @@ pub async fn get_elections(
     tenant_id: &str,
     election_event_id: &str,
 ) -> Result<Vec<Election>> {
-    let statement_str = r#"
+    let statement_str = r"
             SELECT
                 *
             FROM
@@ -164,7 +164,7 @@ pub async fn get_elections(
             WHERE
                 tenant_id = $1 AND
                 election_event_id = $2
-            "#;
+            ";
 
     let statement = hasura_transaction.prepare(statement_str).await?;
 
@@ -204,7 +204,7 @@ pub async fn get_elections_by_ids(
 
     let statement = hasura_transaction
         .prepare(
-            r#"
+            r"
             SELECT
                 *
             FROM
@@ -213,7 +213,7 @@ pub async fn get_elections_by_ids(
                 tenant_id = $1 AND
                 election_event_id = $2 AND
                 id = ANY($3);
-            "#,
+            ",
         )
         .await?;
 
@@ -249,7 +249,7 @@ pub async fn get_elections_by_keys_ceremony_id(
     println!("get_elections_by_keys_ceremony_id: {:?}", &keys_ceremony_id);
     let statement = hasura_transaction
         .prepare(
-            r#"
+            r"
             SELECT
                 *
             FROM
@@ -258,7 +258,7 @@ pub async fn get_elections_by_keys_ceremony_id(
                 tenant_id = $1 AND
                 election_event_id = $2 AND
                 keys_ceremony_id = $3;
-            "#,
+            ",
         )
         .await?;
 
@@ -388,7 +388,7 @@ pub async fn create_election(
         .map_err(|err| anyhow!("Error serializing election status: {err}"))?;
     let statement = hasura_transaction
         .prepare(
-            r#"
+            r"
                 INSERT INTO sequent_backend.election
                 (
                     tenant_id,
@@ -414,7 +414,7 @@ pub async fn create_election(
                     $7
                 )
                 RETURNING *;
-            "#,
+            ",
         )
         .await?;
 
@@ -462,7 +462,7 @@ pub async fn insert_elections(
             .transpose()?;
         let statement = hasura_transaction
             .prepare(
-                r#"
+                r"
                 INSERT INTO sequent_backend.election
                 (
                     id,
@@ -515,7 +515,7 @@ pub async fn insert_elections(
                     $20,
                     $21
                 );
-            "#,
+            ",
             )
             .await?;
 
@@ -561,7 +561,7 @@ pub async fn export_elections(
 ) -> Result<Vec<Election>> {
     let statement = hasura_transaction
         .prepare(
-            r#"
+            r"
                 SELECT
                     *
                 FROM
@@ -569,7 +569,7 @@ pub async fn export_elections(
                 WHERE
                     tenant_id = $1 AND
                     election_event_id = $2;
-            "#,
+            ",
         )
         .await?;
 
@@ -608,7 +608,7 @@ pub async fn set_election_keys_ceremony(
         .transpose()?;
     let statement = hasura_transaction
         .prepare(
-            r#"
+            r"
                 UPDATE
                     sequent_backend.election
                 SET
@@ -619,7 +619,7 @@ pub async fn set_election_keys_ceremony(
                     election_event_id = $4
                 RETURNING
                     *;
-            "#,
+            ",
         )
         .await?;
 
@@ -661,7 +661,7 @@ pub async fn set_election_initialization_report_generated(
 ) -> Result<()> {
     let statement = hasura_transaction
         .prepare(
-            r#"
+            r"
                 UPDATE
                     sequent_backend.election
                 SET
@@ -670,7 +670,7 @@ pub async fn set_election_initialization_report_generated(
                     tenant_id = $2 AND
                     election_event_id = $3 AND
                     id = $4
-            "#,
+            ",
         )
         .await?;
 
@@ -698,7 +698,7 @@ pub async fn update_election_status(
     election_event_id: &str,
     status: bool,
 ) -> Result<Vec<Election>> {
-    let query = r#"
+    let query = r"
         UPDATE
             sequent_backend.election
         SET
@@ -714,7 +714,7 @@ pub async fn update_election_status(
             tenant_id = $2 AND
             election_event_id = $3
         RETURNING *;
-    "#;
+    ";
 
     // Prepare the statement
     let statement = hasura_transaction
@@ -758,7 +758,7 @@ pub async fn get_elections_ids(
     tenant_id: &str,
     election_event_id: &str,
 ) -> Result<Vec<String>> {
-    let statement_str = r#"
+    let statement_str = r"
             SELECT
                 id
             FROM
@@ -766,7 +766,7 @@ pub async fn get_elections_ids(
             WHERE
                 tenant_id = $1 AND
                 election_event_id = $2
-            "#;
+            ";
 
     let statement = hasura_transaction.prepare(statement_str).await?;
 
@@ -804,7 +804,7 @@ pub async fn get_election_permission_label(
         .transpose()?;
     let statement = hasura_transaction
         .prepare(
-            r#"
+            r"
                 SELECT
                 permission_label
                 FROM
@@ -813,7 +813,7 @@ pub async fn get_election_permission_label(
                     ($1::uuid IS NULL OR id = $1::uuid) AND
                     tenant_id = $2 AND
                     election_event_id = $3
-            "#,
+            ",
         )
         .await?;
 

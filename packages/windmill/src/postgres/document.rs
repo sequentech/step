@@ -215,7 +215,7 @@ pub async fn insert_document(
 
     let statement = hasura_transaction
         .prepare(
-            r#"
+            r"
                 INSERT INTO
                     sequent_backend.document
                 (
@@ -250,7 +250,7 @@ pub async fn insert_document(
                     created_at,
                     last_updated_at,
                     is_public;
-            "#,
+            ",
         )
         .await?;
     let rows: Vec<Row> = hasura_transaction
