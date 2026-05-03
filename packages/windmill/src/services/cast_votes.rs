@@ -102,7 +102,7 @@ pub async fn find_area_ballots(
         .await
         .expect("Could not create/open temporary file for tokio");
 
-    let copy_out_query = format!("COPY ({}) TO STDOUT WITH (FORMAT CSV)", areas_statement);
+    let copy_out_query = format!("COPY ({areas_statement}) TO STDOUT WITH (FORMAT CSV)");
     let mut writer = BufWriter::new(tokio_temp_file);
 
     debug!("copy_out_query: {copy_out_query}");
@@ -167,9 +167,9 @@ pub async fn count_cast_votes_election(
     is_test_election: Option<bool>,
 ) -> Result<Vec<ElectionCastVotes>> {
     let tenant_uuid: uuid::Uuid = parse_uuid_v4(tenant_id)
-        .map_err(|err| anyhow!("Error parsing tenant_id as UUID: {}", err))?;
+        .map_err(|err| anyhow!("Error parsing tenant_id as UUID: {err}"))?;
     let election_event_uuid: uuid::Uuid = parse_uuid_v4(election_event_id)
-        .map_err(|err| anyhow!("Error parsing election_event_id as UUID: {}", err))?;
+        .map_err(|err| anyhow!("Error parsing election_event_id as UUID: {err}"))?;
 
     let test_elections_clause = match is_test_election {
         Some(true) => "AND el.name ILIKE '%Test%'".to_string(),
@@ -199,7 +199,7 @@ pub async fn count_cast_votes_election(
     let rows: Vec<Row> = hasura_transaction
         .query(&statement, &[&tenant_uuid, &election_event_uuid])
         .await
-        .map_err(|err| anyhow!("Error running the query: {}", err))?;
+        .map_err(|err| anyhow!("Error running the query: {err}"))?;
     let count_data = rows
         .into_iter()
         .map(|row| -> Result<ElectionCastVotes> { row.try_into() })
@@ -559,11 +559,11 @@ pub async fn count_ballots_by_election(
     election_id: &str,
 ) -> Result<i64> {
     let tenant_uuid: uuid::Uuid = parse_uuid_v4(tenant_id)
-        .map_err(|err| anyhow!("Error parsing tenant_id as UUID: {}", err))?;
+        .map_err(|err| anyhow!("Error parsing tenant_id as UUID: {err}"))?;
     let election_event_uuid: uuid::Uuid = parse_uuid_v4(election_event_id)
-        .map_err(|err| anyhow!("Error parsing election_event_id as UUID: {}", err))?;
+        .map_err(|err| anyhow!("Error parsing election_event_id as UUID: {err}"))?;
     let election_uuid: uuid::Uuid = parse_uuid_v4(election_id)
-        .map_err(|err| anyhow!("Error parsing election_id as UUID: {}", err))?;
+        .map_err(|err| anyhow!("Error parsing election_id as UUID: {err}"))?;
 
     // Prepare and execute the statement
     let statement = hasura_transaction
@@ -589,7 +589,7 @@ pub async fn count_ballots_by_election(
             &[&tenant_uuid, &election_event_uuid, &election_uuid],
         )
         .await
-        .map_err(|err| anyhow!("Error running the count query: {}", err))?;
+        .map_err(|err| anyhow!("Error running the count query: {err}"))?;
 
     let vote_count: i64 = row.get(0); // Get the count from the first column
 
@@ -605,13 +605,13 @@ pub async fn count_ballots_by_area_id(
     area_id: &str,
 ) -> Result<i64> {
     let tenant_uuid: uuid::Uuid = parse_uuid_v4(tenant_id)
-        .map_err(|err| anyhow!("Error parsing tenant_id as UUID: {}", err))?;
+        .map_err(|err| anyhow!("Error parsing tenant_id as UUID: {err}"))?;
     let election_event_uuid: uuid::Uuid = parse_uuid_v4(election_event_id)
-        .map_err(|err| anyhow!("Error parsing election_event_id as UUID: {}", err))?;
+        .map_err(|err| anyhow!("Error parsing election_event_id as UUID: {err}"))?;
     let election_uuid: uuid::Uuid = parse_uuid_v4(election_id)
-        .map_err(|err| anyhow!("Error parsing election_id as UUID: {}", err))?;
+        .map_err(|err| anyhow!("Error parsing election_id as UUID: {err}"))?;
     let area_uuid: uuid::Uuid =
-        parse_uuid_v4(area_id).map_err(|err| anyhow!("Error parsing area_id as UUID: {}", err))?;
+        parse_uuid_v4(area_id).map_err(|err| anyhow!("Error parsing area_id as UUID: {err}"))?;
 
     let statement = hasura_transaction
         .prepare(
@@ -642,7 +642,7 @@ pub async fn count_ballots_by_area_id(
             ],
         )
         .await
-        .map_err(|err| anyhow!("Error running the count query: {}", err))?;
+        .map_err(|err| anyhow!("Error running the count query: {err}"))?;
 
     let vote_count: i64 = row.get(0);
 
@@ -657,9 +657,9 @@ pub async fn count_cast_votes_election_event(
     is_test_election: Option<bool>,
 ) -> Result<i64> {
     let tenant_uuid: uuid::Uuid = parse_uuid_v4(tenant_id)
-        .map_err(|err| anyhow!("Error parsing tenant_id as UUID: {}", err))?;
+        .map_err(|err| anyhow!("Error parsing tenant_id as UUID: {err}"))?;
     let election_event_uuid: uuid::Uuid = parse_uuid_v4(election_event_id)
-        .map_err(|err| anyhow!("Error parsing election_event_id as UUID: {}", err))?;
+        .map_err(|err| anyhow!("Error parsing election_event_id as UUID: {err}"))?;
 
     let test_elections_clause = match is_test_election {
         Some(true) => "AND el.name ILIKE '%Test%'".to_string(),
@@ -685,7 +685,7 @@ pub async fn count_cast_votes_election_event(
     let rows: Row = hasura_transaction
         .query_one(&statement, &[&tenant_uuid, &election_event_uuid])
         .await
-        .map_err(|err| anyhow!("Error running the query: {}", err))?;
+        .map_err(|err| anyhow!("Error running the query: {err}"))?;
 
     let count = rows.try_get::<_, i64>("voter_count")?;
 

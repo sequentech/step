@@ -424,10 +424,7 @@ pub fn validate_resolution_allowed(
         if !all_are_resolved_updates {
             return Err((
                 Status::BadRequest,
-                format!(
-                    "Tally session is not awaiting input. Current status: {}",
-                    execution_status
-                ),
+                format!("Tally session is not awaiting input. Current status: {execution_status}"),
             ));
         }
     }
@@ -447,8 +444,7 @@ pub fn extract_tied_candidate_ids(
             (
                 Status::BadRequest,
                 format!(
-                    "Invalid resolution data for contest {}: missing tied_candidate_ids",
-                    contest_id
+                    "Invalid resolution data for contest {contest_id}: missing tied_candidate_ids"
                 ),
             )
         })

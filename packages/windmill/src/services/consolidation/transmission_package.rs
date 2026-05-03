@@ -44,7 +44,7 @@ pub fn compress_hash_eml(eml: &str) -> Result<(Vec<u8>, String)> {
     let rendered_xml_hash = hash_sha256(eml.as_bytes())
         .with_context(|| "Error hashing the rendered XML")?
         .iter()
-        .map(|byte| format!("{:02X}", byte))
+        .map(|byte| format!("{byte:02X}"))
         .collect();
 
     let compressed_xml =
@@ -81,7 +81,7 @@ pub async fn generate_base_compressed_xml(
     let template_string = download_s3_file_to_string(&s3_template_url).await?;
     // render handlebars template
     let render_xml = reports::render_template_text(&template_string, variables_map)
-        .map_err(|err| anyhow!("{}", err))?;
+        .map_err(|err| anyhow!("{err:?}"))?;
     let (compressed_xml, rendered_xml_hash) = compress_hash_eml(&render_xml)?;
     Ok((compressed_xml, render_xml, rendered_xml_hash))
 }
@@ -122,23 +122,23 @@ fn generate_er_final_zip(
 
     let prefix = if is_log { "al_" } else { "er_" };
 
-    let exz_xml_path = temp_dir_path.join(format!("{}{}.exz", prefix, MIRU_STATION_ID).as_str());
+    let exz_xml_path = temp_dir_path.join(format!("{prefix}{MIRU_STATION_ID}.exz").as_str());
     {
         let mut exz_xml_file = File::create(&exz_xml_path)
-            .with_context(|| format!("Failed to create or open file: {:?}", exz_xml_path))?;
+            .with_context(|| format!("Failed to create or open file: {exz_xml_path:?}"))?;
         exz_xml_file
             .write_all(&exz_temp_file_bytes)
-            .with_context(|| format!("Failed to write data to file: {:?}", exz_xml_path))?;
+            .with_context(|| format!("Failed to write data to file: {exz_xml_path:?}"))?;
     }
 
     let acm_json_stringified = serde_json::to_string_pretty(&acm_json)?;
-    let exz_json_path = temp_dir_path.join(format!("{}{}.json", prefix, MIRU_STATION_ID).as_str());
+    let exz_json_path = temp_dir_path.join(format!("{prefix}{MIRU_STATION_ID}.json"));
     {
         let mut exz_json_file = File::create(&exz_json_path)
-            .with_context(|| format!("Failed to create or open file: {:?}", exz_json_path))?;
+            .with_context(|| format!("Failed to create or open file: {exz_json_path:?}"))?;
         exz_json_file
             .write_all(acm_json_stringified.as_bytes())
-            .with_context(|| format!("Failed to write data to file: {:?}", exz_xml_path))?;
+            .with_context(|| format!("Failed to write data to file: {exz_xml_path:?}"))?;
     }
 
     compress_folder_to_zip(temp_dir_path, output_file_path)?;

@@ -242,7 +242,7 @@ pub fn create_server_signature(
             ecdsa_sign_data(&pk12_file_path_string, password, &temp_pem_file_string)?
         }
         _ => {
-            return Err(anyhow!("Unexpected p12 key {:?}", pk12_id));
+            return Err(anyhow!("Unexpected p12 key {pk12_id:?}"));
         }
     };
     Ok(MiruSignature {
@@ -303,8 +303,8 @@ pub async fn upload_transmission_package_signature_service(
     // get area and annotations
     let area = get_area_by_id(&hasura_transaction, tenant_id, area_id)
         .await
-        .with_context(|| format!("Error fetching area {}", area_id))?
-        .ok_or_else(|| anyhow!("Can't find area {}", area_id))?;
+        .with_context(|| format!("Error fetching area {area_id}"))?
+        .ok_or_else(|| anyhow!("Can't find area {area_id}"))?;
     let area_name = area.name.clone().unwrap_or("".into());
     let area_annotations = area.get_annotations()?;
 
@@ -321,9 +321,7 @@ pub async fn upload_transmission_package_signature_service(
 
     let Some(sbei_user) = sbei_user_opt else {
         return Err(anyhow!(
-            "SBEI user not found area '{}' and username '{}'",
-            area_name,
-            username
+            "SBEI user not found area '{area_name}' and username '{username}'"
         ));
     };
 
@@ -364,7 +362,7 @@ pub async fn upload_transmission_package_signature_service(
         document_id,
     )
     .await?
-    .ok_or_else(|| anyhow!("Can't find document {}", document_id))?;
+    .ok_or_else(|| anyhow!("Can't find document {document_id}"))?;
     let mut private_key_temp_file =
         get_document_as_temp_file(tenant_id, &private_key_document).await?;
 

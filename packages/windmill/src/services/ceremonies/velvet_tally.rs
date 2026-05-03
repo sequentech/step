@@ -91,7 +91,7 @@ fn decode_plaintexts_to_biguints(
         .filter_map(|plaintext| {
             let plaintext_format = plaintext
                 .iter()
-                .map(|b| format!("{:02X}", b))
+                .map(|b| format!("{b:02X}"))
                 .collect::<Vec<String>>()
                 .join(" ");
             let biguint = contest.decode_plaintext_contest_to_biguint(plaintext);
@@ -455,7 +455,7 @@ pub fn generate_initial_state(base_tally_path: &PathBuf, pipe_id: &str) -> Resul
 
     let config = cli.validate()?;
 
-    State::new(&cli, &config).map_err(|err| anyhow!("{}", err))
+    State::new(&cli, &config).map_err(|err| anyhow!("{err}"))
 }
 
 #[instrument(err)]
@@ -477,7 +477,7 @@ pub async fn call_velvet(base_tally_path: PathBuf, pipe_id: &str) -> Result<Stat
             }
         };
 
-        event!(Level::INFO, "Exec {}", next_stage);
+        event!(Level::INFO, "Exec {next_stage}");
 
         // Move the state into a block for mutable borrow
         let handle = tokio::task::spawn_blocking({
@@ -492,7 +492,7 @@ pub async fn call_velvet(base_tally_path: PathBuf, pipe_id: &str) -> Result<Stat
         });
 
         // Await the result and handle JoinError explicitly
-        let (new_state, result) = handle.await.map_err(|err| anyhow!("{}", err))?;
+        let (new_state, result) = handle.await.map_err(|err| anyhow!("{err}"))?;
         result?; // Check the result of exec_next()
         state_opt = Some(new_state); // Restore state for the next iteration
     }
@@ -540,13 +540,9 @@ pub async fn build_ballot_images_pipe_config(
 
     let ballot_images_extra_data = VelvetTemplateData {
         title: VELVET_BALLOT_IMAGES_TEMPLATE_TITLE.to_string(),
-        file_logo: format!(
-            "{}/{}/{}",
-            minio_endpoint_base, public_asset_path, PUBLIC_ASSETS_LOGO_IMG
-        ),
+        file_logo: format!("{minio_endpoint_base}/{public_asset_path}/{PUBLIC_ASSETS_LOGO_IMG}"),
         file_qrcode_lib: format!(
-            "{}/{}/{}",
-            minio_endpoint_base, public_asset_path, PUBLIC_ASSETS_QRCODE_LIB
+            "{minio_endpoint_base}/{public_asset_path}/{PUBLIC_ASSETS_QRCODE_LIB}"
         ),
     };
 
@@ -576,13 +572,9 @@ async fn build_reports_pipe_config(
 ) -> Result<PipeConfigGenerateReports> {
     let extra_data = VelvetTemplateData {
         title: String::new(),
-        file_logo: format!(
-            "{}/{}/{}",
-            minio_endpoint_base, public_asset_path, PUBLIC_ASSETS_LOGO_IMG
-        ),
+        file_logo: format!("{minio_endpoint_base}/{public_asset_path}/{PUBLIC_ASSETS_LOGO_IMG}"),
         file_qrcode_lib: format!(
-            "{}/{}/{}",
-            minio_endpoint_base, public_asset_path, PUBLIC_ASSETS_QRCODE_LIB
+            "{minio_endpoint_base}/{public_asset_path}/{PUBLIC_ASSETS_QRCODE_LIB}"
         ),
     };
 

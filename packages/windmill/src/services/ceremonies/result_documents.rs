@@ -501,7 +501,7 @@ impl GenerateResultDocuments for ElectionReportDataComputed {
             .clone()
             .context("Missing json file path")?;
         let content = fs::read(file_path.clone())
-            .with_context(|| format!("Failed to read the file at {}", file_path))?;
+            .with_context(|| format!("Failed to read the file at {file_path}"))?;
         let json_hash = hash_b64(&content).map_err(|err| anyhow!("Error hashing json: {err:?}"))?;
 
         // Save election results documents to S3 and Hasura
@@ -819,8 +819,7 @@ fn get_area_document_paths(
     base_path: &Path,
 ) -> ResultDocumentPaths {
     let folder_path = base_path.join(format!(
-        "output/velvet-generate-reports/election__{}/area__{}",
-        election_id, area_id
+        "output/velvet-generate-reports/election__{election_id}/area__{area_id}",
     ));
 
     let json_path = folder_path.join(OUTPUT_JSON);

@@ -115,17 +115,17 @@ pub async fn update_results_area_contest_documents(
 ) -> Result<()> {
     let documents_value = serde_json::to_value(documents.clone())?;
     let tenant_uuid: uuid::Uuid = parse_uuid_v4(tenant_id)
-        .map_err(|err| anyhow!("Error parsing tenant_id as UUID: {}", err))?;
+        .map_err(|err| anyhow!("Error parsing tenant_id as UUID: {err}"))?;
     let results_event_uuid: uuid::Uuid = parse_uuid_v4(results_event_id)
-        .map_err(|err| anyhow!("Error parsing results_event_id as UUID: {}", err))?;
+        .map_err(|err| anyhow!("Error parsing results_event_id as UUID: {err}"))?;
     let election_event_uuid: uuid::Uuid = parse_uuid_v4(election_event_id)
-        .map_err(|err| anyhow!("Error parsing election_event_id as UUID: {}", err))?;
+        .map_err(|err| anyhow!("Error parsing election_event_id as UUID: {err}"))?;
     let election_uuid: uuid::Uuid = parse_uuid_v4(election_id)
-        .map_err(|err| anyhow!("Error parsing election_id as UUID: {}", err))?;
+        .map_err(|err| anyhow!("Error parsing election_id as UUID: {err}"))?;
     let contest_uuid: uuid::Uuid = parse_uuid_v4(contest_id)
-        .map_err(|err| anyhow!("Error parsing contest_id as UUID: {}", err))?;
+        .map_err(|err| anyhow!("Error parsing contest_id as UUID: {err}"))?;
     let area_uuid: uuid::Uuid =
-        parse_uuid_v4(area_id).map_err(|err| anyhow!("Error parsing area_id as UUID: {}", err))?;
+        parse_uuid_v4(area_id).map_err(|err| anyhow!("Error parsing area_id as UUID: {err}"))?;
 
     let statement = hasura_transaction
         .prepare(
@@ -160,7 +160,7 @@ pub async fn update_results_area_contest_documents(
             ],
         )
         .await
-        .map_err(|err| anyhow!("Error running the areas query: {}", err))?;
+        .map_err(|err| anyhow!("Error running the areas query: {err}"))?;
 
     if 1 == rows.len() {
         Ok(())
@@ -234,13 +234,13 @@ pub async fn get_results_area_contest(
     let rows = hasura_transaction
         .query(&statement, params.as_slice())
         .await
-        .map_err(|err| anyhow!("Error running the query: {:?}", err))?;
+        .map_err(|err| anyhow!("Error running the query: {err:?}"))?;
 
     match rows.into_iter().next() {
         Some(row) => row
             .try_into()
             .map(|res: ResultsAreaContestWrapper| Some(res.0))
-            .map_err(|err| anyhow!("Error converting row into ResultsAreaContest: {:?}", err)),
+            .map_err(|err| anyhow!("Error converting row into ResultsAreaContest: {err:?}")),
         None => Ok(None),
     }
 }
@@ -412,7 +412,7 @@ pub async fn insert_results_area_contests(
     let rows: Vec<Row> = hasura_transaction
         .query(&statement, &[&json_data])
         .await
-        .map_err(|err| anyhow!("Error inserting rows: {}", err))?;
+        .map_err(|err| anyhow!("Error inserting rows: {err}"))?;
 
     let values: Vec<ResultsAreaContest> = rows
         .into_iter()
@@ -448,14 +448,14 @@ pub async fn get_event_results_area_contest(
     let rows = hasura_transaction
         .query(&statement, &[&tenant_uuid, &election_event_uuid])
         .await
-        .map_err(|err| anyhow!("Error running the query: {:?}", err))?;
+        .map_err(|err| anyhow!("Error running the query: {err:?}"))?;
 
     let results = rows
         .into_iter()
         .map(|row| {
             row.try_into()
                 .map(|res: ResultsAreaContestWrapper| res.0)
-                .map_err(|err| anyhow!("Error converting row to ResultsAreaContest: {}", err))
+                .map_err(|err| anyhow!("Error converting row to ResultsAreaContest: {err}"))
         })
         .collect::<Result<Vec<ResultsAreaContest>>>()?;
 

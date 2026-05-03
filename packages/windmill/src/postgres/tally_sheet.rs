@@ -118,11 +118,11 @@ pub async fn publish_tally_sheet(
         .await?;
 
     let tenant_uuid: uuid::Uuid = parse_uuid_v4(tenant_id)
-        .map_err(|err| anyhow!("Error parsing tenant_id as UUID: {}", err))?;
+        .map_err(|err| anyhow!("Error parsing tenant_id as UUID: {err}"))?;
     let election_event_uuid: uuid::Uuid = parse_uuid_v4(election_event_id)
-        .map_err(|err| anyhow!("Error parsing election_event_id as UUID: {}", err))?;
+        .map_err(|err| anyhow!("Error parsing election_event_id as UUID: {err}"))?;
     let tally_sheet_uuid: uuid::Uuid = parse_uuid_v4(tally_sheet_id)
-        .map_err(|err| anyhow!("Error parsing tally_sheet_id as UUID: {}", err))?;
+        .map_err(|err| anyhow!("Error parsing tally_sheet_id as UUID: {err}"))?;
     let publish_params: Vec<&(dyn ToSql + Sync)> = vec![
         &tenant_uuid,
         &election_event_uuid,
@@ -132,7 +132,7 @@ pub async fn publish_tally_sheet(
     let publish_rows: Vec<Row> = hasura_transaction
         .query(&publish_statement, publish_params.as_slice())
         .await
-        .map_err(|err| anyhow!("{}", err))?;
+        .map_err(|err| anyhow!("{err}"))?;
     if publish_rows.len() != 1 {
         return Ok(None);
     }

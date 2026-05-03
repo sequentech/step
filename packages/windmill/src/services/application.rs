@@ -533,7 +533,7 @@ fn check_mismatches(
                     .map(|value| value.to_string().to_lowercase());
                 let applicant_combined = match (applicant_first_name, applicant_middle_name) {
                     (Some(first), Some(middle)) => {
-                        Some(format!("{} {}", first, middle).trim().to_string())
+                        Some(format!("{first} {middle}").trim().to_string())
                     }
                     (Some(first), None) => Some(first),
                     _ => None,
@@ -671,8 +671,7 @@ async fn get_i18n_default_application_communication(
         })?,
         None => {
             return Err(anyhow::anyhow!(
-                "No default application data found in language: {}",
-                lang
+                "No default application data found in language: {lang}"
             ))
         }
     };
@@ -794,7 +793,7 @@ pub async fn confirm_application(
         group_names,
     )
     .await
-    .map_err(|err| anyhow!("Error updating application: {}", err))?;
+    .map_err(|err| anyhow!("Error updating application: {err}"))?;
 
     // Update user attributes and credentials
     let realm = get_event_realm(tenant_id, election_event_id);
@@ -813,7 +812,7 @@ pub async fn confirm_application(
         .get("credentials")
         .map(|value| {
             deserialize_value::<Vec<CredentialRepresentation>>(value.clone())
-                .map_err(|err| anyhow!("Error parsing application credentials: {}", err))
+                .map_err(|err| anyhow!("Error parsing application credentials: {err}"))
         })
         .transpose()?;
 
@@ -857,7 +856,7 @@ pub async fn confirm_application(
 
     let client = KeycloakAdminClient::new()
         .await
-        .map_err(|err| anyhow!("Error obtaining keycloak admin client: {}", err))?;
+        .map_err(|err| anyhow!("Error obtaining keycloak admin client: {err}"))?;
 
     let user = client
         .get_user(&realm, user_id)
@@ -892,7 +891,7 @@ pub async fn confirm_application(
 
     let client = KeycloakAdminClient::new()
         .await
-        .map_err(|err| anyhow!("Error obtaining keycloak admin client: {}", err))?;
+        .map_err(|err| anyhow!("Error obtaining keycloak admin client: {err}"))?;
 
     let user = client
         .edit_user_with_credentials(
@@ -953,11 +952,11 @@ pub async fn reject_application(
         group_names,
     )
     .await
-    .map_err(|err| anyhow!("Error updating application: {}", err))?;
+    .map_err(|err| anyhow!("Error updating application: {err}"))?;
 
     let applicant_data: HashMap<String, String> =
         deserialize_value(application.applicant_data.clone())
-            .map_err(|err| anyhow!("Error parsing application applicant data: {}", err))?;
+            .map_err(|err| anyhow!("Error parsing application applicant data: {err}"))?;
 
     let first_name = applicant_data.get("firstName").map(String::from);
     let last_name = applicant_data.get("lastName").map(String::from);

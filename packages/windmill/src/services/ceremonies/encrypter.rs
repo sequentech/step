@@ -269,7 +269,7 @@ pub async fn encrypt_directory_contents(
 
 #[instrument(err, skip_all)]
 pub fn encrypt_file_inner(old_path: &str, encryption_password: &str) -> Result<String> {
-    let new_path = format!("{}.enc", old_path);
+    let new_path = format!("{old_path}.enc");
 
     encrypt_file_aes_256_cbc(old_path, &new_path, encryption_password)
         .map_err(|err| anyhow!("Error encrypting file: {err:?}"))?;

@@ -67,13 +67,13 @@ pub async fn update_results_election_documents(
     let documents_value = serde_json::to_value(documents.clone())?;
     let json_hash_value = serde_json::Value::String(json_hash.to_string()); // Convert json_hash to JSON
     let tenant_uuid: uuid::Uuid = parse_uuid_v4(tenant_id)
-        .map_err(|err| anyhow!("Error parsing tenant_id as UUID: {}", err))?;
+        .map_err(|err| anyhow!("Error parsing tenant_id as UUID: {err}"))?;
     let results_event_uuid: uuid::Uuid = parse_uuid_v4(results_event_id)
-        .map_err(|err| anyhow!("Error parsing results_id as UUID: {}", err))?;
+        .map_err(|err| anyhow!("Error parsing results_id as UUID: {err}"))?;
     let election_event_uuid: uuid::Uuid = parse_uuid_v4(election_event_id)
-        .map_err(|err| anyhow!("Error parsing election_event_id as UUID: {}", err))?;
+        .map_err(|err| anyhow!("Error parsing election_event_id as UUID: {err}"))?;
     let election_uuid: uuid::Uuid = parse_uuid_v4(election_id)
-        .map_err(|err| anyhow!("Error parsing election_id as UUID: {}", err))?;
+        .map_err(|err| anyhow!("Error parsing election_id as UUID: {err}"))?;
     let statement = hasura_transaction
         .prepare(
             r"
@@ -109,7 +109,7 @@ pub async fn update_results_election_documents(
             ],
         )
         .await
-        .map_err(|err| anyhow!("Error running the results_election query: {}", err))?;
+        .map_err(|err| anyhow!("Error running the results_election query: {err}"))?;
 
     if 1 == rows.len() {
         Ok(())
@@ -195,7 +195,7 @@ pub async fn insert_results_elections(
     let rows: Vec<Row> = hasura_transaction
         .query(&statement, &[&json_data])
         .await
-        .map_err(|err| anyhow!("Error inserting rows: {}", err))?;
+        .map_err(|err| anyhow!("Error inserting rows: {err}"))?;
 
     // Convert rows to ResultsElection instances
     let values: Vec<ResultsElection> = rows
@@ -214,11 +214,11 @@ pub async fn get_election_results(
     election_id: &str,
 ) -> Result<Vec<ResultsElection>> {
     let tenant_uuid: uuid::Uuid = parse_uuid_v4(tenant_id)
-        .map_err(|err| anyhow!("Error parsing tenant_id as UUID: {}", err))?;
+        .map_err(|err| anyhow!("Error parsing tenant_id as UUID: {err}"))?;
     let election_event_uuid: uuid::Uuid = parse_uuid_v4(election_event_id)
-        .map_err(|err| anyhow!("Error parsing election_event_id as UUID: {}", err))?;
+        .map_err(|err| anyhow!("Error parsing election_event_id as UUID: {err}"))?;
     let election_uuid: uuid::Uuid = parse_uuid_v4(election_id)
-        .map_err(|err| anyhow!("Error parsing election_id as UUID: {}", err))?;
+        .map_err(|err| anyhow!("Error parsing election_id as UUID: {err}"))?;
 
     let statement = hasura_transaction
         .prepare(
@@ -242,7 +242,7 @@ pub async fn get_election_results(
             &[&tenant_uuid, &election_event_uuid, &election_uuid],
         )
         .await
-        .map_err(|err| anyhow!("Error running the query: {}", err))?;
+        .map_err(|err| anyhow!("Error running the query: {err}"))?;
 
     // Convert rows into ResultsElection objects
     let results = rows
@@ -250,7 +250,7 @@ pub async fn get_election_results(
         .map(|row| {
             row.try_into()
                 .map(|res: ResultsElectionWrapper| res.0)
-                .map_err(|err| anyhow!("Error converting row to ResultsElection: {}", err))
+                .map_err(|err| anyhow!("Error converting row to ResultsElection: {err}"))
         })
         .collect::<Result<Vec<ResultsElection>>>()?;
 
@@ -265,11 +265,11 @@ pub async fn get_results_election_by_results_event_id(
     results_event_id: &str,
 ) -> Result<ResultsElection> {
     let tenant_uuid: uuid::Uuid = parse_uuid_v4(tenant_id)
-        .map_err(|err| anyhow!("Error parsing tenant_id as UUID: {}", err))?;
+        .map_err(|err| anyhow!("Error parsing tenant_id as UUID: {err}"))?;
     let election_uuid: uuid::Uuid = parse_uuid_v4(election_id)
-        .map_err(|err| anyhow!("Error parsing election_id as UUID: {}", err))?;
+        .map_err(|err| anyhow!("Error parsing election_id as UUID: {err}"))?;
     let results_event_uuid: uuid::Uuid = parse_uuid_v4(results_event_id)
-        .map_err(|err| anyhow!("Error parsing election_event_id as UUID: {}", err))?;
+        .map_err(|err| anyhow!("Error parsing election_event_id as UUID: {err}"))?;
 
     let statement = hasura_transaction
         .prepare(
@@ -293,7 +293,7 @@ pub async fn get_results_election_by_results_event_id(
             &[&tenant_uuid, &election_uuid, &results_event_uuid],
         )
         .await
-        .map_err(|err| anyhow!("Error running the query: {}", err))?;
+        .map_err(|err| anyhow!("Error running the query: {err}"))?;
 
     // Convert rows into ResultsElection objects
     let results = rows
@@ -301,7 +301,7 @@ pub async fn get_results_election_by_results_event_id(
         .map(|row| {
             row.try_into()
                 .map(|res: ResultsElectionWrapper| res.0)
-                .map_err(|err| anyhow!("Error converting row to ResultsElection: {}", err))
+                .map_err(|err| anyhow!("Error converting row to ResultsElection: {err}"))
         })
         .collect::<Result<Vec<ResultsElection>>>()?;
 
@@ -318,9 +318,9 @@ pub async fn get_event_results_election(
     election_event_id: &str,
 ) -> Result<Vec<ResultsElection>> {
     let tenant_uuid: uuid::Uuid = parse_uuid_v4(tenant_id)
-        .map_err(|err| anyhow!("Error parsing tenant_id as UUID: {}", err))?;
+        .map_err(|err| anyhow!("Error parsing tenant_id as UUID: {err}"))?;
     let election_event_uuid: uuid::Uuid = parse_uuid_v4(election_event_id)
-        .map_err(|err| anyhow!("Error parsing election_event_id as UUID: {}", err))?;
+        .map_err(|err| anyhow!("Error parsing election_event_id as UUID: {err}"))?;
 
     let statement = hasura_transaction
         .prepare(
@@ -339,7 +339,7 @@ pub async fn get_event_results_election(
     let rows = hasura_transaction
         .query(&statement, &[&tenant_uuid, &election_event_uuid])
         .await
-        .map_err(|err| anyhow!("Error running the query: {}", err))?;
+        .map_err(|err| anyhow!("Error running the query: {err}"))?;
 
     // Convert rows into ResultsElection objects
     let results = rows
@@ -347,7 +347,7 @@ pub async fn get_event_results_election(
         .map(|row| {
             row.try_into()
                 .map(|res: ResultsElectionWrapper| res.0)
-                .map_err(|err| anyhow!("Error converting row to ResultsElection: {}", err))
+                .map_err(|err| anyhow!("Error converting row to ResultsElection: {err}"))
         })
         .collect::<Result<Vec<ResultsElection>>>()?;
 

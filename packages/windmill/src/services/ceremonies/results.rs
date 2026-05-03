@@ -463,7 +463,7 @@ pub async fn populate_results_tables(
     };
 
     if let Some(ref results_event_id) = results_event_id_opt {
-        let file_name = format!("results-{}.db", results_event_id);
+        let file_name = format!("results-{results_event_id}.db");
         let file_path = database_path.to_str().ok_or(anyhow!("Empty upload path"))?;
         let file_size = get_file_size(file_path)?;
 

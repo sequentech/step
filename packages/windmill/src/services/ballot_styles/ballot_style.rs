@@ -132,14 +132,14 @@ pub async fn create_ballot_style_postgres(
     for (election_id, contest_ids) in election_contest_map.into_iter() {
         let election = elections_map
             .get(&election_id)
-            .ok_or(anyhow!("election id not found {}", election_id))?;
+            .ok_or(anyhow!("election id not found {election_id}"))?;
         let contests: Vec<Contest> = contest_ids
             .iter()
             .map(|contest_id| {
                 contests_map
                     .get(contest_id)
                     .cloned()
-                    .ok_or(Error::String(format!("Can't find contest {}", contest_id)))
+                    .ok_or(Error::String(format!("Can't find contest {contest_id}")))
             })
             .collect::<Result<Vec<Contest>>>()?;
         let candidates: Vec<Candidate> = candidates_map
@@ -251,7 +251,7 @@ pub async fn update_election_event_ballot_styles(
         .checked_add_signed(Duration::seconds(60))
         .expect("lock expiration overflow");
     let lock = PgLock::acquire(
-        format!("create_ballot_style-{}-{}", tenant_id, election_event_id),
+        format!("create_ballot_style-{tenant_id}-{election_event_id}"),
         Uuid::new_v4().to_string(),
         lock_expires,
     )

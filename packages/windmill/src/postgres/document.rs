@@ -267,7 +267,7 @@ pub async fn insert_document(
             ],
         )
         .await
-        .map_err(|err| anyhow!("Error inserting document: {}", err))?;
+        .map_err(|err| anyhow!("Error inserting document: {err}"))?;
 
     let documents: Vec<Document> = rows
         .into_iter()

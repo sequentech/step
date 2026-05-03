@@ -67,7 +67,7 @@ pub async fn get_acm_key_pair(
     )
     .await?
     {
-        deserialize_str(&secret_str).map_err(|err| anyhow!("{}", err))
+        deserialize_str(&secret_str).map_err(|err| anyhow!("Error deserializing secret: {err:?}"))
     } else {
         let key_pair = generate_ecies_key_pair()?;
         let secret_str = serde_json::to_string(&key_pair)?;

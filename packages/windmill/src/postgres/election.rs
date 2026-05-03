@@ -199,7 +199,7 @@ pub async fn get_elections_by_ids(
     let election_uuids = election_ids
         .clone()
         .into_iter()
-        .map(|id| parse_uuid_v4(&id).map_err(|err| anyhow!("{:?}", err)))
+        .map(|id| parse_uuid_v4(&id).map_err(|err| anyhow!("{err:?}")))
         .collect::<Result<Vec<Uuid>>>()?;
 
     let statement = hasura_transaction

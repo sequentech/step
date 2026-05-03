@@ -86,7 +86,7 @@ pub async fn get_templates_by_tenant_id(
     }
 
     let tenant_uuid =
-        parse_uuid_v4(tenant_id).map_err(|err| anyhow!("Error parsing tenant UUID: {}", err))?;
+        parse_uuid_v4(tenant_id).map_err(|err| anyhow!("Error parsing tenant UUID: {err}"))?;
 
     let statement = hasura_transaction
         .prepare(
@@ -113,7 +113,7 @@ pub async fn get_templates_by_tenant_id(
     let rows = hasura_transaction
         .query(&statement, &[&tenant_uuid])
         .await
-        .map_err(|err| anyhow!("Error fetching templates: {}", err))?;
+        .map_err(|err| anyhow!("Error fetching templates: {err}"))?;
 
     let templates: Vec<Template> = rows
         .into_iter()

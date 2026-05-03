@@ -162,7 +162,7 @@ pub async fn insert_ballots_messages(
 
                     // Create a temporary file (auto-deleted when dropped)
                     let ballots_temp_file = NamedTempFile::new()
-                        .map_err(|error| anyhow!("Failed to create temp file {}", error))?;
+                        .map_err(|error| anyhow!("Failed to create temp file {error}"))?;
                     event!(
                         Level::INFO,
                         "Creating temporary file for ballots with path {:?}",
@@ -183,7 +183,7 @@ pub async fn insert_ballots_messages(
 
                     // Create a temporary file (auto-deleted when dropped)
                     let users_temp_file = NamedTempFile::new()
-                        .map_err(|error| anyhow!("Failed to create temp file: {}", error))?;
+                        .map_err(|error| anyhow!("Failed to create temp file: {error}"))?;
                     event!(
                         Level::INFO,
                         "Creating temporary file for users with path {:?}",
@@ -335,7 +335,7 @@ pub async fn get_elections_end_dates(
     // Use ballot publications instead?
     let elections = get_elections(hasura_transaction, tenant_id, election_event_id)
         .await
-        .map_err(|err| anyhow!("Error getting elections {:?}", err))?;
+        .map_err(|err| anyhow!("Error getting elections {err:?}"))?;
 
     let elections_dates: HashMap<String, Option<DateTime<_>>> = elections
         .into_iter()
@@ -345,7 +345,7 @@ pub async fn get_elections_end_dates(
                 .clone()
                 .map(deserialize_value)
                 .transpose()
-                .map_err(|err| anyhow!("Error parsing election presentation {:?}", err))?
+                .map_err(|err| anyhow!("Error parsing election presentation {err:?}"))?
                 .unwrap_or(Default::default());
             let current_dates = election_presentation.dates.clone().unwrap_or_default();
             let end_date = current_dates
@@ -355,6 +355,6 @@ pub async fn get_elections_end_dates(
             Ok((election.id, end_date))
         })
         .collect::<Result<HashMap<_, _>>>()
-        .map_err(|err| anyhow!("Error parsing election dates {:?}", err))?;
+        .map_err(|err| anyhow!("Error parsing election dates {err:?}"))?;
     Ok(elections_dates)
 }

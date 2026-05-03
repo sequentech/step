@@ -59,7 +59,7 @@ pub async fn upsert_lock(
             &[&key.to_string(), &value.to_string(), &expiry_date],
         )
         .await
-        .map_err(|err| anyhow!("Error running query: {}", err))?;
+        .map_err(|err| anyhow!("Error running query: {err}"))?;
 
     if 1 == rows.len() {
         let mut locks = rows
@@ -94,7 +94,7 @@ pub async fn delete_lock(
     let _rows: Vec<Row> = hasura_transaction
         .query(&statement, &[&key.to_string(), &value.to_string()])
         .await
-        .map_err(|err| anyhow!("Error running query: {}", err))?;
+        .map_err(|err| anyhow!("Error running query: {err}"))?;
 
     Ok(())
 }

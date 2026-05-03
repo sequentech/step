@@ -39,7 +39,7 @@ pub async fn get_trustees_by_id(
     let trustee_uuids = trustee_ids
         .clone()
         .into_iter()
-        .map(|id| parse_uuid_v4(&id).map_err(|err| anyhow!("{:?}", err)))
+        .map(|id| parse_uuid_v4(&id).map_err(|err| anyhow!("{err:?}")))
         .collect::<Result<Vec<Uuid>>>()?;
     let statement = hasura_transaction
         .prepare(

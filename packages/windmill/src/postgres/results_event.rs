@@ -47,11 +47,11 @@ pub async fn update_results_event_documents(
 ) -> Result<()> {
     let documents_value = serde_json::to_value(documents.clone())?;
     let tenant_uuid: uuid::Uuid = parse_uuid_v4(tenant_id)
-        .map_err(|err| anyhow!("Error parsing tenant_id as UUID: {}", err))?;
+        .map_err(|err| anyhow!("Error parsing tenant_id as UUID: {err}"))?;
     let results_event_uuid: uuid::Uuid = parse_uuid_v4(results_event_id)
-        .map_err(|err| anyhow!("Error parsing results_event_id as UUID: {}", err))?;
+        .map_err(|err| anyhow!("Error parsing results_event_id as UUID: {err}"))?;
     let election_event_uuid: uuid::Uuid = parse_uuid_v4(election_event_id)
-        .map_err(|err| anyhow!("Error parsing election_event_id as UUID: {}", err))?;
+        .map_err(|err| anyhow!("Error parsing election_event_id as UUID: {err}"))?;
     let statement = hasura_transaction
         .prepare(
             r"
@@ -79,7 +79,7 @@ pub async fn update_results_event_documents(
             ],
         )
         .await
-        .map_err(|err| anyhow!("Error running the areas query: {}", err))?;
+        .map_err(|err| anyhow!("Error running the areas query: {err}"))?;
 
     if 1 == rows.len() {
         Ok(())
@@ -173,7 +173,7 @@ pub async fn insert_results_event(
             ],
         )
         .await
-        .map_err(|err| anyhow!("Error inserting row: {}", err))?;
+        .map_err(|err| anyhow!("Error inserting row: {err}"))?;
 
     let values: Vec<ResultsEvent> = rows
         .into_iter()

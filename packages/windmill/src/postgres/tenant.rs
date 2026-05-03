@@ -40,7 +40,7 @@ pub async fn get_tenant_by_id(
     }
 
     let tenant_uuid =
-        parse_uuid_v4(tenant_id).map_err(|err| anyhow!("Error parsing tenant UUID: {}", err))?;
+        parse_uuid_v4(tenant_id).map_err(|err| anyhow!("Error parsing tenant UUID: {err}"))?;
 
     let statement = hasura_transaction
         .prepare(
@@ -58,7 +58,7 @@ pub async fn get_tenant_by_id(
     let rows = hasura_transaction
         .query(&statement, &[&tenant_uuid])
         .await
-        .map_err(|err| anyhow!("Error fetching Tenants: {}", err))?;
+        .map_err(|err| anyhow!("Error fetching Tenants: {err}"))?;
 
     let tenants: Vec<Tenant> = rows
         .into_iter()
@@ -99,7 +99,7 @@ pub async fn update_tenant(
             "#,
         )
         .await
-        .map_err(|err| anyhow!("Error preparing update_tenant statement: {}", err))?;
+        .map_err(|err| anyhow!("Error preparing update_tenant statement: {err}"))?;
 
     let rows = hasura_transaction
         .execute(
@@ -151,7 +151,7 @@ pub async fn insert_tenant(
             ",
         )
         .await
-        .map_err(|err| anyhow!("Error preparing update_tenant statement: {}", err))?;
+        .map_err(|err| anyhow!("Error preparing update_tenant statement: {err}"))?;
 
     let _rows = hasura_transaction
         .execute(&statement, &[&parse_uuid_v4(id)?, &slug])
@@ -172,7 +172,7 @@ pub async fn get_tenant_by_id_if_exist(
     }
 
     let tenant_uuid =
-        parse_uuid_v4(tenant_id).map_err(|err| anyhow!("Error parsing tenant UUID: {}", err))?;
+        parse_uuid_v4(tenant_id).map_err(|err| anyhow!("Error parsing tenant UUID: {err}"))?;
 
     let statement = hasura_transaction
         .prepare(
@@ -190,7 +190,7 @@ pub async fn get_tenant_by_id_if_exist(
     let rows = hasura_transaction
         .query(&statement, &[&tenant_uuid])
         .await
-        .map_err(|err| anyhow!("Error fetching Tenants: {}", err))?;
+        .map_err(|err| anyhow!("Error fetching Tenants: {err}"))?;
 
     if (rows.is_empty()) {
         return Ok(None);
@@ -227,7 +227,7 @@ pub async fn get_tenant_by_slug_if_exist(
     let rows = hasura_transaction
         .query(&statement, &[&slug])
         .await
-        .map_err(|err| anyhow!("Error fetching Tenants: {}", err))?;
+        .map_err(|err| anyhow!("Error fetching Tenants: {err}"))?;
 
     if (rows.is_empty()) {
         return Ok(None);

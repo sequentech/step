@@ -211,25 +211,15 @@ pub async fn update_application_status(
     // Build annotations update dynamically
     let annotations_update = {
         let mut update = "COALESCE(annotations, '{}'::jsonb)".to_string();
-        update = format!(
-            "jsonb_set({}, '{{verified_by}}', to_jsonb($7::text), true)",
-            update
-        );
-        update = format!(
-            "jsonb_set({}, '{{verified_by_role}}', to_jsonb($8::text), true)",
-            update
-        );
+        update = format!("jsonb_set({update}, '{{verified_by}}', to_jsonb($7::text), true)");
+        update = format!("jsonb_set({update}, '{{verified_by_role}}', to_jsonb($8::text), true)");
         if rejection_reason.is_some() {
-            update = format!(
-                "jsonb_set({}, '{{rejection_reason}}', to_jsonb($9::text), true)",
-                update
-            );
+            update =
+                format!("jsonb_set({update}, '{{rejection_reason}}', to_jsonb($9::text), true)");
         }
         if rejection_message.is_some() {
-            update = format!(
-                "jsonb_set({}, '{{rejection_message}}', to_jsonb($10::text), true)",
-                update
-            );
+            update =
+                format!("jsonb_set({update}, '{{rejection_message}}', to_jsonb($10::text), true)");
         }
         update
     };
@@ -323,13 +313,13 @@ pub async fn get_applications(
     let status;
     let verification_type;
     if let Some(filters) = filters {
-        query.push_str(format!(" AND status = ${}", param_index).as_str());
+        query.push_str(format!(" AND status = ${param_index}").as_str());
         status = filters.clone().status.to_string();
         params.push(&status);
         param_index = param_index.checked_add(1).expect("param_index overflow");
 
         if filters.verification_type.is_some() {
-            query.push_str(format!(" AND verification_type = ${param_index}").as_str());
+            query.push_str(&format!(" AND verification_type = ${param_index}"));
             verification_type = filters
                 .verification_type
                 .clone()
@@ -481,7 +471,7 @@ pub async fn count_applications(
 
     let statement = hasura_transaction.prepare(&query).await.map_err(|err| {
         // Print the error before returning it
-        eprintln!("Error in query: {:?}", err);
+        eprintln!("Error in query: {err:?}");
         anyhow!("Error preparing the application query: {err}")
     })?;
 
@@ -490,7 +480,7 @@ pub async fn count_applications(
         .await
         .map_err(|err| {
             // Print the error before returning it
-            eprintln!("Error in row: {:?}", err);
+            eprintln!("Error in row: {err:?}");
             anyhow!("Error during query: {err}")
         })?;
 

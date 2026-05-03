@@ -84,11 +84,11 @@ pub async fn insert_tally_session(
         .transpose()?;
     let election_uuids: Vec<Uuid> = election_ids
         .iter()
-        .map(|id| parse_uuid_v4(id).map_err(|err| anyhow!("{:?}", err)))
+        .map(|id| parse_uuid_v4(id).map_err(|err| anyhow!("{err:?}")))
         .collect::<Result<Vec<Uuid>>>()?;
     let area_uuids: Vec<Uuid> = area_ids
         .iter()
-        .map(|id| parse_uuid_v4(id).map_err(|err| anyhow!("{:?}", err)))
+        .map(|id| parse_uuid_v4(id).map_err(|err| anyhow!("{err:?}")))
         .collect::<Result<Vec<Uuid>>>()?;
     let statement = hasura_transaction
         .prepare(
@@ -134,7 +134,7 @@ pub async fn insert_tally_session(
             ],
         )
         .await
-        .map_err(|err| anyhow!("Error inserting row: {}", err))?;
+        .map_err(|err| anyhow!("Error inserting row: {err}"))?;
 
     let values: Vec<TallySession> = rows
         .into_iter()

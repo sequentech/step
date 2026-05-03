@@ -355,7 +355,7 @@ pub async fn insert_scheduled_event(
             "#,
         )
         .await
-        .map_err(|err| anyhow!("Error preparing scheduled event statement: {}", err))?;
+        .map_err(|err| anyhow!("Error preparing scheduled event statement: {err}"))?;
     let rows: Vec<Row> = hasura_transaction
         .query(
             &statement,
@@ -369,7 +369,7 @@ pub async fn insert_scheduled_event(
             ],
         )
         .await
-        .map_err(|err| anyhow!("Error inserting scheduled event: {}", err))?;
+        .map_err(|err| anyhow!("Error inserting scheduled event: {err}"))?;
 
     let rows: Vec<ScheduledEvent> = rows
         .into_iter()
@@ -378,7 +378,7 @@ pub async fn insert_scheduled_event(
                 .map(|res: ScheduledEventWrapper| -> ScheduledEvent { res.0 })
         })
         .collect::<Result<Vec<ScheduledEvent>>>()
-        .map_err(|err| anyhow!("Error deserializing scheduled event: {}", err))?;
+        .map_err(|err| anyhow!("Error deserializing scheduled event: {err}"))?;
 
     if 1 == rows.len() {
         Ok(rows[0].clone())
@@ -530,12 +530,7 @@ pub async fn insert_new_scheduled_event(
             "#,
         )
         .await
-        .map_err(|err| {
-            anyhow!(
-                "Error preparing insert_new_scheduled_event statement: {}",
-                err
-            )
-        })?;
+        .map_err(|err| anyhow!("Error preparing insert_new_scheduled_event statement: {err}"))?;
 
     let rows: Vec<Row> = hasura_transaction
         .query(
@@ -556,7 +551,7 @@ pub async fn insert_new_scheduled_event(
             ],
         )
         .await
-        .map_err(|err| anyhow!("Error inserting new scheduled event: {}", err))?;
+        .map_err(|err| anyhow!("Error inserting new scheduled event: {err}"))?;
 
     let rows: Vec<ScheduledEvent> = rows
         .into_iter()

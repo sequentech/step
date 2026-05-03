@@ -31,7 +31,7 @@ pub async fn render_report_task(
 
     // render handlebars template
     let render = reports::render_template_text(input.template.as_str(), variables_map)
-        .map_err(|err| anyhow!("{}", err))?;
+        .map_err(|err| anyhow!("{err}"))?;
 
     // if output format is text/html, just return that
     if FormatType::TEXT == input.format {

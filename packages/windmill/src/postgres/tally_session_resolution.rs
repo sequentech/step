@@ -198,12 +198,11 @@ pub async fn submit_resolution(
 
     if affected == 0 {
         return Err(anyhow!(
-            "Resolution not found or already resolved: {}",
-            resolution_id
+            "Resolution not found or already resolved: {resolution_id}",
         ));
     }
 
-    info!("Submitted resolution {}", resolution_id);
+    info!("Submitted resolution {resolution_id}");
     Ok(())
 }
 
@@ -242,9 +241,9 @@ pub async fn update_resolution(
         .await?;
 
     if affected == 0 {
-        return Err(anyhow!("Resolution not found: {}", resolution_id));
+        return Err(anyhow!("Resolution not found: {resolution_id}"));
     }
 
-    info!("Updated resolution {}", resolution_id);
+    info!("Updated resolution {resolution_id}");
     Ok(())
 }

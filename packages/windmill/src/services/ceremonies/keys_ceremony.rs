@@ -371,8 +371,7 @@ pub async fn create_keys_ceremony(
                 .ok_or(anyhow!("Can't find election"))?;
         if election.keys_ceremony_id.is_some() {
             return Err(anyhow!(
-                "there's already an existing running ceremony for election id '{}'",
-                election_id
+                "there's already an existing running ceremony for election id '{election_id}'",
             ));
         }
     } else {
@@ -492,7 +491,7 @@ pub async fn validate_permission_labels(
         election_id.clone(),
     )
     .await
-    .map_err(|e| anyhow::anyhow!("Error getting election permissionlabel {:?}", e))?;
+    .map_err(|e| anyhow::anyhow!("Error getting election permissionlabel {e:?}"))?;
 
     let user_permission_labels = match user_permission_labels {
         Some(perms) => perms,
@@ -506,7 +505,7 @@ pub async fn validate_permission_labels(
         .strip_suffix('}')
         .unwrap_or(&user_permission_labels)
         .to_string();
-    let user_permission_labels_json = format!("[{}]", user_permission_labels_json);
+    let user_permission_labels_json = format!("[{user_permission_labels_json}]");
 
     let user_permission_labels_vec: HashSet<String> =
         deserialize_str(&user_permission_labels_json)?;

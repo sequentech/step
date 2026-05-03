@@ -89,7 +89,7 @@ pub async fn download_tally_tar_gz_to_file(
         .documents
         .ok_or_else(|| anyhow!("Missing documents in results_event"))?
         .get_document_by_type(&document_type)
-        .ok_or_else(|| anyhow!(format!("Missing {:?} in results_event", document_type)))?;
+        .ok_or_else(|| anyhow!(format!("Missing {document_type:?} in results_event")))?;
 
     let document = get_document(
         hasura_transaction,
@@ -98,7 +98,7 @@ pub async fn download_tally_tar_gz_to_file(
         &document_id,
     )
     .await?
-    .ok_or_else(|| anyhow!("Can't find document {}", document_id))?;
+    .ok_or_else(|| anyhow!("Can't find document {document_id}"))?;
 
     get_document_as_temp_file(tenant_id, &document).await
 }
@@ -169,7 +169,7 @@ pub async fn generate_all_servers_document(
     for ccs_server in ccs_servers {
         let server_path = temp_dir_path.join(&ccs_server.tag);
         std::fs::create_dir(server_path.clone())
-            .with_context(|| format!("Error generating directory {:?}", server_path.clone()))?;
+            .with_context(|| format!("Error generating directory {server_path:?}"))?;
         let zip_file_path = server_path.join(format!("er_{}.zip", area_annotations.station_id));
         create_transmission_package(
             eml_hash,
@@ -295,7 +295,7 @@ pub async fn create_transmission_package_service(
     let area = get_area_by_id(&hasura_transaction, tenant_id, area_id)
         .await
         .with_context(|| format!("Error fetching area {area_id}"))?
-        .ok_or_else(|| anyhow!("Can't find area {}", area_id))?;
+        .ok_or_else(|| anyhow!("Can't find area {area_id}"))?;
     let area_annotations = area.get_annotations()?;
 
     let area_station_id = area_annotations.station_id.clone();
@@ -333,7 +333,7 @@ pub async fn create_transmission_package_service(
         .into_iter()
         .find(|result| result.election_id == election_id)
     else {
-        info!("Can't find election report for election {}", election_id);
+        info!("Can't find election report for election {election_id}");
         return Ok(());
     };
     let reports: Vec<ReportData> = result

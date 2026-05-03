@@ -88,8 +88,8 @@ async fn send_package_to_ccs_server(
         .multipart(form)
         .send()
         .await
-        .map_err(|err| anyhow!("{:?}", err))?;
-    let response_str = format!("{:?}", response);
+        .map_err(|err| anyhow!("{err:?}"))?;
+    let response_str = format!("{response:?}");
     info!(
         "Response code: {}. Response: '{}'",
         response.status(),
@@ -101,9 +101,7 @@ async fn send_package_to_ccs_server(
     // Check if the request was successful
     if !is_success {
         return Err(anyhow::anyhow!(
-            "Failed to send package. Text: {}. Response: {}",
-            text,
-            response_str
+            "Failed to send package. Text: {text}. Response: {response_str}",
         ));
     }
     Ok(())
@@ -251,7 +249,7 @@ async fn record_new_log(
         )
             })
             .and_then(|tally_session_data_js| {
-                deserialize_str(&tally_session_data_js).map_err(|err| anyhow!("{}", err))
+                deserialize_str(&tally_session_data_js).map_err(|err| anyhow!("{err:?}"))
             })
             .unwrap_or(vec![]);
 
@@ -336,8 +334,8 @@ pub async fn send_transmission_package_service(
     let election_annotations = election.get_annotations()?;
     let area = get_area_by_id(&hasura_transaction, tenant_id, area_id)
         .await
-        .with_context(|| format!("Error fetching area {}", area_id))?
-        .ok_or_else(|| anyhow!("Can't find area {}", area_id))?;
+        .with_context(|| format!("Error fetching area {area_id}"))?
+        .ok_or_else(|| anyhow!("Can't find area {area_id}"))?;
     let area_name = area.name.clone().unwrap_or("".into());
     let area_annotations = area.get_annotations()?;
 
@@ -452,7 +450,7 @@ pub async fn send_transmission_package_service(
                 .await?;
             }
             Err(err) => {
-                let error_str = format!("{}", err);
+                let error_str = format!("{err:?}");
                 let time_now = Local::now();
                 let new_log = error_sending_transmission_package_to_ccs_log(
                     &time_now,
@@ -514,7 +512,7 @@ pub async fn send_transmission_package_service(
                     .await?;
                 }
                 Err(err) => {
-                    let error_str = format!("{}", err);
+                    let error_str = format!("{err:?}");
                     let new_log = error_sending_logs_to_ccs_log(
                         &Local::now(),
                         election_id,

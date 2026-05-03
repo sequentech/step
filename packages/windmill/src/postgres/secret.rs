@@ -51,12 +51,12 @@ pub async fn get_secret_by_key(
     key: &str,
 ) -> Result<Option<Secret>> {
     let tenant_uuid = parse_uuid_v4(tenant_id)
-        .map_err(|err| anyhow!("Error parsing tenant_id as UUID: {}", err))?;
+        .map_err(|err| anyhow!("Error parsing tenant_id as UUID: {err}"))?;
 
     let election_event_uuid = election_event_id
         .map(|id| {
             parse_uuid_v4(id)
-                .map_err(|err| anyhow!("Error parsing election_event_id as UUID: {}", err))
+                .map_err(|err| anyhow!("Error parsing election_event_id as UUID: {err}"))
         })
         .transpose()?;
 
@@ -123,20 +123,20 @@ pub async fn insert_secret(
             "#,
         )
         .await
-        .map_err(|err| anyhow!("Error preparing scheduled event statement: {}", err))?;
+        .map_err(|err| anyhow!("Error preparing scheduled event statement: {err}"))?;
     let rows: Vec<Row> = hasura_transaction
         .query(
             &statement,
             &[&tenant_uuid, &key, &encrypted_bytes, &election_event_uuid],
         )
         .await
-        .map_err(|err| anyhow!("Error inserting scheduled event: {}", err))?;
+        .map_err(|err| anyhow!("Error inserting scheduled event: {err}"))?;
 
     let rows: Vec<Secret> = rows
         .into_iter()
         .map(|row| -> Result<Secret> { row.try_into() })
         .collect::<Result<Vec<Secret>>>()
-        .map_err(|err| anyhow!("Error deserializing secret: {}", err))?;
+        .map_err(|err| anyhow!("Error deserializing secret: {err}"))?;
 
     if 1 == rows.len() {
         Ok(rows[0].clone())

@@ -150,7 +150,7 @@ pub async fn insert_keys_ceremony(
         .with_context(|| "Error parsing election_event_id as UUID")?;
     let trustee_uuids: Vec<uuid::Uuid> = trustee_ids
         .into_iter()
-        .map(|trustee_id| parse_uuid_v4(&trustee_id).map_err(|err| anyhow!("{:?}", err)))
+        .map(|trustee_id| parse_uuid_v4(&trustee_id).map_err(|err| anyhow!("{err:?}")))
         .collect::<Result<Vec<uuid::Uuid>>>()
         .with_context(|| "Error parsing trustee_ids as UUIDs")?;
 
@@ -197,7 +197,7 @@ pub async fn insert_keys_ceremony(
             ],
         )
         .await
-        .map_err(|err| anyhow!("Error inserting keys ceremony: {}", err))?;
+        .map_err(|err| anyhow!("Error inserting keys ceremony: {err}"))?;
 
     let elements: Vec<KeysCeremony> = rows
         .into_iter()
@@ -249,7 +249,7 @@ pub async fn update_keys_ceremony_status(
             ],
         )
         .await
-        .map_err(|err| anyhow!("Error running the update_keys_ceremony_status query: {err}"))?;
+        .map_err(|err| anyhow!("Error running the update_keys_ceremony_status query: {err:?}"))?;
 
     if rows.is_empty() {
         return Err(anyhow!("No keys ceremony found"));

@@ -479,10 +479,9 @@ pub async fn soft_delete_other_ballot_publications(
           AND election_event_id = $2
           AND tenant_id = $3
           AND deleted_at IS NULL
-          {}
+          {election_id_str}
         RETURNING id;
-        ",
-        election_id_str
+        "
     );
 
     let pub_query = hasura_transaction.prepare(pub_query_str.as_str()).await?;
@@ -502,10 +501,9 @@ pub async fn soft_delete_other_ballot_publications(
           AND election_event_id = $2
           AND tenant_id = $3
           AND deleted_at IS NULL
-          {}
+          {election_id_str}
         RETURNING id;
-        ",
-        election_id_str
+        "
     );
 
     let style_query = hasura_transaction.prepare(style_query_str.as_str()).await?;

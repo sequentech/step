@@ -223,17 +223,16 @@ pub async fn export_candidate_csv(
                 external_id::text
             FROM sequent_backend.candidate
             WHERE
-                tenant_id = '{}'
-                AND election_event_id = '{}'
-                AND contest_id = ANY('{{{}}}')
-        ) TO STDOUT WITH CSV HEADER",
-        tenant_id, election_event_id, contests_csv
+                tenant_id = '{tenant_id}'
+                AND election_event_id = '{election_event_id}'
+                AND contest_id = ANY('{{{contests_csv}}}')
+        ) TO STDOUT WITH CSV HEADER"
     );
 
     let stream = hasura_transaction
         .copy_out(&copy_sql)
         .await
-        .map_err(|e| anyhow!("COPY OUT failed: {}", e))?;
+        .map_err(|e| anyhow!("COPY OUT failed: {e}"))?;
     pin_mut!(stream);
 
     while let Some(chunk) = stream.next().await {

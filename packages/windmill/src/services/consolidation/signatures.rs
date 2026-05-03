@@ -35,13 +35,12 @@ pub fn ecdsa_sign_data(
     data_path: &str,
 ) -> Result<String> {
     let command = format!(
-        "java -jar {} sign-ec {} {} {}",
-        ECIES_TOOL_PATH, pk12_file_path_string, data_path, password
+        "java -jar {ECIES_TOOL_PATH} sign-ec {pk12_file_path_string} {data_path} {password}"
     );
 
     let encrypted_base64 = run_shell_command(&command)?.replace("\n", "");
 
-    info!("ecdsa_sign_data: '{}'", encrypted_base64);
+    info!("ecdsa_sign_data: '{encrypted_base64}'");
 
     Ok(encrypted_base64)
 }
@@ -54,8 +53,7 @@ pub fn get_p12_cert(p12_file: &NamedTempFile, password: &str) -> Result<TempPath
     let cert_temp_path_string = cert_temp_path.to_string_lossy().to_string();
 
     let cert_command = format!(
-        "openssl pkcs12 -in {} -passin pass:{} -nokeys -out {}",
-        p12_file_path, password, cert_temp_path_string
+        "openssl pkcs12 -in {p12_file_path} -passin pass:{password} -nokeys -out {cert_temp_path_string}",
     );
     run_shell_command(&cert_command)?;
 
@@ -66,10 +64,8 @@ pub fn get_p12_cert(p12_file: &NamedTempFile, password: &str) -> Result<TempPath
 pub fn get_p12_fingerprint(p12_cert_path: &TempPath) -> Result<String> {
     let cert_temp_path_string = p12_cert_path.to_string_lossy().to_string();
 
-    let fingerprint_command = format!(
-        "openssl x509 -in {} -noout -fingerprint -sha256",
-        cert_temp_path_string
-    );
+    let fingerprint_command =
+        format!("openssl x509 -in {cert_temp_path_string} -noout -fingerprint -sha256",);
 
     let fingerprint = run_shell_command(&fingerprint_command)?.replace("\n", "");
 

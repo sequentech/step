@@ -103,7 +103,7 @@ pub async fn insert_tally_session_execution(
             ],
         )
         .await
-        .map_err(|err| anyhow!("Error inserting row: {}", err))?;
+        .map_err(|err| anyhow!("Error inserting row: {err}"))?;
 
     let values: Vec<TallySessionExecution> = rows
         .into_iter()

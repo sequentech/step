@@ -466,10 +466,9 @@ pub async fn delete_election_event(
     for table in related_tables {
         let query: String = format!(
             r"
-            DELETE FROM sequent_backend.{}
+            DELETE FROM sequent_backend.{table}
             WHERE tenant_id = $1 AND election_event_id = $2;
-            ",
-            table
+            "
         );
 
         // Now prepare the statement with the dynamically generated query
@@ -529,16 +528,21 @@ pub async fn update_bulletin_board(
         .await?;
 
     hasura_transaction
-         .execute(
-             &update_bulletin_board,
-             &[
-                 &board,
-                 &parse_uuid_v4(tenant_id)?,
-                 &parse_uuid_v4(election_event_id)?,
-             ],
-         )
-         .await
-         .with_context(|| format!("Error updating election event with board reference for tenant ID {} and election event ID {}", tenant_id, election_event_id))?;
+        .execute(
+            &update_bulletin_board,
+            &[
+                &board,
+                &parse_uuid_v4(tenant_id)?,
+                &parse_uuid_v4(election_event_id)?,
+            ],
+        )
+        .await
+        .with_context(|| {
+            format!(
+                "Error updating election event with board reference for 
+         tenant ID {tenant_id} and election event ID {election_event_id}"
+            )
+        })?;
 
     Ok(())
 }

@@ -75,7 +75,7 @@ pub async fn insert_ballot_style(
             ",
         )
         .await
-        .map_err(|err| anyhow!("Error preparing insert statement: {}", err))?;
+        .map_err(|err| anyhow!("Error preparing insert statement: {err}"))?;
     let rows: Vec<Row> = hasura_transaction
         .query(
             &statement,
@@ -91,7 +91,7 @@ pub async fn insert_ballot_style(
             ],
         )
         .await
-        .map_err(|err| anyhow!("Error inserting row: {}", err))?;
+        .map_err(|err| anyhow!("Error inserting row: {err}"))?;
 
     let elements: Vec<BallotStyle> = rows
         .into_iter()
@@ -127,12 +127,12 @@ pub async fn get_all_ballot_styles(
             ",
         )
         .await
-        .map_err(|err| anyhow!("Error preparing statement: {}", err))?;
+        .map_err(|err| anyhow!("Error preparing statement: {err}"))?;
 
     let rows: Vec<Row> = hasura_transaction
         .query(&query, &[&tenant_id, &area_id, authorized_election_ids])
         .await
-        .map_err(|err| anyhow!("Error executing query: {}", err))?;
+        .map_err(|err| anyhow!("Error executing query: {err}"))?;
 
     let results: Vec<BallotStyle> = rows
         .into_iter()
@@ -141,7 +141,7 @@ pub async fn get_all_ballot_styles(
                 .map(|res: BallotStyleWrapper| -> BallotStyle { res.0 })
         })
         .collect::<Result<Vec<BallotStyle>>>()
-        .map_err(|err| anyhow!("Error collecting ballot styles: {}", err))?;
+        .map_err(|err| anyhow!("Error collecting ballot styles: {err}"))?;
 
     Ok(results)
 }
@@ -215,7 +215,7 @@ pub async fn get_ballot_styles_by_elections(
             ",
         )
         .await
-        .map_err(|err| anyhow!("Error preparing statement: {}", err))?;
+        .map_err(|err| anyhow!("Error preparing statement: {err}"))?;
 
     let rows: Vec<Row> = hasura_transaction
         .query(
@@ -227,7 +227,7 @@ pub async fn get_ballot_styles_by_elections(
             ],
         )
         .await
-        .map_err(|err| anyhow!("Error executing query: {}", err))?;
+        .map_err(|err| anyhow!("Error executing query: {err}"))?;
 
     let results: Vec<BallotStyle> = rows
         .into_iter()
@@ -236,7 +236,7 @@ pub async fn get_ballot_styles_by_elections(
                 .map(|res: BallotStyleWrapper| -> BallotStyle { res.0 })
         })
         .collect::<Result<Vec<BallotStyle>>>()
-        .map_err(|err| anyhow!("Error collecting ballot styles: {}", err))?;
+        .map_err(|err| anyhow!("Error collecting ballot styles: {err}"))?;
 
     Ok(results)
 }
@@ -250,7 +250,7 @@ pub async fn get_publication_ballot_styles(
     limit: Option<usize>,
 ) -> Result<Vec<BallotStyle>> {
     let limit_clause = if let Some(limit) = limit {
-        format!("LIMIT {}", limit)
+        format!("LIMIT {limit}")
     } else {
         String::new()
     };

@@ -174,7 +174,7 @@ pub async fn get_tally_session_highest_batch(
             ],
         )
         .await
-        .map_err(|err| anyhow!("Error inserting row: {}", err))?;
+        .map_err(|err| anyhow!("Error inserting row: {err}"))?;
 
     let values: Vec<BatchNumber> = rows
         .into_iter()
@@ -234,7 +234,7 @@ pub async fn get_tally_session_contests(
             ],
         )
         .await
-        .map_err(|err| anyhow!("Error getting tally session contests rows: {}", err))?;
+        .map_err(|err| anyhow!("Error getting tally session contests rows: {err}"))?;
 
     let values: Vec<TallySessionContest> = rows
         .into_iter()
@@ -274,7 +274,7 @@ pub async fn get_event_tally_session_contest(
             ],
         )
         .await
-        .map_err(|err| anyhow!("Error inserting row: {}", err))?;
+        .map_err(|err| anyhow!("Error inserting row: {err}"))?;
 
     let values: Vec<TallySessionContest> = rows
         .into_iter()

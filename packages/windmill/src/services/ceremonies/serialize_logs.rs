@@ -64,10 +64,7 @@ pub fn generate_logs(
 pub fn generate_tally_initial_log(election_ids: &Vec<String>) -> Vec<Log> {
     vec![Log {
         created_date: ISO8601::to_string(&ISO8601::now()),
-        log_text: format!(
-            "Created Tally Ceremony for election ids: {:?}",
-            election_ids,
-        ),
+        log_text: format!("Created Tally Ceremony for election ids: {election_ids:?}",),
     }]
 }
 
@@ -88,7 +85,7 @@ pub fn sort_logs(logs: &[Log]) -> Vec<Log> {
 pub fn generate_keys_initial_log(trustee_names: &Vec<String>) -> Vec<Log> {
     vec![Log {
         created_date: ISO8601::to_string(&ISO8601::now()),
-        log_text: format!("Created Keys Ceremony with trustees: {:?}", trustee_names,),
+        log_text: format!("Created Keys Ceremony with trustees: {trustee_names:?}",),
     }]
 }
 
@@ -97,7 +94,7 @@ pub fn append_tally_trustee_log(current_logs: &[Log], trustee_name: &str) -> Vec
     let mut logs: Vec<Log> = current_logs.to_owned();
     logs.push(Log {
         created_date: ISO8601::to_string(&ISO8601::now()),
-        log_text: format!("Restored private key for trustee {}", trustee_name,),
+        log_text: format!("Restored private key for trustee {trustee_name}"),
     });
     sort_logs(&logs)
 }
@@ -107,7 +104,7 @@ pub fn append_keys_trustee_download_log(current_logs: &[Log], trustee_name: &str
     let mut logs: Vec<Log> = current_logs.to_owned();
     logs.push(Log {
         created_date: ISO8601::to_string(&ISO8601::now()),
-        log_text: format!("Downloaded private key for trustee {}", trustee_name,),
+        log_text: format!("Downloaded private key for trustee {trustee_name}"),
     });
     sort_logs(&logs)
 }
@@ -117,7 +114,7 @@ pub fn append_keys_trustee_check_log(current_logs: &[Log], trustee_name: &str) -
     let mut logs: Vec<Log> = current_logs.to_owned();
     logs.push(Log {
         created_date: ISO8601::to_string(&ISO8601::now()),
-        log_text: format!("Checked private key for trustee {}", trustee_name,),
+        log_text: format!("Checked private key for trustee {trustee_name}"),
     });
     sort_logs(&logs)
 }

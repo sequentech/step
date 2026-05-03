@@ -70,15 +70,15 @@ pub async fn get_results_area_contest_candidates(
     candidate_id: &str,
 ) -> Result<(Option<ResultsAreaContestCandidate>)> {
     let tenant_uuid: uuid::Uuid = parse_uuid_v4(tenant_id)
-        .map_err(|err| anyhow!("Error parsing tenant_id as UUID: {}", err))?;
+        .map_err(|err| anyhow!("Error parsing tenant_id as UUID: {err}"))?;
     let election_event_uuid: uuid::Uuid = parse_uuid_v4(election_event_id)
-        .map_err(|err| anyhow!("Error parsing election_event_id as UUID: {}", err))?;
+        .map_err(|err| anyhow!("Error parsing election_event_id as UUID: {err}"))?;
     let election_uuid: uuid::Uuid = parse_uuid_v4(election_id)
-        .map_err(|err| anyhow!("Error parsing election_id as UUID: {}", err))?;
+        .map_err(|err| anyhow!("Error parsing election_id as UUID: {err}"))?;
     let contest_uuid: uuid::Uuid = parse_uuid_v4(contest_id)
-        .map_err(|err| anyhow!("Error parsing contest_id as UUID: {}", err))?;
+        .map_err(|err| anyhow!("Error parsing contest_id as UUID: {err}"))?;
     let candidate_uuid: uuid::Uuid = parse_uuid_v4(candidate_id)
-        .map_err(|err| anyhow!("Error parsing candidate_id as UUID: {}", err))?;
+        .map_err(|err| anyhow!("Error parsing candidate_id as UUID: {err}"))?;
 
     let statement = hasura_transaction
         .prepare(
@@ -109,7 +109,7 @@ pub async fn get_results_area_contest_candidates(
             ],
         )
         .await
-        .map_err(|err| anyhow!("Error running the areas query: {}", err))?;
+        .map_err(|err| anyhow!("Error running the areas query: {err}"))?;
 
     let results_area_contest_candidate: Vec<ResultsAreaContestCandidate> = rows
         .into_iter()
@@ -224,7 +224,7 @@ pub async fn insert_results_area_contest_candidates(
     let rows: Vec<Row> = hasura_transaction
         .query(&statement, &[&json_data])
         .await
-        .map_err(|err| anyhow!("Error inserting rows: {}", err))?;
+        .map_err(|err| anyhow!("Error inserting rows: {err}"))?;
 
     // Convert rows to ResultsElection instances
     let values: Vec<ResultsAreaContestCandidate> = rows
@@ -245,9 +245,9 @@ pub async fn get_event_results_area_contest_candidates(
     election_event_id: &str,
 ) -> Result<Vec<ResultsAreaContestCandidate>> {
     let tenant_uuid: uuid::Uuid = parse_uuid_v4(tenant_id)
-        .map_err(|err| anyhow!("Error parsing tenant_id as UUID: {}", err))?;
+        .map_err(|err| anyhow!("Error parsing tenant_id as UUID: {err}"))?;
     let election_event_uuid: uuid::Uuid = parse_uuid_v4(election_event_id)
-        .map_err(|err| anyhow!("Error parsing election_event_id as UUID: {}", err))?;
+        .map_err(|err| anyhow!("Error parsing election_event_id as UUID: {err}"))?;
 
     let statement = hasura_transaction
         .prepare(
@@ -266,7 +266,7 @@ pub async fn get_event_results_area_contest_candidates(
     let rows: Vec<Row> = hasura_transaction
         .query(&statement, &[&tenant_uuid, &election_event_uuid])
         .await
-        .map_err(|err| anyhow!("Error running the areas query: {}", err))?;
+        .map_err(|err| anyhow!("Error running the areas query: {err}"))?;
 
     let results_area_contest_candidate: Vec<ResultsAreaContestCandidate> = rows
         .into_iter()

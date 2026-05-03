@@ -120,7 +120,7 @@ pub fn get_tally_ceremony_status(input: Option<Value>) -> Result<TallyCeremonySt
     input
         .map(|value| {
             deserialize_value(value)
-                .map_err(|err| anyhow!("Error parsing tally ceremony status: {:?}", err))
+                .map_err(|err| anyhow!("Error parsing tally ceremony status: {err:?}"))
         })
         .ok_or(anyhow!("Missing tally ceremony status"))
         .flatten()
@@ -630,7 +630,7 @@ pub async fn set_private_key(
     if TallyExecutionStatus::STARTED != current_status
         && TallyExecutionStatus::CONNECTED != current_status
     {
-        return Err(anyhow!("Unexpected status {}", current_status));
+        return Err(anyhow!("Unexpected status {current_status}"));
     }
 
     // get the keys ceremonies for this election event

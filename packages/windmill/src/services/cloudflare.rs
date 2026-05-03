@@ -107,10 +107,9 @@ pub async fn list_rulesets(
 
     let response = client
         .get(format!(
-            "https://api.cloudflare.com/client/v4/zones/{}/rulesets",
-            zone_id
+            "https://api.cloudflare.com/client/v4/zones/{zone_id}/rulesets"
         ))
-        .header("Authorization", format!("Bearer {}", api_key))
+        .header("Authorization", format!("Bearer {api_key}"))
         .send()
         .await?;
 
@@ -124,11 +123,10 @@ pub async fn list_rulesets(
         let error_text = response
             .text()
             .await
-            .map_err(|e| CloudflareError::new(&format!("Failed to read error response: {}", e)))?;
-        info!("Error response: {}", error_text);
+            .map_err(|e| CloudflareError::new(&format!("Failed to read error response: {e}")))?;
+        info!("Error response: {error_text}");
         Err(Box::new(CloudflareError::new(&format!(
-            "Failed to get rulesets: {}",
-            error_text
+            "Failed to get rulesets: {error_text}"
         ))))
     }
 }
@@ -143,16 +141,15 @@ pub async fn get_ruleset_by_id(
 
     let response = client
         .get(format!(
-            "https://api.cloudflare.com/client/v4/zones/{}/rulesets/{}",
-            zone_id, ruleset_id
+            "https://api.cloudflare.com/client/v4/zones/{zone_id}/rulesets/{ruleset_id}"
         ))
-        .header("Authorization", format!("Bearer {}", api_key))
+        .header("Authorization", format!("Bearer {api_key}"))
         .send()
         .await?;
 
     if response.status().is_success() {
         let response_text = response.text().await?;
-        info!("Response: {}", response_text);
+        info!("Response: {response_text}");
 
         let api_response: ApiResponse<Ruleset> = deserialize_str(&response_text)?;
         Ok(api_response.result)
@@ -160,11 +157,10 @@ pub async fn get_ruleset_by_id(
         let error_text = response
             .text()
             .await
-            .map_err(|e| CloudflareError::new(&format!("Failed to read error response: {}", e)))?;
-        info!("Error response: {}", error_text);
+            .map_err(|e| CloudflareError::new(&format!("Failed to read error response: {e}")))?;
+        info!("Error response: {error_text}");
         Err(Box::new(CloudflareError::new(&format!(
-            "Failed to get ruleset: {}",
-            error_text
+            "Failed to get ruleset: {error_text}",
         ))))
     }
 }
@@ -213,10 +209,9 @@ pub async fn create_ruleset(
 
     let response = client
         .post(format!(
-            "https://api.cloudflare.com/client/v4/zones/{}/rulesets",
-            zone_id
+            "https://api.cloudflare.com/client/v4/zones/{zone_id}/rulesets",
         ))
-        .header("Authorization", format!("Bearer {}", api_key))
+        .header("Authorization", format!("Bearer {api_key}"))
         .header("Content-Type", "application/json")
         .json(&body)
         .send()
@@ -224,7 +219,7 @@ pub async fn create_ruleset(
 
     if response.status().is_success() {
         let response_text = response.text().await?;
-        info!("Response: {}", response_text);
+        info!("Response: {response_text}");
 
         let api_response: ApiResponse<Ruleset> = deserialize_str(&response_text)?;
         Ok(api_response.result)
@@ -232,11 +227,10 @@ pub async fn create_ruleset(
         let error_text = response
             .text()
             .await
-            .map_err(|e| CloudflareError::new(&format!("Failed to read error response: {}", e)))?;
-        info!("Error response: {}", error_text);
+            .map_err(|e| CloudflareError::new(&format!("Failed to read error response: {e}")))?;
+        info!("Error response: {error_text}");
         Err(Box::new(CloudflareError::new(&format!(
-            "Failed to create ruleset: {}",
-            error_text
+            "Failed to create ruleset: {error_text}",
         ))))
     }
 }
@@ -252,10 +246,9 @@ pub async fn create_ruleset_rule(
 
     let response = client
         .post(format!(
-            "https://api.cloudflare.com/client/v4/zones/{}/rulesets/{}/rules",
-            zone_id, ruleset_id
+            "https://api.cloudflare.com/client/v4/zones/{zone_id}/rulesets/{ruleset_id}/rules",
         ))
-        .header("Authorization", format!("Bearer {}", api_key))
+        .header("Authorization", format!("Bearer {api_key}"))
         .header("Content-Type", "application/json")
         .json(&rule)
         .send()
@@ -267,11 +260,10 @@ pub async fn create_ruleset_rule(
         let error_text = response
             .text()
             .await
-            .map_err(|e| CloudflareError::new(&format!("Failed to read error response: {}", e)))?;
-        info!("Error response: {}", error_text);
+            .map_err(|e| CloudflareError::new(&format!("Failed to read error response: {e}")))?;
+        info!("Error response: {error_text}");
         Err(Box::new(CloudflareError::new(&format!(
-            "Failed to create rule: {}",
-            error_text
+            "Failed to create rule: {error_text}",
         ))))
     }
 }
@@ -288,10 +280,9 @@ pub async fn update_ruleset_rule(
 
     let response = client
         .patch(format!(
-            "https://api.cloudflare.com/client/v4/zones/{}/rulesets/{}/rules/{}",
-            zone_id, ruleset_id, rule_id
+            "https://api.cloudflare.com/client/v4/zones/{zone_id}/rulesets/{ruleset_id}/rules/{rule_id}",
         ))
-        .header("Authorization", format!("Bearer {}", api_key))
+        .header("Authorization", format!("Bearer {api_key}"))
         .header("Content-Type", "application/json")
         .json(&rule)
         .send()
@@ -303,11 +294,10 @@ pub async fn update_ruleset_rule(
         let error_text = response
             .text()
             .await
-            .map_err(|e| CloudflareError::new(&format!("Failed to read error response: {}", e)))?;
-        info!("Error response: {}", error_text);
+            .map_err(|e| CloudflareError::new(&format!("Failed to read error response: {e}")))?;
+        info!("Error response: {error_text}");
         Err(Box::new(CloudflareError::new(&format!(
-            "Failed to update rule: {}",
-            error_text
+            "Failed to update rule: {error_text}",
         ))))
     }
 }
@@ -323,10 +313,9 @@ pub async fn delete_ruleset_rule(
 
     let response = client
         .delete(format!(
-            "https://api.cloudflare.com/client/v4/zones/{}/rulesets/{}/rules/{}",
-            zone_id, ruleset_id, rule_id
+            "https://api.cloudflare.com/client/v4/zones/{zone_id}/rulesets/{ruleset_id}/rules/{rule_id}",
         ))
-        .header("Authorization", format!("Bearer {}", api_key))
+        .header("Authorization", format!("Bearer {api_key}"))
         .header("Content-Type", "application/json")
         .send()
         .await?;
@@ -337,11 +326,10 @@ pub async fn delete_ruleset_rule(
         let error_text = response
             .text()
             .await
-            .map_err(|e| CloudflareError::new(&format!("Failed to read error response: {}", e)))?;
-        info!("Error response: {}", error_text);
+            .map_err(|e| CloudflareError::new(&format!("Failed to read error response: {e}")))?;
+        info!("Error response: {error_text}");
         Err(Box::new(CloudflareError::new(&format!(
-            "Failed to delete rule: {}",
-            error_text
+            "Failed to delete rule: {error_text}",
         ))))
     }
 }

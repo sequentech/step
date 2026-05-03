@@ -84,7 +84,7 @@ pub async fn insert_cast_vote(
             ],
         )
         .await
-        .map_err(|err| anyhow!("Error inserting cast vote: {}", err))?;
+        .map_err(|err| anyhow!("Error inserting cast vote: {err}"))?;
 
     let cast_votes: Vec<CastVote> = rows
         .into_iter()
@@ -190,7 +190,7 @@ pub async fn get_cast_votes_by_election_id(
             ],
         )
         .await
-        .map_err(|err| anyhow!("Error getting cast votes: {}", err))?;
+        .map_err(|err| anyhow!("Error getting cast votes: {err}"))?;
 
     let cast_votes: Vec<CastVote> = rows
         .into_iter()

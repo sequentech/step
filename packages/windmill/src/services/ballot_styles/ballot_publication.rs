@@ -275,12 +275,7 @@ pub async fn get_ballot_publication_diff(
         )
         .await?
         .map(|pub_data| pub_data.id)
-        .ok_or_else(|| {
-            anyhow!(
-                "Can't find ballot publication for election id {}",
-                election_id
-            )
-        })
+        .ok_or_else(|| anyhow!("Can't find ballot publication for election id {election_id}"))
         .with_context(|| "Error retrieving previous ballot publication for election")
         .ok()
     } else {
