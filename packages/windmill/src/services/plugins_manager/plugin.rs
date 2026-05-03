@@ -243,7 +243,7 @@ impl Plugin {
             .context(anyhow!("Export {hook} not found in component"))?;
 
         let func: Func = instance
-            .get_func(&mut *store, &func_index)
+            .get_func(&mut *store, func_index)
             .context(anyhow!("Function {hook} not found in instance"))?;
 
         let wasm_args: Vec<_> = args.into_iter().map(|arg| arg.to_val()).collect();
@@ -270,6 +270,12 @@ pub struct PluginAuth;
 impl PluginAuth {
     pub fn new() -> Self {
         PluginAuth
+    }
+}
+
+impl Default for PluginAuth {
+    fn default() -> Self {
+        Self::new()
     }
 }
 

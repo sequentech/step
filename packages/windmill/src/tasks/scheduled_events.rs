@@ -36,12 +36,8 @@ use tracing::{event, info, Level};
 
 #[instrument]
 pub fn get_datetime(event: &ScheduledEvent) -> Option<DateTime<Local>> {
-    let Some(cron_config) = event.cron_config.clone() else {
-        return None;
-    };
-    let Some(scheduled_date) = cron_config.scheduled_date else {
-        return None;
-    };
+    let cron_config = event.cron_config.clone()?;
+    let scheduled_date = cron_config.scheduled_date?;
     ISO8601::to_date(&scheduled_date).ok()
 }
 
@@ -333,28 +329,25 @@ pub async fn handle_election_allow_tally(
     let payload: ManageAllowTallyPayload = deserialize_value(event_payload)
         .map_err(|e| anyhow!("Error deserializing manage election date payload {}", e))?;
     // run the actual task in a different async task
-    match payload.election_id.clone() {
-        Some(election_id) => {
-            let task = celery_app
-                .send_task(
-                    manage_election_allow_tally::new(
-                        tenant_id.clone(),
-                        election_event_id.clone(),
-                        scheduled_event.id.clone(),
-                        election_id,
-                    )
-                    .with_eta(datetime.with_timezone(&Utc))
-                    .with_expires_in(120),
+    if let Some(election_id) = payload.election_id.clone() {
+        let task = celery_app
+            .send_task(
+                manage_election_allow_tally::new(
+                    tenant_id.clone(),
+                    election_event_id.clone(),
+                    scheduled_event.id.clone(),
+                    election_id,
                 )
-                .await
-                .map_err(|e| anyhow!("Error sending task to celery {}", e))?;
-            event!(
-                Level::INFO,
-                "Sent manage_election_allow_tally task {}",
-                task.task_id
-            );
-        }
-        None => {}
+                .with_eta(datetime.with_timezone(&Utc))
+                .with_expires_in(120),
+            )
+            .await
+            .map_err(|e| anyhow!("Error sending task to celery {}", e))?;
+        event!(
+            Level::INFO,
+            "Sent manage_election_allow_tally task {}",
+            task.task_id
+        );
     }
     Ok(())
 }
@@ -383,7 +376,7 @@ pub async fn scheduled_events(rate_seconds: u64) -> Result<()> {
     let to_be_run_now = scheduled_events
         .iter()
         .filter(|event| {
-            let Some(formatted_date) = get_datetime(&event) else {
+            let Some(formatted_date) = get_datetime(event) else {
                 return false;
             };
             formatted_date < nsecs_later
@@ -402,7 +395,7 @@ pub async fn scheduled_events(rate_seconds: u64) -> Result<()> {
                 handle_allow_voting_period_end(celery_app.clone(), scheduled_event).await?;
             }
             EventProcessors::START_VOTING_PERIOD | EventProcessors::END_VOTING_PERIOD => {
-                if let Err(err) = handle_voting_event(celery_app.clone(), &scheduled_event).await {
+                if let Err(err) = handle_voting_event(celery_app.clone(), scheduled_event).await {
                     event!(
                         Level::ERROR,
                         "Event {} failed with error {}",

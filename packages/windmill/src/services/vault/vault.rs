@@ -85,7 +85,7 @@ pub fn get_vault() -> Result<Box<dyn Vault + Send>> {
     let mut vault_name = std::env::var("SECRETS_BACKEND")
         .unwrap_or(VaultManagerType::EnvVarMasterSecret.to_string());
 
-    if LOWER_AWS_SECRETS_MANAGER.to_string() == vault_name.to_lowercase() {
+    if LOWER_AWS_SECRETS_MANAGER == vault_name.to_lowercase() {
         vault_name = VaultManagerType::AwsSecretManager.to_string();
     }
 
@@ -167,7 +167,7 @@ pub async fn get_admin_user_signing_key(
     elections_ids: Option<String>,
     user_area_id: Option<String>,
 ) -> Result<StrandSignatureSk> {
-    let lookup_key = admin_vault_lookup_key(&tenant_id, &user_id);
+    let lookup_key = admin_vault_lookup_key(tenant_id, user_id);
     let sk_der_b64 = read_secret(hasura_transaction, tenant_id, None, &lookup_key).await?;
 
     let sk = if let Some(sk_der_b64) = sk_der_b64 {

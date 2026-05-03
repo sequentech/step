@@ -218,7 +218,7 @@ async fn readiness_test(app_name: &AppName) -> bool {
         celery_ok, hasura_db_ok, keycloak_db_ok, aws_secrets_ok, s3_ok, sms_sender_ok
     );
 
-    let data = vec![
+    let data = [
         celery_ok,
         hasura_db_ok,
         keycloak_db_ok,

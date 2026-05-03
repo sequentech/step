@@ -46,13 +46,7 @@ pub async fn upsert_areas_task(
     let areas_name_map: HashMap<String, Area> = areas
         .clone()
         .into_iter()
-        .filter_map(|area| {
-            if let Some(name) = area.name.clone() {
-                Some((name, area.clone()))
-            } else {
-                None
-            }
-        })
+        .filter_map(|area| area.name.clone().map(|name| (name, area.clone())))
         .collect();
 
     let mut temp_file = get_document_as_temp_file(&tenant_id, &document).await?;

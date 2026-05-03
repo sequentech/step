@@ -59,9 +59,9 @@ pub async fn generate_report(
 
     report
         .execute_report(
-            &document_id,
-            &tenant_id,
-            &election_event_id,
+            document_id,
+            tenant_id,
+            election_event_id,
             /* is_scheduled_task */ false,
             /* recipients */ vec![],
             GenerateReportMode::REAL,

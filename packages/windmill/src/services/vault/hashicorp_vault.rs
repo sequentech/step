@@ -71,10 +71,8 @@ impl Vault for HashiCorpVault {
         let read: VaultRead = deserialize_str(&text)?;
         let value = if let Some(v) = read.data.data {
             Some(v)
-        } else if let Some(v) = read.data.value {
-            Some(v)
         } else {
-            None
+            read.data.value.map(|v| v)
         };
         Ok(value)
     }

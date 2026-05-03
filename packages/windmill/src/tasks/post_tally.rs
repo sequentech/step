@@ -79,15 +79,15 @@ pub async fn download_sqlite_database(
     };
 
     let document = get_document(
-        &hasura_transaction,
-        &tenant_id,
+        hasura_transaction,
+        tenant_id,
         Some(election_event_id.to_string()),
         &sqlite_database_document_id,
     )
     .await?
     .ok_or_else(|| anyhow!("Can't find document {}", sqlite_database_document_id))?;
 
-    let sqlite_database = get_document_as_temp_file(&tenant_id, &document).await?;
+    let sqlite_database = get_document_as_temp_file(tenant_id, &document).await?;
 
     Ok(sqlite_database)
 }

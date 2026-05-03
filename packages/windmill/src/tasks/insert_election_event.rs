@@ -57,7 +57,7 @@ pub async fn insert_election_event_anyhow(
         final_object.voting_channels = serde_json::to_value(VotingChannels::default()).ok();
     }
 
-    match upsert_keycloak_realm(tenant_id.as_str(), &id.as_ref(), None, None).await {
+    match upsert_keycloak_realm(tenant_id.as_str(), id.as_ref(), None, None).await {
         Ok(realm) => Some(realm),
         Err(err) => {
             update_fail(
@@ -88,25 +88,20 @@ pub async fn insert_election_event_anyhow(
     let board = upsert_b3_and_elog(
         &hasura_transaction,
         tenant_id.as_str(),
-        &id.as_ref(),
+        id.as_ref(),
         &vec![],
         false,
     )
     .await?;
 
-    update_bulletin_board(
-        &hasura_transaction,
-        tenant_id.as_str(),
-        &id.as_ref(),
-        &board,
-    )
-    .await
-    .with_context(|| {
-        format!(
+    update_bulletin_board(&hasura_transaction, tenant_id.as_str(), id.as_ref(), &board)
+        .await
+        .with_context(|| {
+            format!(
             "Error updating bulletin board reference for tenant ID {} and election event ID {:?}",
             tenant_id, &id,
         )
-    })?;
+        })?;
 
     match hasura_transaction.commit().await {
         Ok(_) => (),

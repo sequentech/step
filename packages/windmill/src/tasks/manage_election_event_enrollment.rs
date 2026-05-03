@@ -86,7 +86,7 @@ pub async fn update_keycloak_enrollment(
     };
 
     let realm_name = get_event_realm(
-        &tenant_id,
+        tenant_id,
         election_event_id
             .as_ref()
             .ok_or("scheduled event missing election_event_id")?
@@ -106,7 +106,7 @@ pub async fn update_keycloak_enrollment(
         .upsert_realm(
             &realm_name,
             &serde_json::to_string(&realm)?,
-            &tenant_id,
+            tenant_id,
             false,
             None,
             None,
@@ -172,7 +172,7 @@ pub async fn manage_election_event_enrollment_wrapped(
         .await?;
     }
 
-    stop_scheduled_event(&hasura_transaction, &tenant_id, &scheduled_event.id)
+    stop_scheduled_event(hasura_transaction, &tenant_id, &scheduled_event.id)
         .await
         .with_context(|| "Error stopping scheduled event")?;
 
@@ -187,7 +187,7 @@ pub async fn manage_election_event_enrollment(
     election_event_id: String,
     scheduled_event_id: String,
 ) -> Result<()> {
-    let res = provide_hasura_transaction(|hasura_transaction| {
+    provide_hasura_transaction(|hasura_transaction| {
         let tenant_id = tenant_id.clone();
         let election_event_id = election_event_id.clone();
         let scheduled_event_id = scheduled_event_id.clone();
@@ -204,7 +204,5 @@ pub async fn manage_election_event_enrollment(
     })
     .await?;
 
-    info!("result: {:?}", res);
-
-    Ok(res)
+    Ok(())
 }

@@ -88,7 +88,7 @@ fn get_headers(
             }
         }
     }
-    vec![
+    [
         user_headers,
         match elections {
             Some(ref some_elections) => some_elections
@@ -144,7 +144,7 @@ fn get_user_record(
             }
         }
     }
-    vec![
+    [
         user_info,
         match elections {
             Some(ref some_elections) => some_elections

@@ -25,7 +25,7 @@ use tracing::{event, instrument, Level};
 #[instrument(err)]
 pub fn read_default_tenant_realm() -> AnyhowResult<RealmRepresentation> {
     let realm_config_path = env::var("KEYCLOAK_TENANT_REALM_CONFIG_PATH")
-        .expect(&format!("KEYCLOAK_TENANT_REALM_CONFIG_PATH must be set"));
+        .unwrap_or_else(|_| panic!("KEYCLOAK_TENANT_REALM_CONFIG_PATH must be set"));
     let realm_config = fs::read_to_string(&realm_config_path)
         .map_err(|err| anyhow!("Should have been able to read the configuration file in KEYCLOAK_TENANT_REALM_CONFIG_PATH={realm_config_path}. Error: {err}"))?;
 
@@ -69,7 +69,7 @@ pub async fn insert_tenant_db(
         return Ok(());
     }
 
-    let _ = insert_tenant(hasura_transaction, tenant_id, slug).await?;
+    insert_tenant(hasura_transaction, tenant_id, slug).await?;
 
     Ok(())
 }

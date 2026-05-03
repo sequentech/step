@@ -59,10 +59,7 @@ pub async fn import_election_event(
             Ok(())
         }
         Err(error) => {
-            let err_str = format!(
-                "Error process election event document: {}",
-                error.to_string()
-            );
+            let err_str = format!("Error process election event document: {error}");
             let _ = update_fail(&task_execution, &err_str).await;
             Err(err_str.into())
         }

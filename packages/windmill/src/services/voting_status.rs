@@ -48,11 +48,11 @@ pub async fn update_election_status(
     voting_channels: &Option<Vec<VotingStatusChannel>>,
 ) -> Result<()> {
     let election_event =
-        get_election_event_by_id(&hasura_transaction, &tenant_id, election_event_id)
+        get_election_event_by_id(hasura_transaction, &tenant_id, election_event_id)
             .await
             .with_context(|| "error getting election event")?;
     let mut event_status =
-        get_election_event_status(election_event.status.clone()).unwrap_or(Default::default());
+        get_election_event_status(election_event.status.clone()).unwrap_or_default();
 
     let voting_channels: Vec<VotingStatusChannel> = if let Some(channel) = voting_channels {
         info!("Reading input voting channels {channel:?}");
@@ -106,7 +106,7 @@ pub async fn update_election_status(
             voting_status.clone(),
             voting_channel.clone(),
             election_event.bulletin_board_reference.clone(),
-            &hasura_transaction,
+            hasura_transaction,
         )
         .await?;
         let current_event_status = event_status.status_by_channel(voting_channel);
@@ -122,7 +122,7 @@ pub async fn update_election_status(
             event_status.set_status_by_channel(voting_channel, VotingStatus::OPEN);
 
             update_board_on_status_change(
-                &hasura_transaction,
+                hasura_transaction,
                 &tenant_id,
                 user_id,
                 username,
@@ -137,9 +137,9 @@ pub async fn update_election_status(
         }
     }
     update_election_event_status(
-        &hasura_transaction,
+        hasura_transaction,
         &tenant_id,
-        &election_event_id,
+        election_event_id,
         serde_json::to_value(&event_status).with_context(|| "Error parsing status")?,
     )
     .await
@@ -190,10 +190,7 @@ pub async fn update_board_on_status_change(
         .await?
     };
 
-    let maybe_election_id = match election_id {
-        Some(election_id) => Some(election_id),
-        None => None,
-    };
+    let maybe_election_id = election_id.map(|election_id| election_id);
     match voting_status {
         VotingStatus::NOT_STARTED => {
             // Nothing to do?
@@ -263,48 +260,45 @@ pub fn get_election_status_info(election: &Election) -> ElectionStatusInfo {
     let voting_channels: Option<VotingChannels> = election_voting_channels
         .and_then(|voting_channels_json| deserialize_value(voting_channels_json).ok());
 
-    match status.clone() {
-        Some(status) => {
-            match status.voting_status {
-                // If voting hasn't started yet, increment the count for not
-                // opened votes
-                VotingStatus::NOT_STARTED => total_not_started_votes += 1,
-                // If voting is open, increment the count for
-                //open votes and started votes
-                VotingStatus::OPEN => {
-                    total_open_votes += 1;
-                    total_started_votes += 1;
-                }
-                // If voting is paused, increment the count for started votes
-                // Consider the vote as having been open before paused
-                VotingStatus::PAUSED => total_started_votes += 1,
-                // If voting is closed:
-                VotingStatus::CLOSED => {
-                    // Consider the vote as having been open before closing
-                    total_started_votes += 1;
-                    // Check the voting channels to determine if any additional
-                    // conditions apply
-                    match voting_channels {
-                        // If there is a kiosk channel active then check if the
-                        // kiosk-specific voting status is closed.
-                        Some(VotingChannels {
-                            kiosk: Some(true), ..
-                        }) => {
-                            if status.kiosk_voting_status == VotingStatus::CLOSED {
-                                total_closed_votes += 1;
-                            }
-                        }
-                        // For all other cases, if online voting channel is
-                        // closed, then the election is considered closed
-                        _ => {
+    // If deserialization of the election status failed, do nothing
+    if let Some(status) = status.clone() {
+        match status.voting_status {
+            // If voting hasn't started yet, increment the count for not
+            // opened votes
+            VotingStatus::NOT_STARTED => total_not_started_votes += 1,
+            // If voting is open, increment the count for
+            //open votes and started votes
+            VotingStatus::OPEN => {
+                total_open_votes += 1;
+                total_started_votes += 1;
+            }
+            // If voting is paused, increment the count for started votes
+            // Consider the vote as having been open before paused
+            VotingStatus::PAUSED => total_started_votes += 1,
+            // If voting is closed:
+            VotingStatus::CLOSED => {
+                // Consider the vote as having been open before closing
+                total_started_votes += 1;
+                // Check the voting channels to determine if any additional
+                // conditions apply
+                match voting_channels {
+                    // If there is a kiosk channel active then check if the
+                    // kiosk-specific voting status is closed.
+                    Some(VotingChannels {
+                        kiosk: Some(true), ..
+                    }) => {
+                        if status.kiosk_voting_status == VotingStatus::CLOSED {
                             total_closed_votes += 1;
                         }
+                    }
+                    // For all other cases, if online voting channel is
+                    // closed, then the election is considered closed
+                    _ => {
+                        total_closed_votes += 1;
                     }
                 }
             }
         }
-        // If deserialization of the election status failed, do nothing.
-        None => {}
     };
 
     ElectionStatusInfo {

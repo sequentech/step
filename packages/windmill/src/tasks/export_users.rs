@@ -49,7 +49,7 @@ pub async fn export_users(
         Ok(transaction) => transaction,
         Err(err) => {
             if let Some(task_execution) = &task_execution {
-                update_fail(&task_execution, "Failed to start Hasura transaction").await?;
+                update_fail(task_execution, "Failed to start Hasura transaction").await?;
             }
             return Err(Error::String(format!(
                 "Error starting Hasura transaction: {err}"
@@ -62,7 +62,7 @@ pub async fn export_users(
         Ok(result) => result,
         Err(err) => {
             if let Some(task_execution) = &task_execution {
-                update_fail(&task_execution, &err.to_string()).await?;
+                update_fail(task_execution, &err.to_string()).await?;
             }
             return Err(Error::String(format!("Error listing users: {err:?}")));
         }
@@ -86,7 +86,7 @@ pub async fn export_users(
         Ok(timestamp) => timestamp,
         Err(err) => {
             if let Some(task_execution) = &task_execution {
-                update_fail(&task_execution, "Failed to obtain timestamp").await?;
+                update_fail(task_execution, "Failed to obtain timestamp").await?;
             }
             return Err(Error::String(format!("Error obtaining timestamp: {err}")));
         }
@@ -111,7 +111,7 @@ pub async fn export_users(
         Ok(_) => (),
         Err(err) => {
             if let Some(task_execution) = &task_execution {
-                update_fail(&task_execution, "Failed to upload file to s3").await?;
+                update_fail(task_execution, "Failed to upload file to s3").await?;
             }
             return Err(Error::String(format!("Error uploading file to s3: {err}")));
         }
@@ -140,7 +140,7 @@ pub async fn export_users(
     .map_err(|err| format!("Error inserting document: {:?}", err))?;
 
     if let Some(task_execution) = &task_execution {
-        update_complete(&task_execution, Some(document_id.to_string()))
+        update_complete(task_execution, Some(document_id.to_string()))
             .await
             .context("Failed to update task execution status to COMPLETED")?;
     }

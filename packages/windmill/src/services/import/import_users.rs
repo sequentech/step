@@ -211,7 +211,7 @@ fn get_insert_user_query(
     let voters_table = escape_sql_identifier(&voters_table);
 
     // Build the INSERT query for user_entity
-    let user_entity_columns = vec![
+    let user_entity_columns = [
         "id",
         "email",
         "email_constraint",

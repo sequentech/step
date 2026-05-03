@@ -73,8 +73,8 @@ async fn create_config(
     let minio_endpoint_base = s3::get_minio_url()?;
 
     let ballot_images_pipe_config: PipeConfigBallotImages = build_ballot_images_pipe_config(
-        &tally_session,
-        &hasura_transaction,
+        tally_session,
+        hasura_transaction,
         minio_endpoint_base.clone(),
         public_asset_path.clone(),
     )
@@ -228,7 +228,7 @@ async fn generate_template_document(
                 && report
                     .election_id
                     .as_ref()
-                    .map_or(true, |id| *id == election_id)
+                    .is_none_or(|id| *id == election_id)
         })
         .cloned();
 
@@ -254,7 +254,7 @@ async fn generate_template_document(
     let otuput_doc_name = format!("election-{election_id}-ballot-images.{file_extension}");
 
     let _document = upload_and_return_document(
-        &hasura_transaction,
+        hasura_transaction,
         &final_zipped_file,
         file_size,
         mime_type,

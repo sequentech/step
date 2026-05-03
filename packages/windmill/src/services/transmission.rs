@@ -106,7 +106,7 @@ pub async fn get_transmission_servers_data(
 
     let servers_sent_to = document
         .map(|d| d.servers_sent_to.clone())
-        .unwrap_or_else(|| vec![]);
+        .unwrap_or_else(Vec::new);
 
     let servers: Vec<ServerData> = annotations
         .ccs_servers

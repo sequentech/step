@@ -110,7 +110,7 @@ impl ActivityLogsTemplate {
                 let mut row: ElectoralLogRow = entry
                     .try_into()
                     .map_err(|e| anyhow!("Error converting log entry to row: {e:?}"))?;
-                row.message = row.message.replace('\n', " ").replace('\r', " ");
+                row.message = row.message.replace(['\n', '\r'], " ");
                 csv_writer
                     .serialize(row)
                     .map_err(|e| anyhow!("Error serializing to CSV: {e:?}"))?;
@@ -454,14 +454,14 @@ pub async fn generate_export_data(
 ) -> Result<NamedTempFile> {
     // Create a temporary file to write CSV data
     let mut temp_file =
-        generate_temp_file(&name, ".csv").with_context(|| "Error creating named temp file")?;
+        generate_temp_file(name, ".csv").with_context(|| "Error creating named temp file")?;
     let mut csv_writer = WriterBuilder::new().from_writer(temp_file.as_file_mut());
 
     for item in act_log {
         let mut item_clean = item.clone();
 
         // Replace newline characters in the message field
-        item_clean.message = item_clean.message.replace('\n', " ").replace('\r', " ");
+        item_clean.message = item_clean.message.replace(['\n', '\r'], " ");
         // Serialize each item to CSV
         csv_writer
             .serialize(item_clean)

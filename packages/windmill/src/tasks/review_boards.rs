@@ -40,7 +40,7 @@ pub async fn review_boards() -> Result<()> {
     let default_tenant_id = env::var("SUPER_ADMIN_TENANT_ID")
         .with_context(|| "Missing variable SUPER_ADMIN_TENANT_ID")?;
 
-    if let Err(_) = get_tenant_by_id(&hasura_transaction, &default_tenant_id).await {
+    if (get_tenant_by_id(&hasura_transaction, &default_tenant_id).await).is_err() {
         let default_tenant_slug = env::var("ENV_SLUG")
             .with_context(|| "Missing variable ENV_SLUG")?
             .to_lowercase();
