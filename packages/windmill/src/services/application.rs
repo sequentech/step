@@ -217,22 +217,22 @@ fn get_filter_from_applicant_data(
             "firstName" => {
                 first_name = applicant_data
                     .get("firstName")
-                    .and_then(|value| Some(FilterOption::IsEqualNormalized(value.to_string())));
+                    .map(|value| FilterOption::IsEqualNormalized(value.to_string()));
             }
             "lastName" => {
                 last_name = applicant_data
                     .get("lastName")
-                    .and_then(|value| Some(FilterOption::IsEqualNormalized(value.to_string())));
+                    .map(|value| FilterOption::IsEqualNormalized(value.to_string()));
             }
             "username" => {
                 username = applicant_data
                     .get("username")
-                    .and_then(|value| Some(FilterOption::IsEqualNormalized(value.to_string())));
+                    .map(|value| FilterOption::IsEqualNormalized(value.to_string()));
             }
             "email" => {
                 email = applicant_data
                     .get("email")
-                    .and_then(|value| Some(FilterOption::IsEqualNormalized(value.to_string())));
+                    .map(|value| FilterOption::IsEqualNormalized(value.to_string()));
             }
             "embassy" => {
                 // Ignore embassy to speed up user lookup
@@ -489,16 +489,18 @@ fn automatic_verification(
     })
 }
 
+type VerificationMismatchSummary = (usize, usize, HashMap<String, bool>, HashMap<String, bool>);
+
 #[instrument(err)]
 fn check_mismatches(
     user: &User,
     applicant_data: &HashMap<String, String>,
     fields_to_check: String,
     fields_to_check_unset: String,
-) -> Result<(usize, usize, HashMap<String, bool>, HashMap<String, bool>)> {
+) -> Result<VerificationMismatchSummary> {
     let mut match_result = HashMap::new();
     let mut unset_result = HashMap::new();
-    let mut mismatches = 0;
+    let mut mismatches: usize = 0;
 
     debug!(
         "Checking user with id: {:?}, fields to check: {:?}, unset to check: {:?}",
@@ -562,7 +564,7 @@ fn check_mismatches(
                 match_result.insert("firstName.middleName".to_string(), is_match);
 
                 if !is_match {
-                    mismatches += 1;
+                    mismatches = mismatches.checked_add(1).expect("mismatches overflow");
                 }
                 continue;
             }
@@ -594,11 +596,11 @@ fn check_mismatches(
         match_result.insert(field_to_check.to_string(), is_match);
 
         if !is_match {
-            mismatches += 1;
+            mismatches = mismatches.checked_add(1).expect("mismatches overflow");
         }
     }
 
-    let mut unset_mismatches = 0;
+    let mut unset_mismatches: usize = 0;
 
     for fields_to_check_unset in fields_to_check_unset.split(",") {
         let field_to_check = fields_to_check_unset.trim();
@@ -623,7 +625,9 @@ fn check_mismatches(
         // match is true only if the field is NOT set
         unset_result.insert(field_to_check.to_string(), !is_set);
         if is_set {
-            unset_mismatches += 1;
+            unset_mismatches = unset_mismatches
+                .checked_add(1)
+                .expect("unset_mismatches overflow");
         }
     }
 
@@ -690,11 +694,7 @@ pub async fn get_i18n_application_communication(
 ) -> Result<ApplicationCommunicationChannels> {
     let mut application_channels =
         get_i18n_default_application_communication(lang, app_status.clone()).await?;
-    let Some(localization_map) = presentation
-        .i18n
-        .map(|val| val.get(lang).cloned())
-        .flatten()
-    else {
+    let Some(localization_map) = presentation.i18n.and_then(|val| val.get(lang).cloned()) else {
         return Ok(application_channels);
     };
     let key_prefix = format!("application.{}", app_status.to_string().to_lowercase());

@@ -299,34 +299,27 @@ pub async fn insert_results_area_contests(
                 results_event_id: results_event_uuid,
                 elegible_census: area_contest.elegible_census,
                 total_votes: area_contest.total_votes,
-                total_votes_percent: area_contest.total_votes_percent.clone().map(|n| n.into()),
+                total_votes_percent: area_contest.total_votes_percent.map(|n| n.into()),
                 total_auditable_votes: area_contest.total_auditable_votes,
                 total_auditable_votes_percent: area_contest
                     .total_auditable_votes_percent
-                    .clone()
                     .map(|n| n.into()),
                 total_valid_votes: area_contest.total_valid_votes,
-                total_valid_votes_percent: area_contest
-                    .total_valid_votes_percent
-                    .clone()
-                    .map(|n| n.into()),
+                total_valid_votes_percent: area_contest.total_valid_votes_percent.map(|n| n.into()),
                 total_invalid_votes: area_contest.total_invalid_votes,
                 total_invalid_votes_percent: area_contest
                     .total_invalid_votes_percent
-                    .clone()
                     .map(|n| n.into()),
                 explicit_invalid_votes: area_contest.explicit_invalid_votes,
                 explicit_invalid_votes_percent: area_contest
                     .explicit_invalid_votes_percent
-                    .clone()
                     .map(|n| n.into()),
                 implicit_invalid_votes: area_contest.implicit_invalid_votes,
                 implicit_invalid_votes_percent: area_contest
                     .implicit_invalid_votes_percent
-                    .clone()
                     .map(|n| n.into()),
                 blank_votes: area_contest.blank_votes,
-                blank_votes_percent: area_contest.blank_votes_percent.clone().map(|n| n.into()),
+                blank_votes_percent: area_contest.blank_votes_percent.map(|n| n.into()),
                 annotations: area_contest.annotations.clone(),
             })
         })
@@ -440,8 +433,7 @@ pub async fn get_event_results_area_contest(
     let election_event_uuid: uuid::Uuid = parse_uuid_v4(election_event_id)
         .map_err(|err| anyhow!("Error parsing election_event_id as UUID: {err:?}"))?;
 
-    let statement_str = format!(
-        r#"
+    let statement_str = r#"
                 SELECT
                     *
                 FROM
@@ -449,10 +441,9 @@ pub async fn get_event_results_area_contest(
                 WHERE
                     tenant_id = $1 AND
                     election_event_id = $2;
-            "#
-    );
+            "#;
 
-    let statement = hasura_transaction.prepare(statement_str.as_str()).await?;
+    let statement = hasura_transaction.prepare(statement_str).await?;
 
     let rows = hasura_transaction
         .query(&statement, &[&tenant_uuid, &election_event_uuid])

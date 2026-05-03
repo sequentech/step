@@ -91,9 +91,8 @@ pub async fn save_results(
             let total_blank_votes_percent: f64 =
                 contest_result.percentage_total_blank_votes / 100.0;
 
-            let contest_result_ext_metrics =
-                contest_result.extended_metrics.clone().unwrap_or_default();
-            let extended_metrics_value = serde_json::to_value(contest_result_ext_metrics.clone())
+            let contest_result_ext_metrics = contest_result.extended_metrics.unwrap_or_default();
+            let extended_metrics_value = serde_json::to_value(contest_result_ext_metrics)
                 .expect("Failed to convert to JSON");
             let votes_base: f64 = cmp::max(contest_result_ext_metrics.total_weight, 1) as f64;
             let mut annotations = json!({});
@@ -240,18 +239,18 @@ pub async fn save_results(
     }
     insert_results_contests(
         hasura_transaction,
-        tenant_id.into(),
-        election_event_id.into(),
-        results_event_id.into(),
+        tenant_id,
+        election_event_id,
+        results_event_id,
         results_contests.clone(),
     )
     .await?;
 
     insert_results_area_contests(
         hasura_transaction,
-        tenant_id.into(),
-        election_event_id.into(),
-        results_event_id.into(),
+        tenant_id,
+        election_event_id,
+        results_event_id,
         results_area_contests.clone(),
     )
     .await?;
@@ -303,7 +302,7 @@ pub async fn generate_results_id_if_necessary(
     let previous_session_ids = previous_execution.session_ids.unwrap_or(vec![]);
     let session_ids = session_ids_opt.unwrap_or(vec![]);
 
-    if !force_new_id && !(session_ids.len() > previous_session_ids.len()) {
+    if !force_new_id && (session_ids.len() <= previous_session_ids.len()) {
         return Ok(None);
     }
 

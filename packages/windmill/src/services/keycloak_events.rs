@@ -111,10 +111,10 @@ pub async fn count_keycloak_events_by_type(
     area_id: Option<&str>,
 ) -> Result<i64> {
     let mut params: Vec<&(dyn ToSql + Sync)> = vec![&realm, &events_type];
-    let mut param_count = 2;
+    let mut param_count: i32 = 2;
     let error_clause = match event_error {
         Some(_) => {
-            param_count += 1;
+            param_count = param_count.checked_add(1).expect("param_count overflow");
             params.push(&event_error);
             format!("AND e.error = ${param_count}")
         }
@@ -128,16 +128,12 @@ pub async fn count_keycloak_events_by_type(
 
     let (ua_join_clause, area_id_clause) = match area_id {
         Some(_) => {
-            let next_param_number = param_count + 1;
-            param_count += 2;
+            let next_param_number: i32 = param_count.checked_add(1).expect("param_count overflow");
+            param_count = param_count.checked_add(2).expect("param_count overflow");
             params.push(&AREA_ID_ATTR_NAME);
             params.push(&area_id);
             (
-                format!(
-                    r#"
-                INNER JOIN
-                    user_attribute AS us ON us.user_id = e.user_id"#
-                ),
+                "INNER JOIN user_attribute AS us ON us.user_id = e.user_id".to_string(),
                 format!(
                     r#"
                 AND us.name = ${next_param_number}
@@ -191,8 +187,7 @@ pub async fn count_keycloak_password_reset_event_by_area(
 ) -> Result<i64> {
     let statement = keycloak_transaction
         .prepare(
-            format!(
-                r#"
+            r#"
              SELECT COUNT(*)
             FROM (
                 SELECT *
@@ -207,9 +202,7 @@ pub async fn count_keycloak_password_reset_event_by_area(
                 ra.name = $1
                 AND us.name = $2
                 AND us.value = $3
-                "#
-            )
-            .as_str(),
+                "#,
         )
         .await
         .map_err(|err| {

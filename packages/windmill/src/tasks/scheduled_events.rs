@@ -358,7 +358,11 @@ pub async fn handle_election_allow_tally(
 pub async fn scheduled_events(rate_seconds: u64) -> Result<()> {
     let celery_app = get_celery_app().await;
     let now = ISO8601::now();
-    let nsecs_later = now + Duration::seconds(rate_seconds as i64);
+    let nsecs_later = now
+        .checked_add_signed(Duration::seconds(
+            i64::try_from(rate_seconds).expect("scheduled_events rate_seconds exceeds i64"),
+        ))
+        .expect("scheduled_events comparison time overflow");
     let mut hasura_db_client: DbClient = get_hasura_pool()
         .await
         .get()

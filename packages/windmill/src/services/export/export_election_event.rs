@@ -381,7 +381,7 @@ pub async fn process_export_zip(
     std::io::copy(&mut election_event_file, &mut zip_writer)
         .map_err(|e| anyhow!("Error copying election event file to ZIP: {e:?}"))?;
 
-    let images_folder_name = format!("{}", EDocuments::IMAGES.to_file_name());
+    let images_folder_name = EDocuments::IMAGES.to_file_name();
 
     for file_path in event_images_files_path {
         let file_name = file_path
@@ -393,7 +393,7 @@ pub async fn process_export_zip(
             .to_string_lossy()
             .to_string();
 
-        let file_name_in_zip = format!("{}/{}", images_folder_name, file_name);
+        let file_name_in_zip = format!("{images_folder_name}/{file_name}");
         zip_writer
             .start_file(&file_name_in_zip, options)
             .map_err(|e| anyhow!("Error starting S3 file in ZIP: {e:?}"))?;
@@ -540,8 +540,8 @@ pub async fn process_export_zip(
 
     // Add the S3 files to the ZIP archive
     if export_config.s3_files {
-        let s3_folder_name = format!("{}", EDocuments::S3_FILES.to_file_name());
-        let documents_prefix = format!("tenant-{}/event-{}/", tenant_id, election_event_id);
+        let s3_folder_name = EDocuments::S3_FILES.to_file_name();
+        let documents_prefix = format!("tenant-{tenant_id}/event-{election_event_id}/");
         let bucket = s3::get_private_bucket()?;
 
         let s3_files = s3::get_files_from_s3(bucket, documents_prefix.clone())
@@ -558,7 +558,7 @@ pub async fn process_export_zip(
                 .to_string_lossy()
                 .to_string();
 
-            let file_name_in_zip = format!("{}/{}", s3_folder_name, file_name);
+            let file_name_in_zip = format!("{s3_folder_name}/{file_name}");
             zip_writer
                 .start_file(&file_name_in_zip, options)
                 .map_err(|e| anyhow!("Error starting S3 file in ZIP: {e:?}"))?;
@@ -708,7 +708,7 @@ pub async fn process_export_zip(
     }
 
     if export_config.tally {
-        let tally_folder_name = format!("{}", EDocuments::TALLY.to_file_name());
+        let tally_folder_name = EDocuments::TALLY.to_file_name();
 
         let tally_data =
             export_tally::read_tally_data(&hasura_transaction, tenant_id, election_event_id)
@@ -716,7 +716,7 @@ pub async fn process_export_zip(
                 .map_err(|e| anyhow!("Error reading tally data: {e:?}"))?;
 
         for (file_name, file_path) in tally_data {
-            let file_name_in_zip = format!("{}/{}.csv", tally_folder_name, file_name);
+            let file_name_in_zip = format!("{tally_folder_name}/{file_name}.csv");
 
             zip_writer
                 .start_file(&file_name_in_zip, options)

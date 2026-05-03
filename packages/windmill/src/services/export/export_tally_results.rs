@@ -169,7 +169,7 @@ async fn convert_db_to_xlsx(db_path: &Path, xlsx_path: &Path) -> Result<()> {
                     }
                 }
             }
-            row_index += 1;
+            row_index = row_index.checked_add(1).expect("row_index overflow");
         }
     }
 

@@ -97,21 +97,16 @@ pub async fn process_record(
     };
 
     let id = Uuid::new_v4().to_string();
-    let created_at = record
-        .get(3)
-        .map(|s| {
-            let s = s.trim_matches('"');
-            ISO8601::to_date_utc(s).ok()
-        })
-        .flatten();
+    let created_at = record.get(3).and_then(|s| {
+        let s = s.trim_matches('"');
+        ISO8601::to_date_utc(s).ok()
+    });
     let labels = record
         .get(6)
-        .map(|s| deserialize_str::<JsonValue>(s).ok())
-        .flatten();
+        .and_then(|s| deserialize_str::<JsonValue>(s).ok());
     let annotations = record
         .get(7)
-        .map(|s| deserialize_str::<JsonValue>(s).ok())
-        .flatten();
+        .and_then(|s| deserialize_str::<JsonValue>(s).ok());
     let event_processor: Option<EventProcessors> = record
         .get(8)
         .map(deserialize_str::<EventProcessors>)

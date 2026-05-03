@@ -175,7 +175,7 @@ pub async fn generate_all_servers_document(
             eml_hash,
             eml,
             time_zone.clone(),
-            now_utc.clone(),
+            now_utc,
             election_event_annotations,
             compressed_xml_bytes.clone(),
             &acm_key_pair,
@@ -186,12 +186,12 @@ pub async fn generate_all_servers_document(
             election_annotations,
         )
         .await?;
-        let with_logs = ccs_server.send_logs.clone().unwrap_or_default();
+        let with_logs = ccs_server.send_logs.unwrap_or_default();
         if with_logs {
             let zip_file_path = server_path.join(format!("al_{}.zip", area_annotations.station_id));
             create_logs_package(
                 time_zone.clone(),
-                now_utc.clone(),
+                now_utc,
                 election_event_annotations,
                 election_annotations,
                 &acm_key_pair,
@@ -300,7 +300,7 @@ pub async fn create_transmission_package_service(
 
     let area_station_id = area_annotations.station_id.clone();
 
-    let threshold = area_annotations.threshold.clone();
+    let threshold = area_annotations.threshold;
 
     let ccs_servers = area_annotations.ccs_servers.clone();
 
@@ -351,7 +351,7 @@ pub async fn create_transmission_package_service(
         tally_id,
         &transaction_id,
         time_zone.clone(),
-        now_utc.clone(),
+        now_utc,
         &election_event_annotations,
         &election_annotations,
         &area_annotations,
@@ -420,7 +420,7 @@ pub async fn create_transmission_package_service(
         &election_event.id,
         tenant_id,
         time_zone.clone(),
-        now_utc.clone(),
+        now_utc,
         vec![],
         &logs,
         &election_annotations,

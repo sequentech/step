@@ -11,18 +11,27 @@ const RANDOM_PART: u64 = 13212;
 // generate a 13 digit number like 1721184531864
 pub fn generate_transaction_id() -> u64 {
     let now = Utc::now();
-    let year = now.year() as u64 - 2023u64; // Get last two digits of the year
-    let day = now.ordinal() as u64; // Get the day of the year (1 to 366)
-    let hour = now.hour() as u64 + 1u64;
-    let second = now.second() as u64 + 1u64;
+    let year = (now.year() as u64)
+        .checked_sub(2023u64)
+        .expect("year component underflow"); // Last two digits of the year (offset base)
+    let day = now.ordinal() as u64; // Day of the year (1 to 366)
+    let hour = (now.hour() as u64)
+        .checked_add(1)
+        .expect("hour component overflow");
+    let second = (now.second() as u64)
+        .checked_add(1)
+        .expect("second component overflow");
 
-    // Calculate the first part of the number: year * day * hour * second
-    let first_part = year * day * hour * second;
+    let first_part = year
+        .checked_mul(day)
+        .and_then(|v| v.checked_mul(hour))
+        .and_then(|v| v.checked_mul(second))
+        .expect("transaction id first part overflow");
 
-    // Generate the random part to fill up to 8 digits
     let mut rng = rand::thread_rng();
     let random_part: u64 = rng.gen_range(1..=RANDOM_PART);
 
-    // Combine the two parts and return the result
-    first_part * random_part
+    first_part
+        .checked_mul(random_part)
+        .expect("transaction id overflow")
 }

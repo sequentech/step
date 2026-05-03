@@ -99,10 +99,7 @@ pub async fn insert_results_contest_candidates(
                 cast_votes: contest_candidate.cast_votes,
                 winning_position: contest_candidate.winning_position,
                 points: contest_candidate.points,
-                cast_votes_percent: contest_candidate
-                    .cast_votes_percent
-                    .clone()
-                    .map(|n| n.into()),
+                cast_votes_percent: contest_candidate.cast_votes_percent.map(|n| n.into()),
             })
         })
         .collect::<Result<Vec<InsertResultsContestCandidate>>>()?;

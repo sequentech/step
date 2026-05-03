@@ -37,9 +37,8 @@ pub async fn get_realm_id(
     let realm_ids: Vec<String> = rows
         .into_iter()
         .map(|row| -> Result<String> {
-            Ok(row
-                .try_get::<&str, String>("id")
-                .map_err(|err| anyhow!("Error getting the realm id from a row: {}", err))?)
+            row.try_get::<&str, String>("id")
+                .map_err(|err| anyhow!("Error getting the realm id from a row: {}", err))
         })
         .collect::<Result<Vec<String>>>()
         .map_err(|err| anyhow!("Error getting the realm ids: {}", err))?;

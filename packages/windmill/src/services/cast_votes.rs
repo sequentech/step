@@ -228,8 +228,7 @@ pub async fn get_count_votes_per_day(
     };
     let total_areas_statement = transaction
         .prepare(
-            format!(
-                r#"
+            r#"
             WITH date_series AS (
                 SELECT
                     (t.day)::date AS day
@@ -265,9 +264,7 @@ pub async fn get_count_votes_per_day(
                 OR v.created_at IS NULL
             GROUP BY ds.day
             ORDER BY ds.day;
-            "#
-            )
-            .as_str(),
+            "#,
         )
         .await?;
 
@@ -482,10 +479,7 @@ pub async fn get_top_count_votes_by_ip(
         filter.country.map(|country_val| format!("%{country_val}%"));
 
     let election_id_pattern: Option<Uuid> = if let Some(election_id_val) = filter.election_id {
-        match parse_uuid_v4(&election_id_val) {
-            Ok(uuid) => Some(uuid),
-            Err(e) => None,
-        }
+        parse_uuid_v4(&election_id_val).ok()
     } else {
         None
     };

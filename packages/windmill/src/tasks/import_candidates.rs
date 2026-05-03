@@ -266,7 +266,7 @@ fn get_contest_from_postcode(contests: &Vec<Contest>, postcode: &str) -> Result<
                 let contest_presentation: ContestPresentation = deserialize_value(presentation)?;
                 if let Some(i18n) = contest_presentation.i18n.clone() {
                     if let Some(en) = i18n.get("en") {
-                        if let Some(en_alias_opt) = en.get("alias").clone() {
+                        if let Some(en_alias_opt) = en.get("alias") {
                             if en_alias_opt.clone().unwrap_or("".to_string()) == contest_name {
                                 return Ok(Some(contest.id.clone()));
                             }

@@ -101,12 +101,11 @@ pub async fn get_private_key(
         .with_context(|| "error parsing keys ceremony current status")?;
 
     // check the trustee is part of this ceremony
-    if current_status
+    if !current_status
         .trustees
         .clone()
         .into_iter()
-        .find(|trustee| trustee.name == trustee_name)
-        .is_none()
+        .any(|trustee| trustee.name == trustee_name)
     {
         return Err(anyhow!("Trustee not part of the keys ceremony"));
     }
@@ -232,18 +231,12 @@ pub async fn check_private_key(
         .with_context(|| "error parsing keys ceremony current status")?;
 
     // check the trustee is part of this ceremony
-    if current_status
-        .trustees
-        .clone()
-        .into_iter()
-        .find(|trustee| {
-            (trustee.name == trustee_name
-                && (trustee.status == TrusteeStatus::KEY_GENERATED
-                    || trustee.status == TrusteeStatus::KEY_RETRIEVED
-                    || trustee.status == TrusteeStatus::KEY_CHECKED))
-        })
-        .is_none()
-    {
+    if current_status.trustees.clone().into_iter().any(|trustee| {
+        (trustee.name == trustee_name
+            && (trustee.status == TrusteeStatus::KEY_GENERATED
+                || trustee.status == TrusteeStatus::KEY_RETRIEVED
+                || trustee.status == TrusteeStatus::KEY_CHECKED))
+    }) {
         return Err(anyhow!(
             "Trustee not part of the keys ceremony or has invalid state"
         ));

@@ -193,8 +193,8 @@ pub fn prepare_tally_for_area_contest(
         tenant_id: parse_uuid_v4(&area_contest.contest.tenant_id)?,
         election_event_id: parse_uuid_v4(&area_contest.contest.election_event_id)?,
         election_id: parse_uuid_v4(&election_id)?,
-        census: area_contest.eligible_voters as u64,
-        auditable_votes: area_contest.auditable_votes as u64,
+        census: area_contest.eligible_voters,
+        auditable_votes: area_contest.auditable_votes,
         parent_id: area_contest
             .area
             .parent_id
@@ -731,7 +731,7 @@ async fn populate_sqlite_election_event_data(
     let velvet_input_dir = base_tempdir.join("input");
 
     let base_database_path = velvet_input_dir.join(format!("{DEFAULT_DIR_DATABASE}/"));
-    let database_path = base_database_path.join(format!("results.db"));
+    let database_path = base_database_path.join("results.db");
 
     let tenant_id = &tally_session.tenant_id;
     let election_event_id = &tally_session.election_event_id;

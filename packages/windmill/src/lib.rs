@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+#![allow(clippy::too_many_arguments)]
 #![recursion_limit = "256"]
 #[macro_use]
 extern crate lazy_static;

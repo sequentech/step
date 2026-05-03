@@ -99,7 +99,7 @@ pub async fn get_election_max_revotes(
         })
         .collect::<Result<Vec<usize>>>()?;
 
-    let data = revotes.first().unwrap_or(&1).clone();
+    let data = *revotes.first().unwrap_or(&1);
 
     Ok(data)
 }
@@ -156,8 +156,7 @@ pub async fn get_elections(
     tenant_id: &str,
     election_event_id: &str,
 ) -> Result<Vec<Election>> {
-    let statement_str = format!(
-        r#"
+    let statement_str = r#"
             SELECT
                 *
             FROM
@@ -165,10 +164,9 @@ pub async fn get_elections(
             WHERE
                 tenant_id = $1 AND
                 election_event_id = $2
-            "#
-    );
+            "#;
 
-    let statement = hasura_transaction.prepare(statement_str.as_str()).await?;
+    let statement = hasura_transaction.prepare(statement_str).await?;
 
     let rows: Vec<Row> = hasura_transaction
         .query(
@@ -444,10 +442,10 @@ pub async fn create_election(
         })
         .collect::<Result<Vec<Election>>>()?;
 
-    Ok(elections
+    elections
         .first()
         .cloned()
-        .ok_or(anyhow!("Coudln't insert election"))?)
+        .ok_or(anyhow!("Coudln't insert election"))
 }
 
 #[instrument(err, skip_all)]
@@ -534,9 +532,7 @@ pub async fn insert_elections(
                     &election.presentation,
                     &election.status,
                     &election.eml,
-                    &election
-                        .num_allowed_revotes
-                        .and_then(|val| Some(val as i32)),
+                    &election.num_allowed_revotes.map(|val| val as i32),
                     &election.is_consolidated_ballot_encoding,
                     &election.spoil_ballot_option,
                     &election.voting_channels,
@@ -762,8 +758,7 @@ pub async fn get_elections_ids(
     tenant_id: &str,
     election_event_id: &str,
 ) -> Result<Vec<String>> {
-    let statement_str = format!(
-        r#"
+    let statement_str = r#"
             SELECT
                 id
             FROM
@@ -771,10 +766,9 @@ pub async fn get_elections_ids(
             WHERE
                 tenant_id = $1 AND
                 election_event_id = $2
-            "#
-    );
+            "#;
 
-    let statement = hasura_transaction.prepare(statement_str.as_str()).await?;
+    let statement = hasura_transaction.prepare(statement_str).await?;
 
     let rows: Vec<Row> = hasura_transaction
         .query(

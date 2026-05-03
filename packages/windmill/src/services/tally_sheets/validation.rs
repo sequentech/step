@@ -21,8 +21,11 @@ pub fn validate_tally_sheet(tally_sheet: &TallySheet, contest: &Contest) -> Resu
         .into());
     }
     let invalid_votes = content.invalid_votes.unwrap_or(Default::default());
-    let total_invalid_votes_calculated =
-        invalid_votes.explicit_invalid.unwrap_or(0) + invalid_votes.implicit_invalid.unwrap_or(0);
+    let total_invalid_votes_calculated = invalid_votes
+        .explicit_invalid
+        .unwrap_or(0)
+        .checked_add(invalid_votes.implicit_invalid.unwrap_or(0))
+        .expect("total invalid votes overflow");
     let total_invalid_votes = invalid_votes.total_invalid.unwrap_or(0);
     if total_invalid_votes != total_invalid_votes_calculated {
         return Err(anyhow!(
@@ -34,7 +37,10 @@ pub fn validate_tally_sheet(tally_sheet: &TallySheet, contest: &Contest) -> Resu
     let total_votes = content.total_votes.unwrap_or(0);
     let total_valid_votes = content.total_valid_votes.unwrap_or(0);
     let total_blank_votes = content.total_blank_votes.unwrap_or(0);
-    if total_invalid_votes + total_valid_votes != total_votes {
+    let votes_accounted = total_invalid_votes
+        .checked_add(total_valid_votes)
+        .expect("vote totals overflow");
+    if votes_accounted != total_votes {
         return Err(anyhow!(
             "Invalid tally sheet {:?}, inconsistent total votes",
             tally_sheet
@@ -44,7 +50,7 @@ pub fn validate_tally_sheet(tally_sheet: &TallySheet, contest: &Contest) -> Resu
     let total_valid_votes_calc: u64 = content
         .candidate_results
         .values()
-        .map(|candidate_result| -> u64 { candidate_result.total_votes.clone().unwrap_or(0) })
+        .map(|candidate_result| -> u64 { candidate_result.total_votes.unwrap_or(0) })
         .sum();
 
     /*if total_valid_votes != total_valid_votes_calc + total_blank_votes {

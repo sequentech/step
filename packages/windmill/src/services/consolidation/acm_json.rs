@@ -99,7 +99,7 @@ pub fn generate_acm_json(
     let er_datetime = generate_timestamp(
         Some(time_zone.clone()),
         Some(DateFormat::Custom(ACM_JSON_FORMAT.to_string())),
-        Some(date_time.clone()),
+        Some(date_time),
     );
     Ok(ACMJson {
         device_id: get_miru_device_id(),

@@ -97,7 +97,10 @@ impl ActivityLogsTemplate {
                 .await
                 .map_err(|e| anyhow!("Error fetching electoral log batch: {e:?}"))?;
 
-            let batch_size = msgs.len() * mem::size_of::<ElectoralLogMessage>();
+            let batch_size = msgs
+                .len()
+                .checked_mul(mem::size_of::<ElectoralLogMessage>())
+                .expect("activity log batch size overflow");
             info!(
                 "Logs batch size: {} entries ({} bytes)",
                 msgs.len(),

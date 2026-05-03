@@ -50,6 +50,13 @@ use std::str::FromStr;
 use tracing::{event, instrument, Level};
 use uuid::Uuid;
 
+type LastTallySessionExecutionBundle = (
+    TallySessionExecution,
+    TallySession,
+    Vec<TallySessionContest>,
+    Vec<BallotStyle>,
+);
+
 #[instrument(skip(hasura_transaction), err)]
 pub async fn find_last_tally_session_execution_and_all_related_data(
     hasura_transaction: &Transaction<'_>,
@@ -57,14 +64,7 @@ pub async fn find_last_tally_session_execution_and_all_related_data(
     election_event_id: String,
     tally_session_id: String,
     election_ids: Vec<String>,
-) -> Result<
-    Option<(
-        TallySessionExecution,
-        TallySession,
-        Vec<TallySessionContest>,
-        Vec<BallotStyle>,
-    )>,
-> {
+) -> Result<Option<LastTallySessionExecutionBundle>> {
     // get all data for the execution: the last tally session execution,
     // the list of tally_session_contest, and the ballot styles
 
@@ -227,7 +227,7 @@ pub async fn insert_tally_session_contests(
                 election_event_id,
                 &area_contest.area_id,
                 None,
-                batch.clone(),
+                batch,
                 tally_session_id,
                 &election_id,
             )
@@ -245,7 +245,7 @@ pub async fn insert_tally_session_contests(
                 election_event_id,
                 &area_contest.area_id,
                 Some(area_contest.contest_id.clone()),
-                batch.clone(),
+                batch,
                 tally_session_id,
                 &contest.election_id,
             )
@@ -305,11 +305,7 @@ pub async fn create_tally_ceremony(
         .filter(|election| {
             if election_ids.contains(&election.id) {
                 let status = get_election_status(election.status.clone()).unwrap_or_default();
-                if let Some(is_published) = status.is_published {
-                    is_published // Include only if `is_published` is true
-                } else {
-                    false
-                }
+                status.is_published.unwrap_or(false) // Include only if `is_published` is true
             } else {
                 false
             }

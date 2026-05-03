@@ -200,18 +200,16 @@ async fn generate_template_document(
     let subfolders = list_subfolders(&election_path);
     for subfolder in subfolders {
         let entries = fs::read_dir(subfolder)?;
-        for entry in entries {
-            if let Ok(entry) = entry {
-                let path = entry.path();
-                if path.is_dir() {
-                    continue;
-                }
-                let Ok(name) = entry.file_name().into_string() else {
-                    continue;
-                };
-                if name.ends_with(".html") {
-                    fs::remove_file(&path)?;
-                }
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if path.is_dir() {
+                continue;
+            }
+            let Ok(name) = entry.file_name().into_string() else {
+                continue;
+            };
+            if name.ends_with(".html") {
+                fs::remove_file(&path)?;
             }
         }
     }

@@ -64,8 +64,10 @@ fn find_duplicates(input: Vec<&str>) -> Vec<&str> {
     let mut occurrences = HashMap::new();
     let mut duplicates = Vec::new();
     for &item in &input {
-        let count = occurrences.entry(item).or_insert(0);
-        *count += 1;
+        let count: &mut i32 = occurrences.entry(item).or_insert(0);
+        *count = (*count)
+            .checked_add(1)
+            .expect("occurrence counter overflow");
     }
     for (&item, &count) in &occurrences {
         if count > 1 {

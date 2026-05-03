@@ -272,7 +272,7 @@ pub async fn submit_tally_resolution(
     .await?;
 
     // Validate and submit each resolution
-    let mut resolved_count = 0;
+    let mut resolved_count: usize = 0;
 
     for tie_resolution in resolutions {
         // First submission: find the single Pending record for this contest.
@@ -379,7 +379,9 @@ pub async fn submit_tally_resolution(
                 .with_context(|| "error posting tally tie resolution updated to electoral log")?;
         }
 
-        resolved_count += 1;
+        resolved_count = resolved_count
+            .checked_add(1)
+            .expect("resolved_count overflow");
     }
 
     let next_status = TallyExecutionStatus::IN_PROGRESS;

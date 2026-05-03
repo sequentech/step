@@ -123,7 +123,9 @@ pub async fn manage_election_date(
             tenant_id, election_event_id, scheduled_event_id, election_id
         ),
         Uuid::new_v4().to_string(),
-        ISO8601::now() + Duration::seconds(120),
+        ISO8601::now()
+            .checked_add_signed(Duration::seconds(120))
+            .expect("manage_election_date lock expiry overflow"),
     )
     .await
     .with_context(|| "Error acquiring pglock")?;

@@ -176,10 +176,9 @@ pub async fn get_elections_json_with_open_status(
 
     let open_elections = elections
         .iter_mut()
-        .map(|election| {
+        .inspect(|election| {
             let mut status = get_election_status(election.status.clone()).unwrap_or_default();
             status.voting_status = VotingStatus::OPEN;
-            election
         })
         .collect::<Vec<_>>();
 

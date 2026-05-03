@@ -68,7 +68,7 @@ async fn initialize_master_secret() -> Result<SymmetricKey> {
 #[instrument]
 pub async fn get_master_secret() -> Result<SymmetricKey> {
     if let Some(secret) = MASTER_SECRET.get() {
-        return Ok(secret.clone());
+        return Ok(*secret);
     }
     initialize_master_secret().await
 }

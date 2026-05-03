@@ -9,7 +9,11 @@ use tracing::{event, instrument, Level};
 
 pub fn message_to_log(message: &Message) -> Log {
     let batch_number = message.statement.get_batch_number();
-    let timestamp = message.statement.get_timestamp() * 1000;
+    let timestamp = message
+        .statement
+        .get_timestamp()
+        .checked_mul(1000)
+        .expect("timestamp millis overflow");
     let datetime = ISO8601::timestamp_ms_utc_to_date(timestamp as i64);
 
     Log {

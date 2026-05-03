@@ -464,7 +464,7 @@ pub async fn upload_transmission_package_signature_service(
         &election_event.id,
         tenant_id,
         time_zone.clone(),
-        now_utc.clone(),
+        now_utc,
         new_acm_signatures,
         &new_transmission_package_data.logs,
         &election_annotations,

@@ -103,8 +103,8 @@ pub async fn update_election_status(
             username,
             election_event_id.to_string(),
             election_id.to_string(),
-            voting_status.clone(),
-            voting_channel.clone(),
+            *voting_status,
+            voting_channel,
             election_event.bulletin_board_reference.clone(),
             hasura_transaction,
         )
@@ -113,8 +113,7 @@ pub async fn update_election_status(
 
         info!("current_voting_status={current_event_status:?} next_voting_status={voting_status:?}, voting_channel={voting_channel:?}");
 
-        if voting_status.clone() == VotingStatus::OPEN
-            && current_event_status == VotingStatus::NOT_STARTED
+        if *voting_status == VotingStatus::OPEN && current_event_status == VotingStatus::NOT_STARTED
         {
             info!("Updating election event status to OPEN");
             event_status
@@ -128,8 +127,8 @@ pub async fn update_election_status(
                 username,
                 election_event.id.to_string(),
                 election_event.bulletin_board_reference.clone(),
-                voting_status.clone(),
-                voting_channel.clone(),
+                *voting_status,
+                voting_channel,
                 None,
                 Some(vec![election_id.to_string()]),
             )
@@ -190,7 +189,7 @@ pub async fn update_board_on_status_change(
         .await?
     };
 
-    let maybe_election_id = election_id.map(|election_id| election_id);
+    let maybe_election_id = election_id;
     match voting_status {
         VotingStatus::NOT_STARTED => {
             // Nothing to do?
@@ -265,20 +264,34 @@ pub fn get_election_status_info(election: &Election) -> ElectionStatusInfo {
         match status.voting_status {
             // If voting hasn't started yet, increment the count for not
             // opened votes
-            VotingStatus::NOT_STARTED => total_not_started_votes += 1,
+            VotingStatus::NOT_STARTED => {
+                total_not_started_votes = total_not_started_votes
+                    .checked_add(1)
+                    .expect("total_not_started_votes overflow");
+            }
             // If voting is open, increment the count for
             //open votes and started votes
             VotingStatus::OPEN => {
-                total_open_votes += 1;
-                total_started_votes += 1;
+                total_open_votes = total_open_votes
+                    .checked_add(1)
+                    .expect("total_open_votes overflow");
+                total_started_votes = total_started_votes
+                    .checked_add(1)
+                    .expect("total_started_votes overflow");
             }
             // If voting is paused, increment the count for started votes
             // Consider the vote as having been open before paused
-            VotingStatus::PAUSED => total_started_votes += 1,
+            VotingStatus::PAUSED => {
+                total_started_votes = total_started_votes
+                    .checked_add(1)
+                    .expect("total_started_votes overflow");
+            }
             // If voting is closed:
             VotingStatus::CLOSED => {
                 // Consider the vote as having been open before closing
-                total_started_votes += 1;
+                total_started_votes = total_started_votes
+                    .checked_add(1)
+                    .expect("total_started_votes overflow");
                 // Check the voting channels to determine if any additional
                 // conditions apply
                 match voting_channels {
@@ -288,13 +301,17 @@ pub fn get_election_status_info(election: &Election) -> ElectionStatusInfo {
                         kiosk: Some(true), ..
                     }) => {
                         if status.kiosk_voting_status == VotingStatus::CLOSED {
-                            total_closed_votes += 1;
+                            total_closed_votes = total_closed_votes
+                                .checked_add(1)
+                                .expect("total_closed_votes overflow");
                         }
                     }
                     // For all other cases, if online voting channel is
                     // closed, then the election is considered closed
                     _ => {
-                        total_closed_votes += 1;
+                        total_closed_votes = total_closed_votes
+                            .checked_add(1)
+                            .expect("total_closed_votes overflow");
                     }
                 }
             }

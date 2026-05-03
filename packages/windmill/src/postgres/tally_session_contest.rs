@@ -187,7 +187,9 @@ pub async fn get_tally_session_highest_batch(
     let Some(value) = values.first() else {
         return Ok(0);
     };
-    Ok(value + 1)
+    Ok(value
+        .checked_add(1)
+        .expect("tally session batch number overflow"))
 }
 
 #[instrument(skip(hasura_transaction), err)]
@@ -318,7 +320,7 @@ pub async fn insert_many_tally_session_contests(
                 election_event_id: parse_uuid_v4(&c.election_event_id)?,
                 area_id: parse_uuid_v4(&c.area_id)?,
                 contest_id: c.contest_id.map(|s| parse_uuid_v4(&s)).transpose()?,
-                session_id: c.session_id.clone(),
+                session_id: c.session_id,
                 created_at: c.created_at,
                 last_updated_at: c.last_updated_at,
                 labels: c.labels.clone(),

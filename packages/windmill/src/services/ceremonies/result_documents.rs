@@ -620,7 +620,7 @@ impl GenerateResultDocuments for ReportDataComputed {
                 )
                 .await?;
 
-                if let Some(sqlite_transaction) = sqlite_transaction_opt.clone() {
+                if let Some(sqlite_transaction) = sqlite_transaction_opt {
                     update_results_area_contest_documents_sqlite(
                         sqlite_transaction,
                         &self.tenant_id,
@@ -673,8 +673,7 @@ pub fn generate_ids_map(
     let mut rename_map: HashMap<String, String> = HashMap::new();
     let election_reports = results
         .iter()
-        .map(|result| result.reports.clone())
-        .flat_map(|inner_vec| inner_vec)
+        .flat_map(|result| result.reports.clone())
         .collect::<Vec<ReportDataComputed>>();
 
     const UUID_LEN: usize = 36;

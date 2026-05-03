@@ -243,19 +243,19 @@ async fn record_new_log(
 
     let tally_annotations: Annotations = deserialize_value(tally_annotations_js)?;
 
-    let transmission_data: MiruTallySessionData =
-        find_miru_annotation(MIRU_TALLY_SESSION_DATA, &tally_annotations)
-            .with_context(|| {
-                format!(
-                    "Missing tally session annotation: '{}:{}'",
-                    MIRU_PLUGIN_PREPEND, MIRU_TALLY_SESSION_DATA
-                )
-            })
-            .map(|tally_session_data_js| {
-                deserialize_str(&tally_session_data_js).map_err(|err| anyhow!("{}", err))
-            })
-            .flatten()
-            .unwrap_or(vec![]);
+    let transmission_data: MiruTallySessionData = find_miru_annotation(
+        MIRU_TALLY_SESSION_DATA,
+        &tally_annotations,
+    )
+    .with_context(|| {
+        format!(
+            "Missing tally session annotation: '{MIRU_PLUGIN_PREPEND}:{MIRU_TALLY_SESSION_DATA}'"
+        )
+    })
+    .and_then(|tally_session_data_js| {
+        deserialize_str(&tally_session_data_js).map_err(|err| anyhow!("{}", err))
+    })
+    .unwrap_or(vec![]);
 
     let Some(transmission_area_election) = transmission_data
         .clone()
@@ -489,7 +489,7 @@ pub async fn send_transmission_package_service(
                 .await?;
             }
         }
-        let with_logs = ccs_server.send_logs.clone().unwrap_or_default();
+        let with_logs = ccs_server.send_logs.unwrap_or_default();
         let logs_zip_path =
             second_zip_folder_path.join(format!("al_{}.zip", area_annotations.station_id));
         if with_logs {

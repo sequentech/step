@@ -30,7 +30,9 @@ impl PgLock {
             .transaction()
             .await
             .with_context(|| "Error acquiring hasura transaction")?;
-        let new_expiry_date: DateTime<Local> = ISO8601::now() + Duration::seconds(120);
+        let new_expiry_date: DateTime<Local> = ISO8601::now()
+            .checked_add_signed(Duration::seconds(120))
+            .expect("lock expiry overflow");
         lock::upsert_lock(
             &hasura_transaction,
             self.key.as_str(),

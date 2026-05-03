@@ -310,17 +310,15 @@ fn generate_area_contests(
                 .find(|plaintexts_message|
                     batch_num == plaintexts_message.statement.get_batch_number() as i64
                 )
-                .map(|plaintexts_message| {
+                .and_then(|plaintexts_message| {
                     plaintexts_message.artifact
                         .clone()
-                        .map(|artifact| -> Option<Vec<<RistrettoCtx as Ctx>::P>> {
+                        .and_then(|artifact| -> Option<Vec<<RistrettoCtx as Ctx>::P>> {
                             Plaintexts::<RistrettoCtx>::strand_deserialize(&artifact)
                                 .ok()
                                 .map(|plaintexts| plaintexts.0 .0)
                         })
-                        .flatten()
-                })
-                .flatten() else {
+                }) else {
                     event!(Level::INFO, "Expected: Plaintexts not found yet for session contest = {}, batch number = {}", session_contest.id, batch_num );
                     return None;
                 };
@@ -498,8 +496,14 @@ pub async fn count_cast_votes_election_with_census(
             continue;
         }
 
-        entry.census += annotations.elegible_voters as i64;
-        entry.cast_votes += annotations.casted_ballots as i64;
+        entry.census = entry
+            .census
+            .checked_add(annotations.elegible_voters as i64)
+            .expect("election census overflow");
+        entry.cast_votes = entry
+            .cast_votes
+            .checked_add(annotations.casted_ballots as i64)
+            .expect("election cast_votes overflow");
 
         areas_set.insert(area_contest.area_id.clone());
     }
@@ -627,9 +631,9 @@ pub async fn upsert_ballots_messages(
 
 fn get_tally_session_created_at_timestamp_secs(tally_session: &TallySession) -> Result<i64> {
     let Some(created_at) = &tally_session.created_at.clone() else {
-        return Err(Error::String(format!(
-            "Missing created_at for tally_session"
-        )));
+        return Err(Error::String(
+            "Missing created_at for tally_session".to_string(),
+        ));
     };
     Ok(created_at.timestamp())
 }
@@ -681,6 +685,18 @@ pub fn clean_tally_sheets(
         .collect::<Result<Vec<TallySheet>>>()
 }
 
+type PlaintextTallyDataBundle = (
+    Vec<AreaContestDataType>,
+    i64,
+    bool,
+    TallyCeremonyStatus,
+    Option<Vec<i64>>,
+    Vec<ElectionCastVotes>,
+    Vec<TallySheet>,
+    ElectionEvent,
+    TallySession,
+);
+
 #[instrument(skip_all, err)]
 async fn map_plaintext_data(
     hasura_transaction: &Transaction<'_>,
@@ -694,19 +710,7 @@ async fn map_plaintext_data(
     tally_session_execution: TallySessionExecution,
     tally_session_contest: Vec<TallySessionContest>,
     ballot_styles: Vec<BallotStyleHasura>,
-) -> Result<
-    Option<(
-        Vec<AreaContestDataType>,
-        i64,
-        bool,
-        TallyCeremonyStatus,
-        Option<Vec<i64>>,
-        Vec<ElectionCastVotes>,
-        Vec<TallySheet>,
-        ElectionEvent,
-        TallySession,
-    )>,
-> {
+) -> Result<Option<PlaintextTallyDataBundle>> {
     // fetch election_event
     let Ok(election_event) =
         get_election_event_by_id(hasura_transaction, &tenant_id, &election_event_id).await
@@ -1466,7 +1470,9 @@ pub async fn execute_tally_session(
             tenant_id, election_event_id, tally_session_id
         ),
         Uuid::new_v4().to_string(),
-        ISO8601::now() + Duration::seconds(120),
+        ISO8601::now()
+            .checked_add_signed(Duration::seconds(120))
+            .expect("tally session lock expiry overflow"),
     )
     .await
     else {

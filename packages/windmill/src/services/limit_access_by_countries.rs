@@ -39,10 +39,10 @@ fn create_limit_ip_by_countries_rule_format(
         voting_portal_keycloak_url
     );
 
-    let login_registration_rule_expression = format!(
+    let login_registration_rule_expression =
         "ends_with(http.request.uri.path, \"/protocol/openid-connect/registrations\")
         or ends_with(http.request.uri.path, \"/login-actions/registration\")"
-    );
+            .to_string();
 
     let rule_expression_enroll = format!(
         "starts_with(http.request.uri.path, \"/realms/tenant-{}-event-\") and ends_with(http.request.uri.path, \"/protocol/openid-connect/registrations\") and http.request.uri.query contains \"client_id=voting-portal\"",

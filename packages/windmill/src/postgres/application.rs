@@ -319,39 +319,39 @@ pub async fn get_applications(
         &parsed_election_event_id,
     ];
 
-    let mut param_index = 4;
+    let mut param_index: i32 = 4;
     let status;
     let verification_type;
     if let Some(filters) = filters {
         query.push_str(format!(" AND status = ${}", param_index).as_str());
         status = filters.clone().status.to_string();
         params.push(&status);
-        param_index += 1;
+        param_index = param_index.checked_add(1).expect("param_index overflow");
 
         if filters.verification_type.is_some() {
-            query.push_str(format!(" AND verification_type = ${}", param_index).as_str());
+            query.push_str(format!(" AND verification_type = ${param_index}").as_str());
             verification_type = filters
                 .verification_type
                 .clone()
                 .ok_or(anyhow!("Empty application type"))?
                 .to_string();
             params.push(&verification_type);
-            param_index += 1;
+            param_index = param_index.checked_add(1).expect("param_index overflow");
         }
     }
 
     query.push_str(" ORDER BY created_at ASC, id ASC");
-    let lim;
+    let lim: i64;
     if let Some(limit) = limit {
-        query.push_str(&format!(" LIMIT ${}", param_index));
-        lim = limit.clone();
+        query.push_str(&format!(" LIMIT ${param_index}"));
+        lim = limit;
         params.push(&lim);
-        param_index += 1;
+        param_index = param_index.checked_add(1).expect("param_index overflow");
     }
-    let off;
+    let off: i64;
     if let Some(offset) = offset {
-        query.push_str(&format!(" OFFSET ${}", param_index));
-        off = offset.clone();
+        query.push_str(&format!(" OFFSET ${param_index}"));
+        off = offset;
         params.push(&off);
     }
 
@@ -377,7 +377,12 @@ pub async fn get_applications(
     let last_offset = if results.is_empty() {
         None
     } else {
-        Some(offset.unwrap_or(0) + results.len() as i64)
+        Some(
+            offset
+                .unwrap_or(0)
+                .checked_add(results.len() as i64)
+                .expect("last_offset overflow"),
+        )
     };
 
     Ok((results, last_offset))
@@ -392,11 +397,13 @@ pub async fn count_applications(
     filters: Option<&EnrollmentFilters>,
     role: Option<&str>,
 ) -> Result<i64> {
-    let mut current_param_place = 3;
+    let mut current_param_place: i32 = 3;
     let area_clause = match area_id {
         Some(area_id) => {
-            current_param_place += 1;
-            format!("AND area_id = $3 ")
+            current_param_place = current_param_place
+                .checked_add(1)
+                .expect("current_param_place overflow");
+            "AND area_id = $3 ".to_string()
         }
         None => "".to_string(),
     };
@@ -443,7 +450,9 @@ pub async fn count_applications(
         ));
         // Push the actual String, not a reference
         params.push(&role_json); // Now `role_json` is moved into `params`, not borrowed
-        current_param_place += 1;
+        current_param_place = current_param_place
+            .checked_add(1)
+            .expect("current_param_place overflow");
     }
 
     // Apply filters if provided
@@ -454,7 +463,9 @@ pub async fn count_applications(
         query.push_str(&format!(" AND status = ${place}"));
         status = filters.clone().status.to_string();
         params.push(&status);
-        current_param_place += 1;
+        current_param_place = current_param_place
+            .checked_add(1)
+            .expect("current_param_place overflow");
 
         if filters.verification_type.is_some() {
             let place = current_param_place.to_string();

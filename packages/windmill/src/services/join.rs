@@ -106,15 +106,21 @@ pub fn merge_join_csv(
         match ballot_voter_id.cmp(voter_id) {
             Ordering::Less => {
                 // If the ballot has no voter.
-                ballots_without_voter += 1;
+                ballots_without_voter = ballots_without_voter
+                    .checked_add(1)
+                    .expect("ballots_without_voter overflow");
                 // Advance ballots file.
                 ballots_record = ballots_iterator.next();
-                casted_ballots += 1;
+                casted_ballots = casted_ballots
+                    .checked_add(1)
+                    .expect("casted_ballots overflow");
             }
             Ordering::Greater => {
                 // Advance voters file.
                 voters_record = voters_iterator.next();
-                elegible_voters += 1;
+                elegible_voters = elegible_voters
+                    .checked_add(1)
+                    .expect("elegible_voters overflow");
             }
             Ordering::Equal => {
                 // Match found.
@@ -139,22 +145,36 @@ pub fn merge_join_csv(
                 voters_record = voters_iterator.next();
 
                 // Count the voter's ballot (1) + all their delegated ballots.
-                casted_ballots += 1 + (delegate_count as u64);
-                elegible_voters += 1;
+                let delegate_u64: u64 = delegate_count.try_into().expect("delegate count overflow");
+                let ballots_added = 1u64
+                    .checked_add(delegate_u64)
+                    .expect("cast ballot count overflow");
+                casted_ballots = casted_ballots
+                    .checked_add(ballots_added)
+                    .expect("casted_ballots overflow");
+                elegible_voters = elegible_voters
+                    .checked_add(1)
+                    .expect("elegible_voters overflow");
             }
         }
     }
 
     // Count the rest of the voters
     while voters_record.is_some() {
-        elegible_voters += 1;
+        elegible_voters = elegible_voters
+            .checked_add(1)
+            .expect("elegible_voters overflow");
         voters_record = voters_iterator.next();
     }
 
     // Count the rest of the ballots
     while ballots_record.is_some() {
-        casted_ballots += 1;
-        ballots_without_voter += 1;
+        casted_ballots = casted_ballots
+            .checked_add(1)
+            .expect("casted_ballots overflow");
+        ballots_without_voter = ballots_without_voter
+            .checked_add(1)
+            .expect("ballots_without_voter overflow");
         ballots_record = ballots_iterator.next();
     }
 

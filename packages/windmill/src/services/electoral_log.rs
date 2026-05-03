@@ -58,15 +58,13 @@ pub struct ElectoralLog {
 }
 
 pub fn flatten_election_ids(election_ids: Option<Vec<String>>) -> Option<String> {
-    election_ids
-        .map(|ids| {
-            if ids.len() == 1 {
-                Some(ids[0].clone())
-            } else {
-                None
-            }
-        })
-        .flatten()
+    election_ids.and_then(|ids| {
+        if ids.len() == 1 {
+            Some(ids[0].clone())
+        } else {
+            None
+        }
+    })
 }
 
 impl ElectoralLog {
@@ -947,7 +945,9 @@ impl GetElectoralLogBody {
                         let datetime = ISO8601::to_date_utc(value)
                             .map_err(|err| anyhow!("Failed to parse timestamp: {:?}", err))?;
                         let ts: i64 = datetime.timestamp();
-                        let ts_end: i64 = ts + 60; // Search along that minute, the second is not specified by the front.
+                        let ts_end: i64 = ts
+                            .checked_add(60)
+                            .expect("timestamp search end overflow"); // Search along that minute; seconds are not specified by the client.
                         let param_name_end = format!("{param_name}_end");
                         where_clauses.push(format!("{field} >= @{} AND {field} < @{}", param_name, param_name_end));
                         params.push(create_named_param(param_name, Value::Ts(ts)));
@@ -1122,11 +1122,11 @@ impl ElectoralLogRow {
     }
 
     pub fn user_id(&self) -> Option<&str> {
-        self.user_id.as_ref().map(|s| s.as_str())
+        self.user_id.as_deref()
     }
 
     pub fn username(&self) -> Option<&str> {
-        self.username.as_ref().map(|s| s.as_str())
+        self.username.as_deref()
     }
 
     pub fn statement_head_data(&self) -> Result<StatementHeadDataString> {
@@ -1396,7 +1396,7 @@ pub async fn list_cast_vote_messages(
     username: &str,
 ) -> Result<CastVoteMessagesOutput> {
     ensure!(
-        ballot_id_filter.chars().count() % 2 == 0 && ballot_id_filter.is_ascii(),
+        ballot_id_filter.chars().count().is_multiple_of(2) && ballot_id_filter.is_ascii(),
         "Incorrect ballot_id, the length must be an even number of characters"
     );
     // The limits are used to cut the output after filtering the ballot id.
@@ -1460,7 +1460,9 @@ pub async fn list_cast_vote_messages(
                 break;
             }
         }
-        offset += limit;
+        offset = offset
+            .checked_add(limit)
+            .expect("electoral log pagination offset overflow");
     }
 
     Ok(CastVoteMessagesOutput { list, total })

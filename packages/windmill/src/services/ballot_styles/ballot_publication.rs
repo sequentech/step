@@ -105,7 +105,7 @@ pub async fn update_publish_ballot(
     .await?
     .with_context(|| "Can't find ballot publication")?;
 
-    if ballot_publication.is_generated.unwrap_or(false) == false {
+    if !ballot_publication.is_generated.unwrap_or(false) {
         return Err(anyhow!(
             "Ballot publication not generated yet, can't publish."
         ));
@@ -227,7 +227,7 @@ pub async fn get_publication_json(
 
     let val_arr: Vec<Value> = ballot_style_strings
         .iter()
-        .map(|el| el.clone().map(|val| deserialize_str(&val).ok()).flatten())
+        .map(|el| el.clone().and_then(|val| deserialize_str(&val).ok()))
         .filter(|el| el.is_some())
         .map(|el| el.ok_or(anyhow!("Empty ballot style!")))
         .collect::<Result<Vec<_>>>()?;
@@ -270,7 +270,7 @@ pub async fn get_ballot_publication_diff(
             hasura_transaction,
             &tenant_id,
             &election_event_id,
-            ballot_publication.created_at.clone(),
+            ballot_publication.created_at,
             &election_id,
         )
         .await?
@@ -288,7 +288,7 @@ pub async fn get_ballot_publication_diff(
             hasura_transaction,
             &tenant_id,
             &election_event_id,
-            ballot_publication.created_at.clone(),
+            ballot_publication.created_at,
         )
         .await?
         .map(|pub_data| pub_data.id)

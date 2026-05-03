@@ -143,13 +143,10 @@ pub async fn get_string_or_null_item(
 
 #[instrument(err, skip_all)]
 pub async fn get_opt_date(record: &StringRecord, index: usize) -> Result<Option<DateTime<Local>>> {
-    let item = record
-        .get(index)
-        .map(|s| {
-            let s = s.trim_matches('"');
-            ISO8601::to_date(s).ok()
-        })
-        .flatten();
+    let item = record.get(index).and_then(|s| {
+        let s = s.trim_matches('"');
+        ISO8601::to_date(s).ok()
+    });
     Ok(item)
 }
 

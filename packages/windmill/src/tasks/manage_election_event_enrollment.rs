@@ -150,7 +150,7 @@ pub async fn manage_election_event_enrollment_wrapped(
     update_keycloak_enrollment(
         scheduled_event.tenant_id.clone(),
         scheduled_event.election_event_id.clone(),
-        enable_enrollment.clone(),
+        enable_enrollment,
     )
     .await?;
 

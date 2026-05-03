@@ -473,18 +473,17 @@ pub async fn try_insert_cast_vote(
     }
 }
 
+type DeserializedCastVoteHashes = (
+    PseudonymHash,
+    CastVoteHash,
+    Option<(StrandSignaturePk, StrandSignature)>,
+);
+
 #[instrument(skip(input), err)]
 pub fn deserialize_and_check_ballot(
     input: &InsertCastVoteInput,
     voter_id: &str,
-) -> Result<
-    (
-        PseudonymHash,
-        CastVoteHash,
-        Option<(StrandSignaturePk, StrandSignature)>,
-    ),
-    CastVoteError,
-> {
+) -> Result<DeserializedCastVoteHashes, CastVoteError> {
     let signed_hashable_ballot: SignedHashableBallot = deserialize_str(&input.content)
         .map_err(|e| CastVoteError::DeserializeBallotFailed(e.to_string()))?;
 
@@ -545,14 +544,7 @@ pub fn deserialize_and_check_ballot(
 pub fn deserialize_and_check_multi_ballot(
     input: &InsertCastVoteInput,
     voter_id: &str,
-) -> Result<
-    (
-        PseudonymHash,
-        CastVoteHash,
-        Option<(StrandSignaturePk, StrandSignature)>,
-    ),
-    CastVoteError,
-> {
+) -> Result<DeserializedCastVoteHashes, CastVoteError> {
     let signed_hashable_multi_ballot: SignedHashableMultiBallot =
         deserialize_str(&input.content)
             .map_err(|e| CastVoteError::DeserializeBallotFailed(e.to_string()))?;
@@ -792,8 +784,7 @@ async fn check_status(
     let election_presentation: ElectionPresentation = election
         .presentation
         .clone()
-        .map(|value| deserialize_value(value).ok())
-        .flatten()
+        .and_then(|value| deserialize_value(value).ok())
         .unwrap_or(Default::default());
 
     let scheduled_events =
@@ -811,7 +802,7 @@ async fn check_status(
     )
     .unwrap_or_default();
 
-    if VotingStatusChannel::ONLINE != voting_channel.clone() {
+    if VotingStatusChannel::ONLINE != voting_channel {
         dates.end_date = None;
     }
 
@@ -877,7 +868,9 @@ async fn check_status(
 
     // We can only calculate grace period if there's a close date
     if let Some(close_date_esq_event) = close_date_esq_event_opt {
-        let close_date_plus_grace_period = close_date_esq_event + grace_period_duration;
+        let close_date_plus_grace_period = close_date_esq_event
+            .checked_add_signed(grace_period_duration)
+            .expect("close date plus grace period overflow");
 
         if apply_grace_period {
             // a voter cannot cast a vote after the grace period or if the voter
@@ -928,9 +921,10 @@ async fn check_status(
 
         let allow_grace_period_voting = match last_stopped_at {
             Some(close_date) => {
-                apply_grace_period
-                    && (now < (close_date + grace_period_duration))
-                    && auth_time_local < close_date
+                let close_plus_grace = close_date
+                    .checked_add_signed(grace_period_duration)
+                    .expect("close date plus grace period overflow");
+                apply_grace_period && now < close_plus_grace && auth_time_local < close_date
             }
             None => false,
         };

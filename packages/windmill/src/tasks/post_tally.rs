@@ -65,8 +65,7 @@ pub async fn download_sqlite_database(
         } else {
             return Err(anyhow!(
             "Could not recover documents from tally session execution with id {tally_session_id}"
-        )
-            .into());
+        ));
         };
 
     let sqlite_database_document_id = if let Some(id) = documents.sqlite {
@@ -75,7 +74,7 @@ pub async fn download_sqlite_database(
         return Err(anyhow!(
             "Could not recover sqlite database from tally session execution with id {tally_session_id}"
         )
-        .into());
+        );
     };
 
     let document = get_document(
@@ -389,7 +388,9 @@ pub async fn post_tally_task(
             tenant_id, election_event_id, tally_session_id
         ),
         Uuid::new_v4().to_string(),
-        ISO8601::now() + Duration::seconds(120),
+        ISO8601::now()
+            .checked_add_signed(Duration::seconds(120))
+            .expect("post_tally lock expiry overflow"),
     )
     .await
     else {

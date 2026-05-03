@@ -68,8 +68,7 @@ pub async fn upsert_areas_task(
         };
         let parent_id: Option<String> = record
             .get(1)
-            .map(|parent_name| areas_name_map.get(parent_name).map(|val| val.id.clone()))
-            .flatten();
+            .and_then(|parent_name| areas_name_map.get(parent_name).map(|val| val.id.clone()));
         let mut new_area = found_area_by_name.clone();
         new_area.parent_id = parent_id;
         areas_to_modify.push(new_area);

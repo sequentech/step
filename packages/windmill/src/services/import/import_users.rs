@@ -103,10 +103,10 @@ fn hash_password(password: &String, salt: &[u8]) -> Result<String> {
  *  - group_name: string. Example "voter"
  *  - password: string: Example "secret-password"
  */
+type CopyFromQueryParts = (String, String, String, Vec<String>, Vec<String>, Vec<Type>);
+
 #[instrument(ret)]
-fn get_copy_from_query(
-    headers: &StringRecord,
-) -> anyhow::Result<(String, String, String, Vec<String>, Vec<String>, Vec<Type>)> {
+fn get_copy_from_query(headers: &StringRecord) -> anyhow::Result<CopyFromQueryParts> {
     let random_number: u64 = rand::random();
 
     let temp_table_name = format!("temp_voters_{}", random_number);

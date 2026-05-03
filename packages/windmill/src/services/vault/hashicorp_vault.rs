@@ -69,11 +69,7 @@ impl Vault for HashiCorpVault {
         let text = unwrapped.text().await?;
         info!("text: {}", text);
         let read: VaultRead = deserialize_str(&text)?;
-        let value = if let Some(v) = read.data.data {
-            Some(v)
-        } else {
-            read.data.value.map(|v| v)
-        };
+        let value = read.data.data.or(read.data.value);
         Ok(value)
     }
 

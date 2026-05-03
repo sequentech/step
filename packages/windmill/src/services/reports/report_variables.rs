@@ -154,7 +154,7 @@ pub async fn generate_election_area_votes_data(
     if let Some(result) = area_results {
         let total_ballots = result.total_votes;
         let voters_turnout = if let (Some(registered_voters), Some(total_ballots)) =
-            (registered_voters.clone(), total_ballots)
+            (registered_voters, total_ballots)
         {
             calc_voters_turnout(total_ballots, registered_voters)?
         } else {

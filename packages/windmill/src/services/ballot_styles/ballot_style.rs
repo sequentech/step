@@ -247,10 +247,13 @@ pub async fn update_election_event_ballot_styles(
     election_event_id: &str,
     ballot_publication_id: &str,
 ) -> AnyhowResult<()> {
+    let lock_expires = ISO8601::now()
+        .checked_add_signed(Duration::seconds(60))
+        .expect("lock expiration overflow");
     let lock = PgLock::acquire(
         format!("create_ballot_style-{}-{}", tenant_id, election_event_id),
         Uuid::new_v4().to_string(),
-        ISO8601::now() + Duration::seconds(60),
+        lock_expires,
     )
     .await?;
     let mut hasura_db_client: DbClient = get_hasura_pool()

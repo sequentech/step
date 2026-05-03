@@ -41,6 +41,18 @@ pub const VALIDATE_ID_ATTR_NAME: &str = "sequent.read-only.id-card-number-valida
 pub const DELEGATE_TO_ATTR_NAME: &str = "delegate-vote-to";
 pub const VALIDATE_ID_REGISTERED_VOTER: &str = "VERIFIED";
 
+#[inline]
+fn bump_sql_param_index(n: i32, delta: i32) -> i32 {
+    n.checked_add(delta).expect("SQL parameter index overflow")
+}
+
+#[inline]
+fn sql_params_bound_count(next_param_number: i32) -> i32 {
+    next_param_number
+        .checked_sub(1)
+        .expect("SQL parameter count underflow")
+}
+
 #[instrument(skip(hasura_transaction), err)]
 async fn get_area_ids(
     hasura_transaction: &Transaction<'_>,
@@ -99,9 +111,8 @@ async fn get_area_ids(
             let area_ids: Vec<String> = rows
                 .into_iter()
                 .map(|row| -> Result<String> {
-                    Ok(row
-                        .try_get::<&str, String>("id")
-                        .map_err(|err| anyhow!("Error getting the area id of a row: {}", err))?)
+                    row.try_get::<&str, String>("id")
+                        .map_err(|err| anyhow!("Error getting the area id of a row: {}", err))
                 })
                 .collect::<Result<Vec<String>>>()
                 .map_err(|err| anyhow!("Error getting the areas ids: {}", err))?;
@@ -276,21 +287,21 @@ impl FilterOption {
                     format!(
                         r#"(${param_number}::VARCHAR IS NULL OR UNACCENT({col_name}) ILIKE ${param_number}){operator} "#,
                     ),
-                    Some(format!("%{}%", pattern)),
+                    Some(format!("%{pattern}%")),
                 )
             }
             Self::IsEqualNormalized(pattern) => (
                 format!(
                     r#"(normalize_text({col_name}) = normalize_text(${param_number})){operator} "#,
                 ),
-                Some(format!("{}", pattern)),
+                Some(pattern.to_string()),
             ),
 
             Self::IsNotLike(pattern) => (
                 format!(
                     r#"({col_name} IS NULL OR {col_name} NOT ILIKE ${param_number}){operator} "#,
                 ),
-                Some(format!("%{}%", pattern)),
+                Some(format!("%{pattern}%")),
             ),
             Self::IsEqual(pattern) => (
                 format!(r#"({col_name} = ${param_number}){operator} "#,),
@@ -507,7 +518,7 @@ pub async fn count_keycloak_users(
             );
             filters_clause.push_str(&clause);
             if let Some(param) = param {
-                next_param_number += 1;
+                next_param_number = bump_sql_param_index(next_param_number, 1);
                 filter_params.push(param.to_string());
             }
         }
@@ -528,35 +539,38 @@ pub async fn count_keycloak_users(
     .await?;
     if let Some(area_ids) = &area_ids {
         params.push(area_ids);
-        next_param_number += 1;
+        next_param_number = bump_sql_param_index(next_param_number, 1);
     }
 
     // Handle optional authorized election alias filtering.
     let (election_alias, authorized_alias_join_clause, authorized_alias_where_clause) = match filter
         .authorized_to_election_alias
     {
-        Some(election_alias) => (
-            Some(election_alias),
-            format!(
-                r#"
+        Some(election_alias) => {
+            let authorized_value_param = bump_sql_param_index(next_param_number, 1);
+            (
+                Some(election_alias),
+                format!(
+                    r#"
                     LEFT JOIN 
                         user_attribute AS authorization_attr ON u.id = authorization_attr.user_id AND authorization_attr.name = ${}
                     "#,
-                next_param_number
-            ),
-            format!(
-                r#"
+                    next_param_number
+                ),
+                format!(
+                    r#"
                     AND (authorization_attr.value = ${} OR authorization_attr.user_id IS NULL)
                     "#,
-                next_param_number + 1
-            ),
-        ),
+                    authorized_value_param
+                ),
+            )
+        }
         None => (None, String::new(), String::new()),
     };
     if election_alias.is_some() {
         params.push(&AUTHORIZED_ELECTION_IDS_NAME);
         params.push(&election_alias);
-        next_param_number += 2;
+        next_param_number = bump_sql_param_index(next_param_number, 2);
     }
 
     // Append boolean conditions.
@@ -569,6 +583,7 @@ pub async fn count_keycloak_users(
     let mut dynamic_attr_params: Vec<Option<String>> = Vec::new();
     if let Some(attributes) = &filter.attributes {
         for (key, value) in attributes {
+            let attr_value_param = bump_sql_param_index(next_param_number, 1);
             dynamic_attr_conditions.push(format!(
                 r#"EXISTS (
                     SELECT 1 FROM user_attribute ua 
@@ -576,12 +591,11 @@ pub async fn count_keycloak_users(
                       AND ua.name = ${} 
                       AND UNACCENT(ua.value) ILIKE ${}
                 )"#,
-                next_param_number,
-                next_param_number + 1
+                next_param_number, attr_value_param
             ));
             dynamic_attr_params.push(Some(key.trim_matches('\'').to_string()));
             dynamic_attr_params.push(Some(format!("%{value}%")));
-            next_param_number += 2;
+            next_param_number = bump_sql_param_index(next_param_number, 2);
         }
     }
     for param in &dynamic_attr_params {
@@ -658,7 +672,7 @@ pub async fn list_users(
             );
             filters_clause.push_str(&clause);
             if let Some(param) = param {
-                next_param_number += 1;
+                next_param_number = bump_sql_param_index(next_param_number, 1);
                 filter_params.push(param.to_string());
             }
         }
@@ -680,37 +694,40 @@ pub async fn list_users(
 
     if let Some(area_ids) = &area_ids {
         params.push(area_ids);
-        next_param_number += 1;
+        next_param_number = bump_sql_param_index(next_param_number, 1);
     }
 
     let (election_alias, authorized_alias_join_clause, authorized_alias_where_clause) = match filter
         .authorized_to_election_alias
     {
-        Some(election_alias) => (
-            Some(election_alias),
-            format!(
-                r#"
+        Some(election_alias) => {
+            let authorized_value_param = bump_sql_param_index(next_param_number, 1);
+            (
+                Some(election_alias),
+                format!(
+                    r#"
             LEFT JOIN 
                 user_attribute AS authorization_attr ON u.id = authorization_attr.user_id AND authorization_attr.name = ${}
             "#,
-                next_param_number
-            ),
-            format!(
-                r#"
+                    next_param_number
+                ),
+                format!(
+                    r#"
             AND (
                 authorization_attr.value = ${} OR authorization_attr.user_id IS NULL
             )
             "#,
-                next_param_number + 1
-            ),
-        ),
+                    authorized_value_param
+                ),
+            )
+        }
         None => (None, "".to_string(), "".to_string()),
     };
 
     if election_alias.is_some() {
         params.push(&AUTHORIZED_ELECTION_IDS_NAME);
         params.push(&election_alias);
-        next_param_number += 2;
+        next_param_number = bump_sql_param_index(next_param_number, 2);
     }
 
     let enabled_condition = get_query_bool_condition("enabled", filter.enabled);
@@ -722,16 +739,17 @@ pub async fn list_users(
 
     if let Some(attributes) = &filter.attributes {
         for (key, value) in attributes {
+            let attr_value_param = bump_sql_param_index(next_param_number, 1);
             dynamic_attr_conditions.push(format!(
                  r#"EXISTS (SELECT 1 FROM user_attribute ua WHERE ua.user_id = u.id AND ua.name = ${} AND UNACCENT(ua.value) ILIKE ${})"#,
                 next_param_number,
-                next_param_number + 1
+                attr_value_param
             ));
             let val = Some(format!("%{value}%"));
             let formatted_keyy = key.trim_matches('\'').to_string();
             dynamic_attr_params.push(Some(formatted_keyy.clone()));
             dynamic_attr_params.push(val.clone());
-            next_param_number += 2;
+            next_param_number = bump_sql_param_index(next_param_number, 2);
         }
     }
     for value in &dynamic_attr_params {
@@ -751,13 +769,16 @@ pub async fn list_users(
 
     if field_param.is_some() {
         sort_params.push(field_param);
-        next_param_number += 1;
+        next_param_number = bump_sql_param_index(next_param_number, 1);
     }
     for value in &sort_params {
         params.push(value);
     }
 
-    debug!("parameters count: {}", next_param_number - 1);
+    debug!(
+        "parameters count: {}",
+        sql_params_bound_count(next_param_number)
+    );
     debug!("params {:?}", params);
     let statement_str = format!(
         r#"
@@ -942,7 +963,7 @@ pub async fn list_users_ids(
             );
             filters_clause.push_str(&clause);
             if let Some(param) = param {
-                next_param_number += 1;
+                next_param_number = bump_sql_param_index(next_param_number, 1);
                 filter_params.push(param.to_string());
             }
         }
@@ -963,37 +984,40 @@ pub async fn list_users_ids(
 
     if let Some(area_ids) = &area_ids {
         params.push(area_ids);
-        next_param_number += 1;
+        next_param_number = bump_sql_param_index(next_param_number, 1);
     }
 
     let (election_alias, authorized_alias_join_clause, authorized_alias_where_clause) = match filter
         .authorized_to_election_alias
     {
-        Some(election_alias) => (
-            Some(election_alias),
-            format!(
-                r#"
+        Some(election_alias) => {
+            let authorized_value_param = bump_sql_param_index(next_param_number, 1);
+            (
+                Some(election_alias),
+                format!(
+                    r#"
             LEFT JOIN 
                 user_attribute AS authorization_attr ON u.id = authorization_attr.user_id AND authorization_attr.name = ${}
             "#,
-                next_param_number
-            ),
-            format!(
-                r#"
+                    next_param_number
+                ),
+                format!(
+                    r#"
             AND (
                 authorization_attr.value = ${} OR authorization_attr.user_id IS NULL
             )
             "#,
-                next_param_number + 1
-            ),
-        ),
+                    authorized_value_param
+                ),
+            )
+        }
         None => (None, "".to_string(), "".to_string()),
     };
 
     if election_alias.is_some() {
         params.push(&AUTHORIZED_ELECTION_IDS_NAME);
         params.push(&election_alias);
-        next_param_number += 2;
+        next_param_number = bump_sql_param_index(next_param_number, 2);
     }
 
     let enabled_condition = get_query_bool_condition("enabled", filter.enabled);
@@ -1005,16 +1029,17 @@ pub async fn list_users_ids(
 
     if let Some(attributes) = &filter.attributes {
         for (key, value) in attributes {
+            let attr_value_param = bump_sql_param_index(next_param_number, 1);
             dynamic_attr_conditions.push(format!(
                  r#"EXISTS (SELECT 1 FROM user_attribute ua WHERE ua.user_id = u.id AND ua.name = ${} AND UNACCENT(ua.value) ILIKE ${})"#,
                 next_param_number,
-                next_param_number + 1
+                attr_value_param
             ));
             let val = Some(format!("%{value}%"));
             let formatted_keyy = key.trim_matches('\'').to_string();
             dynamic_attr_params.push(Some(formatted_keyy.clone()));
             dynamic_attr_params.push(val.clone());
-            next_param_number += 2;
+            next_param_number = bump_sql_param_index(next_param_number, 2);
         }
     }
     for value in &dynamic_attr_params {
@@ -1034,13 +1059,16 @@ pub async fn list_users_ids(
 
     if field_param.is_some() {
         sort_params.push(field_param);
-        next_param_number += 1;
+        next_param_number = bump_sql_param_index(next_param_number, 1);
     }
     for value in &sort_params {
         params.push(value);
     }
 
-    debug!("parameters count: {}", next_param_number - 1);
+    debug!(
+        "parameters count: {}",
+        sql_params_bound_count(next_param_number)
+    );
     debug!("params {:?}", params);
     let statement_str = format!(
         r#"
@@ -1100,7 +1128,7 @@ pub async fn list_users_with_vote_info(
         .ok_or(anyhow!("Election event id is empty"))?;
     let election_id = filter.election_id.clone();
 
-    let filter_by_has_voted = filter.has_voted.clone();
+    let filter_by_has_voted = filter.has_voted;
     let (mut users, users_count) = list_users(hasura_transaction, keycloak_transaction, filter)
         .await
         .with_context(|| "Error listing users")?;
@@ -1126,8 +1154,7 @@ pub async fn count_keycloak_enabled_users(
 ) -> Result<i64> {
     let statement = keycloak_transaction
         .prepare(
-            format!(
-                r#"
+            r#"
                 SELECT
                     COUNT(DISTINCT u.id) AS total_users
                 FROM
@@ -1137,9 +1164,7 @@ pub async fn count_keycloak_enabled_users(
                 WHERE
                     ra.name = $1 AND 
                     u.enabled IS TRUE
-                "#
-            )
-            .as_str(),
+                "#,
         )
         .await?;
 
@@ -1202,7 +1227,7 @@ pub async fn lookup_users(
             );
             filters_clause.push_str(&clause);
             if let Some(param) = param {
-                next_param_number += 1;
+                next_param_number = bump_sql_param_index(next_param_number, 1);
                 filter_params.push(param.to_string());
             }
         }
@@ -1218,16 +1243,16 @@ pub async fn lookup_users(
 
     if let Some(attributes) = &filter.attributes {
         for (key, value) in attributes {
+            let attr_value_param = bump_sql_param_index(next_param_number, 1);
             dynamic_attr_conditions.push(format!(
                 r#"(ua.name = ${} AND normalize_text(ua.value) = normalize_text(${}))"#,
-                next_param_number,
-                next_param_number + 1
+                next_param_number, attr_value_param
             ));
             let val = Some(value.to_string());
             let formatted_keyy = key.trim_matches('\'').to_string();
             dynamic_attr_params.push(Some(formatted_keyy.clone()));
             dynamic_attr_params.push(val.clone());
-            next_param_number += 2;
+            next_param_number = bump_sql_param_index(next_param_number, 2);
         }
     }
     for value in &dynamic_attr_params {
@@ -1239,7 +1264,10 @@ pub async fn lookup_users(
         false => dynamic_attr_conditions.join(" OR "),
     };
 
-    debug!("parameters count: {}", next_param_number - 1);
+    debug!(
+        "parameters count: {}",
+        sql_params_bound_count(next_param_number)
+    );
     debug!("params {:?}", params);
 
     let statement_str = format!(
@@ -1357,18 +1385,33 @@ impl AttributesFilterOption {
     /// Return the sql condition to filter at the given column, to be used in the WHERE clause
     pub fn get_sql_filter_clause(&self, index: usize) -> String {
         let filter_option = self;
+        let name_param = index
+            .checked_sub(1)
+            .expect("attribute filter SQL name parameter index underflow");
         match filter_option.filter_by {
             AttributesFilterBy::IsLike => {
-                format!("EXISTS (SELECT 1 FROM user_attribute ua WHERE ua.user_id = u.id AND ua.name = ${} AND ua.value ILIKE ${})",index - 1,index)
+                format!(
+                    "EXISTS (SELECT 1 FROM user_attribute ua WHERE ua.user_id = u.id AND ua.name = ${} AND ua.value ILIKE ${})",
+                    name_param, index
+                )
             }
             AttributesFilterBy::IsEqual => {
-                format!("EXISTS (SELECT 1 FROM user_attribute ua WHERE ua.user_id = u.id AND ua.name = ${} AND ua.value = ${})",index -1, index)
+                format!(
+                    "EXISTS (SELECT 1 FROM user_attribute ua WHERE ua.user_id = u.id AND ua.name = ${} AND ua.value = ${})",
+                    name_param, index
+                )
             }
             AttributesFilterBy::NotExist => {
-                format!("NOT EXISTS (SELECT 1 FROM user_attribute ua WHERE ua.user_id = u.id AND ua.name = ${} AND ua.value = ${})",index -1, index)
+                format!(
+                    "NOT EXISTS (SELECT 1 FROM user_attribute ua WHERE ua.user_id = u.id AND ua.name = ${} AND ua.value = ${})",
+                    name_param, index
+                )
             }
             AttributesFilterBy::PartialLike => {
-                format!("EXISTS (SELECT 1 FROM user_attribute ua WHERE ua.user_id = u.id AND ua.name = ${} AND ua.value ILIKE '%' || ${} || '%')",index -1, index)
+                format!(
+                    "EXISTS (SELECT 1 FROM user_attribute ua WHERE ua.user_id = u.id AND ua.name = ${} AND ua.value ILIKE '%' || ${} || '%')",
+                    name_param, index
+                )
             }
         }
     }
@@ -1385,7 +1428,11 @@ pub async fn count_keycloak_enabled_users_by_attrs(
 
     if let Some(attributes) = &attrs {
         for (attr_name, attr_value) in attributes.iter() {
-            let clause = attr_value.get_sql_filter_clause(params.len() + 2);
+            let next_index = params
+                .len()
+                .checked_add(2)
+                .expect("attribute filter parameter index overflow");
+            let clause = attr_value.get_sql_filter_clause(next_index);
             params.push(attr_name);
             params.push(&attr_value.value);
 
@@ -1485,7 +1532,7 @@ pub async fn get_users_by_username(
     let params: Vec<&(dyn ToSql + Sync)> = vec![&realm, &username];
 
     let statement = keycloak_transaction
-        .prepare(&format!(
+        .prepare(
             r#"
         SELECT 
             u.id
@@ -1504,7 +1551,7 @@ pub async fn get_users_by_username(
             ra.name = $1
             AND u.username = $2
         "#,
-        ))
+        )
         .await?;
 
     let rows: Vec<Row> = keycloak_transaction
@@ -1530,7 +1577,7 @@ pub async fn get_username_by_id(
     let params: Vec<&(dyn ToSql + Sync)> = vec![&realm, &user_id];
 
     let statement = keycloak_transaction
-        .prepare(&format!(
+        .prepare(
             r#"
         SELECT
             u.username
@@ -1549,7 +1596,7 @@ pub async fn get_username_by_id(
             ra.name = $1
             AND u.id = $2
         "#,
-        ))
+        )
         .await?;
 
     let rows: Vec<Row> = keycloak_transaction
@@ -1631,14 +1678,14 @@ pub async fn count_have_voted(
         let clause = format!("election_event_id = ${next_param_number}");
         filter_clauses.push(clause);
         params.push(Box::new(election_event_id_uuid));
-        next_param_number += 1;
+        next_param_number = bump_sql_param_index(next_param_number, 1);
     }
     if let Some(election_id_str) = &filter.election_id {
         let election_id_uuid = parse_uuid_v4(election_id_str)?;
         let clause = format!("election_id = ${next_param_number}");
         filter_clauses.push(clause);
         params.push(Box::new(election_id_uuid));
-        next_param_number += 1;
+        next_param_number = bump_sql_param_index(next_param_number, 1);
     }
     // If there are no filters, the WHERE clause would be empty and cause a SQL error.
     let filter_clause = if filter_clauses.is_empty() {
@@ -1718,7 +1765,7 @@ pub async fn list_users_has_voted(
 
         let mut batch_filter = filter.clone();
         batch_filter.offset = Some(fetch_offset);
-        batch_filter.limit = Some(batch_size as i32);
+        batch_filter.limit = Some(batch_size);
 
         let (mut voters, count_voters) =
             list_users_with_vote_info(hasura_transaction, keycloak_transaction, batch_filter)
@@ -1733,7 +1780,12 @@ pub async fn list_users_has_voted(
             break; // No more users available from the source.
         }
 
-        fetch_offset += fetched_count as i32;
+        let fetched_len: i32 = fetched_count
+            .try_into()
+            .expect("fetched user batch length exceeds i32");
+        fetch_offset = fetch_offset
+            .checked_add(fetched_len)
+            .expect("fetch_offset overflow");
 
         // Filter the batch by the `has_voted` criteria.
         if let Some(has_voted) = filter.has_voted {
@@ -1749,10 +1801,14 @@ pub async fn list_users_has_voted(
 
         // Process the filtered batch, skipping or collecting each user.
         for voter in voters {
-            matching_users_found += 1;
+            matching_users_found = matching_users_found
+                .checked_add(1)
+                .expect("matching_users_found overflow");
 
             if users_to_skip > 0 {
-                users_to_skip -= 1;
+                users_to_skip = users_to_skip
+                    .checked_sub(1)
+                    .expect("users_to_skip underflow");
                 continue; // Skip this user and move to the next.
             }
 

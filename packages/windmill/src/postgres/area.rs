@@ -335,8 +335,7 @@ pub async fn upsert_area_parents(
         let parent_id: Option<Uuid> = area
             .parent_id
             .clone()
-            .map(|parent_id| parse_uuid_v4(&parent_id).ok())
-            .flatten();
+            .and_then(|parent_id| parse_uuid_v4(&parent_id).ok());
 
         let rows: Vec<Row> = hasura_transaction
             .query(
@@ -385,8 +384,7 @@ pub async fn insert_areas(hasura_transaction: &Transaction<'_>, areas: &[Area]) 
         let parent_id: Option<Uuid> = area
             .parent_id
             .clone()
-            .map(|parent_id| parse_uuid_v4(&parent_id).ok())
-            .flatten();
+            .and_then(|parent_id| parse_uuid_v4(&parent_id).ok());
 
         let _rows: Vec<Row> = hasura_transaction
             .query(
@@ -579,17 +577,15 @@ pub async fn delete_area_contests(
     area_id: &str,
 ) -> Result<()> {
     // Delete existing area_contest rows for this area
-    let query: String = format!(
-        r#"
+    let query = r#"
             DELETE FROM sequent_backend.area_contest 
             WHERE tenant_id = $1 
             AND election_event_id = $2 
             AND area_id = $3;
-            "#
-    );
+            "#;
 
     // Now prepare the statement with the dynamically generated query
-    let statement = hasura_transaction.prepare(&query).await?;
+    let statement = hasura_transaction.prepare(query).await?;
 
     hasura_transaction
         .execute(
@@ -629,8 +625,7 @@ pub async fn update_area(hasura_transaction: &Transaction<'_>, area: Area) -> Re
     let parent_id: Option<Uuid> = area
         .parent_id
         .clone()
-        .map(|parent_id| parse_uuid_v4(&parent_id).ok())
-        .flatten();
+        .and_then(|parent_id| parse_uuid_v4(&parent_id).ok());
 
     let _rows: Vec<Row> = hasura_transaction
         .query(
@@ -670,8 +665,7 @@ pub async fn insert_area(hasura_transaction: &Transaction<'_>, area: Area) -> Re
     let parent_id: Option<Uuid> = area
         .parent_id
         .clone()
-        .map(|parent_id| parse_uuid_v4(&parent_id).ok())
-        .flatten();
+        .and_then(|parent_id| parse_uuid_v4(&parent_id).ok());
 
     let _rows: Vec<Row> = hasura_transaction
         .query(

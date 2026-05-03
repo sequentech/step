@@ -178,10 +178,16 @@ struct Metrics {
 fn update_metrics_unit(metrics_unit: &mut MetricsUnit, communication_method: &TemplateMethod) {
     match communication_method {
         TemplateMethod::EMAIL => {
-            metrics_unit.num_emails_sent += 1;
+            metrics_unit.num_emails_sent = metrics_unit
+                .num_emails_sent
+                .checked_add(1)
+                .expect("num_emails_sent overflow");
         }
         TemplateMethod::SMS => {
-            metrics_unit.num_sms_sent += 1;
+            metrics_unit.num_sms_sent = metrics_unit
+                .num_sms_sent
+                .checked_add(1)
+                .expect("num_sms_sent overflow");
         }
         TemplateMethod::DOCUMENT => {}
     };
@@ -235,10 +241,14 @@ async fn update_stats(
     election_event_id: &Option<String>,
     metrics: &Metrics,
 ) -> Result<()> {
-    let &Some(ref election_event_id) = election_event_id else {
+    let Some(election_event_id) = election_event_id else {
         return Ok(());
     };
-    let totals = metrics.election_event.num_emails_sent + metrics.election_event.num_sms_sent;
+    let totals = metrics
+        .election_event
+        .num_emails_sent
+        .checked_add(metrics.election_event.num_sms_sent)
+        .expect("election event metrics totals overflow");
     if totals > 0 {
         event!(Level::INFO, "updating election event statistics");
 
@@ -253,7 +263,10 @@ async fn update_stats(
         .with_context(|| "can't updated election event statistics")?;
     }
     for (election_id, election_metrics) in metrics.metrics_by_election_id.iter() {
-        let totals = election_metrics.num_emails_sent + election_metrics.num_sms_sent;
+        let totals = election_metrics
+            .num_emails_sent
+            .checked_add(election_metrics.num_sms_sent)
+            .expect("election metrics totals overflow");
         if totals > 0 {
             update_election_statistics(
                 hasura_transaction,
@@ -491,7 +504,10 @@ pub async fn send_template(
             );
         }
 
-        processed += TryInto::<i32>::try_into(users.len()).map_err(|err| anyhow!("{err}"))?;
+        let page_len: i32 = users.len().try_into().map_err(|err| anyhow!("{err}"))?;
+        processed = processed
+            .checked_add(page_len)
+            .expect("send_template processed count overflow");
 
         // update stats
         update_stats(

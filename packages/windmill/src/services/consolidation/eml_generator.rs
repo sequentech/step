@@ -74,7 +74,7 @@ pub trait GetMetrics {
 impl GetMetrics for ContestResult {
     #[instrument(skip_all, name = "ContestResult::get_metrics")]
     fn get_metrics(&self, registered_voters: i64) -> Vec<EMLCountMetric> {
-        let extended_metrics = self.extended_metrics.clone().unwrap_or_default();
+        let extended_metrics = self.extended_metrics.unwrap_or_default();
 
         vec![
             EMLCountMetric {
@@ -898,12 +898,12 @@ pub fn render_eml_file(
     let issue_date = generate_timestamp(
         Some(time_zone.clone()),
         Some(DateFormat::Custom(ISSUE_DATE_FORMAT.to_string())),
-        Some(date_time.clone()),
+        Some(date_time),
     );
     let official_status_date = generate_timestamp(
         Some(time_zone.clone()),
         Some(DateFormat::Custom(OFFICIAL_STATUS_DATE_FORMAT.to_string())),
-        Some(date_time.clone()),
+        Some(date_time),
     );
 
     let eml_file = EMLFile {
@@ -928,7 +928,7 @@ pub fn render_eml_file(
                 },
                 contests: reports
                     .iter()
-                    .map(|report| Ok(render_eml_contest(report, area_annotations)?))
+                    .map(|report| render_eml_contest(report, area_annotations))
                     .collect::<Result<Vec<_>>>()
                     .with_context(|| "Error rendering EML Contest")?,
             }],

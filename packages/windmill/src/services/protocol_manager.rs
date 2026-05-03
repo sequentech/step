@@ -308,7 +308,7 @@ pub fn generate_trustee_set<C: Ctx>(
                 .into_iter()
                 .position(|trustee| trustee == trustee_pk);
             match position {
-                Some(value) => value + 1,
+                Some(value) => value.checked_add(1).expect("trustee position overflow"),
                 None => NULL_TRUSTEE,
             }
         })

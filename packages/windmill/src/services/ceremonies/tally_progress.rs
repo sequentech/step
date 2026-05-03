@@ -23,7 +23,7 @@ fn get_session_ids_by_type(messages: &[Message], kind: StatementType) -> Vec<i64
         })
         .filter(|value| *value > -1)
         .collect();
-    plaintext_batch_ids.sort_by_key(|id| id.clone());
+    plaintext_batch_ids.sort_by_key(|id| *id);
     plaintext_batch_ids.dedup();
     plaintext_batch_ids
 }
@@ -90,7 +90,7 @@ pub async fn generate_tally_progress(
                     + (num_finished_contests as f64))
                 / (total as f64);
             // clamp values to 0-100
-            progress = progress.min(100.0).max(0.0);
+            progress = progress.clamp(0.0, 100.0);
             let new_status = if num_finished_contests >= total {
                 TallyElectionStatus::SUCCESS
             } else if num_decrypting_contests == 0 && num_mixing_contests > 0 {

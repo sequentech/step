@@ -122,8 +122,8 @@ pub async fn insert_ballots_messages(
             let board_name_clone = board_name.to_string();
             let protocol_manager_arc_clone = Arc::clone(&protocol_manager); // Clone the Arc
             let configuration_clone = configuration.clone(); // Assuming Configuration can be cloned
-            let public_key_hash_clone = public_key_hash.clone(); // Assuming PublicKeyHash can be cloned
-            let selected_trustees_clone = selected_trustees.clone();
+            let public_key_hash_clone = public_key_hash; // Assuming PublicKeyHash can be cloned
+            let selected_trustees_clone = selected_trustees;
             let election_ids_alias_clone = election_ids_alias.clone();
             let contest_encryption_policy_clone = contest_encryption_policy.clone();
             let realm_clone = realm.clone();
@@ -242,9 +242,9 @@ pub async fn insert_ballots_messages(
                         election_event_id: tally_session_contest.election_event_id.clone(),
                         area_id: tally_session_contest.area_id.clone(),
                         contest_id: tally_session_contest.contest_id.clone(),
-                        session_id: tally_session_contest.session_id.clone(),
-                        created_at: tally_session_contest.created_at.clone(),
-                        last_updated_at: tally_session_contest.last_updated_at.clone(),
+                        session_id: tally_session_contest.session_id,
+                        created_at: tally_session_contest.created_at,
+                        last_updated_at: tally_session_contest.last_updated_at,
                         labels: tally_session_contest.labels.clone(),
                         annotations: Some(annotations),
                         tally_session_id: tally_session_contest.tally_session_id.clone(),
@@ -293,7 +293,7 @@ pub async fn insert_ballots_messages(
                         );
 
                         let mut board = get_b3_pgsql_client().await?;
-                        let batch = tally_session_contest.session_id.clone() as BatchNumber;
+                        let batch = tally_session_contest.session_id as BatchNumber;
                         add_ballots_to_board(
                             &protocol_manager_arc_clone, // Use the Arc clone here
                             &mut board,
@@ -351,8 +351,7 @@ pub async fn get_elections_end_dates(
             let end_date = current_dates
                 .end_date
                 .clone()
-                .map(|val| ISO8601::to_date_utc(&val).ok())
-                .flatten();
+                .and_then(|val| ISO8601::to_date_utc(&val).ok());
             Ok((election.id, end_date))
         })
         .collect::<Result<HashMap<_, _>>>()

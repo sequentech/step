@@ -69,6 +69,8 @@ use tracing::{event, info, instrument, Level};
 use uuid::Uuid;
 use zip::read::ZipArchive;
 
+type ZipDocumentEntries = (Vec<(String, Vec<u8>)>, String);
+
 use super::import_users::import_users_file;
 use crate::postgres;
 use crate::postgres::area::insert_areas;
@@ -410,7 +412,7 @@ pub async fn insert_election_event_db(
             .encryption_protocol
             .clone()
             .unwrap_or("RSA256".to_string()),
-        is_audit: object.is_audit.clone(),
+        is_audit: object.is_audit,
         audit_election_event_id: object.audit_election_event_id.clone(),
         statistics: Some(json!({
             "num_emails_sent": 0,
@@ -694,7 +696,7 @@ pub async fn process_election_event_file(
                         /* execution_status */ keys_ceremony.execution_status,
                         keys_ceremony.name,
                         keys_ceremony.settings,
-                        keys_ceremony.is_default.clone().unwrap_or_default(),
+                        keys_ceremony.is_default.unwrap_or_default(),
                         keys_ceremony.permission_label.unwrap_or_default(),
                     )
                 })
@@ -796,7 +798,7 @@ pub async fn process_reports_file(
             tenant_id: tenant_id.clone(),
             election_id: match record.get(1) {
                 None => None,
-                Some(election_id) if election_id.is_empty() => None,
+                Some("") => None,
                 Some(election_id) => Some(
                     replacement_map
                         .get(election_id)
@@ -816,7 +818,7 @@ pub async fn process_reports_file(
                 .filter(|s| !s.is_empty()),
             cron_config: match record.get(4) {
                 None => None,
-                Some(cron_config_str) if cron_config_str.is_empty() => None,
+                Some("") => None,
                 Some(cron_config_str) => deserialize_str(cron_config_str).map_err(|err| {
                     anyhow!("Error parsing cron_config: {err:?}\nThe string: {cron_config_str}")
                 })?,
@@ -990,7 +992,7 @@ pub async fn process_s3_file(
         election_event_id,
         &new_file_name,
         Some(new_document_id.to_string()),
-        is_public.clone(),
+        is_public,
     )
     .await?;
 
@@ -1002,10 +1004,10 @@ pub async fn process_s3_file(
 pub async fn get_zip_entries(
     temp_file_path: NamedTempFile,
     document_type: &str,
-) -> Result<(Vec<(String, Vec<u8>)>, String)> {
+) -> Result<ZipDocumentEntries> {
     let (mut zip_entries, election_event_schema) =
         if document_type == "application/ezip" || matches_mime("zip", document_type) {
-            tokio::task::spawn_blocking(move || -> Result<(Vec<(String, Vec<u8>)>, String)> {
+            tokio::task::spawn_blocking(move || -> Result<ZipDocumentEntries> {
                 let file = File::open(&temp_file_path)?;
                 let mut zip = ZipArchive::new(file)?;
                 let mut entries: Vec<(String, Vec<u8>)> = Vec::new();
@@ -1087,12 +1089,9 @@ pub async fn process_document(
     let (zip_entries, file_election_event_schema) =
         get_zip_entries(temp_file_path, &document_type).await?;
 
-    let is_importing_keys = zip_entries.iter().any(|(file_name, _)| {
-        file_name.contains(&format!(
-            "{}",
-            EDocuments::PROTOCOL_MANAGER_KEYS.to_file_name()
-        ))
-    });
+    let is_importing_keys = zip_entries
+        .iter()
+        .any(|(file_name, _)| file_name.contains(EDocuments::PROTOCOL_MANAGER_KEYS.to_file_name()));
 
     let election_event_id_clone = election_event_id.clone();
 
@@ -1140,7 +1139,7 @@ pub async fn process_document(
 
             let mut cursor = Cursor::new(&mut file_contents[..]);
 
-            if file_name.contains(&format!("{}", EDocuments::ACTIVITY_LOGS.to_file_name())) {
+            if file_name.contains(EDocuments::ACTIVITY_LOGS.to_file_name()) {
                 let mut temp_file = NamedTempFile::new()
                     .context("Failed to create activity logs temporary file")?;
 
@@ -1157,7 +1156,7 @@ pub async fn process_document(
                 .context("Failed to import activity logs")?;
             }
 
-            if file_name.contains(&format!("{}", EDocuments::VOTERS.to_file_name())) {
+            if file_name.contains(EDocuments::VOTERS.to_file_name()) {
                 let mut temp_file = NamedTempFile::new()
                     .context("Failed to create activity logs temporary file")?;
                 io::copy(&mut cursor, &mut temp_file)
@@ -1176,7 +1175,7 @@ pub async fn process_document(
                 .context("Failed to import voters")?;
             }
 
-            if file_name.contains(&format!("{}", EDocuments::REPORTS.to_file_name())) {
+            if file_name.contains(EDocuments::REPORTS.to_file_name()) {
                 let mut temp_file =
                     NamedTempFile::new().context("Failed to create reports temporary file")?;
                 io::copy(&mut cursor, &mut temp_file)
@@ -1203,9 +1202,12 @@ pub async fn process_document(
                 }
 
                 // Write the file contents to a new file within this directory
-                let mut temp_file =
-                    generate_temp_file(folder_path[1], folder_path[folder_path.len() - 1])
-                        .context("Error generating temp file")?;
+                let file_leaf = folder_path
+                    .last()
+                    .copied()
+                    .ok_or_else(|| anyhow!("S3 import path has no file segment"))?;
+                let mut temp_file = generate_temp_file(folder_path[1], file_leaf)
+                    .context("Error generating temp file")?;
 
                 io::copy(&mut cursor, &mut temp_file)
                     .context("Failed to copy S3 contents to temporary file")?;
@@ -1227,9 +1229,12 @@ pub async fn process_document(
                 let folder_path: Vec<_> = file_name.split("/").collect();
 
                 // Write the file contents to a new file within this directory
-                let mut temp_file =
-                    generate_temp_file(folder_path[1], folder_path[folder_path.len() - 1])
-                        .context("Error generating temp file")?;
+                let file_leaf = folder_path
+                    .last()
+                    .copied()
+                    .ok_or_else(|| anyhow!("S3 import path has no file segment"))?;
+                let mut temp_file = generate_temp_file(folder_path[1], file_leaf)
+                    .context("Error generating temp file")?;
 
                 io::copy(&mut cursor, &mut temp_file)
                     .context("Failed to copy S3 contents to temporary file")?;
@@ -1248,7 +1253,7 @@ pub async fn process_document(
                 .context("Failed to import S3 files")?;
             }
 
-            if file_name.contains(&format!("{}", EDocuments::BULLETIN_BOARDS.to_file_name())) {
+            if file_name.contains(EDocuments::BULLETIN_BOARDS.to_file_name()) {
                 let mut temp_file = NamedTempFile::new()
                     .context("Failed to create bulletin boards temporary file")?;
 
@@ -1265,7 +1270,7 @@ pub async fn process_document(
                 .context("Failed to import bulletin boards")?;
             }
 
-            if file_name.contains(&format!("{}", EDocuments::SCHEDULED_EVENTS.to_file_name())) {
+            if file_name.contains(EDocuments::SCHEDULED_EVENTS.to_file_name()) {
                 let mut temp_file = NamedTempFile::new()
                     .context("Failed to create scheduled events temporary file")?;
 
@@ -1285,7 +1290,7 @@ pub async fn process_document(
                 .with_context(|| "Error managing dates")?;
             }
 
-            if file_name.contains(&format!("{}", EDocuments::PUBLICATIONS.to_file_name())) {
+            if file_name.contains(EDocuments::PUBLICATIONS.to_file_name()) {
                 let mut temp_file = NamedTempFile::new()
                     .context("Failed to create ballot publications temporary file")?;
 
@@ -1304,10 +1309,7 @@ pub async fn process_document(
                 .await
                 .with_context(|| "Error importing publications")?;
             }
-            if file_name.contains(&format!(
-                "{}",
-                EDocuments::ELECTION_EVENT_CONFIG.to_file_name()
-            )) {
+            if file_name.contains(EDocuments::ELECTION_EVENT_CONFIG.to_file_name()) {
                 let mut temp_file = NamedTempFile::new()
                     .context("Failed to create election event config temporary file")?;
 
@@ -1327,10 +1329,7 @@ pub async fn process_document(
                 .with_context(|| "Error importing election event config file")?;
             }
 
-            if file_name.contains(&format!(
-                "{}",
-                EDocuments::PROTOCOL_MANAGER_KEYS.to_file_name()
-            )) {
+            if file_name.contains(EDocuments::PROTOCOL_MANAGER_KEYS.to_file_name()) {
                 let mut temp_file = NamedTempFile::new()
                     .context("Failed to create protocol manager keys temporary file")?;
 

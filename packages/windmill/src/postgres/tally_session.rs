@@ -337,8 +337,7 @@ pub async fn get_tally_sessions_by_election_id(
     election_event_id: &str,
     election_id: &str,
 ) -> Result<Vec<TallySession>> {
-    let query = format!(
-        r#"
+    let query = r#"
         SELECT
             *
         FROM
@@ -349,10 +348,9 @@ pub async fn get_tally_sessions_by_election_id(
             AND $3 = ANY(election_ids)
         ORDER BY
             created_at DESC;
-        "#
-    );
+        "#;
 
-    let statement = hasura_transaction.prepare(&query).await?;
+    let statement = hasura_transaction.prepare(query).await?;
 
     // Note: tenant_id is parsed as a UUID while election_id is a string.
     let rows: Vec<Row> = hasura_transaction

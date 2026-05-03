@@ -63,7 +63,9 @@ pub async fn review_boards() -> Result<()> {
         let election_events = get_batch_election_events(&hasura_transaction, limit, offset).await?;
 
         last_length = election_events.len() as i64;
-        offset += last_length;
+        offset = offset
+            .checked_add(last_length)
+            .expect("review_boards offset overflow");
 
         for election_event in election_events {
             let task2 = celery_app

@@ -283,34 +283,25 @@ pub async fn insert_results_contests(
                 results_event_id: results_event_uuid,
                 elegible_census: contest.elegible_census,
                 total_votes: contest.total_votes,
-                total_votes_percent: contest.total_votes_percent.clone().map(|n| n.into()),
+                total_votes_percent: contest.total_votes_percent.map(|n| n.into()),
                 total_auditable_votes: contest.total_auditable_votes,
                 total_auditable_votes_percent: contest
                     .total_auditable_votes_percent
-                    .clone()
                     .map(|n| n.into()),
                 total_valid_votes: contest.total_valid_votes,
-                total_valid_votes_percent: contest
-                    .total_valid_votes_percent
-                    .clone()
-                    .map(|n| n.into()),
+                total_valid_votes_percent: contest.total_valid_votes_percent.map(|n| n.into()),
                 total_invalid_votes: contest.total_invalid_votes,
-                total_invalid_votes_percent: contest
-                    .total_invalid_votes_percent
-                    .clone()
-                    .map(|n| n.into()),
+                total_invalid_votes_percent: contest.total_invalid_votes_percent.map(|n| n.into()),
                 explicit_invalid_votes: contest.explicit_invalid_votes,
                 explicit_invalid_votes_percent: contest
                     .explicit_invalid_votes_percent
-                    .clone()
                     .map(|n| n.into()),
                 implicit_invalid_votes: contest.implicit_invalid_votes,
                 implicit_invalid_votes_percent: contest
                     .implicit_invalid_votes_percent
-                    .clone()
                     .map(|n| n.into()),
                 blank_votes: contest.blank_votes,
-                blank_votes_percent: contest.blank_votes_percent.clone().map(|n| n.into()),
+                blank_votes_percent: contest.blank_votes_percent.map(|n| n.into()),
                 voting_type: contest.voting_type.clone(),
                 counting_algorithm: contest.counting_algorithm.clone(),
                 name: contest.name.clone(),

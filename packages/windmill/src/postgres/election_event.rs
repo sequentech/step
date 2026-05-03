@@ -177,7 +177,7 @@ pub async fn get_election_event_by_id_if_exist(
         .collect::<Result<Vec<ElectionEventData>>>()?;
 
     let election_event = election_events.first().cloned();
-    Ok((election_event))
+    Ok(election_event)
 }
 
 /// Returns all the Election events as ElectionEventDatafix

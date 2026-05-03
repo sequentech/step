@@ -289,7 +289,13 @@ pub async fn export_users_file(
             total_count = Some(count);
         }
 
-        offset += users.len() as i32;
+        let page_len: i32 = users
+            .len()
+            .try_into()
+            .expect("user page length exceeds i32");
+        offset = offset
+            .checked_add(page_len)
+            .expect("export users offset overflow");
 
         // Write each user record to the CSV file
         for user in users.clone() {

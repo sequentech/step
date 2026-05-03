@@ -18,7 +18,7 @@ use uuid::Uuid;
 
 use crate::services::reports::template_renderer::EReportEncryption;
 
-#[derive(Serialize, Deserialize, Eq, PartialEq, Debug, Clone)]
+#[derive(Serialize, Deserialize, Eq, PartialEq, Debug, Clone, Default)]
 pub struct ReportCronConfig {
     #[serde(default)]
     pub is_active: bool,
@@ -30,18 +30,6 @@ pub struct ReportCronConfig {
     pub email_recipients: Vec<String>,
     #[serde(default)]
     pub executer_username: String,
-}
-
-impl Default for ReportCronConfig {
-    fn default() -> Self {
-        ReportCronConfig {
-            is_active: false,
-            last_document_produced: None,
-            cron_expression: Default::default(),
-            email_recipients: Default::default(),
-            executer_username: Default::default(),
-        }
-    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

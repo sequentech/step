@@ -98,9 +98,9 @@ pub async fn update_event_voting_status(
     }
 
     for channel in channels {
-        let current_voting_status = status.status_by_channel(channel).clone();
+        let current_voting_status = status.status_by_channel(channel);
 
-        if current_voting_status == new_status.clone() {
+        if current_voting_status == *new_status {
             info!("Current voting status is the same as the new voting status, skipping");
             continue;
         }
@@ -134,15 +134,15 @@ pub async fn update_event_voting_status(
             ));
         }
 
-        status.close_early_voting_if_online_status_change(channel, new_status.clone());
-        status.set_status_by_channel(channel, new_status.clone());
+        status.close_early_voting_if_online_status_change(channel, *new_status);
+        status.set_status_by_channel(channel, *new_status);
 
         let mut elections_ids: Vec<String> = Vec::new();
         if *new_status == VotingStatus::OPEN || *new_status == VotingStatus::CLOSED {
             for election in &elections {
                 if let Some(status) = elections_status.get_mut(&election.id) {
-                    status.close_early_voting_if_online_status_change(channel, new_status.clone());
-                    status.set_status_by_channel(channel, new_status.clone());
+                    status.close_early_voting_if_online_status_change(channel, *new_status);
+                    status.set_status_by_channel(channel, *new_status);
                 }
                 elections_ids.push(election.id.clone());
             }
@@ -155,8 +155,8 @@ pub async fn update_event_voting_status(
             username,
             election_event.id.to_string(),
             election_event.bulletin_board_reference.clone(),
-            new_status.clone(),
-            channel.clone(),
+            *new_status,
+            channel,
             None,
             Some(elections_ids),
         )
@@ -227,7 +227,7 @@ pub async fn update_election_voting_status_impl(
 
     let mut status = get_election_status(election.status.clone()).unwrap_or_default();
 
-    let current_voting_status = status.status_by_channel(channel).clone();
+    let current_voting_status = status.status_by_channel(channel);
 
     if new_status == current_voting_status {
         info!("New status is the same as the current voting status, skipping");
@@ -291,8 +291,8 @@ pub async fn update_election_voting_status_impl(
         ));
     }
 
-    status.close_early_voting_if_online_status_change(channel, new_status.clone());
-    status.set_status_by_channel(channel, new_status.clone());
+    status.close_early_voting_if_online_status_change(channel, new_status);
+    status.set_status_by_channel(channel, new_status);
 
     let status_js = serde_json::to_value(&status).with_context(|| "Error parsing status")?;
 
@@ -313,8 +313,8 @@ pub async fn update_election_voting_status_impl(
         username,
         election_event_id.to_string(),
         bulletin_board_reference.clone(),
-        new_status.clone(),
-        channel.clone(),
+        new_status,
+        channel,
         Some(election_id.to_string()),
         None,
     )

@@ -161,7 +161,7 @@ pub async fn insert_results_elections(
                 name: election.name.clone(),
                 elegible_census: election.elegible_census,
                 total_voters: election.total_voters,
-                total_voters_percent: election.total_voters_percent.clone().map(|n| n.into()),
+                total_voters_percent: election.total_voters_percent.map(|n| n.into()),
             })
         })
         .collect::<Result<Vec<InsertResultsElection>>>()?;

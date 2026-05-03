@@ -40,7 +40,7 @@ pub async fn insert_election_event_anyhow(
         Ok(client) => client,
         Err(err) => {
             update_fail(&task_execution, "Failed to get Hasura DB pool").await?;
-            return Err(anyhow!("Failed to get Hasura DB pool: {err}").into());
+            return Err(anyhow!("Failed to get Hasura DB pool: {err}"));
         }
     };
 
@@ -48,7 +48,7 @@ pub async fn insert_election_event_anyhow(
         Ok(transaction) => transaction,
         Err(err) => {
             update_fail(&task_execution, "Failed to start Hasura transaction").await?;
-            return Err(anyhow!("Failed to start Hasura transaction: {err}").into());
+            return Err(anyhow!("Failed to start Hasura transaction: {err}"));
         }
     };
 
@@ -79,9 +79,9 @@ pub async fn insert_election_event_anyhow(
                 "Failed to update task execution status to COMPLETED",
             )
             .await?;
-            return Err(
-                anyhow!("Failed to update task execution status to COMPLETED {err}").into(),
-            );
+            return Err(anyhow!(
+                "Failed to update task execution status to COMPLETED {err}"
+            ));
         }
     };
 
@@ -107,7 +107,7 @@ pub async fn insert_election_event_anyhow(
         Ok(_) => (),
         Err(err) => {
             update_fail(&task_execution, "Failed to commit Hasura transaction").await?;
-            return Err(anyhow!("Failed to commit Hasura transaction: {err}").into());
+            return Err(anyhow!("Failed to commit Hasura transaction: {err}"));
         }
     };
 

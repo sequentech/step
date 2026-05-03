@@ -376,7 +376,7 @@ pub trait TemplateRenderer: Debug {
         let user_data = if generate_mode == GenerateReportMode::PREVIEW {
             // Increase offset when using batching
             if let Some(o) = offset {
-                *o += 1;
+                *o = (*o).checked_add(1).expect("report preview offset overflow");
             }
             self.prepare_preview_data()
                 .await
@@ -468,6 +468,7 @@ pub trait TemplateRenderer: Debug {
     // trait can reimplement the function while calling the parent default
     // implementation too when needed
     #[instrument(err, skip_all)]
+    #[allow(clippy::too_many_arguments)]
     async fn execute_report_inner(
         &self,
         document_id: &str,
@@ -519,8 +520,12 @@ pub trait TemplateRenderer: Debug {
             );
 
             // Calculate the number of batches needed.
-            let num_batches =
-                std::cmp::max((items_count + per_report_limit - 1) / per_report_limit, 1);
+            let report_limit = per_report_limit.max(1);
+            #[allow(clippy::arithmetic_side_effects)]
+            let num_batches = std::cmp::max(
+                items_count.saturating_add(report_limit - 1) / report_limit,
+                1,
+            );
             info!("Number of batches: {:?}", num_batches);
 
             // Define a temporary reports folder (this folder will later be compressed)
@@ -538,7 +543,9 @@ pub trait TemplateRenderer: Debug {
                 (0..num_batches)
                     .into_par_iter()
                     .map(|batch_index| -> Result<PathBuf, anyhow::Error> {
-                        let offset = batch_index * per_report_limit;
+                        let offset = batch_index
+                            .checked_mul(report_limit)
+                            .expect("activity log report batch offset overflow");
                         let rendered_system_template = GLOBAL_RT
                             .block_on(async {
                                 self.generate_report(
