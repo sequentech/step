@@ -63,7 +63,9 @@ public class CustomAttributeIdpLinkingAuthenticator extends AbstractIdpAuthentic
                 CustomAttributeIdpLinkingAuthenticatorFactory.CONF_USER_ATTRIBUTE,
                 CustomAttributeIdpLinkingAuthenticatorFactory.DEFAULT_USER_ATTRIBUTE);
 
-    log.debugf("CustomAttributeIdpLinkingAuthenticator: brokerContext.attributes=%s", brokerContext.getAttributes());
+    log.debugf(
+        "CustomAttributeIdpLinkingAuthenticator: brokerContext.attributes=%s",
+        brokerContext.getAttributes());
 
     String incomingIdentifier = extractClaimValue(brokerContext, idpClaim);
     if (incomingIdentifier == null || incomingIdentifier.isEmpty()) {
