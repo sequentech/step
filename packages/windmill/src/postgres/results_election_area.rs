@@ -14,6 +14,7 @@ use tokio_postgres::types::ToSql;
 use tracing::instrument;
 use uuid::Uuid;
 
+/// Results election area wrapper
 pub struct ResultsElectionAreaWrapper(pub ResultsElectionArea);
 
 impl TryFrom<Row> for ResultsElectionAreaWrapper {
@@ -38,6 +39,12 @@ impl TryFrom<Row> for ResultsElectionAreaWrapper {
         }))
     }
 }
+/// Insert results election area documents into the database.
+///
+/// # Errors
+///
+/// Returns an error if SQL preparation or execution fails,
+/// if UUID or other parsing fails.
 
 #[instrument(skip(hasura_transaction, documents), err)]
 pub async fn insert_results_election_area_documents(
@@ -96,6 +103,12 @@ pub async fn insert_results_election_area_documents(
         .map_err(|err| anyhow!("Error at inser into results_election_area {} ", err))?;
     Ok(())
 }
+/// Get event results election area from the database.
+///
+/// # Errors
+///
+/// Returns an error if SQL preparation or execution fails,
+/// if UUID or other parsing fails.
 
 #[instrument(err)]
 pub async fn get_event_results_election_area(
@@ -141,6 +154,8 @@ pub async fn get_event_results_election_area(
 }
 
 #[derive(Debug, Serialize)]
+/// Insertable results election area data representation
+#[allow(missing_docs)]
 struct InsertableResultsElectionArea {
     id: Uuid,
     tenant_id: Uuid,
@@ -153,6 +168,12 @@ struct InsertableResultsElectionArea {
     documents: Option<Value>,
     name: Option<String>,
 }
+/// Insert many results elections areas into the database.
+///
+/// # Errors
+///
+/// Returns an error if SQL preparation or execution fails,
+/// if UUID or other parsing fails.
 
 #[instrument(err, skip(hasura_transaction, areas))]
 pub async fn insert_many_results_elections_areas(

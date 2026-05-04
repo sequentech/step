@@ -9,6 +9,7 @@ use tokio_postgres::row::Row;
 use tracing::{info, instrument};
 use uuid::Uuid;
 
+/// Row representing Document wrapper
 pub struct DocumentWrapper(pub Document);
 
 impl TryFrom<Row> for DocumentWrapper {
@@ -35,8 +36,11 @@ impl TryFrom<Row> for DocumentWrapper {
     }
 }
 
+/// Row representing Support material document wrapper
 pub struct SupportMaterialDocumentWrapper {
+    /// Support material.
     pub support_material: SupportMaterial,
+    /// Document.
     pub document: Document,
 }
 
@@ -74,6 +78,12 @@ impl TryFrom<Row> for SupportMaterialDocumentWrapper {
         })
     }
 }
+/// Get document by id from the database.
+///
+/// # Errors
+///
+/// Returns an error if SQL preparation or execution fails,
+/// if UUID or other parsing fails, or if row mapping is inconsistent.
 
 #[instrument(err, skip(hasura_transaction))]
 pub async fn get_document(
@@ -195,6 +205,12 @@ pub async fn get_support_material_documents(
 
     Ok(Some(documents))
 }
+/// Insert document into the database.
+///
+/// # Errors
+///
+/// Returns an error if SQL preparation or execution fails,
+/// if UUID or other parsing fails, or if row mapping is inconsistent.
 
 #[instrument(err, skip(hasura_transaction))]
 pub async fn insert_document(

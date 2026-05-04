@@ -11,6 +11,12 @@ use tokio_postgres::row::Row;
 use tokio_postgres::types::ToSql;
 use tracing::{event, instrument, Level};
 use uuid::Uuid;
+/// Get realm id for a given realm name from the database.
+///
+/// # Errors
+///
+/// Returns an error if SQL preparation or execution fails,
+/// if UUID or other parsing fails, or if row mapping is inconsistent.
 
 #[instrument(skip(keycloak_transaction), err)]
 pub async fn get_realm_id(

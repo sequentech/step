@@ -14,6 +14,7 @@ use tokio_postgres::types::ToSql;
 use tracing::instrument;
 use uuid::Uuid;
 
+/// Tally sheet wrapper
 pub struct TallySheetWrapper(pub TallySheet);
 
 impl TryFrom<Row> for TallySheetWrapper {
@@ -41,6 +42,12 @@ impl TryFrom<Row> for TallySheetWrapper {
         }))
     }
 }
+/// Get published tally sheets by event from the database.
+///
+/// # Errors
+///
+/// Returns an error if SQL preparation or execution fails,
+/// if UUID or other parsing fails.
 
 #[instrument(err, skip_all)]
 pub async fn get_published_tally_sheets_by_event(
@@ -84,6 +91,12 @@ pub async fn get_published_tally_sheets_by_event(
 
     Ok(election_events)
 }
+/// Publish tally sheet in the database.
+///
+/// # Errors
+///
+/// Returns an error if SQL preparation or execution fails,
+/// if UUID or other parsing fails.
 
 #[instrument(skip(hasura_transaction), err)]
 pub async fn publish_tally_sheet(

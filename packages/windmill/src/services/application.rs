@@ -41,6 +41,8 @@ use unicode_normalization::char::decompose_canonical;
 
 #[allow(non_camel_case_types)]
 #[derive(Display, Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
+/// Enumerates outcomes or modes for E card type.
+#[allow(missing_docs)]
 pub enum ECardType {
     #[strum(serialize = "philSysID")]
     #[serde(rename = "philSysID")]
@@ -61,16 +63,24 @@ pub enum ECardType {
 
 /// Struct for email/sms Accepted/Rejected Communication object.
 #[derive(Serialize, Deserialize, Debug, Clone)]
+#[allow(missing_docs)]
 struct ApplicationCommunication {
     accepted: ApplicationCommunicationChannels,
     rejected: ApplicationCommunicationChannels,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
+/// Application communication channels
+#[allow(missing_docs)]
 struct ApplicationCommunicationChannels {
     email: EmailConfig,
     sms: SmsConfig,
 }
+/// Verify application workflow.
+///
+/// # Errors
+///
+/// Returns an error if one of the operations fails.
 
 #[instrument(skip_all, err)]
 pub async fn verify_application(
@@ -162,6 +172,7 @@ pub async fn verify_application(
     Ok(result)
 }
 
+/// Get permission label and area from applicant data.
 #[instrument(err, skip_all)]
 async fn get_permission_label_and_area_from_applicant_data(
     hasura_transaction: &Transaction<'_>,
@@ -190,7 +201,7 @@ async fn get_permission_label_and_area_from_applicant_data(
     )
     .await;
 }
-
+/// Setup users filter from applicant data.
 #[instrument(err, skip_all)]
 fn get_filter_from_applicant_data(
     tenant_id: String,
@@ -278,6 +289,7 @@ fn get_filter_from_applicant_data(
     })
 }
 
+/// Build manual verify reason.
 #[instrument(skip_all)]
 fn build_manual_verify_reason(fields_match: HashMap<String, bool>) -> String {
     let mismatch_fields = fields_match
@@ -299,6 +311,8 @@ fn build_manual_verify_reason(fields_match: HashMap<String, bool>) -> String {
 }
 
 #[derive(Serialize, Deserialize, Debug)]
+/// Application annotations
+#[allow(missing_docs)]
 pub struct ApplicationAnnotations {
     session_id: Option<String>,
     credentials: Option<Value>,
@@ -317,6 +331,8 @@ pub struct ApplicationAnnotations {
 }
 
 #[derive(Serialize, Deserialize, Debug)]
+/// Application verification result
+#[allow(missing_docs)]
 pub struct ApplicationVerificationResult {
     pub user_id: Option<String>,
     pub username: String,
@@ -330,6 +346,7 @@ pub struct ApplicationVerificationResult {
     pub manual_verify_reason: Option<String>,
 }
 
+/// Automatic verification workflow.
 #[instrument(err, skip_all)]
 fn automatic_verification(
     users: Vec<User>,
@@ -489,7 +506,9 @@ fn automatic_verification(
     })
 }
 
+/// Type alias `VerificationMismatchSummary` to keep signatures readable.
 type VerificationMismatchSummary = (usize, usize, HashMap<String, bool>, HashMap<String, bool>);
+/// Check mismatches workflow.
 
 #[instrument(err)]
 fn check_mismatches(
@@ -766,6 +785,12 @@ pub async fn get_application_response_communication(
         _ => Ok((None, None)),
     }
 }
+/// Confirm application workflow.
+///
+/// # Errors
+///
+/// Returns an error if SQL preparation or execution fails,
+/// if UUID or other parsing fails.
 
 #[instrument(skip_all, err)]
 pub async fn confirm_application(
@@ -923,6 +948,11 @@ pub async fn confirm_application(
 
     Ok((application, user))
 }
+/// Reject application workflow.
+///
+/// # Errors
+///
+/// Returns an error if one of the operations fails.
 
 #[instrument(skip(hasura_transaction), err)]
 pub async fn reject_application(
@@ -1004,6 +1034,11 @@ pub async fn reject_application(
 
     Ok(application)
 }
+/// Send application communication response.
+///
+/// # Errors
+///
+/// Returns an error if one of the operations fails.
 
 #[instrument(err, skip_all)]
 pub async fn send_application_communication_response(
@@ -1102,6 +1137,11 @@ pub async fn send_application_communication_response(
 
     Ok(())
 }
+/// Get group names from the keycloak database.
+///
+/// # Errors
+///
+/// Returns an error if one of the operations fails.
 
 #[instrument(err, skip_all)]
 pub async fn get_group_names(realm: &str, user_id: &str) -> Result<Vec<String>> {
@@ -1125,6 +1165,7 @@ pub async fn get_group_names(realm: &str, user_id: &str) -> Result<Vec<String>> 
     Ok(group_names)
 }
 
+/// Convert string to unaccented.
 #[instrument(skip_all)]
 fn string_to_unaccented(word: String) -> String {
     let mut unaccented_word = String::new();
@@ -1140,6 +1181,7 @@ fn string_to_unaccented(word: String) -> String {
     unaccented_word
 }
 
+/// Convert to unaccented without hyphen.
 #[instrument(skip_all)]
 fn to_unaccented_without_hyphen(word: Option<String>) -> Option<String> {
     let word = match word {

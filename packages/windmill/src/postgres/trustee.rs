@@ -11,6 +11,7 @@ use tokio_postgres::row::Row;
 use tracing::{event, instrument, Level};
 use uuid::Uuid;
 
+/// Trustee wrapper
 pub struct TrusteeWrapper(pub Trustee);
 
 impl TryFrom<Row> for TrusteeWrapper {
@@ -29,6 +30,12 @@ impl TryFrom<Row> for TrusteeWrapper {
         }))
     }
 }
+/// Get multiple trustees by id from the database.
+///
+/// # Errors
+///
+/// Returns an error if SQL preparation or execution fails,
+/// if UUID or other parsing fails.
 
 #[instrument(err, skip(hasura_transaction))]
 pub async fn get_trustees_by_id(
@@ -66,6 +73,12 @@ pub async fn get_trustees_by_id(
         })
         .collect::<Result<Vec<Trustee>>>()
 }
+/// Get multiple trustees by name from the database.
+///
+/// # Errors
+///
+/// Returns an error if SQL preparation or execution fails,
+/// if UUID or other parsing fails.
 
 #[instrument(err, skip(hasura_transaction))]
 pub async fn get_trustees_by_name(
@@ -98,6 +111,12 @@ pub async fn get_trustees_by_name(
         })
         .collect::<Result<Vec<Trustee>>>()
 }
+/// Get trustee by name from the database.
+///
+/// # Errors
+///
+/// Returns an error if SQL preparation or execution fails,
+/// if UUID or other parsing fails.
 
 #[instrument(err, skip(hasura_transaction))]
 pub async fn get_trustee_by_name(
@@ -113,6 +132,11 @@ pub async fn get_trustee_by_name(
         .cloned()
         .ok_or(anyhow!("Trustee {name} not found"))
 }
+/// Get all trustees from the database.
+///
+/// # Errors
+///
+/// Returns an error if SQL preparation or execution fails, if UUID or other parsing fails, or if row mapping is inconsistent.
 
 #[instrument(err, skip(hasura_transaction))]
 pub async fn get_all_trustees(

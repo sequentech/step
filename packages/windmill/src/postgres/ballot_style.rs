@@ -12,6 +12,7 @@ use tokio_postgres::row::Row;
 use tracing::instrument;
 use uuid::Uuid;
 
+/// Row representing Ballot style wrapper
 pub struct BallotStyleWrapper(pub BallotStyle);
 
 impl TryFrom<Row> for BallotStyleWrapper {
@@ -39,6 +40,12 @@ impl TryFrom<Row> for BallotStyleWrapper {
         }))
     }
 }
+/// Insert ballot style into the database.
+///
+/// # Errors
+///
+/// Returns an error if SQL preparation or execution fails,
+/// if UUID or other parsing fails, or if row mapping is inconsistent.
 
 #[instrument(err, skip(hasura_transaction, ballot_eml))]
 pub async fn insert_ballot_style(
@@ -104,6 +111,12 @@ pub async fn insert_ballot_style(
 
     elements.first().cloned().ok_or(anyhow!("Row not inserted"))
 }
+/// Get all ballot styles for a given tenant, area and authorized election ids from the database.
+///
+/// # Errors
+///
+/// Returns an error if SQL preparation or execution fails,
+/// if UUID or other parsing fails, or if row mapping is inconsistent.
 
 #[instrument(skip(hasura_transaction), err)]
 pub async fn get_all_ballot_styles(
@@ -145,6 +158,12 @@ pub async fn get_all_ballot_styles(
 
     Ok(results)
 }
+/// Get all ballot styles for a given tenant and election event from the database.
+///
+/// # Errors
+///
+/// Returns an error if SQL preparation or execution fails,
+/// if UUID or other parsing fails, or if row mapping is inconsistent.
 
 #[instrument(skip(hasura_transaction), err)]
 pub async fn export_event_ballot_styles(
@@ -187,6 +206,12 @@ pub async fn export_event_ballot_styles(
 
     Ok(results)
 }
+/// Get ballot styles by elections from the database.
+///
+/// # Errors
+///
+/// Returns an error if SQL preparation or execution fails,
+/// if UUID or other parsing fails, or if row mapping is inconsistent.
 
 #[instrument(skip(hasura_transaction), err)]
 pub async fn get_ballot_styles_by_elections(
@@ -240,6 +265,12 @@ pub async fn get_ballot_styles_by_elections(
 
     Ok(results)
 }
+/// Get publication ballot styles for a given tenant, election event and ballot publication id from the database.
+///
+/// # Errors
+///
+/// Returns an error if SQL preparation or execution fails,
+/// if UUID or other parsing fails, or if row mapping is inconsistent.
 
 #[instrument(skip(hasura_transaction), err)]
 pub async fn get_publication_ballot_styles(

@@ -15,6 +15,7 @@ use tokio_postgres::row::Row;
 use tracing::{event, instrument, Level};
 use uuid::Uuid;
 
+/// Tally session execution wrapper
 pub struct TallySessionExecutionWrapper(pub TallySessionExecution);
 
 impl TryFrom<Row> for TallySessionExecutionWrapper {
@@ -40,6 +41,12 @@ impl TryFrom<Row> for TallySessionExecutionWrapper {
         }))
     }
 }
+/// Insert tally session execution into the database.
+///
+/// # Errors
+///
+/// Returns an error if SQL preparation or execution fails,
+/// if UUID or other parsing fails.
 
 #[instrument(skip(hasura_transaction, status), err)]
 pub async fn insert_tally_session_execution(
@@ -118,6 +125,12 @@ pub async fn insert_tally_session_execution(
     };
     Ok(value.clone())
 }
+/// Get tally session executions from the database.
+///
+/// # Errors
+///
+/// Returns an error if SQL preparation or execution fails,
+/// if UUID or other parsing fails.
 
 #[instrument(skip(hasura_transaction), err)]
 pub async fn get_tally_session_executions(
@@ -163,6 +176,12 @@ pub async fn get_tally_session_executions(
 
     Ok(elements)
 }
+/// Get last tally session execution from the database.
+///
+/// # Errors
+///
+/// Returns an error if SQL preparation or execution fails,
+/// if UUID or other parsing fails.
 
 #[instrument(skip(hasura_transaction), err)]
 pub async fn get_last_tally_session_execution(
@@ -209,6 +228,12 @@ pub async fn get_last_tally_session_execution(
 
     Ok(elements.first().cloned())
 }
+/// Get event tally session executions from the database.
+///
+/// # Errors
+///
+/// Returns an error if SQL preparation or execution fails,
+/// if UUID or other parsing fails.
 
 pub async fn get_event_tally_session_executions(
     hasura_transaction: &Transaction<'_>,
@@ -251,6 +276,8 @@ pub async fn get_event_tally_session_executions(
 }
 
 #[derive(Debug, Serialize)]
+/// Insertable tally session execution data representation
+#[allow(missing_docs)]
 struct InsertableTallySessionExecution {
     id: Uuid,
     tenant_id: Uuid,
@@ -265,6 +292,12 @@ struct InsertableTallySessionExecution {
     status: Option<Value>,
     results_event_id: Option<Uuid>,
 }
+/// Insert many tally session executions into the database.
+///
+/// # Errors
+///
+/// Returns an error if SQL preparation or execution fails,
+/// if UUID or other parsing fails.
 
 #[instrument(err, skip(hasura_transaction, executions))]
 pub async fn insert_many_tally_session_executions(
@@ -343,6 +376,12 @@ pub async fn insert_many_tally_session_executions(
 
     Ok(inserted)
 }
+/// Updates tally session execution documents and returns the updated row when applicable.
+///
+/// # Errors
+///
+/// Returns an error if SQL preparation or execution fails,
+/// if UUID or other parsing fails, or if row mapping is inconsistent.
 
 #[instrument(err, skip_all)]
 pub async fn update_tally_session_execution_documents(

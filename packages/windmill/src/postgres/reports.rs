@@ -19,35 +19,54 @@ use uuid::Uuid;
 use crate::services::reports::template_renderer::EReportEncryption;
 
 #[derive(Serialize, Deserialize, Eq, PartialEq, Debug, Clone, Default)]
+///  Report cron config representation
 pub struct ReportCronConfig {
     #[serde(default)]
+    /// Is active.
     pub is_active: bool,
     #[serde(default)]
+    /// Last document produced.
     pub last_document_produced: Option<String>,
     #[serde(default)]
+    /// Cron expression.
     pub cron_expression: String,
     #[serde(default)]
+    /// Email recipients.
     pub email_recipients: Vec<String>,
     #[serde(default)]
+    /// Executer username.
     pub executer_username: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Report representation
 pub struct Report {
+    /// Primary identifier for this entity.
     pub id: String,
+    /// Election event this data belongs to.
     pub election_event_id: String,
+    /// Tenant that owns or scopes this record.
     pub tenant_id: String,
+    /// Parent election identifier when applicable.
     pub election_id: Option<String>,
+    /// Report type.
     pub report_type: String,
+    /// Template alias.
     pub template_alias: Option<String>,
+    /// Encryption policy.
     pub encryption_policy: EReportEncryption,
+    /// Cron config.
     pub cron_config: Option<ReportCronConfig>,
+    /// Creation timestamp from the database.
     pub created_at: DateTime<Utc>,
+    /// Keycloak permission label resolved for access control.
     pub permission_label: Option<Vec<String>>,
 }
 
 #[allow(non_camel_case_types)]
 #[derive(Display, Serialize, Deserialize, Debug, PartialEq, Eq, Clone, EnumString)]
+/// Report type
+#[allow(missing_docs)]
 pub enum ReportType {
     INITIALIZATION_REPORT,
     ELECTORAL_RESULTS,
@@ -57,6 +76,7 @@ pub enum ReportType {
     MANUAL_VERIFICATION,
 }
 
+/// Report wrapper
 pub struct ReportWrapper(pub Report);
 
 impl TryFrom<Row> for ReportWrapper {
@@ -94,6 +114,11 @@ impl TryFrom<Row> for ReportWrapper {
         }))
     }
 }
+/// Get all active reports from the database.
+///
+/// # Errors
+///
+/// Returns an error if SQL preparation or execution fails.
 
 #[instrument(skip(hasura_transaction), err)]
 pub async fn get_all_active_reports(hasura_transaction: &Transaction<'_>) -> Result<Vec<Report>> {
@@ -125,6 +150,12 @@ pub async fn get_all_active_reports(hasura_transaction: &Transaction<'_>) -> Res
         .with_context(|| "Error converting rows into Report")?;
     Ok(reports)
 }
+/// Updates report last document time and returns the updated row when applicable.
+///
+/// # Errors
+///
+/// Returns an error if SQL preparation or execution fails,
+/// if UUID or other parsing fails.
 
 #[instrument(skip(hasura_transaction), err)]
 pub async fn update_report_last_document_time(
@@ -169,6 +200,12 @@ pub async fn update_report_last_document_time(
 
     Ok(())
 }
+/// Get report by id from the database.
+///
+/// # Errors
+///
+/// Returns an error if SQL preparation or execution fails,
+/// if UUID or other parsing fails.
 
 #[instrument(skip(hasura_transaction), err)]
 pub async fn get_report_by_id(
@@ -304,6 +341,7 @@ pub async fn get_template_alias_for_report(
     }
     return Ok(None);
 }
+/// Get reports by condition from the database.
 
 #[instrument(skip(hasura_transaction), err)]
 async fn get_reports_by_condition(
@@ -347,6 +385,11 @@ async fn get_reports_by_condition(
 
     Ok(reports)
 }
+/// Get reports by election event id from the database.
+///
+/// # Errors
+///
+/// Returns an error if `get_reports_by_condition` fails.
 
 #[instrument(skip(hasura_transaction), err)]
 pub async fn get_reports_by_election_event_id(
@@ -362,6 +405,11 @@ pub async fn get_reports_by_election_event_id(
     )
     .await
 }
+/// Get reports by election id from the database.
+///
+/// # Errors
+///
+/// Returns an error if `get_reports_by_condition` fails.
 
 #[instrument(skip(hasura_transaction), err)]
 pub async fn get_reports_by_election_id(
@@ -371,6 +419,12 @@ pub async fn get_reports_by_election_id(
 ) -> Result<Vec<Report>> {
     get_reports_by_condition(hasura_transaction, tenant_id, election_id, "election_id").await
 }
+/// Insert reports into the database.
+///
+/// # Errors
+///
+/// Returns an error if SQL preparation or execution fails,
+/// if UUID or other parsing fails.
 
 #[instrument(skip(hasura_transaction), err)]
 pub async fn insert_reports(
@@ -434,6 +488,12 @@ pub async fn insert_reports(
 
     Ok(())
 }
+/// Get report by type from the database.
+///
+/// # Errors
+///
+/// Returns an error if SQL preparation or execution fails,
+/// if UUID or other parsing fails.
 
 #[instrument(skip_all, err)]
 pub async fn get_report_by_type(

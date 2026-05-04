@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+//! Database operations for the Windmill application.
 pub mod application;
 pub mod area;
 pub mod area_contest;

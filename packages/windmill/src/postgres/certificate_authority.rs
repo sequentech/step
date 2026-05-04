@@ -8,6 +8,8 @@ use deadpool_postgres::{Client, Transaction};
 use tracing::instrument;
 use uuid::Uuid;
 
+/// Row representing Certificate authority record
+#[allow(missing_docs)]
 pub struct CertificateAuthorityRecord {
     pub id: Uuid,
     pub tenant_id: Uuid,

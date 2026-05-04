@@ -8,10 +8,12 @@ use sequent_core::util::temp_path::generate_temp_file;
 use std::fs;
 use std::process::Command;
 
-// The standard PEM (Privacy-Enhanced Mail) file format conventionally requires five dashes
+/// The standard PEM (Privacy-Enhanced Mail) file format conventionally requires five dashes
 const CERT_BEGIN: &str = "-----BEGIN CERTIFICATE-----";
 const CERT_END: &str = "-----END CERTIFICATE-----";
 
+/// Parsed certificate.
+#[allow(missing_docs)]
 pub struct ParsedCertificate {
     pub common_name: String,
     pub subject: String,
@@ -57,6 +59,10 @@ pub fn split_pem_bundle(pem_content: &str) -> Vec<String> {
 
 /// Parses a single PEM-encoded X.509 certificate and extracts its metadata
 /// using OpenSSL command-line tools.
+///
+/// # Errors
+///
+/// Returns an error if one of the operations fails.
 pub fn parse_certificate_pem(pem: &str) -> Result<ParsedCertificate> {
     let cert_temp_file =
         generate_temp_file("cert", ".pem").with_context(|| "Error creating temp PEM file")?;
@@ -91,6 +97,7 @@ pub fn parse_certificate_pem(pem: &str) -> Result<ParsedCertificate> {
     parse_openssl_x509_output(&output, pem)
 }
 
+/// Parses openssl x509 output from external representation.
 fn parse_openssl_x509_output(output: &str, pem: &str) -> Result<ParsedCertificate> {
     let mut subject = String::new();
     let mut issuer = String::new();
@@ -158,6 +165,10 @@ pub fn extract_cn(rdns: &str) -> Option<String> {
 }
 
 /// Parses the OpenSSL date format: "Jan  1 00:00:00 2020 GMT"
+///
+/// # Errors
+///
+/// Returns an error if parsing the date fails.
 pub fn parse_openssl_date(date_str: &str) -> Result<DateTime<Utc>> {
     let dt = NaiveDateTime::parse_from_str(date_str.trim(), "%b %e %H:%M:%S %Y %Z")
         .with_context(|| format!("Unrecognised date format: '{date_str}'"))?;

@@ -13,6 +13,8 @@ use tracing::instrument;
 use uuid::Uuid;
 
 #[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
+/// Secret representation
+#[allow(missing_docs)]
 pub struct Secret {
     pub id: String,
     pub tenant_id: String,
@@ -42,6 +44,12 @@ impl TryFrom<Row> for Secret {
         })
     }
 }
+/// Get secret by key from the database.
+///
+/// # Errors
+///
+/// Returns an error if SQL preparation or execution fails,
+/// if UUID or other parsing fails.
 
 #[instrument(skip(hasura_transaction), err)]
 pub async fn get_secret_by_key(
@@ -93,6 +101,12 @@ pub async fn get_secret_by_key(
     }
     Ok(Some(secrets[0].clone()))
 }
+/// Insert secret into the database.
+///
+/// # Errors
+///
+/// Returns an error if SQL preparation or execution fails,
+/// if UUID or other parsing fails.
 
 #[instrument(skip(hasura_transaction), err)]
 pub async fn insert_secret(

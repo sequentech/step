@@ -16,6 +16,7 @@ use tokio_stream::StreamExt; // Added for streaming
 use tracing::{event, instrument, Level};
 use uuid::Uuid;
 
+/// Row representing Candidate wrapper
 pub struct CandidateWrapper(pub Candidate);
 
 impl TryFrom<Row> for CandidateWrapper {
@@ -42,6 +43,12 @@ impl TryFrom<Row> for CandidateWrapper {
         }))
     }
 }
+/// Insert candidates into the database.
+///
+/// # Errors
+///
+/// Returns an error if SQL preparation or execution fails,
+/// if UUID or other parsing fails, or if row mapping is inconsistent.
 
 #[instrument(err, skip_all)]
 pub async fn insert_candidates(
@@ -91,6 +98,12 @@ pub async fn insert_candidates(
 
     Ok(())
 }
+/// Get all candidates for a given tenant and election event from the database.
+///
+/// # Errors
+///
+/// Returns an error if SQL preparation or execution fails,
+/// if UUID or other parsing fails, or if row mapping is inconsistent.
 
 #[instrument(err, skip_all)]
 pub async fn export_candidates(
@@ -132,6 +145,12 @@ pub async fn export_candidates(
 
     Ok(election_events)
 }
+/// Get candidates by contest id from the database.
+///
+/// # Errors
+///
+/// Returns an error if SQL preparation or execution fails,
+/// if UUID or other parsing fails, or if row mapping is inconsistent.
 
 #[instrument(skip(hasura_transaction), err)]
 pub async fn get_candidates_by_contest_id(
@@ -176,6 +195,12 @@ pub async fn get_candidates_by_contest_id(
 
     Ok(candidate)
 }
+/// Export candidates for a given contests ids to a CSV file.
+///
+/// # Errors
+///
+/// Returns an error if SQL preparation or execution fails,
+/// if UUID or other parsing fails, or if row mapping is inconsistent.
 
 #[instrument(err, skip_all)]
 pub async fn export_candidate_csv(

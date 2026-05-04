@@ -27,6 +27,8 @@ use tracing::{debug, info, instrument};
 use uuid::Uuid;
 
 #[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone)]
+/// Cast vote
+#[allow(missing_docs)]
 pub struct CastVote {
     pub id: String,
     pub tenant_id: String,
@@ -63,6 +65,15 @@ impl TryFrom<Row> for CastVote {
         })
     }
 }
+/// Get ballot content for a given area and write to a file.
+///
+/// # Errors
+///
+/// Returns an error if one of the operations fails.
+///
+/// # Panics
+///
+/// Panics only if internal SQL placeholder arithmetic overflows.
 
 #[instrument(err)]
 pub async fn find_area_ballots(
@@ -126,9 +137,13 @@ pub async fn find_area_ballots(
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone)]
+/// Votes per election.
 pub struct ElectionCastVotes {
+    /// Election id.
     pub election_id: String,
+    /// Number of census.
     pub census: i64,
+    /// Number of votes casted.
     pub cast_votes: i64,
 }
 
@@ -144,6 +159,8 @@ impl TryFrom<Row> for ElectionCastVotes {
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone)]
+/// Votes per day.
+#[allow(missing_docs)]
 pub struct CastVotesPerDay {
     pub day: String,
     pub day_count: i64,
@@ -158,6 +175,11 @@ impl TryFrom<Row> for CastVotesPerDay {
         })
     }
 }
+/// Counts cast votes election matching the query constraints.
+///
+/// # Errors
+///
+/// Returns an error if one of the operations fails.
 
 #[instrument(err)]
 pub async fn count_cast_votes_election(
@@ -207,6 +229,11 @@ pub async fn count_cast_votes_election(
 
     Ok(count_data)
 }
+/// Get count votes per day.
+///
+/// # Errors
+///
+/// Returns an error if one of the operations fails.
 
 #[instrument(skip(transaction), err)]
 pub async fn get_count_votes_per_day(
@@ -289,6 +316,11 @@ pub async fn get_count_votes_per_day(
 
     Ok(cast_votes_by_day)
 }
+/// Get users with vote info.
+///
+/// # Errors
+///
+/// Returns an error if one of the operations fails.
 
 #[instrument(skip(hasura_transaction, users), err)]
 pub async fn get_users_with_vote_info(
@@ -424,6 +456,8 @@ pub async fn get_users_with_vote_info(
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+/// Votes count by ip for election.
+#[allow(missing_docs)]
 pub struct CastVoteCountByIp {
     id: String,
     ip: Option<String>,
@@ -449,6 +483,7 @@ impl TryFrom<Row> for CastVoteCountByIp {
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
+/// List cast votes by ip filter.
 pub struct ListCastVotesByIpFilter {
     pub limit: Option<i32>,
     pub offset: Option<i32>,
@@ -456,6 +491,11 @@ pub struct ListCastVotesByIpFilter {
     pub country: Option<String>,
     pub election_id: Option<String>,
 }
+/// Get top count votes by ip.
+///
+/// # Errors
+///
+/// Returns an error if one of the operations fails.
 
 #[instrument(skip(hasura_transaction), err)]
 pub async fn get_top_count_votes_by_ip(
@@ -550,6 +590,11 @@ pub async fn get_top_count_votes_by_ip(
 
     Ok((cast_votes_by_ip, count))
 }
+/// Count ballots by election.
+///
+/// # Errors
+///
+/// Returns an error if one of the operations fails.
 
 #[instrument(err)]
 pub async fn count_ballots_by_election(
@@ -595,6 +640,11 @@ pub async fn count_ballots_by_election(
 
     Ok(vote_count)
 }
+/// Count ballots by area id.
+///
+/// # Errors
+///
+/// Returns an error if one of the operations fails.
 
 #[instrument(err)]
 pub async fn count_ballots_by_area_id(
@@ -648,6 +698,11 @@ pub async fn count_ballots_by_area_id(
 
     Ok(vote_count)
 }
+/// Count cast votes election event.
+///
+/// # Errors
+///
+/// Returns an error if one of the operations fails.
 
 #[instrument(err)]
 pub async fn count_cast_votes_election_event(

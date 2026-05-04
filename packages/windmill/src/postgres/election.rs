@@ -13,6 +13,7 @@ use tokio_postgres::row::Row;
 use tracing::{event, instrument, Level};
 use uuid::Uuid;
 
+/// Row representing Election wrapper
 pub struct ElectionWrapper(pub Election);
 
 impl TryFrom<Row> for ElectionWrapper {
@@ -104,7 +105,12 @@ pub async fn get_election_max_revotes(
     Ok(data)
 }
 
-/* Returns election */
+/// Get an election by id from the database.
+///
+/// # Errors
+///
+/// Returns an error if SQL preparation or execution fails,
+/// if UUID or other parsing fails, or if row mapping is inconsistent.
 
 #[instrument(skip(hasura_transaction), err)]
 pub async fn get_election_by_id(
@@ -149,6 +155,12 @@ pub async fn get_election_by_id(
 
     Ok(elections.first().cloned())
 }
+/// Get all elections for a given tenant and election event from the database.
+///
+/// # Errors
+///
+/// Returns an error if SQL preparation or execution fails,
+/// if UUID or other parsing fails, or if row mapping is inconsistent.
 
 #[instrument(skip(hasura_transaction), err)]
 pub async fn get_elections(
@@ -188,6 +200,12 @@ pub async fn get_elections(
 
     Ok(elections)
 }
+/// Get elections by ids from the database.
+///
+/// # Errors
+///
+/// Returns an error if SQL preparation or execution fails,
+/// if UUID or other parsing fails, or if row mapping is inconsistent.
 
 #[instrument(skip(hasura_transaction), err)]
 pub async fn get_elections_by_ids(
@@ -238,6 +256,12 @@ pub async fn get_elections_by_ids(
 
     Ok(elections)
 }
+/// Get elections by keys ceremony id from the database.
+///
+/// # Errors
+///
+/// Returns an error if SQL preparation or execution fails,
+/// if UUID or other parsing fails, or if row mapping is inconsistent.
 
 #[instrument(skip(hasura_transaction), err)]
 pub async fn get_elections_by_keys_ceremony_id(
@@ -283,6 +307,12 @@ pub async fn get_elections_by_keys_ceremony_id(
 
     Ok(elections)
 }
+/// Update election presentation for an election and returns the updated row when applicable.
+///
+/// # Errors
+///
+/// Returns an error if SQL preparation or execution fails,
+/// if UUID or other parsing fails, or if row mapping is inconsistent.
 
 #[instrument(skip(hasura_transaction), err)]
 pub async fn update_election_presentation(
@@ -329,6 +359,12 @@ pub async fn update_election_presentation(
 
     Ok(())
 }
+/// Update election voting status for an election and returns the updated row when applicable.
+///
+/// # Errors
+///
+/// Returns an error if SQL preparation or execution fails,
+/// if UUID or other parsing fails, or if row mapping is inconsistent.
 
 #[instrument(skip(hasura_transaction), err)]
 pub async fn update_election_voting_status(
@@ -370,6 +406,12 @@ pub async fn update_election_voting_status(
 
     Ok(())
 }
+/// Insert election into the database.
+///
+/// # Errors
+///
+/// Returns an error if SQL preparation or execution fails,
+/// if UUID or other parsing fails, or if row mapping is inconsistent.
 
 #[instrument(err, skip_all)]
 pub async fn create_election(
@@ -447,6 +489,12 @@ pub async fn create_election(
         .cloned()
         .ok_or(anyhow!("Coudln't insert election"))
 }
+/// Insert multiple elections for a given election event into the database.
+///
+/// # Errors
+///
+/// Returns an error if SQL preparation or execution fails,
+/// if UUID or other parsing fails, or if row mapping is inconsistent.
 
 #[instrument(err, skip_all)]
 pub async fn insert_elections(
@@ -552,6 +600,12 @@ pub async fn insert_elections(
 
     Ok(())
 }
+/// Get all elections for a given tenant and election event from the database.
+///
+/// # Errors
+///
+/// Returns an error if SQL preparation or execution fails,
+/// if UUID or other parsing fails, or if row mapping is inconsistent.
 
 #[instrument(err, skip_all)]
 pub async fn export_elections(
@@ -593,6 +647,12 @@ pub async fn export_elections(
 
     Ok(elections)
 }
+/// Set election keys ceremony for an election and returns the updated row when applicable.
+///
+/// # Errors
+///
+/// Returns an error if SQL preparation or execution fails,
+/// if UUID or other parsing fails, or if row mapping is inconsistent.
 
 #[instrument(err, skip(hasura_transaction))]
 pub async fn set_election_keys_ceremony(
@@ -650,6 +710,11 @@ pub async fn set_election_keys_ceremony(
 
     Ok(elections)
 }
+/// Update for an election if the initialization report was generated.
+///
+/// # Errors
+///
+/// Returns an error if SQL preparation or execution fails, if UUID or other parsing fails, or if row mapping is inconsistent.
 
 #[instrument(err, skip(hasura_transaction))]
 pub async fn set_election_initialization_report_generated(
@@ -689,6 +754,12 @@ pub async fn set_election_initialization_report_generated(
 
     Ok(())
 }
+/// Updates election status and returns the updated row when applicable.
+///
+/// # Errors
+///
+/// Returns an error if SQL preparation or execution fails,
+/// if UUID or other parsing fails, or if row mapping is inconsistent.
 
 #[instrument(err, skip(hasura_transaction))]
 pub async fn update_election_status(
@@ -751,6 +822,12 @@ pub async fn update_election_status(
 
     Ok(results)
 }
+/// Get all elections ids for a given tenant and election event from the database.
+///
+/// # Errors
+///
+/// Returns an error if SQL preparation or execution fails,
+/// if UUID or other parsing fails, or if row mapping is inconsistent.
 
 #[instrument(skip(hasura_transaction), err)]
 pub async fn get_elections_ids(
@@ -790,6 +867,12 @@ pub async fn get_elections_ids(
 
     Ok(elections)
 }
+/// Get election permission label from the database.
+///
+/// # Errors
+///
+/// Returns an error if SQL preparation or execution fails,
+/// if UUID or other parsing fails, or if row mapping is inconsistent.
 
 #[instrument(err, skip(hasura_transaction))]
 pub async fn get_election_permission_label(

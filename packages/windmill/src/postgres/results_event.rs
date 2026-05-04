@@ -13,6 +13,7 @@ use tokio_postgres::row::Row;
 use tracing::instrument;
 use uuid::Uuid;
 
+/// Results event wrapper
 pub struct ResultsEventWrapper(pub ResultsEvent);
 
 impl TryFrom<Row> for ResultsEventWrapper {
@@ -36,6 +37,12 @@ impl TryFrom<Row> for ResultsEventWrapper {
         }))
     }
 }
+/// Update results event documents into the database.
+///
+/// # Errors
+///
+/// Returns an error if SQL preparation or execution fails,
+/// if UUID or other parsing fails.
 
 #[instrument(skip(hasura_transaction), err)]
 pub async fn update_results_event_documents(
@@ -92,6 +99,12 @@ pub async fn update_results_event_documents(
         Err(anyhow!("Rows not found in table results_event"))
     }
 }
+/// Get results event by id from the database.
+///
+/// # Errors
+///
+/// Returns an error if SQL preparation or execution fails,
+/// if UUID or other parsing fails.
 
 #[instrument(err, skip(hasura_transaction))]
 pub async fn get_results_event_by_id(
@@ -139,6 +152,12 @@ pub async fn get_results_event_by_id(
         .cloned()
         .ok_or(anyhow!("Results event {results_event_id} not found"))
 }
+/// Insert results event into the database.
+///
+/// # Errors
+///
+/// Returns an error if SQL preparation or execution fails,
+/// if UUID or other parsing fails.
 
 #[instrument(err, skip(hasura_transaction), ret)]
 pub async fn insert_results_event(
@@ -188,6 +207,12 @@ pub async fn insert_results_event(
     };
     Ok(value.clone())
 }
+/// Get results event by event id from the database.
+///
+/// # Errors
+///
+/// Returns an error if SQL preparation or execution fails,
+/// if UUID or other parsing fails.
 
 #[instrument(err, skip(hasura_transaction))]
 pub async fn get_results_event_by_event_id(
@@ -231,6 +256,8 @@ pub async fn get_results_event_by_event_id(
 }
 
 #[derive(Debug, Serialize)]
+/// Insertable results event data representation
+#[allow(missing_docs)]
 struct InsertableResultsEvent {
     id: Uuid,
     tenant_id: Uuid,
@@ -242,6 +269,12 @@ struct InsertableResultsEvent {
     labels: Option<Value>,
     documents: Option<Value>,
 }
+/// Insert many results events into the database.
+///
+/// # Errors
+///
+/// Returns an error if SQL preparation or execution fails,
+/// if UUID or other parsing fails.
 
 #[instrument(err, skip(hasura_transaction, results_events))]
 pub async fn insert_many_results_events(

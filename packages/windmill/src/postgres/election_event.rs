@@ -12,7 +12,9 @@ use tokio_postgres::row::Row;
 use tracing::{event, info, instrument, Level};
 use uuid::Uuid;
 
+/// Row representing Election event datafix
 pub struct ElectionEventDatafix(pub ElectionEventData);
+/// Row representing Election event wrapper
 pub struct ElectionEventWrapper(pub ElectionEventData);
 
 impl TryFrom<Row> for ElectionEventWrapper {
@@ -43,6 +45,12 @@ impl TryFrom<Row> for ElectionEventWrapper {
         }))
     }
 }
+/// Insert election event into the database.
+///
+/// # Errors
+///
+/// Returns an error if SQL preparation or execution fails,
+/// if UUID or other parsing fails, or if row mapping is inconsistent.
 
 #[instrument(err, skip_all)]
 pub async fn insert_election_event(
@@ -93,6 +101,12 @@ pub async fn insert_election_event(
 
     Ok(())
 }
+/// Loads election event by id from the database.
+///
+/// # Errors
+///
+/// Returns an error if SQL preparation or execution fails,
+/// if UUID or other parsing fails, or if row mapping is inconsistent.
 
 #[instrument(err, skip_all)]
 pub async fn get_election_event_by_id(
@@ -137,6 +151,11 @@ pub async fn get_election_event_by_id(
         .cloned()
         .ok_or(anyhow!("Election event {election_event_id} not found"))
 }
+/// Loads election event by id if exist from the database.
+///
+/// # Errors
+///
+/// Returns an error if SQL preparation or execution fails, if UUID or other parsing fails, or if row mapping is inconsistent.
 
 #[instrument(err, skip_all)]
 pub async fn get_election_event_by_id_if_exist(
@@ -180,7 +199,7 @@ pub async fn get_election_event_by_id_if_exist(
     Ok(election_event)
 }
 
-/// Returns all the Election events as ElectionEventDatafix
+/// Returns all the Election events as `ElectionEventDatafix` for a given tenant.
 #[instrument(err, skip_all)]
 pub async fn get_all_tenant_election_events(
     hasura_transaction: &Transaction<'_>,
@@ -214,6 +233,12 @@ pub async fn get_all_tenant_election_events(
 
     Ok(election_events)
 }
+/// Updates election event annotations and returns the updated row when applicable.
+///
+/// # Errors
+///
+/// Returns an error if SQL preparation or execution fails,
+/// if UUID or other parsing fails, or if row mapping is inconsistent.
 
 pub async fn update_election_event_annotations(
     hasura_transaction: &Transaction<'_>,
@@ -250,6 +275,12 @@ pub async fn update_election_event_annotations(
 
     Ok(())
 }
+/// Updates election event presentation and returns the updated row when applicable.
+///
+/// # Errors
+///
+/// Returns an error if SQL preparation or execution fails,
+/// if UUID or other parsing fails, or if row mapping is inconsistent.
 
 pub async fn update_election_event_presentation(
     hasura_transaction: &Transaction<'_>,
@@ -288,6 +319,12 @@ pub async fn update_election_event_presentation(
 
     Ok(())
 }
+/// Updates elections status by election event and returns the updated row when applicable.
+///
+/// # Errors
+///
+/// Returns an error if SQL preparation or execution fails,
+/// if UUID or other parsing fails, or if row mapping is inconsistent.
 
 #[instrument(skip(hasura_transaction), err)]
 pub async fn update_elections_status_by_election_event(
@@ -335,6 +372,12 @@ pub async fn update_elections_status_by_election_event(
 
     Ok(ids)
 }
+/// Updates election event status and returns the updated row when applicable.
+///
+/// # Errors
+///
+/// Returns an error if SQL preparation or execution fails,
+/// if UUID or other parsing fails, or if row mapping is inconsistent.
 
 #[instrument(skip(hasura_transaction), err)]
 pub async fn update_election_event_status(
@@ -367,6 +410,12 @@ pub async fn update_election_event_status(
 
     Ok(())
 }
+/// Loads election event by election area from the database.
+///
+/// # Errors
+///
+/// Returns an error if SQL preparation or execution fails,
+/// if UUID or other parsing fails, or if row mapping is inconsistent.
 
 #[instrument(err, skip_all)]
 pub async fn get_election_event_by_election_area(
@@ -424,6 +473,12 @@ pub async fn get_election_event_by_election_area(
         .cloned()
         .ok_or(anyhow!("Election event not found"))
 }
+/// Deletes election event and related data within the tenant scope.
+///
+/// # Errors
+///
+/// Returns an error if SQL preparation or execution fails,
+/// if UUID or other parsing fails, or if row mapping is inconsistent.
 
 #[instrument(err, skip_all)]
 pub async fn delete_election_event(
@@ -509,6 +564,12 @@ pub async fn delete_election_event(
 
     Ok(())
 }
+/// Updates bulletin board for an election event and returns the updated row when applicable.
+///
+/// # Errors
+///
+/// Returns an error if SQL preparation or execution fails,
+/// if UUID or other parsing fails, or if row mapping is inconsistent.
 
 #[instrument(err, skip_all)]
 pub async fn update_bulletin_board(
@@ -546,6 +607,12 @@ pub async fn update_bulletin_board(
 
     Ok(())
 }
+/// Loads batch election events from the database.
+///
+/// # Errors
+///
+/// Returns an error if SQL preparation or execution fails,
+/// if UUID or other parsing fails, or if row mapping is inconsistent.
 
 #[instrument(err, skip_all)]
 pub async fn get_batch_election_events(

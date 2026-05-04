@@ -9,6 +9,7 @@ use tokio_postgres::row::Row;
 use tracing::{event, instrument, Level};
 use uuid::Uuid;
 
+/// Tenant wrapper
 pub struct TenantWrapper(pub Tenant);
 
 impl TryFrom<Row> for TenantWrapper {
@@ -28,6 +29,12 @@ impl TryFrom<Row> for TenantWrapper {
         }))
     }
 }
+/// Get tenant by id from the database.
+///
+/// # Errors
+///
+/// Returns an error if SQL preparation or execution fails,
+/// if UUID or other parsing fails.
 
 #[instrument(skip(hasura_transaction), err)]
 pub async fn get_tenant_by_id(
@@ -69,6 +76,12 @@ pub async fn get_tenant_by_id(
     let tenant = tenants.first().cloned().context("Error obtaining Tenant")?;
     Ok(tenant)
 }
+/// Update tenant in the database.
+///
+/// # Errors
+///
+/// Returns an error if SQL preparation or execution fails,
+/// if UUID or other parsing fails.
 
 #[instrument(skip(hasura_transaction), err)]
 pub async fn update_tenant(
@@ -127,6 +140,12 @@ pub async fn update_tenant(
 
     Ok(())
 }
+/// Insert tenant into the database.
+///
+/// # Errors
+///
+/// Returns an error if SQL preparation or execution fails,
+/// if UUID or other parsing fails.
 
 #[instrument(skip(hasura_transaction), err)]
 pub async fn insert_tenant(
@@ -160,6 +179,12 @@ pub async fn insert_tenant(
 
     Ok(())
 }
+/// Get tenant by id if exist from the database.
+///
+/// # Errors
+///
+/// Returns an error if SQL preparation or execution fails,
+/// if UUID or other parsing fails.
 
 #[instrument(skip(hasura_transaction), err)]
 pub async fn get_tenant_by_id_if_exist(
@@ -205,6 +230,12 @@ pub async fn get_tenant_by_id_if_exist(
     let tenant = tenants.first().cloned().context("Error obtaining Tenant")?;
     Ok(Some(tenant))
 }
+/// Get tenant by slug if exist from the database.
+///
+/// # Errors
+///
+/// Returns an error if SQL preparation or execution fails,
+/// if UUID or other parsing fails.
 
 #[instrument(skip(hasura_transaction), err)]
 pub async fn get_tenant_by_slug_if_exist(

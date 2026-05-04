@@ -16,6 +16,7 @@ use tokio_postgres::row::Row;
 use tracing::{info, instrument};
 use uuid::Uuid;
 
+/// Results area contest candidate wrapper
 pub struct ResultsAreaContestCandidateWrapper(pub ResultsAreaContestCandidate);
 
 impl TryFrom<Row> for ResultsAreaContestCandidateWrapper {
@@ -59,6 +60,12 @@ impl TryFrom<Row> for ResultsAreaContestCandidateWrapper {
         ))
     }
 }
+/// Get results area contest candidates from the database.
+///
+/// # Errors
+///
+/// Returns an error if SQL preparation or execution fails,
+/// if UUID or other parsing fails.
 
 #[instrument(skip(hasura_transaction), err)]
 pub async fn get_results_area_contest_candidates(
@@ -122,6 +129,12 @@ pub async fn get_results_area_contest_candidates(
 
     Ok(results_area_contest_candidate.first().cloned())
 }
+/// Insert results area contest candidates into the database.
+///
+/// # Errors
+///
+/// Returns an error if SQL preparation or execution fails,
+/// if UUID or other parsing fails.
 
 #[instrument(err, skip(hasura_transaction, contest_candidates))]
 pub async fn insert_results_area_contest_candidates(
@@ -135,10 +148,12 @@ pub async fn insert_results_area_contest_candidates(
         return Ok(Vec::new());
     }
     #[derive(Debug, Serialize)]
+    #[allow(missing_docs)]
     pub struct InsertResultsAreaContestCandidate {
         pub tenant_id: Uuid,
         pub election_event_id: Uuid,
         pub results_event_id: Uuid,
+        /// Parent election identifier when applicable.
         pub election_id: Uuid,
         pub contest_id: Uuid,
         pub candidate_id: Uuid,
@@ -237,6 +252,12 @@ pub async fn insert_results_area_contest_candidates(
 
     Ok(values)
 }
+/// Get event results area contest candidates from the database.
+///
+/// # Errors
+///
+/// Returns an error if SQL preparation or execution fails,
+/// if UUID or other parsing fails.
 
 #[instrument(skip(hasura_transaction), err)]
 pub async fn get_event_results_area_contest_candidates(
@@ -281,6 +302,8 @@ pub async fn get_event_results_area_contest_candidates(
 }
 
 #[derive(Debug, Serialize)]
+/// Insertable results area contest candidate representation
+#[allow(missing_docs)]
 struct InsertableResultsAreaContestCandidate {
     id: Uuid,
     tenant_id: Uuid,
@@ -300,6 +323,12 @@ struct InsertableResultsAreaContestCandidate {
     cast_votes_percent: Option<f64>,
     documents: Option<Value>,
 }
+/// Insert many results area contest candidates into the database.
+///
+/// # Errors
+///
+/// Returns an error if SQL preparation or execution fails,
+/// if UUID or other parsing fails.
 
 #[instrument(err, skip(hasura_transaction, candidates))]
 pub async fn insert_many_results_area_contest_candidates(

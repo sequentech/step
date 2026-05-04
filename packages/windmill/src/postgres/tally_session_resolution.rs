@@ -11,6 +11,7 @@ use sequent_core::types::ceremonies::{
 use tokio_postgres::Row;
 use tracing::{info, instrument};
 use uuid::Uuid;
+/// map row from database to `TallySessionResolution`.
 
 fn map_row_to_resolution(row: &Row) -> Result<TallySessionResolution> {
     let resolution_type_str: String = row.get(7);

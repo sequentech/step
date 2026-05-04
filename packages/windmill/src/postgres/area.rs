@@ -15,6 +15,7 @@ use tokio_postgres::row::Row;
 use tracing::instrument;
 use uuid::Uuid;
 
+/// Row representing Area wrapper
 pub struct AreaWrapper(pub Area);
 
 impl TryFrom<Row> for AreaWrapper {
@@ -310,6 +311,12 @@ pub async fn get_area_by_id(
 
     Ok(areas.first().cloned())
 }
+///  Updates area parents.
+///
+/// # Errors
+///
+/// Returns an error if SQL preparation or execution fails,
+/// if UUID or other parsing fails, or if row mapping is inconsistent.
 
 #[instrument(err, skip_all)]
 pub async fn upsert_area_parents(
@@ -353,6 +360,12 @@ pub async fn upsert_area_parents(
 
     Ok(())
 }
+/// Insert areas into the database.
+///
+/// # Errors
+///
+/// Returns an error if SQL preparation or execution fails,
+/// if UUID or other parsing fails, or if row mapping is inconsistent.
 
 #[instrument(err, skip_all)]
 pub async fn insert_areas(hasura_transaction: &Transaction<'_>, areas: &[Area]) -> Result<()> {
@@ -408,6 +421,12 @@ pub async fn insert_areas(hasura_transaction: &Transaction<'_>, areas: &[Area]) 
 
     Ok(())
 }
+/// Get all areas for a given tenant and election event from the database.
+///
+/// # Errors
+///
+/// Returns an error if SQL preparation or execution fails,
+/// if UUID or other parsing fails, or if row mapping is inconsistent.
 
 #[instrument(err, skip_all)]
 pub async fn get_event_areas(
@@ -448,13 +467,19 @@ pub async fn get_event_areas(
 }
 
 #[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
+/// Row representing Area election
 pub struct AreaElection {
+    /// Primary identifier for this entity.
     pub id: String,
+    /// Area name.
     pub name: Option<String>,
+    /// Area description.
     pub description: Option<String>,
+    /// Area annotations.
     pub annotations: Option<String>,
 }
 
+/// Row representing Area election wrapper
 pub struct AreaElectionWrapper(pub AreaElection);
 
 impl TryFrom<Row> for AreaElectionWrapper {
@@ -524,7 +549,8 @@ pub async fn get_areas_by_election_id(
     Ok(areas)
 }
 
-/// Returns a vector of areas per tenant and election event, filtered by a list of area_ids
+/// Returns a vector of areas per tenant and election event,
+/// filtered by a list of area_ids
 #[instrument(skip(hasura_transaction), err)]
 pub async fn get_areas_by_ids(
     hasura_transaction: &Transaction<'_>,
@@ -568,6 +594,12 @@ pub async fn get_areas_by_ids(
 
     Ok(areas)
 }
+/// Deletes area contests within the tenant scope.
+///
+/// # Errors
+///
+/// Returns an error if SQL preparation or execution fails,
+/// if UUID or other parsing fails, or if row mapping is inconsistent.
 
 #[instrument(skip(hasura_transaction), err)]
 pub async fn delete_area_contests(
@@ -601,6 +633,12 @@ pub async fn delete_area_contests(
 
     Ok(())
 }
+/// Updates area and returns the updated row when applicable.
+///
+/// # Errors
+///
+/// Returns an error if SQL preparation or execution fails,
+/// if UUID or other parsing fails, or if row mapping is inconsistent.
 
 #[instrument(err, skip_all)]
 pub async fn update_area(hasura_transaction: &Transaction<'_>, area: Area) -> Result<()> {
@@ -648,6 +686,12 @@ pub async fn update_area(hasura_transaction: &Transaction<'_>, area: Area) -> Re
 
     Ok(())
 }
+/// Insert area into the database.
+///
+/// # Errors
+///
+/// Returns an error if SQL preparation or execution fails,
+/// if UUID or other parsing fails, or if row mapping is inconsistent.
 
 #[instrument(err, skip_all)]
 pub async fn insert_area(hasura_transaction: &Transaction<'_>, area: Area) -> Result<()> {
