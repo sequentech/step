@@ -32,7 +32,6 @@ use crate::encrypt::encode_to_plaintext_decoded_multi_contest;
 use crate::util::normalize_vote::normalize_election;
 use num_bigint::ToBigUint;
 use num_traits::{ToPrimitive, Zero};
-use std::hash::{Hash, Hasher};
 /// A multi contest ballot.
 ///
 /// A multi contest ballot can be encoded in to a
@@ -193,7 +192,8 @@ pub struct DecodedBallotChoices {
 }
 
 impl BallotStyle {
-    /// Returns a map containint the
+    /// Returns a map containing each contest's counting algorithm, keyed by
+    /// contest ID (`contest_id -> CountingAlgType`).
     pub fn get_counting_algorithms(
         &self,
     ) -> Result<HashMap<String, CountingAlgType>, BallotError> {
@@ -405,7 +405,7 @@ impl BallotChoices {
                         let index =
                             usize::try_from(p.selected).map_err(|_| {
                                 format!(
-                                    "uzise conversion on choice selected value"
+                                    "usize conversion on choice selected value"
                                 )
                             })?;
                         if index >= max_votes {
@@ -1658,6 +1658,7 @@ mod tests {
             presentation: None,
             created_at: None,
             annotations: None,
+            tie_breaking_policy: None,
         }
     }
 

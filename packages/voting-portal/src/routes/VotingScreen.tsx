@@ -323,7 +323,7 @@ const VotingScreen: React.FC = () => {
     const submit = useSubmit()
 
     const isMultiContest =
-        ballotStyle?.ballot_eml.election_event_presentation?.contest_encryption_policy ==
+        ballotStyle?.ballot_eml.election_event_presentation?.contest_encryption_policy ===
         EElectionEventContestEncryptionPolicy.MULTIPLE_CONTESTS
     const onSetDisableNext = (id: string) => (value: boolean) => {
         setDisableNext({

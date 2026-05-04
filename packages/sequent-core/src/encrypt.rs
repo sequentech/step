@@ -23,7 +23,6 @@ use crate::multi_ballot::{
 use crate::plaintext::map_decoded_ballot_choices_to_decoded_contests;
 use crate::plaintext::DecodedVoteContest;
 use crate::serialization::base64::Base64Deserialize;
-use crate::types::ceremonies::CountingAlgType;
 use crate::util::date::get_current_date;
 use crate::util::normalize_vote::normalize_election;
 use base64::engine::general_purpose;

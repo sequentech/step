@@ -30,7 +30,7 @@ In IRV, if no candidate receives a majority of first-preference votes, the candi
 
 ### Limitations
 
-In multi-contest encoding, IRV is supported only when the contest-level Duplicate Rank Policy is disabled (i.e., voters are not allowed to proceed with duplicate rankings).
+In multi-contest encoding, IRV is supported only when the contest-level Duplicate Rank Policy is set to disallow duplicate rankings ("Show Warning and Dialog (voter not allowed to proceed)" option).
 
 ### Location
 
