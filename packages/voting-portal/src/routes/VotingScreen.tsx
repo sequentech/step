@@ -202,7 +202,7 @@ const ContestPagination: React.FC<ContestPaginationProps> = ({
     const {interpretContestSelection, interpretMultiContestSelection} = provideBallotService()
 
     const isMultiContest =
-        ballotStyle?.ballot_eml.election_event_presentation?.contest_encryption_policy ==
+        ballotStyle?.ballot_eml.election_event_presentation?.contest_encryption_policy ===
         EElectionEventContestEncryptionPolicy.MULTIPLE_CONTESTS
     const errorSelectionState = useMemo(() => {
         if (!ballotSelectionState) {
@@ -322,6 +322,9 @@ const VotingScreen: React.FC = () => {
 
     const submit = useSubmit()
 
+    const isMultiContest =
+        ballotStyle?.ballot_eml.election_event_presentation?.contest_encryption_policy ===
+        EElectionEventContestEncryptionPolicy.MULTIPLE_CONTESTS
     const onSetDisableNext = (id: string) => (value: boolean) => {
         setDisableNext({
             ...disableNext,
@@ -338,13 +341,21 @@ const VotingScreen: React.FC = () => {
     // if true, when the user clicks next, there will be a dialog
     // that doesn't allow to continue and forces the user to fix the issues
     const disableNextButton = (): boolean => {
-        return check_voting_not_allowed_next_bool(ballotStyle?.ballot_eml.contests, decodedContests)
+        return check_voting_not_allowed_next_bool(
+            isMultiContest,
+            ballotStyle?.ballot_eml.contests,
+            decodedContests
+        )
     }
 
     // if true, when the user click next, there will be a dialog that prompts
     // the user to confirm before going to the next screen
     const showNextDialog = () => {
-        return check_voting_error_dialog_bool(ballotStyle?.ballot_eml.contests, decodedContests)
+        return check_voting_error_dialog_bool(
+            isMultiContest,
+            ballotStyle?.ballot_eml.contests,
+            decodedContests
+        )
     }
 
     const encryptAndReview = () => {

@@ -157,21 +157,33 @@ pub fn encode_to_plaintext_decoded_multi_contest(
         )));
     }
 
-    let contest_choices: Vec<_> = decoded_contests
+    let counting_algorithms = config.get_counting_algorithms()?;
+
+    let contest_choices: Vec<ContestChoices> = decoded_contests
         .iter()
-        .map(ContestChoices::from_decoded_vote_contest)
-        .collect();
+        .map(|dvc| {
+            let contest_counting_algorithm = counting_algorithms
+                .get(&dvc.contest_id)
+                .copied()
+                .ok_or_else(|| {
+                    BallotError::ConsistencyCheck(format!(
+                        "Missing counting algorithm for contest id {}",
+                        dvc.contest_id
+                    ))
+                })?;
+            Ok(ContestChoices::from_decoded_vote_contest(
+                dvc,
+                &contest_counting_algorithm,
+            ))
+        })
+        .collect::<Result<Vec<ContestChoices>, BallotError>>()?;
 
     let is_explicit_invalid = decoded_contests
         .iter()
         .any(|choice| choice.is_explicit_invalid);
 
-    let counting_algorithm = config.get_counting_algorithm()?;
-    let ballot_choices = BallotChoices::new(
-        is_explicit_invalid,
-        contest_choices,
-        counting_algorithm,
-    );
+    let ballot_choices =
+        BallotChoices::new(is_explicit_invalid, contest_choices);
 
     let plaintext =
         ballot_choices.encode_to_30_bytes(&config).map_err(|err| {
@@ -197,21 +209,31 @@ pub fn encrypt_decoded_multi_contest<C: Ctx<P = [u8; 30]>>(
         )));
     }
 
-    let contest_choices = decoded_contests
+    let counting_algorithms = config.get_counting_algorithms()?;
+    let contest_choices: Vec<ContestChoices> = decoded_contests
         .iter()
-        .map(ContestChoices::from_decoded_vote_contest)
-        .collect();
+        .map(|dvc| {
+            let contest_counting_algorithm = counting_algorithms
+                .get(&dvc.contest_id)
+                .copied()
+                .ok_or_else(|| {
+                    BallotError::ConsistencyCheck(format!(
+                        "Missing counting algorithm for contest id {}",
+                        dvc.contest_id
+                    ))
+                })?;
+            Ok(ContestChoices::from_decoded_vote_contest(
+                dvc,
+                &contest_counting_algorithm,
+            ))
+        })
+        .collect::<Result<Vec<ContestChoices>, BallotError>>()?;
 
     let is_explicit_invalid = decoded_contests
         .iter()
         .any(|choice| choice.is_explicit_invalid);
 
-    let counting_algorithm = config.get_counting_algorithm()?;
-    let ballot = BallotChoices::new(
-        is_explicit_invalid,
-        contest_choices,
-        counting_algorithm,
-    );
+    let ballot = BallotChoices::new(is_explicit_invalid, contest_choices);
 
     encrypt_multi_ballot(ctx, &ballot, config)
 }

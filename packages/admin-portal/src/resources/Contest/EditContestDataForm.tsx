@@ -62,6 +62,7 @@ import {
     EPreferenceGapsPolicy,
     getDefaultDuplicatedRankPolicy,
     getDefaultPreferenceGapsPolicy,
+    EElectionEventContestEncryptionPolicy,
 } from "@sequentech/ui-core"
 import {DropFile} from "@sequentech/ui-essentials"
 import {IVotingType} from "./constants"
@@ -355,6 +356,10 @@ export const ContestDataForm: React.FC = () => {
         }
     }, [electionEvent?.presentation?.language_conf, election?.presentation?.language_conf])
 
+    const isMultiContest =
+        electionEvent?.presentation?.contest_encryption_policy ===
+        EElectionEventContestEncryptionPolicy.MULTIPLE_CONTESTS
+
     const countingAlgorithmChoices = (): Array<EnumChoice<ICountingAlgorithm>> => {
         return Object.values(ICountingAlgorithm).map((value) => ({
             id: value,
@@ -418,10 +423,12 @@ export const ContestDataForm: React.FC = () => {
         }))
     }
 
+    //In multi-contest encoding, Duplicated Rank Policy should only be not allowed.
     const duplicatedRankPolicyChoices = () => {
         return Object.values(EDuplicatedRankPolicy).map((value) => ({
             id: value,
             name: t(`contestScreen.duplicatedRankPolicy.${value}`),
+            disabled: isMultiContest && value !== EDuplicatedRankPolicy.NOT_ALLOWED_WARN_AND_DIALOG,
         }))
     }
 
@@ -491,7 +498,8 @@ export const ContestDataForm: React.FC = () => {
                 newContest.presentation.over_vote_policy || EOverVotePolicy.ALLOWED
 
             newContest.presentation.duplicated_rank_policy =
-                newContest.presentation.duplicated_rank_policy || getDefaultDuplicatedRankPolicy()
+                newContest.presentation.duplicated_rank_policy ||
+                getDefaultDuplicatedRankPolicy(isMultiContest)
 
             newContest.presentation.preference_gaps_policy =
                 newContest.presentation.preference_gaps_policy || getDefaultPreferenceGapsPolicy()
@@ -854,7 +862,9 @@ export const ContestDataForm: React.FC = () => {
                                                             `contestScreen.duplicatedRankPolicy.label`
                                                         )
                                                     )}
-                                                    defaultValue={getDefaultDuplicatedRankPolicy()}
+                                                    defaultValue={getDefaultDuplicatedRankPolicy(
+                                                        isMultiContest
+                                                    )}
                                                     validate={required()}
                                                 />
 

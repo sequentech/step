@@ -338,14 +338,23 @@ pub fn generate_mcballots(
             Ok::<(), Error>(())
         })?;
 
+        let counting_algorithms: HashMap<String, CountingAlgType> = contests
+            .iter()
+            .map(|contest| (contest.id.clone(), contest.get_counting_algorithm()))
+            .collect();
+
         let mut ballots = vec![];
         for (key, choices) in dvcs_by_area {
             let contest_choices = choices
                 .iter()
-                .map(ContestChoices::from_decoded_vote_contest)
+                .map(|dvc| {
+                    let contest_counting_algorithm = counting_algorithms
+                        .get(&dvc.contest_id)
+                        .map_or(CountingAlgType::default(), |v| *v);
+                    ContestChoices::from_decoded_vote_contest(dvc, &contest_counting_algorithm)
+                })
                 .collect();
-            let ballot =
-                BallotChoices::new(false, contest_choices, CountingAlgType::PluralityAtLarge);
+            let ballot = BallotChoices::new(false, contest_choices);
 
             let ballot_style = generate_ballot_style(
                 &election.tenant_id,
@@ -1850,7 +1859,7 @@ mod tests {
         let decoded_contest = get_decoded_contest_plurality(&contest1);
         decoded_contests1.insert(contest1.id.clone(), decoded_contest);
 
-        let result = check_voting_not_allowed_next_util(vec![contest1], decoded_contests1);
+        let result = check_voting_not_allowed_next_util(false, vec![contest1], decoded_contests1);
         assert_eq!(result, false);
 
         // Case 2: EBlankVotePolicy::NOT_ALLOWED and there aren't any votes cast -> true
@@ -1864,7 +1873,7 @@ mod tests {
         let decoded_contest = get_decoded_contest_plurality(&contest2);
         decoded_contests2.insert(contest2.id.clone(), decoded_contest);
 
-        let result = check_voting_not_allowed_next_util(vec![contest2], decoded_contests2);
+        let result = check_voting_not_allowed_next_util(false, vec![contest2], decoded_contests2);
         assert_eq!(result, true);
 
         // Case 3: EBlankVotePolicy::NOT_ALLOWED but minVotes = 0 and InvalidVotePolicy::NOT_ALLOWED but there aren't any invalid_errors -> false
@@ -1878,7 +1887,7 @@ mod tests {
         let decoded_contest = get_decoded_contest_plurality(&contest3);
         decoded_contests3.insert(contest3.id.clone(), decoded_contest);
 
-        let result = check_voting_not_allowed_next_util(vec![contest3], decoded_contests3);
+        let result = check_voting_not_allowed_next_util(false, vec![contest3], decoded_contests3);
         assert_eq!(result, true);
 
         // Case 4: EBlankVotePolicy::NOT_ALLOWED and InvalidVotePolicy::NOT_ALLOWED with invalid errors -> true
@@ -1892,7 +1901,7 @@ mod tests {
         let decoded_contest = get_decoded_contest_plurality(&contest4);
         decoded_contests4.insert(contest4.id.clone(), decoded_contest);
 
-        let result = check_voting_not_allowed_next_util(vec![contest4], decoded_contests4);
+        let result = check_voting_not_allowed_next_util(false, vec![contest4], decoded_contests4);
         assert_eq!(result, true);
     }
 
@@ -1909,7 +1918,7 @@ mod tests {
         let decoded_contest = get_decoded_contest_plurality(&contest1);
         decoded_contests1.insert(contest1.id.clone(), decoded_contest);
 
-        let result = check_voting_error_dialog_util(vec![contest1], decoded_contests1);
+        let result = check_voting_error_dialog_util(false, vec![contest1], decoded_contests1);
         assert_eq!(result, true);
 
         // Case 2: EBlankVotePolicy::WARN and choices_selected = 0 -> true
@@ -1923,7 +1932,7 @@ mod tests {
         let decoded_contest = get_decoded_contest_plurality(&contest2);
         decoded_contests2.insert(contest2.id.clone(), decoded_contest);
 
-        let result = check_voting_error_dialog_util(vec![contest2], decoded_contests2);
+        let result = check_voting_error_dialog_util(false, vec![contest2], decoded_contests2);
         assert_eq!(result, true);
 
         // Case 3: EBlankVotePolicy::ALLOWED and minVotes = 0 and InvalidVotePolicy::NOT_ALLOWED -> false
@@ -1937,7 +1946,7 @@ mod tests {
         let decoded_contest = get_decoded_contest_plurality(&contest3);
         decoded_contests3.insert(contest3.id.clone(), decoded_contest);
 
-        let result = check_voting_error_dialog_util(vec![contest3], decoded_contests3);
+        let result = check_voting_error_dialog_util(false, vec![contest3], decoded_contests3);
         assert_eq!(result, false);
     }
 }
