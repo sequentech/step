@@ -10,12 +10,14 @@ import lombok.extern.jbosslog.JBossLog;
 import org.keycloak.authentication.AuthenticationFlowContext;
 import org.keycloak.authentication.AuthenticationFlowError;
 import org.keycloak.authentication.authenticators.broker.AbstractIdpAuthenticator;
+import org.keycloak.authentication.authenticators.broker.IdpConfirmOverrideLinkAuthenticator;
 import org.keycloak.authentication.authenticators.broker.util.SerializedBrokeredIdentityContext;
 import org.keycloak.broker.provider.BrokeredIdentityContext;
 import org.keycloak.models.AuthenticatorConfigModel;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.RealmModel;
 import org.keycloak.models.UserModel;
+import org.keycloak.sessions.AuthenticationSessionModel;
 
 /**
  * First Broker Login authenticator that links an incoming IdP identity to an existing Keycloak user
@@ -61,6 +63,8 @@ public class CustomAttributeIdpLinkingAuthenticator extends AbstractIdpAuthentic
                 CustomAttributeIdpLinkingAuthenticatorFactory.CONF_USER_ATTRIBUTE,
                 CustomAttributeIdpLinkingAuthenticatorFactory.DEFAULT_USER_ATTRIBUTE);
 
+    log.debugf("CustomAttributeIdpLinkingAuthenticator: brokerContext.attributes=%s", brokerContext.getAttributes());
+
     String incomingIdentifier = extractClaimValue(brokerContext, idpClaim);
     if (incomingIdentifier == null || incomingIdentifier.isEmpty()) {
       log.warnf(
@@ -103,6 +107,10 @@ public class CustomAttributeIdpLinkingAuthenticator extends AbstractIdpAuthentic
         "CustomAttributeIdpLinkingAuthenticator: linking IdP identity to user '%s' via"
             + " attribute '%s'='%s'",
         existingUser.getUsername(), userAttributeName, incomingIdentifier);
+
+    // Force override Link as we are mapping different users to a single user.
+    AuthenticationSessionModel authSession = context.getAuthenticationSession();
+    authSession.setAuthNote(IdpConfirmOverrideLinkAuthenticator.OVERRIDE_LINK, "true");
 
     context.setUser(existingUser);
     context.success();

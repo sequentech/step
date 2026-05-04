@@ -6,6 +6,7 @@ package sequent.keycloak.idp_linking_authenticator;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
@@ -25,6 +26,7 @@ import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.RealmModel;
 import org.keycloak.models.UserModel;
 import org.keycloak.models.UserProvider;
+import org.keycloak.sessions.AuthenticationSessionModel;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -41,6 +43,7 @@ public class CustomAttributeIdpLinkingAuthenticatorTest {
   @Mock private RealmModel realm;
   @Mock private UserProvider userProvider;
   @Mock private UserModel user;
+  @Mock private AuthenticationSessionModel authSession;
 
   @BeforeEach
   void setUp() {
@@ -122,6 +125,7 @@ public class CustomAttributeIdpLinkingAuthenticatorTest {
     when(brokerContext.getEmail()).thenReturn("voter@example.com");
     when(context.getSession()).thenReturn(session);
     when(context.getRealm()).thenReturn(realm);
+    when(context.getAuthenticationSession()).thenReturn(authSession);
     when(session.users()).thenReturn(userProvider);
     when(userProvider.searchForUserByUserAttributeStream(
             eq(realm), eq("linked_idp_identities"), eq("voter@example.com")))
@@ -164,6 +168,7 @@ public class CustomAttributeIdpLinkingAuthenticatorTest {
     when(brokerContext.getUserAttribute("SAFE_ID")).thenReturn("SAFE-12345");
     when(context.getSession()).thenReturn(session);
     when(context.getRealm()).thenReturn(realm);
+    when(context.getAuthenticationSession()).thenReturn(authSession);
     when(session.users()).thenReturn(userProvider);
     when(userProvider.searchForUserByUserAttributeStream(
             eq(realm), eq("linked_idp_identities"), eq("SAFE-12345")))

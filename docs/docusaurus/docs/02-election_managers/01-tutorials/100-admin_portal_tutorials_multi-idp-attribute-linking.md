@@ -40,7 +40,7 @@ attribute before configuring the flow.
 2. Navigate to **Realm settings** → **User profile** → **Create attribute**.
 3. Set the **Name** to `linked_idp_identities` (or any name you will use in the authenticator
    configuration).
-4. Leave the attribute **multi-valued** (do not restrict it to a single value).
+4. Enable the attribute **multi-valued** (do not restrict it to a single value).
 5. Optionally restrict read/write permissions so only administrators can manage it.
 6. Click **Save**.
 
@@ -49,37 +49,32 @@ attribute before configuring the flow.
 
 ---
 
-## Step 2 – Duplicate the First Broker Login Flow
+## Step 2 – Create the First Broker Login Flow
 
-Do not modify the built-in `first broker login` flow directly. Instead, create a copy:
+In this step we will create `sequent first broker login multivalue` flow directly.
 
 1. Navigate to **Authentication** → **Flows**.
-2. Find the **first broker login** flow and click the **⋮** (More options) menu → **Duplicate**.
-3. Give the copy a descriptive name such as `Custom Attribute Linking – First Broker Login`.
+2. Click on create flow
+3. Give the new flow a descriptive name such as `sequent first broker login multivalue`.
 
 ---
 
 ## Step 3 – Add the Custom Authenticator to the Flow
 
-1. Open the duplicated flow.
-2. Locate the **Handle Existing Account** sub-flow (or the top-level flow if you prefer a simpler
-   structure).
-3. Click **Add step** inside the appropriate sub-flow.
-4. Search for **Custom Attribute IdP Identity Linking** and add it.
-5. Set the requirement to **ALTERNATIVE** (the authenticator will call `attempted()` when no
-   matching user is found, allowing the next step to run) or **REQUIRED** if you want the flow to
-   fail when no match is found.
-6. Click **⚙ Config** (gear icon) next to the new step to configure it:
+1. Open the duplicnewated flow.
+2. Click **Add step** inside the appropriate sub-flow.
+3. Search for **Custom Attribute IdP Identity Linking** and add it.
+4. Set the requirement to **REQUIRED** if you want the flow to
+   fail when no match is found or **ALTERNATIVE** (the authenticator will call `attempted()` when no
+   matching user is found, allowing the next step to run, if you fant to create a user if not found for example).
+5. Click **⚙ Config** (gear icon) next to the new step to configure it:
 
    | Parameter | Description | Default |
    |---|---|---|
    | **IdP Claim** | Claim/attribute name to read from the incoming IdP identity. Use well-known names (`email`, `username`, `id`/`sub`, `firstname`, `lastname`) or a custom mapped attribute (e.g., `SAFE_ID`). | `email` |
    | **User Attribute** | Keycloak user attribute (multi-value) to search for the claim value. | `linked_idp_identities` |
 
-7. Click **Save**.
-
-> **Note:** Place this step **before** the built-in *Create User If Unique* or *Automatically Set
-> Existing User* steps so that the custom attribute lookup runs first.
+6. Click **Save**.
 
 ---
 
@@ -92,7 +87,7 @@ Do not modify the built-in `first broker login` flow directly. Instead, create a
 
 ---
 
-## Step 5 – (Optional) Map the Custom Claim from the IdP Token
+## Step 5 – Map the Custom Claim from the IdP Token
 
 If the claim you want to use (e.g., `SAFE_ID`) is not a standard OIDC/SAML field, add an
 attribute mapper on the IdP:
@@ -115,28 +110,3 @@ attribute mapper on the IdP:
 | No user found with the attribute value | Passes to the next step (`attempted`). |
 | Exactly one user found | Links the IdP identity to that user and succeeds. |
 | More than one user found | Fails the flow with `IDENTITY_PROVIDER_ERROR` to prevent ambiguous linking. |
-
----
-
-## Pre-populating `linked_idp_identities` for Existing Users
-
-You can pre-populate the attribute using the Keycloak Admin REST API:
-
-```bash
-# Obtain an access token for the admin user
-TOKEN=$(curl -s -X POST \
-  "https://keycloak.example.com/realms/master/protocol/openid-connect/token" \
-  -d "client_id=admin-cli&grant_type=password&username=admin&password=admin" \
-  | jq -r .access_token)
-
-# Update a user's linked_idp_identities attribute
-curl -s -X PUT \
-  "https://keycloak.example.com/admin/realms/my-realm/users/<USER_ID>" \
-  -H "Authorization: Bearer $TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "attributes": {
-      "linked_idp_identities": ["voter@external-idp.example.com", "voter@another-idp.example.com"]
-    }
-  }'
-```
