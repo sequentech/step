@@ -129,3 +129,6 @@ rustls = { version = "0.23.32", features = ["ring"] }
 
 [dev-dependencies]
 dhat = "0.3"
+
+[lints.rust]
+unsafe_code = "forbid"
