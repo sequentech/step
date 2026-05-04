@@ -62,27 +62,6 @@ SPDX-License-Identifier: AGPL-3.0-only
             </#list>
         </#if>
 
-        <#if hasAlternativeProvider>
-            <div class="${properties.kcFormGroupClass!}">
-                <hr/>
-                <p>${msg("oid4vpAlternativeMethods")}</p>
-                <ul class="${properties.kcFormSocialAccountListClass!}">
-                    <#list social.providers as p>
-                        <#if p.alias != (currentBrokerAlias!'')>
-                            <li class="${properties.kcFormSocialAccountListItemClass!}">
-                                <a href="${p.loginUrl}" id="social-${p.alias}" class="${properties.kcFormSocialAccountButtonClass!}">
-                                    <#if p.iconClasses?has_content>
-                                        <i class="${properties.kcFormSocialAccountButtonTextClass!} ${p.iconClasses!}" aria-hidden="true"></i>
-                                    </#if>
-                                    <span class="${properties.kcFormSocialAccountButtonText!}"><#if p.alias == 'digital-certificates'>${msg("digitalCertificateButton")}<#else>${msg(p.displayName)!}</#if></span>
-                                </a>
-                            </li>
-                        </#if>
-                    </#list>
-                </ul>
-            </div>
-        </#if>
-
         <#if (crossDeviceStatusUrl!'')?has_content && (crossDeviceEnabled!false)>
             <div id="oid4vp-cross-device-sse-config"
                  data-status-url="${crossDeviceStatusUrl!''}"
