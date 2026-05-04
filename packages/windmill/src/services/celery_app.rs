@@ -8,9 +8,8 @@ use celery::Celery;
 use lapin::{Connection, ConnectionProperties};
 use std;
 use std::convert::AsRef;
-use std::sync::Arc;
+use std::sync::{Arc, LazyLock, Mutex, RwLock};
 use strum_macros::AsRefStr;
-use tokio::sync::{Mutex, RwLock};
 use tracing::{event, info, instrument, Level};
 
 use crate::services::plugins_manager::plugin_manager::init_plugin_manager;
@@ -93,74 +92,86 @@ impl Queue {
     }
 }
 
-static mut PREFETCH_COUNT_S: u16 = 100;
-static mut ACKS_LATE_S: bool = true;
-static mut TASK_MAX_RETRIES: u32 = 4;
-static mut IS_APP_ACTIVE: bool = true;
-static mut BROKER_CONNECTION_MAX_RETRIES: u32 = 5;
-static mut HEARTBEAT_SECS: u16 = 10;
-static mut WORKER_THREADS: usize = 1;
-static mut QUEUES: Vec<String> = vec![];
-
-pub fn set_prefetch_count(new_val: u16) {
-    unsafe {
-        PREFETCH_COUNT_S = new_val;
-    }
+/// The main struct for global Celery configuration.
+/// Set at-most once; either by command line options during startup or falls back to defaults.
+pub struct CeleryConfig {
+    pub prefetch_count: u16,
+    pub acks_late: bool,
+    pub task_max_retries: u32,
+    pub broker_connection_max_retries: u32,
+    pub heartbeat_secs: u16,
 }
 
+/// Global Celery configuration.
+/// Expected to be either set once during startup or used with defaults.
+static CELERY_CONFIG: LazyLock<RwLock<CeleryConfig>> = LazyLock::new(|| {
+    RwLock::new(CeleryConfig {
+        prefetch_count: 100,
+        acks_late: true,
+        task_max_retries: 4,
+        broker_connection_max_retries: 5,
+        heartbeat_secs: 10,
+    })
+});
+
+/// Global Celery queues configured.
+/// Expected to be either set once during startup or kept empty.
+static QUEUES: LazyLock<RwLock<Vec<String>>> = LazyLock::new(|| RwLock::new(Vec::new()));
+
+/// Globally configured worker threads.
+static WORKER_THREADS: LazyLock<RwLock<usize>> = LazyLock::new(|| RwLock::new(1));
+
+/// Global app execution status.
+static IS_APP_ACTIVE: LazyLock<RwLock<bool>> = LazyLock::new(|| RwLock::new(true));
+
+/// Update global Celery config.
+/// Expected to be called at-most once, during startup.
+pub fn set_config(new_config: CeleryConfig) {
+    let mut config = CELERY_CONFIG
+        .write()
+        .expect("failed to write-lock CeleryConfig");
+    *config = new_config;
+}
+
+/// Update global Celery queues.
+/// Expected to be called at-most once, during startup.
+pub fn set_queues(new_queues: Vec<String>) {
+    *QUEUES.write().expect("failed to write-lock queues") = new_queues;
+}
+
+/// Get globally configured Celery queues.
+pub fn get_queues() -> Vec<String> {
+    QUEUES.read().expect("failed to read-lock queues").clone()
+}
+
+/// Update global worker threads.
+/// Expected to be called at-most once, during startup.
 pub fn set_worker_threads(new_val: usize) {
-    unsafe {
-        WORKER_THREADS = new_val;
-    }
+    *WORKER_THREADS
+        .write()
+        .expect("failed to write-lock worker_threads") = new_val;
 }
 
+/// Get global worker threads.
 pub fn get_worker_threads() -> usize {
-    unsafe { WORKER_THREADS }
+    *WORKER_THREADS
+        .read()
+        .expect("failed to read-lock worker_threads")
 }
 
-pub fn set_acks_late(new_val: bool) {
-    unsafe {
-        ACKS_LATE_S = new_val;
-    }
-}
-
-pub fn set_task_max_retries(new_val: u32) {
-    unsafe {
-        TASK_MAX_RETRIES = new_val;
-    }
-}
-
-pub fn set_queues(new_val: Vec<String>) {
-    unsafe {
-        QUEUES = new_val;
-    }
-}
-
+/// Update global app execution status.
 #[instrument]
 pub fn set_is_app_active(new_val: bool) {
-    unsafe {
-        IS_APP_ACTIVE = new_val;
-    }
+    *IS_APP_ACTIVE
+        .write()
+        .expect("failed to write-lock is_app_active") = new_val;
 }
 
-pub fn set_broker_connection_max_retries(new_val: u32) {
-    unsafe {
-        BROKER_CONNECTION_MAX_RETRIES = new_val;
-    }
-}
-
-pub fn set_heartbeat(new_val: u16) {
-    unsafe {
-        HEARTBEAT_SECS = new_val;
-    }
-}
-
+/// Get global app execution status.
 pub fn get_is_app_active() -> bool {
-    unsafe { IS_APP_ACTIVE }
-}
-
-pub fn get_queues() -> Vec<String> {
-    unsafe { QUEUES.clone() }
+    *IS_APP_ACTIVE
+        .read()
+        .expect("failed to read-lock is_app_active")
 }
 
 lazy_static! {
@@ -215,18 +226,17 @@ async fn create_connection() -> Result<(Arc<Connection>, String)> {
 
 #[instrument]
 pub async fn generate_celery_app() -> Result<Arc<Celery>> {
-    let prefetch_count: u16;
-    let acks_late: bool;
-    let task_max_retries: u32;
-    let broker_connection_max_retries: u32;
-    let heartbeat: u16;
-    unsafe {
-        prefetch_count = PREFETCH_COUNT_S;
-        acks_late = ACKS_LATE_S;
-        task_max_retries = TASK_MAX_RETRIES;
-        broker_connection_max_retries = BROKER_CONNECTION_MAX_RETRIES;
-        heartbeat = HEARTBEAT_SECS;
-    }
+    let CeleryConfig {
+        prefetch_count,
+        acks_late,
+        task_max_retries,
+        broker_connection_max_retries,
+        heartbeat_secs,
+        ..
+    } = *CELERY_CONFIG
+        .read()
+        .map_err(|_| anyhow!("failed to read-lock CeleryConfig"))?;
+
     event!(
         Level::INFO,
         "prefetch_count: {}, acks_late: {}",
@@ -348,14 +358,15 @@ pub async fn generate_celery_app() -> Result<Arc<Celery>> {
         prefetch_count = prefetch_count,
         acks_late = acks_late,
         task_max_retries = task_max_retries,
-        heartbeat = Some(heartbeat),
+        heartbeat = Some(heartbeat_secs),
         broker_connection_max_retries = broker_connection_max_retries,
     )
     .await
     .map_err(|err| anyhow!("{:?}", err))
 }
 
-static CELERY_CONNECTION: RwLock<Option<Arc<Connection>>> = RwLock::const_new(None);
+static CELERY_CONNECTION: tokio::sync::RwLock<Option<Arc<Connection>>> =
+    tokio::sync::RwLock::const_new(None);
 
 /// Returns a reused AMQP connection wrapped in an Arc.
 /// If no connection exists (or if it’s disconnected), a new connection is created and stored.
