@@ -705,15 +705,14 @@ impl ValidateAnnotations for Candidate {
                 format!("Missing area annotation: '{MIRU_PLUGIN_PREPEND}:{MIRU_CANDIDATE_SETTING}'")
             })?;
 
-        let candidate_affiliation_id = find_miru_annotation(
-            MIRU_CANDIDATE_AFFILIATION_ID,
-            &annotations,
-        )
-        .with_context(|| {
-            format!(
+        let candidate_affiliation_id =
+            find_miru_annotation(MIRU_CANDIDATE_AFFILIATION_ID, &annotations).with_context(
+                || {
+                    format!(
                 "Missing area annotation: '{MIRU_PLUGIN_PREPEND}:{MIRU_CANDIDATE_AFFILIATION_ID}'"
             )
-        })?;
+                },
+            )?;
 
         let candidate_affiliation_registered_name =
             find_miru_annotation(MIRU_CANDIDATE_AFFILIATION_REGISTERED_NAME, &annotations)
