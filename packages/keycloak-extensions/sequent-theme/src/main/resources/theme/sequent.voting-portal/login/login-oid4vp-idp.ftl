@@ -74,7 +74,7 @@ SPDX-License-Identifier: AGPL-3.0-only
                                     <#if p.iconClasses?has_content>
                                         <i class="${properties.kcFormSocialAccountButtonTextClass!} ${p.iconClasses!}" aria-hidden="true"></i>
                                     </#if>
-                                    <span class="${properties.kcFormSocialAccountButtonText!}"><#if p.alias == 'digital-certificates'>${msg("digitalCertificateButton")}<#else>${p.displayName!}</#if></span>
+                                    <span class="${properties.kcFormSocialAccountButtonText!}"><#if p.alias == 'digital-certificates'>${msg("digitalCertificateButton")}<#else>${msg(p.displayName)!}</#if></span>
                                 </a>
                             </li>
                         </#if>
