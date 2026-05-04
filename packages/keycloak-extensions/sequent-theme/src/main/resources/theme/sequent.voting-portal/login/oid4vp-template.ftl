@@ -17,6 +17,17 @@ SPDX-License-Identifier: AGPL-3.0-only
     displayMessage=displayMessage
     displayRequiredFields=displayRequiredFields
     displaySocialProviders=false; section>
-    <#nested section>
+    <#if section = "head">
+        <style>
+            /* The OID4VP flow does not support locale switching — the extension
+               appends the locale to a URL that has no handler, causing an error.
+               Show the current language label but suppress the dropdown. */
+            #kc-current-locale-link { pointer-events: none; cursor: default; }
+            #kc-current-locale-link img:last-child { display: none; }
+            #language-switch1 { display: none !important; }
+        </style>
+    <#else>
+        <#nested section>
+    </#if>
 </@adminTemplate.registrationLayout>
 </#macro>
