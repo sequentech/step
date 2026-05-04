@@ -2,6 +2,9 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 #![allow(non_camel_case_types)]
+use crate::types::ceremonies::{
+    TallySessionResolutionData, PENDING_TIE_RESOLUTION_KEY,
+};
 use chrono::{DateTime, Local};
 use ordered_float::NotNan;
 use serde::{Deserialize, Serialize};
@@ -10,7 +13,7 @@ use std::default::Default;
 
 // Keys for annotations fields in ResultAreaContest
 pub const EXTENDED_METRICS: &str = "extended_metrics";
-pub const PROCESS_RESULTS: &str = "process_results";
+pub const PROCESS_RESULTS_KEY: &str = "process_results";
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 pub enum ResultDocumentType {
@@ -124,6 +127,21 @@ pub struct ResultsContest {
     pub documents: Option<ResultDocuments>,
     pub total_auditable_votes: Option<i64>,
     pub total_auditable_votes_percent: Option<NotNan<f64>>,
+}
+
+impl ResultsContest {
+    /// Read a pending IRV tie-break resolution from
+    /// `annotations["process_results"]["pending_tie_resolution"]`.
+    pub fn get_pending_tie_resolution(
+        &self,
+    ) -> Option<TallySessionResolutionData> {
+        self.annotations
+            .as_ref()
+            .and_then(|a| a.get(PROCESS_RESULTS_KEY))
+            .and_then(|pr| pr.get(PENDING_TIE_RESOLUTION_KEY))
+            .filter(|v| !v.is_null())
+            .and_then(|v| serde_json::from_value(v.clone()).ok())
+    }
 }
 
 #[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]

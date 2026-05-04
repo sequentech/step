@@ -428,11 +428,13 @@ pub async fn get_event_results_contest(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
     election_event_id: &str,
+    results_event_id: Option<&str>,
 ) -> Result<Vec<ResultsContest>> {
     let tenant_uuid: uuid::Uuid = parse_uuid_v4(&tenant_id)
         .map_err(|err| anyhow!("Error parsing tenant_id as UUID: {}", err))?;
     let election_event_uuid: uuid::Uuid = parse_uuid_v4(&election_event_id)
         .map_err(|err| anyhow!("Error parsing election_event_id as UUID: {}", err))?;
+    let results_event_uuid = results_event_id.map(parse_uuid_v4).transpose()?;
 
     let statement = hasura_transaction
         .prepare(
@@ -443,12 +445,16 @@ pub async fn get_event_results_contest(
                     sequent_backend.results_contest
                 WHERE
                     tenant_id = $1 AND
-                    election_event_id = $2;
+                    election_event_id = $2 AND
+                    ($3::uuid IS NULL OR results_event_id = $3);
             "#,
         )
         .await?;
     let rows = hasura_transaction
-        .query(&statement, &[&tenant_uuid, &election_event_uuid])
+        .query(
+            &statement,
+            &[&tenant_uuid, &election_event_uuid, &results_event_uuid],
+        )
         .await
         .map_err(|err| anyhow!("Error running the query: {}", err))?;
 

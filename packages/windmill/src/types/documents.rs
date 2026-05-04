@@ -53,6 +53,7 @@ pub enum ETallyDocuments {
     TALLY_SESSION,
     TALLY_SESSION_CONTEST,
     TALLY_SESSION_EXECUTION,
+    TALLY_SESSION_RESOLUTION,
     RESULTS_EVENT,
     RESULTS_ELECTION_AREA,
     RESULTS_ELECTION,
@@ -68,6 +69,7 @@ impl ETallyDocuments {
             ETallyDocuments::TALLY_SESSION => "export_tally_session",
             ETallyDocuments::TALLY_SESSION_CONTEST => "export_tally_session_contest",
             ETallyDocuments::TALLY_SESSION_EXECUTION => "export_tally_session_execution",
+            ETallyDocuments::TALLY_SESSION_RESOLUTION => "export_tally_session_resolution",
             ETallyDocuments::RESULTS_EVENT => "export_results_event",
             ETallyDocuments::RESULTS_ELECTION_AREA => "export_results_election_area",
             ETallyDocuments::RESULTS_ELECTION => "export_results_election",
@@ -77,6 +79,25 @@ impl ETallyDocuments {
                 "export_results_area_contest_candidate"
             }
             ETallyDocuments::RESULTS_AREA_CONTEST => "export_results_area_contest",
+        }
+    }
+
+    pub fn from_file_name(name: &str) -> Option<Self> {
+        match name {
+            "export_tally_session" => Some(ETallyDocuments::TALLY_SESSION),
+            "export_tally_session_contest" => Some(ETallyDocuments::TALLY_SESSION_CONTEST),
+            "export_tally_session_execution" => Some(ETallyDocuments::TALLY_SESSION_EXECUTION),
+            "export_tally_session_resolution" => Some(ETallyDocuments::TALLY_SESSION_RESOLUTION),
+            "export_results_event" => Some(ETallyDocuments::RESULTS_EVENT),
+            "export_results_election_area" => Some(ETallyDocuments::RESULTS_ELECTION_AREA),
+            "export_results_election" => Some(ETallyDocuments::RESULTS_ELECTION),
+            "export_results_contest_candidate" => Some(ETallyDocuments::RESULTS_CONTEST_CANDIDATE),
+            "export_results_contest" => Some(ETallyDocuments::RESULTS_CONTEST),
+            "export_results_area_contest_candidate" => {
+                Some(ETallyDocuments::RESULTS_AREA_CONTEST_CANDIDATE)
+            }
+            "export_results_area_contest" => Some(ETallyDocuments::RESULTS_AREA_CONTEST),
+            _ => None,
         }
     }
 }
