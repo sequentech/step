@@ -1,3 +1,9 @@
+<#--
+ SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
+
+SPDX-License-Identifier: AGPL-3.0-only
+-->
+
 <#-- Copied from keycloak.v2/login/field.ftl (Keycloak 26.6.1).
      Required by the OID4VP extension's oid4vp-template.ftl, which is designed
      for keycloak.v2. Our theme inherits from keycloak (not keycloak.v2), so
