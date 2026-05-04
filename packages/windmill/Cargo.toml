@@ -142,3 +142,6 @@ dhat = "0.3"
 
 [package.metadata.component.target.dependencies]
 "docs:plugin" = { path = "packages/sequent-core/src/wit/plugin_interface.wit" }
+
+[lints.rust]
+unsafe_code = "forbid"

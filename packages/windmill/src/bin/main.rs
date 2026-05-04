@@ -16,7 +16,7 @@ use sequent_core::util::init_log::init_log;
 use std::collections::HashMap;
 use tokio::runtime::Builder;
 use tracing::{event, Level};
-use windmill::services::celery_app::*;
+use windmill::services::celery_app::{self as celery_cfg, Queue};
 use windmill::services::probe::{setup_probe, AppName};
 use windmill::services::tasks_semaphore::init_semaphore;
 
@@ -88,13 +88,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let opt = CeleryOpt::parse();
 
-    let cpus = read_worker_threads(&opt);
-    set_worker_threads(cpus);
+    let worker_threads = read_worker_threads(&opt);
+    celery_cfg::set_worker_threads(worker_threads);
 
     // 1) Build a custom runtime
     let rt = Builder::new_multi_thread()
         .enable_all()
-        .worker_threads(cpus)
+        .worker_threads(worker_threads)
         .thread_stack_size(8 * 1024 * 1024)
         .build()?;
 
@@ -108,8 +108,8 @@ async fn async_main(opt: CeleryOpt) -> Result<()> {
     init_log(true);
     setup_probe(AppName::WINDMILL).await;
 
-    let cpus = get_worker_threads();
-    init_semaphore(cpus);
+    let cpus = celery_cfg::get_worker_threads();
+    init_semaphore(cpus).with_context(|| "failed to init semaphore")?;
     let slug = std::env::var("ENV_SLUG").with_context(|| "missing env var ENV_SLUG")?;
 
     match opt.clone() {
@@ -122,12 +122,15 @@ async fn async_main(opt: CeleryOpt) -> Result<()> {
             heartbeat,
             ..
         } => {
-            set_prefetch_count(prefetch_count);
-            set_acks_late(acks_late);
-            set_task_max_retries(task_max_retries);
-            set_broker_connection_max_retries(broker_connection_max_retries);
-            set_heartbeat(heartbeat);
-            let celery_app = get_celery_app().await;
+            celery_cfg::set_config(celery_cfg::CeleryConfig {
+                prefetch_count,
+                acks_late,
+                task_max_retries,
+                broker_connection_max_retries,
+                heartbeat_secs: heartbeat,
+            });
+
+            let celery_app = celery_cfg::get_celery_app().await;
             celery_app.display_pretty().await;
             let queues: Vec<String> = queues_input
                 .iter()
@@ -145,14 +148,14 @@ async fn async_main(opt: CeleryOpt) -> Result<()> {
             if !duplicates.is_empty() {
                 return Err(anyhow!("Found duplicate queues: {:?}", duplicates));
             }
-            set_queues(queues.clone());
-            set_is_app_active(true);
+            celery_cfg::set_queues(queues.clone());
+            celery_cfg::set_is_app_active(true);
             celery_app.consume_from(&vec_str[..]).await?;
-            set_is_app_active(false);
+            celery_cfg::set_is_app_active(false);
             celery_app.close().await?;
         }
         CeleryOpt::Produce => {
-            let celery_app = get_celery_app().await;
+            let celery_app = celery_cfg::get_celery_app().await;
             event!(Level::INFO, "No new tasks to produce");
             celery_app.close().await?;
         }
