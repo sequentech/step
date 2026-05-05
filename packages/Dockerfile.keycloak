@@ -11,13 +11,32 @@
 # To add more software to the image, take a look at
 # https://www.keycloak.org/server/containers#_installing_additional_rpm_packages
 
+ARG OID4VP_VERSION=0.6.2
+ARG OID4VP_SHA256=f6cd968bc77fec4f8e1417d3caeefe4920941e01b119f152f1c9186bbd2b2e15
+
 # Start with a Maven base image to compile the 2FA authenticator
 FROM maven:3-amazoncorretto-17 AS spis-build
 COPY ./keycloak-extensions/ /build/keycloak-extensions/
 WORKDIR /build/keycloak-extensions/
 RUN mvn clean package
 
-FROM quay.io/keycloak/keycloak:26.4 as builder
+# Build the oid4vp extension from source (requires Java 21)
+FROM maven:3-amazoncorretto-21 AS oid4vp-build
+ARG OID4VP_VERSION
+ARG OID4VP_SHA256
+RUN curl -fsSL -o /tmp/oid4vp.tar.gz \
+    https://github.com/ba-itsys/keycloak-extension-oid4vp/archive/refs/tags/v${OID4VP_VERSION}.tar.gz \
+ && echo "${OID4VP_SHA256}  /tmp/oid4vp.tar.gz" | sha256sum -c - \
+ && mkdir -p /build \
+ && tar -xzf /tmp/oid4vp.tar.gz -C /build \
+ && cd /build/keycloak-extension-oid4vp-${OID4VP_VERSION} \
+ && mvn -B clean package -DskipTests
+
+FROM quay.io/keycloak/keycloak:26.6.1 as builder
+ARG OID4VP_VERSION
+
+# The extension OID4VP_VERSION v0.6.2 requires Keycloak 26.6.1 or later, as
+# it references UserAuthenticationIdentityProvider which was introduced in that version
 
 # Enable health and metrics support
 ENV KC_HEALTH_ENABLED=true
@@ -55,9 +74,14 @@ COPY --chown=keycloak:keycloak \
    /build/keycloak-extensions/url-truststore-provider/target/sequent.url-truststore-provider.jar \
    /opt/keycloak/providers/
 
+COPY --chown=keycloak:keycloak \
+   --from=oid4vp-build \
+   /build/keycloak-extension-oid4vp-${OID4VP_VERSION}/target/keycloak-extension-oid4vp.jar \
+   /opt/keycloak/providers/
+
 RUN /opt/keycloak/bin/kc.sh build 
 
-FROM quay.io/keycloak/keycloak:26.4
+FROM quay.io/keycloak/keycloak:26.6.1
 COPY --from=builder /opt/keycloak/ /opt/keycloak/
 COPY ./keycloak-extensions/quarkus.properties /opt/keycloak/conf/quarkus.properties
 
