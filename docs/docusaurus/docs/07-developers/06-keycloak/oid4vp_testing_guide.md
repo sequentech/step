@@ -183,7 +183,7 @@ named `oid4vp-first-login-flow`. Add two steps in order:
 | Step | Authenticator | Requirement |
 |---|---|---|
 | 1 | `Detect Existing Broker User` (`idp-detect-existing-broker-user`) | REQUIRED |
-| 2 | `Automatically Link Brokered Account` (`idp-auto-link`) | REQUIRED |
+| 2 | `Automatically Set Existing User` | REQUIRED |
 
 Step 1 looks up a Keycloak user whose `personal_administrative_number` attribute
 matches the value from the wallet credential. Step 2 links that user's account to
