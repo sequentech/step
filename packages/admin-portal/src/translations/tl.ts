@@ -381,6 +381,13 @@ const tagalogTranslation: TranslationType = {
                         disabled: "Hindi pinagana",
                     },
                 },
+                languageDetectionPolicy: {
+                    policyLabel: "Patakaran sa Pag-detect ng Wika",
+                    options: {
+                        "browser-detect": "Awtomatikong tuklasin mula sa browser",
+                        "force-default": "Ipatupad ang default",
+                    },
+                },
             },
             error: {
                 endDate: "Ang pagtatapos na petsa ay dapat pagkalipas ng petsa ng pagsisimula",
@@ -1455,7 +1462,7 @@ const tagalogTranslation: TranslationType = {
                 },
                 filterTrustees: "I-filter ang mga trustee",
                 errorPermisionLabels:
-                    "Hindi maipagawa ang keys ceremony: may nawawala sa isa o higit pang permission label.",
+                    "Hindi maipagawa ang Key Ceremony: may nawawala sa isa o higit pang permission label.",
                 automaticCeremonyToggle: "Awtomatikong Seremonya",
             },
             ceremonyStep: {
@@ -1805,7 +1812,7 @@ const tagalogTranslation: TranslationType = {
                 action: "Lumikha ng Paglalathala",
             },
             forbidden: {
-                header: "Hindi mai-publish hanggang sa makumpleto ang Keys Ceremony.",
+                header: "Hindi mai-publish hanggang sa makumpleto ang Key Ceremony.",
             },
             dialog: {
                 title: "Kumpirmahin ang Aksyon",
@@ -2099,6 +2106,9 @@ const tagalogTranslation: TranslationType = {
                     document: "Dokumento",
                     url: "URL",
                 },
+            },
+            languages: {
+                default: "Default na Wika",
             },
         },
         approvalsScreen: {
