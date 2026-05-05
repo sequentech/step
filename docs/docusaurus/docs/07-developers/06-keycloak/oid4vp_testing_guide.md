@@ -154,8 +154,8 @@ so no manual DCQL query is needed for basic testing.
 2. **Find the credential value** — note the `personal_administrative_number` from
    `wallet.json` (e.g. `L01X00T47`).
 
-3. **Set the attribute on an existing voter** — in the **Admin portal**, open the
-   voter record and set `personal_administrative_number` = `L01X00T47`.
+3. **Create a new voter** — in the **Admin portal**, add a voter with username `L01X00T47`
+    and set the user attribute `personal_administrative_number` = `L01X00T47`.
 
 4. On next login via the wallet, Keycloak will match on that attribute and link
    the session to that voter.
