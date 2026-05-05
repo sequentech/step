@@ -7,6 +7,12 @@ use sequent_core::services::date::ISO8601;
 use sequent_core::types::ceremonies::Log;
 use tracing::{event, instrument, Level};
 
+/// Builds a [`Log`] describing who posted `message`, which statement kind it carries, and its batch.
+///
+/// # Panics
+///
+/// Panics if converting the on-board timestamp to milliseconds would overflow `u64` multiplication
+/// by 1000 (`expect("timestamp millis overflow")`).
 pub fn message_to_log(message: &Message) -> Log {
     let batch_number = message.statement.get_batch_number();
     let timestamp = message
@@ -27,6 +33,11 @@ pub fn message_to_log(message: &Message) -> Log {
     }
 }
 
+/// Emits each derived log line through the tracing pipeline.
+///
+/// # Errors
+///
+/// Always returns `Ok`; reserved for future filtering failures.
 #[instrument(skip(messages), err)]
 pub fn print_messages(messages: &[Message], board_name: &str) -> Result<()> {
     let logs: Vec<Log> = messages.iter().map(message_to_log).collect();
@@ -40,6 +51,12 @@ pub fn print_messages(messages: &[Message], board_name: &str) -> Result<()> {
     Ok(())
 }
 
+/// Filters `messages` to those at or after `next_timestamp` with batch ids in `batch_ids`, maps
+/// them with [`message_to_log`], and returns them sorted by [`sort_logs`].
+///
+/// # Errors
+///
+/// Always returns `Ok`; reserved for future validation errors.
 #[instrument(skip(messages, batch_ids), err)]
 pub fn generate_logs(
     messages: &[Message],
@@ -60,6 +77,7 @@ pub fn generate_logs(
     Ok(sort_logs(&logs))
 }
 
+/// Seed log line emitted when a tally ceremony row is first created for `election_ids`.
 #[instrument]
 pub fn generate_tally_initial_log(election_ids: &Vec<String>) -> Vec<Log> {
     vec![Log {
@@ -68,6 +86,7 @@ pub fn generate_tally_initial_log(election_ids: &Vec<String>) -> Vec<Log> {
     }]
 }
 
+/// Returns a time-ordered copy of `logs`.
 #[instrument(skip_all)]
 pub fn sort_logs(logs: &[Log]) -> Vec<Log> {
     let mut sorted = logs.to_owned();
@@ -81,6 +100,7 @@ pub fn sort_logs(logs: &[Log]) -> Vec<Log> {
     sorted
 }
 
+/// Seed log line emitted when a keys ceremony is created listing participating trustees.
 #[instrument]
 pub fn generate_keys_initial_log(trustee_names: &Vec<String>) -> Vec<Log> {
     vec![Log {
@@ -89,6 +109,7 @@ pub fn generate_keys_initial_log(trustee_names: &Vec<String>) -> Vec<Log> {
     }]
 }
 
+/// Appends a “restored private key” line for `trustee_name` during tally trustee reconnect.
 #[instrument(skip(current_logs))]
 pub fn append_tally_trustee_log(current_logs: &[Log], trustee_name: &str) -> Vec<Log> {
     let mut logs: Vec<Log> = current_logs.to_owned();
@@ -99,6 +120,7 @@ pub fn append_tally_trustee_log(current_logs: &[Log], trustee_name: &str) -> Vec
     sort_logs(&logs)
 }
 
+/// Appends a keys-ceremony log entry when a trustee downloads their encrypted private key material.
 #[instrument(skip(current_logs))]
 pub fn append_keys_trustee_download_log(current_logs: &[Log], trustee_name: &str) -> Vec<Log> {
     let mut logs: Vec<Log> = current_logs.to_owned();
@@ -109,6 +131,7 @@ pub fn append_keys_trustee_download_log(current_logs: &[Log], trustee_name: &str
     sort_logs(&logs)
 }
 
+/// Appends a keys-ceremony log entry when a trustee confirms their key matches the board copy.
 #[instrument(skip(current_logs))]
 pub fn append_keys_trustee_check_log(current_logs: &[Log], trustee_name: &str) -> Vec<Log> {
     let mut logs: Vec<Log> = current_logs.to_owned();
@@ -119,6 +142,7 @@ pub fn append_keys_trustee_check_log(current_logs: &[Log], trustee_name: &str) -
     sort_logs(&logs)
 }
 
+/// Appends a log line when tally processing completes for `election_ids`.
 #[instrument(skip(current_logs))]
 pub fn append_tally_finished(current_logs: &[Log], election_ids: &[String]) -> Vec<Log> {
     let mut logs: Vec<Log> = current_logs.to_owned();
@@ -129,6 +153,7 @@ pub fn append_tally_finished(current_logs: &[Log], election_ids: &[String]) -> V
     sort_logs(&logs)
 }
 
+/// Appends a log line when tally ceremony metadata is refreshed for `election_ids`.
 #[instrument(skip(current_logs))]
 pub fn append_tally_updated(current_logs: &[Log], election_ids: &[String]) -> Vec<Log> {
     let mut logs: Vec<Log> = current_logs.to_owned();
@@ -139,6 +164,7 @@ pub fn append_tally_updated(current_logs: &[Log], election_ids: &[String]) -> Ve
     sort_logs(&logs)
 }
 
+/// Appends the standard message recorded when tally execution resumes after an IRV tie resolution.
 #[instrument(skip(current_logs))]
 pub fn append_tally_resumed_after_resolution(current_logs: &[Log]) -> Vec<Log> {
     let mut logs: Vec<Log> = current_logs.to_owned();

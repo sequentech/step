@@ -149,7 +149,7 @@ pub async fn insert_results_elections(
     }
     /// JSON row for `jsonb_to_recordset` when persisting election-level turnout aggregates.
     #[derive(Debug, Serialize)]
-    #[allow(missing_docs)]
+    #[allow(clippy::missing_docs_in_private_items)]
     pub struct InsertResultsElection {
         pub tenant_id: Uuid,
         pub election_event_id: Uuid,
@@ -389,7 +389,7 @@ pub async fn get_event_results_election(
 
 /// Full election-level results row for [`insert_many_results_elections`].
 #[derive(Debug, Serialize)]
-#[allow(missing_docs)]
+#[allow(clippy::missing_docs_in_private_items)]
 struct InsertableResultsElection {
     id: Uuid,
     tenant_id: Uuid,

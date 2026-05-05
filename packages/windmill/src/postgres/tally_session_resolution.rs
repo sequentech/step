@@ -2,6 +2,9 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+//! Inserts and queries `sequent_backend.tally_session_resolution` rows through the Hasura
+//! transaction connection.
+
 use anyhow::{anyhow, Result};
 use deadpool_postgres::Transaction;
 use sequent_core::types::ceremonies::{
@@ -11,8 +14,14 @@ use sequent_core::types::ceremonies::{
 use tokio_postgres::Row;
 use tracing::{info, instrument};
 use uuid::Uuid;
-/// map row from database to `TallySessionResolution`.
 
+/// Builds a [`TallySessionResolution`] from a `tally_session_resolution` SELECT row.
+///
+/// # Errors
+///
+/// Returns an error if UUID or JSON fields cannot be deserialized into the core types
+/// (invalid stored `resolution_type` / `status` strings, malformed `resolution_data`, or
+/// other serde failures).
 fn map_row_to_resolution(row: &Row) -> Result<TallySessionResolution> {
     let resolution_type_str: String = row.get(7);
     let status_str: String = row.get(8);
@@ -37,7 +46,20 @@ fn map_row_to_resolution(row: &Row) -> Result<TallySessionResolution> {
     })
 }
 
-/// Create a new pending resolution
+/// Inserts a new resolution row with `status = 'pending'` for the given contest in a tally
+/// session.
+///
+/// # Returns
+///
+/// The database id of the new row as a string (UUID text).
+///
+/// # Errors
+///
+/// - Fails if any of `tenant_id`, `election_event_id`, `tally_session_id`, or `contest_id` is
+///   not a valid UUID string.
+/// - Propagates JSON serialization errors when encoding `resolution_data`.
+/// - Propagates Postgres errors from `INSERT ... RETURNING id` (including constraint
+///   violations).
 #[instrument(skip(hasura_transaction))]
 pub async fn create_tally_session_resolution(
     hasura_transaction: &Transaction<'_>,
@@ -78,7 +100,15 @@ pub async fn create_tally_session_resolution(
     Ok(id.to_string())
 }
 
-/// Get pending resolutions for a tally session
+/// Lists all `pending` resolutions for a tally session, oldest first.
+///
+/// # Errors
+///
+/// - Fails if any of `tenant_id`, `election_event_id`, or `tally_session_id` is not a valid
+///   UUID string.
+/// - Propagates Postgres query errors.
+/// - Propagates row mapping errors from [`map_row_to_resolution`] if stored enum or JSON
+///   values are invalid.
 #[instrument(skip(hasura_transaction))]
 pub async fn get_pending_resolutions(
     hasura_transaction: &Transaction<'_>,
@@ -120,7 +150,15 @@ pub async fn get_pending_resolutions(
     Ok(resolutions)
 }
 
-/// Get all resolutions for a tally session (both pending and resolved)
+/// Lists every resolution row for a tally session (any status), oldest first.
+///
+/// # Errors
+///
+/// - Fails if any of `tenant_id`, `election_event_id`, or `tally_session_id` is not a valid
+///   UUID string.
+/// - Propagates Postgres query errors.
+/// - Propagates row mapping errors from [`map_row_to_resolution`] if stored enum or JSON
+///   values are invalid.
 #[instrument(skip(hasura_transaction))]
 pub async fn get_resolution_by_tally_session(
     hasura_transaction: &Transaction<'_>,
@@ -161,7 +199,16 @@ pub async fn get_resolution_by_tally_session(
     Ok(resolutions)
 }
 
-/// Submit a resolution for a pending item
+/// Submit a resolution for a pending item.
+///
+/// # Errors
+///
+/// - Fails if `resolution_id`, `tenant_id`, `election_event_id`, or `resolved_by_user` is
+///   not a valid UUID string.
+/// - Propagates JSON serialization errors when encoding `resolution`.
+/// - Propagates Postgres errors from the `UPDATE`.
+/// - Returns `Err` with a not-found message when no row matched (wrong id, tenant/event
+///   mismatch, or row was not `pending`).
 #[instrument(skip(hasura_transaction))]
 pub async fn submit_resolution(
     hasura_transaction: &Transaction<'_>,
@@ -208,6 +255,15 @@ pub async fn submit_resolution(
 }
 
 /// Update the resolution decision for an already-resolved record
+///
+/// # Errors
+///
+/// - Fails if `resolution_id`, `tenant_id`, `election_event_id`, or `resolved_by_user` is
+///   not a valid UUID string.
+/// - Propagates JSON serialization errors when encoding `resolution`.
+/// - Propagates Postgres errors from the `UPDATE`.
+/// - Returns `Err` with a not-found message when no row matched the id and tenant/event
+///   scope.
 #[instrument(skip(hasura_transaction))]
 pub async fn update_resolution(
     hasura_transaction: &Transaction<'_>,

@@ -41,21 +41,30 @@ use sequent_core::services::date::ISO8601;
 
 use sequent_core::services::area_tree::TreeNode;
 
+/// File name used when uploading the public election-event presentation JSON to object storage.
 pub const EVENT_CONFIG_FILE_NAME: &str = "election_event_config.json";
 
+/// Serializable payload written to [`EVENT_CONFIG_FILE_NAME`] used by the voting portal.
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ElectionEventConfig {
+    /// Unique id for this uploaded config revision.
     pub id: String,
+    /// Election event this presentation belongs to.
     pub election_event_id: String,
+    /// Tenant scope for the document path and access policy.
     pub tenant_id: String,
+    /// Presentation of the election event.
     pub election_event_presentation: ElectionEventPresentation,
 }
 
-/**
- * Returns a HashMap<election_id, set<contest_id>> with all
- * the election ids and contest ids related to an area,
- * taking into consideration the parent areas as well.
- */
+/// Returns a HashMap<election_id, set<contest_id>> with all
+/// the election ids and contest ids related to an area,
+/// including contests linked via parent areas in `areas_tree`.
+///
+/// # Errors
+///
+/// - `Err` when the publication lists no election ids.
+/// - `Err` when `area` is not present in `areas_tree`.
 pub fn get_elections_contests_map_for_area(
     area: &Area,
     areas_tree: &TreeNode,
@@ -107,6 +116,14 @@ pub fn get_elections_contests_map_for_area(
     Ok(election_contest_map)
 }
 
+/// Inserts one [`BallotStyle`] row per election that touches `area`, using `sequent_core` to build
+/// the ballot JSON from elections, contests, candidates, dates, and optional joint public keys.
+///
+/// # Errors
+///
+/// - Errors from [`get_elections_contests_map_for_area`] when the area cannot be resolved.
+/// - Missing election or contest rows, ballot construction errors, JSON serialization failures,
+///   or Postgres insert errors from [`crate::postgres::ballot_style::insert_ballot_style`].
 pub async fn create_ballot_style_postgres(
     transaction: &Transaction<'_>,
     area: &Area,
@@ -200,6 +217,11 @@ pub async fn create_ballot_style_postgres(
 
 /// Creates a JSON file with the election event config with presentation data
 ///  and uploads it to S3 public bucket.
+///
+/// # Errors
+///
+/// - Presentation parsing errors from the election event model.
+/// - Temp file I/O, JSON serialization, or S3/document service failures.
 pub async fn create_public_election_event_config_file(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
@@ -241,6 +263,20 @@ pub async fn create_public_election_event_config_file(
     Ok(())
 }
 
+/// Regenerates ballot styles for every area under a publication: acquires a Postgres advisory lock,
+/// reloads elections/contests/candidates/areas, writes ballot rows, marks the publication
+/// generated, and refreshes the public config file.
+///
+/// # Panics
+///
+/// Panics if computing the lock expiry (`now + 60s`) overflows representable range (same as
+/// `expect("lock expiration overflow")` on the timestamp arithmetic).
+///
+/// # Errors
+///
+/// - Pool, transaction, or query failures while loading Hasura-backed rows.
+/// - Missing ballot publication, ballot style generation errors, commit failures, or lock
+///   acquisition/release problems (surfaced as anyhow contexts).
 #[instrument(err)]
 pub async fn update_election_event_ballot_styles(
     tenant_id: &str,

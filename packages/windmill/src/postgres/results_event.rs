@@ -257,7 +257,7 @@ pub async fn get_results_event_by_event_id(
 
 /// Results publication / tally event header row for [`insert_many_results_events`].
 #[derive(Debug, Serialize)]
-#[allow(missing_docs)]
+#[allow(clippy::missing_docs_in_private_items)]
 struct InsertableResultsEvent {
     id: Uuid,
     tenant_id: Uuid,

@@ -70,6 +70,7 @@ use velvet::pipes::pipe_inputs::{
 };
 use velvet::pipes::pipe_name::PipeName;
 
+/// Inputs for one area/contest pair.
 #[derive(Debug, Clone)]
 pub struct AreaContestDataType {
     pub plaintexts: Vec<<RistrettoCtx as Ctx>::P>,
@@ -81,6 +82,8 @@ pub struct AreaContestDataType {
     pub auditable_votes: u64,
 }
 
+/// Converts each plaintext vector to the decimal big-integer string Velvet expects in `ballots.csv`,
+/// logging decode failures instead of failing the whole batch.
 #[instrument(skip_all)]
 fn decode_plaintexts_to_biguints(
     plaintexts: &Vec<<RistrettoCtx as Ctx>::P>,
@@ -118,6 +121,13 @@ fn decode_plaintexts_to_biguints(
         .collect::<Vec<_>>()
 }
 
+/// Writes ballots CSV, area/contest JSON configs, and optional tally-sheet files under
+/// `base_tempdir/input` for a single [`AreaContestDataType`].
+///
+/// # Errors
+///
+/// Filesystem errors, JSON serialization failures, UUID parse errors in config builders, or CSV I/O
+/// issues while appending multi-contest ballots.
 #[instrument(skip_all, err)]
 pub fn prepare_tally_for_area_contest(
     base_tempdir: PathBuf,
@@ -245,6 +255,12 @@ pub fn prepare_tally_for_area_contest(
     Ok(())
 }
 
+/// Aggregates [`AreaContestDataType`] rows into deduplicated [`ElectionConfig`] structures and writes
+/// `election-config.json` for each election under `base_tempdir/input/default/configs`.
+///
+/// # Errors
+///
+/// UUID parsing, date computation failures, or filesystem/serialization errors while writing JSON.
 #[instrument(skip_all, err)]
 pub fn create_election_configs_blocking(
     base_tempdir: PathBuf,
@@ -369,6 +385,12 @@ pub fn create_election_configs_blocking(
     Ok(())
 }
 
+/// Loads elections and scheduled events,
+/// and runs `create_election_configs_blocking` in a blocking task.
+///
+/// # Errors
+///
+/// Pool/transaction acquisition failures, export query errors, or join errors from the blocking task.
 #[instrument(skip_all, err)]
 pub async fn create_election_configs(
     base_tempdir: PathBuf,
@@ -443,6 +465,11 @@ pub async fn create_election_configs(
     handle.await?
 }
 
+/// Generates an initial Velvet state for the given pipe id.
+///
+/// # Errors
+///
+/// CLI validation errors or failures constructing Velvet runtime state.
 #[instrument(err)]
 pub fn generate_initial_state(base_tally_path: &PathBuf, pipe_id: &str) -> Result<State> {
     let cli = CliRun {
@@ -458,6 +485,11 @@ pub fn generate_initial_state(base_tally_path: &PathBuf, pipe_id: &str) -> Resul
     State::new(&cli, &config).map_err(|err| anyhow!("{err}"))
 }
 
+/// Repeatedly runs Velvet `exec_next` stages on a blocking pool until the pipeline reports completion.
+///
+/// # Errors
+///
+/// Missing Velvet stages, spawn/join failures, or errors returned from Velvet execution steps.
 #[instrument(err)]
 pub async fn call_velvet(base_tally_path: PathBuf, pipe_id: &str) -> Result<State> {
     let mut state_opt = Some(generate_initial_state(&base_tally_path, pipe_id)?);
@@ -500,13 +532,23 @@ pub async fn call_velvet(base_tally_path: PathBuf, pipe_id: &str) -> Result<Stat
     state_opt.ok_or_else(|| anyhow!("State unexpectedly None at the end of processing"))
 }
 
+/// Template payload for Velve reports pipes.
 #[derive(Debug, Serialize, Clone)]
 struct VelvetTemplateData {
+    /// title injected into templates.
     pub title: String,
+    /// URL to the logo asset in MinIO.
     pub file_logo: String,
+    /// URL to the QR code helper script served from public assets.
     pub file_qrcode_lib: String,
 }
 
+/// Builds Velvet’s ballot-images pipe config.
+///
+/// # Errors
+///
+/// Template provider failures, MinIO base URL resolution issues, or JSON serialization errors when
+/// embedding [`VelvetTemplateData`].
 #[instrument(skip_all, err)]
 pub async fn build_ballot_images_pipe_config(
     tally_session: &TallySession,
@@ -561,6 +603,11 @@ pub async fn build_ballot_images_pipe_config(
     Ok(ballot_images_pipe_config)
 }
 
+/// Builds the pipe config for the reports pipe.
+///
+/// # Errors
+///
+/// Missing tally annotations, remote hash lookup failures, or JSON serialization errors.
 async fn build_reports_pipe_config(
     tally_session: &TallySession,
     minio_endpoint_base: String,
@@ -612,6 +659,12 @@ async fn build_reports_pipe_config(
     })
 }
 
+/// Writes `velvet-config.json` under `base_tally_path` describing decode, tally, report, and SQLite
+/// generation stages for this session.
+///
+/// # Errors
+///
+/// Environment variable lookups, nested config serialization, or filesystem errors opening the file.
 #[instrument(skip_all, err)]
 pub async fn create_config_file(
     base_tally_path: PathBuf,
@@ -716,6 +769,13 @@ pub async fn create_config_file(
     Ok(())
 }
 
+/// Creates `results.db` under the Velvet input tree and hydrates baseline election structure tables
+/// from Hasura for Velvet’s SQLite-backed reporting.
+///
+/// # Errors
+///
+/// Any failure while opening SQLite, running nested async Postgres queries inside `block_in_place`,
+/// importing candidate CSVs, or committing the SQLite transaction (all wrapped with anyhow context).
 #[instrument(skip_all, err)]
 async fn populate_sqlite_election_event_data(
     base_tempdir: &Path,
@@ -856,6 +916,13 @@ async fn populate_sqlite_election_event_data(
     Ok(document_id)
 }
 
+/// End-to-end helper: materializes per-contest inputs, configs, SQLite snapshot, Velvet config, and
+/// runs the `decode-ballots` pipeline stage.
+///
+/// # Errors
+///
+/// Propagates failures from [`prepare_tally_for_area_contest`], [`create_election_configs`],
+/// [`populate_sqlite_election_event_data`], [`create_config_file`], or [`call_velvet`].
 #[instrument(skip_all, err)]
 pub async fn run_velvet_tally(
     base_tally_path: PathBuf,

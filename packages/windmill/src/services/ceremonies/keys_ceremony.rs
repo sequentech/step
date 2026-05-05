@@ -30,7 +30,12 @@ use tracing::instrument;
 use tracing::{event, info, Level};
 use uuid::Uuid;
 
-// returns (board_name, election_id), where the election_id might be None for an event Board
+// Returns (board_name, election_id), where the election_id might be None for an event Board
+///
+/// # Errors
+///
+/// Missing election event rows, missing bulletin board references, missing `ENV_SLUG`, missing
+/// elections linked to the ceremony, or protocol manager failures when resolving election boards.
 #[instrument(skip(transaction), err)]
 pub async fn get_keys_ceremony_board(
     transaction: &Transaction<'_>,
@@ -69,6 +74,13 @@ pub async fn get_keys_ceremony_board(
     }
 }
 
+/// Returns the trustee’s encrypted private key blob after validating JWT trustee claims, ceremony
+/// execution state, and membership; updates ceremony logs/status in Postgres.
+///
+/// # Errors
+///
+/// Missing trustee claim, invalid ceremony status, trustee not listed, board/protocol errors when
+/// fetching ciphertext material, or Postgres update failures.
 #[instrument(err)]
 pub async fn get_private_key(
     transaction: &Transaction<'_>,
@@ -173,6 +185,12 @@ pub async fn get_private_key(
     Ok(encrypted_private_key)
 }
 
+/// Fetches the encrypted private key for `trustee_name`.
+///
+/// # Errors
+///
+/// Board resolution failures, missing trustees/public keys, or immudb/protocol errors when reading
+/// ciphertext from the board.
 #[instrument(skip(transaction), err)]
 pub async fn find_trustee_private_key(
     transaction: &Transaction<'_>,
@@ -194,6 +212,13 @@ pub async fn find_trustee_private_key(
     get_trustee_encrypted_private_key(board_name.as_str(), trustee_public_key.as_str()).await
 }
 
+/// Verifies `private_key_base64` matches the ciphertext stored for the authenticated trustee.
+///
+/// # Errors
+///
+/// Same class of failures as [`get_private_key`], plus explicit `Err` when ceremony status or
+/// trustee state does not allow verification, when the key material mismatches, or when status
+/// JSON cannot be serialized for persistence.
 #[instrument(err)]
 pub async fn check_private_key(
     transaction: &Transaction<'_>,
@@ -310,6 +335,14 @@ pub async fn check_private_key(
     Ok(true)
 }
 
+/// Inserts a new keys ceremony row, wires elections to it, records initial trustee states, and posts
+/// an electoral log entry.
+///
+/// # Errors
+///
+/// Trustee lookup mismatches, invalid thresholds, duplicate default ceremonies, conflicting
+/// per-election ceremonies, serialization failures, Postgres insert failures, or electoral log
+/// write errors.
 #[instrument(err)]
 pub async fn create_keys_ceremony(
     transaction: &Transaction<'_>,
@@ -476,6 +509,13 @@ pub async fn create_keys_ceremony(
     Ok(keys_ceremony_id)
 }
 
+/// Ensures every permission label required by the targeted election(s) appears in the caller’s
+/// Keycloak permission JSON payload.
+///
+/// # Errors
+///
+/// Database failures loading election labels, missing user label payloads, JSON parse errors when
+/// interpreting the trimmed Keycloak structure, or deserialization failures.
 #[instrument(skip(hasura_transaction), err)]
 pub async fn validate_permission_labels(
     hasura_transaction: &Transaction<'_>,

@@ -278,6 +278,7 @@ pub async fn insert_results_area_contests(
 
     /// JSON row shape fed into `jsonb_to_recordset` for bulk-inserting area/contest tallies.
     #[derive(Serialize)]
+    #[allow(clippy::missing_docs_in_private_items)]
     struct InsertAreaContestData {
         tenant_id: Uuid,
         election_event_id: Uuid,
@@ -490,7 +491,7 @@ pub async fn get_event_results_area_contest(
 
 /// Full row mirror used with `jsonb_to_recordset` for [`insert_many_results_area_contests`].
 #[derive(Debug, Serialize)]
-#[allow(missing_docs)]
+#[allow(clippy::missing_docs_in_private_items)]
 struct InsertableResultsAreaContest {
     id: Uuid,
     tenant_id: Uuid,

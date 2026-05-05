@@ -77,7 +77,7 @@ pub async fn insert_results_contest_candidates(
     }
     /// JSON row for `jsonb_to_recordset` when inserting contest-wide candidate totals.
     #[derive(Debug, Serialize)]
-    #[allow(missing_docs)]
+    #[allow(clippy::missing_docs_in_private_items)]
     pub struct InsertResultsContestCandidate {
         pub tenant_id: Uuid,
         pub election_event_id: Uuid,
@@ -225,7 +225,7 @@ pub async fn get_event_results_contest_candidates(
 
 /// Full row mirror for [`insert_many_results_contest_candidates`] JSON bulk insert.
 #[derive(Debug, Serialize)]
-#[allow(missing_docs)]
+#[allow(clippy::missing_docs_in_private_items)]
 struct InsertableResultsContestCandidate {
     id: Uuid,
     tenant_id: Uuid,

@@ -47,6 +47,13 @@ use deadpool_postgres::Client as DbClient;
 
 use std::sync::Arc; // Add this import
 
+/// Loads trustees, derives ciphertext batches for each `tally_session_contest`, optionally posts
+/// them to the configured bulletin board, and returns the updated contest rows.
+///
+/// # Errors
+///
+/// Trustee lookup/deserialization failures, protocol manager errors, CSV or crypto errors, pool
+/// acquisition failures, or any `?` bubbled from board/network helpers inside the parallel tasks.
 #[instrument(skip_all, err)]
 pub async fn insert_ballots_messages(
     hasura_transaction: &Transaction<'_>,
@@ -326,6 +333,12 @@ pub async fn insert_ballots_messages(
     Ok(tally_session_contests_updated)
 }
 
+/// Returns each election’s configured end dates by parsing presentation JSON from Postgres.
+///
+/// # Errors
+///
+/// Database errors, JSON deserialization failures for presentation blobs, or invalid ISO8601 date
+/// strings stored in election presentation data.
 #[instrument(skip_all, err)]
 pub async fn get_elections_end_dates(
     hasura_transaction: &Transaction<'_>,

@@ -1,8 +1,9 @@
-use crate::postgres::tally_session_execution::get_tally_session_executions;
-use crate::postgres::tally_session_execution::insert_tally_session_execution;
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+
+use crate::postgres::tally_session_execution::get_tally_session_executions;
+use crate::postgres::tally_session_execution::insert_tally_session_execution;
 use crate::services::database::get_hasura_pool;
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::Client as DbClient;
@@ -13,6 +14,15 @@ use tracing::{event, info, instrument, Level};
 
 use super::tally_ceremony::get_tally_ceremony_status;
 
+/// Records `error` on the most recent tally execution for `tally_session_id`, deduplicating
+/// identical consecutive messages by refreshing their timestamp instead of appending twice.
+///
+/// If there is no prior execution row, logs and returns `Ok` without writing.
+///
+/// # Errors
+///
+/// - Pool acquisition, transaction, Postgres query/insert, or commit failures.
+/// - Status JSON parsing failures from [`get_tally_ceremony_status`].
 #[instrument(err)]
 pub async fn handle_tally_session_error(
     error: &str,

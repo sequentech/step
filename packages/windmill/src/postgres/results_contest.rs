@@ -261,7 +261,7 @@ pub async fn insert_results_contests(
 
     /// JSON row for `jsonb_to_recordset` when inserting global (non-area) contest tallies.
     #[derive(Serialize)]
-    #[allow(missing_docs)]
+    #[allow(clippy::missing_docs_in_private_items)]
     struct InsertContestData {
         tenant_id: Uuid,
         election_event_id: Uuid,
@@ -482,7 +482,7 @@ pub async fn get_event_results_contest(
 
 /// Full contest-level tally row serialized for [`insert_many_results_contests`].
 #[derive(Debug, Serialize)]
-#[allow(missing_docs)]
+#[allow(clippy::missing_docs_in_private_items)]
 struct InsertableResultsContest {
     id: Uuid,
     tenant_id: Uuid,

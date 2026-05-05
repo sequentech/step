@@ -38,6 +38,17 @@ use velvet::pipes::generate_db::DATABASE_FILENAME;
 use velvet::pipes::generate_reports::ElectionReportDataComputed;
 use velvet::pipes::pipe_name::PipeNameOutputDir;
 
+/// Inserts contest, area-contest, election, and candidate result rows for `results_event_id` from
+/// Velvet’s computed [`ElectionReportDataComputed`] vector.
+///
+/// # Panics
+///
+/// Panics if serializing extended contest metrics to JSON fails (`expect` on `serde_json::to_value`).
+///
+/// # Errors
+///
+/// Percent-to-fraction conversions that fail `try_into`, or any Postgres insert error from the
+/// `insert_results_*` helpers.
 #[instrument(skip_all)]
 pub async fn save_results(
     hasura_transaction: &Transaction<'_>,
@@ -289,6 +300,12 @@ pub async fn save_results(
     Ok(())
 }
 
+/// When `force_new_id` is set or the tally gained new session batches, inserts a new `results_event`
+/// row (sourced from SQLite when a transaction is supplied) so later writes target a fresh id.
+///
+/// # Errors
+///
+/// SQLite lookup failures, missing results-event metadata, or Postgres insert failures.
 #[instrument(skip_all)]
 pub async fn generate_results_id_if_necessary(
     hasura_transaction: &Transaction<'_>,
@@ -328,6 +345,11 @@ pub async fn generate_results_id_if_necessary(
     }
 }
 
+/// Persists aggregates and report documents for the optional new `results_event_id`; 
+/// otherwise returns the previous execution’s event id.
+///
+/// # Errors
+/// Should never return an error.
 #[instrument(skip_all)]
 pub async fn process_results_tables(
     hasura_transaction: &Transaction<'_>,
@@ -387,6 +409,13 @@ pub async fn process_results_tables(
     }
 }
 
+/// Updates the SQLite results database tables and uploads the artifact to object storage,
+/// and returns the active `results_event_id` and document handles.
+///
+/// # Errors
+///
+/// SQLite open/transaction failures, async errors propagated through `block_in_place`, document
+/// upload failures, or missing filesystem paths when preparing uploads.
 #[instrument(skip(hasura_transaction, state_opt, previous_execution, areas))]
 pub async fn populate_results_tables(
     hasura_transaction: &Transaction<'_>,

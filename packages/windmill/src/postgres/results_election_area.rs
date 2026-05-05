@@ -155,7 +155,7 @@ pub async fn get_event_results_election_area(
 
 /// Area-scoped turnout snapshot row serialized for [`insert_many_results_elections_areas`].
 #[derive(Debug, Serialize)]
-#[allow(missing_docs)]
+#[allow(clippy::missing_docs_in_private_items)]
 struct InsertableResultsElectionArea {
     id: Uuid,
     tenant_id: Uuid,
