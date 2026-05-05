@@ -275,21 +275,32 @@ pub async fn get_event_tally_session_executions(
     Ok(elements)
 }
 
+/// Serialized tally execution state row for [`insert_many_tally_session_executions`].
 #[derive(Debug, Serialize)]
-/// Insertable tally session execution data representation
-#[allow(missing_docs)]
 struct InsertableTallySessionExecution {
+    /// Execution row primary key.
     id: Uuid,
+    /// Owning tenant.
     tenant_id: Uuid,
+    /// Election event scope.
     election_event_id: Uuid,
+    /// Creation timestamp when supplied.
     created_at: Option<DateTime<Local>>,
+    /// Last update timestamp when supplied.
     last_updated_at: Option<DateTime<Local>>,
+    /// Labels JSON.
     labels: Option<Value>,
+    /// Annotations JSON.
     annotations: Option<Value>,
+    /// Last processed Celery/RabbitMQ message id for this execution.
     current_message_id: i32,
+    /// Parent tally session identifier.
     tally_session_id: Uuid,
+    /// Ordered list of child session ids participating in this execution.
     session_ids: Option<Vec<i32>>,
+    /// JSON blob describing sub-step status for the worker UI.
     status: Option<Value>,
+    /// Linked results publication once the tally publishes.
     results_event_id: Option<Uuid>,
 }
 /// Insert many tally session executions into the database.

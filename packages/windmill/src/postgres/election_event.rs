@@ -199,7 +199,11 @@ pub async fn get_election_event_by_id_if_exist(
     Ok(election_event)
 }
 
-/// Returns all the Election events as `ElectionEventDatafix` for a given tenant.
+/// Returns a vector of all non-archived election events for a given tenant.
+///
+/// # Errors
+///
+/// Fails when `tenant_id` is not a valid UUID, when the `SELECT` cannot run, or when row mapping fails.
 #[instrument(err, skip_all)]
 pub async fn get_all_tenant_election_events(
     hasura_transaction: &Transaction<'_>,

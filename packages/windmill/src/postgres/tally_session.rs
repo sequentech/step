@@ -548,21 +548,32 @@ pub async fn set_tally_session_completed(
     Ok(())
 }
 
+/// Serialized tally session row for [`insert_many_tally_sessions`] bulk insert.
 #[derive(Debug, Serialize)]
-/// Insertable tally session data representation
-#[allow(missing_docs)]
 struct InsertableTallySession {
+    /// Owning tenant.
     tenant_id: Uuid,
+    /// Election event being tallied.
     election_event_id: Uuid,
+    /// Tally session primary key.
     id: Uuid,
+    /// Keys ceremony that produced the trustee material for this run.
     keys_ceremony_id: Uuid,
+    /// Elections included in this tally batch.
     election_ids: Vec<Uuid>,
+    /// Areas included in this tally batch.
     area_ids: Vec<Uuid>,
+    /// Serialized execution status for the tally worker state machine.
     execution_status: Option<String>,
+    /// Trustee threshold configured for the mix/tally.
     threshold: i32,
+    /// JSON configuration snapshot for the tally engine.
     configuration: Option<Value>,
+    /// Tally algorithm identifier (`tally_type` column).
     tally_type: Option<String>,
+    /// Arbitrary annotations JSON merged by tasks.
     annotations: Option<Value>,
+    /// Election permission labels
     permission_label: Option<Vec<String>>,
 }
 /// Insert many tally sessions into the database.

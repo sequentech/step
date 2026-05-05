@@ -153,8 +153,8 @@ pub async fn get_event_results_election_area(
     Ok(results)
 }
 
+/// Area-scoped turnout snapshot row serialized for [`insert_many_results_elections_areas`].
 #[derive(Debug, Serialize)]
-/// Insertable results election area data representation
 #[allow(missing_docs)]
 struct InsertableResultsElectionArea {
     id: Uuid,

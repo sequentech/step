@@ -75,6 +75,7 @@ pub async fn insert_results_contest_candidates(
     if contest_candidates.is_empty() {
         return Ok(Vec::new());
     }
+    /// JSON row for `jsonb_to_recordset` when inserting contest-wide candidate totals.
     #[derive(Debug, Serialize)]
     #[allow(missing_docs)]
     pub struct InsertResultsContestCandidate {
@@ -222,8 +223,8 @@ pub async fn get_event_results_contest_candidates(
     Ok(results_contest_candidate)
 }
 
+/// Full row mirror for [`insert_many_results_contest_candidates`] JSON bulk insert.
 #[derive(Debug, Serialize)]
-/// Insertable results contest candidate data representation
 #[allow(missing_docs)]
 struct InsertableResultsContestCandidate {
     id: Uuid,

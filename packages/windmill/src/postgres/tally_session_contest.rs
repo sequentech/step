@@ -321,21 +321,32 @@ pub async fn get_event_tally_session_contest(
 
     Ok(values)
 }
+/// One work unit (area × optional contest) inside a tally session, for bulk insert.
 #[derive(Debug, Serialize)]
-/// Insertable tally session contest data representation
-#[allow(missing_docs)]
 struct InsertableTallySessionContest {
+    /// Row primary key.
     id: Uuid,
+    /// Owning tenant.
     tenant_id: Uuid,
+    /// Election event scope.
     election_event_id: Uuid,
+    /// Area being processed in this slice.
     area_id: Uuid,
+    /// Optional contest when the slice is contest-specific.
     contest_id: Option<Uuid>,
+    /// Worker session index for ordering partial results.
     session_id: i32,
+    /// Creation timestamp when supplied.
     created_at: Option<DateTime<Local>>,
+    /// Last update timestamp when supplied.
     last_updated_at: Option<DateTime<Local>>,
+    /// Labels JSON.
     labels: Option<Value>,
+    /// Annotations JSON.
     annotations: Option<Value>,
+    /// Parent tally session identifier.
     tally_session_id: Uuid,
+    /// Parent election identifier.
     election_id: Uuid,
 }
 /// Insert many tally session contests into the database.

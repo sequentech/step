@@ -255,8 +255,8 @@ pub async fn get_results_event_by_event_id(
     Ok(results_events)
 }
 
+/// Results publication / tally event header row for [`insert_many_results_events`].
 #[derive(Debug, Serialize)]
-/// Insertable results event data representation
 #[allow(missing_docs)]
 struct InsertableResultsEvent {
     id: Uuid,

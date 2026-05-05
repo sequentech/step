@@ -259,6 +259,7 @@ pub async fn insert_results_contests(
         return Ok(Vec::new());
     }
 
+    /// JSON row for `jsonb_to_recordset` when inserting global (non-area) contest tallies.
     #[derive(Serialize)]
     #[allow(missing_docs)]
     struct InsertContestData {
@@ -479,8 +480,8 @@ pub async fn get_event_results_contest(
     Ok(results)
 }
 
+/// Full contest-level tally row serialized for [`insert_many_results_contests`].
 #[derive(Debug, Serialize)]
-/// Insertable results contest data representation
 #[allow(missing_docs)]
 struct InsertableResultsContest {
     id: Uuid,

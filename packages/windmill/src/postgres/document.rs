@@ -9,7 +9,7 @@ use tokio_postgres::row::Row;
 use tracing::{info, instrument};
 use uuid::Uuid;
 
-/// Row representing Document wrapper
+/// Newtype mapping a `sequent_backend.document` row into [`Document`].
 pub struct DocumentWrapper(pub Document);
 
 impl TryFrom<Row> for DocumentWrapper {
@@ -36,11 +36,11 @@ impl TryFrom<Row> for DocumentWrapper {
     }
 }
 
-/// Row representing Support material document wrapper
+/// Join of a support-material row.
 pub struct SupportMaterialDocumentWrapper {
-    /// Support material.
+    /// Support material definition (kind, visibility, payload reference).
     pub support_material: SupportMaterial,
-    /// Document.
+    /// Stored file metadata (`name`, `media_type`, size, …) for the linked document.
     pub document: Document,
 }
 
@@ -82,9 +82,7 @@ impl TryFrom<Row> for SupportMaterialDocumentWrapper {
 ///
 /// # Errors
 ///
-/// Returns an error if SQL preparation or execution fails,
-/// if UUID or other parsing fails, or if row mapping is inconsistent.
-
+/// Fails on invalid UUID inputs, when the query cannot run, or when a returned row cannot be decoded.
 #[instrument(err, skip(hasura_transaction))]
 pub async fn get_document(
     hasura_transaction: &Transaction<'_>,
@@ -139,6 +137,11 @@ pub async fn get_document(
 
 /// Returns a vector of tuples of the (SupportMaterial, Document)s
 /// associated with a given election event.
+/// 
+/// # Errors
+///
+/// Fails on invalid UUID parameters, when preparing or executing the join query fails, or when
+/// any row cannot be converted into [`SupportMaterialDocumentWrapper`].
 #[instrument(err, skip(hasura_transaction))]
 pub async fn get_support_material_documents(
     hasura_transaction: &Transaction<'_>,

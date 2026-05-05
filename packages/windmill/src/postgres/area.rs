@@ -15,7 +15,7 @@ use tokio_postgres::row::Row;
 use tracing::instrument;
 use uuid::Uuid;
 
-/// Row representing Area wrapper
+/// Newtype for converting a `tokio_postgres::Row` from `sequent_backend.area` into [`Area`].
 pub struct AreaWrapper(pub Area);
 
 impl TryFrom<Row> for AreaWrapper {
@@ -39,10 +39,13 @@ impl TryFrom<Row> for AreaWrapper {
         }))
     }
 }
-/**
- * Returns a vector of areas per election event, with the posibility of
- * filtering by area_id
- */
+/// Returns a vector of areas per election event, with the posibility of
+/// filtering by area_id
+/// 
+/// # Errors
+///
+/// Fails if any `area_ids` entry is not a valid UUID, if `tenant_id` / `election_event_id`
+/// cannot be parsed, or if preparing or executing the query fails.
 #[instrument(skip(hasura_transaction, area_ids), err)]
 pub async fn get_areas(
     hasura_transaction: &Transaction<'_>,
@@ -102,9 +105,11 @@ pub async fn get_areas(
     Ok(areas)
 }
 
-/**
- * Returns a map of areas per election event by name
- */
+/// Maps area display name → area id for every area in the election event.
+///
+/// # Errors
+///
+/// Fails on invalid UUID parameters or database errors while preparing or running the query.
 #[instrument(skip(hasura_transaction), err)]
 pub async fn get_areas_by_name(
     hasura_transaction: &Transaction<'_>,
@@ -152,9 +157,11 @@ pub async fn get_areas_by_name(
     Ok(areas_map)
 }
 
-/**
- * Returns a map of area-names of an election event addressable by area-id
- */
+/// Maps area id → display name for every area in the election event.
+///
+/// # Errors
+///
+/// Fails on invalid UUID parameters or database errors while preparing or running the query.
 #[instrument(skip(hasura_transaction), err)]
 pub async fn get_areas_by_id(
     hasura_transaction: &Transaction<'_>,
@@ -202,10 +209,11 @@ pub async fn get_areas_by_id(
     Ok(areas_map)
 }
 
-/**
- * Returns a hash map with the list of elections (Vec<String> value) associated
- * with each area (String key).
- */
+/// Builds, for each area id, the list of election ids linked through `area_contest` → `contest`.
+///
+/// # Errors
+///
+/// Fails on invalid UUID parameters or database errors while preparing or running the query.
 #[instrument(skip(hasura_transaction), err)]
 pub async fn get_elections_by_area(
     hasura_transaction: &Transaction<'_>,
@@ -262,10 +270,11 @@ pub async fn get_elections_by_area(
     Ok(areas_to_elections)
 }
 
-/**
- * Returns a vector of areas per election event, with the posibility of
- * filtering by area_id
- */
+/// Returns the full [`Area`] row for `area_id` in `tenant_id`, or `None` when no row exists.
+///
+/// # Errors
+///
+/// Fails on invalid UUID parameters, if row decoding into [`Area`] fails, or on database errors.
 #[instrument(skip(hasura_transaction), err)]
 pub async fn get_area_by_id(
     hasura_transaction: &Transaction<'_>,
@@ -311,13 +320,12 @@ pub async fn get_area_by_id(
 
     Ok(areas.first().cloned())
 }
-///  Updates area parents.
+/// Updates `parent_id` on each [`Area`] row to match the in-memory tree ordering from import.
 ///
 /// # Errors
 ///
-/// Returns an error if SQL preparation or execution fails,
-/// if UUID or other parsing fails, or if row mapping is inconsistent.
-
+/// Fails when a UUID on an area cannot be parsed, when preparing or executing an `UPDATE` fails,
+/// or when Postgres returns an error for any row in the batch.
 #[instrument(err, skip_all)]
 pub async fn upsert_area_parents(
     hasura_transaction: &Transaction<'_>,
@@ -361,12 +369,11 @@ pub async fn upsert_area_parents(
     Ok(())
 }
 /// Insert areas into the database.
-///
+/// 
 /// # Errors
 ///
-/// Returns an error if SQL preparation or execution fails,
-/// if UUID or other parsing fails, or if row mapping is inconsistent.
-
+/// Fails if the area tree cannot be built, if an area id is missing from the map, if any UUID
+/// field is invalid, or if an `INSERT` fails at the database layer.
 #[instrument(err, skip_all)]
 pub async fn insert_areas(hasura_transaction: &Transaction<'_>, areas: &[Area]) -> Result<()> {
     let tree_node_areas: Vec<TreeNodeArea> = areas.iter().map(|area| area.into()).collect();
@@ -421,13 +428,11 @@ pub async fn insert_areas(hasura_transaction: &Transaction<'_>, areas: &[Area]) 
 
     Ok(())
 }
-/// Get all areas for a given tenant and election event from the database.
+/// Returns every area row for the tenant and election event.
 ///
 /// # Errors
 ///
-/// Returns an error if SQL preparation or execution fails,
-/// if UUID or other parsing fails, or if row mapping is inconsistent.
-
+/// Fails on invalid UUID parameters, when decoding a row into [`Area`] fails, or on database errors.
 #[instrument(err, skip_all)]
 pub async fn get_event_areas(
     hasura_transaction: &Transaction<'_>,
@@ -466,20 +471,20 @@ pub async fn get_event_areas(
     Ok(election_events)
 }
 
+/// Minimal area fields returned when listing areas tied to a specific election.
 #[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
-/// Row representing Area election
 pub struct AreaElection {
-    /// Primary identifier for this entity.
+    /// Area primary key as a string UUID.
     pub id: String,
     /// Area name.
     pub name: Option<String>,
     /// Area description.
     pub description: Option<String>,
-    /// Area annotations.
+    /// Optional free-form operator notes serialized as a string.
     pub annotations: Option<String>,
 }
 
-/// Row representing Area election wrapper
+/// Newtype mapping `sequent_backend.area` projection rows into [`AreaElection`].
 pub struct AreaElectionWrapper(pub AreaElection);
 
 impl TryFrom<Row> for AreaElectionWrapper {
@@ -494,9 +499,11 @@ impl TryFrom<Row> for AreaElectionWrapper {
     }
 }
 
-/**
- * Returns a vec of the areas related to giving election.
- */
+/// Returns distinct [`Area`] rows linked to `election_id` through `area_contest` → `contest`.
+///
+/// # Errors
+///
+/// Fails on invalid UUID parameters, when decoding rows fails, or when the `SELECT DISTINCT` query fails.
 #[instrument(skip(hasura_transaction), err)]
 pub async fn get_areas_by_election_id(
     hasura_transaction: &Transaction<'_>,
@@ -549,8 +556,11 @@ pub async fn get_areas_by_election_id(
     Ok(areas)
 }
 
-/// Returns a vector of areas per tenant and election event,
-/// filtered by a list of area_ids
+/// Returns full [`Area`] rows for the subset of ids in `area_ids` within the tenant and event.
+///
+/// # Errors
+///
+/// Fails if any id string is not a valid UUID or if the `id = ANY($3)` query fails.
 #[instrument(skip(hasura_transaction), err)]
 pub async fn get_areas_by_ids(
     hasura_transaction: &Transaction<'_>,
@@ -594,13 +604,11 @@ pub async fn get_areas_by_ids(
 
     Ok(areas)
 }
-/// Deletes area contests within the tenant scope.
+/// Removes all `sequent_backend.area_contest` rows for one area before re-linking contests.
 ///
 /// # Errors
 ///
-/// Returns an error if SQL preparation or execution fails,
-/// if UUID or other parsing fails, or if row mapping is inconsistent.
-
+/// Fails on invalid UUID strings for `tenant_id` / `area_id`, or when the `DELETE` cannot be executed.
 #[instrument(skip(hasura_transaction), err)]
 pub async fn delete_area_contests(
     hasura_transaction: &Transaction<'_>,
@@ -633,13 +641,12 @@ pub async fn delete_area_contests(
 
     Ok(())
 }
-/// Updates area and returns the updated row when applicable.
+/// Persists label, presentation, hierarchy, and metadata changes for an existing [`Area`] row.
 ///
 /// # Errors
 ///
-/// Returns an error if SQL preparation or execution fails,
-/// if UUID or other parsing fails, or if row mapping is inconsistent.
-
+/// Fails when UUID fields on `area` cannot be parsed, when preparing or executing the `UPDATE` fails,
+/// or when Postgres rejects the statement (constraint violation, connection error, …).
 #[instrument(err, skip_all)]
 pub async fn update_area(hasura_transaction: &Transaction<'_>, area: Area) -> Result<()> {
     let statement = hasura_transaction
@@ -686,13 +693,11 @@ pub async fn update_area(hasura_transaction: &Transaction<'_>, area: Area) -> Re
 
     Ok(())
 }
-/// Insert area into the database.
+/// Inserts a single [`Area`] row.
 ///
 /// # Errors
 ///
-/// Returns an error if SQL preparation or execution fails,
-/// if UUID or other parsing fails, or if row mapping is inconsistent.
-
+/// Fails on invalid UUIDs in `area`, when the `INSERT` cannot be prepared or executed, or on unique violations.
 #[instrument(err, skip_all)]
 pub async fn insert_area(hasura_transaction: &Transaction<'_>, area: Area) -> Result<()> {
     let statement = hasura_transaction

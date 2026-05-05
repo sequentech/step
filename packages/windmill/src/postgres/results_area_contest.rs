@@ -276,9 +276,8 @@ pub async fn insert_results_area_contests(
         return Ok(Vec::new());
     }
 
+    /// JSON row shape fed into `jsonb_to_recordset` for bulk-inserting area/contest tallies.
     #[derive(Serialize)]
-    #[allow(missing_docs)]
-    /// Insertable results area contest data representationz
     struct InsertAreaContestData {
         tenant_id: Uuid,
         election_event_id: Uuid,
@@ -489,8 +488,8 @@ pub async fn get_event_results_area_contest(
     Ok(results)
 }
 
+/// Full row mirror used with `jsonb_to_recordset` for [`insert_many_results_area_contests`].
 #[derive(Debug, Serialize)]
-/// Insertable results area contest data representation
 #[allow(missing_docs)]
 struct InsertableResultsAreaContest {
     id: Uuid,

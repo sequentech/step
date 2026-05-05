@@ -63,16 +63,21 @@ pub struct Report {
     pub permission_label: Option<Vec<String>>,
 }
 
+/// Stored `report_type` discriminator matching `sequent_backend.report.report_type`.
 #[allow(non_camel_case_types)]
 #[derive(Display, Serialize, Deserialize, Debug, PartialEq, Eq, Clone, EnumString)]
-/// Report type
-#[allow(missing_docs)]
 pub enum ReportType {
+    /// Initialization / setup report generated after keys ceremony completes.
     INITIALIZATION_REPORT,
+    /// Published numerical results and placements.
     ELECTORAL_RESULTS,
+    /// Per-ballot image bundle for verification.
     BALLOT_IMAGES,
+    /// Voter receipt PDFs or similar artifacts.
     BALLOT_RECEIPT,
+    /// Operator activity audit export.
     ACTIVITY_LOGS,
+    /// Manual verification checklist output.
     MANUAL_VERIFICATION,
 }
 
@@ -250,6 +255,11 @@ pub async fn get_report_by_id(
 
 /// Returns ONLY THE FIRST the template_alias which matches these arguments,
 /// If there are multiple matches, the rest are ignored.
+///
+/// # Errors
+///
+/// Fails on invalid UUID strings, when preparing or executing either fallback query fails, or when
+/// decoding the returned `template_alias` fails.
 #[instrument(skip(hasura_transaction), err)]
 pub async fn get_template_alias_for_report(
     hasura_transaction: &Transaction<'_>,

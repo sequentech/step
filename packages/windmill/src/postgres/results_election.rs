@@ -147,6 +147,7 @@ pub async fn insert_results_elections(
     if elections.is_empty() {
         return Ok(Vec::new());
     }
+    /// JSON row for `jsonb_to_recordset` when persisting election-level turnout aggregates.
     #[derive(Debug, Serialize)]
     #[allow(missing_docs)]
     pub struct InsertResultsElection {
@@ -386,8 +387,8 @@ pub async fn get_event_results_election(
     Ok(results)
 }
 
+/// Full election-level results row for [`insert_many_results_elections`].
 #[derive(Debug, Serialize)]
-/// Insertable results election data representation
 #[allow(missing_docs)]
 struct InsertableResultsElection {
     id: Uuid,

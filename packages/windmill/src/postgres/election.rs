@@ -13,7 +13,7 @@ use tokio_postgres::row::Row;
 use tracing::{event, instrument, Level};
 use uuid::Uuid;
 
-/// Row representing Election wrapper
+/// Newtype mapping `sequent_backend.election` rows into [`Election`].
 pub struct ElectionWrapper(pub Election);
 
 impl TryFrom<Row> for ElectionWrapper {
@@ -52,10 +52,12 @@ impl TryFrom<Row> for ElectionWrapper {
     }
 }
 
-/**
- * Returns a vector of areas per election event, with the posibility of
- * filtering by area_id
- */
+/// Returns a vector of areas per election event, with the posibility of
+/// filtering by area_id
+///
+/// # Errors
+///
+/// Fails on invalid UUID parameters, when reading `num_allowed_revotes` from a row fails, or on database errors.
 #[instrument(skip(hasura_transaction), err)]
 pub async fn get_election_max_revotes(
     hasura_transaction: &Transaction<'_>,

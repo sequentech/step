@@ -12,17 +12,25 @@ use tokio_postgres::row::Row;
 use tracing::instrument;
 use uuid::Uuid;
 
+/// Row from `sequent_backend.secret` holding an opaque key/value pair for workers.
 #[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
-/// Secret representation
 #[allow(missing_docs)]
 pub struct Secret {
+    /// Primary key as string UUID.
     pub id: String,
+    /// Owning tenant id as string UUID.
     pub tenant_id: String,
+    /// Optional election event scope when the secret is event-specific.
     pub election_event_id: Option<String>,
+    /// Structured labels JSON.
     pub labels: Option<Value>,
+    /// Operator annotations JSON.
     pub annotations: Option<Value>,
+    /// secret key
     pub key: String,
+    /// Raw secret byte.
     pub value: Vec<u8>,
+    /// Creation timestamp when present on the row.
     pub created_at: Option<DateTime<Local>>,
 }
 

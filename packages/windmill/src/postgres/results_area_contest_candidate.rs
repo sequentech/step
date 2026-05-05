@@ -147,6 +147,8 @@ pub async fn insert_results_area_contest_candidates(
     if contest_candidates.is_empty() {
         return Ok(Vec::new());
     }
+
+    /// JSON-friendly row for `jsonb_to_recordset` when inserting per-candidate area results.
     #[derive(Debug, Serialize)]
     #[allow(missing_docs)]
     pub struct InsertResultsAreaContestCandidate {
@@ -301,8 +303,8 @@ pub async fn get_event_results_area_contest_candidates(
     Ok(results_area_contest_candidate)
 }
 
+/// Full row mirror for [`insert_many_results_area_contest_candidates`] JSON bulk insert.
 #[derive(Debug, Serialize)]
-/// Insertable results area contest candidate representation
 #[allow(missing_docs)]
 struct InsertableResultsAreaContestCandidate {
     id: Uuid,
