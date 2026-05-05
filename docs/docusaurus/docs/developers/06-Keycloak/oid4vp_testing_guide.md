@@ -24,8 +24,23 @@ The [oid4vc-dev](https://github.com/dominikschlosser/oid4vc-dev) tool ships a
 lightweight browser-based wallet with pre-loaded sample PID credentials, suitable
 for local OID4VP testing without a real mobile wallet.
 
-`oid4vc-dev` is pre-installed in the dev container at `/usr/local/bin/oid4vc-dev`.
 Run all wallet commands from a **dev container terminal** (VS Code integrated terminal).
+
+### Install oid4vc-dev
+
+`oid4vc-dev` is not bundled in the dev container — install it once with:
+
+```bash
+ARCH=$(uname -m); OS=$(uname -s | tr '[:upper:]' '[:lower:]')
+case "$ARCH" in x86_64) ARCH="amd64" ;; aarch64|arm64) ARCH="arm64" ;; esac
+VERSION=$(curl -fsSL https://api.github.com/repos/dominikschlosser/oid4vc-dev/releases/latest | grep '"tag_name"' | cut -d'"' -f4)
+sudo curl -fsSL -o /usr/local/bin/oid4vc-dev \
+  "https://github.com/dominikschlosser/oid4vc-dev/releases/download/${VERSION}/oid4vc-dev-${VERSION}-${OS}-${ARCH}"
+sudo chmod +x /usr/local/bin/oid4vc-dev
+oid4vc-dev --help
+```
+
+This downloads the latest release binary directly from GitHub for your platform (Linux amd64 or arm64).
 
 ### Bridge port 8090 to Keycloak
 
@@ -42,19 +57,6 @@ socat TCP-LISTEN:8090,fork,reuseaddr TCP:<KC-IP>:8090
 
 Leave this running in its own terminal tab.
 
-### Check wallet.json for port conflicts
-
-Before starting the wallet, verify that the `issuer_url` in `wallet.json` does not
-use a port already occupied by another service:
-
-```bash
-tail /home/vscode/.oid4vc-dev/wallet/wallet.json
-```
-
-Look for the `"issuer_url"` field (e.g. `"https://localhost:8086"`). If that port is
-in use, edit the file and change it to a free port. This URL is embedded in generated
-credentials and Keycloak will attempt to connect to it when checking revocation status.
-
 ### Start the wallet
 
 ```bash
@@ -66,6 +68,21 @@ oid4vc-dev wallet serve --pid --port 8089
 
 VS Code detects port 8089 and offers to forward it — accept, so the wallet UI is
 accessible from your browser at **http://localhost:8089**.
+
+
+#### Check wallet.json for port conflicts
+
+After starting the wallet, verify that the `issuer_url` in `wallet.json` does not
+use a port already occupied by another service:
+
+```bash
+tail /home/vscode/.oid4vc-dev/wallet/wallet.json
+```
+
+Look for the `"issuer_url"` field (e.g. `"https://localhost:8086"`). If that port is
+in use, edit the file and change it to a free port. This URL is embedded in generated
+credentials and Keycloak will attempt to connect to it when checking revocation status.
+
 
 ---
 
