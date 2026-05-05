@@ -28,6 +28,7 @@ import {
     selectBallotStyleElectionIds,
     selectFirstBallotStyle,
 } from "./store/ballotStyles/ballotStylesSlice"
+import {selectElectionEventById} from "./store/electionEvents/electionEventsSlice"
 import WatermarkBackground from "./components/WaterMark/Watermark"
 import SequentLogo from "@sequentech/ui-essentials/public/Sequent_logo.svg"
 import BlankLogoImg from "@sequentech/ui-essentials/public/blank_logo.svg"
@@ -74,15 +75,16 @@ const HeaderWithContext: React.FC = () => {
     const {eventId} = useParams<TenantEventType>()
 
     const ballotStyle = useAppSelector(selectFirstBallotStyle)
+    const electionEvent = useAppSelector(selectElectionEventById(eventId))
 
     let presentation: IElectionEventPresentation | undefined =
-        ballotStyle?.ballot_eml.election_event_presentation
+        ballotStyle?.ballot_eml.election_event_presentation ?? electionEvent?.presentation ?? undefined
 
     let languagesList = presentation?.language_conf?.enabled_language_codes ?? ["en"]
     let showUserProfile = presentation?.show_user_profile ?? true
     const countdownPolicy = useMemo(() => {
-        return ballotStyle?.ballot_eml.election_event_presentation?.voting_portal_countdown_policy
-    }, [ballotStyle])
+        return presentation?.voting_portal_countdown_policy
+    }, [presentation])
 
     const logoImg =
         presentation?.logo_url === undefined
