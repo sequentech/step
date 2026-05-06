@@ -997,7 +997,7 @@ async fn check_previous_votes(
         .filter_map(|cv| cv.area_id.and_then(|id| parse_uuid_v4(&id).ok()))
         .partition(|cv_area_id| cv_area_id.to_string() == area_id.to_string());
 
-    info!("get cast votes returns same: {:?}", same);
+    info!("get cast votes returns same: {same:?}");
 
     // Skip max votes check if max_revotes is 0, allowing unlimited votes
     if max_revotes > 0 && same.len() >= max_revotes {

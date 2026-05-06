@@ -7,12 +7,12 @@ use anyhow::{anyhow, Context, Result};
 use chrono::Utc;
 use clap::Args;
 use colored::Colorize;
+use electoral_log::client::types::ElectoralLogMessage;
 use electoral_log::messages::message::{Message, Sender};
 use electoral_log::messages::newtypes::EventIdString;
 use electoral_log::messages::statement::{
     Statement, StatementBody, StatementEventType, StatementHead, StatementLogType, StatementType,
 };
-use electoral_log::ElectoralLogMessage;
 use fake::faker::internet::raw::Username;
 use fake::locales::EN;
 use fake::Fake;

@@ -181,16 +181,30 @@ export const ElectoralLogList: React.FC<ElectoralLogListProps> = ({
             label={String(t("logsScreen.column.username"))}
         />,
         <DateTimeInput
-            key={"created"}
-            source={"created"}
-            label={String(t("logsScreen.column.created"))}
+            key={"created_min"}
+            source={"created_min"}
+            label={String(t("logsScreen.column.created_min"))}
             inputProps={{step: 1}}
             parse={(value) => (value ? new Date(value).toISOString() : value)}
         />,
         <DateTimeInput
-            key={"statement_timestamp"}
-            source={"statement_timestamp"}
-            label={String(t("logsScreen.column.statement_timestamp"))}
+            key={"created_max"}
+            source={"created_max"}
+            label={String(t("logsScreen.column.created_max"))}
+            inputProps={{step: 1}}
+            parse={(value) => (value ? new Date(value).toISOString() : value)}
+        />,
+        <DateTimeInput
+            key={"statement_timestamp_min"}
+            source={"statement_timestamp_min"}
+            label={String(t("logsScreen.column.statement_timestamp_min"))}
+            inputProps={{step: 1}}
+            parse={(value) => (value ? new Date(value).toISOString() : value)}
+        />,
+        <DateTimeInput
+            key={"statement_timestamp_max"}
+            source={"statement_timestamp_max"}
+            label={String(t("logsScreen.column.statement_timestamp_max"))}
             inputProps={{step: 1}}
             parse={(value) => (value ? new Date(value).toISOString() : value)}
         />,
@@ -264,10 +278,13 @@ export const ElectoralLogList: React.FC<ElectoralLogListProps> = ({
                             new Date(record.statement_timestamp * 1000).toLocaleString()
                         }
                     />
-                    <TextField source="statement_kind" />
+                    <TextField
+                        source="statement_kind"
+                        label={String(t("logsScreen.column.statement_kind"))}
+                    />
                     <FunctionField
                         source="event_type"
-                        label={String(t("logsScreen.column.statement_kind"))}
+                        label={String(t("logsScreen.column.event_type"))}
                         render={(record: any) => getHeadField(record, "event_type")}
                     />
                     <FunctionField

@@ -12,8 +12,8 @@ use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
 use csv::WriterBuilder;
 use deadpool_postgres::Transaction;
-use electoral_log::messages::message::Message;
-use electoral_log::ElectoralLogMessage;
+use electoral_log::client::types::*;
+use electoral_log::messages::message::{Message, SigningData};
 use sequent_core::services::date::ISO8601;
 use sequent_core::services::s3::get_minio_url;
 use sequent_core::types::hasura::core::TasksExecution;
@@ -43,6 +43,53 @@ pub struct ActivityLogRow {
     description: String,
     message: String,
     user_id: String,
+}
+
+impl TryFrom<ElectoralLogMessage> for ActivityLogRow {
+    type Error = anyhow::Error;
+
+    fn try_from(electoral_log: ElectoralLogMessage) -> Result<Self, Self::Error> {
+        let user_id = match electoral_log.user_id {
+            Some(user_id) => user_id.to_string(),
+            None => "-".to_string(),
+        };
+
+        let statement_timestamp: String = if let Ok(datetime_parsed) =
+            ISO8601::timestamp_secs_utc_to_date_opt(electoral_log.statement_timestamp)
+        {
+            datetime_parsed.to_rfc3339()
+        } else {
+            return Err(anyhow::anyhow!("Error parsing statement_timestamp"));
+        };
+
+        let created: String = if let Ok(datetime_parsed) =
+            ISO8601::timestamp_secs_utc_to_date_opt(electoral_log.created)
+        {
+            datetime_parsed.to_rfc3339()
+        } else {
+            return Err(anyhow::anyhow!("Error parsing created"));
+        };
+
+        let deserialized_message = Message::strand_deserialize(&electoral_log.message)
+            .map_err(|e| anyhow!("Error deserializing message: {e:?}"))?;
+
+        let head_data = deserialized_message.statement.head.clone();
+        let event_type = head_data.event_type.to_string();
+        let log_type = head_data.log_type.to_string();
+        let description = head_data.description;
+
+        Ok(ActivityLogRow {
+            id: electoral_log.id,
+            user_id: user_id,
+            created,
+            statement_timestamp,
+            statement_kind: electoral_log.statement_kind,
+            event_type,
+            log_type,
+            description,
+            message: deserialized_message.to_string(),
+        })
+    }
 }
 
 /// Struct for User Data
@@ -130,99 +177,6 @@ impl ActivityLogsTemplate {
     }
 }
 
-impl TryFrom<ElectoralLogRow> for ActivityLogRow {
-    type Error = anyhow::Error;
-
-    fn try_from(electoral_log: ElectoralLogRow) -> Result<Self, Self::Error> {
-        let user_id = match electoral_log.user_id() {
-            Some(user_id) => user_id.to_string(),
-            None => "-".to_string(),
-        };
-
-        let statement_timestamp: String = if let Ok(datetime_parsed) =
-            ISO8601::timestamp_secs_utc_to_date_opt(electoral_log.statement_timestamp())
-        {
-            datetime_parsed.to_rfc3339()
-        } else {
-            return Err(anyhow::anyhow!("Error parsing statement_timestamp"));
-        };
-
-        let created: String = if let Ok(datetime_parsed) =
-            ISO8601::timestamp_secs_utc_to_date_opt(electoral_log.created())
-        {
-            datetime_parsed.to_rfc3339()
-        } else {
-            return Err(anyhow::anyhow!("Error parsing created"));
-        };
-
-        let head_data = electoral_log
-            .statement_head_data()
-            .with_context(|| "Error to get head data.")?;
-        let event_type = head_data.event_type;
-        let log_type = head_data.log_type;
-        let description = head_data.description;
-
-        Ok(ActivityLogRow {
-            id: electoral_log.id(),
-            user_id,
-            created,
-            statement_timestamp,
-            statement_kind: electoral_log.statement_kind().to_string(),
-            event_type,
-            log_type,
-            description,
-            message: electoral_log.message().to_string(),
-        })
-    }
-}
-
-impl TryFrom<ElectoralLogMessage> for ActivityLogRow {
-    type Error = anyhow::Error;
-
-    fn try_from(electoral_log: ElectoralLogMessage) -> Result<Self, Self::Error> {
-        let user_id = match electoral_log.user_id {
-            Some(user_id) => user_id.to_string(),
-            None => "-".to_string(),
-        };
-
-        let statement_timestamp: String = if let Ok(datetime_parsed) =
-            ISO8601::timestamp_secs_utc_to_date_opt(electoral_log.statement_timestamp)
-        {
-            datetime_parsed.to_rfc3339()
-        } else {
-            return Err(anyhow::anyhow!("Error parsing statement_timestamp"));
-        };
-
-        let created: String = if let Ok(datetime_parsed) =
-            ISO8601::timestamp_secs_utc_to_date_opt(electoral_log.created)
-        {
-            datetime_parsed.to_rfc3339()
-        } else {
-            return Err(anyhow::anyhow!("Error parsing created"));
-        };
-
-        let deserialized_message = Message::strand_deserialize(&electoral_log.message)
-            .map_err(|e| anyhow!("Error deserializing message: {e:?}"))?;
-
-        let head_data = deserialized_message.statement.head.clone();
-        let event_type = head_data.event_type.to_string();
-        let log_type = head_data.log_type.to_string();
-        let description = head_data.description;
-
-        Ok(ActivityLogRow {
-            id: electoral_log.id,
-            user_id,
-            created,
-            statement_timestamp,
-            statement_kind: electoral_log.statement_kind,
-            event_type,
-            log_type,
-            description,
-            message: deserialized_message.to_string(),
-        })
-    }
-}
-
 #[async_trait]
 impl TemplateRenderer for ActivityLogsTemplate {
     type UserData = UserData;
@@ -255,7 +209,12 @@ impl TemplateRenderer for ActivityLogsTemplate {
     fn prefix(&self) -> String {
         format!("activity_logs_{}", rand::random::<u64>())
     }
-    async fn count_items(&self, _hasura_transaction: &Transaction<'_>) -> Result<Option<i64>> {
+
+    #[instrument(err, skip_all)]
+    async fn count_items(
+        &self,
+        _hasura_transaction: Option<&Transaction<'_>>,
+    ) -> Result<Option<i64>> {
         let mut client = get_board_client().await?;
         let slug = std::env::var("ENV_SLUG").with_context(|| "missing env var ENV_SLUG")?;
         let board_name = get_event_board(
@@ -273,8 +232,8 @@ impl TemplateRenderer for ActivityLogsTemplate {
     #[instrument(err, skip_all)]
     async fn prepare_user_data_batch(
         &self,
-        _hasura_transaction: &Transaction<'_>,
-        _keycloak_transaction: &Transaction<'_>,
+        _hasura_transaction: Option<&Transaction<'_>>,
+        _keycloak_transaction: Option<&Transaction<'_>>,
         offset: &mut i64,
         limit: i64,
     ) -> Result<Self::UserData> {
@@ -368,8 +327,8 @@ impl TemplateRenderer for ActivityLogsTemplate {
             .await
         } else {
             // Generate CSV file using generate_export_csv_data
-            let name = format!("export-election-event-logs-{}", election_event_id);
-            let full_name = format!("{}.csv", name);
+            let name = format!("export-election-event-logs-{election_event_id}");
+            let full_name = format!("{name}.csv");
             let temp_file = self
                 .generate_export_csv_data(&name)
                 .await

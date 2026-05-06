@@ -2336,7 +2336,19 @@
         "fields": null,
         "inputFields": [
           {
-            "name": "created",
+            "name": "created_max",
+            "description": null,
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "created_min",
             "description": null,
             "type": {
               "kind": "SCALAR",
@@ -2372,7 +2384,19 @@
             "deprecationReason": null
           },
           {
-            "name": "statement_timestamp",
+            "name": "statement_timestamp_max",
+            "description": null,
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "statement_timestamp_min",
             "description": null,
             "type": {
               "kind": "SCALAR",

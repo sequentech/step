@@ -68,8 +68,10 @@ export const customBuildQuery =
                 "election_event_id",
                 "user_id",
                 "username",
-                "created",
-                "statement_timestamp",
+                "created_min",
+                "created_max",
+                "statement_timestamp_min",
+                "statement_timestamp_max",
                 "statement_kind",
             ]
             Object.keys(params.filter).forEach((f) => {
@@ -83,11 +85,16 @@ export const customBuildQuery =
                     name: resourceName,
                 },
             }
+            const builtVariables = buildVariables(introspectionResults)(
+                resource,
+                raFetchType,
+                params,
+                null
+            )
+            const finalVariables = getElectoralLogVariables(builtVariables)
             return {
                 query: getElectoralLog(params),
-                variables: getElectoralLogVariables(
-                    buildVariables(introspectionResults)(resource, raFetchType, params, null)
-                ),
+                variables: finalVariables,
                 parseResponse: (res: any) => {
                     const response = res.data.listElectoralLog
                     let output = {

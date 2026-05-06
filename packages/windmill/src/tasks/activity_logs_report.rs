@@ -21,7 +21,7 @@ use anyhow::{anyhow, Context};
 use celery::error::TaskError;
 use deadpool_postgres::Client as DbClient;
 use sequent_core::types::hasura::core::TasksExecution;
-use tracing::instrument;
+use tracing::{info, instrument};
 
 async fn generate_activity_logs_report_impl(
     tenant_id: String,
@@ -67,6 +67,7 @@ async fn generate_activity_logs_report_impl(
         format,
     );
 
+    info!("Generating activity logs report");
     report
         .execute_report(
             &document_id,
