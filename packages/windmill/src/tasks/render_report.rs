@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::postgres::render_report::render_report_task;
 use crate::services::database::get_hasura_pool;
+use crate::services::metrics::{on_task_failure, on_task_success};
 use crate::services::tasks_semaphore::acquire_semaphore;
 use crate::types::error::{Error, Result};
 use anyhow::{anyhow, Context};
@@ -28,7 +29,7 @@ pub struct RenderTemplateBody {
 
 #[instrument(err)]
 #[wrap_map_err::wrap_map_err(TaskError)]
-#[celery::task(time_limit = 60000)]
+#[celery::task(time_limit = 60000, on_failure = on_task_failure, on_success = on_task_success)]
 pub async fn render_report(
     input: RenderTemplateBody,
     tenant_id: String,

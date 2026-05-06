@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::postgres::maintenance::vacuum_analyze_direct;
+use crate::services::metrics::{on_task_failure, on_task_success, PrometheusTaskObserver};
 use crate::services::providers::transactions_provider::provide_hasura_transaction;
 use crate::services::tasks_execution::{update_complete, update_fail};
 use crate::{
@@ -26,7 +27,7 @@ pub struct ImportElectionEventBody {
 
 #[instrument(err)]
 #[wrap_map_err::wrap_map_err(TaskError)]
-#[celery::task]
+#[celery::task(on_failure = on_task_failure, on_success = on_task_success)]
 pub async fn import_election_event(
     object: ImportElectionEventBody,
     election_event_id: String,
@@ -55,7 +56,12 @@ pub async fn import_election_event(
             // Execute database maintenance
             info!("Performing mainteinance after election event import.");
             vacuum_analyze_direct().await?;
-            let _ = update_complete(&task_execution, Some(object.document_id.clone())).await;
+            let _ = update_complete(
+                &task_execution,
+                Some(object.document_id.clone()),
+                &PrometheusTaskObserver,
+            )
+            .await;
             Ok(())
         }
         Err(error) => {
@@ -63,7 +69,7 @@ pub async fn import_election_event(
                 "Error process election event document: {}",
                 error.to_string()
             );
-            let _ = update_fail(&task_execution, &err_str).await;
+            let _ = update_fail(&task_execution, &err_str, &PrometheusTaskObserver).await;
             Err(err_str.into())
         }
     }

@@ -4,6 +4,7 @@
 
 use crate::services::database::{get_hasura_pool, get_keycloak_pool, PgConfig};
 use crate::services::export::export_tasks_execution::process_export;
+use crate::services::metrics::{on_task_failure, on_task_success};
 use crate::types::error::{Error, Result};
 use celery::error::TaskError;
 use deadpool_postgres::{Client as DbClient, Transaction as _};
@@ -13,7 +14,7 @@ use tracing::{debug, info, instrument};
 
 #[instrument(err)]
 #[wrap_map_err::wrap_map_err(TaskError)]
-#[celery::task(max_retries = 0)]
+#[celery::task(max_retries = 0, on_failure = on_task_failure, on_success = on_task_success)]
 pub async fn export_tasks_execution(
     tenant_id: String,
     election_event_id: String,

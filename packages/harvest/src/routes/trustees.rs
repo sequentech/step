@@ -13,6 +13,7 @@ use serde::{Deserialize, Serialize};
 use tracing::{event, instrument, Level};
 use uuid::Uuid;
 use windmill::services::celery_app::get_celery_app;
+use windmill::services::metrics::PrometheusTaskObserver;
 use windmill::services::tasks_execution::*;
 use windmill::tasks::export_election_event::{self, ExportOptions};
 use windmill::tasks::export_trustees;
@@ -66,6 +67,7 @@ pub async fn export_trustees_route(
         update_fail(
             &task_execution,
             &format!("Failed to authorize executing the task: {error:?}"),
+            &PrometheusTaskObserver,
         )
         .await
         .map_err(|err| {

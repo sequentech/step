@@ -12,6 +12,7 @@ use serde::{Deserialize, Serialize};
 use tracing::instrument;
 use uuid::Uuid;
 use windmill::services::celery_app::get_celery_app;
+use windmill::services::metrics::PrometheusTaskObserver;
 use windmill::services::tasks_execution::*;
 use windmill::tasks::export_templates;
 use windmill::types::tasks::ETasksExecution;
@@ -65,6 +66,7 @@ pub async fn export_template(
         let _ = update_fail(
             &task_execution,
             &format!("Failed to authorize executing the task: {error:?}"),
+            &PrometheusTaskObserver,
         )
         .await;
         return Err(error);

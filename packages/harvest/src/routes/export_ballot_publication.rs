@@ -14,6 +14,7 @@ use serde::{Deserialize, Serialize};
 use tracing::{event, instrument, Level};
 use uuid::Uuid;
 use windmill::services::celery_app::get_celery_app;
+use windmill::services::metrics::PrometheusTaskObserver;
 use windmill::services::tasks_execution::*;
 use windmill::tasks::export_ballot_publication::export_ballot_publication;
 use windmill::tasks::export_election_event::{self, ExportOptions};
@@ -72,6 +73,7 @@ pub async fn export_ballot_publication_route(
         update_fail(
             &task_execution,
             &format!("Failed to authorize executing the task: {:?}", error),
+            &PrometheusTaskObserver,
         )
         .await;
         return Err(error);
@@ -90,7 +92,7 @@ pub async fn export_ballot_publication_route(
     ))
     .await {
         Err(error) =>  {
-            update_fail(&task_execution, &format!("Failed to send task to the queue: {error:?}")).await;
+            update_fail(&task_execution, &format!("Failed to send task to the queue: {error:?}"), &PrometheusTaskObserver).await;
             return Err((
                 Status::InternalServerError,
                 format!("Error sending export_election_event task: {error:?}")

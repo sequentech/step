@@ -96,7 +96,7 @@ impl Queue {
 static mut PREFETCH_COUNT_S: u16 = 100;
 static mut ACKS_LATE_S: bool = true;
 static mut TASK_MAX_RETRIES: u32 = 4;
-static mut IS_APP_ACTIVE: bool = true;
+static mut IS_APP_ACTIVE: bool = false;
 static mut BROKER_CONNECTION_MAX_RETRIES: u32 = 5;
 static mut HEARTBEAT_SECS: u16 = 10;
 static mut WORKER_THREADS: usize = 1;

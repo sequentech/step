@@ -8,6 +8,7 @@ use crate::services::ceremonies::serialize_logs::generate_logs;
 use crate::services::ceremonies::serialize_logs::sort_logs;
 use crate::services::database::get_hasura_pool;
 use crate::services::election_event_board::get_election_event_board;
+use crate::services::metrics::{on_task_failure, on_task_success};
 use crate::services::protocol_manager;
 use crate::services::public_keys;
 use crate::types::error::Result;
@@ -174,7 +175,7 @@ pub async fn set_public_key_impl(
 
 #[instrument(err)]
 #[wrap_map_err::wrap_map_err(TaskError)]
-#[celery::task(max_retries = 0)]
+#[celery::task(max_retries = 0, on_failure = on_task_failure, on_success = on_task_success)]
 pub async fn set_public_key(
     tenant_id: String,
     election_event_id: String,

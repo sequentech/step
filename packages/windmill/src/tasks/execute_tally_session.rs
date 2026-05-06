@@ -44,6 +44,7 @@ use crate::services::election::get_election_event_elections;
 use crate::services::election_event_board::get_election_event_board;
 use crate::services::election_event_status::get_election_event_status;
 use crate::services::electoral_log::ElectoralLog;
+use crate::services::metrics::{on_task_failure, on_task_success};
 use crate::services::pg_lock::PgLock;
 use crate::services::protocol_manager;
 use crate::services::reports::electoral_results::ElectoralResults;
@@ -1453,7 +1454,7 @@ pub async fn transactions_wrapper(
 
 #[instrument(err)]
 #[wrap_map_err::wrap_map_err(TaskError)]
-#[celery::task(time_limit = 1200000, max_retries = 0, expires = 15)]
+#[celery::task(time_limit = 1200000, max_retries = 0, expires = 15, on_failure = on_task_failure, on_success = on_task_success)]
 pub async fn execute_tally_session(
     tenant_id: String,
     election_event_id: String,

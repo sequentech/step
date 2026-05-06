@@ -4,6 +4,7 @@
 use crate::postgres::election::get_elections_ids;
 use crate::postgres::election_event::delete_election_event as delete_election_event_postgres;
 use crate::services::delete_election_event::delete_election_event_b3;
+use crate::services::metrics::{on_task_failure, on_task_success, PrometheusTaskObserver};
 use crate::services::tasks_execution::{update_complete, update_fail};
 use crate::{
     services::{
@@ -89,7 +90,7 @@ async fn delete_election_event(
 
 #[instrument(err)]
 #[wrap_map_err::wrap_map_err(TaskError)]
-#[celery::task]
+#[celery::task(on_failure = on_task_failure, on_success = on_task_success)]
 pub async fn delete_election_event_t(
     tenant_id: String,
     election_event_id: String,
@@ -100,11 +101,11 @@ pub async fn delete_election_event_t(
 
     let _ = match res {
         Ok(_) => {
-            update_complete(&task_execution, None).await?;
+            update_complete(&task_execution, None, &PrometheusTaskObserver).await?;
         }
         Err(err) => {
             let error = format!("Error deleting election event: {err}");
-            update_fail(&task_execution, &error).await?;
+            update_fail(&task_execution, &error, &PrometheusTaskObserver).await?;
         }
     };
     Ok(())

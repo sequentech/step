@@ -4,6 +4,7 @@
 
 use crate::postgres::reports::Report;
 use crate::services::database::{get_hasura_pool, get_keycloak_pool, PgConfig};
+use crate::services::metrics::{on_task_failure, on_task_success};
 use crate::services::reports::manual_verification::ManualVerificationTemplate;
 use crate::services::reports::template_renderer::{
     GenerateReportMode, ReportOriginatedFrom, ReportOrigins, TemplateRenderer,
@@ -83,7 +84,7 @@ pub async fn generate_report(
 
 #[instrument(err)]
 #[wrap_map_err::wrap_map_err(TaskError)]
-#[celery::task]
+#[celery::task(on_failure = on_task_failure, on_success = on_task_success)]
 pub async fn generate_manual_verification_report(
     document_id: String,
     tenant_id: String,

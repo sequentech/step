@@ -22,6 +22,7 @@ use windmill::services::database::get_hasura_pool;
 use windmill::services::import::import_election_event::{
     get_document, get_zip_entries,
 };
+use windmill::services::metrics::PrometheusTaskObserver;
 use windmill::services::tasks_execution::*;
 use windmill::services::tasks_execution::{update_complete, update_fail};
 use windmill::tasks::import_election_event;
@@ -177,6 +178,7 @@ pub async fn import_election_event_f(
                 let _res = update_fail(
                     &task_execution,
                     &format!("Failed to get the document: {err:?}"),
+                    &PrometheusTaskObserver,
                 )
                 .await;
                 return Ok(Json(ImportElectionEventOutput {
@@ -205,7 +207,12 @@ pub async fn import_election_event_f(
                         format!("Failed to verify the integrity: {err:?}")
                     };
                     info!("Failed to verify the integrity!");
-                    let _res = update_fail(&task_execution, &err_str).await;
+                    let _res = update_fail(
+                        &task_execution,
+                        &err_str,
+                        &PrometheusTaskObserver,
+                    )
+                    .await;
                     return Ok(Json(ImportElectionEventOutput {
                         id: None,
                         message: None,
@@ -231,6 +238,7 @@ pub async fn import_election_event_f(
             let _res = update_fail(
                 &task_execution,
                 &format!("Error checking import: {err:?}"),
+                &PrometheusTaskObserver,
             )
             .await;
             return Ok(Json(ImportElectionEventOutput {
@@ -258,6 +266,7 @@ pub async fn import_election_event_f(
             let _res = update_fail(
                 &task_execution,
                 &format!("Error checking import: {err:?}"),
+                &PrometheusTaskObserver,
             )
             .await;
             return Ok(Json(ImportElectionEventOutput {
@@ -273,9 +282,12 @@ pub async fn import_election_event_f(
 
     let check_only = input.check_only.unwrap_or(false);
     if check_only {
-        let _res =
-            update_complete(&task_execution, Some(input.document_id.clone()))
-                .await;
+        let _res = update_complete(
+            &task_execution,
+            Some(input.document_id.clone()),
+            &PrometheusTaskObserver,
+        )
+        .await;
         return Ok(Json(ImportElectionEventOutput {
             id: Some(id),
             message: Some("Import document checked".to_string()),
@@ -299,6 +311,7 @@ pub async fn import_election_event_f(
             let _res = update_fail(
                 &task_execution,
                 &format!("Error sending Import Election Event task: {err:?}"),
+                &PrometheusTaskObserver,
             )
             .await;
             return Ok(Json(ImportElectionEventOutput {

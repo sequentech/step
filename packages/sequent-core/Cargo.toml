@@ -107,6 +107,7 @@ tokio-postgres = { version = "0.7", features = ["with-uuid-1", "with-chrono-0_4"
 # probehandler
 tokio = { version = "1.44", features = ["full"], optional = true }
 warp =  { version = "0.3", optional = true }
+prometheus = { version = "0.13", default-features = false, optional = true }
 ammonia = { version = "4.1", optional = true }
 ordered-float = { version = "5.0", features = ["serde"] }
 
@@ -142,7 +143,7 @@ reports_sync = []
 s3 = ["dep:reqwest"]
 keycloak = ["dep:openid", "dep:reqwest", "dep:reqwest-retry", "dep:reqwest-middleware", "dep:serde_urlencoded", "dep:rocket", "dep:keycloak", "dep:tracing", "dep:uuid", "dep:regex", "dep:jsonwebtoken", "dep:tokio-postgres", "dep:time"]
 log = ["dep:tracing", "dep:tracing-subscriber", "dep:tracing-tree", "dep:tracing-log"]
-probe = ["dep:tokio", "dep:warp"]
+probe = ["dep:tokio", "dep:warp", "dep:prometheus"]
 # Lambda examples
 lambda_inplace = []
 lambda_openwhisk = []

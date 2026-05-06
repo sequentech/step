@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+use crate::services::metrics::{on_task_failure, on_task_success, PrometheusTaskObserver};
 use crate::services::tasks_semaphore::acquire_semaphore;
 use crate::{
     postgres::reports::Report,
@@ -93,7 +94,7 @@ async fn generate_activity_logs_report_impl(
 
 #[instrument(err)]
 #[wrap_map_err::wrap_map_err(TaskError)]
-#[celery::task(max_retries = 0)]
+#[celery::task(max_retries = 0, on_failure = on_task_failure, on_success = on_task_success)]
 pub async fn generate_activity_logs_report(
     tenant_id: String,
     election_event_id: String,
@@ -112,13 +113,19 @@ pub async fn generate_activity_logs_report(
     .await
     {
         Ok(()) => {
-            update_complete(&task_execution, Some(document_id))
+            update_complete(&task_execution, Some(document_id), &PrometheusTaskObserver)
                 .await
                 .context("Failed to update task execution status to COMPLETED")?;
             Ok(())
         }
         Err(err) => {
-            if let Err(update_err) = update_fail(&task_execution, &format!("{err:?}")).await {
+            if let Err(update_err) = update_fail(
+                &task_execution,
+                &format!("{err:?}"),
+                &PrometheusTaskObserver,
+            )
+            .await
+            {
                 tracing::error!(
                     "Failed to update task execution status to FAILED: {:?}",
                     update_err

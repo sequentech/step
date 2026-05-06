@@ -7,6 +7,7 @@ use crate::postgres::keys_ceremony::{get_keys_ceremony_by_id, update_keys_ceremo
 use crate::postgres::trustee::get_trustees_by_id;
 use crate::services::ceremonies::keys_ceremony::get_keys_ceremony_board;
 use crate::services::database::get_hasura_pool;
+use crate::services::metrics::{on_task_failure, on_task_success};
 use crate::services::protocol_manager::check_configuration_exists;
 use crate::services::{ceremonies, public_keys};
 use crate::types::error::{Error, Result};
@@ -107,7 +108,7 @@ pub async fn create_keys_impl(
 
 #[instrument(err)]
 #[wrap_map_err::wrap_map_err(TaskError)]
-#[celery::task]
+#[celery::task(on_failure = on_task_failure, on_success = on_task_success)]
 pub async fn create_keys(
     tenant_id: String,
     election_event_id: String,

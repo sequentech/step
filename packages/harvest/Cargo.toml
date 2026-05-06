@@ -37,6 +37,10 @@ aws-sdk-s3 = "1.11"
 # logging
 tracing = "0.1"
 
+# metrics
+prometheus = { version = "0.13", default-features = false }
+lazy_static = "1.4"
+
 
 # board-messages = { path="../board-messages" }
 electoral-log = { path="../electoral-log" }

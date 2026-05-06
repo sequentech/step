@@ -6,6 +6,7 @@ use crate::postgres::reports::Report;
 use crate::postgres::reports::ReportType;
 use crate::services::database::get_hasura_pool;
 use crate::services::database::get_keycloak_pool;
+use crate::services::metrics::{on_task_failure, on_task_success, PrometheusTaskObserver};
 use crate::services::reports::template_renderer::{
     GenerateReportMode, ReportOriginatedFrom, ReportOrigins, TemplateRenderer,
 };
@@ -60,7 +61,12 @@ pub async fn generate_report(
         Ok(client) => client,
         Err(err) => {
             if let Some(ref task_exec) = task_execution {
-                let _ = update_fail(task_exec, "Failed to get Hasura DB pool").await;
+                let _ = update_fail(
+                    task_exec,
+                    "Failed to get Hasura DB pool",
+                    &PrometheusTaskObserver,
+                )
+                .await;
             }
             return Err(anyhow!("Error getting Hasura DB pool: {}", err));
         }
@@ -70,7 +76,12 @@ pub async fn generate_report(
         Ok(transaction) => transaction,
         Err(err) => {
             if let Some(ref task_exec) = task_execution {
-                let _ = update_fail(task_exec, "Failed to get Hasura DB pool").await;
+                let _ = update_fail(
+                    task_exec,
+                    "Failed to get Hasura DB pool",
+                    &PrometheusTaskObserver,
+                )
+                .await;
             };
             return Err(anyhow!("Error starting Hasura transaction: {err}"));
         }
@@ -79,7 +90,12 @@ pub async fn generate_report(
         Ok(client) => client,
         Err(err) => {
             if let Some(ref task_exec) = task_execution {
-                let _ = update_fail(task_exec, "Failed to get Hasura DB pool").await;
+                let _ = update_fail(
+                    task_exec,
+                    "Failed to get Hasura DB pool",
+                    &PrometheusTaskObserver,
+                )
+                .await;
             }
             return Err(anyhow!("Error getting Keycloak DB pool: {}", err));
         }
@@ -89,7 +105,12 @@ pub async fn generate_report(
         Ok(transaction) => transaction,
         Err(err) => {
             if let Some(ref task_exec) = task_execution {
-                let _ = update_fail(task_exec, "Failed to get Hasura DB pool").await;
+                let _ = update_fail(
+                    task_exec,
+                    "Failed to get Hasura DB pool",
+                    &PrometheusTaskObserver,
+                )
+                .await;
             }
             return Err(anyhow!("Error starting Keycloak transaction: {err}"));
         }
@@ -154,7 +175,7 @@ pub async fn generate_report(
 
 #[instrument(err)]
 #[wrap_map_err::wrap_map_err(TaskError)]
-#[celery::task]
+#[celery::task(on_failure = on_task_failure, on_success = on_task_success)]
 pub async fn generate_report(
     report: Report,
     document_id: String,
@@ -190,14 +211,24 @@ pub async fn generate_report(
         Ok(inner_result) => {
             if let Err(ref err) = inner_result {
                 if let Some(ref task_exec) = task_execution {
-                    let _ = update_fail(task_exec, &format!("Task failed: {:?}", err)).await;
+                    let _ = update_fail(
+                        task_exec,
+                        &format!("Task failed: {:?}", err),
+                        &PrometheusTaskObserver,
+                    )
+                    .await;
                 }
             }
             inner_result.map_err(|err| Error::from(err.context("Task failed")))?;
         }
         Err(join_error) => {
             if let Some(ref task_exec) = task_execution {
-                let _ = update_fail(task_exec, &format!("Task panicked: {}", join_error)).await;
+                let _ = update_fail(
+                    task_exec,
+                    &format!("Task panicked: {}", join_error),
+                    &PrometheusTaskObserver,
+                )
+                .await;
             }
             return Err(Error::from(anyhow::anyhow!(
                 "Task panicked: {}",

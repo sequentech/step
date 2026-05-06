@@ -23,6 +23,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use tracing::{event, info, instrument};
 
+use crate::services::metrics::{on_task_failure, on_task_success};
 use lapin::{
     options::{BasicAckOptions, BasicGetOptions, QueueDeclareOptions},
     types::FieldTable,
@@ -124,7 +125,7 @@ pub struct LogEventInput {
 /// This task is routed to the durable electoral_log_batch_queue.
 #[instrument(skip_all, err)]
 #[wrap_map_err::wrap_map_err(TaskError)]
-#[celery::task(max_retries = 0)]
+#[celery::task(max_retries = 0, on_failure = on_task_failure, on_success = on_task_success)]
 pub async fn enqueue_electoral_log_event(input: LogEventInput) -> Result<()> {
     // By calling this task, the event is enqueued into the electoral_log_batch_queue.
     Ok(())
@@ -135,7 +136,7 @@ pub async fn enqueue_electoral_log_event(input: LogEventInput) -> Result<()> {
 /// then for each board group, opens an immudb session/transaction to insert all messages.
 #[instrument(skip_all, err)]
 #[wrap_map_err::wrap_map_err(TaskError)]
-#[celery::task(max_retries = 0)]
+#[celery::task(max_retries = 0, on_failure = on_task_failure, on_success = on_task_success)]
 pub async fn process_electoral_log_events_batch(events: Vec<LogEventInput>) -> Result<()> {
     let mut messages_by_board: HashMap<String, Vec<ElectoralLogMessage>> = HashMap::new();
 
@@ -261,7 +262,7 @@ pub async fn process_electoral_log_events_batch(events: Vec<LogEventInput>) -> R
 /// to the processing task. Each batch is processed sequentially so that only a single batch is held in memory.
 #[instrument(skip_all, err)]
 #[wrap_map_err::wrap_map_err(TaskError)]
-#[celery::task(time_limit = 30, max_retries = 0, expires = 1)]
+#[celery::task(time_limit = 30, max_retries = 0, expires = 1, on_failure = on_task_failure, on_success = on_task_success)]
 pub async fn electoral_log_batch_dispatcher() -> Result<()> {
     info!("starting electoral_log_batch_dispatcher");
 

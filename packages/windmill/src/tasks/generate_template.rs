@@ -14,6 +14,7 @@ use crate::services::consolidation::create_transmission_package_service::downloa
 use crate::services::consolidation::zip::compress_folder_to_zip;
 use crate::services::database::get_hasura_pool;
 use crate::services::documents::upload_and_return_document;
+use crate::services::metrics::{on_task_failure, on_task_success, PrometheusTaskObserver};
 use crate::services::reports::utils::get_public_assets_path_env_var;
 use crate::services::tasks_execution::{update, update_complete, update_fail};
 use crate::services::tasks_semaphore::acquire_semaphore;
@@ -281,7 +282,12 @@ async fn generate_template_block(
         Ok(client) => client,
         Err(err) => {
             if let Some(ref task_exec) = task_execution {
-                update_fail(task_exec, "Failed to get Hasura DB pool").await?;
+                update_fail(
+                    task_exec,
+                    "Failed to get Hasura DB pool",
+                    &PrometheusTaskObserver,
+                )
+                .await?;
             }
             return Err(anyhow!("Error getting Hasura DB pool: {}", err));
         }
@@ -304,7 +310,12 @@ async fn generate_template_block(
         }
         Err(err) => {
             if let Some(ref task_exec) = task_execution {
-                update_fail(task_exec, "Failed to get Hasura DB pool").await?;
+                update_fail(
+                    task_exec,
+                    "Failed to get Hasura DB pool",
+                    &PrometheusTaskObserver,
+                )
+                .await?;
             };
             return Err(anyhow!("Error starting Hasura transaction: {err}"));
         }
@@ -315,7 +326,7 @@ async fn generate_template_block(
         Err(err) => {
             if let Some(ref task_exec) = task_execution {
                 let err_str = format!("{:?}", err);
-                update_fail(task_exec, &err_str).await?;
+                update_fail(task_exec, &err_str, &PrometheusTaskObserver).await?;
             };
             Err(err)
         }
@@ -325,13 +336,23 @@ async fn generate_template_block(
     match hasura_transaction.commit().await {
         Ok(transaction) => {
             if let Some(ref task_exec) = task_execution {
-                update_complete(task_exec, Some(document_id.clone())).await?;
+                update_complete(
+                    task_exec,
+                    Some(document_id.clone()),
+                    &PrometheusTaskObserver,
+                )
+                .await?;
             }
             Ok(transaction)
         }
         Err(err) => {
             if let Some(ref task_exec) = task_execution {
-                update_fail(task_exec, "Failed to commit Hasura transaction").await?;
+                update_fail(
+                    task_exec,
+                    "Failed to commit Hasura transaction",
+                    &PrometheusTaskObserver,
+                )
+                .await?;
             };
             Err(err)
         }
@@ -342,7 +363,7 @@ async fn generate_template_block(
 
 #[instrument(err)]
 #[wrap_map_err::wrap_map_err(TaskError)]
-#[celery::task]
+#[celery::task(on_failure = on_task_failure, on_success = on_task_success)]
 pub async fn generate_template(
     tenant_id: String,
     document_id: String,

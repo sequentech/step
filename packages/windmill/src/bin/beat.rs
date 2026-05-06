@@ -35,7 +35,7 @@ struct CeleryOpt {
 async fn main() -> Result<()> {
     dotenv().ok();
     init_log(true);
-    setup_probe(AppName::BEAT).await;
+    setup_probe(AppName::Beat).await;
     let slug = std::env::var("ENV_SLUG").with_context(|| "missing env var ENV_SLUG")?;
 
     let mut beat = celery::beat!(

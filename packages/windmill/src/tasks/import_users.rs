@@ -7,6 +7,7 @@ use crate::postgres::maintenance::vacuum_analyze_direct;
 use crate::services::database::get_hasura_pool;
 use crate::services::documents::get_document_as_temp_file;
 use crate::services::import::import_users::import_users_file;
+use crate::services::metrics::{on_task_failure, on_task_success, PrometheusTaskObserver};
 use crate::services::tasks_execution::*;
 use crate::types::error::{Error, Result};
 use anyhow::{anyhow, Context};
@@ -76,12 +77,17 @@ impl ImportUsersBody {
 
 #[instrument(err)]
 #[wrap_map_err::wrap_map_err(TaskError)]
-#[celery::task(max_retries = 2)]
+#[celery::task(max_retries = 2, on_failure = on_task_failure, on_success = on_task_success)]
 pub async fn import_users(body: ImportUsersBody, task_execution: TasksExecution) -> Result<()> {
     let mut hasura_db_client: DbClient = match get_hasura_pool().await.get().await {
         Ok(client) => client,
         Err(err) => {
-            update_fail(&task_execution, "Failed to get Hasura DB pool").await?;
+            update_fail(
+                &task_execution,
+                "Failed to get Hasura DB pool",
+                &PrometheusTaskObserver,
+            )
+            .await?;
             return Err(Error::String(format!(
                 "Error getting Hasura DB pool: {}",
                 err
@@ -92,7 +98,12 @@ pub async fn import_users(body: ImportUsersBody, task_execution: TasksExecution)
     let hasura_transaction = match hasura_db_client.transaction().await {
         Ok(transaction) => transaction,
         Err(err) => {
-            update_fail(&task_execution, "Failed to start Hasura transaction").await?;
+            update_fail(
+                &task_execution,
+                "Failed to start Hasura transaction",
+                &PrometheusTaskObserver,
+            )
+            .await?;
             return Err(Error::String(format!(
                 "Error starting Hasura transaction: {err}"
             )));
@@ -106,6 +117,7 @@ pub async fn import_users(body: ImportUsersBody, task_execution: TasksExecution)
                 update_fail(
                     &task_execution,
                     "Error obtaining voters file from S3 as temp file",
+                    &PrometheusTaskObserver,
                 )
                 .await?;
                 return Err(Error::String(format!(
@@ -122,12 +134,12 @@ pub async fn import_users(body: ImportUsersBody, task_execution: TasksExecution)
             }
             Err(HashFileVerifyError::HashMismatch(input_hash, gen_hash)) => {
                 let err_str = format!("Failed to verify the integrity: Hash of voters file: {gen_hash} does not match with the input hash: {input_hash}");
-                update_fail(&task_execution, &err_str).await?;
+                update_fail(&task_execution, &err_str, &PrometheusTaskObserver).await?;
                 return Err(Error::String(err_str));
             }
             Err(err) => {
                 let err_str = format!("Failed to verify the integrity: {err:?}");
-                update_fail(&task_execution, &err_str).await?;
+                update_fail(&task_execution, &err_str, &PrometheusTaskObserver).await?;
                 return Err(err_str.into());
             }
         },
@@ -153,14 +165,18 @@ pub async fn import_users(body: ImportUsersBody, task_execution: TasksExecution)
             ()
         }
         Err(err) => {
-            update_fail(&task_execution, &err.to_string()).await?;
+            update_fail(&task_execution, &err.to_string(), &PrometheusTaskObserver).await?;
             return Err(Error::String(format!("Error importing users file: {err}")));
         }
     }
 
-    update_complete(&task_execution, Some(body.document_id.clone()))
-        .await
-        .context("Failed to update task execution status to COMPLETED")?;
+    update_complete(
+        &task_execution,
+        Some(body.document_id.clone()),
+        &PrometheusTaskObserver,
+    )
+    .await
+    .context("Failed to update task execution status to COMPLETED")?;
 
     Ok(())
 }

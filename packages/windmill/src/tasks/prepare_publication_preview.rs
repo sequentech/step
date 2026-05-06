@@ -8,6 +8,7 @@ use crate::services::ballot_styles::ballot_publication::get_publication_json;
 use crate::services::database::get_hasura_pool;
 use crate::services::documents::upload_and_return_document;
 use crate::services::election_event_status::get_election_status;
+use crate::services::metrics::{on_task_failure, on_task_success, PrometheusTaskObserver};
 use crate::{
     services::tasks_execution::{update_complete, update_fail},
     types::error::Result,
@@ -35,7 +36,7 @@ pub struct PublicationPreview {
 
 #[instrument(err)]
 #[wrap_map_err::wrap_map_err(TaskError)]
-#[celery::task(max_retries = 2)]
+#[celery::task(max_retries = 2, on_failure = on_task_failure, on_success = on_task_success)]
 pub async fn prepare_publication_preview(
     tenant_id: String,
     election_event_id: String,
@@ -65,12 +66,18 @@ pub async fn prepare_publication_preview(
 
     match result {
         Ok(document_id) => {
-            let _res = update_complete(&task_execution, Some(document_id.clone())).await;
+            let _res = update_complete(
+                &task_execution,
+                Some(document_id.clone()),
+                &PrometheusTaskObserver,
+            )
+            .await;
             Ok(())
         }
         Err(err) => {
             let err_str = format!("Error preparing publication preview: {err:?}");
-            let _res = update_fail(&task_execution, &err.to_string()).await;
+            let _res =
+                update_fail(&task_execution, &err.to_string(), &PrometheusTaskObserver).await;
             Err(err_str.into())
         }
     }
