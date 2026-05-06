@@ -11,6 +11,13 @@ const galegoTranslation: TranslationType = {
             showMore: "Mostrar Máis",
             showLess: "Mostrar Menos",
         },
+        candidatesList: {
+            collapseToggle: "Alternar lista {{listTitle}}",
+            showCandidates: "Mostrar candidatos",
+            hideCandidates: "Ocultar candidatos",
+            expandAll: "Expandir todo",
+            collapseAll: "Contraer todo",
+        },
         breadcrumbSteps: {
             electionList: "Lista de Papeletas",
             ballot: "Papeleta",
