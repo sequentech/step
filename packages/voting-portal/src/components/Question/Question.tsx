@@ -44,6 +44,8 @@ import {useAppSelector} from "../../store/hooks"
 import {selectBallotSelectionQuestion} from "../../store/ballotSelections/ballotSelectionsSlice"
 import {sortCandidatesInContest, checkIsBlank} from "@sequentech/ui-core"
 import {provideBallotService} from "../../services/BallotService"
+import {faAngleDown, faAngleRight} from "@fortawesome/free-solid-svg-icons"
+import {FontAwesomeIcon} from "@fortawesome/react-fontawesome"
 
 const StyledTitle = styled(Typography)`
     margin-top: 25.5px;
@@ -288,6 +290,9 @@ export const Question: React.FC<IQuestionProps> = ({
                     <Button
                         variant="secondary"
                         sx={{flexShrink: 0, minHeight: "unset", fontSize: "14px"}}
+                        startIcon={
+                            <FontAwesomeIcon icon={allCollapsed ? faAngleRight : faAngleDown} />
+                        }
                         onClick={handleToggleAll}
                     >
                         {allCollapsed
