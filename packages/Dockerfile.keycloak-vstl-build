@@ -12,7 +12,7 @@
 # https://www.keycloak.org/server/containers#_installing_additional_rpm_packages
 
 # Start with a Maven base image to compile the 2FA authenticator
-FROM quay.io/keycloak/keycloak:26.4
+FROM quay.io/keycloak/keycloak:26.6.1
 COPY --from=keycloak-compile /opt/keycloak/ /opt/keycloak/
 COPY ./keycloak-extensions/quarkus.properties /opt/keycloak/conf/quarkus.properties
 
