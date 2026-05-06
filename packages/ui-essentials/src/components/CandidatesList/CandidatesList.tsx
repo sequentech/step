@@ -1,13 +1,13 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import {Box, Collapse, Typography} from "@mui/material"
-import React, {PropsWithChildren, useState} from "react"
+import {Box, Button, Collapse, Typography} from "@mui/material"
+import React, {PropsWithChildren, useEffect, useState} from "react"
 import {styled} from "@mui/material/styles"
 import theme from "../../services/theme"
 import {Checkbox} from "@mui/material"
 import {faAngleDown, faAngleRight} from "@fortawesome/free-solid-svg-icons"
-import IconButton from "../IconButton/IconButton"
+import {FontAwesomeIcon} from "@fortawesome/react-fontawesome"
 
 const ListContainer = styled(Box)<{isactive: string}>`
     backgroundcolor: ${({theme}) => theme.palette.lightBackground};
@@ -62,6 +62,10 @@ export interface CandidatesListProps extends PropsWithChildren {
     isCollapsible?: boolean
     defaultExpanded?: boolean
     collapseToggleAriaLabel?: string
+    showCandidatesLabel?: string
+    hideCandidatesLabel?: string
+    externalExpanded?: boolean
+    onExpandedChange?: (expanded: boolean) => void
 }
 
 const CandidatesList: React.FC<CandidatesListProps> = ({
@@ -74,8 +78,18 @@ const CandidatesList: React.FC<CandidatesListProps> = ({
     isCollapsible,
     defaultExpanded,
     collapseToggleAriaLabel,
+    showCandidatesLabel,
+    hideCandidatesLabel,
+    externalExpanded,
+    onExpandedChange,
 }) => {
     const [isExpanded, setIsExpanded] = useState<boolean>(defaultExpanded ?? true)
+
+    useEffect(() => {
+        if (externalExpanded !== undefined) {
+            setIsExpanded(externalExpanded)
+        }
+    }, [externalExpanded])
 
     const onClick = () => {
         if (isActive && isCheckable && setChecked) {
@@ -87,7 +101,9 @@ const CandidatesList: React.FC<CandidatesListProps> = ({
 
     const handleToggleCollapse = (event: React.MouseEvent) => {
         event.stopPropagation()
-        setIsExpanded((prev) => !prev)
+        const newExpanded = !isExpanded
+        setIsExpanded(newExpanded)
+        onExpandedChange?.(newExpanded)
     }
 
     return (
@@ -98,11 +114,19 @@ const CandidatesList: React.FC<CandidatesListProps> = ({
         >
             <ListHeader className="candidates-list-header">
                 {isCollapsible ? (
-                    <IconButton
-                        icon={isExpanded ? faAngleDown : faAngleRight}
+                    <Button
+                        variant="secondary"
+                        size="small"
+                        startIcon={
+                            <FontAwesomeIcon icon={isExpanded ? faAngleDown : faAngleRight} />
+                        }
                         onClick={handleToggleCollapse}
-                        title={collapseToggleAriaLabel}
-                    />
+                        aria-label={collapseToggleAriaLabel}
+                        aria-expanded={isExpanded}
+                        sx={{flexShrink: 0}}
+                    >
+                        {isExpanded ? hideCandidatesLabel : showCandidatesLabel}
+                    </Button>
                 ) : null}
                 <Box sx={{flexGrow: 2}}>
                     <ListTitle

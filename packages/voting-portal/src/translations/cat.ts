@@ -12,6 +12,10 @@ const catalanTranslation: TranslationType = {
         },
         candidatesList: {
             collapseToggle: "Alternar llista {{listTitle}}",
+            showCandidates: "Mostra els candidats",
+            hideCandidates: "Amaga els candidats",
+            expandAll: "Expandir tot",
+            collapseAll: "Reduir tot",
         },
         breadcrumbSteps: {
             electionList: "Llista de Votacions",

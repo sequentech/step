@@ -12,6 +12,10 @@ const spanishTranslation: TranslationType = {
         },
         candidatesList: {
             collapseToggle: "Alternar lista {{listTitle}}",
+            showCandidates: "Mostrar candidatos",
+            hideCandidates: "Ocultar candidatos",
+            expandAll: "Expandir todo",
+            collapseAll: "Contraer todo",
         },
         breadcrumbSteps: {
             electionList: "Lista de Votaciones",

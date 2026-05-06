@@ -102,6 +102,8 @@ export const CollapsibleExpanded: Story = {
         isCollapsible: true,
         defaultExpanded: true,
         collapseToggleAriaLabel: "Toggle list Category A",
+        showCandidatesLabel: "Show candidates",
+        hideCandidatesLabel: "Hide candidates",
     },
     parameters: {
         viewport: {
@@ -117,6 +119,8 @@ export const CollapsibleCollapsed: Story = {
         isCollapsible: true,
         defaultExpanded: false,
         collapseToggleAriaLabel: "Toggle list Category A",
+        showCandidatesLabel: "Show candidates",
+        hideCandidatesLabel: "Hide candidates",
     },
     parameters: {
         viewport: {

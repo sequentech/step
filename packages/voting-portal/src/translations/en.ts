@@ -13,6 +13,10 @@ const englishTranslation = {
         },
         candidatesList: {
             collapseToggle: "Toggle list {{listTitle}}",
+            showCandidates: "Show candidates",
+            hideCandidates: "Hide candidates",
+            expandAll: "Expand all",
+            collapseAll: "Collapse all",
         },
         breadcrumbSteps: {
             electionList: "Ballot List",
