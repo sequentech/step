@@ -547,8 +547,8 @@ const ElectionSelectionScreen: React.FC = () => {
                                       electionIds: errorMsgElectionIds,
                                   })
                                 : alertMsg
-                                ? t(`electionSelectionScreen.alerts.${alertMsg}`)
-                                : ""}
+                                  ? t(`electionSelectionScreen.alerts.${alertMsg}`)
+                                  : ""}
                         </Alert>
                     ) : (
                         <Typography
