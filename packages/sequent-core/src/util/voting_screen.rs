@@ -409,6 +409,7 @@ pub fn get_contest_plurality(
             shuffle_category_list: None,
             show_points: Some(false),
             enable_checkable_lists: None,
+            collapsible_lists: None,
             candidates_order: None,
             candidates_selection_policy: None,
             candidates_icon_checkbox_policy: None,

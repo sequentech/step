@@ -1,11 +1,13 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import {Box, Typography} from "@mui/material"
-import React, {PropsWithChildren} from "react"
+import {Box, Button, Collapse, Typography} from "@mui/material"
+import React, {PropsWithChildren, useEffect, useState} from "react"
 import {styled} from "@mui/material/styles"
 import theme from "../../services/theme"
 import {Checkbox} from "@mui/material"
+import {faAngleDown, faAngleRight} from "@fortawesome/free-solid-svg-icons"
+import {FontAwesomeIcon} from "@fortawesome/react-fontawesome"
 
 const ListContainer = styled(Box)<{isactive: string}>`
     backgroundcolor: ${({theme}) => theme.palette.lightBackground};
@@ -25,8 +27,9 @@ const ListContainer = styled(Box)<{isactive: string}>`
 `
 
 const ListHeader = styled(Box)`
-    display: flex;
-    flex-direction: row;
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    align-items: center;
 `
 
 const ListChildrenContainer = styled("ul")`
@@ -44,11 +47,27 @@ const ListChildrenContainer = styled("ul")`
 const ListTitle = styled(Typography)`
     margin-top: 10px;
     margin-bottom: 26px;
-    flex-shrink: 0;
-    flex-grow: 2;
     text-align: center;
     font-size: 24px;
 `
+
+const CollapseToggleButton = styled(Button)(({theme}) => ({
+    "&&": {
+        border: "none",
+        boxShadow: "none",
+    },
+    "&&:hover": {
+        border: "none",
+    },
+    "&&:active": {
+        border: "none",
+    },
+    "&&:focus": {
+        border: "none",
+        outline: `2px solid ${theme.palette.brandSuccess}`,
+        outlineOffset: "2px",
+    },
+}))
 
 export interface CandidatesListProps extends PropsWithChildren {
     title: string
@@ -56,6 +75,13 @@ export interface CandidatesListProps extends PropsWithChildren {
     isCheckable?: boolean
     checked?: boolean
     setChecked?: (value: boolean) => void
+    isCollapsible?: boolean
+    defaultExpanded?: boolean
+    collapseToggleAriaLabel?: string
+    showCandidatesLabel?: string
+    hideCandidatesLabel?: string
+    externalExpanded?: boolean
+    onExpandedChange?: (expanded: boolean) => void
 }
 
 const CandidatesList: React.FC<CandidatesListProps> = ({
@@ -65,7 +91,22 @@ const CandidatesList: React.FC<CandidatesListProps> = ({
     isCheckable,
     checked,
     setChecked,
+    isCollapsible,
+    defaultExpanded,
+    collapseToggleAriaLabel,
+    showCandidatesLabel,
+    hideCandidatesLabel,
+    externalExpanded,
+    onExpandedChange,
 }) => {
+    const [isExpanded, setIsExpanded] = useState<boolean>(defaultExpanded ?? true)
+
+    useEffect(() => {
+        if (externalExpanded !== undefined) {
+            setIsExpanded(externalExpanded)
+        }
+    }, [externalExpanded])
+
     const onClick = () => {
         if (isActive && isCheckable && setChecked) {
             setChecked(!checked)
@@ -73,6 +114,13 @@ const CandidatesList: React.FC<CandidatesListProps> = ({
     }
     const handleChange = (event: React.ChangeEvent<HTMLInputElement>) =>
         isActive && isCheckable && setChecked && setChecked(event.target.checked)
+
+    const handleToggleCollapse = (event: React.MouseEvent) => {
+        event.stopPropagation()
+        const newExpanded = !isExpanded
+        setIsExpanded(newExpanded)
+        onExpandedChange?.(newExpanded)
+    }
 
     return (
         <ListContainer
@@ -82,21 +130,45 @@ const CandidatesList: React.FC<CandidatesListProps> = ({
         >
             <ListHeader className="candidates-list-header">
                 <Box>
-                    <ListTitle
-                        color={theme.palette.customGrey.contrastText}
-                        fontSize="24px"
-                        className="candidates-list-title"
-                    >
-                        {title}
-                    </ListTitle>
+                    {isCollapsible ? (
+                        <CollapseToggleButton
+                            variant="secondary"
+                            size="small"
+                            startIcon={
+                                <FontAwesomeIcon icon={isExpanded ? faAngleDown : faAngleRight} />
+                            }
+                            onClick={handleToggleCollapse}
+                            aria-label={collapseToggleAriaLabel}
+                            aria-expanded={isExpanded}
+                        >
+                            {isExpanded ? hideCandidatesLabel : showCandidatesLabel}
+                        </CollapseToggleButton>
+                    ) : null}
                 </Box>
-                {isActive && isCheckable ? (
-                    <Checkbox checked={checked} onChange={handleChange} />
-                ) : null}
+                <ListTitle
+                    color={theme.palette.customGrey.contrastText}
+                    fontSize="24px"
+                    className="candidates-list-title"
+                >
+                    {title}
+                </ListTitle>
+                <Box sx={{display: "flex", justifyContent: "flex-end"}}>
+                    {isActive && isCheckable ? (
+                        <Checkbox checked={checked} onChange={handleChange} />
+                    ) : null}
+                </Box>
             </ListHeader>
-            <ListChildrenContainer className="candidates-list-children">
-                {children}
-            </ListChildrenContainer>
+            {isCollapsible ? (
+                <Collapse in={isExpanded}>
+                    <ListChildrenContainer className="candidates-list-children">
+                        {children}
+                    </ListChildrenContainer>
+                </Collapse>
+            ) : (
+                <ListChildrenContainer className="candidates-list-children">
+                    {children}
+                </ListChildrenContainer>
+            )}
         </ListContainer>
     )
 }
