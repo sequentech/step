@@ -1,11 +1,13 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import {Box, Typography} from "@mui/material"
-import React, {PropsWithChildren} from "react"
+import {Box, Collapse, Typography} from "@mui/material"
+import React, {PropsWithChildren, useState} from "react"
 import {styled} from "@mui/material/styles"
 import theme from "../../services/theme"
 import {Checkbox} from "@mui/material"
+import {faAngleDown, faAngleRight} from "@fortawesome/free-solid-svg-icons"
+import IconButton from "../IconButton/IconButton"
 
 const ListContainer = styled(Box)<{isactive: string}>`
     backgroundcolor: ${({theme}) => theme.palette.lightBackground};
@@ -27,6 +29,7 @@ const ListContainer = styled(Box)<{isactive: string}>`
 const ListHeader = styled(Box)`
     display: flex;
     flex-direction: row;
+    align-items: center;
 `
 
 const ListChildrenContainer = styled("ul")`
@@ -56,6 +59,9 @@ export interface CandidatesListProps extends PropsWithChildren {
     isCheckable?: boolean
     checked?: boolean
     setChecked?: (value: boolean) => void
+    isCollapsible?: boolean
+    defaultExpanded?: boolean
+    collapseToggleAriaLabel?: string
 }
 
 const CandidatesList: React.FC<CandidatesListProps> = ({
@@ -65,7 +71,12 @@ const CandidatesList: React.FC<CandidatesListProps> = ({
     isCheckable,
     checked,
     setChecked,
+    isCollapsible,
+    defaultExpanded,
+    collapseToggleAriaLabel,
 }) => {
+    const [isExpanded, setIsExpanded] = useState<boolean>(defaultExpanded ?? true)
+
     const onClick = () => {
         if (isActive && isCheckable && setChecked) {
             setChecked(!checked)
@@ -74,6 +85,11 @@ const CandidatesList: React.FC<CandidatesListProps> = ({
     const handleChange = (event: React.ChangeEvent<HTMLInputElement>) =>
         isActive && isCheckable && setChecked && setChecked(event.target.checked)
 
+    const handleToggleCollapse = (event: React.MouseEvent) => {
+        event.stopPropagation()
+        setIsExpanded((prev) => !prev)
+    }
+
     return (
         <ListContainer
             isactive={String(!!(isActive && isCheckable))}
@@ -81,7 +97,14 @@ const CandidatesList: React.FC<CandidatesListProps> = ({
             className="candidates-list"
         >
             <ListHeader className="candidates-list-header">
-                <Box>
+                {isCollapsible ? (
+                    <IconButton
+                        icon={isExpanded ? faAngleDown : faAngleRight}
+                        onClick={handleToggleCollapse}
+                        title={collapseToggleAriaLabel}
+                    />
+                ) : null}
+                <Box sx={{flexGrow: 2}}>
                     <ListTitle
                         color={theme.palette.customGrey.contrastText}
                         fontSize="24px"
@@ -94,9 +117,17 @@ const CandidatesList: React.FC<CandidatesListProps> = ({
                     <Checkbox checked={checked} onChange={handleChange} />
                 ) : null}
             </ListHeader>
-            <ListChildrenContainer className="candidates-list-children">
-                {children}
-            </ListChildrenContainer>
+            {isCollapsible ? (
+                <Collapse in={isExpanded}>
+                    <ListChildrenContainer className="candidates-list-children">
+                        {children}
+                    </ListChildrenContainer>
+                </Collapse>
+            ) : (
+                <ListChildrenContainer className="candidates-list-children">
+                    {children}
+                </ListChildrenContainer>
+            )}
         </ListContainer>
     )
 }

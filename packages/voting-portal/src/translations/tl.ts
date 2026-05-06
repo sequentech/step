@@ -10,6 +10,9 @@ const tagalogTranslation: TranslationType = {
             showMore: "Lakihan ang nakikita",
             showLess: "Bawasan ang nakikita",
         },
+        candidatesList: {
+            collapseToggle: "I-toggle ang listahan {{listTitle}}",
+        },
         breadcrumbSteps: {
             electionList: "Listahan ng mga Balota",
             ballot: "Balota",

@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useState} from "react"
 import {CandidatesList} from "@sequentech/ui-essentials"
-import {IDecodedVoteContest, isUndefined, IContest, translate, keyBy} from "@sequentech/ui-core"
+import {IDecodedVoteContest, isUndefined, IContest, translate, keyBy, ECollapsibleLists} from "@sequentech/ui-core"
 import {Answer} from "../Answer/Answer"
 import {useAppDispatch, useAppSelector} from "../../store/hooks"
 import {
@@ -82,10 +82,16 @@ export const AnswersList: React.FC<AnswersListProps> = ({
         selectBallotSelectionQuestion(ballotStyle.election_id, contestId)
     )
     const dispatch = useAppDispatch()
-    const {i18n} = useTranslation()
+    const {i18n, t} = useTranslation()
     let [candidatesOrder, setCandidatesOrder] = useState<Array<string> | null>(null)
     const candidatesOrderType = contest.presentation?.candidates_order
-    const isChecked = () => !isUndefined(selectionState) && selectionState.selected > -1
+    const collapsibleListsPolicy =
+        contest.presentation?.collapsible_lists ?? ECollapsibleLists.DISABLED
+    const isCollapsible = collapsibleListsPolicy !== ECollapsibleLists.DISABLED
+    const defaultExpanded = collapsibleListsPolicy !== ECollapsibleLists.ENABLED_COLLAPSED
+    const collapseToggleAriaLabel = t("candidatesList.collapseToggle", {listTitle: title})
+
+const isChecked = () => !isUndefined(selectionState) && selectionState.selected > -1
     const setChecked = (value: boolean) => {
         if (isRadioSelection) {
             dispatch(
@@ -144,6 +150,9 @@ export const AnswersList: React.FC<AnswersListProps> = ({
             isCheckable={checkableLists}
             checked={isChecked()}
             setChecked={setChecked}
+            isCollapsible={!isReview && isCollapsible}
+            defaultExpanded={defaultExpanded}
+            collapseToggleAriaLabel={collapseToggleAriaLabel}
         >
             {sortedSubtypes.map((subtypePresentation) => {
                 let subtypeCandidates =

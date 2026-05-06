@@ -1383,6 +1383,12 @@ const spanishTranslation: TranslationType = {
                 "allow-selecting-lists": "Sólo Listas",
                 "disabled": "Deshabilitado",
             },
+            collapsibleListsPolicy: {
+                "label": "Listas plegables",
+                "disabled": "Deshabilitado",
+                "enabled-expanded": "Habilitado (empieza expandido)",
+                "enabled-collapsed": "Habilitado (empieza contraído)",
+            },
             blankVotePolicy: {
                 "label": "Política de voto en blanco",
                 "allowed": "Permitido",

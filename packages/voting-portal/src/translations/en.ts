@@ -11,6 +11,9 @@ const englishTranslation = {
             showMore: "Show More",
             showLess: "Show Less",
         },
+        candidatesList: {
+            collapseToggle: "Toggle list {{listTitle}}",
+        },
         breadcrumbSteps: {
             electionList: "Ballot List",
             ballot: "Ballot",

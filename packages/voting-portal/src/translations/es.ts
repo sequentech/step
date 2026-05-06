@@ -10,6 +10,9 @@ const spanishTranslation: TranslationType = {
             showMore: "Mostrar más",
             showLess: "Mostrar menos",
         },
+        candidatesList: {
+            collapseToggle: "Alternar lista {{listTitle}}",
+        },
         breadcrumbSteps: {
             electionList: "Lista de Votaciones",
             ballot: "Papeleta",

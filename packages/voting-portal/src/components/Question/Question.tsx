@@ -64,11 +64,17 @@ const CandidatesWrapper = styled("fieldset")`
     }
 `
 
-const CandidateListsWrapper = styled(Box)`
+const CandidateListsWrapper = styled(Box)<{columncount: number}>`
     display: flex;
-    flex-direction: row;
+    flex-direction: ${({columncount}) => (columncount === 1 ? "column" : "row")};
     gap: 12px;
     margin: 12px 0 0 0;
+
+    /* If there's only one column, we want to make sure the candidate lists take the full width of the container */
+    ${({columncount}) =>
+        columncount === 1
+            ? `.candidates-list { width: initial; }`
+            : ""}
 
     @media (max-width: ${({theme}) => theme.breakpoints.values.md}px) {
         flex-direction: column;
@@ -313,7 +319,7 @@ export const Question: React.FC<IQuestionProps> = ({
                     </InvalidBlankWrapper>
                 ) : null}
                 {!!categoriesMapOrder && Object.keys(categoriesMapOrder)?.length ? (
-                    <CandidateListsWrapper className="candidates-lists-container">
+                    <CandidateListsWrapper className="candidates-lists-container" columncount={columnCount}>
                         {Object.entries(categoriesMapOrder).map(
                             ([categoryName, category], categoryIndex) => (
                                 <AnswersList
