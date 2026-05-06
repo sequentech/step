@@ -44,7 +44,7 @@ const HeaderWithContext: React.FC = () => {
         ballotStyle?.ballot_eml.election_event_presentation ??
         electionEvent?.presentation ??
         undefined
-    
+
     let languagesList = presentation?.language_conf?.enabled_language_codes ?? ["en"]
     let showUserProfile = presentation?.show_user_profile ?? true
     const countdownPolicy = useMemo(() => {
