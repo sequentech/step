@@ -72,6 +72,7 @@ COPY --chown=keycloak:keycloak \
    /build/keycloak-extensions/sequent-theme/target/sequent.sequent-theme.jar \
    /build/keycloak-extensions/custom-event-listener/target/sequent.custom-event-listener.jar \
    /build/keycloak-extensions/url-truststore-provider/target/sequent.url-truststore-provider.jar \
+   /build/keycloak-extensions/idp-linking-authenticator/target/sequent.idp-linking-authenticator.jar \
    /opt/keycloak/providers/
 
 COPY --chown=keycloak:keycloak \
