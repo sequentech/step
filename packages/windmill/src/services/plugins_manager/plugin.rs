@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+//! Low-level WASM plugin types and execution wrapper for hook calls.
 use crate::services::plugins_manager::plugin_db_manager::{
     PluginDbManager, PluginTransactionsManager, TxnHost,
 };
@@ -29,11 +30,17 @@ use wasmtime_wasi::{WasiCtx, WasiCtxView, WasiView};
 /// Represents a value that can be passed to or returned from a plugin hook.
 #[derive(Debug, Clone)]
 pub enum HookValue {
+    /// Signed 32-bit integer.
     S32(i32),
+    /// Unsigned 32-bit integer.
     U32(u32),
+    /// UTF-8 string.
     String(String),
+    /// Boolean.
     Bool(bool),
+    /// Component-model result (Ok/Err) optionally containing boxed values.
     Result(core::result::Result<Option<Box<HookValue>>, Option<Box<HookValue>>>),
+    /// Optional boxed value.
     Option(Option<Box<HookValue>>),
 }
 
@@ -56,6 +63,7 @@ impl From<&str> for HookValue {
 }
 
 impl HookValue {
+    /// Converts this wrapper into a Wasmtime component [`Val`].
     pub fn to_val(&self) -> Val {
         match self {
             HookValue::S32(v) => Val::S32(*v),
@@ -73,6 +81,11 @@ impl HookValue {
         }
     }
 
+    /// Converts a Wasmtime component [`Val`] into a [`HookValue`].
+    ///
+    /// # Errors
+    ///
+    /// Returns an error for unsupported value shapes.
     pub fn from_val(val: Val) -> Result<Self, anyhow::Error> {
         Ok(match val {
             Val::S32(v) => HookValue::S32(v),
@@ -96,6 +109,7 @@ impl HookValue {
         })
     }
 
+    /// Returns the contained integer when this is a numeric value.
     pub fn as_i32(&self) -> Option<i32> {
         match self {
             HookValue::S32(v) => Some(*v),
@@ -104,6 +118,7 @@ impl HookValue {
         }
     }
 
+    /// Returns the contained string slice when this is a string value.
     pub fn as_str(&self) -> Option<&str> {
         match self {
             HookValue::String(v) => Some(v),
@@ -111,6 +126,11 @@ impl HookValue {
         }
     }
 
+    /// Parses a successful `Result(Some(String))` hook payload as JSON.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the hook value is not a JSON string.
     pub fn as_results_json(&self) -> Result<Value> {
         match self {
             HookValue::Result(Ok(Some(boxed_value))) => match &**boxed_value {
@@ -131,10 +151,15 @@ impl HookValue {
     }
 }
 
+/// Wasmtime store state shared by all plugin instances.
 pub struct PluginStore {
+    /// WASI context for plugin execution.
     pub wasi: WasiCtx,
+    /// Resource table used by component-model bindings.
     pub resource_table: ResourceTable,
+    /// Transaction host used by plugins to run DB operations.
     pub transactions_manager: PluginTransactionsManager,
+    /// Authorization host used by plugins.
     pub plugin_auth: PluginAuth,
 }
 
@@ -148,16 +173,25 @@ impl WasiView for PluginStore {
 }
 
 #[derive(Clone)]
+/// Loaded plugin component plus its manifest and shared instance state.
 pub struct Plugin {
+    /// Plugin name from the manifest.
     pub name: String,
+    /// Wasmtime component compiled from plugin bytes.
     pub component: Component,
+    /// Shared store and instance used to call exports.
     pub instance: Arc<Mutex<(Store<PluginStore>, Instance)>>,
+    /// Plugin manifest as exposed by the common interface.
     pub manifest: Manifest,
 }
 
 impl Plugin {
     /// Initializes a plugin from WASM bytes, setting up the necessary environment and returning a Plugin instance.
     /// Read Manifest from the plugin's common interface.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if compilation, linking, instantiation, or manifest retrieval fails.
     pub async fn init_plugin_from_wasm_bytes(
         engine: &Engine,
         wasm_bytes: Vec<u8>,
@@ -228,6 +262,10 @@ impl Plugin {
     // args: Vec<HookValue> - The arguments to pass to the hook.
     // expected_result: Vec<HookValue> - The expected result values from the hook (call_async will fill these).
     // Returns a Result containing a vector of HookValue results from the hook call.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the export is missing, the call traps, or result decoding fails.
     pub async fn call_hook(
         &self,
         hook: &str,
@@ -265,9 +303,11 @@ impl Plugin {
     }
 }
 
+/// Authorization host implementation exposed to plugins.
 pub struct PluginAuth;
 
 impl PluginAuth {
+    /// Creates a new authorization host.
     pub fn new() -> Self {
         PluginAuth
     }
@@ -279,6 +319,7 @@ impl Default for PluginAuth {
     }
 }
 
+/// Linker host type used for wiring authorization bindings into the component store.
 struct AuthHost;
 
 impl HasData for AuthHost {

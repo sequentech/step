@@ -2,6 +2,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+//! Provider wrappers for external delivery (email/SMS) and transactional helpers.
+
 pub mod email_sender;
 pub mod sms_sender;
 pub mod transactions_provider;

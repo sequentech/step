@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+//! Imports tally/results from a CSV file into the database.
 use crate::{
     postgres::{
         results_area_contest::insert_many_results_area_contests,
@@ -37,6 +38,11 @@ use tempfile::NamedTempFile;
 use tracing::{info, instrument};
 use uuid::Uuid;
 
+/// Replaces an array of UUIDs using `replacement_map`.
+///
+/// # Errors
+///
+/// Returns an error if JSON parsing fails or any id is missing from the map.
 #[instrument(err, skip_all)]
 async fn process_uuids(
     ids: Option<&str>,
@@ -63,6 +69,11 @@ async fn process_uuids(
     }
 }
 
+/// Reads an id from `record[index]` and replaces it using `replacement_map`.
+///
+/// # Errors
+///
+/// Returns an error if the column is missing, JSON is invalid, or the id is not in the map.
 #[instrument(err, skip_all)]
 pub async fn get_replaced_id(
     record: &StringRecord,
@@ -81,6 +92,11 @@ pub async fn get_replaced_id(
     Ok(new_id)
 }
 
+/// Parses an optional `i64` from `record[index]`.
+///
+/// # Errors
+///
+/// Returns an error if the field is present but not an integer.
 #[instrument(err, skip_all)]
 pub async fn get_opt_i64_item(record: &StringRecord, index: usize) -> Result<Option<i64>> {
     let item = record
@@ -93,6 +109,11 @@ pub async fn get_opt_i64_item(record: &StringRecord, index: usize) -> Result<Opt
     Ok(item)
 }
 
+/// Parses an optional JSON value from `record[index]`.
+///
+/// # Errors
+///
+/// Returns an error if the field is present but not valid JSON.
 #[instrument(err, skip_all)]
 pub async fn get_opt_json_value_item(record: &StringRecord, index: usize) -> Result<Option<Value>> {
     let item = record
@@ -104,6 +125,11 @@ pub async fn get_opt_json_value_item(record: &StringRecord, index: usize) -> Res
     Ok(item)
 }
 
+/// Parses an optional `NotNan<f64>` from `record[index]`.
+///
+/// # Errors
+///
+/// Returns an error if the field is present but not a number or is NaN.
 #[instrument(err, skip_all)]
 pub async fn get_opt_f64_item(record: &StringRecord, index: usize) -> Result<Option<NotNan<f64>>> {
     let item = record
@@ -120,6 +146,11 @@ pub async fn get_opt_f64_item(record: &StringRecord, index: usize) -> Result<Opt
     Ok(item)
 }
 
+/// Parses a JSON string field or `null` from `record[index]`.
+///
+/// # Errors
+///
+/// Returns an error if the field is present but not a JSON string/null.
 #[instrument(err, skip_all)]
 pub async fn get_string_or_null_item(
     record: &StringRecord,
@@ -141,6 +172,11 @@ pub async fn get_string_or_null_item(
     Ok(item)
 }
 
+/// Parses an optional ISO8601 timestamp from `record[index]`.
+///
+/// # Errors
+///
+/// Returns an error only on internal parsing failures (invalid values yield `None`).
 #[instrument(err, skip_all)]
 pub async fn get_opt_date(record: &StringRecord, index: usize) -> Result<Option<DateTime<Local>>> {
     let item = record.get(index).and_then(|s| {
@@ -150,6 +186,11 @@ pub async fn get_opt_date(record: &StringRecord, index: usize) -> Result<Option<
     Ok(item)
 }
 
+/// Imports the `results_event` CSV into the database.
+///
+/// # Errors
+///
+/// Returns an error if CSV parsing fails, id replacement fails, or inserts fail.
 #[instrument(err, skip_all)]
 async fn process_event_results_file(
     hasura_transaction: &Transaction<'_>,
@@ -204,6 +245,11 @@ async fn process_event_results_file(
     Ok(())
 }
 
+/// Imports the `results_election` CSV into the database.
+///
+/// # Errors
+///
+/// Returns an error if CSV parsing fails, id replacement fails, or inserts fail.
 #[instrument(err, skip_all)]
 async fn process_results_election_file(
     hasura_transaction: &Transaction<'_>,
@@ -270,6 +316,11 @@ async fn process_results_election_file(
     Ok(())
 }
 
+/// Imports the `tally_session` CSV into the database.
+///
+/// # Errors
+///
+/// Returns an error if CSV parsing fails or inserts fail.
 #[instrument(err, skip_all)]
 async fn process_tally_session_file(
     hasura_transaction: &Transaction<'_>,
@@ -301,6 +352,11 @@ async fn process_tally_session_file(
     Ok(())
 }
 
+/// Converts one `tally_session` CSV record into a [`TallySession`].
+///
+/// # Errors
+///
+/// Returns an error if parsing fails or ids cannot be replaced.
 #[instrument(err, skip_all)]
 pub async fn process_tally_session_record(
     tenant_id: &str,
@@ -372,6 +428,11 @@ pub async fn process_tally_session_record(
     Ok(tally_session)
 }
 
+/// Imports the `tally_session_contest` CSV into the database.
+///
+/// # Errors
+///
+/// Returns an error if CSV parsing fails or inserts fail.
 #[instrument(err, skip_all)]
 async fn process_tally_session_contest_file(
     hasura_transaction: &Transaction<'_>,
@@ -443,6 +504,11 @@ async fn process_tally_session_contest_file(
     Ok(())
 }
 
+/// Imports the `tally_session_execution` CSV into the database.
+///
+/// # Errors
+///
+/// Returns an error if CSV parsing fails, ids cannot be replaced, or inserts fail.
 #[instrument(err, skip_all)]
 async fn process_tally_session_execution_file(
     hasura_transaction: &Transaction<'_>,
@@ -524,6 +590,11 @@ async fn process_tally_session_execution_file(
     Ok(())
 }
 
+/// Imports the `results_election_area` CSV into the database.
+///
+/// # Errors
+///
+/// Returns an error if CSV parsing fails, ids cannot be replaced, or inserts fail.
 #[instrument(err, skip_all)]
 async fn process_results_election_area_file(
     hasura_transaction: &Transaction<'_>,
@@ -579,6 +650,11 @@ async fn process_results_election_area_file(
     Ok(())
 }
 
+/// Imports the `results_contest` CSV into the database.
+///
+/// # Errors
+///
+/// Returns an error if CSV parsing fails, ids cannot be replaced, or inserts fail.
 #[instrument(err, skip_all)]
 async fn process_results_contest_file(
     hasura_transaction: &Transaction<'_>,
@@ -612,6 +688,11 @@ async fn process_results_contest_file(
     Ok(())
 }
 
+/// Imports the `results_contest_candidate` CSV into the database.
+///
+/// # Errors
+///
+/// Returns an error if CSV parsing fails, ids cannot be replaced, or inserts fail.
 #[instrument(err, skip_all)]
 async fn process_results_contest_candidate_file(
     hasura_transaction: &Transaction<'_>,
@@ -676,6 +757,11 @@ async fn process_results_contest_candidate_file(
     Ok(())
 }
 
+/// Converts one `results_contest` CSV record into a [`ResultsContest`].
+///
+/// # Errors
+///
+/// Returns an error if parsing fails or ids cannot be replaced.
 #[instrument(err, skip_all)]
 pub async fn process_results_contest_record(
     tenant_id: &str,
@@ -765,6 +851,11 @@ pub async fn process_results_contest_record(
     Ok(results_contest)
 }
 
+/// Imports the `results_area_contest` CSV into the database.
+///
+/// # Errors
+///
+/// Returns an error if CSV parsing fails, ids cannot be replaced, or inserts fail.
 #[instrument(err, skip_all)]
 async fn process_results_area_contest_file(
     hasura_transaction: &Transaction<'_>,
@@ -852,6 +943,11 @@ async fn process_results_area_contest_file(
     Ok(())
 }
 
+/// Imports the `results_area_contest_candidate` CSV into the database.
+///
+/// # Errors
+///
+/// Returns an error if CSV parsing fails, ids cannot be replaced, or inserts fail.
 #[instrument(err, skip_all)]
 async fn process_results_area_contest_candidate_file(
     hasura_transaction: &Transaction<'_>,
@@ -926,6 +1022,11 @@ async fn process_results_area_contest_candidate_file(
     Ok(())
 }
 
+/// Imports a full tally bundle by dispatching each expected CSV to its corresponding importer.
+///
+/// # Errors
+///
+/// Returns an error if any required file is missing or any sub-import fails.
 #[instrument(err, skip_all)]
 pub async fn process_tally_file(
     hasura_transaction: &Transaction<'_>,

@@ -1,6 +1,8 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+//! Election-event ZIP import orchestration: decode the exported schema bundle,
+//! replace ids, import DB rows, Keycloak realm, and optional artifacts.
 
 use crate::postgres::application::insert_applications;
 use crate::postgres::election_event::{get_election_event_by_id_if_exist, update_bulletin_board};
@@ -69,8 +71,6 @@ use tracing::{event, info, instrument, Level};
 use uuid::Uuid;
 use zip::read::ZipArchive;
 
-type ZipDocumentEntries = (Vec<(String, Vec<u8>)>, String);
-
 use super::import_users::import_users_file;
 use crate::postgres;
 use crate::postgres::area::insert_areas;
@@ -105,29 +105,52 @@ use sequent_core::types::hasura::core::{Area, Candidate, Contest, Election, Elec
 use sequent_core::types::keycloak::CERTIFICATES_IDP_ALIAS;
 use sequent_core::types::scheduled_event::*;
 use sequent_core::util::temp_path::{generate_temp_file, get_file_size};
+
+/// ZIP entry bytes plus the original filename (used for id replacement and routing).
+type ZipDocumentEntries = (Vec<(String, Vec<u8>)>, String);
+/// Schema payload embedded in election-event ZIP exports.
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct ImportElectionEventSchema {
+    /// Owning tenant id.
     pub tenant_id: Uuid,
+    /// Optional Keycloak realm export for the event realm.
     pub keycloak_event_realm: Option<RealmRepresentation>,
+    /// Election event row.
     pub election_event: ElectionEvent,
+    /// Elections belonging to the event.
     pub elections: Vec<Election>,
+    /// Contests belonging to the event.
     pub contests: Vec<Contest>,
+    /// Candidates belonging to the event.
     pub candidates: Vec<Candidate>,
+    /// Areas belonging to the event.
     pub areas: Vec<Area>,
+    /// Area/contest join rows.
     pub area_contests: Vec<AreaContest>,
+    /// Optional scheduled events included in the export.
     pub scheduled_events: Option<Vec<ScheduledEvent>>,
+    /// Reports included in the export (may be empty).
     pub reports: Vec<Report>,
+    /// Optional keys ceremonies included in the export.
     pub keys_ceremonies: Option<Vec<KeysCeremony>>,
+    /// Optional applications included in the export.
     pub applications: Option<Vec<Application>>,
     #[serde(default = "default_version")]
+    /// Export system version.
     pub version: String,
 }
 
-// Set the default version of an imported election event to be compatible with version 9, which is the first version to include this feature.
+/// Set the default version of an imported election event to be compatible with version 9,
+/// which is the first version to include this feature.
 fn default_version() -> String {
     "9.0.0".to_string()
 }
 
+/// Ensures B3 boards and electoral-log backing DB exist for the event and its elections.
+///
+/// # Errors
+///
+/// Returns an error if board creation/lookup, immudb setup, or key generation fails.
 #[instrument(err)]
 pub async fn upsert_b3_and_elog(
     hasura_transaction: &Transaction<'_>,
@@ -217,6 +240,11 @@ pub async fn upsert_b3_and_elog(
     Ok(board_value)
 }
 
+/// Loads the default Keycloak event-realm JSON template configured by environment.
+///
+/// # Errors
+///
+/// Returns an error if the env var is missing, the file cannot be read, or JSON cannot be parsed.
 #[instrument(err)]
 pub fn read_default_election_event_realm() -> Result<RealmRepresentation> {
     let realm_config_path = env::var("KEYCLOAK_ELECTION_EVENT_REALM_CONFIG_PATH")
@@ -227,6 +255,11 @@ pub fn read_default_election_event_realm() -> Result<RealmRepresentation> {
         .map_err(|err| anyhow!("Error parsing KEYCLOAK_ELECTION_EVENT_REALM_CONFIG_PATH into RealmRepresentation: {err}"))
 }
 
+/// Removes client secrets and regenerates the certificates IDP/client secret so imported realms are safe to apply.
+///
+/// # Errors
+///
+/// Returns an error if required Keycloak client env vars are missing.
 #[instrument(skip(realm))]
 pub fn remove_keycloak_realm_secrets(realm: &RealmRepresentation) -> Result<RealmRepresentation> {
     let keycloak_client_id =
@@ -320,6 +353,11 @@ pub fn remove_keycloak_realm_secrets(realm: &RealmRepresentation) -> Result<Real
     Ok(realm_copy)
 }
 
+/// Upserts the event Keycloak realm, setting default locale when forced and refreshing JWKS.
+///
+/// # Errors
+///
+/// Returns an error if realm preparation/serialization or Keycloak operations fail.
 #[instrument(err, skip(keycloak_event_realm))]
 pub async fn upsert_keycloak_realm(
     tenant_id: &str,
@@ -365,6 +403,11 @@ pub async fn upsert_keycloak_realm(
     Ok(())
 }
 
+/// Inserts the election event into the database when missing.
+///
+/// # Errors
+///
+/// Returns an error if required ids are missing or DB operations fail.
 #[instrument(skip(hasura_transaction), err)]
 pub async fn insert_election_event_db(
     hasura_transaction: &Transaction<'_>,
@@ -442,6 +485,10 @@ pub async fn insert_election_event_db(
 /// A tuple containing:
 /// * The modified ImportElectionEventSchema with replaced UUIDs
 /// * A HashMap mapping old UUIDs to their new replacements
+///
+/// # Errors
+///
+/// Returns an error if UUID replacement or schema (de)serialization fails.
 #[instrument(err, skip(data_str, original_data))]
 pub fn replace_ids(
     data_str: &str,
@@ -475,6 +522,11 @@ pub fn replace_ids(
     Ok((data, replacement_map))
 }
 
+/// Loads the import ZIP document into a temp file and decrypts it when a password is present.
+///
+/// # Errors
+///
+/// Returns an error if the document cannot be fetched, downloaded, or decrypted.
 #[instrument(err, skip_all)]
 pub async fn get_document(
     hasura_transaction: &Transaction<'_>,
@@ -509,6 +561,11 @@ pub async fn get_document(
     Ok((temp_file, document, document_type))
 }
 
+/// Decrypts the temp file when a non-empty password is provided.
+///
+/// # Errors
+///
+/// Returns an error if decryption or temp file IO fails.
 #[instrument(err, skip_all)]
 pub async fn decrypt_document(
     password: Option<String>,
@@ -541,6 +598,10 @@ pub async fn decrypt_document(
 /// Get the election event schma and also:
 /// - Check version compatibility
 /// - Replace IDs and return a mapping of old to new IDs (for preserving references in other documents like voters)
+///
+/// # Errors
+///
+/// Returns an error if schema parsing, version checks, or id replacement fails.
 #[instrument(err, skip_all)]
 pub async fn get_election_event_schema(
     data_str: &str,
@@ -554,6 +615,11 @@ pub async fn get_election_event_schema(
     replace_ids(data_str, &original_data, event_id, tenant_id.clone())
 }
 
+/// Imports the election event schema into Hasura/Keycloak and returns the updated schema plus id replacement map.
+///
+/// # Errors
+///
+/// Returns an error if schema processing, realm upsert, or DB inserts fail.
 #[instrument(err, skip_all)]
 pub async fn process_election_event_file(
     hasura_transaction: &Transaction<'_>,
@@ -744,6 +810,7 @@ pub async fn process_election_event_file(
     Ok((data, replacement_map))
 }
 
+/// Imports a users file from the ZIP.
 #[instrument(err, skip(hasura_transaction, temp_file))]
 async fn process_voters_file(
     hasura_transaction: &Transaction<'_>,
@@ -773,6 +840,11 @@ async fn process_voters_file(
     Ok(())
 }
 
+/// Imports reports from the CSV export and creates secrets for encrypted reports.
+///
+/// # Errors
+///
+/// Returns an error if CSV parsing, id replacement, secret creation, or inserts fail.
 #[instrument(err, skip_all)]
 pub async fn process_reports_file(
     hasura_transaction: &Transaction<'_>,
@@ -876,6 +948,7 @@ pub async fn process_reports_file(
     Ok(())
 }
 
+/// Imports activity logs from CSV into the electoral log.
 #[instrument(err, skip(temp_file))]
 async fn process_activity_logs_file(
     hasura_transaction: &Transaction<'_>,
@@ -898,6 +971,11 @@ async fn process_activity_logs_file(
     Ok(())
 }
 
+/// Extracts the UUID from a `document_<uuid>_...` filename.
+///
+/// # Errors
+///
+/// Returns an error if the regex cannot be compiled.
 async fn extract_document_uuid(filename: &str) -> Result<Option<&str>> {
     // Regex to match the UUID after "document_"
     let re = Regex::new(
@@ -912,6 +990,11 @@ async fn extract_document_uuid(filename: &str) -> Result<Option<&str>> {
     Ok(uuid)
 }
 
+/// Extracts the name suffix from a `document_<uuid>_<name>` filename.
+///
+/// # Errors
+///
+/// Returns an error if the regex cannot be compiled.
 async fn extract_document_name(filename: &str) -> Result<Option<&str>> {
     let re = Regex::new(
         r"document_[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}_(.+)"
@@ -925,10 +1008,16 @@ async fn extract_document_name(filename: &str) -> Result<Option<&str>> {
     Ok(name)
 }
 
+/// Regex matching UUID substrings for id replacement in filenames.
 static UUID_RE: Lazy<Regex> = Lazy::new(|| {
     Regex::new(r"(?i)\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b").unwrap()
 });
 
+/// Rewrites UUIDs inside `file_name` using `replacement_map`.
+///
+/// # Panics
+///
+/// Panics if the capture group is unexpectedly missing.
 pub fn replace_ids_in_filename(
     file_name: &str,
     replacement_map: &HashMap<String, String>,
@@ -945,6 +1034,11 @@ pub fn replace_ids_in_filename(
         .into_owned()
 }
 
+/// Uploads a file extracted from the ZIP, mapping its document id and rewriting UUIDs in the filename.
+///
+/// # Errors
+///
+/// Returns an error if UUID extraction/replacement or upload fails.
 #[instrument(err, skip(hasura_transaction, temp_file_path, replacement_map))]
 pub async fn process_s3_file(
     hasura_transaction: &Transaction<'_>,
@@ -1000,6 +1094,10 @@ pub async fn process_s3_file(
 }
 
 // return zip entries, and the original string of the json schema
+///
+/// # Errors
+///
+/// Returns an error if the file cannot be read as zip/json or the schema entry is missing.
 #[instrument(err, skip(temp_file_path))]
 pub async fn get_zip_entries(
     temp_file_path: NamedTempFile,
@@ -1071,6 +1169,11 @@ pub async fn get_zip_entries(
     Ok((zip_entries, election_event_schema))
 }
 
+/// Orchestrates import for a single ZIP document.
+///
+/// # Errors
+///
+/// Returns an error if document retrieval, zip parsing, or any sub-import fails.
 #[instrument(err, skip_all)]
 pub async fn process_document(
     hasura_transaction: &Transaction<'_>,
@@ -1416,6 +1519,11 @@ pub async fn process_document(
     Ok(())
 }
 
+/// Applies imported scheduled-event dates by creating START/END voting period scheduled events.
+///
+/// # Errors
+///
+/// Returns an error if date generation or insertion fails.
 #[instrument(err, skip_all)]
 pub async fn manage_dates(
     data: &ImportElectionEventSchema,
@@ -1489,6 +1597,11 @@ pub async fn manage_dates(
     Ok(())
 }
 
+/// Inserts a manage-date scheduled event for the given `event_processor`.
+///
+/// # Errors
+///
+/// Returns an error if serializing the payload or inserting the scheduled event fails.
 #[instrument(err, skip_all)]
 pub async fn maybe_create_scheduled_event(
     hasura_transaction: &Transaction<'_>,

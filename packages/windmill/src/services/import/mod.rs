@@ -2,6 +2,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+//! Import helpers for zip bundles and CSV/JSON artifacts.
+
 pub mod import_bulletin_boards;
 pub mod import_election_event;
 pub mod import_publications;

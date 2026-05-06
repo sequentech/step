@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+//! Imports scheduled events from a CSV file into the database.
 
 use crate::postgres::scheduled_event::insert_new_scheduled_event;
 use anyhow::{anyhow, Context, Result};
@@ -21,9 +22,15 @@ use tracing::{info, instrument};
 use uuid::Uuid;
 
 lazy_static! {
+    /// Validates scheduled-event CSV column names (alphanumeric, dot, underscore, hyphen).
     pub static ref HEADER_RE: Regex = Regex::new(r"^[a-zA-Z0-9._-]+$").unwrap();
 }
 
+/// Imports scheduled events from a CSV export into the database.
+///
+/// # Errors
+///
+/// Returns an error if CSV parsing/validation fails or if record insertion fails.
 #[instrument(err, skip(replacement_map))]
 pub async fn import_scheduled_events(
     hasura_transaction: &Transaction<'_>,
@@ -67,6 +74,11 @@ pub async fn import_scheduled_events(
     Ok(())
 }
 
+/// Converts one CSV record into a [`ScheduledEvent`] row and inserts it.
+///
+/// # Errors
+///
+/// Returns an error if deserialization fails or if inserting the row fails.
 #[instrument(err, skip_all)]
 pub async fn process_record(
     hasura_transaction: &Transaction<'_>,

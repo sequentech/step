@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+//! Imports the tenant-config ZIP bundle (tenant CSV, roles/permissions CSV, and Keycloak realm JSON).
 
 use crate::postgres;
 use crate::services::database::get_hasura_pool;
@@ -23,6 +24,12 @@ use tempfile::NamedTempFile;
 use tracing::{info, instrument};
 use zip::read::ZipArchive;
 
+/// Imports the tenant-config ZIP document and applies the selected parts from `import_options`.
+///
+/// # Errors
+///
+/// Returns an error if the document cannot be fetched/verified,
+/// ZIP reading fails, or any selected import step fails.
 pub async fn import_tenant_config_zip(
     import_options: ImportOptions,
     tenant_id: &str,
@@ -169,6 +176,11 @@ pub async fn import_tenant_config_zip(
     Ok(())
 }
 
+/// Reads all non-hidden, non-directory ZIP entries into `(name, bytes)` pairs.
+///
+/// # Errors
+///
+/// Returns an error if the zip cannot be opened, parsed, or read.
 #[instrument(err, skip(temp_file_path))]
 pub async fn get_zip_entries(temp_file_path: NamedTempFile) -> Result<Vec<(String, Vec<u8>)>> {
     let zip_file = File::open(&temp_file_path).map_err(|e| anyhow!("File open error: {}", e))?;
@@ -200,6 +212,11 @@ pub async fn get_zip_entries(temp_file_path: NamedTempFile) -> Result<Vec<(Strin
     Ok(entries)
 }
 
+/// Copies the current cursor contents into a rewinded [`NamedTempFile`].
+///
+/// # Errors
+///
+/// Returns an error if the temp file cannot be created, written, or rewound.
 pub async fn read_into_tmp_file(cursor: &mut Cursor<&mut [u8]>) -> Result<NamedTempFile> {
     let mut temp_file = NamedTempFile::new().context("Failed to create temporary file")?;
     io::copy(cursor, &mut temp_file).context("Failed to copy contents to temporary file")?;
