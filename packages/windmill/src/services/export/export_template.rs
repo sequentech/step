@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+//! CSV export of communication templates for a tenant.
 use crate::postgres::template::get_templates_by_tenant_id;
 use crate::services::database::get_hasura_pool;
 use crate::services::documents::upload_and_return_document;
@@ -14,6 +15,11 @@ use serde::{Deserialize, Serialize};
 use serde_json::{json, Map, Value};
 use tracing::{event, info, instrument, Level};
 
+/// Loads templates for `tenant_id`.
+///
+/// # Errors
+///
+/// Propagates database errors.
 #[instrument(err, skip(transaction))]
 pub async fn read_export_data(
     transaction: &Transaction<'_>,
@@ -39,6 +45,16 @@ pub async fn read_export_data(
     Ok(transformed_templates)
 }
 
+/// Writes `data` as CSV and uploads to the database and s3.
+///
+/// # Panics
+///
+/// Panics if any row has `created_at` or `updated_at` set to `None`.
+///
+/// # Errors
+///
+/// Returns an error when CSV serialization fails, no templates exist,
+/// temp file creation fails, or upload fails.
 #[instrument(err, skip(transaction, data))]
 pub async fn write_export_document(
     transaction: &Transaction<'_>,
@@ -107,6 +123,11 @@ pub async fn write_export_document(
     }
 }
 
+/// Orchestrates read + write to the database and s3.
+///
+/// # Errors
+///
+/// Propagates pool, transaction, read, write, or commit failures.
 #[instrument(err)]
 pub async fn process_export(tenant_id: &str, document_id: &str) -> Result<()> {
     let mut hasura_db_client: DbClient = get_hasura_pool()

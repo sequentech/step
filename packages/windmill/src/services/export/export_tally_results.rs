@@ -1,6 +1,8 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+//! Converts tally SQLite result databases into XLSX spreadsheets
+//! and updates tally session execution document pointers.
 use crate::postgres::document::get_document;
 use crate::postgres::tally_session_execution::get_last_tally_session_execution;
 use crate::postgres::tally_session_execution::update_tally_session_execution_documents;
@@ -17,8 +19,16 @@ use sequent_core::types::ceremonies::TallySessionDocuments;
 use std::path::Path;
 use tracing::instrument;
 
+/// Excel per-cell character limit enforced when copying SQLite text into worksheets.
 const EXCEL_STRING_LIMIT: usize = 32767;
 
+/// Builds an XLSX from the execution’s SQLite results artifact,
+/// uploads it, and stores the new document id on the execution.
+///
+/// # Errors
+///
+/// Returns an error when the SQLite document is missing,
+/// temp download fails, conversion fails, DB update fails, or upload fails.
 #[instrument(err)]
 pub async fn export_tally_results_to_xlsx(
     hasura_transaction: &Transaction<'_>,
@@ -97,6 +107,7 @@ pub async fn export_tally_results_to_xlsx(
     Ok(())
 }
 
+/// Truncates `value_str` to the Excel’s max string length.
 fn truncate_string_for_excel(value_str: String) -> String {
     let truncated_text = if value_str.len() > EXCEL_STRING_LIMIT {
         value_str
@@ -111,6 +122,13 @@ fn truncate_string_for_excel(value_str: String) -> String {
 
 /// Converts a SQLite database file to an XLSX file, with each table as a worksheet.
 ///
+/// # Panics
+///
+/// Panics if the worksheet row counter overflows `u32` bounds (pathological table sizes).
+///
+/// # Errors
+///
+/// Propagates SQLite open/query errors or XLSX writer failures.
 #[instrument(err)]
 async fn convert_db_to_xlsx(db_path: &Path, xlsx_path: &Path) -> Result<()> {
     let db_conn = Connection::open(db_path)?;
@@ -182,6 +200,13 @@ async fn convert_db_to_xlsx(db_path: &Path, xlsx_path: &Path) -> Result<()> {
     Ok(())
 }
 
+/// Resolves the latest tally session execution for `tally_session_id`
+/// and extracts its documents plus results event/execution ids.
+///
+/// # Errors
+///
+/// Returns an error when no execution exists, documents are absent,
+/// SQLite id is missing, or JSON handling fails.
 #[instrument(err)]
 pub async fn get_tally_session_execution_results_sqlite_file(
     hasura_transaction: &Transaction<'_>,

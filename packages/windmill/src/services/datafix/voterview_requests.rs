@@ -2,6 +2,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+//! SOAP request formatting and sending for the VoterView integration.
+
 use super::types::*;
 use crate::postgres::election_event::ElectionEventDatafix;
 use crate::services::consolidation::eml_generator::ValidateAnnotations;
@@ -12,6 +14,7 @@ use sequent_core::util::date_time::generate_timestamp;
 use tracing::{info, instrument};
 
 impl SoapRequest {
+    /// Builds the SOAP XML envelope for a `SetNotVoted` request.
     fn get_set_not_voted_body(
         annotations: &DatafixAnnotations,
         voter_id: &str,
@@ -36,6 +39,7 @@ impl SoapRequest {
             "#
         )
     }
+    /// Builds the SOAP XML envelope for a `SetVoted` request.
     fn get_set_voted_body(
         annotations: &DatafixAnnotations,
         voter_id: &str,
@@ -62,6 +66,7 @@ impl SoapRequest {
         )
     }
 
+    /// Returns the SOAP body for the request type.
     pub fn get_body(
         &self,
         annotations: &DatafixAnnotations,
@@ -77,6 +82,12 @@ impl SoapRequest {
     }
 }
 
+/// Sends a VoterView SOAP request for the given `req_type` using event annotations for endpoint and credentials.
+///
+/// # Errors
+///
+/// Returns an error if `username` is `None`, annotations cannot be parsed, the HTTP request fails,
+/// or the endpoint replies with a non-success status.
 #[instrument(skip(election_event), err)]
 pub async fn send(
     req_type: SoapRequest,
@@ -153,6 +164,7 @@ pub async fn send(
     }
 }
 
+/// Parses a tag from the response text.
 pub fn parse_tag(open_tag: &str, close_tag: &str, response_txt: &str) -> Option<String> {
     match response_txt.split(open_tag).collect::<Vec<&str>>() {
         after if after.len() > 1 => match after[1].split(close_tag).collect::<Vec<&str>>() {

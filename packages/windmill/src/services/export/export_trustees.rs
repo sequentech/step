@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+//! ZIP export of per-trustee vault secrets.
 use super::export_election_event::generate_encrypted_zip;
 use crate::postgres::trustee::get_all_trustees;
 use crate::services::documents::upload_and_return_document;
@@ -16,6 +17,14 @@ use tempfile::{NamedTempFile, TempPath};
 use tracing::{event, info, instrument, Level};
 use zip::write::FileOptions;
 
+/// Packages every trustee secret for `tenant_id` into a ZIP,
+/// encrypts it with `encryption_password`, uploads to the database and s3,
+/// and removes the plaintext zip.
+///
+/// # Errors
+///
+/// Propagates trustee lookup failures, missing vault secrets,
+/// ZIP/encryption errors, or document upload failures.
 #[instrument(err, skip(transaction))]
 pub async fn read_trustees_config_base(
     transaction: &Transaction<'_>,
@@ -101,6 +110,12 @@ pub async fn read_trustees_config_base(
     Ok(())
 }
 
+/// Orchestrates read + write to the database and s3.
+///
+/// # Errors
+///
+/// Propagates the inner export error or
+/// task-status update failures.
 #[instrument(err, skip(transaction))]
 pub async fn read_trustees_config(
     transaction: &Transaction<'_>,

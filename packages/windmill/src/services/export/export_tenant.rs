@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+//! CSV export of core tenant metadata.
 
 use crate::postgres::tenant::get_tenant_by_id;
 use crate::types::documents::EDocuments;
@@ -13,6 +14,11 @@ use sequent_core::util::temp_path::write_into_named_temp_file;
 use tempfile::{NamedTempFile, TempPath};
 use tracing::{event, info, instrument, Level};
 
+/// Loads the tenant row identified by `tenant_id`.
+///
+/// # Errors
+///
+/// Propagates database errors from [`get_tenant_by_id`].
 #[instrument(err, skip(transaction))]
 pub async fn read_tenant_export_data(
     transaction: &Transaction<'_>,
@@ -23,6 +29,12 @@ pub async fn read_tenant_export_data(
     Ok(tenant)
 }
 
+/// Serializes `data` as one header row plus one value row into a CSV temp file.
+///
+/// # Errors
+///
+/// Returns an error when JSON flattening fails,
+/// CSV serialization fails, or temp file creation fails.
 #[instrument(err, skip(transaction))]
 pub async fn write_export_document(
     data: Tenant,

@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+//! Shared helpers and constants for datafix flows.
 use super::types::*;
 use crate::postgres::area::get_event_areas;
 use crate::postgres::election_event::get_election_event_by_id;
@@ -18,8 +19,11 @@ use sequent_core::types::keycloak::{
 use std::collections::HashMap;
 use tracing::{error, info, instrument, warn};
 
+/// Annotation key storing the opaque datafix id that API clients present.
 pub const DATAFIX_ID_KEY: &str = "datafix:id";
+/// Annotation key storing JSON for password generation rules.
 pub const DATAFIX_PSW_POLICY_KEY: &str = "datafix:password_policy";
+/// Annotation key storing JSON credentials for the VoterView SOAP integration.
 pub const DATAFIX_VOTERVIEW_REQ_KEY: &str = "datafix:voterview_request";
 
 /// Returns true if the voter has voted via Sequent´s system -
@@ -46,6 +50,11 @@ pub fn voted_via_not_internet_channel(attributes: &HashMap<String, Vec<String>>)
     }
 }
 /// Gets the election_event_id and the DatafixAnnotations of the event that has the datafix id in its annotations.
+///
+/// # Errors
+///
+/// Returns an HTTP-shaped [`JsonErrorResponse`] when election events cannot be loaded, no matching
+/// datafix id is found, or annotation deserialization fails for the matching event.
 #[instrument(skip(hasura_transaction))]
 pub async fn get_event_id_and_datafix_annotations(
     hasura_transaction: &Transaction<'_>,
@@ -97,6 +106,11 @@ pub async fn get_event_id_and_datafix_annotations(
 }
 
 /// Returns the UserArea object. If it cannot find the area id by name returns an error.
+///
+/// # Errors
+///
+/// Returns [`JsonErrorResponse`] when event areas cannot be loaded or when the composed area name
+/// does not exist for the election event.
 #[instrument(skip_all)]
 pub async fn find_user_area_by_name(
     hasura_transaction: &Transaction<'_>,
@@ -143,7 +157,12 @@ pub async fn find_user_area_by_name(
     }
 }
 
-/// Get user id by username
+/// Get user id by username.
+///
+/// # Errors
+///
+/// Returns [`JsonErrorResponse`] when the query fails, no user exists, or more than one user
+/// matches the username filter.
 #[instrument(skip(keycloak_transaction))]
 pub async fn get_user_id(
     keycloak_transaction: &Transaction<'_>,
@@ -171,6 +190,10 @@ pub async fn get_user_id(
 }
 
 /// Get the ElectionEvent and check if its a datafix election event (has datafix:id annotations).
+///
+/// # Errors
+///
+/// Propagates errors from [`get_election_event_by_id`].
 #[instrument(skip(hasura_transaction), err)]
 pub async fn is_datafix_election_event_by_id(
     hasura_transaction: &Transaction<'_>,
