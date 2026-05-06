@@ -41,7 +41,7 @@ impl TryFrom<Row> for AreaWrapper {
 }
 /// Returns a vector of areas per election event, with the posibility of
 /// filtering by area_id
-/// 
+///
 /// # Errors
 ///
 /// Fails if any `area_ids` entry is not a valid UUID, if `tenant_id` / `election_event_id`
@@ -369,7 +369,7 @@ pub async fn upsert_area_parents(
     Ok(())
 }
 /// Insert areas into the database.
-/// 
+///
 /// # Errors
 ///
 /// Fails if the area tree cannot be built, if an area id is missing from the map, if any UUID

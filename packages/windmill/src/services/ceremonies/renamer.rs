@@ -67,7 +67,7 @@ pub fn take_first_n_chars(s: &str, n: usize) -> String {
     s.chars().take(n).collect()
 }
 
-/// Sanitizes a filename by replacing cross-platform reserved characters 
+/// Sanitizes a filename by replacing cross-platform reserved characters
 /// and trimming trailing dots/spaces.
 fn sanitize_filename(filename: &str) -> String {
     let sanitized = filename

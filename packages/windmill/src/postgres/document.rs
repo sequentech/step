@@ -137,7 +137,7 @@ pub async fn get_document(
 
 /// Returns a vector of tuples of the (SupportMaterial, Document)s
 /// associated with a given election event.
-/// 
+///
 /// # Errors
 ///
 /// Fails on invalid UUID parameters, when preparing or executing the join query fails, or when

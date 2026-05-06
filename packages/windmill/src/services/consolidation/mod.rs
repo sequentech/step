@@ -2,6 +2,9 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+//! Miru / ACM transmission packages: EML generation, AES and RSA helpers, zip/xz, trustee
+//! signatures, and CCS upload flows.
+
 pub mod acm_json;
 pub mod acm_transaction;
 pub mod aes_256_cbc_encrypt;

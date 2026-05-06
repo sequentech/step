@@ -1,6 +1,9 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+
+//! Zip create/extract helpers for folder trees and archives.
+
 use anyhow::{Context, Result};
 use std::fs;
 use std::fs::File;
@@ -11,6 +14,11 @@ use walkdir::WalkDir;
 use zip::read::ZipArchive;
 use zip::write::{FileOptions, SimpleFileOptions};
 
+/// Recursively zips `src_dir` into `dst_file` with deflated entries.
+///
+/// # Errors
+///
+/// Walkdir, zip writer, or filesystem errors.
 #[instrument(skip_all, err)]
 pub fn compress_folder_to_zip(src_dir: &Path, dst_file: &Path) -> Result<()> {
     let path = src_dir.clone();
@@ -48,6 +56,11 @@ pub fn compress_folder_to_zip(src_dir: &Path, dst_file: &Path) -> Result<()> {
     Ok(())
 }
 
+/// Extracts `src_file` into `dst_dir`, preserving basic directory structure.
+///
+/// # Errors
+///
+/// Archive read errors or filesystem failures while writing members.
 #[instrument(skip_all, err)]
 pub fn unzip_file(src_file: &Path, dst_dir: &Path) -> Result<()> {
     let file = File::open(src_file)

@@ -345,7 +345,7 @@ pub async fn generate_results_id_if_necessary(
     }
 }
 
-/// Persists aggregates and report documents for the optional new `results_event_id`; 
+/// Persists aggregates and report documents for the optional new `results_event_id`;
 /// otherwise returns the previous execution’s event id.
 ///
 /// # Errors
