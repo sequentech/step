@@ -157,14 +157,14 @@ export const Question: React.FC<IQuestionProps> = ({
     const getExpanded = (key: string): boolean =>
         key in expandedStates ? expandedStates[key] : defaultAllExpanded
 
-    const allExpanded =
-        !categoriesMapOrder ||
-        Object.keys(categoriesMapOrder).length === 0 ||
-        Object.keys(categoriesMapOrder).every((k) => getExpanded(k))
+    const allCollapsed =
+        !!categoriesMapOrder &&
+        Object.keys(categoriesMapOrder).length > 0 &&
+        Object.keys(categoriesMapOrder).every((k) => !getExpanded(k))
 
     const handleToggleAll = () => {
         if (!categoriesMapOrder) return
-        const targetExpanded = !allExpanded
+        const targetExpanded = allCollapsed
         const newState: Record<string, boolean> = {}
         Object.keys(categoriesMapOrder).forEach((k) => {
             newState[k] = targetExpanded
@@ -290,9 +290,9 @@ export const Question: React.FC<IQuestionProps> = ({
                         sx={{flexShrink: 0, minHeight: "unset", fontSize: "14px"}}
                         onClick={handleToggleAll}
                     >
-                        {allExpanded
-                            ? t("candidatesList.collapseAll")
-                            : t("candidatesList.expandAll")}
+                        {allCollapsed
+                            ? t("candidatesList.expandAll")
+                            : t("candidatesList.collapseAll")}
                     </Button>
                 ) : null}
             </StyledTitle>
