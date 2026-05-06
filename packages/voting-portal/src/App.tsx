@@ -78,8 +78,10 @@ const HeaderWithContext: React.FC = () => {
     const electionEvent = useAppSelector(selectElectionEventById(eventId))
 
     let presentation: IElectionEventPresentation | undefined =
-        ballotStyle?.ballot_eml.election_event_presentation ?? electionEvent?.presentation ?? undefined
-
+        ballotStyle?.ballot_eml.election_event_presentation ??
+        electionEvent?.presentation ??
+        undefined
+    
     let languagesList = presentation?.language_conf?.enabled_language_codes ?? ["en"]
     let showUserProfile = presentation?.show_user_profile ?? true
     const countdownPolicy = useMemo(() => {
