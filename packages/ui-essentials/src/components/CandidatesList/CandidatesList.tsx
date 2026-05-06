@@ -27,8 +27,8 @@ const ListContainer = styled(Box)<{isactive: string}>`
 `
 
 const ListHeader = styled(Box)`
-    display: flex;
-    flex-direction: row;
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
     align-items: center;
 `
 
@@ -47,8 +47,6 @@ const ListChildrenContainer = styled("ul")`
 const ListTitle = styled(Typography)`
     margin-top: 10px;
     margin-bottom: 26px;
-    flex-shrink: 0;
-    flex-grow: 2;
     text-align: center;
     font-size: 24px;
 `
@@ -113,33 +111,34 @@ const CandidatesList: React.FC<CandidatesListProps> = ({
             className="candidates-list"
         >
             <ListHeader className="candidates-list-header">
-                {isCollapsible ? (
-                    <Button
-                        variant="secondary"
-                        size="small"
-                        startIcon={
-                            <FontAwesomeIcon icon={isExpanded ? faAngleDown : faAngleRight} />
-                        }
-                        onClick={handleToggleCollapse}
-                        aria-label={collapseToggleAriaLabel}
-                        aria-expanded={isExpanded}
-                        sx={{flexShrink: 0}}
-                    >
-                        {isExpanded ? hideCandidatesLabel : showCandidatesLabel}
-                    </Button>
-                ) : null}
-                <Box sx={{flexGrow: 2}}>
-                    <ListTitle
-                        color={theme.palette.customGrey.contrastText}
-                        fontSize="24px"
-                        className="candidates-list-title"
-                    >
-                        {title}
-                    </ListTitle>
+                <Box>
+                    {isCollapsible ? (
+                        <Button
+                            variant="secondary"
+                            size="small"
+                            startIcon={
+                                <FontAwesomeIcon icon={isExpanded ? faAngleDown : faAngleRight} />
+                            }
+                            onClick={handleToggleCollapse}
+                            aria-label={collapseToggleAriaLabel}
+                            aria-expanded={isExpanded}
+                        >
+                            {isExpanded ? hideCandidatesLabel : showCandidatesLabel}
+                        </Button>
+                    ) : null}
                 </Box>
-                {isActive && isCheckable ? (
-                    <Checkbox checked={checked} onChange={handleChange} />
-                ) : null}
+                <ListTitle
+                    color={theme.palette.customGrey.contrastText}
+                    fontSize="24px"
+                    className="candidates-list-title"
+                >
+                    {title}
+                </ListTitle>
+                <Box sx={{display: "flex", justifyContent: "flex-end"}}>
+                    {isActive && isCheckable ? (
+                        <Checkbox checked={checked} onChange={handleChange} />
+                    ) : null}
+                </Box>
             </ListHeader>
             {isCollapsible ? (
                 <Collapse in={isExpanded}>
