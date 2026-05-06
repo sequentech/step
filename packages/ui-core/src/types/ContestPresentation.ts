@@ -27,6 +27,12 @@ export enum EEnableCheckableLists {
     DISABLED = "disabled",
 }
 
+export enum ECollapsibleLists {
+    DISABLED = "disabled",
+    ENABLED_EXPANDED = "enabled-expanded",
+    ENABLED_COLLAPSED = "enabled-collapsed",
+}
+
 export enum ECandidatesIconCheckboxPolicy {
     SQUARE_CHECKBOX = "square-checkbox",
     ROUND_CHECKBOX = "round-checkbox",
@@ -84,6 +90,7 @@ export interface IContestPresentation {
     shuffle_category_list?: Array<string>
     show_points?: boolean
     enable_checkable_lists?: EEnableCheckableLists
+    collapsible_lists?: ECollapsibleLists
     candidates_icon_checkbox_policy?: ECandidatesIconCheckboxPolicy
     candidates_order?: CandidatesOrder
     candidates_selection_policy?: ECandidatesSelectionPolicy

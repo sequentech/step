@@ -1384,6 +1384,12 @@ const tagalogTranslation: TranslationType = {
                 "allow-selecting-lists": "Mga Listahan Lamang",
                 "disabled": "Hindi Aktibo",
             },
+            collapsibleListsPolicy: {
+                "label": "Natatiklop na mga listahan",
+                "disabled": "Hindi pinagana",
+                "enabled-expanded": "Pinagana (nagsisimulang nakalawak)",
+                "enabled-collapsed": "Pinagana (nagsisimulang nakatiklop)",
+            },
             blankVotePolicy: {
                 "label": "Patakaran sa walang boto",
                 "allowed": "Pinapayagan",
