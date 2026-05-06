@@ -51,6 +51,24 @@ const ListTitle = styled(Typography)`
     font-size: 24px;
 `
 
+const CollapseToggleButton = styled(Button)(({theme}) => ({
+    "&&": {
+        border: "none",
+        boxShadow: "none",
+    },
+    "&&:hover": {
+        border: "none",
+    },
+    "&&:active": {
+        border: "none",
+    },
+    "&&:focus": {
+        border: "none",
+        outline: `2px solid ${theme.palette.brandSuccess}`,
+        outlineOffset: "2px",
+    },
+}))
+
 export interface CandidatesListProps extends PropsWithChildren {
     title: string
     isActive?: boolean
@@ -113,7 +131,7 @@ const CandidatesList: React.FC<CandidatesListProps> = ({
             <ListHeader className="candidates-list-header">
                 <Box>
                     {isCollapsible ? (
-                        <Button
+                        <CollapseToggleButton
                             variant="secondary"
                             size="small"
                             startIcon={
@@ -124,7 +142,7 @@ const CandidatesList: React.FC<CandidatesListProps> = ({
                             aria-expanded={isExpanded}
                         >
                             {isExpanded ? hideCandidatesLabel : showCandidatesLabel}
-                        </Button>
+                        </CollapseToggleButton>
                     ) : null}
                 </Box>
                 <ListTitle
