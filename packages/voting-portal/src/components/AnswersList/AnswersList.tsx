@@ -137,6 +137,8 @@ export const AnswersList: React.FC<AnswersListProps> = ({
 
     let sortedSubtypes = sortBy(subtypesPresentation, ["sort_order"])
 
+    const shouldDisableList = disableSelect && !isChecked()
+
     return (
         <CandidatesList
             title={translate(listPresentation, "name", i18n.language) ?? title}
@@ -144,6 +146,7 @@ export const AnswersList: React.FC<AnswersListProps> = ({
             isCheckable={checkableLists}
             checked={isChecked()}
             setChecked={setChecked}
+            shouldDisable={shouldDisableList}
         >
             {sortedSubtypes.map((subtypePresentation) => {
                 let subtypeCandidates =
