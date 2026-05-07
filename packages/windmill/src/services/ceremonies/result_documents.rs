@@ -968,11 +968,13 @@ mod tests {
             election_name: election_name.to_string(),
             election_alias: election_alias.to_string(),
             election_id: election_id.to_string(),
-            contest: contest.clone(),
-            contest_result: ContestResult {
+            election_event_id: election_id.to_string(),
+            tenant_id: election_id.to_string(),
+            contest: Some(contest.clone()),
+            contest_result: Some(ContestResult {
                 contest,
                 ..Default::default()
-            },
+            }),
             election_description: String::new(),
             election_dates: None,
             election_annotations: HashMap::new(),
@@ -983,6 +985,7 @@ mod tests {
             tally_sheet_id: None,
             candidate_result: vec![],
             channel_type: None,
+            election_results: None,
         };
         ElectionReportDataComputed {
             election_id: election_id.to_string(),
