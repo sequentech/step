@@ -63,7 +63,7 @@ pub enum ECardType {
 
 /// Struct for email/sms Accepted/Rejected Communication object.
 #[derive(Serialize, Deserialize, Debug, Clone)]
-#[allow(missing_docs)]
+#[allow(clippy::missing_docs_in_private_items)]
 struct ApplicationCommunication {
     accepted: ApplicationCommunicationChannels,
     rejected: ApplicationCommunicationChannels,
@@ -71,7 +71,7 @@ struct ApplicationCommunication {
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 /// Application communication channels
-#[allow(missing_docs)]
+#[allow(clippy::missing_docs_in_private_items)]
 struct ApplicationCommunicationChannels {
     email: EmailConfig,
     sms: SmsConfig,
@@ -312,7 +312,7 @@ fn build_manual_verify_reason(fields_match: HashMap<String, bool>) -> String {
 
 #[derive(Serialize, Deserialize, Debug)]
 /// Application annotations
-#[allow(missing_docs)]
+#[allow(clippy::missing_docs_in_private_items)]
 pub struct ApplicationAnnotations {
     session_id: Option<String>,
     credentials: Option<Value>,
@@ -703,6 +703,10 @@ async fn get_i18n_default_application_communication(
 }
 
 /// Get the accepted/rejected message from the internalization object in presentation.
+///
+/// # Errors
+///
+/// Returns an error if default templates cannot be loaded/parsed or the status is invalid.
 #[instrument(skip_all)]
 pub async fn get_i18n_application_communication(
     presentation: ElectionEventPresentation,
@@ -753,6 +757,10 @@ pub async fn get_i18n_application_communication(
 }
 
 /// Get the accepted/rejected message if configured, otherwise the default.
+///
+/// # Errors
+///
+/// Returns an error if templates cannot be loaded/parsed from defaults or presentation i18n data.
 #[instrument(skip(presentation), err)]
 pub async fn get_application_response_communication(
     communication_method: Option<TemplateMethod>,

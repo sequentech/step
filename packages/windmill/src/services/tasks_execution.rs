@@ -12,11 +12,18 @@ use serde::{Deserialize, Serialize};
 use tracing::instrument;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
+/// Per-task annotations stored alongside the task execution record.
 pub struct TaskAnnotations {
+    /// Document id associated with the task, when applicable.
     document_id: Option<String>,
 }
 
 #[instrument(skip_all, err)]
+/// Post a new task execution record.
+///
+/// # Errors
+///
+/// Returns an error if logs cannot be serialized or the task record cannot be created.
 pub async fn post(
     tenant_id: &str,
     election_event_id: Option<&str>,
@@ -44,6 +51,11 @@ pub async fn post(
 
 // TODO filter also by tenant-id and document-id
 #[instrument(skip_all, err)]
+/// Update a task execution record.
+///
+/// # Errors
+///
+/// Returns an error if annotations cannot be serialized or the task record cannot be updated.
 pub async fn update(
     tenant_id: &str,
     task_id: &str,
@@ -60,6 +72,11 @@ pub async fn update(
 
 // TODO filter also by tenant-id and document-id
 #[instrument(skip_all, err)]
+/// Update a task execution record to indicate success.
+///
+/// # Errors
+///
+/// Returns an error if logs/annotations cannot be serialized or the task record cannot be updated.
 pub async fn update_complete(
     task: &TasksExecution,
     document_id: Option<String>,
@@ -78,6 +95,11 @@ pub async fn update_complete(
 
 // TODO filter also by tenant-id and document-id
 #[instrument(skip_all, err)]
+/// Update a task execution record to indicate failure.
+///
+/// # Errors
+///
+/// Returns an error if logs/annotations cannot be serialized or the task record cannot be updated.
 pub async fn update_fail(task: &TasksExecution, err_message: &str) -> Result<(), anyhow::Error> {
     let task_id = &task.id;
     let new_status = TasksExecutionStatus::FAILED;

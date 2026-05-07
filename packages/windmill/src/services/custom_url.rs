@@ -31,9 +31,13 @@ pub struct Constraint {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+/// Request body for creating a Cloudflare page rule.
 struct CreatePageRuleRequest {
+    /// Match targets (typically URL constraints) for the page rule.
     targets: Vec<Target>,
+    /// Actions applied when the targets match.
     actions: Vec<Action>,
+    /// Page rule status ("active"/"disabled").
     status: String,
 }
 
@@ -47,44 +51,71 @@ pub struct PreviousCustomUrls {
 #[derive(Serialize, Deserialize, Debug)]
 pub struct CreateDNSRecordRequest {
     #[serde(rename = "type")]
+    /// DNS record type ("A", "CNAME", ...).
     record_type: String,
+    /// DNS record name.
     name: String,
+    /// DNS record content (IP/hostname).
     content: String,
+    /// DNS record TTL in seconds.
     ttl: u64,
+    /// Whether DNS proxying is enabled for this record.
     proxied: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Forwarding configuration for a URL action.
 struct ForwardURL {
+    /// Destination URL.
     url: String,
+    /// HTTP status code for the redirect.
     status_code: u64,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(untagged)]
+/// Heterogeneous action payload values.
 enum ActionValue {
+    /// String action value.
     String(String),
+    /// Integer action value.
     Integer(i64),
+    /// Forwarding URL action value.
     ForwardURL(ForwardURL),
 }
 #[derive(Debug, Serialize, Deserialize)]
+/// Cloudflare page rule action entry.
 struct Action {
+    /// Action identifier (e.g. "forwarding_url").
     id: String,
+    /// Action payload.
     value: ActionValue,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+/// DNS record entry as returned by Cloudflare.
 struct DnsRecord {
     #[serde(rename = "type")]
+    /// DNS record type ("A", "CNAME", ...).
     record_type: String,
+    /// DNS record name.
     name: String,
+    /// DNS record content (IP/hostname).
     content: String,
+    /// DNS record TTL in seconds.
     ttl: u32,
+    /// Whether Cloudflare proxying is enabled for this record.
     proxied: bool,
+    /// Cloudflare record identifier.
     id: String,
 }
 
 #[instrument]
+/// Get a Cloudflare page rule by target value.
+///
+/// # Errors
+///
+/// Returns an error if Cloudflare page rules cannot be retrieved.
 pub async fn get_page_rule(target_value: &str) -> Result<Option<PageRule>, Box<dyn Error>> {
     info!("target_value {:?}", target_value);
     let page_rules = get_all_page_rules().await?;
@@ -93,12 +124,25 @@ pub async fn get_page_rule(target_value: &str) -> Result<Option<PageRule>, Box<d
 }
 
 #[instrument]
+///
+/// # Errors
+///
+/// Returns an error if Cloudflare DNS records cannot be retrieved.
 pub async fn get_dns_record(record_name: &str) -> Result<Option<DnsRecord>, Box<dyn Error>> {
     let dns_records = get_all_dns_records().await?;
     Ok(find_matching_dns_record(dns_records, record_name))
 }
 
 #[instrument]
+/// Set a custom URL for a given origin.
+///
+/// # Errors
+///
+/// Returns an error if fetching/updating DNS records or page rules fails.
+///
+/// # Panics
+///
+/// Panics if `key` is not one of: `"login"`, `"enrollment"`, or `"saml"`.
 pub async fn set_custom_url(
     origin: &str,
     redirect_to: &str,
@@ -183,6 +227,11 @@ pub async fn set_custom_url(
 }
 
 #[instrument]
+/// Retrieve all page rules for the configured Cloudflare zone.
+///
+/// # Errors
+///
+/// Returns an error if the request fails.
 async fn get_all_page_rules() -> Result<Vec<PageRule>, Box<dyn Error>> {
     let (zone_id, api_key) = get_cloudflare_vars()?;
     info!("zone_id {:?}", zone_id);
@@ -220,6 +269,11 @@ async fn get_all_page_rules() -> Result<Vec<PageRule>, Box<dyn Error>> {
 }
 
 #[instrument]
+/// Retrieve all DNS records for the configured Cloudflare zone.
+///
+/// # Errors
+///
+/// Returns an error if the request fails.
 async fn get_all_dns_records() -> Result<Vec<DnsRecord>, Box<dyn Error>> {
     let (zone_id, api_key) = get_cloudflare_vars()?;
     info!("zone_id {:?}", zone_id);
@@ -257,6 +311,7 @@ async fn get_all_dns_records() -> Result<Vec<DnsRecord>, Box<dyn Error>> {
 }
 
 #[instrument]
+/// Find a DNS record whose first label matches `expected_name`.
 fn find_matching_dns_record(records: Vec<DnsRecord>, expected_name: &str) -> Option<DnsRecord> {
     info!("find_matching_dns_record expected_name:{}", expected_name);
     for record in records {
@@ -275,6 +330,7 @@ fn find_matching_dns_record(records: Vec<DnsRecord>, expected_name: &str) -> Opt
 }
 
 #[instrument]
+/// Find a page rule whose redirect URL matches `expected_redirect_url`.
 fn find_matching_target(rules: Vec<PageRule>, expected_redirect_url: &str) -> Option<PageRule> {
     for rule in rules {
         for action in &rule.actions {
@@ -289,6 +345,7 @@ fn find_matching_target(rules: Vec<PageRule>, expected_redirect_url: &str) -> Op
 }
 
 #[instrument]
+/// Create a payload for a Cloudflare page rule.
 fn create_payload(origin: &str, redirect_to: &str) -> CreatePageRuleRequest {
     let targets = vec![Target {
         constraint: Constraint {
@@ -314,6 +371,7 @@ fn create_payload(origin: &str, redirect_to: &str) -> CreatePageRuleRequest {
 }
 
 #[instrument]
+/// Create a payload for a Cloudflare DNS record.
 fn create_dns_payload(origin: &str) -> CreateDNSRecordRequest {
     let cloudflare_ip_dns_content = std::env::var("CUSTOM_URLS_IP_DNS_CONTENT")
         .unwrap_or_else(|_| "default.ip.address".to_string());
@@ -327,6 +385,11 @@ fn create_dns_payload(origin: &str) -> CreateDNSRecordRequest {
     }
 }
 
+/// Create a Cloudflare DNS record.
+///
+/// # Errors
+///
+/// Returns an error if the request fails.
 pub async fn create_dns_record(redirect_to: &str, dns_prefix: &str) -> Result<(), Box<dyn Error>> {
     let client = Client::new();
     let (zone_id, api_key) = match get_cloudflare_vars() {
@@ -373,6 +436,11 @@ pub async fn create_dns_record(redirect_to: &str, dns_prefix: &str) -> Result<()
     }
 }
 
+/// Update a Cloudflare DNS record.
+///
+/// # Errors
+///
+/// Returns an error if the request fails.
 pub async fn update_dns_record(
     id: &str,
     redirect_to: &str,
@@ -423,6 +491,11 @@ pub async fn update_dns_record(
     }
 }
 
+/// Update a Cloudflare page rule that forwards `origin` to `redirect_to`.
+///
+/// # Errors
+///
+/// Returns an error if the request fails.
 async fn update_page_rule(
     rule_id: &str,
     redirect_to: &str,
@@ -456,6 +529,11 @@ async fn update_page_rule(
     }
 }
 
+/// Create a new Cloudflare page rule that forwards `origin` to `redirect_to`.
+///
+/// # Errors
+///
+/// Returns an error if the request fails.
 async fn create_page_rule(redirect_to: &str, origin: &str) -> Result<(), Box<dyn Error>> {
     let (zone_id, api_key) = get_cloudflare_vars()?;
     let client = Client::new();

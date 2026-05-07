@@ -44,7 +44,9 @@ use tempfile::NamedTempFile;
 use tokio_stream::StreamExt;
 use tracing::{event, info, instrument, warn, Level};
 
+/// Maximum number of rows fetched from immudb in a single query.
 pub const IMMUDB_ROWS_LIMIT: usize = 2500;
+/// Default maximum number of rows returned per page in list endpoints.
 pub const MAX_ROWS_PER_PAGE: usize = 50;
 
 /// Ballot_id input is the first half of the original hash which is stored in the electoral log.
@@ -52,11 +54,15 @@ pub const BALLOT_ID_LENGTH_BYTES: usize = STRAND_HASH_LENGTH_BYTES / 2;
 /// Ballot_id input is in HEX, each byte is represented in 2 chars.
 pub const BALLOT_ID_LENGTH_CHARS: usize = BALLOT_ID_LENGTH_BYTES * 2;
 
+/// Helper for creating and posting signed electoral-log messages.
 pub struct ElectoralLog {
+    /// Signing material used to build electoral-log messages.
     pub(crate) sd: SigningData,
+    /// immudb database name where the log is stored.
     pub(crate) elog_database: String,
 }
 
+/// If the list contains exactly one election id, return it; otherwise return `None`.
 pub fn flatten_election_ids(election_ids: Option<Vec<String>>) -> Option<String> {
     election_ids.and_then(|ids| {
         if ids.len() == 1 {
@@ -69,6 +75,11 @@ pub fn flatten_election_ids(election_ids: Option<Vec<String>>) -> Option<String>
 
 impl ElectoralLog {
     #[instrument(err, name = "ElectoralLog::new")]
+    /// Create a new ElectoralLog.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the protocol manager cannot be loaded or the event id is missing.
     pub async fn new(
         hasura_transaction: &Transaction<'_>,
         tenant_id: &str,
@@ -97,6 +108,11 @@ impl ElectoralLog {
     }
 
     #[instrument(skip(sender_sk), err)]
+    /// Create a new ElectoralLog from a signing key.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the protocol manager cannot be loaded or the election event id is missing.
     pub async fn new_from_sk(
         hasura_transaction: &Transaction<'_>,
         tenant_id: &str,
@@ -127,6 +143,10 @@ impl ElectoralLog {
     /// We need to pass in the log database because the vault
     /// will post a public key message if it needs to generates
     /// a signing key.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the protocol manager cannot be loaded.
     #[instrument(skip(voter_signing_key), err)]
     pub async fn for_voter(
         hasura_transaction: &Transaction<'_>,
@@ -159,6 +179,10 @@ impl ElectoralLog {
     /// We need to pass in the log database because the vault
     /// will post a public key message if it needs to generates
     /// a signing key.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if one of the operations fails.
     #[instrument(err, skip(hasura_transaction))]
     pub async fn for_admin_user(
         hasura_transaction: &Transaction<'_>,
@@ -197,8 +221,12 @@ impl ElectoralLog {
         })
     }
 
-    /// Posts a voter's public key
     #[instrument(err)]
+    /// Posts a voter's public key
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the protocol manager cannot be loaded or the message cannot be converted.
     pub async fn post_voter_pk(
         hasura_transaction: &Transaction<'_>,
         elog_database: &str,
@@ -262,6 +290,10 @@ impl ElectoralLog {
     /// in the context of one event and the notification will only
     /// be present in its log, even if the corresponding signing private key
     /// would be used in other events.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the protocol manager cannot be loaded or the message cannot be converted.
     pub async fn post_admin_pk(
         hasura_transaction: &Transaction<'_>,
         elog_database: &str,
@@ -311,6 +343,11 @@ impl ElectoralLog {
     }
 
     #[instrument(skip(self, pseudonym_h, vote_h))]
+    /// Post a cast vote.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the message cannot be converted.
     pub async fn post_cast_vote(
         &self,
         tenant_id: String,

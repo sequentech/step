@@ -16,6 +16,11 @@ use super::consolidation::{
 };
 
 #[instrument(err, skip_all)]
+/// Get the transmission data from the tally session by area.
+///
+/// # Errors
+///
+/// Returns an error if tally sessions cannot be fetched or area annotations cannot be parsed.
 pub async fn get_transmission_data_from_tally_session_by_area(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
@@ -91,6 +96,15 @@ pub struct TransmissionData {
 }
 
 #[instrument(err, skip_all)]
+/// Get the transmission servers data.
+///
+/// # Errors
+///
+/// Returns an error if area annotations cannot be parsed.
+///
+/// # Panics
+///
+/// Panics if transmitted counters overflow while building the per-server summary.
 pub async fn get_transmission_servers_data(
     tally_session_data: &MiruTallySessionData,
     area: &Area,

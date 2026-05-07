@@ -19,6 +19,8 @@ use strum_macros::EnumString;
 use tracing::{info, instrument};
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
+/// Single scheduled event row formatted for the event list endpoint.
+#[allow(clippy::missing_docs_in_private_items)]
 pub struct GetEventListOutput {
     election: String,
     schedule: Option<String>,
@@ -30,14 +32,18 @@ pub struct GetEventListOutput {
 }
 
 #[derive(Serialize, Deserialize, Debug)]
+/// Paginated output for the event list endpoint.
 pub struct EventListOutput {
+    /// Page items.
     pub items: Vec<GetEventListOutput>,
+    /// Total number of matching items.
     pub total: i32,
 }
 
 #[derive(Debug, Deserialize, Hash, PartialEq, Eq, EnumString)]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
+#[allow(clippy::missing_docs_in_private_items)]
 pub enum OrderField {
     Election,
     EventType,
@@ -47,6 +53,8 @@ pub enum OrderField {
 }
 
 #[derive(Debug, Deserialize)]
+/// Input parameters for listing scheduled events.
+#[allow(clippy::missing_docs_in_private_items)]
 pub struct GetEventListInput {
     pub tenant_id: String,
     pub election_event_id: String,

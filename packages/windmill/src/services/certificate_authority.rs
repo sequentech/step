@@ -10,6 +10,7 @@ use std::process::Command;
 
 /// The standard PEM (Privacy-Enhanced Mail) file format conventionally requires five dashes
 const CERT_BEGIN: &str = "-----BEGIN CERTIFICATE-----";
+/// PEM footer marker for a single X.509 certificate.
 const CERT_END: &str = "-----END CERTIFICATE-----";
 
 /// Parsed certificate.

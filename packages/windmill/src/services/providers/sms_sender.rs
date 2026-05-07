@@ -11,6 +11,7 @@ use sequent_core::util::aws::get_from_env_aws_config;
 use std::collections::HashMap;
 use tracing::{event, instrument, Level};
 
+/// Optional set of AWS SNS message attributes applied to each published message.
 type MessageAttributes = Option<HashMap<String, MessageAttributeValue>>;
 
 /// Transport backend selected for SMS delivery.

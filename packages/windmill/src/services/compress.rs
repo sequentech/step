@@ -17,6 +17,10 @@ use tracing::{event, instrument, Level};
 /// # Arguments
 /// * `folder_path` - The path to the folder to be archived.
 /// * `compress` - If true, creates a compressed .tar.gz file; otherwise, creates an uncompressed .tar file.
+///
+/// # Errors
+///
+/// Returns an error if the folder doesn't exist, temporary file creation fails, or archiving fails.
 #[instrument(err)]
 pub fn create_archive_from_folder(
     folder_path: &Path,
@@ -82,6 +86,10 @@ pub fn create_archive_from_folder(
 /// * `file_path` - The path to the .tar.gz or .tar file to be decompressed/extracted.
 /// * `is_compressed` - If true, assumes the file is a .tar.gz and decompresses it;
 ///                    otherwise, assumes it's a .tar file and extracts it directly.
+///
+/// # Errors
+///
+/// Returns an error if the archive cannot be opened, decompressed, or unpacked.
 #[instrument(err)]
 pub fn extract_archive_to_temp_dir(file_path: &Path, is_compressed: bool) -> Result<TempDir> {
     let temp_dir =

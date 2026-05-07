@@ -8,9 +8,12 @@ use std::error::Error;
 use std::fmt;
 use tracing::{info, instrument};
 
+/// Cloudflare WAF ruleset phase.
 pub const WAF_RULESET_PHASE: &str = "http_request_firewall_custom";
 
 #[derive(Debug, Deserialize)]
+/// Api response for Cloudflare.
+#[allow(missing_docs)]
 pub struct ApiResponse<T> {
     pub success: bool,
     pub result: T,
@@ -19,6 +22,8 @@ pub struct ApiResponse<T> {
 }
 
 #[derive(Debug, Deserialize)]
+/// Cloudflare ruleset.
+#[allow(clippy::missing_docs_in_private_items)]
 pub struct Ruleset {
     description: String,
     pub id: String,
@@ -31,6 +36,8 @@ pub struct Ruleset {
 }
 
 #[derive(Debug, Deserialize)]
+/// Get rulesets response.
+#[allow(clippy::missing_docs_in_private_items)]
 pub struct GetRulesetsResponse {
     description: String,
     id: String,
@@ -42,6 +49,8 @@ pub struct GetRulesetsResponse {
 }
 
 #[derive(Debug, Deserialize, Serialize)]
+/// Create ruleset request.
+#[allow(clippy::missing_docs_in_private_items)]
 pub struct CreateRulesetRequest {
     description: String,
     name: String,
@@ -51,6 +60,8 @@ pub struct CreateRulesetRequest {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
+/// Cloudflare rule.
+#[allow(missing_docs)]
 pub struct Rule {
     pub id: Option<String>,
     pub expression: String,
@@ -61,6 +72,8 @@ pub struct Rule {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
+/// Create custom rule request.
+#[allow(missing_docs)]
 pub struct CreateCustomRuleRequest {
     pub expression: String,
     pub description: String,
@@ -68,6 +81,8 @@ pub struct CreateCustomRuleRequest {
 }
 
 #[derive(Debug)]
+/// Cloudflare error.
+#[allow(missing_docs)]
 pub struct CloudflareError {
     pub details: String,
 }
@@ -89,6 +104,11 @@ impl fmt::Display for CloudflareError {
 impl Error for CloudflareError {}
 
 #[instrument]
+/// Get Cloudflare variables.
+///
+/// # Errors
+///
+/// Returns an error if required environment variables are missing.
 pub fn get_cloudflare_vars() -> Result<(String, String), Box<dyn Error>> {
     let cloudflare_zone = std::env::var("CLOUDFLARE_ZONE")
         .map_err(|_e| "Missing cloudflare env variable".to_string())?;
@@ -99,6 +119,10 @@ pub fn get_cloudflare_vars() -> Result<(String, String), Box<dyn Error>> {
 }
 
 #[instrument]
+/// List Cloudflare rulesets for a given zone.
+/// # Errors
+///
+/// Returns an error if the request fails or the response cannot be parsed.
 pub async fn list_rulesets(
     api_key: &str,
     zone_id: &str,
@@ -132,6 +156,10 @@ pub async fn list_rulesets(
 }
 
 #[instrument]
+/// Get Cloudflare ruleset by id.
+/// # Errors
+///
+/// Returns an error if the request fails or the response cannot be parsed.
 pub async fn get_ruleset_by_id(
     api_key: &str,
     zone_id: &str,
@@ -166,6 +194,10 @@ pub async fn get_ruleset_by_id(
 }
 
 #[instrument]
+/// Get Cloudflare ruleset by phase.
+/// # Errors
+///
+/// Returns an error if listing or fetching rulesets fails.
 pub async fn get_ruleset_by_phase(
     api_key: &str,
     zone_id: &str,
@@ -192,6 +224,10 @@ pub async fn get_ruleset_by_phase(
 }
 
 #[instrument]
+/// Create a new Cloudflare ruleset.
+/// # Errors
+///
+/// Returns an error if the request fails or the response cannot be parsed.
 pub async fn create_ruleset(
     api_key: &str,
     zone_id: &str,
@@ -236,6 +272,10 @@ pub async fn create_ruleset(
 }
 
 #[instrument]
+/// Create a new Cloudflare rule in a ruleset.
+/// # Errors
+///
+/// Returns an error if the request fails.
 pub async fn create_ruleset_rule(
     api_key: &str,
     zone_id: &str,
@@ -269,6 +309,10 @@ pub async fn create_ruleset_rule(
 }
 
 #[instrument]
+/// Update a Cloudflare rule in a ruleset.
+/// # Errors
+///
+/// Returns an error if the request fails.
 pub async fn update_ruleset_rule(
     api_key: &str,
     zone_id: &str,
@@ -303,6 +347,10 @@ pub async fn update_ruleset_rule(
 }
 
 #[instrument]
+/// Delete a Cloudflare rule in a ruleset.
+/// # Errors
+///
+/// Returns an error if the request fails.
 pub async fn delete_ruleset_rule(
     api_key: &str,
     zone_id: &str,

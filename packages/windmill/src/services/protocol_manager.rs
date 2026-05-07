@@ -75,6 +75,11 @@ pub fn serialize_protocol_manager<C: Ctx>(pm: &ProtocolManager<C>) -> Result<Str
 }
 
 #[instrument]
+/// Deserialize a ProtocolManager from a TOML string.
+///
+/// # Errors
+///
+/// Returns an error if the config cannot be parsed or the signing key is invalid.
 pub fn deserialize_protocol_manager<C: Ctx>(contents: String) -> Result<ProtocolManager<C>> {
     let pmc: ProtocolManagerConfig =
         toml::from_str(&contents).map_err(|err| anyhow!("{:?}", err))?;
@@ -83,6 +88,11 @@ pub fn deserialize_protocol_manager<C: Ctx>(contents: String) -> Result<Protocol
 }
 
 #[instrument(err, skip_all)]
+/// Bootstrap a board with its initial configuration message.
+///
+/// # Errors
+///
+/// Returns an error if message creation or insertion into B3 fails.
 async fn init<C: Ctx>(
     b3_client: &mut PgsqlB3Client,
     configuration: Configuration<C>,
@@ -97,6 +107,11 @@ async fn init<C: Ctx>(
 }
 
 #[instrument(skip(pm), err)]
+/// Add a configuration to a B3 board.
+///
+/// # Errors
+///
+/// Returns an error if the B3 client cannot be created or configuration insertion fails.
 pub async fn add_config_to_board<C: Ctx>(
     threshold: usize,
     board_name: &str,
@@ -118,6 +133,11 @@ pub async fn add_config_to_board<C: Ctx>(
 }
 
 #[instrument(err)]
+/// Get the public key for a B3 board.
+///
+/// # Errors
+///
+/// Returns an error if board messages cannot be retrieved, configuration is missing, or parsing fails.
 pub async fn get_board_public_key<C: Ctx>(board_name: &str) -> Result<C::E> {
     let mut board = get_b3_pgsql_client().await?;
 
@@ -165,6 +185,11 @@ pub async fn get_board_public_key<C: Ctx>(board_name: &str) -> Result<C::E> {
     Ok(dkgpk.pk)
 }
 
+/// Check whether a configuration message exists on the board.
+///
+/// # Errors
+///
+/// Returns an error if board messages cannot be retrieved or decoded.
 pub async fn check_configuration_exists(board_name: &str) -> Result<bool> {
     let board = get_b3_pgsql_client().await?;
 
@@ -178,6 +203,11 @@ pub async fn check_configuration_exists(board_name: &str) -> Result<bool> {
 }
 
 #[instrument(err)]
+/// Get the public key messages for a B3 board.
+///
+/// # Errors
+///
+/// Returns an error if board messages cannot be retrieved or decoded.
 pub async fn get_board_public_key_messages(board_name: &str) -> Result<Vec<Message>> {
     let board = get_b3_pgsql_client().await?;
 
@@ -203,6 +233,11 @@ pub async fn get_board_public_key_messages(board_name: &str) -> Result<Vec<Messa
 }
 
 #[instrument(err)]
+/// Get the trustee encrypted private key for a B3 board.
+///
+/// # Errors
+///
+/// Returns an error if required board statements are missing or artifacts cannot be decoded.
 pub async fn get_trustee_encrypted_private_key<C: Ctx>(
     board_name: &str,
     trustee_pub_key: &StrandSignaturePk,
@@ -259,6 +294,11 @@ pub async fn get_trustee_encrypted_private_key<C: Ctx>(
 }
 
 #[instrument(skip_all, err)]
+/// Get the configuration for a B3 board.
+///
+/// # Errors
+///
+/// Returns an error if the configuration statement is missing or cannot be decoded.
 pub fn get_configuration<C: Ctx>(messages: &[Message]) -> Result<Configuration<C>> {
     let configuration_msg = messages
         .iter()
@@ -276,6 +316,11 @@ pub fn get_configuration<C: Ctx>(messages: &[Message]) -> Result<Configuration<C
 }
 
 #[instrument(skip_all, err)]
+/// Get the public key hash for a B3 board.
+///
+/// # Errors
+///
+/// Returns an error if the public key statement is missing or cannot be decoded/hashed.
 pub fn get_public_key_hash<C: Ctx>(messages: &[Message]) -> Result<PublicKeyHash> {
     let public_key_message = messages
         .iter()
@@ -294,6 +339,11 @@ pub fn get_public_key_hash<C: Ctx>(messages: &[Message]) -> Result<PublicKeyHash
 }
 
 #[instrument(skip_all)]
+/// Generate a trustee set for a B3 board.
+///
+/// # Panics
+///
+/// Panics if trustee position arithmetic overflows when building the trustee set.
 pub fn generate_trustee_set<C: Ctx>(
     configuration: &Configuration<C>,
     trustee_pks: Vec<StrandSignaturePk>,
@@ -321,6 +371,11 @@ pub fn generate_trustee_set<C: Ctx>(
 }
 
 #[instrument(skip_all, err)]
+/// Convert B3 messages to a vector of Messages.
+///
+/// # Errors
+///
+/// Returns an error if any board message cannot be decoded.
 pub fn convert_b3(b3: &[B3MessageRow]) -> Result<Vec<Message>> {
     let messages: Vec<Message> = b3
         .iter()
@@ -330,6 +385,11 @@ pub fn convert_b3(b3: &[B3MessageRow]) -> Result<Vec<Message>> {
 }
 
 #[instrument(err)]
+/// Get the protocol manager for a B3 board.
+///
+/// # Errors
+///
+/// Returns an error if the protocol manager secret cannot be read or deserialized.
 pub async fn get_protocol_manager<C: Ctx>(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
@@ -349,6 +409,11 @@ pub async fn get_protocol_manager<C: Ctx>(
 }
 
 #[instrument(skip(b3_client), err)]
+/// Get the messages for a B3 board.
+///
+/// # Errors
+///
+/// Returns an error if the board messages cannot be retrieved or decoded.
 pub async fn get_b3<C: Ctx>(
     board_name: &str,
     b3_client: &mut PgsqlB3Client,
@@ -369,6 +434,11 @@ pub async fn get_b3<C: Ctx>(
     ),
     err
 )]
+/// Add ballots to a B3 board.
+///
+/// # Errors
+///
+/// Returns an error if the ballots cannot be added to the board.
 pub async fn add_ballots_to_board<C: Ctx>(
     pm: &ProtocolManager<C>,
     b3_client: &mut PgsqlB3Client,
@@ -413,6 +483,11 @@ pub async fn add_ballots_to_board<C: Ctx>(
 }
 
 #[instrument(err)]
+/// Get a board client for Immudb.
+///
+/// # Errors
+///
+/// Returns an error if the board client cannot be created.
 pub async fn get_board_client() -> Result<BoardClient> {
     let username = env::var("IMMUDB_USER").context("IMMUDB_USER must be set")?;
     let password = env::var("IMMUDB_PASSWORD").context("IMMUDB_PASSWORD must be set")?;
@@ -424,6 +499,11 @@ pub async fn get_board_client() -> Result<BoardClient> {
 }
 
 #[instrument(err)]
+/// Get a B3 client for PostgreSQL.
+///
+/// # Errors
+///
+/// Returns an error if the B3 client cannot be created.
 pub async fn get_b3_pgsql_client() -> Result<PgsqlB3Client> {
     let username = env::var("B3_PG_USER").context("B3_PG_USER must be set")?;
     let password = env::var("B3_PG_PASSWORD").context("B3_PG_PASSWORD must be set")?;
@@ -441,6 +521,11 @@ pub async fn get_b3_pgsql_client() -> Result<PgsqlB3Client> {
 }
 
 #[instrument(err)]
+/// Get a client for Immudb.
+///
+/// # Errors
+///
+/// Returns an error if the client cannot be created.
 pub async fn get_immudb_client() -> Result<Client> {
     let username = env::var("IMMUDB_USER").context("IMMUDB_USER must be set")?;
     let password = env::var("IMMUDB_PASSWORD").context("IMMUDB_PASSWORD must be set")?;
@@ -452,6 +537,7 @@ pub async fn get_immudb_client() -> Result<Client> {
     Ok(client)
 }
 
+/// Create a named parameter for an Immudb query.
 pub fn create_named_param(name: String, value: Value) -> NamedParam {
     NamedParam {
         name,
@@ -459,6 +545,7 @@ pub fn create_named_param(name: String, value: Value) -> NamedParam {
     }
 }
 
+/// Get the board name for an election event.
 pub fn get_event_board(tenant_id: &str, election_event_id: &str, slug: &str) -> String {
     let tenant: String = tenant_id
         .to_string()
@@ -472,6 +559,7 @@ pub fn get_event_board(tenant_id: &str, election_event_id: &str, slug: &str) -> 
         .collect()
 }
 
+/// Get the board name for an election.
 pub fn get_election_board(tenant_id: &str, election_id: &str, slug: &str) -> String {
     let tenant: String = tenant_id
         .to_string()
@@ -485,6 +573,11 @@ pub fn get_election_board(tenant_id: &str, election_id: &str, slug: &str) -> Str
         .collect()
 }
 
+/// Convert B3 messages to a vector of Messages.
+///
+/// # Errors
+///
+/// Returns an error if any board message cannot be decoded.
 pub fn convert_board_messages(board_messages: &[B3MessageRow]) -> Result<Vec<Message>> {
     let messages: Vec<Message> = board_messages
         .iter()
@@ -493,6 +586,11 @@ pub fn convert_board_messages(board_messages: &[B3MessageRow]) -> Result<Vec<Mes
     Ok(messages)
 }
 
+/// Get the messages for a B3 board.
+///
+/// # Errors
+///
+/// Returns an error if the board messages cannot be retrieved or decoded.
 pub async fn get_board_messages<C: Ctx>(
     board_name: &str,
     b3_client: &PgsqlB3Client,

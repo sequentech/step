@@ -138,12 +138,10 @@ pub async fn find_area_ballots(
 
 #[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone)]
 /// Votes per election.
+#[allow(missing_docs)]
 pub struct ElectionCastVotes {
-    /// Election id.
     pub election_id: String,
-    /// Number of census.
     pub census: i64,
-    /// Number of votes casted.
     pub cast_votes: i64,
 }
 
@@ -457,7 +455,7 @@ pub async fn get_users_with_vote_info(
 
 #[derive(Debug, Serialize, Deserialize)]
 /// Votes count by ip for election.
-#[allow(missing_docs)]
+#[allow(clippy::missing_docs_in_private_items)]
 pub struct CastVoteCountByIp {
     id: String,
     ip: Option<String>,
@@ -484,6 +482,7 @@ impl TryFrom<Row> for CastVoteCountByIp {
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 /// List cast votes by ip filter.
+#[allow(missing_docs)]
 pub struct ListCastVotesByIpFilter {
     pub limit: Option<i32>,
     pub offset: Option<i32>,

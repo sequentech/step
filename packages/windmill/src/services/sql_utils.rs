@@ -26,6 +26,10 @@ pub fn escape_sql_literal(value: &str) -> String {
 /// Verifies that PostgreSQL has standard_conforming_strings = on, which is
 /// required for escape_sql_literal to be a complete defense against SQL
 /// injection. Returns an error if the setting is off.
+///
+/// # Errors
+///
+/// Returns an error if a connection cannot be obtained, the setting cannot be read, or it is not `on`.
 pub async fn assert_standard_conforming_strings(pool: &Pool) -> Result<()> {
     let client = pool.get().await.map_err(|e| {
         anyhow!("Failed to get connection for standard_conforming_strings check: {e}")

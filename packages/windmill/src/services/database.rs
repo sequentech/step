@@ -20,11 +20,17 @@ use openssl::ssl::{SslConnector, SslMethod};
 use postgres_openssl::MakeTlsConnector;
 
 #[derive(Debug, Deserialize)]
+/// Postgres connectivity and query limit configuration loaded from the environment.
 pub struct PgConfig {
+    /// Deadpool configuration for the Keycloak database.
     pub keycloak_db: deadpool_postgres::Config,
+    /// Deadpool configuration for the Hasura database.
     pub hasura_db: deadpool_postgres::Config,
+    /// Low limit used for queries that may return many rows.
     pub low_sql_limit: i32,
+    /// Default limit used for paginated queries.
     pub default_sql_limit: i32,
+    /// Default batch size used for bulk operations.
     pub default_sql_batch_size: i32,
 }
 
@@ -41,6 +47,11 @@ impl Default for PgConfig {
 }
 
 impl PgConfig {
+    /// Load Postgres configuration from environment variables.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if configuration cannot be built from the environment or deserialization fails.
     pub fn from_env() -> Result<Self> {
         Config::builder()
             .add_source(Environment::default().separator("__"))
@@ -52,6 +63,11 @@ impl PgConfig {
 }
 
 #[instrument(err)]
+/// Generate a pool for the Keycloak database.
+///
+/// # Errors
+///
+/// Returns an error if configuration is missing/invalid or the pool cannot be created.
 pub async fn generate_keycloak_pool() -> Result<Arc<Pool>> {
     let config = PgConfig::from_env()?;
 
@@ -104,6 +120,11 @@ pub async fn generate_keycloak_pool() -> Result<Arc<Pool>> {
 }
 
 #[instrument(err)]
+/// Generate a pool for the Hasura database.
+///
+/// # Errors
+///
+/// Returns an error if configuration is missing/invalid or the pool cannot be created.
 pub async fn generate_hasura_pool() -> Result<Arc<Pool>> {
     let config = PgConfig::from_env()?;
 
@@ -172,10 +193,12 @@ lazy_static! {
     });
 }
 
+/// Return the process-wide Keycloak Postgres pool.
 pub async fn get_keycloak_pool() -> Arc<Pool> {
     KEYCLOAK_POOL.get().await.clone()
 }
 
+/// Return the process-wide Hasura Postgres pool.
 pub async fn get_hasura_pool() -> Arc<Pool> {
     HASURA_POOL.get().await.clone()
 }

@@ -19,6 +19,11 @@ use sequent_core::services::date::ISO8601;
 use sequent_core::services::s3;
 
 #[instrument(skip(hasura_transaction), err)]
+/// Upload a document to S3 and insert the document record into the database.
+///
+/// # Errors
+///
+/// Returns an error if inserting the document record or uploading to S3 fails.
 pub async fn upload_and_return_document(
     hasura_transaction: &Transaction<'_>,
     file_path: &str,
@@ -123,6 +128,11 @@ pub async fn upload_and_return_public_event_document(
 }
 
 #[instrument(skip(hasura_transaction), err)]
+/// Insert a document record into the database and generate an upload URL.
+///
+/// # Errors
+///
+/// Returns an error if the document record cannot be inserted or an upload URL cannot be generated.
 pub async fn get_upload_url(
     hasura_transaction: &Transaction<'_>,
     name: &str,
@@ -161,6 +171,11 @@ pub async fn get_upload_url(
 }
 
 #[instrument(err)]
+/// Get the URL for a document from S3.
+///
+/// # Errors
+///
+/// Returns an error if the document cannot be loaded or its S3 URL cannot be generated.
 pub async fn get_document_url(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
@@ -207,6 +222,11 @@ pub async fn get_document_url(
 }
 
 #[instrument(err)]
+/// Get a document from S3 and return it as a temporary file.
+///
+/// # Errors
+///
+/// Returns an error if the object cannot be retrieved from S3 into a temporary file.
 pub async fn get_document_as_temp_file(
     tenant_id: &str,
     document: &Document,

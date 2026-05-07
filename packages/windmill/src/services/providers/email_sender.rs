@@ -32,8 +32,11 @@ pub struct Attachment {
 }
 
 #[derive(Debug, Deserialize)]
+/// SMTP transport configuration.
 struct SmtpConfig {
+    /// SMTP URL as accepted by `lettre`.
     server_url: String,
+    /// Timeout in seconds.
     timeout: Option<u64>, // in seconds
 }
 
@@ -49,7 +52,9 @@ pub enum EmailTransport {
 
 /// Email sender configured from environment variables.
 pub struct EmailSender {
+    /// Selected transport backend.
     transport: EmailTransport,
+    /// From address used when building messages.
     email_from: String,
 }
 

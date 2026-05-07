@@ -16,6 +16,8 @@ use uuid::Uuid;
 use crate::postgres::election::get_elections;
 
 #[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone)]
+/// Lightweight election data used by list and lookup endpoints.
+#[allow(missing_docs)]
 pub struct ElectionHead {
     pub id: String,
     pub name: String,
@@ -38,6 +40,11 @@ impl TryFrom<Election> for ElectionHead {
 }
 
 #[instrument(err)]
+/// List elections belonging to a given election event.
+///
+/// # Errors
+///
+/// Returns an error if the elections cannot be retrieved or converted.
 pub async fn get_election_event_elections(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
