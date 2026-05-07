@@ -4,7 +4,11 @@
 
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+This file provides repository guidance for AI coding agents working in this repository.
+
+This is the canonical shared handbook for Claude, ChatGPT, GitHub Copilot coding agent, and similar tools.
+
+For GitHub Copilot pull request reviews, review-specific guidance lives in `.github/copilot-instructions.md` and `.github/instructions/*.instructions.md`.
 
 ## Project Overview
 
@@ -121,10 +125,10 @@ reuse lint                           # Every file must have SPDX headers
 ## Important Conventions
 
 - **REUSE license headers required on every file**:
-  ```
-  // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
-  // SPDX-License-Identifier: AGPL-3.0-only
-  ```
+	```
+	// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
+	// SPDX-License-Identifier: AGPL-3.0-only
+	```
 - **Vendored Cargo dependencies**: `packages/vendor/` — Cargo.toml uses `[source.vendored-sources]`
 - **Pinned crate**: `wasm-bindgen` 0.2.104 — do not change
 - **Forked crate**: `celery` uses a custom fork (Findeton/rusty-celery)
