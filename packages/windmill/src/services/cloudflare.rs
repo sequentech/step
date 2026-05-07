@@ -1,6 +1,9 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+
+//! Cloudflare API helpers for DNS records and custom WAF rulesets.
+
 use reqwest::Client;
 use sequent_core::serialization::deserialize_with_path::deserialize_str;
 use serde::{Deserialize, Serialize};
@@ -24,6 +27,7 @@ pub struct ApiResponse<T> {
 #[derive(Debug, Deserialize)]
 /// Cloudflare ruleset.
 #[allow(clippy::missing_docs_in_private_items)]
+#[allow(missing_docs)]
 pub struct Ruleset {
     description: String,
     pub id: String,
@@ -88,6 +92,7 @@ pub struct CloudflareError {
 }
 
 impl CloudflareError {
+    /// Create a new Cloudflare error.
     pub fn new(msg: &str) -> CloudflareError {
         CloudflareError {
             details: msg.to_string(),

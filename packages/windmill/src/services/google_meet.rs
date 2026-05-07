@@ -2,6 +2,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+//! Google Meet conference lifecycle helpers.
+
 use crate::postgres::tenant::get_tenant_by_id;
 use deadpool_postgres::Transaction;
 use google_calendar3::{
@@ -19,30 +21,49 @@ use strum_macros::EnumString;
 use tracing::{error, info, instrument};
 
 #[derive(Deserialize, Debug, Clone)]
+/// Input payload for generating a Google Meet link by creating a calendar event.
 pub struct GenerateGoogleMeetBody {
+    /// Event summary/title.
     pub summary: String,
+    /// Event description.
     pub description: String,
+    /// Event start datetime in ISO-8601 format.
     pub start_date_time: String,
+    /// Event end datetime in ISO-8601 format.
     pub end_date_time: String,
+    /// Time zone identifier for the event (e.g. "Europe/Madrid").
     pub time_zone: String,
+    /// Attendee email list.
     pub attendee_emails: Vec<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
+/// Output payload containing the generated Meet link, when available.
 pub struct GenerateGoogleMeetResponse {
+    /// Generated Google Meet URL.
     pub meet_link: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug, EnumString)]
+/// Error variants returned while generating a Google Meet link.
 pub enum GoogleMeetError {
+    /// Missing or invalid service-account/client-secret configuration.
     ClientSecret(String),
+    /// JSON parsing/serialization error.
     Json(String),
+    /// OAuth2 authentication error.
     OAuth2(String),
+    /// Google Calendar API error.
     GoogleApi(String),
+    /// HTTP transport error.
     Http(String),
+    /// Date/time parsing error.
     DateTime(String),
+    /// Calendar could not be found or accessed.
     CalendarNotFound,
+    /// Meet link was not present in the created event.
     MeetLinkNotFound,
+    /// Catch-all error.
     Other(String),
 }
 
@@ -62,9 +83,13 @@ impl std::fmt::Display for GoogleMeetError {
     }
 }
 
+#[instrument(skip(hasura_transaction), err)]
 /// Implementation function for generating Google Meet links
 /// Creates a calendar event with Google Meet integration using service account credentials
-#[instrument(skip(hasura_transaction), err)]
+///
+/// # Errors
+///
+/// Returns an error if tenant settings are missing, authentication fails, or the calendar event cannot be created.
 pub async fn generate_google_meet_link_impl(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
@@ -220,6 +245,10 @@ pub async fn generate_google_meet_link_impl(
 }
 
 /// Parse datetime string with timezone into EventDateTime
+///
+/// # Errors
+///
+/// Returns an error if the datetime string is invalid or the timezone is invalid.
 #[instrument(err)]
 fn parse_datetime(datetime_str: &str, timezone: &str) -> Result<EventDateTime, GoogleMeetError> {
     // The datetime should be in ISO 8601 format (e.g., "2025-09-29T12:45:00.000Z")

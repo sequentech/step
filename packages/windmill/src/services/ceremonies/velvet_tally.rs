@@ -72,7 +72,7 @@ use velvet::pipes::pipe_name::PipeName;
 
 /// Inputs for one area/contest pair.
 #[derive(Debug, Clone)]
-#[allow(clippy::missing_docs_in_private_items)]
+#[allow(missing_docs)]
 pub struct AreaContestDataType {
     pub plaintexts: Vec<<RistrettoCtx as Ctx>::P>,
     pub last_tally_session_execution: TallySessionContest,

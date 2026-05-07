@@ -2,6 +2,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+//! Postgres connection pools for Hasura-tracked data and for the Keycloak database.
+
 use anyhow::{anyhow, Result};
 use async_once::AsyncOnce;
 use celery::export::Arc;

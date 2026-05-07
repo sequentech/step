@@ -217,13 +217,16 @@ fn get_copy_from_query(headers: &StringRecord) -> anyhow::Result<CopyFromQueryPa
 }
 
 //////////////////////////////////////////////////////////////
-/*
- * Insert the voters from the temporal voters table into the user_element
- * and user_attribute tables. For each user, we enter in a single query
- * (using WITH statements or similar if need be) the user in the
- * "user_entity" table and multiple user attributesin "user_attribute"
- * table.
- */
+///
+/// Insert the voters from the temporal voters table into the user_element
+/// and user_attribute tables. For each user, we enter in a single query
+/// (using WITH statements or similar if need be) the user in the
+/// "user_entity" table and multiple user attributesin "user_attribute"
+/// table.
+///
+/// # Errors
+///
+/// Returns an error if the tenant_id or realm_id is not a valid v4 UUID.
 #[instrument(err)]
 fn get_insert_user_query(
     tenant_id: String,

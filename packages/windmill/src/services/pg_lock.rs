@@ -1,6 +1,9 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+
+//! Postgres-backed cooperative locks.
+
 use super::database::get_hasura_pool;
 use crate::postgres::lock;
 use anyhow::{anyhow, Context, Result};
@@ -12,6 +15,8 @@ use tokio_postgres::row::Row;
 use tracing::instrument;
 
 #[derive(Debug)]
+/// Postgres lock.
+#[allow(missing_docs)]
 pub struct PgLock {
     pub key: String,
     pub value: String,
@@ -19,6 +24,15 @@ pub struct PgLock {
 }
 
 impl PgLock {
+    /// Extend this lock's expiry in Postgres by two minutes from "now".
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the pool, transaction, upsert, or commit fails.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the new expiry timestamp overflows when adding the fixed TTL.
     #[instrument(skip(self), err)]
     pub async fn update_expiry(&self) -> Result<()> {
         let mut hasura_db_client: DbClient = get_hasura_pool()
@@ -47,6 +61,11 @@ impl PgLock {
         Ok(())
     }
 
+    /// Insert or update a lock row and commit the transaction.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the pool, transaction, upsert, or commit fails.
     #[instrument(err)]
     pub async fn acquire(
         key: String,
@@ -77,6 +96,11 @@ impl PgLock {
         Ok(lock)
     }
 
+    /// Delete this lock row from Postgres and commit.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the pool, transaction, delete, or commit fails.
     #[instrument(err)]
     pub async fn release(self) -> Result<()> {
         let mut hasura_db_client: DbClient = get_hasura_pool()

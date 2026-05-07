@@ -1,6 +1,9 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+
+//! Managing voting calendar and scheduled-date materialization for elections and events.
+
 use crate::postgres::election::*;
 use crate::postgres::scheduled_event::*;
 use crate::services::election_event_status::get_election_event_status;

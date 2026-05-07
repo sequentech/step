@@ -2,6 +2,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+//! Managing custom URLs and hostname mappings.
+
 use super::cloudflare::{get_cloudflare_vars, ApiResponse, CloudflareError};
 use reqwest::Client;
 use rocket::futures::stream::Forward;
@@ -12,21 +14,31 @@ use std::fmt;
 use tracing::{error, info, instrument};
 
 #[derive(Debug, Deserialize)]
+/// Cloudflare page rule as returned by the API.
 pub struct PageRule {
+    /// Page rule identifier.
     pub id: String,
+    /// Match targets for this page rule.
     pub targets: Vec<Target>,
+    /// Actions applied when targets match.
     pub actions: Vec<Action>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+/// Cloudflare page rule target entry.
 pub struct Target {
+    /// Target type (e.g. "url").
     pub target: String,
+    /// Constraint defining the match condition.
     pub constraint: Constraint,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+/// Constraint used in a page rule target.
 pub struct Constraint {
+    /// Match operator (e.g. "matches").
     pub operator: String,
+    /// Operator argument value.
     pub value: String,
 }
 
@@ -42,13 +54,18 @@ struct CreatePageRuleRequest {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+/// Previously configured custom URLs for tenant endpoints.
 pub struct PreviousCustomUrls {
+    /// Login URL prefix.
     pub login: String,
+    /// Enrollment URL prefix.
     pub enrollment: String,
+    /// SAML URL prefix.
     pub saml: String,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
+/// Request body for creating a DNS record via Cloudflare.
 pub struct CreateDNSRecordRequest {
     #[serde(rename = "type")]
     /// DNS record type ("A", "CNAME", ...).

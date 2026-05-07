@@ -1,6 +1,9 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+
+//! Managing application workflows and verification processes.
+
 use super::users::{lookup_users, FilterOption, ListUsersFilter};
 use crate::postgres::application::get_permission_label_from_post;
 use crate::postgres::area::get_event_areas;

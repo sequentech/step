@@ -1,6 +1,9 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+
+//! S3 folder path helpers for organizing export folders.
+
 use anyhow::{Context, Result};
 use fs_extra::dir::{self, CopyOptions};
 use std::path::PathBuf;
@@ -10,6 +13,11 @@ use tracing::{info, instrument};
 use walkdir::WalkDir;
 
 #[instrument(err)]
+/// Copy a directory to a temporary directory.
+///
+/// # Errors
+///
+/// Returns an error if temporary directory creation or filesystem copying fails.
 pub fn copy_to_temp_dir(base_tally_path: &PathBuf) -> Result<TempDir> {
     // Create a temporary directory
     let temp_dir = tempdir()?;
@@ -38,6 +46,11 @@ pub fn copy_to_temp_dir(base_tally_path: &PathBuf) -> Result<TempDir> {
 }
 
 #[instrument]
+/// List the files in a directory.
+///
+/// # Errors
+///
+/// Returns an error if directory traversal fails.
 pub fn list_files(dir: &Path) -> Result<()> {
     for entry in fs::read_dir(dir)? {
         let entry = entry?;

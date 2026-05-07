@@ -1,6 +1,9 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+
+//! Managing scheduled maintenance event listing and pagination.
+
 use crate::postgres::election_event::get_election_event_by_id;
 use crate::{
     postgres::scheduled_event::{insert_new_scheduled_event, insert_scheduled_event},
@@ -43,7 +46,8 @@ pub struct EventListOutput {
 #[derive(Debug, Deserialize, Hash, PartialEq, Eq, EnumString)]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
-#[allow(clippy::missing_docs_in_private_items)]
+/// Column or sort key accepted by the event list query builder.
+#[allow(missing_docs)]
 pub enum OrderField {
     Election,
     EventType,
@@ -54,7 +58,7 @@ pub enum OrderField {
 
 #[derive(Debug, Deserialize)]
 /// Input parameters for listing scheduled events.
-#[allow(clippy::missing_docs_in_private_items)]
+#[allow(missing_docs)]
 pub struct GetEventListInput {
     pub tenant_id: String,
     pub election_event_id: String,

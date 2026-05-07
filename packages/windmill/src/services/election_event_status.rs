@@ -1,8 +1,11 @@
-use std::collections::HashMap;
-
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+
+//! Reading and updating the aggregate voting status for election events.
+
+use std::collections::HashMap;
+
 use crate::postgres::election::{get_election_by_id, get_elections, update_election_voting_status};
 use crate::postgres::election_event::{get_election_event_by_id, update_election_event_status};
 use anyhow::{anyhow, Context, Result};

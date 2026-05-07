@@ -2,6 +2,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+//! Certificate authority operations for issuing and rotating TLS credentials.
+
 use anyhow::{anyhow, Context, Result};
 use chrono::{DateTime, NaiveDateTime, Utc};
 use sequent_core::util::temp_path::generate_temp_file;

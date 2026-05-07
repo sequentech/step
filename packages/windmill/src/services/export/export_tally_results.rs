@@ -29,6 +29,10 @@ const EXCEL_STRING_LIMIT: usize = 32767;
 ///
 /// Returns an error when the SQLite document is missing,
 /// temp download fails, conversion fails, DB update fails, or upload fails.
+///
+/// # Panics
+///
+/// Panics if the SQLite document lookup unexpectedly returns `None` after the prior checks.
 #[instrument(err)]
 pub async fn export_tally_results_to_xlsx(
     hasura_transaction: &Transaction<'_>,
@@ -207,6 +211,10 @@ async fn convert_db_to_xlsx(db_path: &Path, xlsx_path: &Path) -> Result<()> {
 ///
 /// Returns an error when no execution exists, documents are absent,
 /// SQLite id is missing, or JSON handling fails.
+///
+/// # Panics
+///
+/// Panics if `documents` is unexpectedly `None` after the prior check.
 #[instrument(err)]
 pub async fn get_tally_session_execution_results_sqlite_file(
     hasura_transaction: &Transaction<'_>,

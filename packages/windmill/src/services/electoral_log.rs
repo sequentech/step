@@ -2,6 +2,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+//! Managing electoral log access: filters, ordering, cast-vote listings, and message counts.
+
 use crate::services::celery_app::get_celery_app;
 use crate::services::database::PgConfig;
 use crate::services::insert_cast_vote::hash_voter_id;
@@ -400,6 +402,11 @@ impl ElectoralLog {
     }
 
     #[instrument(skip(self, pseudonym_h))]
+    /// Post a cast vote error message.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the message cannot be built/serialized or enqueueing fails.
     pub async fn post_cast_vote_error(
         &self,
         tenant_id: String,
@@ -452,6 +459,10 @@ impl ElectoralLog {
     }
 
     #[instrument(skip(self))]
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the message cannot be built or posted.
     pub async fn post_election_published(
         &self,
         event_id: String,
@@ -478,6 +489,11 @@ impl ElectoralLog {
     }
 
     #[instrument(skip(self))]
+    /// Post an election open message.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the message cannot be built or posted.
     pub async fn post_election_open(
         &self,
         event_id: String,
@@ -503,6 +519,11 @@ impl ElectoralLog {
     }
 
     #[instrument(skip(self))]
+    /// Post an election pause message.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the message cannot be built or posted.
     pub async fn post_election_pause(
         &self,
         event_id: String,
@@ -527,6 +548,11 @@ impl ElectoralLog {
     }
 
     #[instrument(skip(self))]
+    /// Post an election close message.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the message cannot be built or posted.
     pub async fn post_election_close(
         &self,
         event_id: String,
@@ -553,6 +579,11 @@ impl ElectoralLog {
     }
 
     #[instrument(skip(self))]
+    /// Post a keycloak event.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the message cannot be built or posted.
     pub async fn post_keycloak_event(
         &self,
         event_id: String,
@@ -577,6 +608,11 @@ impl ElectoralLog {
     }
 
     #[instrument(skip(self))]
+    /// Post a keygen message.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the message cannot be built or posted.
     pub async fn post_keygen(
         &self,
         event_id: String,
@@ -592,6 +628,11 @@ impl ElectoralLog {
     }
 
     #[instrument(skip(self))]
+    /// Post a key insertion start message.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the message cannot be built or posted.
     pub async fn post_key_insertion_start(
         &self,
         event_id: String,
@@ -609,6 +650,11 @@ impl ElectoralLog {
     }
 
     #[instrument(skip(self))]
+    /// Post a key insertion message.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the message cannot be built or posted.
     pub async fn post_key_insertion(
         &self,
         event_id: String,
@@ -634,6 +680,11 @@ impl ElectoralLog {
     }
 
     #[instrument(skip(self))]
+    /// Post a tally open message.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the message cannot be built or posted.
     pub async fn post_tally_open(
         &self,
         event_id: String,
@@ -651,6 +702,11 @@ impl ElectoralLog {
     }
 
     #[instrument(skip(self))]
+    /// Post a tally close message.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the message cannot be built or posted.
     pub(crate) async fn post_tally_close(
         &self,
         event_id: String,
@@ -668,6 +724,11 @@ impl ElectoralLog {
     }
 
     #[instrument(skip(self))]
+    /// Post a send template message.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the message cannot be built or posted.
     pub async fn post_send_template(
         &self,
         message: Option<String>,
@@ -689,6 +750,11 @@ impl ElectoralLog {
     }
 
     #[instrument(skip(self))]
+    /// Post a tally resumed with resolution message.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the message cannot be built or posted.
     pub async fn post_tally_resumed_with_resolution(
         &self,
         event_id: String,
@@ -707,6 +773,11 @@ impl ElectoralLog {
     }
 
     #[instrument(skip(self))]
+    /// Post a tally paused pending resolution message.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the message cannot be built or posted.
     pub async fn post_tally_paused_pending_resolution(
         &self,
         event_id: String,
@@ -725,6 +796,11 @@ impl ElectoralLog {
     }
 
     #[instrument(skip(self))]
+    /// Post a tally tie resolved message.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the message cannot be built or posted.
     pub async fn post_tally_tie_resolved(
         &self,
         event_id: String,
@@ -754,6 +830,11 @@ impl ElectoralLog {
     }
 
     #[instrument(skip(self))]
+    /// Post a tally tie resolution updated message.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the message cannot be built or posted.
     pub async fn post_tally_tie_resolution_updated(
         &self,
         event_id: String,
@@ -783,6 +864,11 @@ impl ElectoralLog {
     }
 
     #[instrument(skip(self))]
+    /// Post a certificate auth event message.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the message cannot be built or posted.
     pub async fn post_certificate_auth_event(
         &self,
         event_id: String,
@@ -804,6 +890,11 @@ impl ElectoralLog {
     }
 
     #[instrument(skip(self), err)]
+    /// Post a message to the electoral log.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the message cannot be converted.
     async fn post(&self, message: &Message) -> Result<()> {
         let board_message: ElectoralLogMessage = message.try_into()?;
         let ms = vec![board_message];
@@ -825,6 +916,10 @@ impl ElectoralLog {
     }
 
     /// Builds a keycloak event message and returns the resulting ElectoralLogMessage.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the message cannot be built.
     pub fn build_keycloak_event_message(
         &self,
         event_id: String,
@@ -851,6 +946,10 @@ impl ElectoralLog {
     }
 
     /// Builds a send-template message and returns the resulting ElectoralLogMessage.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the message cannot be built.
     pub fn build_send_template_message(
         &self,
         message_body: Option<String>,
@@ -877,6 +976,11 @@ impl ElectoralLog {
     }
 
     #[instrument(skip(self))]
+    /// Import electoral log messages from a CSV file.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the message cannot be imported.
     pub async fn import_from_csv(&self, logs_file: &NamedTempFile) -> Result<()> {
         let batch_size: usize = PgConfig::from_env()?.default_sql_batch_size.try_into()?;
         let mut rdr = csv::Reader::from_reader(logs_file);
@@ -923,6 +1027,7 @@ impl ElectoralLog {
 #[derive(Debug, Deserialize, Hash, PartialEq, Eq, EnumString, Display, Clone)]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
+#[allow(missing_docs)]
 pub enum OrderField {
     Id,
     Created,
@@ -940,6 +1045,8 @@ pub enum OrderField {
 }
 
 #[derive(Deserialize, Debug, Default, Clone)]
+/// Body for the get electoral log request.
+#[allow(missing_docs)]
 pub struct GetElectoralLogBody {
     pub tenant_id: String,
     pub election_event_id: String,
@@ -955,6 +1062,10 @@ pub struct GetElectoralLogBody {
 
 impl GetElectoralLogBody {
     // Returns the SQL clauses related to the request along with the parameters
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the SQL clauses cannot be built.
     #[instrument(ret)]
     fn as_sql(&self, to_count: bool) -> Result<(String, Vec<NamedParam>)> {
         let mut clauses = Vec::new();
@@ -1117,6 +1228,8 @@ impl GetElectoralLogBody {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
+/// Row for the electoral log.
+#[allow(missing_docs)]
 pub struct ElectoralLogRow {
     pub id: i64,
     pub created: i64,
@@ -1127,7 +1240,10 @@ pub struct ElectoralLogRow {
     pub user_id: Option<String>,
     pub username: Option<String>,
 }
+
+/// Parsed `statement.head` fields from a serialized electoral log message.
 #[derive(Deserialize, Serialize, Debug, Clone)]
+#[allow(missing_docs)]
 pub struct StatementHeadDataString {
     pub event: String,
     pub kind: String,
@@ -1138,34 +1254,46 @@ pub struct StatementHeadDataString {
 }
 
 impl ElectoralLogRow {
+    /// Database id of the log row.
     pub fn id(&self) -> i64 {
         self.id
     }
 
+    /// Row creation time.
     pub fn created(&self) -> i64 {
         self.created
     }
 
+    /// Statement timestamp from immudb.
     pub fn statement_timestamp(&self) -> i64 {
         self.statement_timestamp
     }
 
+    /// Statement kind string (e.g. cast vote vs audit).
     pub fn statement_kind(&self) -> &str {
         &self.statement_kind
     }
 
+    /// JSON string of the deserialized message payload.
     pub fn message(&self) -> &str {
         &self.message
     }
 
+    /// User id associated with the statement, if present.
     pub fn user_id(&self) -> Option<&str> {
         self.user_id.as_deref()
     }
 
+    /// Username associated with the statement, if present.
     pub fn username(&self) -> Option<&str> {
         self.username.as_deref()
     }
 
+    /// Parse `statement.head` from [`Self::message`] JSON.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if JSON is invalid or expected `statement` / `head` keys are missing.
     pub fn statement_head_data(&self) -> Result<StatementHeadDataString> {
         let message: serde_json::Value = deserialize_str(&self.message).map_err(|err| {
             anyhow!(format!(
@@ -1284,6 +1412,8 @@ impl TryFrom<&Row> for ElectoralLogRow {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
+/// One cast-vote row extracted from the electoral log for API responses.
+#[allow(missing_docs)]
 pub struct CastVoteEntry {
     pub statement_timestamp: i64,
     pub statement_kind: String,
@@ -1292,13 +1422,21 @@ pub struct CastVoteEntry {
     pub message: Option<String>,
 }
 
+/// Paginated cast-vote messages list plus total match count.
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
 pub struct CastVoteMessagesOutput {
+    /// Filtered entries (up to the requested page size).
     pub list: Vec<CastVoteEntry>,
+    /// Total rows matching the immudb filter before client-side ballot trimming.
     pub total: usize,
 }
 
 impl CastVoteEntry {
+    /// Build a [`CastVoteEntry`] when `entry` is a cast-vote statement.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the binary message cannot be deserialized.
     pub fn from_elog_message(entry: &ElectoralLogMessage) -> Result<Option<Self>, anyhow::Error> {
         let ballot_id = entry.ballot_id.clone().unwrap_or_default();
         let username = entry.username.clone();
@@ -1317,6 +1455,11 @@ impl CastVoteEntry {
 }
 
 #[instrument(err)]
+/// List electoral log messages matching the provided filters.
+///
+/// # Errors
+///
+/// Returns an error if the immudb session cannot be opened, SQL cannot be built, or the query fails.
 pub async fn list_electoral_log(input: GetElectoralLogBody) -> Result<DataList<ElectoralLogRow>> {
     let mut client: Client = get_immudb_client().await?;
     let slug = std::env::var("ENV_SLUG").with_context(|| "missing env var ENV_SLUG")?;
@@ -1391,6 +1534,7 @@ pub async fn list_electoral_log(input: GetElectoralLogBody) -> Result<DataList<E
 }
 
 #[instrument]
+/// Get the columns for the count and select queries.
 pub fn get_cols_match_count_and_select(
     election_id: &str,
     user_id: &str,
@@ -1425,6 +1569,14 @@ pub fn get_cols_match_count_and_select(
 /// Returns the entries for statement_kind = "CastVote" which ballot_id matches the input
 /// ballot_id_filter is restricted to be an even number of characters, so that can be converted
 /// to a byte array
+///
+/// # Errors
+///
+/// Returns an error if the ballot_id is incorrect, the SQL cannot be built, or the query fails.
+///
+/// # Panics
+///
+/// Panics if pagination `offset + limit` overflows `i64` (extremely large result sets).
 #[instrument(err)]
 pub async fn list_cast_vote_messages(
     input: GetElectoralLogBody,
@@ -1506,6 +1658,11 @@ pub async fn list_cast_vote_messages(
 }
 
 #[instrument(err)]
+/// Count electoral log messages matching the provided filters.
+///
+/// # Errors
+///
+/// Returns an error if the immudb session cannot be opened, SQL cannot be built, or the query fails.
 pub async fn count_electoral_log(input: GetElectoralLogBody) -> Result<i64> {
     let mut client = get_immudb_client().await?;
     let slug = std::env::var("ENV_SLUG").with_context(|| "missing env var ENV_SLUG")?;

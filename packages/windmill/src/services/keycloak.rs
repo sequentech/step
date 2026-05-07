@@ -2,6 +2,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+//! Keycloak realm maintenance utilities.
+
 use crate::types::error::Result;
 use anyhow::{anyhow, Context};
 use keycloak::types::{GroupRepresentation, RealmRepresentation, RoleRepresentation};
@@ -14,6 +16,7 @@ use tempfile::NamedTempFile;
 use tracing::{event, info, instrument, Level};
 use uuid::Uuid;
 
+/// Map realm data to a tuple of container id, existing groups, and existing roles.
 pub fn map_realm_data(
     realm: &RealmRepresentation,
 ) -> (
@@ -32,6 +35,11 @@ pub fn map_realm_data(
     (container_id, existing_groups, existing_roles)
 }
 
+/// Delete Keycloak realm roles and groups that are absent from the import lists.
+///
+/// # Errors
+///
+/// Returns an error if Keycloak admin calls fail or required ids are missing.
 #[instrument(err)]
 pub async fn delete_realm_groups_and_roles(
     existing_groups: &Vec<GroupRepresentation>,
@@ -96,6 +104,7 @@ pub async fn delete_realm_groups_and_roles(
     Ok(())
 }
 
+/// Find a group by name in a list of groups.
 pub fn find_group_by_name(
     groups: &[GroupRepresentation],
     group_name: &str,
@@ -106,6 +115,11 @@ pub fn find_group_by_name(
         .cloned()
 }
 
+/// Apply roles and permissions from a CSV temp file to the given realm.
+///
+/// # Errors
+///
+/// Returns an error if clients cannot be created, CSV parsing fails, or Keycloak updates fail.
 #[instrument(err, skip_all)]
 pub async fn read_roles_config_file(
     temp_file: NamedTempFile,

@@ -1,6 +1,9 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+
+//! Managing semaphore for tasks.
+
 use anyhow::{anyhow, Context, Result};
 use once_cell::sync::OnceCell;
 use std::sync::Arc;

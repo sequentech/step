@@ -2,6 +2,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+//! Error conversion helpers mapping external failures into `anyhow::Result`.
+
 use anyhow::{anyhow, Result};
 use graphql_client::Response;
 use tracing::{event, instrument, Level};

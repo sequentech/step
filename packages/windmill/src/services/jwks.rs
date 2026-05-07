@@ -1,6 +1,9 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+
+//! Managing JWKS maintenance: S3 cache, Keycloak realm certs, and realm-scoped key removal.
+
 use anyhow::{anyhow, Context, Result};
 use sequent_core::services::s3;
 use sequent_core::util::temp_path::generate_temp_file;
@@ -11,26 +14,43 @@ use tempfile::NamedTempFile;
 use tracing::{event, instrument, Level};
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
+/// Single JWK entry as used by Keycloak/OpenID Connect.
 pub struct JWKKey {
+    /// Signing algorithm (e.g. "RS256").
     pub alg: String,
+    /// Key type (e.g. "RSA").
     pub kty: String,
+    /// Intended use (typically "sig").
     pub r#use: String,
+    /// Modulus (base64url).
     pub n: String,
+    /// Exponent (base64url).
     pub e: String,
+    /// Key id.
     pub kid: String,
+    /// X.509 certificate SHA-1 thumbprint.
     pub x5t: String,
+    /// X.509 certificate chain (base64 DER).
     pub x5c: Vec<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
+/// JWKS payload as returned by Keycloak/OpenID endpoints.
 pub struct JwksOutput {
+    /// Key list.
     pub keys: Vec<JWKKey>,
 }
 
+/// S3 object path where the aggregated JWKS is stored.
 pub fn get_jwks_secret_path() -> String {
     env::var("AWS_S3_JWKS_CERTS_PATH").unwrap_or("certs.json".to_string())
 }
 
+/// Read the cache-control policy used when uploading the JWKS object.
+///
+/// # Errors
+///
+/// Returns an error if `AWS_S3_JWKS_CACHE_POLICY` is not set.
 pub fn get_cache_policy() -> Result<String> {
     let cache_policy = env::var("AWS_S3_JWKS_CACHE_POLICY")
         .map_err(|err| anyhow!("AWS_S3_JWKS_CACHE_POLICY Must be set: {}", { err }))?;
@@ -38,6 +58,11 @@ pub fn get_cache_policy() -> Result<String> {
 }
 
 #[instrument(err)]
+/// Get the JWKS from the S3 bucket.
+///
+/// # Errors
+///
+/// Returns an error if the JWKS object cannot be fetched or parsed.
 pub async fn get_jwks() -> Result<Vec<JWKKey>> {
     let minio_private_uri =
         env::var("AWS_S3_PRIVATE_URI").map_err(|err| anyhow!("AWS_S3_PRIVATE_URI must be set"))?;
@@ -64,6 +89,11 @@ pub async fn get_jwks() -> Result<Vec<JWKKey>> {
 }
 
 #[instrument(err)]
+/// Download a realm's JWKS from Keycloak.
+///
+/// # Errors
+///
+/// Returns an error if Keycloak cannot be reached or the JWKS response cannot be parsed.
 pub async fn download_realm_jwks_from_keycloak(realm: &str) -> Result<Vec<JWKKey>> {
     let keycloak_url =
         env::var("KEYCLOAK_URL").map_err(|err| anyhow!("KEYCLOAK_URL must be set"))?;
@@ -86,6 +116,11 @@ pub async fn download_realm_jwks_from_keycloak(realm: &str) -> Result<Vec<JWKKey
 }
 
 #[instrument(err)]
+/// Download a realm's JWKS and merge any new keys into the S3 aggregate.
+///
+/// # Errors
+///
+/// Returns an error if reading existing JWKS from S3 or writing the updated object fails.
 pub async fn upsert_realm_jwks(realm: &str) -> Result<()> {
     let realm_jwks = download_realm_jwks_from_keycloak(realm)
         .await
@@ -139,6 +174,11 @@ pub async fn upsert_realm_jwks(realm: &str) -> Result<()> {
     Ok(())
 }
 
+/// Remove all JWK entries for `realm` from the aggregated JWKS object in S3.
+///
+/// # Errors
+///
+/// Returns an error if Keycloak, S3, or temp file I/O fails.
 #[instrument(err)]
 pub async fn remove_realm_jwks(realm: &str) -> Result<()> {
     let realm_jwks = download_realm_jwks_from_keycloak(realm)

@@ -2,6 +2,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+//! Bulletin board name resolution and wiring for an election event's verifiable log.
+
 use b3::client::pgsql::B3IndexRow;
 use sequent_core::serialization::deserialize_with_path::deserialize_value;
 use serde::{Deserialize, Serialize};

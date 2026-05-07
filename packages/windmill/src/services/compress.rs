@@ -1,6 +1,9 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+
+//! Folder compression and decompression helpers.
+
 use crate::types::error::Result;
 use anyhow::Context;
 use flate2::read::GzDecoder;

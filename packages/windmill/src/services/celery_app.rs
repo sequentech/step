@@ -1,6 +1,8 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 // SPDX-License-Identifier: AGPL-3.0-only
 
+//! Celery app construction, broker tuning, and per-deployment queue management.
+
 use anyhow::{anyhow, Context, Result};
 use async_once::AsyncOnce;
 use celery::prelude::Task;
@@ -65,6 +67,7 @@ use crate::tasks::set_public_key::set_public_key;
 use crate::tasks::update_election_event_ballot_styles::update_election_event_ballot_styles;
 
 #[derive(AsRefStr, Debug)]
+#[allow(missing_docs)]
 pub enum Queue {
     #[strum(serialize = "beat")]
     Beat,
@@ -88,6 +91,7 @@ pub enum Queue {
 }
 
 impl Queue {
+    /// Get the queue name for the Celery app.
     pub fn queue_name(&self, slug: &str) -> String {
         format!("{}_{}", slug, self.as_ref())
     }
@@ -110,34 +114,40 @@ static mut WORKER_THREADS: usize = 1;
 /// Explicit queue names to consume from, when configured.
 static mut QUEUES: Vec<String> = vec![];
 
+/// Set the prefetch count for the Celery app.
 pub fn set_prefetch_count(new_val: u16) {
     unsafe {
         PREFETCH_COUNT_S = new_val;
     }
 }
 
+/// Set the number of worker threads for the Celery app.
 pub fn set_worker_threads(new_val: usize) {
     unsafe {
         WORKER_THREADS = new_val;
     }
 }
 
+/// Get the number of worker threads for the Celery app.
 pub fn get_worker_threads() -> usize {
     unsafe { WORKER_THREADS }
 }
 
+/// Set whether tasks are ACKed late for the Celery app.
 pub fn set_acks_late(new_val: bool) {
     unsafe {
         ACKS_LATE_S = new_val;
     }
 }
 
+/// Set the maximum number of retries for tasks for the Celery app.
 pub fn set_task_max_retries(new_val: u32) {
     unsafe {
         TASK_MAX_RETRIES = new_val;
     }
 }
 
+/// Set the queues for the Celery app.
 pub fn set_queues(new_val: Vec<String>) {
     unsafe {
         QUEUES = new_val;
@@ -145,28 +155,33 @@ pub fn set_queues(new_val: Vec<String>) {
 }
 
 #[instrument]
+/// Set whether the Celery app is active.
 pub fn set_is_app_active(new_val: bool) {
     unsafe {
         IS_APP_ACTIVE = new_val;
     }
 }
 
+/// Set the maximum number of retries for broker connections for the Celery app.
 pub fn set_broker_connection_max_retries(new_val: u32) {
     unsafe {
         BROKER_CONNECTION_MAX_RETRIES = new_val;
     }
 }
 
+/// Set the heartbeat interval for the Celery app.
 pub fn set_heartbeat(new_val: u16) {
     unsafe {
         HEARTBEAT_SECS = new_val;
     }
 }
 
+/// Get whether the Celery app is active.
 pub fn get_is_app_active() -> bool {
     unsafe { IS_APP_ACTIVE }
 }
 
+/// Get the queues for the Celery app.
 pub fn get_queues() -> Vec<String> {
     unsafe { QUEUES.clone() }
 }

@@ -1,6 +1,9 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+
+//! Structuring and serializing task execution logs.
+
 use crate::services::ceremonies::serialize_logs::sort_logs;
 use sequent_core::types::ceremonies::Log;
 use sequent_core::{serialization::deserialize_with_path, services::date::ISO8601};
@@ -8,6 +11,7 @@ use serde_json::value::Value;
 use tracing::{event, instrument, Level};
 
 #[instrument]
+/// Create general start log.
 pub fn general_start_log() -> Vec<Log> {
     vec![Log {
         created_date: ISO8601::to_string(&ISO8601::now()),
@@ -16,6 +20,7 @@ pub fn general_start_log() -> Vec<Log> {
 }
 
 #[instrument(skip(current_logs))]
+/// Append general log to current logs.
 pub fn append_general_log(current_logs: &Option<Value>, message: &str) -> Vec<Log> {
     let value = current_logs.clone().unwrap_or(Value::Array(vec![]));
     let mut logs: Vec<Log> =

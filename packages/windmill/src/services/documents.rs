@@ -2,6 +2,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+//! Document uploads, storage keys, and public document URL generation.
+
 use crate::postgres::document::insert_document;
 use crate::services::database::{get_hasura_pool, get_keycloak_pool};
 use anyhow::{anyhow, Context, Result as AnyhowResult};
@@ -84,6 +86,10 @@ pub async fn upload_and_return_document(
 /// The document is associated with the given election event ID and tenant ID.
 /// The Document path does not include the document ID and will be used
 /// for when the UI does not have access to the document ID.
+///
+/// # Errors
+///
+/// Returns an error if inserting the document record or uploading to S3 fails.
 #[instrument(skip(hasura_transaction), err)]
 pub async fn upload_and_return_public_event_document(
     hasura_transaction: &Transaction<'_>,

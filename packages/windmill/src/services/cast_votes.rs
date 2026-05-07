@@ -1,6 +1,9 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+
+//! Managing cast votes, ballots, and vote-related joins.
+
 use super::database::PgConfig;
 use super::sql_utils::escape_sql_literal;
 use crate::services::datafix::utils::{

@@ -2,6 +2,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+//! SQL utilities for escaping SQL literals and identifiers.
+
 use anyhow::{anyhow, Result};
 use deadpool_postgres::Pool;
 

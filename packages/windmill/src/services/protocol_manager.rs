@@ -2,6 +2,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+//! Managing protocol manager key generation, serialization, and bulletin-board signing.
+
 use b3::client::pgsql::{PgsqlB3Client, PgsqlConnectionParams};
 use b3::messages::artifact::Shares;
 use b3::messages::artifact::{Ballots, Channel, Configuration, DkgPublicKey, TrusteeShareData};
@@ -30,10 +32,16 @@ use electoral_log::BoardClient;
 use immudb_rs::{sql_value::Value, Client, NamedParam, SqlValue};
 use strand::signature::{StrandSignaturePk, StrandSignatureSk};
 
+/// Get the protocol manager secret path for a board.
 pub fn get_protocol_manager_secret_path(board_name: &str) -> String {
     format!("boards/{board_name}/protocol-manager")
 }
 
+/// Generate a protocol manager signing key and persist its TOML config to the vault.
+///
+/// # Errors
+///
+/// Returns an error if key generation, serialization, or vault write fails.
 #[instrument(skip(hasura_transaction), err)]
 pub async fn create_protocol_manager_keys(
     hasura_transaction: &Transaction<'_>,
@@ -57,6 +65,11 @@ pub async fn create_protocol_manager_keys(
     Ok(())
 }
 
+/// Create a new in-memory [`ProtocolManager`] with a fresh signing key.
+///
+/// # Errors
+///
+/// Returns an error if the signing key cannot be generated.
 #[instrument]
 pub fn gen_protocol_manager<C: Ctx>() -> Result<ProtocolManager<C>> {
     let pmkey: StrandSignatureSk = StrandSignatureSk::gen().map_err(|err| anyhow!("{:?}", err))?;
@@ -68,6 +81,11 @@ pub fn gen_protocol_manager<C: Ctx>() -> Result<ProtocolManager<C>> {
     Ok(pm)
 }
 
+/// Serialize a [`ProtocolManager`] to TOML for storage in the vault.
+///
+/// # Errors
+///
+/// Returns an error if the config cannot be encoded to TOML.
 #[instrument]
 pub fn serialize_protocol_manager<C: Ctx>(pm: &ProtocolManager<C>) -> Result<String> {
     let pmc = ProtocolManagerConfig::from(pm);

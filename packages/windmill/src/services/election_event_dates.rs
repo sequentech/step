@@ -2,6 +2,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+//! Managing election-event-specific scheduling windows and derived date fields.
+
 use std::str::FromStr;
 
 use crate::postgres::election_event::get_election_event_by_id;

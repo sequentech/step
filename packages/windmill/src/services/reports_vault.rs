@@ -1,6 +1,9 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+
+//! Vault-oriented secrets loading for report generation.
+
 use crate::services::vault::{read_secret, save_secret};
 use anyhow::anyhow;
 use deadpool_postgres::Transaction;

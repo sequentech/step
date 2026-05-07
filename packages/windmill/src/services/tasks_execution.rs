@@ -2,6 +2,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+//! Task execution bookkeeping: status transitions and persistence.
+
 use crate::postgres::tasks_execution::{insert_tasks_execution, update_task_execution_status};
 use crate::services::serialize_tasks_logs::*;
 use crate::types::tasks::ETasksExecution;

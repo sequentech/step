@@ -2,6 +2,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+//! Public key parsing and validation for trustees, boards, and verification.
+
 use anyhow::{anyhow, Result};
 use base64::engine::general_purpose;
 use base64::Engine;

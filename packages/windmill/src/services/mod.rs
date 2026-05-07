@@ -2,6 +2,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+//! Windmill worker services: shared database access, Keycloak, exports, crypto, and integration helpers for Celery tasks.
+
 pub mod application;
 pub mod ballot_styles;
 pub mod cast_votes;

@@ -1,6 +1,9 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+
+//! Inserting cast votes and managing electoral log side effects.
+
 use crate::postgres;
 use crate::postgres::area::get_area_by_id;
 use crate::postgres::election::get_election_by_id;
@@ -67,8 +70,10 @@ use sequent_core::encrypt::hash_multi_ballot;
 use sequent_core::services::uuid_validation::parse_uuid_v4;
 use serde_json::Serializer;
 #[derive(Serialize, Deserialize, Debug, Clone)]
+/// Input payload for casting a vote.
+#[allow(missing_docs)]
 pub struct InsertCastVoteInput {
-    // Here is the class used for voting
+    /// Here is the class used for voting
     pub ballot_id: String,
     pub election_id: Uuid,
     pub content: String,
@@ -116,14 +121,20 @@ impl InsertCastVoteInput {
     }
 }
 
+/// Successful cast-vote row as stored after insertion.
 pub type InsertCastVoteOutput = CastVote;
 
+/// Outcome of a cast-vote insert attempt for the task layer.
 pub enum InsertCastVoteResult {
+    /// Vote was persisted and committed.
     Success(InsertCastVoteOutput),
+    /// Permanent failure; the caller should not retry the same payload.
     SkipRetryFailure(CastVoteError),
 }
 
 #[derive(Debug)]
+/// Identifiers required during cast-vote processing.
+#[allow(clippy::missing_docs_in_private_items)]
 struct CastVoteIds<'a> {
     election_event_id: &'a str,
     tenant_id: &'a str,
@@ -132,6 +143,8 @@ struct CastVoteIds<'a> {
 }
 
 #[derive(Serialize, Deserialize, Debug, Display)]
+/// Error codes returned by cast-vote processing.
+#[allow(missing_docs)]
 pub enum CastVoteError {
     #[serde(rename = "voting_channel_not_enabled")]
     VotingChannelNotEnabled(String),
@@ -192,6 +205,7 @@ pub enum CastVoteError {
 }
 
 impl CastVoteError {
+    /// Downcast an [`anyhow::Error`] to [`CastVoteError`] or wrap as [`UnknownError`](CastVoteError::UnknownError).
     pub fn new(error: anyhow::Error) -> Self {
         match error.downcast::<CastVoteError>() {
             Ok(e) => e,
@@ -200,6 +214,11 @@ impl CastVoteError {
     }
 }
 
+/// Insert a vote into the database.
+///
+/// # Errors
+///
+/// Returns a [`CastVoteError`] describing why vote insertion failed.
 #[instrument(skip(input), err)]
 pub async fn try_insert_cast_vote(
     input: InsertCastVoteInput,
@@ -473,12 +492,18 @@ pub async fn try_insert_cast_vote(
     }
 }
 
+/// Pseudonym hash, vote hash, and optional verified voter signature tuple.
 type DeserializedCastVoteHashes = (
     PseudonymHash,
     CastVoteHash,
     Option<(StrandSignaturePk, StrandSignature)>,
 );
 
+/// Deserialize a single-contest ballot, verify PoK and voter signature, and compute hashes.
+///
+/// # Errors
+///
+/// Returns [`CastVoteError`] when deserialization, hash mismatch, PoK, or signature checks fail.
 #[instrument(skip(input), err)]
 pub fn deserialize_and_check_ballot(
     input: &InsertCastVoteInput,
@@ -540,6 +565,11 @@ pub fn deserialize_and_check_ballot(
     Ok((pseudonym_h, vote_h, signature_opt))
 }
 
+/// Deserialize a multi-contest ballot, verify PoK and voter signature, and compute hashes.
+///
+/// # Errors
+///
+/// Returns [`CastVoteError`] when deserialization, hash mismatch, PoK, or signature checks fail.
 #[instrument(skip(input), err)]
 pub fn deserialize_and_check_multi_ballot(
     input: &InsertCastVoteInput,
@@ -599,6 +629,11 @@ pub fn deserialize_and_check_multi_ballot(
     Ok((pseudonym_h, vote_h, voter_signature_opt))
 }
 
+/// Insert a cast vote row inside `hasura_transaction` and commit if checks pass.
+///
+/// # Errors
+///
+/// Returns [`CastVoteError`] on validation failure, insert error, or commit failure.
 #[instrument(
     skip(
         input,
@@ -701,11 +736,21 @@ pub async fn insert_cast_vote_and_commit<'a>(
     Ok(cast_vote)
 }
 
+/// Hash a voter id using strand serialization and SHA256-to-array.
+///
+/// # Errors
+///
+/// Returns an error if the voter id cannot be serialized.
 pub(crate) fn hash_voter_id(voter_id: &str) -> Result<Hash, StrandError> {
     let bytes = voter_id.to_string().strand_serialize()?;
     hash_to_array(&bytes)
 }
 
+/// Load signing material and an [`ElectoralLog`] client for the event's bulletin board.
+///
+/// # Errors
+///
+/// Returns an error if the board name, protocol manager, or electoral log construction fails.
 #[instrument(skip_all, err)]
 async fn get_electoral_log(
     hasura_transaction: &Transaction<'_>,
@@ -736,6 +781,15 @@ async fn get_electoral_log(
     Ok((electoral_log?, sk.clone()))
 }
 
+/// Validate election dates, voting channel, and voting status before accepting a vote.
+///
+/// # Errors
+///
+/// Returns [`CastVoteError::CheckStatusFailed`] or related variants when the vote must be rejected.
+///
+/// # Panics
+///
+/// Panics if internal date arithmetic overflows (`close date plus grace period`, or similar edge cases).
 #[instrument(skip_all, err)]
 async fn check_status(
     tenant_id: &str,
@@ -954,6 +1008,11 @@ async fn check_status(
     Ok(())
 }
 
+/// Enforce max revotes and single-area voting rules against existing cast votes.
+///
+/// # Errors
+///
+/// Returns [`CastVoteError`] when revote limits or cross-area rules are violated.
 #[instrument(skip_all, err)]
 async fn check_previous_votes(
     voter_id_string: &str,
@@ -1007,6 +1066,11 @@ async fn check_previous_votes(
     Ok(())
 }
 
+/// Verify the proof of knowledge for one ballot contest ciphertext.
+///
+/// # Errors
+///
+/// Returns an error when the ZKP library reports failure or verification returns false.
 #[instrument(skip_all, err)]
 fn check_popk(ballot_contest: &HashableBallotContest<RistrettoCtx>) -> Result<()> {
     let zkp = Zkp::new(&RistrettoCtx);
@@ -1027,6 +1091,11 @@ fn check_popk(ballot_contest: &HashableBallotContest<RistrettoCtx>) -> Result<()
     Ok(())
 }
 
+/// Verify the proof of knowledge for a multi-contest ballot ciphertext bundle.
+///
+/// # Errors
+///
+/// Returns an error when the ZKP library reports failure or verification returns false.
 #[instrument(skip_all, err)]
 fn check_popk_multi(ballot_contest: &HashableMultiBallotContests<RistrettoCtx>) -> Result<()> {
     let zkp = Zkp::new(&RistrettoCtx);
