@@ -48,8 +48,8 @@ use velvet::pipes::generate_reports::{
     BasicArea, ElectionReportDataComputed, ReportDataComputed, OUTPUT_ALL_AREAS_HTML,
     OUTPUT_ALL_AREAS_JSON, OUTPUT_HTML, OUTPUT_JSON, OUTPUT_PDF,
 };
-use velvet::pipes::pipe_inputs::{PREFIX_CONTEST, PREFIX_ELECTION};
 use velvet::pipes::pipe_inputs::PREFIX_ALL_AREAS;
+use velvet::pipes::pipe_inputs::{PREFIX_CONTEST, PREFIX_ELECTION};
 
 pub const MIME_PDF: &str = "application/pdf";
 pub const MIME_JSON: &str = "application/json";
