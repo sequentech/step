@@ -10,6 +10,13 @@ const frenchTranslation: TranslationType = {
             showMore: "Afficher plus",
             showLess: "Afficher moins",
         },
+        candidatesList: {
+            collapseToggle: "Basculer la liste {{listTitle}}",
+            showCandidates: "Afficher les candidats",
+            hideCandidates: "Masquer les candidats",
+            expandAll: "Tout développer",
+            collapseAll: "Tout réduire",
+        },
         breadcrumbSteps: {
             electionList: "Liste des Élections",
             ballot: "Bulletin de vote",

@@ -1379,6 +1379,12 @@ const basqueTranslation: TranslationType = {
                 "allow-selecting-lists": "Zerrendak Soilik",
                 "disabled": "Desgaituta",
             },
+            collapsibleListsPolicy: {
+                "label": "Zerrenda tolesgarriak",
+                "disabled": "Desgaituta",
+                "enabled-expanded": "Gaituta (zabalik hasten da)",
+                "enabled-collapsed": "Gaituta (tolestuta hasten da)",
+            },
             blankVotePolicy: {
                 "label": "Boto Zuri Politika",
                 "allowed": "Baimenduta",

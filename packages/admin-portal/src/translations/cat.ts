@@ -1392,6 +1392,12 @@ const catalanTranslation: TranslationType = {
                 "allow-selecting-lists": "Només Llistes",
                 "disabled": "Deshabilitat",
             },
+            collapsibleListsPolicy: {
+                "label": "Llistes plegables",
+                "disabled": "Desactivat",
+                "enabled-expanded": "Activat (comença expandit)",
+                "enabled-collapsed": "Activat (comença contret)",
+            },
             blankVotePolicy: {
                 "label": "Política de vot en blanc",
                 "allowed": "Permès",
