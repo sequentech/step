@@ -180,6 +180,7 @@ export const ResultsDataLoader: React.FC<ResultsDataLoaderProps> = ({
 
     const tallyData = useMemo<GetTallyDataQuery>(
         () => ({
+            sequent_backend_election_event: electionEvent as Sequent_Backend_Election_Event[],
             sequent_backend_area: area as Sequent_Backend_Area[],
             sequent_backend_area_contest: area_contest as Sequent_Backend_Area_Contest[],
             sequent_backend_election: election as Sequent_Backend_Election[],
