@@ -20,6 +20,11 @@
     - `P` in `DkgCommitments<C, P>`: ✅ Include if struct has `[...; P]` arrays
     - `T` in `DkgPublicKey<C, T>`: ❌ Exclude (doesn't affect structure, only operation constraints)
     - `C`: ✅ Always include (fundamentally affects types)
+
+- **UPDATE: Alternative principle: Include everything**
+  - **Include all type parameters for every object once the relevant choice is made**
+  - For example, once dkg is complete, P and T should always be present
+  - Include type parameters in serialization (eg with the Marker<C> technique)
 - **Validation Strategy**:
   - Runtime validation via `election_id: u128` in artifacts (references `Configuration.id`)
   - Configuration remains single source of truth for P/T/W values
