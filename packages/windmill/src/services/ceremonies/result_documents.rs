@@ -48,8 +48,8 @@ use velvet::pipes::generate_reports::{
     BasicArea, ElectionReportDataComputed, ReportDataComputed, OUTPUT_ALL_AREAS_HTML,
     OUTPUT_ALL_AREAS_JSON, OUTPUT_HTML, OUTPUT_JSON, OUTPUT_PDF,
 };
-use velvet::pipes::pipe_inputs::{PREFIX_CONTEST, PREFIX_ELECTION};
 use velvet::pipes::pipe_inputs::PREFIX_ALL_AREAS;
+use velvet::pipes::pipe_inputs::{PREFIX_CONTEST, PREFIX_ELECTION};
 
 pub const MIME_PDF: &str = "application/pdf";
 pub const MIME_JSON: &str = "application/json";
@@ -968,11 +968,13 @@ mod tests {
             election_name: election_name.to_string(),
             election_alias: election_alias.to_string(),
             election_id: election_id.to_string(),
-            contest: contest.clone(),
-            contest_result: ContestResult {
+            election_event_id: election_id.to_string(),
+            tenant_id: election_id.to_string(),
+            contest: Some(contest.clone()),
+            contest_result: Some(ContestResult {
                 contest,
                 ..Default::default()
-            },
+            }),
             election_description: String::new(),
             election_dates: None,
             election_annotations: HashMap::new(),
@@ -983,6 +985,7 @@ mod tests {
             tally_sheet_id: None,
             candidate_result: vec![],
             channel_type: None,
+            election_results: None,
         };
         ElectionReportDataComputed {
             election_id: election_id.to_string(),

@@ -48,7 +48,7 @@
     # For frontend
     yarn
     nodejs_20
-    nodePackages.graphqurl
+    graphqurl
 
     # For protocol buffers
     protobuf

@@ -84,6 +84,7 @@ fn create_contest(
     )]));
 
     let variables = insert_contest::Variables {
+        name: name.to_string(),
         description: Some(description.to_string()),
         election_event_id: election_event_id.to_string(),
         election_id: election_id.to_string(),
