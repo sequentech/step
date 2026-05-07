@@ -31,7 +31,6 @@ import {
 import {IBallotStyle} from "../../store/ballotStyles/ballotStylesSlice"
 import {useTranslation} from "react-i18next"
 import {SettingsContext} from "../../providers/SettingsContextProvider"
-import {IDecodedVoteContest} from "sequent-core"
 import {provideBallotService} from "../../services/BallotService"
 import {ECandidatesIconCheckboxPolicy} from "@sequentech/ui-core"
 
@@ -52,8 +51,6 @@ export interface IAnswerProps {
     selectedChoicesSum: number
     setSelectedChoicesSum: (num: number) => void
     disableSelect: boolean
-    explicitBlank: boolean
-    setExplicitBlank: (value: boolean) => void
     setIsTouched: (value: boolean) => void
 }
 
@@ -73,8 +70,6 @@ export const Answer: React.FC<IAnswerProps> = ({
     selectedChoicesSum,
     setSelectedChoicesSum,
     disableSelect,
-    explicitBlank,
-    setExplicitBlank,
     setIsTouched,
 }) => {
     const {isPreferential} = provideBallotService()
@@ -114,7 +109,7 @@ export const Answer: React.FC<IAnswerProps> = ({
             return (
                 !isUndefined(questionState) &&
                 !!ballotService.checkIsBlank(questionState) &&
-                explicitBlank
+                (questionState.is_explicit_blank ?? false)
             )
         } else {
             return !isUndefined(selectionState) && selectionState.selected > -1
@@ -131,7 +126,6 @@ export const Answer: React.FC<IAnswerProps> = ({
     }
 
     const setBlankVote = () => {
-        setExplicitBlank(true)
         dispatch(
             setBallotSelectionBlankVote({
                 ballotStyle,
@@ -174,11 +168,9 @@ export const Answer: React.FC<IAnswerProps> = ({
             if (value) {
                 setBlankVote()
             } else {
-                setExplicitBlank(false)
+                dispatch(resetBallotSelection({ballotStyle, force: true, contestId}))
             }
             return
-        } else if (value && explicitBlank) {
-            setExplicitBlank(false)
         }
 
         let cleanedText =
