@@ -75,6 +75,7 @@ export interface CandidatesListProps extends PropsWithChildren {
     isCheckable?: boolean
     checked?: boolean
     setChecked?: (value: boolean) => void
+    shouldDisable?: boolean
     isCollapsible?: boolean
     defaultExpanded?: boolean
     collapseToggleAriaLabel?: string
@@ -91,6 +92,7 @@ const CandidatesList: React.FC<CandidatesListProps> = ({
     isCheckable,
     checked,
     setChecked,
+    shouldDisable,
     isCollapsible,
     defaultExpanded,
     collapseToggleAriaLabel,
@@ -108,12 +110,12 @@ const CandidatesList: React.FC<CandidatesListProps> = ({
     }, [externalExpanded])
 
     const onClick = () => {
-        if (isActive && isCheckable && setChecked) {
+        if (isActive && isCheckable && !shouldDisable && setChecked) {
             setChecked(!checked)
         }
     }
     const handleChange = (event: React.ChangeEvent<HTMLInputElement>) =>
-        isActive && isCheckable && setChecked && setChecked(event.target.checked)
+        isActive && isCheckable && !shouldDisable && setChecked && setChecked(event.target.checked)
 
     const handleToggleCollapse = (event: React.MouseEvent) => {
         event.stopPropagation()
@@ -154,7 +156,11 @@ const CandidatesList: React.FC<CandidatesListProps> = ({
                 </ListTitle>
                 <Box sx={{display: "flex", justifyContent: "flex-end"}}>
                     {isActive && isCheckable ? (
-                        <Checkbox checked={checked} onChange={handleChange} />
+                        <Checkbox
+                            checked={checked}
+                            onChange={handleChange}
+                            disabled={shouldDisable}
+                        />
                     ) : null}
                 </Box>
             </ListHeader>
