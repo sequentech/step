@@ -62,7 +62,7 @@ impl CRng for UnwrapErr<SysRng> {}
  * be fallible and implement it for `SysRng` directly, without using `UnwrapErr`, for example starting
  * with the following code:
  * 
- * pub trait CTryRng: rand::TryRng + rand::TryCryptoRng {}
+ * `pub trait CTryRng: rand::TryRng + rand::TryCryptoRng {}`
  */
 impl Rng for UnwrapErr<SysRng> {
     fn rng() -> UnwrapErr<SysRng> {

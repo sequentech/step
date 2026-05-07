@@ -449,10 +449,8 @@ impl<C: Context, const W: usize> Ciphertext<C, W> {
     where
         F: FnMut(&[C::Element; W]) -> U,
     {
-        std::array::from_fn(|i| {
-            let uv = &self.0[i];
-            f(uv)
-        })
+        let [u, v] = &self.0;
+        [f(u), f(v)]
     }
 }
 
