@@ -1371,6 +1371,12 @@ const englishTranslation = {
                 "allow-selecting-lists": "Lists Only",
                 "disabled": "Disabled",
             },
+            collapsibleListsPolicy: {
+                "label": "Collapsible Lists",
+                "disabled": "Disabled",
+                "enabled-expanded": "Enabled (starts expanded)",
+                "enabled-collapsed": "Enabled (starts collapsed)",
+            },
             blankVotePolicy: {
                 "label": "Blank Vote Policy",
                 "allowed": "Allowed",
