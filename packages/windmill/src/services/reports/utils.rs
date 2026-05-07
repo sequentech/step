@@ -2,18 +2,29 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+//! Helpers for fetching report templates from public assets storage.
+
 use anyhow::{anyhow, Context, Result};
 use sequent_core::services::s3::get_minio_url;
 use std::env;
 use tracing::instrument;
 
-/// Function to get the public assets path environment variable
+/// Returns the `PUBLIC_ASSETS_PATH` used to locate report templates in object storage.
+///
+/// # Errors
+///
+/// Returns an error if `PUBLIC_ASSETS_PATH` is not set.
 #[instrument(err, skip_all)]
 pub fn get_public_assets_path_env_var() -> Result<String> {
     env::var("PUBLIC_ASSETS_PATH").map_err(|_| anyhow!("PUBLIC_ASSETS_PATH env var missing"))
 }
 
-/// Helper function to get public asset templates
+/// Fetches a template file from the public assets bucket.
+///
+/// # Errors
+///
+/// Returns an error if required environment/config is missing, the request fails,
+/// or the object does not exist.
 #[instrument(err, skip_all)]
 pub async fn get_public_asset_template(filename: &str) -> Result<String> {
     let public_asset_path = get_public_assets_path_env_var()?;

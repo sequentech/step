@@ -1,6 +1,12 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+
+//! Ballot-images report template renderer.
+//!
+//! This report renders a PDF containing ballot images and associated computed
+//! data produced by the `velvet` pipeline.
+
 use super::template_renderer::*;
 use crate::postgres::reports::ReportType;
 use crate::services::temp_path::*;
@@ -15,29 +21,41 @@ use tracing::instrument;
 use velvet::pipes::ballot_images::ComputedTemplateData;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
+/// System-side variables used by the ballot-images system template.
 pub struct SystemData {
+    /// User template already rendered with `UserData`.
     pub rendered_user_template: String,
+    /// URL or path to the QR-code JS library used by the PDF rendering backend.
     pub file_qrcode_lib: String,
+    /// Report title to display in the report.
     pub title: String,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
+/// Additional user-facing strings used by the user template.
 pub struct UserExtraData {
+    /// Report title to render in the user template.
     pub title: String,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
+/// User-side data for ballot-images rendering.
 pub struct UserData {
+    /// Computed ballot image data produced by the `velvet` pipeline.
     pub data: ComputedTemplateData,
+    /// Small extra strings passed alongside computed data.
     pub extra_data: UserExtraData,
 }
 
 #[derive(Debug)]
+/// Renderer for the ballot-images report templates.
+#[allow(missing_docs_in_private_items)]
 pub struct BallotImagesTemplate {
     ids: ReportOrigins,
 }
 
 impl BallotImagesTemplate {
+    /// Creates a renderer bound to a specific tenant/event (and optionally election/template).
     pub fn new(ids: ReportOrigins) -> Self {
         BallotImagesTemplate { ids }
     }
@@ -86,6 +104,11 @@ impl TemplateRenderer for BallotImagesTemplate {
     }
 
     #[instrument(err, skip_all)]
+    /// Prepares the user-side data for this report type.
+    ///
+    /// # Errors
+    ///
+    /// Currently unimplemented for this report type.
     async fn prepare_user_data(
         &self,
         hasura_transaction: &Transaction<'_>,
@@ -94,6 +117,12 @@ impl TemplateRenderer for BallotImagesTemplate {
         Err(anyhow::anyhow!("Unimplemented"))
     }
     #[instrument(err, skip_all)]
+    /// Prepares system-side variables used by the system template.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if public-assets configuration cannot be resolved when
+    /// rendering is performed in-place.
     async fn prepare_system_data(
         &self,
         rendered_user_template: String,

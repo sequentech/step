@@ -1,6 +1,12 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+
+//! Electoral-results report template renderer.
+//!
+//! This report integrates with the shared template-rendering pipeline and
+//! provides system-side variables required by the PDF rendering backend.
+
 use super::template_renderer::*;
 use crate::postgres::reports::ReportType;
 use crate::services::temp_path::*;
@@ -16,17 +22,23 @@ use tracing::{info, instrument};
 use velvet::pipes::generate_reports::TemplateData;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
+/// System-side variables used by the electoral-results system template.
 pub struct SystemData {
+    /// User template already rendered with `UserData`.
     pub rendered_user_template: String,
+    /// URL or path to the QR-code JS library used by the PDF rendering backend.
     pub file_qrcode_lib: String,
 }
 
 #[derive(Debug)]
+/// Renderer for the electoral-results report templates.
+#[allow(missing_docs_in_private_items)]
 pub struct ElectoralResults {
     ids: ReportOrigins,
 }
 
 impl ElectoralResults {
+    /// Creates a renderer bound to a specific tenant/event (and optionally election/template).
     pub fn new(ids: ReportOrigins) -> Self {
         ElectoralResults { ids }
     }
@@ -75,6 +87,11 @@ impl TemplateRenderer for ElectoralResults {
     }
 
     #[instrument(err, skip_all)]
+    /// Prepares the user-side data for this report type.
+    ///
+    /// # Errors
+    ///
+    /// Currently unimplemented for this report type.
     async fn prepare_user_data(
         &self,
         hasura_transaction: &Transaction<'_>,
@@ -84,6 +101,12 @@ impl TemplateRenderer for ElectoralResults {
     }
 
     #[instrument(err, skip_all)]
+    /// Prepares system-side variables used by the system template.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if public-assets configuration cannot be resolved when
+    /// rendering is performed in-place.
     async fn prepare_system_data(
         &self,
         rendered_user_template: String,

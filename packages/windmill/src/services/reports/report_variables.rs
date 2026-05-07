@@ -1,7 +1,9 @@
-use crate::postgres::area::{get_area_by_id, get_areas_by_election_id};
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+//! Shared report variables and data extraction helpers.
+
+use crate::postgres::area::{get_area_by_id, get_areas_by_election_id};
 use crate::postgres::election::get_election_by_id;
 use crate::postgres::results_area_contest::get_results_area_contest;
 use crate::postgres::results_election::{
@@ -36,11 +38,16 @@ use tracing::instrument;
 pub use crate::services::users::{VALIDATE_ID_ATTR_NAME, VALIDATE_ID_REGISTERED_VOTER};
 pub use sequent_core::util::date_time::get_date_and_time;
 
+/// Default inspector label used when no SBEI data is configured.
 pub const DEFULT_CHAIRPERSON: &str = "Chairperson";
+/// Default inspector label used when no SBEI data is configured.
 pub const DEFULT_POLL_CLERK: &str = "Poll Clerk";
+/// Default inspector label used when no SBEI data is configured.
 pub const DEFULT_THIRD_MEMBER: &str = "Third Member";
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
+/// Metadata printed on reports to support traceability.
+#[allow(missing_docs)]
 pub struct ExecutionAnnotations {
     pub date_printed: String,
     pub report_hash: String,
@@ -51,22 +58,37 @@ pub struct ExecutionAnnotations {
     pub results_hash: Option<String>,
 }
 
+/// Returns the application build hash for report annotations.
 pub fn get_app_hash() -> String {
     env::var(ENV_VAR_APP_HASH).unwrap_or("-".to_string())
 }
 
+/// Returns the application version for report annotations.
 pub fn get_app_version() -> String {
     env::var(ENV_VAR_APP_VERSION).unwrap_or("-".to_string())
 }
 
 #[derive(Debug)]
+/// Aggregated turnout information for an election or area.
 pub struct ElectionVotesData {
+    /// Registered voters count used for turnout computation.
     pub registered_voters: Option<i64>,
+    /// Total ballots cast.
     pub total_ballots: Option<i64>,
+    /// Turnout percentage in the range [0, 100].
     pub voters_turnout: Option<f64>,
 }
 
 #[instrument(err, skip_all)]
+/// Computes turnout-related data for an election.
+///
+/// This combines registered voter counts derived from area annotations with the
+/// most recent election results totals (when available).
+///
+/// # Errors
+///
+/// Returns an error if required areas/results cannot be queried or annotations
+/// cannot be parsed.
 pub async fn generate_election_votes_data(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
@@ -124,6 +146,12 @@ pub async fn generate_election_votes_data(
 }
 
 #[instrument(err, skip_all)]
+/// Computes turnout-related data for a specific area (and optional contest).
+///
+/// # Errors
+///
+/// Returns an error if required area/results cannot be queried or annotations
+/// cannot be parsed.
 pub async fn generate_election_area_votes_data(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
@@ -176,6 +204,11 @@ pub async fn generate_election_area_votes_data(
 }
 
 #[instrument(err, skip_all)]
+/// Calculates turnout percentage for `total_ballots / registered_voters`.
+///
+/// # Errors
+///
+/// Returns an error if the calculation cannot be performed.
 pub fn calc_voters_turnout(total_ballots: i64, registered_voters: i64) -> Result<Option<f64>> {
     if registered_voters == 0 {
         return Ok(Some(0.0));
@@ -186,6 +219,11 @@ pub fn calc_voters_turnout(total_ballots: i64, registered_voters: i64) -> Result
 }
 
 #[instrument(err, skip_all)]
+/// Counts registered voters in a Keycloak realm for a specific area id.
+///
+/// # Errors
+///
+/// Returns an error if Keycloak cannot be queried.
 pub async fn get_total_number_of_registered_voters_for_area_id(
     keycloak_transaction: &Transaction<'_>,
     realm: &str,
@@ -217,6 +255,11 @@ pub async fn get_total_number_of_registered_voters_for_area_id(
 }
 
 #[instrument(err, skip_all)]
+/// Counts all enabled registered voters in a Keycloak realm.
+///
+/// # Errors
+///
+/// Returns an error if Keycloak cannot be queried.
 pub async fn get_total_number_of_registered_voters(
     keycloak_transaction: &Transaction<'_>,
     realm: &str,
@@ -228,6 +271,8 @@ pub async fn get_total_number_of_registered_voters(
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
+/// Election annotations extracted into a stable shape for templates.
+#[allow(missing_docs)]
 pub struct ElectionData {
     pub geographical_region: String,
     pub voting_center: String,
@@ -237,6 +282,11 @@ pub struct ElectionData {
 }
 
 #[instrument(err, skip_all)]
+/// Extracts election annotations used by multiple reports.
+///
+/// # Errors
+///
+/// Returns an error if the election annotations are missing or cannot be parsed.
 pub async fn extract_election_data(election: &Election) -> Result<ElectionData> {
     let annotations: crate::services::consolidation::eml_generator::MiruElectionAnnotations =
         election.get_annotations_or_empty_values()?;
@@ -250,11 +300,18 @@ pub async fn extract_election_data(election: &Election) -> Result<ElectionData> 
     })
 }
 
+/// Election-event annotations required by some MIRU-oriented report templates.
+#[allow(missing_docs)]
 pub struct ElectionEventAnnotation {
     pub sbei_users: Vec<MiruSbeiUser>,
 }
 
 #[instrument(err, skip_all)]
+/// Extracts election-event annotations used by report templates.
+///
+/// # Errors
+///
+/// Returns an error if the election event annotations are missing or cannot be parsed.
 pub async fn extract_election_event_annotations(
     election_event: &ElectionEvent,
 ) -> Result<ElectionEventAnnotation> {
@@ -267,17 +324,29 @@ pub async fn extract_election_event_annotations(
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
+/// Inspector entry rendered in area-level reports.
+#[allow(missing_docs)]
 pub struct InspectorData {
     pub role: String,
     pub name: String,
 }
 
+/// Area annotations extracted into a stable shape for templates.
+#[allow(missing_docs)]
 pub struct AreaData {
     pub inspectors: Vec<InspectorData>,
     pub registered_voters: i64,
 }
 
 #[instrument(err, skip_all)]
+/// Extracts inspector and voter-count data for an area.
+///
+/// If SBEI ids are not configured (or no SBEI users are available at event
+/// level), this falls back to default inspector labels.
+///
+/// # Errors
+///
+/// Returns an error if area annotations cannot be parsed.
 pub async fn extract_area_data(
     area: &Area,
     election_event_sbei_users: Vec<MiruSbeiUser>,
@@ -331,6 +400,12 @@ pub async fn extract_area_data(
 }
 
 #[instrument(err, skip(hasura_transaction))]
+/// Retrieves the `results_hash` annotation for the latest electoral-results tally.
+///
+/// # Errors
+///
+/// Returns an error if no tally session/execution exists yet or if querying
+/// results data fails.
 pub async fn get_results_hash(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
@@ -406,6 +481,11 @@ pub async fn get_results_hash(
 }
 
 #[instrument(err, skip_all)]
+/// Computes a deterministic hash used to identify a report instance.
+///
+/// # Errors
+///
+/// Returns an error if hashing fails.
 pub async fn get_report_hash(report_type: &str) -> Result<String> {
     let date_and_time = get_date_and_time();
     let report_date_time = format!("{}{}", report_type, date_and_time);
@@ -415,6 +495,8 @@ pub async fn get_report_hash(report_type: &str) -> Result<String> {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
+/// Per-election user data used by some report templates.
+#[allow(missing_docs)]
 pub struct UserDataElection {
     pub election_dates: StringifiedPeriodDates,
     pub election_name: String,
@@ -422,12 +504,19 @@ pub struct UserDataElection {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
+/// Aggregated election data grouped by region/post for template rendering.
+#[allow(missing_docs)]
 pub struct UserDataElections {
     pub regions: Vec<(String, Vec<String>)>,
     pub elections: Vec<UserDataElection>,
 }
 
 #[instrument(err, skip_all)]
+/// Builds per-election template data and a region/post index.
+///
+/// # Errors
+///
+/// Returns an error if annotations or election dates cannot be computed.
 pub async fn process_elections(
     elections: Vec<Election>,
     scheduled_events: Vec<ScheduledEvent>,

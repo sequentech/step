@@ -2,6 +2,14 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+//! Shared report template rendering pipeline.
+//!
+//! Concrete report types implement [`TemplateRenderer`] and provide user/system
+//! data. The pipeline resolves templates (custom in Postgres or defaults from
+//! public assets), renders them with `handlebars`-style substitutions, produces
+//! PDFs, optionally encrypts the output, uploads the resulting document, and
+//! may notify recipients via email.
+
 use super::utils::get_public_asset_template;
 use crate::postgres::reports::{get_template_alias_for_report, Report, ReportType};
 use crate::postgres::{election_event, template};
@@ -43,6 +51,7 @@ use tempfile::{NamedTempFile, TempPath};
 use tokio::runtime::Runtime;
 use tracing::{debug, info, instrument, warn};
 
+/// Tokio runtime used to execute async rendering work from Rayon threads.
 static GLOBAL_RT: Lazy<Runtime> = Lazy::new(|| {
     tokio::runtime::Builder::new_multi_thread()
         .enable_all()
@@ -51,12 +60,17 @@ static GLOBAL_RT: Lazy<Runtime> = Lazy::new(|| {
 });
 #[allow(non_camel_case_types)]
 #[derive(Display, Serialize, Deserialize, Debug, PartialEq, Eq, Clone, EnumString)]
+/// Selects whether the report is rendered using preview data or live data.
 pub enum GenerateReportMode {
+    /// Render using the preview JSON found in public assets for the report type.
     PREVIEW,
+    /// Render using live data from the database.
     REAL,
 }
 
 #[derive(Debug)]
+/// Identifiers and context describing where a report generation comes from.
+#[allow(missing_docs)]
 pub struct ReportOrigins {
     pub tenant_id: String,
     pub election_event_id: String,
@@ -74,11 +88,14 @@ pub struct ReportOrigins {
 //     }
 // }
 
-/// To signify how the report generation was triggered
 #[derive(Debug, Clone, Copy)]
+/// Signify how the report generation was triggered
 pub enum ReportOriginatedFrom {
+    /// Triggered by the voting portal.
     VotingPortal,
+    /// Triggered by an export action.
     ExportFunction,
+    /// Triggered from the admin reports tab.
     ReportsTab,
 }
 
@@ -88,32 +105,55 @@ pub enum ReportOriginatedFrom {
 )]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
+/// Encryption policy applied to the generated report artifact.
+#[allow(missing_docs)]
 pub enum EReportEncryption {
     Unencrypted,
     ConfiguredPassword,
 }
 
+/// Default maximum number of items rendered per report when batching is supported.
 pub const DEFAULT_ITEMS_PER_REPORT_LIMIT: usize = 1000;
-/// Trait that defines the behavior for rendering templates
 #[async_trait]
+/// Trait implemented by each report type to provide template data and metadata.
 pub trait TemplateRenderer: Debug {
+    /// Report-specific data rendered into the user template.
     type UserData: Serialize + ToMap + Send + for<'de> Deserialize<'de>;
+    /// Report-specific data rendered into the system template.
     type SystemData: Serialize + ToMap + for<'de> Deserialize<'de>;
 
+    /// Base name used to locate default templates and preview data in public assets.
     fn base_name(&self) -> String;
+    /// Report type used to select templates and behavior.
     fn get_report_type(&self) -> ReportType;
+    /// Filename prefix for generated artifacts.
     fn prefix(&self) -> String;
+    /// Tenant identifier used by data fetchers and template resolution.
     fn get_tenant_id(&self) -> String;
+    /// Election event identifier used by data fetchers and template resolution.
     fn get_election_event_id(&self) -> String;
+    /// Source that initiated report generation.
     fn get_report_origin(&self) -> ReportOriginatedFrom;
 
     /// Can be None when a report is generated with no template assigned to it,
     /// or from other place than the reports TAB.
     fn get_initial_template_alias(&self) -> Option<String>;
 
+    /// Returns the number of items available for this report type, if applicable.
+    ///
+    /// This is used to decide whether batched processing should be used.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if counting requires external IO and it fails.
     async fn count_items(&self, hasura_transaction: &Transaction<'_>) -> Result<Option<i64>> {
         Ok(None)
     }
+    /// Prepares a single batch of user data for reports that support batching.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the data cannot be fetched or assembled.
     async fn prepare_user_data_batch(
         &self,
         hasura_transaction: &Transaction<'_>,
@@ -126,11 +166,21 @@ pub trait TemplateRenderer: Debug {
         ))
     }
 
+    /// Prepares user-side data for a report render.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if report-specific data cannot be fetched or validated.
     async fn prepare_user_data(
         &self,
         hasura_transaction: &Transaction<'_>,
         keycloak_transaction: &Transaction<'_>,
     ) -> Result<Self::UserData>;
+    /// Prepares system-side variables after the user template has been rendered.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if report-specific system variables cannot be assembled.
     async fn prepare_system_data(&self, rendered_user_template: String)
         -> Result<Self::SystemData>;
 
@@ -159,16 +209,23 @@ pub trait TemplateRenderer: Debug {
         is_scheduled_task || self.get_voter_id().is_some()
     }
 
-    // Default implementation, can be overridden in specific reports that have
-    // voterId
+    /// Returns the voter id associated with this report, when applicable.
+    ///
+    /// Default implementation, can be overridden in specific reports that have
+    /// `voter_id`.
     #[instrument(skip(self))]
     fn get_voter_id(&self) -> Option<String> {
         None
     }
 
     #[instrument(err, skip(self))]
+    /// Loads preview user data from the report's public-assets JSON file.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the preview data cannot be fetched or deserialized
+    /// into `UserData`.
     async fn prepare_preview_data(&self) -> Result<Self::UserData> {
-        println!("!!!!!prepare_preview_data");
         let json_data = self
             .get_preview_data_file()
             .await
@@ -180,6 +237,12 @@ pub trait TemplateRenderer: Debug {
     }
 
     #[instrument(err, skip(self, hasura_transaction))]
+    /// Loads the custom template record (if any) for this report type.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the template alias cannot be resolved, the template
+    /// record cannot be read, or the stored JSON cannot be deserialized.
     async fn get_custom_user_template_data(
         &self,
         hasura_transaction: &Transaction<'_>,
@@ -279,18 +342,33 @@ pub trait TemplateRenderer: Debug {
     }
 
     #[instrument(err, skip(self))]
+    /// Fetches the default user template from public assets.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the template cannot be fetched.
     async fn get_default_user_template(&self) -> Result<String> {
         let base_name = self.base_name();
         get_public_asset_template(format!("{base_name}_user.hbs").as_str()).await
     }
 
     #[instrument(err, skip(self))]
+    /// Fetches the system template from public assets.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the template cannot be fetched.
     async fn get_system_template(&self) -> Result<String> {
         let base_name = self.base_name();
         get_public_asset_template(format!("{base_name}_system.hbs").as_str()).await
     }
 
     #[instrument(err, skip(self))]
+    /// Fetches the preview JSON data file from public assets.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the file cannot be fetched.
     async fn get_preview_data_file(&self) -> Result<String> {
         let base_name = self.base_name();
         info!("base_name: {}", &base_name);
@@ -298,13 +376,22 @@ pub trait TemplateRenderer: Debug {
     }
 
     #[instrument(err, skip(self))]
+    /// Fetches the default extra-config JSON file from public assets.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the file cannot be fetched.
     async fn get_default_extra_config_file(&self) -> Result<String> {
         let base_name = self.base_name();
         get_public_asset_template(format!("{base_name}_extra_config.json").as_str()).await
     }
 
-    /// Read the default extra config for this template's type like PDF options and communication templates.
     #[instrument(err, skip(self))]
+    /// Read the default extra config for this template's type like PDF options and communication templates.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the extra config cannot be fetched or deserialized.
     async fn get_default_extra_config(&self) -> Result<ReportExtraConfig> {
         let json_data = self
             .get_default_extra_config_file()
@@ -316,6 +403,11 @@ pub trait TemplateRenderer: Debug {
     }
 
     #[instrument(err, skip_all)]
+    /// Renders the report without batching support.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if user/system data preparation or template rendering fails.
     async fn generate_report_inner(
         &self,
         generate_mode: GenerateReportMode,
@@ -362,6 +454,12 @@ pub trait TemplateRenderer: Debug {
     }
 
     #[instrument(err, skip_all)]
+    /// Generates a report using the provided user template and system template.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the user data cannot be prepared, the user template cannot be rendered,
+    /// the system data cannot be prepared, or the system template cannot be rendered.
     async fn generate_report(
         &self,
         generate_mode: GenerateReportMode,
@@ -463,10 +561,16 @@ pub trait TemplateRenderer: Debug {
         Ok((user_tpl_document, ext_cfg))
     }
 
-    // Inner implementation for `execute_report()` so that implementors of the
-    // trait can reimplement the function while calling the parent default
-    // implementation too when needed
     #[instrument(err, skip_all)]
+    /// Executes the full report pipeline (render → PDF/ZIP → optional encryption → upload → email).
+    ///
+    /// This is a shared implementation used by most report types. Report types
+    /// may override `execute_report()` to customize behavior while still calling
+    /// this helper when appropriate.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if rendering, file IO, encryption, upload, or notifications fail.
     #[allow(clippy::too_many_arguments)]
     async fn execute_report_inner(
         &self,
@@ -818,6 +922,11 @@ pub trait TemplateRenderer: Debug {
     }
 
     #[instrument(err, skip_all)]
+    /// Runs report generation using the default pipeline.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the underlying pipeline fails.
     async fn execute_report(
         &self,
         document_id: &str,
@@ -847,6 +956,12 @@ pub trait TemplateRenderer: Debug {
     }
 
     #[instrument(err, skip(self))]
+    /// Resolves the list of email recipients for report notifications.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if a voter id is required but missing, Keycloak cannot be
+    /// queried, or the voter has no email configured.
     async fn get_email_recipients(
         &self,
         recipients: Vec<String>,

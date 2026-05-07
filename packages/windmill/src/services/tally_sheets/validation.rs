@@ -1,6 +1,8 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+
+//! Tally sheet validation helpers.
 use crate::types::error::Result;
 use anyhow::anyhow;
 use sequent_core::ballot::{Candidate, Contest};
@@ -9,6 +11,20 @@ use std::collections::HashMap;
 use tracing::instrument;
 
 #[instrument(skip_all, err)]
+/// Validates that a stored tally sheet is internally consistent for a contest.
+///
+/// This performs basic accounting checks (votes vs. census, invalid/valid totals)
+/// and ensures each candidate result refers to a candidate that exists in the
+/// contest definition.
+///
+/// # Errors
+///
+/// Returns an error if the tally sheet is missing content, has inconsistent vote
+/// totals, or contains candidate results that don't match the contest.
+///
+/// # Panics
+///
+/// Panics if vote totals overflow `u64` while being summed for validation.
 pub fn validate_tally_sheet(tally_sheet: &TallySheet, contest: &Contest) -> Result<()> {
     let Some(results) = tally_sheet.content.clone() else {
         return Err(anyhow!("Invalid tally sheet {:?}, content missing", tally_sheet).into());

@@ -2,6 +2,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+//! AWS Secrets Manager backend.
+
 use super::{Vault, VaultManagerType};
 use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
@@ -11,9 +13,15 @@ use std::env;
 use tracing::{info, instrument};
 
 #[derive(Debug)]
+/// AWS Secrets Manager secret backend.
 pub struct AwsSecretManager;
 
 impl AwsSecretManager {
+    /// Applies `AWS_SM_KEY_PREFIX` to a logical key before sending it to AWS.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if `AWS_SM_KEY_PREFIX` is not set.
     fn get_prefixed_key(&self, key: String) -> Result<String> {
         let key_prefix = env::var("AWS_SM_KEY_PREFIX").context("AWS_SM_KEY_PREFIX must be set")?;
         Ok(key_prefix + key.as_str())
@@ -24,6 +32,11 @@ impl AwsSecretManager {
 impl Vault for AwsSecretManager {
     // TODO: add back skip(value)
     #[instrument(err)]
+    /// Creates a new secret in AWS Secrets Manager.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if AWS configuration cannot be loaded or the AWS API call fails.
     async fn save_secret(&self, key: String, value: String) -> Result<()> {
         let shared_config = get_from_env_aws_config()
             .await
@@ -42,6 +55,11 @@ impl Vault for AwsSecretManager {
     }
 
     #[instrument(err)]
+    /// Reads a secret value from AWS Secrets Manager.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if AWS configuration cannot be loaded or the key prefix is missing.
     async fn read_secret(&self, key: String) -> Result<Option<String>> {
         let shared_config = get_from_env_aws_config()
             .await
@@ -60,6 +78,7 @@ impl Vault for AwsSecretManager {
     }
 
     #[instrument]
+    /// Identifies this backend as AWS Secrets Manager.
     fn vault_type(&self) -> VaultManagerType {
         VaultManagerType::AwsSecretManager
     }

@@ -2,6 +2,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+//! Report template renderers and report-generation helpers.
+
 pub mod activity_log;
 pub mod ballot_images;
 pub mod ballot_receipt;
