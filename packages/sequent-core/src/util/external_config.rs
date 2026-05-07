@@ -40,6 +40,14 @@ pub struct GenerateVoters {
     pub overseas_reference: String,
     pub min_age: i64,
     pub max_age: i64,
+    #[serde(default)]
+    pub authorized_elections_count: i64,
+    #[serde(default = "default_email_verified")]
+    pub email_verified: bool,
+}
+
+fn default_email_verified() -> bool {
+    true
 }
 
 #[derive(Debug, Serialize, Deserialize)]
