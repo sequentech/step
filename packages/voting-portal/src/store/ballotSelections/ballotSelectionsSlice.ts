@@ -11,8 +11,12 @@ import {
 } from "@sequentech/ui-core"
 import {IBallotStyle} from "../ballotStyles/ballotStylesSlice"
 
+export interface IDecodedVoteContestState extends IDecodedVoteContest {
+    is_explicit_blank: boolean
+}
+
 export interface BallotSelectionsState {
-    [electionId: string]: BallotSelection | undefined
+    [electionId: string]: IDecodedVoteContestState[] | undefined
 }
 
 const initialState: BallotSelectionsState = {}
@@ -34,7 +38,9 @@ export const ballotSelectionsSlice = createSlice({
         ): BallotSelectionsState => {
             let currentElection = state[action.payload.ballotStyle.election_id]
             if (currentElection) {
-                state[action.payload.ballotStyle.election_id] = action.payload.ballotSelection
+                state[action.payload.ballotStyle.election_id] = action.payload.ballotSelection.map(
+                    (contest) => ({...contest, is_explicit_blank: false})
+                )
             }
 
             return state
@@ -51,7 +57,7 @@ export const ballotSelectionsSlice = createSlice({
             if (!currentElection || action.payload.force) {
                 state[action.payload.ballotStyle.election_id] =
                     action.payload.ballotStyle.ballot_eml.contests.map(
-                        (question): IDecodedVoteContest => {
+                        (question): IDecodedVoteContestState => {
                             let currentContestValue = state[
                                 action.payload.ballotStyle.election_id
                             ]?.find((contest) => contest.contest_id === question.id)
@@ -64,6 +70,7 @@ export const ballotSelectionsSlice = createSlice({
                                 return {
                                     contest_id: currentContestValue.contest_id,
                                     is_explicit_invalid: currentContestValue.is_explicit_invalid,
+                                    is_explicit_blank: currentContestValue.is_explicit_blank,
                                     invalid_errors: currentContestValue.invalid_errors,
                                     invalid_alerts: currentContestValue.invalid_alerts,
                                     choices: currentContestValue.choices,
@@ -73,6 +80,7 @@ export const ballotSelectionsSlice = createSlice({
                             return {
                                 contest_id: question.id,
                                 is_explicit_invalid: false,
+                                is_explicit_blank: false,
                                 invalid_errors: [],
                                 invalid_alerts: [],
                                 choices: question.candidates.map((answer) => ({
@@ -134,6 +142,7 @@ export const ballotSelectionsSlice = createSlice({
             // update state
             if (!isUndefined(currentQuestion)) {
                 currentQuestion.is_explicit_invalid = false
+                currentQuestion.is_explicit_blank = true
                 currentQuestion.choices = currentQuestion.choices.map((choice) => {
                     if (choice.selected > -1) {
                         choice.selected = -1
@@ -179,6 +188,7 @@ export const ballotSelectionsSlice = createSlice({
 
             // modify
             if (currentQuestion && !isUndefined(currentChoiceIndex)) {
+                currentQuestion.is_explicit_blank = false
                 currentQuestion.choices[currentChoiceIndex] = action.payload.voteChoice
             }
 
