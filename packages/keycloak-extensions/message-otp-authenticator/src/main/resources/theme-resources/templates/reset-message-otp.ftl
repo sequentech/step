@@ -7,7 +7,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 <#import "template.ftl" as layout>
 <@layout.registrationLayout displayInfo=true; section>
 	<#if section = "header">
-		${msg("messageOtp.auth.title", realm.displayName)}
+		${msg("messageOtp.auth.title")}
 	<#elseif section = "show-username">
 		<h1>${msg("messageOtp.auth.codeTitle", realm.displayName)}</h1>
 	<#elseif section = "form">
