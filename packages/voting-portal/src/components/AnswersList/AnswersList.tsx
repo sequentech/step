@@ -103,12 +103,10 @@ export const AnswersList: React.FC<AnswersListProps> = ({
     const collapseToggleAriaLabel = t("candidatesList.collapseToggle", {listTitle: title})
     const showCandidatesLabel = t("candidatesList.showCandidates")
     const hideCandidatesLabel = t("candidatesList.hideCandidates")
+    const categoryCandidateIds = new Set(category.candidates.map((candidate) => candidate.id))
     const selectedCandidatesCount =
         questionState?.choices.filter((choice) => {
-            return (
-                choice.selected > -1 &&
-                category.candidates.some((candidate) => candidate.id === choice.id)
-            )
+            return choice.selected > -1 && categoryCandidateIds.has(choice.id)
         }).length ?? 0
     const selectedCandidatesLabel =
         !isReview && selectedCandidatesCount > 0

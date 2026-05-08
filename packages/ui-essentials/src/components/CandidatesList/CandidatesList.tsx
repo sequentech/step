@@ -30,9 +30,9 @@ const ListContainer = styled(Box)<{isactive: string}>`
 `
 
 const ListHeader = styled(Box)`
-    display: grid;
-    grid-template-columns: auto minmax(0, 1fr) auto;
+    display: flex;
     align-items: center;
+    flex-wrap: wrap;
     gap: 12px;
 `
 
@@ -49,8 +49,10 @@ const ListChildrenContainer = styled("ul")`
 `
 
 const ListTitle = styled(Typography)`
+    flex: 1 1 160px;
     margin-top: 10px;
     margin-bottom: 26px;
+    min-width: 0;
     text-align: left;
     font-size: 24px;
 `
@@ -178,6 +180,7 @@ const CandidatesList: React.FC<CandidatesListProps> = ({
                         justifyContent: "flex-end",
                         alignItems: "center",
                         flexWrap: "wrap",
+                        flexShrink: 0,
                         gap: 1,
                     }}
                 >
