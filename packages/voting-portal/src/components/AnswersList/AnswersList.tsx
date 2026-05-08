@@ -41,8 +41,6 @@ export interface AnswersListProps {
     selectedChoicesSum: number
     setSelectedChoicesSum: (num: number) => void
     disableSelect: boolean
-    explicitBlank: boolean
-    setExplicitBlank: (value: boolean) => void
     setIsTouched: (value: boolean) => void
     externalExpanded?: boolean
     onExpandedChange?: (expanded: boolean) => void
@@ -79,8 +77,6 @@ export const AnswersList: React.FC<AnswersListProps> = ({
     selectedChoicesSum,
     setSelectedChoicesSum,
     disableSelect,
-    explicitBlank,
-    setExplicitBlank,
     setIsTouched,
     externalExpanded,
     onExpandedChange,
@@ -211,8 +207,6 @@ export const AnswersList: React.FC<AnswersListProps> = ({
                                 setSelectedChoicesSum={setSelectedChoicesSum}
                                 disableSelect={disableSelect}
                                 iconCheckboxPolicy={iconCheckboxPolicy}
-                                explicitBlank={explicitBlank}
-                                setExplicitBlank={setExplicitBlank}
                                 setIsTouched={setIsTouched}
                             />
                         ))}
@@ -239,8 +233,6 @@ export const AnswersList: React.FC<AnswersListProps> = ({
                         setSelectedChoicesSum={setSelectedChoicesSum}
                         disableSelect={disableSelect}
                         iconCheckboxPolicy={iconCheckboxPolicy}
-                        explicitBlank={explicitBlank}
-                        setExplicitBlank={setExplicitBlank}
                         setIsTouched={setIsTouched}
                     />
                 ))}
