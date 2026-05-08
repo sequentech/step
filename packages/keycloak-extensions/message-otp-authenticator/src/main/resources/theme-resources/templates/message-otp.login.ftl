@@ -8,9 +8,9 @@ SPDX-License-Identifier: AGPL-3.0-only
 <@layout.registrationLayout displayInfo=true; section>
     <#if section = "header">
             <#if isOtl>
-                ${msg("messageOtp.otl.title", address)}
+                ${msg("messageOtp.otl.address", address)}
             <#else>
-                ${msg("messageOtp.auth.title", address)}
+                ${msg("messageOtp.auth.address", address)}
             </#if>
 	<#elseif section = "form">
 		<form
