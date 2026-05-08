@@ -73,14 +73,19 @@ const CandidatesList: React.FC<CandidatesListProps> = ({
             setChecked(!checked)
         }
     }
-    const handleChange = (event: React.ChangeEvent<HTMLInputElement>) =>
-        isActive && isCheckable && !shouldDisable && setChecked && setChecked(event.target.checked)
+    const handleChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+        event.stopPropagation()
+        if (isActive && isCheckable && !shouldDisable && setChecked) {
+            setChecked(event.target.checked)
+        }
+    }
 
     return (
         <ListContainer
-            isactive={String(!!(isActive && isCheckable))}
+            isactive={String(!!(isActive && isCheckable && !shouldDisable))}
             onClick={onClick}
             className="candidates-list"
+            aria-disabled={shouldDisable}
         >
             <ListHeader className="candidates-list-header">
                 <Box>
