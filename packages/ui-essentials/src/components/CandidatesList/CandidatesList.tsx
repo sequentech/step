@@ -16,6 +16,9 @@ const ListContainer = styled(Box)<{isactive: string}>`
     border-radius: 5px;
     flex-grow: 2;
     width: 50%;
+    @media (max-width: ${({theme}) => theme.breakpoints.values.md}px) {
+        width: initial;
+    }
     ${({isactive}) =>
         "true" === isactive
             ? `
@@ -28,7 +31,7 @@ const ListContainer = styled(Box)<{isactive: string}>`
 
 const ListHeader = styled(Box)`
     display: grid;
-    grid-template-columns: 1fr auto 1fr;
+    grid-template-columns: auto minmax(0, 1fr) auto;
     align-items: center;
     gap: 12px;
 `
@@ -48,7 +51,7 @@ const ListChildrenContainer = styled("ul")`
 const ListTitle = styled(Typography)`
     margin-top: 10px;
     margin-bottom: 26px;
-    text-align: center;
+    text-align: left;
     font-size: 24px;
 `
 
@@ -73,7 +76,8 @@ const CollapseToggleButton = styled(Button)(({theme}) => ({
 const SelectedCandidatesLabel = styled("span")`
     color: ${theme.palette.customGrey.contrastText};
     font-size: 14px;
-    white-space: nowrap;
+    line-height: 1.2;
+    text-align: right;
 `
 
 export interface CandidatesListProps extends PropsWithChildren {
