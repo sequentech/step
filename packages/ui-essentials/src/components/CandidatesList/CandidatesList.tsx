@@ -30,6 +30,7 @@ const ListHeader = styled(Box)`
     display: grid;
     grid-template-columns: 1fr auto 1fr;
     align-items: center;
+    gap: 12px;
 `
 
 const ListChildrenContainer = styled("ul")`
@@ -69,6 +70,12 @@ const CollapseToggleButton = styled(Button)(({theme}) => ({
     },
 }))
 
+const SelectedCandidatesLabel = styled("span")`
+    color: ${theme.palette.customGrey.contrastText};
+    font-size: 14px;
+    white-space: nowrap;
+`
+
 export interface CandidatesListProps extends PropsWithChildren {
     title: string
     isActive?: boolean
@@ -81,6 +88,7 @@ export interface CandidatesListProps extends PropsWithChildren {
     collapseToggleAriaLabel?: string
     showCandidatesLabel?: string
     hideCandidatesLabel?: string
+    selectedCandidatesLabel?: string
     externalExpanded?: boolean
     onExpandedChange?: (expanded: boolean) => void
 }
@@ -98,6 +106,7 @@ const CandidatesList: React.FC<CandidatesListProps> = ({
     collapseToggleAriaLabel,
     showCandidatesLabel,
     hideCandidatesLabel,
+    selectedCandidatesLabel,
     externalExpanded,
     onExpandedChange,
 }) => {
@@ -159,13 +168,24 @@ const CandidatesList: React.FC<CandidatesListProps> = ({
                 >
                     {title}
                 </ListTitle>
-                <Box sx={{display: "flex", justifyContent: "flex-end"}}>
+                <Box
+                    sx={{
+                        display: "flex",
+                        justifyContent: "flex-end",
+                        alignItems: "center",
+                        flexWrap: "wrap",
+                        gap: 1,
+                    }}
+                >
                     {isActive && isCheckable ? (
                         <Checkbox
                             checked={checked}
                             onChange={handleChange}
                             disabled={shouldDisable}
                         />
+                    ) : null}
+                    {isCollapsible && !isExpanded && selectedCandidatesLabel ? (
+                        <SelectedCandidatesLabel>{selectedCandidatesLabel}</SelectedCandidatesLabel>
                     ) : null}
                 </Box>
             </ListHeader>

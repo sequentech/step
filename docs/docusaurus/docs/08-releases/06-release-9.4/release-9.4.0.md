@@ -82,6 +82,9 @@ See [sequentech/meta#10222](https://github.com/sequentech/meta/issues/10222) for
 - ✨ Voting Portal > Nightwatch voting with no revotes ([sequentech/meta#8624](https://github.com/sequentech/meta/issues/8624))
   by @Findeton
 
+- ✨ Voting Portal > Show selected candidate counts in collapsed category headers
+  by @copilot
+
 - ✨ Automatic Launch of E2E tests for environments and during release process ([sequentech/meta#7004](https://github.com/sequentech/meta/issues/7004))
   by @Findeton
 
@@ -261,4 +264,3 @@ See [sequentech/meta#10222](https://github.com/sequentech/meta/issues/10222) for
 
 - ✨ Move From Self-Hosted Runners using Runs-On in AWS to using GHA controller in a Google Cloud Project ([sequentech/meta#6511](https://github.com/sequentech/meta/issues/6511))
   by @oded-eid-sequentech
-

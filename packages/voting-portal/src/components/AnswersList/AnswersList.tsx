@@ -103,6 +103,22 @@ export const AnswersList: React.FC<AnswersListProps> = ({
     const collapseToggleAriaLabel = t("candidatesList.collapseToggle", {listTitle: title})
     const showCandidatesLabel = t("candidatesList.showCandidates")
     const hideCandidatesLabel = t("candidatesList.hideCandidates")
+    const selectedCandidatesCount =
+        questionState?.choices.filter((choice) => {
+            return (
+                choice.selected > -1 &&
+                category.candidates.some((candidate) => candidate.id === choice.id)
+            )
+        }).length ?? 0
+    const selectedCandidatesLabel =
+        !isReview && selectedCandidatesCount > 0
+            ? t(
+                  selectedCandidatesCount === 1
+                      ? "candidatesList.selectedCandidate"
+                      : "candidatesList.selectedCandidates",
+                  {count: selectedCandidatesCount}
+              )
+            : undefined
 
     const isChecked = () => !isUndefined(selectionState) && selectionState.selected > -1
     const setChecked = (value: boolean) => {
@@ -171,6 +187,7 @@ export const AnswersList: React.FC<AnswersListProps> = ({
             collapseToggleAriaLabel={collapseToggleAriaLabel}
             showCandidatesLabel={showCandidatesLabel}
             hideCandidatesLabel={hideCandidatesLabel}
+            selectedCandidatesLabel={selectedCandidatesLabel}
             externalExpanded={!isReview && isCollapsible ? externalExpanded : undefined}
             onExpandedChange={!isReview && isCollapsible ? onExpandedChange : undefined}
         >
