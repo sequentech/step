@@ -10,6 +10,13 @@ const dutchTranslation: TranslationType = {
             showMore: "Toon meer",
             showLess: "Toon minder",
         },
+        candidatesList: {
+            collapseToggle: "Lijst {{listTitle}} in-/uitvouwen",
+            showCandidates: "Kandidaten tonen",
+            hideCandidates: "Kandidaten verbergen",
+            expandAll: "Alles uitvouwen",
+            collapseAll: "Alles inklappen",
+        },
         breadcrumbSteps: {
             electionList: "Kieslijst",
             ballot: "Stembiljet",

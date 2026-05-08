@@ -1383,6 +1383,12 @@ const galegoTranslation: TranslationType = {
                 "allow-selecting-lists": "Só Listas",
                 "disabled": "Desactivado",
             },
+            collapsibleListsPolicy: {
+                "label": "Listas plegables",
+                "disabled": "Deshabilitado",
+                "enabled-expanded": "Habilitado (comeza expandido)",
+                "enabled-collapsed": "Habilitado (comeza contraído)",
+            },
             blankVotePolicy: {
                 "label": "Política de Voto en Branco",
                 "allowed": "Permitido",
