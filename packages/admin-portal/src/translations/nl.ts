@@ -1380,6 +1380,12 @@ const dutchTranslation: TranslationType = {
                 "allow-selecting-lists": "Alleen Lijsten",
                 "disabled": "Uitgeschakeld",
             },
+            collapsibleListsPolicy: {
+                "label": "Inklapbare lijsten",
+                "disabled": "Uitgeschakeld",
+                "enabled-expanded": "Ingeschakeld (start uitgevouwen)",
+                "enabled-collapsed": "Ingeschakeld (start ingeklapt)",
+            },
             blankVotePolicy: {
                 "label": "Beleid Blanco Stem",
                 "allowed": "Toegestaan",

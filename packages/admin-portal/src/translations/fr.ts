@@ -1390,6 +1390,12 @@ const frenchTranslation: TranslationType = {
                 "allow-selecting-lists": "Seulement Listes",
                 "disabled": "Désactivé",
             },
+            collapsibleListsPolicy: {
+                "label": "Listes repliables",
+                "disabled": "Désactivé",
+                "enabled-expanded": "Activé (commence déplié)",
+                "enabled-collapsed": "Activé (commence replié)",
+            },
             blankVotePolicy: {
                 "label": "Politique de vote blanc",
                 "allowed": "Autorisé",
