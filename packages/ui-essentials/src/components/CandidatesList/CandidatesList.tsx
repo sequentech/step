@@ -58,7 +58,7 @@ const ListTitle = styled(Typography)`
 `
 
 const CollapseToggleButton = styled(Button)(({theme}) => ({
-    marginRight: "-30px",
+    "marginRight": "-30px",
     "&&": {
         border: "none",
         boxShadow: "none",
