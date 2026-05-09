@@ -58,6 +58,7 @@ const ListTitle = styled(Typography)`
 `
 
 const CollapseToggleButton = styled(Button)(({theme}) => ({
+    marginRight: "-30px",
     "&&": {
         border: "none",
         boxShadow: "none",
@@ -86,6 +87,9 @@ const SelectedCandidatesLabel = styled("span")`
     font-size: 14px;
     line-height: 1.2;
     text-align: right;
+    @media (max-width: ${({theme}) => theme.breakpoints.values.sm}px) {
+        width: min-content;
+    }
 `
 
 export interface CandidatesListProps extends PropsWithChildren {
@@ -183,24 +187,27 @@ const CandidatesList: React.FC<CandidatesListProps> = ({
                     {title}
                 </ListTitle>
                 <Box
-                    sx={{
+                    sx={(muiTheme) => ({
                         display: "flex",
                         justifyContent: "flex-end",
                         alignItems: "center",
                         flexWrap: "wrap",
                         flexShrink: 0,
                         gap: 1,
-                    }}
+                        [muiTheme.breakpoints.down("sm")]: {
+                            width: "min-content",
+                        },
+                    })}
                 >
+                    {isCollapsible && !isExpanded && selectedCandidatesLabel ? (
+                        <SelectedCandidatesLabel>{selectedCandidatesLabel}</SelectedCandidatesLabel>
+                    ) : null}
                     {isActive && isCheckable ? (
                         <Checkbox
                             checked={checked}
                             onChange={handleChange}
                             disabled={shouldDisable}
                         />
-                    ) : null}
-                    {isCollapsible && !isExpanded && selectedCandidatesLabel ? (
-                        <SelectedCandidatesLabel>{selectedCandidatesLabel}</SelectedCandidatesLabel>
                     ) : null}
                 </Box>
             </ListHeader>
