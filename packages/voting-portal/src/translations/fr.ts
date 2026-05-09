@@ -14,6 +14,8 @@ const frenchTranslation: TranslationType = {
             collapseToggle: "Basculer la liste {{listTitle}}",
             showCandidates: "Afficher les candidats",
             hideCandidates: "Masquer les candidats",
+            selectedCandidate: "{{count}} candidat sélectionné",
+            selectedCandidates: "{{count}} candidats sélectionnés",
             expandAll: "Tout développer",
             collapseAll: "Tout réduire",
         },

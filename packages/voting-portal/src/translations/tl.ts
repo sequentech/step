@@ -14,6 +14,8 @@ const tagalogTranslation: TranslationType = {
             collapseToggle: "I-toggle ang listahan {{listTitle}}",
             showCandidates: "Ipakita ang mga kandidato",
             hideCandidates: "Itago ang mga kandidato",
+            selectedCandidate: "{{count}} kandidatong napili",
+            selectedCandidates: "{{count}} kandidatong napili",
             expandAll: "Palawakin lahat",
             collapseAll: "Bawasan lahat",
         },
