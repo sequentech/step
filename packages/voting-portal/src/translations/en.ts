@@ -15,6 +15,8 @@ const englishTranslation = {
             collapseToggle: "Toggle list {{listTitle}}",
             showCandidates: "Show candidates",
             hideCandidates: "Hide candidates",
+            selectedCandidate: "{{count}} candidate selected",
+            selectedCandidates: "{{count}} candidates selected",
             expandAll: "Expand all",
             collapseAll: "Collapse all",
         },
