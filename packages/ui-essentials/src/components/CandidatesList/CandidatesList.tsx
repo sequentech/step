@@ -32,7 +32,7 @@ const ListContainer = styled(Box)<{isactive: string}>`
 const ListHeader = styled(Box)`
     display: flex;
     align-items: center;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
     gap: 12px;
 `
 
@@ -72,6 +72,12 @@ const CollapseToggleButton = styled(Button)(({theme}) => ({
         border: "none",
         outline: `2px solid ${theme.palette.brandSuccess}`,
         outlineOffset: "2px",
+    },
+}))
+
+const CollapseToggleText = styled("span")(({theme}) => ({
+    [theme.breakpoints.down("sm")]: {
+        display: "none",
     },
 }))
 
@@ -143,6 +149,8 @@ const CandidatesList: React.FC<CandidatesListProps> = ({
         onExpandedChange?.(newExpanded)
     }
 
+    const collapseLabel = isExpanded ? hideCandidatesLabel : showCandidatesLabel
+
     return (
         <ListContainer
             isactive={String(!!(isActive && isCheckable && !shouldDisable))}
@@ -160,10 +168,10 @@ const CandidatesList: React.FC<CandidatesListProps> = ({
                                 <FontAwesomeIcon icon={isExpanded ? faAngleDown : faAngleRight} />
                             }
                             onClick={handleToggleCollapse}
-                            aria-label={collapseToggleAriaLabel}
+                            aria-label={collapseToggleAriaLabel ?? collapseLabel}
                             aria-expanded={isExpanded}
                         >
-                            {isExpanded ? hideCandidatesLabel : showCandidatesLabel}
+                            <CollapseToggleText>{collapseLabel}</CollapseToggleText>
                         </CollapseToggleButton>
                     ) : null}
                 </Box>
