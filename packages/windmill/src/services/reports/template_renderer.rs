@@ -114,8 +114,9 @@ pub enum EReportEncryption {
 
 /// Default maximum number of items rendered per report when batching is supported.
 pub const DEFAULT_ITEMS_PER_REPORT_LIMIT: usize = 1000;
-#[async_trait]
+
 /// Trait implemented by each report type to provide template data and metadata.
+#[async_trait]
 pub trait TemplateRenderer: Debug {
     /// Report-specific data rendered into the user template.
     type UserData: Serialize + ToMap + Send + for<'de> Deserialize<'de>;

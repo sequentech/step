@@ -1,8 +1,7 @@
 // SPDX-FileCopyrightText: 2025 Sequent Legal <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-
-//! Plugins tasks entrypoints implementation.
+//! WASM plugin entrypoints to execute tasks.
 #![allow(missing_docs)]
 #![allow(clippy::missing_docs_in_private_items)]
 

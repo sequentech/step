@@ -2,7 +2,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-//! Activity logs report task implementation.
+//! Activity log export and reporting worker.
+
 use crate::services::tasks_semaphore::acquire_semaphore;
 use crate::{
     postgres::reports::Report,

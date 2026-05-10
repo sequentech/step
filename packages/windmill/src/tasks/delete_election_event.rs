@@ -2,7 +2,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-//! Delete election event task implementation.
+//! Deletes an election event and related data asynchronously.
+
 use crate::postgres::election::get_elections_ids;
 use crate::postgres::election_event::delete_election_event as delete_election_event_postgres;
 use crate::services::delete_election_event::delete_election_event_b3;

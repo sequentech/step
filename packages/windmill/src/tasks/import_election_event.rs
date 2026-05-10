@@ -1,8 +1,7 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-
-//! Import election event task implementation.
+//! Imports a packaged election event into an existing tenant.
 use crate::postgres::maintenance::vacuum_analyze_direct;
 use crate::services::providers::transactions_provider::provide_hasura_transaction;
 use crate::services::tasks_execution::{update_complete, update_fail};

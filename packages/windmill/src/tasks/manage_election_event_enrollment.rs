@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-
+//! Manages enrollment windows for an election event.
 use crate::postgres::election_event::{
     get_election_event_by_id, update_election_event_presentation,
 };
@@ -21,6 +21,11 @@ use serde::{Deserialize, Serialize};
 use tracing::instrument;
 use tracing::{error, event, info, Level};
 
+/// Updates Keycloak browser-flow OTP requirements for the election event realm.
+///
+/// # Errors
+///
+/// Returns an error if realm metadata or Keycloak admin API calls fail.
 pub async fn update_keycloak_otp(
     tenant_id: Option<String>,
     election_event_id: Option<String>,
@@ -76,6 +81,11 @@ pub async fn update_keycloak_otp(
     Ok(())
 }
 
+/// Enables or disables voter enrollment flows in the event Keycloak realm.
+///
+/// # Errors
+///
+/// Returns an error if the realm cannot be resolved or Keycloak rejects the update.
 pub async fn update_keycloak_enrollment(
     tenant_id: Option<String>,
     election_event_id: Option<String>,
@@ -116,6 +126,7 @@ pub async fn update_keycloak_enrollment(
     Ok(())
 }
 
+/// Aligns Hasura presentation enrollment flags and Keycloak with a scheduled enrollment window.
 #[instrument(err)]
 pub async fn manage_election_event_enrollment_wrapped(
     hasura_transaction: &Transaction<'_>,
@@ -179,30 +190,39 @@ pub async fn manage_election_event_enrollment_wrapped(
     Ok(())
 }
 
-#[instrument(err)]
-#[wrap_map_err::wrap_map_err(TaskError)]
-#[celery::task(time_limit = 10, max_retries = 0, expires = 30)]
-pub async fn manage_election_event_enrollment(
-    tenant_id: String,
-    election_event_id: String,
-    scheduled_event_id: String,
-) -> Result<()> {
-    provide_hasura_transaction(|hasura_transaction| {
-        let tenant_id = tenant_id.clone();
-        let election_event_id = election_event_id.clone();
-        let scheduled_event_id = scheduled_event_id.clone();
-        Box::pin(async move {
-            // Your async code here
-            manage_election_event_enrollment_wrapped(
-                hasura_transaction,
-                tenant_id,
-                election_event_id,
-                scheduled_event_id,
-            )
-            .await
-        })
-    })
-    .await?;
+mod manage_election_event_enrollment_task {
+    #![allow(missing_docs)]
+    #![allow(clippy::missing_docs_in_private_items)]
 
-    Ok(())
+    use super::*;
+
+    /// Celery task: manages the election event scheduled enrollment.
+    #[instrument(err)]
+    #[wrap_map_err::wrap_map_err(TaskError)]
+    #[celery::task(time_limit = 10, max_retries = 0, expires = 30)]
+    pub async fn manage_election_event_enrollment(
+        tenant_id: String,
+        election_event_id: String,
+        scheduled_event_id: String,
+    ) -> Result<()> {
+        provide_hasura_transaction(|hasura_transaction| {
+            let tenant_id = tenant_id.clone();
+            let election_event_id = election_event_id.clone();
+            let scheduled_event_id = scheduled_event_id.clone();
+            Box::pin(async move {
+                manage_election_event_enrollment_wrapped(
+                    hasura_transaction,
+                    tenant_id,
+                    election_event_id,
+                    scheduled_event_id,
+                )
+                .await
+            })
+        })
+        .await?;
+
+        Ok(())
+    }
 }
+
+pub use manage_election_event_enrollment_task::manage_election_event_enrollment;

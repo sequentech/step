@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-
+//! Celery task identifiers and their human-readable display names.
 use strum_macros::{Display, EnumString, EnumVariantNames};
 
 /// Celery-backed long-running jobs Windmill registers by name.

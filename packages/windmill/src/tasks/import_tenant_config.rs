@@ -1,8 +1,7 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-
-//! Import tenant config task implementation.
+//! Imports tenant configuration ZIP bundle.
 use crate::services::import::import_tenant_config::import_tenant_config_zip;
 use crate::services::providers::transactions_provider::provide_hasura_transaction;
 use crate::services::tasks_execution::{update_complete, update_fail};

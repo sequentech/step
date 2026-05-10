@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+//! Insert a new tenant record and Keycloak realm.
 use crate::postgres::tenant::{
     get_tenant_by_id_if_exist, get_tenant_by_slug_if_exist, insert_tenant,
 };

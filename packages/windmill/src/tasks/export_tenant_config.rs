@@ -1,8 +1,7 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-
-//! Export tenant config task implementation.
+//! Exports tenant-level configuration documents.
 #![allow(missing_docs)]
 #![allow(clippy::missing_docs_in_private_items)]
 

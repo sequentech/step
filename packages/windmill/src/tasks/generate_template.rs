@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-
+//! Generates or previews communication templates.
 use crate::postgres::reports::get_reports_by_election_id;
 use crate::postgres::reports::ReportType;
 use crate::postgres::tally_session::get_tally_session_by_id;

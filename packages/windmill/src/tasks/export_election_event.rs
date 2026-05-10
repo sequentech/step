@@ -2,7 +2,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-//! Export election event task implementation.
+//! Exports election event configuration and related entities.
+
 use crate::services::database::get_hasura_pool;
 use crate::services::export::export_election_event::process_export_zip;
 use crate::services::tasks_execution::*;

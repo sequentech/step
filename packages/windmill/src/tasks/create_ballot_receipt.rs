@@ -2,7 +2,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-//! Create ballot receipt task implementation.
+//! Generates a voter ballot receipt document.
+
 #![allow(missing_docs)]
 #![allow(clippy::missing_docs_in_private_items)]
 use crate::services::database::{get_hasura_pool, get_keycloak_pool};

@@ -1,8 +1,7 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-
-//! Import voter enrollment applications task implementation.
+//! Imports an application archive into the platform.
 use crate::postgres::application::insert_applications;
 use crate::services::providers::transactions_provider::provide_hasura_transaction;
 use crate::{

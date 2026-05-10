@@ -2,7 +2,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-//! Export tally results task implementation.
+//! Exports tally outcome summaries and artifacts.
+
 #![allow(missing_docs)]
 #![allow(clippy::missing_docs_in_private_items)]
 

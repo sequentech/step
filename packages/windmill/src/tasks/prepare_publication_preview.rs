@@ -1,8 +1,7 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-
-//! Prepare publication preview task implementation.
+//! Prepares ballot publication preview artifacts.
 use crate::postgres::document::get_support_material_documents;
 use crate::postgres::election::get_elections;
 use crate::postgres::election_event::get_election_event_by_id;

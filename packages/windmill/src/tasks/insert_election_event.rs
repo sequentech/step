@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-
+//! Inserts a new election event from structured input.
 use crate::postgres::election_event::update_bulletin_board;
 use crate::services::database::get_hasura_pool;
 use crate::services::election_event_board::BoardSerializable;

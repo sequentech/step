@@ -1,6 +1,9 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+
+//! Exports trustee configuration for an event.
+
 use crate::services::export::export_trustees::read_trustees_config;
 use crate::services::providers::transactions_provider::provide_hasura_transaction;
 use crate::types::error::{Error, Result as TaskResult};

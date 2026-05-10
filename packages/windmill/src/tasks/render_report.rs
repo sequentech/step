@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+//! Renders report HTML/PDF.
 use crate::postgres::render_report::render_report_task;
 use crate::services::database::get_hasura_pool;
 use crate::services::tasks_semaphore::acquire_semaphore;

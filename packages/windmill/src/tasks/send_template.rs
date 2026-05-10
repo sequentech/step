@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+//! Sends communication templates (email/SMS) to users.
 use crate::postgres::area::get_elections_by_area;
 use crate::postgres::election_event::get_election_event_by_id_if_exist;
 use crate::services::celery_app::get_celery_app;

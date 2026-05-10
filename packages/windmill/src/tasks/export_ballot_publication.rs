@@ -2,7 +2,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-//! Export ballot publication task implementation.
+//! Exports ballot publication packages for distribution.
+
 #![allow(missing_docs)]
 #![allow(clippy::missing_docs_in_private_items)]
 

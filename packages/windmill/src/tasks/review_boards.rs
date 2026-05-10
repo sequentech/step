@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+//! Reviews board activities and tally workflows.
 use crate::postgres::election_event::get_batch_election_events;
 use crate::postgres::tenant::get_tenant_by_id;
 use crate::services::celery_app::get_celery_app;

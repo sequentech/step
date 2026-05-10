@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-
+//! Handles scheduled report generation.
 use crate::postgres::reports::{get_all_active_reports, update_report_last_document_time, Report};
 use crate::services::celery_app::get_celery_app;
 use crate::services::database::get_hasura_pool;

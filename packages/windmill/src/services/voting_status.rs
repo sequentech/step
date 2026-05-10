@@ -253,15 +253,20 @@ pub async fn update_board_on_status_change(
     Ok(())
 }
 
+/// Election status info (zero based).
 #[derive(Debug)]
 pub struct ElectionStatusInfo {
+    /// Not started votes.
     pub total_not_started_votes: i64,
+    /// Open votes.
     pub total_open_votes: i64,
+    /// Closed votes.
     pub total_closed_votes: i64,
+    /// Started votes.
     pub total_started_votes: i64,
 }
 
-/// Count elections by voting status.
+/// Return for election his status info.
 ///
 /// # Panics
 ///

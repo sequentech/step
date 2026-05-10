@@ -2,7 +2,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-//! Create public keys task implementation.
+//! Keys ceremony background steps (board messages and DB updates).
+
 use crate::postgres::election_event::get_election_event_by_id;
 use crate::postgres::keys_ceremony::{get_keys_ceremony_by_id, update_keys_ceremony_status};
 use crate::postgres::trustee::get_trustees_by_id;

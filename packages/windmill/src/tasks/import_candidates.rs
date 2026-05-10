@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-
+//! Imports candidate rows from a CSV document.
 use crate::postgres::candidate::insert_candidates;
 use crate::postgres::contest::export_contests;
 use crate::postgres::election_event::get_election_event_by_id;

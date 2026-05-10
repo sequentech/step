@@ -1,9 +1,7 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-
-//! Update Election Event Ballot Styles task implementation.
-
+//! Updates ballot style JSON attached to an election event
 #![allow(missing_docs)]
 #![allow(clippy::missing_docs_in_private_items)]
 use celery::error::TaskError;

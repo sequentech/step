@@ -2,7 +2,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-//! Export certificate authority task implementation.
+//! Exports certificate authority material for an election event.
+
 use crate::postgres::certificate_authority::get_certificate_authorities_pem_by_ids;
 use crate::postgres::document::insert_document;
 use crate::services::database::get_hasura_pool;

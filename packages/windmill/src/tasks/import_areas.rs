@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-
+//! Imports voting areas from a CSV document.
 use crate::postgres::area::insert_areas;
 use crate::postgres::area_contest::insert_area_contests;
 use crate::postgres::contest::export_contests;
@@ -17,6 +17,11 @@ use std::io::Seek;
 use tracing::{error, info, instrument};
 use uuid::Uuid;
 
+/// Parses an areas CSV and inserts [`Area`] and [`AreaContest`] rows for the event.
+///
+/// # Errors
+///
+/// Returns an error if the document is missing, integrity checks fail, or CSV parsing fails.
 #[instrument(err)]
 pub async fn import_areas_task(
     hasura_transaction: &Transaction<'_>,

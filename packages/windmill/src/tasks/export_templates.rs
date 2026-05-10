@@ -1,8 +1,7 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-
-//! Export templates task implementation.
+//! Exports communication templates for a tenant.
 #![allow(missing_docs)]
 #![allow(clippy::missing_docs_in_private_items)]
 

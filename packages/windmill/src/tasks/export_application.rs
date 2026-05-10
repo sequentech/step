@@ -2,7 +2,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-//! Export application task implementation.
+//! Exports voter enrollment application archives.
+
 #![allow(missing_docs)]
 #![allow(clippy::missing_docs_in_private_items)]
 

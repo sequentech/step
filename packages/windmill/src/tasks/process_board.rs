@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-
+//! Processes trustee board activities and tally workflows.
 use anyhow::{Context, Result as AnyhowResult};
 use celery::error::TaskError;
 use deadpool_postgres::{Client as DbClient, Transaction};

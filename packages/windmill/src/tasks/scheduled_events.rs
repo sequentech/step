@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+//! Dispatches calendar-driven scheduled events across election events.
 use crate::postgres::{
     election::{get_election_by_id, update_election_presentation},
     scheduled_event::find_all_active_events,

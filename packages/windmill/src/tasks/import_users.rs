@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-
+//! Imports users from a CSV document with integrity checks.
 use crate::postgres::document::get_document;
 use crate::postgres::maintenance::vacuum_analyze_direct;
 use crate::services::database::get_hasura_pool;

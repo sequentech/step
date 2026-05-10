@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-
+//! Finalizes tally results and updates related documents.
 use crate::postgres::document::get_document;
 use crate::services::documents::upload_and_return_document;
 use crate::types::error::{Error, Result};
