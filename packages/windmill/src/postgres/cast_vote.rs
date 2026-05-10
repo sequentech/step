@@ -12,6 +12,12 @@ use tokio_postgres::row::Row;
 use tracing::instrument;
 use uuid::Uuid;
 
+/// Insert cast vote into the database.
+///
+/// # Errors
+///
+/// Returns an error if SQL preparation or execution fails,
+/// if UUID or other parsing fails, or if row mapping is inconsistent.
 #[instrument(skip(hasura_transaction, content, cast_ballot_signature), err)]
 pub async fn insert_cast_vote(
     hasura_transaction: &Transaction<'_>,
@@ -98,6 +104,12 @@ pub async fn insert_cast_vote(
     }
 }
 
+/// Get cast votes for a given tenant, election event, election id and voter id from the database.
+///
+/// # Errors
+///
+/// Returns an error if SQL preparation or execution fails,
+/// if UUID or other parsing fails, or if row mapping is inconsistent.
 #[instrument(skip(hasura_transaction), err)]
 pub async fn get_cast_votes(
     hasura_transaction: &Transaction<'_>,
@@ -158,6 +170,12 @@ pub async fn get_cast_votes(
     Ok(cast_votes)
 }
 
+/// Get cast votes for a given tenant, election event and election id from the database.
+///
+/// # Errors
+///
+/// Returns an error if SQL preparation or execution fails,
+/// if UUID or other parsing fails, or if row mapping is inconsistent.
 #[instrument(skip(hasura_transaction), err)]
 pub async fn get_cast_votes_by_election_id(
     hasura_transaction: &Transaction<'_>,

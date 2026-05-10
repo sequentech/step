@@ -1,6 +1,12 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+
+//! Manual verification report template renderer.
+//!
+//! This report produces a PDF containing a per-voter link (and QR code) that
+//! takes the voter through a Keycloak manual verification flow.
+
 use super::template_renderer::*;
 use crate::postgres::reports::{Report, ReportType};
 use crate::services::temp_path::*;
@@ -14,35 +20,44 @@ use serde::{Deserialize, Serialize};
 use std::env;
 use tracing::{info, instrument};
 
-/// Struct returned by the API call for manual verification URL
+/// Response returned by Keycloak's manual-verification endpoint.
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ManualVerificationOutput {
+    /// Generated link that redirects to the voting portal login flow.
     pub link: String,
 }
 
-/// Struct for User Data
+/// User-side data rendered into the manual-verification user template.
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct UserData {
+    /// Per-voter manual verification link.
     pub manual_verification_url: String,
+    /// HTML template snippet for rendering a QR code.
     pub qrcode: String,
+    /// HTML template snippet for rendering the logo.
     pub logo: String,
 }
 
-/// Struct for System Data
+/// System-side variables used by the manual-verification system template.
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct SystemData {
+    /// User template already rendered with `UserData`.
     pub rendered_user_template: String,
+    /// URL or path to the logo image.
     pub file_logo: String,
+    /// URL or path to the QR-code JS library used by the PDF rendering backend.
     pub file_qrcode_lib: String,
 }
 
-/// Implementation of TemplateRenderer for Manual Verification
+/// Renderer for the manual-verification report templates.
 #[derive(Debug)]
+#[allow(missing_docs_in_private_items)]
 pub struct ManualVerificationTemplate {
     ids: ReportOrigins,
 }
 
 impl ManualVerificationTemplate {
+    /// Creates a renderer bound to a specific tenant/event and voter id.
     pub fn new(ids: ReportOrigins) -> Self {
         ManualVerificationTemplate { ids }
     }
@@ -88,6 +103,11 @@ impl TemplateRenderer for ManualVerificationTemplate {
     }
 
     #[instrument(err, skip_all)]
+    /// Builds the per-voter manual verification URL and template placeholders.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the URL cannot be generated via Keycloak.
     async fn prepare_user_data(
         &self,
         hasura_transaction: &Transaction<'_>,
@@ -109,6 +129,11 @@ impl TemplateRenderer for ManualVerificationTemplate {
     }
 
     #[instrument(err, skip_all)]
+    /// Prepares system-side variables used by the system template.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if public-assets configuration cannot be resolved.
     async fn prepare_system_data(
         &self,
         rendered_user_template: String,
@@ -143,7 +168,15 @@ impl TemplateRenderer for ManualVerificationTemplate {
     }
 }
 
-/// Function to get the manual verification URL
+/// Requests a per-voter manual verification link from Keycloak.
+///
+/// The returned link is intended to redirect back to the voting portal login
+/// page for the provided tenant and election event.
+///
+/// # Errors
+///
+/// Returns an error if required environment variables are missing, the HTTP
+/// request fails, or Keycloak returns a non-OK response.
 #[instrument(err)]
 async fn get_manual_verification_url(
     tenant_id: &str,

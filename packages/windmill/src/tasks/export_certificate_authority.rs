@@ -2,6 +2,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+//! Exports certificate authority material for an election event.
+
 use crate::postgres::certificate_authority::get_certificate_authorities_pem_by_ids;
 use crate::postgres::document::insert_document;
 use crate::services::database::get_hasura_pool;
@@ -17,6 +19,7 @@ use tempfile::NamedTempFile;
 use tracing::instrument;
 use uuid::Uuid;
 
+/// Create a document with `document_id` with the selected CA PEMs and upload to the private bucket.
 async fn export_certificate_authority_impl(
     tenant_id: String,
     election_event_id: Uuid,
@@ -100,33 +103,48 @@ async fn export_certificate_authority_impl(
     Ok(())
 }
 
-#[instrument(err)]
-#[wrap_map_err::wrap_map_err(TaskError)]
-#[celery::task(max_retries = 0)]
-pub async fn export_certificate_authority(
-    tenant_id: String,
-    election_event_id: Uuid,
-    ids: Vec<Uuid>,
-    document_id: String,
-    task_execution: TasksExecution,
-) -> Result<()> {
-    match export_certificate_authority_impl(tenant_id, election_event_id, ids, document_id.clone())
+mod export_certificate_authority_task {
+    #![allow(missing_docs)]
+    #![allow(clippy::missing_docs_in_private_items)]
+
+    use super::*;
+
+    /// Celery task: export selected certificate authorities as a PEM bundle to S3.
+    #[instrument(err)]
+    #[wrap_map_err::wrap_map_err(TaskError)]
+    #[celery::task(max_retries = 0)]
+    pub async fn export_certificate_authority(
+        tenant_id: String,
+        election_event_id: Uuid,
+        ids: Vec<Uuid>,
+        document_id: String,
+        task_execution: TasksExecution,
+    ) -> Result<()> {
+        match super::export_certificate_authority_impl(
+            tenant_id,
+            election_event_id,
+            ids,
+            document_id.clone(),
+        )
         .await
-    {
-        Ok(()) => {
-            update_complete(&task_execution, Some(document_id))
-                .await
-                .context("Failed to update task execution status to COMPLETED")?;
-            Ok(())
-        }
-        Err(err) => {
-            if let Err(update_err) = update_fail(&task_execution, &format!("{err:?}")).await {
-                tracing::error!(
-                    "Failed to update task execution status to FAILED: {:?}",
-                    update_err
-                );
+        {
+            Ok(()) => {
+                update_complete(&task_execution, Some(document_id))
+                    .await
+                    .context("Failed to update task execution status to COMPLETED")?;
+                Ok(())
             }
-            Err(err.into())
+            Err(err) => {
+                if let Err(update_err) = update_fail(&task_execution, &format!("{err:?}")).await {
+                    tracing::error!(
+                        "Failed to update task execution status to FAILED: {:?}",
+                        update_err
+                    );
+                }
+                Err(err.into())
+            }
         }
     }
 }
+
+pub use export_certificate_authority_task::export_certificate_authority;

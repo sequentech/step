@@ -2,6 +2,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+//! Managing election-event-specific scheduling windows and derived date fields.
+
 use std::str::FromStr;
 
 use crate::postgres::election_event::get_election_event_by_id;
@@ -14,6 +16,11 @@ use sequent_core::types::scheduled_event::*;
 use tracing::{info, instrument};
 
 #[instrument(skip(hasura_transaction), err)]
+/// Create, update, or archive a scheduled event date for an election event.
+///
+/// # Errors
+///
+/// Returns an error if scheduled event operations fail.
 pub async fn manage_dates(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,

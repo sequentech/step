@@ -1,11 +1,14 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+
+//! Grouping utilities for tally sheets.
+
 use sequent_core::types::hasura::core::TallySheet;
 use std::collections::HashMap;
 use tracing::instrument;
 
-// Returns a Map<(area_id,contest_id), Vec<tally_sheet>>
+/// Builds a lookup map of tally sheets grouped by `(area_id, contest_id)`.
 #[instrument(skip_all)]
 pub fn create_tally_sheets_map(
     tally_sheets: &Vec<TallySheet>,

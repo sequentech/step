@@ -17,6 +17,7 @@ use tokio_postgres::types::ToSql;
 use tracing::{info, instrument};
 use uuid::Uuid;
 
+/// Results area contest wrapper
 pub struct ResultsAreaContestWrapper(pub ResultsAreaContest);
 impl TryFrom<Row> for ResultsAreaContestWrapper {
     type Error = anyhow::Error;
@@ -101,6 +102,12 @@ impl TryFrom<Row> for ResultsAreaContestWrapper {
         }))
     }
 }
+/// Update results area contest documents
+///
+/// # Errors
+///
+/// Returns an error if SQL preparation or execution fails,
+/// if UUID or other parsing fails.
 
 #[instrument(skip(hasura_transaction), err)]
 pub async fn update_results_area_contest_documents(
@@ -173,6 +180,12 @@ pub async fn update_results_area_contest_documents(
         Err(anyhow!("Rows not found in table results_area_contest"))
     }
 }
+/// Get results area contest from the database.
+///
+/// # Errors
+///
+/// Returns an error if SQL preparation or execution fails,
+/// if UUID or other parsing fails.
 
 #[instrument(skip(hasura_transaction), err)]
 pub async fn get_results_area_contest(
@@ -244,6 +257,12 @@ pub async fn get_results_area_contest(
         None => Ok(None),
     }
 }
+/// Insert results area contests into the database.
+///
+/// # Errors
+///
+/// Returns an error if SQL preparation or execution fails,
+/// if UUID or other parsing fails.
 
 #[instrument(err, skip(hasura_transaction, area_contests))]
 pub async fn insert_results_area_contests(
@@ -257,7 +276,9 @@ pub async fn insert_results_area_contests(
         return Ok(Vec::new());
     }
 
+    /// JSON row shape fed into `jsonb_to_recordset` for bulk-inserting area/contest tallies.
     #[derive(Serialize)]
+    #[allow(clippy::missing_docs_in_private_items)]
     struct InsertAreaContestData {
         tenant_id: Uuid,
         election_event_id: Uuid,
@@ -421,6 +442,12 @@ pub async fn insert_results_area_contests(
 
     Ok(values)
 }
+/// Get event results area contest from the database.
+///
+/// # Errors
+///
+/// Returns an error if SQL preparation or execution fails,
+/// if UUID or other parsing fails.
 
 #[instrument(skip(hasura_transaction), err)]
 pub async fn get_event_results_area_contest(
@@ -462,7 +489,9 @@ pub async fn get_event_results_area_contest(
     Ok(results)
 }
 
+/// Full row mirror used with `jsonb_to_recordset` for [`insert_many_results_area_contests`].
 #[derive(Debug, Serialize)]
+#[allow(clippy::missing_docs_in_private_items)]
 struct InsertableResultsAreaContest {
     id: Uuid,
     tenant_id: Uuid,
@@ -492,6 +521,12 @@ struct InsertableResultsAreaContest {
     total_auditable_votes: Option<i64>,
     total_auditable_votes_percent: Option<f64>,
 }
+/// Insert many results area contests into the database.
+///
+/// # Errors
+///
+/// Returns an error if SQL preparation or execution fails,
+/// if UUID or other parsing fails.
 
 #[instrument(err, skip(hasura_transaction, records))]
 pub async fn insert_many_results_area_contests(

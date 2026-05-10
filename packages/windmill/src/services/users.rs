@@ -2,6 +2,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+//! Managing Keycloak users, filtering, enrichment, and CSV export.
+
 use crate::postgres::area::get_areas;
 use crate::postgres::election_event::get_election_event_by_id;
 use crate::services::cast_votes::get_users_with_vote_info;
@@ -37,15 +39,28 @@ use tracing::error;
 use tracing::{debug, info, instrument};
 use uuid::Uuid;
 
+/// Validate ID attribute name.
 pub const VALIDATE_ID_ATTR_NAME: &str = "sequent.read-only.id-card-number-validated";
+/// Delegate to attribute name.
 pub const DELEGATE_TO_ATTR_NAME: &str = "delegate-vote-to";
+/// Validate ID registered voter.
 pub const VALIDATE_ID_REGISTERED_VOTER: &str = "VERIFIED";
 
+/// Advance a 1-based SQL `$n` placeholder index, panicking on overflow.
+///
+/// # Panics
+///
+/// Panics if `n + delta` exceeds `i32::MAX`.
 #[inline]
 fn bump_sql_param_index(n: i32, delta: i32) -> i32 {
     n.checked_add(delta).expect("SQL parameter index overflow")
 }
 
+/// Number of bound parameters implied by the next free placeholder index.
+///
+/// # Panics
+///
+/// Panics if `next_param_number` is less than 1.
 #[inline]
 fn sql_params_bound_count(next_param_number: i32) -> i32 {
     next_param_number
@@ -53,6 +68,11 @@ fn sql_params_bound_count(next_param_number: i32) -> i32 {
         .expect("SQL parameter count underflow")
 }
 
+/// Resolve area ids and SQL fragments for optional election / area filters.
+///
+/// # Errors
+///
+/// Returns an error if UUID parsing fails, or the SQL query fails.
 #[instrument(skip(hasura_transaction), err)]
 async fn get_area_ids(
     hasura_transaction: &Transaction<'_>,
@@ -140,6 +160,15 @@ async fn get_area_ids(
     Ok((Some(area_ids), area_ids_join_clause, area_ids_where_clause))
 }
 
+/// Export enabled users for an area and authorized-election attribute.
+///
+/// # Errors
+///
+/// Returns an error if UUID parsing fails, `COPY` fails, or I/O while streaming results fails.
+///
+/// # Panics
+///
+/// Panics if the output temp file cannot be created or opened for writing.
 #[instrument(skip(keycloak_transaction), err)]
 pub async fn list_keycloak_enabled_users_by_area_id_and_authorized_elections(
     keycloak_transaction: &Transaction<'_>,
@@ -228,8 +257,9 @@ pub async fn list_keycloak_enabled_users_by_area_id_and_authorized_elections(
     Ok(())
 }
 
-/// SQL boolean operator used to chain filter clauses in WHERE conditions.
 #[derive(Debug, Clone, Copy, EnumString, Display)]
+/// SQL boolean operator used to chain filter clauses in WHERE conditions.
+#[allow(missing_docs)]
 pub enum SqlBooleanOperator {
     #[strum(serialize = " AND")]
     And,
@@ -238,6 +268,7 @@ pub enum SqlBooleanOperator {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, EnumString, Display)]
+/// Filter option for sql queries.
 pub enum FilterOption {
     /// Those elements that contain the string are returned.
     IsLike(String),
@@ -401,6 +432,8 @@ impl<'de> Deserialize<'de> for FilterOption {
 }
 
 #[derive(Debug, PartialEq, Eq, Clone, Default)]
+/// List users filter.
+#[allow(missing_docs)]
 pub struct ListUsersFilter {
     pub tenant_id: String,
     pub election_event_id: Option<String>,
@@ -424,6 +457,7 @@ pub struct ListUsersFilter {
 }
 
 impl ListUsersFilter {
+    /// Create a new list users filter.
     pub fn new(tenant_id: &str, realm: &str) -> Self {
         Self {
             tenant_id: tenant_id.to_string(),
@@ -433,6 +467,7 @@ impl ListUsersFilter {
     }
 }
 
+/// Append an `AND u.<field> = true/false` clause when `value` is set.
 fn get_query_bool_condition(field: &str, value: Option<bool>) -> String {
     match value {
         Some(true) => format!(r"AND u.{} = true", field),
@@ -489,6 +524,11 @@ fn get_sort_clause_and_field_param(
     }
 }
 
+/// Count Keycloak users that match the filter.
+///
+/// # Errors
+///
+/// Returns an error if SQL preparation, query execution, or type conversion fails.
 #[instrument(skip(hasura_transaction, keycloak_transaction), err)]
 pub async fn count_keycloak_users(
     hasura_transaction: &Transaction<'_>,
@@ -637,6 +677,11 @@ pub async fn count_keycloak_users(
     Ok(count)
 }
 
+/// List Keycloak users with filters and pagination
+///
+/// # Errors
+///
+/// Returns an error if SQL preparation, query execution, area lookup, or config/env fails.
 #[instrument(skip(hasura_transaction, keycloak_transaction), err)]
 pub async fn list_users(
     hasura_transaction: &Transaction<'_>,
@@ -928,6 +973,11 @@ pub async fn list_users(
     }
 }
 
+/// Return users ids that match the filter.
+///
+/// # Errors
+///
+/// Returns an error if SQL preparation or execution fails.
 #[instrument(skip(hasura_transaction, keycloak_transaction, filter), err)]
 pub async fn list_users_ids(
     hasura_transaction: &Transaction<'_>,
@@ -1113,6 +1163,11 @@ pub async fn list_users_ids(
     Ok(user_ids)
 }
 
+/// List Keycloak users with vote info for the given election event.
+///
+/// # Errors
+///
+/// Returns an error if filters are incomplete, listing fails, or vote-info enrichment fails.
 #[instrument(skip(hasura_transaction, keycloak_transaction, filter), err)]
 pub async fn list_users_with_vote_info(
     hasura_transaction: &Transaction<'_>,
@@ -1145,6 +1200,11 @@ pub async fn list_users_with_vote_info(
     Ok((users, users_count))
 }
 
+/// Count enabled users in a Keycloak realm.
+///
+/// # Errors
+///
+/// Returns an error if statement preparation or the count query fails.
 #[instrument(skip(keycloak_transaction), err)]
 pub async fn count_keycloak_enabled_users(
     keycloak_transaction: &Transaction<'_>,
@@ -1178,6 +1238,10 @@ pub async fn count_keycloak_enabled_users(
 }
 
 /// Use only for verifying application!, does not work as it seems for other situations, then use list_users instead.
+///
+/// # Errors
+///
+/// Returns an error if pool config, SQL preparation, or query execution fails.
 #[instrument(skip(hasura_transaction, keycloak_transaction), err)]
 pub async fn lookup_users(
     hasura_transaction: &Transaction<'_>,
@@ -1366,21 +1430,33 @@ pub async fn lookup_users(
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, EnumString, Display)]
+/// Attributes filter by for sql queries.
 pub enum AttributesFilterBy {
-    IsLike,      // Those elements that contain the string are returned
-    IsEqual,     // Those elements that match precisely the string are returned
-    NotExist,    // Those elements that Not exist with givin value
-    PartialLike, // Those elements that Not exist with givin value
+    /// Those elements that contain the string are returned
+    IsLike,
+    /// Those elements that match precisely the string are returned
+    IsEqual,
+    /// Those elements that Not exist with givin value
+    NotExist,
+    /// Those elements that Not exist with givin value
+    PartialLike,
 }
 
 #[derive(Debug, Clone)]
+/// Attributes filter option for sql queries.
 pub struct AttributesFilterOption {
+    /// The value to filter by.
     pub value: String,
+    /// The filter by to use.
     pub filter_by: AttributesFilterBy,
 }
 
 impl AttributesFilterOption {
     /// Return the sql condition to filter at the given column, to be used in the WHERE clause
+    ///
+    /// # Panics
+    ///
+    /// Panics if `index` is zero (would underflow the name placeholder index).
     pub fn get_sql_filter_clause(&self, index: usize) -> String {
         let filter_option = self;
         let name_param = index
@@ -1415,6 +1491,15 @@ impl AttributesFilterOption {
     }
 }
 
+/// Count enabled realm users matching optional attribute filters.
+///
+/// # Errors
+///
+/// Returns an error if statement preparation or the count query fails.
+///
+/// # Panics
+///
+/// Panics if attribute filter placeholder arithmetic overflows `usize`.
 #[instrument(skip(keycloak_transaction), err)]
 pub async fn count_keycloak_enabled_users_by_attrs(
     keycloak_transaction: &Transaction<'_>,
@@ -1476,12 +1561,20 @@ pub async fn count_keycloak_enabled_users_by_attrs(
 // use std::error::Error;
 // use reqwest::Client;
 
+/// Minimal Keycloak group row used when resolving parent paths.
 #[derive(Debug, Deserialize)]
 struct Group {
+    /// Group id from Keycloak.
     id: String,
+    /// Group display name.
     name: String,
 }
 
+/// Whether the user has the id-card validation attribute set to the registered-voter value.
+///
+/// # Errors
+///
+/// Returns an error if statement preparation or the lookup query fails.
 #[instrument(skip(keycloak_transaction), err)]
 pub async fn check_is_user_verified(
     keycloak_transaction: &Transaction<'_>,
@@ -1521,6 +1614,10 @@ pub async fn check_is_user_verified(
 
 /// Returns a vector with user ids.
 /// It is up to the caller to handle when there are mutiple users with the same username or the vector is empty - not found.
+///
+/// # Errors
+///
+/// Returns an error if statement preparation or the query fails.
 #[instrument(err, skip(keycloak_transaction))]
 pub async fn get_users_by_username(
     keycloak_transaction: &Transaction<'_>,
@@ -1566,6 +1663,10 @@ pub async fn get_users_by_username(
 }
 
 /// Returns the username of the user id or None if it does not exist.
+///
+/// # Errors
+///
+/// Returns an error if statement preparation or the query fails.
 #[instrument(err, skip(keycloak_transaction))]
 pub async fn get_username_by_id(
     keycloak_transaction: &Transaction<'_>,
@@ -1612,6 +1713,11 @@ pub async fn get_username_by_id(
     }
 }
 
+/// Read the user's voting area id attribute from Keycloak, if any.
+///
+/// # Errors
+///
+/// Returns an error if statement preparation or the query fails.
 #[instrument(err, skip(keycloak_transaction))]
 pub async fn get_user_area_id(
     keycloak_transaction: &Transaction<'_>,
@@ -1660,6 +1766,11 @@ pub async fn get_user_area_id(
     }
 }
 
+/// Count distinct voters in `cast_vote` for the tenant and optional election filters.
+///
+/// # Errors
+///
+/// Returns an error if UUID parsing, statement preparation, or the count query fails.
 #[instrument(skip(hasura_transaction), err)]
 pub async fn count_have_voted(
     hasura_transaction: &Transaction<'_>,
@@ -1715,6 +1826,15 @@ pub async fn count_have_voted(
     Ok(count)
 }
 
+/// Page users annotated with whether they cast a vote, using batched Keycloak queries.
+///
+/// # Errors
+///
+/// Returns an error if limits are missing, config cannot be read, or any underlying list/count fails.
+///
+/// # Panics
+///
+/// Panics if internal counters or offsets overflow (`i32` / `usize` arithmetic).
 #[instrument(skip(hasura_transaction, keycloak_transaction), err)]
 pub async fn list_users_has_voted(
     hasura_transaction: &Transaction<'_>,

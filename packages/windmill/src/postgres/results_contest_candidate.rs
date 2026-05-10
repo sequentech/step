@@ -16,6 +16,7 @@ use tokio_postgres::row::Row;
 use tracing::{info, instrument};
 use uuid::Uuid;
 
+/// Results contest candidate wrapper
 pub struct ResultsContestCandidateWrapper(pub ResultsContestCandidate);
 
 impl TryFrom<Row> for ResultsContestCandidateWrapper {
@@ -56,6 +57,12 @@ impl TryFrom<Row> for ResultsContestCandidateWrapper {
         }))
     }
 }
+/// Insert results contest candidates into the database.
+///
+/// # Errors
+///
+/// Returns an error if SQL preparation or execution fails,
+/// if UUID or other parsing fails.
 
 #[instrument(err, skip(hasura_transaction, contest_candidates))]
 pub async fn insert_results_contest_candidates(
@@ -68,7 +75,9 @@ pub async fn insert_results_contest_candidates(
     if contest_candidates.is_empty() {
         return Ok(Vec::new());
     }
+    /// JSON row for `jsonb_to_recordset` when inserting contest-wide candidate totals.
     #[derive(Debug, Serialize)]
+    #[allow(clippy::missing_docs_in_private_items)]
     pub struct InsertResultsContestCandidate {
         pub tenant_id: Uuid,
         pub election_event_id: Uuid,
@@ -166,6 +175,12 @@ pub async fn insert_results_contest_candidates(
 
     Ok(values)
 }
+/// Get event results contest candidates from the database.
+///
+/// # Errors
+///
+/// Returns an error if SQL preparation or execution fails,
+/// if UUID or other parsing fails.
 
 #[instrument(skip(hasura_transaction), err)]
 pub async fn get_event_results_contest_candidates(
@@ -208,7 +223,9 @@ pub async fn get_event_results_contest_candidates(
     Ok(results_contest_candidate)
 }
 
+/// Full row mirror for [`insert_many_results_contest_candidates`] JSON bulk insert.
 #[derive(Debug, Serialize)]
+#[allow(clippy::missing_docs_in_private_items)]
 struct InsertableResultsContestCandidate {
     id: Uuid,
     tenant_id: Uuid,
@@ -227,6 +244,12 @@ struct InsertableResultsContestCandidate {
     cast_votes_percent: Option<f64>,
     documents: Option<Value>,
 }
+/// Insert many results contest candidates into the database.
+///
+/// # Errors
+///
+/// Returns an error if SQL preparation or execution fails,
+/// if UUID or other parsing fails.
 
 #[instrument(err, skip(hasura_transaction, candidates))]
 pub async fn insert_many_results_contest_candidates(

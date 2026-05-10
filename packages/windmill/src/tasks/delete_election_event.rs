@@ -1,6 +1,9 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+
+//! Deletes an election event and related data asynchronously.
+
 use crate::postgres::election::get_elections_ids;
 use crate::postgres::election_event::delete_election_event as delete_election_event_postgres;
 use crate::services::delete_election_event::delete_election_event_b3;
@@ -21,6 +24,7 @@ use futures::try_join;
 use sequent_core::types::hasura::core::TasksExecution;
 use tracing::instrument;
 
+/// Deletes ImmuDB logs, B3 objects, S3 documents, and the Keycloak realm.
 #[instrument(err)]
 async fn delete_election_event_related_data(
     tenant_id: &str,
@@ -37,6 +41,7 @@ async fn delete_election_event_related_data(
     Ok(())
 }
 
+/// Removes the election event from the database, then purges related data.
 #[instrument(err)]
 async fn delete_election_event(
     tenant_id: String,
@@ -87,25 +92,35 @@ async fn delete_election_event(
     .await
 }
 
-#[instrument(err)]
-#[wrap_map_err::wrap_map_err(TaskError)]
-#[celery::task]
-pub async fn delete_election_event_t(
-    tenant_id: String,
-    election_event_id: String,
-    realm: String,
-    task_execution: TasksExecution,
-) -> Result<()> {
-    let res = delete_election_event(tenant_id, election_event_id, realm).await;
+mod delete_election_event_task {
+    #![allow(missing_docs)]
+    #![allow(clippy::missing_docs_in_private_items)]
 
-    match res {
-        Ok(_) => {
-            update_complete(&task_execution, None).await?;
-        }
-        Err(err) => {
-            let error = format!("Error deleting election event: {err}");
-            update_fail(&task_execution, &error).await?;
-        }
-    };
-    Ok(())
+    use super::*;
+
+    /// Celery task: hard-delete an election event and mark task execution complete or failed.
+    #[instrument(err)]
+    #[wrap_map_err::wrap_map_err(TaskError)]
+    #[celery::task]
+    pub async fn delete_election_event_t(
+        tenant_id: String,
+        election_event_id: String,
+        realm: String,
+        task_execution: TasksExecution,
+    ) -> Result<()> {
+        let res = super::delete_election_event(tenant_id, election_event_id, realm).await;
+
+        match res {
+            Ok(_) => {
+                update_complete(&task_execution, None).await?;
+            }
+            Err(err) => {
+                let error = format!("Error deleting election event: {err}");
+                update_fail(&task_execution, &error).await?;
+            }
+        };
+        Ok(())
+    }
 }
+
+pub use delete_election_event_task::delete_election_event_t;

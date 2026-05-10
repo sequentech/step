@@ -1,6 +1,9 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+
+//! Managing voting calendar and scheduled-date materialization for elections and events.
+
 use crate::postgres::election::*;
 use crate::postgres::scheduled_event::*;
 use crate::services::election_event_status::get_election_event_status;
@@ -15,6 +18,11 @@ use std::str::FromStr;
 use tracing::instrument;
 
 #[instrument(skip(hasura_transaction), err)]
+/// Create, update, or archive a scheduled event for an election date.
+///
+/// # Errors
+///
+/// Returns an error if the election cannot be loaded or scheduled event operations fail.
 pub async fn manage_dates(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
@@ -104,6 +112,11 @@ pub async fn manage_dates(
 }
 
 #[instrument(err, skip_all)]
+/// Compute voting period dates and attach scheduled event dates for an election.
+///
+/// # Errors
+///
+/// Returns an error if scheduled dates cannot be prepared.
 pub fn get_election_dates(
     election: &Election,
     scheduled_events: Vec<ScheduledEvent>,

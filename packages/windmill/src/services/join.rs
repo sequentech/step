@@ -2,12 +2,25 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+//! Async join utilities for merging ballots and voters CSV files.
+
 use anyhow::{anyhow, Result};
 use csv::ReaderBuilder;
 use std::{cmp::Ordering, fs::File};
 use tracing::{info, instrument};
 
 #[instrument(skip_all, err)]
+/// Merge-join two headerless CSV streams sorted by voter id.
+///
+/// Returns the joined output lines plus counters: ballots without voter, eligible voters, and casted ballots.
+///
+/// # Errors
+///
+/// Returns an error if CSV parsing fails or record comparison encounters inconsistent data.
+///
+/// # Panics
+///
+/// Panics if internal counters overflow while processing the input streams.
 pub fn merge_join_csv(
     ballots_file: &File,
     voters_file: &File,

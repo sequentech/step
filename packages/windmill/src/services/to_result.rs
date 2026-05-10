@@ -2,11 +2,19 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+//! Error conversion helpers mapping external failures into `anyhow::Result`.
+
 use anyhow::{anyhow, Result};
 use graphql_client::Response;
 use tracing::{event, instrument, Level};
 
+/// Trait to turn GraphQL `Response<T>` values into `Result`s.
 pub trait ToResult<T, E> {
+    /// Convert a GraphQL response into a `Result`, returning an error when the response contains errors.
+    ///
+    /// # Errors
+    ///
+    /// Returns `Err` if the response contains GraphQL errors.
     fn ok(self) -> Result<T, E>;
 }
 

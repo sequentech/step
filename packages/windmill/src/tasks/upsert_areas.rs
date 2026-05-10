@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-
+//! Upserts voting areas from an imported document.
 use crate::postgres::area::{get_event_areas, insert_areas, upsert_area_parents};
 use crate::postgres::area_contest::insert_area_contests;
 use crate::postgres::contest::export_contests;
@@ -19,6 +19,11 @@ use std::io::Seek;
 use tracing::instrument;
 use uuid::Uuid;
 
+/// Modifies areas from an import document with existing event areas and updates the database.
+///
+/// # Errors
+///
+/// Returns an error if the pool, transaction, document lookup, or CSV processing fails.
 #[instrument(err)]
 pub async fn upsert_areas_task(
     tenant_id: String,

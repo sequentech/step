@@ -1,6 +1,9 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+
+//! Loads or creates per-event ECIES key pairs and builds ACM JSON sidecars for encrypted packages.
+
 use super::{
     eml_generator::{
         find_miru_annotation, MiruAreaAnnotations, MiruElectionAnnotations,
@@ -24,29 +27,43 @@ use sequent_core::{
 use std::env;
 use tracing::instrument;
 
+/// `strftime`-style format for human-readable timestamps embedded in ACM JSON.
 const ACM_JSON_FORMAT: &str = "%m/%d/%Y %I:%M:%S %p";
+/// Default Miru device id when `MIRU_DEVICE_ID` is unset.
 const DEFAULT_MIRU_DEVICE_ID: &str = "SQUNT420535311";
+/// Default Miru hardware serial when `MIRU_SERIAL_NUMBER` is unset.
 const DEFAULT_MIRU_SERIAL_NUMBER: &str = "SEQ-NT-52706782";
 //const DEFAULT_MIRU_STATION_NAME: &str = "2094A,5346A,6588A,7474A,1489A";
+/// Default placeholder LAN address for ACM metadata when `MIRU_IP_ADDRESS` is unset.
 const DEFAULT_MIRU_IP_ADDRESS: &str = "192.168.1.67";
+/// Default placeholder MAC when `_MIRU_MAC_ADDRESS` is unset.
 const DEFAULT_MIRU_MAC_ADDRESS: &str = "3C:7E:5A:89:4D:2F";
 
+/// Reads `MIRU_DEVICE_ID` or falls back to [`DEFAULT_MIRU_DEVICE_ID`].
 pub fn get_miru_device_id() -> String {
     env::var("MIRU_DEVICE_ID").unwrap_or(DEFAULT_MIRU_DEVICE_ID.to_string())
 }
 
+/// Reads `MIRU_SERIAL_NUMBER` or falls back to [`DEFAULT_MIRU_SERIAL_NUMBER`].
 pub fn get_miru_serial_number() -> String {
     env::var("MIRU_SERIAL_NUMBER").unwrap_or(DEFAULT_MIRU_SERIAL_NUMBER.to_string())
 }
 
+/// Reads `MIRU_IP_ADDRESS` or falls back to [`DEFAULT_MIRU_IP_ADDRESS`].
 pub fn get_miru_ip_address() -> String {
     env::var("MIRU_IP_ADDRESS").unwrap_or(DEFAULT_MIRU_IP_ADDRESS.to_string())
 }
 
+/// Reads `_MIRU_MAC_ADDRESS` or falls back to [`DEFAULT_MIRU_MAC_ADDRESS`].
 pub fn get_miru_mac_address() -> String {
     env::var("_MIRU_MAC_ADDRESS").unwrap_or(DEFAULT_MIRU_MAC_ADDRESS.to_string())
 }
 
+/// Loads the tenant/event ECIES key pair from the vault, or generates and stores a new one.
+///
+/// # Errors
+///
+/// Vault I/O, JSON (de)serialization, or key generation failures.
 #[instrument(err)]
 pub async fn get_acm_key_pair(
     hasura_transaction: &Transaction<'_>,
@@ -83,6 +100,11 @@ pub async fn get_acm_key_pair(
     }
 }
 
+/// Fills an [`ACMJson`] struct for a completed transmission or log package using Miru env defaults.
+///
+/// # Errors
+///
+/// Timestamp formatting failures from [`generate_timestamp`].
 #[instrument(skip(election_event_annotations), err)]
 pub fn generate_acm_json(
     sha256_hash: &str,

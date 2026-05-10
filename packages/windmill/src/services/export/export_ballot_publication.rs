@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+//! Ballot publication exports: JSON bundles of per-publication ballot EMLs and retrieval of the event config artifact from public object storage.
 use crate::postgres::ballot_publication::get_ballot_publication;
 use crate::postgres::ballot_style::export_event_ballot_styles;
 use crate::services::ballot_styles::ballot_style::EVENT_CONFIG_FILE_NAME;
@@ -20,6 +21,12 @@ use serde_json::{json, Map, Value};
 use tempfile::TempPath;
 use tracing::{event, info, instrument, Level};
 
+/// Persists `data` as a JSON file and optionally uploads to the database and s3.
+///
+/// # Errors
+///
+/// Returns an error when the temp file cannot be created,
+/// upload fails (when `to_upload`), or the path cannot be read back.
 #[instrument(err, skip(transaction, data))]
 pub async fn write_export_document(
     transaction: &Transaction<'_>,
@@ -54,6 +61,12 @@ pub async fn write_export_document(
     Ok(_temp_path)
 }
 
+/// Builds one JSON object per ballot publication.
+///
+/// # Errors
+///
+/// Propagates style lookup failures, EML deserialization errors,
+///  JSON serialization errors, or upload/temp-file errors.
 #[instrument(err)]
 pub async fn process_export_ballot_publication(
     hasura_transaction: &Transaction<'_>,
@@ -116,6 +129,11 @@ pub async fn process_export_ballot_publication(
     Ok(temp_path)
 }
 
+/// Loads ballot publications for the event and creates a temporary file.
+///
+/// # Errors
+///
+/// Propagates database read errors or processing failures.
 #[instrument(err)]
 pub async fn export_ballot_publications(
     hasura_transaction: &Transaction<'_>,
@@ -143,6 +161,10 @@ pub async fn export_ballot_publications(
 }
 
 /// Exports election event config file which created at ballot publication generation.
+///
+/// # Errors
+///
+/// Returns an error when bucket configuration, key resolution, or S3 download fails.
 // #[instrument(err)]
 pub async fn export_election_event_config_file(
     tenant_id: &str,

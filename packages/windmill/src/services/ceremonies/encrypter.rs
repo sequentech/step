@@ -16,11 +16,20 @@ use std::path::{Path, PathBuf};
 use tracing::{info, instrument};
 use walkdir::WalkDir;
 
+/// File name for multi-contest ballot image exports.
 pub const MC_BALLOT_IMAGES_FILE_NAME: &str = "mcballots_images";
+/// File name for single-contest ballot image exports.
 pub const BALLOT_IMAGES_FILE_NAME: &str = "ballot_images";
+/// File name for trustee initialization PDFs.
 pub const INITIALIZATION_REPORT_FILE_NAME: &str = "INITIALIZATION_REPORT";
+/// File name for aggregated electoral results reports.
 pub const ELECTORAL_RESULTS_FILE_NAME: &str = "ELECTORAL_RESULTS";
 
+/// Maps a file name to a [`ReportType`].
+///
+/// # Errors
+///
+/// This helper only returns `Ok` variants today; errors are reserved for future filename parsing.
 #[instrument(err, skip_all)]
 pub fn get_file_report_type(file_name: &str) -> Result<Option<ReportType>> {
     if file_name.contains(MC_BALLOT_IMAGES_FILE_NAME) || file_name.contains(BALLOT_IMAGES_FILE_NAME)
@@ -35,7 +44,17 @@ pub fn get_file_report_type(file_name: &str) -> Result<Option<ReportType>> {
     }
 }
 
-// returns a map from the report id to the secret password
+/// Walks `folder_path`, finds report-like files, extracts embedded election UUIDs from each path
+/// string, and loads configured-password secrets from the vault keyed by matching [`Report`] rows.
+///
+/// # Panics
+///
+/// Panics if the static election-id regular expression fails to compile (a programmer error).
+///
+/// # Errors
+///
+/// - `Err` when `folder_path` is not a directory.
+/// - Vault read failures, missing passwords, or I/O errors while traversing files.
 #[instrument(err, skip_all)]
 pub async fn traversal_find_secrets_for_files(
     hasura_transaction: &Transaction<'_>,
@@ -115,7 +134,17 @@ pub async fn traversal_find_secrets_for_files(
     Ok(report_secrets_map)
 }
 
-/// Encrypts all eligible files in a directory
+/// Encrypts every password-protected file under `folder_path` using secrets from
+/// `report_secrets_map`.
+///
+/// # Panics
+///
+/// Panics if the static election-id regular expression fails to compile (a programmer error).
+///
+/// # Errors
+///
+/// - `Err` when `folder_path` is not a directory.
+/// - Encryption failures bubbled up from [`encrypt_directory_contents`].
 #[instrument(err, skip_all)]
 pub async fn traversal_encrypt_files(
     report_secrets_map: HashMap<String, String>,
@@ -167,6 +196,13 @@ pub async fn traversal_encrypt_files(
     Ok(())
 }
 
+/// Encrypts `old_path` when `report_type` matches a report configured with a configured password,
+/// returning either the encrypted path or the original path when encryption does not apply.
+///
+/// # Errors
+///
+/// - Missing report match, missing vault secret, AES encryption errors, or filesystem errors while
+///   replacing the plaintext file.
 #[instrument(err, skip(hasura_transaction, election_ids, all_reports, old_path))]
 pub async fn encrypt_directory_contents_sql(
     hasura_transaction: &Transaction<'_>,
@@ -222,6 +258,13 @@ pub async fn encrypt_directory_contents_sql(
     Ok(upload_path)
 }
 
+/// Same selection rules as [`encrypt_directory_contents_sql`] but reads the password from an
+/// in-memory map produced by [`traversal_find_secrets_for_files`].
+///
+/// # Errors
+///
+/// - Missing password entry for a matched report, encryption failures, or filesystem errors when
+///   removing the plaintext source file.
 #[instrument(err, skip(report_secrets_map, election_ids, all_reports, old_path))]
 pub async fn encrypt_directory_contents(
     report_secrets_map: &HashMap<String, String>,
@@ -267,6 +310,11 @@ pub async fn encrypt_directory_contents(
     Ok(upload_path)
 }
 
+/// Writes `old_path` to `{old_path}.enc` with AES-256-CBC and deletes the plaintext copy.
+///
+/// # Errors
+///
+/// Propagates encryption or deletion failures from the consolidation helper and filesystem APIs.
 #[instrument(err, skip_all)]
 pub fn encrypt_file_inner(old_path: &str, encryption_password: &str) -> Result<String> {
     let new_path = format!("{old_path}.enc");
@@ -280,6 +328,12 @@ pub fn encrypt_file_inner(old_path: &str, encryption_password: &str) -> Result<S
     return Ok(new_path);
 }
 
+/// Encrypts a single on-disk report when `report` requests a configured password, otherwise returns
+/// `old_path` unchanged.
+///
+/// # Errors
+///
+/// Vault read failures, missing secrets, or errors from [`encrypt_file_inner`].
 #[instrument(err, skip_all)]
 pub async fn encrypt_file(
     hasura_transaction: &Transaction<'_>,

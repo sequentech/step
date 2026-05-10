@@ -1,11 +1,15 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+
+//! Vault-oriented secrets loading for report generation.
+
 use crate::services::vault::{read_secret, save_secret};
 use anyhow::anyhow;
 use deadpool_postgres::Transaction;
 use tracing::instrument;
 
+/// Build the vault secret key used to store a report password for a tenant/event.
 pub fn get_report_secret_key(
     tenant_id: &str,
     election_event_id: &str,
@@ -20,6 +24,11 @@ pub fn get_report_secret_key(
 }
 
 #[instrument(err)]
+/// Get the password for a report from the vault.
+///
+/// # Errors
+///
+/// Returns an error if the vault lookup fails.
 pub async fn get_password(
     hasura_transaction: &Transaction<'_>,
     tenant_id: String,
@@ -41,6 +50,11 @@ pub async fn get_password(
 }
 
 #[instrument(err)]
+/// Save the password for a report to the vault.
+///
+/// # Errors
+///
+/// Returns an error if saving the secret to the vault fails.
 pub async fn get_report_key_pair(
     hasura_transaction: &Transaction<'_>,
     tenant_id: String,

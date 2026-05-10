@@ -9,6 +9,7 @@ use tokio_postgres::row::Row;
 use tracing::{event, instrument, Level};
 use uuid::Uuid;
 
+/// Template wrapper
 pub struct TemplateWrapper(pub Template);
 
 impl TryFrom<Row> for TemplateWrapper {
@@ -29,7 +30,12 @@ impl TryFrom<Row> for TemplateWrapper {
     }
 }
 
-/* Returns election */
+/// Get template by alias from the database.
+///
+/// # Errors
+///
+/// Returns an error if SQL preparation or execution fails,
+/// if UUID or other parsing fails.
 
 #[instrument(skip(hasura_transaction), err)]
 pub async fn get_template_by_alias(
@@ -74,6 +80,12 @@ pub async fn get_template_by_alias(
 
     Ok(elections.first().cloned())
 }
+/// Get templates by tenant id from the database.
+///
+/// # Errors
+///
+/// Returns an error if SQL preparation or execution fails,
+/// if UUID or other parsing fails.
 
 #[instrument(skip(hasura_transaction), err)]
 pub async fn get_templates_by_tenant_id(
@@ -123,6 +135,12 @@ pub async fn get_templates_by_tenant_id(
 
     Ok(templates)
 }
+/// Insert templates into the database.
+///
+/// # Errors
+///
+/// Returns an error if SQL preparation or execution fails,
+/// if UUID or other parsing fails.
 
 #[instrument(err, skip_all)]
 pub async fn insert_templates(

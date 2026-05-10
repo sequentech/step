@@ -1,6 +1,9 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+
+//! Cross-election statistical queries used in dashboards and operational reports.
+
 use anyhow::Result;
 use deadpool_postgres::Transaction;
 use sequent_core::services::uuid_validation::parse_uuid_v4;
@@ -8,6 +11,11 @@ use tokio_postgres::row::Row;
 use tracing::instrument;
 
 #[instrument(skip(transaction), err)]
+/// Increment election-level statistics counters for communications.
+///
+/// # Errors
+///
+/// Returns an error if SQL preparation/execution fails or ids are invalid UUIDs.
 pub async fn update_election_statistics(
     transaction: &Transaction<'_>,
     tenant_id: &str,
@@ -56,6 +64,11 @@ pub async fn update_election_statistics(
 }
 
 #[instrument(skip(transaction), err)]
+/// Return the number of distinct voters that have cast a vote in an election.
+///
+/// # Errors
+///
+/// Returns an error if SQL preparation/execution fails or ids are invalid UUIDs.
 pub async fn get_count_distinct_voters(
     transaction: &Transaction<'_>,
     tenant_id: &str,
@@ -102,6 +115,11 @@ pub async fn get_count_distinct_voters(
 }
 
 #[instrument(skip(transaction), err)]
+/// Return the number of areas associated with an election (via contests).
+///
+/// # Errors
+///
+/// Returns an error if SQL preparation/execution fails or ids are invalid UUIDs.
 pub async fn get_count_areas(
     transaction: &Transaction<'_>,
     tenant_id: &str,

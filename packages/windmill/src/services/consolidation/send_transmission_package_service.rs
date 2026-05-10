@@ -1,6 +1,9 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+
+//! HTTP delivery of transmission and audit-log zip files to configured CCS endpoints.
+
 use super::{
     create_transmission_package_service::update_transmission_package_annotations,
     eml_generator::{
@@ -49,10 +52,17 @@ use std::{cmp::Ordering, path::Path};
 use tempfile::{tempdir, NamedTempFile};
 use tracing::{info, instrument};
 
+/// Relative path on the CCS server for uploading election-results zip payloads.
 const SEND_ELECTION_RESULTS_API_PATH: &str = "/api/receiver/v1/acm/election-results";
 
+/// Relative path on the CCS server for uploading audit-log zip payloads.
 const SEND_LOGS_API_PATH: &str = "/api/receiver/v1/acm/audit-logs";
 
+/// Multipart POST of a zip to the given CCS base URL.
+///
+/// # Errors
+///
+/// I/O, HTTP client, non-success HTTP status, or response body read failures.
 #[instrument(err)]
 async fn send_package_to_ccs_server(
     transmission_package_path: &Path,
@@ -107,6 +117,7 @@ async fn send_package_to_ccs_server(
     Ok(())
 }
 
+/// Picks the document with the latest `created_at` among `input_documents`.
 #[instrument(skip_all)]
 pub fn get_latest_miru_document(input_documents: &[MiruDocument]) -> Option<MiruDocument> {
     let mut documents = input_documents.to_owned();
@@ -128,6 +139,12 @@ pub fn get_latest_miru_document(input_documents: &[MiruDocument]) -> Option<Miru
     documents.first().cloned()
 }
 
+/// Opens a transaction, merges `new_miru_document` into the matching transmission entry,
+/// and commits the transaction.
+///
+/// # Errors
+///
+/// Pool/transaction errors, missing tally or transmission slice, or annotation update failures.
 async fn update_miru_document(
     tenant_id: &str,
     election_id: &str,
@@ -206,6 +223,11 @@ async fn update_miru_document(
     Ok(())
 }
 
+/// Appends a ceremony `Log` (and optional document replacement) for one area/election.
+///
+/// # Errors
+///
+/// Same persistence and validation failures as [`update_miru_document`].
 async fn record_new_log(
     tenant_id: &str,
     election_id: &str,
@@ -297,6 +319,12 @@ async fn record_new_log(
     Ok(())
 }
 
+/// For each CCS destination, sends stored `er_` / `al_` zips, updates MIRU docs,
+/// and records success/error logs.
+///
+/// # Errors
+///
+/// Missing documents, HTTP send failures, or DB update errors before all destinations complete.
 #[instrument(err)]
 pub async fn send_transmission_package_service(
     tenant_id: &str,

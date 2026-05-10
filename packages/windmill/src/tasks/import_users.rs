@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-
+//! Imports users from a CSV document with integrity checks.
 use crate::postgres::document::get_document;
 use crate::postgres::maintenance::vacuum_analyze_direct;
 use crate::services::database::get_hasura_pool;
@@ -22,26 +22,41 @@ use serde::{Deserialize, Serialize};
 use std::io::Seek;
 use tempfile::NamedTempFile;
 use tracing::{error, info, instrument};
+
+/// Request body for importing users.
 #[derive(Deserialize, Debug, Clone, Serialize)]
 pub struct ImportUsersBody {
+    /// Tenant that owns the import document and receives the users.
     pub tenant_id: String,
+    /// storage document id.
     pub document_id: String,
+    /// When set, users are scoped to this election event; otherwise tenant-wide.
     pub election_event_id: Option<String>,
+    /// When true, imported users receive admin capabilities per import rules.
     #[serde(default = "default_is_admin")]
     pub is_admin: bool,
+    /// Optional SHA-256 of the file; when present, the task verifies the download before import.
     pub sha256: Option<String>,
 }
 
+/// Default for [`ImportUsersBody::is_admin`] when the field is omitted in JSON.
 fn default_is_admin() -> bool {
     false
 }
 
+/// Result payload carrying the task execution row created for this import.
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ImportUsersOutput {
+    /// Task execution record used to report progress.
     pub task_execution: TasksExecution,
 }
 
 impl ImportUsersBody {
+    /// Downloads the configured document to a temp file.
+    ///
+    /// # Errors
+    ///
+    /// Fails if the document is missing, metadata cannot be read, or the S3 download fails.
     #[instrument(ret)]
     async fn get_s3_document_as_temp_file(
         &self,
@@ -74,92 +89,106 @@ impl ImportUsersBody {
     }
 }
 
-#[instrument(err)]
-#[wrap_map_err::wrap_map_err(TaskError)]
-#[celery::task(max_retries = 2)]
-pub async fn import_users(body: ImportUsersBody, task_execution: TasksExecution) -> Result<()> {
-    let mut hasura_db_client: DbClient = match get_hasura_pool().await.get().await {
-        Ok(client) => client,
-        Err(err) => {
-            update_fail(&task_execution, "Failed to get Hasura DB pool").await?;
-            return Err(Error::String(format!(
-                "Error getting Hasura DB pool: {}",
-                err
-            )));
-        }
-    };
+mod import_users_task {
+    #![allow(missing_docs)]
+    #![allow(clippy::missing_docs_in_private_items)]
 
-    let hasura_transaction = match hasura_db_client.transaction().await {
-        Ok(transaction) => transaction,
-        Err(err) => {
-            update_fail(&task_execution, "Failed to start Hasura transaction").await?;
-            return Err(Error::String(format!(
-                "Error starting Hasura transaction: {err}"
-            )));
-        }
-    };
+    use super::*;
 
-    let (mut voters_file, separator) =
-        match body.get_s3_document_as_temp_file(&hasura_transaction).await {
-            Ok(result) => result,
+    /// Celery task: validates optional file hash, imports the users into Keycloak.
+    ///
+    /// # Errors
+    ///
+    /// Fails on database pool/transaction errors, missing document, hash mismatch, or import errors.
+    #[instrument(err)]
+    #[wrap_map_err::wrap_map_err(TaskError)]
+    #[celery::task(max_retries = 2)]
+    pub async fn import_users(body: ImportUsersBody, task_execution: TasksExecution) -> Result<()> {
+        let mut hasura_db_client: DbClient = match get_hasura_pool().await.get().await {
+            Ok(client) => client,
             Err(err) => {
-                update_fail(
-                    &task_execution,
-                    "Error obtaining voters file from S3 as temp file",
-                )
-                .await?;
+                update_fail(&task_execution, "Failed to get Hasura DB pool").await?;
                 return Err(Error::String(format!(
-                    "Error obtaining voters file from S3: {err}"
+                    "Error getting Hasura DB pool: {}",
+                    err
                 )));
             }
         };
-    voters_file.rewind()?;
 
-    match body.sha256.clone() {
-        Some(hash) if !hash.is_empty() => match integrity_check(&voters_file, hash) {
-            Ok(_) => {
-                info!("Hash verified !");
+        let hasura_transaction = match hasura_db_client.transaction().await {
+            Ok(transaction) => transaction,
+            Err(err) => {
+                update_fail(&task_execution, "Failed to start Hasura transaction").await?;
+                return Err(Error::String(format!(
+                    "Error starting Hasura transaction: {err}"
+                )));
             }
-            Err(HashFileVerifyError::HashMismatch(input_hash, gen_hash)) => {
-                let err_str = format!("Failed to verify the integrity: Hash of voters file: {gen_hash} does not match with the input hash: {input_hash}");
-                update_fail(&task_execution, &err_str).await?;
-                return Err(Error::String(err_str));
+        };
+
+        let (mut voters_file, separator) =
+            match body.get_s3_document_as_temp_file(&hasura_transaction).await {
+                Ok(result) => result,
+                Err(err) => {
+                    update_fail(
+                        &task_execution,
+                        "Error obtaining voters file from S3 as temp file",
+                    )
+                    .await?;
+                    return Err(Error::String(format!(
+                        "Error obtaining voters file from S3: {err}"
+                    )));
+                }
+            };
+        voters_file.rewind()?;
+
+        match body.sha256.clone() {
+            Some(hash) if !hash.is_empty() => match integrity_check(&voters_file, hash) {
+                Ok(_) => {
+                    info!("Hash verified !");
+                }
+                Err(HashFileVerifyError::HashMismatch(input_hash, gen_hash)) => {
+                    let err_str = format!("Failed to verify the integrity: Hash of voters file: {gen_hash} does not match with the input hash: {input_hash}");
+                    update_fail(&task_execution, &err_str).await?;
+                    return Err(Error::String(err_str));
+                }
+                Err(err) => {
+                    let err_str = format!("Failed to verify the integrity: {err:?}");
+                    update_fail(&task_execution, &err_str).await?;
+                    return Err(err_str.into());
+                }
+            },
+            _ => {
+                info!("No hash provided, skipping integrity check");
+            }
+        }
+
+        match import_users_file(
+            &hasura_transaction,
+            &voters_file,
+            separator,
+            body.election_event_id.clone(),
+            body.tenant_id,
+            body.is_admin,
+        )
+        .await
+        {
+            Ok(_) => {
+                // Execute database maintenance
+                info!("Performing mainteinance after users import.");
+                vacuum_analyze_direct().await?;
             }
             Err(err) => {
-                let err_str = format!("Failed to verify the integrity: {err:?}");
-                update_fail(&task_execution, &err_str).await?;
-                return Err(err_str.into());
+                update_fail(&task_execution, &err.to_string()).await?;
+                return Err(Error::String(format!("Error importing users file: {err}")));
             }
-        },
-        _ => {
-            info!("No hash provided, skipping integrity check");
         }
+
+        update_complete(&task_execution, Some(body.document_id.clone()))
+            .await
+            .context("Failed to update task execution status to COMPLETED")?;
+
+        Ok(())
     }
-
-    match import_users_file(
-        &hasura_transaction,
-        &voters_file,
-        separator,
-        body.election_event_id.clone(),
-        body.tenant_id,
-        body.is_admin,
-    )
-    .await
-    {
-        Ok(_) => {
-            // Execute database maintenance
-            info!("Performing mainteinance after users import.");
-            vacuum_analyze_direct().await?;
-        }
-        Err(err) => {
-            update_fail(&task_execution, &err.to_string()).await?;
-            return Err(Error::String(format!("Error importing users file: {err}")));
-        }
-    }
-
-    update_complete(&task_execution, Some(body.document_id.clone()))
-        .await
-        .context("Failed to update task execution status to COMPLETED")?;
-
-    Ok(())
 }
+
+pub use import_users_task::import_users;

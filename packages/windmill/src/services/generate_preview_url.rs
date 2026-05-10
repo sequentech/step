@@ -1,6 +1,9 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+
+//! Generating preview URLs for documents and assets.
+
 use crate::{
     postgres::{document::get_document, preview::insert_preview},
     services::{
@@ -22,6 +25,11 @@ use tracing::instrument;
 use uuid::Uuid;
 
 #[instrument(err)]
+/// Construct the preview URL.
+///
+/// # Errors
+///
+/// Returns an error if required configuration is missing.
 pub fn construct_preview_url(
     tenant_id: &str,
     document_id: &str,
@@ -39,6 +47,11 @@ pub fn construct_preview_url(
 }
 
 #[instrument(err)]
+/// Get ballot style and area ids from the preview file.
+///
+/// # Errors
+///
+/// Returns an error if the preview file cannot be read or is missing required fields.
 pub async fn get_document_data(preview_file_path: &str) -> Result<(String, String)> {
     let file = File::open(preview_file_path)
         .map_err(|e| anyhow::anyhow!("Failed to open preview file: {}", e))?;
@@ -70,6 +83,12 @@ pub async fn get_document_data(preview_file_path: &str) -> Result<(String, Strin
 }
 
 #[instrument(err)]
+/// Get the uploaded document of the ballot style and generate the preview URL,
+/// while uploading the preview document to S3 tenant folder.
+///
+/// # Errors
+///
+/// Returns an error if the input document cannot be fetched, parsed, uploaded, or preview data cannot be inserted.
 pub async fn generate_preview_url(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,

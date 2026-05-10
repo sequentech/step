@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-
+//! Updates trustee mixnet public keys from uploaded material.
 use crate::postgres::{keys_ceremony, trustee};
 use crate::services::ceremonies::keys_ceremony::get_keys_ceremony_board;
 use crate::services::ceremonies::serialize_logs::generate_logs;
@@ -28,6 +28,11 @@ use std::collections::HashSet;
 use strand::signature::StrandSignaturePk;
 use tracing::{event, info, instrument, Level};
 
+/// Derives a trustee’s key status in the keys ceremony.
+///
+/// # Errors
+///
+/// Returns an error if a stored public key is not valid DER/base64.
 #[instrument(skip(trustees_hasura, messages), err)]
 fn get_trustee_status(
     trustee_name: &str,
@@ -58,6 +63,11 @@ fn get_trustee_status(
     }
 }
 
+/// Reads mixnet board messages and updates keys ceremony JSON status.
+///
+/// # Errors
+///
+/// Propagates database, board fetch, serialization, trustee mismatch, or commit failures.
 pub async fn set_public_key_impl(
     tenant_id: String,
     election_event_id: String,
@@ -172,15 +182,25 @@ pub async fn set_public_key_impl(
     Ok(())
 }
 
-#[instrument(err)]
-#[wrap_map_err::wrap_map_err(TaskError)]
-#[celery::task(max_retries = 0)]
-pub async fn set_public_key(
-    tenant_id: String,
-    election_event_id: String,
-    keys_ceremony_id: String,
-) -> Result<()> {
-    set_public_key_impl(tenant_id, election_event_id, keys_ceremony_id).await?;
+mod set_public_key_task {
+    #![allow(missing_docs)]
+    #![allow(clippy::missing_docs_in_private_items)]
 
-    Ok(())
+    use super::*;
+
+    /// Celery task: pulls the published mixnet public key for a keys ceremony and persists trustee/ceremony status.
+    #[instrument(err)]
+    #[wrap_map_err::wrap_map_err(TaskError)]
+    #[celery::task(max_retries = 0)]
+    pub async fn set_public_key(
+        tenant_id: String,
+        election_event_id: String,
+        keys_ceremony_id: String,
+    ) -> Result<()> {
+        set_public_key_impl(tenant_id, election_event_id, keys_ceremony_id).await?;
+
+        Ok(())
+    }
 }
+
+pub use set_public_key_task::set_public_key;

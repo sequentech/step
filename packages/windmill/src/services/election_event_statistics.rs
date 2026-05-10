@@ -1,15 +1,20 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+
+//! Managing statistics for a single election event.
+
 use anyhow::Result;
 use deadpool_postgres::Transaction;
 use sequent_core::services::uuid_validation::parse_uuid_v4;
 use tokio_postgres::row::Row;
 use tracing::instrument;
 
-/**
- * Returns the count of areas per election event
- */
+/// Return the number of areas configured for an election event.
+///
+/// # Errors
+///
+/// Returns an error if SQL preparation/execution fails or ids are invalid UUIDs.
 #[instrument(skip(transaction), err)]
 pub async fn get_count_areas(
     transaction: &Transaction<'_>,
@@ -51,9 +56,11 @@ pub async fn get_count_areas(
     Ok(total_areas)
 }
 
-/**
- * Returns the count of elections in an election event
- */
+/// Return the number of elections belonging to an election event.
+///
+/// # Errors
+///
+/// Returns an error if SQL preparation/execution fails or ids are invalid UUIDs.
 #[instrument(skip(transaction), err)]
 pub async fn get_count_elections(
     transaction: &Transaction<'_>,
@@ -95,6 +102,11 @@ pub async fn get_count_elections(
     Ok(total_elections)
 }
 
+/// Increment election event statistics counters for communications.
+///
+/// # Errors
+///
+/// Returns an error if SQL preparation/execution fails or ids are invalid UUIDs.
 #[instrument(skip(transaction), err)]
 pub async fn update_election_event_statistics(
     transaction: &Transaction<'_>,
@@ -140,6 +152,11 @@ pub async fn update_election_event_statistics(
     Ok(())
 }
 
+/// Return the number of distinct voters that have cast a vote in an election event.
+///
+/// # Errors
+///
+/// Returns an error if SQL preparation/execution fails or ids are invalid UUIDs.
 #[instrument(skip(transaction), err)]
 pub async fn get_count_distinct_voters(
     transaction: &Transaction<'_>,

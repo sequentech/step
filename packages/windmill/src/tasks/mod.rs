@@ -2,6 +2,16 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+//! Celery-registered workers: long-running exports, imports, ceremonies, and election lifecycle hooks.
+//!
+//! Some Celery task modules use localized `missing_docs` allows because
+//! `#[celery::task]` generates internal structs, fields, and impls that trigger
+//! Rust and Clippy missing-documentation lints.
+//!
+//! The allow attributes are intentionally scoped only to the macro-generated
+//! task code so the rest of the module continues enforcing strict
+//! documentation rules for domain logic and public APIs.
+
 pub mod activity_logs_report;
 pub mod create_ballot_receipt;
 pub mod create_keys;

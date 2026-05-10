@@ -1,6 +1,9 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+
+//! Managing Keycloak events.
+
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::Transaction;
 use sequent_core::types::keycloak::AREA_ID_ATTR_NAME;
@@ -9,10 +12,14 @@ use tokio_postgres::row::Row;
 use tokio_postgres::types::ToSql;
 use tracing::instrument;
 
+/// Login event type.
 pub const LOGIN_EVENT_TYPE: &str = "LOGIN";
+/// Login error event type.
 pub const LOGIN_ERR_EVENT_TYPE: &str = "LOGIN_ERROR";
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
+/// Keycloak event.
+#[allow(missing_docs)]
 pub struct Event {
     pub id: String,
     pub event_time: i64,
@@ -46,6 +53,11 @@ impl TryFrom<Row> for Event {
     }
 }
 
+/// List Keycloak admin events of a given type (and optional action) for a realm.
+///
+/// # Errors
+///
+/// Returns an error if statement preparation, query execution, or row mapping fails.
 #[instrument(skip(keycloak_transaction), err)]
 pub async fn list_keycloak_events_by_type(
     keycloak_transaction: &Transaction<'_>,
@@ -101,6 +113,15 @@ pub async fn list_keycloak_events_by_type(
     Ok(events)
 }
 
+/// Count Keycloak events by type, optional error, dedupe, and area filters.
+///
+/// # Errors
+///
+/// Returns an error if statement preparation or the count query fails.
+///
+/// # Panics
+///
+/// Panics if internal SQL parameter numbering overflows `i32` (pathological filter combinations).
 #[instrument(skip(keycloak_transaction), err)]
 pub async fn count_keycloak_events_by_type(
     keycloak_transaction: &Transaction<'_>,
@@ -179,6 +200,11 @@ pub async fn count_keycloak_events_by_type(
     Ok(count)
 }
 
+/// Count password-reset events for users in a given voting area.
+///
+/// # Errors
+///
+/// Returns an error if statement preparation or the count query fails.
 #[instrument(skip(keycloak_transaction), err)]
 pub async fn count_keycloak_password_reset_event_by_area(
     keycloak_transaction: &Transaction<'_>,

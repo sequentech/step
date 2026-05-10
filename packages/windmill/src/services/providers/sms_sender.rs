@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+//! SMS delivery via AWS SNS or a console logger.
 use crate::types::error::Result;
 
 use anyhow::anyhow;
@@ -10,18 +11,29 @@ use sequent_core::util::aws::get_from_env_aws_config;
 use std::collections::HashMap;
 use tracing::{event, instrument, Level};
 
+/// Optional set of AWS SNS message attributes applied to each published message.
 type MessageAttributes = Option<HashMap<String, MessageAttributeValue>>;
 
+/// Transport backend selected for SMS delivery.
 pub enum SmsTransport {
+    /// AWS SNS client plus optional per-message attributes.
     AwsSns((AwsSnsClient, MessageAttributes)),
+    /// Log-only transport (no delivery).
     Console,
 }
 
+/// SMS sender configured from environment variables.
 pub struct SmsSender {
+    /// Active SMS transport.
     pub transport: SmsTransport,
 }
 
 impl SmsSender {
+    /// Builds an [`SmsSender`] from environment configuration.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if env/config parsing fails.
     #[instrument(err)]
     pub async fn new() -> Result<Self> {
         let sms_transport_name = std::env::var("SMS_TRANSPORT_NAME")
@@ -66,6 +78,11 @@ impl SmsSender {
         })
     }
 
+    /// Sends a single SMS message.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if delivery fails.
     #[instrument(skip(self, message), err)]
     pub async fn send(&self, receiver: String, message: String) -> Result<()> {
         match self.transport {

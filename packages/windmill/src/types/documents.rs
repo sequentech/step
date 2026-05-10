@@ -1,9 +1,11 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-
+//! Export/import document types and filenames.
 use strum_macros::{Display, EnumString, EnumVariantNames};
 
+/// Document types for export/import operations.
+#[allow(missing_docs)]
 #[derive(Display, Debug, PartialEq, Eq, Clone, EnumString, EnumVariantNames)]
 pub enum EDocuments {
     ELECTION_EVENT,
@@ -21,11 +23,13 @@ pub enum EDocuments {
     PUBLICATIONS,
     TALLY,
     IMAGES,
+    /// Election event configuration presentation for the voting portal.
     ELECTION_EVENT_CONFIG,
     CERTIFICATES,
 }
 
 impl EDocuments {
+    /// Base filename segment used when writing this document into an export archive.
     pub fn to_file_name(&self) -> &str {
         match self {
             EDocuments::ELECTION_EVENT => "export_election_event",
@@ -49,6 +53,8 @@ impl EDocuments {
     }
 }
 
+/// Document types for tally resultsexport operations.
+#[allow(missing_docs)]
 pub enum ETallyDocuments {
     TALLY_SESSION,
     TALLY_SESSION_CONTEST,
@@ -63,6 +69,7 @@ pub enum ETallyDocuments {
 }
 
 impl ETallyDocuments {
+    /// Base filename segment used when exporting this tally document.
     pub fn to_file_name(&self) -> &str {
         match self {
             ETallyDocuments::TALLY_SESSION => "export_tally_session",

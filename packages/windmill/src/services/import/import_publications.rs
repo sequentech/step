@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+//! Imports ballot publications and the election-event config file into the public bucket.
 
 use anyhow::{anyhow, Context, Result};
 use csv::StringRecord;
@@ -22,12 +23,20 @@ use uuid::Uuid;
 use crate::services::ballot_styles::ballot_style::{ElectionEventConfig, EVENT_CONFIG_FILE_NAME};
 use crate::services::documents::upload_and_return_public_event_document;
 
+/// JSON shape holding a ballot publication id and its serialized ballot styles.
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ballot_design {
+    /// Ballot publication id referenced by the styles in this entry.
     ballot_publication_id: String,
+    /// Ballot styles belonging to the publication.
     ballot_styles: Vec<BallotStyle>,
 }
 
+/// Imports ballot publications from a JSON file into the database.
+///
+/// # Errors
+///
+/// Returns an error if the input cannot be read or deserialized.
 #[instrument(err, skip(replacement_map))]
 pub async fn import_ballot_publications(
     hasura_transaction: &Transaction<'_>,
@@ -47,6 +56,11 @@ pub async fn import_ballot_publications(
 
 /// Imports the election event config file,
 /// This file contains the election event presentation and is created during publication.
+///
+/// # Errors
+///
+/// Returns an error if the input cannot be read/deserialized,
+/// the temp file cannot be written, or upload fails.
 #[instrument(err, skip(replacement_map))]
 pub async fn import_election_event_config_file(
     hasura_transaction: &Transaction<'_>,

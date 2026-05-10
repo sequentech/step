@@ -1,6 +1,13 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+
+//! Ballot receipt report template renderer.
+//!
+//! This report is generated from the voting portal after casting a vote. It
+//! verifies the ballot exists in the cast-vote records and renders a PDF receipt
+//! containing the ballot tracker URL and a timestamp.
+
 use super::template_renderer::*;
 use crate::postgres::reports::ReportType;
 use crate::postgres::{self};
@@ -20,42 +27,65 @@ use serde::{Deserialize, Serialize};
 use tracing::instrument;
 use uuid::Uuid;
 
-/// Wrapper struct for data specific to the ballot and the voter
-/// which won't be needed in the preview mode.
+/// Ballot- and voter-specific inputs required to generate a real receipt.
+///
+/// This data is not required for preview mode, where the renderer reads example
+/// JSON data from public assets instead.
 #[derive(Serialize, Deserialize, Debug)]
 pub struct BallotData {
+    /// Area where the ballot was cast.
     pub area_id: String,
+    /// Voter identifier (Keycloak user id).
     pub voter_id: String,
+    /// Ballot identifier used by cast-vote records.
     pub ballot_id: String,
+    /// Public URL used to track the ballot.
     pub ballot_tracker_url: String,
+    /// Optional time zone for rendering timestamps.
     pub time_zone: Option<TimeZone>,
+    /// Optional date format for rendering timestamps.
     pub date_format: Option<DateFormat>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
+/// User-side data rendered into the ballot-receipt user template.
 pub struct UserData {
+    /// Ballot identifier to display on the receipt.
     pub ballot_id: String,
+    /// Public ballot tracker URL.
     pub ballot_tracker_url: String,
+    /// HTML template snippet for rendering a QR code.
     pub qrcode: String,
+    /// HTML template snippet for rendering the logo.
     pub logo: String,
+    /// Timestamp string included in the rendered receipt.
     pub timestamp: String,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
+/// System-side variables used by the ballot-receipt system template.
 pub struct SystemData {
+    /// User template already rendered with `UserData`.
     pub rendered_user_template: String,
+    /// PDF title.
     pub title: String,
+    /// URL or path to the logo image.
     pub file_logo: String,
+    /// URL or path to the QR-code JS library.
     pub file_qrcode_lib: String,
 }
 
 #[derive(Debug)]
+/// Renderer for the ballot-receipt report templates.
+#[allow(missing_docs_in_private_items)]
 pub struct BallotTemplate {
     ids: ReportOrigins,
+    /// Only present in real mode; preview mode uses public-assets JSON.
     pub ballot_data: Option<BallotData>,
 }
 
 impl BallotTemplate {
+    /// Creates a renderer for the given tenant/event and ballot inputs.
     pub fn new(ids: ReportOrigins, ballot_data: Option<BallotData>) -> Self {
         BallotTemplate { ids, ballot_data }
     }
@@ -99,6 +129,12 @@ impl TemplateRenderer for BallotTemplate {
     }
 
     #[instrument(err, skip_all)]
+    /// Validates the ballot exists in cast votes and builds receipt template data.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if required ids are missing, ids are not valid UUIDv4,
+    /// cast votes cannot be fetched, or the given ballot cannot be found for the voter.
     async fn prepare_user_data(
         &self,
         hasura_transaction: &Transaction<'_>,
@@ -159,6 +195,11 @@ impl TemplateRenderer for BallotTemplate {
     }
 
     #[instrument(err, skip_all)]
+    /// Prepares system-side variables used by the system template.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if public-assets configuration cannot be resolved.
     async fn prepare_system_data(
         &self,
         rendered_user_template: String,

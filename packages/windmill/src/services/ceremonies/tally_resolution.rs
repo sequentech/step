@@ -70,8 +70,13 @@ pub struct TieResolutionCheck {
     pub pending: Vec<(String, TallySessionResolutionData)>,
 }
 
-/// Scans `results_area_contest` rows for the given `results_event_id` and
-/// returns any contests whose annotations contain a `pending_tie_resolution`.
+/// Scans `results_contest` rows for the given `results_event_id` and returns any contests whose
+/// annotations contain a `pending_tie_resolution`.
+///
+/// # Errors
+///
+/// Invalid UUID parameters, Postgres query failures, or JSON deserialization errors when reading
+/// stored `pending_tie_resolution` blobs into [`TallySessionResolutionData`].
 pub async fn check_for_tie_resolutions(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
@@ -129,6 +134,11 @@ pub async fn check_for_tie_resolutions(
 /// `tally_paused_pending_resolution` entry to the electoral log.
 ///
 /// Returns the IDs of all pending resolution records (empty if no ties detected).
+///
+/// # Errors
+///
+/// Any failure from [`check_for_tie_resolutions`], resolution insert helpers, missing bulletin
+/// board configuration, electoral log construction, or posting `tally_paused_pending_resolution`.
 pub async fn handle_pending_irv_resolutions(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
@@ -216,6 +226,17 @@ pub async fn handle_pending_irv_resolutions(
 
 /// Submit multiple tally resolutions for a paused tally (batch operation).
 /// Returns the number of resolutions processed.
+///
+/// # Panics
+///
+/// Panics if incrementing the processed-resolution counter overflows `usize` (practically
+/// unreachable unless the batch size exceeds platform limits).
+///
+/// # Errors
+///
+/// Missing tally session or execution status, validation failures from [`validate_resolution_allowed`],
+/// missing resolutions, invalid candidate selections, Postgres update failures, or electoral log
+/// errors while recording tie outcomes.
 pub async fn submit_tally_resolution(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
@@ -409,6 +430,12 @@ pub async fn submit_tally_resolution(
 
 /// Returns `Err` if the tally is not awaiting input AND at least one of the
 /// requested contest IDs does not yet have a resolved record in `all_resolutions`.
+///
+/// # Errors
+///
+/// Returns `Err((Status::BadRequest, message))` when the session is not in
+/// [`TallyExecutionStatus::AWAITING_INPUT`] and at least one `input_contest_ids` entry lacks a
+/// resolved [`TallySessionResolution`] in `all_resolutions`.
 pub fn validate_resolution_allowed(
     execution_status: &TallyExecutionStatus,
     input_contest_ids: &[&str],
@@ -432,6 +459,11 @@ pub fn validate_resolution_allowed(
 }
 
 /// Extracts the list of tied candidate IDs from a resolution's `resolution_data` field.
+///
+/// # Errors
+///
+/// Returns `Err((Status::BadRequest, ...))` when `resolution_data` is missing or does not carry
+/// `tied_candidate_ids`.
 pub fn extract_tied_candidate_ids(
     resolution: &TallySessionResolution,
     contest_id: &str,

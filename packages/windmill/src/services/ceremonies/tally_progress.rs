@@ -10,6 +10,7 @@ use sequent_core::types::{
 use std::collections::{HashMap, HashSet};
 use tracing::{event, instrument, Level};
 
+/// Collects distinct batch numbers from `messages` whose statement kind matches `kind`.
 #[instrument(skip_all)]
 fn get_session_ids_by_type(messages: &[Message], kind: StatementType) -> Vec<i64> {
     let mut plaintext_batch_ids: Vec<i64> = messages
@@ -28,6 +29,15 @@ fn get_session_ids_by_type(messages: &[Message], kind: StatementType) -> Vec<i64
     plaintext_batch_ids
 }
 
+/// Computes [`TallyElection`] progress rows from `tally_session_contest` batch ids and the mixnet
+/// message stream (mix, decryption factors, plaintext batches).
+///
+/// Elections present on the session but without contests are reported as fully complete so the UI
+/// does not show stuck progress for unused elections.
+///
+/// # Errors
+///
+/// Should never return an error.
 #[instrument(skip_all, ret)]
 pub async fn generate_tally_progress(
     tally_session: TallySession,

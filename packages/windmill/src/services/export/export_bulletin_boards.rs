@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+//! CSV exports of ImmuDB/bulletin-board message rows and protocol-manager secrets for an election event.
 use crate::postgres::election::get_elections;
 use crate::postgres::keys_ceremony::get_keys_ceremonies;
 use crate::postgres::trustee::get_all_trustees;
@@ -25,21 +26,35 @@ use tempfile::{NamedTempFile, TempPath};
 use tracing::{event, info, instrument, Level};
 
 lazy_static! {
+    /// Validates bulletin-board CSV column names (alphanumeric, dot, underscore, hyphen).
     pub static ref HEADER_RE: Regex = Regex::new(r"^[a-zA-Z0-9._-]+$").unwrap();
+    /// CSV header: owning election id (empty string for the event-level board).
     pub static ref ELECTION_ID_COL_NAME: String = String::from("election_id");
+    /// CSV header: message row id.
     pub static ref ID_COL_NAME: String = String::from("id");
+    /// CSV header: row creation timestamp.
     pub static ref CREATED_COL_NAME: String = "created".to_string();
+    /// CSV header: sender public key.
     pub static ref SENDER_PK_COL_NAME: String = "sender_pk".to_string();
+    /// CSV header: statement timestamp.
     pub static ref STATEMENT_TIMESTAMP_COL_NAME: String = "statement_timestamp".to_string();
+    /// CSV header: statement kind discriminator.
     pub static ref STATEMENT_COL_NAME: String = "statement_kind".to_string();
+    /// CSV header: batch index.
     pub static ref BATCH_COL_NAME: String = "batch".to_string();
+    /// CSV header: mix round number.
     pub static ref MIX_NUMBER_COL_NAME: String = "mix_number".to_string();
+    /// CSV header: base64-encoded payload.
     pub static ref MESSAGE_COL_NAME: String = "message".to_string();
+    /// CSV header: row schema/version tag.
     pub static ref VERSION_COL_NAME: String = "version".to_string();
+    /// CSV header used in trustee config exports (trustee display name).
     pub static ref TRUSTEE_NAME_COL_NAME: String = "trustee".to_string();
+    /// CSV header for trustee-side configuration blob.
     pub static ref TRUSTEE_CONFIG_COL_NAME: String = "config".to_string();
 }
 
+/// Converts a single B3 bulletin-board row into a CSV record (message is standard base64, no padding).
 #[instrument]
 fn get_board_record(election_id: &str, row: B3MessageRow) -> Vec<String> {
     let message_b64 = general_purpose::STANDARD_NO_PAD.encode(row.message.clone());
@@ -57,6 +72,11 @@ fn get_board_record(election_id: &str, row: B3MessageRow) -> Vec<String> {
     ]
 }
 
+/// Writes all boards in `boards_map` to a comma-separated CSV temp file.
+///
+/// # Errors
+///
+/// Returns an error when temp file creation, CSV writes, or size checks fail.
 #[instrument(err)]
 async fn create_boards_csv(boards_map: HashMap<String, Vec<B3MessageRow>>) -> Result<TempPath> {
     let mut writer = csv::WriterBuilder::new().delimiter(b',').from_writer(
@@ -105,6 +125,11 @@ async fn create_boards_csv(boards_map: HashMap<String, Vec<B3MessageRow>>) -> Re
     Ok(temp_path)
 }
 
+/// Fetches every bulletin board for the event and creates a temporary file.
+///
+/// # Errors
+///
+/// Propagates missing `ENV_SLUG`, database errors, B3 client failures, or [`create_boards_csv`] errors.
 #[instrument(err, skip(transaction))]
 pub async fn read_election_event_boards(
     transaction: &Transaction<'_>,
@@ -135,6 +160,12 @@ pub async fn read_election_event_boards(
     create_boards_csv(boards_map).await
 }
 
+/// Exports protocol-manager shared secrets for the event board and each
+/// election board as two-column CSV (`election_id`, `key`).
+///
+/// # Errors
+///
+/// Propagates vault read failures, missing secrets, oversize output, or database/env errors.
 #[instrument(err, skip(transaction))]
 pub async fn read_protocol_manager_keys(
     transaction: &Transaction<'_>,

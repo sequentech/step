@@ -1,6 +1,9 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+//! Full election-event export: aggregates importable Hasura schema,
+//! Keycloak realm data, optional voters, media, tally CSVs, and related artifacts into a ZIP
+//! (optionally encrypted).
 use crate::postgres::application::get_applications_by_election;
 use crate::postgres::area::get_event_areas;
 use crate::postgres::area_contest::export_area_contests;
@@ -58,6 +61,11 @@ use crate::services::consolidation::aes_256_cbc_encrypt::encrypt_file_aes_256_cb
 use crate::services::documents::upload_and_return_document;
 use crate::services::password;
 
+/// Builds the structured export data and temp paths for images referenced by document ids.
+/// # Errors
+///
+/// Propagates parallel query failures, Keycloak admin errors,
+/// UUID parse errors, or image download failures.
 #[instrument(err, skip(transaction))]
 pub async fn read_export_data(
     transaction: &Transaction<'_>,
@@ -168,6 +176,11 @@ pub async fn read_export_data(
     Ok((import_election_event_schema, images_files_path))
 }
 
+/// Encrypts `temp_path_string` into `encrypted_temp_file_string` using AES-256-CBC with `password`.
+///
+/// # Errors
+///
+/// Returns an error when the encryption helper fails.
 #[instrument(err)]
 pub async fn generate_encrypted_zip(
     temp_path_string: String,
@@ -180,6 +193,11 @@ pub async fn generate_encrypted_zip(
     Ok(())
 }
 
+/// Writes `data` as JSON into a [`NamedTempFile`].
+///
+/// # Errors
+///
+/// Returns an error when serialization or temp file IO fails.
 pub async fn write_export_document(data: ImportElectionEventSchema) -> Result<NamedTempFile> {
     // Serialize the data into JSON string
     let data_str = serde_json::to_string_pretty(&data)?;
@@ -192,6 +210,11 @@ pub async fn write_export_document(data: ImportElectionEventSchema) -> Result<Na
     Ok(tmp_file)
 }
 
+/// Builds an export filename from the SHA-256 of `file_path` and `election_event_id`.
+///
+/// # Errors
+///
+/// Propagates hashing failures from [`hash_sha256_file`].
 fn get_export_election_event_filename(
     election_event_id: &str,
     file_path: &PathBuf,
@@ -209,6 +232,11 @@ fn get_export_election_event_filename(
     ))
 }
 
+/// Downloads a document's bytes into a temp file.
+///
+/// # Errors
+///
+/// Propagates document lookup failures, S3 read errors, or async file write errors.
 #[instrument(err, skip(hasura_transaction, s3_bucket))]
 pub async fn get_image_file_from_s3(
     hasura_transaction: &Transaction<'_>,
@@ -242,6 +270,11 @@ pub async fn get_image_file_from_s3(
     Ok(Some(temp_file.into_temp_path()))
 }
 
+/// Generic helper to download images from S3 for each contest, candidate, or election.
+///
+/// # Errors
+///
+/// Propagates failures from [`get_image_file_from_s3`].
 #[instrument(err, skip(hasura_transaction, items, s3_bucket, get_document_id))]
 async fn process_images<T, F>(
     hasura_transaction: &Transaction<'_>,
@@ -270,6 +303,11 @@ where
     Ok(s3_files)
 }
 
+/// Downloads election images from S3.
+///
+/// # Errors
+///
+/// Propagates [`process_images`] failures.
 pub async fn process_election_images(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
@@ -282,6 +320,11 @@ pub async fn process_election_images(
     .await
 }
 
+/// Downloads contest images from S3.
+///
+/// # Errors
+///
+/// Propagates [`process_images`] failures.
 pub async fn process_contests_images(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
@@ -294,6 +337,11 @@ pub async fn process_contests_images(
     .await
 }
 
+/// Downloads candidate images from S3.
+///
+/// # Errors
+///
+/// Propagates [`process_images`] failures.
 pub async fn process_candidates_images(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
@@ -306,6 +354,11 @@ pub async fn process_candidates_images(
     .await
 }
 
+/// Fetches election, contest, and candidate images from the public bucket in parallel.
+///
+/// # Errors
+///
+/// Propagates bucket resolution failures or any image download failures.
 #[instrument(err, skip(hasura_transaction, elections, contests, candidates))]
 pub async fn process_event_images(
     hasura_transaction: &Transaction<'_>,
@@ -329,6 +382,13 @@ pub async fn process_event_images(
     Ok(s3_files)
 }
 
+/// Builds the multi-artifact ZIP described by `export_config`, optionally encrypts it,
+/// uploads to the database and s3.
+///
+/// # Errors
+///
+/// Returns an error on missing passwords when required,
+/// IO/ZIP failures, subgraph export helper failures, or upload failures.
 #[instrument(err)]
 pub async fn process_export_zip(
     tenant_id: &str,

@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+//! Imports bulletin-board message CSVs and protocol-manager keys into the configured storage backends.
 use crate::postgres::election::get_elections;
 use crate::services::export::export_bulletin_boards::*;
 use crate::services::protocol_manager::get_b3_pgsql_client;
@@ -21,6 +22,11 @@ use std::collections::HashSet;
 use tempfile::NamedTempFile;
 use tracing::{info, instrument};
 
+/// Parses a CSV record into a bulletin-board row.
+///
+/// # Errors
+///
+/// Returns an error if required fields are missing or cannot be parsed/decoded.
 #[instrument]
 fn get_board_record(record: StringRecord) -> Result<(String, B3MessageRow)> {
     let fields: Vec<String> = record.iter().map(|val| val.to_string()).collect();
@@ -78,6 +84,7 @@ fn get_board_record(record: StringRecord) -> Result<(String, B3MessageRow)> {
     Ok((election_id, row))
 }
 
+/// Returns the event-level board name or an election board name.
 #[instrument]
 fn get_board_name_for_event_or_election(
     tenant_id: &str,
@@ -92,6 +99,11 @@ fn get_board_name_for_event_or_election(
     }
 }
 
+/// Imports protocol-manager keys from a CSV and stores them under each board’s secret path.
+///
+/// # Errors
+///
+/// Returns an error if CSV parsing/validation fails, ids cannot be replaced, or vault writes fail.
 #[instrument(err, skip(replacement_map))]
 pub async fn import_protocol_manager_keys(
     hasura_transaction: &Transaction<'_>,
@@ -199,6 +211,11 @@ pub async fn import_protocol_manager_keys(
     Ok(())
 }
 
+/// Imports bulletin-board rows from a CSV and inserts them into the event/election boards.
+///
+/// # Errors
+///
+/// Returns an error if CSV parsing/validation fails, ids cannot be replaced, or B3 insert fails.
 #[instrument(err)]
 pub async fn import_bulletin_boards(
     tenant_id: &str,

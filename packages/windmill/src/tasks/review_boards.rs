@@ -1,6 +1,9 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+//! Reviews board activities and tally workflows.
+#![allow(missing_docs)]
+#![allow(clippy::missing_docs_in_private_items)]
 use crate::postgres::election_event::get_batch_election_events;
 use crate::postgres::tenant::get_tenant_by_id;
 use crate::services::celery_app::get_celery_app;
@@ -16,6 +19,12 @@ use std::env;
 use tracing::instrument;
 use tracing::{event, Level};
 
+/// Celery task: ensures the platform default tenant exists and walks
+/// election events in batches, enqueueing `process_board` for each.
+///
+/// # Errors
+///
+/// Fails if required environment variables, the database, Keycloak checks, or Celery dispatch return an error.
 #[instrument(err)]
 #[wrap_map_err::wrap_map_err(TaskError)]
 #[celery::task(expires = 30)]

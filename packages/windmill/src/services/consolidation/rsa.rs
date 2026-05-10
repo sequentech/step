@@ -1,13 +1,20 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+
+//! RSA key generation and PKCS#12-driven signing via the bundled ECIES Java helper.
+
 use anyhow::{Context, Result};
 use openssl::rsa::{Padding, Rsa};
 use sequent_core::signatures::ecies_encrypt::ECIES_TOOL_PATH;
 use sequent_core::signatures::shell::run_shell_command;
 use tracing::{info, instrument};
 
-// Function to generate RSA public/private key pair in PEM format
+/// Generates a 2048-bit RSA key pair and returns PEM-encoded public and private strings.
+///
+/// # Errors
+///
+/// OpenSSL key generation or UTF-8 conversion failures.
 #[instrument(skip_all, err)]
 pub fn generate_rsa_keys() -> Result<(String, String)> {
     // Generate a 2048-bit RSA key pair
@@ -30,7 +37,11 @@ pub fn generate_rsa_keys() -> Result<(String, String)> {
     Ok((public_key_pem, private_key_pem))
 }
 
-// Function to encrypt data using the RSA private key extracted from a private key PEM string
+/// Encrypt data using the RSA private key extracted from a private key PEM string
+///
+/// # Errors
+///
+/// PEM parse errors or OpenSSL encryption failures.
 #[instrument(skip_all, err)]
 pub fn encrypt_with_rsa_private_key(private_key_pem: &str, data: &[u8]) -> Result<Vec<u8>> {
     // Parse the private key PEM string to get the RSA structure
@@ -51,6 +62,11 @@ pub fn encrypt_with_rsa_private_key(private_key_pem: &str, data: &[u8]) -> Resul
     Ok(encrypted_data)
 }
 
+/// Extracts a PEM public key from a `.p12` via the ECIES helper JAR.
+///
+/// # Errors
+///
+/// Shell command failures from [`run_shell_command`].
 pub fn derive_public_key_from_p12(pk12_file_path_string: &str, password: &str) -> Result<String> {
     let command = format!(
         "java -jar {} public-key {} {}",
@@ -64,6 +80,11 @@ pub fn derive_public_key_from_p12(pk12_file_path_string: &str, password: &str) -
     Ok(public_pem)
 }
 
+/// Signs `data_path` with the private key in the PKCS#12 file (RSA branch of the signing tool).
+///
+/// # Errors
+///
+/// Shell or tool failures; returns base64 signature string on success.
 #[instrument(skip_all, err)]
 pub fn rsa_sign_data(
     pk12_file_path_string: &str,

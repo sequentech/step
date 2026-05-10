@@ -1,6 +1,9 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+
+//! Readiness and liveness checks.
+
 use crate::services::celery_app::{get_celery_app, get_celery_connection, get_queues, Queue};
 use crate::services::database::{get_hasura_pool, get_keycloak_pool};
 use crate::services::jwks::get_jwks_secret_path;
@@ -19,12 +22,15 @@ use tracing::{error, info, instrument, warn};
 use super::celery_app::get_is_app_active;
 
 #[derive(Display, Debug, Eq, PartialEq, Clone)]
+/// Application name.
+#[allow(missing_docs)]
 pub enum AppName {
     BEAT,
     HARVEST,
     WINDMILL,
 }
 
+/// Broker reconnect timeout for Celery health checks (seconds).
 const BROKER_CONNECTION_TIMEOUT: u32 = 2;
 
 lazy_static! {
@@ -35,6 +41,7 @@ lazy_static! {
     };
 }
 
+/// Probe Celery broker connectivity and consumer health for configured queues.
 #[instrument(ret)]
 async fn check_celery(_app_name: &AppName) -> Option<bool> {
     let celery_app = get_celery_app().await;
@@ -87,6 +94,7 @@ async fn check_celery(_app_name: &AppName) -> Option<bool> {
     }
 }
 
+/// Probe Hasura Postgres pool by acquiring a connection within [`DB_TIMEOUTS`].
 #[instrument(ret)]
 async fn check_hasura_db(app_name: &AppName) -> Option<bool> {
     if AppName::BEAT == *app_name {
@@ -107,6 +115,7 @@ async fn check_hasura_db(app_name: &AppName) -> Option<bool> {
     }
 }
 
+/// Probe Keycloak Postgres pool by acquiring a connection within [`DB_TIMEOUTS`].
 #[instrument(ret)]
 async fn check_keycloak_db(app_name: &AppName) -> Option<bool> {
     if AppName::BEAT == *app_name {
@@ -128,6 +137,7 @@ async fn check_keycloak_db(app_name: &AppName) -> Option<bool> {
     }
 }
 
+/// Probe AWS Secrets Manager / vault master secret accessibility.
 #[instrument(ret)]
 async fn check_aws_secrets(app_name: &AppName) -> Option<bool> {
     if AppName::BEAT == *app_name {
@@ -143,6 +153,7 @@ async fn check_aws_secrets(app_name: &AppName) -> Option<bool> {
     }
 }
 
+/// Probe public S3 by reading the configured JWKS object path.
 #[instrument(ret)]
 async fn check_s3(app_name: &AppName) -> Option<bool> {
     if AppName::BEAT == *app_name {
@@ -166,6 +177,7 @@ async fn check_s3(app_name: &AppName) -> Option<bool> {
     }
 }
 
+/// Probe SMS transport (e.g. AWS SNS attributes) when the app sends outbound SMS.
 #[instrument(ret)]
 async fn check_sms_sender(app_name: &AppName) -> Option<bool> {
     if AppName::BEAT == *app_name || AppName::HARVEST == *app_name {
@@ -201,6 +213,7 @@ async fn check_sms_sender(app_name: &AppName) -> Option<bool> {
     }
 }
 
+/// Run all configured readiness checks; returns true when every probe passes or is skipped.
 #[instrument(ret)]
 async fn readiness_test(app_name: &AppName) -> bool {
     // Use futures::join! to await multiple futures concurrently
@@ -230,6 +243,7 @@ async fn readiness_test(app_name: &AppName) -> bool {
     data.iter().all(|&x| x.is_none() || x == Some(true))
 }
 
+/// Setup the probe for the application.
 pub async fn setup_probe(app_name: AppName) {
     let app = app_name.to_string();
     let addr_s = std::env::var(format!("{}_PROBE_ADDR", app)).unwrap_or("0.0.0.0:3030".to_string());

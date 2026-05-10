@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-
+//! Updates election presentation voting-period-end flags based on a scheduled event.
 use crate::postgres::election::{get_election_by_id, update_election_presentation};
 use crate::postgres::election_event::get_election_event_by_id;
 use crate::postgres::scheduled_event::*;
@@ -25,6 +25,7 @@ use tracing::instrument;
 use tracing::{error, event, info, Level};
 use uuid::Uuid;
 
+/// Updates election presentation voting-period-end flags based on the scheduled event.
 #[instrument(err)]
 async fn manage_election_voting_period_end_wrapped(
     hasura_transaction: &Transaction<'_>,
@@ -94,52 +95,61 @@ async fn manage_election_voting_period_end_wrapped(
     Ok(())
 }
 
-#[instrument(err)]
-#[wrap_map_err::wrap_map_err(TaskError)]
-#[celery::task(time_limit = 10, max_retries = 0, expires = 30)]
-pub async fn manage_election_voting_period_end(
-    tenant_id: String,
-    election_event_id: String,
-    scheduled_event_id: String,
-    election_id: String,
-) -> Result<()> {
-    let lock: PgLock = PgLock::acquire(
-        format!(
-            "execute_manage_election_voting_period_end-{}-{}-{}-{}",
-            tenant_id, election_event_id, scheduled_event_id, election_id
-        ),
-        Uuid::new_v4().to_string(),
-        ISO8601::now()
-            .checked_add_signed(Duration::seconds(120))
-            .expect("manage_election_voting_period_end lock expiry overflow"),
-    )
-    .await
-    .with_context(|| "Error acquiring pglock")?;
+mod manage_election_voting_period_end_task {
+    #![allow(missing_docs)]
+    #![allow(clippy::missing_docs_in_private_items)]
 
-    let res = provide_hasura_transaction(|hasura_transaction| {
-        let tenant_id = tenant_id.clone();
-        let election_event_id = election_event_id.clone();
-        let scheduled_event_id = scheduled_event_id.clone();
-        let election_id = election_id.clone();
-        Box::pin(async move {
-            // Your async code here
-            manage_election_voting_period_end_wrapped(
-                hasura_transaction,
-                tenant_id,
-                election_event_id,
-                scheduled_event_id,
-                election_id,
-            )
-            .await
-        })
-    })
-    .await;
+    use super::*;
 
-    info!("result: {:?}", res);
-
-    lock.release()
+    #[instrument(err)]
+    #[wrap_map_err::wrap_map_err(TaskError)]
+    #[celery::task(time_limit = 10, max_retries = 0, expires = 30)]
+    pub async fn manage_election_voting_period_end(
+        tenant_id: String,
+        election_event_id: String,
+        scheduled_event_id: String,
+        election_id: String,
+    ) -> Result<()> {
+        let lock: PgLock = PgLock::acquire(
+            format!(
+                "execute_manage_election_voting_period_end-{}-{}-{}-{}",
+                tenant_id, election_event_id, scheduled_event_id, election_id
+            ),
+            Uuid::new_v4().to_string(),
+            ISO8601::now()
+                .checked_add_signed(Duration::seconds(120))
+                .expect("manage_election_voting_period_end lock expiry overflow"),
+        )
         .await
-        .with_context(|| "Error releasing pglock")?;
+        .with_context(|| "Error acquiring pglock")?;
 
-    Ok(res?)
+        let res = provide_hasura_transaction(|hasura_transaction| {
+            let tenant_id = tenant_id.clone();
+            let election_event_id = election_event_id.clone();
+            let scheduled_event_id = scheduled_event_id.clone();
+            let election_id = election_id.clone();
+            Box::pin(async move {
+                // Your async code here
+                manage_election_voting_period_end_wrapped(
+                    hasura_transaction,
+                    tenant_id,
+                    election_event_id,
+                    scheduled_event_id,
+                    election_id,
+                )
+                .await
+            })
+        })
+        .await;
+
+        info!("result: {:?}", res);
+
+        lock.release()
+            .await
+            .with_context(|| "Error releasing pglock")?;
+
+        Ok(res?)
+    }
 }
+
+pub use manage_election_voting_period_end_task::manage_election_voting_period_end;

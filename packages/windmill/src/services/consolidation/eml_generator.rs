@@ -1,6 +1,9 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+
+//! Maps Velvet report rows and Miru-prefixed Hasura annotations into EML-shaped JSON.
+
 use super::eml_types::*;
 use crate::types::miru_plugin::*;
 use anyhow::{anyhow, Context, Result};
@@ -21,57 +24,93 @@ use strum_macros::{Display, EnumString, ToString};
 use tracing::{info, instrument};
 use velvet::pipes::{do_tally::ContestResult, generate_reports::ReportData};
 
+/// Namespace prefix for MIRU plugin keys in [`Annotations`] maps (`miru:…`).
 pub const MIRU_PLUGIN_PREPEND: &str = "miru";
+/// Annotation suffix: election event id string.
 pub const MIRU_ELECTION_EVENT_ID: &str = "election-event-id";
+/// Annotation suffix: election event display name.
 pub const MIRU_ELECTION_EVENT_NAME: &str = "election-event-name";
+/// Annotation suffix: election id (within event).
 const MIRU_ELECTION_ID: &str = "election-id";
+/// Annotation suffix: election display name.
 const MIRU_ELECTION_NAME: &str = "election-name";
+/// Annotation suffix: contest id.
 const MIRU_CONTEST_ID: &str = "contest-id";
+/// Annotation suffix: contest display name.
 const MIRU_CONTEST_NAME: &str = "contest-name";
+/// Annotation suffix: candidate id.
 const MIRU_CANDIDATE_ID: &str = "candidate-id";
+/// Annotation suffix: candidate display name.
 const MIRU_CANDIDATE_NAME: &str = "candidate-name";
+/// Annotation suffix: candidate status/setting code.
 const MIRU_CANDIDATE_SETTING: &str = "candidate-setting";
+/// Annotation suffix: affiliation id for the candidate’s party.
 const MIRU_CANDIDATE_AFFILIATION_ID: &str = "candidate-affiliation-id";
+/// Annotation suffix: registered affiliation name.
 const MIRU_CANDIDATE_AFFILIATION_REGISTERED_NAME: &str = "candidate-affiliation-registered-name";
+/// Annotation suffix: party label.
 const MIRU_CANDIDATE_AFFILIATION_PARTY: &str = "candidate-affiliation-party";
+/// Annotation suffix: JSON list of [`MiruCcsServer`] destinations.
 pub const MIRU_AREA_CCS_SERVERS: &str = "area-ccs-servers";
+/// Annotation suffix: precinct / station id string.
 pub const MIRU_AREA_STATION_ID: &str = "area-station-id";
+/// Annotation suffix: station display name.
 pub const MIRU_AREA_STATION_NAME: &str = "area-station-name";
+/// Annotation suffix: numeric threshold string for MIRU policy.
 pub const MIRU_AREA_THRESHOLD: &str = "area-threshold";
+/// Annotation suffix: JSON list of SBEI usernames allowed for this area.
 pub const MIRU_AREA_TRUSTEE_USERS: &str = "area-trustee-users";
+/// Annotation suffix: country code or name for the area.
 pub const MIRU_AREA_COUNTRY: &str = "area-country";
+/// Annotation suffix: registered voter count for the precinct.
 pub const MIRU_AREA_REGISTERED_VOTERS: &str = "registered-voters";
+/// Annotation suffix: JSON [`MiruTallySessionData`] blob on the tally session.
 pub const MIRU_TALLY_SESSION_DATA: &str = "tally-session-data";
+/// Annotation suffix: trustee id (legacy / display).
 pub const MIRU_TRUSTEE_ID: &str = "trustee-id";
+/// Annotation suffix: trustee display name.
 pub const MIRU_TRUSTEE_NAME: &str = "trustee-name";
+/// Annotation suffix: JSON list of [`MiruSbeiUser`] on the election event.
 pub const MIRU_SBEI_USERS: &str = "sbei-users";
+/// Annotation suffix: PEM root CA for optional client cert validation.
 pub const MIRU_ROOT_CA: &str = "root-ca";
+/// Annotation suffix: intermediate CA bundle text.
 pub const MIRU_INTERMEDIATE_CAS: &str = "intermediate-cas";
+/// Annotation suffix: `"true"` / `"false"` — validate client certs against CA store.
 pub const MIRU_USE_ROOT_CA: &str = "use-root-ca";
 
+/// `chrono`-style format for EML `issue_date`.
 const ISSUE_DATE_FORMAT: &str = "%Y-%m-%dT%H:%M:%S";
+/// Date-only format for official status timestamp in EML.
 const OFFICIAL_STATUS_DATE_FORMAT: &str = "%Y-%m-%d";
 
-/*COMELEC ELECTION DATA -> to be change if revice different keys  */
+// COMELEC-style geographic keys; adjust if a different jurisdiction’s EML mapping is needed.
+/// Annotation suffix: geographical region label for the election post.
 pub const MIRU_GEOGRAPHICAL_REGION: &str = "geographical-region";
+/// Annotation suffix: voting center / post name.
 pub const MIRU_VOTING_CENTER: &str = "voting-center";
+/// Annotation suffix: precinct code.
 pub const MIRU_PRECINCT_CODE: &str = "precinct-code";
+/// Map key (no `miru:` prefix in code paths): poll center code.
 pub const MIRU_POLLCENTER_CODE: &str = "pollcenter_code";
-/**/
 
+/// EML official-status enumeration (serialized lowercase).
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq, EnumString, Display)]
 #[serde(rename_all = "lowercase")]
 #[strum(serialize_all = "lowercase")]
 pub enum OfficialStatus {
+    /// Final official results (not provisional).
     OFFICIAL,
 }
 
+/// Builds COMELEC-style [`EMLCountMetric`] rows from a Velvet contest result.
 pub trait GetMetrics {
+    /// Fills standard metric ids (over/under votes, registered voters, etc.) for one contest.
     fn get_metrics(&self, registered_voters: i64) -> Vec<EMLCountMetric>;
 }
 
-// TODO: review
 impl GetMetrics for ContestResult {
+    /// Builds the fixed set of COMELEC count metrics (over/under votes, RV, valid, etc.).
     #[instrument(skip_all, name = "ContestResult::get_metrics")]
     fn get_metrics(&self, registered_voters: i64) -> Vec<EMLCountMetric> {
         let extended_metrics = self.extended_metrics.unwrap_or_default();
@@ -166,15 +205,32 @@ impl GetMetrics for ContestResult {
     }
 }
 
+/// Parses MIRU-prefixed keys from a [`sequent_core::ballot::Annotations`] map into a typed `Item`.
 pub trait ValidateAnnotations {
+    /// Strongly typed view produced from annotations (event, area, election, …).
     type Item;
 
+    /// Requires all expected MIRU keys; returns an error if any are missing or JSON is invalid.
+    ///
+    /// # Errors
+    ///
+    /// Missing annotation map, missing keys, or deserialize failures.
     fn get_annotations(&self) -> Result<Self::Item>;
+    /// Like [`get_annotations`](Self::get_annotations) but fills defaults when the map or keys are absent.
+    ///
+    /// # Errors
+    ///
+    /// Parse errors on present-but-invalid values (implementation-defined).
     fn get_annotations_or_empty_values(&self) -> Result<Self::Item> {
         self.get_annotations()
     }
 }
 
+/// Returns `Err` if any `keys` are absent from `annotations`.
+///
+/// # Errors
+///
+/// The first missing key produces an error.
 #[instrument(err, skip(annotations))]
 fn check_annotations_exist(keys: Vec<String>, annotations: &Annotations) -> Result<()> {
     for key in keys {
@@ -185,19 +241,29 @@ fn check_annotations_exist(keys: Vec<String>, annotations: &Annotations) -> Resu
     Ok(())
 }
 
+/// MIRU fields stored on the election event (ids, SBEI roster, optional TLS trust material).
 #[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
 pub struct MiruElectionEventAnnotations {
+    /// Election event id (annotation `miru:election-event-id`).
     pub event_id: String,
+    /// Election event display name.
     pub event_name: String,
+    /// Configured SBEI users for signing and CCS workflow.
     pub sbei_users: Vec<MiruSbeiUser>,
+    /// PEM root CA text when validating client certificates.
     pub root_ca: String,
+    /// Intermediate CA PEM(s) or bundle text.
     pub intermediate_cas: String,
+    /// Whether to enforce CA validation for P12 uploads.
     pub use_root_ca: bool,
 }
 
 impl ValidateAnnotations for ElectionEvent {
     type Item = MiruElectionEventAnnotations;
 
+    /// # Errors
+    ///
+    /// Missing or invalid election-event annotations or embedded JSON lists.
     #[instrument(skip_all, err, name = "ElectionEvent::get_annotations")]
     fn get_annotations(&self) -> Result<Self::Item> {
         let annotations_js = self
@@ -270,6 +336,10 @@ impl ValidateAnnotations for ElectionEvent {
             use_root_ca: "true" == use_root_ca.as_str(),
         })
     }
+
+    /// # Errors
+    ///
+    /// Deserialize failures when partial annotation values are malformed.
     #[instrument(err, skip_all)]
     fn get_annotations_or_empty_values(&self) -> Result<Self::Item> {
         let annotations_js = self
@@ -308,19 +378,29 @@ impl ValidateAnnotations for ElectionEvent {
     }
 }
 
+/// Geographic and naming metadata for one election post (COMELEC-oriented fields).
 #[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
 pub struct MiruElectionAnnotations {
+    /// Election id within the event.
     pub election_id: String,
+    /// Election display name.
     pub election_name: String,
+    /// Region / geographical label.
     pub geographical_area: String,
+    /// Voting center / post label.
     pub post: String,
+    /// Precinct code string.
     pub precinct_code: String,
+    /// Poll center code (unprefixed map key in annotations).
     pub pollcenter_code: String,
 }
 
 impl ValidateAnnotations for core::Election {
     type Item = MiruElectionAnnotations;
 
+    /// # Errors
+    ///
+    /// Missing election annotations or required MIRU keys (including poll center).
     #[instrument(skip_all, err, name = "Election::get_annotations")]
     fn get_annotations(&self) -> Result<Self::Item> {
         let annotations_js = self
@@ -387,6 +467,9 @@ impl ValidateAnnotations for core::Election {
         })
     }
 
+    /// # Errors
+    ///
+    /// JSON deserialization errors when the annotation map is non-empty but invalid.
     #[instrument(err, skip_all)]
     fn get_annotations_or_empty_values(&self) -> Result<Self::Item> {
         let annotations_js = self
@@ -427,20 +510,31 @@ impl ValidateAnnotations for core::Election {
     }
 }
 
+/// Precinct-level MIRU config: CCS endpoints, station ids, SBEI allowlist, registered voter count.
 #[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
 pub struct MiruAreaAnnotations {
+    /// Destinations for `er_` / `al_` uploads.
     pub ccs_servers: Vec<MiruCcsServer>,
+    /// Station / precinct id string.
     pub station_id: String,
+    /// Human-readable station name.
     pub station_name: String,
+    /// Policy threshold parsed from annotations.
     pub threshold: i64,
-    pub sbei_ids: Vec<String>, // the miru id of the sbei user, the election event has their annotations
+    /// Miru ids of SBEI users permitted for this area (cross-reference event `sbei_users`).
+    pub sbei_ids: Vec<String>,
+    /// Country field for EML / reporting.
     pub country: String,
-    pub registered_voters: i64, // registered voters at a given precinct id
+    /// Registered voters for metric generation in EML.
+    pub registered_voters: i64,
 }
 
 impl ValidateAnnotations for core::Area {
     type Item = MiruAreaAnnotations;
 
+    /// # Errors
+    ///
+    /// Missing area annotations, parse errors for numeric fields, or invalid embedded JSON lists.
     #[instrument(skip_all, err, name = "Area::get_annotations")]
     fn get_annotations(&self) -> Result<Self::Item> {
         let annotations_js = self
@@ -524,6 +618,9 @@ impl ValidateAnnotations for core::Area {
         })
     }
 
+    /// # Errors
+    ///
+    /// JSON or numeric parse errors when optional fields are present but malformed.
     #[instrument(err, skip_all)]
     fn get_annotations_or_empty_values(&self) -> Result<Self::Item> {
         let annotations_js = self
@@ -578,6 +675,9 @@ impl ValidateAnnotations for core::Area {
 impl ValidateAnnotations for core::TallySession {
     type Item = MiruTallySessionData;
 
+    /// # Errors
+    ///
+    /// Missing tally annotations or invalid `miru:tally-session-data` JSON.
     #[instrument(skip_all, err, name = "TallySession::get_annotations")]
     fn get_annotations(&self) -> Result<Self::Item> {
         let annotations_js = self
@@ -600,6 +700,9 @@ impl ValidateAnnotations for core::TallySession {
         Ok(tally_session_data)
     }
 
+    /// # Errors
+    ///
+    /// Rare: fails if an empty-default path deserializes invalidly (normally returns an empty vec).
     #[instrument(err, skip_all)]
     fn get_annotations_or_empty_values(&self) -> Result<Self::Item> {
         let annotations_js = self
@@ -616,15 +719,21 @@ impl ValidateAnnotations for core::TallySession {
     }
 }
 
+/// Display id and title for a contest row in EML.
 #[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
 pub struct MiruContestAnnotations {
+    /// Contest title from MIRU annotations.
     pub contest_name: String,
+    /// Contest id from MIRU annotations.
     pub contest_id: String,
 }
 
 impl ValidateAnnotations for Contest {
     type Item = MiruContestAnnotations;
 
+    /// # Errors
+    ///
+    /// Missing contest annotations or required MIRU keys.
     #[instrument(skip_all, err, name = "Contest::get_annotations")]
     fn get_annotations(&self) -> Result<Self::Item> {
         let annotations = self
@@ -657,19 +766,29 @@ impl ValidateAnnotations for Contest {
     }
 }
 
+/// Candidate and party fields mirrored into EML from MIRU contest annotations.
 #[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
 pub struct MiruCandidateAnnotations {
+    /// Display name.
     pub candidate_name: String,
+    /// Candidate id string.
     pub candidate_id: String,
+    /// Status / setting code for the row.
     pub candidate_setting: String,
+    /// Party id string.
     pub candidate_affiliation_id: String,
+    /// Registered party name.
     pub candidate_affiliation_registered_name: String,
+    /// Party label / acronym.
     pub candidate_affiliation_party: String,
 }
 
 impl ValidateAnnotations for Candidate {
     type Item = MiruCandidateAnnotations;
 
+    /// # Errors
+    ///
+    /// Missing candidate annotations or any required affiliation keys.
     #[instrument(skip_all, err, name = "Candidate::get_annotations")]
     fn get_annotations(&self) -> Result<Self::Item> {
         let annotations = self
@@ -742,11 +861,16 @@ impl ValidateAnnotations for Candidate {
     }
 }
 
+/// Returns `miru:{data}` for use as an [`Annotations`] map key.
 #[instrument]
 pub fn prepend_miru_annotation(data: &str) -> String {
     format!("{MIRU_PLUGIN_PREPEND}:{data}")
 }
 
+/// Looks up `miru:{data}`.
+/// # Errors
+///
+/// Missing key in `annotations`.
 #[instrument(err, skip(annotations))]
 pub fn find_miru_annotation(data: &str, annotations: &Annotations) -> Result<String> {
     let key = prepend_miru_annotation(data);
@@ -756,12 +880,26 @@ pub fn find_miru_annotation(data: &str, annotations: &Annotations) -> Result<Str
         .cloned()
 }
 
+/// Looks up `miru:{data}` and returns `None` if absent.
+///
+/// # Errors
+///
+/// None — always returns `Ok`.
 #[instrument(err, skip(annotations))]
 pub fn find_miru_annotation_opt(data: &str, annotations: &Annotations) -> Result<Option<String>> {
     let key = prepend_miru_annotation(data);
     Ok(annotations.get(&key).cloned())
 }
 
+/// Maps one Velvet [`ReportData`] row into an [`EMLContest`] (metrics + selections).
+///
+/// # Panics
+///
+/// If `report.contest` or `report.contest_result` is `None` (caller must supply a complete report).
+///
+/// # Errors
+///
+/// Contest or candidate annotation validation failures, or errors mapping candidate rows.
 #[instrument(err, skip_all)]
 pub fn render_eml_contest(
     report: &ReportData,
@@ -831,6 +969,11 @@ pub fn render_eml_contest(
     Ok(contests)
 }
 
+/// Assembles the root [`EMLFile`] for a tally: header timestamps, event/election ids, and all contests.
+///
+/// # Errors
+///
+/// Failures from [`render_eml_contest`] when iterating `reports`.
 #[instrument(err, skip(election_event_annotations, election_annotations, reports))]
 pub fn render_eml_file(
     tally_id: &str,

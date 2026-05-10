@@ -16,6 +16,7 @@ use tokio_postgres::row::Row;
 use tracing::{info, instrument};
 use uuid::Uuid;
 
+/// Results contest wrapper
 pub struct ResultsContestWrapper(pub ResultsContest);
 
 impl TryFrom<Row> for ResultsContestWrapper {
@@ -103,6 +104,12 @@ impl TryFrom<Row> for ResultsContestWrapper {
         }))
     }
 }
+/// Updates results contest documents and returns the updated row when applicable.
+///
+/// # Errors
+///
+/// Returns an error if SQL preparation or execution fails,
+/// if UUID or other parsing fails.
 
 #[instrument(skip(hasura_transaction), err)]
 pub async fn update_results_contest_documents(
@@ -169,6 +176,12 @@ pub async fn update_results_contest_documents(
         Err(anyhow!("Rows not found in table results_contest"))
     }
 }
+/// Get results contest from the database.
+///
+/// # Errors
+///
+/// Returns an error if SQL preparation or execution fails,
+/// if UUID or other parsing fails.
 
 #[instrument(skip(hasura_transaction), err)]
 pub async fn get_results_contest(
@@ -227,6 +240,12 @@ pub async fn get_results_contest(
         ))
     }
 }
+/// Insert results contests into the database.
+///
+/// # Errors
+///
+/// Returns an error if SQL preparation or execution fails,
+/// if UUID or other parsing fails.
 
 #[instrument(err, skip(hasura_transaction, contests))]
 pub async fn insert_results_contests(
@@ -240,7 +259,9 @@ pub async fn insert_results_contests(
         return Ok(Vec::new());
     }
 
+    /// JSON row for `jsonb_to_recordset` when inserting global (non-area) contest tallies.
     #[derive(Serialize)]
+    #[allow(clippy::missing_docs_in_private_items)]
     struct InsertContestData {
         tenant_id: Uuid,
         election_event_id: Uuid,
@@ -412,6 +433,11 @@ pub async fn insert_results_contests(
 
     Ok(values)
 }
+/// Get event results contest from the database.
+///
+/// # Errors
+///
+/// Returns an error if SQL preparation or execution fails, if UUID or other parsing fails, or if row mapping is inconsistent.
 
 #[instrument(skip(hasura_transaction), err)]
 pub async fn get_event_results_contest(
@@ -454,7 +480,9 @@ pub async fn get_event_results_contest(
     Ok(results)
 }
 
+/// Full contest-level tally row serialized for [`insert_many_results_contests`].
 #[derive(Debug, Serialize)]
+#[allow(clippy::missing_docs_in_private_items)]
 struct InsertableResultsContest {
     id: Uuid,
     tenant_id: Uuid,
@@ -486,6 +514,12 @@ struct InsertableResultsContest {
     total_auditable_votes: Option<i64>,
     total_auditable_votes_percent: Option<f64>,
 }
+/// Insert many results contests into the database.
+///
+/// # Errors
+///
+/// Returns an error if SQL preparation or execution fails,
+/// if UUID or other parsing fails.
 
 #[instrument(err, skip(hasura_transaction, results_contests))]
 pub async fn insert_many_results_contests(

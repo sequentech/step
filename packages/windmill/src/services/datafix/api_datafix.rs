@@ -1,6 +1,8 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+//! Datafix operations: resolve a datafix-scoped election event, then mutate the
+//! matching Keycloak voter (create, update, disable, mark voted, PIN rotation) using admin APIs.
 use super::types::*;
 use super::utils::*;
 
@@ -22,6 +24,11 @@ use std::env;
 use tracing::{error, info, instrument, warn};
 /// Disable the voter, datafix users are not actually deleted but just disabled.
 /// Note: voter_id in Datafix API represents the username in Keycloak/Sequent´s system.
+///
+/// # Errors
+///
+/// Returns a JSON [`DatafixResponse`] with `4xx`/`5xx` when the datafix event cannot be resolved,
+/// Keycloak admin calls fail, or the user cannot be edited.
 #[instrument(skip(hasura_transaction, keycloak_transaction))]
 pub async fn disable_datafix_voter(
     hasura_transaction: &Transaction<'_>,
@@ -69,7 +76,13 @@ pub async fn disable_datafix_voter(
     Ok(DatafixResponse::new(Status::Ok))
 }
 
-/// Note: voter_id in Datafix API represents the username in Keycloak/Sequent´s system.
+/// Creates a new voter in the event realm.
+/// Note: `voter_id` in Datafix API represents the username in Keycloak/Sequent´s system.
+///
+/// # Errors
+///
+/// Returns a JSON error payload when the datafix event is unknown, the area name cannot be matched,
+/// birthdate format is invalid, `KEYCLOAK_VOTER_GROUP_NAME` is unset, or Keycloak rejects creation.
 #[instrument(skip(hasura_transaction))]
 pub async fn add_datafix_voter(
     hasura_transaction: &Transaction<'_>,
@@ -135,6 +148,10 @@ pub async fn add_datafix_voter(
 
 /// There are 2 things that can be updated, the area and the birthdate.
 /// Note: voter_id in Datafix API represents the username in Keycloak/Sequent´s system.
+///
+/// # Errors
+///
+/// Same failure modes as [`add_datafix_voter`], plus errors when the user id cannot be resolved or Keycloak update fails.
 #[instrument(skip(hasura_transaction, keycloak_transaction))]
 pub async fn update_datafix_voter(
     hasura_transaction: &Transaction<'_>,
@@ -201,6 +218,10 @@ pub async fn update_datafix_voter(
 
 /// Mark a voter as having voted via a given channel
 /// Also disables the voter so it cannot vote online
+///
+/// # Errors
+///
+/// Returns JSON errors when the datafix event cannot be resolved, Keycloak admin calls fail, or the user cannot be located.
 #[instrument(skip(hasura_transaction, keycloak_transaction))]
 pub async fn mark_as_voted_via_channel(
     hasura_transaction: &Transaction<'_>,
@@ -252,6 +273,10 @@ pub async fn mark_as_voted_via_channel(
 
 /// Unmark a voter as having voted, set the attribute to None
 /// Also enables the voter
+///
+/// # Errors
+///
+/// Returns JSON errors when the datafix event cannot be resolved, Keycloak admin calls fail, or the user cannot be located.
 #[instrument(skip(hasura_transaction, keycloak_transaction))]
 pub async fn unmark_voter_as_voted(
     hasura_transaction: &Transaction<'_>,
@@ -304,6 +329,11 @@ pub async fn unmark_voter_as_voted(
 }
 
 /// Generate a new password.
+///
+/// # Errors
+///
+/// Returns JSON errors when the datafix metadata cannot be loaded, the user is disabled/not unique,
+/// Keycloak admin calls fail, or password application fails.
 #[instrument(skip(hasura_transaction, keycloak_transaction))]
 pub async fn replace_voter_pin(
     hasura_transaction: &Transaction<'_>,

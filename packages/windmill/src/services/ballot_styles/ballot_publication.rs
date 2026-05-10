@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+
 use crate::postgres::ballot_publication::{
     get_ballot_publication_by_id, get_previous_publication, get_previous_publication_election,
     insert_ballot_publication, soft_delete_other_ballot_publications, update_ballot_publication,
@@ -26,6 +27,15 @@ use tracing::{event, instrument, Level};
 
 use super::ballot_style;
 
+/// Resolves which election ids a new publication should cover.
+///
+/// When `election_id_opt` is set, returns that single id; otherwise loads all elections for the
+/// event from Postgres.
+///
+/// # Errors
+///
+/// Propagates errors from [`crate::postgres::election::get_elections_ids`] when no explicit
+/// election id was supplied.
 #[instrument(skip(hasura_transaction), err)]
 async fn get_election_ids_for_publication(
     hasura_transaction: &Transaction<'_>,
@@ -42,6 +52,17 @@ async fn get_election_ids_for_publication(
     Ok(elections_ids)
 }
 
+/// Inserts a ballot publication row for the tenant/event, then queues a Celery task to rebuild
+/// ballot styles for that publication.
+///
+/// # Returns
+///
+/// The new ballot publication id.
+///
+/// # Errors
+///
+/// - Postgres errors from election lookup, insert, or follow-up reads.
+/// - Celery dispatch failures when sending `update_election_event_ballot_styles`.
 #[instrument(err)]
 pub async fn add_ballot_publication(
     hasura_transaction: &Transaction<'_>,
@@ -87,6 +108,15 @@ pub async fn add_ballot_publication(
     Ok(ballot_publication.id.clone())
 }
 
+/// Marks a generated ballot publication as published: soft-deletes competing rows, stamps
+/// `published_at`, flips election/event published flags, and writes an electoral-log entry.
+///
+/// # Errors
+///
+/// - Returns `Err` if the publication is missing, not yet generated, or already published (early
+///   `Ok` when already published).
+/// - Anyhow-wrapped failures from Postgres updates, status serialization, electoral log RPC, or
+///   missing bulletin board configuration.
 #[instrument(err)]
 pub async fn update_publish_ballot(
     hasura_transaction: &Transaction<'_>,
@@ -196,6 +226,14 @@ pub async fn update_publish_ballot(
     Ok(())
 }
 
+/// Loads ballot EML JSON values for a publication, optionally filtered to one election and capped
+/// by `limit`, and returns them as a JSON array of deserialized values.
+///
+/// # Errors
+///
+/// - Postgres errors from [`crate::postgres::ballot_style::get_publication_ballot_styles`].
+/// - Deserialization failures when turning stored EML strings into JSON values, or `Err` if any
+///   filtered row decodes to an empty style.
 #[instrument(skip(hasura_transaction), err)]
 pub async fn get_publication_json(
     hasura_transaction: &Transaction<'_>,
@@ -235,18 +273,33 @@ pub async fn get_publication_json(
     Ok(serde_json::Value::Array(val_arr))
 }
 
+/// Snapshot of ballot styles JSON for one publication id.
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct PublicationStyles {
+    /// Publication row this snapshot refers to.
     ballot_publication_id: String,
+    /// JSON array of ballot style payloads from [`get_publication_json`] for that publication.
     ballot_styles: Value,
 }
 
+/// Pair of style snapshots for comparing a publication to its chronologically previous one.
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct PublicationDiff {
+    /// Styles for the requested publication.
     current: PublicationStyles,
+    /// Styles for the prior publication in the same scope, if any.
     previous: Option<PublicationStyles>,
 }
 
+/// Builds [`PublicationDiff`] between `ballot_publication_id` and the latest earlier publication
+/// for the same election (when scoped) or event-wide otherwise.
+///
+/// # Errors
+///
+/// - Missing publication row, Postgres failures, or failures while loading JSON via
+///   [`get_publication_json`].
+/// - `Err` when an election-scoped publication has no discoverable predecessor (logged as
+///   context in some branches but surfaced from inner helpers).
 #[instrument(err)]
 pub async fn get_ballot_publication_diff(
     hasura_transaction: &Transaction<'_>,

@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+//! JSON export of Celery task execution records for an election event.
 use crate::postgres::tasks_execution::get_tasks_by_election_event_id;
 use crate::services::database::get_hasura_pool;
 use crate::services::documents::upload_and_return_document;
@@ -14,6 +15,11 @@ use serde::{Deserialize, Serialize};
 use serde_json::{json, Map, Value};
 use tracing::{event, info, instrument, Level};
 
+/// Loads all [`TasksExecution`] rows for the event.
+///
+/// # Errors
+///
+/// Propagates database errors from [`get_tasks_by_election_event_id`].
 #[instrument(err, skip(transaction))]
 pub async fn read_export_data(
     transaction: &Transaction<'_>,
@@ -25,6 +31,13 @@ pub async fn read_export_data(
     Ok(tasks)
 }
 
+/// Serializes executions to JSON, writes a temp file,
+/// and uploads to the database and s3.
+///
+/// # Errors
+///
+/// Returns an error when serialization fails, no tasks exist,
+/// temp file creation fails, or upload fails.
 #[instrument(err, skip(transaction))]
 pub async fn write_export_document(
     transaction: &Transaction<'_>,
@@ -59,6 +72,11 @@ pub async fn write_export_document(
     }
 }
 
+/// Orchestrates read + write to the database and s3.
+///
+/// # Errors
+///
+/// Propagates pool acquisition, transaction, read/write, or commit failures.
 #[instrument(err)]
 pub async fn process_export(
     tenant_id: &str,

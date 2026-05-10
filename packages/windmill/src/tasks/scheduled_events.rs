@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+//! Dispatches calendar-driven scheduled events across election events.
 use crate::postgres::{
     election::{get_election_by_id, update_election_presentation},
     scheduled_event::find_all_active_events,
@@ -34,6 +35,7 @@ use std::sync::Arc;
 use tracing::instrument;
 use tracing::{event, info, Level};
 
+/// Parses the scheduled date into the machine local timezone.
 #[instrument]
 pub fn get_datetime(event: &ScheduledEvent) -> Option<DateTime<Local>> {
     let cron_config = event.cron_config.clone()?;
@@ -41,6 +43,11 @@ pub fn get_datetime(event: &ScheduledEvent) -> Option<DateTime<Local>> {
     ISO8601::to_date(&scheduled_date).ok()
 }
 
+/// Enqueues init-report scheduled event.
+///
+/// # Errors
+///
+/// Fails on payload deserialization or Celery dispatch errors.
 #[instrument(skip(celery_app), err)]
 pub async fn handle_allow_init_report(
     celery_app: Arc<Celery>,
@@ -106,6 +113,11 @@ pub async fn handle_allow_init_report(
     Ok(())
 }
 
+/// Schedules voting-period-end handling for a single election or the whole election event.
+///
+/// # Errors
+///
+/// Fails on payload deserialization or Celery dispatch errors.
 #[instrument(skip(celery_app), err)]
 pub async fn handle_allow_voting_period_end(
     celery_app: Arc<Celery>,
@@ -171,6 +183,11 @@ pub async fn handle_allow_voting_period_end(
     Ok(())
 }
 
+/// Schedules start/end voting window tasks for an election-specific payload or the entire event.
+///
+/// # Errors
+///
+/// Fails on payload deserialization or Celery dispatch errors.
 #[instrument(skip(celery_app), err)]
 pub async fn handle_voting_event(
     celery_app: Arc<Celery>,
@@ -236,6 +253,11 @@ pub async fn handle_voting_event(
     Ok(())
 }
 
+/// Enqueues the enrollment window scheduled event.
+///
+/// # Errors
+///
+/// Fails on Celery dispatch errors.
 #[instrument(skip(celery_app), err)]
 pub async fn handle_election_event_enrollment(
     celery_app: Arc<Celery>,
@@ -274,6 +296,12 @@ pub async fn handle_election_event_enrollment(
     Ok(())
 }
 
+/// Schedules the lockdown Celery task at the configured datetime for the tenant and election event.
+///
+/// # Errors
+///
+/// Fails on Celery dispatch errors.
+#[instrument(skip(celery_app), err)]
 pub async fn handle_election_lockdown(
     celery_app: Arc<Celery>,
     scheduled_event: &ScheduledEvent,
@@ -308,6 +336,11 @@ pub async fn handle_election_lockdown(
     Ok(())
 }
 
+/// Enqueues the allow-tally scheduled event.
+///
+/// # Errors
+///
+/// Fails on payload deserialization or Celery dispatch errors.
 #[instrument(skip(celery_app), err)]
 pub async fn handle_election_allow_tally(
     celery_app: Arc<Celery>,
@@ -352,86 +385,106 @@ pub async fn handle_election_allow_tally(
     Ok(())
 }
 
-#[instrument(err)]
-#[wrap_map_err::wrap_map_err(TaskError)]
-#[celery::task(time_limit = 10, max_retries = 0, expires = 30)]
-pub async fn scheduled_events(rate_seconds: u64) -> Result<()> {
-    let celery_app = get_celery_app().await;
-    let now = ISO8601::now();
-    let nsecs_later = now
-        .checked_add_signed(Duration::seconds(
-            i64::try_from(rate_seconds).expect("scheduled_events rate_seconds exceeds i64"),
-        ))
-        .expect("scheduled_events comparison time overflow");
-    let mut hasura_db_client: DbClient = get_hasura_pool()
-        .await
-        .get()
-        .await
-        .map_err(|e| anyhow!("Error getting hasura client {}", e))?;
-    let hasura_transaction = hasura_db_client
-        .transaction()
-        .await
-        .map_err(|e| anyhow!("Error creating a hasura transaction {}", e))?;
+mod scheduled_events_celery {
+    #![allow(missing_docs)]
+    #![allow(clippy::missing_docs_in_private_items)]
 
-    let scheduled_events = find_all_active_events(&hasura_transaction)
-        .await
-        .map_err(|e| anyhow!("Error finding all active events {}", e))?;
-    info!("Found {} scheduled events", scheduled_events.len());
-    let to_be_run_now = scheduled_events
-        .iter()
-        .filter(|event| {
-            let Some(formatted_date) = get_datetime(event) else {
-                return false;
+    use super::*;
+
+    /// Celery task: loads active scheduled rows due soon and dispatches the matching scheduled events tasks.
+    ///
+    /// # Errors
+    ///
+    /// Fails on Hasura pool/transaction errors, handler failures for strict paths, or deserialization issues bubbled from handlers.
+    ///
+    /// # Panics
+    ///
+    /// Panics if `rate_seconds` does not fit in `i64` or time arithmetic overflows.
+    #[instrument(err)]
+    #[wrap_map_err::wrap_map_err(TaskError)]
+    #[celery::task(time_limit = 10, max_retries = 0, expires = 30)]
+    pub async fn scheduled_events(rate_seconds: u64) -> Result<()> {
+        let celery_app = get_celery_app().await;
+        let now = ISO8601::now();
+        let nsecs_later = now
+            .checked_add_signed(Duration::seconds(
+                i64::try_from(rate_seconds).expect("scheduled_events rate_seconds exceeds i64"),
+            ))
+            .expect("scheduled_events comparison time overflow");
+        let mut hasura_db_client: DbClient = get_hasura_pool()
+            .await
+            .get()
+            .await
+            .map_err(|e| anyhow!("Error getting hasura client {}", e))?;
+        let hasura_transaction = hasura_db_client
+            .transaction()
+            .await
+            .map_err(|e| anyhow!("Error creating a hasura transaction {}", e))?;
+
+        let scheduled_events = find_all_active_events(&hasura_transaction)
+            .await
+            .map_err(|e| anyhow!("Error finding all active events {}", e))?;
+        info!("Found {} scheduled events", scheduled_events.len());
+        let to_be_run_now = scheduled_events
+            .iter()
+            .filter(|event| {
+                let Some(formatted_date) = get_datetime(event) else {
+                    return false;
+                };
+                formatted_date < nsecs_later
+            })
+            .collect::<Vec<_>>();
+        info!("Found {} events to be run now", to_be_run_now.len());
+        for scheduled_event in to_be_run_now {
+            let Some(event_processor) = scheduled_event.event_processor.clone() else {
+                continue;
             };
-            formatted_date < nsecs_later
-        })
-        .collect::<Vec<_>>();
-    info!("Found {} events to be run now", to_be_run_now.len());
-    for scheduled_event in to_be_run_now {
-        let Some(event_processor) = scheduled_event.event_processor.clone() else {
-            continue;
-        };
-        match event_processor {
-            EventProcessors::ALLOW_INIT_REPORT => {
-                handle_allow_init_report(celery_app.clone(), scheduled_event).await?;
-            }
-            EventProcessors::ALLOW_VOTING_PERIOD_END => {
-                handle_allow_voting_period_end(celery_app.clone(), scheduled_event).await?;
-            }
-            EventProcessors::START_VOTING_PERIOD | EventProcessors::END_VOTING_PERIOD => {
-                if let Err(err) = handle_voting_event(celery_app.clone(), scheduled_event).await {
-                    event!(
-                        Level::ERROR,
-                        "Event {} failed with error {}",
-                        scheduled_event.id,
-                        err,
-                    );
-                } else {
-                    event!(
-                        Level::INFO,
-                        "Event {} executed successfully",
-                        scheduled_event.id,
-                    );
+            match event_processor {
+                EventProcessors::ALLOW_INIT_REPORT => {
+                    handle_allow_init_report(celery_app.clone(), scheduled_event).await?;
+                }
+                EventProcessors::ALLOW_VOTING_PERIOD_END => {
+                    handle_allow_voting_period_end(celery_app.clone(), scheduled_event).await?;
+                }
+                EventProcessors::START_VOTING_PERIOD | EventProcessors::END_VOTING_PERIOD => {
+                    if let Err(err) = handle_voting_event(celery_app.clone(), scheduled_event).await
+                    {
+                        event!(
+                            Level::ERROR,
+                            "Event {} failed with error {}",
+                            scheduled_event.id,
+                            err,
+                        );
+                    } else {
+                        event!(
+                            Level::INFO,
+                            "Event {} executed successfully",
+                            scheduled_event.id,
+                        );
+                    }
+                }
+                EventProcessors::START_ENROLLMENT_PERIOD
+                | EventProcessors::END_ENROLLMENT_PERIOD => {
+                    handle_election_event_enrollment(celery_app.clone(), scheduled_event).await?;
+                }
+                EventProcessors::START_LOCKDOWN_PERIOD | EventProcessors::END_LOCKDOWN_PERIOD => {
+                    handle_election_lockdown(celery_app.clone(), scheduled_event).await?;
+                }
+                EventProcessors::ALLOW_TALLY => {
+                    handle_election_allow_tally(celery_app.clone(), scheduled_event).await?;
+                }
+                EventProcessors::CREATE_REPORT | EventProcessors::SEND_TEMPLATE => {
+                    // Nothing to do for these event processors.  Avoid a
+                    // catch all to ignore unknown events, this way when
+                    // new variants are added to `EventProcessors`, a
+                    // compile time error will happen notifying about the
+                    // missing logic for handling that new variant.
                 }
             }
-            EventProcessors::START_ENROLLMENT_PERIOD | EventProcessors::END_ENROLLMENT_PERIOD => {
-                handle_election_event_enrollment(celery_app.clone(), scheduled_event).await?;
-            }
-            EventProcessors::START_LOCKDOWN_PERIOD | EventProcessors::END_LOCKDOWN_PERIOD => {
-                handle_election_lockdown(celery_app.clone(), scheduled_event).await?;
-            }
-            EventProcessors::ALLOW_TALLY => {
-                handle_election_allow_tally(celery_app.clone(), scheduled_event).await?;
-            }
-            EventProcessors::CREATE_REPORT | EventProcessors::SEND_TEMPLATE => {
-                // Nothing to do for these event processors.  Avoid a
-                // catch all to ignore unknown events, this way when
-                // new variants are added to `EventProcessors`, a
-                // compile time error will happen notifying about the
-                // missing logic for handling that new variant.
-            }
         }
-    }
 
-    Ok(())
+        Ok(())
+    }
 }
+
+pub use scheduled_events_celery::scheduled_events;

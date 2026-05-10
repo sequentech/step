@@ -1,6 +1,9 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+
+//! PKCS#12 parsing, ECDSA/RSA signing wrappers, and openssl certificate verification.
+
 use anyhow::{anyhow, Context, Result};
 use openssl::pkcs12::Pkcs12;
 use openssl::pkey::PKey;
@@ -12,6 +15,11 @@ use std::io::Read;
 use tempfile::{tempdir, NamedTempFile, TempPath};
 use tracing::{info, instrument};
 
+/// Returns the OpenSSL [`openssl::pkey::Id`] for the private key inside a PKCS#12 file.
+///
+/// # Errors
+///
+/// File I/O, PKCS#12 parse errors, or missing private key material.
 #[instrument(skip_all, err)]
 pub fn get_pk12_id(p12_path: &str, password: &str) -> Result<openssl::pkey::Id> {
     // Read the .p12 file
@@ -28,6 +36,11 @@ pub fn get_pk12_id(p12_path: &str, password: &str) -> Result<openssl::pkey::Id> 
     Ok(pkey.id())
 }
 
+/// Signs `data_path` with ECDSA via the ECIES helper JAR (`sign-ec`).
+///
+/// # Errors
+///
+/// Shell command failures.
 #[instrument(skip_all, err)]
 pub fn ecdsa_sign_data(
     pk12_file_path_string: &str,
@@ -45,6 +58,11 @@ pub fn ecdsa_sign_data(
     Ok(encrypted_base64)
 }
 
+/// Writes the leaf certificate from PKCS#12 into a temp `.pem` file via `openssl pkcs12`.
+///
+/// # Errors
+///
+/// Temp file or `openssl` command failures.
 pub fn get_p12_cert(p12_file: &NamedTempFile, password: &str) -> Result<TempPath> {
     let p12_file_path = p12_file.path().to_string_lossy().to_string();
     let cert_temp_file =
@@ -60,6 +78,11 @@ pub fn get_p12_cert(p12_file: &NamedTempFile, password: &str) -> Result<TempPath
     Ok(cert_temp_path)
 }
 
+/// SHA-256 fingerprint string from `openssl x509 -fingerprint` for a PEM cert file.
+///
+/// # Errors
+///
+/// Shell command failures.
 #[instrument(err, ret)]
 pub fn get_p12_fingerprint(p12_cert_path: &TempPath) -> Result<String> {
     let cert_temp_path_string = p12_cert_path.to_string_lossy().to_string();
@@ -72,6 +95,11 @@ pub fn get_p12_fingerprint(p12_cert_path: &TempPath) -> Result<String> {
     Ok(fingerprint)
 }
 
+/// Verifies `p12_cert_path` chains to `root_ca` with `intermediate_cas` as untrusted intermediates.
+///
+/// # Errors
+///
+/// Tempdir/setup failures, `openssl verify` non-OK output, or shell errors.
 #[instrument(skip_all, err)]
 pub fn check_certificate_cas(
     p12_cert_path: &TempPath,

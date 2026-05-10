@@ -17,6 +17,7 @@ use tokio_postgres::row::Row;
 use tracing::{info, instrument};
 use uuid::Uuid;
 
+/// Results election wrapper
 pub struct ResultsElectionWrapper(pub ResultsElection);
 
 impl TryFrom<Row> for ResultsElectionWrapper {
@@ -53,6 +54,12 @@ impl TryFrom<Row> for ResultsElectionWrapper {
         }))
     }
 }
+/// Update results election documents into the database.
+///
+/// # Errors
+///
+/// Returns an error if SQL preparation or execution fails,
+/// if UUID or other parsing fails.
 
 #[instrument(skip_all, err)]
 pub async fn update_results_election_documents(
@@ -122,6 +129,12 @@ pub async fn update_results_election_documents(
         Err(anyhow!("Rows not found in table results_election"))
     }
 }
+/// Insert results elections into the database.
+///
+/// # Errors
+///
+/// Returns an error if SQL preparation or execution fails,
+/// if UUID or other parsing fails.
 
 #[instrument(err, skip(hasura_transaction, elections))]
 pub async fn insert_results_elections(
@@ -134,7 +147,9 @@ pub async fn insert_results_elections(
     if elections.is_empty() {
         return Ok(Vec::new());
     }
+    /// JSON row for `jsonb_to_recordset` when persisting election-level turnout aggregates.
     #[derive(Debug, Serialize)]
+    #[allow(clippy::missing_docs_in_private_items)]
     pub struct InsertResultsElection {
         pub tenant_id: Uuid,
         pub election_event_id: Uuid,
@@ -205,6 +220,12 @@ pub async fn insert_results_elections(
 
     Ok(values)
 }
+/// Get election results from the database.
+///
+/// # Errors
+///
+/// Returns an error if SQL preparation or execution fails,
+/// if UUID or other parsing fails.
 
 #[instrument(err)]
 pub async fn get_election_results(
@@ -256,6 +277,12 @@ pub async fn get_election_results(
 
     Ok(results)
 }
+/// Get results election by results event id from the database.
+///
+/// # Errors
+///
+/// Returns an error if SQL preparation or execution fails,
+/// if UUID or other parsing fails.
 
 #[instrument(err)]
 pub async fn get_results_election_by_results_event_id(
@@ -310,6 +337,12 @@ pub async fn get_results_election_by_results_event_id(
         .cloned()
         .ok_or(anyhow!("Results election not found"))
 }
+/// Get event results election from the database.
+///
+/// # Errors
+///
+/// Returns an error if SQL preparation or execution fails,
+/// if UUID or other parsing fails.
 
 #[instrument(err, skip(hasura_transaction))]
 pub async fn get_event_results_election(
@@ -354,7 +387,9 @@ pub async fn get_event_results_election(
     Ok(results)
 }
 
+/// Full election-level results row for [`insert_many_results_elections`].
 #[derive(Debug, Serialize)]
+#[allow(clippy::missing_docs_in_private_items)]
 struct InsertableResultsElection {
     id: Uuid,
     tenant_id: Uuid,
@@ -371,6 +406,12 @@ struct InsertableResultsElection {
     annotations: Option<Value>,
     documents: Option<Value>,
 }
+/// Insert many results elections into the database.
+///
+/// # Errors
+///
+/// Returns an error if SQL preparation or execution fails,
+/// if UUID or other parsing fails.
 
 #[instrument(err, skip(hasura_transaction, results))]
 pub async fn insert_many_results_elections(

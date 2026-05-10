@@ -1,6 +1,9 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+
+//! Compresses EML, encrypts payloads, and assembles `er_` / `al_` zip packages for CCS.
+
 use super::{
     acm_json::generate_acm_json,
     aes_256_cbc_encrypt::encrypt_file_aes_256_cbc,
@@ -36,9 +39,14 @@ use tempfile::NamedTempFile;
 use tracing::{info, instrument};
 use velvet::pipes::generate_reports::ReportData;
 
+/// Handlebars template object key under public assets used to wrap rendered EML XML.
 pub const PUBLIC_ASSETS_EML_BASE_TEMPLATE: &str = "eml_base.hbs";
 
-// returns (base_compressed_xml, eml, eml_hash)
+/// Compresses `eml` and returns bytes plus uppercase hex SHA-256 of the original string.
+///
+/// # Errors
+///
+/// Hashing or xz compression errors.
 #[instrument(skip_all, err)]
 pub fn compress_hash_eml(eml: &str) -> Result<(Vec<u8>, String)> {
     let rendered_xml_hash = hash_sha256(eml.as_bytes())
@@ -52,6 +60,11 @@ pub fn compress_hash_eml(eml: &str) -> Result<(Vec<u8>, String)> {
     Ok((compressed_xml, rendered_xml_hash))
 }
 
+/// Renders full EML via public-asset template, then xz-compresses and hashes it.
+///
+/// # Errors
+///
+/// Template fetch/render failures, JSON errors, or [`compress_hash_eml`] errors.
 #[instrument(skip(reports), err)]
 pub async fn generate_base_compressed_xml(
     tally_id: &str,
@@ -86,6 +99,11 @@ pub async fn generate_base_compressed_xml(
     Ok((compressed_xml, render_xml, rendered_xml_hash))
 }
 
+/// Writes xz to temp, AES-encrypts to `.exz`, and returns ECIES-wrapped random passphrase (base64).
+///
+/// # Errors
+///
+/// Temp file, openssl encrypt, or ECIES encrypt errors.
 #[instrument(skip(compressed_xml), err)]
 async fn generate_encrypted_compressed_xml(
     compressed_xml: Vec<u8>,
@@ -108,6 +126,11 @@ async fn generate_encrypted_compressed_xml(
     Ok((exz_temp_file, encrypted_random_pass_base64))
 }
 
+/// Writes `.exz` + `.json` siblings for a station id and zips the temp folder to `output_file_path`.
+///
+/// # Errors
+///
+/// Filesystem, JSON serialization, or [`compress_folder_to_zip`] errors.
 #[instrument(skip_all, err)]
 fn generate_er_final_zip(
     exz_temp_file_bytes: Vec<u8>,
@@ -145,6 +168,11 @@ fn generate_er_final_zip(
     Ok(())
 }
 
+/// Builds the audit-log zip (`al_*.zip`) for one CCS destination: logs JSON → xz → encrypt → ACM JSON → zip.
+///
+/// # Errors
+///
+/// Serialization, encryption, signing, or zip errors in the pipeline.
 #[instrument(skip(acm_key_pair), err)]
 pub async fn create_logs_package(
     time_zone: TimeZone,
@@ -207,6 +235,11 @@ pub async fn create_logs_package(
     Ok(())
 }
 
+/// Builds the election-results zip (`er_*.zip`): encrypted xz tally payload plus ACM metadata and signatures.
+///
+/// # Errors
+///
+/// Same pipeline failures as [`create_logs_package`], but signing the raw EML body instead of logs JSON.
 #[instrument(skip(compressed_xml, acm_key_pair), err)]
 pub async fn create_transmission_package(
     eml_hash: &str,

@@ -1,8 +1,11 @@
-use std::collections::HashMap;
-
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+
+//! Reading and updating the aggregate voting status for election events.
+
+use std::collections::HashMap;
+
 use crate::postgres::election::{get_election_by_id, get_elections, update_election_voting_status};
 use crate::postgres::election_event::{get_election_event_by_id, update_election_event_status};
 use anyhow::{anyhow, Context, Result};
@@ -15,15 +18,23 @@ use tracing::{event, info, instrument, Level};
 
 use super::voting_status::update_board_on_status_change;
 
+/// Deserialize an `ElectionEventStatus` from JSON.
 pub fn get_election_event_status(status_json_opt: Option<Value>) -> Option<ElectionEventStatus> {
     status_json_opt.and_then(|status_json| deserialize_value(status_json).ok())
 }
 
+/// Deserialize an `ElectionStatus` from JSON.
 pub fn get_election_status(status_json_opt: Option<Value>) -> Option<ElectionStatus> {
     status_json_opt.and_then(|status_json| deserialize_value(status_json).ok())
 }
 
 #[instrument(err)]
+/// Update the voting status for an election event and its elections.
+///
+/// # Errors
+///
+/// Returns an error if the election event/elections cannot be loaded, transitions are invalid,
+/// or persistence/board updates fail.
 pub async fn update_event_voting_status(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
@@ -191,6 +202,11 @@ pub async fn update_event_voting_status(
 }
 
 #[instrument(err)]
+/// Update the voting status for a single election within an event.
+///
+/// # Errors
+///
+/// Returns an error if the election/event cannot be loaded, transitions are invalid, or updates fail.
 pub async fn update_election_voting_status_impl(
     tenant_id: String,
     user_id: Option<&str>,

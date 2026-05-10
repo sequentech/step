@@ -50,6 +50,7 @@ use std::str::FromStr;
 use tracing::{event, instrument, Level};
 use uuid::Uuid;
 
+/// Tuple containing the latest execution, owning session, contests, and ballot styles for the requested elections.
 type LastTallySessionExecutionBundle = (
     TallySessionExecution,
     TallySession,
@@ -57,6 +58,12 @@ type LastTallySessionExecutionBundle = (
     Vec<BallotStyle>,
 );
 
+/// Loads the latest execution plus tally session metadata, contests, and ballot styles for
+/// `tally_session_id` scoped to `election_ids`.
+///
+/// # Errors
+///
+/// Postgres failures from any of the underlying `get_*` queries.
 #[instrument(skip(hasura_transaction), err)]
 pub async fn find_last_tally_session_execution_and_all_related_data(
     hasura_transaction: &Transaction<'_>,
@@ -115,6 +122,11 @@ pub async fn find_last_tally_session_execution_and_all_related_data(
     )))
 }
 
+/// Deserializes the JSON blob stored on a tally execution row into [`TallyCeremonyStatus`].
+///
+/// # Errors
+///
+/// Returns `Err` when `input` is `None` or JSON deserialization fails.
 #[instrument(skip_all, err)]
 pub fn get_tally_ceremony_status(input: Option<Value>) -> Result<TallyCeremonyStatus> {
     input
@@ -126,6 +138,12 @@ pub fn get_tally_ceremony_status(input: Option<Value>) -> Result<TallyCeremonySt
         .flatten()
 }
 
+/// Ensures every selected election references exactly one successful keys ceremony and loads it.
+///
+/// # Errors
+///
+/// Missing or mismatched `keys_ceremony_id` values across elections, missing ceremony rows, or
+/// ceremonies whose execution status is not `SUCCESS`.
 #[instrument(skip(transaction), err)]
 pub async fn find_keys_ceremony(
     transaction: &Transaction<'_>,
@@ -164,6 +182,8 @@ pub async fn find_keys_ceremony(
     Ok(keys_ceremony)
 }
 
+/// Builds the initial [`TallyCeremonyStatus`] snapshot seeded from keys-ceremony trustees and the
+/// requested election ids (all elections start in `WAITING` with zero progress).
 #[instrument]
 fn generate_initial_tally_status(
     election_ids: &Vec<String>,
@@ -191,6 +211,18 @@ fn generate_initial_tally_status(
     }
 }
 
+/// Inserts `tally_session_contest` rows for every `relevant_area_contest`, allocating increasing
+/// batch numbers after the current session maximum.
+///
+/// # Panics
+///
+/// Panics if incrementing the local `BatchNumber` counter overflows (`expect("overflow")`)—only
+/// possible with an pathological number of contests in one session.
+///
+/// # Errors
+///
+/// Postgres failures from `get_tally_session_highest_batch` / `insert_tally_session_contest`, or
+/// `Err` when a referenced contest id is missing from `contests_map`.
 #[instrument(err, skip(hasura_transaction))]
 pub async fn insert_tally_session_contests(
     hasura_transaction: &Transaction<'_>,
@@ -255,6 +287,8 @@ pub async fn insert_tally_session_contests(
     Ok(())
 }
 
+/// Collects [`AreaContest`] rows whose contests belong to any id in `election_ids`, using the area
+/// tree to match descendant contests.
 fn get_area_contests_for_election_ids(
     contests_map: &HashMap<String, Contest>,
     area_contests_tree: &TreeNode<ContestsData>,
@@ -268,6 +302,13 @@ fn get_area_contests_for_election_ids(
     area_contests_tree.get_contest_matches(&contest_ids)
 }
 
+/// Validates published elections and permission labels, creates the tally session + first execution,
+/// inserts contests, and logs `post_key_insertion_start` to the electoral board.
+///
+/// # Errors
+///
+/// Permission/publish validation failures, area tree construction errors, keys ceremony issues,
+/// Postgres insert failures, missing bulletin boards, or electoral log write errors.
 #[instrument(err, skip(transaction))]
 pub async fn create_tally_ceremony(
     transaction: &Transaction<'_>,
@@ -468,6 +509,13 @@ pub async fn create_tally_ceremony(
     Ok(tally_session_id.clone())
 }
 
+/// Validates `new_execution_status` transitions (cancel/resume rules)
+/// and updates the tally session execution status.
+///
+/// # Errors
+///
+/// Illegal transitions, missing prior executions (returns `Ok` early), JSON parsing failures,
+/// insufficient trustees when not cancelling, missing `ENV_SLUG`, or electoral log failures.
 #[instrument(err, skip(hasura_transaction))]
 pub async fn update_tally_ceremony(
     hasura_transaction: &Transaction<'_>,
@@ -586,6 +634,13 @@ pub async fn update_tally_ceremony(
     Ok(())
 }
 
+/// Verifies the trustee-supplied ciphertext matches the board copy, appends trustee logs, may bump
+/// the session to `CONNECTED` once the threshold is met, and posts `post_key_insertion`.
+///
+/// # Errors
+///
+/// Missing sessions/executions, invalid execution states, unknown trustees, mismatched ciphertext
+/// (returns `Ok(false)`), Postgres failures, missing bulletin boards, or electoral log errors.
 #[instrument(err, skip(transaction))]
 pub async fn set_private_key(
     transaction: &Transaction<'_>,
@@ -763,6 +818,12 @@ pub async fn set_private_key(
     Ok(true)
 }
 
+/// Marks the tally session successful in Postgres when possible and adds an electoral log entry.
+///
+/// # Errors
+///
+/// Ignores DB errors from the completion update (no `?` on that call), but still returns `Err` from
+/// follow-up reads, missing bulletin boards, or electoral log failures when the update succeeds.
 #[instrument(err, skip(hasura_transaction))]
 pub async fn set_tally_session_completed(
     hasura_transaction: &Transaction<'_>,

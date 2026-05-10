@@ -1,6 +1,9 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+
+//! File encryption compatible with `openssl enc -aes-256-cbc` (MD5 KDF).
+
 use anyhow::{anyhow, Context, Result};
 use sequent_core::signatures::shell::run_shell_command;
 use std::process::Command;
@@ -9,6 +12,11 @@ use tracing::{info, instrument};
 // used to recreate this command:
 // openssl enc -aes-256-cbc -e -in $input_file_path -out $output_file_path -pass pass:$password -md md5
 
+/// Encrypts a file in place on disk using AES-256-CBC via `openssl enc`.
+///
+/// # Errors
+///
+/// Missing `openssl`, I/O errors, or non-zero exit status from `openssl`.
 #[instrument(skip(password), err)]
 pub fn encrypt_file_aes_256_cbc(
     input_file_path: &str,
@@ -38,6 +46,11 @@ pub fn encrypt_file_aes_256_cbc(
     Ok(())
 }
 
+/// Decrypts a file produced by [`encrypt_file_aes_256_cbc`].
+///
+/// # Errors
+///
+/// Same as encryption: `openssl` failures or I/O errors.
 #[instrument(skip(password), err)]
 pub fn decrypt_file_aes_256_cbc(
     input_file_path: &str,

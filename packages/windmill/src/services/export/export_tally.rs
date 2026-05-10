@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+//! CSV exports of tally sessions, executions, and derived results tables.
 use crate::{
     postgres::{
         results_area_contest::get_event_results_area_contest,
@@ -34,8 +35,14 @@ use std::{future::Future, pin::Pin};
 use tempfile::TempPath;
 use tracing::{info, instrument};
 
+/// Result of a single tally CSV export: stable file stem plus temp path.
 type ExportResult = Result<(String, TempPath), anyhow::Error>;
 
+/// Serializes all [`TallySession`] rows for the event to the tally-session CSV.
+///
+/// # Errors
+///
+/// Propagates database errors, JSON serialization errors, or CSV/temp-file failures.
 #[instrument(err, skip(hasura_transaction))]
 pub async fn export_tally_session(
     hasura_transaction: &Transaction<'_>,
@@ -99,6 +106,11 @@ pub async fn export_tally_session(
     Ok((file_name, temp_path))
 }
 
+/// Serializes [`TallySessionExecution`] rows to the tally-session execution CSV.
+///
+/// # Errors
+///
+/// Propagates database errors, JSON serialization errors, or CSV/temp-file failures.
 #[instrument(err, skip(hasura_transaction))]
 pub async fn export_tally_session_execution(
     hasura_transaction: &Transaction<'_>,
@@ -156,6 +168,11 @@ pub async fn export_tally_session_execution(
     Ok((file_name, temp_path))
 }
 
+/// Serializes [`TallySessionContest`] rows to the tally-session contest CSV.
+///
+/// # Errors
+///
+/// Propagates database errors, JSON serialization errors, or CSV/temp-file failures.
 #[instrument(err, skip(hasura_transaction))]
 pub async fn export_tally_session_contest(
     hasura_transaction: &Transaction<'_>,
@@ -213,6 +230,11 @@ pub async fn export_tally_session_contest(
     Ok((file_name, temp_path))
 }
 
+/// Serializes [`ResultsEvent`] rows to the results event CSV.
+///
+/// # Errors
+///
+/// Propagates database errors, JSON serialization errors, or CSV/temp-file failures.
 #[instrument(err, skip(hasura_transaction))]
 pub async fn export_results_event(
     hasura_transaction: &Transaction<'_>,
@@ -265,6 +287,11 @@ pub async fn export_results_event(
     Ok((file_name, temp_path))
 }
 
+/// Serializes [`ResultsElectionArea`] rows to the results election area CSV.
+///
+/// # Errors
+///
+/// Propagates database errors, JSON serialization errors, or CSV/temp-file failures.
 #[instrument(err, skip(hasura_transaction))]
 pub async fn export_results_election_area(
     hasura_transaction: &Transaction<'_>,
@@ -320,6 +347,11 @@ pub async fn export_results_election_area(
     Ok((file_name, temp_path))
 }
 
+/// Serializes [`ResultsElection`] rows to the results election CSV.
+///
+/// # Errors
+///
+/// Propagates database errors, JSON serialization errors, or CSV/temp-file failures.
 #[instrument(err, skip(hasura_transaction))]
 pub async fn export_results_election(
     hasura_transaction: &Transaction<'_>,
@@ -377,6 +409,11 @@ pub async fn export_results_election(
     Ok((file_name, temp_path))
 }
 
+/// Serializes [`ResultsContest`] rows to the results contest CSV.
+///
+/// # Errors
+///
+/// Propagates database errors, JSON serialization errors, or CSV/temp-file failures.
 #[instrument(err, skip(hasura_transaction))]
 pub async fn export_results_contest(
     hasura_transaction: &Transaction<'_>,
@@ -449,6 +486,11 @@ pub async fn export_results_contest(
     Ok((file_name, temp_path))
 }
 
+/// Serializes [`ResultsContestCandidate`] rows to the results contest candidate CSV.
+///
+/// # Errors
+///
+/// Propagates database errors, JSON serialization errors, or CSV/temp-file failures.
 #[instrument(err, skip(hasura_transaction))]
 pub async fn export_results_contest_candidate(
     hasura_transaction: &Transaction<'_>,
@@ -510,6 +552,11 @@ pub async fn export_results_contest_candidate(
     Ok((file_name, temp_path))
 }
 
+/// Serializes [`ResultsAreaContest`] rows to the results area contest CSV.
+///
+/// # Errors
+///
+/// Propagates database errors, JSON serialization errors, or CSV/temp-file failures.
 #[instrument(err, skip(hasura_transaction))]
 pub async fn export_results_area_contest(
     hasura_transaction: &Transaction<'_>,
@@ -582,6 +629,11 @@ pub async fn export_results_area_contest(
     Ok((file_name, temp_path))
 }
 
+/// Serializes [`ResultsAreaContestCandidate`] rows to the results area contest candidate CSV.
+///
+/// # Errors
+///
+/// Propagates database errors, JSON serialization errors, or CSV/temp-file failures.
 #[instrument(err, skip(hasura_transaction))]
 pub async fn export_results_area_contest_candidate(
     hasura_transaction: &Transaction<'_>,
@@ -646,6 +698,7 @@ pub async fn export_results_area_contest_candidate(
     Ok((file_name, temp_path))
 }
 
+/// Futures for every tally/results CSV export that [`read_tally_data`] runs concurrently.
 fn get_export_tasks<'a>(
     hasura_transaction: &'a Transaction<'a>,
     tenant_id: &'a str,
@@ -705,6 +758,15 @@ fn get_export_tasks<'a>(
     ]
 }
 
+/// Awaits all tally/results export tasks; fails fast if any branch errors.
+///
+/// # Panics
+///
+/// Panics if any joined task reports `Ok` but the result is missing after an earlier error check (should be unreachable).
+///
+/// # Errors
+///
+/// Returns an error wrapping the first failing export’s error string.
 #[instrument(err)]
 pub async fn read_tally_data(
     hasura_transaction: &Transaction<'_>,

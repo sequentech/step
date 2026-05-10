@@ -1,6 +1,9 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+//! Exports communication templates for a tenant.
+#![allow(missing_docs)]
+#![allow(clippy::missing_docs_in_private_items)]
 
 use crate::types::error::Error;
 use crate::{
@@ -15,6 +18,7 @@ use celery::error::TaskError;
 use sequent_core::types::hasura::core::TasksExecution;
 use tracing::instrument;
 
+/// Celery task: export reusable templates for the tenant into storage.
 #[instrument(err)]
 #[wrap_map_err::wrap_map_err(TaskError)]
 #[celery::task(max_retries = 0)]

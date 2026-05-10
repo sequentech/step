@@ -8,6 +8,7 @@ use tokio_postgres::row::Row;
 use tracing::{info, instrument};
 use uuid::Uuid;
 
+/// Row representing Preview wrapper
 pub struct PreviewWrapper(pub Preview);
 
 impl TryFrom<Row> for PreviewWrapper {
@@ -26,6 +27,12 @@ impl TryFrom<Row> for PreviewWrapper {
         }))
     }
 }
+/// Insert preview into the database.
+///
+/// # Errors
+///
+/// Returns an error if SQL preparation or execution fails,
+/// if UUID or other parsing fails, or if row mapping is inconsistent.
 
 #[instrument(err, skip(hasura_transaction))]
 pub async fn insert_preview(

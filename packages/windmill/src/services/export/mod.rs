@@ -2,6 +2,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+//! Export pipelines that serialize elections, tenants, tallies, and related artifacts for backup or migration.
+
 pub mod export_application;
 pub mod export_ballot_publication;
 pub mod export_bulletin_boards;

@@ -1,6 +1,9 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+
+//! Coordinated deletion of an election event and dependent rows.
+
 use super::jwks::remove_realm_jwks;
 use super::protocol_manager::{get_b3_pgsql_client, get_election_board};
 use crate::postgres::election::get_elections;
@@ -16,6 +19,11 @@ use tracing::info;
 use tracing::{event, instrument, Level};
 
 #[instrument(err)]
+/// Delete a Keycloak realm if it exists.
+///
+/// # Errors
+///
+/// Returns an error if Keycloak cannot be reached or realm deletion fails.
 pub async fn delete_keycloak_realm(realm: &str) -> Result<()> {
     let client = KeycloakAdminClient::new().await?;
     remove_realm_jwks(realm).await?;
@@ -39,6 +47,11 @@ pub async fn delete_keycloak_realm(realm: &str) -> Result<()> {
 }
 
 #[instrument(err)]
+/// Delete B3 boards for an election event and its elections.
+///
+/// # Errors
+///
+/// Returns an error if the B3 client cannot be created or boards cannot be deleted.
 pub async fn delete_event_b3(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
@@ -60,6 +73,11 @@ pub async fn delete_event_b3(
 }
 
 #[instrument(err)]
+/// Delete B3 boards for an election event and the provided election ids, if present.
+///
+/// # Errors
+///
+/// Returns an error if environment configuration is missing or B3 operations fail.
 pub async fn delete_election_event_b3(
     tenant_id: &str,
     election_event_id: &str,
@@ -88,6 +106,11 @@ pub async fn delete_election_event_b3(
 }
 
 #[instrument(err)]
+/// Delete the immudb database associated with an election event, if it exists.
+///
+/// # Errors
+///
+/// Returns an error if immudb cannot be reached or database deletion fails.
 pub async fn delete_election_event_immudb(tenant_id: &str, election_event_id: &str) -> Result<()> {
     let mut client = get_immudb_client().await?;
     let slug = std::env::var("ENV_SLUG").with_context(|| "missing env var ENV_SLUG")?;
@@ -110,6 +133,11 @@ pub async fn delete_election_event_immudb(tenant_id: &str, election_event_id: &s
 }
 
 #[instrument(err)]
+/// Delete S3 documents associated with an election event (private and public prefixes).
+///
+/// # Errors
+///
+/// Returns an error if bucket resolution fails or S3 deletion fails.
 pub async fn delete_election_event_related_documents(
     tenant_id: &str,
     election_event_id: &str,

@@ -10,25 +10,28 @@ use crate::{
 };
 
 #[derive(Clone, Debug)]
+/// Enrollment filters
 pub struct EnrollmentFilters {
+    /// Current lifecycle or workflow status.
     pub status: ApplicationStatus,
+    /// How the applicant was or will be verified.
     pub verification_type: Option<ApplicationType>,
 }
 use anyhow::{anyhow, Context, Result};
-use deadpool_postgres::Transaction;
-use sequent_core::types::hasura::core::Application;
-use serde_json::Value;
-use tokio_postgres::row::Row;
-// use tokio_postgres::types::ToSql;
 use chrono::DateTime;
 use chrono::Local;
+use deadpool_postgres::Transaction;
 use sequent_core::services::uuid_validation::parse_uuid_v4;
+use sequent_core::types::hasura::core::Application;
 use serde::Serialize;
 use serde_json::json;
+use serde_json::Value;
+use tokio_postgres::row::Row;
 use tokio_postgres::types::{Json, ToSql};
 use tracing::{event, instrument, Level};
 use uuid::Uuid;
 
+/// Row representing Application wrapper
 pub struct ApplicationWrapper(pub Application);
 
 impl TryFrom<Row> for ApplicationWrapper {
@@ -53,6 +56,12 @@ impl TryFrom<Row> for ApplicationWrapper {
         }))
     }
 }
+/// Get permission label for a given post from the database.
+///
+/// # Errors
+///
+/// Returns an error if SQL preparation or execution fails,
+/// if UUID or other parsing fails, or if row mapping is inconsistent.
 
 #[instrument(err, skip(hasura_transaction))]
 pub async fn get_permission_label_from_post(
@@ -105,6 +114,11 @@ pub async fn get_permission_label_from_post(
 
     Ok((permission_label, area_id))
 }
+/// Insert application into the database.
+///
+/// # Errors
+///
+/// Returns an error if SQL preparation or execution fails, if UUID or other parsing fails, or if row mapping is inconsistent.
 
 #[instrument(err, skip_all)]
 pub async fn insert_application(
@@ -174,6 +188,12 @@ pub async fn insert_application(
 
     Ok(())
 }
+/// Updates application status and returns the updated row when applicable.
+///
+/// # Errors
+///
+/// Returns an error if SQL preparation or execution fails,
+/// if UUID or other parsing fails, or if row mapping is inconsistent.
 
 #[instrument(err, skip_all)]
 pub async fn update_application_status(
@@ -279,6 +299,17 @@ pub async fn update_application_status(
 
     Ok(application)
 }
+/// Get applications for a given area, tenant and election event from the database.
+///
+/// # Errors
+///
+/// Returns an error if SQL preparation or execution fails,
+/// if UUID or other parsing fails, or if row mapping is inconsistent.
+///
+/// # Panics
+///
+/// Panics only if internal SQL placeholder arithmetic overflows,
+/// which is not expected in production-sized filters.
 
 #[instrument(err, skip_all)]
 pub async fn get_applications(
@@ -377,6 +408,17 @@ pub async fn get_applications(
 
     Ok((results, last_offset))
 }
+/// Counts applications based on filters.
+///
+/// # Errors
+///
+/// Returns an error if SQL preparation or execution fails,
+/// if UUID or other parsing fails, or if row mapping is inconsistent.
+///
+/// # Panics
+///
+/// Panics only if internal SQL placeholder arithmetic overflows,
+/// which is not expected in production-sized filters.
 
 #[instrument(err, skip_all)]
 pub async fn count_applications(
@@ -488,6 +530,12 @@ pub async fn count_applications(
 
     Ok(count)
 }
+/// Get applications for a given election from the database.
+///
+/// # Errors
+///
+/// Returns an error if SQL preparation or execution fails,
+/// if UUID or other parsing fails, or if row mapping is inconsistent.
 
 #[instrument(err, skip_all)]
 pub async fn get_applications_by_election(
@@ -529,6 +577,12 @@ pub async fn get_applications_by_election(
 
     Ok(results)
 }
+/// Insert applications into the database.
+///
+/// # Errors
+///
+/// Returns an error if SQL preparation or execution fails,
+/// if UUID or other parsing fails, or if row mapping is inconsistent.
 
 #[instrument(err, skip_all)]
 pub async fn insert_applications(

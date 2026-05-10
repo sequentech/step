@@ -1,11 +1,15 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+
+//! Human-readable [`sequent_core::types::ceremonies::Log`] lines for transmission lifecycle events.
+
 use chrono::{DateTime, Local};
 use sequent_core::services::date::ISO8601;
 use sequent_core::types::ceremonies::Log;
 use tracing::{info, instrument};
 
+/// Log line recorded when a transmission package XML is generated for an election/area pair.
 #[instrument(skip_all)]
 pub fn create_transmission_package_log(
     datetime: &DateTime<Local>,
@@ -23,6 +27,7 @@ pub fn create_transmission_package_log(
     }
 }
 
+/// Log line when audit logs are POSTed to a CCS server.
 #[instrument(skip_all)]
 pub fn send_logs_to_ccs_log(
     datetime: &DateTime<Local>,
@@ -42,6 +47,7 @@ pub fn send_logs_to_ccs_log(
     }
 }
 
+/// Log line when the transmission package zip is sent to CCS, listing signing trustees.
 #[instrument(skip_all)]
 pub fn send_transmission_package_to_ccs_log(
     datetime: &DateTime<Local>,
@@ -63,6 +69,7 @@ pub fn send_transmission_package_to_ccs_log(
     }
 }
 
+/// Log line when sending audit logs to CCS fails.
 #[instrument(skip_all)]
 pub fn error_sending_logs_to_ccs_log(
     datetime: &DateTime<Local>,
@@ -84,6 +91,7 @@ pub fn error_sending_logs_to_ccs_log(
     }
 }
 
+/// Log line when sending the transmission package to CCS fails.
 #[instrument(skip_all)]
 pub fn error_sending_transmission_package_to_ccs_log(
     datetime: &DateTime<Local>,
@@ -106,6 +114,7 @@ pub fn error_sending_transmission_package_to_ccs_log(
     }
 }
 
+/// Log line when an SBEI finishes signing the transmission package XML.
 #[instrument(skip_all)]
 pub fn sign_transmission_package_log(
     datetime: &DateTime<Local>,

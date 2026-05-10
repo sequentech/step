@@ -1,14 +1,23 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+
+//! In-memory xz compression at a fixed high level.
+
 use anyhow::{Context, Result};
 use std::io::prelude::*;
 use std::io::Cursor;
 use tracing::instrument;
 use xz2::read::{XzDecoder, XzEncoder};
 
+/// xz compression preset passed to [`XzEncoder`].
 const XZ_COMPRESSION_LEVEL: u32 = 9;
 
+/// Returns the xz-compressed bytes of `data`.
+///
+/// # Errors
+///
+/// Compression I/O failures from the `xz2` encoder.
 #[instrument(skip_all, err)]
 pub fn xz_compress(data: &[u8]) -> Result<Vec<u8>> {
     // Create a cursor for the input data

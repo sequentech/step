@@ -9,6 +9,7 @@ use tokio_postgres::row::Row;
 use tracing::{event, instrument, Level};
 use uuid::Uuid;
 
+/// Row representing Area contest wrapper
 pub struct AreaContestWrapper(pub AreaContest);
 
 impl TryFrom<Row> for AreaContestWrapper {
@@ -22,6 +23,12 @@ impl TryFrom<Row> for AreaContestWrapper {
         }))
     }
 }
+/// Insert area to area contests into the database.
+///
+/// # Errors
+///
+/// Returns an error if SQL preparation or execution fails,
+/// if UUID or other parsing fails, or if row mapping is inconsistent.
 
 #[instrument(skip(hasura_transaction), err)]
 pub async fn insert_area_to_area_contests(
@@ -49,6 +56,12 @@ pub async fn insert_area_to_area_contests(
     .await?;
     Ok(())
 }
+/// Insert area contests into the database.
+///
+/// # Errors
+///
+/// Returns an error if SQL preparation or execution fails,
+/// if UUID or other parsing fails, or if row mapping is inconsistent.
 
 #[instrument(err, skip_all)]
 pub async fn insert_area_contests(
@@ -86,6 +99,12 @@ pub async fn insert_area_contests(
 
     Ok(())
 }
+/// Get all area contests for a given tenant and election event from the database.
+///
+/// # Errors
+///
+/// Returns an error if SQL preparation or execution fails,
+/// if UUID or other parsing fails, or if row mapping is inconsistent.
 
 #[instrument(err, skip_all)]
 pub async fn export_area_contests(
@@ -127,6 +146,12 @@ pub async fn export_area_contests(
 
     Ok(area_contests)
 }
+/// Get areas by contest id from the database.
+///
+/// # Errors
+///
+/// Returns an error if SQL preparation or execution fails,
+/// if UUID or other parsing fails, or if row mapping is inconsistent.
 
 #[instrument(err, skip_all)]
 pub async fn get_areas_by_contest_id(
@@ -166,6 +191,12 @@ pub async fn get_areas_by_contest_id(
 
     Ok(area_ids)
 }
+/// Get area contests by area contest ids from the database.
+///
+/// # Errors
+///
+/// Returns an error if SQL preparation or execution fails,
+/// if UUID or other parsing fails, or if row mapping is inconsistent.
 
 #[instrument(err, skip_all)]
 pub async fn get_area_contests_by_area_contest_ids(

@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+//! Transaction helpers for Hasura Postgres, SQLite, and ImmuDB.
 use crate::services::database::get_hasura_pool;
 use crate::services::protocol_manager::get_immudb_client;
 use anyhow::{anyhow, Context, Result};
@@ -15,6 +16,11 @@ use std::pin::Pin;
 use tokio::task;
 use tracing::instrument;
 
+/// Runs `handler` within a Postgres transaction on `db_client`, committing on success and rolling back on error.
+///
+/// # Errors
+///
+/// Returns an error if the transaction cannot be started/committed/rolled back, or if `handler` fails.
 #[instrument(skip(handler), err)]
 pub async fn provide_transaction<F>(handler: F, mut db_client: DbClient) -> Result<()>
 where
@@ -43,6 +49,11 @@ where
     Ok(())
 }
 
+/// Runs `handler` within a SQLite transaction opened from `database_path`.
+///
+/// # Errors
+///
+/// Returns an error if the DB cannot be opened, the transaction fails, or `handler` fails.
 #[instrument(skip(handler), err)]
 pub async fn provide_sqlite_transaction<F>(handler: F, database_path: &Path) -> Result<()>
 where
@@ -73,6 +84,11 @@ where
     .await?
 }
 
+/// Convenience wrapper over [`provide_transaction`] using the shared Hasura pool.
+///
+/// # Errors
+///
+/// Returns an error if acquiring the pool client or running the transaction fails.
 #[instrument(skip(handler), err)]
 pub async fn provide_hasura_transaction<F>(handler: F) -> Result<()>
 where
@@ -87,6 +103,11 @@ where
     provide_transaction(handler, hasura_db_client).await
 }
 
+/// Runs `handler` within an ImmuDB transaction (`new_tx`) scoped to `immudb_db`.
+///
+/// # Errors
+///
+/// Returns an error if session/tx lifecycle operations fail or if `handler` fails.
 #[instrument(skip(handler), err)]
 pub async fn provide_transaction_immudb<F>(
     handler: F,
@@ -139,6 +160,11 @@ where
     Ok(())
 }
 
+/// Convenience wrapper over [`provide_transaction_immudb`] using the shared ImmuDB client.
+///
+/// # Errors
+///
+/// Returns an error if acquiring the client or running the transaction fails.
 #[instrument(skip(handler), err)]
 pub async fn provide_immudb_transaction<F>(handler: F, immudb_db: &str) -> Result<()>
 where

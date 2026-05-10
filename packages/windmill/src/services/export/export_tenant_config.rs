@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+//! ZIP bundle export combining tenant CSV, full Keycloak realm JSON, and a roles-to-permissions CSV.
 
 use crate::services::documents::upload_and_return_document;
 use crate::services::export::export_tenant;
@@ -18,6 +19,11 @@ use tempfile::NamedTempFile;
 use tracing::{event, info, instrument, Level};
 use zip::write::FileOptions;
 
+/// Serializes a Keycloak [`RealmRepresentation`] to a temporary JSON file.
+///
+/// # Errors
+///
+/// Returns an error when serialization or temp file IO fails.
 pub async fn write_export_keycloak_config(data: RealmRepresentation) -> Result<NamedTempFile> {
     // Serialize the data into JSON string
     let data_str = serde_json::to_string(&data)?;
@@ -30,6 +36,11 @@ pub async fn write_export_keycloak_config(data: RealmRepresentation) -> Result<N
     Ok(tmp_file)
 }
 
+/// Builds a CSV mapping each realm group name to a joined list of realm roles.
+///
+/// # Errors
+///
+/// Returns an error when CSV buffering or writing the temp file fails.
 pub async fn write_export_roles_permissions_config(
     data: RealmRepresentation,
     tenant_id: &str,
@@ -66,6 +77,13 @@ pub async fn write_export_roles_permissions_config(
     Ok(temp_file)
 }
 
+/// Assembles tenant CSV, Keycloak realm JSON, and roles/permissions CSV
+/// into a deflate ZIP, uploads to the database and s3, then deletes the archive.
+///
+/// # Errors
+///
+/// Propagates tenant export failures, Keycloak admin errors,
+/// ZIP IO errors, or document upload failures.
 #[instrument(err)]
 pub async fn process_export_zip(
     tenant_id: &str,

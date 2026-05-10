@@ -2,6 +2,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+//! Trustee encrypted private key retrieval for bulletin-board and ceremony workflows.
+
 use anyhow::Result;
 use base64::engine::general_purpose;
 use base64::Engine;
@@ -14,6 +16,11 @@ use tracing::instrument;
 use super::protocol_manager;
 use super::public_keys::deserialize_public_key;
 
+/// Fetch a trustee's encrypted private key bytes for a board, returned as standard Base64 (no pad).
+///
+/// # Errors
+///
+/// Returns an error if the public key cannot be parsed or immudb/vault retrieval fails.
 #[instrument(err)]
 pub async fn get_trustee_encrypted_private_key(
     board_name: &str,

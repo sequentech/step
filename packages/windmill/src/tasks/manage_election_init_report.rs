@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-
+//! Marks initialization report as allowed or disallowed based on a scheduled event.
 use crate::postgres::election::{get_election_by_id, update_election_voting_status};
 use crate::postgres::election_event::get_election_event_by_id;
 use crate::postgres::scheduled_event::*;
@@ -25,6 +25,7 @@ use tracing::instrument;
 use tracing::{error, event, info, Level};
 use uuid::Uuid;
 
+/// Marks initialization report as allowed or disallowed based on the scheduled event.
 #[instrument(err)]
 async fn manage_election_init_report_wrapped(
     hasura_transaction: &Transaction<'_>,
@@ -100,35 +101,44 @@ async fn manage_election_init_report_wrapped(
     Ok(())
 }
 
-#[instrument(err)]
-#[wrap_map_err::wrap_map_err(TaskError)]
-#[celery::task(time_limit = 10, max_retries = 0, expires = 30)]
-pub async fn manage_election_init_report(
-    tenant_id: String,
-    election_event_id: String,
-    scheduled_event_id: String,
-    election_id: String,
-) -> Result<()> {
-    let res = provide_hasura_transaction(|hasura_transaction| {
-        let tenant_id = tenant_id.clone();
-        let election_event_id = election_event_id.clone();
-        let scheduled_event_id = scheduled_event_id.clone();
-        let election_id = election_id.clone();
-        Box::pin(async move {
-            // Your async code here
-            manage_election_init_report_wrapped(
-                hasura_transaction,
-                tenant_id,
-                election_event_id,
-                scheduled_event_id,
-                election_id,
-            )
-            .await
+mod manage_election_init_report_task {
+    #![allow(missing_docs)]
+    #![allow(clippy::missing_docs_in_private_items)]
+
+    use super::*;
+
+    /// Celery task: manages the election initialization report.
+    #[instrument(err)]
+    #[wrap_map_err::wrap_map_err(TaskError)]
+    #[celery::task(time_limit = 10, max_retries = 0, expires = 30)]
+    pub async fn manage_election_init_report(
+        tenant_id: String,
+        election_event_id: String,
+        scheduled_event_id: String,
+        election_id: String,
+    ) -> Result<()> {
+        let res = provide_hasura_transaction(|hasura_transaction| {
+            let tenant_id = tenant_id.clone();
+            let election_event_id = election_event_id.clone();
+            let scheduled_event_id = scheduled_event_id.clone();
+            let election_id = election_id.clone();
+            Box::pin(async move {
+                manage_election_init_report_wrapped(
+                    hasura_transaction,
+                    tenant_id,
+                    election_event_id,
+                    scheduled_event_id,
+                    election_id,
+                )
+                .await
+            })
         })
-    })
-    .await;
+        .await;
 
-    info!("result: {:?}", res);
+        info!("result: {:?}", res);
 
-    Ok(res?)
+        Ok(res?)
+    }
 }
+
+pub use manage_election_init_report_task::manage_election_init_report;

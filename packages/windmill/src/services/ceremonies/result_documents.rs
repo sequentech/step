@@ -50,12 +50,23 @@ use velvet::pipes::generate_reports::{
 };
 use velvet::pipes::pipe_inputs::PREFIX_ALL_AREAS;
 
+/// MIME type recorded when persisting tally PDFs.
 pub const MIME_PDF: &str = "application/pdf";
+/// MIME type recorded when persisting tally JSON exports.
 pub const MIME_JSON: &str = "application/json";
+/// MIME type recorded when persisting tally HTML exports.
 pub const MIME_HTML: &str = "text/html";
 
+/// Re-export of [`ResultDocuments`] describing optional filesystem paths for each rendered artifact.
 pub type ResultDocumentPaths = ResultDocuments;
 
+/// Uploads every populated path on `document_paths`, applying encryption when the active tally type
+/// maps to a password-protected report definition.
+///
+/// # Errors
+///
+/// Report listing failures, encryption errors, file size lookups, or document upload failures from
+/// [`process_and_upload_document`].
 #[instrument(err, skip_all)]
 async fn generic_save_documents(
     document_paths: &ResultDocumentPaths,
@@ -141,7 +152,12 @@ async fn generic_save_documents(
     Ok(documents)
 }
 
-// Helper function for processing and uploading a document
+/// Encrypts `path_option` when `report_type` matches a configured-password report, uploads the bytes
+/// to object storage, and returns the new document id string.
+///
+/// # Errors
+///
+/// Encryption helper failures, missing files, size detection errors, or Hasura document insert errors.
 #[instrument(err, skip(hasura_transaction, all_reports))]
 async fn process_and_upload_document(
     hasura_transaction: &Transaction<'_>,
@@ -189,8 +205,16 @@ async fn process_and_upload_document(
     Ok(None)
 }
 
+/// Implemented by Velvet result aggregates to expose filesystem layout and persist uploaded document ids.
 pub trait GenerateResultDocuments {
+    /// Resolves filesystem paths for each artifact type, optionally scoped to `area_id`.
     fn get_document_paths(&self, area_id: Option<String>, base_path: &Path) -> ResultDocumentPaths;
+    /// Uploads artifacts described by `document_paths`, updates results tables, and optionally mirrors
+    /// ids into SQLite.
+    ///
+    /// # Errors
+    ///
+    /// Implementation-defined failures from encryption, uploads, or database updates.
     async fn save_documents(
         &self,
         hasura_transaction: &Transaction<'_>,
@@ -204,7 +228,9 @@ pub trait GenerateResultDocuments {
     ) -> Result<ResultDocuments>;
 }
 
+/// Event-wide export stores a tarball path covering all contests in one archive.
 impl GenerateResultDocuments for Vec<ElectionReportDataComputed> {
+    /// Points to the Velvet output directory root (tarball export mode).
     #[instrument(skip_all, name = "Vec<ElectionReportDataComputed>::get_document_paths")]
     fn get_document_paths(&self, area_id: Option<String>, base_path: &Path) -> ResultDocumentPaths {
         ResultDocumentPaths {
@@ -219,6 +245,12 @@ impl GenerateResultDocuments for Vec<ElectionReportDataComputed> {
         }
     }
 
+    /// Create event related documents and update the results_event table.
+    ///
+    /// # Errors
+    ///
+    /// Tar creation, encryption traversal, secret discovery, uploads, folder rename operations, or
+    /// Postgres/SQLite updates performed inside this implementation.
     #[instrument(
         skip(self, rename_map),
         err,
@@ -409,7 +441,9 @@ impl GenerateResultDocuments for Vec<ElectionReportDataComputed> {
     }
 }
 
+/// Per-election aggregate export (JSON/PDF/HTML under the election’s Velvet folder).
 impl GenerateResultDocuments for ElectionReportDataComputed {
+    /// Locates standard Velvet report filenames for this election’s output directory.
     fn get_document_paths(
         &self,
         _area_id: Option<String>,
@@ -459,6 +493,12 @@ impl GenerateResultDocuments for ElectionReportDataComputed {
         }
     }
 
+    /// Uploads election-level artifacts, records JSON content hash, and updates `results_election`.
+    ///
+    /// # Errors
+    ///
+    /// Missing report metadata, filesystem/hash errors, [`generic_save_documents`] failures, or
+    /// Postgres/SQLite update errors.
     #[instrument(
         err,
         skip(self, hasura_transaction),
@@ -542,7 +582,13 @@ impl GenerateResultDocuments for ElectionReportDataComputed {
     }
 }
 
+/// Per-contest (optionally per-area) export paths under Velvet’s hierarchical output layout.
 impl GenerateResultDocuments for ReportDataComputed {
+    /// Resolves JSON/PDF/HTML paths under `output/velvet-generate-reports/...`.
+    ///
+    /// # Panics
+    ///
+    /// Panics when `self.contest` is missing (`expect("report is missing contest")`).
     fn get_document_paths(&self, area_id: Option<String>, base_path: &Path) -> ResultDocumentPaths {
         let contest = self.contest.as_ref().expect("report is missing contest");
 
@@ -585,6 +631,12 @@ impl GenerateResultDocuments for ReportDataComputed {
         }
     }
 
+    /// Uploads contest (or area-contest) documents and updates the corresponding results tables.
+    ///
+    /// # Errors
+    ///
+    /// Hashing or IO errors when reading JSON proofs, [`generic_save_documents`] failures, or database
+    /// updates for contest/area-contest rows (Hasura and optional SQLite).
     #[instrument(err, skip(self), name = "ReportDataComputed::save_documents")]
     async fn save_documents(
         &self,
@@ -664,6 +716,12 @@ impl GenerateResultDocuments for ReportDataComputed {
     }
 }
 
+/// Builds a map from raw UUID ids to shortened `"{name}__{uuid}"` folder tokens used when renaming
+/// Velvet export directories.
+///
+/// # Errors
+///
+/// Reserved for future validation failures; currently always returns `Ok`.
 #[instrument(skip(results, areas), err)]
 pub fn generate_ids_map(
     results: &[ElectionReportDataComputed],
@@ -713,6 +771,13 @@ pub fn generate_ids_map(
     Ok(rename_map)
 }
 
+/// Uploads top-level tally artifacts plus per-election and per-contest exports, including optional
+/// per-area bundles derived from `results`.
+///
+/// # Errors
+///
+/// Failures from [`generate_ids_map`], missing report data during saves, encryption/upload errors, or
+/// any database update returned by [`GenerateResultDocuments::save_documents`].
 #[instrument(skip(hasura_transaction, results, areas), err)]
 pub async fn save_result_documents(
     hasura_transaction: &Transaction<'_>,
@@ -813,6 +878,7 @@ pub async fn save_result_documents(
     Ok(())
 }
 
+/// Builds [`ResultDocumentPaths`] for a single area’s Velvet `generate-reports` subdirectory.
 fn get_area_document_paths(
     area_id: String,
     election_id: String,
@@ -850,6 +916,11 @@ fn get_area_document_paths(
     }
 }
 
+/// Persists per-area report uploads and inserts `results_election_area` document references.
+///
+/// # Errors
+///
+/// Propagates failures from [`generic_save_documents`], Hasura inserts, or SQLite mirror updates.
 #[instrument(err, skip(hasura_transaction))]
 async fn save_area_documents(
     hasura_transaction: &Transaction<'_>,

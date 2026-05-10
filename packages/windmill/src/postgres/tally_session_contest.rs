@@ -13,6 +13,7 @@ use tokio_postgres::row::Row;
 use tracing::{event, instrument, warn, Level};
 use uuid::Uuid;
 
+/// Tally session contest wrapper
 pub struct TallySessionContestWrapper(pub TallySessionContest);
 
 impl TryFrom<Row> for TallySessionContestWrapper {
@@ -37,6 +38,12 @@ impl TryFrom<Row> for TallySessionContestWrapper {
         }))
     }
 }
+/// Update tally session contests annotations in the database.
+///
+/// # Errors
+///
+/// Returns an error if SQL preparation or execution fails,
+/// if UUID or other parsing fails.
 
 pub async fn update_tally_session_contests_annotations(
     hasura_transaction: &Transaction<'_>,
@@ -80,6 +87,12 @@ pub async fn update_tally_session_contests_annotations(
 
     Ok(())
 }
+/// Insert tally session contest into the database.
+///
+/// # Errors
+///
+/// Returns an error if SQL preparation or execution fails,
+/// if UUID or other parsing fails.
 
 #[instrument(skip(hasura_transaction), err)]
 pub async fn insert_tally_session_contest(
@@ -143,6 +156,16 @@ pub async fn insert_tally_session_contest(
     };
     Ok(value.clone())
 }
+/// Get tally session highest batch from the database.
+///
+/// # Errors
+///
+/// Returns an error if SQL preparation or execution fails,
+/// if UUID or other parsing fails.
+///
+/// # Panics
+///
+/// Panics only if internal SQL placeholder arithmetic overflows.
 
 #[instrument(skip(hasura_transaction), err)]
 pub async fn get_tally_session_highest_batch(
@@ -191,6 +214,12 @@ pub async fn get_tally_session_highest_batch(
         .checked_add(1)
         .expect("tally session batch number overflow"))
 }
+/// Get tally session contests from the database.
+///
+/// # Errors
+///
+/// Returns an error if SQL preparation or execution fails,
+/// if UUID or other parsing fails.
 
 #[instrument(skip(hasura_transaction), err)]
 pub async fn get_tally_session_contests(
@@ -246,6 +275,12 @@ pub async fn get_tally_session_contests(
 
     Ok(values)
 }
+/// Get event tally session contest from the database.
+///
+/// # Errors
+///
+/// Returns an error if SQL preparation or execution fails,
+/// if UUID or other parsing fails.
 
 #[instrument(skip(hasura_transaction), err)]
 pub async fn get_event_tally_session_contest(
@@ -286,21 +321,40 @@ pub async fn get_event_tally_session_contest(
 
     Ok(values)
 }
+/// One work unit (area × optional contest) inside a tally session, for bulk insert.
 #[derive(Debug, Serialize)]
 struct InsertableTallySessionContest {
+    /// Row primary key.
     id: Uuid,
+    /// Owning tenant.
     tenant_id: Uuid,
+    /// Election event scope.
     election_event_id: Uuid,
+    /// Area being processed in this slice.
     area_id: Uuid,
+    /// Optional contest when the slice is contest-specific.
     contest_id: Option<Uuid>,
+    /// Worker session index for ordering partial results.
     session_id: i32,
+    /// Creation timestamp when supplied.
     created_at: Option<DateTime<Local>>,
+    /// Last update timestamp when supplied.
     last_updated_at: Option<DateTime<Local>>,
+    /// Labels JSON.
     labels: Option<Value>,
+    /// Annotations JSON.
     annotations: Option<Value>,
+    /// Parent tally session identifier.
     tally_session_id: Uuid,
+    /// Parent election identifier.
     election_id: Uuid,
 }
+/// Insert many tally session contests into the database.
+///
+/// # Errors
+///
+/// Returns an error if SQL preparation or execution fails,
+/// if UUID or other parsing fails.
 
 #[instrument(skip(hasura_transaction, contests), err)]
 pub async fn insert_many_tally_session_contests(

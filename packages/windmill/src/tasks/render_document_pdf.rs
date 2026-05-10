@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+//! Renders tally results document to PDF.
 use crate::postgres::document::get_document;
 use crate::services::ceremonies::velvet_tally::generate_initial_state;
 use crate::services::compress::extract_archive_to_temp_dir;
@@ -23,6 +24,11 @@ use tracing::instrument;
 use velvet::config::generate_reports::PipeConfigGenerateReports;
 use velvet::pipes::pipe_name::PipeName;
 
+/// Resolves PDF print options from the velvet `generate-reports` pipe config.
+///
+/// # Errors
+///
+/// Fails when ids are incomplete, the tally package cannot be read, or the pipe config is missing or invalid.
 #[instrument(err, skip(hasura_transaction))]
 pub async fn get_tally_pdf_config(
     hasura_transaction: &Transaction<'_>,
@@ -68,6 +74,11 @@ pub async fn get_tally_pdf_config(
         .map(|option| option.to_print_to_pdf_options()))
 }
 
+/// Converts an existing HTML document to PDF with tally-derived print options and uploads the PDF.
+///
+/// # Errors
+///
+/// Propagates pool/transaction, missing document, render, temp path, or upload failures.
 #[instrument(err)]
 pub async fn render_document_pdf_wrap(
     tenant_id: String,
@@ -138,6 +149,11 @@ pub async fn render_document_pdf_wrap(
     Ok(())
 }
 
+/// Runs HTML-to-PDF conversion.
+///
+/// # Errors
+///
+/// Propagates render failures or task execution update errors.
 #[instrument(err)]
 pub async fn render_document_pdf_task_wrap(
     tenant_id: String,
@@ -170,28 +186,38 @@ pub async fn render_document_pdf_task_wrap(
     Ok(())
 }
 
-#[instrument(err)]
-#[wrap_map_err::wrap_map_err(TaskError)]
-#[celery::task(time_limit = 60000, max_retries = 2)]
-pub async fn render_document_pdf(
-    tenant_id: String,
-    document_id: String,
-    election_event_id: Option<String>,
-    task_execution: TasksExecution,
-    executer_username: Option<String>,
-    output_document_id: String,
-    tally_session_id: Option<String>,
-) -> WrapResult<()> {
-    // Note, put this in a thread?
-    render_document_pdf_task_wrap(
-        tenant_id,
-        document_id,
-        election_event_id,
-        task_execution,
-        executer_username,
-        output_document_id,
-        tally_session_id,
-    )
-    .await
-    .map_err(|err| WrapError::from(anyhow!("Task panicked: {}", err)))
+mod render_document_pdf_task {
+    #![allow(missing_docs)]
+    #![allow(clippy::missing_docs_in_private_items)]
+
+    use super::*;
+
+    /// Celery task: renders a tally-linked HTML document to PDF and records completion on the task execution.
+    #[instrument(err)]
+    #[wrap_map_err::wrap_map_err(TaskError)]
+    #[celery::task(time_limit = 60000, max_retries = 2)]
+    pub async fn render_document_pdf(
+        tenant_id: String,
+        document_id: String,
+        election_event_id: Option<String>,
+        task_execution: TasksExecution,
+        executer_username: Option<String>,
+        output_document_id: String,
+        tally_session_id: Option<String>,
+    ) -> WrapResult<()> {
+        // Note, put this in a thread?
+        render_document_pdf_task_wrap(
+            tenant_id,
+            document_id,
+            election_event_id,
+            task_execution,
+            executer_username,
+            output_document_id,
+            tally_session_id,
+        )
+        .await
+        .map_err(|err| WrapError::from(anyhow!("Task panicked: {}", err)))
+    }
 }
+
+pub use render_document_pdf_task::render_document_pdf;

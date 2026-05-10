@@ -13,6 +13,11 @@ use crate::postgres::tenant::get_tenant_by_id;
 use crate::services::documents::upload_and_return_document;
 use crate::tasks::render_report::{FormatType, RenderTemplateBody};
 use sequent_core::util::temp_path::write_into_named_temp_file;
+/// Render report for a given template, tenant and election event.
+///
+/// # Errors
+///
+/// Return an error if the report rendering fails.
 
 #[instrument(err, skip(hasura_transaction))]
 pub async fn render_report_task(

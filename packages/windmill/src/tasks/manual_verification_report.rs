@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-
+//! Builds manual verification PDFs for a single voter.
 use crate::postgres::reports::Report;
 use crate::services::database::{get_hasura_pool, get_keycloak_pool, PgConfig};
 use crate::services::reports::manual_verification::ManualVerificationTemplate;
@@ -15,6 +15,11 @@ use celery::error::TaskError;
 use deadpool_postgres::{Client as DbClient, Transaction};
 use tracing::instrument;
 
+/// Generates a manual verification report into a document.
+///
+/// # Errors
+///
+/// Returns an error if pools, transactions, or template rendering fail.
 #[instrument(err)]
 pub async fn generate_report(
     document_id: &str,
@@ -53,7 +58,7 @@ pub async fn generate_report(
         template_alias: None,
         voter_id: Some(voter_id.to_string()),
         report_origin: ReportOriginatedFrom::ExportFunction,
-        executer_username: None, //TODO: fix?
+        executer_username: None,
         tally_session_id: None,
     });
 
@@ -81,38 +86,47 @@ pub async fn generate_report(
     Ok(())
 }
 
-#[instrument(err)]
-#[wrap_map_err::wrap_map_err(TaskError)]
-#[celery::task]
-pub async fn generate_manual_verification_report(
-    document_id: String,
-    tenant_id: String,
-    election_event_id: String,
-    voter_id: String,
-    report: Option<Report>,
-) -> Result<()> {
-    // Spawn the task using an async block
-    let handle = tokio::task::spawn_blocking({
-        move || {
-            tokio::runtime::Handle::current().block_on(async move {
-                generate_report(
-                    &document_id,
-                    &tenant_id,
-                    &election_event_id,
-                    &voter_id,
-                    GenerateReportMode::REAL,
-                    report,
-                )
-                .await
-            })
-        }
-    });
+mod manual_verification_report_task {
+    #![allow(missing_docs)]
+    #![allow(clippy::missing_docs_in_private_items)]
 
-    // Await the result and handle JoinError explicitly
-    match handle.await {
-        Ok(inner_result) => inner_result.map_err(|err| Error::from(err.context("Task failed"))),
-        Err(join_error) => Err(Error::from(anyhow!("Task panicked: {}", join_error))),
-    }?;
+    use super::*;
 
-    Ok(())
+    /// Celery task: generate a manual verification report.
+    #[instrument(err)]
+    #[wrap_map_err::wrap_map_err(TaskError)]
+    #[celery::task]
+    pub async fn generate_manual_verification_report(
+        document_id: String,
+        tenant_id: String,
+        election_event_id: String,
+        voter_id: String,
+        report: Option<Report>,
+    ) -> Result<()> {
+        let handle = tokio::task::spawn_blocking({
+            move || {
+                tokio::runtime::Handle::current().block_on(async move {
+                    generate_report(
+                        &document_id,
+                        &tenant_id,
+                        &election_event_id,
+                        &voter_id,
+                        GenerateReportMode::REAL,
+                        report,
+                    )
+                    .await
+                })
+            }
+        });
+
+        // Await the result and handle JoinError explicitly
+        match handle.await {
+            Ok(inner_result) => inner_result.map_err(|err| Error::from(err.context("Task failed"))),
+            Err(join_error) => Err(Error::from(anyhow!("Task panicked: {}", join_error))),
+        }?;
+
+        Ok(())
+    }
 }
+
+pub use manual_verification_report_task::generate_manual_verification_report;

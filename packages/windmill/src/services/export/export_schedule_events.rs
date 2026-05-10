@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+//! CSV export of scheduled automation events for an election event.
 use crate::postgres::scheduled_event::find_scheduled_event_by_election_event_id;
 use crate::services::documents::upload_and_return_document;
 use crate::services::providers::transactions_provider::provide_hasura_transaction;
@@ -13,6 +14,11 @@ use sequent_core::util::temp_path::write_into_named_temp_file;
 use tempfile::{NamedTempFile, TempPath};
 use tracing::{event, info, instrument, Level};
 
+/// Loads all [`ScheduledEvent`] rows for the tenant/event pair.
+///
+/// # Errors
+///
+/// Propagates database errors from the scheduled-event query.
 #[instrument(err, skip(transaction))]
 pub async fn read_export_data(
     transaction: &Transaction<'_>,
@@ -27,6 +33,12 @@ pub async fn read_export_data(
     Ok(scheduled_events)
 }
 
+/// Serializes `data` to CSV, optionally uploads to the database and s3.
+///
+/// # Errors
+///
+/// Returns an error when JSON introspection fails, CSV writing fails,
+/// temp file creation fails, or upload fails.
 #[instrument(err, skip(transaction))]
 pub async fn write_export_document(
     data: Vec<ScheduledEvent>,
@@ -103,6 +115,11 @@ pub async fn write_export_document(
     Ok(temp_path)
 }
 
+/// Orchestrates read + write to the database and s3.
+///
+/// # Errors
+///
+/// Propagates errors from the read/write helpers or transaction provider.
 #[instrument(err)]
 pub async fn process_export(
     tenant_id: &str,

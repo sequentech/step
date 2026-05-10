@@ -1,8 +1,11 @@
-use crate::postgres::election_event::get_election_event_by_id;
-use crate::postgres::election_event::update_election_event_status;
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+
+//! Per-channel voting status updates, electoral-log posts, and election status rollups.
+
+use crate::postgres::election_event::get_election_event_by_id;
+use crate::postgres::election_event::update_election_event_status;
 use crate::services::election_event_board::get_election_event_board;
 use crate::services::election_event_status;
 use crate::services::electoral_log::*;
@@ -24,6 +27,8 @@ use tracing::instrument;
 use super::election_event_status::get_election_event_status;
 
 #[derive(Serialize, Deserialize, Debug)]
+/// Update election voting status input.
+#[allow(missing_docs)]
 pub struct UpdateElectionVotingStatusInput {
     pub election_event_id: String,
     pub election_id: String,
@@ -32,10 +37,17 @@ pub struct UpdateElectionVotingStatusInput {
 }
 
 #[derive(Serialize, Deserialize, Debug)]
+/// Update election voting status output.
+#[allow(missing_docs)]
 pub struct UpdateElectionVotingStatusOutput {
     pub election_id: String,
 }
 
+/// Update per-channel voting status on an election event and persist aggregate event status.
+///
+/// # Errors
+///
+/// Returns an error if the event cannot be loaded, JSON deserialization fails, or updates/postings fail.
 #[instrument(err)]
 pub async fn update_election_status(
     tenant_id: String,
@@ -147,6 +159,11 @@ pub async fn update_election_status(
     Ok(())
 }
 
+/// Append the appropriate electoral-log statement when voting status changes on a channel.
+///
+/// # Errors
+///
+/// Returns an error if the bulletin board name is missing or electoral log posts fail.
 #[instrument(err)]
 pub async fn update_board_on_status_change(
     hasura_transaction: &Transaction<'_>,
@@ -236,14 +253,24 @@ pub async fn update_board_on_status_change(
     Ok(())
 }
 
+/// Election status info (zero based).
 #[derive(Debug)]
 pub struct ElectionStatusInfo {
+    /// Not started votes.
     pub total_not_started_votes: i64,
+    /// Open votes.
     pub total_open_votes: i64,
+    /// Closed votes.
     pub total_closed_votes: i64,
+    /// Started votes.
     pub total_started_votes: i64,
 }
 
+/// Return for election his status info.
+///
+/// # Panics
+///
+/// Panics if per-status counters overflow `i64` when summing channels.
 #[instrument(skip(election), ret)]
 pub fn get_election_status_info(election: &Election) -> ElectionStatusInfo {
     let mut total_not_started_votes: i64 = 0;

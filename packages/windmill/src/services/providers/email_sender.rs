@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+//! Email delivery via AWS SES, SMTP, or a console logger.
 use crate::types::error::Result;
 
 use anyhow::anyhow;
@@ -20,30 +21,49 @@ use lettre::Transport;
 use sequent_core::util::aws::get_from_env_aws_config;
 use serde::Deserialize;
 
+/// File attachment metadata and raw bytes.
 pub struct Attachment {
+    /// Attachment filename.
     pub filename: String,
+    /// MIME type for the attachment content.
     pub mimetype: String,
+    /// Attachment payload bytes.
     pub content: Vec<u8>,
 }
 
 #[derive(Debug, Deserialize)]
+/// SMTP transport configuration.
 struct SmtpConfig {
+    /// SMTP URL as accepted by `lettre`.
     server_url: String,
+    /// Timeout in seconds.
     timeout: Option<u64>, // in seconds
 }
 
+/// Transport backend selected for email delivery.
 pub enum EmailTransport {
+    /// AWS SESv2 client used to send raw MIME messages.
     AwsSes(AwsSesClient),
+    /// SMTP transport configured from `EMAIL_TRANSPORT_CONFIG`.
     Smtp(SmtpTransport),
+    /// Log-only transport (no delivery).
     Console,
 }
 
+/// Email sender configured from environment variables.
 pub struct EmailSender {
+    /// Selected transport backend.
     transport: EmailTransport,
+    /// From address used when building messages.
     email_from: String,
 }
 
 impl EmailSender {
+    /// Builds an [`EmailSender`] using environment configuration.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if env/config parsing fails.
     #[instrument(err)]
     pub async fn new() -> Result<Self> {
         let email_from = std::env::var("EMAIL_FROM")
@@ -95,6 +115,11 @@ impl EmailSender {
         })
     }
 
+    /// Sends a MIME email with optional HTML and attachments.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if message building or delivery fails.
     #[instrument(skip(self, plaintext_body, html_body, attachments), err)]
     pub async fn send(
         &self,

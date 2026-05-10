@@ -16,9 +16,10 @@ use tokio_postgres::row::Row;
 use tracing::{event, instrument, Level};
 use uuid::Uuid;
 
+/// Tasks execution wrapper
 pub struct TasksExecutionWrapper(pub TasksExecution);
 
-// implements a conversion from a database row to that TasksExecutionWrapper structure
+/// Implements a conversion from a database row to that TasksExecutionWrapper structure
 impl TryFrom<Row> for TasksExecutionWrapper {
     type Error = anyhow::Error;
 
@@ -42,6 +43,12 @@ impl TryFrom<Row> for TasksExecutionWrapper {
         }))
     }
 }
+/// Insert tasks execution into the database.
+///
+/// # Errors
+///
+/// Returns an error if SQL preparation or execution fails,
+/// if UUID or other parsing fails.
 
 #[instrument(skip(annotations, labels, logs), err)]
 pub async fn insert_tasks_execution(
@@ -118,6 +125,12 @@ pub async fn insert_tasks_execution(
 
     Ok(task_execution)
 }
+/// Update task execution status in the database.
+///
+/// # Errors
+///
+/// Returns an error if SQL preparation or execution fails,
+/// if UUID or other parsing fails.
 
 pub async fn update_task_execution_status(
     tenant_id: &str,
@@ -174,6 +187,12 @@ pub async fn update_task_execution_status(
 
     Ok(())
 }
+/// Get task by id from the database.
+///
+/// # Errors
+///
+/// Returns an error if SQL preparation or execution fails,
+/// if UUID or other parsing fails.
 
 #[instrument(skip(), err)]
 pub async fn get_task_by_id(task_id: &str) -> Result<TasksExecution> {
@@ -212,6 +231,12 @@ pub async fn get_task_by_id(task_id: &str) -> Result<TasksExecution> {
 
     Ok(task_execution)
 }
+/// Get tasks by election event id from the database.
+///
+/// # Errors
+///
+/// Returns an error if SQL preparation or execution fails,
+/// if UUID or other parsing fails.
 
 #[instrument(skip(), err)]
 pub async fn get_tasks_by_election_event_id(

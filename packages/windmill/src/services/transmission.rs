@@ -1,6 +1,9 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+
+//! Managing signed transmission bundles and dispatch to external custody or reporting systems.
+
 use crate::{
     postgres::tally_session::{get_tally_session_by_id, get_tally_sessions_by_election_event_id},
     types::miru_plugin::{MiruServerDocumentStatus, MiruTallySessionData},
@@ -16,6 +19,11 @@ use super::consolidation::{
 };
 
 #[instrument(err, skip_all)]
+/// Get the transmission data from the tally session by area.
+///
+/// # Errors
+///
+/// Returns an error if tally sessions cannot be fetched or area annotations cannot be parsed.
 pub async fn get_transmission_data_from_tally_session_by_area(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
@@ -73,6 +81,8 @@ pub async fn get_transmission_data_from_tally_session_by_area(
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
+/// Server data.
+#[allow(missing_docs)]
 pub struct ServerData {
     pub server_code: String,
     pub transmitted: String,
@@ -83,6 +93,8 @@ pub struct ServerData {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
+/// Transmission data.
+#[allow(missing_docs)]
 pub struct TransmissionData {
     pub servers: Vec<ServerData>,
     pub total_transmitted: i64,
@@ -91,6 +103,15 @@ pub struct TransmissionData {
 }
 
 #[instrument(err, skip_all)]
+/// Get the transmission servers data.
+///
+/// # Errors
+///
+/// Returns an error if area annotations cannot be parsed.
+///
+/// # Panics
+///
+/// Panics if transmitted counters overflow while building the per-server summary.
 pub async fn get_transmission_servers_data(
     tally_session_data: &MiruTallySessionData,
     area: &Area,

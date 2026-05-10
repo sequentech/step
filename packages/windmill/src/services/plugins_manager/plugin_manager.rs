@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+//! High-level plugin registry that loads plugins and dispatches hooks to registered plugins.
 use crate::services::plugins_manager::plugin::{HookValue, Plugin};
 use anyhow::{anyhow, Context, Result};
 use dashmap::DashMap;
@@ -14,16 +15,26 @@ use serde_json::Value;
 use std::sync::Arc;
 use wasmtime::{Config, Engine};
 
+/// In-memory plugin registry plus dispatch tables (hooks, routes, tasks).
 pub struct PluginManager {
+    /// Loaded plugins keyed by plugin name.
     pub plugins: DashMap<String, Arc<Plugin>>,
+    /// Hook name → plugin names that registered it.
     pub hooks: DashMap<String, Vec<String>>, // (hook, list of plugin names)
+    /// Route path → (handler, plugin_name).
     pub routes: DashMap<String, (String, String)>, // (path, (handler, plugin_name)) - Routes remain 1:1
-    pub tasks: DashMap<String, Vec<String>>,       // (task, list of plugin names)
+    /// Task handler → plugin names that registered it.
+    pub tasks: DashMap<String, Vec<String>>, // (task, list of plugin names)
+    /// Shared Wasmtime engine used to compile components.
     pub engine: Engine,
 }
 
 impl PluginManager {
     /// Creates a new PluginManager instance with an async-enabled Wasmtime engine and empty plugin registries.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the Wasmtime engine cannot be created.
     pub fn new() -> Result<Self> {
         let mut config = Config::new();
         config.async_support(true);
@@ -39,6 +50,10 @@ impl PluginManager {
     }
 
     /// Loads all plugin WASM files from the S3 bucket, initializes them, and registers their hooks, routes, and tasks.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if S3 listing/download fails or a plugin fails to initialize.
     pub async fn load_plugins(&self) -> Result<()> {
         let bucket: String = get_public_bucket().context("failed to get public S3 bucket")?;
         let wasms_files: Vec<(String, Vec<u8>)> =
@@ -93,6 +108,10 @@ impl PluginManager {
 
     /// Calls a hook by name on all plugins that registered for it, passing arguments and expected result values.
     /// Returns a vector of results from each plugin.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if no plugin registered the hook, a plugin is missing, a task panics, or the call fails.
     pub async fn call_hook(
         &self,
         hook: &str,
@@ -152,6 +171,10 @@ impl PluginManager {
     }
 
     /// Calls a registered route handler by path, passing a JSON string as input, and returns the JSON value.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the route is not found, the plugin is missing, the call fails, or the result is not JSON.
     pub async fn call_route(&self, path: &str, input_json: String) -> Result<Value> {
         if let Some(route_entry) = self.routes.get(path) {
             let (handler, plugin_name) = route_entry.value();
@@ -185,7 +208,11 @@ impl PluginManager {
         }
     }
 
-    /// Executes a registered task by name, passing a JSON string as input, on all plugins that registered for the task.
+    /// EExecutes a registered task by name, passing a JSON string as input, on all plugins that registered for the task.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the task is not registered, a plugin is missing, or the call fails.
     pub async fn execute_task(&self, task: &str, input_json: String) -> Result<()> {
         let plugin_names = self
             .tasks
@@ -208,6 +235,7 @@ impl PluginManager {
         Ok(())
     }
 
+    /// Returns the task handler for `path` when the route maps to a handler registered as a task.
     pub fn get_route_task_handler(&self, path: &str) -> Option<String> {
         if let Some(route_entry) = self.routes.get(path) {
             let (handler, _plugin_name) = route_entry.value();
@@ -219,9 +247,18 @@ impl PluginManager {
     }
 }
 
+/// Global plugin manager singleton.
 static PLUGIN_MANAGER: OnceCell<PluginManager> = OnceCell::new();
 
 /// Returns a reference to the global PluginManager singleton, initializing it if necessary.
+///
+/// # Panics
+///
+/// Panics if initialization succeeds but the singleton cannot be retrieved.
+///
+/// # Errors
+///
+/// Returns an error if initialization fails.
 pub async fn get_plugin_manager() -> Result<&'static PluginManager> {
     let plugin_manager = match PLUGIN_MANAGER.get() {
         Some(manager) => manager,
@@ -238,6 +275,10 @@ pub async fn get_plugin_manager() -> Result<&'static PluginManager> {
 }
 
 /// Initializes the global PluginManager singleton and loads all plugins from S3.
+///
+/// # Errors
+///
+/// Returns an error if initialization or plugin loading fails.
 pub async fn init_plugin_manager() -> Result<()> {
     if PLUGIN_MANAGER.get().is_some() {
         return Ok(());

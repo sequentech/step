@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+//! CSV export of Keycloak users.
 
 use crate::postgres::area::get_areas_by_id;
 use crate::services::database::{get_keycloak_pool, PgConfig};
@@ -22,9 +23,11 @@ use tempfile::{NamedTempFile, TempPath};
 use tracing::{event, info, instrument, Level};
 
 lazy_static! {
+    /// Characters stripped from characters when building dynamic CSV column names.
     static ref SAFE_CHARS_RE: Regex = Regex::new(r"[^a-zA-Z0-9._-]").unwrap();
 }
 
+/// Keycloak built-in user profile attribute names excluded from the “custom attributes” header block.
 pub const USER_FIELDS: [&str; 8] = [
     "id",
     "email",
@@ -36,36 +39,52 @@ pub const USER_FIELDS: [&str; 8] = [
     "area-id",
 ];
 
+/// Request body shape for HTTP handlers that export event-scoped users.
 #[derive(Deserialize, Debug, Clone, Serialize)]
 pub struct ExportUsersBody {
+    /// Owning tenant id.
     pub tenant_id: String,
+    /// Event whose realm and areas should drive the export.
     pub election_event_id: Option<String>,
+    /// Optional election id for vote-info enrichment.
     pub election_id: Option<String>,
 }
 
+/// Request body for tenant users export.
 #[derive(Deserialize, Debug, Clone, Serialize)]
 pub struct ExportTenantUsersBody {
+    /// Tenant whose users are listed.
     pub tenant_id: String,
 }
 
+/// Discriminator for [`export_users_file`] describing realm scope and listing mode.
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub enum ExportBody {
+    /// Export users from the event realm with optional election filters.
     Users {
+        /// Owning tenant id.
         tenant_id: String,
+        /// Event realm selector.
         election_event_id: Option<String>,
+        /// Optional election id filter.
         election_id: Option<String>,
     },
+    /// Export users from the tenant realm only.
     TenantUsers {
+        /// Owning tenant id.
         tenant_id: String,
     },
 }
 
+/// Replaces any character not in `[A-Za-z0-9._-]` with `_` for safe CSV header suffixes.
 #[instrument(level = "trace")]
 fn sanitize_name(name: &str) -> String {
     // Replace all characters not matching the regex with an underscore '_'
     SAFE_CHARS_RE.replace_all(name, "_").to_string()
 }
 
+/// Builds CSV headers: fixed user columns, custom Keycloak profile attributes,
+/// and one column per election.
 #[instrument(skip(elections))]
 fn get_headers(
     elections: &Option<Vec<ElectionHead>>,
@@ -106,6 +125,7 @@ fn get_headers(
     .concat()
 }
 
+/// Flattens a [`User`] into a CSV row aligned with the headers.
 #[instrument(skip(elections, areas_by_id, user_attributes), level = "trace")]
 fn get_user_record(
     elections: &Option<Vec<ElectionHead>>,
@@ -163,6 +183,15 @@ fn get_user_record(
     .concat()
 }
 
+/// Paginates through Keycloak users and writes a CSV temp file, enforcing configured max upload size.
+///
+/// # Panics
+///
+/// Panics if a single page contains more than `i32::MAX` users or if the running offset overflows `i32`.
+///
+/// # Errors
+///
+/// Propagates pool/transaction errors, listing failures, CSV write failures, or oversize output.
 #[instrument(err, skip(hasura_transaction))]
 pub async fn export_users_file(
     hasura_transaction: &Transaction<'_>,

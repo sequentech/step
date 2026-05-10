@@ -1,6 +1,9 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+
+//! Builds transmission zip bundles from tally artifacts and updates tally annotations.
+
 use super::acm_json::get_acm_key_pair;
 use super::acm_transaction::generate_transaction_id;
 use super::eml_generator::{
@@ -53,6 +56,11 @@ use tracing::{info, instrument};
 use uuid::Uuid;
 use velvet::pipes::generate_reports::ReportData;
 
+/// Resolves the latest tally execution’s `TarGzOriginal` result document and downloads it to a temp file.
+///
+/// # Errors
+///
+/// DB lookup failures, missing execution or document, or download errors.
 #[instrument(skip(hasura_transaction), err)]
 pub async fn download_tally_tar_gz_to_file(
     hasura_transaction: &Transaction<'_>,
@@ -103,6 +111,11 @@ pub async fn download_tally_tar_gz_to_file(
     get_document_as_temp_file(tenant_id, &document).await
 }
 
+/// Replaces one area/election entry in tally-session MIRU transmission data and persists annotations.
+///
+/// # Errors
+///
+/// Deserialization, missing annotations, or DB update failures.
 #[instrument(skip(hasura_transaction), err)]
 pub async fn update_transmission_package_annotations(
     hasura_transaction: &Transaction<'_>,
@@ -145,6 +158,11 @@ pub async fn update_transmission_package_annotations(
     Ok(())
 }
 
+/// For each CCS server, writes `er_` / optional `al_` zips under a temp tree, then uploads `all_servers.zip`.
+///
+/// # Errors
+///
+/// ACM key load, package build, zip, upload, or filesystem errors.
 #[instrument(skip_all, err)]
 pub async fn generate_all_servers_document(
     hasura_transaction: &Transaction<'_>,
@@ -229,6 +247,12 @@ pub async fn generate_all_servers_document(
     Ok(document)
 }
 
+/// End-to-end: load event/area/tally state, render EML, sign, upload documents,
+/// and update MIRU annotations unless `force` is false and transmission package already exists.
+///
+/// # Errors
+///
+/// Any failure in annotation validation, Velvet/tally prep, document upload, or persistence.
 #[instrument(err)]
 pub async fn create_transmission_package_service(
     tenant_id: &str,

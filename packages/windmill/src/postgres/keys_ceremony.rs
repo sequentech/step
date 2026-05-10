@@ -10,6 +10,7 @@ use tokio_postgres::row::Row;
 use tracing::{event, info, instrument, Level};
 use uuid::Uuid;
 
+/// Row representing Keys ceremony wrapper
 pub struct KeysCeremonyWrapper(pub KeysCeremony);
 
 impl TryFrom<Row> for KeysCeremonyWrapper {
@@ -39,6 +40,12 @@ impl TryFrom<Row> for KeysCeremonyWrapper {
         }))
     }
 }
+/// Get all keys ceremonies for a given tenant and election event from the database.
+///
+/// # Errors
+///
+/// Returns an error if SQL preparation or execution fails,
+/// if UUID or other parsing fails, or if row mapping is inconsistent.
 
 #[instrument(err, skip_all)]
 pub async fn get_keys_ceremonies(
@@ -80,6 +87,12 @@ pub async fn get_keys_ceremonies(
 
     Ok(keys_ceremonies)
 }
+/// Get keys ceremony by id from the database.
+///
+/// # Errors
+///
+/// Returns an error if SQL preparation or execution fails,
+/// if UUID or other parsing fails, or if row mapping is inconsistent.
 
 #[instrument(err, skip_all)]
 pub async fn get_keys_ceremony_by_id(
@@ -127,6 +140,12 @@ pub async fn get_keys_ceremony_by_id(
         .cloned()
         .ok_or(anyhow!("Keys ceremony {keys_ceremony_id} not found"))
 }
+/// Insert keys ceremony into the database.
+///
+/// # Errors
+///
+/// Returns an error if SQL preparation or execution fails,
+/// if UUID or other parsing fails, or if row mapping is inconsistent.
 
 #[instrument(skip(hasura_transaction), err)]
 pub async fn insert_keys_ceremony(
@@ -209,6 +228,12 @@ pub async fn insert_keys_ceremony(
 
     elements.first().cloned().ok_or(anyhow!("Row not inserted"))
 }
+/// Updates keys ceremony status and returns the updated row when applicable.
+///
+/// # Errors
+///
+/// Returns an error if SQL preparation or execution fails,
+/// if UUID or other parsing fails, or if row mapping is inconsistent.
 
 #[instrument(skip(hasura_transaction, status), err)]
 pub async fn update_keys_ceremony_status(
@@ -257,6 +282,12 @@ pub async fn update_keys_ceremony_status(
 
     Ok(())
 }
+/// Lists keys ceremony with the given filters.
+///
+/// # Errors
+///
+/// Returns an error if SQL preparation or execution fails,
+/// if UUID or other parsing fails, or if row mapping is inconsistent.
 
 #[instrument(skip(hasura_transaction), err)]
 pub async fn list_keys_ceremony(

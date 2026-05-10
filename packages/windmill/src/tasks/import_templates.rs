@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-
+//! Imports template definitions from CSV.
 use crate::postgres::template::insert_templates;
 use crate::services::providers::transactions_provider::provide_hasura_transaction;
 use crate::services::tasks_execution::{update_complete, update_fail};
@@ -19,6 +19,11 @@ use std::io::Seek;
 use tracing::{info, instrument};
 use uuid::Uuid;
 
+/// Imports templates from CSV.
+///
+/// # Errors
+///
+/// Returns an error when the document, integrity hash, or CSV parsing fails.
 #[instrument(err)]
 pub async fn import_templates(
     hasura_transaction: &Transaction<'_>,
@@ -100,31 +105,41 @@ pub async fn import_templates(
     Ok(())
 }
 
-#[instrument(err)]
-#[wrap_map_err::wrap_map_err(TaskError)]
-#[celery::task(max_retries = 0)]
-pub async fn import_templates_task(
-    tenant_id: String,
-    document_id: String,
-    sha256: Option<String>,
-    task_execution: TasksExecution,
-) -> Result<()> {
-    let result = provide_hasura_transaction(|hasura_transaction| {
-        let document_copy = document_id.clone();
-        Box::pin(async move {
-            import_templates(hasura_transaction, tenant_id, document_copy, sha256).await
+mod import_templates_celery_task {
+    #![allow(missing_docs)]
+    #![allow(clippy::missing_docs_in_private_items)]
+
+    use super::*;
+
+    /// Celery task: import templates from a CSV file.
+    #[instrument(err)]
+    #[wrap_map_err::wrap_map_err(TaskError)]
+    #[celery::task(max_retries = 0)]
+    pub async fn import_templates_task(
+        tenant_id: String,
+        document_id: String,
+        sha256: Option<String>,
+        task_execution: TasksExecution,
+    ) -> Result<()> {
+        let result = provide_hasura_transaction(|hasura_transaction| {
+            let document_copy = document_id.clone();
+            Box::pin(async move {
+                import_templates(hasura_transaction, tenant_id, document_copy, sha256).await
+            })
         })
-    })
-    .await;
-    match result {
-        Ok(_) => {
-            let _res = update_complete(&task_execution, Some(document_id.clone())).await;
-            Ok(())
-        }
-        Err(err) => {
-            let err_str = format!("Error importing templates: {err:?}");
-            let _res = update_fail(&task_execution, &err.to_string()).await;
-            Err(err_str.into())
+        .await;
+        match result {
+            Ok(_) => {
+                let _res = update_complete(&task_execution, Some(document_id.clone())).await;
+                Ok(())
+            }
+            Err(err) => {
+                let err_str = format!("Error importing templates: {err:?}");
+                let _res = update_fail(&task_execution, &err.to_string()).await;
+                Err(err_str.into())
+            }
         }
     }
 }
+
+pub use import_templates_celery_task::import_templates_task;

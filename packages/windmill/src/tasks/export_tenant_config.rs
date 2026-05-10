@@ -1,6 +1,9 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+//! Exports tenant-level configuration documents.
+#![allow(missing_docs)]
+#![allow(clippy::missing_docs_in_private_items)]
 
 use crate::services::database::get_hasura_pool;
 use crate::services::export::export_tenant_config::process_export_zip;
@@ -13,6 +16,7 @@ use sequent_core::types::hasura::core::TasksExecution;
 use serde::{Deserialize, Serialize};
 use tracing::{event, instrument, Level};
 
+/// Celery task: export the tenant configuration as a ZIP.
 #[instrument(err)]
 #[wrap_map_err::wrap_map_err(TaskError)]
 #[celery::task(max_retries = 0)]

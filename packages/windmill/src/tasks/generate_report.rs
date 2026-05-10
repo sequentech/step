@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-
+//! Renders report documents from templates and data.
 use crate::postgres::reports::Report;
 use crate::postgres::reports::ReportType;
 use crate::services::database::get_hasura_pool;
@@ -29,6 +29,11 @@ use std::str::FromStr;
 use tracing::info;
 use tracing::instrument;
 
+/// Runs the report-type-specific template renderer.
+///
+/// # Errors
+///
+/// Fails on DB pool or transaction errors, unknown report types, template rendering failures, or commit errors.
 pub async fn generate_report(
     report: Report,
     document_id: String,
@@ -152,59 +157,73 @@ pub async fn generate_report(
     Ok(())
 }
 
-#[instrument(err)]
-#[wrap_map_err::wrap_map_err(TaskError)]
-#[celery::task]
-pub async fn generate_report(
-    report: Report,
-    document_id: String,
-    report_mode: GenerateReportMode,
-    is_scheduled_task: bool,
-    task_execution: Option<TasksExecution>,
-    executer_username: Option<String>,
-    tally_session_id: Option<String>,
-) -> Result<()> {
-    let _permit = acquire_semaphore().await?;
-    // Spawn the task using an async block
-    let task_execution_clone = task_execution.clone();
-    let handle = tokio::task::spawn_blocking({
-        move || {
-            tokio::runtime::Handle::current().block_on(async move {
-                generate_report(
-                    report,
-                    document_id,
-                    report_mode,
-                    is_scheduled_task,
-                    task_execution_clone,
-                    executer_username,
-                    tally_session_id,
-                )
-                .await
-                .map_err(|err| anyhow!("generate_report error: {:?}", err))
-            })
-        }
-    });
+mod generate_report_task {
+    #![allow(missing_docs)]
+    #![allow(clippy::missing_docs_in_private_items)]
 
-    // Await the result and handle JoinError explicitly
-    match handle.await {
-        Ok(inner_result) => {
-            if let Err(ref err) = inner_result {
-                if let Some(ref task_exec) = task_execution {
-                    let _ = update_fail(task_exec, &format!("Task failed: {:?}", err)).await;
+    use super::*;
+
+    /// Celery task: acquires the reports semaphore and runs the report pipeline on the blocking pool.
+    ///
+    /// # Errors
+    ///
+    /// Fails if the semaphore cannot be acquired, the blocking worker returns an error, or the join handle errors.
+    #[instrument(err)]
+    #[wrap_map_err::wrap_map_err(TaskError)]
+    #[celery::task]
+    pub async fn generate_report(
+        report: Report,
+        document_id: String,
+        report_mode: GenerateReportMode,
+        is_scheduled_task: bool,
+        task_execution: Option<TasksExecution>,
+        executer_username: Option<String>,
+        tally_session_id: Option<String>,
+    ) -> Result<()> {
+        let _permit = acquire_semaphore().await?;
+        // Spawn the task using an async block
+        let task_execution_clone = task_execution.clone();
+        let handle = tokio::task::spawn_blocking({
+            move || {
+                tokio::runtime::Handle::current().block_on(async move {
+                    generate_report(
+                        report,
+                        document_id,
+                        report_mode,
+                        is_scheduled_task,
+                        task_execution_clone,
+                        executer_username,
+                        tally_session_id,
+                    )
+                    .await
+                    .map_err(|err| anyhow!("generate_report error: {:?}", err))
+                })
+            }
+        });
+
+        // Await the result and handle JoinError explicitly
+        match handle.await {
+            Ok(inner_result) => {
+                if let Err(ref err) = inner_result {
+                    if let Some(ref task_exec) = task_execution {
+                        let _ = update_fail(task_exec, &format!("Task failed: {:?}", err)).await;
+                    }
                 }
+                inner_result.map_err(|err| Error::from(err.context("Task failed")))?;
             }
-            inner_result.map_err(|err| Error::from(err.context("Task failed")))?;
-        }
-        Err(join_error) => {
-            if let Some(ref task_exec) = task_execution {
-                let _ = update_fail(task_exec, &format!("Task panicked: {}", join_error)).await;
+            Err(join_error) => {
+                if let Some(ref task_exec) = task_execution {
+                    let _ = update_fail(task_exec, &format!("Task panicked: {}", join_error)).await;
+                }
+                return Err(Error::from(anyhow::anyhow!(
+                    "Task panicked: {}",
+                    join_error
+                )));
             }
-            return Err(Error::from(anyhow::anyhow!(
-                "Task panicked: {}",
-                join_error
-            )));
         }
-    }
 
-    Ok(())
+        Ok(())
+    }
 }
+
+pub use generate_report_task::generate_report;

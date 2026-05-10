@@ -1,6 +1,9 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+
+//! Cloudflare country-blocking rules for the voting portal and enrollment endpoints.
+
 use super::cloudflare::{
     create_ruleset, create_ruleset_rule, delete_ruleset_rule, get_cloudflare_vars,
     get_ruleset_by_phase, update_ruleset_rule, CreateCustomRuleRequest, Rule, Ruleset,
@@ -10,6 +13,11 @@ use anyhow::{anyhow, Context, Result};
 use rocket::{form::validate::Contains, http::Status};
 use tracing::{info, instrument};
 
+/// Read voting portal and public Keycloak base URLs from the environment.
+///
+/// # Errors
+///
+/// Returns an error if the VOTING_PORTAL_URL or KEYCLOAK_PUBLIC_URL env vars are not set.
 #[instrument]
 fn get_voting_portal_urls_prefix() -> Result<(String, String)> {
     //TODO: change default values?
@@ -20,6 +28,11 @@ fn get_voting_portal_urls_prefix() -> Result<(String, String)> {
     Ok((voting_portal_url, voting_portal_keycloak_url))
 }
 
+/// Build a Cloudflare WAF custom rule blocking countries for voting or enrollment hosts.
+///
+/// # Errors
+///
+/// Returns an error if the VOTING_PORTAL_URL or KEYCLOAK_PUBLIC_URL env vars are not set.
 #[instrument]
 fn create_limit_ip_by_countries_rule_format(
     tenant_id: String,
@@ -70,6 +83,11 @@ fn create_limit_ip_by_countries_rule_format(
     })
 }
 
+/// Create, update, or delete a tenant's country-limit rule inside an existing ruleset.
+///
+/// # Errors
+///
+/// Returns an error if the Cloudflare rule update or creation fails.
 #[instrument]
 async fn update_or_create_limit_ip_by_countries_rule(
     api_key: &str,
@@ -121,6 +139,11 @@ async fn update_or_create_limit_ip_by_countries_rule(
     Ok(rule)
 }
 
+/// Create a new Cloudflare ruleset phase entry with the country-limit rule.
+///
+/// # Errors
+///
+/// Returns an error if the Cloudflare ruleset creation fails.
 #[instrument]
 async fn create_limit_ip_by_countries_ruleset(
     api_key: &str,
@@ -143,6 +166,11 @@ async fn create_limit_ip_by_countries_ruleset(
     Ok(rule)
 }
 
+/// Sync Cloudflare WAF rules that restrict voting and enrollment by country lists.
+///
+/// # Errors
+///
+/// Returns an error if Cloudflare credentials, ruleset discovery, or rule API calls fail.
 #[instrument]
 pub async fn handle_limit_ip_access_by_countries(
     tenant_id: String,

@@ -8,6 +8,8 @@ use deadpool_postgres::{Client, Transaction};
 use tracing::instrument;
 use uuid::Uuid;
 
+/// Row representing Certificate authority record
+#[allow(missing_docs)]
 pub struct CertificateAuthorityRecord {
     pub id: Uuid,
     pub tenant_id: Uuid,
@@ -24,8 +26,14 @@ pub struct CertificateAuthorityRecord {
 }
 
 /// Inserts a certificate authority record into the database.
+///
 /// Returns `true` if the record was inserted, `false` if it was skipped
 /// due to a duplicate fingerprint for the same election event.
+///
+/// # Errors
+///
+/// Returns an error if the `INSERT` statement cannot be prepared or executed (excluding the
+/// conflict-no-op case, which surfaces as `false`).
 #[instrument(skip(hasura_transaction, record), err)]
 pub async fn insert_certificate_authority(
     hasura_transaction: &Transaction<'_>,
@@ -70,7 +78,14 @@ pub async fn insert_certificate_authority(
 
 /// Deletes the certificate authorities matching the given ids, scoped to the
 /// given tenant and election event.
-/// Returns the subjects of all deleted rows.
+///
+/// # Returns
+///
+/// The `subject` column for each deleted row, in database return order.
+///
+/// # Errors
+///
+/// Returns an error if the `DELETE … RETURNING` statement cannot be prepared or executed.
 #[instrument(skip(hasura_transaction), err)]
 pub async fn delete_certificate_authorities(
     hasura_transaction: &Transaction<'_>,
@@ -97,7 +112,11 @@ pub async fn delete_certificate_authorities(
 }
 
 /// Returns the PEM strings for all certificate authorities belonging to the
-/// given election event, ordered by creation time. Uses a transaction.
+/// given election event, ordered by creation time.
+///
+/// # Errors
+///
+/// Returns an error if the `SELECT` cannot be prepared or executed.
 #[instrument(skip(transaction), err)]
 pub async fn get_certificate_authorities_pem(
     transaction: &Transaction<'_>,
@@ -127,7 +146,11 @@ pub async fn get_certificate_authorities_pem(
 
 /// Returns the PEM strings for the specified certificate authorities (by id),
 /// scoped to the given election event. If `ids` is empty, returns PEMs for all
-/// CAs in the election event (same behaviour as `get_certificate_authorities_pem`).
+/// CAs in the election event (same behaviour as [`get_certificate_authorities_pem`]).
+///
+/// # Errors
+///
+/// Returns an error if the `SELECT` cannot be prepared or executed.
 #[instrument(skip(transaction), err)]
 pub async fn get_certificate_authorities_pem_by_ids(
     transaction: &Transaction<'_>,

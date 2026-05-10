@@ -1,23 +1,28 @@
 // SPDX-FileCopyrightText: 2025 Sequent Legal <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+//! Convenience trait that exposes strongly-typed plugin hooks on [`PluginManager`].
 use crate::services::plugins_manager::plugin::HookValue;
 use crate::services::plugins_manager::plugin_manager::PluginManager;
 use anyhow::{anyhow, Result};
 use async_trait::async_trait;
 use serde_json::Value;
 
-// This module defines the hooks implementation for the plugin system.
-// Each plugin hook is a method that can be called by the plugin manager to interact with plugins.
+/// This module defines the hooks implementation for the plugin system.
+/// Each plugin hook is a method that can be called by the plugin manager to interact with plugins.
 #[async_trait]
 pub trait PluginHooks {
-    //Add plugins hooks here
+    /// Calls the `create-transmission-package` hook and returns its string result.
     async fn create_transmission_package(&self, input: Value) -> Result<String>;
 }
 
 #[async_trait]
 impl PluginHooks for PluginManager {
-    //Implement the PluginHooks trait for PluginManager
+    /// Calls the corresponding plugin hook and unwraps the first plugin result as a string.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the hook call fails or returns an unexpected shape.
     async fn create_transmission_package(&self, input: Value) -> Result<String> {
         let res: Vec<Vec<HookValue>> = self
             .call_hook(

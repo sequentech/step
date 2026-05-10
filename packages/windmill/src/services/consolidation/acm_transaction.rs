@@ -1,14 +1,22 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+
+//! Deterministic pseudo-transaction ids for Miru EML headers.
+
 use chrono::Utc;
 use chrono::{Datelike, Timelike};
 use rand::Rng;
 
-// the random part comes from dividing 9999999999999 / (24*365*24*3600)
+/// The random part comes from dividing 9999999999999 / (24*365*24*3600)
 const RANDOM_PART: u64 = 13212;
 
-// generate a 13 digit number like 1721184531864
+/// Builds a 13-digit number like 1721184531864
+///
+/// # Panics
+///
+/// Panics only if arithmetic around year/hour/second components or the final product overflows
+/// (should not occur for real wall-clock times).
 pub fn generate_transaction_id() -> u64 {
     let now = Utc::now();
     let year = (now.year() as u64)

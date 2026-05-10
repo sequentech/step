@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-
+//! Finalizes tally results and updates related documents.
 use crate::postgres::document::get_document;
 use crate::services::documents::upload_and_return_document;
 use crate::types::error::{Error, Result};
@@ -49,6 +49,11 @@ use tokio::time::Duration as ChronoDuration;
 use rayon::iter::IntoParallelIterator;
 use rayon::iter::ParallelIterator;
 
+/// Downloads the SQLite results database referenced on the tally session execution.
+///
+/// # Errors
+///
+/// Fails if execution documents are missing, the sqlite document id is absent, or download fails.
 #[instrument(skip(hasura_transaction), err)]
 pub async fn download_sqlite_database(
     tenant_id: &str,
@@ -91,6 +96,11 @@ pub async fn download_sqlite_database(
     Ok(sqlite_database)
 }
 
+/// Walks `root_path` for `.html` files, renders each to PDF in parallel using `pdf_options`, and writes sibling `.pdf` files.
+///
+/// # Errors
+///
+/// Stops on the first I/O, render, temp-file, or copy error from any worker thread.
 pub fn find_and_process_html_reports_parallel(
     root_path: &Path,
     pdf_options: PrintToPdfOptionsLocal,
@@ -148,6 +158,12 @@ pub fn find_and_process_html_reports_parallel(
     Ok(())
 }
 
+/// Rebuilds tally HTML reports as PDFs inside the decrypted archive,
+/// re-uploads `tally.tar.gz` and SQLite.
+///
+/// # Errors
+///
+/// Propagates missing documents, sqlite/tar extraction, PDF render, upload, or Hasura update failures.
 #[instrument(err)]
 pub async fn post_tally_task_impl(
     tenant_id: String,
@@ -373,52 +389,70 @@ pub async fn post_tally_task_impl(
     Ok(())
 }
 
-#[instrument(err)]
-#[wrap_map_err::wrap_map_err(TaskError)]
-#[celery::task(time_limit = 1_200_000, max_retries = 0, expires = 15)]
-pub async fn post_tally_task(
-    tenant_id: String,
-    election_event_id: String,
-    tally_session_id: String,
-) -> Result<()> {
-    let _permit = acquire_semaphore().await?;
-    let Ok(lock) = PgLock::acquire(
-        format!(
-            "post-tally-task-{}-{}-{}",
-            tenant_id, election_event_id, tally_session_id
-        ),
-        Uuid::new_v4().to_string(),
-        ISO8601::now()
-            .checked_add_signed(Duration::seconds(120))
-            .expect("post_tally lock expiry overflow"),
-    )
-    .await
-    else {
-        info!(
-            "Skipping: post tally in progress for event {} and session id {}",
-            election_event_id, tally_session_id
-        );
-        return Ok(());
-    };
-    let mut interval = tokio::time::interval(ChronoDuration::from_secs(30));
-    let mut current_task = tokio::spawn(post_tally_task_impl(
-        tenant_id,
-        election_event_id,
-        tally_session_id,
-    ));
-    let _res = loop {
-        tokio::select! {
-            _ = interval.tick() => {
-                // Execute the callback function here
-                lock.update_expiry().await?;
-            }
-            res = &mut current_task => {
+mod post_tally_celery {
+    #![allow(missing_docs)]
+    #![allow(clippy::missing_docs_in_private_items)]
 
-                break res.map_err(|err| Error::String(format!("Error executing loop: {:?}", err))).flatten();
-            }
-        }
-    };
-    lock.release().await?;
+    use super::*;
 
-    Ok(())
+    /// Celery task: serializes post-tally PDF work per event/session.
+    ///
+    /// # Errors
+    ///
+    /// Fails on lock/semaphore errors, join failures, or errors bubbled up from the post-tally implementation.
+    ///
+    /// # Panics
+    ///
+    /// Panics if lock expiry arithmetic overflows (misconfigured wall clock).
+    #[instrument(err)]
+    #[wrap_map_err::wrap_map_err(TaskError)]
+    #[celery::task(time_limit = 1_200_000, max_retries = 0, expires = 15)]
+    pub async fn post_tally_task(
+        tenant_id: String,
+        election_event_id: String,
+        tally_session_id: String,
+    ) -> Result<()> {
+        let _permit = acquire_semaphore().await?;
+        let Ok(lock) = PgLock::acquire(
+            format!(
+                "post-tally-task-{}-{}-{}",
+                tenant_id, election_event_id, tally_session_id
+            ),
+            Uuid::new_v4().to_string(),
+            ISO8601::now()
+                .checked_add_signed(Duration::seconds(120))
+                .expect("post_tally lock expiry overflow"),
+        )
+        .await
+        else {
+            info!(
+                "Skipping: post tally in progress for event {} and session id {}",
+                election_event_id, tally_session_id
+            );
+            return Ok(());
+        };
+        let mut interval = tokio::time::interval(ChronoDuration::from_secs(30));
+        let mut current_task = tokio::spawn(post_tally_task_impl(
+            tenant_id,
+            election_event_id,
+            tally_session_id,
+        ));
+        let _res = loop {
+            tokio::select! {
+                _ = interval.tick() => {
+                    // Execute the callback function here
+                    lock.update_expiry().await?;
+                }
+                res = &mut current_task => {
+
+                    break res.map_err(|err| Error::String(format!("Error executing loop: {:?}", err))).flatten();
+                }
+            }
+        };
+        lock.release().await?;
+
+        Ok(())
+    }
 }
+
+pub use post_tally_celery::post_tally_task;

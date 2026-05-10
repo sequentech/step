@@ -7,6 +7,12 @@ use crate::types::error::{Error, Result};
 use anyhow::{anyhow, Context};
 use deadpool_postgres::{Client as DbClient, Transaction as _};
 use tracing::{error, info, instrument};
+/// Perform vacuum analyze on the database.
+///
+/// # Errors
+///
+/// Returns an error if SQL preparation or execution fails,
+/// if database connection fails, or if VACUUM ANALYZE fails.
 
 #[instrument(err)]
 pub async fn vacuum_analyze_direct() -> Result<()> {

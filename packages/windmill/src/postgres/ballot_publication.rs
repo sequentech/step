@@ -13,6 +13,7 @@ use tokio_postgres::row::Row;
 use tracing::instrument;
 use uuid::Uuid;
 
+/// Row representing Ballot publication wrapper
 pub struct BallotPublicationWrapper(pub BallotPublication);
 
 impl TryFrom<Row> for BallotPublicationWrapper {
@@ -44,6 +45,12 @@ impl TryFrom<Row> for BallotPublicationWrapper {
         }))
     }
 }
+/// Get ballot publication by id from the database.
+///
+/// # Errors
+///
+/// Returns an error if SQL preparation or execution fails,
+/// if UUID or other parsing fails, or if row mapping is inconsistent.
 
 #[instrument(skip(hasura_transaction), err)]
 pub async fn get_ballot_publication_by_id(
@@ -88,6 +95,12 @@ pub async fn get_ballot_publication_by_id(
 
     Ok(results.first().cloned())
 }
+/// Update ballot publication status and returns the updated row when applicable.
+///
+/// # Errors
+///
+/// Returns an error if SQL preparation or execution fails,
+/// if UUID or other parsing fails, or if row mapping is inconsistent.
 
 pub async fn update_ballot_publication_status(
     hasura_transaction: &Transaction<'_>,
@@ -139,6 +152,12 @@ pub async fn update_ballot_publication_status(
 
     Ok(results.first().cloned())
 }
+/// Update ballot publication and returns the updated row when applicable.
+///
+/// # Errors
+///
+/// Returns an error if SQL preparation or execution fails,
+/// if UUID or other parsing fails, or if row mapping is inconsistent.
 
 pub async fn update_ballot_publication(
     hasura_transaction: &Transaction<'_>,
@@ -189,6 +208,12 @@ pub async fn update_ballot_publication(
 
     Ok(results.first().cloned())
 }
+/// Get latest ballot publication from the database.
+///
+/// # Errors
+///
+/// Returns an error if SQL preparation or execution fails,
+/// if UUID or other parsing fails, or if row mapping is inconsistent.
 
 #[instrument(skip(hasura_transaction), err)]
 pub async fn get_latest_ballot_publication(
@@ -234,6 +259,12 @@ pub async fn get_latest_ballot_publication(
 
     Ok(results.first().cloned())
 }
+/// Get ballot publication for a given tenant and election event from the database.
+///
+/// # Errors
+///
+/// Returns an error if SQL preparation or execution fails,
+/// if UUID or other parsing fails, or if row mapping is inconsistent.
 
 #[instrument(skip(hasura_transaction), err)]
 pub async fn get_ballot_publication(
@@ -276,6 +307,12 @@ pub async fn get_ballot_publication(
 
     Ok(results)
 }
+/// Insert ballot publication into the database.
+///
+/// # Errors
+///
+/// Returns an error if SQL preparation or execution fails,
+/// if UUID or other parsing fails, or if row mapping is inconsistent.
 
 #[instrument(skip(hasura_transaction), err)]
 pub async fn insert_ballot_publication(
@@ -332,6 +369,12 @@ pub async fn insert_ballot_publication(
 
     Ok(results.first().cloned())
 }
+/// Get previous publication for a given election from the database.
+///
+/// # Errors
+///
+/// Returns an error if SQL preparation or execution fails,
+/// if UUID or other parsing fails, or if row mapping is inconsistent.
 
 #[instrument(skip(hasura_transaction), err)]
 pub async fn get_previous_publication_election(
@@ -391,6 +434,12 @@ pub async fn get_previous_publication_election(
 
     Ok(results.first().cloned())
 }
+/// Get previous publication from the database.
+///
+/// # Errors
+///
+/// Returns an error if SQL preparation or execution fails,
+/// if UUID or other parsing fails, or if row mapping is inconsistent.
 
 #[instrument(skip(hasura_transaction), err)]
 pub async fn get_previous_publication(
@@ -448,6 +497,12 @@ pub async fn get_previous_publication(
 
     Ok(results.first().cloned())
 }
+/// Supports the soft delete other ballot publications workflow.
+///
+/// # Errors
+///
+/// Returns an error if SQL preparation or execution fails,
+/// if UUID or other parsing fails, or if row mapping is inconsistent.
 
 #[instrument(skip(hasura_transaction), err)]
 pub async fn soft_delete_other_ballot_publications(

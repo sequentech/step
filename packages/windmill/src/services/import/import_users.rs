@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+//! Imports users from a CSV file into the database.
 
 use crate::postgres::area::get_areas_by_name;
 use crate::postgres::keycloak_realm;
@@ -29,18 +30,31 @@ use tracing::{debug, info, instrument, warn};
 use uuid::Uuid;
 
 lazy_static! {
+    /// Validates users CSV column names (alphanumeric, dot, underscore, hyphen).
     pub static ref HEADER_RE: Regex = Regex::new(r"^[a-zA-Z0-9._-]+$").unwrap();
+    /// PBKDF2 iteration count used for generated password hashes.
     static ref PBKDF2_ITERATIONS: NonZeroU32 = NonZeroU32::new(27_500).unwrap();
+    /// Reserved column name: number of PBKDF2 iterations.
     static ref NUMBER_OF_ITERATIONS_COL_NAME: String = String::from("num_of_iterations");
+    /// Reserved column name: base64 salt.
     static ref SALT_COL_NAME: String = String::from("password_salt");
+    /// Reserved column name: base64 PBKDF2 output.
     static ref HASHED_PASSWORD_COL_NAME: String = String::from("hashed_password");
+    /// Reserved column name: plaintext password input.
     static ref PASSWORD_COL_NAME: String = String::from("password");
+    /// Reserved column name: username.
     static ref USERNAME_COL_NAME: String = String::from("username");
+    /// Reserved column name: email.
     static ref EMAIL_COL_NAME: String = String::from("email");
+    /// Reserved column name: email verification flag.
     static ref EMAIL_VERIFIED_COL_NAME: String = String::from("email_verified");
+    /// Reserved column name: group name.
     static ref GROUP_COL_NAME: String = String::from("group_name");
+    /// Reserved column name: area name.
     static ref AREA_NAME_COL_NAME: String = String::from("area_name");
+    /// Prefix for dynamic election vote-info columns.
     static ref ELECTION_COL_PREFIX: String = String::from("election__");
+    /// Set of reserved column names consumed during import.
     static ref RESERVED_COL_NAMES: Vec<String> = vec![
         HASHED_PASSWORD_COL_NAME.clone(),
         SALT_COL_NAME.clone(),
@@ -51,14 +65,23 @@ lazy_static! {
     ];
 }
 
+/// PBKDF2 algorithm used for password hashing.
 static PBKDF2_ALGORITHM: pbkdf2::Algorithm = pbkdf2::PBKDF2_HMAC_SHA256;
+/// Output length for PBKDF2 SHA-256 digests.
 const CREDENTIAL_LEN: usize = digest::SHA256_OUTPUT_LEN;
+/// Fixed-size PBKDF2 digest buffer.
 pub type Credential = [u8; CREDENTIAL_LEN];
 
+/// Sanitizes a CSV/header key into a SQL-safe identifier by replacing separators with `_`.
 fn sanitize_db_key(key: &str) -> String {
     key.replace(".", "_").replace("-", "_")
 }
 
+/// Hashes `password` with `salt` using the configured PBKDF2 settings.
+///
+/// # Errors
+///
+/// Returns an error only if allocation/encoding fails.
 fn hash_password(password: &String, salt: &[u8]) -> Result<String> {
     let mut output: Credential = [0u8; CREDENTIAL_LEN];
     pbkdf2::derive(
@@ -105,6 +128,11 @@ fn hash_password(password: &String, salt: &[u8]) -> Result<String> {
  */
 type CopyFromQueryParts = (String, String, String, Vec<String>, Vec<String>, Vec<Type>);
 
+/// Builds the DDL and COPY statements for a temporary table from the CSV headers.
+///
+/// # Errors
+///
+/// Returns an error if the header set cannot be converted into a consistent schema.
 #[instrument(ret)]
 fn get_copy_from_query(headers: &StringRecord) -> anyhow::Result<CopyFromQueryParts> {
     let random_number: u64 = rand::random();
@@ -188,13 +216,17 @@ fn get_copy_from_query(headers: &StringRecord) -> anyhow::Result<CopyFromQueryPa
     ))
 }
 
-/*
- * Insert the voters from the temporal voters table into the user_element
- * and user_attribute tables. For each user, we enter in a single query
- * (using WITH statements or similar if need be) the user in the
- * "user_entity" table and multiple user attributesin "user_attribute"
- * table.
- */
+//////////////////////////////////////////////////////////////
+///
+/// Insert the voters from the temporal voters table into the user_element
+/// and user_attribute tables. For each user, we enter in a single query
+/// (using WITH statements or similar if need be) the user in the
+/// "user_entity" table and multiple user attributesin "user_attribute"
+/// table.
+///
+/// # Errors
+///
+/// Returns an error if the tenant_id or realm_id is not a valid v4 UUID.
 #[instrument(err)]
 fn get_insert_user_query(
     tenant_id: String,
@@ -459,6 +491,10 @@ fn get_insert_user_query(
     Ok(ret)
 }
 
+/// Imports a users/voters CSV into Keycloak database.
+/// # Errors
+///
+/// Returns an error if CSV parsing, DB access, or inserts fail.
 #[instrument(err, skip(hasura_transaction))]
 pub async fn import_users_file(
     hasura_transaction: &Transaction<'_>,

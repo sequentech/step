@@ -10,6 +10,7 @@ use tokio_postgres::row::Row;
 use tracing::{event, instrument, Level};
 use uuid::Uuid;
 
+/// Row representing Contest wrapper
 pub struct ContestWrapper(pub Contest);
 
 impl TryFrom<Row> for ContestWrapper {
@@ -46,6 +47,12 @@ impl TryFrom<Row> for ContestWrapper {
         }))
     }
 }
+/// Insert contest into the database.
+///
+/// # Errors
+///
+/// Returns an error if SQL preparation or execution fails,
+/// if UUID or other parsing fails, or if row mapping is inconsistent.
 
 #[instrument(err, skip_all)]
 pub async fn insert_contest(
@@ -98,6 +105,12 @@ pub async fn insert_contest(
 
     Ok(())
 }
+/// Get all contests for a given tenant and election event from the database.
+///
+/// # Errors
+///
+/// Returns an error if SQL preparation or execution fails,
+/// if UUID or other parsing fails, or if row mapping is inconsistent.
 
 #[instrument(err, skip_all)]
 pub async fn export_contests(
@@ -139,6 +152,12 @@ pub async fn export_contests(
 
     Ok(election_events)
 }
+/// Get contest by id from the database.
+///
+/// # Errors
+///
+/// Returns an error if SQL preparation or execution fails,
+/// if UUID or other parsing fails, or if row mapping is inconsistent.
 
 #[instrument(err, skip_all)]
 pub async fn get_contest_by_id(
@@ -181,6 +200,12 @@ pub async fn get_contest_by_id(
         Err(anyhow::anyhow!("No contest found with the provided id"))
     }
 }
+/// Get contest by election id from the database.
+///
+/// # Errors
+///
+/// Returns an error if SQL preparation or execution fails,
+/// if UUID or other parsing fails, or if row mapping is inconsistent.
 
 #[instrument(skip(hasura_transaction), err)]
 pub async fn get_contest_by_election_id(
@@ -225,6 +250,12 @@ pub async fn get_contest_by_election_id(
 
     Ok(contests)
 }
+/// Get contest by elections ids from the database.
+///
+/// # Errors
+///
+/// Returns an error if SQL preparation or execution fails,
+/// if UUID or other parsing fails, or if row mapping is inconsistent.
 
 #[instrument(skip(hasura_transaction), err)]
 pub async fn get_contest_by_election_ids(

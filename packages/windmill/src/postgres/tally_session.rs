@@ -17,6 +17,7 @@ use tokio_postgres::{row::Row, types::ToSql};
 use tracing::{event, instrument, Level};
 use uuid::Uuid;
 
+/// Tally session wrapper
 pub struct TallySessionWrapper(pub TallySession);
 
 impl TryFrom<Row> for TallySessionWrapper {
@@ -62,6 +63,12 @@ impl TryFrom<Row> for TallySessionWrapper {
         }))
     }
 }
+/// Insert tally session into the database.
+///
+/// # Errors
+///
+/// Returns an error if SQL preparation or execution fails,
+/// if UUID or other parsing fails.
 
 #[instrument(skip(hasura_transaction), err)]
 pub async fn insert_tally_session(
@@ -149,6 +156,12 @@ pub async fn insert_tally_session(
     };
     Ok(value.clone())
 }
+/// Get tally session by election event id and is tally task pending from the database.
+///
+/// # Errors
+///
+/// Returns an error if SQL preparation or execution fails,
+/// if UUID or other parsing fails.
 
 #[instrument(err, skip(hasura_transaction))]
 pub async fn get_tally_session_by_election_event_id_pending_post_tally_task(
@@ -193,6 +206,12 @@ pub async fn get_tally_session_by_election_event_id_pending_post_tally_task(
 
     Ok(elements)
 }
+/// Get tally sessions by election event id from the database.
+///
+/// # Errors
+///
+/// Returns an error if SQL preparation or execution fails,
+/// if UUID or other parsing fails.
 
 #[instrument(err, skip(hasura_transaction))]
 pub async fn get_tally_sessions_by_election_event_id(
@@ -243,6 +262,12 @@ pub async fn get_tally_sessions_by_election_event_id(
 
     Ok(elements)
 }
+/// Get tally session by id from the database.
+///
+/// # Errors
+///
+/// Returns an error if SQL preparation or execution fails,
+/// if UUID or other parsing fails.
 
 #[instrument(err, skip(hasura_transaction))]
 pub async fn get_tally_session_by_id(
@@ -290,6 +315,12 @@ pub async fn get_tally_session_by_id(
         .cloned()
         .ok_or(anyhow!("Tally Session {tally_session_id} not found"))
 }
+/// Update tally session annotation in the database.
+///
+/// # Errors
+///
+/// Returns an error if SQL preparation or execution fails,
+/// if UUID or other parsing fails.
 
 #[instrument(err, skip_all)]
 pub async fn update_tally_session_annotation(
@@ -329,6 +360,12 @@ pub async fn update_tally_session_annotation(
 
     Ok(())
 }
+/// Get tally sessions by election id from the database.
+///
+/// # Errors
+///
+/// Returns an error if SQL preparation or execution fails,
+/// if UUID or other parsing fails.
 
 #[instrument(err, skip(hasura_transaction))]
 pub async fn get_tally_sessions_by_election_id(
@@ -371,6 +408,12 @@ pub async fn get_tally_sessions_by_election_id(
 
     Ok(tally_sessions)
 }
+/// Update tally session status in the database.
+///
+/// # Errors
+///
+/// Returns an error if SQL preparation or execution fails,
+/// if UUID or other parsing fails.
 
 #[instrument(err, skip_all)]
 pub async fn update_tally_session_status(
@@ -414,6 +457,12 @@ pub async fn update_tally_session_status(
 
     Ok(())
 }
+/// Set post tally task completed in the database.
+///
+/// # Errors
+///
+/// Returns an error if SQL preparation or execution fails,
+/// if UUID or other parsing fails.
 
 #[instrument(err, skip_all)]
 pub async fn set_post_tally_task_completed(
@@ -451,6 +500,12 @@ pub async fn set_post_tally_task_completed(
 
     Ok(())
 }
+/// Set tally session completed in the database.
+///
+/// # Errors
+///
+/// Returns an error if SQL preparation or execution fails,
+/// if UUID or other parsing fails.
 
 #[instrument(err, skip_all)]
 pub async fn set_tally_session_completed(
@@ -493,21 +548,40 @@ pub async fn set_tally_session_completed(
     Ok(())
 }
 
+/// Serialized tally session row for [`insert_many_tally_sessions`] bulk insert.
 #[derive(Debug, Serialize)]
 struct InsertableTallySession {
+    /// Owning tenant.
     tenant_id: Uuid,
+    /// Election event being tallied.
     election_event_id: Uuid,
+    /// Tally session primary key.
     id: Uuid,
+    /// Keys ceremony that produced the trustee material for this run.
     keys_ceremony_id: Uuid,
+    /// Elections included in this tally batch.
     election_ids: Vec<Uuid>,
+    /// Areas included in this tally batch.
     area_ids: Vec<Uuid>,
+    /// Serialized execution status for the tally worker state machine.
     execution_status: Option<String>,
+    /// Trustee threshold configured for the mix/tally.
     threshold: i32,
+    /// JSON configuration snapshot for the tally engine.
     configuration: Option<Value>,
+    /// Tally algorithm identifier (`tally_type` column).
     tally_type: Option<String>,
+    /// Arbitrary annotations JSON merged by tasks.
     annotations: Option<Value>,
+    /// Election permission labels
     permission_label: Option<Vec<String>>,
 }
+/// Insert many tally sessions into the database.
+///
+/// # Errors
+///
+/// Returns an error if SQL preparation or execution fails,
+/// if UUID or other parsing fails.
 
 #[instrument(skip(hasura_transaction, sessions), err)]
 pub async fn insert_many_tally_sessions(

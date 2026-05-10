@@ -1,6 +1,8 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 // SPDX-License-Identifier: AGPL-3.0-only
 
+//! Celery app construction, broker tuning, and per-deployment queue management.
+
 use anyhow::{anyhow, Context, Result};
 use async_once::AsyncOnce;
 use celery::prelude::Task;
@@ -65,6 +67,7 @@ use crate::tasks::set_public_key::set_public_key;
 use crate::tasks::update_election_event_ballot_styles::update_election_event_ballot_styles;
 
 #[derive(AsRefStr, Debug)]
+#[allow(missing_docs)]
 pub enum Queue {
     #[strum(serialize = "beat")]
     Beat,
@@ -88,48 +91,63 @@ pub enum Queue {
 }
 
 impl Queue {
+    /// Get the queue name for the Celery app.
     pub fn queue_name(&self, slug: &str) -> String {
         format!("{}_{}", slug, self.as_ref())
     }
 }
 
+/// AMQP prefetch count used when building the Celery app.
 static mut PREFETCH_COUNT_S: u16 = 100;
+/// Whether tasks are ACKed only after successful execution.
 static mut ACKS_LATE_S: bool = true;
+/// Maximum number of retries configured for Celery tasks.
 static mut TASK_MAX_RETRIES: u32 = 4;
+/// Global switch used to pause/resume the app workers.
 static mut IS_APP_ACTIVE: bool = true;
+/// Max retries while establishing the broker connection.
 static mut BROKER_CONNECTION_MAX_RETRIES: u32 = 5;
+/// AMQP heartbeat interval in seconds.
 static mut HEARTBEAT_SECS: u16 = 10;
+/// Number of worker threads used by the Celery runtime.
 static mut WORKER_THREADS: usize = 1;
+/// Explicit queue names to consume from, when configured.
 static mut QUEUES: Vec<String> = vec![];
 
+/// Set the prefetch count for the Celery app.
 pub fn set_prefetch_count(new_val: u16) {
     unsafe {
         PREFETCH_COUNT_S = new_val;
     }
 }
 
+/// Set the number of worker threads for the Celery app.
 pub fn set_worker_threads(new_val: usize) {
     unsafe {
         WORKER_THREADS = new_val;
     }
 }
 
+/// Get the number of worker threads for the Celery app.
 pub fn get_worker_threads() -> usize {
     unsafe { WORKER_THREADS }
 }
 
+/// Set whether tasks are ACKed late for the Celery app.
 pub fn set_acks_late(new_val: bool) {
     unsafe {
         ACKS_LATE_S = new_val;
     }
 }
 
+/// Set the maximum number of retries for tasks for the Celery app.
 pub fn set_task_max_retries(new_val: u32) {
     unsafe {
         TASK_MAX_RETRIES = new_val;
     }
 }
 
+/// Set the queues for the Celery app.
 pub fn set_queues(new_val: Vec<String>) {
     unsafe {
         QUEUES = new_val;
@@ -137,28 +155,33 @@ pub fn set_queues(new_val: Vec<String>) {
 }
 
 #[instrument]
+/// Set whether the Celery app is active.
 pub fn set_is_app_active(new_val: bool) {
     unsafe {
         IS_APP_ACTIVE = new_val;
     }
 }
 
+/// Set the maximum number of retries for broker connections for the Celery app.
 pub fn set_broker_connection_max_retries(new_val: u32) {
     unsafe {
         BROKER_CONNECTION_MAX_RETRIES = new_val;
     }
 }
 
+/// Set the heartbeat interval for the Celery app.
 pub fn set_heartbeat(new_val: u16) {
     unsafe {
         HEARTBEAT_SECS = new_val;
     }
 }
 
+/// Get whether the Celery app is active.
 pub fn get_is_app_active() -> bool {
     unsafe { IS_APP_ACTIVE }
 }
 
+/// Get the queues for the Celery app.
 pub fn get_queues() -> Vec<String> {
     unsafe { QUEUES.clone() }
 }
@@ -180,6 +203,11 @@ pub async fn get_celery_app() -> Arc<Celery> {
     CELERY_APP.get().await.clone()
 }
 
+/// Establish an AMQP connection and store it for reuse.
+///
+/// # Errors
+///
+/// Returns an error if the AMQP address is missing or connection attempts fail.
 #[instrument]
 async fn create_connection() -> Result<(Arc<Connection>, String)> {
     // you can use "amqp://rabbitmq2:5672,amqp://rabbitmq:5672" for $AMQP_ADDR to configure multiple nodes, separated by comma
@@ -213,6 +241,12 @@ async fn create_connection() -> Result<(Arc<Connection>, String)> {
     Err(last_error.unwrap_or(anyhow!("Failed to connect to any AMQP server")))
 }
 
+/// Build and configure the global Celery application for this worker.
+///
+/// # Errors
+///
+/// Returns an error if required environment variables are missing, broker connection fails,
+/// or task/plugin initialization fails.
 #[instrument]
 pub async fn generate_celery_app() -> Result<Arc<Celery>> {
     let prefetch_count: u16;
@@ -355,10 +389,15 @@ pub async fn generate_celery_app() -> Result<Arc<Celery>> {
     .map_err(|err| anyhow!("{:?}", err))
 }
 
+/// Cached AMQP connection used by the worker process.
 static CELERY_CONNECTION: RwLock<Option<Arc<Connection>>> = RwLock::const_new(None);
 
 /// Returns a reused AMQP connection wrapped in an Arc.
 /// If no connection exists (or if it’s disconnected), a new connection is created and stored.
+///
+/// # Errors
+///
+/// Returns an error if a new broker connection cannot be established.
 #[instrument]
 pub async fn get_celery_connection() -> Result<Arc<Connection>> {
     let conn_guard = CELERY_CONNECTION.read().await;

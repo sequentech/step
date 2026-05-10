@@ -2,6 +2,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+//! Shared error types, task payloads, and cross-crate DTOs used by workers and services.
+
 pub mod application;
 pub mod documents;
 pub mod error;

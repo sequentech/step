@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-
+//! Handles scheduled report generation.
 use crate::postgres::reports::{get_all_active_reports, update_report_last_document_time, Report};
 use crate::services::celery_app::get_celery_app;
 use crate::services::database::get_hasura_pool;
@@ -67,6 +67,7 @@ pub fn get_next_scheduled_time(report: &Report) -> Option<DateTime<Local>> {
     Some(next_run.with_timezone(&Local))
 }
 
+/// Parses timestamps from strings.
 fn parse_last_document_produced(date_str: &str) -> Option<DateTime<Utc>> {
     let format = "%Y-%m-%dT%H:%M:%S%.f";
     match NaiveDateTime::parse_from_str(date_str, format) {
@@ -78,106 +79,120 @@ fn parse_last_document_produced(date_str: &str) -> Option<DateTime<Utc>> {
     }
 }
 
-/// The Celery task for scheduling reports based on cron configuration.
-#[instrument(err)]
-#[wrap_map_err::wrap_map_err(TaskError)]
-#[celery::task(time_limit = 10, max_retries = 0, expires = 30)]
-pub async fn scheduled_reports(rate_seconds: u64) -> Result<()> {
-    // Get the Celery app for scheduling tasks
-    let celery_app = get_celery_app().await;
+mod scheduled_reports_task {
+    #![allow(missing_docs)]
+    #![allow(clippy::missing_docs_in_private_items)]
 
-    // Get the current time
-    let now = Local::now();
-    let nsecs_later = now
-        .checked_add_signed(Duration::seconds(
-            i64::try_from(rate_seconds).expect("scheduled_reports rate_seconds exceeds i64"),
-        ))
-        .expect("scheduled_reports comparison time overflow");
+    use super::*;
 
-    let mut hasura_db_client: DbClient = get_hasura_pool()
-        .await
-        .get()
-        .await
-        .map_err(|e| anyhow!("Error getting hasura client: {e}"))?;
+    /// Celery task: finds active reports whose next cron run falls inside the
+    /// lookahead window and enqueues [`generate_report`].
+    ///
+    /// # Errors
+    ///
+    /// Fails on database pool/transaction errors, task execution creation, Celery dispatch, or commit failures.
+    #[instrument(err)]
+    #[wrap_map_err::wrap_map_err(TaskError)]
+    #[celery::task(time_limit = 10, max_retries = 0, expires = 30)]
+    pub async fn scheduled_reports(rate_seconds: u64) -> Result<()> {
+        // Get the Celery app for scheduling tasks
+        let celery_app = get_celery_app().await;
 
-    let hasura_transaction = hasura_db_client.transaction().await?;
+        // Get the current time
+        let now = Local::now();
+        let nsecs_later = now
+            .checked_add_signed(Duration::seconds(
+                i64::try_from(rate_seconds).expect("scheduled_reports rate_seconds exceeds i64"),
+            ))
+            .expect("scheduled_reports comparison time overflow");
 
-    // Fetch all active reports from the database
-    let active_reports = get_all_active_reports(&hasura_transaction)
-        .await
-        .map_err(|err| anyhow!("Error getting all active reports: {err:?}"))?;
-    info!("Found {len} active reports", len = active_reports.len());
+        let mut hasura_db_client: DbClient = get_hasura_pool()
+            .await
+            .get()
+            .await
+            .map_err(|e| anyhow!("Error getting hasura client: {e}"))?;
 
-    // Filter out reports that need to run now based on their cron configuration
-    let to_be_run_now = active_reports
-        .iter()
-        .filter(|report| {
-            let Some(formatted_date) = get_next_scheduled_time(report) else {
-                return false;
+        let hasura_transaction = hasura_db_client.transaction().await?;
+
+        // Fetch all active reports from the database
+        let active_reports = get_all_active_reports(&hasura_transaction)
+            .await
+            .map_err(|err| anyhow!("Error getting all active reports: {err:?}"))?;
+        info!("Found {len} active reports", len = active_reports.len());
+
+        // Filter out reports that need to run now based on their cron configuration
+        let to_be_run_now = active_reports
+            .iter()
+            .filter(|report| {
+                let Some(formatted_date) = get_next_scheduled_time(report) else {
+                    return false;
+                };
+                formatted_date < nsecs_later
+            })
+            .collect::<Vec<_>>();
+        info!(
+            "Found {num} reports to be run now",
+            num = to_be_run_now.len()
+        );
+
+        // Schedule the task for each report that needs to run
+        for report in to_be_run_now {
+            let Some(datetime) = get_next_scheduled_time(report) else {
+                continue;
             };
-            formatted_date < nsecs_later
-        })
-        .collect::<Vec<_>>();
-    info!(
-        "Found {num} reports to be run now",
-        num = to_be_run_now.len()
-    );
 
-    // Schedule the task for each report that needs to run
-    for report in to_be_run_now {
-        let Some(datetime) = get_next_scheduled_time(report) else {
-            continue;
-        };
+            let cron_config = report
+                .cron_config
+                .clone()
+                .ok_or_else(|| anyhow!("Cron config not found"))?;
 
-        let cron_config = report
-            .cron_config
-            .clone()
-            .ok_or_else(|| anyhow!("Cron config not found"))?;
+            let document_id = Uuid::new_v4().to_string();
 
-        let document_id = Uuid::new_v4().to_string();
-
-        // Create a task execution record for this report generation
-        let task_execution = tasks_execution::post(
-            &report.tenant_id,
-            Some(report.election_event_id.as_str()),
-            ETasksExecution::GENERATE_REPORT,
-            &cron_config.executer_username,
-        )
-        .await
-        .map_err(|err| anyhow!("Error creating task execution record: {err:?}"))?;
-
-        let _task = celery_app
-            .send_task(
-                generate_report::new(
-                    report.clone(),
-                    document_id.clone(),
-                    GenerateReportMode::REAL,
-                    cron_config.is_active,
-                    Some(task_execution),
-                    Some(cron_config.executer_username),
-                    None,
-                )
-                .with_eta(datetime.with_timezone(&Utc))
-                .with_expires_in(120),
+            // Create a task execution record for this report generation
+            let task_execution = tasks_execution::post(
+                &report.tenant_id,
+                Some(report.election_event_id.as_str()),
+                ETasksExecution::GENERATE_REPORT,
+                &cron_config.executer_username,
             )
             .await
-            .map_err(|err| anyhow!("Error sending generate_report task: {err:?}"))?;
+            .map_err(|err| anyhow!("Error creating task execution record: {err:?}"))?;
 
-        update_report_last_document_time(&hasura_transaction, &report.tenant_id, &report.id)
+            let _task = celery_app
+                .send_task(
+                    generate_report::new(
+                        report.clone(),
+                        document_id.clone(),
+                        GenerateReportMode::REAL,
+                        cron_config.is_active,
+                        Some(task_execution),
+                        Some(cron_config.executer_username),
+                        None,
+                    )
+                    .with_eta(datetime.with_timezone(&Utc))
+                    .with_expires_in(120),
+                )
+                .await
+                .map_err(|err| anyhow!("Error sending generate_report task: {err:?}"))?;
+
+            update_report_last_document_time(&hasura_transaction, &report.tenant_id, &report.id)
+                .await
+                .map_err(|err| anyhow!("Error updating report last document time: {err:?}"))?;
+
+            event!(
+                Level::INFO,
+                "Scheduled report task with id: {id}",
+                id = report.id
+            );
+        }
+
+        hasura_transaction
+            .commit()
             .await
-            .map_err(|err| anyhow!("Error updating report last document time: {err:?}"))?;
+            .map_err(|err| anyhow!("Error committing hasura transaction: {err:?}"))?;
 
-        event!(
-            Level::INFO,
-            "Scheduled report task with id: {id}",
-            id = report.id
-        );
+        Ok(())
     }
-
-    hasura_transaction
-        .commit()
-        .await
-        .map_err(|err| anyhow!("Error committing hasura transaction: {err:?}"))?;
-
-    Ok(())
 }
+
+pub use scheduled_reports_task::scheduled_reports;

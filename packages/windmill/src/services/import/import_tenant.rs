@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+//! Imports a tenant from a CSV file into the database.
 
 use crate::postgres::tenant::update_tenant;
 use anyhow::{anyhow, Context, Result};
@@ -18,9 +19,15 @@ use tracing::{info, instrument};
 use uuid::Uuid;
 
 lazy_static! {
+    /// Validates tenant CSV column names (alphanumeric, dot, underscore, hyphen).
     pub static ref HEADER_RE: Regex = Regex::new(r"^[a-zA-Z0-9._-]+$").unwrap();
 }
 
+/// Reads a tenant CSV file and upserts the single tenant row.
+///
+/// # Errors
+///
+/// Returns an error if CSV parsing/validation fails or if the tenant update fails.
 #[instrument(err, skip_all)]
 pub async fn upsert_tenant(
     hasura_transaction: &Transaction<'_>,
@@ -57,6 +64,11 @@ pub async fn upsert_tenant(
     Ok(())
 }
 
+/// Converts one CSV row into a [`Tenant`] and updates it under `old_tenant_id`.
+///
+/// # Errors
+///
+/// Returns an error if required fields are missing, parsing fails, or the DB update fails.
 #[instrument(err, skip_all)]
 pub async fn process_record(
     hasura_transaction: &Transaction<'_>,

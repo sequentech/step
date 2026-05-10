@@ -1,6 +1,9 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+
+//! SBEI P12 verification, RSA/ECDSA signing of EML payloads, and merging signatures into MIRU transmission state.
+
 use super::{
     create_transmission_package_service::{
         generate_all_servers_document, update_transmission_package_annotations,
@@ -65,6 +68,11 @@ use std::collections::HashMap;
 use tempfile::NamedTempFile;
 use tracing::{info, instrument};
 
+/// Writes updated SBEI user list (with fingerprint) into election-event MIRU annotations.
+///
+/// # Errors
+///
+/// Missing annotations, JSON errors, or Hasura update failures.
 #[instrument(skip_all, err)]
 async fn update_election_event_sbei_users(
     hasura_transaction: &Transaction<'_>,
@@ -102,6 +110,11 @@ async fn update_election_event_sbei_users(
     .await
 }
 
+/// Replaces or adds one [`MiruSignature`] and rebuilds the parallel [`ACMTrustee`] list for ACM JSON.
+///
+/// # Errors
+///
+/// Missing election event, annotations, or SBEI user for the signature’s `sbei_miru_id`.
 #[instrument(skip_all, err)]
 async fn update_signatures(
     hasura_transaction: &Transaction<'_>,
@@ -153,6 +166,11 @@ async fn update_signatures(
     Ok((acm_trustees, new_miru_signatures))
 }
 
+/// Extracts the public key PEM from a password-protected PKCS#12 file.
+///
+/// # Errors
+///
+/// OpenSSL / PKCS#12 parse errors from [`derive_public_key_from_p12`].
 #[instrument(skip_all, err)]
 pub fn derive_public_key_from_private_key(
     private_key_temp_file: &NamedTempFile,
@@ -163,6 +181,12 @@ pub fn derive_public_key_from_private_key(
     derive_public_key_from_p12(&pk12_file_path_string, password)
 }
 
+/// Ensures the P12 fingerprint is unique across posts, matches any stored
+/// fingerprint for the SBEI, and optionally validates CA chain.
+///
+/// # Errors
+///
+/// Cert extraction, duplicate use in another election, fingerprint mismatch, or CA validation errors.
 #[instrument(skip_all, err)]
 pub fn check_sbei_certificate(
     transmission_data: &MiruTallySessionData,
@@ -217,6 +241,11 @@ pub fn check_sbei_certificate(
     Ok(input_pk_fingerprint)
 }
 
+/// Signs the EML temp file with the SBEI’s P12 (RSA or EC) and returns a [`MiruSignature`] bundle.
+///
+/// # Errors
+///
+/// Unsupported key type, or signing / PKCS#12 errors from the OpenSSL stack.
 #[instrument(skip_all, err)]
 pub fn create_server_signature(
     eml_data: NamedTempFile,
@@ -253,6 +282,12 @@ pub fn create_server_signature(
     })
 }
 
+/// Verifies the user’s P12, signs the current transmission EML,
+/// merges the signature, re-uploads packages, and updates annotations.
+///
+/// # Errors
+///
+/// Auth/lookup failures, certificate checks, signing, document pipeline, or persistence errors.
 #[instrument(err)]
 pub async fn upload_transmission_package_signature_service(
     tenant_id: &str,

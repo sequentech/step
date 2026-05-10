@@ -16,6 +16,7 @@ use tokio_postgres::row::Row;
 use tracing::{info, instrument};
 use uuid::Uuid;
 
+/// Scheduled event wrapper
 pub struct ScheduledEventWrapper(pub ScheduledEvent);
 
 impl TryFrom<Row> for ScheduledEventWrapper {
@@ -63,6 +64,11 @@ impl TryFrom<Row> for ScheduledEventWrapper {
         }))
     }
 }
+/// Get all active events from the database.
+///
+/// # Errors
+///
+/// Returns an error if SQL preparation or execution fails.
 
 #[instrument(skip(hasura_transaction), err)]
 pub async fn find_all_active_events(
@@ -95,6 +101,12 @@ pub async fn find_all_active_events(
         .with_context(|| "Error converting rows into ScheduledEvent")?;
     Ok(scheduled_events)
 }
+/// Get scheduled event by id from the database.
+///
+/// # Errors
+///
+/// Returns an error if SQL preparation or execution fails,
+/// if UUID or other parsing fails.
 
 #[instrument(skip(hasura_transaction), err)]
 pub async fn find_scheduled_event_by_id(
@@ -150,6 +162,12 @@ pub async fn find_scheduled_event_by_id(
 
     Ok(scheduled_events.first().cloned())
 }
+/// Get scheduled event by task id from the database.
+///
+/// # Errors
+///
+/// Returns an error if SQL preparation or execution fails,
+/// if UUID or other parsing fails.
 
 #[instrument(skip(hasura_transaction), err)]
 pub async fn find_scheduled_event_by_task_id(
@@ -194,6 +212,12 @@ pub async fn find_scheduled_event_by_task_id(
 
     Ok(scheduled_events.first().cloned())
 }
+/// Stop scheduled event in the database.
+///
+/// # Errors
+///
+/// Returns an error if SQL preparation or execution fails,
+/// if UUID or other parsing fails.
 
 #[instrument(skip(hasura_transaction), err)]
 pub async fn stop_scheduled_event(
@@ -228,6 +252,12 @@ pub async fn stop_scheduled_event(
 
     Ok(())
 }
+/// Archive scheduled event in the database.
+///
+/// # Errors
+///
+/// Returns an error if SQL preparation or execution fails,
+/// if UUID or other parsing fails.
 
 #[instrument(skip(hasura_transaction), err)]
 pub async fn archive_scheduled_event(
@@ -262,6 +292,12 @@ pub async fn archive_scheduled_event(
 
     Ok(())
 }
+/// Update scheduled event in the database.
+///
+/// # Errors
+///
+/// Returns an error if SQL preparation or execution fails,
+/// if UUID or other parsing fails.
 
 #[instrument(skip(hasura_transaction), err)]
 pub async fn update_scheduled_event(
@@ -299,6 +335,12 @@ pub async fn update_scheduled_event(
 
     Ok(())
 }
+/// Insert scheduled event into the database.
+///
+/// # Errors
+///
+/// Returns an error if SQL preparation or execution fails,
+/// if UUID or other parsing fails.
 
 #[instrument(skip(hasura_transaction), err)]
 pub async fn insert_scheduled_event(
@@ -386,6 +428,12 @@ pub async fn insert_scheduled_event(
         Err(anyhow!("Unexpected rows affected {}", rows.len()))
     }
 }
+/// Get scheduled event by election event id from the database.
+///
+/// # Errors
+///
+/// Returns an error if SQL preparation or execution fails,
+/// if UUID or other parsing fails.
 
 #[instrument(skip(hasura_transaction), err)]
 pub async fn find_scheduled_event_by_election_event_id(
@@ -430,6 +478,12 @@ pub async fn find_scheduled_event_by_election_event_id(
 
     Ok(scheduled_events)
 }
+/// Get scheduled event by election event id and event processor from the database.
+///
+/// # Errors
+///
+/// Returns an error if SQL preparation or execution fails,
+/// if UUID or other parsing fails.
 
 #[instrument(skip(hasura_transaction), err)]
 pub async fn find_scheduled_event_by_election_event_id_and_event_processor(
@@ -476,6 +530,12 @@ pub async fn find_scheduled_event_by_election_event_id_and_event_processor(
 
     Ok(scheduled_events)
 }
+/// Insert new scheduled event into the database.
+///
+/// # Errors
+///
+/// Returns an error if SQL preparation or execution fails,
+/// if UUID or other parsing fails.
 
 #[instrument(skip(hasura_transaction), err)]
 pub async fn insert_new_scheduled_event(

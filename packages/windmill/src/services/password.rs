@@ -1,10 +1,14 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+
+//! Password generation helpers.
+
 use rand::{thread_rng, Rng};
 use tracing::{info, instrument};
 
 #[instrument]
+/// Generate a random string with a specified charset.
 pub fn generate_random_string_with_charset(bytes_length: usize, charset: &str) -> String {
     // Initialize the random number generator
     let mut rng = thread_rng();

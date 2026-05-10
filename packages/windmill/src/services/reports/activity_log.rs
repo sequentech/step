@@ -2,6 +2,13 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+//! Activity log report template renderer and export helpers.
+//!
+//! This report can be generated as:
+//! - **PDF**, rendered through the shared template pipeline (batched when large).
+//! - **CSV**, exported directly from the electoral-log board by streaming entries
+//!   in batches into a temporary file.
+
 use super::template_renderer::*;
 use crate::postgres::reports::{Report, ReportType};
 use crate::services::documents::upload_and_return_document;
@@ -27,12 +34,16 @@ use tempfile::NamedTempFile;
 use tracing::{debug, info, instrument, warn};
 
 #[derive(Serialize, Deserialize, Debug, Clone, EnumString, PartialEq, Copy)]
+/// Output format for activity-log reports.
+#[allow(missing_docs)]
 pub enum ReportFormat {
     CSV,
     PDF,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
+/// Row rendered into the PDF user template for activity logs.
+#[allow(clippy::missing_docs_in_private_items)]
 pub struct ActivityLogRow {
     id: i64,
     created: String,
@@ -45,35 +56,53 @@ pub struct ActivityLogRow {
     user_id: String,
 }
 
-/// Struct for User Data
-/// act_log is for PDF
-/// electoral_log is for CSV
 #[derive(Serialize, Deserialize, Debug, Clone)]
+/// User-side data for activity log report generation.
 pub struct UserData {
+    /// Converted activity-log rows for PDF.
     pub act_log: Vec<ActivityLogRow>,
+    /// Raw electoral-log rows for CSV.
     pub electoral_log: Vec<ElectoralLogRow>,
 }
 
-/// Struct for System Data
 #[derive(Serialize, Deserialize, Debug, Clone)]
+/// System-side variables used by the activity-log system template.
 pub struct SystemData {
+    /// User template already rendered with `UserData`.
     pub rendered_user_template: String,
 }
 
 /// Implementation of TemplateRenderer for Activity Logs
 #[derive(Debug)]
+/// Renderer for the activity logs report templates.
+#[allow(clippy::missing_docs_in_private_items)]
 pub struct ActivityLogsTemplate {
     ids: ReportOrigins,
     report_format: ReportFormat,
 }
 
 impl ActivityLogsTemplate {
+    /// Creates a renderer bound to a specific tenant/event.
     pub fn new(ids: ReportOrigins, report_format: ReportFormat) -> Self {
         ActivityLogsTemplate { ids, report_format }
     }
 
     // Export data using the electoral-log board client, streaming in batches
     #[instrument(err, skip(self))]
+    /// Streams electoral-log entries into a temporary CSV file.
+    ///
+    /// This uses the board client directly so the export does not require
+    /// materializing all entries in memory.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the board cannot be accessed, the file cannot be
+    /// created, or any row cannot be serialized.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the computed batch size overflows `usize` while estimating the
+    /// memory footprint of a fetched batch.
     pub async fn generate_export_csv_data(&self, name: &str) -> Result<NamedTempFile> {
         let limit = IMMUDB_ROWS_LIMIT as i64;
         let mut last_id: i64 = 0;
@@ -258,6 +287,11 @@ impl TemplateRenderer for ActivityLogsTemplate {
     fn prefix(&self) -> String {
         format!("activity_logs_{}", rand::random::<u64>())
     }
+    /// Returns the total number of electoral-log messages for the event board.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the board cannot be accessed or counted.
     async fn count_items(&self, _hasura_transaction: &Transaction<'_>) -> Result<Option<i64>> {
         let mut client = get_board_client().await?;
         let slug = std::env::var("ENV_SLUG").with_context(|| "missing env var ENV_SLUG")?;
@@ -274,6 +308,15 @@ impl TemplateRenderer for ActivityLogsTemplate {
     }
 
     #[instrument(err, skip_all)]
+    /// Fetches one batch of activity-log entries for rendering.
+    ///
+    /// The caller uses offset-based pagination so batches can be rendered in
+    /// parallel. Depending on `report_format`, the fetched messages are converted
+    /// either into `ActivityLogRow` values (PDF) or `ElectoralLogRow` values (CSV).
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the board cannot be queried or any entry cannot be converted.
     async fn prepare_user_data_batch(
         &self,
         _hasura_transaction: &Transaction<'_>,
@@ -316,6 +359,11 @@ impl TemplateRenderer for ActivityLogsTemplate {
     }
 
     #[instrument(err, skip_all)]
+    /// Disabled for this report type; activity logs are fetched in batches.
+    ///
+    /// # Errors
+    ///
+    /// Always returns an error directing callers to use batching.
     async fn prepare_user_data(
         &self,
         _hasura_transaction: &Transaction<'_>,
@@ -327,6 +375,11 @@ impl TemplateRenderer for ActivityLogsTemplate {
     }
 
     #[instrument(err, skip_all)]
+    /// Prepares system-side variables used by the system template.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if public-assets configuration cannot be resolved.
     async fn prepare_system_data(
         &self,
         rendered_user_template: String,
@@ -341,6 +394,11 @@ impl TemplateRenderer for ActivityLogsTemplate {
     }
 
     #[instrument(err, skip_all)]
+    /// Executes report generation, overriding behavior for CSV exports.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if generation, upload, or optional email notification fails.
     async fn execute_report(
         &self,
         document_id: &str,
@@ -449,8 +507,15 @@ impl TemplateRenderer for ActivityLogsTemplate {
     }
 }
 
-// Export data
 #[instrument(err, skip(act_log))]
+/// Writes electoral-log rows into a temporary CSV file.
+///
+/// This helper is used by legacy CSV generation paths that already have rows in
+/// memory.
+///
+/// # Errors
+///
+/// Returns an error if the temp file cannot be created or writing/serialization fails.
 pub async fn generate_export_data(
     act_log: &[ElectoralLogRow],
     name: &str,

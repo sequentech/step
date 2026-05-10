@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+//! Plugin-managed database transactions for Hasura and Keycloak connections.
 use crate::services::database::{get_hasura_pool, get_keycloak_pool};
 use deadpool_postgres::{GenericClient, Object, Transaction};
 use serde_json::{Value, Map};
@@ -16,6 +17,7 @@ use uuid::Uuid;
 use wasmtime::component::HasData;
 
 #[ouroboros::self_referencing]
+/// Holds an optional Postgres client and an optional transaction borrowing from it.
 pub struct PluginDbManager {
     client: Option<Object>,
 
@@ -25,6 +27,7 @@ pub struct PluginDbManager {
     txn: Option<Transaction<'this>>,
 }
 
+/// Host marker used by the transactions-manager component bindings.
 pub struct TxnHost;
 
 impl HasData for TxnHost {
@@ -32,18 +35,27 @@ impl HasData for TxnHost {
 }
 
 impl PluginDbManager {
+    /// Creates an empty manager (no client, no transaction).
+    ///
+    /// # Panics
+    ///
+    /// Panics if the self-referential wrapper cannot be constructed.
     pub fn init() -> Self {
         PluginDbManager::try_new(None, |_client_ref| Ok(None) as Result<_, String>)
             .expect("Failed to create TransactionComponent")
     }
 }
 
+/// Wrapper exposing Hasura and Keycloak transaction managers to the plugin host interface.
 pub struct PluginTransactionsManager {
+    /// Hasura transaction manager (Postgres).
     hasura_manager: Arc<Mutex<PluginDbManager>>,
+    /// Keycloak transaction manager (Postgres).
     keycloak_manager: Arc<Mutex<PluginDbManager>>,
 }
 
 impl PluginTransactionsManager {
+    /// Creates a new transactions manager from pre-initialized per-database managers.
     pub fn new(
         hasura_manager: Arc<Mutex<PluginDbManager>>,
         keycloak_manager: Arc<Mutex<PluginDbManager>>,
@@ -55,10 +67,16 @@ impl PluginTransactionsManager {
     }
 }
 
+/// Parses any valid UUID string.
 pub fn parse_any_valid_uuid(s: &str) -> Option<Uuid> {
     Uuid::parse_str(s).ok()
 }
 
+/// Converts Postgres row results into a JSON array string.
+///
+/// # Errors
+///
+/// Returns an error if serialization fails.
 fn parsed_transactions_query_results(
     results: Vec<Row>,
 ) -> Result<String, Box<dyn std::error::Error>> {
@@ -102,7 +120,7 @@ fn parsed_transactions_query_results(
     Ok(json_string)
 }
 
-//Implementing the Host trait for PluginTransactionsManager to handle database transactions
+/// Implementing the Host trait for PluginTransactionsManager to handle database transactions
 impl Host for PluginTransactionsManager {
     async fn create_hasura_transaction(&mut self) -> Result<(), String> {
         let mut manager = self.hasura_manager.lock().await;

@@ -1,6 +1,8 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+//! CSV export of voter applications for an election event: load rows from Postgres, serialize to CSV,
+//!  upload to the database and s3.
 use crate::postgres::application::get_applications_by_election;
 use crate::services::database::get_hasura_pool;
 use crate::services::documents::upload_and_return_document;
@@ -17,6 +19,11 @@ use sequent_core::util::temp_path::{
 use tempfile::{NamedTempFile, TempPath};
 use tracing::{event, info, instrument, Level};
 
+/// Loads all [`Application`] rows for the given tenant/event, optionally filtered by `election_id`.
+///
+/// # Errors
+///
+/// Propagates database errors from [`get_applications_by_election`].
 #[instrument(err, skip(transaction))]
 pub async fn read_export_data(
     transaction: &Transaction<'_>,
@@ -36,6 +43,12 @@ pub async fn read_export_data(
     Ok(applications)
 }
 
+/// Writes `temp_file_path` rows to a CSV temp file and registers it as a document.
+///
+/// # Errors
+///
+/// Returns an error when CSV serialization fails, the temp file cannot be written,
+/// no rows are provided, or the document upload fails.
 #[instrument(err, skip(transaction))]
 pub async fn write_export_document(
     transaction: &Transaction<'_>,
@@ -116,6 +129,11 @@ pub async fn write_export_document(
     }
 }
 
+/// Orchestrates read + write to the database and s3.
+///
+/// # Errors
+///
+/// Propagates errors from [`read_export_data`] or [`write_export_document`].
 #[instrument(err)]
 pub async fn process_export(
     tenant_id: &str,

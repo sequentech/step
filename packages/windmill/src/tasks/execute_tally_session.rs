@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+//! Runs tally ceremony steps inside coordinated database transactions.
 use crate::postgres::area::get_event_areas;
 use crate::postgres::contest::export_contests;
 use crate::postgres::election::set_election_initialization_report_generated;
@@ -108,6 +109,7 @@ use tokio::time::Duration as ChronoDuration;
 use tracing::{event, info, instrument, warn, Level};
 use uuid::Uuid;
 
+/// Deserializes ballot style rows into domain [`BallotStyle`] values.
 #[instrument(skip_all, err)]
 fn get_ballot_styles(ballot_styles: &[BallotStyleHasura]) -> Result<Vec<BallotStyle>> {
     // get ballot styles, from where we'll get the Contest(s)
@@ -127,6 +129,7 @@ fn get_ballot_styles(ballot_styles: &[BallotStyleHasura]) -> Result<Vec<BallotSt
         .collect::<Result<Vec<BallotStyle>>>()
 }
 
+/// Builds per-area contest tally inputs using mixnet ciphertexts and contest metadata.
 #[instrument(skip_all, err)]
 async fn generate_area_contests_mc(
     hasura_transaction: &Transaction<'_>,
@@ -262,6 +265,7 @@ async fn generate_area_contests_mc(
     Ok(almost_vec)
 }
 
+/// Builds [`AreaContestDataType`] rows from decrypted plaintexts and ballot styles.
 #[instrument(skip_all, err)]
 fn generate_area_contests(
     relevant_plaintexts: &Vec<&Message>,
@@ -355,6 +359,7 @@ fn generate_area_contests(
     Ok(almost_vec)
 }
 
+/// Resolves plaintext artifacts into area-contest tally rows according to the contest encryption policy.
 #[instrument(skip_all, err)]
 async fn process_plaintexts(
     hasura_transaction: &Transaction<'_>,
@@ -432,6 +437,7 @@ async fn process_plaintexts(
     Ok(filtered_area_contests)
 }
 
+/// Maps a stored execution status string to a `TallyExecutionStatus` value.
 #[instrument]
 fn get_execution_status(execution_status: Option<String>) -> Option<TallyExecutionStatus> {
     let Some(execution_status_str) = execution_status.clone() else {
@@ -464,6 +470,15 @@ fn get_execution_status(execution_status: Option<String>) -> Option<TallyExecuti
     Some(execution_status)
 }
 
+/// Aggregates eligible voters and cast ballot counts per election from tally contest annotations.
+///
+/// # Panics
+///
+/// Panics if summing census or cast vote totals overflows `i64` (unexpected for realistic elections).
+///
+/// # Errors
+///
+/// Returns an error when contest annotations are missing or cannot be deserialized.
 #[instrument(skip_all, err)]
 pub async fn count_cast_votes_election_with_census(
     tally_session_area_contest: &[TallySessionContest],
@@ -511,6 +526,11 @@ pub async fn count_cast_votes_election_with_census(
     Ok(cast_votes_map.into_values().collect())
 }
 
+/// Ensures ballot batches exist on the board and annotations are persisted in Hasura.
+///
+/// # Errors
+///
+/// Returns an error if board writes, deserialization, or tally sheet validation fails.
 #[instrument(skip_all, err)]
 pub async fn upsert_ballots_messages(
     hasura_transaction: &Transaction<'_>,
@@ -629,6 +649,7 @@ pub async fn upsert_ballots_messages(
     Ok(tally_session_contests_updated)
 }
 
+/// Returns `tally_session.created_at` as Unix seconds, or an error when the timestamp is missing.
 fn get_tally_session_created_at_timestamp_secs(tally_session: &TallySession) -> Result<i64> {
     let Some(created_at) = &tally_session.created_at.clone() else {
         return Err(Error::String(
@@ -638,6 +659,11 @@ fn get_tally_session_created_at_timestamp_secs(tally_session: &TallySession) -> 
     Ok(created_at.timestamp())
 }
 
+/// Filters published tally sheets to those consistent with decrypted contest definitions.
+///
+/// # Errors
+///
+/// Returns an error when a row is malformed or fails [`validate_tally_sheet`].
 #[instrument(skip_all, err)]
 pub fn clean_tally_sheets(
     tally_sheet_rows: &[TallySheet],
@@ -685,6 +711,7 @@ pub fn clean_tally_sheets(
         .collect::<Result<Vec<TallySheet>>>()
 }
 
+/// Plaintext tally inputs plus session metadata produced while mapping board state to DB rows.
 type PlaintextTallyDataBundle = (
     Vec<AreaContestDataType>,
     i64,
@@ -697,6 +724,11 @@ type PlaintextTallyDataBundle = (
     TallySession,
 );
 
+/// Loads plaintexts, tally sheets, and cast-vote summaries needed for the rest of tally execution.
+///
+/// # Errors
+///
+/// Returns an error if any prerequisite query, deserialization, or validation step fails.
 #[instrument(skip_all, err)]
 async fn map_plaintext_data(
     hasura_transaction: &Transaction<'_>,
@@ -1020,6 +1052,11 @@ async fn map_plaintext_data(
     )))
 }
 
+/// Resolves user and system HTML templates (and PDF options) for initialization or results reports.
+///
+/// # Errors
+///
+/// Returns an error when template assets cannot be read or custom templates fail to load.
 async fn build_reports_template_data(
     tally_type_enum: TallyType,
     tenant_id: String,
@@ -1117,6 +1154,11 @@ async fn build_reports_template_data(
     Ok((report_content_template, report_system_template, pdf_options))
 }
 
+/// Core tally pipeline: plaintext processing, velvet tally, resolutions, logs, and optional reports.
+///
+/// # Errors
+///
+/// Returns an error on any failed ceremony step, board interaction, or persistence failure.
 #[instrument(err, skip(hasura_transaction, keycloak_transaction))]
 pub async fn execute_tally_session_wrapped(
     tenant_id: String,
@@ -1389,6 +1431,11 @@ pub async fn execute_tally_session_wrapped(
     Ok(())
 }
 
+/// Runs [`execute_tally_session_wrapped`] inside paired Hasura and Keycloak transactions with rollback semantics.
+///
+/// # Errors
+///
+/// Returns an error from the wrapped tally run or from commit/rollback handling.
 #[instrument(err)]
 pub async fn transactions_wrapper(
     tenant_id: String,
@@ -1453,58 +1500,69 @@ pub async fn transactions_wrapper(
     }
 }
 
-#[instrument(err)]
-#[wrap_map_err::wrap_map_err(TaskError)]
-#[celery::task(time_limit = 1_200_000, max_retries = 0, expires = 15)]
-pub async fn execute_tally_session(
-    tenant_id: String,
-    election_event_id: String,
-    tally_session_id: String,
-    tally_type: Option<String>,
-    election_ids: Option<Vec<String>>,
-) -> Result<()> {
-    let _permit = acquire_semaphore().await?;
-    let Ok(lock) = PgLock::acquire(
-        format!(
-            "execute_tally_session-{}-{}-{}",
-            tenant_id, election_event_id, tally_session_id
-        ),
-        Uuid::new_v4().to_string(),
-        ISO8601::now()
-            .checked_add_signed(Duration::seconds(120))
-            .expect("tally session lock expiry overflow"),
-    )
-    .await
-    else {
-        info!(
-            "Skipping: tally in progress for event {} and session id {}",
-            election_event_id, tally_session_id
-        );
-        return Ok(());
-    };
-    let mut interval = tokio::time::interval(ChronoDuration::from_secs(30));
-    let mut current_task = tokio::spawn(transactions_wrapper(
-        tenant_id.clone(),
-        election_event_id.clone(),
-        tally_session_id.clone(),
-        tally_type.clone(),
-        election_ids.clone(),
-    ));
-    let res = loop {
-        tokio::select! {
-            _ = interval.tick() => {
-                // Execute the callback function here
-                lock.update_expiry().await?;
-            }
-            res = &mut current_task => {
+/// Celery entrypoint for running a tally session with locking, semaphore, and transaction boundaries.
+mod execute_tally_session_task {
+    #![allow(missing_docs)]
+    #![allow(clippy::missing_docs_in_private_items)]
 
-                break res.map_err(|err| Error::String(format!("Error executing loop: {:?}", err))).flatten();
+    use super::*;
+
+    /// Celery task: executes a tally session.
+    #[instrument(err)]
+    #[wrap_map_err::wrap_map_err(TaskError)]
+    #[celery::task(time_limit = 1_200_000, max_retries = 0, expires = 15)]
+    pub async fn execute_tally_session(
+        tenant_id: String,
+        election_event_id: String,
+        tally_session_id: String,
+        tally_type: Option<String>,
+        election_ids: Option<Vec<String>>,
+    ) -> Result<()> {
+        let _permit = acquire_semaphore().await?;
+        let Ok(lock) = PgLock::acquire(
+            format!(
+                "execute_tally_session-{}-{}-{}",
+                tenant_id, election_event_id, tally_session_id
+            ),
+            Uuid::new_v4().to_string(),
+            ISO8601::now()
+                .checked_add_signed(Duration::seconds(120))
+                .expect("tally session lock expiry overflow"),
+        )
+        .await
+        else {
+            info!(
+                "Skipping: tally in progress for event {} and session id {}",
+                election_event_id, tally_session_id
+            );
+            return Ok(());
+        };
+        let mut interval = tokio::time::interval(ChronoDuration::from_secs(30));
+        let mut current_task = tokio::spawn(transactions_wrapper(
+            tenant_id.clone(),
+            election_event_id.clone(),
+            tally_session_id.clone(),
+            tally_type.clone(),
+            election_ids.clone(),
+        ));
+        let res = loop {
+            tokio::select! {
+                _ = interval.tick() => {
+                    lock.update_expiry().await?;
+                }
+                res = &mut current_task => {
+                    break res
+                        .map_err(|err| Error::String(format!("Error executing loop: {:?}", err)))
+                        .flatten();
+                }
             }
-        }
-    };
-    lock.release().await?;
-    res
+        };
+        lock.release().await?;
+        res
+    }
 }
+
+pub use execute_tally_session_task::execute_tally_session;
 
 #[cfg(test)]
 mod tests {

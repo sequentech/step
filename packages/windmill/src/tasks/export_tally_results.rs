@@ -1,6 +1,12 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+
+//! Exports tally outcome summaries and artifacts.
+
+#![allow(missing_docs)]
+#![allow(clippy::missing_docs_in_private_items)]
+
 use crate::services::export::export_tally_results::{
     export_tally_results_to_xlsx, get_tally_session_execution_results_sqlite_file,
 };
@@ -11,6 +17,7 @@ use celery::error::TaskError;
 use sequent_core::types::hasura::core::TasksExecution;
 use tracing::instrument;
 
+/// Celery task: export tally session results as an XLSX document.
 #[instrument(err)]
 #[wrap_map_err::wrap_map_err(TaskError)]
 #[celery::task(max_retries = 0)]

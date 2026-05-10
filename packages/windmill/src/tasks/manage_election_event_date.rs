@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-
+//! Opens or closes voting for an election event on schedule.
 use crate::postgres::scheduled_event::*;
 use crate::services::database::get_hasura_pool;
 use crate::services::election_event_status::update_event_voting_status;
@@ -20,6 +20,12 @@ use tracing::instrument;
 use tracing::{event, info, Level};
 use uuid::Uuid;
 
+/// Opens or closes online voting for the whole election event.
+///
+/// # Errors
+///
+/// Fails if the scheduled event or its processor is missing, invalid,
+/// or if updating voting status or stopping the event in the database fails.
 #[instrument(err)]
 pub async fn manage_election_event_date_wrapped(
     hasura_transaction: &Transaction<'_>,
@@ -69,55 +75,65 @@ pub async fn manage_election_event_date_wrapped(
     Ok(())
 }
 
-#[instrument(err)]
-#[wrap_map_err::wrap_map_err(TaskError)]
-#[celery::task(time_limit = 10, max_retries = 0, expires = 30)]
-pub async fn manage_election_event_date(
-    tenant_id: String,
-    election_event_id: String,
-    scheduled_event_id: String,
-) -> Result<()> {
-    let lock: PgLock = PgLock::acquire(
-        format!(
-            "execute_manage_election_event_date-{}-{}-{}",
-            tenant_id, election_event_id, scheduled_event_id
-        ),
-        Uuid::new_v4().to_string(),
-        ISO8601::now()
-            .checked_add_signed(Duration::seconds(120))
-            .expect("manage_election_event_date lock expiry overflow"),
-    )
-    .await?;
-    let mut hasura_db_client: DbClient = get_hasura_pool()
-        .await
-        .get()
-        .await
-        .map_err(|e| anyhow!("Error getting hasura client {}", e))?;
-    let hasura_transaction = hasura_db_client.transaction().await?;
-    let res = manage_election_event_date_wrapped(
-        &hasura_transaction,
-        tenant_id.clone(),
-        election_event_id.clone(),
-        scheduled_event_id.clone(),
-    )
-    .await;
+mod manage_election_event_date_task {
+    #![allow(missing_docs)]
+    #![allow(clippy::missing_docs_in_private_items)]
 
-    match res {
-        Ok(data) => {
-            let commit = hasura_transaction
-                .commit()
-                .await
-                .map_err(|e| anyhow!("Commit failed manage_event_election_dates: {}", e));
-            lock.release().await?;
-            commit?;
+    use super::*;
+
+    /// Celery task: manages the election event scheduled dates for open/close voting.
+    #[instrument(err)]
+    #[wrap_map_err::wrap_map_err(TaskError)]
+    #[celery::task(time_limit = 10, max_retries = 0, expires = 30)]
+    pub async fn manage_election_event_date(
+        tenant_id: String,
+        election_event_id: String,
+        scheduled_event_id: String,
+    ) -> Result<()> {
+        let lock: PgLock = PgLock::acquire(
+            format!(
+                "execute_manage_election_event_date-{}-{}-{}",
+                tenant_id, election_event_id, scheduled_event_id
+            ),
+            Uuid::new_v4().to_string(),
+            ISO8601::now()
+                .checked_add_signed(Duration::seconds(120))
+                .expect("manage_election_event_date lock expiry overflow"),
+        )
+        .await?;
+        let mut hasura_db_client: DbClient = get_hasura_pool()
+            .await
+            .get()
+            .await
+            .map_err(|e| anyhow!("Error getting hasura client {}", e))?;
+        let hasura_transaction = hasura_db_client.transaction().await?;
+        let res = manage_election_event_date_wrapped(
+            &hasura_transaction,
+            tenant_id.clone(),
+            election_event_id.clone(),
+            scheduled_event_id.clone(),
+        )
+        .await;
+
+        match res {
+            Ok(data) => {
+                let commit = hasura_transaction
+                    .commit()
+                    .await
+                    .map_err(|e| anyhow!("Commit failed manage_event_election_dates: {}", e));
+                lock.release().await?;
+                commit?;
+            }
+            Err(err) => {
+                let rollback = hasura_transaction.rollback().await;
+                lock.release().await?;
+                rollback?;
+                return Err(anyhow!("{}", err).into());
+            }
         }
-        Err(err) => {
-            let rollback = hasura_transaction.rollback().await;
-            lock.release().await?;
-            rollback?;
-            return Err(anyhow!("{}", err).into());
-        }
+
+        Ok(())
     }
-
-    Ok(())
 }
+
+pub use manage_election_event_date_task::manage_election_event_date;

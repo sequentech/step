@@ -19,6 +19,12 @@ impl TryFrom<Row> for PgLock {
         })
     }
 }
+/// Insert or update lock into the database.
+///
+/// # Errors
+///
+/// Returns an error if SQL preparation or execution fails,
+/// if UUID or other parsing fails, or if row mapping is inconsistent.
 
 #[instrument(skip(hasura_transaction), err)]
 pub async fn upsert_lock(
@@ -71,6 +77,12 @@ pub async fn upsert_lock(
         Err(anyhow!("Couldn't upsert lock"))
     }
 }
+/// Delete lock from the database.
+///
+/// # Errors
+///
+/// Returns an error if SQL preparation or execution fails,
+/// if UUID or other parsing fails, or if row mapping is inconsistent.
 
 #[instrument(skip(hasura_transaction), err)]
 pub async fn delete_lock(
