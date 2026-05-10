@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+//! Create public keys task implementation.
 use crate::postgres::election_event::get_election_event_by_id;
 use crate::postgres::keys_ceremony::{get_keys_ceremony_by_id, update_keys_ceremony_status};
 use crate::postgres::trustee::get_trustees_by_id;
@@ -21,12 +22,20 @@ use serde::{Deserialize, Serialize};
 use std::default::Default;
 use tracing::{info, instrument};
 
+/// JSON body supplied when trustees submit public keys for a keys ceremony.
 #[derive(Deserialize, Debug, Serialize, Clone)]
 pub struct CreateKeysBody {
+    /// PEM or encoded public keys for participating trustees.
     pub trustee_pks: Vec<String>,
+    /// Minimum number of trustees required to reconstruct election keys.
     pub threshold: usize,
 }
 
+/// Creates public keys on the bulletin board when a keys ceremony may start.
+///
+/// # Errors
+///
+/// Returns an error on missing ceremony data, trustee lookup failures, or DB commit issues.
 pub async fn create_keys_impl(
     tenant_id: String,
     election_event_id: String,
@@ -105,15 +114,25 @@ pub async fn create_keys_impl(
     Ok(())
 }
 
-#[instrument(err)]
-#[wrap_map_err::wrap_map_err(TaskError)]
-#[celery::task]
-pub async fn create_keys(
-    tenant_id: String,
-    election_event_id: String,
-    keys_ceremony_id: String,
-) -> Result<()> {
-    create_keys_impl(tenant_id, election_event_id, keys_ceremony_id)
-        .await
-        .map_err(|err| Error::from(err.context("Task failed")))
+mod create_keys_task {
+    #![allow(missing_docs)]
+    #![allow(clippy::missing_docs_in_private_items)]
+
+    use super::*;
+
+    /// Celery task: create public keys for a keys ceremony.
+    #[instrument(err)]
+    #[wrap_map_err::wrap_map_err(TaskError)]
+    #[celery::task]
+    pub async fn create_keys(
+        tenant_id: String,
+        election_event_id: String,
+        keys_ceremony_id: String,
+    ) -> Result<()> {
+        create_keys_impl(tenant_id, election_event_id, keys_ceremony_id)
+            .await
+            .map_err(|err| Error::from(err.context("Task failed")))
+    }
 }
+
+pub use create_keys_task::create_keys;

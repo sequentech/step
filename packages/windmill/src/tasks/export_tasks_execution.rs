@@ -2,6 +2,10 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+//! Export tasks execution task implementation.
+#![allow(missing_docs)]
+#![allow(clippy::missing_docs_in_private_items)]
+
 use crate::services::database::{get_hasura_pool, get_keycloak_pool, PgConfig};
 use crate::services::export::export_tasks_execution::process_export;
 use crate::types::error::{Error, Result};
@@ -11,6 +15,7 @@ use serde::{Deserialize, Serialize};
 use std::io::{BufWriter, Write};
 use tracing::{debug, info, instrument};
 
+/// Celery task: export task execution audit rows for an election event into a stored document.
 #[instrument(err)]
 #[wrap_map_err::wrap_map_err(TaskError)]
 #[celery::task(max_retries = 0)]

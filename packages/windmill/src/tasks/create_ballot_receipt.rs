@@ -2,6 +2,9 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+//! Create ballot receipt task implementation.
+#![allow(missing_docs)]
+#![allow(clippy::missing_docs_in_private_items)]
 use crate::services::database::{get_hasura_pool, get_keycloak_pool};
 use crate::services::reports::ballot_receipt::{BallotData, BallotTemplate};
 use crate::services::reports::template_renderer::{
@@ -17,6 +20,7 @@ use sequent_core::types::date_time::{DateFormat, TimeZone};
 use sequent_core::types::hasura::core::TasksExecution;
 use tracing::instrument;
 
+/// Celery task: render a voter ballot receipt PDF and attach it to a document.
 #[instrument(err)]
 #[wrap_map_err::wrap_map_err(TaskError)]
 #[celery::task]

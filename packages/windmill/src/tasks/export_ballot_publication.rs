@@ -1,6 +1,11 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+
+//! Export ballot publication task implementation.
+#![allow(missing_docs)]
+#![allow(clippy::missing_docs_in_private_items)]
+
 use crate::postgres::ballot_publication::get_ballot_publication_by_id;
 use crate::services::database::get_hasura_pool;
 use crate::services::export::export_ballot_publication::process_export_ballot_publication;
@@ -14,6 +19,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use tracing::{event, instrument, Level};
 
+/// Celery task: exports a ballot publication package into the document store.
 #[instrument(err)]
 #[wrap_map_err::wrap_map_err(TaskError)]
 #[celery::task(max_retries = 0)]

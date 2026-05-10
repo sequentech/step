@@ -8,4 +8,5 @@ pub mod error;
 pub mod hasura_types;
 pub mod miru_plugin;
 pub mod resources;
+/// Long-running Windmill task identifiers and their human-readable display names.
 pub mod tasks;

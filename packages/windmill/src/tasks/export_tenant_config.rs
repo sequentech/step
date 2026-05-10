@@ -2,6 +2,10 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+//! Export tenant config task implementation.
+#![allow(missing_docs)]
+#![allow(clippy::missing_docs_in_private_items)]
+
 use crate::services::database::get_hasura_pool;
 use crate::services::export::export_tenant_config::process_export_zip;
 use crate::services::tasks_execution::*;
@@ -13,6 +17,7 @@ use sequent_core::types::hasura::core::TasksExecution;
 use serde::{Deserialize, Serialize};
 use tracing::{event, instrument, Level};
 
+/// Celery task: export the tenant configuration as a ZIP.
 #[instrument(err)]
 #[wrap_map_err::wrap_map_err(TaskError)]
 #[celery::task(max_retries = 0)]

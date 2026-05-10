@@ -1,6 +1,8 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+
+//! Prepare publication preview task implementation.
 use crate::postgres::document::get_support_material_documents;
 use crate::postgres::election::get_elections;
 use crate::postgres::election_event::get_election_event_by_id;
@@ -24,58 +26,79 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tracing::{info, instrument};
 
+/// JSON snapshot of ballot styles, event metadata, and support materials for publication preview.
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct PublicationPreview {
+    /// Resolved ballot style JSON for the publication.
     pub ballot_styles: Value,
-    election_event: Value,
-    elections: Value,
-    support_materials: Value,
-    documents: Value,
+    /// Serialized election event data.
+    pub election_event: Value,
+    /// Elections under the event.
+    pub elections: Value,
+    /// Support material data and linked documents.
+    pub support_materials: Value,
+    /// Additional document metadata.
+    pub documents: Value,
 }
 
-#[instrument(err)]
-#[wrap_map_err::wrap_map_err(TaskError)]
-#[celery::task(max_retries = 2)]
-pub async fn prepare_publication_preview(
-    tenant_id: String,
-    election_event_id: String,
-    ballot_publication_id: String,
-    task_execution: TasksExecution,
-    document_id: String,
-) -> Result<()> {
-    let mut hasura_db_client = get_hasura_pool()
-        .await
-        .get()
-        .await
-        .map_err(|e| format!("Failed to get db connection: {e:?}"))?;
+mod prepare_publication_preview_task {
+    #![allow(missing_docs)]
+    #![allow(clippy::missing_docs_in_private_items)]
 
-    let hasura_transaction = hasura_db_client
-        .transaction()
-        .await
-        .map_err(|e| format!("Failed to get db transaction: {e:?}"))?;
+    use super::*;
 
-    let result = prepare_publication_preview_task(
-        &hasura_transaction,
-        tenant_id,
-        election_event_id,
-        ballot_publication_id,
-        document_id,
-    )
-    .await;
+    /// Celery task: build a JSON publication preview and mark a document complete on success.
+    #[instrument(err)]
+    #[wrap_map_err::wrap_map_err(TaskError)]
+    #[celery::task(max_retries = 2)]
+    pub async fn prepare_publication_preview(
+        tenant_id: String,
+        election_event_id: String,
+        ballot_publication_id: String,
+        task_execution: TasksExecution,
+        document_id: String,
+    ) -> Result<()> {
+        let mut hasura_db_client = get_hasura_pool()
+            .await
+            .get()
+            .await
+            .map_err(|e| format!("Failed to get db connection: {e:?}"))?;
 
-    match result {
-        Ok(document_id) => {
-            let _res = update_complete(&task_execution, Some(document_id.clone())).await;
-            Ok(())
-        }
-        Err(err) => {
-            let err_str = format!("Error preparing publication preview: {err:?}");
-            let _res = update_fail(&task_execution, &err.to_string()).await;
-            Err(err_str.into())
+        let hasura_transaction = hasura_db_client
+            .transaction()
+            .await
+            .map_err(|e| format!("Failed to get db transaction: {e:?}"))?;
+
+        let result = super::prepare_publication_preview_task(
+            &hasura_transaction,
+            tenant_id,
+            election_event_id,
+            ballot_publication_id,
+            document_id,
+        )
+        .await;
+
+        match result {
+            Ok(document_id) => {
+                let _res = update_complete(&task_execution, Some(document_id.clone())).await;
+                Ok(())
+            }
+            Err(err) => {
+                let err_str = format!("Error preparing publication preview: {err:?}");
+                let _res = update_fail(&task_execution, &err.to_string()).await;
+                Err(err_str.into())
+            }
         }
     }
 }
 
+pub use prepare_publication_preview_task::prepare_publication_preview;
+
+/// Loads publication JSON, event context, and uploads the combined preview document.
+///
+/// # Errors
+///
+/// Propagates DB, serialization, or S3 upload failures from the preview pipeline.
 #[instrument(err)]
 pub async fn prepare_publication_preview_task(
     hasura_transaction: &Transaction<'_>,

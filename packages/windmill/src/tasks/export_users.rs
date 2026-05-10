@@ -17,138 +17,152 @@ use sequent_core::util;
 use serde::{Deserialize, Serialize};
 use tracing::{debug, info, instrument};
 
+/// API response shape for the export users task.
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ExportUsersOutput {
+    /// Document ID for the generated CSV.
     pub document_id: String,
+    /// Error message when the CSV could not be produced or uploaded.
     pub error_msg: Option<String>,
+    /// Optional task execution row updated on completion.
     pub task_execution: Option<TasksExecution>,
 }
 
-#[instrument(err)]
-#[wrap_map_err::wrap_map_err(TaskError)]
-#[celery::task(max_retries = 0)]
-pub async fn export_users(
-    body: ExportBody,
-    document_id: String,
-    task_execution: Option<TasksExecution>,
-) -> Result<()> {
-    let mut hasura_db_client: DbClient = match get_hasura_pool().await.get().await {
-        Ok(client) => client,
-        Err(err) => {
-            if let Some(task_execution) = &task_execution {
-                update_fail(task_execution, "Failed to get Hasura DB pool").await;
+mod export_users_task {
+    #![allow(missing_docs)]
+    #![allow(clippy::missing_docs_in_private_items)]
+
+    use super::*;
+
+    /// Celery task: export voter rows to CSV, upload to the private bucket, and register a document.
+    #[instrument(err)]
+    #[wrap_map_err::wrap_map_err(TaskError)]
+    #[celery::task(max_retries = 0)]
+    pub async fn export_users(
+        body: ExportBody,
+        document_id: String,
+        task_execution: Option<TasksExecution>,
+    ) -> Result<()> {
+        let mut hasura_db_client: DbClient = match get_hasura_pool().await.get().await {
+            Ok(client) => client,
+            Err(err) => {
+                if let Some(task_execution) = &task_execution {
+                    update_fail(task_execution, "Failed to get Hasura DB pool").await;
+                }
+                return Err(Error::String(format!(
+                    "Error getting Hasura DB pool: {}",
+                    err
+                )));
             }
-            return Err(Error::String(format!(
-                "Error getting Hasura DB pool: {}",
-                err
-            )));
-        }
-    };
+        };
 
-    let hasura_transaction = match hasura_db_client.transaction().await {
-        Ok(transaction) => transaction,
-        Err(err) => {
-            if let Some(task_execution) = &task_execution {
-                update_fail(task_execution, "Failed to start Hasura transaction").await?;
+        let hasura_transaction = match hasura_db_client.transaction().await {
+            Ok(transaction) => transaction,
+            Err(err) => {
+                if let Some(task_execution) = &task_execution {
+                    update_fail(task_execution, "Failed to start Hasura transaction").await?;
+                }
+                return Err(Error::String(format!(
+                    "Error starting Hasura transaction: {err}"
+                )));
             }
-            return Err(Error::String(format!(
-                "Error starting Hasura transaction: {err}"
-            )));
-        }
-    };
+        };
 
-    // Export the users to a temporary file
-    let temp_path = match export_users_file(&hasura_transaction, body.clone()).await {
-        Ok(result) => result,
-        Err(err) => {
-            if let Some(task_execution) = &task_execution {
-                update_fail(task_execution, &err.to_string()).await?;
+        // Export the users to a temporary file
+        let temp_path = match export_users_file(&hasura_transaction, body.clone()).await {
+            Ok(result) => result,
+            Err(err) => {
+                if let Some(task_execution) = &task_execution {
+                    update_fail(task_execution, &err.to_string()).await?;
+                }
+                return Err(Error::String(format!("Error listing users: {err:?}")));
             }
-            return Err(Error::String(format!("Error listing users: {err:?}")));
-        }
-    };
-    let size = temp_path.metadata()?.len();
+        };
+        let size = temp_path.metadata()?.len();
 
-    // Upload to S3
-    let (tenant_id, election_event_id) = match &body {
-        ExportBody::Users {
-            tenant_id,
-            election_event_id,
-            ..
-        } => (
-            tenant_id.to_string(),
-            election_event_id.clone().unwrap_or_default(),
-        ),
-        ExportBody::TenantUsers { tenant_id } => (tenant_id.to_string(), "".to_string()),
-    };
-
-    let timestamp = match util::date::timestamp() {
-        Ok(timestamp) => timestamp,
-        Err(err) => {
-            if let Some(task_execution) = &task_execution {
-                update_fail(task_execution, "Failed to obtain timestamp").await?;
-            }
-            return Err(Error::String(format!("Error obtaining timestamp: {err}")));
-        }
-    };
-
-    let name = format!("users-export-{timestamp}.csv");
-    let key = s3::get_document_key(&tenant_id, Some(&election_event_id), &document_id, &name);
-
-    let media_type = "text/csv".to_string();
-
-    match s3::upload_file_to_s3(
-        key,
-        false,
-        s3::get_private_bucket()?,
-        media_type.clone(),
-        temp_path.to_string_lossy().to_string(),
-        None,
-        Some(name.clone()),
-    )
-    .await
-    {
-        Ok(_) => (),
-        Err(err) => {
-            if let Some(task_execution) = &task_execution {
-                update_fail(task_execution, "Failed to upload file to s3").await?;
-            }
-            return Err(Error::String(format!("Error uploading file to s3: {err}")));
-        }
-    }
-
-    temp_path
-        .close()
-        .with_context(|| "Error closing temporary file path")?;
-
-    let _document = insert_document(
-        &hasura_transaction,
-        &tenant_id,
-        match &body {
+        // Upload to S3
+        let (tenant_id, election_event_id) = match &body {
             ExportBody::Users {
-                election_event_id, ..
-            } => election_event_id.clone(),
-            ExportBody::TenantUsers { .. } => None,
-        },
-        &name,
-        &media_type,
-        size.try_into()?,
-        false,
-        Some(document_id.clone()),
-    )
-    .await
-    .map_err(|err| format!("Error inserting document: {:?}", err))?;
+                tenant_id,
+                election_event_id,
+                ..
+            } => (
+                tenant_id.to_string(),
+                election_event_id.clone().unwrap_or_default(),
+            ),
+            ExportBody::TenantUsers { tenant_id } => (tenant_id.to_string(), "".to_string()),
+        };
 
-    if let Some(task_execution) = &task_execution {
-        update_complete(task_execution, Some(document_id.to_string()))
-            .await
-            .context("Failed to update task execution status to COMPLETED")?;
-    }
+        let timestamp = match util::date::timestamp() {
+            Ok(timestamp) => timestamp,
+            Err(err) => {
+                if let Some(task_execution) = &task_execution {
+                    update_fail(task_execution, "Failed to obtain timestamp").await?;
+                }
+                return Err(Error::String(format!("Error obtaining timestamp: {err}")));
+            }
+        };
 
-    hasura_transaction
-        .commit()
+        let name = format!("users-export-{timestamp}.csv");
+        let key = s3::get_document_key(&tenant_id, Some(&election_event_id), &document_id, &name);
+
+        let media_type = "text/csv".to_string();
+
+        match s3::upload_file_to_s3(
+            key,
+            false,
+            s3::get_private_bucket()?,
+            media_type.clone(),
+            temp_path.to_string_lossy().to_string(),
+            None,
+            Some(name.clone()),
+        )
         .await
-        .with_context(|| "Failed to commit Hasura transaction")?;
+        {
+            Ok(_) => (),
+            Err(err) => {
+                if let Some(task_execution) = &task_execution {
+                    update_fail(task_execution, "Failed to upload file to s3").await?;
+                }
+                return Err(Error::String(format!("Error uploading file to s3: {err}")));
+            }
+        }
 
-    Ok(())
+        temp_path
+            .close()
+            .with_context(|| "Error closing temporary file path")?;
+
+        let _document = insert_document(
+            &hasura_transaction,
+            &tenant_id,
+            match &body {
+                ExportBody::Users {
+                    election_event_id, ..
+                } => election_event_id.clone(),
+                ExportBody::TenantUsers { .. } => None,
+            },
+            &name,
+            &media_type,
+            size.try_into()?,
+            false,
+            Some(document_id.clone()),
+        )
+        .await
+        .map_err(|err| format!("Error inserting document: {:?}", err))?;
+
+        if let Some(task_execution) = &task_execution {
+            update_complete(task_execution, Some(document_id.to_string()))
+                .await
+                .context("Failed to update task execution status to COMPLETED")?;
+        }
+
+        hasura_transaction
+            .commit()
+            .await
+            .with_context(|| "Failed to commit Hasura transaction")?;
+
+        Ok(())
+    }
 }
+
+pub use export_users_task::export_users;

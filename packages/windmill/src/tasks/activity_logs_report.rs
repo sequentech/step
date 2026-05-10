@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+//! Activity logs report task implementation.
 use crate::services::tasks_semaphore::acquire_semaphore;
 use crate::{
     postgres::reports::Report,
@@ -23,6 +24,7 @@ use deadpool_postgres::Client as DbClient;
 use sequent_core::types::hasura::core::TasksExecution;
 use tracing::instrument;
 
+/// Renders the activity log report into a document with the given ID.
 async fn generate_activity_logs_report_impl(
     tenant_id: String,
     election_event_id: String,
@@ -91,40 +93,50 @@ async fn generate_activity_logs_report_impl(
     Ok(())
 }
 
-#[instrument(err)]
-#[wrap_map_err::wrap_map_err(TaskError)]
-#[celery::task(max_retries = 0)]
-pub async fn generate_activity_logs_report(
-    tenant_id: String,
-    election_event_id: String,
-    document_id: String,
-    format: ReportFormat,
-    report_clone: Option<Report>,
-    task_execution: TasksExecution,
-) -> Result<()> {
-    match generate_activity_logs_report_impl(
-        tenant_id,
-        election_event_id,
-        document_id.clone(),
-        format,
-        report_clone,
-    )
-    .await
-    {
-        Ok(()) => {
-            update_complete(&task_execution, Some(document_id))
-                .await
-                .context("Failed to update task execution status to COMPLETED")?;
-            Ok(())
-        }
-        Err(err) => {
-            if let Err(update_err) = update_fail(&task_execution, &format!("{err:?}")).await {
-                tracing::error!(
-                    "Failed to update task execution status to FAILED: {:?}",
-                    update_err
-                );
+mod generate_activity_logs_report_task {
+    #![allow(missing_docs)]
+    #![allow(clippy::missing_docs_in_private_items)]
+
+    use super::*;
+
+    /// Celery task: export activity logs for an election event into a stored document.
+    #[instrument(err)]
+    #[wrap_map_err::wrap_map_err(TaskError)]
+    #[celery::task(max_retries = 0)]
+    pub async fn generate_activity_logs_report(
+        tenant_id: String,
+        election_event_id: String,
+        document_id: String,
+        format: ReportFormat,
+        report_clone: Option<Report>,
+        task_execution: TasksExecution,
+    ) -> Result<()> {
+        match super::generate_activity_logs_report_impl(
+            tenant_id,
+            election_event_id,
+            document_id.clone(),
+            format,
+            report_clone,
+        )
+        .await
+        {
+            Ok(()) => {
+                update_complete(&task_execution, Some(document_id))
+                    .await
+                    .context("Failed to update task execution status to COMPLETED")?;
+                Ok(())
             }
-            Err(err)
+            Err(err) => {
+                if let Err(update_err) = update_fail(&task_execution, &format!("{err:?}")).await {
+                    tracing::error!(
+                        "Failed to update task execution status to FAILED: {:?}",
+                        update_err
+                    );
+                }
+                Err(err)
+            }
         }
     }
 }
+
+pub use generate_activity_logs_report_task::generate_activity_logs_report;

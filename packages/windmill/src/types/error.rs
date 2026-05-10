@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+//! Top-level error enum and conversions from external failures.
 
 use celery;
 use celery::prelude::TaskError;
@@ -9,28 +10,37 @@ use keycloak;
 use sequent_core::util::integrity_check::HashFileVerifyError;
 use serde_json;
 use strand::util::StrandError;
+
 quick_error! {
+    /// Error surface for tasks and helpers, convertible to Celery [`TaskError`].
     #[derive(Debug)]
     pub enum Error {
+        /// Failure propagated through an [`anyhow::Error`] context chain.
         Anyhow(err: anyhow::Error) {
             from()
         }
+        /// CSV export/import error.
         Csv(err: csv::Error) {
             from()
         }
+        /// Free-form message, including stringified errors from external crates.
         String(err: String) {
             from()
             from(err: &str) -> (err.into())
         }
+        /// PostgreSQL driver or query execution failure.
         Postgres(err: tokio_postgres::Error) {
             from()
         }
+        /// I/O error on a specific filesystem path.
         FileAccess(path: std::path::PathBuf, err: std::io::Error) {
             display("An error occurred while accessing the file at '{}': {}", path.display(), err)
         }
+        /// Integer conversion exceeded the target type range.
         TryFromIntError(err: std::num::TryFromIntError) {
             from()
         }
+        /// Ballot or artifact hash did not match the expected digest.
         HashFileVerifyError(err: HashFileVerifyError) {
             from()
             display("{}", err.to_string())
@@ -104,4 +114,5 @@ impl From<lapin::Error> for Error {
     }
 }
 
+/// Result type specialized with [`Error`] as the default `E`.
 pub type Result<T, E = Error> = std::result::Result<T, E>;

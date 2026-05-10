@@ -1,6 +1,8 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+
+//! Import voter enrollment applications task implementation.
 use crate::postgres::application::insert_applications;
 use crate::services::providers::transactions_provider::provide_hasura_transaction;
 use crate::{
@@ -21,44 +23,59 @@ use std::io::Seek;
 use tracing::{info, instrument};
 use uuid::Uuid;
 
-#[instrument(err)]
-#[wrap_map_err::wrap_map_err(TaskError)]
-#[celery::task(max_retries = 2)]
-pub async fn import_applications(
-    tenant_id: String,
-    election_event_id: String,
-    document_id: String,
-    sha256: Option<String>,
-    task_execution: TasksExecution,
-) -> Result<()> {
-    let result = provide_hasura_transaction(|hasura_transaction| {
-        let document_copy = document_id.clone();
-        Box::pin(async move {
-            import_applications_task(
-                hasura_transaction,
-                tenant_id,
-                election_event_id,
-                document_copy.clone(),
-                sha256,
-            )
-            .await
-        })
-    })
-    .await;
+mod import_applications_task {
+    #![allow(missing_docs)]
+    #![allow(clippy::missing_docs_in_private_items)]
 
-    match result {
-        Ok(_) => {
-            let _res = update_complete(&task_execution, Some(document_id.clone())).await;
-            Ok(())
-        }
-        Err(err) => {
-            let err_str = format!("Error importing applications: {err:?}");
-            let _res = update_fail(&task_execution, &err.to_string()).await;
-            Err(err_str.into())
+    use super::*;
+
+    /// Celery task: import voter enrollment applications from a CSV file.
+    #[instrument(err)]
+    #[wrap_map_err::wrap_map_err(TaskError)]
+    #[celery::task(max_retries = 2)]
+    pub async fn import_applications(
+        tenant_id: String,
+        election_event_id: String,
+        document_id: String,
+        sha256: Option<String>,
+        task_execution: TasksExecution,
+    ) -> Result<()> {
+        let result = provide_hasura_transaction(|hasura_transaction| {
+            let document_copy = document_id.clone();
+            Box::pin(async move {
+                super::import_applications_task(
+                    hasura_transaction,
+                    tenant_id,
+                    election_event_id,
+                    document_copy.clone(),
+                    sha256,
+                )
+                .await
+            })
+        })
+        .await;
+
+        match result {
+            Ok(_) => {
+                let _res = update_complete(&task_execution, Some(document_id.clone())).await;
+                Ok(())
+            }
+            Err(err) => {
+                let err_str = format!("Error importing applications: {err:?}");
+                let _res = update_fail(&task_execution, &err.to_string()).await;
+                Err(err_str.into())
+            }
         }
     }
 }
 
+pub use import_applications_task::import_applications;
+
+/// Parses the applications CSV from a document and inserts rows in one transaction.
+///
+/// # Errors
+///
+/// Fails on missing document, hash mismatch, CSV parse errors, or database insert errors.
 #[instrument(err)]
 pub async fn import_applications_task(
     hasura_transaction: &Transaction<'_>,

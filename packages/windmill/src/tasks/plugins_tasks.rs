@@ -1,7 +1,12 @@
-use crate::postgres::document;
 // SPDX-FileCopyrightText: 2025 Sequent Legal <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+
+//! Plugins tasks entrypoints implementation.
+#![allow(missing_docs)]
+#![allow(clippy::missing_docs_in_private_items)]
+
+use crate::postgres::document;
 use crate::services::plugins_manager::plugin_manager;
 use crate::services::tasks_execution::*;
 use crate::types::error::Error;
@@ -13,6 +18,7 @@ use sequent_core::types::hasura::core::TasksExecution;
 use serde_json::Value;
 use tracing::{info, instrument};
 
+/// Celery task: dispatch a named WASM plugin entrypoint with JSON payload and optional document ID.
 #[instrument(err)]
 #[wrap_map_err::wrap_map_err(TaskError)]
 #[celery::task(max_retries = 0)]

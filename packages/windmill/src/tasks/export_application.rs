@@ -2,6 +2,10 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+//! Export application task implementation.
+#![allow(missing_docs)]
+#![allow(clippy::missing_docs_in_private_items)]
+
 use crate::{
     services::{export::export_application::process_export, tasks_execution::update_fail},
     types::error::{Error, Result},
@@ -11,6 +15,7 @@ use celery::error::TaskError;
 use sequent_core::types::hasura::core::TasksExecution;
 use tracing::{event, info, instrument, Level};
 
+/// Celery task: serialize voter enrollment applications to the export bundle for a document.
 #[instrument(err)]
 #[wrap_map_err::wrap_map_err(TaskError)]
 #[celery::task(max_retries = 0)]
