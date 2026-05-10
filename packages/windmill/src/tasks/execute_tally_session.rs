@@ -475,6 +475,10 @@ fn get_execution_status(execution_status: Option<String>) -> Option<TallyExecuti
 /// # Panics
 ///
 /// Panics if summing census or cast vote totals overflows `i64` (unexpected for realistic elections).
+///
+/// # Errors
+///
+/// Returns an error when contest annotations are missing or cannot be deserialized.
 #[instrument(skip_all, err)]
 pub async fn count_cast_votes_election_with_census(
     tally_session_area_contest: &[TallySessionContest],

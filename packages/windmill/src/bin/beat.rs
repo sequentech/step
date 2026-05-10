@@ -1,5 +1,6 @@
 #![allow(non_upper_case_globals)]
 #![recursion_limit = "256"]
+//! Celery Beat process for Windmill: registers periodic tasks and publishes them to RabbitMQ.
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
@@ -18,19 +19,25 @@ use windmill::tasks::review_boards::review_boards;
 use windmill::tasks::scheduled_events::scheduled_events;
 use windmill::tasks::scheduled_reports::scheduled_reports;
 
+/// Beat tick intervals for periodic tasks (all values are in seconds).
 #[derive(Debug, Parser)]
 #[command(name = "beat", about = "Windmill's periodic task scheduler.")]
 struct CeleryOpt {
+    /// Interval between `review_boards` dispatches.
     #[arg(short = 'r', long, default_value = "15")]
     review_boards_interval: u64,
+    /// Interval between `scheduled_events` dispatches.
     #[arg(short = 's', long, default_value = "10")]
     schedule_events_interval: u64,
+    /// Interval between `scheduled_reports` dispatches.
     #[arg(short = 'c', long, default_value = "60")]
     schedule_reports_interval: u64,
+    /// Interval between `electoral_log_batch_dispatcher` dispatches.
     #[arg(short = 'e', long, default_value = "5")]
     electoral_log_interval: u64,
 }
 
+/// Starts the beat scheduler: loads env, wires periodic tasks, and blocks until shutdown.
 #[tokio::main]
 async fn main() -> Result<()> {
     dotenv().ok();

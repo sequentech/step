@@ -1,5 +1,6 @@
 #![allow(non_upper_case_globals)]
 #![recursion_limit = "256"]
+//! Celery worker binary for Windmill: runs the Celery app as a queue consumer or in produce-only mode.
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
@@ -20,6 +21,11 @@ use windmill::services::celery_app::*;
 use windmill::services::probe::{setup_probe, AppName};
 use windmill::services::tasks_semaphore::init_semaphore;
 
+/// Returns the AMQP queue name for `queue` prefixed with `ENV_SLUG`.
+///
+/// # Panics
+///
+/// Panics if `ENV_SLUG` is not set in the environment.
 fn get_queue_name(queue: Queue) -> String {
     let slug = std::env::var("ENV_SLUG")
         .with_context(|| "missing env var ENV_SLUG")
@@ -38,28 +44,39 @@ lazy_static! {
     static ref ELECTORAL_LOG_BATCH_QUEUE_NAME: String = get_queue_name(Queue::ElectoralLogBatch);
 }
 
+/// Celery options for the Windmill Celery worker process.
 #[derive(Debug, Parser, Clone)]
 #[command(name = "windmill", about = "Windmill task queue prosumer.")]
 enum CeleryOpt {
+    /// Consume tasks from one or more AMQP queues.
     Consume {
+        /// Queue names to bind.
         #[arg(short, long, num_args(1..), default_values_t = vec![BEAT_QUEUE_NAME.clone()])]
         queues: Vec<String>,
+        /// Maximum unacknowledged messages per consumer.
         #[arg(short, long, default_value = "100")]
         prefetch_count: u16,
+        /// When true, acknowledgements are sent after the task body returns.
         #[arg(short, long)]
         acks_late: bool,
+        /// Default retry cap Celery applies before marking a task failed.
         #[arg(short, long, default_value = "4")]
         task_max_retries: u32,
+        /// Retries when establishing the broker connection before exiting.
         #[arg(short, long, default_value = "5")]
         broker_connection_max_retries: u32,
+        /// Broker heartbeat interval in seconds.
         #[arg(short = 'H', long, default_value = "10")]
         heartbeat: u16,
+        /// Tokio worker thread count for the runtime (defaults to logical CPUs).
         #[arg(short, long)]
         worker_threads: Option<usize>,
     },
+    /// Connect to the broker, log readiness, and exit without consuming.
     Produce,
 }
 
+/// Finds duplicates in a vector of strings.
 fn find_duplicates(input: Vec<&str>) -> Vec<&str> {
     let mut occurrences = HashMap::new();
     let mut duplicates = Vec::new();
@@ -77,6 +94,7 @@ fn find_duplicates(input: Vec<&str>) -> Vec<&str> {
     duplicates
 }
 
+/// Resolves the async runtime worker thread count from `Consume` options or CPU count.
 fn read_worker_threads(opt: &CeleryOpt) -> usize {
     match opt.clone() {
         CeleryOpt::Consume { worker_threads, .. } => worker_threads,
@@ -85,6 +103,7 @@ fn read_worker_threads(opt: &CeleryOpt) -> usize {
     .unwrap_or(num_cpus::get())
 }
 
+/// Entry point: builds the multi-thread runtime and runs async worker.
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     dotenv().ok();
 
@@ -106,6 +125,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
+/// Runs the Celery app.
 async fn async_main(opt: CeleryOpt) -> Result<()> {
     init_log(true);
     setup_probe(AppName::WINDMILL).await;

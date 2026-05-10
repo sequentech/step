@@ -21,6 +21,11 @@ use tracing::{event, info, Level};
 use uuid::Uuid;
 
 /// Opens or closes online voting for the whole election event.
+///
+/// # Errors
+///
+/// Fails if the scheduled event or its processor is missing, invalid,
+/// or if updating voting status or stopping the event in the database fails.
 #[instrument(err)]
 pub async fn manage_election_event_date_wrapped(
     hasura_transaction: &Transaction<'_>,

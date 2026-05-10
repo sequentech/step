@@ -43,6 +43,11 @@ use std::default::Default;
 use strand::info;
 use tracing::{event, info, instrument, Level};
 
+/// Builds the JSON variables for template rendering.
+///
+/// # Errors
+///
+/// Fails on `VOTING_PORTAL_URL` missing or auth URL construction errors.
 #[instrument(err)]
 fn get_variables(
     user: &User,
@@ -86,6 +91,11 @@ fn get_variables(
     Ok(variables)
 }
 
+/// Renders the SMS template and sends it when both a handset number and SMS config are configured.
+///
+/// # Errors
+///
+/// Fails on template render errors or SMS provider failures.
 #[instrument(skip(sender), err)]
 async fn send_template_sms(
     receiver: &Option<String>,
@@ -110,6 +120,11 @@ async fn send_template_sms(
     Ok(None)
 }
 
+/// Renders subject and body templates and sends via the configured email sender when a receiver and template exist.
+///
+/// # Errors
+///
+/// Fails on template render errors or email transport failures.
 #[instrument(skip(sender), err)]
 pub async fn send_template_email(
     receiver: &Option<String>,
@@ -163,17 +178,29 @@ pub async fn send_template_email(
     Ok(None)
 }
 
+/// Send counters for one aggregation scope (event-wide or single election).
 #[derive(Default, Debug)]
 struct MetricsUnit {
+    /// Number of emails successfully sent in this scope.
     num_emails_sent: i64,
+    /// Number of SMS messages successfully sent in this scope.
     num_sms_sent: i64,
 }
+
+/// Tracks successful sends at election-event level and per-election for area-based voters.
 #[derive(Default, Debug)]
 struct Metrics {
+    /// Totals for the whole election event audience.
     election_event: MetricsUnit,
+    /// Per-election totals derived from the voter’s area mapping.
     metrics_by_election_id: HashMap<String, MetricsUnit>,
 }
 
+/// Increments email or SMS counters on `metrics_unit`.
+///
+/// # Panics
+///
+/// Panics if counters overflow `i64` (pathological send volume).
 fn update_metrics_unit(metrics_unit: &mut MetricsUnit, communication_method: &TemplateMethod) {
     match communication_method {
         TemplateMethod::EMAIL => {
@@ -192,6 +219,7 @@ fn update_metrics_unit(metrics_unit: &mut MetricsUnit, communication_method: &Te
     };
 }
 
+/// Updates in-memory metrics for the event and for each election tied to the user’s area after a successful send.
 fn update_metrics(
     metrics: &mut Metrics,
     elections_by_area: &HashMap<String, Vec<String>>,
@@ -234,6 +262,15 @@ fn update_metrics(
     });
 }
 
+/// Persists aggregated email/SMS counts to election event and per-election statistics.
+///
+/// # Errors
+///
+/// Fails on Hasura update errors or overflow when summing counters.
+///
+/// # Panics
+///
+/// Panics if summed counters overflow `i64`.
 async fn update_stats(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
@@ -282,6 +319,11 @@ async fn update_stats(
     Ok(())
 }
 
+/// Appends a send-template entry to the election event immu-board when an event context exists.
+///
+/// # Errors
+///
+/// Fails when the bulletin board cannot be resolved or the electoral log write fails.
 async fn on_success_send_message(
     hasura_transaction: &Transaction<'_>,
     election_event: Option<ElectionEvent>,
@@ -330,210 +372,223 @@ async fn on_success_send_message(
     Ok(())
 }
 
-#[instrument(err)]
-#[wrap_map_err::wrap_map_err(TaskError)]
-#[celery::task]
-pub async fn send_template(
-    body: SendTemplateBody,
-    tenant_id: String,
-    admin_id: String,
-    election_event_id: Option<String>,
-) -> Result<()> {
-    let celery_app = get_celery_app().await;
-    let realm = match election_event_id {
-        Some(ref election_event_id) => get_event_realm(&tenant_id, election_event_id),
-        None => get_tenant_realm(&tenant_id),
-    };
+mod send_template_task {
+    #![allow(missing_docs)]
+    #![allow(clippy::missing_docs_in_private_items)]
 
-    let mut hasura_db_client: DbClient = get_hasura_pool()
-        .await
-        .get()
-        .await
-        .map_err(|err| format!("Error getting hasura db pool: {err}"))?;
+    use super::*;
 
-    let hasura_transaction = hasura_db_client
-        .transaction()
-        .await
-        .map_err(|err| format!("Error starting hasura transaction: {err}"))?;
+    /// Celery task: send templates (email/SMS) to users.
+    #[instrument(err)]
+    #[wrap_map_err::wrap_map_err(TaskError)]
+    #[celery::task]
+    pub async fn send_template(
+        body: SendTemplateBody,
+        tenant_id: String,
+        admin_id: String,
+        election_event_id: Option<String>,
+    ) -> Result<()> {
+        let celery_app = get_celery_app().await;
+        let realm = match election_event_id {
+            Some(ref election_event_id) => get_event_realm(&tenant_id, election_event_id),
+            None => get_tenant_realm(&tenant_id),
+        };
 
-    let election_event = match election_event_id.clone() {
-        None => None,
-        Some(election_event_id) => {
-            get_election_event_by_id_if_exist(&hasura_transaction, &tenant_id, &election_event_id)
-                .await?
-        }
-    };
+        let mut hasura_db_client: DbClient = get_hasura_pool()
+            .await
+            .get()
+            .await
+            .map_err(|err| format!("Error getting hasura db pool: {err}"))?;
 
-    let mut keycloak_db_client: DbClient = get_keycloak_pool()
-        .await
-        .get()
-        .await
-        .map_err(|err| anyhow!("{}", err))?;
-    let batch_size = PgConfig::from_env()?.default_sql_batch_size;
-
-    let Some(audience_selection) = body.audience_selection.clone() else {
-        return Err(Error::String("Missing audience selection".to_string()));
-    };
-    let user_ids = match audience_selection {
-        AudienceSelection::SELECTED => body.audience_voter_ids.clone(),
-        _ => None,
-    };
-
-    // perform listing in batches in a read-only repeatable transaction, and
-    // perform stats updates in a new stats transaction each time - because for
-    // each mail/sms sent, there's no rollback for that.
-    let mut processed: i32 = 0;
-    event!(Level::INFO, "before transaction");
-    let keycloak_transaction = keycloak_db_client
-        .transaction()
-        .await
-        .map_err(|err| anyhow!("{err}"))?;
-    event!(Level::INFO, "before isolation");
-    keycloak_transaction
-        .simple_query("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ;")
-        .await
-        .with_context(|| "can't set transaction isolation level")?;
-    event!(Level::INFO, "after isolation");
-    let mut hasura_db_client: DbClient = get_hasura_pool()
-        .await
-        .get()
-        .await
-        .with_context(|| "Error loading hasura db client")?;
-
-    let elections_by_area = match election_event_id.clone() {
-        None => HashMap::new(),
-        Some(ref election_event_id) => get_elections_by_area(
-            &hasura_transaction,
-            tenant_id.as_str(),
-            election_event_id.as_str(),
-        )
-        .await
-        .with_context(|| "Error listing elections by area")?,
-    };
-
-    loop {
         let hasura_transaction = hasura_db_client
             .transaction()
             .await
-            .with_context(|| "Error creating a transaction")?;
+            .map_err(|err| format!("Error starting hasura transaction: {err}"))?;
 
-        let filter = ListUsersFilter {
-            tenant_id: tenant_id.clone(),
-            election_event_id: election_event_id.clone(),
-            election_id: None,
-            area_id: None,
-            realm: realm.clone(),
-            search: None,
-            first_name: None,
-            last_name: None,
-            username: None,
-            email: None,
-            limit: Some(batch_size),
-            offset: Some(processed),
-            user_ids: user_ids.clone(),
-            attributes: None,
-            enabled: None,
-            email_verified: None,
-            sort: None,
-            has_voted: None,
-            authorized_to_election_alias: None,
-        };
-
-        let (users, total_count) = match audience_selection {
-            AudienceSelection::NOT_VOTED | AudienceSelection::VOTED => {
-                list_users_with_vote_info(&hasura_transaction, &keycloak_transaction, filter)
-                    .await
-                    .with_context(|| "Failed to featch list_users_with_vote_info")?
+        let election_event = match election_event_id.clone() {
+            None => None,
+            Some(election_event_id) => {
+                get_election_event_by_id_if_exist(
+                    &hasura_transaction,
+                    &tenant_id,
+                    &election_event_id,
+                )
+                .await?
             }
-            _ => list_users(&hasura_transaction, &keycloak_transaction, filter)
-                .await
-                .with_context(|| "Failed to featch list_users")?,
         };
 
-        let mut filtered_users = users.clone();
+        let mut keycloak_db_client: DbClient = get_keycloak_pool()
+            .await
+            .get()
+            .await
+            .map_err(|err| anyhow!("{}", err))?;
+        let batch_size = PgConfig::from_env()?.default_sql_batch_size;
 
-        match audience_selection {
-            AudienceSelection::NOT_VOTED => filtered_users.retain(|user| {
-                user.votes_info
-                    .as_ref()
-                    .is_some_and(|vote_info| vote_info.is_empty())
-            }),
-            AudienceSelection::VOTED => filtered_users.retain(|user| {
-                user.votes_info
-                    .as_ref()
-                    .is_some_and(|vote_info| !vote_info.is_empty())
-            }),
-            _ => {}
+        let Some(audience_selection) = body.audience_selection.clone() else {
+            return Err(Error::String("Missing audience selection".to_string()));
+        };
+        let user_ids = match audience_selection {
+            AudienceSelection::SELECTED => body.audience_voter_ids.clone(),
+            _ => None,
         };
 
-        let email_sender = EmailSender::new().await?;
-        let sms_sender = SmsSender::new().await?;
-        let mut metrics = Metrics {
-            election_event: MetricsUnit {
-                num_emails_sent: 0,
-                num_sms_sent: 0,
-            },
-            metrics_by_election_id: Default::default(),
-        };
+        // perform listing in batches in a read-only repeatable transaction, and
+        // perform stats updates in a new stats transaction each time - because for
+        // each mail/sms sent, there's no rollback for that.
+        let mut processed: i32 = 0;
+        event!(Level::INFO, "before transaction");
+        let keycloak_transaction = keycloak_db_client
+            .transaction()
+            .await
+            .map_err(|err| anyhow!("{err}"))?;
+        event!(Level::INFO, "before isolation");
+        keycloak_transaction
+            .simple_query("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ;")
+            .await
+            .with_context(|| "can't set transaction isolation level")?;
+        event!(Level::INFO, "after isolation");
+        let mut hasura_db_client: DbClient = get_hasura_pool()
+            .await
+            .get()
+            .await
+            .with_context(|| "Error loading hasura db client")?;
 
-        let Some(communication_method) = body.communication_method.clone() else {
-            return Err(Error::String("Missing template method".into()));
-        };
-
-        for user in filtered_users.iter() {
-            let success = send_template_email_or_sms(
+        let elections_by_area = match election_event_id.clone() {
+            None => HashMap::new(),
+            Some(ref election_event_id) => get_elections_by_area(
                 &hasura_transaction,
-                user,
-                &election_event,
-                &tenant_id,
-                Some(admin_id.clone()),
-                &body.email,
-                &body.sms,
-                &email_sender,
-                &sms_sender,
-                Some(communication_method.clone()),
+                tenant_id.as_str(),
+                election_event_id.as_str(),
             )
-            .await;
-            update_metrics(
-                &mut metrics,
-                &elections_by_area,
-                user,
-                /* communication_method */ &communication_method,
-                /* success */ success.is_ok(),
-            );
+            .await
+            .with_context(|| "Error listing elections by area")?,
+        };
+
+        loop {
+            let hasura_transaction = hasura_db_client
+                .transaction()
+                .await
+                .with_context(|| "Error creating a transaction")?;
+
+            let filter = ListUsersFilter {
+                tenant_id: tenant_id.clone(),
+                election_event_id: election_event_id.clone(),
+                election_id: None,
+                area_id: None,
+                realm: realm.clone(),
+                search: None,
+                first_name: None,
+                last_name: None,
+                username: None,
+                email: None,
+                limit: Some(batch_size),
+                offset: Some(processed),
+                user_ids: user_ids.clone(),
+                attributes: None,
+                enabled: None,
+                email_verified: None,
+                sort: None,
+                has_voted: None,
+                authorized_to_election_alias: None,
+            };
+
+            let (users, total_count) = match audience_selection {
+                AudienceSelection::NOT_VOTED | AudienceSelection::VOTED => {
+                    list_users_with_vote_info(&hasura_transaction, &keycloak_transaction, filter)
+                        .await
+                        .with_context(|| "Failed to featch list_users_with_vote_info")?
+                }
+                _ => list_users(&hasura_transaction, &keycloak_transaction, filter)
+                    .await
+                    .with_context(|| "Failed to featch list_users")?,
+            };
+
+            let mut filtered_users = users.clone();
+
+            match audience_selection {
+                AudienceSelection::NOT_VOTED => filtered_users.retain(|user| {
+                    user.votes_info
+                        .as_ref()
+                        .is_some_and(|vote_info| vote_info.is_empty())
+                }),
+                AudienceSelection::VOTED => filtered_users.retain(|user| {
+                    user.votes_info
+                        .as_ref()
+                        .is_some_and(|vote_info| !vote_info.is_empty())
+                }),
+                _ => {}
+            };
+
+            let email_sender = EmailSender::new().await?;
+            let sms_sender = SmsSender::new().await?;
+            let mut metrics = Metrics {
+                election_event: MetricsUnit {
+                    num_emails_sent: 0,
+                    num_sms_sent: 0,
+                },
+                metrics_by_election_id: Default::default(),
+            };
+
+            let Some(communication_method) = body.communication_method.clone() else {
+                return Err(Error::String("Missing template method".into()));
+            };
+
+            for user in filtered_users.iter() {
+                let success = send_template_email_or_sms(
+                    &hasura_transaction,
+                    user,
+                    &election_event,
+                    &tenant_id,
+                    Some(admin_id.clone()),
+                    &body.email,
+                    &body.sms,
+                    &email_sender,
+                    &sms_sender,
+                    Some(communication_method.clone()),
+                )
+                .await;
+                update_metrics(
+                    &mut metrics,
+                    &elections_by_area,
+                    user,
+                    /* communication_method */ &communication_method,
+                    /* success */ success.is_ok(),
+                );
+            }
+
+            let page_len: i32 = users.len().try_into().map_err(|err| anyhow!("{err}"))?;
+            processed = processed
+                .checked_add(page_len)
+                .expect("send_template processed count overflow");
+
+            // update stats
+            update_stats(
+                &hasura_transaction,
+                &tenant_id,
+                &election_event_id,
+                &metrics,
+            )
+            .await
+            .with_context(|| "Error updating stats")?;
+
+            hasura_transaction
+                .commit()
+                .await
+                .with_context(|| "Error committing update stats transaction")?;
+
+            if processed >= total_count {
+                break;
+            }
         }
-
-        let page_len: i32 = users.len().try_into().map_err(|err| anyhow!("{err}"))?;
-        processed = processed
-            .checked_add(page_len)
-            .expect("send_template processed count overflow");
-
-        // update stats
-        update_stats(
-            &hasura_transaction,
-            &tenant_id,
-            &election_event_id,
-            &metrics,
-        )
-        .await
-        .with_context(|| "Error updating stats")?;
-
-        hasura_transaction
+        keycloak_transaction
             .commit()
             .await
-            .with_context(|| "Error committing update stats transaction")?;
+            .with_context(|| "error comitting transaction")?;
 
-        if processed >= total_count {
-            break;
-        }
+        Ok(())
     }
-    keycloak_transaction
-        .commit()
-        .await
-        .with_context(|| "error comitting transaction")?;
-
-    Ok(())
 }
+pub use send_template_task::send_template;
 
 /// In the case of rejection:
 /// admin_id and election_event are not needed so both can be set to None.
@@ -544,6 +599,10 @@ pub async fn send_template(
 ///
 /// In the case of acceptance:
 /// All the fields are required.
+///
+/// # Errors
+///
+/// Returns an error when the chosen channel’s send path fails after attempting delivery.
 #[instrument(err, skip(election_event, email_sender, sms_sender))]
 pub async fn send_template_email_or_sms(
     hasura_transaction: &Transaction<'_>,

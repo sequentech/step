@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-//! Processes trustee board activities and tally workflows.
+//! Processes election event board activities and tally workflows.
 use anyhow::{Context, Result as AnyhowResult};
 use celery::error::TaskError;
 use deadpool_postgres::{Client as DbClient, Transaction};
@@ -20,6 +20,11 @@ use crate::tasks::post_tally::post_tally_task;
 use crate::tasks::set_public_key::set_public_key;
 use crate::types::error::Result;
 
+/// Loads keys ceremonies and tally sessions for an election event and enqueues follow-up Celery tasks.
+///
+/// # Errors
+///
+/// Fails on database errors, missing election data, or when dispatching a child task to Celery fails.
 #[instrument(err)]
 pub async fn process_board_impl(tenant_id: String, election_event_id: String) -> AnyhowResult<()> {
     let mut hasura_db_client: DbClient = get_hasura_pool().await.get().await?;
@@ -114,11 +119,21 @@ pub async fn process_board_impl(tenant_id: String, election_event_id: String) ->
     Ok(())
 }
 
-#[instrument(err)]
-#[wrap_map_err::wrap_map_err(TaskError)]
-#[celery::task(max_retries = 0)]
-pub async fn process_board(tenant_id: String, election_event_id: String) -> Result<()> {
-    process_board_impl(tenant_id, election_event_id).await?;
+mod process_board_task {
+    #![allow(missing_docs)]
+    #![allow(clippy::missing_docs_in_private_items)]
 
-    Ok(())
+    use super::*;
+
+    /// Celery task: drives keys-ceremony and tally-related work for one election event by enqueueing downstream tasks.
+    #[instrument(err)]
+    #[wrap_map_err::wrap_map_err(TaskError)]
+    #[celery::task(max_retries = 0)]
+    pub async fn process_board(tenant_id: String, election_event_id: String) -> Result<()> {
+        process_board_impl(tenant_id, election_event_id).await?;
+
+        Ok(())
+    }
 }
+
+pub use process_board_task::process_board;

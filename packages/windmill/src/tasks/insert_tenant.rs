@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 //! Insert a new tenant record and Keycloak realm.
 use crate::postgres::tenant::{
-    get_tenant_by_id_if_exist, get_tenant_by_slug_if_exist, insert_tenant,
+    get_tenant_by_id_if_exist, get_tenant_by_slug_if_exist, insert_tenant as insert_tenant_row,
 };
 use crate::services::database::get_hasura_pool;
 use crate::services::import::import_election_event::remove_keycloak_realm_secrets;
@@ -23,6 +23,15 @@ use sequent_core::types::hasura::core::TasksExecution;
 use std::{env, fs};
 use tracing::{event, instrument, Level};
 
+/// Reads the default Keycloak realm JSON from `KEYCLOAK_TENANT_REALM_CONFIG_PATH`.
+///
+/// # Errors
+///
+/// Returns an error if the file cannot be read or does not deserialize into a [`RealmRepresentation`].
+///
+/// # Panics
+///
+/// Panics when `KEYCLOAK_TENANT_REALM_CONFIG_PATH` is not set.
 #[instrument(err)]
 pub fn read_default_tenant_realm() -> AnyhowResult<RealmRepresentation> {
     let realm_config_path = env::var("KEYCLOAK_TENANT_REALM_CONFIG_PATH")
@@ -35,6 +44,11 @@ pub fn read_default_tenant_realm() -> AnyhowResult<RealmRepresentation> {
     })
 }
 
+/// Creates or updates the tenant Keycloak realm from the default template and refreshes JWKS.
+///
+/// # Errors
+///
+/// Propagates template load, secret stripping, JSON, Keycloak admin, or JWKS errors.
 #[instrument(err)]
 pub async fn upsert_keycloak_realm(tenant_id: &str, slug: &str) -> Result<()> {
     let mut default_tenant = read_default_tenant_realm()?;
@@ -56,6 +70,11 @@ pub async fn upsert_keycloak_realm(tenant_id: &str, slug: &str) -> Result<()> {
     Ok(())
 }
 
+/// Inserts a tenant row when no row with the same id exists.
+///
+/// # Errors
+///
+/// Propagates Hasura lookup or insert failures.
 #[instrument(skip(hasura_transaction), err)]
 pub async fn insert_tenant_db(
     hasura_transaction: &Transaction<'_>,
@@ -70,11 +89,16 @@ pub async fn insert_tenant_db(
         return Ok(());
     }
 
-    insert_tenant(hasura_transaction, tenant_id, slug).await?;
+    insert_tenant_row(hasura_transaction, tenant_id, slug).await?;
 
     Ok(())
 }
 
+/// Returns whether a tenant with the given slug already exists.
+///
+/// # Errors
+///
+/// Propagates Hasura lookup failures.
 #[instrument(skip(hasura_transaction), err)]
 pub async fn check_tenant_exists(hasura_transaction: &Transaction<'_>, slug: &str) -> Result<bool> {
     // fetch tenant
@@ -83,6 +107,11 @@ pub async fn check_tenant_exists(hasura_transaction: &Transaction<'_>, slug: &st
     Ok(found_tenant.is_some())
 }
 
+/// Full provisioning path: skip if slug taken, otherwise upsert Keycloak realm and insert the tenant, then commit.
+///
+/// # Errors
+///
+/// Propagates pool, transaction, Keycloak, insert, or commit failures (surfaced as strings).
 #[instrument(err)]
 pub async fn process_insert_tenant(tenant_id: String, slug: String) -> Result<()> {
     let mut hasura_db_client: DbClient = get_hasura_pool()
@@ -113,28 +142,38 @@ pub async fn process_insert_tenant(tenant_id: String, slug: String) -> Result<()
     Ok(())
 }
 
-#[instrument(err)]
-#[wrap_map_err::wrap_map_err(TaskError)]
-#[celery::task]
-pub async fn insert_tenant(
-    tenant_id: String,
-    slug: String,
-    task_execution: Option<TasksExecution>,
-) -> Result<()> {
-    let res = process_insert_tenant(tenant_id.clone(), slug.clone()).await;
-    if let Some(task_execution) = task_execution {
-        if let Err(err) = res {
-            let err_str = format!("Error inserting tenant: {}", err);
-            event!(Level::ERROR, err_str);
-            update_fail(&task_execution, &err_str)
-                .await
-                .context("Failed to update task insert tenant to FAILED")?;
-            return Err(err);
-        }
-        update_complete(&task_execution, None)
-            .await
-            .context("Failed to update task execution status to COMPLETED")?;
-    }
+mod insert_tenant_task {
+    #![allow(missing_docs)]
+    #![allow(clippy::missing_docs_in_private_items)]
 
-    Ok(())
+    use super::*;
+
+    /// Celery task: provisions tenant realm and DB row, optionally updating the linked task execution.
+    #[instrument(err)]
+    #[wrap_map_err::wrap_map_err(TaskError)]
+    #[celery::task]
+    pub async fn insert_tenant(
+        tenant_id: String,
+        slug: String,
+        task_execution: Option<TasksExecution>,
+    ) -> Result<()> {
+        let res = process_insert_tenant(tenant_id.clone(), slug.clone()).await;
+        if let Some(task_execution) = task_execution {
+            if let Err(err) = res {
+                let err_str = format!("Error inserting tenant: {}", err);
+                event!(Level::ERROR, err_str);
+                update_fail(&task_execution, &err_str)
+                    .await
+                    .context("Failed to update task insert tenant to FAILED")?;
+                return Err(err);
+            }
+            update_complete(&task_execution, None)
+                .await
+                .context("Failed to update task execution status to COMPLETED")?;
+        }
+
+        Ok(())
+    }
 }
+
+pub use insert_tenant_task::insert_tenant;

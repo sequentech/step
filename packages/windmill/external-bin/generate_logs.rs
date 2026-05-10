@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-
+//! Command-line tool to generate a CSV report of activity logs from immudb.
 use anyhow::{Context, Result};
 use base64::engine::general_purpose;
 use base64::Engine;
@@ -43,15 +43,21 @@ struct Cli {
 }
 
 #[derive(Deserialize, Debug)]
+/// Configuration for the generate_logs tool.
 struct Config {
+    /// Immudb URL
     immudb_url: String,
+    /// Immudb username
     immudb_user: String,
+    /// Immudb password
     immudb_password: String,
-    elections: HashMap<String, String>, // election_id -> election_name (for CSV filename)
+    /// Election ID -> Election Name (for CSV filename)
+    elections: HashMap<String, String>,
 }
 
 // --- Helper Functions ---
 
+/// Sanitizes a filename by replacing non-alphanumeric characters with underscores.
 fn sanitize_filename(name: &str) -> String {
     name.chars()
         .map(|c| match c {

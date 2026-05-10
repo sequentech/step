@@ -45,16 +45,26 @@ use velvet::config::ballot_images_config::PipeConfigBallotImages;
 use velvet::pipes::pipe_name::PipeName;
 use velvet::pipes::pipe_name::PipeNameOutputDir;
 
+/// Templates type to be rendered.
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(tag = "type")]
 pub enum EGenerateTemplate {
+    /// Ballot-images document.
     BallotImages {
+        /// Election event that owns the tally.
         election_event_id: String,
+        /// Election whose ballot images are rendered.
         election_id: String,
+        /// Completed tally session.
         tally_session_id: String,
     },
 }
 
+/// Writes `velvet-config.json` for ballot-images rendering into the extracted tally directory.
+///
+/// # Errors
+///
+/// Fails on filesystem, env, S3 URL resolution, tally config build, or serialization errors.
 #[instrument(err, skip(hasura_transaction, tally_session))]
 async fn create_config(
     hasura_transaction: &Transaction<'_>,
@@ -121,6 +131,11 @@ async fn create_config(
     Ok(first_pipe_id.to_string())
 }
 
+/// Produces ballot-images output for one document: downloads tally, runs velvet, zips HTML, optionally encrypts, uploads.
+///
+/// # Errors
+///
+/// Fails if the tally session is incomplete, archives cannot be read, velvet fails, or upload fails.
 #[instrument(err, skip(hasura_transaction))]
 async fn generate_template_document(
     hasura_transaction: &Transaction<'_>,
@@ -267,6 +282,11 @@ async fn generate_template_document(
     Ok(())
 }
 
+/// Generates the template document.
+///
+/// # Errors
+///
+/// Fails on pool/transaction errors, document generation, task status updates, or commit failures.
 #[instrument(err)]
 async fn generate_template_block(
     tenant_id: String,
@@ -338,39 +358,53 @@ async fn generate_template_block(
     Ok(())
 }
 
-#[instrument(err)]
-#[wrap_map_err::wrap_map_err(TaskError)]
-#[celery::task]
-pub async fn generate_template(
-    tenant_id: String,
-    document_id: String,
-    input: EGenerateTemplate,
-    task_execution: Option<TasksExecution>,
-    executer_username: Option<String>,
-) -> Result<()> {
-    let _permit = acquire_semaphore().await?;
-    // Spawn the task using an async block
-    let handle = tokio::task::spawn_blocking({
-        move || {
-            tokio::runtime::Handle::current().block_on(async move {
-                generate_template_block(
-                    tenant_id,
-                    document_id,
-                    input,
-                    task_execution,
-                    executer_username,
-                )
-                .await
-                .map_err(|err| anyhow!("generate_report error: {:?}", err))
-            })
-        }
-    });
+mod generate_template_task {
+    #![allow(missing_docs)]
+    #![allow(clippy::missing_docs_in_private_items)]
 
-    // Await the result and handle JoinError explicitly
-    match handle.await {
-        Ok(inner_result) => inner_result.map_err(|err| Error::from(err.context("Task failed"))),
-        Err(join_error) => Err(Error::from(anyhow!("Task panicked: {}", join_error))),
-    }?;
+    use super::*;
 
-    Ok(())
+    /// Celery task: rate-limits template jobs then runs the blocking template renderer.
+    ///
+    /// # Errors
+    ///
+    /// Fails on semaphore acquisition, worker errors, or join panics.
+    #[instrument(err)]
+    #[wrap_map_err::wrap_map_err(TaskError)]
+    #[celery::task]
+    pub async fn generate_template(
+        tenant_id: String,
+        document_id: String,
+        input: EGenerateTemplate,
+        task_execution: Option<TasksExecution>,
+        executer_username: Option<String>,
+    ) -> Result<()> {
+        let _permit = acquire_semaphore().await?;
+        // Spawn the task using an async block
+        let handle = tokio::task::spawn_blocking({
+            move || {
+                tokio::runtime::Handle::current().block_on(async move {
+                    generate_template_block(
+                        tenant_id,
+                        document_id,
+                        input,
+                        task_execution,
+                        executer_username,
+                    )
+                    .await
+                    .map_err(|err| anyhow!("generate_report error: {:?}", err))
+                })
+            }
+        });
+
+        // Await the result and handle JoinError explicitly
+        match handle.await {
+            Ok(inner_result) => inner_result.map_err(|err| Error::from(err.context("Task failed"))),
+            Err(join_error) => Err(Error::from(anyhow!("Task panicked: {}", join_error))),
+        }?;
+
+        Ok(())
+    }
 }
+
+pub use generate_template_task::generate_template;

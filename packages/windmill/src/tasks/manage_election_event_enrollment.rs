@@ -127,6 +127,11 @@ pub async fn update_keycloak_enrollment(
 }
 
 /// Aligns Hasura presentation enrollment flags and Keycloak with a scheduled enrollment window.
+///
+/// # Errors
+///
+/// Fails if the scheduled event or election cannot be loaded, Keycloak updates fail,
+/// deserialization fails, or stopping the event fails.
 #[instrument(err)]
 pub async fn manage_election_event_enrollment_wrapped(
     hasura_transaction: &Transaction<'_>,

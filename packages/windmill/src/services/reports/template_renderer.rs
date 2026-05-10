@@ -116,6 +116,7 @@ pub enum EReportEncryption {
 pub const DEFAULT_ITEMS_PER_REPORT_LIMIT: usize = 1000;
 
 /// Trait implemented by each report type to provide template data and metadata.
+#[allow(missing_docs)] // `async_trait` expands to items that trigger `missing_docs` on this trait.
 #[async_trait]
 pub trait TemplateRenderer: Debug {
     /// Report-specific data rendered into the user template.

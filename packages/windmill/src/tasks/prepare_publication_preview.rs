@@ -167,7 +167,11 @@ pub async fn prepare_publication_preview_task(
     Ok(document_id)
 }
 
-/// Get the support materials and document vectors in json.
+/// Loads support materials with their linked documents and serializes both lists to JSON values.
+///
+/// # Errors
+///
+/// Propagates database, context, or JSON serialization failures.
 pub async fn get_support_material_documents_json(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
@@ -186,7 +190,11 @@ pub async fn get_support_material_documents_json(
     Ok((support_materials, documents))
 }
 
-/// Get the elections and mutate the status.voting_status to open
+/// Loads elections for an event and rewrites each row’s voting status to open.
+///
+/// # Errors
+///
+/// Propagates database lookup or JSON serialization failures.
 pub async fn get_elections_json_with_open_status(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,

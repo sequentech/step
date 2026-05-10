@@ -26,6 +26,11 @@ use std::fs;
 use tokio_postgres::row::Row;
 use tracing::{event, instrument, Level};
 
+/// Inserts the election event, bulletin board, and marks the import task complete.
+///
+/// # Errors
+///
+/// Fails on DB pool/transaction errors, realm upsert, insert, or board wiring errors.
 #[instrument(err)]
 pub async fn insert_election_event_anyhow(
     object: CreateElectionEventInput,
@@ -116,7 +121,9 @@ pub async fn insert_election_event_anyhow(
         .context("Failed to update task execution status to COMPLETED")
 }
 
+/// GraphQL-shaped payload used when importing a new election event from the admin API or tasks.
 #[derive(Serialize, Deserialize, Debug, Clone)]
+#[allow(missing_docs)]
 pub struct CreateElectionEventInput {
     pub id: Option<String>,
     pub created_at: Option<String>,
@@ -140,15 +147,29 @@ pub struct CreateElectionEventInput {
     pub statistics: Option<Value>,
 }
 
-#[instrument(err)]
-#[wrap_map_err::wrap_map_err(TaskError)]
-#[celery::task]
-pub async fn insert_election_event_t(
-    object: CreateElectionEventInput,
-    id: String,
-    task_execution: TasksExecution,
-) -> Result<()> {
-    insert_election_event_anyhow(object, id, task_execution).await?;
+mod insert_election_event_t_task {
+    #![allow(missing_docs)]
+    #![allow(clippy::missing_docs_in_private_items)]
 
-    Ok(())
+    use super::*;
+
+    /// Celery task: provisions realm and Hasura rows for a new election event import.
+    ///
+    /// # Errors
+    ///
+    /// Propagates any error returned from the import pipeline.
+    #[instrument(err)]
+    #[wrap_map_err::wrap_map_err(TaskError)]
+    #[celery::task]
+    pub async fn insert_election_event_t(
+        object: CreateElectionEventInput,
+        id: String,
+        task_execution: TasksExecution,
+    ) -> Result<()> {
+        insert_election_event_anyhow(object, id, task_execution).await?;
+
+        Ok(())
+    }
 }
+
+pub use insert_election_event_t_task::insert_election_event_t;
