@@ -16,6 +16,7 @@ use crate::services::reports::{
     electoral_results::ElectoralResults,
     initialization::InitializationTemplate,
     manual_verification::ManualVerificationTemplate,
+    participation::ParticipationReportTemplate,
 };
 use crate::services::tasks_execution::update_fail;
 use crate::services::tasks_semaphore::acquire_semaphore;
@@ -139,6 +140,10 @@ pub async fn generate_report(
         }
         Ok(ReportType::MANUAL_VERIFICATION) => {
             let report = ManualVerificationTemplate::new(ids);
+            execute_report!(report);
+        }
+        Ok(ReportType::PARTICIPATION_REPORT) => {
+            let report = ParticipationReportTemplate::new(ids);
             execute_report!(report);
         }
         Err(err) => return Err(anyhow!("{:?}", err)),
