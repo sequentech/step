@@ -105,7 +105,7 @@ pub async fn import_templates(
     Ok(())
 }
 
-mod import_templates_task {
+mod import_templates_celery_task {
     #![allow(missing_docs)]
     #![allow(clippy::missing_docs_in_private_items)]
 
@@ -142,4 +142,4 @@ mod import_templates_task {
     }
 }
 
-pub use import_templates_task::import_templates_task;
+pub use import_templates_celery_task::import_templates_task;
