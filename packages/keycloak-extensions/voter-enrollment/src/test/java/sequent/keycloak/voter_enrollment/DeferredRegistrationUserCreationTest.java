@@ -42,6 +42,12 @@ class DeferredRegistrationUserCreationTest {
   }
 
   @Test
+  void hiddenProfileAttributesIncludesLocale() {
+    assertTrue(
+        DeferredRegistrationUserCreation.HIDDEN_PROFILE_ATTRIBUTES.contains(UserModel.LOCALE));
+  }
+
+  @Test
   void isLocaleRequiredErrorOnlyMatchesRequiredLocale() {
     ValidationException.Error localeRequiredError =
         new ValidationException.Error(
