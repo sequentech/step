@@ -44,7 +44,6 @@ impl TryFrom<Row> for TallySessionContestWrapper {
 ///
 /// Returns an error if SQL preparation or execution fails,
 /// if UUID or other parsing fails.
-
 pub async fn update_tally_session_contests_annotations(
     hasura_transaction: &Transaction<'_>,
     contests: &[TallySessionContest],
@@ -106,6 +105,8 @@ pub async fn insert_tally_session_contest(
     election_id: &str,
 ) -> Result<TallySessionContest> {
     let contest_uuid = contest_id.map(|val| parse_uuid_v4(&val)).transpose()?;
+    let session_id_i32 = i32::try_from(session_id)
+        .map_err(|_| anyhow!("session_id does not fit in i32 for tally_session_contest insert"))?;
 
     let statement = hasura_transaction
         .prepare(
@@ -135,13 +136,13 @@ pub async fn insert_tally_session_contest(
                 &parse_uuid_v4(election_event_id)?,
                 &parse_uuid_v4(area_id)?,
                 &contest_uuid,
-                &(session_id as i32),
+                &session_id_i32,
                 &parse_uuid_v4(tally_session_id)?,
                 &parse_uuid_v4(election_id)?,
             ],
         )
         .await
-        .map_err(|err| anyhow!("Error inserting row: {}", err))?;
+        .map_err(|err| anyhow!("Error inserting row: {err}"))?;
 
     let values: Vec<TallySessionContest> = rows
         .into_iter()
@@ -203,7 +204,8 @@ pub async fn get_tally_session_highest_batch(
         .into_iter()
         .map(|row| -> Result<BatchNumber> {
             let session_id: i32 = row.try_get("session_id")?;
-            Ok(session_id as BatchNumber)
+            usize::try_from(session_id)
+                .map_err(|_| anyhow!("session_id must be non-negative for tally batch"))
         })
         .collect::<Result<Vec<BatchNumber>>>()?;
 

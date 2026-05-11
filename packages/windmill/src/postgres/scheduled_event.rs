@@ -5,10 +5,9 @@ use anyhow::{anyhow, Context, Result};
 use chrono::{DateTime, Utc};
 use deadpool_postgres::Transaction;
 use sequent_core::services::uuid_validation::parse_uuid_v4;
-use sequent_core::types::scheduled_event::*;
 use sequent_core::{
     serialization::deserialize_with_path::deserialize_value,
-    types::scheduled_event::{EventProcessors, ScheduledEvent},
+    types::scheduled_event::{CronConfig, EventProcessors, ScheduledEvent},
 };
 use serde_json::Value;
 use std::str::FromStr;
@@ -413,7 +412,7 @@ pub async fn insert_scheduled_event(
         .await
         .map_err(|err| anyhow!("Error inserting scheduled event: {err}"))?;
 
-    let rows: Vec<ScheduledEvent> = rows
+    let mut events: Vec<ScheduledEvent> = rows
         .into_iter()
         .map(|row| -> Result<ScheduledEvent> {
             row.try_into()
@@ -422,11 +421,12 @@ pub async fn insert_scheduled_event(
         .collect::<Result<Vec<ScheduledEvent>>>()
         .map_err(|err| anyhow!("Error deserializing scheduled event: {err}"))?;
 
-    if 1 == rows.len() {
-        Ok(rows[0].clone())
-    } else {
-        Err(anyhow!("Unexpected rows affected {}", rows.len()))
+    if events.len() == 1 {
+        return events
+            .pop()
+            .ok_or_else(|| anyhow!("expected exactly one scheduled event row from insert"));
     }
+    Err(anyhow!("Unexpected rows affected {}", events.len()))
 }
 /// Get scheduled event by election event id from the database.
 ///
@@ -620,14 +620,16 @@ pub async fn insert_new_scheduled_event(
                 .map(|res: ScheduledEventWrapper| -> ScheduledEvent { res.0 })
         })
         .collect::<Result<Vec<ScheduledEvent>>>()
-        .map_err(|err| anyhow!("Error deserializing new scheduled event: {}", err))?;
+        .map_err(|err| anyhow!("Error deserializing new scheduled event: {err}"))?;
 
     if rows.len() == 1 {
-        Ok(rows[0].clone())
-    } else {
-        Err(anyhow!(
-            "Unexpected number of rows affected: {}",
-            rows.len()
-        ))
+        let mut rows = rows;
+        return rows
+            .pop()
+            .ok_or_else(|| anyhow!("expected exactly one scheduled event row from insert"));
     }
+    Err(anyhow!(
+        "Unexpected number of rows affected: {}",
+        rows.len()
+    ))
 }

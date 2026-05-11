@@ -3,6 +3,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use std::collections::HashMap;
+use std::fmt::Write as _;
+use std::hash::BuildHasher;
 
 use crate::{
     services::application::ApplicationAnnotations,
@@ -114,20 +116,20 @@ pub async fn get_permission_label_from_post(
 
     Ok((permission_label, area_id))
 }
+
 /// Insert application into the database.
 ///
 /// # Errors
 ///
 /// Returns an error if SQL preparation or execution fails, if UUID or other parsing fails, or if row mapping is inconsistent.
-
 #[instrument(err, skip_all)]
-pub async fn insert_application(
+pub async fn insert_application<S: BuildHasher + Sync>(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
     election_event_id: &str,
     area_id: &Option<Uuid>,
     applicant_id: &str,
-    applicant_data: &HashMap<String, String>,
+    applicant_data: &HashMap<String, String, S>,
     labels: &Option<Value>,
     annotations: &ApplicationAnnotations,
     verification_type: &ApplicationType,
@@ -194,7 +196,6 @@ pub async fn insert_application(
 ///
 /// Returns an error if SQL preparation or execution fails,
 /// if UUID or other parsing fails, or if row mapping is inconsistent.
-
 #[instrument(err, skip_all)]
 pub async fn update_application_status(
     hasura_transaction: &Transaction<'_>,
@@ -299,6 +300,7 @@ pub async fn update_application_status(
 
     Ok(application)
 }
+
 /// Get applications for a given area, tenant and election event from the database.
 ///
 /// # Errors
@@ -310,7 +312,6 @@ pub async fn update_application_status(
 ///
 /// Panics only if internal SQL placeholder arithmetic overflows,
 /// which is not expected in production-sized filters.
-
 #[instrument(err, skip_all)]
 pub async fn get_applications(
     hasura_transaction: &Transaction<'_>,
@@ -344,13 +345,13 @@ pub async fn get_applications(
     let status;
     let verification_type;
     if let Some(filters) = filters {
-        query.push_str(format!(" AND status = ${param_index}").as_str());
+        write!(query, " AND status = ${param_index}").expect("writing to String");
         status = filters.clone().status.to_string();
         params.push(&status);
         param_index = param_index.checked_add(1).expect("param_index overflow");
 
         if filters.verification_type.is_some() {
-            query.push_str(&format!(" AND verification_type = ${param_index}"));
+            write!(query, " AND verification_type = ${param_index}").expect("writing to String");
             verification_type = filters
                 .verification_type
                 .clone()
@@ -364,14 +365,14 @@ pub async fn get_applications(
     query.push_str(" ORDER BY created_at ASC, id ASC");
     let lim: i64;
     if let Some(limit) = limit {
-        query.push_str(&format!(" LIMIT ${param_index}"));
+        write!(query, " LIMIT ${param_index}").expect("writing to String");
         lim = limit;
         params.push(&lim);
         param_index = param_index.checked_add(1).expect("param_index overflow");
     }
     let off: i64;
     if let Some(offset) = offset {
-        query.push_str(&format!(" OFFSET ${param_index}"));
+        write!(query, " OFFSET ${param_index}").expect("writing to String");
         off = offset;
         params.push(&off);
     }
@@ -401,13 +402,16 @@ pub async fn get_applications(
         Some(
             offset
                 .unwrap_or(0)
-                .checked_add(results.len() as i64)
+                .checked_add(
+                    i64::try_from(results.len()).expect("result count fits in i64 for offset"),
+                )
                 .expect("last_offset overflow"),
         )
     };
 
     Ok((results, last_offset))
 }
+
 /// Counts applications based on filters.
 ///
 /// # Errors
@@ -419,7 +423,6 @@ pub async fn get_applications(
 ///
 /// Panics only if internal SQL placeholder arithmetic overflows,
 /// which is not expected in production-sized filters.
-
 #[instrument(err, skip_all)]
 pub async fn count_applications(
     hasura_transaction: &Transaction<'_>,
@@ -437,7 +440,7 @@ pub async fn count_applications(
                 .expect("current_param_place overflow");
             "AND area_id = $3 ".to_string()
         }
-        None => "".to_string(),
+        None => String::new(),
     };
 
     let mut query = format!(
@@ -463,8 +466,8 @@ pub async fn count_applications(
         optional_area_id = Some(parsed_area_id); // Store the value in the variable
     }
 
-    if let Some(ref area_id) = optional_area_id {
-        params.push(area_id); // Push the reference to the vector
+    if let Some(area_uuid) = optional_area_id.as_ref() {
+        params.push(area_uuid);
     }
 
     use serde_json::Value as JsonValue;
@@ -477,9 +480,11 @@ pub async fn count_applications(
         role_json = JsonValue::Array(vec![JsonValue::String(role.to_string())]);
         let place = current_param_place.to_string();
         // Add the dynamic role condition to the query
-        query.push_str(&format!(
+        write!(
+            query,
             " AND (annotations->>'verified_by_role')::jsonb @> ${place}::jsonb"
-        ));
+        )
+        .expect("writing to String");
         // Push the actual String, not a reference
         params.push(&role_json); // Now `role_json` is moved into `params`, not borrowed
         current_param_place = current_param_place
@@ -492,7 +497,7 @@ pub async fn count_applications(
     let verification_type;
     if let Some(filters) = filters {
         let place = current_param_place.to_string();
-        query.push_str(&format!(" AND status = ${place}"));
+        write!(query, " AND status = ${place}").expect("writing to String");
         status = filters.clone().status.to_string();
         params.push(&status);
         current_param_place = current_param_place
@@ -500,8 +505,8 @@ pub async fn count_applications(
             .expect("current_param_place overflow");
 
         if filters.verification_type.is_some() {
-            let place = current_param_place.to_string();
-            query.push_str(&format!(" AND verification_type = ${place}"));
+            let vtype_place = current_param_place.to_string();
+            write!(query, " AND verification_type = ${vtype_place}").expect("writing to String");
             verification_type = filters
                 .verification_type
                 .clone()
@@ -512,8 +517,7 @@ pub async fn count_applications(
     }
 
     let statement = hasura_transaction.prepare(&query).await.map_err(|err| {
-        // Print the error before returning it
-        eprintln!("Error in query: {err:?}");
+        event!(Level::ERROR, ?err, "count_applications prepare failed");
         anyhow!("Error preparing the application query: {err}")
     })?;
 
@@ -521,8 +525,7 @@ pub async fn count_applications(
         .query_one(&statement, &params)
         .await
         .map_err(|err| {
-            // Print the error before returning it
-            eprintln!("Error in row: {err:?}");
+            event!(Level::ERROR, ?err, "count_applications query_one failed");
             anyhow!("Error during query: {err}")
         })?;
 
@@ -530,13 +533,13 @@ pub async fn count_applications(
 
     Ok(count)
 }
+
 /// Get applications for a given election from the database.
 ///
 /// # Errors
 ///
 /// Returns an error if SQL preparation or execution fails,
 /// if UUID or other parsing fails, or if row mapping is inconsistent.
-
 #[instrument(err, skip_all)]
 pub async fn get_applications_by_election(
     hasura_transaction: &Transaction<'_>,
@@ -635,8 +638,8 @@ pub async fn insert_applications(
                     &application.applicant_data,
                     &application.labels,
                     &application.annotations,
-                    &application.verification_type.to_string(),
-                    &application.status.to_string(),
+                    &application.verification_type,
+                    &application.status,
                 ],
             )
             .await

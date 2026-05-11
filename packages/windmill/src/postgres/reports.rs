@@ -253,7 +253,7 @@ pub async fn get_report_by_id(
     Ok(reports.first().cloned())
 }
 
-/// Returns ONLY THE FIRST the template_alias which matches these arguments,
+/// Returns ONLY THE FIRST the `template_alias` which matches these arguments,
 /// If there are multiple matches, the rest are ignored.
 ///
 /// # Errors
@@ -319,7 +319,7 @@ pub async fn get_template_alias_for_report(
 
     // Election Id was set, but maybe we find the report if we don't set it,
     // at the election event level as a fallback
-    let statement = hasura_transaction
+    let fallback_statement = hasura_transaction
         .prepare(
             r#"
             SELECT
@@ -336,16 +336,16 @@ pub async fn get_template_alias_for_report(
         .await
         .map_err(|err| anyhow!("Error preparing query: {err}"))?;
 
-    let rows = hasura_transaction
+    let fallback_rows = hasura_transaction
         .query(
-            &statement,
+            &fallback_statement,
             &[&tenant_uuid, &election_event_uuid, &report_type.to_string()],
         )
         .await
         .map_err(|err| anyhow!("Error executing query: {err}"))?;
 
     // If found, return
-    if let Some(row) = rows.first() {
+    if let Some(row) = fallback_rows.first() {
         let template_alias: Option<String> = row.get("template_alias");
         return Ok(template_alias);
     }

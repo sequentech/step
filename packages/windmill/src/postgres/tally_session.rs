@@ -53,7 +53,7 @@ impl TryFrom<Row> for TallySessionWrapper {
             is_execution_completed: item.try_get("is_execution_completed")?,
             keys_ceremony_id: item.try_get::<_, Uuid>("keys_ceremony_id")?.to_string(),
             execution_status: item.try_get("execution_status")?,
-            threshold: item.try_get::<_, i32>("threshold")? as i64,
+            threshold: i64::from(item.try_get::<_, i32>("threshold")?),
             configuration: item
                 .try_get::<_, Option<Value>>("configuration")?
                 .map(deserialize_value)
@@ -624,7 +624,12 @@ pub async fn insert_many_tally_sessions(
                 election_ids,
                 area_ids,
                 execution_status: session.execution_status.clone(),
-                threshold: session.threshold as i32,
+                threshold: i32::try_from(session.threshold).map_err(|_| {
+                    anyhow!(
+                        "tally session threshold out of i32 range for session {}",
+                        session.id
+                    )
+                })?,
                 configuration: configuration_json,
                 tally_type: session.tally_type.clone(),
                 annotations: session.annotations.clone(),

@@ -12,13 +12,13 @@ use crate::postgres::election_event::{get_election_event_by_id, update_election_
 use crate::services::celery_app::get_celery_app;
 use crate::services::election_event_board::get_election_event_board;
 use crate::services::election_event_status::get_election_event_status;
-use crate::services::electoral_log::*;
+use crate::services::electoral_log::ElectoralLog;
 use crate::tasks::update_election_event_ballot_styles::update_election_event_ballot_styles;
 use anyhow::{anyhow, Context, Result};
 use chrono::Utc;
 use deadpool_postgres::Transaction;
 use sequent_core::ballot::ElectionEventStatus;
-use sequent_core::serialization::deserialize_with_path::*;
+use sequent_core::serialization::deserialize_with_path::deserialize_str;
 use sequent_core::services::connection;
 use sequent_core::services::date::ISO8601;
 use serde::{Deserialize, Serialize};
@@ -256,9 +256,8 @@ pub async fn get_publication_json(
         .into_iter()
         .filter(|ballot_style| {
             election_id
-                .clone()
-                .map(|id| ballot_style.election_id == id)
-                .unwrap_or(true)
+                .as_ref()
+                .is_none_or(|id| ballot_style.election_id == *id)
         })
         .map(|style| style.ballot_eml.clone())
         .collect();
@@ -266,7 +265,7 @@ pub async fn get_publication_json(
     let val_arr: Vec<Value> = ballot_style_strings
         .iter()
         .map(|el| el.clone().and_then(|val| deserialize_str(&val).ok()))
-        .filter(|el| el.is_some())
+        .filter(std::option::Option::is_some)
         .map(|el| el.ok_or(anyhow!("Empty ballot style!")))
         .collect::<Result<Vec<_>>>()?;
 

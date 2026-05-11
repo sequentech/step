@@ -35,7 +35,7 @@ impl TryFrom<Row> for ElectionWrapper {
             status: item.try_get("status")?,
             eml: item.try_get("eml")?,
             external_id: item.try_get("external_id")?,
-            num_allowed_revotes: num_allowed_revotes.map(|val| val as i64),
+            num_allowed_revotes: num_allowed_revotes.map(i64::from),
             is_consolidated_ballot_encoding: item.try_get("is_consolidated_ballot_encoding")?,
             spoil_ballot_option: item.try_get("spoil_ballot_option")?,
             is_kiosk: item.try_get("is_kiosk")?,
@@ -53,7 +53,7 @@ impl TryFrom<Row> for ElectionWrapper {
 }
 
 /// Returns a vector of areas per election event, with the posibility of
-/// filtering by area_id
+/// filtering by `area_id`
 ///
 /// # Errors
 ///
@@ -98,7 +98,9 @@ pub async fn get_election_max_revotes(
         .map(|row| {
             let num_allowed_revotes: Option<i32> = row.try_get("num_allowed_revotes")?;
 
-            Ok(num_allowed_revotes.unwrap_or(1) as usize)
+            let n = num_allowed_revotes.unwrap_or(1);
+            usize::try_from(n)
+                .map_err(|_| anyhow!("num_allowed_revotes must be non-negative, got {n}"))
         })
         .collect::<Result<Vec<usize>>>()?;
 
@@ -113,7 +115,6 @@ pub async fn get_election_max_revotes(
 ///
 /// Returns an error if SQL preparation or execution fails,
 /// if UUID or other parsing fails, or if row mapping is inconsistent.
-
 #[instrument(skip(hasura_transaction), err)]
 pub async fn get_election_by_id(
     hasura_transaction: &Transaction<'_>,
@@ -157,13 +158,13 @@ pub async fn get_election_by_id(
 
     Ok(elections.first().cloned())
 }
+
 /// Get all elections for a given tenant and election event from the database.
 ///
 /// # Errors
 ///
 /// Returns an error if SQL preparation or execution fails,
 /// if UUID or other parsing fails, or if row mapping is inconsistent.
-
 #[instrument(skip(hasura_transaction), err)]
 pub async fn get_elections(
     hasura_transaction: &Transaction<'_>,
@@ -202,13 +203,13 @@ pub async fn get_elections(
 
     Ok(elections)
 }
+
 /// Get elections by ids from the database.
 ///
 /// # Errors
 ///
 /// Returns an error if SQL preparation or execution fails,
 /// if UUID or other parsing fails, or if row mapping is inconsistent.
-
 #[instrument(skip(hasura_transaction), err)]
 pub async fn get_elections_by_ids(
     hasura_transaction: &Transaction<'_>,
@@ -258,13 +259,13 @@ pub async fn get_elections_by_ids(
 
     Ok(elections)
 }
+
 /// Get elections by keys ceremony id from the database.
 ///
 /// # Errors
 ///
 /// Returns an error if SQL preparation or execution fails,
 /// if UUID or other parsing fails, or if row mapping is inconsistent.
-
 #[instrument(skip(hasura_transaction), err)]
 pub async fn get_elections_by_keys_ceremony_id(
     hasura_transaction: &Transaction<'_>,
@@ -491,13 +492,14 @@ pub async fn create_election(
         .cloned()
         .ok_or(anyhow!("Coudln't insert election"))
 }
+
 /// Insert multiple elections for a given election event into the database.
 ///
 /// # Errors
 ///
 /// Returns an error if SQL preparation or execution fails,
 /// if UUID or other parsing fails, or if row mapping is inconsistent.
-
+#[allow(clippy::too_many_lines)]
 #[instrument(err, skip_all)]
 pub async fn insert_elections(
     hasura_transaction: &Transaction<'_>,
@@ -510,6 +512,16 @@ pub async fn insert_elections(
             .clone()
             .map(|val| parse_uuid_v4(&val))
             .transpose()?;
+        let num_allowed_revotes_sql: Option<i32> = election
+            .num_allowed_revotes
+            .map(i32::try_from)
+            .transpose()
+            .map_err(|_| {
+                anyhow!(
+                    "num_allowed_revotes out of i32 range for election {}",
+                    election.id
+                )
+            })?;
         let statement = hasura_transaction
             .prepare(
                 r"
@@ -582,7 +594,7 @@ pub async fn insert_elections(
                     &election.presentation,
                     &election.status,
                     &election.eml,
-                    &election.num_allowed_revotes.map(|val| val as i32),
+                    &num_allowed_revotes_sql,
                     &election.is_consolidated_ballot_encoding,
                     &election.spoil_ballot_option,
                     &election.voting_channels,
@@ -602,13 +614,13 @@ pub async fn insert_elections(
 
     Ok(())
 }
+
 /// Get all elections for a given tenant and election event from the database.
 ///
 /// # Errors
 ///
 /// Returns an error if SQL preparation or execution fails,
 /// if UUID or other parsing fails, or if row mapping is inconsistent.
-
 #[instrument(err, skip_all)]
 pub async fn export_elections(
     hasura_transaction: &Transaction<'_>,
@@ -649,13 +661,13 @@ pub async fn export_elections(
 
     Ok(elections)
 }
+
 /// Set election keys ceremony for an election and returns the updated row when applicable.
 ///
 /// # Errors
 ///
 /// Returns an error if SQL preparation or execution fails,
 /// if UUID or other parsing fails, or if row mapping is inconsistent.
-
 #[instrument(err, skip(hasura_transaction))]
 pub async fn set_election_keys_ceremony(
     hasura_transaction: &Transaction<'_>,
@@ -712,12 +724,12 @@ pub async fn set_election_keys_ceremony(
 
     Ok(elections)
 }
+
 /// Update for an election if the initialization report was generated.
 ///
 /// # Errors
 ///
 /// Returns an error if SQL preparation or execution fails, if UUID or other parsing fails, or if row mapping is inconsistent.
-
 #[instrument(err, skip(hasura_transaction))]
 pub async fn set_election_initialization_report_generated(
     hasura_transaction: &Transaction<'_>,
@@ -756,13 +768,13 @@ pub async fn set_election_initialization_report_generated(
 
     Ok(())
 }
+
 /// Updates election status and returns the updated row when applicable.
 ///
 /// # Errors
 ///
 /// Returns an error if SQL preparation or execution fails,
 /// if UUID or other parsing fails, or if row mapping is inconsistent.
-
 #[instrument(err, skip(hasura_transaction))]
 pub async fn update_election_status(
     hasura_transaction: &Transaction<'_>,
@@ -824,13 +836,13 @@ pub async fn update_election_status(
 
     Ok(results)
 }
+
 /// Get all elections ids for a given tenant and election event from the database.
 ///
 /// # Errors
 ///
 /// Returns an error if SQL preparation or execution fails,
 /// if UUID or other parsing fails, or if row mapping is inconsistent.
-
 #[instrument(skip(hasura_transaction), err)]
 pub async fn get_elections_ids(
     hasura_transaction: &Transaction<'_>,
@@ -869,13 +881,13 @@ pub async fn get_elections_ids(
 
     Ok(elections)
 }
+
 /// Get election permission label from the database.
 ///
 /// # Errors
 ///
 /// Returns an error if SQL preparation or execution fails,
 /// if UUID or other parsing fails, or if row mapping is inconsistent.
-
 #[instrument(err, skip(hasura_transaction))]
 pub async fn get_election_permission_label(
     hasura_transaction: &Transaction<'_>,

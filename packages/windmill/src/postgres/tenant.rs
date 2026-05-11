@@ -135,7 +135,7 @@ pub async fn update_tenant(
     if rows == 0 {
         return Err(anyhow!("No tenant found with the given tenant_id and id"));
     } else if rows > 2 {
-        return Err(anyhow!("Too many affected rows in table tenant: {}", rows));
+        return Err(anyhow!("Too many affected rows in table tenant: {rows}"));
     }
 
     Ok(())

@@ -9,10 +9,10 @@ use rust_decimal::prelude::ToPrimitive;
 use rust_decimal::Decimal;
 use sequent_core::serialization::deserialize_with_path::deserialize_value;
 use sequent_core::services::uuid_validation::parse_uuid_v4;
-use sequent_core::types::results::ResultDocuments;
-use sequent_core::types::results::*;
+use sequent_core::types::results::{ResultDocuments, ResultsElection};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use std::cmp::Ordering;
 use tokio_postgres::row::Row;
 use tracing::{info, instrument};
 use uuid::Uuid;
@@ -37,10 +37,10 @@ impl TryFrom<Row> for ResultsElectionWrapper {
             name: item.try_get("name")?,
             elegible_census: item
                 .try_get::<_, Option<i32>>("elegible_census")?
-                .map(|v| v as i64),
+                .map(i64::from),
             total_voters: item
                 .try_get::<_, Option<i32>>("total_voters")?
-                .map(|v| v as i64),
+                .map(i64::from),
             created_at: item.get("created_at"),
             last_updated_at: item.get("last_updated_at"),
             labels: item.try_get("labels")?,
@@ -118,15 +118,13 @@ pub async fn update_results_election_documents(
         .await
         .map_err(|err| anyhow!("Error running the results_election query: {err}"))?;
 
-    if 1 == rows.len() {
-        Ok(())
-    } else if rows.len() > 1 {
-        Err(anyhow!(
-            "Too many affected rows in table results_election: {}",
-            rows.len()
-        ))
-    } else {
-        Err(anyhow!("Rows not found in table results_election"))
+    let row_count = rows.len();
+    match row_count.cmp(&1) {
+        Ordering::Equal => Ok(()),
+        Ordering::Greater => Err(anyhow!(
+            "Too many affected rows in table results_election: {row_count}"
+        )),
+        Ordering::Less => Err(anyhow!("Rows not found in table results_election")),
     }
 }
 /// Insert results elections into the database.
@@ -176,7 +174,7 @@ pub async fn insert_results_elections(
                 name: election.name.clone(),
                 elegible_census: election.elegible_census,
                 total_voters: election.total_voters,
-                total_voters_percent: election.total_voters_percent.map(|n| n.into()),
+                total_voters_percent: election.total_voters_percent.map(Into::into),
             })
         })
         .collect::<Result<Vec<InsertResultsElection>>>()?;
@@ -436,7 +434,7 @@ pub async fn insert_many_results_elections(
                 name: r.name.clone(),
                 elegible_census: r.elegible_census,
                 total_voters: r.total_voters,
-                total_voters_percent: r.total_voters_percent.map(|n| n.into_inner()),
+                total_voters_percent: r.total_voters_percent.map(NotNan::into_inner),
                 created_at: r.created_at,
                 last_updated_at: r.last_updated_at,
                 labels: r.labels.clone(),

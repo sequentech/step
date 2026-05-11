@@ -57,7 +57,7 @@ pub struct ElectionEventConfig {
     pub election_event_presentation: ElectionEventPresentation,
 }
 
-/// Returns a HashMap<election_id, set<contest_id>> with all
+/// Returns a `HashMap` from `election_id` to a set of `contest_id` with all
 /// the election ids and contest ids related to an area,
 /// including contests linked via parent areas in `areas_tree`.
 ///
@@ -65,6 +65,7 @@ pub struct ElectionEventConfig {
 ///
 /// - `Err` when the publication lists no election ids.
 /// - `Err` when `area` is not present in `areas_tree`.
+#[allow(clippy::implicit_hasher)]
 pub fn get_elections_contests_map_for_area(
     area: &Area,
     areas_tree: &TreeNode,
@@ -90,7 +91,7 @@ pub fn get_elections_contests_map_for_area(
     // election_id, set<contest>
     let mut election_contest_map: HashMap<String, HashSet<String>> = HashMap::new();
 
-    for area_contest in area_contests.iter() {
+    for area_contest in &area_contests {
         let Some(contest) = contests_map.get(&area_contest.contest_id) else {
             event!(
                 Level::INFO,
@@ -124,6 +125,7 @@ pub fn get_elections_contests_map_for_area(
 /// - Errors from [`get_elections_contests_map_for_area`] when the area cannot be resolved.
 /// - Missing election or contest rows, ballot construction errors, JSON serialization failures,
 ///   or Postgres insert errors from [`crate::postgres::ballot_style::insert_ballot_style`].
+#[allow(clippy::implicit_hasher)]
 pub async fn create_ballot_style_postgres(
     transaction: &Transaction<'_>,
     area: &Area,
@@ -146,7 +148,7 @@ pub async fn create_ballot_style_postgres(
         area_contests_map,
     )?;
 
-    for (election_id, contest_ids) in election_contest_map.into_iter() {
+    for (election_id, contest_ids) in election_contest_map {
         let election = elections_map
             .get(&election_id)
             .ok_or(anyhow!("election id not found {election_id}"))?;
@@ -277,6 +279,7 @@ pub async fn create_public_election_event_config_file(
 /// - Pool, transaction, or query failures while loading Hasura-backed rows.
 /// - Missing ballot publication, ballot style generation errors, commit failures, or lock
 ///   acquisition/release problems (surfaced as anyhow contexts).
+#[allow(clippy::too_many_lines)]
 #[instrument(err)]
 pub async fn update_election_event_ballot_styles(
     tenant_id: &str,
@@ -358,7 +361,7 @@ pub async fn update_election_event_ballot_styles(
         .map(|keys_ceremony: KeysCeremony| (keys_ceremony.id.clone(), keys_ceremony.clone()))
         .collect();
 
-    let basic_areas = areas.iter().map(|area| area.into()).collect();
+    let basic_areas = areas.iter().map(Into::into).collect();
     let areas_tree = TreeNode::from_areas(basic_areas)?;
 
     for area in &areas {

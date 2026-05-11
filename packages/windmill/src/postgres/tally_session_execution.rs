@@ -234,7 +234,6 @@ pub async fn get_last_tally_session_execution(
 ///
 /// Returns an error if SQL preparation or execution fails,
 /// if UUID or other parsing fails.
-
 pub async fn get_event_tally_session_executions(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
