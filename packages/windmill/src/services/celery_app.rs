@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use anyhow::{anyhow, Context, Result};
-use async_once::AsyncOnce;
 use celery::prelude::Task;
 use celery::Celery;
 use lapin::{Connection, ConnectionProperties};
@@ -10,6 +9,7 @@ use std;
 use std::convert::AsRef;
 use std::sync::{Arc, LazyLock, Mutex, RwLock};
 use strum_macros::AsRefStr;
+use tokio::sync::OnceCell;
 use tracing::{event, info, instrument, Level};
 
 use crate::tasks::activity_logs_report::generate_activity_logs_report;
@@ -172,21 +172,22 @@ pub fn get_is_app_active() -> bool {
         .expect("failed to read-lock is_app_active")
 }
 
-lazy_static! {
-    /// CELERY_APP holds the high-level Celery application. Note: The Celery app is
-    /// built separately from the Broker because it handles task routing/scheduling.
-    static ref CELERY_APP: AsyncOnce<Arc<Celery>> =
-        AsyncOnce::new(async { generate_celery_app().await.unwrap_or_else(|err| {
-            tracing::error!("{:#}", err);
-            panic!("{:#}", err);
-        })
-    });
-}
+/// CELERY_APP holds the high-level Celery application. Note: The Celery app is
+/// built separately from the Broker because it handles task routing/scheduling.
+static CELERY_APP: OnceCell<Arc<Celery>> = OnceCell::const_new();
 
 /// Returns the global Celery app.
 #[instrument]
 pub async fn get_celery_app() -> Arc<Celery> {
-    CELERY_APP.get().await.clone()
+    CELERY_APP
+        .get_or_init(|| async {
+            generate_celery_app().await.unwrap_or_else(|err| {
+                tracing::error!("{:#}", err);
+                panic!("{:#}", err);
+            })
+        })
+        .await
+        .clone()
 }
 
 #[instrument]

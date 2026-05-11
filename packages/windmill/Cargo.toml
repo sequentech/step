@@ -45,8 +45,6 @@ async-trait = "0.1"
 clap = { version = "4.4", features = ["derive"] } # Added for generate_logs binary
 dotenv = "0.15"
 chrono = "0.4"
-lazy_static = "1.4"
-async_once = "0.2"
 uuid = { version = "1.5", features = ["v4", "fast-rng"] }
 toml = "0.8" # Updated for generate_logs binary, was 0.6.0
 quick-error = "2.0"
