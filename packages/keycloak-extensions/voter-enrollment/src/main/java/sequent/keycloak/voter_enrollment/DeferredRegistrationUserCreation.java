@@ -220,6 +220,7 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
                               && !Messages.USERNAME_EXISTS.equals(error.getMessage()))
                           && !Messages.EMAIL_EXISTS.equals(error.getMessage())
                           // If username is hidden ignore the missing username validation error.
+                          && !isLocaleRequiredError(error)
                           && !(Messages.MISSING_USERNAME.equals(error.getMessage())
                               && "true"
                                   .equals(
@@ -614,8 +615,14 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
     // user-profile data
     copy.remove(RegistrationPage.FIELD_PASSWORD);
     copy.remove(RegistrationPage.FIELD_PASSWORD_CONFIRM);
+    copy.remove(UserModel.LOCALE);
 
     return copy;
+  }
+
+  static boolean isLocaleRequiredError(ValidationException.Error error) {
+    return UserModel.LOCALE.equals(error.getAttribute())
+        && MISSING_FIELDS_ERROR.equals(error.getMessage());
   }
 
   /**
