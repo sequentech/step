@@ -18,3 +18,9 @@ cargo build --release
 popd
 
 source .devcontainer/scripts/config-cli.sh
+
+if git submodule update --init --recursive; then
+  echo "Submodules are successfully loaded and available in the workspace"
+else
+  echo "Failed to init submodules, they won't be available in the workspace"
+fi
