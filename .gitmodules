@@ -1,3 +1,4 @@
+# Note: make sure to configure codespace access in "./.devcontainer/devcontainer.json" too
 [submodule "beyond"]
 	path = beyond
 	url = ../beyond
