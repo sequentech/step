@@ -13,6 +13,7 @@ use tracing::{event, instrument, Level};
 ///
 /// Panics if converting the on-board timestamp to milliseconds would overflow `u64` multiplication
 /// by 1000 (`expect("timestamp millis overflow")`).
+#[must_use]
 pub fn message_to_log(message: &Message) -> Log {
     let batch_number = message.statement.get_batch_number();
     let timestamp = message
@@ -20,7 +21,7 @@ pub fn message_to_log(message: &Message) -> Log {
         .get_timestamp()
         .checked_mul(1000)
         .expect("timestamp millis overflow");
-    let datetime = ISO8601::timestamp_ms_utc_to_date(timestamp as i64);
+    let datetime = ISO8601::timestamp_ms_utc_to_date(timestamp.cast_signed());
 
     Log {
         created_date: ISO8601::to_string(&datetime),
@@ -44,7 +45,7 @@ pub fn print_messages(messages: &[Message], board_name: &str) -> Result<()> {
     let sorted_logs = sort_logs(&logs);
 
     event!(Level::INFO, "printing messages for board {}", board_name);
-    for log in sorted_logs.iter() {
+    for log in &sorted_logs {
         event!(Level::INFO, "{}: {}", log.created_date, log.log_text);
     }
 
@@ -67,7 +68,8 @@ pub fn generate_logs(
         .iter()
         .filter(|message| {
             message.statement.get_timestamp() >= next_timestamp
-                && batch_ids.contains(&(message.statement.get_batch_number() as i64))
+                && i64::try_from(message.statement.get_batch_number())
+                    .is_ok_and(|n| batch_ids.contains(&n))
         })
         .collect();
     let logs: Vec<Log> = relevant_messages

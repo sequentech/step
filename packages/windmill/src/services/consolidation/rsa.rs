@@ -4,7 +4,7 @@
 
 //! RSA key generation and PKCS#12-driven signing via the bundled ECIES Java helper.
 
-use anyhow::{Context, Result};
+use anyhow::{anyhow, Context, Result};
 use openssl::rsa::{Padding, Rsa};
 use sequent_core::signatures::ecies_encrypt::ECIES_TOOL_PATH;
 use sequent_core::signatures::shell::run_shell_command;
@@ -49,7 +49,9 @@ pub fn encrypt_with_rsa_private_key(private_key_pem: &str, data: &[u8]) -> Resul
         .context("Failed to parse private key from PEM format")?;
 
     // Create a buffer to hold the encrypted data
-    let mut encrypted_data = vec![0; rsa.size() as usize];
+    let key_size =
+        usize::try_from(rsa.size()).map_err(|_| anyhow!("RSA key size does not fit usize"))?;
+    let mut encrypted_data = vec![0; key_size];
 
     // Encrypt the data using the RSA private key
     let encrypted_len = rsa
@@ -68,10 +70,8 @@ pub fn encrypt_with_rsa_private_key(private_key_pem: &str, data: &[u8]) -> Resul
 ///
 /// Shell command failures from [`run_shell_command`].
 pub fn derive_public_key_from_p12(pk12_file_path_string: &str, password: &str) -> Result<String> {
-    let command = format!(
-        "java -jar {} public-key {} {}",
-        ECIES_TOOL_PATH, pk12_file_path_string, password
-    );
+    let command =
+        format!("java -jar {ECIES_TOOL_PATH} public-key {pk12_file_path_string} {password}");
 
     let public_pem = run_shell_command(&command)?.replace("\n\n", "\n");
 
@@ -92,11 +92,10 @@ pub fn rsa_sign_data(
     data_path: &str,
 ) -> Result<String> {
     let command = format!(
-        "java -jar {} sign-rsa {} {} {}",
-        ECIES_TOOL_PATH, pk12_file_path_string, data_path, password
+        "java -jar {ECIES_TOOL_PATH} sign-rsa {pk12_file_path_string} {data_path} {password}"
     );
 
-    let encrypted_base64 = run_shell_command(&command)?.replace("\n", "");
+    let encrypted_base64 = run_shell_command(&command)?.replace('\n', "");
 
     info!("ecies_sign_data: '{}'", encrypted_base64);
 

@@ -92,6 +92,7 @@ pub enum Queue {
 
 impl Queue {
     /// Get the queue name for the Celery app.
+    #[must_use]
     pub fn queue_name(&self, slug: &str) -> String {
         format!("{}_{}", slug, self.as_ref())
     }
@@ -99,7 +100,7 @@ impl Queue {
 
 /// AMQP prefetch count used when building the Celery app.
 static mut PREFETCH_COUNT_S: u16 = 100;
-/// Whether tasks are ACKed only after successful execution.
+/// Whether tasks are `ACKed` only after successful execution.
 static mut ACKS_LATE_S: bool = true;
 /// Maximum number of retries configured for Celery tasks.
 static mut TASK_MAX_RETRIES: u32 = 4;
@@ -129,11 +130,12 @@ pub fn set_worker_threads(new_val: usize) {
 }
 
 /// Get the number of worker threads for the Celery app.
+#[must_use]
 pub fn get_worker_threads() -> usize {
     unsafe { WORKER_THREADS }
 }
 
-/// Set whether tasks are ACKed late for the Celery app.
+/// Set whether tasks are `ACKed` late for the Celery app.
 pub fn set_acks_late(new_val: bool) {
     unsafe {
         ACKS_LATE_S = new_val;
@@ -177,11 +179,13 @@ pub fn set_heartbeat(new_val: u16) {
 }
 
 /// Get whether the Celery app is active.
+#[must_use]
 pub fn get_is_app_active() -> bool {
     unsafe { IS_APP_ACTIVE }
 }
 
 /// Get the queues for the Celery app.
+#[must_use]
 pub fn get_queues() -> Vec<String> {
     unsafe { QUEUES.clone() }
 }
@@ -220,7 +224,7 @@ async fn create_connection() -> Result<(Arc<Connection>, String)> {
     for amqp_url in amqp_urls {
         match Connection::connect(&amqp_url, ConnectionProperties::default())
             .await
-            .with_context(|| format!("Failed to connect to any AMQP server {}", amqp_url))
+            .with_context(|| format!("Failed to connect to any AMQP server {amqp_url}"))
         {
             Ok(connection) => {
                 let arc_conn = Arc::new(connection);
@@ -386,7 +390,7 @@ pub async fn generate_celery_app() -> Result<Arc<Celery>> {
         broker_connection_max_retries = broker_connection_max_retries,
     )
     .await
-    .map_err(|err| anyhow!("{:?}", err))
+    .map_err(|err| anyhow!("{err:?}"))
 }
 
 /// Cached AMQP connection used by the worker process.

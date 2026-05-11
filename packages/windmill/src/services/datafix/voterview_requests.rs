@@ -2,9 +2,9 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-//! SOAP request formatting and sending for the VoterView integration.
+//! SOAP request formatting and sending for the `VoterView` integration.
 
-use super::types::*;
+use super::types::{DatafixAnnotations, SoapRequest};
 use crate::postgres::election_event::ElectionEventDatafix;
 use crate::services::consolidation::eml_generator::ValidateAnnotations;
 use anyhow::{anyhow, Result};
@@ -67,6 +67,7 @@ impl SoapRequest {
     }
 
     /// Returns the SOAP body for the request type.
+    #[must_use]
     pub fn get_body(
         &self,
         annotations: &DatafixAnnotations,
@@ -82,7 +83,7 @@ impl SoapRequest {
     }
 }
 
-/// Sends a VoterView SOAP request for the given `req_type` using event annotations for endpoint and credentials.
+/// Sends a `VoterView` SOAP request for the given `req_type` using event annotations for endpoint and credentials.
 ///
 /// # Errors
 ///
@@ -100,13 +101,10 @@ pub async fn send(
         None,
     );
 
-    let voter_id = match username.to_owned() {
-        Some(id) => id,
-        _ => {
-            return Err(anyhow!(
-                "Cannot send the request to datafix because the username is None"
-            ));
-        }
+    let Some(voter_id) = username.clone() else {
+        return Err(anyhow!(
+            "Cannot send the request to datafix because the username is None"
+        ));
     };
     let annotations: DatafixAnnotations = election_event
         .get_annotations()
@@ -165,12 +163,9 @@ pub async fn send(
 }
 
 /// Parses a tag from the response text.
+#[must_use]
 pub fn parse_tag(open_tag: &str, close_tag: &str, response_txt: &str) -> Option<String> {
-    match response_txt.split(open_tag).collect::<Vec<&str>>() {
-        after if after.len() > 1 => match after[1].split(close_tag).collect::<Vec<&str>>() {
-            before if before.len() > 1 => Some(before[0].to_string()),
-            _ => None,
-        },
-        _ => None,
-    }
+    let (_, after_open) = response_txt.split_once(open_tag)?;
+    let (inner, _) = after_open.split_once(close_tag)?;
+    Some(inner.to_string())
 }

@@ -24,7 +24,7 @@ use zip::write::FileOptions;
 /// # Errors
 ///
 /// Returns an error when serialization or temp file IO fails.
-pub async fn write_export_keycloak_config(data: RealmRepresentation) -> Result<NamedTempFile> {
+pub fn write_export_keycloak_config(data: RealmRepresentation) -> Result<NamedTempFile> {
     // Serialize the data into JSON string
     let data_str = serde_json::to_string(&data)?;
     let data_bytes = data_str.into_bytes();
@@ -41,7 +41,7 @@ pub async fn write_export_keycloak_config(data: RealmRepresentation) -> Result<N
 /// # Errors
 ///
 /// Returns an error when CSV buffering or writing the temp file fails.
-pub async fn write_export_roles_permissions_config(
+pub fn write_export_roles_permissions_config(
     data: RealmRepresentation,
     tenant_id: &str,
 ) -> Result<NamedTempFile> {
@@ -147,7 +147,6 @@ pub async fn process_export_zip(
         .map_err(|e| anyhow!("Error starting keycloak file in ZIP: {e:?}"))?;
 
     let temp_path = write_export_keycloak_config(realm.clone())
-        .await
         .map_err(|e| anyhow!("Error copying keycloak config data to temp file: {e:?}"))?;
 
     let mut keycloak_config_file = File::open(temp_path)
@@ -166,11 +165,9 @@ pub async fn process_export_zip(
         .start_file(&roles_permissions_filename, options)
         .map_err(|e| anyhow!("Error starting roles_permissions file in ZIP: {e:?}"))?;
 
-    let temp_path = write_export_roles_permissions_config(realm, tenant_id)
-        .await
-        .map_err(|e| {
-            anyhow!("Error copying roles & permissions config data to temp file: {e:?}")
-        })?;
+    let temp_path = write_export_roles_permissions_config(realm, tenant_id).map_err(|e| {
+        anyhow!("Error copying roles & permissions config data to temp file: {e:?}")
+    })?;
 
     let mut roles_permissions_file = File::open(temp_path)
         .map_err(|e| anyhow!("Error opening temporary roles & permissions config file: {e:?}"))?;

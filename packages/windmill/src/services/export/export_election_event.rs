@@ -198,7 +198,7 @@ pub async fn generate_encrypted_zip(
 /// # Errors
 ///
 /// Returns an error when serialization or temp file IO fails.
-pub async fn write_export_document(data: ImportElectionEventSchema) -> Result<NamedTempFile> {
+pub fn write_export_document(data: ImportElectionEventSchema) -> Result<NamedTempFile> {
     // Serialize the data into JSON string
     let data_str = serde_json::to_string_pretty(&data)?;
     let data_bytes = data_str.into_bytes();
@@ -425,7 +425,7 @@ pub async fn process_export_zip(
         &export_config,
     )
     .await?;
-    let temp_election_event_file = write_export_document(export_data).await?;
+    let temp_election_event_file = write_export_document(export_data)?;
     let election_event_filename = format!(
         "{}-{}.json",
         EDocuments::ELECTION_EVENT.to_file_name(),

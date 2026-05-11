@@ -21,6 +21,7 @@ pub const FOLDER_MAX_CHARS: usize = 200;
 /// # Errors
 ///
 /// Propagates `std::io::Error` from `rename` when a target path cannot be created.
+#[allow(clippy::implicit_hasher)]
 #[instrument(skip_all, err)]
 pub fn rename_folders(replacements: &HashMap<String, String>, folder_path: &PathBuf) -> Result<()> {
     // Collect directories and sort by depth in descending order
@@ -52,6 +53,7 @@ pub fn rename_folders(replacements: &HashMap<String, String>, folder_path: &Path
 }
 
 /// Returns up to the last `n` Unicode characters of `s`.
+#[must_use]
 pub fn take_last_n_chars(s: &str, n: usize) -> String {
     s.chars()
         .rev()
@@ -63,6 +65,7 @@ pub fn take_last_n_chars(s: &str, n: usize) -> String {
 }
 
 /// Returns up to the first `n` Unicode characters of `s`.
+#[must_use]
 pub fn take_first_n_chars(s: &str, n: usize) -> String {
     s.chars().take(n).collect()
 }
@@ -71,15 +74,7 @@ pub fn take_first_n_chars(s: &str, n: usize) -> String {
 /// and trimming trailing dots/spaces.
 fn sanitize_filename(filename: &str) -> String {
     let sanitized = filename
-        .replace('/', "_") // Linux and macOS directory separator
-        .replace('\\', "_") // Windows directory separator
-        .replace(':', "_") // Windows and classic macOS
-        .replace('*', "_")
-        .replace('?', "_")
-        .replace('"', "_")
-        .replace('<', "_")
-        .replace('>', "_")
-        .replace('|', "_")
+        .replace(['/', '\\', ':', '*', '?', '"', '<', '>', '|'], "_")
         .trim_end_matches(&[' ', '.'][..]) // Trim trailing spaces and dots (Windows)
         .to_string();
 

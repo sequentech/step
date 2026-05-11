@@ -976,7 +976,7 @@ async fn process_activity_logs_file(
 /// # Errors
 ///
 /// Returns an error if the regex cannot be compiled.
-async fn extract_document_uuid(filename: &str) -> Result<Option<&str>> {
+fn extract_document_uuid(filename: &str) -> Result<Option<&str>> {
     // Regex to match the UUID after "document_"
     let re = Regex::new(
         r"document_([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})",
@@ -995,7 +995,7 @@ async fn extract_document_uuid(filename: &str) -> Result<Option<&str>> {
 /// # Errors
 ///
 /// Returns an error if the regex cannot be compiled.
-async fn extract_document_name(filename: &str) -> Result<Option<&str>> {
+fn extract_document_name(filename: &str) -> Result<Option<&str>> {
     let re = Regex::new(
         r"document_[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}_(.+)"
     )
@@ -1062,7 +1062,6 @@ pub async fn process_s3_file(
     let document_type = get_mime_types(file_suffix)[0];
 
     let document_uuid = extract_document_uuid(file_name)
-        .await
         .map_err(|e| anyhow!("Error extracting document UUID from filename: {e}"))?
         .ok_or_else(|| anyhow!("Error extracting document UUID as str"))?;
 
@@ -1071,7 +1070,6 @@ pub async fn process_s3_file(
         .ok_or_else(|| anyhow!("Error finding document UUID in replacement map"))?;
 
     let file_name = extract_document_name(file_name)
-        .await
         .map_err(|e| anyhow!("Error extracting document name from filename: {e}"))?
         .ok_or_else(|| anyhow!("Error getting document name as str"))?;
 

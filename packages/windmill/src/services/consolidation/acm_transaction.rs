@@ -17,16 +17,20 @@ const RANDOM_PART: u64 = 13212;
 ///
 /// Panics only if arithmetic around year/hour/second components or the final product overflows
 /// (should not occur for real wall-clock times).
+#[must_use]
 pub fn generate_transaction_id() -> u64 {
     let now = Utc::now();
-    let year = (now.year() as u64)
-        .checked_sub(2023u64)
-        .expect("year component underflow"); // Last two digits of the year (offset base)
-    let day = now.ordinal() as u64; // Day of the year (1 to 366)
-    let hour = (now.hour() as u64)
+    let year = u64::try_from(
+        now.year()
+            .checked_sub(2023)
+            .expect("year component underflow"),
+    )
+    .expect("year offset fits u64"); // Last two digits of the year (offset base)
+    let day = u64::from(now.ordinal()); // Day of the year (1 to 366)
+    let hour = u64::from(now.hour())
         .checked_add(1)
         .expect("hour component overflow");
-    let second = (now.second() as u64)
+    let second = u64::from(now.second())
         .checked_add(1)
         .expect("second component overflow");
 

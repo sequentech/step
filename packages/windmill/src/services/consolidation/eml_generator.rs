@@ -119,17 +119,17 @@ impl GetMetrics for ContestResult {
             EMLCountMetric {
                 kind: "Total Number of Over Votes".into(),
                 id: "OV".into(),
-                datum: extended_metrics.over_votes as i64,
+                datum: extended_metrics.over_votes.cast_signed(),
             },
             EMLCountMetric {
                 kind: "Total Number of Under Votes".into(),
                 id: "UV".into(),
-                datum: extended_metrics.under_votes as i64,
+                datum: extended_metrics.under_votes.cast_signed(),
             },
             EMLCountMetric {
                 kind: "Total Number of Votes Actually".into(),
                 id: "VV".into(),
-                datum: extended_metrics.votes_actually as i64,
+                datum: extended_metrics.votes_actually.cast_signed(),
             },
             EMLCountMetric {
                 kind: "Total Number of Registered Voters".into(),
@@ -139,7 +139,7 @@ impl GetMetrics for ContestResult {
             EMLCountMetric {
                 kind: "Total Number of Expected Votes".into(),
                 id: "EV".into(),
-                datum: extended_metrics.expected_votes as i64,
+                datum: extended_metrics.expected_votes.cast_signed(),
             },
             EMLCountMetric {
                 kind: "Number of Zero Outs Executed".into(),
@@ -154,7 +154,7 @@ impl GetMetrics for ContestResult {
             EMLCountMetric {
                 kind: "Total Number of Valid Ballots".into(),
                 id: "VB".into(),
-                datum: self.total_valid_votes as i64,
+                datum: self.total_valid_votes.cast_signed(),
             },
             EMLCountMetric {
                 kind: "Total Number of Stamped Ballots".into(),
@@ -164,17 +164,17 @@ impl GetMetrics for ContestResult {
             EMLCountMetric {
                 kind: "Total Number of Ballots In Ballot Box".into(),
                 id: "BB".into(),
-                datum: self.total_votes as i64,
+                datum: self.total_votes.cast_signed(),
             },
             EMLCountMetric {
                 kind: "Abstentions".into(),
                 id: "AB".into(),
-                datum: self.total_blank_votes as i64,
+                datum: self.total_blank_votes.cast_signed(),
             },
             EMLCountMetric {
                 kind: "Total Number of Invalid Ballots".into(),
                 id: "IB".into(),
-                datum: self.total_invalid_votes as i64,
+                datum: self.total_invalid_votes.cast_signed(),
             },
             EMLCountMetric {
                 kind: "Total Number of Misread Ballots".into(),
@@ -345,7 +345,7 @@ impl ValidateAnnotations for ElectionEvent {
         let annotations_js = self
             .annotations
             .clone()
-            .unwrap_or_else(|| Value::Object(Default::default()));
+            .unwrap_or_else(|| Value::Object(serde_json::Map::default()));
 
         let annotations: Annotations = deserialize_value(annotations_js).unwrap_or_default();
 
@@ -475,7 +475,7 @@ impl ValidateAnnotations for core::Election {
         let annotations_js = self
             .annotations
             .clone()
-            .unwrap_or_else(|| Value::Object(Default::default()));
+            .unwrap_or_else(|| Value::Object(serde_json::Map::default()));
 
         let annotations: Annotations = deserialize_value(annotations_js)?;
 
@@ -581,7 +581,7 @@ impl ValidateAnnotations for core::Area {
             })?;
 
         let ccs_servers: Vec<MiruCcsServer> =
-            deserialize_str(&ccs_servers_js).map_err(|err| anyhow!("{}", err))?;
+            deserialize_str(&ccs_servers_js).map_err(|err| anyhow!("{err}"))?;
 
         let sbei_usernames_js = find_miru_annotation(MIRU_AREA_TRUSTEE_USERS, &annotations)
             .with_context(|| {
@@ -591,7 +591,7 @@ impl ValidateAnnotations for core::Area {
             })?;
 
         let sbei_usernames: Vec<String> =
-            deserialize_str(&sbei_usernames_js).map_err(|err| anyhow!("{}", err))?;
+            deserialize_str(&sbei_usernames_js).map_err(|err| anyhow!("{err}"))?;
 
         let country = find_miru_annotation(MIRU_AREA_COUNTRY, &annotations).with_context(|| {
             format!("Missing area annotation: '{MIRU_PLUGIN_PREPEND}:{MIRU_AREA_COUNTRY}'")
@@ -626,7 +626,7 @@ impl ValidateAnnotations for core::Area {
         let annotations_js = self
             .annotations
             .clone()
-            .unwrap_or_else(|| Value::Object(Default::default()));
+            .unwrap_or_else(|| Value::Object(serde_json::Map::default()));
 
         let annotations: Annotations = deserialize_value(annotations_js).unwrap_or_default();
 
@@ -708,7 +708,7 @@ impl ValidateAnnotations for core::TallySession {
         let annotations_js = self
             .annotations
             .clone()
-            .unwrap_or_else(|| Value::Object(Default::default()));
+            .unwrap_or_else(|| Value::Object(serde_json::Map::default()));
         let annotations: Annotations = deserialize_value(annotations_js).unwrap_or_default();
         let tally_session_data_js =
             find_miru_annotation_opt(MIRU_TALLY_SESSION_DATA, &annotations)?.unwrap_or_default();
@@ -950,7 +950,7 @@ pub fn render_eml_contest(
             };
             Ok(EMLSelection {
                 candidates: vec![candidate.clone()],
-                valid_votes: candidate_result.total_count as i64,
+                valid_votes: candidate_result.total_count.cast_signed(),
             })
         })
         .collect::<Result<Vec<_>, _>>()?;

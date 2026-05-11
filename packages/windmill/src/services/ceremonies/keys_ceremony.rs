@@ -390,7 +390,7 @@ pub async fn create_keys_ceremony(
     let default_ceremony = keys_ceremonies
         .clone()
         .into_iter()
-        .find(|keys_ceremony| keys_ceremony.is_default());
+        .find(KeysCeremony::is_default);
 
     if default_ceremony.is_some() {
         return Err(anyhow!(
@@ -415,7 +415,7 @@ pub async fn create_keys_ceremony(
         if !keys_ceremonies.is_empty() {
             return Err(anyhow!("Can't create an election event keys ceremony when there are already existing keys ceremonies."));
         }
-    };
+    }
 
     // generate default values
     let keys_ceremony_id: String = Uuid::new_v4().to_string();
@@ -536,9 +536,8 @@ pub async fn validate_permission_labels(
     .await
     .map_err(|e| anyhow::anyhow!("Error getting election permissionlabel {e:?}"))?;
 
-    let user_permission_labels = match user_permission_labels {
-        Some(perms) => perms,
-        None => return Err(anyhow!("user dont have permission labels")),
+    let Some(user_permission_labels) = user_permission_labels else {
+        return Err(anyhow!("user dont have permission labels"));
     };
 
     let user_permission_labels_json = user_permission_labels

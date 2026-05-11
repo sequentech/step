@@ -446,6 +446,12 @@ pub async fn send_transmission_package_service(
         match send_package_to_ccs_server(&second_zip_path, ccs_server, false).await {
             Ok(_) => {
                 let time_now = Local::now();
+                let sbei_miru_ids: Vec<String> = new_miru_document
+                    .signatures
+                    .clone()
+                    .into_iter()
+                    .map(|signature| signature.sbei_miru_id.clone())
+                    .collect();
                 let new_log = send_transmission_package_to_ccs_log(
                     &time_now,
                     election_id,
@@ -454,12 +460,7 @@ pub async fn send_transmission_package_service(
                     &area_name,
                     &ccs_server.name,
                     &ccs_server.address,
-                    new_miru_document
-                        .signatures
-                        .clone()
-                        .into_iter()
-                        .map(|signature| signature.sbei_miru_id.clone())
-                        .collect(),
+                    &sbei_miru_ids,
                 );
                 new_miru_document.servers_sent_to.push(MiruServerDocument {
                     name: ccs_server.name.clone(),
@@ -480,6 +481,12 @@ pub async fn send_transmission_package_service(
             Err(err) => {
                 let error_str = format!("{err:?}");
                 let time_now = Local::now();
+                let sbei_miru_ids: Vec<String> = new_miru_document
+                    .signatures
+                    .clone()
+                    .into_iter()
+                    .map(|signature| signature.sbei_miru_id.clone())
+                    .collect();
                 let new_log = error_sending_transmission_package_to_ccs_log(
                     &time_now,
                     election_id,
@@ -488,12 +495,7 @@ pub async fn send_transmission_package_service(
                     &area_name,
                     &ccs_server.name,
                     &ccs_server.address,
-                    new_miru_document
-                        .signatures
-                        .clone()
-                        .into_iter()
-                        .map(|signature| signature.sbei_miru_id.clone())
-                        .collect(),
+                    &sbei_miru_ids,
                     &error_str,
                 );
                 new_miru_document.servers_sent_to.push(MiruServerDocument {

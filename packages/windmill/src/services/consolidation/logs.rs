@@ -21,13 +21,12 @@ pub fn create_transmission_package_log(
     Log {
         created_date: ISO8601::to_string(datetime),
         log_text: format!(
-            "Created transmission package xml for election '{}' ({}) and area '{}' ({})",
-            election_id, election_name, area_id, area_name
+            "Created transmission package xml for election '{election_id}' ({election_name}) and area '{area_id}' ({area_name})",
         ),
     }
 }
 
-/// Log line when audit logs are POSTed to a CCS server.
+/// Log line when audit logs are `POSTed` to a CCS server.
 #[instrument(skip_all)]
 pub fn send_logs_to_ccs_log(
     datetime: &DateTime<Local>,
@@ -41,8 +40,7 @@ pub fn send_logs_to_ccs_log(
     Log {
         created_date: ISO8601::to_string(datetime),
         log_text: format!(
-            "Sent logs for election '{}' ({}) and area '{}' ({}) to server '{}' ({}).",
-            election_id, election_name, area_id, area_name, server_name, server_address,
+            "Sent logs for election '{election_id}' ({election_name}) and area '{area_id}' ({area_name}) to server '{server_name}' ({server_address}).",
         ),
     }
 }
@@ -57,13 +55,12 @@ pub fn send_transmission_package_to_ccs_log(
     area_name: &str,
     server_name: &str,
     server_address: &str,
-    trustees: Vec<String>,
+    trustees: &[String],
 ) -> Log {
     Log {
         created_date: ISO8601::to_string(datetime),
         log_text: format!(
-            "Sent transmission package xml for election '{}' ({}) and area '{}' ({}) to server '{}' ({}), signed by [{}].",
-            election_id, election_name, area_id, area_name, server_name, server_address,
+            "Sent transmission package xml for election '{election_id}' ({election_name}) and area '{area_id}' ({area_name}) to server '{server_name}' ({server_address}), signed by [{}].",
             trustees.join(", ")
         ),
     }
@@ -84,9 +81,7 @@ pub fn error_sending_logs_to_ccs_log(
     Log {
         created_date: ISO8601::to_string(datetime),
         log_text: format!(
-            "Error sending logs for election '{}' ({}) and area '{}' ({}) to server '{}' ({}): Error '{}'",
-            election_id, election_name, area_id, area_name, server_name, server_address,
-            error
+            "Error sending logs for election '{election_id}' ({election_name}) and area '{area_id}' ({area_name}) to server '{server_name}' ({server_address}): Error '{error}'",
         ),
     }
 }
@@ -101,15 +96,14 @@ pub fn error_sending_transmission_package_to_ccs_log(
     area_name: &str,
     server_name: &str,
     server_address: &str,
-    trustees: Vec<String>,
+    trustees: &[String],
     error: &str,
 ) -> Log {
     Log {
         created_date: ISO8601::to_string(datetime),
         log_text: format!(
-            "Error sending transmission package xml for election '{}' ({}) and area '{}' ({}) to server '{}' ({}), signed by {}: Error '{}'",
-            election_id, election_name, area_id, area_name, server_name, server_address,
-            trustees.join(", "), error
+            "Error sending transmission package xml for election '{election_id}' ({election_name}) and area '{area_id}' ({area_name}) to server '{server_name}' ({server_address}), signed by {}: Error '{error}'",
+            trustees.join(", "),
         ),
     }
 }
@@ -127,8 +121,7 @@ pub fn sign_transmission_package_log(
     Log {
         created_date: ISO8601::to_string(datetime),
         log_text: format!(
-            "Signed transmission package xml for election '{}' ({}) and area '{}' ({}) by sbei  '{}'",
-            election_id, election_name, area_id, area_name, sbei_id
+            "Signed transmission package xml for election '{election_id}' ({election_name}) and area '{area_id}' ({area_name}) by sbei  '{sbei_id}'",
         ),
     }
 }

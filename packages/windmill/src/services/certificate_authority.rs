@@ -31,6 +31,7 @@ pub struct ParsedCertificate {
 
 /// Splits a PEM bundle (potentially containing multiple certificates) into
 /// individual PEM strings, one per certificate.
+#[must_use]
 pub fn split_pem_bundle(pem_content: &str) -> Vec<String> {
     let mut certs = Vec::new();
     let mut current = String::new();
@@ -154,6 +155,7 @@ fn parse_openssl_x509_output(output: &str, pem: &str) -> Result<ParsedCertificat
 
 /// Extracts the CN value from a distinguished name string such as
 /// "CN=My Root CA, O=Org, C=US" or "CN = My CA,O=Org".
+#[must_use]
 pub fn extract_cn(rdns: &str) -> Option<String> {
     for part in rdns.split(',') {
         let part = part.trim();

@@ -93,6 +93,7 @@ pub struct CloudflareError {
 
 impl CloudflareError {
     /// Create a new Cloudflare error.
+    #[must_use]
     pub fn new(msg: &str) -> CloudflareError {
         CloudflareError {
             details: msg.to_string(),
@@ -214,7 +215,7 @@ pub async fn get_ruleset_by_phase(
         .into_iter()
         .find(|ruleset| ruleset.phase == ruleset_phase && ruleset.kind == "zone")
     {
-        Some(ruleset) => Some(ruleset.id.to_string()),
+        Some(ruleset) => Some(ruleset.id.clone()),
         None => None,
     };
 

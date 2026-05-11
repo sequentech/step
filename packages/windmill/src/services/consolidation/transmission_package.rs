@@ -52,8 +52,11 @@ pub fn compress_hash_eml(eml: &str) -> Result<(Vec<u8>, String)> {
     let rendered_xml_hash = hash_sha256(eml.as_bytes())
         .with_context(|| "Error hashing the rendered XML")?
         .iter()
-        .map(|byte| format!("{byte:02X}"))
-        .collect();
+        .fold(String::new(), |mut acc, &byte| {
+            use std::fmt::Write as _;
+            let _ = write!(acc, "{byte:02X}");
+            acc
+        });
 
     let compressed_xml =
         xz_compress(eml.as_bytes()).with_context(|| "Error compressing the rendered XML")?;
@@ -147,21 +150,25 @@ fn generate_er_final_zip(
 
     let exz_xml_path = temp_dir_path.join(format!("{prefix}{MIRU_STATION_ID}.exz").as_str());
     {
-        let mut exz_xml_file = File::create(&exz_xml_path)
-            .with_context(|| format!("Failed to create or open file: {exz_xml_path:?}"))?;
+        let mut exz_xml_file = File::create(&exz_xml_path).with_context(|| {
+            format!("Failed to create or open file: {}", exz_xml_path.display())
+        })?;
         exz_xml_file
             .write_all(&exz_temp_file_bytes)
-            .with_context(|| format!("Failed to write data to file: {exz_xml_path:?}"))?;
+            .with_context(|| format!("Failed to write data to file: {}", exz_xml_path.display()))?;
     }
 
     let acm_json_stringified = serde_json::to_string_pretty(&acm_json)?;
     let exz_json_path = temp_dir_path.join(format!("{prefix}{MIRU_STATION_ID}.json"));
     {
-        let mut exz_json_file = File::create(&exz_json_path)
-            .with_context(|| format!("Failed to create or open file: {exz_json_path:?}"))?;
+        let mut exz_json_file = File::create(&exz_json_path).with_context(|| {
+            format!("Failed to create or open file: {}", exz_json_path.display())
+        })?;
         exz_json_file
             .write_all(acm_json_stringified.as_bytes())
-            .with_context(|| format!("Failed to write data to file: {exz_xml_path:?}"))?;
+            .with_context(|| {
+                format!("Failed to write data to file: {}", exz_json_path.display())
+            })?;
     }
 
     compress_folder_to_zip(temp_dir_path, output_file_path)?;

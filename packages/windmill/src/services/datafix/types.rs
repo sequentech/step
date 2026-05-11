@@ -65,7 +65,7 @@ impl DatafixResponse {
     }
 }
 
-/// VoterView SOAP connection details embedded in election event annotations.
+/// `VoterView` SOAP connection details embedded in election event annotations.
 #[derive(Deserialize, Serialize, Debug)]
 pub struct VoterviewRequest {
     /// SOAP endpoint base URL configured per election event.
@@ -74,7 +74,7 @@ pub struct VoterviewRequest {
     pub usr: String,
     /// MVV web-service password.
     pub psw: String,
-    /// County/municipality code required by the VoterView SOAP actions.
+    /// County/municipality code required by the `VoterView` SOAP actions.
     pub county_mun: String,
 }
 
@@ -85,7 +85,7 @@ pub struct DatafixAnnotations {
     pub id: String,
     /// Rules for generating replacement passwords.
     pub password_policy: PasswordPolicy,
-    /// Credentials and endpoint data for outbound VoterView synchronization.
+    /// Credentials and endpoint data for outbound `VoterView` synchronization.
     pub voterview_request: VoterviewRequest,
 }
 
@@ -137,7 +137,8 @@ impl PasswordPolicy {
                 let mut pass = String::new();
                 let mut rng = rand::thread_rng();
                 for _ in 0..self.size {
-                    pass.push_str(rng.gen_range(0..10).to_string().as_str());
+                    let digit = rng.gen_range(0..10_u32);
+                    pass.push(char::from_digit(digit, 10).unwrap_or('0'));
                 }
                 pass
             }
@@ -148,7 +149,7 @@ impl PasswordPolicy {
                 .collect(),
         };
         match self.base {
-            BasePolicy::IdPswConcat => format!("{}{}", voter_id, pin),
+            BasePolicy::IdPswConcat => format!("{voter_id}{pin}"),
             BasePolicy::PswOnly => pin,
         }
     }
@@ -188,11 +189,11 @@ impl ValidateAnnotations for ElectionEventDatafix {
     }
 }
 
-/// Supported SOAP request types for the VoterView integration.
+/// Supported SOAP request types for the `VoterView` integration.
 #[derive(Display, Debug, Clone)]
 pub enum SoapRequest {
     /// `SetVoted` SOAP action after an internet ballot is accepted.
     SetVoted,
-    /// `SetNotVoted` SOAP action when a vote must be rolled back in VoterView.
+    /// `SetNotVoted` SOAP action when a vote must be rolled back in `VoterView`.
     SetNotVoted,
 }

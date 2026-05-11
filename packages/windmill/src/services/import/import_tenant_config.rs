@@ -103,7 +103,6 @@ pub async fn import_tenant_config_zip(
             && import_options.include_tenant == Some(true)
         {
             let temp_file = read_into_tmp_file(&mut cursor)
-                .await
                 .map_err(|e| anyhow!("Failed create tenant temp file: {e}"))?;
 
             upsert_tenant(&hasura_transaction, tenant_id, temp_file)
@@ -116,7 +115,6 @@ pub async fn import_tenant_config_zip(
             && import_options.include_roles == Some(true)
         {
             let temp_file = read_into_tmp_file(&mut cursor)
-                .await
                 .map_err(|e| anyhow!("Failed create roles & permissions temp file: {e}"))?;
 
             read_roles_config_file(temp_file, &realm, tenant_id).await?;
@@ -217,7 +215,7 @@ pub async fn get_zip_entries(temp_file_path: NamedTempFile) -> Result<Vec<(Strin
 /// # Errors
 ///
 /// Returns an error if the temp file cannot be created, written, or rewound.
-pub async fn read_into_tmp_file(cursor: &mut Cursor<&mut [u8]>) -> Result<NamedTempFile> {
+pub fn read_into_tmp_file(cursor: &mut Cursor<&mut [u8]>) -> Result<NamedTempFile> {
     let mut temp_file = NamedTempFile::new().context("Failed to create temporary file")?;
     io::copy(cursor, &mut temp_file).context("Failed to copy contents to temporary file")?;
     temp_file.as_file_mut().rewind()?;
