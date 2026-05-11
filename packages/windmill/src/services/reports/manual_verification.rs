@@ -58,7 +58,8 @@ pub struct ManualVerificationTemplate {
 
 impl ManualVerificationTemplate {
     /// Creates a renderer bound to a specific tenant/event and voter id.
-    pub fn new(ids: ReportOrigins) -> Self {
+    #[must_use]
+    pub const fn new(ids: ReportOrigins) -> Self {
         ManualVerificationTemplate { ids }
     }
 }
@@ -145,12 +146,10 @@ impl TemplateRenderer for ManualVerificationTemplate {
             Ok(SystemData {
                 rendered_user_template,
                 file_logo: format!(
-                    "{}/{}/{}",
-                    minio_endpoint_base, public_asset_path, PUBLIC_ASSETS_LOGO_IMG
+                    "{minio_endpoint_base}/{public_asset_path}/{PUBLIC_ASSETS_LOGO_IMG}"
                 ),
                 file_qrcode_lib: format!(
-                    "{}/{}/{}",
-                    minio_endpoint_base, public_asset_path, PUBLIC_ASSETS_QRCODE_LIB
+                    "{minio_endpoint_base}/{public_asset_path}/{PUBLIC_ASSETS_QRCODE_LIB}"
                 ),
             })
         } else {
@@ -159,8 +158,7 @@ impl TemplateRenderer for ManualVerificationTemplate {
             Ok(SystemData {
                 rendered_user_template,
                 file_logo: format!(
-                    "{}/{}/{}",
-                    minio_endpoint_base, public_asset_path, PUBLIC_ASSETS_LOGO_IMG
+                    "{minio_endpoint_base}/{public_asset_path}/{PUBLIC_ASSETS_LOGO_IMG}"
                 ),
                 file_qrcode_lib: "/assets/qrcode.min.js".to_string(),
             })

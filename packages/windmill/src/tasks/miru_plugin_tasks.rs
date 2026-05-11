@@ -7,7 +7,7 @@ use anyhow::Result as AnyhowResult;
 use anyhow::{anyhow, Context};
 use tracing::{info, instrument};
 
-/// Celery workers for MiRu transmission package creation and delivery.
+/// Celery workers for Miru transmission package creation and delivery.
 mod miru_consolidation_tasks {
     #![allow(missing_docs)]
     #![allow(clippy::missing_docs_in_private_items)]
@@ -47,7 +47,7 @@ mod miru_consolidation_tasks {
                     )
                     .await
                     {
-                        Ok(_) => Ok(()),
+                        Ok(()) => Ok(()),
                         Err(err) => {
                             info!(
                                 "Captured backtrace inside spawn_blocking:\n{}",
@@ -63,7 +63,7 @@ mod miru_consolidation_tasks {
 
         match handle.await {
             Ok(inner_result) => inner_result.map_err(|err| Error::from(err.context("Task failed"))),
-            Err(join_error) => Err(Error::from(anyhow!("Task panicked: {}", join_error))),
+            Err(join_error) => Err(Error::from(anyhow!("Task panicked: {join_error}"))),
         }?;
 
         update_complete(&task_execution, None)
@@ -93,14 +93,14 @@ mod miru_consolidation_tasks {
                         &tally_session_id,
                     )
                     .await
-                    .map_err(|err| anyhow!("{}", err))
+                    .map_err(|err| anyhow!("{err}"))
                 })
             }
         });
 
         match handle.await {
             Ok(inner_result) => inner_result.map_err(|err| Error::from(err.context("Task failed"))),
-            Err(join_error) => Err(Error::from(anyhow!("Task panicked: {}", join_error))),
+            Err(join_error) => Err(Error::from(anyhow!("Task panicked: {join_error}"))),
         }?;
 
         Ok(())
@@ -140,7 +140,7 @@ pub async fn upload_signature_task(
                 )
                 .await;
                 match res {
-                    Ok(_) => Ok(()),
+                    Ok(()) => Ok(()),
                     Err(err) => {
                         info!(
                             "Captured backtrace inside spawn_blocking:\n{}",

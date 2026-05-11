@@ -19,11 +19,13 @@ use tracing::{event, info, instrument, Level};
 use super::voting_status::update_board_on_status_change;
 
 /// Deserialize an `ElectionEventStatus` from JSON.
+#[must_use]
 pub fn get_election_event_status(status_json_opt: Option<Value>) -> Option<ElectionEventStatus> {
     status_json_opt.and_then(|status_json| deserialize_value(status_json).ok())
 }
 
 /// Deserialize an `ElectionStatus` from JSON.
+#[must_use]
 pub fn get_election_status(status_json_opt: Option<Value>) -> Option<ElectionStatus> {
     status_json_opt.and_then(|status_json| deserialize_value(status_json).ok())
 }

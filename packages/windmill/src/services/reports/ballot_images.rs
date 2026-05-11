@@ -56,7 +56,8 @@ pub struct BallotImagesTemplate {
 
 impl BallotImagesTemplate {
     /// Creates a renderer bound to a specific tenant/event (and optionally election/template).
-    pub fn new(ids: ReportOrigins) -> Self {
+    #[must_use]
+    pub const fn new(ids: ReportOrigins) -> Self {
         BallotImagesTemplate { ids }
     }
 }
@@ -136,8 +137,7 @@ impl TemplateRenderer for BallotImagesTemplate {
                 title: "Ballot Images - Sequentech".to_string(),
                 rendered_user_template,
                 file_qrcode_lib: format!(
-                    "{}/{}/{}",
-                    minio_endpoint_base, public_asset_path, PUBLIC_ASSETS_QRCODE_LIB
+                    "{minio_endpoint_base}/{public_asset_path}/{PUBLIC_ASSETS_QRCODE_LIB}"
                 ),
             })
         } else {

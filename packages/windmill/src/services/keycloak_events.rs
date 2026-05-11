@@ -67,7 +67,7 @@ pub async fn list_keycloak_events_by_type(
 ) -> Result<Vec<Event>> {
     let event_action_clause = match event_action {
         Some(_) => "AND (e.details_json_long_value::json ->> 'action' IS NOT NULL AND e.details_json_long_value::json ->> 'action' = $3)".to_string(),
-        None => "".to_string(),
+        None => String::new(),
     };
     let statement = keycloak_transaction
         .prepare(
@@ -139,7 +139,7 @@ pub async fn count_keycloak_events_by_type(
             params.push(&event_error);
             format!("AND e.error = ${param_count}")
         }
-        None => "".to_string(),
+        None => String::new(),
     };
 
     let select_str = match no_duplicate_user {
@@ -162,7 +162,7 @@ pub async fn count_keycloak_events_by_type(
                 ),
             )
         }
-        None => ("".to_string(), "".to_string()),
+        None => (String::new(), String::new()),
     };
 
     let statement = keycloak_transaction

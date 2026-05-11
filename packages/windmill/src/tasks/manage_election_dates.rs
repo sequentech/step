@@ -127,8 +127,7 @@ mod manage_election_date_task {
     ) -> Result<()> {
         let lock: PgLock = PgLock::acquire(
             format!(
-                "execute_manage_election_date-{}-{}-{}-{}",
-                tenant_id, election_event_id, scheduled_event_id, election_id
+                "execute_manage_election_date-{tenant_id}-{election_event_id}-{scheduled_event_id}-{election_id}"
             ),
             Uuid::new_v4().to_string(),
             ISO8601::now()

@@ -94,7 +94,7 @@ mod export_election_event_task {
         // Process the export
         match process_export_zip(&tenant_id, &election_event_id, &document_id, export_config).await
         {
-            Ok(_) => (),
+            Ok(()) => (),
             Err(err) => {
                 let err_str = format!("Failed to export election event data: {err:?}");
                 if let Err(update_err) = update_fail(&task_execution, &err_str).await {
@@ -109,7 +109,7 @@ mod export_election_event_task {
         }
 
         match hasura_transaction.commit().await {
-            Ok(_) => (),
+            Ok(()) => (),
             Err(err) => {
                 let err_str = format!("Commit failed: {err:?}");
                 if let Err(err) = update_fail(&task_execution, &err_str).await {
@@ -121,7 +121,7 @@ mod export_election_event_task {
                 }
                 return Err(Error::String(err_str));
             }
-        };
+        }
 
         update_complete(&task_execution, Some(document_id.to_string()))
             .await

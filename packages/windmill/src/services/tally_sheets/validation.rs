@@ -27,14 +27,12 @@ use tracing::instrument;
 /// Panics if vote totals overflow `u64` while being summed for validation.
 pub fn validate_tally_sheet(tally_sheet: &TallySheet, contest: &Contest) -> Result<()> {
     let Some(results) = tally_sheet.content.clone() else {
-        return Err(anyhow!("Invalid tally sheet {:?}, content missing", tally_sheet).into());
+        return Err(anyhow!("Invalid tally sheet {tally_sheet:?}, content missing").into());
     };
     if results.total_votes > results.census {
-        return Err(anyhow!(
-            "Invalid tally sheet {:?}, total_votes higher than census",
-            tally_sheet
-        )
-        .into());
+        return Err(
+            anyhow!("Invalid tally sheet {tally_sheet:?}, total_votes higher than census").into(),
+        );
     }
     let invalid_votes = results.invalid_votes.unwrap_or(Default::default());
     let total_invalid_votes_calculated = invalid_votes
@@ -45,8 +43,7 @@ pub fn validate_tally_sheet(tally_sheet: &TallySheet, contest: &Contest) -> Resu
     let total_invalid_votes = invalid_votes.total_invalid.unwrap_or(0);
     if total_invalid_votes != total_invalid_votes_calculated {
         return Err(anyhow!(
-            "Invalid tally sheet {:?}, inconsistent total invalid votes",
-            tally_sheet
+            "Invalid tally sheet {tally_sheet:?}, inconsistent total invalid votes"
         )
         .into());
     }
@@ -57,11 +54,9 @@ pub fn validate_tally_sheet(tally_sheet: &TallySheet, contest: &Contest) -> Resu
         .checked_add(total_valid_votes)
         .expect("vote totals overflow");
     if votes_accounted != total_votes {
-        return Err(anyhow!(
-            "Invalid tally sheet {:?}, inconsistent total votes",
-            tally_sheet
-        )
-        .into());
+        return Err(
+            anyhow!("Invalid tally sheet {tally_sheet:?}, inconsistent total votes",).into(),
+        );
     }
     let total_valid_votes_calc: u64 = results
         .candidate_results
@@ -85,18 +80,12 @@ pub fn validate_tally_sheet(tally_sheet: &TallySheet, contest: &Contest) -> Resu
     for (candidate_id, candidate_data) in results.candidate_results.iter() {
         if *candidate_id != candidate_data.candidate_id {
             return Err(anyhow!(
-                "Invalid tally sheet {:?}, inconsistent candidate result {:?}, {}",
-                tally_sheet,
-                candidate_data,
-                candidate_id
-            )
-            .into());
+                "Invalid tally sheet {tally_sheet:?}, inconsistent candidate result {candidate_data:?}, {candidate_id}",
+            ).into());
         }
         if !candidates_map.contains_key(&candidate_data.candidate_id) {
             return Err(anyhow!(
-                "Invalid tally sheet {:?}, can't find candidate {:?}",
-                tally_sheet,
-                candidate_data
+                "Invalid tally sheet {tally_sheet:?}, can't find candidate {candidate_data:?}"
             )
             .into());
         }

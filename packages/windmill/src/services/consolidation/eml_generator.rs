@@ -4,15 +4,18 @@
 
 //! Maps Velvet report rows and Miru-prefixed Hasura annotations into EML-shaped JSON.
 
-use super::eml_types::*;
-use crate::types::miru_plugin::*;
+use super::eml_types::{
+    EMLAffiliation, EMLCandidate, EMLContest, EMLCount, EMLCountMetric, EMLElection, EMLFile,
+    EMLHeader, EMLIdentifier, EMLOfficialStatusDetail, EMLSelection, EMLStatusItem, EMLTotalVotes,
+};
+use crate::types::miru_plugin::{MiruCcsServer, MiruSbeiUser, MiruTallySessionData};
 use anyhow::{anyhow, Context, Result};
 use chrono::{DateTime, Utc};
 use sequent_core::{
-    ballot::*,
+    ballot::{Annotations, Candidate, Contest},
     serialization::deserialize_with_path::{deserialize_str, deserialize_value},
     types::{
-        date_time::*,
+        date_time::{DateFormat, TimeZone},
         hasura::core::{self, ElectionEvent, Trustee},
     },
     util::date_time::generate_timestamp,
@@ -695,7 +698,7 @@ impl ValidateAnnotations for core::TallySession {
             })?;
 
         let tally_session_data: MiruTallySessionData =
-            deserialize_str(&tally_session_data_js).map_err(|err| anyhow!("{}", err))?;
+            deserialize_str(&tally_session_data_js).map_err(|err| anyhow!("{err}"))?;
 
         Ok(tally_session_data)
     }

@@ -67,7 +67,7 @@ pub async fn handle_allow_init_report(
         return Ok(());
     };
     let payload: ManageAllowInitPayload = deserialize_value(event_payload)
-        .map_err(|e| anyhow!("Error deserializing manage election date payload {}", e))?;
+        .map_err(|e| anyhow!("Error deserializing manage allow init payload {e}"))?;
     // run the actual task in a different async task
     match payload.election_id.clone() {
         Some(election_id) => {
@@ -83,7 +83,7 @@ pub async fn handle_allow_init_report(
                     .with_expires_in(120),
                 )
                 .await
-                .map_err(|e| anyhow!("Error sending task to celery {}", e))?;
+                .map_err(|e| anyhow!("Error sending task to celery {e}"))?;
             event!(
                 Level::INFO,
                 "Sent manage_election_date task {}",
@@ -102,7 +102,7 @@ pub async fn handle_allow_init_report(
                     .with_expires_in(120),
                 )
                 .await
-                .map_err(|e| anyhow!("Error sending task to celery {}", e))?;
+                .map_err(|e| anyhow!("Error sending task to celery {e}"))?;
             event!(
                 Level::INFO,
                 "Sent manage_election_event_date task {}",
@@ -137,7 +137,7 @@ pub async fn handle_allow_voting_period_end(
         return Ok(());
     };
     let payload: ManageAllowVotingPeriodEndPayload = deserialize_value(event_payload)
-        .map_err(|e| anyhow!("Error deserializing manage election date payload {}", e))?;
+        .map_err(|e| anyhow!("Error deserializing manage election event payload {e}"))?;
     // run the actual task in a different async task
     match payload.election_id.clone() {
         Some(election_id) => {
@@ -153,7 +153,7 @@ pub async fn handle_allow_voting_period_end(
                     .with_expires_in(120),
                 )
                 .await
-                .map_err(|e| anyhow!("Error sending task to celery {}", e))?;
+                .map_err(|e| anyhow!("Error sending task to celery {e}"))?;
             event!(
                 Level::INFO,
                 "Sent manage_election_voting_period_end task {}",
@@ -172,7 +172,7 @@ pub async fn handle_allow_voting_period_end(
                     .with_expires_in(120),
                 )
                 .await
-                .map_err(|e| anyhow!("Error sending task to celery {}", e))?;
+                .map_err(|e| anyhow!("Error sending task to celery {e}"))?;
             event!(
                 Level::INFO,
                 "Sent manage_election_voting_period_end task {}",
@@ -207,7 +207,7 @@ pub async fn handle_voting_event(
         return Ok(());
     };
     let payload: ManageElectionDatePayload = deserialize_value(event_payload)
-        .map_err(|e| anyhow!("Error deserializing manage election date payload {}", e))?;
+        .map_err(|e| anyhow!("Error deserializing manage election date payload {e}"))?;
     // run the actual task in a different async task
     match payload.election_id.clone() {
         Some(election_id) => {
@@ -223,7 +223,7 @@ pub async fn handle_voting_event(
                     .with_expires_in(120),
                 )
                 .await
-                .map_err(|e| anyhow!("Error sending task to celery {}", e))?;
+                .map_err(|e| anyhow!("Error sending task to celery {e}"))?;
             event!(
                 Level::INFO,
                 "Sent manage_election_date task {}",
@@ -242,7 +242,7 @@ pub async fn handle_voting_event(
                     .with_expires_in(120),
                 )
                 .await
-                .map_err(|e| anyhow!("Error sending task to celery {}", e))?;
+                .map_err(|e| anyhow!("Error sending task to celery {e}"))?;
             event!(
                 Level::INFO,
                 "Sent manage_election_event_date task {}",
@@ -285,7 +285,7 @@ pub async fn handle_election_event_enrollment(
             .with_expires_in(120),
         )
         .await
-        .map_err(|e| anyhow!("Error sending task to celery {}", e))?;
+        .map_err(|e| anyhow!("Error sending task to celery {e}"))?;
 
     event!(
         Level::INFO,
@@ -327,7 +327,7 @@ pub async fn handle_election_lockdown(
             .with_expires_in(120),
         )
         .await
-        .map_err(|e| anyhow!("Error sending task to celery {}", e))?;
+        .map_err(|e| anyhow!("Error sending task to celery {e}"))?;
     event!(
         Level::INFO,
         "Sent manage_election_date task {}",
@@ -360,7 +360,7 @@ pub async fn handle_election_allow_tally(
         return Ok(());
     };
     let payload: ManageAllowTallyPayload = deserialize_value(event_payload)
-        .map_err(|e| anyhow!("Error deserializing manage election date payload {}", e))?;
+        .map_err(|e| anyhow!("Error deserializing manage election date payload {e}"))?;
     // run the actual task in a different async task
     if let Some(election_id) = payload.election_id.clone() {
         let task = celery_app
@@ -375,7 +375,7 @@ pub async fn handle_election_allow_tally(
                 .with_expires_in(120),
             )
             .await
-            .map_err(|e| anyhow!("Error sending task to celery {}", e))?;
+            .map_err(|e| anyhow!("Error sending task to celery {e}"))?;
         event!(
             Level::INFO,
             "Sent manage_election_allow_tally task {}",
@@ -415,15 +415,15 @@ mod scheduled_events_celery {
             .await
             .get()
             .await
-            .map_err(|e| anyhow!("Error getting hasura client {}", e))?;
+            .map_err(|e| anyhow!("Error getting hasura client {e}"))?;
         let hasura_transaction = hasura_db_client
             .transaction()
             .await
-            .map_err(|e| anyhow!("Error creating a hasura transaction {}", e))?;
+            .map_err(|e| anyhow!("Error creating a hasura transaction {e}"))?;
 
         let scheduled_events = find_all_active_events(&hasura_transaction)
             .await
-            .map_err(|e| anyhow!("Error finding all active events {}", e))?;
+            .map_err(|e| anyhow!("Error finding all active events {e}"))?;
         info!("Found {} scheduled events", scheduled_events.len());
         let to_be_run_now = scheduled_events
             .iter()

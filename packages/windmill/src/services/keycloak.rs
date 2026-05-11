@@ -17,6 +17,7 @@ use tracing::{event, info, instrument, Level};
 use uuid::Uuid;
 
 /// Map realm data to a tuple of container id, existing groups, and existing roles.
+#[must_use]
 pub fn map_realm_data(
     realm: &RealmRepresentation,
 ) -> (
@@ -72,8 +73,8 @@ pub async fn delete_realm_groups_and_roles(
                         role.id.as_ref().ok_or(anyhow!("Empty role id"))?,
                     )
                     .await
-                    .map_err(|e| anyhow!("Failed to send request: {:?}", e))?;
-                println!("Deleted role: {}", name);
+                    .map_err(|e| anyhow!("Failed to send request: {e:?}"))?;
+                println!("Deleted role: {name}");
             }
         }
     }
@@ -89,7 +90,7 @@ pub async fn delete_realm_groups_and_roles(
                         group.id.as_ref().ok_or(anyhow!("Empty role id"))?,
                     )
                     .await?;
-                println!("Deleted group: {}", name);
+                println!("Deleted group: {name}");
             } else {
                 // Update the group id in new_realm_groups
                 new_realm_groups
@@ -105,6 +106,7 @@ pub async fn delete_realm_groups_and_roles(
 }
 
 /// Find a group by name in a list of groups.
+#[must_use]
 pub fn find_group_by_name(
     groups: &[GroupRepresentation],
     group_name: &str,
@@ -129,7 +131,7 @@ pub async fn read_roles_config_file(
     let keycloak_pub_client = KeycloakAdminClient::pub_new().await?;
     let keycloak_client = KeycloakAdminClient::new()
         .await
-        .map_err(|e| anyhow!("Failed to create Keycloak client: {:?}", e))?;
+        .map_err(|e| anyhow!("Failed to create Keycloak client: {e:?}"))?;
     let (container_id, existing_realm_groups, existing_realm_roles) = map_realm_data(realm);
     let mut reader = csv::Reader::from_path(temp_file.path())
         .map_err(|e| anyhow!("Error reading roles and permissions config file: {e}"))?;
@@ -148,7 +150,7 @@ pub async fn read_roles_config_file(
             .ok_or_else(|| anyhow!("Permissions not found"))?
             .to_string();
         let permissions: Vec<String> = permissions_str
-            .split("|")
+            .split('|')
             .map(|permission| {
                 // Ensure adding unique permissions using the HashSet
                 if existing_permissions.insert(permission.to_string()) {
@@ -182,7 +184,7 @@ pub async fn read_roles_config_file(
                     &keycloak_pub_client,
                 )
                 .await
-                .map_err(|e| anyhow!("Failed to get group assigned roles: {:?}", e))?;
+                .map_err(|e| anyhow!("Failed to get group assigned roles: {e:?}"))?;
 
             let current_role_names: HashSet<String> = current_group_roles
                 .iter()
@@ -254,7 +256,7 @@ pub async fn read_roles_config_file(
                 .create_new_group(tenant_id, &role, &keycloak_pub_client)
                 .await
                 .with_context(|| {
-                    format!("Error creating group '{}' and assigning permissions", role)
+                    format!("Error creating group '{role}' and assigning permissions")
                 })?;
 
             if let Some(group_id) = new_group_id {
@@ -267,7 +269,7 @@ pub async fn read_roles_config_file(
                         RoleAction::Add,
                     )
                     .await
-                    .with_context(|| format!("Error adding roles to new group '{}'", role))?;
+                    .with_context(|| format!("Error adding roles to new group '{role}'"))?;
             }
         }
     }

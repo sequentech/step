@@ -773,8 +773,8 @@ pub async fn create_config_file(
 ///
 /// # Errors
 ///
-/// Any failure while opening SQLite, running nested async Postgres queries inside `block_in_place`,
-/// importing candidate CSVs, or committing the SQLite transaction (all wrapped with anyhow context).
+/// Any failure while opening `SQLite`, running nested async Postgres queries inside `block_in_place`,
+/// importing candidate CSVs, or committing the `SQLite` transaction (all wrapped with anyhow context).
 #[allow(clippy::too_many_lines)]
 #[instrument(skip_all, err)]
 async fn populate_sqlite_election_event_data(

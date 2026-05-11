@@ -59,11 +59,13 @@ pub struct ExecutionAnnotations {
 }
 
 /// Returns the application build hash for report annotations.
+#[must_use]
 pub fn get_app_hash() -> String {
     env::var(ENV_VAR_APP_HASH).unwrap_or("-".to_string())
 }
 
 /// Returns the application version for report annotations.
+#[must_use]
 pub fn get_app_version() -> String {
     env::var(ENV_VAR_APP_VERSION).unwrap_or("-".to_string())
 }
@@ -121,7 +123,7 @@ pub async fn generate_election_votes_data(
         election_id,
     )
     .await
-    .map_err(|e| anyhow!("Error fetching election results: {:?}", e))?;
+    .map_err(|e| anyhow!("Error fetching election results: {e:?}"))?;
 
     if let Some(result) = election_results.first() {
         let total_ballots = result.total_voters;
@@ -177,7 +179,7 @@ pub async fn generate_election_area_votes_data(
         area_id,
     )
     .await
-    .map_err(|e| anyhow!("Error fetching election results: {:?}", e))?;
+    .map_err(|e| anyhow!("Error fetching election results: {e:?}"))?;
 
     if let Some(result) = area_results {
         let total_ballots = result.total_votes;
@@ -379,15 +381,15 @@ pub async fn extract_area_data(
         }
         _ => vec![
             InspectorData {
-                role: "".to_string(),
+                role: String::new(),
                 name: DEFULT_CHAIRPERSON.to_string(),
             },
             InspectorData {
-                role: "".to_string(),
+                role: String::new(),
                 name: DEFULT_POLL_CLERK.to_string(),
             },
             InspectorData {
-                role: "".to_string(),
+                role: String::new(),
                 name: DEFULT_THIRD_MEMBER.to_string(),
             },
         ],
@@ -474,7 +476,7 @@ pub async fn get_results_hash(
         .and_then(|annotations| annotations.get("results_hash").cloned());
 
     let results_hash = results_hash
-        .map(|hash| hash.to_string().replace("\"", " ").trim().to_string())
+        .map(|hash| hash.to_string().replace('\"', " ").trim().to_string())
         .unwrap_or_default();
 
     Ok(results_hash)
@@ -488,7 +490,7 @@ pub async fn get_results_hash(
 /// Returns an error if hashing fails.
 pub async fn get_report_hash(report_type: &str) -> Result<String> {
     let date_and_time = get_date_and_time();
-    let report_date_time = format!("{}{}", report_type, date_and_time);
+    let report_date_time = format!("{report_type}{date_and_time}");
     let report_hash = hash_b64(report_date_time.as_bytes())
         .map_err(|err| anyhow!("Error hashing report hash: {err:?}"))?;
     Ok(report_hash)

@@ -23,7 +23,7 @@ use std::collections::HashMap;
 use std::env;
 use tracing::{error, info, instrument, warn};
 /// Disable the voter, datafix users are not actually deleted but just disabled.
-/// Note: voter_id in Datafix API represents the username in Keycloak/Sequent´s system.
+/// Note: `voter_id` in Datafix API represents the username in Keycloak/Sequent´s system.
 ///
 /// # Errors
 ///
@@ -147,7 +147,7 @@ pub async fn add_datafix_voter(
 }
 
 /// There are 2 things that can be updated, the area and the birthdate.
-/// Note: voter_id in Datafix API represents the username in Keycloak/Sequent´s system.
+/// Note: `voter_id` in Datafix API represents the username in Keycloak/Sequent´s system.
 ///
 /// # Errors
 ///

@@ -72,7 +72,7 @@ pub struct SystemData {
     pub rendered_user_template: String,
 }
 
-/// Implementation of TemplateRenderer for Activity Logs
+/// Implementation of `TemplateRenderer` for Activity Logs
 #[derive(Debug)]
 /// Renderer for the activity logs report templates.
 #[allow(clippy::missing_docs_in_private_items)]
@@ -83,7 +83,8 @@ pub struct ActivityLogsTemplate {
 
 impl ActivityLogsTemplate {
     /// Creates a renderer bound to a specific tenant/event.
-    pub fn new(ids: ReportOrigins, report_format: ReportFormat) -> Self {
+    #[must_use]
+    pub const fn new(ids: ReportOrigins, report_format: ReportFormat) -> Self {
         ActivityLogsTemplate { ids, report_format }
     }
 
@@ -213,7 +214,7 @@ impl TryFrom<ElectoralLogMessage> for ActivityLogRow {
 
     fn try_from(electoral_log: ElectoralLogMessage) -> Result<Self, Self::Error> {
         let user_id = match electoral_log.user_id {
-            Some(user_id) => user_id.to_string(),
+            Some(user_id) => user_id.clone(),
             None => "-".to_string(),
         };
 
@@ -429,8 +430,8 @@ impl TemplateRenderer for ActivityLogsTemplate {
             .await
         } else {
             // Generate CSV file using generate_export_csv_data
-            let name = format!("export-election-event-logs-{}", election_event_id);
-            let full_name = format!("{}.csv", name);
+            let name = format!("export-election-event-logs-{election_event_id}");
+            let full_name = format!("{name}.csv");
             let temp_file = self
                 .generate_export_csv_data(&name)
                 .await

@@ -57,7 +57,7 @@ pub async fn update_keycloak_otp(
         let flow_executions = keycloak_client
             .get_flow_executions(&pub_client, &realm_name, flow_name)
             .await
-            .with_context(|| format!("Error fetching flow executions for '{}'", flow_name))?;
+            .with_context(|| format!("Error fetching flow executions for '{flow_name}'"))?;
 
         for mut execution in flow_executions {
             if execution.provider_id.as_deref() == Some("message-otp-authenticator") {
@@ -71,9 +71,7 @@ pub async fn update_keycloak_otp(
                         &serde_json::to_string(&execution)?,
                     )
                     .await
-                    .with_context(|| {
-                        format!("Error updating flow execution for '{}'", flow_name)
-                    })?;
+                    .with_context(|| format!("Error updating flow execution for '{flow_name}'"))?;
             }
         }
     }
@@ -150,8 +148,7 @@ pub async fn manage_election_event_enrollment_wrapped(
 
     let Some(scheduled_event) = scheduled_event else {
         return Err(anyhow!(
-            "Can't find scheduled event with id: {}",
-            scheduled_event_id
+            "Can't find scheduled event with id: {scheduled_event_id}"
         ));
     };
 

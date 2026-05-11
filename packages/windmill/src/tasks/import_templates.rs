@@ -33,7 +33,7 @@ pub async fn import_templates(
 ) -> AnyhowResult<()> {
     let document = get_document(hasura_transaction, &tenant_id, None, &document_id)
         .await
-        .map_err(|e| anyhow!("Error obtaining the document: {:?}", e))?
+        .map_err(|e| anyhow!("Error obtaining the document: {e:?}"))?
         .ok_or(Error::String("document not found".to_string()))?;
 
     let mut temp_file = get_document_as_temp_file(&tenant_id, &document).await?;
@@ -41,7 +41,7 @@ pub async fn import_templates(
 
     match sha256 {
         Some(hash) if !hash.is_empty() => match integrity_check(&temp_file, hash) {
-            Ok(_) => {
+            Ok(()) => {
                 info!("Hash verified !");
             }
             Err(HashFileVerifyError::HashMismatch(input_hash, gen_hash)) => {
@@ -66,7 +66,7 @@ pub async fn import_templates(
     let mut templates: Vec<Template> = vec![];
 
     for result in rdr.records() {
-        let record = result.map_err(|e| anyhow!("Error reading CSV record: {:?}", e))?;
+        let record = result.map_err(|e| anyhow!("Error reading CSV record: {e:?}"))?;
 
         let template_alias = record.get(0).unwrap_or("");
         let tenant_id = record.get(1).unwrap_or("");
@@ -82,7 +82,7 @@ pub async fn import_templates(
         let tenant_id_parsed = match parse_uuid_v4(tenant_id) {
             Ok(uuid) => uuid.to_string(),
             Err(_) => {
-                tracing::warn!("Invalid UUID for tenant_id: {}", tenant_id);
+                tracing::warn!("Invalid UUID for tenant_id: {tenant_id}");
                 continue;
             }
         };
@@ -129,7 +129,7 @@ mod import_templates_celery_task {
         })
         .await;
         match result {
-            Ok(_) => {
+            Ok(()) => {
                 let _res = update_complete(&task_execution, Some(document_id.clone())).await;
                 Ok(())
             }

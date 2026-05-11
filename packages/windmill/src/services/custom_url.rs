@@ -412,15 +412,12 @@ pub async fn create_dns_record(redirect_to: &str, dns_prefix: &str) -> Result<()
     let (zone_id, api_key) = match get_cloudflare_vars() {
         Ok(vars) => vars,
         Err(e) => {
-            error!("Failed to get Cloudflare environment variables: {}", e);
+            error!("Failed to get Cloudflare environment variables: {e}");
             return Err(format!("Failed to get Cloudflare environment variables: {e}").into());
         }
     };
 
-    let url = format!(
-        "https://api.cloudflare.com/client/v4/zones/{}/dns_records",
-        zone_id
-    );
+    let url = format!("https://api.cloudflare.com/client/v4/zones/{zone_id}/dns_records",);
 
     let request_dns_body = create_dns_payload(dns_prefix);
     info!("DNS prefix {:?}", dns_prefix);
@@ -472,10 +469,7 @@ pub async fn update_dns_record(
         }
     };
 
-    let url = format!(
-        "https://api.cloudflare.com/client/v4/zones/{}/dns_records/{}",
-        zone_id, id
-    );
+    let url = format!("https://api.cloudflare.com/client/v4/zones/{zone_id}/dns_records/{id}",);
 
     let request_dns_body = create_dns_payload(dns_prefix);
     info!("DNS prefix {:?}", dns_prefix);

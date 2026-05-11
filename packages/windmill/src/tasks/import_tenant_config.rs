@@ -50,11 +50,11 @@ mod import_tenant_config_task {
         let task_execution = task_execution_clone.clone();
 
         match import_tenant_config_zip(object, &tenant_id, &document_id, sha256).await {
-            Ok(_) => (),
+            Ok(()) => (),
             Err(err) => {
                 update_fail(&task_execution, &err.to_string()).await?;
                 return Err(
-                    anyhow!("Error process tenant configuration documents: {:?}", err).into(),
+                    anyhow!("Error process tenant configuration documents: {err:?}").into(),
                 );
             }
         };

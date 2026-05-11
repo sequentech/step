@@ -105,7 +105,7 @@ async fn send_template_sms(
 ) -> Result<Option<String>> {
     if let (Some(receiver), Some(config)) = (receiver, template) {
         let message = reports::render_template_text(config.message.as_str(), variables.clone())
-            .map_err(|err| anyhow!("{}", err))?;
+            .map_err(|err| anyhow!("{err}"))?;
 
         sender.send(receiver.into(), message.clone()).await?;
         return Ok(Some(
@@ -421,7 +421,7 @@ mod send_template_task {
             .await
             .get()
             .await
-            .map_err(|err| anyhow!("{}", err))?;
+            .map_err(|err| anyhow!("{err}"))?;
         let batch_size = PgConfig::from_env()?.default_sql_batch_size;
 
         let Some(audience_selection) = body.audience_selection.clone() else {

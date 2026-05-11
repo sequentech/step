@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-//! Transaction helpers for Hasura Postgres, SQLite, and ImmuDB.
+//! Transaction helpers for Hasura Postgres, `SQLite`, and `ImmuDB`.
 use crate::services::database::get_hasura_pool;
 use crate::services::protocol_manager::get_immudb_client;
 use anyhow::{anyhow, Context, Result};
@@ -31,25 +31,25 @@ where
     let res = handler(&hasura_transaction).await;
 
     match res {
-        Ok(_) => {
+        Ok(()) => {
             hasura_transaction
                 .commit()
                 .await
-                .map_err(|e| anyhow!("Commit failed manage_election_dates: {}", e))?;
+                .map_err(|e| anyhow!("Commit failed manage_election_dates: {e}"))?;
         }
         Err(err) => {
             hasura_transaction
                 .rollback()
                 .await
-                .with_context(|| format!("Rollback error after transaction error {:?}", err))?;
-            return Err(anyhow!("{}", err));
+                .with_context(|| format!("Rollback error after transaction error {err:?}"))?;
+            return Err(anyhow!("{err}"));
         }
     }
 
     Ok(())
 }
 
-/// Runs `handler` within a SQLite transaction opened from `database_path`.
+/// Runs `handler` within a `SQLite` transaction opened from `database_path`.
 ///
 /// # Errors
 ///
@@ -68,15 +68,14 @@ where
             .context("Error starting sqlite database transaction")?;
 
         match handler(&tx) {
-            Ok(_) => {
+            Ok(()) => {
                 tx.commit()
                     .context("Commit failed for sqlite transaction")?;
                 Ok(())
             }
             Err(err) => {
-                tx.rollback().with_context(|| {
-                    format!("Rollback error after transaction error: {:?}", err)
-                })?;
+                tx.rollback()
+                    .with_context(|| format!("Rollback error after transaction error: {err:?}"))?;
                 Err(err)
             }
         }
@@ -98,12 +97,12 @@ where
         .await
         .get()
         .await
-        .map_err(|e| anyhow!("Error getting hasura client {}", e))?;
+        .map_err(|e| anyhow!("Error getting hasura client {e}"))?;
 
     provide_transaction(handler, hasura_db_client).await
 }
 
-/// Runs `handler` within an ImmuDB transaction (`new_tx`) scoped to `immudb_db`.
+/// Runs `handler` within an `ImmuDB` transaction (`new_tx`) scoped to `immudb_db`.
 ///
 /// # Errors
 ///
@@ -124,30 +123,30 @@ where
     client
         .open_session(immudb_db)
         .await
-        .map_err(|e| anyhow!("Failed to open session: {}", e))?;
+        .map_err(|e| anyhow!("Failed to open session: {e}"))?;
 
     // Start the transaction
     let tx_id = client
         .new_tx(TxMode::ReadWrite)
         .await
-        .map_err(|e| anyhow!("Failed to start transaction: {}", e))?;
+        .map_err(|e| anyhow!("Failed to start transaction: {e}"))?;
 
     // Run the handler (database operations inside the transaction)
     let res = handler(&mut client, &tx_id).await;
     // Commit or Rollback based on result
     match res {
-        Ok(_) => {
+        Ok(()) => {
             client
                 .commit(&tx_id)
                 .await
-                .map_err(|e| anyhow!("Commit failed: {}", e))?;
+                .map_err(|e| anyhow!("Commit failed: {e}"))?;
         }
         Err(err) => {
             client
                 .rollback(&tx_id)
                 .await
-                .with_context(|| format!("Rollback error after transaction error: {:?}", err))?;
-            return Err(anyhow!("{}", err));
+                .with_context(|| format!("Rollback error after transaction error: {err:?}"))?;
+            return Err(anyhow!("{err}"));
         }
     }
 
@@ -155,12 +154,12 @@ where
     client
         .close_session()
         .await
-        .map_err(|e| anyhow!("Failed to close session: {}", e))?;
+        .map_err(|e| anyhow!("Failed to close session: {e}"))?;
 
     Ok(())
 }
 
-/// Convenience wrapper over [`provide_transaction_immudb`] using the shared ImmuDB client.
+/// Convenience wrapper over [`provide_transaction_immudb`] using the shared `ImmuDB` client.
 ///
 /// # Errors
 ///
@@ -175,7 +174,7 @@ where
 {
     let mut client: ImmudbClient = get_immudb_client()
         .await
-        .map_err(|e| anyhow!("Error getting Immudb client: {}", e))?;
+        .map_err(|e| anyhow!("Error getting Immudb client: {e}"))?;
 
     // Call the function that manages the session, transaction, and lifecycle
     provide_transaction_immudb(handler, client, immudb_db).await

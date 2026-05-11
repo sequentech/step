@@ -39,7 +39,8 @@ pub struct ElectoralResults {
 
 impl ElectoralResults {
     /// Creates a renderer bound to a specific tenant/event (and optionally election/template).
-    pub fn new(ids: ReportOrigins) -> Self {
+    #[must_use]
+    pub const fn new(ids: ReportOrigins) -> Self {
         ElectoralResults { ids }
     }
 }

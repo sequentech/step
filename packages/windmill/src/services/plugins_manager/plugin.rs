@@ -64,6 +64,7 @@ impl From<&str> for HookValue {
 
 impl HookValue {
     /// Converts this wrapper into a Wasmtime component [`Val`].
+    #[must_use]
     pub fn to_val(&self) -> Val {
         match self {
             HookValue::S32(v) => Val::S32(*v),
@@ -105,11 +106,12 @@ impl HookValue {
                 HookValue::Option(Some(Box::new(HookValue::from_val(opt_val)?)))
             }
             Val::Option(None) => HookValue::Option(None),
-            _ => return Err(anyhow::anyhow!("Unsupported Val type: {:?}", val)),
+            _ => return Err(anyhow::anyhow!("Unsupported Val type: {val:?}")),
         })
     }
 
     /// Returns the contained integer when this is a numeric value.
+    #[must_use]
     pub fn as_i32(&self) -> Option<i32> {
         match self {
             HookValue::S32(v) => Some(*v),
@@ -119,6 +121,7 @@ impl HookValue {
     }
 
     /// Returns the contained string slice when this is a string value.
+    #[must_use]
     pub fn as_str(&self) -> Option<&str> {
         match self {
             HookValue::String(v) => Some(v),
@@ -136,14 +139,14 @@ impl HookValue {
             HookValue::Result(Ok(Some(boxed_value))) => match &**boxed_value {
                 HookValue::String(value) => {
                     let json_value: Value = serde_json::from_str(value)
-                        .map_err(|e| anyhow!("Failed to parse string as JSON: {}", e))?;
+                        .map_err(|e| anyhow!("Failed to parse string as JSON: {e}"))?;
                     Ok(json_value)
                 }
                 _ => Err(anyhow!("Unexpected boxed hook value type")),
             },
             HookValue::Result(Ok(None)) => Err(anyhow!("No value returned from plugin hook")),
             HookValue::Result(Err(Some(e))) => match &**e {
-                HookValue::String(e) => Err(anyhow!("Plugin hook error: {}", e)),
+                HookValue::String(e) => Err(anyhow!("Plugin hook error: {e}")),
                 _ => Err(anyhow!("Error executing plugin hook")),
             },
             _ => Err(anyhow!("Unexpected hook value type")),
@@ -308,7 +311,8 @@ pub struct PluginAuth;
 
 impl PluginAuth {
     /// Creates a new authorization host.
-    pub fn new() -> Self {
+    #[must_use]
+    pub const fn new() -> Self {
         PluginAuth
     }
 }
@@ -342,10 +346,7 @@ impl HostAuth for PluginAuth {
             .filter_map(|p_str| match Permissions::from_str(&p_str) {
                 Ok(perm_enum) => Some(perm_enum),
                 Err(e) => {
-                    println!(
-                        "Warning: Failed to parse permission string '{}': {}",
-                        p_str, e
-                    );
+                    println!("Warning: Failed to parse permission string '{p_str}': {e}");
                     None
                 }
             })
@@ -358,7 +359,7 @@ impl HostAuth for PluginAuth {
             parsed_permissions,
         ) {
             Ok(_) => Ok(()),
-            Err((_status, message)) => Err(format!("Authorization failed: {}", message)),
+            Err((_status, message)) => Err(format!("Authorization failed: {message}")),
         }
     }
 }

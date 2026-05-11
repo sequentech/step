@@ -58,9 +58,9 @@ impl PgConfig {
         Config::builder()
             .add_source(Environment::default().separator("__"))
             .build()
-            .map_err(|err| anyhow!("error building Config from Env: {}", err))?
+            .map_err(|err| anyhow!("error building Config from Env: {err}"))?
             .try_deserialize()
-            .map_err(|err| anyhow!("error deserializing PgConfig: {}", err))
+            .map_err(|err| anyhow!("error deserializing PgConfig: {err}"))
     }
 }
 
@@ -80,16 +80,16 @@ pub async fn generate_keycloak_pool() -> Result<Arc<Pool>> {
             {
                 let mut builder = SslConnector::builder(SslMethod::tls())
                     .map_err(|err|
-                        anyhow!("error building SsslConnector: {}", err)
+                        anyhow!("error building SsslConnector: {err}")
                     )?;
                 builder.set_ca_file(
                     env::var("KEYCLOAK_DB_CA_PATH")
                     .map_err(|err|
-                        anyhow!("error loading KEYCLOAK_DB_CA_PATH var: {}", err)
+                        anyhow!("error loading KEYCLOAK_DB_CA_PATH var: {err}")
                     )?
                 )
                 .map_err(|err|
-                    anyhow!("error in builder.set_ca_file(): {}", err)
+                    anyhow!("error in builder.set_ca_file(): {err}")
                 )?;
                 let connector_tls = MakeTlsConnector::new(builder.build());
 
@@ -97,7 +97,7 @@ pub async fn generate_keycloak_pool() -> Result<Arc<Pool>> {
                     .keycloak_db
                     .create_pool(Some(Runtime::Tokio1), connector_tls)
                     .map_err(|err|
-                        anyhow!("error creating pool: {}", err)
+                        anyhow!("error creating pool: {err}")
                     )?;
                 Ok(Arc::new(pool))
             } else {
@@ -105,7 +105,7 @@ pub async fn generate_keycloak_pool() -> Result<Arc<Pool>> {
                     .keycloak_db
                     .create_pool(Some(Runtime::Tokio1), tokio_postgres::NoTls)
                     .map_err(|err|
-                        anyhow!("error creating pool: {}", err)
+                        anyhow!("error creating pool: {err}")
                     )?;
                 Ok(Arc::new(pool))
             }
@@ -114,7 +114,7 @@ pub async fn generate_keycloak_pool() -> Result<Arc<Pool>> {
                 .keycloak_db
                 .create_pool(Some(Runtime::Tokio1), tokio_postgres::NoTls)
                 .map_err(|err|
-                    anyhow!("error creating pool: {}", err)
+                    anyhow!("error creating pool: {err}")
                 )?;
             Ok(Arc::new(pool))
         }
@@ -137,16 +137,16 @@ pub async fn generate_hasura_pool() -> Result<Arc<Pool>> {
             {
                 let mut builder = SslConnector::builder(SslMethod::tls())
                     .map_err(|err|
-                        anyhow!("error building SsslConnector: {}", err)
+                        anyhow!("error building SsslConnector: {err}")
                     )?;
                 builder.set_ca_file(
                     env::var("HASURA_DB_CA_PATH")
                     .map_err(|err|
-                        anyhow!("error loading HASURA_DB_CA_PATH var: {}", err)
+                        anyhow!("error loading HASURA_DB_CA_PATH var: {err}")
                     )?
                 )
                 .map_err(|err|
-                    anyhow!("error in builder.set_ca_file(): {}", err)
+                    anyhow!("error in builder.set_ca_file(): {err}")
                 )?;
                 let connector_tls = MakeTlsConnector::new(builder.build());
 
@@ -154,7 +154,7 @@ pub async fn generate_hasura_pool() -> Result<Arc<Pool>> {
                     .hasura_db
                     .create_pool(Some(Runtime::Tokio1), connector_tls)
                     .map_err(|err|
-                        anyhow!("error creating pool: {}", err)
+                        anyhow!("error creating pool: {err}")
                     )?;
                 Ok(Arc::new(pool))
             } else {
@@ -162,7 +162,7 @@ pub async fn generate_hasura_pool() -> Result<Arc<Pool>> {
                     .hasura_db
                     .create_pool(Some(Runtime::Tokio1), tokio_postgres::NoTls)
                     .map_err(|err|
-                        anyhow!("error creating pool: {}", err)
+                        anyhow!("error creating pool: {err}")
                     )?;
                 Ok(Arc::new(pool))
             }
@@ -171,23 +171,29 @@ pub async fn generate_hasura_pool() -> Result<Arc<Pool>> {
                 .hasura_db
                 .create_pool(Some(Runtime::Tokio1), tokio_postgres::NoTls)
                 .map_err(|err|
-                    anyhow!("error creating pool: {}", err)
+                    anyhow!("error creating pool: {err}")
                 )?;
             Ok(Arc::new(pool))
         }
     }
 }
 
+// allow lazy_static to be used
+#[allow(clippy::non_std_lazy_statics)]
 lazy_static! {
     static ref KEYCLOAK_POOL: AsyncOnce<Arc<Pool>> = AsyncOnce::new(async {
-        let pool = generate_keycloak_pool().await.unwrap();
+        let pool = generate_keycloak_pool()
+            .await
+            .expect("Keycloak pool initialization failed");
         assert_standard_conforming_strings(&pool)
             .await
             .expect("Keycloak DB: standard_conforming_strings check failed");
         pool
     });
     static ref HASURA_POOL: AsyncOnce<Arc<Pool>> = AsyncOnce::new(async {
-        let pool = generate_hasura_pool().await.unwrap();
+        let pool = generate_hasura_pool()
+            .await
+            .expect("Hasura pool initialization failed");
         assert_standard_conforming_strings(&pool)
             .await
             .expect("Hasura DB: standard_conforming_strings check failed");

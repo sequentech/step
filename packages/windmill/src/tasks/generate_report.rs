@@ -67,7 +67,7 @@ pub async fn generate_report(
             if let Some(ref task_exec) = task_execution {
                 let _ = update_fail(task_exec, "Failed to get Hasura DB pool").await;
             }
-            return Err(anyhow!("Error getting Hasura DB pool: {}", err));
+            return Err(anyhow!("Error getting Hasura DB pool: {err}"));
         }
     };
 
@@ -86,7 +86,7 @@ pub async fn generate_report(
             if let Some(ref task_exec) = task_execution {
                 let _ = update_fail(task_exec, "Failed to get Hasura DB pool").await;
             }
-            return Err(anyhow!("Error getting Keycloak DB pool: {}", err));
+            return Err(anyhow!("Error getting Keycloak DB pool: {err}"));
         }
     };
 
@@ -146,7 +146,7 @@ pub async fn generate_report(
             let report = ManualVerificationTemplate::new(ids);
             execute_report!(report);
         }
-        Err(err) => return Err(anyhow!("{:?}", err)),
+        Err(err) => return Err(anyhow!("{err:?}")),
     }
 
     hasura_transaction
@@ -196,7 +196,7 @@ mod generate_report_task {
                         tally_session_id,
                     )
                     .await
-                    .map_err(|err| anyhow!("generate_report error: {:?}", err))
+                    .map_err(|err| anyhow!("generate_report error: {err:?}"))
                 })
             }
         });
@@ -206,19 +206,16 @@ mod generate_report_task {
             Ok(inner_result) => {
                 if let Err(ref err) = inner_result {
                     if let Some(ref task_exec) = task_execution {
-                        let _ = update_fail(task_exec, &format!("Task failed: {:?}", err)).await;
+                        let _ = update_fail(task_exec, &format!("Task failed: {err:?}")).await;
                     }
                 }
                 inner_result.map_err(|err| Error::from(err.context("Task failed")))?;
             }
             Err(join_error) => {
                 if let Some(ref task_exec) = task_execution {
-                    let _ = update_fail(task_exec, &format!("Task panicked: {}", join_error)).await;
+                    let _ = update_fail(task_exec, &format!("Task panicked: {join_error}")).await;
                 }
-                return Err(Error::from(anyhow::anyhow!(
-                    "Task panicked: {}",
-                    join_error
-                )));
+                return Err(Error::from(anyhow::anyhow!("Task panicked: {join_error}")));
             }
         }
 

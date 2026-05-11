@@ -145,7 +145,7 @@ async fn check_aws_secrets(app_name: &AppName) -> Option<bool> {
     }
 
     match check_master_secret().await {
-        Ok(_) => Some(true),
+        Ok(()) => Some(true),
         Err(error) => {
             error!("aws secrets error: {error:?}");
             Some(false)
@@ -246,10 +246,10 @@ async fn readiness_test(app_name: &AppName) -> bool {
 /// Setup the probe for the application.
 pub async fn setup_probe(app_name: AppName) {
     let app = app_name.to_string();
-    let addr_s = std::env::var(format!("{}_PROBE_ADDR", app)).unwrap_or("0.0.0.0:3030".to_string());
-    let live_path = std::env::var(format!("{}_PROBE_LIVE_PATH", app)).unwrap_or("live".to_string());
+    let addr_s = std::env::var(format!("{app}_PROBE_ADDR")).unwrap_or("0.0.0.0:3030".to_string());
+    let live_path = std::env::var(format!("{app}_PROBE_LIVE_PATH")).unwrap_or("live".to_string());
     let ready_path =
-        std::env::var(format!("{}_PROBE_READY_PATH", app)).unwrap_or("ready".to_string());
+        std::env::var(format!("{app}_PROBE_READY_PATH")).unwrap_or("ready".to_string());
 
     let addr: Result<SocketAddr, _> = addr_s.parse();
 

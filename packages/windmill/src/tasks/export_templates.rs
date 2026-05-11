@@ -29,7 +29,7 @@ pub async fn export_templates(
 ) -> Result<()> {
     let res = process_export(&tenant_id, &document_id).await;
     if let Err(err) = res {
-        let err_str = format!("Error process export templates: {}", err);
+        let err_str = format!("Error process export templates: {err}");
         update_fail(&task_execution, &err_str)
             .await
             .context("Failed to update task export templates to FAILED")?;

@@ -138,10 +138,7 @@ pub fn merge_join_csv(
             Ordering::Equal => {
                 // Match found.
                 let ballot_content = ballot.get(ballots_content_index).ok_or_else(|| {
-                    anyhow!(
-                        "Output column index {} out of bounds in file1",
-                        ballots_content_index
-                    )
+                    anyhow!("Output column index {ballots_content_index} out of bounds in file1",)
                 })?;
 
                 // Add the voter's own ballot.

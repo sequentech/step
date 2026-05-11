@@ -9,7 +9,7 @@ use openssl::pkcs12::Pkcs12;
 use openssl::pkey::PKey;
 use sequent_core::signatures::ecies_encrypt::ECIES_TOOL_PATH;
 use sequent_core::signatures::shell::run_shell_command;
-use sequent_core::util::temp_path::*;
+use sequent_core::util::temp_path::generate_temp_file;
 use std::fs;
 use std::io::Read;
 use tempfile::{tempdir, NamedTempFile, TempPath};
@@ -51,7 +51,7 @@ pub fn ecdsa_sign_data(
         "java -jar {ECIES_TOOL_PATH} sign-ec {pk12_file_path_string} {data_path} {password}"
     );
 
-    let encrypted_base64 = run_shell_command(&command)?.replace("\n", "");
+    let encrypted_base64 = run_shell_command(&command)?.replace('\n', "");
 
     info!("ecdsa_sign_data: '{encrypted_base64}'");
 
@@ -90,7 +90,7 @@ pub fn get_p12_fingerprint(p12_cert_path: &TempPath) -> Result<String> {
     let fingerprint_command =
         format!("openssl x509 -in {cert_temp_path_string} -noout -fingerprint -sha256",);
 
-    let fingerprint = run_shell_command(&fingerprint_command)?.replace("\n", "");
+    let fingerprint = run_shell_command(&fingerprint_command)?.replace('\n', "");
 
     Ok(fingerprint)
 }
@@ -126,7 +126,7 @@ pub fn check_certificate_cas(
         intermediate_ca_file_path.to_string_lossy(),
         p12_cert_path.to_string_lossy(),
     );
-    let verify_result = run_shell_command(&verify_command)?.replace("\n", "");
+    let verify_result = run_shell_command(&verify_command)?.replace('\n', "");
 
     if !verify_result.ends_with(": OK") {
         return Err(anyhow!(verify_result));

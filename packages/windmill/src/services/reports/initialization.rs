@@ -39,7 +39,8 @@ pub struct InitializationTemplate {
 
 impl InitializationTemplate {
     /// Creates a renderer bound to a specific tenant/event (and optionally election/template).
-    pub fn new(ids: ReportOrigins) -> Self {
+    #[must_use]
+    pub const fn new(ids: ReportOrigins) -> Self {
         InitializationTemplate { ids }
     }
 }

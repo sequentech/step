@@ -682,26 +682,22 @@ pub fn clean_tally_sheets(
         .iter()
         .map(|tally_sheet| -> Result<TallySheet> {
             let Some(tally_sheet_content) = tally_sheet.content.clone() else {
-                return Err(
-                    anyhow!("Invalid tally sheet {:?}, content missing", tally_sheet).into(),
-                );
+                return Err(anyhow!("Invalid tally sheet {tally_sheet:?}, content missing").into());
             };
 
             if tally_sheet.area_id != tally_sheet_content.area_id {
                 return Err(
-                    anyhow!("Invalid tally sheet {:?}, area not consistent", tally_sheet).into(),
+                    anyhow!("Invalid tally sheet {tally_sheet:?}, area not consistent").into(),
                 );
             }
             if tally_sheet.contest_id != tally_sheet_content.contest_id {
-                return Err(anyhow!(
-                    "Invalid tally sheet {:?}, contest not consistent",
-                    tally_sheet
-                )
-                .into());
+                return Err(
+                    anyhow!("Invalid tally sheet {tally_sheet:?}, contest not consistent",).into(),
+                );
             }
             let Some(contest) = contests_map.get(&tally_sheet.contest_id) else {
                 return Err(
-                    anyhow!("Invalid tally sheet {:?}, can't find contest", tally_sheet).into(),
+                    anyhow!("Invalid tally sheet {tally_sheet:?}, can't find contest").into(),
                 );
             };
             validate_tally_sheet(tally_sheet, contest)?;
@@ -1483,7 +1479,7 @@ pub async fn transactions_wrapper(
             Ok(res)
         }
         Err(err) => {
-            tracing::error!("Error in transactions_wrapper: {:?}", err);
+            tracing::error!("Error in transactions_wrapper: {err:?}");
             let hasura_rollback = hasura_transaction.rollback().await;
             let keycloak_rollback = keycloak_transaction.rollback().await;
             handle_tally_session_error(
@@ -1552,7 +1548,7 @@ mod execute_tally_session_task {
                 }
                 res = &mut current_task => {
                     break res
-                        .map_err(|err| Error::String(format!("Error executing loop: {:?}", err)))
+                        .map_err(|err| Error::String(format!("Error executing loop: {err:?}")))
                         .flatten();
                 }
             }

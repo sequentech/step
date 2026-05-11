@@ -1,6 +1,6 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 // SPDX-License-Identifier: AGPL-3.0-only
-//! Electoral audit log enqueue, batch processing, and RabbitMQ dispatcher.
+//! Electoral audit log enqueue, batch processing, and `RabbitMQ` dispatcher.
 use crate::postgres::election_event::get_election_event_by_id;
 use crate::services::celery_app::get_celery_connection;
 use crate::services::celery_app::Queue;
@@ -81,7 +81,7 @@ impl LogEventBody {
     /// Returns the single-line wire form of this body (same shape as JSON string values).
     pub fn as_raw(&self) -> String {
         match self {
-            LogEventBody::Communications(msg) => format!("communications {}", msg),
+            LogEventBody::Communications(msg) => format!("communications {msg}"),
             LogEventBody::Plain(s) => s.clone(),
         }
     }
@@ -127,7 +127,7 @@ pub struct LogEventInput {
     pub body: LogEventBody,
 }
 
-/// Celery tasks for electoral log enqueue, batch processing, and the RabbitMQ dispatcher.
+/// Celery tasks for electoral log enqueue, batch processing, and the `RabbitMQ` dispatcher.
 mod electoral_log_tasks {
     #![allow(missing_docs)]
     #![allow(clippy::missing_docs_in_private_items)]
@@ -257,13 +257,10 @@ mod electoral_log_tasks {
                 .insert_electoral_log_messages_batch(&immudb_tx, &messages)
                 .await
                 .with_context(|| {
-                    format!(
-                        "Error inserting batch electoral log messages for board {}",
-                        board
-                    )
+                    format!("Error inserting batch electoral log messages for board {board}",)
                 })?;
             board_client.commit(&immudb_tx).await.with_context(|| {
-                format!("Error committing immudb transaction for board {}", board)
+                format!("Error committing immudb transaction for board {board}")
             })?;
             board_client.close_session().await?;
         }

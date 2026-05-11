@@ -63,7 +63,7 @@ mod import_election_event_task {
         .await;
 
         match &result {
-            Ok(_) => {
+            Ok(()) => {
                 // Execute database maintenance
                 info!("Performing mainteinance after election event import.");
                 vacuum_analyze_direct().await?;

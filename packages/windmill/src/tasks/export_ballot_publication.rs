@@ -101,13 +101,13 @@ pub async fn export_ballot_publication(
     }
 
     match hasura_transaction.commit().await {
-        Ok(_) => (),
+        Ok(()) => (),
         Err(err) => {
             let err_str = format!("Commit failed: {err:?}");
             update_fail(&task_execution, &err_str).await;
             return Err(Error::String(err_str));
         }
-    };
+    }
 
     update_complete(&task_execution, Some(document_id.to_string()))
         .await

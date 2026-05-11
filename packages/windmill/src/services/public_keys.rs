@@ -23,7 +23,7 @@ use super::protocol_manager;
 ///
 /// Returns an error if the key cannot be decoded or parsed.
 pub fn deserialize_public_key(public_key_string: String) -> Result<StrandSignaturePk> {
-    StrandSignaturePk::from_der_b64_string(&public_key_string).map_err(|err| anyhow!("{:?}", err))
+    StrandSignaturePk::from_der_b64_string(&public_key_string).map_err(|err| anyhow!("{err:?}"))
 }
 
 #[instrument(skip(trustee_pks, threshold), err)]

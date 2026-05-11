@@ -33,6 +33,7 @@ use immudb_rs::{sql_value::Value, Client, NamedParam, SqlValue};
 use strand::signature::{StrandSignaturePk, StrandSignatureSk};
 
 /// Get the protocol manager secret path for a board.
+#[must_use]
 pub fn get_protocol_manager_secret_path(board_name: &str) -> String {
     format!("boards/{board_name}/protocol-manager")
 }
@@ -72,7 +73,7 @@ pub async fn create_protocol_manager_keys(
 /// Returns an error if the signing key cannot be generated.
 #[instrument]
 pub fn gen_protocol_manager<C: Ctx>() -> Result<ProtocolManager<C>> {
-    let pmkey: StrandSignatureSk = StrandSignatureSk::gen().map_err(|err| anyhow!("{:?}", err))?;
+    let pmkey: StrandSignatureSk = StrandSignatureSk::gen().map_err(|err| anyhow!("{err:?}"))?;
     let pm: ProtocolManager<C> = ProtocolManager {
         signing_key: pmkey,
         phantom: PhantomData,
@@ -89,19 +90,18 @@ pub fn gen_protocol_manager<C: Ctx>() -> Result<ProtocolManager<C>> {
 #[instrument]
 pub fn serialize_protocol_manager<C: Ctx>(pm: &ProtocolManager<C>) -> Result<String> {
     let pmc = ProtocolManagerConfig::from(pm);
-    toml::to_string(&pmc).map_err(|err| anyhow!("{:?}", err))
+    toml::to_string(&pmc).map_err(|err| anyhow!("{err:?}"))
 }
 
 #[instrument]
-/// Deserialize a ProtocolManager from a TOML string.
+/// Deserialize a `ProtocolManager` from a TOML string.
 ///
 /// # Errors
 ///
 /// Returns an error if the config cannot be parsed or the signing key is invalid.
 pub fn deserialize_protocol_manager<C: Ctx>(contents: String) -> Result<ProtocolManager<C>> {
-    let pmc: ProtocolManagerConfig =
-        toml::from_str(&contents).map_err(|err| anyhow!("{:?}", err))?;
-    let pmkey = pmc.get_signing_key().map_err(|err| anyhow!("{:?}", err))?;
+    let pmc: ProtocolManagerConfig = toml::from_str(&contents).map_err(|err| anyhow!("{err:?}"))?;
+    let pmkey = pmc.get_signing_key().map_err(|err| anyhow!("{err:?}"))?;
     Ok(ProtocolManager::new(pmkey))
 }
 
@@ -181,8 +181,7 @@ pub async fn get_board_public_key<C: Ctx>(board_name: &str) -> Result<C::E> {
                 Ok(())
             } else {
                 Err(anyhow!(
-                    "Missing public key for trustee {:?}",
-                    trustee_signature
+                    "Missing public key for trustee {trustee_signature:?}"
                 ))
             }
         })?;
@@ -190,16 +189,12 @@ pub async fn get_board_public_key<C: Ctx>(board_name: &str) -> Result<C::E> {
     let pks_message = messages
         .into_iter()
         .find(|message| StatementType::PublicKey == message.statement.get_kind())
-        .with_context(|| format!("Public Key not found on board {}", board_name))?;
+        .with_context(|| format!("Public Key not found on board {board_name}"))?;
 
-    let bytes = pks_message.artifact.with_context(|| {
-        format!(
-            "Artifact missing on Public Key message on board {}",
-            board_name
-        )
-    })?;
-    let dkgpk =
-        DkgPublicKey::<C>::strand_deserialize(&bytes).map_err(|err| anyhow!("{:?}", err))?;
+    let bytes = pks_message
+        .artifact
+        .with_context(|| format!("Artifact missing on Public Key message on board {board_name}"))?;
+    let dkgpk = DkgPublicKey::<C>::strand_deserialize(&bytes).map_err(|err| anyhow!("{err:?}"))?;
     Ok(dkgpk.pk)
 }
 
@@ -272,7 +267,7 @@ pub async fn get_trustee_encrypted_private_key<C: Ctx>(
         .map(|message| Message::strand_deserialize(&message.message))
         .filter_map(|message| message.ok())
         .next()
-        .with_context(|| format!("Channel not found on board {}", board_name))?;
+        .with_context(|| format!("Channel not found on board {board_name}"))?;
 
     let messages = board
         .get_with_kind_only(board_name, StatementType::Shares)
@@ -293,13 +288,10 @@ pub async fn get_trustee_encrypted_private_key<C: Ctx>(
         .collect();
 
     let channel_bytes = channel_message.artifact.with_context(|| {
-        format!(
-            "Artifact missing on Private Key message on board {}",
-            board_name
-        )
+        format!("Artifact missing on Private Key message on board {board_name}")
     })?;
     let channel =
-        Channel::<C>::strand_deserialize(&channel_bytes).map_err(|err| anyhow!("{:?}", err))?;
+        Channel::<C>::strand_deserialize(&channel_bytes).map_err(|err| anyhow!("{err:?}"))?;
 
     let ret = TrusteeShareData {
         channel,
@@ -517,7 +509,7 @@ pub async fn get_board_client() -> Result<BoardClient> {
 }
 
 #[instrument(err)]
-/// Get a B3 client for PostgreSQL.
+/// Get a B3 client for `PostgreSQL`.
 ///
 /// # Errors
 ///
@@ -556,7 +548,8 @@ pub async fn get_immudb_client() -> Result<Client> {
 }
 
 /// Create a named parameter for an Immudb query.
-pub fn create_named_param(name: String, value: Value) -> NamedParam {
+#[must_use]
+pub const fn create_named_param(name: String, value: Value) -> NamedParam {
     NamedParam {
         name,
         value: Some(SqlValue { value: Some(value) }),
@@ -564,6 +557,7 @@ pub fn create_named_param(name: String, value: Value) -> NamedParam {
 }
 
 /// Get the board name for an election event.
+#[must_use]
 pub fn get_event_board(tenant_id: &str, election_event_id: &str, slug: &str) -> String {
     let tenant: String = tenant_id
         .to_string()
@@ -571,13 +565,14 @@ pub fn get_event_board(tenant_id: &str, election_event_id: &str, slug: &str) -> 
         .filter(|&c| c != '-')
         .take(17)
         .collect();
-    format!("{}tenant{}event{}", slug, tenant, election_event_id)
+    format!("{slug}tenant{tenant}event{election_event_id}")
         .chars()
         .filter(|&c| c != '-')
         .collect()
 }
 
 /// Get the board name for an election.
+#[must_use]
 pub fn get_election_board(tenant_id: &str, election_id: &str, slug: &str) -> String {
     let tenant: String = tenant_id
         .to_string()
@@ -585,7 +580,7 @@ pub fn get_election_board(tenant_id: &str, election_id: &str, slug: &str) -> Str
         .filter(|&c| c != '-')
         .take(17)
         .collect();
-    format!("{}tenant{}election{}", slug, tenant, election_id)
+    format!("{slug}tenant{tenant}election{election_id}")
         .chars()
         .filter(|&c| c != '-')
         .collect()

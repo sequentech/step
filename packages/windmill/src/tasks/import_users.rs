@@ -109,8 +109,7 @@ mod import_users_task {
             Err(err) => {
                 update_fail(&task_execution, "Failed to get Hasura DB pool").await?;
                 return Err(Error::String(format!(
-                    "Error getting Hasura DB pool: {}",
-                    err
+                    "Error getting Hasura DB pool: {err}",
                 )));
             }
         };

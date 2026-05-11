@@ -272,7 +272,7 @@ async fn generate_template_document(
         file_size,
         mime_type,
         tenant_id,
-        Some(election_event_id.to_string()),
+        Some(election_event_id.clone()),
         &otuput_doc_name,
         Some(document_id.to_string()),
         false,
@@ -301,7 +301,7 @@ async fn generate_template_block(
             if let Some(ref task_exec) = task_execution {
                 update_fail(task_exec, "Failed to get Hasura DB pool").await?;
             }
-            return Err(anyhow!("Error getting Hasura DB pool: {}", err));
+            return Err(anyhow!("Error getting Hasura DB pool: {err}"));
         }
     };
 
@@ -323,7 +323,7 @@ async fn generate_template_block(
         Err(err) => {
             if let Some(ref task_exec) = task_execution {
                 update_fail(task_exec, "Failed to get Hasura DB pool").await?;
-            };
+            }
             return Err(anyhow!("Error starting Hasura transaction: {err}"));
         }
     };
@@ -332,9 +332,9 @@ async fn generate_template_block(
         Ok(transaction) => Ok(transaction),
         Err(err) => {
             if let Some(ref task_exec) = task_execution {
-                let err_str = format!("{:?}", err);
+                let err_str = format!("{err:?}");
                 update_fail(task_exec, &err_str).await?;
-            };
+            }
             Err(err)
         }
     }
@@ -350,7 +350,7 @@ async fn generate_template_block(
         Err(err) => {
             if let Some(ref task_exec) = task_execution {
                 update_fail(task_exec, "Failed to commit Hasura transaction").await?;
-            };
+            }
             Err(err)
         }
     }?;
@@ -392,7 +392,7 @@ mod generate_template_task {
                         executer_username,
                     )
                     .await
-                    .map_err(|err| anyhow!("generate_report error: {:?}", err))
+                    .map_err(|err| anyhow!("generate_report error: {err:?}"))
                 })
             }
         });
@@ -400,7 +400,7 @@ mod generate_template_task {
         // Await the result and handle JoinError explicitly
         match handle.await {
             Ok(inner_result) => inner_result.map_err(|err| Error::from(err.context("Task failed"))),
-            Err(join_error) => Err(Error::from(anyhow!("Task panicked: {}", join_error))),
+            Err(join_error) => Err(Error::from(anyhow!("Task panicked: {join_error}"))),
         }?;
 
         Ok(())

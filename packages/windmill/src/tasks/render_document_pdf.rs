@@ -92,7 +92,7 @@ pub async fn render_document_pdf_wrap(
         .await
         .get()
         .await
-        .map_err(|err| anyhow!("{:?}", err))?;
+        .map_err(|err| anyhow!("{err:?}"))?;
     let hasura_transaction = db_client.transaction().await?;
 
     let pdf_options = get_tally_pdf_config(
@@ -111,7 +111,7 @@ pub async fn render_document_pdf_wrap(
     )
     .await?
     else {
-        return Err(anyhow!("Document not found: {}", document_id));
+        return Err(anyhow!("Document not found: {document_id}"));
     };
 
     let mut temp_document = get_document_as_temp_file(&tenant_id, &document).await?;
@@ -178,7 +178,7 @@ pub async fn render_document_pdf_task_wrap(
             update_complete(&task_execution, Some(output_document_id.clone())).await?;
         }
         Err(err) => {
-            update_fail(&task_execution, format!("{:?}", err).as_str()).await?;
+            update_fail(&task_execution, format!("{err:?}").as_str()).await?;
             return Err(err);
         }
     };
@@ -216,7 +216,7 @@ mod render_document_pdf_task {
             tally_session_id,
         )
         .await
-        .map_err(|err| WrapError::from(anyhow!("Task panicked: {}", err)))
+        .map_err(|err| WrapError::from(anyhow!("Task panicked: {err}")))
     }
 }
 

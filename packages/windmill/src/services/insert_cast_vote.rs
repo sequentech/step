@@ -499,11 +499,11 @@ type DeserializedCastVoteHashes = (
     Option<(StrandSignaturePk, StrandSignature)>,
 );
 
-/// Deserialize a single-contest ballot, verify PoK and voter signature, and compute hashes.
+/// Deserialize a single-contest ballot, verify signature, and compute hashes.
 ///
 /// # Errors
 ///
-/// Returns [`CastVoteError`] when deserialization, hash mismatch, PoK, or signature checks fail.
+/// Returns [`CastVoteError`] when deserialization, hash mismatch, or signature checks fail.
 #[instrument(skip(input), err)]
 pub fn deserialize_and_check_ballot(
     input: &InsertCastVoteInput,
@@ -519,7 +519,7 @@ pub fn deserialize_and_check_ballot(
     let computed_hash = hash_ballot(&hashable_ballot)
         .map_err(|e| CastVoteError::SerializeBallotFailed(e.to_string()))?;
 
-    /// Verifies that the ballot_id corresponds to the hash of the ballot content
+    /// Verifies that the `ballot_id` corresponds to the hash of the ballot content
     /// The function serves as a security check to ensure that
     /// a ballot's content matches its claimed ID.
     /// This is crucial for maintaining the integrity of the voting system
@@ -565,11 +565,11 @@ pub fn deserialize_and_check_ballot(
     Ok((pseudonym_h, vote_h, signature_opt))
 }
 
-/// Deserialize a multi-contest ballot, verify PoK and voter signature, and compute hashes.
+/// Deserialize a multi-contest ballot, verify voter signature, and compute hashes.
 ///
 /// # Errors
 ///
-/// Returns [`CastVoteError`] when deserialization, hash mismatch, PoK, or signature checks fail.
+/// Returns [`CastVoteError`] when deserialization signature checks fail.
 #[instrument(skip(input), err)]
 pub fn deserialize_and_check_multi_ballot(
     input: &InsertCastVoteInput,
@@ -1003,7 +1003,7 @@ async fn check_status(
                     format!("Voting Status for voting_channel={voting_channel:?} is {current_voting_status:?}"),
                 ));
             }
-        };
+        }
     }
     Ok(())
 }
@@ -1047,7 +1047,7 @@ async fn check_previous_votes(
         .filter_map(|cv| cv.area_id.and_then(|id| parse_uuid_v4(&id).ok()))
         .partition(|cv_area_id| cv_area_id.to_string() == area_id);
 
-    info!("get cast votes returns same: {:?}", same);
+    info!("get cast votes returns same: {same:?}");
 
     // Skip max votes check if max_revotes is 0, allowing unlimited votes
     if max_revotes > 0 && same.len() >= max_revotes {
@@ -1059,8 +1059,7 @@ async fn check_previous_votes(
     }
     if !other.is_empty() {
         return Err(CastVoteError::CheckVotesInOtherAreasFailed(format!(
-            "Cannot insert cast vote, votes already present in other area(s) ({}, {:?})",
-            voter_id_string, other
+            "Cannot insert cast vote, votes already present in other area(s) ({voter_id_string}, {other:?})"
         )));
     }
     Ok(())

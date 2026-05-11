@@ -34,7 +34,7 @@ quick_error! {
         }
         /// I/O error on a specific filesystem path.
         FileAccess(path: std::path::PathBuf, err: std::io::Error) {
-            display("An error occurred while accessing the file at '{}': {}", path.display(), err)
+            display("An error occurred while accessing the file at '{}': {err}", path.display())
         }
         /// Integer conversion exceeded the target type range.
         TryFromIntError(err: std::num::TryFromIntError) {
@@ -51,10 +51,10 @@ quick_error! {
 impl From<Error> for TaskError {
     fn from(err: Error) -> Self {
         match err {
-            Error::Anyhow(err) => TaskError::UnexpectedError(format!("{:?}", err)),
+            Error::Anyhow(err) => TaskError::UnexpectedError(format!("{err:?}")),
             Error::String(err) => TaskError::UnexpectedError(err),
-            Error::Csv(err) => TaskError::UnexpectedError(format!("{:?}", err)),
-            Error::Postgres(err) => TaskError::UnexpectedError(format!("{:?}", err)),
+            Error::Csv(err) => TaskError::UnexpectedError(format!("{err:?}")),
+            Error::Postgres(err) => TaskError::UnexpectedError(format!("{err:?}")),
             Error::FileAccess(path, err) => TaskError::UnexpectedError(format!(
                 "An error occurred while accessing the file at '{}': {}",
                 path.display(),
@@ -68,49 +68,49 @@ impl From<Error> for TaskError {
 
 impl From<serde_json::Error> for Error {
     fn from(err: serde_json::Error) -> Self {
-        Error::String(format!("{:?}", err))
+        Error::String(format!("{err:?}"))
     }
 }
 
 impl From<serde_path_to_error::Error<serde_json::Error>> for Error {
     fn from(err: serde_path_to_error::Error<serde_json::Error>) -> Self {
-        Error::String(format!("{:?}", err))
+        Error::String(format!("{err:?}"))
     }
 }
 
 impl From<celery::error::CeleryError> for Error {
     fn from(err: celery::error::CeleryError) -> Self {
-        Error::String(format!("{:?}", err))
+        Error::String(format!("{err:?}"))
     }
 }
 
 impl From<handlebars::RenderError> for Error {
     fn from(err: handlebars::RenderError) -> Self {
-        Error::String(format!("{:?}", err))
+        Error::String(format!("{err:?}"))
     }
 }
 
 impl From<StrandError> for Error {
     fn from(err: StrandError) -> Self {
-        Error::String(format!("{:?}", err))
+        Error::String(format!("{err:?}"))
     }
 }
 
 impl From<std::io::Error> for Error {
     fn from(err: std::io::Error) -> Self {
-        Error::String(format!("{:?}", err))
+        Error::String(format!("{err:?}"))
     }
 }
 
 impl From<keycloak::KeycloakError> for Error {
     fn from(err: keycloak::KeycloakError) -> Self {
-        Error::String(format!("{:?}", err))
+        Error::String(format!("{err:?}"))
     }
 }
 
 impl From<lapin::Error> for Error {
     fn from(err: lapin::Error) -> Self {
-        Error::String(format!("{:?}", err))
+        Error::String(format!("{err:?}"))
     }
 }
 

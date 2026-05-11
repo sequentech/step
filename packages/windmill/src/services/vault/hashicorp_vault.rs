@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-//! HashiCorp Vault backend.
+//! `HashiCorp Vault backend.
 //!
 //! This implementation reads/writes raw string secrets to the Vault HTTP API
 //! using `VAULT_SERVER_URL` and `VAULT_TOKEN`.
@@ -41,7 +41,7 @@ struct VaultRead {
 }
 
 #[derive(Debug)]
-/// HashiCorp Vault secret backend.
+/// `HashiCorp Vault secret backend.
 pub struct HashiCorpVault;
 
 #[async_trait]
@@ -100,7 +100,7 @@ impl Vault for HashiCorpVault {
     }
 
     #[instrument]
-    /// Identifies this backend as HashiCorp Vault.
+    /// Identifies this backend as `HashiCorp` `Vault`.
     fn vault_type(&self) -> VaultManagerType {
         VaultManagerType::HashiCorpVault
     }

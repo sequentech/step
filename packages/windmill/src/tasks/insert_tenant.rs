@@ -160,7 +160,7 @@ mod insert_tenant_task {
         let res = process_insert_tenant(tenant_id.clone(), slug.clone()).await;
         if let Some(task_execution) = task_execution {
             if let Err(err) = res {
-                let err_str = format!("Error inserting tenant: {}", err);
+                let err_str = format!("Error inserting tenant: {err}");
                 event!(Level::ERROR, err_str);
                 update_fail(&task_execution, &err_str)
                     .await

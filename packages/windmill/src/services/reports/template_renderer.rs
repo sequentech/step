@@ -187,19 +187,19 @@ pub trait TemplateRenderer: Debug {
         -> Result<Self::SystemData>;
 
     /// Default implementation, can be overridden but is not recommended!.
-    /// Returns None only if no template was chosen and/or none was found in DB, then TemplateRenderer will use the default template.
+    /// Returns None only if no template was chosen and/or none was found in DB, then `TemplateRenderer` will use the default template.
     ///
     /// For reports generated from Reports tab:
-    /// If no initial template_alias is provided at creation of the report object, then None is returned.
+    /// If no initial `template_alias` is provided at creation of the report object, then None is returned.
     ///
-    /// For Report types from the voting portal (like in ballot_receipt):
-    /// No template_alias is provided (because the voter cannot choose) so the first match found in DB will be used
+    /// For Report types from the voting portal (like in `ballot_receipt`):
+    /// No `template_alias` is provided (because the voter cannot choose) so the first match found in DB will be used
     /// and the UI should restrict to add only one template for that type.
     ///
     /// For reports generated from a export button:
-    /// No template_alias is provided from the UI at the moment, then it must be retrieved from postgres as well.
+    /// No `template_alias` is provided from the UI at the moment, then it must be retrieved from postgres as well.
     /// Default implementation, can be overridden in specific reports that have
-    /// election_id
+    /// `election_id`.
     #[instrument(skip(self))]
     fn get_election_id(&self) -> Option<String> {
         None
@@ -297,7 +297,7 @@ pub trait TemplateRenderer: Debug {
         }
     }
 
-    /// Get the default ReportExtraConfig from the _extra_config file and
+    /// Get the default `ReportExtraConfig` from the extra config file and
     /// for any passed option that is None its default value is filled.
     #[instrument(err, skip_all)]
     async fn fill_extra_config_with_default(
@@ -520,7 +520,7 @@ pub trait TemplateRenderer: Debug {
         Ok(rendered_system_template)
     }
 
-    /// Provides the User template String and the ReportExtraConfig, encapsulating the logic that gets either the custom or default.
+    /// Provides the User template String and the `ReportExtraConfig`, encapsulating the logic that gets either the custom or default.
     /// Tries to get first the custom template and extra config, if any value is not available then its default is set.
     #[instrument(err, skip_all)]
     async fn user_tpl_and_extra_cfg_provider(
@@ -620,8 +620,7 @@ pub trait TemplateRenderer: Debug {
             && generate_mode == GenerateReportMode::REAL
         {
             info!(
-                "Using batched processing because it's activity log: items_count ({}) > per_report_limit ({})",
-                items_count, per_report_limit
+                "Using batched processing because it's activity log: items_count ({items_count}) > per_report_limit ({per_report_limit})"
             );
 
             // Calculate the number of batches needed.
@@ -664,7 +663,7 @@ pub trait TemplateRenderer: Debug {
                                 .await
                             })
                             .with_context(|| {
-                                format!("Error rendering report for batch {}", offset)
+                                format!("Error rendering report for batch {offset}")
                             })?;
 
                         // Render to PDF bytes
@@ -676,17 +675,14 @@ pub trait TemplateRenderer: Debug {
                                 )
                                 .await
                             })
-                            .with_context(|| format!("Error rendering PDF for batch {}", offset))?;
+                            .with_context(|| format!("Error rendering PDF for batch {offset}"))?;
 
                         let prefix = self.prefix();
                         let extension_suffix = "pdf";
-                        let file_suffix = format!(".{}", extension_suffix);
+                        let file_suffix = format!(".{extension_suffix}");
 
-                        let batch_file_name = format!("{}-{}{}", prefix, offset, file_suffix);
-                        info!(
-                            "Batch {} => batch_file_name: {}",
-                            batch_index, batch_file_name
-                        );
+                        let batch_file_name = format!("{prefix}-{offset}{file_suffix}");
+                        info!("Batch {batch_index} => batch_file_name: {batch_file_name}",);
 
                         // Build the final path inside `reports_folder`:
                         let final_path = reports_folder.join(&batch_file_name);
@@ -728,7 +724,7 @@ pub trait TemplateRenderer: Debug {
                 &ext_cfg,
             )
             .await
-            .map_err(|e| anyhow::anyhow!("Error in generate_single_report: {}", e))?
+            .map_err(|e| anyhow::anyhow!("Error in generate_single_report: {e}"))?
         };
 
         info!(
@@ -908,9 +904,9 @@ pub trait TemplateRenderer: Debug {
         .map_err(|err| anyhow!("Error rendering report to pdf: {err:?}"))?;
 
         let fmt_extension = format!(".{extension_suffix}");
-        let report_name = format!("{}{}", self.prefix(), fmt_extension);
+        let report_name = format!("{}{fmt_extension}", self.prefix());
 
-        let final_path = format!("/tmp/{}", report_name);
+        let final_path = format!("/tmp/{report_name}");
         fs::write(&final_path, &content_bytes)?;
         let file_size =
             get_file_size(&final_path).with_context(|| "Error obtaining file size for zip file")?;
@@ -919,7 +915,7 @@ pub trait TemplateRenderer: Debug {
             final_path,
             file_size,
             report_name.clone(),
-            format!("application/{}", extension_suffix),
+            format!("application/{extension_suffix}"),
         ))
     }
 

@@ -42,7 +42,7 @@ struct SmtpConfig {
 
 /// Transport backend selected for email delivery.
 pub enum EmailTransport {
-    /// AWS SESv2 client used to send raw MIME messages.
+    /// `AWS SESv2` client used to send raw MIME messages.
     AwsSes(AwsSesClient),
     /// SMTP transport configured from `EMAIL_TRANSPORT_CONFIG`.
     Smtp(SmtpTransport),
@@ -134,14 +134,14 @@ impl EmailSender {
             .from(
                 self.email_from
                     .parse()
-                    .map_err(|err| anyhow!("invalid email_from: {:?}", err))?,
+                    .map_err(|err| anyhow!("invalid email_from: {err:?}"))?,
             )
             .subject(subject.clone());
 
         for receiver in &receivers {
             email_builder = email_builder.to(receiver
                 .parse()
-                .map_err(|err| anyhow!("invalid receiver: {:?}", err))?);
+                .map_err(|err| anyhow!("invalid receiver: {err:?}"))?);
         }
 
         // Build the plaintext and HTML body parts
@@ -170,7 +170,7 @@ impl EmailSender {
                 let content_type: ContentType = attachment
                     .mimetype
                     .parse()
-                    .map_err(|err| anyhow!("invalid mimetype: {:?}", err))?;
+                    .map_err(|err| anyhow!("invalid mimetype: {err:?}"))?;
                 let attachment_part = SinglePart::builder()
                     .header(content_type)
                     .header(ContentDisposition::attachment(&attachment.filename))
@@ -179,11 +179,11 @@ impl EmailSender {
             }
             email_builder
                 .multipart(mixed)
-                .map_err(|err| anyhow!("{:?}", err))?
+                .map_err(|err| anyhow!("{err:?}"))?
         } else {
             email_builder
                 .multipart(alternative)
-                .map_err(|err| anyhow!("{:?}", err))?
+                .map_err(|err| anyhow!("{err:?}"))?
         };
 
         match self.transport {

@@ -115,12 +115,12 @@ fn parsed_transactions_query_results(
 
     // Serialize the vector of JSON objects (which represents a JSON array) to a String
     let json_string = serde_json::to_string(&rows_as_json_values)
-        .map_err(|e| format!("Failed to serialize query results to JSON: {}", e))?;
+        .map_err(|e| format!("Failed to serialize query results to JSON: {e}"))?;
 
     Ok(json_string)
 }
 
-/// Implementing the Host trait for PluginTransactionsManager to handle database transactions
+/// Implementing the Host trait for `PluginTransactionsManager` to handle database transactions
 impl Host for PluginTransactionsManager {
     async fn create_hasura_transaction(&mut self) -> Result<(), String> {
         let mut manager = self.hasura_manager.lock().await;
@@ -159,7 +159,7 @@ impl Host for PluginTransactionsManager {
                 >
         })
         .await
-        .map_err(|e| format!("{}", e))?;
+        .map_err(|e| format!("{e}"))?;
 
         *manager = new_self;
         Ok(())
@@ -172,7 +172,7 @@ impl Host for PluginTransactionsManager {
             .await
             .get()
             .await
-            .map_err(|e| format!("Failed to get keycloak client: {}", e))?;
+            .map_err(|e| format!("Failed to get keycloak client: {e}"))?;
 
         let new_self = PluginDbManager::try_new_async_send(Some(keycloak_client), |client_ref| {
             Box::pin(async move {
@@ -201,7 +201,7 @@ impl Host for PluginTransactionsManager {
                 >
         })
         .await
-        .map_err(|e| format!("{}", e))?;
+        .map_err(|e| format!("{e}"))?;
 
         *manager = new_self;
         Ok(())
@@ -242,10 +242,10 @@ impl Host for PluginTransactionsManager {
         let results: Vec<Row> = hasura_transaction
             .query(&sql, query_params.as_slice())
             .await
-            .map_err(|e| format!("Hasura query failed: {}", e))?;
+            .map_err(|e| format!("Hasura query failed: {e}"))?;
 
         let json_string = parsed_transactions_query_results(results)
-            .map_err(|e| format!("Failed to parse query results: {}", e))?;
+            .map_err(|e| format!("Failed to parse query results: {e}"))?;
 
         Ok(json_string)
     }
@@ -285,10 +285,10 @@ impl Host for PluginTransactionsManager {
         let results: Vec<Row> = keycloak_transaction
             .query(&sql, query_params.as_slice())
             .await
-            .map_err(|e| format!("Keycloak query failed: {}", e))?;
+            .map_err(|e| format!("Keycloak query failed: {e}"))?;
 
         let json_string = parsed_transactions_query_results(results)
-            .map_err(|e| format!("Failed to parse query results: {}", e))?;
+            .map_err(|e| format!("Failed to parse query results: {e}"))?;
 
         Ok(json_string)
     }
@@ -301,7 +301,7 @@ impl Host for PluginTransactionsManager {
         hasura_transaction
             .commit()
             .await
-            .map_err(|e| format!("Hasura commit failed: {}", e))?;
+            .map_err(|e| format!("Hasura commit failed: {e}"))?;
         Ok(())
     }
 
@@ -313,7 +313,7 @@ impl Host for PluginTransactionsManager {
         keycloak_transaction
             .commit()
             .await
-            .map_err(|e| format!("Keycloak commit failed: {}", e))?;
+            .map_err(|e| format!("Keycloak commit failed: {e}"))?;
         Ok(())
     }
 }

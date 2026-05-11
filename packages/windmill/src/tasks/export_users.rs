@@ -51,8 +51,7 @@ mod export_users_task {
                     update_fail(task_execution, "Failed to get Hasura DB pool").await;
                 }
                 return Err(Error::String(format!(
-                    "Error getting Hasura DB pool: {}",
-                    err
+                    "Error getting Hasura DB pool: {err}",
                 )));
             }
         };
@@ -120,7 +119,7 @@ mod export_users_task {
         )
         .await
         {
-            Ok(_) => (),
+            Ok(()) => (),
             Err(err) => {
                 if let Some(task_execution) = &task_execution {
                     update_fail(task_execution, "Failed to upload file to s3").await?;
@@ -149,7 +148,7 @@ mod export_users_task {
             Some(document_id.clone()),
         )
         .await
-        .map_err(|err| format!("Error inserting document: {:?}", err))?;
+        .map_err(|err| format!("Error inserting document: {err:?}"))?;
 
         if let Some(task_execution) = &task_execution {
             update_complete(task_execution, Some(document_id.to_string()))

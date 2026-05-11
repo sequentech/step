@@ -45,8 +45,7 @@ async fn manage_election_init_report_wrapped(
 
     let Some(scheduled_event) = scheduled_event else {
         return Err(anyhow!(
-            "Can't find scheduled event with id: {}",
-            scheduled_event_id
+            "Can't find scheduled event with id: {scheduled_event_id}"
         ));
     };
 

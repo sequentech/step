@@ -52,26 +52,25 @@ pub async fn execute_plugin_task(
             .await;
 
         match execution_result {
-            AnyhowResult::Ok(_) => {
+            AnyhowResult::Ok(()) => {
                 if let Err(e) = update_complete(&task_execution_clone, None).await {
-                    info!("Failed to update task as complete: {}", e);
+                    info!("Failed to update task as complete: {e}");
                 }
             }
             AnyhowResult::Err(e) => {
                 info!(
-                    "Captured error backtrace from background execute_task for task '{}':\n{:?}",
-                    task,
+                    "Captured error backtrace from background execute_task for task '{task}':\n{:?}",
                     e.backtrace()
                 );
                 if let Err(update_err) = update_fail(&task_execution_clone, &e.to_string()).await {
-                    info!("Failed to update task as failed: {}", update_err);
+                    info!("Failed to update task as failed: {update_err}");
                 }
             }
         }
     });
 
     match res.await {
-        Ok(_) => Ok(()),
-        Err(join_error) => Err(Error::from(anyhow!("Task panicked: {}", join_error))),
+        Ok(()) => Ok(()),
+        Err(join_error) => Err(Error::from(anyhow!("Task panicked: {join_error}"))),
     }
 }

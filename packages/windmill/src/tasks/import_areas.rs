@@ -43,7 +43,7 @@ pub async fn import_areas_task(
 
     match sha256 {
         Some(hash) if !hash.is_empty() => match integrity_check(&temp_file, hash) {
-            Ok(_) => {
+            Ok(()) => {
                 info!("Hash verified !");
             }
             Err(HashFileVerifyError::HashMismatch(input_hash, gen_hash)) => {
@@ -105,8 +105,8 @@ pub async fn import_areas_task(
             .map_err(|e| anyhow!("Error serializing AreaPresentation: {e:?}"))?;
             areas.push(Area {
                 id: new_area_id.to_string(),
-                tenant_id: tenant_id.to_string(),
-                election_event_id: election_event_id.to_string(),
+                tenant_id: tenant_id.clone(),
+                election_event_id: election_event_id.clone(),
                 created_at: None,
                 last_updated_at: None,
                 labels: None,
@@ -127,7 +127,7 @@ pub async fn import_areas_task(
                 })
                 .collect();
             area_contests.extend(new_area_contests);
-        };
+        }
     }
 
     insert_areas(hasura_transaction, &areas).await?;

@@ -310,7 +310,7 @@ mod import_candidates_task {
             Ok(client) => client,
             Err(err) => {
                 update_fail(&task_execution, "Failed to get Hasura DB pool").await?;
-                return Err(anyhow!("Error getting Hasura DB pool: {}", err));
+                return Err(anyhow!("Error getting Hasura DB pool: {err}"));
             }
         };
 
@@ -356,7 +356,7 @@ mod import_candidates_task {
 
         match sha256 {
             Some(hash) if !hash.is_empty() => match integrity_check(&temp_file, hash) {
-                Ok(_) => {
+                Ok(()) => {
                     info!("Hash verified !");
                 }
                 Err(HashFileVerifyError::HashMismatch(input_hash, gen_hash)) => {
@@ -396,7 +396,7 @@ mod import_candidates_task {
         for result in rdr.records() {
             match result.with_context(|| "Error reading CSV record") {
                 Ok(record) => {
-                    event!(Level::INFO, "result {:?}", record);
+                    event!(Level::INFO, "result {record:?}");
                     let name_on_ballot = record.get(26).unwrap_or("Candidate").to_string();
                     let political_party = record.get(7).unwrap_or("\\N").to_string();
                     let postcode = record.get(2).unwrap_or("1").to_string();
@@ -441,9 +441,9 @@ mod import_candidates_task {
                     candidates.push(candidate);
                 }
                 Err(err) => {
-                    event!(Level::ERROR, "Error reading CSV record: {:?}", err);
+                    event!(Level::ERROR, "Error reading CSV record: {err:?}");
                     update_fail(&task_execution, "Error reading CSV record").await?;
-                    return Err(anyhow!("Error reading CSV record: {}", err));
+                    return Err(anyhow!("Error reading CSV record: {err}"));
                 }
             }
         }
@@ -456,20 +456,20 @@ mod import_candidates_task {
         )
         .await
         {
-            Ok(_) => (),
+            Ok(()) => (),
             Err(err) => {
                 update_fail(&task_execution, "Error inserting candidates to db").await?;
-                return Err(anyhow!("Inserting candidates failed: {:?}", err));
+                return Err(anyhow!("Inserting candidates failed: {err:?}"));
             }
         }
 
         match hasura_transaction.commit().await {
-            Ok(_) => (),
+            Ok(()) => (),
             Err(err) => {
                 update_fail(&task_execution, "Error updating db").await?;
-                return Err(anyhow!("Commit failed: {}", err));
+                return Err(anyhow!("Commit failed: {err}"));
             }
-        };
+        }
 
         update_complete(&task_execution, Some(document_id.clone()))
             .await

@@ -42,6 +42,7 @@ pub struct JwksOutput {
 }
 
 /// S3 object path where the aggregated JWKS is stored.
+#[must_use]
 pub fn get_jwks_secret_path() -> String {
     env::var("AWS_S3_JWKS_CERTS_PATH").unwrap_or("certs.json".to_string())
 }

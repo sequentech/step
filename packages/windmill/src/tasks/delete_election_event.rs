@@ -24,7 +24,7 @@ use futures::try_join;
 use sequent_core::types::hasura::core::TasksExecution;
 use tracing::instrument;
 
-/// Deletes ImmuDB logs, B3 objects, S3 documents, and the Keycloak realm.
+/// Deletes `ImmuDB` logs, `B3` objects, `S3` documents, and the `Keycloak` realm.
 #[instrument(err)]
 async fn delete_election_event_related_data(
     tenant_id: &str,
@@ -111,14 +111,14 @@ mod delete_election_event_task {
         let res = super::delete_election_event(tenant_id, election_event_id, realm).await;
 
         match res {
-            Ok(_) => {
+            Ok(()) => {
                 update_complete(&task_execution, None).await?;
             }
             Err(err) => {
                 let error = format!("Error deleting election event: {err}");
                 update_fail(&task_execution, &error).await?;
             }
-        };
+        }
         Ok(())
     }
 }

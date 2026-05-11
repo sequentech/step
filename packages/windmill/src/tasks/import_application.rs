@@ -55,7 +55,7 @@ mod import_applications_task {
         .await;
 
         match result {
-            Ok(_) => {
+            Ok(()) => {
                 let _res = update_complete(&task_execution, Some(document_id.clone())).await;
                 Ok(())
             }
@@ -93,7 +93,7 @@ pub async fn import_applications_task(
 
     match sha256 {
         Some(hash) if !hash.is_empty() => match integrity_check(&temp_file, hash) {
-            Ok(_) => {
+            Ok(()) => {
                 info!("Hash verified !");
             }
             Err(HashFileVerifyError::HashMismatch(input_hash, gen_hash)) => {

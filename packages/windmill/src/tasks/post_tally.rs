@@ -49,7 +49,7 @@ use tokio::time::Duration as ChronoDuration;
 use rayon::iter::IntoParallelIterator;
 use rayon::iter::ParallelIterator;
 
-/// Downloads the SQLite results database referenced on the tally session execution.
+/// Downloads the `SQLite` results database referenced on the tally session execution.
 ///
 /// # Errors
 ///
@@ -89,7 +89,7 @@ pub async fn download_sqlite_database(
         &sqlite_database_document_id,
     )
     .await?
-    .ok_or_else(|| anyhow!("Can't find document {}", sqlite_database_document_id))?;
+    .ok_or_else(|| anyhow!("Can't find document {sqlite_database_document_id}"))?;
 
     let sqlite_database = get_document_as_temp_file(tenant_id, &document).await?;
 
@@ -236,7 +236,7 @@ pub async fn post_tally_task_impl(
         &tar_gz_document_id,
     )
     .await?
-    .ok_or_else(|| anyhow!("Can't find document {}", tar_gz_document_id))?;
+    .ok_or_else(|| anyhow!("Can't find document {tar_gz_document_id}"))?;
 
     let tar_gz_file = get_document_as_temp_file(&tenant_id, &tar_gz_document).await?;
 
@@ -325,7 +325,7 @@ pub async fn post_tally_task_impl(
 
     // Upload updated sqlite database
     let database_document_id = Uuid::new_v4().to_string();
-    let file_name = format!("results-{}.db", results_event_id);
+    let file_name = format!("results-{results_event_id}.db");
     let file_path = sqlite_file.path().to_string_lossy().to_string();
     let file_size = get_file_size(&file_path)?;
 
@@ -414,10 +414,7 @@ mod post_tally_celery {
     ) -> Result<()> {
         let _permit = acquire_semaphore().await?;
         let Ok(lock) = PgLock::acquire(
-            format!(
-                "post-tally-task-{}-{}-{}",
-                tenant_id, election_event_id, tally_session_id
-            ),
+            format!("post-tally-task-{tenant_id}-{election_event_id}-{tally_session_id}"),
             Uuid::new_v4().to_string(),
             ISO8601::now()
                 .checked_add_signed(Duration::seconds(120))
@@ -445,7 +442,7 @@ mod post_tally_celery {
                 }
                 res = &mut current_task => {
 
-                    break res.map_err(|err| Error::String(format!("Error executing loop: {:?}", err))).flatten();
+                    break res.map_err(|err| Error::String(format!("Error executing loop: {err:?}"))).flatten();
                 }
             }
         };

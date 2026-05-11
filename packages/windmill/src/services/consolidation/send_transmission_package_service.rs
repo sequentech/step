@@ -78,8 +78,8 @@ async fn send_package_to_ccs_server(
         SEND_ELECTION_RESULTS_API_PATH
     };
 
-    let uri = format!("{}{}", ccs_server.address, base_url);
-    info!("Sending package to url {}", uri);
+    let uri = format!("{}{base_url}", ccs_server.address);
+    info!("Sending package to url {uri}");
     let client = reqwest::Client::builder()
         .danger_accept_invalid_certs(true)
         .build()?;
@@ -101,9 +101,8 @@ async fn send_package_to_ccs_server(
         .map_err(|err| anyhow!("{err:?}"))?;
     let response_str = format!("{response:?}");
     info!(
-        "Response code: {}. Response: '{}'",
+        "Response code: {}. Response: '{response_str}'",
         response.status(),
-        response_str
     );
     let is_success = response.status().is_success();
     let text = response.text().await?;
@@ -118,6 +117,7 @@ async fn send_package_to_ccs_server(
 }
 
 /// Picks the document with the latest `created_at` among `input_documents`.
+#[must_use]
 #[instrument(skip_all)]
 pub fn get_latest_miru_document(input_documents: &[MiruDocument]) -> Option<MiruDocument> {
     let mut documents = input_documents.to_owned();
@@ -128,13 +128,7 @@ pub fn get_latest_miru_document(input_documents: &[MiruDocument]) -> Option<Miru
         let Ok(b_date) = ISO8601::to_date(&b.created_at) else {
             return Ordering::Equal;
         };
-        if a_date > b_date {
-            Ordering::Less
-        } else if a_date < b_date {
-            Ordering::Greater
-        } else {
-            Ordering::Equal
-        }
+        a_date.cmp(&b_date).reverse()
     });
     documents.first().cloned()
 }
@@ -325,6 +319,7 @@ async fn record_new_log(
 /// # Errors
 ///
 /// Missing documents, HTTP send failures, or DB update errors before all destinations complete.
+#[allow(clippy::too_many_lines)]
 #[instrument(err)]
 pub async fn send_transmission_package_service(
     tenant_id: &str,
@@ -364,7 +359,7 @@ pub async fn send_transmission_package_service(
         .await
         .with_context(|| format!("Error fetching area {area_id}"))?
         .ok_or_else(|| anyhow!("Can't find area {area_id}"))?;
-    let area_name = area.name.clone().unwrap_or("".into());
+    let area_name = area.name.clone().unwrap_or_default();
     let area_annotations = area.get_annotations()?;
 
     let tally_session = get_tally_session_by_id(
@@ -399,10 +394,8 @@ pub async fn send_transmission_package_service(
     )
     .await?
     .ok_or_else(|| {
-        anyhow!(
-            "Can't find document {}",
-            miru_document.document_ids.all_servers
-        )
+        let id = &miru_document.document_ids.all_servers;
+        anyhow!("Can't find document {id}")
     })?;
 
     let mut compressed_zip = get_document_as_temp_file(tenant_id, &document).await?;
@@ -420,9 +413,10 @@ pub async fn send_transmission_package_service(
         .map(|value| value.name.clone())
         .collect();
 
-    if transmission_area_election.threshold > -1
-        && (miru_document.signatures.len() as i64) < transmission_area_election.threshold
-    {
+    let threshold_met = usize::try_from(transmission_area_election.threshold)
+        .map(|thresh| miru_document.signatures.len() < thresh)
+        .unwrap_or(false);
+    if transmission_area_election.threshold > -1 && threshold_met {
         info!(
             "Can't send to servers as number of signatures {} is less than threshold {}",
             miru_document.signatures.len(),
@@ -444,7 +438,7 @@ pub async fn send_transmission_package_service(
             second_zip_folder_path.join(format!("er_{}.zip", area_annotations.station_id));
         let election_name = election.get_name(&election.get_default_language());
         match send_package_to_ccs_server(&second_zip_path, ccs_server, false).await {
-            Ok(_) => {
+            Ok(()) => {
                 let time_now = Local::now();
                 let sbei_miru_ids: Vec<String> = new_miru_document
                     .signatures
@@ -520,7 +514,7 @@ pub async fn send_transmission_package_service(
             second_zip_folder_path.join(format!("al_{}.zip", area_annotations.station_id));
         if with_logs {
             match send_package_to_ccs_server(&logs_zip_path, ccs_server, true).await {
-                Ok(_) => {
+                Ok(()) => {
                     let new_log = send_logs_to_ccs_log(
                         &Local::now(),
                         election_id,

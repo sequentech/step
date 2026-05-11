@@ -21,8 +21,8 @@ pub struct PluginManager {
     pub plugins: DashMap<String, Arc<Plugin>>,
     /// Hook name → plugin names that registered it.
     pub hooks: DashMap<String, Vec<String>>, // (hook, list of plugin names)
-    /// Route path → (handler, plugin_name).
-    pub routes: DashMap<String, (String, String)>, // (path, (handler, plugin_name)) - Routes remain 1:1
+    /// Route path → (handler, `plugin_name`).
+    pub routes: DashMap<String, (String, String)>, // (path, (handler, `plugin_name`)) - Routes remain 1:1
     /// Task handler → plugin names that registered it.
     pub tasks: DashMap<String, Vec<String>>, // (task, list of plugin names)
     /// Shared Wasmtime engine used to compile components.
@@ -30,7 +30,7 @@ pub struct PluginManager {
 }
 
 impl PluginManager {
-    /// Creates a new PluginManager instance with an async-enabled Wasmtime engine and empty plugin registries.
+    /// Creates a new `PluginManager` instance with an async-enabled Wasmtime engine and empty plugin registries.
     ///
     /// # Errors
     ///
@@ -81,7 +81,7 @@ impl PluginManager {
 
             for route in plugin_routes {
                 let path = route.path.clone();
-                if path.starts_with(format!("/{}", plugin_name).as_str()) {
+                if path.starts_with(format!("/{plugin_name}").as_str()) {
                     let handler = route.handler.clone();
                     self.routes
                         .insert(path, (handler.clone(), plugin_name.clone()));
@@ -208,7 +208,7 @@ impl PluginManager {
         }
     }
 
-    /// EExecutes a registered task by name, passing a JSON string as input, on all plugins that registered for the task.
+    /// Executes a registered task by name, passing a JSON string as input, on all plugins that registered for the task.
     ///
     /// # Errors
     ///
@@ -236,6 +236,7 @@ impl PluginManager {
     }
 
     /// Returns the task handler for `path` when the route maps to a handler registered as a task.
+    #[must_use]
     pub fn get_route_task_handler(&self, path: &str) -> Option<String> {
         if let Some(route_entry) = self.routes.get(path) {
             let (handler, _plugin_name) = route_entry.value();
@@ -250,7 +251,7 @@ impl PluginManager {
 /// Global plugin manager singleton.
 static PLUGIN_MANAGER: OnceCell<PluginManager> = OnceCell::new();
 
-/// Returns a reference to the global PluginManager singleton, initializing it if necessary.
+/// Returns a reference to the global `PluginManager` singleton, initializing it if necessary.
 ///
 /// # Panics
 ///
@@ -274,7 +275,7 @@ pub async fn get_plugin_manager() -> Result<&'static PluginManager> {
     Ok(plugin_manager)
 }
 
-/// Initializes the global PluginManager singleton and loads all plugins from S3.
+/// Initializes the global `PluginManager` singleton and loads all plugins from S3.
 ///
 /// # Errors
 ///

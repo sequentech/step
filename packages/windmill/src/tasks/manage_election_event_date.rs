@@ -92,8 +92,7 @@ mod manage_election_event_date_task {
     ) -> Result<()> {
         let lock: PgLock = PgLock::acquire(
             format!(
-                "execute_manage_election_event_date-{}-{}-{}",
-                tenant_id, election_event_id, scheduled_event_id
+                "execute_manage_election_event_date-{tenant_id}-{election_event_id}-{scheduled_event_id}"
             ),
             Uuid::new_v4().to_string(),
             ISO8601::now()
@@ -105,7 +104,7 @@ mod manage_election_event_date_task {
             .await
             .get()
             .await
-            .map_err(|e| anyhow!("Error getting hasura client {}", e))?;
+            .map_err(|e| anyhow!("Error getting hasura client {e}"))?;
         let hasura_transaction = hasura_db_client.transaction().await?;
         let res = manage_election_event_date_wrapped(
             &hasura_transaction,
@@ -120,7 +119,7 @@ mod manage_election_event_date_task {
                 let commit = hasura_transaction
                     .commit()
                     .await
-                    .map_err(|e| anyhow!("Commit failed manage_event_election_dates: {}", e));
+                    .map_err(|e| anyhow!("Commit failed manage_event_election_dates: {e}"));
                 lock.release().await?;
                 commit?;
             }
@@ -128,7 +127,7 @@ mod manage_election_event_date_task {
                 let rollback = hasura_transaction.rollback().await;
                 lock.release().await?;
                 rollback?;
-                return Err(anyhow!("{}", err).into());
+                return Err(anyhow!("{err}").into());
             }
         }
 

@@ -45,8 +45,7 @@ async fn manage_election_voting_period_end_wrapped(
 
     let Some(scheduled_event) = scheduled_event else {
         return Err(anyhow!(
-            "Can't find scheduled event with id: {}",
-            scheduled_event_id
+            "Can't find scheduled event with id: {scheduled_event_id}"
         ));
     };
 
@@ -112,8 +111,7 @@ mod manage_election_voting_period_end_task {
     ) -> Result<()> {
         let lock: PgLock = PgLock::acquire(
             format!(
-                "execute_manage_election_voting_period_end-{}-{}-{}-{}",
-                tenant_id, election_event_id, scheduled_event_id, election_id
+                "execute_manage_election_voting_period_end-{tenant_id}-{election_event_id}-{scheduled_event_id}-{election_id}"
             ),
             Uuid::new_v4().to_string(),
             ISO8601::now()
