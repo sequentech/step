@@ -170,6 +170,8 @@ export const AnswersList: React.FC<AnswersListProps> = ({
 
     let sortedSubtypes = sortBy(subtypesPresentation, ["sort_order"])
 
+    const shouldDisableList = disableSelect && !isChecked()
+
     return (
         <CandidatesList
             title={translate(listPresentation, "name", i18n.language) ?? title}
@@ -185,6 +187,7 @@ export const AnswersList: React.FC<AnswersListProps> = ({
             selectedCandidatesLabel={selectedCandidatesLabel}
             externalExpanded={!isReview && isCollapsible ? externalExpanded : undefined}
             onExpandedChange={!isReview && isCollapsible ? onExpandedChange : undefined}
+            shouldDisable={shouldDisableList}
         >
             {sortedSubtypes.map((subtypePresentation) => {
                 let subtypeCandidates =

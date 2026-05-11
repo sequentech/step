@@ -106,6 +106,7 @@ export interface CandidatesListProps extends PropsWithChildren {
     selectedCandidatesLabel?: string
     externalExpanded?: boolean
     onExpandedChange?: (expanded: boolean) => void
+    shouldDisable?: boolean
 }
 
 const CandidatesList: React.FC<CandidatesListProps> = ({
@@ -123,6 +124,7 @@ const CandidatesList: React.FC<CandidatesListProps> = ({
     selectedCandidatesLabel,
     externalExpanded,
     onExpandedChange,
+    shouldDisable,
 }) => {
     const [isExpanded, setIsExpanded] = useState<boolean>(defaultExpanded ?? true)
 
@@ -133,12 +135,16 @@ const CandidatesList: React.FC<CandidatesListProps> = ({
     }, [externalExpanded])
 
     const onClick = () => {
-        if (isActive && isCheckable && setChecked) {
+        if (isActive && isCheckable && !shouldDisable && setChecked) {
             setChecked(!checked)
         }
     }
-    const handleChange = (event: React.ChangeEvent<HTMLInputElement>) =>
-        isActive && isCheckable && setChecked && setChecked(event.target.checked)
+    const handleChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+        event.stopPropagation()
+        if (isActive && isCheckable && !shouldDisable && setChecked) {
+            setChecked(event.target.checked)
+        }
+    }
 
     const handleToggleCollapse = (event: React.MouseEvent) => {
         event.stopPropagation()
@@ -151,9 +157,10 @@ const CandidatesList: React.FC<CandidatesListProps> = ({
 
     return (
         <ListContainer
-            isactive={String(!!(isActive && isCheckable))}
+            isactive={String(!!(isActive && isCheckable && !shouldDisable))}
             onClick={onClick}
             className="candidates-list"
+            aria-disabled={shouldDisable}
         >
             <ListHeader className="candidates-list-header">
                 <Box>
@@ -196,7 +203,11 @@ const CandidatesList: React.FC<CandidatesListProps> = ({
                         <SelectedCandidatesLabel>{selectedCandidatesLabel}</SelectedCandidatesLabel>
                     ) : null}
                     {isActive && isCheckable ? (
-                        <Checkbox checked={checked} onChange={handleChange} />
+                        <Checkbox
+                            checked={checked}
+                            onChange={handleChange}
+                            disabled={shouldDisable}
+                        />
                     ) : null}
                 </Box>
             </ListHeader>
