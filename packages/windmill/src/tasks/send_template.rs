@@ -591,9 +591,9 @@ mod send_template_task {
 pub use send_template_task::send_template;
 
 /// In the case of rejection:
-/// admin_id and election_event are not needed so both can be set to None.
+/// `admin_id` and `election_event` are not needed so both can be set to None.
 ///
-/// Since there is no user_id, the User object must be constructed from the data in applications table and its id set to None.
+/// Since there is no `user_id`, the User object must be constructed from the data in applications table and its id set to None.
 ///
 /// Also we do not write the rejections in the Elecoral log since anyone can apply, it would overbloat the electoral log.
 ///

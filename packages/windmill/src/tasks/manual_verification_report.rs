@@ -122,7 +122,7 @@ mod manual_verification_report_task {
         // Await the result and handle JoinError explicitly
         match handle.await {
             Ok(inner_result) => inner_result.map_err(|err| Error::from(err.context("Task failed"))),
-            Err(join_error) => Err(Error::from(anyhow!("Task panicked: {}", join_error))),
+            Err(join_error) => Err(Error::from(anyhow!("Task panicked: {join_error}"))),
         }?;
 
         Ok(())

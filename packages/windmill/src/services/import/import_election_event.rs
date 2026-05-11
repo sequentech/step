@@ -472,19 +472,19 @@ pub async fn insert_election_event_db(
 ///
 /// This function is a thin wrapper around `replace_realm_ids()` that processes the election event
 /// import schema and replaces most UUIDs with new ones, while keeping certain IDs unchanged
-/// (like tenant_id and optionally election_event_id). It also automatically preserves UUIDs
+/// (like `tenant_id` and optionally `election_event_id`). It also automatically preserves UUIDs
 /// referenced in Keycloak authenticator configurations.
 ///
 /// # Arguments
 /// * `data_str` - The original JSON string representation of the import data
-/// * `original_data` - The parsed ImportElectionEventSchema structure
+/// * `original_data` - The parsed `ImportElectionEventSchema` structure
 /// * `event_id` - Optional election event ID to use. If None, a new UUID will be generated
 /// * `tenant_id` - The tenant ID to use (may differ from the original)
 ///
 /// # Returns
 /// A tuple containing:
-/// * The modified ImportElectionEventSchema with replaced UUIDs
-/// * A HashMap mapping old UUIDs to their new replacements
+/// * The modified `ImportElectionEventSchema` with replaced UUIDs
+/// * A `HashMap` mapping old UUIDs to their new replacements
 ///
 /// # Errors
 ///
@@ -908,7 +908,7 @@ pub async fn process_reports_file(
                 } else {
                     Some(
                         permission_labels
-                            .split("|")
+                            .split('|')
                             .map(|label| label.to_string())
                             .collect(),
                     )
@@ -1052,7 +1052,7 @@ pub async fn process_s3_file(
     let file_path_string = temp_file_path.path().to_string_lossy().to_string();
 
     let file_size = get_file_size(file_path_string.as_str())
-        .with_context(|| format!("Error obtaining file size for {}", file_path_string))?;
+        .with_context(|| format!("Error obtaining file size for {file_path_string}"))?;
 
     let file_suffix = Path::new(&file_path_string)
         .extension()
@@ -1083,7 +1083,7 @@ pub async fn process_s3_file(
         &tenant_id,
         election_event_id,
         &new_file_name,
-        Some(new_document_id.to_string()),
+        Some(new_document_id.clone()),
         is_public,
     )
     .await?;
@@ -1296,7 +1296,7 @@ pub async fn process_document(
             }
 
             if file_name.contains(&format!("{}/", EDocuments::S3_FILES.to_file_name())) {
-                let folder_path: Vec<_> = file_name.split("/").collect();
+                let folder_path: Vec<_> = file_name.split('/').collect();
                 // Skips the OS created files
                 if folder_path[1] == EDocuments::VOTERS.to_file_name() {
                     continue;
@@ -1327,7 +1327,7 @@ pub async fn process_document(
                 .context("Failed to import S3 files")?;
             }
             if file_name.contains(&format!("{}/", EDocuments::IMAGES.to_file_name())) {
-                let folder_path: Vec<_> = file_name.split("/").collect();
+                let folder_path: Vec<_> = file_name.split('/').collect();
 
                 // Write the file contents to a new file within this directory
                 let file_leaf = folder_path
@@ -1458,10 +1458,10 @@ pub async fn process_document(
                 )?;
                 temp_file.as_file_mut().rewind()?;
                 let tally_file_name = file_name
-                    .split("/")
+                    .split('/')
                     .last()
                     .ok_or(anyhow!("Unexpected, tally without filename"))?
-                    .split(".")
+                    .split('.')
                     .next()
                     .ok_or(anyhow!("Unexpected tally without extension"))?;
 
@@ -1616,7 +1616,7 @@ pub async fn maybe_create_scheduled_event(
     };
     let cron_config = CronConfig {
         cron: None,
-        scheduled_date: Some(start_date.to_string()),
+        scheduled_date: Some(start_date.clone()),
     };
     insert_scheduled_event(
         hasura_transaction,

@@ -159,7 +159,7 @@ pub fn find_and_process_html_reports_parallel(
 }
 
 /// Rebuilds tally HTML reports as PDFs inside the decrypted archive,
-/// re-uploads `tally.tar.gz` and SQLite.
+/// re-uploads `tally.tar.gz` and `SQLite`.
 ///
 /// # Errors
 ///

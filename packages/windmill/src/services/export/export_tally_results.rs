@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-//! Converts tally SQLite result databases into XLSX spreadsheets
+//! Converts tally `SQLite` result databases into XLSX spreadsheets
 //! and updates tally session execution document pointers.
 use crate::postgres::document::get_document;
 use crate::postgres::tally_session_execution::get_last_tally_session_execution;
@@ -19,20 +19,20 @@ use sequent_core::types::ceremonies::TallySessionDocuments;
 use std::path::Path;
 use tracing::instrument;
 
-/// Excel per-cell character limit enforced when copying SQLite text into worksheets.
+/// Excel per-cell character limit enforced when copying `SQLite` text into worksheets.
 const EXCEL_STRING_LIMIT: usize = 32767;
 
-/// Builds an XLSX from the execution’s SQLite results artifact,
+/// Builds an XLSX from the execution’s `SQLite` results artifact,
 /// uploads it, and stores the new document id on the execution.
 ///
 /// # Errors
 ///
-/// Returns an error when the SQLite document is missing,
+/// Returns an error when the `SQLite` document is missing,
 /// temp download fails, conversion fails, DB update fails, or upload fails.
 ///
 /// # Panics
 ///
-/// Panics if the SQLite document lookup unexpectedly returns `None` after the prior checks.
+/// Panics if the `SQLite` document lookup unexpectedly returns `None` after the prior checks.
 #[instrument(err)]
 pub async fn export_tally_results_to_xlsx(
     hasura_transaction: &Transaction<'_>,
@@ -55,7 +55,7 @@ pub async fn export_tally_results_to_xlsx(
         sqlite_document_id,
     )
     .await
-    .map_err(|e| anyhow!("Failed to get document: {}", e))?;
+    .map_err(|e| anyhow!("Failed to get document: {e}"))?;
 
     if sqlite_document.is_none() {
         return Err(anyhow!("Document not found"));
@@ -65,19 +65,19 @@ pub async fn export_tally_results_to_xlsx(
 
     let sqlite_file = get_document_as_temp_file(&tenant_id, &sqlite_document)
         .await
-        .map_err(|e| anyhow!("Failed to get sqlite document as temp file: {}", e))?;
+        .map_err(|e| anyhow!("Failed to get sqlite document as temp file: {e}"))?;
 
     let xlsx_file_name = format!("results-{}", results_event_id.clone());
     let xlsx_file = generate_temp_file(&xlsx_file_name, ".xlsx")?;
 
     convert_db_to_xlsx(sqlite_file.path(), xlsx_file.path())
         .await
-        .map_err(|e| anyhow!("Failed to convert DB to XLSX: {}", e))?;
+        .map_err(|e| anyhow!("Failed to convert DB to XLSX: {e}"))?;
 
     let xlsx_file_path = xlsx_file.into_temp_path();
     let xlsx_file_path_string = xlsx_file_path.to_string_lossy().to_string();
     let xlsx_file_size = get_file_size(xlsx_file_path_string.as_str())
-        .map_err(|e| anyhow!("Failed to get XLSX file size: {}", e))?;
+        .map_err(|e| anyhow!("Failed to get XLSX file size: {e}"))?;
 
     let new_tally_session_documents = TallySessionDocuments {
         xlsx: Some(document_id.clone()),
@@ -92,7 +92,7 @@ pub async fn export_tally_results_to_xlsx(
         new_tally_session_documents,
     )
     .await
-    .map_err(|e| anyhow!("Failed to update tally session execution documents: {}", e))?;
+    .map_err(|e| anyhow!("Failed to update tally session execution documents: {e}"))?;
 
     let _ = upload_and_return_document(
         hasura_transaction,
@@ -101,12 +101,12 @@ pub async fn export_tally_results_to_xlsx(
         "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         &tenant_id,
         Some(election_event_id),
-        &format!("{}.xlsx", xlsx_file_name),
+        &format!("{xlsx_file_name}.xlsx"),
         Some(document_id),
         false,
     )
     .await
-    .map_err(|e| anyhow!("Failed to upload XLSX document: {}", e))?;
+    .map_err(|e| anyhow!("Failed to upload XLSX document: {e}"))?;
 
     Ok(())
 }
@@ -119,12 +119,12 @@ fn truncate_string_for_excel(value_str: String) -> String {
             .take(EXCEL_STRING_LIMIT)
             .collect::<String>()
     } else {
-        value_str.to_string()
+        value_str.clone()
     };
     truncated_text
 }
 
-/// Converts a SQLite database file to an XLSX file, with each table as a worksheet.
+/// Converts a `SQLite` database file to an XLSX file, with each table as a worksheet.
 ///
 /// # Panics
 ///
@@ -132,7 +132,7 @@ fn truncate_string_for_excel(value_str: String) -> String {
 ///
 /// # Errors
 ///
-/// Propagates SQLite open/query errors or XLSX writer failures.
+/// Propagates `SQLite` open/query errors or XLSX writer failures.
 #[instrument(err)]
 async fn convert_db_to_xlsx(db_path: &Path, xlsx_path: &Path) -> Result<()> {
     let db_conn = Connection::open(db_path)?;
@@ -145,11 +145,11 @@ async fn convert_db_to_xlsx(db_path: &Path, xlsx_path: &Path) -> Result<()> {
 
     for table_result in table_names_iter {
         let table_name: String = table_result?;
-        println!("  - Processing table: '{}'", table_name);
+        println!("  - Processing table: '{table_name}'");
         let mut worksheet = workbook.add_worksheet();
         worksheet.set_name(&table_name)?;
 
-        let mut table_stmt = db_conn.prepare(&format!("SELECT * FROM `{}`", table_name.clone()))?;
+        let mut table_stmt = db_conn.prepare(&format!("SELECT * FROM `{table_name}`"))?;
 
         let column_names: Vec<String> = table_stmt
             .column_names()
@@ -210,7 +210,7 @@ async fn convert_db_to_xlsx(db_path: &Path, xlsx_path: &Path) -> Result<()> {
 /// # Errors
 ///
 /// Returns an error when no execution exists, documents are absent,
-/// SQLite id is missing, or JSON handling fails.
+/// `SQLite` id is missing, or JSON handling fails.
 ///
 /// # Panics
 ///
@@ -229,16 +229,14 @@ pub async fn get_tally_session_execution_results_sqlite_file(
         tally_session_id,
     )
     .await
-    .map_err(|e| anyhow!("Failed to get last tally session execution: {}", e))?
+    .map_err(|e| anyhow!("Failed to get last tally session execution: {e}"))?
     .ok_or(anyhow!(
-        "No tally session execution found for tally session id: {}",
-        tally_session_id
+        "No tally session execution found for tally session id: {tally_session_id}"
     ))?;
 
     if tally_session_execution.documents.is_none() {
         return Err(anyhow!(
-            "No documents found for tally session id: {}",
-            tally_session_id
+            "No documents found for tally session id: {tally_session_id}"
         ));
     }
 
@@ -247,14 +245,12 @@ pub async fn get_tally_session_execution_results_sqlite_file(
 
     if (documents.sqlite.is_none()) {
         return Err(anyhow!(
-            "No SQLite document found for tally session id: {}",
-            tally_session_id
+            "No SQLite document found for tally session id: {tally_session_id}"
         ));
     }
 
     let results_event_id = tally_session_execution.results_event_id.ok_or(anyhow!(
-        "No results event id found for tally session id: {}",
-        tally_session_id
+        "No results event id found for tally session id: {tally_session_id}"
     ))?;
 
     Ok((documents, results_event_id, tally_session_execution.id))

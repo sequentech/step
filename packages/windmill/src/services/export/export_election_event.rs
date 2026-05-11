@@ -223,7 +223,7 @@ fn get_export_election_event_filename(
     let election_event_hash: String = hash_sha256_file(file_path)
         .with_context(|| "Error hashing the exported election_event")?
         .iter()
-        .map(|byte| format!("{:02x}", byte))
+        .map(|byte| format!("{byte:02x}"))
         .collect();
     let extension = if is_encrypted { "ezip" } else { "zip" };
 
@@ -254,7 +254,7 @@ pub async fn get_image_file_from_s3(
 
     let bytes = s3::get_file_from_s3(s3_bucket.to_owned(), s3_path).await?;
 
-    let file_name = format!("document_{}_{}", document_id, doc_name);
+    let file_name = format!("document_{document_id}_{doc_name}");
     let temp_file = generate_temp_file("", &file_name).context("generating temp file")?;
 
     let std_file = temp_file
@@ -447,8 +447,8 @@ pub async fn process_export_zip(
         let file_name = file_path
             .file_name()
             .ok_or(anyhow!(
-                "Error getting file name from path: {:?}",
-                file_path
+                "Error getting file name from path: {}",
+                file_path.display()
             ))?
             .to_string_lossy()
             .to_string();
@@ -529,13 +529,13 @@ pub async fn process_export_zip(
                     Some(report.id.clone()),
                 )
                 .await?
-                .unwrap_or("".to_string());
+                .unwrap_or(String::new());
 
                 wtr.write_record(&[
-                    report.id.to_string(),
-                    report.election_id.unwrap_or_default().to_string(),
-                    report.report_type.to_string(),
-                    report.template_alias.unwrap_or_default().to_string(),
+                    report.id.clone(),
+                    report.election_id.unwrap_or_default().clone(),
+                    report.report_type.clone(),
+                    report.template_alias.unwrap_or_default().clone(),
                     serde_json::to_string(&report.cron_config)
                         .map_err(|e| anyhow!("Error serializing cron config: {e:?}"))?,
                     report.encryption_policy.to_string(),
@@ -612,8 +612,8 @@ pub async fn process_export_zip(
             let file_name = file_path
                 .file_name()
                 .ok_or(anyhow!(
-                    "Error getting file name from path: {:?}",
-                    file_path
+                    "Error getting file name from path: {}",
+                    file_path.display()
                 ))?
                 .to_string_lossy()
                 .to_string();
@@ -816,7 +816,7 @@ pub async fn process_export_zip(
         .map_err(|e| anyhow!("Error finalizing ZIP file: {e:?}"))?;
 
     // Encrypt ZIP file if required
-    let encryption_password = export_config.password.unwrap_or("".to_string());
+    let encryption_password = export_config.password.unwrap_or(String::new());
     if encryption_password.is_empty() && (export_config.bulletin_board || export_config.reports) {
         return Err(anyhow!("Bulletin Board requires password"));
     }
@@ -853,7 +853,7 @@ pub async fn process_export_zip(
         &hasura_transaction,
         upload_path
             .to_str()
-            .ok_or_else(|| anyhow!("Can't convert {:?} to string", upload_path))?,
+            .ok_or_else(|| anyhow!("Can't convert {upload_path:?} to string"))?,
         zip_size,
         "application/zip",
         tenant_id,

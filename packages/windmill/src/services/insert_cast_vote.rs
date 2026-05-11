@@ -586,7 +586,7 @@ pub fn deserialize_and_check_multi_ballot(
     let computed_hash = hash_multi_ballot(&hashable_multi_ballot)
         .map_err(|e| CastVoteError::SerializeBallotFailed(e.to_string()))?;
 
-    /// Verifies that the ballot_id corresponds to the hash of the ballot content
+    /// Verifies that the `ballot_id` corresponds to the hash of the ballot content
     /// The function serves as a security check to ensure that
     /// a ballot's content matches its claimed ID.
     /// This is crucial for maintaining the integrity of the voting system

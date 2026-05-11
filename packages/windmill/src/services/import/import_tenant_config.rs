@@ -61,7 +61,7 @@ pub async fn import_tenant_config_zip(
 
     match sha256 {
         Some(hash) if !hash.is_empty() => match integrity_check(&temp_zip_file, hash) {
-            Ok(_) => {
+            Ok(()) => {
                 info!("Hash verified !");
             }
             Err(HashFileVerifyError::HashMismatch(input_hash, gen_hash)) => {
@@ -122,11 +122,11 @@ pub async fn import_tenant_config_zip(
         if file_name.contains(EDocuments::KEYCLOAK_CONFIG.to_file_name())
             && import_options.include_keycloak.unwrap_or(false)
         {
-            info!("Starting Keycloak config import from file: {}", file_name);
+            info!("Starting Keycloak config import from file: {file_name}");
 
             // Convert file contents to a string
             let data_str = String::from_utf8_lossy(cursor.get_ref());
-            info!("Keycloak config file contents: {:?}", data_str);
+            info!("Keycloak config file contents: {data_str:?}");
             // Deserialize the JSON into a RealmRepresentation
             let imported_realm: RealmRepresentation =
                 deserialize_str(&data_str).with_context(|| {
@@ -181,28 +181,28 @@ pub async fn import_tenant_config_zip(
 /// Returns an error if the zip cannot be opened, parsed, or read.
 #[instrument(err, skip(temp_file_path))]
 pub async fn get_zip_entries(temp_file_path: NamedTempFile) -> Result<Vec<(String, Vec<u8>)>> {
-    let zip_file = File::open(&temp_file_path).map_err(|e| anyhow!("File open error: {}", e))?;
-    let mut zip = ZipArchive::new(zip_file).map_err(|e| anyhow!("Zip archive error: {}", e))?;
+    let zip_file = File::open(&temp_file_path).map_err(|e| anyhow!("File open error: {e}"))?;
+    let mut zip = ZipArchive::new(zip_file).map_err(|e| anyhow!("Zip archive error: {e}"))?;
     let mut entries: Vec<(String, Vec<u8>)> = Vec::new();
 
     for i in 0..zip.len() {
         let mut file = zip
             .by_index(i)
-            .map_err(|e| anyhow!("Zip entry error: {}", e))?;
+            .map_err(|e| anyhow!("Zip entry error: {e}"))?;
         let file_name = file.name().to_string();
 
         // Skip operating system files or hidden files
         if file_name.starts_with("__MACOSX/")
-            || file_name.starts_with(".")
-            || file_name.ends_with("/")
+            || file_name.starts_with('.')
+            || file_name.ends_with('/')
         {
-            info!("Skipping OS or hidden file: {:?}", file_name);
+            info!("Skipping OS or hidden file: {file_name:?}");
             continue;
         }
 
         let mut file_contents = Vec::new();
         file.read_to_end(&mut file_contents)
-            .map_err(|e| anyhow!("File read error: {}", e))?;
+            .map_err(|e| anyhow!("File read error: {e}"))?;
 
         entries.push((file_name, file_contents));
     }

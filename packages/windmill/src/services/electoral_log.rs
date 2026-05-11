@@ -51,9 +51,9 @@ pub const IMMUDB_ROWS_LIMIT: usize = 2500;
 /// Default maximum number of rows returned per page in list endpoints.
 pub const MAX_ROWS_PER_PAGE: usize = 50;
 
-/// Ballot_id input is the first half of the original hash which is stored in the electoral log.
+/// `Ballot_id` input is the first half of the original hash which is stored in the electoral log.
 pub const BALLOT_ID_LENGTH_BYTES: usize = STRAND_HASH_LENGTH_BYTES / 2;
-/// Ballot_id input is in HEX, each byte is represented in 2 chars.
+/// `Ballot_id` input is in HEX, each byte is represented in 2 chars.
 pub const BALLOT_ID_LENGTH_CHARS: usize = BALLOT_ID_LENGTH_BYTES * 2;
 
 /// Helper for creating and posting signed electoral-log messages.
@@ -65,6 +65,7 @@ pub struct ElectoralLog {
 }
 
 /// If the list contains exactly one election id, return it; otherwise return `None`.
+#[must_use]
 pub fn flatten_election_ids(election_ids: Option<Vec<String>>) -> Option<String> {
     election_ids.and_then(|ids| {
         if ids.len() == 1 {
@@ -77,7 +78,7 @@ pub fn flatten_election_ids(election_ids: Option<Vec<String>>) -> Option<String>
 
 impl ElectoralLog {
     #[instrument(err, name = "ElectoralLog::new")]
-    /// Create a new ElectoralLog.
+    /// Create a new `ElectoralLog`.
     ///
     /// # Errors
     ///
@@ -110,7 +111,7 @@ impl ElectoralLog {
     }
 
     #[instrument(skip(sender_sk), err)]
-    /// Create a new ElectoralLog from a signing key.
+    /// Create a new `ElectoralLog` from a signing key.
     ///
     /// # Errors
     ///
@@ -285,7 +286,7 @@ impl ElectoralLog {
     ///
     /// Because admin users are cross election event entities, a
     /// dummy election event id will be used instead, with value
-    /// electoral_log::messages::Message:GENERIC_EVENT.
+    /// `electoral_log::messages::Message:GENERIC_EVENT`.
     ///
     /// FIXME: it may be necessary to implement a tenant-wide electoral
     /// log to save this type of message. An admin user could be created
@@ -915,7 +916,7 @@ impl ElectoralLog {
         .await
     }
 
-    /// Builds a keycloak event message and returns the resulting ElectoralLogMessage.
+    /// Builds a keycloak event message and returns the resulting `ElectoralLogMessage`.
     ///
     /// # Errors
     ///
@@ -945,7 +946,7 @@ impl ElectoralLog {
         Ok(board_message)
     }
 
-    /// Builds a send-template message and returns the resulting ElectoralLogMessage.
+    /// Builds a send-template message and returns the resulting `ElectoralLogMessage`.
     ///
     /// # Errors
     ///
@@ -970,7 +971,7 @@ impl ElectoralLog {
             message_body,
             area_id,
         )
-        .map_err(|e| anyhow!("Error creating send template message: {:?}", e))?;
+        .map_err(|e| anyhow!("Error creating send template message: {e:?}"))?;
         let board_message: ElectoralLogMessage = message.try_into()?;
         Ok(board_message)
     }
@@ -997,7 +998,7 @@ impl ElectoralLog {
                 result.map_err(|err| anyhow::Error::new(err).context("Failed to read CSV row"))?;
             let message: &Message =
                 &Message::strand_deserialize(&general_purpose::STANDARD_NO_PAD.decode(&row.data)?)
-                    .map_err(|err| anyhow!("Failed to deserialize message: {:?}", err))?;
+                    .map_err(|err| anyhow!("Failed to deserialize message: {err:?}"))?;
             let electoral_log_message: ElectoralLogMessage = message.try_into()?;
             messages.push(electoral_log_message);
 
@@ -1081,23 +1082,23 @@ impl GetElectoralLogBody {
                 match field {
                     OrderField::Id => { // sql INTEGER type
                         let int_value: i64 = value.parse()?;
-                        where_clauses.push(format!("id = @{}", param_name));
+                        where_clauses.push(format!("id = @{param_name}"));
                         params.push(create_named_param(param_name, Value::N(int_value)));
                     }
                     OrderField::SenderPk | OrderField::UserId | OrderField::Username | OrderField::BallotId | OrderField::StatementKind | OrderField::Version => { // sql VARCHAR type
-                        where_clauses.push(format!("{field} LIKE @{}", param_name));
-                        params.push(create_named_param(param_name, Value::S(value.to_string())));
+                        where_clauses.push(format!("{field} LIKE @{param_name}"));
+                        params.push(create_named_param(param_name, Value::S(value.clone())));
                     }
                     OrderField::StatementTimestamp | OrderField::Created => { // sql TIMESTAMP type
                         // these have their own column and are inside of Message´s column as well
                         let datetime = ISO8601::to_date_utc(value)
-                            .map_err(|err| anyhow!("Failed to parse timestamp: {:?}", err))?;
+                            .map_err(|err| anyhow!("Failed to parse timestamp: {err:?}"))?;
                         let ts: i64 = datetime.timestamp();
                         let ts_end: i64 = ts
                             .checked_add(60)
                             .expect("timestamp search end overflow"); // Search along that minute; seconds are not specified by the client.
                         let param_name_end = format!("{param_name}_end");
-                        where_clauses.push(format!("{field} >= @{} AND {field} < @{}", param_name, param_name_end));
+                        where_clauses.push(format!("{field} >= @{param_name} AND {field} < @{param_name_end}"));
                         params.push(create_named_param(param_name, Value::Ts(ts)));
                         params.push(create_named_param(param_name_end, Value::Ts(ts_end)));
                     }
@@ -1135,10 +1136,10 @@ impl GetElectoralLogBody {
                     let placeholders: Vec<String> = area_ids
                         .iter()
                         .enumerate()
-                        .map(|(i, _)| format!("@param_area{}", i))
+                        .map(|(i, _)| format!("@param_area{i}"))
                         .collect();
                     for (i, area) in area_ids.iter().enumerate() {
-                        let param_name = format!("param_area{}", i);
+                        let param_name = format!("param_area{i}");
                         params.push(create_named_param(
                             param_name.clone(),
                             Value::S(area.clone()),
@@ -1219,7 +1220,7 @@ impl GetElectoralLogBody {
         if !to_count && self.offset.is_some() {
             let offset_param_name = String::from("offset");
             let offset = std::cmp::max(self.offset.unwrap_or(0), 0);
-            clauses.push(format!("OFFSET @{}", offset_param_name));
+            clauses.push(format!("OFFSET @{offset_param_name}"));
             params.push(create_named_param(offset_param_name, Value::N(offset)));
         }
 
@@ -1255,36 +1256,43 @@ pub struct StatementHeadDataString {
 
 impl ElectoralLogRow {
     /// Database id of the log row.
-    pub fn id(&self) -> i64 {
+    #[must_use]
+    pub const fn id(&self) -> i64 {
         self.id
     }
 
     /// Row creation time.
-    pub fn created(&self) -> i64 {
+    #[must_use]
+    pub const fn created(&self) -> i64 {
         self.created
     }
 
     /// Statement timestamp from immudb.
-    pub fn statement_timestamp(&self) -> i64 {
+    #[must_use]
+    pub const fn statement_timestamp(&self) -> i64 {
         self.statement_timestamp
     }
 
     /// Statement kind string (e.g. cast vote vs audit).
+    #[must_use]
     pub fn statement_kind(&self) -> &str {
         &self.statement_kind
     }
 
     /// JSON string of the deserialized message payload.
+    #[must_use]
     pub fn message(&self) -> &str {
         &self.message
     }
 
     /// User id associated with the statement, if present.
+    #[must_use]
     pub fn user_id(&self) -> Option<&str> {
         self.user_id.as_deref()
     }
 
     /// Username associated with the statement, if present.
+    #[must_use]
     pub fn username(&self) -> Option<&str> {
         self.username.as_deref()
     }
@@ -1317,7 +1325,7 @@ impl ElectoralLogRow {
         };
 
         let data: StatementHeadDataString = deserialize_value(head.clone())
-            .map_err(|err| anyhow!(format!("{:?}, Failed to parse head: {}", err, head)))?;
+            .map_err(|err| anyhow!(format!("{err:?}, Failed to parse head: {head}")))?;
 
         Ok(data)
     }
@@ -1351,9 +1359,9 @@ impl TryFrom<&Row> for ElectoralLogRow {
     fn try_from(row: &Row) -> Result<Self, Self::Error> {
         let mut id = 0;
         let mut created: i64 = 0;
-        let mut sender_pk = String::from("");
+        let mut sender_pk = String::new();
         let mut statement_timestamp: i64 = 0;
-        let mut statement_kind = String::from("");
+        let mut statement_kind = String::new();
         let mut message = vec![];
         let mut user_id = None;
         let mut username = None;
@@ -1441,7 +1449,7 @@ impl CastVoteEntry {
         let ballot_id = entry.ballot_id.clone().unwrap_or_default();
         let username = entry.username.clone();
         let message: &Message = &Message::strand_deserialize(&entry.message)
-            .map_err(|err| anyhow!("Failed to deserialize message: {:?}", err))?;
+            .map_err(|err| anyhow!("Failed to deserialize message: {err:?}"))?;
         let message = Some(message.to_string());
 
         Ok(Some(CastVoteEntry {
@@ -1566,13 +1574,13 @@ pub fn get_cols_match_count_and_select(
     (cols_match_count, cols_match_select)
 }
 
-/// Returns the entries for statement_kind = "CastVote" which ballot_id matches the input
-/// ballot_id_filter is restricted to be an even number of characters, so that can be converted
+/// Returns the entries for `statement_kind` = `CastVote` which `ballot_id` matches the input
+/// `ballot_id_filter` is restricted to be an even number of characters, so that can be converted
 /// to a byte array
 ///
 /// # Errors
 ///
-/// Returns an error if the ballot_id is incorrect, the SQL cannot be built, or the query fails.
+/// Returns an error if the `ballot_id` is incorrect, the SQL cannot be built, or the query fails.
 ///
 /// # Panics
 ///
@@ -1628,7 +1636,7 @@ pub async fn list_cast_vote_messages(
                 order_by.clone(),
             )
             .await
-            .map_err(|err| anyhow!("Failed to get filtered messages: {:?}", err))?;
+            .map_err(|err| anyhow!("Failed to get filtered messages: {err:?}"))?;
 
         let t_entries = electoral_log_messages.len();
         info!("Got {t_entries} entries. Offset: {offset}, limit: {limit}, total: {total}");

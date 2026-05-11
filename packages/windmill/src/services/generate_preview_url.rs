@@ -54,9 +54,9 @@ pub fn construct_preview_url(
 /// Returns an error if the preview file cannot be read or is missing required fields.
 pub async fn get_document_data(preview_file_path: &str) -> Result<(String, String)> {
     let file = File::open(preview_file_path)
-        .map_err(|e| anyhow::anyhow!("Failed to open preview file: {}", e))?;
+        .map_err(|e| anyhow::anyhow!("Failed to open preview file: {e}"))?;
     let parsed: PublicationPreview = serde_json::from_reader(file)
-        .map_err(|e| anyhow!("Error reading uploaded preview file: {}", e))?;
+        .map_err(|e| anyhow!("Error reading uploaded preview file: {e}"))?;
 
     let ballot_styles = parsed
         .ballot_styles

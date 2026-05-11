@@ -4,7 +4,7 @@
 
 #![allow(non_camel_case_types)]
 
-//! Rust shapes for GraphQL types where Hasura exposes PostgreSQL scalars.
+//! Rust shapes for GraphQL types where Hasura exposes `PostgreSQL` scalars.
 
 use serde_json::Value;
 

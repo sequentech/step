@@ -172,9 +172,9 @@ fn get_user_record(
                 .map(|election: &ElectionHead| match votes_info_map_opt {
                     Some(ref votes_info_map) => match votes_info_map.get(&election.id) {
                         Some(votes_info) => votes_info.last_voted_at.clone(),
-                        None => Default::default(),
+                        None => String::default(),
                     },
-                    None => Default::default(),
+                    None => String::default(),
                 })
                 .collect::<Vec<String>>(),
             None => vec![],

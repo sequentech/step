@@ -68,7 +68,7 @@ pub fn write_export_roles_permissions_config(
 
     let data_bytes = writer
         .into_inner()
-        .map_err(|e| anyhow!("Error converting writer into inner: {:?}", e))?;
+        .map_err(|e| anyhow!("Error converting writer into inner: {e:?}"))?;
 
     let temp_file = NamedTempFile::new()?;
     std::fs::write(temp_file.path(), &data_bytes)
@@ -91,7 +91,7 @@ pub async fn process_export_zip(
     hasura_transaction: &Transaction<'_>,
 ) -> Result<()> {
     // Temporary file path for the ZIP archive
-    let zip_filename = format!("export-tenant-config-{}.zip", tenant_id);
+    let zip_filename = format!("export-tenant-config-{tenant_id}.zip");
     let zip_path = env::temp_dir().join(&zip_filename);
 
     // Create a new ZIP file

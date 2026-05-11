@@ -103,7 +103,7 @@ enum ActionValue {
 #[derive(Debug, Serialize, Deserialize)]
 /// Cloudflare page rule action entry.
 struct Action {
-    /// Action identifier (e.g. "forwarding_url").
+    /// Action identifier (e.g. `forwarding_url`).
     id: String,
     /// Action payload.
     value: ActionValue,
@@ -332,7 +332,7 @@ async fn get_all_dns_records() -> Result<Vec<DnsRecord>, Box<dyn Error>> {
 fn find_matching_dns_record(records: Vec<DnsRecord>, expected_name: &str) -> Option<DnsRecord> {
     info!("find_matching_dns_record expected_name:{}", expected_name);
     for record in records {
-        let name: Vec<String> = record.name.split(".").map(|s| s.to_owned()).collect();
+        let name: Vec<String> = record.name.split('.').map(|s| s.to_owned()).collect();
 
         if let Some(name) = name.first() {
             info!("name: {}", name);
@@ -436,7 +436,7 @@ pub async fn create_dns_record(redirect_to: &str, dns_prefix: &str) -> Result<()
     };
 
     if response.status().is_success() {
-        println!("DNS record created successfully");
+        info!("DNS record created successfully");
         Ok(())
     } else {
         let body = match response.text().await {
@@ -488,7 +488,7 @@ pub async fn update_dns_record(
     };
 
     if response.status().is_success() {
-        println!("DNS record created successfully");
+        info!("DNS record created successfully");
         Ok(())
     } else {
         let body = match response.text().await {
@@ -555,7 +555,7 @@ async fn create_page_rule(redirect_to: &str, origin: &str) -> Result<(), Box<dyn
             "https://api.cloudflare.com/client/v4/zones/{}/pagerules",
             &zone_id,
         ))
-        .header("Authorization", format!("Bearer {}", api_key))
+        .header("Authorization", format!("Bearer {api_key}"))
         .json(&request_body)
         .send()
         .await

@@ -74,7 +74,7 @@ pub type Credential = [u8; CREDENTIAL_LEN];
 
 /// Sanitizes a CSV/header key into a SQL-safe identifier by replacing separators with `_`.
 fn sanitize_db_key(key: &str) -> String {
-    key.replace(".", "_").replace("-", "_")
+    key.replace('.', "_").replace('-', "_")
 }
 
 /// Hashes `password` with `salt` using the configured PBKDF2 settings.
@@ -137,7 +137,7 @@ type CopyFromQueryParts = (String, String, String, Vec<String>, Vec<String>, Vec
 fn get_copy_from_query(headers: &StringRecord) -> anyhow::Result<CopyFromQueryParts> {
     let random_number: u64 = rand::random();
 
-    let temp_table_name = format!("temp_voters_{}", random_number);
+    let temp_table_name = format!("temp_voters_{random_number}");
     let headers_vec = headers.iter().map(String::from).collect::<Vec<String>>();
 
     let input_column_names = headers_vec
@@ -193,13 +193,16 @@ fn get_copy_from_query(headers: &StringRecord) -> anyhow::Result<CopyFromQueryPa
         quoted_table_name,
         processed_column_names
             .iter()
-            .map(|name| format!("{} VARCHAR", sanitize_db_key(&name.to_string())))
+            .map(|name| format!(
+                "{sanitized_name} VARCHAR",
+                sanitized_name = sanitize_db_key(name.as_str())
+            ))
             .collect::<Vec<String>>()
             .join(", ")
     );
 
     // Create the COPY FROM STDIN query
-    let copy_from_query = format!("COPY {} FROM STDIN BINARY;", quoted_table_name);
+    let copy_from_query = format!("COPY {quoted_table_name} FROM STDIN BINARY;");
 
     let processed_column_types = processed_column_names
         .iter()
@@ -218,15 +221,15 @@ fn get_copy_from_query(headers: &StringRecord) -> anyhow::Result<CopyFromQueryPa
 
 //////////////////////////////////////////////////////////////
 ///
-/// Insert the voters from the temporal voters table into the user_element
+/// Insert the voters from the temporal voters table into the `user_element`
 /// and user_attribute tables. For each user, we enter in a single query
 /// (using WITH statements or similar if need be) the user in the
-/// "user_entity" table and multiple user attributesin "user_attribute"
+/// `user_entity` table and multiple user attributesin `user_attribute`
 /// table.
 ///
 /// # Errors
 ///
-/// Returns an error if the tenant_id or realm_id is not a valid v4 UUID.
+/// Returns an error if the `tenant_id` or `realm_id` is not a valid v4 UUID.
 #[instrument(err)]
 fn get_insert_user_query(
     tenant_id: String,

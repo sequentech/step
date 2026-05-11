@@ -71,7 +71,7 @@ pub async fn write_export_document(
         "verification_type",
         "status",
     ];
-    let name = format!("applications-{}", document_id);
+    let name = format!("applications-{document_id}");
 
     let mut writer = Writer::from_writer(vec![]);
     writer.write_record(&headers)?;

@@ -60,7 +60,7 @@ pub async fn write_export_document(
             &temp_path_string,
             file_size,
             "application/json",
-            &first_task.tenant_id.to_string(),
+            &first_task.tenant_id.clone(),
             first_task.election_event_id.clone(),
             &name,
             Some(document_id.to_string()),
@@ -106,7 +106,7 @@ pub async fn process_export(
     let _commit = hasura_transaction
         .commit()
         .await
-        .map_err(|e| anyhow!("Commit failed: {}", e));
+        .map_err(|e| anyhow!("Commit failed: {e}"));
 
     Ok(())
 }

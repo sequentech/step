@@ -62,7 +62,7 @@ fn get_board_record(election_id: &str, row: B3MessageRow) -> Vec<String> {
         election_id.to_string(),
         row.id.to_string(),
         row.created.to_string(),
-        row.sender_pk.to_string(),
+        row.sender_pk.clone(),
         row.statement_timestamp.to_string(),
         row.statement_kind.clone(),
         row.batch.to_string(),
@@ -146,7 +146,7 @@ pub async fn read_election_event_boards(
         let board_name = get_event_board(tenant_id, election_event_id, &slug);
 
         let b3_messages = b3_client.get_messages(&board_name, -1).await?;
-        boards_map.insert("".to_string(), b3_messages);
+        boards_map.insert(String::new(), b3_messages);
     }
 
     // elections
@@ -192,7 +192,7 @@ pub async fn read_protocol_manager_keys(
         )
         .await?
         .ok_or(anyhow!("protocol manager secret not found"))?;
-        let record = vec!["".into(), protocol_manager_data];
+        let record = vec![String::new(), protocol_manager_data];
         writer
             .write_record(&record)
             .with_context(|| "Error writing record")?;

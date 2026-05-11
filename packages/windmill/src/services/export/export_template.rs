@@ -30,8 +30,8 @@ pub async fn read_export_data(
     let transformed_templates: Vec<Template> = templates
         .into_iter()
         .map(|template| Template {
-            alias: template.alias.to_string(),
-            tenant_id: template.tenant_id.to_string(),
+            alias: template.alias.clone(),
+            tenant_id: template.tenant_id.clone(),
             template: template.template,
             created_by: template.created_by,
             labels: Some(template.labels.unwrap_or_default()),
@@ -75,8 +75,8 @@ pub async fn write_export_document(
         "type",
     ];
 
-    let name = format!("template-{}", document_id);
-    let full_name = format!("{}.csv", name);
+    let name = format!("template-{document_id}");
+    let full_name = format!("{name}.csv");
 
     let mut writer = Writer::from_writer(vec![]);
     writer.write_record(&headers)?;
@@ -111,7 +111,7 @@ pub async fn write_export_document(
             &temp_path_string,
             file_size,
             "text/csv",
-            &first_template.tenant_id.to_string(),
+            &first_template.tenant_id.clone(),
             None,
             &full_name,
             Some(document_id.to_string()),

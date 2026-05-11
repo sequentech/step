@@ -779,7 +779,7 @@ pub async fn read_tally_data(
 
     for result in &results {
         if let Err(e) = result {
-            return Err(anyhow::anyhow!("Export tally failed: {:?}", e));
+            return Err(anyhow::anyhow!("Export tally failed: {e:?}"));
         }
     }
 

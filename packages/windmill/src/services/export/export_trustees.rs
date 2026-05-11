@@ -47,9 +47,9 @@ pub async fn read_trustees_config_base(
     let vault_type = get_vault()?.vault_type();
 
     let secret_prefix: String = match vault_type {
-        VaultManagerType::HashiCorpVault => "".to_string(),
+        VaultManagerType::HashiCorpVault => String::new(),
         VaultManagerType::AwsSecretManager => "secrets/".to_string(),
-        VaultManagerType::EnvVarMasterSecret => "".to_string(),
+        VaultManagerType::EnvVarMasterSecret => String::new(),
     };
 
     for trustee in trustees {
@@ -57,13 +57,11 @@ pub async fn read_trustees_config_base(
             .name
             .clone()
             .ok_or(anyhow!("Missing trustee name"))?;
-        let trustee_key = format!("{}{}_config", secret_prefix, trustee_name);
+        let trustee_key = format!("{secret_prefix}{trustee_name}_config");
         let secret = vault::read_secret(transaction, tenant_id, None, &trustee_key)
             .await?
             .ok_or(anyhow!(
-                "Missing vault secret for '{}'  and key '{}'",
-                trustee_name,
-                trustee_key
+                "Missing vault secret for '{trustee_name}'  and key '{trustee_key}'"
             ))?;
         info!("length of secret for {}: '{}'", trustee_name, secret.len());
 

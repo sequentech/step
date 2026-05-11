@@ -52,7 +52,7 @@ async fn process_uuids(
         None => Ok(None),
         Some(ids) => {
             let parsed: Vec<String> = deserialize_str::<Vec<String>>(ids)
-                .map_err(|e| anyhow!("Failed to parse UUID array as JSON: {:?}", e))?;
+                .map_err(|e| anyhow!("Failed to parse UUID array as JSON: {e:?}"))?;
 
             let new_ids: Vec<String> = parsed
                 .into_iter()
@@ -83,7 +83,7 @@ pub async fn get_replaced_id(
     let id: String = record
         .get(index as usize)
         .ok_or_else(|| anyhow!("Missing column {index}"))
-        .and_then(|s| deserialize_str(s).map_err(|e| anyhow!("Invalid JSON: {:?}", e)))?;
+        .and_then(|s| deserialize_str(s).map_err(|e| anyhow!("Invalid JSON: {e:?}")))?;
     let new_id = replacement_map
         .get(&id)
         .ok_or(anyhow!("Can't find id:{id} in replacement map"))?
@@ -105,7 +105,7 @@ pub async fn get_opt_i64_item(record: &StringRecord, index: usize) -> Result<Opt
         .filter(|s| !s.is_empty() && *s != "null")
         .map(|s| s.parse::<i64>())
         .transpose()
-        .map_err(|err| anyhow!("Error parsing as i64 at column {index}: {:?}", err))?;
+        .map_err(|err| anyhow!("Error parsing as i64 at column {index}: {err:?}"))?;
     Ok(item)
 }
 
@@ -121,7 +121,7 @@ pub async fn get_opt_json_value_item(record: &StringRecord, index: usize) -> Res
         .filter(|s| !s.is_empty())
         .map(deserialize_str)
         .transpose()
-        .map_err(|err| anyhow!("Error process json column {index} {:?}", err))?;
+        .map_err(|err| anyhow!("Error process json column {index} {err:?}"))?;
     Ok(item)
 }
 
@@ -139,8 +139,8 @@ pub async fn get_opt_f64_item(record: &StringRecord, index: usize) -> Result<Opt
         .map(|s| {
             let value = s
                 .parse::<f64>()
-                .map_err(|e| anyhow!("Error parsing as f64 at column {index}: {:?}", e))?;
-            NotNan::new(value).map_err(|e| anyhow!("Value is NaN (not allowed in NotNan): {:?}", e))
+                .map_err(|e| anyhow!("Error parsing as f64 at column {index}: {e:?}"))?;
+            NotNan::new(value).map_err(|e| anyhow!("Value is NaN (not allowed in NotNan): {e:?}"))
         })
         .transpose()?;
     Ok(item)
@@ -167,7 +167,7 @@ pub async fn get_string_or_null_item(
             }
         })
         .transpose()
-        .map_err(|err| anyhow!("Error at column {index}: {:?}", err))?
+        .map_err(|err| anyhow!("Error at column {index}: {err:?}"))?
         .flatten();
     Ok(item)
 }
@@ -222,7 +222,7 @@ async fn process_event_results_file(
             .filter(|s| *s != "null" && *s != "\"null\"")
             .map(deserialize_str)
             .transpose()
-            .map_err(|err| anyhow!("Error at process documents: {:?}", err))?;
+            .map_err(|err| anyhow!("Error at process documents: {err:?}"))?;
 
         let results_event = ResultsEvent {
             id: results_event_id,
@@ -240,7 +240,7 @@ async fn process_event_results_file(
 
     let _ = insert_many_results_events(hasura_transaction, results_events)
         .await
-        .map_err(|err| anyhow!("Error at insert_many_results_events {:?}", err))?;
+        .map_err(|err| anyhow!("Error at insert_many_results_events {err:?}"))?;
 
     Ok(())
 }
@@ -288,7 +288,7 @@ async fn process_results_election_file(
             .filter(|s| *s != "null" && *s != "\"null\"")
             .map(deserialize_str)
             .transpose()
-            .map_err(|err| anyhow!("Error at process documents: {:?}", err))?;
+            .map_err(|err| anyhow!("Error at process documents: {err:?}"))?;
 
         let results_election = ResultsElection {
             id: Uuid::new_v4().to_string(),
@@ -311,7 +311,7 @@ async fn process_results_election_file(
     }
     let _ = insert_many_results_elections(hasura_transaction, results_elections)
         .await
-        .map_err(|err| anyhow!("Error at insert_many_results_elections {:?}", err))?;
+        .map_err(|err| anyhow!("Error at insert_many_results_elections {err:?}"))?;
 
     Ok(())
 }
@@ -348,7 +348,7 @@ async fn process_tally_session_file(
     }
     let _ = insert_many_tally_sessions(hasura_transaction, tally_sessions)
         .await
-        .map_err(|err| anyhow!("Error at insert_many_tally_sessions {:?}", err))?;
+        .map_err(|err| anyhow!("Error at insert_many_tally_sessions {err:?}"))?;
     Ok(())
 }
 
@@ -378,7 +378,7 @@ pub async fn process_tally_session_record(
         .get(9)
         .unwrap_or("false")
         .parse::<bool>()
-        .map_err(|err| anyhow!("Error at process is_execution_completed {:?}", err))?;
+        .map_err(|err| anyhow!("Error at process is_execution_completed {err:?}"))?;
 
     let keys_ceremony_id = get_replaced_id(record, 10, &replacement_map).await?;
 
@@ -388,14 +388,14 @@ pub async fn process_tally_session_record(
         .get(12)
         .unwrap_or("0")
         .parse::<i64>()
-        .map_err(|err| anyhow!("Error at process threshold {:?}", err))?;
+        .map_err(|err| anyhow!("Error at process threshold {err:?}"))?;
 
     let configuration = record
         .get(13)
         .filter(|s| !s.is_empty())
         .map(deserialize_str)
         .transpose()
-        .map_err(|err| anyhow!("Error at process configuration {:?}", err))?;
+        .map_err(|err| anyhow!("Error at process configuration {err:?}"))?;
 
     let tally_type = get_string_or_null_item(record, 14).await?;
 
@@ -404,7 +404,7 @@ pub async fn process_tally_session_record(
         .filter(|s| !s.is_empty())
         .map(deserialize_str)
         .transpose()
-        .map_err(|err| anyhow!("Error at process permission_label {:?}", err))?;
+        .map_err(|err| anyhow!("Error at process permission_label {err:?}"))?;
 
     let tally_session = TallySession {
         id: tally_session_id,
@@ -468,7 +468,7 @@ async fn process_tally_session_contest_file(
             .get(5)
             .unwrap_or("0")
             .parse::<i32>()
-            .map_err(|err| anyhow!("Error at process session_id {:?}", err))?;
+            .map_err(|err| anyhow!("Error at process session_id {err:?}"))?;
 
         let created_at = get_opt_date(&record, 6).await?;
         let last_updated_at = get_opt_date(&record, 7).await?;
@@ -499,7 +499,7 @@ async fn process_tally_session_contest_file(
 
     let _ = insert_many_tally_session_contests(hasura_transaction, tally_session_contests)
         .await
-        .map_err(|err| anyhow!("Error at insert_many_tally_session_contests {:?}", err))?;
+        .map_err(|err| anyhow!("Error at insert_many_tally_session_contests {err:?}"))?;
 
     Ok(())
 }
@@ -534,7 +534,7 @@ async fn process_tally_session_execution_file(
             .get(7)
             .unwrap_or("0")
             .parse::<i32>()
-            .map_err(|err| anyhow!("Error at process current_message_id {:?}", err))?;
+            .map_err(|err| anyhow!("Error at process current_message_id {err:?}"))?;
 
         let tally_session_id: String = get_replaced_id(&record, 8, &replacement_map).await?;
 
@@ -544,7 +544,7 @@ async fn process_tally_session_execution_file(
             .filter(|s| *s != "null" && *s != "\"null\"")
             .map(deserialize_str::<Vec<i32>>)
             .transpose()
-            .map_err(|err| anyhow!("Error parsing session_ids: {:?}", err))?;
+            .map_err(|err| anyhow!("Error parsing session_ids: {err:?}"))?;
 
         let status = get_opt_json_value_item(&record, 10).await?;
 
@@ -585,7 +585,7 @@ async fn process_tally_session_execution_file(
 
     let _ = insert_many_tally_session_executions(hasura_transaction, tally_session_executions)
         .await
-        .map_err(|err| anyhow!("Error at insert_many_tally_session_executions {:?}", err))?;
+        .map_err(|err| anyhow!("Error at insert_many_tally_session_executions {err:?}"))?;
 
     Ok(())
 }
@@ -624,7 +624,7 @@ async fn process_results_election_area_file(
             .filter(|s| *s != "null" && *s != "\"null\"")
             .map(deserialize_str)
             .transpose()
-            .map_err(|err| anyhow!("Error at process documents: {:?}", err))?;
+            .map_err(|err| anyhow!("Error at process documents: {err:?}"))?;
 
         let name: Option<String> = get_string_or_null_item(&record, 9).await?;
 
@@ -645,7 +645,7 @@ async fn process_results_election_area_file(
     }
     let _ = insert_many_results_elections_areas(hasura_transaction, results_elections_areas)
         .await
-        .map_err(|err| anyhow!("Error at insert_many_results_elections_area {:?}", err))?;
+        .map_err(|err| anyhow!("Error at insert_many_results_elections_area {err:?}"))?;
 
     Ok(())
 }
@@ -683,7 +683,7 @@ async fn process_results_contest_file(
 
     let _ = insert_many_results_contests(hasura_transaction, results_contests)
         .await
-        .map_err(|err| anyhow!("Error at insert_many_results_contests {:?}", err))?;
+        .map_err(|err| anyhow!("Error at insert_many_results_contests {err:?}"))?;
 
     Ok(())
 }
@@ -727,7 +727,7 @@ async fn process_results_contest_candidate_file(
             .filter(|s| *s != "null" && *s != "\"null\"")
             .map(deserialize_str)
             .transpose()
-            .map_err(|err| anyhow!("Error at process documents: {:?}", err))?;
+            .map_err(|err| anyhow!("Error at process documents: {err:?}"))?;
 
         let results_contest_candidate = ResultsContestCandidate {
             id: Uuid::new_v4().to_string(),
@@ -752,7 +752,7 @@ async fn process_results_contest_candidate_file(
 
     let _ = insert_many_results_contest_candidates(hasura_transaction, results_contests_candidates)
         .await
-        .map_err(|err| anyhow!("Error at insert_many_results_contest_candidates {:?}", err))?;
+        .map_err(|err| anyhow!("Error at insert_many_results_contest_candidates {err:?}"))?;
 
     Ok(())
 }
@@ -812,7 +812,7 @@ pub async fn process_results_contest_record(
         .filter(|s| *s != "null" && *s != "\"null\"")
         .map(deserialize_str)
         .transpose()
-        .map_err(|err| anyhow!("Error at process documents: {:?}", err))?;
+        .map_err(|err| anyhow!("Error at process documents: {err:?}"))?;
 
     let total_auditable_votes = get_opt_i64_item(record, 27).await?;
     let total_auditable_votes_percent = get_opt_f64_item(record, 28).await?;
@@ -900,7 +900,7 @@ async fn process_results_area_contest_file(
             .filter(|s| *s != "null" && *s != "\"null\"")
             .map(deserialize_str)
             .transpose()
-            .map_err(|err| anyhow!("Error at process documents: {:?}", err))?;
+            .map_err(|err| anyhow!("Error at process documents: {err:?}"))?;
 
         let total_auditable_votes = get_opt_i64_item(&record, 25).await?;
         let total_auditable_votes_percent = get_opt_f64_item(&record, 26).await?;
@@ -938,7 +938,7 @@ async fn process_results_area_contest_file(
     }
     let _ = insert_many_results_area_contests(hasura_transaction, results_area_contests)
         .await
-        .map_err(|err| anyhow!("Error at insert_many_results_area_contests {:?}", err))?;
+        .map_err(|err| anyhow!("Error at insert_many_results_area_contests {err:?}"))?;
 
     Ok(())
 }
@@ -983,7 +983,7 @@ async fn process_results_area_contest_candidate_file(
             .filter(|s| *s != "null" && *s != "\"null\"")
             .map(deserialize_str)
             .transpose()
-            .map_err(|err| anyhow!("Error at process documents: {:?}", err))?;
+            .map_err(|err| anyhow!("Error at process documents: {err:?}"))?;
 
         let results_area_contest_candidate = ResultsAreaContestCandidate {
             id: Uuid::new_v4().to_string(),

@@ -128,7 +128,7 @@ pub async fn add_datafix_voter(
     let user = User {
         attributes: attributes.clone(),
         enabled: Some(true),
-        username: Some(username.to_string()),
+        username: Some(username.clone()),
         area: Some(area),
         ..User::default()
     };

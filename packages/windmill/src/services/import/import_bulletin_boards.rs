@@ -42,27 +42,25 @@ fn get_board_record(record: StringRecord) -> Result<(String, B3MessageRow)> {
     let id = fields[1]
         .clone()
         .parse::<i64>()
-        .map_err(|err| anyhow!("{:?}", err))?;
+        .map_err(|err| anyhow!("{err:?}"))?;
     let created = fields[2]
         .clone()
         .parse::<u64>()
-        .map_err(|err| anyhow!("{:?}", err))?;
+        .map_err(|err| anyhow!("{err:?}"))?;
     let sender_pk = fields[3].clone();
     let statement_timestamp = fields[4]
         .clone()
         .parse::<u64>()
-        .map_err(|err| anyhow!("{:?}", err))?;
+        .map_err(|err| anyhow!("{err:?}"))?;
     let statement_kind = fields[5].clone();
     let batch = fields[6]
         .clone()
         .parse::<i32>()
-        .map_err(|err| anyhow!("{:?}", err))?;
-    let mix_number = fields[7]
-        .parse::<i32>()
-        .map_err(|err| anyhow!("{:?}", err))?;
+        .map_err(|err| anyhow!("{err:?}"))?;
+    let mix_number = fields[7].parse::<i32>().map_err(|err| anyhow!("{err:?}"))?;
     let message = general_purpose::STANDARD_NO_PAD
         .decode(fields[8].clone())
-        .map_err(|err| anyhow!("{:?}", err))?;
+        .map_err(|err| anyhow!("{err:?}"))?;
     let version = fields[9].clone();
 
     let row = B3MessageRow {

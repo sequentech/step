@@ -70,15 +70,15 @@ pub enum GoogleMeetError {
 impl std::fmt::Display for GoogleMeetError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            GoogleMeetError::ClientSecret(msg) => write!(f, "Client Secret not found: {}", msg),
-            GoogleMeetError::Json(msg) => write!(f, "Json error: {}", msg),
-            GoogleMeetError::OAuth2(msg) => write!(f, "OAuth2 error: {}", msg),
-            GoogleMeetError::GoogleApi(msg) => write!(f, "Google API error: {}", msg),
-            GoogleMeetError::Http(msg) => write!(f, "Http error: {}", msg),
-            GoogleMeetError::DateTime(msg) => write!(f, "Date error: {}", msg),
+            GoogleMeetError::ClientSecret(msg) => write!(f, "Client Secret not found: {msg}"),
+            GoogleMeetError::Json(msg) => write!(f, "Json error: {msg}"),
+            GoogleMeetError::OAuth2(msg) => write!(f, "OAuth2 error: {msg}"),
+            GoogleMeetError::GoogleApi(msg) => write!(f, "Google API error: {msg}"),
+            GoogleMeetError::Http(msg) => write!(f, "Http error: {msg}"),
+            GoogleMeetError::DateTime(msg) => write!(f, "Date error: {msg}"),
             GoogleMeetError::CalendarNotFound => write!(f, "Calendar not found"),
             GoogleMeetError::MeetLinkNotFound => write!(f, "Meet link not found"),
-            GoogleMeetError::Other(msg) => write!(f, "Other error: {}", msg),
+            GoogleMeetError::Other(msg) => write!(f, "Other error: {msg}"),
         }
     }
 }
@@ -244,7 +244,7 @@ pub async fn generate_google_meet_link_impl(
     }
 }
 
-/// Parse datetime string with timezone into EventDateTime
+/// Parse datetime string with timezone into `EventDateTime`
 ///
 /// # Errors
 ///
