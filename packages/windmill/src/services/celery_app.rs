@@ -10,7 +10,7 @@ use celery::Celery;
 use lapin::{Connection, ConnectionProperties};
 use std;
 use std::convert::AsRef;
-use std::sync::{Arc, LazyLock};
+use std::sync::Arc;
 use strum_macros::AsRefStr;
 use tokio::sync::{Mutex, RwLock};
 use tracing::{event, info, instrument, Level};
@@ -97,123 +97,93 @@ impl Queue {
     }
 }
 
-struct CeleryBrokerSettings {
-    prefetch_count: u16,
-    acks_late: bool,
-    task_max_retries: u32,
-    is_app_active: bool,
-    broker_connection_max_retries: u32,
-    heartbeat_secs: u16,
-    worker_threads: usize,
-    queues: Vec<String>,
-}
-
-impl Default for CeleryBrokerSettings {
-    fn default() -> Self {
-        Self {
-            prefetch_count: 100,
-            acks_late: true,
-            task_max_retries: 4,
-            is_app_active: true,
-            broker_connection_max_retries: 5,
-            heartbeat_secs: 10,
-            worker_threads: 1,
-            queues: Vec::new(),
-        }
-    }
-}
-
-static CELERY_BROKER_SETTINGS: LazyLock<std::sync::RwLock<CeleryBrokerSettings>> =
-    LazyLock::new(|| std::sync::RwLock::new(CeleryBrokerSettings::default()));
+/// AMQP prefetch count used when building the Celery app.
+static mut PREFETCH_COUNT_S: u16 = 100;
+/// Whether tasks are ACKed only after successful execution.
+static mut ACKS_LATE_S: bool = true;
+/// Maximum number of retries configured for Celery tasks.
+static mut TASK_MAX_RETRIES: u32 = 4;
+/// Global switch used to pause/resume the app workers.
+static mut IS_APP_ACTIVE: bool = true;
+/// Max retries while establishing the broker connection.
+static mut BROKER_CONNECTION_MAX_RETRIES: u32 = 5;
+/// AMQP heartbeat interval in seconds.
+static mut HEARTBEAT_SECS: u16 = 10;
+/// Number of worker threads used by the Celery runtime.
+static mut WORKER_THREADS: usize = 1;
+/// Explicit queue names to consume from, when configured.
+static mut QUEUES: Vec<String> = vec![];
 
 /// Set the prefetch count for the Celery app.
 pub fn set_prefetch_count(new_val: u16) {
-    CELERY_BROKER_SETTINGS
-        .write()
-        .expect("CELERY_BROKER_SETTINGS lock poisoned")
-        .prefetch_count = new_val;
+    unsafe {
+        PREFETCH_COUNT_S = new_val;
+    }
 }
 
 /// Set the number of worker threads for the Celery app.
 pub fn set_worker_threads(new_val: usize) {
-    CELERY_BROKER_SETTINGS
-        .write()
-        .expect("CELERY_BROKER_SETTINGS lock poisoned")
-        .worker_threads = new_val;
+    unsafe {
+        WORKER_THREADS = new_val;
+    }
 }
 
 /// Get the number of worker threads for the Celery app.
 pub fn get_worker_threads() -> usize {
-    CELERY_BROKER_SETTINGS
-        .read()
-        .expect("CELERY_BROKER_SETTINGS lock poisoned")
-        .worker_threads
+    unsafe { WORKER_THREADS }
 }
 
 /// Set whether tasks are ACKed late for the Celery app.
 pub fn set_acks_late(new_val: bool) {
-    CELERY_BROKER_SETTINGS
-        .write()
-        .expect("CELERY_BROKER_SETTINGS lock poisoned")
-        .acks_late = new_val;
+    unsafe {
+        ACKS_LATE_S = new_val;
+    }
 }
 
 /// Set the maximum number of retries for tasks for the Celery app.
 pub fn set_task_max_retries(new_val: u32) {
-    CELERY_BROKER_SETTINGS
-        .write()
-        .expect("CELERY_BROKER_SETTINGS lock poisoned")
-        .task_max_retries = new_val;
+    unsafe {
+        TASK_MAX_RETRIES = new_val;
+    }
 }
 
 /// Set the queues for the Celery app.
 pub fn set_queues(new_val: Vec<String>) {
-    CELERY_BROKER_SETTINGS
-        .write()
-        .expect("CELERY_BROKER_SETTINGS lock poisoned")
-        .queues = new_val;
+    unsafe {
+        QUEUES = new_val;
+    }
 }
 
 #[instrument]
 /// Set whether the Celery app is active.
 pub fn set_is_app_active(new_val: bool) {
-    CELERY_BROKER_SETTINGS
-        .write()
-        .expect("CELERY_BROKER_SETTINGS lock poisoned")
-        .is_app_active = new_val;
+    unsafe {
+        IS_APP_ACTIVE = new_val;
+    }
 }
 
 /// Set the maximum number of retries for broker connections for the Celery app.
 pub fn set_broker_connection_max_retries(new_val: u32) {
-    CELERY_BROKER_SETTINGS
-        .write()
-        .expect("CELERY_BROKER_SETTINGS lock poisoned")
-        .broker_connection_max_retries = new_val;
+    unsafe {
+        BROKER_CONNECTION_MAX_RETRIES = new_val;
+    }
 }
 
 /// Set the heartbeat interval for the Celery app.
 pub fn set_heartbeat(new_val: u16) {
-    CELERY_BROKER_SETTINGS
-        .write()
-        .expect("CELERY_BROKER_SETTINGS lock poisoned")
-        .heartbeat_secs = new_val;
+    unsafe {
+        HEARTBEAT_SECS = new_val;
+    }
 }
 
 /// Get whether the Celery app is active.
 pub fn get_is_app_active() -> bool {
-    CELERY_BROKER_SETTINGS
-        .read()
-        .expect("CELERY_BROKER_SETTINGS lock poisoned")
-        .is_app_active
+    unsafe { IS_APP_ACTIVE }
 }
 
 /// Get the queues for the Celery app.
 pub fn get_queues() -> Vec<String> {
-    CELERY_BROKER_SETTINGS
-        .read()
-        .expect("CELERY_BROKER_SETTINGS lock poisoned")
-        .queues
-        .clone()
+    unsafe { QUEUES.clone() }
 }
 
 lazy_static! {
@@ -279,14 +249,18 @@ async fn create_connection() -> Result<(Arc<Connection>, String)> {
 /// or task/plugin initialization fails.
 #[instrument]
 pub async fn generate_celery_app() -> Result<Arc<Celery>> {
-    let s = CELERY_BROKER_SETTINGS
-        .read()
-        .expect("CELERY_BROKER_SETTINGS lock poisoned");
-    let prefetch_count = s.prefetch_count;
-    let acks_late = s.acks_late;
-    let task_max_retries = s.task_max_retries;
-    let broker_connection_max_retries = s.broker_connection_max_retries;
-    let heartbeat = s.heartbeat_secs;
+    let prefetch_count: u16;
+    let acks_late: bool;
+    let task_max_retries: u32;
+    let broker_connection_max_retries: u32;
+    let heartbeat: u16;
+    unsafe {
+        prefetch_count = PREFETCH_COUNT_S;
+        acks_late = ACKS_LATE_S;
+        task_max_retries = TASK_MAX_RETRIES;
+        broker_connection_max_retries = BROKER_CONNECTION_MAX_RETRIES;
+        heartbeat = HEARTBEAT_SECS;
+    }
     event!(
         Level::INFO,
         "prefetch_count: {}, acks_late: {}",

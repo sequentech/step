@@ -5,12 +5,11 @@ use super::encrypter::{
     encrypt_directory_contents, encrypt_directory_contents_sql, get_file_report_type,
     traversal_encrypt_files, traversal_find_secrets_for_files,
 };
-use super::renamer::rename_folders;
+use super::renamer::{rename_folders, take_first_n_chars, FOLDER_MAX_CHARS};
 use crate::postgres::document::get_document;
 use crate::postgres::reports::Report;
 use crate::postgres::reports::{get_reports_by_election_event_id, ReportType};
 use crate::postgres::results_election_area::insert_results_election_area_documents;
-use crate::services::ceremonies::renamer::*;
 use crate::{
     postgres::{
         results_area_contest::update_results_area_contest_documents,
@@ -75,7 +74,7 @@ async fn generic_save_documents(
     hasura_transaction: &Transaction<'_>,
     tally_type_enum: TallyType,
 ) -> Result<ResultDocuments> {
-    let mut documents: ResultDocuments = Default::default();
+    let mut documents: ResultDocuments = ResultDocuments::default();
 
     // Retrieve reports
     let all_reports =
@@ -210,7 +209,7 @@ pub trait GenerateResultDocuments {
     /// Resolves filesystem paths for each artifact type, optionally scoped to `area_id`.
     fn get_document_paths(&self, area_id: Option<String>, base_path: &Path) -> ResultDocumentPaths;
     /// Uploads artifacts described by `document_paths`, updates results tables, and optionally mirrors
-    /// ids into SQLite.
+    /// ids into `SQLite`.
     ///
     /// # Errors
     ///
@@ -245,12 +244,14 @@ impl GenerateResultDocuments for Vec<ElectionReportDataComputed> {
         }
     }
 
-    /// Create event related documents and update the results_event table.
+    /// Create event related documents and update the `results_event` table.
     ///
     /// # Errors
     ///
     /// Tar creation, encryption traversal, secret discovery, uploads, folder rename operations, or
     /// Postgres/SQLite updates performed inside this implementation.
+    #[allow(clippy::too_many_lines, clippy::future_not_send)]
+    // clippy::future_not_send: sqlite transaction is not send when passing as Option.
     #[instrument(
         skip(self, rename_map),
         err,

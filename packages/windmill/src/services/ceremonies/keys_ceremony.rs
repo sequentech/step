@@ -9,7 +9,9 @@ use crate::postgres::election_event::get_election_event_by_id;
 use crate::postgres::keys_ceremony;
 use crate::postgres::trustee;
 use crate::services::celery_app::get_celery_app;
-use crate::services::ceremonies::serialize_logs::*;
+use crate::services::ceremonies::serialize_logs::{
+    append_keys_trustee_check_log, append_keys_trustee_download_log, generate_keys_initial_log,
+};
 use crate::services::election_event_board::get_election_event_board;
 use crate::services::election_event_status::get_election_event_status;
 use crate::services::electoral_log::ElectoralLog;
@@ -343,6 +345,7 @@ pub async fn check_private_key(
 /// Trustee lookup mismatches, invalid thresholds, duplicate default ceremonies, conflicting
 /// per-election ceremonies, serialization failures, Postgres insert failures, or electoral log
 /// write errors.
+#[allow(clippy::too_many_lines)]
 #[instrument(err)]
 pub async fn create_keys_ceremony(
     transaction: &Transaction<'_>,

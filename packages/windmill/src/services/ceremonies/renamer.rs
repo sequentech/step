@@ -26,7 +26,7 @@ pub fn rename_folders(replacements: &HashMap<String, String>, folder_path: &Path
     // Collect directories and sort by depth in descending order
     let mut directories: Vec<DirEntry> = WalkDir::new(folder_path)
         .into_iter()
-        .filter_map(|e| e.ok())
+        .filter_map(std::result::Result::ok)
         .filter(|e| e.file_type().is_dir())
         .collect();
 
@@ -71,15 +71,15 @@ pub fn take_first_n_chars(s: &str, n: usize) -> String {
 /// and trimming trailing dots/spaces.
 fn sanitize_filename(filename: &str) -> String {
     let sanitized = filename
-        .replace("/", "_") // Linux and macOS directory separator
-        .replace("\\", "_") // Windows directory separator
-        .replace(":", "_") // Windows and classic macOS
-        .replace("*", "_")
-        .replace("?", "_")
-        .replace("\"", "_")
-        .replace("<", "_")
-        .replace(">", "_")
-        .replace("|", "_")
+        .replace('/', "_") // Linux and macOS directory separator
+        .replace('\\', "_") // Windows directory separator
+        .replace(':', "_") // Windows and classic macOS
+        .replace('*', "_")
+        .replace('?', "_")
+        .replace('"', "_")
+        .replace('<', "_")
+        .replace('>', "_")
+        .replace('|', "_")
         .trim_end_matches(&[' ', '.'][..]) // Trim trailing spaces and dots (Windows)
         .to_string();
 
