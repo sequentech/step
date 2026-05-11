@@ -324,6 +324,17 @@ SPDX-License-Identifier: AGPL-3.0-only
             return u.searchParams.get("kc_locale") || u.searchParams.get("locale");
         }
 
+        function getSupportedLocalesWithUrls() {
+            return [
+                <#list locale.supported as l>
+                    {
+                        "languageTag": "${l.languageTag}",
+                        "url": "${l.url?no_esc}"
+                    }<#if l_has_next>,</#if>
+                </#list>
+            ];
+        }
+
         <#if (realm.attributes["language_detection_policy"]!"") == "force-default">
         (function enforceDefaultLocale() {
             var kcLocale = "${realm.defaultLocale!}";
@@ -334,12 +345,9 @@ SPDX-License-Identifier: AGPL-3.0-only
             if (!selectedKcLocale) {
                 return;
             }
-            var params = new URLSearchParams(window.location.search);
-            if (params.get("kc_locale") !== selectedKcLocale) {
-                params.set("kc_locale", selectedKcLocale);
-                window.location.replace(
-                    window.location.pathname + "?" + params.toString() + window.location.hash
-                );
+            const targetLocale = getSupportedLocalesWithUrls().find(l => l.languageTag === selectedKcLocale);
+            if ("${locale.currentLanguageTag!}" !== targetLocale?.languageTag) {
+                window.location.replace(targetLocale?.url);
                 return;
             }
             setSessionLangCookie(selectedInternalLocale);
