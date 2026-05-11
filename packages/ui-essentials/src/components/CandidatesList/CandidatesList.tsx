@@ -16,6 +16,9 @@ const ListContainer = styled(Box)<{isactive: string}>`
     border-radius: 5px;
     flex-grow: 2;
     width: 50%;
+    @media (max-width: ${({theme}) => theme.breakpoints.values.md}px) {
+        width: initial;
+    }
     ${({isactive}) =>
         "true" === isactive
             ? `
@@ -27,9 +30,10 @@ const ListContainer = styled(Box)<{isactive: string}>`
 `
 
 const ListHeader = styled(Box)`
-    display: grid;
-    grid-template-columns: 1fr auto 1fr;
+    display: flex;
     align-items: center;
+    flex-wrap: nowrap;
+    gap: 12px;
 `
 
 const ListChildrenContainer = styled("ul")`
@@ -45,13 +49,16 @@ const ListChildrenContainer = styled("ul")`
 `
 
 const ListTitle = styled(Typography)`
+    flex: 1 1 160px;
     margin-top: 10px;
     margin-bottom: 26px;
-    text-align: center;
+    min-width: 0;
+    text-align: left;
     font-size: 24px;
 `
 
 const CollapseToggleButton = styled(Button)(({theme}) => ({
+    "marginRight": "-30px",
     "&&": {
         border: "none",
         boxShadow: "none",
@@ -69,6 +76,22 @@ const CollapseToggleButton = styled(Button)(({theme}) => ({
     },
 }))
 
+const CollapseToggleText = styled("span")(({theme}) => ({
+    [theme.breakpoints.down("sm")]: {
+        display: "none",
+    },
+}))
+
+const SelectedCandidatesLabel = styled("span")`
+    color: ${theme.palette.customGrey.contrastText};
+    font-size: 14px;
+    line-height: 1.2;
+    text-align: right;
+    @media (max-width: ${({theme}) => theme.breakpoints.values.sm}px) {
+        width: min-content;
+    }
+`
+
 export interface CandidatesListProps extends PropsWithChildren {
     title: string
     isActive?: boolean
@@ -80,6 +103,7 @@ export interface CandidatesListProps extends PropsWithChildren {
     collapseToggleAriaLabel?: string
     showCandidatesLabel?: string
     hideCandidatesLabel?: string
+    selectedCandidatesLabel?: string
     externalExpanded?: boolean
     onExpandedChange?: (expanded: boolean) => void
     shouldDisable?: boolean
@@ -97,6 +121,7 @@ const CandidatesList: React.FC<CandidatesListProps> = ({
     collapseToggleAriaLabel,
     showCandidatesLabel,
     hideCandidatesLabel,
+    selectedCandidatesLabel,
     externalExpanded,
     onExpandedChange,
     shouldDisable,
@@ -128,6 +153,8 @@ const CandidatesList: React.FC<CandidatesListProps> = ({
         onExpandedChange?.(newExpanded)
     }
 
+    const collapseLabel = isExpanded ? hideCandidatesLabel : showCandidatesLabel
+
     return (
         <ListContainer
             isactive={String(!!(isActive && isCheckable && !shouldDisable))}
@@ -145,10 +172,10 @@ const CandidatesList: React.FC<CandidatesListProps> = ({
                                 <FontAwesomeIcon icon={isExpanded ? faAngleDown : faAngleRight} />
                             }
                             onClick={handleToggleCollapse}
-                            aria-label={collapseToggleAriaLabel}
+                            aria-label={collapseToggleAriaLabel ?? collapseLabel}
                             aria-expanded={isExpanded}
                         >
-                            {isExpanded ? hideCandidatesLabel : showCandidatesLabel}
+                            <CollapseToggleText>{collapseLabel}</CollapseToggleText>
                         </CollapseToggleButton>
                     ) : null}
                 </Box>
@@ -159,7 +186,22 @@ const CandidatesList: React.FC<CandidatesListProps> = ({
                 >
                     {title}
                 </ListTitle>
-                <Box sx={{display: "flex", justifyContent: "flex-end"}}>
+                <Box
+                    sx={(muiTheme) => ({
+                        display: "flex",
+                        justifyContent: "flex-end",
+                        alignItems: "center",
+                        flexWrap: "wrap",
+                        flexShrink: 0,
+                        gap: 1,
+                        [muiTheme.breakpoints.down("sm")]: {
+                            width: "min-content",
+                        },
+                    })}
+                >
+                    {isCollapsible && !isExpanded && selectedCandidatesLabel ? (
+                        <SelectedCandidatesLabel>{selectedCandidatesLabel}</SelectedCandidatesLabel>
+                    ) : null}
                     {isActive && isCheckable ? (
                         <Checkbox
                         checked={checked}
