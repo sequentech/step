@@ -15,6 +15,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import lombok.extern.jbosslog.JBossLog;
@@ -94,6 +95,7 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
   public static final String INVALID_INPUT = "Invalid input";
 
   public static final String MISSING_FIELDS_ERROR = "error_user_attribute_required";
+  public static final Set<String> HIDDEN_PROFILE_ATTRIBUTES = Set.of(UserModel.LOCALE);
 
   @Override
   public String getHelpText() {
@@ -502,6 +504,7 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
 
     form.setAttribute("passwordRequired", passwordRequired);
     form.setAttribute("formMode", formMode);
+    form.setAttribute("hiddenProfileAttributes", HIDDEN_PROFILE_ATTRIBUTES);
     log.infov("buildPage(): formMode = {0}", formMode);
     checkNotOtherUserAuthenticating(context);
   }
