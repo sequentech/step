@@ -229,6 +229,8 @@ body {
 
 .menu-button-links {
     margin-left: auto;
+    position: relative;
+    display: inline-flex;
 }
 
 button#kc-current-locale-link::after {
@@ -262,7 +264,7 @@ button#kc-current-locale-link img {
     }
 }
 
-.pf-c-dropdown__menu {
+#kc-locale-dropdown {
     position: relative;
 }
 
@@ -274,7 +276,12 @@ button#kc-current-locale-link img {
 }
 
 #kc-locale ul {
-    top: 0;
+    position: absolute;
+    top: calc(100% + 4px);
+    right: 0;
+    left: auto;
+    margin-top: 0;
+    z-index: 10000;
 }
 
 /* Move Language dropdown to top right */
@@ -582,7 +589,52 @@ button#resend-otp-btn:hover {
     color: rgba(0, 0, 0, 0.68);
 }
 
-#social-digital-certificates {
+/* ── OID4VP wallet page ──────────────────────────────────────────────────
+   Scoped via #oid4vpForm, a unique ID rendered by login-oid4vp-idp.ftl.
+   Now that our oid4vp-template.ftl delegates to template.ftl, the page
+   shares the standard admin-portal HTML structure. */
+
+#oid4vp-open-wallet,
+#oid4vp-open-wallet:hover {
+    color: #FFFFFF;
+    text-decoration: none;
+}
+
+/* Constrain wallet button to QR code border-box width (250px img + 2×10px padding)
+   and center it so all three elements (button, QR, IDP button) share the same axis. */
+#oid4vp-open-wallet {
+    max-width: 270px;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+#oid4vpForm ~ div p {
+    text-align: center;
+}
+
+/* Alternative-provider list in OID4VP: override default grid/inline-flex layout
+   so each <li> becomes block and the pf-m-block <a> inside it fills to 270px. */
+#oid4vpForm ~ div ul {
+    display: block;
+    padding-left: 0;
+    list-style: none;
+}
+
+#oid4vpForm ~ div ul li a {
+    display: block;
+    max-width: 270px;
+    margin-left: auto;
+    margin-right: auto;
+    padding: 6px 10px;
+    text-align: center;
+}
+
+/* ── End OID4VP wallet page ─────────────────────────────────────────────── */
+
+/* login.ftl IDP buttons — scoped to #kc-social-providers so specificity
+   (0,1,1,0) beats .login-pf-page a (0,0,1,1) and suppresses underlines.
+   Not applied in OID4VP context, which has no #kc-social-providers wrapper. */
+#kc-social-providers .kc-social-item {
     box-sizing: border-box;
     display: flex;
     flex-direction: column;
@@ -596,4 +648,24 @@ button#resend-otp-btn:hover {
     border-radius: 4px;
     align-self: stretch;
     text-decoration: none;
+}
+
+#kc-social-providers .kc-social-item:hover {
+    text-decoration: none;
+    color: inherit;
+}
+
+/* Digital-cert button in OID4VP context (outside #kc-social-providers).
+   Uses ID selector (specificity 0,1,0,0) to beat .login-pf-page a.
+   No display:flex/width:100% override — pf-m-block handles layout. */
+#social-digital-certificates {
+    background: rgba(2, 136, 209, 0.04);
+    border: 1px solid rgba(2, 136, 209, 0.5);
+    border-radius: 4px;
+    text-decoration: none;
+}
+
+#social-digital-certificates:hover {
+    text-decoration: none;
+    color: inherit;
 }

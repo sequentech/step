@@ -948,6 +948,7 @@ pub struct ElectionEventMaterials {
 pub struct ElectionEventLanguageConf {
     pub enabled_language_codes: Option<Vec<String>>,
     pub default_language_code: Option<String>,
+    pub language_detection_policy: Option<LanguageDetectionPolicy>,
 }
 
 #[derive(
@@ -1420,6 +1421,7 @@ pub struct ContestPresentation {
     pub shuffle_category_list: Option<Vec<String>>,
     pub show_points: Option<bool>,
     pub enable_checkable_lists: Option<String>, /* disabled|allow-selecting-candidates-and-lists|allow-selecting-candidates|allow-selecting-lists */
+    pub collapsible_lists: Option<String>, /* disabled|enabled-expanded|enabled-collapsed */
     pub candidates_order: Option<CandidatesOrder>,
     pub candidates_selection_policy: Option<CandidatesSelectionPolicy>,
     pub candidates_icon_checkbox_policy: Option<CandidatesIconCheckboxPolicy>,
@@ -1444,6 +1446,7 @@ impl ContestPresentation {
             shuffle_category_list: None,
             show_points: Some(false),
             enable_checkable_lists: None,
+            collapsible_lists: None,
             candidates_order: None,
             candidates_selection_policy: None,
             candidates_icon_checkbox_policy: None,
@@ -2592,4 +2595,33 @@ pub enum TieBreakingPolicy {
     #[strum(serialize = "external-procedure")]
     #[serde(rename = "external-procedure")]
     EXTERNAL_PROCEDURE,
+}
+
+#[allow(non_camel_case_types)]
+#[derive(
+    BorshSerialize,
+    BorshDeserialize,
+    Default,
+    Display,
+    Serialize,
+    Deserialize,
+    Debug,
+    PartialEq,
+    Eq,
+    Clone,
+    EnumString,
+    JsonSchema,
+)]
+/// Language detection policy.
+/// Used to determine which language to use initially across all surfaces
+pub enum LanguageDetectionPolicy {
+    #[default]
+    #[strum(serialize = "browser-detect")]
+    #[serde(rename = "browser-detect")]
+    /// detect user's language through their browser.
+    BROWSER_DETECT,
+    /// skip browser detection, use default_language_code
+    #[strum(serialize = "force-default")]
+    #[serde(rename = "force-default")]
+    FORCE_DEFAULT,
 }

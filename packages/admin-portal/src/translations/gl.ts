@@ -382,6 +382,13 @@ const galegoTranslation: TranslationType = {
                         disabled: "Desactivado",
                     },
                 },
+                languageDetectionPolicy: {
+                    policyLabel: "Política de detección de idioma",
+                    options: {
+                        "browser-detect": "Detectar desde o navegador",
+                        "force-default": "Forzar predeterminado",
+                    },
+                },
             },
             error: {
                 endDate: "A data de fin debe ser posterior á data de inicio",
@@ -1072,6 +1079,7 @@ const galegoTranslation: TranslationType = {
                 BALLOT_RECEIPT: "Recibo da Papeleta",
                 ELECTORAL_RESULTS: "Resultados Electorais",
                 MANUAL_VERIFICATION: "Verificación Manual",
+                PARTICIPATION_REPORT: "Informe de Participación",
                 STATISTICAL_REPORT: "Informe Estatístico",
                 OVCS_EVENTS: "Monitorización de Votación no Estranxeiro - Eventos OVCS",
                 AUDIT_LOGS: "Rexistros de Auditoría",
@@ -1375,6 +1383,12 @@ const galegoTranslation: TranslationType = {
                 "allow-selecting-candidates": "Só Candidatos",
                 "allow-selecting-lists": "Só Listas",
                 "disabled": "Desactivado",
+            },
+            collapsibleListsPolicy: {
+                "label": "Listas plegables",
+                "disabled": "Deshabilitado",
+                "enabled-expanded": "Habilitado (comeza expandido)",
+                "enabled-collapsed": "Habilitado (comeza contraído)",
             },
             blankVotePolicy: {
                 "label": "Política de Voto en Branco",
@@ -2018,6 +2032,7 @@ const galegoTranslation: TranslationType = {
                 BALLOT_RECEIPT: "Recibo de Voto",
                 ACTIVITY_LOGS: "Registros de Actividades",
                 MANUAL_VERIFICATION: "Verificación Manual",
+                PARTICIPATION_REPORT: "Informe de Participación",
             },
             method: {
                 email: "Correo",
@@ -2093,6 +2108,9 @@ const galegoTranslation: TranslationType = {
                     document: "Documento",
                     url: "URL",
                 },
+            },
+            languages: {
+                default: "Idioma predeterminado",
             },
         },
         approvalsScreen: {

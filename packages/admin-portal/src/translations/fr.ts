@@ -382,6 +382,13 @@ const frenchTranslation: TranslationType = {
                         disabled: "Désactivé",
                     },
                 },
+                languageDetectionPolicy: {
+                    policyLabel: "Politique de détection de la langue",
+                    options: {
+                        "browser-detect": "Détection par le navigateur",
+                        "force-default": "Forcer par défaut",
+                    },
+                },
             },
             error: {
                 endDate: "La date de fin doit être postérieure à la date de début",
@@ -1077,6 +1084,7 @@ const frenchTranslation: TranslationType = {
                 BALLOT_RECEIPT: "Reçu de Bulletin",
                 ELECTORAL_RESULTS: "Résultats Électoraux",
                 MANUAL_VERIFICATION: "Vérification Manuelle",
+                PARTICIPATION_REPORT: "Rapport de Participation",
                 STATISTICAL_REPORT: "Rapport Statistique",
                 OVCS_EVENTS: "Suivi du Vote à l'Étranger - Événements OVCS",
                 AUDIT_LOGS: "Journaux d'Audit",
@@ -1382,6 +1390,12 @@ const frenchTranslation: TranslationType = {
                 "allow-selecting-candidates": "Seulement Candidats",
                 "allow-selecting-lists": "Seulement Listes",
                 "disabled": "Désactivé",
+            },
+            collapsibleListsPolicy: {
+                "label": "Listes repliables",
+                "disabled": "Désactivé",
+                "enabled-expanded": "Activé (commence déplié)",
+                "enabled-collapsed": "Activé (commence replié)",
             },
             blankVotePolicy: {
                 "label": "Politique de vote blanc",
@@ -2030,6 +2044,7 @@ const frenchTranslation: TranslationType = {
                 BALLOT_RECEIPT: "Reçu de Vote",
                 ACTIVITY_LOGS: "Journaux d'Activité",
                 MANUAL_VERIFICATION: "Vérification Manuelle",
+                PARTICIPATION_REPORT: "Rapport de Participation",
             },
             method: {
                 email: "Email",
@@ -2107,6 +2122,9 @@ const frenchTranslation: TranslationType = {
                     document: "Document",
                     url: "URL",
                 },
+            },
+            languages: {
+                default: "Langue par défaut",
             },
         },
         approvalsScreen: {

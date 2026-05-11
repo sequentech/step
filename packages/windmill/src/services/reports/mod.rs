@@ -8,6 +8,7 @@ pub mod ballot_receipt;
 pub mod electoral_results;
 pub mod initialization;
 pub mod manual_verification;
+pub mod participation;
 pub mod report_variables;
 pub mod template_renderer;
 pub mod utils;

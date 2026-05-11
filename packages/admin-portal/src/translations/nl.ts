@@ -380,6 +380,13 @@ const dutchTranslation: TranslationType = {
                         disabled: "Uitgeschakeld",
                     },
                 },
+                languageDetectionPolicy: {
+                    policyLabel: "Taaldetectiebeleid",
+                    options: {
+                        "browser-detect": "Detecteren via browser",
+                        "force-default": "Standaard afdwingen",
+                    },
+                },
             },
             error: {
                 endDate: "Einddatum moet na startdatum liggen",
@@ -1067,6 +1074,7 @@ const dutchTranslation: TranslationType = {
                 BALLOT_RECEIPT: "Ontvangstbewijs Stembiljet",
                 ELECTORAL_RESULTS: "Verkiezingsresultaten",
                 MANUAL_VERIFICATION: "Handmatige Verificatie",
+                PARTICIPATION_REPORT: "Participatierapport",
                 STATISTICAL_REPORT: "Statistisch Rapport",
                 OVCS_EVENTS: "Monitoring Stemmen Buitenland - OVCS Gebeurtenissen",
                 AUDIT_LOGS: "Auditlogs",
@@ -1372,6 +1380,12 @@ const dutchTranslation: TranslationType = {
                 "allow-selecting-candidates": "Alleen Kandidaten",
                 "allow-selecting-lists": "Alleen Lijsten",
                 "disabled": "Uitgeschakeld",
+            },
+            collapsibleListsPolicy: {
+                "label": "Inklapbare lijsten",
+                "disabled": "Uitgeschakeld",
+                "enabled-expanded": "Ingeschakeld (start uitgevouwen)",
+                "enabled-collapsed": "Ingeschakeld (start ingeklapt)",
             },
             blankVotePolicy: {
                 "label": "Beleid Blanco Stem",
@@ -2013,6 +2027,7 @@ const dutchTranslation: TranslationType = {
                 BALLOT_RECEIPT: "Ontvangstbewijs Stembiljet",
                 ACTIVITY_LOGS: "Activiteitenlogs",
                 MANUAL_VERIFICATION: "Handmatige Verificatie",
+                PARTICIPATION_REPORT: "Participatierapport",
             },
             method: {
                 email: "E-mail",
@@ -2089,6 +2104,9 @@ const dutchTranslation: TranslationType = {
                     document: "Document",
                     url: "URL",
                 },
+            },
+            languages: {
+                default: "Standaardtaal",
             },
         },
         approvalsScreen: {

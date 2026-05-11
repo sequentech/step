@@ -383,6 +383,13 @@ const spanishTranslation: TranslationType = {
                         disabled: "Deshabilitado",
                     },
                 },
+                languageDetectionPolicy: {
+                    policyLabel: "Política de detección de idioma",
+                    options: {
+                        "browser-detect": "Detectar desde el navegador",
+                        "force-default": "Forzar predeterminado",
+                    },
+                },
             },
             error: {
                 endDate: "La fecha de finalización debe ser posterior a la fecha de inicio",
@@ -1073,6 +1080,7 @@ const spanishTranslation: TranslationType = {
                 BALLOT_RECEIPT: "Recibo de Voto",
                 ELECTORAL_RESULTS: "Resultados Electorales",
                 MANUAL_VERIFICATION: "Verificación Manual",
+                PARTICIPATION_REPORT: "Informe de Participación",
                 STATISTICAL_REPORT: "Informe Estadístico",
                 OVCS_EVENTS: "Monitoreo de Votación en el Extranjero - Eventos OVCS",
                 AUDIT_LOGS: "Registros de Auditoría",
@@ -1375,6 +1383,12 @@ const spanishTranslation: TranslationType = {
                 "allow-selecting-candidates": "Sólo Candidatos",
                 "allow-selecting-lists": "Sólo Listas",
                 "disabled": "Deshabilitado",
+            },
+            collapsibleListsPolicy: {
+                "label": "Listas plegables",
+                "disabled": "Deshabilitado",
+                "enabled-expanded": "Habilitado (empieza expandido)",
+                "enabled-collapsed": "Habilitado (empieza contraído)",
             },
             blankVotePolicy: {
                 "label": "Política de voto en blanco",
@@ -2019,6 +2033,7 @@ const spanishTranslation: TranslationType = {
                 BALLOT_RECEIPT: "Recibo de Voto",
                 ACTIVITY_LOGS: "Registros de Actividades",
                 MANUAL_VERIFICATION: "Verificación Manual",
+                PARTICIPATION_REPORT: "Informe de Participación",
             },
             method: {
                 email: "Email",
@@ -2096,6 +2111,9 @@ const spanishTranslation: TranslationType = {
                     document: "Documento",
                     url: "URL",
                 },
+            },
+            languages: {
+                default: "Idioma predeterminado",
             },
         },
         approvalsScreen: {

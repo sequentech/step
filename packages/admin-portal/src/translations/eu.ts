@@ -382,6 +382,13 @@ const basqueTranslation: TranslationType = {
                         disabled: "Desgaituta",
                     },
                 },
+                languageDetectionPolicy: {
+                    policyLabel: "Hizkuntza detekzio politika",
+                    options: {
+                        "browser-detect": "Arakatzailetik detektatu",
+                        "force-default": "Lehenetsia behartu",
+                    },
+                },
             },
             error: {
                 endDate: "Amaiera data hasiera data baino beranduagokoa izan behar da",
@@ -1067,6 +1074,7 @@ const basqueTranslation: TranslationType = {
                 BALLOT_RECEIPT: "Bozketa Jasoagiria",
                 ELECTORAL_RESULTS: "Hauteskunde Emaitzak",
                 MANUAL_VERIFICATION: "Eskuzko Egiaztapena",
+                PARTICIPATION_REPORT: "Parte-hartze Txostena",
                 STATISTICAL_REPORT: "Txosten Estatistikoa",
                 OVCS_EVENTS: "Atzerriko Bozketa Monitorizazioa - OVCS Gertaerak",
                 AUDIT_LOGS: "Auditoria Egunkariak",
@@ -1371,6 +1379,12 @@ const basqueTranslation: TranslationType = {
                 "allow-selecting-candidates": "Hautagaiak Soilik",
                 "allow-selecting-lists": "Zerrendak Soilik",
                 "disabled": "Desgaituta",
+            },
+            collapsibleListsPolicy: {
+                "label": "Zerrenda tolesgarriak",
+                "disabled": "Desgaituta",
+                "enabled-expanded": "Gaituta (zabalik hasten da)",
+                "enabled-collapsed": "Gaituta (tolestuta hasten da)",
             },
             blankVotePolicy: {
                 "label": "Boto Zuri Politika",
@@ -2010,6 +2024,7 @@ const basqueTranslation: TranslationType = {
                 BALLOT_RECEIPT: "Bozketa Jasoagiria",
                 ACTIVITY_LOGS: "Jarduera Egunkariak",
                 MANUAL_VERIFICATION: "Eskuzko Egiaztapena",
+                PARTICIPATION_REPORT: "Parte-hartze Txostena",
             },
             method: {
                 email: "Emaila",
@@ -2086,6 +2101,9 @@ const basqueTranslation: TranslationType = {
                     document: "Dokumentua",
                     url: "URLa",
                 },
+            },
+            languages: {
+                default: "Lehenetsitako hizkuntza",
             },
         },
         approvalsScreen: {
