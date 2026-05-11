@@ -232,7 +232,6 @@ pub async fn generate_celery_app() -> Result<Arc<Celery>> {
         task_max_retries,
         broker_connection_max_retries,
         heartbeat_secs,
-        ..
     } = *CELERY_CONFIG
         .read()
         .map_err(|_| anyhow!("failed to read-lock CeleryConfig"))?;
