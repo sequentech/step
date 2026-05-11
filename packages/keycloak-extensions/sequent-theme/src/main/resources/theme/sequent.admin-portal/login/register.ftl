@@ -10,7 +10,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 <#import "user-profile-commons.ftl" as userProfileCommons>
 <#import "register-commons.ftl" as registerCommons>
 <#include "intl-tel-input.ftl">
-<@layout.registrationLayout displayMessage=messagesPerField.exists('global') displayRequiredFields=true; section>
+<@layout.registrationLayout displayMessage=messagesPerField.exists('global') displayRequiredFields=true displaySocialProviders=(formMode?? && formMode = 'LOGIN' && (social.providers)?has_content); section>
     <#if section = "header">
         <#if formMode?? && formMode = 'LOGIN'>
             ${msg('loginTitle',(realm.displayName!''))}
@@ -216,5 +216,28 @@ SPDX-License-Identifier: AGPL-3.0-only
         <#--  https://github.com/dropbox/zxcvbn  -->
         <script type="text/javascript" src="${url.resourcesPath}/js/zxcvbn.js"></script>
         <script type="text/javascript" src="${url.resourcesPath}/js/keycloak-password-strength.js"></script>
+    <#elseif section = "socialProviders" >
+        <#if realm.password && social.providers??>
+            <div id="kc-social-providers" class="${properties.kcFormSocialAccountSectionClass!}">
+                <hr/>
+                <h4>${msg("identity-provider-login-label")}</h4>
+
+                <ul class="${properties.kcFormSocialAccountListClass!} <#if social.providers?size gt 3>${properties.kcFormSocialAccountListGridClass!}</#if>">
+                    <#list social.providers as p>
+                        <li>
+                            <a id="social-${p.alias}" class="${properties.kcFormSocialAccountListButtonClass!} <#if social.providers?size gt 3>${properties.kcFormSocialAccountGridItem!}</#if>"
+                                    type="button" href="${p.loginUrl}">
+                                <#if p.iconClasses?has_content>
+                                    <i class="${properties.kcCommonLogoIdP!} ${p.iconClasses!}" aria-hidden="true"></i>
+                                    <span class="${properties.kcFormSocialAccountNameClass!} kc-social-icon-text">${p.displayName!}</span>
+                                <#else>
+                                    <span class="${properties.kcFormSocialAccountNameClass!}">${p.displayName!}</span>
+                                </#if>
+                            </a>
+                        </li>
+                    </#list>
+                </ul>
+            </div>
+        </#if>
     </#if>
 </@layout.registrationLayout>
