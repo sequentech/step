@@ -1079,6 +1079,7 @@ const tagalogTranslation: TranslationType = {
                 BALLOT_RECEIPT: "Resibo ng Balota",
                 ELECTORAL_RESULTS: "Mga Resulta ng Eleksyon",
                 MANUAL_VERIFICATION: "Manwal na Pag-verify",
+                PARTICIPATION_REPORT: "Ulat ng Pakikilahok",
                 STATISTICAL_REPORT: "Ulat ng Istatistika",
                 OVCS_EVENTS: "Pagsubaybay ng Botohan sa Ibang Bansa - Mga Kaganapan ng OVCS",
                 AUDIT_LOGS: "Mga Talaan ng Awdit",
@@ -1383,6 +1384,12 @@ const tagalogTranslation: TranslationType = {
                 "allow-selecting-candidates": "Mga Kandidato Lamang",
                 "allow-selecting-lists": "Mga Listahan Lamang",
                 "disabled": "Hindi Aktibo",
+            },
+            collapsibleListsPolicy: {
+                "label": "Natatiklop na mga listahan",
+                "disabled": "Hindi pinagana",
+                "enabled-expanded": "Pinagana (nagsisimulang nakalawak)",
+                "enabled-collapsed": "Pinagana (nagsisimulang nakatiklop)",
             },
             blankVotePolicy: {
                 "label": "Patakaran sa walang boto",
@@ -2029,6 +2036,7 @@ const tagalogTranslation: TranslationType = {
                 BALLOT_RECEIPT: "Resibo ng Balota",
                 ACTIVITY_LOGS: "Mga Tala ng Aktibidad",
                 MANUAL_VERIFICATION: "Manwal na Pag-verify",
+                PARTICIPATION_REPORT: "Ulat ng Pakikilahok",
             },
             method: {
                 email: "Email",

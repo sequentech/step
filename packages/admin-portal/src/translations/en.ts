@@ -1068,6 +1068,7 @@ const englishTranslation = {
                 BALLOT_RECEIPT: "Ballot Receipt",
                 ELECTORAL_RESULTS: "Electoral Results",
                 MANUAL_VERIFICATION: "Manual Verification",
+                PARTICIPATION_REPORT: "Participation Report",
                 STATISTICAL_REPORT: "Statistical Report",
                 OVCS_EVENTS: "Overseas Voting Monitoring - OVCS Events",
                 AUDIT_LOGS: "Audit Logs",
@@ -1370,6 +1371,12 @@ const englishTranslation = {
                 "allow-selecting-candidates": "Candidates Only",
                 "allow-selecting-lists": "Lists Only",
                 "disabled": "Disabled",
+            },
+            collapsibleListsPolicy: {
+                "label": "Collapsible Lists",
+                "disabled": "Disabled",
+                "enabled-expanded": "Enabled (starts expanded)",
+                "enabled-collapsed": "Enabled (starts collapsed)",
             },
             blankVotePolicy: {
                 "label": "Blank Vote Policy",
@@ -2008,6 +2015,7 @@ const englishTranslation = {
                 BALLOT_RECEIPT: "Ballot Receipt",
                 ACTIVITY_LOGS: "Activity Logs",
                 MANUAL_VERIFICATION: "Manual Verification",
+                PARTICIPATION_REPORT: "Participation Report",
             },
             method: {
                 email: "Email",

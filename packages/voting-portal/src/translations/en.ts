@@ -11,6 +11,15 @@ const englishTranslation = {
             showMore: "Show More",
             showLess: "Show Less",
         },
+        candidatesList: {
+            collapseToggle: "Toggle list {{listTitle}}",
+            showCandidates: "Show candidates",
+            hideCandidates: "Hide candidates",
+            selectedCandidate: "{{count}} candidate selected",
+            selectedCandidates: "{{count}} candidates selected",
+            expandAll: "Expand all",
+            collapseAll: "Collapse all",
+        },
         breadcrumbSteps: {
             electionList: "Ballot List",
             ballot: "Ballot",

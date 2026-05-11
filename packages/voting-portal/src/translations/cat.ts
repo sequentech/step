@@ -10,6 +10,15 @@ const catalanTranslation: TranslationType = {
             showMore: "Mostra'n més",
             showLess: "Mostra'n menys",
         },
+        candidatesList: {
+            collapseToggle: "Alternar llista {{listTitle}}",
+            showCandidates: "Mostra els candidats",
+            hideCandidates: "Amaga els candidats",
+            selectedCandidate: "{{count}} candidat seleccionat",
+            selectedCandidates: "{{count}} candidats seleccionats",
+            expandAll: "Expandir tot",
+            collapseAll: "Reduir tot",
+        },
         breadcrumbSteps: {
             electionList: "Llista de Votacions",
             ballot: "Papereta",
