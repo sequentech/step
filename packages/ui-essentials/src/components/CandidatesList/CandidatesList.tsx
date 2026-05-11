@@ -98,11 +98,7 @@ const CandidatesList: React.FC<CandidatesListProps> = ({
                     </ListTitle>
                 </Box>
                 {isActive && isCheckable ? (
-                    <Checkbox
-                        checked={checked}
-                        onChange={handleChange}
-                        disabled={shouldDisable}
-                    />
+                    <Checkbox checked={checked} onChange={handleChange} disabled={shouldDisable} />
                 ) : null}
             </ListHeader>
             <ListChildrenContainer className="candidates-list-children">
