@@ -20,7 +20,9 @@ class RegisterTemplateTest {
   void deferredLoginModeEnablesSocialProviders() throws IOException {
     String template = Files.readString(REGISTER_TEMPLATE);
 
-    assertTrue(template.contains("displaySocialProviders=(formMode?? && formMode = 'LOGIN'"));
+    assertTrue(
+        template.contains(
+            "displaySocialProviders=(formMode?? && formMode = 'LOGIN' && (social.providers)?has_content)"));
     assertTrue(template.contains("<#elseif section = \"socialProviders\" >"));
     assertTrue(template.contains("id=\"kc-social-providers\""));
     assertTrue(template.contains("msg(\"identity-provider-login-label\")"));
