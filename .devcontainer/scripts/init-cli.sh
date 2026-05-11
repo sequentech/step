@@ -5,6 +5,13 @@
 
 set -ex -o pipefail
 
+if git submodule update --init --recursive --depth 1; then
+  echo "Submodules are successfully loaded and available in the workspace"
+else
+  echo "Failed to init submodules, they won't be available in the workspace"
+fi
+
+
 if ! grep OPENWHISK_API_HOST .devcontainer/.env &> /dev/null; then
   cat <<EOF >> .devcontainer/.env
 OPENWHISK_API_HOST="http://$(docker inspect openwhisk | jq -r '.[].Config.Hostname'):3233"
@@ -18,9 +25,3 @@ cargo build --release
 popd
 
 source .devcontainer/scripts/config-cli.sh
-
-if git submodule update --init --recursive; then
-  echo "Submodules are successfully loaded and available in the workspace"
-else
-  echo "Failed to init submodules, they won't be available in the workspace"
-fi
