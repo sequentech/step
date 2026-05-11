@@ -4,9 +4,6 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-extern crate lazy_static;
-use lazy_static::lazy_static;
-
 use anyhow::Context;
 use anyhow::{anyhow, Result};
 use celery::Celery;
@@ -14,6 +11,7 @@ use clap::Parser;
 use dotenv::dotenv;
 use sequent_core::util::init_log::init_log;
 use std::collections::HashMap;
+use std::sync::LazyLock;
 use tokio::runtime::Builder;
 use tracing::{event, Level};
 use windmill::services::celery_app::{self as celery_cfg, Queue};
@@ -27,16 +25,18 @@ fn get_queue_name(queue: Queue) -> String {
     queue.queue_name(&slug)
 }
 
-lazy_static! {
-    static ref BEAT_QUEUE_NAME: String = get_queue_name(Queue::Beat);
-    static ref SHORT_QUEUE_NAME: String = get_queue_name(Queue::Short);
-    static ref ELECTORAL_LOG_BEAT_QUEUE_NAME: String = get_queue_name(Queue::ElectoralLogBeat);
-    static ref COMMUNICATION_QUEUE_NAME: String = get_queue_name(Queue::Communication);
-    static ref TALLY_QUEUE_NAME: String = get_queue_name(Queue::Tally);
-    static ref REPORTS_QUEUE_NAME: String = get_queue_name(Queue::Reports);
-    static ref IMPORT_EXPORT_QUEUE_NAME: String = get_queue_name(Queue::ImportExport);
-    static ref ELECTORAL_LOG_BATCH_QUEUE_NAME: String = get_queue_name(Queue::ElectoralLogBatch);
-}
+static BEAT_QUEUE_NAME: LazyLock<String> = LazyLock::new(|| get_queue_name(Queue::Beat));
+static SHORT_QUEUE_NAME: LazyLock<String> = LazyLock::new(|| get_queue_name(Queue::Short));
+static ELECTORAL_LOG_QUEUE_NAME: LazyLock<String> =
+    LazyLock::new(|| get_queue_name(Queue::ElectoralLogBeat));
+static COMMUNICATION_QUEUE_NAME: LazyLock<String> =
+    LazyLock::new(|| get_queue_name(Queue::Communication));
+static TALLY_QUEUE_NAME: LazyLock<String> = LazyLock::new(|| get_queue_name(Queue::Tally));
+static REPORTS_QUEUE_NAME: LazyLock<String> = LazyLock::new(|| get_queue_name(Queue::Reports));
+static IMPORT_EXPORT_QUEUE_NAME: LazyLock<String> =
+    LazyLock::new(|| get_queue_name(Queue::ImportExport));
+static ELECTORAL_LOG_BATCH_QUEUE_NAME: LazyLock<String> =
+    LazyLock::new(|| get_queue_name(Queue::ElectoralLogBatch));
 
 #[derive(Debug, Parser, Clone)]
 #[command(name = "windmill", about = "Windmill task queue prosumer.")]

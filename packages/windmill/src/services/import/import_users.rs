@@ -22,34 +22,39 @@ use sequent_core::services::keycloak::{
 use sequent_core::services::uuid_validation::parse_uuid_v4;
 use sequent_core::types::keycloak::{AREA_ID_ATTR_NAME, TENANT_ID_ATTR_NAME};
 use std::num::NonZeroU32;
+use std::sync::LazyLock;
 use tempfile::NamedTempFile;
 use tokio_postgres::binary_copy::BinaryCopyInWriter;
 use tokio_postgres::types::{ToSql, Type};
 use tracing::{debug, info, instrument, warn};
 use uuid::Uuid;
 
-lazy_static! {
-    pub static ref HEADER_RE: Regex = Regex::new(r"^[a-zA-Z0-9._-]+$").unwrap();
-    static ref PBKDF2_ITERATIONS: NonZeroU32 = NonZeroU32::new(27_500).unwrap();
-    static ref NUMBER_OF_ITERATIONS_COL_NAME: String = String::from("num_of_iterations");
-    static ref SALT_COL_NAME: String = String::from("password_salt");
-    static ref HASHED_PASSWORD_COL_NAME: String = String::from("hashed_password");
-    static ref PASSWORD_COL_NAME: String = String::from("password");
-    static ref USERNAME_COL_NAME: String = String::from("username");
-    static ref EMAIL_COL_NAME: String = String::from("email");
-    static ref EMAIL_VERIFIED_COL_NAME: String = String::from("email_verified");
-    static ref GROUP_COL_NAME: String = String::from("group_name");
-    static ref AREA_NAME_COL_NAME: String = String::from("area_name");
-    static ref ELECTION_COL_PREFIX: String = String::from("election__");
-    static ref RESERVED_COL_NAMES: Vec<String> = vec![
+pub static HEADER_RE: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"^[a-zA-Z0-9._-]+$").expect("Failed to build header regex"));
+static PBKDF2_ITERATIONS: LazyLock<NonZeroU32> =
+    LazyLock::new(|| NonZeroU32::new(27_500).expect("Failed to build pbkdf2 iterations num"));
+static NUMBER_OF_ITERATIONS_COL_NAME: LazyLock<String> =
+    LazyLock::new(|| String::from("num_of_iterations"));
+static SALT_COL_NAME: LazyLock<String> = LazyLock::new(|| String::from("password_salt"));
+static HASHED_PASSWORD_COL_NAME: LazyLock<String> =
+    LazyLock::new(|| String::from("hashed_password"));
+static PASSWORD_COL_NAME: LazyLock<String> = LazyLock::new(|| String::from("password"));
+static USERNAME_COL_NAME: LazyLock<String> = LazyLock::new(|| String::from("username"));
+static EMAIL_COL_NAME: LazyLock<String> = LazyLock::new(|| String::from("email"));
+static EMAIL_VERIFIED_COL_NAME: LazyLock<String> = LazyLock::new(|| String::from("email_verified"));
+static GROUP_COL_NAME: LazyLock<String> = LazyLock::new(|| String::from("group_name"));
+static AREA_NAME_COL_NAME: LazyLock<String> = LazyLock::new(|| String::from("area_name"));
+static ELECTION_COL_PREFIX: LazyLock<String> = LazyLock::new(|| String::from("election__"));
+static RESERVED_COL_NAMES: LazyLock<Vec<String>> = LazyLock::new(|| {
+    vec![
         HASHED_PASSWORD_COL_NAME.clone(),
         SALT_COL_NAME.clone(),
         PASSWORD_COL_NAME.clone(),
         GROUP_COL_NAME.clone(),
         NUMBER_OF_ITERATIONS_COL_NAME.clone(),
-        EMAIL_VERIFIED_COL_NAME.clone()
-    ];
-}
+        EMAIL_VERIFIED_COL_NAME.clone(),
+    ]
+});
 
 static PBKDF2_ALGORITHM: pbkdf2::Algorithm = pbkdf2::PBKDF2_HMAC_SHA256;
 const CREDENTIAL_LEN: usize = digest::SHA256_OUTPUT_LEN;
