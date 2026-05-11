@@ -204,10 +204,10 @@ const CandidatesList: React.FC<CandidatesListProps> = ({
                     ) : null}
                     {isActive && isCheckable ? (
                         <Checkbox
-                        checked={checked}
-                        onChange={handleChange}
-                        disabled={shouldDisable}
-                    />
+                            checked={checked}
+                            onChange={handleChange}
+                            disabled={shouldDisable}
+                        />
                     ) : null}
                 </Box>
             </ListHeader>
