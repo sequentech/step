@@ -55,12 +55,12 @@ mod import_election_event_task {
             let election_event_id = election_event_id.clone();
 
             Box::pin(async move {
-                import_election_event_service::process_document(
+                Box::pin(import_election_event_service::process_document(
                     hasura_transaction,
                     object,
                     election_event_id,
                     tenant_id,
-                )
+                ))
                 .await
             })
         })

@@ -209,7 +209,7 @@ mod render_document_pdf_task {
         tally_session_id: Option<String>,
     ) -> WrapResult<()> {
         // Note, put this in a thread?
-        render_document_pdf_task_wrap(
+        Box::pin(render_document_pdf_task_wrap(
             tenant_id,
             document_id,
             election_event_id,
@@ -217,7 +217,7 @@ mod render_document_pdf_task {
             executer_username,
             output_document_id,
             tally_session_id,
-        )
+        ))
         .await
         .map_err(|err| WrapError::from(anyhow!("Task panicked: {err}")))
     }

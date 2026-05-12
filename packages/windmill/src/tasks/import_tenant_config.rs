@@ -50,19 +50,25 @@ mod import_tenant_config_task {
 
         let object = object.clone();
         let tenant_id = tenant_id.clone();
-        let task_execution = task_execution_clone.clone();
 
-        match import_tenant_config_zip(object, &tenant_id, &document_id, sha256).await {
+        match Box::pin(import_tenant_config_zip(
+            object,
+            &tenant_id,
+            &document_id,
+            sha256,
+        ))
+        .await
+        {
             Ok(()) => (),
             Err(err) => {
-                update_fail(&task_execution, &err.to_string()).await?;
+                update_fail(&task_execution_clone, &err.to_string()).await?;
                 return Err(
                     anyhow!("Error process tenant configuration documents: {err:?}").into(),
                 );
             }
         }
 
-        update_complete(&task_execution, Some(document_id.clone()))
+        update_complete(&task_execution_clone, Some(document_id.clone()))
             .await
             .context("Failed to update task execution status to COMPLETED")?;
 

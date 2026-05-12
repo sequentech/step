@@ -47,12 +47,9 @@ pub fn get_next_scheduled_time(report: &Report) -> Option<DateTime<Local>> {
         "last_document_produced_date: {:?}",
         last_document_produced_date
     );
-    let last_run = match last_document_produced_date {
-        Some(last_run) => last_run,
-        None => {
-            error!("No last run date found for report id {}", report.id);
-            return None;
-        }
+    let Some(last_run) = last_document_produced_date else {
+        error!("No last run date found for report id {}", report.id);
+        return None;
     };
     // Get the next scheduled time after the last run
     let next_run = match schedule.find_next_occurrence(&last_run, false) {

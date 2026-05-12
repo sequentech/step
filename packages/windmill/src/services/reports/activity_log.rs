@@ -12,7 +12,7 @@
 use super::template_renderer::*;
 use crate::postgres::reports::{Report, ReportType};
 use crate::services::documents::upload_and_return_document;
-use crate::services::electoral_log::{ElectoralLogRow, IMMUDB_ROWS_LIMIT};
+use crate::services::electoral_log::{ElectoralLogRow, IMMUDB_ROWS_LIMIT_I64};
 use crate::services::protocol_manager::{get_board_client, get_event_board};
 use crate::services::providers::email_sender::{Attachment, EmailSender};
 use anyhow::{anyhow, Context, Result};
@@ -105,7 +105,7 @@ impl ActivityLogsTemplate {
     /// Panics if the computed batch size overflows `usize` while estimating the
     /// memory footprint of a fetched batch.
     pub async fn generate_export_csv_data(&self, name: &str) -> Result<NamedTempFile> {
-        let limit = IMMUDB_ROWS_LIMIT as i64;
+        let limit = IMMUDB_ROWS_LIMIT_I64;
         let mut last_id: i64 = 0;
         let slug = std::env::var("ENV_SLUG").with_context(|| "missing env var ENV_SLUG")?;
         let board_name = get_event_board(

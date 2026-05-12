@@ -73,12 +73,12 @@ pub fn unzip_file(src_file: &Path, dst_dir: &Path) -> Result<()> {
         .with_context(|| format!("Failed to read zip archive: {}", src_file.display()))?;
 
     for i in 0..archive.len() {
-        let mut file = archive
+        let mut zip_member = archive
             .by_index(i)
             .with_context(|| format!("Failed to access file in archive at index: {i}"))?;
-        let out_path = dst_dir.join(file.sanitized_name());
+        let out_path = dst_dir.join(zip_member.sanitized_name());
 
-        if file.name().ends_with('/') {
+        if zip_member.name().ends_with('/') {
             fs::create_dir_all(&out_path)
                 .with_context(|| format!("Failed to create directory: {}", out_path.display()))?;
         } else {
@@ -90,7 +90,7 @@ pub fn unzip_file(src_file: &Path, dst_dir: &Path) -> Result<()> {
             }
             let mut outfile = File::create(&out_path)
                 .with_context(|| format!("Failed to create output file: {}", out_path.display()))?;
-            io::copy(&mut file, &mut outfile)
+            io::copy(&mut zip_member, &mut outfile)
                 .with_context(|| format!("Failed to write file: {}", out_path.display()))?;
         }
 
@@ -98,7 +98,7 @@ pub fn unzip_file(src_file: &Path, dst_dir: &Path) -> Result<()> {
         {
             use std::os::unix::fs::PermissionsExt;
 
-            if let Some(mode) = file.unix_mode() {
+            if let Some(mode) = zip_member.unix_mode() {
                 fs::set_permissions(&out_path, fs::Permissions::from_mode(mode)).with_context(
                     || format!("Failed to set permissions for: {}", out_path.display()),
                 )?;

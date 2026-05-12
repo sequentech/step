@@ -8,7 +8,7 @@ use crate::postgres::election_event::get_election_event_by_id;
 use crate::postgres::election_event::update_election_event_status;
 use crate::services::election_event_board::get_election_event_board;
 use crate::services::election_event_status;
-use crate::services::electoral_log::*;
+use crate::services::electoral_log::ElectoralLog;
 use anyhow::{Context, Result};
 use deadpool_postgres::Transaction;
 use electoral_log::messages::newtypes::VotingChannelString;
@@ -71,30 +71,30 @@ pub async fn update_election_status(
         channel.clone()
     } else if let Some(channels) = election_event.voting_channels.clone() {
         info!("Election voting channels {channels:?}");
-        let voting_channels: VotingChannels =
+        let deserialized_channels: VotingChannels =
             deserialize_value(channels).context("Failed to deserialize event voting_channels")?;
 
         let mut election_channels = vec![];
 
         if VotingStatusChannel::ONLINE
-            .channel_from(&voting_channels)
+            .channel_from(&deserialized_channels)
             .unwrap_or(false)
         {
-            election_channels.push(VotingStatusChannel::ONLINE)
+            election_channels.push(VotingStatusChannel::ONLINE);
         }
 
         if VotingStatusChannel::KIOSK
-            .channel_from(&voting_channels)
+            .channel_from(&deserialized_channels)
             .unwrap_or(false)
         {
-            election_channels.push(VotingStatusChannel::KIOSK)
+            election_channels.push(VotingStatusChannel::KIOSK);
         }
 
         if VotingStatusChannel::EARLY_VOTING
-            .channel_from(&voting_channels)
+            .channel_from(&deserialized_channels)
             .unwrap_or(false)
         {
-            election_channels.push(VotingStatusChannel::EARLY_VOTING)
+            election_channels.push(VotingStatusChannel::EARLY_VOTING);
         }
 
         election_channels
@@ -191,7 +191,7 @@ pub async fn update_board_on_status_change(
             tenant_id,
             &election_event_id,
             user_id,
-            username.map(|val| val.to_string()),
+            username.map(ToString::to_string),
             elections_ids_vec,
             None,
         )
@@ -218,8 +218,8 @@ pub async fn update_board_on_status_change(
                     maybe_election_id,
                     elections_ids,
                     VotingChannelString(voting_channel.to_string()),
-                    user_id.map(|id| id.to_string()),
-                    username.map(|username| username.to_string()),
+                    user_id.map(ToString::to_string),
+                    username.map(ToString::to_string),
                 )
                 .await
                 .with_context(|| "error posting to the electoral log")?;
@@ -230,8 +230,8 @@ pub async fn update_board_on_status_change(
                     election_event_id,
                     maybe_election_id,
                     VotingChannelString(voting_channel.to_string()),
-                    user_id.map(|id| id.to_string()),
-                    username.map(|username| username.to_string()),
+                    user_id.map(ToString::to_string),
+                    username.map(ToString::to_string),
                 )
                 .await
                 .with_context(|| "error posting to the electoral log")?;
@@ -243,8 +243,8 @@ pub async fn update_board_on_status_change(
                     maybe_election_id,
                     elections_ids,
                     VotingChannelString(voting_channel.to_string()),
-                    user_id.map(|id| id.to_string()),
-                    username.map(|username| username.to_string()),
+                    user_id.map(ToString::to_string),
+                    username.map(ToString::to_string),
                 )
                 .await
                 .with_context(|| "error posting to the electoral log")?;

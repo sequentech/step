@@ -37,6 +37,7 @@ use serde_json::json;
 use std::collections::HashMap;
 use std::fs;
 use std::io::Write;
+use std::path::Path;
 use std::path::PathBuf;
 use strand::hash::hash_sha256;
 use tempfile::tempdir;
@@ -138,6 +139,7 @@ async fn create_config(
 ///
 /// Fails if the tally session is incomplete, archives cannot be read, velvet fails, or upload fails.
 #[instrument(err, skip(hasura_transaction))]
+#[allow(clippy::too_many_lines)]
 async fn generate_template_document(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
@@ -224,7 +226,10 @@ async fn generate_template_document(
             let Ok(name) = entry.file_name().into_string() else {
                 continue;
             };
-            if name.ends_with(".html") {
+            if Path::new(&name)
+                .extension()
+                .is_some_and(|ext| ext.eq_ignore_ascii_case("html"))
+            {
                 fs::remove_file(&path)?;
             }
         }
@@ -256,7 +261,10 @@ async fn generate_template_document(
     )
     .await?;
 
-    let (file_extension, mime_type) = if final_zipped_file.ends_with(".enc") {
+    let (file_extension, mime_type) = if Path::new(&final_zipped_file)
+        .extension()
+        .is_some_and(|ext| ext.eq_ignore_ascii_case("enc"))
+    {
         ("zip.enc", "application/octet-stream")
     } else {
         ("zip", "application/zip")
@@ -388,13 +396,13 @@ mod generate_template_task {
         let handle = tokio::task::spawn_blocking({
             move || {
                 tokio::runtime::Handle::current().block_on(async move {
-                    generate_template_block(
+                    Box::pin(generate_template_block(
                         tenant_id,
                         document_id,
                         input,
                         task_execution,
                         executer_username,
-                    )
+                    ))
                     .await
                     .map_err(|err| anyhow!("generate_report error: {err:?}"))
                 })

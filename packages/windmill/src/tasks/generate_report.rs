@@ -34,6 +34,7 @@ use tracing::instrument;
 /// # Errors
 ///
 /// Fails on DB pool or transaction errors, unknown report types, template rendering failures, or commit errors.
+#[allow(clippy::too_many_lines)]
 pub async fn generate_report_impl(
     report: Report,
     document_id: String,
@@ -123,28 +124,28 @@ pub async fn generate_report_impl(
     }
     match ReportType::from_str(&report_type_str) {
         Ok(ReportType::INITIALIZATION_REPORT) => {
-            let report = InitializationTemplate::new(ids);
-            execute_report!(report);
+            let report_init = InitializationTemplate::new(ids);
+            execute_report!(report_init);
         }
         Ok(ReportType::ELECTORAL_RESULTS) => {
-            let report = ElectoralResults::new(ids);
-            execute_report!(report);
+            let report_init = ElectoralResults::new(ids);
+            execute_report!(report_init);
         }
         Ok(ReportType::BALLOT_IMAGES) => {
-            let report = BallotImagesTemplate::new(ids);
-            execute_report!(report);
+            let report_init = BallotImagesTemplate::new(ids);
+            execute_report!(report_init);
         }
         Ok(ReportType::BALLOT_RECEIPT) => {
-            let report = BallotTemplate::new(ids, None);
-            execute_report!(report);
+            let report_init = BallotTemplate::new(ids, None);
+            execute_report!(report_init);
         }
         Ok(ReportType::ACTIVITY_LOGS) => {
-            let report = ActivityLogsTemplate::new(ids, ReportFormat::PDF);
-            execute_report!(report);
+            let report_init = ActivityLogsTemplate::new(ids, ReportFormat::PDF);
+            execute_report!(report_init);
         }
         Ok(ReportType::MANUAL_VERIFICATION) => {
-            let report = ManualVerificationTemplate::new(ids);
-            execute_report!(report);
+            let report_init = ManualVerificationTemplate::new(ids);
+            execute_report!(report_init);
         }
         Err(err) => return Err(anyhow!("{err:?}")),
     }

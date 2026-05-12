@@ -16,6 +16,7 @@ use serde::{Deserialize, Serialize};
 use tracing::{event, instrument, Level};
 
 /// Slice toggles for which election artifacts are included in the ZIP export.
+#[allow(clippy::struct_excessive_bools)]
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ExportOptions {
     /// Optional password when `is_encrypted` is true.
@@ -68,11 +69,11 @@ mod export_election_event_task {
             Ok(client) => client,
             Err(err) => {
                 let err_str = format!("Failed to get Hasura DB pool: {err:?}");
-                if let Err(err) = update_fail(&task_execution, &err_str).await {
+                if let Err(update_err) = update_fail(&task_execution, &err_str).await {
                     event!(
                         Level::ERROR,
                         "Failed to update task execution status to FAILED: {:?}",
-                        err
+                        update_err
                     );
                 }
                 return Err(Error::String(err_str));
@@ -83,11 +84,11 @@ mod export_election_event_task {
             Ok(transaction) => transaction,
             Err(err) => {
                 let err_str = format!("Failed to start Hasura transaction: {err:?}");
-                if let Err(err) = update_fail(&task_execution, &err_str).await {
+                if let Err(update_err) = update_fail(&task_execution, &err_str).await {
                     event!(
                         Level::ERROR,
                         "Failed to update task execution status to FAILED: {:?}",
-                        err
+                        update_err
                     );
                 }
                 return Err(Error::String(err_str));
@@ -95,7 +96,13 @@ mod export_election_event_task {
         };
 
         // Process the export
-        match process_export_zip(&tenant_id, &election_event_id, &document_id, export_config).await
+        match Box::pin(process_export_zip(
+            &tenant_id,
+            &election_event_id,
+            &document_id,
+            export_config,
+        ))
+        .await
         {
             Ok(()) => (),
             Err(err) => {
@@ -115,11 +122,11 @@ mod export_election_event_task {
             Ok(()) => (),
             Err(err) => {
                 let err_str = format!("Commit failed: {err:?}");
-                if let Err(err) = update_fail(&task_execution, &err_str).await {
+                if let Err(update_err) = update_fail(&task_execution, &err_str).await {
                     event!(
                         Level::ERROR,
                         "Failed to update task execution status to FAILED: {:?}",
-                        err
+                        update_err
                     );
                 }
                 return Err(Error::String(err_str));

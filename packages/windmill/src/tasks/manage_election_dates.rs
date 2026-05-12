@@ -44,8 +44,7 @@ async fn manage_election_date_wrapper(
 
     let Some(scheduled_manage_date) = scheduled_manage_date_opt else {
         return Err(anyhow!(
-            "Can't find scheduled event with id: {}",
-            scheduled_event_id
+            "Can't find scheduled event with id: {scheduled_event_id}"
         ));
     };
 

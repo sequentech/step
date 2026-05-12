@@ -22,9 +22,9 @@ impl AwsSecretManager {
     /// # Errors
     ///
     /// Returns an error if `AWS_SM_KEY_PREFIX` is not set.
-    fn get_prefixed_key(&self, key: String) -> Result<String> {
+    fn get_prefixed_key(key: &str) -> Result<String> {
         let key_prefix = env::var("AWS_SM_KEY_PREFIX").context("AWS_SM_KEY_PREFIX must be set")?;
-        Ok(key_prefix + key.as_str())
+        Ok(key_prefix + key)
     }
 }
 
@@ -45,7 +45,7 @@ impl Vault for AwsSecretManager {
 
         client
             .create_secret()
-            .name(self.get_prefixed_key(key)?)
+            .name(Self::get_prefixed_key(&key)?)
             .secret_string(value)
             .send()
             .await
@@ -66,13 +66,13 @@ impl Vault for AwsSecretManager {
             .map_err(|err| anyhow!("Error getting env aws config: {err:?}"))?;
         let client = Client::new(&shared_config);
 
-        let final_key = self.get_prefixed_key(key)?;
+        let final_key = Self::get_prefixed_key(&key)?;
         info!("reading secret key: {:?}", final_key);
 
         let resp = client.get_secret_value().secret_id(final_key).send().await;
 
         match resp {
-            Ok(data) => Ok(data.secret_string().map(|s| s.to_string())),
+            Ok(data) => Ok(data.secret_string().map(ToString::to_string)),
             Err(_) => Ok(None),
         }
     }

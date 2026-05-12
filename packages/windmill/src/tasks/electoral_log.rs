@@ -180,7 +180,7 @@ mod electoral_log_tasks {
             .await
             .with_context(|| "Error starting keycloak transaction")?;
 
-        for input in events.iter() {
+        for input in &events {
             let election_event =
                 get_election_event_by_id(&hasura_tx, &input.tenant_id, &input.election_event_id)
                     .await
@@ -256,7 +256,7 @@ mod electoral_log_tasks {
             .await
             .with_context(|| "Error committing Hasura transaction")?;
 
-        for (board, messages) in messages_by_board.into_iter() {
+        for (board, messages) in messages_by_board {
             let mut board_client = get_board_client().await?;
             board_client.open_session(&board).await?;
             let immudb_tx = board_client.new_tx(TxMode::ReadWrite).await?;
@@ -346,7 +346,9 @@ mod electoral_log_tasks {
                                 .into(),
                         );
                     }
-                    let payload = &arr[1];
+                    let payload = arr.get(1).ok_or_else(|| {
+                        anyhow!("Invalid message format: expected array with at least 2 elements")
+                    })?;
                     let input_value = payload
                         .get("input")
                         .ok_or_else(|| anyhow!("Missing 'input' field in message payload"))?;

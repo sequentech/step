@@ -56,6 +56,13 @@ pub const IMMUDB_ROWS_LIMIT: usize = 2500;
 /// Default maximum number of rows returned per page in list endpoints.
 pub const MAX_ROWS_PER_PAGE: usize = 50;
 
+/// Same numeric value as [`IMMUDB_ROWS_LIMIT`], as `i64`, for query defaults.
+#[allow(clippy::cast_possible_wrap)] // IMMUDB_ROWS_LIMIT is 2500
+pub const IMMUDB_ROWS_LIMIT_I64: i64 = IMMUDB_ROWS_LIMIT as i64;
+/// Same numeric value as [`MAX_ROWS_PER_PAGE`], as `i64`, for query defaults.
+#[allow(clippy::cast_possible_wrap)] // MAX_ROWS_PER_PAGE is 50
+pub const MAX_ROWS_PER_PAGE_I64: i64 = MAX_ROWS_PER_PAGE as i64;
+
 /// `Ballot_id` input is the first half of the original hash which is stored in the electoral log.
 pub const BALLOT_ID_LENGTH_BYTES: usize = STRAND_HASH_LENGTH_BYTES / 2;
 /// `Ballot_id` input is in HEX, each byte is represented in 2 chars.
@@ -74,7 +81,7 @@ pub struct ElectoralLog {
 pub fn flatten_election_ids(election_ids: Option<Vec<String>>) -> Option<String> {
     election_ids.and_then(|ids| {
         if ids.len() == 1 {
-            Some(ids[0].clone())
+            ids.first().cloned()
         } else {
             None
         }
@@ -1073,6 +1080,7 @@ impl GetElectoralLogBody {
     ///
     /// Returns an error if the SQL clauses cannot be built.
     #[instrument(ret)]
+    #[allow(clippy::too_many_lines)]
     fn as_sql(&self, to_count: bool) -> Result<(String, Vec<NamedParam>)> {
         let mut clauses = Vec::new();
         let mut params = Vec::new();
@@ -1115,7 +1123,7 @@ impl GetElectoralLogBody {
             if !where_clauses.is_empty() {
                 clauses.push(format!("WHERE {}", where_clauses.join(" AND ")));
             }
-        };
+        }
 
         // Build a single extra clause.
         // This clause returns rows if:
@@ -1181,18 +1189,15 @@ impl GetElectoralLogBody {
         }
 
         if !extra_where_clauses.is_empty() {
-            match clauses.len() {
-                0 => {
-                    clauses.push(format!("WHERE {}", extra_where_clauses.join(" AND ")));
-                }
-                _ => {
-                    let where_clause = clauses.pop().ok_or(anyhow!("Empty clause"))?;
-                    clauses.push(format!(
-                        "{} AND {}",
-                        where_clause,
-                        extra_where_clauses.join(" AND ")
-                    ));
-                }
+            if clauses.is_empty() {
+                clauses.push(format!("WHERE {}", extra_where_clauses.join(" AND ")));
+            } else {
+                let where_clause = clauses.pop().ok_or(anyhow!("Empty clause"))?;
+                clauses.push(format!(
+                    "{} AND {}",
+                    where_clause,
+                    extra_where_clauses.join(" AND ")
+                ));
             }
         }
 
@@ -1374,33 +1379,31 @@ impl TryFrom<&Row> for ElectoralLogRow {
         for (column, value) in row.columns.iter().zip(row.values.iter()) {
             match column.as_str() {
                 c if c.ends_with(".id)") => {
-                    assign_value!(Value::N, value, id)
+                    assign_value!(Value::N, value, id);
                 }
                 c if c.ends_with(".created)") => {
-                    assign_value!(Value::Ts, value, created)
+                    assign_value!(Value::Ts, value, created);
                 }
                 c if c.ends_with(".sender_pk)") => {
-                    assign_value!(Value::S, value, sender_pk)
+                    assign_value!(Value::S, value, sender_pk);
                 }
                 c if c.ends_with(".statement_timestamp)") => {
-                    assign_value!(Value::Ts, value, statement_timestamp)
+                    assign_value!(Value::Ts, value, statement_timestamp);
                 }
                 c if c.ends_with(".statement_kind)") => {
-                    assign_value!(Value::S, value, statement_kind)
+                    assign_value!(Value::S, value, statement_kind);
                 }
                 c if c.ends_with(".message)") => {
-                    assign_value!(Value::Bs, value, message)
+                    assign_value!(Value::Bs, value, message);
                 }
                 c if c.ends_with(".user_id)") => match value.value.as_ref() {
                     Some(Value::S(inner)) => user_id = Some(inner.clone()),
-                    Some(Value::Null(_)) => user_id = None,
-                    None => user_id = None,
+                    Some(Value::Null(_)) | None => user_id = None,
                     _ => return Err(anyhow!("invalid column value for 'user_id'")),
                 },
                 c if c.ends_with(".username)") => match value.value.as_ref() {
                     Some(Value::S(inner)) => username = Some(inner.clone()),
-                    Some(Value::Null(_)) => username = None,
-                    None => username = None,
+                    Some(Value::Null(_)) | None => username = None,
                     _ => return Err(anyhow!("invalid column value for 'username'")),
                 },
                 _ => return Err(anyhow!("invalid column found '{}'", column.as_str())),
@@ -1505,7 +1508,7 @@ pub async fn list_electoral_log(input: GetElectoralLogBody) -> Result<DataList<E
     info!("query: {sql}");
     let sql_query_response = client.streaming_sql_query(&sql, params).await?;
 
-    let limit: usize = input.limit.unwrap_or(IMMUDB_ROWS_LIMIT as i64).try_into()?;
+    let limit: usize = input.limit.unwrap_or(IMMUDB_ROWS_LIMIT_I64).try_into()?;
     info!("list_electoral_log: limit = {}", limit);
     let mut rows: Vec<ElectoralLogRow> = Vec::with_capacity(limit);
     let mut resp_stream = sql_query_response.into_inner();
@@ -1518,7 +1521,7 @@ pub async fn list_electoral_log(input: GetElectoralLogBody) -> Result<DataList<E
         rows.extend(items);
     }
 
-    let sql = format!(
+    let count_sql = format!(
         r"
         SELECT
             COUNT(*)
@@ -1526,8 +1529,8 @@ pub async fn list_electoral_log(input: GetElectoralLogBody) -> Result<DataList<E
         {clauses_to_count}
         ",
     );
-    let sql_query_response = client.sql_query(&sql, count_params).await?;
-    let mut rows_iter = sql_query_response
+    let count_sql_response = client.sql_query(&count_sql, count_params).await?;
+    let mut rows_iter = count_sql_response
         .get_ref()
         .rows
         .iter()
@@ -1603,7 +1606,7 @@ pub async fn list_cast_vote_messages(
     );
     // The limits are used to cut the output after filtering the ballot id.
     // Because ballot_id cannot be filtered at SQL level the sql limit is constant
-    let output_limit: i64 = input.limit.unwrap_or(MAX_ROWS_PER_PAGE as i64);
+    let output_limit: i64 = input.limit.unwrap_or(MAX_ROWS_PER_PAGE_I64);
     let slug = std::env::var("ENV_SLUG").with_context(|| "missing env var ENV_SLUG")?;
     let board_name = get_event_board(
         input.tenant_id.as_str(),
@@ -1614,20 +1617,24 @@ pub async fn list_cast_vote_messages(
     let order_by = input.order_by.clone();
     let election_id = input.election_id.clone().unwrap_or_default();
 
-    let limit: i64 = match ballot_id_filter.is_empty() {
-        false => IMMUDB_ROWS_LIMIT as i64, // When there is a filter, need to fetch all entries by batches.
-        true => input.limit.unwrap_or(MAX_ROWS_PER_PAGE as i64),
+    let limit: i64 = if ballot_id_filter.is_empty() {
+        input.limit.unwrap_or(MAX_ROWS_PER_PAGE_I64)
+    } else {
+        IMMUDB_ROWS_LIMIT_I64 // When there is a filter, need to fetch all entries by batches.
     };
     let mut offset: i64 = input.offset.unwrap_or(0);
     let mut list: Vec<CastVoteEntry> = Vec::with_capacity(MAX_ROWS_PER_PAGE); // Filtered messages.
     let (cols_match_count, cols_match_select) =
         get_cols_match_count_and_select(&election_id, user_id, ballot_id_filter);
     let mut client = get_board_client().await?;
-    let total = client
-        .count_electoral_log_messages(&board_name, Some(cols_match_count))
-        .await?
-        .to_u64()
-        .unwrap_or(0) as usize;
+    let total = usize::try_from(
+        client
+            .count_electoral_log_messages(&board_name, Some(cols_match_count))
+            .await?
+            .to_u64()
+            .unwrap_or(0),
+    )
+    .unwrap_or(0);
     let mut filter_matched = false; // Exit at the first match if the filter is not empty
     while (list.len() as i64) < output_limit && (offset < total as i64) && !filter_matched {
         let electoral_log_messages = client
@@ -1645,7 +1652,7 @@ pub async fn list_cast_vote_messages(
 
         let t_entries = electoral_log_messages.len();
         info!("Got {t_entries} entries. Offset: {offset}, limit: {limit}, total: {total}");
-        for message in electoral_log_messages.iter() {
+        for message in &electoral_log_messages {
             match CastVoteEntry::from_elog_message(message)? {
                 Some(entry) if !ballot_id_filter.is_empty() => {
                     // If there is filter exit at the first match

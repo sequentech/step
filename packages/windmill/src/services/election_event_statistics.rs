@@ -4,7 +4,7 @@
 
 //! Managing statistics for a single election event.
 
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use deadpool_postgres::Transaction;
 use sequent_core::services::uuid_validation::parse_uuid_v4;
 use tokio_postgres::row::Row;
@@ -50,7 +50,9 @@ pub async fn get_count_areas(
     let total_areas: i64 = if rows.is_empty() {
         0
     } else {
-        rows[0].try_get::<&str, i64>("total_areas")?
+        rows.first()
+            .ok_or_else(|| anyhow!("missing total_areas row"))?
+            .try_get::<&str, i64>("total_areas")?
     };
 
     Ok(total_areas)
@@ -96,7 +98,9 @@ pub async fn get_count_elections(
     let total_elections: i64 = if rows.is_empty() {
         0
     } else {
-        rows[0].try_get::<&str, i64>("total_elections")?
+        rows.first()
+            .ok_or_else(|| anyhow!("missing total_elections row"))?
+            .try_get::<&str, i64>("total_elections")?
     };
 
     Ok(total_elections)
@@ -192,7 +196,9 @@ pub async fn get_count_distinct_voters(
     let total_distinct_voters: i64 = if rows.is_empty() {
         0
     } else {
-        rows[0].try_get::<&str, i64>("total_distinct_voters")?
+        rows.first()
+            .ok_or_else(|| anyhow!("missing total_distinct_voters row"))?
+            .try_get::<&str, i64>("total_distinct_voters")?
     };
 
     Ok(total_distinct_voters)

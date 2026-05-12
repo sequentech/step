@@ -140,8 +140,9 @@ mod export_users_task {
             &tenant_id,
             match &body {
                 ExportBody::Users {
-                    election_event_id, ..
-                } => election_event_id.clone(),
+                    election_event_id: election_event_id_opt,
+                    ..
+                } => election_event_id_opt.clone(),
                 ExportBody::TenantUsers { .. } => None,
             },
             &name,

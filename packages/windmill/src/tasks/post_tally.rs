@@ -73,13 +73,10 @@ pub async fn download_sqlite_database(
         ));
         };
 
-    let sqlite_database_document_id = if let Some(id) = documents.sqlite {
-        id
-    } else {
+    let Some(sqlite_database_document_id) = documents.sqlite else {
         return Err(anyhow!(
             "Could not recover sqlite database from tally session execution with id {tally_session_id}"
-        )
-        );
+        ));
     };
 
     let document = get_document(
@@ -103,16 +100,16 @@ pub async fn download_sqlite_database(
 /// Stops on the first I/O, render, temp-file, or copy error from any worker thread.
 pub fn find_and_process_html_reports_parallel(
     root_path: &Path,
-    pdf_options: PrintToPdfOptionsLocal,
+    pdf_options: &PrintToPdfOptionsLocal,
 ) -> Result<()> {
     // Walk the directory and collect all valid HTML file paths first.
     // We filter and collect upfront to create a work queue.
     let html_files: Vec<_> = WalkDir::new(root_path)
         .into_iter()
-        .filter_map(|e| e.ok()) // Filter out directory read errors
+        .filter_map(std::result::Result::ok) // Filter out directory read errors
         .filter(|e| e.file_type().is_file()) // Keep only files
         .filter(|e| e.path().extension().and_then(std::ffi::OsStr::to_str) == Some("html"))
-        .map(|e| e.into_path()) // Convert to PathBuf
+        .map(walkdir::DirEntry::into_path) // Convert to PathBuf
         .collect();
 
     // Use `par_iter` to process the collected paths in parallel.
@@ -165,6 +162,7 @@ pub fn find_and_process_html_reports_parallel(
 ///
 /// Propagates missing documents, sqlite/tar extraction, PDF render, upload, or Hasura update failures.
 #[instrument(err)]
+#[allow(clippy::too_many_lines)]
 pub async fn post_tally_task_impl(
     tenant_id: String,
     election_event_id: String,
@@ -232,7 +230,7 @@ pub async fn post_tally_task_impl(
     let tar_gz_document = get_document(
         &hasura_transaction,
         &tenant_id.clone(),
-        Some(election_event_id.to_string()),
+        Some(election_event_id.clone()),
         &tar_gz_document_id,
     )
     .await?
@@ -256,7 +254,7 @@ pub async fn post_tally_task_impl(
     let pdf_options = PrintToPdfOptionsLocal::from_pdf_options(pdf_options);
 
     // Search for all html reports that do not have pdf and generate it
-    find_and_process_html_reports_parallel(tally_path.path(), pdf_options)?;
+    find_and_process_html_reports_parallel(tally_path.path(), &pdf_options)?;
 
     // Create the archive again
     let (_tar_file_temp_path, tar_file_str, file_size) =
@@ -269,9 +267,9 @@ pub async fn post_tally_task_impl(
         file_size,
         "application/gzip",
         &tenant_id,
-        Some(election_event_id.to_string()),
+        Some(election_event_id.clone()),
         "tally.tar.gz",
-        Some(tar_document_id.to_string()),
+        Some(tar_document_id.clone()),
         false,
     )
     .await?;

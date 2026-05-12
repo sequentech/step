@@ -190,13 +190,15 @@ pub fn get_queues() -> Vec<String> {
     unsafe { QUEUES.clone() }
 }
 
-lazy_static! {
+#[allow(clippy::non_std_lazy_statics)]
+lazy_static::lazy_static! {
     /// CELERY_APP holds the high-level Celery application. Note: The Celery app is
     /// built separately from the Broker because it handles task routing/scheduling.
     static ref CELERY_APP: AsyncOnce<Arc<Celery>> =
         AsyncOnce::new(async { generate_celery_app().await.unwrap_or_else(|err| {
-            tracing::error!("{:#}", err);
-            panic!("{:#}", err);
+            tracing::error!("{err:#}");
+            #[allow(clippy::panic)]
+            panic!("{err:#}");
         })
     });
 }
@@ -252,6 +254,7 @@ async fn create_connection() -> Result<(Arc<Connection>, String)> {
 /// Returns an error if required environment variables are missing, broker connection fails,
 /// or task/plugin initialization fails.
 #[instrument]
+#[allow(clippy::too_many_lines)]
 pub async fn generate_celery_app() -> Result<Arc<Celery>> {
     let prefetch_count: u16;
     let acks_late: bool;

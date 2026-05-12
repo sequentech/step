@@ -69,7 +69,7 @@ pub async fn import_templates(
         let record = result.map_err(|e| anyhow!("Error reading CSV record: {e:?}"))?;
 
         let template_alias = record.get(0).unwrap_or("");
-        let tenant_id = record.get(1).unwrap_or("");
+        let row_tenant_id = record.get(1).unwrap_or("");
         let template_content = record.get(2).unwrap_or("");
         let created_by = record.get(3).unwrap_or("");
         let labels = record.get(4).unwrap_or("");
@@ -79,12 +79,11 @@ pub async fn import_templates(
         let communication_method = record.get(8).unwrap_or("");
         let template_type = record.get(9).unwrap_or("");
 
-        let tenant_id_parsed = match parse_uuid_v4(tenant_id) {
-            Ok(uuid) => uuid.to_string(),
-            Err(_) => {
-                tracing::warn!("Invalid UUID for tenant_id: {tenant_id}");
-                continue;
-            }
+        let tenant_id_parsed = if let Ok(uuid) = parse_uuid_v4(row_tenant_id) {
+            uuid.to_string()
+        } else {
+            tracing::warn!("Invalid UUID for tenant_id: {row_tenant_id}");
+            continue;
         };
         templates.push(Template {
             alias: template_alias.to_string(),

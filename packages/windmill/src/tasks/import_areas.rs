@@ -88,9 +88,9 @@ pub async fn import_areas_task(
             continue;
         }
         if let Some(area_id) = record.get(0) {
-            let area_name = record.get(3).map(|val| val.to_string());
+            let area_name = record.get(3).map(std::string::ToString::to_string);
             let new_area_id = Uuid::new_v4();
-            let early_voting_pol = record.get(5).map(|val| val.to_string());
+            let early_voting_pol = record.get(5).map(std::string::ToString::to_string);
             let early_voting_pol = match early_voting_pol {
                 Some(early_voting_pol)
                     if early_voting_pol == EarlyVotingPolicy::AllowEarlyVoting.to_string() =>

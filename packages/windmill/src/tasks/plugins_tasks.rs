@@ -7,7 +7,7 @@
 
 use crate::postgres::document;
 use crate::services::plugins_manager::plugin_manager;
-use crate::services::tasks_execution::*;
+use crate::services::tasks_execution::{update_complete, update_fail};
 use crate::types::error::Error;
 use crate::types::error::Result;
 use anyhow::Result as AnyhowResult;
@@ -34,10 +34,17 @@ pub async fn execute_plugin_task(
     let task_execution_str: String = serde_json::to_string(&task_execution)
         .expect("Failed to serialize task_execution to string");
 
-    task_data["task_execution"] = serde_json::Value::String(task_execution_str);
+    let map = task_data
+        .as_object_mut()
+        .ok_or_else(|| anyhow!("plugin task data must be a JSON object"))
+        .map_err(Error::from)?;
+    map.insert(
+        "task_execution".to_string(),
+        serde_json::Value::String(task_execution_str),
+    );
 
     if let Some(doc_id) = document_id {
-        task_data["document_id"] = serde_json::Value::String(doc_id);
+        map.insert("document_id".to_string(), serde_json::Value::String(doc_id));
     }
 
     let plugin_manager: &'static plugin_manager::PluginManager =

@@ -38,13 +38,13 @@ mod miru_consolidation_tasks {
         let handle = tokio::task::spawn_blocking({
             move || {
                 tokio::runtime::Handle::current().block_on(async move {
-                    match create_transmission_package_service(
+                    match Box::pin(create_transmission_package_service(
                         &tenant_id,
                         &election_id,
                         &area_id,
                         &tally_session_id,
                         force,
-                    )
+                    ))
                     .await
                     {
                         Ok(()) => Ok(()),
@@ -129,7 +129,7 @@ pub async fn upload_signature_task(
     let handle = tokio::task::spawn_blocking({
         move || {
             tokio::runtime::Handle::current().block_on(async move {
-                let res = upload_transmission_package_signature_service(
+                let res = Box::pin(upload_transmission_package_signature_service(
                     &tenant_id,
                     &election_id,
                     &area_id,
@@ -137,7 +137,7 @@ pub async fn upload_signature_task(
                     &trustee_name,
                     &document_id,
                     &password,
-                )
+                ))
                 .await;
                 match res {
                     Ok(()) => Ok(()),

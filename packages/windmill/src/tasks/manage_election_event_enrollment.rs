@@ -109,8 +109,8 @@ pub async fn update_keycloak_enrollment(
         .with_context(|| "Error obtaining realm")?;
     realm.registration_allowed = Some(enable_enrollment);
 
-    let keycloak_client = KeycloakAdminClient::new().await?;
-    keycloak_client
+    let keycloak_upsert_client = KeycloakAdminClient::new().await?;
+    keycloak_upsert_client
         .upsert_realm(
             &realm_name,
             &serde_json::to_string(&realm)?,
@@ -160,11 +160,11 @@ pub async fn manage_election_event_enrollment_wrapped(
             .await
             .with_context(|| "Error obtaining election by id")?;
 
-    update_keycloak_enrollment(
+    Box::pin(update_keycloak_enrollment(
         scheduled_event.tenant_id.clone(),
         scheduled_event.election_event_id.clone(),
         enable_enrollment,
-    )
+    ))
     .await?;
 
     if let Some(election_event_presentation) = election_event.presentation {
@@ -215,12 +215,12 @@ mod manage_election_event_enrollment_task {
             let election_event_id = election_event_id.clone();
             let scheduled_event_id = scheduled_event_id.clone();
             Box::pin(async move {
-                manage_election_event_enrollment_wrapped(
+                Box::pin(manage_election_event_enrollment_wrapped(
                     hasura_transaction,
                     tenant_id,
                     election_event_id,
                     scheduled_event_id,
-                )
+                ))
                 .await
             })
         })

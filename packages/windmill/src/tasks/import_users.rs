@@ -20,6 +20,7 @@ use sequent_core::types::hasura::core::TasksExecution;
 use sequent_core::util::integrity_check::{integrity_check, HashFileVerifyError};
 use serde::{Deserialize, Serialize};
 use std::io::Seek;
+use std::path::Path;
 use tempfile::NamedTempFile;
 use tracing::{error, info, instrument};
 
@@ -75,7 +76,10 @@ impl ImportUsersBody {
         let document_name = document.name.clone().unwrap_or_default();
 
         // Determine file type and set the appropriate separator
-        let (postfix, separator) = if document_name.ends_with(".tsv") {
+        let (postfix, separator) = if Path::new(&document_name)
+            .extension()
+            .is_some_and(|ext| ext.eq_ignore_ascii_case("tsv"))
+        {
             (".tsv", b'\t')
         } else {
             (".csv", b',')

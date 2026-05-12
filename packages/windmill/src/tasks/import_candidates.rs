@@ -27,6 +27,7 @@ use uuid::Uuid;
 
 /// Maps a Comelec-style numeric party code from the import file to the display abbreviation used on the ballot.
 #[instrument(ret)]
+#[allow(clippy::too_many_lines)]
 fn get_political_party_extension(political_party: &str) -> String {
     // Mapping of numbers to political parties
     let party_map = vec![
@@ -306,6 +307,7 @@ mod import_candidates_task {
     ///
     /// Fails on database, document, integrity, CSV parse, or insert errors; updates task execution to failed when applicable.
     #[instrument(err)]
+    #[allow(clippy::too_many_lines)]
     pub async fn import_candidates_task(
         tenant_id: String,
         election_event_id: String,

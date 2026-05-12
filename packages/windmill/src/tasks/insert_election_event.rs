@@ -62,7 +62,14 @@ pub async fn insert_election_event_anyhow(
         final_object.voting_channels = serde_json::to_value(VotingChannels::default()).ok();
     }
 
-    match upsert_keycloak_realm(tenant_id.as_str(), id.as_ref(), None, None).await {
+    match Box::pin(upsert_keycloak_realm(
+        tenant_id.as_str(),
+        id.as_ref(),
+        None,
+        None,
+    ))
+    .await
+    {
         Ok(realm) => Some(realm),
         Err(err) => {
             update_fail(
@@ -169,7 +176,7 @@ mod insert_election_event_t_task {
         id: String,
         task_execution: TasksExecution,
     ) -> Result<()> {
-        insert_election_event_anyhow(object, id, task_execution).await?;
+        Box::pin(insert_election_event_anyhow(object, id, task_execution)).await?;
 
         Ok(())
     }

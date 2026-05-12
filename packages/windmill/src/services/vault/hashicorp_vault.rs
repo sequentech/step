@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-//! `HashiCorp Vault backend.
+//! `HashiCorp` Vault backend.
 //!
 //! This implementation reads/writes raw string secrets to the Vault HTTP API
 //! using `VAULT_SERVER_URL` and `VAULT_TOKEN`.
@@ -11,7 +11,7 @@ use super::{Vault, VaultManagerType};
 use anyhow::{Context, Result};
 use async_trait::async_trait;
 use reqwest;
-use sequent_core::serialization::deserialize_with_path::*;
+use sequent_core::serialization::deserialize_with_path::deserialize_str;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use std::env;
@@ -41,7 +41,7 @@ struct VaultRead {
 }
 
 #[derive(Debug)]
-/// `HashiCorp Vault secret backend.
+/// `HashiCorp` Vault secret backend.
 pub struct HashiCorpVault;
 
 #[async_trait]

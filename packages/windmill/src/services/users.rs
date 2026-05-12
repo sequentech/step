@@ -1895,7 +1895,7 @@ pub async fn list_users_has_voted(
         // Filter the batch by the `has_voted` criteria.
         if let Some(has_voted) = filter.has_voted {
             voters.retain(|voter| {
-                let info_count = voter.votes_info.as_ref().map(|v| v.len()).unwrap_or(0);
+                let info_count = voter.votes_info.as_ref().map_or(0, Vec::len);
                 if has_voted {
                     info_count > 0
                 } else {
@@ -1929,9 +1929,15 @@ pub async fn list_users_has_voted(
 
     // The total count should not exceed the number of users who have actually voted or not voted.
     let final_total = if let Some(true) = filter.has_voted {
-        min(total_users_from_filter, count_total_voted as i32)
+        min(
+            total_users_from_filter,
+            i32::try_from(count_total_voted).unwrap_or(total_users_from_filter),
+        )
     } else {
-        min(total_users_from_filter, count_total_not_voted as i32)
+        min(
+            total_users_from_filter,
+            i32::try_from(count_total_not_voted).unwrap_or(total_users_from_filter),
+        )
     };
 
     Ok((final_users, final_total))

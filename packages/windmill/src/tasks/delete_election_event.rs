@@ -77,12 +77,12 @@ async fn delete_election_event(
             .await
             .map_err(|err| anyhow!("Error deleting election event from postgres db: {err}"))?; // FIX APPLIED
 
-            delete_election_event_related_data(
+            Box::pin(delete_election_event_related_data(
                 &tenant_id_cloned,
                 &election_event_id_cloned,
                 &realm_cloned,
                 &election_ids,
-            )
+            ))
             .await
             .map_err(|e| anyhow!("Error deleting related non-transactional data: {e}"))?;
 

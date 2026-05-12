@@ -98,8 +98,8 @@ fn get_variables(
 /// Fails on template render errors or SMS provider failures.
 #[instrument(skip(sender), err)]
 async fn send_template_sms(
-    receiver: &Option<String>,
-    template: &Option<SmsConfig>,
+    receiver: Option<&String>,
+    template: Option<&SmsConfig>,
     variables: &Map<String, Value>,
     sender: &SmsSender,
 ) -> Result<Option<String>> {
@@ -252,7 +252,7 @@ fn update_metrics(
         );
         return;
     };
-    election_ids.iter().for_each(|election_id| {
+    for election_id in election_ids {
         metrics
             .metrics_by_election_id
             .entry(election_id.clone())
@@ -262,7 +262,7 @@ fn update_metrics(
                 update_metrics_unit(&mut metrics_unit, communication_method);
                 metrics_unit
             });
-    });
+    }
 }
 
 /// Persists aggregated email/SMS counts to election event and per-election statistics.
@@ -277,7 +277,7 @@ fn update_metrics(
 async fn update_stats(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
-    election_event_id: &Option<String>,
+    election_event_id: Option<&String>,
     metrics: &Metrics,
 ) -> Result<()> {
     let Some(election_event_id) = election_event_id else {
@@ -520,11 +520,8 @@ mod send_template_task {
             let mut filtered_users = users.clone();
 
             match audience_selection {
-                AudienceSelection::NOT_VOTED => filtered_users.retain(|user| {
-                    user.votes_info
-                        .as_ref()
-                        .is_some_and(|vote_info| vote_info.is_empty())
-                }),
+                AudienceSelection::NOT_VOTED => filtered_users
+                    .retain(|user| user.votes_info.as_ref().is_some_and(Vec::is_empty)),
                 AudienceSelection::VOTED => filtered_users.retain(|user| {
                     user.votes_info
                         .as_ref()
@@ -579,7 +576,7 @@ mod send_template_task {
             update_stats(
                 &new_hasura_transaction,
                 &tenant_id,
-                &election_event_id,
+                election_event_id.as_ref(),
                 &metrics,
             )
             .await
@@ -690,10 +687,10 @@ pub async fn send_template_email_or_sms(
         }
         Some(TemplateMethod::SMS) => {
             let sending_result = send_template_sms(
-                /* receiver */ &user.get_mobile_phone(),
-                /* template */ sms_config,
-                /* variables */ &variables,
-                /* sender */ sms_sender,
+                user.get_mobile_phone().as_ref(),
+                sms_config.as_ref(),
+                &variables,
+                sms_sender,
             )
             .await;
             match sending_result {

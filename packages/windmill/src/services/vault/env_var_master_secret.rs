@@ -39,12 +39,11 @@ impl Vault for EnvVarMasterSecret {
     ///
     /// Returns an error only if reading the environment variable fails unexpectedly.
     async fn read_secret(&self, _key: String) -> Result<Option<String>> {
-        match env::var("MASTER_SECRET") {
-            Ok(master_secret) => Ok(Some(master_secret)),
-            Err(_) => {
-                error!("MASTER_SECRET must be set.");
-                Ok(None)
-            }
+        if let Ok(master_secret) = env::var("MASTER_SECRET") {
+            Ok(Some(master_secret))
+        } else {
+            error!("MASTER_SECRET must be set.");
+            Ok(None)
         }
     }
 

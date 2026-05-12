@@ -361,7 +361,7 @@ pub async fn replace_voter_pin(
         Ok((users, 1)) => {
             let user = users
                 .last()
-                .map(|val_ref| val_ref.to_owned())
+                .map(std::borrow::ToOwned::to_owned)
                 .unwrap_or_default();
             if !user.enabled.unwrap_or(true) {
                 warn!("Cannot replace pin because the user is disabled.");

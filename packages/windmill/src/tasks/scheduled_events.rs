@@ -30,7 +30,10 @@ use sequent_core::ballot::{ElectionPresentation, InitReport, VotingPeriodEnd};
 use sequent_core::serialization::deserialize_with_path::deserialize_value;
 use sequent_core::services::date::ISO8601;
 use sequent_core::services::keycloak::{get_event_realm, get_tenant_realm, KeycloakAdminClient};
-use sequent_core::types::scheduled_event::*;
+use sequent_core::types::scheduled_event::{
+    EventProcessors, ManageAllowInitPayload, ManageAllowTallyPayload,
+    ManageAllowVotingPeriodEndPayload, ManageElectionDatePayload, ScheduledEvent,
+};
 use std::sync::Arc;
 use tracing::instrument;
 use tracing::{event, info, Level};
@@ -69,46 +72,43 @@ pub async fn handle_allow_init_report(
     let payload: ManageAllowInitPayload = deserialize_value(event_payload)
         .map_err(|e| anyhow!("Error deserializing manage allow init payload {e}"))?;
     // run the actual task in a different async task
-    match payload.election_id.clone() {
-        Some(election_id) => {
-            let task = celery_app
-                .send_task(
-                    manage_election_init_report::new(
-                        tenant_id.clone(),
-                        election_event_id.clone(),
-                        scheduled_event.id.clone(),
-                        election_id,
-                    )
-                    .with_eta(datetime.with_timezone(&Utc))
-                    .with_expires_in(120),
+    if let Some(election_id) = payload.election_id.clone() {
+        let task = celery_app
+            .send_task(
+                manage_election_init_report::new(
+                    tenant_id.clone(),
+                    election_event_id.clone(),
+                    scheduled_event.id.clone(),
+                    election_id,
                 )
-                .await
-                .map_err(|e| anyhow!("Error sending task to celery {e}"))?;
-            event!(
-                Level::INFO,
-                "Sent manage_election_date task {}",
-                task.task_id
-            );
-        }
-        None => {
-            let task = celery_app
-                .send_task(
-                    manage_election_event_date::new(
-                        tenant_id.clone(),
-                        election_event_id.clone(),
-                        scheduled_event.id.clone(),
-                    )
-                    .with_eta(datetime.with_timezone(&Utc))
-                    .with_expires_in(120),
+                .with_eta(datetime.with_timezone(&Utc))
+                .with_expires_in(120),
+            )
+            .await
+            .map_err(|e| anyhow!("Error sending task to celery {e}"))?;
+        event!(
+            Level::INFO,
+            "Sent manage_election_date task {}",
+            task.task_id
+        );
+    } else {
+        let task = celery_app
+            .send_task(
+                manage_election_event_date::new(
+                    tenant_id.clone(),
+                    election_event_id.clone(),
+                    scheduled_event.id.clone(),
                 )
-                .await
-                .map_err(|e| anyhow!("Error sending task to celery {e}"))?;
-            event!(
-                Level::INFO,
-                "Sent manage_election_event_date task {}",
-                task.task_id
-            );
-        }
+                .with_eta(datetime.with_timezone(&Utc))
+                .with_expires_in(120),
+            )
+            .await
+            .map_err(|e| anyhow!("Error sending task to celery {e}"))?;
+        event!(
+            Level::INFO,
+            "Sent manage_election_event_date task {}",
+            task.task_id
+        );
     }
     Ok(())
 }
@@ -139,46 +139,43 @@ pub async fn handle_allow_voting_period_end(
     let payload: ManageAllowVotingPeriodEndPayload = deserialize_value(event_payload)
         .map_err(|e| anyhow!("Error deserializing manage election event payload {e}"))?;
     // run the actual task in a different async task
-    match payload.election_id.clone() {
-        Some(election_id) => {
-            let task = celery_app
-                .send_task(
-                    manage_election_voting_period_end::new(
-                        tenant_id.clone(),
-                        election_event_id.clone(),
-                        scheduled_event.id.clone(),
-                        election_id,
-                    )
-                    .with_eta(datetime.with_timezone(&Utc))
-                    .with_expires_in(120),
+    if let Some(election_id) = payload.election_id.clone() {
+        let task = celery_app
+            .send_task(
+                manage_election_voting_period_end::new(
+                    tenant_id.clone(),
+                    election_event_id.clone(),
+                    scheduled_event.id.clone(),
+                    election_id,
                 )
-                .await
-                .map_err(|e| anyhow!("Error sending task to celery {e}"))?;
-            event!(
-                Level::INFO,
-                "Sent manage_election_voting_period_end task {}",
-                task.task_id
-            );
-        }
-        None => {
-            let task = celery_app
-                .send_task(
-                    manage_election_event_date::new(
-                        tenant_id.clone(),
-                        election_event_id.clone(),
-                        scheduled_event.id.clone(),
-                    )
-                    .with_eta(datetime.with_timezone(&Utc))
-                    .with_expires_in(120),
+                .with_eta(datetime.with_timezone(&Utc))
+                .with_expires_in(120),
+            )
+            .await
+            .map_err(|e| anyhow!("Error sending task to celery {e}"))?;
+        event!(
+            Level::INFO,
+            "Sent manage_election_voting_period_end task {}",
+            task.task_id
+        );
+    } else {
+        let task = celery_app
+            .send_task(
+                manage_election_event_date::new(
+                    tenant_id.clone(),
+                    election_event_id.clone(),
+                    scheduled_event.id.clone(),
                 )
-                .await
-                .map_err(|e| anyhow!("Error sending task to celery {e}"))?;
-            event!(
-                Level::INFO,
-                "Sent manage_election_voting_period_end task {}",
-                task.task_id
-            );
-        }
+                .with_eta(datetime.with_timezone(&Utc))
+                .with_expires_in(120),
+            )
+            .await
+            .map_err(|e| anyhow!("Error sending task to celery {e}"))?;
+        event!(
+            Level::INFO,
+            "Sent manage_election_voting_period_end task {}",
+            task.task_id
+        );
     }
     Ok(())
 }
@@ -209,46 +206,43 @@ pub async fn handle_voting_event(
     let payload: ManageElectionDatePayload = deserialize_value(event_payload)
         .map_err(|e| anyhow!("Error deserializing manage election date payload {e}"))?;
     // run the actual task in a different async task
-    match payload.election_id.clone() {
-        Some(election_id) => {
-            let task = celery_app
-                .send_task(
-                    manage_election_date::new(
-                        tenant_id.clone(),
-                        election_event_id.clone(),
-                        scheduled_event.id.clone(),
-                        election_id,
-                    )
-                    .with_eta(datetime.with_timezone(&Utc))
-                    .with_expires_in(120),
+    if let Some(election_id) = payload.election_id.clone() {
+        let task = celery_app
+            .send_task(
+                manage_election_date::new(
+                    tenant_id.clone(),
+                    election_event_id.clone(),
+                    scheduled_event.id.clone(),
+                    election_id,
                 )
-                .await
-                .map_err(|e| anyhow!("Error sending task to celery {e}"))?;
-            event!(
-                Level::INFO,
-                "Sent manage_election_date task {}",
-                task.task_id
-            );
-        }
-        None => {
-            let task = celery_app
-                .send_task(
-                    manage_election_event_date::new(
-                        tenant_id.clone(),
-                        election_event_id.clone(),
-                        scheduled_event.id.clone(),
-                    )
-                    .with_eta(datetime.with_timezone(&Utc))
-                    .with_expires_in(120),
+                .with_eta(datetime.with_timezone(&Utc))
+                .with_expires_in(120),
+            )
+            .await
+            .map_err(|e| anyhow!("Error sending task to celery {e}"))?;
+        event!(
+            Level::INFO,
+            "Sent manage_election_date task {}",
+            task.task_id
+        );
+    } else {
+        let task = celery_app
+            .send_task(
+                manage_election_event_date::new(
+                    tenant_id.clone(),
+                    election_event_id.clone(),
+                    scheduled_event.id.clone(),
                 )
-                .await
-                .map_err(|e| anyhow!("Error sending task to celery {e}"))?;
-            event!(
-                Level::INFO,
-                "Sent manage_election_event_date task {}",
-                task.task_id
-            );
-        }
+                .with_eta(datetime.with_timezone(&Utc))
+                .with_expires_in(120),
+            )
+            .await
+            .map_err(|e| anyhow!("Error sending task to celery {e}"))?;
+        event!(
+            Level::INFO,
+            "Sent manage_election_event_date task {}",
+            task.task_id
+        );
     }
     Ok(())
 }

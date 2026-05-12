@@ -14,7 +14,7 @@ use deadpool_postgres::Transaction;
 use rocket::http::Status;
 use sequent_core::services::keycloak;
 use sequent_core::types::hasura::core::ElectionEvent;
-use sequent_core::types::scheduled_event::*;
+use sequent_core::types::scheduled_event::ScheduledEvent;
 use serde::{Deserialize, Serialize};
 use serde_json::Value as Jsonb;
 use std::{collections::HashMap, convert::TryFrom};
@@ -83,7 +83,7 @@ impl TryFrom<(ScheduledEvent, ElectionEvent)> for GetEventListOutput {
                 .to_string(),
             schedule: event_data
                 .cron_config
-                .and_then(|cc| cc.scheduled_date.map(|d| d.to_string())),
+                .and_then(|cc| cc.scheduled_date.map(|d| d.clone())),
             task_id: event_data.task_id.clone(),
             tenant_id: event_data.tenant_id,
             election_event_id: event_data.election_event_id,

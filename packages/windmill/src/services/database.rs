@@ -180,7 +180,7 @@ pub async fn generate_hasura_pool() -> Result<Arc<Pool>> {
 
 // allow lazy_static to be used
 #[allow(clippy::non_std_lazy_statics)]
-lazy_static! {
+lazy_static::lazy_static! {
     static ref KEYCLOAK_POOL: AsyncOnce<Arc<Pool>> = AsyncOnce::new(async {
         let pool = generate_keycloak_pool()
             .await
