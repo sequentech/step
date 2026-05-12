@@ -10,6 +10,15 @@ const tagalogTranslation: TranslationType = {
             showMore: "Lakihan ang nakikita",
             showLess: "Bawasan ang nakikita",
         },
+        candidatesList: {
+            collapseToggle: "I-toggle ang listahan {{listTitle}}",
+            showCandidates: "Ipakita ang mga kandidato",
+            hideCandidates: "Itago ang mga kandidato",
+            selectedCandidate: "{{count}} kandidatong napili",
+            selectedCandidates: "{{count}} kandidatong napili",
+            expandAll: "Palawakin lahat",
+            collapseAll: "Bawasan lahat",
+        },
         breadcrumbSteps: {
             electionList: "Listahan ng mga Balota",
             ballot: "Balota",
@@ -297,42 +306,13 @@ const tagalogTranslation: TranslationType = {
             },
         },
         errors: {
-            encoding: {
-                notEnoughChoices: "Hindi sapat ang mga pagpipilian para ma-decode",
-                writeInChoiceOutOfRange: "Write-in na napili ay wala sa saklaw: {{index}}",
-                writeInNotEndInZero: "Ang Write-in ay hindi nagtatapos sa 0",
-                writeInCharsExceeded:
-                    "Ang Write-in ay lumampas ng {{numCharsExceeded}} sa maximum na bilang ng mga karakter. Kailangang ayusin.",
-                bytesToUtf8Conversion:
-                    "Error sa pag-convert ng write-in mula bytes patungong UTF-8 na string: {{errorMessage}}",
-                ballotTooLarge: "Ang balota ay mas malaki kaysa sa inaasahan",
-            },
-            implicit: {
-                selectedMax:
-                    "Overvote: Ang bilang ng mga napili {{numSelected}} ay higit sa maximum na {{max}}",
-                selectedMin:
-                    "Ang bilang ng mga napili {{numSelected}} ay mas mababa sa minimum na {{min}}",
-                maxSelectionsPerType:
-                    "Ang bilang ng mga napili {{numSelected}} para sa listahan {{type}} ay higit sa maximum na {{max}}",
-                underVote:
-                    "Undervote: Ang bilang ng mga napili {{numSelected}} ay mas mababa sa maximum na {{max}}",
-                overVoteDisabled:
-                    "Naabot na ang maximum: Napili mo na ang maximum na {{numSelected}} na mga opsyon. Upang baguhin ang iyong pagpili, mangyaring alisin muna ang isa pang opsyon.",
-                blankVote: "Blank Vote: Walang pinili",
-                preferenceOrderWithGaps:
-                    "Ang pagkakasunod-sunod ng kagustuhan ay may isa o higit pang puwang.",
-                duplicatedPosition:
-                    "Ang parehong posisyon ay napili para sa dalawa o higit pang kandidato.",
-            },
-            explicit: {
-                notAllowed:
-                    "Ang balota ay tahasang minarkahan upang mapawalang-bisa ngunit hindi ito pinapayagan ng tanong",
-                alert: "An seleksyon na minarkahan ibibilang na bakong balidong boto.",
-            },
             page: {
                 oopsWithStatus: "Oops! {{status}}",
                 oopsWithoutStatus: "Oops! Hindi inaasahang Error",
                 somethingWrong: "May nangyaring hindi tama.",
+                certAuthFailedTitle: "Nabigo ang Pagpapatunay ng Sertipiko",
+                certAuthFailedMessage:
+                    "Hindi ma-verify ang iyong sertipiko. Pakitiyak na gumagamit ka ng wastong sertipiko ng botante at subukang muli.",
             },
         },
         materials: {

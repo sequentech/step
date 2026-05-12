@@ -1,7 +1,11 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import {IElectionPresentation, toValidClassName, translateElection} from "@sequentech/ui-core"
+import {
+    IElectionPresentation,
+    toValidClassName,
+    translateFromPresentation,
+} from "@sequentech/ui-core"
 import {useEffect, useMemo} from "react"
 import {useTranslation} from "react-i18next"
 import {IConfirmationBallot} from "../../services/BallotService"
@@ -15,8 +19,8 @@ export const useElectionClassName = (confirmationBallot: IConfirmationBallot | n
     const extractElectionName = (election: {presentation: IElectionPresentation; id: string}) => {
         let language = i18n.resolvedLanguage || i18n.language
         return (
-            translateElection(election, "alias", language) ||
-            translateElection(election, "name", language) ||
+            translateFromPresentation(election, "alias", language) ||
+            translateFromPresentation(election, "name", language) ||
             election.id
         )
     }

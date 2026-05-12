@@ -53,41 +53,37 @@ mod tests {
             election_id: election_id_1.clone(),
             census: 1000,
             total_votes: 500,
-            reports: vec![
-                ContestReportDataComputed {
-                    contest: Contest {
-                        id: contest_id_1.clone(),
+            reports: vec![ContestReportDataComputed {
+                contest: Some(Contest {
+                    id: contest_id_1.clone(),
+                    ..Default::default()
+                }),
+                candidate_result: vec![CandidateReportData {
+                    candidate: sequent_core::types::hasura::core::Candidate {
+                        id: candidate_id_1.clone(),
                         ..Default::default()
                     },
-                    candidate_result: vec![
-                        CandidateReportData {
-                            candidate: sequent_core::types::hasura::core::Candidate {
-                                id: candidate_id_1.clone(),
-                                ..Default::default()
-                            },
-                            total_count: 300,
-                            ..Default::default()
-                        },
-                    ],
-                    area: Some(Area {
-                        id: area_id_1.clone(),
-                        ..Default::default()
-                    }),
-                    contest_result: sequent_core::types::report::ContestResult {
-                        census: 500,
-                        total_votes: 250,
-                        total_valid_votes: 240,
-                        auditable_votes: 240,
-                        total_invalid_votes: 5,
-                        total_blank_votes: 5,
-                        invalid_votes: InvalidVotesCount {
-                            explicit: 3,
-                            implicit: 2,
-                        },
-                        ..Default::default()
+                    total_count: 300,
+                    ..Default::default()
+                }],
+                area: Some(Area {
+                    id: area_id_1.clone(),
+                    ..Default::default()
+                }),
+                contest_result: Some(sequent_core::types::report::ContestResult {
+                    census: 500,
+                    total_votes: 250,
+                    total_valid_votes: 240,
+                    auditable_votes: 240,
+                    total_invalid_votes: 5,
+                    total_blank_votes: 5,
+                    invalid_votes: InvalidVotesCount {
+                        explicit: 3,
+                        implicit: 2,
                     },
-                },
-            ],
+                    ..Default::default()
+                }),
+            }],
             ..Default::default()
         };
 
@@ -95,43 +91,38 @@ mod tests {
             election_id: election_id_2.clone(),
             census: 2000,
             total_votes: 1500,
-            reports: vec![
-                ContestReportDataComputed {
-                    contest: Contest {
-                        id: contest_id_2.clone(),
+            reports: vec![ContestReportDataComputed {
+                contest: Some(Contest {
+                    id: contest_id_2.clone(),
+                    ..Default::default()
+                }),
+                candidate_result: vec![CandidateReportData {
+                    candidate: sequent_core::types::hasura::core::Candidate {
+                        id: Uuid::new_v4().to_string(),
                         ..Default::default()
                     },
-                    candidate_result: vec![
-                        CandidateReportData {
-                            candidate: sequent_core::types::hasura::core::Candidate {
-                                id: Uuid::new_v4().to_string(),
-                                ..Default::default()
-                            },
-                            total_count: 1000,
-                            ..Default::default()
-                        },
-                    ],
-                    area: None, // This contest has no area
-                    contest_result: sequent_core::types::report::ContestResult {
-                        census: 1500,
-                        total_votes: 750,
-                        total_valid_votes: 700,
-                        auditable_votes: 700,
-                        total_invalid_votes: 25,
-                        total_blank_votes: 25,
-                        invalid_votes: InvalidVotesCount {
-                            explicit: 15,
-                            implicit: 10,
-                        },
-                        ..Default::default()
+                    total_count: 1000,
+                    ..Default::default()
+                }],
+                area: None, // This contest has no area
+                contest_result: Some(sequent_core::types::report::ContestResult {
+                    census: 1500,
+                    total_votes: 750,
+                    total_valid_votes: 700,
+                    auditable_votes: 700,
+                    total_invalid_votes: 25,
+                    total_blank_votes: 25,
+                    invalid_votes: InvalidVotesCount {
+                        explicit: 15,
+                        implicit: 10,
                     },
-                },
-            ],
+                    ..Default::default()
+                }),
+            }],
             ..Default::default()
         };
         vec![election_1, election_2]
     }
-
 
     #[test]
     // Test case for successful extraction of IDs from a valid file path.
@@ -237,35 +228,57 @@ mod tests {
             "CREATE TABLE results_area_contest_candidate (id TEXT PRIMARY KEY, tenant_id TEXT, election_event_id TEXT, election_id TEXT, contest_id TEXT, area_id TEXT, candidate_id TEXT, results_event_id TEXT);",
             []
         )?;
-        
+
         let mock_results = mock_report_data();
         let tenant_id = "test-tenant-1";
         let election_event_id = "test-event-1";
         let results_event_id = Uuid::new_v4().to_string();
 
         // Call the function under test.
-        save_results(&tx, mock_results, tenant_id, election_event_id, &results_event_id).await?;
+        save_results(
+            &tx,
+            mock_results,
+            tenant_id,
+            election_event_id,
+            &results_event_id,
+        )
+        .await?;
         tx.commit()?;
 
         // Check the number of rows in each table.
         // We expect one `results_election` entry for each election in the mock data.
-        let election_count: i64 = conn.query_row("SELECT count(*) FROM results_election", [], |row| row.get(0))?;
+        let election_count: i64 =
+            conn.query_row("SELECT count(*) FROM results_election", [], |row| {
+                row.get(0)
+            })?;
         assert_eq!(election_count, 2);
 
         // We expect one `results_contest` entry for the contest with no area.
-        let contest_count: i64 = conn.query_row("SELECT count(*) FROM results_contest", [], |row| row.get(0))?;
+        let contest_count: i64 =
+            conn.query_row("SELECT count(*) FROM results_contest", [], |row| row.get(0))?;
         assert_eq!(contest_count, 1);
 
         // We expect one `results_area_contest` entry for the contest with an area.
-        let area_contest_count: i64 = conn.query_row("SELECT count(*) FROM results_area_contest", [], |row| row.get(0))?;
+        let area_contest_count: i64 =
+            conn.query_row("SELECT count(*) FROM results_area_contest", [], |row| {
+                row.get(0)
+            })?;
         assert_eq!(area_contest_count, 1);
 
         // We expect one `results_contest_candidate` entry for the contest with no area.
-        let contest_candidate_count: i64 = conn.query_row("SELECT count(*) FROM results_contest_candidate", [], |row| row.get(0))?;
+        let contest_candidate_count: i64 = conn.query_row(
+            "SELECT count(*) FROM results_contest_candidate",
+            [],
+            |row| row.get(0),
+        )?;
         assert_eq!(contest_candidate_count, 1);
 
         // We expect one `results_area_contest_candidate` entry for the contest with an area.
-        let area_contest_candidate_count: i64 = conn.query_row("SELECT count(*) FROM results_area_contest_candidate", [], |row| row.get(0))?;
+        let area_contest_candidate_count: i64 = conn.query_row(
+            "SELECT count(*) FROM results_area_contest_candidate",
+            [],
+            |row| row.get(0),
+        )?;
         assert_eq!(area_contest_candidate_count, 1);
 
         Ok(())

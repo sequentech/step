@@ -48,12 +48,15 @@ pub fn get_contest_1(tenant_id: &Uuid, election_event_id: &Uuid, election_id: &U
             invalid_vote_policy: Some(InvalidVotePolicy::ALLOWED),
             blank_vote_policy: None,
             over_vote_policy: Some(EOverVotePolicy::ALLOWED_WITH_MSG_AND_ALERT),
+            duplicated_rank_policy: None,
+            preference_gaps_policy: None,
             pagination_policy: None,
             cumulative_number_of_checkboxes: None,
             shuffle_categories: Some(true),
             shuffle_category_list: None,
             show_points: Some(false),
             enable_checkable_lists: None,
+            collapsible_lists: None,
             candidates_order: None,
             candidates_selection_policy: None,
             candidates_icon_checkbox_policy: None,
@@ -64,6 +67,7 @@ pub fn get_contest_1(tenant_id: &Uuid, election_event_id: &Uuid, election_id: &U
             columns: None,
         }),
         annotations: None,
+        tie_breaking_policy: None,
     }
 }
 
@@ -110,12 +114,15 @@ pub fn get_contest_min_max_votes(
             invalid_vote_policy: Some(InvalidVotePolicy::ALLOWED),
             blank_vote_policy: None,
             over_vote_policy: Some(EOverVotePolicy::ALLOWED_WITH_MSG_AND_ALERT),
+            duplicated_rank_policy: None,
+            preference_gaps_policy: None,
             pagination_policy: None,
             cumulative_number_of_checkboxes: None,
             shuffle_categories: Some(true),
             shuffle_category_list: None,
             show_points: Some(false),
             enable_checkable_lists: None,
+            collapsible_lists: None,
             candidates_order: None,
             candidates_selection_policy: None,
             candidates_icon_checkbox_policy: None,
@@ -126,5 +133,6 @@ pub fn get_contest_min_max_votes(
             columns: None,
         }),
         annotations: None,
+        tie_breaking_policy: None,
     }
 }

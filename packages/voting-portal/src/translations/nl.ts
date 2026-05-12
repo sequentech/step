@@ -10,6 +10,15 @@ const dutchTranslation: TranslationType = {
             showMore: "Toon meer",
             showLess: "Toon minder",
         },
+        candidatesList: {
+            collapseToggle: "Lijst {{listTitle}} in-/uitvouwen",
+            showCandidates: "Kandidaten tonen",
+            hideCandidates: "Kandidaten verbergen",
+            selectedCandidate: "{{count}} kandidaat geselecteerd",
+            selectedCandidates: "{{count}} kandidaten geselecteerd",
+            expandAll: "Alles uitvouwen",
+            collapseAll: "Alles inklappen",
+        },
         breadcrumbSteps: {
             electionList: "Kieslijst",
             ballot: "Stembiljet",
@@ -297,41 +306,13 @@ const dutchTranslation: TranslationType = {
             },
         },
         errors: {
-            encoding: {
-                notEnoughChoices: "Niet genoeg keuzes om te decoderen",
-                writeInChoiceOutOfRange: "In te vullen keuze buiten bereik: {{index}}",
-                writeInNotEndInZero: "In te vullen tekst eindigt niet op 0",
-                writeInCharsExceeded:
-                    "In te vullen tekst overschrijdt maximum aantal tekens met {{numCharsExceeded}}. Moet worden aangepast.",
-                bytesToUtf8Conversion:
-                    "Fout bij het converteren van in te vullen tekst van bytes naar UTF-8 string: {{errorMessage}}",
-                ballotTooLarge: "Stembiljet groter dan verwacht",
-            },
-            implicit: {
-                selectedMax:
-                    "Te veel stemmen: Aantal geselecteerde keuzes {{numSelected}} is meer dan het maximum {{max}}",
-                selectedMin:
-                    "Aantal geselecteerde keuzes {{numSelected}} is minder dan het minimum {{min}}",
-                maxSelectionsPerType:
-                    "Aantal geselecteerde keuzes {{numSelected}} voor lijst {{type}} is meer dan het maximum {{max}}",
-                underVote:
-                    "Te weinig stemmen: Aantal geselecteerde keuzes {{numSelected}} is minder dan het maximum {{max}}",
-                overVoteDisabled:
-                    "Maximum bereikt: U heeft het maximum aantal keuzes {{numSelected}} geselecteerd. Om uw selectie te wijzigen, deselecteer eerst een andere optie.",
-                blankVote: "Blanco stem: 0 keuzes geselecteerd",
-                preferenceOrderWithGaps: "De voorkeursvolgorde heeft een of meer hiaten.",
-                duplicatedPosition:
-                    "Dezelfde positie is geselecteerd voor twee of meer kandidaten.",
-            },
-            explicit: {
-                notAllowed:
-                    "Stembiljet expliciet ongeldig gemarkeerd maar vraag staat dit niet toe",
-                alert: "Gemarkeerde selectie wordt als ongeldige stem beschouwd.",
-            },
             page: {
                 oopsWithStatus: "Oeps! {{status}}",
                 oopsWithoutStatus: "Oeps! Onverwachte Fout",
                 somethingWrong: "Er is iets misgegaan.",
+                certAuthFailedTitle: "Certificaatauthenticatie Mislukt",
+                certAuthFailedMessage:
+                    "Uw certificaat kon niet worden geverifieerd. Controleer of u een geldig kiezercertificaat gebruikt en probeer het opnieuw.",
             },
         },
         materials: {

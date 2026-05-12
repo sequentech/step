@@ -39,7 +39,7 @@ pub async fn update_event_voting_status(
 
     let mut status =
         get_election_event_status(election_event.status.clone()).unwrap_or(Default::default());
-    let elections = get_elections(hasura_transaction, tenant_id, election_event_id, None)
+    let elections = get_elections(hasura_transaction, tenant_id, election_event_id)
         .await
         .with_context(|| "Error obtaining elections")?;
 

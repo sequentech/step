@@ -11,7 +11,7 @@ import React, {
     useState,
 } from "react"
 
-import {useMutation} from "@apollo/client"
+import {useApolloClient, useMutation} from "@apollo/client"
 import {
     CreateElectionEventMutation,
     ImportElectionEventMutation,
@@ -22,10 +22,10 @@ import {useGetOne, useNotify, useRefresh, RaRecord, useGetList} from "react-admi
 import {useTranslation} from "react-i18next"
 import {IElectionEventPresentation, ITenantSettings, isNull} from "@sequentech/ui-core"
 import {useNavigate} from "react-router-dom"
-import {useTreeMenuData} from "@/components/menu/items/use-tree-menu-hook"
 import {NewResourceContext} from "@/providers/NewResourceProvider"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {useWidgetStore} from "@/providers/WidgetsContextProvider"
+import {FETCH_ELECTION_EVENTS_TREE} from "@/queries/GetElectionEventsTree"
 import {IMPORT_ELECTION_EVENT} from "@/queries/ImportElectionEvent"
 import {addDefaultTranslationsToElement} from "@/services/i18n"
 import {ETasksExecution} from "@/types/tasksExecution"
@@ -113,6 +113,7 @@ const CreateElectionEventContext = createContext<{
 })
 
 export const CreateElectionEventProvider = ({children}: any) => {
+    const apolloClient = useApolloClient()
     const [createDrawer, toggleCreateDrawer] = useState(false)
     const [importDrawer, toggleImportDrawer] = useState(false)
 
@@ -128,7 +129,6 @@ export const CreateElectionEventProvider = ({children}: any) => {
     const refresh = useRefresh()
     const [addWidget, setWidgetTaskId, updateWidgetFail] = useWidgetStore()
     const {setLastCreatedResource} = useContext(NewResourceContext)
-    const {refetch: refetchTreeMenu} = useTreeMenuData(false)
 
     const [isArchivedElectionEvents, setArchivedElectionEvents] = useAtom(
         archivedElectionEventSelection
@@ -188,6 +188,9 @@ export const CreateElectionEventProvider = ({children}: any) => {
         if (isLoading && !error && !isOneLoading && newElectionEvent!.length) {
             setIsLoading(false)
             notify(t("electionEventScreen.createElectionEventSuccess"), {type: "success"})
+            void apolloClient.refetchQueries({
+                include: [FETCH_ELECTION_EVENTS_TREE],
+            })
             refresh()
             navigate(`/sequent_backend_election_event/${newId}`)
         }

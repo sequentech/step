@@ -38,6 +38,7 @@ import {TallyElectionsProgress} from "./TallyElectionsProgress"
 import {TallyElectionsResults} from "./TallyElectionsResults"
 import {TallyResults} from "./TallyResults"
 import {TallyLogs} from "./TallyLogs"
+import {TallyResolutionPanel} from "./TallyResolutionPanel"
 import {useGetList, useGetOne, useNotify, useRecordContext} from "react-admin"
 import {WizardStyles} from "@/components/styles/WizardStyles"
 import {UPDATE_TALLY_CEREMONY} from "@/queries/UpdateTallyCeremony"
@@ -294,6 +295,8 @@ export const TallyCeremony: React.FC = () => {
     }, [tallySession?.annotations?.[MIRU_TALLY_SESSION_ANNOTATION_KEY]])
     const tallySessionDataRef = useRef(tallySessionData)
 
+    const electionEventName = record ? aliasRenderer(record) : "event"
+
     useEffect(() => {
         tallySessionDataRef.current = tallySessionData
     }, [tallySessionData])
@@ -395,7 +398,10 @@ export const TallyCeremony: React.FC = () => {
                 setPage(WizardSteps.Ceremony)
                 return
             }
-            if (tallySession.execution_status === ITallyExecutionStatus.IN_PROGRESS) {
+            if (
+                tallySession.execution_status === ITallyExecutionStatus.IN_PROGRESS ||
+                tallySession.execution_status === ITallyExecutionStatus.AWAITING_INPUT
+            ) {
                 setPage(WizardSteps.Tally)
                 return
             }
@@ -672,11 +678,17 @@ export const TallyCeremony: React.FC = () => {
         return parsedDocuments
             ? {
                   documents: parsedDocuments,
-                  name: aliasRenderer(record) ?? "event",
+                  name: electionEventName,
                   class_type: "event",
               }
             : null
-    }, [resultsEventId, resultsEvent, resultsEvent?.[0]?.id, resultsEvent?.[0]?.name])
+    }, [
+        resultsEventId,
+        resultsEvent,
+        resultsEvent?.[0]?.id,
+        resultsEvent?.[0]?.name,
+        i18n.language,
+    ])
 
     const handleMiruExportSuccess = (e: {
         election_id?: string
@@ -989,7 +1001,10 @@ export const TallyCeremony: React.FC = () => {
 
                             <Accordion
                                 sx={{width: "100%"}}
-                                expanded={expandedData["tally-data-results"]}
+                                expanded={
+                                    expandedData["tally-data-results"] ||
+                                    tally?.execution_status === ITallyExecutionStatus.AWAITING_INPUT
+                                }
                                 onChange={() =>
                                     setExpandedData((prev: IExpanded) => ({
                                         ...prev,
@@ -1014,6 +1029,19 @@ export const TallyCeremony: React.FC = () => {
                                     />
                                 </WizardStyles.AccordionDetails>
                             </Accordion>
+
+                            {tally?.execution_status === ITallyExecutionStatus.AWAITING_INPUT &&
+                                tally?.election_event_id &&
+                                contests && (
+                                    <TallyResolutionPanel
+                                        tallySession={tally}
+                                        contests={contests}
+                                        elections={elections ?? []}
+                                        electionEventId={tally.election_event_id}
+                                        tenantId={tenantId}
+                                        onResolutionSubmitted={refetchTallySession}
+                                    />
+                                )}
                         </>
                     )}
 
@@ -1134,7 +1162,7 @@ export const TallyCeremony: React.FC = () => {
                                                 electionEventId={
                                                     resultsEvent?.[0].election_event_id
                                                 }
-                                                itemName={aliasRenderer(record) ?? "event"}
+                                                itemName={electionEventName}
                                                 tenantId={tenantId}
                                                 resultsEventId={resultsEventId}
                                             />
@@ -1152,6 +1180,17 @@ export const TallyCeremony: React.FC = () => {
                                     />
                                 </WizardStyles.AccordionDetails>
                             </Accordion>
+
+                            {tally?.election_event_id && contests && (
+                                <TallyResolutionPanel
+                                    tallySession={tally}
+                                    contests={contests}
+                                    elections={elections ?? []}
+                                    electionEventId={tally.election_event_id}
+                                    tenantId={tenantId}
+                                    onResolutionSubmitted={refetchTallySession}
+                                />
+                            )}
                         </>
                     )}
                 </WizardStyles.WizardWrapper>
@@ -1172,7 +1211,8 @@ export const TallyCeremony: React.FC = () => {
                         </CancelButton>
                     ) : null}
                     {page < WizardSteps.Results &&
-                        tally?.execution_status !== ITallyExecutionStatus.CANCELLED && (
+                        tally?.execution_status !== ITallyExecutionStatus.CANCELLED &&
+                        tally?.execution_status !== ITallyExecutionStatus.AWAITING_INPUT && (
                             <NextButton
                                 key="tally-next-button"
                                 color="primary"

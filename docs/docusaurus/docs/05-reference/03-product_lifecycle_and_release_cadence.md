@@ -17,7 +17,7 @@ communicated in advance to enterprise customers.*
 
 SVP uses **Major.Minor.Patch versioning** format for all releases:
 - **Major**: Increments for releases with significant breaking changes (e.g., 9, 10).
-- **Minor**: Increments for monthly releases, resetting to 0 for new Major releases (e.g., 9.1, 9.2).
+- **Minor**: Increments for bi-monthly releases, resetting to 0 for new Major releases (e.g., 9.1, 9.2).
 - **Patch**: Increments for bug fixes and security updates (e.g., 9.0.1, 9.1.1).
 
 Major releases may contain breaking changes or significant architectural
@@ -34,14 +34,14 @@ environments requiring maximum stability and extended support. **Major releases
 may contain breaking changes** that require careful migration planning and
 testing.
 
-- **Cadence**: Every 6 months (March and September)
-- **Numbering**: Major.0 (e.g., 9.0 for the September 2025 release)
+- **Cadence**: Every 6 months (May and November)
+- **Numbering**: Major.0 (e.g., 10.0 for the May 2026 release)
 - **Breaking Changes**: May include API changes, database schema updates, or
   architectural modifications
 - **Long Term Support (LTS)**: 8 months from release date
 - **Total Major Release Lifecycle**: 8 months
-- **Currently Supported Major Releases**: None
-- **Next Major Release**: Version 9.0 (September 1st, 2025)
+- **Currently Supported Major Releases**: 9.0
+- **Next Major Release**: Version 10.0 (May 1st, 2026)
 
 ### Minor Releases
 
@@ -50,15 +50,15 @@ testing environments, and can also be used in special cases where a feature is
 required in a short period of time. **Minor releases are backward compatible**
 and do not contain breaking changes.
 
-- **Cadence**: Monthly releases
-- **Numbering**: Major.Minor (e.g., 9.1 for October 2025)
+- **Cadence**: Every 2 months
+- **Numbering**: Major.Minor (e.g., 9.4 for March 2026)
 - **Backward Compatibility**: All changes are backward compatible
 - **Standard Release Support (SRS)**: 2 months from release date
 - **Extended Release Support (ERS)**: Additional 2 months after standard
   support ends
 - **Total Minor Release Lifecycle**: 4 months
-- **Currently Supported Minor Releases**: None
-- **Next Minor Release**: Version 9.1 (October 1st, 2025)
+- **Currently Supported Minor Releases**: 9.3
+- **Next Minor Release**: Version 9.4 (March 1st, 2026)
 
 
 
@@ -70,21 +70,14 @@ and do not contain breaking changes.
 | 9.1        | Oct 1, 2025 | Minor   | Dec 1, 2025           | Feb 1, 2026            | -                   | 4 months      |
 | 9.2        | Nov 1, 2025 | Minor   | Jan 1, 2026           | Mar 1, 2026            | -                   | 4 months      |
 | 9.3        | Dec 1, 2025 | Minor   | Feb 1, 2026           | Apr 1, 2026            | -                   | 4 months      |
-| 9.4        | Jan 1, 2026 | Minor   | Mar 1, 2026           | May 1, 2026            | -                   | 4 months      |
-| 9.5        | Feb 1, 2026 | Minor   | Apr 1, 2026           | Jun 1, 2026            | -                   | 4 months      |
-| **10.0**   | Mar 1, 2026 | **Major** | Nov 1, 2026           | -                      | -                   | **8 months** |
-| 10.1       | Apr 1, 2026 | Minor   | Jun 1, 2026           | Aug 1, 2026            | -                   | 4 months      |
-| 10.2       | May 1, 2026 | Minor   | Jul 1, 2026           | Sep 1, 2026            | -                   | 4 months      |
-| 10.3       | Jun 1, 2026 | Minor   | Aug 1, 2026           | Oct 1, 2026            | -                   | 4 months      |
-| 10.4       | Jul 1, 2026 | Minor   | Sep 1, 2026           | Nov 1, 2026            | -                   | 4 months      |
-| 10.5       | Aug 1, 2026 | Minor   | Oct 1, 2026           | Dec 1, 2026            | -                   | 4 months      |
-| **11.0**   | Sep 1, 2026 | **Major** | May 1, 2027           | -                      | -                   | **8 months** |
-| 11.1       | Oct 1, 2026 | Minor   | Dec 1, 2026           | Feb 1, 2027            | -                   | 4 months      |
-| 11.2       | Nov 1, 2026 | Minor   | Jan 1, 2027           | Mar 1, 2027            | -                   | 4 months      |
-| 11.3       | Dec 1, 2026 | Minor   | Feb 1, 2027           | Apr 1, 2027            | -                   | 4 months      |
-| 11.4       | Jan 1, 2027 | Minor   | Mar 1, 2027           | May 1, 2027            | -                   | 4 months      |
-| 11.5       | Feb 1, 2027 | Minor   | Apr 1, 2027           | Jun 1, 2027            | -                   | 4 months      |
-| **12.0**   | Mar 1, 2027 | **Major** | Nov 1, 2027           | -                      | -                   | **8 months** |
+| 9.4        | Mar 1, 2026 | Minor   | May 1, 2026           | Jul 1, 2026            | -                   | 4 months      |
+| **10.0**   | May 1, 2026 | **Major** | Jan 1, 2027           | -                      | -                   | **8 months** |
+| 10.1       | Jul 1, 2026 | Minor   | Sep 1, 2026           | Nov 1, 2026            | -                   | 4 months      |
+| 10.2       | Sep 1, 2026 | Minor   | Nov 1, 2026           | Jan 1, 2027            | -                   | 4 months      |
+| **11.0**   | Nov 1, 2026 | **Major** | Jul 1, 2027           | -                      | -                   | **8 months** |
+| 11.1       | Jan 1, 2027 | Minor   | Mar 1, 2027           | May 1, 2027            | -                   | 4 months      |
+| 11.2       | Mar 1, 2027 | Minor   | May 1, 2027           | Jul 1, 2027            | -                   | 4 months      |
+| **12.0**   | May 1, 2027 | **Major** | Jan 1, 2028           | -                      | -                   | **8 months** |
 
 ## Support Levels
 
@@ -136,12 +129,13 @@ timeline
         Oct 1 : 9.1 Minor
         Nov 1 : 9.2 Minor
         Dec 1 : 9.3 Minor
-    
+
     section 2026
-        Jan 1 : 9.4 Minor
-        Feb 1 : 9.5 Minor
-        Mar 1 : 10.0 Major : Major Release
-        Apr 1 : 10.1 Minor
+        Mar 1 : 9.4 Minor
+        May 1 : 10.0 Major : Major Release
+        Jul 1 : 10.1 Minor
+        Sep 1 : 10.2 Minor
+        Nov 1 : 11.0 Major : Major Release
 ```
 
 ## Support Lifecycle Visualization
@@ -174,8 +168,8 @@ config:
         .section:nth-last-child(-n + 1) { fill: transparent; }
 
         /* - under standard support */
-        .section3, .section4 { fill: #6666ff7d; }
-        #srs_93, #srs_94 { stroke: #0f054c; }
+        .section3 { fill: #6666ff7d; }
+        #srs_93 { stroke: #0f054c; }
 
         /* out of support: */
         /* (No versions are out of support in this example timeframe) */
@@ -184,7 +178,7 @@ config:
         #lts_90, #ers_91, #ers_92 { stroke: #0f054c; }
 
         /* unreleased: */
-        #srs_95, #ers_95 { opacity: 0.3; }
+        #srs_94, #ers_94 { opacity: 0.3; }
     "
 ---
 %%{init:
@@ -219,13 +213,9 @@ gantt
         Standard :active, srs_93, 2025-12-01, 61d
         Extended :ers_93, after srs_93, 61d
 
-    section 9.4
-        Standard :active, srs_94, 2026-01-01, 61d
+    section 9.4 (Unreleased)
+        Standard :srs_94, 2026-03-01, 61d
         Extended :ers_94, after srs_94, 61d
-
-    section 9.5 (Unreleased)
-        Standard :srs_95, 2026-02-01, 61d
-        Extended :ers_95, after srs_95, 61d
 
     Example Current Date : vert, current, 2026-01-17, 1d
 ```
@@ -253,11 +243,7 @@ In the example shown in the diagram (with `Example Current Date` set to January 
   style={{color: "#fff",  backgroundColor: "#0f054c", borderRadius: "10px",
   padding: "3px 10px"}}>Standard Release Support</span> phase, with full support
   continuing until February 1, 2026, then extended support until April 1, 2026.
-- **Version 9.4 Minor** (released January 1, 2026): Currently in <span
-  style={{color: "#fff",  backgroundColor: "#0f054c", borderRadius: "10px",
-  padding: "3px 10px"}}>Standard Release Support</span> phase, with full support
-  continuing until March 1, 2026, then extended support until May 1, 2026.
-- **Version 9.5 Minor** (to be released February 1, 2026): Unreleased.
+- **Version 9.4 Minor** (to be released March 1, 2026): Unreleased.
 
 The diagram illustrates the overlapping support windows that provide enterprise
 customers with migration flexibility. Major releases have a single Long Term Support (LTS)
