@@ -48,41 +48,6 @@ pub struct RistrettoPointS(pub(crate) RistrettoPoint);
 /// A ristretto [Scalar](https://docs.rs/curve25519-dalek/latest/curve25519_dalek/scalar/struct.Scalar.html) newtype.
 pub struct ScalarS(pub(crate) Scalar);
 
-cfg_if::cfg_if! {
-    if #[cfg(any(feature = "openssl_core", feature="openssl_full"))] {
-
-#[cfg(feature = "rayon")]
-use rayon::prelude::*;
-use crate::util::Par;
-
-impl RistrettoCtx {
-    fn generators_shake(
-        &self,
-        size: usize,
-        seed: &[u8],
-    ) -> Result<Vec<RistrettoPointS>, StrandError> {
-        let seed_ = seed.to_vec();
-
-        let reader = crate::hash::hash_xof(64 * size, &seed_)?;
-        let mut uniform_bytes = [0u8; 64];
-        let mut bytes = vec![];
-        for _ in 0..size {
-            let bytes_read = std::io::Read::read(&mut reader.as_slice(), &mut uniform_bytes)
-                .expect("impossible: we are reading from a byte slice, any out of bounds programming error should panic");
-            assert_eq!(bytes_read, 64);
-            bytes.push(uniform_bytes);
-        }
-
-        let ret: Vec<RistrettoPointS> = bytes.par().map(|b| {
-            let g = RistrettoPoint::from_uniform_bytes(&b);
-            RistrettoPointS(g)
-        }).collect();
-
-        Ok(ret)
-    }
-}
-} else {
-
 use crate::hash::{ExtendableOutput, Update, XofReader};
 
 #[cfg(feature = "rayon")]
@@ -120,8 +85,6 @@ impl RistrettoCtx {
 
         Ok(ret)
     }
-}
-}
 }
 
 impl Ctx for RistrettoCtx {
