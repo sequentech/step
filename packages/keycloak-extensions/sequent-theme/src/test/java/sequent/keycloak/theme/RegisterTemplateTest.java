@@ -27,6 +27,6 @@ class RegisterTemplateTest {
     assertTrue(template.contains("id=\"kc-social-providers\""));
     assertTrue(template.contains("msg(\"identity-provider-login-label\")"));
     assertTrue(template.contains("href=\"${p.loginUrl}\""));
-    assertTrue(template.contains("${p.displayName!}"));
+    assertTrue(template.contains("${msg(p.displayName)!}"));
   }
 }

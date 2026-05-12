@@ -217,26 +217,26 @@ SPDX-License-Identifier: AGPL-3.0-only
         <script type="text/javascript" src="${url.resourcesPath}/js/zxcvbn.js"></script>
         <script type="text/javascript" src="${url.resourcesPath}/js/keycloak-password-strength.js"></script>
     <#elseif section = "socialProviders" >
-        <#if realm.password && social.providers??>
+        <#assign visibleProviders = social.providers?filter(p -> p.alias != 'digital-certificates' || (realm.attributes['voter-certificate-policy']!'disabled') == 'enabled')>
+        <#if realm.password && visibleProviders?has_content>
+            <hr/>
+            <h4 style="text-align: center;">${msg("identity-provider-login-label")}</h4>
             <div id="kc-social-providers" class="${properties.kcFormSocialAccountSectionClass!}">
-                <hr/>
-                <h4>${msg("identity-provider-login-label")}</h4>
-
-                <ul class="${properties.kcFormSocialAccountListClass!} <#if social.providers?size gt 3>${properties.kcFormSocialAccountListGridClass!}</#if>">
-                    <#list social.providers as p>
+                <#list visibleProviders as p>
+                    <ul class="${properties.kcFormSocialAccountListClass!} <#if visibleProviders?size gt 3>${properties.kcFormSocialAccountListGridClass!}</#if>">
                         <li>
-                            <a id="social-${p.alias}" class="${properties.kcFormSocialAccountListButtonClass!} <#if social.providers?size gt 3>${properties.kcFormSocialAccountGridItem!}</#if>"
+                            <a id="social-${p.alias}" class="${properties.kcFormSocialAccountListButtonClass!} <#if visibleProviders?size gt 3>${properties.kcFormSocialAccountGridItem!}</#if>"
                                     type="button" href="${p.loginUrl}">
                                 <#if p.iconClasses?has_content>
                                     <i class="${properties.kcCommonLogoIdP!} ${p.iconClasses!}" aria-hidden="true"></i>
-                                    <span class="${properties.kcFormSocialAccountNameClass!} kc-social-icon-text">${p.displayName!}</span>
+                                    <span class="${properties.kcFormSocialAccountNameClass!} kc-social-icon-text"><#if p.alias == 'digital-certificates'>${msg("digitalCertificateButton")}<#else>${msg(p.displayName)!}</#if></span>
                                 <#else>
-                                    <span class="${properties.kcFormSocialAccountNameClass!}">${p.displayName!}</span>
+                                    <span class="${properties.kcFormSocialAccountNameClass!}"><#if p.alias == 'digital-certificates'>${msg("digitalCertificateButton")}<#else>${msg(p.displayName)!}</#if></span>
                                 </#if>
                             </a>
                         </li>
-                    </#list>
-                </ul>
+                    </ul>
+                </#list>
             </div>
         </#if>
     </#if>
