@@ -121,6 +121,7 @@ impl EmailSender {
     ///
     /// Returns an error if message building or delivery fails.
     #[instrument(skip(self, plaintext_body, html_body, attachments), err)]
+    #[allow(clippy::too_many_lines)]
     pub async fn send(
         &self,
         receivers: Vec<String>,
@@ -163,7 +164,11 @@ impl EmailSender {
         };
 
         // If there are attachments, create a mixed multipart
-        let email_message = if !attachments.is_empty() {
+        let email_message = if attachments.is_empty() {
+            email_builder
+                .multipart(alternative)
+                .map_err(|err| anyhow!("{err:?}"))?
+        } else {
             let mut mixed = MultiPart::mixed().multipart(alternative);
 
             for attachment in &attachments {
@@ -179,10 +184,6 @@ impl EmailSender {
             }
             email_builder
                 .multipart(mixed)
-                .map_err(|err| anyhow!("{err:?}"))?
-        } else {
-            email_builder
-                .multipart(alternative)
                 .map_err(|err| anyhow!("{err:?}"))?
         };
 

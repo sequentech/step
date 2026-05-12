@@ -259,15 +259,17 @@ pub async fn setup_probe(app_name: AppName) {
         let f = ph.future();
         let app_name_for_live = app_name.clone();
         ph.set_live(move || {
-            let app = app_name_for_live.clone();
-            Box::pin(async move { readiness_test(&app).await })
+            let live_app = app_name_for_live.clone();
+            #[allow(clippy::large_futures)]
+            Box::pin(async move { readiness_test(&live_app).await })
         })
         .await;
 
         let app_name_for_ready = app_name.clone();
         ph.set_ready(move || {
-            let app = app_name_for_ready.clone();
-            Box::pin(async move { readiness_test(&app).await })
+            let ready_app = app_name_for_ready.clone();
+            #[allow(clippy::large_futures)]
+            Box::pin(async move { readiness_test(&ready_app).await })
         })
         .await;
         tokio::spawn(f);

@@ -19,13 +19,13 @@ use sequent_core::util::aws::get_max_upload_size;
 use sequent_core::util::temp_path::generate_temp_file;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::sync::LazyLock;
 use tempfile::{NamedTempFile, TempPath};
 use tracing::{event, info, instrument, Level};
 
-lazy_static! {
-    /// Characters stripped from characters when building dynamic CSV column names.
-    static ref SAFE_CHARS_RE: Regex = Regex::new(r"[^a-zA-Z0-9._-]").unwrap();
-}
+/// Characters stripped from characters when building dynamic CSV column names.
+static SAFE_CHARS_RE: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"[^a-zA-Z0-9._-]").expect("SAFE_CHARS_RE regex is valid"));
 
 /// Keycloak built-in user profile attribute names excluded from the “custom attributes” header block.
 pub const USER_FIELDS: [&str; 8] = [
@@ -87,7 +87,7 @@ fn sanitize_name(name: &str) -> String {
 /// and one column per election.
 #[instrument(skip(elections))]
 fn get_headers(
-    elections: &Option<Vec<ElectionHead>>,
+    elections: Option<&Vec<ElectionHead>>,
     user_attributes: &Vec<UserProfileAttribute>,
 ) -> Vec<String> {
     let mut user_headers: Vec<String> = vec![
@@ -103,14 +103,14 @@ fn get_headers(
     for attr in user_attributes {
         if let Some(name) = (&attr.name) {
             if (!USER_FIELDS.contains(&name.as_str())) {
-                user_headers.push(name.clone())
+                user_headers.push(name.clone());
             }
         }
     }
     [
         user_headers,
         match elections {
-            Some(ref some_elections) => some_elections
+            Some(some_elections) => some_elections
                 .iter()
                 .map(|election| match election.alias {
                     Some(ref election_alias) => {
@@ -128,8 +128,8 @@ fn get_headers(
 /// Flattens a [`User`] into a CSV row aligned with the headers.
 #[instrument(skip(elections, areas_by_id, user_attributes), level = "trace")]
 fn get_user_record(
-    elections: &Option<Vec<ElectionHead>>,
-    areas_by_id: &Option<HashMap<String, String>>,
+    elections: Option<&Vec<ElectionHead>>,
+    areas_by_id: Option<&HashMap<String, String>>,
     user: &User,
     user_attributes: &Vec<UserProfileAttribute>,
 ) -> Vec<String> {
@@ -145,11 +145,8 @@ fn get_user_record(
         user.username.clone().unwrap_or_default(),
         match user.get_area_id() {
             Some(ref area_id) => areas_by_id
-                .as_ref()
-                .unwrap_or(&HashMap::new())
-                .get(area_id)
-                .unwrap_or(area_id)
-                .to_string(),
+                .and_then(|m| m.get(area_id))
+                .map_or_else(|| area_id.clone(), Clone::clone),
             None => "-".to_string(),
         },
     ];
@@ -157,9 +154,9 @@ fn get_user_record(
         if let Some(name) = &attr.name {
             if !USER_FIELDS.contains(&name.as_str()) {
                 if let Some(true) = &attr.multivalued {
-                    user_info.push(user.get_attribute_multival(name).unwrap_or_default())
+                    user_info.push(user.get_attribute_multival(name).unwrap_or_default());
                 } else {
-                    user_info.push(user.get_attribute_val(name).unwrap_or_default())
+                    user_info.push(user.get_attribute_val(name).unwrap_or_default());
                 }
             }
         }
@@ -167,7 +164,7 @@ fn get_user_record(
     [
         user_info,
         match elections {
-            Some(ref some_elections) => some_elections
+            Some(some_elections) => some_elections
                 .iter()
                 .map(|election: &ElectionHead| match votes_info_map_opt {
                     Some(ref votes_info_map) => match votes_info_map.get(&election.id) {
@@ -193,6 +190,7 @@ fn get_user_record(
 ///
 /// Propagates pool/transaction errors, listing failures, CSV write failures, or oversize output.
 #[instrument(err, skip(hasura_transaction))]
+#[allow(clippy::too_many_lines)]
 pub async fn export_users_file(
     hasura_transaction: &Transaction<'_>,
     body: ExportBody,
@@ -253,7 +251,7 @@ pub async fn export_users_file(
         .get_user_profile_attributes(&realm)
         .await
         .map_err(|e| anyhow!("Error obtaining Keycloak User Profile Attributes: {e:?}"))?;
-    let headers = get_headers(&elections, &attributes);
+    let headers = get_headers(elections.as_ref(), &attributes);
 
     // Pagination loop to export users in batches
     let batch_size = PgConfig::from_env()?.default_sql_batch_size;
@@ -270,8 +268,9 @@ pub async fn export_users_file(
     loop {
         let filter = ListUsersFilter {
             tenant_id: match &body {
-                ExportBody::Users { tenant_id, .. } => tenant_id.to_string(),
-                ExportBody::TenantUsers { tenant_id } => tenant_id.to_string(),
+                ExportBody::Users { tenant_id, .. } | ExportBody::TenantUsers { tenant_id } => {
+                    tenant_id.clone()
+                }
             },
             election_event_id: match &body {
                 ExportBody::Users {
@@ -328,7 +327,8 @@ pub async fn export_users_file(
 
         // Write each user record to the CSV file
         for user in users.clone() {
-            let record = get_user_record(&elections, &areas_by_id, &user, &attributes);
+            let record =
+                get_user_record(elections.as_ref(), areas_by_id.as_ref(), &user, &attributes);
             writer
                 .write_record(&record)
                 .with_context(|| "Error writing record")?;

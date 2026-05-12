@@ -47,9 +47,8 @@ pub async fn read_trustees_config_base(
     let vault_type = get_vault()?.vault_type();
 
     let secret_prefix: String = match vault_type {
-        VaultManagerType::HashiCorpVault => String::new(),
         VaultManagerType::AwsSecretManager => "secrets/".to_string(),
-        VaultManagerType::EnvVarMasterSecret => String::new(),
+        VaultManagerType::HashiCorpVault | VaultManagerType::EnvVarMasterSecret => String::new(),
     };
 
     for trustee in trustees {
@@ -67,7 +66,7 @@ pub async fn read_trustees_config_base(
 
         let data_bytes = secret.into_bytes();
 
-        let toml_filename = format!("{}/{}.toml", trustee_name, trustee_name);
+        let toml_filename = format!("{trustee_name}/{trustee_name}.toml");
         zip_writer.start_file(&toml_filename, options)?;
         zip_writer.write_all(&data_bytes)?;
     }

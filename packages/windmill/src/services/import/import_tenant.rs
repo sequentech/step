@@ -14,14 +14,14 @@ use sequent_core::{
 };
 use serde_json::Value as JsonValue;
 use std::fs::File;
+use std::sync::LazyLock;
 use tempfile::NamedTempFile;
 use tracing::{info, instrument};
 use uuid::Uuid;
 
-lazy_static! {
-    /// Validates tenant CSV column names (alphanumeric, dot, underscore, hyphen).
-    pub static ref HEADER_RE: Regex = Regex::new(r"^[a-zA-Z0-9._-]+$").unwrap();
-}
+/// Validates tenant CSV column names (alphanumeric, dot, underscore, hyphen).
+pub static HEADER_RE: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"^[a-zA-Z0-9._-]+$").expect("tenant CSV header regex"));
 
 /// Reads a tenant CSV file and upserts the single tenant row.
 ///
@@ -46,7 +46,7 @@ pub async fn upsert_tenant(
         .cloned()
         .map_err(|err| anyhow!("Error reading CSV headers: {err:?}"))?;
 
-    for header in headers.iter() {
+    for header in &headers {
         if !HEADER_RE.is_match(header) {
             return Err(anyhow!("Invalid header name: {header:?}"));
         }

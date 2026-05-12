@@ -24,9 +24,9 @@ use zip::write::FileOptions;
 /// # Errors
 ///
 /// Returns an error when serialization or temp file IO fails.
-pub fn write_export_keycloak_config(data: RealmRepresentation) -> Result<NamedTempFile> {
+pub fn write_export_keycloak_config(data: &RealmRepresentation) -> Result<NamedTempFile> {
     // Serialize the data into JSON string
-    let data_str = serde_json::to_string(&data)?;
+    let data_str = serde_json::to_string(data)?;
     let data_bytes = data_str.into_bytes();
 
     // Create and write the data into a temporary file
@@ -116,7 +116,7 @@ pub async fn process_export_zip(
         .start_file(&tenant_filename, options)
         .map_err(|e| anyhow!("Error starting tenant file in ZIP: {e:?}"))?;
 
-    let temp_path = export_tenant::write_export_document(
+    let tenant_temp_path = export_tenant::write_export_document(
         tenant_data,
         hasura_transaction,
         document_id,
@@ -125,7 +125,7 @@ pub async fn process_export_zip(
     .await
     .map_err(|err| anyhow!("Error exporting tenant: {err}"))?;
 
-    let mut tenant_confug_file = File::open(temp_path)
+    let mut tenant_confug_file = File::open(tenant_temp_path)
         .map_err(|e| anyhow!("Error opening temporary tenant config file: {e:?}"))?;
     std::io::copy(&mut tenant_confug_file, &mut zip_writer)
         .map_err(|e| anyhow!("Error copying tenant config file to ZIP: {e:?}"))?;
@@ -146,10 +146,10 @@ pub async fn process_export_zip(
         .start_file(&keycloak_filename, options)
         .map_err(|e| anyhow!("Error starting keycloak file in ZIP: {e:?}"))?;
 
-    let temp_path = write_export_keycloak_config(realm.clone())
+    let keycloak_temp_path = write_export_keycloak_config(&realm)
         .map_err(|e| anyhow!("Error copying keycloak config data to temp file: {e:?}"))?;
 
-    let mut keycloak_config_file = File::open(temp_path)
+    let mut keycloak_config_file = File::open(keycloak_temp_path)
         .map_err(|e| anyhow!("Error opening temporary keycloak config file: {e:?}"))?;
     std::io::copy(&mut keycloak_config_file, &mut zip_writer)
         .map_err(|e| anyhow!("Error copying keycloak config file to ZIP: {e:?}"))?;
@@ -165,11 +165,12 @@ pub async fn process_export_zip(
         .start_file(&roles_permissions_filename, options)
         .map_err(|e| anyhow!("Error starting roles_permissions file in ZIP: {e:?}"))?;
 
-    let temp_path = write_export_roles_permissions_config(realm, tenant_id).map_err(|e| {
-        anyhow!("Error copying roles & permissions config data to temp file: {e:?}")
-    })?;
+    let roles_perm_temp_path =
+        write_export_roles_permissions_config(realm, tenant_id).map_err(|e| {
+            anyhow!("Error copying roles & permissions config data to temp file: {e:?}")
+        })?;
 
-    let mut roles_permissions_file = File::open(temp_path)
+    let mut roles_permissions_file = File::open(roles_perm_temp_path)
         .map_err(|e| anyhow!("Error opening temporary roles & permissions config file: {e:?}"))?;
     std::io::copy(&mut roles_permissions_file, &mut zip_writer)
         .map_err(|e| anyhow!("Error copying roles_permissions config file to ZIP: {e:?}"))?;

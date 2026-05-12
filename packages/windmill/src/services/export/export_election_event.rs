@@ -67,6 +67,7 @@ use crate::services::password;
 /// Propagates parallel query failures, Keycloak admin errors,
 /// UUID parse errors, or image download failures.
 #[instrument(err, skip(transaction))]
+#[allow(clippy::large_futures)]
 pub async fn read_export_data(
     transaction: &Transaction<'_>,
     tenant_id: &str,
@@ -120,7 +121,9 @@ pub async fn read_export_data(
         })
         .collect();
 
-    let export_elections = if !export_config.bulletin_board {
+    let export_elections = if export_config.bulletin_board {
+        elections.clone()
+    } else {
         elections
             .clone()
             .into_iter()
@@ -129,8 +132,6 @@ pub async fn read_export_data(
                 ..election.clone()
             })
             .collect()
-    } else {
-        elections.clone()
     };
 
     let export_keys_ceremonies = if export_config.bulletin_board {
@@ -198,9 +199,9 @@ pub async fn generate_encrypted_zip(
 /// # Errors
 ///
 /// Returns an error when serialization or temp file IO fails.
-pub fn write_export_document(data: ImportElectionEventSchema) -> Result<NamedTempFile> {
+pub fn write_export_document(data: &ImportElectionEventSchema) -> Result<NamedTempFile> {
     // Serialize the data into JSON string
-    let data_str = serde_json::to_string_pretty(&data)?;
+    let data_str = serde_json::to_string_pretty(data)?;
     let data_bytes = data_str.into_bytes();
 
     // Create and write the data into a temporary file
@@ -223,8 +224,11 @@ fn get_export_election_event_filename(
     let election_event_hash: String = hash_sha256_file(file_path)
         .with_context(|| "Error hashing the exported election_event")?
         .iter()
-        .map(|byte| format!("{byte:02x}"))
-        .collect();
+        .fold(String::new(), |mut acc, byte| {
+            use std::fmt::Write;
+            let _ = write!(acc, "{byte:02x}");
+            acc
+        });
     let extension = if is_encrypted { "ezip" } else { "zip" };
 
     Ok(format!(
@@ -285,6 +289,7 @@ async fn process_images<T, F>(
 ) -> Result<Vec<TempPath>>
 where
     F: Fn(&T) -> Option<&str> + Send + Sync,
+    T: Send + Sync,
 {
     let mut s3_files = Vec::new();
 
@@ -390,6 +395,7 @@ pub async fn process_event_images(
 /// Returns an error on missing passwords when required,
 /// IO/ZIP failures, subgraph export helper failures, or upload failures.
 #[instrument(err)]
+#[allow(clippy::too_many_lines, clippy::large_futures)]
 pub async fn process_export_zip(
     tenant_id: &str,
     election_event_id: &str,
@@ -425,7 +431,7 @@ pub async fn process_export_zip(
         &export_config,
     )
     .await?;
-    let temp_election_event_file = write_export_document(export_data)?;
+    let temp_election_event_file = write_export_document(&export_data)?;
     let election_event_filename = format!(
         "{}-{}.json",
         EDocuments::ELECTION_EVENT.to_file_name(),
@@ -853,7 +859,7 @@ pub async fn process_export_zip(
         &hasura_transaction,
         upload_path
             .to_str()
-            .ok_or_else(|| anyhow!("Can't convert {upload_path:?} to string"))?,
+            .ok_or_else(|| anyhow!("Can't convert path to string: {}", upload_path.display()))?,
         zip_size,
         "application/zip",
         tenant_id,

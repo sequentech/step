@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 //! Postgres connection pools for Hasura-tracked data and for the Keycloak database.
-
+#![allow(clippy::non_std_lazy_statics)]
 use anyhow::{anyhow, Result};
 use async_once::AsyncOnce;
 use celery::export::Arc;
@@ -178,8 +178,6 @@ pub async fn generate_hasura_pool() -> Result<Arc<Pool>> {
     }
 }
 
-// allow lazy_static to be used
-#[allow(clippy::non_std_lazy_statics)]
 lazy_static::lazy_static! {
     static ref KEYCLOAK_POOL: AsyncOnce<Arc<Pool>> = AsyncOnce::new(async {
         let pool = generate_keycloak_pool()

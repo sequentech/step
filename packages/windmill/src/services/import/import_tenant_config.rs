@@ -30,6 +30,7 @@ use zip::read::ZipArchive;
 ///
 /// Returns an error if the document cannot be fetched/verified,
 /// ZIP reading fails, or any selected import step fails.
+#[allow(clippy::too_many_lines)]
 pub async fn import_tenant_config_zip(
     import_options: ImportOptions,
     tenant_id: &str,
@@ -135,8 +136,8 @@ pub async fn import_tenant_config_zip(
 
             // Update only the fields that are present
             let localization = imported_realm.localization_texts.clone();
-            if let Some(localization) = imported_realm.localization_texts {
-                realm.localization_texts = Some(localization);
+            if let Some(loc_texts) = imported_realm.localization_texts {
+                realm.localization_texts = Some(loc_texts);
             }
             if let Some(display_name) = imported_realm.display_name {
                 realm.display_name = Some(display_name);
@@ -152,15 +153,15 @@ pub async fn import_tenant_config_zip(
             let realm_string = serde_json::to_string(&realm)
                 .with_context(|| "Failed to serialize updated realm configuration")?;
             let keycloack_pub_client = KeycloakAdminClient::pub_new().await?;
-            let keycloak_client = KeycloakAdminClient::new().await?;
-            keycloak_client
+            let kc_admin = KeycloakAdminClient::new().await?;
+            kc_admin
                 .update_localization_texts_from_import(
                     localization,
                     &keycloack_pub_client,
                     tenant_id,
                 )
                 .await?;
-            keycloak_client
+            kc_admin
                 .upsert_realm(&realm_name, &realm_string, tenant_id, false, None, None)
                 .await
                 .with_context(|| "Failed to upsert realm configuration in Keycloak")?;

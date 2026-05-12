@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 //! Celery app construction, broker tuning, and per-deployment queue management.
-
+#![allow(clippy::non_std_lazy_statics)]
 use anyhow::{anyhow, Context, Result};
 use async_once::AsyncOnce;
 use celery::prelude::Task;
@@ -10,9 +10,10 @@ use celery::Celery;
 use lapin::{Connection, ConnectionProperties};
 use std;
 use std::convert::AsRef;
-use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, AtomicU16, AtomicU32, AtomicUsize, Ordering};
+use std::sync::{Arc, LazyLock, Mutex};
 use strum_macros::AsRefStr;
-use tokio::sync::{Mutex, RwLock};
+use tokio::sync::RwLock;
 use tracing::{event, info, instrument, Level};
 
 use crate::services::plugins_manager::plugin_manager::init_plugin_manager;
@@ -99,98 +100,87 @@ impl Queue {
 }
 
 /// AMQP prefetch count used when building the Celery app.
-static mut PREFETCH_COUNT_S: u16 = 100;
+static PREFETCH_COUNT_S: AtomicU16 = AtomicU16::new(100);
 /// Whether tasks are `ACKed` only after successful execution.
-static mut ACKS_LATE_S: bool = true;
+static ACKS_LATE_S: AtomicBool = AtomicBool::new(true);
 /// Maximum number of retries configured for Celery tasks.
-static mut TASK_MAX_RETRIES: u32 = 4;
+static TASK_MAX_RETRIES: AtomicU32 = AtomicU32::new(4);
 /// Global switch used to pause/resume the app workers.
-static mut IS_APP_ACTIVE: bool = true;
+static IS_APP_ACTIVE: AtomicBool = AtomicBool::new(true);
 /// Max retries while establishing the broker connection.
-static mut BROKER_CONNECTION_MAX_RETRIES: u32 = 5;
+static BROKER_CONNECTION_MAX_RETRIES: AtomicU32 = AtomicU32::new(5);
 /// AMQP heartbeat interval in seconds.
-static mut HEARTBEAT_SECS: u16 = 10;
+static HEARTBEAT_SECS: AtomicU16 = AtomicU16::new(10);
 /// Number of worker threads used by the Celery runtime.
-static mut WORKER_THREADS: usize = 1;
+static WORKER_THREADS: AtomicUsize = AtomicUsize::new(1);
 /// Explicit queue names to consume from, when configured.
-static mut QUEUES: Vec<String> = vec![];
+static QUEUES: Mutex<Vec<String>> = Mutex::new(Vec::new());
 
 /// Set the prefetch count for the Celery app.
 pub fn set_prefetch_count(new_val: u16) {
-    unsafe {
-        PREFETCH_COUNT_S = new_val;
-    }
+    PREFETCH_COUNT_S.store(new_val, Ordering::SeqCst);
 }
 
 /// Set the number of worker threads for the Celery app.
 pub fn set_worker_threads(new_val: usize) {
-    unsafe {
-        WORKER_THREADS = new_val;
-    }
+    WORKER_THREADS.store(new_val, Ordering::SeqCst);
 }
 
 /// Get the number of worker threads for the Celery app.
 #[must_use]
 pub fn get_worker_threads() -> usize {
-    unsafe { WORKER_THREADS }
+    WORKER_THREADS.load(Ordering::SeqCst)
 }
 
 /// Set whether tasks are `ACKed` late for the Celery app.
 pub fn set_acks_late(new_val: bool) {
-    unsafe {
-        ACKS_LATE_S = new_val;
-    }
+    ACKS_LATE_S.store(new_val, Ordering::SeqCst);
 }
 
 /// Set the maximum number of retries for tasks for the Celery app.
 pub fn set_task_max_retries(new_val: u32) {
-    unsafe {
-        TASK_MAX_RETRIES = new_val;
-    }
+    TASK_MAX_RETRIES.store(new_val, Ordering::SeqCst);
 }
 
 /// Set the queues for the Celery app.
+///
+/// # Panics
+/// Panics if the CELERY queues mutex is poisoned.
 pub fn set_queues(new_val: Vec<String>) {
-    unsafe {
-        QUEUES = new_val;
-    }
+    *QUEUES.lock().expect("CELERY queues mutex poisoned") = new_val;
 }
 
 #[instrument]
 /// Set whether the Celery app is active.
 pub fn set_is_app_active(new_val: bool) {
-    unsafe {
-        IS_APP_ACTIVE = new_val;
-    }
+    IS_APP_ACTIVE.store(new_val, Ordering::SeqCst);
 }
 
 /// Set the maximum number of retries for broker connections for the Celery app.
 pub fn set_broker_connection_max_retries(new_val: u32) {
-    unsafe {
-        BROKER_CONNECTION_MAX_RETRIES = new_val;
-    }
+    BROKER_CONNECTION_MAX_RETRIES.store(new_val, Ordering::SeqCst);
 }
 
 /// Set the heartbeat interval for the Celery app.
 pub fn set_heartbeat(new_val: u16) {
-    unsafe {
-        HEARTBEAT_SECS = new_val;
-    }
+    HEARTBEAT_SECS.store(new_val, Ordering::SeqCst);
 }
 
 /// Get whether the Celery app is active.
 #[must_use]
 pub fn get_is_app_active() -> bool {
-    unsafe { IS_APP_ACTIVE }
+    IS_APP_ACTIVE.load(Ordering::SeqCst)
 }
 
 /// Get the queues for the Celery app.
+///
+/// # Panics
+/// Panics if the CELERY queues mutex is poisoned.
 #[must_use]
 pub fn get_queues() -> Vec<String> {
-    unsafe { QUEUES.clone() }
+    QUEUES.lock().expect("CELERY queues mutex poisoned").clone()
 }
 
-#[allow(clippy::non_std_lazy_statics)]
 lazy_static::lazy_static! {
     /// CELERY_APP holds the high-level Celery application. Note: The Celery app is
     /// built separately from the Broker because it handles task routing/scheduling.
@@ -198,7 +188,7 @@ lazy_static::lazy_static! {
         AsyncOnce::new(async { generate_celery_app().await.unwrap_or_else(|err| {
             tracing::error!("{err:#}");
             #[allow(clippy::panic)]
-            panic!("{err:#}");
+            std::process::exit(1);
         })
     });
 }
@@ -256,18 +246,11 @@ async fn create_connection() -> Result<(Arc<Connection>, String)> {
 #[instrument]
 #[allow(clippy::too_many_lines)]
 pub async fn generate_celery_app() -> Result<Arc<Celery>> {
-    let prefetch_count: u16;
-    let acks_late: bool;
-    let task_max_retries: u32;
-    let broker_connection_max_retries: u32;
-    let heartbeat: u16;
-    unsafe {
-        prefetch_count = PREFETCH_COUNT_S;
-        acks_late = ACKS_LATE_S;
-        task_max_retries = TASK_MAX_RETRIES;
-        broker_connection_max_retries = BROKER_CONNECTION_MAX_RETRIES;
-        heartbeat = HEARTBEAT_SECS;
-    }
+    let prefetch_count = PREFETCH_COUNT_S.load(Ordering::SeqCst);
+    let acks_late = ACKS_LATE_S.load(Ordering::SeqCst);
+    let task_max_retries = TASK_MAX_RETRIES.load(Ordering::SeqCst);
+    let broker_connection_max_retries = BROKER_CONNECTION_MAX_RETRIES.load(Ordering::SeqCst);
+    let heartbeat = HEARTBEAT_SECS.load(Ordering::SeqCst);
     event!(
         Level::INFO,
         "prefetch_count: {}, acks_late: {}",

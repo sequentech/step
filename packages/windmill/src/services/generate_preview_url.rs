@@ -40,8 +40,7 @@ pub fn construct_preview_url(
         .map_err(|err| anyhow!("AWS_RVOTING_PORTAL_URLEGION env var missing: {err}"))?;
 
     let url = format!(
-        "{}/preview/{}/{}/{}/{}",
-        voting_portal_url, tenant_id, document_id, area_id, ballot_style_id
+        "{voting_portal_url}/preview/{tenant_id}/{document_id}/{area_id}/{ballot_style_id}"
     );
     Ok(url)
 }
@@ -76,8 +75,7 @@ pub async fn get_document_data(preview_file_path: &str) -> Result<(String, Strin
     let ballot_style_id = area_ballot_style
         .get("id")
         .and_then(Value::as_str)
-        .map(str::to_owned)
-        .unwrap_or_else(|| Uuid::new_v4().to_string());
+        .map_or_else(|| Uuid::new_v4().to_string(), str::to_owned);
 
     Ok((ballot_style_id, area_id))
 }

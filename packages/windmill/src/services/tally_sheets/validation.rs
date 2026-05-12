@@ -7,6 +7,7 @@ use crate::types::error::Result;
 use anyhow::anyhow;
 use sequent_core::ballot::{Candidate, Contest};
 use sequent_core::types::hasura::core::TallySheet;
+use sequent_core::types::tally_sheets::InvalidVotes;
 use std::collections::HashMap;
 use tracing::instrument;
 
@@ -34,7 +35,7 @@ pub fn validate_tally_sheet(tally_sheet: &TallySheet, contest: &Contest) -> Resu
             anyhow!("Invalid tally sheet {tally_sheet:?}, total_votes higher than census").into(),
         );
     }
-    let invalid_votes = results.invalid_votes.unwrap_or(Default::default());
+    let invalid_votes = results.invalid_votes.unwrap_or(InvalidVotes::default());
     let total_invalid_votes_calculated = invalid_votes
         .explicit_invalid
         .unwrap_or(0)
@@ -77,7 +78,7 @@ pub fn validate_tally_sheet(tally_sheet: &TallySheet, contest: &Contest) -> Resu
         .into_iter()
         .map(|candidate| (candidate.id.clone(), candidate.clone()))
         .collect();
-    for (candidate_id, candidate_data) in results.candidate_results.iter() {
+    for (candidate_id, candidate_data) in &results.candidate_results {
         if *candidate_id != candidate_data.candidate_id {
             return Err(anyhow!(
                 "Invalid tally sheet {tally_sheet:?}, inconsistent candidate result {candidate_data:?}, {candidate_id}",

@@ -62,7 +62,7 @@ pub async fn delete_realm_groups_and_roles(
         .filter_map(|g| g.name.clone())
         .collect();
 
-    for role in existing_roles.iter() {
+    for role in existing_roles {
         if let Some(name) = &role.name {
             if !imported_role_names.contains(name) {
                 keycloak_client
@@ -74,14 +74,22 @@ pub async fn delete_realm_groups_and_roles(
                     )
                     .await
                     .map_err(|e| anyhow!("Failed to send request: {e:?}"))?;
-                println!("Deleted role: {name}");
+                info!("Deleted role: {name}");
             }
         }
     }
 
-    for group in existing_groups.iter() {
+    for group in existing_groups {
         if let Some(name) = &group.name {
-            if !imported_group_names.contains(name) {
+            if imported_group_names.contains(name) {
+                // Update the group id in new_realm_groups
+                new_realm_groups
+                    .iter_mut()
+                    .find(|g| g.name == group.name)
+                    .ok_or(anyhow!("Can't find realm group"))?
+                    .id
+                    .clone_from(&group.id);
+            } else {
                 keycloak_client
                     .realm_delete(
                         &pub_keycloak_client,
@@ -90,14 +98,7 @@ pub async fn delete_realm_groups_and_roles(
                         group.id.as_ref().ok_or(anyhow!("Empty role id"))?,
                     )
                     .await?;
-                println!("Deleted group: {name}");
-            } else {
-                // Update the group id in new_realm_groups
-                new_realm_groups
-                    .iter_mut()
-                    .find(|g| g.name == group.name)
-                    .ok_or(anyhow!("Can't find realm group"))?
-                    .id = group.id.clone();
+                info!("Deleted group: {name}");
             }
         }
     }
@@ -123,6 +124,7 @@ pub fn find_group_by_name(
 ///
 /// Returns an error if clients cannot be created, CSV parsing fails, or Keycloak updates fail.
 #[instrument(err, skip_all)]
+#[allow(clippy::too_many_lines)]
 pub async fn read_roles_config_file(
     temp_file: NamedTempFile,
     realm: &RealmRepresentation,

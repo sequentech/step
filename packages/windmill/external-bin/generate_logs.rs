@@ -43,7 +43,7 @@ struct Cli {
 }
 
 #[derive(Deserialize, Debug)]
-/// Configuration for the generate_logs tool.
+/// Configuration for the `generate_logs` tool.
 struct Config {
     /// Immudb URL
     immudb_url: String,
@@ -67,7 +67,7 @@ fn sanitize_filename(name: &str) -> String {
         .collect()
 }
 
-/// Constructs the immudb board name from tenant_id and election_event_id.
+/// Constructs the immudb board name from `tenant_id` and `election_event_id`.
 /// Replicates logic from `packages/windmill/src/services/protocol_manager.rs`.
 fn get_event_board_name(tenant_id: &str, election_event_id: &str) -> String {
     let tenant: String = tenant_id
@@ -76,7 +76,7 @@ fn get_event_board_name(tenant_id: &str, election_event_id: &str) -> String {
         .filter(|&c| c != '-')
         .take(17)
         .collect();
-    format!("tenant{}event{}", tenant, election_event_id)
+    format!("tenant{tenant}event{election_event_id}")
         .chars()
         .filter(|&c| c != '-')
         .collect()
@@ -100,6 +100,7 @@ async fn connect_immudb(config: &Config) -> Result<Client> {
 }
 
 #[tokio::main]
+#[allow(clippy::too_many_lines)]
 async fn main() -> Result<()> {
     // Initialize tracing subscriber
     // Default to `info` level for this crate if RUST_LOG is not set.
@@ -155,7 +156,7 @@ async fn main() -> Result<()> {
     client
         .open_session(&board_name)
         .await
-        .with_context(|| format!("Failed to open session to board: {}", board_name))?;
+        .with_context(|| format!("Failed to open session to board: {board_name}"))?;
     info!(%board_name, "Successfully opened session to board.");
 
     let mut total_rows_fetched: i32 = 0;
@@ -237,17 +238,13 @@ async fn main() -> Result<()> {
                         Some(id) => config
                             .elections
                             .get(id)
-                            .map(|s| s.as_str())
-                            .unwrap_or(id)
-                            .to_string(),
+                            .map_or(id.clone(), String::to_string),
                         None => "general_logs".to_string(),
                     };
                     let sanitized_stem = sanitize_filename(&filename_stem_key);
 
                     if !csv_writers.contains_key(&sanitized_stem) {
-                        let csv_path = cli
-                            .output_folder_path
-                            .join(format!("{}.csv", sanitized_stem));
+                        let csv_path = cli.output_folder_path.join(format!("{sanitized_stem}.csv"));
                         info!(file_path = %csv_path.display(), election_id_key = %filename_stem_key, "Creating new CSV file.");
                         let file = File::create(&csv_path).with_context(|| {
                             format!("Failed to create CSV file: {}", csv_path.display())
@@ -279,10 +276,10 @@ async fn main() -> Result<()> {
     }
     info!("Finished processing all batches from Immudb stream.");
 
-    for (filename_stem, writer) in csv_writers.iter_mut() {
+    for (filename_stem, writer) in &mut csv_writers {
         writer
             .flush()
-            .with_context(|| format!("Failed to flush CSV writer for {}", filename_stem))?;
+            .with_context(|| format!("Failed to flush CSV writer for {filename_stem}"))?;
         info!(
             filename_stem,
             count = activity_log_written_counts.get(filename_stem).unwrap_or(&0),

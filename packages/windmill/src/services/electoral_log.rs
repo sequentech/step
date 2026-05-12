@@ -1636,7 +1636,12 @@ pub async fn list_cast_vote_messages(
     )
     .unwrap_or(0);
     let mut filter_matched = false; // Exit at the first match if the filter is not empty
-    while (list.len() as i64) < output_limit && (offset < total as i64) && !filter_matched {
+    let total_i64 = i64::try_from(total).with_context(|| "total to i64 conversion overflow")?;
+    while i64::try_from(list.len()).with_context(|| "list.len to i64 conversion overflow")?
+        < output_limit
+        && offset < total_i64
+        && !filter_matched
+    {
         let electoral_log_messages = client
             .get_electoral_log_messages_filtered(
                 &board_name,
@@ -1665,7 +1670,10 @@ pub async fn list_cast_vote_messages(
                 }
                 None => {}
             }
-            if (list.len() as i64) >= output_limit || filter_matched {
+            if i64::try_from(list.len()).with_context(|| "list.len to i64 conversion overflow")?
+                >= output_limit
+                || filter_matched
+            {
                 break;
             }
         }

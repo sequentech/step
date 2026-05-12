@@ -51,7 +51,7 @@ pub enum GoogleMeetError {
     ClientSecret(String),
     /// JSON parsing/serialization error.
     Json(String),
-    /// OAuth2 authentication error.
+    /// `OAuth2` authentication error.
     OAuth2(String),
     /// Google Calendar API error.
     GoogleApi(String),
@@ -83,13 +83,14 @@ impl std::fmt::Display for GoogleMeetError {
     }
 }
 
-#[instrument(skip(hasura_transaction), err)]
 /// Implementation function for generating Google Meet links
 /// Creates a calendar event with Google Meet integration using service account credentials
 ///
 /// # Errors
 ///
 /// Returns an error if tenant settings are missing, authentication fails, or the calendar event cannot be created.
+#[instrument(skip(hasura_transaction), err)]
+#[allow(clippy::too_many_lines)]
 pub async fn generate_google_meet_link_impl(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
@@ -171,7 +172,7 @@ pub async fn generate_google_meet_link_impl(
         );
     let hub = CalendarHub::new(client, auth);
 
-    let conference_data = ConferenceData {
+    let meet_conference_data = ConferenceData {
         create_request: Some(CreateConferenceRequest {
             request_id: Some(uuid::Uuid::new_v4().to_string()),
             conference_solution_key: Some(ConferenceSolutionKey {
@@ -189,7 +190,7 @@ pub async fn generate_google_meet_link_impl(
         description: Some(meeting_data.description.clone()),
         start: Some(start_datetime),
         end: Some(end_datetime),
-        conference_data: Some(conference_data),
+        conference_data: Some(meet_conference_data),
         attendees: Some(
             meeting_data
                 .attendee_emails
@@ -219,8 +220,8 @@ pub async fn generate_google_meet_link_impl(
             info!("Calendar event created successfully");
 
             // Extract Meet link from the response
-            if let Some(conference_data) = created_event.conference_data {
-                if let Some(entry_points) = conference_data.entry_points {
+            if let Some(response_conference_data) = created_event.conference_data {
+                if let Some(entry_points) = response_conference_data.entry_points {
                     for entry_point in entry_points {
                         if entry_point.entry_point_type == Some("video".to_string()) {
                             if let Some(uri) = entry_point.uri {

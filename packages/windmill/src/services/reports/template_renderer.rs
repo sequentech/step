@@ -40,7 +40,7 @@ use sequent_core::types::templates::{
     ReportOptions, SendTemplateBody, SmsConfig,
 };
 use sequent_core::types::to_map::ToMap;
-use sequent_core::util::temp_path::*;
+use sequent_core::util::temp_path::{generate_temp_file, get_file_size, read_temp_path};
 use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
 use std::fs;
@@ -264,12 +264,9 @@ pub trait TemplateRenderer: Debug {
         .with_context(|| "Error getting template alias for report")?;
         info!("template_alias: {:?}", &report_template_alias);
 
-        let template_alias = match report_template_alias {
-            Some(alias) => alias,
-            None => {
-                warn!("No template alias was found for report type: {report_type} when trying to get the custom user template.");
-                return Ok(None);
-            }
+        let Some(template_alias) = report_template_alias else {
+            warn!("No template alias was found for report type: {report_type} when trying to get the custom user template.");
+            return Ok(None);
         };
 
         let template_table_opt = template::get_template_by_alias(
@@ -282,18 +279,13 @@ pub trait TemplateRenderer: Debug {
 
         // Template table has a column with the same name "Template" which stores a Value,
         // being its atributes: document, sms, pdf_options, etc.
-        match template_table_opt {
-            Some(template_tbl) => {
-                let template_data: SendTemplateBody = deserialize_value(template_tbl.template)
-                    .map_err(|e| {
-                        anyhow!(format!("Error deserializing custom user template: {e:?}"))
-                    })?;
-                Ok(Some(template_data))
-            }
-            None => {
-                warn!("No {} template was found by id", self.base_name());
-                return Ok(None);
-            }
+        if let Some(template_tbl) = template_table_opt {
+            let template_data: SendTemplateBody = deserialize_value(template_tbl.template)
+                .map_err(|e| anyhow!(format!("Error deserializing custom user template: {e:?}")))?;
+            Ok(Some(template_data))
+        } else {
+            warn!("No {} template was found by id", self.base_name());
+            Ok(None)
         }
     }
 
@@ -307,31 +299,29 @@ pub trait TemplateRenderer: Debug {
         tpl_email_config: Option<EmailConfig>,
         tpl_sms_config: Option<SmsConfig>,
     ) -> Result<ReportExtraConfig> {
-        let (pdf_options, report_options, email_config, sms_config) = match tpl_pdf_options
-            .is_none()
+        let (pdf_options, report_options, email_config, sms_config) = if tpl_pdf_options.is_none()
             || tpl_report_options.is_none()
             || tpl_email_config.is_none()
             || tpl_sms_config.is_none()
         {
-            true => {
-                let def_ext_cfg: ReportExtraConfig = self
-                    .get_default_extra_config()
-                    .await
-                    .map_err(|e| anyhow!("Error getting default extra config: {e:?}"))?;
-                debug!("Default extra config read: {def_ext_cfg:?}");
-                (
-                    tpl_pdf_options.unwrap_or(def_ext_cfg.pdf_options),
-                    tpl_report_options.unwrap_or(def_ext_cfg.report_options),
-                    tpl_email_config.unwrap_or(def_ext_cfg.communication_templates.email_config),
-                    tpl_sms_config.unwrap_or(def_ext_cfg.communication_templates.sms_config),
-                )
-            }
-            false => (
+            let def_ext_cfg: ReportExtraConfig = self
+                .get_default_extra_config()
+                .await
+                .map_err(|e| anyhow!("Error getting default extra config: {e:?}"))?;
+            debug!("Default extra config read: {def_ext_cfg:?}");
+            (
+                tpl_pdf_options.unwrap_or(def_ext_cfg.pdf_options),
+                tpl_report_options.unwrap_or(def_ext_cfg.report_options),
+                tpl_email_config.unwrap_or(def_ext_cfg.communication_templates.email_config),
+                tpl_sms_config.unwrap_or(def_ext_cfg.communication_templates.sms_config),
+            )
+        } else {
+            (
                 tpl_pdf_options.unwrap_or_default(),
                 tpl_report_options.unwrap_or_default(),
                 tpl_email_config.unwrap_or_default(),
                 tpl_sms_config.unwrap_or_default(),
-            ),
+            )
         };
         Ok(ReportExtraConfig {
             pdf_options,
@@ -605,9 +595,12 @@ pub trait TemplateRenderer: Debug {
 
         let items_count = self.count_items(hasura_transaction).await?.unwrap_or(0);
         let report_options = ext_cfg.report_options.clone();
-        let per_report_limit = report_options
-            .max_items_per_report
-            .unwrap_or(DEFAULT_ITEMS_PER_REPORT_LIMIT) as i64;
+        let per_report_limit = i64::try_from(
+            report_options
+                .max_items_per_report
+                .unwrap_or(DEFAULT_ITEMS_PER_REPORT_LIMIT),
+        )
+        .map_err(|_| anyhow!("per-report item limit out of range"))?;
 
         info!("Items count: {items_count}, per report limit: {per_report_limit}");
         let zip_temp_dir = tempdir()?;
@@ -966,9 +959,7 @@ pub trait TemplateRenderer: Debug {
         tenant_id: &str,
         election_event_id: &str,
     ) -> Result<Vec<String>> {
-        if !recipients.is_empty() {
-            Ok(recipients) // If recipients are provided, use them
-        } else {
+        if recipients.is_empty() {
             // Fetch email via voter_id if recipients are not provided
             let voter_id = self
                 .get_voter_id()
@@ -986,6 +977,8 @@ pub trait TemplateRenderer: Debug {
             Ok(vec![voter.email.ok_or_else(|| {
                 anyhow!("Error sending email: no email provided")
             })?])
+        } else {
+            Ok(recipients) // If recipients are provided, use them
         }
     }
 }

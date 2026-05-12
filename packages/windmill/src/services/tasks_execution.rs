@@ -5,7 +5,7 @@
 //! Task execution bookkeeping: status transitions and persistence.
 
 use crate::postgres::tasks_execution::{insert_tasks_execution, update_task_execution_status};
-use crate::services::serialize_tasks_logs::*;
+use crate::services::serialize_tasks_logs::{append_general_log, general_start_log};
 use crate::types::tasks::ETasksExecution;
 use anyhow::{Context, Result};
 use sequent_core::types::hasura::core::TasksExecution;

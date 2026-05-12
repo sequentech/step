@@ -142,9 +142,10 @@ pub async fn count_keycloak_events_by_type(
         None => String::new(),
     };
 
-    let select_str = match no_duplicate_user {
-        true => "COUNT(DISTINCT e.user_id)",
-        false => "COUNT(*)",
+    let select_str = if no_duplicate_user {
+        "COUNT(DISTINCT e.user_id)"
+    } else {
+        "COUNT(*)"
     };
 
     let (ua_join_clause, area_id_clause) = match area_id {

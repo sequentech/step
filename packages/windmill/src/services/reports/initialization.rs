@@ -120,8 +120,7 @@ impl TemplateRenderer for InitializationTemplate {
             Ok(SystemData {
                 rendered_user_template,
                 file_qrcode_lib: format!(
-                    "{}/{}/{}",
-                    minio_endpoint_base, public_asset_path, PUBLIC_ASSETS_QRCODE_LIB
+                    "{minio_endpoint_base}/{public_asset_path}/{PUBLIC_ASSETS_QRCODE_LIB}"
                 ),
             })
         } else {

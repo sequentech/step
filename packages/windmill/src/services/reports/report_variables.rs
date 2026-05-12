@@ -211,6 +211,7 @@ pub async fn generate_election_area_votes_data(
 /// # Errors
 ///
 /// Returns an error if the calculation cannot be performed.
+#[allow(clippy::cast_precision_loss)]
 pub fn calc_voters_turnout(total_ballots: i64, registered_voters: i64) -> Result<Option<f64>> {
     if registered_voters == 0 {
         return Ok(Some(0.0));
@@ -430,18 +431,17 @@ pub async fn get_results_hash(
             tally_session
                 .election_ids
                 .as_ref()
-                .map(|ids| ids.contains(&election_id.to_string()))
-                .unwrap_or(false)
+                .is_some_and(|ids| ids.contains(&election_id.to_string()))
                 && tally_session.tally_type.clone().unwrap_or_default() == "ELECTORAL_RESULTS"
         })
         .collect::<Vec<_>>();
 
     // the first tally session is the latest one
-    let tally_session_id = if !tally_sessions.is_empty() {
-        &tally_sessions[0].id
-    } else {
-        return Err(anyhow!("No tally session yet"));
-    };
+    let tally_session_id = tally_sessions
+        .first()
+        .ok_or_else(|| anyhow!("No tally session yet"))?
+        .id
+        .as_str();
 
     let tally_session_executions = get_tally_session_executions(
         hasura_transaction,

@@ -38,6 +38,7 @@ pub struct ballot_design {
 ///
 /// Returns an error if the input cannot be read or deserialized.
 #[instrument(err, skip(replacement_map))]
+#[allow(clippy::implicit_hasher)]
 pub async fn import_ballot_publications(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
@@ -62,6 +63,7 @@ pub async fn import_ballot_publications(
 /// Returns an error if the input cannot be read/deserialized,
 /// the temp file cannot be written, or upload fails.
 #[instrument(err, skip(replacement_map))]
+#[allow(clippy::implicit_hasher)]
 pub async fn import_election_event_config_file(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
@@ -86,10 +88,10 @@ pub async fn import_election_event_config_file(
     let config_json = serde_json::to_string(&new_election_event_config)?;
 
     // Write to temp file
-    let mut temp_file = NamedTempFile::new()?;
-    temp_file.write_all(config_json.as_bytes())?;
+    let mut written_temp = NamedTempFile::new()?;
+    written_temp.write_all(config_json.as_bytes())?;
 
-    let temp_file_path = temp_file.path().to_string_lossy().to_string();
+    let temp_file_path = written_temp.path().to_string_lossy().to_string();
     let file_size = config_json.len() as u64;
 
     // Upload to S3 public bucket with election_event_id in path

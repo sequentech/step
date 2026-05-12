@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+#![allow(clippy::implicit_hasher)]
 //! Imports tally/results from a CSV file into the database.
 use crate::{
     postgres::{
@@ -77,11 +78,11 @@ async fn process_uuids(
 #[instrument(err, skip_all)]
 pub async fn get_replaced_id(
     record: &StringRecord,
-    index: i32,
+    index: usize,
     replacement_map: &HashMap<String, String>,
 ) -> Result<String> {
     let id: String = record
-        .get(index as usize)
+        .get(index)
         .ok_or_else(|| anyhow!("Missing column {index}"))
         .and_then(|s| deserialize_str(s).map_err(|e| anyhow!("Invalid JSON: {e:?}")))?;
     let new_id = replacement_map
@@ -103,7 +104,7 @@ pub async fn get_opt_i64_item(record: &StringRecord, index: usize) -> Result<Opt
         .get(index)
         .map(str::trim)
         .filter(|s| !s.is_empty() && *s != "null")
-        .map(|s| s.parse::<i64>())
+        .map(str::parse::<i64>)
         .transpose()
         .map_err(|err| anyhow!("Error parsing as i64 at column {index}: {err:?}"))?;
     Ok(item)
@@ -1012,12 +1013,7 @@ async fn process_results_area_contest_candidate_file(
         results_area_contests_candidates,
     )
     .await
-    .map_err(|err| {
-        anyhow!(
-            "Error at insert_many_results_area_contest_candidates {:?}",
-            err
-        )
-    })?;
+    .map_err(|err| anyhow!("Error at insert_many_results_area_contest_candidates {err:?}"))?;
 
     Ok(())
 }

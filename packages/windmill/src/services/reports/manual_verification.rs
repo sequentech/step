@@ -9,13 +9,15 @@
 
 use super::template_renderer::{ReportOriginatedFrom, ReportOrigins, TemplateRenderer};
 use crate::postgres::reports::{Report, ReportType};
-use crate::services::temp_path::*;
+use crate::services::temp_path::{
+    LOGO_TEMPLATE, PUBLIC_ASSETS_LOGO_IMG, PUBLIC_ASSETS_QRCODE_LIB, QR_CODE_TEMPLATE,
+};
 use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
 use deadpool_postgres::Transaction;
 use sequent_core::services::pdf;
 use sequent_core::services::s3::get_minio_url;
-use sequent_core::util::temp_path::*;
+use sequent_core::util::temp_path::get_public_assets_path_env_var;
 use serde::{Deserialize, Serialize};
 use std::env;
 use tracing::{info, instrument};

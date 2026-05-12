@@ -9,7 +9,6 @@ use csv::ReaderBuilder;
 use std::{cmp::Ordering, fs::File};
 use tracing::{info, instrument};
 
-#[instrument(skip_all, err)]
 /// Merge-join two headerless CSV streams sorted by voter id.
 ///
 /// Returns the joined output lines plus counters: ballots without voter, eligible voters, and casted ballots.
@@ -21,6 +20,8 @@ use tracing::{info, instrument};
 /// # Panics
 ///
 /// Panics if internal counters overflow while processing the input streams.
+#[instrument(skip_all, err)]
+#[allow(clippy::too_many_lines)]
 pub fn merge_join_csv(
     ballots_file: &File,
     voters_file: &File,

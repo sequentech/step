@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 //! Plugin-managed database transactions for Hasura and Keycloak connections.
+#![allow(clippy::future_not_send)] // for using ouroboros.
 use crate::services::database::{get_hasura_pool, get_keycloak_pool};
 use deadpool_postgres::{GenericClient, Object, Transaction};
 use serde_json::{Value, Map};
@@ -297,6 +298,7 @@ impl Host for PluginTransactionsManager {
 
     async fn commit_hasura_transaction(&mut self) -> Result<(), String> {
         let mut manager = self.hasura_manager.lock().await;
+        #[allow(clippy::redundant_closure_for_method_calls)]
         let hasura_transaction: Transaction<'_> = manager
             .with_txn_mut(|opt| opt.take())
             .ok_or("No transaction")?;
@@ -309,6 +311,7 @@ impl Host for PluginTransactionsManager {
 
     async fn commit_keycloak_transaction(&mut self) -> Result<(), String> {
         let mut manager = self.keycloak_manager.lock().await;
+        #[allow(clippy::redundant_closure_for_method_calls)]
         let keycloak_transaction: Transaction<'_> = manager
             .with_txn_mut(|opt| opt.take())
             .ok_or("No transaction")?;
