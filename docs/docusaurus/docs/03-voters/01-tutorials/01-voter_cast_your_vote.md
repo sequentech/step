@@ -17,7 +17,7 @@ To participate in the election, follow the steps below to authenticate, select y
 
 ## Step 1: Login to the Voting Portal
 
-![Voter Login Page](./../assets/voter_login.png)
+![Voter Login Page](./assets/voter_login.png)
 
 1. Enter your login credentials (username and password).
 2. Select `Login`.
@@ -28,7 +28,7 @@ To participate in the election, follow the steps below to authenticate, select y
 
 ## Step 2: Select Your Ballot
 
-![Ballot List](./../assets/voter_ballot_list_not_voted.png)
+![Ballot List](./assets/voter_ballot_list_not_voted.png)
 
 From the dashboard, you will see a list of ballots available to you. Note that multiple ballots may appear depending on your eligibility.
 
@@ -37,7 +37,7 @@ From the dashboard, you will see a list of ballots available to you. Note that m
 
 ## Step 3: Review Instructions
 
-![Voter Instructions](./../assets/voter_instructions.png)
+![Voter Instructions](./assets/voter_instructions.png)
 
 Before beginning, the system provides simple instructions on how to navigate the digital ballot.
 
@@ -46,7 +46,7 @@ Before beginning, the system provides simple instructions on how to navigate the
 
 ## Step 4: Mark Your Ballot
 
-![Ballot Marking](./../assets/voter_candidate_selection.png)
+![Ballot Marking](./assets/voter_candidate_selection.png)
 
 This screen is where you choose your candidates and make your selections.
 
@@ -61,7 +61,7 @@ This screen is where you choose your candidates and make your selections.
 
 ## Step 5: Review and Cast Your Vote
 
-![Ballot Review](./../assets/voter_ballot_review.png)
+![Ballot Review](./assets/voter_ballot_review.png)
 
 This stage allows you to verify your choices before they are permanently recorded.
 
@@ -75,7 +75,7 @@ This stage allows you to verify your choices before they are permanently recorde
 
 ## Step 6: Confirmation and Receipt
 
-![Voter Receipt](./../assets/voter_ballot_receipt.png)
+![Voter Receipt](./assets/voter_ballot_receipt.png)
 
 Once submitted, the confirmation screen verifies that your vote was successfully cast.
 
