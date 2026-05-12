@@ -3,6 +3,11 @@
 
 SPDX-License-Identifier: AGPL-3.0-only
 */
+html {
+  /* Force scrollbar to always show. Prevents layout shift when it appears */
+  overflow-y: scroll;
+}
+
 body {
   margin: 0;
   font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;

@@ -10,6 +10,15 @@ const basqueTranslation: TranslationType = {
             showMore: "Erakutsi Gehiago",
             showLess: "Erakutsi Gutxiago",
         },
+        candidatesList: {
+            collapseToggle: "{{listTitle}} zerrenda txandakatu",
+            showCandidates: "Hautagaiak erakutsi",
+            hideCandidates: "Hautagaiak ezkutatu",
+            selectedCandidate: "{{count}} hautagai hautatuta",
+            selectedCandidates: "{{count}} hautagai hautatuta",
+            expandAll: "Dena zabaldu",
+            collapseAll: "Dena tolestu",
+        },
         breadcrumbSteps: {
             electionList: "Bozketa Zerrenda",
             ballot: "Bozketa",
