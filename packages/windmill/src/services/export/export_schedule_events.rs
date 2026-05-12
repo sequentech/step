@@ -72,7 +72,7 @@ pub async fn write_export_document(
         ]
     };
 
-    let name = format!("scheduled_events-{}", election_event_id);
+    let name = format!("scheduled_events-{election_event_id}");
 
     let mut writer = Writer::from_writer(vec![]);
     writer.write_record(&headers)?;

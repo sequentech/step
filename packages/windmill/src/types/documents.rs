@@ -30,7 +30,8 @@ pub enum EDocuments {
 
 impl EDocuments {
     /// Base filename segment used when writing this document into an export archive.
-    pub fn to_file_name(&self) -> &str {
+    #[must_use]
+    pub const fn to_file_name(&self) -> &str {
         match self {
             EDocuments::ELECTION_EVENT => "export_election_event",
             EDocuments::VOTERS => "export_voters",
@@ -70,7 +71,8 @@ pub enum ETallyDocuments {
 
 impl ETallyDocuments {
     /// Base filename segment used when exporting this tally document.
-    pub fn to_file_name(&self) -> &str {
+    #[must_use]
+    pub const fn to_file_name(&self) -> &str {
         match self {
             ETallyDocuments::TALLY_SESSION => "export_tally_session",
             ETallyDocuments::TALLY_SESSION_CONTEST => "export_tally_session_contest",

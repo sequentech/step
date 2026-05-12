@@ -22,7 +22,12 @@ use base64::Engine;
 use deadpool_postgres::Transaction;
 use electoral_log::assign_value;
 use electoral_log::messages::message::{Message, SigningData};
-use electoral_log::messages::newtypes::{CertificateAuthEventAction, *};
+use electoral_log::messages::newtypes::{
+    BallotPublicationIdString, CastVoteErrorString, CastVoteHash, CertificateAuthEventAction,
+    ContestIdString, ElectionIdString, ErrorMessageString, EventIdString, KeycloakEventTypeString,
+    PseudonymHash, PublicKeyDerB64, TenantIdString, TrusteeNameString, VoterCountryString,
+    VoterIpString, VotingChannelString,
+};
 use electoral_log::messages::statement::{StatementBody, StatementType};
 use electoral_log::{
     ElectoralLogMessage, ElectoralLogVarCharColumn, SqlCompOperators, WhereClauseBTreeMap,

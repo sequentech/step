@@ -31,7 +31,7 @@ use sequent_core::types::hasura::core::TasksExecution;
 use sequent_core::types::hasura::extra::TasksExecutionStatus;
 use sequent_core::util::path::get_folder_name;
 use sequent_core::util::path::list_subfolders;
-use sequent_core::util::temp_path::*;
+use sequent_core::util::temp_path::{generate_temp_file, get_file_size};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use std::collections::HashMap;
@@ -123,6 +123,7 @@ async fn create_config(
     let mut file = fs::OpenOptions::new()
         .write(true)
         .create(true)
+        .truncate(true)
         .open(&config_path)?;
 
     writeln!(file, "{}", serde_json::to_string(&velvet_config)?)?;
@@ -362,7 +363,10 @@ mod generate_template_task {
     #![allow(missing_docs)]
     #![allow(clippy::missing_docs_in_private_items)]
 
-    use super::*;
+    use super::{
+        acquire_semaphore, anyhow, generate_template_block, instrument, Context, EGenerateTemplate,
+        Error, Result, TaskError, TasksExecution,
+    };
 
     /// Celery task: rate-limits template jobs then runs the blocking template renderer.
     ///

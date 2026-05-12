@@ -389,7 +389,12 @@ mod scheduled_events_celery {
     #![allow(missing_docs)]
     #![allow(clippy::missing_docs_in_private_items)]
 
-    use super::*;
+    use super::{
+        anyhow, event, find_all_active_events, get_celery_app, get_datetime, get_hasura_pool,
+        handle_allow_init_report, handle_allow_voting_period_end, handle_election_allow_tally,
+        handle_election_event_enrollment, handle_election_lockdown, handle_voting_event, info,
+        instrument, DbClient, Duration, EventProcessors, Level, Result, TaskError, ISO8601,
+    };
 
     /// Celery task: loads active scheduled rows due soon and dispatches the matching scheduled events tasks.
     ///

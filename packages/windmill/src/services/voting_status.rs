@@ -137,7 +137,7 @@ pub async fn update_election_status(
                 &tenant_id,
                 user_id,
                 username,
-                election_event.id.to_string(),
+                election_event.id.clone(),
                 election_event.bulletin_board_reference.clone(),
                 *voting_status,
                 voting_channel,
@@ -249,7 +249,7 @@ pub async fn update_board_on_status_change(
                 .await
                 .with_context(|| "error posting to the electoral log")?;
         }
-    };
+    }
     Ok(())
 }
 
@@ -343,7 +343,7 @@ pub fn get_election_status_info(election: &Election) -> ElectionStatusInfo {
                 }
             }
         }
-    };
+    }
 
     ElectionStatusInfo {
         total_not_started_votes,

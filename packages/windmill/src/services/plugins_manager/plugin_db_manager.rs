@@ -40,6 +40,7 @@ impl PluginDbManager {
     /// # Panics
     ///
     /// Panics if the self-referential wrapper cannot be constructed.
+    #[must_use]
     pub fn init() -> Self {
         PluginDbManager::try_new(None, |_client_ref| Ok(None) as Result<_, String>)
             .expect("Failed to create TransactionComponent")

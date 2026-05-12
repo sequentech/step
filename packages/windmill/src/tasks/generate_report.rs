@@ -34,7 +34,7 @@ use tracing::instrument;
 /// # Errors
 ///
 /// Fails on DB pool or transaction errors, unknown report types, template rendering failures, or commit errors.
-pub async fn generate_report(
+pub async fn generate_report_impl(
     report: Report,
     document_id: String,
     report_mode: GenerateReportMode,
@@ -76,7 +76,7 @@ pub async fn generate_report(
         Err(err) => {
             if let Some(ref task_exec) = task_execution {
                 let _ = update_fail(task_exec, "Failed to get Hasura DB pool").await;
-            };
+            }
             return Err(anyhow!("Error starting Hasura transaction: {err}"));
         }
     };
@@ -161,7 +161,10 @@ mod generate_report_task {
     #![allow(missing_docs)]
     #![allow(clippy::missing_docs_in_private_items)]
 
-    use super::*;
+    use super::{
+        acquire_semaphore, anyhow, generate_report_impl, instrument, update_fail, Context, Error,
+        GenerateReportMode, Report, Result, TaskError, TasksExecution,
+    };
 
     /// Celery task: acquires the reports semaphore and runs the report pipeline on the blocking pool.
     ///
@@ -186,7 +189,7 @@ mod generate_report_task {
         let handle = tokio::task::spawn_blocking({
             move || {
                 tokio::runtime::Handle::current().block_on(async move {
-                    generate_report(
+                    generate_report_impl(
                         report,
                         document_id,
                         report_mode,

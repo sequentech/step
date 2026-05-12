@@ -7,7 +7,7 @@
 
 use crate::services::database::get_hasura_pool;
 use crate::services::export::export_tenant_config::process_export_zip;
-use crate::services::tasks_execution::*;
+use crate::services::tasks_execution::{update_complete, update_fail};
 use crate::types::error::{Error, Result};
 use anyhow::Context;
 use celery::error::TaskError;
@@ -84,9 +84,9 @@ pub async fn export_tenant_config(
             }
             return Err(Error::String(err_str));
         }
-    };
+    }
 
-    update_complete(&task_execution, Some(document_id.to_string()))
+    update_complete(&task_execution, Some(document_id.clone()))
         .await
         .context("Failed to update task execution status to COMPLETED")?;
 

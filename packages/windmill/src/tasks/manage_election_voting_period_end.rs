@@ -4,7 +4,7 @@
 //! Updates election presentation voting-period-end flags based on a scheduled event.
 use crate::postgres::election::{get_election_by_id, update_election_presentation};
 use crate::postgres::election_event::get_election_event_by_id;
-use crate::postgres::scheduled_event::*;
+use crate::postgres::scheduled_event::{find_scheduled_event_by_id, stop_scheduled_event};
 use crate::services::database::get_hasura_pool;
 use crate::services::pg_lock::PgLock;
 use crate::services::providers::transactions_provider::provide_hasura_transaction;
@@ -19,7 +19,7 @@ use deadpool_postgres::Transaction;
 use sequent_core::ballot::{ElectionPresentation, VotingPeriodEnd, VotingStatus};
 use sequent_core::serialization::deserialize_with_path::{self, deserialize_value};
 use sequent_core::services::date::ISO8601;
-use sequent_core::types::scheduled_event::*;
+use sequent_core::types::scheduled_event::ManageAllowVotingPeriodEndPayload;
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
 use tracing::{error, event, info, Level};
@@ -98,7 +98,10 @@ mod manage_election_voting_period_end_task {
     #![allow(missing_docs)]
     #![allow(clippy::missing_docs_in_private_items)]
 
-    use super::*;
+    use super::{
+        info, instrument, manage_election_voting_period_end_wrapped, provide_hasura_transaction,
+        Context, Duration, PgLock, Result, TaskError, Uuid, ISO8601,
+    };
 
     #[instrument(err)]
     #[wrap_map_err::wrap_map_err(TaskError)]

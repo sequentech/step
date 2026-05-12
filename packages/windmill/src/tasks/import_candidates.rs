@@ -5,7 +5,7 @@
 use crate::postgres::candidate::insert_candidates;
 use crate::postgres::contest::export_contests;
 use crate::postgres::election_event::get_election_event_by_id;
-use crate::services::tasks_execution::*;
+use crate::services::tasks_execution::{update_complete, update_fail};
 use crate::{
     postgres::document::get_document,
     services::{database::get_hasura_pool, documents::get_document_as_temp_file},
@@ -273,7 +273,7 @@ fn get_contest_from_postcode(contests: &Vec<Contest>, postcode: &str) -> Result<
                 if let Some(i18n) = contest_presentation.i18n.clone() {
                     if let Some(en) = i18n.get("en") {
                         if let Some(en_alias_opt) = en.get("alias") {
-                            if en_alias_opt.clone().unwrap_or("".to_string()) == contest_name {
+                            if en_alias_opt.clone().unwrap_or_default() == contest_name {
                                 return Ok(Some(contest.id.clone()));
                             }
                         }
@@ -291,7 +291,14 @@ mod import_candidates_task {
     #![allow(missing_docs)]
     #![allow(clippy::missing_docs_in_private_items)]
 
-    use super::*;
+    use super::{
+        anyhow, event, export_contests, get_contest_from_postcode, get_document,
+        get_document_as_temp_file, get_election_event_by_id, get_hasura_pool,
+        get_political_party_extension, info, insert_candidates, instrument, integrity_check,
+        update_complete, update_fail, BufReader, Candidate, CandidatePresentation, Context,
+        DbClient, DecodeReaderBytesBuilder, HashFileVerifyError, HashMap, Level, Result, Seek,
+        TasksExecution, Uuid, WINDOWS_1252,
+    };
 
     /// Celery task: parses a fixed-layout candidate CSV, maps parties and contests, and bulk-inserts [`Candidate`] rows.
     ///

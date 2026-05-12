@@ -186,7 +186,7 @@ mod set_public_key_task {
     #![allow(missing_docs)]
     #![allow(clippy::missing_docs_in_private_items)]
 
-    use super::*;
+    use super::{instrument, set_public_key_impl, Result, TaskError};
 
     /// Celery task: pulls the published mixnet public key for a keys ceremony and persists trustee/ceremony status.
     #[instrument(err)]

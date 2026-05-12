@@ -237,7 +237,7 @@ pub async fn import_bulletin_boards(
 
     // Validate headers
     info!("headers: {headers:?}");
-    for header in headers.iter() {
+    for header in &headers {
         if !HEADER_RE.is_match(header) {
             return Err(anyhow!(
                 "CSV Header contains characters not allowed: {header}"

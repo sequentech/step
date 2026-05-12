@@ -77,7 +77,7 @@ pub async fn insert_election_event_anyhow(
     };
 
     match insert_election_event_db(&hasura_transaction, &final_object).await {
-        Ok(_) => (),
+        Ok(()) => (),
         Err(err) => {
             update_fail(
                 &task_execution,
@@ -88,7 +88,7 @@ pub async fn insert_election_event_anyhow(
                 "Failed to update task execution status to COMPLETED {err}"
             ));
         }
-    };
+    }
 
     let board = upsert_b3_and_elog(
         &hasura_transaction,
@@ -109,12 +109,12 @@ pub async fn insert_election_event_anyhow(
         })?;
 
     match hasura_transaction.commit().await {
-        Ok(_) => (),
+        Ok(()) => (),
         Err(err) => {
             update_fail(&task_execution, "Failed to commit Hasura transaction").await?;
             return Err(anyhow!("Failed to commit Hasura transaction: {err}"));
         }
-    };
+    }
 
     update_complete(&task_execution, None)
         .await
@@ -151,7 +151,10 @@ mod insert_election_event_t_task {
     #![allow(missing_docs)]
     #![allow(clippy::missing_docs_in_private_items)]
 
-    use super::*;
+    use super::{
+        insert_election_event_anyhow, instrument, CreateElectionEventInput, Result, TaskError,
+        TasksExecution,
+    };
 
     /// Celery task: provisions realm and Hasura rows for a new election event import.
     ///

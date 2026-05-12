@@ -34,7 +34,11 @@ mod import_election_event_task {
     #![allow(missing_docs)]
     #![allow(clippy::missing_docs_in_private_items)]
 
-    use super::*;
+    use super::{
+        import_election_event_service, info, instrument, provide_hasura_transaction,
+        update_complete, update_fail, vacuum_analyze_direct, Result, TaskError, TasksExecution,
+    };
+
     /// Celery task: import election event data from a document.
     #[instrument(err)]
     #[wrap_map_err::wrap_map_err(TaskError)]

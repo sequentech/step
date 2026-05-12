@@ -119,7 +119,7 @@ mod create_keys_task {
     #![allow(missing_docs)]
     #![allow(clippy::missing_docs_in_private_items)]
 
-    use super::*;
+    use super::{create_keys_impl, instrument, Context, Error, Result, TaskError};
 
     /// Celery task: create public keys for a keys ceremony.
     #[instrument(err)]

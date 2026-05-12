@@ -6,7 +6,7 @@ use crate::types::error::Result;
 
 use anyhow::anyhow;
 use aws_sdk_sns::{types::MessageAttributeValue, Client as AwsSnsClient};
-use sequent_core::serialization::deserialize_with_path::*;
+use sequent_core::serialization::deserialize_with_path::deserialize_str;
 use sequent_core::util::aws::get_from_env_aws_config;
 use std::collections::HashMap;
 use tracing::{event, instrument, Level};

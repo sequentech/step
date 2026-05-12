@@ -1447,6 +1447,7 @@ impl AttributesFilterOption {
     /// # Panics
     ///
     /// Panics if `index` is zero (would underflow the name placeholder index).
+    #[must_use]
     pub fn get_sql_filter_clause(&self, index: usize) -> String {
         let filter_option = self;
         let name_param = index

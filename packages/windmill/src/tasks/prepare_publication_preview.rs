@@ -44,7 +44,10 @@ mod prepare_publication_preview_task {
     #![allow(missing_docs)]
     #![allow(clippy::missing_docs_in_private_items)]
 
-    use super::*;
+    use super::{
+        get_hasura_pool, instrument, update_complete, update_fail, Result, TaskError,
+        TasksExecution,
+    };
 
     /// Celery task: build a JSON publication preview and mark a document complete on success.
     #[instrument(err)]
@@ -78,8 +81,8 @@ mod prepare_publication_preview_task {
         .await;
 
         match result {
-            Ok(document_id) => {
-                let _res = update_complete(&task_execution, Some(document_id.clone())).await;
+            Ok(result_document_id) => {
+                let _res = update_complete(&task_execution, Some(result_document_id.clone())).await;
                 Ok(())
             }
             Err(err) => {
@@ -156,7 +159,7 @@ pub async fn prepare_publication_preview_task(
         file_size,
         "application/json",
         &tenant_id,
-        Some(election_event_id.to_string()),
+        Some(election_event_id.clone()),
         &doc_name_s3,
         Some(document_id.clone()),
         true,

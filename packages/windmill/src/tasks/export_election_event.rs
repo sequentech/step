@@ -6,7 +6,7 @@
 
 use crate::services::database::get_hasura_pool;
 use crate::services::export::export_election_event::process_export_zip;
-use crate::services::tasks_execution::*;
+use crate::services::tasks_execution::{update_complete, update_fail};
 use crate::types::error::{Error, Result};
 use anyhow::Context;
 use celery::error::TaskError;
@@ -48,7 +48,10 @@ mod export_election_event_task {
     #![allow(missing_docs)]
     #![allow(clippy::missing_docs_in_private_items)]
 
-    use super::*;
+    use super::{
+        event, get_hasura_pool, instrument, process_export_zip, update_complete, update_fail,
+        Context, DbClient, Error, ExportOptions, Level, Result, TaskError, TasksExecution,
+    };
 
     /// Celery task: export an election event as a ZIP.
     #[instrument(err)]
@@ -123,7 +126,7 @@ mod export_election_event_task {
             }
         }
 
-        update_complete(&task_execution, Some(document_id.to_string()))
+        update_complete(&task_execution, Some(document_id.clone()))
             .await
             .context("Failed to update task execution status to COMPLETED")?;
 

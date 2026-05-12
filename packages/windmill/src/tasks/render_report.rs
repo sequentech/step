@@ -39,7 +39,10 @@ mod render_report_celery {
     #![allow(missing_docs)]
     #![allow(clippy::missing_docs_in_private_items)]
 
-    use super::*;
+    use super::{
+        acquire_semaphore, get_hasura_pool, instrument, render_report_task, DbClient,
+        RenderTemplateBody, Result, TaskError,
+    };
 
     /// Celery task: renders `input` inside a blocking Hasura transaction using the shared Postgres render helper.
     ///
@@ -77,11 +80,11 @@ mod render_report_celery {
                         .map_err(|err| format!("{err}"))?;
 
                     match hasura_transaction.commit().await {
-                        Ok(_) => (),
+                        Ok(()) => (),
                         Err(err) => {
                             return Err(format!("Commit failed: {err}"));
                         }
-                    };
+                    }
                     Ok(())
                 })
             }

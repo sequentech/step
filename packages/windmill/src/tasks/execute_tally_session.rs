@@ -1501,7 +1501,10 @@ mod execute_tally_session_task {
     #![allow(missing_docs)]
     #![allow(clippy::missing_docs_in_private_items)]
 
-    use super::*;
+    use super::{
+        acquire_semaphore, info, instrument, transactions_wrapper, ChronoDuration, Duration, Error,
+        PgLock, Result, TaskError, Uuid, ISO8601,
+    };
 
     /// Celery task: executes a tally session.
     #[instrument(err)]

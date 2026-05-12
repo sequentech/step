@@ -96,7 +96,7 @@ mod delete_election_event_task {
     #![allow(missing_docs)]
     #![allow(clippy::missing_docs_in_private_items)]
 
-    use super::*;
+    use super::{instrument, update_complete, update_fail, Result, TaskError, TasksExecution};
 
     /// Celery task: hard-delete an election event and mark task execution complete or failed.
     #[instrument(err)]

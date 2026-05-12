@@ -146,7 +146,10 @@ mod insert_tenant_task {
     #![allow(missing_docs)]
     #![allow(clippy::missing_docs_in_private_items)]
 
-    use super::*;
+    use super::{
+        event, instrument, process_insert_tenant, update_complete, update_fail, Context, Level,
+        Result, TaskError, TasksExecution,
+    };
 
     /// Celery task: provisions tenant realm and DB row, optionally updating the linked task execution.
     #[instrument(err)]

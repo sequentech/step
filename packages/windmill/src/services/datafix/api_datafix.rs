@@ -3,8 +3,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 //! Datafix operations: resolve a datafix-scoped election event, then mutate the
 //! matching Keycloak voter (create, update, disable, mark voted, PIN rotation) using admin APIs.
-use super::types::*;
-use super::utils::*;
+use super::types::{DatafixResponse, JsonErrorResponse, MarkVotedBody, VoterInformationBody};
+use super::utils::{find_user_area_by_name, get_event_id_and_datafix_annotations, get_user_id};
 
 use crate::services::users::{list_users, FilterOption, ListUsersFilter};
 use anyhow::Result;

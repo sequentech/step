@@ -171,7 +171,7 @@ pub async fn get_upload_url(
             name,
         ),
     };
-    let url = s3::get_upload_url(path.to_string(), is_public, is_local.unwrap_or(false)).await?;
+    let url = s3::get_upload_url(path.clone(), is_public, is_local.unwrap_or(false)).await?;
 
     Ok((document, url))
 }

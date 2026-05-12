@@ -132,7 +132,7 @@ pub async fn read_trustees_config(
     .await;
 
     match res {
-        Ok(_) => {
+        Ok(()) => {
             update_complete(task_execution, Some(document_id.to_string()))
                 .await
                 .context("Failed to update task execution status to COMPLETED")?;

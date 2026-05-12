@@ -112,7 +112,7 @@ impl HookValue {
 
     /// Returns the contained integer when this is a numeric value.
     #[must_use]
-    pub fn as_i32(&self) -> Option<i32> {
+    pub const fn as_i32(&self) -> Option<i32> {
         match self {
             HookValue::S32(v) => Some(*v),
             HookValue::U32(v) => Some(*v as i32),

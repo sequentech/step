@@ -109,7 +109,10 @@ mod import_templates_celery_task {
     #![allow(missing_docs)]
     #![allow(clippy::missing_docs_in_private_items)]
 
-    use super::*;
+    use super::{
+        import_templates, instrument, provide_hasura_transaction, update_complete, update_fail,
+        Result, TaskError, TasksExecution,
+    };
 
     /// Celery task: import templates from a CSV file.
     #[instrument(err)]

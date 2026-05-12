@@ -57,7 +57,7 @@ pub async fn export_tasks_execution(
         Err(err) => {
             return Err(Error::String(format!("Commit failed: {err}")));
         }
-    };
+    }
 
     Ok(())
 }

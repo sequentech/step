@@ -33,7 +33,10 @@ mod export_users_task {
     #![allow(missing_docs)]
     #![allow(clippy::missing_docs_in_private_items)]
 
-    use super::*;
+    use super::{
+        export_users_file, get_hasura_pool, insert_document, instrument, s3, update_complete,
+        update_fail, util, Context, DbClient, Error, ExportBody, Result, TaskError, TasksExecution,
+    };
 
     /// Celery task: export voter rows to CSV, upload to the private bucket, and register a document.
     #[instrument(err)]
@@ -87,10 +90,10 @@ mod export_users_task {
                 election_event_id,
                 ..
             } => (
-                tenant_id.to_string(),
+                tenant_id.clone(),
                 election_event_id.clone().unwrap_or_default(),
             ),
-            ExportBody::TenantUsers { tenant_id } => (tenant_id.to_string(), "".to_string()),
+            ExportBody::TenantUsers { tenant_id } => (tenant_id.clone(), String::new()),
         };
 
         let timestamp = match util::date::timestamp() {
@@ -151,7 +154,7 @@ mod export_users_task {
         .map_err(|err| format!("Error inserting document: {err:?}"))?;
 
         if let Some(task_execution) = &task_execution {
-            update_complete(task_execution, Some(document_id.to_string()))
+            update_complete(task_execution, Some(document_id.clone()))
                 .await
                 .context("Failed to update task execution status to COMPLETED")?;
         }

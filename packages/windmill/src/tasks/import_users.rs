@@ -7,7 +7,7 @@ use crate::postgres::maintenance::vacuum_analyze_direct;
 use crate::services::database::get_hasura_pool;
 use crate::services::documents::get_document_as_temp_file;
 use crate::services::import::import_users::import_users_file;
-use crate::services::tasks_execution::*;
+use crate::services::tasks_execution::{update_complete, update_fail};
 use crate::types::error::{Error, Result};
 use anyhow::{anyhow, Context};
 use celery::error::TaskError;
@@ -40,7 +40,7 @@ pub struct ImportUsersBody {
 }
 
 /// Default for [`ImportUsersBody::is_admin`] when the field is omitted in JSON.
-fn default_is_admin() -> bool {
+const fn default_is_admin() -> bool {
     false
 }
 
@@ -93,7 +93,11 @@ mod import_users_task {
     #![allow(missing_docs)]
     #![allow(clippy::missing_docs_in_private_items)]
 
-    use super::*;
+    use super::{
+        get_hasura_pool, import_users_file, info, instrument, integrity_check, update_complete,
+        update_fail, vacuum_analyze_direct, Context, DbClient, Error, GenericClient,
+        HashFileVerifyError, ImportUsersBody, Result, Seek, TaskError, TasksExecution,
+    };
 
     /// Celery task: validates optional file hash, imports the users into Keycloak.
     ///
@@ -142,7 +146,7 @@ mod import_users_task {
 
         match body.sha256.clone() {
             Some(hash) if !hash.is_empty() => match integrity_check(&voters_file, hash) {
-                Ok(_) => {
+                Ok(()) => {
                     info!("Hash verified !");
                 }
                 Err(HashFileVerifyError::HashMismatch(input_hash, gen_hash)) => {
@@ -171,7 +175,7 @@ mod import_users_task {
         )
         .await
         {
-            Ok(_) => {
+            Ok(()) => {
                 // Execute database maintenance
                 info!("Performing mainteinance after users import.");
                 vacuum_analyze_direct().await?;

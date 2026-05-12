@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 //! Opens or closes voting for an election event on schedule.
-use crate::postgres::scheduled_event::*;
+use crate::postgres::scheduled_event::{find_scheduled_event_by_id, stop_scheduled_event};
 use crate::services::database::get_hasura_pool;
 use crate::services::election_event_status::update_event_voting_status;
 use crate::services::pg_lock::PgLock;
@@ -14,7 +14,7 @@ use deadpool_postgres::Client as DbClient;
 use deadpool_postgres::Transaction;
 use sequent_core::ballot::{ElectionStatus, InitReport, VotingStatus, VotingStatusChannel};
 use sequent_core::services::date::ISO8601;
-use sequent_core::types::scheduled_event::*;
+use sequent_core::types::scheduled_event::EventProcessors;
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
 use tracing::{event, info, Level};
@@ -79,7 +79,10 @@ mod manage_election_event_date_task {
     #![allow(missing_docs)]
     #![allow(clippy::missing_docs_in_private_items)]
 
-    use super::*;
+    use super::{
+        anyhow, get_hasura_pool, instrument, manage_election_event_date_wrapped, DbClient,
+        Duration, PgLock, Result, TaskError, Uuid, ISO8601,
+    };
 
     /// Celery task: manages the election event scheduled dates for open/close voting.
     #[instrument(err)]

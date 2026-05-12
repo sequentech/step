@@ -90,7 +90,10 @@ mod manual_verification_report_task {
     #![allow(missing_docs)]
     #![allow(clippy::missing_docs_in_private_items)]
 
-    use super::*;
+    use super::{
+        anyhow, generate_report, instrument, Context, Error, GenerateReportMode, Report, Result,
+        TaskError,
+    };
 
     /// Celery task: generate a manual verification report.
     #[instrument(err)]

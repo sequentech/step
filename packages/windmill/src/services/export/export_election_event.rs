@@ -816,7 +816,7 @@ pub async fn process_export_zip(
         .map_err(|e| anyhow!("Error finalizing ZIP file: {e:?}"))?;
 
     // Encrypt ZIP file if required
-    let encryption_password = export_config.password.unwrap_or(String::new());
+    let encryption_password = export_config.password.unwrap_or_default();
     if encryption_password.is_empty() && (export_config.bulletin_board || export_config.reports) {
         return Err(anyhow!("Bulletin Board requires password"));
     }

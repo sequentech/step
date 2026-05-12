@@ -5,7 +5,7 @@
 use crate::postgres::election_event::{
     get_election_event_by_id, update_election_event_presentation,
 };
-use crate::postgres::scheduled_event::*;
+use crate::postgres::scheduled_event::{find_scheduled_event_by_id, stop_scheduled_event};
 use crate::services::providers::transactions_provider::provide_hasura_transaction;
 use crate::services::voting_status::{self};
 use crate::types::error::{Error, Result};
@@ -16,7 +16,7 @@ use deadpool_postgres::Transaction;
 use sequent_core::ballot::{ElectionEventPresentation, Enrollment};
 use sequent_core::serialization::deserialize_with_path::{self, deserialize_value};
 use sequent_core::services::keycloak::{get_event_realm, KeycloakAdminClient};
-use sequent_core::types::scheduled_event::*;
+use sequent_core::types::scheduled_event::EventProcessors;
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
 use tracing::{error, event, info, Level};
@@ -196,7 +196,10 @@ mod manage_election_event_enrollment_task {
     #![allow(missing_docs)]
     #![allow(clippy::missing_docs_in_private_items)]
 
-    use super::*;
+    use super::{
+        instrument, manage_election_event_enrollment_wrapped, provide_hasura_transaction, Result,
+        TaskError,
+    };
 
     /// Celery task: manages the election event scheduled enrollment.
     #[instrument(err)]

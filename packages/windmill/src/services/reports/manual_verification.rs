@@ -7,7 +7,7 @@
 //! This report produces a PDF containing a per-voter link (and QR code) that
 //! takes the voter through a Keycloak manual verification flow.
 
-use super::template_renderer::*;
+use super::template_renderer::{ReportOriginatedFrom, ReportOrigins, TemplateRenderer};
 use crate::postgres::reports::{Report, ReportType};
 use crate::services::temp_path::*;
 use anyhow::{anyhow, Context, Result};

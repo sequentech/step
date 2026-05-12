@@ -14,7 +14,7 @@ mod miru_consolidation_tasks {
 
     use crate::services::consolidation::create_transmission_package_service::create_transmission_package_service;
     use crate::services::consolidation::send_transmission_package_service::send_transmission_package_service;
-    use crate::services::tasks_execution::*;
+    use crate::services::tasks_execution::{update_complete, update_fail};
     use crate::types::error::Error;
     use crate::types::error::Result;
     use anyhow::{anyhow, Context};

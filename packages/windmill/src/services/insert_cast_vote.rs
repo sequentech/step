@@ -206,6 +206,7 @@ pub enum CastVoteError {
 
 impl CastVoteError {
     /// Downcast an [`anyhow::Error`] to [`CastVoteError`] or wrap as [`UnknownError`](CastVoteError::UnknownError).
+    #[must_use]
     pub fn new(error: anyhow::Error) -> Self {
         match error.downcast::<CastVoteError>() {
             Ok(e) => e,

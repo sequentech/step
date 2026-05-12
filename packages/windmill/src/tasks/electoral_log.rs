@@ -79,6 +79,7 @@ pub enum LogEventBody {
 
 impl LogEventBody {
     /// Returns the single-line wire form of this body (same shape as JSON string values).
+    #[must_use]
     pub fn as_raw(&self) -> String {
         match self {
             LogEventBody::Communications(msg) => format!("communications {msg}"),
@@ -132,7 +133,13 @@ mod electoral_log_tasks {
     #![allow(missing_docs)]
     #![allow(clippy::missing_docs_in_private_items)]
 
-    use super::*;
+    use super::{
+        anyhow, deserialize_str, get_board_client, get_celery_connection, get_election_event_board,
+        get_election_event_by_id, get_event_realm, get_hasura_pool, get_keycloak_pool,
+        get_user_area_id, info, instrument, BasicAckOptions, BasicGetOptions, Context, DbClient,
+        ElectoralLog, ElectoralLogMessage, FieldTable, HashMap, LogEventBody, LogEventInput,
+        LogMessageType, PgConfig, Queue, QueueDeclareOptions, Result, TaskError, TxMode,
+    };
 
     /// Enqueue the electoral log event.
     /// This task is routed to the durable electoral_log_batch_queue.

@@ -26,7 +26,10 @@ mod import_applications_task {
     #![allow(missing_docs)]
     #![allow(clippy::missing_docs_in_private_items)]
 
-    use super::*;
+    use super::{
+        instrument, provide_hasura_transaction, update_complete, update_fail, Result, TaskError,
+        TasksExecution,
+    };
 
     /// Celery task: import voter enrollment applications from a CSV file.
     #[instrument(err)]

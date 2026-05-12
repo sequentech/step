@@ -280,10 +280,11 @@ pub async fn post_tally_task_impl(
         "No results event id set in tally session execution"
     ))?;
 
-    let election_event_id_clone = election_event_id.clone();
-    let tenant_id_clone = tenant_id.clone();
+    ///re-clone the variables to avoid borrowing issues (after the move block)
+    let new_election_event_id_clone = election_event_id.clone();
+    let new_tenant_id_clone = tenant_id.clone();
     let results_event_id_clone = results_event_id.clone();
-    let database_path_clone = sqlite_file.path().to_path_buf();
+    let sqlite_database_path_clone = sqlite_file.path().to_path_buf();
 
     let mut documents = results_event_documents.clone();
     documents.tar_gz_pdfs = Some(updated_targz_document.id.clone());
@@ -291,16 +292,16 @@ pub async fn post_tally_task_impl(
     // Update the documents in hasura database
     update_results_event_documents(
         &hasura_transaction,
-        &tenant_id_clone,
+        &new_tenant_id_clone,
         &results_event_id_clone,
-        &election_event_id_clone,
+        &new_election_event_id_clone,
         &documents,
     )
     .await?;
 
     // Update the documents in sqlite database
     let _ = task::spawn_blocking(move || -> Result<()> {
-        let mut sqlite_connection = SqliteConnection::open(&database_path_clone)
+        let mut sqlite_connection = SqliteConnection::open(&sqlite_database_path_clone)
             .map_err(|error| anyhow!("Error opening sqlite database: {error}"))?;
         let sqlite_transaction = sqlite_connection
             .transaction()
@@ -308,9 +309,9 @@ pub async fn post_tally_task_impl(
 
         update_results_event_documents_sqlite(
             &sqlite_transaction,
-            &tenant_id_clone,
+            &new_tenant_id_clone,
             &results_event_id_clone,
-            &election_event_id_clone,
+            &new_election_event_id_clone,
             &documents,
         )?;
 
@@ -326,18 +327,18 @@ pub async fn post_tally_task_impl(
     // Upload updated sqlite database
     let database_document_id = Uuid::new_v4().to_string();
     let file_name = format!("results-{results_event_id}.db");
-    let file_path = sqlite_file.path().to_string_lossy().to_string();
-    let file_size = get_file_size(&file_path)?;
+    let sqlite_file_path = sqlite_file.path().to_string_lossy().to_string();
+    let sqlite_file_size = get_file_size(&sqlite_file_path)?;
 
     let _document = upload_and_return_document(
         &hasura_transaction,
-        &file_path,
+        &sqlite_file_path,
         file_size,
         "application/vnd.sqlite3",
         &tenant_id,
-        Some(election_event_id.to_string()),
+        Some(election_event_id.clone()),
         &file_name,
-        Some(database_document_id.to_string()),
+        Some(database_document_id.clone()),
         false,
     )
     .await?;
@@ -349,7 +350,7 @@ pub async fn post_tally_task_impl(
     )?;
 
     let updated_documents = TallySessionDocuments {
-        sqlite: Some(database_document_id.to_string()),
+        sqlite: Some(database_document_id.clone()),
         xlsx: previous_tally_session_documents.xlsx.clone(),
     };
 
@@ -393,7 +394,10 @@ mod post_tally_celery {
     #![allow(missing_docs)]
     #![allow(clippy::missing_docs_in_private_items)]
 
-    use super::*;
+    use super::{
+        acquire_semaphore, info, instrument, post_tally_task_impl, ChronoDuration, Duration, Error,
+        ParallelIterator, PgLock, Result, TaskError, Uuid, ISO8601,
+    };
 
     /// Celery task: serializes post-tally PDF work per event/session.
     ///
