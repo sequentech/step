@@ -261,16 +261,15 @@ static PLUGIN_MANAGER: OnceCell<PluginManager> = OnceCell::new();
 ///
 /// Returns an error if initialization fails.
 pub async fn get_plugin_manager() -> Result<&'static PluginManager> {
-    let plugin_manager = match PLUGIN_MANAGER.get() {
-        Some(manager) => manager,
-        _ => {
-            init_plugin_manager()
-                .await
-                .context("Failed to initialize PluginManager")?;
-            PLUGIN_MANAGER
-                .get()
-                .expect("PluginManager should be initialized")
-        }
+    let plugin_manager = if let Some(manager) = PLUGIN_MANAGER.get() {
+        manager
+    } else {
+        init_plugin_manager()
+            .await
+            .context("Failed to initialize PluginManager")?;
+        PLUGIN_MANAGER
+            .get()
+            .expect("PluginManager should be initialized")
     };
     Ok(plugin_manager)
 }

@@ -74,7 +74,7 @@ pub type Credential = [u8; CREDENTIAL_LEN];
 
 /// Sanitizes a CSV/header key into a SQL-safe identifier by replacing separators with `_`.
 fn sanitize_db_key(key: &str) -> String {
-    key.replace('.', "_").replace('-', "_")
+    key.replace(['.', '-'], "_")
 }
 
 /// Hashes `password` with `salt` using the configured PBKDF2 settings.

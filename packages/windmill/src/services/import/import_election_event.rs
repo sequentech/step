@@ -1464,7 +1464,7 @@ pub async fn process_document(
                 temp_file.as_file_mut().rewind()?;
                 let tally_file_name = file_name
                     .split('/')
-                    .last()
+                    .next_back()
                     .ok_or(anyhow!("Unexpected, tally without filename"))?
                     .split('.')
                     .next()

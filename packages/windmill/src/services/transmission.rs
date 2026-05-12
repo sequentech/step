@@ -160,7 +160,7 @@ pub async fn get_transmission_servers_data(
                         }
                     })
                 })
-                .unwrap_or_else(|| String::new()),
+                .unwrap_or_default(),
             received: if tally_area
                 .map(|data| {
                     servers_sent_to.iter().any(|server_sent| {
@@ -188,7 +188,7 @@ pub async fn get_transmission_servers_data(
                         }
                     })
                 })
-                .unwrap_or_else(|| String::new()),
+                .unwrap_or_default(),
             server_name: server.name,
         })
         .collect();

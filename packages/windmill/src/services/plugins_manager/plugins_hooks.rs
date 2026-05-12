@@ -33,7 +33,9 @@ impl PluginHooks for PluginManager {
             .await
             .map_err(|e| anyhow!("Failed to call plugin hook: {e}"))?;
 
-        let result = &res[0];
+        let result = res
+            .first()
+            .ok_or_else(|| anyhow!("Plugin hook returned no results"))?;
         if let Some(result_hook_value) = result.first() {
             match result_hook_value {
                 HookValue::Result(Ok(Some(boxed_value))) => match &**boxed_value {

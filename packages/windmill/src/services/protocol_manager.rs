@@ -99,8 +99,8 @@ pub fn serialize_protocol_manager<C: Ctx>(pm: &ProtocolManager<C>) -> Result<Str
 /// # Errors
 ///
 /// Returns an error if the config cannot be parsed or the signing key is invalid.
-pub fn deserialize_protocol_manager<C: Ctx>(contents: String) -> Result<ProtocolManager<C>> {
-    let pmc: ProtocolManagerConfig = toml::from_str(&contents).map_err(|err| anyhow!("{err:?}"))?;
+pub fn deserialize_protocol_manager<C: Ctx>(contents: &str) -> Result<ProtocolManager<C>> {
+    let pmc: ProtocolManagerConfig = toml::from_str(contents).map_err(|err| anyhow!("{err:?}"))?;
     let pmkey = pmc.get_signing_key().map_err(|err| anyhow!("{err:?}"))?;
     Ok(ProtocolManager::new(pmkey))
 }
@@ -265,25 +265,24 @@ pub async fn get_trustee_encrypted_private_key<C: Ctx>(
     let channel_message = messages
         .into_iter()
         .map(|message| Message::strand_deserialize(&message.message))
-        .filter_map(|message| message.ok())
-        .next()
+        .find_map(std::result::Result::ok)
         .with_context(|| format!("Channel not found on board {board_name}"))?;
 
-    let messages = board
+    let share_messages = board
         .get_with_kind_only(board_name, StatementType::Shares)
         .await?;
 
-    let shares: Result<Vec<Message>> = messages
+    let decoded_messages: Result<Vec<Message>> = share_messages
         .into_iter()
         .map(|message| Ok(Message::strand_deserialize(&message.message)?))
         .collect();
 
-    let shares: Result<Vec<Shares<C>>> = shares?
+    let shares_deserialized: Result<Vec<Shares<C>>> = decoded_messages?
         .into_iter()
         .map(|s| {
             let bytes = s.artifact.ok_or(anyhow!("Shares missing artifact bytes"))?;
-            let shares = Shares::<C>::strand_deserialize(&bytes)?;
-            Ok(shares)
+            let share_value = Shares::<C>::strand_deserialize(&bytes)?;
+            Ok(share_value)
         })
         .collect();
 
@@ -295,7 +294,7 @@ pub async fn get_trustee_encrypted_private_key<C: Ctx>(
 
     let ret = TrusteeShareData {
         channel,
-        shares: shares?,
+        shares: shares_deserialized?,
     };
 
     Ok(ret)
@@ -374,7 +373,10 @@ pub fn generate_trustee_set<C: Ctx>(
         })
         .collect();
 
-    selected_trustees[..trustee_ids.len()].copy_from_slice(&trustee_ids);
+    selected_trustees
+        .get_mut(..trustee_ids.len())
+        .expect("trustee count exceeds MAX_TRUSTEES")
+        .copy_from_slice(&trustee_ids);
 
     event!(Level::INFO, "TrusteeSet: {:?}", selected_trustees);
     selected_trustees
@@ -415,7 +417,7 @@ pub async fn get_protocol_manager<C: Ctx>(
     )
     .await?
     .ok_or(anyhow!("protocol manager secret not found"))?;
-    deserialize_protocol_manager::<C>(protocol_manager_data)
+    deserialize_protocol_manager::<C>(protocol_manager_data.as_str())
 }
 
 #[instrument(skip(b3_client), err)]

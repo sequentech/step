@@ -57,7 +57,7 @@ pub struct PluginTransactionsManager {
 
 impl PluginTransactionsManager {
     /// Creates a new transactions manager from pre-initialized per-database managers.
-    pub fn new(
+    pub const fn new(
         hasura_manager: Arc<Mutex<PluginDbManager>>,
         keycloak_manager: Arc<Mutex<PluginDbManager>>,
     ) -> Self {
@@ -69,6 +69,7 @@ impl PluginTransactionsManager {
 }
 
 /// Parses any valid UUID string.
+#[must_use]
 pub fn parse_any_valid_uuid(s: &str) -> Option<Uuid> {
     Uuid::parse_str(s).ok()
 }
@@ -91,16 +92,16 @@ fn parsed_transactions_query_results(
             let value: Value = match column.type_().name() {
                 "int2" | "int4" | "int8" => row
                     .get::<usize, Option<i64>>(i)
-                    .map_or(Value::Null, |val| val.into()),
+                    .map_or(Value::Null, Into::into),
                 "float4" | "float8" => row
                     .get::<usize, Option<f64>>(i)
-                    .map_or(Value::Null, |val| val.into()),
+                    .map_or(Value::Null, Into::into),
                 "bool" => row
                     .get::<usize, Option<bool>>(i)
-                    .map_or(Value::Null, |val| val.into()),
+                    .map_or(Value::Null, Into::into),
                 "text" | "varchar" | "char" | "name" | "bpchar" => row
                     .get::<usize, Option<String>>(i)
-                    .map_or(Value::Null, |val| val.into()),
+                    .map_or(Value::Null, Into::into),
                 "json" | "jsonb" => row
                     .get::<usize, Option<Value>>(i)
                     .map_or(Value::Null, |val| val),
@@ -126,12 +127,12 @@ impl Host for PluginTransactionsManager {
     async fn create_hasura_transaction(&mut self) -> Result<(), String> {
         let mut manager = self.hasura_manager.lock().await;
 
-        println!("Creating Hasura transaction");
+        tracing::info!("Creating Hasura transaction");
         let hasura_client = get_hasura_pool()
             .await
             .get()
             .await
-            .map_err(|e| format!("Failed to get hasura client: {}", e))?;
+            .map_err(|e| format!("Failed to get hasura client: {e}"))?;
 
         let new_self = PluginDbManager::try_new_async_send(Some(hasura_client), |client_ref| {
             Box::pin(async move {

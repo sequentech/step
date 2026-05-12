@@ -81,9 +81,7 @@ impl TryFrom<(ScheduledEvent, ElectionEvent)> for GetEventListOutput {
                 .and_then(|id| id.as_str())
                 .unwrap_or_default()
                 .to_string(),
-            schedule: event_data
-                .cron_config
-                .and_then(|cc| cc.scheduled_date.map(|d| d.clone())),
+            schedule: event_data.cron_config.and_then(|cc| cc.scheduled_date),
             task_id: event_data.task_id.clone(),
             tenant_id: event_data.tenant_id,
             election_event_id: event_data.election_event_id,
