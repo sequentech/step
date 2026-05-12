@@ -53,9 +53,6 @@ pub enum StrandError {
     DecodingError(#[from] base64::DecodeError),
     #[error("chacha20poly1305 error: {0}")]
     Chacha20Error(chacha20poly1305::Error),
-    #[cfg(any(feature = "openssl_core", feature = "openssl_full"))]
-    #[error("openssl error: {0}")]
-    OpenSSLError(#[from] openssl::error::ErrorStack),
     #[error("ed25519 error: {0}")]
     Ed25519Error(#[from] ed25519_dalek::ed25519::Error),
     #[error("Invalid symmetric key length: {0}")]
