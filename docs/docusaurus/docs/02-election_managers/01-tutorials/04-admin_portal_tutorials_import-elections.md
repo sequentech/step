@@ -47,6 +47,12 @@ Exporting allows you to save a comprehensive snapshot of your election event.
 
 You can import an election event using a previously exported `.ezip` file to recreate an event configuration.
 
+:::info
+You can only import election events exported from the same major version, with the same or lower minor version.
+For example, assuming you have version **10.1.0** installed, you can only import events from version **10.1.0** or **10.0.0**.
+:::
+
+
 ![Import Election Options](./assets/import_election.png)
 
 1.  From the sidebar, click the **plus icon** next to "Election Events" or the `+ Create an Election Event` button.
