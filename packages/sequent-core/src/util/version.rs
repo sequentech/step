@@ -9,6 +9,8 @@ use tracing::info;
 pub const DEV_APP_VERSION: &str = "dev";
 pub const ENV_VAR_APP_VERSION: &str = "APP_VERSION";
 pub const ENV_VAR_APP_HASH: &str = "APP_HASH";
+pub const VERSION_KEY: &str = "version";
+pub const HISTORICAL_DEFAULT_VERSION: &str = "9.0.0";
 
 pub fn check_version_compatibility(
     imported_version: &str,
