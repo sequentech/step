@@ -94,3 +94,38 @@ export const NotActive: Story = {
         },
     },
 }
+
+export const CollapsibleExpanded: Story = {
+    args: {
+        title: "Category A",
+        isActive: true,
+        isCollapsible: true,
+        defaultExpanded: true,
+        collapseToggleAriaLabel: "Toggle list Category A",
+        showCandidatesLabel: "Show candidates",
+        hideCandidatesLabel: "Hide candidates",
+    },
+    parameters: {
+        viewport: {
+            disable: true,
+        },
+    },
+}
+
+export const CollapsibleCollapsed: Story = {
+    args: {
+        title: "Category A",
+        isActive: true,
+        isCollapsible: true,
+        defaultExpanded: false,
+        collapseToggleAriaLabel: "Toggle list Category A",
+        showCandidatesLabel: "Show candidates",
+        hideCandidatesLabel: "Hide candidates",
+        selectedCandidatesLabel: "2 candidates selected",
+    },
+    parameters: {
+        viewport: {
+            disable: true,
+        },
+    },
+}

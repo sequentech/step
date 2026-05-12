@@ -3,7 +3,14 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useState} from "react"
 import {CandidatesList} from "@sequentech/ui-essentials"
-import {IDecodedVoteContest, isUndefined, IContest, translate, keyBy} from "@sequentech/ui-core"
+import {
+    IDecodedVoteContest,
+    isUndefined,
+    IContest,
+    translate,
+    keyBy,
+    ECollapsibleLists,
+} from "@sequentech/ui-core"
 import {Answer} from "../Answer/Answer"
 import {useAppDispatch, useAppSelector} from "../../store/hooks"
 import {
@@ -34,9 +41,9 @@ export interface AnswersListProps {
     selectedChoicesSum: number
     setSelectedChoicesSum: (num: number) => void
     disableSelect: boolean
-    explicitBlank: boolean
-    setExplicitBlank: (value: boolean) => void
     setIsTouched: (value: boolean) => void
+    externalExpanded?: boolean
+    onExpandedChange?: (expanded: boolean) => void
 }
 
 const showCategoryOnReview = (category: ICategory, questionState?: IDecodedVoteContest) => {
@@ -70,9 +77,9 @@ export const AnswersList: React.FC<AnswersListProps> = ({
     selectedChoicesSum,
     setSelectedChoicesSum,
     disableSelect,
-    explicitBlank,
-    setExplicitBlank,
     setIsTouched,
+    externalExpanded,
+    onExpandedChange,
 }) => {
     const categoryAnswerId = category.header?.id || ""
     const selectionState = useAppSelector(
@@ -82,9 +89,31 @@ export const AnswersList: React.FC<AnswersListProps> = ({
         selectBallotSelectionQuestion(ballotStyle.election_id, contestId)
     )
     const dispatch = useAppDispatch()
-    const {i18n} = useTranslation()
+    const {i18n, t} = useTranslation()
     let [candidatesOrder, setCandidatesOrder] = useState<Array<string> | null>(null)
     const candidatesOrderType = contest.presentation?.candidates_order
+    const collapsibleListsPolicy =
+        contest.presentation?.collapsible_lists ?? ECollapsibleLists.DISABLED
+    const isCollapsible = collapsibleListsPolicy !== ECollapsibleLists.DISABLED
+    const defaultExpanded = collapsibleListsPolicy !== ECollapsibleLists.ENABLED_COLLAPSED
+    const collapseToggleAriaLabel = t("candidatesList.collapseToggle", {listTitle: title})
+    const showCandidatesLabel = t("candidatesList.showCandidates")
+    const hideCandidatesLabel = t("candidatesList.hideCandidates")
+    const categoryCandidateIds = new Set(category.candidates.map((candidate) => candidate.id))
+    const selectedCandidatesCount =
+        questionState?.choices.filter((choice) => {
+            return choice.selected > -1 && categoryCandidateIds.has(choice.id)
+        }).length ?? 0
+    const selectedCandidatesLabel =
+        !isReview && selectedCandidatesCount > 0
+            ? t(
+                  selectedCandidatesCount === 1
+                      ? "candidatesList.selectedCandidate"
+                      : "candidatesList.selectedCandidates",
+                  {count: selectedCandidatesCount}
+              )
+            : undefined
+
     const isChecked = () => !isUndefined(selectionState) && selectionState.selected > -1
     const setChecked = (value: boolean) => {
         if (isRadioSelection) {
@@ -137,6 +166,8 @@ export const AnswersList: React.FC<AnswersListProps> = ({
 
     let sortedSubtypes = sortBy(subtypesPresentation, ["sort_order"])
 
+    const shouldDisableList = disableSelect && !isChecked()
+
     return (
         <CandidatesList
             title={translate(listPresentation, "name", i18n.language) ?? title}
@@ -144,6 +175,15 @@ export const AnswersList: React.FC<AnswersListProps> = ({
             isCheckable={checkableLists}
             checked={isChecked()}
             setChecked={setChecked}
+            shouldDisable={shouldDisableList}
+            isCollapsible={!isReview && isCollapsible}
+            defaultExpanded={defaultExpanded}
+            collapseToggleAriaLabel={collapseToggleAriaLabel}
+            showCandidatesLabel={showCandidatesLabel}
+            hideCandidatesLabel={hideCandidatesLabel}
+            selectedCandidatesLabel={selectedCandidatesLabel}
+            externalExpanded={!isReview && isCollapsible ? externalExpanded : undefined}
+            onExpandedChange={!isReview && isCollapsible ? onExpandedChange : undefined}
         >
             {sortedSubtypes.map((subtypePresentation) => {
                 let subtypeCandidates =
@@ -182,8 +222,6 @@ export const AnswersList: React.FC<AnswersListProps> = ({
                                 setSelectedChoicesSum={setSelectedChoicesSum}
                                 disableSelect={disableSelect}
                                 iconCheckboxPolicy={iconCheckboxPolicy}
-                                explicitBlank={explicitBlank}
-                                setExplicitBlank={setExplicitBlank}
                                 setIsTouched={setIsTouched}
                             />
                         ))}
@@ -210,8 +248,6 @@ export const AnswersList: React.FC<AnswersListProps> = ({
                         setSelectedChoicesSum={setSelectedChoicesSum}
                         disableSelect={disableSelect}
                         iconCheckboxPolicy={iconCheckboxPolicy}
-                        explicitBlank={explicitBlank}
-                        setExplicitBlank={setExplicitBlank}
                         setIsTouched={setIsTouched}
                     />
                 ))}

@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useEffect, useState} from "react"
-import {Box} from "@mui/material"
+import {Box, Button} from "@mui/material"
 import {
     stringToHtml,
     splitList,
@@ -13,6 +13,7 @@ import {
     EOverVotePolicy,
     ECandidatesIconCheckboxPolicy,
     BallotSelection,
+    ECollapsibleLists,
 } from "@sequentech/ui-core"
 import {theme, BlankAnswer} from "@sequentech/ui-essentials"
 import {styled} from "@mui/material/styles"
@@ -43,12 +44,15 @@ import {useAppSelector} from "../../store/hooks"
 import {selectBallotSelectionQuestion} from "../../store/ballotSelections/ballotSelectionsSlice"
 import {sortCandidatesInContest, checkIsBlank} from "@sequentech/ui-core"
 import {provideBallotService} from "../../services/BallotService"
+import {faAngleDown, faAngleRight} from "@fortawesome/free-solid-svg-icons"
+import {FontAwesomeIcon} from "@fortawesome/react-fontawesome"
 
 const StyledTitle = styled(Typography)`
     margin-top: 25.5px;
     display: flex;
     flex-direction: row;
     gap: 16px;
+    align-items: center;
 `
 
 const CandidatesWrapper = styled("fieldset")`
@@ -64,11 +68,14 @@ const CandidatesWrapper = styled("fieldset")`
     }
 `
 
-const CandidateListsWrapper = styled(Box)`
+const CandidateListsWrapper = styled(Box)<{columncount: number}>`
     display: flex;
-    flex-direction: row;
+    flex-direction: ${({columncount}) => (columncount === 1 ? "column" : "row")};
     gap: 12px;
     margin: 12px 0 0 0;
+
+    /* If there's only one column, we want to make sure the candidate lists take the full width of the container */
+    ${({columncount}) => (columncount === 1 ? `.candidates-list { width: initial; }` : "")}
 
     @media (max-width: ${({theme}) => theme.breakpoints.values.md}px) {
         flex-direction: column;
@@ -126,11 +133,10 @@ export const Question: React.FC<IQuestionProps> = ({
     errorSelectionState,
 }) => {
     // THIS IS A CONTEST COMPONENT
-    const {i18n} = useTranslation()
+    const {i18n, t} = useTranslation()
     const {isPreferential} = provideBallotService()
     const isPreferentialVote = isPreferential(question.counting_algorithm)
     let [candidatesOrder, setCandidatesOrder] = useState<Array<string> | null>(null)
-    const [explicitBlank, setExplicitBlank] = useState<boolean>(false)
     let [categoriesMapOrder, setCategoriesMapOrder] = useState<CategoriesMap | null>(null)
     let [isInvalidWriteIns, setIsInvalidWriteIns] = useState(false)
     let [selectedChoicesSum, setSelectedChoicesSum] = useState(0)
@@ -142,6 +148,30 @@ export const Question: React.FC<IQuestionProps> = ({
         selectBallotSelectionQuestion(ballotStyle.election_id, question.id)
     )
     const {checkableLists, checkableCandidates} = getCheckableOptions(question)
+
+    const collapsibleListsPolicy =
+        question.presentation?.collapsible_lists ?? ECollapsibleLists.DISABLED
+    const isCollapsible = collapsibleListsPolicy !== ECollapsibleLists.DISABLED
+    const defaultAllExpanded = collapsibleListsPolicy !== ECollapsibleLists.ENABLED_COLLAPSED
+    const [expandedStates, setExpandedStates] = useState<Record<string, boolean>>({})
+
+    const getExpanded = (key: string): boolean =>
+        key in expandedStates ? expandedStates[key] : defaultAllExpanded
+
+    const allCollapsed =
+        !!categoriesMapOrder &&
+        Object.keys(categoriesMapOrder).length > 0 &&
+        Object.keys(categoriesMapOrder).every((k) => !getExpanded(k))
+
+    const handleToggleAll = () => {
+        if (!categoriesMapOrder) return
+        const targetExpanded = allCollapsed
+        const newState: Record<string, boolean> = {}
+        Object.keys(categoriesMapOrder).forEach((k) => {
+            newState[k] = targetExpanded
+        })
+        setExpandedStates(newState)
+    }
 
     // do the shuffling
     const candidatesOrderType = question.presentation?.candidates_order
@@ -249,7 +279,26 @@ export const Question: React.FC<IQuestionProps> = ({
                 data-max={question.max_votes}
                 id={`contest-${question.id}-title`}
             >
-                {translate(question, "name", i18n.language) || ""}
+                <Box component="span" sx={{flexGrow: 1}}>
+                    {translate(question, "name", i18n.language) || ""}
+                </Box>
+                {isCollapsible &&
+                !isReview &&
+                !!categoriesMapOrder &&
+                Object.keys(categoriesMapOrder).length ? (
+                    <Button
+                        variant="secondary"
+                        sx={{flexShrink: 0, minHeight: "unset", fontSize: "14px"}}
+                        startIcon={
+                            <FontAwesomeIcon icon={allCollapsed ? faAngleRight : faAngleDown} />
+                        }
+                        onClick={handleToggleAll}
+                    >
+                        {allCollapsed
+                            ? t("candidatesList.expandAll")
+                            : t("candidatesList.collapseAll")}
+                    </Button>
+                ) : null}
             </StyledTitle>
             {question.description || question.description_i18n?.[i18n.language] ? (
                 <Typography variant="body2" sx={{color: theme.palette.customGrey.main}}>
@@ -305,15 +354,16 @@ export const Question: React.FC<IQuestionProps> = ({
                                 setSelectedChoicesSum={setSelectedChoicesSum}
                                 disableSelect={disableSelect}
                                 iconCheckboxPolicy={iconCheckboxPolicy}
-                                explicitBlank={explicitBlank}
-                                setExplicitBlank={setExplicitBlank}
                                 setIsTouched={setIsTouched}
                             />
                         ))}
                     </InvalidBlankWrapper>
                 ) : null}
                 {!!categoriesMapOrder && Object.keys(categoriesMapOrder)?.length ? (
-                    <CandidateListsWrapper className="candidates-lists-container">
+                    <CandidateListsWrapper
+                        className="candidates-lists-container"
+                        columncount={columnCount}
+                    >
                         {Object.entries(categoriesMapOrder).map(
                             ([categoryName, category], categoryIndex) => (
                                 <AnswersList
@@ -333,9 +383,14 @@ export const Question: React.FC<IQuestionProps> = ({
                                     setSelectedChoicesSum={setSelectedChoicesSum}
                                     disableSelect={disableSelect}
                                     iconCheckboxPolicy={iconCheckboxPolicy}
-                                    explicitBlank={explicitBlank}
-                                    setExplicitBlank={setExplicitBlank}
                                     setIsTouched={setIsTouched}
+                                    externalExpanded={getExpanded(categoryName)}
+                                    onExpandedChange={(expanded) =>
+                                        setExpandedStates((prev) => ({
+                                            ...prev,
+                                            [categoryName]: expanded,
+                                        }))
+                                    }
                                 />
                             )
                         )}
@@ -365,8 +420,6 @@ export const Question: React.FC<IQuestionProps> = ({
                                     setSelectedChoicesSum={setSelectedChoicesSum}
                                     disableSelect={disableSelect}
                                     iconCheckboxPolicy={iconCheckboxPolicy}
-                                    explicitBlank={explicitBlank}
-                                    setExplicitBlank={setExplicitBlank}
                                     setIsTouched={setIsTouched}
                                 />
                             ))}
@@ -394,8 +447,6 @@ export const Question: React.FC<IQuestionProps> = ({
                                 setSelectedChoicesSum={setSelectedChoicesSum}
                                 disableSelect={disableSelect}
                                 iconCheckboxPolicy={iconCheckboxPolicy}
-                                explicitBlank={explicitBlank}
-                                setExplicitBlank={setExplicitBlank}
                                 setIsTouched={setIsTouched}
                             />
                         ))}

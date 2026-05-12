@@ -1089,6 +1089,7 @@ const catalanTranslation: TranslationType = {
                 BALLOT_RECEIPT: "Rebut de la Papereta",
                 ELECTORAL_RESULTS: "Resultats Electorals",
                 MANUAL_VERIFICATION: "Verificació Manual",
+                PARTICIPATION_REPORT: "Informe de Participació",
                 STATISTICAL_REPORT: "Informe Estadístic",
                 OVCS_EVENTS: "Seguiment del Vot a l'Estranger - Esdeveniments OVCS",
                 AUDIT_LOGS: "Registres d'Auditoria",
@@ -1391,6 +1392,12 @@ const catalanTranslation: TranslationType = {
                 "allow-selecting-candidates": "Només Candidats",
                 "allow-selecting-lists": "Només Llistes",
                 "disabled": "Deshabilitat",
+            },
+            collapsibleListsPolicy: {
+                "label": "Llistes plegables",
+                "disabled": "Desactivat",
+                "enabled-expanded": "Activat (comença expandit)",
+                "enabled-collapsed": "Activat (comença contret)",
             },
             blankVotePolicy: {
                 "label": "Política de vot en blanc",
@@ -2033,6 +2040,7 @@ const catalanTranslation: TranslationType = {
                 BALLOT_RECEIPT: "Rebut de Vot",
                 ACTIVITY_LOGS: "Registres d'Activitats",
                 MANUAL_VERIFICATION: "Verificació Manual",
+                PARTICIPATION_REPORT: "Informe de Participació",
             },
             method: {
                 email: "Email",
