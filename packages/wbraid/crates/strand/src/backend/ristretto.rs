@@ -27,7 +27,6 @@ use curve25519_dalek::constants::RISTRETTO_BASEPOINT_TABLE;
 use curve25519_dalek::ristretto::{CompressedRistretto, RistrettoPoint};
 use curve25519_dalek::scalar::Scalar;
 use curve25519_dalek::traits::Identity;
-use rand::RngCore;
 
 use crate::context::{Ctx, Element, Exponent, Plaintext};
 use crate::elgamal::Ciphertext;
@@ -36,6 +35,7 @@ use crate::rng::StrandRng;
 use crate::serialization::{StrandDeserialize, StrandSerialize};
 use crate::util;
 use crate::util::StrandError;
+use rand::Rng;
 
 #[derive(Eq, PartialEq, Clone, Debug, BorshSerialize, BorshDeserialize)]
 /// [Ristretto](https://ristretto.group/what_is_ristretto.html) implementation of a strand modular arithmetic context.

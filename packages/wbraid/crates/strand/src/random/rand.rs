@@ -2,11 +2,11 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use rand::rngs::OsRng;
-use rand::CryptoRng;
-use rand::RngCore;
-use rand::TryRngCore;
-use rand::rngs::StdRng;
+use core::convert::Infallible;
+
+use rand::rngs::SysRng;
+use rand::TryCryptoRng;
+use rand::TryRng;
 
 /// Single source of randomness used in strand.
 ///
@@ -20,22 +20,25 @@ use rand::rngs::StdRng;
 /// [Crypto.getRandomValues](https://www.w3.org/TR/WebCryptoAPI/#Crypto-method-getRandomValues) if [available](https://caniuse.com/getrandomvalues).
 pub struct StrandRng;
 
-impl CryptoRng for StrandRng {}
+impl TryCryptoRng for StrandRng {}
 
-impl RngCore for StrandRng {
+impl TryRng for StrandRng {
+    type Error = Infallible;
+
     #[inline(always)]
-    fn next_u32(&mut self) -> u32 {
-        OsRng.try_next_u32().expect("Fixme")
+    fn try_next_u32(&mut self) -> Result<u32, Self::Error> {
+        Ok(SysRng.try_next_u32().expect("Fixme"))
     }
 
     #[inline(always)]
-    fn next_u64(&mut self) -> u64 {
-        OsRng.try_next_u64().expect("Fixme")
+    fn try_next_u64(&mut self) -> Result<u64, Self::Error> {
+        Ok(SysRng.try_next_u64().expect("Fixme"))
     }
 
     #[inline(always)]
-    fn fill_bytes(&mut self, dest: &mut [u8]) {
-        OsRng.try_fill_bytes(dest).expect("Fixme")
+    fn try_fill_bytes(&mut self, dest: &mut [u8]) -> Result<(), Self::Error> {
+        SysRng.try_fill_bytes(dest).expect("Fixme");
+        Ok(())
     }
 }
 
@@ -43,31 +46,4 @@ pub fn info() -> String {
     format!("{}, FIPS_ENABLED: FALSE", module_path!())
 }
 
-/// RNG based on StdRng
-/// 
-/// This is currently unused, but demonstrates how to use StdRng
-/// as the underlying RNG for Strand. Unlike OsRng, StdRng
-/// cannot fail to provide randomness after it has been seeded,
-/// so it implements RngCore without the need for TryRngCore.
-pub struct StrandStdRng(StdRng);
-
-impl CryptoRng for StrandStdRng {}
-
-// Unlike StrandRng, StrandStdRng can implement RngCore instead of TryRngCore.
-impl RngCore for StrandStdRng {
-    #[inline(always)]
-    fn next_u32(&mut self) -> u32 {
-        self.0.next_u32()
-    }
-
-    #[inline(always)]
-    fn next_u64(&mut self) -> u64 {
-        self.0.next_u64()
-    }
-
-    #[inline(always)]
-    fn fill_bytes(&mut self, dest: &mut [u8]) {
-        self.0.fill_bytes(dest)
-    }
-}
 

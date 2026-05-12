@@ -26,16 +26,14 @@
 //! ```
 
 use borsh::{BorshDeserialize, BorshSerialize};
-use chacha20poly1305::{
-    aead::{Aead, AeadCore, KeyInit},
-    consts::{U12, U32},
-    ChaCha20Poly1305,
-};
-use hybrid_array::Array;
+use chacha20poly1305::{aead::Aead, aead::Generate, aead::KeyInit, ChaCha20Poly1305, Nonce};
+use chacha20poly1305::aead::Key;
+
 
 use crate::util::StrandError;
+use crate::rng::StrandRng;
 
-pub type SymmetricKey = Array<u8, U32>;
+pub type SymmetricKey = Key<ChaCha20Poly1305>;
 
 #[derive(BorshSerialize, BorshDeserialize, Clone)]
 pub struct EncryptionData {
@@ -45,7 +43,7 @@ pub struct EncryptionData {
 impl EncryptionData {
     pub fn new(
         encrypted_bytes: Vec<u8>,
-        nonce: Array<u8, U12>,
+        nonce: Nonce,
     ) -> EncryptionData {
         EncryptionData {
             encrypted_bytes,
@@ -54,18 +52,20 @@ impl EncryptionData {
     }
 }
 
-pub fn gen_key() -> Array<u8, U32> {
-    let key = chacha20poly1305::ChaCha20Poly1305::generate_key().unwrap();
+pub fn gen_key() -> SymmetricKey {
+    let mut csprng = StrandRng;
+    let key = Key::<ChaCha20Poly1305>::generate_from_rng(&mut csprng);
     key
 }
 pub fn encrypt(
-    key: Array<u8, U32>,
+    key: SymmetricKey,
     data: &[u8],
 ) -> Result<EncryptionData, StrandError> {
     // https://docs.rs/chacha20poly1305/latest/chacha20poly1305/trait.AeadCore.html#method.generate_nonce
     // 4,294,967,296 messages with random nonces can be encrypted under a given
     // key
-    let nonce = ChaCha20Poly1305::generate_nonce().unwrap();
+    let mut csprng = StrandRng;
+    let nonce = Nonce::generate_from_rng(&mut csprng);
     let cipher = ChaCha20Poly1305::new(&key);
     let encrypted = cipher
         .encrypt(&nonce, data)
@@ -78,7 +78,7 @@ pub fn encrypt(
 }
 
 pub fn decrypt(
-    key: &Array<u8, U32>,
+    key: &SymmetricKey,
     ed: &EncryptionData,
 ) -> Result<Vec<u8>, StrandError> {
     let cipher = ChaCha20Poly1305::new(&key);
@@ -91,9 +91,10 @@ pub fn decrypt(
 }
 
 pub fn sk_from_bytes(bytes: &[u8]) -> Result<SymmetricKey, StrandError> {
-    let key = Array::<u8, U32>::try_from(bytes).to_owned();
-
-    key.map_err(|e| StrandError::InvalidSymmetricKeyLength(e.to_string()))
+    let array: [u8; 32] = bytes.try_into()
+        .map_err(|_| StrandError::Generic("Invalid symmetric key length: expected 32 bytes".to_string()))?;
+    
+    Ok(array.into())
 }
 
 #[cfg(test)]

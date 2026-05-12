@@ -1,6 +1,6 @@
 [workspace]
 # members = ["crates/b4", "crates/braid", "crates/braid_b5", "crates/strand", "crates/vsc", "crates/b5"]
-members = ["crates/braid_b5", "crates/vsc", "crates/b5", "crates/rnk"]
+members = ["crates/braid_b5", "crates/vsc", "crates/b5", "crates/rnk", "crates/strand"]
 resolver = "2"
 
 [workspace.dependencies]

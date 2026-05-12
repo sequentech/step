@@ -32,7 +32,7 @@
 //! ```
 
 use borsh::{BorshDeserialize, BorshSerialize};
-use rand::{CryptoRng, RngCore};
+use rand::{CryptoRng, Rng};
 use rand::seq::SliceRandom;
 #[cfg(feature = "rayon")]
 use rayon::prelude::*;
@@ -132,7 +132,7 @@ impl<'a, C: Ctx> Shuffler<'a, C> {
         (result, rs, perm)
     }
 
-    pub fn gen_shuffle_with_perm_rng<R: RngCore + CryptoRng>(
+    pub fn gen_shuffle_with_perm_rng<R: Rng + CryptoRng>(
         &self,
         ciphertexts: &[Ciphertext<C>],
         rng: &mut R,
@@ -774,7 +774,7 @@ pub(crate) fn gen_permutation(size: usize) -> Vec<usize> {
     ret
 }
 
-pub(crate) fn gen_permutation_with_rng<R: RngCore + CryptoRng>(rng: &mut R, size: usize) -> Vec<usize> {
+pub(crate) fn gen_permutation_with_rng<R: Rng + CryptoRng>(rng: &mut R, size: usize) -> Vec<usize> {
     let mut ret: Vec<usize> = (0..size).collect();
     ret.shuffle(rng);
 
