@@ -1079,6 +1079,7 @@ const galegoTranslation: TranslationType = {
                 BALLOT_RECEIPT: "Recibo da Papeleta",
                 ELECTORAL_RESULTS: "Resultados Electorais",
                 MANUAL_VERIFICATION: "Verificación Manual",
+                PARTICIPATION_REPORT: "Informe de Participación",
                 STATISTICAL_REPORT: "Informe Estatístico",
                 OVCS_EVENTS: "Monitorización de Votación no Estranxeiro - Eventos OVCS",
                 AUDIT_LOGS: "Rexistros de Auditoría",
@@ -2031,6 +2032,7 @@ const galegoTranslation: TranslationType = {
                 BALLOT_RECEIPT: "Recibo de Voto",
                 ACTIVITY_LOGS: "Registros de Actividades",
                 MANUAL_VERIFICATION: "Verificación Manual",
+                PARTICIPATION_REPORT: "Informe de Participación",
             },
             method: {
                 email: "Correo",

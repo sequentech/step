@@ -121,6 +121,7 @@ export const CollapsibleCollapsed: Story = {
         collapseToggleAriaLabel: "Toggle list Category A",
         showCandidatesLabel: "Show candidates",
         hideCandidatesLabel: "Hide candidates",
+        selectedCandidatesLabel: "2 candidates selected",
     },
     parameters: {
         viewport: {
