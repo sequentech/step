@@ -33,6 +33,25 @@ import {seedBoothFixtures} from "./fixtures/boothFixtures"
 // selector fires (StartScreen redirects on a missing election).
 seedBoothFixtures()
 
+// Workbench-only debug: expose the production store on `window.__store`
+// so we can inspect Redux state from the browser console / Playwright
+// while lifting screens. This is a workbench affordance only and lives
+// outside `voting-portal/src/`.
+if (typeof window !== "undefined") {
+    ;(window as unknown as {__store: typeof store}).__store = store
+    const w = window as unknown as {__dispatchLog: unknown[]}
+    w.__dispatchLog = []
+    // Patch dispatch to log every action; helps spot whether a click
+    // actually reached the reducer or not.
+    const origDispatch = store.dispatch.bind(store)
+    ;(store as unknown as {dispatch: typeof origDispatch}).dispatch = ((
+        action: Parameters<typeof origDispatch>[0]
+    ) => {
+        w.__dispatchLog.push({type: (action as {type?: string}).type, action})
+        return origDispatch(action)
+    }) as typeof origDispatch
+}
+
 /**
  * Layout for every booth screen. Provides the MUI theme, the production
  * Redux store (already populated by `seedBoothFixtures()`), and the

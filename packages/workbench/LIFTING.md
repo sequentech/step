@@ -231,11 +231,27 @@ Currently seeded (`app/src/fixtures/boothFixtures.ts`):
 - `setElectionEvent({ id, name, ... })` — the parent event.
 - `setBallotStyle({ id, election_id, ballot_eml: { contests, public_key, ... }, ... })`
   — a ballot style whose `ballot_eml.contests` is the same `IContest`
-  array as the election's. The `public_key` is a placeholder string
-  marked `is_demo: false`; it is sufficient for screens that read the
-  ballot style but **not** for ones that perform real ElGamal encryption
-  (ReviewScreen submission). Replacing this with a generated keypair is
-  the next milestone.
+  array as the election's. The `public_key` is
+  `"ajR/I9RqyOwbpsVRucSNOgXVLCvLpfQxCgPoXGQ2RF4"` — the exact
+  `DEFAULT_PUBLIC_KEY_RISTRETTO_STR` constant that
+  `packages/sequent-core/src/encrypt.rs` ships and uses in its own
+  fixtures. It is a real point on the Ristretto curve, so
+  `encrypt_decoded_contest` succeeds end-to-end (the workbench validates
+  the *encrypt* path; the matching private key is intentionally not
+  bundled). Marked `is_demo: false` so StartScreen does not pop the
+  "this is a demo" dialog.
+- `resetBallotSelection({ ballotStyle, force: true })` — initializes the
+  per-election `ballotSelections[electionId]` entry with all candidates
+  at `selected: -1`. **Critical**: in production this dispatch happens
+  inside `StartScreen` when the voter clicks *Start Voting*. The
+  `setBallotSelectionVoteChoice` reducer is a silent no-op
+  (`if (!currentElection) return state`) until that initialization has
+  happened, so a user clicking a candidate on `/vote` after a hot reload
+  would see the visual highlight flicker but the redux state never
+  update, and the *Next* button's `encryptAndReview` would early-return
+  because `selectionState` is `undefined`. The workbench needs every URL
+  to be a valid entry point (hot reload on `/vote`, deep links), so we
+  pre-seed the empty selection structure.
 
 **Convention:** import action creators and slice types directly from
 `voting-portal/src/store/*Slice` (NOT from a re-export under the workbench).
@@ -253,9 +269,33 @@ want.
 - New action creator API (e.g. `setElection` becoming
   `setElection({election, source})`) → TS error at the dispatch.
 
-### G. Source code under `voting-portal/src/` — UNCHANGED
+### G. Workbench-only debug affordances (`BoothSpike.tsx`)
 
-This is the central invariant of the lift. Every adaptation above lives
+To debug whether a click reaches a reducer, the workbench exposes the
+production Redux store on `window.__store` and patches `store.dispatch`
+to push every action into `window.__dispatchLog`. From the browser
+console or a Playwright `page.evaluate`:
+
+```js
+window.__store.getState().ballotSelections
+window.__dispatchLog.map(x => x.type)
+```
+
+This is **workbench-only** — it lives in `BoothSpike.tsx` and does not
+touch portal source. It was instrumental in diagnosing the
+"`setBallotSelectionVoteChoice` dispatched but state empty" issue that
+led to seeding `resetBallotSelection` from the fixture (section F). Keep
+the affordance: every future "click does nothing visible" bug should
+start with `__dispatchLog`.
+
+**Canary if portal changes:** if the portal exports `store` from a
+different path or moves to a non-Redux state container, both the import
+and the patch need updating. The patch is bypass-safe (it forwards to
+the original dispatch), so if it ever stops working, just verify the
+order of operations in `BoothSpike.tsx` puts the patch BEFORE the first
+component render.
+
+### H. Source code under `voting-portal/src/` — UNCHANGED
 *outside* the portal source tree. If you ever feel tempted to edit a portal
 file to make the workbench work:
 
@@ -264,7 +304,7 @@ file to make the workbench work:
 3. Try one of: `resolve.alias`, `define`, a new provider, a fixture seed,
    a substitute deep-import path. One of these almost always works.
 4. If you genuinely cannot avoid a portal-source change, document it here
-   under a new section "H. Concessions" with the exact diff and the reason
+   under a new section "I. Concessions" with the exact diff and the reason
    it was unavoidable. Reviews of refresh PRs will then verify that the
    concession is still needed.
 
@@ -306,27 +346,31 @@ broken or you want to validate fidelity.
 When extending past `VotingScreen`, the following are the most likely
 next-step categories of work (in roughly the order they will be needed):
 
-1. **A real election public key in the ballot style fixture.** The current
-   placeholder lets VotingScreen render and lets the user select choices,
-   but clicking *Next* triggers `encryptBallotSelection`, which feeds the
-   placeholder string into ElGamal encryption. Generate a small keypair
-   (sequent-core exposes the necessary functions) and inject the public
-   key into `ballotEml.public_key`. The private key stays in the workbench
-   only, used later to verify decode.
-2. **Mounting `<ApolloProvider>` with a `MockedProvider`.** Define mocks
-   keyed by the gql documents the portal already imports \u2014 don't redefine
-   the gql.
-3. **Translation key fidelity.** Once a screen renders, missing
+1. **A real election public key in the ballot style fixture.** ✅ Done.
+   The fixture uses `DEFAULT_PUBLIC_KEY_RISTRETTO_STR` from sequent-core
+   directly, so `encryptBallotSelection` produces real ciphertext and the
+   booth navigates from `/vote` to `/review`. See section F.
+2. **Initialize `ballotSelections` from the fixture, not only from
+   StartScreen.** ✅ Done — `seedBoothFixtures()` dispatches
+   `resetBallotSelection`. See section F.
+3. **Mounting `<ApolloProvider>` with a `MockedProvider`.** Required by
+   ReviewScreen (it imports `useApolloClient`/`useMutation` via
+   `useTryInsertCastVote`). The error surfaces as *"Could not find 'client'
+   in the context… Wrap the root component in an <ApolloProvider>"*. Plan:
+   use `@apollo/client/testing`'s `MockedProvider` with hand-rolled
+   responses keyed by the `gql` documents the portal already imports —
+   don't redefine the gql.
+4. **Translation key fidelity.** Once a screen renders, missing
    translations show as raw keys (`booth.start.title`). Decide between
    shipping a copy of the portal's locales as a static asset and silencing
    the warnings.
-4. **Apollo mocks vs. a fake transport.** If many screens are lifted at
+5. **Apollo mocks vs. a fake transport.** If many screens are lifted at
    once, a shared in-memory schema (with `@graphql-tools/mock`) may scale
    better than per-test mocks. Decision deferred until pain is felt.
-5. **Extending the fixture.** As later screens consume more of the store
+6. **Extending the fixture.** As later screens consume more of the store
    (cast votes, audit data, etc.), `boothFixtures.ts` grows. Keep it a
    single module per screen group rather than one fixture file per slice
-   \u2014 easier to keep coherent across slice boundaries.
+   — easier to keep coherent across slice boundaries.
 
 Each of these adaptations, when added, should get its own row in the
 inventory above with a canary entry. Treat the document as living.

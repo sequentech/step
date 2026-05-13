@@ -28,6 +28,7 @@ import {
     setBallotStyle,
     type IBallotStyle,
 } from "voting-portal/src/store/ballotStyles/ballotStylesSlice"
+import {resetBallotSelection} from "voting-portal/src/store/ballotSelections/ballotSelectionsSlice"
 import {store} from "voting-portal/src/store/store"
 
 export const TENANT_ID = "00000000-0000-0000-0000-000000000001"
@@ -102,7 +103,13 @@ const ballotEml: IBallotStyleEml = {
     area_id: "00000000-0000-0000-0000-0000000000aa",
     contests: [contest],
     public_key: {
-        public_key: "workbench-fake-public-key",
+        // The default Ristretto election public key used by sequent-core's
+        // own fixtures (`DEFAULT_PUBLIC_KEY_RISTRETTO_STR` in
+        // sequent-core/src/encrypt.rs). It is a real point on the curve so
+        // `encrypt_decoded_contest` succeeds; the matching private key
+        // is intentionally not shipped — the workbench validates the
+        // *encrypt* path, not the decrypt path.
+        public_key: "ajR/I9RqyOwbpsVRucSNOgXVLCvLpfQxCgPoXGQ2RF4",
         // `is_demo: false` so StartScreen doesn't pop the "this is a demo"
         // dialog; flip to true when exercising that flow.
         is_demo: false,
@@ -125,6 +132,14 @@ let seeded = false
 /**
  * Seed voting-portal's production Redux store with the booth fixture.
  * Idempotent: safe to call from a React effect that may re-fire.
+ *
+ * Why we also dispatch `resetBallotSelection` here: in production the
+ * portal initializes the per-election `ballotSelections[electionId]`
+ * entry from `StartScreen` (see `voting-portal/src/routes/StartScreen.tsx`)
+ * when the voter clicks Start Voting. The `setBallotSelectionVoteChoice`
+ * reducer is a no-op until that entry exists. The workbench needs every
+ * URL to be a valid entry point (hot reload on `/vote`, deep links),
+ * so we seed the empty-selection structure here too.
  */
 export function seedBoothFixtures(): void {
     if (seeded) return
@@ -132,4 +147,5 @@ export function seedBoothFixtures(): void {
     store.dispatch(setElection(election))
     store.dispatch(setElectionEvent(electionEvent))
     store.dispatch(setBallotStyle(ballotStyle))
+    store.dispatch(resetBallotSelection({ballotStyle, force: true}))
 }
