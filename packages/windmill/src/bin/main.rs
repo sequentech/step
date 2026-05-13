@@ -26,17 +26,6 @@ fn get_queue_name(queue: Queue) -> String {
 }
 
 static BEAT_QUEUE_NAME: LazyLock<String> = LazyLock::new(|| get_queue_name(Queue::Beat));
-static SHORT_QUEUE_NAME: LazyLock<String> = LazyLock::new(|| get_queue_name(Queue::Short));
-static ELECTORAL_LOG_QUEUE_NAME: LazyLock<String> =
-    LazyLock::new(|| get_queue_name(Queue::ElectoralLogBeat));
-static COMMUNICATION_QUEUE_NAME: LazyLock<String> =
-    LazyLock::new(|| get_queue_name(Queue::Communication));
-static TALLY_QUEUE_NAME: LazyLock<String> = LazyLock::new(|| get_queue_name(Queue::Tally));
-static REPORTS_QUEUE_NAME: LazyLock<String> = LazyLock::new(|| get_queue_name(Queue::Reports));
-static IMPORT_EXPORT_QUEUE_NAME: LazyLock<String> =
-    LazyLock::new(|| get_queue_name(Queue::ImportExport));
-static ELECTORAL_LOG_BATCH_QUEUE_NAME: LazyLock<String> =
-    LazyLock::new(|| get_queue_name(Queue::ElectoralLogBatch));
 
 #[derive(Debug, Parser, Clone)]
 #[command(name = "windmill", about = "Windmill task queue prosumer.")]
