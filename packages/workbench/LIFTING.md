@@ -58,7 +58,7 @@ Each adaptation has:
 | A3 | `resolve.alias` `@sequentech/ui-core` → `<repo>/packages/ui-core/src/index.tsx` | Both ui-core and ui-essentials declare `"main": "dist/index.js"` but `dist/` is never built in the dev workflow. We point the alias at the TS sources so Vite compiles them on the fly. | Build fails with `Failed to resolve import "@sequentech/ui-core"`. Re-check `ui-core/package.json` — if `main` now points at a built artifact that exists, the alias may become unnecessary. |
 | A4 | `resolve.alias` `@sequentech/ui-essentials` → `<repo>/packages/ui-essentials/src/index.tsx` | Same as A3 for ui-essentials. | Same as A3. |
 | A5 | `resolve.alias` regex `^@root/(.*)$` → `<repo>/packages/ui-core/src/$1` | ui-core internally imports from `@root/...`, which is a tsconfig `paths` alias resolving to `ui-core/src/*`. Vite does not read tsconfig paths. (`ui-essentials` does not use `@root` — verified by grep when this alias was added.) | Build fails with `Failed to resolve import "@root/..."`. If voting-portal or ui-essentials starts using `@root` too with different semantics, the regex needs widening or splitting. |
-| A6 | `optimizeDeps.exclude: ["velvet-wasm"]` | Vite's dep optimizer chokes on the `.wasm` URL import. | n/a (workbench-only). |
+| A6 | `optimizeDeps.exclude: ["velvet-wasm", "sequent-core"]` | Both packages compute their `.wasm` URL with `new URL("..._bg.wasm", import.meta.url)`. Vite's dep optimizer rewrites `import.meta.url` to a path under `.vite/deps/`, where the wasm binary is missing — the dev server then SPA-falls back to `index.html`, and the wasm loader fails with *expected magic word 00 61 73 6d, found 3c 21 2d 2d* (the bytes of `<!--`). Excluding keeps the original module path. | If voting-portal swaps `sequent-core` for a different wasm package, add it to the exclude list. |
 
 ### B. Workspace dependency graph (`app/package.json`)
 
@@ -125,16 +125,20 @@ Every voting-portal screen relies on a chain of React Context providers.
 Production wires them in `voting-portal/src/index.tsx`. The workbench wires
 the *minimum* subset needed for the screen under test, in the same order.
 
-Currently mounted for `StartScreen`:
+Currently mounted in `BoothLayout`:
 
 1. `<ThemeProvider>` from `@mui/material`, with `theme` from
    `@sequentech/ui-essentials`. **Required** — MUI components throw without it.
 2. `<ReduxProvider store={...}>` reusing the **production `store`** from
    `voting-portal/src/store/store`. This is deliberate: same reducers,
    same selectors, same shape. Diverging would defeat the lift.
-3. `<Routes>` (inheriting the top-level `<BrowserRouter>` from `main.tsx`).
-   StartScreen reads URL params via `useParams`, so it must be mounted
-   under a `<Route path="tenant/:tenantId/event/:eventId/election/:electionId/start">`.
+3. `<WasmWrapper>` from `voting-portal/src/providers/WasmWrapper`. Lifted
+   as-is from the portal: it mounts `<WasmContextProvider>` (from ui-core)
+   and gates children behind a `<Loader />` until `initCore()` resolves.
+   Required by every screen that calls into ui-core wasm helpers (e.g.
+   `check_voting_not_allowed_next_bool` in VotingScreen, all crypto in
+   ReviewScreen).
+4. `<Outlet />` from react-router for the data-router child routes.
 
 **Providers _not_ yet mounted** (and the screens that will demand them):
 
@@ -145,8 +149,11 @@ Currently mounted for `StartScreen`:
   `useContext(SettingsContext)` (currently the global-settings.json fetch
   happens at the top of `voting-portal/src/index.tsx`, which we don't
   mount). Plan: lift this provider on its own.
-- `<WasmContextProvider>` (or whatever the portal calls it) — needed once
-  a screen does client-side crypto. Plan: identify the provider, mount it.
+- `<AuthContextProvider>` is **not** mounted; `useContext(AuthContext)`
+  returns the module-level `defaultAuthContextValues` (with `logout: () => {}`,
+  `isAuthenticated: false`, `hasRole: () => false`, ...), which is enough
+  for the screens lifted so far. If a screen starts requiring authenticated
+  state, mount the real provider with a fixture that satisfies it.
 - `<KeycloakProvider>` is **never** mounted; `DISABLE_AUTH: true` keeps it
   out of the tree.
 
@@ -216,11 +223,19 @@ instance, same reducers, same selectors — only the data source differs.
 
 Currently seeded (`app/src/fixtures/boothFixtures.ts`):
 
-- `setElection({ id, election_event_id, tenant_id, contests, ... })` — a
-  minimal election with one contest ("Favourite colour") and two
-  candidates. Satisfies `selectElectionById` and `selectFirstBallotStyle`
-  consumers downstream.
+- `setElection({ id, election_event_id, tenant_id, contests, num_allowed_revotes: 0, ... })` —
+  a minimal election with one contest ("Favourite colour") and two
+  candidates. `num_allowed_revotes: 0` is interpreted by
+  `canVoteSomeElection` as *unlimited revotes*, which keeps the selector
+  truthy without seeding a working `castVotes` feed.
 - `setElectionEvent({ id, name, ... })` — the parent event.
+- `setBallotStyle({ id, election_id, ballot_eml: { contests, public_key, ... }, ... })`
+  — a ballot style whose `ballot_eml.contests` is the same `IContest`
+  array as the election's. The `public_key` is a placeholder string
+  marked `is_demo: false`; it is sufficient for screens that read the
+  ballot style but **not** for ones that perform real ElGamal encryption
+  (ReviewScreen submission). Replacing this with a generated keypair is
+  the next milestone.
 
 **Convention:** import action creators and slice types directly from
 `voting-portal/src/store/*Slice` (NOT from a re-export under the workbench).
@@ -275,6 +290,8 @@ broken or you want to validate fidelity.
    | `No routes matched location "/tenant/..."` | Path mirror is stale | E (extend `boothChildren`) |
    | Screen renders a spinner / self-redirects | Missing or mis-shaped fixture | F (fixtures) |
    | TS error in `fixtures/*` about a slice payload field | Portal slice type evolved | F (fixtures) |
+   | `expected magic word 00 61 73 6d, found 3c 21 2d 2d` | Wasm pkg pre-bundled by Vite | A6 (`optimizeDeps.exclude`) |
+   | `Cannot read properties of undefined (reading 'check_voting_...')` etc. coming from `sequent-core.js` | Wasm not initialized | D (mount `<WasmWrapper>`) |
    | `process is not defined` or `process.env.X` undefined | env var | A (`define` in vite.config) |
 
 3. **Fix the smallest possible thing**, restart the dev server, and re-test.
@@ -286,16 +303,19 @@ broken or you want to validate fidelity.
 
 ## Adaptations to add as we lift more screens
 
-When extending past `StartScreen`, the following are the most likely
+When extending past `VotingScreen`, the following are the most likely
 next-step categories of work (in roughly the order they will be needed):
 
-1. **Mounting `<ApolloProvider>` with a `MockedProvider`.** Define mocks
-   keyed by the gql documents the portal already imports — don't redefine
+1. **A real election public key in the ballot style fixture.** The current
+   placeholder lets VotingScreen render and lets the user select choices,
+   but clicking *Next* triggers `encryptBallotSelection`, which feeds the
+   placeholder string into ElGamal encryption. Generate a small keypair
+   (sequent-core exposes the necessary functions) and inject the public
+   key into `ballotEml.public_key`. The private key stays in the workbench
+   only, used later to verify decode.
+2. **Mounting `<ApolloProvider>` with a `MockedProvider`.** Define mocks
+   keyed by the gql documents the portal already imports \u2014 don't redefine
    the gql.
-2. **Adding `<WasmContextProvider>`** once a crypto-using screen is in
-   scope. Reuse the portal's own provider; only the wasm module identity
-   may need swapping (we may want it to point at the workbench's own
-   `velvet-wasm` so encode/tally use the same code).
 3. **Translation key fidelity.** Once a screen renders, missing
    translations show as raw keys (`booth.start.title`). Decide between
    shipping a copy of the portal's locales as a static asset and silencing
@@ -304,9 +324,9 @@ next-step categories of work (in roughly the order they will be needed):
    once, a shared in-memory schema (with `@graphql-tools/mock`) may scale
    better than per-test mocks. Decision deferred until pain is felt.
 5. **Extending the fixture.** As later screens consume more of the store
-   (ballot styles, voter info, encryption keys), `boothFixtures.ts` grows.
-   Keep it a single module per screen group rather than one fixture file
-   per slice — easier to keep coherent across slice boundaries.
+   (cast votes, audit data, etc.), `boothFixtures.ts` grows. Keep it a
+   single module per screen group rather than one fixture file per slice
+   \u2014 easier to keep coherent across slice boundaries.
 
 Each of these adaptations, when added, should get its own row in the
 inventory above with a canary entry. Treat the document as living.

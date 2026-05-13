@@ -18,6 +18,7 @@ import {Outlet} from "react-router-dom"
 import "voting-portal/src/services/i18n"
 
 import {store} from "voting-portal/src/store/store"
+import {WasmWrapper} from "voting-portal/src/providers/WasmWrapper"
 import StartScreen from "voting-portal/src/routes/StartScreen"
 import VotingScreen, {
     action as votingAction,
@@ -33,16 +34,20 @@ import {seedBoothFixtures} from "./fixtures/boothFixtures"
 seedBoothFixtures()
 
 /**
- * Layout for every booth screen. Provides the MUI theme and the
- * production Redux store (already populated by `seedBoothFixtures()`).
- * Designed to be mounted as a layout route under a data router so the
- * portal's `useSubmit` / `useActionData` calls work.
+ * Layout for every booth screen. Provides the MUI theme, the production
+ * Redux store (already populated by `seedBoothFixtures()`), and the
+ * portal's `WasmWrapper` (which initializes the sequent-core wasm module
+ * before rendering children). Designed to be mounted as a layout route
+ * under a data router so the portal's `useSubmit` / `useActionData` calls
+ * work.
  */
 export function BoothLayout() {
     return (
         <ThemeProvider theme={theme}>
             <ReduxProvider store={store}>
-                <Outlet />
+                <WasmWrapper>
+                    <Outlet />
+                </WasmWrapper>
             </ReduxProvider>
         </ThemeProvider>
     )

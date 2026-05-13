@@ -55,8 +55,17 @@ export default defineConfig({
         strictPort: true,
     },
     optimizeDeps: {
-        // velvet-wasm ships an ES module that imports a `.wasm` URL;
-        // Vite's dep optimizer chokes on that unless we exclude it.
-        exclude: ["velvet-wasm"],
+        // Both velvet-wasm (workbench's own) and sequent-core (the npm
+        // package voting-portal consumes) ship an ES module that
+        // computes its `.wasm` URL via `new URL("..._bg.wasm",
+        // import.meta.url)`. Vite's dep optimizer rewrites
+        // `import.meta.url` to a path under `.vite/deps/`, where the
+        // wasm binary doesn't exist — the dev server then SPA-falls
+        // back to `index.html` and the wasm loader fails with
+        // "expected magic word 00 61 73 6d, found 3c 21 2d 2d" (the
+        // bytes of "<!--"). Excluding these packages from
+        // optimization keeps the original `import.meta.url`,
+        // pointing at the real `.wasm` next to the JS.
+        exclude: ["velvet-wasm", "sequent-core"],
     },
 })
