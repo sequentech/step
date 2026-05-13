@@ -1,3 +1,10 @@
+<!--
+ SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+
+SPDX-License-Identifier: AGPL-3.0-only
+
+-->
+
 ## 🧹 Linting & Code Quality Guide
 
 This project enforces strict linting rules using Rust built-in lints and Clippy to ensure high code quality, safety, and maintainability.
