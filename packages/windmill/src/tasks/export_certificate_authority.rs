@@ -107,7 +107,9 @@ mod export_certificate_authority_task {
     #![allow(missing_docs)]
     #![allow(clippy::missing_docs_in_private_items)]
 
-    use super::*;
+    use super::{
+        instrument, update_complete, update_fail, Context, Result, TaskError, TasksExecution, Uuid,
+    };
 
     /// Celery task: export selected certificate authorities as a PEM bundle to S3.
     #[instrument(err)]

@@ -63,7 +63,8 @@ pub enum ETasksExecution {
 
 impl ETasksExecution {
     /// Human-readable label shown in admin UIs and logs for this task.
-    pub fn to_name(&self) -> &str {
+    #[must_use]
+    pub const fn to_name(&self) -> &str {
         match self {
             ETasksExecution::EXPORT_ELECTION_EVENT => "Export Election Event",
             ETasksExecution::EXPORT_TENANT_CONFIG => "Export Tenant Config",

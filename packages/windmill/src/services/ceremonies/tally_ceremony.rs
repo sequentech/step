@@ -31,11 +31,14 @@ use b3::messages::newtypes::BatchNumber;
 use deadpool_postgres::Transaction;
 use futures::try_join;
 use sequent_core::ballot::{AllowTallyStatus, ContestEncryptionPolicy};
-use sequent_core::serialization::deserialize_with_path::*;
+use sequent_core::serialization::deserialize_with_path::deserialize_value;
 use sequent_core::services::area_tree::ContestsData;
 use sequent_core::services::area_tree::TreeNode;
 use sequent_core::services::jwt::JwtClaims;
-use sequent_core::types::ceremonies::*;
+use sequent_core::types::ceremonies::{
+    CeremoniesPolicy, KeysCeremonyExecutionStatus, KeysCeremonyStatus, TallyCeremonyStatus,
+    TallyElection, TallyElectionStatus, TallyExecutionStatus, TallyTrustee, TallyTrusteeStatus,
+};
 use sequent_core::types::hasura::core::KeysCeremony;
 use sequent_core::types::hasura::core::{AreaContest, TallySessionConfiguration};
 use sequent_core::types::hasura::core::{
@@ -49,6 +52,13 @@ use std::ops::Add;
 use std::str::FromStr;
 use tracing::{event, instrument, Level};
 use uuid::Uuid;
+
+/// Converts a `usize` to an `i64`.
+#[allow(clippy::cast_possible_wrap)]
+#[inline]
+const fn usize_count_to_i64(n: usize) -> i64 {
+    n as i64
+}
 
 /// Tuple containing the latest execution, owning session, contests, and ballot styles for the requested elections.
 type LastTallySessionExecutionBundle = (
@@ -83,11 +93,8 @@ pub async fn find_last_tally_session_execution_and_all_related_data(
     )
     .await?;
 
-    let tally_session_execution = match tally_session_execution {
-        Some(tally_session_execution) => tally_session_execution,
-        None => {
-            return Ok(None);
-        }
+    let Some(tally_session_execution) = tally_session_execution else {
+        return Ok(None);
     };
 
     let tally_session = get_tally_session_by_id(
@@ -164,7 +171,8 @@ pub async fn find_keys_ceremony(
         return Err(anyhow!("Elections have different keys ceremonies"));
     }
 
-    let Some(keys_ceremony_id) = elections[0].keys_ceremony_id.clone() else {
+    let first_election = elections.first().ok_or_else(|| anyhow!("No elections"))?;
+    let Some(keys_ceremony_id) = first_election.keys_ceremony_id.clone() else {
         return Err(anyhow!("Election has no keys ceremony"));
     };
 
@@ -223,6 +231,7 @@ fn generate_initial_tally_status(
 ///
 /// Postgres failures from `get_tally_session_highest_batch` / `insert_tally_session_contest`, or
 /// `Err` when a referenced contest id is missing from `contests_map`.
+#[allow(clippy::implicit_hasher)]
 #[instrument(err, skip(hasura_transaction))]
 pub async fn insert_tally_session_contests(
     hasura_transaction: &Transaction<'_>,
@@ -309,6 +318,7 @@ fn get_area_contests_for_election_ids(
 ///
 /// Permission/publish validation failures, area tree construction errors, keys ceremony issues,
 /// Postgres insert failures, missing bulletin boards, or electoral log write errors.
+#[allow(clippy::too_many_lines)]
 #[instrument(err, skip(transaction))]
 pub async fn create_tally_ceremony(
     transaction: &Transaction<'_>,
@@ -394,7 +404,7 @@ pub async fn create_tally_ceremony(
         .map(|contest| (contest.id.clone(), contest.clone()))
         .collect();
 
-    let basic_areas = areas.iter().map(|area| area.into()).collect();
+    let basic_areas = areas.iter().map(Into::into).collect();
     let areas_tree = TreeNode::<()>::from_areas(basic_areas)?;
 
     event!(Level::INFO, "areas_tree {:?}", area_contests);
@@ -432,8 +442,15 @@ pub async fn create_tally_ceremony(
 
     let tally_execution_status = match keys_ceremony_policy {
         CeremoniesPolicy::AUTOMATED_CEREMONIES => TallyExecutionStatus::IN_PROGRESS,
-        _ => TallyExecutionStatus::STARTED,
+        CeremoniesPolicy::MANUAL_CEREMONIES => TallyExecutionStatus::STARTED,
     };
+
+    let threshold_i32 = i32::try_from(keys_ceremony.threshold).map_err(|_| {
+        anyhow!(
+            "Keys ceremony threshold {} does not fit in i32",
+            keys_ceremony.threshold
+        )
+    })?;
 
     let _tally_session = insert_tally_session(
         transaction,
@@ -444,7 +461,7 @@ pub async fn create_tally_ceremony(
         &tally_session_id,
         &keys_ceremony_id,
         tally_execution_status,
-        keys_ceremony.threshold as i32,
+        threshold_i32,
         Some(final_configuration.clone()),
         &tally_type,
         annotations,
@@ -475,10 +492,6 @@ pub async fn create_tally_ceremony(
         &final_configuration,
     )
     .await?;
-
-    // get the election event
-    let election_event =
-        get_election_event_by_id(transaction, &tenant_id, &election_event_id).await?;
 
     // Save this in the electoral log
     let board_name = get_election_event_board(election_event.bulletin_board_reference.clone())
@@ -528,24 +541,19 @@ pub async fn update_tally_ceremony(
 ) -> Result<()> {
     let current_status = tally_session
         .execution_status
-        .map(|value| {
+        .map_or(TallyExecutionStatus::STARTED, |value| {
             TallyExecutionStatus::from_str(&value).unwrap_or(TallyExecutionStatus::STARTED)
-        })
-        .unwrap_or(TallyExecutionStatus::STARTED);
+        });
 
     let expected_status: Vec<TallyExecutionStatus> = match current_status {
-        TallyExecutionStatus::STARTED => vec![TallyExecutionStatus::CANCELLED],
-        TallyExecutionStatus::CONNECTED => vec![
+        TallyExecutionStatus::STARTED | TallyExecutionStatus::IN_PROGRESS => {
+            vec![TallyExecutionStatus::CANCELLED]
+        }
+        TallyExecutionStatus::CONNECTED | TallyExecutionStatus::AWAITING_INPUT => vec![
             TallyExecutionStatus::IN_PROGRESS,
             TallyExecutionStatus::CANCELLED,
         ],
-        TallyExecutionStatus::IN_PROGRESS => vec![TallyExecutionStatus::CANCELLED],
-        TallyExecutionStatus::AWAITING_INPUT => vec![
-            TallyExecutionStatus::IN_PROGRESS,
-            TallyExecutionStatus::CANCELLED,
-        ],
-        TallyExecutionStatus::SUCCESS => vec![],
-        TallyExecutionStatus::CANCELLED => vec![],
+        TallyExecutionStatus::SUCCESS | TallyExecutionStatus::CANCELLED => vec![],
     };
 
     if !expected_status.contains(&new_execution_status) {
@@ -574,7 +582,7 @@ pub async fn update_tally_ceremony(
         .collect::<Vec<_>>()
         .len();
 
-    if tally_session.threshold > num_connected_trustees as i64
+    if tally_session.threshold > usize_count_to_i64(num_connected_trustees)
         && new_execution_status != TallyExecutionStatus::CANCELLED
     {
         return Err(anyhow!(
@@ -622,7 +630,7 @@ pub async fn update_tally_ceremony(
 
         electoral_log
             .post_tally_open(
-                election_event_id.to_string(),
+                election_event_id.clone(),
                 tally_elections_ids.clone(),
                 Some(user_id),
                 Some(username),
@@ -641,6 +649,7 @@ pub async fn update_tally_ceremony(
 ///
 /// Missing sessions/executions, invalid execution states, unknown trustees, mismatched ciphertext
 /// (returns `Ok(false)`), Postgres failures, missing bulletin boards, or electoral log errors.
+#[allow(clippy::too_many_lines)]
 #[instrument(err, skip(transaction))]
 pub async fn set_private_key(
     transaction: &Transaction<'_>,
@@ -677,10 +686,9 @@ pub async fn set_private_key(
 
     let current_status = tally_session
         .execution_status
-        .map(|value| {
+        .map_or(TallyExecutionStatus::STARTED, |value| {
             TallyExecutionStatus::from_str(&value).unwrap_or(TallyExecutionStatus::STARTED)
-        })
-        .unwrap_or(TallyExecutionStatus::STARTED);
+        });
 
     if TallyExecutionStatus::STARTED != current_status
         && TallyExecutionStatus::CONNECTED != current_status
@@ -767,7 +775,7 @@ pub async fn set_private_key(
         .collect::<Vec<_>>();
 
     // enough trustees connected, so change tally execution status to connected
-    if connected_trustees.len() as i64 >= keys_ceremony.threshold {
+    if usize_count_to_i64(connected_trustees.len()) >= keys_ceremony.threshold {
         update_tally_session_status(
             transaction.clone(),
             tenant_id,
@@ -778,7 +786,6 @@ pub async fn set_private_key(
         )
         .await?;
     }
-    println!("after update status");
     // get the election event
     let election_event =
         get_election_event_by_id(transaction, tenant_id, election_event_id).await?;
@@ -808,7 +815,7 @@ pub async fn set_private_key(
         .post_key_insertion(
             election_event_id.to_string(),
             found_trustee.name.clone(),
-            Some(user_id.to_string()),
+            Some(user_id.clone()),
             username.clone(),
             tally_elections_ids,
         )
@@ -862,10 +869,10 @@ pub async fn set_tally_session_completed(
 
         let username = annotations
             .get("executer_username")
-            .and_then(|val| val.as_str().map(|s| s.to_string()));
+            .and_then(|val| val.as_str().map(std::string::ToString::to_string));
         let user_id = annotations
             .get("executer_user_id")
-            .and_then(|val| val.as_str().map(|s| s.to_string()));
+            .and_then(|val| val.as_str().map(std::string::ToString::to_string));
         let board_name = get_election_event_board(election_event.bulletin_board_reference.clone())
             .with_context(|| "missing bulletin board")?;
 
@@ -881,7 +888,7 @@ pub async fn set_tally_session_completed(
 
         electoral_log
             .post_tally_close(
-                election_event_id.to_string(),
+                election_event_id.clone(),
                 tally_elections_ids,
                 user_id,
                 username,

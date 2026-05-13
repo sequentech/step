@@ -34,9 +34,9 @@ impl TryFrom<Row> for ContestWrapper {
             is_active: item.try_get("is_active")?,
             description: item.try_get("description")?,
             presentation: item.try_get("presentation")?,
-            min_votes: min_votes.map(|val| val as i64),
-            max_votes: max_votes.map(|val| val as i64),
-            winning_candidates_num: winning_candidates_num.map(|val| val as i64),
+            min_votes: min_votes.map(i64::from),
+            max_votes: max_votes.map(i64::from),
+            winning_candidates_num: winning_candidates_num.map(i64::from),
             voting_type: item.try_get("voting_type")?,
             counting_algorithm: item.try_get("counting_algorithm")?,
             is_encrypted: item.try_get("is_encrypted")?,
@@ -61,6 +61,27 @@ pub async fn insert_contest(
 ) -> Result<()> {
     for contest in &data.contests {
         contest.validate()?;
+
+        let min_votes_sql: Option<i32> = contest
+            .min_votes
+            .map(i32::try_from)
+            .transpose()
+            .map_err(|_| anyhow!("min_votes out of i32 range for contest {}", contest.id))?;
+        let max_votes_sql: Option<i32> = contest
+            .max_votes
+            .map(i32::try_from)
+            .transpose()
+            .map_err(|_| anyhow!("max_votes out of i32 range for contest {}", contest.id))?;
+        let winning_candidates_num_sql: Option<i32> = contest
+            .winning_candidates_num
+            .map(i32::try_from)
+            .transpose()
+            .map_err(|_| {
+                anyhow!(
+                    "winning_candidates_num out of i32 range for contest {}",
+                    contest.id
+                )
+            })?;
 
         let statement = hasura_transaction
         .prepare(
@@ -87,14 +108,14 @@ pub async fn insert_contest(
                     &contest.is_active,
                     &contest.description,
                     &contest.presentation,
-                    &contest.min_votes.map(|val| val as i32),
-                    &contest.max_votes.map(|val| val as i32),
+                    &min_votes_sql,
+                    &max_votes_sql,
                     &contest.voting_type,
                     &contest.counting_algorithm,
                     &contest.is_encrypted,
                     &contest.tally_configuration,
                     &contest.conditions,
-                    &contest.winning_candidates_num.map(|val| val as i32),
+                    &winning_candidates_num_sql,
                     &contest.image_document_id,
                     &contest.external_id,
                 ],

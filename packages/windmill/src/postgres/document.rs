@@ -135,7 +135,7 @@ pub async fn get_document(
     Ok(documents.first().cloned())
 }
 
-/// Returns a vector of tuples of the (SupportMaterial, Document)s
+/// Returns a vector of tuples of the (`SupportMaterial`, `Document`)s
 /// associated with a given election event.
 ///
 /// # Errors
@@ -226,9 +226,8 @@ pub async fn insert_document(
     is_public: bool,
     document_id: Option<String>,
 ) -> Result<Document> {
-    let document_uuid: uuid::Uuid = document_id
-        .map(|id| parse_uuid_v4(&id))
-        .unwrap_or(Ok(Uuid::new_v4()))?;
+    let document_uuid: uuid::Uuid =
+        document_id.map_or(Ok(Uuid::new_v4()), |id| parse_uuid_v4(&id))?;
     let election_event_uuid: Option<uuid::Uuid> =
         election_event_id.map(|id| parse_uuid_v4(&id)).transpose()?;
 

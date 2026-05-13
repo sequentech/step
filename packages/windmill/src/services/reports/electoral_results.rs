@@ -7,16 +7,16 @@
 //! This report integrates with the shared template-rendering pipeline and
 //! provides system-side variables required by the PDF rendering backend.
 
-use super::template_renderer::*;
+use super::template_renderer::{ReportOriginatedFrom, ReportOrigins, TemplateRenderer};
 use crate::postgres::reports::ReportType;
-use crate::services::temp_path::*;
+use crate::services::temp_path::PUBLIC_ASSETS_QRCODE_LIB;
 use anyhow::{Context, Result};
 use async_trait::async_trait;
 use chrono::{Local, TimeZone};
 use deadpool_postgres::{Client as DbClient, Transaction};
 use sequent_core::services::pdf;
 use sequent_core::services::s3::get_minio_url;
-use sequent_core::util::temp_path::*;
+use sequent_core::util::temp_path::get_public_assets_path_env_var;
 use serde::{Deserialize, Serialize};
 use tracing::{info, instrument};
 use velvet::pipes::generate_reports::TemplateData;
@@ -39,7 +39,8 @@ pub struct ElectoralResults {
 
 impl ElectoralResults {
     /// Creates a renderer bound to a specific tenant/event (and optionally election/template).
-    pub fn new(ids: ReportOrigins) -> Self {
+    #[must_use]
+    pub const fn new(ids: ReportOrigins) -> Self {
         ElectoralResults { ids }
     }
 }
@@ -119,8 +120,7 @@ impl TemplateRenderer for ElectoralResults {
             Ok(SystemData {
                 rendered_user_template,
                 file_qrcode_lib: format!(
-                    "{}/{}/{}",
-                    minio_endpoint_base, public_asset_path, PUBLIC_ASSETS_QRCODE_LIB
+                    "{minio_endpoint_base}/{public_asset_path}/{PUBLIC_ASSETS_QRCODE_LIB}"
                 ),
             })
         } else {

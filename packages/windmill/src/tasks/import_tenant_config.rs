@@ -30,7 +30,10 @@ mod import_tenant_config_task {
     #![allow(missing_docs)]
     #![allow(clippy::missing_docs_in_private_items)]
 
-    use super::*;
+    use super::{
+        anyhow, import_tenant_config_zip, instrument, update_complete, update_fail, Context,
+        Result, TaskError, TasksExecution,
+    };
 
     /// Celery task: unpack a tenant configuration archive into Hasura and related services.
     #[instrument(err)]
@@ -47,19 +50,25 @@ mod import_tenant_config_task {
 
         let object = object.clone();
         let tenant_id = tenant_id.clone();
-        let task_execution = task_execution_clone.clone();
 
-        match import_tenant_config_zip(object, &tenant_id, &document_id, sha256).await {
-            Ok(_) => (),
+        match Box::pin(import_tenant_config_zip(
+            object,
+            &tenant_id,
+            &document_id,
+            sha256,
+        ))
+        .await
+        {
+            Ok(()) => (),
             Err(err) => {
-                update_fail(&task_execution, &err.to_string()).await?;
+                update_fail(&task_execution_clone, &err.to_string()).await?;
                 return Err(
-                    anyhow!("Error process tenant configuration documents: {:?}", err).into(),
+                    anyhow!("Error process tenant configuration documents: {err:?}").into(),
                 );
             }
-        };
+        }
 
-        update_complete(&task_execution, Some(document_id.to_string()))
+        update_complete(&task_execution_clone, Some(document_id.clone()))
             .await
             .context("Failed to update task execution status to COMPLETED")?;
 

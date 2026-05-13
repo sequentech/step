@@ -6,9 +6,10 @@ use chrono::{DateTime, Local};
 use deadpool_postgres::Transaction;
 use sequent_core::serialization::deserialize_with_path::deserialize_value;
 use sequent_core::services::uuid_validation::parse_uuid_v4;
-use sequent_core::types::results::*;
+use sequent_core::types::results::{ResultDocuments, ResultsEvent};
 use serde::Serialize;
 use serde_json::Value;
+use std::cmp::Ordering;
 use tokio_postgres::row::Row;
 use tracing::instrument;
 use uuid::Uuid;
@@ -88,15 +89,13 @@ pub async fn update_results_event_documents(
         .await
         .map_err(|err| anyhow!("Error running the areas query: {err}"))?;
 
-    if 1 == rows.len() {
-        Ok(())
-    } else if rows.len() > 1 {
-        Err(anyhow!(
-            "Too many affected rows in table results_event: {}",
-            rows.len()
-        ))
-    } else {
-        Err(anyhow!("Rows not found in table results_event"))
+    let row_count = rows.len();
+    match row_count.cmp(&1) {
+        Ordering::Equal => Ok(()),
+        Ordering::Greater => Err(anyhow!(
+            "Too many affected rows in table results_event: {row_count}"
+        )),
+        Ordering::Less => Err(anyhow!("Rows not found in table results_event")),
     }
 }
 /// Get results event by id from the database.

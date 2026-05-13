@@ -10,6 +10,7 @@ use deadpool_postgres::Transaction;
 use tracing::instrument;
 
 /// Build the vault secret key used to store a report password for a tenant/event.
+#[must_use]
 pub fn get_report_secret_key(
     tenant_id: &str,
     election_event_id: &str,
@@ -44,7 +45,7 @@ pub async fn get_password(
         &secret_key,
     )
     .await
-    .map_err(|err| anyhow!("Error reading secret for key '{}': {:?}", secret_key, err))?;
+    .map_err(|err| anyhow!("Error reading secret for key '{secret_key}': {err:?}"))?;
 
     Ok(existing_key)
 }

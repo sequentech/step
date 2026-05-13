@@ -47,9 +47,8 @@ pub async fn read_trustees_config_base(
     let vault_type = get_vault()?.vault_type();
 
     let secret_prefix: String = match vault_type {
-        VaultManagerType::HashiCorpVault => "".to_string(),
         VaultManagerType::AwsSecretManager => "secrets/".to_string(),
-        VaultManagerType::EnvVarMasterSecret => "".to_string(),
+        VaultManagerType::HashiCorpVault | VaultManagerType::EnvVarMasterSecret => String::new(),
     };
 
     for trustee in trustees {
@@ -57,19 +56,17 @@ pub async fn read_trustees_config_base(
             .name
             .clone()
             .ok_or(anyhow!("Missing trustee name"))?;
-        let trustee_key = format!("{}{}_config", secret_prefix, trustee_name);
+        let trustee_key = format!("{secret_prefix}{trustee_name}_config");
         let secret = vault::read_secret(transaction, tenant_id, None, &trustee_key)
             .await?
             .ok_or(anyhow!(
-                "Missing vault secret for '{}'  and key '{}'",
-                trustee_name,
-                trustee_key
+                "Missing vault secret for '{trustee_name}'  and key '{trustee_key}'"
             ))?;
         info!("length of secret for {}: '{}'", trustee_name, secret.len());
 
         let data_bytes = secret.into_bytes();
 
-        let toml_filename = format!("{}/{}.toml", trustee_name, trustee_name);
+        let toml_filename = format!("{trustee_name}/{trustee_name}.toml");
         zip_writer.start_file(&toml_filename, options)?;
         zip_writer.write_all(&data_bytes)?;
     }
@@ -134,7 +131,7 @@ pub async fn read_trustees_config(
     .await;
 
     match res {
-        Ok(_) => {
+        Ok(()) => {
             update_complete(task_execution, Some(document_id.to_string()))
                 .await
                 .context("Failed to update task execution status to COMPLETED")?;

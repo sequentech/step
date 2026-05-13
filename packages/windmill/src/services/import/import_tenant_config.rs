@@ -30,6 +30,7 @@ use zip::read::ZipArchive;
 ///
 /// Returns an error if the document cannot be fetched/verified,
 /// ZIP reading fails, or any selected import step fails.
+#[allow(clippy::too_many_lines)]
 pub async fn import_tenant_config_zip(
     import_options: ImportOptions,
     tenant_id: &str,
@@ -61,7 +62,7 @@ pub async fn import_tenant_config_zip(
 
     match sha256 {
         Some(hash) if !hash.is_empty() => match integrity_check(&temp_zip_file, hash) {
-            Ok(_) => {
+            Ok(()) => {
                 info!("Hash verified !");
             }
             Err(HashFileVerifyError::HashMismatch(input_hash, gen_hash)) => {
@@ -103,7 +104,6 @@ pub async fn import_tenant_config_zip(
             && import_options.include_tenant == Some(true)
         {
             let temp_file = read_into_tmp_file(&mut cursor)
-                .await
                 .map_err(|e| anyhow!("Failed create tenant temp file: {e}"))?;
 
             upsert_tenant(&hasura_transaction, tenant_id, temp_file)
@@ -116,7 +116,6 @@ pub async fn import_tenant_config_zip(
             && import_options.include_roles == Some(true)
         {
             let temp_file = read_into_tmp_file(&mut cursor)
-                .await
                 .map_err(|e| anyhow!("Failed create roles & permissions temp file: {e}"))?;
 
             read_roles_config_file(temp_file, &realm, tenant_id).await?;
@@ -124,11 +123,11 @@ pub async fn import_tenant_config_zip(
         if file_name.contains(EDocuments::KEYCLOAK_CONFIG.to_file_name())
             && import_options.include_keycloak.unwrap_or(false)
         {
-            info!("Starting Keycloak config import from file: {}", file_name);
+            info!("Starting Keycloak config import from file: {file_name}");
 
             // Convert file contents to a string
             let data_str = String::from_utf8_lossy(cursor.get_ref());
-            info!("Keycloak config file contents: {:?}", data_str);
+            info!("Keycloak config file contents: {data_str:?}");
             // Deserialize the JSON into a RealmRepresentation
             let imported_realm: RealmRepresentation =
                 deserialize_str(&data_str).with_context(|| {
@@ -137,8 +136,8 @@ pub async fn import_tenant_config_zip(
 
             // Update only the fields that are present
             let localization = imported_realm.localization_texts.clone();
-            if let Some(localization) = imported_realm.localization_texts {
-                realm.localization_texts = Some(localization);
+            if let Some(loc_texts) = imported_realm.localization_texts {
+                realm.localization_texts = Some(loc_texts);
             }
             if let Some(display_name) = imported_realm.display_name {
                 realm.display_name = Some(display_name);
@@ -154,15 +153,15 @@ pub async fn import_tenant_config_zip(
             let realm_string = serde_json::to_string(&realm)
                 .with_context(|| "Failed to serialize updated realm configuration")?;
             let keycloack_pub_client = KeycloakAdminClient::pub_new().await?;
-            let keycloak_client = KeycloakAdminClient::new().await?;
-            keycloak_client
+            let kc_admin = KeycloakAdminClient::new().await?;
+            kc_admin
                 .update_localization_texts_from_import(
                     localization,
                     &keycloack_pub_client,
                     tenant_id,
                 )
                 .await?;
-            keycloak_client
+            kc_admin
                 .upsert_realm(&realm_name, &realm_string, tenant_id, false, None, None)
                 .await
                 .with_context(|| "Failed to upsert realm configuration in Keycloak")?;
@@ -183,28 +182,28 @@ pub async fn import_tenant_config_zip(
 /// Returns an error if the zip cannot be opened, parsed, or read.
 #[instrument(err, skip(temp_file_path))]
 pub async fn get_zip_entries(temp_file_path: NamedTempFile) -> Result<Vec<(String, Vec<u8>)>> {
-    let zip_file = File::open(&temp_file_path).map_err(|e| anyhow!("File open error: {}", e))?;
-    let mut zip = ZipArchive::new(zip_file).map_err(|e| anyhow!("Zip archive error: {}", e))?;
+    let zip_file = File::open(&temp_file_path).map_err(|e| anyhow!("File open error: {e}"))?;
+    let mut zip = ZipArchive::new(zip_file).map_err(|e| anyhow!("Zip archive error: {e}"))?;
     let mut entries: Vec<(String, Vec<u8>)> = Vec::new();
 
     for i in 0..zip.len() {
         let mut file = zip
             .by_index(i)
-            .map_err(|e| anyhow!("Zip entry error: {}", e))?;
+            .map_err(|e| anyhow!("Zip entry error: {e}"))?;
         let file_name = file.name().to_string();
 
         // Skip operating system files or hidden files
         if file_name.starts_with("__MACOSX/")
-            || file_name.starts_with(".")
-            || file_name.ends_with("/")
+            || file_name.starts_with('.')
+            || file_name.ends_with('/')
         {
-            info!("Skipping OS or hidden file: {:?}", file_name);
+            info!("Skipping OS or hidden file: {file_name:?}");
             continue;
         }
 
         let mut file_contents = Vec::new();
         file.read_to_end(&mut file_contents)
-            .map_err(|e| anyhow!("File read error: {}", e))?;
+            .map_err(|e| anyhow!("File read error: {e}"))?;
 
         entries.push((file_name, file_contents));
     }
@@ -217,7 +216,7 @@ pub async fn get_zip_entries(temp_file_path: NamedTempFile) -> Result<Vec<(Strin
 /// # Errors
 ///
 /// Returns an error if the temp file cannot be created, written, or rewound.
-pub async fn read_into_tmp_file(cursor: &mut Cursor<&mut [u8]>) -> Result<NamedTempFile> {
+pub fn read_into_tmp_file(cursor: &mut Cursor<&mut [u8]>) -> Result<NamedTempFile> {
     let mut temp_file = NamedTempFile::new().context("Failed to create temporary file")?;
     io::copy(cursor, &mut temp_file).context("Failed to copy contents to temporary file")?;
     temp_file.as_file_mut().rewind()?;

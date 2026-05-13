@@ -131,7 +131,8 @@ pub async fn set_public_key_impl(
     let next_timestamp = keys_ceremony
         .last_updated_at
         .with_context(|| "empty last_updated_at")?
-        .timestamp() as u64;
+        .timestamp()
+        .cast_unsigned();
 
     let messages = protocol_manager::get_board_public_key_messages(&board_name).await?;
     let mut new_logs = generate_logs(&messages, next_timestamp, &[0])?;
@@ -186,7 +187,7 @@ mod set_public_key_task {
     #![allow(missing_docs)]
     #![allow(clippy::missing_docs_in_private_items)]
 
-    use super::*;
+    use super::{instrument, set_public_key_impl, Result, TaskError};
 
     /// Celery task: pulls the published mixnet public key for a keys ceremony and persists trustee/ceremony status.
     #[instrument(err)]

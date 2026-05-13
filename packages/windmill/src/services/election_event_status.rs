@@ -10,7 +10,10 @@ use crate::postgres::election::{get_election_by_id, get_elections, update_electi
 use crate::postgres::election_event::{get_election_event_by_id, update_election_event_status};
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::Transaction;
-use sequent_core::ballot::*;
+use sequent_core::ballot::{
+    EInitializeReportPolicy, ElectionEventStatus, ElectionStatus, VotingPeriodEnd, VotingStatus,
+    VotingStatusChannel,
+};
 use sequent_core::serialization::deserialize_with_path::deserialize_value;
 use sequent_core::types::hasura::core::{ElectionEvent, VotingChannels};
 use serde_json::value::Value;
@@ -19,11 +22,13 @@ use tracing::{event, info, instrument, Level};
 use super::voting_status::update_board_on_status_change;
 
 /// Deserialize an `ElectionEventStatus` from JSON.
+#[must_use]
 pub fn get_election_event_status(status_json_opt: Option<Value>) -> Option<ElectionEventStatus> {
     status_json_opt.and_then(|status_json| deserialize_value(status_json).ok())
 }
 
 /// Deserialize an `ElectionStatus` from JSON.
+#[must_use]
 pub fn get_election_status(status_json_opt: Option<Value>) -> Option<ElectionStatus> {
     status_json_opt.and_then(|status_json| deserialize_value(status_json).ok())
 }
@@ -35,6 +40,7 @@ pub fn get_election_status(status_json_opt: Option<Value>) -> Option<ElectionSta
 ///
 /// Returns an error if the election event/elections cannot be loaded, transitions are invalid,
 /// or persistence/board updates fail.
+#[allow(clippy::too_many_lines)]
 pub async fn update_event_voting_status(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
@@ -42,7 +48,7 @@ pub async fn update_event_voting_status(
     username: Option<&str>,
     election_event_id: &str,
     new_status: &VotingStatus,
-    channels: &Option<Vec<VotingStatusChannel>>,
+    voting_status_channels: &Option<Vec<VotingStatusChannel>>,
 ) -> Result<ElectionEvent> {
     let election_event = get_election_event_by_id(hasura_transaction, tenant_id, election_event_id)
         .await
@@ -61,13 +67,13 @@ pub async fn update_event_voting_status(
         elections_status.insert(election.id.clone(), curr_election_status);
     }
 
-    let channels: Vec<VotingStatusChannel> = if let Some(channel) = channels {
+    let channels: Vec<VotingStatusChannel> = if let Some(channel) = voting_status_channels {
         info!("Reading input voting channels {channel:?}");
         channel.clone()
-    } else if let Some(channels) = election_event.voting_channels.clone() {
-        info!("Reading Event voting channels {channels:?}");
-        let voting_channels: VotingChannels =
-            deserialize_value(channels).context("Failed to deserialize event voting_channels")?;
+    } else if let Some(event_channels_json) = election_event.voting_channels.clone() {
+        info!("Reading Event voting channels {event_channels_json:?}");
+        let voting_channels: VotingChannels = deserialize_value(event_channels_json)
+            .context("Failed to deserialize event voting_channels")?;
 
         let mut event_channels = vec![];
 
@@ -75,21 +81,21 @@ pub async fn update_event_voting_status(
             .channel_from(&voting_channels)
             .unwrap_or(false)
         {
-            event_channels.push(VotingStatusChannel::ONLINE)
+            event_channels.push(VotingStatusChannel::ONLINE);
         }
 
         if VotingStatusChannel::KIOSK
             .channel_from(&voting_channels)
             .unwrap_or(false)
         {
-            event_channels.push(VotingStatusChannel::KIOSK)
+            event_channels.push(VotingStatusChannel::KIOSK);
         }
 
         if VotingStatusChannel::EARLY_VOTING
             .channel_from(&voting_channels)
             .unwrap_or(false)
         {
-            event_channels.push(VotingStatusChannel::EARLY_VOTING)
+            event_channels.push(VotingStatusChannel::EARLY_VOTING);
         }
 
         event_channels
@@ -117,16 +123,13 @@ pub async fn update_event_voting_status(
         }
 
         let expected_next_status = match current_voting_status {
-            VotingStatus::NOT_STARTED => {
-                vec![VotingStatus::OPEN]
-            }
             VotingStatus::OPEN => {
                 vec![VotingStatus::PAUSED, VotingStatus::CLOSED]
             }
             VotingStatus::PAUSED => {
                 vec![VotingStatus::CLOSED, VotingStatus::OPEN]
             }
-            VotingStatus::CLOSED => {
+            VotingStatus::NOT_STARTED | VotingStatus::CLOSED => {
                 vec![VotingStatus::OPEN]
             }
         };
@@ -151,9 +154,10 @@ pub async fn update_event_voting_status(
         let mut elections_ids: Vec<String> = Vec::new();
         if *new_status == VotingStatus::OPEN || *new_status == VotingStatus::CLOSED {
             for election in &elections {
-                if let Some(status) = elections_status.get_mut(&election.id) {
-                    status.close_early_voting_if_online_status_change(channel, *new_status);
-                    status.set_status_by_channel(channel, *new_status);
+                if let Some(election_status) = elections_status.get_mut(&election.id) {
+                    election_status
+                        .close_early_voting_if_online_status_change(channel, *new_status);
+                    election_status.set_status_by_channel(channel, *new_status);
                 }
                 elections_ids.push(election.id.clone());
             }
@@ -164,7 +168,7 @@ pub async fn update_event_voting_status(
             tenant_id,
             user_id,
             username,
-            election_event.id.to_string(),
+            election_event.id.clone(),
             election_event.bulletin_board_reference.clone(),
             *new_status,
             channel,
@@ -207,6 +211,7 @@ pub async fn update_event_voting_status(
 /// # Errors
 ///
 /// Returns an error if the election/event cannot be loaded, transitions are invalid, or updates fail.
+#[allow(clippy::too_many_lines)]
 pub async fn update_election_voting_status_impl(
     tenant_id: String,
     user_id: Option<&str>,
@@ -260,8 +265,7 @@ pub async fn update_election_voting_status_impl(
                 .unwrap_or_default()
     {
         return Err(anyhow!(
-            "election {:?} has the voting period end disallowed",
-            election_id,
+            "election {election_id:?} has the voting period end disallowed",
         ));
     }
 
@@ -273,22 +277,18 @@ pub async fn update_election_voting_status_impl(
         && !election.initialization_report_generated.unwrap_or(false)
     {
         return Err(anyhow!(
-            "election {:?} initialization report must be generated before opening the election",
-            election_id,
+            "election {election_id:?} initialization report must be generated before opening the election",
         ));
     }
 
     let expected_next_status = match current_voting_status {
-        VotingStatus::NOT_STARTED => {
-            vec![VotingStatus::OPEN]
-        }
         VotingStatus::OPEN => {
             vec![VotingStatus::PAUSED, VotingStatus::CLOSED]
         }
         VotingStatus::PAUSED => {
             vec![VotingStatus::CLOSED, VotingStatus::OPEN]
         }
-        VotingStatus::CLOSED => {
+        VotingStatus::NOT_STARTED | VotingStatus::CLOSED => {
             vec![VotingStatus::OPEN]
         }
     };
@@ -327,11 +327,11 @@ pub async fn update_election_voting_status_impl(
         &tenant_id,
         user_id,
         username,
-        election_event_id.to_string(),
+        election_event_id.clone(),
         bulletin_board_reference.clone(),
         new_status,
         channel,
-        Some(election_id.to_string()),
+        Some(election_id.clone()),
         None,
     )
     .await

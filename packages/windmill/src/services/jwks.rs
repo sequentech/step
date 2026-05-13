@@ -42,6 +42,7 @@ pub struct JwksOutput {
 }
 
 /// S3 object path where the aggregated JWKS is stored.
+#[must_use]
 pub fn get_jwks_secret_path() -> String {
     env::var("AWS_S3_JWKS_CERTS_PATH").unwrap_or("certs.json".to_string())
 }
@@ -97,10 +98,7 @@ pub async fn get_jwks() -> Result<Vec<JWKKey>> {
 pub async fn download_realm_jwks_from_keycloak(realm: &str) -> Result<Vec<JWKKey>> {
     let keycloak_url =
         env::var("KEYCLOAK_URL").map_err(|err| anyhow!("KEYCLOAK_URL must be set"))?;
-    let hasura_endpoint = format!(
-        "{}/realms/{}/protocol/openid-connect/certs",
-        keycloak_url, realm
-    );
+    let hasura_endpoint = format!("{keycloak_url}/realms/{realm}/protocol/openid-connect/certs");
 
     let client = reqwest::Client::new();
     let res = client
@@ -126,10 +124,7 @@ pub async fn upsert_realm_jwks(realm: &str) -> Result<()> {
         .await
         .unwrap_or(vec![]);
     let mut existing_jwks = get_jwks().await?;
-    let existing_kids: Vec<String> = existing_jwks
-        .iter()
-        .map(|realm| realm.kid.clone())
-        .collect();
+    let existing_kids: Vec<String> = existing_jwks.iter().map(|jwk| jwk.kid.clone()).collect();
     let new_jwks: Vec<JWKKey> = realm_jwks
         .clone()
         .into_iter()
@@ -186,7 +181,7 @@ pub async fn remove_realm_jwks(realm: &str) -> Result<()> {
         .unwrap_or(vec![]);
     let existing_jwks = get_jwks().await?;
 
-    let realm_kids: Vec<String> = realm_jwks.iter().map(|realm| realm.kid.clone()).collect();
+    let realm_kids: Vec<String> = realm_jwks.iter().map(|jwk| jwk.kid.clone()).collect();
 
     let new_jwks: Vec<JWKKey> = existing_jwks
         .clone()

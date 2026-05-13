@@ -5,12 +5,11 @@ use super::encrypter::{
     encrypt_directory_contents, encrypt_directory_contents_sql, get_file_report_type,
     traversal_encrypt_files, traversal_find_secrets_for_files,
 };
-use super::renamer::rename_folders;
+use super::renamer::{rename_folders, take_first_n_chars, FOLDER_MAX_CHARS};
 use crate::postgres::document::get_document;
 use crate::postgres::reports::Report;
 use crate::postgres::reports::{get_reports_by_election_event_id, ReportType};
 use crate::postgres::results_election_area::insert_results_election_area_documents;
-use crate::services::ceremonies::renamer::*;
 use crate::{
     postgres::{
         results_area_contest::update_results_area_contest_documents,
@@ -75,7 +74,7 @@ async fn generic_save_documents(
     hasura_transaction: &Transaction<'_>,
     tally_type_enum: TallyType,
 ) -> Result<ResultDocuments> {
-    let mut documents: ResultDocuments = Default::default();
+    let mut documents: ResultDocuments = ResultDocuments::default();
 
     // Retrieve reports
     let all_reports =
@@ -210,7 +209,7 @@ pub trait GenerateResultDocuments {
     /// Resolves filesystem paths for each artifact type, optionally scoped to `area_id`.
     fn get_document_paths(&self, area_id: Option<String>, base_path: &Path) -> ResultDocumentPaths;
     /// Uploads artifacts described by `document_paths`, updates results tables, and optionally mirrors
-    /// ids into SQLite.
+    /// ids into `SQLite`.
     ///
     /// # Errors
     ///
@@ -245,12 +244,14 @@ impl GenerateResultDocuments for Vec<ElectionReportDataComputed> {
         }
     }
 
-    /// Create event related documents and update the results_event table.
+    /// Create event related documents and update the `results_event` table.
     ///
     /// # Errors
     ///
     /// Tar creation, encryption traversal, secret discovery, uploads, folder rename operations, or
     /// Postgres/SQLite updates performed inside this implementation.
+    #[allow(clippy::too_many_lines, clippy::future_not_send)]
+    // clippy::future_not_send: sqlite transaction is not send when passing as Option.
     #[instrument(
         skip(self, rename_map),
         err,
@@ -293,8 +294,13 @@ impl GenerateResultDocuments for Vec<ElectionReportDataComputed> {
             let (_original_tarfile_temp_path, original_tarfile_path, original_tarfile_size) =
                 original_result;
 
-            let report_tenant_id = &self[0].reports[0].tenant_id;
-            let report_election_event_id = &self[0].reports[0].election_event_id;
+            let first_election = self.first().context("empty election report batch")?;
+            let first_report = first_election
+                .reports
+                .first()
+                .context("missing report row for tarball export")?;
+            let report_tenant_id = &first_report.tenant_id;
+            let report_election_event_id = &first_report.election_event_id;
 
             let all_reports =
                 get_reports_by_election_event_id(hasura_transaction, tenant_id, election_event_id)
@@ -322,7 +328,7 @@ impl GenerateResultDocuments for Vec<ElectionReportDataComputed> {
                 original_tarfile_size,
                 "application/gzip",
                 report_tenant_id,
-                Some(report_election_event_id.to_string()),
+                Some(report_election_event_id.clone()),
                 "tally.tar.gz",
                 None,
                 false,
@@ -366,10 +372,10 @@ impl GenerateResultDocuments for Vec<ElectionReportDataComputed> {
 
             let (_tarfile_temp_path, tarfile_path, tarfile_size) = result;
 
-            let mut upload_path = tarfile_path.clone();
+            let mut renamed_tar_upload_path = tarfile_path.clone();
 
             // Encrypt the tar.gz folder if necessary before uploading
-            upload_path = encrypt_directory_contents_sql(
+            renamed_tar_upload_path = encrypt_directory_contents_sql(
                 hasura_transaction,
                 tenant_id,
                 election_event_id,
@@ -384,11 +390,11 @@ impl GenerateResultDocuments for Vec<ElectionReportDataComputed> {
             // upload binary data into a document (s3 and hasura)
             let document = upload_and_return_document(
                 hasura_transaction,
-                &upload_path,
+                &renamed_tar_upload_path,
                 tarfile_size,
                 "application/gzip",
                 report_tenant_id,
-                Some(report_election_event_id.to_string()),
+                Some(report_election_event_id.clone()),
                 "tally.tar.gz",
                 None,
                 false,
@@ -499,6 +505,7 @@ impl GenerateResultDocuments for ElectionReportDataComputed {
     ///
     /// Missing report metadata, filesystem/hash errors, [`generic_save_documents`] failures, or
     /// Postgres/SQLite update errors.
+    #[allow(clippy::future_not_send)]
     #[instrument(
         err,
         skip(self, hasura_transaction),
@@ -515,14 +522,14 @@ impl GenerateResultDocuments for ElectionReportDataComputed {
         tally_type_enum: TallyType,
         sqlite_transaction_opt: Option<&SqliteTransaction<'_>>,
     ) -> Result<ResultDocuments> {
-        let tenant_id = self
+        let doc_tenant_id = self
             .reports
             .first()
             .context("Missing reports")?
             .tenant_id
             .clone();
 
-        let election_event_id = self
+        let doc_election_event_id = self
             .reports
             .first()
             .context("Missing reports")?
@@ -547,8 +554,8 @@ impl GenerateResultDocuments for ElectionReportDataComputed {
         // Save election results documents to S3 and Hasura
         let documents = generic_save_documents(
             document_paths,
-            &tenant_id,
-            &election_event_id,
+            &doc_tenant_id,
+            &doc_election_event_id,
             hasura_transaction,
             tally_type_enum,
         )
@@ -556,9 +563,9 @@ impl GenerateResultDocuments for ElectionReportDataComputed {
 
         update_results_election_documents(
             hasura_transaction,
-            &tenant_id,
+            &doc_tenant_id,
             results_event_id,
-            &election_event_id,
+            &doc_election_event_id,
             &election_id,
             &documents,
             &json_hash,
@@ -568,9 +575,9 @@ impl GenerateResultDocuments for ElectionReportDataComputed {
         if let Some(sqlite_transaction) = sqlite_transaction_opt {
             update_results_election_documents_sqlite(
                 sqlite_transaction,
-                &tenant_id,
+                &doc_tenant_id,
                 results_event_id,
-                &election_event_id,
+                &doc_election_event_id,
                 &election_id,
                 &documents,
                 &json_hash,
@@ -636,7 +643,8 @@ impl GenerateResultDocuments for ReportDataComputed {
     /// # Errors
     ///
     /// Hashing or IO errors when reading JSON proofs, [`generic_save_documents`] failures, or database
-    /// updates for contest/area-contest rows (Hasura and optional SQLite).
+    /// updates for contest/area-contest rows (Hasura and optional `SQLite`).
+    #[allow(clippy::future_not_send)]
     #[instrument(err, skip(self), name = "ReportDataComputed::save_documents")]
     async fn save_documents(
         &self,
@@ -651,8 +659,8 @@ impl GenerateResultDocuments for ReportDataComputed {
     ) -> Result<ResultDocuments> {
         let documents = generic_save_documents(
             document_paths,
-            &self.tenant_id.to_string(),
-            &self.election_event_id.to_string(),
+            &self.tenant_id.clone(),
+            &self.election_event_id.clone(),
             hasura_transaction,
             tally_type_enum,
         )
@@ -778,6 +786,7 @@ pub fn generate_ids_map(
 ///
 /// Failures from [`generate_ids_map`], missing report data during saves, encryption/upload errors, or
 /// any database update returned by [`GenerateResultDocuments::save_documents`].
+#[allow(clippy::future_not_send)]
 #[instrument(skip(hasura_transaction, results, areas), err)]
 pub async fn save_result_documents(
     hasura_transaction: &Transaction<'_>,
@@ -847,24 +856,24 @@ pub async fn save_result_documents(
                 )
                 .await?;
         }
-        let areas: Vec<BasicArea> = election_areas.values().cloned().collect();
+        let report_areas: Vec<BasicArea> = election_areas.values().cloned().collect();
 
-        let report_election_event_id = election_report.reports[0].election_event_id.clone();
-        let report_tenant_id = election_report.reports[0].tenant_id.clone();
-        let report_election_id = election_report.reports[0].election_id.clone();
+        let first_report = election_report
+            .reports
+            .first()
+            .context("missing report in election_report")?;
+        let report_election_event_id = first_report.election_event_id.clone();
+        let report_tenant_id = first_report.tenant_id.clone();
+        let report_election_id = first_report.election_id.as_ref();
 
-        for area in areas {
-            let documents = get_area_document_paths(
-                area.id.clone(),
-                report_election_id.to_string(),
-                base_tally_path,
-            );
+        for area in report_areas {
+            let documents = get_area_document_paths(&area.id, report_election_id, base_tally_path);
 
             save_area_documents(
                 hasura_transaction,
                 &report_tenant_id,
                 &report_election_event_id,
-                &report_election_id,
+                report_election_id,
                 &documents,
                 results_event_id,
                 None,
@@ -880,8 +889,8 @@ pub async fn save_result_documents(
 
 /// Builds [`ResultDocumentPaths`] for a single area’s Velvet `generate-reports` subdirectory.
 fn get_area_document_paths(
-    area_id: String,
-    election_id: String,
+    area_id: &str,
+    election_id: &str,
     base_path: &Path,
 ) -> ResultDocumentPaths {
     let folder_path = base_path.join(format!(
@@ -920,7 +929,8 @@ fn get_area_document_paths(
 ///
 /// # Errors
 ///
-/// Propagates failures from [`generic_save_documents`], Hasura inserts, or SQLite mirror updates.
+/// Propagates failures from [`generic_save_documents`], Hasura inserts, or `SQLite` mirror updates.
+#[allow(clippy::future_not_send)]
 #[instrument(err, skip(hasura_transaction))]
 async fn save_area_documents(
     hasura_transaction: &Transaction<'_>,

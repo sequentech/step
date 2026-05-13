@@ -31,7 +31,7 @@ pub fn create_archive_from_folder(
 ) -> Result<(TempPath, String, u64)> {
     let extension = if compress { ".tar.gz" } else { ".tar" };
     let tar_temp_file = generate_temp_file("tally-", extension)
-        .with_context(|| format!("Error generating temporary {} file", extension))?;
+        .with_context(|| format!("Error generating temporary {extension} file"))?;
 
     // Reopen the temp file for writing. This handle will be used by the archiver/compressor.
     let file_write_handle = tar_temp_file

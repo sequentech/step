@@ -243,7 +243,6 @@ pub async fn get_all_tenant_election_events(
 ///
 /// Returns an error if SQL preparation or execution fails,
 /// if UUID or other parsing fails, or if row mapping is inconsistent.
-
 pub async fn update_election_event_annotations(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
@@ -285,7 +284,6 @@ pub async fn update_election_event_annotations(
 ///
 /// Returns an error if SQL preparation or execution fails,
 /// if UUID or other parsing fails, or if row mapping is inconsistent.
-
 pub async fn update_election_event_presentation(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,

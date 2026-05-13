@@ -40,7 +40,7 @@ impl TryFrom<Row> for AreaWrapper {
     }
 }
 /// Returns a vector of areas per election event, with the posibility of
-/// filtering by area_id
+/// filtering by `area_id`
 ///
 /// # Errors
 ///
@@ -376,7 +376,7 @@ pub async fn upsert_area_parents(
 /// field is invalid, or if an `INSERT` fails at the database layer.
 #[instrument(err, skip_all)]
 pub async fn insert_areas(hasura_transaction: &Transaction<'_>, areas: &[Area]) -> Result<()> {
-    let tree_node_areas: Vec<TreeNodeArea> = areas.iter().map(|area| area.into()).collect();
+    let tree_node_areas: Vec<TreeNodeArea> = areas.iter().map(std::convert::Into::into).collect();
     let areas_tree = TreeNode::<()>::from_areas(tree_node_areas)?;
     let areas_map: HashMap<String, Area> = areas
         .iter()

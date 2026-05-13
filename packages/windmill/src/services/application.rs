@@ -23,7 +23,7 @@ use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::Transaction;
 use keycloak::types::CredentialRepresentation;
 use sequent_core::ballot::{ElectionEventPresentation, I18nContent};
-use sequent_core::serialization::deserialize_with_path::*;
+use sequent_core::serialization::deserialize_with_path::{deserialize_str, deserialize_value};
 
 use sequent_core::services::keycloak::get_event_realm;
 use sequent_core::services::keycloak::KeycloakAdminClient;
@@ -39,7 +39,7 @@ use tracing::{debug, event, info, instrument, warn, Level};
 use uuid::Uuid;
 
 use sequent_core::types::templates::AudienceSelection::SELECTED;
-use sequent_core::types::templates::TemplateMethod::{EMAIL, SMS};
+use sequent_core::types::templates::TemplateMethod::{DOCUMENT, EMAIL, SMS};
 use unicode_normalization::char::decompose_canonical;
 
 #[allow(non_camel_case_types)]
@@ -86,6 +86,7 @@ struct ApplicationCommunicationChannels {
 /// Returns an error if one of the operations fails.
 
 #[instrument(skip_all, err)]
+#[allow(clippy::implicit_hasher)]
 pub async fn verify_application(
     hasura_transaction: &Transaction<'_>,
     keycloak_transaction: &Transaction<'_>,
@@ -226,27 +227,27 @@ fn get_filter_from_applicant_data(
     let mut email = None;
     let mut attributes_map = HashMap::new();
 
-    for attribute in search_attributes.split(",") {
+    for attribute in search_attributes.split(',') {
         match attribute {
             "firstName" => {
                 first_name = applicant_data
                     .get("firstName")
-                    .map(|value| FilterOption::IsEqualNormalized(value.to_string()));
+                    .map(|value| FilterOption::IsEqualNormalized(value.clone()));
             }
             "lastName" => {
                 last_name = applicant_data
                     .get("lastName")
-                    .map(|value| FilterOption::IsEqualNormalized(value.to_string()));
+                    .map(|value| FilterOption::IsEqualNormalized(value.clone()));
             }
             "username" => {
                 username = applicant_data
                     .get("username")
-                    .map(|value| FilterOption::IsEqualNormalized(value.to_string()));
+                    .map(|value| FilterOption::IsEqualNormalized(value.clone()));
             }
             "email" => {
                 email = applicant_data
                     .get("email")
-                    .map(|value| FilterOption::IsEqualNormalized(value.to_string()));
+                    .map(|value| FilterOption::IsEqualNormalized(value.clone()));
             }
             "embassy" => {
                 // Ignore embassy to speed up user lookup
@@ -256,7 +257,7 @@ fn get_filter_from_applicant_data(
                     .get(attribute)
                     .cloned()
                     // Return an empty string if a value is missing from the applicant data.
-                    .unwrap_or("".to_string());
+                    .unwrap_or_else(String::new);
 
                 attributes_map.insert(attribute.to_string(), value);
             }
@@ -294,7 +295,7 @@ fn get_filter_from_applicant_data(
 
 /// Build manual verify reason.
 #[instrument(skip_all)]
-fn build_manual_verify_reason(fields_match: HashMap<String, bool>) -> String {
+fn build_manual_verify_reason(fields_match: &HashMap<String, bool>) -> String {
     let mismatch_fields = fields_match
         .iter()
         .filter(|(_, &value)| !value)
@@ -350,6 +351,7 @@ pub struct ApplicationVerificationResult {
 }
 
 /// Automatic verification workflow.
+#[allow(clippy::too_many_lines)]
 #[instrument(err, skip_all)]
 fn automatic_verification(
     users: Vec<User>,
@@ -367,7 +369,7 @@ fn automatic_verification(
 
     // Set fields match all to false for default response
     let fields_match: HashMap<String, bool> = search_attributes
-        .split(",")
+        .split(',')
         .map(|field| (field.trim().to_string(), false))
         .collect();
 
@@ -383,7 +385,7 @@ fn automatic_verification(
     let mut mismatch_reason = None;
 
     for user in users {
-        let (mismatches, mismatches_unset, fields_match, attributes_unset) = check_mismatches(
+        let (mismatches, mismatches_unset, user_fields_match, attributes_unset) = check_mismatches(
             &user,
             applicant_data,
             search_attributes.clone(),
@@ -392,7 +394,7 @@ fn automatic_verification(
         let username = user.username.clone().unwrap_or_default();
 
         if mismatches > 0 {
-            mismatch_reason = Some(build_manual_verify_reason(fields_match.clone()));
+            mismatch_reason = Some(build_manual_verify_reason(&user_fields_match));
         }
 
         // If there are no mismatches..
@@ -405,7 +407,7 @@ fn automatic_verification(
                 matched_status = ApplicationStatus::REJECTED;
                 matched_type = ApplicationType::AUTOMATIC;
                 verification_mismatches = Some(mismatches);
-                verification_fields_match = Some(fields_match);
+                verification_fields_match = Some(user_fields_match);
                 verification_attributes_unset = Some(attributes_unset);
                 rejection_reason = Some(ApplicationRejectReason::ALREADY_APPROVED);
                 rejection_message = None;
@@ -416,7 +418,7 @@ fn automatic_verification(
                     application_status: ApplicationStatus::ACCEPTED,
                     application_type: ApplicationType::AUTOMATIC,
                     mismatches: Some(mismatches),
-                    fields_match: Some(fields_match),
+                    fields_match: Some(user_fields_match),
                     attributes_unset: Some(attributes_unset),
                     rejection_reason: None,
                     rejection_message: None,
@@ -433,19 +435,19 @@ fn automatic_verification(
                 matched_status = ApplicationStatus::REJECTED;
                 matched_type = ApplicationType::AUTOMATIC;
                 verification_mismatches = Some(mismatches);
-                verification_fields_match = Some(fields_match);
+                verification_fields_match = Some(user_fields_match);
                 verification_attributes_unset = Some(attributes_unset);
                 rejection_reason = Some(ApplicationRejectReason::ALREADY_APPROVED);
                 rejection_message = None;
             } else {
-                if !fields_match.get("embassy").unwrap_or(&false) {
+                if !user_fields_match.get("embassy").unwrap_or(&false) {
                     return Ok(ApplicationVerificationResult {
                         user_id: user.id,
                         username,
                         application_status: ApplicationStatus::ACCEPTED,
                         application_type: ApplicationType::AUTOMATIC,
                         mismatches: Some(mismatches),
-                        fields_match: Some(fields_match),
+                        fields_match: Some(user_fields_match),
                         attributes_unset: Some(attributes_unset),
                         rejection_reason: None,
                         rejection_message: None,
@@ -456,21 +458,21 @@ fn automatic_verification(
                 matched_status = ApplicationStatus::PENDING;
                 matched_type = ApplicationType::MANUAL;
                 verification_mismatches = Some(mismatches);
-                verification_fields_match = Some(fields_match);
+                verification_fields_match = Some(user_fields_match);
                 verification_attributes_unset = Some(attributes_unset);
                 rejection_reason = Some(ApplicationRejectReason::NO_VOTER);
                 rejection_message = None;
             }
         } else if mismatches == 2
-            && (!fields_match.get("embassy").unwrap_or(&false)
-                || (!fields_match.get("middleName").unwrap_or(&false)
-                    && !fields_match.get("lastName").unwrap_or(&false)))
+            && (!user_fields_match.get("embassy").unwrap_or(&false)
+                || (!user_fields_match.get("middleName").unwrap_or(&false)
+                    && !user_fields_match.get("lastName").unwrap_or(&false)))
         {
             matched_user = None;
             matched_status = ApplicationStatus::PENDING;
             matched_type = ApplicationType::MANUAL;
             verification_mismatches = Some(mismatches);
-            verification_fields_match = Some(fields_match);
+            verification_fields_match = Some(user_fields_match);
             verification_attributes_unset = Some(attributes_unset);
             rejection_reason = Some(ApplicationRejectReason::NO_VOTER);
             rejection_message = None;
@@ -479,7 +481,7 @@ fn automatic_verification(
             matched_status = ApplicationStatus::REJECTED;
             matched_type = ApplicationType::AUTOMATIC;
             verification_mismatches = Some(mismatches);
-            verification_fields_match = Some(fields_match);
+            verification_fields_match = Some(user_fields_match);
             verification_attributes_unset = Some(attributes_unset);
             rejection_reason = Some(ApplicationRejectReason::NO_VOTER);
             rejection_message = None;
@@ -512,7 +514,7 @@ fn automatic_verification(
 /// Type alias `VerificationMismatchSummary` to keep signatures readable.
 type VerificationMismatchSummary = (usize, usize, HashMap<String, bool>, HashMap<String, bool>);
 /// Check mismatches workflow.
-
+#[allow(clippy::too_many_lines)]
 #[instrument(err)]
 fn check_mismatches(
     user: &User,
@@ -538,7 +540,7 @@ fn check_mismatches(
     let card_type_flag = card_type == ECardType::SEAMANS_BOOK.to_string()
         || card_type == ECardType::DRIVER_LICENSE.to_string();
 
-    for field_to_check in fields_to_check.split(",") {
+    for field_to_check in fields_to_check.split(',') {
         let field = field_to_check.trim();
 
         // Special handling for firstName when card_type_flag is true
@@ -549,10 +551,10 @@ fn check_mismatches(
                 // Extract first and middle names from applicant_data
                 let applicant_first_name = applicant_data
                     .get("firstName")
-                    .map(|value| value.to_string().to_lowercase());
+                    .map(|value| value.clone().to_lowercase());
                 let applicant_middle_name = applicant_data
                     .get("middleName")
-                    .map(|value| value.to_string().to_lowercase());
+                    .map(|value| value.clone().to_lowercase());
                 let applicant_combined = match (applicant_first_name, applicant_middle_name) {
                     (Some(first), Some(middle)) => {
                         Some(format!("{first} {middle}").trim().to_string())
@@ -582,7 +584,8 @@ fn check_mismatches(
                     _ => None,
                 };
 
-                let is_match = is_fuzzy_match(applicant_combined, user_combined);
+                let is_match =
+                    is_fuzzy_match(applicant_combined.as_deref(), user_combined.as_deref());
                 match_result.insert("firstName.middleName".to_string(), is_match);
 
                 if !is_match {
@@ -595,7 +598,7 @@ fn check_mismatches(
         // Extract field from applicant_data
         let applicant_field_value = applicant_data
             .get(field)
-            .map(|value| value.to_string().to_lowercase());
+            .map(|value| value.clone().to_lowercase());
 
         // Extract field from user
         let user_field_value = match field {
@@ -608,11 +611,14 @@ fn check_mismatches(
                 .as_ref()
                 .and_then(|attributes| attributes.get(field_to_check))
                 .and_then(|values| values.first())
-                .map(|value| value.to_string()),
+                .cloned(),
         };
 
         let user_field_value = user_field_value.clone().map(|value| value.to_lowercase());
-        let is_match = is_fuzzy_match(applicant_field_value, user_field_value);
+        let is_match = is_fuzzy_match(
+            applicant_field_value.as_deref(),
+            user_field_value.as_deref(),
+        );
 
         // Check match
         match_result.insert(field_to_check.to_string(), is_match);
@@ -624,8 +630,8 @@ fn check_mismatches(
 
     let mut unset_mismatches: usize = 0;
 
-    for fields_to_check_unset in fields_to_check_unset.split(",") {
-        let field_unset = fields_to_check_unset.trim();
+    for unset_field_name in fields_to_check_unset.split(',') {
+        let field_unset = unset_field_name.trim();
 
         // Extract field from user
         let user_field_value = match field_unset {
@@ -638,7 +644,7 @@ fn check_mismatches(
                 .as_ref()
                 .and_then(|attributes| attributes.get(field_unset))
                 .and_then(|values| values.first())
-                .map(|value| value.to_string()),
+                .cloned(),
         };
 
         let user_field_value = user_field_value.clone().map(|value| value.to_lowercase());
@@ -701,7 +707,7 @@ async fn get_i18n_default_application_communication(
     match app_status {
         ApplicationStatus::ACCEPTED => Ok(application.accepted),
         ApplicationStatus::REJECTED => Ok(application.rejected),
-        _ => Err(anyhow::anyhow!("Not a valid application status")),
+        ApplicationStatus::PENDING => Err(anyhow::anyhow!("Not a valid application status")),
     }
 }
 
@@ -730,7 +736,7 @@ pub async fn get_i18n_application_communication(
         .flatten()
     {
         application_channels.sms.message = sms_message;
-    };
+    }
 
     if let Some(email_subject) = localization_map
         .get(&format!("{key_prefix}.email.subject"))
@@ -738,7 +744,7 @@ pub async fn get_i18n_application_communication(
         .flatten()
     {
         application_channels.email.subject = email_subject;
-    };
+    }
 
     if let Some(plaintext_body) = localization_map
         .get(&format!("{key_prefix}.email.plaintext_body"))
@@ -746,7 +752,7 @@ pub async fn get_i18n_application_communication(
         .flatten()
     {
         application_channels.email.plaintext_body = plaintext_body;
-    };
+    }
 
     if let Some(html_body) = localization_map
         .get(&format!("{key_prefix}.email.html_body"))
@@ -754,7 +760,7 @@ pub async fn get_i18n_application_communication(
         .flatten()
     {
         application_channels.email.html_body = Some(html_body);
-    };
+    }
 
     Ok(application_channels)
 }
@@ -793,7 +799,7 @@ pub async fn get_application_response_communication(
     match communication_method {
         EMAIL => Ok((Some(appl_comm.email), None)),
         SMS => Ok((None, Some(appl_comm.sms))),
-        _ => Ok((None, None)),
+        DOCUMENT => Ok((None, None)),
     }
 }
 /// Confirm application workflow.
@@ -802,7 +808,7 @@ pub async fn get_application_response_communication(
 ///
 /// Returns an error if SQL preparation or execution fails,
 /// if UUID or other parsing fails.
-
+#[allow(clippy::too_many_lines)]
 #[instrument(skip_all, err)]
 pub async fn confirm_application(
     hasura_transaction: &Transaction<'_>,
@@ -883,7 +889,7 @@ pub async fn confirm_application(
                 key.to_owned(),
                 value
                     .to_string()
-                    .split(";")
+                    .split(';')
                     .map(|value| value.trim_matches('"').to_string())
                     .collect(),
             )
@@ -925,11 +931,11 @@ pub async fn confirm_application(
 
     info!("update_attributes={attributes:?}, attributes_to_store={attributes_to_store:?}");
 
-    let client = KeycloakAdminClient::new()
+    let keycloak_client = KeycloakAdminClient::new()
         .await
         .map_err(|err| anyhow!("Error obtaining keycloak admin client: {err}"))?;
 
-    let user = client
+    let updated_user = keycloak_client
         .edit_user_with_credentials(
             &realm,
             user_id,
@@ -951,13 +957,13 @@ pub async fn confirm_application(
         election_event_id,
         user_id,
         admin_id,
-        &user,
+        &updated_user,
         ApplicationStatus::ACCEPTED,
     )
     .await
     .map_err(|err| anyhow!("Error sending communication response: {err}"))?;
 
-    Ok((application, user))
+    Ok((application, updated_user))
 }
 /// Reject application workflow.
 ///
@@ -1069,7 +1075,7 @@ pub async fn send_application_communication_response(
         .as_ref()
         .and_then(|attributes| attributes.get(MOBILE_PHONE_ATTR_NAME))
         .and_then(|values| values.first())
-        .map(|value| value.to_string())
+        .cloned()
         .is_some()
     {
         Some(SMS)
@@ -1083,8 +1089,7 @@ pub async fn send_application_communication_response(
             .await
             .with_context(|| "Error obtaining election event")?
             .presentation
-            .map(deserialize_value)
-            .unwrap_or(Ok(ElectionEventPresentation::default()))?;
+            .map_or(Ok(ElectionEventPresentation::default()), deserialize_value)?;
 
     let (email_config, sms_config) = get_application_response_communication(
         communication_method.clone(),
@@ -1143,7 +1148,7 @@ pub async fn send_application_communication_response(
             .await
             .map_err(|err| anyhow!("Error sending email or sms: {err}"))?;
         }
-        _ => {}
+        ApplicationStatus::PENDING => {}
     }
 
     Ok(())
@@ -1153,7 +1158,6 @@ pub async fn send_application_communication_response(
 /// # Errors
 ///
 /// Returns an error if one of the operations fails.
-
 #[instrument(err, skip_all)]
 pub async fn get_group_names(realm: &str, user_id: &str) -> Result<Vec<String>> {
     let client = KeycloakAdminClient::new()
@@ -1161,13 +1165,13 @@ pub async fn get_group_names(realm: &str, user_id: &str) -> Result<Vec<String>> 
         .map_err(|err| anyhow!("Error create keycloak admin client: {err}"))?;
 
     // Fetch user groups from Keycloak
-    let _groups = client
+    let groups = client
         .get_user_groups(realm, user_id)
         .await
         .map_err(|err| anyhow!("Error fetch group names: {err}"))?;
 
     // Extract group names
-    let group_names: Vec<String> = _groups
+    let group_names: Vec<String> = groups
         .into_iter()
         .map(|group| group.group_name) // Assuming `group_name` is a String
         .collect();
@@ -1178,7 +1182,7 @@ pub async fn get_group_names(realm: &str, user_id: &str) -> Result<Vec<String>> 
 
 /// Convert string to unaccented.
 #[instrument(skip_all)]
-fn string_to_unaccented(word: String) -> String {
+fn string_to_unaccented(word: &str) -> String {
     let mut unaccented_word = String::new();
     for l in word.chars() {
         let mut base_char = None;
@@ -1194,24 +1198,23 @@ fn string_to_unaccented(word: String) -> String {
 
 /// Convert to unaccented without hyphen.
 #[instrument(skip_all)]
-fn to_unaccented_without_hyphen(word: Option<String>) -> Option<String> {
+fn to_unaccented_without_hyphen(word: Option<&str>) -> Option<String> {
     let word = match word {
-        Some(word) => word.replace("-", " ").replace(".", ""),
+        Some(word) => word.replace('-', " ").replace('.', ""),
         None => return None,
     };
-    let unaccented_word = string_to_unaccented(word);
+    let unaccented_word = string_to_unaccented(&word);
     Some(unaccented_word)
 }
 
 /// Assumes that the inputs are already lowercase
 #[instrument]
-fn is_fuzzy_match(applicant_value: Option<String>, user_value: Option<String>) -> bool {
-    let applicant_value_s = applicant_value.clone().unwrap_or_default();
-    let user_value_s = user_value.clone().unwrap_or_default();
+fn is_fuzzy_match(applicant_value: Option<&str>, user_value: Option<&str>) -> bool {
+    let applicant_value_s = applicant_value.unwrap_or("").to_string();
+    let user_value_s = user_value.unwrap_or("").to_string();
     let unaccented_applicant_value =
-        to_unaccented_without_hyphen(applicant_value.clone()).unwrap_or_default();
-    let unaccented_user_value =
-        to_unaccented_without_hyphen(user_value.clone()).unwrap_or_default();
+        to_unaccented_without_hyphen(applicant_value).unwrap_or_default();
+    let unaccented_user_value = to_unaccented_without_hyphen(user_value).unwrap_or_default();
     match (
         applicant_value_s.trim() == user_value_s.trim(),
         applicant_value_s.trim() == unaccented_user_value.trim(),
@@ -1231,7 +1234,7 @@ mod tests {
     fn test_accent_mark() {
         let applicant_value: Option<String> = Some("manuel".to_string());
         let user_value: Option<String> = Some("mánuel".to_string());
-        let is_match = is_fuzzy_match(applicant_value.clone(), user_value.clone());
+        let is_match = is_fuzzy_match(applicant_value.as_deref(), user_value.as_deref());
 
         assert!(
             is_match,
@@ -1244,7 +1247,7 @@ mod tests {
     fn test_grave_accent() {
         let applicant_value: Option<String> = Some("pierre".to_string());
         let user_value: Option<String> = Some("pièrre".to_string());
-        let is_match = is_fuzzy_match(applicant_value.clone(), user_value.clone());
+        let is_match = is_fuzzy_match(applicant_value.as_deref(), user_value.as_deref());
         assert!(
             is_match,
             "applicant_value ({:?}) does not match user_value ({:?})",
@@ -1256,7 +1259,7 @@ mod tests {
     fn test_circumflex() {
         let applicant_value: Option<String> = Some("paulo".to_string());
         let user_value: Option<String> = Some("paulô".to_string());
-        let is_match = is_fuzzy_match(applicant_value.clone(), user_value.clone());
+        let is_match = is_fuzzy_match(applicant_value.as_deref(), user_value.as_deref());
         assert!(
             is_match,
             "applicant_value ({:?}) does not match user_value ({:?})",
@@ -1268,7 +1271,7 @@ mod tests {
     fn test_tilde() {
         let applicant_value: Option<String> = Some("manuel".to_string());
         let user_value: Option<String> = Some("mañuel".to_string());
-        let is_match = is_fuzzy_match(applicant_value.clone(), user_value.clone());
+        let is_match = is_fuzzy_match(applicant_value.as_deref(), user_value.as_deref());
         assert!(
             is_match,
             "applicant_value ({:?}) does not match user_value ({:?})",
@@ -1280,7 +1283,7 @@ mod tests {
     fn test_umlaut() {
         let applicant_value: Option<String> = Some("muller".to_string());
         let user_value: Option<String> = Some("müller".to_string());
-        let is_match = is_fuzzy_match(applicant_value.clone(), user_value.clone());
+        let is_match = is_fuzzy_match(applicant_value.as_deref(), user_value.as_deref());
         assert!(
             is_match,
             "applicant_value ({:?}) does not match user_value ({:?})",
@@ -1293,7 +1296,7 @@ mod tests {
         // German umlaut will not match with its 2 characters equivalents
         let applicant_value: Option<String> = Some("Mueller".to_string());
         let user_value: Option<String> = Some("Müller".to_string());
-        let is_match = is_fuzzy_match(applicant_value.clone(), user_value.clone());
+        let is_match = is_fuzzy_match(applicant_value.as_deref(), user_value.as_deref());
         assert!(
             !is_match,
             "applicant_value ({:?}) does not match user_value ({:?})",
@@ -1305,7 +1308,7 @@ mod tests {
     fn test_hyphen_equals_space() {
         let applicant_value: Option<String> = Some("von-der-leyen".to_string());
         let user_value: Option<String> = Some("von der leyen".to_string());
-        let is_match = is_fuzzy_match(applicant_value.clone(), user_value.clone());
+        let is_match = is_fuzzy_match(applicant_value.as_deref(), user_value.as_deref());
         assert!(
             is_match,
             "applicant_value ({:?}) does not match user_value ({:?})",
@@ -1317,7 +1320,7 @@ mod tests {
     fn test_hyphen_equals_space_reverse() {
         let applicant_value: Option<String> = Some("von der leyen".to_string());
         let user_value: Option<String> = Some("von-der-leyen".to_string());
-        let is_match = is_fuzzy_match(applicant_value.clone(), user_value.clone());
+        let is_match = is_fuzzy_match(applicant_value.as_deref(), user_value.as_deref());
 
         assert!(
             is_match,
@@ -1330,7 +1333,7 @@ mod tests {
     fn test_none_vs_empty_string() {
         let applicant_value: Option<String> = None;
         let user_value: Option<String> = Some(" ".to_string());
-        let is_match = is_fuzzy_match(applicant_value.clone(), user_value.clone());
+        let is_match = is_fuzzy_match(applicant_value.as_deref(), user_value.as_deref());
 
         assert!(
             is_match,

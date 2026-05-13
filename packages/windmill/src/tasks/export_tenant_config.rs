@@ -7,7 +7,7 @@
 
 use crate::services::database::get_hasura_pool;
 use crate::services::export::export_tenant_config::process_export_zip;
-use crate::services::tasks_execution::*;
+use crate::services::tasks_execution::{update_complete, update_fail};
 use crate::types::error::{Error, Result};
 use anyhow::Context;
 use celery::error::TaskError;
@@ -29,11 +29,11 @@ pub async fn export_tenant_config(
         Ok(client) => client,
         Err(err) => {
             let err_str = format!("Failed to get Hasura DB pool: {err:?}");
-            if let Err(err) = update_fail(&task_execution, &err_str).await {
+            if let Err(update_err) = update_fail(&task_execution, &err_str).await {
                 event!(
                     Level::ERROR,
                     "Failed to update task execution status to FAILED: {:?}",
-                    err
+                    update_err
                 );
             }
             return Err(Error::String(err_str));
@@ -44,11 +44,11 @@ pub async fn export_tenant_config(
         Ok(transaction) => transaction,
         Err(err) => {
             let err_str = format!("Failed to start Hasura transaction: {err:?}");
-            if let Err(err) = update_fail(&task_execution, &err_str).await {
+            if let Err(update_err) = update_fail(&task_execution, &err_str).await {
                 event!(
                     Level::ERROR,
                     "Failed to update task execution status to FAILED: {:?}",
-                    err
+                    update_err
                 );
             }
             return Err(Error::String(err_str));
@@ -56,8 +56,14 @@ pub async fn export_tenant_config(
     };
 
     // Process the export
-    match process_export_zip(&tenant_id, &document_id, &hasura_transaction).await {
-        Ok(_) => (),
+    match Box::pin(process_export_zip(
+        &tenant_id,
+        &document_id,
+        &hasura_transaction,
+    ))
+    .await
+    {
+        Ok(()) => (),
         Err(err) => {
             let err_str = format!("Failed to export tenant config zip: {err:?}");
             if let Err(update_err) = update_fail(&task_execution, &err_str).await {
@@ -72,21 +78,21 @@ pub async fn export_tenant_config(
     }
 
     match hasura_transaction.commit().await {
-        Ok(_) => (),
+        Ok(()) => (),
         Err(err) => {
             let err_str = format!("Commit failed: {err:?}");
-            if let Err(err) = update_fail(&task_execution, &err_str).await {
+            if let Err(update_err) = update_fail(&task_execution, &err_str).await {
                 event!(
                     Level::ERROR,
                     "Failed to update task execution status to FAILED: {:?}",
-                    err
+                    update_err
                 );
             }
             return Err(Error::String(err_str));
         }
-    };
+    }
 
-    update_complete(&task_execution, Some(document_id.to_string()))
+    update_complete(&task_execution, Some(document_id.clone()))
         .await
         .context("Failed to update task execution status to COMPLETED")?;
 

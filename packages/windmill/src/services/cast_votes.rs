@@ -197,7 +197,7 @@ pub async fn count_cast_votes_election(
     let test_elections_clause = match is_test_election {
         Some(true) => "AND el.name ILIKE '%Test%'".to_string(),
         Some(false) => "AND el.name NOT ILIKE '%Test%'".to_string(),
-        None => "".to_string(),
+        None => String::new(),
     };
 
     let statement_str = format!(
@@ -322,7 +322,7 @@ pub async fn get_count_votes_per_day(
 /// # Errors
 ///
 /// Returns an error if one of the operations fails.
-
+#[allow(clippy::too_many_lines)]
 #[instrument(skip(hasura_transaction, users), err)]
 pub async fn get_users_with_vote_info(
     hasura_transaction: &Transaction<'_>,
@@ -406,7 +406,7 @@ pub async fn get_users_with_vote_info(
         let voter_id_string: String = row
             .try_get("voter_id_string")
             .with_context(|| "Error getting voter_id_string from row")?;
-        let election_id: Uuid = row
+        let vote_election_id: Uuid = row
             .try_get("election_id")
             .with_context(|| "Error getting election_id from row")?;
         let num_votes: i64 = row
@@ -420,8 +420,9 @@ pub async fn get_users_with_vote_info(
             .entry(voter_id_string)
             .or_default()
             .push(VotesInfo {
-                election_id: election_id.to_string(),
-                num_votes: num_votes as usize,
+                election_id: vote_election_id.to_string(),
+                num_votes: usize::try_from(num_votes)
+                    .map_err(|_| anyhow!("num_votes from database does not fit in usize"))?,
                 last_voted_at: last_voted_at.to_string(),
             });
     }
@@ -442,9 +443,9 @@ pub async fn get_users_with_vote_info(
             if let Some(attributes) = &user.attributes {
                 if voted_via_not_internet_channel(attributes) {
                     votes_info = vec![VotesInfo {
-                        election_id: "".to_string(), // Not used for datafix
+                        election_id: String::new(), // Not used for datafix
                         num_votes: 1,
-                        last_voted_at: "".to_string(), // Not used for datafix
+                        last_voted_at: String::new(), // Not used for datafix
                     }];
                 }
             }
@@ -721,7 +722,7 @@ pub async fn count_cast_votes_election_event(
     let test_elections_clause = match is_test_election {
         Some(true) => "AND el.name ILIKE '%Test%'".to_string(),
         Some(false) => "AND el.name NOT ILIKE '%Test%'".to_string(),
-        None => "".to_string(),
+        None => String::new(),
     };
 
     let statement_str = format!(

@@ -71,7 +71,8 @@ pub async fn review_boards() -> Result<()> {
     while last_length == limit {
         let election_events = get_batch_election_events(&hasura_transaction, limit, offset).await?;
 
-        last_length = election_events.len() as i64;
+        last_length = i64::try_from(election_events.len())
+            .expect("review_boards batch length exceeds i64 range");
         offset = offset
             .checked_add(last_length)
             .expect("review_boards offset overflow");

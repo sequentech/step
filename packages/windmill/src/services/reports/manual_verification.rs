@@ -7,15 +7,17 @@
 //! This report produces a PDF containing a per-voter link (and QR code) that
 //! takes the voter through a Keycloak manual verification flow.
 
-use super::template_renderer::*;
+use super::template_renderer::{ReportOriginatedFrom, ReportOrigins, TemplateRenderer};
 use crate::postgres::reports::{Report, ReportType};
-use crate::services::temp_path::*;
+use crate::services::temp_path::{
+    LOGO_TEMPLATE, PUBLIC_ASSETS_LOGO_IMG, PUBLIC_ASSETS_QRCODE_LIB, QR_CODE_TEMPLATE,
+};
 use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
 use deadpool_postgres::Transaction;
 use sequent_core::services::pdf;
 use sequent_core::services::s3::get_minio_url;
-use sequent_core::util::temp_path::*;
+use sequent_core::util::temp_path::get_public_assets_path_env_var;
 use serde::{Deserialize, Serialize};
 use std::env;
 use tracing::{info, instrument};
@@ -58,7 +60,8 @@ pub struct ManualVerificationTemplate {
 
 impl ManualVerificationTemplate {
     /// Creates a renderer bound to a specific tenant/event and voter id.
-    pub fn new(ids: ReportOrigins) -> Self {
+    #[must_use]
+    pub const fn new(ids: ReportOrigins) -> Self {
         ManualVerificationTemplate { ids }
     }
 }
@@ -145,12 +148,10 @@ impl TemplateRenderer for ManualVerificationTemplate {
             Ok(SystemData {
                 rendered_user_template,
                 file_logo: format!(
-                    "{}/{}/{}",
-                    minio_endpoint_base, public_asset_path, PUBLIC_ASSETS_LOGO_IMG
+                    "{minio_endpoint_base}/{public_asset_path}/{PUBLIC_ASSETS_LOGO_IMG}"
                 ),
                 file_qrcode_lib: format!(
-                    "{}/{}/{}",
-                    minio_endpoint_base, public_asset_path, PUBLIC_ASSETS_QRCODE_LIB
+                    "{minio_endpoint_base}/{public_asset_path}/{PUBLIC_ASSETS_QRCODE_LIB}"
                 ),
             })
         } else {
@@ -159,8 +160,7 @@ impl TemplateRenderer for ManualVerificationTemplate {
             Ok(SystemData {
                 rendered_user_template,
                 file_logo: format!(
-                    "{}/{}/{}",
-                    minio_endpoint_base, public_asset_path, PUBLIC_ASSETS_LOGO_IMG
+                    "{minio_endpoint_base}/{public_asset_path}/{PUBLIC_ASSETS_LOGO_IMG}"
                 ),
                 file_qrcode_lib: "/assets/qrcode.min.js".to_string(),
             })

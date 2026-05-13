@@ -91,7 +91,9 @@ use crate::services::documents::upload_and_return_document;
 use crate::services::election_event_board::get_election_event_board;
 use crate::services::election_event_board::BoardSerializable;
 use crate::services::electoral_log::ElectoralLog;
-use crate::services::import::import_bulletin_boards::*;
+use crate::services::import::import_bulletin_boards::{
+    import_bulletin_boards, import_protocol_manager_keys,
+};
 use crate::services::jwks::upsert_realm_jwks;
 use crate::services::protocol_manager::get_election_board;
 use crate::services::protocol_manager::get_protocol_manager_secret_path;
@@ -103,7 +105,10 @@ use crate::types::documents::EDocuments;
 use regex::Regex;
 use sequent_core::types::hasura::core::{Area, Candidate, Contest, Election, ElectionEvent};
 use sequent_core::types::keycloak::CERTIFICATES_IDP_ALIAS;
-use sequent_core::types::scheduled_event::*;
+use sequent_core::types::scheduled_event::{
+    generate_manage_date_task_name, generate_voting_period_dates, CronConfig, EventProcessors,
+    ManageElectionDatePayload, ScheduledEvent,
+};
 use sequent_core::util::temp_path::{generate_temp_file, get_file_size};
 
 /// ZIP entry bytes plus the original filename (used for id replacement and routing).
@@ -201,16 +206,18 @@ pub async fn upsert_b3_and_elog(
 
     for election_id in election_ids.clone() {
         // Create board and protocol manager keys for election (insert, not asssert)
-        let board_name = get_election_board(tenant_id, &election_id, &slug);
+        let election_board_name = get_election_board(tenant_id, &election_id, &slug);
 
-        let existing: Option<b3::client::pgsql::B3IndexRow> =
-            board_client.get_board(board_name.as_str()).await?;
+        let election_existing: Option<b3::client::pgsql::B3IndexRow> =
+            board_client.get_board(election_board_name.as_str()).await?;
 
         // assert board table
-        board_client.create_board_ine(board_name.as_str()).await?;
+        board_client
+            .create_board_ine(election_board_name.as_str())
+            .await?;
         // create board table
 
-        if existing.is_none() && !dont_auto_generate_keys {
+        if election_existing.is_none() && !dont_auto_generate_keys {
             event!(
                 Level::INFO,
                 "creating protocol manager keys for election {}",
@@ -220,17 +227,17 @@ pub async fn upsert_b3_and_elog(
                 hasura_transaction,
                 tenant_id,
                 election_event_id,
-                &board_name,
+                &election_board_name,
             )
             .await?;
         }
         // board was created, checking it is now present
         board_client
-            .get_board(board_name.as_str())
+            .get_board(election_board_name.as_str())
             .await?
             .ok_or(anyhow!(
                 "Unexpected error: could not retrieve created board '{}'",
-                &board_name
+                &election_board_name
             ))?;
     }
 
@@ -472,19 +479,19 @@ pub async fn insert_election_event_db(
 ///
 /// This function is a thin wrapper around `replace_realm_ids()` that processes the election event
 /// import schema and replaces most UUIDs with new ones, while keeping certain IDs unchanged
-/// (like tenant_id and optionally election_event_id). It also automatically preserves UUIDs
+/// (like `tenant_id` and optionally `election_event_id`). It also automatically preserves UUIDs
 /// referenced in Keycloak authenticator configurations.
 ///
 /// # Arguments
 /// * `data_str` - The original JSON string representation of the import data
-/// * `original_data` - The parsed ImportElectionEventSchema structure
+/// * `original_data` - The parsed `ImportElectionEventSchema` structure
 /// * `event_id` - Optional election event ID to use. If None, a new UUID will be generated
 /// * `tenant_id` - The tenant ID to use (may differ from the original)
 ///
 /// # Returns
 /// A tuple containing:
-/// * The modified ImportElectionEventSchema with replaced UUIDs
-/// * A HashMap mapping old UUIDs to their new replacements
+/// * The modified `ImportElectionEventSchema` with replaced UUIDs
+/// * A `HashMap` mapping old UUIDs to their new replacements
 ///
 /// # Errors
 ///
@@ -620,6 +627,7 @@ pub async fn get_election_event_schema(
 /// # Errors
 ///
 /// Returns an error if schema processing, realm upsert, or DB inserts fail.
+#[allow(clippy::too_many_lines, clippy::large_futures)]
 #[instrument(err, skip_all)]
 pub async fn process_election_event_file(
     hasura_transaction: &Transaction<'_>,
@@ -728,8 +736,7 @@ pub async fn process_election_event_file(
     .await
     .with_context(|| {
         format!(
-            "Error updating bulletin board reference for tenant ID {} and election event ID {}",
-            tenant_id, election_event_id
+            "Error updating bulletin board reference for tenant ID {tenant_id} and election event ID {election_event_id}"
         )
     })?;
 
@@ -741,34 +748,39 @@ pub async fn process_election_event_file(
             .map(|trustee| (trustee.name.clone().unwrap_or_default(), trustee.id.clone()))
             .collect();
 
-        try_join_all(
-            keys_ceremonies
-                .into_iter()
-                .map(|keys_ceremony| {
-                    let trustee_ids = keys_ceremony
-                        .trustee_ids
-                        .into_iter()
-                        .map(|trustee_id| trustee_map.get(&trustee_id).cloned().unwrap_or_default())
-                        .collect();
-
-                    keys_ceremony::insert_keys_ceremony(
-                        hasura_transaction,
-                        keys_ceremony.id,
-                        keys_ceremony.tenant_id,
-                        keys_ceremony.election_event_id,
-                        trustee_ids,
-                        /* threshold */ keys_ceremony.threshold as i32,
-                        /* status */ keys_ceremony.status,
-                        /* execution_status */ keys_ceremony.execution_status,
-                        keys_ceremony.name,
-                        keys_ceremony.settings,
-                        keys_ceremony.is_default.unwrap_or_default(),
-                        keys_ceremony.permission_label.unwrap_or_default(),
+        let insert_futures = keys_ceremonies
+            .into_iter()
+            .map(|keys_ceremony| -> Result<_> {
+                let threshold = i32::try_from(keys_ceremony.threshold).with_context(|| {
+                    format!(
+                        "keys ceremony threshold {} does not fit in i32",
+                        keys_ceremony.threshold
                     )
-                })
-                .collect::<Vec<_>>(),
-        )
-        .await?;
+                })?;
+                let trustee_ids = keys_ceremony
+                    .trustee_ids
+                    .into_iter()
+                    .map(|trustee_id| trustee_map.get(&trustee_id).cloned().unwrap_or_default())
+                    .collect();
+
+                Ok(keys_ceremony::insert_keys_ceremony(
+                    hasura_transaction,
+                    keys_ceremony.id,
+                    keys_ceremony.tenant_id,
+                    keys_ceremony.election_event_id,
+                    trustee_ids,
+                    threshold,
+                    keys_ceremony.status,
+                    keys_ceremony.execution_status,
+                    keys_ceremony.name,
+                    keys_ceremony.settings,
+                    keys_ceremony.is_default.unwrap_or_default(),
+                    keys_ceremony.permission_label.unwrap_or_default(),
+                ))
+            })
+            .collect::<Result<Vec<_>>>()?;
+
+        try_join_all(insert_futures).await?;
     }
 
     insert_elections(hasura_transaction, &data)
@@ -820,7 +832,10 @@ async fn process_voters_file(
     tenant_id: String,
     is_admin: bool,
 ) -> Result<()> {
-    let separator = if file_name.ends_with(".tsv") {
+    let separator = if Path::new(file_name.as_str())
+        .extension()
+        .is_some_and(|ext| ext.eq_ignore_ascii_case("tsv"))
+    {
         b'\t'
     } else {
         b','
@@ -846,6 +861,7 @@ async fn process_voters_file(
 ///
 /// Returns an error if CSV parsing, id replacement, secret creation, or inserts fail.
 #[instrument(err, skip_all)]
+#[allow(clippy::implicit_hasher)]
 pub async fn process_reports_file(
     hasura_transaction: &Transaction<'_>,
     temp_file: &NamedTempFile,
@@ -869,8 +885,7 @@ pub async fn process_reports_file(
             election_event_id: election_event_id.clone(),
             tenant_id: tenant_id.clone(),
             election_id: match record.get(1) {
-                None => None,
-                Some("") => None,
+                None | Some("") => None,
                 Some(election_id) => Some(
                     replacement_map
                         .get(election_id)
@@ -886,11 +901,10 @@ pub async fn process_reports_file(
                 .to_string(),
             template_alias: record
                 .get(3)
-                .map(|s| s.to_string())
+                .map(ToString::to_string)
                 .filter(|s| !s.is_empty()),
             cron_config: match record.get(4) {
-                None => None,
-                Some("") => None,
+                None | Some("") => None,
                 Some(cron_config_str) => deserialize_str(cron_config_str).map_err(|err| {
                     anyhow!("Error parsing cron_config: {err:?}\nThe string: {cron_config_str}")
                 })?,
@@ -908,8 +922,8 @@ pub async fn process_reports_file(
                 } else {
                     Some(
                         permission_labels
-                            .split("|")
-                            .map(|label| label.to_string())
+                            .split('|')
+                            .map(ToString::to_string)
                             .collect(),
                     )
                 }
@@ -918,7 +932,7 @@ pub async fn process_reports_file(
 
         if let Some(password) = record
             .get(6)
-            .map(|s| s.to_string())
+            .map(ToString::to_string)
             .filter(|s| !s.is_empty())
         {
             let cloned_report = report.clone();
@@ -976,7 +990,7 @@ async fn process_activity_logs_file(
 /// # Errors
 ///
 /// Returns an error if the regex cannot be compiled.
-async fn extract_document_uuid(filename: &str) -> Result<Option<&str>> {
+fn extract_document_uuid(filename: &str) -> Result<Option<&str>> {
     // Regex to match the UUID after "document_"
     let re = Regex::new(
         r"document_([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})",
@@ -995,7 +1009,7 @@ async fn extract_document_uuid(filename: &str) -> Result<Option<&str>> {
 /// # Errors
 ///
 /// Returns an error if the regex cannot be compiled.
-async fn extract_document_name(filename: &str) -> Result<Option<&str>> {
+fn extract_document_name(filename: &str) -> Result<Option<&str>> {
     let re = Regex::new(
         r"document_[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}_(.+)"
     )
@@ -1010,25 +1024,29 @@ async fn extract_document_name(filename: &str) -> Result<Option<&str>> {
 
 /// Regex matching UUID substrings for id replacement in filenames.
 static UUID_RE: Lazy<Regex> = Lazy::new(|| {
-    Regex::new(r"(?i)\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b").unwrap()
+    Regex::new(r"(?i)\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b")
+        .expect("UUID filename replacement regex")
 });
 
 /// Rewrites UUIDs inside `file_name` using `replacement_map`.
 ///
 /// # Panics
 ///
-/// Panics if the capture group is unexpectedly missing.
+/// Panics if the regex engine returns a match without capture group 0 (should not occur).
+#[allow(clippy::implicit_hasher)]
 pub fn replace_ids_in_filename(
     file_name: &str,
     replacement_map: &HashMap<String, String>,
 ) -> String {
     UUID_RE
         .replace_all(file_name, |caps: &regex::Captures| {
-            let id = caps.get(0).unwrap().as_str();
+            let id = caps
+                .get(0)
+                .expect("UUID regex match always has a full match")
+                .as_str();
             replacement_map
                 .get(id)
-                .map(String::as_str)
-                .unwrap_or(id)
+                .map_or(id, String::as_str)
                 .to_owned()
         })
         .into_owned()
@@ -1040,6 +1058,7 @@ pub fn replace_ids_in_filename(
 ///
 /// Returns an error if UUID extraction/replacement or upload fails.
 #[instrument(err, skip(hasura_transaction, temp_file_path, replacement_map))]
+#[allow(clippy::implicit_hasher)]
 pub async fn process_s3_file(
     hasura_transaction: &Transaction<'_>,
     temp_file_path: &NamedTempFile,
@@ -1052,17 +1071,18 @@ pub async fn process_s3_file(
     let file_path_string = temp_file_path.path().to_string_lossy().to_string();
 
     let file_size = get_file_size(file_path_string.as_str())
-        .with_context(|| format!("Error obtaining file size for {}", file_path_string))?;
+        .with_context(|| format!("Error obtaining file size for {file_path_string}"))?;
 
     let file_suffix = Path::new(&file_path_string)
         .extension()
         .ok_or(anyhow!("Empty extension"))?
         .to_str()
         .ok_or(anyhow!("Empty file suffix"))?;
-    let document_type = get_mime_types(file_suffix)[0];
+    let document_type = *get_mime_types(file_suffix)
+        .first()
+        .ok_or_else(|| anyhow!("Unknown file extension: {file_suffix}"))?;
 
     let document_uuid = extract_document_uuid(file_name)
-        .await
         .map_err(|e| anyhow!("Error extracting document UUID from filename: {e}"))?
         .ok_or_else(|| anyhow!("Error extracting document UUID as str"))?;
 
@@ -1071,7 +1091,6 @@ pub async fn process_s3_file(
         .ok_or_else(|| anyhow!("Error finding document UUID in replacement map"))?;
 
     let file_name = extract_document_name(file_name)
-        .await
         .map_err(|e| anyhow!("Error extracting document name from filename: {e}"))?
         .ok_or_else(|| anyhow!("Error getting document name as str"))?;
 
@@ -1085,7 +1104,7 @@ pub async fn process_s3_file(
         &tenant_id,
         election_event_id,
         &new_file_name,
-        Some(new_document_id.to_string()),
+        Some(new_document_id.clone()),
         is_public,
     )
     .await?;
@@ -1112,18 +1131,20 @@ pub async fn get_zip_entries(
 
                 let mut election_event_schema: Option<String> = None;
                 for i in 0..zip.len() {
-                    let mut file = zip.by_index(i)?;
-                    let file_name = file.name().to_string();
+                    let mut zip_entry = zip.by_index(i)?;
+                    let file_name = zip_entry.name().to_string();
                     if file_name.contains(EDocuments::ELECTION_EVENT.to_file_name())
-                        && file_name.ends_with(".json")
+                        && Path::new(&file_name)
+                            .extension()
+                            .is_some_and(|ext| ext.eq_ignore_ascii_case("json"))
                     {
                         // Regular JSON document processing
                         let mut file_str = String::new();
-                        file.read_to_string(&mut file_str)?;
+                        zip_entry.read_to_string(&mut file_str)?;
                         election_event_schema = Some(file_str);
                     } else {
                         let mut file_contents = Vec::new();
-                        file.read_to_end(&mut file_contents)?;
+                        zip_entry.read_to_end(&mut file_contents)?;
                         entries.push((file_name, file_contents));
                     }
                 }
@@ -1174,6 +1195,7 @@ pub async fn get_zip_entries(
 /// # Errors
 ///
 /// Returns an error if document retrieval, zip parsing, or any sub-import fails.
+#[allow(clippy::too_many_lines, clippy::large_futures)]
 #[instrument(err, skip_all)]
 pub async fn process_document(
     hasura_transaction: &Transaction<'_>,
@@ -1196,8 +1218,6 @@ pub async fn process_document(
         .iter()
         .any(|(file_name, _)| file_name.contains(EDocuments::PROTOCOL_MANAGER_KEYS.to_file_name()));
 
-    let election_event_id_clone = election_event_id.clone();
-
     let tally_session_file = zip_entries
         .iter()
         .find(|(name, _)| name.contains(ETallyDocuments::TALLY_SESSION.to_file_name()));
@@ -1212,13 +1232,12 @@ pub async fn process_document(
         let tally_session_file_content = String::from_utf8(tally_session_file.1.clone())?;
         let results_event_file_content = String::from_utf8(results_event_file.1.clone())?;
         tally_files_content = Some(format!(
-            "\n{}\n{}",
-            tally_session_file_content, results_event_file_content
+            "\n{tally_session_file_content}\n{results_event_file_content}"
         ));
     }
     let file_election_event_schema = match tally_files_content {
         Some(tally_files_content) => {
-            format!("{}\n{}", file_election_event_schema, tally_files_content)
+            format!("{file_election_event_schema}\n{tally_files_content}")
         }
         None => file_election_event_schema,
     };
@@ -1298,9 +1317,13 @@ pub async fn process_document(
             }
 
             if file_name.contains(&format!("{}/", EDocuments::S3_FILES.to_file_name())) {
-                let folder_path: Vec<_> = file_name.split("/").collect();
+                let folder_path: Vec<_> = file_name.split('/').collect();
+                let folder_segment = folder_path
+                    .get(1)
+                    .copied()
+                    .ok_or_else(|| anyhow!("S3 import path missing folder segment"))?;
                 // Skips the OS created files
-                if folder_path[1] == EDocuments::VOTERS.to_file_name() {
+                if folder_segment == EDocuments::VOTERS.to_file_name() {
                     continue;
                 }
 
@@ -1309,7 +1332,7 @@ pub async fn process_document(
                     .last()
                     .copied()
                     .ok_or_else(|| anyhow!("S3 import path has no file segment"))?;
-                let mut temp_file = generate_temp_file(folder_path[1], file_leaf)
+                let mut temp_file = generate_temp_file(folder_segment, file_leaf)
                     .context("Error generating temp file")?;
 
                 io::copy(&mut cursor, &mut temp_file)
@@ -1329,14 +1352,18 @@ pub async fn process_document(
                 .context("Failed to import S3 files")?;
             }
             if file_name.contains(&format!("{}/", EDocuments::IMAGES.to_file_name())) {
-                let folder_path: Vec<_> = file_name.split("/").collect();
+                let folder_path: Vec<_> = file_name.split('/').collect();
+                let folder_segment = folder_path
+                    .get(1)
+                    .copied()
+                    .ok_or_else(|| anyhow!("S3 import path missing folder segment"))?;
 
                 // Write the file contents to a new file within this directory
                 let file_leaf = folder_path
                     .last()
                     .copied()
                     .ok_or_else(|| anyhow!("S3 import path has no file segment"))?;
-                let mut temp_file = generate_temp_file(folder_path[1], file_leaf)
+                let mut temp_file = generate_temp_file(folder_segment, file_leaf)
                     .context("Error generating temp file")?;
 
                 io::copy(&mut cursor, &mut temp_file)
@@ -1460,10 +1487,10 @@ pub async fn process_document(
                 )?;
                 temp_file.as_file_mut().rewind()?;
                 let tally_file_name = file_name
-                    .split("/")
-                    .last()
+                    .split('/')
+                    .next_back()
                     .ok_or(anyhow!("Unexpected, tally without filename"))?
-                    .split(".")
+                    .split('.')
                     .next()
                     .ok_or(anyhow!("Unexpected tally without extension"))?;
 
@@ -1514,7 +1541,7 @@ pub async fn process_document(
                 }
             }
         }
-    };
+    }
 
     Ok(())
 }
@@ -1614,11 +1641,11 @@ pub async fn maybe_create_scheduled_event(
     let start_task_id =
         generate_manage_date_task_name(tenant_id, election_event_id, election_id, &event_processor);
     let payload = ManageElectionDatePayload {
-        election_id: election_id.map(|id| id.to_string()),
+        election_id: election_id.map(ToString::to_string),
     };
     let cron_config = CronConfig {
         cron: None,
-        scheduled_date: Some(start_date.to_string()),
+        scheduled_date: Some(start_date.clone()),
     };
     insert_scheduled_event(
         hasura_transaction,

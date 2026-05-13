@@ -40,7 +40,7 @@ pub fn encrypt_file_aes_256_cbc(
 
     // Check if the command was successful
     if !output.status.success() {
-        return Err(anyhow::anyhow!("Command failed: {:?}", output));
+        return Err(anyhow::anyhow!("Command failed: {output:?}"));
     }
 
     Ok(())
@@ -74,7 +74,7 @@ pub fn decrypt_file_aes_256_cbc(
 
     // Check if the command was successful
     if !output.status.success() {
-        return Err(anyhow::anyhow!("Command failed: {:?}", output));
+        return Err(anyhow::anyhow!("Command failed: {output:?}"));
     }
 
     Ok(())

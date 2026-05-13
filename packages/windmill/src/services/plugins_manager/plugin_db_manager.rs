@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 //! Plugin-managed database transactions for Hasura and Keycloak connections.
+#![allow(clippy::future_not_send)] // for using ouroboros.
 use crate::services::database::{get_hasura_pool, get_keycloak_pool};
 use deadpool_postgres::{GenericClient, Object, Transaction};
 use serde_json::{Value, Map};
@@ -40,6 +41,7 @@ impl PluginDbManager {
     /// # Panics
     ///
     /// Panics if the self-referential wrapper cannot be constructed.
+    #[must_use]
     pub fn init() -> Self {
         PluginDbManager::try_new(None, |_client_ref| Ok(None) as Result<_, String>)
             .expect("Failed to create TransactionComponent")
@@ -56,7 +58,7 @@ pub struct PluginTransactionsManager {
 
 impl PluginTransactionsManager {
     /// Creates a new transactions manager from pre-initialized per-database managers.
-    pub fn new(
+    pub const fn new(
         hasura_manager: Arc<Mutex<PluginDbManager>>,
         keycloak_manager: Arc<Mutex<PluginDbManager>>,
     ) -> Self {
@@ -68,6 +70,7 @@ impl PluginTransactionsManager {
 }
 
 /// Parses any valid UUID string.
+#[must_use]
 pub fn parse_any_valid_uuid(s: &str) -> Option<Uuid> {
     Uuid::parse_str(s).ok()
 }
@@ -90,16 +93,16 @@ fn parsed_transactions_query_results(
             let value: Value = match column.type_().name() {
                 "int2" | "int4" | "int8" => row
                     .get::<usize, Option<i64>>(i)
-                    .map_or(Value::Null, |val| val.into()),
+                    .map_or(Value::Null, Into::into),
                 "float4" | "float8" => row
                     .get::<usize, Option<f64>>(i)
-                    .map_or(Value::Null, |val| val.into()),
+                    .map_or(Value::Null, Into::into),
                 "bool" => row
                     .get::<usize, Option<bool>>(i)
-                    .map_or(Value::Null, |val| val.into()),
+                    .map_or(Value::Null, Into::into),
                 "text" | "varchar" | "char" | "name" | "bpchar" => row
                     .get::<usize, Option<String>>(i)
-                    .map_or(Value::Null, |val| val.into()),
+                    .map_or(Value::Null, Into::into),
                 "json" | "jsonb" => row
                     .get::<usize, Option<Value>>(i)
                     .map_or(Value::Null, |val| val),
@@ -115,22 +118,22 @@ fn parsed_transactions_query_results(
 
     // Serialize the vector of JSON objects (which represents a JSON array) to a String
     let json_string = serde_json::to_string(&rows_as_json_values)
-        .map_err(|e| format!("Failed to serialize query results to JSON: {}", e))?;
+        .map_err(|e| format!("Failed to serialize query results to JSON: {e}"))?;
 
     Ok(json_string)
 }
 
-/// Implementing the Host trait for PluginTransactionsManager to handle database transactions
+/// Implementing the Host trait for `PluginTransactionsManager` to handle database transactions
 impl Host for PluginTransactionsManager {
     async fn create_hasura_transaction(&mut self) -> Result<(), String> {
         let mut manager = self.hasura_manager.lock().await;
 
-        println!("Creating Hasura transaction");
+        tracing::info!("Creating Hasura transaction");
         let hasura_client = get_hasura_pool()
             .await
             .get()
             .await
-            .map_err(|e| format!("Failed to get hasura client: {}", e))?;
+            .map_err(|e| format!("Failed to get hasura client: {e}"))?;
 
         let new_self = PluginDbManager::try_new_async_send(Some(hasura_client), |client_ref| {
             Box::pin(async move {
@@ -159,7 +162,7 @@ impl Host for PluginTransactionsManager {
                 >
         })
         .await
-        .map_err(|e| format!("{}", e))?;
+        .map_err(|e| format!("{e}"))?;
 
         *manager = new_self;
         Ok(())
@@ -172,7 +175,7 @@ impl Host for PluginTransactionsManager {
             .await
             .get()
             .await
-            .map_err(|e| format!("Failed to get keycloak client: {}", e))?;
+            .map_err(|e| format!("Failed to get keycloak client: {e}"))?;
 
         let new_self = PluginDbManager::try_new_async_send(Some(keycloak_client), |client_ref| {
             Box::pin(async move {
@@ -201,7 +204,7 @@ impl Host for PluginTransactionsManager {
                 >
         })
         .await
-        .map_err(|e| format!("{}", e))?;
+        .map_err(|e| format!("{e}"))?;
 
         *manager = new_self;
         Ok(())
@@ -242,10 +245,10 @@ impl Host for PluginTransactionsManager {
         let results: Vec<Row> = hasura_transaction
             .query(&sql, query_params.as_slice())
             .await
-            .map_err(|e| format!("Hasura query failed: {}", e))?;
+            .map_err(|e| format!("Hasura query failed: {e}"))?;
 
         let json_string = parsed_transactions_query_results(results)
-            .map_err(|e| format!("Failed to parse query results: {}", e))?;
+            .map_err(|e| format!("Failed to parse query results: {e}"))?;
 
         Ok(json_string)
     }
@@ -285,35 +288,37 @@ impl Host for PluginTransactionsManager {
         let results: Vec<Row> = keycloak_transaction
             .query(&sql, query_params.as_slice())
             .await
-            .map_err(|e| format!("Keycloak query failed: {}", e))?;
+            .map_err(|e| format!("Keycloak query failed: {e}"))?;
 
         let json_string = parsed_transactions_query_results(results)
-            .map_err(|e| format!("Failed to parse query results: {}", e))?;
+            .map_err(|e| format!("Failed to parse query results: {e}"))?;
 
         Ok(json_string)
     }
 
     async fn commit_hasura_transaction(&mut self) -> Result<(), String> {
         let mut manager = self.hasura_manager.lock().await;
+        #[allow(clippy::redundant_closure_for_method_calls)]
         let hasura_transaction: Transaction<'_> = manager
             .with_txn_mut(|opt| opt.take())
             .ok_or("No transaction")?;
         hasura_transaction
             .commit()
             .await
-            .map_err(|e| format!("Hasura commit failed: {}", e))?;
+            .map_err(|e| format!("Hasura commit failed: {e}"))?;
         Ok(())
     }
 
     async fn commit_keycloak_transaction(&mut self) -> Result<(), String> {
         let mut manager = self.keycloak_manager.lock().await;
+        #[allow(clippy::redundant_closure_for_method_calls)]
         let keycloak_transaction: Transaction<'_> = manager
             .with_txn_mut(|opt| opt.take())
             .ok_or("No transaction")?;
         keycloak_transaction
             .commit()
             .await
-            .map_err(|e| format!("Keycloak commit failed: {}", e))?;
+            .map_err(|e| format!("Keycloak commit failed: {e}"))?;
         Ok(())
     }
 }

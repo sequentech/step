@@ -36,9 +36,9 @@ pub async fn write_export_document(
     tenant_id: &str,
     to_upload: bool,
 ) -> Result<TempPath> {
-    let document_name = format!("export-{}.json", document_id);
+    let document_name = format!("export-{document_id}.json");
 
-    let (_temp_path, temp_path_string, file_size) =
+    let (temp_path, temp_path_string, file_size) =
         write_into_named_temp_file(&data, &document_name, ".json")
             .map_err(|e| anyhow!("Error writing into named temp file: {e:?}"))?;
 
@@ -58,7 +58,7 @@ pub async fn write_export_document(
         .map_err(|e| anyhow!("Error uploading and returning document to postgres: {e:?}"))?;
     }
 
-    Ok(_temp_path)
+    Ok(temp_path)
 }
 
 /// Builds one JSON object per ballot publication.

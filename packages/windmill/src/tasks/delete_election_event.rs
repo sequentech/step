@@ -24,7 +24,7 @@ use futures::try_join;
 use sequent_core::types::hasura::core::TasksExecution;
 use tracing::instrument;
 
-/// Deletes ImmuDB logs, B3 objects, S3 documents, and the Keycloak realm.
+/// Deletes `ImmuDB` logs, `B3` objects, `S3` documents, and the `Keycloak` realm.
 #[instrument(err)]
 async fn delete_election_event_related_data(
     tenant_id: &str,
@@ -77,12 +77,12 @@ async fn delete_election_event(
             .await
             .map_err(|err| anyhow!("Error deleting election event from postgres db: {err}"))?; // FIX APPLIED
 
-            delete_election_event_related_data(
+            Box::pin(delete_election_event_related_data(
                 &tenant_id_cloned,
                 &election_event_id_cloned,
                 &realm_cloned,
                 &election_ids,
-            )
+            ))
             .await
             .map_err(|e| anyhow!("Error deleting related non-transactional data: {e}"))?;
 
@@ -96,7 +96,7 @@ mod delete_election_event_task {
     #![allow(missing_docs)]
     #![allow(clippy::missing_docs_in_private_items)]
 
-    use super::*;
+    use super::{instrument, update_complete, update_fail, Result, TaskError, TasksExecution};
 
     /// Celery task: hard-delete an election event and mark task execution complete or failed.
     #[instrument(err)]
@@ -111,14 +111,14 @@ mod delete_election_event_task {
         let res = super::delete_election_event(tenant_id, election_event_id, realm).await;
 
         match res {
-            Ok(_) => {
+            Ok(()) => {
                 update_complete(&task_execution, None).await?;
             }
             Err(err) => {
                 let error = format!("Error deleting election event: {err}");
                 update_fail(&task_execution, &error).await?;
             }
-        };
+        }
         Ok(())
     }
 }

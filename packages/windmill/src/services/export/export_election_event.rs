@@ -67,6 +67,7 @@ use crate::services::password;
 /// Propagates parallel query failures, Keycloak admin errors,
 /// UUID parse errors, or image download failures.
 #[instrument(err, skip(transaction))]
+#[allow(clippy::large_futures)]
 pub async fn read_export_data(
     transaction: &Transaction<'_>,
     tenant_id: &str,
@@ -120,7 +121,9 @@ pub async fn read_export_data(
         })
         .collect();
 
-    let export_elections = if !export_config.bulletin_board {
+    let export_elections = if export_config.bulletin_board {
+        elections.clone()
+    } else {
         elections
             .clone()
             .into_iter()
@@ -129,8 +132,6 @@ pub async fn read_export_data(
                 ..election.clone()
             })
             .collect()
-    } else {
-        elections.clone()
     };
 
     let export_keys_ceremonies = if export_config.bulletin_board {
@@ -198,9 +199,9 @@ pub async fn generate_encrypted_zip(
 /// # Errors
 ///
 /// Returns an error when serialization or temp file IO fails.
-pub async fn write_export_document(data: ImportElectionEventSchema) -> Result<NamedTempFile> {
+pub fn write_export_document(data: &ImportElectionEventSchema) -> Result<NamedTempFile> {
     // Serialize the data into JSON string
-    let data_str = serde_json::to_string_pretty(&data)?;
+    let data_str = serde_json::to_string_pretty(data)?;
     let data_bytes = data_str.into_bytes();
 
     // Create and write the data into a temporary file
@@ -223,8 +224,11 @@ fn get_export_election_event_filename(
     let election_event_hash: String = hash_sha256_file(file_path)
         .with_context(|| "Error hashing the exported election_event")?
         .iter()
-        .map(|byte| format!("{:02x}", byte))
-        .collect();
+        .fold(String::new(), |mut acc, byte| {
+            use std::fmt::Write;
+            let _ = write!(acc, "{byte:02x}");
+            acc
+        });
     let extension = if is_encrypted { "ezip" } else { "zip" };
 
     Ok(format!(
@@ -254,7 +258,7 @@ pub async fn get_image_file_from_s3(
 
     let bytes = s3::get_file_from_s3(s3_bucket.to_owned(), s3_path).await?;
 
-    let file_name = format!("document_{}_{}", document_id, doc_name);
+    let file_name = format!("document_{document_id}_{doc_name}");
     let temp_file = generate_temp_file("", &file_name).context("generating temp file")?;
 
     let std_file = temp_file
@@ -285,6 +289,7 @@ async fn process_images<T, F>(
 ) -> Result<Vec<TempPath>>
 where
     F: Fn(&T) -> Option<&str> + Send + Sync,
+    T: Send + Sync,
 {
     let mut s3_files = Vec::new();
 
@@ -390,6 +395,7 @@ pub async fn process_event_images(
 /// Returns an error on missing passwords when required,
 /// IO/ZIP failures, subgraph export helper failures, or upload failures.
 #[instrument(err)]
+#[allow(clippy::too_many_lines, clippy::large_futures)]
 pub async fn process_export_zip(
     tenant_id: &str,
     election_event_id: &str,
@@ -425,7 +431,7 @@ pub async fn process_export_zip(
         &export_config,
     )
     .await?;
-    let temp_election_event_file = write_export_document(export_data).await?;
+    let temp_election_event_file = write_export_document(&export_data)?;
     let election_event_filename = format!(
         "{}-{}.json",
         EDocuments::ELECTION_EVENT.to_file_name(),
@@ -447,8 +453,8 @@ pub async fn process_export_zip(
         let file_name = file_path
             .file_name()
             .ok_or(anyhow!(
-                "Error getting file name from path: {:?}",
-                file_path
+                "Error getting file name from path: {}",
+                file_path.display()
             ))?
             .to_string_lossy()
             .to_string();
@@ -529,13 +535,13 @@ pub async fn process_export_zip(
                     Some(report.id.clone()),
                 )
                 .await?
-                .unwrap_or("".to_string());
+                .unwrap_or(String::new());
 
                 wtr.write_record(&[
-                    report.id.to_string(),
-                    report.election_id.unwrap_or_default().to_string(),
-                    report.report_type.to_string(),
-                    report.template_alias.unwrap_or_default().to_string(),
+                    report.id.clone(),
+                    report.election_id.unwrap_or_default().clone(),
+                    report.report_type.clone(),
+                    report.template_alias.unwrap_or_default().clone(),
                     serde_json::to_string(&report.cron_config)
                         .map_err(|e| anyhow!("Error serializing cron config: {e:?}"))?,
                     report.encryption_policy.to_string(),
@@ -612,8 +618,8 @@ pub async fn process_export_zip(
             let file_name = file_path
                 .file_name()
                 .ok_or(anyhow!(
-                    "Error getting file name from path: {:?}",
-                    file_path
+                    "Error getting file name from path: {}",
+                    file_path.display()
                 ))?
                 .to_string_lossy()
                 .to_string();
@@ -816,7 +822,7 @@ pub async fn process_export_zip(
         .map_err(|e| anyhow!("Error finalizing ZIP file: {e:?}"))?;
 
     // Encrypt ZIP file if required
-    let encryption_password = export_config.password.unwrap_or("".to_string());
+    let encryption_password = export_config.password.unwrap_or_default();
     if encryption_password.is_empty() && (export_config.bulletin_board || export_config.reports) {
         return Err(anyhow!("Bulletin Board requires password"));
     }
@@ -853,7 +859,7 @@ pub async fn process_export_zip(
         &hasura_transaction,
         upload_path
             .to_str()
-            .ok_or_else(|| anyhow!("Can't convert {:?} to string", upload_path))?,
+            .ok_or_else(|| anyhow!("Can't convert path to string: {}", upload_path.display()))?,
         zip_size,
         "application/zip",
         tenant_id,

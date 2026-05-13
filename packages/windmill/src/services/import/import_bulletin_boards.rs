@@ -28,8 +28,8 @@ use tracing::{info, instrument};
 ///
 /// Returns an error if required fields are missing or cannot be parsed/decoded.
 #[instrument]
-fn get_board_record(record: StringRecord) -> Result<(String, B3MessageRow)> {
-    let fields: Vec<String> = record.iter().map(|val| val.to_string()).collect();
+fn get_board_record(record: &StringRecord) -> Result<(String, B3MessageRow)> {
+    let fields: Vec<String> = record.iter().map(ToString::to_string).collect();
 
     if fields.len() < 10 {
         return Err(anyhow!(
@@ -38,32 +38,24 @@ fn get_board_record(record: StringRecord) -> Result<(String, B3MessageRow)> {
         ));
     }
 
-    let election_id = fields[0].clone();
-    let id = fields[1]
-        .clone()
-        .parse::<i64>()
-        .map_err(|err| anyhow!("{:?}", err))?;
-    let created = fields[2]
-        .clone()
-        .parse::<u64>()
-        .map_err(|err| anyhow!("{:?}", err))?;
-    let sender_pk = fields[3].clone();
-    let statement_timestamp = fields[4]
-        .clone()
-        .parse::<u64>()
-        .map_err(|err| anyhow!("{:?}", err))?;
-    let statement_kind = fields[5].clone();
-    let batch = fields[6]
-        .clone()
-        .parse::<i32>()
-        .map_err(|err| anyhow!("{:?}", err))?;
-    let mix_number = fields[7]
-        .parse::<i32>()
-        .map_err(|err| anyhow!("{:?}", err))?;
+    let col = |i: usize| -> Result<&String> {
+        fields
+            .get(i)
+            .ok_or_else(|| anyhow!("missing bulletin CSV column index {i}"))
+    };
+
+    let election_id = col(0)?.clone();
+    let id = col(1)?.parse::<i64>().map_err(|err| anyhow!("{err:?}"))?;
+    let created = col(2)?.parse::<u64>().map_err(|err| anyhow!("{err:?}"))?;
+    let sender_pk = col(3)?.clone();
+    let statement_timestamp = col(4)?.parse::<u64>().map_err(|err| anyhow!("{err:?}"))?;
+    let statement_kind = col(5)?.clone();
+    let batch = col(6)?.parse::<i32>().map_err(|err| anyhow!("{err:?}"))?;
+    let mix_number = col(7)?.parse::<i32>().map_err(|err| anyhow!("{err:?}"))?;
     let message = general_purpose::STANDARD_NO_PAD
-        .decode(fields[8].clone())
-        .map_err(|err| anyhow!("{:?}", err))?;
-    let version = fields[9].clone();
+        .decode(col(8)?.clone())
+        .map_err(|err| anyhow!("{err:?}"))?;
+    let version = col(9)?.clone();
 
     let row = B3MessageRow {
         id,
@@ -89,11 +81,11 @@ fn get_board_record(record: StringRecord) -> Result<(String, B3MessageRow)> {
 fn get_board_name_for_event_or_election(
     tenant_id: &str,
     election_event_id: &str,
-    election_id: Option<String>,
+    election_id: Option<&str>,
     slug: &str,
 ) -> String {
-    if let Some(election_id) = election_id.clone() {
-        get_election_board(tenant_id, &election_id, slug)
+    if let Some(election_id) = election_id {
+        get_election_board(tenant_id, election_id, slug)
     } else {
         get_event_board(tenant_id, election_event_id, slug)
     }
@@ -105,6 +97,7 @@ fn get_board_name_for_event_or_election(
 ///
 /// Returns an error if CSV parsing/validation fails, ids cannot be replaced, or vault writes fail.
 #[instrument(err, skip(replacement_map))]
+#[allow(clippy::implicit_hasher)]
 pub async fn import_protocol_manager_keys(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
@@ -130,7 +123,7 @@ pub async fn import_protocol_manager_keys(
 
     // Validate headers
     info!("headers: {headers:?}");
-    for header in headers.iter() {
+    for header in &headers {
         if !HEADER_RE.is_match(header) {
             return Err(anyhow!(
                 "CSV Header contains characters not allowed: {header}"
@@ -144,7 +137,7 @@ pub async fn import_protocol_manager_keys(
                 return Err(anyhow!("Error reading CSV record: {err}"));
             }
         };
-        let fields: Vec<String> = record.iter().map(|val| val.to_string()).collect();
+        let fields: Vec<String> = record.iter().map(ToString::to_string).collect();
 
         if fields.len() < 2 {
             return Err(anyhow!(
@@ -153,19 +146,24 @@ pub async fn import_protocol_manager_keys(
             ));
         }
 
-        let election_id = fields[0].clone();
-        let new_election_id = if !election_id.trim().is_empty() {
+        let col = |i: usize| -> Result<&String> {
+            fields
+                .get(i)
+                .ok_or_else(|| anyhow!("missing protocol manager CSV column index {i}"))
+        };
+        let election_id = col(0)?.clone();
+        let new_election_id = if election_id.trim().is_empty() {
+            None
+        } else {
             Some(
                 replacement_map
                     .get(&election_id)
                     .ok_or(anyhow!("Can't find election id in replacement map"))?
                     .clone(),
             )
-        } else {
-            None
         };
 
-        let value = fields[1].clone();
+        let value = col(1)?.clone();
         keys_map.insert(new_election_id, value);
     }
 
@@ -182,7 +180,7 @@ pub async fn import_protocol_manager_keys(
             &value,
         )
         .await
-        .context("protocol manager secret not saved")?
+        .context("protocol manager secret not saved")?;
     } else {
         return Err(anyhow!("Missing event protocol manager keys"));
     }
@@ -200,7 +198,7 @@ pub async fn import_protocol_manager_keys(
                 &value,
             )
             .await
-            .context("protocol manager secret not saved")?
+            .context("protocol manager secret not saved")?;
         } else {
             return Err(anyhow!(
                 "Missing election protocol manager keys for election"
@@ -217,6 +215,7 @@ pub async fn import_protocol_manager_keys(
 ///
 /// Returns an error if CSV parsing/validation fails, ids cannot be replaced, or B3 insert fails.
 #[instrument(err)]
+#[allow(clippy::implicit_hasher)]
 pub async fn import_bulletin_boards(
     tenant_id: &str,
     election_event_id: &str,
@@ -239,7 +238,7 @@ pub async fn import_bulletin_boards(
 
     // Validate headers
     info!("headers: {headers:?}");
-    for header in headers.iter() {
+    for header in &headers {
         if !HEADER_RE.is_match(header) {
             return Err(anyhow!(
                 "CSV Header contains characters not allowed: {header}"
@@ -254,7 +253,7 @@ pub async fn import_bulletin_boards(
                 return Err(anyhow!("Error reading CSV record: {err}"));
             }
         };
-        let (election_id, board_record) = get_board_record(record)?;
+        let (election_id, board_record) = get_board_record(&record)?;
 
         // Add board_record to the vector in boards_map, indexed by election_id
         boards_map
@@ -265,21 +264,21 @@ pub async fn import_bulletin_boards(
     let slug = std::env::var("ENV_SLUG").with_context(|| "missing env var ENV_SLUG")?;
 
     for (election_id, records) in boards_map {
-        let new_election_id = if !election_id.trim().is_empty() {
+        let new_election_id = if election_id.trim().is_empty() {
+            None
+        } else {
             Some(
                 replacement_map
                     .get(&election_id)
                     .ok_or(anyhow!("Can't find election id in replacement map"))?
                     .clone(),
             )
-        } else {
-            None
         };
 
         let board_name = get_board_name_for_event_or_election(
             tenant_id,
             election_event_id,
-            new_election_id,
+            new_election_id.as_deref(),
             &slug,
         );
         let mut board_client = get_b3_pgsql_client().await?;
@@ -289,8 +288,7 @@ pub async fn import_bulletin_boards(
 
         if existing_board.is_none() {
             return Err(anyhow!(
-                "Can't import messages for bulletin board {} because the table doesn't exist",
-                board_name
+                "Can't import messages for bulletin board {board_name} because the table doesn't exist"
             ));
         }
 

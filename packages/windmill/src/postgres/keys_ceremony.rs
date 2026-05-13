@@ -26,13 +26,13 @@ impl TryFrom<Row> for KeysCeremonyWrapper {
             trustee_ids: item
                 .try_get::<_, Vec<Uuid>>("trustee_ids")?
                 .iter()
-                .map(|uuid| uuid.to_string())
+                .map(ToString::to_string)
                 .collect(),
             status: item.try_get("status")?,
             execution_status: item.try_get("execution_status")?,
             labels: item.try_get("labels")?,
             annotations: item.try_get("annotations")?,
-            threshold: item.try_get::<_, i32>("threshold")? as i64,
+            threshold: i64::from(item.try_get::<_, i32>("threshold")?),
             name: item.try_get("name")?,
             settings: item.try_get("settings")?,
             is_default: item.try_get("is_default")?,

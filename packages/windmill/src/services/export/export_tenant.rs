@@ -64,7 +64,7 @@ pub async fn write_export_document(
         .as_object()
         .ok_or_else(|| anyhow!("Failed to convert tenant to JSON object"))?
         .values()
-        .map(|value| value.to_string())
+        .map(std::string::ToString::to_string)
         .collect();
 
     writer.write_record(&values)?;

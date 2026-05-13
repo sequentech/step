@@ -5,7 +5,7 @@
 use crate::postgres::election_event::{
     get_election_event_by_id, update_election_event_presentation,
 };
-use crate::postgres::scheduled_event::*;
+use crate::postgres::scheduled_event::{find_scheduled_event_by_id, stop_scheduled_event};
 use crate::services::providers::transactions_provider::provide_hasura_transaction;
 use crate::services::voting_status::{self};
 use crate::types::error::{Error, Result};
@@ -16,7 +16,7 @@ use deadpool_postgres::Transaction;
 use sequent_core::ballot::{ElectionEventPresentation, Enrollment};
 use sequent_core::serialization::deserialize_with_path::{self, deserialize_value};
 use sequent_core::services::keycloak::{get_event_realm, KeycloakAdminClient};
-use sequent_core::types::scheduled_event::*;
+use sequent_core::types::scheduled_event::EventProcessors;
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
 use tracing::{error, event, info, Level};
@@ -57,7 +57,7 @@ pub async fn update_keycloak_otp(
         let flow_executions = keycloak_client
             .get_flow_executions(&pub_client, &realm_name, flow_name)
             .await
-            .with_context(|| format!("Error fetching flow executions for '{}'", flow_name))?;
+            .with_context(|| format!("Error fetching flow executions for '{flow_name}'"))?;
 
         for mut execution in flow_executions {
             if execution.provider_id.as_deref() == Some("message-otp-authenticator") {
@@ -71,9 +71,7 @@ pub async fn update_keycloak_otp(
                         &serde_json::to_string(&execution)?,
                     )
                     .await
-                    .with_context(|| {
-                        format!("Error updating flow execution for '{}'", flow_name)
-                    })?;
+                    .with_context(|| format!("Error updating flow execution for '{flow_name}'"))?;
             }
         }
     }
@@ -111,8 +109,8 @@ pub async fn update_keycloak_enrollment(
         .with_context(|| "Error obtaining realm")?;
     realm.registration_allowed = Some(enable_enrollment);
 
-    let keycloak_client = KeycloakAdminClient::new().await?;
-    keycloak_client
+    let keycloak_upsert_client = KeycloakAdminClient::new().await?;
+    keycloak_upsert_client
         .upsert_realm(
             &realm_name,
             &serde_json::to_string(&realm)?,
@@ -150,8 +148,7 @@ pub async fn manage_election_event_enrollment_wrapped(
 
     let Some(scheduled_event) = scheduled_event else {
         return Err(anyhow!(
-            "Can't find scheduled event with id: {}",
-            scheduled_event_id
+            "Can't find scheduled event with id: {scheduled_event_id}"
         ));
     };
 
@@ -163,11 +160,11 @@ pub async fn manage_election_event_enrollment_wrapped(
             .await
             .with_context(|| "Error obtaining election by id")?;
 
-    update_keycloak_enrollment(
+    Box::pin(update_keycloak_enrollment(
         scheduled_event.tenant_id.clone(),
         scheduled_event.election_event_id.clone(),
         enable_enrollment,
-    )
+    ))
     .await?;
 
     if let Some(election_event_presentation) = election_event.presentation {
@@ -199,7 +196,10 @@ mod manage_election_event_enrollment_task {
     #![allow(missing_docs)]
     #![allow(clippy::missing_docs_in_private_items)]
 
-    use super::*;
+    use super::{
+        instrument, manage_election_event_enrollment_wrapped, provide_hasura_transaction, Result,
+        TaskError,
+    };
 
     /// Celery task: manages the election event scheduled enrollment.
     #[instrument(err)]
@@ -215,12 +215,12 @@ mod manage_election_event_enrollment_task {
             let election_event_id = election_event_id.clone();
             let scheduled_event_id = scheduled_event_id.clone();
             Box::pin(async move {
-                manage_election_event_enrollment_wrapped(
+                Box::pin(manage_election_event_enrollment_wrapped(
                     hasura_transaction,
                     tenant_id,
                     election_event_id,
                     scheduled_event_id,
-                )
+                ))
                 .await
             })
         })

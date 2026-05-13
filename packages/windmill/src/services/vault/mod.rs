@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-//! Secret backends (AWS Secrets Manager, HashiCorp Vault, environment)
+//! Secret backends (AWS Secrets Manager, `HashiCorp` Vault, environment)
 //! for tasks that need credentials or key material.
 
 mod aws_secret_manager;

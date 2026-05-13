@@ -47,12 +47,9 @@ pub fn get_next_scheduled_time(report: &Report) -> Option<DateTime<Local>> {
         "last_document_produced_date: {:?}",
         last_document_produced_date
     );
-    let last_run = match last_document_produced_date {
-        Some(last_run) => last_run,
-        None => {
-            error!("No last run date found for report id {}", report.id);
-            return None;
-        }
+    let Some(last_run) = last_document_produced_date else {
+        error!("No last run date found for report id {}", report.id);
+        return None;
     };
     // Get the next scheduled time after the last run
     let next_run = match schedule.find_next_occurrence(&last_run, false) {
@@ -83,7 +80,12 @@ mod scheduled_reports_task {
     #![allow(missing_docs)]
     #![allow(clippy::missing_docs_in_private_items)]
 
-    use super::*;
+    use super::{
+        anyhow, event, generate_report, get_all_active_reports, get_celery_app, get_hasura_pool,
+        get_next_scheduled_time, info, instrument, tasks_execution,
+        update_report_last_document_time, DbClient, Duration, ETasksExecution, GenerateReportMode,
+        Level, Local, Result, TaskError, Utc, Uuid,
+    };
 
     /// Celery task: finds active reports whose next cron run falls inside the
     /// lookahead window and enqueues [`generate_report`].

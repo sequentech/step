@@ -10,7 +10,7 @@ use std::sync::Arc;
 use tokio::sync::{Semaphore, SemaphorePermit};
 use tracing::instrument;
 
-/// Static OnceCell to hold the semaphore
+/// Static `OnceCell` to hold the semaphore
 pub static SEMAPHORE: OnceCell<Arc<Semaphore>> = OnceCell::new();
 
 #[instrument(err)]
@@ -26,7 +26,7 @@ pub fn init_semaphore(count: usize) -> Result<()> {
     // Set the semaphore in the OnceCell
     SEMAPHORE
         .set(semaphore)
-        .map_err(|e| anyhow!("Error setting semaphore: {:?}", e))?;
+        .map_err(|e| anyhow!("Error setting semaphore: {e:?}"))?;
 
     Ok(())
 }

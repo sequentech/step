@@ -31,6 +31,7 @@ impl From<B3IndexRow> for BoardSerializable {
 }
 
 /// Get the database name for a B3 board reference.
+#[must_use]
 pub fn get_election_event_board(bulletin_board_reference: Option<Value>) -> Option<String> {
     bulletin_board_reference.and_then(|board_json| {
         let opt_board: Option<BoardSerializable> = deserialize_value(board_json).ok();

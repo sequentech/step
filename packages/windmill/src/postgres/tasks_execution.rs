@@ -19,7 +19,7 @@ use uuid::Uuid;
 /// Tasks execution wrapper
 pub struct TasksExecutionWrapper(pub TasksExecution);
 
-/// Implements a conversion from a database row to that TasksExecutionWrapper structure
+/// Implements a conversion from a database row to that `TasksExecutionWrapper` structure
 impl TryFrom<Row> for TasksExecutionWrapper {
     type Error = anyhow::Error;
 
@@ -30,16 +30,16 @@ impl TryFrom<Row> for TasksExecutionWrapper {
             election_event_id: item
                 .try_get::<_, Option<Uuid>>("election_event_id")?
                 .map(|uuid| uuid.to_string()),
-            name: item.try_get::<_, String>("name")?.to_string(),
-            task_type: item.try_get::<_, String>("type")?.to_string(),
-            execution_status: item.try_get::<_, String>("execution_status")?.to_string(),
+            name: item.try_get::<_, String>("name")?.clone(),
+            task_type: item.try_get::<_, String>("type")?.clone(),
+            execution_status: item.try_get::<_, String>("execution_status")?.clone(),
             created_at: item.get("created_at"),
             start_at: item.get("start_at"),
             end_at: item.get("end_at"),
             annotations: item.try_get("annotations")?,
             labels: item.try_get("labels")?,
             logs: item.try_get("logs")?,
-            executed_by_user: item.try_get::<_, String>("executed_by_user")?.to_string(),
+            executed_by_user: item.try_get::<_, String>("executed_by_user")?.clone(),
         }))
     }
 }
@@ -72,13 +72,13 @@ pub async fn insert_tasks_execution(
         parse_uuid_v4(tenant_id).map_err(|err| anyhow!("Error parsing tenant UUID: {err}"))?;
 
     let election_event_uuid = if let Some(event_id) = election_event_id {
-        if !event_id.is_empty() {
+        if event_id.is_empty() {
+            None
+        } else {
             Some(
                 parse_uuid_v4(event_id)
                     .map_err(|err| anyhow!("Error parsing election event UUID: {err}"))?,
             )
-        } else {
-            None
         }
     } else {
         None
@@ -131,7 +131,6 @@ pub async fn insert_tasks_execution(
 ///
 /// Returns an error if SQL preparation or execution fails,
 /// if UUID or other parsing fails.
-
 pub async fn update_task_execution_status(
     tenant_id: &str,
     task_execution_id: &str,

@@ -34,7 +34,11 @@ mod import_election_event_task {
     #![allow(missing_docs)]
     #![allow(clippy::missing_docs_in_private_items)]
 
-    use super::*;
+    use super::{
+        import_election_event_service, info, instrument, provide_hasura_transaction,
+        update_complete, update_fail, vacuum_analyze_direct, Result, TaskError, TasksExecution,
+    };
+
     /// Celery task: import election event data from a document.
     #[instrument(err)]
     #[wrap_map_err::wrap_map_err(TaskError)]
@@ -51,19 +55,19 @@ mod import_election_event_task {
             let election_event_id = election_event_id.clone();
 
             Box::pin(async move {
-                import_election_event_service::process_document(
+                Box::pin(import_election_event_service::process_document(
                     hasura_transaction,
                     object,
                     election_event_id,
                     tenant_id,
-                )
+                ))
                 .await
             })
         })
         .await;
 
         match &result {
-            Ok(_) => {
+            Ok(()) => {
                 // Execute database maintenance
                 info!("Performing mainteinance after election event import.");
                 vacuum_analyze_direct().await?;

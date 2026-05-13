@@ -4,8 +4,11 @@
 
 //! Managing voting calendar and scheduled-date materialization for elections and events.
 
-use crate::postgres::election::*;
-use crate::postgres::scheduled_event::*;
+use crate::postgres::election::get_election_by_id;
+use crate::postgres::scheduled_event::{
+    archive_scheduled_event, find_scheduled_event_by_task_id, insert_scheduled_event,
+    update_scheduled_event,
+};
 use crate::services::election_event_status::get_election_event_status;
 use anyhow::{anyhow, Result};
 use deadpool_postgres::Transaction;
@@ -13,7 +16,10 @@ use sequent_core::ballot::{
     EInitializeReportPolicy, ElectionEventStatus, PeriodDates, StringifiedPeriodDates,
 };
 use sequent_core::types::hasura::core::Election;
-use sequent_core::types::scheduled_event::*;
+use sequent_core::types::scheduled_event::{
+    generate_manage_date_task_name, prepare_scheduled_dates, CronConfig, EventProcessors,
+    ManageElectionDatePayload, ScheduledEvent,
+};
 use std::str::FromStr;
 use tracing::instrument;
 
@@ -97,7 +103,7 @@ pub async fn manage_dates(
                 .await
                 .map_err(|e| anyhow!("error inserting scheduled event: {e:?}"))?;
             }
-        };
+        }
     } else {
         // Archive previous task if the date is set to null and we found some
         // task

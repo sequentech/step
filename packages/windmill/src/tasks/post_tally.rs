@@ -49,7 +49,7 @@ use tokio::time::Duration as ChronoDuration;
 use rayon::iter::IntoParallelIterator;
 use rayon::iter::ParallelIterator;
 
-/// Downloads the SQLite results database referenced on the tally session execution.
+/// Downloads the `SQLite` results database referenced on the tally session execution.
 ///
 /// # Errors
 ///
@@ -73,13 +73,10 @@ pub async fn download_sqlite_database(
         ));
         };
 
-    let sqlite_database_document_id = if let Some(id) = documents.sqlite {
-        id
-    } else {
+    let Some(sqlite_database_document_id) = documents.sqlite else {
         return Err(anyhow!(
             "Could not recover sqlite database from tally session execution with id {tally_session_id}"
-        )
-        );
+        ));
     };
 
     let document = get_document(
@@ -89,7 +86,7 @@ pub async fn download_sqlite_database(
         &sqlite_database_document_id,
     )
     .await?
-    .ok_or_else(|| anyhow!("Can't find document {}", sqlite_database_document_id))?;
+    .ok_or_else(|| anyhow!("Can't find document {sqlite_database_document_id}"))?;
 
     let sqlite_database = get_document_as_temp_file(tenant_id, &document).await?;
 
@@ -103,16 +100,16 @@ pub async fn download_sqlite_database(
 /// Stops on the first I/O, render, temp-file, or copy error from any worker thread.
 pub fn find_and_process_html_reports_parallel(
     root_path: &Path,
-    pdf_options: PrintToPdfOptionsLocal,
+    pdf_options: &PrintToPdfOptionsLocal,
 ) -> Result<()> {
     // Walk the directory and collect all valid HTML file paths first.
     // We filter and collect upfront to create a work queue.
     let html_files: Vec<_> = WalkDir::new(root_path)
         .into_iter()
-        .filter_map(|e| e.ok()) // Filter out directory read errors
+        .filter_map(std::result::Result::ok) // Filter out directory read errors
         .filter(|e| e.file_type().is_file()) // Keep only files
         .filter(|e| e.path().extension().and_then(std::ffi::OsStr::to_str) == Some("html"))
-        .map(|e| e.into_path()) // Convert to PathBuf
+        .map(walkdir::DirEntry::into_path) // Convert to PathBuf
         .collect();
 
     // Use `par_iter` to process the collected paths in parallel.
@@ -159,12 +156,13 @@ pub fn find_and_process_html_reports_parallel(
 }
 
 /// Rebuilds tally HTML reports as PDFs inside the decrypted archive,
-/// re-uploads `tally.tar.gz` and SQLite.
+/// re-uploads `tally.tar.gz` and `SQLite`.
 ///
 /// # Errors
 ///
 /// Propagates missing documents, sqlite/tar extraction, PDF render, upload, or Hasura update failures.
 #[instrument(err)]
+#[allow(clippy::too_many_lines)]
 pub async fn post_tally_task_impl(
     tenant_id: String,
     election_event_id: String,
@@ -232,11 +230,11 @@ pub async fn post_tally_task_impl(
     let tar_gz_document = get_document(
         &hasura_transaction,
         &tenant_id.clone(),
-        Some(election_event_id.to_string()),
+        Some(election_event_id.clone()),
         &tar_gz_document_id,
     )
     .await?
-    .ok_or_else(|| anyhow!("Can't find document {}", tar_gz_document_id))?;
+    .ok_or_else(|| anyhow!("Can't find document {tar_gz_document_id}"))?;
 
     let tar_gz_file = get_document_as_temp_file(&tenant_id, &tar_gz_document).await?;
 
@@ -256,7 +254,7 @@ pub async fn post_tally_task_impl(
     let pdf_options = PrintToPdfOptionsLocal::from_pdf_options(pdf_options);
 
     // Search for all html reports that do not have pdf and generate it
-    find_and_process_html_reports_parallel(tally_path.path(), pdf_options)?;
+    find_and_process_html_reports_parallel(tally_path.path(), &pdf_options)?;
 
     // Create the archive again
     let (_tar_file_temp_path, tar_file_str, file_size) =
@@ -269,9 +267,9 @@ pub async fn post_tally_task_impl(
         file_size,
         "application/gzip",
         &tenant_id,
-        Some(election_event_id.to_string()),
+        Some(election_event_id.clone()),
         "tally.tar.gz",
-        Some(tar_document_id.to_string()),
+        Some(tar_document_id.clone()),
         false,
     )
     .await?;
@@ -280,10 +278,11 @@ pub async fn post_tally_task_impl(
         "No results event id set in tally session execution"
     ))?;
 
-    let election_event_id_clone = election_event_id.clone();
-    let tenant_id_clone = tenant_id.clone();
+    ///re-clone the variables to avoid borrowing issues (after the move block)
+    let new_election_event_id_clone = election_event_id.clone();
+    let new_tenant_id_clone = tenant_id.clone();
     let results_event_id_clone = results_event_id.clone();
-    let database_path_clone = sqlite_file.path().to_path_buf();
+    let sqlite_database_path_clone = sqlite_file.path().to_path_buf();
 
     let mut documents = results_event_documents.clone();
     documents.tar_gz_pdfs = Some(updated_targz_document.id.clone());
@@ -291,16 +290,16 @@ pub async fn post_tally_task_impl(
     // Update the documents in hasura database
     update_results_event_documents(
         &hasura_transaction,
-        &tenant_id_clone,
+        &new_tenant_id_clone,
         &results_event_id_clone,
-        &election_event_id_clone,
+        &new_election_event_id_clone,
         &documents,
     )
     .await?;
 
     // Update the documents in sqlite database
     let _ = task::spawn_blocking(move || -> Result<()> {
-        let mut sqlite_connection = SqliteConnection::open(&database_path_clone)
+        let mut sqlite_connection = SqliteConnection::open(&sqlite_database_path_clone)
             .map_err(|error| anyhow!("Error opening sqlite database: {error}"))?;
         let sqlite_transaction = sqlite_connection
             .transaction()
@@ -308,9 +307,9 @@ pub async fn post_tally_task_impl(
 
         update_results_event_documents_sqlite(
             &sqlite_transaction,
-            &tenant_id_clone,
+            &new_tenant_id_clone,
             &results_event_id_clone,
-            &election_event_id_clone,
+            &new_election_event_id_clone,
             &documents,
         )?;
 
@@ -325,19 +324,19 @@ pub async fn post_tally_task_impl(
 
     // Upload updated sqlite database
     let database_document_id = Uuid::new_v4().to_string();
-    let file_name = format!("results-{}.db", results_event_id);
-    let file_path = sqlite_file.path().to_string_lossy().to_string();
-    let file_size = get_file_size(&file_path)?;
+    let file_name = format!("results-{results_event_id}.db");
+    let sqlite_file_path = sqlite_file.path().to_string_lossy().to_string();
+    let sqlite_file_size = get_file_size(&sqlite_file_path)?;
 
     let _document = upload_and_return_document(
         &hasura_transaction,
-        &file_path,
+        &sqlite_file_path,
         file_size,
         "application/vnd.sqlite3",
         &tenant_id,
-        Some(election_event_id.to_string()),
+        Some(election_event_id.clone()),
         &file_name,
-        Some(database_document_id.to_string()),
+        Some(database_document_id.clone()),
         false,
     )
     .await?;
@@ -349,7 +348,7 @@ pub async fn post_tally_task_impl(
     )?;
 
     let updated_documents = TallySessionDocuments {
-        sqlite: Some(database_document_id.to_string()),
+        sqlite: Some(database_document_id.clone()),
         xlsx: previous_tally_session_documents.xlsx.clone(),
     };
 
@@ -393,7 +392,10 @@ mod post_tally_celery {
     #![allow(missing_docs)]
     #![allow(clippy::missing_docs_in_private_items)]
 
-    use super::*;
+    use super::{
+        acquire_semaphore, info, instrument, post_tally_task_impl, ChronoDuration, Duration, Error,
+        ParallelIterator, PgLock, Result, TaskError, Uuid, ISO8601,
+    };
 
     /// Celery task: serializes post-tally PDF work per event/session.
     ///
@@ -414,10 +416,7 @@ mod post_tally_celery {
     ) -> Result<()> {
         let _permit = acquire_semaphore().await?;
         let Ok(lock) = PgLock::acquire(
-            format!(
-                "post-tally-task-{}-{}-{}",
-                tenant_id, election_event_id, tally_session_id
-            ),
+            format!("post-tally-task-{tenant_id}-{election_event_id}-{tally_session_id}"),
             Uuid::new_v4().to_string(),
             ISO8601::now()
                 .checked_add_signed(Duration::seconds(120))
@@ -445,7 +444,7 @@ mod post_tally_celery {
                 }
                 res = &mut current_task => {
 
-                    break res.map_err(|err| Error::String(format!("Error executing loop: {:?}", err))).flatten();
+                    break res.map_err(|err| Error::String(format!("Error executing loop: {err:?}"))).flatten();
                 }
             }
         };

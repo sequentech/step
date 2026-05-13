@@ -7,14 +7,14 @@ use anyhow::Result as AnyhowResult;
 use anyhow::{anyhow, Context};
 use tracing::{info, instrument};
 
-/// Celery workers for MiRu transmission package creation and delivery.
+/// Celery workers for Miru transmission package creation and delivery.
 mod miru_consolidation_tasks {
     #![allow(missing_docs)]
     #![allow(clippy::missing_docs_in_private_items)]
 
     use crate::services::consolidation::create_transmission_package_service::create_transmission_package_service;
     use crate::services::consolidation::send_transmission_package_service::send_transmission_package_service;
-    use crate::services::tasks_execution::*;
+    use crate::services::tasks_execution::{update_complete, update_fail};
     use crate::types::error::Error;
     use crate::types::error::Result;
     use anyhow::{anyhow, Context};
@@ -38,16 +38,16 @@ mod miru_consolidation_tasks {
         let handle = tokio::task::spawn_blocking({
             move || {
                 tokio::runtime::Handle::current().block_on(async move {
-                    match create_transmission_package_service(
+                    match Box::pin(create_transmission_package_service(
                         &tenant_id,
                         &election_id,
                         &area_id,
                         &tally_session_id,
                         force,
-                    )
+                    ))
                     .await
                     {
-                        Ok(_) => Ok(()),
+                        Ok(()) => Ok(()),
                         Err(err) => {
                             info!(
                                 "Captured backtrace inside spawn_blocking:\n{}",
@@ -63,7 +63,7 @@ mod miru_consolidation_tasks {
 
         match handle.await {
             Ok(inner_result) => inner_result.map_err(|err| Error::from(err.context("Task failed"))),
-            Err(join_error) => Err(Error::from(anyhow!("Task panicked: {}", join_error))),
+            Err(join_error) => Err(Error::from(anyhow!("Task panicked: {join_error}"))),
         }?;
 
         update_complete(&task_execution, None)
@@ -93,14 +93,14 @@ mod miru_consolidation_tasks {
                         &tally_session_id,
                     )
                     .await
-                    .map_err(|err| anyhow!("{}", err))
+                    .map_err(|err| anyhow!("{err}"))
                 })
             }
         });
 
         match handle.await {
             Ok(inner_result) => inner_result.map_err(|err| Error::from(err.context("Task failed"))),
-            Err(join_error) => Err(Error::from(anyhow!("Task panicked: {}", join_error))),
+            Err(join_error) => Err(Error::from(anyhow!("Task panicked: {join_error}"))),
         }?;
 
         Ok(())
@@ -129,7 +129,7 @@ pub async fn upload_signature_task(
     let handle = tokio::task::spawn_blocking({
         move || {
             tokio::runtime::Handle::current().block_on(async move {
-                let res = upload_transmission_package_signature_service(
+                let res = Box::pin(upload_transmission_package_signature_service(
                     &tenant_id,
                     &election_id,
                     &area_id,
@@ -137,10 +137,10 @@ pub async fn upload_signature_task(
                     &trustee_name,
                     &document_id,
                     &password,
-                )
+                ))
                 .await;
                 match res {
-                    Ok(_) => Ok(()),
+                    Ok(()) => Ok(()),
                     Err(err) => {
                         info!(
                             "Captured backtrace inside spawn_blocking:\n{}",

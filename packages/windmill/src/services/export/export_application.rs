@@ -71,7 +71,7 @@ pub async fn write_export_document(
         "verification_type",
         "status",
     ];
-    let name = format!("applications-{}", document_id);
+    let name = format!("applications-{document_id}");
 
     let mut writer = Writer::from_writer(vec![]);
     writer.write_record(&headers)?;
@@ -117,7 +117,7 @@ pub async fn write_export_document(
             &temp_path_string,
             file_size,
             "text/csv",
-            &first_task.tenant_id.to_string(),
+            &first_task.tenant_id.clone(),
             Some(first_task.election_event_id.clone()),
             &name,
             Some(document_id.to_string()),

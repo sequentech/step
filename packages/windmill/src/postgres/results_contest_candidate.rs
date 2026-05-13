@@ -9,7 +9,7 @@ use rust_decimal::prelude::ToPrimitive;
 use rust_decimal::Decimal;
 use sequent_core::serialization::deserialize_with_path::deserialize_value;
 use sequent_core::services::uuid_validation::parse_uuid_v4;
-use sequent_core::types::results::*;
+use sequent_core::types::results::{ResultDocuments, ResultsContestCandidate};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tokio_postgres::row::Row;
@@ -35,15 +35,11 @@ impl TryFrom<Row> for ResultsContestCandidateWrapper {
             contest_id: item.try_get::<_, Uuid>("contest_id")?.to_string(),
             candidate_id: item.try_get::<_, Uuid>("candidate_id")?.to_string(),
             results_event_id: item.try_get::<_, Uuid>("results_event_id")?.to_string(),
-            cast_votes: item
-                .try_get::<_, Option<i32>>("cast_votes")?
-                .map(|val| val as i64),
+            cast_votes: item.try_get::<_, Option<i32>>("cast_votes")?.map(i64::from),
             winning_position: item
                 .try_get::<_, Option<i32>>("winning_position")?
-                .map(|val| val as i64),
-            points: item
-                .try_get::<_, Option<i32>>("points")?
-                .map(|val| val as i64),
+                .map(i64::from),
+            points: item.try_get::<_, Option<i32>>("points")?.map(i64::from),
             created_at: item.get("created_at"),
             last_updated_at: item.get("last_updated_at"),
             labels: item.try_get("labels")?,
@@ -108,7 +104,7 @@ pub async fn insert_results_contest_candidates(
                 cast_votes: contest_candidate.cast_votes,
                 winning_position: contest_candidate.winning_position,
                 points: contest_candidate.points,
-                cast_votes_percent: contest_candidate.cast_votes_percent.map(|n| n.into()),
+                cast_votes_percent: contest_candidate.cast_votes_percent.map(Into::into),
             })
         })
         .collect::<Result<Vec<InsertResultsContestCandidate>>>()?;
@@ -280,7 +276,7 @@ pub async fn insert_many_results_contest_candidates(
                 last_updated_at: c.last_updated_at,
                 labels: c.labels.clone(),
                 annotations: c.annotations.clone(),
-                cast_votes_percent: c.cast_votes_percent.map(|v| v.into_inner()),
+                cast_votes_percent: c.cast_votes_percent.map(NotNan::into_inner),
                 documents: documents_json,
             })
         })

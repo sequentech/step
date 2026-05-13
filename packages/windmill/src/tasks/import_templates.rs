@@ -33,7 +33,7 @@ pub async fn import_templates(
 ) -> AnyhowResult<()> {
     let document = get_document(hasura_transaction, &tenant_id, None, &document_id)
         .await
-        .map_err(|e| anyhow!("Error obtaining the document: {:?}", e))?
+        .map_err(|e| anyhow!("Error obtaining the document: {e:?}"))?
         .ok_or(Error::String("document not found".to_string()))?;
 
     let mut temp_file = get_document_as_temp_file(&tenant_id, &document).await?;
@@ -41,7 +41,7 @@ pub async fn import_templates(
 
     match sha256 {
         Some(hash) if !hash.is_empty() => match integrity_check(&temp_file, hash) {
-            Ok(_) => {
+            Ok(()) => {
                 info!("Hash verified !");
             }
             Err(HashFileVerifyError::HashMismatch(input_hash, gen_hash)) => {
@@ -66,10 +66,10 @@ pub async fn import_templates(
     let mut templates: Vec<Template> = vec![];
 
     for result in rdr.records() {
-        let record = result.map_err(|e| anyhow!("Error reading CSV record: {:?}", e))?;
+        let record = result.map_err(|e| anyhow!("Error reading CSV record: {e:?}"))?;
 
         let template_alias = record.get(0).unwrap_or("");
-        let tenant_id = record.get(1).unwrap_or("");
+        let row_tenant_id = record.get(1).unwrap_or("");
         let template_content = record.get(2).unwrap_or("");
         let created_by = record.get(3).unwrap_or("");
         let labels = record.get(4).unwrap_or("");
@@ -79,12 +79,11 @@ pub async fn import_templates(
         let communication_method = record.get(8).unwrap_or("");
         let template_type = record.get(9).unwrap_or("");
 
-        let tenant_id_parsed = match parse_uuid_v4(tenant_id) {
-            Ok(uuid) => uuid.to_string(),
-            Err(_) => {
-                tracing::warn!("Invalid UUID for tenant_id: {}", tenant_id);
-                continue;
-            }
+        let tenant_id_parsed = if let Ok(uuid) = parse_uuid_v4(row_tenant_id) {
+            uuid.to_string()
+        } else {
+            tracing::warn!("Invalid UUID for tenant_id: {row_tenant_id}");
+            continue;
         };
         templates.push(Template {
             alias: template_alias.to_string(),
@@ -109,7 +108,10 @@ mod import_templates_celery_task {
     #![allow(missing_docs)]
     #![allow(clippy::missing_docs_in_private_items)]
 
-    use super::*;
+    use super::{
+        import_templates, instrument, provide_hasura_transaction, update_complete, update_fail,
+        Result, TaskError, TasksExecution,
+    };
 
     /// Celery task: import templates from a CSV file.
     #[instrument(err)]
@@ -129,7 +131,7 @@ mod import_templates_celery_task {
         })
         .await;
         match result {
-            Ok(_) => {
+            Ok(()) => {
                 let _res = update_complete(&task_execution, Some(document_id.clone())).await;
                 Ok(())
             }

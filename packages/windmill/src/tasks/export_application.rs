@@ -29,7 +29,7 @@ pub async fn export_application(
 ) -> Result<()> {
     // Process the export
     match process_export(&tenant_id, &election_event_id, election_id, &document_id).await {
-        Ok(_) => (),
+        Ok(()) => (),
         Err(err) => {
             let err_str = format!("Error sending export_application task: {err:?}");
             update_fail(&task_execution, &err_str).await;

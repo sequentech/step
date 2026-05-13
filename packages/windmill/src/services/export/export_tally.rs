@@ -88,7 +88,7 @@ pub async fn export_tally_session(
             .as_object()
             .ok_or_else(|| anyhow!("Failed to convert tally_session to JSON object"))?
             .values()
-            .map(|value| value.to_string())
+            .map(std::string::ToString::to_string)
             .collect();
 
         writer.write_record(&values);
@@ -150,7 +150,7 @@ pub async fn export_tally_session_execution(
             .as_object()
             .ok_or_else(|| anyhow!("Failed to convert tally_session_execution to JSON object"))?
             .values()
-            .map(|value| value.to_string())
+            .map(std::string::ToString::to_string)
             .collect();
 
         writer.write_record(&values);
@@ -212,7 +212,7 @@ pub async fn export_tally_session_contest(
             .as_object()
             .ok_or_else(|| anyhow!("Failed to convert tally_session_contest to JSON object"))?
             .values()
-            .map(|value| value.to_string())
+            .map(std::string::ToString::to_string)
             .collect();
 
         writer.write_record(&values);
@@ -269,7 +269,7 @@ pub async fn export_results_event(
             .as_object()
             .ok_or_else(|| anyhow!("Failed to convert results_event to JSON object"))?
             .values()
-            .map(|value| value.to_string())
+            .map(std::string::ToString::to_string)
             .collect();
 
         writer.write_record(&values);
@@ -329,7 +329,7 @@ pub async fn export_results_election_area(
             .as_object()
             .ok_or_else(|| anyhow!("Failed to convert results_election_area to JSON object"))?
             .values()
-            .map(|value| value.to_string())
+            .map(std::string::ToString::to_string)
             .collect();
 
         writer.write_record(&values);
@@ -391,7 +391,7 @@ pub async fn export_results_election(
             .as_object()
             .ok_or_else(|| anyhow!("Failed to convert results_election to JSON object"))?
             .values()
-            .map(|value| value.to_string())
+            .map(std::string::ToString::to_string)
             .collect();
 
         writer.write_record(&values);
@@ -468,7 +468,7 @@ pub async fn export_results_contest(
             .as_object()
             .ok_or_else(|| anyhow!("Failed to convert results_contest to JSON object"))?
             .values()
-            .map(|value| value.to_string())
+            .map(std::string::ToString::to_string)
             .collect();
 
         writer.write_record(&values);
@@ -534,7 +534,7 @@ pub async fn export_results_contest_candidate(
             .as_object()
             .ok_or_else(|| anyhow!("Failed to convert results_contests_candidate to JSON object"))?
             .values()
-            .map(|value| value.to_string())
+            .map(std::string::ToString::to_string)
             .collect();
 
         writer.write_record(&values);
@@ -611,7 +611,7 @@ pub async fn export_results_area_contest(
             .as_object()
             .ok_or_else(|| anyhow!("Failed to convert results_area_contest to JSON object"))?
             .values()
-            .map(|value| value.to_string())
+            .map(std::string::ToString::to_string)
             .collect();
 
         writer.write_record(&values);
@@ -680,7 +680,7 @@ pub async fn export_results_area_contest_candidate(
                 anyhow!("Failed to convert results_area_contests_candidate to JSON object")
             })?
             .values()
-            .map(|value| value.to_string())
+            .map(std::string::ToString::to_string)
             .collect();
 
         writer.write_record(&values);
@@ -779,7 +779,7 @@ pub async fn read_tally_data(
 
     for result in &results {
         if let Err(e) = result {
-            return Err(anyhow::anyhow!("Export tally failed: {:?}", e));
+            return Err(anyhow::anyhow!("Export tally failed: {e:?}"));
         }
     }
 

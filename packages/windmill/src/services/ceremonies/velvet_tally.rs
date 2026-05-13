@@ -19,7 +19,9 @@ use crate::services::reports::template_renderer::{
     ReportOriginatedFrom, ReportOrigins, TemplateRenderer,
 };
 use crate::services::tally_sheets::tally::create_tally_sheets_map;
-use crate::services::temp_path::*;
+use crate::services::temp_path::{
+    PUBLIC_ASSETS_LOGO_IMG, PUBLIC_ASSETS_QRCODE_LIB, VELVET_BALLOT_IMAGES_TEMPLATE_TITLE,
+};
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::{Client as DbClient, Transaction};
 use rusqlite::Connection;
@@ -129,6 +131,7 @@ fn decode_plaintexts_to_biguints(
 ///
 /// Filesystem errors, JSON serialization failures, UUID parse errors in config builders, or CSV I/O
 /// issues while appending multi-contest ballots.
+#[allow(clippy::implicit_hasher)]
 #[instrument(skip_all, err)]
 pub fn prepare_tally_for_area_contest(
     base_tempdir: PathBuf,
@@ -200,7 +203,7 @@ pub fn prepare_tally_for_area_contest(
 
     let area_config = AreaConfig {
         id: parse_uuid_v4(&area_id)?,
-        name: area_contest.area.name.clone().unwrap_or("".into()),
+        name: area_contest.area.name.clone().unwrap_or_default(),
         tenant_id: parse_uuid_v4(&area_contest.contest.tenant_id)?,
         election_event_id: parse_uuid_v4(&area_contest.contest.election_event_id)?,
         election_id: parse_uuid_v4(&election_id)?,
@@ -262,6 +265,7 @@ pub fn prepare_tally_for_area_contest(
 /// # Errors
 ///
 /// UUID parsing, date computation failures, or filesystem/serialization errors while writing JSON.
+#[allow(clippy::implicit_hasher)]
 #[instrument(skip_all, err)]
 pub fn create_election_configs_blocking(
     base_tempdir: PathBuf,
@@ -278,8 +282,9 @@ pub fn create_election_configs_blocking(
     let election_event_annotations: HashMap<String, String> = election_event
         .annotations
         .clone()
-        .map(|annotations| deserialize_value(annotations).unwrap_or(Default::default()))
+        .and_then(|annotations| deserialize_value(annotations).ok())
         .unwrap_or_default();
+
     for area_contest in area_contests {
         let election_id = area_contest.contest.election_id.clone();
         let election_event_id = area_contest.contest.election_event_id.clone();
@@ -291,18 +296,13 @@ pub fn create_election_configs_blocking(
         let election_name_opt = election_opt.map(|election| election.get_name(&default_lang));
         let election_alias_otp = election_opt.and_then(|e| e.get_alias(&default_lang));
 
-        let election_description = election_opt
-            .map(|election| election.description.clone().unwrap_or("".to_string()))
-            .unwrap_or("".to_string());
+        let election_description = election_opt.map_or(String::new(), |election| {
+            election.description.clone().unwrap_or_default()
+        });
 
         let election_annotations: HashMap<String, String> = election_opt
-            .map(|election| {
-                election
-                    .annotations
-                    .clone()
-                    .map(|annotations| deserialize_value(annotations).unwrap_or(Default::default()))
-                    .unwrap_or(Default::default())
-            })
+            .and_then(|election| election.annotations.clone())
+            .and_then(|annotations| deserialize_value(annotations).ok())
             .unwrap_or_default();
 
         let election_presentation =
@@ -325,20 +325,17 @@ pub fn create_election_configs_blocking(
             Some(election) => election.clone(),
             None => ElectionConfig {
                 id: parse_uuid_v4(&election_id)?,
-                name: election_name_opt.unwrap_or("".to_string()),
-                alias: election_alias_otp.unwrap_or("".to_string()),
+                name: election_name_opt.unwrap_or_default(),
+                alias: election_alias_otp.unwrap_or_default(),
                 description: election_description,
                 annotations: election_annotations.clone(),
                 election_event_annotations: election_event_annotations.clone(),
                 dates: election_dates,
                 tenant_id: parse_uuid_v4(&area_contest.contest.tenant_id)?,
                 election_event_id: parse_uuid_v4(&area_contest.contest.election_event_id)?,
-                census: election_cast_votes_count
-                    .map(|data| data.census as u64)
-                    .unwrap_or(0),
+                census: election_cast_votes_count.map_or(0, |data| data.census.cast_unsigned()),
                 total_votes: election_cast_votes_count
-                    .map(|data| data.cast_votes as u64)
-                    .unwrap_or(0),
+                    .map_or(0, |data| data.cast_votes.cast_unsigned()),
                 ballot_styles: vec![],
                 areas: areas.clone(),
                 presentation: election_presentation.clone(),
@@ -538,7 +535,7 @@ pub async fn call_velvet(base_tally_path: PathBuf, pipe_id: &str) -> Result<Stat
 struct VelvetTemplateData {
     /// title injected into templates.
     pub title: String,
-    /// URL to the logo asset in MinIO.
+    /// URL to the logo asset in `MinIO`.
     pub file_logo: String,
     /// URL to the QR code helper script served from public assets.
     pub file_qrcode_lib: String,
@@ -548,7 +545,7 @@ struct VelvetTemplateData {
 ///
 /// # Errors
 ///
-/// Template provider failures, MinIO base URL resolution issues, or JSON serialization errors when
+/// Template provider failures, `MinIO` base URL resolution issues, or JSON serialization errors when
 /// embedding [`VelvetTemplateData`].
 #[instrument(skip_all, err)]
 pub async fn build_ballot_images_pipe_config(
@@ -561,8 +558,8 @@ pub async fn build_ballot_images_pipe_config(
     let election_event_id = &tally_session.election_event_id;
 
     let ballot_images_renderer = BallotImagesTemplate::new(ReportOrigins {
-        tenant_id: tenant_id.to_string(),
-        election_event_id: election_event_id.to_string(),
+        tenant_id: tenant_id.clone(),
+        election_event_id: election_event_id.clone(),
         election_id: None,
         template_alias: None,
         voter_id: None,
@@ -660,7 +657,7 @@ async fn build_reports_pipe_config(
     })
 }
 
-/// Writes `velvet-config.json` under `base_tally_path` describing decode, tally, report, and SQLite
+/// Writes `velvet-config.json` under `base_tally_path` describing decode, tally, report, and `SQLite`
 /// generation stages for this session.
 ///
 /// # Errors
@@ -763,6 +760,7 @@ pub async fn create_config_file(
     let mut file = fs::OpenOptions::new()
         .write(true)
         .create(true)
+        .truncate(true)
         .open(&config_path)?;
 
     writeln!(file, "{}", serde_json::to_string(&velvet_config)?)?;
@@ -775,8 +773,9 @@ pub async fn create_config_file(
 ///
 /// # Errors
 ///
-/// Any failure while opening SQLite, running nested async Postgres queries inside `block_in_place`,
-/// importing candidate CSVs, or committing the SQLite transaction (all wrapped with anyhow context).
+/// Any failure while opening `SQLite`, running nested async Postgres queries inside `block_in_place`,
+/// importing candidate CSVs, or committing the `SQLite` transaction (all wrapped with anyhow context).
+#[allow(clippy::too_many_lines)]
 #[instrument(skip_all, err)]
 async fn populate_sqlite_election_event_data(
     base_tempdir: &Path,
@@ -917,13 +916,14 @@ async fn populate_sqlite_election_event_data(
     Ok(document_id)
 }
 
-/// End-to-end helper: materializes per-contest inputs, configs, SQLite snapshot, Velvet config, and
+/// End-to-end helper: materializes per-contest inputs, configs, `SQLite` snapshot, Velvet config, and
 /// runs the `decode-ballots` pipeline stage.
 ///
 /// # Errors
 ///
 /// Propagates failures from [`prepare_tally_for_area_contest`], [`create_election_configs`],
 /// [`populate_sqlite_election_event_data`], [`create_config_file`], or [`call_velvet`].
+#[allow(clippy::implicit_hasher)]
 #[instrument(skip_all, err)]
 pub async fn run_velvet_tally(
     base_tally_path: PathBuf,
@@ -940,7 +940,7 @@ pub async fn run_velvet_tally(
     tally_type: TallyType,
     tie_resolutions: HashMap<String, Vec<TallySessionResolutionData>>,
 ) -> Result<State> {
-    let basic_areas: Vec<TreeNodeArea> = areas.iter().map(|area| area.into()).collect();
+    let basic_areas: Vec<TreeNodeArea> = areas.iter().map(Into::into).collect();
     // map<(area_id,contest_id), tally_sheet>
     let tally_sheet_map = create_tally_sheets_map(tally_sheets);
     for area_contest in area_contests {

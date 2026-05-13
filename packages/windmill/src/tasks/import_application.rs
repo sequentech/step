@@ -26,7 +26,10 @@ mod import_applications_task {
     #![allow(missing_docs)]
     #![allow(clippy::missing_docs_in_private_items)]
 
-    use super::*;
+    use super::{
+        instrument, provide_hasura_transaction, update_complete, update_fail, Result, TaskError,
+        TasksExecution,
+    };
 
     /// Celery task: import voter enrollment applications from a CSV file.
     #[instrument(err)]
@@ -55,7 +58,7 @@ mod import_applications_task {
         .await;
 
         match result {
-            Ok(_) => {
+            Ok(()) => {
                 let _res = update_complete(&task_execution, Some(document_id.clone())).await;
                 Ok(())
             }
@@ -93,7 +96,7 @@ pub async fn import_applications_task(
 
     match sha256 {
         Some(hash) if !hash.is_empty() => match integrity_check(&temp_file, hash) {
-            Ok(_) => {
+            Ok(()) => {
                 info!("Hash verified !");
             }
             Err(HashFileVerifyError::HashMismatch(input_hash, gen_hash)) => {
@@ -123,8 +126,8 @@ pub async fn import_applications_task(
         let _id = record.get(0).unwrap_or("");
         let created_at = record.get(1).unwrap_or("");
         let updated_at = record.get(2).unwrap_or("");
-        let tenant_id = record.get(3).unwrap_or("");
-        let election_event_id = record.get(4).unwrap_or("");
+        let row_tenant_id = record.get(3).unwrap_or("");
+        let row_election_event_id = record.get(4).unwrap_or("");
         let area_id = record.get(5).unwrap_or("");
         let applicant_id = record.get(6).unwrap_or("");
         let applicant_data = record.get(7).unwrap_or("");
@@ -135,12 +138,11 @@ pub async fn import_applications_task(
 
         let new_template_id = Uuid::new_v4();
 
-        let tenant_id_parsed = match parse_uuid_v4(tenant_id) {
-            Ok(uuid) => uuid.to_string(),
-            Err(_) => {
-                tracing::warn!("Invalid UUID for tenant_id: {}", tenant_id);
-                continue;
-            }
+        let tenant_id_parsed = if let Ok(uuid) = parse_uuid_v4(row_tenant_id) {
+            uuid.to_string()
+        } else {
+            tracing::warn!("Invalid UUID for tenant_id: {}", row_tenant_id);
+            continue;
         };
 
         applications.push(Application {
@@ -148,7 +150,7 @@ pub async fn import_applications_task(
             created_at: Some(created_at.parse().unwrap_or_default()),
             updated_at: Some(updated_at.parse().unwrap_or_default()),
             tenant_id: tenant_id_parsed,
-            election_event_id: election_event_id.to_string(),
+            election_event_id: row_election_event_id.to_string(),
             area_id: Some(area_id.to_string()),
             applicant_id: applicant_id.to_string(),
             applicant_data: deserialize_str(applicant_data).unwrap_or_default(),

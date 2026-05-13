@@ -69,9 +69,11 @@ pub async fn traversal_find_secrets_for_files(
         return Err(anyhow!("The provided path is not a directory"));
     }
 
-    let entries = WalkDir::new(folder_path).into_iter().filter_map(|e| e.ok());
-    let election_id_regex =
-        Regex::new(r"election__[a-zA-Z0-9\s\-\_]*__([0-9a-fA-F\-]{36})").unwrap();
+    let entries = WalkDir::new(folder_path)
+        .into_iter()
+        .filter_map(std::result::Result::ok);
+    let election_id_regex = Regex::new(r"election__[a-zA-Z0-9\s\-\_]*__([0-9a-fA-F\-]{36})")
+        .expect("static election id regex");
 
     for entry in entries {
         let path = entry.path();
@@ -145,6 +147,7 @@ pub async fn traversal_find_secrets_for_files(
 ///
 /// - `Err` when `folder_path` is not a directory.
 /// - Encryption failures bubbled up from [`encrypt_directory_contents`].
+#[allow(clippy::implicit_hasher)]
 #[instrument(err, skip_all)]
 pub async fn traversal_encrypt_files(
     report_secrets_map: HashMap<String, String>,
@@ -155,9 +158,11 @@ pub async fn traversal_encrypt_files(
         return Err(anyhow!("The provided path is not a directory"));
     }
 
-    let entries = WalkDir::new(folder_path).into_iter().filter_map(|e| e.ok());
-    let election_id_regex =
-        Regex::new(r"election__[a-zA-Z0-9\s\-\_]*__([0-9a-fA-F\-]{36})").unwrap();
+    let entries = WalkDir::new(folder_path)
+        .into_iter()
+        .filter_map(std::result::Result::ok);
+    let election_id_regex = Regex::new(r"election__[a-zA-Z0-9\s\-\_]*__([0-9a-fA-F\-]{36})")
+        .expect("static election id regex");
 
     for entry in entries {
         let path = entry.path();
@@ -265,6 +270,7 @@ pub async fn encrypt_directory_contents_sql(
 ///
 /// - Missing password entry for a matched report, encryption failures, or filesystem errors when
 ///   removing the plaintext source file.
+#[allow(clippy::implicit_hasher)]
 #[instrument(err, skip(report_secrets_map, election_ids, all_reports, old_path))]
 pub async fn encrypt_directory_contents(
     report_secrets_map: &HashMap<String, String>,

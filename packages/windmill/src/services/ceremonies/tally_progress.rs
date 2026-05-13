@@ -10,14 +10,21 @@ use sequent_core::types::{
 use std::collections::{HashMap, HashSet};
 use tracing::{event, instrument, Level};
 
+/// Converts contest counts to `f64` for progress scaling (same as `as f64`).
+#[allow(clippy::cast_precision_loss)]
+#[inline]
+const fn usize_to_f64(n: usize) -> f64 {
+    n as f64
+}
+
 /// Collects distinct batch numbers from `messages` whose statement kind matches `kind`.
 #[instrument(skip_all)]
-fn get_session_ids_by_type(messages: &[Message], kind: StatementType) -> Vec<i64> {
+fn get_session_ids_by_type(messages: &[Message], kind: &StatementType) -> Vec<i64> {
     let mut plaintext_batch_ids: Vec<i64> = messages
         .iter()
         .map(|message| {
-            if kind == message.statement.get_kind() {
-                message.statement.get_batch_number() as i64
+            if message.statement.get_kind().eq(kind) {
+                i64::try_from(message.statement.get_batch_number()).unwrap_or(-1)
             } else {
                 -1i64
             }
@@ -60,17 +67,18 @@ pub async fn generate_tally_progress(
             .get(&contest.election_id)
             .cloned()
             .unwrap_or(vec![]);
-        batch_ids.push(contest.session_id as i64);
+        batch_ids.push(i64::from(contest.session_id));
         complete_map.insert(contest.election_id.clone(), batch_ids.clone());
     }
-    let finished_batch_ids: Vec<i64> = get_session_ids_by_type(messages, StatementType::Plaintexts);
+    let finished_batch_ids: Vec<i64> =
+        get_session_ids_by_type(messages, &StatementType::Plaintexts);
 
     let mut decrypting_batch_ids: Vec<i64> =
-        get_session_ids_by_type(messages, StatementType::DecryptionFactors);
+        get_session_ids_by_type(messages, &StatementType::DecryptionFactors);
 
     decrypting_batch_ids.retain(|value| !finished_batch_ids.contains(value));
 
-    let mut mixing_batch_ids: Vec<i64> = get_session_ids_by_type(messages, StatementType::Mix);
+    let mut mixing_batch_ids: Vec<i64> = get_session_ids_by_type(messages, &StatementType::Mix);
 
     mixing_batch_ids.retain(|value| {
         !finished_batch_ids.contains(value) && !decrypting_batch_ids.contains(value)
@@ -95,10 +103,10 @@ pub async fn generate_tally_progress(
                 .len();
             let total = election_batch_ids.len();
             let mut progress: f64 = 100.0
-                * (0.2 * (num_mixing_contests as f64)
-                    + 0.4 * (num_decrypting_contests as f64)
-                    + (num_finished_contests as f64))
-                / (total as f64);
+                * (0.2 * usize_to_f64(num_mixing_contests)
+                    + 0.4 * usize_to_f64(num_decrypting_contests)
+                    + usize_to_f64(num_finished_contests))
+                / usize_to_f64(total);
             // clamp values to 0-100
             progress = progress.clamp(0.0, 100.0);
             let new_status = if num_finished_contests >= total {

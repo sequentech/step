@@ -84,7 +84,7 @@ pub async fn upsert_areas_task(
     let _commit = hasura_transaction
         .commit()
         .await
-        .map_err(|e| anyhow!("Commit failed: {}", e));
+        .map_err(|e| anyhow!("Commit failed: {e}"));
 
     Ok(())
 }

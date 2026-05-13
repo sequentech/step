@@ -101,7 +101,6 @@ pub async fn get_ballot_publication_by_id(
 ///
 /// Returns an error if SQL preparation or execution fails,
 /// if UUID or other parsing fails, or if row mapping is inconsistent.
-
 pub async fn update_ballot_publication_status(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
@@ -158,7 +157,6 @@ pub async fn update_ballot_publication_status(
 ///
 /// Returns an error if SQL preparation or execution fails,
 /// if UUID or other parsing fails, or if row mapping is inconsistent.
-
 pub async fn update_ballot_publication(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
@@ -522,7 +520,7 @@ pub async fn soft_delete_other_ballot_publications(
 
     let election_id_str = match election_uuid {
         Some(_) => "AND election_id = $4".to_string(),
-        None => "".to_string(),
+        None => String::new(),
     };
 
     // Publication update query

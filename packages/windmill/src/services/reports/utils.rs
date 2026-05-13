@@ -31,17 +31,17 @@ pub async fn get_public_asset_template(filename: &str) -> Result<String> {
 
     let minio_endpoint_base = get_minio_url().with_context(|| "Error getting minio endpoint")?;
 
-    let template_url = format!("{}/{}/{}", minio_endpoint_base, public_asset_path, filename);
+    let template_url = format!("{minio_endpoint_base}/{public_asset_path}/{filename}");
 
     let client = reqwest::Client::new();
     let response = client
         .get(&template_url)
         .send()
         .await
-        .with_context(|| format!("Error sending request for template {}", filename))?;
+        .with_context(|| format!("Error sending request for template {filename}"))?;
 
     if response.status() == reqwest::StatusCode::NOT_FOUND {
-        return Err(anyhow!("File not found: {}", template_url));
+        return Err(anyhow!("File not found: {template_url}"));
     }
     if !response.status().is_success() {
         return Err(anyhow!(
@@ -53,7 +53,7 @@ pub async fn get_public_asset_template(filename: &str) -> Result<String> {
     let template_hbs: String = response
         .text()
         .await
-        .with_context(|| format!("Error reading the template response for {}", filename))?;
+        .with_context(|| format!("Error reading the template response for {filename}"))?;
 
     Ok(template_hbs)
 }

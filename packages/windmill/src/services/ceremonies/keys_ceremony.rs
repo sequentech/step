@@ -9,7 +9,9 @@ use crate::postgres::election_event::get_election_event_by_id;
 use crate::postgres::keys_ceremony;
 use crate::postgres::trustee;
 use crate::services::celery_app::get_celery_app;
-use crate::services::ceremonies::serialize_logs::*;
+use crate::services::ceremonies::serialize_logs::{
+    append_keys_trustee_check_log, append_keys_trustee_download_log, generate_keys_initial_log,
+};
 use crate::services::election_event_board::get_election_event_board;
 use crate::services::election_event_status::get_election_event_status;
 use crate::services::electoral_log::ElectoralLog;
@@ -343,6 +345,7 @@ pub async fn check_private_key(
 /// Trustee lookup mismatches, invalid thresholds, duplicate default ceremonies, conflicting
 /// per-election ceremonies, serialization failures, Postgres insert failures, or electoral log
 /// write errors.
+#[allow(clippy::too_many_lines)]
 #[instrument(err)]
 pub async fn create_keys_ceremony(
     transaction: &Transaction<'_>,
@@ -387,7 +390,7 @@ pub async fn create_keys_ceremony(
     let default_ceremony = keys_ceremonies
         .clone()
         .into_iter()
-        .find(|keys_ceremony| keys_ceremony.is_default());
+        .find(KeysCeremony::is_default);
 
     if default_ceremony.is_some() {
         return Err(anyhow!(
@@ -412,7 +415,7 @@ pub async fn create_keys_ceremony(
         if !keys_ceremonies.is_empty() {
             return Err(anyhow!("Can't create an election event keys ceremony when there are already existing keys ceremonies."));
         }
-    };
+    }
 
     // generate default values
     let keys_ceremony_id: String = Uuid::new_v4().to_string();
@@ -533,9 +536,8 @@ pub async fn validate_permission_labels(
     .await
     .map_err(|e| anyhow::anyhow!("Error getting election permissionlabel {e:?}"))?;
 
-    let user_permission_labels = match user_permission_labels {
-        Some(perms) => perms,
-        None => return Err(anyhow!("user dont have permission labels")),
+    let Some(user_permission_labels) = user_permission_labels else {
+        return Err(anyhow!("user dont have permission labels"));
     };
 
     let user_permission_labels_json = user_permission_labels

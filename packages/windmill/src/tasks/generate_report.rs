@@ -34,7 +34,8 @@ use tracing::instrument;
 /// # Errors
 ///
 /// Fails on DB pool or transaction errors, unknown report types, template rendering failures, or commit errors.
-pub async fn generate_report(
+#[allow(clippy::too_many_lines)]
+pub async fn generate_report_impl(
     report: Report,
     document_id: String,
     report_mode: GenerateReportMode,
@@ -67,7 +68,7 @@ pub async fn generate_report(
             if let Some(ref task_exec) = task_execution {
                 let _ = update_fail(task_exec, "Failed to get Hasura DB pool").await;
             }
-            return Err(anyhow!("Error getting Hasura DB pool: {}", err));
+            return Err(anyhow!("Error getting Hasura DB pool: {err}"));
         }
     };
 
@@ -76,7 +77,7 @@ pub async fn generate_report(
         Err(err) => {
             if let Some(ref task_exec) = task_execution {
                 let _ = update_fail(task_exec, "Failed to get Hasura DB pool").await;
-            };
+            }
             return Err(anyhow!("Error starting Hasura transaction: {err}"));
         }
     };
@@ -86,7 +87,7 @@ pub async fn generate_report(
             if let Some(ref task_exec) = task_execution {
                 let _ = update_fail(task_exec, "Failed to get Hasura DB pool").await;
             }
-            return Err(anyhow!("Error getting Keycloak DB pool: {}", err));
+            return Err(anyhow!("Error getting Keycloak DB pool: {err}"));
         }
     };
 
@@ -123,30 +124,30 @@ pub async fn generate_report(
     }
     match ReportType::from_str(&report_type_str) {
         Ok(ReportType::INITIALIZATION_REPORT) => {
-            let report = InitializationTemplate::new(ids);
-            execute_report!(report);
+            let report_init = InitializationTemplate::new(ids);
+            execute_report!(report_init);
         }
         Ok(ReportType::ELECTORAL_RESULTS) => {
-            let report = ElectoralResults::new(ids);
-            execute_report!(report);
+            let report_init = ElectoralResults::new(ids);
+            execute_report!(report_init);
         }
         Ok(ReportType::BALLOT_IMAGES) => {
-            let report = BallotImagesTemplate::new(ids);
-            execute_report!(report);
+            let report_init = BallotImagesTemplate::new(ids);
+            execute_report!(report_init);
         }
         Ok(ReportType::BALLOT_RECEIPT) => {
-            let report = BallotTemplate::new(ids, None);
-            execute_report!(report);
+            let report_init = BallotTemplate::new(ids, None);
+            execute_report!(report_init);
         }
         Ok(ReportType::ACTIVITY_LOGS) => {
-            let report = ActivityLogsTemplate::new(ids, ReportFormat::PDF);
-            execute_report!(report);
+            let report_init = ActivityLogsTemplate::new(ids, ReportFormat::PDF);
+            execute_report!(report_init);
         }
         Ok(ReportType::MANUAL_VERIFICATION) => {
-            let report = ManualVerificationTemplate::new(ids);
-            execute_report!(report);
+            let report_init = ManualVerificationTemplate::new(ids);
+            execute_report!(report_init);
         }
-        Err(err) => return Err(anyhow!("{:?}", err)),
+        Err(err) => return Err(anyhow!("{err:?}")),
     }
 
     hasura_transaction
@@ -161,7 +162,10 @@ mod generate_report_task {
     #![allow(missing_docs)]
     #![allow(clippy::missing_docs_in_private_items)]
 
-    use super::*;
+    use super::{
+        acquire_semaphore, anyhow, generate_report_impl, instrument, update_fail, Context, Error,
+        GenerateReportMode, Report, Result, TaskError, TasksExecution,
+    };
 
     /// Celery task: acquires the reports semaphore and runs the report pipeline on the blocking pool.
     ///
@@ -186,7 +190,7 @@ mod generate_report_task {
         let handle = tokio::task::spawn_blocking({
             move || {
                 tokio::runtime::Handle::current().block_on(async move {
-                    generate_report(
+                    generate_report_impl(
                         report,
                         document_id,
                         report_mode,
@@ -196,7 +200,7 @@ mod generate_report_task {
                         tally_session_id,
                     )
                     .await
-                    .map_err(|err| anyhow!("generate_report error: {:?}", err))
+                    .map_err(|err| anyhow!("generate_report error: {err:?}"))
                 })
             }
         });
@@ -206,19 +210,16 @@ mod generate_report_task {
             Ok(inner_result) => {
                 if let Err(ref err) = inner_result {
                     if let Some(ref task_exec) = task_execution {
-                        let _ = update_fail(task_exec, &format!("Task failed: {:?}", err)).await;
+                        let _ = update_fail(task_exec, &format!("Task failed: {err:?}")).await;
                     }
                 }
                 inner_result.map_err(|err| Error::from(err.context("Task failed")))?;
             }
             Err(join_error) => {
                 if let Some(ref task_exec) = task_execution {
-                    let _ = update_fail(task_exec, &format!("Task panicked: {}", join_error)).await;
+                    let _ = update_fail(task_exec, &format!("Task panicked: {join_error}")).await;
                 }
-                return Err(Error::from(anyhow::anyhow!(
-                    "Task panicked: {}",
-                    join_error
-                )));
+                return Err(Error::from(anyhow::anyhow!("Task panicked: {join_error}")));
             }
         }
 

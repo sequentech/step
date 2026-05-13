@@ -90,7 +90,10 @@ mod manual_verification_report_task {
     #![allow(missing_docs)]
     #![allow(clippy::missing_docs_in_private_items)]
 
-    use super::*;
+    use super::{
+        anyhow, generate_report, instrument, Context, Error, GenerateReportMode, Report, Result,
+        TaskError,
+    };
 
     /// Celery task: generate a manual verification report.
     #[instrument(err)]
@@ -122,7 +125,7 @@ mod manual_verification_report_task {
         // Await the result and handle JoinError explicitly
         match handle.await {
             Ok(inner_result) => inner_result.map_err(|err| Error::from(err.context("Task failed"))),
-            Err(join_error) => Err(Error::from(anyhow!("Task panicked: {}", join_error))),
+            Err(join_error) => Err(Error::from(anyhow!("Task panicked: {join_error}"))),
         }?;
 
         Ok(())

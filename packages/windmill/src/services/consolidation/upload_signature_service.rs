@@ -99,13 +99,13 @@ async fn update_election_event_sbei_users(
     let key = prepend_miru_annotation(MIRU_SBEI_USERS);
     let serialized_sbei_users = serde_json::to_string(&new_sbei_users)?;
     annotations.insert(key, serialized_sbei_users);
-    let annotations_js = serde_json::to_value(&annotations)?;
+    let annotations_json = serde_json::to_value(&annotations)?;
 
     update_election_event_annotations(
         hasura_transaction,
         &election_event.tenant_id,
         &election_event.id,
-        annotations_js,
+        annotations_json,
     )
     .await
 }
@@ -289,6 +289,7 @@ pub fn create_server_signature(
 ///
 /// Auth/lookup failures, certificate checks, signing, document pipeline, or persistence errors.
 #[instrument(err)]
+#[allow(clippy::too_many_lines)]
 pub async fn upload_transmission_package_signature_service(
     tenant_id: &str,
     election_id: &str,
@@ -340,7 +341,7 @@ pub async fn upload_transmission_package_signature_service(
         .await
         .with_context(|| format!("Error fetching area {area_id}"))?
         .ok_or_else(|| anyhow!("Can't find area {area_id}"))?;
-    let area_name = area.name.clone().unwrap_or("".into());
+    let area_name = area.name.clone().unwrap_or_default();
     let area_annotations = area.get_annotations()?;
 
     // get sbei user
@@ -505,7 +506,6 @@ pub async fn upload_transmission_package_signature_service(
     .await?;
 
     // upload zip of zips
-    let area_name = area.name.clone().unwrap_or_default();
     let Some(first_document) = new_transmission_package_data.documents.first() else {
         return Err(anyhow!("Missing initial document"));
     };

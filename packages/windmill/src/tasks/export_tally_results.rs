@@ -11,7 +11,7 @@ use crate::services::export::export_tally_results::{
     export_tally_results_to_xlsx, get_tally_session_execution_results_sqlite_file,
 };
 use crate::services::providers::transactions_provider::provide_hasura_transaction;
-use crate::services::tasks_execution::*;
+use crate::services::tasks_execution::{update_complete, update_fail};
 use crate::types::error::Result;
 use celery::error::TaskError;
 use sequent_core::types::hasura::core::TasksExecution;
@@ -55,7 +55,7 @@ pub async fn export_tally_results_to_xlsx_task(
     .await;
 
     match result {
-        Ok(_) => {
+        Ok(()) => {
             let _res = update_complete(&task_execution, Some(document_id.clone())).await;
             Ok(())
         }

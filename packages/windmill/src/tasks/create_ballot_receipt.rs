@@ -119,7 +119,7 @@ pub async fn create_ballot_receipt(
     // Await the result and handle JoinError explicitly
     match handle.await {
         Ok(inner_result) => Ok(inner_result.map_err(|err| format!("Task failed: {err:?}"))?),
-        Err(join_error) => Err(format!("Join error. Task panicked: {:?}", join_error)),
+        Err(join_error) => Err(format!("Join error. Task panicked: {join_error:?}")),
     }?;
 
     Ok(())

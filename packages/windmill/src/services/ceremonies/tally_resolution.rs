@@ -23,6 +23,7 @@ use crate::services::electoral_log::ElectoralLog;
 
 /// Groups resolved IRV tie-break rows into a per-contest map keyed by the
 /// actual contest UUID.
+#[must_use]
 pub fn build_tie_resolutions_map(
     resolutions: &[TallySessionResolution],
 ) -> HashMap<String, Vec<TallySessionResolutionData>> {
@@ -52,6 +53,7 @@ pub fn build_tie_resolutions_map(
 /// Using `(contest_id, round_number)` as the key — rather than `contest_id` alone —
 /// allows area-level `ProcessBallotsAll` runs to produce independent resolutions for
 /// different rounds of the same contest without silently dropping any of them.
+#[must_use]
 pub fn pending_resolution_exists(
     existing: &[TallySessionResolution],
     contest_id: &str,
@@ -237,6 +239,7 @@ pub async fn handle_pending_irv_resolutions(
 /// Missing tally session or execution status, validation failures from [`validate_resolution_allowed`],
 /// missing resolutions, invalid candidate selections, Postgres update failures, or electoral log
 /// errors while recording tie outcomes.
+#[allow(clippy::too_many_lines)]
 pub async fn submit_tally_resolution(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
@@ -350,29 +353,7 @@ pub async fn submit_tally_resolution(
         let resolution_id = latest_resolution.id.clone();
         let resubmission = is_resubmission(latest_resolution);
 
-        if !resubmission {
-            // First submission: resolve the existing pending record
-            submit_resolution(
-                hasura_transaction,
-                tenant_id,
-                election_event_id,
-                &resolution_id,
-                resolution_value,
-                user_id,
-            )
-            .await?;
-            electoral_log
-                .post_tally_tie_resolved(
-                    election_event_id.to_string(),
-                    tally_session.election_ids.clone(),
-                    tie_resolution.contest_id.clone(),
-                    resolution_id,
-                    Some(user_id.to_string()),
-                    username.clone(),
-                )
-                .await
-                .with_context(|| "error posting tally tie resolved to electoral log")?;
-        } else {
+        if resubmission {
             // Re-submission: admin changed their mind — update the existing record
             info!(
                 "Re-submission detected for contest {} - updating existing resolution",
@@ -398,6 +379,28 @@ pub async fn submit_tally_resolution(
                 )
                 .await
                 .with_context(|| "error posting tally tie resolution updated to electoral log")?;
+        } else {
+            // First submission: resolve the existing pending record
+            submit_resolution(
+                hasura_transaction,
+                tenant_id,
+                election_event_id,
+                &resolution_id,
+                resolution_value,
+                user_id,
+            )
+            .await?;
+            electoral_log
+                .post_tally_tie_resolved(
+                    election_event_id.to_string(),
+                    tally_session.election_ids.clone(),
+                    tie_resolution.contest_id.clone(),
+                    resolution_id,
+                    Some(user_id.to_string()),
+                    username.clone(),
+                )
+                .await
+                .with_context(|| "error posting tally tie resolved to electoral log")?;
         }
 
         resolved_count = resolved_count
@@ -484,6 +487,7 @@ pub fn extract_tied_candidate_ids(
 
 /// Returns `true` when the resolution already has a decision recorded (i.e. this is
 /// an admin changing their mind rather than the first submission).
+#[must_use]
 pub fn is_resubmission(resolution: &TallySessionResolution) -> bool {
     resolution.status != TallySessionResolutionStatus::Pending
 }

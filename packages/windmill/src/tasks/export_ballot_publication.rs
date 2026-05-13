@@ -10,7 +10,7 @@
 use crate::postgres::ballot_publication::get_ballot_publication_by_id;
 use crate::services::database::get_hasura_pool;
 use crate::services::export::export_ballot_publication::process_export_ballot_publication;
-use crate::services::tasks_execution::*;
+use crate::services::tasks_execution::{update_complete, update_fail};
 use crate::types::error::{Error, Result};
 use anyhow::{anyhow, Context};
 use celery::error::TaskError;
@@ -101,15 +101,15 @@ pub async fn export_ballot_publication(
     }
 
     match hasura_transaction.commit().await {
-        Ok(_) => (),
+        Ok(()) => (),
         Err(err) => {
             let err_str = format!("Commit failed: {err:?}");
             update_fail(&task_execution, &err_str).await;
             return Err(Error::String(err_str));
         }
-    };
+    }
 
-    update_complete(&task_execution, Some(document_id.to_string()))
+    update_complete(&task_execution, Some(document_id.clone()))
         .await
         .context("Failed to update task execution status to COMPLETED")?;
 

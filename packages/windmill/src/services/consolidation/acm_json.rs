@@ -40,23 +40,27 @@ const DEFAULT_MIRU_IP_ADDRESS: &str = "192.168.1.67";
 const DEFAULT_MIRU_MAC_ADDRESS: &str = "3C:7E:5A:89:4D:2F";
 
 /// Reads `MIRU_DEVICE_ID` or falls back to [`DEFAULT_MIRU_DEVICE_ID`].
+#[must_use]
 pub fn get_miru_device_id() -> String {
-    env::var("MIRU_DEVICE_ID").unwrap_or(DEFAULT_MIRU_DEVICE_ID.to_string())
+    env::var("MIRU_DEVICE_ID").unwrap_or_else(|_| DEFAULT_MIRU_DEVICE_ID.to_string())
 }
 
 /// Reads `MIRU_SERIAL_NUMBER` or falls back to [`DEFAULT_MIRU_SERIAL_NUMBER`].
+#[must_use]
 pub fn get_miru_serial_number() -> String {
-    env::var("MIRU_SERIAL_NUMBER").unwrap_or(DEFAULT_MIRU_SERIAL_NUMBER.to_string())
+    env::var("MIRU_SERIAL_NUMBER").unwrap_or_else(|_| DEFAULT_MIRU_SERIAL_NUMBER.to_string())
 }
 
 /// Reads `MIRU_IP_ADDRESS` or falls back to [`DEFAULT_MIRU_IP_ADDRESS`].
+#[must_use]
 pub fn get_miru_ip_address() -> String {
-    env::var("MIRU_IP_ADDRESS").unwrap_or(DEFAULT_MIRU_IP_ADDRESS.to_string())
+    env::var("MIRU_IP_ADDRESS").unwrap_or_else(|_| DEFAULT_MIRU_IP_ADDRESS.to_string())
 }
 
 /// Reads `_MIRU_MAC_ADDRESS` or falls back to [`DEFAULT_MIRU_MAC_ADDRESS`].
+#[must_use]
 pub fn get_miru_mac_address() -> String {
-    env::var("_MIRU_MAC_ADDRESS").unwrap_or(DEFAULT_MIRU_MAC_ADDRESS.to_string())
+    env::var("_MIRU_MAC_ADDRESS").unwrap_or_else(|_| DEFAULT_MIRU_MAC_ADDRESS.to_string())
 }
 
 /// Loads the tenant/event ECIES key pair from the vault, or generates and stores a new one.
@@ -126,7 +130,7 @@ pub fn generate_acm_json(
     Ok(ACMJson {
         device_id: get_miru_device_id(),
         serial_number: get_miru_serial_number(),
-        station_id: area_annotations.station_id.to_string(),
+        station_id: area_annotations.station_id.clone(),
         station_name: area_annotations.station_name.clone(),
         event_id: election_event_annotations.event_id.clone(),
         event_name: election_event_annotations.event_name.clone(),

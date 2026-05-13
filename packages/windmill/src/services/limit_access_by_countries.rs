@@ -17,7 +17,7 @@ use tracing::{info, instrument};
 ///
 /// # Errors
 ///
-/// Returns an error if the VOTING_PORTAL_URL or KEYCLOAK_PUBLIC_URL env vars are not set.
+/// Returns an error if the `VOTING_PORTAL_URL` or `KEYCLOAK_PUBLIC_URL` env vars are not set.
 #[instrument]
 fn get_voting_portal_urls_prefix() -> Result<(String, String)> {
     //TODO: change default values?
@@ -32,24 +32,23 @@ fn get_voting_portal_urls_prefix() -> Result<(String, String)> {
 ///
 /// # Errors
 ///
-/// Returns an error if the VOTING_PORTAL_URL or KEYCLOAK_PUBLIC_URL env vars are not set.
+/// Returns an error if the `VOTING_PORTAL_URL` or `KEYCLOAK_PUBLIC_URL` env vars are not set.
 #[instrument]
 fn create_limit_ip_by_countries_rule_format(
-    tenant_id: String,
-    countries: Vec<String>,
+    tenant_id: &str,
+    countries: &[String],
     is_enrollment: bool,
 ) -> Result<CreateCustomRuleRequest> {
     let (voting_portal_url, voting_portal_keycloak_url) = get_voting_portal_urls_prefix()?;
 
     let countries_expression = countries
         .iter()
-        .map(|country| format!("ip.geoip.country eq \"{}\"", country))
+        .map(|country| format!("ip.geoip.country eq \"{country}\""))
         .collect::<Vec<_>>()
         .join("or ");
 
     let keycloak_rule_expression_voting = format!(
-        "http.request.full_uri contains \"{}\" and http.request.uri.query contains \"voting-portal\"",
-        voting_portal_keycloak_url
+        "http.request.full_uri contains \"{voting_portal_keycloak_url}\" and http.request.uri.query contains \"voting-portal\""
     );
 
     let login_registration_rule_expression =
@@ -58,13 +57,11 @@ fn create_limit_ip_by_countries_rule_format(
             .to_string();
 
     let rule_expression_enroll = format!(
-        "starts_with(http.request.uri.path, \"/realms/tenant-{}-event-\") and ends_with(http.request.uri.path, \"/protocol/openid-connect/registrations\") and http.request.uri.query contains \"client_id=voting-portal\"",
-        tenant_id
+        "starts_with(http.request.uri.path, \"/realms/tenant-{tenant_id}-event-\") and ends_with(http.request.uri.path, \"/protocol/openid-connect/registrations\") and http.request.uri.query contains \"client_id=voting-portal\""
     );
 
     let rule_expression_voting = format!(
-        "(http.request.full_uri contains \"{}\" or ({})) and (http.request.uri.path contains \"{}\") and ({}) and ({})",
-        voting_portal_url, keycloak_rule_expression_voting, tenant_id, countries_expression, login_registration_rule_expression
+        "(http.request.full_uri contains \"{voting_portal_url}\" or ({keycloak_rule_expression_voting})) and (http.request.uri.path contains \"{tenant_id}\") and ({countries_expression}) and ({login_registration_rule_expression})",
     );
 
     Ok(CreateCustomRuleRequest {
@@ -99,42 +96,39 @@ async fn update_or_create_limit_ip_by_countries_rule(
 ) -> Result<CreateCustomRuleRequest> {
     let existing_rules: Vec<Rule> = ruleset.rules.clone();
     let ruleset_id = ruleset.id.clone();
-    let rule: CreateCustomRuleRequest = create_limit_ip_by_countries_rule_format(
-        tenant_id.clone(),
-        countries.clone(),
-        is_enrollment,
-    )?;
+    let rule: CreateCustomRuleRequest =
+        create_limit_ip_by_countries_rule_format(tenant_id.as_str(), &countries, is_enrollment)?;
 
     let rule_id = existing_rules
         .iter()
-        .find(|rule| {
-            rule.expression.contains(tenant_id.as_str())
-                && rule.expression.contains(if is_enrollment {
+        .find(|existing_rule| {
+            existing_rule.expression.contains(tenant_id.as_str())
+                && existing_rule.expression.contains(if is_enrollment {
                     "enroll"
                 } else {
                     "voting-portal"
                 })
         })
-        .and_then(|rule| rule.id.clone());
+        .and_then(|matched_rule| matched_rule.id.clone());
 
     match rule_id {
         Some(id) => match countries.len() {
             0 => {
                 delete_ruleset_rule(api_key, zone_id, &ruleset_id, &id)
                     .await
-                    .map_err(|err| anyhow!("{:?}", err))?;
+                    .map_err(|err| anyhow!("{err:?}"))?;
             }
             _ => update_ruleset_rule(api_key, zone_id, &ruleset_id, &id, rule.clone())
                 .await
-                .map_err(|err| anyhow!("{:?}", err))?,
+                .map_err(|err| anyhow!("{err:?}"))?,
         },
         None => match countries.len() {
             0 => (),
             _ => create_ruleset_rule(api_key, zone_id, &ruleset_id, rule.clone())
                 .await
-                .map_err(|err| anyhow!("{:?}", err))?,
+                .map_err(|err| anyhow!("{err:?}"))?,
         },
-    };
+    }
 
     Ok(rule)
 }
@@ -153,15 +147,12 @@ async fn create_limit_ip_by_countries_ruleset(
     is_enrollment: bool,
     ruleset_phase: &str,
 ) -> Result<CreateCustomRuleRequest> {
-    let rule: CreateCustomRuleRequest = create_limit_ip_by_countries_rule_format(
-        tenant_id.clone(),
-        countries.clone(),
-        is_enrollment,
-    )?;
+    let rule: CreateCustomRuleRequest =
+        create_limit_ip_by_countries_rule_format(tenant_id.as_str(), &countries, is_enrollment)?;
 
     create_ruleset(api_key, zone_id, ruleset_phase, rule.clone())
         .await
-        .map_err(|err| anyhow!("{:?}", err))?;
+        .map_err(|err| anyhow!("{err:?}"))?;
 
     Ok(rule)
 }
@@ -177,57 +168,54 @@ pub async fn handle_limit_ip_access_by_countries(
     voting_countries: Vec<String>,
     enroll_countries: Vec<String>,
 ) -> Result<()> {
-    let (zone_id, api_key) = get_cloudflare_vars().map_err(|err| anyhow!("{:?}", err))?;
+    let (zone_id, api_key) = get_cloudflare_vars().map_err(|err| anyhow!("{err:?}"))?;
 
     info!("zone id: {:?}, api_key: {:?}", &zone_id, &api_key);
 
     let ruleset = get_ruleset_by_phase(&api_key, &zone_id, WAF_RULESET_PHASE)
         .await
-        .map_err(|err| anyhow!("{:?}", err))?;
+        .map_err(|err| anyhow!("{err:?}"))?;
 
-    match ruleset {
-        Some(ruleset) => {
-            update_or_create_limit_ip_by_countries_rule(
-                &api_key,
-                &zone_id,
-                &ruleset,
-                tenant_id.clone(),
-                voting_countries.clone(),
-                false,
-            )
-            .await?;
+    if let Some(ruleset) = ruleset {
+        update_or_create_limit_ip_by_countries_rule(
+            &api_key,
+            &zone_id,
+            &ruleset,
+            tenant_id.clone(),
+            voting_countries.clone(),
+            false,
+        )
+        .await?;
 
-            update_or_create_limit_ip_by_countries_rule(
-                &api_key,
-                &zone_id,
-                &ruleset,
-                tenant_id.clone(),
-                enroll_countries.clone(),
-                true,
-            )
-            .await?;
-        }
-        None => {
-            create_limit_ip_by_countries_ruleset(
-                &api_key,
-                &zone_id,
-                tenant_id.clone(),
-                voting_countries.clone(),
-                false,
-                WAF_RULESET_PHASE,
-            )
-            .await?;
+        update_or_create_limit_ip_by_countries_rule(
+            &api_key,
+            &zone_id,
+            &ruleset,
+            tenant_id.clone(),
+            enroll_countries.clone(),
+            true,
+        )
+        .await?;
+    } else {
+        create_limit_ip_by_countries_ruleset(
+            &api_key,
+            &zone_id,
+            tenant_id.clone(),
+            voting_countries.clone(),
+            false,
+            WAF_RULESET_PHASE,
+        )
+        .await?;
 
-            create_limit_ip_by_countries_ruleset(
-                &api_key,
-                &zone_id,
-                tenant_id.clone(),
-                enroll_countries.clone(),
-                true,
-                WAF_RULESET_PHASE,
-            )
-            .await?;
-        }
+        create_limit_ip_by_countries_ruleset(
+            &api_key,
+            &zone_id,
+            tenant_id.clone(),
+            enroll_countries.clone(),
+            true,
+            WAF_RULESET_PHASE,
+        )
+        .await?;
     }
 
     Ok(())

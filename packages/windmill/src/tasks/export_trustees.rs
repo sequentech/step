@@ -45,7 +45,7 @@ mod export_trustees_task_task {
     #![allow(missing_docs)]
     #![allow(clippy::missing_docs_in_private_items)]
 
-    use super::*;
+    use super::{instrument, Result, TaskError, TaskResult, TasksExecution};
 
     /// Celery task: export trustee ceremony configuration using `password` to unwrap secrets.
     #[instrument(err)]

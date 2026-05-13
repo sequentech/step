@@ -92,7 +92,8 @@ pub async fn create_keys_impl(
             &election_event_id,
             board_name.as_str(),
             trustee_pks,
-            keys_ceremony.threshold as usize,
+            usize::try_from(keys_ceremony.threshold)
+                .context("keys ceremony threshold must be non-negative and fit in usize")?,
         )
         .await?;
     }
@@ -119,7 +120,7 @@ mod create_keys_task {
     #![allow(missing_docs)]
     #![allow(clippy::missing_docs_in_private_items)]
 
-    use super::*;
+    use super::{create_keys_impl, instrument, Context, Error, Result, TaskError};
 
     /// Celery task: create public keys for a keys ceremony.
     #[instrument(err)]
@@ -130,9 +131,13 @@ mod create_keys_task {
         election_event_id: String,
         keys_ceremony_id: String,
     ) -> Result<()> {
-        create_keys_impl(tenant_id, election_event_id, keys_ceremony_id)
-            .await
-            .map_err(|err| Error::from(err.context("Task failed")))
+        Box::pin(create_keys_impl(
+            tenant_id,
+            election_event_id,
+            keys_ceremony_id,
+        ))
+        .await
+        .map_err(|err| Error::from(err.context("Task failed")))
     }
 }
 

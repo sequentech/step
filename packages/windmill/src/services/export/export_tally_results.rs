@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-//! Converts tally SQLite result databases into XLSX spreadsheets
+//! Converts tally `SQLite` result databases into XLSX spreadsheets
 //! and updates tally session execution document pointers.
 use crate::postgres::document::get_document;
 use crate::postgres::tally_session_execution::get_last_tally_session_execution;
@@ -17,22 +17,22 @@ use sequent_core::temp_path::generate_temp_file;
 use sequent_core::temp_path::get_file_size;
 use sequent_core::types::ceremonies::TallySessionDocuments;
 use std::path::Path;
-use tracing::instrument;
+use tracing::{info, instrument};
 
-/// Excel per-cell character limit enforced when copying SQLite text into worksheets.
+/// Excel per-cell character limit enforced when copying `SQLite` text into worksheets.
 const EXCEL_STRING_LIMIT: usize = 32767;
 
-/// Builds an XLSX from the execution’s SQLite results artifact,
+/// Builds an XLSX from the execution’s `SQLite` results artifact,
 /// uploads it, and stores the new document id on the execution.
 ///
 /// # Errors
 ///
-/// Returns an error when the SQLite document is missing,
+/// Returns an error when the `SQLite` document is missing,
 /// temp download fails, conversion fails, DB update fails, or upload fails.
 ///
 /// # Panics
 ///
-/// Panics if the SQLite document lookup unexpectedly returns `None` after the prior checks.
+/// Panics if the `SQLite` document lookup unexpectedly returns `None` after the prior checks.
 #[instrument(err)]
 pub async fn export_tally_results_to_xlsx(
     hasura_transaction: &Transaction<'_>,
@@ -55,29 +55,27 @@ pub async fn export_tally_results_to_xlsx(
         sqlite_document_id,
     )
     .await
-    .map_err(|e| anyhow!("Failed to get document: {}", e))?;
+    .map_err(|e| anyhow!("Failed to get document: {e}"))?;
 
-    if sqlite_document.is_none() {
+    let Some(sqlite_document) = sqlite_document else {
         return Err(anyhow!("Document not found"));
-    }
-
-    let sqlite_document = sqlite_document.unwrap();
+    };
 
     let sqlite_file = get_document_as_temp_file(&tenant_id, &sqlite_document)
         .await
-        .map_err(|e| anyhow!("Failed to get sqlite document as temp file: {}", e))?;
+        .map_err(|e| anyhow!("Failed to get sqlite document as temp file: {e}"))?;
 
     let xlsx_file_name = format!("results-{}", results_event_id.clone());
     let xlsx_file = generate_temp_file(&xlsx_file_name, ".xlsx")?;
 
     convert_db_to_xlsx(sqlite_file.path(), xlsx_file.path())
         .await
-        .map_err(|e| anyhow!("Failed to convert DB to XLSX: {}", e))?;
+        .map_err(|e| anyhow!("Failed to convert DB to XLSX: {e}"))?;
 
     let xlsx_file_path = xlsx_file.into_temp_path();
     let xlsx_file_path_string = xlsx_file_path.to_string_lossy().to_string();
     let xlsx_file_size = get_file_size(xlsx_file_path_string.as_str())
-        .map_err(|e| anyhow!("Failed to get XLSX file size: {}", e))?;
+        .map_err(|e| anyhow!("Failed to get XLSX file size: {e}"))?;
 
     let new_tally_session_documents = TallySessionDocuments {
         xlsx: Some(document_id.clone()),
@@ -92,7 +90,7 @@ pub async fn export_tally_results_to_xlsx(
         new_tally_session_documents,
     )
     .await
-    .map_err(|e| anyhow!("Failed to update tally session execution documents: {}", e))?;
+    .map_err(|e| anyhow!("Failed to update tally session execution documents: {e}"))?;
 
     let _ = upload_and_return_document(
         hasura_transaction,
@@ -101,30 +99,29 @@ pub async fn export_tally_results_to_xlsx(
         "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         &tenant_id,
         Some(election_event_id),
-        &format!("{}.xlsx", xlsx_file_name),
+        &format!("{xlsx_file_name}.xlsx"),
         Some(document_id),
         false,
     )
     .await
-    .map_err(|e| anyhow!("Failed to upload XLSX document: {}", e))?;
+    .map_err(|e| anyhow!("Failed to upload XLSX document: {e}"))?;
 
     Ok(())
 }
 
 /// Truncates `value_str` to the Excel’s max string length.
-fn truncate_string_for_excel(value_str: String) -> String {
-    let truncated_text = if value_str.len() > EXCEL_STRING_LIMIT {
+fn truncate_string_for_excel(value_str: &str) -> String {
+    if value_str.len() > EXCEL_STRING_LIMIT {
         value_str
             .chars()
             .take(EXCEL_STRING_LIMIT)
             .collect::<String>()
     } else {
         value_str.to_string()
-    };
-    truncated_text
+    }
 }
 
-/// Converts a SQLite database file to an XLSX file, with each table as a worksheet.
+/// Converts a `SQLite` database file to an XLSX file, with each table as a worksheet.
 ///
 /// # Panics
 ///
@@ -132,7 +129,7 @@ fn truncate_string_for_excel(value_str: String) -> String {
 ///
 /// # Errors
 ///
-/// Propagates SQLite open/query errors or XLSX writer failures.
+/// Propagates `SQLite` open/query errors or XLSX writer failures.
 #[instrument(err)]
 async fn convert_db_to_xlsx(db_path: &Path, xlsx_path: &Path) -> Result<()> {
     let db_conn = Connection::open(db_path)?;
@@ -145,21 +142,27 @@ async fn convert_db_to_xlsx(db_path: &Path, xlsx_path: &Path) -> Result<()> {
 
     for table_result in table_names_iter {
         let table_name: String = table_result?;
-        println!("  - Processing table: '{}'", table_name);
+        info!("  - Processing table: '{table_name}'");
         let mut worksheet = workbook.add_worksheet();
         worksheet.set_name(&table_name)?;
 
-        let mut table_stmt = db_conn.prepare(&format!("SELECT * FROM `{}`", table_name.clone()))?;
+        let mut table_stmt = db_conn.prepare(&format!("SELECT * FROM `{table_name}`"))?;
 
         let column_names: Vec<String> = table_stmt
             .column_names()
             .iter()
-            .map(|s| s.to_string())
+            .map(std::string::ToString::to_string)
             .collect();
         let column_count = table_stmt.column_count();
 
         for (col_index, col_name) in column_names.iter().enumerate() {
-            worksheet.write_string(0, col_index as u16, col_name)?;
+            let col_u64 = u16::try_from(col_index).map_err(|_| {
+                anyhow!(
+                    "column index {col_index} exceeds Excel column limit {}",
+                    u16::MAX
+                )
+            })?;
+            worksheet.write_string(0, col_u64, col_name)?;
         }
 
         let mut rows = table_stmt.query([])?;
@@ -169,25 +172,31 @@ async fn convert_db_to_xlsx(db_path: &Path, xlsx_path: &Path) -> Result<()> {
         while let Some(row) = rows.next()? {
             for col_index in 0..column_count {
                 let value_ref = row.get_ref(col_index)?;
+                let col = u16::try_from(col_index).map_err(|_| {
+                    anyhow!(
+                        "column index {col_index} exceeds Excel column limit {}",
+                        u16::MAX
+                    )
+                })?;
                 match value_ref.data_type() {
                     Type::Integer => {
                         let num: i64 = value_ref.as_i64()?;
-                        worksheet.write_number(row_index, col_index as u16, num as f64)?;
+                        worksheet.write_string(row_index, col, num.to_string())?;
                     }
                     Type::Real => {
                         let num: f64 = value_ref.as_f64()?;
-                        worksheet.write_number(row_index, col_index as u16, num)?;
+                        worksheet.write_number(row_index, col, num)?;
                     }
                     Type::Text => {
                         let text: String = value_ref.as_str()?.to_string();
-                        let truncated_text = truncate_string_for_excel(text);
-                        worksheet.write_string(row_index, col_index as u16, &truncated_text)?;
+                        let truncated_text = truncate_string_for_excel(&text);
+                        worksheet.write_string(row_index, col, &truncated_text)?;
                     }
                     _ => {
                         // For other types like Null, Blob, etc., write as a string representation
                         let value_text = value_ref.as_str().unwrap_or("NULL");
-                        let truncated_text = truncate_string_for_excel(value_text.to_string());
-                        worksheet.write_string(row_index, col_index as u16, &truncated_text)?;
+                        let truncated_text = truncate_string_for_excel(value_text);
+                        worksheet.write_string(row_index, col, &truncated_text)?;
                     }
                 }
             }
@@ -196,7 +205,7 @@ async fn convert_db_to_xlsx(db_path: &Path, xlsx_path: &Path) -> Result<()> {
     }
 
     workbook.save(xlsx_path)?;
-    println!(
+    info!(
         "Conversion successful! XLSX file created at: {}",
         xlsx_path.display()
     );
@@ -210,7 +219,7 @@ async fn convert_db_to_xlsx(db_path: &Path, xlsx_path: &Path) -> Result<()> {
 /// # Errors
 ///
 /// Returns an error when no execution exists, documents are absent,
-/// SQLite id is missing, or JSON handling fails.
+/// `SQLite` id is missing, or JSON handling fails.
 ///
 /// # Panics
 ///
@@ -229,32 +238,25 @@ pub async fn get_tally_session_execution_results_sqlite_file(
         tally_session_id,
     )
     .await
-    .map_err(|e| anyhow!("Failed to get last tally session execution: {}", e))?
+    .map_err(|e| anyhow!("Failed to get last tally session execution: {e}"))?
     .ok_or(anyhow!(
-        "No tally session execution found for tally session id: {}",
-        tally_session_id
+        "No tally session execution found for tally session id: {tally_session_id}"
     ))?;
 
-    if tally_session_execution.documents.is_none() {
-        return Err(anyhow!(
-            "No documents found for tally session id: {}",
-            tally_session_id
-        ));
-    }
-
-    let documents = serde_json::to_string(&tally_session_execution.documents.unwrap().clone())?;
+    let documents_json = tally_session_execution.documents.as_ref().ok_or(anyhow!(
+        "No documents found for tally session id: {tally_session_id}"
+    ))?;
+    let documents = serde_json::to_string(documents_json)?;
     let documents = deserialize_str::<TallySessionDocuments>(&documents)?;
 
-    if (documents.sqlite.is_none()) {
+    if documents.sqlite.is_none() {
         return Err(anyhow!(
-            "No SQLite document found for tally session id: {}",
-            tally_session_id
+            "No SQLite document found for tally session id: {tally_session_id}"
         ));
     }
 
     let results_event_id = tally_session_execution.results_event_id.ok_or(anyhow!(
-        "No results event id found for tally session id: {}",
-        tally_session_id
+        "No results event id found for tally session id: {tally_session_id}"
     ))?;
 
     Ok((documents, results_event_id, tally_session_execution.id))

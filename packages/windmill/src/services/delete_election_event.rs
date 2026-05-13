@@ -59,14 +59,16 @@ pub async fn delete_event_b3(
 ) -> Result<()> {
     let mut board_client = get_b3_pgsql_client().await?;
     let slug = std::env::var("ENV_SLUG").with_context(|| "missing env var ENV_SLUG")?;
-    let board_name = get_event_board(tenant_id, election_event_id, &slug);
+    let event_board_name = get_event_board(tenant_id, election_event_id, &slug);
 
     let elections = get_elections(hasura_transaction, tenant_id, election_event_id).await?;
-    board_client.delete_board(board_name.as_str()).await?;
+    board_client.delete_board(event_board_name.as_str()).await?;
 
     for election in elections {
-        let board_name = get_election_board(tenant_id, &election.id, &slug);
-        board_client.delete_board(board_name.as_str()).await?;
+        let election_board_name = get_election_board(tenant_id, &election.id, &slug);
+        board_client
+            .delete_board(election_board_name.as_str())
+            .await?;
     }
 
     Ok(())
@@ -84,22 +86,24 @@ pub async fn delete_election_event_b3(
     election_ids: &Vec<String>,
 ) -> Result<()> {
     let slug = std::env::var("ENV_SLUG").with_context(|| "missing env var ENV_SLUG")?;
-    let board_name = get_event_board(tenant_id, election_event_id, &slug);
+    let event_board_name = get_event_board(tenant_id, election_event_id, &slug);
     let mut board_client = get_b3_pgsql_client().await?;
-    let existing: Option<b3::client::pgsql::B3IndexRow> =
-        board_client.get_board(board_name.as_str()).await?;
+    let event_board_row: Option<b3::client::pgsql::B3IndexRow> =
+        board_client.get_board(event_board_name.as_str()).await?;
 
-    if existing.is_some() {
-        board_client.delete_board(board_name.as_str()).await?;
+    if event_board_row.is_some() {
+        board_client.delete_board(event_board_name.as_str()).await?;
     }
 
     for election_id in election_ids {
-        let board_name = get_election_board(tenant_id, election_id, &slug);
-        let existing: Option<b3::client::pgsql::B3IndexRow> =
-            board_client.get_board(board_name.as_str()).await?;
+        let election_board_name = get_election_board(tenant_id, election_id, &slug);
+        let election_board_row: Option<b3::client::pgsql::B3IndexRow> =
+            board_client.get_board(election_board_name.as_str()).await?;
 
-        if existing.is_some() {
-            board_client.delete_board(board_name.as_str()).await?;
+        if election_board_row.is_some() {
+            board_client
+                .delete_board(election_board_name.as_str())
+                .await?;
         }
     }
     Ok(())
@@ -142,7 +146,7 @@ pub async fn delete_election_event_related_documents(
     tenant_id: &str,
     election_event_id: &str,
 ) -> Result<()> {
-    let documents_prefix = format!("tenant-{}/event-{}/", tenant_id, election_event_id);
+    let documents_prefix = format!("tenant-{tenant_id}/event-{election_event_id}/");
     let bucket = s3::get_private_bucket()?;
     s3::delete_files_from_s3(bucket, documents_prefix.clone(), false)
         .await

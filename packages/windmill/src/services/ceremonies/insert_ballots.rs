@@ -10,7 +10,10 @@ use crate::services::celery_app::get_worker_threads;
 use crate::services::database::{get_hasura_pool, get_keycloak_pool, PgConfig};
 use crate::services::election::get_election_event_elections;
 use crate::services::join::merge_join_csv;
-use crate::services::protocol_manager::*;
+use crate::services::protocol_manager::{
+    add_ballots_to_board, generate_trustee_set, get_b3_pgsql_client, get_board_messages,
+    get_configuration, get_protocol_manager, get_public_key_hash,
+};
 use crate::services::public_keys::deserialize_public_key;
 use crate::services::users::list_keycloak_enabled_users_by_area_id_and_authorized_elections;
 use anyhow::{anyhow, Context, Result};
@@ -54,6 +57,7 @@ use std::sync::Arc; // Add this import
 ///
 /// Trustee lookup/deserialization failures, protocol manager errors, CSV or crypto errors, pool
 /// acquisition failures, or any `?` bubbled from board/network helpers inside the parallel tasks.
+#[allow(clippy::too_many_lines)]
 #[instrument(skip_all, err)]
 pub async fn insert_ballots_messages(
     hasura_transaction: &Transaction<'_>,
@@ -272,14 +276,14 @@ pub async fn insert_ballots_messages(
 
                                         let hashable_multi_ballot_contests = hashable_multi_ballot
                                             .deserialize_contests()
-                                            .map_err(|err| anyhow!("{:?}", err))?;
+                                            .map_err(|err| anyhow!("{err:?}"))?;
                                         Some(hashable_multi_ballot_contests.ciphertext)
                                     } else {
                                         let hashable_ballot: HashableBallot =
                                             deserialize_str(&ballot_str)?;
                                         let contests = hashable_ballot
                                             .deserialize_contests()
-                                            .map_err(|err| anyhow!("{:?}", err))?;
+                                            .map_err(|err| anyhow!("{err:?}"))?;
                                         contests
                                             .iter()
                                             .find(|contest| {
@@ -300,7 +304,10 @@ pub async fn insert_ballots_messages(
                         );
 
                         let mut board = get_b3_pgsql_client().await?;
-                        let batch = tally_session_contest.session_id as BatchNumber;
+                        let batch =
+                            usize::try_from(tally_session_contest.session_id).map_err(|_| {
+                                anyhow!("session_id must be non-negative for tally batch")
+                            })?;
                         add_ballots_to_board(
                             &protocol_manager_arc_clone, // Use the Arc clone here
                             &mut board,
@@ -359,7 +366,7 @@ pub async fn get_elections_end_dates(
                 .map(deserialize_value)
                 .transpose()
                 .map_err(|err| anyhow!("Error parsing election presentation {err:?}"))?
-                .unwrap_or(Default::default());
+                .unwrap_or(ElectionPresentation::default());
             let current_dates = election_presentation.dates.clone().unwrap_or_default();
             let end_date = current_dates
                 .end_date

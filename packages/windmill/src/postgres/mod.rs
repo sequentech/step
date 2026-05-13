@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-//! PostgreSQL access for Windmill against the `sequent_backend` schema exposed via Hasura.
+//! `PostgreSQL` access for Windmill against the `sequent_backend` schema exposed via Hasura.
 
 /// Enrollment applications and related filters for an election event.
 pub mod application;

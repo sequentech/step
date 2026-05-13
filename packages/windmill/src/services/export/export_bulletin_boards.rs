@@ -22,47 +22,48 @@ use regex::Regex;
 use sequent_core::util::aws::get_max_upload_size;
 use sequent_core::util::temp_path::generate_temp_file;
 use std::collections::HashMap;
+use std::sync::LazyLock;
 use tempfile::{NamedTempFile, TempPath};
 use tracing::{event, info, instrument, Level};
 
-lazy_static! {
-    /// Validates bulletin-board CSV column names (alphanumeric, dot, underscore, hyphen).
-    pub static ref HEADER_RE: Regex = Regex::new(r"^[a-zA-Z0-9._-]+$").unwrap();
-    /// CSV header: owning election id (empty string for the event-level board).
-    pub static ref ELECTION_ID_COL_NAME: String = String::from("election_id");
-    /// CSV header: message row id.
-    pub static ref ID_COL_NAME: String = String::from("id");
-    /// CSV header: row creation timestamp.
-    pub static ref CREATED_COL_NAME: String = "created".to_string();
-    /// CSV header: sender public key.
-    pub static ref SENDER_PK_COL_NAME: String = "sender_pk".to_string();
-    /// CSV header: statement timestamp.
-    pub static ref STATEMENT_TIMESTAMP_COL_NAME: String = "statement_timestamp".to_string();
-    /// CSV header: statement kind discriminator.
-    pub static ref STATEMENT_COL_NAME: String = "statement_kind".to_string();
-    /// CSV header: batch index.
-    pub static ref BATCH_COL_NAME: String = "batch".to_string();
-    /// CSV header: mix round number.
-    pub static ref MIX_NUMBER_COL_NAME: String = "mix_number".to_string();
-    /// CSV header: base64-encoded payload.
-    pub static ref MESSAGE_COL_NAME: String = "message".to_string();
-    /// CSV header: row schema/version tag.
-    pub static ref VERSION_COL_NAME: String = "version".to_string();
-    /// CSV header used in trustee config exports (trustee display name).
-    pub static ref TRUSTEE_NAME_COL_NAME: String = "trustee".to_string();
-    /// CSV header for trustee-side configuration blob.
-    pub static ref TRUSTEE_CONFIG_COL_NAME: String = "config".to_string();
-}
+/// Validates bulletin-board CSV column names (alphanumeric, dot, underscore, hyphen).
+pub static HEADER_RE: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"^[a-zA-Z0-9._-]+$").expect("HEADER_RE regex must compile"));
+/// CSV header: owning election id (empty string for the event-level board).
+pub static ELECTION_ID_COL_NAME: LazyLock<String> = LazyLock::new(|| String::from("election_id"));
+/// CSV header: message row id.
+pub static ID_COL_NAME: LazyLock<String> = LazyLock::new(|| String::from("id"));
+/// CSV header: row creation timestamp.
+pub static CREATED_COL_NAME: LazyLock<String> = LazyLock::new(|| "created".to_string());
+/// CSV header: sender public key.
+pub static SENDER_PK_COL_NAME: LazyLock<String> = LazyLock::new(|| "sender_pk".to_string());
+/// CSV header: statement timestamp.
+pub static STATEMENT_TIMESTAMP_COL_NAME: LazyLock<String> =
+    LazyLock::new(|| "statement_timestamp".to_string());
+/// CSV header: statement kind discriminator.
+pub static STATEMENT_COL_NAME: LazyLock<String> = LazyLock::new(|| "statement_kind".to_string());
+/// CSV header: batch index.
+pub static BATCH_COL_NAME: LazyLock<String> = LazyLock::new(|| "batch".to_string());
+/// CSV header: mix round number.
+pub static MIX_NUMBER_COL_NAME: LazyLock<String> = LazyLock::new(|| "mix_number".to_string());
+/// CSV header: base64-encoded payload.
+pub static MESSAGE_COL_NAME: LazyLock<String> = LazyLock::new(|| "message".to_string());
+/// CSV header: row schema/version tag.
+pub static VERSION_COL_NAME: LazyLock<String> = LazyLock::new(|| "version".to_string());
+/// CSV header used in trustee config exports (trustee display name).
+pub static TRUSTEE_NAME_COL_NAME: LazyLock<String> = LazyLock::new(|| "trustee".to_string());
+/// CSV header for trustee-side configuration blob.
+pub static TRUSTEE_CONFIG_COL_NAME: LazyLock<String> = LazyLock::new(|| "config".to_string());
 
 /// Converts a single B3 bulletin-board row into a CSV record (message is standard base64, no padding).
 #[instrument]
-fn get_board_record(election_id: &str, row: B3MessageRow) -> Vec<String> {
+fn get_board_record(election_id: &str, row: &B3MessageRow) -> Vec<String> {
     let message_b64 = general_purpose::STANDARD_NO_PAD.encode(row.message.clone());
     vec![
         election_id.to_string(),
         row.id.to_string(),
         row.created.to_string(),
-        row.sender_pk.to_string(),
+        row.sender_pk.clone(),
         row.statement_timestamp.to_string(),
         row.statement_kind.clone(),
         row.batch.to_string(),
@@ -98,7 +99,7 @@ async fn create_boards_csv(boards_map: HashMap<String, Vec<B3MessageRow>>) -> Re
     writer.write_record(&headers)?;
     for (board_name, board_rows) in boards_map {
         for board_row in board_rows {
-            let record = get_board_record(&board_name, board_row);
+            let record = get_board_record(&board_name, &board_row);
             writer
                 .write_record(&record)
                 .with_context(|| "Error writing record")?;
@@ -146,7 +147,7 @@ pub async fn read_election_event_boards(
         let board_name = get_event_board(tenant_id, election_event_id, &slug);
 
         let b3_messages = b3_client.get_messages(&board_name, -1).await?;
-        boards_map.insert("".to_string(), b3_messages);
+        boards_map.insert(String::new(), b3_messages);
     }
 
     // elections
@@ -192,7 +193,7 @@ pub async fn read_protocol_manager_keys(
         )
         .await?
         .ok_or(anyhow!("protocol manager secret not found"))?;
-        let record = vec!["".into(), protocol_manager_data];
+        let record = vec![String::new(), protocol_manager_data];
         writer
             .write_record(&record)
             .with_context(|| "Error writing record")?;

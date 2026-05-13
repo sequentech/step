@@ -10,6 +10,7 @@ use deadpool_postgres::Pool;
 /// Escapes a SQL identifier (table name, column name, etc.) by wrapping
 /// it in double quotes and escaping any internal double quotes by doubling
 /// them. This prevents SQL injection when interpolating identifiers.
+#[must_use]
 pub fn escape_sql_identifier(name: &str) -> String {
     format!("\"{}\"", name.replace('"', "\"\""))
 }
@@ -18,15 +19,16 @@ pub fn escape_sql_identifier(name: &str) -> String {
 /// (i.e. inside single quotes). Use this for contexts where parameterized
 /// queries ($1, $2) are not available, such as COPY TO STDOUT.
 ///
-/// With PostgreSQL's standard_conforming_strings = on (default since 9.1),
+/// With `PostgreSQL`'s `standard_conforming_strings` = on (default since 9.1),
 /// the only character that needs escaping inside a single-quoted literal
 /// is the single quote itself, which is escaped by doubling it.
+#[must_use]
 pub fn escape_sql_literal(value: &str) -> String {
     value.replace('\'', "''")
 }
 
-/// Verifies that PostgreSQL has standard_conforming_strings = on, which is
-/// required for escape_sql_literal to be a complete defense against SQL
+/// Verifies that `PostgreSQL` has `standard_conforming_strings` = on, which is
+/// required for `escape_sql_literal` to be a complete defense against SQL
 /// injection. Returns an error if the setting is off.
 ///
 /// # Errors

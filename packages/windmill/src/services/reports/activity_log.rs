@@ -9,10 +9,12 @@
 //! - **CSV**, exported directly from the electoral-log board by streaming entries
 //!   in batches into a temporary file.
 
-use super::template_renderer::*;
+use super::template_renderer::{
+    GenerateReportMode, ReportOriginatedFrom, ReportOrigins, TemplateRenderer,
+};
 use crate::postgres::reports::{Report, ReportType};
 use crate::services::documents::upload_and_return_document;
-use crate::services::electoral_log::{ElectoralLogRow, IMMUDB_ROWS_LIMIT};
+use crate::services::electoral_log::{ElectoralLogRow, IMMUDB_ROWS_LIMIT, IMMUDB_ROWS_LIMIT_I64};
 use crate::services::protocol_manager::{get_board_client, get_event_board};
 use crate::services::providers::email_sender::{Attachment, EmailSender};
 use anyhow::{anyhow, Context, Result};
@@ -25,7 +27,9 @@ use sequent_core::services::date::ISO8601;
 use sequent_core::services::s3::get_minio_url;
 use sequent_core::types::hasura::core::TasksExecution;
 use sequent_core::types::templates::{ReportExtraConfig, SendTemplateBody};
-use sequent_core::util::temp_path::*;
+use sequent_core::util::temp_path::{
+    generate_temp_file, get_file_size, get_public_assets_path_env_var,
+};
 use serde::{Deserialize, Serialize};
 use std::mem;
 use strand::serialization::StrandDeserialize;
@@ -72,7 +76,7 @@ pub struct SystemData {
     pub rendered_user_template: String,
 }
 
-/// Implementation of TemplateRenderer for Activity Logs
+/// Implementation of `TemplateRenderer` for Activity Logs
 #[derive(Debug)]
 /// Renderer for the activity logs report templates.
 #[allow(clippy::missing_docs_in_private_items)]
@@ -83,7 +87,8 @@ pub struct ActivityLogsTemplate {
 
 impl ActivityLogsTemplate {
     /// Creates a renderer bound to a specific tenant/event.
-    pub fn new(ids: ReportOrigins, report_format: ReportFormat) -> Self {
+    #[must_use]
+    pub const fn new(ids: ReportOrigins, report_format: ReportFormat) -> Self {
         ActivityLogsTemplate { ids, report_format }
     }
 
@@ -104,7 +109,7 @@ impl ActivityLogsTemplate {
     /// Panics if the computed batch size overflows `usize` while estimating the
     /// memory footprint of a fetched batch.
     pub async fn generate_export_csv_data(&self, name: &str) -> Result<NamedTempFile> {
-        let limit = IMMUDB_ROWS_LIMIT as i64;
+        let limit = IMMUDB_ROWS_LIMIT_I64;
         let mut last_id: i64 = 0;
         let slug = std::env::var("ENV_SLUG").with_context(|| "missing env var ENV_SLUG")?;
         let board_name = get_event_board(
@@ -135,7 +140,8 @@ impl ActivityLogsTemplate {
                 msgs.len(),
                 batch_size
             );
-            let is_last_batch = msgs.len() < limit as usize;
+            let is_last_batch =
+                msgs.len() < usize::try_from(limit).with_context(|| "limit overflow")?;
 
             for entry in msgs {
                 last_id = entry.id;
@@ -213,7 +219,7 @@ impl TryFrom<ElectoralLogMessage> for ActivityLogRow {
 
     fn try_from(electoral_log: ElectoralLogMessage) -> Result<Self, Self::Error> {
         let user_id = match electoral_log.user_id {
-            Some(user_id) => user_id.to_string(),
+            Some(user_id) => user_id.clone(),
             None => "-".to_string(),
         };
 
@@ -429,8 +435,8 @@ impl TemplateRenderer for ActivityLogsTemplate {
             .await
         } else {
             // Generate CSV file using generate_export_csv_data
-            let name = format!("export-election-event-logs-{}", election_event_id);
-            let full_name = format!("{}.csv", name);
+            let name = format!("export-election-event-logs-{election_event_id}");
+            let full_name = format!("{name}.csv");
             let temp_file = self
                 .generate_export_csv_data(&name)
                 .await
@@ -465,16 +471,16 @@ impl TemplateRenderer for ActivityLogsTemplate {
                     .map_err(|e| anyhow!("Error getting custom user template: {e:?}"))?;
 
                 // Set the data from the user or fill extra config if needed with default data
-                let email_config = match template_data_opt {
-                    Some(template) if template.email.is_some() => template.email.unwrap(),
-                    _ => {
+                let email_config =
+                    if let Some(email) = template_data_opt.and_then(|template| template.email) {
+                        email
+                    } else {
                         let ext_cfg: ReportExtraConfig = self
                             .get_default_extra_config()
                             .await
                             .map_err(|e| anyhow!("Error getting default extra config: {e:?}"))?;
                         ext_cfg.communication_templates.email_config
-                    }
-                };
+                    };
 
                 let email_recipients = self
                     .get_email_recipients(recipients, tenant_id, election_event_id)

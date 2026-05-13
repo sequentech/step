@@ -5,7 +5,7 @@
 use crate::postgres::candidate::insert_candidates;
 use crate::postgres::contest::export_contests;
 use crate::postgres::election_event::get_election_event_by_id;
-use crate::services::tasks_execution::*;
+use crate::services::tasks_execution::{update_complete, update_fail};
 use crate::{
     postgres::document::get_document,
     services::{database::get_hasura_pool, documents::get_document_as_temp_file},
@@ -27,6 +27,7 @@ use uuid::Uuid;
 
 /// Maps a Comelec-style numeric party code from the import file to the display abbreviation used on the ballot.
 #[instrument(ret)]
+#[allow(clippy::too_many_lines)]
 fn get_political_party_extension(political_party: &str) -> String {
     // Mapping of numbers to political parties
     let party_map = vec![
@@ -273,7 +274,7 @@ fn get_contest_from_postcode(contests: &Vec<Contest>, postcode: &str) -> Result<
                 if let Some(i18n) = contest_presentation.i18n.clone() {
                     if let Some(en) = i18n.get("en") {
                         if let Some(en_alias_opt) = en.get("alias") {
-                            if en_alias_opt.clone().unwrap_or("".to_string()) == contest_name {
+                            if en_alias_opt.clone().unwrap_or_default() == contest_name {
                                 return Ok(Some(contest.id.clone()));
                             }
                         }
@@ -291,7 +292,14 @@ mod import_candidates_task {
     #![allow(missing_docs)]
     #![allow(clippy::missing_docs_in_private_items)]
 
-    use super::*;
+    use super::{
+        anyhow, event, export_contests, get_contest_from_postcode, get_document,
+        get_document_as_temp_file, get_election_event_by_id, get_hasura_pool,
+        get_political_party_extension, info, insert_candidates, instrument, integrity_check,
+        update_complete, update_fail, BufReader, Candidate, CandidatePresentation, Context,
+        DbClient, DecodeReaderBytesBuilder, HashFileVerifyError, HashMap, Level, Result, Seek,
+        TasksExecution, Uuid, WINDOWS_1252,
+    };
 
     /// Celery task: parses a fixed-layout candidate CSV, maps parties and contests, and bulk-inserts [`Candidate`] rows.
     ///
@@ -299,6 +307,7 @@ mod import_candidates_task {
     ///
     /// Fails on database, document, integrity, CSV parse, or insert errors; updates task execution to failed when applicable.
     #[instrument(err)]
+    #[allow(clippy::too_many_lines)]
     pub async fn import_candidates_task(
         tenant_id: String,
         election_event_id: String,
@@ -310,7 +319,7 @@ mod import_candidates_task {
             Ok(client) => client,
             Err(err) => {
                 update_fail(&task_execution, "Failed to get Hasura DB pool").await?;
-                return Err(anyhow!("Error getting Hasura DB pool: {}", err));
+                return Err(anyhow!("Error getting Hasura DB pool: {err}"));
             }
         };
 
@@ -356,7 +365,7 @@ mod import_candidates_task {
 
         match sha256 {
             Some(hash) if !hash.is_empty() => match integrity_check(&temp_file, hash) {
-                Ok(_) => {
+                Ok(()) => {
                     info!("Hash verified !");
                 }
                 Err(HashFileVerifyError::HashMismatch(input_hash, gen_hash)) => {
@@ -396,7 +405,7 @@ mod import_candidates_task {
         for result in rdr.records() {
             match result.with_context(|| "Error reading CSV record") {
                 Ok(record) => {
-                    event!(Level::INFO, "result {:?}", record);
+                    event!(Level::INFO, "result {record:?}");
                     let name_on_ballot = record.get(26).unwrap_or("Candidate").to_string();
                     let political_party = record.get(7).unwrap_or("\\N").to_string();
                     let postcode = record.get(2).unwrap_or("1").to_string();
@@ -441,9 +450,9 @@ mod import_candidates_task {
                     candidates.push(candidate);
                 }
                 Err(err) => {
-                    event!(Level::ERROR, "Error reading CSV record: {:?}", err);
+                    event!(Level::ERROR, "Error reading CSV record: {err:?}");
                     update_fail(&task_execution, "Error reading CSV record").await?;
-                    return Err(anyhow!("Error reading CSV record: {}", err));
+                    return Err(anyhow!("Error reading CSV record: {err}"));
                 }
             }
         }
@@ -456,20 +465,20 @@ mod import_candidates_task {
         )
         .await
         {
-            Ok(_) => (),
+            Ok(()) => (),
             Err(err) => {
                 update_fail(&task_execution, "Error inserting candidates to db").await?;
-                return Err(anyhow!("Inserting candidates failed: {:?}", err));
+                return Err(anyhow!("Inserting candidates failed: {err:?}"));
             }
         }
 
         match hasura_transaction.commit().await {
-            Ok(_) => (),
+            Ok(()) => (),
             Err(err) => {
                 update_fail(&task_execution, "Error updating db").await?;
-                return Err(anyhow!("Commit failed: {}", err));
+                return Err(anyhow!("Commit failed: {err}"));
             }
-        };
+        }
 
         update_complete(&task_execution, Some(document_id.clone()))
             .await

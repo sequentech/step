@@ -7,12 +7,17 @@
 use std::str::FromStr;
 
 use crate::postgres::election_event::get_election_event_by_id;
-use crate::postgres::scheduled_event::*;
+use crate::postgres::scheduled_event::{
+    archive_scheduled_event, find_scheduled_event_by_task_id, insert_scheduled_event,
+    update_scheduled_event,
+};
 use anyhow::{anyhow, Result};
 use deadpool_postgres::Transaction;
 use sequent_core::ballot::{ElectionPresentation, VotingPeriodDates};
 use sequent_core::serialization::deserialize_with_path::deserialize_value;
-use sequent_core::types::scheduled_event::*;
+use sequent_core::types::scheduled_event::{
+    generate_manage_date_task_name, CronConfig, EventProcessors, ManageElectionDatePayload,
+};
 use tracing::{info, instrument};
 
 #[instrument(skip(hasura_transaction), err)]
@@ -57,7 +62,7 @@ pub async fn manage_dates(
                     cron_config,
                 )
                 .await
-                .map_err(|e| anyhow!("error updating scheduled event: {e:?}"))?
+                .map_err(|e| anyhow!("error updating scheduled event: {e:?}"))?;
             }
             _ => {
                 let payload = ManageElectionDatePayload { election_id: None };
@@ -74,7 +79,7 @@ pub async fn manage_dates(
                 .await
                 .map_err(|e| anyhow!("error inserting scheduled event: {e:?}"))?;
             }
-        };
+        }
     } else {
         // Archive previous task if the date is set to null and we found some
         // task

@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-//! Datafix service modules: datafix HTTP endpoints and the VoterView SOAP bridge.
+//! Datafix service modules: datafix HTTP endpoints and the `VoterView` SOAP bridge.
 
 pub mod api_datafix;
 pub mod types;

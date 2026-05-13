@@ -95,13 +95,13 @@ pub async fn process_board_impl(tenant_id: String, election_event_id: String) ->
 
     // Run post tally
     // fetch tally_sessions
-    let tally_sessions = get_tally_session_by_election_event_id_pending_post_tally_task(
+    let pending_tally_sessions = get_tally_session_by_election_event_id_pending_post_tally_task(
         &hasura_transaction,
         &tenant_id,
         &election_event_id,
     )
     .await?;
-    for tally_session in tally_sessions {
+    for tally_session in pending_tally_sessions {
         let task = celery_app
             .send_task(post_tally_task::new(
                 tenant_id.clone(),
@@ -123,7 +123,7 @@ mod process_board_task {
     #![allow(missing_docs)]
     #![allow(clippy::missing_docs_in_private_items)]
 
-    use super::*;
+    use super::{instrument, process_board_impl, Result, TaskError};
 
     /// Celery task: drives keys-ceremony and tally-related work for one election event by enqueueing downstream tasks.
     #[instrument(err)]

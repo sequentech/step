@@ -9,9 +9,10 @@ use rust_decimal::prelude::ToPrimitive;
 use rust_decimal::Decimal;
 use sequent_core::serialization::deserialize_with_path::deserialize_value;
 use sequent_core::services::uuid_validation::parse_uuid_v4;
-use sequent_core::types::results::*;
+use sequent_core::types::results::{ResultDocuments, ResultsAreaContest};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use std::cmp::Ordering;
 use tokio_postgres::row::Row;
 use tokio_postgres::types::ToSql;
 use tracing::{info, instrument};
@@ -37,19 +38,19 @@ impl TryFrom<Row> for ResultsAreaContestWrapper {
             results_event_id: item.try_get::<_, Uuid>("results_event_id")?.to_string(),
             elegible_census: item
                 .try_get::<_, Option<i32>>("elegible_census")?
-                .map(|val| val as i64),
+                .map(i64::from),
             total_valid_votes: item
                 .try_get::<_, Option<i32>>("total_valid_votes")?
-                .map(|val| val as i64),
+                .map(i64::from),
             explicit_invalid_votes: item
                 .try_get::<_, Option<i32>>("explicit_invalid_votes")?
-                .map(|val| val as i64),
+                .map(i64::from),
             implicit_invalid_votes: item
                 .try_get::<_, Option<i32>>("implicit_invalid_votes")?
-                .map(|val| val as i64),
+                .map(i64::from),
             blank_votes: item
                 .try_get::<_, Option<i32>>("blank_votes")?
-                .map(|val| val as i64),
+                .map(i64::from),
             created_at: item.get("created_at"),
             last_updated_at: item.get("last_updated_at"),
             labels: item.try_get("labels")?,
@@ -61,7 +62,7 @@ impl TryFrom<Row> for ResultsAreaContestWrapper {
                 .transpose()?,
             total_invalid_votes: item
                 .try_get::<_, Option<i32>>("total_invalid_votes")?
-                .map(|val| val as i64),
+                .map(i64::from),
             total_invalid_votes_percent: item
                 .try_get::<_, Decimal>("total_invalid_votes_percent")?
                 .to_f64()
@@ -84,7 +85,7 @@ impl TryFrom<Row> for ResultsAreaContestWrapper {
                 .transpose()?,
             total_votes: item
                 .try_get::<_, Option<i32>>("total_votes")?
-                .map(|val| val as i64),
+                .map(i64::from),
             total_votes_percent: item
                 .try_get::<_, Decimal>("total_votes_percent")?
                 .to_f64()
@@ -93,7 +94,7 @@ impl TryFrom<Row> for ResultsAreaContestWrapper {
             documents,
             total_auditable_votes: item
                 .try_get::<_, Option<i32>>("total_auditable_votes")?
-                .map(|val| val as i64),
+                .map(i64::from),
             total_auditable_votes_percent: item
                 .try_get::<_, Decimal>("total_auditable_votes_percent")?
                 .to_f64()
@@ -169,15 +170,13 @@ pub async fn update_results_area_contest_documents(
         .await
         .map_err(|err| anyhow!("Error running the areas query: {err}"))?;
 
-    if 1 == rows.len() {
-        Ok(())
-    } else if rows.len() > 1 {
-        Err(anyhow!(
-            "Too many affected rows in table results_area_contest: {}",
-            rows.len()
-        ))
-    } else {
-        Err(anyhow!("Rows not found in table results_area_contest"))
+    let row_count = rows.len();
+    match row_count.cmp(&1) {
+        Ordering::Equal => Ok(()),
+        Ordering::Greater => Err(anyhow!(
+            "Too many affected rows in table results_area_contest: {row_count}"
+        )),
+        Ordering::Less => Err(anyhow!("Rows not found in table results_area_contest")),
     }
 }
 /// Get results area contest from the database.
@@ -263,7 +262,7 @@ pub async fn get_results_area_contest(
 ///
 /// Returns an error if SQL preparation or execution fails,
 /// if UUID or other parsing fails.
-
+#[allow(clippy::too_many_lines)]
 #[instrument(err, skip(hasura_transaction, area_contests))]
 pub async fn insert_results_area_contests(
     hasura_transaction: &Transaction<'_>,
@@ -320,27 +319,27 @@ pub async fn insert_results_area_contests(
                 results_event_id: results_event_uuid,
                 elegible_census: area_contest.elegible_census,
                 total_votes: area_contest.total_votes,
-                total_votes_percent: area_contest.total_votes_percent.map(|n| n.into()),
+                total_votes_percent: area_contest.total_votes_percent.map(Into::into),
                 total_auditable_votes: area_contest.total_auditable_votes,
                 total_auditable_votes_percent: area_contest
                     .total_auditable_votes_percent
-                    .map(|n| n.into()),
+                    .map(Into::into),
                 total_valid_votes: area_contest.total_valid_votes,
-                total_valid_votes_percent: area_contest.total_valid_votes_percent.map(|n| n.into()),
+                total_valid_votes_percent: area_contest.total_valid_votes_percent.map(Into::into),
                 total_invalid_votes: area_contest.total_invalid_votes,
                 total_invalid_votes_percent: area_contest
                     .total_invalid_votes_percent
-                    .map(|n| n.into()),
+                    .map(Into::into),
                 explicit_invalid_votes: area_contest.explicit_invalid_votes,
                 explicit_invalid_votes_percent: area_contest
                     .explicit_invalid_votes_percent
-                    .map(|n| n.into()),
+                    .map(Into::into),
                 implicit_invalid_votes: area_contest.implicit_invalid_votes,
                 implicit_invalid_votes_percent: area_contest
                     .implicit_invalid_votes_percent
-                    .map(|n| n.into()),
+                    .map(Into::into),
                 blank_votes: area_contest.blank_votes,
-                blank_votes_percent: area_contest.blank_votes_percent.map(|n| n.into()),
+                blank_votes_percent: area_contest.blank_votes_percent.map(Into::into),
                 annotations: area_contest.annotations.clone(),
             })
         })
@@ -527,7 +526,7 @@ struct InsertableResultsAreaContest {
 ///
 /// Returns an error if SQL preparation or execution fails,
 /// if UUID or other parsing fails.
-
+#[allow(clippy::too_many_lines)]
 #[instrument(err, skip(hasura_transaction, records))]
 pub async fn insert_many_results_area_contests(
     hasura_transaction: &Transaction<'_>,
@@ -559,23 +558,23 @@ pub async fn insert_many_results_area_contests(
                 last_updated_at: r.last_updated_at,
                 labels: r.labels.clone(),
                 annotations: r.annotations.clone(),
-                total_valid_votes_percent: r.total_valid_votes_percent.map(|v| v.into_inner()),
+                total_valid_votes_percent: r.total_valid_votes_percent.map(NotNan::into_inner),
                 total_invalid_votes: r.total_invalid_votes,
-                total_invalid_votes_percent: r.total_invalid_votes_percent.map(|v| v.into_inner()),
+                total_invalid_votes_percent: r.total_invalid_votes_percent.map(NotNan::into_inner),
                 explicit_invalid_votes_percent: r
                     .explicit_invalid_votes_percent
-                    .map(|v| v.into_inner()),
-                blank_votes_percent: r.blank_votes_percent.map(|v| v.into_inner()),
+                    .map(NotNan::into_inner),
+                blank_votes_percent: r.blank_votes_percent.map(NotNan::into_inner),
                 implicit_invalid_votes_percent: r
                     .implicit_invalid_votes_percent
-                    .map(|v| v.into_inner()),
+                    .map(NotNan::into_inner),
                 total_votes: r.total_votes,
-                total_votes_percent: r.total_votes_percent.map(|v| v.into_inner()),
+                total_votes_percent: r.total_votes_percent.map(NotNan::into_inner),
                 documents: documents_json,
                 total_auditable_votes: r.total_auditable_votes,
                 total_auditable_votes_percent: r
                     .total_auditable_votes_percent
-                    .map(|v| v.into_inner()),
+                    .map(NotNan::into_inner),
             })
         })
         .collect::<Result<_>>()?;

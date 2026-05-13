@@ -6,7 +6,7 @@
 
 use crate::services::database::get_hasura_pool;
 use crate::services::export::export_election_event::process_export_zip;
-use crate::services::tasks_execution::*;
+use crate::services::tasks_execution::{update_complete, update_fail};
 use crate::types::error::{Error, Result};
 use anyhow::Context;
 use celery::error::TaskError;
@@ -16,6 +16,7 @@ use serde::{Deserialize, Serialize};
 use tracing::{event, instrument, Level};
 
 /// Slice toggles for which election artifacts are included in the ZIP export.
+#[allow(clippy::struct_excessive_bools)]
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ExportOptions {
     /// Optional password when `is_encrypted` is true.
@@ -48,7 +49,10 @@ mod export_election_event_task {
     #![allow(missing_docs)]
     #![allow(clippy::missing_docs_in_private_items)]
 
-    use super::*;
+    use super::{
+        event, get_hasura_pool, instrument, process_export_zip, update_complete, update_fail,
+        Context, DbClient, Error, ExportOptions, Level, Result, TaskError, TasksExecution,
+    };
 
     /// Celery task: export an election event as a ZIP.
     #[instrument(err)]
@@ -65,11 +69,11 @@ mod export_election_event_task {
             Ok(client) => client,
             Err(err) => {
                 let err_str = format!("Failed to get Hasura DB pool: {err:?}");
-                if let Err(err) = update_fail(&task_execution, &err_str).await {
+                if let Err(update_err) = update_fail(&task_execution, &err_str).await {
                     event!(
                         Level::ERROR,
                         "Failed to update task execution status to FAILED: {:?}",
-                        err
+                        update_err
                     );
                 }
                 return Err(Error::String(err_str));
@@ -80,11 +84,11 @@ mod export_election_event_task {
             Ok(transaction) => transaction,
             Err(err) => {
                 let err_str = format!("Failed to start Hasura transaction: {err:?}");
-                if let Err(err) = update_fail(&task_execution, &err_str).await {
+                if let Err(update_err) = update_fail(&task_execution, &err_str).await {
                     event!(
                         Level::ERROR,
                         "Failed to update task execution status to FAILED: {:?}",
-                        err
+                        update_err
                     );
                 }
                 return Err(Error::String(err_str));
@@ -92,9 +96,15 @@ mod export_election_event_task {
         };
 
         // Process the export
-        match process_export_zip(&tenant_id, &election_event_id, &document_id, export_config).await
+        match Box::pin(process_export_zip(
+            &tenant_id,
+            &election_event_id,
+            &document_id,
+            export_config,
+        ))
+        .await
         {
-            Ok(_) => (),
+            Ok(()) => (),
             Err(err) => {
                 let err_str = format!("Failed to export election event data: {err:?}");
                 if let Err(update_err) = update_fail(&task_execution, &err_str).await {
@@ -109,21 +119,21 @@ mod export_election_event_task {
         }
 
         match hasura_transaction.commit().await {
-            Ok(_) => (),
+            Ok(()) => (),
             Err(err) => {
                 let err_str = format!("Commit failed: {err:?}");
-                if let Err(err) = update_fail(&task_execution, &err_str).await {
+                if let Err(update_err) = update_fail(&task_execution, &err_str).await {
                     event!(
                         Level::ERROR,
                         "Failed to update task execution status to FAILED: {:?}",
-                        err
+                        update_err
                     );
                 }
                 return Err(Error::String(err_str));
             }
-        };
+        }
 
-        update_complete(&task_execution, Some(document_id.to_string()))
+        update_complete(&task_execution, Some(document_id.clone()))
             .await
             .context("Failed to update task execution status to COMPLETED")?;
 

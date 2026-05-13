@@ -3,8 +3,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 //! Datafix operations: resolve a datafix-scoped election event, then mutate the
 //! matching Keycloak voter (create, update, disable, mark voted, PIN rotation) using admin APIs.
-use super::types::*;
-use super::utils::*;
+use super::types::{DatafixResponse, JsonErrorResponse, MarkVotedBody, VoterInformationBody};
+use super::utils::{find_user_area_by_name, get_event_id_and_datafix_annotations, get_user_id};
 
 use crate::services::users::{list_users, FilterOption, ListUsersFilter};
 use anyhow::Result;
@@ -23,7 +23,7 @@ use std::collections::HashMap;
 use std::env;
 use tracing::{error, info, instrument, warn};
 /// Disable the voter, datafix users are not actually deleted but just disabled.
-/// Note: voter_id in Datafix API represents the username in Keycloak/Sequent´s system.
+/// Note: `voter_id` in Datafix API represents the username in Keycloak/Sequent´s system.
 ///
 /// # Errors
 ///
@@ -128,7 +128,7 @@ pub async fn add_datafix_voter(
     let user = User {
         attributes: attributes.clone(),
         enabled: Some(true),
-        username: Some(username.to_string()),
+        username: Some(username.clone()),
         area: Some(area),
         ..User::default()
     };
@@ -147,7 +147,7 @@ pub async fn add_datafix_voter(
 }
 
 /// There are 2 things that can be updated, the area and the birthdate.
-/// Note: voter_id in Datafix API represents the username in Keycloak/Sequent´s system.
+/// Note: `voter_id` in Datafix API represents the username in Keycloak/Sequent´s system.
 ///
 /// # Errors
 ///
@@ -361,7 +361,7 @@ pub async fn replace_voter_pin(
         Ok((users, 1)) => {
             let user = users
                 .last()
-                .map(|val_ref| val_ref.to_owned())
+                .map(std::borrow::ToOwned::to_owned)
                 .unwrap_or_default();
             if !user.enabled.unwrap_or(true) {
                 warn!("Cannot replace pin because the user is disabled.");

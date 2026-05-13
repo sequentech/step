@@ -31,12 +31,13 @@ use sequent_core::types::hasura::core::TasksExecution;
 use sequent_core::types::hasura::extra::TasksExecutionStatus;
 use sequent_core::util::path::get_folder_name;
 use sequent_core::util::path::list_subfolders;
-use sequent_core::util::temp_path::*;
+use sequent_core::util::temp_path::{generate_temp_file, get_file_size};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use std::collections::HashMap;
 use std::fs;
 use std::io::Write;
+use std::path::Path;
 use std::path::PathBuf;
 use strand::hash::hash_sha256;
 use tempfile::tempdir;
@@ -123,6 +124,7 @@ async fn create_config(
     let mut file = fs::OpenOptions::new()
         .write(true)
         .create(true)
+        .truncate(true)
         .open(&config_path)?;
 
     writeln!(file, "{}", serde_json::to_string(&velvet_config)?)?;
@@ -137,6 +139,7 @@ async fn create_config(
 ///
 /// Fails if the tally session is incomplete, archives cannot be read, velvet fails, or upload fails.
 #[instrument(err, skip(hasura_transaction))]
+#[allow(clippy::too_many_lines)]
 async fn generate_template_document(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
@@ -223,7 +226,10 @@ async fn generate_template_document(
             let Ok(name) = entry.file_name().into_string() else {
                 continue;
             };
-            if name.ends_with(".html") {
+            if Path::new(&name)
+                .extension()
+                .is_some_and(|ext| ext.eq_ignore_ascii_case("html"))
+            {
                 fs::remove_file(&path)?;
             }
         }
@@ -255,7 +261,10 @@ async fn generate_template_document(
     )
     .await?;
 
-    let (file_extension, mime_type) = if final_zipped_file.ends_with(".enc") {
+    let (file_extension, mime_type) = if Path::new(&final_zipped_file)
+        .extension()
+        .is_some_and(|ext| ext.eq_ignore_ascii_case("enc"))
+    {
         ("zip.enc", "application/octet-stream")
     } else {
         ("zip", "application/zip")
@@ -272,7 +281,7 @@ async fn generate_template_document(
         file_size,
         mime_type,
         tenant_id,
-        Some(election_event_id.to_string()),
+        Some(election_event_id.clone()),
         &otuput_doc_name,
         Some(document_id.to_string()),
         false,
@@ -301,7 +310,7 @@ async fn generate_template_block(
             if let Some(ref task_exec) = task_execution {
                 update_fail(task_exec, "Failed to get Hasura DB pool").await?;
             }
-            return Err(anyhow!("Error getting Hasura DB pool: {}", err));
+            return Err(anyhow!("Error getting Hasura DB pool: {err}"));
         }
     };
 
@@ -323,7 +332,7 @@ async fn generate_template_block(
         Err(err) => {
             if let Some(ref task_exec) = task_execution {
                 update_fail(task_exec, "Failed to get Hasura DB pool").await?;
-            };
+            }
             return Err(anyhow!("Error starting Hasura transaction: {err}"));
         }
     };
@@ -332,9 +341,9 @@ async fn generate_template_block(
         Ok(transaction) => Ok(transaction),
         Err(err) => {
             if let Some(ref task_exec) = task_execution {
-                let err_str = format!("{:?}", err);
+                let err_str = format!("{err:?}");
                 update_fail(task_exec, &err_str).await?;
-            };
+            }
             Err(err)
         }
     }
@@ -350,7 +359,7 @@ async fn generate_template_block(
         Err(err) => {
             if let Some(ref task_exec) = task_execution {
                 update_fail(task_exec, "Failed to commit Hasura transaction").await?;
-            };
+            }
             Err(err)
         }
     }?;
@@ -362,7 +371,10 @@ mod generate_template_task {
     #![allow(missing_docs)]
     #![allow(clippy::missing_docs_in_private_items)]
 
-    use super::*;
+    use super::{
+        acquire_semaphore, anyhow, generate_template_block, instrument, Context, EGenerateTemplate,
+        Error, Result, TaskError, TasksExecution,
+    };
 
     /// Celery task: rate-limits template jobs then runs the blocking template renderer.
     ///
@@ -384,15 +396,15 @@ mod generate_template_task {
         let handle = tokio::task::spawn_blocking({
             move || {
                 tokio::runtime::Handle::current().block_on(async move {
-                    generate_template_block(
+                    Box::pin(generate_template_block(
                         tenant_id,
                         document_id,
                         input,
                         task_execution,
                         executer_username,
-                    )
+                    ))
                     .await
-                    .map_err(|err| anyhow!("generate_report error: {:?}", err))
+                    .map_err(|err| anyhow!("generate_report error: {err:?}"))
                 })
             }
         });
@@ -400,7 +412,7 @@ mod generate_template_task {
         // Await the result and handle JoinError explicitly
         match handle.await {
             Ok(inner_result) => inner_result.map_err(|err| Error::from(err.context("Task failed"))),
-            Err(join_error) => Err(Error::from(anyhow!("Task panicked: {}", join_error))),
+            Err(join_error) => Err(Error::from(anyhow!("Task panicked: {join_error}"))),
         }?;
 
         Ok(())

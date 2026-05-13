@@ -8,15 +8,17 @@
 //! verifies the ballot exists in the cast-vote records and renders a PDF receipt
 //! containing the ballot tracker URL and a timestamp.
 
-use super::template_renderer::*;
+use super::template_renderer::{ReportOriginatedFrom, ReportOrigins, TemplateRenderer};
 use crate::postgres::reports::ReportType;
 use crate::postgres::{self};
-use crate::services::temp_path::*;
+use crate::services::temp_path::{
+    LOGO_TEMPLATE, PUBLIC_ASSETS_LOGO_IMG, PUBLIC_ASSETS_QRCODE_LIB, QR_CODE_TEMPLATE,
+};
 
 use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
 use deadpool_postgres::Transaction;
-use sequent_core::util::temp_path::*;
+use sequent_core::util::temp_path::get_public_assets_path_env_var;
 
 use sequent_core::services::pdf;
 use sequent_core::services::s3::get_minio_url;
@@ -86,7 +88,8 @@ pub struct BallotTemplate {
 
 impl BallotTemplate {
     /// Creates a renderer for the given tenant/event and ballot inputs.
-    pub fn new(ids: ReportOrigins, ballot_data: Option<BallotData>) -> Self {
+    #[must_use]
+    pub const fn new(ids: ReportOrigins, ballot_data: Option<BallotData>) -> Self {
         BallotTemplate { ids, ballot_data }
     }
 }
@@ -133,7 +136,7 @@ impl TemplateRenderer for BallotTemplate {
     ///
     /// # Errors
     ///
-    /// Returns an error if required ids are missing, ids are not valid UUIDv4,
+    /// Returns an error if required ids are missing, ids are not valid `UUIDv4`,
     /// cast votes cannot be fetched, or the given ballot cannot be found for the voter.
     async fn prepare_user_data(
         &self,
@@ -162,12 +165,12 @@ impl TemplateRenderer for BallotTemplate {
             };
 
         let tennant_uuid = parse_uuid_v4(self.get_tenant_id().as_str())
-            .map_err(|err| anyhow!("Error parsing tenant id: {:?}", err))?;
+            .map_err(|err| anyhow!("Error parsing tenant id: {err:?}"))?;
         let election_event_uuid = parse_uuid_v4(self.get_election_event_id().as_str())
-            .map_err(|err| anyhow!("Error parsing election event id: {:?}", err))?;
+            .map_err(|err| anyhow!("Error parsing election event id: {err:?}"))?;
 
         let ballot_uui = parse_uuid_v4(election_id.as_str())
-            .map_err(|err| anyhow!("Error parsing election id: {:?}", err))?;
+            .map_err(|err| anyhow!("Error parsing election id: {err:?}"))?;
 
         let cast_votes = postgres::cast_vote::get_cast_votes(
             hasura_transaction,
@@ -212,12 +215,10 @@ impl TemplateRenderer for BallotTemplate {
             Ok(SystemData {
                 rendered_user_template,
                 file_logo: format!(
-                    "{}/{}/{}",
-                    minio_endpoint_base, public_assets_path, PUBLIC_ASSETS_LOGO_IMG
+                    "{minio_endpoint_base}/{public_assets_path}/{PUBLIC_ASSETS_LOGO_IMG}"
                 ),
                 file_qrcode_lib: format!(
-                    "{}/{}/{}",
-                    minio_endpoint_base, public_assets_path, PUBLIC_ASSETS_QRCODE_LIB
+                    "{minio_endpoint_base}/{public_assets_path}/{PUBLIC_ASSETS_QRCODE_LIB}"
                 ),
                 title: "Ballot receipt - Sequentech".to_string(),
             })
@@ -227,8 +228,7 @@ impl TemplateRenderer for BallotTemplate {
             Ok(SystemData {
                 rendered_user_template,
                 file_logo: format!(
-                    "{}/{}/{}",
-                    minio_endpoint_base, public_assets_path, PUBLIC_ASSETS_LOGO_IMG
+                    "{minio_endpoint_base}/{public_assets_path}/{PUBLIC_ASSETS_LOGO_IMG}"
                 ),
                 file_qrcode_lib: "/assets/qrcode.min.js".to_string(),
                 title: "Ballot receipt - Sequentech".to_string(),

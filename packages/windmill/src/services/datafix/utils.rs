@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 //! Shared helpers and constants for datafix flows.
-use super::types::*;
+use super::types::{DatafixAnnotations, DatafixResponse, JsonErrorResponse, VoterInformationBody};
 use crate::postgres::area::get_event_areas;
 use crate::postgres::election_event::get_election_event_by_id;
 use crate::postgres::election_event::{get_all_tenant_election_events, ElectionEventDatafix};
@@ -23,11 +23,12 @@ use tracing::{error, info, instrument, warn};
 pub const DATAFIX_ID_KEY: &str = "datafix:id";
 /// Annotation key storing JSON for password generation rules.
 pub const DATAFIX_PSW_POLICY_KEY: &str = "datafix:password_policy";
-/// Annotation key storing JSON credentials for the VoterView SOAP integration.
+/// Annotation key storing JSON credentials for the `VoterView` SOAP integration.
 pub const DATAFIX_VOTERVIEW_REQ_KEY: &str = "datafix:voterview_request";
 
 /// Returns true if the voter has voted via Sequent´s system -
-/// this is if VOTED_CHANNEL attribute is set to VOTED_CHANNEL_INTERNET_VALUE.
+/// this is if `VOTED_CHANNEL` attribute is set to `VOTED_CHANNEL_INTERNET_VALUE`.
+#[allow(clippy::implicit_hasher)]
 #[instrument()]
 pub fn voted_via_internet(attributes: &HashMap<String, Vec<String>>) -> bool {
     match attributes.iter().find(|tupple| tupple.0.eq(VOTED_CHANNEL)) {
@@ -39,7 +40,8 @@ pub fn voted_via_internet(attributes: &HashMap<String, Vec<String>>) -> bool {
 }
 
 /// Returns true if the voter has voted via a secondary channel, PAPER, PHONE, ETC -
-/// this is if VOTED_CHANNEL attribute is set to anything else than Internet.
+/// this is if `VOTED_CHANNEL` attribute is set to anything else than `Internet`.
+#[allow(clippy::implicit_hasher)]
 #[instrument()]
 pub fn voted_via_not_internet_channel(attributes: &HashMap<String, Vec<String>>) -> bool {
     match attributes.iter().find(|tupple| tupple.0.eq(VOTED_CHANNEL)) {
@@ -49,7 +51,7 @@ pub fn voted_via_not_internet_channel(attributes: &HashMap<String, Vec<String>>)
         None => false,
     }
 }
-/// Gets the election_event_id and the DatafixAnnotations of the event that has the datafix id in its annotations.
+/// Gets the `election_event_id` and the `DatafixAnnotations` of the event that has the datafix id in its annotations.
 ///
 /// # Errors
 ///
@@ -105,7 +107,7 @@ pub async fn get_event_id_and_datafix_annotations(
     return Err(DatafixResponse::new(Status::NotFound));
 }
 
-/// Returns the UserArea object. If it cannot find the area id by name returns an error.
+/// Returns the `UserArea` object. If it cannot find the area id by name returns an error.
 ///
 /// # Errors
 ///
@@ -145,15 +147,14 @@ pub async fn find_user_area_by_name(
         })
         .map(|area| area.id.clone());
 
-    match area_id {
-        Some(id) => Ok(UserArea {
+    if let Some(id) = area_id {
+        Ok(UserArea {
             id: Some(id),
             name: Some(area_concat),
-        }),
-        None => {
-            error!("Error. Area not found for {}", area_concat);
-            Err(DatafixResponse::new(Status::NotFound))
-        }
+        })
+    } else {
+        error!("Error. Area not found for {}", area_concat);
+        Err(DatafixResponse::new(Status::NotFound))
     }
 }
 
@@ -181,7 +182,10 @@ pub async fn get_user_id(
             error!("Error getting users by username: Not Found");
             return Err(DatafixResponse::new(Status::NotFound));
         }
-        1 => Ok(user_ids[0].clone()),
+        1 => user_ids.into_iter().next().ok_or_else(|| {
+            error!("Error getting users by username: internal state");
+            DatafixResponse::new(Status::InternalServerError)
+        }),
         _ => {
             error!("Error getting users by username: Multiple users Found");
             return Err(DatafixResponse::new(Status::NotFound));
@@ -189,7 +193,7 @@ pub async fn get_user_id(
     }
 }
 
-/// Get the ElectionEvent and check if its a datafix election event (has datafix:id annotations).
+/// Get the `ElectionEvent` and check if its a datafix election event (has `datafix:id` annotations).
 ///
 /// # Errors
 ///

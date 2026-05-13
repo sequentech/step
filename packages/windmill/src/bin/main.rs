@@ -1,5 +1,6 @@
 #![allow(non_upper_case_globals)]
 #![recursion_limit = "256"]
+#![allow(clippy::non_std_lazy_statics)]
 //! Celery worker binary for Windmill: runs the Celery app as a queue consumer or in produce-only mode.
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
@@ -17,7 +18,11 @@ use sequent_core::util::init_log::init_log;
 use std::collections::HashMap;
 use tokio::runtime::Builder;
 use tracing::{event, Level};
-use windmill::services::celery_app::*;
+use windmill::services::celery_app::{
+    get_celery_app, get_worker_threads, set_acks_late, set_broker_connection_max_retries,
+    set_heartbeat, set_is_app_active, set_prefetch_count, set_queues, set_task_max_retries,
+    set_worker_threads, Queue,
+};
 use windmill::services::probe::{setup_probe, AppName};
 use windmill::services::tasks_semaphore::init_semaphore;
 
@@ -26,22 +31,21 @@ use windmill::services::tasks_semaphore::init_semaphore;
 /// # Panics
 ///
 /// Panics if `ENV_SLUG` is not set in the environment.
-fn get_queue_name(queue: Queue) -> String {
-    let slug = std::env::var("ENV_SLUG")
-        .with_context(|| "missing env var ENV_SLUG")
-        .unwrap();
+fn get_queue_name(queue: &Queue) -> String {
+    let slug =
+        std::env::var("ENV_SLUG").expect("ENV_SLUG must be set before resolving AMQP queue names");
     queue.queue_name(&slug)
 }
 
 lazy_static! {
-    static ref BEAT_QUEUE_NAME: String = get_queue_name(Queue::Beat);
-    static ref SHORT_QUEUE_NAME: String = get_queue_name(Queue::Short);
-    static ref ELECTORAL_LOG_BEAT_QUEUE_NAME: String = get_queue_name(Queue::ElectoralLogBeat);
-    static ref COMMUNICATION_QUEUE_NAME: String = get_queue_name(Queue::Communication);
-    static ref TALLY_QUEUE_NAME: String = get_queue_name(Queue::Tally);
-    static ref REPORTS_QUEUE_NAME: String = get_queue_name(Queue::Reports);
-    static ref IMPORT_EXPORT_QUEUE_NAME: String = get_queue_name(Queue::ImportExport);
-    static ref ELECTORAL_LOG_BATCH_QUEUE_NAME: String = get_queue_name(Queue::ElectoralLogBatch);
+    static ref BEAT_QUEUE_NAME: String = get_queue_name(&Queue::Beat);
+    static ref SHORT_QUEUE_NAME: String = get_queue_name(&Queue::Short);
+    static ref ELECTORAL_LOG_BEAT_QUEUE_NAME: String = get_queue_name(&Queue::ElectoralLogBeat);
+    static ref COMMUNICATION_QUEUE_NAME: String = get_queue_name(&Queue::Communication);
+    static ref TALLY_QUEUE_NAME: String = get_queue_name(&Queue::Tally);
+    static ref REPORTS_QUEUE_NAME: String = get_queue_name(&Queue::Reports);
+    static ref IMPORT_EXPORT_QUEUE_NAME: String = get_queue_name(&Queue::ImportExport);
+    static ref ELECTORAL_LOG_BATCH_QUEUE_NAME: String = get_queue_name(&Queue::ElectoralLogBatch);
 }
 
 /// Celery options for the Windmill Celery worker process.
@@ -76,11 +80,11 @@ enum CeleryOpt {
     Produce,
 }
 
-/// Finds duplicates in a vector of strings.
-fn find_duplicates(input: Vec<&str>) -> Vec<&str> {
+/// Finds duplicates in a slice of queue name strings.
+fn find_duplicates<'a>(input: &'a [&'a str]) -> Vec<&'a str> {
     let mut occurrences = HashMap::new();
     let mut duplicates = Vec::new();
-    for &item in &input {
+    for &item in input {
         let count: &mut i32 = occurrences.entry(item).or_insert(0);
         *count = (*count)
             .checked_add(1)
@@ -126,6 +130,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 /// Runs the Celery app.
+///
+/// `celery`'s broker delivery stream is not `Send`; the worker runs on a single runtime thread.
+#[allow(clippy::future_not_send)]
 async fn async_main(opt: CeleryOpt) -> Result<()> {
     init_log(true);
     setup_probe(AppName::WINDMILL).await;
@@ -157,15 +164,15 @@ async fn async_main(opt: CeleryOpt) -> Result<()> {
                     if queue_name.starts_with(&slug) {
                         queue_name.clone()
                     } else {
-                        format!("{}_{}", slug, queue_name)
+                        format!("{slug}_{queue_name}")
                     }
                 })
                 .collect();
 
             let vec_str: Vec<&str> = queues.iter().map(AsRef::as_ref).collect();
-            let duplicates = find_duplicates(vec_str.clone());
+            let duplicates = find_duplicates(&vec_str);
             if !duplicates.is_empty() {
-                return Err(anyhow!("Found duplicate queues: {:?}", duplicates));
+                return Err(anyhow!("Found duplicate queues: {duplicates:?}"));
             }
             set_queues(queues.clone());
             set_is_app_active(true);
@@ -178,6 +185,6 @@ async fn async_main(opt: CeleryOpt) -> Result<()> {
             event!(Level::INFO, "No new tasks to produce");
             celery_app.close().await?;
         }
-    };
+    }
     Ok(())
 }

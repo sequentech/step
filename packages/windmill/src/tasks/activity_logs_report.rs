@@ -15,7 +15,7 @@ use crate::{
                 GenerateReportMode, ReportOriginatedFrom, ReportOrigins, TemplateRenderer,
             },
         },
-        tasks_execution::*,
+        tasks_execution::{update_complete, update_fail},
     },
     types::error::Result,
 };
@@ -98,7 +98,10 @@ mod generate_activity_logs_report_task {
     #![allow(missing_docs)]
     #![allow(clippy::missing_docs_in_private_items)]
 
-    use super::*;
+    use super::{
+        instrument, update_complete, update_fail, Context, Report, ReportFormat, Result, TaskError,
+        TasksExecution,
+    };
 
     /// Celery task: export activity logs for an election event into a stored document.
     #[instrument(err)]

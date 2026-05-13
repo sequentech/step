@@ -17,14 +17,14 @@ use sequent_core::types::scheduled_event::{
 use serde_json::Value as JsonValue;
 use std::collections::HashMap;
 use std::fs::File;
+use std::sync::LazyLock;
 use tempfile::NamedTempFile;
 use tracing::{info, instrument};
 use uuid::Uuid;
 
-lazy_static! {
-    /// Validates scheduled-event CSV column names (alphanumeric, dot, underscore, hyphen).
-    pub static ref HEADER_RE: Regex = Regex::new(r"^[a-zA-Z0-9._-]+$").unwrap();
-}
+/// Validates scheduled-event CSV column names (alphanumeric, dot, underscore, hyphen).
+static HEADER_RE: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"^[a-zA-Z0-9._-]+$").expect("scheduled events CSV header regex"));
 
 /// Imports scheduled events from a CSV export into the database.
 ///
@@ -32,6 +32,7 @@ lazy_static! {
 ///
 /// Returns an error if CSV parsing/validation fails or if record insertion fails.
 #[instrument(err, skip(replacement_map))]
+#[allow(clippy::implicit_hasher)]
 pub async fn import_scheduled_events(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
@@ -51,7 +52,7 @@ pub async fn import_scheduled_events(
         .cloned()
         .map_err(|err| anyhow!("Error reading CSV headers: {err:?}"))?;
 
-    for header in headers.iter() {
+    for header in &headers {
         if !HEADER_RE.is_match(header) {
             return Err(anyhow!("Invalid header name: {header:?}"));
         }
@@ -80,6 +81,7 @@ pub async fn import_scheduled_events(
 ///
 /// Returns an error if deserialization fails or if inserting the row fails.
 #[instrument(err, skip_all)]
+#[allow(clippy::implicit_hasher)]
 pub async fn process_record(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,

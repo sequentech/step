@@ -22,10 +22,10 @@ use serde_json::Value;
 use std::str::FromStr;
 use std::sync::Arc;
 use tokio::sync::Mutex;
+use tracing::{error, warn};
 use wasmtime::component::{Component, Func, HasData, Instance, Linker, ResourceTable, Val};
 use wasmtime::{Engine, Store};
-use wasmtime_wasi::p2::add_to_linker_async;
-use wasmtime_wasi::{WasiCtx, WasiCtxView, WasiView};
+use wasmtime_wasi::{p2::add_to_linker_async, WasiCtx, WasiCtxView, WasiView};
 
 /// Represents a value that can be passed to or returned from a plugin hook.
 #[derive(Debug, Clone)]
@@ -64,6 +64,7 @@ impl From<&str> for HookValue {
 
 impl HookValue {
     /// Converts this wrapper into a Wasmtime component [`Val`].
+    #[must_use]
     pub fn to_val(&self) -> Val {
         match self {
             HookValue::S32(v) => Val::S32(*v),
@@ -105,12 +106,14 @@ impl HookValue {
                 HookValue::Option(Some(Box::new(HookValue::from_val(opt_val)?)))
             }
             Val::Option(None) => HookValue::Option(None),
-            _ => return Err(anyhow::anyhow!("Unsupported Val type: {:?}", val)),
+            _ => return Err(anyhow::anyhow!("Unsupported Val type: {val:?}")),
         })
     }
 
     /// Returns the contained integer when this is a numeric value.
-    pub fn as_i32(&self) -> Option<i32> {
+    #[must_use]
+    #[allow(clippy::cast_possible_wrap)]
+    pub const fn as_i32(&self) -> Option<i32> {
         match self {
             HookValue::S32(v) => Some(*v),
             HookValue::U32(v) => Some(*v as i32),
@@ -119,6 +122,7 @@ impl HookValue {
     }
 
     /// Returns the contained string slice when this is a string value.
+    #[must_use]
     pub fn as_str(&self) -> Option<&str> {
         match self {
             HookValue::String(v) => Some(v),
@@ -136,14 +140,14 @@ impl HookValue {
             HookValue::Result(Ok(Some(boxed_value))) => match &**boxed_value {
                 HookValue::String(value) => {
                     let json_value: Value = serde_json::from_str(value)
-                        .map_err(|e| anyhow!("Failed to parse string as JSON: {}", e))?;
+                        .map_err(|e| anyhow!("Failed to parse string as JSON: {e}"))?;
                     Ok(json_value)
                 }
                 _ => Err(anyhow!("Unexpected boxed hook value type")),
             },
             HookValue::Result(Ok(None)) => Err(anyhow!("No value returned from plugin hook")),
             HookValue::Result(Err(Some(e))) => match &**e {
-                HookValue::String(e) => Err(anyhow!("Plugin hook error: {}", e)),
+                HookValue::String(e) => Err(anyhow!("Plugin hook error: {e}")),
                 _ => Err(anyhow!("Error executing plugin hook")),
             },
             _ => Err(anyhow!("Unexpected hook value type")),
@@ -222,9 +226,7 @@ impl Plugin {
             &mut s.transactions_manager
         })?;
 
-        add_auth_to_linker::<_, AuthHost>(&mut linker, |store: &mut PluginStore| {
-            &mut store.plugin_auth
-        })?;
+        add_auth_to_linker::<_, AuthHost>(&mut linker, |s: &mut PluginStore| &mut s.plugin_auth)?;
 
         let instance = linker.instantiate_async(&mut store, &component).await?;
 
@@ -233,12 +235,11 @@ impl Plugin {
         )
         .await
         {
-            Ok(instance) => instance,
+            Ok(common_iface) => common_iface,
             Err(e) => {
-                println!(
-                "Component {} does not seem to implement the common plugin interface or failed to instantiate it: {}",
-                wasm_file_name, e
-            );
+                error!(
+                    "Component {wasm_file_name} does not seem to implement the common plugin interface or failed to instantiate it: {e}"
+                );
                 return Ok(None);
             }
         };
@@ -285,10 +286,7 @@ impl Plugin {
             .context(anyhow!("Function {hook} not found in instance"))?;
 
         let wasm_args: Vec<_> = args.into_iter().map(|arg| arg.to_val()).collect();
-        let mut results: Vec<Val> = expected_result
-            .iter()
-            .map(|expected| expected.to_val()) // These are placeholders, their *type* is important.
-            .collect();
+        let mut results: Vec<Val> = expected_result.iter().map(HookValue::to_val).collect();
 
         func.call_async(&mut *store, &wasm_args, results.as_mut_slice())
             .await
@@ -308,7 +306,8 @@ pub struct PluginAuth;
 
 impl PluginAuth {
     /// Creates a new authorization host.
-    pub fn new() -> Self {
+    #[must_use]
+    pub const fn new() -> Self {
         PluginAuth
     }
 }
@@ -342,10 +341,7 @@ impl HostAuth for PluginAuth {
             .filter_map(|p_str| match Permissions::from_str(&p_str) {
                 Ok(perm_enum) => Some(perm_enum),
                 Err(e) => {
-                    println!(
-                        "Warning: Failed to parse permission string '{}': {}",
-                        p_str, e
-                    );
+                    warn!("Warning: Failed to parse permission string '{p_str}': {e}");
                     None
                 }
             })
@@ -357,8 +353,8 @@ impl HostAuth for PluginAuth {
             tenant_id_opt,
             parsed_permissions,
         ) {
-            Ok(_) => Ok(()),
-            Err((_status, message)) => Err(format!("Authorization failed: {}", message)),
+            Ok(()) => Ok(()),
+            Err((_status, message)) => Err(format!("Authorization failed: {message}")),
         }
     }
 }

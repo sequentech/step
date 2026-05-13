@@ -4,7 +4,7 @@
 //! Updates election status based on scheduled events.
 use crate::postgres::election::get_election_by_id;
 use crate::postgres::election_event::get_election_event_by_id;
-use crate::postgres::scheduled_event::*;
+use crate::postgres::scheduled_event::{find_scheduled_event_by_id, stop_scheduled_event};
 use crate::services::database::get_hasura_pool;
 use crate::services::pg_lock::PgLock;
 use crate::services::providers::transactions_provider::provide_hasura_transaction;
@@ -18,7 +18,7 @@ use deadpool_postgres::Client as DbClient;
 use deadpool_postgres::Transaction;
 use sequent_core::ballot::{ElectionStatus, VotingStatus, VotingStatusChannel};
 use sequent_core::services::date::ISO8601;
-use sequent_core::types::scheduled_event::*;
+use sequent_core::types::scheduled_event::EventProcessors;
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
 use tracing::{error, event, info, Level};
@@ -44,8 +44,7 @@ async fn manage_election_date_wrapper(
 
     let Some(scheduled_manage_date) = scheduled_manage_date_opt else {
         return Err(anyhow!(
-            "Can't find scheduled event with id: {}",
-            scheduled_event_id
+            "Can't find scheduled event with id: {scheduled_event_id}"
         ));
     };
 
@@ -113,7 +112,10 @@ mod manage_election_date_task {
     #![allow(missing_docs)]
     #![allow(clippy::missing_docs_in_private_items)]
 
-    use super::*;
+    use super::{
+        info, instrument, manage_election_date_wrapper, provide_hasura_transaction, Context,
+        Duration, PgLock, Result, TaskError, Uuid, ISO8601,
+    };
 
     /// Celery task: manages the election scheduled dates for open/close voting.
     #[instrument(err)]
@@ -127,8 +129,7 @@ mod manage_election_date_task {
     ) -> Result<()> {
         let lock: PgLock = PgLock::acquire(
             format!(
-                "execute_manage_election_date-{}-{}-{}-{}",
-                tenant_id, election_event_id, scheduled_event_id, election_id
+                "execute_manage_election_date-{tenant_id}-{election_event_id}-{scheduled_event_id}-{election_id}"
             ),
             Uuid::new_v4().to_string(),
             ISO8601::now()

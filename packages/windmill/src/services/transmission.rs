@@ -125,9 +125,7 @@ pub async fn get_transmission_servers_data(
 
     let document = tally_area.and_then(|ta| get_latest_miru_document(&ta.documents));
 
-    let servers_sent_to = document
-        .map(|d| d.servers_sent_to.clone())
-        .unwrap_or_else(Vec::new);
+    let servers_sent_to = document.map_or_else(Vec::new, |d| d.servers_sent_to.clone());
 
     let servers: Vec<ServerData> = annotations
         .ccs_servers
@@ -160,16 +158,13 @@ pub async fn get_transmission_servers_data(
                         }
                     })
                 })
-                .unwrap_or_else(|| "".to_string()),
-            received: if tally_area
-                .map(|data| {
-                    servers_sent_to.iter().any(|server_sent| {
-                        server_sent.name == server.name
-                            && server_sent.status == MiruServerDocumentStatus::SUCCESS
-                    })
+                .unwrap_or_default(),
+            received: if tally_area.is_some_and(|_| {
+                servers_sent_to.iter().any(|server_sent| {
+                    server_sent.name == server.name
+                        && server_sent.status == MiruServerDocumentStatus::SUCCESS
                 })
-                .unwrap_or(false)
-            {
+            }) {
                 "Received".to_string()
             } else {
                 "Not Received".to_string()
@@ -188,7 +183,7 @@ pub async fn get_transmission_servers_data(
                         }
                     })
                 })
-                .unwrap_or_else(|| "".to_string()),
+                .unwrap_or_default(),
             server_name: server.name,
         })
         .collect();
@@ -202,6 +197,6 @@ pub async fn get_transmission_servers_data(
         servers,
         total_transmitted,
         total_not_transmitted,
-        last_date_transmitted: last_date_transmitted.unwrap_or("".to_string()),
+        last_date_transmitted: last_date_transmitted.unwrap_or(String::new()),
     })
 }

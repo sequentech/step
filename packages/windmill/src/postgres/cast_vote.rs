@@ -92,16 +92,17 @@ pub async fn insert_cast_vote(
         .await
         .map_err(|err| anyhow!("Error inserting cast vote: {err}"))?;
 
-    let cast_votes: Vec<CastVote> = rows
+    let mut cast_votes: Vec<CastVote> = rows
         .into_iter()
         .map(|row| -> Result<CastVote> { row.try_into() })
         .collect::<Result<Vec<CastVote>>>()?;
 
-    if 1 == cast_votes.len() {
-        Ok(cast_votes[0].clone())
-    } else {
-        Err(anyhow!("Unexpected rows affected {}", cast_votes.len()))
+    if cast_votes.len() == 1 {
+        return cast_votes
+            .pop()
+            .ok_or_else(|| anyhow!("expected exactly one cast vote row from insert"));
     }
+    Err(anyhow!("Unexpected rows affected {}", cast_votes.len()))
 }
 
 /// Get cast votes for a given tenant, election event, election id and voter id from the database.
@@ -160,7 +161,7 @@ pub async fn get_cast_votes(
             ],
         )
         .await
-        .map_err(|err| anyhow!("Error getting cast votes: {}", err))?;
+        .map_err(|err| anyhow!("Error getting cast votes: {err}"))?;
 
     let cast_votes: Vec<CastVote> = rows
         .into_iter()

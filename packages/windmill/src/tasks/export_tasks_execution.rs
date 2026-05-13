@@ -29,8 +29,7 @@ pub async fn export_tasks_execution(
         Ok(client) => client,
         Err(err) => {
             return Err(Error::String(format!(
-                "Error getting Hasura DB pool: {}",
-                err
+                "Error getting Hasura DB pool: {err}",
             )));
         }
     };
@@ -45,21 +44,20 @@ pub async fn export_tasks_execution(
     };
 
     match process_export(&tenant_id, &election_event_id, &document_id).await {
-        Ok(_) => (),
+        Ok(()) => (),
         Err(err) => {
             return Err(Error::String(format!(
-                "Failed to export election event data: {}",
-                err
+                "Failed to export election event data: {err}",
             )));
         }
     }
 
     match hasura_transaction.commit().await {
-        Ok(_) => (),
+        Ok(()) => (),
         Err(err) => {
-            return Err(Error::String(format!("Commit failed: {}", err)));
+            return Err(Error::String(format!("Commit failed: {err}")));
         }
-    };
+    }
 
     Ok(())
 }

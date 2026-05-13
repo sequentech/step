@@ -92,7 +92,7 @@ pub async fn render_document_pdf_wrap(
         .await
         .get()
         .await
-        .map_err(|err| anyhow!("{:?}", err))?;
+        .map_err(|err| anyhow!("{err:?}"))?;
     let hasura_transaction = db_client.transaction().await?;
 
     let pdf_options = get_tally_pdf_config(
@@ -111,7 +111,7 @@ pub async fn render_document_pdf_wrap(
     )
     .await?
     else {
-        return Err(anyhow!("Document not found: {}", document_id));
+        return Err(anyhow!("Document not found: {document_id}"));
     };
 
     let mut temp_document = get_document_as_temp_file(&tenant_id, &document).await?;
@@ -174,14 +174,14 @@ pub async fn render_document_pdf_task_wrap(
     )
     .await
     {
-        Ok(_) => {
+        Ok(()) => {
             update_complete(&task_execution, Some(output_document_id.clone())).await?;
         }
         Err(err) => {
-            update_fail(&task_execution, format!("{:?}", err).as_str()).await?;
+            update_fail(&task_execution, format!("{err:?}").as_str()).await?;
             return Err(err);
         }
-    };
+    }
 
     Ok(())
 }
@@ -190,7 +190,10 @@ mod render_document_pdf_task {
     #![allow(missing_docs)]
     #![allow(clippy::missing_docs_in_private_items)]
 
-    use super::*;
+    use super::{
+        anyhow, instrument, render_document_pdf_task_wrap, Result, TaskError, TasksExecution,
+        WrapError, WrapResult,
+    };
 
     /// Celery task: renders a tally-linked HTML document to PDF and records completion on the task execution.
     #[instrument(err)]
@@ -206,7 +209,7 @@ mod render_document_pdf_task {
         tally_session_id: Option<String>,
     ) -> WrapResult<()> {
         // Note, put this in a thread?
-        render_document_pdf_task_wrap(
+        Box::pin(render_document_pdf_task_wrap(
             tenant_id,
             document_id,
             election_event_id,
@@ -214,9 +217,9 @@ mod render_document_pdf_task {
             executer_username,
             output_document_id,
             tally_session_id,
-        )
+        ))
         .await
-        .map_err(|err| WrapError::from(anyhow!("Task panicked: {}", err)))
+        .map_err(|err| WrapError::from(anyhow!("Task panicked: {err}")))
     }
 }
 

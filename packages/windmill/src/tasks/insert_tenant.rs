@@ -27,15 +27,12 @@ use tracing::{event, instrument, Level};
 ///
 /// # Errors
 ///
-/// Returns an error if the file cannot be read or does not deserialize into a [`RealmRepresentation`].
-///
-/// # Panics
-///
-/// Panics when `KEYCLOAK_TENANT_REALM_CONFIG_PATH` is not set.
+/// Returns an error if the file cannot be read or does not deserialize into a [`RealmRepresentation`],
+/// or if `KEYCLOAK_TENANT_REALM_CONFIG_PATH` is not set.
 #[instrument(err)]
 pub fn read_default_tenant_realm() -> AnyhowResult<RealmRepresentation> {
     let realm_config_path = env::var("KEYCLOAK_TENANT_REALM_CONFIG_PATH")
-        .unwrap_or_else(|_| panic!("KEYCLOAK_TENANT_REALM_CONFIG_PATH must be set"));
+        .map_err(|_| anyhow!("KEYCLOAK_TENANT_REALM_CONFIG_PATH must be set"))?;
     let realm_config = fs::read_to_string(&realm_config_path)
         .map_err(|err| anyhow!("Should have been able to read the configuration file in KEYCLOAK_TENANT_REALM_CONFIG_PATH={realm_config_path}. Error: {err}"))?;
 
@@ -131,7 +128,7 @@ pub async fn process_insert_tenant(tenant_id: String, slug: String) -> Result<()
         return Ok(());
     }
 
-    upsert_keycloak_realm(tenant_id.as_str(), slug.as_str()).await?;
+    Box::pin(upsert_keycloak_realm(tenant_id.as_str(), slug.as_str())).await?;
     insert_tenant_db(&hasura_transaction, &tenant_id, &slug).await?;
 
     hasura_transaction
@@ -146,7 +143,10 @@ mod insert_tenant_task {
     #![allow(missing_docs)]
     #![allow(clippy::missing_docs_in_private_items)]
 
-    use super::*;
+    use super::{
+        event, instrument, process_insert_tenant, update_complete, update_fail, Context, Level,
+        Result, TaskError, TasksExecution,
+    };
 
     /// Celery task: provisions tenant realm and DB row, optionally updating the linked task execution.
     #[instrument(err)]
@@ -157,10 +157,10 @@ mod insert_tenant_task {
         slug: String,
         task_execution: Option<TasksExecution>,
     ) -> Result<()> {
-        let res = process_insert_tenant(tenant_id.clone(), slug.clone()).await;
+        let res = Box::pin(process_insert_tenant(tenant_id.clone(), slug.clone())).await;
         if let Some(task_execution) = task_execution {
             if let Err(err) = res {
-                let err_str = format!("Error inserting tenant: {}", err);
+                let err_str = format!("Error inserting tenant: {err}");
                 event!(Level::ERROR, err_str);
                 update_fail(&task_execution, &err_str)
                     .await

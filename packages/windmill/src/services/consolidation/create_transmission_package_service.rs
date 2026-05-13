@@ -50,7 +50,9 @@ use sequent_core::types::date_time::TimeZone;
 use sequent_core::types::hasura::core::Document;
 use sequent_core::types::results::{ResultDocumentType, ResultDocuments};
 use sequent_core::util::date_time::PHILIPPINO_TIMEZONE;
-use sequent_core::util::temp_path::*;
+use sequent_core::util::temp_path::{
+    generate_temp_file, get_file_size, write_into_named_temp_file,
+};
 use tempfile::{tempdir, NamedTempFile};
 use tracing::{info, instrument};
 use uuid::Uuid;
@@ -187,8 +189,8 @@ pub async fn generate_all_servers_document(
     for ccs_server in ccs_servers {
         let server_path = temp_dir_path.join(&ccs_server.tag);
         std::fs::create_dir(server_path.clone())
-            .with_context(|| format!("Error generating directory {server_path:?}"))?;
-        let zip_file_path = server_path.join(format!("er_{}.zip", area_annotations.station_id));
+            .with_context(|| format!("Error generating directory {}", server_path.display()))?;
+        let er_zip_file_path = server_path.join(format!("er_{}.zip", area_annotations.station_id));
         create_transmission_package(
             eml_hash,
             eml,
@@ -199,14 +201,15 @@ pub async fn generate_all_servers_document(
             &acm_key_pair,
             &ccs_server.public_key_pem,
             area_annotations,
-            &zip_file_path,
+            &er_zip_file_path,
             &server_signatures,
             election_annotations,
         )
         .await?;
         let with_logs = ccs_server.send_logs.unwrap_or_default();
         if with_logs {
-            let zip_file_path = server_path.join(format!("al_{}.zip", area_annotations.station_id));
+            let al_zip_file_path =
+                server_path.join(format!("al_{}.zip", area_annotations.station_id));
             create_logs_package(
                 time_zone.clone(),
                 now_utc,
@@ -215,7 +218,7 @@ pub async fn generate_all_servers_document(
                 &acm_key_pair,
                 &ccs_server.public_key_pem,
                 area_annotations,
-                &zip_file_path,
+                &al_zip_file_path,
                 &server_signatures,
                 logs,
             )
@@ -253,6 +256,7 @@ pub async fn generate_all_servers_document(
 /// # Errors
 ///
 /// Any failure in annotation validation, Velvet/tally prep, document upload, or persistence.
+#[allow(clippy::too_many_lines)]
 #[instrument(err)]
 pub async fn create_transmission_package_service(
     tenant_id: &str,
@@ -369,7 +373,7 @@ pub async fn create_transmission_package_service(
             };
             basic_area.id == area_id
         })
-        .map(|report_computed| report_computed.into())
+        .map(Into::into)
         .collect();
     let (base_compressed_xml, eml, eml_hash) = generate_base_compressed_xml(
         tally_id,
@@ -384,16 +388,16 @@ pub async fn create_transmission_package_service(
     .await?;
 
     // upload .xz
-    let xz_name = format!("er_{}.xz", transaction_id);
-    let (temp_path, temp_path_string, file_size) =
+    let xz_name = format!("er_{transaction_id}.xz");
+    let (xz_temp_path, xz_temp_path_string, xz_file_size) =
         write_into_named_temp_file(&base_compressed_xml, &xz_name, ".xz")?;
     let xz_document = upload_and_return_document(
         &hasura_transaction,
-        &temp_path_string,
-        file_size,
+        &xz_temp_path_string,
+        xz_file_size,
         "applization/xml",
         tenant_id,
-        Some(election_event.id.to_string()),
+        Some(election_event.id.clone()),
         &xz_name,
         None,
         false,
@@ -402,22 +406,22 @@ pub async fn create_transmission_package_service(
 
     // upload eml
     let eml_name = format!("er_{transaction_id}.xml");
-    let (temp_path, temp_path_string, file_size) =
+    let (_eml_temp_path, eml_temp_path_string, eml_file_size) =
         write_into_named_temp_file(&eml.as_bytes().to_vec(), &eml_name, ".eml")?;
     let eml_document = upload_and_return_document(
         &hasura_transaction,
-        &temp_path_string,
-        file_size,
+        &eml_temp_path_string,
+        eml_file_size,
         "applization/xml",
         tenant_id,
-        Some(election_event.id.to_string()),
+        Some(election_event.id.clone()),
         &eml_name,
         None,
         false,
     )
     .await?;
 
-    let area_name = area.name.clone().unwrap_or("".into());
+    let area_name = area.name.clone().unwrap_or_default();
     let mut logs = if let Some(package) = found_package {
         package.logs.clone()
     } else {

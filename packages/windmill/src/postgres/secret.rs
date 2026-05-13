@@ -102,12 +102,16 @@ pub async fn get_secret_by_key(
         .collect::<Result<Vec<Secret>>>()
         .with_context(|| "Error converting rows into Secrets")?;
 
-    if secrets.is_empty() {
-        return Ok(None);
-    } else if secrets.len() > 1 {
-        return Err(anyhow!("Found too many secrets: {}", secrets.len()));
+    match secrets.len() {
+        0 => Ok(None),
+        1 => Ok(Some(
+            secrets
+                .into_iter()
+                .next()
+                .ok_or_else(|| anyhow!("expected one secret row"))?,
+        )),
+        n => Err(anyhow!("Found too many secrets: {n}")),
     }
-    Ok(Some(secrets[0].clone()))
 }
 /// Insert secret into the database.
 ///
@@ -125,11 +129,11 @@ pub async fn insert_secret(
     encrypted_bytes: &Vec<u8>,
 ) -> Result<Secret> {
     let tenant_uuid = parse_uuid_v4(tenant_id)
-        .map_err(|err| anyhow!("Error parsing tenant_id as UUID: {}", err))?;
+        .map_err(|err| anyhow!("Error parsing tenant_id as UUID: {err}"))?;
     let election_event_uuid = election_event_id
         .map(|id| {
             parse_uuid_v4(id)
-                .map_err(|err| anyhow!("Error parsing election_event_id as UUID: {}", err))
+                .map_err(|err| anyhow!("Error parsing election_event_id as UUID: {err}"))
         })
         .transpose()?;
     let statement = hasura_transaction
@@ -160,9 +164,11 @@ pub async fn insert_secret(
         .collect::<Result<Vec<Secret>>>()
         .map_err(|err| anyhow!("Error deserializing secret: {err}"))?;
 
-    if 1 == rows.len() {
-        Ok(rows[0].clone())
-    } else {
-        Err(anyhow!("Unexpected rows affected {}", rows.len()))
+    if rows.len() == 1 {
+        let mut rows = rows;
+        return rows
+            .pop()
+            .ok_or_else(|| anyhow!("expected exactly one secret row from insert"));
     }
+    Err(anyhow!("Unexpected rows affected {}", rows.len()))
 }

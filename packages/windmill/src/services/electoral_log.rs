@@ -22,7 +22,12 @@ use base64::Engine;
 use deadpool_postgres::Transaction;
 use electoral_log::assign_value;
 use electoral_log::messages::message::{Message, SigningData};
-use electoral_log::messages::newtypes::{CertificateAuthEventAction, *};
+use electoral_log::messages::newtypes::{
+    BallotPublicationIdString, CastVoteErrorString, CastVoteHash, CertificateAuthEventAction,
+    ContestIdString, ElectionIdString, ErrorMessageString, EventIdString, KeycloakEventTypeString,
+    PseudonymHash, PublicKeyDerB64, TenantIdString, TrusteeNameString, VoterCountryString,
+    VoterIpString, VotingChannelString,
+};
 use electoral_log::messages::statement::{StatementBody, StatementType};
 use electoral_log::{
     ElectoralLogMessage, ElectoralLogVarCharColumn, SqlCompOperators, WhereClauseBTreeMap,
@@ -51,9 +56,16 @@ pub const IMMUDB_ROWS_LIMIT: usize = 2500;
 /// Default maximum number of rows returned per page in list endpoints.
 pub const MAX_ROWS_PER_PAGE: usize = 50;
 
-/// Ballot_id input is the first half of the original hash which is stored in the electoral log.
+/// Same numeric value as [`IMMUDB_ROWS_LIMIT`], as `i64`, for query defaults.
+#[allow(clippy::cast_possible_wrap)] // IMMUDB_ROWS_LIMIT is 2500
+pub const IMMUDB_ROWS_LIMIT_I64: i64 = IMMUDB_ROWS_LIMIT as i64;
+/// Same numeric value as [`MAX_ROWS_PER_PAGE`], as `i64`, for query defaults.
+#[allow(clippy::cast_possible_wrap)] // MAX_ROWS_PER_PAGE is 50
+pub const MAX_ROWS_PER_PAGE_I64: i64 = MAX_ROWS_PER_PAGE as i64;
+
+/// `Ballot_id` input is the first half of the original hash which is stored in the electoral log.
 pub const BALLOT_ID_LENGTH_BYTES: usize = STRAND_HASH_LENGTH_BYTES / 2;
-/// Ballot_id input is in HEX, each byte is represented in 2 chars.
+/// `Ballot_id` input is in HEX, each byte is represented in 2 chars.
 pub const BALLOT_ID_LENGTH_CHARS: usize = BALLOT_ID_LENGTH_BYTES * 2;
 
 /// Helper for creating and posting signed electoral-log messages.
@@ -65,10 +77,11 @@ pub struct ElectoralLog {
 }
 
 /// If the list contains exactly one election id, return it; otherwise return `None`.
+#[must_use]
 pub fn flatten_election_ids(election_ids: Option<Vec<String>>) -> Option<String> {
     election_ids.and_then(|ids| {
         if ids.len() == 1 {
-            Some(ids[0].clone())
+            ids.first().cloned()
         } else {
             None
         }
@@ -77,7 +90,7 @@ pub fn flatten_election_ids(election_ids: Option<Vec<String>>) -> Option<String>
 
 impl ElectoralLog {
     #[instrument(err, name = "ElectoralLog::new")]
-    /// Create a new ElectoralLog.
+    /// Create a new `ElectoralLog`.
     ///
     /// # Errors
     ///
@@ -110,7 +123,7 @@ impl ElectoralLog {
     }
 
     #[instrument(skip(sender_sk), err)]
-    /// Create a new ElectoralLog from a signing key.
+    /// Create a new `ElectoralLog` from a signing key.
     ///
     /// # Errors
     ///
@@ -285,7 +298,7 @@ impl ElectoralLog {
     ///
     /// Because admin users are cross election event entities, a
     /// dummy election event id will be used instead, with value
-    /// electoral_log::messages::Message:GENERIC_EVENT.
+    /// `electoral_log::messages::Message:GENERIC_EVENT`.
     ///
     /// FIXME: it may be necessary to implement a tenant-wide electoral
     /// log to save this type of message. An admin user could be created
@@ -915,7 +928,7 @@ impl ElectoralLog {
         .await
     }
 
-    /// Builds a keycloak event message and returns the resulting ElectoralLogMessage.
+    /// Builds a keycloak event message and returns the resulting `ElectoralLogMessage`.
     ///
     /// # Errors
     ///
@@ -945,7 +958,7 @@ impl ElectoralLog {
         Ok(board_message)
     }
 
-    /// Builds a send-template message and returns the resulting ElectoralLogMessage.
+    /// Builds a send-template message and returns the resulting `ElectoralLogMessage`.
     ///
     /// # Errors
     ///
@@ -970,7 +983,7 @@ impl ElectoralLog {
             message_body,
             area_id,
         )
-        .map_err(|e| anyhow!("Error creating send template message: {:?}", e))?;
+        .map_err(|e| anyhow!("Error creating send template message: {e:?}"))?;
         let board_message: ElectoralLogMessage = message.try_into()?;
         Ok(board_message)
     }
@@ -997,7 +1010,7 @@ impl ElectoralLog {
                 result.map_err(|err| anyhow::Error::new(err).context("Failed to read CSV row"))?;
             let message: &Message =
                 &Message::strand_deserialize(&general_purpose::STANDARD_NO_PAD.decode(&row.data)?)
-                    .map_err(|err| anyhow!("Failed to deserialize message: {:?}", err))?;
+                    .map_err(|err| anyhow!("Failed to deserialize message: {err:?}"))?;
             let electoral_log_message: ElectoralLogMessage = message.try_into()?;
             messages.push(electoral_log_message);
 
@@ -1067,6 +1080,7 @@ impl GetElectoralLogBody {
     ///
     /// Returns an error if the SQL clauses cannot be built.
     #[instrument(ret)]
+    #[allow(clippy::too_many_lines)]
     fn as_sql(&self, to_count: bool) -> Result<(String, Vec<NamedParam>)> {
         let mut clauses = Vec::new();
         let mut params = Vec::new();
@@ -1081,23 +1095,23 @@ impl GetElectoralLogBody {
                 match field {
                     OrderField::Id => { // sql INTEGER type
                         let int_value: i64 = value.parse()?;
-                        where_clauses.push(format!("id = @{}", param_name));
+                        where_clauses.push(format!("id = @{param_name}"));
                         params.push(create_named_param(param_name, Value::N(int_value)));
                     }
                     OrderField::SenderPk | OrderField::UserId | OrderField::Username | OrderField::BallotId | OrderField::StatementKind | OrderField::Version => { // sql VARCHAR type
-                        where_clauses.push(format!("{field} LIKE @{}", param_name));
-                        params.push(create_named_param(param_name, Value::S(value.to_string())));
+                        where_clauses.push(format!("{field} LIKE @{param_name}"));
+                        params.push(create_named_param(param_name, Value::S(value.clone())));
                     }
                     OrderField::StatementTimestamp | OrderField::Created => { // sql TIMESTAMP type
                         // these have their own column and are inside of Message´s column as well
                         let datetime = ISO8601::to_date_utc(value)
-                            .map_err(|err| anyhow!("Failed to parse timestamp: {:?}", err))?;
+                            .map_err(|err| anyhow!("Failed to parse timestamp: {err:?}"))?;
                         let ts: i64 = datetime.timestamp();
                         let ts_end: i64 = ts
                             .checked_add(60)
                             .expect("timestamp search end overflow"); // Search along that minute; seconds are not specified by the client.
                         let param_name_end = format!("{param_name}_end");
-                        where_clauses.push(format!("{field} >= @{} AND {field} < @{}", param_name, param_name_end));
+                        where_clauses.push(format!("{field} >= @{param_name} AND {field} < @{param_name_end}"));
                         params.push(create_named_param(param_name, Value::Ts(ts)));
                         params.push(create_named_param(param_name_end, Value::Ts(ts_end)));
                     }
@@ -1109,7 +1123,7 @@ impl GetElectoralLogBody {
             if !where_clauses.is_empty() {
                 clauses.push(format!("WHERE {}", where_clauses.join(" AND ")));
             }
-        };
+        }
 
         // Build a single extra clause.
         // This clause returns rows if:
@@ -1135,10 +1149,10 @@ impl GetElectoralLogBody {
                     let placeholders: Vec<String> = area_ids
                         .iter()
                         .enumerate()
-                        .map(|(i, _)| format!("@param_area{}", i))
+                        .map(|(i, _)| format!("@param_area{i}"))
                         .collect();
                     for (i, area) in area_ids.iter().enumerate() {
-                        let param_name = format!("param_area{}", i);
+                        let param_name = format!("param_area{i}");
                         params.push(create_named_param(
                             param_name.clone(),
                             Value::S(area.clone()),
@@ -1175,18 +1189,15 @@ impl GetElectoralLogBody {
         }
 
         if !extra_where_clauses.is_empty() {
-            match clauses.len() {
-                0 => {
-                    clauses.push(format!("WHERE {}", extra_where_clauses.join(" AND ")));
-                }
-                _ => {
-                    let where_clause = clauses.pop().ok_or(anyhow!("Empty clause"))?;
-                    clauses.push(format!(
-                        "{} AND {}",
-                        where_clause,
-                        extra_where_clauses.join(" AND ")
-                    ));
-                }
+            if clauses.is_empty() {
+                clauses.push(format!("WHERE {}", extra_where_clauses.join(" AND ")));
+            } else {
+                let where_clause = clauses.pop().ok_or(anyhow!("Empty clause"))?;
+                clauses.push(format!(
+                    "{} AND {}",
+                    where_clause,
+                    extra_where_clauses.join(" AND ")
+                ));
             }
         }
 
@@ -1219,7 +1230,7 @@ impl GetElectoralLogBody {
         if !to_count && self.offset.is_some() {
             let offset_param_name = String::from("offset");
             let offset = std::cmp::max(self.offset.unwrap_or(0), 0);
-            clauses.push(format!("OFFSET @{}", offset_param_name));
+            clauses.push(format!("OFFSET @{offset_param_name}"));
             params.push(create_named_param(offset_param_name, Value::N(offset)));
         }
 
@@ -1255,36 +1266,43 @@ pub struct StatementHeadDataString {
 
 impl ElectoralLogRow {
     /// Database id of the log row.
-    pub fn id(&self) -> i64 {
+    #[must_use]
+    pub const fn id(&self) -> i64 {
         self.id
     }
 
     /// Row creation time.
-    pub fn created(&self) -> i64 {
+    #[must_use]
+    pub const fn created(&self) -> i64 {
         self.created
     }
 
     /// Statement timestamp from immudb.
-    pub fn statement_timestamp(&self) -> i64 {
+    #[must_use]
+    pub const fn statement_timestamp(&self) -> i64 {
         self.statement_timestamp
     }
 
     /// Statement kind string (e.g. cast vote vs audit).
+    #[must_use]
     pub fn statement_kind(&self) -> &str {
         &self.statement_kind
     }
 
     /// JSON string of the deserialized message payload.
+    #[must_use]
     pub fn message(&self) -> &str {
         &self.message
     }
 
     /// User id associated with the statement, if present.
+    #[must_use]
     pub fn user_id(&self) -> Option<&str> {
         self.user_id.as_deref()
     }
 
     /// Username associated with the statement, if present.
+    #[must_use]
     pub fn username(&self) -> Option<&str> {
         self.username.as_deref()
     }
@@ -1317,7 +1335,7 @@ impl ElectoralLogRow {
         };
 
         let data: StatementHeadDataString = deserialize_value(head.clone())
-            .map_err(|err| anyhow!(format!("{:?}, Failed to parse head: {}", err, head)))?;
+            .map_err(|err| anyhow!(format!("{err:?}, Failed to parse head: {head}")))?;
 
         Ok(data)
     }
@@ -1351,9 +1369,9 @@ impl TryFrom<&Row> for ElectoralLogRow {
     fn try_from(row: &Row) -> Result<Self, Self::Error> {
         let mut id = 0;
         let mut created: i64 = 0;
-        let mut sender_pk = String::from("");
+        let mut sender_pk = String::new();
         let mut statement_timestamp: i64 = 0;
-        let mut statement_kind = String::from("");
+        let mut statement_kind = String::new();
         let mut message = vec![];
         let mut user_id = None;
         let mut username = None;
@@ -1361,33 +1379,31 @@ impl TryFrom<&Row> for ElectoralLogRow {
         for (column, value) in row.columns.iter().zip(row.values.iter()) {
             match column.as_str() {
                 c if c.ends_with(".id)") => {
-                    assign_value!(Value::N, value, id)
+                    assign_value!(Value::N, value, id);
                 }
                 c if c.ends_with(".created)") => {
-                    assign_value!(Value::Ts, value, created)
+                    assign_value!(Value::Ts, value, created);
                 }
                 c if c.ends_with(".sender_pk)") => {
-                    assign_value!(Value::S, value, sender_pk)
+                    assign_value!(Value::S, value, sender_pk);
                 }
                 c if c.ends_with(".statement_timestamp)") => {
-                    assign_value!(Value::Ts, value, statement_timestamp)
+                    assign_value!(Value::Ts, value, statement_timestamp);
                 }
                 c if c.ends_with(".statement_kind)") => {
-                    assign_value!(Value::S, value, statement_kind)
+                    assign_value!(Value::S, value, statement_kind);
                 }
                 c if c.ends_with(".message)") => {
-                    assign_value!(Value::Bs, value, message)
+                    assign_value!(Value::Bs, value, message);
                 }
                 c if c.ends_with(".user_id)") => match value.value.as_ref() {
                     Some(Value::S(inner)) => user_id = Some(inner.clone()),
-                    Some(Value::Null(_)) => user_id = None,
-                    None => user_id = None,
+                    Some(Value::Null(_)) | None => user_id = None,
                     _ => return Err(anyhow!("invalid column value for 'user_id'")),
                 },
                 c if c.ends_with(".username)") => match value.value.as_ref() {
                     Some(Value::S(inner)) => username = Some(inner.clone()),
-                    Some(Value::Null(_)) => username = None,
-                    None => username = None,
+                    Some(Value::Null(_)) | None => username = None,
                     _ => return Err(anyhow!("invalid column value for 'username'")),
                 },
                 _ => return Err(anyhow!("invalid column found '{}'", column.as_str())),
@@ -1441,7 +1457,7 @@ impl CastVoteEntry {
         let ballot_id = entry.ballot_id.clone().unwrap_or_default();
         let username = entry.username.clone();
         let message: &Message = &Message::strand_deserialize(&entry.message)
-            .map_err(|err| anyhow!("Failed to deserialize message: {:?}", err))?;
+            .map_err(|err| anyhow!("Failed to deserialize message: {err:?}"))?;
         let message = Some(message.to_string());
 
         Ok(Some(CastVoteEntry {
@@ -1492,7 +1508,7 @@ pub async fn list_electoral_log(input: GetElectoralLogBody) -> Result<DataList<E
     info!("query: {sql}");
     let sql_query_response = client.streaming_sql_query(&sql, params).await?;
 
-    let limit: usize = input.limit.unwrap_or(IMMUDB_ROWS_LIMIT as i64).try_into()?;
+    let limit: usize = input.limit.unwrap_or(IMMUDB_ROWS_LIMIT_I64).try_into()?;
     info!("list_electoral_log: limit = {}", limit);
     let mut rows: Vec<ElectoralLogRow> = Vec::with_capacity(limit);
     let mut resp_stream = sql_query_response.into_inner();
@@ -1505,7 +1521,7 @@ pub async fn list_electoral_log(input: GetElectoralLogBody) -> Result<DataList<E
         rows.extend(items);
     }
 
-    let sql = format!(
+    let count_sql = format!(
         r"
         SELECT
             COUNT(*)
@@ -1513,8 +1529,8 @@ pub async fn list_electoral_log(input: GetElectoralLogBody) -> Result<DataList<E
         {clauses_to_count}
         ",
     );
-    let sql_query_response = client.sql_query(&sql, count_params).await?;
-    let mut rows_iter = sql_query_response
+    let count_sql_response = client.sql_query(&count_sql, count_params).await?;
+    let mut rows_iter = count_sql_response
         .get_ref()
         .rows
         .iter()
@@ -1566,13 +1582,13 @@ pub fn get_cols_match_count_and_select(
     (cols_match_count, cols_match_select)
 }
 
-/// Returns the entries for statement_kind = "CastVote" which ballot_id matches the input
-/// ballot_id_filter is restricted to be an even number of characters, so that can be converted
+/// Returns the entries for `statement_kind` = `CastVote` which `ballot_id` matches the input
+/// `ballot_id_filter` is restricted to be an even number of characters, so that can be converted
 /// to a byte array
 ///
 /// # Errors
 ///
-/// Returns an error if the ballot_id is incorrect, the SQL cannot be built, or the query fails.
+/// Returns an error if the `ballot_id` is incorrect, the SQL cannot be built, or the query fails.
 ///
 /// # Panics
 ///
@@ -1590,7 +1606,7 @@ pub async fn list_cast_vote_messages(
     );
     // The limits are used to cut the output after filtering the ballot id.
     // Because ballot_id cannot be filtered at SQL level the sql limit is constant
-    let output_limit: i64 = input.limit.unwrap_or(MAX_ROWS_PER_PAGE as i64);
+    let output_limit: i64 = input.limit.unwrap_or(MAX_ROWS_PER_PAGE_I64);
     let slug = std::env::var("ENV_SLUG").with_context(|| "missing env var ENV_SLUG")?;
     let board_name = get_event_board(
         input.tenant_id.as_str(),
@@ -1601,22 +1617,31 @@ pub async fn list_cast_vote_messages(
     let order_by = input.order_by.clone();
     let election_id = input.election_id.clone().unwrap_or_default();
 
-    let limit: i64 = match ballot_id_filter.is_empty() {
-        false => IMMUDB_ROWS_LIMIT as i64, // When there is a filter, need to fetch all entries by batches.
-        true => input.limit.unwrap_or(MAX_ROWS_PER_PAGE as i64),
+    let limit: i64 = if ballot_id_filter.is_empty() {
+        input.limit.unwrap_or(MAX_ROWS_PER_PAGE_I64)
+    } else {
+        IMMUDB_ROWS_LIMIT_I64 // When there is a filter, need to fetch all entries by batches.
     };
     let mut offset: i64 = input.offset.unwrap_or(0);
     let mut list: Vec<CastVoteEntry> = Vec::with_capacity(MAX_ROWS_PER_PAGE); // Filtered messages.
     let (cols_match_count, cols_match_select) =
         get_cols_match_count_and_select(&election_id, user_id, ballot_id_filter);
     let mut client = get_board_client().await?;
-    let total = client
-        .count_electoral_log_messages(&board_name, Some(cols_match_count))
-        .await?
-        .to_u64()
-        .unwrap_or(0) as usize;
+    let total = usize::try_from(
+        client
+            .count_electoral_log_messages(&board_name, Some(cols_match_count))
+            .await?
+            .to_u64()
+            .unwrap_or(0),
+    )
+    .unwrap_or(0);
     let mut filter_matched = false; // Exit at the first match if the filter is not empty
-    while (list.len() as i64) < output_limit && (offset < total as i64) && !filter_matched {
+    let total_i64 = i64::try_from(total).with_context(|| "total to i64 conversion overflow")?;
+    while i64::try_from(list.len()).with_context(|| "list.len to i64 conversion overflow")?
+        < output_limit
+        && offset < total_i64
+        && !filter_matched
+    {
         let electoral_log_messages = client
             .get_electoral_log_messages_filtered(
                 &board_name,
@@ -1628,11 +1653,11 @@ pub async fn list_cast_vote_messages(
                 order_by.clone(),
             )
             .await
-            .map_err(|err| anyhow!("Failed to get filtered messages: {:?}", err))?;
+            .map_err(|err| anyhow!("Failed to get filtered messages: {err:?}"))?;
 
         let t_entries = electoral_log_messages.len();
         info!("Got {t_entries} entries. Offset: {offset}, limit: {limit}, total: {total}");
-        for message in electoral_log_messages.iter() {
+        for message in &electoral_log_messages {
             match CastVoteEntry::from_elog_message(message)? {
                 Some(entry) if !ballot_id_filter.is_empty() => {
                     // If there is filter exit at the first match
@@ -1645,7 +1670,10 @@ pub async fn list_cast_vote_messages(
                 }
                 None => {}
             }
-            if (list.len() as i64) >= output_limit || filter_matched {
+            if i64::try_from(list.len()).with_context(|| "list.len to i64 conversion overflow")?
+                >= output_limit
+                || filter_matched
+            {
                 break;
             }
         }

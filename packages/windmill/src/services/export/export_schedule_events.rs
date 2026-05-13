@@ -72,7 +72,7 @@ pub async fn write_export_document(
         ]
     };
 
-    let name = format!("scheduled_events-{}", election_event_id);
+    let name = format!("scheduled_events-{election_event_id}");
 
     let mut writer = Writer::from_writer(vec![]);
     writer.write_record(&headers)?;
@@ -82,7 +82,7 @@ pub async fn write_export_document(
             .as_object()
             .ok_or_else(|| anyhow!("Failed to convert ScheduledEvent to JSON object"))?
             .values()
-            .map(|value| value.to_string())
+            .map(std::string::ToString::to_string)
             .collect();
 
         writer.write_record(&values)?;

@@ -285,10 +285,10 @@ pub async fn get_admin_user_signing_key(
 
 /// Secret key name used to store a voter's signing key for an election event.
 fn voter_vault_lookup_key(tenant_id: &str, event_id: &str, user_id: &str) -> String {
-    format!("voter_signing_key-{}-{}-{}", tenant_id, event_id, user_id)
+    format!("voter_signing_key-{tenant_id}-{event_id}-{user_id}")
 }
 
 /// Secret key name used to store an admin user's signing key.
 fn admin_vault_lookup_key(tenant_id: &str, user_id: &str) -> String {
-    format!("admin_signing_key-{}-{}", tenant_id, user_id)
+    format!("admin_signing_key-{tenant_id}-{user_id}")
 }

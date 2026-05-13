@@ -55,7 +55,7 @@ fn get_variables(
     tenant_id: String,
     auth_action: AuthAction,
 ) -> Result<Map<String, Value>> {
-    let mut variables: Map<String, Value> = Default::default();
+    let mut variables: Map<String, Value> = Map::default();
     variables.insert(
         "user".to_string(),
         json!({
@@ -98,14 +98,14 @@ fn get_variables(
 /// Fails on template render errors or SMS provider failures.
 #[instrument(skip(sender), err)]
 async fn send_template_sms(
-    receiver: &Option<String>,
-    template: &Option<SmsConfig>,
+    receiver: Option<&String>,
+    template: Option<&SmsConfig>,
     variables: &Map<String, Value>,
     sender: &SmsSender,
 ) -> Result<Option<String>> {
     if let (Some(receiver), Some(config)) = (receiver, template) {
         let message = reports::render_template_text(config.message.as_str(), variables.clone())
-            .map_err(|err| anyhow!("{}", err))?;
+            .map_err(|err| anyhow!("{err}"))?;
 
         sender.send(receiver.into(), message.clone()).await?;
         return Ok(Some(
@@ -151,7 +151,7 @@ pub async fn send_template_email(
 
         sender
             .send(
-                vec![receiver.to_string()],
+                vec![receiver.clone()],
                 subject.clone(),
                 plaintext_body.clone(),
                 html_body.clone(),
@@ -201,7 +201,10 @@ struct Metrics {
 /// # Panics
 ///
 /// Panics if counters overflow `i64` (pathological send volume).
-fn update_metrics_unit(metrics_unit: &mut MetricsUnit, communication_method: &TemplateMethod) {
+const fn update_metrics_unit(
+    metrics_unit: &mut MetricsUnit,
+    communication_method: &TemplateMethod,
+) {
     match communication_method {
         TemplateMethod::EMAIL => {
             metrics_unit.num_emails_sent = metrics_unit
@@ -216,7 +219,7 @@ fn update_metrics_unit(metrics_unit: &mut MetricsUnit, communication_method: &Te
                 .expect("num_sms_sent overflow");
         }
         TemplateMethod::DOCUMENT => {}
-    };
+    }
 }
 
 /// Updates in-memory metrics for the event and for each election tied to the user’s area after a successful send.
@@ -249,17 +252,17 @@ fn update_metrics(
         );
         return;
     };
-    election_ids.iter().for_each(|election_id| {
+    for election_id in election_ids {
         metrics
             .metrics_by_election_id
             .entry(election_id.clone())
             .and_modify(|metrics_unit| update_metrics_unit(metrics_unit, communication_method))
             .or_insert_with(|| {
-                let mut metrics_unit = Default::default();
+                let mut metrics_unit = MetricsUnit::default();
                 update_metrics_unit(&mut metrics_unit, communication_method);
                 metrics_unit
             });
-    });
+    }
 }
 
 /// Persists aggregated email/SMS counts to election event and per-election statistics.
@@ -274,7 +277,7 @@ fn update_metrics(
 async fn update_stats(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
-    election_event_id: &Option<String>,
+    election_event_id: Option<&String>,
     metrics: &Metrics,
 ) -> Result<()> {
     let Some(election_event_id) = election_event_id else {
@@ -298,12 +301,12 @@ async fn update_stats(
         .await
         .with_context(|| "can't updated election event statistics")?;
     }
-    for (election_id, election_metrics) in metrics.metrics_by_election_id.iter() {
-        let totals = election_metrics
+    for (election_id, election_metrics) in &metrics.metrics_by_election_id {
+        let election_totals = election_metrics
             .num_emails_sent
             .checked_add(election_metrics.num_sms_sent)
             .expect("election metrics totals overflow");
-        if totals > 0 {
+        if election_totals > 0 {
             update_election_statistics(
                 hasura_transaction,
                 tenant_id,
@@ -376,7 +379,14 @@ mod send_template_task {
     #![allow(missing_docs)]
     #![allow(clippy::missing_docs_in_private_items)]
 
-    use super::*;
+    use super::{
+        anyhow, event, get_celery_app, get_election_event_by_id_if_exist, get_elections_by_area,
+        get_event_realm, get_hasura_pool, get_keycloak_pool, get_tenant_realm, instrument,
+        list_users, list_users_with_vote_info, send_template_email_or_sms, update_metrics,
+        update_stats, AudienceSelection, Context, DbClient, Default, EmailSender, Error, HashMap,
+        Level, ListUsersFilter, Metrics, MetricsUnit, PgConfig, Result, SendTemplateBody,
+        SmsSender, TaskError,
+    };
 
     /// Celery task: send templates (email/SMS) to users.
     #[instrument(err)]
@@ -421,7 +431,7 @@ mod send_template_task {
             .await
             .get()
             .await
-            .map_err(|err| anyhow!("{}", err))?;
+            .map_err(|err| anyhow!("{err}"))?;
         let batch_size = PgConfig::from_env()?.default_sql_batch_size;
 
         let Some(audience_selection) = body.audience_selection.clone() else {
@@ -447,7 +457,7 @@ mod send_template_task {
             .await
             .with_context(|| "can't set transaction isolation level")?;
         event!(Level::INFO, "after isolation");
-        let mut hasura_db_client: DbClient = get_hasura_pool()
+        let mut new_hasura_db_client: DbClient = get_hasura_pool()
             .await
             .get()
             .await
@@ -465,7 +475,7 @@ mod send_template_task {
         };
 
         loop {
-            let hasura_transaction = hasura_db_client
+            let new_hasura_transaction = new_hasura_db_client
                 .transaction()
                 .await
                 .with_context(|| "Error creating a transaction")?;
@@ -494,11 +504,15 @@ mod send_template_task {
 
             let (users, total_count) = match audience_selection {
                 AudienceSelection::NOT_VOTED | AudienceSelection::VOTED => {
-                    list_users_with_vote_info(&hasura_transaction, &keycloak_transaction, filter)
-                        .await
-                        .with_context(|| "Failed to featch list_users_with_vote_info")?
+                    list_users_with_vote_info(
+                        &new_hasura_transaction,
+                        &keycloak_transaction,
+                        filter,
+                    )
+                    .await
+                    .with_context(|| "Failed to featch list_users_with_vote_info")?
                 }
-                _ => list_users(&hasura_transaction, &keycloak_transaction, filter)
+                _ => list_users(&new_hasura_transaction, &keycloak_transaction, filter)
                     .await
                     .with_context(|| "Failed to featch list_users")?,
             };
@@ -506,18 +520,15 @@ mod send_template_task {
             let mut filtered_users = users.clone();
 
             match audience_selection {
-                AudienceSelection::NOT_VOTED => filtered_users.retain(|user| {
-                    user.votes_info
-                        .as_ref()
-                        .is_some_and(|vote_info| vote_info.is_empty())
-                }),
+                AudienceSelection::NOT_VOTED => filtered_users
+                    .retain(|user| user.votes_info.as_ref().is_some_and(Vec::is_empty)),
                 AudienceSelection::VOTED => filtered_users.retain(|user| {
                     user.votes_info
                         .as_ref()
                         .is_some_and(|vote_info| !vote_info.is_empty())
                 }),
                 _ => {}
-            };
+            }
 
             let email_sender = EmailSender::new().await?;
             let sms_sender = SmsSender::new().await?;
@@ -526,16 +537,16 @@ mod send_template_task {
                     num_emails_sent: 0,
                     num_sms_sent: 0,
                 },
-                metrics_by_election_id: Default::default(),
+                metrics_by_election_id: HashMap::default(),
             };
 
             let Some(communication_method) = body.communication_method.clone() else {
                 return Err(Error::String("Missing template method".into()));
             };
 
-            for user in filtered_users.iter() {
+            for user in &filtered_users {
                 let success = send_template_email_or_sms(
-                    &hasura_transaction,
+                    &new_hasura_transaction,
                     user,
                     &election_event,
                     &tenant_id,
@@ -563,15 +574,15 @@ mod send_template_task {
 
             // update stats
             update_stats(
-                &hasura_transaction,
+                &new_hasura_transaction,
                 &tenant_id,
-                &election_event_id,
+                election_event_id.as_ref(),
                 &metrics,
             )
             .await
             .with_context(|| "Error updating stats")?;
 
-            hasura_transaction
+            new_hasura_transaction
                 .commit()
                 .await
                 .with_context(|| "Error committing update stats transaction")?;
@@ -591,9 +602,9 @@ mod send_template_task {
 pub use send_template_task::send_template;
 
 /// In the case of rejection:
-/// admin_id and election_event are not needed so both can be set to None.
+/// `admin_id` and `election_event` are not needed so both can be set to None.
 ///
-/// Since there is no user_id, the User object must be constructed from the data in applications table and its id set to None.
+/// Since there is no `user_id`, the User object must be constructed from the data in applications table and its id set to None.
 ///
 /// Also we do not write the rejections in the Elecoral log since anyone can apply, it would overbloat the electoral log.
 ///
@@ -622,7 +633,7 @@ pub async fn send_template_email_or_sms(
         id = user.id,
         email = user.email,
     );
-    let admin_id = admin_id_opt.unwrap_or("".into());
+    let admin_id = admin_id_opt.unwrap_or_default();
     let variables: Map<String, Value> = get_variables(
         user,
         election_event.clone(),
@@ -676,10 +687,10 @@ pub async fn send_template_email_or_sms(
         }
         Some(TemplateMethod::SMS) => {
             let sending_result = send_template_sms(
-                /* receiver */ &user.get_mobile_phone(),
-                /* template */ sms_config,
-                /* variables */ &variables,
-                /* sender */ sms_sender,
+                user.get_mobile_phone().as_ref(),
+                sms_config.as_ref(),
+                &variables,
+                sms_sender,
             )
             .await;
             match sending_result {

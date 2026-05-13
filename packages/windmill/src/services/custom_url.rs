@@ -103,7 +103,7 @@ enum ActionValue {
 #[derive(Debug, Serialize, Deserialize)]
 /// Cloudflare page rule action entry.
 struct Action {
-    /// Action identifier (e.g. "forwarding_url").
+    /// Action identifier (e.g. `forwarding_url`).
     id: String,
     /// Action payload.
     value: ActionValue,
@@ -155,11 +155,7 @@ pub async fn get_dns_record(record_name: &str) -> Result<Option<DnsRecord>, Box<
 ///
 /// # Errors
 ///
-/// Returns an error if fetching/updating DNS records or page rules fails.
-///
-/// # Panics
-///
-/// Panics if `key` is not one of: `"login"`, `"enrollment"`, or `"saml"`.
+/// Returns an error if fetching/updating DNS records or page rules fails, or if `key` is invalid.
 pub async fn set_custom_url(
     origin: &str,
     redirect_to: &str,
@@ -175,7 +171,7 @@ pub async fn set_custom_url(
         "login" => &prev_custom_urls.login,
         "enrollment" => &prev_custom_urls.enrollment,
         "saml" => &prev_custom_urls.saml,
-        _ => panic!("Invalid key provided"),
+        _ => return Err(format!("Invalid key provided: {key}").into()),
     };
 
     let current_dns_record = match get_dns_record(current_prev_url).await {
@@ -190,23 +186,19 @@ pub async fn set_custom_url(
         }
     };
 
-    match current_dns_record {
-        Some(dns_record) => {
-            if let Err(e) = update_dns_record(&dns_record.id, redirect_to, dns_prefix).await {
-                let error_message = format!("Failed to update DNS record: {e}");
-                error!("{}", error_message);
-                return Err(error_message.into());
-            }
-            info!("DNS record updated successfully.");
+    if let Some(dns_record) = current_dns_record {
+        if let Err(e) = update_dns_record(&dns_record.id, redirect_to, dns_prefix).await {
+            let error_message = format!("Failed to update DNS record: {e}");
+            error!("{}", error_message);
+            return Err(error_message.into());
         }
-        None => {
-            if let Err(e) = create_dns_record(redirect_to, dns_prefix).await {
-                let error_message = format!("Failed to create DNS record: {e}");
-                error!("{}", error_message);
-                return Err(error_message.into());
-            }
-            info!("DNS record created successfully.");
-        }
+        info!("DNS record updated successfully.");
+    } else if let Err(e) = create_dns_record(redirect_to, dns_prefix).await {
+        let error_message = format!("Failed to create DNS record: {e}");
+        error!("{}", error_message);
+        return Err(error_message.into());
+    } else {
+        info!("DNS record created successfully.");
     }
 
     let current_page_rule = match get_page_rule(origin).await {
@@ -221,23 +213,19 @@ pub async fn set_custom_url(
         }
     };
 
-    match current_page_rule {
-        Some(page_rule) => {
-            if let Err(e) = update_page_rule(&page_rule.id, redirect_to, origin).await {
-                let error_message = format!("Failed to update page rule: {e}");
-                error!("{}", error_message);
-                return Err(error_message.into());
-            }
-            info!("Page rule updated successfully.");
+    if let Some(page_rule) = current_page_rule {
+        if let Err(e) = update_page_rule(&page_rule.id, redirect_to, origin).await {
+            let error_message = format!("Failed to update page rule: {e}");
+            error!("{}", error_message);
+            return Err(error_message.into());
         }
-        None => {
-            if let Err(e) = create_page_rule(redirect_to, origin).await {
-                let error_message = format!("Failed to create page rule: {e}");
-                error!("{}", error_message);
-                return Err(error_message.into());
-            }
-            info!("Page rule created successfully.");
-        }
+        info!("Page rule updated successfully.");
+    } else if let Err(e) = create_page_rule(redirect_to, origin).await {
+        let error_message = format!("Failed to create page rule: {e}");
+        error!("{}", error_message);
+        return Err(error_message.into());
+    } else {
+        info!("Page rule created successfully.");
     }
 
     Ok(())
@@ -332,7 +320,11 @@ async fn get_all_dns_records() -> Result<Vec<DnsRecord>, Box<dyn Error>> {
 fn find_matching_dns_record(records: Vec<DnsRecord>, expected_name: &str) -> Option<DnsRecord> {
     info!("find_matching_dns_record expected_name:{}", expected_name);
     for record in records {
-        let name: Vec<String> = record.name.split(".").map(|s| s.to_owned()).collect();
+        let name: Vec<String> = record
+            .name
+            .split('.')
+            .map(std::borrow::ToOwned::to_owned)
+            .collect();
 
         if let Some(name) = name.first() {
             info!("name: {}", name);
@@ -412,15 +404,12 @@ pub async fn create_dns_record(redirect_to: &str, dns_prefix: &str) -> Result<()
     let (zone_id, api_key) = match get_cloudflare_vars() {
         Ok(vars) => vars,
         Err(e) => {
-            error!("Failed to get Cloudflare environment variables: {}", e);
+            error!("Failed to get Cloudflare environment variables: {e}");
             return Err(format!("Failed to get Cloudflare environment variables: {e}").into());
         }
     };
 
-    let url = format!(
-        "https://api.cloudflare.com/client/v4/zones/{}/dns_records",
-        zone_id
-    );
+    let url = format!("https://api.cloudflare.com/client/v4/zones/{zone_id}/dns_records",);
 
     let request_dns_body = create_dns_payload(dns_prefix);
     info!("DNS prefix {:?}", dns_prefix);
@@ -439,7 +428,7 @@ pub async fn create_dns_record(redirect_to: &str, dns_prefix: &str) -> Result<()
     };
 
     if response.status().is_success() {
-        println!("DNS record created successfully");
+        info!("DNS record created successfully");
         Ok(())
     } else {
         let body = match response.text().await {
@@ -472,10 +461,7 @@ pub async fn update_dns_record(
         }
     };
 
-    let url = format!(
-        "https://api.cloudflare.com/client/v4/zones/{}/dns_records/{}",
-        zone_id, id
-    );
+    let url = format!("https://api.cloudflare.com/client/v4/zones/{zone_id}/dns_records/{id}",);
 
     let request_dns_body = create_dns_payload(dns_prefix);
     info!("DNS prefix {:?}", dns_prefix);
@@ -494,7 +480,7 @@ pub async fn update_dns_record(
     };
 
     if response.status().is_success() {
-        println!("DNS record created successfully");
+        info!("DNS record created successfully");
         Ok(())
     } else {
         let body = match response.text().await {
@@ -526,8 +512,7 @@ async fn update_page_rule(
 
     let response = client
         .put(format!(
-            "https://api.cloudflare.com/client/v4/zones/{}/pagerules/{}",
-            zone_id, rule_id
+            "https://api.cloudflare.com/client/v4/zones/{zone_id}/pagerules/{rule_id}",
         ))
         .header("Authorization", format!("Bearer {api_key}"))
         .json(&request_body)
@@ -561,7 +546,7 @@ async fn create_page_rule(redirect_to: &str, origin: &str) -> Result<(), Box<dyn
             "https://api.cloudflare.com/client/v4/zones/{}/pagerules",
             &zone_id,
         ))
-        .header("Authorization", format!("Bearer {}", api_key))
+        .header("Authorization", format!("Bearer {api_key}"))
         .json(&request_body)
         .send()
         .await

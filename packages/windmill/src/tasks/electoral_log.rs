@@ -1,6 +1,6 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 // SPDX-License-Identifier: AGPL-3.0-only
-//! Electoral audit log enqueue, batch processing, and RabbitMQ dispatcher.
+//! Electoral audit log enqueue, batch processing, and `RabbitMQ` dispatcher.
 use crate::postgres::election_event::get_election_event_by_id;
 use crate::services::celery_app::get_celery_connection;
 use crate::services::celery_app::Queue;
@@ -79,9 +79,10 @@ pub enum LogEventBody {
 
 impl LogEventBody {
     /// Returns the single-line wire form of this body (same shape as JSON string values).
+    #[must_use]
     pub fn as_raw(&self) -> String {
         match self {
-            LogEventBody::Communications(msg) => format!("communications {}", msg),
+            LogEventBody::Communications(msg) => format!("communications {msg}"),
             LogEventBody::Plain(s) => s.clone(),
         }
     }
@@ -127,12 +128,18 @@ pub struct LogEventInput {
     pub body: LogEventBody,
 }
 
-/// Celery tasks for electoral log enqueue, batch processing, and the RabbitMQ dispatcher.
+/// Celery tasks for electoral log enqueue, batch processing, and the `RabbitMQ` dispatcher.
 mod electoral_log_tasks {
     #![allow(missing_docs)]
     #![allow(clippy::missing_docs_in_private_items)]
 
-    use super::*;
+    use super::{
+        anyhow, deserialize_str, get_board_client, get_celery_connection, get_election_event_board,
+        get_election_event_by_id, get_event_realm, get_hasura_pool, get_keycloak_pool,
+        get_user_area_id, info, instrument, BasicAckOptions, BasicGetOptions, Context, DbClient,
+        ElectoralLog, ElectoralLogMessage, FieldTable, HashMap, LogEventBody, LogEventInput,
+        LogMessageType, PgConfig, Queue, QueueDeclareOptions, Result, TaskError, TxMode,
+    };
 
     /// Enqueue the electoral log event.
     /// This task is routed to the durable electoral_log_batch_queue.
@@ -173,7 +180,7 @@ mod electoral_log_tasks {
             .await
             .with_context(|| "Error starting keycloak transaction")?;
 
-        for input in events.iter() {
+        for input in &events {
             let election_event =
                 get_election_event_by_id(&hasura_tx, &input.tenant_id, &input.election_event_id)
                     .await
@@ -249,7 +256,7 @@ mod electoral_log_tasks {
             .await
             .with_context(|| "Error committing Hasura transaction")?;
 
-        for (board, messages) in messages_by_board.into_iter() {
+        for (board, messages) in messages_by_board {
             let mut board_client = get_board_client().await?;
             board_client.open_session(&board).await?;
             let immudb_tx = board_client.new_tx(TxMode::ReadWrite).await?;
@@ -257,13 +264,10 @@ mod electoral_log_tasks {
                 .insert_electoral_log_messages_batch(&immudb_tx, &messages)
                 .await
                 .with_context(|| {
-                    format!(
-                        "Error inserting batch electoral log messages for board {}",
-                        board
-                    )
+                    format!("Error inserting batch electoral log messages for board {board}",)
                 })?;
             board_client.commit(&immudb_tx).await.with_context(|| {
-                format!("Error committing immudb transaction for board {}", board)
+                format!("Error committing immudb transaction for board {board}")
             })?;
             board_client.close_session().await?;
         }
@@ -342,7 +346,9 @@ mod electoral_log_tasks {
                                 .into(),
                         );
                     }
-                    let payload = &arr[1];
+                    let payload = arr.get(1).ok_or_else(|| {
+                        anyhow!("Invalid message format: expected array with at least 2 elements")
+                    })?;
                     let input_value = payload
                         .get("input")
                         .ok_or_else(|| anyhow!("Missing 'input' field in message payload"))?;

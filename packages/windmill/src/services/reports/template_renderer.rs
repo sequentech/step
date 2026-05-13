@@ -40,7 +40,7 @@ use sequent_core::types::templates::{
     ReportOptions, SendTemplateBody, SmsConfig,
 };
 use sequent_core::types::to_map::ToMap;
-use sequent_core::util::temp_path::*;
+use sequent_core::util::temp_path::{generate_temp_file, get_file_size, read_temp_path};
 use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
 use std::fs;
@@ -187,19 +187,19 @@ pub trait TemplateRenderer: Debug {
         -> Result<Self::SystemData>;
 
     /// Default implementation, can be overridden but is not recommended!.
-    /// Returns None only if no template was chosen and/or none was found in DB, then TemplateRenderer will use the default template.
+    /// Returns None only if no template was chosen and/or none was found in DB, then `TemplateRenderer` will use the default template.
     ///
     /// For reports generated from Reports tab:
-    /// If no initial template_alias is provided at creation of the report object, then None is returned.
+    /// If no initial `template_alias` is provided at creation of the report object, then None is returned.
     ///
-    /// For Report types from the voting portal (like in ballot_receipt):
-    /// No template_alias is provided (because the voter cannot choose) so the first match found in DB will be used
+    /// For Report types from the voting portal (like in `ballot_receipt`):
+    /// No `template_alias` is provided (because the voter cannot choose) so the first match found in DB will be used
     /// and the UI should restrict to add only one template for that type.
     ///
     /// For reports generated from a export button:
-    /// No template_alias is provided from the UI at the moment, then it must be retrieved from postgres as well.
+    /// No `template_alias` is provided from the UI at the moment, then it must be retrieved from postgres as well.
     /// Default implementation, can be overridden in specific reports that have
-    /// election_id
+    /// `election_id`.
     #[instrument(skip(self))]
     fn get_election_id(&self) -> Option<String> {
         None
@@ -264,12 +264,9 @@ pub trait TemplateRenderer: Debug {
         .with_context(|| "Error getting template alias for report")?;
         info!("template_alias: {:?}", &report_template_alias);
 
-        let template_alias = match report_template_alias {
-            Some(alias) => alias,
-            None => {
-                warn!("No template alias was found for report type: {report_type} when trying to get the custom user template.");
-                return Ok(None);
-            }
+        let Some(template_alias) = report_template_alias else {
+            warn!("No template alias was found for report type: {report_type} when trying to get the custom user template.");
+            return Ok(None);
         };
 
         let template_table_opt = template::get_template_by_alias(
@@ -282,22 +279,17 @@ pub trait TemplateRenderer: Debug {
 
         // Template table has a column with the same name "Template" which stores a Value,
         // being its atributes: document, sms, pdf_options, etc.
-        match template_table_opt {
-            Some(template_tbl) => {
-                let template_data: SendTemplateBody = deserialize_value(template_tbl.template)
-                    .map_err(|e| {
-                        anyhow!(format!("Error deserializing custom user template: {e:?}"))
-                    })?;
-                Ok(Some(template_data))
-            }
-            None => {
-                warn!("No {} template was found by id", self.base_name());
-                return Ok(None);
-            }
+        if let Some(template_tbl) = template_table_opt {
+            let template_data: SendTemplateBody = deserialize_value(template_tbl.template)
+                .map_err(|e| anyhow!(format!("Error deserializing custom user template: {e:?}")))?;
+            Ok(Some(template_data))
+        } else {
+            warn!("No {} template was found by id", self.base_name());
+            Ok(None)
         }
     }
 
-    /// Get the default ReportExtraConfig from the _extra_config file and
+    /// Get the default `ReportExtraConfig` from the extra config file and
     /// for any passed option that is None its default value is filled.
     #[instrument(err, skip_all)]
     async fn fill_extra_config_with_default(
@@ -307,31 +299,29 @@ pub trait TemplateRenderer: Debug {
         tpl_email_config: Option<EmailConfig>,
         tpl_sms_config: Option<SmsConfig>,
     ) -> Result<ReportExtraConfig> {
-        let (pdf_options, report_options, email_config, sms_config) = match tpl_pdf_options
-            .is_none()
+        let (pdf_options, report_options, email_config, sms_config) = if tpl_pdf_options.is_none()
             || tpl_report_options.is_none()
             || tpl_email_config.is_none()
             || tpl_sms_config.is_none()
         {
-            true => {
-                let def_ext_cfg: ReportExtraConfig = self
-                    .get_default_extra_config()
-                    .await
-                    .map_err(|e| anyhow!("Error getting default extra config: {e:?}"))?;
-                debug!("Default extra config read: {def_ext_cfg:?}");
-                (
-                    tpl_pdf_options.unwrap_or(def_ext_cfg.pdf_options),
-                    tpl_report_options.unwrap_or(def_ext_cfg.report_options),
-                    tpl_email_config.unwrap_or(def_ext_cfg.communication_templates.email_config),
-                    tpl_sms_config.unwrap_or(def_ext_cfg.communication_templates.sms_config),
-                )
-            }
-            false => (
+            let def_ext_cfg: ReportExtraConfig = self
+                .get_default_extra_config()
+                .await
+                .map_err(|e| anyhow!("Error getting default extra config: {e:?}"))?;
+            debug!("Default extra config read: {def_ext_cfg:?}");
+            (
+                tpl_pdf_options.unwrap_or(def_ext_cfg.pdf_options),
+                tpl_report_options.unwrap_or(def_ext_cfg.report_options),
+                tpl_email_config.unwrap_or(def_ext_cfg.communication_templates.email_config),
+                tpl_sms_config.unwrap_or(def_ext_cfg.communication_templates.sms_config),
+            )
+        } else {
+            (
                 tpl_pdf_options.unwrap_or_default(),
                 tpl_report_options.unwrap_or_default(),
                 tpl_email_config.unwrap_or_default(),
                 tpl_sms_config.unwrap_or_default(),
-            ),
+            )
         };
         Ok(ReportExtraConfig {
             pdf_options,
@@ -520,7 +510,7 @@ pub trait TemplateRenderer: Debug {
         Ok(rendered_system_template)
     }
 
-    /// Provides the User template String and the ReportExtraConfig, encapsulating the logic that gets either the custom or default.
+    /// Provides the User template String and the `ReportExtraConfig`, encapsulating the logic that gets either the custom or default.
     /// Tries to get first the custom template and extra config, if any value is not available then its default is set.
     #[instrument(err, skip_all)]
     async fn user_tpl_and_extra_cfg_provider(
@@ -605,9 +595,12 @@ pub trait TemplateRenderer: Debug {
 
         let items_count = self.count_items(hasura_transaction).await?.unwrap_or(0);
         let report_options = ext_cfg.report_options.clone();
-        let per_report_limit = report_options
-            .max_items_per_report
-            .unwrap_or(DEFAULT_ITEMS_PER_REPORT_LIMIT) as i64;
+        let per_report_limit = i64::try_from(
+            report_options
+                .max_items_per_report
+                .unwrap_or(DEFAULT_ITEMS_PER_REPORT_LIMIT),
+        )
+        .map_err(|_| anyhow!("per-report item limit out of range"))?;
 
         info!("Items count: {items_count}, per report limit: {per_report_limit}");
         let zip_temp_dir = tempdir()?;
@@ -620,8 +613,7 @@ pub trait TemplateRenderer: Debug {
             && generate_mode == GenerateReportMode::REAL
         {
             info!(
-                "Using batched processing because it's activity log: items_count ({}) > per_report_limit ({})",
-                items_count, per_report_limit
+                "Using batched processing because it's activity log: items_count ({items_count}) > per_report_limit ({per_report_limit})"
             );
 
             // Calculate the number of batches needed.
@@ -664,7 +656,7 @@ pub trait TemplateRenderer: Debug {
                                 .await
                             })
                             .with_context(|| {
-                                format!("Error rendering report for batch {}", offset)
+                                format!("Error rendering report for batch {offset}")
                             })?;
 
                         // Render to PDF bytes
@@ -676,17 +668,14 @@ pub trait TemplateRenderer: Debug {
                                 )
                                 .await
                             })
-                            .with_context(|| format!("Error rendering PDF for batch {}", offset))?;
+                            .with_context(|| format!("Error rendering PDF for batch {offset}"))?;
 
                         let prefix = self.prefix();
                         let extension_suffix = "pdf";
-                        let file_suffix = format!(".{}", extension_suffix);
+                        let file_suffix = format!(".{extension_suffix}");
 
-                        let batch_file_name = format!("{}-{}{}", prefix, offset, file_suffix);
-                        info!(
-                            "Batch {} => batch_file_name: {}",
-                            batch_index, batch_file_name
-                        );
+                        let batch_file_name = format!("{prefix}-{offset}{file_suffix}");
+                        info!("Batch {batch_index} => batch_file_name: {batch_file_name}",);
 
                         // Build the final path inside `reports_folder`:
                         let final_path = reports_folder.join(&batch_file_name);
@@ -728,7 +717,7 @@ pub trait TemplateRenderer: Debug {
                 &ext_cfg,
             )
             .await
-            .map_err(|e| anyhow::anyhow!("Error in generate_single_report: {}", e))?
+            .map_err(|e| anyhow::anyhow!("Error in generate_single_report: {e}"))?
         };
 
         info!(
@@ -908,9 +897,9 @@ pub trait TemplateRenderer: Debug {
         .map_err(|err| anyhow!("Error rendering report to pdf: {err:?}"))?;
 
         let fmt_extension = format!(".{extension_suffix}");
-        let report_name = format!("{}{}", self.prefix(), fmt_extension);
+        let report_name = format!("{}{fmt_extension}", self.prefix());
 
-        let final_path = format!("/tmp/{}", report_name);
+        let final_path = format!("/tmp/{report_name}");
         fs::write(&final_path, &content_bytes)?;
         let file_size =
             get_file_size(&final_path).with_context(|| "Error obtaining file size for zip file")?;
@@ -919,7 +908,7 @@ pub trait TemplateRenderer: Debug {
             final_path,
             file_size,
             report_name.clone(),
-            format!("application/{}", extension_suffix),
+            format!("application/{extension_suffix}"),
         ))
     }
 
@@ -970,9 +959,7 @@ pub trait TemplateRenderer: Debug {
         tenant_id: &str,
         election_event_id: &str,
     ) -> Result<Vec<String>> {
-        if !recipients.is_empty() {
-            Ok(recipients) // If recipients are provided, use them
-        } else {
+        if recipients.is_empty() {
             // Fetch email via voter_id if recipients are not provided
             let voter_id = self
                 .get_voter_id()
@@ -990,6 +977,8 @@ pub trait TemplateRenderer: Debug {
             Ok(vec![voter.email.ok_or_else(|| {
                 anyhow!("Error sending email: no email provided")
             })?])
+        } else {
+            Ok(recipients) // If recipients are provided, use them
         }
     }
 }
