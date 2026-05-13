@@ -143,14 +143,22 @@ Currently mounted in `BoothLayout` (in the order they wrap children, outermost f
 4. `<ApolloProvider client={apolloClient}>` from `@apollo/client/react`,
    with a workbench-local `ApolloClient` whose link is `ApolloLink.empty()`
    (the observable completes with no data). **Required** by ReviewScreen
-   (it calls `useMutation(INSERT_CAST_VOTE)` and `useQuery(GET_ELECTIONS)`).
-   With `DISABLE_AUTH: true` the query is skipped; the mutation only
-   fires on the *Cast your ballot* click, at which point we'll either
-   replace this with a mocked link or let it fail visibly. We deliberately
-   do **not** use `MockedProvider` from `@apollo/client/testing`: it
-   requires pre-declared mocks for every operation and throws on misses,
-   which is the wrong default for an exploratory workbench. The empty
-   link defers per-operation mocks to when each screen demands them.
+   (it calls `useMutation(INSERT_CAST_VOTE)` and `useQuery(GET_ELECTIONS)`)
+   even though under `DISABLE_AUTH: true` neither operation actually
+   executes against a server: the `useQuery` is skipped, and ReviewScreen
+   takes the `useAddFakeCastVote` branch (line 510, gated on
+   `isDemo || globalSettings.DISABLE_AUTH`) which mutates Redux directly
+   and never calls `tryInsertCastVote`. The `ApolloProvider` is still
+   mandatory because `useMutation` runs at component render time, before
+   any branch can short-circuit it, and throws the famous
+   *"Could not find 'client' in the context"* invariant if no provider
+   is in scope. The empty link is the smallest thing that satisfies the
+   invariant. We deliberately do **not** use `MockedProvider` from
+   `@apollo/client/testing`: it requires pre-declared mocks for every
+   operation and throws on misses, which is the wrong default for an
+   exploratory workbench. When a screen lifted later needs real GraphQL
+   results, swap the empty link for a small pattern-matching `ApolloLink`
+   under `fixtures/gql/`.
 5. `<WasmWrapper>` from `voting-portal/src/providers/WasmWrapper`. Lifted
    as-is from the portal: it mounts `<WasmContextProvider>` (from ui-core)
    and gates children behind a `<Loader />` until `initCore()` resolves.
@@ -368,14 +376,15 @@ next-step categories of work (in roughly the order they will be needed):
 3. **Mounting `<ApolloProvider>`.** ✅ Done. The workbench mounts an
    `ApolloProvider` with a client whose link is `ApolloLink.empty()`, so
    `useQuery`/`useMutation` are satisfied at context level but no network
-   call is ever made. See section D, layer 4.
-4. **Mocking specific GraphQL operations.** When a screen requires real
-   results (rather than `data: undefined`), swap the empty link for a
-   small `ApolloLink` that pattern-matches on the operation name and
-   returns fixture data. The first operation that will demand this is
-   `INSERT_CAST_VOTE` (fires when the user clicks *Cast your ballot* on
-   ReviewScreen — currently the click triggers a silent error from the
-   empty link and ConfirmationScreen never mounts). Keep mocks
+   call is ever made. Under `DISABLE_AUTH: true` ReviewScreen takes
+   `useAddFakeCastVote` and the real mutation is never invoked, so the
+   full booth flow (Start → Vote → Review → Confirmation) succeeds
+   end-to-end without any GraphQL plumbing. See section D, layer 4.
+4. **Mocking specific GraphQL operations.** Only needed once a screen
+   lifted from the portal turns off `DISABLE_AUTH` semantics or queries
+   something Redux doesn't already hold. When that happens, swap the
+   empty link for a small `ApolloLink` that pattern-matches on
+   `operation.operationName` and returns fixture data. Keep mocks
    per-operation in a `fixtures/gql/` directory so they stay close to
    the fixtures that seed Redux.
 5. **Translation key fidelity.** Once a screen renders, missing
