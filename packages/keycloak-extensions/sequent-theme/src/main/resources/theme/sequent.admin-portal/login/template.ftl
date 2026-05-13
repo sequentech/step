@@ -329,7 +329,7 @@ SPDX-License-Identifier: AGPL-3.0-only
                 <#list locale.supported as l>
                     {
                         "languageTag": "${l.languageTag}",
-                        "url": "${l.url?no_esc}"
+                        "url": "${l.url?js_string}"
                     }<#if l_has_next>,</#if>
                 </#list>
             ];
