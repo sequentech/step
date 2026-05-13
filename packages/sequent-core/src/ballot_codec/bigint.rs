@@ -71,17 +71,13 @@ pub trait BigUIntCodec {
 fn remove_character(raw_ballot: &RawBallotContest) -> RawBallotContest {
     let mut bases = raw_ballot.bases.clone();
     let mut choices = raw_ballot.choices.clone();
-    if choices.is_empty() {
-        return RawBallotContest { bases, choices };
-    }
     let i = choices
         .iter()
         .rposition(|&choice| choice != 0)
-        .unwrap_or(choices.len().saturating_sub(1));
+        .expect("remove_character: expected at least one non-zero choice");
 
     choices.remove(i);
     bases.remove(i);
-
     RawBallotContest { bases, choices }
 }
 
@@ -90,16 +86,21 @@ fn add_character(raw_ballot: &RawBallotContest) -> RawBallotContest {
     let mut bases = raw_ballot.bases.clone();
     let mut choices = raw_ballot.choices.clone();
 
-    if choices.is_empty() || bases.is_empty() {
-        return RawBallotContest { bases, choices };
-    }
+    assert!(
+        !choices.is_empty(),
+        "add_character: expected non-empty choices"
+    );
 
-    let i = choices.iter().rposition(|&c| c != 0).unwrap_or(0);
+    let i = choices.iter().rposition(|&choice| choice != 0).unwrap_or(0);
 
-    if let Some(&base) = bases.get(i) {
-        choices.insert(i, base.saturating_sub(1));
-        bases.insert(i, base);
-    }
+    let base = *bases
+        .get(i)
+        .expect("add_character: missing base for choice index");
+
+    let inserted = base.checked_sub(1).expect("add_character: base underflow");
+
+    choices.insert(i, inserted);
+    bases.insert(i, base);
 
     RawBallotContest { bases, choices }
 }

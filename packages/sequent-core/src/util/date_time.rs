@@ -47,12 +47,9 @@ pub fn generate_timestamp(
         TimeZone::UTC => now.format(&date_format).to_string(),
         TimeZone::Offset(offset) => {
             let duration = Duration::hours(i64::from(offset));
-            let fixed_offset = FixedOffset::east_opt(
-                match i32::try_from(duration.num_seconds()) {
-                    Ok(secs) => secs,
-                    Err(_) => return now.format(&date_format).to_string(),
-                },
-            );
+            let fixed_offset = i32::try_from(duration.num_seconds())
+                .ok()
+                .and_then(FixedOffset::east_opt);
             match fixed_offset {
                 Some(fixed) => fixed
                     .from_utc_datetime(&now.naive_utc())

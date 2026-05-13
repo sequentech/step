@@ -234,7 +234,6 @@ impl LastDatafixAccessToken {
 /// Reads the access token if it has been requested successfully before and it
 /// is not expired.
 #[instrument(skip(lst_acc_tkn))]
-#[allow(clippy::cast_sign_loss)]
 async fn read_access_token(
     client_id: &str,
     client_secret: &str,
@@ -250,16 +249,17 @@ async fn read_access_token(
     };
 
     if let Some(data) = token_resp_ext_opt {
-        #[allow(clippy::arithmetic_side_effects, clippy::cast_possible_wrap)]
-        let pre_expiration_time: i64 =
-            data.token_resp.expires_in as i64 - PRE_EXPIRATION_SECS; // Renew the token 5 seconds before it expires
+        let expires_in = i64::try_from(data.token_resp.expires_in)
+            .expect("expires_in is too large");
+        let pre_expiration_time =
+            expires_in.saturating_sub(PRE_EXPIRATION_SECS);
 
         if data.client_id.eq(client_id)
             && data.client_secret.eq(client_secret)
             && data.tenant_id.eq(tenant_id)
             && pre_expiration_time.is_positive()
             && data.stamp.elapsed()
-                < Duration::from_secs({ pre_expiration_time as u64 })
+                < Duration::from_secs(pre_expiration_time.unsigned_abs())
         {
             return Some(data.token_resp);
         }

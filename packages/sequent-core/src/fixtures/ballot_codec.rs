@@ -245,6 +245,125 @@ fn get_contest_borda() -> Contest {
     contest
 }
 
+/// Returns a test Contest configured for IRV (instant runoff) voting.
+fn get_contest_irv() -> Contest {
+    let mut contest = get_contest_plurality();
+    contest.counting_algorithm = Some(CountingAlgType::InstantRunoff);
+    contest.max_votes = 3;
+    contest
+}
+
+/// Returns a ballot codec fixture for IRV with a valid encoded ballot.
+///
+/// # Panics
+///
+/// Panics if the fixture `encoded_ballot` bytes cannot be converted to a
+/// 30-byte array (invariant for this fixture).
+#[must_use]
+pub fn get_irv_fixture_valid_ballot() -> BallotCodecFixture {
+    BallotCodecFixture {
+        title: "irv_fixture".to_string(),
+        contest: get_contest_irv(),
+        raw_ballot: RawBallotContest {
+            bases: vec![2u64, 4u64, 4u64, 4u64, 4u64, 4u64],
+            choices: vec![0u64, 1u64, 2u64, 0u64, 3u64, 0u64],
+        },
+        plaintext: DecodedVoteContest {
+            contest_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".to_string(),
+            is_explicit_invalid: false,
+            choices: vec![
+                DecodedVoteChoice {
+                    id: 0.to_string(),
+                    selected: 0,
+                    write_in_text: None,
+                },
+                DecodedVoteChoice {
+                    id: 1.to_string(),
+                    selected: 1,
+                    write_in_text: None,
+                },
+                DecodedVoteChoice {
+                    id: 2.to_string(),
+                    selected: -1,
+                    write_in_text: None,
+                },
+                DecodedVoteChoice {
+                    id: 3.to_string(),
+                    selected: 2,
+                    write_in_text: None,
+                },
+                DecodedVoteChoice {
+                    id: 4.to_string(),
+                    selected: -1,
+                    write_in_text: None,
+                },
+            ],
+            invalid_errors: vec![],
+            invalid_alerts: vec![],
+        },
+        encoded_ballot_bigint: "402".to_string(),
+        encoded_ballot: vec_to_30_array(&[2, 146, 1])
+            .expect("Failed to convert vector to 30-byte array"),
+        expected_errors: None,
+    }
+}
+
+/// Returns a ballot codec fixture for IRV with an invalid ballot (duplicated
+/// ranking).
+///
+/// # Panics
+///
+/// Panics if the fixture `encoded_ballot` bytes cannot be converted to a
+/// 30-byte array (invariant for this fixture).
+#[must_use]
+pub fn get_irv_fixture_invalid_ballot() -> BallotCodecFixture {
+    BallotCodecFixture {
+        title: "irv_fixture".to_string(),
+        contest: get_contest_irv(),
+        raw_ballot: RawBallotContest {
+            bases: vec![2u64, 4u64, 4u64, 4u64, 4u64, 4u64],
+            choices: vec![0u64, 1u64, 2u64, 0u64, 3u64, 0u64],
+        },
+        plaintext: DecodedVoteContest {
+            contest_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".to_string(),
+            is_explicit_invalid: false,
+            choices: vec![
+                DecodedVoteChoice {
+                    id: 0.to_string(),
+                    selected: 0,
+                    write_in_text: None,
+                },
+                DecodedVoteChoice {
+                    id: 1.to_string(),
+                    selected: 1,
+                    write_in_text: None,
+                },
+                DecodedVoteChoice {
+                    id: 2.to_string(),
+                    selected: 2,
+                    write_in_text: None,
+                },
+                DecodedVoteChoice {
+                    id: 3.to_string(),
+                    selected: 2, // Duplicated selection
+                    write_in_text: None,
+                },
+                DecodedVoteChoice {
+                    id: 4.to_string(),
+                    selected: -1,
+                    write_in_text: None,
+                },
+            ],
+            invalid_errors: vec![],
+            invalid_alerts: vec![],
+        },
+        encoded_ballot_bigint: "402".to_string(),
+        encoded_ballot: vec_to_30_array(&[2, 146, 1])
+            .expect("Failed to convert vector to 30-byte array"),
+        expected_errors: None,
+    }
+}
+
 /// Returns a `DecodedVoteContest`.
 #[must_use]
 pub fn get_test_decoded_vote_contest() -> DecodedVoteContest {

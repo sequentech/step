@@ -1097,7 +1097,7 @@ pub struct ElectionEventLanguageConf {
 pub struct ElectionEventPresentation {
     /// Internationalized content for the event.
     pub i18n: Option<I18nContent<I18nContent<Option<String>>>>,
-    pub activated: Option<ElectionEventMaterials>,
+    pub materials: Option<ElectionEventMaterials>,
     pub language_conf: Option<ElectionEventLanguageConf>,
     pub logo_url: Option<String>,
     pub redirect_finish_url: Option<String>,

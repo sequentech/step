@@ -289,10 +289,10 @@ impl TreeNode<ContestsData> {
     /// For a given `TreeNode` of type `ContestsData`, return all
     /// area-contests. Note that this will include indirect/inherited ones.
     #[must_use]
-    #[allow(clippy::used_underscore_binding)]
+    #[allow(clippy::only_used_in_recursion)] // contest_ids is only used in the recursive call
     pub fn get_contest_matches(
         &self,
-        _contest_ids: &HashSet<String>,
+        contest_ids: &HashSet<String>,
     ) -> HashSet<AreaContest> {
         let mut set = HashSet::new();
         if let Some(area) = self.area.clone() {
@@ -309,7 +309,7 @@ impl TreeNode<ContestsData> {
             set.extend(own_area_contests);
         }
         for child in &self.children {
-            let child_set = child.get_contest_matches(_contest_ids);
+            let child_set = child.get_contest_matches(contest_ids);
             set.extend(child_set);
         }
         set
