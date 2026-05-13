@@ -508,12 +508,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "async_once"
-version = "0.2.6"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2ce4f10ea3abcd6617873bae9f91d1c5332b4a778bd9ce34d0cd517474c1de82"
-
-[[package]]
 name = "atomic"
 version = "0.5.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -10342,7 +10336,6 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "async-trait",
- "async_once",
  "aws-config",
  "aws-sdk-s3",
  "aws-sdk-secretsmanager",
@@ -10376,7 +10369,6 @@ dependencies = [
  "immudb-rs",
  "keycloak",
  "lapin",
- "lazy_static 1.5.0",
  "lettre",
  "num_cpus",
  "once_cell",
