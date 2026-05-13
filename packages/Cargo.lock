@@ -1232,6 +1232,7 @@ dependencies = [
  "log",
  "prost",
  "rayon",
+ "sequent-core",
  "serde",
  "serial_test",
  "strand",
@@ -1246,6 +1247,7 @@ dependencies = [
  "tracing-log",
  "tracing-subscriber",
  "tracing-tree",
+ "warp",
 ]
 
 [[package]]
