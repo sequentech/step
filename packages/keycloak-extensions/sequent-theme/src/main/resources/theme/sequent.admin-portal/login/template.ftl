@@ -345,9 +345,20 @@ SPDX-License-Identifier: AGPL-3.0-only
             if (!selectedKcLocale) {
                 return;
             }
-            const targetLocale = getSupportedLocalesWithUrls().find(l => l.languageTag === selectedKcLocale);
-            if ("${locale.currentLanguageTag!}" !== targetLocale?.languageTag) {
-                window.location.replace(targetLocale?.url);
+            var supportedLocales = getSupportedLocalesWithUrls();
+            var targetLocale = supportedLocales.find(function (l) { return l.languageTag === selectedKcLocale; });
+            if (!targetLocale) {
+                var fallbackUrl = new URL(window.location.href);
+                fallbackUrl.searchParams.set("kc_locale", selectedKcLocale);
+                if (fallbackUrl.toString() !== window.location.href) {
+                    window.location.replace(fallbackUrl.toString());
+                    return;
+                }
+                setSessionLangCookie(selectedInternalLocale);
+                return;
+            }
+            if ("${locale.currentLanguageTag!}" !== targetLocale.languageTag) {
+                window.location.replace(targetLocale.url);
                 return;
             }
             setSessionLangCookie(selectedInternalLocale);
