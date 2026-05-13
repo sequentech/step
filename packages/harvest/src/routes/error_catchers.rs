@@ -8,10 +8,13 @@ use serde::{Deserialize, Serialize};
 use tracing::instrument;
 
 #[derive(Serialize, Deserialize, Debug)]
+/// Response containing the error message.
 pub struct ErrorResponse {
+    /// The error message.
     message: String,
 }
 
+/// Returns an internal server error response.
 #[instrument]
 #[catch(500)]
 pub fn internal_error() -> Json<ErrorResponse> {
@@ -20,6 +23,7 @@ pub fn internal_error() -> Json<ErrorResponse> {
     })
 }
 
+/// Returns a not found response.
 #[instrument(skip_all)]
 #[catch(404)]
 pub fn not_found(_req: &Request) -> Json<ErrorResponse> {
@@ -28,6 +32,7 @@ pub fn not_found(_req: &Request) -> Json<ErrorResponse> {
     })
 }
 
+/// Returns a default error response.
 #[instrument(skip_all)]
 #[catch(default)]
 pub fn default(_status: Status, _req: &Request) -> Json<ErrorResponse> {

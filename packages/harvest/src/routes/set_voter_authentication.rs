@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+#![allow(clippy::large_futures)]
 
 use crate::services::authorization::authorize;
 use anyhow::Result;
@@ -19,18 +20,26 @@ use windmill::tasks::manage_election_event_enrollment::{
 };
 
 #[derive(Serialize, Deserialize, Debug)]
+/// Request body for setting voter authentication.
 pub struct SetVoterAuthentication {
+    /// The election event ID.
     pub election_event_id: String,
+    /// If enrollment is enabled.
     pub enrollment: String,
+    /// If OTP is enabled.
     pub otp: String,
 }
 
 #[derive(Serialize)]
-struct SetVoterAuthenticationOutput {
+/// Response body for setting voter authentication.
+pub struct SetVoterAuthenticationOutput {
+    /// Whether the operation was successful.
     success: bool,
+    /// The message.
     message: String,
 }
 
+/// Sets voter authentication.
 #[instrument(skip(claims))]
 #[post("/set-voter-authentication", format = "json", data = "<input>")]
 pub async fn set_voter_authentication(
@@ -47,20 +56,20 @@ pub async fn set_voter_authentication(
         vec![],
     )
     .map_err(|err| {
-        error!("Authorization failed: {:?}", err);
+        error!("Authorization failed: {err:?}");
         (Status::Forbidden, "Authorization failed".to_string())
     })?;
 
     let mut hasura_db_client =
         get_hasura_pool().await.get().await.map_err(|e| {
-            error!("Failed to get DB pool: {:?}", e);
-            (Status::InternalServerError, format!("{:?}", e))
+            error!("Failed to get DB pool: {e:?}");
+            (Status::InternalServerError, format!("{e:?}"))
         })?;
 
     let hasura_transaction =
         hasura_db_client.transaction().await.map_err(|e| {
-            error!("Failed to start transaction: {:?}", e);
-            (Status::InternalServerError, format!("{:?}", e))
+            error!("Failed to start transaction: {e:?}");
+            (Status::InternalServerError, format!("{e:?}"))
         })?;
 
     let election_event = get_election_event_by_id(
@@ -70,8 +79,8 @@ pub async fn set_voter_authentication(
     )
     .await
     .map_err(|e| {
-        error!("Failed to fetch election event: {:?}", e);
-        (Status::InternalServerError, format!("{:?}", e))
+        error!("Failed to fetch election event: {e:?}");
+        (Status::InternalServerError, format!("{e:?}"))
     })?;
 
     // Extract or set default enrollment and OTP values
@@ -109,7 +118,7 @@ pub async fn set_voter_authentication(
         )
         .await
         .map_err(|error| {
-            error!("Failed to update enrollment: {:?}", error);
+            error!("Failed to update enrollment: {error:?}");
             (
                 Status::InternalServerError,
                 format!("Error updating enrollment: {error:?}"),
@@ -133,7 +142,7 @@ pub async fn set_voter_authentication(
         )
         .await
         .map_err(|error| {
-            error!("Failed to update OTP: {:?}", error);
+            error!("Failed to update OTP: {error:?}");
             (
                 Status::InternalServerError,
                 format!("Error updating OTP: {error:?}"),
@@ -143,8 +152,8 @@ pub async fn set_voter_authentication(
 
     // Commit transaction
     hasura_transaction.commit().await.map_err(|e| {
-        error!("Transaction commit failed: {:?}", e);
-        (Status::InternalServerError, format!("{:?}", e))
+        error!("Transaction commit failed: {e:?}");
+        (Status::InternalServerError, format!("{e:?}"))
     })?;
 
     Ok(Json(SetVoterAuthenticationOutput {

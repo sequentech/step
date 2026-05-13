@@ -21,7 +21,7 @@ use serde::Deserialize;
 use serde::Serialize;
 use std::collections::HashMap;
 use std::env;
-use tracing::instrument;
+use tracing::{info, instrument};
 use uuid::Uuid;
 use windmill::postgres::election_event::{
     get_election_event_by_id, ElectionEventDatafix,
@@ -36,7 +36,7 @@ use windmill::services::export::export_users::{
     ExportBody, ExportTenantUsersBody, ExportUsersBody,
 };
 use windmill::services::keycloak_events::list_keycloak_events_by_type;
-use windmill::services::tasks_execution::*;
+use windmill::services::tasks_execution::post;
 use windmill::services::users::list_users_has_voted;
 use windmill::services::users::{
     count_keycloak_users, list_users, list_users_with_vote_info,
@@ -47,12 +47,18 @@ use windmill::tasks::import_users::{self, ImportUsersOutput};
 use windmill::types::tasks::ETasksExecution;
 
 #[derive(Deserialize, Debug)]
+#[allow(clippy::struct_field_names)] // enable same postfix for all fields
+/// Request body for deleting a user.
 pub struct DeleteUserBody {
+    /// The tenant ID.
     tenant_id: String,
+    /// The election event ID.
     election_event_id: Option<String>,
+    /// The user ID.
     user_id: String,
 }
 
+/// Deletes a user.
 #[instrument(skip(claims))]
 #[post("/delete-user", format = "json", data = "<body>")]
 pub async fn delete_user(
@@ -80,7 +86,7 @@ pub async fn delete_user(
     let client = KeycloakAdminClient::new().await.map_err(|e| {
         (
             Status::InternalServerError,
-            format!("Error obtaining the client: {:?}", e),
+            format!("Error obtaining the client: {e:?}"),
         )
     })?;
     client
@@ -89,19 +95,25 @@ pub async fn delete_user(
         .map_err(|e| {
             (
                 Status::InternalServerError,
-                format!("Error deleting the user: {:?}", e),
+                format!("Error deleting the user: {e:?}"),
             )
         })?;
-    Ok(Json(Default::default()))
+    Ok(Json(OptionalId::default()))
 }
 
 #[derive(Deserialize, Debug)]
+#[allow(clippy::struct_field_names)] // enable same postfix for all fields
+/// Request body for deleting multiple users.
 pub struct DeleteUsersBody {
+    /// The tenant ID.
     tenant_id: String,
+    /// The election event ID.
     election_event_id: Option<String>,
+    /// The user IDs.
     users_id: Vec<String>,
 }
 
+/// Deletes multiple users.
 #[instrument(skip(claims))]
 #[post("/delete-users", format = "json", data = "<body>")]
 pub async fn delete_users(
@@ -128,43 +140,64 @@ pub async fn delete_users(
     };
     let client = KeycloakAdminClient::new()
         .await
-        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+        .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
 
     for id in input.users_id {
         client
             .delete_user(&realm, &id)
             .await
-            .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+            .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
     }
-    Ok(Json(Default::default()))
+    Ok(Json(OptionalId::default()))
 }
 
 #[derive(Deserialize, Debug)]
+/// Request body for getting users.
 pub struct GetUsersBody {
+    /// The tenant ID.
     tenant_id: String,
+    /// The election event ID.
     election_event_id: Option<String>,
+    /// The election ID.
     election_id: Option<String>,
+    /// The search text.
     search: Option<String>,
+    /// The first name filter.
     first_name: Option<FilterOption>,
+    /// The last name filter.
     last_name: Option<FilterOption>,
+    /// The username filter.
     username: Option<FilterOption>,
+    /// The email filter.
     email: Option<FilterOption>,
+    /// The limit.
     limit: Option<i32>,
+    /// The offset.
     offset: Option<i32>,
+    /// Whether to show votes info.
     show_votes_info: Option<bool>,
+    /// The attributes to filter by.
     attributes: Option<HashMap<String, String>>,
+    /// Whether the email is verified.
     email_verified: Option<bool>,
+    /// Whether the user is enabled.
     enabled: Option<bool>,
+    /// The sort order.
     sort: Option<HashMap<String, String>>,
+    /// Whether the user has voted.
     has_voted: Option<bool>,
+    /// The authorized election alias of the user to filter by.
     authorized_to_election_alias: Option<String>,
 }
 
 #[derive(Deserialize, Debug, Serialize)]
+/// Response body for counting users.
 pub struct CountUserOutput {
+    /// The count of users.
     count: i64,
 }
 
+/// Counts users.
 #[instrument(skip(claims), ret)]
 #[post("/count-users", format = "json", data = "<body>")]
 pub async fn count_users(
@@ -186,7 +219,7 @@ pub async fn count_users(
 
     let realm = match input.election_event_id {
         Some(ref election_event_id) => {
-            get_event_realm(&input.tenant_id, &election_event_id)
+            get_event_realm(&input.tenant_id, election_event_id)
         }
         None => get_tenant_realm(&input.tenant_id),
     };
@@ -195,28 +228,28 @@ pub async fn count_users(
         get_keycloak_pool().await.get().await.map_err(|e| {
             (
                 Status::InternalServerError,
-                format!("Error acquiring keycloak db client from pool {:?}", e),
+                format!("Error acquiring keycloak db client from pool {e:?}"),
             )
         })?;
     let keycloak_transaction =
         keycloak_db_client.transaction().await.map_err(|e| {
             (
                 Status::InternalServerError,
-                format!("Error acquiring keycloak transaction {:?}", e),
+                format!("Error acquiring keycloak transaction {e:?}"),
             )
         })?;
     let mut hasura_db_client: DbClient =
         get_hasura_pool().await.get().await.map_err(|e| {
             (
                 Status::InternalServerError,
-                format!("Error acquiring hasura db client from pool {:?}", e),
+                format!("Error acquiring hasura db client from pool {e:?}"),
             )
         })?;
     let hasura_transaction =
         hasura_db_client.transaction().await.map_err(|e| {
             (
                 Status::InternalServerError,
-                format!("Error acquiring hasura transaction {:?}", e),
+                format!("Error acquiring hasura transaction {e:?}"),
             )
         })?;
 
@@ -251,7 +284,7 @@ pub async fn count_users(
     .map_err(|e| {
         (
             Status::InternalServerError,
-            format!("Error counting users {:?}", e),
+            format!("Error counting users {e:?}"),
         )
     })?;
 
@@ -260,7 +293,9 @@ pub async fn count_users(
     }))
 }
 
+/// Gets users.
 #[instrument(skip(claims), ret)]
+#[allow(clippy::too_many_lines)]
 #[post("/get-users", format = "json", data = "<body>")]
 pub async fn get_users(
     claims: jwt::JwtClaims,
@@ -281,7 +316,7 @@ pub async fn get_users(
 
     let realm = match input.election_event_id {
         Some(ref election_event_id) => {
-            get_event_realm(&input.tenant_id, &election_event_id)
+            get_event_realm(&input.tenant_id, election_event_id)
         }
         None => get_tenant_realm(&input.tenant_id),
     };
@@ -290,28 +325,28 @@ pub async fn get_users(
         get_keycloak_pool().await.get().await.map_err(|e| {
             (
                 Status::InternalServerError,
-                format!("Error acquiring keycloak db client from pool {:?}", e),
+                format!("Error acquiring keycloak db client from pool {e:?}"),
             )
         })?;
     let keycloak_transaction =
         keycloak_db_client.transaction().await.map_err(|e| {
             (
                 Status::InternalServerError,
-                format!("Error acquiring keycloak transaction {:?}", e),
+                format!("Error acquiring keycloak transaction {e:?}"),
             )
         })?;
     let mut hasura_db_client: DbClient =
         get_hasura_pool().await.get().await.map_err(|e| {
             (
                 Status::InternalServerError,
-                format!("Error acquiring hasura db client from pool {:?}", e),
+                format!("Error acquiring hasura db client from pool {e:?}"),
             )
         })?;
     let hasura_transaction =
         hasura_db_client.transaction().await.map_err(|e| {
             (
                 Status::InternalServerError,
-                format!("Error acquiring hasura transaction {:?}", e),
+                format!("Error acquiring hasura transaction {e:?}"),
             )
         })?;
 
@@ -348,7 +383,7 @@ pub async fn get_users(
         .map_err(|e| {
             (
                 Status::InternalServerError,
-                format!("Error listing users that has_voted {:?}", e),
+                format!("Error listing users that has_voted {e:?}"),
             )
         })?;
 
@@ -356,59 +391,60 @@ pub async fn get_users(
             items: users,
             total: TotalAggregate {
                 aggregate: Aggregate {
-                    count: count as i64,
+                    count: i64::from(count),
                 },
             },
         }));
     }
 
-    let (users, count) = match input.show_votes_info.unwrap_or(false) {
-        true =>
-        // If show_vote_info is true, call list_users_with_vote_info()
-        {
-            list_users_with_vote_info(
-                &hasura_transaction,
-                &keycloak_transaction,
-                filter,
+    let (users, count) = if input.show_votes_info.unwrap_or(false) {
+        list_users_with_vote_info(
+            &hasura_transaction,
+            &keycloak_transaction,
+            filter,
+        )
+        .await
+        .map_err(|e| {
+            (
+                Status::InternalServerError,
+                format!("Error listing users with vote info {e:?}"),
             )
+        })?
+    } else {
+        list_users(&hasura_transaction, &keycloak_transaction, filter)
             .await
             .map_err(|e| {
                 (
                     Status::InternalServerError,
-                    format!("Error listing users with vote info {:?}", e),
+                    format!("Error listing users {e:?}"),
                 )
             })?
-        }
-        // If show_vote_info is false, call list_users() and return empty
-        // votes_info
-        false => list_users(&hasura_transaction, &keycloak_transaction, filter)
-            .await
-            .map_err(|e| {
-                (
-                    Status::InternalServerError,
-                    format!("Error listing users {:?}", e),
-                )
-            })?,
     };
 
     Ok(Json(DataList {
         items: users,
         total: TotalAggregate {
             aggregate: Aggregate {
-                count: count as i64,
+                count: i64::from(count),
             },
         },
     }))
 }
 
 #[derive(Deserialize, Debug)]
+/// Request body for creating a user.
 pub struct CreateUserBody {
+    /// The tenant ID.
     tenant_id: String,
+    /// The election event ID.
     election_event_id: Option<String>,
+    /// The user.
     user: User,
+    /// The user roles IDs.
     user_roles_ids: Option<Vec<String>>,
 }
 
+/// Creates a user.
 #[instrument(skip(claims))]
 #[post("/create-user", format = "json", data = "<body>")]
 pub async fn create_user(
@@ -418,7 +454,7 @@ pub async fn create_user(
     let input = body.into_inner();
     let mut required_perms = Vec::<Permissions>::new();
     if input.election_event_id.is_some() {
-        required_perms.push(Permissions::VOTER_CREATE)
+        required_perms.push(Permissions::VOTER_CREATE);
     } else {
         required_perms.push(Permissions::USER_CREATE);
         if let Some(attributes) = &input.user.attributes {
@@ -428,7 +464,7 @@ pub async fn create_user(
                 required_perms.push(Permissions::PERMISSION_LABEL_WRITE);
             }
         }
-    };
+    }
     authorize(&claims, true, Some(input.tenant_id.clone()), required_perms)?;
     let realm = match input.election_event_id.clone() {
         Some(election_event_id) => {
@@ -438,10 +474,10 @@ pub async fn create_user(
     };
     let client = KeycloakAdminClient::new()
         .await
-        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+        .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
     let (tenant_id_attribute, groups) = if input.election_event_id.is_some() {
         let voter_group_name = env::var("KEYCLOAK_VOTER_GROUP_NAME")
-            .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+            .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
         (
             Some(HashMap::from([(
                 TENANT_ID_ATTR_NAME.to_string(),
@@ -483,40 +519,56 @@ pub async fn create_user(
     let user = client
         .create_user(&realm, &user, user_attributes, groups)
         .await
-        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+        .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
 
-    match (user.id.clone(), &input.user_roles_ids) {
-        (Some(id), Some(user_roles_ids)) => {
-            let res: Vec<_> = user_roles_ids
-                .into_iter()
-                .map(|role_id| client.set_user_role(&realm, &id, &role_id))
-                .collect();
+    if let (Some(id), Some(user_roles_ids)) =
+        (user.id.clone(), &input.user_roles_ids)
+    {
+        let res: Vec<_> = user_roles_ids
+            .iter()
+            .map(|role_id| client.set_user_role(&realm, &id, role_id))
+            .collect();
 
-            join_all(res).await;
-        }
-        _ => (),
-    };
+        join_all(res).await;
+    }
 
     Ok(Json(user))
 }
 
 #[derive(Deserialize, Debug)]
+/// Request body for editing a user.
 pub struct EditUserBody {
+    /// The tenant ID.
     tenant_id: String,
+    /// The user ID.
     user_id: String,
+    /// Whether the user is enabled.
     enabled: Option<bool>,
+    /// The election event ID.
     election_event_id: Option<String>,
+    /// The attributes.
     attributes: Option<HashMap<String, Vec<String>>>,
+    /// The email.
     email: Option<String>,
+    /// The first name.
     first_name: Option<String>,
+    /// The last name.
     last_name: Option<String>,
+    /// The username.
     username: Option<String>,
+    /// The password.
     password: Option<String>,
+    /// Whether the password is temporary.
     temporary: Option<bool>,
 }
 
 const MOBILE_NUMBER_ATTRIBUTE: &str = "sequent.read-only.mobile-number";
 
+/// Ensures email, phone, and related profile edits are allowed for the voter realm.
+///
+/// # Errors
+///
+/// Returns an error when the caller attempts to change protected fields.
 pub async fn check_edit_email_tlf(
     client: &KeycloakAdminClient,
     input: &EditUserBody,
@@ -553,14 +605,16 @@ pub async fn check_edit_email_tlf(
         changes.push("temporary".to_string());
     }
 
-    if changes.len() > 0 {
-        return Err(anyhow!("Can't change user properties: {:?}", changes));
+    if !changes.is_empty() {
+        return Err(anyhow!("Can't change user properties: {changes:?}"));
     }
 
     Ok(())
 }
 
+/// Edits a user.
 #[instrument(skip(claims), ret)]
+#[allow(clippy::too_many_lines)]
 #[post("/edit-user", format = "json", data = "<body>")]
 pub async fn edit_user(
     claims: jwt::JwtClaims,
@@ -598,7 +652,7 @@ pub async fn edit_user(
                 required_perms.push(Permissions::PERMISSION_LABEL_WRITE);
             }
         }
-    };
+    }
 
     authorize(&claims, true, Some(input.tenant_id.clone()), required_perms)?;
     let realm = match input.election_event_id.clone() {
@@ -612,7 +666,7 @@ pub async fn edit_user(
         get_hasura_pool().await.get().await.map_err(|e| {
             (
                 Status::InternalServerError,
-                format!("Error acquiring hasura db client from pool {:?}", e),
+                format!("Error acquiring hasura db client from pool {e:?}"),
             )
         })?;
 
@@ -620,15 +674,17 @@ pub async fn edit_user(
         hasura_db_client.transaction().await.map_err(|e| {
             (
                 Status::InternalServerError,
-                format!("Error acquiring hasura transaction {:?}", e),
+                format!("Error acquiring hasura transaction {e:?}"),
             )
         })?;
 
     // check if the voter has voted
     if !voter_voted_edit {
         if let Some(election_event_id) = input.election_event_id.clone() {
-            let mut user = User::default();
-            user.id = Some(input.user_id.clone());
+            let user = User {
+                id: Some(input.user_id.clone()),
+                ..Default::default()
+            };
             let voters = get_users_with_vote_info(
                 &hasura_transaction,
                 &input.tenant_id,
@@ -641,20 +697,21 @@ pub async fn edit_user(
             .map_err(|e| {
                 (
                     Status::InternalServerError,
-                    format!("Error listing users with vote info {:?}", e),
+                    format!("Error listing users with vote info {e:?}"),
                 )
             })?;
             let Some(voter) = voters.first() else {
                 return Err((
                     Status::InternalServerError,
-                    format!("Error listing voter with vote info"),
+                    "Error listing voter with vote info".to_string(),
                 ));
             };
             if let Some(votes_info) = voter.votes_info.clone() {
-                if votes_info.len() > 0 {
+                if !votes_info.is_empty() {
                     return Err((
                         Status::Unauthorized,
-                        format!("Can't edit a voter that has already cast its ballot"),
+                        "Can't edit a voter that has already cast its ballot"
+                            .to_string(),
                     ));
                 }
             }
@@ -663,9 +720,9 @@ pub async fn edit_user(
 
     let client = KeycloakAdminClient::new()
         .await
-        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+        .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
 
-    let new_attributes = input.attributes.clone().unwrap_or(HashMap::new());
+    let new_attributes = input.attributes.clone().unwrap_or_default();
 
     // maintain current user attributes and do not allow to override tenant-id
     if new_attributes.contains_key(TENANT_ID_ATTR_NAME) {
@@ -678,7 +735,7 @@ pub async fn edit_user(
     if voter_email_tlf_edit {
         /*check_edit_email_tlf(&client, &input, &realm, &new_attributes)
         .await
-        .map_err(|e| (Status::Unauthorized, format!("{:?}", e)))?;*/
+        .map_err(|e| (Status::Unauthorized, format!("{e:?}")))?;*/
     }
 
     let user = client
@@ -695,7 +752,12 @@ pub async fn edit_user(
             input.temporary,
         )
         .await
-        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+        .map_err(|e| {
+            (
+                Status::InternalServerError,
+                format!("Error editing user {e:?}"),
+            )
+        })?;
 
     // If the user is disabled via EDIT: send a SetNotVoted request to
     // VoterView, it is a Datafix requirement
@@ -729,13 +791,19 @@ pub async fn edit_user(
     Ok(Json(user))
 }
 
+/// Request body for [`get_user`].
 #[derive(Deserialize, Debug)]
+#[allow(clippy::struct_field_names)] // enable same postfix for all fields
 pub struct GetUserBody {
+    /// The tenant ID.
     tenant_id: String,
+    /// The election event ID.
     election_event_id: Option<String>,
+    /// The user ID.
     user_id: String,
 }
 
+/// Gets a user.
 #[instrument(skip(claims))]
 #[post("/get-user", format = "json", data = "<body>")]
 pub async fn get_user(
@@ -760,17 +828,21 @@ pub async fn get_user(
         }
         None => get_tenant_realm(&input.tenant_id),
     };
-    let client = KeycloakAdminClient::new()
-        .await
-        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+    let client = KeycloakAdminClient::new().await.map_err(|e| {
+        (
+            Status::InternalServerError,
+            format!("Error obtaining the client: {e:?}"),
+        )
+    })?;
     let user = client
         .get_user(&realm, &input.user_id)
         .await
-        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+        .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
 
     Ok(Json(user))
 }
 
+/// Imports users.
 #[instrument(skip(claims))]
 #[post("/import-users", format = "json", data = "<body>")]
 pub async fn import_users_f(
@@ -781,7 +853,7 @@ pub async fn import_users_f(
     let tenant_id = claims.hasura_claims.tenant_id.clone();
     let election_event_id = input.election_event_id.clone().unwrap_or_default();
     let is_admin = election_event_id.is_empty();
-    info!("Calculated is_admin: {}", is_admin);
+    info!("Calculated is_admin: {is_admin}");
 
     let executer_name = claims
         .name
@@ -819,19 +891,16 @@ pub async fn import_users_f(
     let mut task_input = input.clone();
     task_input.is_admin = is_admin;
 
-    let _celery_task = match celery_app
+    let Ok(_celery_task) = celery_app
         .send_task(import_users::import_users::new(
             task_input,
             task_execution.clone(),
         ))
         .await
-    {
-        Ok(celery_task) => celery_task,
-        Err(_) => {
-            return Ok(Json(ImportUsersOutput {
-                task_execution: task_execution.clone(),
-            }));
-        }
+    else {
+        return Ok(Json(ImportUsersOutput {
+            task_execution: task_execution.clone(),
+        }));
     };
 
     info!("Sent IMPORT_USERS task {}", task_execution.id);
@@ -843,6 +912,7 @@ pub async fn import_users_f(
     Ok(Json(output))
 }
 
+/// Exports users.
 #[instrument(skip(claims))]
 #[post("/export-users", format = "json", data = "<input>")]
 pub async fn export_users_f(
@@ -931,6 +1001,7 @@ pub async fn export_users_f(
     Ok(Json(output))
 }
 
+/// Exports tenant users.
 #[instrument(skip(claims))]
 #[post("/export-tenant-users", format = "json", data = "<input>")]
 pub async fn export_tenant_users_f(
@@ -971,7 +1042,7 @@ pub async fn export_tenant_users_f(
     };
 
     let output = export_users::ExportUsersOutput {
-        document_id: document_id,
+        document_id,
         error_msg: None,
         task_execution: None,
     };
@@ -981,11 +1052,15 @@ pub async fn export_tenant_users_f(
 }
 
 #[derive(Deserialize, Debug)]
+/// Request body for getting user profile attributes.
 pub struct GetUserProfileAttributesBody {
+    /// The tenant ID.
     tenant_id: String,
+    /// The election event ID.
     election_event_id: Option<String>,
 }
 
+/// Gets user profile attributes for specific realm
 #[instrument(skip(claims))]
 #[post("/get-user-profile-attributes", format = "json", data = "<body>")]
 pub async fn get_user_profile_attributes(
@@ -1013,14 +1088,22 @@ pub async fn get_user_profile_attributes(
         None => get_tenant_realm(&input.tenant_id),
     };
 
-    let client = KeycloakAdminClient::new()
-        .await
-        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+    let client = KeycloakAdminClient::new().await.map_err(|e| {
+        (
+            Status::InternalServerError,
+            format!("Error creating Keycloak client: {e:?}"),
+        )
+    })?;
 
     let attributes_res = client
         .get_user_profile_attributes(&realm)
         .await
-        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+        .map_err(|e| {
+            (
+                Status::InternalServerError,
+                format!("Error getting user profile attributes: {e:?}"),
+            )
+        })?;
 
     Ok(Json(attributes_res))
 }

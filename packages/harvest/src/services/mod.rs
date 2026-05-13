@@ -2,5 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+/// Authorization services.
 pub mod authorization;
+/// Worker services.
 pub mod worker;

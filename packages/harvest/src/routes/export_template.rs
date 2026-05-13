@@ -12,21 +12,29 @@ use serde::{Deserialize, Serialize};
 use tracing::instrument;
 use uuid::Uuid;
 use windmill::services::celery_app::get_celery_app;
-use windmill::services::tasks_execution::*;
+use windmill::services::tasks_execution::{post, update_fail};
 use windmill::tasks::export_templates;
 use windmill::types::tasks::ETasksExecution;
 
 #[derive(Serialize, Deserialize, Debug)]
+/// Request body for exporting a template.
 pub struct ExportTemplateBody {
+    /// The tenant ID.
     tenant_id: String,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
+/// Response containing the exported document.
 pub struct ExportTemplateOutput {
+    /// The generated document ID.
     document_id: String,
+    /// Error message if any.
     error_msg: Option<String>,
+    /// Task execution record.
     task_execution: TasksExecution,
 }
+
+/// Genarate file for template.
 #[instrument(skip(claims))]
 #[post("/export-template", format = "json", data = "<input>")]
 pub async fn export_template(
@@ -68,7 +76,7 @@ pub async fn export_template(
         )
         .await;
         return Err(error);
-    };
+    }
 
     let document_id = Uuid::new_v4().to_string();
 

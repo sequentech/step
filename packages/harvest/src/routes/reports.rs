@@ -5,6 +5,7 @@
 use crate::services::authorization::authorize;
 use anyhow::{anyhow, Result};
 use deadpool_postgres::Client as DbClient;
+use deadpool_postgres::Transaction;
 use rocket::http::Status;
 use rocket::serde::json::Json;
 use sequent_core::{
@@ -15,7 +16,7 @@ use serde::{Deserialize, Serialize};
 use strum_macros::{Display, EnumString};
 use tracing::instrument;
 use uuid::Uuid;
-use windmill::{postgres::reports::Report, services::tasks_execution::*};
+use windmill::{postgres::reports::Report, services::tasks_execution::post};
 use windmill::{
     postgres::reports::{get_report_by_type, ReportType},
     services::reports_vault::get_report_key_pair,
@@ -32,18 +33,70 @@ use windmill::{
 };
 
 #[derive(Serialize, Deserialize, Debug)]
+#[allow(clippy::struct_field_names)] // enable same postfix for all fields
+/// Request body for rendering a document PDF.
 pub struct RenderDocumentPdfInput {
+    /// The document ID.
     pub document_id: String,
+    /// The election event ID.
     pub election_event_id: Option<String>,
+    /// The tally session ID.
     pub tally_session_id: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
+/// Response body for rendering a document PDF.
 pub struct RenderDocumentPdfResponse {
-    pub document_id: String,
+    /// The document ID.
+    document_id: String,
+    /// The task execution.
     pub task_execution: TasksExecution,
 }
 
+/// Verifies that `document_id` resolves to an HTML document for the tenant.
+async fn ensure_document_is_html(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: Option<String>,
+    document_id: &str,
+) -> Result<(), (Status, String)> {
+    let Some(found_document) = get_document(
+        hasura_transaction,
+        tenant_id,
+        election_event_id,
+        document_id,
+    )
+    .await
+    .map_err(|e| {
+        (
+            Status::InternalServerError,
+            format!("Error fetching document: {e:?}"),
+        )
+    })?
+    else {
+        return Err((
+            Status::NotFound,
+            format!("Document not found: {document_id}"),
+        ));
+    };
+
+    if let Some(media_type) = found_document.media_type {
+        if media_type != "text/html" {
+            return Err((
+                Status::InternalServerError,
+                format!("Invalid document type: {media_type}"),
+            ));
+        }
+    } else {
+        return Err((
+            Status::InternalServerError,
+            format!("Document {document_id}: missing media type"),
+        ));
+    }
+    Ok(())
+}
+
+/// Render a document PDF.
 #[instrument(skip(claims))]
 #[post("/render-document-pdf", format = "json", data = "<body>")]
 pub async fn render_document_pdf(
@@ -76,39 +129,13 @@ pub async fn render_document_pdf(
     let election_event_id = input.election_event_id.clone();
     let document_id = input.document_id.clone();
 
-    let Some(found_document) = get_document(
+    ensure_document_is_html(
         &hasura_transaction,
         &claims.hasura_claims.tenant_id,
         election_event_id.clone(),
         &document_id,
     )
-    .await
-    .map_err(|e| {
-        (
-            Status::InternalServerError,
-            format!("Error fetching document: {e:?}"),
-        )
-    })?
-    else {
-        return Err((
-            Status::NotFound,
-            format!("Document not found: {}", document_id),
-        ));
-    };
-
-    if let Some(media_type) = found_document.media_type {
-        if "text/html".to_string() != media_type {
-            return Err((
-                Status::InternalServerError,
-                format!("Invalid document type: {}", media_type),
-            ));
-        }
-    } else {
-        return Err((
-            Status::InternalServerError,
-            format!("Document {}: missing media type", document_id),
-        ));
-    };
+    .await?;
 
     let executer_name = claims
         .name
@@ -168,11 +195,15 @@ pub async fn render_document_pdf(
 ////////////
 
 #[derive(Serialize, Deserialize, Debug)]
+/// Response body for generating a template.
 pub struct GenerateTemplateResponse {
-    pub document_id: String,
+    /// The document ID.
+    document_id: String,
+    /// The task execution.
     pub task_execution: TasksExecution,
 }
 
+/// Generate a document based on a template.
 #[instrument(skip(claims))]
 #[post("/generate-template", format = "json", data = "<body>")]
 pub async fn generate_template(
@@ -251,25 +282,35 @@ pub async fn generate_template(
         })?;
 
     Ok(Json(GenerateTemplateResponse {
-        document_id: document_id,
+        document_id,
         task_execution: task_execution.clone(),
     }))
 }
 
 #[derive(Serialize, Deserialize, Debug)]
+/// Request body for generating a report.
 pub struct GenerateReportBody {
-    pub report_id: String,
-    pub tenant_id: String,
-    pub report_mode: GenerateReportMode,
+    /// The report ID.
+    report_id: String,
+    /// The tenant ID.
+    tenant_id: String,
+    /// The report mode.
+    report_mode: GenerateReportMode,
+    /// The election event ID.
     pub election_event_id: Option<String>,
 }
 #[derive(Serialize, Deserialize, Debug)]
+/// Response body for generating a report.
 pub struct GenerateReportResponse {
-    pub document_id: String,
+    /// The document ID.
+    document_id: String,
+    /// The encryption policy.
     pub encryption_policy: EReportEncryption,
+    /// The task execution.
     pub task_execution: TasksExecution,
 }
 
+/// Generate a report.
 #[instrument(skip(claims))]
 #[post("/generate-report", format = "json", data = "<body>")]
 pub async fn generate_report(
@@ -360,24 +401,32 @@ pub async fn generate_report(
         })?;
 
     Ok(Json(GenerateReportResponse {
-        document_id: document_id,
+        document_id,
         encryption_policy: report.encryption_policy,
         task_execution: task_execution.clone(),
     }))
 }
 
 #[derive(Serialize, Deserialize, Debug)]
+/// Request body for encrypting a report.
 pub struct EncryptReportBody {
+    /// The election event ID.
     election_event_id: String,
+    /// The report ID.
     report_id: Option<String>,
+    /// The password.
     password: String,
 }
 #[derive(Serialize, Deserialize, Debug)]
+/// Response body for encrypting a report.
 pub struct ExportTemplateOutput {
+    /// The document ID.
     document_id: String,
+    /// The error message.
     error_msg: Option<String>,
 }
 
+/// Encrypt a report.
 #[instrument(skip(claims))]
 #[post("/encrypt-report", format = "json", data = "<input>")]
 pub async fn encrypt_report_route(
@@ -398,12 +447,12 @@ pub async fn encrypt_report_route(
         .await
         .get()
         .await
-        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+        .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
 
     let hasura_transaction = hasura_db_client
         .transaction()
         .await
-        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+        .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
 
     get_report_key_pair(
         &hasura_transaction,

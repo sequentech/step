@@ -31,19 +31,26 @@ use windmill::services::database::get_hasura_pool;
 use windmill::services::providers::transactions_provider::provide_hasura_transaction;
 
 #[derive(Serialize, Deserialize, Debug)]
+/// Request body for creating a tally ceremony.
 pub struct CreateTallyCeremonyInput {
+    /// The election event ID.
     election_event_id: String,
+    /// The election IDs.
     election_ids: Vec<String>,
+    /// The configuration.
     configuration: Option<TallySessionConfiguration>,
+    /// The tally type.
     tally_type: String,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
+/// Response body for creating a tally ceremony.
 pub struct CreateTallyCeremonyOutput {
+    /// The tally session ID.
     tally_session_id: String,
 }
 
-// The main function to start a key ceremony
+/// The main function to start a key ceremony
 #[instrument(skip(claims))]
 #[post("/create-tally-ceremony", format = "json", data = "<body>")]
 pub async fn create_tally_ceremony(
@@ -93,9 +100,9 @@ pub async fn create_tally_ceremony(
         username,
     )
     .await
-    .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+    .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
 
-    let _commit = hasura_transaction.commit().await.map_err(|err| {
+    hasura_transaction.commit().await.map_err(|err| {
         (Status::InternalServerError, format!("Commit failed: {err}"))
     })?;
     event!(
@@ -110,13 +117,19 @@ pub async fn create_tally_ceremony(
 }
 
 #[derive(Serialize, Deserialize, Debug)]
+/// Request body for updating a tally ceremony.
 pub struct UpdateTallyCeremonyInput {
+    /// The election event ID.
     election_event_id: String,
+    /// The tally session ID.
     tally_session_id: String,
+    /// The status.
     status: TallyExecutionStatus,
 }
 
+/// Updates a tally ceremony.
 #[instrument(skip(claims))]
+#[allow(clippy::too_many_lines)]
 #[post("/update-tally-ceremony", format = "json", data = "<body>")]
 pub async fn update_tally_ceremony(
     body: Json<UpdateTallyCeremonyInput>,
@@ -245,7 +258,7 @@ pub async fn update_tally_ceremony(
     .map_err(|e| {
         (
             Status::InternalServerError,
-            format!("Error with update_tally_ceremony: {:?}", e),
+            format!("Error with update_tally_ceremony: {e:?}"),
         )
     })?;
 
@@ -263,18 +276,24 @@ pub async fn update_tally_ceremony(
 ////////////////////////////////////////////////////////////////////////////////
 
 #[derive(Serialize, Deserialize, Debug)]
+/// Request body for restoring a private key.
 pub struct SetPrivateKeyInput {
+    /// The election event ID.
     election_event_id: String,
+    /// The private key base64.
     private_key_base64: String,
+    /// The tally session ID.
     tally_session_id: String,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
+/// Response body for restoring a private key.
 pub struct SetPrivateKeyOutput {
+    /// Whether the private key is valid.
     is_valid: bool,
 }
 
-// The main function to restore the private key
+/// The main function to restore the private key
 #[instrument(skip(claims))]
 #[post("/restore-private-key", format = "json", data = "<body>")]
 pub async fn restore_private_key(
@@ -315,8 +334,7 @@ pub async fn restore_private_key(
         &input.private_key_base64,
     )
     .await
-    .map_err(|e| (Status::BadRequest, format!("{:?}", e)))?;
-
+    .map_err(|e| (Status::BadRequest, format!("{e:?}")))?;
     event!(
         Level::INFO,
         "Restoring given private key, election_event_id={}, tally_session_id={}, is_valid={}",
@@ -332,16 +350,24 @@ pub async fn restore_private_key(
 }
 
 #[derive(Serialize, Deserialize, Debug)]
+/// Request body for submitting a tally resolution.
 pub struct SubmitTallyResolutionInput {
+    /// The election event ID.
     election_event_id: String,
+    /// The tally session ID.
     tally_session_id: String,
+    /// The resolutions.
     resolutions: Vec<TallyResolution>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
+/// Response body for submitting a tally resolution.
 pub struct SubmitTallyResolutionOutput {
+    /// Whether the submission was successful.
     success: bool,
+    /// The tally session ID.
     tally_session_id: String,
+    /// The number of resolutions submitted.
     resolved_count: usize,
 }
 
@@ -397,7 +423,6 @@ pub async fn submit_tally_resolution(
     )
     .await
     .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
-
     hasura_transaction.commit().await.map_err(|err| {
         (Status::InternalServerError, format!("Commit failed: {err}"))
     })?;

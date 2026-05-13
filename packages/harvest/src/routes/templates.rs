@@ -12,17 +12,23 @@ use serde::{Deserialize, Serialize};
 use tracing::instrument;
 use windmill::services::reports::utils::get_public_asset_template;
 
+/// Request body for [`get_user_template`].
 #[derive(Deserialize, Debug)]
 pub struct GetUserTemplateBody {
+    /// Logical template name (e.g. report type key).
     template_type: String,
 }
 
+/// Response body for [`get_user_template`].
 #[derive(Serialize, Deserialize, Debug)]
 pub struct GetUserTemplateResponse {
+    /// Handlebars source for the user-facing template.
     template_hbs: String,
+    /// JSON configuration shipped alongside the template.
     extra_config: String,
 }
 
+/// Loads bundled user template assets from public storage.
 #[instrument(skip(claims))]
 #[post("/get-user-template", format = "json", data = "<body>")]
 pub async fn get_user_template(

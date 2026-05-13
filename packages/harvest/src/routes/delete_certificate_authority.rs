@@ -19,17 +19,23 @@ use windmill::services::database::get_hasura_pool;
 use windmill::services::election_event_board::get_election_event_board;
 use windmill::services::electoral_log::ElectoralLog;
 
+/// Request body for deleting a certificate authority.
 #[derive(Serialize, Deserialize, Debug)]
 pub struct DeleteCertificateAuthorityInput {
+    /// The certificate IDs
     ids: Vec<uuid::Uuid>,
+    /// The election event ID
     election_event_id: uuid::Uuid,
 }
 
+/// Response for certificate authority deletion.
 #[derive(Serialize, Deserialize, Debug)]
 pub struct DeleteCertificateAuthorityOutput {
+    /// The number of deleted certificate authorities
     deleted_count: i32,
 }
 
+/// Deletes a certificate authority.
 #[instrument(skip(claims, input))]
 #[post("/delete-certificate-authority", format = "json", data = "<input>")]
 pub async fn delete_certificate_authority_route(
@@ -92,7 +98,9 @@ pub async fn delete_certificate_authority_route(
     .await
     .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
 
-    let electoral_log = if !deleted_subjects.is_empty() {
+    let electoral_log = if deleted_subjects.is_empty() {
+        None
+    } else {
         let board_name =
             get_election_event_board(election_event.bulletin_board_reference)
                 .ok_or_else(|| {
@@ -119,8 +127,6 @@ pub async fn delete_certificate_authority_route(
                 None
             }
         }
-    } else {
-        None
     };
 
     let deleted_count = deleted_subjects.len();
@@ -146,6 +152,7 @@ pub async fn delete_certificate_authority_route(
     }
 
     Ok(Json(DeleteCertificateAuthorityOutput {
-        deleted_count: deleted_count as i32,
+        deleted_count: i32::try_from(deleted_count)
+            .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?,
     }))
 }

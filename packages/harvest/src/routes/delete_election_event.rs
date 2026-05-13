@@ -14,23 +14,30 @@ use serde::{Deserialize, Serialize};
 use tracing::{event, instrument, Level};
 use windmill::postgres::tenant;
 use windmill::services::celery_app::get_celery_app;
-use windmill::services::tasks_execution::*;
+use windmill::services::tasks_execution::post;
 use windmill::services::tasks_execution::{update_complete, update_fail};
 use windmill::tasks::delete_election_event;
 use windmill::types::tasks::ETasksExecution;
 
+/// Response for election event deletion.
 #[derive(Serialize, Deserialize, Debug)]
 pub struct DeleteElectionEventOutput {
+    /// The election event ID
     id: String,
+    /// Task execution information
     task_execution: TasksExecution,
+    /// Optional error message
     error_msg: Option<String>,
 }
 
+/// Request body for deleting an election event.
 #[derive(Serialize, Deserialize, Debug)]
 pub struct DeleteElectionEventInput {
+    /// The election event ID to delete
     election_event_id: String,
 }
 
+/// Deletes an election event and all associated data.
 #[instrument(skip(claims))]
 #[post("/delete-election-event", format = "json", data = "<body>")]
 pub async fn delete_election_event_f(
@@ -70,7 +77,7 @@ pub async fn delete_election_event_f(
         )
         .await;
         return Err(error);
-    };
+    }
 
     let celery_app = get_celery_app().await;
 

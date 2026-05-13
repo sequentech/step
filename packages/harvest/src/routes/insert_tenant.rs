@@ -12,22 +12,30 @@ use serde::{Deserialize, Serialize};
 use tracing::{event, instrument, Level};
 use uuid::Uuid;
 use windmill::services::celery_app::get_celery_app;
-use windmill::services::tasks_execution::*;
+use windmill::services::tasks_execution::{post, update_fail};
 use windmill::tasks;
 use windmill::types::tasks::ETasksExecution;
 #[derive(Serialize, Deserialize, Debug)]
+/// Request body for creating a tenant.
 pub struct CreateTenantInput {
+    /// The slug of the tenant.
     slug: String,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
+/// Response body for creating a tenant.
 pub struct CreateTenantOutput {
+    /// The ID of the tenant.
     id: String,
+    /// The slug of the tenant.
     slug: String,
+    /// The error message.
     error_msg: Option<String>,
+    /// The task execution.
     task_execution: TasksExecution,
 }
 
+/// Insert tenant.
 #[instrument(skip(claims))]
 #[post("/insert-tenant", format = "json", data = "<body>")]
 pub async fn insert_tenant(
@@ -63,7 +71,7 @@ pub async fn insert_tenant(
         )
         .await;
         return Err(error);
-    };
+    }
 
     let celery_app = get_celery_app().await;
 

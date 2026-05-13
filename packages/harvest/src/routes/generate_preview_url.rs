@@ -19,16 +19,22 @@ use windmill::services::tasks_execution::*;
 use windmill::types::tasks::ETasksExecution;
 
 #[derive(Serialize, Deserialize, Debug)]
+/// Request body for generating a preview URL.
 pub struct GeneratePreviewUrlInput {
+    /// The tenant ID.
     tenant_id: String,
+    /// The ballot style document ID.
     document_id: String,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
+/// Response containing the preview URL.
 pub struct GeneratePreviewUrlOutput {
+    /// The preview URL.
     preview_url: String,
 }
 
+/// Generate a preview URL by ballot style document ID.
 #[instrument(skip(claims))]
 #[post("/generate-preview-url", format = "json", data = "<input>")]
 pub async fn generate_preview_url(

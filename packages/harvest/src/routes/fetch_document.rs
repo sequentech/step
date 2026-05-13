@@ -14,16 +14,22 @@ use tracing::instrument;
 use windmill::services::{database::get_hasura_pool, documents};
 
 #[derive(Deserialize, Debug)]
+/// Request body for fetching a document URL.
 pub struct GetDocumentUrlBody {
+    /// The election event ID.
     election_event_id: Option<String>,
+    /// The document ID.
     document_id: String,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
+/// Response containing the document URL.
 pub struct GetDocumentUrlResponse {
+    /// The document URL.
     url: String,
 }
 
+/// Fetch a document URL.
 #[instrument(skip(claims))]
 #[post("/fetch-document", format = "json", data = "<body>")]
 pub async fn fetch_document(
@@ -63,7 +69,7 @@ pub async fn fetch_document(
         &input.document_id,
     )
     .await
-    .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?
+    .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?
     .ok_or_else(|| (Status::NotFound, "Document not found".to_string()))?;
 
     hasura_transaction.commit().await.map_err(|err| {

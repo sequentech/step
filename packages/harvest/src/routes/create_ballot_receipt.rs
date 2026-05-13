@@ -17,24 +17,37 @@ use windmill::services::celery_app::get_celery_app;
 use windmill::services::tasks_execution::post;
 use windmill::types::tasks::ETasksExecution;
 
+/// Request body for creating a ballot receipt.
 #[derive(Serialize, Deserialize, Debug)]
 pub struct CreateBallotReceiptInput {
+    /// The ballot ID
     pub ballot_id: String,
+    /// URL for ballot tracking
     pub ballot_tracker_url: String,
+    /// The election event ID
     pub election_event_id: String,
+    /// The election ID
     pub election_id: String,
+    /// Optional timezone for receipt
     pub time_zone: Option<TimeZone>,
+    /// Optional date format for receipt
     pub date_format: Option<DateFormat>,
 }
 
+/// Response for ballot receipt creation.
 #[derive(Serialize, Deserialize, Debug)]
 pub struct CreateBallotReceiptOutput {
+    /// The receipt ID
     pub id: String,
+    /// The associated ballot ID
     pub ballot_id: String,
+    /// The status of the receipt
     pub status: String,
+    /// Task execution information
     pub task_execution: TasksExecution,
 }
 
+/// Creates a ballot receipt for a voter.
 #[instrument(skip_all)]
 #[post("/create-ballot-receipt", format = "json", data = "<body>")]
 pub async fn create_ballot_receipt(
@@ -112,6 +125,6 @@ pub async fn create_ballot_receipt(
         id: document_id,
         ballot_id: input.ballot_id,
         status: "pending".to_string(),
-        task_execution: task_execution,
+        task_execution,
     }))
 }

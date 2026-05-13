@@ -19,24 +19,36 @@ use windmill::{
     tasks::plugins_tasks::execute_plugin_task,
 };
 #[derive(Deserialize, Debug)]
+/// Request body for plugins route.
 pub struct PluginsRouteInput {
+    /// The path.
     path: String,
+    /// The data in json format.
     data: Value,
+    /// The task name to execute.
     task_execution: Option<String>,
+    /// The generate document flag.
     generate_document: Option<bool>,
 }
 
 #[derive(Deserialize, Debug, Serialize)]
+/// Response body for plugins route.
 pub struct PluginsRouteOutput {
+    /// The data in json format.
     data: Value,
 }
 
 #[derive(Deserialize, Debug, Serialize)]
+/// Response body for plugins route task.
 pub struct PluginsRouteTaskOutput {
+    /// The document ID.
     document_id: Option<String>,
+    /// The task execution.
     task_execution: TasksExecution,
 }
 
+/// Generic plugins route mapping.
+/// This route is used to execute a plugin task or call a plugin route.
 #[instrument(skip(claims))]
 #[post("/plugin", format = "json", data = "<body>")]
 pub async fn plugin_routes(
@@ -59,7 +71,16 @@ pub async fn plugin_routes(
     let claims_json_string: String = serde_json::to_string(&claims)
         .expect("Failed to serialize JwtClaims to string");
 
-    route_data["claims"] = serde_json::Value::String(claims_json_string);
+    {
+        let route_obj = route_data.as_object_mut().ok_or((
+            Status::BadRequest,
+            "plugin route `data` must be a JSON object".to_string(),
+        ))?;
+        route_obj.insert(
+            "claims".to_string(),
+            serde_json::Value::String(claims_json_string),
+        );
+    }
 
     let task = plugin_manager.get_route_task_handler(&input.path);
     let task_name = input.task_execution.clone();
@@ -79,16 +100,33 @@ pub async fn plugin_routes(
         .await
         .map_err(|e| (Status::InternalServerError, e.to_string()))?;
 
-        route_data["task_execution"] = serde_json::Value::String(
-            serde_json::to_string(&task_execution)
-                .expect("Failed to serialize task_execution to string"),
-        );
+        {
+            let route_obj = route_data.as_object_mut().ok_or((
+                Status::BadRequest,
+                "plugin route `data` must be a JSON object".to_string(),
+            ))?;
+            route_obj.insert(
+                "task_execution".to_string(),
+                serde_json::Value::String(
+                    serde_json::to_string(&task_execution)
+                        .expect("Failed to serialize task_execution to string"),
+                ),
+            );
+        }
 
         let document_id = match input.generate_document {
             Some(true) => {
                 let doc_id = Uuid::new_v4().to_string();
-                route_data["document_id"] =
-                    serde_json::Value::String(doc_id.clone());
+                {
+                    let route_obj = route_data.as_object_mut().ok_or((
+                        Status::BadRequest,
+                        "plugin route `data` must be a JSON object".to_string(),
+                    ))?;
+                    route_obj.insert(
+                        "document_id".to_string(),
+                        serde_json::Value::String(doc_id.clone()),
+                    );
+                }
                 Some(doc_id)
             }
             _ => None,

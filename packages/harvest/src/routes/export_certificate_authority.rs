@@ -20,14 +20,20 @@ use windmill::services::tasks_execution::post;
 use windmill::types::tasks::ETasksExecution;
 
 #[derive(Serialize, Deserialize, Debug)]
+/// Request body for exporting a certificate authority.
 pub struct ExportCertificateAuthorityInput {
+    /// The certificate authority IDs
     ids: Vec<uuid::Uuid>,
+    /// The election event ID
     election_event_id: uuid::Uuid,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
+/// Response for certificate authority export.
 pub struct ExportCertificateAuthorityOutput {
+    /// The document ID
     document_id: String,
+    /// The task execution
     task_execution: TasksExecution,
 }
 

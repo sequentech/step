@@ -15,20 +15,31 @@ use windmill::services::{
     providers::transactions_provider::provide_hasura_transaction,
 };
 #[derive(Serialize, Deserialize, Debug)]
+/// Request body for uploading a document.
 pub struct UploadDocumentInput {
+    /// The name.
     name: String,
+    /// The media type.
     media_type: String,
+    /// The size.
     size: usize,
+    /// Whether the document is public.
     is_public: bool,
+    /// Whether the document is local.
     is_local: Option<bool>,
+    /// The election event ID.
     election_event_id: Option<String>,
 }
 #[derive(Serialize, Deserialize, Debug)]
+/// Response body for uploading a document.
 pub struct UploadDocumentOutput {
+    /// The document ID.
     document_id: String,
+    /// The URL of the document.
     url: String,
 }
 
+/// Uploads a document and returns the upload URL.
 #[instrument(skip(claims))]
 #[post("/get-upload-url", format = "json", data = "<body>")]
 pub async fn get_upload_url(
@@ -70,7 +81,7 @@ pub async fn get_upload_url(
         inner.election_event_id,
     )
     .await
-    .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+    .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
 
     hasura_transaction.commit().await.map_err(|err| {
         (

@@ -19,18 +19,26 @@ use windmill::services::database::get_hasura_pool;
 use windmill::services::import::import_election_event::upsert_b3_and_elog;
 
 #[derive(Serialize, Deserialize, Debug)]
+/// Request body for creating an election.
 pub struct CreateElectionInput {
+    /// The election event ID.
     election_event_id: String,
+    /// The external ID of the election.
     external_id: String,
+    /// The presentation of the election.
     presentation: ElectionPresentation,
+    /// The description of the election.
     description: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
+/// Response containing the ID of the created election.
 pub struct CreateElectionOutput {
+    /// The ID of the created election.
     id: String,
 }
 
+/// Creates an election.
 #[instrument(skip(claims))]
 #[post("/create-election", format = "json", data = "<body>")]
 pub async fn create_election(
@@ -48,12 +56,12 @@ pub async fn create_election(
         .await
         .get()
         .await
-        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+        .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
 
     let hasura_transaction = hasura_db_client
         .transaction()
         .await
-        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+        .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
 
     let election = election::create_election(
         &hasura_transaction,
@@ -64,7 +72,7 @@ pub async fn create_election(
         &body.external_id,
     )
     .await
-    .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+    .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
 
     upsert_b3_and_elog(
         &hasura_transaction,
@@ -74,13 +82,13 @@ pub async fn create_election(
         false,
     )
     .await
-    .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+    .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
 
     hasura_transaction
         .commit()
         .await
         .with_context(|| "error comitting transaction")
-        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+        .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
 
     Ok(Json(CreateElectionOutput { id: election.id }))
 }

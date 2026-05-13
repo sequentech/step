@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+#![allow(clippy::large_futures)]
 
 use crate::services::authorization::authorize;
 use anyhow::Result;
@@ -22,21 +23,25 @@ use windmill::services::database::get_hasura_pool;
 use windmill::services::import::import_election_event::{
     get_document, get_zip_entries,
 };
-use windmill::services::tasks_execution::*;
-use windmill::services::tasks_execution::{update_complete, update_fail};
+use windmill::services::tasks_execution::{post, update_complete, update_fail};
 use windmill::tasks::import_election_event;
 use windmill::tasks::insert_election_event::{self, CreateElectionEventInput};
 use windmill::types::tasks::ETasksExecution;
 
 #[derive(Serialize, Deserialize, Debug)]
-
+/// Response body for inserting election event.
 pub struct CreateElectionEventOutput {
+    /// The election event ID.
     id: Option<String>,
+    /// The message.
     message: Option<String>,
+    /// The error message.
     error: Option<String>,
+    /// The task execution.
     task_execution: Option<TasksExecution>,
 }
 
+/// Insert election event.
 #[instrument(skip(claims))]
 #[post("/insert-election-event", format = "json", data = "<body>")]
 pub async fn insert_election_event_f(
@@ -114,14 +119,21 @@ pub async fn insert_election_event_f(
 }
 
 #[derive(Serialize, Deserialize, Debug)]
+/// Response body for importing election event.
 pub struct ImportElectionEventOutput {
+    /// The election event ID.
     id: Option<String>,
+    /// The message.
     message: Option<String>,
+    /// The error message.
     error: Option<String>,
+    /// The task execution.
     task_execution: Option<TasksExecution>,
 }
 
+/// Import election event.
 #[instrument(skip(claims))]
+#[allow(clippy::too_many_lines)]
 #[post("/import-election-event", format = "json", data = "<body>")]
 pub async fn import_election_event_f(
     body: Json<import_election_event::ImportElectionEventBody>,
@@ -191,7 +203,7 @@ pub async fn import_election_event_f(
     match input.sha256.clone() {
         Some(hash) if !hash.is_empty() => {
             match integrity_check(&temp_file_path, hash) {
-                Ok(_) => {
+                Ok(()) => {
                     info!("Hash verified !");
                 }
                 Err(err) => {
@@ -236,7 +248,7 @@ pub async fn import_election_event_f(
             return Ok(Json(ImportElectionEventOutput {
                 id: None,
                 message: None,
-                error: Some(format!("Error checking import: {:?}", err)),
+                error: Some(format!("Error checking import: {err:?}")),
                 task_execution: Some(task_execution),
             }));
         }
@@ -263,7 +275,7 @@ pub async fn import_election_event_f(
             return Ok(Json(ImportElectionEventOutput {
                 id: None,
                 message: None,
-                error: Some(format!("Error checking import: {:?}", err)),
+                error: Some(format!("Error checking import: {err:?}")),
                 task_execution: Some(task_execution),
             }));
         }

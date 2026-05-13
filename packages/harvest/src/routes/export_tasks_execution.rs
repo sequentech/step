@@ -14,17 +14,24 @@ use windmill::services::celery_app::get_celery_app;
 use windmill::tasks::export_tasks_execution;
 
 #[derive(Serialize, Deserialize, Debug)]
+/// Request body for exporting tasks execution.
 pub struct ExportTasksExecutionBody {
+    /// The tenant ID.
     tenant_id: String,
+    /// The election event ID.
     election_event_id: String,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
+/// Response containing the exported document.
 pub struct ExportTasksExecutionOutput {
+    /// The generated document ID.
     document_id: String,
+    /// Error message if any.
     error_msg: Option<String>,
 }
 
+/// Genarate tasks execution export file.
 #[instrument(skip(claims))]
 #[post("/export-tasks-execution", format = "json", data = "<input>")]
 pub async fn export_tasks_execution_route(

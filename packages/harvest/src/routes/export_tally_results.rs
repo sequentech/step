@@ -14,24 +14,32 @@ use serde::{Deserialize, Serialize};
 use tracing::{event, instrument, Level};
 use uuid::Uuid;
 use windmill::services::celery_app::get_celery_app;
-use windmill::services::tasks_execution::*;
+use windmill::services::tasks_execution::post;
 use windmill::tasks::export_ballot_publication::export_ballot_publication;
 use windmill::tasks::export_election_event::{self, ExportOptions};
 use windmill::types::tasks::ETasksExecution;
 
 #[derive(Serialize, Deserialize, Debug)]
+/// Request body for exporting tally results.
 pub struct ExportTallyResultsInput {
+    /// The election event ID.
     election_event_id: String,
+    /// The tally session ID.
     tally_session_id: String,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
+/// Response containing the exported document.
 pub struct ExportTallyResultsOutput {
+    /// The generated document ID.
     document_id: String,
+    /// Task execution record.
     task_execution: TasksExecution,
+    /// Error message if any.
     error_msg: Option<String>,
 }
 
+/// Genarate tally results export file.
 #[instrument(skip(claims))]
 #[post("/export-tally-results", format = "json", data = "<input>")]
 pub async fn export_tally_results_route(

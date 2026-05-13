@@ -22,26 +22,41 @@ use windmill::postgres::area_contest::insert_area_to_area_contests;
 use windmill::services::database::get_hasura_pool;
 use windmill::services::import::import_election_event::upsert_b3_and_elog;
 
+/// Request body for creating or updating an area.
 #[derive(Serialize, Deserialize, Debug)]
 pub struct UpsertAreaInput {
+    /// Optional area ID; if not provided, a new ID will be generated
     pub id: Option<Uuid>,
+    /// Area name
     pub name: String,
+    /// Optional area description
     pub description: Option<String>,
+    /// The election event this area belongs to
     pub election_event_id: Uuid,
+    /// The tenant this area belongs to
     pub tenant_id: Uuid,
+    /// Optional parent area ID for hierarchical structure
     pub parent_id: Option<Uuid>,
+    /// Associated area contest IDs
     pub area_contest_ids: Vec<Uuid>,
+    /// Optional annotations for the area
     pub annotations: Option<JsonValue>,
+    /// Optional labels for the area
     pub labels: Option<JsonValue>,
+    /// Optional area type
     pub r#type: Option<String>,
+    /// Optional early voting policy
     pub allow_early_voting: Option<EarlyVotingPolicy>,
 }
 
+/// Response containing the ID of the created or updated area.
 #[derive(Serialize, Deserialize, Debug)]
 pub struct UpsertAreaOutput {
+    /// The area ID
     id: String,
 }
 
+/// Creates or updates an area in an election event.
 #[instrument(skip(claims))]
 #[post("/upsert-area", format = "json", data = "<body>")]
 pub async fn upsert_area(
@@ -79,10 +94,10 @@ pub async fn upsert_area(
         )
     })?;
     let area = Area {
-        id: body
-            .id
-            .map(|uuid| uuid.to_string())
-            .unwrap_or_else(|| uuid::Uuid::new_v4().to_string()),
+        id: body.id.map_or_else(
+            || uuid::Uuid::new_v4().to_string(),
+            |uuid| uuid.to_string(),
+        ),
         tenant_id: body.tenant_id.to_string(),
         election_event_id: election_event_id_str.clone(),
         labels: body.labels.clone(),

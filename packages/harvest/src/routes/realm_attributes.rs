@@ -14,16 +14,22 @@ use std::collections::HashMap;
 use tracing::{error, instrument};
 
 #[derive(Serialize, Deserialize, Debug)]
+/// Request body for updating realm attributes.
 pub struct UpdateRealmAttributesInput {
+    /// The election event ID
     pub election_event_id: String,
+    /// The attributes
     pub attributes: HashMap<String, String>,
 }
 
 #[derive(Serialize)]
+/// Response for updating realm attributes.
 pub struct UpdateRealmAttributesOutput {
+    /// Whether the update was successful
     pub updated: bool,
 }
 
+/// Updates realm attributes endpoint.
 #[instrument(skip(claims))]
 #[post("/update-realm-attributes", format = "json", data = "<input>")]
 pub async fn update_realm_attributes_route(
@@ -39,7 +45,7 @@ pub async fn update_realm_attributes_route(
         vec![Permissions::ELECTION_EVENT_WRITE],
     )
     .map_err(|err| {
-        error!("Authorization failed: {:?}", err);
+        error!("Authorization failed: {err:?}");
         (Status::Forbidden, "Authorization failed".to_string())
     })?;
 
@@ -50,8 +56,8 @@ pub async fn update_realm_attributes_route(
     )
     .await
     .map_err(|e| {
-        error!("Failed to update realm attributes: {:?}", e);
-        (Status::InternalServerError, format!("{:?}", e))
+        error!("Failed to update realm attributes: {e:?}");
+        (Status::InternalServerError, format!("{e:?}"))
     })?;
 
     Ok(Json(UpdateRealmAttributesOutput { updated: true }))

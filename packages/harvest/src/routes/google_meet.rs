@@ -17,10 +17,13 @@ use windmill::services::google_meet::{
 };
 
 #[derive(Serialize, Deserialize, Debug)]
+/// Response containing the Google Meet link.
 pub struct GenerateGoogleMeetOutput {
-    pub meet_link: Option<String>,
+    /// The Google Meet link.
+    meet_link: Option<String>,
 }
 
+/// Generate a Google Meet link.
 #[instrument(skip(claims))]
 #[post("/generate-google-meeting", format = "json", data = "<body>")]
 pub async fn generate_google_meeting(

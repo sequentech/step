@@ -14,19 +14,25 @@ use tracing::instrument;
 use windmill::postgres::tally_sheet;
 use windmill::services::database::get_hasura_pool;
 
+/// Request body for [`publish_tally_sheet`].
 #[derive(Serialize, Deserialize, Debug)]
 pub struct PublishTallySheetInput {
+    /// Election event that owns the tally sheet.
     election_event_id: String,
+    /// Identifier of the tally sheet row to publish or unpublish.
     tally_sheet_id: String,
+    /// When true, publishes the sheet; when false, unpublishes it.
     publish: bool,
 }
 
+/// Response body for [`publish_tally_sheet`].
 #[derive(Serialize, Deserialize, Debug)]
 pub struct PublishTallySheetOutput {
+    /// Present when a tally sheet row was updated.
     tally_sheet_id: Option<String>,
 }
 
-// The main function to start a key ceremony
+/// The main function to start a key ceremony
 #[instrument(skip(claims))]
 #[post("/publish-tally-sheet", format = "json", data = "<body>")]
 pub async fn publish_tally_sheet(
@@ -45,12 +51,12 @@ pub async fn publish_tally_sheet(
         .await
         .get()
         .await
-        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+        .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
 
     let hasura_transaction = hasura_db_client
         .transaction()
         .await
-        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+        .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
 
     let found = tally_sheet::publish_tally_sheet(
         &hasura_transaction,
@@ -61,9 +67,9 @@ pub async fn publish_tally_sheet(
         input.publish,
     )
     .await
-    .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+    .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
 
-    if let None = found {
+    if found.is_none() {
         return Ok(Json(PublishTallySheetOutput {
             tally_sheet_id: None,
         }));
@@ -73,7 +79,7 @@ pub async fn publish_tally_sheet(
         .commit()
         .await
         .with_context(|| "error comitting transaction")
-        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+        .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
 
     Ok(Json(PublishTallySheetOutput {
         tally_sheet_id: Some(input.tally_sheet_id.clone()),

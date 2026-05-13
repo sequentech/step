@@ -16,19 +16,27 @@ use tracing::instrument;
 use windmill::services::database::get_hasura_pool;
 use windmill::services::{election_dates, election_event_dates};
 
+/// Request body for managing election dates.
 #[derive(Deserialize, Debug)]
 pub struct ManageElectionDatesBody {
+    /// The election event ID
     election_event_id: String,
+    /// Optional election ID within the event
     election_id: Option<String>,
+    /// Optional scheduled date
     scheduled_date: Option<String>,
+    /// Event processor type
     event_processor: EventProcessors,
 }
 
+/// Response for managing election dates.
 #[derive(Serialize, Deserialize, Debug)]
 pub struct ManageElectionDatesResponse {
+    /// Optional error message
     error_msg: Option<String>,
 }
 
+/// Manages election dates and scheduled events.
 #[instrument(skip(claims))]
 #[post("/manage-election-dates", format = "json", data = "<body>")]
 pub async fn manage_election_dates(
@@ -89,7 +97,7 @@ pub async fn manage_election_dates(
             )
             .await
             {
-                Ok(_) => (),
+                Ok(()) => {}
                 Err(err) => {
                     return Ok(Json(ManageElectionDatesResponse {
                         error_msg: Some(err.to_string()),
@@ -116,7 +124,7 @@ pub async fn manage_election_dates(
         }
     }
 
-    let _commit = hasura_transaction.commit().await.map_err(|e| {
+    hasura_transaction.commit().await.map_err(|e| {
         ErrorResponse::new(
             Status::InternalServerError,
             &format!("commit failed: {e:?}"),

@@ -7,7 +7,7 @@ use crate::services::authorization::authorize;
 use sequent_core::services::connection;
 use sequent_core::services::jwt::JwtClaims;
 use sequent_core::types::permissions::Permissions;
-use sequent_core::types::scheduled_event::*;
+use sequent_core::types::scheduled_event::EventProcessors;
 
 use anyhow::Result;
 use rocket::http::Status;
@@ -20,19 +20,28 @@ use tracing::instrument;
 use crate::services;
 
 #[derive(Deserialize, Debug, Clone)]
+/// Request body for creating a scheduled event.
 pub struct CreateEventBody {
+    /// The tenant ID.
     pub tenant_id: String,
+    /// The election event ID.
     pub election_event_id: Option<String>,
+    /// The event processor.
     pub event_processor: EventProcessors,
+    /// The cron configuration.
     pub cron_config: Option<String>,
+    /// The event payload.
     pub event_payload: Value,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
+/// Response body for creating a scheduled event.
 pub struct CreateEventOutput {
+    /// The ID of the scheduled event.
     pub id: String,
 }
 
+/// Creates a scheduled event.
 #[instrument(skip(claims))]
 #[post("/scheduled-event", format = "json", data = "<body>")]
 pub async fn create_scheduled_event(
@@ -59,12 +68,12 @@ pub async fn create_scheduled_event(
             )?;
         }
         _ => {}
-    };
+    }
 
     let element_id =
         services::worker::process_scheduled_event(input.clone(), claims)
             .await
-            .map_err(|e| (Status::BadRequest, format!("{:?}", e)))?;
+            .map_err(|e| (Status::BadRequest, format!("{e:?}")))?;
 
     Ok(Json(CreateEventOutput { id: element_id }))
 }

@@ -1,7 +1,9 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+//! Harvest REST API
 #![recursion_limit = "256"]
+#![allow(clippy::too_many_lines)]
 #[macro_use]
 extern crate rocket;
 
@@ -14,18 +16,22 @@ use windmill::services::{
     probe::{setup_probe, AppName},
 };
 
+/// HTTP routes
 mod routes;
+/// Authorization and database services
 mod services;
+/// Types and data structures
 mod types;
 
 #[launch]
+/// Launches the Rocket server.
 async fn rocket() -> _ {
     dotenv().ok();
     init_log(true);
 
     setup_probe(AppName::HARVEST).await;
     set_is_app_active(true);
-    init_plugin_manager().await.unwrap();
+    init_plugin_manager().await;
 
     rocket::build()
         .register(

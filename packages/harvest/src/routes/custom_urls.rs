@@ -18,33 +18,49 @@ use windmill::services::custom_url::{
 };
 use windmill::services::database::get_hasura_pool;
 
+/// Request body for updating custom URL.
 #[derive(Serialize, Deserialize, Debug)]
 pub struct UpdateCustomUrlInput {
+    /// The origin domain
     pub origin: String,
+    /// The redirect target URL
     pub redirect_to: String,
+    /// The DNS prefix for custom domain
     pub dns_prefix: String,
+    /// The election ID
     pub election_id: String,
+    /// Authentication key (login/enrollment/saml)
     pub key: String,
 }
 
+/// Request body for retrieving custom URL.
 #[derive(Serialize, Deserialize, Debug)]
 pub struct GetCustomUrlInput {
+    /// The redirect target URL
     pub redirect_to: String,
 }
 
+/// Response for custom URL retrieval.
 #[derive(Serialize)]
 struct GetCustomUrlOutput {
+    /// Whether the operation was successful
     success: bool,
+    /// Status message
     message: String,
+    /// The origin domain
     origin: String,
 }
 
+/// Response for custom URL update.
 #[derive(Serialize)]
 struct UpdateCustomUrlOutput {
+    /// Whether the operation was successful
     success: bool,
+    /// Status message
     message: String,
 }
 
+/// Updates a custom URL configuration.
 #[instrument(skip(claims))]
 #[post("/set-custom-url", format = "json", data = "<input>")]
 pub async fn update_custom_url(
@@ -67,12 +83,12 @@ pub async fn update_custom_url(
         .await
         .get()
         .await
-        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+        .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
 
     let hasura_transaction = hasura_db_client
         .transaction()
         .await
-        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+        .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
 
     let election_event = get_election_event_by_id(
         &hasura_transaction,
@@ -80,7 +96,7 @@ pub async fn update_custom_url(
         &body.election_id,
     )
     .await
-    .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+    .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
 
     let prev_custom_urls =
         if let Some(presentation) = &election_event.presentation {
@@ -104,16 +120,16 @@ pub async fn update_custom_url(
                 }
             } else {
                 PreviousCustomUrls {
-                    login: "".to_owned(),
-                    enrollment: "".to_owned(),
-                    saml: "".to_owned(),
+                    login: String::new(),
+                    enrollment: String::new(),
+                    saml: String::new(),
                 }
             }
         } else {
             PreviousCustomUrls {
-                login: "".to_owned(),
-                enrollment: "".to_owned(),
-                saml: "".to_owned(),
+                login: String::new(),
+                enrollment: String::new(),
+                saml: String::new(),
             }
         };
 
@@ -128,15 +144,14 @@ pub async fn update_custom_url(
     {
         Ok(message) => {
             info!("Custom URL successfully updated");
-            let success_message = format!("Success updating custom URL");
+            let success_message = "Success updating custom URL".to_string();
             Ok(Json(UpdateCustomUrlOutput {
                 success: true,
                 message: success_message,
             }))
         }
         Err(error) => {
-            let error_message =
-                format!("Error updating custom URL: {:?}", error);
+            let error_message = format!("Error updating custom URL: {error:?}");
             error!("{}", error_message);
 
             Ok(Json(UpdateCustomUrlOutput {
@@ -147,6 +162,7 @@ pub async fn update_custom_url(
     }
 }
 
+/// Retrieves a custom URL configuration.
 #[instrument(skip(claims))]
 #[post("/get-custom-url", format = "json", data = "<input>")]
 pub async fn get_custom_url(
@@ -171,7 +187,7 @@ pub async fn get_custom_url(
         Some(r) => {
             let origin = r
                 .targets
-                .get(0)
+                .first()
                 .map(|target| target.constraint.value.clone());
 
             match origin {
@@ -183,14 +199,14 @@ pub async fn get_custom_url(
                 None => Ok(Json(GetCustomUrlOutput {
                     success: false,
                     message: "Error extracting page rule".to_string(),
-                    origin: "".to_string(),
+                    origin: String::new(),
                 })),
             }
         }
         None => Ok(Json(GetCustomUrlOutput {
             success: false,
             message: "No matching page rule found".to_string(),
-            origin: "".to_string(),
+            origin: String::new(),
         })),
     }
 }

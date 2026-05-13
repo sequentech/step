@@ -23,24 +23,37 @@ use windmill::services::election_event_statistics::{
 };
 use windmill::services::users::count_keycloak_enabled_users;
 
+/// Request body for fetching election event statistics.
 #[derive(Serialize, Deserialize, Debug)]
 pub struct ElectionEventStatsInput {
+    /// The election event ID
     election_event_id: String,
+    /// Start date for vote statistics
     start_date: String,
+    /// End date for vote statistics
     end_date: String,
+    /// User's timezone for date calculations
     user_timezone: String,
 }
 
+/// Response containing election event statistics.
 #[derive(Serialize, Deserialize, Debug)]
 pub struct ElectionEventStatsOutput {
+    /// Total number of eligible voters
     total_eligible_voters: i64,
+    /// Total number of distinct voters who cast votes
     total_distinct_voters: i64,
+    /// Total number of areas in the election event
     total_areas: i64,
+    /// Total number of elections
     total_elections: i64,
+    /// Number of votes cast per day
     votes_per_day: Vec<CastVotesPerDay>,
 }
 
+/// Retrieves comprehensive statistics for an election event.
 #[instrument(skip(claims))]
+#[allow(clippy::too_many_lines)]
 #[post("/election-event/stats", format = "json", data = "<body>")]
 pub async fn get_election_event_stats(
     body: Json<ElectionEventStatsInput>,
@@ -86,8 +99,8 @@ pub async fn get_election_event_stats(
 
     let total_distinct_voters: i64 = get_count_distinct_voters(
         &hasura_transaction,
-        &tenant_id.as_str(),
-        &input.election_event_id.as_str(),
+        tenant_id.as_str(),
+        input.election_event_id.as_str(),
     )
     .await
     .map_err(|err| {
@@ -98,8 +111,8 @@ pub async fn get_election_event_stats(
     })?;
     let total_elections: i64 = get_count_elections(
         &hasura_transaction,
-        &tenant_id.as_str(),
-        &input.election_event_id.as_str(),
+        tenant_id.as_str(),
+        input.election_event_id.as_str(),
     )
     .await
     .map_err(|err| {
@@ -111,8 +124,8 @@ pub async fn get_election_event_stats(
 
     let total_areas: i64 = get_count_areas(
         &hasura_transaction,
-        &tenant_id.as_str(),
-        &input.election_event_id.as_str(),
+        tenant_id.as_str(),
+        input.election_event_id.as_str(),
     )
     .await
     .map_err(|err| {
@@ -124,12 +137,12 @@ pub async fn get_election_event_stats(
 
     let votes_per_day: Vec<CastVotesPerDay> = get_count_votes_per_day(
         &hasura_transaction,
-        &tenant_id.as_str(),
-        &input.election_event_id.as_str(),
-        &input.start_date.as_str(),
-        &input.end_date.as_str(),
+        tenant_id.as_str(),
+        input.election_event_id.as_str(),
+        input.start_date.as_str(),
+        input.end_date.as_str(),
         None,
-        &input.user_timezone.as_str(),
+        input.user_timezone.as_str(),
     )
     .await
     .map_err(|err| {
@@ -145,24 +158,31 @@ pub async fn get_election_event_stats(
     let total_eligible_voters: i64 =
         count_keycloak_enabled_users(&keycloak_transaction, &realm_name)
             .await
-            .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+            .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
 
     Ok(Json(ElectionEventStatsOutput {
+        total_eligible_voters,
         total_distinct_voters,
         total_areas,
-        total_eligible_voters: total_eligible_voters.into(),
-        total_elections: total_elections.into(),
+        total_elections,
         votes_per_day,
     }))
 }
 
+/// Request body for retrieving top votes by IP.
 #[derive(Deserialize, Debug)]
 pub struct GetTopCastVotesByIp {
+    /// The election event ID
     election_event_id: String,
+    /// Optional limit on number of results
     limit: Option<i32>,
+    /// Optional offset for pagination
     offset: Option<i32>,
+    /// Optional IP address to filter by
     ip: Option<String>,
+    /// Optional country code to filter by
     country: Option<String>,
+    /// Optional election ID within the event
     election_id: Option<String>,
 }
 
@@ -222,7 +242,7 @@ pub async fn get_election_event_top_votes_by_ip(
         items: cast_votes_by_ip,
         total: TotalAggregate {
             aggregate: Aggregate {
-                count: count as i64,
+                count: i64::from(count),
             },
         },
     }))
