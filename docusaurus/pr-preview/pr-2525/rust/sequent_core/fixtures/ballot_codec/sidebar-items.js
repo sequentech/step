@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["bases_fixture","get_fixtures","get_test_contest","get_test_decoded_vote_contest","get_too_long_writein_plaintext","get_writein_ballot_style","get_writein_plaintext"],"struct":["BallotCodecFixture","BasesFixture"]};
+window.SIDEBAR_ITEMS = {"fn":["bases_fixture","get_fixtures","get_irv_fixture_invalid_ballot","get_irv_fixture_valid_ballot","get_test_contest","get_test_decoded_vote_contest","get_too_long_writein_plaintext","get_writein_ballot_style","get_writein_plaintext"],"struct":["BallotCodecFixture","BasesFixture"]};

@@ -234,32 +234,32 @@
 <a href=#234 id=234 data-nosnippet>234</a><span class="doccomment">/// Reads the access token if it has been requested successfully before and it
 <a href=#235 id=235 data-nosnippet>235</a>/// is not expired.
 <a href=#236 id=236 data-nosnippet>236</a></span><span class="attr">#[instrument(skip(lst_acc_tkn))]
-<a href=#237 id=237 data-nosnippet>237</a>#[allow(clippy::cast_sign_loss)]
-<a href=#238 id=238 data-nosnippet>238</a></span><span class="kw">async fn </span>read_access_token(
-<a href=#239 id=239 data-nosnippet>239</a>    client_id: <span class="kw-2">&amp;</span>str,
-<a href=#240 id=240 data-nosnippet>240</a>    client_secret: <span class="kw-2">&amp;</span>str,
-<a href=#241 id=241 data-nosnippet>241</a>    tenant_id: <span class="kw-2">&amp;</span>str,
-<a href=#242 id=242 data-nosnippet>242</a>    lst_acc_tkn: <span class="kw-2">&amp;</span>LastDatafixAccessToken,
-<a href=#243 id=243 data-nosnippet>243</a>) -&gt; <span class="prelude-ty">Option</span>&lt;PubKeycloakAdminToken&gt; {
-<a href=#244 id=244 data-nosnippet>244</a>    <span class="kw">let </span>token_resp_ext_opt = <span class="kw">match </span>lst_acc_tkn.<span class="number">0</span>.read() {
-<a href=#245 id=245 data-nosnippet>245</a>        <span class="prelude-val">Ok</span>(read) =&gt; read.clone(),
-<a href=#246 id=246 data-nosnippet>246</a>        <span class="prelude-val">Err</span>(err) =&gt; {
-<a href=#247 id=247 data-nosnippet>247</a>            <span class="macro">warn!</span>(<span class="string">"Error acquiring read lock {err:?}"</span>);
-<a href=#248 id=248 data-nosnippet>248</a>            <span class="kw">return </span><span class="prelude-val">None</span>;
-<a href=#249 id=249 data-nosnippet>249</a>        }
-<a href=#250 id=250 data-nosnippet>250</a>    };
-<a href=#251 id=251 data-nosnippet>251</a>
-<a href=#252 id=252 data-nosnippet>252</a>    <span class="kw">if let </span><span class="prelude-val">Some</span>(data) = token_resp_ext_opt {
-<a href=#253 id=253 data-nosnippet>253</a>        <span class="attr">#[allow(clippy::arithmetic_side_effects, clippy::cast_possible_wrap)]
-<a href=#254 id=254 data-nosnippet>254</a>        </span><span class="kw">let </span>pre_expiration_time: i64 =
-<a href=#255 id=255 data-nosnippet>255</a>            data.token_resp.expires_in <span class="kw">as </span>i64 - PRE_EXPIRATION_SECS; <span class="comment">// Renew the token 5 seconds before it expires
+<a href=#237 id=237 data-nosnippet>237</a></span><span class="kw">async fn </span>read_access_token(
+<a href=#238 id=238 data-nosnippet>238</a>    client_id: <span class="kw-2">&amp;</span>str,
+<a href=#239 id=239 data-nosnippet>239</a>    client_secret: <span class="kw-2">&amp;</span>str,
+<a href=#240 id=240 data-nosnippet>240</a>    tenant_id: <span class="kw-2">&amp;</span>str,
+<a href=#241 id=241 data-nosnippet>241</a>    lst_acc_tkn: <span class="kw-2">&amp;</span>LastDatafixAccessToken,
+<a href=#242 id=242 data-nosnippet>242</a>) -&gt; <span class="prelude-ty">Option</span>&lt;PubKeycloakAdminToken&gt; {
+<a href=#243 id=243 data-nosnippet>243</a>    <span class="kw">let </span>token_resp_ext_opt = <span class="kw">match </span>lst_acc_tkn.<span class="number">0</span>.read() {
+<a href=#244 id=244 data-nosnippet>244</a>        <span class="prelude-val">Ok</span>(read) =&gt; read.clone(),
+<a href=#245 id=245 data-nosnippet>245</a>        <span class="prelude-val">Err</span>(err) =&gt; {
+<a href=#246 id=246 data-nosnippet>246</a>            <span class="macro">warn!</span>(<span class="string">"Error acquiring read lock {err:?}"</span>);
+<a href=#247 id=247 data-nosnippet>247</a>            <span class="kw">return </span><span class="prelude-val">None</span>;
+<a href=#248 id=248 data-nosnippet>248</a>        }
+<a href=#249 id=249 data-nosnippet>249</a>    };
+<a href=#250 id=250 data-nosnippet>250</a>
+<a href=#251 id=251 data-nosnippet>251</a>    <span class="kw">if let </span><span class="prelude-val">Some</span>(data) = token_resp_ext_opt {
+<a href=#252 id=252 data-nosnippet>252</a>        <span class="kw">let </span>expires_in = i64::try_from(data.token_resp.expires_in)
+<a href=#253 id=253 data-nosnippet>253</a>            .expect(<span class="string">"expires_in is too large"</span>);
+<a href=#254 id=254 data-nosnippet>254</a>        <span class="kw">let </span>pre_expiration_time =
+<a href=#255 id=255 data-nosnippet>255</a>            expires_in.saturating_sub(PRE_EXPIRATION_SECS);
 <a href=#256 id=256 data-nosnippet>256</a>
-<a href=#257 id=257 data-nosnippet>257</a>        </span><span class="kw">if </span>data.client_id.eq(client_id)
+<a href=#257 id=257 data-nosnippet>257</a>        <span class="kw">if </span>data.client_id.eq(client_id)
 <a href=#258 id=258 data-nosnippet>258</a>            &amp;&amp; data.client_secret.eq(client_secret)
 <a href=#259 id=259 data-nosnippet>259</a>            &amp;&amp; data.tenant_id.eq(tenant_id)
 <a href=#260 id=260 data-nosnippet>260</a>            &amp;&amp; pre_expiration_time.is_positive()
 <a href=#261 id=261 data-nosnippet>261</a>            &amp;&amp; data.stamp.elapsed()
-<a href=#262 id=262 data-nosnippet>262</a>                &lt; Duration::from_secs({ pre_expiration_time <span class="kw">as </span>u64 })
+<a href=#262 id=262 data-nosnippet>262</a>                &lt; Duration::from_secs(pre_expiration_time.unsigned_abs())
 <a href=#263 id=263 data-nosnippet>263</a>        {
 <a href=#264 id=264 data-nosnippet>264</a>            <span class="kw">return </span><span class="prelude-val">Some</span>(data.token_resp);
 <a href=#265 id=265 data-nosnippet>265</a>        }

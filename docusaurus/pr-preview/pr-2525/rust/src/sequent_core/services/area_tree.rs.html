@@ -289,10 +289,10 @@
 <a href=#289 id=289 data-nosnippet>289</a>    <span class="doccomment">/// For a given `TreeNode` of type `ContestsData`, return all
 <a href=#290 id=290 data-nosnippet>290</a>    /// area-contests. Note that this will include indirect/inherited ones.
 <a href=#291 id=291 data-nosnippet>291</a>    </span><span class="attr">#[must_use]
-<a href=#292 id=292 data-nosnippet>292</a>    #[allow(clippy::used_underscore_binding)]
+<a href=#292 id=292 data-nosnippet>292</a>    #[allow(clippy::only_used_in_recursion)] </span><span class="comment">// contest_ids is only used in the recursive call
 <a href=#293 id=293 data-nosnippet>293</a>    </span><span class="kw">pub fn </span>get_contest_matches(
 <a href=#294 id=294 data-nosnippet>294</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
-<a href=#295 id=295 data-nosnippet>295</a>        _contest_ids: <span class="kw-2">&amp;</span>HashSet&lt;String&gt;,
+<a href=#295 id=295 data-nosnippet>295</a>        contest_ids: <span class="kw-2">&amp;</span>HashSet&lt;String&gt;,
 <a href=#296 id=296 data-nosnippet>296</a>    ) -&gt; HashSet&lt;AreaContest&gt; {
 <a href=#297 id=297 data-nosnippet>297</a>        <span class="kw">let </span><span class="kw-2">mut </span>set = HashSet::new();
 <a href=#298 id=298 data-nosnippet>298</a>        <span class="kw">if let </span><span class="prelude-val">Some</span>(area) = <span class="self">self</span>.area.clone() {
@@ -309,7 +309,7 @@
 <a href=#309 id=309 data-nosnippet>309</a>            set.extend(own_area_contests);
 <a href=#310 id=310 data-nosnippet>310</a>        }
 <a href=#311 id=311 data-nosnippet>311</a>        <span class="kw">for </span>child <span class="kw">in </span><span class="kw-2">&amp;</span><span class="self">self</span>.children {
-<a href=#312 id=312 data-nosnippet>312</a>            <span class="kw">let </span>child_set = child.get_contest_matches(_contest_ids);
+<a href=#312 id=312 data-nosnippet>312</a>            <span class="kw">let </span>child_set = child.get_contest_matches(contest_ids);
 <a href=#313 id=313 data-nosnippet>313</a>            set.extend(child_set);
 <a href=#314 id=314 data-nosnippet>314</a>        }
 <a href=#315 id=315 data-nosnippet>315</a>        set
