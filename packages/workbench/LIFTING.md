@@ -380,24 +380,66 @@ next-step categories of work (in roughly the order they will be needed):
    `useAddFakeCastVote` and the real mutation is never invoked, so the
    full booth flow (Start → Vote → Review → Confirmation) succeeds
    end-to-end without any GraphQL plumbing. See section D, layer 4.
-4. **Mocking specific GraphQL operations.** Only needed once a screen
-   lifted from the portal turns off `DISABLE_AUTH` semantics or queries
-   something Redux doesn't already hold. When that happens, swap the
-   empty link for a small `ApolloLink` that pattern-matches on
-   `operation.operationName` and returns fixture data. Keep mocks
-   per-operation in a `fixtures/gql/` directory so they stay close to
-   the fixtures that seed Redux.
+4. **Per-operation GraphQL fixtures for screens whose query results
+   aren't already in Redux.** The booth flow gets away with
+   `ApolloLink.empty()` because every `useQuery` in it is either gated
+   on `globalSettings.DISABLE_AUTH` (skipped) or has a Redux fallback
+   (`electionFromRedux !== undefined`). Other voting-portal screens
+   don't have those escape hatches — e.g.
+   `ElectionSelectionScreen` runs `useQuery(GET_ENTITLED_ELECTIONS)` and
+   renders the result directly; with an empty link it would stay on the
+   loader forever. When that happens, the pattern is: add a fixture
+   module under `app/src/fixtures/gql/` that exports an object shaped
+   like the operation's response type (from
+   `voting-portal/src/gql/graphql.ts`), and swap the workbench's empty
+   link for a small `ApolloLink` that resolves the operation based on
+   `operation.operationName` — keeping everything self-contained, no
+   network. Conceptually:
+
+   ```ts
+   // app/src/fixtures/gql/index.ts
+   import {ApolloLink, Observable} from "@apollo/client"
+   import {entitledElectionsFixture} from "./entitledElections"
+
+   export const workbenchLink = new ApolloLink((op) => new Observable((sink) => {
+       switch (op.operationName) {
+           case "GetEntitledElections":
+               sink.next({data: entitledElectionsFixture})
+               break
+           default:
+               sink.next({data: null})
+       }
+       sink.complete()
+   }))
+   ```
+
+   The division of labour between Redux fixtures (section F) and GraphQL
+   fixtures stays clean: data that **production puts in Redux** gets a
+   `setX` dispatch in a fixture module; data that **production reads via
+   GraphQL** gets an `ApolloLink` entry. Do not smear one across the
+   other.
 5. **Translation key fidelity.** Once a screen renders, missing
    translations show as raw keys (`booth.start.title`). Decide between
    shipping a copy of the portal's locales as a static asset and silencing
    the warnings.
-6. **Apollo mocks vs. a fake transport.** If many screens are lifted at
-   once, a shared in-memory schema (with `@graphql-tools/mock`) may scale
-   better than per-test mocks. Decision deferred until pain is felt.
+6. **Apollo mocks vs. a fake transport.** If a single workbench-local
+   `ApolloLink` switch becomes unwieldy (dozens of operations,
+   interdependent state), an in-memory schema (with
+   `@graphql-tools/mock`) may scale better. Decision deferred until pain
+   is felt.
 7. **Extending the fixture.** As later screens consume more of the store
    (cast votes, audit data, etc.), `boothFixtures.ts` grows. Keep it a
    single module per screen group rather than one fixture file per slice
    — easier to keep coherent across slice boundaries.
+
+**Out of scope.** The workbench lifts **voting-portal** screens only,
+plus whatever direct dependencies of those screens (ui-core, ui-essentials,
+sequent-core wasm) come along for the ride. We do not lift admin-portal
+functionality — it is a separate app with its own concerns (election
+setup, results, audit dashboards) and a different GraphQL surface.
+If a future workbench task does need admin-portal coverage, it should be
+a parallel `BoothSpike`-equivalent module with its own provider stack
+and fixture tree, not an extension of this one.
 
 Each of these adaptations, when added, should get its own row in the
 inventory above with a canary entry. Treat the document as living.
