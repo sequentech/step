@@ -2,62 +2,74 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-// Booth feasibility spike (Step 1 of the booth lift).
-//
-// Renders voting-portal's `StartScreen` from its production source,
-// unmodified, with a synthetic election fixture seeded into the
-// production Redux store via the portal's own action creators. The
-// embedding strategy and rules for modifying this file are documented
-// in `packages/workbench/LIFTING.md`.
+// Booth lift: mounts voting-portal route components from production
+// source, unmodified, at the same paths the portal itself uses, with
+// route-level `action`s wired exactly as in `voting-portal/src/index.tsx`.
+// Data is supplied by `fixtures/boothFixtures.ts` via the portal's own
+// action creators. See `packages/workbench/LIFTING.md` for the procedure.
 
 import {ThemeProvider} from "@mui/material"
 import {theme} from "@sequentech/ui-essentials"
 import {Provider as ReduxProvider} from "react-redux"
-import {Navigate, Route, Routes} from "react-router-dom"
+import type {RouteObject} from "react-router-dom"
+import {Outlet} from "react-router-dom"
 
 // Side-effectful imports: register translations.
 import "voting-portal/src/services/i18n"
 
 import {store} from "voting-portal/src/store/store"
 import StartScreen from "voting-portal/src/routes/StartScreen"
-import {
-    ELECTION_ID,
-    EVENT_ID,
-    TENANT_ID,
-    seedBoothFixtures,
-} from "./fixtures/boothFixtures"
+import VotingScreen, {
+    action as votingAction,
+} from "voting-portal/src/routes/VotingScreen"
+import ReviewScreen, {
+    action as castBallotAction,
+} from "voting-portal/src/routes/ReviewScreen"
+import ConfirmationScreen from "voting-portal/src/routes/ConfirmationScreen"
+import {seedBoothFixtures} from "./fixtures/boothFixtures"
 
-const INITIAL_PATH = `/booth/tenant/${TENANT_ID}/event/${EVENT_ID}/election/${ELECTION_ID}/start`
-
-// Seed once at module-eval time. Dispatching at module load — rather than
-// from a React effect — means the fixture is in place before StartScreen's
-// "redirect on missing election" effect fires.
+// Seed once at module-eval time so the fixture is in place before any
+// selector fires (StartScreen redirects on a missing election).
 seedBoothFixtures()
 
-export function BoothSpike() {
+/**
+ * Layout for every booth screen. Provides the MUI theme and the
+ * production Redux store (already populated by `seedBoothFixtures()`).
+ * Designed to be mounted as a layout route under a data router so the
+ * portal's `useSubmit` / `useActionData` calls work.
+ */
+export function BoothLayout() {
     return (
         <ThemeProvider theme={theme}>
             <ReduxProvider store={store}>
-                <Routes>
-                    <Route
-                        path="tenant/:tenantId/event/:eventId/election/:electionId/start"
-                        element={<StartScreen />}
-                    />
-                    <Route
-                        path=""
-                        element={<Navigate to={INITIAL_PATH} replace />}
-                    />
-                    <Route
-                        path="*"
-                        element={
-                            <pre style={{padding: "2rem"}}>
-                                (redirected away from StartScreen — likely
-                                a fixture mismatch; check the console)
-                            </pre>
-                        }
-                    />
-                </Routes>
+                <Outlet />
             </ReduxProvider>
         </ThemeProvider>
     )
 }
+
+/**
+ * Route children mirroring the portal's own route tree (see
+ * `voting-portal/src/index.tsx`) at the same paths so its absolute
+ * `<Link to="/tenant/.../vote">` navigations and `useSubmit` calls
+ * resolve without any rewrite.
+ *
+ * As we lift more screens, add them here paired with their `action`
+ * (when the portal wires one). Keep this list aligned with the portal's
+ * `election/:electionId` subtree.
+ */
+export const boothChildren: RouteObject[] = [
+    {
+        path: "tenant/:tenantId/event/:eventId/election/:electionId",
+        children: [
+            {path: "start", element: <StartScreen />},
+            {path: "vote", element: <VotingScreen />, action: votingAction},
+            {
+                path: "review",
+                element: <ReviewScreen />,
+                action: castBallotAction,
+            },
+            {path: "confirmation", element: <ConfirmationScreen />},
+        ],
+    },
+]

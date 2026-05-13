@@ -4,9 +4,12 @@
 
 import {StrictMode} from "react"
 import {createRoot} from "react-dom/client"
-import {BrowserRouter, Link, Route, Routes} from "react-router-dom"
+import {createBrowserRouter, Link, Outlet, RouterProvider} from "react-router-dom"
 import {App} from "./App"
-import {BoothSpike} from "./BoothSpike"
+import {BoothLayout, boothChildren} from "./BoothSpike"
+import {ELECTION_ID, EVENT_ID, TENANT_ID} from "./fixtures/boothFixtures"
+
+const BOOTH_START = `/tenant/${TENANT_ID}/event/${EVENT_ID}/election/${ELECTION_ID}/start`
 
 function Shell() {
     return (
@@ -20,21 +23,33 @@ function Shell() {
                     gap: "1rem",
                 }}
             >
-                <Link to="/">Tally (raw JSON)</Link>
-                <Link to="/booth">Booth spike</Link>
+                <Link to="/tally">Tally (raw JSON)</Link>
+                <Link to={BOOTH_START}>Booth</Link>
             </nav>
-            <Routes>
-                <Route path="/" element={<App />} />
-                <Route path="/booth/*" element={<BoothSpike />} />
-            </Routes>
+            <Outlet />
         </>
     )
 }
 
+// Use `createBrowserRouter` (a v6 "data router") rather than the legacy
+// `<BrowserRouter>` because voting-portal screens call `useSubmit` /
+// `useActionData`, which only function under a data router. See
+// `voting-portal/src/index.tsx` for the production setup we mirror.
+const router = createBrowserRouter([
+    {
+        element: <Shell />,
+        children: [
+            {path: "/tally", element: <App />},
+            {
+                element: <BoothLayout />,
+                children: boothChildren,
+            },
+        ],
+    },
+])
+
 createRoot(document.getElementById("root")!).render(
     <StrictMode>
-        <BrowserRouter>
-            <Shell />
-        </BrowserRouter>
+        <RouterProvider router={router} />
     </StrictMode>
 )

@@ -157,18 +157,53 @@ Currently mounted for `StartScreen`:
 - New top-level provider added in `voting-portal/src/index.tsx` → decide
   whether the workbench needs it; if yes, add to `BoothSpike.tsx`.
 
-### E. Routing (`app/src/main.tsx`)
+### E. Routing (`app/src/main.tsx` + route mirroring)
 
-The workbench has a single `<BrowserRouter>` at the root. The booth spike
-mounts under `path="/booth/*"` and delegates to `<BoothSpike>`'s own
-`<Routes>`. Production voting-portal uses a single `<BrowserRouter>` too —
-we don't nest a second `<MemoryRouter>` because react-router-dom forbids
-it (the spike originally tried and got a `<Router> inside another <Router>`
-error; this is documented here so we don't repeat the mistake).
+Two structural decisions follow from inspecting `voting-portal/src/index.tsx`:
 
-**Canary:** if portal-side route paths change, the workbench `<Route path>`
-strings must follow. Check `voting-portal/src/routes/` for `<Route>`
-declarations.
+1. **Use `createBrowserRouter` + `RouterProvider`, not `<BrowserRouter>`**.
+   The portal uses a v6 "data router" with route-level `action` handlers
+   (e.g. `votingAction` from `VotingScreen`, `castBallotAction` from
+   `ReviewScreen`). Screen components call `useSubmit`, `useActionData`,
+   `useNavigation` — these only function under a data router; using the
+   legacy `<BrowserRouter>` produces *"useSubmit must be used within a
+   data router"* the moment the screen mounts.
+2. **Mirror the portal's exact paths under `/`, not under a `/booth` prefix**.
+   The portal builds links as absolute strings:
+   `/tenant/${tenantId}/event/${eventId}/election/${electionId}/vote`. A
+   `/booth/...` prefix would 404 on every internal `<Link>`. So the
+   workbench root path tree mirrors the portal, and the only workbench-
+   specific route is `/tally`.
+
+Concretely, `main.tsx`:
+
+- Builds a `createBrowserRouter` with a `<Shell>` layout containing the
+  workbench nav bar and an `<Outlet />`.
+- One root child: `/tally → <App />`.
+- Another root child: `<BoothLayout />`, with `boothChildren` (defined in
+  `BoothSpike.tsx`) as its `children`. `boothChildren` mirrors the portal's
+  `election/:electionId/{start,vote,review,confirmation}` subtree and pairs
+  each route with the same `action` the portal wires.
+
+`BoothSpike.tsx` exports two things only:
+
+- `BoothLayout` — `<ThemeProvider>` + `<ReduxProvider>` + `<Outlet />`.
+  Mounted as a layout route under the data router.
+- `boothChildren: RouteObject[]` — the route data with elements and actions.
+
+**Canary if portal changes:**
+
+- Portal adds a new screen under `election/:electionId/<new-path>` →
+  workbench navigates to it and shows the `*` fallback. Add a route to
+  `boothChildren`. Always import the screen **and** any exported `action`
+  from the same module.
+- Portal renames `votingAction` / `castBallotAction` exports → TS error in
+  `BoothSpike.tsx` at the import.
+- Portal restructures route paths (e.g. removes `tenant/event` parents) →
+  links break with *"No routes matched location"*. Re-mirror the new tree
+  in `boothChildren`.
+- Portal switches off the data router (unlikely) → revert to
+  `<BrowserRouter>`.
 
 ### F. Redux store fixtures (`app/src/fixtures/`)
 
@@ -236,6 +271,8 @@ broken or you want to validate fidelity.
    | `<X> must be used within a <Y>Provider` | New required provider | D (BoothSpike providers) |
    | `Cannot read property of undefined` reading a settings field | New settings key | C (global-settings.json) |
    | `<Router> inside another <Router>` | Router nesting | E (routing) |
+   | `useSubmit must be used within a data router` | Legacy router used | E (use `createBrowserRouter`) |
+   | `No routes matched location "/tenant/..."` | Path mirror is stale | E (extend `boothChildren`) |
    | Screen renders a spinner / self-redirects | Missing or mis-shaped fixture | F (fixtures) |
    | TS error in `fixtures/*` about a slice payload field | Portal slice type evolved | F (fixtures) |
    | `process is not defined` or `process.env.X` undefined | env var | A (`define` in vite.config) |
