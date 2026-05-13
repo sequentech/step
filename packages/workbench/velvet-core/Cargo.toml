@@ -1,0 +1,29 @@
+# SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+[package]
+name = "velvet-core"
+version = "0.1.0"
+edition = "2021"
+license = "AGPL-3.0-only"
+description = "Pure-computation core of the velvet tally subsystem, suitable for wasm32-unknown-unknown."
+
+[lib]
+name = "velvet_core"
+path = "src/lib.rs"
+
+[dependencies]
+sequent-core = { path = "../../sequent-core", default-features = false, features = ["default_features", "areas"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+num-bigint = { version = "0.4", features = ["rand"] }
+rand_core = "0.9"
+tracing = "0.1"
+
+# When targeting wasm32-unknown-unknown, getrandom 0.2 (pulled in
+# transitively by sequent-core's curve25519-dalek) needs its `js` feature
+# enabled. Other getrandom versions in the graph (currently 0.4 via strand)
+# already enable their own WASM feature at the source.
+[target.'cfg(all(target_arch = "wasm32", target_os = "unknown"))'.dependencies]
+getrandom_02 = { package = "getrandom", version = "0.2", features = ["js"] }

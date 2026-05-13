@@ -9,7 +9,8 @@
       "ui-essentials",
       "voting-portal",
       "admin-portal",
-      "ballot-verifier"
+      "ballot-verifier",
+      "workbench/app"
     ],
     "nohoist": ["**/node_modules/@storybook", "**/storybook"]
   },

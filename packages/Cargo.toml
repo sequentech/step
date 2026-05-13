@@ -23,6 +23,8 @@ members = [
     "orare",
     "orare/doc_renderer",
     "plugins/*",
+    "workbench/velvet-core",
+    "workbench/velvet-wasm",
 ]
 
 [patch.crates-io]

@@ -1,0 +1,29 @@
+# SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+[package]
+name = "velvet-wasm"
+version = "0.1.0"
+edition = "2021"
+license = "AGPL-3.0-only"
+description = "wasm-bindgen wrapper around velvet-core for browser/Node consumption."
+publish = false
+
+[lib]
+name = "velvet_wasm"
+path = "src/lib.rs"
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+velvet-core = { path = "../velvet-core" }
+sequent-core = { path = "../../sequent-core", default-features = false, features = ["default_features", "areas"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+serde-wasm-bindgen = "0.6"
+wasm-bindgen = "0.2.100"
+rand_core = { version = "0.9", features = ["os_rng"] }
+getrandom_03 = { package = "getrandom", version = "0.3", features = ["wasm_js"] }
+
+[dev-dependencies]
+wasm-bindgen-test = "0.3"
