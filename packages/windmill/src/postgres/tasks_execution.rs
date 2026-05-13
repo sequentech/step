@@ -62,13 +62,13 @@ pub async fn insert_tasks_execution(
         .map_err(|err| anyhow!("Error getting hasura db pool: {err}"))?;
 
     let tenant_uuid =
-        parse_uuid_v4(tenant_id).map_err(|err| anyhow!("Error parsing tenant UUID: {}", err))?;
+        parse_uuid_v4(tenant_id).map_err(|err| anyhow!("Error parsing tenant UUID: {err}"))?;
 
     let election_event_uuid = if let Some(event_id) = election_event_id {
         if !event_id.is_empty() {
             Some(
                 parse_uuid_v4(event_id)
-                    .map_err(|err| anyhow!("Error parsing election event UUID: {}", err))?,
+                    .map_err(|err| anyhow!("Error parsing election event UUID: {err}"))?,
             )
         } else {
             None
@@ -79,7 +79,7 @@ pub async fn insert_tasks_execution(
 
     let statement = db_client
         .prepare(
-            r#"
+            r"
                 INSERT INTO
                     sequent_backend.tasks_execution
                 (tenant_id, election_event_id, name, type, execution_status, annotations, labels, logs, executed_by_user)
@@ -88,7 +88,7 @@ pub async fn insert_tasks_execution(
                 )
                 RETURNING
                     *;
-            "#,
+            ",
         )
         .await?;
 
@@ -108,7 +108,7 @@ pub async fn insert_tasks_execution(
             ],
         )
         .await
-        .map_err(|err| anyhow!("Error inserting task execution: {}", err))?;
+        .map_err(|err| anyhow!("Error inserting task execution: {err}"))?;
 
     // Convert the resulting row into `TasksExecution` struct
     let task_execution: TasksExecution = row
@@ -139,7 +139,7 @@ pub async fn update_task_execution_status(
 
     let statement = db_client
         .prepare(
-            r#"
+            r"
             UPDATE sequent_backend.tasks_execution
             SET 
                 execution_status = $1,
@@ -152,7 +152,7 @@ pub async fn update_task_execution_status(
             WHERE
                 id = $4 AND
                 tenant_id = $5;
-            "#,
+            ",
         )
         .await
         .context("Failed to prepare SQL statement")?;
@@ -184,25 +184,25 @@ pub async fn get_task_by_id(task_id: &str) -> Result<TasksExecution> {
         .map_err(|err| anyhow!("Error getting hasura db pool: {err}"))?;
 
     let task_uuid =
-        parse_uuid_v4(task_id).map_err(|err| anyhow!("Error parsing task UUID: {}", err))?;
+        parse_uuid_v4(task_id).map_err(|err| anyhow!("Error parsing task UUID: {err}"))?;
 
     let statement = db_client
         .prepare(
-            r#"
+            r"
                 SELECT
                     *
                 FROM 
                     sequent_backend.tasks_execution
                 WHERE
                     id = $1
-            "#,
+            ",
         )
         .await?;
 
     let row = db_client
         .query_one(&statement, &[&task_uuid])
         .await
-        .map_err(|err| anyhow!("Error fetching task: {}", err))?;
+        .map_err(|err| anyhow!("Error fetching task: {err}"))?;
 
     // Convert the resulting row into `TasksExecution` struct
     let task_execution: TasksExecution = row
@@ -220,13 +220,13 @@ pub async fn get_tasks_by_election_event_id(
     election_event_id: &str,
 ) -> Result<Vec<TasksExecution>> {
     let tenant_uuid =
-        parse_uuid_v4(tenant_id).map_err(|err| anyhow!("Error parsing tenant UUID: {}", err))?;
+        parse_uuid_v4(tenant_id).map_err(|err| anyhow!("Error parsing tenant UUID: {err}"))?;
     let election_event_uuid = parse_uuid_v4(election_event_id)
-        .map_err(|err| anyhow!("Error parsing task UUID: {}", err))?;
+        .map_err(|err| anyhow!("Error parsing task UUID: {err}"))?;
 
     let statement = hasura_transaction
         .prepare(
-            r#"
+            r"
             SELECT
                 *
             FROM 
@@ -234,14 +234,14 @@ pub async fn get_tasks_by_election_event_id(
             WHERE
                 tenant_id = $1
                 AND election_event_id = $2
-        "#,
+        ",
         )
         .await?;
 
     let rows = hasura_transaction
         .query(&statement, &[&tenant_uuid, &election_event_uuid])
         .await
-        .map_err(|err| anyhow!("Error fetching tasks: {}", err))?;
+        .map_err(|err| anyhow!("Error fetching tasks: {err}"))?;
 
     // Convert the resulting row into `TasksExecution` struct
     let tasks_execution: Vec<TasksExecution> = rows

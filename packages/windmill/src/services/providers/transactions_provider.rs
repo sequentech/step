@@ -36,7 +36,7 @@ where
                 .rollback()
                 .await
                 .with_context(|| format!("Rollback error after transaction error {:?}", err))?;
-            return Err(anyhow!("{}", err).into());
+            return Err(anyhow!("{}", err));
         }
     }
 
@@ -126,7 +126,7 @@ where
                 .rollback(&tx_id)
                 .await
                 .with_context(|| format!("Rollback error after transaction error: {:?}", err))?;
-            return Err(anyhow!("{}", err).into());
+            return Err(anyhow!("{}", err));
         }
     }
 

@@ -20,8 +20,7 @@ impl TryFrom<Row> for TallySheetWrapper {
     type Error = anyhow::Error;
     fn try_from(item: Row) -> Result<Self> {
         let content_val: Option<Value> = item.try_get("content")?;
-        let content: Option<AreaContestResults> =
-            content_val.map(|val| deserialize_value(val)).transpose()?;
+        let content: Option<AreaContestResults> = content_val.map(deserialize_value).transpose()?;
         Ok(TallySheetWrapper(TallySheet {
             id: item.try_get::<_, Uuid>("id")?.to_string(),
             tenant_id: item.try_get::<_, Uuid>("tenant_id")?.to_string(),
@@ -35,7 +34,7 @@ impl TryFrom<Row> for TallySheetWrapper {
             annotations: item.try_get("annotations")?,
             published_at: item.get("published_at"),
             published_by_user_id: item.try_get("published_by_user_id")?,
-            content: content,
+            content,
             channel: item.try_get("channel")?,
             deleted_at: item.get("deleted_at"),
             created_by_user_id: item.try_get("created_by_user_id")?,
@@ -51,7 +50,7 @@ pub async fn get_published_tally_sheets_by_event(
 ) -> Result<Vec<TallySheet>> {
     let statement = hasura_transaction
         .prepare(
-            r#"
+            r"
                 SELECT
                     *
                 FROM
@@ -61,7 +60,7 @@ pub async fn get_published_tally_sheets_by_event(
                     election_event_id = $2 AND
                     published_at IS NOT NULL AND
                     deleted_at IS NULL;
-            "#,
+            ",
         )
         .await?;
 
@@ -100,7 +99,7 @@ pub async fn publish_tally_sheet(
     let publish_statement = hasura_transaction
         .prepare(
             format!(
-                r#"
+                r"
         UPDATE sequent_backend.tally_sheet tally_sheet
         SET
             published_at = {set_published_at},
@@ -112,18 +111,18 @@ pub async fn publish_tally_sheet(
             tally_sheet.deleted_at IS NULL AND
             tally_sheet.published_at IS {filter_published_at}
         RETURNING *
-    "#
+    "
             )
             .as_str(),
         )
         .await?;
 
     let tenant_uuid: uuid::Uuid = parse_uuid_v4(tenant_id)
-        .map_err(|err| anyhow!("Error parsing tenant_id as UUID: {}", err))?;
+        .map_err(|err| anyhow!("Error parsing tenant_id as UUID: {err}"))?;
     let election_event_uuid: uuid::Uuid = parse_uuid_v4(election_event_id)
-        .map_err(|err| anyhow!("Error parsing election_event_id as UUID: {}", err))?;
+        .map_err(|err| anyhow!("Error parsing election_event_id as UUID: {err}"))?;
     let tally_sheet_uuid: uuid::Uuid = parse_uuid_v4(tally_sheet_id)
-        .map_err(|err| anyhow!("Error parsing tally_sheet_id as UUID: {}", err))?;
+        .map_err(|err| anyhow!("Error parsing tally_sheet_id as UUID: {err}"))?;
     let publish_params: Vec<&(dyn ToSql + Sync)> = vec![
         &tenant_uuid,
         &election_event_uuid,
@@ -131,9 +130,9 @@ pub async fn publish_tally_sheet(
         &user_id,
     ];
     let publish_rows: Vec<Row> = hasura_transaction
-        .query(&publish_statement, &publish_params.as_slice())
+        .query(&publish_statement, publish_params.as_slice())
         .await
-        .map_err(|err| anyhow!("{}", err))?;
+        .map_err(|err| anyhow!("{err}"))?;
     if publish_rows.len() != 1 {
         return Ok(None);
     }

@@ -69,8 +69,7 @@ async fn manage_election_date_wrapper(
         EventProcessors::END_VOTING_PERIOD => VotingStatus::CLOSED,
         _ => {
             info!("Invalid scheduled event type: {:?}", event_processor);
-            stop_scheduled_event(&hasura_transaction, &tenant_id, &scheduled_manage_date.id)
-                .await?;
+            stop_scheduled_event(hasura_transaction, &tenant_id, &scheduled_manage_date.id).await?;
             return Ok(());
         }
     };
@@ -82,8 +81,7 @@ async fn manage_election_date_wrapper(
         EventProcessors::END_VOTING_PERIOD => vec![VotingStatusChannel::ONLINE],
         _ => {
             info!("Invalid scheduled event type: {:?}", event_processor);
-            stop_scheduled_event(&hasura_transaction, &tenant_id, &scheduled_manage_date.id)
-                .await?;
+            stop_scheduled_event(hasura_transaction, &tenant_id, &scheduled_manage_date.id).await?;
             return Ok(());
         }
     };
@@ -101,7 +99,7 @@ async fn manage_election_date_wrapper(
     .await;
     info!("result: {result:?}");
 
-    stop_scheduled_event(&hasura_transaction, &tenant_id, &scheduled_manage_date.id)
+    stop_scheduled_event(hasura_transaction, &tenant_id, &scheduled_manage_date.id)
         .await
         .map_err(|err| anyhow!("Error stopping scheduled event: {err:?}"))?;
 
@@ -125,7 +123,9 @@ pub async fn manage_election_date(
             tenant_id, election_event_id, scheduled_event_id, election_id
         ),
         Uuid::new_v4().to_string(),
-        ISO8601::now() + Duration::seconds(120),
+        ISO8601::now()
+            .checked_add_signed(Duration::seconds(120))
+            .expect("manage_election_date lock expiry overflow"),
     )
     .await
     .with_context(|| "Error acquiring pglock")?;

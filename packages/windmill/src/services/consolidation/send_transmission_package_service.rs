@@ -88,8 +88,8 @@ async fn send_package_to_ccs_server(
         .multipart(form)
         .send()
         .await
-        .map_err(|err| anyhow!("{:?}", err))?;
-    let response_str = format!("{:?}", response);
+        .map_err(|err| anyhow!("{err:?}"))?;
+    let response_str = format!("{response:?}");
     info!(
         "Response code: {}. Response: '{}'",
         response.status(),
@@ -101,17 +101,15 @@ async fn send_package_to_ccs_server(
     // Check if the request was successful
     if !is_success {
         return Err(anyhow::anyhow!(
-            "Failed to send package. Text: {}. Response: {}",
-            text,
-            response_str
+            "Failed to send package. Text: {text}. Response: {response_str}",
         ));
     }
     Ok(())
 }
 
 #[instrument(skip_all)]
-pub fn get_latest_miru_document(input_documents: &Vec<MiruDocument>) -> Option<MiruDocument> {
-    let mut documents = input_documents.clone();
+pub fn get_latest_miru_document(input_documents: &[MiruDocument]) -> Option<MiruDocument> {
+    let mut documents = input_documents.to_owned();
     documents.sort_by(|a, b| {
         let Ok(a_date) = ISO8601::to_date(&a.created_at) else {
             return Ordering::Equal;
@@ -166,9 +164,11 @@ async fn update_miru_document(
 
     let transmission_data = tally_session.get_annotations()?;
 
-    let Some(transmission_area_election) = transmission_data.clone().into_iter().find(|data| {
-        data.area_id == area_id.to_string() && data.election_id == election_id.to_string()
-    }) else {
+    let Some(transmission_area_election) = transmission_data
+        .clone()
+        .into_iter()
+        .find(|data| data.area_id == area_id && data.election_id == election_id)
+    else {
         return Err(anyhow!("transmission package not found, unexpected"));
     };
     let mut new_transmission_area_election = transmission_area_election.clone();
@@ -245,19 +245,19 @@ async fn record_new_log(
         find_miru_annotation(MIRU_TALLY_SESSION_DATA, &tally_annotations)
             .with_context(|| {
                 format!(
-                    "Missing tally session annotation: '{}:{}'",
-                    MIRU_PLUGIN_PREPEND, MIRU_TALLY_SESSION_DATA
-                )
+            "Missing tally session annotation: '{MIRU_PLUGIN_PREPEND}:{MIRU_TALLY_SESSION_DATA}'"
+        )
             })
-            .map(|tally_session_data_js| {
-                deserialize_str(&tally_session_data_js).map_err(|err| anyhow!("{}", err))
+            .and_then(|tally_session_data_js| {
+                deserialize_str(&tally_session_data_js).map_err(|err| anyhow!("{err:?}"))
             })
-            .flatten()
             .unwrap_or(vec![]);
 
-    let Some(transmission_area_election) = transmission_data.clone().into_iter().find(|data| {
-        data.area_id == area_id.to_string() && data.election_id == election_id.to_string()
-    }) else {
+    let Some(transmission_area_election) = transmission_data
+        .clone()
+        .into_iter()
+        .find(|data| data.area_id == area_id && data.election_id == election_id)
+    else {
         return Err(anyhow!("transmission package not found, unexpected"));
     };
     let mut new_transmission_area_election = transmission_area_election.clone();
@@ -332,10 +332,10 @@ pub async fn send_transmission_package_service(
         return Ok(());
     };
     let election_annotations = election.get_annotations()?;
-    let area = get_area_by_id(&hasura_transaction, tenant_id, &area_id)
+    let area = get_area_by_id(&hasura_transaction, tenant_id, area_id)
         .await
-        .with_context(|| format!("Error fetching area {}", area_id))?
-        .ok_or_else(|| anyhow!("Can't find area {}", area_id))?;
+        .with_context(|| format!("Error fetching area {area_id}"))?
+        .ok_or_else(|| anyhow!("Can't find area {area_id}"))?;
     let area_name = area.name.clone().unwrap_or("".into());
     let area_annotations = area.get_annotations()?;
 
@@ -349,9 +349,11 @@ pub async fn send_transmission_package_service(
     .with_context(|| "Error fetching tally session")?;
     let transmission_data = tally_session.get_annotations()?;
 
-    let Some(transmission_area_election) = transmission_data.clone().into_iter().find(|data| {
-        data.area_id == area_id.to_string() && data.election_id == election_id.to_string()
-    }) else {
+    let Some(transmission_area_election) = transmission_data
+        .clone()
+        .into_iter()
+        .find(|data| data.area_id == area_id && data.election_id == election_id)
+    else {
         info!("transmission package not found, skipping");
         return Ok(());
     };
@@ -448,7 +450,7 @@ pub async fn send_transmission_package_service(
                 .await?;
             }
             Err(err) => {
-                let error_str = format!("{}", err);
+                let error_str = format!("{err:?}");
                 let time_now = Local::now();
                 let new_log = error_sending_transmission_package_to_ccs_log(
                     &time_now,
@@ -483,7 +485,7 @@ pub async fn send_transmission_package_service(
                 .await?;
             }
         }
-        let with_logs = ccs_server.send_logs.clone().unwrap_or_default();
+        let with_logs = ccs_server.send_logs.unwrap_or_default();
         let logs_zip_path =
             second_zip_folder_path.join(format!("al_{}.zip", area_annotations.station_id));
         if with_logs {
@@ -510,7 +512,7 @@ pub async fn send_transmission_package_service(
                     .await?;
                 }
                 Err(err) => {
-                    let error_str = format!("{}", err);
+                    let error_str = format!("{err:?}");
                     let new_log = error_sending_logs_to_ccs_log(
                         &Local::now(),
                         election_id,

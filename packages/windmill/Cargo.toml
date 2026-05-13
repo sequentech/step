@@ -142,3 +142,9 @@ dhat = "0.3"
 
 [package.metadata.component.target.dependencies]
 "docs:plugin" = { path = "packages/sequent-core/src/wit/plugin_interface.wit" }
+
+[lints.clippy]
+arithmetic_side_effects = "deny"
+complexity = "deny"
+style = "deny"
+perf = "deny"

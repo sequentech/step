@@ -54,7 +54,7 @@ pub async fn insert_ballot_style(
 ) -> Result<BallotStyle> {
     let statement = hasura_transaction
         .prepare(
-            r#"
+            r"
                 INSERT INTO
                     sequent_backend.ballot_style
                 (id, tenant_id, election_event_id, election_id, area_id, ballot_eml, status, ballot_publication_id, created_at, last_updated_at)
@@ -72,10 +72,10 @@ pub async fn insert_ballot_style(
                 )
                 RETURNING
                     *;
-            "#,
+            ",
         )
         .await
-        .map_err(|err| anyhow!("Error preparing insert statement: {}", err))?;
+        .map_err(|err| anyhow!("Error preparing insert statement: {err}"))?;
     let rows: Vec<Row> = hasura_transaction
         .query(
             &statement,
@@ -91,7 +91,7 @@ pub async fn insert_ballot_style(
             ],
         )
         .await
-        .map_err(|err| anyhow!("Error inserting row: {}", err))?;
+        .map_err(|err| anyhow!("Error inserting row: {err}"))?;
 
     let elements: Vec<BallotStyle> = rows
         .into_iter()
@@ -102,10 +102,7 @@ pub async fn insert_ballot_style(
         .collect::<Result<Vec<BallotStyle>>>()
         .with_context(|| "Error converting rows into documents")?;
 
-    elements
-        .get(0)
-        .map(|val| val.clone())
-        .ok_or(anyhow!("Row not inserted"))
+    elements.first().cloned().ok_or(anyhow!("Row not inserted"))
 }
 
 #[instrument(skip(hasura_transaction), err)]
@@ -117,7 +114,7 @@ pub async fn get_all_ballot_styles(
 ) -> Result<Vec<BallotStyle>> {
     let query: tokio_postgres::Statement = hasura_transaction
         .prepare(
-            r#"
+            r"
             SELECT
                 *
             FROM
@@ -127,15 +124,15 @@ pub async fn get_all_ballot_styles(
                 area_id = $2 AND
                 election_id = ANY($3) AND
                 deleted_at IS NULL;
-            "#,
+            ",
         )
         .await
-        .map_err(|err| anyhow!("Error preparing statement: {}", err))?;
+        .map_err(|err| anyhow!("Error preparing statement: {err}"))?;
 
     let rows: Vec<Row> = hasura_transaction
         .query(&query, &[&tenant_id, &area_id, authorized_election_ids])
         .await
-        .map_err(|err| anyhow!("Error executing query: {}", err))?;
+        .map_err(|err| anyhow!("Error executing query: {err}"))?;
 
     let results: Vec<BallotStyle> = rows
         .into_iter()
@@ -144,7 +141,7 @@ pub async fn get_all_ballot_styles(
                 .map(|res: BallotStyleWrapper| -> BallotStyle { res.0 })
         })
         .collect::<Result<Vec<BallotStyle>>>()
-        .map_err(|err| anyhow!("Error collecting ballot styles: {}", err))?;
+        .map_err(|err| anyhow!("Error collecting ballot styles: {err}"))?;
 
     Ok(results)
 }
@@ -157,7 +154,7 @@ pub async fn export_event_ballot_styles(
 ) -> Result<Vec<BallotStyle>> {
     let query: tokio_postgres::Statement = hasura_transaction
         .prepare(
-            r#"
+            r"
             SELECT
                 *
             FROM
@@ -166,7 +163,7 @@ pub async fn export_event_ballot_styles(
                 tenant_id = $1 AND
                 election_event_id = $2 AND
                 deleted_at IS NULL;
-            "#,
+            ",
         )
         .await?;
 
@@ -205,7 +202,7 @@ pub async fn get_ballot_styles_by_elections(
 
     let query: tokio_postgres::Statement = hasura_transaction
         .prepare(
-            r#"
+            r"
             SELECT
                 *
             FROM
@@ -215,10 +212,10 @@ pub async fn get_ballot_styles_by_elections(
                 election_event_id = $2 AND
                 election_id = ANY($3) AND
                 deleted_at IS NULL;
-            "#,
+            ",
         )
         .await
-        .map_err(|err| anyhow!("Error preparing statement: {}", err))?;
+        .map_err(|err| anyhow!("Error preparing statement: {err}"))?;
 
     let rows: Vec<Row> = hasura_transaction
         .query(
@@ -230,7 +227,7 @@ pub async fn get_ballot_styles_by_elections(
             ],
         )
         .await
-        .map_err(|err| anyhow!("Error executing query: {}", err))?;
+        .map_err(|err| anyhow!("Error executing query: {err}"))?;
 
     let results: Vec<BallotStyle> = rows
         .into_iter()
@@ -239,7 +236,7 @@ pub async fn get_ballot_styles_by_elections(
                 .map(|res: BallotStyleWrapper| -> BallotStyle { res.0 })
         })
         .collect::<Result<Vec<BallotStyle>>>()
-        .map_err(|err| anyhow!("Error collecting ballot styles: {}", err))?;
+        .map_err(|err| anyhow!("Error collecting ballot styles: {err}"))?;
 
     Ok(results)
 }
@@ -253,7 +250,7 @@ pub async fn get_publication_ballot_styles(
     limit: Option<usize>,
 ) -> Result<Vec<BallotStyle>> {
     let limit_clause = if let Some(limit) = limit {
-        format!("LIMIT {}", limit)
+        format!("LIMIT {limit}")
     } else {
         String::new()
     };

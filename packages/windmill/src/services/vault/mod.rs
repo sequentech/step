@@ -5,6 +5,8 @@
 mod aws_secret_manager;
 mod env_var_master_secret;
 mod hashicorp_vault;
+#[allow(clippy::module_inception)]
+/// allow module to have the same name as its containing module
 pub mod vault;
 
 pub use vault::*;

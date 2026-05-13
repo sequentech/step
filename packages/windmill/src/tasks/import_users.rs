@@ -150,7 +150,6 @@ pub async fn import_users(body: ImportUsersBody, task_execution: TasksExecution)
             // Execute database maintenance
             info!("Performing mainteinance after users import.");
             vacuum_analyze_direct().await?;
-            ()
         }
         Err(err) => {
             update_fail(&task_execution, &err.to_string()).await?;

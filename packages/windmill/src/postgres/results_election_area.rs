@@ -21,9 +21,8 @@ impl TryFrom<Row> for ResultsElectionAreaWrapper {
 
     fn try_from(item: Row) -> Result<Self> {
         let documents_value: Option<Value> = item.try_get("documents")?;
-        let documents: Option<ResultDocuments> = documents_value
-            .map(|value| deserialize_value(value))
-            .transpose()?;
+        let documents: Option<ResultDocuments> =
+            documents_value.map(deserialize_value).transpose()?;
 
         Ok(ResultsElectionAreaWrapper(ResultsElectionArea {
             id: item.try_get::<_, Uuid>("id")?.to_string(),
@@ -52,20 +51,20 @@ pub async fn insert_results_election_area_documents(
     documents: &ResultDocuments,
 ) -> Result<()> {
     let documents_value = serde_json::to_value(documents.clone())?;
-    let tenant_uuid: uuid::Uuid = parse_uuid_v4(&tenant_id)
-        .map_err(|err| anyhow!("Error parsing tenant_id as UUID: {}", err))?;
-    let results_event_uuid: uuid::Uuid = parse_uuid_v4(&results_event_id)
-        .map_err(|err| anyhow!("Error parsing results_event_id as UUID: {}", err))?;
-    let election_event_uuid: uuid::Uuid = parse_uuid_v4(&election_event_id)
-        .map_err(|err| anyhow!("Error parsing election_event_id as UUID: {}", err))?;
-    let election_uuid: uuid::Uuid = parse_uuid_v4(&election_id)
-        .map_err(|err| anyhow!("Error parsing election_id as UUID: {}", err))?;
+    let tenant_uuid: uuid::Uuid = parse_uuid_v4(tenant_id)
+        .map_err(|err| anyhow!("Error parsing tenant_id as UUID: {err}"))?;
+    let results_event_uuid: uuid::Uuid = parse_uuid_v4(results_event_id)
+        .map_err(|err| anyhow!("Error parsing results_event_id as UUID: {err}"))?;
+    let election_event_uuid: uuid::Uuid = parse_uuid_v4(election_event_id)
+        .map_err(|err| anyhow!("Error parsing election_event_id as UUID: {err}"))?;
+    let election_uuid: uuid::Uuid = parse_uuid_v4(election_id)
+        .map_err(|err| anyhow!("Error parsing election_id as UUID: {err}"))?;
     let area_uuid: uuid::Uuid =
-        parse_uuid_v4(&area_id).map_err(|err| anyhow!("Error parsing area_id as UUID: {}", err))?;
+        parse_uuid_v4(area_id).map_err(|err| anyhow!("Error parsing area_id as UUID: {err}"))?;
 
     let statement = hasura_transaction
         .prepare(
-            r#"
+            r"
                 INSERT INTO sequent_backend.results_election_area (
                     documents, 
                     tenant_id, 
@@ -77,7 +76,7 @@ pub async fn insert_results_election_area_documents(
                 )
                 VALUES ($1, $2, $3, $4, $5, $6, $7)
                 RETURNING id;
-            "#,
+            ",
         )
         .await?;
     let rows: Vec<Row> = hasura_transaction
@@ -105,13 +104,13 @@ pub async fn get_event_results_election_area(
     election_event_id: &str,
 ) -> Result<Vec<ResultsElectionArea>> {
     let tenant_uuid: uuid::Uuid = parse_uuid_v4(tenant_id)
-        .map_err(|err| anyhow!("Error parsing tenant_id as UUID: {}", err))?;
+        .map_err(|err| anyhow!("Error parsing tenant_id as UUID: {err}"))?;
     let election_event_uuid: uuid::Uuid = parse_uuid_v4(election_event_id)
-        .map_err(|err| anyhow!("Error parsing election_event_id as UUID: {}", err))?;
+        .map_err(|err| anyhow!("Error parsing election_event_id as UUID: {err}"))?;
 
     let statement = hasura_transaction
         .prepare(
-            r#"
+            r"
                 SELECT
                     *
                 FROM 
@@ -119,14 +118,14 @@ pub async fn get_event_results_election_area(
                 WHERE
                     tenant_id = $1 AND
                     election_event_id = $2;
-            "#,
+            ",
         )
         .await?;
 
     let rows = hasura_transaction
         .query(&statement, &[&tenant_uuid, &election_event_uuid])
         .await
-        .map_err(|err| anyhow!("Error running the query: {}", err))?;
+        .map_err(|err| anyhow!("Error running the query: {err}"))?;
 
     // Convert rows into ResultsElectionArea objects
     let results = rows
@@ -134,7 +133,7 @@ pub async fn get_event_results_election_area(
         .map(|row| {
             row.try_into()
                 .map(|res: ResultsElectionAreaWrapper| res.0)
-                .map_err(|err| anyhow!("Error converting row to ResultsElectionArea: {}", err))
+                .map_err(|err| anyhow!("Error converting row to ResultsElectionArea: {err}"))
         })
         .collect::<Result<Vec<ResultsElectionArea>>>()?;
 
@@ -186,7 +185,7 @@ pub async fn insert_many_results_elections_areas(
 
     let json_data = serde_json::to_value(&insertable)?;
 
-    let sql = r#"
+    let sql = r"
         WITH data AS (
             SELECT * FROM jsonb_to_recordset($1::jsonb) AS t(
                 id UUID,
@@ -212,7 +211,7 @@ pub async fn insert_many_results_elections_areas(
             documents, name
         FROM data
         RETURNING *;
-    "#;
+    ";
 
     let statement = hasura_transaction.prepare(sql).await?;
     let rows = hasura_transaction.query(&statement, &[&json_data]).await?;

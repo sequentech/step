@@ -206,7 +206,7 @@ pub async fn process_electoral_log_events_batch(events: Vec<LogEventInput>) -> R
                         .with_context(|| "Error building send template message")?;
                     messages_by_board
                         .entry(board_name.clone())
-                        .or_insert_with(Vec::new)
+                        .or_default()
                         .push(send_template_msg);
                 }
 
@@ -225,7 +225,7 @@ pub async fn process_electoral_log_events_batch(events: Vec<LogEventInput>) -> R
 
         messages_by_board
             .entry(board_name.clone())
-            .or_insert_with(Vec::new)
+            .or_default()
             .push(event_message);
     }
 

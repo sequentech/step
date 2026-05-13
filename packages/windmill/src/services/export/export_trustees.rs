@@ -81,13 +81,13 @@ pub async fn read_trustees_config_base(
 
     // Upload the ZIP file (encrypted or original) to Hasura
     let document = upload_and_return_document(
-        &transaction,
+        transaction,
         encrypted_zip_path
             .to_str()
             .ok_or(anyhow!("Empty encrypted zip path"))?,
         zip_size,
         "application/zip",
-        &tenant_id.to_string(),
+        tenant_id,
         None,
         &zip_filename,
         Some(document_id.to_string()),
@@ -120,14 +120,14 @@ pub async fn read_trustees_config(
 
     match res {
         Ok(_) => {
-            update_complete(&task_execution, Some(document_id.to_string()))
+            update_complete(task_execution, Some(document_id.to_string()))
                 .await
                 .context("Failed to update task execution status to COMPLETED")?;
             Ok(())
         }
         Err(err) => {
             let err_str = format!("Failed reading trustees config: {err:?}");
-            update_fail(&task_execution, &err_str).await.context(
+            update_fail(task_execution, &err_str).await.context(
                 "Failed to update task reading trustees config execution status to FAILED",
             )?;
             Err(err)

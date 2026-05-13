@@ -144,8 +144,7 @@ impl TemplateRenderer for BallotTemplate {
 
         // Verify that the vote has been casted
         if !cast_votes.iter().any(|cv| {
-            cv.ballot_id.as_deref().map_or(false, |id| id == ballot_id)
-                && cv.area_id.as_deref().map_or(false, |id| id == area_id)
+            (cv.ballot_id.as_deref() == Some(ballot_id)) && (cv.area_id.as_deref() == Some(area_id))
         }) {
             return Err(anyhow!("BallotID not found in cast votes for {voter_id}"));
         }

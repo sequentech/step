@@ -152,7 +152,7 @@ async fn main() -> Result<()> {
         .with_context(|| format!("Failed to open session to board: {}", board_name))?;
     info!(%board_name, "Successfully opened session to board.");
 
-    let mut total_rows_fetched = 0;
+    let mut total_rows_fetched: i32 = 0;
     let mut activity_log_written_counts: HashMap<String, usize> = HashMap::new();
 
     info!("Starting log retrieval from Immudb via streaming query.");
@@ -182,7 +182,9 @@ async fn main() -> Result<()> {
 
                 for individual_row in &sql_query_result_batch.rows {
                     // Iterate over individual rows within the batch
-                    total_rows_fetched += 1;
+                    total_rows_fetched = total_rows_fetched
+                        .checked_add(1)
+                        .expect("total_rows_fetched overflow");
                     if total_rows_fetched % 1000 == 0 {
                         info!(total_rows_fetched, "Processed rows from stream...");
                     }
@@ -251,9 +253,12 @@ async fn main() -> Result<()> {
                         if let Err(e) = writer.serialize(&activity_log_row) {
                             error!(log_id = elog_row.id, election_file_stem = %sanitized_stem, error = %e, "Failed to serialize ActivityLogRow to CSV.");
                         } else {
-                            *activity_log_written_counts
+                            let written = activity_log_written_counts
                                 .entry(sanitized_stem.clone())
-                                .or_insert(0) += 1;
+                                .or_insert(0);
+                            *written = (*written)
+                                .checked_add(1)
+                                .expect("activity_log_written_counts overflow");
                         }
                     }
                 }

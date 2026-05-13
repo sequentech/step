@@ -101,7 +101,7 @@ pub async fn generate_election_votes_data(
     .await
     .map_err(|e| anyhow!("Error fetching election results: {:?}", e))?;
 
-    if let Some(result) = election_results.get(0) {
+    if let Some(result) = election_results.first() {
         let total_ballots = result.total_voters;
         let voters_turnout = if let Some(total_ballots) = total_ballots {
             calc_voters_turnout(total_ballots, registered_voters)?
@@ -154,7 +154,7 @@ pub async fn generate_election_area_votes_data(
     if let Some(result) = area_results {
         let total_ballots = result.total_votes;
         let voters_turnout = if let (Some(registered_voters), Some(total_ballots)) =
-            (registered_voters.clone(), total_ballots)
+            (registered_voters, total_ballots)
         {
             calc_voters_turnout(total_ballots, registered_voters)?
         } else {
@@ -208,7 +208,7 @@ pub async fn get_total_number_of_registered_voters_for_area_id(
         },
     );
     let num_of_registered_voters_by_area_id =
-        count_keycloak_enabled_users_by_attrs(&keycloak_transaction, &realm, Some(attributes))
+        count_keycloak_enabled_users_by_attrs(keycloak_transaction, realm, Some(attributes))
             .await
             .map_err(|err| {
                 anyhow!("Error getting count of enabled users by area_id attribute: {err}")
@@ -221,7 +221,7 @@ pub async fn get_total_number_of_registered_voters(
     keycloak_transaction: &Transaction<'_>,
     realm: &str,
 ) -> Result<i64> {
-    let num_of_registered_voters = count_keycloak_enabled_users(&keycloak_transaction, &realm)
+    let num_of_registered_voters = count_keycloak_enabled_users(keycloak_transaction, realm)
         .await
         .map_err(|err| anyhow!("Error getting count of enabled users: {err}"))?;
     Ok(num_of_registered_voters)
@@ -338,9 +338,9 @@ pub async fn get_results_hash(
     election_id: &str,
 ) -> Result<String> {
     let tally_sessions = get_tally_sessions_by_election_event_id(
-        &hasura_transaction,
-        &tenant_id,
-        &election_event_id,
+        hasura_transaction,
+        tenant_id,
+        election_event_id,
         false,
     )
     .await
@@ -355,8 +355,7 @@ pub async fn get_results_hash(
                 .as_ref()
                 .map(|ids| ids.contains(&election_id.to_string()))
                 .unwrap_or(false)
-                && tally_session.tally_type.clone().unwrap_or_default()
-                    == String::from("ELECTORAL_RESULTS")
+                && tally_session.tally_type.clone().unwrap_or_default() == "ELECTORAL_RESULTS"
         })
         .collect::<Vec<_>>();
 
@@ -444,7 +443,7 @@ pub async fn process_elections(
 
         region_posts_map
             .entry(election_general_data.geographical_region.clone())
-            .or_insert_with(HashSet::new)
+            .or_default()
             .insert(election_general_data.post.clone());
 
         let election_dates = get_election_dates(&election, scheduled_events.clone())
@@ -457,7 +456,7 @@ pub async fn process_elections(
 
         elections_data.push(UserDataElection {
             election_dates,
-            election_name: election_name,
+            election_name,
             election_annotations: election_general_data,
         });
     }

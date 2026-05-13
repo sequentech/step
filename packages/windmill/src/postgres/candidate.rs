@@ -55,12 +55,12 @@ pub async fn insert_candidates(
 
         let statement = hasura_transaction
         .prepare(
-            r#"
+            r"
                 INSERT INTO sequent_backend.candidate
                 (id, tenant_id, election_event_id, contest_id, created_at, last_updated_at, labels, annotations, description, type, presentation, is_public, image_document_id, external_id)
                 VALUES
                 ($1, $2, $3, $4, NOW(), NOW(), $5, $6, $7, $8, $9, $10, $11, $12);
-            "#,
+            ",
         )
         .await?;
 
@@ -74,7 +74,7 @@ pub async fn insert_candidates(
                     &candidate
                         .contest_id
                         .as_ref()
-                        .and_then(|id| parse_uuid_v4(&id).ok()),
+                        .and_then(|id| parse_uuid_v4(id).ok()),
                     &candidate.labels,
                     &candidate.annotations,
                     &candidate.description,
@@ -100,7 +100,7 @@ pub async fn export_candidates(
 ) -> Result<Vec<Candidate>> {
     let statement = hasura_transaction
         .prepare(
-            r#"
+            r"
                 SELECT
                     id, tenant_id, election_event_id, contest_id, created_at, last_updated_at, labels, annotations, description, type, presentation, is_public, image_document_id, external_id
                 FROM
@@ -108,7 +108,7 @@ pub async fn export_candidates(
                 WHERE
                     tenant_id = $1 AND
                     election_event_id = $2;
-            "#,
+            ",
         )
         .await?;
 
@@ -142,7 +142,7 @@ pub async fn get_candidates_by_contest_id(
 ) -> Result<Vec<Candidate>> {
     let statement = hasura_transaction
         .prepare(
-            r#"
+            r"
             SELECT
                 *
             FROM
@@ -151,7 +151,7 @@ pub async fn get_candidates_by_contest_id(
                 tenant_id = $1 AND
                 election_event_id = $2 AND
                 contest_id = $3;
-            "#,
+            ",
         )
         .await?;
 
@@ -205,7 +205,7 @@ pub async fn export_candidate_csv(
     let election_event_id = escape_sql_literal(election_event_id);
 
     let copy_sql = format!(
-        r#"COPY (
+        r"COPY (
             SELECT
                 id::text,
                 tenant_id,
@@ -223,17 +223,16 @@ pub async fn export_candidate_csv(
                 external_id::text
             FROM sequent_backend.candidate
             WHERE
-                tenant_id = '{}'
-                AND election_event_id = '{}'
-                AND contest_id = ANY('{{{}}}')
-        ) TO STDOUT WITH CSV HEADER"#,
-        tenant_id, election_event_id, contests_csv
+                tenant_id = '{tenant_id}'
+                AND election_event_id = '{election_event_id}'
+                AND contest_id = ANY('{{{contests_csv}}}')
+        ) TO STDOUT WITH CSV HEADER"
     );
 
     let stream = hasura_transaction
         .copy_out(&copy_sql)
         .await
-        .map_err(|e| anyhow!("COPY OUT failed: {}", e))?;
+        .map_err(|e| anyhow!("COPY OUT failed: {e}"))?;
     pin_mut!(stream);
 
     while let Some(chunk) = stream.next().await {

@@ -95,7 +95,11 @@ async fn create_boards_csv(boards_map: HashMap<String, Vec<B3MessageRow>>) -> Re
 
     let size = temp_path.metadata()?.len();
     if size > get_max_upload_size()? as u64 {
-        return Err(anyhow!("File too large: {} > {}", size, get_max_upload_size()?).into());
+        return Err(anyhow!(
+            "File too large: {} > {}",
+            size,
+            get_max_upload_size()?
+        ));
     }
 
     Ok(temp_path)
@@ -193,7 +197,11 @@ pub async fn read_protocol_manager_keys(
 
     let size = temp_path.metadata()?.len();
     if size > get_max_upload_size()? as u64 {
-        return Err(anyhow!("File too large: {} > {}", size, get_max_upload_size()?).into());
+        return Err(anyhow!(
+            "File too large: {} > {}",
+            size,
+            get_max_upload_size()?
+        ));
     }
 
     Ok(temp_path)

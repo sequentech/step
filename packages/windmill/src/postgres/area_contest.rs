@@ -60,12 +60,12 @@ pub async fn insert_area_contests(
     for area_contest in area_contests {
         let statement = hasura_transaction
             .prepare(
-                r#"
+                r"
                 INSERT INTO sequent_backend.area_contest
                 (id, tenant_id, election_event_id, contest_id, area_id, created_at, last_updated_at)
                 VALUES
                 ($1, $2, $3, $4, $5, NOW(), NOW());
-            "#,
+            ",
             )
             .await?;
 
@@ -95,7 +95,7 @@ pub async fn export_area_contests(
 ) -> Result<Vec<AreaContest>> {
     let statement = hasura_transaction
         .prepare(
-            r#"
+            r"
                 SELECT
                     id, area_id, contest_id
                 FROM
@@ -103,7 +103,7 @@ pub async fn export_area_contests(
                 WHERE
                     tenant_id = $1 AND
                     election_event_id = $2;
-            "#,
+            ",
         )
         .await?;
 
@@ -137,7 +137,7 @@ pub async fn get_areas_by_contest_id(
 ) -> Result<Vec<String>> {
     let statement = hasura_transaction
         .prepare(
-            r#"
+            r"
                 SELECT
                     area_id
                 FROM
@@ -146,7 +146,7 @@ pub async fn get_areas_by_contest_id(
                     tenant_id = $1 AND
                     election_event_id = $2 AND
                     contest_id = $3;
-            "#,
+            ",
         )
         .await?;
 
@@ -172,8 +172,8 @@ pub async fn get_area_contests_by_area_contest_ids(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
     election_event_id: &str,
-    area_ids: &Vec<String>,
-    contest_ids: &Vec<String>,
+    area_ids: &[String],
+    contest_ids: &[String],
 ) -> Result<Vec<AreaContest>> {
     let uuid_tenant_id = parse_uuid_v4(tenant_id)?;
     let uuid_election_event_id = parse_uuid_v4(election_event_id)?;
@@ -188,7 +188,7 @@ pub async fn get_area_contests_by_area_contest_ids(
 
     let statement = hasura_transaction
         .prepare(
-            r#"
+            r"
                 SELECT
                     id, area_id, contest_id
                 FROM
@@ -198,7 +198,7 @@ pub async fn get_area_contests_by_area_contest_ids(
                     election_event_id = $2 AND
                     area_id = ANY($3) AND
                     contest_id = ANY($4);
-            "#,
+            ",
         )
         .await?;
 

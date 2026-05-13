@@ -102,16 +102,15 @@ pub async fn find_area_ballots(
         .await
         .expect("Could not create/open temporary file for tokio");
 
-    let copy_out_query = format!("COPY ({}) TO STDOUT WITH (FORMAT CSV)", areas_statement);
+    let copy_out_query = format!("COPY ({areas_statement}) TO STDOUT WITH (FORMAT CSV)");
     let mut writer = BufWriter::new(tokio_temp_file);
 
     debug!("copy_out_query: {copy_out_query}");
 
     let reader = hasura_transaction.copy_out(&copy_out_query).await?;
 
-    let adapt_pg_error_to_io_error = |pg_err: tokio_postgres::Error| {
-        std::io::Error::new(std::io::ErrorKind::Other, pg_err.to_string())
-    };
+    let adapt_pg_error_to_io_error =
+        |pg_err: tokio_postgres::Error| std::io::Error::other(pg_err.to_string());
     let io_error_stream = reader.map_err(adapt_pg_error_to_io_error);
 
     let async_reader = StreamReader::new(io_error_stream);
@@ -168,9 +167,9 @@ pub async fn count_cast_votes_election(
     is_test_election: Option<bool>,
 ) -> Result<Vec<ElectionCastVotes>> {
     let tenant_uuid: uuid::Uuid = parse_uuid_v4(tenant_id)
-        .map_err(|err| anyhow!("Error parsing tenant_id as UUID: {}", err))?;
+        .map_err(|err| anyhow!("Error parsing tenant_id as UUID: {err}"))?;
     let election_event_uuid: uuid::Uuid = parse_uuid_v4(election_event_id)
-        .map_err(|err| anyhow!("Error parsing election_event_id as UUID: {}", err))?;
+        .map_err(|err| anyhow!("Error parsing election_event_id as UUID: {err}"))?;
 
     let test_elections_clause = match is_test_election {
         Some(true) => "AND el.name ILIKE '%Test%'".to_string(),
@@ -179,7 +178,7 @@ pub async fn count_cast_votes_election(
     };
 
     let statement_str = format!(
-        r#"
+        r"
             SELECT el.id AS election_id, COUNT(DISTINCT cv.voter_id_string) AS cast_votes
             FROM sequent_backend.election el
             LEFT JOIN (
@@ -192,7 +191,7 @@ pub async fn count_cast_votes_election(
                 {test_elections_clause}
             GROUP BY
                 el.id
-            "#
+            ",
     );
 
     let statement = hasura_transaction.prepare(statement_str.as_str()).await?;
@@ -200,7 +199,7 @@ pub async fn count_cast_votes_election(
     let rows: Vec<Row> = hasura_transaction
         .query(&statement, &[&tenant_uuid, &election_event_uuid])
         .await
-        .map_err(|err| anyhow!("Error running the query: {}", err))?;
+        .map_err(|err| anyhow!("Error running the query: {err}"))?;
     let count_data = rows
         .into_iter()
         .map(|row| -> Result<ElectionCastVotes> { row.try_into() })
@@ -229,8 +228,7 @@ pub async fn get_count_votes_per_day(
     };
     let total_areas_statement = transaction
         .prepare(
-            format!(
-                r#"
+            r"
             WITH date_series AS (
                 SELECT
                     (t.day)::date AS day
@@ -266,9 +264,7 @@ pub async fn get_count_votes_per_day(
                 OR v.created_at IS NULL
             GROUP BY ds.day
             ORDER BY ds.day;
-            "#
-            )
-            .as_str(),
+            ",
         )
         .await?;
 
@@ -339,7 +335,7 @@ pub async fn get_users_with_vote_info(
 
     let vote_info_statement = hasura_transaction
         .prepare(
-            r#"
+            r"
         SELECT
             v.voter_id_string AS voter_id_string,
             v.election_id     AS election_id,
@@ -353,7 +349,7 @@ pub async fn get_users_with_vote_info(
             AND ($4::uuid IS NULL OR v.election_id = $4::uuid)
         GROUP BY
             v.voter_id_string, v.election_id
-        "#,
+        ",
         )
         .await?;
 
@@ -389,7 +385,7 @@ pub async fn get_users_with_vote_info(
 
         user_votes_map
             .entry(voter_id_string)
-            .or_insert_with(Vec::new)
+            .or_default()
             .push(VotesInfo {
                 election_id: election_id.to_string(),
                 num_votes: num_votes as usize,
@@ -411,7 +407,7 @@ pub async fn get_users_with_vote_info(
         // If this is a "datafix" event, adjust the votes_info by checking the user's attributes
         if is_datafix_event {
             if let Some(attributes) = &user.attributes {
-                if voted_via_not_internet_channel(&attributes) {
+                if voted_via_not_internet_channel(attributes) {
                     votes_info = vec![VotesInfo {
                         election_id: "".to_string(), // Not used for datafix
                         num_votes: 1,
@@ -478,29 +474,19 @@ pub async fn get_top_count_votes_by_ip(
         0
     };
 
-    let ip_pattern: Option<String> = if let Some(ip_val) = filter.ip {
-        Some(format!("%{ip_val}%"))
-    } else {
-        None
-    };
+    let ip_pattern: Option<String> = filter.ip.map(|ip_val| format!("%{ip_val}%"));
+    let country_pattern: Option<String> =
+        filter.country.map(|country_val| format!("%{country_val}%"));
 
-    let country_pattern: Option<String> = if let Some(country_val) = filter.country {
-        Some(format!("%{country_val}%"))
-    } else {
-        None
-    };
     let election_id_pattern: Option<Uuid> = if let Some(election_id_val) = filter.election_id {
-        match parse_uuid_v4(&election_id_val) {
-            Ok(uuid) => Some(uuid),
-            Err(e) => None,
-        }
+        parse_uuid_v4(&election_id_val).ok()
     } else {
         None
     };
 
     let statement = hasura_transaction
         .prepare(
-            r#"
+            r"
             SELECT
                 ROW_NUMBER() OVER (ORDER BY vote_count DESC) AS id,
                 *
@@ -530,7 +516,7 @@ pub async fn get_top_count_votes_by_ip(
             ) t
             ORDER BY vote_count DESC
             LIMIT $6 OFFSET $7;
-            "#,
+            ",
         )
         .await
         .map_err(|err| anyhow!("Error preparing the statement: {err}"))?;
@@ -573,11 +559,11 @@ pub async fn count_ballots_by_election(
     election_id: &str,
 ) -> Result<i64> {
     let tenant_uuid: uuid::Uuid = parse_uuid_v4(tenant_id)
-        .map_err(|err| anyhow!("Error parsing tenant_id as UUID: {}", err))?;
+        .map_err(|err| anyhow!("Error parsing tenant_id as UUID: {err}"))?;
     let election_event_uuid: uuid::Uuid = parse_uuid_v4(election_event_id)
-        .map_err(|err| anyhow!("Error parsing election_event_id as UUID: {}", err))?;
+        .map_err(|err| anyhow!("Error parsing election_event_id as UUID: {err}"))?;
     let election_uuid: uuid::Uuid = parse_uuid_v4(election_id)
-        .map_err(|err| anyhow!("Error parsing election_id as UUID: {}", err))?;
+        .map_err(|err| anyhow!("Error parsing election_id as UUID: {err}"))?;
 
     // Prepare and execute the statement
     let statement = hasura_transaction
@@ -603,7 +589,7 @@ pub async fn count_ballots_by_election(
             &[&tenant_uuid, &election_event_uuid, &election_uuid],
         )
         .await
-        .map_err(|err| anyhow!("Error running the count query: {}", err))?;
+        .map_err(|err| anyhow!("Error running the count query: {err}"))?;
 
     let vote_count: i64 = row.get(0); // Get the count from the first column
 
@@ -619,13 +605,13 @@ pub async fn count_ballots_by_area_id(
     area_id: &str,
 ) -> Result<i64> {
     let tenant_uuid: uuid::Uuid = parse_uuid_v4(tenant_id)
-        .map_err(|err| anyhow!("Error parsing tenant_id as UUID: {}", err))?;
+        .map_err(|err| anyhow!("Error parsing tenant_id as UUID: {err}"))?;
     let election_event_uuid: uuid::Uuid = parse_uuid_v4(election_event_id)
-        .map_err(|err| anyhow!("Error parsing election_event_id as UUID: {}", err))?;
+        .map_err(|err| anyhow!("Error parsing election_event_id as UUID: {err}"))?;
     let election_uuid: uuid::Uuid = parse_uuid_v4(election_id)
-        .map_err(|err| anyhow!("Error parsing election_id as UUID: {}", err))?;
+        .map_err(|err| anyhow!("Error parsing election_id as UUID: {err}"))?;
     let area_uuid: uuid::Uuid =
-        parse_uuid_v4(area_id).map_err(|err| anyhow!("Error parsing area_id as UUID: {}", err))?;
+        parse_uuid_v4(area_id).map_err(|err| anyhow!("Error parsing area_id as UUID: {err}"))?;
 
     let statement = hasura_transaction
         .prepare(
@@ -656,7 +642,7 @@ pub async fn count_ballots_by_area_id(
             ],
         )
         .await
-        .map_err(|err| anyhow!("Error running the count query: {}", err))?;
+        .map_err(|err| anyhow!("Error running the count query: {err}"))?;
 
     let vote_count: i64 = row.get(0);
 
@@ -671,9 +657,9 @@ pub async fn count_cast_votes_election_event(
     is_test_election: Option<bool>,
 ) -> Result<i64> {
     let tenant_uuid: uuid::Uuid = parse_uuid_v4(tenant_id)
-        .map_err(|err| anyhow!("Error parsing tenant_id as UUID: {}", err))?;
+        .map_err(|err| anyhow!("Error parsing tenant_id as UUID: {err}"))?;
     let election_event_uuid: uuid::Uuid = parse_uuid_v4(election_event_id)
-        .map_err(|err| anyhow!("Error parsing election_event_id as UUID: {}", err))?;
+        .map_err(|err| anyhow!("Error parsing election_event_id as UUID: {err}"))?;
 
     let test_elections_clause = match is_test_election {
         Some(true) => "AND el.name ILIKE '%Test%'".to_string(),
@@ -682,7 +668,7 @@ pub async fn count_cast_votes_election_event(
     };
 
     let statement_str = format!(
-        r#"
+        r"
             SELECT COUNT(DISTINCT cv.voter_id_string) AS voter_count
             FROM sequent_backend.election el
             JOIN sequent_backend.cast_vote cv ON el.id = cv.election_id
@@ -691,7 +677,7 @@ pub async fn count_cast_votes_election_event(
                 el.tenant_id = $1 AND 
                 el.election_event_id = $2
                 {test_elections_clause};
-            "#
+            ",
     );
 
     let statement = hasura_transaction.prepare(statement_str.as_str()).await?;
@@ -699,7 +685,7 @@ pub async fn count_cast_votes_election_event(
     let rows: Row = hasura_transaction
         .query_one(&statement, &[&tenant_uuid, &election_event_uuid])
         .await
-        .map_err(|err| anyhow!("Error running the query: {}", err))?;
+        .map_err(|err| anyhow!("Error running the query: {err}"))?;
 
     let count = rows.try_get::<_, i64>("voter_count")?;
 

@@ -81,16 +81,16 @@ pub async fn read_export_data(
         trustees,
         applications,
     ) = try_join!(
-        get_election_event_by_id(&transaction, tenant_id, election_event_id),
-        export_elections(&transaction, tenant_id, election_event_id),
-        export_contests(&transaction, tenant_id, election_event_id),
-        export_candidates(&transaction, tenant_id, election_event_id),
-        get_event_areas(&transaction, tenant_id, election_event_id),
-        export_area_contests(&transaction, tenant_id, election_event_id),
-        get_reports_by_election_event_id(&transaction, tenant_id, election_event_id),
-        get_keys_ceremonies(&transaction, tenant_id, election_event_id),
-        get_all_trustees(&transaction, tenant_id),
-        get_applications_by_election(&transaction, tenant_id, election_event_id, None),
+        get_election_event_by_id(transaction, tenant_id, election_event_id),
+        export_elections(transaction, tenant_id, election_event_id),
+        export_contests(transaction, tenant_id, election_event_id),
+        export_candidates(transaction, tenant_id, election_event_id),
+        get_event_areas(transaction, tenant_id, election_event_id),
+        export_area_contests(transaction, tenant_id, election_event_id),
+        get_reports_by_election_event_id(transaction, tenant_id, election_event_id),
+        get_keys_ceremonies(transaction, tenant_id, election_event_id),
+        get_all_trustees(transaction, tenant_id),
+        get_applications_by_election(transaction, tenant_id, election_event_id, None),
     )?;
 
     // map keys ceremonies to names
@@ -147,14 +147,14 @@ pub async fn read_export_data(
         std::env::var(ENV_VAR_APP_VERSION).unwrap_or_else(|_| DEV_APP_VERSION.to_string());
 
     let import_election_event_schema = ImportElectionEventSchema {
-        tenant_id: parse_uuid_v4(&tenant_id)?,
+        tenant_id: parse_uuid_v4(tenant_id)?,
         keycloak_event_realm: Some(realm),
-        election_event: election_event,
+        election_event,
         elections: export_elections,
         contests: contests.clone(),
         candidates: candidates.clone(),
-        areas: areas,
-        area_contests: area_contests,
+        areas,
+        area_contests,
         scheduled_events: None,
         reports: export_reports,
         keys_ceremonies: Some(export_keys_ceremonies),
@@ -163,7 +163,7 @@ pub async fn read_export_data(
     };
 
     let images_files_path =
-        process_event_images(&transaction, tenant_id, elections, contests, candidates).await?;
+        process_event_images(transaction, tenant_id, elections, contests, candidates).await?;
 
     Ok((import_election_event_schema, images_files_path))
 }
@@ -381,7 +381,7 @@ pub async fn process_export_zip(
     std::io::copy(&mut election_event_file, &mut zip_writer)
         .map_err(|e| anyhow!("Error copying election event file to ZIP: {e:?}"))?;
 
-    let images_folder_name = format!("{}", EDocuments::IMAGES.to_file_name());
+    let images_folder_name = EDocuments::IMAGES.to_file_name();
 
     for file_path in event_images_files_path {
         let file_name = file_path
@@ -393,7 +393,7 @@ pub async fn process_export_zip(
             .to_string_lossy()
             .to_string();
 
-        let file_name_in_zip = format!("{}/{}", images_folder_name, file_name);
+        let file_name_in_zip = format!("{images_folder_name}/{file_name}");
         zip_writer
             .start_file(&file_name_in_zip, options)
             .map_err(|e| anyhow!("Error starting S3 file in ZIP: {e:?}"))?;
@@ -450,7 +450,7 @@ pub async fn process_export_zip(
             .map_err(|e| anyhow!("Error creating temporary reports file: {e:?}"))?;
         {
             let mut wtr = csv::Writer::from_writer(&temp_reports_file);
-            wtr.write_record(&[
+            wtr.write_record([
                 "ID",
                 "Election ID",
                 "Report Type",
@@ -540,8 +540,8 @@ pub async fn process_export_zip(
 
     // Add the S3 files to the ZIP archive
     if export_config.s3_files {
-        let s3_folder_name = format!("{}", EDocuments::S3_FILES.to_file_name());
-        let documents_prefix = format!("tenant-{}/event-{}/", tenant_id, election_event_id);
+        let s3_folder_name = EDocuments::S3_FILES.to_file_name();
+        let documents_prefix = format!("tenant-{tenant_id}/event-{election_event_id}/");
         let bucket = s3::get_private_bucket()?;
 
         let s3_files = s3::get_files_from_s3(bucket, documents_prefix.clone())
@@ -558,7 +558,7 @@ pub async fn process_export_zip(
                 .to_string_lossy()
                 .to_string();
 
-            let file_name_in_zip = format!("{}/{}", s3_folder_name, file_name);
+            let file_name_in_zip = format!("{s3_folder_name}/{file_name}");
             zip_writer
                 .start_file(&file_name_in_zip, options)
                 .map_err(|e| anyhow!("Error starting S3 file in ZIP: {e:?}"))?;
@@ -682,7 +682,7 @@ pub async fn process_export_zip(
     // Add boards info
     let keys_ceremonies =
         get_keys_ceremonies(&hasura_transaction, tenant_id, election_event_id).await?;
-    if export_config.bulletin_board && keys_ceremonies.len() > 0 {
+    if export_config.bulletin_board && !keys_ceremonies.is_empty() {
         // read boards
         let bulletin_boards_filename = format!(
             "{}-{}.csv",
@@ -708,7 +708,7 @@ pub async fn process_export_zip(
     }
 
     if export_config.tally {
-        let tally_folder_name = format!("{}", EDocuments::TALLY.to_file_name());
+        let tally_folder_name = EDocuments::TALLY.to_file_name();
 
         let tally_data =
             export_tally::read_tally_data(&hasura_transaction, tenant_id, election_event_id)
@@ -716,7 +716,7 @@ pub async fn process_export_zip(
                 .map_err(|e| anyhow!("Error reading tally data: {e:?}"))?;
 
         for (file_name, file_path) in tally_data {
-            let file_name_in_zip = format!("{}/{}.csv", tally_folder_name, file_name);
+            let file_name_in_zip = format!("{tally_folder_name}/{file_name}.csv");
 
             zip_writer
                 .start_file(&file_name_in_zip, options)
@@ -757,11 +757,11 @@ pub async fn process_export_zip(
 
     // Encrypt ZIP file if required
     let encryption_password = export_config.password.unwrap_or("".to_string());
-    if 0 == encryption_password.len() && (export_config.bulletin_board || export_config.reports) {
+    if encryption_password.is_empty() && (export_config.bulletin_board || export_config.reports) {
         return Err(anyhow!("Bulletin Board requires password"));
     }
     let encrypted_zip_path = zip_path.with_extension("ezip");
-    if encryption_password.len() > 0 {
+    if !encryption_password.is_empty() {
         generate_encrypted_zip(
             zip_path.to_string_lossy().to_string(),
             encrypted_zip_path.to_string_lossy().to_string(),
@@ -771,20 +771,20 @@ pub async fn process_export_zip(
     }
 
     // Use encrypted_zip_path if encryption is enabled, otherwise use zip_path
-    let upload_path = if encryption_password.len() > 0 && encrypted_zip_path.exists() {
+    let upload_path = if !encryption_password.is_empty() && encrypted_zip_path.exists() {
         &encrypted_zip_path
     } else {
         &zip_path
     };
 
-    let zip_size = std::fs::metadata(&upload_path)
+    let zip_size = std::fs::metadata(upload_path)
         .map_err(|e| anyhow!("Error getting ZIP file metadata: {e:?}"))?
         .len();
 
     let export_event_filename = get_export_election_event_filename(
         election_event_id,
         upload_path,
-        encryption_password.len() > 0,
+        !encryption_password.is_empty(),
     )
     .map_err(|e| anyhow!("Error generating the exported election event filename: {e:?}"))?;
 
@@ -796,7 +796,7 @@ pub async fn process_export_zip(
             .ok_or_else(|| anyhow!("Can't convert {:?} to string", upload_path))?,
         zip_size,
         "application/zip",
-        &tenant_id.to_string(),
+        tenant_id,
         Some(election_event_id.to_string()),
         &export_event_filename,
         Some(document_id.to_string()),

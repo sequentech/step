@@ -39,9 +39,7 @@ impl TryFrom<&Row> for Aggregate {
         let mut count = 0;
 
         for (column, value) in row.columns.iter().zip(row.values.iter()) {
-            match column.as_str() {
-                _ => assign_value!(Value::N, value, count),
-            }
+            assign_value!(Value::N, value, count);
         }
         Ok(Aggregate { count })
     }

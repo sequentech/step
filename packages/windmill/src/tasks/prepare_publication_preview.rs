@@ -85,7 +85,7 @@ pub async fn prepare_publication_preview_task(
     document_id: String,
 ) -> AnyhowResult<String> {
     let ballot_styles_json = get_publication_json(
-        &hasura_transaction,
+        hasura_transaction,
         tenant_id.clone(),
         election_event_id.clone(),
         ballot_publication_id.clone(),
@@ -95,7 +95,7 @@ pub async fn prepare_publication_preview_task(
     .await?;
 
     let election_event: ElectionEvent =
-        get_election_event_by_id(&hasura_transaction, &tenant_id, &election_event_id)
+        get_election_event_by_id(hasura_transaction, &tenant_id, &election_event_id)
             .await
             .with_context(|| "Can't find election event")?;
 
@@ -103,10 +103,10 @@ pub async fn prepare_publication_preview_task(
         serde_json::to_value(election_event).with_context(|| "Error serializing election event")?;
 
     let elections_json =
-        get_elections_json_with_open_status(&hasura_transaction, &tenant_id, &election_event_id)
+        get_elections_json_with_open_status(hasura_transaction, &tenant_id, &election_event_id)
             .await?;
     let (support_materials_json, documents_json) =
-        get_support_material_documents_json(&hasura_transaction, &tenant_id, &election_event_id)
+        get_support_material_documents_json(hasura_transaction, &tenant_id, &election_event_id)
             .await?;
     let pub_preview = PublicationPreview {
         ballot_styles: ballot_styles_json,
@@ -170,16 +170,15 @@ pub async fn get_elections_json_with_open_status(
     tenant_id: &str,
     election_event_id: &str,
 ) -> AnyhowResult<Value> {
-    let mut elections = get_elections(&hasura_transaction, tenant_id, election_event_id)
+    let mut elections = get_elections(hasura_transaction, tenant_id, election_event_id)
         .await
         .with_context(|| "Can't find open elections")?;
 
     let open_elections = elections
         .iter_mut()
-        .map(|election| {
+        .inspect(|election| {
             let mut status = get_election_status(election.status.clone()).unwrap_or_default();
             status.voting_status = VotingStatus::OPEN;
-            election
         })
         .collect::<Vec<_>>();
 

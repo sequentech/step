@@ -31,8 +31,8 @@ use tracing::{event, info, instrument, Level};
 #[instrument(skip(trustees_hasura, messages), err)]
 fn get_trustee_status(
     trustee_name: &str,
-    trustees_hasura: &Vec<Trustee>,
-    messages: &Vec<Message>,
+    trustees_hasura: &[Trustee],
+    messages: &[Message],
 ) -> Result<TrusteeStatus> {
     let Some(found_trustee) = trustees_hasura
         .iter()
@@ -45,7 +45,7 @@ fn get_trustee_status(
     };
     let pk = StrandSignaturePk::from_der_b64_string(&pk_str)?;
 
-    let valid_statements = vec![StatementType::PublicKey, StatementType::PublicKeySigned];
+    let valid_statements = [StatementType::PublicKey, StatementType::PublicKeySigned];
 
     let found_message = messages.iter().find(|message| {
         valid_statements.contains(&message.statement.get_kind()) && message.sender.pk == pk
@@ -124,7 +124,7 @@ pub async fn set_public_key_impl(
         .timestamp() as u64;
 
     let messages = protocol_manager::get_board_public_key_messages(&board_name).await?;
-    let mut new_logs = generate_logs(&messages, next_timestamp, &vec![0])?;
+    let mut new_logs = generate_logs(&messages, next_timestamp, &[0])?;
     let mut logs = current_status.logs.clone();
     logs.append(&mut new_logs);
 

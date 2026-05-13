@@ -18,7 +18,7 @@ pub async fn update_election_statistics(
 ) -> Result<()> {
     let update_stats_statement = transaction
         .prepare(
-            r#"
+            r"
             UPDATE
                 sequent_backend.election
             SET
@@ -35,7 +35,7 @@ pub async fn update_election_statistics(
                 tenant_id = $1 AND
                 election_event_id = $2 AND
                 id = $3;
-            "#,
+            ",
         )
         .await?;
 
@@ -64,7 +64,7 @@ pub async fn get_count_distinct_voters(
 ) -> Result<i64> {
     let total_distinct_voters_statement = transaction
         .prepare(
-            r#"
+            r"
             SELECT
                 COUNT(DISTINCT voter_id_string) AS total_distinct_voters
             FROM
@@ -75,7 +75,7 @@ pub async fn get_count_distinct_voters(
                 el.tenant_id = $1 AND
                 el.election_event_id = $2 AND
                 el.id = $3;
-            "#,
+            ",
         )
         .await?;
 
@@ -92,7 +92,7 @@ pub async fn get_count_distinct_voters(
 
     // all rows contain the count and if there's no rows well, count is clearly
     // zero
-    let total_distinct_voters: i64 = if rows.len() == 0 {
+    let total_distinct_voters: i64 = if rows.is_empty() {
         0
     } else {
         rows[0].try_get::<&str, i64>("total_distinct_voters")?
@@ -110,7 +110,7 @@ pub async fn get_count_areas(
 ) -> Result<i64> {
     let total_areas_statement = transaction
         .prepare(
-            r#"
+            r"
             SELECT
                 count(DISTINCT a.id) as total_areas
             FROM
@@ -129,7 +129,7 @@ pub async fn get_count_areas(
                 c.tenant_id = $1 AND
                 c.election_event_id = $2 AND
                 c.election_id = $3;
-            "#,
+            ",
         )
         .await?;
 
@@ -146,7 +146,7 @@ pub async fn get_count_areas(
 
     // all rows contain the count and if there's no rows well, count is clearly
     // zero
-    let total_areas: i64 = if rows.len() == 0 {
+    let total_areas: i64 = if rows.is_empty() {
         0
     } else {
         rows[0].try_get::<&str, i64>("total_areas")?

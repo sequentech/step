@@ -39,11 +39,11 @@ pub async fn get_trustees_by_id(
     let trustee_uuids = trustee_ids
         .clone()
         .into_iter()
-        .map(|id| parse_uuid_v4(&id).map_err(|err| anyhow!("{:?}", err)))
+        .map(|id| parse_uuid_v4(&id).map_err(|err| anyhow!("{err:?}")))
         .collect::<Result<Vec<Uuid>>>()?;
     let statement = hasura_transaction
         .prepare(
-            r#"
+            r"
                 SELECT
                     *
                 FROM
@@ -51,7 +51,7 @@ pub async fn get_trustees_by_id(
                 WHERE
                     tenant_id = $1 AND
                     id = ANY($2);
-            "#,
+            ",
         )
         .await?;
 
@@ -75,7 +75,7 @@ pub async fn get_trustees_by_name(
 ) -> Result<Vec<Trustee>> {
     let statement = hasura_transaction
         .prepare(
-            r#"
+            r"
                 SELECT
                     *
                 FROM
@@ -83,7 +83,7 @@ pub async fn get_trustees_by_name(
                 WHERE
                     tenant_id = $1 AND
                     name = ANY($2);
-            "#,
+            ",
         )
         .await?;
 
@@ -109,8 +109,8 @@ pub async fn get_trustee_by_name(
         get_trustees_by_name(hasura_transaction, tenant_id, &vec![name.to_string()]).await?;
 
     trustees
-        .get(0)
-        .map(|tally_session: &Trustee| tally_session.clone())
+        .first()
+        .cloned()
         .ok_or(anyhow!("Trustee {name} not found"))
 }
 
@@ -121,14 +121,14 @@ pub async fn get_all_trustees(
 ) -> Result<Vec<Trustee>> {
     let statement = hasura_transaction
         .prepare(
-            r#"
+            r"
                 SELECT
                     *
                 FROM
                     sequent_backend.trustee
                 WHERE
                     tenant_id = $1;
-            "#,
+            ",
         )
         .await?;
 

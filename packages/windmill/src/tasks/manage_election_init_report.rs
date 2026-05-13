@@ -93,7 +93,7 @@ async fn manage_election_init_report_wrapped(
     )
     .await?;
 
-    stop_scheduled_event(&hasura_transaction, &tenant_id, &scheduled_event.id)
+    stop_scheduled_event(hasura_transaction, &tenant_id, &scheduled_event.id)
         .await
         .with_context(|| "Error stopping scheduled event")?;
 

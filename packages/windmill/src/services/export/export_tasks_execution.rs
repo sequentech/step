@@ -20,7 +20,7 @@ pub async fn read_export_data(
     tenant_id: &str,
     election_event_id: &str,
 ) -> Result<Vec<TasksExecution>> {
-    let tasks = get_tasks_by_election_event_id(&transaction, tenant_id, election_event_id).await?;
+    let tasks = get_tasks_by_election_event_id(transaction, tenant_id, election_event_id).await?;
 
     Ok(tasks)
 }
@@ -35,7 +35,7 @@ pub async fn write_export_document(
     let data_str = serde_json::to_string(&data)?;
     let data_bytes = data_str.into_bytes();
 
-    let name = format!("tasks_execution-{}", election_event_id);
+    let name = format!("tasks_execution-{election_event_id}");
 
     let (temp_path, temp_path_string, file_size) =
         write_into_named_temp_file(&data_bytes, &name, ".json")?;
@@ -80,7 +80,7 @@ pub async fn process_export(
     write_export_document(
         &hasura_transaction,
         export_data,
-        &election_event_id,
+        election_event_id,
         document_id,
     )
     .await?;

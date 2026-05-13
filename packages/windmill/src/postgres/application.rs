@@ -62,7 +62,7 @@ pub async fn get_permission_label_from_post(
     tenant_id: &str,
     election_event_id: &str,
 ) -> Result<(Option<String>, Option<Uuid>)> {
-    let query = r#"
+    let query = r"
         SELECT el.permission_label, a.id
         FROM sequent_backend.area a
             LEFT JOIN sequent_backend.area_contest ac ON a.id = ac.area_id
@@ -80,7 +80,7 @@ pub async fn get_permission_label_from_post(
             con.election_event_id = $4 AND
             el.election_event_id = $4
         LIMIT 1
-        "#;
+        ";
 
     let statement = hasura_transaction
         .prepare(query)
@@ -122,7 +122,7 @@ pub async fn insert_application(
 ) -> Result<()> {
     let statement = hasura_transaction
         .prepare(
-            r#"
+            r"
             INSERT INTO sequent_backend.applications
             (
                 tenant_id,
@@ -148,7 +148,7 @@ pub async fn insert_application(
                 $9,
                 $10
             );
-            "#,
+            ",
         )
         .await
         .map_err(|err| anyhow!("Error preparing the insert application query: {err}"))?;
@@ -190,7 +190,7 @@ pub async fn update_application_status(
     group_names: &Vec<String>,
 ) -> Result<Application> {
     // Base query structure
-    let base_query = r#"
+    let base_query = r"
         UPDATE
             sequent_backend.applications
         SET
@@ -204,32 +204,22 @@ pub async fn update_application_status(
             tenant_id = $5 AND
             election_event_id = $6
         RETURNING *;
-    "#;
+    ";
     // Serialize group names to JSON string
     let group_names_json = serde_json::to_string(&group_names)?;
 
     // Build annotations update dynamically
     let annotations_update = {
         let mut update = "COALESCE(annotations, '{}'::jsonb)".to_string();
-        update = format!(
-            "jsonb_set({}, '{{verified_by}}', to_jsonb($7::text), true)",
-            update
-        );
-        update = format!(
-            "jsonb_set({}, '{{verified_by_role}}', to_jsonb($8::text), true)",
-            update
-        );
+        update = format!("jsonb_set({update}, '{{verified_by}}', to_jsonb($7::text), true)");
+        update = format!("jsonb_set({update}, '{{verified_by_role}}', to_jsonb($8::text), true)");
         if rejection_reason.is_some() {
-            update = format!(
-                "jsonb_set({}, '{{rejection_reason}}', to_jsonb($9::text), true)",
-                update
-            );
+            update =
+                format!("jsonb_set({update}, '{{rejection_reason}}', to_jsonb($9::text), true)");
         }
         if rejection_message.is_some() {
-            update = format!(
-                "jsonb_set({}, '{{rejection_message}}', to_jsonb($10::text), true)",
-                update
-            );
+            update =
+                format!("jsonb_set({update}, '{{rejection_message}}', to_jsonb($10::text), true)");
         }
         update
     };
@@ -283,12 +273,9 @@ pub async fn update_application_status(
         .collect::<Result<Vec<Application>>>()?;
 
     // Return the updated application or error if none found
-    let application = results
-        .get(0)
-        .map(|element: &Application| element.clone())
-        .ok_or(anyhow!(
-            "Error updating application: No application with id {id} found."
-        ))?;
+    let application = results.first().cloned().ok_or(anyhow!(
+        "Error updating application: No application with id {id} found."
+    ))?;
 
     Ok(application)
 }
@@ -303,13 +290,13 @@ pub async fn get_applications(
     limit: Option<i64>,
     offset: Option<i64>,
 ) -> Result<(Vec<Application>, Option<i64>)> {
-    let mut query = r#"
+    let mut query = r"
         SELECT *
         FROM sequent_backend.applications
         WHERE area_id = $1
           AND tenant_id = $2
           AND election_event_id = $3
-    "#
+    "
     .to_string();
 
     let parsed_area_id = parse_uuid_v4(area_id)?;
@@ -322,39 +309,39 @@ pub async fn get_applications(
         &parsed_election_event_id,
     ];
 
-    let mut param_index = 4;
+    let mut param_index: i32 = 4;
     let status;
     let verification_type;
     if let Some(filters) = filters {
-        query.push_str(format!(" AND status = ${}", param_index).as_str());
+        query.push_str(format!(" AND status = ${param_index}").as_str());
         status = filters.clone().status.to_string();
         params.push(&status);
-        param_index += 1;
+        param_index = param_index.checked_add(1).expect("param_index overflow");
 
         if filters.verification_type.is_some() {
-            query.push_str(format!(" AND verification_type = ${}", param_index).as_str());
+            query.push_str(&format!(" AND verification_type = ${param_index}"));
             verification_type = filters
                 .verification_type
                 .clone()
                 .ok_or(anyhow!("Empty application type"))?
                 .to_string();
             params.push(&verification_type);
-            param_index += 1;
+            param_index = param_index.checked_add(1).expect("param_index overflow");
         }
     }
 
     query.push_str(" ORDER BY created_at ASC, id ASC");
-    let lim;
+    let lim: i64;
     if let Some(limit) = limit {
-        query.push_str(&format!(" LIMIT ${}", param_index));
-        lim = limit.clone();
+        query.push_str(&format!(" LIMIT ${param_index}"));
+        lim = limit;
         params.push(&lim);
-        param_index += 1;
+        param_index = param_index.checked_add(1).expect("param_index overflow");
     }
-    let off;
+    let off: i64;
     if let Some(offset) = offset {
-        query.push_str(&format!(" OFFSET ${}", param_index));
-        off = offset.clone();
+        query.push_str(&format!(" OFFSET ${param_index}"));
+        off = offset;
         params.push(&off);
     }
 
@@ -380,7 +367,12 @@ pub async fn get_applications(
     let last_offset = if results.is_empty() {
         None
     } else {
-        Some(offset.unwrap_or(0) + results.len() as i64)
+        Some(
+            offset
+                .unwrap_or(0)
+                .checked_add(results.len() as i64)
+                .expect("last_offset overflow"),
+        )
     };
 
     Ok((results, last_offset))
@@ -395,24 +387,26 @@ pub async fn count_applications(
     filters: Option<&EnrollmentFilters>,
     role: Option<&str>,
 ) -> Result<i64> {
-    let mut current_param_place = 3;
+    let mut current_param_place: i32 = 3;
     let area_clause = match area_id {
         Some(area_id) => {
-            current_param_place += 1;
-            format!("AND area_id = $3 ")
+            current_param_place = current_param_place
+                .checked_add(1)
+                .expect("current_param_place overflow");
+            "AND area_id = $3 ".to_string()
         }
         None => "".to_string(),
     };
 
     let mut query = format!(
-        r#"
+        r"
         SELECT COUNT(*)
         FROM sequent_backend.applications
         WHERE 
           tenant_id = $1
           AND election_event_id = $2
           {area_clause}
-    "#
+    "
     );
     // AND WHERE annotations ->'verified_by_role' @> '["admin"]'::jsonb
     let parsed_tenant_id = parse_uuid_v4(tenant_id)?;
@@ -446,7 +440,9 @@ pub async fn count_applications(
         ));
         // Push the actual String, not a reference
         params.push(&role_json); // Now `role_json` is moved into `params`, not borrowed
-        current_param_place += 1;
+        current_param_place = current_param_place
+            .checked_add(1)
+            .expect("current_param_place overflow");
     }
 
     // Apply filters if provided
@@ -457,7 +453,9 @@ pub async fn count_applications(
         query.push_str(&format!(" AND status = ${place}"));
         status = filters.clone().status.to_string();
         params.push(&status);
-        current_param_place += 1;
+        current_param_place = current_param_place
+            .checked_add(1)
+            .expect("current_param_place overflow");
 
         if filters.verification_type.is_some() {
             let place = current_param_place.to_string();
@@ -473,7 +471,7 @@ pub async fn count_applications(
 
     let statement = hasura_transaction.prepare(&query).await.map_err(|err| {
         // Print the error before returning it
-        eprintln!("Error in query: {:?}", err);
+        eprintln!("Error in query: {err:?}");
         anyhow!("Error preparing the application query: {err}")
     })?;
 
@@ -482,7 +480,7 @@ pub async fn count_applications(
         .await
         .map_err(|err| {
             // Print the error before returning it
-            eprintln!("Error in row: {:?}", err);
+            eprintln!("Error in row: {err:?}");
             anyhow!("Error during query: {err}")
         })?;
 
@@ -498,12 +496,12 @@ pub async fn get_applications_by_election(
     election_event_id: &str,
     election_id: Option<&str>,
 ) -> Result<Vec<Application>> {
-    let mut query = r#"
+    let mut query = r"
         SELECT *
         FROM sequent_backend.applications
         WHERE tenant_id = $1
           AND election_event_id = $2
-    "#
+    "
     .to_string();
 
     let parsed_tenant_id = parse_uuid_v4(tenant_id)?;
@@ -539,7 +537,7 @@ pub async fn insert_applications(
 ) -> Result<()> {
     let statement = hasura_transaction
         .prepare(
-            r#"
+            r"
             INSERT INTO sequent_backend.applications
             (
                 id,
@@ -558,7 +556,7 @@ pub async fn insert_applications(
             VALUES (
                 $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12
             );
-            "#,
+            ",
         )
         .await
         .map_err(|err| anyhow!("Error preparing the insert applications query: {err}"))?;

@@ -60,7 +60,7 @@ pub async fn insert_ballots_messages(
     delegated_voting_policy: DelegatedVotingPolicy,
     skip_board_posting: bool,
 ) -> Result<Vec<TallySessionContest>> {
-    let trustees = get_trustees_by_name(hasura_transaction, &tenant_id, &trustee_names).await?;
+    let trustees = get_trustees_by_name(hasura_transaction, tenant_id, &trustee_names).await?;
 
     event!(Level::INFO, "trustees len: {:?}", trustees.len());
 
@@ -82,7 +82,7 @@ pub async fn insert_ballots_messages(
         deserialized_trustee_pks.len()
     );
 
-    let realm = get_event_realm(&tenant_id, &election_event_id);
+    let realm = get_event_realm(tenant_id, election_event_id);
     // Wrap protocol_manager in an Arc
     let protocol_manager = Arc::new(
         get_protocol_manager(
@@ -95,14 +95,14 @@ pub async fn insert_ballots_messages(
     );
     let mut board_client = get_b3_pgsql_client().await?;
     let board_messages =
-        Arc::new(get_board_messages::<RistrettoCtx>(board_name, &mut board_client).await?);
+        Arc::new(get_board_messages::<RistrettoCtx>(board_name, &board_client).await?);
     let configuration = get_configuration(&board_messages)?;
     let public_key_hash = get_public_key_hash::<RistrettoCtx>(&board_messages)?;
     let selected_trustees: TrusteeSet =
         generate_trustee_set(&configuration, deserialized_trustee_pks.clone());
 
     let election_ids_alias: HashMap<String, String> =
-        get_election_event_elections(&hasura_transaction, tenant_id, election_event_id)
+        get_election_event_elections(hasura_transaction, tenant_id, election_event_id)
             .await?
             .into_iter()
             .filter_map(|election| election.external_id.map(|x| (election.id.clone(), x)))
@@ -122,8 +122,8 @@ pub async fn insert_ballots_messages(
             let board_name_clone = board_name.to_string();
             let protocol_manager_arc_clone = Arc::clone(&protocol_manager); // Clone the Arc
             let configuration_clone = configuration.clone(); // Assuming Configuration can be cloned
-            let public_key_hash_clone = public_key_hash.clone(); // Assuming PublicKeyHash can be cloned
-            let selected_trustees_clone = selected_trustees.clone();
+            let public_key_hash_clone = public_key_hash; // Assuming PublicKeyHash can be cloned
+            let selected_trustees_clone = selected_trustees;
             let election_ids_alias_clone = election_ids_alias.clone();
             let contest_encryption_policy_clone = contest_encryption_policy.clone();
             let realm_clone = realm.clone();
@@ -162,7 +162,7 @@ pub async fn insert_ballots_messages(
 
                     // Create a temporary file (auto-deleted when dropped)
                     let ballots_temp_file = NamedTempFile::new()
-                        .map_err(|error| anyhow!("Failed to create temp file {}", error))?;
+                        .map_err(|error| anyhow!("Failed to create temp file {error}"))?;
                     event!(
                         Level::INFO,
                         "Creating temporary file for ballots with path {:?}",
@@ -183,7 +183,7 @@ pub async fn insert_ballots_messages(
 
                     // Create a temporary file (auto-deleted when dropped)
                     let users_temp_file = NamedTempFile::new()
-                        .map_err(|error| anyhow!("Failed to create temp file: {}", error))?;
+                        .map_err(|error| anyhow!("Failed to create temp file: {error}"))?;
                     event!(
                         Level::INFO,
                         "Creating temporary file for users with path {:?}",
@@ -242,9 +242,9 @@ pub async fn insert_ballots_messages(
                         election_event_id: tally_session_contest.election_event_id.clone(),
                         area_id: tally_session_contest.area_id.clone(),
                         contest_id: tally_session_contest.contest_id.clone(),
-                        session_id: tally_session_contest.session_id.clone(),
-                        created_at: tally_session_contest.created_at.clone(),
-                        last_updated_at: tally_session_contest.last_updated_at.clone(),
+                        session_id: tally_session_contest.session_id,
+                        created_at: tally_session_contest.created_at,
+                        last_updated_at: tally_session_contest.last_updated_at,
                         labels: tally_session_contest.labels.clone(),
                         annotations: Some(annotations),
                         tally_session_id: tally_session_contest.tally_session_id.clone(),
@@ -293,7 +293,7 @@ pub async fn insert_ballots_messages(
                         );
 
                         let mut board = get_b3_pgsql_client().await?;
-                        let batch = tally_session_contest.session_id.clone() as BatchNumber;
+                        let batch = tally_session_contest.session_id as BatchNumber;
                         add_ballots_to_board(
                             &protocol_manager_arc_clone, // Use the Arc clone here
                             &mut board,
@@ -335,7 +335,7 @@ pub async fn get_elections_end_dates(
     // Use ballot publications instead?
     let elections = get_elections(hasura_transaction, tenant_id, election_event_id)
         .await
-        .map_err(|err| anyhow!("Error getting elections {:?}", err))?;
+        .map_err(|err| anyhow!("Error getting elections {err:?}"))?;
 
     let elections_dates: HashMap<String, Option<DateTime<_>>> = elections
         .into_iter()
@@ -343,22 +343,18 @@ pub async fn get_elections_end_dates(
             let election_presentation: ElectionPresentation = election
                 .presentation
                 .clone()
-                .map(|presentation| deserialize_value(presentation))
+                .map(deserialize_value)
                 .transpose()
-                .map_err(|err| anyhow!("Error parsing election presentation {:?}", err))?
+                .map_err(|err| anyhow!("Error parsing election presentation {err:?}"))?
                 .unwrap_or(Default::default());
-            let current_dates = election_presentation
-                .dates
-                .clone()
-                .unwrap_or(Default::default());
+            let current_dates = election_presentation.dates.clone().unwrap_or_default();
             let end_date = current_dates
                 .end_date
                 .clone()
-                .map(|val| ISO8601::to_date_utc(&val).ok())
-                .flatten();
+                .and_then(|val| ISO8601::to_date_utc(&val).ok());
             Ok((election.id, end_date))
         })
         .collect::<Result<HashMap<_, _>>>()
-        .map_err(|err| anyhow!("Error parsing election dates {:?}", err))?;
+        .map_err(|err| anyhow!("Error parsing election dates {err:?}"))?;
     Ok(elections_dates)
 }

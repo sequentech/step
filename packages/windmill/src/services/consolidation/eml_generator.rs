@@ -74,7 +74,7 @@ pub trait GetMetrics {
 impl GetMetrics for ContestResult {
     #[instrument(skip_all, name = "ContestResult::get_metrics")]
     fn get_metrics(&self, registered_voters: i64) -> Vec<EMLCountMetric> {
-        let extended_metrics = self.extended_metrics.clone().unwrap_or_default();
+        let extended_metrics = self.extended_metrics.unwrap_or_default();
 
         vec![
             EMLCountMetric {
@@ -179,7 +179,7 @@ pub trait ValidateAnnotations {
 fn check_annotations_exist(keys: Vec<String>, annotations: &Annotations) -> Result<()> {
     for key in keys {
         if !annotations.contains_key(&key) {
-            return Err(anyhow!("Annotation: missing key {}", key));
+            return Err(anyhow!("Annotation: missing key {key}"));
         }
     }
     Ok(())
@@ -223,49 +223,41 @@ impl ValidateAnnotations for ElectionEvent {
         let event_id =
             find_miru_annotation(MIRU_ELECTION_EVENT_ID, &annotations).with_context(|| {
                 format!(
-                    "Missing election event annotation: '{}:{}'",
-                    MIRU_PLUGIN_PREPEND, MIRU_ELECTION_EVENT_ID
+                    "Missing election event annotation: '{MIRU_PLUGIN_PREPEND}:{MIRU_ELECTION_EVENT_ID}'"
                 )
             })?;
 
         let event_name = find_miru_annotation(MIRU_ELECTION_EVENT_NAME, &annotations)
             .with_context(|| {
                 format!(
-                    "Missing election event annotation: '{}:{}'",
-                    MIRU_PLUGIN_PREPEND, MIRU_ELECTION_EVENT_NAME
+                    "Missing election event annotation: '{MIRU_PLUGIN_PREPEND}:{MIRU_ELECTION_EVENT_NAME}'"
                 )
             })?;
 
         let sbei_users_js =
             find_miru_annotation(MIRU_SBEI_USERS, &annotations).with_context(|| {
                 format!(
-                    "Missing election event annotation: '{}:{}::: {:?}'",
-                    MIRU_PLUGIN_PREPEND, MIRU_SBEI_USERS, &annotations
+                    "Missing election event annotation: '{MIRU_PLUGIN_PREPEND}:{MIRU_SBEI_USERS}::: {annotations:?}'",
                 )
             })?;
         let sbei_users: Vec<MiruSbeiUser> = deserialize_str(&sbei_users_js)
             .map_err(|err| anyhow::Error::from(err).context("Can't parse sbei users"))?;
 
         let root_ca = find_miru_annotation(MIRU_ROOT_CA, &annotations).with_context(|| {
-            format!(
-                "Missing election event annotation: '{}:{}'",
-                MIRU_PLUGIN_PREPEND, MIRU_ROOT_CA
-            )
+            format!("Missing election event annotation: '{MIRU_PLUGIN_PREPEND}:{MIRU_ROOT_CA}'",)
         })?;
 
         let intermediate_cas = find_miru_annotation(MIRU_INTERMEDIATE_CAS, &annotations)
             .with_context(|| {
                 format!(
-                    "Missing election event annotation: '{}:{}'",
-                    MIRU_PLUGIN_PREPEND, MIRU_INTERMEDIATE_CAS
+                    "Missing election event annotation: '{MIRU_PLUGIN_PREPEND}:{MIRU_INTERMEDIATE_CAS}'",
                 )
             })?;
 
         let use_root_ca =
             find_miru_annotation(MIRU_USE_ROOT_CA, &annotations).with_context(|| {
                 format!(
-                    "Missing election event annotation: '{}:{}'",
-                    MIRU_PLUGIN_PREPEND, MIRU_ROOT_CA
+                    "Missing election event annotation: '{MIRU_PLUGIN_PREPEND}:{MIRU_ROOT_CA}'",
                 )
             })?;
 
@@ -352,46 +344,37 @@ impl ValidateAnnotations for core::Election {
 
         let election_id =
             find_miru_annotation(MIRU_ELECTION_ID, &annotations).with_context(|| {
-                format!(
-                    "Missing election annotation: '{}:{}'",
-                    MIRU_PLUGIN_PREPEND, MIRU_ELECTION_ID
-                )
+                format!("Missing election annotation: '{MIRU_PLUGIN_PREPEND}:{MIRU_ELECTION_ID}'",)
             })?;
 
         let election_name =
             find_miru_annotation(MIRU_ELECTION_NAME, &annotations).with_context(|| {
                 format!(
-                    "Missing election annotation: '{}:{}'",
-                    MIRU_PLUGIN_PREPEND, MIRU_ELECTION_NAME
+                    "Missing election annotation: '{MIRU_PLUGIN_PREPEND}:{MIRU_ELECTION_NAME}'",
                 )
             })?;
 
         let geographical_area = find_miru_annotation(MIRU_GEOGRAPHICAL_REGION, &annotations)
             .with_context(|| {
                 format!(
-                    "Missing election annotation: '{}:{}'",
-                    MIRU_PLUGIN_PREPEND, MIRU_GEOGRAPHICAL_REGION
+                    "Missing election annotation: '{MIRU_PLUGIN_PREPEND}:{MIRU_GEOGRAPHICAL_REGION}'"
                 )
             })?;
 
         let post = find_miru_annotation(MIRU_VOTING_CENTER, &annotations).with_context(|| {
-            format!(
-                "Missing election annotation: '{}:{}'",
-                MIRU_PLUGIN_PREPEND, MIRU_VOTING_CENTER
-            )
+            format!("Missing election annotation: '{MIRU_PLUGIN_PREPEND}:{MIRU_VOTING_CENTER}'",)
         })?;
 
         let precinct_code =
             find_miru_annotation(MIRU_PRECINCT_CODE, &annotations).with_context(|| {
                 format!(
-                    "Missing election annotation: '{}:{}'",
-                    MIRU_PLUGIN_PREPEND, MIRU_PRECINCT_CODE
+                    "Missing election annotation: '{MIRU_PLUGIN_PREPEND}:{MIRU_PRECINCT_CODE}'",
                 )
             })?;
 
         let pollcenter_code = annotations
             .get(MIRU_POLLCENTER_CODE)
-            .with_context(|| format!("Missing election annotation: {}", MIRU_POLLCENTER_CODE))
+            .with_context(|| format!("Missing election annotation: {MIRU_POLLCENTER_CODE}"))
             .cloned()?;
 
         Ok(MiruElectionAnnotations {
@@ -483,36 +466,24 @@ impl ValidateAnnotations for core::Area {
 
         let station_id =
             find_miru_annotation(MIRU_AREA_STATION_ID, &annotations).with_context(|| {
-                format!(
-                    "Missing area annotation: '{}:{}'",
-                    MIRU_PLUGIN_PREPEND, MIRU_AREA_STATION_ID
-                )
+                format!("Missing area annotation: '{MIRU_PLUGIN_PREPEND}:{MIRU_AREA_STATION_ID}'")
             })?;
 
         let station_name = find_miru_annotation(MIRU_AREA_STATION_NAME, &annotations)
             .with_context(|| {
-                format!(
-                    "Missing area annotation: '{}:{}'",
-                    MIRU_PLUGIN_PREPEND, MIRU_AREA_STATION_NAME
-                )
+                format!("Missing area annotation: '{MIRU_PLUGIN_PREPEND}:{MIRU_AREA_STATION_NAME}'")
             })?;
 
         let threshold = find_miru_annotation(MIRU_AREA_THRESHOLD, &annotations)
             .with_context(|| {
-                format!(
-                    "Missing area annotation: '{}:{}'",
-                    MIRU_PLUGIN_PREPEND, MIRU_AREA_THRESHOLD
-                )
+                format!("Missing area annotation: '{MIRU_PLUGIN_PREPEND}:{MIRU_AREA_THRESHOLD}'")
             })?
             .parse::<i64>()
             .with_context(|| anyhow!("Can't parse threshold"))?;
 
         let ccs_servers_js = find_miru_annotation(MIRU_AREA_CCS_SERVERS, &annotations)
             .with_context(|| {
-                format!(
-                    "Missing area annotation: '{}:{}'",
-                    MIRU_PLUGIN_PREPEND, MIRU_AREA_CCS_SERVERS
-                )
+                format!("Missing area annotation: '{MIRU_PLUGIN_PREPEND}:{MIRU_AREA_CCS_SERVERS}'")
             })?;
 
         let ccs_servers: Vec<MiruCcsServer> =
@@ -521,8 +492,7 @@ impl ValidateAnnotations for core::Area {
         let sbei_usernames_js = find_miru_annotation(MIRU_AREA_TRUSTEE_USERS, &annotations)
             .with_context(|| {
                 format!(
-                    "Missing area annotation: '{}:{}'",
-                    MIRU_PLUGIN_PREPEND, MIRU_AREA_TRUSTEE_USERS
+                    "Missing area annotation: '{MIRU_PLUGIN_PREPEND}:{MIRU_AREA_TRUSTEE_USERS}'"
                 )
             })?;
 
@@ -530,18 +500,14 @@ impl ValidateAnnotations for core::Area {
             deserialize_str(&sbei_usernames_js).map_err(|err| anyhow!("{}", err))?;
 
         let country = find_miru_annotation(MIRU_AREA_COUNTRY, &annotations).with_context(|| {
-            format!(
-                "Missing area annotation: '{}:{}'",
-                MIRU_PLUGIN_PREPEND, MIRU_AREA_COUNTRY
-            )
+            format!("Missing area annotation: '{MIRU_PLUGIN_PREPEND}:{MIRU_AREA_COUNTRY}'")
         })?;
 
         let registered_voters: i64 =
             find_miru_annotation(MIRU_AREA_REGISTERED_VOTERS, &annotations)
                 .with_context(|| {
                     format!(
-                        "Missing election annotation: '{}:{}'",
-                        MIRU_PLUGIN_PREPEND, MIRU_AREA_REGISTERED_VOTERS
+                        "Missing election annotation: '{MIRU_PLUGIN_PREPEND}:{MIRU_AREA_REGISTERED_VOTERS}'"
                     )
                 })?
                 .parse::<i64>()
@@ -624,8 +590,7 @@ impl ValidateAnnotations for core::TallySession {
         let tally_session_data_js = find_miru_annotation(MIRU_TALLY_SESSION_DATA, &annotations)
             .with_context(|| {
                 format!(
-                    "Missing area annotation: '{}:{}'",
-                    MIRU_PLUGIN_PREPEND, MIRU_TALLY_SESSION_DATA
+                    "Missing area annotation: '{MIRU_PLUGIN_PREPEND}:{MIRU_TALLY_SESSION_DATA}'"
                 )
             })?;
 
@@ -678,18 +643,12 @@ impl ValidateAnnotations for Contest {
 
         let contest_name =
             find_miru_annotation(MIRU_CONTEST_NAME, &annotations).with_context(|| {
-                format!(
-                    "Missing area annotation: '{}:{}'",
-                    MIRU_PLUGIN_PREPEND, MIRU_CONTEST_NAME
-                )
+                format!("Missing area annotation: '{MIRU_PLUGIN_PREPEND}:{MIRU_CONTEST_NAME}'")
             })?;
 
         let contest_id =
             find_miru_annotation(MIRU_CONTEST_ID, &annotations).with_context(|| {
-                format!(
-                    "Missing area annotation: '{}:{}'",
-                    MIRU_PLUGIN_PREPEND, MIRU_CONTEST_ID
-                )
+                format!("Missing area annotation: '{MIRU_PLUGIN_PREPEND}:{MIRU_CONTEST_ID}'")
             })?;
         Ok(MiruContestAnnotations {
             contest_name,
@@ -733,35 +692,25 @@ impl ValidateAnnotations for Candidate {
 
         let candidate_name =
             find_miru_annotation(MIRU_CANDIDATE_NAME, &annotations).with_context(|| {
-                format!(
-                    "Missing area annotation: '{}:{}'",
-                    MIRU_PLUGIN_PREPEND, MIRU_CANDIDATE_NAME
-                )
+                format!("Missing area annotation: '{MIRU_PLUGIN_PREPEND}:{MIRU_CANDIDATE_NAME}'")
             })?;
 
         let candidate_id =
             find_miru_annotation(MIRU_CANDIDATE_ID, &annotations).with_context(|| {
-                format!(
-                    "Missing area annotation: '{}:{}'",
-                    MIRU_PLUGIN_PREPEND, MIRU_CANDIDATE_ID
-                )
+                format!("Missing area annotation: '{MIRU_PLUGIN_PREPEND}:{MIRU_CANDIDATE_ID}'")
             })?;
 
         let candidate_setting = find_miru_annotation(MIRU_CANDIDATE_SETTING, &annotations)
             .with_context(|| {
-                format!(
-                    "Missing area annotation: '{}:{}'",
-                    MIRU_PLUGIN_PREPEND, MIRU_CANDIDATE_SETTING
-                )
+                format!("Missing area annotation: '{MIRU_PLUGIN_PREPEND}:{MIRU_CANDIDATE_SETTING}'")
             })?;
 
         let candidate_affiliation_id =
             find_miru_annotation(MIRU_CANDIDATE_AFFILIATION_ID, &annotations).with_context(
                 || {
                     format!(
-                        "Missing area annotation: '{}:{}'",
-                        MIRU_PLUGIN_PREPEND, MIRU_CANDIDATE_AFFILIATION_ID
-                    )
+                "Missing area annotation: '{MIRU_PLUGIN_PREPEND}:{MIRU_CANDIDATE_AFFILIATION_ID}'"
+            )
                 },
             )?;
 
@@ -769,8 +718,7 @@ impl ValidateAnnotations for Candidate {
             find_miru_annotation(MIRU_CANDIDATE_AFFILIATION_REGISTERED_NAME, &annotations)
                 .with_context(|| {
                     format!(
-                        "Missing area annotation: '{}:{}'",
-                        MIRU_PLUGIN_PREPEND, MIRU_CANDIDATE_AFFILIATION_REGISTERED_NAME
+                        "Missing area annotation: '{MIRU_PLUGIN_PREPEND}:{MIRU_CANDIDATE_AFFILIATION_REGISTERED_NAME}'"
                     )
                 })?;
 
@@ -778,8 +726,7 @@ impl ValidateAnnotations for Candidate {
             find_miru_annotation(MIRU_CANDIDATE_AFFILIATION_PARTY, &annotations).with_context(
                 || {
                     format!(
-                        "Missing area annotation: '{}:{}'",
-                        MIRU_PLUGIN_PREPEND, MIRU_CANDIDATE_AFFILIATION_PARTY
+                        "Missing area annotation: '{MIRU_PLUGIN_PREPEND}:{MIRU_CANDIDATE_AFFILIATION_PARTY}'"
                     )
                 },
             )?;
@@ -797,7 +744,7 @@ impl ValidateAnnotations for Candidate {
 
 #[instrument]
 pub fn prepend_miru_annotation(data: &str) -> String {
-    format!("{}:{}", MIRU_PLUGIN_PREPEND, data)
+    format!("{MIRU_PLUGIN_PREPEND}:{data}")
 }
 
 #[instrument(err, skip(annotations))]
@@ -805,7 +752,7 @@ pub fn find_miru_annotation(data: &str, annotations: &Annotations) -> Result<Str
     let key = prepend_miru_annotation(data);
     annotations
         .get(&key)
-        .ok_or(anyhow!("Can't find annotation key {}", key))
+        .ok_or(anyhow!("Can't find annotation key {key}"))
         .cloned()
 }
 
@@ -893,24 +840,24 @@ pub fn render_eml_file(
     election_event_annotations: &MiruElectionEventAnnotations,
     election_annotations: &MiruElectionAnnotations,
     area_annotations: &MiruAreaAnnotations,
-    reports: &Vec<ReportData>,
+    reports: &[ReportData],
 ) -> Result<EMLFile> {
     let issue_date = generate_timestamp(
         Some(time_zone.clone()),
         Some(DateFormat::Custom(ISSUE_DATE_FORMAT.to_string())),
-        Some(date_time.clone()),
+        Some(date_time),
     );
     let official_status_date = generate_timestamp(
         Some(time_zone.clone()),
         Some(DateFormat::Custom(OFFICIAL_STATUS_DATE_FORMAT.to_string())),
-        Some(date_time.clone()),
+        Some(date_time),
     );
 
     let eml_file = EMLFile {
         id: tally_id.to_string(),
         header: EMLHeader {
             transaction_id: transaction_id.to_string(),
-            issue_date: issue_date,
+            issue_date,
             official_status_detail: EMLOfficialStatusDetail {
                 official_status: OfficialStatus::OFFICIAL.to_string(),
                 status_date: official_status_date,
@@ -927,8 +874,8 @@ pub fn render_eml_file(
                     name: election_annotations.election_name.clone(),
                 },
                 contests: reports
-                    .into_iter()
-                    .map(|report| Ok(render_eml_contest(report, area_annotations)?))
+                    .iter()
+                    .map(|report| render_eml_contest(report, area_annotations))
                     .collect::<Result<Vec<_>>>()
                     .with_context(|| "Error rendering EML Contest")?,
             }],

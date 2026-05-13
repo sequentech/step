@@ -711,7 +711,7 @@ pub async fn read_tally_data(
     tenant_id: &str,
     election_event_id: &str,
 ) -> Result<Vec<(String, TempPath)>> {
-    let tasks = get_export_tasks(&hasura_transaction, tenant_id, election_event_id);
+    let tasks = get_export_tasks(hasura_transaction, tenant_id, election_event_id);
 
     let results = join_all(tasks).await;
 

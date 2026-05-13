@@ -56,7 +56,7 @@ pub async fn process_board_impl(tenant_id: String, election_event_id: String) ->
                     keys_ceremony.id.clone(),
                 ))
                 .await
-                .map_err(|e| anyhow::Error::from(e))?;
+                .map_err(anyhow::Error::from)?;
             event!(
                 Level::INFO,
                 "Sent set_public_key task {} for keys ceremony {}",

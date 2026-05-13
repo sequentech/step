@@ -19,7 +19,7 @@ pub fn rename_folders(replacements: &HashMap<String, String>, folder_path: &Path
         .filter(|e| e.file_type().is_dir())
         .collect();
 
-    directories.sort_by(|a, b| b.depth().cmp(&a.depth()));
+    directories.sort_by_key(|a| std::cmp::Reverse(a.depth()));
 
     // Rename directories
     for entry in directories {

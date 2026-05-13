@@ -18,7 +18,7 @@ pub async fn get_count_areas(
 ) -> Result<i64> {
     let total_areas_statement = transaction
         .prepare(
-            r#"
+            r"
             SELECT
                 COUNT(*) AS total_areas
             FROM
@@ -26,7 +26,7 @@ pub async fn get_count_areas(
             WHERE
                 a.tenant_id = $1 AND
                 a.election_event_id = $2;
-            "#,
+            ",
         )
         .await?;
 
@@ -42,7 +42,7 @@ pub async fn get_count_areas(
 
     // all rows contain the count and if there's no rows well, count is clearly
     // zero
-    let total_areas: i64 = if rows.len() == 0 {
+    let total_areas: i64 = if rows.is_empty() {
         0
     } else {
         rows[0].try_get::<&str, i64>("total_areas")?
@@ -62,7 +62,7 @@ pub async fn get_count_elections(
 ) -> Result<i64> {
     let total_elections_statement = transaction
         .prepare(
-            r#"
+            r"
             SELECT
                 COUNT(*) AS total_elections
             FROM
@@ -70,7 +70,7 @@ pub async fn get_count_elections(
             WHERE
                 e.tenant_id = $1 AND
                 e.election_event_id = $2;
-            "#,
+            ",
         )
         .await?;
 
@@ -86,7 +86,7 @@ pub async fn get_count_elections(
 
     // all rows contain the count and if there's no rows well, count is clearly
     // zero
-    let total_elections: i64 = if rows.len() == 0 {
+    let total_elections: i64 = if rows.is_empty() {
         0
     } else {
         rows[0].try_get::<&str, i64>("total_elections")?
@@ -105,7 +105,7 @@ pub async fn update_election_event_statistics(
 ) -> Result<()> {
     let update_stats_statement = transaction
         .prepare(
-            r#"
+            r"
             UPDATE
                 sequent_backend.election_event
             SET
@@ -121,7 +121,7 @@ pub async fn update_election_event_statistics(
             WHERE
                 tenant_id = $1 AND
                 id = $2;
-            "#,
+            ",
         )
         .await?;
 
@@ -148,7 +148,7 @@ pub async fn get_count_distinct_voters(
 ) -> Result<i64> {
     let total_distinct_voters_statement = transaction
         .prepare(
-            r#"
+            r"
             SELECT
                 COUNT(DISTINCT voter_id_string) AS total_distinct_voters
             FROM
@@ -156,7 +156,7 @@ pub async fn get_count_distinct_voters(
             WHERE
                 tenant_id = $1 AND
                 election_event_id = $2;
-            "#,
+            ",
         )
         .await?;
 
@@ -172,7 +172,7 @@ pub async fn get_count_distinct_voters(
 
     // all rows contain the count and if there's no rows well, count is clearly
     // zero
-    let total_distinct_voters: i64 = if rows.len() == 0 {
+    let total_distinct_voters: i64 = if rows.is_empty() {
         0
     } else {
         rows[0].try_get::<&str, i64>("total_distinct_voters")?

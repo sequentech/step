@@ -29,7 +29,7 @@ pub async fn upsert_lock(
 ) -> Result<PgLock> {
     let statement = hasura_transaction
         .prepare(
-            r#"
+            r"
                 INSERT INTO
                     sequent_backend.lock (
                         key,
@@ -49,7 +49,7 @@ pub async fn upsert_lock(
                     sequent_backend.lock.value = EXCLUDED.value
                 RETURNING
                     key, value, expiry_date, last_updated_at;
-            "#,
+            ",
         )
         .await?;
 
@@ -59,7 +59,7 @@ pub async fn upsert_lock(
             &[&key.to_string(), &value.to_string(), &expiry_date],
         )
         .await
-        .map_err(|err| anyhow!("Error running query: {}", err))?;
+        .map_err(|err| anyhow!("Error running query: {err}"))?;
 
     if 1 == rows.len() {
         let mut locks = rows
@@ -80,21 +80,21 @@ pub async fn delete_lock(
 ) -> Result<()> {
     let statement = hasura_transaction
         .prepare(
-            r#"
+            r"
                 DELETE FROM
                     sequent_backend.lock
                 WHERE
                     key = $1 AND
                     value = $2
                 RETURNING key;
-            "#,
+            ",
         )
         .await?;
 
     let _rows: Vec<Row> = hasura_transaction
         .query(&statement, &[&key.to_string(), &value.to_string()])
         .await
-        .map_err(|err| anyhow!("Error running query: {}", err))?;
+        .map_err(|err| anyhow!("Error running query: {err}"))?;
 
     Ok(())
 }

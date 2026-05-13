@@ -21,8 +21,8 @@ pub async fn manage_dates(
     scheduled_date: Option<&str>,
     event_processor: &str,
 ) -> Result<()> {
-    let event_processor_val: EventProcessors = EventProcessors::from_str(&event_processor)
-        .map_err(|err| {
+    let event_processor_val: EventProcessors =
+        EventProcessors::from_str(event_processor).map_err(|err| {
             anyhow!("Error mapping {event_processor:?} into an EventProcessor: {err:?}")
         })?;
 

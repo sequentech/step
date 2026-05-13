@@ -47,12 +47,12 @@ pub async fn create_tally_session_resolution(
     resolution_type: TallySessionResolutionType,
     resolution_data: TallySessionResolutionData,
 ) -> Result<String> {
-    let query = r#"
+    let query = r"
         INSERT INTO sequent_backend.tally_session_resolution
         (tenant_id, election_event_id, tally_session_id, contest_id, resolution_type, status, resolution_data)
         VALUES ($1, $2, $3, $4, $5, 'pending', $6)
         RETURNING id
-    "#;
+    ";
 
     let resolution_data_value = serde_json::to_value(&resolution_data)?;
     let row = hasura_transaction
@@ -85,7 +85,7 @@ pub async fn get_pending_resolutions(
     election_event_id: &str,
     tally_session_id: &str,
 ) -> Result<Vec<TallySessionResolution>> {
-    let query = r#"
+    let query = r"
         SELECT
             id, tenant_id, election_event_id, tally_session_id,
             contest_id,
@@ -98,7 +98,7 @@ pub async fn get_pending_resolutions(
           AND tally_session_id = $3
           AND status = 'pending'
         ORDER BY created_at ASC
-    "#;
+    ";
 
     let rows = hasura_transaction
         .query(
@@ -127,7 +127,7 @@ pub async fn get_resolution_by_tally_session(
     election_event_id: &str,
     tally_session_id: &str,
 ) -> Result<Vec<TallySessionResolution>> {
-    let query = r#"
+    let query = r"
         SELECT
             id, tenant_id, election_event_id, tally_session_id,
             contest_id,
@@ -139,7 +139,7 @@ pub async fn get_resolution_by_tally_session(
           AND election_event_id = $2
           AND tally_session_id = $3
         ORDER BY created_at ASC
-    "#;
+    ";
 
     let rows = hasura_transaction
         .query(
@@ -170,7 +170,7 @@ pub async fn submit_resolution(
     resolution: TallySessionResolutionData,
     resolved_by_user: &str,
 ) -> Result<()> {
-    let query = r#"
+    let query = r"
         UPDATE sequent_backend.tally_session_resolution
         SET resolution_data = $1,
             status = 'resolved',
@@ -180,7 +180,7 @@ pub async fn submit_resolution(
           AND tenant_id = $4
           AND election_event_id = $5
           AND status = 'pending'
-    "#;
+    ";
 
     let resolution_value = serde_json::to_value(&resolution)?;
     let affected = hasura_transaction
@@ -198,12 +198,11 @@ pub async fn submit_resolution(
 
     if affected == 0 {
         return Err(anyhow!(
-            "Resolution not found or already resolved: {}",
-            resolution_id
+            "Resolution not found or already resolved: {resolution_id}",
         ));
     }
 
-    info!("Submitted resolution {}", resolution_id);
+    info!("Submitted resolution {resolution_id}");
     Ok(())
 }
 
@@ -217,7 +216,7 @@ pub async fn update_resolution(
     resolution: TallySessionResolutionData,
     resolved_by_user: &str,
 ) -> Result<()> {
-    let query = r#"
+    let query = r"
         UPDATE sequent_backend.tally_session_resolution
         SET resolution_data = $1,
             resolved_by_user = $2,
@@ -225,7 +224,7 @@ pub async fn update_resolution(
         WHERE id = $3
           AND tenant_id = $4
           AND election_event_id = $5
-    "#;
+    ";
 
     let resolution_value = serde_json::to_value(&resolution)?;
     let affected = hasura_transaction
@@ -242,9 +241,9 @@ pub async fn update_resolution(
         .await?;
 
     if affected == 0 {
-        return Err(anyhow!("Resolution not found: {}", resolution_id));
+        return Err(anyhow!("Resolution not found: {resolution_id}"));
     }
 
-    info!("Updated resolution {}", resolution_id);
+    info!("Updated resolution {resolution_id}");
     Ok(())
 }

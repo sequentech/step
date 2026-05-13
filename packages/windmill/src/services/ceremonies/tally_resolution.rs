@@ -81,13 +81,13 @@ pub async fn check_for_tie_resolutions(
     // TODO Instead of checking for the annotations of results_contest in hasura check either in sqlite or add an output file for velvet with all resolutions
     let rows = hasura_transaction
         .query(
-            r#"
+            r"
                 SELECT contest_id, annotations
                 FROM sequent_backend.results_contest
                 WHERE tenant_id = $1
                   AND election_event_id = $2
                   AND results_event_id = $3
-            "#,
+            ",
             &[
                 &Uuid::parse_str(tenant_id)?,
                 &Uuid::parse_str(election_event_id)?,
@@ -272,7 +272,7 @@ pub async fn submit_tally_resolution(
     .await?;
 
     // Validate and submit each resolution
-    let mut resolved_count = 0;
+    let mut resolved_count: usize = 0;
 
     for tie_resolution in resolutions {
         // First submission: find the single Pending record for this contest.
@@ -379,7 +379,9 @@ pub async fn submit_tally_resolution(
                 .with_context(|| "error posting tally tie resolution updated to electoral log")?;
         }
 
-        resolved_count += 1;
+        resolved_count = resolved_count
+            .checked_add(1)
+            .expect("resolved_count overflow");
     }
 
     let next_status = TallyExecutionStatus::IN_PROGRESS;
@@ -422,10 +424,7 @@ pub fn validate_resolution_allowed(
         if !all_are_resolved_updates {
             return Err((
                 Status::BadRequest,
-                format!(
-                    "Tally session is not awaiting input. Current status: {}",
-                    execution_status
-                ),
+                format!("Tally session is not awaiting input. Current status: {execution_status}"),
             ));
         }
     }
@@ -445,8 +444,7 @@ pub fn extract_tied_candidate_ids(
             (
                 Status::BadRequest,
                 format!(
-                    "Invalid resolution data for contest {}: missing tied_candidate_ids",
-                    contest_id
+                    "Invalid resolution data for contest {contest_id}: missing tied_candidate_ids"
                 ),
             )
         })

@@ -49,13 +49,12 @@ pub async fn manage_election_event_date_wrapped(
         EventProcessors::END_VOTING_PERIOD => VotingStatus::CLOSED,
         _ => {
             info!("Invalid scheduled event type: {:?}", event_processor);
-            stop_scheduled_event(&hasura_transaction, &tenant_id, &scheduled_manage_date.id)
-                .await?;
+            stop_scheduled_event(hasura_transaction, &tenant_id, &scheduled_manage_date.id).await?;
             return Ok(());
         }
     };
     update_event_voting_status(
-        &hasura_transaction,
+        hasura_transaction,
         &tenant_id,
         None,
         None,
@@ -65,7 +64,7 @@ pub async fn manage_election_event_date_wrapped(
     )
     .await?;
 
-    stop_scheduled_event(&hasura_transaction, &tenant_id, &scheduled_manage_date.id).await?;
+    stop_scheduled_event(hasura_transaction, &tenant_id, &scheduled_manage_date.id).await?;
 
     Ok(())
 }
@@ -84,7 +83,9 @@ pub async fn manage_election_event_date(
             tenant_id, election_event_id, scheduled_event_id
         ),
         Uuid::new_v4().to_string(),
-        ISO8601::now() + Duration::seconds(120),
+        ISO8601::now()
+            .checked_add_signed(Duration::seconds(120))
+            .expect("manage_election_event_date lock expiry overflow"),
     )
     .await?;
     let mut hasura_db_client: DbClient = get_hasura_pool()

@@ -10,19 +10,22 @@ use tracing::instrument;
 
 #[instrument(skip_all, err)]
 pub fn validate_tally_sheet(tally_sheet: &TallySheet, contest: &Contest) -> Result<()> {
-    let Some(content) = tally_sheet.content.clone() else {
+    let Some(results) = tally_sheet.content.clone() else {
         return Err(anyhow!("Invalid tally sheet {:?}, content missing", tally_sheet).into());
     };
-    if content.total_votes > content.census {
+    if results.total_votes > results.census {
         return Err(anyhow!(
             "Invalid tally sheet {:?}, total_votes higher than census",
             tally_sheet
         )
         .into());
     }
-    let invalid_votes = content.invalid_votes.unwrap_or(Default::default());
-    let total_invalid_votes_calculated =
-        invalid_votes.explicit_invalid.unwrap_or(0) + invalid_votes.implicit_invalid.unwrap_or(0);
+    let invalid_votes = results.invalid_votes.unwrap_or(Default::default());
+    let total_invalid_votes_calculated = invalid_votes
+        .explicit_invalid
+        .unwrap_or(0)
+        .checked_add(invalid_votes.implicit_invalid.unwrap_or(0))
+        .expect("total invalid votes overflow");
     let total_invalid_votes = invalid_votes.total_invalid.unwrap_or(0);
     if total_invalid_votes != total_invalid_votes_calculated {
         return Err(anyhow!(
@@ -31,20 +34,23 @@ pub fn validate_tally_sheet(tally_sheet: &TallySheet, contest: &Contest) -> Resu
         )
         .into());
     }
-    let total_votes = content.total_votes.unwrap_or(0);
-    let total_valid_votes = content.total_valid_votes.unwrap_or(0);
-    let total_blank_votes = content.total_blank_votes.unwrap_or(0);
-    if total_invalid_votes + total_valid_votes != total_votes {
+    let total_votes = results.total_votes.unwrap_or(0);
+    let total_valid_votes = results.total_valid_votes.unwrap_or(0);
+    let total_blank_votes = results.total_blank_votes.unwrap_or(0);
+    let votes_accounted = total_invalid_votes
+        .checked_add(total_valid_votes)
+        .expect("vote totals overflow");
+    if votes_accounted != total_votes {
         return Err(anyhow!(
             "Invalid tally sheet {:?}, inconsistent total votes",
             tally_sheet
         )
         .into());
     }
-    let total_valid_votes_calc: u64 = content
+    let total_valid_votes_calc: u64 = results
         .candidate_results
         .values()
-        .map(|candidate_result| -> u64 { candidate_result.total_votes.clone().unwrap_or(0) })
+        .map(|candidate_result| -> u64 { candidate_result.total_votes.unwrap_or(0) })
         .sum();
 
     /*if total_valid_votes != total_valid_votes_calc + total_blank_votes {
@@ -60,7 +66,7 @@ pub fn validate_tally_sheet(tally_sheet: &TallySheet, contest: &Contest) -> Resu
         .into_iter()
         .map(|candidate| (candidate.id.clone(), candidate.clone()))
         .collect();
-    for (candidate_id, candidate_data) in content.candidate_results.iter() {
+    for (candidate_id, candidate_data) in results.candidate_results.iter() {
         if *candidate_id != candidate_data.candidate_id {
             return Err(anyhow!(
                 "Invalid tally sheet {:?}, inconsistent candidate result {:?}, {}",

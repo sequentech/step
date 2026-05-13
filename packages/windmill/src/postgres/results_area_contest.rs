@@ -23,9 +23,8 @@ impl TryFrom<Row> for ResultsAreaContestWrapper {
 
     fn try_from(item: Row) -> Result<Self> {
         let documents_value: Option<Value> = item.try_get("documents")?;
-        let documents: Option<ResultDocuments> = documents_value
-            .map(|value| deserialize_value(value))
-            .transpose()?;
+        let documents: Option<ResultDocuments> =
+            documents_value.map(deserialize_value).transpose()?;
 
         Ok(ResultsAreaContestWrapper(ResultsAreaContest {
             id: item.try_get::<_, Uuid>("id")?.to_string(),
@@ -115,22 +114,22 @@ pub async fn update_results_area_contest_documents(
     documents: &ResultDocuments,
 ) -> Result<()> {
     let documents_value = serde_json::to_value(documents.clone())?;
-    let tenant_uuid: uuid::Uuid = parse_uuid_v4(&tenant_id)
-        .map_err(|err| anyhow!("Error parsing tenant_id as UUID: {}", err))?;
-    let results_event_uuid: uuid::Uuid = parse_uuid_v4(&results_event_id)
-        .map_err(|err| anyhow!("Error parsing results_event_id as UUID: {}", err))?;
-    let election_event_uuid: uuid::Uuid = parse_uuid_v4(&election_event_id)
-        .map_err(|err| anyhow!("Error parsing election_event_id as UUID: {}", err))?;
-    let election_uuid: uuid::Uuid = parse_uuid_v4(&election_id)
-        .map_err(|err| anyhow!("Error parsing election_id as UUID: {}", err))?;
-    let contest_uuid: uuid::Uuid = parse_uuid_v4(&contest_id)
-        .map_err(|err| anyhow!("Error parsing contest_id as UUID: {}", err))?;
+    let tenant_uuid: uuid::Uuid = parse_uuid_v4(tenant_id)
+        .map_err(|err| anyhow!("Error parsing tenant_id as UUID: {err}"))?;
+    let results_event_uuid: uuid::Uuid = parse_uuid_v4(results_event_id)
+        .map_err(|err| anyhow!("Error parsing results_event_id as UUID: {err}"))?;
+    let election_event_uuid: uuid::Uuid = parse_uuid_v4(election_event_id)
+        .map_err(|err| anyhow!("Error parsing election_event_id as UUID: {err}"))?;
+    let election_uuid: uuid::Uuid = parse_uuid_v4(election_id)
+        .map_err(|err| anyhow!("Error parsing election_id as UUID: {err}"))?;
+    let contest_uuid: uuid::Uuid = parse_uuid_v4(contest_id)
+        .map_err(|err| anyhow!("Error parsing contest_id as UUID: {err}"))?;
     let area_uuid: uuid::Uuid =
-        parse_uuid_v4(&area_id).map_err(|err| anyhow!("Error parsing area_id as UUID: {}", err))?;
+        parse_uuid_v4(area_id).map_err(|err| anyhow!("Error parsing area_id as UUID: {err}"))?;
 
     let statement = hasura_transaction
         .prepare(
-            r#"
+            r"
                 UPDATE
                     sequent_backend.results_area_contest
                 SET
@@ -144,7 +143,7 @@ pub async fn update_results_area_contest_documents(
                     area_id = $7
                 RETURNING
                     id;
-            "#,
+            ",
         )
         .await?;
     let rows: Vec<Row> = hasura_transaction
@@ -161,7 +160,7 @@ pub async fn update_results_area_contest_documents(
             ],
         )
         .await
-        .map_err(|err| anyhow!("Error running the areas query: {}", err))?;
+        .map_err(|err| anyhow!("Error running the areas query: {err}"))?;
 
     if 1 == rows.len() {
         Ok(())
@@ -184,18 +183,18 @@ pub async fn get_results_area_contest(
     contest_id: Option<&str>,
     area_id: &str,
 ) -> Result<Option<ResultsAreaContest>> {
-    let tenant_uuid: uuid::Uuid = parse_uuid_v4(&tenant_id)
+    let tenant_uuid: uuid::Uuid = parse_uuid_v4(tenant_id)
         .map_err(|err| anyhow!("Error parsing tenant_id as UUID: {err:?}"))?;
-    let election_event_uuid: uuid::Uuid = parse_uuid_v4(&election_event_id)
+    let election_event_uuid: uuid::Uuid = parse_uuid_v4(election_event_id)
         .map_err(|err| anyhow!("Error parsing election_event_id as UUID: {err:?}"))?;
-    let election_uuid: uuid::Uuid = parse_uuid_v4(&election_id)
+    let election_uuid: uuid::Uuid = parse_uuid_v4(election_id)
         .map_err(|err| anyhow!("Error parsing election_id as UUID: {err:?}"))?;
     let area_uuid: uuid::Uuid =
-        parse_uuid_v4(&area_id).map_err(|err| anyhow!("Error parsing area_id as UUID: {err:?}"))?;
+        parse_uuid_v4(area_id).map_err(|err| anyhow!("Error parsing area_id as UUID: {err:?}"))?;
 
     let (contest_uuid, contest_clause): (Option<uuid::Uuid>, &str) = match contest_id {
         Some(contest_id) => {
-            let c_uuid = parse_uuid_v4(&contest_id)
+            let c_uuid = parse_uuid_v4(contest_id)
                 .map_err(|err| anyhow!("Error parsing contest_id as UUID: {err:?}"))?;
             let clause = " AND contest_id = $5";
             (Some(c_uuid), clause)
@@ -204,7 +203,7 @@ pub async fn get_results_area_contest(
     };
 
     let statement_str = format!(
-        r#"
+        r"
                 SELECT
                     *
                 FROM
@@ -216,7 +215,7 @@ pub async fn get_results_area_contest(
                     area_id = $4
                     {contest_clause}
                 ORDER BY created_at DESC
-            "#
+            "
     );
 
     let statement = hasura_transaction.prepare(statement_str.as_str()).await?;
@@ -233,15 +232,15 @@ pub async fn get_results_area_contest(
     }
 
     let rows = hasura_transaction
-        .query(&statement, &params.as_slice())
+        .query(&statement, params.as_slice())
         .await
-        .map_err(|err| anyhow!("Error running the query: {:?}", err))?;
+        .map_err(|err| anyhow!("Error running the query: {err:?}"))?;
 
     match rows.into_iter().next() {
         Some(row) => row
             .try_into()
             .map(|res: ResultsAreaContestWrapper| Some(res.0))
-            .map_err(|err| anyhow!("Error converting row into ResultsAreaContest: {:?}", err)),
+            .map_err(|err| anyhow!("Error converting row into ResultsAreaContest: {err:?}")),
         None => Ok(None),
     }
 }
@@ -300,34 +299,27 @@ pub async fn insert_results_area_contests(
                 results_event_id: results_event_uuid,
                 elegible_census: area_contest.elegible_census,
                 total_votes: area_contest.total_votes,
-                total_votes_percent: area_contest.total_votes_percent.clone().map(|n| n.into()),
+                total_votes_percent: area_contest.total_votes_percent.map(|n| n.into()),
                 total_auditable_votes: area_contest.total_auditable_votes,
                 total_auditable_votes_percent: area_contest
                     .total_auditable_votes_percent
-                    .clone()
                     .map(|n| n.into()),
                 total_valid_votes: area_contest.total_valid_votes,
-                total_valid_votes_percent: area_contest
-                    .total_valid_votes_percent
-                    .clone()
-                    .map(|n| n.into()),
+                total_valid_votes_percent: area_contest.total_valid_votes_percent.map(|n| n.into()),
                 total_invalid_votes: area_contest.total_invalid_votes,
                 total_invalid_votes_percent: area_contest
                     .total_invalid_votes_percent
-                    .clone()
                     .map(|n| n.into()),
                 explicit_invalid_votes: area_contest.explicit_invalid_votes,
                 explicit_invalid_votes_percent: area_contest
                     .explicit_invalid_votes_percent
-                    .clone()
                     .map(|n| n.into()),
                 implicit_invalid_votes: area_contest.implicit_invalid_votes,
                 implicit_invalid_votes_percent: area_contest
                     .implicit_invalid_votes_percent
-                    .clone()
                     .map(|n| n.into()),
                 blank_votes: area_contest.blank_votes,
-                blank_votes_percent: area_contest.blank_votes_percent.clone().map(|n| n.into()),
+                blank_votes_percent: area_contest.blank_votes_percent.map(|n| n.into()),
                 annotations: area_contest.annotations.clone(),
             })
         })
@@ -336,7 +328,7 @@ pub async fn insert_results_area_contests(
     let json_data = serde_json::to_value(&insert_data)?;
 
     // Construct the SQL query using jsonb_to_recordset
-    let sql = r#"
+    let sql = r"
         WITH data AS (
             SELECT * FROM jsonb_to_recordset($1::jsonb) AS t(
                 tenant_id UUID,
@@ -412,7 +404,7 @@ pub async fn insert_results_area_contests(
             annotations
         FROM data
         RETURNING *;
-    "#;
+    ";
 
     info!("SQL statement: {}", sql);
 
@@ -420,7 +412,7 @@ pub async fn insert_results_area_contests(
     let rows: Vec<Row> = hasura_transaction
         .query(&statement, &[&json_data])
         .await
-        .map_err(|err| anyhow!("Error inserting rows: {}", err))?;
+        .map_err(|err| anyhow!("Error inserting rows: {err}"))?;
 
     let values: Vec<ResultsAreaContest> = rows
         .into_iter()
@@ -436,13 +428,12 @@ pub async fn get_event_results_area_contest(
     tenant_id: &str,
     election_event_id: &str,
 ) -> Result<Vec<ResultsAreaContest>> {
-    let tenant_uuid: uuid::Uuid = parse_uuid_v4(&tenant_id)
+    let tenant_uuid: uuid::Uuid = parse_uuid_v4(tenant_id)
         .map_err(|err| anyhow!("Error parsing tenant_id as UUID: {err:?}"))?;
-    let election_event_uuid: uuid::Uuid = parse_uuid_v4(&election_event_id)
+    let election_event_uuid: uuid::Uuid = parse_uuid_v4(election_event_id)
         .map_err(|err| anyhow!("Error parsing election_event_id as UUID: {err:?}"))?;
 
-    let statement_str = format!(
-        r#"
+    let statement_str = r"
                 SELECT
                     *
                 FROM
@@ -450,22 +441,21 @@ pub async fn get_event_results_area_contest(
                 WHERE
                     tenant_id = $1 AND
                     election_event_id = $2;
-            "#
-    );
+            ";
 
-    let statement = hasura_transaction.prepare(statement_str.as_str()).await?;
+    let statement = hasura_transaction.prepare(statement_str).await?;
 
     let rows = hasura_transaction
         .query(&statement, &[&tenant_uuid, &election_event_uuid])
         .await
-        .map_err(|err| anyhow!("Error running the query: {:?}", err))?;
+        .map_err(|err| anyhow!("Error running the query: {err:?}"))?;
 
     let results = rows
         .into_iter()
         .map(|row| {
             row.try_into()
                 .map(|res: ResultsAreaContestWrapper| res.0)
-                .map_err(|err| anyhow!("Error converting row to ResultsAreaContest: {}", err))
+                .map_err(|err| anyhow!("Error converting row to ResultsAreaContest: {err}"))
         })
         .collect::<Result<Vec<ResultsAreaContest>>>()?;
 
@@ -557,7 +547,7 @@ pub async fn insert_many_results_area_contests(
 
     let json_data = serde_json::to_value(&insertable)?;
 
-    let sql = r#"
+    let sql = r"
         WITH data AS (
             SELECT * FROM jsonb_to_recordset($1::jsonb) AS t(
                 id UUID,
@@ -608,7 +598,7 @@ pub async fn insert_many_results_area_contests(
             documents, total_auditable_votes, total_auditable_votes_percent
         FROM data
         RETURNING *;
-    "#;
+    ";
 
     let statement = hasura_transaction.prepare(sql).await?;
     let rows = hasura_transaction.query(&statement, &[&json_data]).await?;

@@ -64,7 +64,7 @@ pub fn get_elections_contests_map_for_area(
     area_contests_map: &HashMap<String, AreaContest>,
 ) -> AnyhowResult<HashMap<String, HashSet<String>>> {
     let election_ids = ballot_publication.election_ids.clone().unwrap_or(vec![]);
-    if 0 == election_ids.len() {
+    if election_ids.is_empty() {
         return Err(anyhow!("No election ids"));
     }
     let area_ids: Vec<String> = areas_tree
@@ -76,7 +76,7 @@ pub fn get_elections_contests_map_for_area(
     let area_contests: Vec<AreaContest> = area_contests_map
         .values()
         .filter(|area_contest| area_ids.contains(&area_contest.area_id))
-        .map(|val| val.clone())
+        .cloned()
         .collect();
     // election_id, set<contest>
     let mut election_contest_map: HashMap<String, HashSet<String>> = HashMap::new();
@@ -118,7 +118,7 @@ pub async fn create_ballot_style_postgres(
     contests_map: &HashMap<String, Contest>,
     candidates_map: &HashMap<String, Candidate>,
     area_contests_map: &HashMap<String, AreaContest>,
-    scheduled_events: &Vec<ScheduledEvent>,
+    scheduled_events: &[ScheduledEvent],
     keys_ceremonies_map: &HashMap<String, KeysCeremony>,
 ) -> Result<()> {
     let election_contest_map = get_elections_contests_map_for_area(
@@ -132,14 +132,14 @@ pub async fn create_ballot_style_postgres(
     for (election_id, contest_ids) in election_contest_map.into_iter() {
         let election = elections_map
             .get(&election_id)
-            .ok_or(anyhow!("election id not found {}", election_id))?;
+            .ok_or(anyhow!("election id not found {election_id}"))?;
         let contests: Vec<Contest> = contest_ids
             .iter()
             .map(|contest_id| {
                 contests_map
                     .get(contest_id)
-                    .map(|val| val.clone())
-                    .ok_or(Error::String(format!("Can't find contest {}", contest_id)))
+                    .cloned()
+                    .ok_or(Error::String(format!("Can't find contest {contest_id}")))
             })
             .collect::<Result<Vec<Contest>>>()?;
         let candidates: Vec<Candidate> = candidates_map
@@ -150,11 +150,11 @@ pub async fn create_ballot_style_postgres(
                 };
                 contest_ids.contains(&contest_id)
             })
-            .map(|candidate| candidate.clone())
+            .cloned()
             .collect();
         let public_key = if let Some(keys_ceremony_id) = election.keys_ceremony_id.clone() {
             if let Some(keys_ceremony) = keys_ceremonies_map.get(&keys_ceremony_id) {
-                if let Some(status) = keys_ceremony.status().ok() {
+                if let Ok(status) = keys_ceremony.status() {
                     status.public_key
                 } else {
                     None
@@ -167,7 +167,7 @@ pub async fn create_ballot_style_postgres(
         };
 
         let election_dates =
-            get_election_dates(election, scheduled_events.clone()).unwrap_or_default();
+            get_election_dates(election, scheduled_events.to_owned()).unwrap_or_default();
 
         let ballot_style_id = Uuid::new_v4();
         let election_dto = sequent_core::ballot_style::create_ballot_style(
@@ -247,10 +247,13 @@ pub async fn update_election_event_ballot_styles(
     election_event_id: &str,
     ballot_publication_id: &str,
 ) -> AnyhowResult<()> {
+    let lock_expires = ISO8601::now()
+        .checked_add_signed(Duration::seconds(60))
+        .expect("lock expiration overflow");
     let lock = PgLock::acquire(
-        format!("create_ballot_style-{}-{}", tenant_id, election_event_id),
+        format!("create_ballot_style-{tenant_id}-{election_event_id}"),
         Uuid::new_v4().to_string(),
-        ISO8601::now() + Duration::seconds(60),
+        lock_expires,
     )
     .await?;
     let mut hasura_db_client: DbClient = get_hasura_pool()
@@ -327,7 +330,7 @@ pub async fn update_election_event_ballot_styles(
             &transaction,
             area,
             &areas_tree,
-            &tenant_id,
+            tenant_id,
             &election_event,
             &ballot_publication,
             &elections_map,

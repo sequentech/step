@@ -43,7 +43,7 @@ pub async fn insert_preview(
 
     let statement = hasura_transaction
         .prepare(
-            r#"
+            r"
                 INSERT INTO
                     sequent_backend.preview
                 (
@@ -62,7 +62,7 @@ pub async fn insert_preview(
                     NOW(),
                     NOW()
                 );
-            "#,
+            ",
         )
         .await?;
 
@@ -72,7 +72,7 @@ pub async fn insert_preview(
             &[&tenant_uuid, &document_uuid, &url, &requested_by],
         )
         .await
-        .map_err(|err| anyhow!("Error inserting preview: {}", err))?;
+        .map_err(|err| anyhow!("Error inserting preview: {err}"))?;
 
     Ok(())
 }

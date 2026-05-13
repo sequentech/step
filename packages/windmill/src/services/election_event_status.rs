@@ -37,8 +37,7 @@ pub async fn update_event_voting_status(
         .await
         .with_context(|| "Error obtaining election event")?;
 
-    let mut status =
-        get_election_event_status(election_event.status.clone()).unwrap_or(Default::default());
+    let mut status = get_election_event_status(election_event.status.clone()).unwrap_or_default();
     let elections = get_elections(hasura_transaction, tenant_id, election_event_id)
         .await
         .with_context(|| "Error obtaining elections")?;
@@ -46,10 +45,9 @@ pub async fn update_event_voting_status(
     let mut elections_status = HashMap::new();
 
     for election in &elections {
-        let election_status =
-            get_election_status(election.status.clone()).unwrap_or(Default::default());
+        let curr_election_status = get_election_status(election.status.clone()).unwrap_or_default();
 
-        elections_status.insert(election.id.clone(), election_status);
+        elections_status.insert(election.id.clone(), curr_election_status);
     }
 
     let channels: Vec<VotingStatusChannel> = if let Some(channel) = channels {
@@ -100,9 +98,9 @@ pub async fn update_event_voting_status(
     }
 
     for channel in channels {
-        let current_voting_status = status.status_by_channel(channel).clone();
+        let current_voting_status = status.status_by_channel(channel);
 
-        if current_voting_status == new_status.clone() {
+        if current_voting_status == *new_status {
             info!("Current voting status is the same as the new voting status, skipping");
             continue;
         }
@@ -122,7 +120,7 @@ pub async fn update_event_voting_status(
             }
         };
 
-        if !expected_next_status.contains(&new_status) {
+        if !expected_next_status.contains(new_status) {
             return Err(anyhow!(
             "Unexpected next status {new_status:?}, expected {expected_next_status:?}, current {current_voting_status:?}",
         ));
@@ -136,15 +134,15 @@ pub async fn update_event_voting_status(
             ));
         }
 
-        status.close_early_voting_if_online_status_change(channel, new_status.clone());
-        status.set_status_by_channel(channel, new_status.clone());
+        status.close_early_voting_if_online_status_change(channel, *new_status);
+        status.set_status_by_channel(channel, *new_status);
 
         let mut elections_ids: Vec<String> = Vec::new();
         if *new_status == VotingStatus::OPEN || *new_status == VotingStatus::CLOSED {
             for election in &elections {
                 if let Some(status) = elections_status.get_mut(&election.id) {
-                    status.close_early_voting_if_online_status_change(channel, new_status.clone());
-                    status.set_status_by_channel(channel, new_status.clone());
+                    status.close_early_voting_if_online_status_change(channel, *new_status);
+                    status.set_status_by_channel(channel, *new_status);
                 }
                 elections_ids.push(election.id.clone());
             }
@@ -152,13 +150,13 @@ pub async fn update_event_voting_status(
 
         update_board_on_status_change(
             hasura_transaction,
-            &tenant_id,
+            tenant_id,
             user_id,
             username,
             election_event.id.to_string(),
             election_event.bulletin_board_reference.clone(),
-            new_status.clone(),
-            channel.clone(),
+            *new_status,
+            channel,
             None,
             Some(elections_ids),
         )
@@ -167,22 +165,22 @@ pub async fn update_event_voting_status(
     }
 
     for election in &elections {
-        let election_status = elections_status.get(&election.id);
+        let curr_election_status = elections_status.get(&election.id);
 
         update_election_voting_status(
-            &hasura_transaction,
-            &tenant_id,
-            &election_event_id,
+            hasura_transaction,
+            tenant_id,
+            election_event_id,
             &election.id,
-            serde_json::to_value(&election_status).with_context(|| "Error parsing status")?,
+            serde_json::to_value(curr_election_status).with_context(|| "Error parsing status")?,
         )
         .await
         .with_context(|| "Error updating election voting status")?;
     }
 
     update_election_event_status(
-        &hasura_transaction,
-        &&tenant_id,
+        hasura_transaction,
+        tenant_id,
         election_event_id,
         serde_json::to_value(&status).with_context(|| "Error parsing status")?,
     )
@@ -229,7 +227,7 @@ pub async fn update_election_voting_status_impl(
 
     let mut status = get_election_status(election.status.clone()).unwrap_or_default();
 
-    let current_voting_status = status.status_by_channel(channel).clone();
+    let current_voting_status = status.status_by_channel(channel);
 
     if new_status == current_voting_status {
         info!("New status is the same as the current voting status, skipping");
@@ -293,13 +291,13 @@ pub async fn update_election_voting_status_impl(
         ));
     }
 
-    status.close_early_voting_if_online_status_change(channel, new_status.clone());
-    status.set_status_by_channel(channel, new_status.clone());
+    status.close_early_voting_if_online_status_change(channel, new_status);
+    status.set_status_by_channel(channel, new_status);
 
     let status_js = serde_json::to_value(&status).with_context(|| "Error parsing status")?;
 
     update_election_voting_status(
-        &hasura_transaction,
+        hasura_transaction,
         &tenant_id,
         &election_event_id,
         &election_id,
@@ -309,14 +307,14 @@ pub async fn update_election_voting_status_impl(
     .with_context(|| "Error updating election voting status")?;
 
     update_board_on_status_change(
-        &hasura_transaction,
+        hasura_transaction,
         &tenant_id,
         user_id,
         username,
         election_event_id.to_string(),
         bulletin_board_reference.clone(),
-        new_status.clone(),
-        channel.clone(),
+        new_status,
+        channel,
         Some(election_id.to_string()),
         None,
     )

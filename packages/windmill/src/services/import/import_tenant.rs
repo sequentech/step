@@ -36,7 +36,7 @@ pub async fn upsert_tenant(
 
     let headers = rdr
         .headers()
-        .map(|headers| headers.clone())
+        .cloned()
         .map_err(|err| anyhow!("Error reading CSV headers: {err:?}"))?;
 
     for header in headers.iter() {
@@ -83,8 +83,7 @@ pub async fn process_record(
         .and_then(|s| deserialize_str::<JsonValue>(s).ok());
     let is_active: bool = record
         .get(6)
-        .map(|val| deserialize_str::<bool>(val).ok())
-        .flatten()
+        .and_then(|val| deserialize_str::<bool>(val).ok())
         .ok_or_else(|| anyhow!("Error deserializing is_active"))?;
     let voting_channels = record
         .get(7)

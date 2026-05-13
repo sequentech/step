@@ -38,7 +38,7 @@ pub async fn export_tally_results_to_xlsx(
         hasura_transaction,
         &tenant_id,
         Some(election_event_id.clone()),
-        &sqlite_document_id,
+        sqlite_document_id,
     )
     .await
     .map_err(|e| anyhow!("Failed to get document: {}", e))?;
@@ -56,7 +56,7 @@ pub async fn export_tally_results_to_xlsx(
     let xlsx_file_name = format!("results-{}", results_event_id.clone());
     let xlsx_file = generate_temp_file(&xlsx_file_name, ".xlsx")?;
 
-    convert_db_to_xlsx(&sqlite_file.path(), &xlsx_file.path())
+    convert_db_to_xlsx(sqlite_file.path(), xlsx_file.path())
         .await
         .map_err(|e| anyhow!("Failed to convert DB to XLSX: {}", e))?;
 
@@ -106,7 +106,7 @@ fn truncate_string_for_excel(value_str: String) -> String {
     } else {
         value_str.to_string()
     };
-    return truncated_text;
+    truncated_text
 }
 
 /// Converts a SQLite database file to an XLSX file, with each table as a worksheet.
@@ -169,7 +169,7 @@ async fn convert_db_to_xlsx(db_path: &Path, xlsx_path: &Path) -> Result<()> {
                     }
                 }
             }
-            row_index += 1;
+            row_index = row_index.checked_add(1).expect("row_index overflow");
         }
     }
 
@@ -190,7 +190,7 @@ pub async fn get_tally_session_execution_results_sqlite_file(
     tally_session_id: &str,
 ) -> Result<(TallySessionDocuments, String, String)> {
     let tally_session_execution = get_last_tally_session_execution(
-        &hasura_transaction,
+        hasura_transaction,
         tenant_id,
         election_event_id,
         tally_session_id,

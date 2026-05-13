@@ -58,14 +58,14 @@ async fn delete_election_event(
             .map_err(|err| anyhow!("Error deleting election event from hasura db: {err}"))?;
 
             let election_ids = get_elections_ids(
-                &hasura_transaction,
+                hasura_transaction,
                 &tenant_id_cloned,
                 &election_event_id_cloned,
             )
             .await?;
 
             delete_election_event_postgres(
-                &hasura_transaction,
+                hasura_transaction,
                 &tenant_id_cloned,
                 &election_event_id_cloned,
             )
@@ -98,7 +98,7 @@ pub async fn delete_election_event_t(
 ) -> Result<()> {
     let res = delete_election_event(tenant_id, election_event_id, realm).await;
 
-    let _ = match res {
+    match res {
         Ok(_) => {
             update_complete(&task_execution, None).await?;
         }

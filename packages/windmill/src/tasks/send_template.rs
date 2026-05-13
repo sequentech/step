@@ -104,9 +104,8 @@ async fn send_template_sms(
             })
             .to_string(),
         ));
-    } else {
-        event!(Level::INFO, "Receiver empty, ignoring..");
     }
+    event!(Level::INFO, "Receiver empty, ignoring..");
     Ok(None)
 }
 
@@ -154,13 +153,12 @@ pub async fn send_template_email(
             })
             .to_string(),
         ));
-    } else {
-        // Log the event if the receiver or template is missing
-        event!(
-            Level::INFO,
-            "Receiver or template is empty, email not sent."
-        );
     }
+    // Log the event if the receiver or template is missing
+    event!(
+        Level::INFO,
+        "Receiver or template is empty, email not sent."
+    );
     Ok(None)
 }
 
@@ -178,10 +176,16 @@ struct Metrics {
 fn update_metrics_unit(metrics_unit: &mut MetricsUnit, communication_method: &TemplateMethod) {
     match communication_method {
         TemplateMethod::EMAIL => {
-            metrics_unit.num_emails_sent += 1;
+            metrics_unit.num_emails_sent = metrics_unit
+                .num_emails_sent
+                .checked_add(1)
+                .expect("num_emails_sent overflow");
         }
         TemplateMethod::SMS => {
-            metrics_unit.num_sms_sent += 1;
+            metrics_unit.num_sms_sent = metrics_unit
+                .num_sms_sent
+                .checked_add(1)
+                .expect("num_sms_sent overflow");
         }
         TemplateMethod::DOCUMENT => {}
     };
@@ -231,20 +235,24 @@ fn update_metrics(
 
 async fn update_stats(
     hasura_transaction: &Transaction<'_>,
-    tenant_id: &String,
+    tenant_id: &str,
     election_event_id: &Option<String>,
     metrics: &Metrics,
 ) -> Result<()> {
-    let &Some(ref election_event_id) = election_event_id else {
+    let Some(election_event_id) = election_event_id else {
         return Ok(());
     };
-    let totals = metrics.election_event.num_emails_sent + metrics.election_event.num_sms_sent;
+    let totals = metrics
+        .election_event
+        .num_emails_sent
+        .checked_add(metrics.election_event.num_sms_sent)
+        .expect("election event metrics totals overflow");
     if totals > 0 {
         event!(Level::INFO, "updating election event statistics");
 
         update_election_event_statistics(
             hasura_transaction,
-            tenant_id.as_str(),
+            tenant_id,
             election_event_id.as_str(),
             /* inc_emails_sent */ metrics.election_event.num_emails_sent,
             /* inc_sms_sent */ metrics.election_event.num_sms_sent,
@@ -253,11 +261,14 @@ async fn update_stats(
         .with_context(|| "can't updated election event statistics")?;
     }
     for (election_id, election_metrics) in metrics.metrics_by_election_id.iter() {
-        let totals = election_metrics.num_emails_sent + election_metrics.num_sms_sent;
+        let totals = election_metrics
+            .num_emails_sent
+            .checked_add(election_metrics.num_sms_sent)
+            .expect("election metrics totals overflow");
         if totals > 0 {
             update_election_statistics(
                 hasura_transaction,
-                tenant_id.as_str(),
+                tenant_id,
                 election_event_id.as_str(),
                 election_id.as_str(),
                 /* inc_emails_sent */ metrics.election_event.num_emails_sent,
@@ -329,7 +340,7 @@ pub async fn send_template(
 ) -> Result<()> {
     let celery_app = get_celery_app().await;
     let realm = match election_event_id {
-        Some(ref election_event_id) => get_event_realm(&tenant_id, &election_event_id),
+        Some(ref election_event_id) => get_event_realm(&tenant_id, election_event_id),
         None => get_tenant_realm(&tenant_id),
     };
 
@@ -444,12 +455,12 @@ pub async fn send_template(
             AudienceSelection::NOT_VOTED => filtered_users.retain(|user| {
                 user.votes_info
                     .as_ref()
-                    .map_or(false, |vote_info| vote_info.is_empty())
+                    .is_some_and(|vote_info| vote_info.is_empty())
             }),
             AudienceSelection::VOTED => filtered_users.retain(|user| {
                 user.votes_info
                     .as_ref()
-                    .map_or(false, |vote_info| !vote_info.is_empty())
+                    .is_some_and(|vote_info| !vote_info.is_empty())
             }),
             _ => {}
         };
@@ -471,7 +482,7 @@ pub async fn send_template(
         for user in filtered_users.iter() {
             let success = send_template_email_or_sms(
                 &hasura_transaction,
-                &user,
+                user,
                 &election_event,
                 &tenant_id,
                 Some(admin_id.clone()),
@@ -485,13 +496,16 @@ pub async fn send_template(
             update_metrics(
                 &mut metrics,
                 &elections_by_area,
-                &user,
+                user,
                 /* communication_method */ &communication_method,
                 /* success */ success.is_ok(),
             );
         }
 
-        processed += TryInto::<i32>::try_into(users.len()).map_err(|err| anyhow!("{err}"))?;
+        let page_len: i32 = users.len().try_into().map_err(|err| anyhow!("{err}"))?;
+        processed = processed
+            .checked_add(page_len)
+            .expect("send_template processed count overflow");
 
         // update stats
         update_stats(
@@ -565,10 +579,10 @@ pub async fn send_template_email_or_sms(
     match communication_method {
         Some(TemplateMethod::EMAIL) => {
             let sending_result = send_template_email(
-                &user.email,   // receiver user email
-                email_config,  // Template content: EmailConfig
-                &variables,    // Variables for the template
-                &email_sender, // Sender client to send emails: EmailSender
+                &user.email,  // receiver user email
+                email_config, // Template content: EmailConfig
+                &variables,   // Variables for the template
+                email_sender, // Sender client to send emails: EmailSender
             )
             .await;
             match sending_result {
@@ -579,7 +593,7 @@ pub async fn send_template_email_or_sms(
                         user.id.clone(),
                         user.username.clone(),
                         &message,
-                        &tenant_id,
+                        tenant_id,
                         &admin_id,
                         user_area_id,
                     )
@@ -605,7 +619,7 @@ pub async fn send_template_email_or_sms(
                 /* receiver */ &user.get_mobile_phone(),
                 /* template */ sms_config,
                 /* variables */ &variables,
-                /* sender */ &sms_sender,
+                /* sender */ sms_sender,
             )
             .await;
             match sending_result {

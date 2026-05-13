@@ -124,7 +124,7 @@ pub async fn get_document(
         .collect::<Result<Vec<Document>>>()
         .with_context(|| "Error converting rows into documents")?;
 
-    Ok(documents.get(0).cloned())
+    Ok(documents.first().cloned())
 }
 
 /// Returns a vector of tuples of the (SupportMaterial, Document)s
@@ -215,7 +215,7 @@ pub async fn insert_document(
 
     let statement = hasura_transaction
         .prepare(
-            r#"
+            r"
                 INSERT INTO
                     sequent_backend.document
                 (
@@ -250,7 +250,7 @@ pub async fn insert_document(
                     created_at,
                     last_updated_at,
                     is_public;
-            "#,
+            ",
         )
         .await?;
     let rows: Vec<Row> = hasura_transaction
@@ -267,7 +267,7 @@ pub async fn insert_document(
             ],
         )
         .await
-        .map_err(|err| anyhow!("Error inserting document: {}", err))?;
+        .map_err(|err| anyhow!("Error inserting document: {err}"))?;
 
     let documents: Vec<Document> = rows
         .into_iter()
@@ -279,7 +279,7 @@ pub async fn insert_document(
         .with_context(|| "Error converting rows into documents")?;
 
     documents
-        .get(0)
-        .map(|val| val.clone())
+        .first()
+        .cloned()
         .ok_or(anyhow!("Row not inserted"))
 }

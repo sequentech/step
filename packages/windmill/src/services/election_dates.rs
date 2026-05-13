@@ -36,8 +36,8 @@ pub async fn manage_dates(
         return Err(anyhow!("Election not found"));
     };
 
-    let event_processor_val: EventProcessors = EventProcessors::from_str(&event_processor)
-        .map_err(|err| {
+    let event_processor_val: EventProcessors =
+        EventProcessors::from_str(event_processor).map_err(|err| {
             anyhow!("Error mapping {event_processor:?} into an EventProcessor: {err:?}")
         })?;
 

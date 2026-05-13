@@ -64,10 +64,9 @@ pub async fn process_export_ballot_publication(
     to_upload: bool,
 ) -> Result<TempPath> {
     let mut ballot_designs = vec![];
-    let event_styles =
-        export_event_ballot_styles(&hasura_transaction, &tenant_id, &election_event_id)
-            .await
-            .with_context(|| "Error obtaining ballot styles")?;
+    let event_styles = export_event_ballot_styles(hasura_transaction, tenant_id, election_event_id)
+        .await
+        .with_context(|| "Error obtaining ballot styles")?;
     for ballot_publication in ballot_publications {
         let ballot_publication_id = ballot_publication.id.clone();
         let ballot_styles = event_styles
@@ -101,7 +100,7 @@ pub async fn process_export_ballot_publication(
 
     // Write the JSON data to a file
     let temp_path = write_export_document(
-        &hasura_transaction,
+        hasura_transaction,
         data,
         document_id,
         election_event_id,
@@ -125,15 +124,15 @@ pub async fn export_ballot_publications(
     election_event_id: &str,
 ) -> Result<TempPath> {
     let ballot_publications_data =
-        get_ballot_publication(&hasura_transaction, tenant_id, election_event_id)
+        get_ballot_publication(hasura_transaction, tenant_id, election_event_id)
             .await
             .map_err(|e| anyhow!("Error reading ballot publications data: {e:?}"))?;
 
     let temp_path = process_export_ballot_publication(
-        &hasura_transaction,
-        &tenant_id,
-        &election_event_id,
-        &document_id,
+        hasura_transaction,
+        tenant_id,
+        election_event_id,
+        document_id,
         &ballot_publications_data,
         false,
     )
@@ -160,7 +159,7 @@ pub async fn export_election_event_config_file(
     let file = get_object_into_temp_file(
         s3_bucket.as_str(),
         document_s3_key.as_str(),
-        &document_name,
+        document_name,
         ".tmp",
     )
     .await

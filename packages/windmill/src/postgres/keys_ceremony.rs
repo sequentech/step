@@ -48,7 +48,7 @@ pub async fn get_keys_ceremonies(
 ) -> Result<Vec<KeysCeremony>> {
     let statement = hasura_transaction
         .prepare(
-            r#"
+            r"
                 SELECT
                     *
                 FROM
@@ -56,7 +56,7 @@ pub async fn get_keys_ceremonies(
                 WHERE
                     tenant_id = $1 AND
                     election_event_id = $2;
-            "#,
+            ",
         )
         .await?;
 
@@ -90,7 +90,7 @@ pub async fn get_keys_ceremony_by_id(
 ) -> Result<KeysCeremony> {
     let statement = hasura_transaction
         .prepare(
-            r#"
+            r"
                 SELECT
                     *
                 FROM
@@ -99,7 +99,7 @@ pub async fn get_keys_ceremony_by_id(
                     tenant_id = $1 AND
                     election_event_id = $2 AND
                     id = $3;
-            "#,
+            ",
         )
         .await?;
 
@@ -123,8 +123,8 @@ pub async fn get_keys_ceremony_by_id(
         .collect::<Result<Vec<KeysCeremony>>>()?;
 
     keys_ceremonies
-        .get(0)
-        .map(|keys_ceremony| keys_ceremony.clone())
+        .first()
+        .cloned()
         .ok_or(anyhow!("Keys ceremony {keys_ceremony_id} not found"))
 }
 
@@ -150,13 +150,13 @@ pub async fn insert_keys_ceremony(
         .with_context(|| "Error parsing election_event_id as UUID")?;
     let trustee_uuids: Vec<uuid::Uuid> = trustee_ids
         .into_iter()
-        .map(|trustee_id| parse_uuid_v4(&trustee_id).map_err(|err| anyhow!("{:?}", err)))
+        .map(|trustee_id| parse_uuid_v4(&trustee_id).map_err(|err| anyhow!("{err:?}")))
         .collect::<Result<Vec<uuid::Uuid>>>()
         .with_context(|| "Error parsing trustee_ids as UUIDs")?;
 
     let statement = hasura_transaction
         .prepare(
-            r#"
+            r"
                 INSERT INTO
                     sequent_backend.keys_ceremony
                 (id, tenant_id, election_event_id, trustee_ids, status, execution_status, threshold, name, settings, is_default, permission_label, created_at)
@@ -176,7 +176,7 @@ pub async fn insert_keys_ceremony(
                 )
                 RETURNING
                     *;
-            "#,
+            ",
         )
         .await?;
     let rows: Vec<Row> = hasura_transaction
@@ -197,7 +197,7 @@ pub async fn insert_keys_ceremony(
             ],
         )
         .await
-        .map_err(|err| anyhow!("Error inserting keys ceremony: {}", err))?;
+        .map_err(|err| anyhow!("Error inserting keys ceremony: {err}"))?;
 
     let elements: Vec<KeysCeremony> = rows
         .into_iter()
@@ -207,10 +207,7 @@ pub async fn insert_keys_ceremony(
         })
         .collect::<Result<Vec<KeysCeremony>>>()?;
 
-    elements
-        .get(0)
-        .map(|val| val.clone())
-        .ok_or(anyhow!("Row not inserted"))
+    elements.first().cloned().ok_or(anyhow!("Row not inserted"))
 }
 
 #[instrument(skip(hasura_transaction, status), err)]
@@ -224,7 +221,7 @@ pub async fn update_keys_ceremony_status(
 ) -> Result<()> {
     let statement = hasura_transaction
         .prepare(
-            r#"
+            r"
                 UPDATE
                     sequent_backend.keys_ceremony
                 SET
@@ -236,7 +233,7 @@ pub async fn update_keys_ceremony_status(
                     election_event_id = $5
                 RETURNING
                     id;
-            "#,
+            ",
         )
         .await?;
 
@@ -252,9 +249,9 @@ pub async fn update_keys_ceremony_status(
             ],
         )
         .await
-        .map_err(|err| anyhow!("Error running the update_keys_ceremony_status query: {err}"))?;
+        .map_err(|err| anyhow!("Error running the update_keys_ceremony_status query: {err:?}"))?;
 
-    if 0 == rows.len() {
+    if rows.is_empty() {
         return Err(anyhow!("No keys ceremony found"));
     }
 
@@ -274,7 +271,7 @@ pub async fn list_keys_ceremony(
 
     let statement = hasura_transaction
         .prepare(
-            r#"
+            r"
                 SELECT
                     keys_ceremony.*
                 FROM
@@ -286,7 +283,7 @@ pub async fn list_keys_ceremony(
                         cardinality($3::text[]) = 0
                         OR keys_ceremony.permission_label && $3::text[]
                     );
-            "#,
+            ",
         )
         .await?;
 

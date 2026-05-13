@@ -89,7 +89,7 @@ pub async fn download_tally_tar_gz_to_file(
         .documents
         .ok_or_else(|| anyhow!("Missing documents in results_event"))?
         .get_document_by_type(&document_type)
-        .ok_or_else(|| anyhow!(format!("Missing {:?} in results_event", document_type)))?;
+        .ok_or_else(|| anyhow!(format!("Missing {document_type:?} in results_event")))?;
 
     let document = get_document(
         hasura_transaction,
@@ -98,7 +98,7 @@ pub async fn download_tally_tar_gz_to_file(
         &document_id,
     )
     .await?
-    .ok_or_else(|| anyhow!("Can't find document {}", document_id))?;
+    .ok_or_else(|| anyhow!("Can't find document {document_id}"))?;
 
     get_document_as_temp_file(tenant_id, &document).await
 }
@@ -118,9 +118,7 @@ pub async fn update_transmission_package_annotations(
     let mut new_transmission_data: Vec<MiruTransmissionPackageData> = transmission_data
         .clone()
         .into_iter()
-        .filter(|data| {
-            data.area_id != area_id.to_string() || data.election_id != election_id.to_string()
-        })
+        .filter(|data| data.area_id != area_id || data.election_id != election_id)
         .collect();
     new_transmission_data.push(new_transmission_package_data);
     let new_transmission_data_str = serde_json::to_string(&new_transmission_data)?;
@@ -136,7 +134,7 @@ pub async fn update_transmission_package_annotations(
     );
 
     update_tally_session_annotation(
-        &hasura_transaction,
+        hasura_transaction,
         tenant_id,
         election_event_id,
         tally_session_id,
@@ -171,13 +169,13 @@ pub async fn generate_all_servers_document(
     for ccs_server in ccs_servers {
         let server_path = temp_dir_path.join(&ccs_server.tag);
         std::fs::create_dir(server_path.clone())
-            .with_context(|| format!("Error generating directory {:?}", server_path.clone()))?;
+            .with_context(|| format!("Error generating directory {server_path:?}"))?;
         let zip_file_path = server_path.join(format!("er_{}.zip", area_annotations.station_id));
         create_transmission_package(
             eml_hash,
             eml,
             time_zone.clone(),
-            now_utc.clone(),
+            now_utc,
             election_event_annotations,
             compressed_xml_bytes.clone(),
             &acm_key_pair,
@@ -185,17 +183,17 @@ pub async fn generate_all_servers_document(
             area_annotations,
             &zip_file_path,
             &server_signatures,
-            &election_annotations,
+            election_annotations,
         )
         .await?;
-        let with_logs = ccs_server.send_logs.clone().unwrap_or_default();
+        let with_logs = ccs_server.send_logs.unwrap_or_default();
         if with_logs {
             let zip_file_path = server_path.join(format!("al_{}.zip", area_annotations.station_id));
             create_logs_package(
                 time_zone.clone(),
-                now_utc.clone(),
+                now_utc,
                 election_event_annotations,
-                &election_annotations,
+                election_annotations,
                 &acm_key_pair,
                 &ccs_server.public_key_pem,
                 area_annotations,
@@ -216,7 +214,7 @@ pub async fn generate_all_servers_document(
         get_file_size(dst_file_string.as_str()).with_context(|| "Error obtaining file size")?;
 
     let document = upload_and_return_document(
-        &hasura_transaction,
+        hasura_transaction,
         &dst_file_string,
         file_size,
         "applization/zip",
@@ -265,15 +263,16 @@ pub async fn create_transmission_package_service(
     let tally_annotations: Annotations = tally_session
         .annotations
         .clone()
-        .map(|value| deserialize_value(value))
+        .map(deserialize_value)
         .transpose()?
         .unwrap_or_default();
 
     let transmission_data: MiruTallySessionData = tally_session.get_annotations().unwrap_or(vec![]);
 
-    let found_package = transmission_data.clone().into_iter().find(|data| {
-        data.area_id == area_id.to_string() && data.election_id == election_id.to_string()
-    });
+    let found_package = transmission_data
+        .clone()
+        .into_iter()
+        .find(|data| data.area_id == area_id && data.election_id == election_id);
 
     if found_package.is_some() && !force {
         info!("transmission package already found, skipping");
@@ -293,15 +292,15 @@ pub async fn create_transmission_package_service(
     };
     let election_annotations = election.get_annotations()?;
 
-    let area = get_area_by_id(&hasura_transaction, tenant_id, &area_id)
+    let area = get_area_by_id(&hasura_transaction, tenant_id, area_id)
         .await
-        .with_context(|| format!("Error fetching area {}", area_id))?
-        .ok_or_else(|| anyhow!("Can't find area {}", area_id))?;
+        .with_context(|| format!("Error fetching area {area_id}"))?
+        .ok_or_else(|| anyhow!("Can't find area {area_id}"))?;
     let area_annotations = area.get_annotations()?;
 
     let area_station_id = area_annotations.station_id.clone();
 
-    let threshold = area_annotations.threshold.clone();
+    let threshold = area_annotations.threshold;
 
     let ccs_servers = area_annotations.ccs_servers.clone();
 
@@ -334,7 +333,7 @@ pub async fn create_transmission_package_service(
         .into_iter()
         .find(|result| result.election_id == election_id)
     else {
-        info!("Can't find election report for election {}", election_id);
+        info!("Can't find election report for election {election_id}");
         return Ok(());
     };
     let reports: Vec<ReportData> = result
@@ -344,7 +343,7 @@ pub async fn create_transmission_package_service(
             let Some(basic_area) = result.area.clone() else {
                 return false;
             };
-            return basic_area.id == area_id;
+            basic_area.id == area_id
         })
         .map(|report_computed| report_computed.into())
         .collect();
@@ -352,7 +351,7 @@ pub async fn create_transmission_package_service(
         tally_id,
         &transaction_id,
         time_zone.clone(),
-        now_utc.clone(),
+        now_utc,
         &election_event_annotations,
         &election_annotations,
         &area_annotations,
@@ -378,7 +377,7 @@ pub async fn create_transmission_package_service(
     .await?;
 
     // upload eml
-    let eml_name = format!("er_{}.xml", transaction_id);
+    let eml_name = format!("er_{transaction_id}.xml");
     let (temp_path, temp_path_string, file_size) =
         write_into_named_temp_file(&eml.as_bytes().to_vec(), &eml_name, ".eml")?;
     let eml_document = upload_and_return_document(
@@ -421,7 +420,7 @@ pub async fn create_transmission_package_service(
         &election_event.id,
         tenant_id,
         time_zone.clone(),
-        now_utc.clone(),
+        now_utc,
         vec![],
         &logs,
         &election_annotations,
@@ -444,7 +443,7 @@ pub async fn create_transmission_package_service(
             signatures: vec![],
         }],
         logs,
-        threshold: threshold,
+        threshold,
     };
     update_transmission_package_annotations(
         &hasura_transaction,

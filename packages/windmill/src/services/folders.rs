@@ -29,7 +29,7 @@ pub fn copy_to_temp_dir(base_tally_path: &PathBuf) -> Result<TempDir> {
         if src_path.is_dir() {
             fs::create_dir_all(&dest_path).context("Failed to create directory")?;
         } else {
-            fs::copy(&src_path, &dest_path).context("Failed to copy file")?;
+            fs::copy(src_path, &dest_path).context("Failed to copy file")?;
         }
     }
 

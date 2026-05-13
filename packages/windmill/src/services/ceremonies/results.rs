@@ -78,7 +78,7 @@ pub async fn save_results(
             let contest_result = contest.contest_result.clone().unwrap();
             let current_contest = contest.contest.clone().unwrap();
 
-            let total_votes_percent: f64 = contest_result.percentage_total_votes / 100.0;
+            let contest_total_votes_percent: f64 = contest_result.percentage_total_votes / 100.0;
             let auditable_votes_percent: f64 = contest_result.percentage_auditable_votes / 100.0;
             let total_valid_votes_percent: f64 =
                 contest_result.percentage_total_valid_votes / 100.0;
@@ -91,9 +91,8 @@ pub async fn save_results(
             let total_blank_votes_percent: f64 =
                 contest_result.percentage_total_blank_votes / 100.0;
 
-            let contest_result_ext_metrics =
-                contest_result.extended_metrics.clone().unwrap_or_default();
-            let extended_metrics_value = serde_json::to_value(contest_result_ext_metrics.clone())
+            let contest_result_ext_metrics = contest_result.extended_metrics.unwrap_or_default();
+            let extended_metrics_value = serde_json::to_value(contest_result_ext_metrics)
                 .expect("Failed to convert to JSON");
             let votes_base: f64 = cmp::max(contest_result_ext_metrics.total_weight, 1) as f64;
             let mut annotations = json!({});
@@ -113,7 +112,9 @@ pub async fn save_results(
                     results_event_id: results_event_id.into(),
                     elegible_census: Some(contest_result.census as i64),
                     total_votes: Some(contest_result.total_votes as i64),
-                    total_votes_percent: Some(total_votes_percent.clamp(0.0, 1.0).try_into()?),
+                    total_votes_percent: Some(
+                        contest_total_votes_percent.clamp(0.0, 1.0).try_into()?,
+                    ),
                     total_auditable_votes: Some(contest_result.auditable_votes as i64),
                     total_auditable_votes_percent: Some(
                         auditable_votes_percent.clamp(0.0, 1.0).try_into()?,
@@ -206,7 +207,9 @@ pub async fn save_results(
                         total_blank_votes_percent.clamp(0.0, 1.0).try_into()?,
                     ),
                     total_votes: Some(contest_result.total_votes as i64),
-                    total_votes_percent: Some(total_votes_percent.clamp(0.0, 1.0).try_into()?),
+                    total_votes_percent: Some(
+                        contest_total_votes_percent.clamp(0.0, 1.0).try_into()?,
+                    ),
                     documents: None,
                     total_auditable_votes: Some(contest_result.auditable_votes as i64),
                     total_auditable_votes_percent: Some(
@@ -240,18 +243,18 @@ pub async fn save_results(
     }
     insert_results_contests(
         hasura_transaction,
-        tenant_id.into(),
-        election_event_id.into(),
-        results_event_id.into(),
+        tenant_id,
+        election_event_id,
+        results_event_id,
         results_contests.clone(),
     )
     .await?;
 
     insert_results_area_contests(
         hasura_transaction,
-        tenant_id.into(),
-        election_event_id.into(),
-        results_event_id.into(),
+        tenant_id,
+        election_event_id,
+        results_event_id,
         results_area_contests.clone(),
     )
     .await?;
@@ -303,7 +306,7 @@ pub async fn generate_results_id_if_necessary(
     let previous_session_ids = previous_execution.session_ids.unwrap_or(vec![]);
     let session_ids = session_ids_opt.unwrap_or(vec![]);
 
-    if !force_new_id && !(session_ids.len() > previous_session_ids.len()) {
+    if !force_new_id && (session_ids.len() <= previous_session_ids.len()) {
         return Ok(None);
     }
 
@@ -314,8 +317,8 @@ pub async fn generate_results_id_if_necessary(
 
         insert_results_event(
             hasura_transaction,
-            &tenant_id,
-            &election_event_id,
+            tenant_id,
+            election_event_id,
             &results_event.id,
         )
         .await?;
@@ -460,7 +463,7 @@ pub async fn populate_results_tables(
     };
 
     if let Some(ref results_event_id) = results_event_id_opt {
-        let file_name = format!("results-{}.db", results_event_id);
+        let file_name = format!("results-{results_event_id}.db");
         let file_path = database_path.to_str().ok_or(anyhow!("Empty upload path"))?;
         let file_size = get_file_size(file_path)?;
 

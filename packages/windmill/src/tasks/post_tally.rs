@@ -65,8 +65,7 @@ pub async fn download_sqlite_database(
         } else {
             return Err(anyhow!(
             "Could not recover documents from tally session execution with id {tally_session_id}"
-        )
-            .into());
+        ));
         };
 
     let sqlite_database_document_id = if let Some(id) = documents.sqlite {
@@ -75,19 +74,19 @@ pub async fn download_sqlite_database(
         return Err(anyhow!(
             "Could not recover sqlite database from tally session execution with id {tally_session_id}"
         )
-        .into());
+        );
     };
 
     let document = get_document(
-        &hasura_transaction,
-        &tenant_id,
+        hasura_transaction,
+        tenant_id,
         Some(election_event_id.to_string()),
         &sqlite_database_document_id,
     )
     .await?
     .ok_or_else(|| anyhow!("Can't find document {}", sqlite_database_document_id))?;
 
-    let sqlite_database = get_document_as_temp_file(&tenant_id, &document).await?;
+    let sqlite_database = get_document_as_temp_file(tenant_id, &document).await?;
 
     Ok(sqlite_database)
 }
@@ -376,7 +375,7 @@ pub async fn post_tally_task_impl(
 
 #[instrument(err)]
 #[wrap_map_err::wrap_map_err(TaskError)]
-#[celery::task(time_limit = 1200000, max_retries = 0, expires = 15)]
+#[celery::task(time_limit = 1_200_000, max_retries = 0, expires = 15)]
 pub async fn post_tally_task(
     tenant_id: String,
     election_event_id: String,
@@ -389,7 +388,9 @@ pub async fn post_tally_task(
             tenant_id, election_event_id, tally_session_id
         ),
         Uuid::new_v4().to_string(),
-        ISO8601::now() + Duration::seconds(120),
+        ISO8601::now()
+            .checked_add_signed(Duration::seconds(120))
+            .expect("post_tally lock expiry overflow"),
     )
     .await
     else {

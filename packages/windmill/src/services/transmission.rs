@@ -106,7 +106,7 @@ pub async fn get_transmission_servers_data(
 
     let servers_sent_to = document
         .map(|d| d.servers_sent_to.clone())
-        .unwrap_or_else(|| vec![]);
+        .unwrap_or_else(Vec::new);
 
     let servers: Vec<ServerData> = annotations
         .ccs_servers
@@ -117,10 +117,14 @@ pub async fn get_transmission_servers_data(
                 .iter()
                 .any(|server_sent| server_sent.name == server.name)
             {
-                total_transmitted += 1;
+                total_transmitted = total_transmitted
+                    .checked_add(1)
+                    .expect("total_transmitted overflow");
                 "Transmitted".to_string()
             } else {
-                total_not_transmitted += 1;
+                total_not_transmitted = total_not_transmitted
+                    .checked_add(1)
+                    .expect("total_not_transmitted overflow");
                 "Not Transmitted".to_string()
             },
             date_transmitted: tally_session_data
@@ -137,7 +141,6 @@ pub async fn get_transmission_servers_data(
                 })
                 .unwrap_or_else(|| "".to_string()),
             received: if tally_area
-                .clone()
                 .map(|data| {
                     servers_sent_to.iter().any(|server_sent| {
                         server_sent.name == server.name

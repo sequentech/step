@@ -72,14 +72,12 @@ async fn manage_election_voting_period_end_wrapped(
         .ok_or(anyhow!("Can't read presentation"))?;
 
     let mut new_election_presentation = election_presentation.clone();
-    new_election_presentation.voting_period_end = if (event_payload.allow_voting_period_end
-        == Some(true)
-        || event_payload.allow_voting_period_end == None)
-    {
-        Some(VotingPeriodEnd::ALLOWED)
-    } else {
-        Some(VotingPeriodEnd::DISALLOWED)
-    };
+    new_election_presentation.voting_period_end =
+        if event_payload.allow_voting_period_end.unwrap_or(true) {
+            Some(VotingPeriodEnd::ALLOWED)
+        } else {
+            Some(VotingPeriodEnd::DISALLOWED)
+        };
     update_election_presentation(
         hasura_transaction,
         &tenant_id,
@@ -89,7 +87,7 @@ async fn manage_election_voting_period_end_wrapped(
     )
     .await?;
 
-    stop_scheduled_event(&hasura_transaction, &tenant_id, &scheduled_event.id)
+    stop_scheduled_event(hasura_transaction, &tenant_id, &scheduled_event.id)
         .await
         .with_context(|| "Error stopping scheduled event")?;
 
@@ -111,7 +109,9 @@ pub async fn manage_election_voting_period_end(
             tenant_id, election_event_id, scheduled_event_id, election_id
         ),
         Uuid::new_v4().to_string(),
-        ISO8601::now() + Duration::seconds(120),
+        ISO8601::now()
+            .checked_add_signed(Duration::seconds(120))
+            .expect("manage_election_voting_period_end lock expiry overflow"),
     )
     .await
     .with_context(|| "Error acquiring pglock")?;

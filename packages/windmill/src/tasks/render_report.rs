@@ -51,15 +51,15 @@ pub async fn render_report(
                         return Err(format!("Error starting Hasura transaction: {err}"));
                     }
                 };
-                let _ =
-                    render_report_task(&hasura_transaction, input, tenant_id, election_event_id)
-                        .await
-                        .map_err(|err| format!("{}", err))?;
+
+                render_report_task(&hasura_transaction, input, tenant_id, election_event_id)
+                    .await
+                    .map_err(|err| format!("{err}"))?;
 
                 match hasura_transaction.commit().await {
                     Ok(_) => (),
                     Err(err) => {
-                        return Err(format!("Commit failed: {}", err));
+                        return Err(format!("Commit failed: {err}"));
                     }
                 };
                 Ok(())
@@ -70,7 +70,7 @@ pub async fn render_report(
     // Await the result and handle JoinError explicitly
     match handle.await {
         Ok(inner_result) => Ok(inner_result.map_err(|err| format!("Task failed: {err:?}"))?),
-        Err(join_error) => Err(format!("Join error. Task panicked: {:?}", join_error)),
+        Err(join_error) => Err(format!("Join error. Task panicked: {join_error:?}")),
     }?;
 
     Ok(())

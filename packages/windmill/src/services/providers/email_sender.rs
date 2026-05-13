@@ -142,12 +142,10 @@ impl EmailSender {
             let mut mixed = MultiPart::mixed().multipart(alternative);
 
             for attachment in &attachments {
-                let content_type = ContentType::from(
-                    attachment
-                        .mimetype
-                        .parse()
-                        .map_err(|err| anyhow!("invalid mimetype: {:?}", err))?,
-                );
+                let content_type: ContentType = attachment
+                    .mimetype
+                    .parse()
+                    .map_err(|err| anyhow!("invalid mimetype: {:?}", err))?;
                 let attachment_part = SinglePart::builder()
                     .header(content_type)
                     .header(ContentDisposition::attachment(&attachment.filename))

@@ -70,6 +70,8 @@ use tracing::{event, info, instrument, Level};
 use uuid::Uuid;
 use zip::read::ZipArchive;
 
+type ZipDocumentEntries = (Vec<(String, Vec<u8>)>, String);
+
 use super::import_users::import_users_file;
 use crate::postgres;
 use crate::postgres::area::insert_areas;
@@ -159,8 +161,8 @@ pub async fn upsert_b3_and_elog(
         );
         create_protocol_manager_keys(
             hasura_transaction,
-            &tenant_id,
-            &election_event_id,
+            tenant_id,
+            election_event_id,
             &board_name,
         )
         .await?;
@@ -302,7 +304,7 @@ pub fn remove_keycloak_realm_secrets(realm: &RealmRepresentation) -> Result<Real
                     if let Some(config) = elnew.config.clone() {
                         let mut newconfig = config.clone();
                         for k in config.keys() {
-                            if !valid_keys.contains(&k) {
+                            if !valid_keys.contains(k) {
                                 info!("Removing key {} from {}", k, key);
                                 newconfig.remove(k);
                             }
@@ -329,8 +331,7 @@ pub async fn upsert_keycloak_realm(
     let mut realm = if let Some(realm) = keycloak_event_realm.clone() {
         realm
     } else {
-        let realm = read_default_election_event_realm()?;
-        realm
+        read_default_election_event_realm()?
     };
 
     if let Some(default_language) = default_locale {
@@ -412,7 +413,7 @@ pub async fn insert_election_event_db(
             .encryption_protocol
             .clone()
             .unwrap_or("RSA256".to_string()),
-        is_audit: object.is_audit.clone(),
+        is_audit: object.is_audit,
         audit_election_event_id: object.audit_election_event_id.clone(),
         statistics: Some(json!({
             "num_emails_sent": 0,
@@ -421,7 +422,7 @@ pub async fn insert_election_event_db(
         external_id: None,
     };
 
-    insert_election_event(&hasura_transaction, &new_election_input).await?;
+    insert_election_event(hasura_transaction, &new_election_input).await?;
     Ok(())
 }
 
@@ -514,15 +515,15 @@ pub async fn decrypt_document(
     password: Option<String>,
     mut temp_file_path: NamedTempFile,
 ) -> Result<NamedTempFile> {
-    let password = password.unwrap_or_else(|| "".to_string());
+    let password = password.unwrap_or_default();
     let is_encrypted = !password.is_empty();
 
     if is_encrypted {
         let decrypted_path = env::temp_dir().join("election-event.zip");
 
         decrypt_file_aes_256_cbc(
-            &temp_file_path.path().to_string_lossy().to_string(),
-            &decrypted_path.as_path().to_string_lossy().to_string(),
+            temp_file_path.path().to_string_lossy().as_ref(),
+            decrypted_path.as_path().to_string_lossy().as_ref(),
             &password,
         )
         .map_err(|err| anyhow!("Error generating decrypted file"))?;
@@ -566,7 +567,7 @@ pub async fn get_election_event_schema(
 #[instrument(err, skip_all)]
 pub async fn process_election_event_file(
     hasura_transaction: &Transaction<'_>,
-    document_type: &String,
+    document_type: &str,
     file_election_event_schema: &str,
     object: ImportElectionEventBody,
     election_event_id: String,
@@ -613,7 +614,7 @@ pub async fn process_election_event_file(
             let mut status: ElectionStatus = clone
                 .status
                 .clone()
-                .map(|value| deserialize_value::<ElectionStatus>(value))
+                .map(deserialize_value::<ElectionStatus>)
                 .transpose()
                 .unwrap_or_default()
                 .unwrap_or_default();
@@ -677,7 +678,7 @@ pub async fn process_election_event_file(
     })?;
 
     if let Some(keys_ceremonies) = data.keys_ceremonies.clone() {
-        let trustees = get_all_trustees(&hasura_transaction, &tenant_id).await?;
+        let trustees = get_all_trustees(hasura_transaction, &tenant_id).await?;
 
         let trustee_map: HashMap<String, String> = trustees
             .into_iter()
@@ -705,7 +706,7 @@ pub async fn process_election_event_file(
                         /* execution_status */ keys_ceremony.execution_status,
                         keys_ceremony.name,
                         keys_ceremony.settings,
-                        keys_ceremony.is_default.clone().unwrap_or_default(),
+                        keys_ceremony.is_default.unwrap_or_default(),
                         keys_ceremony.permission_label.unwrap_or_default(),
                     )
                 })
@@ -807,7 +808,7 @@ pub async fn process_reports_file(
             tenant_id: tenant_id.clone(),
             election_id: match record.get(1) {
                 None => None,
-                Some(election_id) if election_id.is_empty() => None,
+                Some("") => None,
                 Some(election_id) => Some(
                     replacement_map
                         .get(election_id)
@@ -827,8 +828,8 @@ pub async fn process_reports_file(
                 .filter(|s| !s.is_empty()),
             cron_config: match record.get(4) {
                 None => None,
-                Some(cron_config_str) if cron_config_str.is_empty() => None,
-                Some(cron_config_str) => deserialize_str(&cron_config_str).map_err(|err| {
+                Some("") => None,
+                Some(cron_config_str) => deserialize_str(cron_config_str).map_err(|err| {
                     anyhow!("Error parsing cron_config: {err:?}\nThe string: {cron_config_str}")
                 })?,
             },
@@ -897,8 +898,8 @@ async fn process_activity_logs_file(
 
     let electoral_log = ElectoralLog::new(
         hasura_transaction,
-        &tenant_id,
-        Some(&election_event_id),
+        tenant_id,
+        Some(election_event_id),
         board_name.as_str(),
     )
     .await?;
@@ -990,18 +991,18 @@ pub async fn process_s3_file(
         .map_err(|e| anyhow!("Error extracting document name from filename: {e}"))?
         .ok_or_else(|| anyhow!("Error getting document name as str"))?;
 
-    let new_file_name = replace_ids_in_filename(&file_name, &replacement_map);
+    let new_file_name = replace_ids_in_filename(file_name, &replacement_map);
     // Upload the file and return the document
     let _document = upload_and_return_document(
         hasura_transaction,
         &file_path_string.clone(),
         file_size,
-        &document_type,
+        document_type,
         &tenant_id,
         election_event_id,
         &new_file_name,
         Some(new_document_id.to_string()),
-        is_public.clone(),
+        is_public,
     )
     .await?;
 
@@ -1013,10 +1014,10 @@ pub async fn process_s3_file(
 pub async fn get_zip_entries(
     temp_file_path: NamedTempFile,
     document_type: &str,
-) -> Result<(Vec<(String, Vec<u8>)>, String)> {
+) -> Result<ZipDocumentEntries> {
     let (mut zip_entries, election_event_schema) =
         if document_type == "application/ezip" || matches_mime("zip", document_type) {
-            tokio::task::spawn_blocking(move || -> Result<(Vec<(String, Vec<u8>)>, String)> {
+            tokio::task::spawn_blocking(move || -> Result<ZipDocumentEntries> {
                 let file = File::open(&temp_file_path)?;
                 let mut zip = ZipArchive::new(file)?;
                 let mut entries: Vec<(String, Vec<u8>)> = Vec::new();
@@ -1098,12 +1099,9 @@ pub async fn process_document(
     let (zip_entries, file_election_event_schema) =
         get_zip_entries(temp_file_path, &document_type).await?;
 
-    let is_importing_keys = zip_entries.iter().any(|(file_name, _)| {
-        file_name.contains(&format!(
-            "{}",
-            EDocuments::PROTOCOL_MANAGER_KEYS.to_file_name()
-        ))
-    });
+    let is_importing_keys = zip_entries
+        .iter()
+        .any(|(file_name, _)| file_name.contains(EDocuments::PROTOCOL_MANAGER_KEYS.to_file_name()));
 
     let election_event_id_clone = election_event_id.clone();
 
@@ -1151,7 +1149,7 @@ pub async fn process_document(
 
             let mut cursor = Cursor::new(&mut file_contents[..]);
 
-            if file_name.contains(&format!("{}", EDocuments::ACTIVITY_LOGS.to_file_name())) {
+            if file_name.contains(EDocuments::ACTIVITY_LOGS.to_file_name()) {
                 let mut temp_file = NamedTempFile::new()
                     .context("Failed to create activity logs temporary file")?;
 
@@ -1168,7 +1166,7 @@ pub async fn process_document(
                 .context("Failed to import activity logs")?;
             }
 
-            if file_name.contains(&format!("{}", EDocuments::VOTERS.to_file_name())) {
+            if file_name.contains(EDocuments::VOTERS.to_file_name()) {
                 let mut temp_file = NamedTempFile::new()
                     .context("Failed to create activity logs temporary file")?;
                 io::copy(&mut cursor, &mut temp_file)
@@ -1176,7 +1174,7 @@ pub async fn process_document(
                 temp_file.as_file_mut().rewind()?;
 
                 process_voters_file(
-                    &hasura_transaction,
+                    hasura_transaction,
                     &temp_file,
                     &file_name,
                     Some(election_event_schema.election_event.id.clone()),
@@ -1187,7 +1185,7 @@ pub async fn process_document(
                 .context("Failed to import voters")?;
             }
 
-            if file_name.contains(&format!("{}", EDocuments::REPORTS.to_file_name())) {
+            if file_name.contains(EDocuments::REPORTS.to_file_name()) {
                 let mut temp_file =
                     NamedTempFile::new().context("Failed to create reports temporary file")?;
                 io::copy(&mut cursor, &mut temp_file)
@@ -1196,7 +1194,7 @@ pub async fn process_document(
 
                 // Process the reports file
                 process_reports_file(
-                    &hasura_transaction,
+                    hasura_transaction,
                     &temp_file,
                     election_event_schema.tenant_id.to_string(),
                     Some(election_event_schema.election_event.id.clone()),
@@ -1214,16 +1212,19 @@ pub async fn process_document(
                 }
 
                 // Write the file contents to a new file within this directory
-                let mut temp_file =
-                    generate_temp_file(&folder_path[1], &folder_path[folder_path.len() - 1])
-                        .context("Error generating temp file")?;
+                let file_leaf = folder_path
+                    .last()
+                    .copied()
+                    .ok_or_else(|| anyhow!("S3 import path has no file segment"))?;
+                let mut temp_file = generate_temp_file(folder_path[1], file_leaf)
+                    .context("Error generating temp file")?;
 
                 io::copy(&mut cursor, &mut temp_file)
                     .context("Failed to copy S3 contents to temporary file")?;
                 temp_file.as_file_mut().rewind()?;
 
                 process_s3_file(
-                    &hasura_transaction,
+                    hasura_transaction,
                     &temp_file,
                     &file_name,
                     Some(election_event_schema.election_event.id.clone()),
@@ -1238,16 +1239,19 @@ pub async fn process_document(
                 let folder_path: Vec<_> = file_name.split("/").collect();
 
                 // Write the file contents to a new file within this directory
-                let mut temp_file =
-                    generate_temp_file(&folder_path[1], &folder_path[folder_path.len() - 1])
-                        .context("Error generating temp file")?;
+                let file_leaf = folder_path
+                    .last()
+                    .copied()
+                    .ok_or_else(|| anyhow!("S3 import path has no file segment"))?;
+                let mut temp_file = generate_temp_file(folder_path[1], file_leaf)
+                    .context("Error generating temp file")?;
 
                 io::copy(&mut cursor, &mut temp_file)
                     .context("Failed to copy S3 contents to temporary file")?;
                 temp_file.as_file_mut().rewind()?;
 
                 process_s3_file(
-                    &hasura_transaction,
+                    hasura_transaction,
                     &temp_file,
                     &file_name,
                     None,
@@ -1259,7 +1263,7 @@ pub async fn process_document(
                 .context("Failed to import S3 files")?;
             }
 
-            if file_name.contains(&format!("{}", EDocuments::BULLETIN_BOARDS.to_file_name())) {
+            if file_name.contains(EDocuments::BULLETIN_BOARDS.to_file_name()) {
                 let mut temp_file = NamedTempFile::new()
                     .context("Failed to create bulletin boards temporary file")?;
 
@@ -1276,7 +1280,7 @@ pub async fn process_document(
                 .context("Failed to import bulletin boards")?;
             }
 
-            if file_name.contains(&format!("{}", EDocuments::SCHEDULED_EVENTS.to_file_name())) {
+            if file_name.contains(EDocuments::SCHEDULED_EVENTS.to_file_name()) {
                 let mut temp_file = NamedTempFile::new()
                     .context("Failed to create scheduled events temporary file")?;
 
@@ -1296,7 +1300,7 @@ pub async fn process_document(
                 .with_context(|| "Error managing dates")?;
             }
 
-            if file_name.contains(&format!("{}", EDocuments::PUBLICATIONS.to_file_name())) {
+            if file_name.contains(EDocuments::PUBLICATIONS.to_file_name()) {
                 let mut temp_file = NamedTempFile::new()
                     .context("Failed to create ballot publications temporary file")?;
 
@@ -1315,10 +1319,7 @@ pub async fn process_document(
                 .await
                 .with_context(|| "Error importing publications")?;
             }
-            if file_name.contains(&format!(
-                "{}",
-                EDocuments::ELECTION_EVENT_CONFIG.to_file_name()
-            )) {
+            if file_name.contains(EDocuments::ELECTION_EVENT_CONFIG.to_file_name()) {
                 let mut temp_file = NamedTempFile::new()
                     .context("Failed to create election event config temporary file")?;
 
@@ -1338,10 +1339,7 @@ pub async fn process_document(
                 .with_context(|| "Error importing election event config file")?;
             }
 
-            if file_name.contains(&format!(
-                "{}",
-                EDocuments::PROTOCOL_MANAGER_KEYS.to_file_name()
-            )) {
+            if file_name.contains(EDocuments::PROTOCOL_MANAGER_KEYS.to_file_name()) {
                 let mut temp_file = NamedTempFile::new()
                     .context("Failed to create protocol manager keys temporary file")?;
 
@@ -1513,10 +1511,7 @@ pub async fn maybe_create_scheduled_event(
     let start_task_id =
         generate_manage_date_task_name(tenant_id, election_event_id, election_id, &event_processor);
     let payload = ManageElectionDatePayload {
-        election_id: match election_id {
-            Some(id) => Some(id.to_string()),
-            None => None,
-        },
+        election_id: election_id.map(|id| id.to_string()),
     };
     let cron_config = CronConfig {
         cron: None,

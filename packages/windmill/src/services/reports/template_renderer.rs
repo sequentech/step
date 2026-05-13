@@ -146,7 +146,6 @@ pub trait TemplateRenderer: Debug {
     ///
     /// For reports generated from a export button:
     /// No template_alias is provided from the UI at the moment, then it must be retrieved from postgres as well.
-
     /// Default implementation, can be overridden in specific reports that have
     /// election_id
     #[instrument(skip(self))]
@@ -341,7 +340,7 @@ pub trait TemplateRenderer: Debug {
 
         debug!("user data in template renderer: {user_data_map:#?}");
         let rendered_user_template =
-            reports::render_template_text(&user_tpl_document, user_data_map)
+            reports::render_template_text(user_tpl_document, user_data_map)
                 .map_err(|e| anyhow!("Error rendering user template: {e:?}"))?;
 
         // Prepare system data
@@ -376,22 +375,20 @@ pub trait TemplateRenderer: Debug {
         let user_data = if generate_mode == GenerateReportMode::PREVIEW {
             // Increase offset when using batching
             if let Some(o) = offset {
-                *o += 1;
+                *o = (*o).checked_add(1).expect("report preview offset overflow");
             }
             self.prepare_preview_data()
                 .await
                 .map_err(|e| anyhow!("Error preparing preview user data: {e:?}"))?
+        } else if let (Some(o), Some(l)) = (offset, limit) {
+            info!("Batched processing: offset = {o}, limit = {l}");
+            self.prepare_user_data_batch(hasura_transaction, keycloak_transaction, o, l)
+                .await
+                .map_err(|e| anyhow!("Error preparing batched user data: {e:?}"))?
         } else {
-            if let (Some(o), Some(l)) = (offset, limit) {
-                info!("Batched processing: offset = {o}, limit = {l}");
-                self.prepare_user_data_batch(hasura_transaction, keycloak_transaction, o, l)
-                    .await
-                    .map_err(|e| anyhow!("Error preparing batched user data: {e:?}"))?
-            } else {
-                self.prepare_user_data(hasura_transaction, keycloak_transaction)
-                    .await
-                    .map_err(|e| anyhow!("Error preparing user data: {e:?}"))?
-            }
+            self.prepare_user_data(hasura_transaction, keycloak_transaction)
+                .await
+                .map_err(|e| anyhow!("Error preparing user data: {e:?}"))?
         };
 
         let user_data_map = user_data
@@ -470,6 +467,7 @@ pub trait TemplateRenderer: Debug {
     // trait can reimplement the function while calling the parent default
     // implementation too when needed
     #[instrument(err, skip_all)]
+    #[allow(clippy::too_many_arguments)]
     async fn execute_report_inner(
         &self,
         document_id: &str,
@@ -499,7 +497,7 @@ pub trait TemplateRenderer: Debug {
                 anyhow!("Error providing the user template and extra config: {e:?}")
             })?;
 
-        let items_count = self.count_items(&hasura_transaction).await?.unwrap_or(0);
+        let items_count = self.count_items(hasura_transaction).await?.unwrap_or(0);
         let report_options = ext_cfg.report_options.clone();
         let per_report_limit = report_options
             .max_items_per_report
@@ -521,8 +519,12 @@ pub trait TemplateRenderer: Debug {
             );
 
             // Calculate the number of batches needed.
-            let num_batches =
-                std::cmp::max((items_count + per_report_limit - 1) / per_report_limit, 1);
+            let report_limit = per_report_limit.max(1);
+            #[allow(clippy::arithmetic_side_effects)]
+            let num_batches = std::cmp::max(
+                items_count.saturating_add(report_limit - 1) / report_limit,
+                1,
+            );
             info!("Number of batches: {:?}", num_batches);
 
             // Define a temporary reports folder (this folder will later be compressed)
@@ -540,7 +542,9 @@ pub trait TemplateRenderer: Debug {
                 (0..num_batches)
                     .into_par_iter()
                     .map(|batch_index| -> Result<PathBuf, anyhow::Error> {
-                        let offset = batch_index * per_report_limit;
+                        let offset = batch_index
+                            .checked_mul(report_limit)
+                            .expect("activity log report batch offset overflow");
                         let rendered_system_template = GLOBAL_RT
                             .block_on(async {
                                 self.generate_report(
@@ -629,7 +633,7 @@ pub trait TemplateRenderer: Debug {
         let encrypted_temp_data: Option<TempPath> = if let Some(report) = &report {
             if report.encryption_policy == EReportEncryption::ConfiguredPassword {
                 let secret_key =
-                    get_report_secret_key(&tenant_id, &election_event_id, Some(report.id.clone()));
+                    get_report_secret_key(tenant_id, election_event_id, Some(report.id.clone()));
                 let encryption_password = vault::read_secret(
                     hasura_transaction,
                     tenant_id,
@@ -739,7 +743,7 @@ pub trait TemplateRenderer: Debug {
                         email_config.html_body,
                         vec![Attachment {
                             filename: final_report_name,
-                            mimetype: mimetype,
+                            mimetype,
                             content: final_file_bytes,
                         }],
                     )
@@ -771,7 +775,7 @@ pub trait TemplateRenderer: Debug {
                 generate_mode,
                 hasura_transaction,
                 keycloak_transaction,
-                &user_tpl_document,
+                user_tpl_document,
                 &mut None,
                 None,
             )
@@ -849,7 +853,7 @@ pub trait TemplateRenderer: Debug {
         tenant_id: &str,
         election_event_id: &str,
     ) -> Result<Vec<String>> {
-        if recipients.len() > 0 {
+        if !recipients.is_empty() {
             Ok(recipients) // If recipients are provided, use them
         } else {
             // Fetch email via voter_id if recipients are not provided

@@ -69,14 +69,14 @@ use tracing::{info, instrument};
 async fn update_election_event_sbei_users(
     hasura_transaction: &Transaction<'_>,
     election_event: &ElectionEvent,
-    sbei_users: &Vec<MiruSbeiUser>,
+    sbei_users: &[MiruSbeiUser],
     sbei_user: &MiruSbeiUser,
     certificate_fingerprint: &str,
 ) -> Result<()> {
     let mut new_sbei_users: Vec<_> = sbei_users
-        .clone()
-        .into_iter()
+        .iter()
         .filter(|user| !(user.username == sbei_user.username && user.miru_id == sbei_user.miru_id))
+        .cloned()
         .collect();
     let mut new_sbei_user = sbei_user.clone();
     new_sbei_user.certificate_fingerprint = Some(certificate_fingerprint.to_string());
@@ -108,7 +108,7 @@ async fn update_signatures(
     tenant_id: &str,
     election_event_id: &str,
     new_miru_signature: &MiruSignature,
-    current_miru_signatures: &Vec<MiruSignature>,
+    current_miru_signatures: &[MiruSignature],
 ) -> Result<(Vec<ACMTrustee>, Vec<MiruSignature>)> {
     let election_event =
         get_election_event_by_id(hasura_transaction, tenant_id, election_event_id).await?;
@@ -116,9 +116,9 @@ async fn update_signatures(
     let event_annotations = election_event.get_annotations()?;
 
     let mut new_miru_signatures: Vec<MiruSignature> = current_miru_signatures
-        .clone()
-        .into_iter()
+        .iter()
         .filter(|signature| signature.sbei_miru_id != new_miru_signature.sbei_miru_id)
+        .cloned()
         .collect();
     new_miru_signatures.push(new_miru_signature.clone());
 
@@ -242,13 +242,13 @@ pub fn create_server_signature(
             ecdsa_sign_data(&pk12_file_path_string, password, &temp_pem_file_string)?
         }
         _ => {
-            return Err(anyhow!("Unexpected p12 key {:?}", pk12_id));
+            return Err(anyhow!("Unexpected p12 key {pk12_id:?}"));
         }
     };
     Ok(MiruSignature {
         sbei_miru_id: sbei.miru_id.clone(),
         pub_key: public_key.to_string(),
-        signature: signature,
+        signature,
         certificate_fingerprint: certificate_fingerprint.to_string(),
     })
 }
@@ -301,10 +301,10 @@ pub async fn upload_transmission_package_signature_service(
     let election_annotations = election.get_annotations()?;
 
     // get area and annotations
-    let area = get_area_by_id(&hasura_transaction, tenant_id, &area_id)
+    let area = get_area_by_id(&hasura_transaction, tenant_id, area_id)
         .await
-        .with_context(|| format!("Error fetching area {}", area_id))?
-        .ok_or_else(|| anyhow!("Can't find area {}", area_id))?;
+        .with_context(|| format!("Error fetching area {area_id}"))?
+        .ok_or_else(|| anyhow!("Can't find area {area_id}"))?;
     let area_name = area.name.clone().unwrap_or("".into());
     let area_annotations = area.get_annotations()?;
 
@@ -321,9 +321,7 @@ pub async fn upload_transmission_package_signature_service(
 
     let Some(sbei_user) = sbei_user_opt else {
         return Err(anyhow!(
-            "SBEI user not found area '{}' and username '{}'",
-            area_name,
-            username
+            "SBEI user not found area '{area_name}' and username '{username}'"
         ));
     };
 
@@ -343,9 +341,11 @@ pub async fn upload_transmission_package_signature_service(
 
     let tally_annotations: Annotations = deserialize_value(tally_annotations_js)?;
 
-    let Some(transmission_area_election) = transmission_data.clone().into_iter().find(|data| {
-        data.area_id == area_id.to_string() && data.election_id == election_id.to_string()
-    }) else {
+    let Some(transmission_area_election) = transmission_data
+        .clone()
+        .into_iter()
+        .find(|data| data.area_id == area_id && data.election_id == election_id)
+    else {
         info!("transmission package not found, skipping");
         return Ok(());
     };
@@ -359,10 +359,10 @@ pub async fn upload_transmission_package_signature_service(
         &hasura_transaction,
         tenant_id,
         Some(election_event.id.clone()),
-        &document_id,
+        document_id,
     )
     .await?
-    .ok_or_else(|| anyhow!("Can't find document {}", document_id))?;
+    .ok_or_else(|| anyhow!("Can't find document {document_id}"))?;
     let mut private_key_temp_file =
         get_document_as_temp_file(tenant_id, &private_key_document).await?;
 
@@ -462,7 +462,7 @@ pub async fn upload_transmission_package_signature_service(
         &election_event.id,
         tenant_id,
         time_zone.clone(),
-        now_utc.clone(),
+        now_utc,
         new_acm_signatures,
         &new_transmission_package_data.logs,
         &election_annotations,

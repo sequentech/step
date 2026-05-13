@@ -31,7 +31,7 @@ pub async fn render_report_task(
 
     // render handlebars template
     let render = reports::render_template_text(input.template.as_str(), variables_map)
-        .map_err(|err| anyhow!("{}", err))?;
+        .map_err(|err| anyhow!("{err}"))?;
 
     // if output format is text/html, just return that
     if FormatType::TEXT == input.format {
@@ -39,7 +39,7 @@ pub async fn render_report_task(
             write_into_named_temp_file(&render.into_bytes(), "reports-", ".html")
                 .with_context(|| "Error writing to file")?;
         upload_and_return_document(
-            &hasura_transaction,
+            hasura_transaction,
             &temp_path_string,
             file_size,
             "text/plain",
@@ -59,7 +59,7 @@ pub async fn render_report_task(
                 .with_context(|| "Error writing to file")?;
 
         let _document = upload_and_return_document(
-            &hasura_transaction,
+            hasura_transaction,
             &temp_path_string,
             file_size,
             "application/pdf",

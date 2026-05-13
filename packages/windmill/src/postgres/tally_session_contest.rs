@@ -96,7 +96,7 @@ pub async fn insert_tally_session_contest(
 
     let statement = hasura_transaction
         .prepare(
-            r#"
+            r"
                 INSERT INTO
                     sequent_backend.tally_session_contest
                 (tenant_id, election_event_id, area_id, contest_id, session_id, tally_session_id, election_id)
@@ -111,7 +111,7 @@ pub async fn insert_tally_session_contest(
                 )
                 RETURNING
                     *;
-            "#,
+            ",
         )
         .await?;
     let rows: Vec<Row> = hasura_transaction
@@ -152,7 +152,7 @@ pub async fn get_tally_session_highest_batch(
 ) -> Result<BatchNumber> {
     let statement = hasura_transaction
         .prepare(
-            r#"
+            r"
                 SELECT
                     id, session_id
                 FROM
@@ -162,7 +162,7 @@ pub async fn get_tally_session_highest_batch(
                     election_event_id = $2
                 ORDER BY session_id DESC
                 LIMIT 1;
-            "#,
+            ",
         )
         .await?;
     let rows: Vec<Row> = hasura_transaction
@@ -174,7 +174,7 @@ pub async fn get_tally_session_highest_batch(
             ],
         )
         .await
-        .map_err(|err| anyhow!("Error inserting row: {}", err))?;
+        .map_err(|err| anyhow!("Error inserting row: {err}"))?;
 
     let values: Vec<BatchNumber> = rows
         .into_iter()
@@ -187,7 +187,9 @@ pub async fn get_tally_session_highest_batch(
     let Some(value) = values.first() else {
         return Ok(0);
     };
-    Ok(value + 1)
+    Ok(value
+        .checked_add(1)
+        .expect("tally session batch number overflow"))
 }
 
 #[instrument(skip(hasura_transaction), err)]
@@ -199,7 +201,7 @@ pub async fn get_tally_session_contests(
 ) -> Result<Vec<TallySessionContest>> {
     let statement = hasura_transaction
         .prepare(
-            r#"
+            r"
                 SELECT
                     id,
                     tenant_id,
@@ -219,7 +221,7 @@ pub async fn get_tally_session_contests(
                     tenant_id = $1 AND
                     election_event_id = $2 AND
                     tally_session_id = $3;
-            "#,
+            ",
         )
         .await?;
     let rows: Vec<Row> = hasura_transaction
@@ -232,7 +234,7 @@ pub async fn get_tally_session_contests(
             ],
         )
         .await
-        .map_err(|err| anyhow!("Error getting tally session contests rows: {}", err))?;
+        .map_err(|err| anyhow!("Error getting tally session contests rows: {err}"))?;
 
     let values: Vec<TallySessionContest> = rows
         .into_iter()
@@ -253,14 +255,14 @@ pub async fn get_event_tally_session_contest(
 ) -> Result<Vec<TallySessionContest>> {
     let statement = hasura_transaction
         .prepare(
-            r#"
+            r"
                 SELECT *
                 FROM
                     sequent_backend.tally_session_contest
                 WHERE
                     tenant_id = $1 AND
                     election_event_id = $2;
-            "#,
+            ",
         )
         .await?;
     let rows: Vec<Row> = hasura_transaction
@@ -272,7 +274,7 @@ pub async fn get_event_tally_session_contest(
             ],
         )
         .await
-        .map_err(|err| anyhow!("Error inserting row: {}", err))?;
+        .map_err(|err| anyhow!("Error inserting row: {err}"))?;
 
     let values: Vec<TallySessionContest> = rows
         .into_iter()
@@ -318,7 +320,7 @@ pub async fn insert_many_tally_session_contests(
                 election_event_id: parse_uuid_v4(&c.election_event_id)?,
                 area_id: parse_uuid_v4(&c.area_id)?,
                 contest_id: c.contest_id.map(|s| parse_uuid_v4(&s)).transpose()?,
-                session_id: c.session_id.clone(),
+                session_id: c.session_id,
                 created_at: c.created_at,
                 last_updated_at: c.last_updated_at,
                 labels: c.labels.clone(),
@@ -331,7 +333,7 @@ pub async fn insert_many_tally_session_contests(
 
     let json_data = serde_json::to_value(&insertable)?;
 
-    let sql = r#"
+    let sql = r"
         WITH data AS (
             SELECT * FROM jsonb_to_recordset($1::jsonb) AS t(
                 id UUID,
@@ -359,7 +361,7 @@ pub async fn insert_many_tally_session_contests(
             labels, annotations, tally_session_id, election_id
         FROM data
         RETURNING *;
-    "#;
+    ";
 
     let statement = hasura_transaction.prepare(sql).await?;
     let rows = hasura_transaction.query(&statement, &[&json_data]).await?;
