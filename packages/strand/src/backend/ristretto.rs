@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
+// SPDX-FileCopyrightText: 2022 David Ruescas <david@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 //! # Examples
@@ -27,7 +27,6 @@ use curve25519_dalek::constants::RISTRETTO_BASEPOINT_TABLE;
 use curve25519_dalek::ristretto::{CompressedRistretto, RistrettoPoint};
 use curve25519_dalek::scalar::Scalar;
 use curve25519_dalek::traits::Identity;
-use rand::RngCore;
 
 use crate::context::{Ctx, Element, Exponent, Plaintext};
 use crate::elgamal::Ciphertext;
@@ -36,6 +35,7 @@ use crate::rng::StrandRng;
 use crate::serialization::{StrandDeserialize, StrandSerialize};
 use crate::util;
 use crate::util::StrandError;
+use rand::Rng;
 
 #[derive(Eq, PartialEq, Clone, Debug, BorshSerialize, BorshDeserialize)]
 /// [Ristretto](https://ristretto.group/what_is_ristretto.html) implementation of a strand modular arithmetic context.
@@ -47,41 +47,6 @@ pub struct RistrettoPointS(pub(crate) RistrettoPoint);
 #[derive(PartialEq, Eq, Debug, Clone)]
 /// A ristretto [Scalar](https://docs.rs/curve25519-dalek/latest/curve25519_dalek/scalar/struct.Scalar.html) newtype.
 pub struct ScalarS(pub(crate) Scalar);
-
-cfg_if::cfg_if! {
-    if #[cfg(any(feature = "openssl_core", feature="openssl_full"))] {
-
-#[cfg(feature = "rayon")]
-use rayon::prelude::*;
-use crate::util::Par;
-
-impl RistrettoCtx {
-    fn generators_shake(
-        &self,
-        size: usize,
-        seed: &[u8],
-    ) -> Result<Vec<RistrettoPointS>, StrandError> {
-        let seed_ = seed.to_vec();
-
-        let reader = crate::hash::hash_xof(64 * size, &seed_)?;
-        let mut uniform_bytes = [0u8; 64];
-        let mut bytes = vec![];
-        for _ in 0..size {
-            let bytes_read = std::io::Read::read(&mut reader.as_slice(), &mut uniform_bytes)
-                .expect("impossible: we are reading from a byte slice, any out of bounds programming error should panic");
-            assert_eq!(bytes_read, 64);
-            bytes.push(uniform_bytes);
-        }
-
-        let ret: Vec<RistrettoPointS> = bytes.par().map(|b| {
-            let g = RistrettoPoint::from_uniform_bytes(&b);
-            RistrettoPointS(g)
-        }).collect();
-
-        Ok(ret)
-    }
-}
-} else {
 
 use crate::hash::{ExtendableOutput, Update, XofReader};
 
@@ -120,8 +85,6 @@ impl RistrettoCtx {
 
         Ok(ret)
     }
-}
-}
 }
 
 impl Ctx for RistrettoCtx {
@@ -188,7 +151,9 @@ impl Ctx for RistrettoCtx {
         ScalarS(Scalar::from_hash(hasher))*/
 
         let bytes = crate::hash::hash_to_array(bytes)?;
-        Ok(ScalarS(Scalar::from_bytes_mod_order_wide(&bytes)))
+        let scalar = Scalar::from_bytes_mod_order_wide(&bytes);
+        
+        Ok(ScalarS(scalar))
     }
     // see https://github.com/dalek-cryptography/curve25519-dalek/issues/322
     // see https://github.com/hdevalence/ristretto255-data-encoding/blob/master/src/main.rs
@@ -591,6 +556,116 @@ mod tests {
 
     #[cfg(not(feature = "wasm"))]
     #[test]
+    pub(crate) fn test_shuffle_with_perm_rng() {
+        use std::time::Instant;
+        use rand_chacha::{ChaCha12Rng, rand_core::SeedableRng};
+
+        use crate::shuffler::Shuffler;
+        
+        let ctx = &RistrettoCtx;
+        let mut csprng = ctx.get_rng();
+
+        let mut ps = vec![];
+        for _ in 0..1000 {
+            let mut fill = [0u8; 30];
+            csprng.fill_bytes(&mut fill);
+            let p = to_plaintext_array(&fill.to_vec());
+            ps.push(p);
+        }        
+        
+        let sk = PrivateKey::gen(ctx);
+        let pk = sk.get_pk();
+        println!("Computing ciphertexts..");
+        let es = ps.iter()
+            .map(|p| {
+                let encoded = ctx.encode(p).unwrap();
+                pk.encrypt(&encoded)
+            })
+            .collect::<Vec<_>>();
+        
+        let seed = vec![];
+        let now = Instant::now(); println!("* generators..");
+        let hs = ctx.generators(es.len() + 1, &seed).unwrap();
+        println!("* generators {}", now.elapsed().as_millis());
+        let shuffler = Shuffler {
+            pk: &pk,
+            ctx: (*ctx).clone(),
+        };
+
+        let beg = Instant::now();
+
+        let rng_seed = [0u8; 32];
+        let mut rng = ChaCha12Rng::from_seed(rng_seed);
+
+        let now = Instant::now(); println!("* gen shuffle..");
+        let (e_primes, rs, perm) = shuffler.gen_shuffle_with_perm_rng(&es, &mut rng);
+        println!("* gen shuffle {}", now.elapsed().as_millis());
+        let now = Instant::now();println!("* gen proof..");
+        let proof = shuffler.gen_proof(es.clone(), &e_primes, rs, hs.clone(), perm, &[]).unwrap();
+        println!("* gen proof {}", now.elapsed().as_millis());
+        let now = Instant::now(); println!("* check proof..");
+        let ok = shuffler.check_proof(&proof, es.clone(), e_primes.clone(), hs, &[]).unwrap();
+        assert!(ok);
+        println!("* check proof {}", now.elapsed().as_millis());
+
+        println!("All shuffle {}", beg.elapsed().as_millis());
+
+        let ds = e_primes.iter()
+            .map(|c| {
+                let decrypted = sk.decrypt(c);
+                ctx.decode(&decrypted)
+            })
+            .collect::<Vec<_>>();
+
+        assert_eq!(ds.len(), ps.len());
+        for d in &ds {
+            assert!(ps.contains(d));
+        }
+
+        let seed = vec![];
+        let now = Instant::now(); println!("* generators..");
+        let hs = ctx.generators(es.len() + 1, &seed).unwrap();
+        println!("* generators {}", now.elapsed().as_millis());
+        let shuffler = Shuffler {
+            pk: &pk,
+            ctx: (*ctx).clone(),
+        };
+
+        let beg = Instant::now();
+        let rng_seed = [0u8; 32];
+        let mut rng = ChaCha12Rng::from_seed(rng_seed);
+
+        let now = Instant::now(); println!("* gen shuffle..");
+        let (e_primes, rs, perm) = shuffler.gen_shuffle_with_perm_rng(&es, &mut rng);
+        println!("* gen shuffle {}", now.elapsed().as_millis());
+        let now = Instant::now();println!("* gen proof..");
+        let proof = shuffler.gen_proof(es.clone(), &e_primes, rs, hs.clone(), perm, &[]).unwrap();
+        println!("* gen proof {}", now.elapsed().as_millis());
+        let now = Instant::now(); println!("* check proof..");
+        let ok = shuffler.check_proof(&proof, es, e_primes.clone(), hs, &[]).unwrap();
+        println!("* check proof {}", now.elapsed().as_millis());
+
+        println!("All shuffle {}", beg.elapsed().as_millis());
+
+        let ds2 = e_primes.iter()
+            .map(|c| {
+                let decrypted = sk.decrypt(c);
+                ctx.decode(&decrypted)
+            })
+            .collect::<Vec<_>>();
+
+        assert_eq!(ds2.len(), ps.len());
+        for d in &ds2 {
+            assert!(ps.contains(d));
+        }
+
+        assert_eq!(ds, ds2);
+
+        assert!(ok);
+    }
+
+    #[cfg(not(feature = "wasm"))]
+    #[test]
     fn test_product_shuffle() {
         let ctx = RistrettoCtx;
         test_product_shuffle_generic(&ctx);
@@ -616,8 +691,8 @@ mod tests {
     fn test_threshold() {
         let mut csprng = StrandRng;
 
-        let trustees = rand::thread_rng().gen_range(2..11);
-        let threshold = rand::thread_rng().gen_range(2..trustees + 1);
+        let trustees = rand::rng().random_range(2..11);
+        let threshold = rand::rng().random_range(2..trustees + 1);
         let ctx = RistrettoCtx;
         let mut fill = [0u8; 30];
         csprng.fill_bytes(&mut fill);

@@ -5,16 +5,13 @@
 use crate::pipes::error::{Error, Result};
 use crate::pipes::pipe_inputs::{PipeInputs, BALLOTS_FILE};
 use crate::pipes::Pipe;
-use num_bigint::BigUint;
 use sequent_core::ballot::Contest;
-use sequent_core::ballot_codec::BigUIntCodec;
 use sequent_core::plaintext::DecodedVoteContest;
+use velvet_core::decode::{decode_ballots_from_reader, Error as DecodeError};
 
 use std::fs::{self, File};
-use std::io::BufRead;
 use std::path::Path;
 
-use std::str::FromStr;
 use tracing::{instrument, warn};
 
 use rayon::prelude::*;
@@ -39,30 +36,10 @@ impl DecodeBallots {
     fn decode_ballots(path: &Path, contest: &Contest) -> Result<Vec<DecodedVoteContest>> {
         let file = fs::File::open(path).map_err(|e| Error::FileAccess(path.to_path_buf(), e))?;
         let reader = std::io::BufReader::new(file);
-        let mut decoded_ballots: Vec<DecodedVoteContest> = vec![];
-
-        for line in reader.lines() {
-            let line = line?;
-
-            let plaintext = BigUint::from_str(&line);
-
-            if let Err(error) = &plaintext {
-                if error.to_string() == "cannot parse integer from empty string" {
-                    continue;
-                }
-            }
-
-            let plaintext =
-                plaintext.map_err(|_| Error::UnexpectedError("Wrong ballot format".into()))?;
-
-            let decoded_vote = contest
-                .decode_plaintext_contest_bigint(&plaintext)
-                .map_err(|_| Error::UnexpectedError("Wrong ballot format".into()))?;
-
-            decoded_ballots.push(decoded_vote);
-        }
-
-        Ok(decoded_ballots)
+        decode_ballots_from_reader(reader, contest).map_err(|e| match e {
+            DecodeError::Io(io) => Error::FileAccess(path.to_path_buf(), io),
+            other => Error::UnexpectedError(other.to_string()),
+        })
     }
 }
 

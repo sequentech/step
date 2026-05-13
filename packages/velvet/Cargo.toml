@@ -18,10 +18,20 @@ path = "src/main.rs"
 # Do not run lib tests twice
 test = false
 
+[features]
+default = []
+# When enabled, the end-to-end pipeline tests that exercise PDF rendering
+# via headless Chromium are marked `#[ignore]`. Useful on hosts where the
+# headless_chrome subprocess is flaky (e.g. Windows). Default keeps them
+# enabled so CI on Linux runs them.
+skip-pdf-tests = []
+
 [dependencies]
 clap = { version = "4.4", features = ["derive"] }
 rand = "0.9"
+rand_core = "0.9"
 sequent-core = { path="../sequent-core", features=["reports", "reports_sync", "log", "areas", "signatures", "sqlite", "default_features"] }
+velvet-core = { path="../workbench/velvet-core" }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 strum = { version = "0.27", features = ["strum_macros"] }

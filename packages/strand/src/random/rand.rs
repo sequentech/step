@@ -1,11 +1,12 @@
-// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
+// SPDX-FileCopyrightText: 2021 David Ruescas <david@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use rand::rngs::OsRng;
-use rand::CryptoRng;
-use rand::Error;
-use rand::RngCore;
+use core::convert::Infallible;
+
+use rand::rngs::SysRng;
+use rand::TryCryptoRng;
+use rand::TryRng;
 
 /// Single source of randomness used in strand.
 ///
@@ -19,30 +20,30 @@ use rand::RngCore;
 /// [Crypto.getRandomValues](https://www.w3.org/TR/WebCryptoAPI/#Crypto-method-getRandomValues) if [available](https://caniuse.com/getrandomvalues).
 pub struct StrandRng;
 
-impl CryptoRng for StrandRng {}
+impl TryCryptoRng for StrandRng {}
 
-impl RngCore for StrandRng {
+impl TryRng for StrandRng {
+    type Error = Infallible;
+
     #[inline(always)]
-    fn next_u32(&mut self) -> u32 {
-        OsRng.next_u32()
+    fn try_next_u32(&mut self) -> Result<u32, Self::Error> {
+        Ok(SysRng.try_next_u32().expect("Fixme"))
     }
 
     #[inline(always)]
-    fn next_u64(&mut self) -> u64 {
-        OsRng.next_u64()
+    fn try_next_u64(&mut self) -> Result<u64, Self::Error> {
+        Ok(SysRng.try_next_u64().expect("Fixme"))
     }
 
     #[inline(always)]
-    fn fill_bytes(&mut self, dest: &mut [u8]) {
-        OsRng.fill_bytes(dest)
-    }
-
-    #[inline(always)]
-    fn try_fill_bytes(&mut self, dest: &mut [u8]) -> Result<(), Error> {
-        OsRng.try_fill_bytes(dest)
+    fn try_fill_bytes(&mut self, dest: &mut [u8]) -> Result<(), Self::Error> {
+        SysRng.try_fill_bytes(dest).expect("Fixme");
+        Ok(())
     }
 }
 
 pub fn info() -> String {
     format!("{}, FIPS_ENABLED: FALSE", module_path!())
 }
+
+

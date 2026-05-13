@@ -2,20 +2,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-pub type Result<T, E = Error> = std::result::Result<T, E>;
-
-#[derive(Debug)]
-pub enum Error {
-    EmptyTallyResults,
-    InvalidTallyOperation(String),
-    CandidateNotFound(String),
-    UnexpectedError(String),
-}
-
-impl core::fmt::Display for Error {
-    fn fmt(&self, fmt: &mut core::fmt::Formatter) -> core::result::Result<(), core::fmt::Error> {
-        write!(fmt, "{self:?}")
-    }
-}
-
-impl std::error::Error for Error {}
+// The counting-algorithm error type lives in `velvet-core` so it can be
+// shared with WASM consumers (the workbench). Re-exported here to preserve
+// the existing `crate::pipes::do_tally::counting_algorithm::error::{Error,
+// Result}` import paths inside velvet.
+pub use velvet_core::counting::error::{Error, Result};

@@ -1,6 +1,6 @@
 use std::sync::{Arc, Mutex};
 
-// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
+// SPDX-FileCopyrightText: 2022 David Ruescas <david@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use thiserror::Error;
@@ -44,26 +44,19 @@ cfg_if::cfg_if! {
 pub enum StrandError {
     #[error("{0}")]
     Generic(String),
-    #[cfg(feature = "num_bigint")]
-    #[error("bigint parse error: {0}")]
-    ParseBigIntError(#[from] num_bigint::ParseBigIntError),
+    // #[cfg(feature = "num_bigint")]
+    // #[error("bigint parse error: {0}")]
+    // ParseBigIntError(#[from] num_bigint::ParseBigIntError),
     #[error("io error: {0}")]
     SerializationError(#[from] std::io::Error),
     #[error("decode error: {0}")]
     DecodingError(#[from] base64::DecodeError),
-    #[error("ecdsa error: {0}")]
-    EcdsaError(#[from] ecdsa::Error),
     #[error("chacha20poly1305 error: {0}")]
     Chacha20Error(chacha20poly1305::Error),
-    #[error("rcgen error: {0}")]
-    RCGenError(#[from] rcgen::Error),
-    #[error("x509_parser error: {0}")]
-    X509ParserError(
-        #[from] x509_parser::nom::Err<x509_parser::error::X509Error>,
-    ),
-    #[cfg(any(feature = "openssl_core", feature = "openssl_full"))]
-    #[error("openssl error: {0}")]
-    OpenSSLError(#[from] openssl::error::ErrorStack),
+    #[error("ed25519 error: {0}")]
+    Ed25519Error(#[from] ed25519_dalek::ed25519::Error),
+    #[error("Invalid symmetric key length: {0}")]
+    InvalidSymmetricKeyLength(String)
 }
 
 /// Converts a slice into a hash-sized array.
@@ -101,8 +94,8 @@ pub fn random_ciphertexts<C: Ctx>(n: usize, ctx: &C) -> Vec<Ciphertext<C>> {
         .collect()
 }
 
-cfg_if::cfg_if! {
-if #[cfg(not(feature = "wasm"))] {
+/*cfg_if::cfg_if! {
+if #[cfg(not(feature = "wasm"))] {*/
 use crate::shuffler_product::StrandRectangle;
 
 /// Fast generation of product ciphertexts using random group elements.
@@ -132,4 +125,4 @@ pub fn random_product_ciphertexts<C: Ctx>(
     StrandRectangle::new_unchecked(rows)
 }
 
-}}
+// }}

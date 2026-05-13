@@ -59,7 +59,7 @@ base64 = "0.22"
 # rust to json schema
 schemars = { version = "0.8", features = ["chrono"]}
 # strand
-strand = { path="../strand", features = ["num_bigint"], optional = true }
+strand = { path="../strand", optional = true }
 num-bigint = { version = "0.4", features = ["rand"], optional = true }
 num-traits = "0.2"
 quick-error = "2.0"
@@ -151,6 +151,3 @@ plugins_wit = ["dep:wasmtime", "dep:wasmtime-wasi"]
 default_features = ["dep:strand", "dep:num-bigint", "dep:tempfile", "dep:ammonia"]
 
 sqlite = ["dep:tokio", "dep:rusqlite"]
-
-[target.'cfg(target_arch = "wasm32")'.dependencies]
-ring = { version = "0.17", features = ["wasm32_unknown_unknown_js"] }

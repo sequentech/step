@@ -617,6 +617,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(feature = "skip-pdf-tests", ignore = "PDF rendering disabled via skip-pdf-tests feature")]
     fn test_pipes_exec() -> Result<()> {
         sequent_core::util::init_log::init_log(true);
 
@@ -696,6 +697,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(feature = "skip-pdf-tests", ignore = "PDF rendering disabled via skip-pdf-tests feature")]
     fn test_generate_reports_normal() -> Result<()> {
         let fixture = TestFixture::new()?;
 
@@ -734,6 +736,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(feature = "skip-pdf-tests", ignore = "PDF rendering disabled via skip-pdf-tests feature")]
     fn test_generate_reports_without_ballots() -> Result<()> {
         // sequent_core::util::init_log::init_log(true);
 
@@ -774,6 +777,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(feature = "skip-pdf-tests", ignore = "PDF rendering disabled via skip-pdf-tests feature")]
     fn test_results() -> Result<()> {
         let fixture = TestFixture::new()?;
 
@@ -1219,6 +1223,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(feature = "skip-pdf-tests", ignore = "PDF rendering disabled via skip-pdf-tests feature")]
     fn test_0_ballots() -> Result<()> {
         let fixture = TestFixture::new()?;
 
@@ -1325,6 +1330,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(feature = "skip-pdf-tests", ignore = "PDF rendering disabled via skip-pdf-tests feature")]
     fn test_blank_votes() -> Result<()> {
         let fixture = TestFixture::new()?;
 
@@ -1481,6 +1487,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(feature = "skip-pdf-tests", ignore = "PDF rendering disabled via skip-pdf-tests feature")]
     fn test_blank_votes_implicit_invalid() -> Result<()> {
         let fixture = TestFixture::new()?;
 
@@ -1642,6 +1649,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(feature = "skip-pdf-tests", ignore = "PDF rendering disabled via skip-pdf-tests feature")]
     fn test_hierarchical_area_aggregation() -> Result<()> {
         // Step 1: Creating Election event, election, contest, 2 areas with
         // parent-child relation and connect contest to parent area

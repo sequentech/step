@@ -4,7 +4,7 @@
 
 use crate::config::ballot_images_config::PipeConfigBallotImages;
 use crate::pipes::decode_ballots::OUTPUT_DECODED_BALLOTS_FILE;
-use crate::pipes::do_tally::tally::Tally;
+use crate::pipes::do_tally::tally::tally_from_files;
 use crate::pipes::error::{Error, Result};
 use crate::pipes::pipe_inputs::{InputElectionConfig, PipeInputs};
 use crate::pipes::pipe_name::{PipeName, PipeNameOutputDir};
@@ -55,7 +55,7 @@ impl BallotImages {
         pipe_config: &PipeConfigBallotImages,
         area_name: &str,
     ) -> Result<(Option<Vec<u8>>, Vec<u8>)> {
-        let tally = Tally::new(
+        let tally = tally_from_files(
             contest,
             ScopeOperation::Area(TallyOperation::ProcessBallotsAll), // TODO: Fix this
             vec![(path.to_path_buf(), Weight::default())],

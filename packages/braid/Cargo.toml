@@ -79,7 +79,4 @@ crate-type = ["cdylib", "rlib"]
 
 [features]
 # wasm = ["dep:wasm-bindgen", "dep:wasm-bindgen-rayon", "dep:tracing-wasm", "instant/wasm-bindgen"]
-fips_core = ["strand/fips_core"]
-fips_full = ["strand/fips_full"]
-rug = ["strand/rug"]
 jemalloc = ["dep:tikv-jemalloc-ctl", "dep:tikv-jemallocator"]

@@ -1,5 +1,5 @@
 #![allow(clippy::type_complexity)]
-// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
+// SPDX-FileCopyrightText: 2021 David Ruescas <david@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 //! # Examples
@@ -32,6 +32,7 @@
 //! ```
 
 use borsh::{BorshDeserialize, BorshSerialize};
+use rand::{CryptoRng, Rng};
 use rand::seq::SliceRandom;
 #[cfg(feature = "rayon")]
 use rayon::prelude::*;
@@ -131,6 +132,17 @@ impl<'a, C: Ctx> Shuffler<'a, C> {
         (result, rs, perm)
     }
 
+    pub fn gen_shuffle_with_perm_rng<R: Rng + CryptoRng>(
+        &self,
+        ciphertexts: &[Ciphertext<C>],
+        rng: &mut R,
+    ) -> (Vec<Ciphertext<C>>, Vec<C::X>, Vec<usize>) {
+        let perm: Vec<usize> = gen_permutation_with_rng(rng, ciphertexts.len());
+
+        let (result, rs) = self.apply_permutation(&perm, ciphertexts);
+        (result, rs, perm)
+    }
+
     pub(crate) fn apply_permutation(
         &self,
         perm: &[usize],
@@ -180,6 +192,7 @@ impl<'a, C: Ctx> Shuffler<'a, C> {
         perm: Vec<usize>,
         label: &[u8],
     ) -> Result<ShuffleProof<C>, StrandError> {
+        
         // let now = Instant::now(); println!("gen_commitments..");
         let (cs, rs) = self.gen_commitments(&perm, &generators, &self.ctx);
         // println!("gen_commitments {}", now.elapsed().as_millis());
@@ -690,9 +703,10 @@ impl<'a, C: Ctx> Shuffler<'a, C> {
         let us: Result<Vec<C::X>, StrandError> = (0..n)
             .par()
             .map(|i| {
+                let i_u64 = i as u64;
                 let next = [
                     ("prefix", &prefix_hash[0..]),
-                    ("counter", &i.to_le_bytes()[0..]),
+                    ("counter", &i_u64.to_le_bytes()[0..]),
                 ];
                 /*let next = ChallengeInput::from_bytes(vec![
                     ("prefix", prefix_hash.clone()),
@@ -756,6 +770,13 @@ pub(crate) fn gen_permutation(size: usize) -> Vec<usize> {
 
     let mut ret: Vec<usize> = (0..size).collect();
     ret.shuffle(&mut rng);
+
+    ret
+}
+
+pub(crate) fn gen_permutation_with_rng<R: Rng + CryptoRng>(rng: &mut R, size: usize) -> Vec<usize> {
+    let mut ret: Vec<usize> = (0..size).collect();
+    ret.shuffle(rng);
 
     ret
 }

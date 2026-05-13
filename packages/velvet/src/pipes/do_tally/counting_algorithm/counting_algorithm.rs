@@ -2,9 +2,9 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-pub use super::error::{Error, Result};
-use crate::pipes::do_tally::ContestResult;
+//! Re-exports of the counting-algorithm trait and error type now defined
+//! in `velvet-core`. Kept here so existing in-crate import paths
+//! (`crate::pipes::do_tally::counting_algorithm::*`) continue to work.
 
-pub trait CountingAlgorithm {
-    fn tally(&self) -> Result<ContestResult>;
-}
+pub use super::error::{Error, Result};
+pub use velvet_core::counting::CountingAlgorithm;

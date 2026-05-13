@@ -1,4 +1,6 @@
-# SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
+# SPDX-FileCopyrightText: 2021 David Ruescas <david@sequentech.io>
+# SPDX-FileCopyrightText: 2022 Félix Robles <felix@sequentech.io>
+# SPDX-FileCopyrightText: 2022 Eduardo Robles <edu@sequentech.io>
 #
 # SPDX-License-Identifier: AGPL-3.0-only
 [package]
@@ -19,45 +21,35 @@ bench = false
 rayon = ["dep:rayon"]
 wasmrayon = ["rayon", "wasm", "dep:wasm-bindgen-rayon"]
 wasmtest = ["wasm", "dep:web-sys"]
-wasm = ["wasm-bindgen", "serde-wasm-bindgen", "num_bigint", "getrandom/js"]
-num_bigint = ["dep:num-bigint", "dep:num-traits", "dep:num-integer", "dep:num-modular"]
-malachite = ["dep:malachite"]
-openssl_core = ["dep:openssl", "dep:rand_core"]
-openssl_full = ["dep:openssl", "dep:rand_core"]
-fips_core = ["openssl_core"]
-fips_full = ["openssl_full"]
-rustcrypto_interop_test = []
+wasm = ["dep:wasm-bindgen", "dep:serde-wasm-bindgen", "dep:web-sys"]
+# num_bigint = ["dep:num-bigint", "dep:num-traits", "dep:num-integer", "dep:num-modular"]
+# malachite = ["dep:malachite"]
 
 [dependencies]
 
 # Backends
 # See https://docs.rs/curve25519-dalek/latest/curve25519_dalek/#simd-backend to select simd backend
-curve25519-dalek = { version = "=4.1", features = [] } # Depends on digest 10.0 which is stuck at getrandom-0.2.15
+curve25519-dalek = { version = "=5.0.0-pre.6", features = ["precomputed-tables", "digest"] }
 num-bigint = { version = "0.4", features = ["rand"], optional = true }
 num-traits = { version = "0.2", optional = true }
 num-integer = { version = "0.1", optional = true }
 num-modular = { version = "=0.5", features = ["num-bigint"], optional = true } # Pinned to avoid compile errors at the moment
 malachite = { version = "0.6", default-features = false, features = ["naturals_and_integers"], optional = true }
-rug = { version = "~1.23", default-features = false, features = ["integer", "rand"], optional = true }
 
 # Signatures
-ed25519-dalek = { version = "=2.1", features = ["rand_core", "pkcs8"] }
-ecdsa = {version = "0.16", features = ["signing"] }
-p384 = "0.13"
-
-# certificates
-x509-parser = "0.18.0"
-rcgen = {version = "0.14", features = ["x509-parser"] }
-rustls-pki-types = "=1.13.0"
+ed25519-dalek = { version = "=3.0.0-pre.7", features = ["rand_core", "pkcs8", "alloc"] }
 
 # symmetric
-chacha20poly1305 = "0.10"
-generic-array = "=0.14"
+chacha20poly1305 = {version = "0.11.0-rc.3", features=["getrandom"] }
+aead = { version = "0.6.0-rc.10", features=["rand_core"] }
 
 # Hashing
-sha2 = "0.10"
+sha2 = "0.11"
 # Needed for extendable hashing function when deriving generators for ristretto
-sha3 = "0.10"
+sha3 = "0.11"
+# sha2 = "0.10.7"
+# Needed for extendable hashing function when deriving generators for ristretto
+# sha3 = "0.10"
 
 # Serialization
 # borsh = "0.9.3"
@@ -65,22 +57,17 @@ borsh = { version = "1.5", features = ["derive"] }
 base64 = "0.22.1"
 
 # RNG
-rand = { package="rand", version = "=0.8" } # 0.9 will break because uses getrandom v0.3.2 which requires config flag changes for wasm32-unknown-unknown targets
-rand_core = { version = "0.9", optional = true }
-getrandom = { version = "=0.2", optional = true } # curve25519-dalek depends on digest v10.0 which is stuck at getrandom-0.2.15
+rand = { package="rand", version = "=0.10" }
+rand_core = { version = "0.10", optional = true }
+getrandom = { version = "=0.4.2", features = ["wasm_js"] } # Enable wasm_js feature for WASM support
+rand_chacha = "0.9"
 
 # WASM
 # Note: Using specific version of wasm-bindgen to match Nix version
 wasm-bindgen-rayon = {version = "1.3", features = ["no-bundler"], optional = true}
 wasm-bindgen = {version = "=0.2.100", optional = true}
 serde-wasm-bindgen = {version = "0.6", optional = true}
-web-sys = { version = "0.3", features = ['Performance'], optional = true }
-
-# RNG, ecdsa, sha512, shake256, aes-gcm
-# OpenSSL needs to be configured to operate in FIPS mode
-# https://github.com/sfackler/rust-openssl/issues/1924
-# https://www.openssl.org/docs/man3.0/man7/fips_module.html
-openssl = { version = "0.10", optional = true }
+web-sys = { version = "0.3", features = ['Performance', 'console'], optional = true }
 
 rayon = { version = "1.5", optional = true }
 cfg-if = "1.0"

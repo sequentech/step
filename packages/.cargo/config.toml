@@ -3,3 +3,10 @@
 # Due to https://github.com/rust-headless-chrome/rust-headless-chrome/issues/535.
 # Use the exact version 0.4.4 as published to crates.io (https://github.com/mdrokz/auto_generate_cdp/commit/634e636fd8edbe032d7191326527c721a2b51106)
 auto_generate_cdp = { git = 'https://github.com/mdrokz/auto_generate_cdp', rev = '634e636fd8edbe032d7191326527c721a2b51106' }
+
+# Required by getrandom >= 0.3 when targeting wasm32-unknown-unknown.
+# Consumed by `packages/workbench/velvet-core` (via `rand`) so the tally
+# algorithms can run in-browser. This rustflag only applies to wasm builds
+# and has no effect on native targets.
+[target.wasm32-unknown-unknown]
+rustflags = ['--cfg', 'getrandom_backend="wasm_js"']
