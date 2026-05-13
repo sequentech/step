@@ -125,30 +125,42 @@ Every voting-portal screen relies on a chain of React Context providers.
 Production wires them in `voting-portal/src/index.tsx`. The workbench wires
 the *minimum* subset needed for the screen under test, in the same order.
 
-Currently mounted in `BoothLayout`:
+Currently mounted in `BoothLayout` (in the order they wrap children, outermost first):
 
 1. `<ThemeProvider>` from `@mui/material`, with `theme` from
    `@sequentech/ui-essentials`. **Required** — MUI components throw without it.
 2. `<ReduxProvider store={...}>` reusing the **production `store`** from
    `voting-portal/src/store/store`. This is deliberate: same reducers,
    same selectors, same shape. Diverging would defeat the lift.
-3. `<WasmWrapper>` from `voting-portal/src/providers/WasmWrapper`. Lifted
+3. `<SettingsWrapper>` from `voting-portal/src/providers/SettingsContextProvider`.
+   Lifted as-is. It fetches `/global-settings.json` (served from
+   `app/public/`) and gates children behind a `<Loader />` until the
+   fetch resolves. **Required** because the SettingsContext **default**
+   ships with `DISABLE_AUTH: false` and `HASURA_URL: "http://localhost:8080/v1/graphql"`,
+   so any screen that reads `globalSettings` before settings load would
+   see production-pointing defaults and (for ReviewScreen) fire the
+   `GET_ELECTIONS` query against a real Hasura URL.
+4. `<ApolloProvider client={apolloClient}>` from `@apollo/client/react`,
+   with a workbench-local `ApolloClient` whose link is `ApolloLink.empty()`
+   (the observable completes with no data). **Required** by ReviewScreen
+   (it calls `useMutation(INSERT_CAST_VOTE)` and `useQuery(GET_ELECTIONS)`).
+   With `DISABLE_AUTH: true` the query is skipped; the mutation only
+   fires on the *Cast your ballot* click, at which point we'll either
+   replace this with a mocked link or let it fail visibly. We deliberately
+   do **not** use `MockedProvider` from `@apollo/client/testing`: it
+   requires pre-declared mocks for every operation and throws on misses,
+   which is the wrong default for an exploratory workbench. The empty
+   link defers per-operation mocks to when each screen demands them.
+5. `<WasmWrapper>` from `voting-portal/src/providers/WasmWrapper`. Lifted
    as-is from the portal: it mounts `<WasmContextProvider>` (from ui-core)
    and gates children behind a `<Loader />` until `initCore()` resolves.
    Required by every screen that calls into ui-core wasm helpers (e.g.
    `check_voting_not_allowed_next_bool` in VotingScreen, all crypto in
    ReviewScreen).
-4. `<Outlet />` from react-router for the data-router child routes.
+6. `<Outlet />` from react-router for the data-router child routes.
 
 **Providers _not_ yet mounted** (and the screens that will demand them):
 
-- `<ApolloProvider>` — needed once a screen issues a `useQuery`. Plan:
-  use `@apollo/client/testing`'s `MockedProvider` with hand-rolled
-  responses, *not* a live client.
-- `<SettingsContextProvider>` — needed if a screen reads
-  `useContext(SettingsContext)` (currently the global-settings.json fetch
-  happens at the top of `voting-portal/src/index.tsx`, which we don't
-  mount). Plan: lift this provider on its own.
 - `<AuthContextProvider>` is **not** mounted; `useContext(AuthContext)`
   returns the module-level `defaultAuthContextValues` (with `logout: () => {}`,
   `isAuthenticated: false`, `hasRole: () => false`, ...), which is enough
@@ -353,21 +365,27 @@ next-step categories of work (in roughly the order they will be needed):
 2. **Initialize `ballotSelections` from the fixture, not only from
    StartScreen.** ✅ Done — `seedBoothFixtures()` dispatches
    `resetBallotSelection`. See section F.
-3. **Mounting `<ApolloProvider>` with a `MockedProvider`.** Required by
-   ReviewScreen (it imports `useApolloClient`/`useMutation` via
-   `useTryInsertCastVote`). The error surfaces as *"Could not find 'client'
-   in the context… Wrap the root component in an <ApolloProvider>"*. Plan:
-   use `@apollo/client/testing`'s `MockedProvider` with hand-rolled
-   responses keyed by the `gql` documents the portal already imports —
-   don't redefine the gql.
-4. **Translation key fidelity.** Once a screen renders, missing
+3. **Mounting `<ApolloProvider>`.** ✅ Done. The workbench mounts an
+   `ApolloProvider` with a client whose link is `ApolloLink.empty()`, so
+   `useQuery`/`useMutation` are satisfied at context level but no network
+   call is ever made. See section D, layer 4.
+4. **Mocking specific GraphQL operations.** When a screen requires real
+   results (rather than `data: undefined`), swap the empty link for a
+   small `ApolloLink` that pattern-matches on the operation name and
+   returns fixture data. The first operation that will demand this is
+   `INSERT_CAST_VOTE` (fires when the user clicks *Cast your ballot* on
+   ReviewScreen — currently the click triggers a silent error from the
+   empty link and ConfirmationScreen never mounts). Keep mocks
+   per-operation in a `fixtures/gql/` directory so they stay close to
+   the fixtures that seed Redux.
+5. **Translation key fidelity.** Once a screen renders, missing
    translations show as raw keys (`booth.start.title`). Decide between
    shipping a copy of the portal's locales as a static asset and silencing
    the warnings.
-5. **Apollo mocks vs. a fake transport.** If many screens are lifted at
+6. **Apollo mocks vs. a fake transport.** If many screens are lifted at
    once, a shared in-memory schema (with `@graphql-tools/mock`) may scale
    better than per-test mocks. Decision deferred until pain is felt.
-6. **Extending the fixture.** As later screens consume more of the store
+7. **Extending the fixture.** As later screens consume more of the store
    (cast votes, audit data, etc.), `boothFixtures.ts` grows. Keep it a
    single module per screen group rather than one fixture file per slice
    — easier to keep coherent across slice boundaries.

@@ -10,6 +10,8 @@
 
 import {ThemeProvider} from "@mui/material"
 import {theme} from "@sequentech/ui-essentials"
+import {ApolloClient, ApolloLink, InMemoryCache} from "@apollo/client"
+import {ApolloProvider} from "@apollo/client/react"
 import {Provider as ReduxProvider} from "react-redux"
 import type {RouteObject} from "react-router-dom"
 import {Outlet} from "react-router-dom"
@@ -19,6 +21,7 @@ import "voting-portal/src/services/i18n"
 
 import {store} from "voting-portal/src/store/store"
 import {WasmWrapper} from "voting-portal/src/providers/WasmWrapper"
+import {SettingsWrapper} from "voting-portal/src/providers/SettingsContextProvider"
 import StartScreen from "voting-portal/src/routes/StartScreen"
 import VotingScreen, {
     action as votingAction,
@@ -53,20 +56,54 @@ if (typeof window !== "undefined") {
 }
 
 /**
- * Layout for every booth screen. Provides the MUI theme, the production
- * Redux store (already populated by `seedBoothFixtures()`), and the
- * portal's `WasmWrapper` (which initializes the sequent-core wasm module
- * before rendering children). Designed to be mounted as a layout route
- * under a data router so the portal's `useSubmit` / `useActionData` calls
- * work.
+ * Workbench Apollo client. We never want a live GraphQL endpoint here, so
+ * the link is `ApolloLink.empty()` — observables complete with no data,
+ * which yields `{ data: undefined, loading: true }` for any `useQuery`.
+ * Production `ReviewScreen.GET_ELECTIONS` runs with `skip: DISABLE_AUTH`
+ * so it never actually fires; `INSERT_CAST_VOTE` only fires when the user
+ * clicks Cast — at which point we'll either replace this with a mocked
+ * link or let it fail visibly at the network boundary.
+ *
+ * Why not `MockedProvider` from `@apollo/client/testing`: it requires
+ * pre-declared mocks for every operation and throws on misses, which is
+ * the wrong default for an exploratory workbench. The empty link defers
+ * the decision to per-operation mocks added when each screen demands them.
+ */
+const apolloClient = new ApolloClient({
+    link: ApolloLink.empty(),
+    cache: new InMemoryCache(),
+})
+
+/**
+ * Layout for every booth screen. Provides, in the exact order the portal
+ * itself wires them in `voting-portal/src/index.tsx`:
+ *   1. MUI ThemeProvider (theme from ui-essentials)
+ *   2. Redux store (the portal's production store, seeded by
+ *      `seedBoothFixtures()`)
+ *   3. SettingsContextProvider — fetches `/global-settings.json` (served
+ *      from `public/`) so `globalSettings.DISABLE_AUTH` is `true` by the
+ *      time screens read it. Without this, the default DISABLE_AUTH=false
+ *      makes ReviewScreen's GET_ELECTIONS query fire against
+ *      `http://localhost:8080/v1/graphql` and the auth-gated paths trip.
+ *   4. ApolloProvider with the workbench's empty-link client. Required
+ *      by any screen using `useQuery` / `useMutation` (e.g. ReviewScreen).
+ *   5. WasmWrapper — initializes the sequent-core wasm module before
+ *      rendering children. Required by every screen that calls into
+ *      ui-core wasm helpers.
+ * Designed to be mounted as a layout route under a data router so the
+ * portal's `useSubmit` / `useActionData` calls work.
  */
 export function BoothLayout() {
     return (
         <ThemeProvider theme={theme}>
             <ReduxProvider store={store}>
-                <WasmWrapper>
-                    <Outlet />
-                </WasmWrapper>
+                <SettingsWrapper>
+                    <ApolloProvider client={apolloClient}>
+                        <WasmWrapper>
+                            <Outlet />
+                        </WasmWrapper>
+                    </ApolloProvider>
+                </SettingsWrapper>
             </ReduxProvider>
         </ThemeProvider>
     )
