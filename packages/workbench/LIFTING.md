@@ -125,14 +125,24 @@ Every voting-portal screen relies on a chain of React Context providers.
 Production wires them in `voting-portal/src/index.tsx`. The workbench wires
 the *minimum* subset needed for the screen under test, in the same order.
 
-Currently mounted in `BoothLayout` (in the order they wrap children, outermost first):
+Currently mounted:
+
+**`Shell`** (in `app/src/main.tsx`, wraps every workbench page including
+the workbench-native `/tally` view), outermost first:
+
+1. `<ReduxProvider store={...}>` reusing the **production `store`** from
+   `voting-portal/src/store/store`. This is deliberate: same reducers,
+   same selectors, same shape. Diverging would defeat the lift. Hoisted
+   to `Shell` so the workbench's own pages (e.g. `/tally`) read the same
+   store the booth writes to. Production also wraps Redux outside its
+   routes in `voting-portal/src/index.tsx`, so the layering matches.
+
+**`BoothLayout`** (mounted under `Shell` for booth routes only),
+outermost first:
 
 1. `<ThemeProvider>` from `@mui/material`, with `theme` from
    `@sequentech/ui-essentials`. **Required** — MUI components throw without it.
-2. `<ReduxProvider store={...}>` reusing the **production `store`** from
-   `voting-portal/src/store/store`. This is deliberate: same reducers,
-   same selectors, same shape. Diverging would defeat the lift.
-3. `<SettingsWrapper>` from `voting-portal/src/providers/SettingsContextProvider`.
+2. `<SettingsWrapper>` from `voting-portal/src/providers/SettingsContextProvider`.
    Lifted as-is. It fetches `/global-settings.json` (served from
    `app/public/`) and gates children behind a `<Loader />` until the
    fetch resolves. **Required** because the SettingsContext **default**
@@ -140,7 +150,7 @@ Currently mounted in `BoothLayout` (in the order they wrap children, outermost f
    so any screen that reads `globalSettings` before settings load would
    see production-pointing defaults and (for ReviewScreen) fire the
    `GET_ELECTIONS` query against a real Hasura URL.
-4. `<ApolloProvider client={apolloClient}>` from `@apollo/client/react`,
+3. `<ApolloProvider client={apolloClient}>` from `@apollo/client/react`,
    with a workbench-local `ApolloClient` whose link is `ApolloLink.empty()`
    (the observable completes with no data). **Required** by ReviewScreen
    (it calls `useMutation(INSERT_CAST_VOTE)` and `useQuery(GET_ELECTIONS)`)
@@ -159,13 +169,13 @@ Currently mounted in `BoothLayout` (in the order they wrap children, outermost f
    exploratory workbench. When a screen lifted later needs real GraphQL
    results, swap the empty link for a small pattern-matching `ApolloLink`
    under `fixtures/gql/`.
-5. `<WasmWrapper>` from `voting-portal/src/providers/WasmWrapper`. Lifted
+4. `<WasmWrapper>` from `voting-portal/src/providers/WasmWrapper`. Lifted
    as-is from the portal: it mounts `<WasmContextProvider>` (from ui-core)
    and gates children behind a `<Loader />` until `initCore()` resolves.
    Required by every screen that calls into ui-core wasm helpers (e.g.
    `check_voting_not_allowed_next_bool` in VotingScreen, all crypto in
    ReviewScreen).
-6. `<Outlet />` from react-router for the data-router child routes.
+5. `<Outlet />` from react-router for the data-router child routes.
 
 **Providers _not_ yet mounted** (and the screens that will demand them):
 
@@ -335,7 +345,105 @@ the original dispatch), so if it ever stops working, just verify the
 order of operations in `BoothSpike.tsx` puts the patch BEFORE the first
 component render.
 
-### H. Source code under `voting-portal/src/` — UNCHANGED
+### H. Persistence + the auto-resume snapshot (`app/src/persistence.ts`)
+
+The workbench mirrors the entire voting-portal Redux state to
+`localStorage` on every dispatch and rehydrates from it on boot. The
+result: cast a ballot, close the tab, reopen tomorrow — the ballot is
+still cast.
+
+This is the foundational layer the user-facing "save / load named
+checkpoint" UI will sit on top of. There are three storage tiers, all
+sharing the same JSON shape (`PersistedSnapshot = { version: "v1",
+state: RootState }`):
+
+| Tier | Trigger | Storage key | Lifetime | Mutability |
+|---|---|---|---|---|
+| Auto-resume slot | Every Redux dispatch | `localStorage["workbench:state:v1"]` | Until reset / wiped | Constantly overwritten |
+| Named checkpoint *(future)* | User clicks "Save snapshot" | `localStorage["workbench:snapshot:<name>"]` | Until deleted | Frozen at save time |
+| Bundled fixture snapshot *(future)* | Author wrote it | `app/src/fixtures/snapshots/*.json` | Forever (in git) | Read-only at runtime |
+
+Currently only the auto-resume slot is implemented. Named checkpoints
+and bundled snapshots reuse the exact same load/save plumbing.
+
+**How rehydration works.** `hydrateFromSnapshot(store, snapshot)`
+dispatches the portal's own `setX` action creators per persisted entity
+(`setElection`, `setBallotStyle`, `setElectionEvent`,
+`setBallotSelection`, `addCastVotes`, `setBypassChooser`, `setIsVoted`).
+Order matters: `ballotStyles` must precede `ballotSelections` because
+`setBallotSelection` is a no-op when its election entry is absent — the
+hydration code first issues `resetBallotSelection({ballotStyle, force:
+true})` to create the slot, then `setBallotSelection({ballotStyle,
+ballotSelection})` to populate it.
+
+**Why dispatch action creators rather than wholesale-replace state.**
+We MUST NOT modify `voting-portal/src/store/store.ts`, so we cannot
+inject a `preloadedState` into `configureStore` after the fact. Calling
+the slice's own action creators per entity has a useful side effect: if
+the portal renames an action or changes a payload, this file fails to
+type-check at the dispatch site, telling us exactly what to update.
+That is the same canary discipline as the Redux fixtures (section F).
+
+**Slices we currently rehydrate**: `elections`, `electionEvent`,
+`ballotStyles`, `ballotSelections`, `castVotes`, `extra` (only
+`bypassChooser` and `isVoted`).
+
+**Slices we deliberately skip**: `supportMaterials`, `documents`,
+`auditableBallots`, `confirmationScreenData`. They will simply be empty
+after a reload; the screens that consume them have not yet been lifted,
+so nothing visible regresses. When one of those screens is lifted, add
+its slice to `hydrateFromSnapshot` (and update the canary table below).
+
+**Boot sequence in `BoothSpike.tsx`** (module-eval order matters):
+
+1. `loadPersistedSnapshot()` — reads `localStorage`, returns `null` on
+   first run, schema mismatch, or parse failure.
+2. If a snapshot exists → `hydrateFromSnapshot(store, snapshot)`. Else
+   → `seedBoothFixtures()` (bootstraps the bundled minimum fixture).
+3. `installPersistence(store)` — subscribes to the store; **after**
+   step 2, so we never persist an in-progress hydration.
+
+Hydration internally toggles a `suspendWrites` flag so that the
+many small dispatches it issues don't each trigger a full snapshot
+write — only the post-hydration state hits `localStorage`.
+
+**Schema versioning.** Snapshots tag themselves with `version: "v1"` and
+the storage key carries the same suffix. When the persisted shape
+becomes incompatible (e.g. voting-portal removes a slice we relied on),
+bump the suffix in `PERSISTENCE_KEY` *and* the literal in
+`PersistedSnapshot.version`. Old data is then silently ignored at boot
+and the user gets a fresh fixture instead of a crash.
+
+**Reset paths.** Two equivalent ways to wipe the persisted state:
+
+- Click the **Reset workbench state** button in the workbench nav
+  (added in `main.tsx`).
+- From the browser console: `__resetWorkbench()` (a global installed
+  alongside `__store` and `__dispatchLog` in `BoothSpike.tsx`).
+
+Both call `clearPersistedSnapshot()` and reload the page; on next boot,
+`loadPersistedSnapshot()` returns `null` and the bundled fixture
+re-seeds.
+
+**Canary if portal changes:**
+
+- New slice added that booth screens consume → after a reload,
+  affected screens show empty / spinner state. Add the slice to
+  `hydrateFromSnapshot` and bump the `PERSISTENCE_KEY` suffix so
+  pre-existing snapshots are discarded rather than partially applied.
+- An existing `setX` action creator changes its payload shape → TS
+  error in `persistence.ts` at the dispatch site.
+- A slice's `RootState` field renames → TS error at the iteration over
+  `state.<name>`.
+
+**Cross-cutting note: where the booth must live now.** Because the
+ReduxProvider was hoisted out of `BoothLayout` and into `Shell` (so the
+workbench's own `/tally` page can read the same store), every workbench
+page now sees the same Redux state. The booth screens themselves are
+unaffected — the layering matches `voting-portal/src/index.tsx`, which
+also wraps Redux outside its routes.
+
+### I. Source code under `voting-portal/src/` — UNCHANGED
 *outside* the portal source tree. If you ever feel tempted to edit a portal
 file to make the workbench work:
 
@@ -344,7 +452,7 @@ file to make the workbench work:
 3. Try one of: `resolve.alias`, `define`, a new provider, a fixture seed,
    a substitute deep-import path. One of these almost always works.
 4. If you genuinely cannot avoid a portal-source change, document it here
-   under a new section "I. Concessions" with the exact diff and the reason
+   under a new section "J. Concessions" with the exact diff and the reason
    it was unavoidable. Reviews of refresh PRs will then verify that the
    concession is still needed.
 

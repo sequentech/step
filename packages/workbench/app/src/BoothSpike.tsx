@@ -12,7 +12,6 @@ import {ThemeProvider} from "@mui/material"
 import {theme} from "@sequentech/ui-essentials"
 import {ApolloClient, ApolloLink, InMemoryCache} from "@apollo/client"
 import {ApolloProvider} from "@apollo/client/react"
-import {Provider as ReduxProvider} from "react-redux"
 import type {RouteObject} from "react-router-dom"
 import {Outlet} from "react-router-dom"
 
@@ -32,10 +31,27 @@ import ReviewScreen, {
 } from "voting-portal/src/routes/ReviewScreen"
 import ConfirmationScreen from "voting-portal/src/routes/ConfirmationScreen"
 import {seedBoothFixtures} from "./fixtures/boothFixtures"
+import {
+    clearPersistedSnapshot,
+    hydrateFromSnapshot,
+    installPersistence,
+    loadPersistedSnapshot,
+} from "./persistence"
 
-// Seed once at module-eval time so the fixture is in place before any
-// selector fires (StartScreen redirects on a missing election).
-seedBoothFixtures()
+// On boot, prefer the persisted snapshot over the bundled fixture: that
+// is what gives us "close the tab, reopen, ballot is still cast".
+// Falling back to `seedBoothFixtures()` only on first run (or after a
+// `clearPersistedSnapshot()`) keeps a fresh checkout immediately
+// usable without any setup.
+const persisted = loadPersistedSnapshot()
+if (persisted) {
+    hydrateFromSnapshot(store, persisted)
+} else {
+    seedBoothFixtures()
+}
+// Subscribe AFTER any boot dispatches so we never persist a partial
+// in-progress hydration.
+installPersistence(store)
 
 // Workbench-only debug: expose the production store on `window.__store`
 // so we can inspect Redux state from the browser console / Playwright
@@ -43,7 +59,10 @@ seedBoothFixtures()
 // outside `voting-portal/src/`.
 if (typeof window !== "undefined") {
     ;(window as unknown as {__store: typeof store}).__store = store
-    const w = window as unknown as {__dispatchLog: unknown[]}
+    const w = window as unknown as {
+        __dispatchLog: unknown[]
+        __resetWorkbench: () => void
+    }
     w.__dispatchLog = []
     // Patch dispatch to log every action; helps spot whether a click
     // actually reached the reducer or not.
@@ -54,6 +73,13 @@ if (typeof window !== "undefined") {
         w.__dispatchLog.push({type: (action as {type?: string}).type, action})
         return origDispatch(action)
     }) as typeof origDispatch
+    // Convenience: from the browser console, `__resetWorkbench()` wipes
+    // the persisted snapshot and reloads. Same as deleting the
+    // `workbench:state:v1` key in DevTools → Application → Local Storage.
+    w.__resetWorkbench = () => {
+        clearPersistedSnapshot()
+        location.reload()
+    }
 }
 
 /**
@@ -79,33 +105,36 @@ const apolloClient = new ApolloClient({
  * Layout for every booth screen. Provides, in the exact order the portal
  * itself wires them in `voting-portal/src/index.tsx`:
  *   1. MUI ThemeProvider (theme from ui-essentials)
- *   2. Redux store (the portal's production store, seeded by
- *      `seedBoothFixtures()`)
- *   3. SettingsContextProvider — fetches `/global-settings.json` (served
+ *   2. SettingsContextProvider — fetches `/global-settings.json` (served
  *      from `public/`) so `globalSettings.DISABLE_AUTH` is `true` by the
  *      time screens read it. Without this, the default DISABLE_AUTH=false
  *      makes ReviewScreen's GET_ELECTIONS query fire against
  *      `http://localhost:8080/v1/graphql` and the auth-gated paths trip.
- *   4. ApolloProvider with the workbench's empty-link client. Required
+ *   3. ApolloProvider with the workbench's empty-link client. Required
  *      by any screen using `useQuery` / `useMutation` (e.g. ReviewScreen).
- *   5. WasmWrapper — initializes the sequent-core wasm module before
+ *   4. WasmWrapper — initializes the sequent-core wasm module before
  *      rendering children. Required by every screen that calls into
  *      ui-core wasm helpers.
+ *
+ * The Redux Provider used to live inside this layout, but it has been
+ * hoisted to `Shell` (in `main.tsx`) so the workbench's own pages (e.g.
+ * the tally view) share the same store and see the cast votes the booth
+ * produced. The portal's production index.tsx wraps Redux outside its
+ * routes too, so this matches its layering.
+ *
  * Designed to be mounted as a layout route under a data router so the
  * portal's `useSubmit` / `useActionData` calls work.
  */
 export function BoothLayout() {
     return (
         <ThemeProvider theme={theme}>
-            <ReduxProvider store={store}>
-                <SettingsWrapper>
-                    <ApolloProvider client={apolloClient}>
-                        <WasmWrapper>
-                            <Outlet />
-                        </WasmWrapper>
-                    </ApolloProvider>
-                </SettingsWrapper>
-            </ReduxProvider>
+            <SettingsWrapper>
+                <ApolloProvider client={apolloClient}>
+                    <WasmWrapper>
+                        <Outlet />
+                    </WasmWrapper>
+                </ApolloProvider>
+            </SettingsWrapper>
         </ThemeProvider>
     )
 }

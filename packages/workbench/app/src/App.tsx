@@ -3,6 +3,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import {useEffect, useState, type CSSProperties} from "react"
+import {useSelector} from "react-redux"
+import type {RootState} from "voting-portal/src/store/store"
 import {encodeBallot, getFixtures, runTally} from "./tally"
 
 // Step B workbench page.
@@ -22,6 +24,14 @@ export function App() {
     const [result, setResult] = useState<unknown | null>(null)
     const [error, setError] = useState<string | null>(null)
     const [busy, setBusy] = useState<boolean>(false)
+
+    // Live view of cast votes the booth has produced. Re-renders
+    // automatically when the booth dispatches `addCastVotes` (e.g. when
+    // ReviewScreen's `useAddFakeCastVote` fires).
+    const castVotesByElection = useSelector(
+        (state: RootState) => state.castVotes
+    )
+    const elections = useSelector((state: RootState) => state.elections)
 
     useEffect(() => {
         ;(async () => {
@@ -78,6 +88,16 @@ export function App() {
                 run the tally entirely client-side via{" "}
                 <code>velvet-wasm</code>.
             </p>
+
+            <CastVotesPanel
+                castVotesByElection={castVotesByElection}
+                electionNames={Object.fromEntries(
+                    Object.entries(elections).map(([id, e]) => [
+                        id,
+                        e?.name ?? "(unnamed)",
+                    ])
+                )}
+            />
 
             <section style={styles.section}>
                 <h2>Contest JSON</h2>
@@ -157,6 +177,76 @@ function parseBallots(json: string): string[] {
     return parsed
 }
 
+/**
+ * Read-only summary of cast votes currently sitting in the production
+ * Redux store, grouped by election. Driven entirely by the same
+ * `castVotes` slice the booth writes to via `addCastVotes`, so any
+ * ballot you cast in the booth shows up here on the next render.
+ *
+ * Note: under DISABLE_AUTH the booth's `useAddFakeCastVote` records the
+ * cast vote with empty `content`. The encrypted ciphertext that
+ * VotingScreen produced is held in `sessionStorage` (see
+ * `voting-portal/src/store/castVotes/sessionBallotData.ts`), not in this
+ * slice. Surfacing the count here is enough to prove the persistence
+ * pipeline; bridging the encrypted ballot into a real tally is a
+ * follow-up commit.
+ */
+function CastVotesPanel({
+    castVotesByElection,
+    electionNames,
+}: {
+    castVotesByElection: RootState["castVotes"]
+    electionNames: Record<string, string>
+}) {
+    const electionIds = Object.keys(castVotesByElection)
+    const totalCount = electionIds.reduce(
+        (n, id) => n + (castVotesByElection[id]?.length ?? 0),
+        0
+    )
+    return (
+        <section style={styles.section}>
+            <h2>Cast votes in workbench state</h2>
+            <p style={styles.help}>
+                Live view of the <code>castVotes</code> slice. Cast a
+                ballot in the Booth and it will appear here — and survive
+                a full page reload thanks to the workbench's localStorage
+                persistence layer.
+            </p>
+            {totalCount === 0 ? (
+                <p style={{...styles.help, fontStyle: "italic"}}>
+                    No cast votes yet. Visit the Booth and complete the
+                    flow.
+                </p>
+            ) : (
+                <table style={styles.table}>
+                    <thead>
+                        <tr>
+                            <th style={styles.th}>Election</th>
+                            <th style={styles.th}>Election ID</th>
+                            <th style={styles.th}>Ballots</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {electionIds.map((id) => (
+                            <tr key={id}>
+                                <td style={styles.td}>
+                                    {electionNames[id] ?? "(unknown)"}
+                                </td>
+                                <td style={{...styles.td, ...styles.mono}}>
+                                    {id}
+                                </td>
+                                <td style={styles.td}>
+                                    {castVotesByElection[id]?.length ?? 0}
+                                </td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            )}
+        </section>
+    )
+}
+
 function formatError(e: unknown): string {
     if (e instanceof Error) return e.message
     return String(e)
@@ -197,5 +287,24 @@ const styles: Record<string, CSSProperties> = {
     help: {
         fontSize: "0.85rem",
         color: "#555",
+    },
+    table: {
+        borderCollapse: "collapse",
+        width: "100%",
+        fontSize: "0.85rem",
+    },
+    th: {
+        textAlign: "left",
+        padding: "0.4rem 0.6rem",
+        background: "#f0f0f0",
+        borderBottom: "1px solid #ccc",
+    },
+    td: {
+        padding: "0.4rem 0.6rem",
+        borderBottom: "1px solid #eee",
+    },
+    mono: {
+        fontFamily: "ui-monospace, Menlo, Consolas, monospace",
+        fontSize: "0.75rem",
     },
 }
