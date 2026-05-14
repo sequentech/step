@@ -899,6 +899,44 @@ and fixture tree, not an extension of this one.
 Each of these adaptations, when added, should get its own row in the
 inventory above with a canary entry. Treat the document as living.
 
+### Future: generic state inspector
+
+Not a portal adaptation — a workbench-only feature, parked here so it
+doesn't get lost.
+
+Today several panels render a bare mono id (ballot style id, parent
+event link, cast-vote id, voter id, future encoded-ballot id, etc.).
+Each id is opaque: the operator can see *that* a record exists but
+not *what's in it* without dropping into Redux DevTools or the
+browser console. The cast-vote `<details>` row we built for the
+election page is essentially a hand-rolled mini-inspector for one
+specific record type — a pattern that doesn't compose: every new
+introspectable record type would otherwise grow its own bespoke
+panel.
+
+Sketch:
+
+- A single route `/wb/inspect?kind=<kind>&id=<id>` (or similar) that
+  renders a recursive collapsible JSON tree over whatever the resolver
+  returns. No per-type detail page.
+- A small resolver map keyed by `kind`: `ballotStyle`, `election`,
+  `event`, `tenant`, `castVote`, `voter`, `checkpoint`, `snapshot`,
+  later `encodedBallot`, `tallyResult`. Each resolver pulls from the
+  appropriate store (portal Redux or workbench store) by id.
+- Anywhere we render an id today, wrap it in a link/button to the
+  inspector pre-focused on that record. Id stays visible; the
+  inspector is the "what is this thing actually" escape hatch.
+- Optional polish: search/filter, copy-to-clipboard, diff two
+  snapshots (e.g. pre/post checkpoint), pretty-print known nested
+  JSON strings (like `cv.content`).
+
+When to build: **after** step 5 (inline per-election tally). Rationale
+— the inspector's value compounds with the number of record types it
+covers, and step 5 will introduce two more juicy ones (the encoded
+ballot per cast vote and the tally result). Building it after step 5
+lands it with 4–5 useful resolvers instead of 2, on stabilized bridge
+schema.
+
 ---
 
 ## Anti-patterns to avoid
