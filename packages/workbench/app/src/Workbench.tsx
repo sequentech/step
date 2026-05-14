@@ -24,6 +24,7 @@ import {useSelector} from "react-redux"
 import {useCallback, useState, type CSSProperties} from "react"
 import type {RootState} from "voting-portal/src/store/store"
 import {store} from "voting-portal/src/store/store"
+import type {ICastVote} from "voting-portal/src/store/castVotes/castVotesSlice"
 import {
     deleteCheckpoint,
     listCheckpoints,
@@ -36,7 +37,6 @@ import {
     removeVoter,
     setActiveVoter,
     useWorkbench,
-    type RepairedCastVote,
     type Voter,
 } from "./workbenchStore"
 
@@ -400,21 +400,6 @@ export function WorkbenchElection() {
         return voter.displayName
     }
 
-    /** Render the "Plaintext" cell. Shows whether the workbench
-     *  captured the cleartext selection at cast time. Encrypted
-     *  ciphertext lives on `cv.content` itself and is not represented
-     *  here. */
-    const bridgeStatusCell = (repaired: RepairedCastVote | undefined) => {
-        if (!repaired) {
-            return <em style={{color: "#999"}}>not captured</em>
-        }
-        return (
-            <span style={{color: "#2e7d32"}} title="Plaintext selection captured">
-                ✓ captured
-            </span>
-        )
-    }
-
     return (
         <main style={styles.main}>
             <p style={styles.crumbs}>
@@ -505,70 +490,20 @@ export function WorkbenchElection() {
                         complete the flow.
                     </p>
                 ) : (
-                    <table style={styles.table}>
-                        <thead>
-                            <tr>
-                                <th style={styles.th}>Cast vote ID</th>
-                                <th style={styles.th}>Voted by</th>
-                                <th style={styles.th}>
-                                    Content length (encrypted)
-                                </th>
-                                <th style={styles.th}>Plaintext</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {electionVotes.map((cv) => (
-                                <tr key={cv.id}>
-                                    <td style={{...styles.td, ...styles.mono}}>
-                                        {cv.id}
-                                    </td>
-                                    <td style={styles.td}>
-                                        {votedByCell(cv.id)}
-                                    </td>
-                                    <td style={styles.td}>
-                                        {(cv.content ?? "").length}
-                                    </td>
-                                    <td style={styles.td}>
-                                        {bridgeStatusCell(
-                                            repairedCastVotes[cv.id]
-                                        )}
-                                    </td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
+                    <div>
+                        {electionVotes.map((cv) => (
+                            <CastVoteRow
+                                key={cv.id}
+                                castVote={cv}
+                                voterCell={votedByCell(cv.id)}
+                                plaintextSelection={
+                                    repairedCastVotes[cv.id]?.selection
+                                }
+                            />
+                        ))}
+                    </div>
                 )}
-                <p
-                    style={{
-                        fontSize: "0.8rem",
-                        color: "#777",
-                        marginTop: "0.5rem",
-                    }}
-                >
-                    Note: <code>cv.content</code> holds the encrypted
-                    hashable ballot (same shape as production, populated
-                    by the demo path's <code>useAddFakeCastVote</code> —
-                    see LIFTING.md section L). The workbench has no
-                    decryption keys, but it bridges the plaintext
-                    selection from <code>state.ballotSelections</code>{" "}
-                    into its own overlay at cast time so the operator
-                    can still inspect what the voter chose. Per-cast
-                    detail panels below.
-                </p>
             </section>
-
-            <BridgedBallotsSection
-                bridged={collectBridgedForElection(
-                    repairedCastVotes,
-                    electionId ?? "",
-                    electionVotes.map((cv) => cv.id)
-                )}
-                voterById={voterById}
-                castBy={castBy}
-                castVoteContentById={Object.fromEntries(
-                    electionVotes.map((cv) => [cv.id, cv.content ?? ""])
-                )}
-            />
 
             {ballotStyle && (
                 <section style={styles.section}>
@@ -1006,148 +941,85 @@ function VotersPanel() {
 }
 
 /**
- * Filter the workbench's bridge ledger down to the bridged records
- * that belong to this election. Two filters:
- *  - `r.electionId` matches (the real election id, post-bridge).
- *  - the cast-vote id is in the page's known set (defensive; should
- *    always match in practice).
+ * One cast vote, rendered as an expandable card. The summary is the
+ * minimum the operator needs to scan the list (id, voter, encrypted-
+ * content size). Expanding reveals the human-readable selection
+ * (captured by the workbench at cast time) and the encrypted ballot
+ * exactly as it sits on `cv.content`.
  */
-function collectBridgedForElection(
-    repairedCastVotes: Record<string, RepairedCastVote>,
-    electionId: string,
-    knownCastVoteIds: string[]
-): Array<{castVoteId: string; repaired: RepairedCastVote}> {
-    const knownSet = new Set(knownCastVoteIds)
-    const out: Array<{castVoteId: string; repaired: RepairedCastVote}> = []
-    for (const [castVoteId, repaired] of Object.entries(repairedCastVotes)) {
-        if (!knownSet.has(castVoteId)) continue
-        if (repaired.electionId !== electionId) continue
-        out.push({castVoteId, repaired})
-    }
-    out.sort((a, b) =>
-        a.repaired.capturedAt.localeCompare(b.repaired.capturedAt)
-    )
-    return out
-}
-
-/**
- * Per-cast-vote bridge detail panel. For each cast vote in this
- * election, renders side-by-side:
- *  - the plaintext selection the workbench captured at cast time
- *    (no production counterpart — Redux discards `ballotSelections`
- *    after voting completes; this is the only inspection surface for
- *    what the voter actually chose, and the input a future inline
- *    tally will encode + tally via velvet-wasm);
- *  - the encrypted ballot persisted on `cv.content` itself
- *    (production-shaped: same bytes the backend would store).
- */
-function BridgedBallotsSection({
-    bridged,
-    voterById,
-    castBy,
-    castVoteContentById,
+function CastVoteRow({
+    castVote,
+    voterCell,
+    plaintextSelection,
 }: {
-    bridged: Array<{castVoteId: string; repaired: RepairedCastVote}>
-    voterById: Map<string, Voter>
-    castBy: Record<string, string>
-    castVoteContentById: Record<string, string>
+    castVote: ICastVote
+    voterCell: React.ReactNode
+    plaintextSelection: unknown
 }) {
-    if (bridged.length === 0) {
-        return null
-    }
+    const content = castVote.content ?? ""
     return (
-        <section style={styles.section}>
-            <div style={styles.sectionTitle}>
-                Bridged ballots ({bridged.length})
-            </div>
-            <p style={styles.empty}>
-                Workbench-captured per-cast-vote inspection data. The
-                plaintext selection comes from{" "}
-                <code>state.ballotSelections</code> at cast time
-                (snapshotted by the workbench because Redux discards it
-                afterwards); the encrypted ballot is{" "}
-                <code>cv.content</code> straight off the cast-vote
-                record (production-shaped, byte-identical to what the
-                backend would store).
-            </p>
-            {bridged.map(({castVoteId, repaired}) => {
-                const voterId = castBy[castVoteId]
-                const voter = voterId ? voterById.get(voterId) : undefined
-                const content = castVoteContentById[castVoteId] ?? ""
-                return (
-                    <details
-                        key={castVoteId}
-                        style={{...styles.card, padding: "0.5rem 0.75rem"}}
+        <details style={{...styles.card, padding: "0.5rem 0.75rem"}}>
+            <summary style={{cursor: "pointer", fontSize: "0.85rem"}}>
+                <span style={styles.mono}>{castVote.id}</span>
+                <span style={{color: "#666"}}>
+                    {" "}— voted by {voterCell} · encrypted{" "}
+                    {content.length} chars
+                </span>
+            </summary>
+            <div style={{marginTop: "0.5rem"}}>
+                <div style={styles.sectionTitle}>Selection</div>
+                {plaintextSelection ? (
+                    <pre
+                        style={{
+                            ...styles.mono,
+                            background: "#f5f5f5",
+                            padding: "0.5rem",
+                            margin: 0,
+                            maxHeight: "20rem",
+                            overflow: "auto",
+                        }}
                     >
-                        <summary
-                            style={{
-                                cursor: "pointer",
-                                fontSize: "0.85rem",
-                            }}
-                        >
-                            <span style={styles.mono}>{castVoteId}</span>
-                            <span style={{color: "#666"}}>
-                                {" "}— voted by{" "}
-                                {voter ? voter.displayName : "anonymous"} at{" "}
-                                {repaired.capturedAt}
-                            </span>
-                        </summary>
-                        <div style={{marginTop: "0.5rem"}}>
-                            <div style={styles.sectionTitle}>
-                                Plaintext selection (workbench bridge)
-                            </div>
-                            <pre
-                                style={{
-                                    ...styles.mono,
-                                    background: "#f5f5f5",
-                                    padding: "0.5rem",
-                                    margin: 0,
-                                    maxHeight: "20rem",
-                                    overflow: "auto",
-                                }}
-                            >
-                                {JSON.stringify(repaired.selection, null, 2)}
-                            </pre>
-                        </div>
-                        <div style={{marginTop: "0.5rem"}}>
-                            <div style={styles.sectionTitle}>
-                                Encrypted ballot ({"cv.content"},{" "}
-                                {content.length} chars)
-                            </div>
-                            {content.length > 0 ? (
-                                <pre
-                                    style={{
-                                        ...styles.mono,
-                                        background: "#f5f5f5",
-                                        padding: "0.5rem",
-                                        margin: 0,
-                                        maxHeight: "12rem",
-                                        overflow: "auto",
-                                        whiteSpace: "pre-wrap",
-                                        wordBreak: "break-all",
-                                    }}
-                                >
-                                    {(() => {
-                                        try {
-                                            return JSON.stringify(
-                                                JSON.parse(content),
-                                                null,
-                                                2
-                                            )
-                                        } catch {
-                                            return content
-                                        }
-                                    })()}
-                                </pre>
-                            ) : (
-                                <p style={styles.empty}>
-                                    <code>cv.content</code> is empty.
-                                </p>
-                            )}
-                        </div>
-                    </details>
-                )
-            })}
-        </section>
+                        {JSON.stringify(plaintextSelection, null, 2)}
+                    </pre>
+                ) : (
+                    <p style={styles.empty}>
+                        Not captured by the workbench bridge.
+                    </p>
+                )}
+            </div>
+            <div style={{marginTop: "0.5rem"}}>
+                <div style={styles.sectionTitle}>Encrypted ballot</div>
+                {content.length > 0 ? (
+                    <pre
+                        style={{
+                            ...styles.mono,
+                            background: "#f5f5f5",
+                            padding: "0.5rem",
+                            margin: 0,
+                            maxHeight: "12rem",
+                            overflow: "auto",
+                            whiteSpace: "pre-wrap",
+                            wordBreak: "break-all",
+                        }}
+                    >
+                        {(() => {
+                            try {
+                                return JSON.stringify(
+                                    JSON.parse(content),
+                                    null,
+                                    2
+                                )
+                            } catch {
+                                return content
+                            }
+                        })()}
+                    </pre>
+                ) : (
+                    <p style={styles.empty}>
+                        <code>cv.content</code> is empty.
+                    </p>
+                )}
+            </div>
+        </details>
     )
 }
