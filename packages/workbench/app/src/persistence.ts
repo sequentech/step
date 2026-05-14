@@ -48,7 +48,13 @@ import {
     setBypassChooser,
     setIsVoted,
 } from "voting-portal/src/store/extra/extraSlice"
-
+import {
+    attributeCastVote,
+    getWorkbenchState,
+    replaceWorkbenchState,
+    subscribeWorkbench,
+    type WorkbenchExtraState,
+} from "./workbenchStore"
 /**
  * Storage key. The `:v1` suffix is a schema version: when the persisted
  * shape becomes incompatible (e.g. voting-portal removes a slice we
@@ -67,6 +73,11 @@ export interface PersistedSnapshot {
      *  `PERSISTENCE_KEY`'s suffix or the snapshot is rejected. */
     version: "v1"
     state: RootState
+    /** Workbench-only overlay state (voter directory, attribution
+     *  ledger). Optional so snapshots written before this field was
+     *  added still load — they just rehydrate with an empty workbench
+     *  state. New snapshots always include it. */
+    workbench?: WorkbenchExtraState
 }
 
 /**
@@ -108,9 +119,18 @@ export function hydrateFromSnapshot(
     store: typeof Store,
     snapshot: PersistedSnapshot
 ): void {
-    const {state} = snapshot
+    const {state, workbench} = snapshot
     suspendWrites = true
     try {
+        // Workbench overlay state is restored FIRST so that any cast
+        // votes we replay below land in a store whose attribution
+        // ledger already knows about them. (In practice the ledger is
+        // the source of truth on its own, and replayed votes are
+        // already present in the ledger from the snapshot itself, but
+        // ordering this way keeps the invariant clean.)
+        replaceWorkbenchState(
+            workbench ?? {voters: [], activeVoterId: null, castBy: {}}
+        )
         for (const election of Object.values(state.elections)) {
             if (election) store.dispatch(setElection(election))
         }
@@ -157,7 +177,11 @@ export function hydrateFromSnapshot(
 
 function writeSnapshot(state: RootState): void {
     if (typeof localStorage === "undefined") return
-    const snapshot: PersistedSnapshot = {version: "v1", state}
+    const snapshot: PersistedSnapshot = {
+        version: "v1",
+        state,
+        workbench: getWorkbenchState(),
+    }
     try {
         localStorage.setItem(PERSISTENCE_KEY, JSON.stringify(snapshot))
     } catch (e) {
@@ -176,10 +200,54 @@ function writeSnapshot(state: RootState): void {
  * workbench process.
  */
 export function installPersistence(store: typeof Store): () => void {
-    return store.subscribe(() => {
+    // Track previously-seen cast-vote ids so we can attribute only the
+    // new ones to the currently-active voter. Initialised from
+    // whatever's already in the store at install time so a hydrated
+    // boot doesn't double-attribute every existing vote.
+    const seenCastVoteIds = new Set<string>()
+    for (const votes of Object.values(store.getState().castVotes)) {
+        if (!votes) continue
+        for (const v of votes) seenCastVoteIds.add(v.id)
+    }
+
+    const unsubStore = store.subscribe(() => {
+        if (suspendWrites) {
+            // Even though we don't write, we still need to keep the
+            // "seen" set in sync with state replays so hydration doesn't
+            // leave us thinking every restored vote is new.
+            for (const votes of Object.values(store.getState().castVotes)) {
+                if (!votes) continue
+                for (const v of votes) seenCastVoteIds.add(v.id)
+            }
+            return
+        }
+        // Detect newly-arrived cast votes and attribute each to the
+        // currently-active workbench voter. Attribution is a no-op when
+        // no voter is active (the anonymous default).
+        for (const votes of Object.values(store.getState().castVotes)) {
+            if (!votes) continue
+            for (const v of votes) {
+                if (seenCastVoteIds.has(v.id)) continue
+                seenCastVoteIds.add(v.id)
+                attributeCastVote(v.id)
+            }
+        }
+        writeSnapshot(store.getState())
+    })
+
+    // Workbench-overlay changes (adding a voter, switching active voter)
+    // must also flow into the auto-resume slot, otherwise they would be
+    // lost on reload. The workbench mini-store fires its listener after
+    // every mutation; we just rewrite the snapshot in response.
+    const unsubWorkbench = subscribeWorkbench(() => {
         if (suspendWrites) return
         writeSnapshot(store.getState())
     })
+
+    return () => {
+        unsubStore()
+        unsubWorkbench()
+    }
 }
 
 /**

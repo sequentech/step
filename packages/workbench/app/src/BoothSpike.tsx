@@ -37,6 +37,7 @@ import {
     installPersistence,
     loadPersistedSnapshot,
 } from "./persistence"
+import {seedDemoVoters} from "./workbenchStore"
 
 // On boot, prefer the persisted snapshot over the bundled fixture: that
 // is what gives us "close the tab, reopen, ballot is still cast".
@@ -52,6 +53,13 @@ if (persisted) {
 // Subscribe AFTER any boot dispatches so we never persist a partial
 // in-progress hydration.
 installPersistence(store)
+// Seed two demo voters on first boot so the voter directory is not
+// empty. Runs AFTER `installPersistence` so the resulting workbench-
+// store mutation goes through the subscribeWorkbench listener and is
+// captured in the auto-resume slot immediately. Idempotent: no-op if
+// the directory already has voters (hydrated snapshot, or a checkpoint
+// that already contained voters).
+seedDemoVoters()
 
 // Workbench-only debug: expose the production store on `window.__store`
 // so we can inspect Redux state from the browser console / Playwright

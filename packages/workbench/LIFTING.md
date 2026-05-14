@@ -556,6 +556,63 @@ under `/wb/...` here. Do not reach for admin-portal as inspiration; the
 whole point is to design the operator surface from scratch around the
 workbench's actual needs.
 
+### K. Workbench-owned overlay state (`app/src/workbenchStore.ts`)
+
+Some operator-facing scenario data (voter directory, currently-
+impersonated voter, cast-vote → voter attribution ledger) has no
+counterpart in voting-portal's Redux store. Production keeps voters in
+Hasura and reads identity from Keycloak; under `DISABLE_AUTH` the booth
+runs anonymously and `useAddFakeCastVote` writes
+`voter_id_string: null`.
+
+Rather than add a new slice to the portal store (which would require
+editing `voting-portal/src/store/store.ts` — see section I), the
+workbench keeps this state in a tiny separate mini-store
+(`workbenchStore.ts`):
+
+- A module-local `WorkbenchExtraState` object.
+- `useSyncExternalStore`-based subscription (`useWorkbench` hook).
+- A handful of named mutations: `addVoter`, `removeVoter`,
+  `setActiveVoter`, `attributeCastVote`, `replaceWorkbenchState`,
+  `seedDemoVoters`.
+
+**Persistence integration.** The mini-store is folded into the same
+`PersistedSnapshot` the portal Redux store rides on, via an optional
+`workbench?: WorkbenchExtraState` field. Both stores share one
+`writeSnapshot()` call (in `installPersistence`) and one
+`hydrateFromSnapshot()` entry point. As a result:
+
+- The auto-resume slot captures voter directory changes alongside
+  Redux state.
+- Named checkpoints round-trip workbench state unchanged.
+- A snapshot written before this field existed loads fine: missing
+  `workbench` rehydrates to an empty directory.
+
+**Attribution ledger.** `installPersistence` runs a small cast-votes
+watcher: on each Redux dispatch it diffs `state.castVotes` against a
+running set of seen ids, and for each newly-observed cast vote it
+calls `attributeCastVote(id)`, which (when an active voter is set)
+records `castBy[id] = activeVoterId`. Election-detail pages then
+render this attribution in the "Voted by" column. The ledger is the
+workbench's substitute for the production `voter_id_string` field,
+which stays `null` in the portal store because we don't touch portal
+source.
+
+**Rules:**
+
+- Never add Workbench-only state by modifying portal slices.
+- Anything operator-facing that has no production counterpart goes
+  in `workbenchStore.ts`. Reusable selectors and React integration
+  live next to it.
+- Mutations from the mini-store must trigger a snapshot rewrite. The
+  `subscribeWorkbench` listener installed in `installPersistence`
+  handles this — don't write to localStorage directly from mutation
+  functions.
+- Hydration is order-sensitive: in `hydrateFromSnapshot`, the
+  workbench overlay is restored BEFORE replaying portal state, so the
+  ledger is in place when the cast-votes watcher's seen-set is
+  primed.
+
 ---
 
 ## Refresh procedure (when voting-portal evolves)
