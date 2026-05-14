@@ -21,8 +21,16 @@
 
 import {Link, useParams} from "react-router-dom"
 import {useSelector} from "react-redux"
-import type {CSSProperties} from "react"
+import {useCallback, useState, type CSSProperties} from "react"
 import type {RootState} from "voting-portal/src/store/store"
+import {store} from "voting-portal/src/store/store"
+import {
+    deleteCheckpoint,
+    listCheckpoints,
+    loadCheckpoint,
+    saveCheckpoint,
+    type CheckpointMeta,
+} from "./persistence"
 
 const styles: Record<string, CSSProperties> = {
     main: {
@@ -166,6 +174,8 @@ export function WorkbenchHome() {
                     ))
                 )}
             </section>
+
+            <CheckpointsPanel />
         </main>
     )
 }
@@ -497,5 +507,203 @@ export function WorkbenchElection() {
                 </section>
             )}
         </main>
+    )
+}
+
+/**
+ * Named-checkpoints panel. Lets the operator save the current Redux
+ * state under a name, list previously-saved checkpoints, and either
+ * load or delete them.
+ *
+ * Two important semantics to remember:
+ *  1. Saving a checkpoint does NOT pause the auto-resume slot. The
+ *     auto-resume slot keeps tracking every dispatch. Checkpoints are
+ *     side-stored copies.
+ *  2. Loading a checkpoint rewrites the auto-resume slot (because
+ *     hydrateFromSnapshot ends with a forced writeSnapshot). So after
+ *     loading, a reload picks up the checkpoint's state as the new
+ *     baseline.
+ *
+ * We deliberately reload the page after a load to drop any in-memory
+ * derived state (Apollo cache, currently-mounted screens with their
+ * own useState) and let the boot path replay hydration cleanly. The
+ * alternative — live-hot-swapping state under mounted booth screens —
+ * is full of subtle bugs (selections refer to election IDs that just
+ * changed underneath them) and not worth the complexity for a tool
+ * intended for short, scripted demo runs.
+ */
+function CheckpointsPanel() {
+    const [checkpoints, setCheckpoints] = useState<CheckpointMeta[]>(() =>
+        listCheckpoints()
+    )
+    const [draftName, setDraftName] = useState("")
+    const [error, setError] = useState<string | null>(null)
+
+    const refresh = useCallback(() => setCheckpoints(listCheckpoints()), [])
+
+    const onSave = useCallback(() => {
+        setError(null)
+        try {
+            saveCheckpoint(store, draftName)
+            setDraftName("")
+            refresh()
+        } catch (e) {
+            setError(e instanceof Error ? e.message : String(e))
+        }
+    }, [draftName, refresh])
+
+    const onLoad = useCallback(
+        (name: string) => {
+            // Confirm because loading is destructive to the current
+            // session: the auto-resume slot will be overwritten.
+            if (
+                !confirm(
+                    `Load checkpoint "${name}"? This overwrites the current workbench state and reloads the page.`
+                )
+            ) {
+                return
+            }
+            const ok = loadCheckpoint(store, name)
+            if (!ok) {
+                setError(`Checkpoint "${name}" could not be loaded.`)
+                return
+            }
+            location.reload()
+        },
+        []
+    )
+
+    const onDelete = useCallback(
+        (name: string) => {
+            if (!confirm(`Delete checkpoint "${name}"?`)) return
+            deleteCheckpoint(name)
+            refresh()
+        },
+        [refresh]
+    )
+
+    return (
+        <section style={styles.section}>
+            <div style={styles.sectionTitle}>
+                Checkpoints ({checkpoints.length})
+            </div>
+            <div style={styles.card}>
+                <div
+                    style={{
+                        display: "flex",
+                        gap: "0.5rem",
+                        alignItems: "center",
+                    }}
+                >
+                    <input
+                        type="text"
+                        placeholder="Checkpoint name"
+                        value={draftName}
+                        onChange={(e) => setDraftName(e.target.value)}
+                        onKeyDown={(e) => {
+                            if (e.key === "Enter") onSave()
+                        }}
+                        style={{
+                            flex: 1,
+                            padding: "0.35rem 0.5rem",
+                            fontSize: "0.85rem",
+                            border: "1px solid #bbb",
+                            borderRadius: "4px",
+                        }}
+                    />
+                    <button
+                        type="button"
+                        onClick={onSave}
+                        disabled={draftName.trim().length === 0}
+                        style={{
+                            padding: "0.35rem 0.8rem",
+                            fontSize: "0.85rem",
+                            cursor:
+                                draftName.trim().length === 0
+                                    ? "default"
+                                    : "pointer",
+                        }}
+                    >
+                        Save current state
+                    </button>
+                </div>
+                {error && (
+                    <p
+                        style={{
+                            color: "#b00",
+                            fontSize: "0.8rem",
+                            marginTop: "0.4rem",
+                            marginBottom: 0,
+                        }}
+                    >
+                        {error}
+                    </p>
+                )}
+                <p
+                    style={{
+                        ...styles.empty,
+                        marginTop: "0.4rem",
+                        marginBottom: 0,
+                    }}
+                >
+                    Saves a snapshot of the Redux store to localStorage
+                    under <code>workbench:checkpoint:v1:&lt;name&gt;</code>.
+                    The auto-resume slot is unaffected.
+                </p>
+            </div>
+            {checkpoints.length === 0 ? (
+                <p style={styles.empty}>No saved checkpoints yet.</p>
+            ) : (
+                <table style={styles.table}>
+                    <thead>
+                        <tr>
+                            <th style={styles.th}>Name</th>
+                            <th style={styles.th}>Saved at</th>
+                            <th style={styles.th}></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {checkpoints.map((c) => (
+                            <tr key={c.name}>
+                                <td style={styles.td}>{c.name}</td>
+                                <td style={{...styles.td, ...styles.mono}}>
+                                    {c.savedAt}
+                                </td>
+                                <td
+                                    style={{
+                                        ...styles.td,
+                                        textAlign: "right",
+                                    }}
+                                >
+                                    <button
+                                        type="button"
+                                        onClick={() => onLoad(c.name)}
+                                        style={{
+                                            marginRight: "0.4rem",
+                                            padding: "0.2rem 0.55rem",
+                                            fontSize: "0.8rem",
+                                            cursor: "pointer",
+                                        }}
+                                    >
+                                        Load
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => onDelete(c.name)}
+                                        style={{
+                                            padding: "0.2rem 0.55rem",
+                                            fontSize: "0.8rem",
+                                            cursor: "pointer",
+                                        }}
+                                    >
+                                        Delete
+                                    </button>
+                                </td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            )}
+        </section>
     )
 }

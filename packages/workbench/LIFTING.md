@@ -381,18 +381,39 @@ result: cast a ballot, close the tab, reopen tomorrow — the ballot is
 still cast.
 
 This is the foundational layer the user-facing "save / load named
-checkpoint" UI will sit on top of. There are three storage tiers, all
+checkpoint" UI sits on top of. There are three storage tiers, all
 sharing the same JSON shape (`PersistedSnapshot = { version: "v1",
 state: RootState }`):
 
 | Tier | Trigger | Storage key | Lifetime | Mutability |
 |---|---|---|---|---|
 | Auto-resume slot | Every Redux dispatch | `localStorage["workbench:state:v1"]` | Until reset / wiped | Constantly overwritten |
-| Named checkpoint *(future)* | User clicks "Save snapshot" | `localStorage["workbench:snapshot:<name>"]` | Until deleted | Frozen at save time |
+| Named checkpoint | Operator clicks "Save current state" on `/` | `localStorage["workbench:checkpoint:v1:<name>"]` (plus index at `workbench:checkpoints:v1`) | Until deleted | Frozen at save time |
 | Bundled fixture snapshot *(future)* | Author wrote it | `app/src/fixtures/snapshots/*.json` | Forever (in git) | Read-only at runtime |
 
-Currently only the auto-resume slot is implemented. Named checkpoints
-and bundled snapshots reuse the exact same load/save plumbing.
+Named checkpoints reuse the exact same load/save plumbing as the
+auto-resume slot (`hydrateFromSnapshot`, `PersistedSnapshot`); only the
+storage key and the index differ. Bundled snapshots will plug into the
+same `hydrateFromSnapshot` entry point when implemented.
+
+**Named-checkpoint semantics:**
+
+- `saveCheckpoint(store, name)` writes `store.getState()` under
+  `workbench:checkpoint:v1:<name>` and adds/refreshes the entry in the
+  sorted index. Names are normalized to letters/digits/`._- ` with a
+  64-char cap (`normalizeCheckpointName`); illegal input throws so the
+  UI can surface a precise message.
+- `loadCheckpoint(store, name)` dispatches the snapshot through the
+  same `hydrateFromSnapshot` used at boot, which means the auto-resume
+  slot gets overwritten as a side-effect. The UI follows up with a
+  `location.reload()` to drop any in-memory derived state (Apollo
+  cache, mounted screens' local `useState`) so the boot path replays
+  hydration cleanly.
+- `deleteCheckpoint(name)` removes both the snapshot key and its
+  entry in the index.
+- Saving does NOT pause the auto-resume slot. The two tiers are
+  independent: saving a checkpoint is purely additive; the auto-resume
+  slot keeps tracking every dispatch.
 
 **How rehydration works.** `hydrateFromSnapshot(store, snapshot)`
 dispatches the portal's own `setX` action creators per persisted entity

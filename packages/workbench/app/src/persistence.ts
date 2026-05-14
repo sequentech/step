@@ -191,3 +191,171 @@ export function clearPersistedSnapshot(): void {
     if (typeof localStorage === "undefined") return
     localStorage.removeItem(PERSISTENCE_KEY)
 }
+
+// ---------------------------------------------------------------------------
+// Named checkpoints
+// ---------------------------------------------------------------------------
+//
+// In addition to the single auto-resume slot above (`workbench:state:v1`),
+// the operator can save the current Redux state under a human-chosen name
+// and restore it later. Mental model — three independent tiers:
+//
+//   1. Auto-resume slot (`workbench:state:v1`).
+//      Overwritten on every dispatch. Survives reloads. Wiped by the
+//      "Reset workbench state" button.
+//   2. Named checkpoint (`workbench:checkpoint:v1:<name>`).
+//      Snapshotted explicitly by the operator. Independent of the
+//      auto-resume slot — saving doesn't pause auto-resume, loading
+//      overwrites the auto-resume slot via hydrateFromSnapshot's tail
+//      writeSnapshot call.
+//   3. Bundled fixture (in-repo, future).
+//      Compiled into the workbench bundle; not implemented yet.
+//
+// Storage scheme:
+//   workbench:checkpoints:v1     -> JSON array of `CheckpointMeta` (the
+//                                   index; canonical list of names).
+//   workbench:checkpoint:v1:<n>  -> the serialized `PersistedSnapshot`
+//                                   for checkpoint named <n>.
+//
+// We keep an index rather than scanning `localStorage` so that we can
+// surface metadata (savedAt, optional notes) in the UI without parsing
+// every snapshot.
+
+const CHECKPOINT_INDEX_KEY = "workbench:checkpoints:v1"
+const CHECKPOINT_PREFIX = "workbench:checkpoint:v1:"
+
+export interface CheckpointMeta {
+    /** Human-chosen identifier. Doubles as the localStorage suffix, so
+     *  it must round-trip through `localStorage.getItem`. We restrict
+     *  the charset in {@link normalizeCheckpointName} to keep the key
+     *  predictable and copy-pasteable. */
+    name: string
+    /** ISO-8601 timestamp of when this checkpoint was last saved. */
+    savedAt: string
+}
+
+/**
+ * Trim and validate a user-supplied checkpoint name. We allow letters,
+ * digits, dash, underscore, dot, and space — and cap at 64 chars so the
+ * resulting key stays well inside any practical localStorage limit.
+ *
+ * Throws on empty / oversize / illegal-charset input rather than
+ * silently normalising, so the UI can surface a precise error.
+ */
+export function normalizeCheckpointName(raw: string): string {
+    const trimmed = raw.trim()
+    if (trimmed.length === 0) {
+        throw new Error("Checkpoint name must not be empty.")
+    }
+    if (trimmed.length > 64) {
+        throw new Error("Checkpoint name must be 64 characters or fewer.")
+    }
+    if (!/^[\w. -]+$/.test(trimmed)) {
+        throw new Error(
+            "Checkpoint name may contain only letters, digits, spaces, '.', '-', and '_'."
+        )
+    }
+    return trimmed
+}
+
+function readCheckpointIndex(): CheckpointMeta[] {
+    if (typeof localStorage === "undefined") return []
+    const raw = localStorage.getItem(CHECKPOINT_INDEX_KEY)
+    if (!raw) return []
+    try {
+        const parsed = JSON.parse(raw) as unknown
+        if (!Array.isArray(parsed)) return []
+        return parsed.filter(
+            (e): e is CheckpointMeta =>
+                !!e &&
+                typeof (e as CheckpointMeta).name === "string" &&
+                typeof (e as CheckpointMeta).savedAt === "string"
+        )
+    } catch {
+        return []
+    }
+}
+
+function writeCheckpointIndex(index: CheckpointMeta[]): void {
+    if (typeof localStorage === "undefined") return
+    // Keep the index sorted by name for stable UI ordering.
+    const sorted = [...index].sort((a, b) =>
+        a.name.localeCompare(b.name, undefined, {sensitivity: "base"})
+    )
+    localStorage.setItem(CHECKPOINT_INDEX_KEY, JSON.stringify(sorted))
+}
+
+/**
+ * Return the list of saved checkpoints. Cheap — only reads the index,
+ * not the snapshots themselves.
+ */
+export function listCheckpoints(): CheckpointMeta[] {
+    return readCheckpointIndex()
+}
+
+/**
+ * Save the current store state as a named checkpoint. Overwrites a
+ * previous checkpoint with the same (normalized) name.
+ *
+ * Returns the metadata that was written, which is useful for tests and
+ * for the UI to update its row immediately without re-reading the
+ * index.
+ */
+export function saveCheckpoint(
+    store: typeof Store,
+    rawName: string
+): CheckpointMeta {
+    const name = normalizeCheckpointName(rawName)
+    const snapshot: PersistedSnapshot = {version: "v1", state: store.getState()}
+    if (typeof localStorage === "undefined") {
+        throw new Error("Cannot save checkpoint: localStorage is unavailable.")
+    }
+    localStorage.setItem(CHECKPOINT_PREFIX + name, JSON.stringify(snapshot))
+
+    const meta: CheckpointMeta = {name, savedAt: new Date().toISOString()}
+    const next = readCheckpointIndex().filter((e) => e.name !== name)
+    next.push(meta)
+    writeCheckpointIndex(next)
+    return meta
+}
+
+/**
+ * Hydrate the live store from a saved checkpoint. The auto-resume slot
+ * is overwritten as a side-effect (via the writeSnapshot call inside
+ * {@link hydrateFromSnapshot}), so a subsequent reload picks up the
+ * loaded state as the new baseline.
+ *
+ * Returns `true` on success, `false` if no such checkpoint exists.
+ */
+export function loadCheckpoint(store: typeof Store, rawName: string): boolean {
+    const name = normalizeCheckpointName(rawName)
+    if (typeof localStorage === "undefined") return false
+    const raw = localStorage.getItem(CHECKPOINT_PREFIX + name)
+    if (!raw) return false
+    let snapshot: PersistedSnapshot
+    try {
+        snapshot = JSON.parse(raw) as PersistedSnapshot
+    } catch (e) {
+        console.warn(
+            `[workbench/persistence] failed to parse checkpoint "${name}":`,
+            e
+        )
+        return false
+    }
+    if (snapshot.version !== "v1") return false
+    hydrateFromSnapshot(store, snapshot)
+    return true
+}
+
+/**
+ * Delete a saved checkpoint. No-op if no checkpoint by that name
+ * exists.
+ */
+export function deleteCheckpoint(rawName: string): void {
+    const name = normalizeCheckpointName(rawName)
+    if (typeof localStorage === "undefined") return
+    localStorage.removeItem(CHECKPOINT_PREFIX + name)
+    writeCheckpointIndex(
+        readCheckpointIndex().filter((e) => e.name !== name)
+    )
+}
