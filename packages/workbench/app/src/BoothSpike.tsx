@@ -37,18 +37,51 @@ import {
     installPersistence,
     loadPersistedSnapshot,
 } from "./persistence"
-import {seedDemoVoters} from "./workbenchStore"
+import {generateKeypair} from "./tally"
+import {
+    getWorkbenchState,
+    seedDemoVoters,
+    setKeypair,
+    type WorkbenchKeypair,
+} from "./workbenchStore"
+
+// Workbench-owned ElGamal keypair, lazily generated on first boot and
+// persisted in the snapshot. The public half feeds the seeded ballot
+// style; the private half lives in the workbench store and is later
+// used to decrypt `castVote.content` ciphertexts (closing the
+// encrypt -> decrypt -> tally loop end-to-end in the browser).
+//
+// Why this runs *between* hydration and `seedBoothFixtures`:
+//   - If we hydrated, the snapshot already contains a keypair; we just
+//     read it (no wasm work).
+//   - If we did not, we generate one *before* seeding the fixture so
+//     the fixture's `public_key` matches a key we actually own.
+async function ensureWorkbenchKeypair(): Promise<WorkbenchKeypair> {
+    const existing = getWorkbenchState().keypair
+    if (existing) return existing
+    const fresh = await generateKeypair()
+    setKeypair(fresh)
+    return fresh
+}
 
 // On boot, prefer the persisted snapshot over the bundled fixture: that
 // is what gives us "close the tab, reopen, ballot is still cast".
 // Falling back to `seedBoothFixtures()` only on first run (or after a
 // `clearPersistedSnapshot()`) keeps a fresh checkout immediately
 // usable without any setup.
+//
+// Boot is now async because the keypair-generation path goes through
+// velvet-wasm. Top-level await is enabled by the Vite top-level-await
+// plugin (see vite.config.ts). The latency is one wasm init + one
+// scalar/element mul on first boot only; warm boots read the keypair
+// out of the persisted snapshot with no wasm involvement.
 const persisted = loadPersistedSnapshot()
 if (persisted) {
     hydrateFromSnapshot(store, persisted)
-} else {
-    seedBoothFixtures()
+}
+const keypair = await ensureWorkbenchKeypair()
+if (!persisted) {
+    seedBoothFixtures(keypair.pkB64)
 }
 // Subscribe AFTER any boot dispatches so we never persist a partial
 // in-progress hydration.

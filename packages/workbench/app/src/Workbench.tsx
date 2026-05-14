@@ -21,7 +21,7 @@
 
 import {Link, useNavigate, useParams} from "react-router-dom"
 import {useSelector} from "react-redux"
-import {useCallback, useState, type CSSProperties} from "react"
+import {useCallback, useEffect, useState, type CSSProperties} from "react"
 import type {RootState} from "voting-portal/src/store/store"
 import {store} from "voting-portal/src/store/store"
 import type {ICastVote} from "voting-portal/src/store/castVotes/castVotesSlice"
@@ -30,6 +30,7 @@ import {
     runElectionTally,
     type ContestTallyOutcome,
 } from "./electionTally"
+import {encodeBallot} from "./tally"
 import {
     deleteCheckpoint,
     listCheckpoints,
@@ -504,6 +505,10 @@ export function WorkbenchElection() {
                                 plaintextSelection={
                                     repairedCastVotes[cv.id]?.selection
                                 }
+                                decodedBigInts={
+                                    repairedCastVotes[cv.id]?.decodedBigInts
+                                }
+                                ballotStyle={ballotStyle}
                             />
                         ))}
                     </div>
@@ -975,7 +980,10 @@ function TallySection({
 }: {
     ballotStyle: IBallotStyle
     castVotes: ICastVote[]
-    repairedCastVotes: Record<string, {selection: unknown}>
+    repairedCastVotes: Record<
+        string,
+        {selection: unknown; decodedBigInts?: Record<string, string>}
+    >
 }) {
     const [outcomes, setOutcomes] = useState<ContestTallyOutcome[] | null>(
         null
@@ -983,18 +991,23 @@ function TallySection({
     const [busy, setBusy] = useState(false)
     const [error, setError] = useState<string | null>(null)
 
-    const captured = castVotes.filter(
-        (cv) => repairedCastVotes[cv.id]?.selection
-    )
+    // A cast vote is tally-eligible only once the async-decrypt bridge
+    // has populated at least one decoded BigUint for it. `selection`
+    // alone is no longer enough: it now drives only the round-trip
+    // assertion, not the tally itself.
+    const captured = castVotes.filter((cv) => {
+        const decoded = repairedCastVotes[cv.id]?.decodedBigInts
+        return decoded && Object.keys(decoded).length > 0
+    })
 
     const handleRun = useCallback(async () => {
         setBusy(true)
         setError(null)
         try {
-            const selections = captured.map(
-                (cv) => repairedCastVotes[cv.id]!.selection
+            const decodedByCv = captured.map(
+                (cv) => repairedCastVotes[cv.id]!.decodedBigInts ?? {}
             )
-            const result = await runElectionTally(ballotStyle, selections)
+            const result = await runElectionTally(ballotStyle, decodedByCv)
             setOutcomes(result)
         } catch (e) {
             setError(e instanceof Error ? e.message : String(e))
@@ -1100,6 +1113,155 @@ function TallyContestCard({outcome}: {outcome: ContestTallyOutcome}) {
 }
 
 /**
+ * Per-contest decoded BigUint row. Shows the decimal `BigUint` we
+ * recovered by `velvet-wasm::decrypt_ballot_content` from this cast
+ * vote's `cv.content`, and a round-trip badge: green ✓ when the same
+ * value is what `encode_ballot` produces from the captured plaintext
+ * selection (proving encrypt and decode agree byte-for-byte), red ✗
+ * when they diverge.
+ */
+function DecodedContestRow({
+    contest,
+    decodedBigInt,
+    selection,
+}: {
+    contest: {id: string; name?: string; title?: string}
+    decodedBigInt: string
+    selection: unknown
+}) {
+    const [roundTrip, setRoundTrip] = useState<
+        | {status: "pending"}
+        | {status: "ok"}
+        | {status: "mismatch"; expected: string}
+        | {status: "skipped"; reason: string}
+        | {status: "error"; message: string}
+    >({status: "pending"})
+
+    useEffect(() => {
+        let cancelled = false
+        const dvc = Array.isArray(selection)
+            ? (selection as Array<{contest_id?: string}>).find(
+                  (d) => d?.contest_id === contest.id
+              )
+            : undefined
+        if (!dvc) {
+            setRoundTrip({
+                status: "skipped",
+                reason: "no captured selection",
+            })
+            return () => {
+                cancelled = true
+            }
+        }
+        encodeBallot(JSON.stringify(contest), JSON.stringify(dvc))
+            .then((expected) => {
+                if (cancelled) return
+                setRoundTrip(
+                    expected === decodedBigInt
+                        ? {status: "ok"}
+                        : {status: "mismatch", expected}
+                )
+            })
+            .catch((e: unknown) => {
+                if (cancelled) return
+                setRoundTrip({
+                    status: "error",
+                    message: e instanceof Error ? e.message : String(e),
+                })
+            })
+        return () => {
+            cancelled = true
+        }
+    }, [contest, decodedBigInt, selection])
+
+    const label = contest.name ?? contest.title ?? contest.id
+    return (
+        <div style={{marginTop: "0.25rem"}}>
+            <div style={{fontSize: "0.8rem", color: "#555"}}>
+                {label} <RoundTripBadge state={roundTrip} />
+            </div>
+            <div
+                style={{
+                    ...styles.mono,
+                    background: "#f5f5f5",
+                    padding: "0.25rem 0.5rem",
+                    fontSize: "0.75rem",
+                    wordBreak: "break-all",
+                }}
+            >
+                {decodedBigInt}
+            </div>
+            {roundTrip.status === "mismatch" && (
+                <div
+                    style={{
+                        ...styles.mono,
+                        fontSize: "0.7rem",
+                        color: "#b00",
+                        marginTop: "0.25rem",
+                    }}
+                >
+                    encode_ballot expected: {roundTrip.expected}
+                </div>
+            )}
+        </div>
+    )
+}
+
+function RoundTripBadge({
+    state,
+}: {
+    state:
+        | {status: "pending"}
+        | {status: "ok"}
+        | {status: "mismatch"; expected: string}
+        | {status: "skipped"; reason: string}
+        | {status: "error"; message: string}
+}) {
+    const base: CSSProperties = {
+        display: "inline-block",
+        padding: "0 0.4rem",
+        marginLeft: "0.5rem",
+        borderRadius: "0.25rem",
+        fontSize: "0.7rem",
+        fontWeight: 600,
+    }
+    switch (state.status) {
+        case "pending":
+            return <span style={{...base, background: "#eee"}}>round-trip…</span>
+        case "ok":
+            return (
+                <span style={{...base, background: "#cfe9c8", color: "#1b5e20"}}>
+                    round-trip ✓
+                </span>
+            )
+        case "mismatch":
+            return (
+                <span style={{...base, background: "#f8c4c4", color: "#b00"}}>
+                    round-trip ✗
+                </span>
+            )
+        case "skipped":
+            return (
+                <span
+                    style={{...base, background: "#eee", color: "#666"}}
+                    title={state.reason}
+                >
+                    round-trip skipped
+                </span>
+            )
+        case "error":
+            return (
+                <span
+                    style={{...base, background: "#f8c4c4", color: "#b00"}}
+                    title={state.message}
+                >
+                    round-trip err
+                </span>
+            )
+    }
+}
+
+/**
  * One cast vote, rendered as an expandable card. The summary is the
  * minimum the operator needs to scan the list (id, voter, encrypted-
  * content size). Expanding reveals the human-readable selection
@@ -1110,10 +1272,14 @@ function CastVoteRow({
     castVote,
     voterCell,
     plaintextSelection,
+    decodedBigInts,
+    ballotStyle,
 }: {
     castVote: ICastVote
     voterCell: React.ReactNode
     plaintextSelection: unknown
+    decodedBigInts: Record<string, string> | undefined
+    ballotStyle: IBallotStyle
 }) {
     const content = castVote.content ?? ""
     return (
@@ -1143,6 +1309,30 @@ function CastVoteRow({
                 ) : (
                     <p style={styles.empty}>
                         Not captured by the workbench bridge.
+                    </p>
+                )}
+            </div>
+            <div style={{marginTop: "0.5rem"}}>
+                <div style={styles.sectionTitle}>
+                    Decoded BigUint (decrypt → decode)
+                </div>
+                {decodedBigInts &&
+                Object.keys(decodedBigInts).length > 0 ? (
+                    ballotStyle.ballot_eml.contests.map((contest) => {
+                        const big = decodedBigInts[contest.id]
+                        if (!big) return null
+                        return (
+                            <DecodedContestRow
+                                key={contest.id}
+                                contest={contest}
+                                decodedBigInt={big}
+                                selection={plaintextSelection}
+                            />
+                        )
+                    })
+                ) : (
+                    <p style={styles.empty}>
+                        Decrypting… (or no workbench keypair available).
                     </p>
                 )}
             </div>

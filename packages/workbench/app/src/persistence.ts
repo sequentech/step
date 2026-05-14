@@ -53,10 +53,12 @@ import {
     captureRepairedCastVote,
     getWorkbenchState,
     replaceWorkbenchState,
+    setRepairedDecodedBigInts,
     subscribeWorkbench,
     type RepairedCastVote,
     type WorkbenchExtraState,
 } from "./workbenchStore"
+import {decryptBallotContent} from "./tally"
 /**
  * Storage key. The `:v1` suffix is a schema version: when the persisted
  * shape becomes incompatible (e.g. voting-portal removes a slice we
@@ -131,7 +133,13 @@ export function hydrateFromSnapshot(
         // already present in the ledger from the snapshot itself, but
         // ordering this way keeps the invariant clean.)
         replaceWorkbenchState(
-            workbench ?? {voters: [], activeVoterId: null, castBy: {}}
+            workbench ?? {
+                voters: [],
+                activeVoterId: null,
+                castBy: {},
+                repairedCastVotes: {},
+                keypair: null,
+            }
         )
         for (const election of Object.values(state.elections)) {
             if (election) store.dispatch(setElection(election))
@@ -218,9 +226,9 @@ function writeSnapshot(state: RootState): void {
  */
 function tryCaptureRepairedCastVote(
     rootState: RootState,
-    castVoteId: string,
-    castVoteElectionId: string | null | undefined
+    castVote: {id: string; election_id?: string | null; content?: string | null}
 ): void {
+    const castVoteElectionId = castVote.election_id
     if (!castVoteElectionId) return
     const ballotStyle = Object.values(rootState.ballotStyles).find(
         (bs) => bs && bs.election_id === castVoteElectionId
@@ -237,9 +245,48 @@ function tryCaptureRepairedCastVote(
         // that mutate `state.ballotSelections` in place cannot affect
         // the snapshot we just took.
         selection: JSON.parse(JSON.stringify(selection)) as unknown,
+        // Filled in asynchronously below. Captured empty up-front so
+        // the UI can render the row immediately; the decoded BigUints
+        // appear a moment later via `setRepairedDecodedBigInts`.
+        decodedBigInts: {},
         capturedAt: new Date().toISOString(),
     }
-    captureRepairedCastVote(castVoteId, repaired)
+    captureRepairedCastVote(castVote.id, repaired)
+
+    // Async-decrypt every contest on this ballot style using the
+    // workbench-owned secret key. Fire-and-forget: failure to decrypt
+    // a contest leaves its entry out of `decodedBigInts`, and the
+    // tally surfaces that as `no-data`. We deliberately do not await
+    // here — the store subscriber is sync, and the cast-vote row is
+    // already useful with the plaintext selection alone.
+    const keypair = getWorkbenchState().keypair
+    if (!keypair || !castVote.content) return
+    const content = castVote.content
+    const contestIds = ballotStyle.ballot_eml.contests.map((c) => c.id)
+    void (async () => {
+        const decoded: Record<string, string> = {}
+        for (const contestId of contestIds) {
+            try {
+                decoded[contestId] = await decryptBallotContent(
+                    content,
+                    keypair.skB64,
+                    contestId
+                )
+            } catch (e) {
+                // Best-effort: log once and continue. A failed
+                // decrypt typically means the cast vote was encrypted
+                // under a different keypair (e.g. pre-step-6 snapshot
+                // with the in-tree default pk).
+                console.warn(
+                    `[workbench/persistence] decrypt failed for cv=${castVote.id} contest=${contestId}:`,
+                    e
+                )
+            }
+        }
+        if (Object.keys(decoded).length > 0) {
+            setRepairedDecodedBigInts(castVote.id, decoded)
+        }
+    })()
 }
 
 /**
@@ -287,7 +334,7 @@ export function installPersistence(store: typeof Store): () => void {
                 if (seenCastVoteIds.has(v.id)) continue
                 seenCastVoteIds.add(v.id)
                 attributeCastVote(v.id)
-                tryCaptureRepairedCastVote(liveState, v.id, v.election_id)
+                tryCaptureRepairedCastVote(liveState, v)
             }
         }
         writeSnapshot(store.getState())

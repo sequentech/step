@@ -140,44 +140,55 @@ const electionEvent: IElectionEvent = {
 // shape VotingScreen consumes most of (`ballot_eml.contests`,
 // `ballot_eml.public_key.is_demo`, `ballot_eml.election_event_presentation`,
 // ...). Keep it in sync with the outer election fixture.
-const ballotEml: IBallotStyleEml = {
-    id: BALLOT_STYLE_ID,
-    tenant_id: TENANT_ID,
-    election_event_id: EVENT_ID,
-    election_id: ELECTION_ID,
-    area_id: "00000000-0000-0000-0000-0000000000aa",
-    contests: [contest],
-    // `ElectionWrapper.isEarlyVotingPolicyEnabled()` reads
-    // `ballot_eml.area_presentation.allow_early_voting` unconditionally.
-    // It is currently short-circuited by the online-OPEN status set on the
-    // election above, but seeding a NO_EARLY_VOTING area_presentation
-    // makes the fixture robust against status changes.
-    area_presentation: {
-        allow_early_voting: EEarlyVotingPolicy.NO_EARLY_VOTING,
-    },
-    public_key: {
-        // The default Ristretto election public key used by sequent-core's
-        // own fixtures (`DEFAULT_PUBLIC_KEY_RISTRETTO_STR` in
-        // sequent-core/src/encrypt.rs). It is a real point on the curve so
-        // `encrypt_decoded_contest` succeeds; the matching private key
-        // is intentionally not shipped — the workbench validates the
-        // *encrypt* path, not the decrypt path.
-        public_key: "ajR/I9RqyOwbpsVRucSNOgXVLCvLpfQxCgPoXGQ2RF4",
-        // `is_demo: false` so StartScreen doesn't pop the "this is a demo"
-        // dialog; flip to true when exercising that flow.
-        is_demo: false,
-    },
-}
-
-const ballotStyle: IBallotStyle = {
-    id: BALLOT_STYLE_ID,
-    tenant_id: TENANT_ID,
-    election_event_id: EVENT_ID,
-    election_id: ELECTION_ID,
-    area_id: "00000000-0000-0000-0000-0000000000aa",
-    ballot_eml: ballotEml,
-    created_at: new Date(0).toISOString(),
-    last_updated_at: new Date(0).toISOString(),
+//
+// Constructed lazily inside `seedBoothFixtures` (rather than at module
+// load) so the caller can inject the workbench-owned public key. See
+// `WorkbenchKeypair` in `workbenchStore.ts`.
+function buildBallotStyle(publicKeyB64: string): IBallotStyle {
+    const ballotEml: IBallotStyleEml = {
+        id: BALLOT_STYLE_ID,
+        tenant_id: TENANT_ID,
+        election_event_id: EVENT_ID,
+        election_id: ELECTION_ID,
+        area_id: "00000000-0000-0000-0000-0000000000aa",
+        contests: [contest],
+        // `ElectionWrapper.isEarlyVotingPolicyEnabled()` reads
+        // `ballot_eml.area_presentation.allow_early_voting` unconditionally.
+        // It is currently short-circuited by the online-OPEN status set on the
+        // election above, but seeding a NO_EARLY_VOTING area_presentation
+        // makes the fixture robust against status changes.
+        area_presentation: {
+            allow_early_voting: EEarlyVotingPolicy.NO_EARLY_VOTING,
+        },
+        public_key: {
+            // Public half of the workbench-owned Ristretto ElGamal
+            // keypair (see `workbenchStore.WorkbenchKeypair`). Generated
+            // on first boot and persisted; reused across reloads so
+            // previously captured `castVote.content` ciphertexts stay
+            // decryptable.
+            //
+            // We intentionally *do not* use sequent-core's in-tree
+            // `DEFAULT_PUBLIC_KEY_RISTRETTO_STR` here: that constant
+            // has no matching private key anywhere in the repo
+            // (production uses threshold trustee keys), so reusing it
+            // would cut off the encrypt -> decrypt -> tally loop the
+            // workbench is built to exercise.
+            public_key: publicKeyB64,
+            // `is_demo: false` so StartScreen doesn't pop the "this is a demo"
+            // dialog; flip to true when exercising that flow.
+            is_demo: false,
+        },
+    }
+    return {
+        id: BALLOT_STYLE_ID,
+        tenant_id: TENANT_ID,
+        election_event_id: EVENT_ID,
+        election_id: ELECTION_ID,
+        area_id: "00000000-0000-0000-0000-0000000000aa",
+        ballot_eml: ballotEml,
+        created_at: new Date(0).toISOString(),
+        last_updated_at: new Date(0).toISOString(),
+    }
 }
 
 let seeded = false
@@ -185,6 +196,11 @@ let seeded = false
 /**
  * Seed voting-portal's production Redux store with the booth fixture.
  * Idempotent: safe to call from a React effect that may re-fire.
+ *
+ * `publicKeyB64` is the public half of the workbench keypair (see
+ * `ensureWorkbenchKeypair`). It becomes the ballot style's
+ * `public_key`, so the portal's encrypt path encrypts cast ballots
+ * under a key we own and can later decrypt.
  *
  * Why we also dispatch `resetBallotSelection` here: in production the
  * portal initializes the per-election `ballotSelections[electionId]`
@@ -194,9 +210,10 @@ let seeded = false
  * URL to be a valid entry point (hot reload on `/vote`, deep links),
  * so we seed the empty-selection structure here too.
  */
-export function seedBoothFixtures(): void {
+export function seedBoothFixtures(publicKeyB64: string): void {
     if (seeded) return
     seeded = true
+    const ballotStyle = buildBallotStyle(publicKeyB64)
     store.dispatch(setElection(election))
     store.dispatch(setElectionEvent(electionEvent))
     store.dispatch(setBallotStyle(ballotStyle))

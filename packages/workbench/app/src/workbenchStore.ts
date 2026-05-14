@@ -56,6 +56,24 @@ export interface WorkbenchExtraState {
      *  `sessionStorage["ballotData"]`, opaque to the workbench because
      *  we lack the decryption keys). */
     repairedCastVotes: Record<string, RepairedCastVote>
+    /** Workbench-owned ElGamal keypair, generated once on first boot
+     *  and persisted alongside the rest of the workbench state. The
+     *  `pkB64` half is seeded into the booth fixture as the ballot
+     *  style's `public_key` so the portal's encrypt path uses our key;
+     *  the `skB64` half lets us decrypt the resulting `castVote.content`
+     *  to recover the plaintext BigUint — closing the encrypt → decrypt
+     *  → decode → tally loop end-to-end in the browser. Production has
+     *  no analogue: real election keys are threshold-shared between
+     *  trustees and never live as a single secret anywhere. */
+    keypair: WorkbenchKeypair | null
+}
+
+/** Ristretto ElGamal keypair owned by the workbench. Both halves are
+ *  base64-no-pad strings as produced by `velvet-wasm::generate_keypair`
+ *  (strand/borsh-serialised). */
+export interface WorkbenchKeypair {
+    pkB64: string
+    skB64: string
 }
 
 /** Per-cast-vote bridge record. See {@link WorkbenchExtraState.repairedCastVotes}. */
@@ -70,6 +88,14 @@ export interface RepairedCastVote {
      *  `BallotSelection` from `@sequentech/ui-core` when they need
      *  structured access. */
     selection: unknown
+    /** Per-contest decimal `BigUint` strings recovered by decrypting
+     *  `castVote.content` with the workbench-owned secret key. Keyed
+     *  by `contestId`. Empty when decryption could not run (e.g.
+     *  hydrated from a pre-step-6 snapshot, missing keypair, malformed
+     *  ciphertext). Same bytes `encodeBallot` would produce from the
+     *  matching selection, which is what the round-trip badge checks.
+     */
+    decodedBigInts: Record<string, string>
     /** ISO-8601 timestamp of capture. */
     capturedAt: string
 }
@@ -79,6 +105,7 @@ const EMPTY_STATE: WorkbenchExtraState = Object.freeze({
     activeVoterId: null,
     castBy: {},
     repairedCastVotes: {},
+    keypair: null,
 })
 
 let state: WorkbenchExtraState = EMPTY_STATE
@@ -195,6 +222,39 @@ export function captureRepairedCastVote(
     })
 }
 
+/** Merge per-contest decoded `BigUint` strings into an already-captured
+ *  cast vote. Used by the async decrypt path in the bridge: the
+ *  synchronous capture writes the plaintext selection immediately so
+ *  the UI updates, and this merge fills in `decodedBigInts` once the
+ *  wasm-side decrypt+decode resolves. No-op if the cast vote has not
+ *  been captured yet (defensive — should not happen because the bridge
+ *  always calls `captureRepairedCastVote` first). */
+export function setRepairedDecodedBigInts(
+    castVoteId: string,
+    decodedBigInts: Record<string, string>
+): void {
+    const existing = state.repairedCastVotes[castVoteId]
+    if (!existing) return
+    setState({
+        ...state,
+        repairedCastVotes: {
+            ...state.repairedCastVotes,
+            [castVoteId]: {
+                ...existing,
+                decodedBigInts: {...existing.decodedBigInts, ...decodedBigInts},
+            },
+        },
+    })
+}
+
+/** Install the workbench-owned keypair. First call wins; subsequent
+ *  calls are no-ops so a stray re-seed cannot invalidate an already-
+ *  captured cast vote (which was encrypted under the existing pk). */
+export function setKeypair(kp: WorkbenchKeypair): void {
+    if (state.keypair) return
+    setState({...state, keypair: kp})
+}
+
 // ---------------------------------------------------------------------------
 // Persistence integration
 // ---------------------------------------------------------------------------
@@ -258,11 +318,50 @@ function normalizeIncoming(incoming: WorkbenchExtraState): WorkbenchExtraState {
                 typeof (v as RepairedCastVote).electionId === "string" &&
                 typeof (v as RepairedCastVote).ballotStyleId === "string"
             ) {
-                repairedCastVotes[k] = v as RepairedCastVote
+                // Back-compat: snapshots written before `decodedBigInts`
+                // existed simply rehydrate with an empty map. The bridge
+                // will not back-fill on hydrate (the source ciphertexts
+                // are still on the cast-vote record, but re-running
+                // decrypt on hydrate would risk doing so under a
+                // different keypair if the user has reset workbench
+                // state in between).
+                const raw = v as RepairedCastVote & {
+                    decodedBigInts?: unknown
+                }
+                const decoded: Record<string, string> = {}
+                if (
+                    raw.decodedBigInts &&
+                    typeof raw.decodedBigInts === "object"
+                ) {
+                    for (const [cid, big] of Object.entries(
+                        raw.decodedBigInts as Record<string, unknown>
+                    )) {
+                        if (typeof big === "string") decoded[cid] = big
+                    }
+                }
+                repairedCastVotes[k] = {
+                    electionId: raw.electionId,
+                    ballotStyleId: raw.ballotStyleId,
+                    selection: raw.selection,
+                    decodedBigInts: decoded,
+                    capturedAt: raw.capturedAt,
+                }
             }
         }
     }
-    return {voters: sortVoters(voters), activeVoterId, castBy, repairedCastVotes}
+    let keypair: WorkbenchKeypair | null = null
+    if (
+        incoming.keypair &&
+        typeof incoming.keypair === "object" &&
+        typeof (incoming.keypair as WorkbenchKeypair).pkB64 === "string" &&
+        typeof (incoming.keypair as WorkbenchKeypair).skB64 === "string"
+    ) {
+        keypair = {
+            pkB64: (incoming.keypair as WorkbenchKeypair).pkB64,
+            skB64: (incoming.keypair as WorkbenchKeypair).skB64,
+        }
+    }
+    return {voters: sortVoters(voters), activeVoterId, castBy, repairedCastVotes, keypair}
 }
 
 function sortVoters(vs: Voter[]): Voter[] {

@@ -10675,6 +10675,7 @@ dependencies = [
  "serde",
  "serde-wasm-bindgen",
  "serde_json",
+ "strand",
  "velvet-core",
  "wasm-bindgen",
  "wasm-bindgen-test",
