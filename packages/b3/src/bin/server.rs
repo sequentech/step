@@ -77,12 +77,8 @@ cfg_if::cfg_if! {
                 .max_encoding_message_size(config.max_message_size_bytes)
                 .max_decoding_message_size(config.max_message_size_bytes);
 
-            let grpc_probe_url = probe::grpc_health_url_for_bind(&config.bind);
-            let max_msg = config.max_message_size_bytes;
             let pg_probe = c_db.clone();
-            tokio::spawn(async move {
-                probe::setup_probe(pg_probe, grpc_probe_url, max_msg).await;
-            });
+            probe::setup_probe(pg_probe).await;
 
             Server::builder().add_service(service).serve(addr).await?;
 
