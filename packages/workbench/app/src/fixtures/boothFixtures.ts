@@ -11,10 +11,15 @@
 // below will fail TypeScript compilation, which is the early-warning
 // signal we want.
 
-import type {
-    IBallotStyle as IBallotStyleEml,
-    IContest,
-    IElection,
+import {
+    EEarlyVotingPolicy,
+    EVotingStatus,
+    type IBallotStyle as IBallotStyleEml,
+    type IContest,
+    type IElection,
+    type IElectionEventStatus,
+    type IElectionStatus,
+    type IPeriodDates,
 } from "@sequentech/ui-core"
 import {
     setElection,
@@ -70,6 +75,36 @@ const contest: IContest = {
     ],
 }
 
+// Empty period-dates record used to satisfy the strict
+// `IElectionStatus` / `IElectionEventStatus` shape. The chooser screen
+// only reads `voting_status`, so the date strings are never inspected.
+const emptyPeriodDates: IPeriodDates = {}
+
+// `ElectionSelectionScreen`'s `ElectionWrapper` calls `isVotingOpen()`
+// during render (`<SelectElection isOpen={isVotingOpen()} ...>`). For
+// non-kiosk voters that resolves to:
+//   (online OPEN && event online OPEN) || (early ON && event early OPEN)
+// We set the online voting status OPEN on both election and event so the
+// first conjunct short-circuits before the early-voting branch — which
+// would otherwise dereference `ballot_eml.area_presentation` and crash
+// if absent. We still set a benign `area_presentation` below for safety.
+const electionStatus: IElectionStatus = {
+    is_published: true,
+    voting_status: EVotingStatus.OPEN,
+    kiosk_voting_status: EVotingStatus.CLOSED,
+    early_voting_status: EVotingStatus.CLOSED,
+    voting_period_dates: emptyPeriodDates,
+    kiosk_voting_period_dates: emptyPeriodDates,
+    early_voting_period_dates: emptyPeriodDates,
+}
+
+const electionEventStatus: IElectionEventStatus = {
+    is_published: true,
+    voting_status: EVotingStatus.OPEN,
+    kiosk_voting_status: EVotingStatus.CLOSED,
+    early_voting_status: EVotingStatus.CLOSED,
+}
+
 const election: IElectionExtended = {
     id: ELECTION_ID,
     election_event_id: EVENT_ID,
@@ -81,6 +116,7 @@ const election: IElectionExtended = {
     // 0 = unlimited revotes, which keeps `canVoteSomeElection` true even
     // without a working castVotes feed.
     num_allowed_revotes: 0,
+    status: electionStatus,
 }
 
 const electionEvent: IElectionEvent = {
@@ -89,6 +125,7 @@ const electionEvent: IElectionEvent = {
     name: "Workbench demo event",
     description: "Container event for the workbench fixture.",
     elections: [ELECTION_ID],
+    status: electionEventStatus,
 }
 
 // `IBallotStyle.ballot_eml` is the ui-core ballot-style type, and is the
@@ -102,6 +139,14 @@ const ballotEml: IBallotStyleEml = {
     election_id: ELECTION_ID,
     area_id: "00000000-0000-0000-0000-0000000000aa",
     contests: [contest],
+    // `ElectionWrapper.isEarlyVotingPolicyEnabled()` reads
+    // `ballot_eml.area_presentation.allow_early_voting` unconditionally.
+    // It is currently short-circuited by the online-OPEN status set on the
+    // election above, but seeding a NO_EARLY_VOTING area_presentation
+    // makes the fixture robust against status changes.
+    area_presentation: {
+        allow_early_voting: EEarlyVotingPolicy.NO_EARLY_VOTING,
+    },
     public_key: {
         // The default Ristretto election public key used by sequent-core's
         // own fixtures (`DEFAULT_PUBLIC_KEY_RISTRETTO_STR` in

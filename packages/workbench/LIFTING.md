@@ -217,6 +217,12 @@ Concretely, `main.tsx`:
 - `BoothLayout` — `<ThemeProvider>` + `<ReduxProvider>` + `<Outlet />`.
   Mounted as a layout route under the data router.
 - `boothChildren: RouteObject[]` — the route data with elements and actions.
+  The shape mirrors the portal's own `tenant/:tenantId/event/:eventId`
+  subtree: `election-chooser` and `election/:electionId/*` are siblings
+  under a common parent (NOT cousins). Keeping that parent-child
+  structure intact is what lets the chooser's absolute-path navigation
+  (`navigate(\`/tenant/.../election/${id}/start\`)`) resolve at the
+  same URLs the portal produces in production.
 
 **Canary if portal changes:**
 
@@ -272,6 +278,20 @@ Currently seeded (`app/src/fixtures/boothFixtures.ts`):
   because `selectionState` is `undefined`. The workbench needs every URL
   to be a valid entry point (hot reload on `/vote`, deep links), so we
   pre-seed the empty selection structure.
+- **`election.status` and `electionEvent.status` set to `voting_status:
+  OPEN`** (with `kiosk` / `early` set to `CLOSED`). Required for
+  `ElectionSelectionScreen`'s `ElectionWrapper`, which calls
+  `isVotingOpen()` during render (`<SelectElection isOpen={isVotingOpen()}>`).
+  For non-kiosk voters that resolves to
+  `(online OPEN && eventOnline OPEN) || (earlyOn && eventEarly OPEN)`;
+  with both online statuses OPEN the first conjunct short-circuits
+  before the early-voting branch — which would otherwise dereference
+  `ballot_eml.area_presentation.allow_early_voting` and crash if absent.
+- **`ballot_eml.area_presentation: { allow_early_voting: NO_EARLY_VOTING }`**.
+  Belt-and-braces with the previous point: even if a future change
+  makes the early-voting branch reachable, the fixture won't crash —
+  it will just report "no early voting policy enabled" and fall back
+  to the online-OPEN path.
 
 **Convention:** import action creators and slice types directly from
 `voting-portal/src/store/*Slice` (NOT from a re-export under the workbench).
@@ -363,8 +383,15 @@ broken or you want to validate fidelity.
 
 ## Adaptations to add as we lift more screens
 
-When extending past `VotingScreen`, the following are the most likely
-next-step categories of work (in roughly the order they will be needed):
+**Lifted screens so far** (full Vote-cast journey, plus the entry chooser):
+
+- `ElectionSelectionScreen` at `tenant/:tenantId/event/:eventId/election-chooser`.
+- `StartScreen`, `VotingScreen`, `ReviewScreen`, `ConfirmationScreen` at
+  the portal's existing `tenant/.../election/:electionId/{start,vote,review,confirmation}`
+  paths.
+
+When extending past these, the following are the most likely next-step
+categories of work (in roughly the order they will be needed):
 
 1. **A real election public key in the ballot style fixture.** ✅ Done.
    The fixture uses `DEFAULT_PUBLIC_KEY_RISTRETTO_STR` from sequent-core
@@ -381,20 +408,20 @@ next-step categories of work (in roughly the order they will be needed):
    full booth flow (Start → Vote → Review → Confirmation) succeeds
    end-to-end without any GraphQL plumbing. See section D, layer 4.
 4. **Per-operation GraphQL fixtures for screens whose query results
-   aren't already in Redux.** The booth flow gets away with
-   `ApolloLink.empty()` because every `useQuery` in it is either gated
-   on `globalSettings.DISABLE_AUTH` (skipped) or has a Redux fallback
-   (`electionFromRedux !== undefined`). Other voting-portal screens
-   don't have those escape hatches — e.g.
-   `ElectionSelectionScreen` runs `useQuery(GET_ENTITLED_ELECTIONS)` and
-   renders the result directly; with an empty link it would stay on the
-   loader forever. When that happens, the pattern is: add a fixture
-   module under `app/src/fixtures/gql/` that exports an object shaped
-   like the operation's response type (from
-   `voting-portal/src/gql/graphql.ts`), and swap the workbench's empty
-   link for a small `ApolloLink` that resolves the operation based on
-   `operation.operationName` — keeping everything self-contained, no
-   network. Conceptually:
+   aren't already in Redux.** **Deferred — not required by any
+   voting-portal screen lifted to date.** Every `useQuery` in the booth
+   path **and in `ElectionSelectionScreen`** is gated on
+   `globalSettings.DISABLE_AUTH` (skip) and reads its data from Redux
+   instead. `BallotLocator` has one unguarded `useQuery(GET_BALLOT_STYLES)`
+   but it's only used to dispatch `updateBallotStyleAndSelection` if the
+   response arrives — with `ApolloLink.empty()` the dispatch is silently
+   skipped, and the screen falls back to `selectFirstBallotStyle` from
+   Redux. `ConfirmationScreen` likewise has all `useQuery` sites either
+   `DISABLE_AUTH`-gated or `!documentId`-gated. So the entire
+   demo-flagged voting-portal surface is satisfied by the **empty link
+   + Redux fixtures** pair, without any per-operation mocks. If a future
+   screen actually reads from `useQuery` results without a Redux fallback,
+   the pattern below is the minimum solution; until then it stays unbuilt:
 
    ```ts
    // app/src/fixtures/gql/index.ts
@@ -413,11 +440,10 @@ next-step categories of work (in roughly the order they will be needed):
    }))
    ```
 
-   The division of labour between Redux fixtures (section F) and GraphQL
-   fixtures stays clean: data that **production puts in Redux** gets a
-   `setX` dispatch in a fixture module; data that **production reads via
-   GraphQL** gets an `ApolloLink` entry. Do not smear one across the
-   other.
+   The division of labour stays clean: data that **production puts in
+   Redux** gets a `setX` dispatch in a fixture module; data that
+   **production reads via GraphQL** would get an `ApolloLink` entry. Do
+   not smear one across the other.
 5. **Translation key fidelity.** Once a screen renders, missing
    translations show as raw keys (`booth.start.title`). Decide between
    shipping a copy of the portal's locales as a static asset and silencing

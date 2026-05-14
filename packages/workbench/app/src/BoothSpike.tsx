@@ -22,6 +22,7 @@ import "voting-portal/src/services/i18n"
 import {store} from "voting-portal/src/store/store"
 import {WasmWrapper} from "voting-portal/src/providers/WasmWrapper"
 import {SettingsWrapper} from "voting-portal/src/providers/SettingsContextProvider"
+import ElectionSelectionScreen from "voting-portal/src/routes/ElectionSelectionScreen"
 import StartScreen from "voting-portal/src/routes/StartScreen"
 import VotingScreen, {
     action as votingAction,
@@ -121,16 +122,28 @@ export function BoothLayout() {
  */
 export const boothChildren: RouteObject[] = [
     {
-        path: "tenant/:tenantId/event/:eventId/election/:electionId",
+        // Mirrors the portal's `tenant/:tenantId/event/:eventId` subtree
+        // (see voting-portal/src/index.tsx). Keeping `election-chooser`
+        // and `election/:electionId/*` as siblings under the same parent
+        // makes every `<Link to="/tenant/.../election-chooser">` and the
+        // chooser's `navigate(\`/tenant/.../election/${id}/start\`)` call
+        // resolve at the same paths the portal uses in production.
+        path: "tenant/:tenantId/event/:eventId",
         children: [
-            {path: "start", element: <StartScreen />},
-            {path: "vote", element: <VotingScreen />, action: votingAction},
+            {path: "election-chooser", element: <ElectionSelectionScreen />},
             {
-                path: "review",
-                element: <ReviewScreen />,
-                action: castBallotAction,
+                path: "election/:electionId",
+                children: [
+                    {path: "start", element: <StartScreen />},
+                    {path: "vote", element: <VotingScreen />, action: votingAction},
+                    {
+                        path: "review",
+                        element: <ReviewScreen />,
+                        action: castBallotAction,
+                    },
+                    {path: "confirmation", element: <ConfirmationScreen />},
+                ],
             },
-            {path: "confirmation", element: <ConfirmationScreen />},
         ],
     },
 ]
