@@ -16,6 +16,7 @@ import {
     EVotingStatus,
     type IBallotStyle as IBallotStyleEml,
     type IContest,
+    ICountingAlgorithm,
     type IElection,
     type IElectionEventStatus,
     type IElectionStatus,
@@ -55,6 +56,13 @@ const contest: IContest = {
     min_votes: 1,
     winning_candidates_num: 1,
     is_encrypted: true,
+    // Counting algorithm is required by velvet-wasm's tally path
+    // (`tally_plaintext_ballots` errors with "contest is missing
+    // counting_algorithm" if absent). The portal's encrypt path is
+    // lenient about it, but the workbench's inline tally is not — so
+    // we set it explicitly. Plurality-at-large is the only method
+    // sensible for a single-winner / max_votes=1 contest.
+    counting_algorithm: ICountingAlgorithm.PLURALITY_AT_LARGE,
     candidates: [
         {
             id: CANDIDATE_RED_ID,

@@ -25,6 +25,11 @@ import {useCallback, useState, type CSSProperties} from "react"
 import type {RootState} from "voting-portal/src/store/store"
 import {store} from "voting-portal/src/store/store"
 import type {ICastVote} from "voting-portal/src/store/castVotes/castVotesSlice"
+import type {IBallotStyle} from "voting-portal/src/store/ballotStyles/ballotStylesSlice"
+import {
+    runElectionTally,
+    type ContestTallyOutcome,
+} from "./electionTally"
 import {
     deleteCheckpoint,
     listCheckpoints,
@@ -506,6 +511,14 @@ export function WorkbenchElection() {
             </section>
 
             {ballotStyle && (
+                <TallySection
+                    ballotStyle={ballotStyle}
+                    castVotes={electionVotes}
+                    repairedCastVotes={repairedCastVotes}
+                />
+            )}
+
+            {ballotStyle && (
                 <section style={styles.section}>
                     <div style={styles.sectionTitle}>Ballot style</div>
                     <div style={styles.mono}>{ballotStyle.id}</div>
@@ -937,6 +950,152 @@ function VotersPanel() {
                 </p>
             )}
         </section>
+    )
+}
+
+/**
+ * Inline per-election tally panel.
+ *
+ * Runs the same `sequent-core` codec + tally that velvet would run
+ * post-decryption in production, entirely in the browser via
+ * `velvet-wasm`. Inputs:
+ *   - `ballotStyle.ballot_eml.contests[i]` JSON, fed verbatim to the
+ *     WASM (same serde shape as Rust's `Contest`);
+ *   - the workbench-bridged `IDecodedVoteContest[]` per cast vote
+ *     (from `repairedCastVotes`), encoded to BigUint via
+ *     `encode_ballot` and aggregated via `tally_plaintext_ballots`.
+ *
+ * No portal-source changes — the bridge already captures everything
+ * we need (`state.ballotSelections[electionId]` snapshot).
+ */
+function TallySection({
+    ballotStyle,
+    castVotes,
+    repairedCastVotes,
+}: {
+    ballotStyle: IBallotStyle
+    castVotes: ICastVote[]
+    repairedCastVotes: Record<string, {selection: unknown}>
+}) {
+    const [outcomes, setOutcomes] = useState<ContestTallyOutcome[] | null>(
+        null
+    )
+    const [busy, setBusy] = useState(false)
+    const [error, setError] = useState<string | null>(null)
+
+    const captured = castVotes.filter(
+        (cv) => repairedCastVotes[cv.id]?.selection
+    )
+
+    const handleRun = useCallback(async () => {
+        setBusy(true)
+        setError(null)
+        try {
+            const selections = captured.map(
+                (cv) => repairedCastVotes[cv.id]!.selection
+            )
+            const result = await runElectionTally(ballotStyle, selections)
+            setOutcomes(result)
+        } catch (e) {
+            setError(e instanceof Error ? e.message : String(e))
+        } finally {
+            setBusy(false)
+        }
+    }, [ballotStyle, captured, repairedCastVotes])
+
+    const skipped = castVotes.length - captured.length
+
+    return (
+        <section style={styles.section}>
+            <div style={styles.sectionTitle}>Tally</div>
+            <p style={styles.empty}>
+                Run the contest tally over the workbench-bridged
+                plaintext selections, using the same{" "}
+                <code>sequent-core</code> codec the production tally
+                workflow uses (via <code>velvet-wasm</code>, in the
+                browser).
+                {skipped > 0
+                    ? ` ${skipped} cast vote${skipped === 1 ? "" : "s"} skipped (no captured selection).`
+                    : ""}
+            </p>
+            <button
+                type="button"
+                onClick={handleRun}
+                disabled={busy || captured.length === 0}
+                style={{
+                    padding: "0.4rem 0.8rem",
+                    cursor:
+                        busy || captured.length === 0
+                            ? "not-allowed"
+                            : "pointer",
+                }}
+            >
+                {busy
+                    ? "Tallying…"
+                    : outcomes
+                      ? "Re-run tally"
+                      : `Run tally (${captured.length} ballot${captured.length === 1 ? "" : "s"})`}
+            </button>
+            {error && (
+                <p style={{color: "#b00", marginTop: "0.5rem"}}>{error}</p>
+            )}
+            {outcomes && (
+                <div style={{marginTop: "0.5rem"}}>
+                    {outcomes.map((o) => (
+                        <TallyContestCard key={o.contestId} outcome={o} />
+                    ))}
+                </div>
+            )}
+        </section>
+    )
+}
+
+function TallyContestCard({outcome}: {outcome: ContestTallyOutcome}) {
+    return (
+        <details
+            open
+            style={{...styles.card, padding: "0.5rem 0.75rem"}}
+        >
+            <summary style={{cursor: "pointer", fontSize: "0.85rem"}}>
+                <strong>{outcome.contestName ?? "(unnamed contest)"}</strong>
+                <span style={{color: "#666"}}>
+                    {" "}— {outcome.ballotsCounted} ballot
+                    {outcome.ballotsCounted === 1 ? "" : "s"} ·{" "}
+                    {outcome.status === "ok"
+                        ? "tallied"
+                        : outcome.status === "no-data"
+                          ? "no data"
+                          : "error"}
+                </span>
+            </summary>
+            <div style={{marginTop: "0.5rem", fontSize: "0.75rem", color: "#666"}}>
+                contest id: <span style={styles.mono}>{outcome.contestId}</span>
+            </div>
+            {outcome.status === "ok" && (
+                <pre
+                    style={{
+                        ...styles.mono,
+                        background: "#f5f5f5",
+                        padding: "0.5rem",
+                        marginTop: "0.5rem",
+                        maxHeight: "24rem",
+                        overflow: "auto",
+                    }}
+                >
+                    {JSON.stringify(outcome.result, null, 2)}
+                </pre>
+            )}
+            {outcome.status === "no-data" && (
+                <p style={styles.empty}>
+                    No cast vote contained a selection for this contest.
+                </p>
+            )}
+            {outcome.status === "error" && (
+                <p style={{color: "#b00", marginTop: "0.5rem"}}>
+                    {outcome.errorMessage}
+                </p>
+            )}
+        </details>
     )
 }
 
