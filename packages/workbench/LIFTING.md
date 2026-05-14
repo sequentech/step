@@ -295,15 +295,17 @@ Currently seeded (`app/src/fixtures/boothFixtures.ts`):
 - `setElectionEvent({ id, name, ... })` — the parent event.
 - `setBallotStyle({ id, election_id, ballot_eml: { contests, public_key, ... }, ... })`
   — a ballot style whose `ballot_eml.contests` is the same `IContest`
-  array as the election's. The `public_key` is
-  `"ajR/I9RqyOwbpsVRucSNOgXVLCvLpfQxCgPoXGQ2RF4"` — the exact
-  `DEFAULT_PUBLIC_KEY_RISTRETTO_STR` constant that
-  `packages/sequent-core/src/encrypt.rs` ships and uses in its own
-  fixtures. It is a real point on the Ristretto curve, so
-  `encrypt_decoded_contest` succeeds end-to-end (the workbench validates
-  the *encrypt* path; the matching private key is intentionally not
-  bundled). Marked `is_demo: false` so StartScreen does not pop the
-  "this is a demo" dialog.
+  array as the election's. The `public_key` is **the public half of the
+  workbench-owned ElGamal keypair** (`pkB64` from `WorkbenchKeypair`,
+  see section M), passed in as `publicKeyB64` to `buildBallotStyle` /
+  `seedBoothFixtures`. The booth therefore encrypts cast ballots under
+  a key whose secret half the workbench also holds, which is what
+  closes the encrypt → decrypt → decode → tally loop in the browser.
+  An older revision of this fixture used `DEFAULT_PUBLIC_KEY_RISTRETTO_STR`
+  from `packages/sequent-core/src/encrypt.rs` (whose secret half is
+  not bundled); that only validated the *encrypt* path. Marked
+  `is_demo: false` so StartScreen does not pop the "this is a demo"
+  dialog.
 - `resetBallotSelection({ ballotStyle, force: true })` — initializes the
   per-election `ballotSelections[electionId]` entry with all candidates
   at `selected: -1`. **Critical**: in production this dispatch happens
@@ -577,8 +579,23 @@ workbench keeps this state in a tiny separate mini-store
 - A module-local `WorkbenchExtraState` object.
 - `useSyncExternalStore`-based subscription (`useWorkbench` hook).
 - A handful of named mutations: `addVoter`, `removeVoter`,
-  `setActiveVoter`, `attributeCastVote`, `replaceWorkbenchState`,
+  `setActiveVoter`, `attributeCastVote`, `captureRepairedCastVote`,
+  `setRepairedDecodedBigInts`, `setKeypair`, `replaceWorkbenchState`,
   `seedDemoVoters`.
+
+State fields:
+
+- `voters`, `activeVoterId`, `castBy` — directory + attribution ledger.
+- `repairedCastVotes` — per-cast-vote bridge data (plaintext selection
+  snapshot, real election id, and `decodedBigInts: Record<contestId,
+  decimalString>` filled in asynchronously by the decrypt bridge — see
+  section M).
+- `keypair: WorkbenchKeypair | null` — the workbench-owned ElGamal
+  keypair (`{pkB64, skB64}`, base64-no-pad, strand/borsh-serialised
+  via `velvet-wasm::generate_keypair`). Generated once on first boot,
+  written through `setKeypair` which is first-call-wins so a stray
+  re-seed cannot orphan already-captured cast votes encrypted under
+  the old pk. Full lifecycle in section M.
 
 **Persistence integration.** The mini-store is folded into the same
 `PersistedSnapshot` the portal Redux store rides on, via an optional
@@ -775,6 +792,153 @@ populated `content` field, not an empty string; (b) `sessionStorage`'s
 demo ballot data carries the real stringified hashable ballot, not a
 placeholder. The workbench tests pin this down by inspecting
 `cv.content.length > 0` after a demo cast.
+
+---
+
+### M. Workbench-owned keypair and the in-browser tally loop
+
+Production elections key-share ElGamal trustees on a separate machine
+and the booth never sees the secret half. The workbench operates in
+the opposite regime: a single, ephemeral keypair lives entirely in
+the operator's browser so that we can run the *whole* lifecycle —
+encrypt, persist, decrypt, decode, tally — without leaving the page.
+This section documents the keypair's lifecycle and the bridge that
+turns a stored `cv.content` back into the plaintext `BigUint` the
+tally consumes.
+
+This is purely a workbench scaffold. No portal source is involved; if
+the lift refreshes against a future portal that exposes its own
+decrypt surface, this section can simply go away.
+
+#### M.1 The `velvet-wasm` surface (`packages/workbench/velvet-wasm/`)
+
+The workbench's local wasm package re-exports three thin
+wasm-bindgen functions on top of `sequent-core` (in-tree source) and
+`strand`:
+
+- `generate_keypair() -> {pkB64, skB64}` — calls
+  `strand::elgamal::generate_keypair::<RistrettoCtx>` and
+  borsh-encodes each half to base64-no-pad.
+- `decrypt_ballot_content(content_json, sk_b64, contest_id) -> string` —
+  parses a `HashableBallot` JSON (NOT `AuditableBallot`; see canary
+  below), finds the contest entry by id, runs
+  `sk.decrypt(&target.ciphertext) → ctx.decode(&element) → [u8;30] →
+  decode_array_to_vec → decode_bigint_from_bytes`, and returns the
+  resulting `BigUint` as a decimal string.
+- `encode_ballot(contest_json, decoded_vote_contest_json) -> string` —
+  wraps `Contest::encode_plaintext_contest_bigint(&decoded)`. Used
+  by the UI's round-trip badge: the value it produces must match
+  what `decrypt_ballot_content` recovers from the same `Contest` +
+  `DecodedVoteContest` pair.
+
+The package is consumed by the workbench app via
+`"velvet-wasm": "file:../velvet-wasm/pkg"` (section B). Voting-portal
+continues to use its prebuilt `sequent-core` tgz for the encrypt
+path; these are two different wasm artifacts, but they share the
+in-tree `sequent-core` source for the wire formats and the encoding
+rules, which is why they interoperate.
+
+**Canary if `sequent-core` changes:**
+
+- The borsh layout of `HashableBallotContest` changes (e.g. a field
+  reordered, the proof type swapped) → `decrypt_ballot_content`
+  fails to deserialise with *"Failed to decode scalar"* or
+  *"unexpected variant"*. Re-derive the right struct against the
+  current `sequent-core::ballot` module.
+- The 30-byte plaintext encoding changes its length-prefix convention
+  (`encode_vec_to_array` / `decode_array_to_vec` in
+  `sequent-core/src/ballot_codec/vec.rs`) → `decrypt_ballot_content`
+  returns a numerically wrong `BigUint` (off by `len + payload*256`
+  on the first byte) and the round-trip badge stays red. Re-sync the
+  decrypt post-processing with whatever the new convention is.
+
+#### M.2 Keypair lifecycle (`BoothSpike.tsx` + `workbenchStore.ts`)
+
+1. **Boot.** Before `seedBoothFixtures` runs (or before
+   `hydrateFromSnapshot` finishes), the boot path checks
+   `getWorkbenchState().keypair`. If absent, it calls
+   `velvet-wasm::generate_keypair()` and passes the result to
+   `setKeypair({pkB64, skB64})`.
+2. **Fixture seeding.** `seedBoothFixtures(publicKeyB64)` is now
+   parameterised on the public half. The bootstrap path reads
+   `state.keypair.pkB64` and passes it in. As a result the ballot
+   style's `public_key` is always the workbench's pk on first boot.
+3. **Persistence.** The keypair is part of `WorkbenchExtraState`, so
+   it round-trips through `PersistedSnapshot` like every other
+   overlay field (section K). Pre-step-6 snapshots that lack
+   `keypair` rehydrate as `null`; the boot path then generates and
+   sets one before the cast-votes watcher runs.
+4. **Reset.** `__resetWorkbench()` clears the snapshot, which wipes
+   the keypair alongside everything else; a fresh pair is generated
+   on the next boot.
+
+`setKeypair` is **first-call-wins** by design. A snapshot already
+holds a (pk, sk) pair; the cast votes inside it were encrypted under
+that pk. Overwriting on rehydrate would silently make decryption
+return garbage. The same rule protects against a stray dev hot-
+reload re-generating a key.
+
+**Canary if portal changes:**
+
+- Portal starts validating `ballot_eml.public_key` against a server-
+  side allowlist → the workbench's fresh pk gets rejected at vote
+  time. Either feed the workbench pk to the portal's pre-flight
+  validator, or pin a fixed pk and re-import the matching sk on
+  boot.
+- Portal moves `public_key` to a different path on `IBallotStyle` →
+  TS error in `buildBallotStyle` at the assignment site.
+
+#### M.3 Decrypt bridge (`persistence.ts` cast-votes watcher)
+
+`installPersistence`'s existing cast-votes watcher gets a second
+side effect: once `captureRepairedCastVote()` has recorded the
+plaintext selection (synchronously, see section K), the watcher
+launches an async pass that:
+
+1. For each contest in `cv.content` (a `HashableBallot` JSON), calls
+   `decryptBallotContent(content, skB64, contestId)` and collects
+   `{contestId: decimalString}`.
+2. Calls `setRepairedDecodedBigInts(castVote.id, decoded)` to merge
+   the result into the existing `RepairedCastVote`.
+
+The split into a sync capture + async fill is deliberate: the UI
+sees the plaintext selection immediately (snapshot pulled from
+Redux at cast time), and the decrypted `BigUint` appears a tick
+later without blocking the React render. If decryption throws (no
+keypair, malformed content, wrong key after a partial reset), the
+entry is simply left empty; the round-trip badge then reads "—"
+rather than asserting equality.
+
+The decrypt does **not** re-run on hydrate. Re-decrypting a cast
+vote at boot would risk doing so under a different keypair if the
+operator wiped state in between, and the `decodedBigInts` are
+already in the snapshot. Hydration just rehydrates whatever value
+was last written.
+
+#### M.4 Round-trip badge and tally consumption
+
+The Cast Votes table in `Workbench.tsx` renders a
+`DecodedContestRow` per `(repairedCastVote, contest)` pair:
+
+- Decoded value: `repairedCastVote.decodedBigInts[contestId]`
+  (decimal string).
+- Round-trip check: call `encodeBallot(JSON.stringify(contest),
+  JSON.stringify(selectionForThatContest))` and compare. Green when
+  equal, red otherwise, "—" when either side is missing.
+
+The "Run tally" button in `electionTally.ts` consumes the
+`decodedBigInts` map directly. There is no re-encrypt-then-decrypt
+trip through wasm — the BigUints flow straight from
+`repairedCastVotes` into the tally code path, exactly the way a
+production trustee would feed decrypted plaintexts in.
+
+**End-to-end canary.** Cast a Blue vote on the bundled fixture
+(plurality-at-large, two candidates, `max_votes=1`); expected
+`decodedBigInts[<contestId>] === "4"` (bases `[2,2,2]`, choices
+`[0,0,1]`, mixed-radix LSB), round-trip badge green, tally reports
+`Blue: 100% (1), Red: 0% (0), valid=1, invalid=0`. If the BigUint
+shows up as `1025`, the length-prefix unwrap in
+`decrypt_ballot_content` regressed (see M.1).
 
 ---
 
