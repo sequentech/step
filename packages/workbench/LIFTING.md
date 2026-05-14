@@ -215,17 +215,38 @@ Two structural decisions follow from inspecting `voting-portal/src/index.tsx`:
 Concretely, `main.tsx`:
 
 - Builds a `createBrowserRouter` with a `<Shell>` layout containing the
-  workbench nav bar and an `<Outlet />`.
-- One root child: `/tally → <App />`.
-- Another root child: `<BoothLayout />`, with `boothChildren` (defined in
-  `BoothSpike.tsx`) as its `children`. `boothChildren` mirrors the portal's
-  `election/:electionId/{start,vote,review,confirmation}` subtree and pairs
-  each route with the same `action` the portal wires.
+  workbench nav bar, the global `<ReduxProvider>`, and an `<Outlet />`.
+- **Index route**: `/ → <WorkbenchHome />`. Workbench-native landing
+  page that lists tenants by introspecting `state.electionEvent` and
+  `state.elections`. This is the entry point — not the booth.
+- **Drilldown routes** under `/wb/...` (workbench-native, all in
+  `app/src/Workbench.tsx`):
+  - `/wb/tenant/:tenantId` — list of events for the tenant.
+  - `/wb/tenant/:tenantId/event/:eventId` — list of elections in the event.
+  - `/wb/tenant/:tenantId/event/:eventId/election/:electionId` —
+    election detail with metadata, cast-vote table (honestly surfacing
+    both the `election_id` and `event_id` cast-vote bins because the
+    demo path conflates them), ballot-style summary, and CTAs into the
+    booth at the production-mirroring paths.
+- **Raw-JSON tally sandbox**: `/tally → <App />`. Kept as a focused
+  velvet-wasm playground; no Redux integration so it can run
+  independently of the scenario state.
+- **Booth subtree**: `<BoothLayout />` mounting `boothChildren` (defined
+  in `BoothSpike.tsx`). `boothChildren` mirrors the portal's
+  `tenant/:tenantId/event/:eventId/{election-chooser, election/:electionId/*}`
+  subtree and pairs each route with the same `action` the portal wires.
+
+The split is deliberate: `/wb/...` is workbench-owned chrome we are free
+to evolve; `/tenant/:t/event/:e/...` is the production-mirror surface
+where we MUST NOT diverge. Internal portal `<Link to="/tenant/...">`
+calls keep resolving at the production paths because we never moved
+them.
 
 `BoothSpike.tsx` exports two things only:
 
-- `BoothLayout` — `<ThemeProvider>` + `<ReduxProvider>` + `<Outlet />`.
-  Mounted as a layout route under the data router.
+- `BoothLayout` — the booth-screen-only providers (Theme, Settings,
+  Apollo, Wasm). The ReduxProvider lives in `Shell` instead (see
+  section H), so `BoothLayout` does NOT mount Redux itself.
 - `boothChildren: RouteObject[]` — the route data with elements and actions.
   The shape mirrors the portal's own `tenant/:tenantId/event/:eventId`
   subtree: `election-chooser` and `election/:electionId/*` are siblings
@@ -233,6 +254,13 @@ Concretely, `main.tsx`:
   structure intact is what lets the chooser's absolute-path navigation
   (`navigate(\`/tenant/.../election/${id}/start\`)`) resolve at the
   same URLs the portal produces in production.
+
+**Workbench-native pages reach the booth via production paths.** The
+election detail page renders a "Start voting for this election" CTA
+that links to
+`/tenant/:t/event/:e/election/:el/start`, not to a `/wb/...` path. That
+keeps a single source of truth for "what URL the booth is at": the
+portal's own absolute-`<Link>` strings.
 
 **Canary if portal changes:**
 
@@ -452,9 +480,60 @@ file to make the workbench work:
 3. Try one of: `resolve.alias`, `define`, a new provider, a fixture seed,
    a substitute deep-import path. One of these almost always works.
 4. If you genuinely cannot avoid a portal-source change, document it here
-   under a new section "J. Concessions" with the exact diff and the reason
+   under a new section "K. Concessions" with the exact diff and the reason
    it was unavoidable. Reviews of refresh PRs will then verify that the
    concession is still needed.
+
+### J. Workbench-native chrome (`app/src/Workbench.tsx`)
+
+Everything under `/wb/...` is **workbench-owned UI** — not lifted from
+voting-portal, not from admin-portal. The decision is documented at the
+top of section A's *do-not-lift* list: admin-portal is explicitly out
+of scope. Instead the workbench ships its own minimal screens to
+navigate the scenario.
+
+Pages:
+
+- `WorkbenchHome` at `/` — lists tenants. There is no `tenants` Redux
+  slice in voting-portal, so the page derives a tenant catalog by
+  scanning `state.electionEvent` and `state.elections` for `tenant_id`
+  values and grouping by them. Per-tenant counters (events,
+  elections, cast votes) come from the same scan.
+- `WorkbenchTenant` at `/wb/tenant/:tenantId` — lists events for that
+  tenant by filtering `state.electionEvent`.
+- `WorkbenchEvent` at `/wb/tenant/:tenantId/event/:eventId` — lists
+  elections in that event by filtering `state.elections`.
+- `WorkbenchElection` at
+  `/wb/tenant/:tenantId/event/:eventId/election/:electionId` — election
+  detail with: metadata, cast-vote table, ballot-style summary, and
+  CTAs into the booth at the production paths (see section E).
+
+**Cast-vote bin honesty.** The election-detail page deliberately reads
+`state.castVotes[electionId]` **and** `state.castVotes[eventId]` and
+labels each row with which bin it came from. The portal's
+`useAddFakeCastVote` under `DISABLE_AUTH` writes everything keyed by
+`event_id` (it actually conflates id/election_id/area_id all to
+`eventId`), so the only entries you will see in the real flow are the
+"(demo path)" rows. We surface both bins because masking that quirk
+would mislead the operator about what is actually in state.
+
+**Rules:**
+
+- Workbench-native pages MUST NOT import or re-implement voting-portal
+  screens. They may freely import portal Redux slices, selectors, and
+  action creators — those are part of the same package the booth uses.
+- CTAs that enter the booth MUST link to the production paths
+  (`/tenant/:t/event/:e/...`), never to `/wb/...`. Section E.
+- These pages own their styling inline. There is no design system to
+  match — admin-portal is out of scope by policy, and matching the
+  booth's MUI theme would imply that these are booth screens, which
+  they are not.
+
+**When the scenario data model grows** (named checkpoints, voter
+directory, scenario imports, ...), add a new workbench-native page
+under `/wb/...` here. Do not reach for admin-portal as inspiration; the
+whole point is to design the operator surface from scratch around the
+workbench's actual needs.
 
 ---
 

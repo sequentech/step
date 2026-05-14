@@ -9,10 +9,13 @@ import {createBrowserRouter, Link, Outlet, RouterProvider} from "react-router-do
 import {store} from "voting-portal/src/store/store"
 import {App} from "./App"
 import {BoothLayout, boothChildren} from "./BoothSpike"
-import {ELECTION_ID, EVENT_ID, TENANT_ID} from "./fixtures/boothFixtures"
 import {clearPersistedSnapshot} from "./persistence"
-
-const BOOTH_START = `/tenant/${TENANT_ID}/event/${EVENT_ID}/election/${ELECTION_ID}/start`
+import {
+    WorkbenchElection,
+    WorkbenchEvent,
+    WorkbenchHome,
+    WorkbenchTenant,
+} from "./Workbench"
 
 function Shell() {
     return (
@@ -27,8 +30,10 @@ function Shell() {
                     alignItems: "center",
                 }}
             >
-                <Link to="/tally">Tally (raw JSON)</Link>
-                <Link to={BOOTH_START}>Booth</Link>
+                <Link to="/" style={{fontWeight: 600}}>
+                    Workbench
+                </Link>
+                <Link to="/tally">Raw-JSON tally</Link>
                 <span style={{flex: 1}} />
                 <button
                     type="button"
@@ -62,10 +67,29 @@ function Shell() {
 // `<BrowserRouter>` because voting-portal screens call `useSubmit` /
 // `useActionData`, which only function under a data router. See
 // `voting-portal/src/index.tsx` for the production setup we mirror.
+//
+// Three families of routes live under `Shell`:
+//   * Workbench-native pages at `/` and `/wb/...` (Workbench.tsx). These
+//     are the entry points and drilldown views.
+//   * Booth (lifted voting-portal) screens at the production-mirroring
+//     paths under `/tenant/:t/event/:e/...`. Mounted via `BoothLayout`
+//     so the portal's own provider stack wraps them.
+//   * The raw-JSON tally sandbox at `/tally`, kept as a debug page for
+//     ad-hoc velvet-wasm experiments without touching Redux.
 const router = createBrowserRouter([
     {
         element: <Shell />,
         children: [
+            {index: true, element: <WorkbenchHome />},
+            {path: "/wb/tenant/:tenantId", element: <WorkbenchTenant />},
+            {
+                path: "/wb/tenant/:tenantId/event/:eventId",
+                element: <WorkbenchEvent />,
+            },
+            {
+                path: "/wb/tenant/:tenantId/event/:eventId/election/:electionId",
+                element: <WorkbenchElection />,
+            },
             {path: "/tally", element: <App />},
             {
                 element: <BoothLayout />,
