@@ -505,6 +505,10 @@ file to make the workbench work:
    it was unavoidable. Reviews of refresh PRs will then verify that the
    concession is still needed.
 
+   (One such concession exists today — see section **L. Concessions:
+   edits to `voting-portal/src/`** — for the demo-mode-only fix to
+   `useAddFakeCastVote` in `ReviewScreen.tsx`.)
+
 ### J. Workbench-native chrome (`app/src/Workbench.tsx`)
 
 Everything under `/wb/...` is **workbench-owned UI** — not lifted from
@@ -675,6 +679,61 @@ overwrite a previously-snapshotted bridge entry, even if
 sessionStorage is empty the second time around.
 
 ---
+
+### L. Concessions: edits to `voting-portal/src/`
+
+Section I declares portal source untouched, and that remains true for
+production code paths. **One** edit was accepted, scoped strictly to
+the `DISABLE_AUTH` / `isDemo` branch:
+
+**`voting-portal/src/routes/ReviewScreen.tsx` — `useAddFakeCastVote`.**
+The original demo helper wrote synthetic cast votes with
+`id = eventId`, `election_id = eventId`, `area_id = eventId`. Both
+fields were wrong:
+
+- `id = eventId` collided across casts. The `castVotes` slice dedupes
+  by `id` within its election bucket, so every new demo cast silently
+  overwrote the previous one. With auth disabled and the booth used
+  for repeat testing, the slice never accumulated more than one cast
+  vote.
+- `election_id = eventId` mis-bucketed the cast vote: the slice keys
+  by `election_id`, so `selectCastVotesByElectionId(realElectionId)`
+  returned `[]`. Anything reading cast votes by election (the booth's
+  own confirmation screen, the workbench's election detail, a future
+  tally) had to know to look under the event id instead.
+
+The fix changes the helper's return signature from `() => void` to
+`(electionId, ballotId) => void` and uses those at the two call sites
+(both already had the values in scope: `ballotStyle.election_id` +
+`ballotId` in `castBallotAction`, and `ballotData.electionId` +
+`ballotData.ballotId` in `goldenUserCastBallotAction`). `id` now
+takes the unique per-cast `ballotId`; `election_id` and `area_id`
+both take the real `electionId`; `election_event_id` continues to be
+the parent `eventId`.
+
+**Why this was accepted:**
+
+- It only runs when `isDemo || DISABLE_AUTH` — never in production.
+- The whole helper is a stand-in for `INSERT_CAST_VOTE`; the real
+  flow goes through `tryInsertCastVote` and the backend assigns the
+  fields.
+- The fix is type-checked by the existing call sites and isolated to
+  one function plus its two callers (~10 lines diff).
+- Without the fix, the workbench had to maintain a parallel
+  "bridged election_id" column and a dual-bin cast-votes view in
+  every screen, AND any future inline tally would need the same
+  pivot. The bridge documented in section K still exists (for
+  plaintext selection + encrypted hashable ballot), but it no
+  longer has to repair the election id.
+
+**What this implies for refreshes.** If voting-portal renames the
+helper, changes its parameter list, or adds new call sites, the
+refresh PR must re-apply the same shape (real `electionId`, unique
+`ballotId`). Reviewers should reject a refresh that silently brings
+back `id = eventId` or `election_id = eventId`.
+
+---
+
 
 ## Refresh procedure (when voting-portal evolves)
 

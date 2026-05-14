@@ -200,13 +200,6 @@ function TenantCard({
         (n, id) => n + (castVotesByElection[id]?.length ?? 0),
         0
     )
-    // The demo's `useAddFakeCastVote` indexes cast votes by event_id, not
-    // election_id (see LIFTING.md "Concession-ish quirks"), so we sum
-    // those too to show an honest total.
-    const eventVotes = summary.eventIds.reduce(
-        (n, id) => n + (castVotesByElection[id]?.length ?? 0),
-        0
-    )
     return (
         <div style={styles.card}>
             <Link to={`/wb/tenant/${summary.tenantId}`}>
@@ -217,8 +210,8 @@ function TenantCard({
                 {summary.eventIds.length === 1 ? "" : "s"},{" "}
                 {summary.electionIds.length} election
                 {summary.electionIds.length === 1 ? "" : "s"},{" "}
-                {electionVotes + eventVotes} cast vote
-                {electionVotes + eventVotes === 1 ? "" : "s"}
+                {electionVotes} cast vote
+                {electionVotes === 1 ? "" : "s"}
             </div>
         </div>
     )
@@ -369,14 +362,12 @@ export function WorkbenchElection() {
             (bs) => bs && bs.election_id === electionId
         )
     )
-    // Cast votes are indexed in the slice by `castVote.election_id`, but
-    // `useAddFakeCastVote` sets that field to the event id. To be honest
-    // about what's in state we surface BOTH bins.
+    // Cast votes for this election. The `castVotes` slice is keyed by
+    // `castVote.election_id`; the demo helper now sets that to the
+    // real election id (see LIFTING.md section L), so a single lookup
+    // suffices.
     const electionVotes = useSelector(
         (state: RootState) => state.castVotes[electionId ?? ""] ?? []
-    )
-    const eventBinVotes = useSelector(
-        (state: RootState) => state.castVotes[eventId ?? ""] ?? []
     )
     // Workbench-only state: which voter the operator is currently
     // impersonating, plus the (workbench-managed) cast-vote -> voter
@@ -517,9 +508,9 @@ export function WorkbenchElection() {
 
             <section style={styles.section}>
                 <div style={styles.sectionTitle}>
-                    Cast votes ({electionVotes.length + eventBinVotes.length})
+                    Cast votes ({electionVotes.length})
                 </div>
-                {electionVotes.length + eventBinVotes.length === 0 ? (
+                {electionVotes.length === 0 ? (
                     <p style={styles.empty}>
                         No cast votes yet. Use the booth CTA above and
                         complete the flow.
@@ -529,8 +520,6 @@ export function WorkbenchElection() {
                         <thead>
                             <tr>
                                 <th style={styles.th}>Cast vote ID</th>
-                                <th style={styles.th}>Indexed under</th>
-                                <th style={styles.th}>Real election</th>
                                 <th style={styles.th}>Voted by</th>
                                 <th style={styles.th}>Content length</th>
                                 <th style={styles.th}>Bridged</th>
@@ -538,51 +527,9 @@ export function WorkbenchElection() {
                         </thead>
                         <tbody>
                             {electionVotes.map((cv) => (
-                                <tr key={`el-${cv.id}`}>
+                                <tr key={cv.id}>
                                     <td style={{...styles.td, ...styles.mono}}>
                                         {cv.id}
-                                    </td>
-                                    <td style={styles.td}>election_id</td>
-                                    <td style={{...styles.td, ...styles.mono}}>
-                                        {repairedCastVotes[cv.id]?.electionId ??
-                                            <em style={{color: "#999"}}>
-                                                (not bridged)
-                                            </em>}
-                                    </td>
-                                    <td style={styles.td}>
-                                        {votedByCell(cv.id)}
-                                    </td>
-                                    <td style={styles.td}>
-                                        {(cv.content ?? "").length}
-                                    </td>
-                                    <td style={styles.td}>
-                                        {bridgeStatusCell(
-                                            repairedCastVotes[cv.id]
-                                        )}
-                                    </td>
-                                </tr>
-                            ))}
-                            {eventBinVotes.map((cv) => (
-                                <tr key={`ev-${cv.id}`}>
-                                    <td style={{...styles.td, ...styles.mono}}>
-                                        {cv.id}
-                                    </td>
-                                    <td style={styles.td}>
-                                        event_id{" "}
-                                        <em
-                                            style={{
-                                                color: "#999",
-                                                fontSize: "0.8em",
-                                            }}
-                                        >
-                                            (demo path)
-                                        </em>
-                                    </td>
-                                    <td style={{...styles.td, ...styles.mono}}>
-                                        {repairedCastVotes[cv.id]?.electionId ??
-                                            <em style={{color: "#999"}}>
-                                                (not bridged)
-                                            </em>}
                                     </td>
                                     <td style={styles.td}>
                                         {votedByCell(cv.id)}
@@ -607,16 +554,15 @@ export function WorkbenchElection() {
                         marginTop: "0.5rem",
                     }}
                 >
-                    Note: the demo's <code>useAddFakeCastVote</code> writes
-                    cast-vote records with empty <code>content</code> and{" "}
-                    <code>election_id = eventId</code> (the "(demo path)"
-                    row). The workbench bridges each new cast vote into
-                    its own ledger — capturing the real{" "}
-                    <code>election_id</code>, the plaintext selection from{" "}
-                    <code>state.ballotSelections</code>, and the encrypted
-                    hashable ballot from{" "}
-                    <code>sessionStorage["ballotData"]</code> — without
-                    modifying portal source. Bridged rows below.
+                    Note: <code>useAddFakeCastVote</code> writes cast-vote
+                    records with empty <code>content</code> (the encrypted
+                    ciphertext lives in <code>sessionStorage</code> under{" "}
+                    <code>ballotData</code> until it's needed). The
+                    workbench's bridge captures, per cast vote, the
+                    plaintext selection from{" "}
+                    <code>state.ballotSelections</code> and a best-effort
+                    snapshot of that encrypted hashable ballot, both shown
+                    below.
                 </p>
             </section>
 
@@ -624,7 +570,7 @@ export function WorkbenchElection() {
                 bridged={collectBridgedForElection(
                     repairedCastVotes,
                     electionId ?? "",
-                    [...electionVotes, ...eventBinVotes].map((cv) => cv.id)
+                    electionVotes.map((cv) => cv.id)
                 )}
                 voterById={voterById}
                 castBy={castBy}

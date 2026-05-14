@@ -200,36 +200,35 @@ function writeSnapshot(state: RootState): void {
  * overlay. The fields we collect compensate for what the demo cast-
  * vote record drops on the floor:
  *
- *   - **Real election id.** `useAddFakeCastVote` writes
- *     `election_id = eventId`, so we resolve the matching ballot style
- *     by `election_event_id` and read its `election_id` field.
  *   - **Plaintext selection.** Snapshotted from
- *     `state.ballotSelections[ballotStyle.election_id]`, which holds
- *     the user's actual choices at cast time. This is the input a
- *     future inline tally will encode + tally via velvet-wasm.
+ *     `state.ballotSelections[cv.election_id]`, which holds the user's
+ *     actual choices at cast time. This is the input a future inline
+ *     tally will encode + tally via velvet-wasm. The cast-vote record
+ *     itself carries only an empty `content` field on the demo path.
  *   - **Encrypted hashable ballot.** Read from
  *     `sessionStorage["ballotData"].ballot` if present. Display-only:
  *     the workbench has no decryption keys, so this string is opaque.
  *
- * Best-effort: if any source is missing (e.g. the ballot style for
- * this event isn't in Redux), the function silently records nothing.
- * Subsequent votes are independent and may succeed.
+ * `electionId` and `ballotStyleId` are recorded on the snapshot for
+ * convenience; they're discovered by looking up the matching ballot
+ * style by `cv.election_id`.
+ *
+ * Best-effort: if any source is missing (e.g. the ballot style isn't
+ * in Redux), the function silently records nothing. Subsequent votes
+ * are independent and may succeed.
  */
 function tryCaptureRepairedCastVote(
     rootState: RootState,
     castVoteId: string,
-    castVoteEventId: string | null
+    castVoteElectionId: string | null | undefined
 ): void {
-    if (!castVoteEventId) return
-    // The cast-vote record's `election_id` field is set to the event
-    // id by `useAddFakeCastVote`. We pivot through `election_event_id`
-    // on the ballot style to get back to the real election id.
+    if (!castVoteElectionId) return
     const ballotStyle = Object.values(rootState.ballotStyles).find(
-        (bs) => bs && bs.election_event_id === castVoteEventId
+        (bs) => bs && bs.election_id === castVoteElectionId
     )
     if (!ballotStyle) return
 
-    const selection = rootState.ballotSelections[ballotStyle.election_id]
+    const selection = rootState.ballotSelections[castVoteElectionId]
     if (!selection) return
 
     // sessionStorage["ballotData"] is set by ReviewScreen's
@@ -253,7 +252,7 @@ function tryCaptureRepairedCastVote(
     }
 
     const repaired: RepairedCastVote = {
-        electionId: ballotStyle.election_id,
+        electionId: castVoteElectionId,
         ballotStyleId: ballotStyle.id,
         // Deep-clone via JSON round-trip so future Redux dispatches
         // that mutate `state.ballotSelections` in place cannot affect
@@ -299,10 +298,10 @@ export function installPersistence(store: typeof Store): () => void {
         //   1. attributeCastVote(): tags the vote with the active voter
         //      (no-op when no voter is active).
         //   2. captureRepairedCastVote(): snapshots the data the demo
-        //      path drops on the floor — the real election id (from
-        //      the matching ballot style), the plaintext selection
-        //      (from state.ballotSelections), and the encrypted
-        //      hashable ballot (from sessionStorage["ballotData"]).
+        //      path doesn't put on the cast-vote record itself — the
+        //      plaintext selection (from state.ballotSelections) and
+        //      the encrypted hashable ballot (from
+        //      sessionStorage["ballotData"]).
         const liveState = store.getState()
         for (const votes of Object.values(liveState.castVotes)) {
             if (!votes) continue
@@ -310,7 +309,7 @@ export function installPersistence(store: typeof Store): () => void {
                 if (seenCastVoteIds.has(v.id)) continue
                 seenCastVoteIds.add(v.id)
                 attributeCastVote(v.id)
-                tryCaptureRepairedCastVote(liveState, v.id, v.election_event_id)
+                tryCaptureRepairedCastVote(liveState, v.id, v.election_id)
             }
         }
         writeSnapshot(store.getState())

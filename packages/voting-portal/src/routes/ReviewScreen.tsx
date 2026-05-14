@@ -200,14 +200,27 @@ const LoadingOrCastButton: React.FC<LoadingOrCastButtonProps> = ({
     )
 }
 
+// Demo-only stand-in for the real `INSERT_CAST_VOTE` mutation. Used
+// when `isDemo` or `DISABLE_AUTH` is set: instead of calling the
+// backend, we dispatch a synthetic `ICastVote` straight into Redux
+// so the rest of the flow (confirmation screen, election results,
+// etc.) sees a cast vote.
+//
+// The caller supplies the real `electionId` and a per-cast `ballotId`:
+//   - `election_id` / `area_id` must be the real election id so the
+//     `castVotes` slice (keyed by `election_id`) buckets the cast
+//     vote where the rest of the app looks it up.
+//   - `id` must be unique per cast vote — the slice dedupes by `id`
+//     within an election, so reusing one id would mean every new
+//     demo cast silently overwrites the previous one.
 const useAddFakeCastVote = (tenantId: string | undefined, eventId: string | undefined) => {
     const dispatch = useAppDispatch()
-    return () => {
+    return (electionId: string, ballotId: string) => {
         const newCastVote: ICastVote = {
-            id: eventId ?? "",
+            id: ballotId,
             tenant_id: tenantId ?? "",
-            election_id: eventId,
-            area_id: eventId,
+            election_id: electionId,
+            area_id: electionId,
             created_at: null,
             last_updated_at: null,
             annotations: null,
@@ -393,7 +406,7 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
                 }
                 return await storeBallotDataAndReauth(ballotData)
             } else {
-                addFakeCastVote()
+                addFakeCastVote(ballotStyle.election_id, ballotId)
                 return submit(null, {method: "post"})
             }
         }
@@ -655,7 +668,7 @@ export const ReviewScreen: React.FC = () => {
         }
 
         if (ballotData?.isDemo) {
-            addFakeCastVote()
+            addFakeCastVote(ballotData.electionId, ballotData.ballotId)
             clearSessionStorageBallotData()
             isCastingBallot.current = false
             return submit(null, {method: "post"})
