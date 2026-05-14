@@ -60,9 +60,7 @@ export interface WorkbenchExtraState {
 
 /** Per-cast-vote bridge record. See {@link WorkbenchExtraState.repairedCastVotes}. */
 export interface RepairedCastVote {
-    /** Real election id, taken from `ballotStyle.election_id`. NOT the
-     *  `eventId` that `useAddFakeCastVote` writes into the cast-vote
-     *  record. */
+    /** Real election id, taken from `ballotStyle.election_id`. */
     electionId: string
     /** The ballot style that was active when the vote was cast. */
     ballotStyleId: string
@@ -72,11 +70,6 @@ export interface RepairedCastVote {
      *  `BallotSelection` from `@sequentech/ui-core` when they need
      *  structured access. */
     selection: unknown
-    /** `sessionStorage["ballotData"]["ballot"]` at cast time, if
-     *  available. Stringified `IHashableSingleBallot` (encrypted). The
-     *  workbench keeps it for display / forensic purposes only — it
-     *  has no decryption keys, so this string can NOT be tallied. */
-    hashableBallotJson: string | null
     /** ISO-8601 timestamp of capture. */
     capturedAt: string
 }

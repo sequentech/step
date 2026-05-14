@@ -206,16 +206,24 @@ const LoadingOrCastButton: React.FC<LoadingOrCastButtonProps> = ({
 // so the rest of the flow (confirmation screen, election results,
 // etc.) sees a cast vote.
 //
-// The caller supplies the real `electionId` and a per-cast `ballotId`:
+// The caller supplies the real `electionId`, a per-cast `ballotId`,
+// and `content` (a `JSON.stringify(hashableBallot)` string, same
+// shape the backend would persist in production):
 //   - `election_id` / `area_id` must be the real election id so the
 //     `castVotes` slice (keyed by `election_id`) buckets the cast
 //     vote where the rest of the app looks it up.
 //   - `id` must be unique per cast vote — the slice dedupes by `id`
 //     within an election, so reusing one id would mean every new
 //     demo cast silently overwrites the previous one.
+//   - `content` matches what the production path passes as the
+//     third arg to `tryInsertCastVote` (and what the backend stores
+//     verbatim on the row). Encryption itself already happened in
+//     `VotingScreen` (`encryptBallotSelection`); `toHashableBallot`
+//     is a pure transform, so running it in demo mode just makes
+//     the synthetic record byte-shape-identical to a real one.
 const useAddFakeCastVote = (tenantId: string | undefined, eventId: string | undefined) => {
     const dispatch = useAppDispatch()
-    return (electionId: string, ballotId: string) => {
+    return (electionId: string, ballotId: string, content: string) => {
         const newCastVote: ICastVote = {
             id: ballotId,
             tenant_id: tenantId ?? "",
@@ -225,7 +233,7 @@ const useAddFakeCastVote = (tenantId: string | undefined, eventId: string | unde
             last_updated_at: null,
             annotations: null,
             labels: null,
-            content: "",
+            content,
             cast_ballot_signature: "",
             voter_id_string: null,
             election_event_id: eventId ?? "",
@@ -394,23 +402,17 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
     const castBallotAction = async () => {
         const errorType = VotingPortalErrorType.UNABLE_TO_CAST_BALLOT
         isCastingBallot.current = true
-        if (isDemo || globalSettings.DISABLE_AUTH) {
-            if (isGoldenPolicy) {
-                // Save contests to session storage and perform reauthentication
-                const ballotData: SessionBallotData = {
-                    ballotId,
-                    electionId: ballotStyle.election_id,
-                    isDemo: true,
-                    ballot: JSON.stringify("{}"),
-                    timestamp: Date.now(), // Add timestamp for expiration check
-                }
-                return await storeBallotDataAndReauth(ballotData)
-            } else {
-                addFakeCastVote(ballotStyle.election_id, ballotId)
-                return submit(null, {method: "post"})
-            }
-        }
 
+        // Compute the hashable ballot up-front. `encryptBallotSelection`
+        // already ran in `VotingScreen` (regardless of demo mode) and
+        // stashed the encrypted `IAuditableBallot` in Redux;
+        // `toHashableBallot` is just a pure transform. Running it
+        // unconditionally — including in the demo / DISABLE_AUTH
+        // branch — keeps the demo `cv.content` byte-shape-identical
+        // to what the backend would store in production, so anything
+        // downstream of `addCastVotes` (confirmation screen, audit
+        // tooling, the workbench inspector) sees real data instead of
+        // an empty string. See LIFTING.md section L.
         let hashableBallot: IHashableSingleBallot | IHashableMultiBallot | undefined
         try {
             hashableBallot = isMultiContest
@@ -429,6 +431,27 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
             }
 
             return submit({error: errorType}, {method: "post"})
+        }
+
+        if (isDemo || globalSettings.DISABLE_AUTH) {
+            if (isGoldenPolicy) {
+                // Save contests to session storage and perform reauthentication
+                const ballotData: SessionBallotData = {
+                    ballotId,
+                    electionId: ballotStyle.election_id,
+                    isDemo: true,
+                    ballot: JSON.stringify(hashableBallot),
+                    timestamp: Date.now(), // Add timestamp for expiration check
+                }
+                return await storeBallotDataAndReauth(ballotData)
+            } else {
+                addFakeCastVote(
+                    ballotStyle.election_id,
+                    ballotId,
+                    JSON.stringify(hashableBallot)
+                )
+                return submit(null, {method: "post"})
+            }
         }
 
         /**
@@ -668,7 +691,11 @@ export const ReviewScreen: React.FC = () => {
         }
 
         if (ballotData?.isDemo) {
-            addFakeCastVote(ballotData.electionId, ballotData.ballotId)
+            addFakeCastVote(
+                ballotData.electionId,
+                ballotData.ballotId,
+                ballotData.ballot
+            )
             clearSessionStorageBallotData()
             isCastingBallot.current = false
             return submit(null, {method: "post"})

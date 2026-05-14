@@ -400,30 +400,19 @@ export function WorkbenchElection() {
         return voter.displayName
     }
 
-    /** Render the "Bridged" cell. Shows a green check if both the
-     *  plaintext selection and the encrypted hashable ballot were
-     *  captured at cast time; partial / missing otherwise. */
+    /** Render the "Plaintext" cell. Shows whether the workbench
+     *  captured the cleartext selection at cast time. Encrypted
+     *  ciphertext lives on `cv.content` itself and is not represented
+     *  here. */
     const bridgeStatusCell = (repaired: RepairedCastVote | undefined) => {
         if (!repaired) {
-            return <em style={{color: "#999"}}>no</em>
+            return <em style={{color: "#999"}}>not captured</em>
         }
-        const hasSelection = !!repaired.selection
-        const hasEncrypted = !!repaired.hashableBallotJson
-        if (hasSelection && hasEncrypted) {
-            return (
-                <span style={{color: "#2e7d32"}} title="Plaintext + encrypted">
-                    ✓ full
-                </span>
-            )
-        }
-        if (hasSelection) {
-            return (
-                <span style={{color: "#b8860b"}} title="Plaintext only">
-                    ◐ plaintext
-                </span>
-            )
-        }
-        return <em style={{color: "#b00"}}>partial</em>
+        return (
+            <span style={{color: "#2e7d32"}} title="Plaintext selection captured">
+                ✓ captured
+            </span>
+        )
     }
 
     return (
@@ -521,8 +510,10 @@ export function WorkbenchElection() {
                             <tr>
                                 <th style={styles.th}>Cast vote ID</th>
                                 <th style={styles.th}>Voted by</th>
-                                <th style={styles.th}>Content length</th>
-                                <th style={styles.th}>Bridged</th>
+                                <th style={styles.th}>
+                                    Content length (encrypted)
+                                </th>
+                                <th style={styles.th}>Plaintext</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -554,15 +545,15 @@ export function WorkbenchElection() {
                         marginTop: "0.5rem",
                     }}
                 >
-                    Note: <code>useAddFakeCastVote</code> writes cast-vote
-                    records with empty <code>content</code> (the encrypted
-                    ciphertext lives in <code>sessionStorage</code> under{" "}
-                    <code>ballotData</code> until it's needed). The
-                    workbench's bridge captures, per cast vote, the
-                    plaintext selection from{" "}
-                    <code>state.ballotSelections</code> and a best-effort
-                    snapshot of that encrypted hashable ballot, both shown
-                    below.
+                    Note: <code>cv.content</code> holds the encrypted
+                    hashable ballot (same shape as production, populated
+                    by the demo path's <code>useAddFakeCastVote</code> —
+                    see LIFTING.md section L). The workbench has no
+                    decryption keys, but it bridges the plaintext
+                    selection from <code>state.ballotSelections</code>{" "}
+                    into its own overlay at cast time so the operator
+                    can still inspect what the voter chose. Per-cast
+                    detail panels below.
                 </p>
             </section>
 
@@ -574,6 +565,9 @@ export function WorkbenchElection() {
                 )}
                 voterById={voterById}
                 castBy={castBy}
+                castVoteContentById={Object.fromEntries(
+                    electionVotes.map((cv) => [cv.id, cv.content ?? ""])
+                )}
             />
 
             {ballotStyle && (
@@ -1037,19 +1031,26 @@ function collectBridgedForElection(
 }
 
 /**
- * Per-cast-vote bridge detail panel. Renders the plaintext selection
- * the workbench captured at cast time (the basis for a future inline
- * tally), the encrypted hashable ballot it observed in
- * sessionStorage, and the voter attribution.
+ * Per-cast-vote bridge detail panel. For each cast vote in this
+ * election, renders side-by-side:
+ *  - the plaintext selection the workbench captured at cast time
+ *    (no production counterpart — Redux discards `ballotSelections`
+ *    after voting completes; this is the only inspection surface for
+ *    what the voter actually chose, and the input a future inline
+ *    tally will encode + tally via velvet-wasm);
+ *  - the encrypted ballot persisted on `cv.content` itself
+ *    (production-shaped: same bytes the backend would store).
  */
 function BridgedBallotsSection({
     bridged,
     voterById,
     castBy,
+    castVoteContentById,
 }: {
     bridged: Array<{castVoteId: string; repaired: RepairedCastVote}>
     voterById: Map<string, Voter>
     castBy: Record<string, string>
+    castVoteContentById: Record<string, string>
 }) {
     if (bridged.length === 0) {
         return null
@@ -1060,18 +1061,19 @@ function BridgedBallotsSection({
                 Bridged ballots ({bridged.length})
             </div>
             <p style={styles.empty}>
-                Workbench-captured per-cast-vote bridge data. The
+                Workbench-captured per-cast-vote inspection data. The
                 plaintext selection comes from{" "}
-                <code>state.ballotSelections</code>; the encrypted
-                hashable ballot from{" "}
-                <code>sessionStorage["ballotData"]</code>. Both are
-                snapshotted at the moment a new cast vote is observed
-                and are persisted in the workbench overlay (so they
-                survive reloads and ride on checkpoints).
+                <code>state.ballotSelections</code> at cast time
+                (snapshotted by the workbench because Redux discards it
+                afterwards); the encrypted ballot is{" "}
+                <code>cv.content</code> straight off the cast-vote
+                record (production-shaped, byte-identical to what the
+                backend would store).
             </p>
             {bridged.map(({castVoteId, repaired}) => {
                 const voterId = castBy[castVoteId]
                 const voter = voterId ? voterById.get(voterId) : undefined
+                const content = castVoteContentById[castVoteId] ?? ""
                 return (
                     <details
                         key={castVoteId}
@@ -1092,7 +1094,7 @@ function BridgedBallotsSection({
                         </summary>
                         <div style={{marginTop: "0.5rem"}}>
                             <div style={styles.sectionTitle}>
-                                Plaintext selection
+                                Plaintext selection (workbench bridge)
                             </div>
                             <pre
                                 style={{
@@ -1109,9 +1111,10 @@ function BridgedBallotsSection({
                         </div>
                         <div style={{marginTop: "0.5rem"}}>
                             <div style={styles.sectionTitle}>
-                                Encrypted hashable ballot
+                                Encrypted ballot ({"cv.content"},{" "}
+                                {content.length} chars)
                             </div>
-                            {repaired.hashableBallotJson ? (
+                            {content.length > 0 ? (
                                 <pre
                                     style={{
                                         ...styles.mono,
@@ -1127,21 +1130,18 @@ function BridgedBallotsSection({
                                     {(() => {
                                         try {
                                             return JSON.stringify(
-                                                JSON.parse(
-                                                    repaired.hashableBallotJson
-                                                ),
+                                                JSON.parse(content),
                                                 null,
                                                 2
                                             )
                                         } catch {
-                                            return repaired.hashableBallotJson
+                                            return content
                                         }
                                     })()}
                                 </pre>
                             ) : (
                                 <p style={styles.empty}>
-                                    Not captured (sessionStorage was empty
-                                    when this cast vote was observed).
+                                    <code>cv.content</code> is empty.
                                 </p>
                             )}
                         </div>

@@ -618,75 +618,63 @@ source.
   primed.
 
 **Bridge from portal cast-vote records to the workbench overlay
-(`repairedCastVotes`).** The demo's `useAddFakeCastVote` shortcut in
-`voting-portal/src/store/castVotes/useAddFakeCastVote.ts` writes a
-cast-vote record where:
+(`repairedCastVotes`).** After the section L concessions, the demo's
+`useAddFakeCastVote` writes a cast-vote record that matches
+production shape:
 
-- `election_id` is set to the **event id**, not the real election id
-  (the slice indexes records by event id for the demo's
-  ballot-list screen).
-- `content` is the empty string — the encrypted hashable ballot
-  doesn't live in Redux at all. It's stashed in
-  `sessionStorage["ballotData"].ballot` by `storeBallotDataAndReauth`
-  on the review screen, then consumed by the post-cast handoff.
-- `voter_id_string` is `null` (handled separately by the attribution
-  ledger above).
+- `id` is the per-cast `ballotId` (unique).
+- `election_id` / `area_id` are the real election id (slice buckets
+  correctly).
+- `content` is `JSON.stringify(hashableBallot)` — the encrypted
+  ballot, same bytes the backend would persist.
+- `voter_id_string` is `null` (handled by the attribution ledger
+  above).
 
-This shape is useless for a workbench-side tally:
-
-- The "real" `election_id` is gone, so we can't group cast votes by
-  election or pipe them into `runTally` keyed correctly.
-- The ciphertext in `sessionStorage["ballotData"].ballot` is
-  encrypted with election keys the workbench doesn't have, so it
-  can't be decoded into the decimal `BigUint` plaintext that
-  `velvet-wasm`'s `runTally` expects.
+The portal does NOT, however, retain the cleartext selection anywhere
+after the user leaves the voting screen. `state.ballotSelections` is
+the only place it ever lived, and in production nothing reads it
+after the cast vote is dispatched. The workbench wants an inspection
+view of "what did the voter actually pick", so:
 
 The workbench's bridge — `tryCaptureRepairedCastVote()` in
 `persistence.ts`, fired alongside `attributeCastVote()` by the
-cast-votes watcher — solves both at once without touching portal
-source:
+cast-votes watcher — captures **only the plaintext selection**:
 
-1. **Recover the real `election_id`** by reading the cast vote's
-   `election_event_id` field (which the portal does set correctly),
-   then scanning `state.ballotStyles` for a ballot style whose
-   `election_event_id` matches. The ballot style carries the real
-   `election_id`, which is what we record as
-   `RepairedCastVote.electionId`.
+1. Look up the matching ballot style by the cast vote's
+   `election_id` (a one-shot lookup; no pivots needed now that L.1
+   fixed the bucket).
 
-2. **Capture the plaintext selection** from
-   `state.ballotSelections[ballotStyle.election_id]` — that slice is
-   keyed by the **real** election id (not the event id), and it
-   holds the structured `DecodedVoteContest[]` the voter just built.
-   This is the value the future inline tally will encode via
-   `tally.ts`'s `encodeBallot` and feed into `runTally`. We JSON
-   deep-clone before storing so later in-place Redux mutations can't
-   corrupt the snapshot.
+2. Read `state.ballotSelections[cv.election_id]` — the structured
+   `DecodedVoteContest[]` the voter just built. This is also the
+   value the future inline tally will encode via `tally.ts`'s
+   `encodeBallot` and feed into `runTally`. We JSON deep-clone
+   before storing so later in-place Redux mutations can't corrupt
+   the snapshot.
 
-3. **Snapshot the encrypted hashable ballot** from
-   `sessionStorage["ballotData"].ballot` (as a raw JSON string) for
-   forensic display only. It is intentionally **not** decoded —
-   without the election's keys we can't, and the bridge would be
-   stuck anyway. The field is best-effort: if sessionStorage has
-   already been cleared by the post-cast handoff, the record is
-   stored with `hashableBallotJson: null` and the election page
-   labels it `◐ plaintext` (partial bridge) rather than `✓ full`.
+3. Record `RepairedCastVote { electionId, ballotStyleId, selection,
+   capturedAt }`. There is intentionally no encrypted-ballot field
+   here: `cv.content` already holds that, the bridge would just be
+   duplicating it.
 
 The bridge is **first-observation-wins**: `captureRepairedCastVote`
 is a no-op if `repairedCastVotes[castVoteId]` already exists. This
 makes both the watcher and `hydrateFromSnapshot` idempotent — a
 reload that replays cast votes through the same watcher won't
-overwrite a previously-snapshotted bridge entry, even if
-sessionStorage is empty the second time around.
+overwrite a previously-snapshotted bridge entry.
 
 ---
 
 ### L. Concessions: edits to `voting-portal/src/`
 
 Section I declares portal source untouched, and that remains true for
-production code paths. **One** edit was accepted, scoped strictly to
-the `DISABLE_AUTH` / `isDemo` branch:
+production code paths. The accepted edits are scoped strictly to the
+`DISABLE_AUTH` / `isDemo` branch, and all live in one file
+(`voting-portal/src/routes/ReviewScreen.tsx`). There are two of them;
+both have the same shape ("make demo behave like production minus the
+network call, not like a different system entirely").
 
-**`voting-portal/src/routes/ReviewScreen.tsx` — `useAddFakeCastVote`.**
+#### L.1 `useAddFakeCastVote` — correct the synthetic cast-vote shape
+
 The original demo helper wrote synthetic cast votes with
 `id = eventId`, `election_id = eventId`, `area_id = eventId`. Both
 fields were wrong:
@@ -702,14 +690,14 @@ fields were wrong:
   own confirmation screen, the workbench's election detail, a future
   tally) had to know to look under the event id instead.
 
-The fix changes the helper's return signature from `() => void` to
-`(electionId, ballotId) => void` and uses those at the two call sites
-(both already had the values in scope: `ballotStyle.election_id` +
-`ballotId` in `castBallotAction`, and `ballotData.electionId` +
-`ballotData.ballotId` in `goldenUserCastBallotAction`). `id` now
-takes the unique per-cast `ballotId`; `election_id` and `area_id`
-both take the real `electionId`; `election_event_id` continues to be
-the parent `eventId`.
+The fix changes the helper's signature from `() => void` to
+`(electionId, ballotId, content) => void` (see L.2 for the `content`
+parameter) and uses those at the two call sites (both already had the
+values in scope: `ballotStyle.election_id` + `ballotId` in
+`castBallotAction`, and `ballotData.electionId` + `ballotData.ballotId`
+in `goldenUserCastBallotAction`). `id` now takes the unique per-cast
+`ballotId`; `election_id` and `area_id` both take the real
+`electionId`; `election_event_id` continues to be the parent `eventId`.
 
 **Why this was accepted:**
 
@@ -723,14 +711,70 @@ the parent `eventId`.
   "bridged election_id" column and a dual-bin cast-votes view in
   every screen, AND any future inline tally would need the same
   pivot. The bridge documented in section K still exists (for
-  plaintext selection + encrypted hashable ballot), but it no
-  longer has to repair the election id.
+  plaintext selection), but it no longer has to repair the
+  election id.
 
-**What this implies for refreshes.** If voting-portal renames the
-helper, changes its parameter list, or adds new call sites, the
-refresh PR must re-apply the same shape (real `electionId`, unique
-`ballotId`). Reviewers should reject a refresh that silently brings
-back `id = eventId` or `election_id = eventId`.
+**Refresh-PR guardrail.** If voting-portal renames the helper, changes
+its parameter list, or adds new call sites, the refresh PR must
+re-apply the same shape (real `electionId`, unique `ballotId`).
+Reviewers should reject a refresh that silently brings back
+`id = eventId` or `election_id = eventId`.
+
+#### L.2 `castBallotAction` — populate `cv.content` in demo mode
+
+The original demo branch of `castBallotAction` short-circuited *before*
+the `toHashableBallot` call and handed `useAddFakeCastVote` no content
+at all, so the synthetic cast vote carried `content: ""`. The
+production branch, in contrast, runs `toHashableBallot(auditableBallot)`
+and persists `JSON.stringify(hashableBallot)` as the cast vote's
+content. This is the real asymmetry to point out:
+
+- `VotingScreen` already ran `encryptBallotSelection` for both demo
+  and production — the encrypted `IAuditableBallot` is sitting in
+  `state.auditableBallots[electionId]` by the time the user reaches
+  review. The demo branch wasn't skipping *encryption*; it was
+  skipping a pure transform (`toHashableBallot`) and the backend
+  insert. Conflating "don't hit the network" with "don't compute the
+  ballot content" is what made the demo behave unlike production.
+
+The fix lifts the `toHashableBallot` / `toHashableMultiBallot` call out
+to the top of `castBallotAction` so both branches share it:
+
+- The demo non-golden branch now passes `JSON.stringify(hashableBallot)`
+  as the third arg to `addFakeCastVote`, so `cv.content` ends up
+  byte-shape-identical to a production row.
+- The demo golden branch now writes the real
+  `JSON.stringify(hashableBallot)` into `sessionStorage["ballotData"].ballot`
+  (previously the literal placeholder `"{}"`), and
+  `goldenUserCastBallotAction` forwards `ballotData.ballot` straight
+  through to `addFakeCastVote`.
+- The production branch is byte-identical to before — `hashableBallot`
+  just moved a few lines up, and its error handling (the
+  `TO_HASHABLE_BALLOT_ERROR` path) is unchanged. No new code paths,
+  no new throws.
+
+**Why this was accepted:**
+
+- Same scope as L.1: only runs when `isDemo || DISABLE_AUTH`.
+- The transform we un-skipped is already imported in this file and
+  already runs on production. We aren't introducing new behaviour;
+  we're un-skipping work that was being elided for no real reason.
+- The workbench bridge no longer has to sniff `sessionStorage` for an
+  "encrypted hashable ballot" copy that, in the non-golden demo path,
+  was never written there in the first place. The bridge becomes
+  purely about the plaintext selection (which Redux discards after
+  voting and which has no production counterpart at all), and the
+  encrypted ballot is inspected directly from `cv.content` like in
+  production.
+
+**Refresh-PR guardrail.** If voting-portal restructures
+`castBallotAction` (e.g. inlines `tryInsertCastVote` or moves
+`toHashableBallot` into the service layer), the refresh must keep two
+invariants: (a) the demo branch dispatches `addCastVotes` with a
+populated `content` field, not an empty string; (b) `sessionStorage`'s
+demo ballot data carries the real stringified hashable ballot, not a
+placeholder. The workbench tests pin this down by inspecting
+`cv.content.length > 0` after a demo cast.
 
 ---
 

@@ -197,17 +197,16 @@ function writeSnapshot(state: RootState): void {
 /**
  * Workbench bridge: turn a freshly-observed cast vote into a
  * {@link RepairedCastVote} stored alongside it in the workbench
- * overlay. The fields we collect compensate for what the demo cast-
- * vote record drops on the floor:
+ * overlay.
  *
- *   - **Plaintext selection.** Snapshotted from
- *     `state.ballotSelections[cv.election_id]`, which holds the user's
- *     actual choices at cast time. This is the input a future inline
- *     tally will encode + tally via velvet-wasm. The cast-vote record
- *     itself carries only an empty `content` field on the demo path.
- *   - **Encrypted hashable ballot.** Read from
- *     `sessionStorage["ballotData"].ballot` if present. Display-only:
- *     the workbench has no decryption keys, so this string is opaque.
+ * The encrypted ballot is already on the cast-vote record itself
+ * (`cv.content`, set by the demo helper in voting-portal —
+ * see LIFTING.md section L), so the bridge only has to capture the
+ * one thing production discards: the **plaintext selection** from
+ * `state.ballotSelections`. That gives the workbench a human-readable
+ * view of what the voter chose, independent of decryption keys, and
+ * is the input a future inline tally will encode + tally via
+ * velvet-wasm.
  *
  * `electionId` and `ballotStyleId` are recorded on the snapshot for
  * convenience; they're discovered by looking up the matching ballot
@@ -231,26 +230,6 @@ function tryCaptureRepairedCastVote(
     const selection = rootState.ballotSelections[castVoteElectionId]
     if (!selection) return
 
-    // sessionStorage["ballotData"] is set by ReviewScreen's
-    // `storeBallotDataAndReauth` immediately before the cast vote is
-    // dispatched (see voting-portal/src/routes/ReviewScreen.tsx). It
-    // is the encrypted hashable ballot the booth would have sent to
-    // the backend in a non-demo run.
-    let hashableBallotJson: string | null = null
-    if (typeof sessionStorage !== "undefined") {
-        try {
-            const raw = sessionStorage.getItem("ballotData")
-            if (raw) {
-                const parsed = JSON.parse(raw) as {ballot?: unknown}
-                if (typeof parsed.ballot === "string") {
-                    hashableBallotJson = parsed.ballot
-                }
-            }
-        } catch {
-            // sessionStorage is best-effort; swallow parse errors.
-        }
-    }
-
     const repaired: RepairedCastVote = {
         electionId: castVoteElectionId,
         ballotStyleId: ballotStyle.id,
@@ -258,7 +237,6 @@ function tryCaptureRepairedCastVote(
         // that mutate `state.ballotSelections` in place cannot affect
         // the snapshot we just took.
         selection: JSON.parse(JSON.stringify(selection)) as unknown,
-        hashableBallotJson,
         capturedAt: new Date().toISOString(),
     }
     captureRepairedCastVote(castVoteId, repaired)
