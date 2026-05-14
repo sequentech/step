@@ -613,6 +613,67 @@ source.
   ledger is in place when the cast-votes watcher's seen-set is
   primed.
 
+**Bridge from portal cast-vote records to the workbench overlay
+(`repairedCastVotes`).** The demo's `useAddFakeCastVote` shortcut in
+`voting-portal/src/store/castVotes/useAddFakeCastVote.ts` writes a
+cast-vote record where:
+
+- `election_id` is set to the **event id**, not the real election id
+  (the slice indexes records by event id for the demo's
+  ballot-list screen).
+- `content` is the empty string — the encrypted hashable ballot
+  doesn't live in Redux at all. It's stashed in
+  `sessionStorage["ballotData"].ballot` by `storeBallotDataAndReauth`
+  on the review screen, then consumed by the post-cast handoff.
+- `voter_id_string` is `null` (handled separately by the attribution
+  ledger above).
+
+This shape is useless for a workbench-side tally:
+
+- The "real" `election_id` is gone, so we can't group cast votes by
+  election or pipe them into `runTally` keyed correctly.
+- The ciphertext in `sessionStorage["ballotData"].ballot` is
+  encrypted with election keys the workbench doesn't have, so it
+  can't be decoded into the decimal `BigUint` plaintext that
+  `velvet-wasm`'s `runTally` expects.
+
+The workbench's bridge — `tryCaptureRepairedCastVote()` in
+`persistence.ts`, fired alongside `attributeCastVote()` by the
+cast-votes watcher — solves both at once without touching portal
+source:
+
+1. **Recover the real `election_id`** by reading the cast vote's
+   `election_event_id` field (which the portal does set correctly),
+   then scanning `state.ballotStyles` for a ballot style whose
+   `election_event_id` matches. The ballot style carries the real
+   `election_id`, which is what we record as
+   `RepairedCastVote.electionId`.
+
+2. **Capture the plaintext selection** from
+   `state.ballotSelections[ballotStyle.election_id]` — that slice is
+   keyed by the **real** election id (not the event id), and it
+   holds the structured `DecodedVoteContest[]` the voter just built.
+   This is the value the future inline tally will encode via
+   `tally.ts`'s `encodeBallot` and feed into `runTally`. We JSON
+   deep-clone before storing so later in-place Redux mutations can't
+   corrupt the snapshot.
+
+3. **Snapshot the encrypted hashable ballot** from
+   `sessionStorage["ballotData"].ballot` (as a raw JSON string) for
+   forensic display only. It is intentionally **not** decoded —
+   without the election's keys we can't, and the bridge would be
+   stuck anyway. The field is best-effort: if sessionStorage has
+   already been cleared by the post-cast handoff, the record is
+   stored with `hashableBallotJson: null` and the election page
+   labels it `◐ plaintext` (partial bridge) rather than `✓ full`.
+
+The bridge is **first-observation-wins**: `captureRepairedCastVote`
+is a no-op if `repairedCastVotes[castVoteId]` already exists. This
+makes both the watcher and `hydrateFromSnapshot` idempotent — a
+reload that replays cast votes through the same watcher won't
+overwrite a previously-snapshotted bridge entry, even if
+sessionStorage is empty the second time around.
+
 ---
 
 ## Refresh procedure (when voting-portal evolves)

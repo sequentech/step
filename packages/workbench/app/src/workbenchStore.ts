@@ -45,12 +45,47 @@ export interface WorkbenchExtraState {
      *  field, which `useAddFakeCastVote` always sets to `null` in
      *  DISABLE_AUTH mode. */
     castBy: Record<string, string>
+    /** Reconciled per-cast-vote bridge data. The portal's
+     *  `useAddFakeCastVote` writes `election_id = eventId` and
+     *  `content = ""` under DISABLE_AUTH, so the cast-vote record in
+     *  Redux is not faithful to what was actually voted. This map fills
+     *  in the missing pieces from sources outside that record: the real
+     *  election id (taken from the matching ballot style), the plaintext
+     *  selection (snapshotted from `state.ballotSelections` at cast
+     *  time), and the encrypted hashable-ballot JSON (taken from
+     *  `sessionStorage["ballotData"]`, opaque to the workbench because
+     *  we lack the decryption keys). */
+    repairedCastVotes: Record<string, RepairedCastVote>
+}
+
+/** Per-cast-vote bridge record. See {@link WorkbenchExtraState.repairedCastVotes}. */
+export interface RepairedCastVote {
+    /** Real election id, taken from `ballotStyle.election_id`. NOT the
+     *  `eventId` that `useAddFakeCastVote` writes into the cast-vote
+     *  record. */
+    electionId: string
+    /** The ballot style that was active when the vote was cast. */
+    ballotStyleId: string
+    /** Plaintext selection snapshot taken from `state.ballotSelections`
+     *  at cast time. Stored as JSON-safe `unknown` so this file does
+     *  not have to import portal types; consumers cast to
+     *  `BallotSelection` from `@sequentech/ui-core` when they need
+     *  structured access. */
+    selection: unknown
+    /** `sessionStorage["ballotData"]["ballot"]` at cast time, if
+     *  available. Stringified `IHashableSingleBallot` (encrypted). The
+     *  workbench keeps it for display / forensic purposes only — it
+     *  has no decryption keys, so this string can NOT be tallied. */
+    hashableBallotJson: string | null
+    /** ISO-8601 timestamp of capture. */
+    capturedAt: string
 }
 
 const EMPTY_STATE: WorkbenchExtraState = Object.freeze({
     voters: [],
     activeVoterId: null,
     castBy: {},
+    repairedCastVotes: {},
 })
 
 let state: WorkbenchExtraState = EMPTY_STATE
@@ -150,6 +185,23 @@ export function attributeCastVote(castVoteId: string): void {
     })
 }
 
+/** Snapshot the bridge data for a freshly-observed cast vote. No-op if
+ *  the vote is already in the map — the first observation wins, so
+ *  replays during hydration do not clobber recorded data. */
+export function captureRepairedCastVote(
+    castVoteId: string,
+    repaired: RepairedCastVote
+): void {
+    if (state.repairedCastVotes[castVoteId]) return
+    setState({
+        ...state,
+        repairedCastVotes: {
+            ...state.repairedCastVotes,
+            [castVoteId]: repaired,
+        },
+    })
+}
+
 // ---------------------------------------------------------------------------
 // Persistence integration
 // ---------------------------------------------------------------------------
@@ -200,7 +252,24 @@ function normalizeIncoming(incoming: WorkbenchExtraState): WorkbenchExtraState {
             }
         }
     }
-    return {voters: sortVoters(voters), activeVoterId, castBy}
+    const repairedCastVotes: Record<string, RepairedCastVote> = {}
+    if (
+        incoming.repairedCastVotes &&
+        typeof incoming.repairedCastVotes === "object"
+    ) {
+        for (const [k, v] of Object.entries(incoming.repairedCastVotes)) {
+            if (
+                typeof k === "string" &&
+                v &&
+                typeof v === "object" &&
+                typeof (v as RepairedCastVote).electionId === "string" &&
+                typeof (v as RepairedCastVote).ballotStyleId === "string"
+            ) {
+                repairedCastVotes[k] = v as RepairedCastVote
+            }
+        }
+    }
+    return {voters: sortVoters(voters), activeVoterId, castBy, repairedCastVotes}
 }
 
 function sortVoters(vs: Voter[]): Voter[] {

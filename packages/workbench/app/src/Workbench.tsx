@@ -36,6 +36,7 @@ import {
     removeVoter,
     setActiveVoter,
     useWorkbench,
+    type RepairedCastVote,
     type Voter,
 } from "./workbenchStore"
 
@@ -383,6 +384,7 @@ export function WorkbenchElection() {
     const voters = useWorkbench((s) => s.voters)
     const activeVoterId = useWorkbench((s) => s.activeVoterId)
     const castBy = useWorkbench((s) => s.castBy)
+    const repairedCastVotes = useWorkbench((s) => s.repairedCastVotes)
     const activeVoter = voters.find((v) => v.id === activeVoterId) ?? null
     const voterById = new Map(voters.map((v) => [v.id, v]))
 
@@ -405,6 +407,32 @@ export function WorkbenchElection() {
             )
         }
         return voter.displayName
+    }
+
+    /** Render the "Bridged" cell. Shows a green check if both the
+     *  plaintext selection and the encrypted hashable ballot were
+     *  captured at cast time; partial / missing otherwise. */
+    const bridgeStatusCell = (repaired: RepairedCastVote | undefined) => {
+        if (!repaired) {
+            return <em style={{color: "#999"}}>no</em>
+        }
+        const hasSelection = !!repaired.selection
+        const hasEncrypted = !!repaired.hashableBallotJson
+        if (hasSelection && hasEncrypted) {
+            return (
+                <span style={{color: "#2e7d32"}} title="Plaintext + encrypted">
+                    ✓ full
+                </span>
+            )
+        }
+        if (hasSelection) {
+            return (
+                <span style={{color: "#b8860b"}} title="Plaintext only">
+                    ◐ plaintext
+                </span>
+            )
+        }
+        return <em style={{color: "#b00"}}>partial</em>
     }
 
     return (
@@ -502,8 +530,10 @@ export function WorkbenchElection() {
                             <tr>
                                 <th style={styles.th}>Cast vote ID</th>
                                 <th style={styles.th}>Indexed under</th>
+                                <th style={styles.th}>Real election</th>
                                 <th style={styles.th}>Voted by</th>
                                 <th style={styles.th}>Content length</th>
+                                <th style={styles.th}>Bridged</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -513,11 +543,22 @@ export function WorkbenchElection() {
                                         {cv.id}
                                     </td>
                                     <td style={styles.td}>election_id</td>
+                                    <td style={{...styles.td, ...styles.mono}}>
+                                        {repairedCastVotes[cv.id]?.electionId ??
+                                            <em style={{color: "#999"}}>
+                                                (not bridged)
+                                            </em>}
+                                    </td>
                                     <td style={styles.td}>
                                         {votedByCell(cv.id)}
                                     </td>
                                     <td style={styles.td}>
                                         {(cv.content ?? "").length}
+                                    </td>
+                                    <td style={styles.td}>
+                                        {bridgeStatusCell(
+                                            repairedCastVotes[cv.id]
+                                        )}
                                     </td>
                                 </tr>
                             ))}
@@ -537,11 +578,22 @@ export function WorkbenchElection() {
                                             (demo path)
                                         </em>
                                     </td>
+                                    <td style={{...styles.td, ...styles.mono}}>
+                                        {repairedCastVotes[cv.id]?.electionId ??
+                                            <em style={{color: "#999"}}>
+                                                (not bridged)
+                                            </em>}
+                                    </td>
                                     <td style={styles.td}>
                                         {votedByCell(cv.id)}
                                     </td>
                                     <td style={styles.td}>
                                         {(cv.content ?? "").length}
+                                    </td>
+                                    <td style={styles.td}>
+                                        {bridgeStatusCell(
+                                            repairedCastVotes[cv.id]
+                                        )}
                                     </td>
                                 </tr>
                             ))}
@@ -556,13 +608,27 @@ export function WorkbenchElection() {
                     }}
                 >
                     Note: the demo's <code>useAddFakeCastVote</code> writes
-                    cast-vote records with empty <code>content</code>{" "}
-                    (encrypted ciphertext lives in <code>sessionStorage</code>{" "}
-                    under <code>ballotData</code> until a bridging
-                    middleware grafts it into Redux). Running a real
-                    tally over these is a follow-up commit.
+                    cast-vote records with empty <code>content</code> and{" "}
+                    <code>election_id = eventId</code> (the "(demo path)"
+                    row). The workbench bridges each new cast vote into
+                    its own ledger — capturing the real{" "}
+                    <code>election_id</code>, the plaintext selection from{" "}
+                    <code>state.ballotSelections</code>, and the encrypted
+                    hashable ballot from{" "}
+                    <code>sessionStorage["ballotData"]</code> — without
+                    modifying portal source. Bridged rows below.
                 </p>
             </section>
+
+            <BridgedBallotsSection
+                bridged={collectBridgedForElection(
+                    repairedCastVotes,
+                    electionId ?? "",
+                    [...electionVotes, ...eventBinVotes].map((cv) => cv.id)
+                )}
+                voterById={voterById}
+                castBy={castBy}
+            />
 
             {ballotStyle && (
                 <section style={styles.section}>
@@ -995,6 +1061,147 @@ function VotersPanel() {
                     Resets booth launches back to anonymous attribution.
                 </p>
             )}
+        </section>
+    )
+}
+
+/**
+ * Filter the workbench's bridge ledger down to the bridged records
+ * that belong to this election. Two filters:
+ *  - `r.electionId` matches (the real election id, post-bridge).
+ *  - the cast-vote id is in the page's known set (defensive; should
+ *    always match in practice).
+ */
+function collectBridgedForElection(
+    repairedCastVotes: Record<string, RepairedCastVote>,
+    electionId: string,
+    knownCastVoteIds: string[]
+): Array<{castVoteId: string; repaired: RepairedCastVote}> {
+    const knownSet = new Set(knownCastVoteIds)
+    const out: Array<{castVoteId: string; repaired: RepairedCastVote}> = []
+    for (const [castVoteId, repaired] of Object.entries(repairedCastVotes)) {
+        if (!knownSet.has(castVoteId)) continue
+        if (repaired.electionId !== electionId) continue
+        out.push({castVoteId, repaired})
+    }
+    out.sort((a, b) =>
+        a.repaired.capturedAt.localeCompare(b.repaired.capturedAt)
+    )
+    return out
+}
+
+/**
+ * Per-cast-vote bridge detail panel. Renders the plaintext selection
+ * the workbench captured at cast time (the basis for a future inline
+ * tally), the encrypted hashable ballot it observed in
+ * sessionStorage, and the voter attribution.
+ */
+function BridgedBallotsSection({
+    bridged,
+    voterById,
+    castBy,
+}: {
+    bridged: Array<{castVoteId: string; repaired: RepairedCastVote}>
+    voterById: Map<string, Voter>
+    castBy: Record<string, string>
+}) {
+    if (bridged.length === 0) {
+        return null
+    }
+    return (
+        <section style={styles.section}>
+            <div style={styles.sectionTitle}>
+                Bridged ballots ({bridged.length})
+            </div>
+            <p style={styles.empty}>
+                Workbench-captured per-cast-vote bridge data. The
+                plaintext selection comes from{" "}
+                <code>state.ballotSelections</code>; the encrypted
+                hashable ballot from{" "}
+                <code>sessionStorage["ballotData"]</code>. Both are
+                snapshotted at the moment a new cast vote is observed
+                and are persisted in the workbench overlay (so they
+                survive reloads and ride on checkpoints).
+            </p>
+            {bridged.map(({castVoteId, repaired}) => {
+                const voterId = castBy[castVoteId]
+                const voter = voterId ? voterById.get(voterId) : undefined
+                return (
+                    <details
+                        key={castVoteId}
+                        style={{...styles.card, padding: "0.5rem 0.75rem"}}
+                    >
+                        <summary
+                            style={{
+                                cursor: "pointer",
+                                fontSize: "0.85rem",
+                            }}
+                        >
+                            <span style={styles.mono}>{castVoteId}</span>
+                            <span style={{color: "#666"}}>
+                                {" "}— voted by{" "}
+                                {voter ? voter.displayName : "anonymous"} at{" "}
+                                {repaired.capturedAt}
+                            </span>
+                        </summary>
+                        <div style={{marginTop: "0.5rem"}}>
+                            <div style={styles.sectionTitle}>
+                                Plaintext selection
+                            </div>
+                            <pre
+                                style={{
+                                    ...styles.mono,
+                                    background: "#f5f5f5",
+                                    padding: "0.5rem",
+                                    margin: 0,
+                                    maxHeight: "20rem",
+                                    overflow: "auto",
+                                }}
+                            >
+                                {JSON.stringify(repaired.selection, null, 2)}
+                            </pre>
+                        </div>
+                        <div style={{marginTop: "0.5rem"}}>
+                            <div style={styles.sectionTitle}>
+                                Encrypted hashable ballot
+                            </div>
+                            {repaired.hashableBallotJson ? (
+                                <pre
+                                    style={{
+                                        ...styles.mono,
+                                        background: "#f5f5f5",
+                                        padding: "0.5rem",
+                                        margin: 0,
+                                        maxHeight: "12rem",
+                                        overflow: "auto",
+                                        whiteSpace: "pre-wrap",
+                                        wordBreak: "break-all",
+                                    }}
+                                >
+                                    {(() => {
+                                        try {
+                                            return JSON.stringify(
+                                                JSON.parse(
+                                                    repaired.hashableBallotJson
+                                                ),
+                                                null,
+                                                2
+                                            )
+                                        } catch {
+                                            return repaired.hashableBallotJson
+                                        }
+                                    })()}
+                                </pre>
+                            ) : (
+                                <p style={styles.empty}>
+                                    Not captured (sessionStorage was empty
+                                    when this cast vote was observed).
+                                </p>
+                            )}
+                        </div>
+                    </details>
+                )
+            })}
         </section>
     )
 }
