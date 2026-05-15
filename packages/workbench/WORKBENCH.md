@@ -82,7 +82,8 @@ Three sections, always visible. The locked design for each:
   bundled snapshots are roots, checkpoints attach under their
   `parentId`. Each node links to `/wb/snapshot/<encoded id>`; the
   current working-copy parent is highlighted. The working copy itself
-  is *not* a node — its overview is at `/wb` (the index route).
+  is *not* a tree node — it appears instead as the pinned top row of
+  the snapshot index table at `/wb` (the index route).
 - **Tenants.** Derived from `state.electionEvent` and `state.elections`
   by grouping events under their `tenant_id`. Each leaf is a ballot
   style; clicking opens `/wb/ballot-style/<id>` directly (no
@@ -96,11 +97,20 @@ Three sections, always visible. The locked design for each:
 
 All five are exported from `WorkbenchInspector.tsx`:
 
-- `SnapshotOverviewPage` at `/wb` (index). Live working-copy summary:
-  `Forked from` (`currentParentId`), voter / election / ballot-style /
-  cast-vote counts, plus the *Save current state as checkpoint…*
-  button. Counters use scalar selectors (not object-returning) to
-  avoid react-redux's referential-equality warning on every dispatch.
+- `SnapshotOverviewPage` at `/wb` (index). A unified snapshot index
+  table with one row per snapshot: the working copy first (pinned,
+  tinted, with a *Save…* action that prompts for a checkpoint name),
+  then bundled snapshots (alphabetical), then checkpoints (newest
+  `savedAt` first). Columns: name, kind, forked-from (NavLink to the
+  parent row's snapshot detail page), saved-at, voters, elections,
+  ballot styles, cast votes, action. Bundled and checkpoint rows
+  carry a *Load* button (bundled → `hydrateFromSnapshot` with the
+  bundled-id tag; checkpoint → `loadCheckpoint`); the working-copy
+  row carries the *Save…* button. Counts come from `selectStateCounts`
+  applied to each snapshot's `state` plus `snapshot.workbench?.voters`;
+  the working-copy row uses scalar `useSelector`s (not object-returning)
+  to avoid react-redux's referential-equality warning on every dispatch.
+  Checkpoint rows live-update via `useCheckpointList`.
 - `SnapshotDetailPage` at `/wb/snapshot/:id`. The `:id` is a tagged id
   (`bundled:<name>` or `checkpoint:<name>`, URL-encoded). Renders the
   same summary `<dl>` as the overview plus a *Load* button
@@ -366,18 +376,6 @@ already recorded in the snapshot.
 Not lift-related — workbench-only ideas, parked so they don't get
 lost.
 
-**Snapshot index table on `/wb`.** The working-copy overview at the
-inspector index currently shows live counters and a *Save checkpoint*
-button. A natural extension is a tabular list of all bundled snapshots
-+ checkpoints (one row per snapshot, columns mirroring
-`SnapshotDetailPage`'s `<dl>` — name, kind, parent, saved-at, voters,
-elections, ballot styles, cast votes — plus a one-click *Load*
-button). The tree rail keeps its navigation role but stops being the
-only way to compare snapshots side by side. Implementation is
-straightforward — read every entry's counts on render (synchronous
-localStorage reads, bounded by the number of checkpoints, which we
-keep small by policy).
-
 **Richer per-record introspection.** Each detail page already
 collapses its record's raw JSON (e.g. `ballot_eml` on the ballot-style
 page, the bundled export on the snapshot page). When two more record
@@ -388,7 +386,6 @@ blocks. Anywhere we render a bare id today (cast-vote id, voter id,
 ballot-style id), wrap it as a NavLink into the right `/wb/<kind>/:id`
 page so the inspector is always one click away.
 
-When to build: the snapshot-index table can land any time. The JSON
-tree component is most useful **after** the encoded-ballot and
-tally-result record types are stable enough to type — building it
-earlier risks designing around the wrong schema.
+When to build: best **after** the encoded-ballot and tally-result
+record types are stable enough to type — building it earlier risks
+designing around the wrong schema.

@@ -563,55 +563,284 @@ export function SnapshotOverviewPage(): JSX.Element {
         )
     )
     const voterCount = useWorkbench((w) => w.voters.length)
+    const checkpoints = useCheckpointList()
+    const navigate = useNavigate()
     const [error, setError] = useState<string | null>(null)
+
+    const onSave = (): void => {
+        setError(null)
+        const raw = window.prompt(
+            "Checkpoint name (letters, digits, spaces, '.', '-', '_'; max 64 chars):"
+        )
+        if (raw == null) return
+        try {
+            saveCheckpoint(
+                store as Parameters<typeof saveCheckpoint>[0],
+                raw
+            )
+        } catch (e) {
+            setError(e instanceof Error ? e.message : String(e))
+        }
+    }
+    const onLoadBundled = (name: string, snapshot: PersistedSnapshot): void => {
+        hydrateFromSnapshot(
+            store as Parameters<typeof saveCheckpoint>[0],
+            snapshot,
+            bundledId(name)
+        )
+        navigate("/wb")
+    }
+    const onLoadCheckpoint = (name: string): void => {
+        loadCheckpoint(
+            store as Parameters<typeof saveCheckpoint>[0],
+            name
+        )
+        navigate("/wb")
+    }
+
+    // Build the unified row list. The working copy is always first;
+    // bundled snapshots follow (alphabetical), then checkpoints
+    // (newest savedAt first). Each row carries everything the table
+    // needs to render without re-reading localStorage.
+    type Row =
+        | {
+              kind: "working"
+              name: string
+              parentId: string | null
+              savedAt: string
+              counts: {
+                  voters: number
+                  elections: number
+                  ballotStyles: number
+                  castVotes: number
+              }
+          }
+        | {
+              kind: "bundled" | "checkpoint"
+              id: string
+              name: string
+              parentId: string | null | undefined
+              savedAt: string
+              counts: {
+                  voters: number
+                  elections: number
+                  ballotStyles: number
+                  castVotes: number
+              }
+              snapshot: PersistedSnapshot
+          }
+
+    const rows: Row[] = []
+    rows.push({
+        kind: "working",
+        name: "Working copy",
+        parentId,
+        savedAt: "(live)",
+        counts: {
+            voters: voterCount,
+            elections: electionCount,
+            ballotStyles: ballotStyleCount,
+            castVotes: castVoteCount,
+        },
+    })
+    const bundledEntries = Object.entries(BUNDLED_SNAPSHOTS).sort((a, b) =>
+        a[0].localeCompare(b[0])
+    )
+    for (const [bName, bSnapshot] of bundledEntries) {
+        const c = selectStateCounts(bSnapshot.state)
+        rows.push({
+            kind: "bundled",
+            id: bundledId(bName),
+            name: bName,
+            parentId: bSnapshot.parentId ?? null,
+            savedAt: "(shipped)",
+            counts: {
+                voters: bSnapshot.workbench?.voters.length ?? 0,
+                elections: c.elections,
+                ballotStyles: c.ballotStyles,
+                castVotes: c.castVotes,
+            },
+            snapshot: bSnapshot,
+        })
+    }
+    const checkpointEntries = [...checkpoints].sort((a, b) =>
+        b.savedAt.localeCompare(a.savedAt)
+    )
+    for (const meta of checkpointEntries) {
+        const snap = readCheckpointSnapshot(meta.name)
+        if (!snap) continue
+        const c = selectStateCounts(snap.state)
+        rows.push({
+            kind: "checkpoint",
+            id: checkpointId(meta.name),
+            name: meta.name,
+            parentId: meta.parentId ?? snap.parentId ?? null,
+            savedAt: meta.savedAt,
+            counts: {
+                voters: snap.workbench?.voters.length ?? 0,
+                elections: c.elections,
+                ballotStyles: c.ballotStyles,
+                castVotes: c.castVotes,
+            },
+            snapshot: snap,
+        })
+    }
+
     return (
         <>
-            <h1>Working copy</h1>
+            <h1>Snapshots</h1>
             <p style={{color: "#666"}}>
-                Live in-memory state of the workbench. Auto-saved to
-                localStorage on every change.
+                The working copy is the live in-memory state, auto-saved
+                to localStorage on every change. Bundled snapshots ship
+                in git; checkpoints are saved by you and live only in
+                this browser.
             </p>
-            <dl style={dlStyle}>
-                <DlRow label="Forked from">
-                    <code>{parentId ?? "(root — no parent)"}</code>
-                </DlRow>
-                <DlRow label="Voters">{voterCount}</DlRow>
-                <DlRow label="Elections">{electionCount}</DlRow>
-                <DlRow label="Ballot styles">{ballotStyleCount}</DlRow>
-                <DlRow label="Cast votes">{castVoteCount}</DlRow>
-            </dl>
-            <div style={{marginTop: "1.5rem"}}>
-                <button
-                    type="button"
-                    style={primaryButtonStyle}
-                    onClick={() => {
-                        setError(null)
-                        const raw = window.prompt(
-                            "Checkpoint name (letters, digits, spaces, '.', '-', '_'; max 64 chars):"
-                        )
-                        if (raw == null) return
-                        try {
-                            saveCheckpoint(
-                                store as Parameters<typeof saveCheckpoint>[0],
-                                raw
-                            )
-                        } catch (e) {
-                            setError(
-                                e instanceof Error ? e.message : String(e)
-                            )
-                        }
-                    }}
-                >
-                    Save current state as checkpoint…
-                </button>
-                {error && (
-                    <p style={{color: "#b00020", marginTop: "0.5rem"}}>
-                        {error}
-                    </p>
-                )}
-            </div>
+            <table style={snapshotTableStyle}>
+                <thead>
+                    <tr>
+                        <th style={thStyle}>Name</th>
+                        <th style={thStyle}>Kind</th>
+                        <th style={thStyle}>Forked from</th>
+                        <th style={thStyle}>Saved at</th>
+                        <th style={thNumStyle}>Voters</th>
+                        <th style={thNumStyle}>Elections</th>
+                        <th style={thNumStyle}>Ballot styles</th>
+                        <th style={thNumStyle}>Cast votes</th>
+                        <th style={thStyle}>Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {rows.map((row) => (
+                        <tr
+                            key={
+                                row.kind === "working" ? "__working" : row.id
+                            }
+                            style={
+                                row.kind === "working"
+                                    ? workingRowStyle
+                                    : undefined
+                            }
+                        >
+                            <td style={tdStyle}>
+                                {row.kind === "working" ? (
+                                    <strong>{row.name}</strong>
+                                ) : (
+                                    <NavLink
+                                        to={`/wb/snapshot/${encodeURIComponent(
+                                            row.id
+                                        )}`}
+                                        style={inlineLinkStyle}
+                                    >
+                                        {row.kind === "bundled" ? "▣" : "◇"}{" "}
+                                        {row.name}
+                                    </NavLink>
+                                )}
+                            </td>
+                            <td style={tdMutedStyle}>{row.kind}</td>
+                            <td style={tdStyle}>
+                                <ParentCell parentId={row.parentId ?? null} />
+                            </td>
+                            <td style={tdMutedStyle}>
+                                {row.savedAt.startsWith("(") ? (
+                                    row.savedAt
+                                ) : (
+                                    <code>{row.savedAt}</code>
+                                )}
+                            </td>
+                            <td style={tdNumStyle}>{row.counts.voters}</td>
+                            <td style={tdNumStyle}>{row.counts.elections}</td>
+                            <td style={tdNumStyle}>
+                                {row.counts.ballotStyles}
+                            </td>
+                            <td style={tdNumStyle}>{row.counts.castVotes}</td>
+                            <td style={tdStyle}>
+                                {row.kind === "working" ? (
+                                    <button
+                                        type="button"
+                                        style={primaryButtonStyle}
+                                        onClick={onSave}
+                                    >
+                                        Save…
+                                    </button>
+                                ) : (
+                                    <button
+                                        type="button"
+                                        style={secondaryButtonStyle}
+                                        onClick={() => {
+                                            if (row.kind === "bundled") {
+                                                onLoadBundled(
+                                                    row.name,
+                                                    row.snapshot
+                                                )
+                                            } else {
+                                                onLoadCheckpoint(row.name)
+                                            }
+                                        }}
+                                    >
+                                        Load
+                                    </button>
+                                )}
+                            </td>
+                        </tr>
+                    ))}
+                </tbody>
+            </table>
+            {error && (
+                <p style={{color: "#b00020", marginTop: "0.5rem"}}>
+                    {error}
+                </p>
+            )}
         </>
     )
+}
+
+function ParentCell({parentId}: {parentId: string | null}): JSX.Element {
+    if (parentId == null) {
+        return <span style={{color: "#888"}}>(root)</span>
+    }
+    return (
+        <NavLink
+            to={`/wb/snapshot/${encodeURIComponent(parentId)}`}
+            style={inlineLinkStyle}
+        >
+            <code>{parentId}</code>
+        </NavLink>
+    )
+}
+
+const snapshotTableStyle: React.CSSProperties = {
+    width: "100%",
+    borderCollapse: "collapse",
+    fontSize: "0.9rem",
+    marginTop: "0.5rem",
+}
+const thStyle: React.CSSProperties = {
+    textAlign: "left",
+    borderBottom: "1px solid #ccc",
+    padding: "0.4rem 0.6rem",
+    fontWeight: 600,
+    color: "#444",
+}
+const thNumStyle: React.CSSProperties = {
+    ...thStyle,
+    textAlign: "right",
+}
+const tdStyle: React.CSSProperties = {
+    borderBottom: "1px solid #eee",
+    padding: "0.4rem 0.6rem",
+    verticalAlign: "middle",
+}
+const tdMutedStyle: React.CSSProperties = {
+    ...tdStyle,
+    color: "#666",
+}
+const tdNumStyle: React.CSSProperties = {
+    ...tdStyle,
+    textAlign: "right",
+    fontVariantNumeric: "tabular-nums",
+}
+const workingRowStyle: React.CSSProperties = {
+    background: "#f4f9ff",
 }
 
 function selectStateCounts(s: RootState): {
