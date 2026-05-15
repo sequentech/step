@@ -16,6 +16,13 @@ import {
     WorkbenchHome,
     WorkbenchTenant,
 } from "./Workbench"
+import {
+    BallotStyleDetailPage,
+    ContestDetailPage,
+    InspectorLayout,
+    SnapshotOverviewPage,
+    VoterDetailPage,
+} from "./WorkbenchInspector"
 
 function Shell() {
     return (
@@ -33,6 +40,7 @@ function Shell() {
                 <Link to="/" style={{fontWeight: 600}}>
                     Workbench
                 </Link>
+                <Link to="/wb">Inspector</Link>
                 <Link to="/tally">Raw-JSON tally</Link>
                 <span style={{flex: 1}} />
                 <button
@@ -81,6 +89,19 @@ const router = createBrowserRouter([
         element: <Shell />,
         children: [
             {index: true, element: <WorkbenchHome />},
+            {
+                path: "/wb",
+                element: <InspectorLayout />,
+                children: [
+                    {index: true, element: <SnapshotOverviewPage />},
+                    {
+                        path: "ballot-style/:id",
+                        element: <BallotStyleDetailPage />,
+                    },
+                    {path: "contest/:id", element: <ContestDetailPage />},
+                    {path: "voter/:id", element: <VoterDetailPage />},
+                ],
+            },
             {path: "/wb/tenant/:tenantId", element: <WorkbenchTenant />},
             {
                 path: "/wb/tenant/:tenantId/event/:eventId",
