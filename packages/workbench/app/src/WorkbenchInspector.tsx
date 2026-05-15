@@ -57,6 +57,7 @@ import {
 } from "./persistence"
 import {BUNDLED_SNAPSHOTS} from "./fixtures/bundledSnapshots"
 import {runElectionTally, type ContestTallyOutcome} from "./electionTally"
+import {setActiveVoter} from "./workbenchStore"
 // ---------------------------------------------------------------------------
 // Layout
 // ---------------------------------------------------------------------------
@@ -1159,20 +1160,243 @@ const tallyResultStyle: React.CSSProperties = {
     maxWidth: "44rem",
 }
 
+/**
+ * `/wb/voter/:id` — detail page for one voter persona.
+ *
+ * The voter directory is global to the workbench, so a voter isn't
+ * scoped to one election. This page surfaces:
+ *  - the voter's id, displayName, and notes;
+ *  - one "Cast a ballot in <election>" CTA per ballot style available
+ *    in the current snapshot. Each button (a) flips
+ *    `workbench.activeVoterId` to this voter so the cast-vote
+ *    observer can attribute the next cast vote, then (b) navigates
+ *    to the booth start route for that election.
+ *  - the cast votes attributed to this voter (via the workbench
+ *    `castBy` ledger — the portal's `voter_id_string` is always null
+ *    under DISABLE_AUTH, so castBy is the only source of attribution).
+ *    For each cast vote, the decoded BigUints per contest are listed
+ *    with NavLinks to the contest detail page.
+ */
 export function VoterDetailPage(): JSX.Element {
     const {id} = useParams()
+    const voterId = id ?? ""
+    const navigate = useNavigate()
+    const voter = useWorkbench((w) =>
+        w.voters.find((v) => v.id === voterId)
+    )
+    const ballotStyles = useSelector((s: RootState) =>
+        Object.values(s.ballotStyles).filter((b): b is NonNullable<typeof b> => !!b)
+    )
+    const elections = useSelector((s: RootState) => s.elections)
+    const castVotesByElection = useSelector((s: RootState) => s.castVotes)
+    const castBy = useWorkbench((w) => w.castBy)
+    const repaired = useWorkbench((w) => w.repairedCastVotes)
+    // Rows for cast votes attributed to this voter, across all
+    // elections. We scan castBy rather than state.castVotes because
+    // castBy is the smaller, voter-keyed table.
+    const voterCastVotes = useMemo(() => {
+        const out: Array<{
+            castVoteId: string
+            electionId: string
+            electionName: string | undefined
+            decoded: Record<string, string>
+            createdAt: string | null | undefined
+        }> = []
+        for (const [castVoteId, vId] of Object.entries(castBy)) {
+            if (vId !== voterId) continue
+            const entry = repaired[castVoteId]
+            const electionId = entry?.electionId ?? ""
+            // The cast-vote record itself lives in state.castVotes,
+            // keyed by electionId.
+            const cv = electionId
+                ? (castVotesByElection[electionId] ?? []).find(
+                      (x) => x.id === castVoteId
+                  )
+                : undefined
+            out.push({
+                castVoteId,
+                electionId,
+                electionName: electionId
+                    ? elections[electionId]?.name
+                    : undefined,
+                decoded: entry?.decodedBigInts ?? {},
+                createdAt: cv?.created_at,
+            })
+        }
+        // Most-recent first when timestamps are available.
+        out.sort((a, b) => {
+            const at = a.createdAt ?? ""
+            const bt = b.createdAt ?? ""
+            return bt.localeCompare(at)
+        })
+        return out
+    }, [castBy, repaired, voterId, castVotesByElection, elections])
+    if (!voter) {
+        return (
+            <>
+                <h1>Voter not found</h1>
+                <p>
+                    <code>{voterId || "(missing id)"}</code>
+                </p>
+            </>
+        )
+    }
+    const startVotingAs = (bs: (typeof ballotStyles)[number]) => {
+        setActiveVoter(voter.id)
+        navigate(
+            `/tenant/${bs.tenant_id}/event/${bs.election_event_id}` +
+                `/election/${bs.election_id}/start`
+        )
+    }
     return (
         <>
-            <h1>Voter</h1>
-            <p>
-                <code>{id}</code>
-            </p>
+            <h1>{voter.displayName}</h1>
             <p style={{color: "#666"}}>
-                Placeholder. Vote-as CTA + cast-vote rows with decoded
-                BigUints land in task 9.
+                <code>{voter.id}</code> &middot; Voter
             </p>
+            {voter.notes && (
+                <p style={{color: "#444"}}>{voter.notes}</p>
+            )}
+            <h2 style={h2Style}>Vote as {voter.displayName}</h2>
+            {ballotStyles.length === 0 ? (
+                <Empty>
+                    No ballot styles in this snapshot.
+                </Empty>
+            ) : (
+                <ul style={{paddingLeft: 0, listStyle: "none"}}>
+                    {ballotStyles.map((bs) => {
+                        const election = elections[bs.election_id]
+                        const label =
+                            election?.name ??
+                            `(unnamed election ${bs.election_id})`
+                        return (
+                            <li
+                                key={bs.id}
+                                style={{margin: "0.4rem 0"}}
+                            >
+                                <button
+                                    type="button"
+                                    style={primaryButtonStyle}
+                                    onClick={() => startVotingAs(bs)}
+                                >
+                                    Cast a ballot in {label} →
+                                </button>{" "}
+                                <span style={{color: "#888"}}>
+                                    <code>{bs.id}</code>
+                                </span>
+                            </li>
+                        )
+                    })}
+                </ul>
+            )}
+            <h2 style={h2Style}>Cast votes</h2>
+            {voterCastVotes.length === 0 ? (
+                <Empty>
+                    No cast votes attributed to this voter yet. Start a
+                    ballot above to cast one.
+                </Empty>
+            ) : (
+                <ul style={{paddingLeft: 0, listStyle: "none"}}>
+                    {voterCastVotes.map((row) => (
+                        <li
+                            key={row.castVoteId}
+                            style={castVoteRowStyle}
+                        >
+                            <VoterCastVoteRow row={row} />
+                        </li>
+                    ))}
+                </ul>
+            )}
         </>
     )
+}
+
+function VoterCastVoteRow({
+    row,
+}: {
+    row: {
+        castVoteId: string
+        electionId: string
+        electionName: string | undefined
+        decoded: Record<string, string>
+        createdAt: string | null | undefined
+    }
+}): JSX.Element {
+    const decodedEntries = Object.entries(row.decoded)
+    return (
+        <>
+            <div style={{fontSize: "0.85rem", color: "#444"}}>
+                <strong>{row.electionName ?? "(unknown election)"}</strong>
+                {row.createdAt && (
+                    <>
+                        {" "}
+                        &middot;{" "}
+                        <span title={row.createdAt}>
+                            {formatTimestamp(row.createdAt)}
+                        </span>
+                    </>
+                )}
+            </div>
+            <div
+                style={{
+                    fontFamily: "monospace",
+                    fontSize: "0.75rem",
+                    color: "#888",
+                    margin: "0.2rem 0",
+                }}
+            >
+                {row.castVoteId}
+            </div>
+            {decodedEntries.length === 0 ? (
+                <Empty>(not yet decoded by the bridge)</Empty>
+            ) : (
+                <ul
+                    style={{
+                        paddingLeft: "1.25rem",
+                        margin: "0.3rem 0 0 0",
+                    }}
+                >
+                    {decodedEntries.map(([contestId, big]) => (
+                        <li
+                            key={contestId}
+                            style={{
+                                margin: "0.2rem 0",
+                                fontFamily: "monospace",
+                                fontSize: "0.8rem",
+                            }}
+                        >
+                            <NavLink
+                                to={`/wb/contest/${contestId}`}
+                                style={inlineLinkStyle}
+                            >
+                                {contestId}
+                            </NavLink>
+                            {" → "}
+                            <span style={{wordBreak: "break-all"}}>
+                                {big}
+                            </span>
+                        </li>
+                    ))}
+                </ul>
+            )}
+        </>
+    )
+}
+
+function formatTimestamp(raw: string): string {
+    // Cast-vote `created_at` is ISO8601 from the portal; falling back
+    // to the raw string is fine for anything weird.
+    const t = Date.parse(raw)
+    if (Number.isNaN(t)) return raw
+    return new Date(t).toLocaleString()
+}
+
+const castVoteRowStyle: React.CSSProperties = {
+    margin: "0.6rem 0",
+    padding: "0.6rem 0.8rem",
+    background: "#fafafa",
+    border: "1px solid #e4e4e4",
+    borderRadius: 4,
 }
 
 // ---------------------------------------------------------------------------
