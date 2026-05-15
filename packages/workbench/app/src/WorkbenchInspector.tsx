@@ -827,7 +827,6 @@ export function BallotStyleDetailPage(): JSX.Element {
         )
     }
     const pk = ballotStyle.ballot_eml.public_key?.public_key
-    const isDemo = ballotStyle.ballot_eml.public_key?.is_demo
     return (
         <>
             <h1>{election?.name ?? "(unnamed election)"}</h1>
@@ -845,15 +844,6 @@ export function BallotStyleDetailPage(): JSX.Element {
                         <em style={{color: "#b00020"}}>
                             missing on ballot_eml.public_key.public_key
                         </em>
-                    )}
-                </DlRow>
-                <DlRow label="Demo key">
-                    {isDemo ? (
-                        <strong style={{color: "#b58900"}}>
-                            yes — do not use in production
-                        </strong>
-                    ) : (
-                        "no"
                     )}
                 </DlRow>
                 <DlRow label="Secret key">
@@ -899,7 +889,6 @@ function SecretKeyRow({
     keypair: {pkB64: string; skB64: string} | undefined
     pk: string | undefined
 }): JSX.Element {
-    const [revealed, setRevealed] = useState(false)
     if (!keypair) {
         return (
             <em style={{color: "#b00020"}}>
@@ -910,7 +899,7 @@ function SecretKeyRow({
     }
     // Defence in depth: if the registered pk doesn't match the
     // ballot_eml public key, the sk is unusable and we want the
-    // operator to know before they reveal it.
+    // operator to know.
     const mismatch = pk != null && pk !== keypair.pkB64
     return (
         <div>
@@ -921,33 +910,7 @@ function SecretKeyRow({
                     decrypt bridge will not work until they agree.
                 </p>
             )}
-            {revealed ? (
-                <>
-                    <code style={{...codeBlockStyle, background: "#fff4e5"}}>
-                        {keypair.skB64}
-                    </code>
-                    <button
-                        type="button"
-                        style={{...secondaryButtonStyle, marginTop: "0.4rem"}}
-                        onClick={() => setRevealed(false)}
-                    >
-                        Hide
-                    </button>
-                </>
-            ) : (
-                <>
-                    <code style={codeBlockStyle}>
-                        {"•".repeat(Math.min(keypair.skB64.length, 48))}
-                    </code>
-                    <button
-                        type="button"
-                        style={{...secondaryButtonStyle, marginTop: "0.4rem"}}
-                        onClick={() => setRevealed(true)}
-                    >
-                        Reveal secret key
-                    </button>
-                </>
-            )}
+            <code style={codeBlockStyle}>{keypair.skB64}</code>
         </div>
     )
 }
