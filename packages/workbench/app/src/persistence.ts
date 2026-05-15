@@ -53,6 +53,7 @@ import {
     captureRepairedCastVote,
     getWorkbenchState,
     replaceWorkbenchState,
+    setActiveVoter,
     setRepairedDecodedBigInts,
     subscribeWorkbench,
     type RepairedCastVote,
@@ -374,14 +375,22 @@ export function installPersistence(store: typeof Store): () => void {
         //      plaintext selection (from state.ballotSelections) and
         //      the encrypted hashable ballot (from
         //      sessionStorage["ballotData"]).
+        // After attribution, clear `activeVoterId`: a voter persona
+        // casts one ballot per "Vote as" click. Leaving it set would
+        // silently attribute the *next* anonymous cast vote to the
+        // same persona, which is almost never what the operator
+        // wants — the voter detail page re-sets it explicitly on
+        // every CTA click.
         const liveState = store.getState()
         for (const votes of Object.values(liveState.castVotes)) {
             if (!votes) continue
             for (const v of votes) {
                 if (seenCastVoteIds.has(v.id)) continue
                 seenCastVoteIds.add(v.id)
+                const activeBefore = getWorkbenchState().activeVoterId
                 attributeCastVote(v.id)
                 tryCaptureRepairedCastVote(liveState, v)
+                if (activeBefore) setActiveVoter(null)
             }
         }
         writeSnapshot(store.getState())
