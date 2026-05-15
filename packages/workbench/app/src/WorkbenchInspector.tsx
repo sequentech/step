@@ -46,9 +46,8 @@ import {
     bundledId,
     checkpointId,
     getCurrentParentId,
-    hydrateFromSnapshot,
     listCheckpoints,
-    loadCheckpoint,
+    loadSnapshotViaReload,
     normalizeCheckpointName,
     readCheckpointSnapshot,
     saveCheckpoint,
@@ -564,7 +563,6 @@ export function SnapshotOverviewPage(): JSX.Element {
     )
     const voterCount = useWorkbench((w) => w.voters.length)
     const checkpoints = useCheckpointList()
-    const navigate = useNavigate()
     const [error, setError] = useState<string | null>(null)
     const [importOpen, setImportOpen] = useState(false)
     const [importJson, setImportJson] = useState("")
@@ -599,15 +597,13 @@ export function SnapshotOverviewPage(): JSX.Element {
             return
         }
         try {
-            // sourceId = null → the imported snapshot becomes a root
-            // working copy. Whatever `parentId` the JSON carried is
-            // ignored; if the user wants to keep this state, they can
-            // click Save… to capture it as a checkpoint.
-            hydrateFromSnapshot(
-                store as Parameters<typeof saveCheckpoint>[0],
-                parsed,
-                null
-            )
+            // Wipe + reload: write the imported snapshot to the
+            // auto-resume slot as a root (parentId = null), then
+            // reload so the boot path hydrates a fresh, empty store.
+            // This guarantees the resulting working copy matches the
+            // source JSON exactly with no leftovers from before.
+            // If the user wants to keep it, they Save… after.
+            loadSnapshotViaReload(parsed, null)
         } catch (e) {
             setImportError(
                 e instanceof Error ? e.message : String(e)
@@ -634,19 +630,15 @@ export function SnapshotOverviewPage(): JSX.Element {
         }
     }
     const onLoadBundled = (name: string, snapshot: PersistedSnapshot): void => {
-        hydrateFromSnapshot(
-            store as Parameters<typeof saveCheckpoint>[0],
-            snapshot,
-            bundledId(name)
-        )
-        navigate("/wb")
+        // Wipe + reload (see loadSnapshotViaReload). `navigate` is a
+        // no-op here because the reload tears down the SPA, but the
+        // boot path lands us back on /wb anyway.
+        loadSnapshotViaReload(snapshot, bundledId(name))
     }
     const onLoadCheckpoint = (name: string): void => {
-        loadCheckpoint(
-            store as Parameters<typeof saveCheckpoint>[0],
-            name
-        )
-        navigate("/wb")
+        const snapshot = readCheckpointSnapshot(name)
+        if (!snapshot) return
+        loadSnapshotViaReload(snapshot, checkpointId(name))
     }
 
     // Build the unified row list. The working copy is always first;
@@ -1029,8 +1021,6 @@ function selectStateCounts(s: RootState): {
 export function SnapshotDetailPage(): JSX.Element {
     const {id: rawId} = useParams()
     const id = rawId != null ? decodeURIComponent(rawId) : ""
-    const store = useStore()
-    const navigate = useNavigate()
     // Subscribe to checkpoint mutations so a Save-then-navigate flow
     // (or a Load that returns here) sees fresh data.
     useCheckpointList()
@@ -1108,21 +1098,12 @@ export function SnapshotDetailPage(): JSX.Element {
                     type="button"
                     style={primaryButtonStyle}
                     onClick={() => {
-                        const typedStore = store as Parameters<
-                            typeof saveCheckpoint
-                        >[0]
-                        if (kind === "checkpoint") {
-                            loadCheckpoint(typedStore, name)
-                        } else {
-                            hydrateFromSnapshot(
-                                typedStore,
-                                snapshot,
-                                bundledId(name)
-                            )
-                        }
-                        // Land on the working-copy overview so the
-                        // operator can see what they just loaded.
-                        navigate("/wb")
+                        // Wipe + reload via the auto-resume slot.
+                        const parentId =
+                            kind === "checkpoint"
+                                ? checkpointId(name)
+                                : bundledId(name)
+                        loadSnapshotViaReload(snapshot, parentId)
                     }}
                 >
                     Load

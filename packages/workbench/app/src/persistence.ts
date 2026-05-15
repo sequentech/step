@@ -421,6 +421,38 @@ export function clearPersistedSnapshot(): void {
     localStorage.removeItem(PERSISTENCE_KEY)
 }
 
+/**
+ * Replace the live store with a snapshot via a "wipe + reload" rather
+ * than an overlay. The snapshot is written straight into the
+ * auto-resume slot with the given `parentId`, then the page reloads;
+ * the boot path then hydrates a fresh, empty store from that slot, so
+ * the resulting state matches the snapshot exactly with no leftovers
+ * from before.
+ *
+ * Use this for Load / Import flows where the operator expects "the
+ * working copy now IS this snapshot". Use {@link hydrateFromSnapshot}
+ * directly only on the boot path (the store is already empty) or for
+ * intentional overlay semantics.
+ *
+ * `parentId` is what {@link getCurrentParentId} will report after the
+ * reload. Pass a tagged id (`bundled:<name>` / `checkpoint:<name>`)
+ * for Load, or `null` for Import (the imported state is a root).
+ */
+export function loadSnapshotViaReload(
+    snapshot: PersistedSnapshot,
+    parentId: string | null
+): void {
+    if (typeof localStorage === "undefined") return
+    const forBoot: PersistedSnapshot = {
+        version: "v1",
+        state: snapshot.state,
+        workbench: snapshot.workbench,
+        parentId,
+    }
+    localStorage.setItem(PERSISTENCE_KEY, JSON.stringify(forBoot))
+    if (typeof window !== "undefined") window.location.reload()
+}
+
 // ---------------------------------------------------------------------------
 // Named checkpoints
 // ---------------------------------------------------------------------------

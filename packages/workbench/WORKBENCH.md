@@ -113,23 +113,20 @@ All five are exported from `WorkbenchInspector.tsx`:
   Checkpoint rows live-update via `useCheckpointList`.
 
   Below the table sits an *Import JSON into working copy…* panel:
-  paste a full `PersistedSnapshot` blob and it is hydrated straight
-  into the live store via `hydrateFromSnapshot(store, parsed, null)`.
-  The `null` `sourceId` makes the imported state a root — whatever
-  `parentId` the source JSON carried is discarded. Use case: iterate
-  on a hand-edited or externally-generated fixture without going
-  through the bundle + rebuild cycle. To keep the imported state,
-  click *Save…* on the working-copy row after importing; if not, it
-  lives only in the auto-resume slot until the next change. (Same as
-  Load on a checkpoint/bundled row, the import overlays onto the
-  existing store rather than wiping it first, so imported state
-  composes with whatever was there before.)
+  paste a full `PersistedSnapshot` blob and it is loaded straight
+  into the working copy as a root via `loadSnapshotViaReload(parsed,
+  null)` — the snapshot is written into the auto-resume slot and the
+  page is reloaded, so the boot path hydrates a fresh empty store
+  from it. The `null` `parentId` makes the imported state a root
+  regardless of what the source JSON carried. To keep the imported
+  state, click *Save…* on the working-copy row after importing.
 - `SnapshotDetailPage` at `/wb/snapshot/:id`. The `:id` is a tagged id
   (`bundled:<name>` or `checkpoint:<name>`, URL-encoded). Renders the
-  same summary `<dl>` as the overview plus a *Load* button
-  (bundled → `hydrateFromSnapshot` with the bundled-id tag; checkpoint
-  → `loadCheckpoint`) and a collapsed *Bundled JSON* block. The export
-  strips `parentId` so a copy-pasted snapshot becomes a root.
+  same summary `<dl>` as the overview plus a *Load* button (uses
+  `loadSnapshotViaReload` with `bundledId(name)` or
+  `checkpointId(name)` as the `parentId`) and a collapsed *Bundled
+  JSON* block. The export strips `parentId` so a copy-pasted snapshot
+  becomes a root.
 - `BallotStyleDetailPage` at `/wb/ballot-style/:id`. Resolves the
   ballot style by `id` (note: `state.ballotStyles` is keyed by
   `election_id`, not by ballot-style id, so this is an
@@ -242,12 +239,20 @@ kinds without ambiguity.
   the sorted index. Names are normalized to letters/digits/`._- `
   with a 64-char cap (`normalizeCheckpointName`); illegal input
   throws so the UI can surface a precise message.
-- `loadCheckpoint(store, name)` dispatches the snapshot through the
-  same `hydrateFromSnapshot` used at boot, which means the
-  auto-resume slot gets overwritten as a side-effect. The UI follows
-  up with a `location.reload()` to drop any in-memory derived state
-  (Apollo cache, mounted screens' local `useState`) so the boot path
-  replays hydration cleanly.
+- `loadSnapshotViaReload(snapshot, parentId)` is the UI's Load /
+  Import primitive. It writes the snapshot into the auto-resume slot
+  with the given `parentId`, then calls `location.reload()`. The boot
+  path then hydrates a fresh empty store from that slot, which gives
+  Load and Import **wipe semantics** (the working copy ends up
+  matching the source exactly, with no leftovers from before) without
+  needing per-slice reset actions in voting-portal. The page reload
+  is the wipe. `hydrateFromSnapshot` remains the lower-level overlay
+  primitive used at boot (where the store is already empty so overlay
+  == wipe) and by `saveCheckpoint`'s tail write.
+- `loadCheckpoint(store, name)` (lower-level) reads a checkpoint and
+  feeds it through `hydrateFromSnapshot` without reloading. The UI no
+  longer uses this; it's kept as a primitive for tests and headless
+  scripts.
 - `deleteCheckpoint(name)` removes both the snapshot key and its
   entry in the index.
 - Saving does NOT pause the auto-resume slot. The two tiers are
