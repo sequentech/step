@@ -787,18 +787,168 @@ function CopyJsonBlock({json}: {json: string}): JSX.Element {
     )
 }
 
+/**
+ * `/wb/ballot-style/:id` — detail page for one ballot style.
+ *
+ * Surfaces what makes a ballot style operationally distinct in the
+ * workbench:
+ *  - the public key (pk) every voter encrypts against,
+ *  - the matching secret key (sk) the tally uses, behind a reveal
+ *    toggle so the page is screenshotable without burning the key,
+ *  - the contests (NavLinks into the contest detail page),
+ *  - the raw `ballot_eml` (collapsed JSON) for diffing against an
+ *    upstream EML.
+ *
+ * Missing keypairs are not silently swallowed — they would mean the
+ * decrypt bridge can't run, so we surface that as an explicit error
+ * row rather than letting the page render half-broken.
+ */
 export function BallotStyleDetailPage(): JSX.Element {
     const {id} = useParams()
+    const bsId = id ?? ""
+    // BallotStylesState is keyed by election_id, not by ballot style id,
+    // so we scan rather than index-lookup. The set is tiny in any
+    // realistic workbench scenario.
+    const ballotStyle = useSelector((s: RootState) =>
+        Object.values(s.ballotStyles).find((bs) => bs?.id === bsId)
+    )
+    const election = useSelector((s: RootState) =>
+        ballotStyle ? s.elections[ballotStyle.election_id] : undefined
+    )
+    const keypair = useWorkbench((w) => w.keypairs[bsId])
+    if (!ballotStyle) {
+        return (
+            <>
+                <h1>Ballot style not found</h1>
+                <p>
+                    <code>{bsId || "(missing id)"}</code>
+                </p>
+            </>
+        )
+    }
+    const pk = ballotStyle.ballot_eml.public_key?.public_key
+    const isDemo = ballotStyle.ballot_eml.public_key?.is_demo
     return (
         <>
-            <h1>Ballot style</h1>
-            <p>
-                <code>{id}</code>
-            </p>
+            <h1>{election?.name ?? "(unnamed election)"}</h1>
             <p style={{color: "#666"}}>
-                Placeholder. Keypair view and contest list land in task 7.
+                <code>{bsId}</code> &middot; Ballot style
             </p>
+            <dl style={dlStyle}>
+                <DlRow label="Election">
+                    <code>{ballotStyle.election_id}</code>
+                </DlRow>
+                <DlRow label="Public key">
+                    {pk ? (
+                        <code style={codeBlockStyle}>{pk}</code>
+                    ) : (
+                        <em style={{color: "#b00020"}}>
+                            missing on ballot_eml.public_key.public_key
+                        </em>
+                    )}
+                </DlRow>
+                <DlRow label="Demo key">
+                    {isDemo ? (
+                        <strong style={{color: "#b58900"}}>
+                            yes — do not use in production
+                        </strong>
+                    ) : (
+                        "no"
+                    )}
+                </DlRow>
+                <DlRow label="Secret key">
+                    <SecretKeyRow keypair={keypair} pk={pk} />
+                </DlRow>
+            </dl>
+            <h2 style={h2Style}>Contests</h2>
+            {ballotStyle.ballot_eml.contests.length === 0 ? (
+                <Empty>(none)</Empty>
+            ) : (
+                <ul style={{paddingLeft: "1.25rem"}}>
+                    {ballotStyle.ballot_eml.contests.map((c) => (
+                        <li key={c.id} style={{margin: "0.25rem 0"}}>
+                            <NavLink
+                                to={`/wb/contest/${c.id}`}
+                                style={inlineLinkStyle}
+                            >
+                                {c.name}
+                            </NavLink>{" "}
+                            <span style={{color: "#888"}}>
+                                <code>{c.id}</code>
+                            </span>
+                        </li>
+                    ))}
+                </ul>
+            )}
+            <details style={{marginTop: "1.5rem"}}>
+                <summary style={{cursor: "pointer", color: "#444"}}>
+                    Raw <code>ballot_eml</code> JSON
+                </summary>
+                <CopyJsonBlock
+                    json={JSON.stringify(ballotStyle.ballot_eml, null, 2)}
+                />
+            </details>
         </>
+    )
+}
+
+function SecretKeyRow({
+    keypair,
+    pk,
+}: {
+    keypair: {pkB64: string; skB64: string} | undefined
+    pk: string | undefined
+}): JSX.Element {
+    const [revealed, setRevealed] = useState(false)
+    if (!keypair) {
+        return (
+            <em style={{color: "#b00020"}}>
+                no keypair registered for this ballot style — the
+                decrypt bridge will fall back to a fresh keypair
+            </em>
+        )
+    }
+    // Defence in depth: if the registered pk doesn't match the
+    // ballot_eml public key, the sk is unusable and we want the
+    // operator to know before they reveal it.
+    const mismatch = pk != null && pk !== keypair.pkB64
+    return (
+        <div>
+            {mismatch && (
+                <p style={{color: "#b00020", margin: "0 0 0.4rem 0"}}>
+                    ⚠ Registered pk does not match{" "}
+                    <code>ballot_eml.public_key.public_key</code>. The
+                    decrypt bridge will not work until they agree.
+                </p>
+            )}
+            {revealed ? (
+                <>
+                    <code style={{...codeBlockStyle, background: "#fff4e5"}}>
+                        {keypair.skB64}
+                    </code>
+                    <button
+                        type="button"
+                        style={{...secondaryButtonStyle, marginTop: "0.4rem"}}
+                        onClick={() => setRevealed(false)}
+                    >
+                        Hide
+                    </button>
+                </>
+            ) : (
+                <>
+                    <code style={codeBlockStyle}>
+                        {"•".repeat(Math.min(keypair.skB64.length, 48))}
+                    </code>
+                    <button
+                        type="button"
+                        style={{...secondaryButtonStyle, marginTop: "0.4rem"}}
+                        onClick={() => setRevealed(true)}
+                    >
+                        Reveal secret key
+                    </button>
+                </>
+            )}
+        </div>
     )
 }
 
@@ -932,6 +1082,28 @@ const secondaryButtonStyle: React.CSSProperties = {
     borderRadius: 4,
     fontSize: "0.85rem",
     cursor: "pointer",
+}
+
+const codeBlockStyle: React.CSSProperties = {
+    display: "inline-block",
+    padding: "0.3rem 0.5rem",
+    background: "#f4f4f4",
+    border: "1px solid #ddd",
+    borderRadius: 3,
+    fontSize: "0.8rem",
+    wordBreak: "break-all",
+    maxWidth: "44rem",
+}
+
+const h2Style: React.CSSProperties = {
+    fontSize: "1rem",
+    margin: "1.5rem 0 0.5rem 0",
+    color: "#222",
+}
+
+const inlineLinkStyle: React.CSSProperties = {
+    color: "#1976d2",
+    textDecoration: "none",
 }
 
 /** A non-clickable structural label used for tree nodes that have no
