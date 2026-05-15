@@ -983,15 +983,16 @@ export function ContestDetailPage(): JSX.Element {
         const decodedByCastVote = decodedRows.map((r) =>
             r.decoded ? {[contestId]: r.decoded} : {}
         )
-        // Run tally against a synthetic single-contest ballot style
-        // so the outcome list has exactly one entry to read.
-        runElectionTally(
-            {ballot_eml: {contests: [found.contest]}},
-            decodedByCastVote
-        )
+        // Run the full ballot-style tally and pick the outcome for
+        // this contest. We could pass a one-contest projection, but
+        // passing the real ballot style keeps the tally call honest
+        // about what's actually on the ballot.
+        runElectionTally(found.ballotStyle, decodedByCastVote)
             .then((outcomes) => {
                 if (cancelled) return
-                setOutcome(outcomes[0] ?? null)
+                setOutcome(
+                    outcomes.find((o) => o.contestId === contestId) ?? null
+                )
                 setTallyError(null)
             })
             .catch((e) => {
