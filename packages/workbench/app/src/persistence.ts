@@ -170,6 +170,21 @@ export function hydrateFromSnapshot(
     currentParentId =
         sourceId !== undefined ? sourceId : snapshot.parentId ?? null
     suspendWrites = true
+    // Tolerant accessor: returns the slice's values as an array, or
+    // `[]` when the slice is missing / null / not an object. Hand-
+    // edited or externally-generated snapshots routinely omit slices
+    // they don't care about and Object.values(null/undefined) throws,
+    // so we normalise here once.
+    const sliceValues = <T>(slice: Record<string, T> | null | undefined): T[] =>
+        slice != null && typeof slice === "object"
+            ? Object.values(slice)
+            : []
+    const sliceEntries = <T>(
+        slice: Record<string, T> | null | undefined
+    ): [string, T][] =>
+        slice != null && typeof slice === "object"
+            ? Object.entries(slice)
+            : []
     try {
         // Workbench overlay state is restored FIRST so that any cast
         // votes we replay below land in a store whose attribution
@@ -186,20 +201,20 @@ export function hydrateFromSnapshot(
                 keypairs: {},
             }
         )
-        for (const election of Object.values(state.elections)) {
+        for (const election of sliceValues(state?.elections)) {
             if (election) store.dispatch(setElection(election))
         }
-        for (const event of Object.values(state.electionEvent)) {
+        for (const event of sliceValues(state?.electionEvent)) {
             if (event) store.dispatch(setElectionEvent(event))
         }
-        for (const ballotStyle of Object.values(state.ballotStyles)) {
+        for (const ballotStyle of sliceValues(state?.ballotStyles)) {
             if (ballotStyle) store.dispatch(setBallotStyle(ballotStyle))
         }
-        for (const [electionId, selection] of Object.entries(
-            state.ballotSelections
+        for (const [electionId, selection] of sliceEntries(
+            state?.ballotSelections
         )) {
             if (!selection) continue
-            const ballotStyle = Object.values(state.ballotStyles).find(
+            const ballotStyle = sliceValues(state?.ballotStyles).find(
                 (bs) => bs?.election_id === electionId
             )
             if (!ballotStyle) continue
@@ -211,10 +226,10 @@ export function hydrateFromSnapshot(
                 setBallotSelection({ballotStyle, ballotSelection: selection})
             )
         }
-        for (const [, votes] of Object.entries(state.castVotes)) {
+        for (const [, votes] of sliceEntries(state?.castVotes)) {
             if (votes && votes.length > 0) store.dispatch(addCastVotes(votes))
         }
-        if (state.extra) {
+        if (state?.extra) {
             if (typeof state.extra.bypassChooser === "boolean") {
                 store.dispatch(setBypassChooser(state.extra.bypassChooser))
             }
