@@ -118,11 +118,17 @@ startup. We ship a static one with:
   rather than hitting real infrastructure.
 - Sensible defaults for the remaining `SettingsContext` fields.
 
-**Canary if portal changes:** new required keys in `SettingsContext` will
-either crash at read time (`undefined.foo`) or behave in an unexpected
-default. Inspect `voting-portal/src/providers/SettingsContextProvider.tsx`
-(specifically the `GlobalSettings` interface and the `defaultSettingsValues`
-constant) and add the new keys.
+**Canary if portal changes:** new required keys in `SettingsContext`
+usually fail *silently* — auth-aware code branches take their
+non-demo path, screens omit affordances, or queries fire against
+`http://127.0.0.1:0/` and hang. A hard `undefined.foo` crash is the
+exception, not the rule (verified by probe C: renaming
+`HASURA_URL`/`DISABLE_AUTH` keys produced silent degradation, not
+errors). If a lifted screen renders "slightly wrong" with no console
+error, suspect this. Inspect
+`voting-portal/src/providers/SettingsContextProvider.tsx`
+(specifically the `GlobalSettings` interface and the
+`defaultSettingsValues` constant) and add the new keys.
 
 #### `app/public/locales/*` — optional translation files
 
@@ -924,7 +930,7 @@ broken or you want to validate fidelity.
    | `Failed to resolve import "<name>"` | New transitive dep | B (package.json) |
    | `Failed to resolve import "@root/..."` or `"@sequentech/..."` | Workspace path | A (vite.config) |
    | `<X> must be used within a <Y>Provider` | New required provider | D (BoothSpike providers) |
-   | `Cannot read property of undefined` reading a settings field | New settings key | C (global-settings.json) |
+   | `Cannot read property of undefined` reading a settings field, **or** silent UI degradation with no console error | New settings key | C (global-settings.json) |
    | `<Router> inside another <Router>` | Router nesting | E (routing) |
    | `useSubmit must be used within a data router` | Legacy router used | E (use `createBrowserRouter`) |
    | `No routes matched location "/tenant/..."` | Path mirror is stale | E (extend `boothChildren`) |
