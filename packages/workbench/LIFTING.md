@@ -210,24 +210,27 @@ Two structural decisions follow from inspecting `voting-portal/src/index.tsx`:
    `/tenant/${tenantId}/event/${eventId}/election/${electionId}/vote`. A
    `/booth/...` prefix would 404 on every internal `<Link>`. So the
    workbench root path tree mirrors the portal, and the only workbench-
-   specific route is `/tally`.
+   specific routes are `/wb/...` and `/tally`.
 
 Concretely, `main.tsx`:
 
 - Builds a `createBrowserRouter` with a `<Shell>` layout containing the
-  workbench nav bar, the global `<ReduxProvider>`, and an `<Outlet />`.
-- **Index route**: `/ → <WorkbenchHome />`. Workbench-native landing
-  page that lists tenants by introspecting `state.electionEvent` and
-  `state.elections`. This is the entry point — not the booth.
-- **Drilldown routes** under `/wb/...` (workbench-native, all in
-  `app/src/Workbench.tsx`):
-  - `/wb/tenant/:tenantId` — list of events for the tenant.
-  - `/wb/tenant/:tenantId/event/:eventId` — list of elections in the event.
-  - `/wb/tenant/:tenantId/event/:eventId/election/:electionId` —
-    election detail with metadata, cast-vote table (honestly surfacing
-    both the `election_id` and `event_id` cast-vote bins because the
-    demo path conflates them), ballot-style summary, and CTAs into the
-    booth at the production-mirroring paths.
+  workbench nav bar (just two links: **Workbench** → `/wb`, **Raw-JSON
+  tally** → `/tally`), the global `<ReduxProvider>`, and an `<Outlet />`.
+- **Index route**: `/` → `<Navigate to="/wb" replace />`. There is no
+  separate landing page; the inspector at `/wb` is the home. Earlier
+  revisions had a workbench-native `WorkbenchHome` + drilldown tree
+  (`/wb/tenant/...`, `/wb/event/...`, `/wb/election/...`) which has been
+  removed in favour of the inspector — see section J.
+- **Inspector subtree** under `/wb/...` — workbench-owned UI living in
+  `app/src/WorkbenchInspector.tsx`. Children:
+  - `/wb` (index) — working-copy overview (`SnapshotOverviewPage`).
+  - `/wb/snapshot/:id` — bundled snapshot or named checkpoint detail.
+  - `/wb/ballot-style/:id` — per-ballot-style detail (pk, sk, contests).
+  - `/wb/contest/:id` — contest detail with inline tally.
+  - `/wb/voter/:id` — voter detail with attribution + booth CTA.
+  All five share the `InspectorLayout` (tree rail on the left,
+  `<Outlet />` on the right).
 - **Raw-JSON tally sandbox**: `/tally → <App />`. Kept as a focused
   velvet-wasm playground; no Redux integration so it can run
   independently of the scenario state.
@@ -279,47 +282,53 @@ portal's own absolute-`<Link>` strings.
 ### F. Redux store fixtures (`app/src/fixtures/`)
 
 Voting-portal screens read their data from a Redux store populated by GraphQL
-subscriptions and Apollo cache writes. The workbench has neither. Instead,
-each lifted screen gets a fixture module that calls the portal's **own**
-action creators (`setElection`, `setElectionEvent`, `setBallotStyle`, ...)
-to populate the **production store** with synthetic data. Same store
+subscriptions and Apollo cache writes. The workbench has neither. Instead
+the workbench ships **bundled snapshots** — full `PersistedSnapshot` JSON
+files under `app/src/fixtures/snapshots/` — that capture the Redux state
+(plus the workbench overlay) the screens need to render. The boot path
+hydrates one of these on first run, and `hydrateFromSnapshot` calls the
+portal's **own** action creators (`setElection`, `setElectionEvent`,
+`setBallotStyle`, ...) to populate the **production store**. Same store
 instance, same reducers, same selectors — only the data source differs.
 
-Currently seeded (`app/src/fixtures/boothFixtures.ts`):
+There is no `seedBoothFixtures()` function: the bundled snapshot **is**
+the fixture. Earlier revisions had a `boothFixtures.ts` that dispatched
+action creators imperatively on first boot; that module has been deleted
+in favour of the snapshot pipeline so there is exactly one shape (a
+`PersistedSnapshot`) for *all* scenario data, whether it was authored,
+saved as a checkpoint, or auto-resumed.
 
-- `setElection({ id, election_event_id, tenant_id, contests, num_allowed_revotes: 0, ... })` —
-  a minimal election with one contest ("Favourite colour") and two
-  candidates. `num_allowed_revotes: 0` is interpreted by
-  `canVoteSomeElection` as *unlimited revotes*, which keeps the selector
-  truthy without seeding a working `castVotes` feed.
-- `setElectionEvent({ id, name, ... })` — the parent event.
-- `setBallotStyle({ id, election_id, ballot_eml: { contests, public_key, ... }, ... })`
-  — a ballot style whose `ballot_eml.contests` is the same `IContest`
-  array as the election's. The `public_key` is **the public half of the
-  workbench-owned ElGamal keypair** (`pkB64` from `WorkbenchKeypair`,
-  see section M), passed in as `publicKeyB64` to `buildBallotStyle` /
-  `seedBoothFixtures`. The booth therefore encrypts cast ballots under
-  a key whose secret half the workbench also holds, which is what
-  closes the encrypt → decrypt → decode → tally loop in the browser.
-  An older revision of this fixture used `DEFAULT_PUBLIC_KEY_RISTRETTO_STR`
-  from `packages/sequent-core/src/encrypt.rs` (whose secret half is
-  not bundled); that only validated the *encrypt* path. Marked
-  `is_demo: false` so StartScreen does not pop the "this is a demo"
-  dialog.
-- `resetBallotSelection({ ballotStyle, force: true })` — initializes the
-  per-election `ballotSelections[electionId]` entry with all candidates
-  at `selected: -1`. **Critical**: in production this dispatch happens
-  inside `StartScreen` when the voter clicks *Start Voting*. The
-  `setBallotSelectionVoteChoice` reducer is a silent no-op
+The shipping `default.json` snapshot encodes:
+
+- An `election` with one contest ("Favourite colour") and two candidates.
+  `num_allowed_revotes: 0` is interpreted by `canVoteSomeElection` as
+  *unlimited revotes*, which keeps the selector truthy without seeding
+  a working `castVotes` feed.
+- An `electionEvent` (the parent of the election).
+- A `ballotStyle` whose `ballot_eml.contests` is the same `IContest`
+  array as the election's. The `ballot_eml.public_key.public_key` is
+  the **`pkB64`** of the workbench-owned ElGamal keypair stored under
+  `workbench.keypairs[ballotStyleId]` (section M). The booth therefore
+  encrypts cast ballots under a key whose secret half the workbench
+  also holds, closing the encrypt → decrypt → decode → tally loop in
+  the browser. An older revision of the fixture used
+  `DEFAULT_PUBLIC_KEY_RISTRETTO_STR` from `packages/sequent-core/src/encrypt.rs`
+  (whose secret half is not bundled); that only validated the
+  *encrypt* path. The ballot style is marked `is_demo: false` so
+  StartScreen does not pop the "this is a demo" dialog.
+- A pre-initialized `ballotSelections[electionId]` entry with all
+  candidates at `selected: -1`. **Critical**: in production this
+  dispatch happens inside `StartScreen` when the voter clicks *Start
+  Voting*. `setBallotSelectionVoteChoice` is a silent no-op
   (`if (!currentElection) return state`) until that initialization has
-  happened, so a user clicking a candidate on `/vote` after a hot reload
-  would see the visual highlight flicker but the redux state never
-  update, and the *Next* button's `encryptAndReview` would early-return
-  because `selectionState` is `undefined`. The workbench needs every URL
-  to be a valid entry point (hot reload on `/vote`, deep links), so we
-  pre-seed the empty selection structure.
-- **`election.status` and `electionEvent.status` set to `voting_status:
-  OPEN`** (with `kiosk` / `early` set to `CLOSED`). Required for
+  happened, so a user clicking a candidate on `/vote` after a hot
+  reload would see the visual highlight flicker but the redux state
+  never update, and the *Next* button's `encryptAndReview` would
+  early-return because `selectionState` is `undefined`. Every URL has
+  to be a valid entry point (hot reload on `/vote`, deep links), so
+  the empty selection structure is pre-seeded in the snapshot.
+- **`election.status` and `electionEvent.status` with `voting_status:
+  OPEN`** (and `kiosk` / `early` set to `CLOSED`). Required for
   `ElectionSelectionScreen`'s `ElectionWrapper`, which calls
   `isVotingOpen()` during render (`<SelectElection isOpen={isVotingOpen()}>`).
   For non-kiosk voters that resolves to
@@ -333,21 +342,41 @@ Currently seeded (`app/src/fixtures/boothFixtures.ts`):
   it will just report "no early voting policy enabled" and fall back
   to the online-OPEN path.
 
-**Convention:** import action creators and slice types directly from
-`voting-portal/src/store/*Slice` (NOT from a re-export under the workbench).
-If the slice's `PayloadAction<T>` shape changes, TypeScript will fail the
-workbench build at the fixture site — that's the early-warning signal we
-want.
+**Editing the bundled snapshot.** Do not hand-edit `default.json`
+blindly. The Vite plugin `validateBundledSnapshots()` (see
+`vite.config.ts`) runs at build-start and rejects snapshots whose
+`state.ballotStyles[*].id` has no matching `workbench.keypairs[id]`
+entry, or whose `ballot_eml.public_key.public_key` does not match the
+stored `pkB64`. The shortest path to a new scenario is:
+
+1. Boot the workbench fresh, mutate state via the booth and the
+   inspector until it looks right.
+2. Click *Save current state as checkpoint…* on `/wb`.
+3. Visit the checkpoint's `/wb/snapshot/<id>` page and copy its
+   bundled JSON (the *Copy JSON* button strips `parentId` so the
+   export becomes a root).
+4. Paste it under `app/src/fixtures/snapshots/<name>.json` (with a
+   `.json.license` sidecar).
+5. Restart Vite. The validator will refuse to start the dev server
+   if anything is inconsistent.
+
+**Convention:** because hydration goes through the portal's own action
+creators (`hydrateFromSnapshot` in `persistence.ts`), payload-shape
+drift surfaces as TS errors in `persistence.ts` at the dispatch site —
+the same canary discipline the old fixture module had, just centralized.
 
 **Canary if portal changes:**
 
 - New required field on `IElectionExtended` or `IElectionEvent` → TS
-  error in the fixture file, telling you exactly which field to add.
+  error in `persistence.ts` at the `setElection` / `setElectionEvent`
+  dispatch, plus a runtime error when the screen reads the field. Add
+  the field to every bundled snapshot.
 - New slice altogether (e.g. `votersSlice`) that StartScreen starts
-  consuming → screen returns `null` / spinner / navigates away. Add a
-  `seedXyz` call to `seedBoothFixtures()`.
+  consuming → screen returns `null` / spinner / navigates away. Add
+  the slice to `hydrateFromSnapshot` and seed it in `default.json`.
 - New action creator API (e.g. `setElection` becoming
-  `setElection({election, source})`) → TS error at the dispatch.
+  `setElection({election, source})`) → TS error at the dispatch in
+  `persistence.ts`.
 
 ### G. Workbench-only debug affordances (`BoothSpike.tsx`)
 
@@ -377,26 +406,54 @@ component render.
 
 ### H. Persistence + the auto-resume snapshot (`app/src/persistence.ts`)
 
-The workbench mirrors the entire voting-portal Redux state to
-`localStorage` on every dispatch and rehydrates from it on boot. The
-result: cast a ballot, close the tab, reopen tomorrow — the ballot is
-still cast.
+The workbench mirrors the entire voting-portal Redux state — plus the
+workbench's own overlay state (section K) — to `localStorage` on every
+dispatch and rehydrates from it on boot. The result: cast a ballot,
+close the tab, reopen tomorrow — the ballot is still cast.
 
-This is the foundational layer the user-facing "save / load named
-checkpoint" UI sits on top of. There are three storage tiers, all
-sharing the same JSON shape (`PersistedSnapshot = { version: "v1",
-state: RootState }`):
+This is the foundational layer the inspector's snapshot / checkpoint
+UI sits on top of. There are three storage tiers, all sharing the same
+JSON shape (`PersistedSnapshot = { version: "v1", state: RootState,
+workbench?: WorkbenchExtraState, parentId?: string | null }`):
 
 | Tier | Trigger | Storage key | Lifetime | Mutability |
 |---|---|---|---|---|
-| Auto-resume slot | Every Redux dispatch | `localStorage["workbench:state:v1"]` | Until reset / wiped | Constantly overwritten |
-| Named checkpoint | Operator clicks "Save current state" on `/` | `localStorage["workbench:checkpoint:v1:<name>"]` (plus index at `workbench:checkpoints:v1`) | Until deleted | Frozen at save time |
-| Bundled fixture snapshot *(future)* | Author wrote it | `app/src/fixtures/snapshots/*.json` | Forever (in git) | Read-only at runtime |
+| Auto-resume slot | Every Redux or workbench-overlay dispatch | `localStorage["workbench:state:v1"]` | Until reset / wiped | Constantly overwritten |
+| Named checkpoint | Operator clicks *Save current state as checkpoint…* on `/wb` | `localStorage["workbench:checkpoint:v1:<name>"]` (plus index at `workbench:checkpoints:v1`) | Until deleted | Frozen at save time |
+| Bundled snapshot | Shipped in git | `app/src/fixtures/snapshots/*.json` | Forever | Read-only at runtime |
 
-Named checkpoints reuse the exact same load/save plumbing as the
-auto-resume slot (`hydrateFromSnapshot`, `PersistedSnapshot`); only the
-storage key and the index differ. Bundled snapshots will plug into the
-same `hydrateFromSnapshot` entry point when implemented.
+All three go through the same `hydrateFromSnapshot` / `PersistedSnapshot`
+plumbing — only the storage location differs. Bundled snapshots are
+imported at build time via `import.meta.glob` into a static
+`BUNDLED_SNAPSHOTS` dictionary (`fixtures/bundledSnapshots.ts`), so the
+runtime never touches the filesystem.
+
+**Provenance forest.** Snapshots form a forest:
+
+- Bundled snapshots are roots (`parentId === null` in their on-disk
+  form, conventionally stripped on export so a copy-pasted snapshot
+  is automatically a root).
+- Checkpoints carry a `parentId` recording the snapshot they were
+  forked from — either a bundled root (`"bundled:<name>"`) or another
+  checkpoint (`"checkpoint:<name>"`).
+- The auto-resume slot is *not* a node; it is the working copy and
+  inherits its `parentId` from whatever was most recently loaded.
+
+This is tracked at runtime via a module-level `currentParentId` in
+`persistence.ts`. `hydrateFromSnapshot(store, snapshot, sourceId?)`
+updates it: if `sourceId` is supplied (bundled load → `bundledId(name)`,
+checkpoint load → `checkpointId(name)`) we adopt that as the new
+parent; if omitted (warm boot recovering from the auto-resume slot)
+we keep the snapshot's own `parentId`. Every subsequent `writeSnapshot()`
+stamps the working copy with the current value, and `saveCheckpoint`
+records it on the frozen entry so the inspector tree rail can draw the
+lineage.
+
+`getCurrentParentId()` exposes it to UI; `bundledId(name)` /
+`checkpointId(name)` produce the tagged ids used everywhere (URL params,
+`parentId` fields, tree-rail keys). Reserving the `bundled:` /
+`checkpoint:` namespaces keeps a single id space for the two snapshot
+kinds without ambiguity.
 
 **Named-checkpoint semantics:**
 
@@ -447,12 +504,18 @@ its slice to `hydrateFromSnapshot` (and update the canary table below).
 
 **Boot sequence in `BoothSpike.tsx`** (module-eval order matters):
 
-1. `loadPersistedSnapshot()` — reads `localStorage`, returns `null` on
-   first run, schema mismatch, or parse failure.
-2. If a snapshot exists → `hydrateFromSnapshot(store, snapshot)`. Else
-   → `seedBoothFixtures()` (bootstraps the bundled minimum fixture).
-3. `installPersistence(store)` — subscribes to the store; **after**
-   step 2, so we never persist an in-progress hydration.
+1. `loadPersistedSnapshot()` — reads `localStorage["workbench:state:v1"]`,
+   returns `null` on first run, schema mismatch, or parse failure.
+2. If a snapshot exists → `hydrateFromSnapshot(store, persisted)` (no
+   `sourceId`; provenance is recovered from the snapshot's own
+   `parentId`). Else → `hydrateFromSnapshot(store, loadBundledSnapshot("default"), bundledId("default"))`
+   (first boot: the working copy is born as a fork of
+   `bundled:default`). If the default snapshot is also missing — which
+   the Vite build pipeline forbids — we surface a console error
+   rather than booting into an empty store.
+3. `installPersistence(store)` — subscribes to both the Redux store
+   and the workbench mini-store; **after** step 2, so we never persist
+   an in-progress hydration.
 
 Hydration internally toggles a `suspendWrites` flag so that the
 many small dispatches it issues don't each trigger a full snapshot
@@ -465,16 +528,15 @@ bump the suffix in `PERSISTENCE_KEY` *and* the literal in
 `PersistedSnapshot.version`. Old data is then silently ignored at boot
 and the user gets a fresh fixture instead of a crash.
 
-**Reset paths.** Two equivalent ways to wipe the persisted state:
-
-- Click the **Reset workbench state** button in the workbench nav
-  (added in `main.tsx`).
-- From the browser console: `__resetWorkbench()` (a global installed
-  alongside `__store` and `__dispatchLog` in `BoothSpike.tsx`).
-
-Both call `clearPersistedSnapshot()` and reload the page; on next boot,
-`loadPersistedSnapshot()` returns `null` and the bundled fixture
-re-seeds.
+**Reset path.** From the browser console: `__resetWorkbench()` (a
+global installed alongside `__store` and `__dispatchLog` in
+`BoothSpike.tsx`). It calls `clearPersistedSnapshot()` and reloads the
+page; on next boot, `loadPersistedSnapshot()` returns `null` and the
+`bundled:default` snapshot re-seeds. There is intentionally no nav-bar
+Reset button: the inspector's *Load* action on `/wb/snapshot/...` is
+the in-app equivalent (overwrite the working copy from a known good
+state), and a one-click *wipe-and-reload* in the chrome was too easy
+to hit by accident.
 
 **Canary if portal changes:**
 
@@ -511,38 +573,90 @@ file to make the workbench work:
    edits to `voting-portal/src/`** — for the demo-mode-only fix to
    `useAddFakeCastVote` in `ReviewScreen.tsx`.)
 
-### J. Workbench-native chrome (`app/src/Workbench.tsx`)
+### J. Workbench-native chrome (`app/src/WorkbenchInspector.tsx`)
 
 Everything under `/wb/...` is **workbench-owned UI** — not lifted from
-voting-portal, not from admin-portal. The decision is documented at the
-top of section A's *do-not-lift* list: admin-portal is explicitly out
-of scope. Instead the workbench ships its own minimal screens to
-navigate the scenario.
+voting-portal, not from admin-portal. The decision is documented at
+the top of section A's *do-not-lift* list: admin-portal is explicitly
+out of scope. Instead the workbench ships its own minimal inspector to
+introspect the scenario and the snapshot graph.
 
-Pages:
+The entire surface lives in one file (`WorkbenchInspector.tsx`) and is
+mounted by `main.tsx` as `<InspectorLayout>` with five child routes
+(section E). The layout is a fixed two-pane chrome:
 
-- `WorkbenchHome` at `/` — lists tenants. There is no `tenants` Redux
-  slice in voting-portal, so the page derives a tenant catalog by
-  scanning `state.electionEvent` and `state.elections` for `tenant_id`
-  values and grouping by them. Per-tenant counters (events,
-  elections, cast votes) come from the same scan.
-- `WorkbenchTenant` at `/wb/tenant/:tenantId` — lists events for that
-  tenant by filtering `state.electionEvent`.
-- `WorkbenchEvent` at `/wb/tenant/:tenantId/event/:eventId` — lists
-  elections in that event by filtering `state.elections`.
-- `WorkbenchElection` at
-  `/wb/tenant/:tenantId/event/:eventId/election/:electionId` — election
-  detail with: metadata, cast-vote table, ballot-style summary, and
-  CTAs into the booth at the production paths (see section E).
+```
+┌───────────────┬──────────────────────────────────┐
+│  Tree rail    │  <Outlet />                      │
+│  (left, ~20%) │  one of five detail pages        │
+│               │                                  │
+│  Snapshots    │                                  │
+│  ─────────    │                                  │
+│  Tenants      │                                  │
+│  ─────────    │                                  │
+│  Voters       │                                  │
+└───────────────┴──────────────────────────────────┘
+```
 
-**Cast-vote bin honesty.** The election-detail page deliberately reads
-`state.castVotes[electionId]` **and** `state.castVotes[eventId]` and
-labels each row with which bin it came from. The portal's
-`useAddFakeCastVote` under `DISABLE_AUTH` writes everything keyed by
-`event_id` (it actually conflates id/election_id/area_id all to
-`eventId`), so the only entries you will see in the real flow are the
-"(demo path)" rows. We surface both bins because masking that quirk
-would mislead the operator about what is actually in state.
+**Tree rail (left pane).** Three sections, always visible. The locked
+design for each:
+
+- **Snapshots.** A provenance forest (`buildProvenanceForest`):
+  bundled snapshots are roots, checkpoints attach under their
+  `parentId`. Each node links to `/wb/snapshot/<encoded id>`; the
+  current working-copy parent is highlighted. The working copy itself
+  is *not* a node — its overview is at `/wb` (the index route).
+- **Tenants.** Derived from `state.electionEvent` and `state.elections`
+  by grouping events under their `tenant_id`. Each leaf is a ballot
+  style; clicking opens `/wb/ballot-style/<id>` directly (no
+  intermediate drilldown pages). Tenants and events are shown as
+  static labels in the rail; they have no detail pages because the
+  workbench has nothing interesting to surface for them.
+- **Voters.** The workbench mini-store's voter directory (section K),
+  each row a link to `/wb/voter/<id>`.
+
+**Detail pages (right pane).** All five are exported from
+`WorkbenchInspector.tsx`:
+
+- `SnapshotOverviewPage` at `/wb` (index). Live working-copy summary:
+  `Forked from` (`currentParentId`), voter / election / ballot-style /
+  cast-vote counts, plus the *Save current state as checkpoint…*
+  button. Counters use scalar selectors (not object-returning) to
+  avoid react-redux's referential-equality warning on every dispatch.
+- `SnapshotDetailPage` at `/wb/snapshot/:id`. The `:id` is a tagged id
+  (`bundled:<name>` or `checkpoint:<name>`, URL-encoded). Renders the
+  same summary `<dl>` as the overview plus a *Load* button
+  (bundled → `hydrateFromSnapshot` with the bundled-id tag; checkpoint
+  → `loadCheckpoint`) and a collapsed *Bundled JSON* block. The export
+  strips `parentId` so a copy-pasted snapshot becomes a root.
+- `BallotStyleDetailPage` at `/wb/ballot-style/:id`. Resolves the
+  ballot style by `id` (note: `state.ballotStyles` is keyed by
+  `election_id`, not by ballot-style id, so this is an
+  `Object.values(...).find(b => b?.id === bsId)` scan). Surfaces the
+  parent election, the public key, the secret key (always visible —
+  this is a demo keypair), a contest list (NavLinks to
+  `/wb/contest/...`), and the raw `ballot_eml` JSON. A `pk/sk`
+  mismatch (the stored `keypairs[bsId].pkB64` not matching
+  `ballot_eml.public_key.public_key`) is surfaced as a warning row
+  rather than silently swallowed.
+- `ContestDetailPage` at `/wb/contest/:id`. Scans ballot styles for
+  the first one containing the contest, then runs the inline tally
+  against that ballot style and the live `decodedBigInts` (no
+  synthetic ballot style — the real one is what production would
+  decrypt against). Renders running / no-data / error / result
+  states.
+- `VoterDetailPage` at `/wb/voter/:id`. Shows the voter, all their
+  cast votes (joined via the `castBy` attribution ledger to
+  `repairedCastVotes` and `state.castVotes`), and a *Cast a ballot in
+  …* CTA per ballot style which calls `setActiveVoter(voter.id)` and
+  navigates to the booth at the production path.
+
+**Cast-vote bin honesty.** After section L.1 fixed the demo's
+election-id bucket, cast votes land where production puts them
+(`state.castVotes[electionId]`); the inspector reads from that single
+bin everywhere. The old dual-bin display from `Workbench.tsx` (which
+had to show both `state.castVotes[electionId]` and
+`state.castVotes[eventId]`) is no longer needed.
 
 **Rules:**
 
@@ -555,12 +669,10 @@ would mislead the operator about what is actually in state.
   match — admin-portal is out of scope by policy, and matching the
   booth's MUI theme would imply that these are booth screens, which
   they are not.
-
-**When the scenario data model grows** (named checkpoints, voter
-directory, scenario imports, ...), add a new workbench-native page
-under `/wb/...` here. Do not reach for admin-portal as inspiration; the
-whole point is to design the operator surface from scratch around the
-workbench's actual needs.
+- New detail pages should be added as inspector children
+  (`/wb/<kind>/:id`), reusing `InspectorLayout`. There is no longer a
+  workbench-native drilldown (tenant → event → election) — that
+  hierarchy is collapsed into the rail.
 
 ### K. Workbench-owned overlay state (`app/src/workbenchStore.ts`)
 
@@ -580,22 +692,33 @@ workbench keeps this state in a tiny separate mini-store
 - `useSyncExternalStore`-based subscription (`useWorkbench` hook).
 - A handful of named mutations: `addVoter`, `removeVoter`,
   `setActiveVoter`, `attributeCastVote`, `captureRepairedCastVote`,
-  `setRepairedDecodedBigInts`, `setKeypair`, `replaceWorkbenchState`,
-  `seedDemoVoters`.
+  `setRepairedDecodedBigInts`, `setKeypair`, `replaceWorkbenchState`.
 
 State fields:
 
-- `voters`, `activeVoterId`, `castBy` — directory + attribution ledger.
+- `voters`, `activeVoterId`, `castBy` — directory + attribution
+  ledger. `activeVoterId` is the *currently-impersonated* voter,
+  cleared automatically once their cast vote lands (see
+  `installPersistence` cast-votes watcher: the watcher snapshots the
+  pre-attribution `activeVoterId`, records `castBy[id] = activeBefore`,
+  and then calls `setActiveVoter(null)` to retire the persona). The
+  next visit to a voter's detail page therefore offers a fresh *Cast
+  a ballot* CTA rather than silently re-impersonating the last voter.
 - `repairedCastVotes` — per-cast-vote bridge data (plaintext selection
   snapshot, real election id, and `decodedBigInts: Record<contestId,
   decimalString>` filled in asynchronously by the decrypt bridge — see
   section M).
-- `keypair: WorkbenchKeypair | null` — the workbench-owned ElGamal
-  keypair (`{pkB64, skB64}`, base64-no-pad, strand/borsh-serialised
-  via `velvet-wasm::generate_keypair`). Generated once on first boot,
-  written through `setKeypair` which is first-call-wins so a stray
-  re-seed cannot orphan already-captured cast votes encrypted under
-  the old pk. Full lifecycle in section M.
+- `keypairs: Record<string, WorkbenchKeypair>` — workbench-owned
+  ElGamal keypairs, keyed by ballot-style id. Each entry is
+  `{pkB64, skB64}`, base64-no-pad, strand/borsh-serialised via
+  `velvet-wasm::generate_keypair`. Per-ballot-style rather than
+  global because every ballot style stamps its own `public_key` into
+  `ballot_eml`, and a future scenario will want to mix ballot styles
+  with distinct pks (e.g. to prove that a cast vote can only be
+  decrypted with the matching sk). `setKeypair(bsId, kp)` is
+  **first-call-wins per id** so a stray re-seed cannot orphan
+  already-captured cast votes encrypted under the old pk. Full
+  lifecycle in section M.
 
 **Persistence integration.** The mini-store is folded into the same
 `PersistedSnapshot` the portal Redux store rides on, via an optional
@@ -611,13 +734,25 @@ State fields:
 
 **Attribution ledger.** `installPersistence` runs a small cast-votes
 watcher: on each Redux dispatch it diffs `state.castVotes` against a
-running set of seen ids, and for each newly-observed cast vote it
-calls `attributeCastVote(id)`, which (when an active voter is set)
-records `castBy[id] = activeVoterId`. Election-detail pages then
-render this attribution in the "Voted by" column. The ledger is the
-workbench's substitute for the production `voter_id_string` field,
-which stays `null` in the portal store because we don't touch portal
-source.
+running set of seen ids, and for each newly-observed cast vote it:
+
+1. Snapshots `activeVoterId` *before* dispatching attribution.
+2. Calls `attributeCastVote(id)`, which (when an active voter was set)
+   records `castBy[id] = activeVoterId`.
+3. Calls `tryCaptureRepairedCastVote(...)` to snapshot the plaintext
+   selection from `state.ballotSelections` (section L bridge).
+4. If an active voter was in effect, calls `setActiveVoter(null)` so
+   the persona retires once their ballot is cast.
+
+The `VoterDetailPage` reads this attribution to display each voter's
+cast-vote history. The ledger is the workbench's substitute for the
+production `voter_id_string` field, which stays `null` in the portal
+store because we don't touch portal source.
+
+The watcher's hydration branch (`suspendWrites`) seeds
+`seenCastVoteIds` from the restored state without firing attribution
+or active-voter retirement — those would be replays of events that
+have already been recorded in the snapshot.
 
 **Rules:**
 
@@ -827,9 +962,9 @@ wasm-bindgen functions on top of `sequent-core` (in-tree source) and
   resulting `BigUint` as a decimal string.
 - `encode_ballot(contest_json, decoded_vote_contest_json) -> string` —
   wraps `Contest::encode_plaintext_contest_bigint(&decoded)`. Used
-  by the UI's round-trip badge: the value it produces must match
-  what `decrypt_ballot_content` recovers from the same `Contest` +
-  `DecodedVoteContest` pair.
+  by tests and by future round-trip checks: the value it produces
+  must match what `decrypt_ballot_content` recovers from the same
+  `Contest` + `DecodedVoteContest` pair.
 
 The package is consumed by the workbench app via
 `"velvet-wasm": "file:../velvet-wasm/pkg"` (section B). Voting-portal
@@ -849,34 +984,47 @@ rules, which is why they interoperate.
   (`encode_vec_to_array` / `decode_array_to_vec` in
   `sequent-core/src/ballot_codec/vec.rs`) → `decrypt_ballot_content`
   returns a numerically wrong `BigUint` (off by `len + payload*256`
-  on the first byte) and the round-trip badge stays red. Re-sync the
-  decrypt post-processing with whatever the new convention is.
+  on the first byte) and the tally outcome on `ContestDetailPage` is
+  garbage. Re-sync the decrypt post-processing with whatever the new
+  convention is.
 
-#### M.2 Keypair lifecycle (`BoothSpike.tsx` + `workbenchStore.ts`)
+#### M.2 Keypair lifecycle (bundled-in / `workbenchStore.ts`)
 
-1. **Boot.** Before `seedBoothFixtures` runs (or before
-   `hydrateFromSnapshot` finishes), the boot path checks
-   `getWorkbenchState().keypair`. If absent, it calls
-   `velvet-wasm::generate_keypair()` and passes the result to
-   `setKeypair({pkB64, skB64})`.
-2. **Fixture seeding.** `seedBoothFixtures(publicKeyB64)` is now
-   parameterised on the public half. The bootstrap path reads
-   `state.keypair.pkB64` and passes it in. As a result the ballot
-   style's `public_key` is always the workbench's pk on first boot.
-3. **Persistence.** The keypair is part of `WorkbenchExtraState`, so
-   it round-trips through `PersistedSnapshot` like every other
-   overlay field (section K). Pre-step-6 snapshots that lack
-   `keypair` rehydrate as `null`; the boot path then generates and
-   sets one before the cast-votes watcher runs.
+Keypairs are **bundled into the snapshot** rather than generated at
+boot. The shipping `default.json` carries
+`workbench.keypairs[<ballotStyleId>] = {pkB64, skB64}` whose `pkB64`
+is written into the corresponding ballot style's
+`ballot_eml.public_key.public_key`. The `validateBundledSnapshots`
+Vite plugin enforces this consistency at build start (see
+`vite.config.ts`):
+
+1. Every `state.ballotStyles[*].id` must have a matching
+   `workbench.keypairs[id]` entry.
+2. The entry's `pkB64` must equal
+   `state.ballotStyles[*].ballot_eml.public_key.public_key`.
+
+Lifecycle:
+
+1. **Boot.** `hydrateFromSnapshot` restores `workbench.keypairs`
+   from the snapshot before the cast-votes watcher runs. No
+   generation step on the happy path.
+2. **Per-id generation (future).** `setKeypair(bsId, kp)` exists for
+   the case where the operator adds a brand-new ballot style at
+   runtime (e.g. via a future inspector mutation). It is
+   **first-call-wins per id** so a stray re-seed cannot orphan
+   already-captured cast votes encrypted under the old pk for that
+   ballot style.
+3. **Persistence.** `keypairs` is part of `WorkbenchExtraState`, so
+   any mutation round-trips through `PersistedSnapshot` like every
+   other overlay field (section K).
 4. **Reset.** `__resetWorkbench()` clears the snapshot, which wipes
-   the keypair alongside everything else; a fresh pair is generated
-   on the next boot.
+   the keypairs alongside everything else; the next boot re-hydrates
+   from `bundled:default` and gets its keypairs back.
 
-`setKeypair` is **first-call-wins** by design. A snapshot already
-holds a (pk, sk) pair; the cast votes inside it were encrypted under
-that pk. Overwriting on rehydrate would silently make decryption
-return garbage. The same rule protects against a stray dev hot-
-reload re-generating a key.
+Authoring a new bundled snapshot therefore means authoring its
+keypairs too. The Inspector's *Save checkpoint* + *Copy bundled JSON*
+workflow (section F) is the path of least resistance: the checkpoint
+automatically includes whatever keypairs the working copy is using.
 
 **Canary if portal changes:**
 
@@ -906,8 +1054,14 @@ sees the plaintext selection immediately (snapshot pulled from
 Redux at cast time), and the decrypted `BigUint` appears a tick
 later without blocking the React render. If decryption throws (no
 keypair, malformed content, wrong key after a partial reset), the
-entry is simply left empty; the round-trip badge then reads "—"
-rather than asserting equality.
+The decrypt does **not** re-run on hydrate. Re-decrypting a cast
+vote at boot would risk doing so under a different keypair if the
+operator wiped state in between, and the `decodedBigInts` are
+already in the snapshot. Hydration just rehydrates whatever value
+was last written. If decryption throws (no keypair, malformed
+content, wrong key after a partial reset), the entry is simply left
+empty; `ContestDetailPage` then shows the cast vote as not
+contributing to the tally rather than asserting equality.
 
 The decrypt does **not** re-run on hydrate. Re-decrypting a cast
 vote at boot would risk doing so under a different keypair if the
@@ -915,22 +1069,21 @@ operator wiped state in between, and the `decodedBigInts` are
 already in the snapshot. Hydration just rehydrates whatever value
 was last written.
 
-#### M.4 Round-trip badge and tally consumption
+#### M.4 Tally consumption
 
-The Cast Votes table in `Workbench.tsx` renders a
-`DecodedContestRow` per `(repairedCastVote, contest)` pair:
+The `ContestDetailPage` (`/wb/contest/:id`) consumes
+`repairedCastVotes[*].decodedBigInts[contestId]` directly: a
+`useEffect` calls `runElectionTally(ballotStyle, decodedByCastVote)`
+from `electionTally.ts` whenever the decoded set changes, and renders
+the outcome for the focused contest in a `<pre>` block (running /
+no-data / error / result states).
 
-- Decoded value: `repairedCastVote.decodedBigInts[contestId]`
-  (decimal string).
-- Round-trip check: call `encodeBallot(JSON.stringify(contest),
-  JSON.stringify(selectionForThatContest))` and compare. Green when
-  equal, red otherwise, "—" when either side is missing.
-
-The "Run tally" button in `electionTally.ts` consumes the
-`decodedBigInts` map directly. There is no re-encrypt-then-decrypt
-trip through wasm — the BigUints flow straight from
-`repairedCastVotes` into the tally code path, exactly the way a
-production trustee would feed decrypted plaintexts in.
+There is no re-encrypt-then-decrypt trip through wasm at tally time —
+the BigUints flow straight from `repairedCastVotes` into the tally
+code path, exactly the way a production trustee would feed decrypted
+plaintexts in. The synchronous capture + async decrypt split inside
+the cast-votes watcher (M.3) ensures the tally always has the latest
+plaintexts available without blocking the React render.
 
 **End-to-end canary.** Cast a Blue vote on the bundled fixture
 (plurality-at-large, two candidates, `max_votes=1`); expected
@@ -949,7 +1102,10 @@ Run when voting-portal has changed and the workbench booth view is
 broken or you want to validate fidelity.
 
 1. **Smoke run.** `corepack yarn workspace "@sequentech/workbench-app" dev`
-   and visit `http://localhost:5173/booth`. Check the browser console.
+   and visit `http://localhost:5173/` (which redirects to `/wb`, the
+   inspector). From a ballot style or voter detail page, click the
+   *Start voting* CTA to exercise the booth at
+   `/tenant/:t/event/:e/election/:el/start`. Check the browser console.
 2. **Categorize the first error** using the canary table below:
 
    | Error pattern | Likely category | Section to revisit |
@@ -970,9 +1126,10 @@ broken or you want to validate fidelity.
 3. **Fix the smallest possible thing**, restart the dev server, and re-test.
 4. **Update this document.** If you added/changed an adaptation, edit the
    relevant section so the next refresh starts from accurate state.
-5. **Run the workbench tally page too** (`http://localhost:5173/`). It uses
-   `velvet-core` and is unaffected by portal changes; if it breaks, the
-   problem is in workbench glue or wasm-pack output, not the lift.
+5. **Run the raw-JSON tally sandbox too** (`http://localhost:5173/tally`).
+   It uses `velvet-core` directly and is unaffected by portal changes;
+   if it breaks, the problem is in workbench glue or wasm-pack output,
+   not the lift.
 
 ## Adaptations to add as we lift more screens
 
@@ -991,8 +1148,10 @@ categories of work (in roughly the order they will be needed):
    directly, so `encryptBallotSelection` produces real ciphertext and the
    booth navigates from `/vote` to `/review`. See section F.
 2. **Initialize `ballotSelections` from the fixture, not only from
-   StartScreen.** ✅ Done — `seedBoothFixtures()` dispatches
-   `resetBallotSelection`. See section F.
+   StartScreen.** ✅ Done — the bundled `default.json` snapshot ships a
+   pre-initialized `ballotSelections[electionId]` entry, so every URL
+   is a valid entry point (hot reload on `/vote`, deep links). See
+   section F.
 3. **Mounting `<ApolloProvider>`.** ✅ Done. The workbench mounts an
    `ApolloProvider` with a client whose link is `ApolloLink.empty()`, so
    `useQuery`/`useMutation` are satisfied at context level but no network
@@ -1046,10 +1205,15 @@ categories of work (in roughly the order they will be needed):
    interdependent state), an in-memory schema (with
    `@graphql-tools/mock`) may scale better. Decision deferred until pain
    is felt.
-7. **Extending the fixture.** As later screens consume more of the store
-   (cast votes, audit data, etc.), `boothFixtures.ts` grows. Keep it a
-   single module per screen group rather than one fixture file per slice
-   — easier to keep coherent across slice boundaries.
+7. **Extending the bundled snapshot.** As later screens consume more
+   of the store (cast votes, audit data, etc.), `default.json` grows.
+   The Inspector's *Save current state as checkpoint…* / *Copy bundled
+   JSON* workflow (section F) is the path of least resistance for
+   producing the new snapshot; the `validateBundledSnapshots` plugin
+   keeps the ballot-style ↔ keypair invariants honest on every build.
+   Prefer one snapshot per coherent scenario over many small ones —
+   the tree rail lists them as siblings, and switching scenarios is a
+   one-click *Load* on `/wb/snapshot/<id>`.
 
 **Out of scope.** The workbench lifts **voting-portal** screens only,
 plus whatever direct dependencies of those screens (ui-core, ui-essentials,
@@ -1063,43 +1227,37 @@ and fixture tree, not an extension of this one.
 Each of these adaptations, when added, should get its own row in the
 inventory above with a canary entry. Treat the document as living.
 
-### Future: generic state inspector
+### Future: snapshot index page and richer record introspection
 
-Not a portal adaptation — a workbench-only feature, parked here so it
-doesn't get lost.
+Not a portal adaptation — workbench-only ideas, parked here so they
+don't get lost.
 
-Today several panels render a bare mono id (ballot style id, parent
-event link, cast-vote id, voter id, future encoded-ballot id, etc.).
-Each id is opaque: the operator can see *that* a record exists but
-not *what's in it* without dropping into Redux DevTools or the
-browser console. The cast-vote `<details>` row we built for the
-election page is essentially a hand-rolled mini-inspector for one
-specific record type — a pattern that doesn't compose: every new
-introspectable record type would otherwise grow its own bespoke
-panel.
+**Snapshot index table on `/wb`.** The working-copy overview at the
+inspector index currently shows live counters and a *Save checkpoint*
+button. A natural extension is a tabular list of all bundled snapshots
++ checkpoints (one row per snapshot, columns mirroring
+`SnapshotDetailPage`'s `<dl>` — name, kind, parent, saved-at, voters,
+elections, ballot styles, cast votes — plus a one-click *Load*
+button). The tree rail keeps its navigation role but stops being the
+only way to compare snapshots side by side. Implementation is
+straightforward — read every entry's counts on render (synchronous
+localStorage reads, bounded by the number of checkpoints, which we
+keep small by policy).
 
-Sketch:
+**Richer per-record introspection.** Each detail page already collapses
+its record's raw JSON (e.g. `ballot_eml` on the ballot-style page, the
+bundled export on the snapshot page). When two more record types land
+(the encoded ballot per cast vote, and the tally result), introduce a
+single recursive collapsible JSON tree component and reuse it across
+pages, rather than growing each page's own `<pre>` blocks. Anywhere we
+render a bare id today (cast-vote id, voter id, ballot-style id),
+wrap it as a NavLink into the right `/wb/<kind>/:id` page so the
+inspector is always one click away.
 
-- A single route `/wb/inspect?kind=<kind>&id=<id>` (or similar) that
-  renders a recursive collapsible JSON tree over whatever the resolver
-  returns. No per-type detail page.
-- A small resolver map keyed by `kind`: `ballotStyle`, `election`,
-  `event`, `tenant`, `castVote`, `voter`, `checkpoint`, `snapshot`,
-  later `encodedBallot`, `tallyResult`. Each resolver pulls from the
-  appropriate store (portal Redux or workbench store) by id.
-- Anywhere we render an id today, wrap it in a link/button to the
-  inspector pre-focused on that record. Id stays visible; the
-  inspector is the "what is this thing actually" escape hatch.
-- Optional polish: search/filter, copy-to-clipboard, diff two
-  snapshots (e.g. pre/post checkpoint), pretty-print known nested
-  JSON strings (like `cv.content`).
-
-When to build: **after** step 5 (inline per-election tally). Rationale
-— the inspector's value compounds with the number of record types it
-covers, and step 5 will introduce two more juicy ones (the encoded
-ballot per cast vote and the tally result). Building it after step 5
-lands it with 4–5 useful resolvers instead of 2, on stabilized bridge
-schema.
+When to build: the snapshot-index table can land any time. The JSON
+tree component is most useful **after** the encoded-ballot and
+tally-result record types are stable enough to type — building it
+earlier risks designing around the wrong schema.
 
 ---
 
