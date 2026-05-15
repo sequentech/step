@@ -205,21 +205,12 @@ function SnapshotsSection(): JSX.Element {
     return (
         <section>
             <SectionHeading>Snapshots</SectionHeading>
-            {/* Working-copy entry. Always present; clicking it lands
-                on the snapshot overview page for the live state. */}
-            <NavLink to="/wb" end style={navLinkStyle}>
-                ● Working copy
-            </NavLink>
-            <div
-                style={{
-                    fontSize: "0.7rem",
-                    color: "#888",
-                    margin: "0 0 0.5rem 1rem",
-                }}
-            >
-                forked from{" "}
-                <code>{currentParent ?? "<root>"}</code>
-            </div>
+            {/* The working copy is intentionally *not* a node in the
+                forest — per the locked design, the auto-resume slot
+                stays out of the provenance tree. The working-copy
+                overview lives at /wb (the index route) and is reached
+                via the top-nav "Inspector" link. Task 6 will add the
+                `Save current state as checkpoint…` button here. */}
             <ul style={listStyle}>
                 {roots.map((n) => (
                     <ProvenanceTreeNode
