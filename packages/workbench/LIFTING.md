@@ -214,42 +214,22 @@ Two structural decisions follow from inspecting `voting-portal/src/index.tsx`:
 
 Concretely, `main.tsx`:
 
-- Builds a `createBrowserRouter` with a `<Shell>` layout containing the
-  workbench nav bar (just two links: **Workbench** → `/wb`, **Raw-JSON
-  tally** → `/tally`), the global `<ReduxProvider>`, and an `<Outlet />`.
-- **Index route**: `/` → `<Navigate to="/wb" replace />`. There is no
-  separate landing page; the inspector at `/wb` is the home. Earlier
-  revisions had a workbench-native `WorkbenchHome` + drilldown tree
-  (`/wb/tenant/...`, `/wb/event/...`, `/wb/election/...`) which has been
-  removed in favour of the inspector — see section J.
-- **Inspector subtree** under `/wb/...` — workbench-owned UI living in
-  `app/src/WorkbenchInspector.tsx`. Children:
-  - `/wb` (index) — working-copy overview (`SnapshotOverviewPage`).
-  - `/wb/snapshot/:id` — bundled snapshot or named checkpoint detail.
-  - `/wb/ballot-style/:id` — per-ballot-style detail (pk, sk, contests).
-  - `/wb/contest/:id` — contest detail with inline tally.
-  - `/wb/voter/:id` — voter detail with attribution + booth CTA.
-  All five share the `InspectorLayout` (tree rail on the left,
-  `<Outlet />` on the right).
-- **Raw-JSON tally sandbox**: `/tally → <App />`. Kept as a focused
-  velvet-wasm playground; no Redux integration so it can run
-  independently of the scenario state.
+- Builds a `createBrowserRouter` with a `<Shell>` layout containing a
+  small nav, the global `<ReduxProvider>`, and an `<Outlet />`.
+- **Workbench-owned subtree** under `/wb/...` and `/tally`. Lift-irrelevant
+  detail — see `WORKBENCH.md` for the inspector routes. The only fact the
+  lift cares about is that nothing under `/wb/...` resolves to a lifted
+  portal screen.
 - **Booth subtree**: `<BoothLayout />` mounting `boothChildren` (defined
   in `BoothSpike.tsx`). `boothChildren` mirrors the portal's
   `tenant/:tenantId/event/:eventId/{election-chooser, election/:electionId/*}`
   subtree and pairs each route with the same `action` the portal wires.
 
-The split is deliberate: `/wb/...` is workbench-owned chrome we are free
-to evolve; `/tenant/:t/event/:e/...` is the production-mirror surface
-where we MUST NOT diverge. Internal portal `<Link to="/tenant/...">`
-calls keep resolving at the production paths because we never moved
-them.
-
 `BoothSpike.tsx` exports two things only:
 
 - `BoothLayout` — the booth-screen-only providers (Theme, Settings,
-  Apollo, Wasm). The ReduxProvider lives in `Shell` instead (see
-  section H), so `BoothLayout` does NOT mount Redux itself.
+  Apollo, Wasm). The ReduxProvider lives in `Shell` instead, so
+  `BoothLayout` does NOT mount Redux itself.
 - `boothChildren: RouteObject[]` — the route data with elements and actions.
   The shape mirrors the portal's own `tenant/:tenantId/event/:eventId`
   subtree: `election-chooser` and `election/:electionId/*` are siblings
@@ -258,12 +238,11 @@ them.
   (`navigate(\`/tenant/.../election/${id}/start\`)`) resolve at the
   same URLs the portal produces in production.
 
-**Workbench-native pages reach the booth via production paths.** The
-election detail page renders a "Start voting for this election" CTA
-that links to
-`/tenant/:t/event/:e/election/:el/start`, not to a `/wb/...` path. That
-keeps a single source of truth for "what URL the booth is at": the
-portal's own absolute-`<Link>` strings.
+**Workbench-native pages reach the booth via production paths.** Any
+CTA from `/wb/...` into the booth links to
+`/tenant/:t/event/:e/election/:el/start`, never to a `/wb/...` path.
+That keeps a single source of truth for "what URL the booth is at":
+the portal's own absolute-`<Link>` strings.
 
 **Canary if portal changes:**
 
@@ -290,13 +269,9 @@ hydrates one of these on first run, and `hydrateFromSnapshot` calls the
 portal's **own** action creators (`setElection`, `setElectionEvent`,
 `setBallotStyle`, ...) to populate the **production store**. Same store
 instance, same reducers, same selectors — only the data source differs.
-
-There is no `seedBoothFixtures()` function: the bundled snapshot **is**
-the fixture. Earlier revisions had a `boothFixtures.ts` that dispatched
-action creators imperatively on first boot; that module has been deleted
-in favour of the snapshot pipeline so there is exactly one shape (a
-`PersistedSnapshot`) for *all* scenario data, whether it was authored,
-saved as a checkpoint, or auto-resumed.
+This is the lift-relevant contract; the snapshot-authoring workflow,
+storage tiers and provenance model are workbench-side concerns covered in
+`WORKBENCH.md`.
 
 The shipping `default.json` snapshot encodes:
 
@@ -340,30 +315,17 @@ The shipping `default.json` snapshot encodes:
   Belt-and-braces with the previous point: even if a future change
   makes the early-voting branch reachable, the fixture won't crash —
   it will just report "no early voting policy enabled" and fall back
-  to the online-OPEN path.
-
 **Editing the bundled snapshot.** Do not hand-edit `default.json`
-blindly. The Vite plugin `validateBundledSnapshots()` (see
-`vite.config.ts`) runs at build-start and rejects snapshots whose
-`state.ballotStyles[*].id` has no matching `workbench.keypairs[id]`
-entry, or whose `ballot_eml.public_key.public_key` does not match the
-stored `pkB64`. The shortest path to a new scenario is:
-
-1. Boot the workbench fresh, mutate state via the booth and the
-   inspector until it looks right.
-2. Click *Save current state as checkpoint…* on `/wb`.
-3. Visit the checkpoint's `/wb/snapshot/<id>` page and copy its
-   bundled JSON (the *Copy JSON* button strips `parentId` so the
-   export becomes a root).
-4. Paste it under `app/src/fixtures/snapshots/<name>.json` (with a
-   `.json.license` sidecar).
-5. Restart Vite. The validator will refuse to start the dev server
-   if anything is inconsistent.
+blindly — a Vite plugin enforces ballot-style ↔ keypair consistency at
+build start (see §M.2 below). The authoring workflow (save a
+checkpoint, copy its JSON, paste under `app/src/fixtures/snapshots/`)
+is described in `WORKBENCH.md`.
 
 **Convention:** because hydration goes through the portal's own action
 creators (`hydrateFromSnapshot` in `persistence.ts`), payload-shape
 drift surfaces as TS errors in `persistence.ts` at the dispatch site —
-the same canary discipline the old fixture module had, just centralized.
+this is the same canary discipline as direct-dispatch fixtures, just
+centralized.
 
 **Canary if portal changes:**
 
@@ -404,75 +366,19 @@ the original dispatch), so if it ever stops working, just verify the
 order of operations in `BoothSpike.tsx` puts the patch BEFORE the first
 component render.
 
-### H. Persistence + the auto-resume snapshot (`app/src/persistence.ts`)
+### H. Persistence (`app/src/persistence.ts`)
 
 The workbench mirrors the entire voting-portal Redux state — plus the
 workbench's own overlay state (section K) — to `localStorage` on every
 dispatch and rehydrates from it on boot. The result: cast a ballot,
-close the tab, reopen tomorrow — the ballot is still cast.
+close the tab, reopen tomorrow — the ballot is still cast. The same
+plumbing is reused by bundled snapshots (shipped in git) and named
+checkpoints (saved by the operator) — the lift-irrelevant details of
+that storage hierarchy and the inspector's snapshot UI are in
+`WORKBENCH.md`.
 
-This is the foundational layer the inspector's snapshot / checkpoint
-UI sits on top of. There are three storage tiers, all sharing the same
-JSON shape (`PersistedSnapshot = { version: "v1", state: RootState,
-workbench?: WorkbenchExtraState, parentId?: string | null }`):
-
-| Tier | Trigger | Storage key | Lifetime | Mutability |
-|---|---|---|---|---|
-| Auto-resume slot | Every Redux or workbench-overlay dispatch | `localStorage["workbench:state:v1"]` | Until reset / wiped | Constantly overwritten |
-| Named checkpoint | Operator clicks *Save current state as checkpoint…* on `/wb` | `localStorage["workbench:checkpoint:v1:<name>"]` (plus index at `workbench:checkpoints:v1`) | Until deleted | Frozen at save time |
-| Bundled snapshot | Shipped in git | `app/src/fixtures/snapshots/*.json` | Forever | Read-only at runtime |
-
-All three go through the same `hydrateFromSnapshot` / `PersistedSnapshot`
-plumbing — only the storage location differs. Bundled snapshots are
-imported at build time via `import.meta.glob` into a static
-`BUNDLED_SNAPSHOTS` dictionary (`fixtures/bundledSnapshots.ts`), so the
-runtime never touches the filesystem.
-
-**Provenance forest.** Snapshots form a forest:
-
-- Bundled snapshots are roots (`parentId === null` in their on-disk
-  form, conventionally stripped on export so a copy-pasted snapshot
-  is automatically a root).
-- Checkpoints carry a `parentId` recording the snapshot they were
-  forked from — either a bundled root (`"bundled:<name>"`) or another
-  checkpoint (`"checkpoint:<name>"`).
-- The auto-resume slot is *not* a node; it is the working copy and
-  inherits its `parentId` from whatever was most recently loaded.
-
-This is tracked at runtime via a module-level `currentParentId` in
-`persistence.ts`. `hydrateFromSnapshot(store, snapshot, sourceId?)`
-updates it: if `sourceId` is supplied (bundled load → `bundledId(name)`,
-checkpoint load → `checkpointId(name)`) we adopt that as the new
-parent; if omitted (warm boot recovering from the auto-resume slot)
-we keep the snapshot's own `parentId`. Every subsequent `writeSnapshot()`
-stamps the working copy with the current value, and `saveCheckpoint`
-records it on the frozen entry so the inspector tree rail can draw the
-lineage.
-
-`getCurrentParentId()` exposes it to UI; `bundledId(name)` /
-`checkpointId(name)` produce the tagged ids used everywhere (URL params,
-`parentId` fields, tree-rail keys). Reserving the `bundled:` /
-`checkpoint:` namespaces keeps a single id space for the two snapshot
-kinds without ambiguity.
-
-**Named-checkpoint semantics:**
-
-- `saveCheckpoint(store, name)` writes `store.getState()` under
-  `workbench:checkpoint:v1:<name>` and adds/refreshes the entry in the
-  sorted index. Names are normalized to letters/digits/`._- ` with a
-  64-char cap (`normalizeCheckpointName`); illegal input throws so the
-  UI can surface a precise message.
-- `loadCheckpoint(store, name)` dispatches the snapshot through the
-  same `hydrateFromSnapshot` used at boot, which means the auto-resume
-  slot gets overwritten as a side-effect. The UI follows up with a
-  `location.reload()` to drop any in-memory derived state (Apollo
-  cache, mounted screens' local `useState`) so the boot path replays
-  hydration cleanly.
-- `deleteCheckpoint(name)` removes both the snapshot key and its
-  entry in the index.
-- Saving does NOT pause the auto-resume slot. The two tiers are
-  independent: saving a checkpoint is purely additive; the auto-resume
-  slot keeps tracking every dispatch.
+For the lift, only two facts matter: **how state is rehydrated**, and
+**what happens when voting-portal slices evolve**.
 
 **How rehydration works.** `hydrateFromSnapshot(store, snapshot)`
 dispatches the portal's own `setX` action creators per persisted entity
@@ -502,41 +408,22 @@ after a reload; the screens that consume them have not yet been lifted,
 so nothing visible regresses. When one of those screens is lifted, add
 its slice to `hydrateFromSnapshot` (and update the canary table below).
 
-**Boot sequence in `BoothSpike.tsx`** (module-eval order matters):
+**Hook point in `BoothSpike.tsx`.** Boot performs, in order:
+`loadPersistedSnapshot()` → `hydrateFromSnapshot(...)` (warm-boot from
+the auto-resume slot, falling back to the bundled `default.json` on
+first run) → `installPersistence(store)`. The persistence subscription
+MUST be installed **after** hydration so that we never persist an
+in-progress hydration. Hydration internally toggles a `suspendWrites`
+flag so that the many small dispatches it issues don't each trigger a
+full snapshot write — only the post-hydration state hits
+`localStorage`.
 
-1. `loadPersistedSnapshot()` — reads `localStorage["workbench:state:v1"]`,
-   returns `null` on first run, schema mismatch, or parse failure.
-2. If a snapshot exists → `hydrateFromSnapshot(store, persisted)` (no
-   `sourceId`; provenance is recovered from the snapshot's own
-   `parentId`). Else → `hydrateFromSnapshot(store, loadBundledSnapshot("default"), bundledId("default"))`
-   (first boot: the working copy is born as a fork of
-   `bundled:default`). If the default snapshot is also missing — which
-   the Vite build pipeline forbids — we surface a console error
-   rather than booting into an empty store.
-3. `installPersistence(store)` — subscribes to both the Redux store
-   and the workbench mini-store; **after** step 2, so we never persist
-   an in-progress hydration.
-
-Hydration internally toggles a `suspendWrites` flag so that the
-many small dispatches it issues don't each trigger a full snapshot
-write — only the post-hydration state hits `localStorage`.
-
-**Schema versioning.** Snapshots tag themselves with `version: "v1"` and
-the storage key carries the same suffix. When the persisted shape
+**Schema versioning.** Snapshots tag themselves with `version: "v1"`
+and the storage key carries the same suffix. When the persisted shape
 becomes incompatible (e.g. voting-portal removes a slice we relied on),
 bump the suffix in `PERSISTENCE_KEY` *and* the literal in
 `PersistedSnapshot.version`. Old data is then silently ignored at boot
 and the user gets a fresh fixture instead of a crash.
-
-**Reset path.** From the browser console: `__resetWorkbench()` (a
-global installed alongside `__store` and `__dispatchLog` in
-`BoothSpike.tsx`). It calls `clearPersistedSnapshot()` and reloads the
-page; on next boot, `loadPersistedSnapshot()` returns `null` and the
-`bundled:default` snapshot re-seeds. There is intentionally no nav-bar
-Reset button: the inspector's *Load* action on `/wb/snapshot/...` is
-the in-app equivalent (overwrite the working copy from a known good
-state), and a one-click *wipe-and-reload* in the chrome was too easy
-to hit by accident.
 
 **Canary if portal changes:**
 
@@ -551,10 +438,11 @@ to hit by accident.
 
 **Cross-cutting note: where the booth must live now.** Because the
 ReduxProvider was hoisted out of `BoothLayout` and into `Shell` (so the
-workbench's own `/tally` page can read the same store), every workbench
-page now sees the same Redux state. The booth screens themselves are
-unaffected — the layering matches `voting-portal/src/index.tsx`, which
-also wraps Redux outside its routes.
+workbench's own pages — e.g. `/tally`, the inspector — can read the
+same store), every workbench page now sees the same Redux state. The
+booth screens themselves are unaffected — the layering matches
+`voting-portal/src/index.tsx`, which also wraps Redux outside its
+routes.
 
 ### I. Source code under `voting-portal/src/` — UNCHANGED
 *outside* the portal source tree. If you ever feel tempted to edit a portal
@@ -575,104 +463,23 @@ file to make the workbench work:
 
 ### J. Workbench-native chrome (`app/src/WorkbenchInspector.tsx`)
 
-Everything under `/wb/...` is **workbench-owned UI** — not lifted from
-voting-portal, not from admin-portal. The decision is documented at
-the top of section A's *do-not-lift* list: admin-portal is explicitly
-out of scope. Instead the workbench ships its own minimal inspector to
-introspect the scenario and the snapshot graph.
-
-The entire surface lives in one file (`WorkbenchInspector.tsx`) and is
-mounted by `main.tsx` as `<InspectorLayout>` with five child routes
-(section E). The layout is a fixed two-pane chrome:
-
-```
-┌───────────────┬──────────────────────────────────┐
-│  Tree rail    │  <Outlet />                      │
-│  (left, ~20%) │  one of five detail pages        │
-│               │                                  │
-│  Snapshots    │                                  │
-│  ─────────    │                                  │
-│  Tenants      │                                  │
-│  ─────────    │                                  │
-│  Voters       │                                  │
-└───────────────┴──────────────────────────────────┘
-```
-
-**Tree rail (left pane).** Three sections, always visible. The locked
-design for each:
-
-- **Snapshots.** A provenance forest (`buildProvenanceForest`):
-  bundled snapshots are roots, checkpoints attach under their
-  `parentId`. Each node links to `/wb/snapshot/<encoded id>`; the
-  current working-copy parent is highlighted. The working copy itself
-  is *not* a node — its overview is at `/wb` (the index route).
-- **Tenants.** Derived from `state.electionEvent` and `state.elections`
-  by grouping events under their `tenant_id`. Each leaf is a ballot
-  style; clicking opens `/wb/ballot-style/<id>` directly (no
-  intermediate drilldown pages). Tenants and events are shown as
-  static labels in the rail; they have no detail pages because the
-  workbench has nothing interesting to surface for them.
-- **Voters.** The workbench mini-store's voter directory (section K),
-  each row a link to `/wb/voter/<id>`.
-
-**Detail pages (right pane).** All five are exported from
-`WorkbenchInspector.tsx`:
-
-- `SnapshotOverviewPage` at `/wb` (index). Live working-copy summary:
-  `Forked from` (`currentParentId`), voter / election / ballot-style /
-  cast-vote counts, plus the *Save current state as checkpoint…*
-  button. Counters use scalar selectors (not object-returning) to
-  avoid react-redux's referential-equality warning on every dispatch.
-- `SnapshotDetailPage` at `/wb/snapshot/:id`. The `:id` is a tagged id
-  (`bundled:<name>` or `checkpoint:<name>`, URL-encoded). Renders the
-  same summary `<dl>` as the overview plus a *Load* button
-  (bundled → `hydrateFromSnapshot` with the bundled-id tag; checkpoint
-  → `loadCheckpoint`) and a collapsed *Bundled JSON* block. The export
-  strips `parentId` so a copy-pasted snapshot becomes a root.
-- `BallotStyleDetailPage` at `/wb/ballot-style/:id`. Resolves the
-  ballot style by `id` (note: `state.ballotStyles` is keyed by
-  `election_id`, not by ballot-style id, so this is an
-  `Object.values(...).find(b => b?.id === bsId)` scan). Surfaces the
-  parent election, the public key, the secret key (always visible —
-  this is a demo keypair), a contest list (NavLinks to
-  `/wb/contest/...`), and the raw `ballot_eml` JSON. A `pk/sk`
-  mismatch (the stored `keypairs[bsId].pkB64` not matching
-  `ballot_eml.public_key.public_key`) is surfaced as a warning row
-  rather than silently swallowed.
-- `ContestDetailPage` at `/wb/contest/:id`. Scans ballot styles for
-  the first one containing the contest, then runs the inline tally
-  against that ballot style and the live `decodedBigInts` (no
-  synthetic ballot style — the real one is what production would
-  decrypt against). Renders running / no-data / error / result
-  states.
-- `VoterDetailPage` at `/wb/voter/:id`. Shows the voter, all their
-  cast votes (joined via the `castBy` attribution ledger to
-  `repairedCastVotes` and `state.castVotes`), and a *Cast a ballot in
-  …* CTA per ballot style which calls `setActiveVoter(voter.id)` and
-  navigates to the booth at the production path.
-
-**Cast-vote bin honesty.** After section L.1 fixed the demo's
-election-id bucket, cast votes land where production puts them
-(`state.castVotes[electionId]`); the inspector reads from that single
-bin everywhere. The old dual-bin display from `Workbench.tsx` (which
-had to show both `state.castVotes[electionId]` and
-`state.castVotes[eventId]`) is no longer needed.
-
-**Rules:**
+Workbench-owned UI under `/wb/...` — not lifted from voting-portal, not
+from admin-portal. **Lift-relevant rules only** (full design narrative
+in `WORKBENCH.md`):
 
 - Workbench-native pages MUST NOT import or re-implement voting-portal
   screens. They may freely import portal Redux slices, selectors, and
   action creators — those are part of the same package the booth uses.
 - CTAs that enter the booth MUST link to the production paths
-  (`/tenant/:t/event/:e/...`), never to `/wb/...`. Section E.
-- These pages own their styling inline. There is no design system to
-  match — admin-portal is out of scope by policy, and matching the
-  booth's MUI theme would imply that these are booth screens, which
-  they are not.
-- New detail pages should be added as inspector children
-  (`/wb/<kind>/:id`), reusing `InspectorLayout`. There is no longer a
-  workbench-native drilldown (tenant → event → election) — that
-  hierarchy is collapsed into the rail.
+  (`/tenant/:t/event/:e/...`), never to `/wb/...`. See section E.
+- After section L.1 fixed the demo's election-id bucket, cast votes
+  land where production puts them (`state.castVotes[electionId]`);
+  the inspector reads from that single bin everywhere.
+
+There are no lift canaries here: nothing under `/wb/...` resolves to a
+portal screen, so portal changes can't break it directly. A portal
+change CAN break the inspector indirectly via a renamed Redux slice or
+action creator — those canaries already live in §F / §H.
 
 ### K. Workbench-owned overlay state (`app/src/workbenchStore.ts`)
 
@@ -988,7 +795,7 @@ rules, which is why they interoperate.
   garbage. Re-sync the decrypt post-processing with whatever the new
   convention is.
 
-#### M.2 Keypair lifecycle (bundled-in / `workbenchStore.ts`)
+#### M.2 Keypair bundling and validator invariant
 
 Keypairs are **bundled into the snapshot** rather than generated at
 boot. The shipping `default.json` carries
@@ -996,40 +803,20 @@ boot. The shipping `default.json` carries
 is written into the corresponding ballot style's
 `ballot_eml.public_key.public_key`. The `validateBundledSnapshots`
 Vite plugin enforces this consistency at build start (see
-`vite.config.ts`):
+`app/vite.config.ts`):
 
 1. Every `state.ballotStyles[*].id` must have a matching
    `workbench.keypairs[id]` entry.
 2. The entry's `pkB64` must equal
    `state.ballotStyles[*].ballot_eml.public_key.public_key`.
 
-Lifecycle:
-
-1. **Boot.** `hydrateFromSnapshot` restores `workbench.keypairs`
-   from the snapshot before the cast-votes watcher runs. No
-   generation step on the happy path.
-2. **Per-id generation (future).** `setKeypair(bsId, kp)` exists for
-   the case where the operator adds a brand-new ballot style at
-   runtime (e.g. via a future inspector mutation). It is
-   **first-call-wins per id** so a stray re-seed cannot orphan
-   already-captured cast votes encrypted under the old pk for that
-   ballot style.
-3. **Persistence.** `keypairs` is part of `WorkbenchExtraState`, so
-   any mutation round-trips through `PersistedSnapshot` like every
-   other overlay field (section K).
-4. **Reset.** `__resetWorkbench()` clears the snapshot, which wipes
-   the keypairs alongside everything else; the next boot re-hydrates
-   from `bundled:default` and gets its keypairs back.
-
-Authoring a new bundled snapshot therefore means authoring its
-keypairs too. The Inspector's *Save checkpoint* + *Copy bundled JSON*
-workflow (section F) is the path of least resistance: the checkpoint
-automatically includes whatever keypairs the working copy is using.
+Full workbench-side lifecycle (boot, per-id generation, persistence,
+reset) lives in `WORKBENCH.md`.
 
 **Canary if portal changes:**
 
 - Portal starts validating `ballot_eml.public_key` against a server-
-  side allowlist → the workbench's fresh pk gets rejected at vote
+  side allowlist → the workbench's bundled pk gets rejected at vote
   time. Either feed the workbench pk to the portal's pre-flight
   validator, or pin a fixed pk and re-import the matching sk on
   boot.
@@ -1054,14 +841,9 @@ sees the plaintext selection immediately (snapshot pulled from
 Redux at cast time), and the decrypted `BigUint` appears a tick
 later without blocking the React render. If decryption throws (no
 keypair, malformed content, wrong key after a partial reset), the
-The decrypt does **not** re-run on hydrate. Re-decrypting a cast
-vote at boot would risk doing so under a different keypair if the
-operator wiped state in between, and the `decodedBigInts` are
-already in the snapshot. Hydration just rehydrates whatever value
-was last written. If decryption throws (no keypair, malformed
-content, wrong key after a partial reset), the entry is simply left
-empty; `ContestDetailPage` then shows the cast vote as not
-contributing to the tally rather than asserting equality.
+entry is simply left empty; consumers (e.g. `ContestDetailPage`)
+then show the cast vote as not contributing to the tally rather
+than asserting equality.
 
 The decrypt does **not** re-run on hydrate. Re-decrypting a cast
 vote at boot would risk doing so under a different keypair if the
@@ -1071,27 +853,21 @@ was last written.
 
 #### M.4 Tally consumption
 
-The `ContestDetailPage` (`/wb/contest/:id`) consumes
-`repairedCastVotes[*].decodedBigInts[contestId]` directly: a
-`useEffect` calls `runElectionTally(ballotStyle, decodedByCastVote)`
-from `electionTally.ts` whenever the decoded set changes, and renders
-the outcome for the focused contest in a `<pre>` block (running /
-no-data / error / result states).
-
-There is no re-encrypt-then-decrypt trip through wasm at tally time —
-the BigUints flow straight from `repairedCastVotes` into the tally
-code path, exactly the way a production trustee would feed decrypted
-plaintexts in. The synchronous capture + async decrypt split inside
-the cast-votes watcher (M.3) ensures the tally always has the latest
-plaintexts available without blocking the React render.
+The decrypted BigUints in `repairedCastVotes[*].decodedBigInts` are
+fed to `runElectionTally(ballotStyle, decodedByCastVote)`
+(`electionTally.ts`) by the workbench's contest detail page — see
+`WORKBENCH.md` for the UI. There is no re-encrypt-then-decrypt trip
+through wasm at tally time; the BigUints flow straight from the
+decrypt bridge into the tally code path, exactly the way a production
+trustee would feed decrypted plaintexts in.
 
 **End-to-end canary.** Cast a Blue vote on the bundled fixture
 (plurality-at-large, two candidates, `max_votes=1`); expected
 `decodedBigInts[<contestId>] === "4"` (bases `[2,2,2]`, choices
-`[0,0,1]`, mixed-radix LSB), round-trip badge green, tally reports
-`Blue: 100% (1), Red: 0% (0), valid=1, invalid=0`. If the BigUint
-shows up as `1025`, the length-prefix unwrap in
-`decrypt_ballot_content` regressed (see M.1).
+`[0,0,1]`, mixed-radix LSB), tally reports `Blue: 100% (1), Red: 0%
+(0), valid=1, invalid=0`. If the BigUint shows up as `1025`, the
+length-prefix unwrap in `decrypt_ballot_content` regressed (see
+M.1).
 
 ---
 
@@ -1207,13 +983,11 @@ categories of work (in roughly the order they will be needed):
    is felt.
 7. **Extending the bundled snapshot.** As later screens consume more
    of the store (cast votes, audit data, etc.), `default.json` grows.
-   The Inspector's *Save current state as checkpoint…* / *Copy bundled
-   JSON* workflow (section F) is the path of least resistance for
-   producing the new snapshot; the `validateBundledSnapshots` plugin
-   keeps the ballot-style ↔ keypair invariants honest on every build.
-   Prefer one snapshot per coherent scenario over many small ones —
-   the tree rail lists them as siblings, and switching scenarios is a
-   one-click *Load* on `/wb/snapshot/<id>`.
+   The `validateBundledSnapshots` plugin keeps the ballot-style ↔
+   keypair invariants honest on every build. Prefer one snapshot per
+   coherent scenario over many small ones. The authoring workflow
+   (save a checkpoint, copy its JSON, paste it under
+   `app/src/fixtures/snapshots/`) lives in `WORKBENCH.md`.
 
 **Out of scope.** The workbench lifts **voting-portal** screens only,
 plus whatever direct dependencies of those screens (ui-core, ui-essentials,
@@ -1227,37 +1001,16 @@ and fixture tree, not an extension of this one.
 Each of these adaptations, when added, should get its own row in the
 inventory above with a canary entry. Treat the document as living.
 
-### Future: snapshot index page and richer record introspection
+---
 
-Not a portal adaptation — workbench-only ideas, parked here so they
-don't get lost.
+## Companion: `WORKBENCH.md`
 
-**Snapshot index table on `/wb`.** The working-copy overview at the
-inspector index currently shows live counters and a *Save checkpoint*
-button. A natural extension is a tabular list of all bundled snapshots
-+ checkpoints (one row per snapshot, columns mirroring
-`SnapshotDetailPage`'s `<dl>` — name, kind, parent, saved-at, voters,
-elections, ballot styles, cast votes — plus a one-click *Load*
-button). The tree rail keeps its navigation role but stops being the
-only way to compare snapshots side by side. Implementation is
-straightforward — read every entry's counts on render (synchronous
-localStorage reads, bounded by the number of checkpoints, which we
-keep small by policy).
-
-**Richer per-record introspection.** Each detail page already collapses
-its record's raw JSON (e.g. `ballot_eml` on the ballot-style page, the
-bundled export on the snapshot page). When two more record types land
-(the encoded ballot per cast vote, and the tally result), introduce a
-single recursive collapsible JSON tree component and reuse it across
-pages, rather than growing each page's own `<pre>` blocks. Anywhere we
-render a bare id today (cast-vote id, voter id, ballot-style id),
-wrap it as a NavLink into the right `/wb/<kind>/:id` page so the
-inspector is always one click away.
-
-When to build: the snapshot-index table can land any time. The JSON
-tree component is most useful **after** the encoded-ballot and
-tally-result record types are stable enough to type — building it
-earlier risks designing around the wrong schema.
+Workbench-side design that lives *around* the lifted code — the
+inspector at `/wb`, the snapshot / checkpoint / provenance model, the
+mini-store's UI contract, the bundled-snapshot authoring workflow, and
+parked workbench-only ideas — is documented in
+[`WORKBENCH.md`](./WORKBENCH.md). When the two documents disagree
+about a fact related to a voting-portal lift step, `LIFTING.md` wins.
 
 ---
 
