@@ -274,20 +274,6 @@ export function replaceWorkbenchState(next: WorkbenchExtraState): void {
     setState(normalizeIncoming(next))
 }
 
-/** Seed an empty workbench with two demo voters so the directory page
- *  is not empty on first boot. Idempotent: does nothing if there are
- *  already voters in the directory. */
-export function seedDemoVoters(): void {
-    if (state.voters.length > 0) return
-    setState({
-        ...state,
-        voters: sortVoters([
-            {id: generateVoterId(), displayName: "Alice"},
-            {id: generateVoterId(), displayName: "Bob"},
-        ]),
-    })
-}
-
 function normalizeIncoming(incoming: WorkbenchExtraState): WorkbenchExtraState {
     // Be defensive against snapshots from older versions or hand-edits.
     const voters = Array.isArray(incoming.voters)

@@ -5,17 +5,16 @@
 import {StrictMode} from "react"
 import {createRoot} from "react-dom/client"
 import {Provider as ReduxProvider} from "react-redux"
-import {createBrowserRouter, Link, Outlet, RouterProvider} from "react-router-dom"
+import {
+    createBrowserRouter,
+    Link,
+    Navigate,
+    Outlet,
+    RouterProvider,
+} from "react-router-dom"
 import {store} from "voting-portal/src/store/store"
 import {App} from "./App"
 import {BoothLayout, boothChildren} from "./BoothSpike"
-import {clearPersistedSnapshot} from "./persistence"
-import {
-    WorkbenchElection,
-    WorkbenchEvent,
-    WorkbenchHome,
-    WorkbenchTenant,
-} from "./Workbench"
 import {
     BallotStyleDetailPage,
     ContestDetailPage,
@@ -38,34 +37,10 @@ function Shell() {
                     alignItems: "center",
                 }}
             >
-                <Link to="/" style={{fontWeight: 600}}>
+                <Link to="/wb" style={{fontWeight: 600}}>
                     Workbench
                 </Link>
-                <Link to="/wb">Inspector</Link>
                 <Link to="/tally">Raw-JSON tally</Link>
-                <span style={{flex: 1}} />
-                <button
-                    type="button"
-                    onClick={() => {
-                        if (
-                            !confirm(
-                                "Wipe the persisted workbench state and reload?"
-                            )
-                        ) {
-                            return
-                        }
-                        clearPersistedSnapshot()
-                        location.reload()
-                    }}
-                    style={{
-                        padding: "0.25rem 0.6rem",
-                        fontSize: "0.8rem",
-                        cursor: "pointer",
-                    }}
-                    title="Wipe localStorage workbench:state:v1 and reload"
-                >
-                    Reset workbench state
-                </button>
             </nav>
             <Outlet />
         </ReduxProvider>
@@ -78,8 +53,8 @@ function Shell() {
 // `voting-portal/src/index.tsx` for the production setup we mirror.
 //
 // Three families of routes live under `Shell`:
-//   * Workbench-native pages at `/` and `/wb/...` (Workbench.tsx). These
-//     are the entry points and drilldown views.
+//   * The workbench inspector at `/wb/...` (WorkbenchInspector.tsx).
+//     `/` redirects here — there is no separate landing page.
 //   * Booth (lifted voting-portal) screens at the production-mirroring
 //     paths under `/tenant/:t/event/:e/...`. Mounted via `BoothLayout`
 //     so the portal's own provider stack wraps them.
@@ -89,7 +64,7 @@ const router = createBrowserRouter([
     {
         element: <Shell />,
         children: [
-            {index: true, element: <WorkbenchHome />},
+            {index: true, element: <Navigate to="/wb" replace />},
             {
                 path: "/wb",
                 element: <InspectorLayout />,
@@ -103,15 +78,6 @@ const router = createBrowserRouter([
                     {path: "contest/:id", element: <ContestDetailPage />},
                     {path: "voter/:id", element: <VoterDetailPage />},
                 ],
-            },
-            {path: "/wb/tenant/:tenantId", element: <WorkbenchTenant />},
-            {
-                path: "/wb/tenant/:tenantId/event/:eventId",
-                element: <WorkbenchEvent />,
-            },
-            {
-                path: "/wb/tenant/:tenantId/event/:eventId/election/:electionId",
-                element: <WorkbenchElection />,
             },
             {path: "/tally", element: <App />},
             {
