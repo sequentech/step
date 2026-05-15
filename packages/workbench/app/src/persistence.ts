@@ -570,7 +570,36 @@ export function saveCheckpoint(
 
     currentParentId = checkpointId(name)
     writeSnapshot(store.getState())
+    // Bump the workbench store so any subscribers (notably the
+    // inspector rail's `useCheckpointList` and `useCurrentParentId`)
+    // re-read. Saving doesn't actually mutate the overlay, but the
+    // checkpoint index and the current parent id both changed and
+    // we want the rail to reflect that immediately.
+    replaceWorkbenchState(getWorkbenchState())
     return meta
+}
+
+/**
+ * Read a saved checkpoint's full snapshot (state + workbench overlay +
+ * parentId) without hydrating it into the store. Returns `null` if no
+ * such checkpoint exists or the stored payload is unparseable.
+ */
+export function readCheckpointSnapshot(rawName: string): PersistedSnapshot | null {
+    const name = normalizeCheckpointName(rawName)
+    if (typeof localStorage === "undefined") return null
+    const raw = localStorage.getItem(CHECKPOINT_PREFIX + name)
+    if (!raw) return null
+    try {
+        const snapshot = JSON.parse(raw) as PersistedSnapshot
+        if (snapshot.version !== "v1") return null
+        return snapshot
+    } catch (e) {
+        console.warn(
+            `[workbench/persistence] failed to parse checkpoint "${name}":`,
+            e
+        )
+        return null
+    }
 }
 
 /**
@@ -612,4 +641,6 @@ export function deleteCheckpoint(rawName: string): void {
     writeCheckpointIndex(
         readCheckpointIndex().filter((e) => e.name !== name)
     )
+    // Bump subscribers so the inspector rail drops the row.
+    replaceWorkbenchState(getWorkbenchState())
 }

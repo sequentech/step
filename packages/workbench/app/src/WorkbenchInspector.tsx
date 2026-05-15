@@ -38,16 +38,22 @@
 // Contest, Voter).
 
 import type {RootState} from "voting-portal/src/store/store"
-import {NavLink, Outlet, useParams} from "react-router-dom"
-import {useSelector} from "react-redux"
-import {useSyncExternalStore} from "react"
+import {NavLink, Outlet, useNavigate, useParams} from "react-router-dom"
+import {useSelector, useStore} from "react-redux"
+import {useMemo, useState, useSyncExternalStore} from "react"
 import {subscribeWorkbench, useWorkbench} from "./workbenchStore"
 import {
     bundledId,
     checkpointId,
     getCurrentParentId,
+    hydrateFromSnapshot,
     listCheckpoints,
+    loadCheckpoint,
+    normalizeCheckpointName,
+    readCheckpointSnapshot,
+    saveCheckpoint,
     type CheckpointMeta,
+    type PersistedSnapshot,
 } from "./persistence"
 import {BUNDLED_SNAPSHOTS} from "./fixtures/bundledSnapshots"
 // ---------------------------------------------------------------------------
@@ -519,34 +525,264 @@ function VotersSection(): JSX.Element {
 }
 
 // ---------------------------------------------------------------------------
-// Detail page placeholders (filled in by tasks 6–9)
+// Detail pages
 // ---------------------------------------------------------------------------
 
+/**
+ * `/wb` index — overview of the live working copy.
+ *
+ * Surfaces:
+ *  - Provenance lineage ("forked from <parent>").
+ *  - Summary counts (voters, elections, ballot styles, cast votes).
+ *  - `Save current state as checkpoint…` button. The checkpoint
+ *    inherits the working copy's `currentParentId` automatically.
+ *
+ * Intentionally minimal: there is no "copy current state as JSON"
+ * button here — bundling new scenarios is done from a checkpoint's
+ * detail page so the export already has a known name.
+ */
 export function SnapshotOverviewPage(): JSX.Element {
+    const store = useStore()
+    const parentId = useCurrentParentId()
+    // Select individual scalars rather than a derived object so
+    // useSelector's referential-equality check doesn't false-positive
+    // on every dispatch.
+    const electionCount = useSelector(
+        (s: RootState) => Object.values(s.elections).filter(Boolean).length
+    )
+    const ballotStyleCount = useSelector(
+        (s: RootState) =>
+            Object.values(s.ballotStyles).filter(Boolean).length
+    )
+    const castVoteCount = useSelector((s: RootState) =>
+        Object.values(s.castVotes).reduce(
+            (n, list) => n + (list?.length ?? 0),
+            0
+        )
+    )
+    const voterCount = useWorkbench((w) => w.voters.length)
+    const [error, setError] = useState<string | null>(null)
     return (
         <>
             <h1>Working copy</h1>
             <p style={{color: "#666"}}>
-                Placeholder. The full overview (provenance lineage, voter
-                count, ballot-style list, "Save as checkpoint" button)
-                lands in task 6.
+                Live in-memory state of the workbench. Auto-saved to
+                localStorage on every change.
             </p>
+            <dl style={dlStyle}>
+                <DlRow label="Forked from">
+                    <code>{parentId ?? "(root — no parent)"}</code>
+                </DlRow>
+                <DlRow label="Voters">{voterCount}</DlRow>
+                <DlRow label="Elections">{electionCount}</DlRow>
+                <DlRow label="Ballot styles">{ballotStyleCount}</DlRow>
+                <DlRow label="Cast votes">{castVoteCount}</DlRow>
+            </dl>
+            <div style={{marginTop: "1.5rem"}}>
+                <button
+                    type="button"
+                    style={primaryButtonStyle}
+                    onClick={() => {
+                        setError(null)
+                        const raw = window.prompt(
+                            "Checkpoint name (letters, digits, spaces, '.', '-', '_'; max 64 chars):"
+                        )
+                        if (raw == null) return
+                        try {
+                            saveCheckpoint(
+                                store as Parameters<typeof saveCheckpoint>[0],
+                                raw
+                            )
+                        } catch (e) {
+                            setError(
+                                e instanceof Error ? e.message : String(e)
+                            )
+                        }
+                    }}
+                >
+                    Save current state as checkpoint…
+                </button>
+                {error && (
+                    <p style={{color: "#b00020", marginTop: "0.5rem"}}>
+                        {error}
+                    </p>
+                )}
+            </div>
         </>
     )
 }
 
+function selectStateCounts(s: RootState): {
+    elections: number
+    ballotStyles: number
+    castVotes: number
+} {
+    return {
+        elections: Object.values(s.elections).filter(Boolean).length,
+        ballotStyles: Object.values(s.ballotStyles).filter(Boolean).length,
+        castVotes: Object.values(s.castVotes).reduce(
+            (n, list) => n + (list?.length ?? 0),
+            0
+        ),
+    }
+}
+
+/**
+ * `/wb/snapshot/:id` — detail page for a bundled snapshot or a named
+ * checkpoint. The `:id` segment is a tagged id (`bundled:<name>` or
+ * `checkpoint:<name>`) URL-encoded by the rail.
+ *
+ * Renders: type badge, lineage, summary counts, `Load` action, and a
+ * collapsed copy-as-bundled JSON block. The bundled export form
+ * always has `parentId` stripped so the user can paste it directly
+ * under `src/fixtures/snapshots/` without editing.
+ */
 export function SnapshotDetailPage(): JSX.Element {
-    const {id} = useParams()
+    const {id: rawId} = useParams()
+    const id = rawId != null ? decodeURIComponent(rawId) : ""
+    const store = useStore()
+    const navigate = useNavigate()
+    // Subscribe to checkpoint mutations so a Save-then-navigate flow
+    // (or a Load that returns here) sees fresh data.
+    useCheckpointList()
+    const kind: "bundled" | "checkpoint" | "unknown" = id.startsWith("bundled:")
+        ? "bundled"
+        : id.startsWith("checkpoint:")
+        ? "checkpoint"
+        : "unknown"
+    const name = id.slice(id.indexOf(":") + 1)
+    const snapshot = useMemo<PersistedSnapshot | null>(() => {
+        if (kind === "bundled") return BUNDLED_SNAPSHOTS[name] ?? null
+        if (kind === "checkpoint") return readCheckpointSnapshot(name)
+        return null
+    // `BUNDLED_SNAPSHOTS` is frozen at build time; the checkpoint
+    // read is keyed on `name` which is what we want to invalidate on.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [kind, name])
+    const meta = useMemo<CheckpointMeta | undefined>(
+        () =>
+            kind === "checkpoint"
+                ? listCheckpoints().find((c) => c.name === name)
+                : undefined,
+        [kind, name]
+    )
+    if (kind === "unknown" || !snapshot) {
+        return (
+            <>
+                <h1>Snapshot not found</h1>
+                <p>
+                    <code>{id || "(missing id)"}</code>
+                </p>
+                <p style={{color: "#666"}}>
+                    The bundled JSON or checkpoint may have been removed.
+                </p>
+            </>
+        )
+    }
+    const stateCounts = selectStateCounts(snapshot.state)
+    const voterCount = snapshot.workbench?.voters.length ?? 0
+    const bundledExport = useMemo(() => {
+        // Strip `parentId` for the copy-as-bundled form: a bundled
+        // root snapshot has no parent by definition.
+        const {parentId: _drop, ...rest} = snapshot
+        return JSON.stringify(rest, null, 2)
+    }, [snapshot])
     return (
         <>
-            <h1>Snapshot</h1>
-            <p>
-                <code>{id}</code>
-            </p>
+            <h1>
+                {kind === "bundled" ? "▣" : "◇"} {name}
+            </h1>
             <p style={{color: "#666"}}>
-                Placeholder. Bundled / checkpoint detail (Load button,
-                copy-as-bundled JSON) lands in task 6.
+                <code>{id}</code> &middot;{" "}
+                {kind === "bundled" ? "Bundled snapshot" : "Checkpoint"}
             </p>
+            <dl style={dlStyle}>
+                <DlRow label="Forked from">
+                    <code>
+                        {snapshot.parentId ?? "(root — no parent)"}
+                    </code>
+                </DlRow>
+                {meta && (
+                    <DlRow label="Saved at">
+                        <code>{meta.savedAt}</code>
+                    </DlRow>
+                )}
+                <DlRow label="Voters">{voterCount}</DlRow>
+                <DlRow label="Elections">{stateCounts.elections}</DlRow>
+                <DlRow label="Ballot styles">
+                    {stateCounts.ballotStyles}
+                </DlRow>
+                <DlRow label="Cast votes">{stateCounts.castVotes}</DlRow>
+            </dl>
+            <div style={{marginTop: "1.5rem"}}>
+                <button
+                    type="button"
+                    style={primaryButtonStyle}
+                    onClick={() => {
+                        const typedStore = store as Parameters<
+                            typeof saveCheckpoint
+                        >[0]
+                        if (kind === "checkpoint") {
+                            loadCheckpoint(typedStore, name)
+                        } else {
+                            hydrateFromSnapshot(
+                                typedStore,
+                                snapshot,
+                                bundledId(name)
+                            )
+                        }
+                        // Land on the working-copy overview so the
+                        // operator can see what they just loaded.
+                        navigate("/wb")
+                    }}
+                >
+                    Load
+                </button>
+            </div>
+            <details style={{marginTop: "1.5rem"}}>
+                <summary style={{cursor: "pointer", color: "#444"}}>
+                    Bundled JSON (copy-paste under{" "}
+                    <code>src/fixtures/snapshots/</code> to ship)
+                </summary>
+                <CopyJsonBlock json={bundledExport} />
+            </details>
+        </>
+    )
+}
+
+function CopyJsonBlock({json}: {json: string}): JSX.Element {
+    const [copied, setCopied] = useState(false)
+    return (
+        <>
+            <div style={{margin: "0.5rem 0"}}>
+                <button
+                    type="button"
+                    style={secondaryButtonStyle}
+                    onClick={() => {
+                        void navigator.clipboard.writeText(json).then(() => {
+                            setCopied(true)
+                            window.setTimeout(
+                                () => setCopied(false),
+                                1500
+                            )
+                        })
+                    }}
+                >
+                    {copied ? "Copied." : "Copy JSON"}
+                </button>
+            </div>
+            <pre
+                style={{
+                    background: "#f4f4f4",
+                    padding: "0.75rem",
+                    borderRadius: 4,
+                    fontSize: "0.75rem",
+                    maxHeight: "24rem",
+                    overflow: "auto",
+                }}
+            >
+                <code>{json}</code>
+            </pre>
         </>
     )
 }
@@ -650,6 +886,52 @@ function SubHeading({children}: {children: React.ReactNode}): JSX.Element {
 
 function Empty({children}: {children: React.ReactNode}): JSX.Element {
     return <div style={{color: "#999", fontStyle: "italic"}}>{children}</div>
+}
+
+// --- Detail-page presentational helpers -----------------------------------
+
+const dlStyle: React.CSSProperties = {
+    margin: "1rem 0",
+    display: "grid",
+    gridTemplateColumns: "max-content 1fr",
+    gap: "0.4rem 1.5rem",
+    alignItems: "baseline",
+    fontSize: "0.9rem",
+}
+
+function DlRow({
+    label,
+    children,
+}: {
+    label: string
+    children: React.ReactNode
+}): JSX.Element {
+    return (
+        <>
+            <dt style={{color: "#666"}}>{label}</dt>
+            <dd style={{margin: 0}}>{children}</dd>
+        </>
+    )
+}
+
+const primaryButtonStyle: React.CSSProperties = {
+    padding: "0.5rem 1rem",
+    background: "#1976d2",
+    color: "white",
+    border: 0,
+    borderRadius: 4,
+    fontSize: "0.9rem",
+    cursor: "pointer",
+}
+
+const secondaryButtonStyle: React.CSSProperties = {
+    padding: "0.3rem 0.8rem",
+    background: "#fff",
+    color: "#222",
+    border: "1px solid #bbb",
+    borderRadius: 4,
+    fontSize: "0.85rem",
+    cursor: "pointer",
 }
 
 /** A non-clickable structural label used for tree nodes that have no
