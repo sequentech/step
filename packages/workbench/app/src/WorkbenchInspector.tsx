@@ -40,7 +40,7 @@
 import type {RootState} from "voting-portal/src/store/store"
 import {NavLink, Outlet, useNavigate, useParams} from "react-router-dom"
 import {useSelector, useStore} from "react-redux"
-import {useMemo, useState, useSyncExternalStore} from "react"
+import {useMemo, useState, useSyncExternalStore, useEffect} from "react"
 import {subscribeWorkbench, useWorkbench} from "./workbenchStore"
 import {
     bundledId,
@@ -56,6 +56,7 @@ import {
     type PersistedSnapshot,
 } from "./persistence"
 import {BUNDLED_SNAPSHOTS} from "./fixtures/bundledSnapshots"
+import {runElectionTally, type ContestTallyOutcome} from "./electionTally"
 // ---------------------------------------------------------------------------
 // Layout
 // ---------------------------------------------------------------------------
@@ -915,20 +916,246 @@ function SecretKeyRow({
     )
 }
 
+/**
+ * `/wb/contest/:id` — detail page for one contest.
+ *
+ * Surfaces:
+ *  - which ballot style + election the contest lives on (NavLinks),
+ *  - the contest's voting metadata (voting_type, min/max votes,
+ *    winning_candidates_num),
+ *  - its candidates,
+ *  - and the live per-contest tally aggregated from the workbench
+ *    bridge: every cast vote whose `repairedCastVotes[id]` has a
+ *    decoded BigUint for this contest is fed to `runElectionTally`
+ *    against a synthetic single-contest ballot style. The result is
+ *    rendered as the parsed `ContestResult` JSON, which is what the
+ *    velvet-wasm tally emits.
+ *
+ * A contest can in principle appear on multiple ballot styles. The
+ * workbench dedupes them in the rail and we pick the first match
+ * here too — for the workbench dataset that's fine, and the page
+ * shows which ballot style was picked so the operator can see.
+ */
 export function ContestDetailPage(): JSX.Element {
     const {id} = useParams()
+    const contestId = id ?? ""
+    const found = useSelector((s: RootState) => {
+        for (const bs of Object.values(s.ballotStyles)) {
+            if (!bs) continue
+            const c = bs.ballot_eml.contests.find((c) => c.id === contestId)
+            if (c) return {contest: c, ballotStyle: bs}
+        }
+        return null
+    })
+    const election = useSelector((s: RootState) =>
+        found ? s.elections[found.ballotStyle.election_id] : undefined
+    )
+    const castVotes = useSelector((s: RootState) =>
+        found ? s.castVotes[found.ballotStyle.election_id] ?? [] : []
+    )
+    const repaired = useWorkbench((w) => w.repairedCastVotes)
+    // Decoded BigUint per cast vote for this contest, in cast order.
+    // Cast votes whose bridge entry hasn't filled `decodedBigInts`
+    // yet (e.g. the decrypt observer hasn't run) are simply absent —
+    // `runElectionTally` skips them.
+    const decodedRows = useMemo(() => {
+        const rows: Array<{
+            castVoteId: string
+            decoded: string | undefined
+        }> = []
+        for (const cv of castVotes) {
+            const entry = repaired[cv.id]
+            rows.push({
+                castVoteId: cv.id,
+                decoded: entry?.decodedBigInts?.[contestId],
+            })
+        }
+        return rows
+    }, [castVotes, repaired, contestId])
+    const [outcome, setOutcome] = useState<ContestTallyOutcome | null>(null)
+    const [tallyError, setTallyError] = useState<string | null>(null)
+    useEffect(() => {
+        if (!found) {
+            setOutcome(null)
+            return
+        }
+        let cancelled = false
+        const decodedByCastVote = decodedRows.map((r) =>
+            r.decoded ? {[contestId]: r.decoded} : {}
+        )
+        // Run tally against a synthetic single-contest ballot style
+        // so the outcome list has exactly one entry to read.
+        runElectionTally(
+            {ballot_eml: {contests: [found.contest]}},
+            decodedByCastVote
+        )
+            .then((outcomes) => {
+                if (cancelled) return
+                setOutcome(outcomes[0] ?? null)
+                setTallyError(null)
+            })
+            .catch((e) => {
+                if (cancelled) return
+                setTallyError(e instanceof Error ? e.message : String(e))
+                setOutcome(null)
+            })
+        return () => {
+            cancelled = true
+        }
+    }, [found, decodedRows, contestId])
+    if (!found) {
+        return (
+            <>
+                <h1>Contest not found</h1>
+                <p>
+                    <code>{contestId || "(missing id)"}</code>
+                </p>
+            </>
+        )
+    }
+    const {contest, ballotStyle} = found
+    const contestName = contest.name ?? "(unnamed contest)"
     return (
         <>
-            <h1>Contest</h1>
-            <p>
-                <code>{id}</code>
-            </p>
+            <h1>{contestName}</h1>
             <p style={{color: "#666"}}>
-                Placeholder. Candidate list and per-contest tally land in
-                task 8.
+                <code>{contestId}</code> &middot; Contest
             </p>
+            <dl style={dlStyle}>
+                <DlRow label="Election">
+                    {election?.name ? `${election.name} — ` : ""}
+                    <code>{ballotStyle.election_id}</code>
+                </DlRow>
+                <DlRow label="Ballot style">
+                    <NavLink
+                        to={`/wb/ballot-style/${ballotStyle.id}`}
+                        style={inlineLinkStyle}
+                    >
+                        <code>{ballotStyle.id}</code>
+                    </NavLink>
+                </DlRow>
+                <DlRow label="Voting type">
+                    {contest.voting_type ?? "(unspecified)"}
+                </DlRow>
+                <DlRow label="Min / max votes">
+                    {contest.min_votes} / {contest.max_votes}
+                </DlRow>
+                <DlRow label="Winners">
+                    {contest.winning_candidates_num}
+                </DlRow>
+                <DlRow label="Encrypted">
+                    {contest.is_encrypted ? "yes" : "no"}
+                </DlRow>
+            </dl>
+            <h2 style={h2Style}>Candidates</h2>
+            {contest.candidates.length === 0 ? (
+                <Empty>(none)</Empty>
+            ) : (
+                <ul style={{paddingLeft: "1.25rem"}}>
+                    {contest.candidates.map((cand) => (
+                        <li key={cand.id} style={{margin: "0.25rem 0"}}>
+                            {cand.name ?? "(unnamed)"}{" "}
+                            <span style={{color: "#888"}}>
+                                <code>{cand.id}</code>
+                            </span>
+                        </li>
+                    ))}
+                </ul>
+            )}
+            <h2 style={h2Style}>Tally</h2>
+            <ContestTallyView
+                outcome={outcome}
+                error={tallyError}
+                decodedRows={decodedRows}
+            />
         </>
     )
+}
+
+function ContestTallyView({
+    outcome,
+    error,
+    decodedRows,
+}: {
+    outcome: ContestTallyOutcome | null
+    error: string | null
+    decodedRows: Array<{castVoteId: string; decoded: string | undefined}>
+}): JSX.Element {
+    const decodedCount = decodedRows.filter((r) => !!r.decoded).length
+    return (
+        <>
+            <p style={{margin: "0.3rem 0", color: "#444"}}>
+                {decodedCount} of {decodedRows.length} cast vote
+                {decodedRows.length === 1 ? "" : "s"} decoded for this
+                contest.
+            </p>
+            {error ? (
+                <p style={{color: "#b00020"}}>
+                    Tally failed: <code>{error}</code>
+                </p>
+            ) : outcome == null ? (
+                <Empty>(running…)</Empty>
+            ) : outcome.status === "no-data" ? (
+                <Empty>
+                    No decoded ballots yet. Cast votes from the booth
+                    appear here once the bridge has decrypted them.
+                </Empty>
+            ) : outcome.status === "error" ? (
+                <p style={{color: "#b00020"}}>
+                    Tally failed: <code>{outcome.errorMessage}</code>
+                </p>
+            ) : (
+                <pre style={tallyResultStyle}>
+                    <code>{JSON.stringify(outcome.result, null, 2)}</code>
+                </pre>
+            )}
+            <details style={{marginTop: "1rem"}}>
+                <summary style={{cursor: "pointer", color: "#444"}}>
+                    Decoded BigUints per cast vote
+                </summary>
+                {decodedRows.length === 0 ? (
+                    <Empty>(none)</Empty>
+                ) : (
+                    <ul style={{paddingLeft: "1.25rem"}}>
+                        {decodedRows.map((r) => (
+                            <li
+                                key={r.castVoteId}
+                                style={{
+                                    margin: "0.25rem 0",
+                                    fontFamily: "monospace",
+                                    fontSize: "0.8rem",
+                                }}
+                            >
+                                <span style={{color: "#888"}}>
+                                    {r.castVoteId}
+                                </span>
+                                {" → "}
+                                {r.decoded ? (
+                                    <span style={{wordBreak: "break-all"}}>
+                                        {r.decoded}
+                                    </span>
+                                ) : (
+                                    <em style={{color: "#b58900"}}>
+                                        (not yet decoded)
+                                    </em>
+                                )}
+                            </li>
+                        ))}
+                    </ul>
+                )}
+            </details>
+        </>
+    )
+}
+
+const tallyResultStyle: React.CSSProperties = {
+    padding: "0.6rem 0.8rem",
+    background: "#f4f4f4",
+    border: "1px solid #ddd",
+    borderRadius: 3,
+    fontSize: "0.8rem",
+    overflowX: "auto",
+    maxWidth: "44rem",
 }
 
 export function VoterDetailPage(): JSX.Element {
