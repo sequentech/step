@@ -56,16 +56,18 @@ export interface WorkbenchExtraState {
      *  `sessionStorage["ballotData"]`, opaque to the workbench because
      *  we lack the decryption keys). */
     repairedCastVotes: Record<string, RepairedCastVote>
-    /** Workbench-owned ElGamal keypair, generated once on first boot
-     *  and persisted alongside the rest of the workbench state. The
-     *  `pkB64` half is seeded into the booth fixture as the ballot
-     *  style's `public_key` so the portal's encrypt path uses our key;
-     *  the `skB64` half lets us decrypt the resulting `castVote.content`
-     *  to recover the plaintext BigUint — closing the encrypt → decrypt
-     *  → decode → tally loop end-to-end in the browser. Production has
-     *  no analogue: real election keys are threshold-shared between
-     *  trustees and never live as a single secret anywhere. */
-    keypair: WorkbenchKeypair | null
+    /** Workbench-owned ElGamal keypairs, keyed by ballot-style id. A
+     *  ballot style's `public_key` (in Redux) is paired with the matching
+     *  secret key held here, so the encrypt path uses our pk and the
+     *  decrypt bridge can recover plaintexts under the same scope. The
+     *  key is per-ballot-style because that is the field name production
+     *  uses for the encryption key; multiple ballot styles in one scenario
+     *  can each carry their own pair. Bundled snapshots ship both halves;
+     *  the loader rejects snapshots whose ballot styles lack a matching
+     *  entry here. Production has no analogue: real election keys are
+     *  threshold-shared between trustees and never live as a single
+     *  secret anywhere. */
+    keypairs: Record<string, WorkbenchKeypair>
 }
 
 /** Ristretto ElGamal keypair owned by the workbench. Both halves are
@@ -105,7 +107,7 @@ const EMPTY_STATE: WorkbenchExtraState = Object.freeze({
     activeVoterId: null,
     castBy: {},
     repairedCastVotes: {},
-    keypair: null,
+    keypairs: {},
 })
 
 let state: WorkbenchExtraState = EMPTY_STATE
@@ -247,12 +249,17 @@ export function setRepairedDecodedBigInts(
     })
 }
 
-/** Install the workbench-owned keypair. First call wins; subsequent
- *  calls are no-ops so a stray re-seed cannot invalidate an already-
- *  captured cast vote (which was encrypted under the existing pk). */
-export function setKeypair(kp: WorkbenchKeypair): void {
-    if (state.keypair) return
-    setState({...state, keypair: kp})
+/** Install a keypair for a ballot style. First call per id wins;
+ *  subsequent calls are no-ops so a stray re-seed cannot invalidate an
+ *  already-captured cast vote (which was encrypted under the existing
+ *  pk for that ballot style). Operators who want a fresh keypair edit
+ *  the snapshot directly; see LIFTING.md section M. */
+export function setKeypair(ballotStyleId: string, kp: WorkbenchKeypair): void {
+    if (state.keypairs[ballotStyleId]) return
+    setState({
+        ...state,
+        keypairs: {...state.keypairs, [ballotStyleId]: kp},
+    })
 }
 
 // ---------------------------------------------------------------------------
@@ -349,19 +356,35 @@ function normalizeIncoming(incoming: WorkbenchExtraState): WorkbenchExtraState {
             }
         }
     }
-    let keypair: WorkbenchKeypair | null = null
-    if (
-        incoming.keypair &&
-        typeof incoming.keypair === "object" &&
-        typeof (incoming.keypair as WorkbenchKeypair).pkB64 === "string" &&
-        typeof (incoming.keypair as WorkbenchKeypair).skB64 === "string"
-    ) {
-        keypair = {
-            pkB64: (incoming.keypair as WorkbenchKeypair).pkB64,
-            skB64: (incoming.keypair as WorkbenchKeypair).skB64,
+    const keypairs: Record<string, WorkbenchKeypair> = {}
+    const incomingKeypairs = (
+        incoming as WorkbenchExtraState & {keypairs?: unknown}
+    ).keypairs
+    if (incomingKeypairs && typeof incomingKeypairs === "object") {
+        for (const [bsId, kp] of Object.entries(
+            incomingKeypairs as Record<string, unknown>
+        )) {
+            if (
+                typeof bsId === "string" &&
+                kp &&
+                typeof kp === "object" &&
+                typeof (kp as WorkbenchKeypair).pkB64 === "string" &&
+                typeof (kp as WorkbenchKeypair).skB64 === "string"
+            ) {
+                keypairs[bsId] = {
+                    pkB64: (kp as WorkbenchKeypair).pkB64,
+                    skB64: (kp as WorkbenchKeypair).skB64,
+                }
+            }
         }
     }
-    return {voters: sortVoters(voters), activeVoterId, castBy, repairedCastVotes, keypair}
+    return {
+        voters: sortVoters(voters),
+        activeVoterId,
+        castBy,
+        repairedCastVotes,
+        keypairs,
+    }
 }
 
 function sortVoters(vs: Voter[]): Voter[] {

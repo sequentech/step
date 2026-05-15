@@ -138,7 +138,7 @@ export function hydrateFromSnapshot(
                 activeVoterId: null,
                 castBy: {},
                 repairedCastVotes: {},
-                keypair: null,
+                keypairs: {},
             }
         )
         for (const election of Object.values(state.elections)) {
@@ -254,12 +254,13 @@ function tryCaptureRepairedCastVote(
     captureRepairedCastVote(castVote.id, repaired)
 
     // Async-decrypt every contest on this ballot style using the
-    // workbench-owned secret key. Fire-and-forget: failure to decrypt
-    // a contest leaves its entry out of `decodedBigInts`, and the
-    // tally surfaces that as `no-data`. We deliberately do not await
-    // here — the store subscriber is sync, and the cast-vote row is
-    // already useful with the plaintext selection alone.
-    const keypair = getWorkbenchState().keypair
+    // workbench-owned secret key for THIS ballot style. Fire-and-
+    // forget: failure to decrypt a contest leaves its entry out of
+    // `decodedBigInts`, and the tally surfaces that as `no-data`. We
+    // deliberately do not await here — the store subscriber is sync,
+    // and the cast-vote row is already useful with the plaintext
+    // selection alone.
+    const keypair = getWorkbenchState().keypairs[ballotStyle.id]
     if (!keypair || !castVote.content) return
     const content = castVote.content
     const contestIds = ballotStyle.ballot_eml.contests.map((c) => c.id)
@@ -275,8 +276,9 @@ function tryCaptureRepairedCastVote(
             } catch (e) {
                 // Best-effort: log once and continue. A failed
                 // decrypt typically means the cast vote was encrypted
-                // under a different keypair (e.g. pre-step-6 snapshot
-                // with the in-tree default pk).
+                // under a different keypair (e.g. snapshot whose
+                // ballot style was re-keyed without re-encrypting
+                // prior votes).
                 console.warn(
                     `[workbench/persistence] decrypt failed for cv=${castVote.id} contest=${contestId}:`,
                     e

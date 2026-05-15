@@ -36,6 +36,7 @@ import {
 } from "voting-portal/src/store/ballotStyles/ballotStylesSlice"
 import {resetBallotSelection} from "voting-portal/src/store/ballotSelections/ballotSelectionsSlice"
 import {store} from "voting-portal/src/store/store"
+import {setKeypair, type WorkbenchKeypair} from "../workbenchStore"
 
 export const TENANT_ID = "00000000-0000-0000-0000-000000000001"
 export const EVENT_ID = "00000000-0000-0000-0000-000000000002"
@@ -197,10 +198,14 @@ let seeded = false
  * Seed voting-portal's production Redux store with the booth fixture.
  * Idempotent: safe to call from a React effect that may re-fire.
  *
- * `publicKeyB64` is the public half of the workbench keypair (see
- * `ensureWorkbenchKeypair`). It becomes the ballot style's
- * `public_key`, so the portal's encrypt path encrypts cast ballots
- * under a key we own and can later decrypt.
+ * `keypair` is the workbench-owned ElGamal keypair for the seeded
+ * ballot style. The public half becomes `ballot_eml.public_key` so
+ * the portal's encrypt path encrypts cast ballots under a key we
+ * own; the secret half is registered in the workbench overlay
+ * (`workbenchStore.keypairs[ballotStyleId]`) so the decrypt bridge
+ * can later recover plaintexts under the same scope. Keypair lives
+ * per-ballot-style because that is the field name production uses
+ * for the encryption key.
  *
  * Why we also dispatch `resetBallotSelection` here: in production the
  * portal initializes the per-election `ballotSelections[electionId]`
@@ -210,12 +215,13 @@ let seeded = false
  * URL to be a valid entry point (hot reload on `/vote`, deep links),
  * so we seed the empty-selection structure here too.
  */
-export function seedBoothFixtures(publicKeyB64: string): void {
+export function seedBoothFixtures(keypair: WorkbenchKeypair): void {
     if (seeded) return
     seeded = true
-    const ballotStyle = buildBallotStyle(publicKeyB64)
+    const ballotStyle = buildBallotStyle(keypair.pkB64)
     store.dispatch(setElection(election))
     store.dispatch(setElectionEvent(electionEvent))
     store.dispatch(setBallotStyle(ballotStyle))
     store.dispatch(resetBallotSelection({ballotStyle, force: true}))
+    setKeypair(ballotStyle.id, keypair)
 }

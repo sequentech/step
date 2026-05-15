@@ -30,69 +30,48 @@ import ReviewScreen, {
     action as castBallotAction,
 } from "voting-portal/src/routes/ReviewScreen"
 import ConfirmationScreen from "voting-portal/src/routes/ConfirmationScreen"
-import {seedBoothFixtures} from "./fixtures/boothFixtures"
+import {loadBundledSnapshot} from "./fixtures/bundledSnapshots"
 import {
     clearPersistedSnapshot,
     hydrateFromSnapshot,
     installPersistence,
     loadPersistedSnapshot,
 } from "./persistence"
-import {generateKeypair} from "./tally"
-import {
-    getWorkbenchState,
-    seedDemoVoters,
-    setKeypair,
-    type WorkbenchKeypair,
-} from "./workbenchStore"
 
-// Workbench-owned ElGamal keypair, lazily generated on first boot and
-// persisted in the snapshot. The public half feeds the seeded ballot
-// style; the private half lives in the workbench store and is later
-// used to decrypt `castVote.content` ciphertexts (closing the
-// encrypt -> decrypt -> tally loop end-to-end in the browser).
+// On boot, the workbench's state ALWAYS comes from a snapshot. The
+// auto-resume slot (`workbench:state:v1`) wins if present \u2014 that is
+// what gives us "close the tab, reopen, ballot is still cast". On a
+// fresh checkout we fall back to the bundled `default` snapshot, which
+// was captured from a previous run of the in-code fixture and now
+// ships as JSON alongside the source. There is no longer a live
+// "seed" code path: the snapshot is the unit of state, and a fresh
+// boot is hydration-from-bundled, not regeneration.
 //
-// Why this runs *between* hydration and `seedBoothFixtures`:
-//   - If we hydrated, the snapshot already contains a keypair; we just
-//     read it (no wasm work).
-//   - If we did not, we generate one *before* seeding the fixture so
-//     the fixture's `public_key` matches a key we actually own.
-async function ensureWorkbenchKeypair(): Promise<WorkbenchKeypair> {
-    const existing = getWorkbenchState().keypair
-    if (existing) return existing
-    const fresh = await generateKeypair()
-    setKeypair(fresh)
-    return fresh
-}
-
-// On boot, prefer the persisted snapshot over the bundled fixture: that
-// is what gives us "close the tab, reopen, ballot is still cast".
-// Falling back to `seedBoothFixtures()` only on first run (or after a
-// `clearPersistedSnapshot()`) keeps a fresh checkout immediately
-// usable without any setup.
+// Bundled snapshots already carry every ballot style's keypair in
+// `workbench.keypairs`, so warm and cold boots both do zero wasm
+// work on the boot path. Keypair generation now happens only when
+// an operator explicitly creates a new scenario (out of scope for
+// this boot).
 //
-// Boot is now async because the keypair-generation path goes through
-// velvet-wasm. Top-level await is enabled by the Vite top-level-await
-// plugin (see vite.config.ts). The latency is one wasm init + one
-// scalar/element mul on first boot only; warm boots read the keypair
-// out of the persisted snapshot with no wasm involvement.
+// Boot remains async because hydrate-time decrypts of any persisted
+// cast votes go through velvet-wasm. Top-level await is enabled by
+// the Vite top-level-await plugin (see vite.config.ts).
 const persisted = loadPersistedSnapshot()
-if (persisted) {
-    hydrateFromSnapshot(store, persisted)
-}
-const keypair = await ensureWorkbenchKeypair()
-if (!persisted) {
-    seedBoothFixtures(keypair.pkB64)
+const snapshot = persisted ?? loadBundledSnapshot("default")
+if (snapshot) {
+    hydrateFromSnapshot(store, snapshot)
+} else {
+    // Should not happen: the build pipeline guarantees a default
+    // snapshot is bundled. Surface loudly rather than silently
+    // booting into an empty store.
+    console.error(
+        "[workbench/boot] no persisted snapshot and no bundled default; " +
+            "the workbench will boot into an empty store"
+    )
 }
 // Subscribe AFTER any boot dispatches so we never persist a partial
 // in-progress hydration.
 installPersistence(store)
-// Seed two demo voters on first boot so the voter directory is not
-// empty. Runs AFTER `installPersistence` so the resulting workbench-
-// store mutation goes through the subscribeWorkbench listener and is
-// captured in the auto-resume slot immediately. Idempotent: no-op if
-// the directory already has voters (hydrated snapshot, or a checkpoint
-// that already contained voters).
-seedDemoVoters()
 
 // Workbench-only debug: expose the production store on `window.__store`
 // so we can inspect Redux state from the browser console / Playwright
