@@ -63,9 +63,16 @@ Each adaptation has:
 ### B. Workspace dependency graph (`app/package.json`)
 
 The workbench app needs `voting-portal` as a workspace dep (`"*"`), plus
-every npm dep the lifted portal source files transitively `import`. Adding
-these as direct deps of the workbench is the price of doing a source lift:
-they have to be on the workbench's `node_modules` resolution path.
+any npm dep that the lifted portal source files `import` **and that Vite
+fails to resolve** under the workbench's `node_modules` layout. Most
+transitive deps of voting-portal resolve via yarn workspace hoisting
+through the `voting-portal` package itself — e.g. `@mui/icons-material`,
+`@mui/system`, `lodash`, `keycloak-js`, `web-vitals`,
+`@fortawesome/free-solid-svg-icons`, `@graphql-typed-document-node/core`
+all appear in portal `import` lines and yet are absent from
+`app/package.json` because the workbench never has to resolve them
+directly. The practical rule is the canary clause below: add a dep only
+when the dev server reports `Failed to resolve import "X"`.
 
 Current direct deps required *because* of the lift (in addition to what the
 workbench itself needs):
@@ -86,12 +93,14 @@ is to add `X` to `app/package.json` deps.
 **Tip when refreshing:** rather than wait for runtime errors, run
 
 ```
-grep -rh "^import .* from " ../../../voting-portal/src/ | \
-  awk -F'"' '{print $2}' | sort -u
+grep -rhE "^import .* from ['\"]" ../../voting-portal/src/ | \
+  sed -E 's/.*from ['\''\"]([^'\''\"]+)['\''\"].*/\1/' | \
+  grep -v '^[./]' | sort -u
 ```
 
 from `packages/workbench/app/` and diff the result against the dep list.
-Anything new is a candidate addition.
+Anything new is a candidate addition — but only matters if Vite can't
+resolve it through the workspace already (see paragraph above).
 
 ### C. Runtime configuration files
 
@@ -111,8 +120,9 @@ startup. We ship a static one with:
 
 **Canary if portal changes:** new required keys in `SettingsContext` will
 either crash at read time (`undefined.foo`) or behave in an unexpected
-default. Inspect `voting-portal/src/contexts/SettingsContext` and add the
-new keys.
+default. Inspect `voting-portal/src/providers/SettingsContextProvider.tsx`
+(specifically the `GlobalSettings` interface and the `defaultSettingsValues`
+constant) and add the new keys.
 
 #### `app/public/locales/*` — optional translation files
 
@@ -122,8 +132,18 @@ mocked; add files here only if a screen's UI becomes unreadable.
 ### D. Provider stack (`app/src/BoothSpike.tsx`)
 
 Every voting-portal screen relies on a chain of React Context providers.
-Production wires them in `voting-portal/src/index.tsx`. The workbench wires
-the *minimum* subset needed for the screen under test, in the same order.
+Production wires most of them in `voting-portal/src/index.tsx`, plus
+`<ApolloWrapper>` one layer deeper in `voting-portal/src/App.tsx`. The
+production order, outermost first, is:
+`WasmWrapper → SettingsWrapper → KeycloakProviderContainer → Redux Provider → ThemeProvider → RouterProvider`,
+then inside the router `App` mounts `ApolloWrapper` around its `<Outlet />`.
+
+The workbench wires the *minimum* subset needed for the screen under test.
+The order in `BoothLayout` (`Theme → Settings → Apollo → Wasm`) is
+different from production order — none of these providers consume each
+other's context during render, so the order is functionally interchangeable.
+If you ever lift a new provider whose render *does* depend on another's
+context (rare), match production's nesting at that point.
 
 Currently mounted:
 
@@ -143,21 +163,25 @@ outermost first:
 1. `<ThemeProvider>` from `@mui/material`, with `theme` from
    `@sequentech/ui-essentials`. **Required** — MUI components throw without it.
 2. `<SettingsWrapper>` from `voting-portal/src/providers/SettingsContextProvider`.
-   Lifted as-is. It fetches `/global-settings.json` (served from
-   `app/public/`) and gates children behind a `<Loader />` until the
-   fetch resolves. **Required** because the SettingsContext **default**
+   This is the production wrapper (`SettingsContextProvider` + a
+   `SettingsGate` that gates children behind a `<Loader />` until the
+   fetch resolves), lifted as-is. It fetches `/global-settings.json`
+   (served from `app/public/`). **Required** because the SettingsContext **default**
    ships with `DISABLE_AUTH: false` and `HASURA_URL: "http://localhost:8080/v1/graphql"`,
    so any screen that reads `globalSettings` before settings load would
    see production-pointing defaults and (for ReviewScreen) fire the
    `GET_ELECTIONS` query against a real Hasura URL.
 3. `<ApolloProvider client={apolloClient}>` from `@apollo/client/react`,
    with a workbench-local `ApolloClient` whose link is `ApolloLink.empty()`
-   (the observable completes with no data). **Required** by ReviewScreen
+   (the observable completes with no data). In production this is mounted
+   one layer deeper than the rest, inside `voting-portal/src/App.tsx`
+   (via the local `ApolloWrapper`); the workbench mounts it directly in
+   `BoothLayout` instead. **Required** by ReviewScreen
    (it calls `useMutation(INSERT_CAST_VOTE)` and `useQuery(GET_ELECTIONS)`)
    even though under `DISABLE_AUTH: true` neither operation actually
    executes against a server: the `useQuery` is skipped, and ReviewScreen
-   takes the `useAddFakeCastVote` branch (line 510, gated on
-   `isDemo || globalSettings.DISABLE_AUTH`) which mutates Redux directly
+   takes the `useAddFakeCastVote` branch (search for `useAddFakeCastVote` —
+   gated on `isDemo || globalSettings.DISABLE_AUTH`) which mutates Redux directly
    and never calls `tryInsertCastVote`. The `ApolloProvider` is still
    mandatory because `useMutation` runs at component render time, before
    any branch can short-circuit it, and throws the famous
@@ -344,12 +368,16 @@ centralized.
 
 To debug whether a click reaches a reducer, the workbench exposes the
 production Redux store on `window.__store` and patches `store.dispatch`
-to push every action into `window.__dispatchLog`. From the browser
-console or a Playwright `page.evaluate`:
+to push every action into `window.__dispatchLog`. It also exposes
+`window.__resetWorkbench()`, a convenience that clears the persisted
+snapshot and reloads — the same effect as deleting the
+`workbench:state:v1` key in DevTools → Application → Local Storage.
+From the browser console or a Playwright `page.evaluate`:
 
 ```js
 window.__store.getState().ballotSelections
 window.__dispatchLog.map(x => x.type)
+window.__resetWorkbench()       // wipe + reload
 ```
 
 This is **workbench-only** — it lives in `BoothSpike.tsx` and does not
@@ -754,9 +782,9 @@ decrypt surface, this section can simply go away.
 
 #### M.1 The `velvet-wasm` surface (`packages/workbench/velvet-wasm/`)
 
-The workbench's local wasm package re-exports three thin
-wasm-bindgen functions on top of `sequent-core` (in-tree source) and
-`strand`:
+The workbench's local wasm package exposes wasm-bindgen functions on
+top of `sequent-core` (in-tree source) and `strand`. The four
+functions that participate in the encrypt → decrypt → tally loop are:
 
 - `generate_keypair() -> {pkB64, skB64}` — calls
   `strand::elgamal::generate_keypair::<RistrettoCtx>` and
@@ -772,6 +800,13 @@ wasm-bindgen functions on top of `sequent-core` (in-tree source) and
   by tests and by future round-trip checks: the value it produces
   must match what `decrypt_ballot_content` recovers from the same
   `Contest` + `DecodedVoteContest` pair.
+- `tally_plaintext_ballots(...)` — the lower-level tally entry
+  consumed by `electionTally.ts` once decrypted `BigUint`s have been
+  collected. See §M.4 for how the workbench feeds it.
+
+The package also re-exports a handful of `get_sample_*` JSON helpers
+used only by `/tally` (the raw-JSON sandbox) and by ad-hoc REPL
+experiments; they are workbench-internal and have no canary.
 
 The package is consumed by the workbench app via
 `"velvet-wasm": "file:../velvet-wasm/pkg"` (section B). Voting-portal
