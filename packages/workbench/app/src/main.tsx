@@ -20,6 +20,7 @@ import {
     BallotStyleDetailPage,
     ContestDetailPage,
     InspectorLayout,
+    SnapshotDetailPage,
     SnapshotOverviewPage,
     VoterDetailPage,
 } from "./WorkbenchInspector"
@@ -94,6 +95,7 @@ const router = createBrowserRouter([
                 element: <InspectorLayout />,
                 children: [
                     {index: true, element: <SnapshotOverviewPage />},
+                    {path: "snapshot/:id", element: <SnapshotDetailPage />},
                     {
                         path: "ballot-style/:id",
                         element: <BallotStyleDetailPage />,

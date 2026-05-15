@@ -16,20 +16,26 @@
 //   ┌─────────────┬──────────────────────────┐
 //   │  Tree rail  │       <Outlet />         │
 //   │             │  (snapshot / ballot      │
-//   │ Provenance  │   style / contest /      │
-//   │ + scenario  │   voter detail page)     │
+//   │ Snapshots   │   style / contest /      │
+//   │ Tenants     │   voter detail page)     │
+//   │ Voters      │                          │
 //   └─────────────┴──────────────────────────┘
 //
-// The tree rail is split in two sections:
-//   - "Current snapshot": entities in the live store the user can
-//     drill into (ballot styles → contests, voters).
-//   - "Provenance": the forest of saved snapshots (bundled JSONs
-//     under src/fixtures/snapshots/ + named checkpoints in
-//     localStorage) keyed by `parentId`. The current working copy
-//     is highlighted under whichever entry it forked from.
+// The tree rail has three top-level sections, mirroring the locked
+// design:
 //
-// Task 5 of the step-6 plan brings the layout + rail + placeholder
-// detail pages online. Tasks 6–9 flesh out each detail page.
+//   - Snapshots: a provenance forest rooted at the bundled JSONs
+//     (`src/fixtures/snapshots/*.json`). Named checkpoints from
+//     localStorage are nested under whichever bundled / checkpoint
+//     their `parentId` points at. Checkpoints whose parent no longer
+//     resolves (because the operator deleted the parent through
+//     DevTools) appear under a synthetic ⚠ Detached group.
+//   - Tenants: a tenant → event → election → {Contests, Ballot styles}
+//     drill-down derived from the Redux state.
+//   - Voters: the workbench's voter directory at the root.
+//
+// Tasks 6–9 fill in the leaf detail pages (Snapshot, Ballot style,
+// Contest, Voter).
 
 import type {RootState} from "voting-portal/src/store/store"
 import {NavLink, Outlet, useParams} from "react-router-dom"
@@ -37,6 +43,8 @@ import {useSelector} from "react-redux"
 import {useSyncExternalStore} from "react"
 import {subscribeWorkbench, useWorkbench} from "./workbenchStore"
 import {
+    bundledId,
+    checkpointId,
     getCurrentParentId,
     listCheckpoints,
     type CheckpointMeta,
@@ -93,72 +101,422 @@ export function InspectorLayout(): JSX.Element {
 function TreeRail(): JSX.Element {
     return (
         <>
-            <CurrentSnapshotSection />
-            <hr style={{margin: "1.25rem 0", border: 0, borderTop: "1px solid #ddd"}} />
-            <ProvenanceSection />
+            <SnapshotsSection />
+            <SectionDivider />
+            <TenantsSection />
+            <SectionDivider />
+            <VotersSection />
         </>
     )
 }
 
-// --- Current snapshot: ballot styles → contests, voters --------------------
+function SectionDivider(): JSX.Element {
+    return (
+        <hr
+            style={{
+                margin: "1.25rem 0",
+                border: 0,
+                borderTop: "1px solid #ddd",
+            }}
+        />
+    )
+}
 
-function CurrentSnapshotSection(): JSX.Element {
-    const ballotStyles = useSelector((s: RootState) => s.ballotStyles)
-    const elections = useSelector((s: RootState) => s.elections)
-    const voters = useWorkbench((w) => w.voters)
-    const parentId = useCurrentParentId()
+// --- Snapshots: provenance forest ------------------------------------------
+
+/**
+ * A node in the provenance forest. Each node is either a bundled
+ * snapshot (root) or a checkpoint (interior / leaf). Children are
+ * the checkpoints whose `parentId` resolves to this node.
+ */
+interface ProvenanceNode {
+    /** Tagged id (`bundled:<name>` or `checkpoint:<name>`). */
+    id: string
+    /** Human-readable label shown in the rail. */
+    label: string
+    /** Discriminator for icon / styling decisions. */
+    kind: "bundled" | "checkpoint"
+    children: ProvenanceNode[]
+}
+
+/**
+ * Build the provenance forest from the bundled registry and the
+ * checkpoint index. Bundled snapshots are always roots. Checkpoints
+ * attach to the node whose id matches their `parentId`; if no such
+ * node exists (parent missing or `parentId === undefined` from a
+ * legacy entry), the checkpoint is returned in `orphans`.
+ *
+ * Sorting: each level is alphabetised so the rail is stable across
+ * renders regardless of checkpoint save order.
+ */
+function buildProvenanceForest(
+    bundled: string[],
+    checkpoints: CheckpointMeta[]
+): {roots: ProvenanceNode[]; orphans: ProvenanceNode[]} {
+    const byId = new Map<string, ProvenanceNode>()
+    const roots: ProvenanceNode[] = []
+    for (const name of [...bundled].sort()) {
+        const node: ProvenanceNode = {
+            id: bundledId(name),
+            label: name,
+            kind: "bundled",
+            children: [],
+        }
+        byId.set(node.id, node)
+        roots.push(node)
+    }
+    // Pre-create every checkpoint node so a checkpoint can parent
+    // another checkpoint regardless of insertion order.
+    const cpNodes: {meta: CheckpointMeta; node: ProvenanceNode}[] = []
+    for (const cp of [...checkpoints].sort((a, b) =>
+        a.name.localeCompare(b.name, undefined, {sensitivity: "base"})
+    )) {
+        const node: ProvenanceNode = {
+            id: checkpointId(cp.name),
+            label: cp.name,
+            kind: "checkpoint",
+            children: [],
+        }
+        byId.set(node.id, node)
+        cpNodes.push({meta: cp, node})
+    }
+    const orphans: ProvenanceNode[] = []
+    for (const {meta, node} of cpNodes) {
+        const parent =
+            meta.parentId != null ? byId.get(meta.parentId) : undefined
+        if (parent) {
+            parent.children.push(node)
+        } else if (meta.parentId === null) {
+            // Explicit root — rare but supported (e.g. a snapshot
+            // saved before any bundled parent existed).
+            roots.push(node)
+        } else {
+            orphans.push(node)
+        }
+    }
+    return {roots, orphans}
+}
+
+function SnapshotsSection(): JSX.Element {
+    const checkpoints = useCheckpointList()
+    const currentParent = useCurrentParentId()
+    const bundled = Object.keys(BUNDLED_SNAPSHOTS)
+    const {roots, orphans} = buildProvenanceForest(bundled, checkpoints)
     return (
         <section>
-            <SectionHeading>Current snapshot</SectionHeading>
-            <div style={{fontSize: "0.75rem", color: "#666", marginBottom: "0.5rem"}}>
-                forked from <code>{parentId ?? "<root>"}</code>
-            </div>
+            <SectionHeading>Snapshots</SectionHeading>
+            {/* Working-copy entry. Always present; clicking it lands
+                on the snapshot overview page for the live state. */}
             <NavLink to="/wb" end style={navLinkStyle}>
-                Snapshot overview
+                ● Working copy
             </NavLink>
+            <div
+                style={{
+                    fontSize: "0.7rem",
+                    color: "#888",
+                    margin: "0 0 0.5rem 1rem",
+                }}
+            >
+                forked from{" "}
+                <code>{currentParent ?? "<root>"}</code>
+            </div>
+            <ul style={listStyle}>
+                {roots.map((n) => (
+                    <ProvenanceTreeNode
+                        key={n.id}
+                        node={n}
+                        currentParent={currentParent}
+                        depth={0}
+                    />
+                ))}
+            </ul>
+            {orphans.length > 0 && (
+                <>
+                    <SubHeading>⚠ Detached</SubHeading>
+                    <ul style={listStyle}>
+                        {orphans.map((n) => (
+                            <ProvenanceTreeNode
+                                key={n.id}
+                                node={n}
+                                currentParent={currentParent}
+                                depth={0}
+                            />
+                        ))}
+                    </ul>
+                </>
+            )}
+        </section>
+    )
+}
 
-            <SubHeading>Ballot styles</SubHeading>
-            {Object.values(ballotStyles).length === 0 ? (
+function ProvenanceTreeNode(props: {
+    node: ProvenanceNode
+    currentParent: string | null
+    depth: number
+}): JSX.Element {
+    const {node, currentParent, depth} = props
+    const icon = node.kind === "bundled" ? "▣" : "◇"
+    return (
+        <li style={{marginLeft: depth === 0 ? 0 : "1rem"}}>
+            <NavLink
+                to={`/wb/snapshot/${encodeURIComponent(node.id)}`}
+                style={navLinkStyle}
+                title={node.id}
+            >
+                <span style={{marginRight: "0.3rem"}}>{icon}</span>
+                <span
+                    style={{
+                        fontWeight: currentParent === node.id ? 600 : 400,
+                    }}
+                >
+                    {node.label}
+                </span>
+            </NavLink>
+            {node.children.length > 0 && (
+                <ul style={listStyle}>
+                    {node.children.map((c) => (
+                        <ProvenanceTreeNode
+                            key={c.id}
+                            node={c}
+                            currentParent={currentParent}
+                            depth={depth + 1}
+                        />
+                    ))}
+                </ul>
+            )}
+        </li>
+    )
+}
+
+// --- Tenants: tenant → event → election → {Contests, Ballot styles} -------
+
+interface TenantNode {
+    tenantId: string
+    events: EventNode[]
+}
+interface EventNode {
+    id: string
+    name: string
+    elections: ElectionNode[]
+}
+interface ElectionNode {
+    id: string
+    name: string
+    contestIds: {id: string; name: string}[]
+    ballotStyleIds: {id: string; name: string}[]
+}
+
+function selectTenantTree(state: RootState): TenantNode[] {
+    // Group events by tenant_id.
+    const byTenant = new Map<string, TenantNode>()
+    const ensure = (tid: string): TenantNode => {
+        let t = byTenant.get(tid)
+        if (!t) {
+            t = {tenantId: tid, events: []}
+            byTenant.set(tid, t)
+        }
+        return t
+    }
+    const eventNodes = new Map<string, EventNode>()
+    for (const ev of Object.values(state.electionEvent)) {
+        if (!ev) continue
+        const node: EventNode = {
+            id: ev.id,
+            name: ev.name ?? "(unnamed event)",
+            elections: [],
+        }
+        eventNodes.set(ev.id, node)
+        ensure(ev.tenant_id).events.push(node)
+    }
+    // Index ballot styles by election for cheap lookup.
+    const bsByElection = new Map<string, {id: string; name: string}[]>()
+    for (const bs of Object.values(state.ballotStyles)) {
+        if (!bs) continue
+        const list = bsByElection.get(bs.election_id) ?? []
+        list.push({
+            id: bs.id,
+            name:
+                state.elections[bs.election_id]?.name ??
+                bs.id.slice(0, 8),
+        })
+        bsByElection.set(bs.election_id, list)
+    }
+    for (const el of Object.values(state.elections)) {
+        if (!el) continue
+        const node: ElectionNode = {
+            id: el.id,
+            name: el.name ?? "(unnamed election)",
+            contestIds: [],
+            ballotStyleIds: bsByElection.get(el.id) ?? [],
+        }
+        // Contests live on the ballot styles' EML. Dedupe by id
+        // across all ballot styles of this election.
+        const seen = new Set<string>()
+        for (const bs of Object.values(state.ballotStyles)) {
+            if (!bs || bs.election_id !== el.id) continue
+            for (const c of bs.ballot_eml.contests) {
+                if (seen.has(c.id)) continue
+                seen.add(c.id)
+                node.contestIds.push({id: c.id, name: c.name})
+            }
+        }
+        // Attach to its event if known, otherwise to a synthetic
+        // "(no event)" slot under the same tenant.
+        const ev = eventNodes.get(el.election_event_id)
+        if (ev) {
+            ev.elections.push(node)
+        } else {
+            const t = ensure(el.tenant_id)
+            let stray = t.events.find((e) => e.id === "__no_event__")
+            if (!stray) {
+                stray = {
+                    id: "__no_event__",
+                    name: "(no event)",
+                    elections: [],
+                }
+                t.events.push(stray)
+            }
+            stray.elections.push(node)
+        }
+    }
+    // Alphabetise everything for a stable rail.
+    const tenants = [...byTenant.values()].sort((a, b) =>
+        a.tenantId.localeCompare(b.tenantId)
+    )
+    for (const t of tenants) {
+        t.events.sort((a, b) => a.name.localeCompare(b.name))
+        for (const e of t.events) {
+            e.elections.sort((a, b) => a.name.localeCompare(b.name))
+            for (const el of e.elections) {
+                el.contestIds.sort((a, b) =>
+                    a.name.localeCompare(b.name)
+                )
+                el.ballotStyleIds.sort((a, b) =>
+                    a.name.localeCompare(b.name)
+                )
+            }
+        }
+    }
+    return tenants
+}
+
+function TenantsSection(): JSX.Element {
+    const tenants = useSelector(selectTenantTree)
+    return (
+        <section>
+            <SectionHeading>Tenants</SectionHeading>
+            {tenants.length === 0 ? (
                 <Empty>(none)</Empty>
             ) : (
                 <ul style={listStyle}>
-                    {Object.values(ballotStyles).map((bs) => {
-                        if (!bs) return null
-                        const election = elections[bs.election_id]
-                        return (
+                    {tenants.map((t) => (
+                        <li key={t.tenantId}>
+                            <NodeLabel title={t.tenantId}>
+                                {t.tenantId.slice(0, 8)}…
+                            </NodeLabel>
+                            <ul style={listStyle}>
+                                {t.events.map((ev) => (
+                                    <li
+                                        key={ev.id}
+                                        style={{marginLeft: "1rem"}}
+                                    >
+                                        <NodeLabel title={ev.id}>
+                                            {ev.name}
+                                        </NodeLabel>
+                                        <ul style={listStyle}>
+                                            {ev.elections.map((el) => (
+                                                <li
+                                                    key={el.id}
+                                                    style={{
+                                                        marginLeft: "1rem",
+                                                    }}
+                                                >
+                                                    <NodeLabel title={el.id}>
+                                                        {el.name}
+                                                    </NodeLabel>
+                                                    <ElectionChildren
+                                                        election={el}
+                                                    />
+                                                </li>
+                                            ))}
+                                        </ul>
+                                    </li>
+                                ))}
+                            </ul>
+                        </li>
+                    ))}
+                </ul>
+            )}
+        </section>
+    )
+}
+
+function ElectionChildren({election}: {election: ElectionNode}): JSX.Element {
+    return (
+        <ul style={{...listStyle, marginLeft: "1rem"}}>
+            <li>
+                <NodeLabel>Contests</NodeLabel>
+                <ul style={{...listStyle, marginLeft: "1rem"}}>
+                    {election.contestIds.length === 0 ? (
+                        <li>
+                            <Empty>(none)</Empty>
+                        </li>
+                    ) : (
+                        election.contestIds.map((c) => (
+                            <li key={c.id}>
+                                <NavLink
+                                    to={`/wb/contest/${c.id}`}
+                                    style={navLinkStyle}
+                                >
+                                    {c.name}
+                                </NavLink>
+                            </li>
+                        ))
+                    )}
+                </ul>
+            </li>
+            <li>
+                <NodeLabel>Ballot styles</NodeLabel>
+                <ul style={{...listStyle, marginLeft: "1rem"}}>
+                    {election.ballotStyleIds.length === 0 ? (
+                        <li>
+                            <Empty>(none)</Empty>
+                        </li>
+                    ) : (
+                        election.ballotStyleIds.map((bs) => (
                             <li key={bs.id}>
                                 <NavLink
                                     to={`/wb/ballot-style/${bs.id}`}
                                     style={navLinkStyle}
                                 >
-                                    {election?.name ?? bs.id.slice(0, 8)}
+                                    {bs.name}
                                 </NavLink>
-                                <ul style={{...listStyle, marginLeft: "1rem"}}>
-                                    {bs.ballot_eml.contests.map((c) => (
-                                        <li key={c.id}>
-                                            <NavLink
-                                                to={`/wb/contest/${c.id}`}
-                                                style={navLinkStyle}
-                                            >
-                                                {c.name}
-                                            </NavLink>
-                                        </li>
-                                    ))}
-                                </ul>
                             </li>
-                        )
-                    })}
+                        ))
+                    )}
                 </ul>
-            )}
+            </li>
+        </ul>
+    )
+}
 
-            <SubHeading>Voters</SubHeading>
+// --- Voters: workbench directory at root -----------------------------------
+
+function VotersSection(): JSX.Element {
+    const voters = useWorkbench((w) => w.voters)
+    return (
+        <section>
+            <SectionHeading>Voters</SectionHeading>
             {voters.length === 0 ? (
                 <Empty>(none)</Empty>
             ) : (
                 <ul style={listStyle}>
                     {voters.map((v) => (
                         <li key={v.id}>
-                            <NavLink to={`/wb/voter/${v.id}`} style={navLinkStyle}>
+                            <NavLink
+                                to={`/wb/voter/${v.id}`}
+                                style={navLinkStyle}
+                            >
                                 {v.displayName}
                             </NavLink>
                         </li>
@@ -169,77 +527,6 @@ function CurrentSnapshotSection(): JSX.Element {
     )
 }
 
-// --- Provenance: bundled + checkpoint snapshots ----------------------------
-
-function ProvenanceSection(): JSX.Element {
-    // Checkpoints live in localStorage and may grow during the
-    // session; subscribe to a `storage`-like signal so the rail
-    // updates without needing the operator to reload. The list-then-
-    // hash trick keeps re-renders cheap.
-    const checkpoints = useCheckpointList()
-    const bundled = Object.keys(BUNDLED_SNAPSHOTS).sort()
-    const currentParent = useCurrentParentId()
-    return (
-        <section>
-            <SectionHeading>Provenance</SectionHeading>
-            <SubHeading>Bundled</SubHeading>
-            <ul style={listStyle}>
-                {bundled.map((name) => {
-                    const id = `bundled:${name}`
-                    return (
-                        <li key={id}>
-                            <ProvenanceRow id={id} current={currentParent === id}>
-                                {name}
-                            </ProvenanceRow>
-                        </li>
-                    )
-                })}
-            </ul>
-            <SubHeading>Checkpoints</SubHeading>
-            {checkpoints.length === 0 ? (
-                <Empty>(none saved)</Empty>
-            ) : (
-                <ul style={listStyle}>
-                    {checkpoints.map((cp) => {
-                        const id = `checkpoint:${cp.name}`
-                        return (
-                            <li key={id}>
-                                <ProvenanceRow
-                                    id={id}
-                                    current={currentParent === id}
-                                >
-                                    {cp.name}
-                                </ProvenanceRow>
-                            </li>
-                        )
-                    })}
-                </ul>
-            )}
-        </section>
-    )
-}
-
-function ProvenanceRow(props: {
-    id: string
-    current: boolean
-    children: React.ReactNode
-}): JSX.Element {
-    return (
-        <span
-            title={props.id}
-            style={{
-                display: "inline-block",
-                padding: "0.1rem 0.3rem",
-                borderRadius: 3,
-                background: props.current ? "#dde9ff" : "transparent",
-                fontWeight: props.current ? 600 : 400,
-            }}
-        >
-            {props.children}
-        </span>
-    )
-}
-
 // ---------------------------------------------------------------------------
 // Detail page placeholders (filled in by tasks 6–9)
 // ---------------------------------------------------------------------------
@@ -247,11 +534,27 @@ function ProvenanceRow(props: {
 export function SnapshotOverviewPage(): JSX.Element {
     return (
         <>
-            <h1>Snapshot overview</h1>
+            <h1>Working copy</h1>
             <p style={{color: "#666"}}>
                 Placeholder. The full overview (provenance lineage, voter
-                count, ballot-style list, "Save as checkpoint" button, JSON
-                export) lands in task 6.
+                count, ballot-style list, "Save as checkpoint" button)
+                lands in task 6.
+            </p>
+        </>
+    )
+}
+
+export function SnapshotDetailPage(): JSX.Element {
+    const {id} = useParams()
+    return (
+        <>
+            <h1>Snapshot</h1>
+            <p>
+                <code>{id}</code>
+            </p>
+            <p style={{color: "#666"}}>
+                Placeholder. Bundled / checkpoint detail (Load button,
+                copy-as-bundled JSON) lands in task 6.
             </p>
         </>
     )
@@ -356,6 +659,28 @@ function SubHeading({children}: {children: React.ReactNode}): JSX.Element {
 
 function Empty({children}: {children: React.ReactNode}): JSX.Element {
     return <div style={{color: "#999", fontStyle: "italic"}}>{children}</div>
+}
+
+/** A non-clickable structural label used for tree nodes that have no
+ *  detail page of their own (tenant, event, election, "Contests",
+ *  "Ballot styles"). The tooltip surfaces the underlying id for
+ *  debugging. */
+function NodeLabel(props: {
+    children: React.ReactNode
+    title?: string
+}): JSX.Element {
+    return (
+        <div
+            title={props.title}
+            style={{
+                padding: "0.15rem 0.3rem",
+                color: "#444",
+                fontWeight: 500,
+            }}
+        >
+            {props.children}
+        </div>
+    )
 }
 
 // `getCurrentParentId()` is module-level state in persistence.ts, not

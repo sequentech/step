@@ -452,6 +452,16 @@ export interface CheckpointMeta {
     name: string
     /** ISO-8601 timestamp of when this checkpoint was last saved. */
     savedAt: string
+    /** Tagged id of the snapshot this checkpoint was forked from
+     *  (`bundled:<name>` or `checkpoint:<name>`), or `null` for a
+     *  root. Persisted in the index so the inspector can render the
+     *  provenance forest without reading every blob.
+     *
+     *  Older checkpoint indices (pre-task-5) did not carry this
+     *  field; we treat the absence as "unknown parent", which the
+     *  inspector surfaces under the Detached group until the
+     *  operator re-saves. */
+    parentId?: string | null
 }
 
 /**
@@ -490,7 +500,14 @@ function readCheckpointIndex(): CheckpointMeta[] {
                 !!e &&
                 typeof (e as CheckpointMeta).name === "string" &&
                 typeof (e as CheckpointMeta).savedAt === "string"
-        )
+        ).map((e) => ({
+            // Normalise legacy entries (missing parentId) to `undefined`
+            // so callers can distinguish "unknown" (legacy) from
+            // "explicit root" (null).
+            name: e.name,
+            savedAt: e.savedAt,
+            parentId: (e as CheckpointMeta).parentId,
+        }))
     } catch {
         return []
     }
@@ -542,7 +559,11 @@ export function saveCheckpoint(
     }
     localStorage.setItem(CHECKPOINT_PREFIX + name, JSON.stringify(snapshot))
 
-    const meta: CheckpointMeta = {name, savedAt: new Date().toISOString()}
+    const meta: CheckpointMeta = {
+        name,
+        savedAt: new Date().toISOString(),
+        parentId: currentParentId,
+    }
     const next = readCheckpointIndex().filter((e) => e.name !== name)
     next.push(meta)
     writeCheckpointIndex(next)
