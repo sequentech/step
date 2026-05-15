@@ -32,6 +32,7 @@ import ReviewScreen, {
 import ConfirmationScreen from "voting-portal/src/routes/ConfirmationScreen"
 import {loadBundledSnapshot} from "./fixtures/bundledSnapshots"
 import {
+    bundledId,
     clearPersistedSnapshot,
     hydrateFromSnapshot,
     installPersistence,
@@ -57,17 +58,23 @@ import {
 // cast votes go through velvet-wasm. Top-level await is enabled by
 // the Vite top-level-await plugin (see vite.config.ts).
 const persisted = loadPersistedSnapshot()
-const snapshot = persisted ?? loadBundledSnapshot("default")
-if (snapshot) {
-    hydrateFromSnapshot(store, snapshot)
+if (persisted) {
+    // Warm boot: recover provenance from the snapshot's own parentId.
+    hydrateFromSnapshot(store, persisted)
 } else {
-    // Should not happen: the build pipeline guarantees a default
-    // snapshot is bundled. Surface loudly rather than silently
-    // booting into an empty store.
-    console.error(
-        "[workbench/boot] no persisted snapshot and no bundled default; " +
-            "the workbench will boot into an empty store"
-    )
+    const bundled = loadBundledSnapshot("default")
+    if (bundled) {
+        // First boot: the working copy is a fork of `bundled:default`.
+        hydrateFromSnapshot(store, bundled, bundledId("default"))
+    } else {
+        // Should not happen: the build pipeline guarantees a default
+        // snapshot is bundled. Surface loudly rather than silently
+        // booting into an empty store.
+        console.error(
+            "[workbench/boot] no persisted snapshot and no bundled default; " +
+                "the workbench will boot into an empty store"
+        )
+    }
 }
 // Subscribe AFTER any boot dispatches so we never persist a partial
 // in-progress hydration.

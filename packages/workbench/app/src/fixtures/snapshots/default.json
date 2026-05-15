@@ -1,5 +1,6 @@
 {
     "version": "v1",
+    "parentId": null,
     "state": {
         "elections": {
             "00000000-0000-0000-0000-000000000003": {

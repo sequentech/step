@@ -72,6 +72,34 @@ export const PERSISTENCE_KEY = "workbench:state:v1"
 // `localStorage` with intermediate partial states.
 let suspendWrites = false
 
+// Provenance: the id of the snapshot the current working copy was
+// forked off of. Set by `hydrateFromSnapshot` to the `sourceId`
+// passed in (or, on warm boot, recovered from the persisted snapshot
+// itself). Baked into every subsequent write so checkpoints and the
+// auto-resume slot remember their lineage. Tagged-id scheme:
+//
+//   bundled:<filename>     — a JSON shipped in src/fixtures/snapshots/
+//   checkpoint:<name>      — a localStorage checkpoint saved by the
+//                            operator
+//
+// `null` means the snapshot is a root (no parent) — currently only
+// the bundled `default.json` is a root.
+let currentParentId: string | null = null
+
+/** The id of the snapshot the live working copy was forked off of, or
+ *  `null` if the working copy is a root. Reads from a module-level
+ *  cache that `hydrateFromSnapshot` keeps in sync; cheap and safe to
+ *  call from React renders. */
+export function getCurrentParentId(): string | null {
+    return currentParentId
+}
+
+/** Build a tagged id for a bundled snapshot. */
+export const bundledId = (name: string): string => `bundled:${name}`
+
+/** Build a tagged id for a named checkpoint. */
+export const checkpointId = (name: string): string => `checkpoint:${name}`
+
 export interface PersistedSnapshot {
     /** Schema version baked into the JSON itself. Must match
      *  `PERSISTENCE_KEY`'s suffix or the snapshot is rejected. */
@@ -82,6 +110,12 @@ export interface PersistedSnapshot {
      *  added still load — they just rehydrate with an empty workbench
      *  state. New snapshots always include it. */
     workbench?: WorkbenchExtraState
+    /** Tagged id of the snapshot this one was forked from, or `null`
+     *  for a root. Carried on bundled JSONs, named checkpoints, and
+     *  the auto-resume slot alike. Optional so snapshots written
+     *  before provenance was added still load (they hydrate as if
+     *  `parentId === null`). See {@link currentParentId}. */
+    parentId?: string | null
 }
 
 /**
@@ -118,12 +152,22 @@ export function loadPersistedSnapshot(): PersistedSnapshot | null {
  * patching state directly. Order matters: ballotStyles must be present
  * before ballotSelections, because `setBallotSelection` reads the
  * current entry to decide whether to apply the update.
+ *
+ * `sourceId` records what the resulting working copy was forked off
+ * of. Callers should pass a tagged id (see {@link bundledId} /
+ * {@link checkpointId}). When omitted, we recover `currentParentId`
+ * from the snapshot's own `parentId` — the correct behaviour for
+ * warm boots that replay the auto-resume slot, since the auto-resume
+ * slot persists its parent-id across reloads.
  */
 export function hydrateFromSnapshot(
     store: typeof Store,
-    snapshot: PersistedSnapshot
+    snapshot: PersistedSnapshot,
+    sourceId?: string | null
 ): void {
     const {state, workbench} = snapshot
+    currentParentId =
+        sourceId !== undefined ? sourceId : snapshot.parentId ?? null
     suspendWrites = true
     try {
         // Workbench overlay state is restored FIRST so that any cast
@@ -191,6 +235,7 @@ function writeSnapshot(state: RootState): void {
         version: "v1",
         state,
         workbench: getWorkbenchState(),
+        parentId: currentParentId,
     }
     try {
         localStorage.setItem(PERSISTENCE_KEY, JSON.stringify(snapshot))
@@ -481,7 +526,17 @@ export function saveCheckpoint(
     rawName: string
 ): CheckpointMeta {
     const name = normalizeCheckpointName(rawName)
-    const snapshot: PersistedSnapshot = {version: "v1", state: store.getState()}
+    // A checkpoint inherits the working copy's current parent. After
+    // it is saved, the working copy is conceptually a fork of the
+    // new checkpoint — we reflect that by retargeting
+    // `currentParentId` and forcing a write so the auto-resume slot
+    // picks up the new lineage immediately.
+    const snapshot: PersistedSnapshot = {
+        version: "v1",
+        state: store.getState(),
+        workbench: getWorkbenchState(),
+        parentId: currentParentId,
+    }
     if (typeof localStorage === "undefined") {
         throw new Error("Cannot save checkpoint: localStorage is unavailable.")
     }
@@ -491,6 +546,9 @@ export function saveCheckpoint(
     const next = readCheckpointIndex().filter((e) => e.name !== name)
     next.push(meta)
     writeCheckpointIndex(next)
+
+    currentParentId = checkpointId(name)
+    writeSnapshot(store.getState())
     return meta
 }
 
@@ -518,7 +576,7 @@ export function loadCheckpoint(store: typeof Store, rawName: string): boolean {
         return false
     }
     if (snapshot.version !== "v1") return false
-    hydrateFromSnapshot(store, snapshot)
+    hydrateFromSnapshot(store, snapshot, checkpointId(name))
     return true
 }
 
