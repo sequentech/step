@@ -68,6 +68,30 @@ export interface WorkbenchExtraState {
      *  threshold-shared between trustees and never live as a single
      *  secret anywhere. */
     keypairs: Record<string, WorkbenchKeypair>
+    /** Workbench-only pool of *all* ballot styles available per
+     *  election, keyed by `election_id`. The portal's `ballotStyles`
+     *  slice only ever holds one ballot style per election at a time
+     *  (the one the current session is eligible for), so we keep the
+     *  full set out-of-band here. The active-voter swap (see
+     *  {@link setActiveVoter} listener in `persistence.ts`) rewrites
+     *  the slice from this pool according to {@link assignments}.
+     *
+     *  Each row is the same shape as the portal `ballotStyles` slice
+     *  row (kept as `unknown` here so this file does not import
+     *  voting-portal types). Snapshots written before this overlay
+     *  existed simply omit it; in that case the active-voter swap is
+     *  a no-op and the slice retains whatever was hydrated. */
+    ballotStylePool?: Record<string, unknown[]>
+    /** Per-voter eligibility map: which ballot styles each voter may
+     *  receive, by ballot-style id. The active-voter swap intersects
+     *  `assignments[voterId]` with the per-election entries of
+     *  {@link ballotStylePool} to pick which BS to dispatch into the
+     *  Redux slice.
+     *
+     *  Optional: snapshots without `assignments` leave the slice
+     *  untouched on voter change, matching pre-eligibility
+     *  behaviour. */
+    assignments?: Record<string, string[]>
 }
 
 /** Ristretto ElGamal keypair owned by the workbench. Both halves are
@@ -262,6 +286,32 @@ export function setKeypair(ballotStyleId: string, kp: WorkbenchKeypair): void {
     })
 }
 
+/** For the given voter and election, return the ballot-style row from
+ *  {@link WorkbenchExtraState.ballotStylePool} that the voter is
+ *  assigned to. Returns `null` when:
+ *
+ *    - the pool has no entries for that election,
+ *    - the voter has no `assignments` entry (legacy snapshot or
+ *      single-voter import where every voter sees every BS), or
+ *    - no row in the pool matches one of the voter's assigned ids.
+ *
+ *  Used by the persistence-layer subscriber that rewrites the portal
+ *  `ballotStyles` slice on every `setActiveVoter` transition. */
+export function selectBallotStyleForVoter(
+    voterId: string,
+    electionId: string
+): unknown | null {
+    const pool = state.ballotStylePool?.[electionId]
+    if (!pool || pool.length === 0) return null
+    const assigned = state.assignments?.[voterId]
+    if (!assigned || assigned.length === 0) return null
+    for (const row of pool) {
+        const id = (row as {id?: unknown}).id
+        if (typeof id === "string" && assigned.includes(id)) return row
+    }
+    return null
+}
+
 // ---------------------------------------------------------------------------
 // Persistence integration
 // ---------------------------------------------------------------------------
@@ -364,12 +414,56 @@ function normalizeIncoming(incoming: WorkbenchExtraState): WorkbenchExtraState {
             }
         }
     }
+    // Eligibility overlay: ballotStylePool and assignments are both
+    // optional. They're round-tripped opaquely (the workbench does not
+    // peer into pool rows; the persistence layer interprets them via
+    // setBallotStyle dispatches when the active voter changes). Bad
+    // input shapes are silently dropped so legacy snapshots and
+    // hand-edits don't crash hydration.
+    let ballotStylePool: Record<string, unknown[]> | undefined
+    const incomingPool = (
+        incoming as WorkbenchExtraState & {ballotStylePool?: unknown}
+    ).ballotStylePool
+    if (incomingPool && typeof incomingPool === "object") {
+        ballotStylePool = {}
+        for (const [electionId, rows] of Object.entries(
+            incomingPool as Record<string, unknown>
+        )) {
+            if (typeof electionId === "string" && Array.isArray(rows)) {
+                ballotStylePool[electionId] = rows.filter(
+                    (r) => r != null && typeof r === "object"
+                )
+            }
+        }
+    }
+    let assignments: Record<string, string[]> | undefined
+    const incomingAssignments = (
+        incoming as WorkbenchExtraState & {assignments?: unknown}
+    ).assignments
+    if (incomingAssignments && typeof incomingAssignments === "object") {
+        assignments = {}
+        for (const [voterId, bsIds] of Object.entries(
+            incomingAssignments as Record<string, unknown>
+        )) {
+            if (
+                typeof voterId === "string" &&
+                ids.has(voterId) &&
+                Array.isArray(bsIds)
+            ) {
+                assignments[voterId] = bsIds.filter(
+                    (x): x is string => typeof x === "string"
+                )
+            }
+        }
+    }
     return {
         voters: sortVoters(voters),
         activeVoterId,
         castBy,
         repairedCastVotes,
         keypairs,
+        ...(ballotStylePool ? {ballotStylePool} : {}),
+        ...(assignments ? {assignments} : {}),
     }
 }
 

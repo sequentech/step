@@ -365,6 +365,86 @@ Redux, with named mutations only:
   `ballot_eml`. `setKeypair(bsId, kp)` is **first-call-wins per id**
   so a stray re-seed cannot orphan already-captured cast votes
   encrypted under the old pk.
+- `ballotStylePool?: Record<electionId, BallotStyleRow[]>` — full
+  set of ballot styles available for each election. Optional; legacy
+  snapshots omit it and behave exactly as before. Pool rows are
+  shaped like the portal `ballotStyles` slice entries (id,
+  election_id, election_event_id, tenant_id, area_id, ballot_eml,
+  …) but are stored opaquely here — `workbenchStore.ts` does not
+  import portal types and treats every row as `unknown`. The
+  authoritative interpretation lives in `persistence.ts`, which
+  dispatches `setBallotStyle(row)` against the portal slice.
+- `assignments?: Record<voterId, ballotStyleId[]>` — per-voter
+  eligibility map. Optional; voters with no entry see whatever the
+  portal slice currently holds (legacy behaviour). Ids that don't
+  match a current voter are silently dropped on round-trip so
+  snapshots stay clean after voter deletions.
+
+### Eligibility overlay (`ballotStylePool` + `assignments`)
+
+The voting portal's `ballotStyles` slice is keyed by `election_id`,
+which means at most **one** ballot style per election can be active
+in Redux at any time — a hard constraint of the production data
+model that the workbench can't relax without forking the booth. To
+test multi-ballot-style scenarios (one election, several area-scoped
+styles, different voters eligible for different ones) the workbench
+holds the **full pool** out-of-band in `workbench.ballotStylePool`
+and rewrites the portal slice every time the operator switches
+voters.
+
+The swap is driven from `installPersistence` in `persistence.ts`:
+
+1. Subscribe to workbench changes alongside the existing snapshot
+   writer.
+2. Track the previous `activeVoterId`. Only fire on transitions
+   *to* a non-null voter — clearing the active voter (post-cast
+   retirement, hydration, manual reset) must leave the slice alone
+   so the booth screen the voter just used can finish rendering.
+3. For each election present in `ballotStylePool`, look up
+   `selectBallotStyleForVoter(voterId, electionId)` and, if it
+   returns a row, dispatch `setBallotStyle(row)` against the portal
+   store. Elections the voter has no assignment for are skipped
+   (their slice entry is left untouched).
+
+When a snapshot is loaded, `hydrateFromSnapshot` rebuilds the slice
+from the snapshot's own `state.ballotStyles` — the pool isn't
+consulted during hydration, because the snapshot is already
+self-consistent for its persisted `activeVoterId`. The swap
+subscriber's transition guard prevents a spurious swap from the
+hydration boundary.
+
+### Importers (three flows)
+
+The snapshot overview page offers three import buttons, each
+producing a `PersistedSnapshot` that's fed through
+`loadSnapshotViaReload(snap, null)` (wipe + reload as a root, no
+provenance):
+
+1. **Import snapshot JSON** — paste a full
+   `PersistedSnapshot` (the shape the *Bundled JSON* block on any
+   snapshot detail page emits). No transformation; loaded verbatim.
+2. **Import portal ballot style** — paste a single portal
+   `IBallotStyle` row (the shape returned by
+   `select * from public.ballot_styles where id = …`, or by the
+   admin portal's BS detail export). The importer regenerates the
+   keypair, stamps the new pk into `ballot_eml.public_key`,
+   synthesizes minimal `elections` and `electionEvent` slice rows,
+   and spawns a single voter named *voter* assigned to the style.
+3. **Import velvet election** — paste a velvet `ElectionConfig`
+   JSON (see `fixtures/velvet/sample-election-config.json` for a
+   working example). The importer wraps every velvet `BallotStyle`
+   into the portal slice-row shape (`ballot_eml = <velvet BS
+   payload>`), regenerates a fresh keypair per style, and spawns
+   one voter per `TreeNodeArea` named `voter (<area-short-id>)`
+   (TreeNodeArea has no `name` field). Each voter is assigned to
+   every ballot style whose `area_id` matches their area, so
+   switching voters in the sidebar lands you on a different style
+   for the same election.
+
+All three flows funnel through `assembleSnapshot` in
+`app/src/import/importHelpers.ts`, which sets `activeVoterId` to
+the first voter so the eligibility swap fires on the first booth
+render rather than waiting for a manual switch.
 
 ### Auto-clear active-voter lifecycle
 

@@ -53,6 +53,7 @@ import {
     captureRepairedCastVote,
     getWorkbenchState,
     replaceWorkbenchState,
+    selectBallotStyleForVoter,
     setActiveVoter,
     setRepairedDecodedBigInts,
     subscribeWorkbench,
@@ -353,6 +354,36 @@ function tryCaptureRepairedCastVote(
 }
 
 /**
+ * Rewrite the portal `ballotStyles` slice from the workbench pool
+ * for every election the given voter is eligible for. No-op for
+ * voters with no `assignments` entry (legacy snapshots, or imports
+ * that didn't model eligibility — those voters see whatever's
+ * already in the slice).
+ *
+ * The dispatched payload is treated opaquely here: the workbench
+ * stores pool rows in the same shape the portal's `setBallotStyle`
+ * reducer accepts (i.e. the slice's own row shape), so we just hand
+ * the row through.
+ */
+function applyEligibilitySwap(
+    store: typeof Store,
+    voterId: string
+): void {
+    const wb = getWorkbenchState()
+    const pool = wb.ballotStylePool
+    if (!pool) return
+    for (const electionId of Object.keys(pool)) {
+        const row = selectBallotStyleForVoter(voterId, electionId)
+        if (!row) continue
+        store.dispatch(
+            setBallotStyle(
+                row as Parameters<typeof setBallotStyle>[0]
+            )
+        )
+    }
+}
+
+/**
  * Subscribe to store changes and persist on every dispatch.
  *
  * Returns the unsubscribe function for completeness; in practice we
@@ -415,7 +446,29 @@ export function installPersistence(store: typeof Store): () => void {
     // must also flow into the auto-resume slot, otherwise they would be
     // lost on reload. The workbench mini-store fires its listener after
     // every mutation; we just rewrite the snapshot in response.
+    //
+    // The same subscriber also implements the **eligibility swap**:
+    // when `activeVoterId` transitions to a non-null voter that has
+    // entries in `workbench.assignments`, we rewrite the portal's
+    // `state.ballotStyles[electionId]` from `workbench.ballotStylePool`
+    // for every election the voter is eligible for. This keeps the
+    // portal-style invariant "one ballot style per (session, election)"
+    // intact while letting the workbench hold the full pool of styles
+    // out-of-band. See WORKBENCH.md for the rationale.
+    let lastActiveVoterId: string | null = getWorkbenchState().activeVoterId
     const unsubWorkbench = subscribeWorkbench(() => {
+        const wb = getWorkbenchState()
+        if (wb.activeVoterId !== lastActiveVoterId) {
+            const prev = lastActiveVoterId
+            lastActiveVoterId = wb.activeVoterId
+            // Only swap when transitioning *to* a voter — clearing
+            // the active voter (e.g. the post-cast retirement above)
+            // must leave the slice alone so the booth screen the voter
+            // just used can finish rendering.
+            if (wb.activeVoterId && wb.activeVoterId !== prev) {
+                applyEligibilitySwap(store, wb.activeVoterId)
+            }
+        }
         if (suspendWrites) return
         writeSnapshot(store.getState())
     })

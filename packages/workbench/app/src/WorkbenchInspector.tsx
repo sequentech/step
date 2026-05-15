@@ -57,6 +57,8 @@ import {
 import {BUNDLED_SNAPSHOTS} from "./fixtures/bundledSnapshots"
 import {runElectionTally, type ContestTallyOutcome} from "./electionTally"
 import {setActiveVoter} from "./workbenchStore"
+import {importPortalBallotStyle} from "./import/portalBallotStyleImport"
+import {importVelvetElection} from "./import/velvetElectionImport"
 // ---------------------------------------------------------------------------
 // Layout
 // ---------------------------------------------------------------------------
@@ -564,54 +566,90 @@ export function SnapshotOverviewPage(): JSX.Element {
     const voterCount = useWorkbench((w) => w.voters.length)
     const checkpoints = useCheckpointList()
     const [error, setError] = useState<string | null>(null)
-    const [importOpen, setImportOpen] = useState(false)
+    // Which import mode is currently open, if any. Each mode shows
+    // its own textarea + parser; the three are mutually exclusive
+    // because re-using a single textarea keeps the layout compact
+    // and the operator never wants two import flows open at once.
+    const [importMode, setImportMode] = useState<
+        null | "snapshot" | "ballotStyle" | "velvet"
+    >(null)
     const [importJson, setImportJson] = useState("")
     const [importError, setImportError] = useState<string | null>(null)
+    const [importBusy, setImportBusy] = useState(false)
 
-    const onImport = (): void => {
-        setImportError(null)
-        let parsed: PersistedSnapshot
-        try {
-            parsed = JSON.parse(importJson) as PersistedSnapshot
-        } catch (e) {
-            setImportError(
-                "Invalid JSON: " +
-                    (e instanceof Error ? e.message : String(e))
-            )
-            return
-        }
-        if (parsed == null || typeof parsed !== "object") {
-            setImportError("Snapshot must be a JSON object.")
-            return
-        }
-        if (parsed.version !== "v1") {
-            setImportError(
-                `Unsupported snapshot version: ${String(
-                    parsed.version
-                )} (expected "v1").`
-            )
-            return
-        }
-        if (parsed.state == null || typeof parsed.state !== "object") {
-            setImportError("Snapshot is missing a `state` object.")
-            return
-        }
-        try {
-            // Wipe + reload: write the imported snapshot to the
-            // auto-resume slot as a root (parentId = null), then
-            // reload so the boot path hydrates a fresh, empty store.
-            // This guarantees the resulting working copy matches the
-            // source JSON exactly with no leftovers from before.
-            // If the user wants to keep it, they Save… after.
-            loadSnapshotViaReload(parsed, null)
-        } catch (e) {
-            setImportError(
-                e instanceof Error ? e.message : String(e)
-            )
-            return
-        }
+    const openImport = (
+        mode: "snapshot" | "ballotStyle" | "velvet"
+    ): void => {
+        setImportMode(mode)
         setImportJson("")
-        setImportOpen(false)
+        setImportError(null)
+    }
+    const cancelImport = (): void => {
+        setImportMode(null)
+        setImportError(null)
+        setImportJson("")
+    }
+
+    const onImport = async (): Promise<void> => {
+        setImportError(null)
+        if (importMode === "snapshot") {
+            let parsed: PersistedSnapshot
+            try {
+                parsed = JSON.parse(importJson) as PersistedSnapshot
+            } catch (e) {
+                setImportError(
+                    "Invalid JSON: " +
+                        (e instanceof Error ? e.message : String(e))
+                )
+                return
+            }
+            if (parsed == null || typeof parsed !== "object") {
+                setImportError("Snapshot must be a JSON object.")
+                return
+            }
+            if (parsed.version !== "v1") {
+                setImportError(
+                    `Unsupported snapshot version: ${String(
+                        parsed.version
+                    )} (expected "v1").`
+                )
+                return
+            }
+            if (parsed.state == null || typeof parsed.state !== "object") {
+                setImportError("Snapshot is missing a `state` object.")
+                return
+            }
+            try {
+                // Wipe + reload: write the imported snapshot to the
+                // auto-resume slot as a root (parentId = null), then
+                // reload so the boot path hydrates a fresh, empty
+                // store. This guarantees the resulting working copy
+                // matches the source JSON exactly with no leftovers
+                // from before. If the user wants to keep it, they
+                // Save… after.
+                loadSnapshotViaReload(parsed, null)
+            } catch (e) {
+                setImportError(
+                    e instanceof Error ? e.message : String(e)
+                )
+            }
+            return
+        }
+        // Both `ballotStyle` and `velvet` go through their dedicated
+        // builder, which generates fresh keypairs (async via WASM)
+        // and assembles the full PersistedSnapshot before reload.
+        setImportBusy(true)
+        try {
+            const snap =
+                importMode === "ballotStyle"
+                    ? await importPortalBallotStyle(importJson)
+                    : await importVelvetElection(importJson)
+            loadSnapshotViaReload(snap, null)
+        } catch (e) {
+            setImportError(e instanceof Error ? e.message : String(e))
+        } finally {
+            setImportBusy(false)
+        }
     }
 
     const onSave = (): void => {
@@ -834,35 +872,85 @@ export function SnapshotOverviewPage(): JSX.Element {
                 </p>
             )}
             <div style={{marginTop: "1.5rem"}}>
-                {!importOpen ? (
-                    <button
-                        type="button"
-                        style={secondaryButtonStyle}
-                        onClick={() => {
-                            setImportError(null)
-                            setImportOpen(true)
-                        }}
-                    >
-                        Import JSON into working copy…
-                    </button>
+                {importMode === null ? (
+                    <div style={{display: "flex", gap: "0.5rem"}}>
+                        <button
+                            type="button"
+                            style={secondaryButtonStyle}
+                            onClick={() => openImport("snapshot")}
+                        >
+                            Import snapshot JSON…
+                        </button>
+                        <button
+                            type="button"
+                            style={secondaryButtonStyle}
+                            onClick={() => openImport("ballotStyle")}
+                        >
+                            Import portal ballot style…
+                        </button>
+                        <button
+                            type="button"
+                            style={secondaryButtonStyle}
+                            onClick={() => openImport("velvet")}
+                        >
+                            Import velvet election…
+                        </button>
+                    </div>
                 ) : (
                     <div style={importPanelStyle}>
                         <SubHeading>
-                            Import JSON into working copy
+                            {importMode === "snapshot"
+                                ? "Import snapshot JSON into working copy"
+                                : importMode === "ballotStyle"
+                                  ? "Import portal ballot style"
+                                  : "Import velvet ElectionConfig"}
                         </SubHeading>
-                        <p style={{color: "#666", marginTop: 0}}>
-                            Paste a full <code>PersistedSnapshot</code>{" "}
-                            (same shape as the <em>Bundled JSON</em>{" "}
-                            block on any snapshot detail page). It is
-                            loaded straight into the working copy as a
-                            root — the working copy's{" "}
-                            <code>parentId</code> is set to{" "}
-                            <code>null</code> regardless of what the source
-                            JSON says, so the imported state has no
-                            provenance. To keep it around, click{" "}
-                            <em>Save…</em> on the working-copy row after
-                            importing.
-                        </p>
+                        {importMode === "snapshot" && (
+                            <p style={{color: "#666", marginTop: 0}}>
+                                Paste a full <code>PersistedSnapshot</code>{" "}
+                                (same shape as the <em>Bundled JSON</em>{" "}
+                                block on any snapshot detail page). It
+                                is loaded straight into the working
+                                copy as a root — the working copy's{" "}
+                                <code>parentId</code> is set to{" "}
+                                <code>null</code> regardless of what the
+                                source JSON says, so the imported state
+                                has no provenance. To keep it around,
+                                click <em>Save…</em> on the
+                                working-copy row after importing.
+                            </p>
+                        )}
+                        {importMode === "ballotStyle" && (
+                            <p style={{color: "#666", marginTop: 0}}>
+                                Paste a single portal{" "}
+                                <code>IBallotStyle</code> row (the
+                                shape returned by{" "}
+                                <code>
+                                    select * from
+                                    public.ballot_styles where id = …
+                                </code>
+                                ). A fresh workbench keypair is
+                                generated and stamped into{" "}
+                                <code>ballot_eml.public_key</code>; a
+                                single voter named <em>voter</em> is
+                                created and assigned to the ballot
+                                style.
+                            </p>
+                        )}
+                        {importMode === "velvet" && (
+                            <p style={{color: "#666", marginTop: 0}}>
+                                Paste a velvet{" "}
+                                <code>ElectionConfig</code> JSON (see{" "}
+                                <code>
+                                    fixtures/velvet/sample-election-config.json
+                                </code>
+                                ). Each ballot style is re-keyed with a
+                                fresh workbench keypair; one voter is
+                                created per <code>TreeNodeArea</code>{" "}
+                                and assigned to the ballot styles whose{" "}
+                                <code>area_id</code> matches.
+                            </p>
+                        )}
                         <label style={importLabelStyle}>
                             JSON
                             <textarea
@@ -870,9 +958,16 @@ export function SnapshotOverviewPage(): JSX.Element {
                                 onChange={(e) =>
                                     setImportJson(e.target.value)
                                 }
-                                placeholder='{"version":"v1","state":{...}}'
+                                placeholder={
+                                    importMode === "snapshot"
+                                        ? '{"version":"v1","state":{...}}'
+                                        : importMode === "ballotStyle"
+                                          ? '{"id":"…","election_id":"…","ballot_eml":{...}}'
+                                          : '{"id":"…","ballot_styles":[…],"areas":[…]}'
+                                }
                                 style={importTextareaStyle}
                                 spellCheck={false}
+                                disabled={importBusy}
                             />
                         </label>
                         {importError && (
@@ -895,17 +990,18 @@ export function SnapshotOverviewPage(): JSX.Element {
                             <button
                                 type="button"
                                 style={primaryButtonStyle}
-                                onClick={onImport}
+                                onClick={() => {
+                                    void onImport()
+                                }}
+                                disabled={importBusy}
                             >
-                                Import
+                                {importBusy ? "Importing…" : "Import"}
                             </button>
                             <button
                                 type="button"
                                 style={secondaryButtonStyle}
-                                onClick={() => {
-                                    setImportOpen(false)
-                                    setImportError(null)
-                                }}
+                                onClick={cancelImport}
+                                disabled={importBusy}
                             >
                                 Cancel
                             </button>
