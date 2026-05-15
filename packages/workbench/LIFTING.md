@@ -944,9 +944,9 @@ broken or you want to validate fidelity.
 4. **Update this document.** If you added/changed an adaptation, edit the
    relevant section so the next refresh starts from accurate state.
 5. **Run the raw-JSON tally sandbox too** (`http://localhost:5173/tally`).
-   It uses `velvet-core` directly and is unaffected by portal changes;
-   if it breaks, the problem is in workbench glue or wasm-pack output,
-   not the lift.
+   It uses `velvet-wasm` (the wasm-bindgen wrapper around `velvet-core`)
+   directly and is unaffected by portal changes; if it breaks, the
+   problem is in workbench glue or wasm-pack output, not the lift.
 
 ## Adaptations to add as we lift more screens
 
