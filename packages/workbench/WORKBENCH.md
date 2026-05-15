@@ -111,6 +111,19 @@ All five are exported from `WorkbenchInspector.tsx`:
   the working-copy row uses scalar `useSelector`s (not object-returning)
   to avoid react-redux's referential-equality warning on every dispatch.
   Checkpoint rows live-update via `useCheckpointList`.
+
+  Below the table sits an *Import JSON into working copy…* panel:
+  paste a full `PersistedSnapshot` blob and it is hydrated straight
+  into the live store via `hydrateFromSnapshot(store, parsed, null)`.
+  The `null` `sourceId` makes the imported state a root — whatever
+  `parentId` the source JSON carried is discarded. Use case: iterate
+  on a hand-edited or externally-generated fixture without going
+  through the bundle + rebuild cycle. To keep the imported state,
+  click *Save…* on the working-copy row after importing; if not, it
+  lives only in the auto-resume slot until the next change. (Same as
+  Load on a checkpoint/bundled row, the import overlays onto the
+  existing store rather than wiping it first, so imported state
+  composes with whatever was there before.)
 - `SnapshotDetailPage` at `/wb/snapshot/:id`. The `:id` is a tagged id
   (`bundled:<name>` or `checkpoint:<name>`, URL-encoded). Renders the
   same summary `<dl>` as the overview plus a *Load* button

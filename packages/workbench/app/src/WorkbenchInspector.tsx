@@ -566,6 +566,57 @@ export function SnapshotOverviewPage(): JSX.Element {
     const checkpoints = useCheckpointList()
     const navigate = useNavigate()
     const [error, setError] = useState<string | null>(null)
+    const [importOpen, setImportOpen] = useState(false)
+    const [importJson, setImportJson] = useState("")
+    const [importError, setImportError] = useState<string | null>(null)
+
+    const onImport = (): void => {
+        setImportError(null)
+        let parsed: PersistedSnapshot
+        try {
+            parsed = JSON.parse(importJson) as PersistedSnapshot
+        } catch (e) {
+            setImportError(
+                "Invalid JSON: " +
+                    (e instanceof Error ? e.message : String(e))
+            )
+            return
+        }
+        if (parsed == null || typeof parsed !== "object") {
+            setImportError("Snapshot must be a JSON object.")
+            return
+        }
+        if (parsed.version !== "v1") {
+            setImportError(
+                `Unsupported snapshot version: ${String(
+                    parsed.version
+                )} (expected "v1").`
+            )
+            return
+        }
+        if (parsed.state == null || typeof parsed.state !== "object") {
+            setImportError("Snapshot is missing a `state` object.")
+            return
+        }
+        try {
+            // sourceId = null → the imported snapshot becomes a root
+            // working copy. Whatever `parentId` the JSON carried is
+            // ignored; if the user wants to keep this state, they can
+            // click Save… to capture it as a checkpoint.
+            hydrateFromSnapshot(
+                store as Parameters<typeof saveCheckpoint>[0],
+                parsed,
+                null
+            )
+        } catch (e) {
+            setImportError(
+                e instanceof Error ? e.message : String(e)
+            )
+            return
+        }
+        setImportJson("")
+        setImportOpen(false)
+    }
 
     const onSave = (): void => {
         setError(null)
@@ -790,6 +841,86 @@ export function SnapshotOverviewPage(): JSX.Element {
                     {error}
                 </p>
             )}
+            <div style={{marginTop: "1.5rem"}}>
+                {!importOpen ? (
+                    <button
+                        type="button"
+                        style={secondaryButtonStyle}
+                        onClick={() => {
+                            setImportError(null)
+                            setImportOpen(true)
+                        }}
+                    >
+                        Import JSON into working copy…
+                    </button>
+                ) : (
+                    <div style={importPanelStyle}>
+                        <SubHeading>
+                            Import JSON into working copy
+                        </SubHeading>
+                        <p style={{color: "#666", marginTop: 0}}>
+                            Paste a full <code>PersistedSnapshot</code>{" "}
+                            (same shape as the <em>Bundled JSON</em>{" "}
+                            block on any snapshot detail page). It is
+                            loaded straight into the working copy as a
+                            root — the working copy's{" "}
+                            <code>parentId</code> is set to{" "}
+                            <code>null</code> regardless of what the source
+                            JSON says, so the imported state has no
+                            provenance. To keep it around, click{" "}
+                            <em>Save…</em> on the working-copy row after
+                            importing.
+                        </p>
+                        <label style={importLabelStyle}>
+                            JSON
+                            <textarea
+                                value={importJson}
+                                onChange={(e) =>
+                                    setImportJson(e.target.value)
+                                }
+                                placeholder='{"version":"v1","state":{...}}'
+                                style={importTextareaStyle}
+                                spellCheck={false}
+                            />
+                        </label>
+                        {importError && (
+                            <p
+                                style={{
+                                    color: "#b00020",
+                                    marginTop: "0.5rem",
+                                }}
+                            >
+                                {importError}
+                            </p>
+                        )}
+                        <div
+                            style={{
+                                marginTop: "0.75rem",
+                                display: "flex",
+                                gap: "0.5rem",
+                            }}
+                        >
+                            <button
+                                type="button"
+                                style={primaryButtonStyle}
+                                onClick={onImport}
+                            >
+                                Import
+                            </button>
+                            <button
+                                type="button"
+                                style={secondaryButtonStyle}
+                                onClick={() => {
+                                    setImportOpen(false)
+                                    setImportError(null)
+                                }}
+                            >
+                                Cancel
+                            </button>
+                        </div>
+                    </div>
+                )}
+            </div>
         </>
     )
 }
@@ -841,6 +972,33 @@ const tdNumStyle: React.CSSProperties = {
 }
 const workingRowStyle: React.CSSProperties = {
     background: "#f4f9ff",
+}
+const importPanelStyle: React.CSSProperties = {
+    border: "1px solid #ddd",
+    borderRadius: 4,
+    padding: "0.75rem 1rem",
+    background: "#fafafa",
+}
+const importLabelStyle: React.CSSProperties = {
+    display: "flex",
+    flexDirection: "column",
+    gap: "0.25rem",
+    marginTop: "0.75rem",
+    fontSize: "0.9rem",
+    color: "#444",
+}
+const importInputStyle: React.CSSProperties = {
+    padding: "0.4rem 0.5rem",
+    fontSize: "0.95rem",
+    border: "1px solid #ccc",
+    borderRadius: 3,
+}
+const importTextareaStyle: React.CSSProperties = {
+    ...importInputStyle,
+    fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
+    fontSize: "0.8rem",
+    minHeight: "12rem",
+    resize: "vertical",
 }
 
 function selectStateCounts(s: RootState): {
