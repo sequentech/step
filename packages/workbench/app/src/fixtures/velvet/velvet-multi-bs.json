@@ -1,0 +1,162 @@
+{
+    "id": "44444444-4444-4444-4444-444444444003",
+    "name": "Velvet — Multi-BS (2 areas, 2 ballot styles)",
+    "alias": "velvet-multi-bs",
+    "description": "Derived from velvet::fixtures::elections::get_election_config_2 — one election with two area-restricted ballot styles, each carrying the get_contest_1 (5-candidate plurality) contest. Tests eligibility-overlay swap across distinct ballot styles.",
+    "annotations": {},
+    "election_event_annotations": {},
+    "tenant_id": "44444444-4444-4444-4444-444444444001",
+    "election_event_id": "44444444-4444-4444-4444-444444444002",
+    "census": 0,
+    "total_votes": 0,
+    "areas": [
+        {
+            "id": "44444444-4444-4444-4444-44444444aaaa",
+            "tenant_id": "44444444-4444-4444-4444-444444444001",
+            "election_event_id": "44444444-4444-4444-4444-444444444002",
+            "parent_id": null,
+            "annotations": {}
+        },
+        {
+            "id": "44444444-4444-4444-4444-44444444bbbb",
+            "tenant_id": "44444444-4444-4444-4444-444444444001",
+            "election_event_id": "44444444-4444-4444-4444-444444444002",
+            "parent_id": null,
+            "annotations": {}
+        }
+    ],
+    "ballot_styles": [
+        {
+            "id": "44444444-4444-4444-4444-4444444400b1",
+            "tenant_id": "44444444-4444-4444-4444-444444444001",
+            "election_event_id": "44444444-4444-4444-4444-444444444002",
+            "election_id": "44444444-4444-4444-4444-444444444003",
+            "area_id": "44444444-4444-4444-4444-44444444aaaa",
+            "area_presentation": {"allow_early_voting": "no_early_voting"},
+            "contests": [
+                {
+                    "id": "44444444-4444-4444-4444-4444444400c1",
+                    "tenant_id": "44444444-4444-4444-4444-444444444001",
+                    "election_event_id": "44444444-4444-4444-4444-444444444002",
+                    "election_id": "44444444-4444-4444-4444-444444444003",
+                    "name": "Secretario General (Area A)",
+                    "description": "Elige quien quieres que sea tu Secretario General en tu municipio.",
+                    "max_votes": 1,
+                    "min_votes": 0,
+                    "winning_candidates_num": 1,
+                    "is_encrypted": true,
+                    "voting_type": "first-past-the-post",
+                    "counting_algorithm": "plurality-at-large",
+                    "candidates": [
+                        {
+                            "id": "0",
+                            "tenant_id": "44444444-4444-4444-4444-444444444001",
+                            "election_event_id": "44444444-4444-4444-4444-444444444002",
+                            "election_id": "44444444-4444-4444-4444-444444444003",
+                            "contest_id": "44444444-4444-4444-4444-4444444400c1",
+                            "name": "José Rabano Pimiento"
+                        },
+                        {
+                            "id": "1",
+                            "tenant_id": "44444444-4444-4444-4444-444444444001",
+                            "election_event_id": "44444444-4444-4444-4444-444444444002",
+                            "election_id": "44444444-4444-4444-4444-444444444003",
+                            "contest_id": "44444444-4444-4444-4444-4444444400c1",
+                            "name": "Miguel Pimentel Inventado"
+                        },
+                        {
+                            "id": "2",
+                            "tenant_id": "44444444-4444-4444-4444-444444444001",
+                            "election_event_id": "44444444-4444-4444-4444-444444444002",
+                            "election_id": "44444444-4444-4444-4444-444444444003",
+                            "contest_id": "44444444-4444-4444-4444-4444444400c1",
+                            "name": "Juan Iglesias Torquemada"
+                        },
+                        {
+                            "id": "3",
+                            "tenant_id": "44444444-4444-4444-4444-444444444001",
+                            "election_event_id": "44444444-4444-4444-4444-444444444002",
+                            "election_id": "44444444-4444-4444-4444-444444444003",
+                            "contest_id": "44444444-4444-4444-4444-4444444400c1",
+                            "name": "Mari Pili Hernández Ordoñez"
+                        },
+                        {
+                            "id": "4",
+                            "tenant_id": "44444444-4444-4444-4444-444444444001",
+                            "election_event_id": "44444444-4444-4444-4444-444444444002",
+                            "election_id": "44444444-4444-4444-4444-444444444003",
+                            "contest_id": "44444444-4444-4444-4444-4444444400c1",
+                            "name": "Juan Y Medio"
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "id": "44444444-4444-4444-4444-4444444400b2",
+            "tenant_id": "44444444-4444-4444-4444-444444444001",
+            "election_event_id": "44444444-4444-4444-4444-444444444002",
+            "election_id": "44444444-4444-4444-4444-444444444003",
+            "area_id": "44444444-4444-4444-4444-44444444bbbb",
+            "area_presentation": {"allow_early_voting": "no_early_voting"},
+            "contests": [
+                {
+                    "id": "44444444-4444-4444-4444-4444444400c2",
+                    "tenant_id": "44444444-4444-4444-4444-444444444001",
+                    "election_event_id": "44444444-4444-4444-4444-444444444002",
+                    "election_id": "44444444-4444-4444-4444-444444444003",
+                    "name": "Secretario General (Area B)",
+                    "description": "Elige quien quieres que sea tu Secretario General en tu municipio.",
+                    "max_votes": 1,
+                    "min_votes": 0,
+                    "winning_candidates_num": 1,
+                    "is_encrypted": true,
+                    "voting_type": "first-past-the-post",
+                    "counting_algorithm": "plurality-at-large",
+                    "candidates": [
+                        {
+                            "id": "0",
+                            "tenant_id": "44444444-4444-4444-4444-444444444001",
+                            "election_event_id": "44444444-4444-4444-4444-444444444002",
+                            "election_id": "44444444-4444-4444-4444-444444444003",
+                            "contest_id": "44444444-4444-4444-4444-4444444400c2",
+                            "name": "José Rabano Pimiento"
+                        },
+                        {
+                            "id": "1",
+                            "tenant_id": "44444444-4444-4444-4444-444444444001",
+                            "election_event_id": "44444444-4444-4444-4444-444444444002",
+                            "election_id": "44444444-4444-4444-4444-444444444003",
+                            "contest_id": "44444444-4444-4444-4444-4444444400c2",
+                            "name": "Miguel Pimentel Inventado"
+                        },
+                        {
+                            "id": "2",
+                            "tenant_id": "44444444-4444-4444-4444-444444444001",
+                            "election_event_id": "44444444-4444-4444-4444-444444444002",
+                            "election_id": "44444444-4444-4444-4444-444444444003",
+                            "contest_id": "44444444-4444-4444-4444-4444444400c2",
+                            "name": "Juan Iglesias Torquemada"
+                        },
+                        {
+                            "id": "3",
+                            "tenant_id": "44444444-4444-4444-4444-444444444001",
+                            "election_event_id": "44444444-4444-4444-4444-444444444002",
+                            "election_id": "44444444-4444-4444-4444-444444444003",
+                            "contest_id": "44444444-4444-4444-4444-4444444400c2",
+                            "name": "Mari Pili Hernández Ordoñez"
+                        },
+                        {
+                            "id": "4",
+                            "tenant_id": "44444444-4444-4444-4444-444444444001",
+                            "election_event_id": "44444444-4444-4444-4444-444444444002",
+                            "election_id": "44444444-4444-4444-4444-444444444003",
+                            "contest_id": "44444444-4444-4444-4444-4444444400c2",
+                            "name": "Juan Y Medio"
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+}
