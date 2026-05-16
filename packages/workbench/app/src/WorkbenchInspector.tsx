@@ -40,8 +40,8 @@
 import type {RootState} from "voting-portal/src/store/store"
 import {NavLink, Outlet, useNavigate, useParams} from "react-router-dom"
 import {useSelector, useStore} from "react-redux"
-import {useCallback, useMemo, useState, useSyncExternalStore, useEffect} from "react"
-import {subscribeWorkbench, useWorkbench} from "./workbenchStore"
+import {useCallback, useMemo, useState, useSyncExternalStore} from "react"
+import {subscribeWorkbench, useWorkbench, recordTallyRun} from "./workbenchStore"
 import {
     bundledId,
     checkpointId,
@@ -1543,18 +1543,19 @@ export function ContestDetailPage(): JSX.Element {
             })
         }
         return rows
-    }, [castVotes, repaired, contestId, found.ballotStyle.id])
-    const [outcome, setOutcome] = useState<ContestTallyOutcome | null>(null)
-    const [tallyError, setTallyError] = useState<string | null>(null)
+    }, [castVotes, repaired, contestId, found?.ballotStyle.id])
+    // Last tally run for this contest is stored in the workbench
+    // store (see WorkbenchExtraState.tallyRuns) so it survives the
+    // navigation cycle the operator goes through to cast another
+    // ballot (Contest → Voter → booth → Review → back). Without
+    // lifting it out of component state, the stale-results indicator
+    // could never fire in practice because returning to the contest
+    // page always re-mounted with a blank slate.
+    const cachedRun = useWorkbench((w) => w.tallyRuns?.[contestId])
+    const outcome = cachedRun?.outcome ?? null
+    const tallyError = cachedRun?.errorMessage ?? null
+    const lastTallyFingerprint = cachedRun?.fingerprint ?? null
     const [tallyBusy, setTallyBusy] = useState<boolean>(false)
-    // Fingerprint of the inputs the *last* successful (or failed) run
-    // saw. Compared against `currentTallyFingerprint` to drive the
-    // "results out of date" notice. `null` means "never run yet on
-    // this mount" — the tally view shows a press-the-button empty
-    // state in that case.
-    const [lastTallyFingerprint, setLastTallyFingerprint] = useState<
-        string | null
-    >(null)
     // Cheap content-hash of everything that would change the tally
     // output: the set of cast-vote ids in cast order plus the decoded
     // BigUint (or empty string when not yet decoded) for each. A new
@@ -1581,35 +1582,30 @@ export function ContestDetailPage(): JSX.Element {
         // this contest. We could pass a one-contest projection, but
         // passing the real ballot style keeps the tally call honest
         // about what's actually on the ballot.
+        let nextOutcome: ContestTallyOutcome | null = null
+        let nextError: string | null = null
         try {
             const outcomes = await runElectionTally(
                 found.ballotStyle,
                 decodedByCastVote
             )
-            setOutcome(
+            nextOutcome =
                 outcomes.find((o) => o.contestId === contestId) ?? null
-            )
-            setTallyError(null)
         } catch (e) {
-            setTallyError(e instanceof Error ? e.message : String(e))
-            setOutcome(null)
-        } finally {
-            // Record the fingerprint we ran against whether the run
-            // succeeded or failed: re-pressing the button on the
-            // same inputs would just reproduce the same error, so
-            // the staleness notice would be misleading.
-            setLastTallyFingerprint(fingerprint)
-            setTallyBusy(false)
+            nextError = e instanceof Error ? e.message : String(e)
         }
+        // Record the fingerprint we ran against whether the run
+        // succeeded or failed: re-pressing the button on the same
+        // inputs would just reproduce the same error, so the stale
+        // notice would be misleading.
+        recordTallyRun(contestId, {
+            fingerprint,
+            outcome: nextOutcome,
+            errorMessage: nextError,
+            ranAt: new Date().toISOString(),
+        })
+        setTallyBusy(false)
     }, [found, decodedRows, contestId, currentTallyFingerprint])
-    // Reset run state when the contest changes (operator navigates
-    // from one contest to another). Without this, a previous
-    // contest's outcome would briefly flash on the new page.
-    useEffect(() => {
-        setOutcome(null)
-        setTallyError(null)
-        setLastTallyFingerprint(null)
-    }, [contestId])
     if (!found) {
         return (
             <>
