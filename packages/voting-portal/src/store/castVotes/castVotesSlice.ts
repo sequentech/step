@@ -45,10 +45,35 @@ export const castVotesSlice = createSlice({
             }
             return state
         },
+        // Remove the cast votes with the given ids from every per-
+        // election bucket they happen to live in. Used by the
+        // workbench's revote/overwrite path (a re-cast from the same
+        // voter persona supersedes the prior cast vote rather than
+        // stacking on top of it) and by snapshot-wipe operations.
+        // Buckets that become empty are pruned so `Object.keys` /
+        // `length` checks elsewhere don't see ghost entries.
+        removeCastVotes: (
+            state: CastVoteState,
+            action: PayloadAction<Array<string>>
+        ): CastVoteState => {
+            const ids = new Set(action.payload)
+            if (ids.size === 0) return state
+            for (const electionId of Object.keys(state)) {
+                const bucket = state[electionId] ?? []
+                const kept = bucket.filter((cv) => !ids.has(cv.id))
+                if (kept.length === bucket.length) continue
+                if (kept.length === 0) {
+                    delete state[electionId]
+                } else {
+                    state[electionId] = kept
+                }
+            }
+            return state
+        },
     },
 })
 
-export const {addCastVotes} = castVotesSlice.actions
+export const {addCastVotes, removeCastVotes} = castVotesSlice.actions
 
 export const selectCastVotesByElectionId = (electionId: string) => (state: RootState) =>
     state.castVotes[electionId] || []

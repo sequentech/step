@@ -43,7 +43,7 @@ import {
     setBallotSelection,
     resetBallotSelection,
 } from "voting-portal/src/store/ballotSelections/ballotSelectionsSlice"
-import {addCastVotes} from "voting-portal/src/store/castVotes/castVotesSlice"
+import {addCastVotes, removeCastVotes} from "voting-portal/src/store/castVotes/castVotesSlice"
 import {
     setBypassChooser,
     setIsVoted,
@@ -51,7 +51,9 @@ import {
 import {
     attributeCastVote,
     captureRepairedCastVote,
+    dropCastVoteOverlay,
     getWorkbenchState,
+    recordVoteAttempt,
     replaceWorkbenchState,
     selectBallotStyleForVoter,
     setActiveVoter,
@@ -354,6 +356,39 @@ function tryCaptureRepairedCastVote(
 }
 
 /**
+ * Remove any prior cast votes attributed to `voterId` in
+ * `electionId`, both from the portal `castVotes` slice and from the
+ * workbench overlay (`castBy`, `repairedCastVotes`). Used by the
+ * revote/overwrite path: a re-cast from the same voter persona
+ * supersedes the previous cast vote rather than stacking on top of
+ * it, so the final state always has at most one cast vote per
+ * (voter, election).
+ *
+ * `newCastVoteId` is excluded so this can be safely called *after*
+ * the new vote has already landed in the slice (e.g. when discovery
+ * is one step behind the dispatch). Cleared overlay rows refer to
+ * cast votes that no longer exist in the slice, so dropping them
+ * keeps the workbench mini-store consistent with portal state.
+ */
+function supersedePriorCastVotes(
+    store: typeof Store,
+    voterId: string,
+    electionId: string,
+    newCastVoteId: string
+): void {
+    const wb = getWorkbenchState()
+    const electionVotes = store.getState().castVotes[electionId] ?? []
+    const priorIds: string[] = []
+    for (const cv of electionVotes) {
+        if (cv.id === newCastVoteId) continue
+        if (wb.castBy[cv.id] === voterId) priorIds.push(cv.id)
+    }
+    if (priorIds.length === 0) return
+    store.dispatch(removeCastVotes(priorIds))
+    dropCastVoteOverlay(priorIds)
+}
+
+/**
  * Rewrite the portal `ballotStyles` slice from the workbench pool
  * for every election the given voter is eligible for. No-op for
  * voters with no `assignments` entry (legacy snapshots, or imports
@@ -413,10 +448,22 @@ export function installPersistence(store: typeof Store): () => void {
             return
         }
         // Detect newly-arrived cast votes and bridge them into the
-        // workbench overlay. Two captures happen per new vote:
-        //   1. attributeCastVote(): tags the vote with the active voter
-        //      (no-op when no voter is active).
-        //   2. captureRepairedCastVote(): snapshots the data the demo
+        // workbench overlay. Per new vote:
+        //   1. supersede any prior vote by the same voter in the same
+        //      election (revote semantics — see WORKBENCH.md). The
+        //      portal models multi-input voting by accumulating cast
+        //      votes up to `election.num_allowed_revotes`, but the
+        //      backend only counts the latest; the workbench keeps
+        //      its slice consistent with that by physically removing
+        //      the prior vote and dropping its overlay rows.
+        //   2. attributeCastVote(): tag the new vote with the active
+        //      voter (no-op when no voter is active — anonymous
+        //      casts simply stack, since there's no persona to
+        //      overwrite).
+        //   3. recordVoteAttempt(): bump the monotonic counter that
+        //      the voter detail page uses to decide whether further
+        //      revotes are still permitted.
+        //   4. captureRepairedCastVote(): snapshot the data the demo
         //      path doesn't put on the cast-vote record itself — the
         //      plaintext selection (from state.ballotSelections) and
         //      the encrypted hashable ballot (from
@@ -434,7 +481,18 @@ export function installPersistence(store: typeof Store): () => void {
                 if (seenCastVoteIds.has(v.id)) continue
                 seenCastVoteIds.add(v.id)
                 const activeBefore = getWorkbenchState().activeVoterId
+                if (activeBefore && v.election_id) {
+                    supersedePriorCastVotes(
+                        store,
+                        activeBefore,
+                        v.election_id,
+                        v.id
+                    )
+                }
                 attributeCastVote(v.id)
+                if (activeBefore && v.election_id) {
+                    recordVoteAttempt(activeBefore, v.election_id)
+                }
                 tryCaptureRepairedCastVote(liveState, v)
                 if (activeBefore) setActiveVoter(null)
             }

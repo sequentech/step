@@ -92,6 +92,25 @@ export interface WorkbenchExtraState {
      *  untouched on voter change, matching pre-eligibility
      *  behaviour. */
     assignments?: Record<string, string[]>
+    /** Monotonic counter of how many times each voter has *input* a
+     *  vote in each election, regardless of whether earlier inputs
+     *  were later overwritten. Keyed `[voterId][electionId]`.
+     *
+     *  This is the workbench's analogue of the portal's per-session
+     *  `state.castVotes[electionId].length` check (see
+     *  `canVote()` in `ElectionSelectionScreen.tsx`), but per-voter:
+     *  the workbench multiplexes many personas through one store, so
+     *  we cannot use the slice length directly. The persistence
+     *  subscriber bumps this counter on every observed cast vote
+     *  attributed to a voter and uses it together with
+     *  `election.num_allowed_revotes` to gate the "Cast a ballot"
+     *  button on the voter detail page.
+     *
+     *  Optional: snapshots written before this counter existed
+     *  rehydrate with an empty map; the subscriber back-fills from
+     *  the cast-vote slice at install time so legacy state behaves
+     *  sensibly. */
+    voteAttempts?: Record<string, Record<string, number>>
 }
 
 /** Ristretto ElGamal keypair owned by the workbench. Both halves are
@@ -271,6 +290,56 @@ export function setRepairedDecodedBigInts(
             },
         },
     })
+}
+
+/** Drop the workbench bridge data and voter attribution for a set of
+ *  cast-vote ids. Called when those cast votes have been removed from
+ *  the portal `castVotes` slice (revote/overwrite path) so we do not
+ *  carry stale entries pointing at ids that no longer exist. */
+export function dropCastVoteOverlay(castVoteIds: string[]): void {
+    if (castVoteIds.length === 0) return
+    const drop = new Set(castVoteIds)
+    const nextCastBy: Record<string, string> = {}
+    for (const [k, v] of Object.entries(state.castBy)) {
+        if (!drop.has(k)) nextCastBy[k] = v
+    }
+    const nextRepaired: Record<string, RepairedCastVote> = {}
+    for (const [k, v] of Object.entries(state.repairedCastVotes)) {
+        if (!drop.has(k)) nextRepaired[k] = v
+    }
+    setState({
+        ...state,
+        castBy: nextCastBy,
+        repairedCastVotes: nextRepaired,
+    })
+}
+
+/** Increment the monotonic vote-attempt counter for (voter, election).
+ *  Called once per cast vote observed by the persistence subscriber,
+ *  whether it is a first cast or an overwrite. See
+ *  {@link WorkbenchExtraState.voteAttempts}. */
+export function recordVoteAttempt(voterId: string, electionId: string): void {
+    const prevAll = state.voteAttempts ?? {}
+    const prevForVoter = prevAll[voterId] ?? {}
+    const prev = prevForVoter[electionId] ?? 0
+    setState({
+        ...state,
+        voteAttempts: {
+            ...prevAll,
+            [voterId]: {...prevForVoter, [electionId]: prev + 1},
+        },
+    })
+}
+
+/** Return how many times the given voter has input a vote in the
+ *  given election (initial cast + overwrites). Zero when the voter
+ *  has never voted in this election, or when the counter has not yet
+ *  been initialised (legacy snapshot before back-fill). */
+export function getVoteAttempts(
+    voterId: string,
+    electionId: string
+): number {
+    return state.voteAttempts?.[voterId]?.[electionId] ?? 0
 }
 
 /** Install a keypair for a ballot style. First call per id wins;
@@ -456,6 +525,43 @@ function normalizeIncoming(incoming: WorkbenchExtraState): WorkbenchExtraState {
             }
         }
     }
+    // Vote-attempt counter is per-(voter, election). We accept any
+    // non-negative integer; unknown voter ids are dropped (matches
+    // other overlay tables) so a hand-edited snapshot with a stale
+    // voter doesn't leave dangling counters.
+    let voteAttempts: Record<string, Record<string, number>> | undefined
+    const incomingAttempts = (
+        incoming as WorkbenchExtraState & {voteAttempts?: unknown}
+    ).voteAttempts
+    if (incomingAttempts && typeof incomingAttempts === "object") {
+        voteAttempts = {}
+        for (const [voterId, byElection] of Object.entries(
+            incomingAttempts as Record<string, unknown>
+        )) {
+            if (
+                typeof voterId !== "string" ||
+                !ids.has(voterId) ||
+                !byElection ||
+                typeof byElection !== "object"
+            ) {
+                continue
+            }
+            const inner: Record<string, number> = {}
+            for (const [electionId, n] of Object.entries(
+                byElection as Record<string, unknown>
+            )) {
+                if (
+                    typeof electionId === "string" &&
+                    typeof n === "number" &&
+                    Number.isFinite(n) &&
+                    n >= 0
+                ) {
+                    inner[electionId] = Math.floor(n)
+                }
+            }
+            if (Object.keys(inner).length > 0) voteAttempts[voterId] = inner
+        }
+    }
     return {
         voters: sortVoters(voters),
         activeVoterId,
@@ -464,6 +570,7 @@ function normalizeIncoming(incoming: WorkbenchExtraState): WorkbenchExtraState {
         keypairs,
         ...(ballotStylePool ? {ballotStylePool} : {}),
         ...(assignments ? {assignments} : {}),
+        ...(voteAttempts ? {voteAttempts} : {}),
     }
 }
 
