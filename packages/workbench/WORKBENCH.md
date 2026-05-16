@@ -33,6 +33,11 @@ router; required by the lifted portal — see `LIFTING.md` §E):
   - `/wb/contest/:id` — contest detail with inline tally.
   - `/wb/voter/:id` — voter detail with attribution + booth CTA.
 - `/tally` — focused velvet-wasm playground (`App`), no Redux integration.
+- `/pipeline` — single-contest **ballot pipeline** playground
+  (`BallotPipeline`): walks one `DecodedVoteContest` through the full
+  encode → encrypt → decrypt → decode → tally chain, each stage a
+  textarea + button. No Redux integration; runs entirely against
+  `velvet-wasm`. See *Ballot pipeline page* below.
 - `/tenant/:tenantId/event/:eventId/...` — the **production-mirror**
   booth subtree, mounted under `<BoothLayout />`. Paths and route shape
   are dictated by voting-portal and must not diverge (see `LIFTING.md`
@@ -42,10 +47,11 @@ The split is deliberate: `/wb/...` is workbench-owned chrome we are free
 to evolve; `/tenant/:t/event/:e/...` is the production-mirror surface
 where we MUST NOT diverge.
 
-The `Shell` nav has two links only: **Workbench** → `/wb`, **Raw-JSON
-tally** → `/tally`. The `ReduxProvider` lives in `Shell` (outside the
-booth subtree) so the workbench's own pages read the same store the
-booth writes to — the same layering as `voting-portal/src/index.tsx`.
+The `Shell` nav has three links: **Workbench** → `/wb`, **Ballot
+pipeline** → `/pipeline`, **Raw-JSON tally** → `/tally`. The
+`ReduxProvider` lives in `Shell` (outside the booth subtree) so the
+workbench's own pages read the same store the booth writes to — the
+same layering as `voting-portal/src/index.tsx`.
 
 ---
 
@@ -466,6 +472,96 @@ The watcher's hydration branch (`suspendWrites`) seeds
 `seenCastVoteIds` from the restored state without firing attribution
 or active-voter retirement — those would be replays of events
 already recorded in the snapshot.
+
+---
+
+## velvet-wasm package (`workbench/velvet-wasm/`)
+
+Thin `wasm-bindgen` surface around `velvet-core` / `sequent-core`,
+exposed to the workbench app as the npm dep `velvet-wasm` (declared as
+`"file:../velvet-wasm/pkg"` in `app/package.json`). Exports the
+minimum the workbench needs to run the booth crypto end-to-end in the
+browser without a backend:
+
+- `tally_plaintext_ballots(contest, ballots)` — decode + tally.
+- `encode_ballot(contest, decoded)` / `decode_bigint_to_decoded_vote_contest(contest, bigint)`
+  — invertible pair turning a `DecodedVoteContest` into its decimal
+  `BigUint` encoding and back.
+- `encrypt_decoded_vote_contest(contest, decoded, pk_b64)` /
+  `decrypt_ballot_content(content, sk_b64, contest_id)` — invertible
+  pair under a workbench-generated ElGamal keypair. `encrypt_…`
+  returns a `{contests: ["<base64 HashableBallotContest>"]}` envelope
+  shaped like the portal's `castVote.content`, so its output feeds
+  straight back into `decrypt_…` for round-trip checks.
+- `generate_keypair()` — fresh single-party Ristretto ElGamal keypair.
+  Production never holds a single secret key (decryption happens in
+  the threshold mixnet); the workbench does, so it can exercise the
+  encrypt/decrypt path in-browser. See the comment block above
+  `generate_keypair` in `lib.rs` for the full reasoning.
+- `get_sample_contest_json` / `get_sample_decoded_vote_contest_json` /
+  `get_sample_ballots_json` — in-tree fixtures sourced from
+  `sequent_core::fixtures::ballot_codec`. Used by both `/tally` and
+  `/pipeline` to bootstrap the textareas before a real contest editor
+  exists.
+
+### Ballot pipeline page (`app/src/BallotPipeline.tsx`)
+
+Mounted at `/pipeline`. Single-contest playground that walks a
+selection through every transformation a ballot undergoes on its way
+to the tally:
+
+```
+plaintext ──encode──▶ encoded BigUint ──encrypt──▶ ciphertext envelope
+                                                          │
+                                                       decrypt
+                                                          ▼
+decoded plaintext ◀──decode── decrypted BigUint (=encoded)
+       │
+     tally
+       ▼
+     ContestResult
+```
+
+Each stage is a textarea + a single button that reads the textarea
+above (plus the Setup pane: contest JSON, pk/sk) and writes the
+textarea below. Every intermediate value is editable, so operators
+can tweak any stage and rerun only the downstream buttons — useful
+for probing "why did this vote fail to tally?" with a real captured
+`castVote.content` pasted into stage 3.
+
+The page is intentionally per-contest: the encrypted envelope it
+produces wraps a single `HashableBallotContest`, which is enough to
+round-trip through `decrypt_ballot_content`. The tally step (6)
+consumes an array of encoded `BigUint` strings — the "Seed tally"
+button on stage 5 prefills it from the just-decrypted BigUint so the
+chain ends with a real `ContestResult` even though the tally itself
+operates on encoded plaintext rather than decoded selections.
+
+### Building, and the yarn-classic dep-cache gotcha
+
+`app/package.json` runs `wasm-pack build --target web --out-dir pkg`
+on `predev` / `prebuild`. The output `pkg/` directory is consumed
+through the `"velvet-wasm": "file:../velvet-wasm/pkg"` dependency.
+
+**Yarn classic (1.x) resolves `file:` deps by copying, not
+symlinking.** As a result `node_modules/velvet-wasm/` holds a
+snapshot taken at install time, and changes to `pkg/` after that —
+including the freshly built artifacts the `predev` hook just produced
+— are *not* visible to Vite. Symptom: a `SyntaxError: … does not
+provide an export named '<new_export>'` page error after adding a
+wasm export, even though the source clearly exports it.
+
+The fix is one of:
+
+- Copy `pkg/*` into `node_modules/velvet-wasm/` after building, then
+  restart Vite with `--force` (busts the optimizer cache); or
+- Rerun `corepack yarn install` to refresh the copy; or
+- Eventually migrate to yarn berry (`nodeLinker: pnp` / `node-modules`
+  with proper symlinks) so `file:` deps live-update.
+
+The `predev` hook builds the wasm but does not update the copy in
+`node_modules/`, so adding wasm exports always requires one of the
+two manual steps above.
 
 ---
 
