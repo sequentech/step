@@ -59,6 +59,7 @@ import {runElectionTally, type ContestTallyOutcome} from "./electionTally"
 import {setActiveVoter} from "./workbenchStore"
 import {importPortalBallotStyle} from "./import/portalBallotStyleImport"
 import {importVelvetElection} from "./import/velvetElectionImport"
+import type {PipelineSeed, PipelineSeedRow} from "./BallotPipeline"
 // ---------------------------------------------------------------------------
 // Layout
 // ---------------------------------------------------------------------------
@@ -1476,6 +1477,7 @@ function SecretKeyRow({
 export function ContestDetailPage(): JSX.Element {
     const {id} = useParams()
     const contestId = id ?? ""
+    const navigate = useNavigate()
     // Live portal slice carries at most one BS per election (the one
     // bound to the active voter), so a contest that only exists on a
     // pool-only BS (e.g. Area B's contest while Area A's voter is
@@ -1513,6 +1515,9 @@ export function ContestDetailPage(): JSX.Element {
         found ? s.castVotes[found.ballotStyle.election_id] ?? [] : []
     )
     const repaired = useWorkbench((w) => w.repairedCastVotes)
+    // Snapshot-wide keypair, used to seed the pipeline page so its
+    // encrypt/decrypt stages match what the bridge actually used.
+    const keypair = useWorkbench((w) => w.keypair)
     // Decoded BigUint per cast vote for this contest, in cast order.
     // Cast votes whose bridge entry hasn't filled `decodedBigInts`
     // yet (e.g. the decrypt observer hasn't run) are simply absent —
@@ -1577,6 +1582,59 @@ export function ContestDetailPage(): JSX.Element {
                 .join("|"),
         [decodedRows]
     )
+    // Open this contest in the ballot pipeline pre-filled with one
+    // row per captured cast vote. Each row's plaintext cell is
+    // pulled from the bridge-captured `selection` (a
+    // `BallotSelection = Array<IDecodedVoteContest>`, see
+    // ui-core/services/wasm.ts), filtered to this contest's id; the
+    // encrypted cell is the cast-vote's `content` envelope; the
+    // decrypted cell is the workbench-bridge-decoded BigUint. The
+    // operator can then re-run any stage in the pipeline and see
+    // computed-vs-captured for every ballot side-by-side.
+    //
+    // Navigation state is the seed transport: react-router carries
+    // it through history without persisting it, which is exactly the
+    // semantics we want (a reload of /pipeline should fall back to
+    // velvet-wasm fixtures, not re-seed from a stale contest view).
+    const handleOpenInPipeline = useCallback(() => {
+        if (!found) return
+        const ownBsId = found.ballotStyle.id
+        const rows: PipelineSeedRow[] = []
+        for (const cv of castVotes) {
+            const entry = repaired[cv.id]
+            if (entry?.ballotStyleId && entry.ballotStyleId !== ownBsId) {
+                // Cast against a different BS in this election; that
+                // BS does not include this contest.
+                continue
+            }
+            let plaintextJson: string | undefined
+            const sel = entry?.selection as
+                | Array<{contest_id?: unknown}>
+                | undefined
+            if (Array.isArray(sel)) {
+                const match = sel.find(
+                    (c) => (c as {contest_id?: unknown}).contest_id === contestId
+                )
+                if (match) plaintextJson = JSON.stringify(match, null, 2)
+            }
+            rows.push({
+                label: cv.id.slice(0, 8) + "\u2026",
+                plaintextJson,
+                encryptedJson:
+                    typeof cv.content === "string" && cv.content.length > 0
+                        ? prettyJsonOrRaw(cv.content)
+                        : undefined,
+                decryptedBigInt: entry?.decodedBigInts?.[contestId],
+            })
+        }
+        const seed: PipelineSeed = {
+            contestJson: JSON.stringify(found.contest, null, 2),
+            pkB64: keypair?.pkB64 ?? "",
+            skB64: keypair?.skB64 ?? "",
+            rows,
+        }
+        navigate("/pipeline", {state: seed})
+    }, [found, castVotes, repaired, contestId, keypair, navigate])
     const handleRunTally = useCallback(async () => {
         if (!found) return
         const fingerprint = currentTallyFingerprint
@@ -1680,7 +1738,24 @@ export function ContestDetailPage(): JSX.Element {
                     ))}
                 </ul>
             )}
-            <h2 style={h2Style}>Tally</h2>
+            <div
+                style={{
+                    display: "flex",
+                    alignItems: "baseline",
+                    gap: "0.75rem",
+                }}
+            >
+                <h2 style={h2Style}>Tally</h2>
+                <button
+                    type="button"
+                    onClick={handleOpenInPipeline}
+                    style={secondaryButtonStyle}
+                    title="Open this contest's captured ballots in the
+ encrypt/decrypt/decode pipeline for round-trip inspection"
+                >
+                    Open in ballot pipeline
+                </button>
+            </div>
             <ContestTallyView
                 outcome={outcome}
                 error={tallyError}
@@ -2203,6 +2278,18 @@ function SubHeading({children}: {children: React.ReactNode}): JSX.Element {
 
 function Empty({children}: {children: React.ReactNode}): JSX.Element {
     return <div style={{color: "#999", fontStyle: "italic"}}>{children}</div>
+}
+
+/** Try to pretty-print JSON; fall back to the raw string if parsing
+ *  fails. Used when seeding the pipeline with a `castVote.content`
+ *  envelope that we want to display readably without breaking on
+ *  malformed input. */
+function prettyJsonOrRaw(s: string): string {
+    try {
+        return JSON.stringify(JSON.parse(s), null, 2)
+    } catch {
+        return s
+    }
 }
 
 // --- Detail-page presentational helpers -----------------------------------
