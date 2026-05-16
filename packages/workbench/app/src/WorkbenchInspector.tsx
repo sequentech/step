@@ -1648,9 +1648,40 @@ export function VoterDetailPage(): JSX.Element {
     const voter = useWorkbench((w) =>
         w.voters.find((v) => v.id === voterId)
     )
-    const ballotStyles = useSelector((s: RootState) =>
-        Object.values(s.ballotStyles).filter((b): b is NonNullable<typeof b> => !!b)
+    // Eligible ballot styles for this voter come from the workbench
+    // overlay (Phase 1 eligibility), NOT the portal `ballotStyles`
+    // slice — that slice only ever holds the BS for the *currently
+    // active* session, so reading it would show whatever the last
+    // impersonated voter saw, not what THIS voter is eligible for.
+    //
+    // When the overlay is absent (older snapshots, single-voter
+    // imports without an `assignments` map), fall back to the portal
+    // slice so the page still works.
+    type PortalBSRow = NonNullable<RootState["ballotStyles"][string]>
+    const ballotStylePool = useWorkbench((w) => w.ballotStylePool)
+    const assignments = useWorkbench((w) => w.assignments)
+    const portalSliceStyles = useSelector((s: RootState) =>
+        Object.values(s.ballotStyles).filter(
+            (b): b is PortalBSRow => !!b
+        )
     )
+    const ballotStyles = useMemo<PortalBSRow[]>(() => {
+        if (!ballotStylePool || !assignments) {
+            return portalSliceStyles
+        }
+        const assignedIds = new Set(assignments[voterId] ?? [])
+        if (assignedIds.size === 0) return []
+        const out: PortalBSRow[] = []
+        for (const rows of Object.values(ballotStylePool)) {
+            for (const row of rows) {
+                const id = (row as {id?: unknown}).id
+                if (typeof id === "string" && assignedIds.has(id)) {
+                    out.push(row as PortalBSRow)
+                }
+            }
+        }
+        return out
+    }, [ballotStylePool, assignments, portalSliceStyles, voterId])
     const elections = useSelector((s: RootState) => s.elections)
     const castVotesByElection = useSelector((s: RootState) => s.castVotes)
     const castBy = useWorkbench((w) => w.castBy)
@@ -1724,7 +1755,9 @@ export function VoterDetailPage(): JSX.Element {
             <h2 style={h2Style}>Vote as {voter.displayName}</h2>
             {ballotStyles.length === 0 ? (
                 <Empty>
-                    No ballot styles in this snapshot.
+                    {ballotStylePool && assignments
+                        ? "This voter has no ballot-style assignments in the current snapshot."
+                        : "No ballot styles in this snapshot."}
                 </Empty>
             ) : (
                 <ul style={{paddingLeft: 0, listStyle: "none"}}>
