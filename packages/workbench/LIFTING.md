@@ -154,14 +154,15 @@ context (rare), match production's nesting at that point.
 Currently mounted:
 
 **`Shell`** (in `app/src/main.tsx`, wraps every workbench page including
-the workbench-native `/tally` view), outermost first:
+the workbench-native `/pipeline` view), outermost first:
 
 1. `<ReduxProvider store={...}>` reusing the **production `store`** from
    `voting-portal/src/store/store`. This is deliberate: same reducers,
    same selectors, same shape. Diverging would defeat the lift. Hoisted
-   to `Shell` so the workbench's own pages (e.g. `/tally`) read the same
-   store the booth writes to. Production also wraps Redux outside its
-   routes in `voting-portal/src/index.tsx`, so the layering matches.
+   to `Shell` so the workbench's own pages (e.g. `/pipeline`, the
+   inspector) read the same store the booth writes to. Production also
+   wraps Redux outside its routes in `voting-portal/src/index.tsx`, so
+   the layering matches.
 
 **`BoothLayout`** (mounted under `Shell` for booth routes only),
 outermost first:
@@ -240,13 +241,13 @@ Two structural decisions follow from inspecting `voting-portal/src/index.tsx`:
    `/tenant/${tenantId}/event/${eventId}/election/${electionId}/vote`. A
    `/booth/...` prefix would 404 on every internal `<Link>`. So the
    workbench root path tree mirrors the portal, and the only workbench-
-   specific routes are `/wb/...` and `/tally`.
+   specific routes are `/wb/...` and `/pipeline`.
 
 Concretely, `main.tsx`:
 
 - Builds a `createBrowserRouter` with a `<Shell>` layout containing a
   small nav, the global `<ReduxProvider>`, and an `<Outlet />`.
-- **Workbench-owned subtree** under `/wb/...` and `/tally`. Lift-irrelevant
+- **Workbench-owned subtree** under `/wb/...` and `/pipeline`. Lift-irrelevant
   detail — see `WORKBENCH.md` for the inspector routes. The only fact the
   lift cares about is that nothing under `/wb/...` resolves to a lifted
   portal screen.
@@ -472,7 +473,7 @@ and the user gets a fresh fixture instead of a crash.
 
 **Cross-cutting note: where the booth must live now.** Because the
 ReduxProvider was hoisted out of `BoothLayout` and into `Shell` (so the
-workbench's own pages — e.g. `/tally`, the inspector — can read the
+workbench's own pages — e.g. `/pipeline`, the inspector — can read the
 same store), every workbench page now sees the same Redux state. The
 booth screens themselves are unaffected — the layering matches
 `voting-portal/src/index.tsx`, which also wraps Redux outside its
@@ -911,8 +912,8 @@ functions that participate in the encrypt → decrypt → tally loop are:
   collected. See §M.4 for how the workbench feeds it.
 
 The package also re-exports a handful of `get_sample_*` JSON helpers
-used only by `/tally` (the raw-JSON sandbox) and by ad-hoc REPL
-experiments; they are workbench-internal and have no canary.
+used only by `/pipeline` (the ballot-pipeline sandbox) and by ad-hoc
+REPL experiments; they are workbench-internal and have no canary.
 
 The package is consumed by the workbench app via
 `"velvet-wasm": "file:../velvet-wasm/pkg"` (section B). Voting-portal
@@ -1042,7 +1043,7 @@ broken or you want to validate fidelity.
 3. **Fix the smallest possible thing**, restart the dev server, and re-test.
 4. **Update this document.** If you added/changed an adaptation, edit the
    relevant section so the next refresh starts from accurate state.
-5. **Run the raw-JSON tally sandbox too** (`http://localhost:5173/tally`).
+5. **Run the ballot pipeline sandbox too** (`http://localhost:5173/pipeline`).
    It uses `velvet-wasm` (the wasm-bindgen wrapper around `velvet-core`)
    directly and is unaffected by portal changes; if it breaks, the
    problem is in workbench glue or wasm-pack output, not the lift.
