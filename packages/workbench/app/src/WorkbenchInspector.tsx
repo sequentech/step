@@ -1744,6 +1744,27 @@ export function VoterDetailPage(): JSX.Element {
         })
         return out
     }, [castBy, repaired, voterId, castVotesByElection, elections])
+    // Lookup table for contest names so cast-vote rows can display
+    // "Favourite shape (Area B) → 4" instead of the bare contest UUID.
+    // We scan the workbench ballot-style pool (when present — it's
+    // the source of truth for the multi-BS case) and fall back to
+    // whatever's in the portal slice.
+    const contestNameById = useMemo(() => {
+        const map: Record<string, string> = {}
+        const collectFrom = (bs: PortalBSRow | undefined): void => {
+            if (!bs) return
+            for (const c of bs.ballot_eml.contests) {
+                if (c.name && !map[c.id]) map[c.id] = c.name
+            }
+        }
+        if (ballotStylePool) {
+            for (const rows of Object.values(ballotStylePool)) {
+                for (const row of rows) collectFrom(row as PortalBSRow)
+            }
+        }
+        for (const bs of portalSliceStyles) collectFrom(bs)
+        return map
+    }, [ballotStylePool, portalSliceStyles])
     if (!voter) {
         return (
             <>
@@ -1817,7 +1838,10 @@ export function VoterDetailPage(): JSX.Element {
                             key={row.castVoteId}
                             style={castVoteRowStyle}
                         >
-                            <VoterCastVoteRow row={row} />
+                            <VoterCastVoteRow
+                                row={row}
+                                contestNameById={contestNameById}
+                            />
                         </li>
                     ))}
                 </ul>
@@ -1828,6 +1852,7 @@ export function VoterDetailPage(): JSX.Element {
 
 function VoterCastVoteRow({
     row,
+    contestNameById,
 }: {
     row: {
         castVoteId: string
@@ -1836,6 +1861,7 @@ function VoterCastVoteRow({
         decoded: Record<string, string>
         createdAt: string | null | undefined
     }
+    contestNameById: Record<string, string>
 }): JSX.Element {
     const decodedEntries = Object.entries(row.decoded)
     return (
@@ -1871,27 +1897,32 @@ function VoterCastVoteRow({
                         margin: "0.3rem 0 0 0",
                     }}
                 >
-                    {decodedEntries.map(([contestId, big]) => (
-                        <li
-                            key={contestId}
-                            style={{
-                                margin: "0.2rem 0",
-                                fontFamily: "monospace",
-                                fontSize: "0.8rem",
-                            }}
-                        >
-                            <NavLink
-                                to={`/wb/contest/${contestId}`}
-                                style={inlineLinkStyle}
+                    {decodedEntries.map(([contestId, big]) => {
+                        const label =
+                            contestNameById[contestId] ?? contestId
+                        return (
+                            <li
+                                key={contestId}
+                                style={{
+                                    margin: "0.2rem 0",
+                                    fontFamily: "monospace",
+                                    fontSize: "0.8rem",
+                                }}
                             >
-                                {contestId}
-                            </NavLink>
-                            {" → "}
-                            <span style={{wordBreak: "break-all"}}>
-                                {big}
-                            </span>
-                        </li>
-                    ))}
+                                <NavLink
+                                    to={`/wb/contest/${contestId}`}
+                                    style={inlineLinkStyle}
+                                    title={contestId}
+                                >
+                                    {label}
+                                </NavLink>
+                                {" → "}
+                                <span style={{wordBreak: "break-all"}}>
+                                    {big}
+                                </span>
+                            </li>
+                        )
+                    })}
                 </ul>
             )}
         </>
