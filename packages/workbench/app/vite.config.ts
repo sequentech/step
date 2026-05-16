@@ -23,13 +23,12 @@ const pkgs = path.resolve(here, "../..")
 //
 // Invariants checked:
 //   - `version === "v1"`
-//   - Every entry in `state.ballotStyles` has a matching
-//     `workbench.keypairs[ballotStyle.id]` with `pkB64` / `skB64`
-//     strings. (The encrypt path uses the ballot style's
-//     `public_key`; the decrypt bridge looks up the matching secret
-//     key by ballot style id. A missing entry would silently break
-//     the round-trip.)
-//   - `state.ballotStyles[*].ballot_eml.public_key.public_key`\n//     matches `workbench.keypairs[ballotStyleId].pkB64`. Catches\n//     hand-edits that re-key one side and not the other.
+//   - `workbench.keypair` is present and has string `pkB64` / `skB64`.
+//   - Every `state.ballotStyles[*].ballot_eml.public_key.public_key`
+//     equals `workbench.keypair.pkB64`. Catches hand-edits that
+//     re-key one side and not the other, and snapshots whose ballot
+//     styles drifted apart on the public-key field (which would break
+//     the encrypt/decrypt round-trip silently).
 //
 // Implementation lives here rather than in `src/` because vite.config
 // runs in node and cannot import browser-targeted TS modules.
@@ -80,7 +79,7 @@ interface SnapshotShape {
         >
     }
     workbench?: {
-        keypairs?: Record<string, {pkB64?: unknown; skB64?: unknown}>
+        keypair?: {pkB64?: unknown; skB64?: unknown}
     }
 }
 
@@ -94,27 +93,20 @@ function validateSnapshot(raw: unknown): string[] {
     if (s.version !== "v1") {
         errors.push(`expected version "v1", got ${JSON.stringify(s.version)}`)
     }
+    const kp = s.workbench?.keypair
+    if (!kp || typeof kp !== "object") {
+        errors.push("workbench.keypair is missing")
+        return errors
+    }
+    if (typeof kp.pkB64 !== "string" || typeof kp.skB64 !== "string") {
+        errors.push("workbench.keypair is missing pkB64/skB64 strings")
+        return errors
+    }
     const ballotStyles = s.state?.ballotStyles ?? {}
-    const keypairs = s.workbench?.keypairs ?? {}
     for (const [key, bs] of Object.entries(ballotStyles)) {
         const bsId = bs?.id
         if (typeof bsId !== "string") {
-            errors.push(
-                `state.ballotStyles[${key}] has no string id`
-            )
-            continue
-        }
-        const kp = keypairs[bsId]
-        if (!kp) {
-            errors.push(
-                `state.ballotStyles[${key}] (id=${bsId}) has no matching workbench.keypairs entry`
-            )
-            continue
-        }
-        if (typeof kp.pkB64 !== "string" || typeof kp.skB64 !== "string") {
-            errors.push(
-                `workbench.keypairs[${bsId}] is missing pkB64/skB64 strings`
-            )
+            errors.push(`state.ballotStyles[${key}] has no string id`)
             continue
         }
         const pkInBallotStyle = bs?.ballot_eml?.public_key?.public_key
@@ -123,7 +115,7 @@ function validateSnapshot(raw: unknown): string[] {
             pkInBallotStyle !== kp.pkB64
         ) {
             errors.push(
-                `state.ballotStyles[${key}].ballot_eml.public_key.public_key does not match workbench.keypairs[${bsId}].pkB64`
+                `state.ballotStyles[${key}].ballot_eml.public_key.public_key does not match workbench.keypair.pkB64`
             )
         }
     }

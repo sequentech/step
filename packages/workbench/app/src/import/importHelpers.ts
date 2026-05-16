@@ -8,7 +8,8 @@
 // The flows all funnel into a single `PersistedSnapshot` and then
 // `loadSnapshotViaReload(snap, null)`. This file keeps the bits each
 // flow needs to synthesize portal slice rows from a partial input,
-// re-key every ballot style with a fresh workbench keypair, and wire
+// generate one workbench keypair for the whole snapshot (stamping the
+// pk into every ballot style's `ballot_eml.public_key`), and wire
 // the eligibility overlay (`workbench.ballotStylePool` +
 // `workbench.assignments`) so the active-voter swap immediately
 // reflects voter ↔ ballot-style assignments.
@@ -73,18 +74,22 @@ export const DEFAULT_OPEN_STATUS = {
     early_voting_period_dates: {},
 } as const
 
-/** Generate a fresh keypair and stamp the pk into the row's
- *  `ballot_eml.public_key.public_key` so the encrypt path uses it.
- *  Returns the new keypair so the caller can install it under
- *  `workbench.keypairs[bsId]`. Mutates `row` in place. */
-export async function rekeyBallotStyle(
-    row: PortalBallotStyleRow
+/** Generate one workbench keypair for the whole snapshot and stamp
+ *  its public key into every supplied row's
+ *  `ballot_eml.public_key.public_key`. Returns the new keypair so the
+ *  caller can install it under `workbench.keypair`. Mutates each row
+ *  in place. This matches production semantics where every ballot
+ *  style in an election shares one trustee-generated public key. */
+export async function rekeySnapshot(
+    rows: PortalBallotStyleRow[]
 ): Promise<{pkB64: string; skB64: string}> {
     const kp = await generateKeypair()
-    if (!row.ballot_eml || typeof row.ballot_eml !== "object") {
-        row.ballot_eml = {}
+    for (const row of rows) {
+        if (!row.ballot_eml || typeof row.ballot_eml !== "object") {
+            row.ballot_eml = {}
+        }
+        row.ballot_eml.public_key = {public_key: kp.pkB64, is_demo: false}
     }
-    row.ballot_eml.public_key = {public_key: kp.pkB64, is_demo: false}
     return kp
 }
 
@@ -137,14 +142,14 @@ export function assembleSnapshot(args: {
     election: PortalElectionRow
     /** All ballot styles available for this election (the pool). */
     ballotStyles: PortalBallotStyleRow[]
-    /** Workbench keypairs, keyed by ballot-style id. */
-    keypairs: Record<string, {pkB64: string; skB64: string}>
+    /** Workbench keypair shared by every ballot style in the snapshot. */
+    keypair: {pkB64: string; skB64: string}
     /** Voter personas (already sorted however the importer wants). */
     voters: Voter[]
     /** Eligibility: voter id → ballot-style ids. */
     assignments: Record<string, string[]>
 }): PersistedSnapshot {
-    const {electionEvent, election, ballotStyles, keypairs, voters, assignments} =
+    const {electionEvent, election, ballotStyles, keypair, voters, assignments} =
         args
     const activeVoterId = voters[0]?.id ?? null
     // Initial slice entry: whichever BS is assigned to the active
@@ -169,7 +174,7 @@ export function assembleSnapshot(args: {
         activeVoterId,
         castBy: {},
         repairedCastVotes: {},
-        keypairs,
+        keypair,
         ballotStylePool: {[election.id]: ballotStyles},
         assignments,
     }

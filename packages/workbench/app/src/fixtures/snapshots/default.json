@@ -157,11 +157,9 @@
         "activeVoterId": null,
         "castBy": {},
         "repairedCastVotes": {},
-        "keypairs": {
-            "00000000-0000-0000-0000-0000000000b1": {
-                "pkB64": "gi+zOBm9zTe3mXx2AzmgXaAhmrpB9nxhrO4wHimya28",
-                "skB64": "e9pCQ6VnOIBHwoOyVwqehk00ko5D0RW/LSRVOPC7tAmCL7M4Gb3NN7eZfHYDOaBdoCGaukH2fGGs7jAeKbJrbw"
-            }
+        "keypair": {
+            "pkB64": "gi+zOBm9zTe3mXx2AzmgXaAhmrpB9nxhrO4wHimya28",
+            "skB64": "e9pCQ6VnOIBHwoOyVwqehk00ko5D0RW/LSRVOPC7tAmCL7M4Gb3NN7eZfHYDOaBdoCGaukH2fGGs7jAeKbJrbw"
         }
     }
 }

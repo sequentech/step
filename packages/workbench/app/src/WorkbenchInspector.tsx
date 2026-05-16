@@ -1347,7 +1347,13 @@ export function BallotStyleDetailPage(): JSX.Element {
     const election = useSelector((s: RootState) =>
         ballotStyle ? s.elections[ballotStyle.election_id] : undefined
     )
-    const keypair = useWorkbench((w) => w.keypairs[bsId])
+    // The workbench keypair is per-snapshot rather than per-ballot-style;
+    // every BS in this snapshot shares the same pair. The detail page
+    // still surfaces it here because the operator's mental model is
+    // "this BS encrypts under this key", and the SecretKeyRow check
+    // (`pk === keypair.pkB64`) catches snapshots whose pk drifted away
+    // from the workbench-installed key.
+    const keypair = useWorkbench((w) => w.keypair ?? undefined)
     if (!ballotStyle) {
         return (
             <>
@@ -1424,8 +1430,8 @@ function SecretKeyRow({
     if (!keypair) {
         return (
             <em style={{color: "#b00020"}}>
-                no keypair registered for this ballot style — the
-                decrypt bridge will fall back to a fresh keypair
+                no keypair registered in this snapshot — the decrypt
+                bridge will fall back to a fresh keypair
             </em>
         )
     }

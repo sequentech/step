@@ -56,18 +56,21 @@ export interface WorkbenchExtraState {
      *  `sessionStorage["ballotData"]`, opaque to the workbench because
      *  we lack the decryption keys). */
     repairedCastVotes: Record<string, RepairedCastVote>
-    /** Workbench-owned ElGamal keypairs, keyed by ballot-style id. A
-     *  ballot style's `public_key` (in Redux) is paired with the matching
-     *  secret key held here, so the encrypt path uses our pk and the
-     *  decrypt bridge can recover plaintexts under the same scope. The
-     *  key is per-ballot-style because that is the field name production
-     *  uses for the encryption key; multiple ballot styles in one scenario
-     *  can each carry their own pair. Bundled snapshots ship both halves;
-     *  the loader rejects snapshots whose ballot styles lack a matching
-     *  entry here. Production has no analogue: real election keys are
+    /** Workbench-owned ElGamal keypair, shared across every ballot
+     *  style in the snapshot. Every ballot style's `ballot_eml.public_key`
+     *  (in Redux) holds this pair's `pkB64`, and the decrypt bridge
+     *  uses the matching `skB64` regardless of which ballot style the
+     *  cast vote came from. Per-snapshot rather than per-ballot-style
+     *  because in production every ballot style under one election
+     *  shares the same trustee-generated election public key; the
+     *  workbench mirrors that convention so cross-ballot-style aggregation
+     *  (and the contest pipeline page) works under a single sk. Bundled
+     *  snapshots ship both halves; the loader rejects snapshots whose
+     *  ballot styles' public keys don't match this pair's `pkB64`.
+     *  Production has no analogue: real election keys are
      *  threshold-shared between trustees and never live as a single
      *  secret anywhere. */
-    keypairs: Record<string, WorkbenchKeypair>
+    keypair: WorkbenchKeypair | null
     /** Workbench-only pool of *all* ballot styles available per
      *  election, keyed by `election_id`. The portal's `ballotStyles`
      *  slice only ever holds one ballot style per election at a time
@@ -153,7 +156,7 @@ const EMPTY_STATE: WorkbenchExtraState = Object.freeze({
     activeVoterId: null,
     castBy: {},
     repairedCastVotes: {},
-    keypairs: {},
+    keypair: null,
 })
 
 let state: WorkbenchExtraState = EMPTY_STATE
@@ -317,17 +320,14 @@ export function dropCastVoteOverlay(castVoteIds: string[]): void {
     })
 }
 
-/** Install a keypair for a ballot style. First call per id wins;
- *  subsequent calls are no-ops so a stray re-seed cannot invalidate an
- *  already-captured cast vote (which was encrypted under the existing
- *  pk for that ballot style). Operators who want a fresh keypair edit
- *  the snapshot directly; see LIFTING.md section M. */
-export function setKeypair(ballotStyleId: string, kp: WorkbenchKeypair): void {
-    if (state.keypairs[ballotStyleId]) return
-    setState({
-        ...state,
-        keypairs: {...state.keypairs, [ballotStyleId]: kp},
-    })
+/** Install the snapshot's keypair. First call wins; subsequent calls
+ *  are no-ops so a stray re-seed cannot invalidate already-captured
+ *  cast votes (which were encrypted under the existing pk). Operators
+ *  who want a fresh keypair edit the snapshot directly; see
+ *  LIFTING.md section M. */
+export function setKeypair(kp: WorkbenchKeypair): void {
+    if (state.keypair) return
+    setState({...state, keypair: kp})
 }
 
 /** Record the result of a manual tally run for a contest. Replaces
@@ -445,24 +445,40 @@ function normalizeIncoming(incoming: WorkbenchExtraState): WorkbenchExtraState {
             }
         }
     }
-    const keypairs: Record<string, WorkbenchKeypair> = {}
-    const incomingKeypairs = (
-        incoming as WorkbenchExtraState & {keypairs?: unknown}
-    ).keypairs
-    if (incomingKeypairs && typeof incomingKeypairs === "object") {
-        for (const [bsId, kp] of Object.entries(
-            incomingKeypairs as Record<string, unknown>
-        )) {
-            if (
-                typeof bsId === "string" &&
-                kp &&
-                typeof kp === "object" &&
-                typeof (kp as WorkbenchKeypair).pkB64 === "string" &&
-                typeof (kp as WorkbenchKeypair).skB64 === "string"
-            ) {
-                keypairs[bsId] = {
-                    pkB64: (kp as WorkbenchKeypair).pkB64,
-                    skB64: (kp as WorkbenchKeypair).skB64,
+    // Accept either the current `keypair` field or the legacy
+     // `keypairs: Record<bsId, kp>` shape (pick the first valid entry).
+     // The legacy shim exists so a stale localStorage snapshot from an
+     // older workbench build degrades gracefully rather than silently
+     // dropping the operator's only decryption key.
+    let keypair: WorkbenchKeypair | null = null
+    const incomingKp = (
+        incoming as WorkbenchExtraState & {keypair?: unknown}
+    ).keypair
+    if (
+        incomingKp &&
+        typeof incomingKp === "object" &&
+        typeof (incomingKp as WorkbenchKeypair).pkB64 === "string" &&
+        typeof (incomingKp as WorkbenchKeypair).skB64 === "string"
+    ) {
+        keypair = {
+            pkB64: (incomingKp as WorkbenchKeypair).pkB64,
+            skB64: (incomingKp as WorkbenchKeypair).skB64,
+        }
+    } else {
+        const legacy = (incoming as {keypairs?: unknown}).keypairs
+        if (legacy && typeof legacy === "object") {
+            for (const kp of Object.values(legacy as Record<string, unknown>)) {
+                if (
+                    kp &&
+                    typeof kp === "object" &&
+                    typeof (kp as WorkbenchKeypair).pkB64 === "string" &&
+                    typeof (kp as WorkbenchKeypair).skB64 === "string"
+                ) {
+                    keypair = {
+                        pkB64: (kp as WorkbenchKeypair).pkB64,
+                        skB64: (kp as WorkbenchKeypair).skB64,
+                    }
+                    break
                 }
             }
         }
@@ -550,7 +566,7 @@ function normalizeIncoming(incoming: WorkbenchExtraState): WorkbenchExtraState {
         activeVoterId,
         castBy,
         repairedCastVotes,
-        keypairs,
+        keypair,
         ...(ballotStylePool ? {ballotStylePool} : {}),
         ...(assignments ? {assignments} : {}),
         ...(tallyRuns ? {tallyRuns} : {}),

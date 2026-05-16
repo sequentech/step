@@ -313,7 +313,7 @@ The shipping `default.json` snapshot encodes:
 - A `ballotStyle` whose `ballot_eml.contests` is the same `IContest`
   array as the election's. The `ballot_eml.public_key.public_key` is
   the **`pkB64`** of the workbench-owned ElGamal keypair stored under
-  `workbench.keypairs[ballotStyleId]` (section M). The booth therefore
+  `workbench.keypair` (section M). The booth therefore
   encrypts cast ballots under a key whose secret half the workbench
   also holds, closing the encrypt → decrypt → decode → tally loop in
   the browser. An older revision of the fixture used
@@ -346,10 +346,10 @@ The shipping `default.json` snapshot encodes:
   makes the early-voting branch reachable, the fixture won't crash —
   it will just report "no early voting policy enabled" and fall back
 **Editing the bundled snapshot.** Do not hand-edit `default.json`
-blindly — a Vite plugin enforces ballot-style ↔ keypair consistency at
-build start (see §M.2 below). The authoring workflow (save a
-checkpoint, copy its JSON, paste under `app/src/fixtures/snapshots/`)
-is described in `WORKBENCH.md`.
+blindly — a Vite plugin enforces snapshot-keypair ↔ ballot-style
+consistency at build start (see §M.2 below). The authoring workflow
+(save a checkpoint, copy its JSON, paste under
+`app/src/fixtures/snapshots/`) is described in `WORKBENCH.md`.
 
 **Convention:** because hydration goes through the portal's own action
 creators (`hydrateFromSnapshot` in `persistence.ts`), payload-shape
@@ -550,17 +550,17 @@ State fields:
   snapshot, real election id, and `decodedBigInts: Record<contestId,
   decimalString>` filled in asynchronously by the decrypt bridge — see
   section M).
-- `keypairs: Record<string, WorkbenchKeypair>` — workbench-owned
-  ElGamal keypairs, keyed by ballot-style id. Each entry is
-  `{pkB64, skB64}`, base64-no-pad, strand/borsh-serialised via
-  `velvet-wasm::generate_keypair`. Per-ballot-style rather than
-  global because every ballot style stamps its own `public_key` into
-  `ballot_eml`, and a future scenario will want to mix ballot styles
-  with distinct pks (e.g. to prove that a cast vote can only be
-  decrypted with the matching sk). `setKeypair(bsId, kp)` is
-  **first-call-wins per id** so a stray re-seed cannot orphan
-  already-captured cast votes encrypted under the old pk. Full
-  lifecycle in section M.
+- `keypair: WorkbenchKeypair | null` — the single workbench-owned
+  ElGamal keypair for the whole snapshot. `{pkB64, skB64}`,
+  base64-no-pad, strand/borsh-serialised via
+  `velvet-wasm::generate_keypair`. One keypair per snapshot (not per
+  ballot style) because production runs a single trustee ceremony per
+  election and every ballot style in that election ends up stamped
+  with the same `public_key`; sharing one key here is what lets a
+  contest tally span ballot styles. `setKeypair(kp)` is
+  **first-call-wins** so a stray re-seed cannot orphan already-
+  captured cast votes encrypted under the old pk. Full lifecycle in
+  section M.
 - `ballotStylePool?: Record<electionId, BallotStyleRow[]>` — optional
   out-of-band pool of *all* ballot styles available per election. The
   portal's `ballotStyles` slice is keyed by `election_id` and only
@@ -938,18 +938,17 @@ rules, which is why they interoperate.
 
 #### M.2 Keypair bundling and validator invariant
 
-Keypairs are **bundled into the snapshot** rather than generated at
+The keypair is **bundled into the snapshot** rather than generated at
 boot. The shipping `default.json` carries
-`workbench.keypairs[<ballotStyleId>] = {pkB64, skB64}` whose `pkB64`
-is written into the corresponding ballot style's
-`ballot_eml.public_key.public_key`. The `validateBundledSnapshots`
-Vite plugin enforces this consistency at build start (see
-`app/vite.config.ts`):
+`workbench.keypair = {pkB64, skB64}` whose `pkB64` is written into
+*every* ballot style's `ballot_eml.public_key.public_key`. The
+`validateBundledSnapshots` Vite plugin enforces this consistency at
+build start (see `app/vite.config.ts`):
 
-1. Every `state.ballotStyles[*].id` must have a matching
-   `workbench.keypairs[id]` entry.
-2. The entry's `pkB64` must equal
-   `state.ballotStyles[*].ballot_eml.public_key.public_key`.
+1. `workbench.keypair` must be present with string `pkB64` and
+   `skB64` halves.
+2. Every `state.ballotStyles[*].ballot_eml.public_key.public_key`
+   must equal `workbench.keypair.pkB64`.
 
 Full workbench-side lifecycle (boot, per-id generation, persistence,
 reset) lives in `WORKBENCH.md`.
@@ -1124,8 +1123,9 @@ categories of work (in roughly the order they will be needed):
    is felt.
 7. **Extending the bundled snapshot.** As later screens consume more
    of the store (cast votes, audit data, etc.), `default.json` grows.
-   The `validateBundledSnapshots` plugin keeps the ballot-style ↔
-   keypair invariants honest on every build. Prefer one snapshot per
+   The `validateBundledSnapshots` plugin keeps the snapshot-keypair ↔
+   ballot-style invariants honest on every build. Prefer one snapshot
+   per
    coherent scenario over many small ones. The authoring workflow
    (save a checkpoint, copy its JSON, paste it under
    `app/src/fixtures/snapshots/`) lives in `WORKBENCH.md`.

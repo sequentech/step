@@ -23,7 +23,7 @@ import {
     assembleSnapshot,
     DEFAULT_OPEN_STATUS,
     makeVoter,
-    rekeyBallotStyle,
+    rekeySnapshot,
     type PortalBallotStyleRow,
 } from "./importHelpers"
 
@@ -86,7 +86,7 @@ export async function importPortalBallotStyle(
     const row = parsePortalBallotStyle(input)
     // Deep clone so we don't mutate the caller's parsed object.
     const cloned = JSON.parse(JSON.stringify(row)) as PortalBallotStyleRow
-    const kp = await rekeyBallotStyle(cloned)
+    const kp = await rekeySnapshot([cloned])
     if (!cloned.created_at) cloned.created_at = "1970-01-01T00:00:00Z"
     if (!cloned.last_updated_at)
         cloned.last_updated_at = "1970-01-01T00:00:00Z"
@@ -113,7 +113,7 @@ export async function importPortalBallotStyle(
             status: {...DEFAULT_OPEN_STATUS},
         },
         ballotStyles: [cloned],
-        keypairs: {[cloned.id]: kp},
+        keypair: kp,
         voters: [voter],
         assignments: {[voter.id]: [cloned.id]},
     })

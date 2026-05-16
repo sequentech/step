@@ -140,9 +140,9 @@ All five are exported from `WorkbenchInspector.tsx`:
   parent election, the public key, the secret key (always visible —
   this is a demo keypair), a contest list (NavLinks to
   `/wb/contest/...`), and the raw `ballot_eml` JSON. A `pk/sk`
-  mismatch (the stored `keypairs[bsId].pkB64` not matching
-  `ballot_eml.public_key.public_key`) is surfaced as a warning row
-  rather than silently swallowed.
+  mismatch (the snapshot-level `workbench.keypair.pkB64` not
+  matching this BS's `ballot_eml.public_key.public_key`) is surfaced
+  as a warning row rather than silently swallowed.
 - `ContestDetailPage` at `/wb/contest/:id`. Scans ballot styles for
   the first one containing the contest, then runs the inline tally
   against that ballot style and the live `decodedBigInts` (no
@@ -314,9 +314,9 @@ accident.
 
 Do not hand-edit `default.json` blindly. The Vite plugin
 `validateBundledSnapshots()` (see `app/vite.config.ts`) runs at
-build-start and rejects snapshots whose `state.ballotStyles[*].id` has
-no matching `workbench.keypairs[id]` entry, or whose
-`ballot_eml.public_key.public_key` does not match the stored `pkB64`.
+build-start and rejects snapshots that lack a `workbench.keypair`,
+or whose `ballot_eml.public_key.public_key` (on any ballot style) does
+not match the snapshot's single `workbench.keypair.pkB64`.
 
 The shortest path to a new scenario is:
 
@@ -347,7 +347,7 @@ canaries). This section is the workbench-side detail.
 The mini-store keeps the operator-facing scenario data that has no
 counterpart in voting-portal's Redux store: voter directory,
 currently-impersonated voter, cast-vote → voter attribution ledger,
-plaintext-selection bridge, and per-ballot-style keypairs.
+plaintext-selection bridge, and the snapshot-wide ElGamal keypair.
 
 It is a tiny `useSyncExternalStore`-based subscription, separate from
 Redux, with named mutations only:
@@ -364,13 +364,15 @@ Redux, with named mutations only:
   selection snapshot, real election id, and `decodedBigInts:
   Record<contestId, decimalString>` filled in asynchronously by the
   decrypt bridge — see `LIFTING.md` §M.3).
-- `keypairs: Record<string, WorkbenchKeypair>` — workbench-owned
-  ElGamal keypairs, keyed by ballot-style id. Each entry is
-  `{pkB64, skB64}`, base64-no-pad. Per-ballot-style rather than
-  global because every ballot style stamps its own `public_key` into
-  `ballot_eml`. `setKeypair(bsId, kp)` is **first-call-wins per id**
-  so a stray re-seed cannot orphan already-captured cast votes
-  encrypted under the old pk.
+- `keypair: WorkbenchKeypair | null` — the single workbench-owned
+  ElGamal keypair for the whole snapshot. `{pkB64, skB64}`,
+  base64-no-pad. One keypair per snapshot (not per ballot style)
+  because production runs a single trustee ceremony per election and
+  every ballot style in that election ends up stamped with the same
+  `public_key`; sharing one key here is what lets a contest tally
+  span ballot styles. `setKeypair(kp)` is **first-call-wins** so a
+  stray re-seed cannot orphan already-captured cast votes encrypted
+  under the old pk.
 - `ballotStylePool?: Record<electionId, BallotStyleRow[]>` — full
   set of ballot styles available for each election. Optional; legacy
   snapshots omit it and behave exactly as before. Pool rows are
@@ -432,16 +434,17 @@ provenance):
 2. **Import portal ballot style** — paste a single portal
    `IBallotStyle` row (the shape returned by
    `select * from public.ballot_styles where id = …`, or by the
-   admin portal's BS detail export). The importer regenerates the
-   keypair, stamps the new pk into `ballot_eml.public_key`,
+   admin portal's BS detail export). The importer generates the
+   snapshot's keypair, stamps the new pk into `ballot_eml.public_key`,
    synthesizes minimal `elections` and `electionEvent` slice rows,
    and spawns a single voter named *voter* assigned to the style.
 3. **Import velvet election** — paste a velvet `ElectionConfig`
    JSON (see `fixtures/velvet/sample-election-config.json` for a
    working example). The importer wraps every velvet `BallotStyle`
    into the portal slice-row shape (`ballot_eml = <velvet BS
-   payload>`), regenerates a fresh keypair per style, and spawns
-   one voter per `TreeNodeArea` named `voter (<area-short-id>)`
+   payload>`), generates **one** snapshot-wide keypair and stamps
+   the same pk onto every ballot style, and spawns one voter per
+   `TreeNodeArea` named `voter (<area-short-id>)`
    (TreeNodeArea has no `name` field). Each voter is assigned to
    every ballot style whose `area_id` matches their area, so
    switching voters in the sidebar lands you on a different style

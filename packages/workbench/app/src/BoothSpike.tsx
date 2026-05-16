@@ -48,8 +48,8 @@ import {
 // "seed" code path: the snapshot is the unit of state, and a fresh
 // boot is hydration-from-bundled, not regeneration.
 //
-// Bundled snapshots already carry every ballot style's keypair in
-// `workbench.keypairs`, so warm and cold boots both do zero wasm
+// Bundled snapshots already carry the snapshot's keypair in
+// `workbench.keypair`, so warm and cold boots both do zero wasm
 // work on the boot path. Keypair generation now happens only when
 // an operator explicitly creates a new scenario (out of scope for
 // this boot).

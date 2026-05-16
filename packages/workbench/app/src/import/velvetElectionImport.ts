@@ -6,7 +6,8 @@
 // authoritative election bundle used by the velvet pipeline (see
 // `velvet/src/pipe_inputs.rs::ElectionConfig`). The importer:
 //
-//   1. Generates a fresh workbench keypair per ballot style and
+//   1. Generates a single workbench keypair for the snapshot and
+//      stamps its public key into every ballot style.
 //      stamps each new public key into its `ballot_eml.public_key`.
 //   2. Wraps every velvet `BallotStyle` (which carries `contests`
 //      directly) into a portal `IBallotStyle` slice row by setting
@@ -26,7 +27,7 @@ import {
     assembleSnapshot,
     DEFAULT_OPEN_STATUS,
     makeVoter,
-    rekeyBallotStyle,
+    rekeySnapshot,
     type PortalBallotStyleRow,
 } from "./importHelpers"
 
@@ -101,9 +102,8 @@ export async function importVelvetElection(
     input: string
 ): Promise<PersistedSnapshot> {
     const config = parseVelvetConfig(input)
-    // 1. Wrap and re-key every ballot style.
+    // 1. Wrap each ballot style into a portal row.
     const wrappedRows: PortalBallotStyleRow[] = []
-    const keypairs: Record<string, {pkB64: string; skB64: string}> = {}
     for (const bs of config.ballot_styles) {
         if (typeof bs.id !== "string" || typeof bs.area_id !== "string") {
             throw new Error(
@@ -125,11 +125,12 @@ export async function importVelvetElection(
             created_at: "1970-01-01T00:00:00Z",
             last_updated_at: "1970-01-01T00:00:00Z",
         }
-        const kp = await rekeyBallotStyle(row)
-        keypairs[bs.id] = kp
         wrappedRows.push(row)
     }
-    // 2. One voter per area; assignments by area_id.
+    // 2. Generate one keypair for the whole snapshot and stamp its
+    //    pk onto every ballot style.
+    const keypair = await rekeySnapshot(wrappedRows)
+    // 3. One voter per area; assignments by area_id.
     const voters: Voter[] = []
     const assignments: Record<string, string[]> = {}
     for (const area of config.areas) {
@@ -143,7 +144,7 @@ export async function importVelvetElection(
             .filter((bs) => bs.area_id === area.id)
             .map((bs) => bs.id)
     }
-    // 3. Election + electionEvent rows. Contests for the election
+    // 4. Election + electionEvent rows. Contests for the election
     // slice are unioned across all ballot styles, deduped by id, so
     // the booth has every contest definition the user might land on
     // after a voter swap.
@@ -184,7 +185,7 @@ export async function importVelvetElection(
             status: {...DEFAULT_OPEN_STATUS},
         },
         ballotStyles: wrappedRows,
-        keypairs,
+        keypair,
         voters,
         assignments,
     })

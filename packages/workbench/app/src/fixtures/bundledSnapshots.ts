@@ -17,7 +17,8 @@
 //     single dictionary lookup, no async.
 //   - The build-time validation test (see step-6 plan, task 4) can
 //     iterate the same dictionary and reject snapshots whose ballot
-//     styles lack a matching `keypairs[ballotStyleId]` entry.
+//     styles' `ballot_eml.public_key.public_key` does not match
+//     `workbench.keypair.pkB64`.
 //
 // To add a new bundled snapshot: drop a JSON file in `./snapshots/`
 // and a matching `.json.license` sidecar. The filename (without the
