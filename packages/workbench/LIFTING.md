@@ -491,9 +491,10 @@ file to make the workbench work:
    it was unavoidable. Reviews of refresh PRs will then verify that the
    concession is still needed.
 
-   (One such concession exists today — see section **L. Concessions:
-   edits to `voting-portal/src/`** — for the demo-mode-only fix to
-   `useAddFakeCastVote` in `ReviewScreen.tsx`.)
+   (Three such concessions exist today — see section **L. Concessions:
+   edits to `voting-portal/src/`** — covering the demo-mode-only edits to
+   `useAddFakeCastVote` / `castBallotAction` in `ReviewScreen.tsx` and
+   the additive `removeCastVotes` reducer on `castVotesSlice`.)
 
 ### J. Workbench-native chrome (`app/src/WorkbenchInspector.tsx`)
 
@@ -805,6 +806,68 @@ populated `content` field, not an empty string; (b) `sessionStorage`'s
 demo ballot data carries the real stringified hashable ballot, not a
 placeholder. The workbench tests pin this down by inspecting
 `cv.content.length > 0` after a demo cast.
+
+#### L.3 `castVotesSlice` — add a `removeCastVotes` reducer
+
+The portal's `castVotesSlice` originally exported one mutating action,
+`addCastVotes(ids[])`, which dedupes by `id` within each per-election
+bucket. There is no production code path that removes a cast vote from
+the slice: in real life a re-cast is appended (the backend keeps the
+full history up to `num_allowed_revotes`) and tallying picks the latest.
+
+The workbench needs the *opposite* behaviour: when an operator re-casts
+as the same voter persona, the previous cast vote should disappear
+from the slice so the inline tally sees exactly one input per voter.
+Stacking would inflate every demo tally by the number of times the
+operator clicked "Recast" while exploring a fixture, which makes the
+workbench useless for sanity-checking results.
+
+The accepted edit adds a second reducer to the slice:
+
+```ts
+removeCastVotes(state, action: PayloadAction<string[]>) {
+    // filter ids from each bucket, prune empty buckets
+}
+```
+
+and exports it alongside `addCastVotes`. The workbench wires it from
+`persistence.ts` via `supersedePriorCastVotes(store, voterId,
+electionId, newCastVoteId)` — invoked from the cast-votes watcher
+just before `attributeCastVote`. The helper inspects the workbench
+overlay's `castBy` map to find prior cast votes by the same persona in
+the same election, dispatches `removeCastVotes(priorIds)` on the portal
+store, and drops the corresponding overlay rows via
+`dropCastVoteOverlay(priorIds)`. Net effect: a re-cast as voter V in
+election E replaces V's prior cast in both the slice and the overlay,
+in one tick.
+
+**Why this was accepted:**
+
+- The new reducer is **additive**. `addCastVotes` is unchanged; no
+  production caller of the slice references `removeCastVotes`, so
+  production behaviour is byte-identical.
+- The semantics are workbench-specific (operator convenience for
+  multi-cast exploration), but they live entirely behind a slice
+  action; the *slice* doesn't know about workbench personas, it just
+  exposes a generic remove primitive. Any future portal caller could
+  use it for an unrelated reason without conflict.
+- The alternative — keeping the slice pristine and physically
+  rewriting it from the workbench via `replaceWorkbenchState`-style
+  imperative dispatch — would require either (a) a private import
+  of the slice's internals (forbidden) or (b) re-dispatching the full
+  remaining bucket through `addCastVotes` after wiping, which is more
+  intrusive than a single targeted reducer.
+- The diff is ~10 lines in `castVotesSlice.ts` plus the export. The
+  workbench cap-and-counter machinery that briefly sat on top of this
+  was removed in a follow-up; only the reducer remains.
+
+**Refresh-PR guardrail.** If voting-portal refactors `castVotesSlice`
+(e.g. moves it to RTK Query, changes the bucketing key away from
+`election_id`, or migrates ids into a Set), the refresh must keep a
+mutation that removes a given set of cast-vote ids from the per-
+election buckets and is exported by name `removeCastVotes`. Reviewers
+should reject a refresh that drops the reducer without providing an
+equivalent.
 
 ---
 
