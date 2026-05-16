@@ -32,7 +32,6 @@ router; required by the lifted portal — see `LIFTING.md` §E):
   - `/wb/ballot-style/:id` — per-ballot-style detail (pk, sk, contests).
   - `/wb/contest/:id` — contest detail with inline tally.
   - `/wb/voter/:id` — voter detail with attribution + booth CTA.
-- `/tally` — focused velvet-wasm playground (`App`), no Redux integration.
 - `/pipeline` — single-contest **ballot pipeline** playground
   (`BallotPipeline`): walks one `DecodedVoteContest` through the full
   encode → encrypt → decrypt → decode → tally chain, each stage a
@@ -47,8 +46,8 @@ The split is deliberate: `/wb/...` is workbench-owned chrome we are free
 to evolve; `/tenant/:t/event/:e/...` is the production-mirror surface
 where we MUST NOT diverge.
 
-The `Shell` nav has three links: **Workbench** → `/wb`, **Ballot
-pipeline** → `/pipeline`, **Raw-JSON tally** → `/tally`. The
+The `Shell` nav has two links: **Workbench** → `/wb`, **Ballot
+pipeline** → `/pipeline`. The
 `ReduxProvider` lives in `Shell` (outside the booth subtree) so the
 workbench's own pages read the same store the booth writes to — the
 same layering as `voting-portal/src/index.tsx`.

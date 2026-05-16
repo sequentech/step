@@ -13,7 +13,6 @@ import {
     RouterProvider,
 } from "react-router-dom"
 import {store} from "voting-portal/src/store/store"
-import {App} from "./App"
 import {BallotPipeline} from "./BallotPipeline"
 import {BoothLayout, boothChildren} from "./BoothSpike"
 import {
@@ -42,7 +41,6 @@ function Shell() {
                     Workbench
                 </Link>
                 <Link to="/pipeline">Ballot pipeline</Link>
-                <Link to="/tally">Raw-JSON tally</Link>
             </nav>
             <Outlet />
         </ReduxProvider>
@@ -60,8 +58,10 @@ function Shell() {
 //   * Booth (lifted voting-portal) screens at the production-mirroring
 //     paths under `/tenant/:t/event/:e/...`. Mounted via `BoothLayout`
 //     so the portal's own provider stack wraps them.
-//   * The raw-JSON tally sandbox at `/tally`, kept as a debug page for
-//     ad-hoc velvet-wasm experiments without touching Redux.
+//   * The ballot pipeline sandbox at `/pipeline` (BallotPipeline.tsx),
+//     a per-stage encode/encrypt/decrypt/decode/tally playground that
+//     also doubles as a round-trip oracle when seeded from
+//     `ContestDetailPage`'s "Open in ballot pipeline" button.
 const router = createBrowserRouter([
     {
         element: <Shell />,
@@ -81,7 +81,6 @@ const router = createBrowserRouter([
                     {path: "voter/:id", element: <VoterDetailPage />},
                 ],
             },
-            {path: "/tally", element: <App />},
             {path: "/pipeline", element: <BallotPipeline />},
             {
                 element: <BoothLayout />,
