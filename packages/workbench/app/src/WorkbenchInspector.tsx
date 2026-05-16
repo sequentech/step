@@ -1322,12 +1322,28 @@ function CopyJsonBlock({json}: {json: string}): JSX.Element {
 export function BallotStyleDetailPage(): JSX.Element {
     const {id} = useParams()
     const bsId = id ?? ""
-    // BallotStylesState is keyed by election_id, not by ballot style id,
-    // so we scan rather than index-lookup. The set is tiny in any
-    // realistic workbench scenario.
-    const ballotStyle = useSelector((s: RootState) =>
+    // BallotStylesState is keyed by election_id and only ever holds
+    // the single live BS for the active voter, so it's missing every
+    // pool-only BS (e.g. Area B in the velvet sample import while
+    // Area A's voter is active). Fall through to the workbench pool,
+    // which is the full imported catalogue.
+    type PortalBSRow = NonNullable<RootState["ballotStyles"][string]>
+    const liveBallotStyle = useSelector((s: RootState) =>
         Object.values(s.ballotStyles).find((bs) => bs?.id === bsId)
     )
+    const pool = useWorkbench((w) => w.ballotStylePool)
+    const ballotStyle = useMemo<PortalBSRow | undefined>(() => {
+        if (liveBallotStyle) return liveBallotStyle
+        if (!pool) return undefined
+        for (const rows of Object.values(pool)) {
+            for (const row of rows) {
+                if ((row as {id?: unknown}).id === bsId) {
+                    return row as PortalBSRow
+                }
+            }
+        }
+        return undefined
+    }, [liveBallotStyle, pool, bsId])
     const election = useSelector((s: RootState) =>
         ballotStyle ? s.elections[ballotStyle.election_id] : undefined
     )
@@ -1454,7 +1470,12 @@ function SecretKeyRow({
 export function ContestDetailPage(): JSX.Element {
     const {id} = useParams()
     const contestId = id ?? ""
-    const found = useSelector((s: RootState) => {
+    // Live portal slice carries at most one BS per election (the one
+    // bound to the active voter), so a contest that only exists on a
+    // pool-only BS (e.g. Area B's contest while Area A's voter is
+    // active) would be unreachable. Search both sources, live first.
+    type PortalBSRow = NonNullable<RootState["ballotStyles"][string]>
+    const liveFound = useSelector((s: RootState) => {
         for (const bs of Object.values(s.ballotStyles)) {
             if (!bs) continue
             const c = bs.ballot_eml.contests.find((c) => c.id === contestId)
@@ -1462,6 +1483,23 @@ export function ContestDetailPage(): JSX.Element {
         }
         return null
     })
+    const pool = useWorkbench((w) => w.ballotStylePool)
+    const found = useMemo<
+        {contest: {id: string; name: string} & Record<string, unknown>; ballotStyle: PortalBSRow} | null
+    >(() => {
+        if (liveFound) return liveFound
+        if (!pool) return null
+        for (const rows of Object.values(pool)) {
+            for (const row of rows) {
+                const bs = row as PortalBSRow
+                const c = bs.ballot_eml.contests?.find(
+                    (c) => c.id === contestId
+                )
+                if (c) return {contest: c, ballotStyle: bs}
+            }
+        }
+        return null
+    }, [liveFound, pool, contestId])
     const election = useSelector((s: RootState) =>
         found ? s.elections[found.ballotStyle.election_id] : undefined
     )
@@ -1486,6 +1524,7 @@ export function ContestDetailPage(): JSX.Element {
     // (hydration race), leave the row in so the operator can still
     // see something is in flight.
     const decodedRows = useMemo(() => {
+        if (!found) return []
         const ownBsId = found.ballotStyle.id
         const rows: Array<{
             castVoteId: string
@@ -1603,7 +1642,16 @@ export function ContestDetailPage(): JSX.Element {
                     </NavLink>
                 </DlRow>
                 <DlRow label="Voting type">
-                    {contest.voting_type ?? "(unspecified)"}
+                    {/* Velvet contests carry `counting_algorithm`
+                      * (e.g. `plurality-at-large`) instead of the
+                      * portal's `voting_type` enum; surface whichever
+                      * is present so the operator isn't always
+                      * staring at "(unspecified)" on velvet imports. */}
+                    {(contest.voting_type as string | undefined) ??
+                        (contest.counting_algorithm as
+                            | string
+                            | undefined) ??
+                        "(unspecified)"}
                 </DlRow>
                 <DlRow label="Min / max votes">
                     {contest.min_votes} / {contest.max_votes}
