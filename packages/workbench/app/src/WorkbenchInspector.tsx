@@ -1423,20 +1423,38 @@ export function ContestDetailPage(): JSX.Element {
     // Cast votes whose bridge entry hasn't filled `decodedBigInts`
     // yet (e.g. the decrypt observer hasn't run) are simply absent —
     // `runElectionTally` skips them.
+    //
+    // We also skip cast votes whose captured ballot style doesn't
+    // contain this contest. In a multi-BS election (e.g. the
+    // sample-election-config fixture where Area A and Area B each get
+    // their own contest on their own BS), `state.castVotes` is keyed
+    // by election and so contains votes from *every* BS — but a vote
+    // cast against BS-B says nothing about a contest that only lives
+    // on BS-A. Without this filter such votes would render here as
+    // "(not yet decoded)", which is misleading: the voter never voted
+    // on this contest at all. If the bridge entry is missing entirely
+    // (hydration race), leave the row in so the operator can still
+    // see something is in flight.
     const decodedRows = useMemo(() => {
+        const ownBsId = found.ballotStyle.id
         const rows: Array<{
             castVoteId: string
             decoded: string | undefined
         }> = []
         for (const cv of castVotes) {
             const entry = repaired[cv.id]
+            if (entry?.ballotStyleId && entry.ballotStyleId !== ownBsId) {
+                // Cast against a different ballot style in the same
+                // election — that BS does not include this contest.
+                continue
+            }
             rows.push({
                 castVoteId: cv.id,
                 decoded: entry?.decodedBigInts?.[contestId],
             })
         }
         return rows
-    }, [castVotes, repaired, contestId])
+    }, [castVotes, repaired, contestId, found.ballotStyle.id])
     const [outcome, setOutcome] = useState<ContestTallyOutcome | null>(null)
     const [tallyError, setTallyError] = useState<string | null>(null)
     useEffect(() => {
