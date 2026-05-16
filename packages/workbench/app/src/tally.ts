@@ -3,8 +3,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import init, {
+    decode_bigint_to_decoded_vote_contest,
     decrypt_ballot_content,
     encode_ballot,
+    encrypt_decoded_vote_contest,
     generate_keypair,
     get_sample_ballots_json,
     get_sample_contest_json,
@@ -89,4 +91,31 @@ export async function decryptBallotContent(
 ): Promise<string> {
     await ensureWasm()
     return decrypt_ballot_content(contentJson, skB64, contestId)
+}
+
+/** Encrypt one `DecodedVoteContest` selection under the workbench
+ *  public key. Returns a `{contests: [<base64>]}` JSON envelope that
+ *  matches what the portal stores in `castVote.content`, so it can be
+ *  fed directly back into `decryptBallotContent`. */
+export async function encryptDecodedVoteContest(
+    contestJson: string,
+    decodedVoteContestJson: string,
+    pkB64: string
+): Promise<string> {
+    await ensureWasm()
+    return encrypt_decoded_vote_contest(
+        contestJson,
+        decodedVoteContestJson,
+        pkB64
+    )
+}
+
+/** Decode a decimal-`BigUint` encoded plaintext back into a structured
+ *  `DecodedVoteContest`. Inverse of `encodeBallot`. */
+export async function decodeBigIntToDecodedVoteContest(
+    contestJson: string,
+    bigintStr: string
+): Promise<string> {
+    await ensureWasm()
+    return decode_bigint_to_decoded_vote_contest(contestJson, bigintStr)
 }

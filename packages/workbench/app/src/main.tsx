@@ -14,6 +14,7 @@ import {
 } from "react-router-dom"
 import {store} from "voting-portal/src/store/store"
 import {App} from "./App"
+import {BallotPipeline} from "./BallotPipeline"
 import {BoothLayout, boothChildren} from "./BoothSpike"
 import {
     BallotStyleDetailPage,
@@ -40,6 +41,7 @@ function Shell() {
                 <Link to="/wb" style={{fontWeight: 600}}>
                     Workbench
                 </Link>
+                <Link to="/pipeline">Ballot pipeline</Link>
                 <Link to="/tally">Raw-JSON tally</Link>
             </nav>
             <Outlet />
@@ -80,6 +82,7 @@ const router = createBrowserRouter([
                 ],
             },
             {path: "/tally", element: <App />},
+            {path: "/pipeline", element: <BallotPipeline />},
             {
                 element: <BoothLayout />,
                 children: boothChildren,

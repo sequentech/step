@@ -15,11 +15,13 @@
 //!   contest, used to bootstrap the UI before a real contest editor
 //!   exists.
 
+use num_bigint::BigUint;
 use rand_core::{OsRng, TryRngCore};
 use sequent_core::ballot::{Contest, HashableBallotContest, Weight};
 use sequent_core::ballot_codec::bigint::decode_bigint_from_bytes;
 use sequent_core::ballot_codec::vec::decode_array_to_vec;
-use sequent_core::ballot_codec::BigUIntCodec;
+use sequent_core::ballot_codec::{BigUIntCodec, PlaintextCodec};
+use sequent_core::encrypt::{encrypt_plaintext_candidate, DEFAULT_PLAINTEXT_LABEL};
 use sequent_core::plaintext::{DecodedVoteChoice, DecodedVoteContest};
 use sequent_core::serialization::base64::{Base64Deserialize, Base64Serialize};
 use sequent_core::types::ceremonies::{ScopeOperation, TallyOperation};
@@ -222,6 +224,87 @@ pub fn decrypt_ballot_content(
     let bigint = decode_bigint_from_bytes(&plaintext_bytes)
         .map_err(|e| JsError::new(&format!("bigint decode failed: {e}")))?;
     Ok(bigint.to_str_radix(10))
+}
+
+/// Encrypt a single contest's `DecodedVoteContest` selection with the
+/// workbench-generated ElGamal public key, and return a JSON envelope
+/// shaped like the `HashableBallot` content the portal stores in
+/// `castVote.content`: `{contests: ["<base64 of HashableBallotContest>"]}`.
+///
+/// This is intentionally pipeline-friendly: the output JSON can be fed
+/// straight into [`decrypt_ballot_content`] to round-trip through the
+/// encrypt → decrypt → decode chain in the BallotPipeline page.
+/// Production never holds the matching secret — see the comment on
+/// [`generate_keypair`] for why the workbench does.
+///
+/// `contest_json`             — JSON-serialised `Contest`.
+/// `decoded_vote_contest_json`— JSON-serialised `DecodedVoteContest`.
+/// `pk_b64`                   — base64-no-pad of the public-key element
+///                              (the same string `generate_keypair`
+///                              produces as `pk_b64`).
+#[wasm_bindgen]
+pub fn encrypt_decoded_vote_contest(
+    contest_json: &str,
+    decoded_vote_contest_json: &str,
+    pk_b64: &str,
+) -> Result<String, JsError> {
+    let ctx = RistrettoCtx;
+    let contest: Contest = serde_json::from_str(contest_json)
+        .map_err(|e| JsError::new(&format!("invalid contest JSON: {e}")))?;
+    let decoded: DecodedVoteContest =
+        serde_json::from_str(decoded_vote_contest_json).map_err(|e| {
+            JsError::new(&format!("invalid decoded ballot JSON: {e}"))
+        })?;
+    let pk_element: <RistrettoCtx as Ctx>::E =
+        Base64Deserialize::deserialize(pk_b64.to_string())
+            .map_err(|e| JsError::new(&format!("invalid pk: {e:?}")))?;
+
+    let plaintext: <RistrettoCtx as Ctx>::P = contest
+        .encode_plaintext_contest(&decoded)
+        .map_err(|e| JsError::new(&format!("encode failed: {e}")))?;
+    let (choice, proof) = encrypt_plaintext_candidate(
+        &ctx,
+        pk_element,
+        plaintext,
+        &DEFAULT_PLAINTEXT_LABEL,
+    )
+    .map_err(|e| JsError::new(&format!("encrypt failed: {e:?}")))?;
+
+    let hashable = HashableBallotContest::<RistrettoCtx> {
+        contest_id: contest.id.clone(),
+        ciphertext: choice.ciphertext,
+        proof,
+    };
+    let blob = Base64Serialize::serialize(&hashable).map_err(|e| {
+        JsError::new(&format!("serialise hashable contest failed: {e:?}"))
+    })?;
+
+    // Wrap in the minimal `HashableBallot`-shaped envelope
+    // `decrypt_ballot_content` consumes (only `contests` is read).
+    Ok(serde_json::json!({ "contests": [blob] }).to_string())
+}
+
+/// Decode a decimal-`BigUint` encoded plaintext back into the structured
+/// `DecodedVoteContest` selection it came from. Inverse of
+/// [`encode_ballot`].
+///
+/// `contest_json` — JSON-serialised `Contest`.
+/// `bigint_str`   — decimal-encoded BigUint, exactly what `encode_ballot`
+///                  or `decrypt_ballot_content` produces.
+#[wasm_bindgen]
+pub fn decode_bigint_to_decoded_vote_contest(
+    contest_json: &str,
+    bigint_str: &str,
+) -> Result<String, JsError> {
+    let contest: Contest = serde_json::from_str(contest_json)
+        .map_err(|e| JsError::new(&format!("invalid contest JSON: {e}")))?;
+    let bigint = BigUint::parse_bytes(bigint_str.trim().as_bytes(), 10)
+        .ok_or_else(|| JsError::new("bigint_str is not a decimal BigUint"))?;
+    let decoded = contest
+        .decode_plaintext_contest_bigint(&bigint)
+        .map_err(|e| JsError::new(&format!("decode failed: {e}")))?;
+    serde_json::to_string(&decoded)
+        .map_err(|e| JsError::new(&format!("serialise decoded failed: {e}")))
 }
 
 // ----------------------------------------------------------------------------
