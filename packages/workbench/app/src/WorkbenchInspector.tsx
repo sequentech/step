@@ -306,7 +306,52 @@ interface ElectionNode {
     ballotStyleIds: {id: string; name: string}[]
 }
 
-function selectTenantTree(state: RootState): TenantNode[] {
+/** Short, BS-specific label for the rail. Velvet imports carry an
+ *  `area_id` so we surface that; otherwise we fall back to a short
+ *  slice of the BS id. We deliberately do NOT fall back to the
+ *  election name \u2014 that hides multi-BS elections behind identical
+ *  labels (see "Velvet sample election" being shown three times in
+ *  the same subtree). */
+function ballotStyleRailLabel(bs: {
+    id: string
+    area_id?: string | null
+}): string {
+    const short = `${bs.id.slice(0, 8)}\u2026`
+    if (typeof bs.area_id === "string" && bs.area_id.length > 0) {
+        return `${short} (area ${bs.area_id.slice(0, 4)}\u2026)`
+    }
+    return short
+}
+
+function buildTenantTree(
+    state: RootState,
+    // Optional workbench overlay pool, keyed by election id. When
+    // present we use it as the authoritative BS catalogue for the
+    // rail — the portal `state.ballotStyles` slice only ever holds
+    // ONE BS per election (the one bound to the currently active
+    // voter, see `applyEligibilitySwap`), so reading it would hide
+    // every other BS that was imported.
+    pool: Record<string, unknown[]> | undefined
+): TenantNode[] {
+    type PortalBSRow = NonNullable<RootState["ballotStyles"][string]>
+    // Union the portal slice (live BS) with the workbench pool
+    // (everything imported), deduped by id. The pool wins on tie
+    // because it carries the original imported data; the live slice
+    // is the same object anyway.
+    const allBs = new Map<string, PortalBSRow>()
+    for (const bs of Object.values(state.ballotStyles)) {
+        if (bs) allBs.set(bs.id, bs)
+    }
+    if (pool) {
+        for (const rows of Object.values(pool)) {
+            for (const row of rows) {
+                const id = (row as {id?: unknown}).id
+                if (typeof id === "string" && !allBs.has(id)) {
+                    allBs.set(id, row as PortalBSRow)
+                }
+            }
+        }
+    }
     // Group events by tenant_id.
     const byTenant = new Map<string, TenantNode>()
     const ensure = (tid: string): TenantNode => {
@@ -328,17 +373,14 @@ function selectTenantTree(state: RootState): TenantNode[] {
         eventNodes.set(ev.id, node)
         ensure(ev.tenant_id).events.push(node)
     }
-    // Index ballot styles by election for cheap lookup.
+    // Index ballot styles by election for cheap lookup. Labels use
+    // the BS's own id (and its area id if present) rather than
+    // falling back to the election name, which would make every BS
+    // in a single-election fixture look identical in the rail.
     const bsByElection = new Map<string, {id: string; name: string}[]>()
-    for (const bs of Object.values(state.ballotStyles)) {
-        if (!bs) continue
+    for (const bs of allBs.values()) {
         const list = bsByElection.get(bs.election_id) ?? []
-        list.push({
-            id: bs.id,
-            name:
-                state.elections[bs.election_id]?.name ??
-                bs.id.slice(0, 8),
-        })
+        list.push({id: bs.id, name: ballotStyleRailLabel(bs)})
         bsByElection.set(bs.election_id, list)
     }
     for (const el of Object.values(state.elections)) {
@@ -350,10 +392,12 @@ function selectTenantTree(state: RootState): TenantNode[] {
             ballotStyleIds: bsByElection.get(el.id) ?? [],
         }
         // Contests live on the ballot styles' EML. Dedupe by id
-        // across all ballot styles of this election.
+        // across all ballot styles of this election — iterating the
+        // union (allBs) so contests that only appear on a
+        // pool-only BS still show up.
         const seen = new Set<string>()
-        for (const bs of Object.values(state.ballotStyles)) {
-            if (!bs || bs.election_id !== el.id) continue
+        for (const bs of allBs.values()) {
+            if (bs.election_id !== el.id) continue
             for (const c of bs.ballot_eml.contests) {
                 if (seen.has(c.id)) continue
                 seen.add(c.id)
@@ -401,7 +445,13 @@ function selectTenantTree(state: RootState): TenantNode[] {
 }
 
 function TenantsSection(): JSX.Element {
-    const tenants = useSelector(selectTenantTree)
+    // The portal `state.ballotStyles` slice only ever carries the
+    // single live BS, so the rail also reads `ballotStylePool` (the
+    // full imported catalogue) and merges them — see
+    // `buildTenantTree`.
+    const state = useSelector((s: RootState) => s)
+    const pool = useWorkbench((w) => w.ballotStylePool)
+    const tenants = useMemo(() => buildTenantTree(state, pool), [state, pool])
     return (
         <section>
             <SectionHeading>Tenants</SectionHeading>

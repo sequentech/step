@@ -161,7 +161,14 @@ export async function importVelvetElection(
         electionEvent: {
             id: config.election_event_id,
             tenant_id: config.tenant_id,
-            name: config.name,
+            // Velvet ElectionConfig has no event-level name field
+            // (it's purely an election bundle), so we synthesise one
+            // that is visibly distinct from the election it
+            // contains. Without the " (event)" suffix the rail
+            // shows two identical labels stacked on top of each
+            // other (event row → election row), which makes the
+            // tenant subtree look like duplicate noise.
+            name: `${config.name} (event)`,
             description: config.description ?? "",
             elections: [config.id],
             status: {...DEFAULT_OPEN_STATUS},
