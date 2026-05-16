@@ -53,7 +53,6 @@ import {
     captureRepairedCastVote,
     dropCastVoteOverlay,
     getWorkbenchState,
-    recordVoteAttempt,
     replaceWorkbenchState,
     selectBallotStyleForVoter,
     setActiveVoter,
@@ -450,20 +449,17 @@ export function installPersistence(store: typeof Store): () => void {
         // Detect newly-arrived cast votes and bridge them into the
         // workbench overlay. Per new vote:
         //   1. supersede any prior vote by the same voter in the same
-        //      election (revote semantics — see WORKBENCH.md). The
-        //      portal models multi-input voting by accumulating cast
-        //      votes up to `election.num_allowed_revotes`, but the
-        //      backend only counts the latest; the workbench keeps
-        //      its slice consistent with that by physically removing
-        //      the prior vote and dropping its overlay rows.
+        //      election (revote/overwrite — see WORKBENCH.md). The
+        //      workbench always allows unlimited overwrites: each new
+        //      cast from an attributed voter physically removes the
+        //      previous one from the slice + overlay, so the final
+        //      state has at most one cast vote per (voter, election)
+        //      and the tally counts only the latest input.
         //   2. attributeCastVote(): tag the new vote with the active
         //      voter (no-op when no voter is active — anonymous
         //      casts simply stack, since there's no persona to
         //      overwrite).
-        //   3. recordVoteAttempt(): bump the monotonic counter that
-        //      the voter detail page uses to decide whether further
-        //      revotes are still permitted.
-        //   4. captureRepairedCastVote(): snapshot the data the demo
+        //   3. captureRepairedCastVote(): snapshot the data the demo
         //      path doesn't put on the cast-vote record itself — the
         //      plaintext selection (from state.ballotSelections) and
         //      the encrypted hashable ballot (from
@@ -490,9 +486,6 @@ export function installPersistence(store: typeof Store): () => void {
                     )
                 }
                 attributeCastVote(v.id)
-                if (activeBefore && v.election_id) {
-                    recordVoteAttempt(activeBefore, v.election_id)
-                }
                 tryCaptureRepairedCastVote(liveState, v)
                 if (activeBefore) setActiveVoter(null)
             }

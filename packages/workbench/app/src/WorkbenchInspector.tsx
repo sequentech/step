@@ -1678,7 +1678,6 @@ export function VoterDetailPage(): JSX.Element {
     type PortalBSRow = NonNullable<RootState["ballotStyles"][string]>
     const ballotStylePool = useWorkbench((w) => w.ballotStylePool)
     const assignments = useWorkbench((w) => w.assignments)
-    const voteAttempts = useWorkbench((w) => w.voteAttempts)
     const portalSliceStyles = useSelector((s: RootState) =>
         Object.values(s.ballotStyles).filter(
             (b): b is PortalBSRow => !!b
@@ -1806,30 +1805,18 @@ export function VoterDetailPage(): JSX.Element {
                         const label =
                             election?.name ??
                             `(unnamed election ${bs.election_id})`
-                        // Revote gating: mirror the portal's
-                        // `num_allowed_revotes` semantics (see
-                        // ElectionSelectionScreen.canVote).
-                        // - 0  → unlimited inputs;
-                        // - N  → at most N cast inputs total
-                        //         (initial + overwrites combined),
-                        //   default N = 1 (single input, no revote).
-                        // The workbench cannot use the slice length
-                        // directly because the slice multiplexes
-                        // many personas through one store, so we
-                        // read the monotonic counter the persistence
-                        // subscriber maintains per (voter, election).
-                        const attempts =
-                            voteAttempts?.[voterId]?.[bs.election_id] ?? 0
-                        const allowed = election?.num_allowed_revotes ?? 1
-                        const unlimited = allowed === 0
-                        const canCast = unlimited || attempts < allowed
-                        const isRecast = attempts > 0
-                        const buttonLabel = isRecast
+                        // Workbench always allows unlimited revotes;
+                        // each new cast overwrites the previous one
+                        // in the slice (see persistence subscriber's
+                        // supersedePriorCastVotes). Reflect that in
+                        // the label so operators know subsequent
+                        // clicks replace rather than stack.
+                        const hasPriorCast = voterCastVotes.some(
+                            (row) => row.electionId === bs.election_id
+                        )
+                        const buttonLabel = hasPriorCast
                             ? `Recast in ${label} (overwrites previous) →`
                             : `Cast a ballot in ${label} →`
-                        const usedHint = unlimited
-                            ? `(${attempts} input${attempts === 1 ? "" : "s"} so far, unlimited revotes)`
-                            : `(${attempts} of ${allowed} input${allowed === 1 ? "" : "s"} used)`
                         return (
                             <li
                                 key={bs.id}
@@ -1837,24 +1824,11 @@ export function VoterDetailPage(): JSX.Element {
                             >
                                 <button
                                     type="button"
-                                    style={
-                                        canCast
-                                            ? primaryButtonStyle
-                                            : disabledButtonStyle
-                                    }
+                                    style={primaryButtonStyle}
                                     onClick={() => startVotingAs(bs)}
-                                    disabled={!canCast}
-                                    title={
-                                        canCast
-                                            ? undefined
-                                            : `Revote limit reached: this voter has already used all ${allowed} permitted input${allowed === 1 ? "" : "s"} for this election. Raise num_allowed_revotes (or set it to 0 for unlimited) on the election to allow more.`
-                                    }
                                 >
                                     {buttonLabel}
                                 </button>{" "}
-                                <span style={{color: "#888", fontSize: "0.85rem"}}>
-                                    {usedHint}
-                                </span>{" "}
                                 <span style={{color: "#888"}}>
                                     <code>{bs.id}</code>
                                 </span>
@@ -2071,16 +2045,6 @@ const primaryButtonStyle: React.CSSProperties = {
     borderRadius: 4,
     fontSize: "0.9rem",
     cursor: "pointer",
-}
-
-const disabledButtonStyle: React.CSSProperties = {
-    padding: "0.5rem 1rem",
-    background: "#cfcfcf",
-    color: "#666",
-    border: 0,
-    borderRadius: 4,
-    fontSize: "0.9rem",
-    cursor: "not-allowed",
 }
 
 const secondaryButtonStyle: React.CSSProperties = {
