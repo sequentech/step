@@ -113,7 +113,7 @@ function TreeRail(): JSX.Element {
         <>
             <SnapshotsSection />
             <SectionDivider />
-            <TenantsSection />
+            <ElectionsSection />
             <SectionDivider />
             <VotersSection />
         </>
@@ -289,17 +289,14 @@ function ProvenanceTreeNode(props: {
     )
 }
 
-// --- Tenants: tenant → event → election → {Contests, Ballot styles} -------
+// --- Elections: flat list of elections → {Contests, Ballot styles} -------
+//
+// Tenants and events exist in the source data (Redux holds them) but
+// the workbench operates at the election level and has no
+// tenant/event affordances — there's nothing to inspect on them and
+// their labels are either UUIDs (tenant) or duplicate the election
+// name (event). We deliberately flatten them out of the rail.
 
-interface TenantNode {
-    tenantId: string
-    events: EventNode[]
-}
-interface EventNode {
-    id: string
-    name: string
-    elections: ElectionNode[]
-}
 interface ElectionNode {
     id: string
     name: string
@@ -324,7 +321,7 @@ function ballotStyleRailLabel(bs: {
     return short
 }
 
-function buildTenantTree(
+function buildElectionsList(
     state: RootState,
     // Optional workbench overlay pool, keyed by election id. When
     // present we use it as the authoritative BS catalogue for the
@@ -333,7 +330,7 @@ function buildTenantTree(
     // voter, see `applyEligibilitySwap`), so reading it would hide
     // every other BS that was imported.
     pool: Record<string, unknown[]> | undefined
-): TenantNode[] {
+): ElectionNode[] {
     type PortalBSRow = NonNullable<RootState["ballotStyles"][string]>
     // Union the portal slice (live BS) with the workbench pool
     // (everything imported), deduped by id. The pool wins on tie
@@ -353,27 +350,6 @@ function buildTenantTree(
             }
         }
     }
-    // Group events by tenant_id.
-    const byTenant = new Map<string, TenantNode>()
-    const ensure = (tid: string): TenantNode => {
-        let t = byTenant.get(tid)
-        if (!t) {
-            t = {tenantId: tid, events: []}
-            byTenant.set(tid, t)
-        }
-        return t
-    }
-    const eventNodes = new Map<string, EventNode>()
-    for (const ev of Object.values(state.electionEvent)) {
-        if (!ev) continue
-        const node: EventNode = {
-            id: ev.id,
-            name: ev.name ?? "(unnamed event)",
-            elections: [],
-        }
-        eventNodes.set(ev.id, node)
-        ensure(ev.tenant_id).events.push(node)
-    }
     // Index ballot styles by election for cheap lookup. Labels use
     // the BS's own id (and its area id if present) rather than
     // falling back to the election name, which would make every BS
@@ -384,6 +360,7 @@ function buildTenantTree(
         list.push({id: bs.id, name: ballotStyleRailLabel(bs)})
         bsByElection.set(bs.election_id, list)
     }
+    const elections: ElectionNode[] = []
     for (const el of Object.values(state.elections)) {
         if (!el) continue
         const node: ElectionNode = {
@@ -405,95 +382,39 @@ function buildTenantTree(
                 node.contestIds.push({id: c.id, name: c.name})
             }
         }
-        // Attach to its event if known, otherwise to a synthetic
-        // "(no event)" slot under the same tenant.
-        const ev = eventNodes.get(el.election_event_id)
-        if (ev) {
-            ev.elections.push(node)
-        } else {
-            const t = ensure(el.tenant_id)
-            let stray = t.events.find((e) => e.id === "__no_event__")
-            if (!stray) {
-                stray = {
-                    id: "__no_event__",
-                    name: "(no event)",
-                    elections: [],
-                }
-                t.events.push(stray)
-            }
-            stray.elections.push(node)
-        }
+        elections.push(node)
     }
     // Alphabetise everything for a stable rail.
-    const tenants = [...byTenant.values()].sort((a, b) =>
-        a.tenantId.localeCompare(b.tenantId)
-    )
-    for (const t of tenants) {
-        t.events.sort((a, b) => a.name.localeCompare(b.name))
-        for (const e of t.events) {
-            e.elections.sort((a, b) => a.name.localeCompare(b.name))
-            for (const el of e.elections) {
-                el.contestIds.sort((a, b) =>
-                    a.name.localeCompare(b.name)
-                )
-                el.ballotStyleIds.sort((a, b) =>
-                    a.name.localeCompare(b.name)
-                )
-            }
-        }
+    elections.sort((a, b) => a.name.localeCompare(b.name))
+    for (const el of elections) {
+        el.contestIds.sort((a, b) => a.name.localeCompare(b.name))
+        el.ballotStyleIds.sort((a, b) => a.name.localeCompare(b.name))
     }
-    return tenants
+    return elections
 }
 
-function TenantsSection(): JSX.Element {
+function ElectionsSection(): JSX.Element {
     // The portal `state.ballotStyles` slice only ever carries the
     // single live BS, so the rail also reads `ballotStylePool` (the
     // full imported catalogue) and merges them — see
-    // `buildTenantTree`.
+    // `buildElectionsList`.
     const state = useSelector((s: RootState) => s)
     const pool = useWorkbench((w) => w.ballotStylePool)
-    const tenants = useMemo(() => buildTenantTree(state, pool), [state, pool])
+    const elections = useMemo(
+        () => buildElectionsList(state, pool),
+        [state, pool]
+    )
     return (
         <section>
-            <SectionHeading>Tenants</SectionHeading>
-            {tenants.length === 0 ? (
+            <SectionHeading>Elections</SectionHeading>
+            {elections.length === 0 ? (
                 <Empty>(none)</Empty>
             ) : (
                 <ul style={listStyle}>
-                    {tenants.map((t) => (
-                        <li key={t.tenantId}>
-                            <NodeLabel title={t.tenantId}>
-                                {t.tenantId.slice(0, 8)}…
-                            </NodeLabel>
-                            <ul style={listStyle}>
-                                {t.events.map((ev) => (
-                                    <li
-                                        key={ev.id}
-                                        style={{marginLeft: "1rem"}}
-                                    >
-                                        <NodeLabel title={ev.id}>
-                                            {ev.name}
-                                        </NodeLabel>
-                                        <ul style={listStyle}>
-                                            {ev.elections.map((el) => (
-                                                <li
-                                                    key={el.id}
-                                                    style={{
-                                                        marginLeft: "1rem",
-                                                    }}
-                                                >
-                                                    <NodeLabel title={el.id}>
-                                                        {el.name}
-                                                    </NodeLabel>
-                                                    <ElectionChildren
-                                                        election={el}
-                                                    />
-                                                </li>
-                                            ))}
-                                        </ul>
-                                    </li>
-                                ))}
-                            </ul>
+                    {elections.map((el) => (
+                        <li key={el.id}>
+                            <NodeLabel title={el.id}>{el.name}</NodeLabel>
+                            <ElectionChildren election={el} />
                         </li>
                     ))}
                 </ul>
