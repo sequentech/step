@@ -560,6 +560,23 @@ State fields:
   **first-call-wins per id** so a stray re-seed cannot orphan
   already-captured cast votes encrypted under the old pk. Full
   lifecycle in section M.
+- `ballotStylePool?: Record<electionId, BallotStyleRow[]>` — optional
+  out-of-band pool of *all* ballot styles available per election. The
+  portal's `ballotStyles` slice is keyed by `election_id` and only
+  ever holds **one** row per election at a time (the one the current
+  voter is eligible for), so the workbench keeps the full set here
+  and swaps the slice on active-voter change (see "Eligibility swap"
+  below). Rows are stored as `unknown[]` so `workbenchStore.ts` does
+  not have to import voting-portal types.
+- `assignments?: Record<voterId, ballotStyleId[]>` — optional
+  per-voter eligibility map. Intersected with the per-election
+  entries of `ballotStylePool` to pick which BS to dispatch into the
+  Redux slice. Both fields are populated via importers (snapshot,
+  portal-style, velvet-election) and round-trip through
+  `replaceWorkbenchState`; there are no dedicated mutations because
+  assignments today are immutable once imported. Snapshots written
+  before Phase 1 omit both fields, in which case the swap is a no-op
+  and the slice retains whatever was hydrated.
 
 **Persistence integration.** The mini-store is folded into the same
 `PersistedSnapshot` the portal Redux store rides on, via an optional
@@ -594,6 +611,26 @@ The watcher's hydration branch (`suspendWrites`) seeds
 `seenCastVoteIds` from the restored state without firing attribution
 or active-voter retirement — those would be replays of events that
 have already been recorded in the snapshot.
+
+**Eligibility swap (`activeVoterId` → portal `ballotStyles` slice).**
+`installPersistence` also subscribes to mini-store changes and tracks
+`lastActiveVoterId`. When `activeVoterId` transitions to a non-null
+voter, it calls `applyEligibilitySwap(store, voterId)`, which iterates
+`workbench.ballotStylePool` keys and, for each `electionId`, calls
+`selectBallotStyleForVoter(voterId, electionId)` (matches the voter's
+`assignments` against the pool) and dispatches `setBallotStyle(row)`
+into the portal slice. Transitions *to* `null` are deliberately skipped
+so that the post-cast booth render (which clears `activeVoterId` via
+the attribution watcher) keeps showing the just-voted ballot style
+rather than blanking it.
+
+This is the workbench's substitute for the production flow where the
+backend hands the booth exactly one eligible ballot style per session
+based on the authenticated voter. The lift never sees that backend, so
+the workbench picks the row out of its own pool on impersonation
+change. The swap fires from the same `subscribeWorkbench` listener
+that drives snapshot writes, so a voter change is one mini-store
+mutation → one swap → one snapshot write.
 
 **Rules:**
 
