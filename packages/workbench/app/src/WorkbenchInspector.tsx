@@ -40,7 +40,7 @@
 import type {RootState} from "voting-portal/src/store/store"
 import {NavLink, Outlet, useNavigate, useParams} from "react-router-dom"
 import {useSelector, useStore} from "react-redux"
-import {useMemo, useState, useSyncExternalStore, useEffect} from "react"
+import {useCallback, useMemo, useState, useSyncExternalStore, useEffect} from "react"
 import {subscribeWorkbench, useWorkbench} from "./workbenchStore"
 import {
     bundledId,
@@ -1457,12 +1457,34 @@ export function ContestDetailPage(): JSX.Element {
     }, [castVotes, repaired, contestId, found.ballotStyle.id])
     const [outcome, setOutcome] = useState<ContestTallyOutcome | null>(null)
     const [tallyError, setTallyError] = useState<string | null>(null)
-    useEffect(() => {
-        if (!found) {
-            setOutcome(null)
-            return
-        }
-        let cancelled = false
+    const [tallyBusy, setTallyBusy] = useState<boolean>(false)
+    // Fingerprint of the inputs the *last* successful (or failed) run
+    // saw. Compared against `currentTallyFingerprint` to drive the
+    // "results out of date" notice. `null` means "never run yet on
+    // this mount" — the tally view shows a press-the-button empty
+    // state in that case.
+    const [lastTallyFingerprint, setLastTallyFingerprint] = useState<
+        string | null
+    >(null)
+    // Cheap content-hash of everything that would change the tally
+    // output: the set of cast-vote ids in cast order plus the decoded
+    // BigUint (or empty string when not yet decoded) for each. A new
+    // cast vote, a decrypt completion, a fixture reload, or a
+    // re-cast (which removes the prior vote via
+    // supersedePriorCastVotes) all change this string. Computing it
+    // is O(decodedRows.length) join; for realistic workbench sizes
+    // (tens of cast votes) it's sub-millisecond per render.
+    const currentTallyFingerprint = useMemo(
+        () =>
+            decodedRows
+                .map((r) => `${r.castVoteId}:${r.decoded ?? ""}`)
+                .join("|"),
+        [decodedRows]
+    )
+    const handleRunTally = useCallback(async () => {
+        if (!found) return
+        const fingerprint = currentTallyFingerprint
+        setTallyBusy(true)
         const decodedByCastVote = decodedRows.map((r) =>
             r.decoded ? {[contestId]: r.decoded} : {}
         )
@@ -1470,23 +1492,35 @@ export function ContestDetailPage(): JSX.Element {
         // this contest. We could pass a one-contest projection, but
         // passing the real ballot style keeps the tally call honest
         // about what's actually on the ballot.
-        runElectionTally(found.ballotStyle, decodedByCastVote)
-            .then((outcomes) => {
-                if (cancelled) return
-                setOutcome(
-                    outcomes.find((o) => o.contestId === contestId) ?? null
-                )
-                setTallyError(null)
-            })
-            .catch((e) => {
-                if (cancelled) return
-                setTallyError(e instanceof Error ? e.message : String(e))
-                setOutcome(null)
-            })
-        return () => {
-            cancelled = true
+        try {
+            const outcomes = await runElectionTally(
+                found.ballotStyle,
+                decodedByCastVote
+            )
+            setOutcome(
+                outcomes.find((o) => o.contestId === contestId) ?? null
+            )
+            setTallyError(null)
+        } catch (e) {
+            setTallyError(e instanceof Error ? e.message : String(e))
+            setOutcome(null)
+        } finally {
+            // Record the fingerprint we ran against whether the run
+            // succeeded or failed: re-pressing the button on the
+            // same inputs would just reproduce the same error, so
+            // the staleness notice would be misleading.
+            setLastTallyFingerprint(fingerprint)
+            setTallyBusy(false)
         }
-    }, [found, decodedRows, contestId])
+    }, [found, decodedRows, contestId, currentTallyFingerprint])
+    // Reset run state when the contest changes (operator navigates
+    // from one contest to another). Without this, a previous
+    // contest's outcome would briefly flash on the new page.
+    useEffect(() => {
+        setOutcome(null)
+        setTallyError(null)
+        setLastTallyFingerprint(null)
+    }, [contestId])
     if (!found) {
         return (
             <>
@@ -1551,6 +1585,13 @@ export function ContestDetailPage(): JSX.Element {
                 outcome={outcome}
                 error={tallyError}
                 decodedRows={decodedRows}
+                busy={tallyBusy}
+                stale={
+                    lastTallyFingerprint !== null &&
+                    lastTallyFingerprint !== currentTallyFingerprint
+                }
+                hasRun={lastTallyFingerprint !== null}
+                onRun={handleRunTally}
             />
         </>
     )
@@ -1560,10 +1601,18 @@ function ContestTallyView({
     outcome,
     error,
     decodedRows,
+    busy,
+    stale,
+    hasRun,
+    onRun,
 }: {
     outcome: ContestTallyOutcome | null
     error: string | null
     decodedRows: Array<{castVoteId: string; decoded: string | undefined}>
+    busy: boolean
+    stale: boolean
+    hasRun: boolean
+    onRun: () => void
 }): JSX.Element {
     const decodedCount = decodedRows.filter((r) => !!r.decoded).length
     return (
@@ -1573,10 +1622,55 @@ function ContestTallyView({
                 {decodedRows.length === 1 ? "" : "s"} decoded for this
                 contest.
             </p>
+            {/*
+              * Tally never runs automatically: re-tallying on every
+              * cast vote / decrypt-completion is both wasteful and
+              * misleading (an operator exploring a fixture wants
+              * deliberate control over when results are computed).
+              * The button is always enabled; staleness is signalled
+              * separately and does not block re-runs, so the operator
+              * is never stuck with no way to refresh.
+              */}
+            <div style={{margin: "0.5rem 0"}}>
+                <button
+                    type="button"
+                    onClick={onRun}
+                    disabled={busy}
+                    style={primaryButtonStyle}
+                >
+                    {busy
+                        ? "Running tally…"
+                        : hasRun
+                          ? "Re-run tally"
+                          : "Run tally"}
+                </button>
+            </div>
+            {stale && (
+                <p
+                    style={{
+                        margin: "0.3rem 0",
+                        color: "#7a5d00",
+                        background: "#fff8d6",
+                        border: "1px solid #e6cf6a",
+                        padding: "0.4rem 0.6rem",
+                        borderRadius: 4,
+                        fontSize: "0.85rem",
+                    }}
+                >
+                    Inputs have changed since the last run — the
+                    results below are out of date. Press{" "}
+                    <strong>Re-run tally</strong> to refresh.
+                </p>
+            )}
             {error ? (
                 <p style={{color: "#b00020"}}>
                     Tally failed: <code>{error}</code>
                 </p>
+            ) : !hasRun ? (
+                <Empty>
+                    Press <strong>Run tally</strong> to compute results
+                    from the decoded ballots above.
+                </Empty>
             ) : outcome == null ? (
                 <Empty>(running…)</Empty>
             ) : outcome.status === "no-data" ? (
