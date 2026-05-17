@@ -20,8 +20,7 @@ use rand_core::{OsRng, TryRngCore};
 use sequent_core::ballot::{Contest, HashableBallotContest, Weight};
 use sequent_core::ballot_codec::bigint::decode_bigint_from_bytes;
 use sequent_core::ballot_codec::vec::decode_array_to_vec;
-use sequent_core::ballot_codec::{BigUIntCodec, PlaintextCodec};
-use sequent_core::encrypt::{encrypt_plaintext_candidate, DEFAULT_PLAINTEXT_LABEL};
+use sequent_core::ballot_codec::BigUIntCodec;
 use sequent_core::plaintext::{DecodedVoteChoice, DecodedVoteContest};
 use sequent_core::serialization::base64::{Base64Deserialize, Base64Serialize};
 use sequent_core::types::ceremonies::{ScopeOperation, TallyOperation};
@@ -226,63 +225,15 @@ pub fn decrypt_ballot_content(
     Ok(bigint.to_str_radix(10))
 }
 
-/// Encrypt a single contest's `DecodedVoteContest` selection with the
-/// workbench-generated ElGamal public key, and return a JSON envelope
-/// shaped like the `HashableBallot` content the portal stores in
-/// `castVote.content`: `{contests: ["<base64 of HashableBallotContest>"]}`.
-///
-/// This is intentionally pipeline-friendly: the output JSON can be fed
-/// straight into [`decrypt_ballot_content`] to round-trip through the
-/// encrypt → decrypt → decode chain in the BallotPipeline page.
-/// Production never holds the matching secret — see the comment on
-/// [`generate_keypair`] for why the workbench does.
-///
-/// `contest_json`             — JSON-serialised `Contest`.
-/// `decoded_vote_contest_json`— JSON-serialised `DecodedVoteContest`.
-/// `pk_b64`                   — base64-no-pad of the public-key element
-///                              (the same string `generate_keypair`
-///                              produces as `pk_b64`).
-#[wasm_bindgen]
-pub fn encrypt_decoded_vote_contest(
-    contest_json: &str,
-    decoded_vote_contest_json: &str,
-    pk_b64: &str,
-) -> Result<String, JsError> {
-    let ctx = RistrettoCtx;
-    let contest: Contest = serde_json::from_str(contest_json)
-        .map_err(|e| JsError::new(&format!("invalid contest JSON: {e}")))?;
-    let decoded: DecodedVoteContest =
-        serde_json::from_str(decoded_vote_contest_json).map_err(|e| {
-            JsError::new(&format!("invalid decoded ballot JSON: {e}"))
-        })?;
-    let pk_element: <RistrettoCtx as Ctx>::E =
-        Base64Deserialize::deserialize(pk_b64.to_string())
-            .map_err(|e| JsError::new(&format!("invalid pk: {e:?}")))?;
-
-    let plaintext: <RistrettoCtx as Ctx>::P = contest
-        .encode_plaintext_contest(&decoded)
-        .map_err(|e| JsError::new(&format!("encode failed: {e}")))?;
-    let (choice, proof) = encrypt_plaintext_candidate(
-        &ctx,
-        pk_element,
-        plaintext,
-        &DEFAULT_PLAINTEXT_LABEL,
-    )
-    .map_err(|e| JsError::new(&format!("encrypt failed: {e:?}")))?;
-
-    let hashable = HashableBallotContest::<RistrettoCtx> {
-        contest_id: contest.id.clone(),
-        ciphertext: choice.ciphertext,
-        proof,
-    };
-    let blob = Base64Serialize::serialize(&hashable).map_err(|e| {
-        JsError::new(&format!("serialise hashable contest failed: {e:?}"))
-    })?;
-
-    // Wrap in the minimal `HashableBallot`-shaped envelope
-    // `decrypt_ballot_content` consumes (only `contests` is read).
-    Ok(serde_json::json!({ "contests": [blob] }).to_string())
-}
+// Note: the workbench's encrypt step lives in
+// `packages/workbench/app/src/tally.ts`. It chains sequent-core's
+// canonical `encrypt_decoded_contest_js` + `to_hashable_ballot_js`
+// (the same path the lifted booth's Cast button traverses), so
+// `/pipeline` and Cast share one encrypt implementation. A previous
+// `encrypt_decoded_vote_contest` lived here as a hand-rolled
+// duplicate; it was removed once sequent-core's wasm-bindgen surface
+// became reachable from the workbench (see LIFTING.md §A7 and the
+// "canonical surface" rule in §I).
 
 /// Decode a decimal-`BigUint` encoded plaintext back into the structured
 /// `DecodedVoteContest` selection it came from. Inverse of

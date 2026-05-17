@@ -916,6 +916,24 @@ The package also re-exports a handful of `get_sample_*` JSON helpers
 used only by `/pipeline` (the ballot-pipeline sandbox) and by ad-hoc
 REPL experiments; they are workbench-internal and have no canary.
 
+**Canonical-surface rule.** `velvet-wasm` is reserved for operations
+that have no canonical `sequent-core` wasm-bindgen counterpart — at
+the time of writing those are exactly the four listed above plus the
+`get_sample_*` fixtures. **Any pipeline stage whose underlying logic
+already lives behind a `#[wasm_bindgen]` export in
+`sequent-core/src/wasm/` MUST call that export directly**, not a
+re-implementation in `velvet-wasm`. The `/pipeline` encrypt stage is
+the working precedent: `tally.ts` imports `encrypt_decoded_contest_js`
++ `to_hashable_ballot_js` from `"sequent-core"` (the same chain the
+lifted booth's Cast button traverses), so workbench and booth share
+one encrypt implementation and a fidelity-check edit to
+`sequent-core/src/wasm/*.rs` shows up in `/pipeline` after
+`yarn build:sequent-core`. A previous hand-rolled
+`encrypt_decoded_vote_contest` in `velvet-wasm/src/lib.rs` was
+removed for violating this rule (it duplicated the canonical encrypt
+path with a slightly different envelope shape, defeating the point
+of having a workbench in the first place).
+
 The package is consumed by the workbench app via
 `"velvet-wasm": "file:../velvet-wasm/pkg"` (section B). Voting-portal
 continues to use its prebuilt `sequent-core` tgz for the encrypt

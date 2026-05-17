@@ -6,13 +6,16 @@ import init, {
     decode_bigint_to_decoded_vote_contest,
     decrypt_ballot_content,
     encode_ballot,
-    encrypt_decoded_vote_contest,
     generate_keypair,
     get_sample_ballots_json,
     get_sample_contest_json,
     get_sample_decoded_vote_contest_json,
     tally_plaintext_ballots,
 } from "velvet-wasm"
+import initSequentCore, {
+    encrypt_decoded_contest_js,
+    to_hashable_ballot_js,
+} from "sequent-core"
 
 // Single shared init promise so callers can `await ensureWasm()` from
 // anywhere without re-initialising the module.
@@ -22,6 +25,19 @@ export function ensureWasm(): Promise<void> {
         initPromise = init().then(() => undefined)
     }
     return initPromise
+}
+
+// Parallel init promise for sequent-core's wasm-bindgen surface. The
+// booth's `WasmWrapper` already initialises it when a lifted screen
+// mounts, but `/pipeline` lives outside that provider tree and the
+// only callers there are the encrypt-stage helpers below — so they
+// initialise the module on demand. Idempotent and shared.
+let sequentCoreInitPromise: Promise<void> | null = null
+function ensureSequentCoreWasm(): Promise<void> {
+    if (!sequentCoreInitPromise) {
+        sequentCoreInitPromise = initSequentCore().then(() => undefined)
+    }
+    return sequentCoreInitPromise
 }
 
 export interface Fixtures {
@@ -94,20 +110,58 @@ export async function decryptBallotContent(
 }
 
 /** Encrypt one `DecodedVoteContest` selection under the workbench
- *  public key. Returns a `{contests: [<base64>]}` JSON envelope that
- *  matches what the portal stores in `castVote.content`, so it can be
- *  fed directly back into `decryptBallotContent`. */
+ *  public key. Returns a JSON envelope with a top-level
+ *  `contests: ["<base64>", ...]` array — same shape the portal
+ *  stores in `castVote.content` — so it can be fed directly back
+ *  into `decryptBallotContent`.
+ *
+ *  Internally this is the *production* path: we call sequent-core's
+ *  canonical `encrypt_decoded_contest_js` to produce an
+ *  `AuditableBallot`, then `to_hashable_ballot_js` to derive the
+ *  signed-hashable form the booth would submit. The workbench keeps
+ *  its `(contestJson, decodedVoteContestJson, pkB64)` calling shape
+ *  for backwards-compat with `BallotPipeline`'s seed/row model, and
+ *  this helper synthesizes the `BallotStyle` envelope sequent-core
+ *  needs (single contest, workbench-generated pk as `public_key`,
+ *  empty strings for the bookkeeping fields encrypt does not read). */
 export async function encryptDecodedVoteContest(
     contestJson: string,
     decodedVoteContestJson: string,
     pkB64: string
 ): Promise<string> {
-    await ensureWasm()
-    return encrypt_decoded_vote_contest(
-        contestJson,
-        decodedVoteContestJson,
-        pkB64
-    )
+    await ensureSequentCoreWasm()
+    const contest = JSON.parse(contestJson) as {id: string} & Record<
+        string,
+        unknown
+    >
+    const decoded = JSON.parse(decodedVoteContestJson) as Record<
+        string,
+        unknown
+    >
+    // Minimal BallotStyle wrapper. encrypt_decoded_contest reads only
+    // `contests` and `public_key`; the other string fields are
+    // required by serde but unused, so empty values are safe.
+    const ballotStyle = {
+        id: "",
+        tenant_id: "",
+        election_event_id: "",
+        election_id: "",
+        num_allowed_revotes: null,
+        description: null,
+        public_key: {public_key: pkB64, is_demo: false},
+        area_id: "",
+        area_presentation: null,
+        contests: [contest],
+        election_event_presentation: null,
+        election_presentation: null,
+        election_dates: null,
+        election_event_annotations: null,
+        election_annotations: null,
+        area_annotations: null,
+    }
+    const auditable = encrypt_decoded_contest_js([decoded], ballotStyle)
+    const hashable = to_hashable_ballot_js(auditable)
+    return JSON.stringify(hashable)
 }
 
 /** Decode a decimal-`BigUint` encoded plaintext back into a structured
