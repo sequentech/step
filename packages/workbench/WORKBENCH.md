@@ -502,9 +502,8 @@ browser without a backend:
   `generate_keypair` in `lib.rs` for the full reasoning.
 - `get_sample_contest_json` / `get_sample_decoded_vote_contest_json` /
   `get_sample_ballots_json` — in-tree fixtures sourced from
-  `sequent_core::fixtures::ballot_codec`. Used by both `/tally` and
-  `/pipeline` to bootstrap the textareas before a real contest editor
-  exists.
+  `sequent_core::fixtures::ballot_codec`. Used by `/pipeline` to
+  bootstrap the textareas before a real contest editor exists.
 
 ### Ballot pipeline page (`app/src/BallotPipeline.tsx`)
 
@@ -564,6 +563,35 @@ The fix is one of:
 The `predev` hook builds the wasm but does not update the copy in
 `node_modules/`, so adding wasm exports always requires one of the
 two manual steps above.
+
+### Sister loop: editing `sequent-core` source
+
+`velvet-wasm` is the workbench's *own* wasm-bindgen layer; the
+lifted booth, by contrast, imports the `sequent-core` package
+directly (locale helpers, area tree, `IBallot*` types). Those
+imports normally resolve to the prebuilt tgz unpacked under
+`packages/node_modules/sequent-core/`, which means local edits to
+`packages/sequent-core/src/**/*.rs` are invisible to the lifted
+booth until the tgz is regenerated.
+
+The escape hatch is a Vite alias that points
+`import ... from "sequent-core"` at `packages/sequent-core/pkg/`,
+plus an opt-in `yarn build:sequent-core` script that runs
+`wasm-pack build --features=wasm,default_features` from
+`packages/sequent-core/`. Full rationale, trade-offs and refresh
+canary live in `LIFTING.md` §A7. The short version:
+
+- Editing pure Rust internals consumed only via `velvet-wasm`: no
+  manual step — `predev`/`prebuild` rebuild `velvet-wasm/pkg/` and
+  Cargo's path-dep pulls the fresh sequent-core source.
+- Editing the `#[wasm_bindgen]` API surface in
+  `packages/sequent-core/src/wasm/` (locale, area tree, etc.):
+  run `yarn build:sequent-core` once, then restart Vite.
+
+The script is intentionally not chained into `predev`/`prebuild`
+so contributors who haven't touched sequent-core Rust pay no
+toolchain cost; if `pkg/` doesn't exist, the alias silently falls
+through to the hoisted tgz copy.
 
 ---
 

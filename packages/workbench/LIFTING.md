@@ -489,7 +489,7 @@ file to make the workbench work:
 3. Try one of: `resolve.alias`, `define`, a new provider, a fixture seed,
    a substitute deep-import path. One of these almost always works.
 4. If you genuinely cannot avoid a portal-source change, document it here
-   under a new section "K. Concessions" with the exact diff and the reason
+   under a new section "L. Concessions" with the exact diff and the reason
    it was unavoidable. Reviews of refresh PRs will then verify that the
    concession is still needed.
 
