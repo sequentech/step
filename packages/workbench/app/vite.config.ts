@@ -158,6 +158,23 @@ export default defineConfig({
                 find: /^@root\/(.*)$/,
                 replacement: path.join(pkgs, "ui-core/src/$1"),
             },
+            // Redirect the `sequent-core` npm name at the freshly built
+            // wasm-pack output of the in-tree sequent-core crate
+            // (`packages/sequent-core/pkg`). This is a lift-only
+            // adaptation: voting-portal's own builds keep using the
+            // prebuilt tgz under `voting-portal/rust/`, but the
+            // workbench-bundled copy of every booth screen resolves
+            // `sequent-core` through this alias and so sees Rust source
+            // edits after a manual `yarn build:sequent-core` (the script
+            // is opt-in, not chained into `predev`/`prebuild`, so
+            // contributors who haven't touched sequent-core Rust pay no
+            // toolchain cost). Falls back to the hoisted node_modules
+            // copy of the committed tgz if `pkg/` doesn't exist yet.
+            // Rationale and trade-offs in LIFTING.md row A7.
+            {
+                find: /^sequent-core$/,
+                replacement: path.resolve(here, "../../sequent-core/pkg"),
+            },
         ],
     },
     server: {

@@ -4,6 +4,7 @@
   "version": "0.0.1",
   "type": "module",
   "scripts": {
+    "build:sequent-core": "cd ../../sequent-core && wasm-pack build --out-name index --release --target web --features=wasm,default_features",
     "build:wasm": "cd ../velvet-wasm && wasm-pack build --target web --out-dir pkg",
     "predev": "yarn build:wasm",
     "prebuild": "yarn build:wasm",
