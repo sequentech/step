@@ -1986,8 +1986,19 @@ function ContestTallyView({
                                         {r.decoded}
                                     </span>
                                 ) : (
-                                    <em style={{color: "#b58900"}}>
-                                        (not yet decoded)
+                                    // After the strict-keypair import
+                                    // fix, this state strictly means
+                                    // the bridge tried to decrypt and
+                                    // either the cast vote had no
+                                    // `content` or the decrypt threw
+                                    // (logged to the console). It is
+                                    // not "in progress" — nothing
+                                    // retries decrypt after capture.
+                                    <em
+                                        style={{color: "#b22222"}}
+                                        title="Decrypt failed: empty ballot content or decrypt error (see console)."
+                                    >
+                                        (decrypt failed)
                                     </em>
                                 )}
                             </li>
@@ -2268,7 +2279,12 @@ function VoterCastVoteRow({
                 {row.castVoteId}
             </div>
             {decodedEntries.length === 0 ? (
-                <Empty>(not yet decoded by the bridge)</Empty>
+                // After the strict-keypair import fix, an empty
+                // decoded map for a captured cast vote means every
+                // contest's decrypt either short-circuited on missing
+                // `content` or threw (logged). The bridge does not
+                // retry, so this is not "in progress".
+                <Empty>(decrypt failed — see console)</Empty>
             ) : (
                 <ul
                     style={{
