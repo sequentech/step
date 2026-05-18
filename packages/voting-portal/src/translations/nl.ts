@@ -34,9 +34,9 @@ const dutchTranslation: TranslationType = {
             reviewButton: "Volgende",
             clearButton: "Selectie wissen",
             ballotHelpDialog: {
-                title: “Over het stemscherm”,
+                title: "Over het stemscherm",
                 content:
-                    “Dit scherm toont de stemming(en) waarvoor u stemgerechtigd bent. Vink het selectievakje rechts aan om een Kandidaat/Antwoord te kiezen. Reset via “<b>Selectie wissen</b>”, ga verder via “<b>Volgende</b>”.”,
+                    "Dit scherm toont de stemming(en) waarvoor u stemgerechtigd bent. Vink het selectievakje rechts aan om een Kandidaat/Antwoord te kiezen. Reset via “<b>Selectie wissen</b>”, ga verder via “<b>Volgende</b>”.",
                 ok: "OK",
             },
             nonVotedDialog: {
@@ -73,12 +73,12 @@ const dutchTranslation: TranslationType = {
         reviewScreen: {
             title: "Controleer uw stembiljet",
             description:
-                “Klik op “<b>Stembiljet bewerken</b>” voor wijzigingen, “<b>Stem uitbrengen</b>” om te bevestigen, of “<b>Controleer stembiljet</b>” voor audit.”,
+                "Klik op “<b>Stembiljet bewerken</b>” voor wijzigingen, “<b>Stem uitbrengen</b>” om te bevestigen, of “<b>Controleer stembiljet</b>” voor audit.",
             descriptionNoAudit:
-                “Klik op “<b>Stembiljet bewerken</b>” voor wijzigingen, of “<b>Stem uitbrengen</b>” om te bevestigen.”,
-            backButton: “Stembiljet bewerken”,
-            castBallotButton: “Stem uitbrengen”,
-            auditButton: “Controleer stembiljet”,
+                "Klik op “<b>Stembiljet bewerken</b>” voor wijzigingen, of “<b>Stem uitbrengen</b>” om te bevestigen.",
+            backButton: "Stembiljet bewerken",
+            castBallotButton: "Stem uitbrengen",
+            auditButton: "Controleer stembiljet",
             reviewScreenHelpDialog: {
                 title: "Over het controlescherm",
                 content:
@@ -285,8 +285,7 @@ const dutchTranslation: TranslationType = {
                 ok: "Ik begrijp dat mijn stem niet wordt uitgebracht",
             },
             errors: {
-                noVotingArea:
-                    "Kiesgebied niet toegewezen. Probeer het later opnieuw.",
+                noVotingArea: "Kiesgebied niet toegewezen. Probeer het later opnieuw.",
                 networkError:
                     "Er was een netwerkprobleem. Probeer het later opnieuw of neem contact op met ondersteuning voor hulp.",
                 unableToFetchData:
@@ -330,7 +329,8 @@ const dutchTranslation: TranslationType = {
                 blankVote: "Blanco stem: 0 keuzes geselecteerd",
             },
             explicit: {
-                notAllowed: "Stembiljet expliciet als ongeldig gemarkeerd, maar de vraag staat dit niet toe",
+                notAllowed:
+                    "Stembiljet expliciet als ongeldig gemarkeerd, maar de vraag staat dit niet toe",
                 alert: "Deze selectie wordt geteld als een ongeldige stem",
             },
             page: {

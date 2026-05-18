@@ -4,9 +4,9 @@
 const englishTranslation = {
     translations: {
         common: {
-             goBack: "Back",
-             showMore: "Show more",
-             showLess: "Show less",
+            goBack: "Back",
+            showMore: "Show more",
+            showLess: "Show less",
         },
         candidatesList: {
             collapseToggle: "Toggle list {{listTitle}}",
@@ -25,7 +25,7 @@ const englishTranslation = {
             audit: "Audit",
         },
         footer: {
-             poweredBy: "Powered by <0></0>",
+            poweredBy: "Powered by <0></0>",
         },
         votingScreen: {
             backButton: "Back",
@@ -34,7 +34,7 @@ const englishTranslation = {
             ballotHelpDialog: {
                 title: "About this screen",
                 content:
-                     "This screen shows the contest you are eligible to vote. You can make your section by activate the checkbox on the Candidate/Answer right. To reset your selections, click “<b>Clear selection</b>” button, to move to next step, click “<b>Next</b>” button below.",
+                    "This screen shows the contest you are eligible to vote. You can make your section by activate the checkbox on the Candidate/Answer right. To reset your selections, click “<b>Clear selection</b>” button, to move to next step, click “<b>Next</b>” button below.",
                 ok: "OK",
             },
             nonVotedDialog: {
@@ -79,8 +79,7 @@ const englishTranslation = {
             auditButton: "Audit ballot",
             reviewScreenHelpDialog: {
                 title: "About the review screen",
-                content:
-                    "This screen lets you review your selections before casting your ballot",
+                content: "This screen lets you review your selections before casting your ballot",
                 ok: "OK",
             },
             ballotIdHelpDialog: {
@@ -156,7 +155,8 @@ const englishTranslation = {
                 NO_BALLOT_SELECTION:
                     "The selection state for this election is missing. Please check your choices or contact support",
                 NO_BALLOT_STYLE: "This ballot is not available. Please contact support",
-                NO_AUDITABLE_BALLOT: "There is no ballot available for audit. Please contact support",
+                NO_AUDITABLE_BALLOT:
+                    "There is no ballot available for audit. Please contact support",
                 INCONSISTENT_HASH:
                     "There was an error related to the ballot hashing process. BallotId: {{ballotId}} is not consistent with auditable Ballot Hash: {{auditableBallotHash}}. Please report this issue to support.",
                 ELECTION_EVENT_NOT_OPEN: "This election is closed. You can no longer vote",
@@ -170,8 +170,7 @@ const englishTranslation = {
                     "There was an error converting the ballot. Please try again later or contact support for assistance.",
                 SERIALIZE_ERROR:
                     "There was an error serializing the ballot. Please try again later or contact support for assistance.",
-                UNKNOWN_ERROR:
-                    "An error occurred. Please try again later or contact support",
+                UNKNOWN_ERROR: "An error occurred. Please try again later or contact support",
                 REAUTH_FAILED:
                     "Login failed. Your username or password may be incorrect. Please try again or contact support",
                 SESSION_EXPIRED: "Your session has expired. Please start again",
@@ -180,8 +179,7 @@ const englishTranslation = {
                     "Session storage is not available. Please try again or contact support.",
                 PARSE_BALLOT_DATA_ERROR:
                     "There was an error parsing the ballot data. Please try again later or contact support for assistance.",
-                NOT_VALID_BALLOT_DATA_ERROR:
-                    "The ballot data is invalid. Please contact support",
+                NOT_VALID_BALLOT_DATA_ERROR: "The ballot data is invalid. Please contact support",
                 FETCH_DATA_TIMEOUT_ERROR:
                     "A timeout occurred while loading the data. Please try again",
                 TO_HASHABLE_BALLOT_ERROR:

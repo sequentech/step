@@ -285,8 +285,7 @@ const basqueTranslation: TranslationType = {
                 ok: "Ulertzen dut nire botoa ez dela emango",
             },
             errors: {
-                noVotingArea:
-                    "Hauteskunde eremua ez da esleitu. Saiatu berriro geroago.",
+                noVotingArea: "Hauteskunde eremua ez da esleitu. Saiatu berriro geroago.",
                 networkError:
                     "Sare arazoa izan da. Mesedez, saiatu berriro geroago edo jarri harremanetan laguntzarekin.",
                 unableToFetchData:
@@ -330,7 +329,8 @@ const basqueTranslation: TranslationType = {
                 blankVote: "Boto zuria: 0 aukera hautatuta",
             },
             explicit: {
-                notAllowed: "Bozketa berariaz baliogabetzat markatu da, baina galderak ez du hori onartzen",
+                notAllowed:
+                    "Bozketa berariaz baliogabetzat markatu da, baina galderak ez du hori onartzen",
                 alert: "Hautaketa hau boto baliogabe gisa zenbatuko da",
             },
             page: {

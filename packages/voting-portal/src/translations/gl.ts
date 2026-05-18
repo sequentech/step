@@ -35,9 +35,9 @@ const galegoTranslation: TranslationType = {
             reviewButton: "Seguinte",
             clearButton: "Limpar selección",
             ballotHelpDialog: {
-                title: “Sobre a pantalla da papeleta”,
+                title: "Sobre a pantalla da papeleta",
                 content:
-                    “Esta pantalla mostra o concurso no que es elixible para votar. Activa a caixa á dereita para seleccionar un Candidato/Resposta. Para restablecer, fai clic en “<b>Limpar selección</b>”; para continuar, fai clic en “<b>Seguinte</b>”.”,
+                    "Esta pantalla mostra o concurso no que es elixible para votar. Activa a caixa á dereita para seleccionar un Candidato/Resposta. Para restablecer, fai clic en “<b>Limpar selección</b>”; para continuar, fai clic en “<b>Seguinte</b>”.",
                 ok: "Aceptar",
             },
             nonVotedDialog: {
@@ -74,12 +74,12 @@ const galegoTranslation: TranslationType = {
         reviewScreen: {
             title: "Revisa a túa papeleta",
             description:
-                “Fai clic en “<b>Editar papeleta</b>” para cambiar as túas seleccións, “<b>Emitir papeleta</b>” para confirmar, ou “<b>Comproba a papeleta</b>” para auditala.”,
+                "Fai clic en “<b>Editar papeleta</b>” para cambiar as túas seleccións, “<b>Emitir papeleta</b>” para confirmar, ou “<b>Comproba a papeleta</b>” para auditala.",
             descriptionNoAudit:
-                “Fai clic en “<b>Editar papeleta</b>” para cambiar as túas seleccións, ou “<b>Emitir papeleta</b>” para confirmar.”,
-            backButton: “Editar papeleta”,
-            castBallotButton: “Emitir papeleta”,
-            auditButton: “Comproba a papeleta”,
+                "Fai clic en “<b>Editar papeleta</b>” para cambiar as túas seleccións, ou “<b>Emitir papeleta</b>” para confirmar.",
+            backButton: "Editar papeleta",
+            castBallotButton: "Emitir papeleta",
+            auditButton: "Comproba a papeleta",
             reviewScreenHelpDialog: {
                 title: "Sobre a pantalla de revisión",
                 content:
@@ -285,8 +285,7 @@ const galegoTranslation: TranslationType = {
                 ok: "Entendo que o meu voto non será emitido",
             },
             errors: {
-                noVotingArea:
-                    "Área de votación non asignada. Inténteo de novo máis tarde.",
+                noVotingArea: "Área de votación non asignada. Inténteo de novo máis tarde.",
                 networkError:
                     "Houbo un problema de rede. Inténteo de novo máis tarde ou contacte co soporte para obter asistencia.",
                 unableToFetchData:
@@ -330,7 +329,8 @@ const galegoTranslation: TranslationType = {
                 blankVote: "Voto en branco: 0 opcións seleccionadas",
             },
             explicit: {
-                notAllowed: "A papeleta está marcada como explicitamente inválida, pero a pregunta non o permite",
+                notAllowed:
+                    "A papeleta está marcada como explicitamente inválida, pero a pregunta non o permite",
                 alert: "Esta selección contarase como un voto inválido",
             },
             page: {

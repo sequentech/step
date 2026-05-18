@@ -81,8 +81,7 @@ const spanishTranslation: TranslationType = {
             auditButton: "Auditar papeleta",
             reviewScreenHelpDialog: {
                 title: "Sobre la pantalla de revisión",
-                content:
-                    "Esta pantalla le permite revisar sus selecciones antes de emitir su voto",
+                content: "Esta pantalla le permite revisar sus selecciones antes de emitir su voto",
                 ok: "OK",
             },
             ballotIdHelpDialog: {
@@ -332,7 +331,8 @@ const spanishTranslation: TranslationType = {
                 blankVote: "Voto en blanco: 0 opciones seleccionadas",
             },
             explicit: {
-                notAllowed: "La papeleta está marcada como explícitamente inválida, pero la pregunta no lo permite",
+                notAllowed:
+                    "La papeleta está marcada como explícitamente inválida, pero la pregunta no lo permite",
                 alert: "Esta selección se contará como un voto inválido",
             },
             page: {

@@ -34,9 +34,9 @@ const frenchTranslation: TranslationType = {
             reviewButton: "Suivant",
             clearButton: "Effacer la sélection",
             ballotHelpDialog: {
-                title: “À propos de l'écran de vote”,
+                title: "À propos de l'écran de vote",
                 content:
-                    “Cet écran affiche le vote pour lequel vous êtes éligible. Activez la case à droite pour sélectionner un Candidat/Réponse. Pour réinitialiser, cliquez sur “<b>Effacer la sélection</b>”, pour continuer, cliquez sur “<b>Suivant</b>”.”,
+                    "Cet écran affiche le vote pour lequel vous êtes éligible. Activez la case à droite pour sélectionner un Candidat/Réponse. Pour réinitialiser, cliquez sur “<b>Effacer la sélection</b>”, pour continuer, cliquez sur “<b>Suivant</b>”.",
                 ok: "OK",
             },
             nonVotedDialog: {
@@ -73,12 +73,12 @@ const frenchTranslation: TranslationType = {
         reviewScreen: {
             title: "Révisez votre vote",
             description:
-                “Cliquez sur “<b>Modifier votre vote</b>” pour changer vos sélections, “<b>Envoyer le vote</b>” pour confirmer, ou “<b>Vérifier le bulletin</b>” pour l'auditer.”,
+                "Cliquez sur “<b>Modifier votre vote</b>” pour changer vos sélections, “<b>Envoyer le vote</b>” pour confirmer, ou “<b>Vérifier le bulletin</b>” pour l'auditer.",
             descriptionNoAudit:
-                “Cliquez sur “<b>Modifier votre vote</b>” pour changer vos sélections, ou “<b>Envoyer le vote</b>” pour confirmer.”,
-            backButton: “Modifier votre vote”,
-            castBallotButton: “Envoyer le vote”,
-            auditButton: “Vérifier le bulletin”,
+                "Cliquez sur “<b>Modifier votre vote</b>” pour changer vos sélections, ou “<b>Envoyer le vote</b>” pour confirmer.",
+            backButton: "Modifier votre vote",
+            castBallotButton: "Envoyer le vote",
+            auditButton: "Vérifier le bulletin",
             reviewScreenHelpDialog: {
                 title: "À propos de l'écran de révision",
                 content: "Cet écran vous permet de réviser vos sélections avant de voter.",
@@ -285,8 +285,7 @@ const frenchTranslation: TranslationType = {
                 ok: "Je comprends que mon vote ne sera pas compté",
             },
             errors: {
-                noVotingArea:
-                    "Zone de vote non assignée. Veuillez réessayer plus tard.",
+                noVotingArea: "Zone de vote non assignée. Veuillez réessayer plus tard.",
                 networkError:
                     "Il y a eu un problème de réseau. Veuillez réessayer plus tard ou contacter le support pour obtenir de l'aide.",
                 unableToFetchData:
@@ -330,7 +329,8 @@ const frenchTranslation: TranslationType = {
                 blankVote: "Vote blanc : 0 choix sélectionnés",
             },
             explicit: {
-                notAllowed: "Le bulletin est marqué comme explicitement invalide, mais la question ne le permet pas",
+                notAllowed:
+                    "Le bulletin est marqué comme explicitement invalide, mais la question ne le permet pas",
                 alert: "Cette sélection sera comptée comme un vote invalide",
             },
             page: {

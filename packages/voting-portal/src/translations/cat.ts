@@ -332,7 +332,8 @@ const catalanTranslation: TranslationType = {
                 blankVote: "Vot en blanc: 0 opcions seleccionades",
             },
             explicit: {
-                notAllowed: "La papereta està marcada com explícitament invàlida, però la pregunta no ho permet",
+                notAllowed:
+                    "La papereta està marcada com explícitament invàlida, però la pregunta no ho permet",
                 alert: "Aquesta selecció es comptarà com un vot invàlid",
             },
             page: {

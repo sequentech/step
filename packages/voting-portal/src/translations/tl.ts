@@ -34,9 +34,9 @@ const tagalogTranslation: TranslationType = {
             reviewButton: "Susunod",
             clearButton: "Burahin ang mga napili",
             ballotHelpDialog: {
-                title: “Tungkol sa screen ng balota”,
+                title: "Tungkol sa screen ng balota",
                 content:
-                    “Ipinapakita sa screen na ito ang mga paligsahan na maaari mong botohan. I-activate ang checkbox sa kanan para pumili ng Kandidato/Sagot. I-reset sa “<b>Burahin ang pagpili</b>”, pumunta sa susunod sa “<b>Susunod</b>”.”,
+                    "Ipinapakita sa screen na ito ang mga paligsahan na maaari mong botohan. I-activate ang checkbox sa kanan para pumili ng Kandidato/Sagot. I-reset sa “<b>Burahin ang pagpili</b>”, pumunta sa susunod sa “<b>Susunod</b>”.",
                 ok: "OK",
             },
             nonVotedDialog: {
@@ -73,12 +73,12 @@ const tagalogTranslation: TranslationType = {
         reviewScreen: {
             title: "Suriin ang iyong balota",
             description:
-                “I-click ang “<b>I-edit ang balota</b>” para baguhin ang mga napili, “<b>I-submit ang balota</b>” para kumpirmahin, o “<b>Suriin ang balota</b>” para sa audit.”,
+                "I-click ang “<b>I-edit ang balota</b>” para baguhin ang mga napili, “<b>I-submit ang balota</b>” para kumpirmahin, o “<b>Suriin ang balota</b>” para sa audit.",
             descriptionNoAudit:
-                “I-click ang “<b>I-edit ang balota</b>” para baguhin ang mga napili, o “<b>I-submit ang balota</b>” para kumpirmahin.”,
-            backButton: “I-edit ang balota”,
-            castBallotButton: “I-submit ang balota”,
-            auditButton: “Suriin ang balota”,
+                "I-click ang “<b>I-edit ang balota</b>” para baguhin ang mga napili, o “<b>I-submit ang balota</b>” para kumpirmahin.",
+            backButton: "I-edit ang balota",
+            castBallotButton: "I-submit ang balota",
+            auditButton: "Suriin ang balota",
             reviewScreenHelpDialog: {
                 title: "Tungkol sa screen ng pagsusuri",
                 content:
@@ -244,8 +244,7 @@ const tagalogTranslation: TranslationType = {
             printButton: "I-print",
             restartButton: "Simulan ang Pagboto",
             title: "Suriin ang Iyong Balota",
-            description:
-                "Upang suriin ang iyong balota, sundin ang mga hakbang sa ibaba:",
+            description: "Upang suriin ang iyong balota, sundin ang mga hakbang sa ibaba:",
             step1Title: "1. I-download o kopyahin ang sumusunod na impormasyon",
             step1Description:
                 "Ang iyong <b>Ballot ID</b> na makikita sa taas ng screen at ang iyong naka-encrypt na balota sa ibaba:",
@@ -285,8 +284,7 @@ const tagalogTranslation: TranslationType = {
                 ok: "Naiintindihan ko na ang aking boto ay hindi mai-susubmit",
             },
             errors: {
-                noVotingArea:
-                    "Walang nakatalagang lugar ng halalan. Subukan muli mamaya.",
+                noVotingArea: "Walang nakatalagang lugar ng halalan. Subukan muli mamaya.",
                 networkError:
                     "Nagkaroon ng problema sa network. Mangyaring subukan muli mamaya o makipag-ugnayan sa helpdesk para sa tulong.",
                 unableToFetchData:
@@ -330,7 +328,8 @@ const tagalogTranslation: TranslationType = {
                 blankVote: "Blangkong boto: 0 na pagpili ang napili",
             },
             explicit: {
-                notAllowed: "Ang balota ay tahasang minarkahang hindi wasto ngunit hindi ito pinapayagan ng tanong",
+                notAllowed:
+                    "Ang balota ay tahasang minarkahang hindi wasto ngunit hindi ito pinapayagan ng tanong",
                 alert: "Ang pagpiling ito ay biblangin bilang isang hindi wastong boto",
             },
             page: {
