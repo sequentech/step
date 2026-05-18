@@ -60,6 +60,7 @@ import {setActiveVoter} from "./workbenchStore"
 import {importPortalBallotStyle} from "./import/portalBallotStyleImport"
 import {importVelvetElection} from "./import/velvetElectionImport"
 import type {PipelineSeed, PipelineSeedRow} from "./BallotPipeline"
+import buildInfo from "virtual:workbench-build-info"
 // ---------------------------------------------------------------------------
 // Layout
 // ---------------------------------------------------------------------------
@@ -981,6 +982,7 @@ export function SnapshotOverviewPage(): JSX.Element {
                     </div>
                 )}
             </div>
+            <BuildStatusCard />
         </>
     )
 }
@@ -997,6 +999,150 @@ function ParentCell({parentId}: {parentId: string | null}): JSX.Element {
             <code>{parentId}</code>
         </NavLink>
     )
+}
+
+// ---------------------------------------------------------------------------
+// Build-status card
+// ---------------------------------------------------------------------------
+
+/**
+ * Renders a compact status table sourced from the
+ * `virtual:workbench-build-info` module (see `workbenchBuildInfo`
+ * plugin in `vite.config.ts`). One row per tracked wasm artifact:
+ * its mtime, the newest mtime across its (transitive) crate source
+ * dirs, and a "stale" pill when sources are newer than the built
+ * artifact.
+/**
+ * Renders a compact build-provenance table sourced from the
+ * `virtual:workbench-build-info` module (see `workbenchBuildInfo`
+ * plugin in `vite.config.ts`). One row per tracked wasm artifact:
+ * its mtime (when it was last compiled) and the workspace-internal
+ * crates baked into it with their resolved Cargo.lock versions.
+ *
+ * Deliberately *not* a staleness checker: the same data could
+ * support "is the wasm older than the Rust source?" but that only
+ * makes sense in the monorepo and would silently mislead in a
+ * standalone-packaged workbench (where source dirs don't ship).
+ * Keeping the card to pure provenance lets it carry the same
+ * meaning in dev and in any future packaged build.
+ */
+function BuildStatusCard(): JSX.Element {
+    const fmt = (iso: string | null): string => {
+        if (!iso) return "—"
+        const d = new Date(iso)
+        const ageMs = Date.now() - d.getTime()
+        return `${d.toLocaleString()} (${humanAge(ageMs)} ago)`
+    }
+    return (
+        <div style={buildStatusCardStyle}>
+            <div style={buildStatusHeaderStyle}>
+                <strong>Build status</strong>
+                <span style={{color: "#888", fontSize: "0.8rem"}}>
+                    Snapshot taken at{" "}
+                    <code>
+                        {new Date(buildInfo.generatedAt).toLocaleString()}
+                    </code>
+                </span>
+            </div>
+            <table style={buildStatusTableStyle}>
+                <thead>
+                    <tr>
+                        <th style={thStyle}>Artifact</th>
+                        <th style={thStyle}>Compiled</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {buildInfo.artifacts.map((a) => (
+                        <tr key={a.artifactPath}>
+                            <td style={tdStyle}>
+                                <div>{a.label}</div>
+                                <code
+                                    style={{
+                                        fontSize: "0.75rem",
+                                        color: "#888",
+                                    }}
+                                >
+                                    {a.artifactPath}
+                                </code>
+                                {a.internalDeps && (
+                                    <div
+                                        style={{
+                                            fontSize: "0.75rem",
+                                            color: "#555",
+                                            marginTop: "0.25rem",
+                                        }}
+                                    >
+                                        <span style={{color: "#888"}}>
+                                            internal:
+                                        </span>{" "}
+                                        {a.internalDeps.map((d, i) => (
+                                            <span key={d.name}>
+                                                {i > 0 ? ", " : ""}
+                                                <code>{d.name}</code>{" "}
+                                                <span style={{color: "#888"}}>
+                                                    {d.version}
+                                                </span>
+                                            </span>
+                                        ))}
+                                        {a.externalDepCount != null && (
+                                            <span style={{color: "#888"}}>
+                                                {" "}
+                                                · +{a.externalDepCount}{" "}
+                                                external
+                                            </span>
+                                        )}
+                                    </div>
+                                )}
+                            </td>
+                            <td style={tdMutedStyle}>{fmt(a.builtAt)}</td>
+                        </tr>
+                    ))}
+                </tbody>
+            </table>
+            {buildInfo.git && (
+                <div
+                    style={{
+                        color: "#888",
+                        fontSize: "0.75rem",
+                        marginTop: "0.4rem",
+                    }}
+                >
+                    repo <code>{buildInfo.git.sha}</code>
+                </div>
+            )}
+        </div>
+    )
+}
+
+function humanAge(ms: number): string {
+    if (ms < 0) return "in the future"
+    const s = Math.floor(ms / 1000)
+    if (s < 60) return `${s}s`
+    const m = Math.floor(s / 60)
+    if (m < 60) return `${m}m`
+    const h = Math.floor(m / 60)
+    if (h < 24) return `${h}h ${m % 60}m`
+    const d = Math.floor(h / 24)
+    return `${d}d ${h % 24}h`
+}
+
+const buildStatusCardStyle: React.CSSProperties = {
+    border: "1px solid #ddd",
+    borderRadius: 4,
+    padding: "0.6rem 0.9rem",
+    marginTop: "1.5rem",
+    background: "#fafafa",
+}
+const buildStatusHeaderStyle: React.CSSProperties = {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "baseline",
+    marginBottom: "0.4rem",
+}
+const buildStatusTableStyle: React.CSSProperties = {
+    width: "100%",
+    borderCollapse: "collapse",
+    fontSize: "0.85rem",
 }
 
 const snapshotTableStyle: React.CSSProperties = {
