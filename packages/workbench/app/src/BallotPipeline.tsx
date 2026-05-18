@@ -86,11 +86,35 @@ interface PipelineRow {
 
 type StageKey = "encode" | "encrypt" | "decrypt" | "decode"
 
+/** Where each stage sits in the visible pipeline (1-based) and which
+ *  cell it populates downstream. Used to drive auto-expansion of
+ *  collapsed row textareas: running stage X reveals stage X+1's cell
+ *  on success (the populated output) and re-reveals stage X on
+ *  failure (so the error is visible). The terminal `decode` stage
+ *  populates stage 5, which is read-only (no button). */
+const STAGE_FLOW: Record<StageKey, {source: number; target: number}> = {
+    encode: {source: 1, target: 2},
+    encrypt: {source: 2, target: 3},
+    decrypt: {source: 3, target: 4},
+    decode: {source: 4, target: 5},
+}
+
+/** Compose the `expanded` set key for one row's textarea in one
+ *  stage. Format: `<rowId>#<stageIndex>` (1-based). */
+const expansionKey = (rowId: string, stageIndex: number): string =>
+    `${rowId}#${stageIndex}`
+
 /** Navigation payload accepted by the `/pipeline` route. Built by
  *  the inspector's "Open in ballot pipeline" button on a contest
  *  page; each row pre-fills the cells it has data for and leaves
  *  the rest blank for the operator to compute. */
 export interface PipelineSeed {
+    /** Optional display name of the contest the seed was built from.
+     *  Used purely to title the pipeline view (`Ballot pipeline —
+     *  <name> (N cast votes)`); never read by stage logic. The
+     *  inspector populates it from `contest.name`; older seeds
+     *  without this field fall back to parsing `contestJson`. */
+    contestName?: string
     contestJson: string
     pkB64: string
     skB64: string
@@ -122,6 +146,54 @@ export function BallotPipeline() {
     const [setupError, setSetupError] = useState<string | null>(null)
     const [tallyBusy, setTallyBusy] = useState<boolean>(false)
 
+    // Collapse state for per-row stage textareas. Keys are
+    // `expansionKey(rowId, stageIndex)`; a key in the set means the
+    // textarea is currently shown. Defaults to **collapsed** to keep
+    // the page compact (textareas are bulky ciphertext / proof blobs
+    // that the operator rarely needs to read in full). Stage 1 of
+    // each row is expanded on row creation when the page is not
+    // seeded — that's the only stage the operator can meaningfully
+    // edit before pressing anything. When seeded, every row lands
+    // collapsed; the operator clicks a row header to inspect.
+    const [expanded, setExpanded] = useState<Set<string>>(() => {
+        if (!seed) return new Set()
+        // Seeded rows: nothing expanded by default. Operator opens
+        // what they want to inspect.
+        return new Set()
+    })
+
+    /** Set membership flip for `expansionKey(rowId, stageIndex)`. */
+    const toggleExpanded = useCallback(
+        (rowId: string, stageIndex: number) => {
+            const k = expansionKey(rowId, stageIndex)
+            setExpanded((prev) => {
+                const next = new Set(prev)
+                if (next.has(k)) next.delete(k)
+                else next.add(k)
+                return next
+            })
+        },
+        []
+    )
+
+    /** Idempotent expand — no state churn if every key is already in
+     *  the set. Used by auto-expand hooks (run buttons, add-row,
+     *  bootstrap) which fire on every stage completion. */
+    const expandKeys = useCallback((keys: string[]) => {
+        if (keys.length === 0) return
+        setExpanded((prev) => {
+            let dirty = false
+            const next = new Set(prev)
+            for (const k of keys) {
+                if (!next.has(k)) {
+                    next.add(k)
+                    dirty = true
+                }
+            }
+            return dirty ? next : prev
+        })
+    }, [])
+
     // First-mount bootstrap for the un-seeded case: pull velvet-wasm
     // fixtures so the page is immediately interactive with one
     // example ballot. When the page is opened from a contest seed we
@@ -136,11 +208,14 @@ export function BallotPipeline() {
                 const kp = await generateKeypair()
                 setPkB64(kp.pkB64)
                 setSkB64(kp.skB64)
-                setRows([
-                    makeEmptyRow({
-                        plaintextJson: fixtures.decodedVoteContestJson,
-                    }),
-                ])
+                const bootstrapRow = makeEmptyRow({
+                    plaintextJson: fixtures.decodedVoteContestJson,
+                })
+                setRows([bootstrapRow])
+                // Un-seeded bootstrap: expand the editable input
+                // (stage 1, the plaintext cell) so the operator can
+                // see and tweak the fixture before pressing Encode.
+                expandKeys([expansionKey(bootstrapRow.rowId, 1)])
             } catch (e) {
                 setSetupError(formatError(e))
             }
@@ -180,15 +255,21 @@ export function BallotPipeline() {
                     ...next,
                     busy: stripBusy(r.busy, stage),
                 }))
+                // Reveal the cell that was just populated so the
+                // operator actually sees the output of the click.
+                expandKeys([expansionKey(rowId, STAGE_FLOW[stage].target)])
             } catch (e) {
                 patchRow(rowId, (r) => ({
                     ...r,
                     busy: stripBusy(r.busy, stage),
                     errors: {...r.errors, [stage]: formatError(e)},
                 }))
+                // Reveal the source cell so the error message (which
+                // renders inside the row card) is visible.
+                expandKeys([expansionKey(rowId, STAGE_FLOW[stage].source)])
             }
         },
-        [rows, contestJson, pkB64, skB64, patchRow]
+        [rows, contestJson, pkB64, skB64, patchRow, expandKeys]
     )
 
     // Seeded rows arrive with `plaintextJson`, `encryptedJson` and
@@ -241,8 +322,12 @@ export function BallotPipeline() {
     }, [])
 
     const handleAddRow = useCallback(() => {
-        setRows((rs) => [...rs, makeEmptyRow({})])
-    }, [])
+        const fresh = makeEmptyRow({})
+        setRows((rs) => [...rs, fresh])
+        // New rows are blank: open stage 1 so the operator has a
+        // visible input target without an extra click.
+        expandKeys([expansionKey(fresh.rowId, 1)])
+    }, [expandKeys])
 
     const handleRemoveRow = useCallback((rowId: string) => {
         setRows((rs) => rs.filter((r) => r.rowId !== rowId))
@@ -285,13 +370,36 @@ export function BallotPipeline() {
         [rows]
     )
 
+    // Title suffix: when the page was opened from a contest in the
+    // inspector, surface the contest name + cast-vote count so the
+    // operator does not have to scroll down to the Setup section to
+    // confirm where they are. Falls back to parsing the (possibly
+    // older) seed's `contestJson` if `contestName` is absent.
+    const titleSuffix = useMemo(() => {
+        if (!seed) return ""
+        let name = seed.contestName
+        if (!name) {
+            try {
+                const parsed = JSON.parse(seed.contestJson) as {
+                    name?: unknown
+                }
+                if (typeof parsed?.name === "string") name = parsed.name
+            } catch {
+                /* fall through to placeholder */
+            }
+        }
+        const displayName = name ?? "(unnamed contest)"
+        const n = seed.rows.length
+        return ` — ${displayName} (${n} cast vote${n === 1 ? "" : "s"})`
+    }, [seed])
+
     return (
         // `div`, not `main`: when mounted under `InspectorLayout` the
         // layout's own `<main>` already wraps the routed outlet, so a
         // second `<main>` here would nest the landmarks. The visual
         // styling (centered narrow column) is preserved via `styles.main`.
         <div style={styles.main}>
-            <h1>Sequentech workbench — ballot pipeline</h1>
+            <h1>Ballot pipeline{titleSuffix}</h1>
             <p style={styles.help}>
                 Walk one or more ballot selections through the full
                 encode → encrypt → decrypt → decode → tally chain.
@@ -358,6 +466,8 @@ export function BallotPipeline() {
                 anyBusy={anyBusy}
                 onAddRow={handleAddRow}
                 onRemoveRow={handleRemoveRow}
+                expanded={expanded}
+                onToggleExpanded={toggleExpanded}
             />
 
             <Stage
@@ -375,6 +485,8 @@ export function BallotPipeline() {
                 onRunAll={runStageOnAll}
                 anyBusy={anyBusy}
                 small
+                expanded={expanded}
+                onToggleExpanded={toggleExpanded}
             />
 
             <Stage
@@ -391,6 +503,8 @@ export function BallotPipeline() {
                 onRunRow={runStage}
                 onRunAll={runStageOnAll}
                 anyBusy={anyBusy}
+                expanded={expanded}
+                onToggleExpanded={toggleExpanded}
             />
 
             <Stage
@@ -408,6 +522,8 @@ export function BallotPipeline() {
                 onRunAll={runStageOnAll}
                 anyBusy={anyBusy}
                 small
+                expanded={expanded}
+                onToggleExpanded={toggleExpanded}
             />
 
             <Stage
@@ -424,6 +540,8 @@ export function BallotPipeline() {
                 onRunRow={runStage}
                 onRunAll={runStageOnAll}
                 anyBusy={anyBusy}
+                expanded={expanded}
+                onToggleExpanded={toggleExpanded}
             />
 
             <Section title="6. Tally ballots (array of decimal BigUint strings)">
@@ -480,6 +598,13 @@ interface StageProps {
     small?: boolean
     onAddRow?: () => void
     onRemoveRow?: (rowId: string) => void
+    /** Set of `expansionKey(rowId, stageIndex)` strings that are
+     *  currently expanded. A row whose key is absent renders only
+     *  its header (chevron + badge + label + char count) and hides
+     *  the textarea + Run button + error to keep the page compact. */
+    expanded: Set<string>
+    /** Click handler for the row header disclosure button. */
+    onToggleExpanded: (rowId: string, stageIndex: number) => void
 }
 
 function Stage(props: StageProps): JSX.Element {
@@ -498,6 +623,8 @@ function Stage(props: StageProps): JSX.Element {
         small,
         onAddRow,
         onRemoveRow,
+        expanded,
+        onToggleExpanded,
     } = props
     return (
         <section style={styles.section}>
@@ -523,15 +650,50 @@ function Stage(props: StageProps): JSX.Element {
             {rows.map((row, i) => {
                 const busy = stage ? !!row.busy[stage] : false
                 const err = stage ? row.errors[stage] : undefined
+                const cell = cellOf(row)
+                const isOpen = expanded.has(expansionKey(row.rowId, index))
                 return (
                     <div key={row.rowId} style={styles.rowCard}>
                         <div style={styles.rowHeader}>
-                            <span style={styles.rowBadge}>#{i + 1}</span>
-                            {row.label && (
-                                <span style={styles.rowLabel}>
-                                    {row.label}
+                            <button
+                                type="button"
+                                onClick={() =>
+                                    onToggleExpanded(row.rowId, index)
+                                }
+                                aria-expanded={isOpen}
+                                style={styles.disclosure}
+                                title={
+                                    isOpen
+                                        ? "Collapse this cell"
+                                        : "Expand this cell"
+                                }
+                            >
+                                <span
+                                    aria-hidden="true"
+                                    style={styles.chevron}
+                                >
+                                    {isOpen ? "▾" : "▸"}
                                 </span>
-                            )}
+                                <span style={styles.rowBadge}>
+                                    #{i + 1}
+                                </span>
+                                {row.label && (
+                                    <span style={styles.rowLabel}>
+                                        {row.label}
+                                    </span>
+                                )}
+                                <span style={styles.charCount}>
+                                    {formatCharCount(cell.length)}
+                                </span>
+                                {err && !isOpen && (
+                                    <span
+                                        style={styles.errorBadge}
+                                        title={err}
+                                    >
+                                        error
+                                    </span>
+                                )}
+                            </button>
                             {onRemoveRow && (
                                 <button
                                     onClick={() => onRemoveRow(row.rowId)}
@@ -542,38 +704,44 @@ function Stage(props: StageProps): JSX.Element {
                                 </button>
                             )}
                         </div>
-                        <textarea
-                            value={cellOf(row)}
-                            onChange={(e) =>
-                                setCell(row.rowId, e.target.value)
-                            }
-                            style={{
-                                ...styles.textarea,
-                                height: small ? "5rem" : "10rem",
-                            }}
-                            spellCheck={false}
-                        />
-                        {stage && buttonLabel && (
-                            <button
-                                onClick={() => onRunRow(row.rowId, stage)}
-                                disabled={busy}
-                                style={styles.rowButton}
-                            >
-                                {busy
-                                    ? `${buttonLabel.replace(/ ▼$/, "")}…`
-                                    : buttonLabel}
-                            </button>
-                        )}
-                        {err && (
-                            <pre
-                                style={{
-                                    ...styles.output,
-                                    color: "crimson",
-                                    marginTop: "0.3rem",
-                                }}
-                            >
-                                {err}
-                            </pre>
+                        {isOpen && (
+                            <>
+                                <textarea
+                                    value={cell}
+                                    onChange={(e) =>
+                                        setCell(row.rowId, e.target.value)
+                                    }
+                                    style={{
+                                        ...styles.textarea,
+                                        height: small ? "5rem" : "10rem",
+                                    }}
+                                    spellCheck={false}
+                                />
+                                {stage && buttonLabel && (
+                                    <button
+                                        onClick={() =>
+                                            onRunRow(row.rowId, stage)
+                                        }
+                                        disabled={busy}
+                                        style={styles.rowButton}
+                                    >
+                                        {busy
+                                            ? `${buttonLabel.replace(/ ▼$/, "")}…`
+                                            : buttonLabel}
+                                    </button>
+                                )}
+                                {err && (
+                                    <pre
+                                        style={{
+                                            ...styles.output,
+                                            color: "crimson",
+                                            marginTop: "0.3rem",
+                                        }}
+                                    >
+                                        {err}
+                                    </pre>
+                                )}
+                            </>
                         )}
                     </div>
                 )
@@ -588,6 +756,18 @@ function Stage(props: StageProps): JSX.Element {
             )}
         </section>
     )
+}
+
+/** Compact char-count label for collapsed row headers. Uses `k` for
+ *  thousands so the header width stays predictable even for
+ *  multi-kilobyte ciphertexts. Empty cells read as `empty` rather
+ *  than `0 chars` to make "no data yet" visually distinct from
+ *  "small data". */
+function formatCharCount(n: number): string {
+    if (n === 0) return "empty"
+    if (n < 1000) return `${n} chars`
+    if (n < 100_000) return `${(n / 1000).toFixed(1)}k chars`
+    return `${Math.round(n / 1000)}k chars`
 }
 
 // ---------------------------------------------------------------------------
@@ -903,5 +1083,44 @@ const styles: Record<string, CSSProperties> = {
         fontSize: "0.8rem",
         color: "#333",
         marginBottom: "0.2rem",
+    },
+    // Row-header disclosure button. Looks like the previous inline
+    // header (badge + label) but is now a single clickable target
+    // that toggles the row's textarea. `flex: 1` so it stretches and
+    // remains the click target across the full header width; the
+    // `×` remove button sits to its right.
+    disclosure: {
+        flex: 1,
+        display: "flex",
+        alignItems: "center",
+        gap: "0.5rem",
+        background: "transparent",
+        border: 0,
+        padding: 0,
+        margin: 0,
+        cursor: "pointer",
+        textAlign: "left",
+        font: "inherit",
+        color: "inherit",
+    },
+    chevron: {
+        display: "inline-block",
+        width: "0.9rem",
+        fontSize: "0.8rem",
+        color: "#666",
+    },
+    charCount: {
+        fontSize: "0.75rem",
+        color: "#666",
+        fontFamily: "ui-monospace, Menlo, Consolas, monospace",
+        marginLeft: "auto",
+    },
+    errorBadge: {
+        fontSize: "0.7rem",
+        color: "white",
+        background: "crimson",
+        padding: "0.05rem 0.35rem",
+        borderRadius: "0.2rem",
+        marginLeft: "0.4rem",
     },
 }

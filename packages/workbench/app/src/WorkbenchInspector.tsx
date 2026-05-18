@@ -1695,6 +1695,7 @@ export function ContestDetailPage(): JSX.Element {
             })
         }
         const seed: PipelineSeed = {
+            contestName: found.contest?.name,
             contestJson: JSON.stringify(found.contest, null, 2),
             pkB64: keypair?.pkB64 ?? "",
             skB64: keypair?.skB64 ?? "",
