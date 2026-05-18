@@ -3,18 +3,15 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 //! HTTP readiness for the mixnet trustee: B3 gRPC reachability and disk headroom for the
-//! on-disk message store
+//! on-disk message store.
 
 use std::net::SocketAddr;
 use std::path::Path;
-use std::sync::Arc;
 
-use tokio::sync::Mutex;
 use tracing::{error, info, instrument, warn};
-use warp::Future;
-use warp::{http::Response, Filter};
 
 use crate::protocol::board::grpc_m::GrpcB3Index;
+use sequent_core::services::probe::ProbeHandler;
 
 /// Default listen address for the trustee probe HTTP server (distinct from b3’s `3030`).
 const PROBE_ADDR: &str = "0.0.0.0:3031";
@@ -24,7 +21,6 @@ const PROBE_READY_PATH: &str = "ready";
 /// Default minimum free space on the filesystem that hosts `message_store` (64 MiB).
 const DEFAULT_MIN_FREE_BYTES_MESSAGE_STORE: u64 = 64 * 1024 * 1024;
 
-/// Get minimum free space on the filesystem that hosts `message_store` from environment variable.
 fn min_free_bytes_message_store_from_env() -> u64 {
     match std::env::var("BRAID_MESSAGE_STORE_MIN_FREE_BYTES") {
         Ok(s) => match s.parse::<u64>() {
@@ -38,119 +34,6 @@ fn min_free_bytes_message_store_from_env() -> u64 {
             }
         },
         Err(_) => DEFAULT_MIN_FREE_BYTES_MESSAGE_STORE,
-    }
-}
-
-pub struct ProbeHandler {
-    address: SocketAddr,
-    live_path: String,
-    ready_path: String,
-    is_live: Arc<
-        Mutex<
-            Box<
-                dyn Fn() -> std::pin::Pin<Box<dyn std::future::Future<Output = bool> + Send>>
-                    + Send
-                    + Sync,
-            >,
-        >,
-    >,
-    is_ready: Arc<
-        Mutex<
-            Box<
-                dyn Fn() -> std::pin::Pin<Box<dyn std::future::Future<Output = bool> + Send>>
-                    + Send
-                    + Sync,
-            >,
-        >,
-    >,
-}
-
-impl ProbeHandler {
-    pub fn new(live_path: &str, ready_path: &str, address: impl Into<SocketAddr>) -> ProbeHandler {
-        ProbeHandler {
-            address: address.into(),
-            live_path: live_path.to_string(),
-            ready_path: ready_path.to_string(),
-            is_live: Arc::new(Mutex::new(Box::new(|| Box::pin(async { false })))),
-            is_ready: Arc::new(Mutex::new(Box::new(|| Box::pin(async { false })))),
-        }
-    }
-
-    pub fn future(&self) -> impl Future<Output = ()> {
-        let il = Arc::clone(&self.is_live);
-        let ir = Arc::clone(&self.is_ready);
-
-        let filter = warp::get().and(
-            warp::path(self.live_path.to_string())
-                .and_then(move || {
-                    let il = Arc::clone(&il);
-                    async move {
-                        let is_live = il.lock().await;
-                        let is_live_future = is_live();
-                        if is_live_future.await {
-                            Ok::<_, warp::Rejection>(
-                                Response::builder()
-                                    .status(warp::http::StatusCode::OK)
-                                    .body("Live")
-                                    .unwrap(),
-                            )
-                        } else {
-                            Ok::<_, warp::Rejection>(
-                                Response::builder()
-                                    .status(warp::http::StatusCode::BAD_REQUEST)
-                                    .body("Not live")
-                                    .unwrap(),
-                            )
-                        }
-                    }
-                })
-                .or(warp::path(self.ready_path.to_string()).and_then(move || {
-                    let ir = Arc::clone(&ir);
-                    async move {
-                        let is_ready = ir.lock().await;
-                        let is_ready_future = is_ready();
-                        if is_ready_future.await {
-                            Ok::<_, warp::Rejection>(
-                                Response::builder()
-                                    .status(warp::http::StatusCode::OK)
-                                    .body("Ready")
-                                    .unwrap(),
-                            )
-                        } else {
-                            Ok::<_, warp::Rejection>(
-                                Response::builder()
-                                    .status(warp::http::StatusCode::BAD_REQUEST)
-                                    .body("Not ready")
-                                    .unwrap(),
-                            )
-                        }
-                    }
-                })),
-        );
-
-        warp::serve(filter).bind(self.address)
-    }
-
-    pub async fn set_live(
-        &self,
-        f: impl Fn() -> std::pin::Pin<Box<dyn std::future::Future<Output = bool> + Send>>
-            + Send
-            + Sync
-            + 'static,
-    ) {
-        let mut l = self.is_live.lock().await;
-        *l = Box::new(f);
-    }
-
-    pub async fn set_ready(
-        &self,
-        f: impl Fn() -> std::pin::Pin<Box<dyn std::future::Future<Output = bool> + Send>>
-            + Send
-            + Sync
-            + 'static,
-    ) {
-        let mut r = self.is_ready.lock().await;
-        *r = Box::new(f);
     }
 }
 

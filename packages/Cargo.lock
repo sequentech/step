@@ -1247,7 +1247,6 @@ dependencies = [
  "tracing-log",
  "tracing-subscriber",
  "tracing-tree",
- "warp",
 ]
 
 [[package]]
@@ -1491,6 +1490,7 @@ dependencies = [
  "reedline-repl-rs",
  "rusqlite",
  "rustc-hash 2.1.1",
+ "sequent-core",
  "serde",
  "serde_json",
  "serial_test",
@@ -1508,7 +1508,6 @@ dependencies = [
  "tracing-subscriber",
  "tracing-tree",
  "tracing-wasm",
- "warp",
  "wasm-bindgen",
  "wasm-bindgen-rayon",
 ]

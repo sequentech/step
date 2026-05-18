@@ -115,7 +115,7 @@ async fn check_hasura_db(app_name: &AppName) -> Option<bool> {
         } else {
             match pg.hasura_db.get_pg_config() {
                 Ok(config) => {
-                    Some(check_postgres_select_one_no_tls(&cfg).await)},
+                    Some(check_postgres_select_one_no_tls(&config).await)},
                 Err(e) => {
                     error!("hasura db probe: invalid pg config: {e:?}");
                     Some(false)
