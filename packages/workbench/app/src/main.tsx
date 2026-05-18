@@ -81,7 +81,17 @@ const router = createBrowserRouter([
                     {path: "voter/:id", element: <VoterDetailPage />},
                 ],
             },
-            {path: "/pipeline", element: <BallotPipeline />},
+            // `/pipeline` reuses `InspectorLayout` so the workbench rail
+            // is always available — landing on the pipeline from a
+            // contest's "Open in ballot pipeline" button used to strand
+            // the operator with no nav until they manually clicked back
+            // to `/wb`.
+            {
+                element: <InspectorLayout />,
+                children: [
+                    {path: "/pipeline", element: <BallotPipeline />},
+                ],
+            },
             {
                 element: <BoothLayout />,
                 children: boothChildren,

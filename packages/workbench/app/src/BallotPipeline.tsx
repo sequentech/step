@@ -286,7 +286,11 @@ export function BallotPipeline() {
     )
 
     return (
-        <main style={styles.main}>
+        // `div`, not `main`: when mounted under `InspectorLayout` the
+        // layout's own `<main>` already wraps the routed outlet, so a
+        // second `<main>` here would nest the landmarks. The visual
+        // styling (centered narrow column) is preserved via `styles.main`.
+        <div style={styles.main}>
             <h1>Sequentech workbench — ballot pipeline</h1>
             <p style={styles.help}>
                 Walk one or more ballot selections through the full
@@ -450,7 +454,7 @@ export function BallotPipeline() {
                     </pre>
                 )}
             </Section>
-        </main>
+        </div>
     )
 }
 
