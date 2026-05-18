@@ -361,6 +361,17 @@ const englishTranslation = {
                     "The Ballot Finder screen lets you enter your Ballot ID to locate your vote and confirm it was recorded correctly.",
                 ok: "OK",
             },
+                        tabs: {
+                logs: "Logs",
+                ballotLocator: "Ballot Locator",
+            },
+            column: {
+                statement_kind: "Statement kind",
+                statement_timestamp: "Statement Timestamp",
+                username: "Username",
+                ballot_id: "Ballot ID",
+                message: "Message",
+            },
         },
     },
 }
