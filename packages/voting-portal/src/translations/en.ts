@@ -52,13 +52,13 @@ const englishTranslation = {
             instructionsDescription: "Follow these steps to cast your ballot",
             step1Title: "1. Choose your options",
             step1Description:
-                "Pick your preferred candidates and answer each ballot question as it appears. You can change your ballot anytime before submitting",
+                "Pick your preferred candidates and answer each ballot question as it appears. You can change your ballot anytime before casting your vote",
             step2Title: "2. Review your choices",
             step2Description:
                 "When you’re happy with your selections, we’ll securely encrypt your ballot and show you a final review. You’ll also get a unique tracker ID for reference",
-            step3Title: "3. Submit your ballot",
+            step3Title: "3. Cast your ballot",
             step3Description:
-                "When you’re ready, submit your ballot so it’s officially recorded. Or choose to audit first to confirm it was correctly captured and encrypted",
+                "When you’re ready, cast your ballot so it’s officially recorded. Or choose to audit first to confirm it was correctly captured and encrypted",
         },
         reviewScreen: {
             title: "Review your ballot",
@@ -67,18 +67,18 @@ const englishTranslation = {
             descriptionNoAudit:
                 "To make changes in your selections, click “<b>Edit ballot</b>” button, to confirm your selections, click “<b>Cast your ballot</b>” button below.",
             backButton: "Edit ballot",
-            castBallotButton: "Submit ballot",
+            castBallotButton: "Cast ballot",
             auditButton: "Audit ballot",
             reviewScreenHelpDialog: {
                 title: "About the review screen",
                 content:
-                    "This screen lets you review your selections before submitting your ballot",
+                    "This screen lets you review your selections before casting your ballot",
                 ok: "OK",
             },
             ballotIdHelpDialog: {
                 title: "Your vote has not been cast",
                 content:
-                    "<p>This is your Ballot Tracker ID, but <b>your vote has not been cast yet</b>. If you try to track it now, nothing will appear.</p><p>We show the Tracker ID at this stage so you can audit the encrypted ballot before submitting it.</p>",
+                    "<p>This is your Ballot Tracker ID, but <b>your vote has not been cast yet</b>. If you try to track it now, nothing will appear.</p><p>We show the Tracker ID at this stage so you can audit the encrypted ballot before casting it.</p>",
                 ok: "I understand my vote is not cast",
                 cancel: "Cancel",
             },
@@ -90,9 +90,9 @@ const englishTranslation = {
                 cancel: "Cancel",
             },
             confirmCastVoteDialog: {
-                title: "Are you sure you want to submit your vote?",
+                title: "Are you sure you want to cast your vote?",
                 content: "After you confirm, your vote can’t be changed",
-                ok: "Yes, I want to submit my vote",
+                ok: "Yes, I want to cast my vote",
                 cancel: "Cancel",
             },
             error: {
@@ -102,17 +102,17 @@ const englishTranslation = {
                     "There was a problem fetching the data. Please try again later or contact support for assistance.",
                 LOAD_ELECTION_EVENT: "Unable to load the election event. Please try again later",
                 CAST_VOTE:
-                    "An unknown error occurred while submitting your vote. Please try again later or contact support",
+                    "An unknown error occurred while casting your vote. Please try again later or contact support",
                 CAST_VOTE_AreaNotFound:
                     "There was an error while casting the vote: Area not found. Please try again later or contact support for assistance.",
                 CAST_VOTE_CheckStatusFailed:
-                    "This election does not allow submitting a vote. It may be closed, archived, or outside the allowed voting period",
+                    "This election does not allow casting a vote. It may be closed, archived, or outside the allowed voting period",
                 CAST_VOTE_InternalServerError:
-                    "An internal error occurred while submitting your vote. Please try again later or contact support",
+                    "An internal error occurred while casting your vote. Please try again later or contact support",
                 CAST_VOTE_QueueError:
                     "There was a problem processing your vote. Please try again later or contact support",
                 CAST_VOTE_Unauthorized:
-                    "You are not authorized to submit a vote. Please contact support.",
+                    "You are not authorized to cast a vote. Please contact support.",
                 CAST_VOTE_ElectionEventNotFound:
                     "The election event could not be found. Please try again later or contact support.",
                 CAST_VOTE_ElectoralLogNotFound:
@@ -134,9 +134,9 @@ const englishTranslation = {
                 CAST_VOTE_UuidParseFailed:
                     "An error occurred while processing your request. Please try again later or contact support.",
                 CAST_VOTE_unexpected:
-                    "An unknown error occurred while submitting your vote. Please try again later or contact support",
+                    "An unknown error occurred while casting your vote. Please try again later or contact support",
                 CAST_VOTE_timeout:
-                    "A timeout occurred while submitting your vote. Please try again later or contact support",
+                    "A timeout occurred while casting your vote. Please try again later or contact support",
                 CAST_VOTE_InsertFailedExceedsAllowedRevotes:
                     "You have exceeded the revote limit. Please contact support.",
                 CAST_VOTE_CheckRevotesFailed:
@@ -144,7 +144,7 @@ const englishTranslation = {
                 CAST_VOTE_CheckVotesInOtherAreasFailed:
                     "You have already voted in another area. Please contact support",
                 CAST_VOTE_UnknownError:
-                    "An unknown error occurred while submitting your vote. Please try again later or contact support",
+                    "An unknown error occurred while casting your vote. Please try again later or contact support",
                 NO_BALLOT_SELECTION:
                     "The selection state for this election is missing. Please check your choices or contact support",
                 NO_BALLOT_STYLE: "This ballot is not available. Please contact support",
@@ -183,19 +183,19 @@ const englishTranslation = {
             },
         },
         confirmationScreen: {
-            title: "Your vote has been submitted",
+            title: "Your vote has been cast",
             description:
-                "Your ballot was submitted successfully. Use the code below to verify that it was counted",
+                "Your ballot was cast successfully. Use the code below to verify that it was counted",
             ballotId: "Ballot ID",
             printButton: "Print",
             finishButton: "Finish",
-            verifyCastTitle: "Verify that your ballot was submitted",
+            verifyCastTitle: "Verify that your ballot was cast",
             verifyCastDescription:
-                "You can verify your ballot was submitted correctly at any time using the QR code below",
+                "You can verify your ballot was castr correctly at any time using the QR code below",
             confirmationHelpDialog: {
                 title: "About the confirmation screen",
                 content:
-                    "This screen confirms that your vote was successfully submitted. The information here allows you to verify that your ballot was stored in the ballot box, both during the voting period and after it has closed",
+                    "This screen confirms that your vote was successfully cast. The information here allows you to verify that your ballot was stored in the ballot box, both during the voting period and after it has closed",
                 ok: "OK",
             },
             demoPrintDialog: {
@@ -267,8 +267,8 @@ const englishTranslation = {
             demoDialog: {
                 title: "Demo voting booth",
                 content:
-                    "You are entering a demo voting booth. <strong>Your vote will not be submitted.</strong> This booth is for demonstration only.",
-                ok: "I understand that my vote will not be submitted",
+                    "You are entering a demo voting booth. <strong>Your vote will not be cast.</strong> This booth is for demonstration only.",
+                ok: "I understand that my vote will not be cast",
             },
             errors: {
                 noVotingArea:
@@ -336,7 +336,7 @@ const englishTranslation = {
         ballotLocator: {
             title: "Find your Ballot",
             titleResult: "Your Ballot Lookup Results",
-            description: "Confirm your ballot was submitted correctly",
+            description: "Confirm your ballot was cast correctly",
             locate: "Find your Ballot",
             locateAgain: "Find another Ballot",
             found: "Your ballot ID {{ballotId}} has been found",
