@@ -300,7 +300,7 @@ export const CandidateDataForm: React.FC<{
         }
     }
 
-    const removeImage = (e: React.MouseEvent<HTMLButtonElement>) => {
+    const removeImage = (e: React.MouseEvent<HTMLButtonElement, MouseEvent>) => {
         e.stopPropagation()
         try {
             setEnabledDeleteImage(false)
