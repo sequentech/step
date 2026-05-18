@@ -271,7 +271,7 @@ function workbenchBuildInfo(): Plugin {
         }
     }
 
-    function readGitInfo(): {sha: string; dirty: boolean} | null {
+    function readGitInfo(): {sha: string} | null {
         // Read .git/HEAD directly to avoid spawning `git`. Resolves
         // symref refs/heads/<branch> -> .git/refs/heads/<branch>.
         const gitDir = path.join(repoRoot, ".git")
@@ -284,16 +284,13 @@ function workbenchBuildInfo(): Plugin {
                 const refPath = path.join(gitDir, head.slice(5).trim())
                 if (!fs.existsSync(refPath)) {
                     // Packed-refs fallback (skip for simplicity).
-                    return {sha: head, dirty: false}
+                    return {sha: head}
                 }
                 sha = fs.readFileSync(refPath, "utf8").trim()
             } else {
                 sha = head
             }
-            // We don't try to detect dirty state without spawning git;
-            // that would require diffing the index, which is non-
-            // trivial. Surface the SHA only.
-            return {sha: sha.slice(0, 12), dirty: false}
+            return {sha: sha.slice(0, 12)}
         } catch {
             return null
         }

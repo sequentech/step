@@ -40,7 +40,7 @@ declare module "virtual:workbench-build-info" {
         /** ISO 8601 timestamp of when this module was loaded by Vite. */
         generatedAt: string
         /** Short git SHA from `.git/HEAD`. `null` if not in a git repo. */
-        git: {sha: string; dirty: boolean} | null
+        git: {sha: string} | null
         artifacts: WorkbenchBuildArtifact[]
     }
     const info: WorkbenchBuildInfo
