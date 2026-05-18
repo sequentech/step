@@ -166,10 +166,16 @@ export function BallotPipeline() {
     // JSON and Tally's ballots array. Same motivation as the per-row
     // stage textareas \u2014 these blobs (a multi-kilobyte contest, a
     // BigUint array) dominate vertical space and the operator rarely
-    // needs to read them once the page is configured. Default closed
-    // (bootstrap and seed both produce non-empty values, so the
-    // collapsed header still carries the char-count breadcrumb).
-    const [contestJsonOpen, setContestJsonOpen] = useState<boolean>(false)
+    // needs to read them once the page is configured.
+    //
+    // Contest JSON: in standalone mode the bootstrap fixture is the
+    // most common starting point the operator wants to *change*
+    // (pick a different contest shape before encoding), so we land
+    // expanded. When seeded from a contest the JSON is fixed by the
+    // upstream cast votes and is rarely re-read \u2014 land collapsed.
+    const [contestJsonOpen, setContestJsonOpen] = useState<boolean>(
+        () => !seed
+    )
     const [tallyBallotsOpen, setTallyBallotsOpen] = useState<boolean>(false)
 
     /** Set membership flip for `expansionKey(rowId, stageIndex)`. */
@@ -471,7 +477,16 @@ export function BallotPipeline() {
                         spellCheck={false}
                     />
                 </Field>
-                <button onClick={handleNewKeypair} style={styles.button}>
+                <button
+                    onClick={handleNewKeypair}
+                    style={styles.button}
+                    disabled={!!seed}
+                    title={
+                        seed
+                            ? "Disabled: seeded ciphertexts were encrypted with the contest's keypair. Regenerating would make every Decrypt stage fail."
+                            : undefined
+                    }
+                >
                     Generate new keypair
                 </button>
                 {setupError && (
@@ -480,10 +495,34 @@ export function BallotPipeline() {
                     </pre>
                 )}
                 {seed && (
-                    <p style={styles.help}>
-                        Seeded from inspector ({seed.rows.length}{" "}
-                        ballot{seed.rows.length === 1 ? "" : "s"}).
-                    </p>
+                    <>
+                        <p style={styles.help}>
+                            Seeded from inspector ({seed.rows.length}{" "}
+                            ballot{seed.rows.length === 1 ? "" : "s"}).
+                        </p>
+                        {/* Each seeded row's `encryptedJson` was produced
+                         *  upstream with the contest's keypair (the one
+                         *  shown above). Editing pk/sk or generating a
+                         *  new pair here would orphan those ciphertexts:
+                         *  Decrypt would fail (wrong sk) and a re-Encrypt
+                         *  with the new pk would silently invalidate the
+                         *  link back to the original cast vote. We keep
+                         *  the inputs editable for teaching purposes
+                         *  (operator can paste a wrong key to *see* the
+                         *  failure) but warn explicitly and disable the
+                         *  one-click regen button above. */}
+                        <p
+                            style={{
+                                ...styles.help,
+                                color: "#b22222",
+                            }}
+                        >
+                            Keypair is bound to the seeded ciphertexts.
+                            Changing pk/sk or regenerating will make
+                            Decrypt fail on every row — the rows above
+                            were encrypted with the keypair shown.
+                        </p>
+                    </>
                 )}
             </Section>
 
