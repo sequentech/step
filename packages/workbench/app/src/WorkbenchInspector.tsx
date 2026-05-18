@@ -1721,7 +1721,15 @@ export function ContestDetailPage(): JSX.Element {
                     typeof cv.content === "string" && cv.content.length > 0
                         ? prettyJsonOrRaw(cv.content)
                         : undefined,
-                decryptedBigInt: entry?.decodedBigInts?.[contestId],
+                // Deliberately NOT seeded from
+                // `entry?.decodedBigInts?.[contestId]`. The pipeline
+                // is a teaching surface: the operator opens it from a
+                // contest to inspect *encrypted* cast votes and is
+                // expected to perform the decrypt step themselves so
+                // they see the encrypt -> decrypt round-trip. Pre-
+                // filling the decrypted BigUint from the upstream
+                // bridge would short-circuit that flow.
+                decryptedBigInt: undefined,
             })
         }
         const seed: PipelineSeed = {
@@ -1962,7 +1970,7 @@ function ContestTallyView({
             )}
             <details style={{marginTop: "1rem"}}>
                 <summary style={{cursor: "pointer", color: "#444"}}>
-                    Decoded BigUints per cast vote
+                    Decrypted BigUints per cast vote
                 </summary>
                 {decodedRows.length === 0 ? (
                     <Empty>(none)</Empty>
