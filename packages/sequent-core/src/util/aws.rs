@@ -83,6 +83,10 @@ pub(crate) fn build_s3_aws_config_for_endpoint(
 }
 
 #[instrument(err)]
+/// Builds an S3 client configuration for the selected endpoint.
+///
+/// When `use_server_endpoint` is `false`, the client-facing endpoint is used
+/// instead of the server-side endpoint.
 pub async fn get_s3_aws_config(
     use_server_endpoint: bool,
 ) -> Result<aws_sdk_s3::Config> {
