@@ -592,6 +592,36 @@ export function SnapshotOverviewPage(): JSX.Element {
                 setImportError("Snapshot is missing a `state` object.")
                 return
             }
+            // Require `workbench.keypair` on raw-snapshot import. The
+            // BS and Velvet import variants generate their own
+            // keypair (see rekeySnapshot in importHelpers); raw v1
+            // imports are the only path that could otherwise land us
+            // in a no-keypair state, where every subsequent cast
+            // vote captured by `tryCaptureRepairedCastVote` would
+            // silently skip decrypt and leave `decodedBigInts` empty
+            // — indistinguishable in the UI from "decrypt pending"
+            // or "decrypt failed". Rejecting up-front keeps the
+            // failure modes of an installed snapshot to just (a) the
+            // cast vote has no `content`, and (b) decrypt threw.
+            const kp = parsed.workbench?.keypair as
+                | {pkB64?: unknown; skB64?: unknown}
+                | null
+                | undefined
+            if (
+                !kp ||
+                typeof kp.pkB64 !== "string" ||
+                typeof kp.skB64 !== "string" ||
+                kp.pkB64.length === 0 ||
+                kp.skB64.length === 0
+            ) {
+                setImportError(
+                    "Snapshot is missing `workbench.keypair` (pkB64/skB64). " +
+                        "Raw v1 snapshots must carry the keypair they were " +
+                        "captured with; use the Ballot style or Velvet " +
+                        "election import variant to mint a fresh one."
+                )
+                return
+            }
             try {
                 // Wipe + reload: write the imported snapshot to the
                 // auto-resume slot as a root (parentId = null), then
