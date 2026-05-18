@@ -1,9 +1,9 @@
-// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
+// SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
 //! HTTP readiness for the mixnet trustee: B3 gRPC reachability and disk headroom for the
-//! on-disk message store used with [`crate::protocol::board::local2::LocalBoard`].
+//! on-disk message store
 
 use std::net::SocketAddr;
 use std::path::Path;
@@ -21,8 +21,25 @@ const PROBE_ADDR: &str = "0.0.0.0:3031";
 const PROBE_LIVE_PATH: &str = "live";
 const PROBE_READY_PATH: &str = "ready";
 
-/// Minimum free space required on the filesystem that hosts `message_store`.
-const MIN_FREE_BYTES_MESSAGE_STORE: u64 = 64 * 1024 * 1024;
+/// Default minimum free space on the filesystem that hosts `message_store` (64 MiB).
+const DEFAULT_MIN_FREE_BYTES_MESSAGE_STORE: u64 = 64 * 1024 * 1024;
+
+/// Get minimum free space on the filesystem that hosts `message_store` from environment variable.
+fn min_free_bytes_message_store_from_env() -> u64 {
+    match std::env::var("BRAID_MESSAGE_STORE_MIN_FREE_BYTES") {
+        Ok(s) => match s.parse::<u64>() {
+            Ok(n) => n,
+            Err(e) => {
+                warn!(
+                    "invalid BRAID_MESSAGE_STORE_MIN_FREE_BYTES '{s}': {e:?}, using default {}",
+                    DEFAULT_MIN_FREE_BYTES_MESSAGE_STORE
+                );
+                DEFAULT_MIN_FREE_BYTES_MESSAGE_STORE
+            }
+        },
+        Err(_) => DEFAULT_MIN_FREE_BYTES_MESSAGE_STORE,
+    }
+}
 
 pub struct ProbeHandler {
     address: SocketAddr,
@@ -151,7 +168,7 @@ async fn check_b3_index(url: &str) -> bool {
 
 /// Free space on the filesystem backing `store_root` (directory for per-board SQLite stores).
 #[instrument(ret)]
-fn check_message_store_space(store_root: &Path) -> bool {
+fn check_message_store_space(store_root: &Path, min_free_bytes: u64) -> bool {
     #[cfg(unix)]
     {
         use std::ffi::CString;
@@ -182,11 +199,11 @@ fn check_message_store_space(store_root: &Path) -> bool {
         }
 
         let free = (vfs.f_bavail as u128).saturating_mul(vfs.f_frsize as u128);
-        let min = MIN_FREE_BYTES_MESSAGE_STORE as u128;
+        let min = min_free_bytes as u128;
         if free < min {
             error!(
                 "probe disk: free space {} bytes below minimum {} bytes on {:?}",
-                free, MIN_FREE_BYTES_MESSAGE_STORE, path_for_stat
+                free, min_free_bytes, path_for_stat
             );
             return false;
         }
@@ -201,45 +218,53 @@ fn check_message_store_space(store_root: &Path) -> bool {
 }
 
 #[instrument(ret, skip(store_root))]
-async fn readiness(b3_url: String, store_root: std::path::PathBuf) -> bool {
+async fn readiness(b3_url: String, store_root: std::path::PathBuf, min_free_bytes: u64) -> bool {
     let (b3_ok, disk_ok) = tokio::join!(check_b3_index(&b3_url), async move {
-        check_message_store_space(&store_root)
+        check_message_store_space(&store_root, min_free_bytes)
     });
     info!("probe readiness: b3={b3_ok}, message_store_disk={disk_ok}");
     b3_ok && disk_ok
 }
 
-/// Serves `GET /live` and `GET /ready` (Kubernetes-style). Readiness checks B3 index RPC and
+/// Serves `GET /live` and `GET /ready` probes. Readiness checks B3 connectivity and
 /// disk headroom under `store_root`.
 pub async fn setup_probe(b3_url: String, store_root: std::path::PathBuf) {
-    let addr: Result<SocketAddr, _> = PROBE_ADDR.parse();
-    let Ok(addr) = addr else {
-        warn!("braid probe: invalid fixed address {}", PROBE_ADDR);
-        return;
-    };
+    let addr_s = std::env::var("BRAID_PROBE_ADDR").unwrap_or_else(|_| PROBE_ADDR.to_string());
+    let live_path =
+        std::env::var("BRAID_PROBE_LIVE_PATH").unwrap_or_else(|_| PROBE_LIVE_PATH.to_string());
+    let ready_path =
+        std::env::var("BRAID_PROBE_READY_PATH").unwrap_or_else(|_| PROBE_READY_PATH.to_string());
+    let min_free_bytes = min_free_bytes_message_store_from_env();
 
-    let ph = ProbeHandler::new(PROBE_LIVE_PATH, PROBE_READY_PATH, addr);
-    let f = ph.future();
-    let url0 = b3_url.clone();
-    let root0 = store_root.clone();
-    ph.set_live(move || {
-        let url = url0.clone();
-        let root = root0.clone();
-        Box::pin(async move { readiness(url, root).await })
-    })
-    .await;
+    let addr: Result<SocketAddr, _> = addr_s.parse();
 
-    let url1 = b3_url;
-    let root1 = store_root;
-    ph.set_ready(move || {
-        let url = url1.clone();
-        let root = root1.clone();
-        Box::pin(async move { readiness(url, root).await })
-    })
-    .await;
-    tokio::spawn(f);
-    info!(
-        "braid trustee probe on {}/{}/{}",
-        PROBE_ADDR, PROBE_LIVE_PATH, PROBE_READY_PATH
-    );
+    if let Ok(addr) = addr {
+        let ph = ProbeHandler::new(&live_path, &ready_path, addr);
+        let f = ph.future();
+        let url0 = b3_url.clone();
+        let root0 = store_root.clone();
+        let min0 = min_free_bytes;
+        ph.set_live(move || {
+            let url = url0.clone();
+            let root = root0.clone();
+            let min = min0;
+            Box::pin(async move { readiness(url, root, min).await })
+        })
+        .await;
+
+        let url1 = b3_url;
+        let root1 = store_root;
+        let min1 = min_free_bytes;
+        ph.set_ready(move || {
+            let url = url1.clone();
+            let root = root1.clone();
+            let min = min1;
+            Box::pin(async move { readiness(url, root, min).await })
+        })
+        .await;
+        tokio::spawn(f);
+        info!("braid trustee probe on {addr_s}/{live_path}/{ready_path}");
+    } else {
+        warn!("Could not parse address for braid probe '{addr_s}'");
+    }
 }

@@ -2,6 +2,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+//! HTTP readiness for the bulletin board: PostgreSQL reachability and B3 index reachability.
+
 use std::net::SocketAddr;
 use std::str::FromStr;
 use std::sync::Arc;
@@ -170,32 +172,36 @@ async fn readiness(pg: PgsqlDbConnectionParams) -> bool {
     select_ok && boards_ok
 }
 
-/// HTTP `/live` and `/ready` on `0.0.0.0:3030`; checks PostgreSQL (`SELECT 1`, no TLS) and `PgsqlB3Client::get_boards`.
+/// Listen for readiness probes on `B3_PROBE_ADDR` and set live/ready status based on PostgreSQL
+/// and B3 index reachability.
 pub async fn setup_probe(pg: PgsqlDbConnectionParams) {
-    let addr: Result<SocketAddr, _> = PROBE_ADDR.parse();
-    let Ok(addr) = addr else {
-        warn!("b3 probe: invalid fixed address {}", PROBE_ADDR);
-        return;
-    };
+    let addr_s = std::env::var("B3_PROBE_ADDR").unwrap_or_else(|_| PROBE_ADDR.to_string());
+    let live_path =
+        std::env::var("B3_PROBE_LIVE_PATH").unwrap_or_else(|_| PROBE_LIVE_PATH.to_string());
+    let ready_path =
+        std::env::var("B3_PROBE_READY_PATH").unwrap_or_else(|_| PROBE_READY_PATH.to_string());
 
-    let ph = ProbeHandler::new(PROBE_LIVE_PATH, PROBE_READY_PATH, addr);
-    let f = ph.future();
-    let pg0 = pg.clone();
-    ph.set_live(move || {
-        let pg = pg0.clone();
-        Box::pin(async move { readiness(pg).await })
-    })
-    .await;
+    let addr: Result<SocketAddr, _> = addr_s.parse();
 
-    let pg1 = pg;
-    ph.set_ready(move || {
-        let pg = pg1.clone();
-        Box::pin(async move { readiness(pg).await })
-    })
-    .await;
-    tokio::spawn(f);
-    info!(
-        "b3 probe listening on {}/{}/{}",
-        PROBE_ADDR, PROBE_LIVE_PATH, PROBE_READY_PATH
-    );
+    if let Ok(addr) = addr {
+        let ph = ProbeHandler::new(&live_path, &ready_path, addr);
+        let f = ph.future();
+        let pg0 = pg.clone();
+        ph.set_live(move || {
+            let pg = pg0.clone();
+            Box::pin(async move { readiness(pg).await })
+        })
+        .await;
+
+        let pg1 = pg;
+        ph.set_ready(move || {
+            let pg = pg1.clone();
+            Box::pin(async move { readiness(pg).await })
+        })
+        .await;
+        tokio::spawn(f);
+        info!("b3 probe listening on {addr_s}/{live_path}/{ready_path}");
+    } else {
+        warn!("Could not parse address for b3 probe '{addr_s}'");
+    }
 }
