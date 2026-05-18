@@ -5,6 +5,8 @@
 use crate::util::aws::{
     get_fetch_expiration_secs, get_from_env_aws_config, get_s3_aws_config,
     get_upload_expiration_secs, AWS_S3_PRIVATE_URI_ENV, AWS_S3_PUBLIC_URI_ENV,
+    get_fetch_expiration_secs, get_from_env_aws_config, get_s3_aws_config,
+    get_upload_expiration_secs, AWS_S3_PRIVATE_URI_ENV, AWS_S3_PUBLIC_URI_ENV,
 };
 use crate::util::temp_path::{
     generate_temp_file, get_public_assets_path_env_var,
@@ -959,6 +961,173 @@ pub async fn get_files_names_bytes_from_s3(
     }
 
     Ok(files_data)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{
+        join_s3_path, parse_aws_bucket_endpoint, resolve_s3_list_target_parts,
+        ResolvedS3ListTargetParts,
+    };
+
+    #[test]
+    fn join_s3_path_handles_empty_segments() {
+        assert_eq!(join_s3_path("public", "plugins/"), "public/plugins");
+        assert_eq!(join_s3_path("public/", "/plugins/"), "public/plugins");
+        assert_eq!(join_s3_path("", "plugins/"), "plugins");
+        assert_eq!(join_s3_path("public", ""), "public");
+    }
+
+    #[test]
+    fn parse_region_aware_aws_bucket_endpoint() {
+        let parsed = parse_aws_bucket_endpoint(
+            "https://sequent-dev-bucket-eu-west-1-123.s3.eu-west-1.amazonaws.com",
+            Some("eu-west-1"),
+        )
+        .unwrap();
+
+        assert_eq!(
+            parsed,
+            Some((
+                "https://s3.eu-west-1.amazonaws.com".to_string(),
+                "sequent-dev-bucket-eu-west-1-123".to_string(),
+            ))
+        );
+    }
+
+    #[test]
+    fn parse_global_aws_bucket_endpoint() {
+        let parsed = parse_aws_bucket_endpoint(
+            "https://sequent-dev-bucket-eu-west-1-123.s3.amazonaws.com",
+            Some("eu-west-1"),
+        )
+        .unwrap();
+
+        assert_eq!(
+            parsed,
+            Some((
+                "https://s3.eu-west-1.amazonaws.com".to_string(),
+                "sequent-dev-bucket-eu-west-1-123".to_string(),
+            ))
+        );
+    }
+
+    #[test]
+    fn parse_global_aws_bucket_endpoint_without_region_keeps_global_host() {
+        let parsed = parse_aws_bucket_endpoint(
+            "https://sequent-dev-bucket-eu-west-1-123.s3.amazonaws.com",
+            None,
+        )
+        .unwrap();
+
+        assert_eq!(
+            parsed,
+            Some((
+                "https://s3.amazonaws.com".to_string(),
+                "sequent-dev-bucket-eu-west-1-123".to_string(),
+            ))
+        );
+    }
+
+    #[test]
+    fn ignores_non_aws_endpoints() {
+        let parsed =
+            parse_aws_bucket_endpoint("http://minio:9000", Some("eu-west-1"))
+                .unwrap();
+
+        assert_eq!(parsed, None);
+    }
+
+    #[test]
+    fn ignores_localhost_non_aws_endpoints() {
+        let parsed = parse_aws_bucket_endpoint(
+            "http://127.0.0.1:9000",
+            Some("eu-west-1"),
+        )
+        .unwrap();
+
+        assert_eq!(parsed, None);
+    }
+
+    #[test]
+    fn resolves_local_private_bucket_without_rewriting() {
+        let resolved = resolve_s3_list_target_parts(
+            "http://minio:9000",
+            "election-event-documents",
+            Some("us-east-1"),
+        )
+        .unwrap();
+
+        assert_eq!(
+            resolved,
+            ResolvedS3ListTargetParts {
+                service_endpoint: None,
+                bucket: "election-event-documents".to_string(),
+                prefix_root: None,
+            }
+        );
+    }
+
+    #[test]
+    fn resolves_local_public_bucket_without_rewriting() {
+        let resolved = resolve_s3_list_target_parts(
+            "http://127.0.0.1:9000",
+            "public",
+            Some("us-east-1"),
+        )
+        .unwrap();
+
+        assert_eq!(
+            resolved,
+            ResolvedS3ListTargetParts {
+                service_endpoint: None,
+                bucket: "public".to_string(),
+                prefix_root: None,
+            }
+        );
+    }
+
+    #[test]
+    fn resolves_production_public_bucket_to_real_bucket_and_prefix() {
+        let resolved = resolve_s3_list_target_parts(
+            "https://sequent-dev-bucket-eu-west-1-133529410358.s3.amazonaws.com",
+            "public",
+            Some("eu-west-1"),
+        )
+        .unwrap();
+
+        assert_eq!(
+            resolved,
+            ResolvedS3ListTargetParts {
+                service_endpoint: Some(
+                    "https://s3.eu-west-1.amazonaws.com".to_string(),
+                ),
+                bucket: "sequent-dev-bucket-eu-west-1-133529410358".to_string(),
+                prefix_root: Some("public".to_string()),
+            }
+        );
+    }
+
+    #[test]
+    fn resolves_production_private_bucket_to_real_bucket_and_prefix() {
+        let resolved = resolve_s3_list_target_parts(
+            "https://sequent-dev-bucket-eu-west-1-133529410358.s3.amazonaws.com",
+            "election-event-documents",
+            Some("eu-west-1"),
+        )
+        .unwrap();
+
+        assert_eq!(
+            resolved,
+            ResolvedS3ListTargetParts {
+                service_endpoint: Some(
+                    "https://s3.eu-west-1.amazonaws.com".to_string(),
+                ),
+                bucket: "sequent-dev-bucket-eu-west-1-133529410358".to_string(),
+                prefix_root: Some("election-event-documents".to_string(),),
+            }
+        );
+    }
 }
 
 #[cfg(test)]
