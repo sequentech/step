@@ -4,8 +4,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::util::aws::{
-    get_fetch_expiration_secs, get_from_env_aws_config, get_s3_aws_config,
-    get_upload_expiration_secs, AWS_S3_PRIVATE_URI_ENV, AWS_S3_PUBLIC_URI_ENV,
+    build_s3_aws_config_for_endpoint, get_fetch_expiration_secs,
+    get_from_env_aws_config, get_s3_aws_config, get_upload_expiration_secs,
+    AWS_S3_PRIVATE_URI_ENV, AWS_S3_PUBLIC_URI_ENV,
 };
 use crate::util::temp_path::{
     generate_temp_file, get_public_assets_path_env_var,
@@ -158,36 +159,6 @@ fn resolve_s3_list_target_parts(
     })
 }
 
-/// Builds an S3 config for an already-resolved endpoint while keeping the same
-/// credential-loading rules used by the shared AWS helpers.
-fn build_s3_config_for_endpoint(
-    sdk_config: &aws_config::SdkConfig,
-    endpoint_uri: &str,
-) -> s3::Config {
-    let access_key_result = env::var("AWS_S3_ACCESS_KEY");
-    let access_secret_result = env::var("AWS_S3_ACCESS_SECRET");
-    let mut builder = aws_sdk_s3::config::Builder::from(sdk_config)
-        .endpoint_url(endpoint_uri)
-        .force_path_style(true);
-
-    if let (Ok(access_key), Ok(access_secret)) =
-        (access_key_result, access_secret_result)
-    {
-        if !access_key.is_empty() && !access_secret.is_empty() {
-            let credentials_provider = aws_sdk_s3::config::Credentials::new(
-                access_key,
-                access_secret,
-                None,
-                None,
-                "loaded-from-custom-env",
-            );
-            builder = builder.credentials_provider(credentials_provider);
-        }
-    }
-
-    builder.build()
-}
-
 #[instrument(err)]
 /// Resolves the client, bucket, and optional logical prefix root for a
 /// server-side list operation.
@@ -216,7 +187,8 @@ async fn get_s3_list_target(
         .service_endpoint
         .as_deref()
         .unwrap_or(&endpoint_uri);
-    let config = build_s3_config_for_endpoint(&sdk_config, resolved_endpoint);
+    let config =
+        build_s3_aws_config_for_endpoint(&sdk_config, resolved_endpoint);
 
     Ok(ResolvedS3ListTarget {
         client: get_s3_client(config).await?,
