@@ -346,6 +346,11 @@ const englishTranslation = {
             notFound: "Your ballot ID {{ballotId}} was not found",
             contentDesc: "This is your Ballot content: ",
             wrongFormatBallotId: "Invalid Ballot ID format",
+            wrongFormatBallotId: "Wrong format for Ballot ID",
+            ballotIdNotFoundAtFilter:
+                "Not found, check that your Ballot ID is correct and belongs to this user.",
+            filterByBallotId: "Filter by Ballot ID",
+            totalBallots: "Total Ballots: {{total}}",
             steps: {
                 lookup: "Find your Ballot",
                 result: "Result",
