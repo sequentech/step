@@ -34,7 +34,7 @@ const englishTranslation = {
             ballotHelpDialog: {
                 title: "About this screen",
                 content:
-                    "This screen shows the contest you are elegible to vote. You can make your section by activate the checkbox on the Candidate/Answer right. To reset your selections, click “<b>Clear selection</b>” button, to move to next step, click “<b>Next</b>” button below.",
+                     "This screen shows the contest you are eligible to vote. You can make your section by activate the checkbox on the Candidate/Answer right. To reset your selections, click “<b>Clear selection</b>” button, to move to next step, click “<b>Next</b>” button below.",
                 ok: "OK",
             },
             nonVotedDialog: {
