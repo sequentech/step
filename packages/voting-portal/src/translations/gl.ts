@@ -28,7 +28,7 @@ const galegoTranslation: TranslationType = {
             audit: "Auditoría",
         },
         footer: {
-            poweredBy: "Desenvolvido por <0></0>",
+            poweredBy: "Desenvolvido por <1></1>",
         },
         votingScreen: {
             backButton: "Volver",

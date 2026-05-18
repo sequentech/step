@@ -27,7 +27,7 @@ const tagalogTranslation: TranslationType = {
             audit: "Audit",
         },
         footer: {
-            poweredBy: "Pinapagana ng <0></0>",
+            poweredBy: "Pinapagana ng <1></1>",
         },
         votingScreen: {
             backButton: "Bumalik",

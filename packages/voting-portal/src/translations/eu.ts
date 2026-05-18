@@ -27,7 +27,7 @@ const basqueTranslation: TranslationType = {
             audit: "Auditoria",
         },
         footer: {
-            poweredBy: "Honek bultzatuta: <0></0>",
+            poweredBy: "Honek bultzatuta: <1></1>",
         },
         votingScreen: {
             backButton: "Atzera",

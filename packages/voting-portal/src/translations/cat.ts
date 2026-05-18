@@ -27,7 +27,7 @@ const catalanTranslation: TranslationType = {
             audit: "Auditar",
         },
         footer: {
-            poweredBy: "Funciona amb <0></0>",
+            poweredBy: "Funciona amb <1></1>",
         },
         votingScreen: {
             backButton: "Enrere",

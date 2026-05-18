@@ -27,7 +27,7 @@ const frenchTranslation: TranslationType = {
             audit: "Auditer",
         },
         footer: {
-            poweredBy: "Propulsé par <0></0>",
+            poweredBy: "Propulsé par <1></1>",
         },
         votingScreen: {
             backButton: "Retour",

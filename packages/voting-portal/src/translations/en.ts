@@ -25,7 +25,7 @@ const englishTranslation = {
             audit: "Audit",
         },
         footer: {
-            poweredBy: "Powered by <0></0>",
+            poweredBy: "Powered by <1></1>",
         },
         votingScreen: {
             backButton: "Back",

@@ -27,7 +27,7 @@ const dutchTranslation: TranslationType = {
             audit: "Audit",
         },
         footer: {
-            poweredBy: "Aangedreven door <0></0>",
+            poweredBy: "Aangedreven door <1></1>",
         },
         votingScreen: {
             backButton: "Terug",
