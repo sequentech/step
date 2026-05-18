@@ -33,6 +33,16 @@ pub async fn get_from_env_aws_config() -> Result<SdkConfig> {
 
 /// Builds an S3 client configuration for an explicit endpoint URL while
 /// preserving this module's credential-loading rules.
+///
+/// Use this helper when the caller already resolved the final endpoint URI.
+/// Use [`get_s3_aws_config`] when endpoint selection should be derived from
+/// `AWS_S3_PRIVATE_URI`/`AWS_S3_PUBLIC_URI`.
+///
+/// - `sdk_config`: shared AWS SDK config loaded from environment/default chain.
+/// - `endpoint_uri`: absolute S3-compatible endpoint URL to target.
+///
+/// Returns the final S3 client config with endpoint, path-style behavior, and
+/// optional explicit credentials from `AWS_S3_ACCESS_KEY`/`AWS_S3_ACCESS_SECRET`.
 pub(crate) fn build_s3_aws_config_for_endpoint(
     sdk_config: &SdkConfig,
     endpoint_uri: &str,
