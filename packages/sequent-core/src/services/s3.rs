@@ -694,7 +694,7 @@ pub async fn delete_files_from_s3(
                             "Access denied when listing objects in bucket '{}' with prefix '{}': {}",
                             bucket_name,
                             list_prefix,
-                            err.message().unwrap_or("no error message")
+                            err.message().unwrap_or("no additional details available")
                         ));
                     }
                     _ => {
