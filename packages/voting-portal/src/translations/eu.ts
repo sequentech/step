@@ -307,31 +307,31 @@ const basqueTranslation: TranslationType = {
         },
         errors: {
             encoding: {
-                notEnoughChoices: "Not enough choices to decode",
-                writeInChoiceOutOfRange: "Write-in choice out of range: {{index}}",
-                writeInNotEndInZero: "Write-in doesn't end on 0",
+                notEnoughChoices: "Ez dago nahikoa aukera deskodetzeko",
+                writeInChoiceOutOfRange: "Eskuz idatzitako aukera barrutitik kanpo dago: {{index}}",
+                writeInNotEndInZero: "Eskuz idatzitakoa ez da 0-rekin amaitzen",
                 writeInCharsExceeded:
-                    "The write-in exceeds the maximum length by {{numCharsExceeded}} characters. Please shorten it.",
+                    "Eskuz idatzitakoak gehieneko luzera gainditzen du {{numCharsExceeded}} karakteretan. Mesedez, laburtu ezazu.",
                 bytesToUtf8Conversion:
-                    "Error converting write-in from bytes to UTF-8 string: {{errorMessage}}",
-                ballotTooLarge: "Ballot larger than expected",
+                    "Errorea eskuz idatzitakoa byte-etatik UTF-8 kate bihurtzerakoan: {{errorMessage}}",
+                ballotTooLarge: "Bozketa espero baino handiagoa da",
             },
             implicit: {
                 selectedMax:
-                    "Overvote: Number of selected choices {{numSelected}} is more than the maximum {{max}}",
+                    "Gehiegizko botoa: hautatutako aukeren kopurua {{numSelected}} gehieneko {{max}} baino handiagoa da",
                 selectedMin:
-                    "Number of selected choices {{numSelected}} is less than the minimum {{min}}",
+                    "Hautatutako aukeren kopurua {{numSelected}} gutxieneko {{min}} baino txikiagoa da",
                 maxSelectionsPerType:
-                    "Number of selected choices {{numSelected}} for list {{type}} is more than the maximum {{max}}",
+                    "Hautatutako aukeren kopurua {{numSelected}} {{type}} zerrendarako gehieneko {{max}} baino handiagoa da",
                 underVote:
-                    "Undervote: Number of selected choices {{numSelected}} is less than the maximum {{max}}",
+                    "Boto gutxiegiko: hautatutako aukeren kopurua {{numSelected}} gehieneko {{max}} baino txikiagoa da",
                 overVoteDisabled:
-                    "Maximum reached: You have selected the maximum {{numSelected}} choices. To change your selection, please deselect another option first.",
-                blankVote: "Blank Vote: 0 choices selected",
+                    "Gehienekoa lortu da: {{numSelected}} aukera hautatu dituzu, gehieneko kopurua. Hautaketa aldatzeko, lehenik beste aukera bat kendu ezazu.",
+                blankVote: "Boto zuria: 0 aukera hautatuta",
             },
             explicit: {
-                notAllowed: "Ballot marked explicitly invalid but question doesn't allow it",
-                alert: "This selection will be counted as an invalid vote",
+                notAllowed: "Bozketa berariaz baliogabetzat markatu da, baina galderak ez du hori onartzen",
+                alert: "Hautaketa hau boto baliogabe gisa zenbatuko da",
             },
             page: {
                 oopsWithStatus: "Hara! {{status}}",

@@ -307,31 +307,31 @@ const galegoTranslation: TranslationType = {
         },
         errors: {
             encoding: {
-                notEnoughChoices: "Not enough choices to decode",
-                writeInChoiceOutOfRange: "Write-in choice out of range: {{index}}",
-                writeInNotEndInZero: "Write-in doesn't end on 0",
+                notEnoughChoices: "Non hai suficientes opcións para decodificar",
+                writeInChoiceOutOfRange: "Opción de escritura libre fóra de rango: {{index}}",
+                writeInNotEndInZero: "A escritura libre non remata en 0",
                 writeInCharsExceeded:
-                    "The write-in exceeds the maximum length by {{numCharsExceeded}} characters. Please shorten it.",
+                    "A escritura libre supera a lonxitude máxima en {{numCharsExceeded}} caracteres. Por favor, acórtea.",
                 bytesToUtf8Conversion:
-                    "Error converting write-in from bytes to UTF-8 string: {{errorMessage}}",
-                ballotTooLarge: "Ballot larger than expected",
+                    "Erro ao converter a escritura libre de bytes a cadea UTF-8: {{errorMessage}}",
+                ballotTooLarge: "A papeleta é máis grande do esperado",
             },
             implicit: {
                 selectedMax:
-                    "Overvote: Number of selected choices {{numSelected}} is more than the maximum {{max}}",
+                    "Voto en exceso: o número de opcións seleccionadas {{numSelected}} é maior que o máximo {{max}}",
                 selectedMin:
-                    "Number of selected choices {{numSelected}} is less than the minimum {{min}}",
+                    "O número de opcións seleccionadas {{numSelected}} é inferior ao mínimo {{min}}",
                 maxSelectionsPerType:
-                    "Number of selected choices {{numSelected}} for list {{type}} is more than the maximum {{max}}",
+                    "O número de opcións seleccionadas {{numSelected}} para a lista {{type}} é maior que o máximo {{max}}",
                 underVote:
-                    "Undervote: Number of selected choices {{numSelected}} is less than the maximum {{max}}",
+                    "Voto incompleto: o número de opcións seleccionadas {{numSelected}} é inferior ao máximo {{max}}",
                 overVoteDisabled:
-                    "Maximum reached: You have selected the maximum {{numSelected}} choices. To change your selection, please deselect another option first.",
-                blankVote: "Blank Vote: 0 choices selected",
+                    "Máximo alcanzado: seleccionaches o máximo de {{numSelected}} opcións. Para cambiar a túa selección, anula primeiro a selección doutra opción.",
+                blankVote: "Voto en branco: 0 opcións seleccionadas",
             },
             explicit: {
-                notAllowed: "Ballot marked explicitly invalid but question doesn't allow it",
-                alert: "This selection will be counted as an invalid vote",
+                notAllowed: "A papeleta está marcada como explicitamente inválida, pero a pregunta non o permite",
+                alert: "Esta selección contarase como un voto inválido",
             },
             page: {
                 oopsWithStatus: "Oops! {{status}}",

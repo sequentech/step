@@ -307,31 +307,31 @@ const dutchTranslation: TranslationType = {
         },
         errors: {
             encoding: {
-                notEnoughChoices: "Not enough choices to decode",
-                writeInChoiceOutOfRange: "Write-in choice out of range: {{index}}",
-                writeInNotEndInZero: "Write-in doesn't end on 0",
+                notEnoughChoices: "Niet genoeg keuzes om te decoderen",
+                writeInChoiceOutOfRange: "Ingevulde keuze buiten bereik: {{index}}",
+                writeInNotEndInZero: "De ingevulde tekst eindigt niet op 0",
                 writeInCharsExceeded:
-                    "The write-in exceeds the maximum length by {{numCharsExceeded}} characters. Please shorten it.",
+                    "De ingevulde tekst overschrijdt de maximale lengte met {{numCharsExceeded}} tekens. Verkorting alstublieft.",
                 bytesToUtf8Conversion:
-                    "Error converting write-in from bytes to UTF-8 string: {{errorMessage}}",
-                ballotTooLarge: "Ballot larger than expected",
+                    "Fout bij het converteren van de ingevulde tekst van bytes naar UTF-8-tekenreeks: {{errorMessage}}",
+                ballotTooLarge: "Stembiljet groter dan verwacht",
             },
             implicit: {
                 selectedMax:
-                    "Overvote: Number of selected choices {{numSelected}} is more than the maximum {{max}}",
+                    "Overstemming: het aantal geselecteerde keuzes {{numSelected}} is groter dan het maximum {{max}}",
                 selectedMin:
-                    "Number of selected choices {{numSelected}} is less than the minimum {{min}}",
+                    "Het aantal geselecteerde keuzes {{numSelected}} is kleiner dan het minimum {{min}}",
                 maxSelectionsPerType:
-                    "Number of selected choices {{numSelected}} for list {{type}} is more than the maximum {{max}}",
+                    "Het aantal geselecteerde keuzes {{numSelected}} voor lijst {{type}} is groter dan het maximum {{max}}",
                 underVote:
-                    "Undervote: Number of selected choices {{numSelected}} is less than the maximum {{max}}",
+                    "Onderstemming: het aantal geselecteerde keuzes {{numSelected}} is kleiner dan het maximum {{max}}",
                 overVoteDisabled:
-                    "Maximum reached: You have selected the maximum {{numSelected}} choices. To change your selection, please deselect another option first.",
-                blankVote: "Blank Vote: 0 choices selected",
+                    "Maximum bereikt: u heeft het maximum van {{numSelected}} keuzes geselecteerd. Om uw selectie te wijzigen, deselecteert u eerst een andere optie.",
+                blankVote: "Blanco stem: 0 keuzes geselecteerd",
             },
             explicit: {
-                notAllowed: "Ballot marked explicitly invalid but question doesn't allow it",
-                alert: "This selection will be counted as an invalid vote",
+                notAllowed: "Stembiljet expliciet als ongeldig gemarkeerd, maar de vraag staat dit niet toe",
+                alert: "Deze selectie wordt geteld als een ongeldige stem",
             },
             page: {
                 oopsWithStatus: "Oeps! {{status}}",

@@ -307,31 +307,31 @@ const frenchTranslation: TranslationType = {
         },
         errors: {
             encoding: {
-                notEnoughChoices: "Not enough choices to decode",
-                writeInChoiceOutOfRange: "Write-in choice out of range: {{index}}",
-                writeInNotEndInZero: "Write-in doesn't end on 0",
+                notEnoughChoices: "Pas assez de choix à décoder",
+                writeInChoiceOutOfRange: "Choix écrit hors de la plage : {{index}}",
+                writeInNotEndInZero: "L'écrit ne se termine pas par 0",
                 writeInCharsExceeded:
-                    "The write-in exceeds the maximum length by {{numCharsExceeded}} characters. Please shorten it.",
+                    "L'écrit dépasse la longueur maximale de {{numCharsExceeded}} caractères. Veuillez le raccourcir.",
                 bytesToUtf8Conversion:
-                    "Error converting write-in from bytes to UTF-8 string: {{errorMessage}}",
-                ballotTooLarge: "Ballot larger than expected",
+                    "Erreur lors de la conversion de l'écrit de bytes en chaîne UTF-8 : {{errorMessage}}",
+                ballotTooLarge: "Bulletin plus grand que prévu",
             },
             implicit: {
                 selectedMax:
-                    "Overvote: Number of selected choices {{numSelected}} is more than the maximum {{max}}",
+                    "Surcote : le nombre de choix sélectionnés {{numSelected}} est supérieur au maximum {{max}}",
                 selectedMin:
-                    "Number of selected choices {{numSelected}} is less than the minimum {{min}}",
+                    "Le nombre de choix sélectionnés {{numSelected}} est inférieur au minimum {{min}}",
                 maxSelectionsPerType:
-                    "Number of selected choices {{numSelected}} for list {{type}} is more than the maximum {{max}}",
+                    "Le nombre de choix sélectionnés {{numSelected}} pour la liste {{type}} est supérieur au maximum {{max}}",
                 underVote:
-                    "Undervote: Number of selected choices {{numSelected}} is less than the maximum {{max}}",
+                    "Sous-vote : le nombre de choix sélectionnés {{numSelected}} est inférieur au maximum {{max}}",
                 overVoteDisabled:
-                    "Maximum reached: You have selected the maximum {{numSelected}} choices. To change your selection, please deselect another option first.",
-                blankVote: "Blank Vote: 0 choices selected",
+                    "Maximum atteint : vous avez sélectionné le maximum de {{numSelected}} choix. Pour modifier votre sélection, veuillez d'abord désélectionner une autre option.",
+                blankVote: "Vote blanc : 0 choix sélectionnés",
             },
             explicit: {
-                notAllowed: "Ballot marked explicitly invalid but question doesn't allow it",
-                alert: "This selection will be counted as an invalid vote",
+                notAllowed: "Le bulletin est marqué comme explicitement invalide, mais la question ne le permet pas",
+                alert: "Cette sélection sera comptée comme un vote invalide",
             },
             page: {
                 oopsWithStatus: "Oups ! {{status}}",

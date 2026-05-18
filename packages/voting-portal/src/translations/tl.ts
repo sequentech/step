@@ -307,31 +307,31 @@ const tagalogTranslation: TranslationType = {
         },
         errors: {
             encoding: {
-                notEnoughChoices: "Not enough choices to decode",
-                writeInChoiceOutOfRange: "Write-in choice out of range: {{index}}",
-                writeInNotEndInZero: "Write-in doesn't end on 0",
+                notEnoughChoices: "Hindi sapat ang mga pagpili para ma-decode",
+                writeInChoiceOutOfRange: "Ang write-in na pagpili ay wala sa saklaw: {{index}}",
+                writeInNotEndInZero: "Ang write-in ay hindi nagtatapos sa 0",
                 writeInCharsExceeded:
-                    "The write-in exceeds the maximum length by {{numCharsExceeded}} characters. Please shorten it.",
+                    "Ang write-in ay lumagpas sa pinakamataas na haba ng {{numCharsExceeded}} na karakter. Pakipaikliin ito.",
                 bytesToUtf8Conversion:
-                    "Error converting write-in from bytes to UTF-8 string: {{errorMessage}}",
-                ballotTooLarge: "Ballot larger than expected",
+                    "Error sa pag-convert ng write-in mula sa bytes patungong UTF-8 na string: {{errorMessage}}",
+                ballotTooLarge: "Ang balota ay mas malaki kaysa sa inaasahan",
             },
             implicit: {
                 selectedMax:
-                    "Overvote: Number of selected choices {{numSelected}} is more than the maximum {{max}}",
+                    "Labis na pagboto: ang bilang ng mga napiling pagpili {{numSelected}} ay mas malaki kaysa sa maximum na {{max}}",
                 selectedMin:
-                    "Number of selected choices {{numSelected}} is less than the minimum {{min}}",
+                    "Ang bilang ng mga napiling pagpili {{numSelected}} ay mas mababa kaysa sa minimum na {{min}}",
                 maxSelectionsPerType:
-                    "Number of selected choices {{numSelected}} for list {{type}} is more than the maximum {{max}}",
+                    "Ang bilang ng mga napiling pagpili {{numSelected}} para sa listahan {{type}} ay mas malaki kaysa sa maximum na {{max}}",
                 underVote:
-                    "Undervote: Number of selected choices {{numSelected}} is less than the maximum {{max}}",
+                    "Kulang na pagboto: ang bilang ng mga napiling pagpili {{numSelected}} ay mas mababa kaysa sa maximum na {{max}}",
                 overVoteDisabled:
-                    "Maximum reached: You have selected the maximum {{numSelected}} choices. To change your selection, please deselect another option first.",
-                blankVote: "Blank Vote: 0 choices selected",
+                    "Naabot na ang maximum: napili mo na ang maximum na {{numSelected}} na pagpili. Upang baguhin ang iyong pagpili, alisin muna ang isa pang opsyon.",
+                blankVote: "Blangkong boto: 0 na pagpili ang napili",
             },
             explicit: {
-                notAllowed: "Ballot marked explicitly invalid but question doesn't allow it",
-                alert: "This selection will be counted as an invalid vote",
+                notAllowed: "Ang balota ay tahasang minarkahang hindi wasto ngunit hindi ito pinapayagan ng tanong",
+                alert: "Ang pagpiling ito ay biblangin bilang isang hindi wastong boto",
             },
             page: {
                 oopsWithStatus: "Oops! {{status}}",

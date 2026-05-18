@@ -309,31 +309,31 @@ const catalanTranslation: TranslationType = {
         },
         errors: {
             encoding: {
-                notEnoughChoices: "Not enough choices to decode",
-                writeInChoiceOutOfRange: "Write-in choice out of range: {{index}}",
-                writeInNotEndInZero: "Write-in doesn't end on 0",
+                notEnoughChoices: "No hi ha prou opcions per descodificar",
+                writeInChoiceOutOfRange: "Opció d'escriptura lliure fora de rang: {{index}}",
+                writeInNotEndInZero: "L'escriptura lliure no acaba en 0",
                 writeInCharsExceeded:
-                    "The write-in exceeds the maximum length by {{numCharsExceeded}} characters. Please shorten it.",
+                    "L'escriptura lliure supera la longitud màxima en {{numCharsExceeded}} caràcters. Si us plau, escurceu-la.",
                 bytesToUtf8Conversion:
-                    "Error converting write-in from bytes to UTF-8 string: {{errorMessage}}",
-                ballotTooLarge: "Ballot larger than expected",
+                    "Error en convertir l'escriptura lliure de bytes a cadena UTF-8: {{errorMessage}}",
+                ballotTooLarge: "La papereta és més gran de l'esperada",
             },
             implicit: {
                 selectedMax:
-                    "Overvote: Number of selected choices {{numSelected}} is more than the maximum {{max}}",
+                    "Vot en excés: el nombre d'opcions seleccionades {{numSelected}} supera el màxim {{max}}",
                 selectedMin:
-                    "Number of selected choices {{numSelected}} is less than the minimum {{min}}",
+                    "El nombre d'opcions seleccionades {{numSelected}} és inferior al mínim {{min}}",
                 maxSelectionsPerType:
-                    "Number of selected choices {{numSelected}} for list {{type}} is more than the maximum {{max}}",
+                    "El nombre d'opcions seleccionades {{numSelected}} per a la llista {{type}} supera el màxim {{max}}",
                 underVote:
-                    "Undervote: Number of selected choices {{numSelected}} is less than the maximum {{max}}",
+                    "Vot incomplet: el nombre d'opcions seleccionades {{numSelected}} és inferior al màxim {{max}}",
                 overVoteDisabled:
-                    "Maximum reached: You have selected the maximum {{numSelected}} choices. To change your selection, please deselect another option first.",
-                blankVote: "Blank Vote: 0 choices selected",
+                    "Màxim assolit: heu seleccionat el màxim de {{numSelected}} opcions. Per canviar la vostra selecció, desseleccioneu primer una altra opció.",
+                blankVote: "Vot en blanc: 0 opcions seleccionades",
             },
             explicit: {
-                notAllowed: "Ballot marked explicitly invalid but question doesn't allow it",
-                alert: "This selection will be counted as an invalid vote",
+                notAllowed: "La papereta està marcada com explícitament invàlida, però la pregunta no ho permet",
+                alert: "Aquesta selecció es comptarà com un vot invàlid",
             },
             page: {
                 oopsWithStatus: "Vaja! {{status}}",
