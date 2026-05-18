@@ -18,6 +18,7 @@ use aws_sdk_s3::types::{
     CompletedMultipartUpload, CompletedPart, Delete, ObjectIdentifier,
 };
 use aws_smithy_types::byte_stream::{ByteStream, Length};
+use aws_smithy_types::error::metadata::ProvideErrorMetadata;
 use core::time::Duration;
 use s3::presigning::PresigningConfig;
 use std::fs::File;
@@ -677,19 +678,33 @@ pub async fn delete_files_from_s3(
             .send()
             .await
         {
-            Ok(list) => {
-                list
-                // Successfully deleted
-            }
+            Ok(list) => list,
             Err(err) => {
-                // Check if it's a NoSuchKey error
-                let err_str = format!("{:?}", err);
-                if err_str.contains("NoSuchKey") {
-                    info!("Key already absent in S3; continuing. {:?}", err);
-                    return Ok(());
-                } else {
-                    // For other errors, fail the operation
-                    return Err(anyhow!("{:?}", err));
+                // Handle specific S3 error codes using AWS SDK error metadata
+                match err.code() {
+                    Some("NoSuchBucket") => {
+                        info!(
+                            bucket = %bucket_name,
+                            "Bucket does not exist; nothing to delete"
+                        );
+                        return Ok(());
+                    }
+                    Some("AccessDenied") => {
+                        return Err(anyhow!(
+                            "Access denied when listing objects in bucket '{}' with prefix '{}': {}",
+                            bucket_name,
+                            list_prefix,
+                            err.message().unwrap_or("no error message")
+                        ));
+                    }
+                    _ => {
+                        return Err(anyhow!(
+                            "Failed to list objects in bucket '{}' with prefix '{}': {}",
+                            bucket_name,
+                            list_prefix,
+                            err
+                        ));
+                    }
                 }
             }
         };
@@ -728,19 +743,21 @@ pub async fn delete_files_from_s3(
                 // Successfully deleted
             }
             Err(err) => {
-                // Check if it's a NoSuchKey error
-                let err_str = format!("{:?}", err);
-                if err_str.contains("NoSuchKey") {
-                    tracing::warn!(
-                        key = %key,
-                        "Key already absent in S3; continuing"
-                    );
-                } else {
-                    // For other errors, fail the operation
-                    return Err(anyhow::Error::from(err).context(format!(
-                        "Failed to delete S3 object: {}",
-                        key
-                    )));
+                // Handle specific S3 error codes using AWS SDK error metadata
+                match err.code() {
+                    Some("NoSuchKey") => {
+                        tracing::warn!(
+                            key = %key,
+                            "Key already absent in S3; continuing"
+                        );
+                    }
+                    _ => {
+                        // For other errors, fail the operation
+                        return Err(anyhow::Error::from(err).context(format!(
+                            "Failed to delete S3 object: {}",
+                            key
+                        )));
+                    }
                 }
             }
         }
