@@ -161,7 +161,11 @@ lazy_static! {
     /// CELERY_APP holds the high-level Celery application. Note: The Celery app is
     /// built separately from the Broker because it handles task routing/scheduling.
     static ref CELERY_APP: AsyncOnce<Arc<Celery>> =
-        AsyncOnce::new(async { generate_celery_app().await.unwrap() });
+        AsyncOnce::new(async { generate_celery_app().await.unwrap_or_else(|err| {
+            tracing::error!("{:#}", err);
+            panic!("{:#}", err);
+        })
+    });
 }
 
 /// Returns the global Celery app.

@@ -5,6 +5,11 @@ use anyhow::{anyhow, Result};
 use aws_config::{meta::region::RegionProviderChain, Region, SdkConfig};
 use tracing::{info, instrument};
 
+pub const AWS_S3_PRIVATE_URI_ENV: &str = "AWS_S3_PRIVATE_URI";
+pub const AWS_S3_PUBLIC_URI_ENV: &str = "AWS_S3_PUBLIC_URI";
+
+/// Resolves the AWS region from the environment and keeps the default chain
+/// as a fallback so local and deployed runtimes share the same lookup flow.
 pub fn get_region() -> Result<RegionProviderChain> {
     let region = RegionProviderChain::first_try(Region::new(
         std::env::var("AWS_REGION")
@@ -16,6 +21,8 @@ pub fn get_region() -> Result<RegionProviderChain> {
 }
 
 #[instrument(err, skip_all)]
+/// Loads the shared AWS SDK configuration from the process environment so S3,
+/// SES, SNS, and STS all use the same credentials and region resolution.
 pub async fn get_from_env_aws_config() -> Result<SdkConfig> {
     let region = Region::new(
         std::env::var("AWS_REGION")
@@ -25,12 +32,18 @@ pub async fn get_from_env_aws_config() -> Result<SdkConfig> {
 }
 
 #[instrument(err)]
-pub async fn get_s3_aws_config(is_private: bool) -> Result<aws_sdk_s3::Config> {
+/// Builds an S3 client configuration for the selected endpoint.
+///
+/// When `use_server_endpoint` is `false`, the client-facing endpoint is used
+/// instead of the server-side endpoint.
+pub async fn get_s3_aws_config(
+    use_server_endpoint: bool,
+) -> Result<aws_sdk_s3::Config> {
     let sdk_config = get_from_env_aws_config().await?;
-    let env_var_name = if is_private {
-        "AWS_S3_PRIVATE_URI"
+    let env_var_name = if use_server_endpoint {
+        AWS_S3_PRIVATE_URI_ENV
     } else {
-        "AWS_S3_PUBLIC_URI"
+        AWS_S3_PUBLIC_URI_ENV
     };
     let access_key_result = std::env::var("AWS_S3_ACCESS_KEY");
     let access_secret_result = std::env::var("AWS_S3_ACCESS_SECRET");
@@ -69,6 +82,8 @@ pub async fn get_s3_aws_config(is_private: bool) -> Result<aws_sdk_s3::Config> {
         .build())
 }
 
+/// Returns the maximum upload size so callers can reject oversized payloads
+/// before opening a long-running upload flow.
 pub fn get_max_upload_size() -> Result<usize> {
     Ok(std::env::var("AWS_S3_MAX_UPLOAD_BYTES")
         .map_err(|err| {
@@ -77,6 +92,7 @@ pub fn get_max_upload_size() -> Result<usize> {
         .parse()?)
 }
 
+/// Returns the upload URL lifetime so presigned uploads expire predictably.
 pub fn get_upload_expiration_secs() -> Result<u64> {
     Ok(std::env::var("AWS_S3_UPLOAD_EXPIRATION_SECS")
         .map_err(|err| {
@@ -85,6 +101,8 @@ pub fn get_upload_expiration_secs() -> Result<u64> {
         .parse()?)
 }
 
+/// Returns the download URL lifetime so generated fetch URLs match the
+/// deployment's cache and access expectations.
 pub fn get_fetch_expiration_secs() -> Result<u64> {
     Ok(std::env::var("AWS_S3_FETCH_EXPIRATION_SECS")
         .map_err(|err| {
