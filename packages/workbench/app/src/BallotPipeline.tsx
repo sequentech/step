@@ -162,6 +162,16 @@ export function BallotPipeline() {
         return new Set()
     })
 
+    // Collapse state for the two non-row textareas: Setup's Contest
+    // JSON and Tally's ballots array. Same motivation as the per-row
+    // stage textareas \u2014 these blobs (a multi-kilobyte contest, a
+    // BigUint array) dominate vertical space and the operator rarely
+    // needs to read them once the page is configured. Default closed
+    // (bootstrap and seed both produce non-empty values, so the
+    // collapsed header still carries the char-count breadcrumb).
+    const [contestJsonOpen, setContestJsonOpen] = useState<boolean>(false)
+    const [tallyBallotsOpen, setTallyBallotsOpen] = useState<boolean>(false)
+
     /** Set membership flip for `expansionKey(rowId, stageIndex)`. */
     const toggleExpanded = useCallback(
         (rowId: string, stageIndex: number) => {
@@ -365,6 +375,10 @@ export function BallotPipeline() {
         }
         setTallyError(null)
         setTallyBallots(JSON.stringify(list, null, 2))
+        // The "Seed tally from rows" button is the populate trigger
+        // for this textarea; mirror the per-row auto-expand contract
+        // so the operator sees what was just written.
+        setTallyBallotsOpen(true)
     }, [rows])
 
     const handleRunTally = useCallback(async () => {
@@ -428,14 +442,19 @@ export function BallotPipeline() {
             </p>
 
             <Section title="Setup">
-                <Field label="Contest JSON">
+                <CollapsibleField
+                    label="Contest JSON"
+                    value={contestJson}
+                    open={contestJsonOpen}
+                    onToggle={() => setContestJsonOpen((v) => !v)}
+                >
                     <textarea
                         value={contestJson}
                         onChange={(e) => setContestJson(e.target.value)}
                         style={{...styles.textarea, height: "12rem"}}
                         spellCheck={false}
                     />
-                </Field>
+                </CollapsibleField>
                 <Field label="Public key (base64-no-pad)">
                     <input
                         value={pkB64}
@@ -566,12 +585,19 @@ export function BallotPipeline() {
                 <button onClick={handleSeedTally} style={styles.button}>
                     Seed tally from rows ▼
                 </button>
-                <textarea
+                <CollapsibleField
+                    label="Ballots array"
                     value={tallyBallots}
-                    onChange={(e) => setTallyBallots(e.target.value)}
-                    style={{...styles.textarea, height: "10rem"}}
-                    spellCheck={false}
-                />
+                    open={tallyBallotsOpen}
+                    onToggle={() => setTallyBallotsOpen((v) => !v)}
+                >
+                    <textarea
+                        value={tallyBallots}
+                        onChange={(e) => setTallyBallots(e.target.value)}
+                        style={{...styles.textarea, height: "10rem"}}
+                        spellCheck={false}
+                    />
+                </CollapsibleField>
                 <button
                     onClick={handleRunTally}
                     disabled={tallyBusy}
@@ -926,6 +952,53 @@ function Field({
         <div style={{marginBottom: "0.5rem"}}>
             <label style={styles.label}>{label}</label>
             {children}
+        </div>
+    )
+}
+
+/** A `Field` whose label doubles as a disclosure button: the body
+ *  (typically a bulky textarea) is hidden until the operator clicks
+ *  the header. Mirrors the per-row stage collapse pattern for the
+ *  two large non-row textareas on the page (Setup contest JSON and
+ *  Tally ballots array). `value` is consulted only to render the
+ *  char-count breadcrumb \u2014 the actual textarea inside `children`
+ *  remains the source of truth. */
+function CollapsibleField({
+    label,
+    value,
+    open,
+    onToggle,
+    children,
+}: {
+    label: string
+    value: string
+    open: boolean
+    onToggle: () => void
+    children: React.ReactNode
+}) {
+    return (
+        <div style={{marginBottom: "0.5rem"}}>
+            <button
+                type="button"
+                onClick={onToggle}
+                aria-expanded={open}
+                style={{
+                    ...styles.disclosure,
+                    marginBottom: "0.2rem",
+                }}
+                title={open ? "Collapse" : "Expand"}
+            >
+                <span aria-hidden="true" style={styles.chevron}>
+                    {open ? "▾" : "▸"}
+                </span>
+                <span style={{fontSize: "0.8rem", color: "#333"}}>
+                    {label}
+                </span>
+                <span style={styles.charCount}>
+                    {formatCharCount(value.length)}
+                </span>
+            </button>
+            {open && children}
         </div>
     )
 }
