@@ -236,7 +236,12 @@ export function BallotPipeline() {
     )
 
     const runStage = useCallback(
-        async (rowId: string, stage: StageKey) => {
+        async (
+            rowId: string,
+            stage: StageKey,
+            opts?: {autoExpand?: boolean}
+        ) => {
+            const autoExpand = opts?.autoExpand ?? true
             const row = rows.find((r) => r.rowId === rowId)
             if (!row) return
             patchRow(rowId, (r) => ({
@@ -257,7 +262,11 @@ export function BallotPipeline() {
                 }))
                 // Reveal the cell that was just populated so the
                 // operator actually sees the output of the click.
-                expandKeys([expansionKey(rowId, STAGE_FLOW[stage].target)])
+                if (autoExpand) {
+                    expandKeys([
+                        expansionKey(rowId, STAGE_FLOW[stage].target),
+                    ])
+                }
             } catch (e) {
                 patchRow(rowId, (r) => ({
                     ...r,
@@ -265,7 +274,10 @@ export function BallotPipeline() {
                     errors: {...r.errors, [stage]: formatError(e)},
                 }))
                 // Reveal the source cell so the error message (which
-                // renders inside the row card) is visible.
+                // renders inside the row card) is visible. Errors are
+                // always surfaced — even on auto-expand-suppressed
+                // background replays — because a silent failure would
+                // be misleading.
                 expandKeys([expansionKey(rowId, STAGE_FLOW[stage].source)])
             }
         },
@@ -289,7 +301,13 @@ export function BallotPipeline() {
         if (!seed) return
         rows.forEach((r) => {
             if (r.plaintextJson.trim() && !r.encodedBigInt.trim()) {
-                void runStage(r.rowId, "encode")
+                // `autoExpand: false` keeps the seeded view compact —
+                // this replay is bookkeeping (production never
+                // persists `encodedBigInt`; see the comment above)
+                // not an operator-initiated click, so opening stage 2
+                // for every row on landing would defeat the whole
+                // collapsed-by-default point of the seeded view.
+                void runStage(r.rowId, "encode", {autoExpand: false})
             }
         })
         // Intentionally empty deps: one-shot, mirrors the seed
