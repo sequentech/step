@@ -4,7 +4,9 @@
 const englishTranslation = {
     translations: {
         common: {
-            goBack: "Back",
+             goBack: "Back",
+             showMore: "Show more",
+             showLess: "Show less",
         },
         breadcrumbSteps: {
             electionList: "Ballots",
