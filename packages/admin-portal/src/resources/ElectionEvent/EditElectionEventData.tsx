@@ -85,6 +85,8 @@ export const EditElectionEventData: React.FC = () => {
                 language_conf: {
                     ...language_conf,
                     default_language_code: data?.presentation?.language_conf?.default_language_code,
+                    language_detection_policy:
+                        data?.presentation?.language_conf?.language_detection_policy,
                 },
             },
         }

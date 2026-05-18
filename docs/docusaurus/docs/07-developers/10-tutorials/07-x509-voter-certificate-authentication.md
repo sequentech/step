@@ -21,7 +21,7 @@ election operator through the admin portal. Certificate presentation is
 **optional** — voters without a certificate fall through to password-based
 authentication as normal.
 
-**See also:** [X.509 Architecture](../06-keycloak/x509_client_cert_architecture) — design, components, and multi-tenancy.
+**See also:** [X.509 Architecture](../06-keycloak/x509_client_cert_architecture.md) — design, components, and multi-tenancy.
 
 ---
 
@@ -136,14 +136,7 @@ KC_SPI_TRUSTSTORE_URL_REFRESH_INTERVAL_SECONDS=60
 #   "default" — reads cert from TLS connection directly (no proxy; X.509 auth
 #               is silently skipped in plain HTTP dev mode)
 KC_SPI_X509CERT_LOOKUP_PROVIDER=nginx
-
-# Base URL of the mTLS Keycloak endpoint.
-# When set, a "Login with Certificate" button is shown on the login page.
-KC_MTLS_LOGIN_URL=https://127.0.0.1:8443
 ```
-
-To develop without nginx (password-only mode), set `KC_SPI_X509CERT_LOOKUP_PROVIDER`
-to `default` and leave `KC_MTLS_LOGIN_URL` empty.
 
 ### 1.3 Docker Compose Services
 
@@ -212,13 +205,11 @@ clicks "Login with Certificate". No change to `global-settings.json` is needed.
 
 Each election event realm needs the X.509 authenticator flow configured.
 
-#### 1.6.1 Add the `usercertificate` user profile attribute
+#### 1.6.1 Create the X.509 authentication flow
 
-1. In the election event realm, go to **Realm Settings** → **User Profile**
-2. Click **Add attribute**, set the name to `usercertificate`
-3. Save
-
-#### 1.6.2 Create the X.509 authentication flow
+> **Tip:** Our default realm's configurartion ships a built-in **"Certificate Browser Flow"** under
+> **Authentication → Flows**. You can duplicate and modify it instead of
+> creating a flow from scratch — this is the recommended starting point.
 
 1. Go to **Authentication** → **Flows** → **Create flow**, name it `x509-browser`
 2. Add these top-level executions:
@@ -237,16 +228,9 @@ Each election event realm needs the X.509 authenticator flow configured.
    - Configure the X509 execution (⚙):
      - **User Identity Source**: `Subject's Common Name`
      - **User Mapping Method**: `Custom Attribute Mapper`
-     - **Custom Attribute Name**: `usercertificate`
 
 4. Bind the flow: **Realm Settings** → **Authentication flow bindings** →
    **Browser Flow** → `x509-browser`
-
-#### 1.6.3 Set the attribute on each test voter
-
-1. Go to **Users** → select the voter → **Attributes** tab
-2. Add key `usercertificate`, value matching the cert's CN (e.g. `voter@sequent.test`)
-3. Save
 
 ---
 
@@ -327,7 +311,7 @@ docker compose up -d --no-deps keycloak
 ### Certificate verification fails (Keycloak rejects the cert)
 
 The CA was not imported into the admin portal for this election event. Import
-`.devcontainer/certs/client-ca.pem` via the **Certificate Authorities** tab.
+`.devcontainer/certs/client-ca.pem` via the **CERTIFICATES** tab.
 
 ### `ssl-client-verify` is `NONE`
 
@@ -348,5 +332,5 @@ The voter account is not in the `voter` group in Keycloak. Add the user to the
 
 ## See Also
 
-- [X.509 Architecture](../06-keycloak/x509_client_cert_architecture) — end-to-end flow, infrastructure, multi-tenancy
-- [X.509 — Adding CA Certificates](./08-x509-adding-ca-certificates) — adding external PKI CA certs to the trust bundle
+- [X.509 Architecture](../06-keycloak/x509_client_cert_architecture.md) — end-to-end flow, infrastructure, multi-tenancy
+- [X.509 — Adding CA Certificates](./08-x509-adding-ca-certificates.md) — adding external PKI CA certs to the trust bundle

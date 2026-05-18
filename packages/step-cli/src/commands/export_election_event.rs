@@ -125,6 +125,7 @@ pub fn export_election_event(
             reports: Some(reports),
             applications: Some(applications),
             tally: Some(tally),
+            include_certificates: Some(true),
         }),
     };
 

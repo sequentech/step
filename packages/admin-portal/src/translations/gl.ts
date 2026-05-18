@@ -87,6 +87,7 @@ const galegoTranslation: TranslationType = {
                 DELETE_ELECTION_EVENT: "Eliminar evento electoral",
                 PREPARE_PUBLICATION_PREVIEW: "Preparar a vista previa da publicación",
                 EXPORT_TALLY_RESULTS_XLSX: "Exportar os resultados do reconto en formato XLSX",
+                EXPORT_CERTIFICATE_AUTHORITIES: "Exportar autoridades de certificación",
             },
             widget: {
                 taskTitle: "Tarefa: {{title}}",
@@ -341,7 +342,7 @@ const galegoTranslation: TranslationType = {
                     "no-signature": "Sin firma",
                     "with-signature": "Con firma",
                 },
-                voterDigitalCertPolicy: {
+                VoterCertificatePolicy: {
                     policyLabel: "Voter Digital Certificate Policy",
                     enabled: "Habilitado",
                     disabled: "Deshabilitado",
@@ -379,6 +380,13 @@ const galegoTranslation: TranslationType = {
                     options: {
                         enabled: "Activado",
                         disabled: "Desactivado",
+                    },
+                },
+                languageDetectionPolicy: {
+                    policyLabel: "Política de detección de idioma",
+                    options: {
+                        "browser-detect": "Detectar desde o navegador",
+                        "force-default": "Forzar predeterminado",
                     },
                 },
             },
@@ -548,6 +556,7 @@ const galegoTranslation: TranslationType = {
                 reports: "Informes",
                 applications: "Aplicaciones",
                 tally: "Recuento",
+                certificates: "Certificados",
             },
             taskNotification:
                 "{{action}} comezou. Podes ver o seu estado na táboa de Execución de Tarefas.",
@@ -1070,6 +1079,7 @@ const galegoTranslation: TranslationType = {
                 BALLOT_RECEIPT: "Recibo da Papeleta",
                 ELECTORAL_RESULTS: "Resultados Electorais",
                 MANUAL_VERIFICATION: "Verificación Manual",
+                PARTICIPATION_REPORT: "Informe de Participación",
                 STATISTICAL_REPORT: "Informe Estatístico",
                 OVCS_EVENTS: "Monitorización de Votación no Estranxeiro - Eventos OVCS",
                 AUDIT_LOGS: "Rexistros de Auditoría",
@@ -1373,6 +1383,12 @@ const galegoTranslation: TranslationType = {
                 "allow-selecting-candidates": "Só Candidatos",
                 "allow-selecting-lists": "Só Listas",
                 "disabled": "Desactivado",
+            },
+            collapsibleListsPolicy: {
+                "label": "Listas plegables",
+                "disabled": "Deshabilitado",
+                "enabled-expanded": "Habilitado (comeza expandido)",
+                "enabled-collapsed": "Habilitado (comeza contraído)",
             },
             blankVotePolicy: {
                 "label": "Política de Voto en Branco",
@@ -2016,6 +2032,7 @@ const galegoTranslation: TranslationType = {
                 BALLOT_RECEIPT: "Recibo de Voto",
                 ACTIVITY_LOGS: "Registros de Actividades",
                 MANUAL_VERIFICATION: "Verificación Manual",
+                PARTICIPATION_REPORT: "Informe de Participación",
             },
             method: {
                 email: "Correo",
@@ -2092,6 +2109,9 @@ const galegoTranslation: TranslationType = {
                     url: "URL",
                 },
             },
+            languages: {
+                default: "Idioma predeterminado",
+            },
         },
         approvalsScreen: {
             column: {
@@ -2167,6 +2187,9 @@ const galegoTranslation: TranslationType = {
             },
         },
         certificateAuthorities: {
+            title: "Certificados",
+            subtitle:
+                "Autoridades de certificación (CA) de confianza para este evento electoral. As CA importadas úsanse para validar os certificados dos votantes.",
             importButton: "Importar certificados",
             type: {
                 root: "Raíz",
@@ -2200,6 +2223,16 @@ const galegoTranslation: TranslationType = {
                 importError: "Erro ao importar: {{error}}",
                 deleteSuccess: "Certificado eliminado.",
                 deleteError: "Erro ao eliminar o certificado.",
+                exportSuccess: "Certificado(s) exportado(s) correctamente.",
+                exportError: "Erro ao exportar os certificados.",
+            },
+            exportDialog: {
+                title: "Exportar autoridades de certificación",
+                description: "Está a punto de exportar {{amount}} certificado(s).",
+                all: "todos",
+            },
+            deleteDialog: {
+                description: "¿Está seguro de que desexa eliminar {{count}} certificado(s)?",
             },
             emptyHeader:
                 "Non se importaron autoridades de certificación para este evento electoral.",

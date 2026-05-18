@@ -17488,15 +17488,15 @@ sentence-case@^3.0.4:
 
 "sequent-core@file:./admin-portal/rust/sequent-core-0.1.0.tgz":
   version "0.1.0"
-  resolved "file:./admin-portal/rust/sequent-core-0.1.0.tgz#64424a92cfba20e40ce57c9748859f67f2d17450"
+  resolved "file:./admin-portal/rust/sequent-core-0.1.0.tgz#e89cbc9fe9ee8381b08c12a4891b42580c9086ae"
 
 "sequent-core@file:./ballot-verifier/rust/sequent-core-0.1.0.tgz":
   version "0.1.0"
-  resolved "file:./ballot-verifier/rust/sequent-core-0.1.0.tgz#64424a92cfba20e40ce57c9748859f67f2d17450"
+  resolved "file:./ballot-verifier/rust/sequent-core-0.1.0.tgz#e89cbc9fe9ee8381b08c12a4891b42580c9086ae"
 
 "sequent-core@file:./voting-portal/rust/sequent-core-0.1.0.tgz":
   version "0.1.0"
-  resolved "file:./voting-portal/rust/sequent-core-0.1.0.tgz#64424a92cfba20e40ce57c9748859f67f2d17450"
+  resolved "file:./voting-portal/rust/sequent-core-0.1.0.tgz#e89cbc9fe9ee8381b08c12a4891b42580c9086ae"
 
 serialize-javascript@^6.0.0, serialize-javascript@^6.0.2:
   version "6.0.2"
@@ -18527,6 +18527,18 @@ title-case@^3.0.3:
   integrity sha512-e1zGYRvbffpcHIrnuqT0Dh+gEJtDaxDSoG4JAIpq4oDFyooziLBIiYQv0GBT4FUAnUop5uZ1hiIAj7oAF6sOCA==
   dependencies:
     tslib "^2.0.3"
+
+tldts-core@^6.1.86:
+  version "6.1.86"
+  resolved "https://registry.yarnpkg.com/tldts-core/-/tldts-core-6.1.86.tgz#a93e6ed9d505cb54c542ce43feb14c73913265d8"
+  integrity sha512-Je6p7pkk+KMzMv2XXKmAE3McmolOQFdxkKw0R8EYNr7sELW46JqnNeTX8ybPiQgvg1ymCoF8LXs5fzFaZvJPTA==
+
+tldts@^6.0.0:
+  version "6.1.86"
+  resolved "https://registry.yarnpkg.com/tldts/-/tldts-6.1.86.tgz#087e0555b31b9725ee48ca7e77edc56115cd82f7"
+  integrity sha512-WMi/OQ2axVTf/ykqCQgXiIct+mSQDFdH2fkwhPwgEwvJ1kSzZRiinb0zF2Xb8u4+OqPChmyI6MEu4EezNJz+FQ==
+  dependencies:
+    tldts-core "^6.1.86"
 
 tmp@^0.2.3:
   version "0.2.5"

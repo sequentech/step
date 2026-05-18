@@ -86,6 +86,7 @@ const englishTranslation = {
                 DELETE_ELECTION_EVENT: "Delete Election Event",
                 PREPARE_PUBLICATION_PREVIEW: "Prepare Publication Preview",
                 EXPORT_TALLY_RESULTS_XLSX: "Export Tally Results in XLSX format",
+                EXPORT_CERTIFICATE_AUTHORITIES: "Export Certificate Authorities",
             },
             widget: {
                 taskTitle: "Task: {{title}}",
@@ -340,7 +341,7 @@ const englishTranslation = {
                     "no-signature": "No signature",
                     "with-signature": "With signature",
                 },
-                voterDigitalCertPolicy: {
+                VoterCertificatePolicy: {
                     policyLabel: "Voter Digital Certificate Policy",
                     enabled: "Enabled",
                     disabled: "Disabled",
@@ -380,6 +381,13 @@ const englishTranslation = {
                         disabled: "Disabled",
                     },
                 },
+                languageDetectionPolicy: {
+                    policyLabel: "Language Detection Policy",
+                    options: {
+                        "browser-detect": "Browser Detect",
+                        "force-default": "Force Default",
+                    },
+                },
             },
             error: {
                 endDate: "End date must be after start date",
@@ -406,8 +414,8 @@ const englishTranslation = {
                 },
             },
             keys: {
-                createNew: "Create Keys Ceremony",
-                emptyHeader: "No Keys Ceremony yet.",
+                createNew: "Create Key Ceremony",
+                emptyHeader: "No Key Ceremony yet.",
                 statusLabel: "Status",
                 waitingKeys: "Waiting for Keys Generation..",
                 started: "Started at",
@@ -423,7 +431,7 @@ const englishTranslation = {
                 },
                 notify: {
                     participateNow:
-                        "You have been invited to participate in a Keys ceremony. Please <1>click on the ceremony's Key Action</1> to participate.",
+                        "You have been invited to participate in a Key Ceremony. Please <1>click on the ceremony's Key Action</1> to participate.",
                 },
             },
             tabs: {
@@ -472,7 +480,7 @@ const englishTranslation = {
                 },
                 notify: {
                     noKeysTally:
-                        "The Tally Ceremony cannot start until the Keys Ceremony has been successfully completed.",
+                        "The Tally Ceremony cannot start until the Key Ceremony has been successfully completed.",
                     noPublication:
                         "The Tally Ceremony cannot start until you create one publication in the Publish tab.",
                     participateNow:
@@ -547,6 +555,7 @@ const englishTranslation = {
                 reports: "Reports",
                 applications: "Applications",
                 tally: "Tally",
+                certificates: "Certificates",
             },
             taskNotification:
                 "{{action}} has started. You can see its status at Tasks Execution table.",
@@ -1059,6 +1068,7 @@ const englishTranslation = {
                 BALLOT_RECEIPT: "Ballot Receipt",
                 ELECTORAL_RESULTS: "Electoral Results",
                 MANUAL_VERIFICATION: "Manual Verification",
+                PARTICIPATION_REPORT: "Participation Report",
                 STATISTICAL_REPORT: "Statistical Report",
                 OVCS_EVENTS: "Overseas Voting Monitoring - OVCS Events",
                 AUDIT_LOGS: "Audit Logs",
@@ -1362,6 +1372,12 @@ const englishTranslation = {
                 "allow-selecting-lists": "Lists Only",
                 "disabled": "Disabled",
             },
+            collapsibleListsPolicy: {
+                "label": "Collapsible Lists",
+                "disabled": "Disabled",
+                "enabled-expanded": "Enabled (starts expanded)",
+                "enabled-collapsed": "Enabled (starts collapsed)",
+            },
             blankVotePolicy: {
                 "label": "Blank Vote Policy",
                 "allowed": "Allowed",
@@ -1408,12 +1424,12 @@ const englishTranslation = {
         },
         keysGeneration: {
             configureStep: {
-                create: "Create Keys Ceremony",
-                name: "Keys Ceremony Name",
+                create: "Create Key Ceremony",
+                name: "Key Ceremony Name",
                 allElections: "All Elections",
-                title: "Create Election Event Keys Ceremony",
+                title: "Create Election Event Key Ceremony",
                 subtitle:
-                    "In the Keys Ceremony each trustee will generate and download their fragment of the private key for the Election Event. To proceed, please choose the trustees that will participate in the ceremony and the threshold, which is the minimum number of trustees required to tally.",
+                    "In the Key Ceremony each trustee will generate and download their fragment of the private key for the Election Event. To proceed, please choose the trustees that will participate in the ceremony and the threshold, which is the minimum number of trustees required to tally.",
                 threshold: "Threshold",
                 trusteeList: "Trustees",
                 errorMinTrustees_one:
@@ -1422,36 +1438,36 @@ const englishTranslation = {
                     "You selected only {{selected}} trustees, but you must select at least {{threshold}}.",
                 errorThreshold:
                     "You selected threshold {{selected}} but it must be between {{min}} and {{max}}.",
-                errorCreatingCeremony: "Error creating Keys Ceremony: {{error}}",
-                createCeremonySuccess: "Keys Ceremony created",
+                errorCreatingCeremony: "Error creating Key Ceremony: {{error}}",
+                createCeremonySuccess: "Key Ceremony created",
                 confirmdDialog: {
-                    ok: "Yes, Create Keys Ceremony",
+                    ok: "Yes, Create Key Ceremony",
                     cancel: "Cancel",
-                    title: "Are you sure you want to Create Keys Ceremony?",
+                    title: "Are you sure you want to Create Key Ceremony?",
                     automaticCeremonyTitle:
-                        "Are you sure you want to Create Automatic Keys Ceremony?",
+                        "Are you sure you want to Create Automatic Key Ceremony?",
                     description:
-                        "You are about to Create Keys Ceremony. This action will notify the Trustees to participate in the creation and distribution of the Election Event Keys.",
+                        "You are about to Create Key Ceremony. This action will notify the Trustees to participate in the creation and distribution of the Election Event Keys.",
                     automaticCeremonyDescription:
-                        "You are about to Create an Automatic Keys Ceremony. This will not notify the Trustees to participate.",
+                        "You are about to Create an Automatic Key Ceremony. This will not notify the Trustees to participate.",
                 },
                 filterTrustees: "Filter Trustees",
                 errorPermisionLabels:
-                    "Cannot create keys ceremony: one or more permission labels are missing.",
+                    "Cannot create Key Ceremony: one or more permission labels are missing.",
                 automaticCeremonyToggle: "Automatic Ceremony",
             },
             ceremonyStep: {
-                cancel: "Cancel Keys Ceremony",
-                progressHeader: "Keys Ceremony Progress",
+                cancel: "Cancel Key Ceremony",
+                progressHeader: "Key Ceremony Progress",
                 description:
-                    "This screen shows the progress and logs of the Election Event's Keys Ceremony. In the Keys Ceremony each trustee will generate and download their fragment of the private key for the Election Event.",
+                    "This screen shows the progress and logs of the Election Event's Key Ceremony. In the Key Ceremony each trustee will generate and download their fragment of the private key for the Election Event.",
                 executionStatus: "Status: {{status}}",
                 confirmdDialog: {
-                    ok: "Yes, Cancel Create Keys Ceremony",
-                    cancel: "Go back to Keys Ceremony",
-                    title: "Are you sure you want to Cancel Keys Ceremony?",
+                    ok: "Yes, Cancel Create Key Ceremony",
+                    cancel: "Go back to Key Ceremony",
+                    title: "Are you sure you want to Cancel Key Ceremony?",
                     description:
-                        "You are about to Cancel Keys Ceremony. After performing this action, to have a succcessful Keys Ceremony you will have to Create a new one.",
+                        "You are about to Cancel Key Ceremony. After performing this action, to have a succcessful Key Ceremony you will have to Create a new one.",
                 },
                 header: {
                     trusteeName: "Trustee Name",
@@ -1467,9 +1483,9 @@ const englishTranslation = {
                 emptyLogs: "No logs yet.",
             },
             startStep: {
-                title: "Trustee Keys Ceremony",
+                title: "Trustee Key Ceremony",
                 subtitle:
-                    "You are about to participate in the Keys Ceremony as a Trustee (<strong>{{name}}</strong>). This involves the following steps:",
+                    "You are about to participate in the Key Ceremony as a Trustee (<strong>{{name}}</strong>). This involves the following steps:",
                 one: "<strong>Download</strong> your Encrypted Private Key.",
                 two: "Create multiple <strong>Backups</strong> of the Encrypted Private Key.",
                 three: "<strong>Check</strong> that the backups works well.",
@@ -1597,8 +1613,8 @@ const englishTranslation = {
             generateReport: "Generate {{name}}",
             templateTitle: "Results Template",
             templateSubTitle: "Optionally overwrite the results template.",
-            keysCeremonyTitle: "Keys Ceremony",
-            keysCeremonySubTitle: "Select the Keys Ceremony for this tally",
+            keysCeremonyTitle: "Key Ceremony",
+            keysCeremonySubTitle: "Select the Key Ceremony for this tally",
             ceremonyTitle: "Elections to Tally",
             initializationTitle: "Elections for Initialization Report",
             ceremonySubTitle: "Choose the elections you want to tally",
@@ -1783,7 +1799,7 @@ const englishTranslation = {
                 action: "Generate Publication",
             },
             forbidden: {
-                header: "Cannot Publish until the Keys Ceremony is completed.",
+                header: "Cannot Publish until the Key Ceremony is completed.",
             },
             dialog: {
                 title: "Confirm Action",
@@ -1999,6 +2015,7 @@ const englishTranslation = {
                 BALLOT_RECEIPT: "Ballot Receipt",
                 ACTIVITY_LOGS: "Activity Logs",
                 MANUAL_VERIFICATION: "Manual Verification",
+                PARTICIPATION_REPORT: "Participation Report",
             },
             method: {
                 email: "Email",
@@ -2076,6 +2093,9 @@ const englishTranslation = {
                     url: "URL",
                 },
             },
+            languages: {
+                default: "Default Language",
+            },
         },
         approvalsScreen: {
             column: {
@@ -2151,6 +2171,9 @@ const englishTranslation = {
             },
         },
         certificateAuthorities: {
+            title: "Certificates",
+            subtitle:
+                "Certificate Authorities (CAs) trusted for this election event. Imported CAs are used to validate voter certificates.",
             importButton: "Import Certificates",
             type: {
                 root: "Root",
@@ -2184,6 +2207,16 @@ const englishTranslation = {
                 importError: "Import failed: {{error}}",
                 deleteSuccess: "Certificate deleted.",
                 deleteError: "Error deleting certificate.",
+                exportSuccess: "Certificate(s) exported successfully.",
+                exportError: "Error exporting certificates.",
+            },
+            exportDialog: {
+                title: "Export Certificate Authorities",
+                description: "You are about to export {{amount}} certificate(s).",
+                all: "all",
+            },
+            deleteDialog: {
+                description: "Are you sure you want to delete {{count}} certificate(s)?",
             },
             emptyHeader: "No certificate authorities have been imported for this election event.",
             fileReadError: "Failed to read the file.",
