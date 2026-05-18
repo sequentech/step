@@ -297,7 +297,7 @@ const englishTranslation = {
                 writeInChoiceOutOfRange: "Write-in choice out of range: {{index}}",
                 writeInNotEndInZero: "Write-in doesn't end on 0",
                 writeInCharsExceeded:
-                    "Write-in exceed by {{numCharsExceeded}} the maximum number of chars. Requires fixing.",
+                    "The write-in exceeds the maximum length by {{numCharsExceeded}} characters. Please shorten it.",
                 bytesToUtf8Conversion:
                     "Error converting write-in from bytes to UTF-8 string: {{errorMessage}}",
                 ballotTooLarge: "Ballot larger than expected",
