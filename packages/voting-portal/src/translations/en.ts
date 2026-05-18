@@ -90,7 +90,7 @@ const englishTranslation = {
                 cancel: "Cancel",
             },
             confirmCastVoteDialog: {
-                title: "Are you sure you want to submit your vote",
+                title: "Are you sure you want to submit your vote?",
                 content: "After you confirm, your vote can’t be changed",
                 ok: "Yes, I want to submit my vote",
                 cancel: "Cancel",
