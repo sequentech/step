@@ -89,7 +89,7 @@ const spanishTranslation: TranslationType = {
                 content:
                     "<p>Este es su Localizador del Voto, pero <b>su voto aún no ha sido emitido</b>. Si intenta buscarlo ahora, no aparecerá.</p><p>Mostramos el Localizador del Voto en esta etapa para que pueda auditar la papeleta cifrada antes de emitirla.</p>",
                 ok: "Entiendo que mi voto no ha sido emitido",
-                cancel: "Cancelq4",
+                cancel: "Cancelar",
             },
             auditBallotHelpDialog: {
                 title: "¿Quieres auditar tu papeleta?",
