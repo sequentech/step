@@ -27,7 +27,7 @@ const tagalogTranslation: TranslationType = {
             audit: "Audit",
         },
         footer: {
-            poweredBy: "Pinapagana ng <1></1>",
+            poweredBy: "Pinapagana ng <0></0>",
         },
         votingScreen: {
             backButton: "Bumalik",
@@ -230,7 +230,7 @@ const tagalogTranslation: TranslationType = {
             ballotIdDemoHelpDialog: {
                 title: "Impormasyon: Ballot ID",
                 content:
-                    "<p>Ang Ballot ID ay isang code na maari mong gamitin upang hanapin ang iyong balota sa ballot box, ang ID na ito ay natatangi at hindi naglalaman ng impormasyon tungkol sa iyong mga napili.</p><p><b>Paalala:</b> Ang voting booth na ito ay para sa layuning demonstrasyon lamang. Ang iyong boto ay HINDI pa naipapasa.</p>",
+                    "Ang Ballot ID ay isang code na maari mong gamitin upang hanapin ang iyong balota sa ballot box, ang ID na ito ay natatangi at hindi naglalaman ng impormasyon tungkol sa iyong mga napili.",
                 ok: "OK",
             },
             errorDialogPrintBallotReceipt: {
@@ -306,6 +306,33 @@ const tagalogTranslation: TranslationType = {
             },
         },
         errors: {
+            encoding: {
+                notEnoughChoices: "Not enough choices to decode",
+                writeInChoiceOutOfRange: "Write-in choice out of range: {{index}}",
+                writeInNotEndInZero: "Write-in doesn't end on 0",
+                writeInCharsExceeded:
+                    "The write-in exceeds the maximum length by {{numCharsExceeded}} characters. Please shorten it.",
+                bytesToUtf8Conversion:
+                    "Error converting write-in from bytes to UTF-8 string: {{errorMessage}}",
+                ballotTooLarge: "Ballot larger than expected",
+            },
+            implicit: {
+                selectedMax:
+                    "Overvote: Number of selected choices {{numSelected}} is more than the maximum {{max}}",
+                selectedMin:
+                    "Number of selected choices {{numSelected}} is less than the minimum {{min}}",
+                maxSelectionsPerType:
+                    "Number of selected choices {{numSelected}} for list {{type}} is more than the maximum {{max}}",
+                underVote:
+                    "Undervote: Number of selected choices {{numSelected}} is less than the maximum {{max}}",
+                overVoteDisabled:
+                    "Maximum reached: You have selected the maximum {{numSelected}} choices. To change your selection, please deselect another option first.",
+                blankVote: "Blank Vote: 0 choices selected",
+            },
+            explicit: {
+                notAllowed: "Ballot marked explicitly invalid but question doesn't allow it",
+                alert: "This selection will be counted as an invalid vote",
+            },
             page: {
                 oopsWithStatus: "Oops! {{status}}",
                 oopsWithoutStatus: "Oops! Hindi inaasahang Error",

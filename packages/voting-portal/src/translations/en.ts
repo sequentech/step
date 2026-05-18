@@ -45,6 +45,14 @@ const englishTranslation = {
                 continue: "Continue",
                 cancel: "Cancel",
             },
+            warningDialog: {
+                title: "Review your ballot",
+                content:
+                    "Your ballot contains selections that may need your attention (such as selecting fewer options than allowed). Your ballot is valid and will be counted as submitted.",
+                ok: "Back and review",
+                continue: "Continue",
+                cancel: "Cancel",
+            },
         },
         startScreen: {
             startButton: "Start Voting",
@@ -191,7 +199,7 @@ const englishTranslation = {
             finishButton: "Finish",
             verifyCastTitle: "Verify that your ballot was cast",
             verifyCastDescription:
-                "You can verify your ballot was castr correctly at any time using the QR code below",
+                "You can verify your ballot was cast correctly at any time using the QR code below",
             confirmationHelpDialog: {
                 title: "About the confirmation screen",
                 content:
@@ -346,7 +354,6 @@ const englishTranslation = {
             notFound: "Your ballot ID {{ballotId}} was not found",
             contentDesc: "This is your Ballot content: ",
             wrongFormatBallotId: "Invalid Ballot ID format",
-            wrongFormatBallotId: "Wrong format for Ballot ID",
             ballotIdNotFoundAtFilter:
                 "Not found, check that your Ballot ID is correct and belongs to this user.",
             filterByBallotId: "Filter by Ballot ID",
@@ -361,7 +368,7 @@ const englishTranslation = {
                     "The Ballot Finder screen lets you enter your Ballot ID to locate your vote and confirm it was recorded correctly.",
                 ok: "OK",
             },
-                        tabs: {
+            tabs: {
                 logs: "Logs",
                 ballotLocator: "Ballot Locator",
             },

@@ -27,7 +27,7 @@ const frenchTranslation: TranslationType = {
             audit: "Auditer",
         },
         footer: {
-            poweredBy: "Propulsé par <1></1>",
+            poweredBy: "Propulsé par <0></0>",
         },
         votingScreen: {
             backButton: "Retour",
@@ -231,7 +231,7 @@ const frenchTranslation: TranslationType = {
             ballotIdDemoHelpDialog: {
                 title: "Information : Identifiant de bulletin de vote",
                 content:
-                    "<p>L'identifiant de bulletin de vote est un code qui vous permet de retrouver votre bulletin dans l'urne. Cet identifiant est unique et ne contient aucune information sur vos choix.</p><p><b>Avis :</b> Ce bureau de vote est uniquement à des fins de démonstration. Votre vote n'a PAS été émis.</p>",
+                    "L'identifiant de bulletin de vote est un code qui vous permet de retrouver votre bulletin dans l'urne. Cet identifiant est unique et ne contient aucune information sur vos choix.",
                 ok: "OK",
             },
             errorDialogPrintBallotReceipt: {
@@ -306,6 +306,33 @@ const frenchTranslation: TranslationType = {
             },
         },
         errors: {
+            encoding: {
+                notEnoughChoices: "Not enough choices to decode",
+                writeInChoiceOutOfRange: "Write-in choice out of range: {{index}}",
+                writeInNotEndInZero: "Write-in doesn't end on 0",
+                writeInCharsExceeded:
+                    "The write-in exceeds the maximum length by {{numCharsExceeded}} characters. Please shorten it.",
+                bytesToUtf8Conversion:
+                    "Error converting write-in from bytes to UTF-8 string: {{errorMessage}}",
+                ballotTooLarge: "Ballot larger than expected",
+            },
+            implicit: {
+                selectedMax:
+                    "Overvote: Number of selected choices {{numSelected}} is more than the maximum {{max}}",
+                selectedMin:
+                    "Number of selected choices {{numSelected}} is less than the minimum {{min}}",
+                maxSelectionsPerType:
+                    "Number of selected choices {{numSelected}} for list {{type}} is more than the maximum {{max}}",
+                underVote:
+                    "Undervote: Number of selected choices {{numSelected}} is less than the maximum {{max}}",
+                overVoteDisabled:
+                    "Maximum reached: You have selected the maximum {{numSelected}} choices. To change your selection, please deselect another option first.",
+                blankVote: "Blank Vote: 0 choices selected",
+            },
+            explicit: {
+                notAllowed: "Ballot marked explicitly invalid but question doesn't allow it",
+                alert: "This selection will be counted as an invalid vote",
+            },
             page: {
                 oopsWithStatus: "Oups ! {{status}}",
                 oopsWithoutStatus: "Oups ! Erreur inattendue",

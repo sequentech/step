@@ -27,7 +27,7 @@ const catalanTranslation: TranslationType = {
             audit: "Auditar",
         },
         footer: {
-            poweredBy: "Funciona amb <1></1>",
+            poweredBy: "Funciona amb <0></0>",
         },
         votingScreen: {
             backButton: "Enrere",
@@ -233,7 +233,7 @@ const catalanTranslation: TranslationType = {
             ballotIdDemoHelpDialog: {
                 title: "Informació: Identificador de papereta de vot",
                 content:
-                    "<p>L'identificador de papereta de vot és un codi que us permet trobar la vostra papereta a l'urna. Aquest identificador és únic i no conté informació sobre les vostres seleccions.</p><p><b>Avis:</b> Aquesta cabina de votació és només per a fins de demostració. El vostre vot NO ha estat emès.</p>",
+                    "L'identificador de papereta de vot és un codi que us permet trobar la vostra papereta a l'urna. Aquest identificador és únic i no conté informació sobre les vostres seleccions.",
                 ok: "D'acord",
             },
             errorDialogPrintBallotReceipt: {
@@ -308,6 +308,33 @@ const catalanTranslation: TranslationType = {
             },
         },
         errors: {
+            encoding: {
+                notEnoughChoices: "Not enough choices to decode",
+                writeInChoiceOutOfRange: "Write-in choice out of range: {{index}}",
+                writeInNotEndInZero: "Write-in doesn't end on 0",
+                writeInCharsExceeded:
+                    "The write-in exceeds the maximum length by {{numCharsExceeded}} characters. Please shorten it.",
+                bytesToUtf8Conversion:
+                    "Error converting write-in from bytes to UTF-8 string: {{errorMessage}}",
+                ballotTooLarge: "Ballot larger than expected",
+            },
+            implicit: {
+                selectedMax:
+                    "Overvote: Number of selected choices {{numSelected}} is more than the maximum {{max}}",
+                selectedMin:
+                    "Number of selected choices {{numSelected}} is less than the minimum {{min}}",
+                maxSelectionsPerType:
+                    "Number of selected choices {{numSelected}} for list {{type}} is more than the maximum {{max}}",
+                underVote:
+                    "Undervote: Number of selected choices {{numSelected}} is less than the maximum {{max}}",
+                overVoteDisabled:
+                    "Maximum reached: You have selected the maximum {{numSelected}} choices. To change your selection, please deselect another option first.",
+                blankVote: "Blank Vote: 0 choices selected",
+            },
+            explicit: {
+                notAllowed: "Ballot marked explicitly invalid but question doesn't allow it",
+                alert: "This selection will be counted as an invalid vote",
+            },
             page: {
                 oopsWithStatus: "Vaja! {{status}}",
                 oopsWithoutStatus: "Vaja! Error Inesperat",
