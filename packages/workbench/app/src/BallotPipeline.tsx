@@ -191,6 +191,31 @@ export function BallotPipeline() {
         [rows, contestJson, pkB64, skB64, patchRow]
     )
 
+    // Seeded rows arrive with `plaintextJson`, `encryptedJson` and
+    // `decryptedBigInt` filled in (see WorkbenchInspector's
+    // `handleOpenInPipeline`), but never with `encodedBigInt`:
+    // production never persists the encoded BigUint — it's a
+    // transient intermediate inside `encrypt_decoded_contest`
+    // (sequent-core/src/encrypt.rs, the `contest.encode_plaintext_contest(&decoded)`
+    // call), discarded as soon as it's encrypted. To avoid a
+    // counterintuitive empty cell between two filled ones we
+    // re-compute it workbench-side by replaying the Encode stage
+    // on each seeded row. The work happens after mount (mirrors
+    // the decrypt-bridge's async fill, §M.3 in LIFTING.md) so
+    // navigation into `/pipeline` stays snappy and per-row errors
+    // surface in the normal error slot.
+    useEffect(() => {
+        if (!seed) return
+        rows.forEach((r) => {
+            if (r.plaintextJson.trim() && !r.encodedBigInt.trim()) {
+                void runStage(r.rowId, "encode")
+            }
+        })
+        // Intentionally empty deps: one-shot, mirrors the seed
+        // bootstrap effect above.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [])
+
     /** Run a stage on every row that has its input cell populated.
      *  Per-row failures are recorded on the row; the loop never
      *  aborts. */
