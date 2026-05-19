@@ -184,6 +184,27 @@ export const ballotSelectionsSlice = createSlice({
 
             return state
         },
+        setAllBallotSelectionsInvalidVote: (
+            state,
+            action: PayloadAction<{
+                ballotStyle: IBallotStyle
+                isExplicitInvalid: boolean
+            }>
+        ): BallotSelectionsState => {
+            state[action.payload.ballotStyle.election_id] =
+                action.payload.ballotStyle.ballot_eml.contests.map(
+                    (contest): IDecodedVoteContest => {
+                        return {
+                            contest_id: contest.id,
+                            is_explicit_invalid: action.payload.isExplicitInvalid,
+                            invalid_errors: [],
+                            invalid_alerts: [],
+                            choices: [],
+                        }
+                    }
+                )
+            return state
+        },
     },
     /*extraReducers: (builder) => {
         builder.addCase(fetchElectionByIdAsync.fulfilled, (state, action) => {
@@ -208,6 +229,7 @@ export const {
     setBallotSelectionInvalidVote,
     setBallotSelectionBlankVote,
     setBallotSelectionVoteChoice,
+    setAllBallotSelectionsInvalidVote,
 } = ballotSelectionsSlice.actions
 
 export const selectBallotSelectionVoteChoice =

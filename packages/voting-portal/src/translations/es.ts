@@ -59,6 +59,13 @@ const spanishTranslation: TranslationType = {
         startScreen: {
             startButton: "Empezar a votar",
             declineToVoteButton: "Rechazar el voto",
+            declineToVoteDialog: {
+                title: "Confirmar rechazo del voto",
+                content:
+                    "¿Está seguro de que desea rechazar el voto?</br>Irá directamente a la revisión y su estado de participación se guardará como <b>Rechazo del voto</b>.",
+                continue: "Sí, quiero RECHAZAR el voto",
+                cancel: "Cancelar",
+            },
             instructionsTitle: "Instrucciones",
             instructionsDescription: "Por favor, siga estos pasos para emitir su voto:",
             step1Title: "1. Seleccione su opción de voto",

@@ -60,6 +60,13 @@ const englishTranslation = {
         startScreen: {
             startButton: "Start Voting",
             declineToVoteButton: "Decline to Vote",
+            declineToVoteDialog: {
+                title: "Confirm decline to vote",
+                content:
+                    "Are you sure you want to decline to vote?</br>You will go directly to review and your participation status will be saved as <b>Declined to vote</b>.",
+                continue: "Yes, I want to DECLINE to vote",
+                cancel: "Cancel",
+            },
             instructionsTitle: "Instructions",
             instructionsDescription: "Please follow these steps to cast your ballot:",
             step1Title: "1. Select your options",

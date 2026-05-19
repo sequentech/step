@@ -59,6 +59,13 @@ const catalanTranslation: TranslationType = {
         startScreen: {
             startButton: "Començar a votar",
             declineToVoteButton: "Rebutjar el vot",
+            declineToVoteDialog: {
+                title: "Confirmar el rebuig del vot",
+                content:
+                    "Esteu segur que voleu rebutjar el vot?</br>Anireu directament a la revisió i el vostre estat de participació es desarà com a <b>Rebutjat el vot</b>.",
+                continue: "Sí, vull REBUTJAR el vot",
+                cancel: "Cancel·lar",
+            },
             instructionsTitle: "Instruccions",
             instructionsDescription: "Si us plau, segueixi aquests passos per emetre el seu vot:",
             step1Title: "1. Seleccioneu la seva opció de vot",
