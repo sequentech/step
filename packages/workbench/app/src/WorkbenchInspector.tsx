@@ -526,7 +526,20 @@ export function SnapshotOverviewPage(): JSX.Element {
     const electionCount = useSelector(
         (s: RootState) => Object.values(s.elections).filter(Boolean).length
     )
-    const ballotStyleCount = useSelector(
+    // Working-copy BS count: prefer the workbench overlay's
+    // `ballotStylePool` (full imported catalogue) over the portal
+    // `ballotStyles` slice, which only holds the BS for the active
+    // voter session and would under-count any multi-BS snapshot.
+    // Mirrors the bundled/checkpoint rows' `selectStateCounts`.
+    const ballotStyleCount = useWorkbench((w) =>
+        w.ballotStylePool
+            ? Object.values(w.ballotStylePool).reduce(
+                  (n, rows) => n + rows.length,
+                  0
+              )
+            : null
+    )
+    const ballotStyleSliceCount = useSelector(
         (s: RootState) =>
             Object.values(s.ballotStyles).filter(Boolean).length
     )
@@ -723,7 +736,7 @@ export function SnapshotOverviewPage(): JSX.Element {
         counts: {
             voters: voterCount,
             elections: electionCount,
-            ballotStyles: ballotStyleCount,
+            ballotStyles: ballotStyleCount ?? ballotStyleSliceCount,
             castVotes: castVoteCount,
         },
     })
@@ -731,7 +744,7 @@ export function SnapshotOverviewPage(): JSX.Element {
         a[0].localeCompare(b[0])
     )
     for (const [bName, bSnapshot] of bundledEntries) {
-        const c = selectStateCounts(bSnapshot.state)
+        const c = selectStateCounts(bSnapshot)
         rows.push({
             kind: "bundled",
             id: bundledId(bName),
@@ -753,7 +766,7 @@ export function SnapshotOverviewPage(): JSX.Element {
     for (const meta of checkpointEntries) {
         const snap = readCheckpointSnapshot(meta.name)
         if (!snap) continue
-        const c = selectStateCounts(snap.state)
+        const c = selectStateCounts(snap)
         rows.push({
             kind: "checkpoint",
             id: checkpointId(meta.name),
@@ -1237,14 +1250,25 @@ const importTextareaStyle: React.CSSProperties = {
     resize: "vertical",
 }
 
-function selectStateCounts(s: RootState): {
+function selectStateCounts(snap: PersistedSnapshot): {
     elections: number
     ballotStyles: number
     castVotes: number
 } {
+    const s = snap.state
+    // Ballot styles: prefer the workbench overlay's `ballotStylePool`
+    // which is the full imported catalogue (every BS across every
+    // election). The portal `state.ballotStyles` slice only ever holds
+    // the BS for the *currently active* voter session, so on a fresh
+    // snapshot it counts 1 even when the import carried more. Fall
+    // back to the slice for legacy snapshots without an overlay.
+    const pool = snap.workbench?.ballotStylePool
+    const ballotStyles = pool
+        ? Object.values(pool).reduce((n, rows) => n + rows.length, 0)
+        : Object.values(s.ballotStyles).filter(Boolean).length
     return {
         elections: Object.values(s.elections).filter(Boolean).length,
-        ballotStyles: Object.values(s.ballotStyles).filter(Boolean).length,
+        ballotStyles,
         castVotes: Object.values(s.castVotes).reduce(
             (n, list) => n + (list?.length ?? 0),
             0
@@ -1302,7 +1326,7 @@ export function SnapshotDetailPage(): JSX.Element {
             </>
         )
     }
-    const stateCounts = selectStateCounts(snapshot.state)
+    const stateCounts = selectStateCounts(snapshot)
     const voterCount = snapshot.workbench?.voters.length ?? 0
     const bundledExport = useMemo(() => {
         // Strip `parentId` for the copy-as-bundled form: a bundled
