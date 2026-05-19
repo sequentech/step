@@ -1751,6 +1751,32 @@ export function ContestDetailPage(): JSX.Element {
         found ? s.castVotes[found.ballotStyle.election_id] ?? [] : []
     )
     const repaired = useWorkbench((w) => w.repairedCastVotes)
+    // Set of every ballot-style id in this election whose EML
+    // includes this contest. When two ballot styles share the
+    // contest (e.g. velvet-multi-bs's Area A and Area B both carry
+    // `...c1`), cast votes from voters on EITHER BS must show up
+    // here — filtering by a single `found.ballotStyle.id` would
+    // hide votes from the other BS. Empty when no BS is found.
+    const validBsIds = useMemo<Set<string>>(() => {
+        const out = new Set<string>()
+        if (!found) return out
+        const electionId = found.ballotStyle.election_id
+        const collect = (bs: PortalBSRow | undefined): void => {
+            if (!bs) return
+            if (bs.election_id !== electionId) return
+            if (bs.ballot_eml.contests?.some((c) => c.id === contestId)) {
+                out.add(bs.id)
+            }
+        }
+        if (pool) {
+            for (const rows of Object.values(pool)) {
+                for (const row of rows) collect(row as PortalBSRow)
+            }
+        }
+        // Live portal slice may add the active session's BS in the
+        // rare case where the overlay is absent.
+        return out
+    }, [found, pool, contestId])
     // Snapshot-wide keypair, used to seed the pipeline page so its
     // encrypt/decrypt stages match what the bridge actually used.
     const keypair = useWorkbench((w) => w.keypair)
@@ -1772,16 +1798,19 @@ export function ContestDetailPage(): JSX.Element {
     // see something is in flight.
     const decodedRows = useMemo(() => {
         if (!found) return []
-        const ownBsId = found.ballotStyle.id
         const rows: Array<{
             castVoteId: string
             decoded: string | undefined
         }> = []
         for (const cv of castVotes) {
             const entry = repaired[cv.id]
-            if (entry?.ballotStyleId && entry.ballotStyleId !== ownBsId) {
-                // Cast against a different ballot style in the same
-                // election — that BS does not include this contest.
+            if (
+                entry?.ballotStyleId &&
+                validBsIds.size > 0 &&
+                !validBsIds.has(entry.ballotStyleId)
+            ) {
+                // Cast against a ballot style in this election that
+                // does not include this contest.
                 continue
             }
             rows.push({
@@ -1790,7 +1819,7 @@ export function ContestDetailPage(): JSX.Element {
             })
         }
         return rows
-    }, [castVotes, repaired, contestId, found?.ballotStyle.id])
+    }, [castVotes, repaired, contestId, validBsIds, found])
     // Last tally run for this contest is stored in the workbench
     // store (see WorkbenchExtraState.tallyRuns) so it survives the
     // navigation cycle the operator goes through to cast another
@@ -1834,13 +1863,16 @@ export function ContestDetailPage(): JSX.Element {
     // velvet-wasm fixtures, not re-seed from a stale contest view).
     const handleOpenInPipeline = useCallback(() => {
         if (!found) return
-        const ownBsId = found.ballotStyle.id
         const rows: PipelineSeedRow[] = []
         for (const cv of castVotes) {
             const entry = repaired[cv.id]
-            if (entry?.ballotStyleId && entry.ballotStyleId !== ownBsId) {
-                // Cast against a different BS in this election; that
-                // BS does not include this contest.
+            if (
+                entry?.ballotStyleId &&
+                validBsIds.size > 0 &&
+                !validBsIds.has(entry.ballotStyleId)
+            ) {
+                // Cast against a BS in this election that does not
+                // include this contest.
                 continue
             }
             let plaintextJson: string | undefined
@@ -1879,7 +1911,7 @@ export function ContestDetailPage(): JSX.Element {
             rows,
         }
         navigate("/pipeline", {state: seed})
-    }, [found, castVotes, repaired, contestId, keypair, navigate])
+    }, [found, castVotes, repaired, contestId, keypair, navigate, validBsIds])
     const handleRunTally = useCallback(async () => {
         if (!found) return
         const fingerprint = currentTallyFingerprint
