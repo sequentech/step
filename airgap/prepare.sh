@@ -13,21 +13,45 @@ OUTPUT_DIR="$PROJECT_ROOT/airgap-output"
 # Versions
 K3S_VERSION="v1.35.4+k3s1"
 
+# Detect Architecture
+case $(uname -m) in
+    x86_64) ARCH="amd64" ;;
+    aarch64|arm64) ARCH="arm64" ;;
+    *) echo "Unsupported architecture: $(uname -m)"; exit 1 ;;
+esac
+echo "Target Architecture: $ARCH"
+
 echo "--- [1/7] Cleaning and Preparing Output Directory ---"
 rm -rf "$OUTPUT_DIR"
-mkdir -p "$OUTPUT_DIR/k3s" "$OUTPUT_DIR/deb-packages" "$OUTPUT_DIR/images" "$OUTPUT_DIR/actions-repos"
+mkdir -p "$OUTPUT_DIR/k3s/$ARCH" "$OUTPUT_DIR/deb-packages/$ARCH" "$OUTPUT_DIR/images" "$OUTPUT_DIR/actions-repos"
 
-echo "--- [2/7] Downloading K3s Airgap Artifacts (Stable: $K3S_VERSION) ---"
-curl -Lo "$OUTPUT_DIR/k3s/k3s" "https://github.com/k3s-io/k3s/releases/download/${K3S_VERSION}/k3s"
-curl -Lo "$OUTPUT_DIR/k3s/k3s-airgap-images-amd64.tar.zst" "https://github.com/k3s-io/k3s/releases/download/${K3S_VERSION}/k3s-airgap-images-amd64.tar.zst"
+echo "--- [2/7] Downloading K3s Airgap Artifacts ($ARCH) ---"
+K3S_SUFFIX=""
+if [ "$ARCH" = "arm64" ]; then K3S_SUFFIX="-arm64"; fi
+
+curl -Lo "$OUTPUT_DIR/k3s/$ARCH/k3s" "https://github.com/k3s-io/k3s/releases/download/${K3S_VERSION}/k3s${K3S_SUFFIX}"
+curl -Lo "$OUTPUT_DIR/k3s/$ARCH/k3s-airgap-images-${ARCH}.tar.zst" "https://github.com/k3s-io/k3s/releases/download/${K3S_VERSION}/k3s-airgap-images-${ARCH}.tar.zst"
 curl -Lo "$OUTPUT_DIR/k3s/install.sh" "https://get.k3s.io"
-chmod +x "$OUTPUT_DIR/k3s/k3s" "$OUTPUT_DIR/k3s/install.sh"
+chmod +x "$OUTPUT_DIR/k3s/$ARCH/k3s" "$OUTPUT_DIR/k3s/install.sh"
 
-echo "--- [3/7] Downloading Debian Packages (Git/SSH) ---"
-cd "$OUTPUT_DIR/deb-packages"
-sudo apt-get update
-sudo apt-get download git openssh-client curl jq
-cd "$PROJECT_ROOT"
+echo "--- [3/7] Downloading Debian Packages (Git/SSH for $ARCH) ---"
+# Detect OS version for the target (default to jammy if not on linux)
+if command -v lsb_release >/dev/null 2>&1; then
+    OS_CODENAME=$(lsb_release -cs)
+else
+    OS_CODENAME="jammy"
+fi
+
+PACKAGES=("git" "openssh-client" "curl" "jq")
+echo "Downloading packages for $ARCH ($OS_CODENAME)..."
+# Use docker to get dependencies correctly for any host
+docker run --rm --platform "linux/$ARCH" \
+    -v "$OUTPUT_DIR/deb-packages/$ARCH:/output" \
+    "ubuntu:$OS_CODENAME" bash -c "
+        apt-get update
+        apt-get install -y --download-only ${PACKAGES[*]}
+        cp /var/cache/apt/archives/*.deb /output/
+    "
 
 echo "--- [4/7] Caching GitHub Action Repositories ---"
 ACTIONS=(
@@ -42,8 +66,8 @@ for action in "${ACTIONS[@]}"; do
 done
 
 echo "--- [5/7] Pulling Infrastructure & CI Base Images ---"
-# Base images for CI builds
-# We use catthehacker's images which are optimized for 'act' (used by Gitea)
+# Pulling only for current host architecture to keep it simple, 
+# but infrastructure images are usually multi-arch.
 CI_RUNNER_IMAGES=(
     "catthehacker/ubuntu:act-22.04"
     "docker:dind"
@@ -55,7 +79,6 @@ CI_BUILD_ENV_IMAGES=(
     "node:20-bookworm-slim"
     "debian:bookworm"
 )
-# Application Infra
 INFRA_IMAGES=(
     "gitea/gitea:latest"
     "rustfs/rustfs:latest"
@@ -90,7 +113,6 @@ cp "$AIRGAP_DIR/manage.sh" "$OUTPUT_DIR/"
 cp "$AIRGAP_DIR/README.md" "$OUTPUT_DIR/"
 chmod +x "$OUTPUT_DIR/manage.sh"
 
-# Package source code
 tar -czf "$OUTPUT_DIR/step-source.tar.gz" \
     --exclude="./airgap-output" \
     --exclude="./target" \

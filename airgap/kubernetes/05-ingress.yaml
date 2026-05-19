@@ -2,7 +2,7 @@ apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: step-ingress
-  namespace: step-infra
+  namespace: gitea
   annotations:
     traefik.ingress.kubernetes.io/router.entrypoints: web
 spec:
@@ -17,17 +17,16 @@ spec:
                 name: gitea
                 port:
                   number: 3000
-    - host: keycloak.local
-      http:
-        paths:
-          - path: /
-            pathType: Prefix
-            backend:
-              service:
-                name: keycloak
-                port:
-                  number: 8090
 ---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: infra-ingress
+  namespace: step-infra
+spec:
+  rules:
+    - host: keycloak.local
+...
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:

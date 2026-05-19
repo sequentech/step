@@ -25,15 +25,30 @@ show_help() {
 case "$1" in
     --setup-server)
         echo "--- Installing K3s Server ---"
+        ARCH=$(dpkg --print-architecture)
         sudo mkdir -p /var/lib/rancher/k3s/agent/images/
-        sudo cp "$PROJECT_ROOT/k3s/k3s-airgap-images-amd64.tar.zst" /var/lib/rancher/k3s/agent/images/
-        sudo cp "$PROJECT_ROOT/k3s/k3s" /usr/local/bin/k3s
+        sudo cp "$PROJECT_ROOT/k3s/$ARCH/k3s-airgap-images-${ARCH}.tar.zst" /var/lib/rancher/k3s/agent/images/
+        sudo cp "$PROJECT_ROOT/k3s/$ARCH/k3s" /usr/local/bin/k3s
         
         # Install K3s in airgap mode using the local install script
         export INSTALL_K3S_SKIP_DOWNLOAD=true
         export INSTALL_K3S_BIN_DIR=/usr/local/bin
         sh "$PROJECT_ROOT/k3s/install.sh"
         
+        echo "--- Configuring Internal Registry Trust ---"
+        sudo mkdir -p /etc/rancher/k3s
+        sudo tee /etc/rancher/k3s/registries.yaml > /dev/null <<EOF
+mirrors:
+  "gitea.local:3000":
+    endpoint:
+      - "http://gitea.gitea:3000"
+configs:
+  "gitea.local:3000":
+    tls:
+      insecure_skip_verify: true
+EOF
+        sudo systemctl restart k3s
+
         echo "K3s is installed! Waiting for node to be ready..."
         until sudo k3s kubectl get node | grep -q "Ready"; do sleep 5; done
         echo "Node is Ready!"
@@ -41,14 +56,22 @@ case "$1" in
 
     --setup-client)
         echo "--- Installing Client Packages ---"
-        cd "$PROJECT_ROOT/deb-packages"
-        sudo dpkg -i *.deb
-        echo "Git and SSH are installed!"
+        ARCH=$(dpkg --print-architecture)
+        if [ -d "$PROJECT_ROOT/deb-packages/$ARCH" ]; then
+            cd "$PROJECT_ROOT/deb-packages/$ARCH"
+            sudo dpkg -i *.deb
+            echo "Git and SSH are installed for $ARCH!"
+        else
+            echo "Error: No packages found for architecture $ARCH"
+            exit 1
+        fi
         ;;
 
     --deploy)
-        echo "--- Loading Infrastructure Images into Containerd ---"
-        sudo k3s ctr images import "$PROJECT_ROOT/images/step-airgap-infra.tar"
+        echo "--- Loading Infrastructure Images into K3s ---"
+        sudo mkdir -p /var/lib/rancher/k3s/agent/images/infra/
+        sudo cp "$PROJECT_ROOT/images/step-airgap-infra.tar" /var/lib/rancher/k3s/agent/images/infra/
+        sudo k3s ctr images import /var/lib/rancher/k3s/agent/images/infra/step-airgap-infra.tar
         
         echo "--- Applying Kubernetes Manifests ---"
         sudo k3s kubectl apply -f "$PROJECT_ROOT/kubernetes/01-namespaces.yaml"
@@ -78,7 +101,7 @@ case "$1" in
         echo "     cd \$repo && git push --mirror http://gitea.local/actions/\$name.git"
         echo "   done"
         echo "4. Create your 'step' repo and push source:"
-        echo "   cd source && git remote add origin http://gitea.local/youruser/step.git"
+        echo "   cd source && git remote add origin http://gitea.local/user/step.git"
         echo "   git push -u origin main"
         ;;
 

@@ -2,7 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: gitea-runner
-  namespace: step-infra
+  namespace: gitea
 spec:
   replicas: 1
   selector:
@@ -18,14 +18,37 @@ spec:
           image: gitea/act_runner:latest
           env:
             - name: GITEA_INSTANCE_URL
-              value: http://gitea:3000
+              value: http://gitea.gitea:3000
             - name: GITEA_RUNNER_REGISTRATION_TOKEN
-              value: "YOUR_TOKEN_HERE" # Will be updated by manage.sh
+              value: "YOUR_TOKEN_HERE"
             - name: DOCKER_HOST
               value: tcp://localhost:2375
+          volumeMounts:
+            - name: runner-data
+              mountPath: /data
         - name: dind
           image: docker:dind
           securityContext:
             privileged: true
+          command: ["sh", "-c", "dockerd-entrypoint.sh & sleep 10; for f in /images/*.tar; do docker load -i $f; done; wait"]
           ports:
             - containerPort: 2375
+          volumeMounts:
+            - name: docker-storage
+              mountPath: /var/lib/docker
+            - name: image-cache
+              mountPath: /images
+              readOnly: true
+      volumes:
+        - name: runner-data
+          hostPath:
+            path: /var/lib/rancher/k3s/storage/gitea-runner
+            type: DirectoryOrCreate
+        - name: docker-storage
+          hostPath:
+            path: /var/lib/rancher/k3s/storage/docker-dind
+            type: DirectoryOrCreate
+        - name: image-cache
+          hostPath:
+            path: /var/lib/rancher/k3s/agent/images/infra
+            type: DirectoryOrCreate
