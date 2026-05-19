@@ -56,3 +56,31 @@ export const BUNDLED_SNAPSHOTS: Record<string, PersistedSnapshot> = (() => {
 export function loadBundledSnapshot(id: string): PersistedSnapshot | null {
     return BUNDLED_SNAPSHOTS[id] ?? null
 }
+
+// --- Session-only mutation ------------------------------------------------
+//
+// The map above is built once at module load from the static
+// `import.meta.glob` dictionary. Operators can delete an entry at
+// runtime via the inspector's Snapshots table — that mutation lives
+// only in this module's memory (it does not touch the build artifact
+// on disk), and a page reload restores every bundled snapshot.
+// A tiny pub-sub lets React views re-render when the set changes
+// without prop-drilling.
+
+const listeners = new Set<() => void>()
+
+/** Subscribe to bundled-snapshot mutations. Returns an unsubscribe
+ *  callback suitable for `useSyncExternalStore`. */
+export function subscribeBundledSnapshots(cb: () => void): () => void {
+    listeners.add(cb)
+    return () => listeners.delete(cb)
+}
+
+/** Remove a bundled snapshot from the in-memory dictionary. Session
+ *  only — the source JSON on disk is untouched and the entry returns
+ *  on the next page reload. No-op if the id is unknown. */
+export function deleteBundledSnapshot(id: string): void {
+    if (!(id in BUNDLED_SNAPSHOTS)) return
+    delete BUNDLED_SNAPSHOTS[id]
+    for (const cb of listeners) cb()
+}

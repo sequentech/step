@@ -45,6 +45,7 @@ import {subscribeWorkbench, useWorkbench, recordTallyRun} from "./workbenchStore
 import {
     bundledId,
     checkpointId,
+    deleteCheckpoint,
     getCurrentParentId,
     listCheckpoints,
     loadSnapshotViaReload,
@@ -54,7 +55,11 @@ import {
     type CheckpointMeta,
     type PersistedSnapshot,
 } from "./persistence"
-import {BUNDLED_SNAPSHOTS} from "./fixtures/bundledSnapshots"
+import {
+    BUNDLED_SNAPSHOTS,
+    deleteBundledSnapshot,
+    subscribeBundledSnapshots,
+} from "./fixtures/bundledSnapshots"
 import {runElectionTally, type ContestTallyOutcome} from "./electionTally"
 import {setActiveVoter} from "./workbenchStore"
 import {importPortalBallotStyle} from "./import/portalBallotStyleImport"
@@ -211,7 +216,7 @@ function buildProvenanceForest(
 function SnapshotsSection(): JSX.Element {
     const checkpoints = useCheckpointList()
     const currentParent = useCurrentParentId()
-    const bundled = Object.keys(BUNDLED_SNAPSHOTS)
+    const bundled = useBundledIds()
     const {roots, orphans} = buildProvenanceForest(bundled, checkpoints)
     return (
         <section>
@@ -694,6 +699,42 @@ export function SnapshotOverviewPage(): JSX.Element {
         if (!snapshot) return
         loadSnapshotViaReload(snapshot, checkpointId(name))
     }
+    const onDeleteBundled = (name: string): void => {
+        // Session-only: clears the entry from BUNDLED_SNAPSHOTS for
+        // this tab. Source JSON and build artifact are untouched; a
+        // reload restores it. Confirm to guard misclicks.
+        if (
+            !window.confirm(
+                `Hide bundled snapshot "${name}" for this session?\n\n` +
+                    `The source JSON file on disk is not touched — ` +
+                    `reload the page to restore it.`
+            )
+        ) {
+            return
+        }
+        deleteBundledSnapshot(name)
+    }
+    const onDeleteCheckpoint = (name: string): void => {
+        // Permanent: removes the checkpoint from localStorage. The
+        // workbench overlay's parent pointer is left alone, so any
+        // working copy forked from this checkpoint will appear under
+        // the "⚠ Detached" group in the rail.
+        if (
+            !window.confirm(
+                `Delete checkpoint "${name}" permanently?\n\n` +
+                    `This removes it from localStorage. Cannot be undone.`
+            )
+        ) {
+            return
+        }
+        deleteCheckpoint(name)
+    }
+
+    // Bundled-id subscription drives table re-renders after a
+    // session-only delete; iterate the live keys rather than
+    // `Object.entries(BUNDLED_SNAPSHOTS)` directly so the hook's
+    // store contract is honoured.
+    const bundledIds = useBundledIds()
 
     // Build the unified row list. The working copy is always first;
     // bundled snapshots follow (alphabetical), then checkpoints
@@ -740,9 +781,10 @@ export function SnapshotOverviewPage(): JSX.Element {
             castVotes: castVoteCount,
         },
     })
-    const bundledEntries = Object.entries(BUNDLED_SNAPSHOTS).sort((a, b) =>
-        a[0].localeCompare(b[0])
-    )
+    const bundledEntries = bundledIds
+        .map((name) => [name, BUNDLED_SNAPSHOTS[name]] as const)
+        .filter(([, snap]) => !!snap)
+        .sort((a, b) => a[0].localeCompare(b[0]))
     for (const [bName, bSnapshot] of bundledEntries) {
         const c = selectStateCounts(bSnapshot)
         rows.push({
@@ -860,22 +902,55 @@ export function SnapshotOverviewPage(): JSX.Element {
                                         Save…
                                     </button>
                                 ) : (
-                                    <button
-                                        type="button"
-                                        style={secondaryButtonStyle}
-                                        onClick={() => {
-                                            if (row.kind === "bundled") {
-                                                onLoadBundled(
-                                                    row.name,
-                                                    row.snapshot
-                                                )
-                                            } else {
-                                                onLoadCheckpoint(row.name)
-                                            }
+                                    <div
+                                        style={{
+                                            display: "flex",
+                                            gap: "0.4rem",
                                         }}
                                     >
-                                        Load
-                                    </button>
+                                        <button
+                                            type="button"
+                                            style={secondaryButtonStyle}
+                                            onClick={() => {
+                                                if (row.kind === "bundled") {
+                                                    onLoadBundled(
+                                                        row.name,
+                                                        row.snapshot
+                                                    )
+                                                } else {
+                                                    onLoadCheckpoint(row.name)
+                                                }
+                                            }}
+                                        >
+                                            Load
+                                        </button>
+                                        <button
+                                            type="button"
+                                            style={{
+                                                ...secondaryButtonStyle,
+                                                color: "#b22222",
+                                                borderColor: "#b22222",
+                                            }}
+                                            title={
+                                                row.kind === "bundled"
+                                                    ? "Hide for this session (reload restores)"
+                                                    : "Permanently delete from localStorage"
+                                            }
+                                            onClick={() => {
+                                                if (row.kind === "bundled") {
+                                                    onDeleteBundled(
+                                                        row.name
+                                                    )
+                                                } else {
+                                                    onDeleteCheckpoint(
+                                                        row.name
+                                                    )
+                                                }
+                                            }}
+                                        >
+                                            Delete
+                                        </button>
+                                    </div>
                                 )}
                             </td>
                         </tr>
@@ -2603,12 +2678,40 @@ function getCheckpointsCached(): CheckpointMeta[] {
 }
 function useCheckpointList(): CheckpointMeta[] {
     return useSyncExternalStore(
-        // Re-read on any workbench mutation. `saveCheckpoint` bumps
-        // workbench state via the trailing writeSnapshot's parentId
-        // change; `deleteCheckpoint` will need to be wired similarly
-        // when its UI lands.
+        // Re-read on any workbench mutation. `saveCheckpoint` and
+        // `deleteCheckpoint` both bump workbench state (the latter
+        // via the trailing `replaceWorkbenchState(getWorkbenchState())`
+        // call) so a single subscription on `subscribeWorkbench`
+        // covers both writers.
         (cb) => subscribeWorkbench(cb),
         getCheckpointsCached,
         getCheckpointsCached
+    )
+}
+
+// --- Bundled-snapshot list -----------------------------------------------
+//
+// Bundled snapshots are mutable in-memory: the inspector's Snapshots
+// table exposes a Delete button that removes the entry from
+// `BUNDLED_SNAPSHOTS` for the current session (the source JSON on
+// disk and the build artifact are untouched; a page reload restores
+// it). Views that list bundled ids must subscribe so they re-render
+// after a deletion.
+let cachedBundledIds: string[] = Object.keys(BUNDLED_SNAPSHOTS).sort()
+let cachedBundledIdsKey = cachedBundledIds.join("\u241F")
+function getBundledIdsCached(): string[] {
+    const next = Object.keys(BUNDLED_SNAPSHOTS).sort()
+    const key = next.join("\u241F")
+    if (key !== cachedBundledIdsKey) {
+        cachedBundledIdsKey = key
+        cachedBundledIds = next
+    }
+    return cachedBundledIds
+}
+function useBundledIds(): string[] {
+    return useSyncExternalStore(
+        (cb) => subscribeBundledSnapshots(cb),
+        getBundledIdsCached,
+        getBundledIdsCached
     )
 }

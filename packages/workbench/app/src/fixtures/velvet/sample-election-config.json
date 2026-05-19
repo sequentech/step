@@ -2,7 +2,7 @@
     "id": "11111111-1111-1111-1111-111111111003",
     "name": "Velvet sample election",
     "alias": "velvet-sample",
-    "description": "Hand-crafted velvet ElectionConfig used as the workbench's 'Import velvet election' demo input. Two areas, two area-restricted ballot styles, one shared contest.",
+    "description": "Hand-crafted velvet ElectionConfig used as the workbench's 'Import velvet election' demo input. Two areas, two area-restricted ballot styles, two distinct area-specific contests (Favourite colour for Area A, Favourite shape for Area B).",
     "annotations": {},
     "election_event_annotations": {},
     "tenant_id": "11111111-1111-1111-1111-111111111001",
