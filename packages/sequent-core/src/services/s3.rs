@@ -149,7 +149,7 @@ fn parse_aws_bucket_endpoint(
 /// Resolves the bucket and prefix semantics for a list-style S3 call without
 /// constructing a client so both runtime code and tests share the same
 /// rules.<br> When the endpoint is minIO (development/codespaces) the bucket
-/// name is the logical bucket, then sevice_endpoint is set to None (the raw env
+/// name is the logical bucket, then service_endpoint is set to None (the raw env
 /// var must be set by the caller) and prefix_root is empty (is already the
 /// bucket name).
 #[instrument(err, skip_all)]
