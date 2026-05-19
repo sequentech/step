@@ -1452,6 +1452,20 @@ export function BallotStyleDetailPage(): JSX.Element {
     // (`pk === keypair.pkB64`) catches snapshots whose pk drifted away
     // from the workbench-installed key.
     const keypair = useWorkbench((w) => w.keypair ?? undefined)
+    // Reverse the workbench `assignments` map (voterId → bsId[]) to
+    // surface every voter assigned to *this* ballot style. The voter
+    // page links here via the bs id badge; mirroring the inverse
+    // navigation closes the loop. Snapshots without an `assignments`
+    // map (legacy single-voter imports) yield an empty list and the
+    // section explains why.
+    const voters = useWorkbench((w) => w.voters)
+    const assignments = useWorkbench((w) => w.assignments)
+    const assignedVoters = useMemo(() => {
+        if (!assignments) return undefined
+        return voters.filter((v) =>
+            (assignments[v.id] ?? []).includes(bsId)
+        )
+    }, [voters, assignments, bsId])
     if (!ballotStyle) {
         return (
             <>
@@ -1501,6 +1515,32 @@ export function BallotStyleDetailPage(): JSX.Element {
                             </NavLink>{" "}
                             <span style={{color: "#888"}}>
                                 <code>{c.id}</code>
+                            </span>
+                        </li>
+                    ))}
+                </ul>
+            )}
+            <h2 style={h2Style}>Assigned voters</h2>
+            {assignedVoters === undefined ? (
+                <Empty>
+                    This snapshot has no <code>assignments</code> map
+                    (legacy single-voter import). Voter ↔ ballot-style
+                    binding is implicit.
+                </Empty>
+            ) : assignedVoters.length === 0 ? (
+                <Empty>No voters are assigned to this ballot style.</Empty>
+            ) : (
+                <ul style={{paddingLeft: "1.25rem"}}>
+                    {assignedVoters.map((v) => (
+                        <li key={v.id} style={{margin: "0.25rem 0"}}>
+                            <NavLink
+                                to={`/wb/voter/${v.id}`}
+                                style={inlineLinkStyle}
+                            >
+                                {v.displayName}
+                            </NavLink>{" "}
+                            <span style={{color: "#888"}}>
+                                <code>{v.id}</code>
                             </span>
                         </li>
                     ))}
@@ -2215,9 +2255,13 @@ export function VoterDetailPage(): JSX.Element {
                                 >
                                     {buttonLabel}
                                 </button>{" "}
-                                <span style={{color: "#888"}}>
+                                <NavLink
+                                    to={`/wb/ballot-style/${bs.id}`}
+                                    style={{...inlineLinkStyle, color: "#888"}}
+                                    title="Open this ballot style's detail page"
+                                >
                                     <code>{bs.id}</code>
-                                </span>
+                                </NavLink>
                             </li>
                         )
                     })}
