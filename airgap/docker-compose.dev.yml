@@ -1,0 +1,116 @@
+# SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+services:
+  # Base template for our Rust/Node services
+  app-base: &app-base
+    image: step-airgap-dev
+    volumes:
+      - .:/workspace
+    working_dir: /workspace
+    network_mode: service:postgres # Shared network for local dev simplicity
+    environment:
+      - CARGO_NET_OFFLINE=true
+      - NODE_ENV=development
+    env_file:
+      - .env
+
+  # --- Infrastructure ---
+
+  postgres:
+    image: sequentech.local/postgresql
+    container_name: postgres
+    environment:
+      POSTGRES_PASSWORD: ${HASURA_PG_PASSWORD:-password}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+    ports:
+      - "5432:5432"
+
+  postgres-b3:
+    image: sequentech.local/postgresql-b3
+    container_name: postgres-b3
+    environment:
+      POSTGRES_PASSWORD: ${B3_PG_PASSWORD:-password}
+    ports:
+      - "5433:5432"
+
+  rustfs:
+    image: rustfs/rustfs
+    container_name: rustfs
+    command: server --console-address ":9001" /data
+    environment:
+      - RUSTFS_ROOT_USER=${AWS_S3_ROOT_USER:-admin}
+      - RUSTFS_ROOT_PASSWORD=${AWS_S3_ROOT_PASSWORD:-password}
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+
+  rabbitmq:
+    image: rabbitmq:3.12.11-management
+    container_name: rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+
+  keycloak:
+    image: sequentech.local/keycloak
+    container_name: keycloak
+    entrypoint: /opt/keycloak/bin/kc.sh start-dev --import-realm
+    environment:
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://postgres:5432/keycloak
+      KC_DB_USERNAME: postgres
+      KC_DB_PASSWORD: ${KC_DB_PASSWORD:-password}
+      KEYCLOAK_ADMIN: ${KEYCLOAK_ADMIN:-admin}
+      KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:-password}
+    depends_on:
+      - postgres
+    ports:
+      - "8090:8090"
+
+  hasura:
+    image: hasura/graphql-engine:v2.33.1.cli-migrations-v3
+    container_name: hasura
+    environment:
+      HASURA_GRAPHQL_METADATA_DATABASE_URL: ${HASURA_GRAPHQL_METADATA_DATABASE_URL}
+      HASURA_GRAPHQL_ENABLE_CONSOLE: "true"
+      HASURA_GRAPHQL_DEV_MODE: "true"
+    depends_on:
+      - postgres
+    ports:
+      - "8080:8080"
+
+  # --- Application Services (Live Dev) ---
+
+  admin-portal:
+    <<: *app-base
+    container_name: step_admin_portal
+    command: yarn --cwd packages/admin-portal start:container
+    ports:
+      - "3000:3000"
+
+  windmill:
+    <<: *app-base
+    container_name: step_windmill
+    working_dir: /workspace/packages/windmill
+    command: cargo watch -x run
+
+  harvest:
+    <<: *app-base
+    container_name: step_harvest
+    working_dir: /workspace/packages/harvest
+    command: cargo watch -x run
+
+  b3:
+    <<: *app-base
+    container_name: step_b3
+    working_dir: /workspace/packages/b3
+    command: cargo watch -x run
+
+  # Generic shell for other tasks
+  rust-shell:
+    <<: *app-base
+    container_name: step_rust_shell
+    command: sleep infinity
