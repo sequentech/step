@@ -165,7 +165,7 @@ lazy_static! {
     /// built separately from the Broker because it handles task routing/scheduling.
     static ref CELERY_APP: AsyncOnce<Arc<Celery>> =
         AsyncOnce::new(async { generate_celery_app().await.unwrap_or_else(|err| {
-            tracing::error!("{:#}", err);
+            tracing::error!("Error to generate celery app: {:#}", err);
             panic!("{:#}", err);
         })
     });
