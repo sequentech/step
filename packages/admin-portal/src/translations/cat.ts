@@ -663,6 +663,13 @@ const catalanTranslation: TranslationType = {
                     "do-not-generate": "No generar",
                 },
             },
+            declineToVotePolicy: {
+                label: "Política de rebuig de vot",
+                options: {
+                    "election-level": "Nivell d'elecció",
+                    "disabled": "Deshabilitat",
+                },
+            },
         },
         tenantScreen: {
             common: {

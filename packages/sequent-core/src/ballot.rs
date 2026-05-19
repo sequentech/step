@@ -2625,3 +2625,31 @@ pub enum LanguageDetectionPolicy {
     #[serde(rename = "force-default")]
     FORCE_DEFAULT,
 }
+
+#[allow(non_camel_case_types)]
+#[derive(
+    BorshSerialize,
+    BorshDeserialize,
+    Display,
+    Serialize,
+    Deserialize,
+    Debug,
+    PartialEq,
+    Eq,
+    Clone,
+    EnumString,
+    Default,
+    JsonSchema,
+)]
+/// Used to determine if the user can decline to vote.
+pub enum DeclineToVotePolicy {
+    #[default]
+    #[strum(serialize = "disabled")]
+    #[serde(rename = "disabled")]
+    /// The user cannot decline to vote.
+    DISABLED,
+    #[strum(serialize = "election-level")]
+    #[serde(rename = "election-level")]
+    /// The user can decline to vote at the election level (for all contests).
+    ELECTION_LEVEL,
+}

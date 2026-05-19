@@ -58,6 +58,7 @@ const spanishTranslation: TranslationType = {
         },
         startScreen: {
             startButton: "Empezar a votar",
+            declineToVoteButton: "Rechazar el voto",
             instructionsTitle: "Instrucciones",
             instructionsDescription: "Por favor, siga estos pasos para emitir su voto:",
             step1Title: "1. Seleccione su opción de voto",

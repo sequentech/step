@@ -662,6 +662,13 @@ const tagalogTranslation: TranslationType = {
                     "do-not-generate": "Huwag bumuo",
                 },
             },
+            declineToVotePolicy: {
+                label: "Patakaran sa Pag-decline ng boto",
+                options: {
+                    "election-level": "Nivel ng halalan",
+                    "disabled": "Hindi pinagana",
+                },
+            },
         },
         tenantScreen: {
             common: {

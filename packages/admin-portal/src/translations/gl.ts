@@ -662,6 +662,13 @@ const galegoTranslation: TranslationType = {
                     "do-not-generate": "Non xerar",
                 },
             },
+            declineToVotePolicy: {
+                label: "Política de rechazo de voto",
+                options: {
+                    "election-level": "Nivel de elección",
+                    "disabled": "Deshabilitado",
+                },
+            },
         },
         tenantScreen: {
             common: {

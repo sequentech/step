@@ -664,6 +664,13 @@ const frenchTranslation: TranslationType = {
                     "do-not-generate": "Ne pas générer",
                 },
             },
+            declineToVotePolicy: {
+                label: "Politique de refus de vote",
+                options: {
+                    "election-level": "Niveau d'élection",
+                    "disabled": "Désactivé",
+                },
+            },
         },
         tenantScreen: {
             common: {

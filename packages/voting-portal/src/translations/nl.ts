@@ -58,6 +58,7 @@ const dutchTranslation: TranslationType = {
         },
         startScreen: {
             startButton: "Begin met stemmen",
+            declineToVoteButton: "Stem afwijzen",
             instructionsTitle: "Instructies",
             instructionsDescription: "Volg deze stappen om uw stem uit te brengen:",
             step1Title: "1. Selecteer uw opties",

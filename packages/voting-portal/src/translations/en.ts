@@ -59,6 +59,7 @@ const englishTranslation = {
         },
         startScreen: {
             startButton: "Start Voting",
+            declineToVoteButton: "Decline to Vote",
             instructionsTitle: "Instructions",
             instructionsDescription: "Please follow these steps to cast your ballot:",
             step1Title: "1. Select your options",

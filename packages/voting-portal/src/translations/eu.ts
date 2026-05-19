@@ -58,6 +58,7 @@ const basqueTranslation: TranslationType = {
         },
         startScreen: {
             startButton: "Hasi Bozketa",
+            declineToVoteButton: "Ezeztatu bozketa",
             instructionsTitle: "Jarraibideak",
             instructionsDescription: "Mesedez, jarraitu urrats hauek zure bozketa emateko:",
             step1Title: "1. Hautatu zure aukerak",

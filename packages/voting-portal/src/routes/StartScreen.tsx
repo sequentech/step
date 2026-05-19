@@ -11,6 +11,8 @@ import {
     translateFromPresentation,
     EStartScreenTitlePolicy,
     ESecurityConfirmationPolicy,
+    EDeclineToVotePolicy,
+    EElectionEventContestEncryptionPolicy,
 } from "@sequentech/ui-core"
 import {styled} from "@mui/material/styles"
 import {Link as RouterLink, useLocation, useNavigate, useParams} from "react-router-dom"
@@ -49,7 +51,7 @@ const ActionsContainer = styled(Box)`
     width: 100%;
     margin-bottom: 20px;
     margin-top: 10px;
-    gap: 2px;
+    gap: 8px;
 `
 
 const StyledLink = styled(RouterLink)`
@@ -84,9 +86,10 @@ const StyledCheckbox = styled(Checkbox)`
 `
 interface ActionButtonsProps {
     election: IElection
+    isDeclineToVotePolicyEnabled: boolean
 }
 
-const ActionButtons: React.FC<ActionButtonsProps> = ({election}) => {
+const ActionButtons: React.FC<ActionButtonsProps> = ({election, isDeclineToVotePolicyEnabled}) => {
     const {t, i18n} = useTranslation()
     const {tenantId, eventId} = useParams<TenantEventType>()
     const location = useLocation()
@@ -139,6 +142,20 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({election}) => {
                         </StyledButton>
                     </StyledLink>
                 )}
+                {isDeclineToVotePolicyEnabled ? (
+                    <StyledLink
+                        to={`/tenant/${tenantId}/event/${eventId}/election/${election.id}/review${location.search}`}
+                        sx={{margin: "auto 0", width: "100%"}}
+                    >
+                        <StyledButton
+                            className="start-voting-button"
+                            sx={{width: "100%"}}
+                            variant="secondary"
+                        >
+                            {t("startScreen.declineToVoteButton")}
+                        </StyledButton>
+                    </StyledLink>
+                ) : null}
             </ActionsContainer>
         </>
     )
@@ -182,6 +199,13 @@ const StartScreen: React.FC = () => {
         )
         dispatch(clearIsVoted())
     }, [ballotStyle])
+
+    const declineToVotePolicy = election?.presentation?.decline_to_vote_policy
+    const isMultiContest =
+        ballotStyle?.ballot_eml.election_event_presentation?.contest_encryption_policy ===
+        EElectionEventContestEncryptionPolicy.MULTIPLE_CONTESTS
+    const isDeclineToVotePolicyEnabled =
+        declineToVotePolicy === EDeclineToVotePolicy.ELECTION_LEVEL && isMultiContest
 
     if (!election || !titleObject) {
         return <CircularProgress />
@@ -230,7 +254,10 @@ const StartScreen: React.FC = () => {
                     <Typography variant="body2">{t("startScreen.step3Description")}</Typography>
                 </Box>
             </Box>
-            <ActionButtons election={election} />
+            <ActionButtons
+                election={election}
+                isDeclineToVotePolicyEnabled={isDeclineToVotePolicyEnabled}
+            />
 
             <Dialog
                 variant="warning"

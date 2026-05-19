@@ -59,6 +59,7 @@ const galegoTranslation: TranslationType = {
         },
         startScreen: {
             startButton: "Comezar a votar",
+            declineToVoteButton: "Rechazar o voto",
             instructionsTitle: "Instrucións",
             instructionsDescription: "Siga estes pasos para emitir a súa papeleta:",
             step1Title: "1. Selecciona as túas opcións",

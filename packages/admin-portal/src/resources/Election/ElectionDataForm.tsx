@@ -64,6 +64,8 @@ import {
     EAllowTally,
     EConsolidatedReportPolicy,
     getDefaultConsolidatedReportPolicy,
+    EDeclineToVotePolicy,
+    getDefaultDeclineToVotePolicy,
 } from "@sequentech/ui-core"
 import {DropFile} from "@sequentech/ui-essentials"
 import FileJsonInput from "../../components/FileJsonInput"
@@ -525,6 +527,13 @@ export const ElectionDataForm: React.FC = () => {
         }))
     }
 
+    const declineToVotePolicyChoices = (): Array<EnumChoice<EDeclineToVotePolicy>> => {
+        return Object.values(EDeclineToVotePolicy).map((value) => ({
+            id: value,
+            name: t(`electionScreen.declineToVotePolicy.options.${value.toLowerCase()}`),
+        }))
+    }
+
     const updateCustomFilters = (
         values: Sequent_Backend_Election_Extended,
         {newData}: UpdateFunctionProps
@@ -886,6 +895,13 @@ export const ElectionDataForm: React.FC = () => {
                                     )}
                                     validate={required()}
                                     defaultValue={getDefaultConsolidatedReportPolicy()}
+                                />
+                                <SelectInput
+                                    source={`presentation.decline_to_vote_policy`}
+                                    choices={declineToVotePolicyChoices()}
+                                    label={String(t("electionScreen.declineToVotePolicy.label"))}
+                                    validate={required()}
+                                    defaultValue={getDefaultDeclineToVotePolicy()}
                                 />
                             </AccordionDetails>
                         </Accordion>

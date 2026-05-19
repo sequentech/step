@@ -66,6 +66,7 @@ export interface IElectionPresentation {
     voting_period_end?: EVotingPeriodEnd
     security_confirmation_policy?: ESecurityConfirmationPolicy
     consolidated_report_policy: EConsolidatedReportPolicy
+    decline_to_vote_policy?: EDeclineToVotePolicy
     // more missing
 }
 
@@ -83,4 +84,9 @@ export enum EGracePeriodPolicy {
 export enum EInitializeReportPolicy {
     REQUIRED = "required",
     NOT_REQUIRED = "not-required",
+}
+
+export enum EDeclineToVotePolicy {
+    ELECTION_LEVEL = "election-level",
+    DISABLED = "disabled",
 }

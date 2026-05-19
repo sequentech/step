@@ -58,6 +58,7 @@ const tagalogTranslation: TranslationType = {
         },
         startScreen: {
             startButton: "Simulan ang Pagboto",
+            declineToVoteButton: "I-decline ang pagboto",
             instructionsTitle: "Mga Tagubilin",
             instructionsDescription: "Sundin ang mga hakbang na ito upang ikaw ay makaboto:",
             step1Title: "1. Piliin ang iyong mga sagot",

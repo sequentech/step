@@ -58,6 +58,7 @@ const catalanTranslation: TranslationType = {
         },
         startScreen: {
             startButton: "Començar a votar",
+            declineToVoteButton: "Rebutjar el vot",
             instructionsTitle: "Instruccions",
             instructionsDescription: "Si us plau, segueixi aquests passos per emetre el seu vot:",
             step1Title: "1. Seleccioneu la seva opció de vot",
