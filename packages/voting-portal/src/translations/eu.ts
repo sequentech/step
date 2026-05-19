@@ -101,7 +101,7 @@ const basqueTranslation: TranslationType = {
             },
             confirmCastVoteDialog: {
                 title: "Ziur zaude zure botoa eman nahi duzula?",
-                content: "Zure botoa ez da editagarria izango behin berrestuta.",
+                content: "Berretsi ondoren, zure botoa emango da.",
                 ok: "Bai, nire botoa eman nahi dut",
                 cancel: "Ezeztatu",
             },

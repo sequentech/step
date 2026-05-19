@@ -100,7 +100,7 @@ const spanishTranslation: TranslationType = {
             },
             confirmCastVoteDialog: {
                 title: "¿Está seguro de que quiere emitir su voto?",
-                content: "Una vez que confirmes, tu voto no podrá cambiarse",
+                content: "Una vez que confirmes, tu voto será emitido.",
                 ok: "Sí, quiero emitir mi voto",
                 cancel: "Cancelar",
             },

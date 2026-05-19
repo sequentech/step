@@ -101,7 +101,7 @@ const catalanTranslation: TranslationType = {
             },
             confirmCastVoteDialog: {
                 title: "Esteu segur que voleu emetre el vostre vot?",
-                content: "Un cop confirmeu, el vostre vot no es podrà canviar",
+                content: "Un cop confirmeu, el vostre vot serà emès.",
                 ok: "Sí, vull emetre el meu vot",
                 cancel: "Cancel·lar",
             },

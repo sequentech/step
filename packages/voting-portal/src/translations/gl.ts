@@ -102,7 +102,7 @@ const galegoTranslation: TranslationType = {
             },
             confirmCastVoteDialog: {
                 title: "Estás seguro de que queres emitir o teu voto?",
-                content: "O teu voto non será editable unha vez confirmado.",
+                content: "Tras confirmar, o teu voto será emitido.",
                 ok: "Si, quero emitir o meu voto",
                 cancel: "Cancelar",
             },

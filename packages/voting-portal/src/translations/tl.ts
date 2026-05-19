@@ -101,7 +101,7 @@ const tagalogTranslation: TranslationType = {
             },
             confirmCastVoteDialog: {
                 title: "Sigurado ka bang nais mong i-submit ang iyong boto?",
-                content: "Ang iyong boto ay hindi na maaring baguhin kung ikaw ang magkumpirma.",
+                content: "Pagkatapos mong kumpirmahin, ang iyong boto ay mai-susubmit.",
                 ok: "Oo, nais kong i-submit ang aking boto",
                 cancel: "Kanselahin",
             },

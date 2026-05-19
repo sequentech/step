@@ -101,7 +101,7 @@ const dutchTranslation: TranslationType = {
             },
             confirmCastVoteDialog: {
                 title: "Weet u zeker dat u uw stem wilt uitbrengen?",
-                content: "Uw stem kan niet meer worden bewerkt nadat deze is bevestigd.",
+                content: "Na bevestiging wordt uw stem uitgebracht.",
                 ok: "Ja, ik wil mijn stem uitbrengen",
                 cancel: "Annuleren",
             },
