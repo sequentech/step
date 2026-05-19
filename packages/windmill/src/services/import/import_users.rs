@@ -574,10 +574,9 @@ pub async fn import_users_file(
         }
     };
 
-    let duplicate_emails_allowed =
-        get_duplicate_emails_allowed(&keycloak_transaction, &realm_id)
-            .await
-            .map_err(|err| Error::String(format!("Error obtaining duplicate_emails_allowed: {err}")))?;
+    let duplicate_emails_allowed = get_duplicate_emails_allowed(&keycloak_transaction, &realm_id)
+        .await
+        .map_err(|err| Error::String(format!("Error obtaining duplicate_emails_allowed: {err}")))?;
 
     let insert_user_query = match get_insert_user_query(
         tenant_id,
