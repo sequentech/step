@@ -33,9 +33,6 @@ const AWS_HOSTED_S3_HOST_DELIMITER: &str = ".s3.";
 const AWS_HOSTED_S3_DOMAIN_SUFFIX: &str = "amazonaws.com";
 const AWS_S3_SERVICE_HOST_PREFIX: &str = "s3";
 const S3_LIST_MAX_KEYS: i32 = 1000;
-const S3_ERR_NO_SUCH_BUCKET: &str = "NoSuchBucket";
-const S3_ERR_NO_SUCH_KEY: &str = "NoSuchKey";
-const S3_ERR_ACCESS_DENIED: &str = "AccessDenied";
 const S3_ERR_NO_DETAILS: &str = "no additional details available";
 
 #[derive(Debug, PartialEq, Eq)]
@@ -699,32 +696,11 @@ pub async fn delete_files_from_s3(
                 if let Some(c) = code {
                     warn!(code = c, "S3 list_objects_v2 returned error code");
                 }
-                // AWS can return NoSuchKey from list_objects_v2 in
-                // addition to the expected NoSuchBucket.
-                match code {
-                    Some(c)
-                        if c == S3_ERR_NO_SUCH_BUCKET
-                            || c == S3_ERR_NO_SUCH_KEY =>
-                    {
-                        return Ok(());
-                    }
-                    Some(c) if c == S3_ERR_ACCESS_DENIED => {
-                        return Err(anyhow!(
-                            "Access denied when listing objects in bucket '{}' with prefix '{}': {}",
-                            bucket_name,
-                            list_prefix,
-                            err.message().unwrap_or(S3_ERR_NO_DETAILS)
-                        ));
-                    }
-                    _ => {
-                        return Err(anyhow!(
-                            "Failed to list objects in bucket '{}' with prefix '{}': {}",
-                            bucket_name,
-                            list_prefix,
-                            err
-                        ));
-                    }
-                }
+                return Err(anyhow!(
+                    "Error \"{}\" when listing objects for deletion in bucket '{bucket_name}' with prefix '{list_prefix}': {}",
+                    code.unwrap_or(""),
+                    err.message().unwrap_or(S3_ERR_NO_DETAILS)
+                ));
             }
         };
 
@@ -766,17 +742,11 @@ pub async fn delete_files_from_s3(
                 if let Some(c) = code {
                     warn!(code = c, "S3 delete_object returned error code");
                 }
-                match code {
-                    Some(c) if c == S3_ERR_NO_SUCH_KEY => {
-                        warn!(key = %key, "Key already absent in S3; continuing");
-                    }
-                    _ => {
-                        return Err(anyhow::Error::from(err).context(format!(
-                            "Failed to delete S3 object: {}",
-                            key
-                        )));
-                    }
-                }
+                return Err(anyhow!(
+                    "Error '{}' when deleting object key '{key}' in bucket '{bucket_name}' with prefix '{list_prefix}': {}",
+                    code.unwrap_or(""),
+                    err.message().unwrap_or(S3_ERR_NO_DETAILS)
+                ));
             }
         }
     }
