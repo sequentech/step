@@ -8,117 +8,94 @@ set -e
 SCRIPT_PATH="$(cd -- "$(dirname "$0")" >/dev/null 2>&1 ; pwd -P)"
 PROJECT_ROOT=$(realpath "$SCRIPT_PATH/..")
 AIRGAP_DIR="$PROJECT_ROOT/airgap"
-PACKAGES_DIR="$PROJECT_ROOT/packages"
-DEVCONTAINER_DIR="$PROJECT_ROOT/.devcontainer"
 OUTPUT_DIR="$PROJECT_ROOT/airgap-output"
 
-echo "--- [1/6] Cleaning and Preparing Output Directory ---"
+# Versions
+K3S_VERSION="v1.35.4+k3s1"
+
+echo "--- [1/7] Cleaning and Preparing Output Directory ---"
 rm -rf "$OUTPUT_DIR"
-mkdir -p "$OUTPUT_DIR"
+mkdir -p "$OUTPUT_DIR/k3s" "$OUTPUT_DIR/deb-packages" "$OUTPUT_DIR/images" "$OUTPUT_DIR/actions-repos"
 
-echo "--- [2/6] Vendoring Dependencies (For Offline Build) ---"
-cd "$PACKAGES_DIR"
-mkdir -p .cargo
-echo "Vendoring Rust crates..."
-# We use a temporary file for the vendor output
-cargo vendor > .cargo/config.toml.vendored
+echo "--- [2/7] Downloading K3s Airgap Artifacts (Stable: $K3S_VERSION) ---"
+curl -Lo "$OUTPUT_DIR/k3s/k3s" "https://github.com/k3s-io/k3s/releases/download/${K3S_VERSION}/k3s"
+curl -Lo "$OUTPUT_DIR/k3s/k3s-airgap-images-amd64.tar.zst" "https://github.com/k3s-io/k3s/releases/download/${K3S_VERSION}/k3s-airgap-images-amd64.tar.zst"
+curl -Lo "$OUTPUT_DIR/k3s/install.sh" "https://get.k3s.io"
+chmod +x "$OUTPUT_DIR/k3s/k3s" "$OUTPUT_DIR/k3s/install.sh"
 
-# Prepare .cargo/config.toml safely
-if [ ! -f .cargo/config.toml ]; then
-    touch .cargo/config.toml
-fi
+echo "--- [3/7] Downloading Debian Packages (Git/SSH) ---"
+cd "$OUTPUT_DIR/deb-packages"
+sudo apt-get update
+sudo apt-get download git openssh-client curl jq
+cd "$PROJECT_ROOT"
 
-# We only append if the sections don't exist, or we replace them
-# Remove existing vendor source configs to avoid duplicates
-sed -i '/\[source.crates-io\]/d' .cargo/config.toml
-sed -i '/replace-with = "vendored-sources"/d' .cargo/config.toml
-sed -i '/\[source.vendored-sources\]/d' .cargo/config.toml
-sed -i '/directory = "vendor"/d' .cargo/config.toml
+echo "--- [4/7] Caching GitHub Action Repositories ---"
+ACTIONS=(
+    "actions/checkout"
+    "docker/setup-buildx-action"
+    "docker/login-action"
+    "docker/build-push-action"
+)
+for action in "${ACTIONS[@]}"; do
+    echo "Cloning action: $action..."
+    git clone --bare "https://github.com/$action.git" "$OUTPUT_DIR/actions-repos/${action##*/}.git"
+done
 
-# Append the new vendor config
-cat .cargo/config.toml.vendored >> .cargo/config.toml
-rm .cargo/config.toml.vendored
-
-echo "Vendoring NPM packages..."
-OFFLINE_MIRROR="$PACKAGES_DIR/npm-packages-offline-cache"
-mkdir -p "$OFFLINE_MIRROR"
-yarn config set yarn-offline-mirror "$OFFLINE_MIRROR"
-yarn config set yarn-offline-mirror-pruning true
-yarn install --frozen-lockfile
-
-echo "--- [3/6] Building/Pulling Application and Infra Images ---"
-# Build unified dev tooling image
-docker build -t step-airgap-dev -f "$AIRGAP_DIR/Dockerfile.airgap" "$PROJECT_ROOT"
-
-# Build production app images
-docker build -t sequentech.local/admin-portal --build-arg SPA_NAME=admin-portal -f "$PACKAGES_DIR/Dockerfile.prod" "$PACKAGES_DIR"
-docker build -t sequentech.local/voting-portal --build-arg SPA_NAME=voting-portal -f "$PACKAGES_DIR/Dockerfile.prod" "$PACKAGES_DIR"
-docker build -t sequentech.local/harvest -f "$PACKAGES_DIR/harvest/Dockerfile" "$PACKAGES_DIR"
-docker build -t sequentech.local/windmill -f "$PACKAGES_DIR/windmill/Dockerfile" "$PACKAGES_DIR"
-docker build -t sequentech.local/b3 -f "$PACKAGES_DIR/b3/Dockerfile.prod" "$PACKAGES_DIR"
-
-# Build custom infra images
-docker build -t sequentech.local/postgresql "$DEVCONTAINER_DIR/postgresql"
-docker build -t sequentech.local/postgresql-b3 "$DEVCONTAINER_DIR/postgresql-b3"
-docker build -t sequentech.local/keycloak -f "$PACKAGES_DIR/Dockerfile.keycloak" "$PACKAGES_DIR"
-docker build -t sequentech.local/immudb -f "$PACKAGES_DIR/Dockerfile.immudb" "$PACKAGES_DIR"
-docker build -t sequentech.local/configure-minio "$DEVCONTAINER_DIR/minio"
-
-# Pull external base/infra images
-EXTERNAL_IMAGES=(
+echo "--- [5/7] Pulling Infrastructure & CI Base Images ---"
+# Base images for CI builds
+# We use catthehacker's images which are optimized for 'act' (used by Gitea)
+CI_RUNNER_IMAGES=(
+    "catthehacker/ubuntu:act-22.04"
+    "docker:dind"
+    "gitea/act_runner:latest"
+)
+CI_BUILD_ENV_IMAGES=(
     "rust:1.90.0-slim-bookworm"
     "node:20-alpine"
     "node:20-bookworm-slim"
+    "debian:bookworm"
+)
+# Application Infra
+INFRA_IMAGES=(
+    "gitea/gitea:latest"
     "rustfs/rustfs:latest"
-    "nginx:latest"
     "rabbitmq:3.12.11-management"
     "hasura/graphql-engine:v2.33.1.cli-migrations-v3"
-    "hasura/graphql-data-connector:v2.31.0"
     "postgres:18-bookworm"
 )
-for img in "${EXTERNAL_IMAGES[@]}"; do echo "Pulling $img..."; docker pull "$img"; done
 
-echo "--- [4/6] Downloading Debian Packages (for Offline OS Setup) ---"
-mkdir -p "$OUTPUT_DIR/deb-packages"
-cd "$OUTPUT_DIR/deb-packages"
-echo "Downloading .deb files for Docker and Git..."
-sudo apt-get update
-sudo apt-get download docker.io docker-compose-v2 docker-buildx git || echo "Warning: apt-get download failed. Ensure you are on a Debian/Ubuntu system."
+for img in "${CI_RUNNER_IMAGES[@]}" "${CI_BUILD_ENV_IMAGES[@]}" "${INFRA_IMAGES[@]}"; do
+    echo "Pulling $img..."
+    docker pull "$img"
+done
 
-echo "--- [5/6] Packaging Management Tools and Configs ---"
-cd "$PROJECT_ROOT"
-# Application and Infra Images
+# Build custom infra
+echo "Building custom Postgres/Keycloak..."
+docker build -t sequentech.local/postgresql "$PROJECT_ROOT/.devcontainer/postgresql"
+docker build -t sequentech.local/keycloak -f "$PROJECT_ROOT/packages/Dockerfile.keycloak" "$PROJECT_ROOT/packages"
+
+echo "--- [6/7] Saving Images to Tarball ---"
 ALL_IMAGES=(
-    "step-airgap-dev"
-    "sequentech.local/admin-portal"
-    "sequentech.local/voting-portal"
-    "sequentech.local/harvest"
-    "sequentech.local/windmill"
-    "sequentech.local/b3"
-    "sequentech.local/postgresql"
-    "sequentech.local/postgresql-b3"
+    "${CI_RUNNER_IMAGES[@]}" 
+    "${CI_BUILD_ENV_IMAGES[@]}" 
+    "${INFRA_IMAGES[@]}" 
+    "sequentech.local/postgresql" 
     "sequentech.local/keycloak"
-    "sequentech.local/immudb"
-    "sequentech.local/configure-minio"
-    "${EXTERNAL_IMAGES[@]}"
 )
-docker save -o "$OUTPUT_DIR/step-airgap-all-images.tar" "${ALL_IMAGES[@]}"
+docker save -o "$OUTPUT_DIR/images/step-airgap-infra.tar" "${ALL_IMAGES[@]}"
 
-# Config files and scripts from the airgap/ directory
-cp "$AIRGAP_DIR/docker-compose.dev.yml" "$OUTPUT_DIR/"
-cp "$AIRGAP_DIR/docker-compose.server.yml" "$OUTPUT_DIR/"
-cp "$AIRGAP_DIR/README.md" "$OUTPUT_DIR/"
+echo "--- [7/7] Finalizing Output ---"
+cp -r "$AIRGAP_DIR/kubernetes" "$OUTPUT_DIR/"
 cp "$AIRGAP_DIR/manage.sh" "$OUTPUT_DIR/"
+cp "$AIRGAP_DIR/README.md" "$OUTPUT_DIR/"
 chmod +x "$OUTPUT_DIR/manage.sh"
 
-echo "--- [6/6] Packaging Source Code for Dev Machine ---"
+# Package source code
 tar -czf "$OUTPUT_DIR/step-source.tar.gz" \
     --exclude="./airgap-output" \
     --exclude="./target" \
     --exclude="./node_modules" \
-    --exclude="*.tar" \
     .
 
 echo "--- Preparation Complete! ---"
-echo "Transfer the 'airgap-output/' directory to the airgap."
-echo "Inside the airgap, run: ./manage.sh --help"
+echo "Transfer 'airgap-output/' to the airgap machine."

@@ -1,0 +1,50 @@
+name: Build and Deploy (Airgap)
+on: [push]
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-22.04 # Locked to specific version
+    steps:
+      - name: Check out repository
+        uses: http://gitea.local/actions/checkout@v3
+
+      - name: Set up Docker Buildx
+        uses: http://gitea.local/actions/setup-buildx-action@v2
+
+      - name: Login to Local Gitea Registry
+        uses: http://gitea.local/actions/login-action@v2
+        with:
+          registry: gitea.local:3000
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and Push Harvest
+        uses: http://gitea.local/actions/build-push-action@v4
+        with:
+          context: ./packages
+          file: ./packages/harvest/Dockerfile
+          push: true
+          tags: gitea.local:3000/step/harvest:latest
+
+      - name: Build and Push Windmill
+        uses: http://gitea.local/actions/build-push-action@v4
+        with:
+          context: ./packages
+          file: ./packages/windmill/Dockerfile
+          push: true
+          tags: gitea.local:3000/step/windmill:latest
+
+      - name: Build and Push Admin Portal
+        uses: http://gitea.local/actions/build-push-action@v4
+        with:
+          context: ./packages
+          file: ./packages/Dockerfile.prod
+          build-args: SPA_NAME=admin-portal
+          push: true
+          tags: gitea.local:3000/step/admin-portal:latest
+
+      - name: Rollout Update
+        run: |
+          kubectl rollout restart deployment/harvest -n step-apps
+          kubectl rollout restart deployment/windmill -n step-apps
+          kubectl rollout restart deployment/admin-portal -n step-apps

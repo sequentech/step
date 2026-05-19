@@ -1,0 +1,64 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: harvest
+  namespace: step-apps
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: harvest
+  template:
+    metadata:
+      labels:
+        app: harvest
+    spec:
+      containers:
+        - name: harvest
+          image: gitea.local:3000/step/harvest:latest
+          envFrom:
+            - configMapRef:
+                name: step-env
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: windmill
+  namespace: step-apps
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: windmill
+  template:
+    metadata:
+      labels:
+        app: windmill
+    spec:
+      containers:
+        - name: windmill
+          image: gitea.local:3000/step/windmill:latest
+          envFrom:
+            - configMapRef:
+                name: step-env
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: admin-portal
+  namespace: step-apps
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: admin-portal
+  template:
+    metadata:
+      labels:
+        app: admin-portal
+    spec:
+      containers:
+        - name: admin-portal
+          image: gitea.local:3000/step/admin-portal:latest
+          ports:
+            - containerPort: 80

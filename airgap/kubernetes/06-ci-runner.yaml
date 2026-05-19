@@ -1,0 +1,31 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gitea-runner
+  namespace: step-infra
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: gitea-runner
+  template:
+    metadata:
+      labels:
+        app: gitea-runner
+    spec:
+      containers:
+        - name: runner
+          image: gitea/act_runner:latest
+          env:
+            - name: GITEA_INSTANCE_URL
+              value: http://gitea:3000
+            - name: GITEA_RUNNER_REGISTRATION_TOKEN
+              value: "YOUR_TOKEN_HERE" # Will be updated by manage.sh
+            - name: DOCKER_HOST
+              value: tcp://localhost:2375
+        - name: dind
+          image: docker:dind
+          securityContext:
+            privileged: true
+          ports:
+            - containerPort: 2375

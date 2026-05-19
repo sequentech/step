@@ -6,131 +6,80 @@
 set -e
 
 SCRIPT_PATH="$(cd -- "$(dirname "$0")" >/dev/null 2>&1 ; pwd -P)"
-PROJECT_ROOT="$SCRIPT_PATH" # Management script runs from the transfer folder
+PROJECT_ROOT="$SCRIPT_PATH"
 
 show_help() {
-    echo "Sequent Airgap Management Tool"
+    echo "Sequent K3s Airgap Management Tool"
     echo ""
     echo "Usage: ./manage.sh [command]"
     echo ""
     echo "Commands:"
-    echo "  --setup          Install Docker/Git packages and load all images."
-    echo "  --run-dev        Extract source code and start the development stack."
-    echo "  --run-server     Start the production server stack and initialize storage."
-    echo "  --release        (Dev Only) Build and package production images from current source."
+    echo "  --setup-server   Install K3s, load system images, and start the cluster."
+    echo "  --setup-client   Install Git/SSH packages for the Ubuntu Desktop."
+    echo "  --deploy         Load infrastructure images and apply Kubernetes manifests."
+    echo "  --run-dev        Extract source and provide instructions for Gitea push."
     echo "  --help           Show this help message."
     echo ""
 }
 
-# Internal function for JWKS sync (integrated from server-init.sh)
-init_server_storage() {
-    echo "--- Initializing Server Storage (JWKS Sync) ---"
-    
-    # Wait for Keycloak to be ready
-    echo "Waiting for Keycloak to be healthy..."
-    # We use 'docker exec' into one of our running containers or just curl from host if available
-    # Since we are on the host, we'll try to use a temporary tooling container to reach the network
-    docker run --rm --network service:postgres step-airgap-dev bash -c '
-        until curl -s http://keycloak:8090/health/live | grep -q "UP"; do
-            sleep 5
-            echo -n "."
-        done
-        echo " Keycloak is UP!"
-        
-        echo "Fetching JWKS..."
-        curl -s http://keycloak:8090/realms/master/protocol/openid-connect/certs > /tmp/certs.json
-        
-        echo "Uploading to RustFS..."
-        mc alias set myminio http://rustfs:9000 ${AWS_S3_ROOT_USER:-admin} ${AWS_S3_ROOT_PASSWORD:-password}
-        mc cp /tmp/certs.json myminio/public/certs.json
-    '
-    echo "Storage Initialization Complete!"
-}
-
 case "$1" in
-    --setup)
-        echo "--- Installing OS Packages (Docker/Git) ---"
-        if [ -d "$PROJECT_ROOT/deb-packages" ]; then
-            cd "$PROJECT_ROOT/deb-packages"
-            sudo dpkg -i *.deb
-            echo "OS Setup Complete!"
-        else
-            echo "Error: deb-packages folder not found."
-            exit 1
-        fi
+    --setup-server)
+        echo "--- Installing K3s Server ---"
+        sudo mkdir -p /var/lib/rancher/k3s/agent/images/
+        sudo cp "$PROJECT_ROOT/k3s/k3s-airgap-images-amd64.tar.zst" /var/lib/rancher/k3s/agent/images/
+        sudo cp "$PROJECT_ROOT/k3s/k3s" /usr/local/bin/k3s
+        
+        # Install K3s in airgap mode using the local install script
+        export INSTALL_K3S_SKIP_DOWNLOAD=true
+        export INSTALL_K3S_BIN_DIR=/usr/local/bin
+        sh "$PROJECT_ROOT/k3s/install.sh"
+        
+        echo "K3s is installed! Waiting for node to be ready..."
+        until sudo k3s kubectl get node | grep -q "Ready"; do sleep 5; done
+        echo "Node is Ready!"
+        ;;
 
-        echo "--- Loading Docker Images ---"
-        if [ -f "$PROJECT_ROOT/step-airgap-all-images.tar" ]; then
-            docker load -i "$PROJECT_ROOT/step-airgap-all-images.tar"
-            echo "Images Loaded!"
-        else
-            echo "Error: image tarball not found."
-            exit 1
-        fi
+    --setup-client)
+        echo "--- Installing Client Packages ---"
+        cd "$PROJECT_ROOT/deb-packages"
+        sudo dpkg -i *.deb
+        echo "Git and SSH are installed!"
+        ;;
+
+    --deploy)
+        echo "--- Loading Infrastructure Images into Containerd ---"
+        sudo k3s ctr images import "$PROJECT_ROOT/images/step-airgap-infra.tar"
+        
+        echo "--- Applying Kubernetes Manifests ---"
+        sudo k3s kubectl apply -f "$PROJECT_ROOT/kubernetes/01-namespaces.yaml"
+        sudo k3s kubectl apply -f "$PROJECT_ROOT/kubernetes/02-gitea.yaml"
+        sudo k3s kubectl apply -f "$PROJECT_ROOT/kubernetes/03-infra.yaml"
+        sudo k3s kubectl apply -f "$PROJECT_ROOT/kubernetes/05-ingress.yaml"
+        sudo k3s kubectl apply -f "$PROJECT_ROOT/kubernetes/06-ci-runner.yaml"
+        
+        echo "Stack is deploying! Use 'kubectl get pods -A' to monitor."
         ;;
 
     --run-dev)
-        echo "--- Starting Development Stack ---"
-        if [ ! -f "$PROJECT_ROOT/step-source.tar.gz" ]; then
-            echo "Error: step-source.tar.gz not found."
-            exit 1
-        fi
-
+        echo "--- Preparing Development Source ---"
         if [ ! -d "$PROJECT_ROOT/source" ]; then
             mkdir -p "$PROJECT_ROOT/source"
-            echo "Extracting source code..."
             tar -xzf "$PROJECT_ROOT/step-source.tar.gz" -C "$PROJECT_ROOT/source"
         fi
-
-        cd "$PROJECT_ROOT/source"
-        if [ ! -f ".env" ]; then
-            echo "Configuring default .env..."
-            cp .devcontainer/.env.development .env
-        fi
-
-        docker compose -f docker-compose.dev.yml up -d
-        echo "Development stack is UP! Access portal at http://localhost:3000"
-        ;;
-
-    --run-server)
-        echo "--- Starting Server Stack ---"
-        if [ ! -f "$PROJECT_ROOT/.env" ]; then
-            echo "Error: .env file not found. Please create one from the template."
-            exit 1
-        fi
-        
-        docker compose -f docker-compose.server.yml up -d
-        
-        # Run integrated initialization
-        init_server_storage
-        
-        echo "Server stack is UP and Initialized!"
-        ;;
-
-    --release)
-        echo "--- Building Local Release (Dev -> Server) ---"
-        if [ ! -d "$PROJECT_ROOT/source" ]; then
-            echo "Error: This command must be run on a Dev machine with extracted source."
-            exit 1
-        fi
-
-        cd "$PROJECT_ROOT/source"
-        PACKAGES_DIR="./packages"
-        
-        echo "Rebuilding images from current offline source..."
-        docker build -t sequentech.local/harvest -f "$PACKAGES_DIR/harvest/Dockerfile" "$PACKAGES_DIR"
-        docker build -t sequentech.local/windmill -f "$PACKAGES_DIR/windmill/Dockerfile" "$PACKAGES_DIR"
-        docker build -t sequentech.local/b3 -f "$PACKAGES_DIR/b3/Dockerfile.prod" "$PACKAGES_DIR"
-        
-        echo "Saving update tarball..."
-        docker save -o "$PROJECT_ROOT/step-airgap-updates.tar" \
-            sequentech.local/harvest \
-            sequentech.local/windmill \
-            sequentech.local/b3
-
-        echo "--- Done! ---"
-        echo "Transfer '$PROJECT_ROOT/step-airgap-updates.tar' to the Server machine."
-        echo "Then on Server run: docker load -i step-airgap-updates.tar && ./manage.sh --run-server"
+        echo "Source extracted to $PROJECT_ROOT/source"
+        echo ""
+        echo "To start developing:"
+        echo "1. Log in to Gitea at http://gitea.local"
+        echo "2. Create an organization named 'actions'"
+        echo "3. Push the cached actions to Gitea:"
+        echo "   for repo in actions-repos/*.git; do"
+        echo "     name=\$(basename \$repo .git)"
+        echo "     # Create repo in Gitea via UI or API first, then:"
+        echo "     cd \$repo && git push --mirror http://gitea.local/actions/\$name.git"
+        echo "   done"
+        echo "4. Create your 'step' repo and push source:"
+        echo "   cd source && git remote add origin http://gitea.local/youruser/step.git"
+        echo "   git push -u origin main"
         ;;
 
     *)
