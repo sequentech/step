@@ -27,12 +27,17 @@ use std::path::{Path, PathBuf};
 use std::{env, error::Error};
 use tempfile::{NamedTempFile, TempPath};
 use tokio::io::{self, AsyncReadExt};
-use tracing::{info, instrument};
+use tracing::{info, instrument, warn};
 
 const MAX_CHUNK_SIZE: u64 = 16 * 1024 * 1024;
 const AWS_HOSTED_S3_HOST_DELIMITER: &str = ".s3.";
 const AWS_HOSTED_S3_DOMAIN_SUFFIX: &str = "amazonaws.com";
 const AWS_S3_SERVICE_HOST_PREFIX: &str = "s3";
+const S3_LIST_MAX_KEYS: i32 = 1000;
+const S3_ERR_NO_SUCH_BUCKET: &str = "NoSuchBucket";
+const S3_ERR_NO_SUCH_KEY: &str = "NoSuchKey";
+const S3_ERR_ACCESS_DENIED: &str = "AccessDenied";
+const S3_ERR_NO_DETAILS: &str = "no additional details available";
 
 #[derive(Debug, PartialEq, Eq)]
 struct ResolvedS3ListTargetParts {
@@ -51,7 +56,11 @@ struct ResolvedS3ListTarget {
 
 impl ResolvedS3ListTarget {
     /// Adds the resolved logical prefix root so callers can request the same
-    /// effective key space regardless of the underlying endpoint shape.
+    /// effective key space regardless of the underlying endpoint shape.<br>
+    /// I.e. AWS prefix_root is "public/" or "election-event-documents/" (both
+    /// within the same bucket)  while MinIO prefix_root is None and the
+    /// bucket name encodes the scope instead.
+    #[instrument(skip_all)]
     fn qualify_prefix(&self, prefix: &str) -> String {
         match &self.prefix_root {
             Some(prefix_root) => join_s3_path(prefix_root, prefix),
@@ -62,6 +71,7 @@ impl ResolvedS3ListTarget {
 
 /// Joins S3 path fragments while normalizing slashes so generated prefixes stay
 /// stable across callers.
+#[instrument(skip_all)]
 fn join_s3_path(prefix: &str, suffix: &str) -> String {
     let prefix = prefix.trim_matches('/');
     let suffix = suffix.trim_matches('/');
@@ -76,6 +86,7 @@ fn join_s3_path(prefix: &str, suffix: &str) -> String {
 
 /// Detects bucket-hosted AWS endpoints and extracts the real service endpoint
 /// plus bucket name so list operations can address AWS correctly.
+#[instrument(err, skip_all)]
 fn parse_aws_bucket_endpoint(
     endpoint_uri: &str,
     aws_region: Option<&str>,
@@ -137,7 +148,12 @@ fn parse_aws_bucket_endpoint(
 }
 
 /// Resolves the bucket and prefix semantics for a list-style S3 call without
-/// constructing a client so both runtime code and tests share the same rules.
+/// constructing a client so both runtime code and tests share the same
+/// rules.<br> When the endpoint is minIO (development/codespaces) the bucket
+/// name is the logical bucket, then sevice_endpoint is set to None (the raw env
+/// var must be set by the caller) and prefix_root is empty (is already the
+/// bucket name).
+#[instrument(err, skip_all)]
 fn resolve_s3_list_target_parts(
     endpoint_uri: &str,
     logical_bucket: &str,
@@ -160,12 +176,11 @@ fn resolve_s3_list_target_parts(
     })
 }
 
-#[instrument(err)]
 /// Resolves the client, bucket, and optional logical prefix root for a
-/// server-side list operation.
-///
+/// server-side list operation.<br>
 /// When `use_server_endpoint` is `false`, the helper uses the client endpoint
 /// instead of the server endpoint.
+#[instrument(err)]
 async fn get_s3_list_target(
     logical_bucket: &str,
     use_server_endpoint: bool,
@@ -198,27 +213,27 @@ async fn get_s3_list_target(
     })
 }
 
-#[instrument(err, skip_all)]
 /// Returns the logical private bucket or root prefix so callers can separate
 /// storage scope from endpoint selection.
+#[instrument(err, skip_all)]
 pub fn get_private_bucket() -> Result<String> {
     let s3_bucket = env::var("AWS_S3_BUCKET")
         .map_err(|err| anyhow!("AWS_S3_BUCKET must be set: {err}"))?;
     Ok(s3_bucket)
 }
 
-#[instrument(err, skip_all)]
 /// Returns the logical public bucket or root prefix used for public assets and
 /// plugin storage.
+#[instrument(err, skip_all)]
 pub fn get_public_bucket() -> Result<String> {
     let s3_bucket = env::var("AWS_S3_PUBLIC_BUCKET")
         .map_err(|err| anyhow!("AWS_S3_PUBLIC_BUCKET must be set: {err}"))?;
     Ok(s3_bucket)
 }
 
-#[instrument(skip(client, config))]
 /// Creates a bucket when running against environments that manage buckets
 /// directly instead of pre-provisioning them.
+#[instrument(skip(client, config))]
 async fn create_bucket_if_not_exists(
     client: &s3::Client,
     config: &s3::Config,
@@ -266,9 +281,9 @@ pub async fn get_s3_client(config: s3::Config) -> Result<s3::Client> {
     Ok(client)
 }
 
-#[instrument]
 /// Builds the private document key layout so uploads and downloads use a
 /// stable tenant and event-specific hierarchy.
+#[instrument]
 pub fn get_document_key(
     tenant_id: &str,
     election_event_id: Option<&str>,
@@ -285,9 +300,9 @@ pub fn get_document_key(
     }
 }
 
-#[instrument(skip_all)]
 /// Builds the public document key layout so public assets share the same naming
 /// convention as private documents.
+#[instrument(skip_all)]
 pub fn get_public_document_key(
     tenant_id: &str,
     document_id: &str,
@@ -296,9 +311,9 @@ pub fn get_public_document_key(
     format!("tenant-{}/document-{}/{}", tenant_id, document_id, name)
 }
 
-#[instrument(err)]
 /// Creates a presigned download URL for a document so clients can fetch files
 /// without proxying the bytes through the backend.
+#[instrument(err)]
 pub async fn get_document_url(
     key: String,
     s3_bucket: String,
@@ -320,9 +335,9 @@ pub async fn get_document_url(
     Ok(presigned_request.uri().to_string())
 }
 
-#[instrument(err, ret)]
 /// Creates a presigned upload URL and selects the endpoint that the caller can
 /// actually reach.
+#[instrument(err, ret)]
 pub async fn get_upload_url(
     key: String,
     is_public: bool,
@@ -332,8 +347,9 @@ pub async fn get_upload_url(
         true => get_public_bucket()?,
         false => get_private_bucket()?,
     };
-    // Select the AWS endpoint that the caller can reach: when `is_local` is true
-    // we use the server-only endpoint; `is_public` only determines the upload bucket.
+    // Select the AWS endpoint that the caller can reach: when `is_local` is
+    // true we use the server-only endpoint; `is_public` only determines the
+    // upload bucket.
     let config =
         get_s3_aws_config(/* use_server_endpoint = */ is_local).await?;
     let client = get_s3_client(config.clone()).await?;
@@ -351,9 +367,9 @@ pub async fn get_upload_url(
     Ok(presigned_request.uri().to_string())
 }
 
-#[instrument(err, skip_all)]
 /// Downloads one object into a temporary file so downstream code can work with
 /// a filesystem path instead of holding the full payload in memory.
+#[instrument(err, skip_all)]
 pub async fn get_object_into_temp_file(
     s3_bucket: &str,
     key: &str,
@@ -394,9 +410,9 @@ pub async fn get_object_into_temp_file(
     Ok(temp_file)
 }
 
-#[instrument(err, skip_all)]
 /// Uploads a file path to S3 and switches to multipart uploads only when the
 /// payload is large enough to need chunking.
+#[instrument(err, skip_all)]
 pub async fn upload_file_to_s3(
     key: String,
     is_public: bool,
@@ -443,9 +459,9 @@ pub async fn upload_file_to_s3(
     }
 }
 
-#[instrument(err, skip_all)]
 /// Streams a large file through S3 multipart upload so oversized reports and
 /// exports do not need to be buffered at once.
+#[instrument(err, skip_all)]
 pub async fn upload_multipart_data_to_s3(
     path: &Path,
     key: String,
@@ -550,9 +566,9 @@ pub async fn upload_multipart_data_to_s3(
     Ok(())
 }
 
-#[instrument(err, skip_all)]
 /// Uploads a single in-memory body to S3 for smaller files where multipart
 /// upload would add unnecessary overhead.
+#[instrument(err, skip_all)]
 pub async fn upload_data_to_s3(
     data: ByteStream,
     key: String,
@@ -626,9 +642,9 @@ pub fn get_public_asset_file_path(filename: &str) -> Result<String> {
     ))
 }
 
-#[instrument(err)]
 /// Downloads a file via HTTP into a string for flows that consume public text
 /// assets rather than raw S3 SDK responses.
+#[instrument(err)]
 pub async fn download_s3_file_to_string(file_url: &str) -> Result<String> {
     let client = reqwest::Client::new();
 
@@ -647,9 +663,9 @@ pub async fn download_s3_file_to_string(file_url: &str) -> Result<String> {
     Ok(String::from_utf8(bytes.to_vec())?)
 }
 
-#[instrument(err, ret)]
 /// Deletes every object under a prefix and resolves AWS bucket-hosted endpoints
 /// into the real bucket plus key prefix before listing.
+#[instrument(err, ret)]
 pub async fn delete_files_from_s3(
     s3_bucket: String,
     prefix: String,
@@ -673,28 +689,32 @@ pub async fn delete_files_from_s3(
             .list_objects_v2()
             .bucket(bucket_name.clone())
             .prefix(list_prefix.clone())
-            .max_keys(1000)
+            .max_keys(S3_LIST_MAX_KEYS)
             .set_continuation_token(token.clone())
             .send()
             .await
         {
             Ok(list) => list,
             Err(err) => {
-                // Handle specific S3 error codes using AWS SDK error metadata
-                match err.code() {
-                    Some("NoSuchBucket") => {
-                        info!(
-                            bucket = %bucket_name,
-                            "Bucket does not exist; nothing to delete"
-                        );
+                let code = err.code();
+                if let Some(c) = code {
+                    warn!(code = c, "S3 list_objects_v2 returned error code");
+                }
+                // AWS can return NoSuchKey from list_objects_v2 in
+                // addition to the expected NoSuchBucket.
+                match code {
+                    Some(c)
+                        if c == S3_ERR_NO_SUCH_BUCKET
+                            || c == S3_ERR_NO_SUCH_KEY =>
+                    {
                         return Ok(());
                     }
-                    Some("AccessDenied") => {
+                    Some(c) if c == S3_ERR_ACCESS_DENIED => {
                         return Err(anyhow!(
                             "Access denied when listing objects in bucket '{}' with prefix '{}': {}",
                             bucket_name,
                             list_prefix,
-                            err.message().unwrap_or("no additional details available")
+                            err.message().unwrap_or(S3_ERR_NO_DETAILS)
                         ));
                     }
                     _ => {
@@ -743,16 +763,15 @@ pub async fn delete_files_from_s3(
                 // Successfully deleted
             }
             Err(err) => {
-                // Handle specific S3 error codes using AWS SDK error metadata
-                match err.code() {
-                    Some("NoSuchKey") => {
-                        tracing::warn!(
-                            key = %key,
-                            "Key already absent in S3; continuing"
-                        );
+                let code = err.code();
+                if let Some(c) = code {
+                    warn!(code = c, "S3 delete_object returned error code");
+                }
+                match code {
+                    Some(c) if c == S3_ERR_NO_SUCH_KEY => {
+                        warn!(key = %key, "Key already absent in S3; continuing");
                     }
                     _ => {
-                        // For other errors, fail the operation
                         return Err(anyhow::Error::from(err).context(format!(
                             "Failed to delete S3 object: {}",
                             key
@@ -771,8 +790,8 @@ pub async fn delete_files_from_s3(
     Ok(())
 }
 
-#[instrument(err)]
 /// Downloads one object into memory when callers need its bytes immediately.
+#[instrument(err)]
 pub async fn get_file_from_s3(
     s3_bucket: String,
     path: String,
@@ -801,9 +820,9 @@ pub async fn get_file_from_s3(
     Ok(result)
 }
 
+/// Lists a prefix and streams each matching file into a temporary path so
+/// export code can package files without buffering them all in memory.
 #[instrument(err)]
-/// Lists a prefix and streams each matching file into a temporary path so export
-/// code can package files without buffering them all in memory.
 pub async fn get_files_from_s3(
     s3_bucket: String,
     prefix: String,

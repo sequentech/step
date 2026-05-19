@@ -5,8 +5,7 @@
 use anyhow::anyhow;
 use uuid::Uuid;
 
-/// Parses and validates that the given string is a valid v4 UUID.
-///
+/// Parses and validates that the given string is a valid v4 UUID.<br>
 /// Returns the parsed `Uuid` on success, or an error if the string is not
 /// a valid UUID or is not version 4 (random).
 pub fn parse_uuid_v4(value: &str) -> anyhow::Result<Uuid> {
