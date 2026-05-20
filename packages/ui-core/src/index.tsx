@@ -9,6 +9,10 @@ export {
     getLanguages,
     initializeLanguages,
     overwriteTranslations,
+    applyLanguagePolicy,
+    applyConfigurationLanguagePolicy,
+    USER_LANGUAGE_COOKIE_NAME,
+    toBCP47,
 } from "./services/i18n"
 export {useForwardedRef} from "./utils/ref"
 export {sleep} from "./services/sleep"
@@ -25,7 +29,7 @@ export {isNumber, isString, isArray, isNull, isUndefined} from "./utils/typechec
 export {downloadBlob, downloadUrl} from "./services/downloadBlob"
 export {shuffle, splitList, keyBy} from "./utils/array"
 export {normalizeWriteInText} from "./services/normalizeWriteInText"
-export {translate, translateElection} from "./services/translate"
+export {translate, translateFromPresentation} from "./services/translate"
 export * from "./types/ElectionEventPresentation"
 export * from "./services/percentFormatter"
 export * from "./services/cssClassNameFormatter"
@@ -33,3 +37,5 @@ export * from "./services/wasm"
 export * from "./services/sanitizeFilename"
 export * from "./types/AreaPresentation"
 export * from "./services/candidatePresentation"
+export * from "./utils/cookies"
+export * from "./constants/keycloak"

@@ -22,6 +22,11 @@ export enum ICountingAlgorithm {
     //     DESBORDA = "desborda",
 }
 
+export enum ITieBreakingPolicy {
+    RANDOM = "random",
+    EXTERNAL_PROCEDURE = "external-procedure",
+}
+
 export enum EAllowTally {
     ALLOWED = "allowed",
     DISALLOWED = "disallowed",

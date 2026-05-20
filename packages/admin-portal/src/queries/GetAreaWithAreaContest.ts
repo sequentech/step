@@ -10,8 +10,7 @@ export const GET_AREA_WITH_AREA_CONTESTS = gql`
             where: {_and: {area_id: {_eq: $areaId}, election_event_id: {_eq: $electionEventId}}}
         ) {
             contest {
-                name
-                alias
+                presentation
             }
             id
         }

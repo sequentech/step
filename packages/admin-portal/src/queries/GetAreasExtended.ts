@@ -11,7 +11,7 @@ export const GET_AREAS_EXTENDED = gql`
         ) {
             contest {
                 id
-                name
+                presentation
             }
         }
     }

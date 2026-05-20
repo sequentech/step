@@ -27,6 +27,12 @@ export enum EEnableCheckableLists {
     DISABLED = "disabled",
 }
 
+export enum ECollapsibleLists {
+    DISABLED = "disabled",
+    ENABLED_EXPANDED = "enabled-expanded",
+    ENABLED_COLLAPSED = "enabled-collapsed",
+}
+
 export enum ECandidatesIconCheckboxPolicy {
     SQUARE_CHECKBOX = "square-checkbox",
     ROUND_CHECKBOX = "round-checkbox",
@@ -54,6 +60,16 @@ export enum EOverVotePolicy {
     NOT_ALLOWED_WITH_MSG_AND_DISABLE = "not-allowed-with-msg-and-disable",
 }
 
+export enum EDuplicatedRankPolicy {
+    ALLOWED_WARN_AND_DIALOG = "allowed-warn-and-dialog",
+    NOT_ALLOWED_WARN_AND_DIALOG = "not-allowed-warn-and-dialog",
+}
+
+export enum EPreferenceGapsPolicy {
+    ALLOWED_WARN_AND_DIALOG = "allowed-warn-and-dialog",
+    NOT_ALLOWED_WARN_AND_DIALOG = "not-allowed-warn-and-dialog",
+}
+
 export interface ITypePresentation {
     name?: string
     name_i18n?: Record<string, string>
@@ -74,11 +90,14 @@ export interface IContestPresentation {
     shuffle_category_list?: Array<string>
     show_points?: boolean
     enable_checkable_lists?: EEnableCheckableLists
+    collapsible_lists?: ECollapsibleLists
     candidates_icon_checkbox_policy?: ECandidatesIconCheckboxPolicy
     candidates_order?: CandidatesOrder
     candidates_selection_policy?: ECandidatesSelectionPolicy
     types_presentation?: Record<string, ITypePresentation>
     sort_order?: number
     under_vote_policy?: EUnderVotePolicy
+    duplicated_rank_policy?: EDuplicatedRankPolicy
+    preference_gaps_policy?: EPreferenceGapsPolicy
     columns?: number
 }
