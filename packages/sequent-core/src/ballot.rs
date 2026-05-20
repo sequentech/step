@@ -1291,6 +1291,8 @@ pub struct ElectionPresentation {
     pub initialization_report_policy: Option<EInitializeReportPolicy>,
     pub security_confirmation_policy: Option<ESecurityConfirmationPolicy>,
     pub consolidated_report_policy: Option<ConsolidatedReportPolicy>,
+    /// The policy to determine if the voter can decline to vote for an election level.
+    pub decline_to_vote_policy: Option<DeclineToVotePolicy>,
 }
 
 impl core::Election {
@@ -1329,6 +1331,7 @@ impl Default for ElectionPresentation {
             consolidated_report_policy: Some(
                 ConsolidatedReportPolicy::default(),
             ),
+            decline_to_vote_policy: Some(DeclineToVotePolicy::default()),
         }
     }
 }

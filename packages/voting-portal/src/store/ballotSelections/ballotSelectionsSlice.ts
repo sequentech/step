@@ -191,18 +191,19 @@ export const ballotSelectionsSlice = createSlice({
                 isExplicitInvalid: boolean
             }>
         ): BallotSelectionsState => {
-            state[action.payload.ballotStyle.election_id] =
-                action.payload.ballotStyle.ballot_eml.contests.map(
-                    (contest): IDecodedVoteContest => {
-                        return {
-                            contest_id: contest.id,
-                            is_explicit_invalid: action.payload.isExplicitInvalid,
-                            invalid_errors: [],
-                            invalid_alerts: [],
-                            choices: [],
+            let currentElection = state[action.payload.ballotStyle.election_id]
+
+            if (!isUndefined(currentElection)) {
+                currentElection.forEach((currentQuestion) => {
+                    currentQuestion.is_explicit_invalid = true
+                    currentQuestion.choices = currentQuestion.choices.map((choice) => {
+                        if (choice.selected > -1) {
+                            choice.selected = -1
                         }
-                    }
-                )
+                        return choice
+                    })
+                })
+            }
             return state
         },
     },
