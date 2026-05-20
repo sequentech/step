@@ -205,6 +205,7 @@ const catalanTranslation: TranslationType = {
                 INTERNAL_ERROR:
                     "S'ha produït un error intern en emetre el vot. Si us plau, torneu-ho a provar més tard o contacteu amb el suport per rebre assistència.",
             },
+            declineToVote: "Rebutjar el vot",
         },
         confirmationScreen: {
             title: "El seu vot ha estat emès",

@@ -203,6 +203,7 @@ const frenchTranslation: TranslationType = {
                 INTERNAL_ERROR:
                     "Une erreur interne s'est produite lors du vote. Veuillez réessayer plus tard ou contacter le support pour obtenir de l'aide.",
             },
+            declineToVote: "Rejeter le vote",
         },
         confirmationScreen: {
             title: "Votre vote a été émis",

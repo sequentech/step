@@ -202,6 +202,7 @@ const tagalogTranslation: TranslationType = {
                 INTERNAL_ERROR:
                     "Nagkaroon ng internal error habang nagboboto. Pakisubukang muli mamaya o makipag-ugnayan sa support para sa tulong.",
             },
+            declineToVote: "I-decline ang pagboto",
         },
         confirmationScreen: {
             title: "Ang iyong boto ay nai-submit na",

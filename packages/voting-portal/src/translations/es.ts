@@ -205,6 +205,7 @@ const spanishTranslation: TranslationType = {
                 INTERNAL_ERROR:
                     "Hubo un error interno al emitir el voto. Por favor, inténtelo de nuevo más tarde o contacte con soporte para obtener ayuda.",
             },
+            declineToVote: "Rechazar el voto",
         },
         confirmationScreen: {
             title: "Su voto ha sido emitido",

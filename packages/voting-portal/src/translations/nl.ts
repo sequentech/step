@@ -203,6 +203,7 @@ const dutchTranslation: TranslationType = {
                 INTERNAL_ERROR:
                     "Er is een interne fout opgetreden tijdens het uitbrengen van de stem. Probeer het later opnieuw of neem contact op met de ondersteuning voor hulp.",
             },
+            declineToVote: "Stem afwijzen",
         },
         confirmationScreen: {
             title: "Uw stem is uitgebracht",

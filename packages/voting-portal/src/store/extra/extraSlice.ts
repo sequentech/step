@@ -64,7 +64,7 @@ export const isVotedByElectionId = (electionId: string | undefined) => (state: R
     return electionId ? state.extra.isVoted[electionId] : false
 }
 
-export const isDeclinedToVoteByElectionId =
+export const isDeclineToVoteByElectionId =
     (electionId: string | undefined) => (state: RootState) => {
         return electionId ? Boolean(state.extra.declinedToVote[electionId]) : false
     }

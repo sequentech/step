@@ -200,6 +200,7 @@ const englishTranslation = {
                 INTERNAL_ERROR:
                     "There was an internal error while casting the vote. Please try again later or contact support for assistance.",
             },
+            declineToVote: "Decline to vote",
         },
         confirmationScreen: {
             title: "Your vote has been cast",

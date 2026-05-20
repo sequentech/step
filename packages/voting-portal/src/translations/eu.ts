@@ -203,6 +203,7 @@ const basqueTranslation: TranslationType = {
                 INTERNAL_ERROR:
                     "Barne-errore bat gertatu da botoa ematean. Mesedez, saiatu berriro geroago edo jarri harremanetan laguntza-zerbitzuarekin.",
             },
+            declineToVote: "Bozketa ezeztatu",
         },
         confirmationScreen: {
             title: "Zure botoa eman da",

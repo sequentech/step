@@ -203,6 +203,7 @@ const galegoTranslation: TranslationType = {
                 INTERNAL_ERROR:
                     "Houbo un erro interno ao emitir o voto. Por favor, inténteo de novo máis tarde ou contacte co soporte para obter axuda.",
             },
+            declineToVote: "Rexeitar o voto",
         },
         confirmationScreen: {
             title: "O teu voto foi emitido",
