@@ -143,8 +143,34 @@ pub async fn init_db_with_params(params: &PgConnectionParams) -> Result<DbPool> 
         // Create index for efficient range queries
         conn.execute(
             r#"
-            CREATE INDEX IF NOT EXISTS idx_messages_board_id 
+            CREATE INDEX IF NOT EXISTS idx_messages_board_id
             ON messages(board_name, id)
+            "#,
+            &[],
+        )
+        .await?;
+
+        // Create trustee_sessions table for heartbeat tracking
+        conn.execute(
+            r#"
+            CREATE TABLE IF NOT EXISTS trustee_sessions (
+                id             BIGSERIAL PRIMARY KEY,
+                board_name     TEXT        NOT NULL,
+                sender_pk      TEXT        NOT NULL,
+                trustee_name   TEXT        NOT NULL,
+                trustee_mode   TEXT        NOT NULL,
+                last_seen      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                UNIQUE (board_name, sender_pk)
+            )
+            "#,
+            &[],
+        )
+        .await?;
+
+        conn.execute(
+            r#"
+            CREATE INDEX IF NOT EXISTS idx_trustee_sessions_board
+            ON trustee_sessions (board_name, last_seen DESC)
             "#,
             &[],
         )
@@ -152,6 +178,74 @@ pub async fn init_db_with_params(params: &PgConnectionParams) -> Result<DbPool> 
     }
 
     Ok(pool)
+}
+
+pub struct TrusteeSession {
+    pub board_name: String,
+    pub sender_pk: String,
+    pub trustee_name: String,
+    pub trustee_mode: String,
+    pub status: String,
+}
+
+#[tracing::instrument(skip(pool), err)]
+pub async fn upsert_trustee_session(
+    pool: &DbPool,
+    board_name: &str,
+    sender_pk: &str,
+    trustee_name: &str,
+    trustee_mode: &str,
+) -> Result<()> {
+    let conn = pool.get().await?;
+    conn.execute(
+        r#"
+        INSERT INTO trustee_sessions (board_name, sender_pk, trustee_name, trustee_mode, last_seen)
+        VALUES ($1, $2, $3, $4, NOW())
+        ON CONFLICT (board_name, sender_pk)
+        DO UPDATE SET trustee_name = EXCLUDED.trustee_name,
+                      trustee_mode = EXCLUDED.trustee_mode,
+                      last_seen    = NOW()
+        "#,
+        &[&board_name, &sender_pk, &trustee_name, &trustee_mode],
+    )
+    .await?;
+    Ok(())
+}
+
+#[tracing::instrument(skip(pool), err)]
+pub async fn get_trustee_sessions(
+    pool: &DbPool,
+    board_name: &str,
+    heartbeat_secs: u32,
+) -> Result<Vec<TrusteeSession>> {
+    let threshold = std::time::SystemTime::now()
+        .checked_sub(std::time::Duration::from_secs(heartbeat_secs as u64))
+        .unwrap_or(std::time::UNIX_EPOCH);
+
+    let conn = pool.get().await?;
+    let rows = conn
+        .query(
+            r#"
+            SELECT board_name, sender_pk, trustee_name, trustee_mode,
+                   CASE WHEN last_seen >= $2 THEN 'ACTIVE' ELSE 'NOT_ACTIVE' END AS status
+            FROM trustee_sessions
+            WHERE board_name = $1
+            ORDER BY trustee_name
+            "#,
+            &[&board_name, &threshold],
+        )
+        .await?;
+
+    Ok(rows
+        .iter()
+        .map(|row| TrusteeSession {
+            board_name: row.get(0),
+            sender_pk: row.get(1),
+            trustee_name: row.get(2),
+            trustee_mode: row.get(3),
+            status: row.get(4),
+        })
+        .collect())
 }
 
 /// Validates board name to prevent path traversal and SQL injection

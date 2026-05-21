@@ -644,6 +644,53 @@ impl BoardMulti for HttpB3 {
     }
 }
 
+// ── Heartbeat request (shared shape with B4's HeartbeatRequest) ──────────────
+
+use sequent_core::types::ceremonies::TrusteeModePolicy;
+
+#[derive(Debug, serde::Serialize)]
+struct HeartbeatRequest<'a> {
+    board_name: &'a str,
+    sender_pk: &'a str,
+    trustee_name: &'a str,
+    trustee_mode: TrusteeModePolicy,
+}
+
+impl HttpB3BoardParams {
+    /// Send a heartbeat to B4 for the given board.
+    pub async fn send_heartbeat(
+        &self,
+        board_name: &str,
+        sender_pk: &str,
+        trustee_name: &str,
+        trustee_mode: TrusteeModePolicy,
+    ) -> anyhow::Result<()> {
+        let url = format!("{}/sessions/heartbeat", self.base_url);
+        let access_token = self
+            .access_token
+            .read()
+            .expect("access_token lock poisoned")
+            .clone();
+
+        let resp = reqwest::Client::new()
+            .post(&url)
+            .header("Authorization", format!("Bearer {access_token}"))
+            .json(&HeartbeatRequest {
+                board_name,
+                sender_pk,
+                trustee_name,
+                trustee_mode,
+            })
+            .send()
+            .await?;
+
+        if !resp.status().is_success() {
+            anyhow::bail!("Heartbeat failed: HTTP {}", resp.status());
+        }
+        Ok(())
+    }
+}
+
 /// HTTP client for bulletin board index (list of boards)
 pub struct HttpB3Index {
     client: reqwest::Client,

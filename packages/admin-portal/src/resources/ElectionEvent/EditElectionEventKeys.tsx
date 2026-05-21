@@ -129,6 +129,34 @@ export const EditElectionEventKeys: React.FC<EditElectionEventKeysProps> = (prop
     const isTrustee = authContext.hasRole(IPermissions.TRUSTEE_CEREMONY)
     const {globalSettings} = useContext(SettingsContext)
 
+    const boardName: string | undefined = (electionEvent as any)
+        ?.bulletin_board_reference?.database_name
+
+    useEffect(() => {
+        const b4Url = globalSettings.B4_URL
+        const heartbeatSecs = globalSettings.BRAID_B4_HEARTBEAT
+        const accessToken = authContext.accessToken
+        if (!boardName || !b4Url || !accessToken) return
+
+        const fetchSessions = async () => {
+            try {
+                const res = await fetch(
+                    `${b4Url}/sessions?board_name=${boardName}&heartbeat_secs=${heartbeatSecs}`,
+                    {headers: {Authorization: `Bearer ${accessToken}`}}
+                )
+                if (!res.ok) return
+                const data = await res.json()
+                console.log("[TrusteeConnectionStatus]", data.sessions)
+            } catch (_) {
+                // B4 may not be reachable; ignore silently
+            }
+        }
+
+        fetchSessions()
+        const interval = setInterval(fetchSessions, heartbeatSecs * 1000)
+        return () => clearInterval(interval)
+    }, [boardName, globalSettings.B4_URL, globalSettings.BRAID_B4_HEARTBEAT, authContext.accessToken])
+
     const {data: keysCeremonies} = useQuery<ListKeysCeremonyQuery>(LIST_KEYS_CEREMONY, {
         variables: {
             tenantId: tenantId,

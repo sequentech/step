@@ -24,6 +24,7 @@ export interface GlobalSettings {
     ACTIVATE_MIRU_EXPORT: boolean
     CUSTOM_URLS_DOMAIN_NAME: string
     B4_URL: string
+    BRAID_B4_HEARTBEAT: number
 }
 
 interface SettingsContextValues {
@@ -89,6 +90,7 @@ const defaultSettingsValues: SettingsContextValues = {
         ACTIVATE_MIRU_EXPORT: false,
         CUSTOM_URLS_DOMAIN_NAME: "google.com",
         B4_URL: "http://127.0.0.1:50051",
+        BRAID_B4_HEARTBEAT: 5,
     },
 }
 

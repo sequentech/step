@@ -20,6 +20,7 @@ use b4::api_types::{
     ConfirmMessageRequest, ContentType, InitiateMessageRequest, InitiateMessageResponse,
     ListMessagesResponse,
 };
+use sequent_core::types::ceremonies::TrusteeModePolicy;
 use b4::HttpB3Message;
 use strand::backend::ristretto::RistrettoCtx;
 use strand::signature::StrandSignatureSk;
@@ -884,5 +885,57 @@ impl WasmSession {
 
         serde_wasm_bindgen::to_value(&info)
             .map_err(|e| JsValue::from_str(&format!("Serialization error: {}", e)))
+    }
+
+    /// Send a heartbeat to B4 for the current board.
+    ///
+    /// Call this every `BRAID_B4_HEARTBEAT` seconds from the JS polling loop.
+    pub async fn heartbeat(&self, trustee_name: String) -> Result<(), JsValue> {
+        let board_name = self
+            .board_name
+            .as_ref()
+            .ok_or_else(|| JsValue::from_str("Session not initialized"))?;
+
+        let url = format!("{}/sessions/heartbeat", self.b4_url);
+        let access_token = self
+            .access_token
+            .read()
+            .expect("access_token lock poisoned")
+            .clone();
+
+        let sender_pk = self.config.signing_key_pk.clone();
+
+        let body = serde_json::json!({
+            "board_name": board_name,
+            "sender_pk": sender_pk,
+            "trustee_name": trustee_name,
+            "trustee_mode": TrusteeModePolicy::BROWSER_BASED,
+        });
+
+        let opts = RequestInit::new();
+        opts.set_method("POST");
+        opts.set_mode(RequestMode::Cors);
+        opts.set_body(&JsValue::from_str(&body.to_string()));
+
+        let request = Request::new_with_str_and_init(&url, &opts)?;
+        request
+            .headers()
+            .set("Authorization", &format!("Bearer {access_token}"))?;
+        request
+            .headers()
+            .set("Content-Type", "application/json")?;
+
+        let window = web_sys::window().ok_or_else(|| JsValue::from_str("No window"))?;
+        let resp_value = JsFuture::from(window.fetch_with_request(&request)).await?;
+        let resp: Response = resp_value.dyn_into()?;
+
+        if !resp.ok() {
+            return Err(JsValue::from_str(&format!(
+                "Heartbeat failed: HTTP {}",
+                resp.status()
+            )));
+        }
+
+        Ok(())
     }
 }

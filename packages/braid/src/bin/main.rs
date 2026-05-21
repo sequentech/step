@@ -16,9 +16,10 @@ use tracing::{error, info};
 use braid::native::session::Session;
 use braid::protocol::trustee::Trustee;
 use braid::protocol::trustee::TrusteeConfig;
+use sequent_core::types::ceremonies::TrusteeModePolicy;
 use sequent_core::util::init_log::init_log;
 use strand::backend::ristretto::RistrettoCtx;
-use strand::signature::StrandSignatureSk;
+use strand::signature::{StrandSignaturePk, StrandSignatureSk};
 use strand::symm;
 
 cfg_if::cfg_if! {
@@ -93,6 +94,13 @@ async fn main() -> Result<()> {
 
     let trustee_password =
         std::env::var("TRUSTEE_PSW").map_err(|_| anyhow!("TRUSTEE_PSW must be set"))?;
+
+    let heartbeat_secs: i64 = std::env::var("BRAID_B4_HEARTBEAT")
+        .map_err(|_| anyhow!("BRAID_B4_HEARTBEAT must be set"))?
+        .parse()
+        .map_err(|_| anyhow!("BRAID_B4_HEARTBEAT must be a valid integer"))?;
+
+    let sender_pk = { StrandSignaturePk::from_sk(&sk)?.to_der_b64_string()? };
 
     let ignored_boards = get_ignored_boards();
     info!("ignored boards {:?}", ignored_boards);
@@ -193,6 +201,18 @@ async fn main() -> Result<()> {
                     step_error = true;
                 }
             };
+        }
+
+        // Send heartbeat for every active session every heartbeat_secs iterations
+        if loop_count % heartbeat_secs == 0 {
+            for board_name in session_map.keys() {
+                if let Err(e) = board_params
+                    .send_heartbeat(board_name, &sender_pk, &trustee_name, TrusteeModePolicy::SERVER_BASED)
+                    .await
+                {
+                    tracing::warn!("Heartbeat failed for board '{board_name}': {e}");
+                }
+            }
         }
 
         if args.strict && step_error {
