@@ -6,10 +6,12 @@ jobs:
     runs-on: ubuntu-22.04 # Locked to specific version
     steps:
       - name: Check out repository
-        uses: http://gitea.gitea:3000/actions/checkout@v3
+        run: |
+          git clone "http://oauth2:${{ secrets.GITHUB_TOKEN }}@gitea.gitea:3000/${{ github.repository }}.git" .
+          git checkout "${{ github.sha }}"
 
       - name: Login to Local Gitea Registry
-        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login gitea.gitea:3000 -u "${{ github.actor }}" --password-stdin
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login http://gitea.gitea:3000 -u "${{ github.actor }}" --password-stdin
 
       - name: Build and Push Harvest
         run: |
