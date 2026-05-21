@@ -306,6 +306,7 @@ impl Board for HttpB3 {
 /// and see updates from the master loop.
 #[derive(Clone)]
 pub struct HttpB3BoardParams {
+    client: reqwest::Client,
     base_url: String,
     s3_client: aws_sdk_s3::Client,
     bucket_name: String,
@@ -337,6 +338,7 @@ impl HttpB3BoardParams {
         let s3_client = aws_sdk_s3::Client::from_conf(s3_config);
 
         HttpB3BoardParams {
+            client: reqwest::Client::new(),
             base_url: base_url.to_string(),
             s3_client,
             bucket_name,
@@ -648,6 +650,7 @@ use sequent_core::types::ceremonies::{HeartbeatRequest, TrusteeModePolicy};
 
 impl HttpB3BoardParams {
     /// Send a heartbeat to B4 for the given board.
+    #[tracing::instrument(skip(self), fields(board_name, trustee_name), err)]
     pub async fn send_heartbeat(
         &self,
         board_name: &str,
@@ -662,7 +665,8 @@ impl HttpB3BoardParams {
             .expect("access_token lock poisoned")
             .clone();
 
-        let resp = reqwest::Client::new()
+        let resp = self
+            .client
             .post(&url)
             .header("Authorization", format!("Bearer {access_token}"))
             .json(&HeartbeatRequest {
