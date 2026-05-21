@@ -26,12 +26,12 @@ import org.keycloak.representations.AccessToken;
 import org.keycloak.services.resource.RealmResourceProvider;
 
 /**
- * Serves {@code GET /realms/{realm}/ivr-config}. Walks the effective Direct Grant flow
- * and takes each {@code REQUIRED} / {@code CONDITIONAL} execution into an {@link AuthStep}
- * the IVR Lambda can collect via DTMF.
+ * Serves {@code GET /realms/{realm}/ivr-config}. Walks the effective Direct Grant flow and takes
+ * each {@code REQUIRED} / {@code CONDITIONAL} execution into an {@link AuthStep} the IVR Lambda can
+ * collect via DTMF.
  *
- * <p>Authentication: requires a bearer token issued to a client carrying the
- * {@code can_read_ivr_config} realm role.
+ * <p>Authentication: requires a bearer token issued to a client carrying the {@code
+ * can_read_ivr_config} realm role.
  *
  * <p>Failure semantics: an authenticator that is neither in {@link #STOCK_AUTHENTICATORS} nor
  * backed by an {@link AuthenticatorConfigModel} declaring the IVR metadata keys is a
@@ -39,161 +39,161 @@ import org.keycloak.services.resource.RealmResourceProvider;
  */
 @JBossLog
 public class IvrConfigResourceProvider implements RealmResourceProvider {
-    /**
-     * Voting client ID, it may have a specific flow override, in which case we prefer over realm's
-     * default flow.
-     * This specific ID is also used internally by the platform to auth voters through the IVR.
-     */
-    static final String IVR_VOTING_CLIENT_ID = "ivr-voting";
+  /**
+   * Voting client ID, it may have a specific flow override, in which case we prefer over realm's
+   * default flow. This specific ID is also used internally by the platform to auth voters through
+   * the IVR.
+   */
+  static final String IVR_VOTING_CLIENT_ID = "ivr-voting";
 
-    /** Realm role required on the caller's token. */
-    static final String REQUIRED_ROLE = "can_read_ivr_config";
+  /** Realm role required on the caller's token. */
+  static final String REQUIRED_ROLE = "can_read_ivr_config";
 
-    /**
-     * Lookup table for the stock Keycloak authenticators we currently support. Anything else either
-     * resolves through {@link AuthenticatorConfigModel} (custom authenticator path) or triggers a 500
-     * (unknown authenticator).
-     */
-    static final Map<String, AuthStep> STOCK_AUTHENTICATORS =
-        Map.of(
-            "direct-grant-validate-username", new AuthStep("voter_id", 8, "#", "username", null),
-            "direct-grant-validate-password", new AuthStep("pin", 8, "#", "password", null));
+  /**
+   * Lookup table for the stock Keycloak authenticators we currently support. Anything else either
+   * resolves through {@link AuthenticatorConfigModel} (custom authenticator path) or triggers a 500
+   * (unknown authenticator).
+   */
+  static final Map<String, AuthStep> STOCK_AUTHENTICATORS =
+      Map.of(
+          "direct-grant-validate-username", new AuthStep("voter_id", 8, "#", "username", null),
+          "direct-grant-validate-password", new AuthStep("pin", 8, "#", "password", null));
 
-    /** Authenticators that must not surface as an IVR-collected step. */
-    static final Set<String> SKIPPED_AUTHENTICATORS = Set.of();
+  /** Authenticators that must not surface as an IVR-collected step. */
+  static final Set<String> SKIPPED_AUTHENTICATORS = Set.of();
 
-    private final KeycloakSession session;
+  private final KeycloakSession session;
 
-    public IvrConfigResourceProvider(KeycloakSession session) {
-        this.session = session;
+  public IvrConfigResourceProvider(KeycloakSession session) {
+    this.session = session;
+  }
+
+  @Override
+  public Object getResource() {
+    return this;
+  }
+
+  @GET
+  @Path("/")
+  @Produces(MediaType.APPLICATION_JSON)
+  public Response getIvrConfig() {
+    checkAuthorization();
+
+    RealmModel realm = session.getContext().getRealm();
+    AuthenticationFlowModel flow = effectiveDirectGrantFlow(realm);
+
+    List<AuthStep> steps = new ArrayList<>();
+    realm
+        .getAuthenticationExecutionsStream(flow.getId())
+        .filter(e -> !e.isAuthenticatorFlow()) // skip sub-flow references
+        .filter(IvrConfigResourceProvider::isRequiredOrConditional)
+        .filter(e -> !SKIPPED_AUTHENTICATORS.contains(e.getAuthenticator()))
+        .forEachOrdered(e -> steps.add(buildStep(realm, e)));
+
+    // If there are no auth steps "left" configured, it is very likely that was a configuration
+    // issue.
+    if (steps.isEmpty()) {
+      throw new WebApplicationException(
+          "There are no viable auth steps for IVR.", Response.Status.INTERNAL_SERVER_ERROR);
     }
 
-    @Override
-    public Object getResource() {
-        return this;
+    return Response.ok(Map.of("steps", steps)).build();
+  }
+
+  // Primarily a test helper
+  AccessToken extractToken() {
+    return Tokens.getAccessToken(session);
+  }
+
+  /** Reject the request unless the bearer token carries the required realm role. */
+  private void checkAuthorization() {
+    AccessToken token = extractToken();
+    if (token == null) {
+      log.debug("ivr-config: no bearer token");
+      throw new WebApplicationException(Response.Status.UNAUTHORIZED);
     }
 
-    @GET
-    @Path("/")
-    @Produces(MediaType.APPLICATION_JSON)
-    public Response getIvrConfig() {
-        checkAuthorization();
+    AccessToken.Access realmAccess = token.getRealmAccess();
+    if (realmAccess == null || !realmAccess.isUserInRole(REQUIRED_ROLE)) {
+      log.debug("ivr-config: token missing required realm role");
+      throw new WebApplicationException(Response.Status.FORBIDDEN);
+    }
+  }
 
-        RealmModel realm = session.getContext().getRealm();
-        AuthenticationFlowModel flow = effectiveDirectGrantFlow(realm);
-
-        List<AuthStep> steps = new ArrayList<>();
-        realm
-            .getAuthenticationExecutionsStream(flow.getId())
-            .filter(e -> !e.isAuthenticatorFlow()) // skip sub-flow references
-            .filter(IvrConfigResourceProvider::isRequiredOrConditional)
-            .filter(e -> !SKIPPED_AUTHENTICATORS.contains(e.getAuthenticator()))
-            .forEachOrdered(e -> steps.add(buildStep(realm, e)));
-
-        // If there are no auth steps "left" configured, it is very likely that was a configuration
-        // issue.
-        if (steps.isEmpty()) {
-            throw new WebApplicationException(
-                "There are no viable auth steps for IVR.", Response.Status.INTERNAL_SERVER_ERROR);
+  /**
+   * Pick the {@code ivr-voting} client's Direct Grant override if present, otherwise the realm
+   * default.
+   */
+  private static AuthenticationFlowModel effectiveDirectGrantFlow(RealmModel realm) {
+    ClientModel ivrClient = realm.getClientByClientId(IVR_VOTING_CLIENT_ID);
+    if (ivrClient != null) {
+      String overrideId = ivrClient.getAuthenticationFlowBindingOverride("direct_grant");
+      if (overrideId != null) {
+        AuthenticationFlowModel override = realm.getAuthenticationFlowById(overrideId);
+        if (override != null) {
+          return override;
         }
+        log.warnf(
+            "ivr-config: client '%s' declares direct_grant override '%s' but it does not resolve; "
+                + "falling back to realm default",
+            IVR_VOTING_CLIENT_ID, overrideId);
+      }
+    }
+    return realm.getDirectGrantFlow();
+  }
 
-        return Response.ok(Map.of("steps", steps)).build();
+  private static boolean isRequiredOrConditional(AuthenticationExecutionModel exec) {
+    AuthenticationExecutionModel.Requirement r = exec.getRequirement();
+    return r == AuthenticationExecutionModel.Requirement.REQUIRED
+        || r == AuthenticationExecutionModel.Requirement.CONDITIONAL;
+  }
+
+  private static AuthStep buildStep(RealmModel realm, AuthenticationExecutionModel exec) {
+    String authenticatorId = exec.getAuthenticator();
+    AuthStep stock = STOCK_AUTHENTICATORS.get(authenticatorId);
+    if (stock != null) {
+      return stock;
     }
 
-    // Primarily a test helper
-    AccessToken extractToken() {
-        return Tokens.getAccessToken(session);
+    String configId = exec.getAuthenticatorConfig();
+    AuthenticatorConfigModel cfg =
+        configId == null ? null : realm.getAuthenticatorConfigById(configId);
+    if (cfg == null) {
+      String msg =
+          "Unknown IVR authenticator '%s' has no AuthenticatorConfig, cannot derive IVR auth step";
+      throw new WebApplicationException(
+          msg.formatted(authenticatorId), Response.Status.INTERNAL_SERVER_ERROR);
     }
 
-    /** Reject the request unless the bearer token carries the required realm role. */
-    private void checkAuthorization() {
-        AccessToken token = extractToken();
-        if (token == null) {
-            log.debug("ivr-config: no bearer token");
-            throw new WebApplicationException(Response.Status.UNAUTHORIZED);
-        }
-
-        AccessToken.Access realmAccess = token.getRealmAccess();
-        if (realmAccess == null || !realmAccess.isUserInRole(REQUIRED_ROLE)) {
-            log.debug("ivr-config: token missing required realm role");
-            throw new WebApplicationException(Response.Status.FORBIDDEN);
-        }
+    Map<String, String> c = cfg.getConfig();
+    if (c == null) {
+      String msg = "Custom authenticator '%s' config is empty, can't derive IVR auth step";
+      throw new WebApplicationException(
+          msg.formatted(authenticatorId), Response.Status.INTERNAL_SERVER_ERROR);
+    }
+    String fieldName = c.get("field_name");
+    String mapsTo = c.get("maps_to");
+    if (fieldName == null || mapsTo == null) {
+      String msg =
+          "AuthenticatorConfig for '%s' is missing required IVR keys (field_name, maps_to)";
+      throw new WebApplicationException(
+          msg.formatted(authenticatorId), Response.Status.INTERNAL_SERVER_ERROR);
     }
 
-    /**
-     * Pick the {@code ivr-voting} client's Direct Grant override if present, otherwise the realm
-     * default.
-     */
-    private static AuthenticationFlowModel effectiveDirectGrantFlow(RealmModel realm) {
-        ClientModel ivrClient = realm.getClientByClientId(IVR_VOTING_CLIENT_ID);
-        if (ivrClient != null) {
-            String overrideId = ivrClient.getAuthenticationFlowBindingOverride("direct_grant");
-            if (overrideId != null) {
-                AuthenticationFlowModel override = realm.getAuthenticationFlowById(overrideId);
-                if (override != null) {
-                    return override;
-                }
-                log.warnf(
-                    "ivr-config: client '%s' declares direct_grant override '%s' but it does not resolve; "
-                        + "falling back to realm default",
-                    IVR_VOTING_CLIENT_ID, overrideId);
-            }
-        }
-        return realm.getDirectGrantFlow();
+    int maxDigits;
+    try {
+      maxDigits = Integer.parseInt(c.getOrDefault("max_digits", "10"));
+    } catch (NumberFormatException e) {
+      String msg = "AuthenticatorConfig for '%s' has non-numeric max_digits";
+      throw new WebApplicationException(
+          msg.formatted(authenticatorId), Response.Status.INTERNAL_SERVER_ERROR);
     }
+    String terminator = c.getOrDefault("terminator", "#");
+    String promptKey = c.get("prompt_key"); // optional, may be null
 
-    private static boolean isRequiredOrConditional(AuthenticationExecutionModel exec) {
-        AuthenticationExecutionModel.Requirement r = exec.getRequirement();
-        return r == AuthenticationExecutionModel.Requirement.REQUIRED
-            || r == AuthenticationExecutionModel.Requirement.CONDITIONAL;
-    }
+    return new AuthStep(fieldName, maxDigits, terminator, mapsTo, promptKey);
+  }
 
-    private static AuthStep buildStep(RealmModel realm, AuthenticationExecutionModel exec) {
-        String authenticatorId = exec.getAuthenticator();
-        AuthStep stock = STOCK_AUTHENTICATORS.get(authenticatorId);
-        if (stock != null) {
-            return stock;
-        }
-
-        String configId = exec.getAuthenticatorConfig();
-        AuthenticatorConfigModel cfg =
-            configId == null ? null : realm.getAuthenticatorConfigById(configId);
-        if (cfg == null) {
-            String msg =
-                "Unknown IVR authenticator '%s' has no AuthenticatorConfig, cannot derive IVR auth step";
-            throw new WebApplicationException(
-                msg.formatted(authenticatorId), Response.Status.INTERNAL_SERVER_ERROR);
-        }
-
-        Map<String, String> c = cfg.getConfig();
-        if (c == null) {
-            String msg = "Custom authenticator '%s' config is empty, can't derive IVR auth step";
-            throw new WebApplicationException(
-                msg.formatted(authenticatorId), Response.Status.INTERNAL_SERVER_ERROR);
-        }
-        String fieldName = c.get("field_name");
-        String mapsTo = c.get("maps_to");
-        if (fieldName == null || mapsTo == null) {
-            String msg =
-                "AuthenticatorConfig for '%s' is missing required IVR keys (field_name, maps_to)";
-            throw new WebApplicationException(
-                msg.formatted(authenticatorId), Response.Status.INTERNAL_SERVER_ERROR);
-        }
-
-        int maxDigits;
-        try {
-            maxDigits = Integer.parseInt(c.getOrDefault("max_digits", "10"));
-        } catch (NumberFormatException e) {
-            String msg = "AuthenticatorConfig for '%s' has non-numeric max_digits";
-            throw new WebApplicationException(
-                msg.formatted(authenticatorId), Response.Status.INTERNAL_SERVER_ERROR);
-        }
-        String terminator = c.getOrDefault("terminator", "#");
-        String promptKey = c.get("prompt_key"); // optional, may be null
-
-        return new AuthStep(fieldName, maxDigits, terminator, mapsTo, promptKey);
-    }
-
-    @Override
-    public void close() {}
+  @Override
+  public void close() {}
 }
