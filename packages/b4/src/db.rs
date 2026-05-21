@@ -219,8 +219,9 @@ pub async fn get_trustee_sessions(
     board_name: &str,
     heartbeat_secs: u32,
 ) -> Result<Vec<TrusteeSession>> {
+    let window = heartbeat_secs * ev::HEARTBEAT_GRACE_FACTOR;
     let threshold = std::time::SystemTime::now()
-        .checked_sub(std::time::Duration::from_secs(heartbeat_secs as u64))
+        .checked_sub(std::time::Duration::from_secs(window as u64))
         .unwrap_or(std::time::UNIX_EPOCH);
 
     let conn = pool.get().await?;

@@ -13,6 +13,9 @@ pub const BRAID_B4_HEARTBEAT: &str = "BRAID_B4_HEARTBEAT";
 pub const IGNORE_BOARDS: &str = "IGNORE_BOARDS";
 
 pub const DEFAULT_BRAID_B4_HEARTBEAT_SECS: u32 = 5;
+/// A session is considered inactive after this many missed heartbeat cycles.
+/// Using 2 means one full interval of tolerance before flipping to NOT_ACTIVE.
+pub const HEARTBEAT_GRACE_FACTOR: u32 = 2;
 
 // B4 server
 pub const B4_BIND: &str = "B4_BIND";
