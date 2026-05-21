@@ -4,6 +4,9 @@ on: [push]
 jobs:
   build-and-push:
     runs-on: ubuntu-22.04 # Locked to specific version
+    permissions:
+      packages: write
+      contents: read
     steps:
       - name: Check out repository
         run: |
