@@ -97,11 +97,16 @@ public class IvrConfigResourceProvider implements RealmResourceProvider {
         return Response.ok(Map.of("steps", steps)).build();
     }
 
+    // Primarily a test helper
+    AccessToken extractToken() {
+        return Tokens.getAccessToken(session);
+    }
+
     /**
      * Reject the request unless the bearer token carries the required realm role.
      */
     private void check_authorization() {
-        AccessToken token = Tokens.getAccessToken(session);
+        AccessToken token = extractToken();
         if (token == null) {
             log.debug("ivr-config: no bearer token");
             throw new WebApplicationException(Response.Status.UNAUTHORIZED);

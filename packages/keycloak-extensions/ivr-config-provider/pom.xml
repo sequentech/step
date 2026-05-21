@@ -97,6 +97,12 @@ SPDX-License-Identifier: AGPL-3.0-only
             <version>3.27.7</version>
             <scope>test</scope>
         </dependency>
+        <dependency>
+            <groupId>org.glassfish.jersey.core</groupId>
+            <artifactId>jersey-common</artifactId>
+            <version>3.1.6</version>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 
     <build>
