@@ -20,7 +20,7 @@ use b4::api_types::{
     ConfirmMessageRequest, ContentType, InitiateMessageRequest, InitiateMessageResponse,
     ListMessagesResponse,
 };
-use sequent_core::types::ceremonies::TrusteeModePolicy;
+use sequent_core::types::ceremonies::{HeartbeatRequest, TrusteeModePolicy};
 use b4::HttpB3Message;
 use strand::backend::ristretto::RistrettoCtx;
 use strand::signature::StrandSignatureSk;
@@ -905,17 +905,18 @@ impl WasmSession {
 
         let sender_pk = self.config.signing_key_pk.clone();
 
-        let body = serde_json::json!({
-            "board_name": board_name,
-            "sender_pk": sender_pk,
-            "trustee_name": trustee_name,
-            "trustee_mode": TrusteeModePolicy::BROWSER_BASED,
-        });
+        let body = serde_json::to_string(&HeartbeatRequest {
+            board_name: board_name.clone(),
+            sender_pk,
+            trustee_name,
+            trustee_mode: TrusteeModePolicy::BROWSER_BASED,
+        })
+        .map_err(|e| JsValue::from_str(&format!("Failed to serialize heartbeat: {e}")))?;
 
         let opts = RequestInit::new();
         opts.set_method("POST");
         opts.set_mode(RequestMode::Cors);
-        opts.set_body(&JsValue::from_str(&body.to_string()));
+        opts.set_body(&JsValue::from_str(&body));
 
         let request = Request::new_with_str_and_init(&url, &opts)?;
         request

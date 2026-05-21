@@ -174,9 +174,10 @@ fn get_keycloak_trustee_user_login_config(
     use std::env;
     // TODO: Create new client in Keycloak and adapt tenant json file.
     let client_id = "native-trustee".to_string();
-    let client_secret = env::var("KC_TRUSTEE_CLIENT_SECRET")
+    use sequent_core::types::env_vars as ev;
+    let client_secret = env::var(ev::KC_TRUSTEE_CLIENT_SECRET)
         .map_err(|_| anyhow!("KC_TRUSTEE_CLIENT_SECRET must be set"))?;
-    let tenant_id = env::var("SUPER_ADMIN_TENANT_ID")
+    let tenant_id = env::var(ev::SUPER_ADMIN_TENANT_ID)
         .map_err(|_| anyhow!("SUPER_ADMIN_TENANT_ID must be set"))?;
     Ok(KeycloakUserLoginConfig::new(
         username.to_string(),

@@ -17,6 +17,7 @@ use braid::native::session::Session;
 use braid::protocol::trustee::Trustee;
 use braid::protocol::trustee::TrusteeConfig;
 use sequent_core::types::ceremonies::TrusteeModePolicy;
+use sequent_core::types::env_vars as ev;
 use sequent_core::util::init_log::init_log;
 use strand::backend::ristretto::RistrettoCtx;
 use strand::signature::{StrandSignaturePk, StrandSignatureSk};
@@ -90,12 +91,12 @@ async fn main() -> Result<()> {
 
     // Get trustee name and password for Keycloak authentication
     let trustee_name =
-        std::env::var("TRUSTEE_NAME").map_err(|_| anyhow!("TRUSTEE_NAME must be set"))?;
+        std::env::var(ev::TRUSTEE_NAME).map_err(|_| anyhow!("TRUSTEE_NAME must be set"))?;
 
     let trustee_password =
-        std::env::var("TRUSTEE_PSW").map_err(|_| anyhow!("TRUSTEE_PSW must be set"))?;
+        std::env::var(ev::TRUSTEE_PSW).map_err(|_| anyhow!("TRUSTEE_PSW must be set"))?;
 
-    let heartbeat_secs: i64 = std::env::var("BRAID_B4_HEARTBEAT")
+    let heartbeat_secs: i64 = std::env::var(ev::BRAID_B4_HEARTBEAT)
         .map_err(|_| anyhow!("BRAID_B4_HEARTBEAT must be set"))?
         .parse()
         .map_err(|_| anyhow!("BRAID_B4_HEARTBEAT must be a valid integer"))?;
@@ -243,6 +244,6 @@ async fn main() -> Result<()> {
 }
 
 fn get_ignored_boards() -> Vec<String> {
-    let boards_str: String = std::env::var("IGNORE_BOARDS").unwrap_or_else(|_| "".into());
+    let boards_str: String = std::env::var(ev::IGNORE_BOARDS).unwrap_or_else(|_| "".into());
     boards_str.split(',').map(|s| s.to_string()).collect()
 }

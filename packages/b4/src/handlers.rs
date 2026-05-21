@@ -17,7 +17,11 @@ use axum::{
 };
 use chrono::Utc;
 use serde::{Deserialize, Serialize};
-use sequent_core::types::ceremonies::TrusteeModePolicy;
+use sequent_core::types::ceremonies::{
+    HeartbeatRequest, SessionsListResponse, TrusteeSessionResponse, TrusteeSessionStatus,
+    TrusteeModePolicy,
+};
+use sequent_core::types::env_vars as ev;
 use uuid::Uuid;
 
 use crate::{db, s3, state::AppState};
@@ -890,11 +894,9 @@ pub async fn confirm_messages_multi(
 // ── Trustee session / heartbeat ──────────────────────────────────────────────
 
 #[derive(Debug, Deserialize)]
-pub struct HeartbeatRequest {
+pub struct GetSessionsQuery {
     pub board_name: String,
-    pub sender_pk: String,
-    pub trustee_name: String,
-    pub trustee_mode: TrusteeModePolicy,
+    pub heartbeat_secs: Option<u32>,
 }
 
 #[tracing::instrument(skip(state, claims), err)]
@@ -926,33 +928,15 @@ pub async fn post_heartbeat(
     Ok(StatusCode::OK)
 }
 
-#[derive(Debug, Deserialize)]
-pub struct GetSessionsQuery {
-    pub board_name: String,
-    pub heartbeat_secs: Option<u32>,
-}
-
-#[derive(Debug, Serialize)]
-pub struct TrusteeSessionResponse {
-    pub board_name: String,
-    pub sender_pk: String,
-    pub trustee_name: String,
-    pub trustee_mode: String,
-    pub status: String,
-}
-
-#[derive(Debug, Serialize)]
-pub struct SessionsListResponse {
-    pub sessions: Vec<TrusteeSessionResponse>,
-}
-
 #[tracing::instrument(skip(state, claims), err)]
 pub async fn get_sessions(
     State(state): State<AppState>,
     RequirePermissions { claims, .. }: RequirePermissions<TrusteeCeremony>,
     Query(params): Query<GetSessionsQuery>,
 ) -> Result<Json<SessionsListResponse>, StatusCode> {
-    let heartbeat_secs = params.heartbeat_secs.unwrap_or(5);
+    let heartbeat_secs = params
+        .heartbeat_secs
+        .unwrap_or(ev::DEFAULT_BRAID_B4_HEARTBEAT_SECS);
 
     let sessions = db::get_trustee_sessions(&state.db, &params.board_name, heartbeat_secs)
         .await
@@ -968,8 +952,8 @@ pub async fn get_sessions(
                 board_name: s.board_name,
                 sender_pk: s.sender_pk,
                 trustee_name: s.trustee_name,
-                trustee_mode: s.trustee_mode,
-                status: s.status,
+                trustee_mode: s.trustee_mode.parse().unwrap_or_default(),
+                status: s.status.parse().unwrap_or_default(),
             })
             .collect(),
     }))

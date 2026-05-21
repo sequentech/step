@@ -314,11 +314,11 @@ pub struct HttpB3BoardParams {
 
 impl HttpB3BoardParams {
     pub async fn new(base_url: &str, access_token: String) -> HttpB3BoardParams {
-        // Read S3 configuration from environment variables
-        let s3_endpoint = std::env::var("AWS_ENDPOINT_URL")
-            .unwrap_or_else(|_| "http://localhost:4566".to_string());
+        use sequent_core::types::env_vars as ev;
+        let s3_endpoint = std::env::var(ev::AWS_ENDPOINT_URL)
+            .unwrap_or_else(|_| ev::DEFAULT_S3_ENDPOINT.to_string());
         let bucket_name =
-            std::env::var("S3_BUCKET_NAME").unwrap_or_else(|_| "wbraid-messages".to_string());
+            std::env::var(ev::S3_BUCKET_NAME).unwrap_or_else(|_| ev::DEFAULT_S3_BUCKET.to_string());
 
         // Use explicit credentials for LocalStack (avoids IMDS calls)
         let creds =
@@ -326,7 +326,7 @@ impl HttpB3BoardParams {
 
         let config = aws_config::defaults(aws_config::BehaviorVersion::latest())
             .credentials_provider(creds)
-            .region("us-east-1")
+            .region(ev::DEFAULT_AWS_REGION)
             .load()
             .await;
 
@@ -644,17 +644,7 @@ impl BoardMulti for HttpB3 {
     }
 }
 
-// ── Heartbeat request (shared shape with B4's HeartbeatRequest) ──────────────
-
-use sequent_core::types::ceremonies::TrusteeModePolicy;
-
-#[derive(Debug, serde::Serialize)]
-struct HeartbeatRequest<'a> {
-    board_name: &'a str,
-    sender_pk: &'a str,
-    trustee_name: &'a str,
-    trustee_mode: TrusteeModePolicy,
-}
+use sequent_core::types::ceremonies::{HeartbeatRequest, TrusteeModePolicy};
 
 impl HttpB3BoardParams {
     /// Send a heartbeat to B4 for the given board.
@@ -676,9 +666,9 @@ impl HttpB3BoardParams {
             .post(&url)
             .header("Authorization", format!("Bearer {access_token}"))
             .json(&HeartbeatRequest {
-                board_name,
-                sender_pk,
-                trustee_name,
+                board_name: board_name.to_string(),
+                sender_pk: sender_pk.to_string(),
+                trustee_name: trustee_name.to_string(),
                 trustee_mode,
             })
             .send()

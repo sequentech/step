@@ -328,3 +328,40 @@ impl CountingAlgType {
         }
     }
 }
+
+/// Whether a trustee session is currently reachable.
+#[derive(Display, Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, EnumString, Default)]
+pub enum TrusteeSessionStatus {
+    #[strum(serialize = "ACTIVE")]
+    #[serde(rename = "ACTIVE")]
+    ACTIVE,
+    #[default]
+    #[strum(serialize = "NOT_ACTIVE")]
+    #[serde(rename = "NOT_ACTIVE")]
+    NOT_ACTIVE,
+}
+
+/// Body sent by a trustee to B4's `POST /sessions/heartbeat`.
+#[derive(Debug, Serialize, Deserialize)]
+pub struct HeartbeatRequest {
+    pub board_name: String,
+    pub sender_pk: String,
+    pub trustee_name: String,
+    pub trustee_mode: TrusteeModePolicy,
+}
+
+/// A single trustee session as returned by `GET /sessions`.
+#[derive(Debug, Serialize, Deserialize)]
+pub struct TrusteeSessionResponse {
+    pub board_name: String,
+    pub sender_pk: String,
+    pub trustee_name: String,
+    pub trustee_mode: TrusteeModePolicy,
+    pub status: TrusteeSessionStatus,
+}
+
+/// Response body for `GET /sessions`.
+#[derive(Debug, Serialize, Deserialize)]
+pub struct SessionsListResponse {
+    pub sessions: Vec<TrusteeSessionResponse>,
+}

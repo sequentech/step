@@ -25,6 +25,7 @@ use b4::messages::protocol_manager::{ProtocolManager, ProtocolManagerConfig};
 
 use braid::protocol::trustee::TrusteeConfig;
 use rand::seq::IndexedRandom;
+use sequent_core::types::env_vars as ev;
 use sequent_core::util::init_log::init_log;
 use strand::backend::ristretto::RistrettoCtx;
 use strand::context::Ctx;
@@ -43,8 +44,6 @@ const DEMO_DIR: &str = "./demo";
 const PROTOCOL_MANAGER: &str = "pm.toml";
 /// File with the serialized bytes of a Configuration object.
 const CONFIG: &str = "config.bin";
-/// S3 bucket name (can be overridden with S3_BUCKET_NAME env var)
-const DEFAULT_BUCKET: &str = "wbraid-messages";
 
 /// Runs a demo protocol.
 #[derive(Parser)]
@@ -606,17 +605,17 @@ async fn list_messages(pool: &DbPool, board_name: &str) -> Result<()> {
     let s3_config = aws_sdk_s3::Config::builder()
         .behavior_version_latest()
         .region(aws_sdk_s3::config::Region::new(
-            std::env::var("AWS_REGION").unwrap_or_else(|_| "us-east-1".to_string()),
+            std::env::var(ev::AWS_REGION).unwrap_or_else(|_| ev::DEFAULT_AWS_REGION.to_string()),
         ))
         .endpoint_url(
-            std::env::var("AWS_ENDPOINT_URL")
-                .unwrap_or_else(|_| "http://localhost:4566".to_string()),
+            std::env::var(ev::AWS_ENDPOINT_URL)
+                .unwrap_or_else(|_| ev::DEFAULT_S3_ENDPOINT.to_string()),
         )
         .force_path_style(true)
         .build();
     let s3_client = aws_sdk_s3::Client::from_conf(s3_config);
     let bucket_name =
-        std::env::var("S3_BUCKET_NAME").unwrap_or_else(|_| "wbraid-messages".to_string());
+        std::env::var(ev::S3_BUCKET_NAME).unwrap_or_else(|_| ev::DEFAULT_S3_BUCKET.to_string());
 
     for row in rows {
         let content_type: String = row.get(0);
@@ -700,26 +699,26 @@ async fn init_clients(args: &Cli) -> Result<(DbPool, S3Client, String)> {
     let host = args
         .pg_host
         .clone()
-        .or_else(|| env::var("B4_PG_HOST").ok())
+        .or_else(|| env::var(ev::B4_PG_HOST).ok())
         .context("B4_PG_HOST must be set (via env var or --pg-host)")?;
     let port: u16 = args
         .pg_port
-        .or_else(|| env::var("B4_PG_PORT").ok().and_then(|p| p.parse().ok()))
+        .or_else(|| env::var(ev::B4_PG_PORT).ok().and_then(|p| p.parse().ok()))
         .context("B4_PG_PORT must be set (via env var or --pg-port)")?;
     let user = args
         .pg_user
         .clone()
-        .or_else(|| env::var("B4_PG_USER").ok())
+        .or_else(|| env::var(ev::B4_PG_USER).ok())
         .context("B4_PG_USER must be set (via env var or --pg-user)")?;
     let password = args
         .pg_password
         .clone()
-        .or_else(|| env::var("B4_PG_PASSWORD").ok())
+        .or_else(|| env::var(ev::B4_PG_PASSWORD).ok())
         .context("B4_PG_PASSWORD must be set (via env var or --pg-password)")?;
     let database = args
         .pg_database
         .clone()
-        .or_else(|| env::var("B4_PG_DATABASE").ok())
+        .or_else(|| env::var(ev::B4_PG_DATABASE).ok())
         .context("B4_PG_DATABASE must be set (via env var or --pg-database)")?;
 
     let conn_string = format!(
@@ -783,16 +782,16 @@ async fn init_clients(args: &Cli) -> Result<(DbPool, S3Client, String)> {
     let s3_config = aws_sdk_s3::Config::builder()
         .behavior_version_latest()
         .region(aws_sdk_s3::config::Region::new(
-            env::var("AWS_REGION").unwrap_or_else(|_| "us-east-1".to_string()),
+            env::var(ev::AWS_REGION).unwrap_or_else(|_| ev::DEFAULT_AWS_REGION.to_string()),
         ))
         .endpoint_url(
-            env::var("AWS_ENDPOINT_URL").unwrap_or_else(|_| "http://localhost:4566".to_string()),
+            env::var(ev::AWS_ENDPOINT_URL).unwrap_or_else(|_| ev::DEFAULT_S3_ENDPOINT.to_string()),
         )
         .force_path_style(true)
         .build();
     let s3_client = S3Client::from_conf(s3_config);
 
-    let bucket = env::var("S3_BUCKET_NAME").unwrap_or_else(|_| DEFAULT_BUCKET.to_string());
+    let bucket = env::var(ev::S3_BUCKET_NAME).unwrap_or_else(|_| ev::DEFAULT_S3_BUCKET.to_string());
 
     Ok((pool, s3_client, bucket))
 }
@@ -824,7 +823,7 @@ async fn create_board(pool: &DbPool, name: &str) -> Result<()> {
 async fn drop_database(database_url: &Option<String>) -> Result<()> {
     let db_path = database_url
         .clone()
-        .or_else(|| env::var("DATABASE_URL").ok())
+        .or_else(|| env::var(ev::DATABASE_URL).ok())
         .unwrap_or_else(|| {
             let mut path = env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
             path.push("b4.db");

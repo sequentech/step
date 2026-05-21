@@ -5,6 +5,7 @@
 use crate::api_types::Message;
 use anyhow::{anyhow, Context, Result};
 use bb8_postgres::{bb8::Pool, PostgresConnectionManager};
+use sequent_core::types::env_vars as ev;
 use std::env;
 use tokio_postgres::NoTls;
 
@@ -40,14 +41,14 @@ impl PgConnectionParams {
     }
 
     pub fn from_env() -> Result<Self> {
-        let host = env::var("B4_PG_HOST").context("B4_PG_HOST must be set")?;
-        let port: u16 = env::var("B4_PG_PORT")
+        let host = env::var(ev::B4_PG_HOST).context("B4_PG_HOST must be set")?;
+        let port: u16 = env::var(ev::B4_PG_PORT)
             .context("B4_PG_PORT must be set")?
             .parse()
             .context("B4_PG_PORT must be a valid port number")?;
-        let username = env::var("B4_PG_USER").context("B4_PG_USER must be set")?;
-        let password = env::var("B4_PG_PASSWORD").context("B4_PG_PASSWORD must be set")?;
-        let database = env::var("B4_PG_DATABASE").context("B4_PG_DATABASE must be set")?;
+        let username = env::var(ev::B4_PG_USER).context("B4_PG_USER must be set")?;
+        let password = env::var(ev::B4_PG_PASSWORD).context("B4_PG_PASSWORD must be set")?;
+        let database = env::var(ev::B4_PG_DATABASE).context("B4_PG_DATABASE must be set")?;
 
         Ok(Self {
             host,
