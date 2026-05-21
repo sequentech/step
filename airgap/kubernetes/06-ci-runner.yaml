@@ -1,3 +1,17 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: runner-config
+  namespace: gitea
+data:
+  config.yaml: |
+    runner:
+      capacity: 1
+      envs:
+        A_TEST_ENV_NAME_1: a_test_env_value_1
+    container:
+      workdir_parent: /workspace
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -5,6 +19,8 @@ metadata:
   namespace: gitea
 spec:
   replicas: 1
+  strategy:
+    type: Recreate
   selector:
     matchLabels:
       app: gitea-runner
@@ -13,6 +29,10 @@ spec:
       labels:
         app: gitea-runner
     spec:
+      tolerations:
+        - key: "node-role.kubernetes.io/master"
+          operator: "Exists"
+          effect: "NoSchedule"
       containers:
         - name: runner
           image: gitea/act_runner:latest
@@ -23,16 +43,21 @@ spec:
               value: "YOUR_TOKEN_HERE"
             - name: DOCKER_HOST
               value: tcp://localhost:2375
+            - name: CONFIG_FILE
+              value: /config/config.yaml
           volumeMounts:
             - name: runner-data
               mountPath: /data
+            - name: config-volume
+              mountPath: /config
         - name: dind
-          image: docker:dind
+          image: docker:24-dind
+          env:
+            - name: DOCKER_TLS_CERTDIR
+              value: ""
           securityContext:
             privileged: true
-          command: ["sh", "-c", "dockerd-entrypoint.sh & sleep 10; for f in /images/*.tar; do docker load -i $f; done; wait"]
-          ports:
-            - containerPort: 2375
+          command: ["sh", "-c", "dockerd-entrypoint.sh dockerd --host=tcp://0.0.0.0:2375 --host=unix:///var/run/docker.sock --insecure-registry gitea.gitea:3000 --default-address-pool base=10.200.0.0/16,size=24 & sleep 10; for f in /images/*.tar; do docker load -i $f; done; wait"]
           volumeMounts:
             - name: docker-storage
               mountPath: /var/lib/docker
@@ -52,3 +77,6 @@ spec:
           hostPath:
             path: /var/lib/rancher/k3s/agent/images/infra
             type: DirectoryOrCreate
+        - name: config-volume
+          configMap:
+            name: runner-config

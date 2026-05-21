@@ -13,6 +13,10 @@ spec:
       labels:
         app: harvest
     spec:
+      tolerations:
+        - key: "node-role.kubernetes.io/master"
+          operator: "Exists"
+          effect: "NoSchedule"
       containers:
         - name: harvest
           image: gitea.local:3000/step/harvest:latest
@@ -35,6 +39,10 @@ spec:
       labels:
         app: windmill
     spec:
+      tolerations:
+        - key: "node-role.kubernetes.io/master"
+          operator: "Exists"
+          effect: "NoSchedule"
       containers:
         - name: windmill
           image: gitea.local:3000/step/windmill:latest
@@ -57,8 +65,62 @@ spec:
       labels:
         app: admin-portal
     spec:
+      tolerations:
+        - key: "node-role.kubernetes.io/master"
+          operator: "Exists"
+          effect: "NoSchedule"
       containers:
         - name: admin-portal
           image: gitea.local:3000/step/admin-portal:latest
           ports:
             - containerPort: 80
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: hasura
+  namespace: step-apps
+spec:
+  selector:
+    app: hasura
+  ports:
+    - port: 8080
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: hasura
+  namespace: step-apps
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: hasura
+  template:
+    metadata:
+      labels:
+        app: hasura
+    spec:
+      tolerations:
+        - key: "node-role.kubernetes.io/master"
+          operator: "Exists"
+          effect: "NoSchedule"
+      containers:
+        - name: hasura
+          image: gitea.local:3000/step/hasura:latest
+          ports:
+            - containerPort: 8080
+          envFrom:
+            - configMapRef:
+                name: step-env
+          env:
+            - name: HASURA_GRAPHQL_DATABASE_URL
+              value: postgres://postgres:password@postgres.step-infra.svc.cluster.local:5432/hasura
+            - name: HASURA_GRAPHQL_METADATA_DATABASE_URL
+              value: postgres://postgres:password@postgres.step-infra.svc.cluster.local:5432/hasura
+            - name: HASURA_GRAPHQL_ENABLE_CONSOLE
+              value: "true"
+            - name: HASURA_GRAPHQL_DEV_MODE
+              value: "true"
+            - name: HASURA_GRAPHQL_MIGRATIONS_SERVER_TIMEOUT
+              value: "60"

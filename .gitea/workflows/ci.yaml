@@ -6,42 +6,29 @@ jobs:
     runs-on: ubuntu-22.04 # Locked to specific version
     steps:
       - name: Check out repository
-        uses: http://gitea.local/actions/checkout@v3
-
-      - name: Set up Docker Buildx
-        uses: http://gitea.local/actions/setup-buildx-action@v2
+        uses: http://gitea.gitea:3000/actions/checkout@v3
 
       - name: Login to Local Gitea Registry
-        uses: http://gitea.local/actions/login-action@v2
+        uses: http://gitea.gitea:3000/actions/login-action@v2
         with:
-          registry: gitea.local:3000
+          registry: gitea.gitea:3000
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build and Push Harvest
-        uses: http://gitea.local/actions/build-push-action@v4
-        with:
-          context: ./packages
-          file: ./packages/harvest/Dockerfile
-          push: true
-          tags: gitea.local:3000/step/harvest:latest
+        run: |
+          docker build -f ./packages/harvest/Dockerfile -t gitea.gitea:3000/step/harvest:latest ./packages
+          docker push gitea.gitea:3000/step/harvest:latest
 
       - name: Build and Push Windmill
-        uses: http://gitea.local/actions/build-push-action@v4
-        with:
-          context: ./packages
-          file: ./packages/windmill/Dockerfile
-          push: true
-          tags: gitea.local:3000/step/windmill:latest
+        run: |
+          docker build -f ./packages/windmill/Dockerfile -t gitea.gitea:3000/step/windmill:latest ./packages
+          docker push gitea.gitea:3000/step/windmill:latest
 
       - name: Build and Push Admin Portal
-        uses: http://gitea.local/actions/build-push-action@v4
-        with:
-          context: ./packages
-          file: ./packages/Dockerfile.prod
-          build-args: SPA_NAME=admin-portal
-          push: true
-          tags: gitea.local:3000/step/admin-portal:latest
+        run: |
+          docker build -f ./packages/Dockerfile.prod --build-arg SPA_NAME=admin-portal -t gitea.gitea:3000/step/admin-portal:latest ./packages
+          docker push gitea.gitea:3000/step/admin-portal:latest
 
       - name: Rollout Update
         run: |

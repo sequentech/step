@@ -29,6 +29,10 @@ spec:
       labels:
         app: gitea
     spec:
+      tolerations:
+        - key: "node-role.kubernetes.io/master"
+          operator: "Exists"
+          effect: "NoSchedule"
       containers:
         - name: gitea
           image: gitea/gitea:latest
@@ -37,6 +41,10 @@ spec:
               value: sqlite3
             - name: GITEA__database__PATH
               value: /data/gitea/gitea.db
+            - name: GITEA__repository__ENABLE_PUSH_CREATE_USER
+              value: "true"
+            - name: GITEA__repository__ENABLE_PUSH_CREATE_ORG
+              value: "true"
           ports:
             - containerPort: 3000
             - containerPort: 22

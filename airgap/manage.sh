@@ -76,9 +76,16 @@ EOF
         echo "--- Applying Kubernetes Manifests ---"
         sudo k3s kubectl apply -f "$PROJECT_ROOT/kubernetes/01-namespaces.yaml"
         sudo k3s kubectl apply -f "$PROJECT_ROOT/kubernetes/02-gitea.yaml"
+        
+        echo "Waiting for Gitea to start so we can generate a runner token..."
+        sudo k3s kubectl rollout status deployment/gitea -n gitea
+        TOKEN=$(sudo k3s kubectl exec -n gitea deploy/gitea -- su git -c "gitea actions generate-runner-token")
+        echo "Registering runner with token: $TOKEN"
+        sed "s/YOUR_TOKEN_HERE/$TOKEN/g" "$PROJECT_ROOT/kubernetes/06-ci-runner.yaml" | sudo k3s kubectl apply -f -
+        
         sudo k3s kubectl apply -f "$PROJECT_ROOT/kubernetes/03-infra.yaml"
+        sudo k3s kubectl apply -f "$PROJECT_ROOT/kubernetes/04-apps.yaml"
         sudo k3s kubectl apply -f "$PROJECT_ROOT/kubernetes/05-ingress.yaml"
-        sudo k3s kubectl apply -f "$PROJECT_ROOT/kubernetes/06-ci-runner.yaml"
         
         echo "Stack is deploying! Use 'kubectl get pods -A' to monitor."
         ;;
@@ -90,6 +97,11 @@ EOF
             tar -xzf "$PROJECT_ROOT/step-source.tar.gz" -C "$PROJECT_ROOT/source"
         fi
         echo "Source extracted to $PROJECT_ROOT/source"
+        echo ""
+        echo "--- Configuring Local DNS Resolution ---"
+        echo "Adding *.local domains to your /etc/hosts file..."
+        sudo sh -c 'grep -q "gitea.local" /etc/hosts || echo "127.0.0.1 gitea.local keycloak.local portal.local" >> /etc/hosts'
+        echo "Domains configured."
         echo ""
         echo "To start developing:"
         echo "1. Log in to Gitea at http://gitea.local"

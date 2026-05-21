@@ -107,6 +107,22 @@ ALL_IMAGES=(
 )
 docker save -o "$OUTPUT_DIR/images/step-airgap-infra.tar" "${ALL_IMAGES[@]}"
 
+echo "--- [6.5/7] Vendoring Offline Dependencies (Rust & Node) ---"
+echo "Vendoring Rust crates..."
+docker run --rm --platform "linux/$ARCH" -v "$PROJECT_ROOT/packages:/workspace" -w /workspace rust:1.90.0-slim-bookworm bash -c "
+    mkdir -p .cargo
+    cargo vendor > .cargo/config.toml
+"
+
+echo "Vendoring Node.js packages to yarn offline mirror..."
+docker run --rm --platform "linux/$ARCH" -v "$PROJECT_ROOT/packages:/workspace" -w /workspace node:20-bookworm-slim bash -c "
+    npm install -g yarn
+    echo 'yarn-offline-mirror "./npm-packages-offline-cache"' > .yarnrc
+    echo 'yarn-offline-mirror-pruning true' >> .yarnrc
+    # Run yarn install to populate the offline mirror based on yarn.lock
+    yarn install --frozen-lockfile
+"
+
 echo "--- [7/7] Finalizing Output ---"
 cp -r "$AIRGAP_DIR/kubernetes" "$OUTPUT_DIR/"
 cp "$AIRGAP_DIR/manage.sh" "$OUTPUT_DIR/"
@@ -114,6 +130,7 @@ cp "$AIRGAP_DIR/README.md" "$OUTPUT_DIR/"
 chmod +x "$OUTPUT_DIR/manage.sh"
 
 tar -czf "$OUTPUT_DIR/step-source.tar.gz" \
+    -C "$PROJECT_ROOT" \
     --exclude="./airgap-output" \
     --exclude="./target" \
     --exclude="./node_modules" \
