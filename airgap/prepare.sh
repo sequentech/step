@@ -23,7 +23,7 @@ echo "Target Architecture: $ARCH"
 
 echo "--- [1/7] Cleaning and Preparing Output Directory ---"
 rm -rf "$OUTPUT_DIR"
-mkdir -p "$OUTPUT_DIR/k3s/$ARCH" "$OUTPUT_DIR/deb-packages/$ARCH" "$OUTPUT_DIR/images" "$OUTPUT_DIR/actions-repos"
+mkdir -p "$OUTPUT_DIR/k3s/$ARCH" "$OUTPUT_DIR/deb-packages/$ARCH" "$OUTPUT_DIR/images"
 
 echo "--- [2/7] Downloading K3s Airgap Artifacts ($ARCH) ---"
 K3S_SUFFIX=""
@@ -53,17 +53,6 @@ docker run --rm --platform "linux/$ARCH" \
         cp /var/cache/apt/archives/*.deb /output/
     "
 
-echo "--- [4/7] Caching GitHub Action Repositories ---"
-ACTIONS=(
-    "actions/checkout"
-    "docker/setup-buildx-action"
-    "docker/login-action"
-    "docker/build-push-action"
-)
-for action in "${ACTIONS[@]}"; do
-    echo "Cloning action: $action..."
-    git clone --bare "https://github.com/$action.git" "$OUTPUT_DIR/actions-repos/${action##*/}.git"
-done
 
 echo "--- [5/7] Pulling Infrastructure & CI Base Images ---"
 # Pulling only for current host architecture to keep it simple, 
