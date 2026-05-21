@@ -9,11 +9,7 @@ jobs:
         uses: http://gitea.gitea:3000/actions/checkout@v3
 
       - name: Login to Local Gitea Registry
-        uses: http://gitea.gitea:3000/actions/login-action@v2
-        with:
-          registry: gitea.gitea:3000
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login gitea.gitea:3000 -u "${{ github.actor }}" --password-stdin
 
       - name: Build and Push Harvest
         run: |
