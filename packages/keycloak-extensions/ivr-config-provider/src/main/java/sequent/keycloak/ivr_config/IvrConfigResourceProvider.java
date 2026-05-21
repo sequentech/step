@@ -32,8 +32,7 @@ import org.keycloak.services.resource.RealmResourceProvider;
  * client and projects each {@code REQUIRED} / {@code CONDITIONAL} execution into an
  * {@link AuthStep} the IVR Lambda can collect via DTMF.
  *
- * <p>Authentication: requires a bearer token issued to a service client carrying the
- * {@code can_read_ivr_config} realm role.
+ * <p>Authentication: requires a bearer token issued to a client carrying the {@code can_read_ivr_config} realm role.
  *
  * <p>Failure semantics: an authenticator that is neither in {@link #STOCK_AUTHENTICATORS} nor backed
  * by an {@link AuthenticatorConfigModel} declaring the IVR metadata keys is a deployment-time
@@ -82,7 +81,7 @@ public class IvrConfigResourceProvider implements RealmResourceProvider {
     @Path("/")
     @Produces(MediaType.APPLICATION_JSON)
     public Response getIvrConfig() {
-        check_authorization();
+        checkAuthorization();
 
         RealmModel realm = session.getContext().getRealm();
         AuthenticationFlowModel flow = effectiveDirectGrantFlow(realm);
@@ -111,7 +110,7 @@ public class IvrConfigResourceProvider implements RealmResourceProvider {
     /**
      * Reject the request unless the bearer token carries the required realm role.
      */
-    private void check_authorization() {
+    private void checkAuthorization() {
         AccessToken token = extractToken();
         if (token == null) {
             log.debug("ivr-config: no bearer token");
