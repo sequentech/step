@@ -163,6 +163,10 @@ public class IvrConfigResourceProvider implements RealmResourceProvider {
         }
 
         Map<String, String> c = cfg.getConfig();
+        if (c == null) {
+            String msg = "Custom authenticator '%s' config is empty, can't derive IVR auth step";
+            throw new WebApplicationException(msg.formatted(authenticatorId), Response.Status.INTERNAL_SERVER_ERROR);
+        }
         String fieldName = c.get("field_name");
         String mapsTo = c.get("maps_to");
         if (fieldName == null || mapsTo == null) {
