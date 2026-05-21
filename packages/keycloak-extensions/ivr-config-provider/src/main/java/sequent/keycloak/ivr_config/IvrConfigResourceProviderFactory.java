@@ -16,25 +16,25 @@ import org.keycloak.services.resource.RealmResourceProviderFactory;
 @AutoService(RealmResourceProviderFactory.class)
 public class IvrConfigResourceProviderFactory implements RealmResourceProviderFactory {
 
-    /** Path segment under {@code /realms/{realm}/}. */
-    public static final String PROVIDER_ID = "ivr-config";
+  /** Path segment under {@code /realms/{realm}/}. */
+  public static final String PROVIDER_ID = "ivr-config";
 
-    @Override
-    public RealmResourceProvider create(KeycloakSession session) {
-        return new IvrConfigResourceProvider(session);
-    }
+  @Override
+  public RealmResourceProvider create(KeycloakSession session) {
+    return new IvrConfigResourceProvider(session);
+  }
 
-    @Override
-    public void init(Config.Scope config) {}
+  @Override
+  public void init(Config.Scope config) {}
 
-    @Override
-    public void postInit(KeycloakSessionFactory factory) {}
+  @Override
+  public void postInit(KeycloakSessionFactory factory) {}
 
-    @Override
-    public void close() {}
+  @Override
+  public void close() {}
 
-    @Override
-    public String getId() {
-        return PROVIDER_ID;
-    }
+  @Override
+  public String getId() {
+    return PROVIDER_ID;
+  }
 }

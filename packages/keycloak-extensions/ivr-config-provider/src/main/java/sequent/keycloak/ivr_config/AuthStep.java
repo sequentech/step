@@ -8,10 +8,10 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 /**
- * One ordered auth step as returned by {@code GET /realms/{realm}/ivr-config}.
- * Mirrors the same struct deserialized by the IVR Lambda.
- * <p>
- * {@code promptKey} is optional and omitted from the JSON when null.
+ * One ordered auth step as returned by {@code GET /realms/{realm}/ivr-config}. Mirrors the same
+ * struct deserialized by the IVR Lambda.
+ *
+ * <p>{@code promptKey} is optional and omitted from the JSON when null.
  */
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public record AuthStep(
