@@ -58,13 +58,48 @@ This repository doesn´t include a `Cargo.lock` file as it is intended to work a
 
 ## Build
 
-This is a project written in [Rust] and uses `cargo`. It uses [nix](https://nixos.org/) to create reproducible builds. In order to build the project as a library for the host system, run:
+Braid has two build targets: a **native** server-side trustee binary and a **WASM** browser-side trustee library.
 
-```nix build```
+### Native (server-side trustee)
 
-If you don't want to use nix, you can build the project with:
+Builds the trustee binary that runs as a long-lived server process polling the bulletin board.
 
-```cargo build```
+```bash
+# Inside the nix dev shell
+nix develop .#devShell.<system>  # e.g. .#devShell.aarch64-linux
+cargo build --features native
+```
+
+Or using the nix package build directly:
+
+```bash
+nix build
+```
+
+To run the trustee binary (requires `TRUSTEE_NAME`, `TRUSTEE_PSW`, and `BRAID_B4_HEARTBEAT` env vars):
+
+```bash
+cargo run --release --features native --bin main -- \
+  --b3-url http://127.0.0.1:50051 \
+  --trustee-config trustee.toml
+```
+
+### WASM (browser-side trustee)
+
+Builds the WebAssembly library used by the admin portal for browser-based trustees. Run from the `packages/braid/` directory:
+
+```bash
+bash build-wasm.sh
+```
+
+The script requires nix to be installed — it enters the dev shell automatically to provide the pinned Rust nightly toolchain (`2025-01-29`), `wasm-bindgen-cli 0.2.104`, and `npm`. Outputs:
+
+| Path | Contents |
+|------|----------|
+| `packages/braid/pkg/` | Generated JS bindings and `.wasm` file |
+| `packages/admin-portal/rust/braid-wasm-0.1.0.tgz` | npm tarball for the admin portal |
+
+The build uses a dedicated `target/wasm/` directory to avoid conflicts with native build artifacts in `target/`.
 
 ## Tests
 
