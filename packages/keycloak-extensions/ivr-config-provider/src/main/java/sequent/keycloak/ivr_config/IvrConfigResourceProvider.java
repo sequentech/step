@@ -43,6 +43,7 @@ import org.keycloak.services.resource.RealmResourceProvider;
 public class IvrConfigResourceProvider implements RealmResourceProvider {
     /**
      * Voting client ID, it may have a specific flow override, in which case we prefer over realm's default flow.
+     * This specific ID is also used internally by the platform to auth voters through the IVR.
      */
     static final String IVR_VOTING_CLIENT_ID = "ivr-voting";
 
@@ -93,6 +94,11 @@ public class IvrConfigResourceProvider implements RealmResourceProvider {
             .filter(IvrConfigResourceProvider::isRequiredOrConditional)
             .filter(e -> !SKIPPED_AUTHENTICATORS.contains(e.getAuthenticator()))
             .forEachOrdered(e -> steps.add(buildStep(realm, e)));
+
+        // If there are no auth steps "left" configured, it is very likely that was a configuration issue.
+        if (steps.isEmpty()) {
+            throw new WebApplicationException("There are no viable auth steps for IVR.", Response.Status.INTERNAL_SERVER_ERROR);
+        }
 
         return Response.ok(Map.of("steps", steps)).build();
     }
