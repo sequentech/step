@@ -42,7 +42,7 @@ spec:
             - name: GITEA_RUNNER_REGISTRATION_TOKEN
               value: "YOUR_TOKEN_HERE"
             - name: DOCKER_HOST
-              value: tcp://localhost:2375
+              value: unix:///var/run/docker.sock
             - name: CONFIG_FILE
               value: /config/config.yaml
           volumeMounts:
@@ -50,6 +50,8 @@ spec:
               mountPath: /data
             - name: config-volume
               mountPath: /config
+            - name: dind-socket
+              mountPath: /var/run
         - name: dind
           image: docker:24-dind
           env:
@@ -64,6 +66,8 @@ spec:
             - name: image-cache
               mountPath: /images
               readOnly: true
+            - name: dind-socket
+              mountPath: /var/run
       volumes:
         - name: runner-data
           hostPath:
@@ -80,3 +84,5 @@ spec:
         - name: config-volume
           configMap:
             name: runner-config
+        - name: dind-socket
+          emptyDir: {}
