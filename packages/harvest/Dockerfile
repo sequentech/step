@@ -2,7 +2,7 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-only
 
-FROM rust:1.90.0-slim-bookworm
+FROM sequentech.local/ci-builder:latest
 
 ENV ROCKET_ADDRESS=0.0.0.0
 ENV ROCKET_PORT=8400
@@ -12,7 +12,6 @@ WORKDIR /app
 WORKDIR /app
 COPY . .
 
-RUN apt-get update && apt-get install -y chromium protobuf-compiler libprotobuf-dev
 
 WORKDIR /app/harvest
 RUN cargo build

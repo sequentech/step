@@ -85,6 +85,8 @@ done
 echo "Building custom Postgres/Keycloak..."
 docker build -t sequentech.local/postgresql "$PROJECT_ROOT/.devcontainer/postgresql"
 docker build -t sequentech.local/keycloak -f "$PROJECT_ROOT/packages/Dockerfile.keycloak" "$PROJECT_ROOT/packages"
+echo "Building custom CI builder base image..."
+docker build -t sequentech.local/ci-builder:latest -f "$PROJECT_ROOT/packages/Dockerfile.ci-builder" "$PROJECT_ROOT/packages"
 
 echo "--- [6/7] Saving Images to Tarball ---"
 ALL_IMAGES=(
@@ -93,6 +95,7 @@ ALL_IMAGES=(
     "${INFRA_IMAGES[@]}" 
     "sequentech.local/postgresql" 
     "sequentech.local/keycloak"
+    "sequentech.local/ci-builder:latest"
 )
 docker save -o "$OUTPUT_DIR/images/step-airgap-infra.tar" "${ALL_IMAGES[@]}"
 
