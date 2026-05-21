@@ -28,6 +28,17 @@ impl PermissionSet for TrusteeCeremony {
     }
 }
 
+/// Permission set requiring ADMIN_CEREMONY.
+///
+/// Use this for B4 handlers called by the admin portal.
+pub struct AdminCeremony;
+
+impl PermissionSet for AdminCeremony {
+    fn required_permissions() -> &'static [Permissions] {
+        &[Permissions::ADMIN_CEREMONY]
+    }
+}
+
 /// Constraint validator for board access in B4.
 ///
 /// This validator checks that browser trustees can only access boards

@@ -48,6 +48,7 @@ import {useAliasRenderer} from "@/hooks/useAliasRenderer"
 import {useKeysPermissions} from "./useKeysPermissions"
 import {TrusteeItems} from "@/components/TrusteeItems"
 import {StyledChip} from "@/components/StyledChip"
+import {fetchSessions} from "./b4Api"
 
 const NotificationLink = styled("span")`
     text-decoration: underline;
@@ -138,22 +139,15 @@ export const EditElectionEventKeys: React.FC<EditElectionEventKeysProps> = (prop
         const accessToken = authContext.accessToken
         if (!boardName || !b4Url || !accessToken) return
 
-        const fetchSessions = async () => {
-            try {
-                const res = await fetch(
-                    `${b4Url}/sessions?board_name=${boardName}&heartbeat_secs=${heartbeatSecs}`,
-                    {headers: {Authorization: `Bearer ${accessToken}`}}
-                )
-                if (!res.ok) return
-                const data = await res.json()
+        const poll = async () => {
+            const data = await fetchSessions(b4Url, boardName, heartbeatSecs, accessToken)
+            if (data) {
                 console.log("[TrusteeConnectionStatus]", data.sessions)
-            } catch (_) {
-                // B4 may not be reachable; ignore silently
             }
         }
 
-        fetchSessions()
-        const interval = setInterval(fetchSessions, heartbeatSecs * 1000)
+        poll()
+        const interval = setInterval(poll, heartbeatSecs * 1000)
         return () => clearInterval(interval)
     }, [boardName, globalSettings.B4_URL, globalSettings.BRAID_B4_HEARTBEAT, authContext.accessToken])
 

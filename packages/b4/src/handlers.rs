@@ -9,7 +9,9 @@ use crate::api_types::{
     InitiateMessageResponse, InitiateMessagesMultiRequest, InitiateMessagesMultiResponse,
     ListMessagesResponse, Message, MAX_INLINE_MESSAGE_SIZE,
 };
-use crate::auth::{BoardAccessValidator, RequireConstraints, RequirePermissions, TrusteeCeremony};
+use crate::auth::{
+    AdminCeremony, BoardAccessValidator, RequireConstraints, RequirePermissions, TrusteeCeremony,
+};
 use axum::{
     extract::{Path, Query, State},
     http::StatusCode,
@@ -931,7 +933,7 @@ pub async fn post_heartbeat(
 #[tracing::instrument(skip(state, claims), err)]
 pub async fn get_sessions(
     State(state): State<AppState>,
-    RequirePermissions { claims, .. }: RequirePermissions<TrusteeCeremony>,
+    RequirePermissions { claims, .. }: RequirePermissions<AdminCeremony>,
     Query(params): Query<GetSessionsQuery>,
 ) -> Result<Json<SessionsListResponse>, StatusCode> {
     let heartbeat_secs = params
