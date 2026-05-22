@@ -1,0 +1,121 @@
+# SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+name: Create Stable Branch PRs
+
+# Triggers when a PR transitions from draft to ready for review.
+# Generates one companion PR per configured stable branch when:
+#   1. The source branch name ends with "/main"
+#   2. The PR targets the "main" branch
+#   3. The PR body contains a "Parent issue:" link to sequentech/meta
+on:
+  pull_request:
+    types: [ready_for_review]
+
+jobs:
+  create-stable-branch-prs:
+    name: Create stable branch PRs
+    # Only run when source branch ends with "/main" and target is "main"
+    if: ${{ endsWith(github.head_ref, '/main') && github.base_ref == 'main' }}
+    runs-on: gcp-selfhosted-ubuntu24
+    steps:
+      - name: Check for parent meta issue and create stable branch PRs
+        env:
+          GH_TOKEN: ${{ secrets.PAT }}
+          # Edit this list to add or remove stable branches
+          STABLE_BRANCHES: "release/10.0 release/9.5.x"
+        run: |
+          HEAD_BRANCH="${{ github.head_ref }}"
+          PR_NUMBER="${{ github.event.pull_request.number }}"
+          REPO="${{ github.repository }}"
+
+          # Fetch PR title and body via gh to safely handle special characters
+          gh pr view "$PR_NUMBER" --repo "$REPO" --json title --jq '.title' \
+            > /tmp/pr_title.txt
+          gh pr view "$PR_NUMBER" --repo "$REPO" --json body --jq '.body' \
+            > /tmp/pr_body.txt
+
+          PR_TITLE="$(cat /tmp/pr_title.txt)"
+
+          # Extract parent meta issue URL from PR body
+          PARENT_ISSUE_URL=$(grep -oP \
+            'Parent issue:\s*\K(https://github\.com/sequentech/meta/issues/\d+)' \
+            /tmp/pr_body.txt | head -1)
+
+          if [ -z "$PARENT_ISSUE_URL" ]; then
+            echo "No parent sequentech/meta issue found in PR body. Skipping stable branch PR creation."
+            exit 0
+          fi
+
+          echo "Found parent issue: $PARENT_ISSUE_URL"
+
+          # Helper: resolve a branch SHA; exits non-zero if branch not found,
+          # and prints the API error to stderr so failures are visible in logs.
+          get_branch_sha() {
+            local branch="$1"
+            local output
+            if output=$(gh api "repos/$REPO/git/refs/heads/$branch" \
+                          --jq '.object.sha' 2>&1); then
+              echo "$output"
+            else
+              # Surface the raw API error for diagnosis, then return a special
+              # exit code that callers can distinguish from unexpected errors.
+              echo "API error looking up branch '$branch': $output" >&2
+              return 1
+            fi
+          }
+
+          # Iterate over each stable branch
+          for STABLE_BRANCH in $STABLE_BRANCHES; do
+            # Derive new branch name: replace trailing "/main" with "/<stable-branch>"
+            NEW_BRANCH="${HEAD_BRANCH%/main}/$STABLE_BRANCH"
+
+            echo "--- Processing stable branch: $STABLE_BRANCH ---"
+            echo "New branch name: $NEW_BRANCH"
+
+            # Resolve the SHA of the stable branch head
+            if ! STABLE_SHA=$(get_branch_sha "$STABLE_BRANCH"); then
+              echo "Warning: Stable branch '$STABLE_BRANCH' not found or inaccessible in $REPO. Skipping."
+              continue
+            fi
+
+            # Check whether the new branch already exists
+            if ! EXISTING_SHA=$(get_branch_sha "$NEW_BRANCH"); then
+              echo "Creating branch '$NEW_BRANCH' from '$STABLE_BRANCH' ($STABLE_SHA)"
+              if ! gh api "repos/$REPO/git/refs" \
+                    -f ref="refs/heads/$NEW_BRANCH" \
+                    -f sha="$STABLE_SHA"; then
+                echo "Error: Failed to create branch '$NEW_BRANCH'. Skipping PR creation."
+                continue
+              fi
+            else
+              echo "Branch '$NEW_BRANCH' already exists ($EXISTING_SHA). Skipping branch creation."
+            fi
+
+            # Check if a PR already exists for this branch/base pair
+            EXISTING_PR=$(gh pr list \
+              --repo "$REPO" \
+              --head "$NEW_BRANCH" \
+              --base "$STABLE_BRANCH" \
+              --json number \
+              --jq '.[0].number')
+
+            if [ -n "$EXISTING_PR" ]; then
+              echo "PR #$EXISTING_PR already exists for '$NEW_BRANCH' -> '$STABLE_BRANCH'. Skipping."
+              continue
+            fi
+
+            echo "Creating PR: '$NEW_BRANCH' -> '$STABLE_BRANCH'"
+            if ! gh pr create \
+                   --repo "$REPO" \
+                   --head "$NEW_BRANCH" \
+                   --base "$STABLE_BRANCH" \
+                   --title "$PR_TITLE" \
+                   --body-file /tmp/pr_body.txt; then
+              echo "Error: Failed to create PR for '$NEW_BRANCH' -> '$STABLE_BRANCH'."
+              continue
+            fi
+
+            echo "Created PR for '$NEW_BRANCH' -> '$STABLE_BRANCH'"
+          done
