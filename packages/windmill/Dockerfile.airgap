@@ -12,7 +12,7 @@ COPY . .
 
 # Copy vendored dependencies and config
 COPY --from=deps /vendor-cache /vendor-cache
-RUN mkdir -p .cargo && cat /vendor-cache/config.toml >> .cargo/config.toml
+RUN mkdir -p .cargo && echo "" >> .cargo/config.toml && cat /vendor-cache/config.toml >> .cargo/config.toml
 
 RUN cp /app/windmill/external-bin/ecies-tool.jar /usr/local/bin/
 
