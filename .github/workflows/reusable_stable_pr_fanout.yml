@@ -136,20 +136,26 @@ jobs:
               '',
               'Requirements:',
               `1. Create or update branch \`${targetHead}\` from \`${stableBranch}\`.`,
-              `2. Adapt the source pull request changes from #${process.env.SOURCE_PR_NUMBER} for backward compatibility and semantic versioning constraints of \`${stableBranch}\`.`,
+              `2. Adapt the source pull request changes from #${process.env.SOURCE_PR_NUMBER} for backward compatibility and semantic versioning constraints of \`${stableBranch}\` (no intentional breaking API or schema changes).`,
               '3. Ensure code compiles, linting passes, and tests pass for that stable branch adaptation.',
               `4. Open a pull request from \`${targetHead}\` to \`${stableBranch}\` in ${context.repo.owner}/${context.repo.repo}.`,
               `5. Include this exact parent issue link in the PR body: ${process.env.META_ISSUE_URL}.`,
               `6. Mention source PR #${process.env.SOURCE_PR_NUMBER} and title "${process.env.SOURCE_PR_TITLE}" in the PR body.`,
             ].join('\n');
 
-            const existing = await github.rest.search.issuesAndPullRequests({
-              q: `repo:${context.repo.owner}/${context.repo.repo} is:issue is:open in:title "${issueTitle}"`,
-              per_page: 1,
+            const existingIssues = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              per_page: 100,
             });
 
-            if (existing.data.total_count > 0) {
-              core.info(`Copilot task already exists for ${stableBranch}: ${existing.data.items[0].html_url}`);
+            const existingIssue = existingIssues.data.find(
+              (issue) => !issue.pull_request && issue.title === issueTitle
+            );
+
+            if (existingIssue) {
+              core.info(`Copilot task already exists for ${stableBranch}: ${existingIssue.html_url}`);
               return;
             }
 
