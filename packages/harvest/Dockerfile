@@ -2,20 +2,24 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-only
 
-FROM sequentech.local/offline-dependencies:latest AS deps
-
-FROM sequentech.local/ci-builder:latest
+FROM rust:1.90.0-slim-bookworm
 
 ENV ROCKET_ADDRESS=0.0.0.0
 ENV ROCKET_PORT=8400
 
 WORKDIR /app
-# copy entire packages directory (monorepo)
-COPY . .
+COPY ./harvest ./harvest
+COPY ./immu-board ./immu-board
+COPY ./immudb-rs ./immudb-rs
+COPY ./strand ./strand
+COPY ./board-messages ./board-messages
+COPY ./sequent-core ./sequent-core
+COPY ./windmill ./windmill
+COPY ./wrap-map-err ./wrap-map-err
+COPY ./velvet ./velvet
 
-# Copy vendored dependencies and config
-COPY --from=deps /vendor-cache /vendor-cache
-RUN mkdir -p .cargo && cat /vendor-cache/config.toml >> .cargo/config.toml
+RUN apt-get update && apt-get install -y chromium protobuf-compiler libprotobuf-dev
+
 WORKDIR /app/harvest
 RUN cargo build
 

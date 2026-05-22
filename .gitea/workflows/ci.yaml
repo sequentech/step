@@ -21,17 +21,17 @@ jobs:
 
       - name: Build and Push Harvest
         run: |
-          docker build -f ./packages/harvest/Dockerfile -t gitea.gitea:3000/step/harvest:latest ./packages
+          docker build -f ./packages/harvest/Dockerfile.airgap -t gitea.gitea:3000/step/harvest:latest ./packages
           docker push gitea.gitea:3000/step/harvest:latest
 
       - name: Build and Push Windmill
         run: |
-          docker build -f ./packages/windmill/Dockerfile -t gitea.gitea:3000/step/windmill:latest ./packages
+          docker build -f ./packages/windmill/Dockerfile.airgap -t gitea.gitea:3000/step/windmill:latest ./packages
           docker push gitea.gitea:3000/step/windmill:latest
 
       - name: Build and Push Admin Portal
         run: |
-          docker build -f ./packages/Dockerfile.prod --build-arg SPA_NAME=admin-portal -t gitea.gitea:3000/step/admin-portal:latest ./packages
+          docker build -f ./packages/Dockerfile.prod.airgap --build-arg SPA_NAME=admin-portal -t gitea.gitea:3000/step/admin-portal:latest ./packages
           docker push gitea.gitea:3000/step/admin-portal:latest
 
       - name: Rollout Update
