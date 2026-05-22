@@ -122,6 +122,10 @@ jobs:
             const sourceHead = process.env.SOURCE_HEAD_REF;
             const targetHead = sourceHead.replace(/\/main$/, `/${stableBranch}`);
             const issueTitle = `[Copilot Stable PR] #${process.env.SOURCE_PR_NUMBER} -> ${stableBranch}`;
+            const copilotAssigneeCandidates = [
+              ['copilot-swe-agent[bot]'],
+              ['github-copilot[bot]'],
+            ];
             const body = [
               `Create a stable-branch pull request for ${context.repo.owner}/${context.repo.repo}.`,
               '',
@@ -154,7 +158,7 @@ jobs:
               repo: context.repo.repo,
               title: issueTitle,
               body,
-              assignees: ['copilot-swe-agent[bot]'],
+              assignees: copilotAssigneeCandidates[0],
               // GitHub Copilot cloud-agent assignment metadata.
               // https://docs.github.com/en/copilot/how-tos/use-copilot-agents/cloud-agent/start-copilot-sessions#using-the-rest-api
               agent_assignment: {
@@ -169,12 +173,21 @@ jobs:
               core.info(`Created Copilot stable PR task: ${issue.data.html_url}`);
             } catch (error) {
               core.warning(`agent_assignment request failed for ${stableBranch}: ${error.message}`);
-              const fallbackIssue = await github.rest.issues.create({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                title: issueTitle,
-                body,
-                assignees: ['copilot-swe-agent[bot]'],
-              });
-              core.info(`Created Copilot fallback issue for ${stableBranch}: ${fallbackIssue.data.html_url}`);
+              for (const assignees of copilotAssigneeCandidates) {
+                try {
+                  const fallbackIssue = await github.rest.issues.create({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    title: issueTitle,
+                    body,
+                    assignees,
+                  });
+                  core.info(`Created Copilot fallback issue for ${stableBranch}: ${fallbackIssue.data.html_url}`);
+                  return;
+                } catch (fallbackError) {
+                  core.warning(`Fallback with assignee ${assignees[0]} failed: ${fallbackError.message}`);
+                }
+              }
+
+              core.setFailed(`Failed to create Copilot fallback issue for ${stableBranch}.`);
             }
