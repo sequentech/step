@@ -143,14 +143,14 @@ jobs:
               `6. Mention source PR #${process.env.SOURCE_PR_NUMBER} and title "${process.env.SOURCE_PR_TITLE}" in the PR body.`,
             ].join('\n');
 
-            const existingIssues = await github.rest.issues.listForRepo({
+            const existingIssues = await github.paginate(github.rest.issues.listForRepo, {
               owner: context.repo.owner,
               repo: context.repo.repo,
               state: 'open',
               per_page: 100,
             });
 
-            const existingIssue = existingIssues.data.find(
+            const existingIssue = existingIssues.find(
               (issue) => !issue.pull_request && issue.title === issueTitle
             );
 
