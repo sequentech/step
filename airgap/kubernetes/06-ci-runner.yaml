@@ -70,13 +70,11 @@ spec:
               mountPath: /var/run
       volumes:
         - name: runner-data
-          hostPath:
-            path: /var/lib/rancher/k3s/storage/gitea-runner
-            type: DirectoryOrCreate
+          persistentVolumeClaim:
+            claimName: runner-data-pvc
         - name: docker-storage
-          hostPath:
-            path: /var/lib/rancher/k3s/storage/docker-dind
-            type: DirectoryOrCreate
+          persistentVolumeClaim:
+            claimName: docker-storage-pvc
         - name: image-cache
           hostPath:
             path: /var/lib/rancher/k3s/agent/images/infra
@@ -86,3 +84,29 @@ spec:
             name: runner-config
         - name: dind-socket
           emptyDir: {}
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: runner-data-pvc
+  namespace: gitea
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: local-path
+  resources:
+    requests:
+      storage: 2Gi
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: docker-storage-pvc
+  namespace: gitea
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: local-path
+  resources:
+    requests:
+      storage: 20Gi

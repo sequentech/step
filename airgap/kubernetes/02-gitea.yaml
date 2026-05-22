@@ -53,6 +53,18 @@ spec:
               mountPath: /data
       volumes:
         - name: gitea-data
-          hostPath:
-            path: /var/lib/rancher/k3s/storage/gitea
-            type: DirectoryOrCreate
+          persistentVolumeClaim:
+            claimName: gitea-pvc
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: gitea-pvc
+  namespace: gitea
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: local-path
+  resources:
+    requests:
+      storage: 5Gi

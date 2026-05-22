@@ -58,9 +58,8 @@ spec:
               subPath: 00-airgap.sh
       volumes:
         - name: pg-data
-          hostPath:
-            path: /var/lib/rancher/k3s/storage/postgres
-            type: DirectoryOrCreate
+          persistentVolumeClaim:
+            claimName: postgres-pvc
         - name: pg-init-script
           configMap:
             name: postgres-init-script
@@ -121,9 +120,8 @@ spec:
               mountPath: /data
       volumes:
         - name: storage
-          hostPath:
-            path: /var/lib/rancher/k3s/storage/rustfs
-            type: DirectoryOrCreate
+          persistentVolumeClaim:
+            claimName: rustfs-pvc
 ---
 apiVersion: v1
 kind: Service
@@ -211,3 +209,29 @@ spec:
               value: "password"
           ports:
             - containerPort: 8090
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: postgres-pvc
+  namespace: step-infra
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: local-path
+  resources:
+    requests:
+      storage: 5Gi
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: rustfs-pvc
+  namespace: step-infra
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: local-path
+  resources:
+    requests:
+      storage: 10Gi
