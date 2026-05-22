@@ -23,11 +23,14 @@ export const ensureWasmReady = (): Promise<void> => {
     wasmInitPromise = (async () => {
         try {
             await init({})
-            await initThreadPool(navigator.hardwareConcurrency || 4)
+            try {
+                await initThreadPool(navigator.hardwareConcurrency || 4)
+                console.info("[useHeadlessTrustee] WASM initialized with thread pool")
+            } catch (threadErr) {
+                console.warn("[useHeadlessTrustee] Thread pool init failed, running single-threaded:", threadErr)
+            }
             wasmReady = true
-            console.info("[useHeadlessTrustee] WASM initialized and thread pool started")
         } catch (e) {
-            console.error("Failed to initialize WASM thread pool:", e)
             wasmInitPromise = null
             throw e
         }
@@ -65,6 +68,7 @@ export const useHeadlessTrustee = ({
     const initializedRef = useRef(false)
     const connectedRef = useRef(false)
     const loadingRef = useRef(false)
+    const lastHeartbeatRef = useRef<number>(0)
     const [running, setRunning] = useState(false)
 
     // Only query for trustee config when needed
@@ -87,6 +91,8 @@ export const useHeadlessTrustee = ({
         currentCeremony?.execution_status === EStatus.IN_PROGRESS ||
         currentCeremony?.execution_status === EStatus.STARTED
 
+    const heartbeatSecs = globalSettings.BRAID_B4_HEARTBEAT
+
     const step = useCallback(async () => {
         console.info("[headless-trustee] Running protocol step...")
         console.info(`[headless-trustee] Current session state: sessionRef=${sessionRef.current}, loading=${loadingRef.current}`
@@ -95,12 +101,21 @@ export const useHeadlessTrustee = ({
         loadingRef.current = true
         try {
             await sessionRef.current.step()
+            const now = Date.now()
+            if (now - lastHeartbeatRef.current >= heartbeatSecs * 1000) {
+                lastHeartbeatRef.current = now
+                try {
+                    await sessionRef.current.heartbeat(trusteeName ?? "")
+                } catch (e) {
+                    console.warn("[headless-trustee] Heartbeat error:", e)
+                }
+            }
         } catch (e) {
             console.warn("[headless-trustee] Step error:", e)
         } finally {
             loadingRef.current = false
         }
-    }, [])
+    }, [heartbeatSecs, trusteeName])
 
     // Step 1-4: Initialize WASM and connect to board once config is available
     useEffect(() => {
