@@ -7,7 +7,8 @@ FROM rust:1.90.0-slim-bookworm AS rust-deps
 WORKDIR /workspace
 COPY . .
 RUN mkdir -p /vendor-cache && \
-    cargo vendor /vendor-cache > /vendor-cache/config.toml
+    cargo vendor /vendor-cache > /config.toml && \
+    mv /config.toml /vendor-cache/config.toml
 
 # Stage 2: Node Dependencies
 FROM node:20-bookworm-slim AS node-deps

@@ -16,9 +16,6 @@ jobs:
       - name: Login to Local Gitea Registry
         run: echo "${{ secrets.REGISTRY_PAT }}" | docker login http://gitea.gitea:3000 -u "${{ github.actor }}" --password-stdin
 
-      - name: Build Offline Dependencies (Lab Only)
-        run: docker build -t sequentech.local/offline-dependencies:latest -f ./packages/Dockerfile.offline-dependencies ./packages
-
       - name: Build and Push Harvest
         run: |
           docker build -f ./packages/harvest/Dockerfile.airgap -t gitea.gitea:3000/step/harvest:latest ./packages
