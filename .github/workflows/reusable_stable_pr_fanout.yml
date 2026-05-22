@@ -120,7 +120,7 @@ jobs:
           script: |
             const stableBranch = process.env.STABLE_BRANCH;
             const sourceHead = process.env.SOURCE_HEAD_REF;
-            const targetHead = sourceHead.replace(/\/main$/, `/${stableBranch}`);
+            const targetHead = sourceHead.replace(/\/main$/, '/' + stableBranch);
             const issueTitle = `[Copilot Stable PR] #${process.env.SOURCE_PR_NUMBER} -> ${stableBranch}`;
             const copilotAssigneeCandidates = [
               ['copilot-swe-agent[bot]'],
