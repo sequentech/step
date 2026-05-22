@@ -114,6 +114,7 @@ tar -czf "$OUTPUT_DIR/step-source.tar.gz" \
     --exclude="./airgap-output" \
     --exclude="./target" \
     --exclude="./node_modules" \
+    --exclude="./.git" \
     .
 
 echo "--- Preparation Complete! ---"
