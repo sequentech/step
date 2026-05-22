@@ -103,7 +103,7 @@ echo "--- [6.5/7] Vendoring Offline Dependencies (Rust & Node) ---"
 echo "Vendoring Rust crates..."
 docker run --rm --platform "linux/$ARCH" -v "$PROJECT_ROOT/packages:/workspace" -w /workspace rust:1.90.0-slim-bookworm bash -c "
     mkdir -p .cargo
-    cargo vendor > .cargo/config.toml
+    cargo vendor >> .cargo/config.toml
 "
 
 echo "Vendoring Node.js packages to yarn offline mirror..."
