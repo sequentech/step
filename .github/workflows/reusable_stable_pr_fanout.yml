@@ -153,19 +153,19 @@ jobs:
               return;
             }
 
-            for (const assignees of copilotAssigneeCandidates) {
+            for (const candidateAssignees of copilotAssigneeCandidates) {
               try {
                 const issue = await github.rest.issues.create({
                   owner: context.repo.owner,
                   repo: context.repo.repo,
                   title: issueTitle,
                   body,
-                  assignees,
+                  assignees: candidateAssignees,
                 });
                 core.info(`Created Copilot stable PR task: ${issue.data.html_url}`);
                 return;
               } catch (error) {
-                core.warning(`Copilot issue creation with assignee ${assignees[0]} failed: ${error.message}`);
+                core.warning(`Copilot issue creation with assignee ${candidateAssignees[0]} failed: ${error.message}`);
               }
             }
 
