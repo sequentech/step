@@ -19,6 +19,7 @@ RUN cp /app/windmill/external-bin/ecies-tool.jar /usr/local/bin/
 # java -jar ecies-tool.jar create-keys public.pem private.pem
 
 WORKDIR /app/windmill
+RUN find /vendor-cache -name Cargo.toml -exec sed -i 's/edition = "2024"/edition = "2021"/g' {} + || true
 RUN cargo build
 
 CMD ["cargo", "run", "--bin", "main", "consume", "-q", "short_queue", "tally_queue", "beat", "reports_queue" ]
