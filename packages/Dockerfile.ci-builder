@@ -1,7 +1,7 @@
 FROM rust:1.90.0-slim-bookworm
 
 RUN apt-get -o Acquire::Check-Valid-Until=false -o Acquire::Check-Date=false update && \
-    apt-get install -y chromium protobuf-compiler libprotobuf-dev wget software-properties-common curl && \
+    apt-get install -y chromium protobuf-compiler libprotobuf-dev pkg-config libssl-dev wget software-properties-common curl && \
     rm -rf /var/lib/apt/lists/*
 
 RUN rustup toolchain install nightly-2024-09-01 && rustup default nightly-2024-09-01

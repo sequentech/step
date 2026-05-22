@@ -16,10 +16,11 @@ RUN mkdir -p .cargo && echo "" >> .cargo/config.toml && cat /vendor-cache/config
 
 RUN cp /app/windmill/external-bin/ecies-tool.jar /usr/local/bin/
 
-# java -jar ecies-tool.jar create-keys public.pem private.pem
-
 WORKDIR /app/windmill
-RUN find /vendor-cache -name Cargo.toml -exec sed -i 's/edition = "2024"/edition = "2021"/g' {} + || true
+
+# Use the pre-installed nightly Rust toolchain for windmill
+RUN rustup default nightly
+
 RUN cargo build
 
 CMD ["cargo", "run", "--bin", "main", "consume", "-q", "short_queue", "tally_queue", "beat", "reports_queue" ]

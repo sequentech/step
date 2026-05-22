@@ -17,7 +17,10 @@ COPY . .
 COPY --from=deps /vendor-cache /vendor-cache
 RUN mkdir -p .cargo && echo "" >> .cargo/config.toml && cat /vendor-cache/config.toml >> .cargo/config.toml
 WORKDIR /app/harvest
-RUN find /vendor-cache -name Cargo.toml -exec sed -i 's/edition = "2024"/edition = "2021"/g' {} + || true
+
+# Use the pre-installed stable Rust toolchain (which is 1.90.0)
+RUN rustup default stable
+
 RUN cargo build
 
 CMD ["cargo", "run"]
