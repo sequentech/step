@@ -2,12 +2,17 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-only
 
+FROM sequentech.local/offline-dependencies:latest AS deps
+
 FROM sequentech.local/ci-builder:latest AS builder
 
 WORKDIR /app
 # copy entire packages directory (monorepo)
-WORKDIR /app
 COPY . .
+
+# Copy vendored dependencies and config
+COPY --from=deps /vendor-cache /vendor-cache
+RUN mkdir -p .cargo && cat /vendor-cache/config.toml >> .cargo/config.toml
 
 RUN cp /app/windmill/external-bin/ecies-tool.jar /usr/local/bin/
 

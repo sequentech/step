@@ -106,10 +106,7 @@ EOF
         echo "To start developing:"
         echo "1. Log in to Gitea at http://gitea.local"
         echo "2. Create your 'step' repo and push source:"
-        echo "   cd source"
-        echo "   git add -f packages/vendor packages/.cargo/config.toml packages/npm-packages-offline-cache packages/.yarnrc"
-        echo "   git commit -m 'chore: add vendored offline dependencies'"
-        echo "   git remote add origin http://gitea.local/user/step.git"
+        echo "   cd source && git remote add origin http://gitea.local/user/step.git"
         echo "   git push -u origin main"
         ;;
 

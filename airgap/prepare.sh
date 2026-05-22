@@ -88,6 +88,9 @@ docker build -t sequentech.local/keycloak -f "$PROJECT_ROOT/packages/Dockerfile.
 echo "Building custom CI builder base image..."
 docker build -t sequentech.local/ci-builder:latest -f "$PROJECT_ROOT/packages/Dockerfile.ci-builder" "$PROJECT_ROOT/packages"
 
+echo "Building offline dependencies base image..."
+docker build -t sequentech.local/offline-dependencies:latest -f "$PROJECT_ROOT/packages/Dockerfile.offline-dependencies" "$PROJECT_ROOT/packages"
+
 echo "--- [6/7] Saving Images to Tarball ---"
 ALL_IMAGES=(
     "${CI_RUNNER_IMAGES[@]}" 
@@ -96,24 +99,9 @@ ALL_IMAGES=(
     "sequentech.local/postgresql" 
     "sequentech.local/keycloak"
     "sequentech.local/ci-builder:latest"
+    "sequentech.local/offline-dependencies:latest"
 )
 docker save -o "$OUTPUT_DIR/images/step-airgap-infra.tar" "${ALL_IMAGES[@]}"
-
-echo "--- [6.5/7] Vendoring Offline Dependencies (Rust & Node) ---"
-echo "Vendoring Rust crates..."
-docker run --rm --platform "linux/$ARCH" -v "$PROJECT_ROOT/packages:/workspace" -w /workspace rust:1.90.0-slim-bookworm bash -c "
-    mkdir -p .cargo
-    cargo vendor >> .cargo/config.toml
-"
-
-echo "Vendoring Node.js packages to yarn offline mirror..."
-docker run --rm --platform "linux/$ARCH" -v "$PROJECT_ROOT/packages:/workspace" -w /workspace node:20-bookworm-slim bash -c "
-    npm install -g yarn
-    echo 'yarn-offline-mirror "./npm-packages-offline-cache"' > .yarnrc
-    echo 'yarn-offline-mirror-pruning true' >> .yarnrc
-    # Run yarn install to populate the offline mirror based on yarn.lock
-    yarn install --frozen-lockfile
-"
 
 echo "--- [7/7] Finalizing Output ---"
 cp -r "$AIRGAP_DIR/kubernetes" "$OUTPUT_DIR/"
