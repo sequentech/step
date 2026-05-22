@@ -137,12 +137,17 @@ export const EditElectionEventKeys: React.FC<EditElectionEventKeysProps> = (prop
         const b4Url = globalSettings.B4_URL
         const heartbeatSecs = globalSettings.BRAID_B4_HEARTBEAT
         const accessToken = authContext.accessToken
-        if (!boardName || !b4Url || !accessToken) return
+        if (!boardName || !b4Url || !accessToken || isTrustee) return
 
         const poll = async () => {
             const data = await fetchSessions(b4Url, boardName, heartbeatSecs, accessToken)
             if (data) {
-                console.log("[TrusteeConnectionStatus]", data.sessions)
+                // Print one console log per entry in the sessions array, which should be updated every heartbeatSecs seconds when the trustee is connected
+                data.sessions.forEach((session: any) => {
+                    console.log(
+                        `B4 Session - Board: ${boardName}, Trustee: ${session.trustee_name}, mode: ${session.trustee_mode}, status ${session.status}`
+                    )
+                })   
             }
         }
 

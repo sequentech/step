@@ -137,7 +137,7 @@ export const TrusteeWizard: React.FC<TrusteeWizardProps> = ({
             EElectionEventCeremoniesPolicy.AUTOMATED_CEREMONIES &&
         currentCeremony?.settings?.policy === EElectionEventCeremoniesPolicy.AUTOMATED_CEREMONIES
 
-    // Silently run the braid protocol for browser-based trustees during automatic ceremonies
+    // Silently run the braid protocol for browser-based trustees
     useHeadlessTrustee({
         electionEvent,
         currentCeremony,

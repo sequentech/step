@@ -21,9 +21,16 @@ export const ensureWasmReady = (): Promise<void> => {
     if (wasmReady) return Promise.resolve()
     if (wasmInitPromise) return wasmInitPromise
     wasmInitPromise = (async () => {
-        await init({})
-        await initThreadPool(navigator.hardwareConcurrency || 4)
-        wasmReady = true
+        try {
+            await init({})
+            await initThreadPool(navigator.hardwareConcurrency || 4)
+            wasmReady = true
+            console.info("[useHeadlessTrustee] WASM initialized and thread pool started")
+        } catch (e) {
+            console.error("Failed to initialize WASM thread pool:", e)
+            wasmInitPromise = null
+            throw e
+        }
     })()
     return wasmInitPromise
 }
@@ -61,7 +68,7 @@ export const useHeadlessTrustee = ({
     const [running, setRunning] = useState(false)
 
     // Only query for trustee config when needed
-    const shouldFetch = isAutomaticCeremony && isTrusteeParticipating && !!trusteeName && !!tenantId
+    const shouldFetch = !isAutomaticCeremony && isTrusteeParticipating && !!trusteeName && !!tenantId
 
     const {data: trusteeData} = useQuery(GET_TRUSTEE_CONFIG, {
         variables: {tenantId, name: trusteeName},
@@ -71,7 +78,6 @@ export const useHeadlessTrustee = ({
     const trusteeRecord = trusteeData?.sequent_backend_trustee?.[0]
     const annotations = trusteeRecord?.annotations ?? {}
     const trusteeModePolicy = annotations?.trustee_mode_policy ?? getDefaultTrusteeModePolicy()
-    const braidConfig = annotations?.braid_config
     const isBrowserBased = trusteeModePolicy === ETrusteeModePolicy.BROWSER_BASED
 
     // Board name is stored in the election event's bulletin board reference
@@ -82,6 +88,9 @@ export const useHeadlessTrustee = ({
         currentCeremony?.execution_status === EStatus.STARTED
 
     const step = useCallback(async () => {
+        console.info("[headless-trustee] Running protocol step...")
+        console.info(`[headless-trustee] Current session state: sessionRef=${sessionRef.current}, loading=${loadingRef.current}`
+        )
         if (!sessionRef.current || loadingRef.current) return
         loadingRef.current = true
         try {
@@ -95,8 +104,9 @@ export const useHeadlessTrustee = ({
 
     // Step 1-4: Initialize WASM and connect to board once config is available
     useEffect(() => {
-        if (!isAutomaticCeremony || !isTrusteeParticipating || !isBrowserBased) return
-        if (!braidConfig || !boardName) return
+        console.info(`[headless-trustee] init effect: isAutomaticCeremony=${isAutomaticCeremony}, isTrusteeParticipating=${isTrusteeParticipating}, isBrowserBased=${isBrowserBased}, trusteeRecord=${!!trusteeRecord}, boardName=${boardName}, accessToken=${!!accessToken}, initialized=${initializedRef.current}`)
+        if (isAutomaticCeremony || !isTrusteeParticipating || !isBrowserBased) return
+        if (! trusteeRecord || !boardName) return
         if (!accessToken || !trusteeName) return
         if (initializedRef.current) return
 
@@ -104,15 +114,19 @@ export const useHeadlessTrustee = ({
 
         const initialize = async () => {
             try {
+                console.info("[headless-trustee] Initializing headless trustee protocol runner...")
                 // Step 1: Load WASM module and thread pool
                 await ensureWasmReady()
 
+                console.info("[headless-trustee] WASM ready, creating session...")
+                // WIP - Config set up for development with packages/braid/scripts/trustee1.toml credentials
+                // WIP - Configure trustee1 as browser-based and trustee2 as server-based
                 // Step 2: Create WasmSession with trustee config
                 const config = {
                     name: trusteeName,
-                    signing_key_sk: braidConfig.signing_key_sk,
-                    signing_key_pk: braidConfig.signing_key_pk ?? trusteeRecord?.public_key ?? "",
-                    encryption_key: braidConfig.encryption_key,
+                    signing_key_sk: "MC4CAQAwBQYDK2VwBCIEIJAtmrHtGFYiS5tUQepIlrFtCCcKHeSzzuJ2pZqH4bat",
+                    signing_key_pk: trusteeRecord?.public_key ?? "",
+                    encryption_key: "lQr2vrVuZJ5PAoOkVSfLfuIG7mxt8exlgAnRMBi+4rg",
                     b4_url: globalSettings.B4_URL,
                     access_token: accessToken,
                 }
@@ -120,6 +134,7 @@ export const useHeadlessTrustee = ({
 
                 // Step 3: Initialize session for the ceremony board
                 await sessionRef.current.init_session(boardName)
+                console.info(`[headless-trustee] Session initialized for board "${boardName}"`)
 
                 // Step 4: Connect to board and sync pending messages
                 await sessionRef.current.connect_to_board()
@@ -138,10 +153,10 @@ export const useHeadlessTrustee = ({
         isAutomaticCeremony,
         isTrusteeParticipating,
         isBrowserBased,
-        braidConfig,
         boardName,
         accessToken,
         trusteeName,
+        trusteeRecord,
         globalSettings.B4_URL,
     ])
 
