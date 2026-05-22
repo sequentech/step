@@ -149,23 +149,32 @@ jobs:
               return;
             }
 
+            const payload = {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: issueTitle,
+              body,
+              assignees: ['copilot-swe-agent[bot]'],
+              // GitHub Copilot cloud-agent assignment metadata.
+              // https://docs.github.com/en/copilot/how-tos/use-copilot-agents/cloud-agent/start-copilot-sessions#using-the-rest-api
+              agent_assignment: {
+                target_repo: `${context.repo.owner}/${context.repo.repo}`,
+                base_branch: stableBranch,
+                custom_instructions: `Open a PR from ${targetHead} to ${stableBranch} in ${context.repo.owner}/${context.repo.repo}. Keep backward compatibility and semantic versioning for ${stableBranch}, then run compile, lint, and test commands before opening the PR.`,
+              },
+            };
+
             try {
-              const issue = await github.request('POST /repos/{owner}/{repo}/issues', {
+              const issue = await github.request('POST /repos/{owner}/{repo}/issues', payload);
+              core.info(`Created Copilot stable PR task: ${issue.data.html_url}`);
+            } catch (error) {
+              core.warning(`agent_assignment request failed for ${stableBranch}: ${error.message}`);
+              const fallbackIssue = await github.rest.issues.create({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
                 title: issueTitle,
                 body,
                 assignees: ['copilot-swe-agent[bot]'],
-                // GitHub Copilot cloud-agent assignment metadata.
-                // https://docs.github.com/en/copilot/how-tos/use-copilot-agents/cloud-agent/start-copilot-sessions#using-the-rest-api
-                agent_assignment: {
-                  target_repo: `${context.repo.owner}/${context.repo.repo}`,
-                  base_branch: stableBranch,
-                  custom_instructions: `Open a PR from ${targetHead} to ${stableBranch} in ${context.repo.owner}/${context.repo.repo}. Keep backward compatibility and semantic versioning for ${stableBranch}, then run compile, lint, and test commands before opening the PR.`,
-                },
               });
-
-              core.info(`Created Copilot stable PR task: ${issue.data.html_url}`);
-            } catch (error) {
-              core.setFailed(`Failed to create Copilot stable PR task for ${stableBranch}: ${error.message}`);
+              core.info(`Created Copilot fallback issue for ${stableBranch}: ${fallbackIssue.data.html_url}`);
             }
