@@ -266,6 +266,23 @@ function writeSnapshot(state: RootState): void {
 }
 
 /**
+ * Build a {@link PersistedSnapshot} for the live working copy. Same
+ * format as {@link writeSnapshot} stores in `localStorage` and the
+ * shape that `SnapshotOverviewPage`'s import textarea accepts under
+ * the "Import snapshot JSON…" disclosure. Useful for diagnostic
+ * pages (e.g. `/build`) that need to surface the current state in
+ * its canonical exchange form.
+ */
+export function buildCurrentSnapshot(state: RootState): PersistedSnapshot {
+    return {
+        version: "v1",
+        state,
+        workbench: getWorkbenchState(),
+        parentId: currentParentId,
+    }
+}
+
+/**
  * Workbench bridge: turn a freshly-observed cast vote into a
  * {@link RepairedCastVote} stored alongside it in the workbench
  * overlay.

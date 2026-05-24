@@ -41,8 +41,9 @@ import type {RootState} from "voting-portal/src/store/store"
 import {NavLink, Outlet, useNavigate, useParams} from "react-router-dom"
 import {useSelector, useStore} from "react-redux"
 import {useCallback, useMemo, useState, useSyncExternalStore} from "react"
-import {subscribeWorkbench, useWorkbench} from "./workbenchStore"
+import {getWorkbenchState, subscribeWorkbench, useWorkbench} from "./workbenchStore"
 import {
+    buildCurrentSnapshot,
     bundledId,
     checkpointId,
     deleteCheckpoint,
@@ -1111,8 +1112,38 @@ export function SnapshotOverviewPage(): JSX.Element {
  * less-prominent top-level nav link rather than cluttering the
  * snapshots overview (which is otherwise pure snapshot/election
  * data).
+ *
+ * Also surfaces the live working-copy state in the same
+ * {@link PersistedSnapshot} JSON shape that the snapshots overview's
+ * "Import snapshot JSON…" textarea accepts. Mirrors the bundled
+ * snapshot's "Bundled JSON" disclosure: collapsed by default, Copy
+ * button on top, scrollable `<pre>` body.
  */
 export function BuildInfoPage(): JSX.Element {
+    const store = useStore()
+    // Subscribe to redux *and* the workbench overlay so the displayed
+    // JSON stays in sync as the operator runs the pipeline / votes
+    // through the booth / loads a different snapshot. Both
+    // `store.getState` and `getWorkbenchState` return identity-stable
+    // refs that change only on a real mutation, so this composes
+    // safely with `useSyncExternalStore` (no infinite-loop risk).
+    const reduxState = useSyncExternalStore(
+        store.subscribe,
+        store.getState
+    ) as RootState
+    const workbenchState = useSyncExternalStore(
+        subscribeWorkbench,
+        getWorkbenchState
+    )
+    const currentSnapshotJson = useMemo(
+        () =>
+            JSON.stringify(buildCurrentSnapshot(reduxState), null, 2),
+        // `workbenchState` is read inside `buildCurrentSnapshot` via
+        // `getWorkbenchState()`; we still list it here so the
+        // recomputation fires when the workbench overlay mutates
+        // without a redux dispatch (e.g. captured ballots).
+        [reduxState, workbenchState]
+    )
     return (
         <div style={{padding: "1.5rem 2rem"}}>
             <h1 style={{margin: "0 0 0.5rem 0"}}>Build info</h1>
@@ -1122,6 +1153,27 @@ export function BuildInfoPage(): JSX.Element {
                 <code>virtual:workbench-build-info</code> module.
             </p>
             <BuildStatusCard />
+            <details style={{marginTop: "1.5rem"}}>
+                <summary style={{cursor: "pointer", color: "#444"}}>
+                    Current workbench state (paste into{" "}
+                    <em>Import snapshot JSON…</em> on the snapshots page
+                    to reproduce)
+                </summary>
+                <p
+                    style={{
+                        color: "#666",
+                        fontSize: "0.85rem",
+                        margin: "0.5rem 0",
+                    }}
+                >
+                    Same shape as a bundled snapshot's <em>Bundled JSON</em>{" "}
+                    block, except <code>parentId</code> is preserved so the
+                    receiving workbench can re-attach the lineage. Drops
+                    into <code>src/fixtures/snapshots/</code> too (strip{" "}
+                    <code>parentId</code> first for a root bundled fixture).
+                </p>
+                <CopyJsonBlock json={currentSnapshotJson} />
+            </details>
         </div>
     )
 }
@@ -1484,7 +1536,7 @@ export function SnapshotDetailPage(): JSX.Element {
     )
 }
 
-function CopyJsonBlock({json}: {json: string}): JSX.Element {
+export function CopyJsonBlock({json}: {json: string}): JSX.Element {
     const [copied, setCopied] = useState(false)
     return (
         <>
