@@ -45,8 +45,10 @@ use strand::hash::hash_b64;
 use tokio::task;
 use tracing::instrument;
 use velvet::pipes::generate_reports::{
-    BasicArea, ElectionReportDataComputed, ReportDataComputed, OUTPUT_HTML, OUTPUT_JSON, OUTPUT_PDF,
+    BasicArea, ElectionReportDataComputed, ReportDataComputed, OUTPUT_ALL_AREAS_HTML,
+    OUTPUT_ALL_AREAS_JSON, OUTPUT_HTML, OUTPUT_JSON, OUTPUT_PDF,
 };
+use velvet::pipes::pipe_inputs::PREFIX_ALL_AREAS;
 
 pub const MIME_PDF: &str = "application/pdf";
 pub const MIME_JSON: &str = "application/json";
@@ -108,6 +110,33 @@ async fn generic_save_documents(
         election_event_id,
     )
     .await?;
+
+    if (document_paths.all_areas_html.is_some()) {
+        documents.all_areas_html = process_and_upload_document(
+            hasura_transaction,
+            document_paths.all_areas_html.clone(),
+            MIME_HTML,
+            OUTPUT_ALL_AREAS_HTML,
+            &all_reports,
+            report_type.clone(),
+            tenant_id,
+            election_event_id,
+        )
+        .await?;
+    }
+    if (document_paths.all_areas_json.is_some()) {
+        documents.all_areas_json = process_and_upload_document(
+            hasura_transaction,
+            document_paths.all_areas_json.clone(),
+            MIME_HTML,
+            OUTPUT_ALL_AREAS_JSON,
+            &all_reports,
+            report_type.clone(),
+            tenant_id,
+            election_event_id,
+        )
+        .await?;
+    }
 
     Ok(documents)
 }
@@ -193,6 +222,8 @@ impl GenerateResultDocuments for Vec<ElectionReportDataComputed> {
             tar_gz: Some(base_path.display().to_string()),
             tar_gz_original: None,
             tar_gz_pdfs: None,
+            all_areas_html: None,
+            all_areas_json: None,
         }
     }
 
@@ -238,7 +269,8 @@ impl GenerateResultDocuments for Vec<ElectionReportDataComputed> {
             let (_original_tarfile_temp_path, original_tarfile_path, original_tarfile_size) =
                 original_result;
 
-            let contest = &self[0].reports[0].contest;
+            let report_tenant_id = &self[0].reports[0].tenant_id;
+            let report_election_event_id = &self[0].reports[0].election_event_id;
 
             let all_reports =
                 get_reports_by_election_event_id(hasura_transaction, tenant_id, election_event_id)
@@ -265,8 +297,8 @@ impl GenerateResultDocuments for Vec<ElectionReportDataComputed> {
                 &upload_path,
                 original_tarfile_size,
                 "application/gzip",
-                &contest.tenant_id,
-                Some(contest.election_event_id.to_string()),
+                &report_tenant_id,
+                Some(report_election_event_id.to_string()),
                 "tally.tar.gz",
                 None,
                 false,
@@ -331,8 +363,8 @@ impl GenerateResultDocuments for Vec<ElectionReportDataComputed> {
                 &upload_path,
                 tarfile_size,
                 "application/gzip",
-                &contest.tenant_id,
-                Some(contest.election_event_id.to_string()),
+                &report_tenant_id,
+                Some(report_election_event_id.to_string()),
                 "tally.tar.gz",
                 None,
                 false,
@@ -346,13 +378,15 @@ impl GenerateResultDocuments for Vec<ElectionReportDataComputed> {
                 tar_gz: Some(document.id),
                 tar_gz_original: Some(original_document.id),
                 tar_gz_pdfs: None,
+                all_areas_html: None,
+                all_areas_json: None,
             };
 
             update_results_event_documents(
                 hasura_transaction,
-                &contest.tenant_id,
+                &report_tenant_id,
                 results_event_id,
-                &contest.election_event_id,
+                &report_election_event_id,
                 &documents,
             )
             .await?;
@@ -360,9 +394,9 @@ impl GenerateResultDocuments for Vec<ElectionReportDataComputed> {
             if let Some(sqlite_transaction) = sqlite_transaction_opt {
                 update_results_event_documents_sqlite(
                     sqlite_transaction,
-                    &contest.tenant_id,
+                    &report_tenant_id,
                     results_event_id,
-                    &contest.election_event_id,
+                    &report_election_event_id,
                     &documents,
                 )?;
             }
@@ -376,6 +410,8 @@ impl GenerateResultDocuments for Vec<ElectionReportDataComputed> {
                 tar_gz: None,
                 tar_gz_original: None,
                 tar_gz_pdfs: None,
+                all_areas_html: None,
+                all_areas_json: None,
             })
         }
     }
@@ -394,6 +430,10 @@ impl GenerateResultDocuments for ElectionReportDataComputed {
         let json_path = folder_path.join(OUTPUT_JSON);
         let pdf_path = folder_path.join(OUTPUT_PDF);
         let html_path = folder_path.join(OUTPUT_HTML);
+
+        let all_areas_folder_path = folder_path.join(PREFIX_ALL_AREAS);
+        let all_areas_html_path = all_areas_folder_path.join(OUTPUT_ALL_AREAS_HTML);
+        let all_areas_json_path = all_areas_folder_path.join(OUTPUT_ALL_AREAS_JSON);
 
         ResultDocumentPaths {
             json: if json_path.is_file() {
@@ -414,6 +454,16 @@ impl GenerateResultDocuments for ElectionReportDataComputed {
             tar_gz: None,
             tar_gz_original: None,
             tar_gz_pdfs: None,
+            all_areas_html: if (all_areas_html_path.is_file()) {
+                Some(all_areas_html_path.display().to_string())
+            } else {
+                None
+            },
+            all_areas_json: if (all_areas_json_path.is_file()) {
+                Some(all_areas_json_path.display().to_string())
+            } else {
+                None
+            },
         }
     }
 
@@ -433,11 +483,24 @@ impl GenerateResultDocuments for ElectionReportDataComputed {
         tally_type_enum: TallyType,
         sqlite_transaction_opt: Option<&SqliteTransaction<'_>>,
     ) -> Result<ResultDocuments> {
-        let contest = self
+        let tenant_id = self
             .reports
             .first()
             .context("Missing reports")?
-            .contest
+            .tenant_id
+            .clone();
+
+        let election_event_id = self
+            .reports
+            .first()
+            .context("Missing reports")?
+            .election_event_id
+            .clone();
+        let election_id = self
+            .reports
+            .first()
+            .context("Missing reports")?
+            .election_id
             .clone();
 
         // Read the json file and hash it
@@ -452,8 +515,8 @@ impl GenerateResultDocuments for ElectionReportDataComputed {
         // Save election results documents to S3 and Hasura
         let documents = generic_save_documents(
             document_paths,
-            &contest.tenant_id.to_string(),
-            &contest.election_event_id.to_string(),
+            &tenant_id.to_string(),
+            &election_event_id.to_string(),
             &hasura_transaction,
             tally_type_enum,
         )
@@ -461,10 +524,10 @@ impl GenerateResultDocuments for ElectionReportDataComputed {
 
         update_results_election_documents(
             hasura_transaction,
-            &contest.tenant_id,
+            &tenant_id,
             results_event_id,
-            &contest.election_event_id,
-            &contest.election_id,
+            &election_event_id,
+            &election_id,
             &documents,
             &json_hash,
         )
@@ -473,10 +536,10 @@ impl GenerateResultDocuments for ElectionReportDataComputed {
         if let Some(sqlite_transaction) = sqlite_transaction_opt {
             update_results_election_documents_sqlite(
                 sqlite_transaction,
-                &contest.tenant_id,
+                &tenant_id,
                 results_event_id,
-                &contest.election_event_id,
-                &contest.election_id,
+                &election_event_id,
+                &election_id,
                 &documents,
                 &json_hash,
             )
@@ -493,14 +556,16 @@ impl GenerateResultDocuments for ReportDataComputed {
         area_id: Option<String>,
         base_path: &PathBuf,
     ) -> ResultDocumentPaths {
+        let contest = self.contest.as_ref().expect("report is missing contest");
+
         let folder_path = match area_id.clone() {
             Some(area_id_str) => base_path.join(format!(
                 "output/velvet-generate-reports/election__{}/contest__{}/area__{}",
-                self.contest.election_id, self.contest.id, area_id_str
+                self.election_id, contest.id, area_id_str
             )),
             None => base_path.join(format!(
                 "output/velvet-generate-reports/election__{}/contest__{}",
-                self.contest.election_id, self.contest.id
+                self.election_id, contest.id
             )),
         };
 
@@ -527,6 +592,8 @@ impl GenerateResultDocuments for ReportDataComputed {
             tar_gz: None,
             tar_gz_original: None,
             tar_gz_pdfs: None,
+            all_areas_html: None,
+            all_areas_json: None,
         }
     }
 
@@ -544,62 +611,64 @@ impl GenerateResultDocuments for ReportDataComputed {
     ) -> Result<ResultDocuments> {
         let documents = generic_save_documents(
             document_paths,
-            &self.contest.tenant_id.to_string(),
-            &self.contest.election_event_id.to_string(),
+            &self.tenant_id.to_string(),
+            &self.election_event_id.to_string(),
             &hasura_transaction,
             tally_type_enum,
         )
         .await?;
 
-        if let Some(area) = self.area.clone() {
-            update_results_area_contest_documents(
-                hasura_transaction,
-                &self.contest.tenant_id,
-                results_event_id,
-                &self.contest.election_event_id,
-                &self.contest.election_id,
-                &self.contest.id,
-                &area.id,
-                &documents,
-            )
-            .await?;
-
-            if let Some(sqlite_transaction) = sqlite_transaction_opt.clone() {
-                update_results_area_contest_documents_sqlite(
-                    sqlite_transaction,
-                    &self.contest.tenant_id,
+        if let Some(contest) = self.contest.clone() {
+            if let Some(area) = self.area.clone() {
+                update_results_area_contest_documents(
+                    hasura_transaction,
+                    &self.tenant_id,
                     results_event_id,
-                    &self.contest.election_event_id,
-                    &self.contest.election_id,
-                    &self.contest.id,
+                    &self.election_event_id,
+                    &self.election_id,
+                    &contest.id,
                     &area.id,
                     &documents,
                 )
                 .await?;
-            }
-        } else {
-            update_results_contest_documents(
-                hasura_transaction,
-                &self.contest.tenant_id,
-                results_event_id,
-                &self.contest.election_event_id,
-                &self.contest.election_id,
-                &self.contest.id,
-                &documents,
-            )
-            .await?;
 
-            if let Some(sqlite_transaction) = sqlite_transaction_opt {
-                update_results_contest_documents_sqlite(
-                    sqlite_transaction,
-                    &self.contest.tenant_id,
+                if let Some(sqlite_transaction) = sqlite_transaction_opt.clone() {
+                    update_results_area_contest_documents_sqlite(
+                        sqlite_transaction,
+                        &self.tenant_id,
+                        results_event_id,
+                        &self.election_event_id,
+                        &self.election_id,
+                        &contest.id,
+                        &area.id,
+                        &documents,
+                    )
+                    .await?;
+                }
+            } else {
+                update_results_contest_documents(
+                    hasura_transaction,
+                    &self.tenant_id,
                     results_event_id,
-                    &self.contest.election_event_id,
-                    &self.contest.election_id,
-                    &self.contest.id,
+                    &self.election_event_id,
+                    &self.election_id,
+                    &contest.id,
                     &documents,
                 )
                 .await?;
+
+                if let Some(sqlite_transaction) = sqlite_transaction_opt {
+                    update_results_contest_documents_sqlite(
+                        sqlite_transaction,
+                        &self.tenant_id,
+                        results_event_id,
+                        &self.election_event_id,
+                        &self.election_id,
+                        &contest.id,
+                        &documents,
+                    )
+                    .await?;
+                }
             }
         }
 
@@ -626,23 +695,25 @@ pub fn generate_ids_map(
     for election_report in election_reports {
         let election_name = election_report.election_name;
         rename_map.insert(
-            election_report.contest.election_id.clone(),
+            election_report.election_id.clone(),
             format!(
                 "{}__{}",
                 take_first_n_chars(&election_name, MAX_LEN),
-                election_report.contest.election_id
+                election_report.election_id
             ),
         );
 
-        let contest_name = election_report.contest.get_name(default_language);
-        rename_map.insert(
-            election_report.contest.id.clone(),
-            format!(
-                "{}__{}",
-                take_first_n_chars(&contest_name, MAX_LEN),
-                election_report.contest.id
-            ),
-        );
+        if let Some(contest) = election_report.contest.clone() {
+            let contest_name = contest.get_name(default_language);
+            rename_map.insert(
+                contest.id.clone(),
+                format!(
+                    "{}__{}",
+                    take_first_n_chars(&contest_name, MAX_LEN),
+                    contest.id
+                ),
+            );
+        }
     }
 
     for area in areas {
@@ -726,9 +797,9 @@ pub async fn save_result_documents(
         }
         let areas: Vec<BasicArea> = election_areas.values().cloned().collect();
 
-        let report_election_event_id = election_report.reports[0].contest.election_event_id.clone();
-        let report_tenant_id = election_report.reports[0].contest.tenant_id.clone();
-        let report_election_id: String = election_report.reports[0].contest.election_id.clone();
+        let report_election_event_id = election_report.reports[0].election_event_id.clone();
+        let report_tenant_id = election_report.reports[0].tenant_id.clone();
+        let report_election_id = election_report.reports[0].election_id.clone();
 
         for area in areas {
             let documents = get_area_document_paths(
@@ -788,6 +859,8 @@ fn get_area_document_paths(
         tar_gz: None,
         tar_gz_original: None,
         tar_gz_pdfs: None,
+        all_areas_html: None,
+        all_areas_json: None,
     }
 }
 

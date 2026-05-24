@@ -104,6 +104,7 @@ async fn rocket() -> _ {
                 routes::keys_ceremony::list_keys_ceremonies,
                 routes::tally_ceremony::create_tally_ceremony,
                 routes::tally_ceremony::restore_private_key,
+                routes::tally_ceremony::submit_tally_resolution,
                 routes::voting_status::update_event_status,
                 routes::voting_status::update_election_status,
                 routes::tally_ceremony::update_tally_ceremony,
@@ -131,10 +132,15 @@ async fn rocket() -> _ {
                 routes::export_application::export_application_route,
                 routes::import_application::import_application_route,
                 routes::trustees::export_trustees_route,
+                routes::realm_attributes::update_realm_attributes_route,
                 routes::set_voter_authentication::set_voter_authentication,
                 routes::export_tally_results::export_tally_results_route,
                 routes::google_meet::generate_google_meeting,
-                routes::generate_preview_url::generate_preview_url
+                routes::generate_preview_url::generate_preview_url,
+                routes::import_certificate_authority::import_certificate_authority,
+                routes::delete_certificate_authority::delete_certificate_authority_route,
+                routes::export_certificate_authority::export_certificate_authority_route,
+                routes::get_certificate_authorities_pem::get_cas_pem,
             ],
         )
         .mount("/", routes![routes::plugins::plugin_routes])

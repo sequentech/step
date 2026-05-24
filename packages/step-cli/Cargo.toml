@@ -6,6 +6,7 @@
 name = "step-cli"
 version = "0.1.0"
 edition = "2021"
+default-run = "step-cli"
 
 [dependencies]
 anyhow = "1.0"
@@ -42,5 +43,5 @@ colored = "3.0"
 url = "2"
 
 [[bin]]
-name = "cli"
+name = "step-cli"
 path = "src/main.rs"

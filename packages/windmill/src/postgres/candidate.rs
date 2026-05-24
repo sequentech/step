@@ -2,9 +2,11 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::services::import::import_election_event::ImportElectionEventSchema;
+use crate::services::sql_utils::escape_sql_literal;
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::{Client as DbClient, Transaction};
 use futures::pin_mut;
+use sequent_core::services::uuid_validation::parse_uuid_v4;
 use sequent_core::types::hasura::core::Candidate;
 use std::path::Path;
 use tokio::fs::File;
@@ -31,13 +33,12 @@ impl TryFrom<Row> for CandidateWrapper {
             last_updated_at: item.get("last_updated_at"),
             labels: item.try_get("labels")?,
             annotations: item.try_get("annotations")?,
-            name: item.try_get("name")?,
-            alias: item.try_get("alias")?,
             description: item.try_get("description")?,
             r#type: item.try_get("type")?,
             presentation: item.try_get("presentation")?,
             is_public: item.try_get("is_public")?,
             image_document_id: item.try_get("image_document_id")?,
+            external_id: item.try_get("external_id")?,
         }))
     }
 }
@@ -56,9 +57,9 @@ pub async fn insert_candidates(
         .prepare(
             r#"
                 INSERT INTO sequent_backend.candidate
-                (id, tenant_id, election_event_id, contest_id, created_at, last_updated_at, labels, annotations, name, description, type, presentation, is_public, alias, image_document_id)
+                (id, tenant_id, election_event_id, contest_id, created_at, last_updated_at, labels, annotations, description, type, presentation, is_public, image_document_id, external_id)
                 VALUES
-                ($1, $2, $3, $4, NOW(), NOW(), $5, $6, $7, $8, $9, $10, $11, $12, $13);
+                ($1, $2, $3, $4, NOW(), NOW(), $5, $6, $7, $8, $9, $10, $11, $12);
             "#,
         )
         .await?;
@@ -67,22 +68,21 @@ pub async fn insert_candidates(
             .query(
                 &statement,
                 &[
-                    &Uuid::parse_str(&candidate.id)?,
-                    &Uuid::parse_str(tenant_id)?,
-                    &Uuid::parse_str(election_event_id)?,
+                    &parse_uuid_v4(&candidate.id)?,
+                    &parse_uuid_v4(tenant_id)?,
+                    &parse_uuid_v4(election_event_id)?,
                     &candidate
                         .contest_id
                         .as_ref()
-                        .and_then(|id| Uuid::parse_str(&id).ok()),
+                        .and_then(|id| parse_uuid_v4(&id).ok()),
                     &candidate.labels,
                     &candidate.annotations,
-                    &candidate.name,
                     &candidate.description,
                     &candidate.r#type,
                     &candidate.presentation,
                     &candidate.is_public,
-                    &candidate.alias,
                     &candidate.image_document_id,
+                    &candidate.external_id,
                 ],
             )
             .await
@@ -102,7 +102,7 @@ pub async fn export_candidates(
         .prepare(
             r#"
                 SELECT
-                    id, tenant_id, election_event_id, contest_id, created_at, last_updated_at, labels, annotations, name, description, type, presentation, is_public, alias, image_document_id
+                    id, tenant_id, election_event_id, contest_id, created_at, last_updated_at, labels, annotations, description, type, presentation, is_public, image_document_id, external_id
                 FROM
                     sequent_backend.candidate
                 WHERE
@@ -116,8 +116,8 @@ pub async fn export_candidates(
         .query(
             &statement,
             &[
-                &Uuid::parse_str(tenant_id)?,
-                &Uuid::parse_str(election_event_id)?,
+                &parse_uuid_v4(tenant_id)?,
+                &parse_uuid_v4(election_event_id)?,
             ],
         )
         .await?;
@@ -159,9 +159,9 @@ pub async fn get_candidates_by_contest_id(
         .query(
             &statement,
             &[
-                &Uuid::parse_str(tenant_id)?,
-                &Uuid::parse_str(election_event_id)?,
-                &Uuid::parse_str(contest_id)?,
+                &parse_uuid_v4(tenant_id)?,
+                &parse_uuid_v4(election_event_id)?,
+                &parse_uuid_v4(contest_id)?,
             ],
         )
         .await?;
@@ -189,11 +189,20 @@ pub async fn export_candidate_csv(
         .await
         .context("Error opening CSV data to temp file")?;
 
+    // Validate all IDs as v4 UUIDs before interpolating into SQL
+    parse_uuid_v4(tenant_id)?;
+    parse_uuid_v4(election_event_id)?;
+    for id in contest_ids {
+        parse_uuid_v4(id)?;
+    }
     let contests_csv = contest_ids
         .iter()
-        .map(|id| format!("\"{}\"", id))
+        .map(|id| format!("\"{}\"", escape_sql_literal(id)))
         .collect::<Vec<_>>()
         .join(",");
+
+    let tenant_id = escape_sql_literal(tenant_id);
+    let election_event_id = escape_sql_literal(election_event_id);
 
     let copy_sql = format!(
         r#"COPY (
@@ -206,13 +215,12 @@ pub async fn export_candidate_csv(
                 last_updated_at::text,
                 labels::text,
                 annotations::text,
-                name,
-                alias,
                 description,
                 type,
                 presentation::text,
                 is_public::text,
-                image_document_id::text
+                image_document_id::text,
+                external_id::text
             FROM sequent_backend.candidate
             WHERE
                 tenant_id = '{}'

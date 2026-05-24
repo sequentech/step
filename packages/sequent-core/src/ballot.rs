@@ -10,11 +10,13 @@ use crate::plaintext::{
 };
 use crate::serialization::base64::{Base64Deserialize, Base64Serialize};
 use crate::serialization::deserialize_with_path::deserialize_value;
+use crate::types::ceremonies::TallySessionResolutionData;
 use crate::types::ceremonies::{
     CeremoniesPolicy, CountingAlgType, TallyOperation,
 };
 use crate::types::hasura::core::{self, Area, ElectionEvent};
 use ::core::convert::TryInto;
+use anyhow::anyhow;
 use borsh::{BorshDeserialize, BorshSerialize};
 use chrono::DateTime;
 use chrono::Utc;
@@ -946,6 +948,7 @@ pub struct ElectionEventMaterials {
 pub struct ElectionEventLanguageConf {
     pub enabled_language_codes: Option<Vec<String>>,
     pub default_language_code: Option<String>,
+    pub language_detection_policy: Option<LanguageDetectionPolicy>,
 }
 
 #[derive(
@@ -981,6 +984,7 @@ pub struct ElectionEventPresentation {
     pub enrollment: Option<Enrollment>,
     pub otp: Option<Otp>,
     pub voter_signing_policy: Option<VoterSigningPolicy>,
+    pub voter_certificate_policy: Option<VoterCertificatePolicy>,
     pub weighted_voting_policy: Option<WeightedVotingPolicy>,
     pub ceremonies_policy: Option<CeremoniesPolicy>,
     pub delegated_voting_policy: Option<DelegatedVotingPolicy>,
@@ -1204,6 +1208,58 @@ pub enum EOverVotePolicy {
     NOT_ALLOWED_WITH_MSG_AND_DISABLE,
 }
 
+#[allow(non_camel_case_types)]
+#[derive(
+    Debug,
+    BorshSerialize,
+    BorshDeserialize,
+    Serialize,
+    Deserialize,
+    PartialEq,
+    Eq,
+    JsonSchema,
+    Copy,
+    Clone,
+    EnumString,
+    Display,
+    Default,
+)]
+pub enum EDuplicatedRankPolicy {
+    #[strum(serialize = "allowed-warn-and-dialog")]
+    #[serde(rename = "allowed-warn-and-dialog")]
+    #[default]
+    ALLOWED_WARN_AND_DIALOG,
+    #[strum(serialize = "not-allowed-warn-and-dialog")]
+    #[serde(rename = "not-allowed-warn-and-dialog")]
+    NOT_ALLOWED_WARN_AND_DIALOG,
+}
+
+#[allow(non_camel_case_types)]
+#[derive(
+    Debug,
+    BorshSerialize,
+    BorshDeserialize,
+    Serialize,
+    Deserialize,
+    PartialEq,
+    Eq,
+    JsonSchema,
+    Copy,
+    Clone,
+    EnumString,
+    Display,
+    Default,
+)]
+pub enum EPreferenceGapsPolicy {
+    #[strum(serialize = "allowed-warn-and-dialog")]
+    #[serde(rename = "allowed-warn-and-dialog")]
+    #[default]
+    ALLOWED_WARN_AND_DIALOG,
+    #[strum(serialize = "not-allowed-warn-and-dialog")]
+    #[serde(rename = "not-allowed-warn-and-dialog")]
+    NOT_ALLOWED_WARN_AND_DIALOG,
+}
+
 #[derive(
     BorshSerialize,
     BorshDeserialize,
@@ -1234,6 +1290,7 @@ pub struct ElectionPresentation {
     pub tally: Option<Tally>,
     pub initialization_report_policy: Option<EInitializeReportPolicy>,
     pub security_confirmation_policy: Option<ESecurityConfirmationPolicy>,
+    pub consolidated_report_policy: Option<ConsolidatedReportPolicy>,
 }
 
 impl core::Election {
@@ -1269,6 +1326,9 @@ impl Default for ElectionPresentation {
             grace_period_secs: None,
             initialization_report_policy: None,
             security_confirmation_policy: None,
+            consolidated_report_policy: Some(
+                ConsolidatedReportPolicy::default(),
+            ),
         }
     }
 }
@@ -1353,12 +1413,15 @@ pub struct ContestPresentation {
     pub under_vote_policy: Option<EUnderVotePolicy>,
     pub blank_vote_policy: Option<EBlankVotePolicy>,
     pub over_vote_policy: Option<EOverVotePolicy>,
+    pub duplicated_rank_policy: Option<EDuplicatedRankPolicy>,
+    pub preference_gaps_policy: Option<EPreferenceGapsPolicy>,
     pub pagination_policy: Option<String>,
     pub cumulative_number_of_checkboxes: Option<u64>,
     pub shuffle_categories: Option<bool>,
     pub shuffle_category_list: Option<Vec<String>>,
     pub show_points: Option<bool>,
     pub enable_checkable_lists: Option<String>, /* disabled|allow-selecting-candidates-and-lists|allow-selecting-candidates|allow-selecting-lists */
+    pub collapsible_lists: Option<String>, /* disabled|enabled-expanded|enabled-collapsed */
     pub candidates_order: Option<CandidatesOrder>,
     pub candidates_selection_policy: Option<CandidatesSelectionPolicy>,
     pub candidates_icon_checkbox_policy: Option<CandidatesIconCheckboxPolicy>,
@@ -1383,6 +1446,7 @@ impl ContestPresentation {
             shuffle_category_list: None,
             show_points: Some(false),
             enable_checkable_lists: None,
+            collapsible_lists: None,
             candidates_order: None,
             candidates_selection_policy: None,
             candidates_icon_checkbox_policy: None,
@@ -1390,6 +1454,8 @@ impl ContestPresentation {
             types_presentation: None,
             sort_order: None,
             under_vote_policy: Some(EUnderVotePolicy::ALLOWED),
+            duplicated_rank_policy: Some(EDuplicatedRankPolicy::default()),
+            preference_gaps_policy: Some(EPreferenceGapsPolicy::default()),
             columns: None,
         }
     }
@@ -1434,6 +1500,7 @@ pub struct Contest {
     pub presentation: Option<ContestPresentation>,
     pub created_at: Option<String>,
     pub annotations: Option<Annotations>,
+    pub tie_breaking_policy: Option<TieBreakingPolicy>,
 }
 
 impl Contest {
@@ -1495,6 +1562,51 @@ impl Contest {
             .iter()
             .map(|candidate| candidate.id.clone())
             .collect()
+    }
+
+    /// Get the tie-breaking policy configuration value.
+    /// If the value is not set, return the default value (RANDOM).
+    pub fn get_tie_breaking_policy(&self) -> TieBreakingPolicy {
+        self.tie_breaking_policy.clone().unwrap_or_default()
+    }
+
+    /// Get per-round tie resolutions from contest annotations.
+    pub fn get_tie_resolutions(&self) -> Vec<TallySessionResolutionData> {
+        self.annotations
+            .as_ref()
+            .and_then(|annotations| annotations.get("tie_resolutions"))
+            .and_then(|json_str| {
+                // Since Annotations stores strings, we just parse the string directly into our Vec
+                serde_json::from_str::<Vec<TallySessionResolutionData>>(
+                    json_str,
+                )
+                .ok()
+            })
+            .unwrap_or_default()
+    }
+
+    pub fn insert_tie_resolutions(
+        contest: &mut Contest,
+        contest_tie_resolutions: &Vec<TallySessionResolutionData>,
+    ) -> anyhow::Result<()> {
+        // Only inject if there is actually data to add
+        if !contest_tie_resolutions.is_empty() {
+            // Serialize the data back into a JSON string
+            let tie_res_json_string =
+                serde_json::to_string(&contest_tie_resolutions)?;
+
+            // Clone existing annotations or create a new map if it's None
+            let mut annotations =
+                contest.annotations.clone().unwrap_or_default();
+
+            // Insert the stringified JSON into the annotations map
+            annotations
+                .insert("tie_resolutions".to_string(), tie_res_json_string);
+
+            contest.annotations = Some(annotations);
+        }
+
+        Ok(())
     }
 }
 
@@ -1621,6 +1733,31 @@ pub enum VoterSigningPolicy {
     #[strum(serialize = "with-signature")]
     #[serde(rename = "with-signature")]
     WITH_SIGNATURE,
+}
+
+#[allow(non_camel_case_types)]
+#[derive(
+    BorshSerialize,
+    BorshDeserialize,
+    Default,
+    Display,
+    Serialize,
+    Deserialize,
+    Debug,
+    PartialEq,
+    Eq,
+    Clone,
+    EnumString,
+    JsonSchema,
+)]
+pub enum VoterCertificatePolicy {
+    #[default]
+    #[strum(serialize = "disabled")]
+    #[serde(rename = "disabled")]
+    DISABLED,
+    #[strum(serialize = "enabled")]
+    #[serde(rename = "enabled")]
+    ENABLED,
 }
 
 #[allow(non_camel_case_types)]
@@ -2349,22 +2486,21 @@ impl AreaAnnotations {
     pub fn get_weight(&self) -> Weight {
         self.weight.unwrap_or_default()
     }
-    pub fn get_tally_operation(&self) -> TallyOperation {
-        self.tally_operation
-            .unwrap_or(TallyOperation::ProcessBallotsAll)
-    }
 }
 
 impl Area {
     pub fn read_annotations(
         &self,
     ) -> Result<Option<AreaAnnotations>, Error<serde_json::Error>> {
-        let area_annotations: Option<AreaAnnotations> =
-            self.annotations.clone().map(|annotations_value| {
-                deserialize_value(annotations_value)
-                    .unwrap_or_else(|_| AreaAnnotations::default())
-            });
-        Ok(area_annotations)
+        self.annotations
+            .as_ref()
+            .map(|v| {
+                deserialize_value::<AreaAnnotations>(v.clone()).map_err(|e| {
+                    anyhow!("failed to deserialize AreaAnnotations: error={e} raw={v}");
+                    e
+                })
+            })
+            .transpose()
     }
 }
 
@@ -2410,4 +2546,82 @@ pub enum DelegatedVotingPolicy {
     DISABLED,
     #[serde(rename = "enabled")]
     ENABLED,
+}
+
+#[derive(
+    BorshSerialize,
+    BorshDeserialize,
+    Display,
+    Serialize,
+    Deserialize,
+    Debug,
+    PartialEq,
+    Eq,
+    Clone,
+    EnumString,
+    Default,
+    JsonSchema,
+)]
+pub enum ConsolidatedReportPolicy {
+    #[default]
+    #[strum(serialize = "do-not-generate")]
+    #[serde(rename = "do-not-generate")]
+    DO_NOT_GENERATE,
+    #[strum(serialize = "generate")]
+    #[serde(rename = "generate")]
+    GENERATE,
+}
+
+#[allow(non_camel_case_types)]
+#[derive(
+    BorshSerialize,
+    BorshDeserialize,
+    Default,
+    Display,
+    Serialize,
+    Deserialize,
+    Debug,
+    PartialEq,
+    Eq,
+    Clone,
+    EnumString,
+    JsonSchema,
+)]
+pub enum TieBreakingPolicy {
+    #[default]
+    #[strum(serialize = "random")]
+    #[serde(rename = "random")]
+    RANDOM,
+    #[strum(serialize = "external-procedure")]
+    #[serde(rename = "external-procedure")]
+    EXTERNAL_PROCEDURE,
+}
+
+#[allow(non_camel_case_types)]
+#[derive(
+    BorshSerialize,
+    BorshDeserialize,
+    Default,
+    Display,
+    Serialize,
+    Deserialize,
+    Debug,
+    PartialEq,
+    Eq,
+    Clone,
+    EnumString,
+    JsonSchema,
+)]
+/// Language detection policy.
+/// Used to determine which language to use initially across all surfaces
+pub enum LanguageDetectionPolicy {
+    #[default]
+    #[strum(serialize = "browser-detect")]
+    #[serde(rename = "browser-detect")]
+    /// detect user's language through their browser.
+    BROWSER_DETECT,
+    /// skip browser detection, use default_language_code
+    #[strum(serialize = "force-default")]
+    #[serde(rename = "force-default")]
+    FORCE_DEFAULT,
 }

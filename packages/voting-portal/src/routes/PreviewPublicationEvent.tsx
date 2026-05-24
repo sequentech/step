@@ -59,7 +59,6 @@ export const updateBallotStyleAndSelection = (
                     image_document_id: "",
                     contests: [],
                     description: election.description ?? undefined,
-                    alias: election.alias ?? undefined,
                 })
             )
         }

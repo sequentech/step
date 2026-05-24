@@ -27,7 +27,11 @@ import {
 } from "@mui/material"
 import {IAreaContestResults, ICandidateResults, IInvalidVotes} from "@/types/TallySheets"
 import {sortFunction} from "./utils"
-import {EEnableCheckableLists, IContestPresentation} from "@sequentech/ui-core"
+import {
+    EEnableCheckableLists,
+    IContestPresentation,
+    translateFromPresentation,
+} from "@sequentech/ui-core"
 import {filterCandidateByCheckableLists} from "@/services/CandidatesFilter"
 
 const votingChannels = [
@@ -62,7 +66,7 @@ export const ShowTallySheet: React.FC<ShowTallySheetProps> = (props) => {
     const {contest, submitRef, tallySheet} = props
 
     const notify = useNotify()
-    const {t} = useTranslation()
+    const {t, i18n} = useTranslation()
 
     const [areasList, setAreasList] = useState<IArea[]>([])
     const [channel, setChannel] = React.useState<string | null>(null)
@@ -119,7 +123,7 @@ export const ShowTallySheet: React.FC<ShowTallySheetProps> = (props) => {
                         }
                         const candidateTemp: ICandidateResultsExtended = {
                             candidate_id: candidate.id,
-                            name: candidate.name,
+                            name: translateFromPresentation(candidate, "name", i18n.language),
                             total_votes:
                                 contentTemp.candidate_results?.[candidate.id]?.total_votes ?? 0,
                         }
@@ -152,7 +156,7 @@ export const ShowTallySheet: React.FC<ShowTallySheetProps> = (props) => {
             for (const candidate of candidates) {
                 const candidateTemp: ICandidateResultsExtended = {
                     candidate_id: candidate.id,
-                    name: candidate.name,
+                    name: translateFromPresentation(candidate, "name", i18n.language),
                 }
                 candidatesTemp.push(candidateTemp)
             }

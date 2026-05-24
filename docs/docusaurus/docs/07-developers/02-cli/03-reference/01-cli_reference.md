@@ -82,11 +82,13 @@ cli step create-election-event \
 ```bash
 cli step create-election \
   --name <ELECTION_NAME> \
+  --external-id <EXTERNAL_ID> \
   --description <DESCRIPTION> \
   --election-event-id <ELECTION_EVENT_ID>
 ```
 
 * `--name` – Election name **(required)**
+* `--external-id` Unique Id for the election - required*
 * `--description` – Election description *(optional)*
 * `--election-event-id` – Associated election event ID **(required)**
 

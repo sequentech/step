@@ -1142,22 +1142,14 @@ mod tests {
 
         let reports: TemplateData = serde_json::from_reader(f)?;
         let report = &reports.reports[0];
+        let contest_result = report.contest_result.clone().unwrap_or_default();
 
-        assert_eq!(report.contest_result.total_votes, 142, "total_votes");
-        assert_eq!(
-            report.contest_result.total_invalid_votes, 2,
-            "total_invalid_votes"
-        );
-        assert_eq!(report.contest_result.auditable_votes, 0, "auditable_votes");
-        assert_eq!(
-            report.contest_result.total_valid_votes, 140,
-            "total_valid_votes"
-        );
-        assert_eq!(
-            report.contest_result.total_blank_votes, 6,
-            "total_blank_votes"
-        );
-        assert_eq!(report.contest_result.census, 200, "census");
+        assert_eq!(contest_result.total_votes, 142, "total_votes");
+        assert_eq!(contest_result.total_invalid_votes, 2, "total_invalid_votes");
+        assert_eq!(contest_result.auditable_votes, 0, "auditable_votes");
+        assert_eq!(contest_result.total_valid_votes, 140, "total_valid_votes");
+        assert_eq!(contest_result.total_blank_votes, 6, "total_blank_votes");
+        assert_eq!(contest_result.census, 200, "census");
         assert_eq!(
             report
                 .candidate_result
@@ -1179,15 +1171,13 @@ mod tests {
 
         let reports: TemplateData = serde_json::from_reader(f)?;
         let report = &reports.reports[0];
+        let contest_result = report.contest_result.clone().unwrap_or_default();
 
-        assert_eq!(report.contest_result.total_votes, 100);
-        assert_eq!(
-            report.contest_result.total_invalid_votes, 1,
-            "total_invalid_votes"
-        );
-        assert_eq!(report.contest_result.total_valid_votes, 99);
-        assert_eq!(report.contest_result.total_blank_votes, 3);
-        assert_eq!(report.contest_result.census, 100);
+        assert_eq!(contest_result.total_votes, 100);
+        assert_eq!(contest_result.total_invalid_votes, 1, "total_invalid_votes");
+        assert_eq!(contest_result.total_valid_votes, 99);
+        assert_eq!(contest_result.total_blank_votes, 3);
+        assert_eq!(contest_result.census, 100);
         assert_eq!(
             report
                 .candidate_result
@@ -1209,12 +1199,13 @@ mod tests {
 
         let reports: TemplateData = serde_json::from_reader(f)?;
         let report = &reports.reports[0];
+        let contest_result = report.contest_result.clone().unwrap_or_default();
 
-        assert_eq!(report.contest_result.total_votes, 20);
-        assert_eq!(report.contest_result.total_valid_votes, 19);
-        assert_eq!(report.contest_result.total_blank_votes, 3);
-        assert_eq!(report.contest_result.total_invalid_votes, 1);
-        assert_eq!(report.contest_result.census, 100);
+        assert_eq!(contest_result.total_votes, 20);
+        assert_eq!(contest_result.total_valid_votes, 19);
+        assert_eq!(contest_result.total_blank_votes, 3);
+        assert_eq!(contest_result.total_invalid_votes, 1);
+        assert_eq!(contest_result.census, 100);
         assert_eq!(
             report
                 .candidate_result
@@ -1317,9 +1308,10 @@ mod tests {
 
         let reports: TemplateData = deserialize_str(&buffer)?;
         let report = &reports.reports[0];
+        let contest_result = report.contest_result.clone().unwrap_or_default();
 
-        assert_eq!(report.contest_result.total_votes, 0);
-        assert_eq!(report.contest_result.census, 100);
+        assert_eq!(contest_result.total_votes, 0);
+        assert_eq!(contest_result.census, 100);
         assert_eq!(
             report
                 .candidate_result
@@ -1468,9 +1460,10 @@ mod tests {
 
         let reports: TemplateData = serde_json::from_reader(f)?;
         let report = &reports.reports[0];
+        let contest_result = report.contest_result.clone().unwrap_or_default();
 
-        assert_eq!(report.contest_result.total_votes, 10);
-        assert_eq!(report.contest_result.census, 100);
+        assert_eq!(contest_result.total_votes, 10);
+        assert_eq!(contest_result.census, 100);
         assert_eq!(
             report
                 .candidate_result
@@ -1480,9 +1473,9 @@ mod tests {
             5
         );
 
-        assert_eq!(report.contest_result.total_blank_votes, 5);
-        assert_eq!(report.contest_result.total_valid_votes, 10);
-        assert_eq!(report.contest_result.total_invalid_votes, 0);
+        assert_eq!(contest_result.total_blank_votes, 5);
+        assert_eq!(contest_result.total_valid_votes, 10);
+        assert_eq!(contest_result.total_invalid_votes, 0);
 
         Ok(())
     }
@@ -1628,8 +1621,9 @@ mod tests {
 
         let reports: TemplateData = serde_json::from_reader(f)?;
         let report = &reports.reports[0];
+        let contest_result = report.contest_result.clone().unwrap_or_default();
 
-        assert_eq!(report.contest_result.census, 100);
+        assert_eq!(contest_result.census, 100);
         assert_eq!(
             report
                 .candidate_result
@@ -1639,10 +1633,10 @@ mod tests {
             5
         );
 
-        assert_eq!(report.contest_result.total_votes, 10);
-        assert_eq!(report.contest_result.total_blank_votes, 0);
-        assert_eq!(report.contest_result.total_valid_votes, 5);
-        assert_eq!(report.contest_result.total_invalid_votes, 5);
+        assert_eq!(contest_result.total_votes, 10);
+        assert_eq!(contest_result.total_blank_votes, 0);
+        assert_eq!(contest_result.total_valid_votes, 5);
+        assert_eq!(contest_result.total_invalid_votes, 5);
 
         Ok(())
     }
@@ -1815,8 +1809,10 @@ mod tests {
             let f = fs::File::open(&report_path)?;
             let reports: TemplateData = serde_json::from_reader(f)?;
             let report = &reports.reports[0];
+            let contest_result = report.contest_result.clone().unwrap_or_default();
+
             assert_eq!(
-                report.contest_result.total_votes, 10,
+                contest_result.total_votes, 10,
                 "testing 10 votes expected in the contest for the area"
             );
 
@@ -1828,8 +1824,9 @@ mod tests {
                 let f = fs::File::open(&aggregate_report_path)?;
                 let reports: TemplateData = serde_json::from_reader(f)?;
                 let report = &reports.reports[0];
+                let contest_result = report.contest_result.clone().unwrap_or_default();
                 assert_eq!(
-                    report.contest_result.total_votes,
+                    contest_result.total_votes,
                     // in parent, aggregate is 20: 10 from the children + 10
                     // itself
                     20,

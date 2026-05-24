@@ -8,7 +8,7 @@ import {Dialog, PageLimit, theme} from "@sequentech/ui-essentials"
 import {
     IElection,
     stringToHtml,
-    translateElection,
+    translateFromPresentation,
     EStartScreenTitlePolicy,
     ESecurityConfirmationPolicy,
 } from "@sequentech/ui-core"
@@ -22,7 +22,6 @@ import {TenantEventType} from ".."
 import {useRootBackLink} from "../hooks/root-back-link"
 import Stepper from "../components/Stepper"
 import {selectBallotStyleByElectionId, showDemo} from "../store/ballotStyles/ballotStylesSlice"
-import useLanguage from "../hooks/useLanguage"
 import {selectElectionEventById} from "../store/electionEvents/electionEventsSlice"
 import {resetBallotSelection} from "../store/ballotSelections/ballotSelectionsSlice"
 import {clearIsVoted} from "../store/extra/extraSlice"
@@ -96,7 +95,11 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({election}) => {
     const hasSecurityCheckbox =
         ESecurityConfirmationPolicy.MANDATORY ===
         election?.presentation?.security_confirmation_policy
-    const defaultTranslation = translateElection(election, "security_confirmation_html", "en")
+    const defaultTranslation = translateFromPresentation(
+        election,
+        "security_confirmation_html",
+        "en"
+    )
     const disabledStart = hasSecurityCheckbox && !checkboxChecked
 
     return (
@@ -106,7 +109,7 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({election}) => {
                     <StyledCheckbox checked={checkboxChecked} />
                     <Typography variant="body2" marginTop="4px">
                         {stringToHtml(
-                            translateElection(
+                            translateFromPresentation(
                                 election,
                                 "security_confirmation_html",
                                 i18n.language
@@ -153,7 +156,6 @@ const StartScreen: React.FC = () => {
     const [showDemoDialog, setShowDemoDialog] = useState(isDemo)
     const dispatch = useAppDispatch()
     const navigate = useNavigate()
-    useLanguage({ballotStyle})
 
     const titleObject = useMemo(() => {
         const startScreenTitlePolicy = election?.presentation?.start_screen_title_policy
@@ -191,12 +193,12 @@ const StartScreen: React.FC = () => {
                 <Stepper selected={1} />
             </Box>
             <StyledTitle variant="h3" justifyContent="center" fontWeight="bold">
-                <span>{translateElection(titleObject, "name", i18n.language) ?? "-"}</span>
+                <span>{translateFromPresentation(titleObject, "name", i18n.language) ?? "-"}</span>
             </StyledTitle>
             {titleObject.description ? (
                 <Typography variant="body2" sx={{color: theme.palette.customGrey.main}}>
                     {stringToHtml(
-                        translateElection(titleObject, "description", i18n.language) ?? "-"
+                        translateFromPresentation(titleObject, "description", i18n.language) ?? "-"
                     )}
                 </Typography>
             ) : null}

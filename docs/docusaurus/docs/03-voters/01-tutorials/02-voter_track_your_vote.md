@@ -24,7 +24,7 @@ Once you have finished voting, you can verify that your ballot was successfully 
 
 After casting your vote, you will reach the Confirmation Screen:
 
-![Ballot List](./../assets/voter_ballot_receipt.png)
+![Ballot List](./assets/voter_ballot_receipt.png)
 
 From this screen, you can directly access the Ballot Locator prefilled to lookup the vote you cast in thre different ways:
 
@@ -42,7 +42,7 @@ From this screen, you can directly access the Ballot Locator prefilled to lookup
 
 Once you performed one of the three posible options to access the Ballot Locator explained in the Step before, you will see the following screen:
 
-![Ballot List](./../assets/voter_ballot_located.png)
+![Ballot List](./assets/voter_ballot_located.png)
 
 If the ballot is found, you will see a green confirmation message stating:
 
@@ -68,7 +68,7 @@ As explained earlier in [step 1.1](#step-11-secure-your-ballot-id), after castin
 
 After logging in as a voter, you will see the Ballot List as depicted below:
 
-![Ballot List](./../assets/voter_ballot_list_voted.png)
+![Ballot List](./assets/voter_ballot_list_voted.png)
 
 Then follow the steps below:
 
@@ -80,7 +80,7 @@ Then follow the steps below:
 
 ### Step 2.2: Search for Your Ballot
 
-![Ballot List](./../assets/voter_ballot_locator.png)
+![Ballot List](./assets/voter_ballot_locator.png)
 Once you are on the Ballot Locator page:
 
 1. Enter your `Ballot ID`
@@ -91,7 +91,7 @@ Once you are on the Ballot Locator page:
 
 ### Step 2.3: Review the Results
 
-![Ballot List](./../assets/voter_ballot_located.png)
+![Ballot List](./assets/voter_ballot_located.png)
 If the ballot is found, at the top of the screen you will see a green confirmation message stating:
 
 **"Your ballot ID [ID Number] has been located."**
