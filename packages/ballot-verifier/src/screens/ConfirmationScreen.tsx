@@ -31,6 +31,7 @@ import {
 import {keyBy} from "lodash"
 import {useElectionClassName} from "./hooks/useElectionClassName"
 import {SettingsContext} from "../providers/SettingsContextProvider"
+import {sortContestList} from "@sequentech/ui-core"
 
 const StyledLink = styled(RouterLink)`
     margin: auto 0;
@@ -247,8 +248,33 @@ const VerifySelectionsSection: React.FC<VerifySelectionsSectionProps> = ({
 }) => {
     const {t} = useTranslation()
     const [verifySelectionsHelp, setVerifySelectionsHelp] = useState(false)
-    const plaintextVoteQuestions = confirmationBallot?.decoded_questions || []
-    const questionsMap = keyBy(confirmationBallot?.election_config.contests || [], "id")
+    const contestsOrderType =
+        confirmationBallot?.election_config?.election_presentation?.contests_order
+    const contests = confirmationBallot?.election_config.contests
+    const decodedQuestions = confirmationBallot?.decoded_questions
+    const questionsMap = keyBy(contests ?? [], "id")
+
+    const sortedPlaintextVoteQuestions = useMemo(() => {
+        if (!decodedQuestions?.length) {
+            return decodedQuestions ?? []
+        }
+        if (!contests?.length) {
+            return decodedQuestions
+        }
+
+        const orderByContestId = new Map(
+            sortContestList(contests, contestsOrderType).map(
+                (contest, index) => [contest.id, index] as const
+            )
+        )
+
+        return [...decodedQuestions].sort(
+            (a, b) =>
+                (orderByContestId.get(a.contest_id) ?? Number.MAX_SAFE_INTEGER) -
+                (orderByContestId.get(b.contest_id) ?? Number.MAX_SAFE_INTEGER)
+        )
+    }, [contests, contestsOrderType, decodedQuestions])
+
     const {globalSettings} = useContext(SettingsContext)
 
     return (
@@ -304,7 +330,7 @@ const VerifySelectionsSection: React.FC<VerifySelectionsSectionProps> = ({
                 </>
             ) : (
                 <>
-                    {plaintextVoteQuestions.map((voteQuestion) => (
+                    {sortedPlaintextVoteQuestions.map((voteQuestion) => (
                         <PlaintextVoteContest
                             questionPlaintext={voteQuestion}
                             question={questionsMap[voteQuestion.contest_id] ?? null}
