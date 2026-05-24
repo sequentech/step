@@ -1101,8 +1101,28 @@ export function SnapshotOverviewPage(): JSX.Element {
                     </div>
                 )}
             </div>
-            <BuildStatusCard />
         </>
+    )
+}
+
+/**
+ * Standalone build-provenance page rendered at `/build`. Wraps
+ * {@link BuildStatusCard} with a heading so it can live behind a
+ * less-prominent top-level nav link rather than cluttering the
+ * snapshots overview (which is otherwise pure snapshot/election
+ * data).
+ */
+export function BuildInfoPage(): JSX.Element {
+    return (
+        <div style={{padding: "1.5rem 2rem"}}>
+            <h1 style={{margin: "0 0 0.5rem 0"}}>Build info</h1>
+            <p style={{color: "#555", margin: "0 0 1rem 0"}}>
+                Provenance for the wasm artifacts baked into this workbench
+                bundle. Sourced at build time from the{" "}
+                <code>virtual:workbench-build-info</code> module.
+            </p>
+            <BuildStatusCard />
+        </div>
     )
 }
 

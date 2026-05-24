@@ -18,6 +18,7 @@ import {TallyPage} from "./TallyPage"
 import {BoothLayout, boothChildren} from "./BoothSpike"
 import {
     BallotStyleDetailPage,
+    BuildInfoPage,
     ContestDetailPage,
     InspectorLayout,
     SnapshotDetailPage,
@@ -39,10 +40,23 @@ function Shell() {
                 }}
             >
                 <Link to="/wb" style={{fontWeight: 600}}>
-                    Workbench
+                    Snapshots
                 </Link>
                 <Link to="/pipeline">Ballot pipeline</Link>
                 <Link to="/tally">Tally</Link>
+                {/* Right-aligned utility link: build provenance is not
+                 *  part of the normal scenario-exploration flow, so we
+                 *  push it to the corner. */}
+                <Link
+                    to="/build"
+                    style={{
+                        marginLeft: "auto",
+                        color: "#666",
+                        fontSize: "0.85rem",
+                    }}
+                >
+                    Build info
+                </Link>
             </nav>
             <Outlet />
         </ReduxProvider>
@@ -100,6 +114,12 @@ const router = createBrowserRouter([
                     // tally section; lands on velvet-wasm fixtures on a
                     // bare reload.
                     {path: "/tally", element: <TallyPage />},
+                    // `/build` is a low-prominence utility page that
+                    // hosts the build-provenance card previously
+                    // embedded on the snapshots overview. Reuses
+                    // `InspectorLayout` so the operator can still see
+                    // and click into snapshots from the rail.
+                    {path: "/build", element: <BuildInfoPage />},
                 ],
             },
             {
