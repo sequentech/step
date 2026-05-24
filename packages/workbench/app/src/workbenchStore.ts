@@ -94,30 +94,8 @@ export interface WorkbenchExtraState {
      *  Optional: snapshots without `assignments` leave the slice
      *  untouched on voter change, matching pre-eligibility
      *  behaviour. */
-    assignments?: Record<string, string[]>    /** Per-contest cache of the most recent manual tally run, keyed
-     *  by contestId. Persisted across navigation and reloads so the
-     *  "results are stale" indicator on `ContestDetailPage` can
-     *  fire even when the operator leaves the page to cast a ballot
-     *  (which is the only realistic way to change tally inputs in a
-     *  single-tab workbench session).
-     *
-     *  The cached `outcome` is fully JSON-serialisable (a parsed
-     *  velvet-wasm `ContestResult`), so it round-trips via
-     *  `PersistedSnapshot` without special-casing. */
-    tallyRuns?: Record<string, TallyRun>
+    assignments?: Record<string, string[]>
 }
-
-/** One entry in {@link WorkbenchExtraState.tallyRuns}. `fingerprint`
- *  is the inputs hash the run was computed against — a stale
- *  indicator fires when the current decodedRows hash differs from
- *  this value. `outcome` is `null` when the run failed; `errorMessage`
- *  is set in that case. */
-export interface TallyRun {
-    fingerprint: string
-    outcome: import("./electionTally").ContestTallyOutcome | null
-    errorMessage: string | null
-    /** ISO-8601 timestamp of when the operator pressed Run tally. */
-    ranAt: string}
 
 /** Ristretto ElGamal keypair owned by the workbench. Both halves are
  *  base64-no-pad strings as produced by `velvet-wasm::generate_keypair`
@@ -330,15 +308,6 @@ export function setKeypair(kp: WorkbenchKeypair): void {
     setState({...state, keypair: kp})
 }
 
-/** Record the result of a manual tally run for a contest. Replaces
- *  any previous entry under the same `contestId`. */
-export function recordTallyRun(contestId: string, run: TallyRun): void {
-    setState({
-        ...state,
-        tallyRuns: {...(state.tallyRuns ?? {}), [contestId]: run},
-    })
-}
-
 /** For the given voter and election, return the ballot-style row from
  *  {@link WorkbenchExtraState.ballotStylePool} that the voter is
  *  assigned to. Returns `null` when:
@@ -525,42 +494,9 @@ function normalizeIncoming(incoming: WorkbenchExtraState): WorkbenchExtraState {
             }
         }
     }
-    // Cached tally runs: round-trip the parsed `ContestResult` blob
-    // opaquely (it's velvet-wasm output, we don't peer into it).
-    // Reject entries whose shape doesn't look right so legacy/
-    // hand-edited snapshots don't crash hydration.
-    let tallyRuns: Record<string, TallyRun> | undefined
-    const incomingTallyRuns = (
-        incoming as WorkbenchExtraState & {tallyRuns?: unknown}
-    ).tallyRuns
-    if (incomingTallyRuns && typeof incomingTallyRuns === "object") {
-        tallyRuns = {}
-        for (const [contestId, run] of Object.entries(
-            incomingTallyRuns as Record<string, unknown>
-        )) {
-            if (
-                typeof contestId === "string" &&
-                run &&
-                typeof run === "object" &&
-                typeof (run as TallyRun).fingerprint === "string" &&
-                typeof (run as TallyRun).ranAt === "string"
-            ) {
-                const r = run as TallyRun
-                tallyRuns[contestId] = {
-                    fingerprint: r.fingerprint,
-                    outcome:
-                        r.outcome && typeof r.outcome === "object"
-                            ? r.outcome
-                            : null,
-                    errorMessage:
-                        typeof r.errorMessage === "string"
-                            ? r.errorMessage
-                            : null,
-                    ranAt: r.ranAt,
-                }
-            }
-        }
-    }
+    // Cached tally runs were removed when tally execution moved to
+    // the standalone `/tally` page. Older snapshots may still carry
+    // a `tallyRuns` field; drop it on hydrate so it doesn't survive.
     return {
         voters: sortVoters(voters),
         activeVoterId,
@@ -569,7 +505,6 @@ function normalizeIncoming(incoming: WorkbenchExtraState): WorkbenchExtraState {
         keypair,
         ...(ballotStylePool ? {ballotStylePool} : {}),
         ...(assignments ? {assignments} : {}),
-        ...(tallyRuns ? {tallyRuns} : {}),
     }
 }
 

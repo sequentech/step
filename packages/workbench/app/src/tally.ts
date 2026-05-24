@@ -7,10 +7,7 @@ import init, {
     decrypt_ballot_content,
     encode_ballot,
     generate_keypair,
-    get_sample_ballots_json,
-    get_sample_contest_json,
-    get_sample_decoded_vote_contest_json,
-    tally_plaintext_ballots,
+    tally_decoded_ballots,
 } from "velvet-wasm"
 import initSequentCore, {
     encrypt_decoded_contest_js,
@@ -40,36 +37,23 @@ function ensureSequentCoreWasm(): Promise<void> {
     return sequentCoreInitPromise
 }
 
-export interface Fixtures {
-    contestJson: string
-    ballotsJson: string
-    decodedVoteContestJson: string
-}
-
-/// Pretty-prints the in-tree fixtures so the textareas start with
-/// readable, hand-editable JSON instead of one giant line.
-export async function getFixtures(): Promise<Fixtures> {
-    await ensureWasm()
-    const contestRaw = get_sample_contest_json()
-    const ballotsRaw = get_sample_ballots_json()
-    const decodedRaw = get_sample_decoded_vote_contest_json()
-    return {
-        contestJson: JSON.stringify(JSON.parse(contestRaw), null, 2),
-        ballotsJson: JSON.stringify(JSON.parse(ballotsRaw), null, 2),
-        decodedVoteContestJson: JSON.stringify(
-            JSON.parse(decodedRaw),
-            null,
-            2
-        ),
-    }
-}
-
+/**
+ * Tally a batch of already-decoded ballots.
+ *
+ * @param contestJson - JSON-serialised `Contest`.
+ * @param decodedBallots - array of JSON-stringified
+ *   `DecodedVoteContest` values (one per ballot). The workbench has
+ *   a single tally entry shape: decoded selections in,
+ *   `ContestResult` out. Callers starting from BigUints decode them
+ *   first via `decodeBigIntToDecodedVoteContest` (or by running the
+ *   row through the ballot pipeline's decode stage).
+ */
 export async function runTally(
     contestJson: string,
-    ballots: string[]
+    decodedBallots: string[]
 ): Promise<unknown> {
     await ensureWasm()
-    const resultJson = tally_plaintext_ballots(contestJson, ballots)
+    const resultJson = tally_decoded_ballots(contestJson, decodedBallots)
     return JSON.parse(resultJson)
 }
 

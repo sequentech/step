@@ -3,16 +3,15 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import {useCallback, useEffect, useMemo, useState, type CSSProperties} from "react"
-import {useLocation} from "react-router-dom"
+import {useLocation, useNavigate} from "react-router-dom"
 import {
     decodeBigIntToDecodedVoteContest,
     decryptBallotContent,
     encodeBallot,
     encryptDecodedVoteContest,
     generateKeypair,
-    getFixtures,
-    runTally,
 } from "./tally"
+import {useWorkbench} from "./workbenchStore"
 
 // BallotPipeline — N-ballot playground that walks each selection
 // through every transformation a ballot undergoes on its way to the
@@ -132,19 +131,31 @@ export function BallotPipeline() {
     const location = useLocation()
     const seed = (location.state ?? null) as PipelineSeed | null
 
+    // When the page is opened without a seed we still want the
+    // Setup section to be useful out of the box: the workbench
+    // owns a single global keypair (`workbenchStore.keypair`,
+    // installed by every import path — velvet, ballot-style,
+    // snapshot rekey), so we pre-fill pk/sk from it. If the
+    // workbench is completely cold (no imports yet) the fields
+    // start empty and the operator can paste their own or click
+    // “New keypair”. Contest JSON and rows are never auto-filled
+    // — the operator brings their own contest or arrives via a seed.
+    const storeKeypair = useWorkbench((w) => w.keypair)
+
     const [contestJson, setContestJson] = useState<string>(
         seed?.contestJson ?? ""
     )
-    const [pkB64, setPkB64] = useState<string>(seed?.pkB64 ?? "")
-    const [skB64, setSkB64] = useState<string>(seed?.skB64 ?? "")
+    const [pkB64, setPkB64] = useState<string>(
+        seed?.pkB64 ?? storeKeypair?.pkB64 ?? ""
+    )
+    const [skB64, setSkB64] = useState<string>(
+        seed?.skB64 ?? storeKeypair?.skB64 ?? ""
+    )
     const [rows, setRows] = useState<PipelineRow[]>(() =>
         seed ? seed.rows.map(makeRowFromSeed) : []
     )
-    const [tallyBallots, setTallyBallots] = useState<string>("")
-    const [tallyResult, setTallyResult] = useState<unknown | null>(null)
     const [tallyError, setTallyError] = useState<string | null>(null)
     const [setupError, setSetupError] = useState<string | null>(null)
-    const [tallyBusy, setTallyBusy] = useState<boolean>(false)
 
     // Collapse state for per-row stage textareas. Keys are
     // `expansionKey(rowId, stageIndex)`; a key in the set means the
@@ -176,7 +187,6 @@ export function BallotPipeline() {
     const [contestJsonOpen, setContestJsonOpen] = useState<boolean>(
         () => !seed
     )
-    const [tallyBallotsOpen, setTallyBallotsOpen] = useState<boolean>(false)
 
     /** Set membership flip for `expansionKey(rowId, stageIndex)`. */
     const toggleExpanded = useCallback(
@@ -208,39 +218,6 @@ export function BallotPipeline() {
             }
             return dirty ? next : prev
         })
-    }, [])
-
-    // First-mount bootstrap for the un-seeded case: pull velvet-wasm
-    // fixtures so the page is immediately interactive with one
-    // example ballot. When the page is opened from a contest seed we
-    // keep the seeded state instead.
-    useEffect(() => {
-        if (seed) return
-        ;(async () => {
-            try {
-                const fixtures = await getFixtures()
-                setContestJson(fixtures.contestJson)
-                setTallyBallots(fixtures.ballotsJson)
-                const kp = await generateKeypair()
-                setPkB64(kp.pkB64)
-                setSkB64(kp.skB64)
-                const bootstrapRow = makeEmptyRow({
-                    plaintextJson: fixtures.decodedVoteContestJson,
-                })
-                setRows([bootstrapRow])
-                // Un-seeded bootstrap: expand the editable input
-                // (stage 1, the plaintext cell) so the operator can
-                // see and tweak the fixture before pressing Encode.
-                expandKeys([expansionKey(bootstrapRow.rowId, 1)])
-            } catch (e) {
-                setSetupError(formatError(e))
-            }
-        })()
-        // Intentionally empty deps: this is a one-shot bootstrap.
-        // `seed` is captured from location.state and only matters on
-        // the initial render — a navigation that lands here again
-        // with a different seed will remount the component.
-        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [])
 
     /** Per-row mutation: replace one row, keeping others by identity. */
@@ -367,39 +344,73 @@ export function BallotPipeline() {
         setRows((rs) => rs.filter((r) => r.rowId !== rowId))
     }, [])
 
-    /** Seed the tally textarea from each row's decrypted-or-encoded
-     *  BigUint. Rows without either are skipped. */
-    const handleSeedTally = useCallback(() => {
-        const list = rows
-            .map((r) => r.decryptedBigInt.trim() || r.encodedBigInt.trim())
+    const navigate = useNavigate()
+
+    /** Gather decoded-plaintext rows ready to be tallied. Each row
+     *  whose stage-5 cell (`decodedJson`) is non-empty contributes
+     *  one entry; rows still in encrypted-only state are skipped
+     *  (operator must run decode first). Returns the parsed array;
+     *  individual parse failures bubble up as caller-visible
+     *  errors. */
+    const collectDecodedBallots = useCallback((): unknown[] => {
+        return rows
+            .map((r) => r.decodedJson.trim())
             .filter((s) => s.length > 0)
-        if (list.length === 0) {
+            .map((s, i) => {
+                try {
+                    return JSON.parse(s) as unknown
+                } catch (e) {
+                    throw new Error(
+                        `row ${i + 1}: invalid DecodedVoteContest JSON — ${formatError(e)}`
+                    )
+                }
+            })
+    }, [rows])
+
+    const decodedReadyCount = useMemo(
+        () => rows.filter((r) => r.decodedJson.trim().length > 0).length,
+        [rows]
+    )
+
+    // "Send to tally" — hand off the current Setup + decoded rows to
+    // `/tally`. All tallies execute on the standalone page; the
+    // pipeline's job ends at producing decoded ballots. Parse errors
+    // surface inline next to the stage-5 button so we never navigate
+    // with malformed input.
+    const handleSendToTally = useCallback(() => {
+        setTallyError(null)
+        let decodedBallots: unknown[]
+        try {
+            decodedBallots = collectDecodedBallots()
+        } catch (e) {
+            setTallyError(formatError(e))
+            return
+        }
+        if (decodedBallots.length === 0) {
             setTallyError(
-                "no encoded ballots in any row — run encode or decrypt first"
+                "no decoded selections in any row — run Decode (or fill stage 5) first"
             )
             return
         }
-        setTallyError(null)
-        setTallyBallots(JSON.stringify(list, null, 2))
-        // The "Seed tally from rows" button is the populate trigger
-        // for this textarea; mirror the per-row auto-expand contract
-        // so the operator sees what was just written.
-        setTallyBallotsOpen(true)
-    }, [rows])
-
-    const handleRunTally = useCallback(async () => {
-        setTallyBusy(true)
-        setTallyError(null)
-        try {
-            const ballots = parseBallots(tallyBallots)
-            const result = await runTally(contestJson, ballots)
-            setTallyResult(result)
-        } catch (e) {
-            setTallyError(formatError(e))
-        } finally {
-            setTallyBusy(false)
+        const contestName = (() => {
+            try {
+                const parsed = JSON.parse(contestJson) as {
+                    name?: unknown
+                }
+                return typeof parsed.name === "string"
+                    ? parsed.name
+                    : undefined
+            } catch {
+                return undefined
+            }
+        })()
+        const seed = {
+            contestName,
+            contestJson,
+            decodedBallots,
         }
-    }, [contestJson, tallyBallots])
+        navigate("/tally", {state: seed})
+    }, [contestJson, collectDecodedBallots, navigate])
 
     // Per-stage "any row busy" flag, used to gate the per-stage
     // "Run on all" buttons (cheap to compute and avoids double-fires).
@@ -618,43 +629,28 @@ export function BallotPipeline() {
                 anyBusy={anyBusy}
                 expanded={expanded}
                 onToggleExpanded={toggleExpanded}
+                headerAction={
+                    <button
+                        onClick={handleSendToTally}
+                        disabled={decodedReadyCount === 0}
+                        style={styles.runAllButton}
+                        title={
+                            decodedReadyCount === 0
+                                ? "Run Decode on at least one row (or fill stage 5 manually) before sending to tally"
+                                : `Open ${decodedReadyCount} decoded ballot${decodedReadyCount === 1 ? "" : "s"} in the standalone tally sandbox`
+                        }
+                    >
+                        Send to tally ▶
+                    </button>
+                }
+                footer={
+                    tallyError ? (
+                        <pre style={{...styles.output, color: "crimson"}}>
+                            {tallyError}
+                        </pre>
+                    ) : null
+                }
             />
-
-            <Section title="6. Tally ballots (array of decimal BigUint strings)">
-                <button onClick={handleSeedTally} style={styles.button}>
-                    Seed tally from rows ▼
-                </button>
-                <CollapsibleField
-                    label="Ballots array"
-                    value={tallyBallots}
-                    open={tallyBallotsOpen}
-                    onToggle={() => setTallyBallotsOpen((v) => !v)}
-                >
-                    <textarea
-                        value={tallyBallots}
-                        onChange={(e) => setTallyBallots(e.target.value)}
-                        style={{...styles.textarea, height: "10rem"}}
-                        spellCheck={false}
-                    />
-                </CollapsibleField>
-                <button
-                    onClick={handleRunTally}
-                    disabled={tallyBusy}
-                    style={styles.button}
-                >
-                    {tallyBusy ? "Tally…" : "Run tally"}
-                </button>
-                {tallyError && (
-                    <pre style={{...styles.output, color: "crimson"}}>
-                        {tallyError}
-                    </pre>
-                )}
-                {tallyResult !== null && (
-                    <pre style={styles.output}>
-                        {JSON.stringify(tallyResult, null, 2)}
-                    </pre>
-                )}
-            </Section>
         </div>
     )
 }
@@ -688,6 +684,16 @@ interface StageProps {
     expanded: Set<string>
     /** Click handler for the row header disclosure button. */
     onToggleExpanded: (rowId: string, stageIndex: number) => void
+    /** Optional element rendered in the stage header next to (or
+     *  instead of) the "<stage> all" button. Used by stage 5 to host
+     *  the "Send to tally" hand-off button, since stage 5 has no
+     *  downstream transformation and so no per-row "Run" button. */
+    headerAction?: React.ReactNode
+    /** Optional element rendered at the bottom of the stage section,
+     *  after the last row. Used by stage 5 to surface tally hand-off
+     *  errors next to the "Send to tally" button without coupling
+     *  the error UI to a specific row. */
+    footer?: React.ReactNode
 }
 
 function Stage(props: StageProps): JSX.Element {
@@ -708,6 +714,8 @@ function Stage(props: StageProps): JSX.Element {
         onRemoveRow,
         expanded,
         onToggleExpanded,
+        headerAction,
+        footer,
     } = props
     return (
         <section style={styles.section}>
@@ -722,9 +730,10 @@ function Stage(props: StageProps): JSX.Element {
                         style={styles.runAllButton}
                         title={`Run ${stage} on every row`}
                     >
-                        Run on all ▼
+                        {buttonLabel.replace(/ ▼$/, "")} all ▼
                     </button>
                 )}
+                {headerAction}
             </div>
             {help && <p style={styles.help}>{help}</p>}
             {rows.length === 0 && (
@@ -735,8 +744,15 @@ function Stage(props: StageProps): JSX.Element {
                 const err = stage ? row.errors[stage] : undefined
                 const cell = cellOf(row)
                 const isOpen = expanded.has(expansionKey(row.rowId, index))
+                const filled = cell.length > 0
                 return (
-                    <div key={row.rowId} style={styles.rowCard}>
+                    <div
+                        key={row.rowId}
+                        style={{
+                            ...styles.rowCard,
+                            ...(filled ? styles.rowCardFilled : null),
+                        }}
+                    >
                         <div style={styles.rowHeader}>
                             <button
                                 type="button"
@@ -837,6 +853,7 @@ function Stage(props: StageProps): JSX.Element {
                     + Add ballot
                 </button>
             )}
+            {footer}
         </section>
     )
 }
@@ -1042,19 +1059,6 @@ function CollapsibleField({
     )
 }
 
-function parseBallots(json: string): string[] {
-    const parsed: unknown = JSON.parse(json)
-    if (
-        !Array.isArray(parsed) ||
-        !parsed.every((v) => typeof v === "string")
-    ) {
-        throw new Error(
-            "ballots JSON must be an array of decimal BigUint strings"
-        )
-    }
-    return parsed
-}
-
 function readContestId(contestJson: string): string {
     const parsed: unknown = JSON.parse(contestJson)
     if (
@@ -1129,6 +1133,17 @@ const styles: Record<string, CSSProperties> = {
         padding: "0.5rem",
         marginBottom: "0.5rem",
         background: "#fafafa",
+        // Reserve the 3px left-edge so filled/empty rows stay
+        // perfectly aligned and only the accent color changes.
+        borderLeft: "3px solid #e5e5e5",
+    },
+    // Applied on top of `rowCard` when the row's cell for the
+    // current stage has any content. The muted teal left-edge lets
+    // the operator's eye land on the last populated stage at a
+    // glance (e.g. on a seeded view, stage 3 lights up while stages
+    // 4-5 stay grey until Decrypt/Decode have run).
+    rowCardFilled: {
+        borderLeftColor: "#1f7a8c",
     },
     rowHeader: {
         display: "flex",

@@ -14,6 +14,7 @@ import {
 } from "react-router-dom"
 import {store} from "voting-portal/src/store/store"
 import {BallotPipeline} from "./BallotPipeline"
+import {TallyPage} from "./TallyPage"
 import {BoothLayout, boothChildren} from "./BoothSpike"
 import {
     BallotStyleDetailPage,
@@ -41,6 +42,7 @@ function Shell() {
                     Workbench
                 </Link>
                 <Link to="/pipeline">Ballot pipeline</Link>
+                <Link to="/tally">Tally</Link>
             </nav>
             <Outlet />
         </ReduxProvider>
@@ -90,6 +92,14 @@ const router = createBrowserRouter([
                 element: <InspectorLayout />,
                 children: [
                     {path: "/pipeline", element: <BallotPipeline />},
+                    // `/tally` is the standalone tally sandbox — sibling
+                    // of `/pipeline`. Mounted under the same layout for
+                    // the same nav-availability reason. Seeded via
+                    // react-router location state by "Open in tally"
+                    // buttons on the contest page and the pipeline's
+                    // tally section; lands on velvet-wasm fixtures on a
+                    // bare reload.
+                    {path: "/tally", element: <TallyPage />},
                 ],
             },
             {

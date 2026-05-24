@@ -41,7 +41,7 @@ import type {RootState} from "voting-portal/src/store/store"
 import {NavLink, Outlet, useNavigate, useParams} from "react-router-dom"
 import {useSelector, useStore} from "react-redux"
 import {useCallback, useMemo, useState, useSyncExternalStore} from "react"
-import {subscribeWorkbench, useWorkbench, recordTallyRun} from "./workbenchStore"
+import {subscribeWorkbench, useWorkbench} from "./workbenchStore"
 import {
     bundledId,
     checkpointId,
@@ -60,11 +60,12 @@ import {
     deleteBundledSnapshot,
     subscribeBundledSnapshots,
 } from "./fixtures/bundledSnapshots"
-import {runElectionTally, type ContestTallyOutcome} from "./electionTally"
+import type {PipelineSeed, PipelineSeedRow} from "./BallotPipeline"
+import type {TallySeed} from "./TallyPage"
+import {decodeBigIntToDecodedVoteContest} from "./tally"
 import {setActiveVoter} from "./workbenchStore"
 import {importPortalBallotStyle} from "./import/portalBallotStyleImport"
 import {importVelvetElection} from "./import/velvetElectionImport"
-import type {PipelineSeed, PipelineSeedRow} from "./BallotPipeline"
 import buildInfo from "virtual:workbench-build-info"
 // ---------------------------------------------------------------------------
 // Layout
@@ -1698,12 +1699,12 @@ function SecretKeyRow({
  *  - the contest's voting metadata (voting_type, min/max votes,
  *    winning_candidates_num),
  *  - its candidates,
- *  - and the live per-contest tally aggregated from the workbench
- *    bridge: every cast vote whose `repairedCastVotes[id]` has a
- *    decoded BigUint for this contest is fed to `runElectionTally`
- *    against a synthetic single-contest ballot style. The result is
- *    rendered as the parsed `ContestResult` JSON, which is what the
- *    velvet-wasm tally emits.
+ *  - and a hand-off to the standalone `/tally` sandbox via the
+ *    "Open in tally" button. Tally execution itself lives on that
+ *    page (see TallyPage.tsx); this page assembles the decoded
+ *    ballots (one `DecodedVoteContest` per cast vote whose bridge
+ *    entry has a decoded BigUint for this contest) and passes them
+ *    plus the contest descriptor through react-router state.
  *
  * A contest can in principle appear on multiple ballot styles. The
  * workbench dedupes them in the rail and we pick the first match
@@ -1782,8 +1783,7 @@ export function ContestDetailPage(): JSX.Element {
     const keypair = useWorkbench((w) => w.keypair)
     // Decoded BigUint per cast vote for this contest, in cast order.
     // Cast votes whose bridge entry hasn't filled `decodedBigInts`
-    // yet (e.g. the decrypt observer hasn't run) are simply absent —
-    // `runElectionTally` skips them.
+    // yet (e.g. the decrypt observer hasn't run) are simply absent.
     //
     // We also skip cast votes whose captured ballot style doesn't
     // contain this contest. In a multi-BS election (e.g. the
@@ -1820,33 +1820,6 @@ export function ContestDetailPage(): JSX.Element {
         }
         return rows
     }, [castVotes, repaired, contestId, validBsIds, found])
-    // Last tally run for this contest is stored in the workbench
-    // store (see WorkbenchExtraState.tallyRuns) so it survives the
-    // navigation cycle the operator goes through to cast another
-    // ballot (Contest → Voter → booth → Review → back). Without
-    // lifting it out of component state, the stale-results indicator
-    // could never fire in practice because returning to the contest
-    // page always re-mounted with a blank slate.
-    const cachedRun = useWorkbench((w) => w.tallyRuns?.[contestId])
-    const outcome = cachedRun?.outcome ?? null
-    const tallyError = cachedRun?.errorMessage ?? null
-    const lastTallyFingerprint = cachedRun?.fingerprint ?? null
-    const [tallyBusy, setTallyBusy] = useState<boolean>(false)
-    // Cheap content-hash of everything that would change the tally
-    // output: the set of cast-vote ids in cast order plus the decoded
-    // BigUint (or empty string when not yet decoded) for each. A new
-    // cast vote, a decrypt completion, a fixture reload, or a
-    // re-cast (which removes the prior vote via
-    // supersedePriorCastVotes) all change this string. Computing it
-    // is O(decodedRows.length) join; for realistic workbench sizes
-    // (tens of cast votes) it's sub-millisecond per render.
-    const currentTallyFingerprint = useMemo(
-        () =>
-            decodedRows
-                .map((r) => `${r.castVoteId}:${r.decoded ?? ""}`)
-                .join("|"),
-        [decodedRows]
-    )
     // Open this contest in the ballot pipeline pre-filled with one
     // row per captured cast vote. Each row's plaintext cell is
     // pulled from the bridge-captured `selection` (a
@@ -1912,41 +1885,40 @@ export function ContestDetailPage(): JSX.Element {
         }
         navigate("/pipeline", {state: seed})
     }, [found, castVotes, repaired, contestId, keypair, navigate, validBsIds])
-    const handleRunTally = useCallback(async () => {
+
+    // "Open in tally" — sibling of the pipeline hand-off. Decode each
+    // bridge-captured BigUint into a `DecodedVoteContest` (the tally
+    // entry shape) and ship the array plus the contest descriptor to
+    // `/tally`, which is the single execution site for tallies in
+    // the workbench. The contest page intentionally does *not* run
+    // tallies itself — keeping execution in one place means there's
+    // exactly one code path to debug, and the standalone page's
+    // visualization is always the canonical view.
+    const handleOpenInTally = useCallback(async () => {
         if (!found) return
-        const fingerprint = currentTallyFingerprint
-        setTallyBusy(true)
-        const decodedByCastVote = decodedRows.map((r) =>
-            r.decoded ? {[contestId]: r.decoded} : {}
-        )
-        // Run the full ballot-style tally and pick the outcome for
-        // this contest. We could pass a one-contest projection, but
-        // passing the real ballot style keeps the tally call honest
-        // about what's actually on the ballot.
-        let nextOutcome: ContestTallyOutcome | null = null
-        let nextError: string | null = null
-        try {
-            const outcomes = await runElectionTally(
-                found.ballotStyle,
-                decodedByCastVote
-            )
-            nextOutcome =
-                outcomes.find((o) => o.contestId === contestId) ?? null
-        } catch (e) {
-            nextError = e instanceof Error ? e.message : String(e)
+        const contestJson = JSON.stringify(found.contest, null, 2)
+        const decoded: unknown[] = []
+        for (const row of decodedRows) {
+            if (!row.decoded) continue
+            try {
+                const json = await decodeBigIntToDecodedVoteContest(
+                    contestJson,
+                    row.decoded
+                )
+                decoded.push(JSON.parse(json))
+            } catch {
+                // Skip rows that fail to decode; the standalone tool
+                // is still useful with whatever survived.
+            }
         }
-        // Record the fingerprint we ran against whether the run
-        // succeeded or failed: re-pressing the button on the same
-        // inputs would just reproduce the same error, so the stale
-        // notice would be misleading.
-        recordTallyRun(contestId, {
-            fingerprint,
-            outcome: nextOutcome,
-            errorMessage: nextError,
-            ranAt: new Date().toISOString(),
-        })
-        setTallyBusy(false)
-    }, [found, decodedRows, contestId, currentTallyFingerprint])
+        const seed: TallySeed = {
+            contestName: found.contest?.name,
+            contestJson,
+            decodedBallots: decoded,
+        }
+        navigate("/tally", {state: seed})
+    }, [found, decodedRows, navigate])
+
     if (!found) {
         return (
             <>
@@ -2032,171 +2004,47 @@ export function ContestDetailPage(): JSX.Element {
                 >
                     Open in ballot pipeline
                 </button>
+                <button
+                    type="button"
+                    onClick={handleOpenInTally}
+                    style={secondaryButtonStyle}
+                    title="Open this contest's decoded ballots in the
+ standalone tally sandbox"
+                >
+                    Open in tally
+                </button>
             </div>
             <ContestTallyView
-                outcome={outcome}
-                error={tallyError}
                 decodedRows={decodedRows}
-                busy={tallyBusy}
-                stale={
-                    lastTallyFingerprint !== null &&
-                    lastTallyFingerprint !== currentTallyFingerprint
-                }
-                hasRun={lastTallyFingerprint !== null}
-                onRun={handleRunTally}
             />
         </>
     )
 }
 
+/** Renders the workbench's contribution to tally work for one
+ *  contest: a one-line summary of how many cast votes were
+ *  successfully decoded. Tally execution itself lives on `/tally`
+ *  (see the "Open in tally" button above this view); per-row decoded
+ *  BigUints are inspectable on `/pipeline` (see "Open in ballot
+ *  pipeline" — the Decrypt stage cell of each row holds the BigUint).
+ *  Keeping that detail in one place avoids duplicating it here. */
 function ContestTallyView({
-    outcome,
-    error,
     decodedRows,
-    busy,
-    stale,
-    hasRun,
-    onRun,
 }: {
-    outcome: ContestTallyOutcome | null
-    error: string | null
     decodedRows: Array<{castVoteId: string; decoded: string | undefined}>
-    busy: boolean
-    stale: boolean
-    hasRun: boolean
-    onRun: () => void
 }): JSX.Element {
     const decodedCount = decodedRows.filter((r) => !!r.decoded).length
     return (
-        <>
-            <p style={{margin: "0.3rem 0", color: "#444"}}>
-                {decodedCount} of {decodedRows.length} cast vote
-                {decodedRows.length === 1 ? "" : "s"} decoded for this
-                contest.
-            </p>
-            {/*
-              * Tally never runs automatically: re-tallying on every
-              * cast vote / decrypt-completion is both wasteful and
-              * misleading (an operator exploring a fixture wants
-              * deliberate control over when results are computed).
-              * The button is always enabled; staleness is signalled
-              * separately and does not block re-runs, so the operator
-              * is never stuck with no way to refresh.
-              */}
-            <div style={{margin: "0.5rem 0"}}>
-                <button
-                    type="button"
-                    onClick={onRun}
-                    disabled={busy}
-                    style={primaryButtonStyle}
-                >
-                    {busy
-                        ? "Running tally…"
-                        : hasRun
-                          ? "Re-run tally"
-                          : "Run tally"}
-                </button>
-            </div>
-            {stale && (
-                <p
-                    style={{
-                        margin: "0.3rem 0",
-                        color: "#7a5d00",
-                        background: "#fff8d6",
-                        border: "1px solid #e6cf6a",
-                        padding: "0.4rem 0.6rem",
-                        borderRadius: 4,
-                        fontSize: "0.85rem",
-                    }}
-                >
-                    Inputs have changed since the last run — the
-                    results below are out of date. Press{" "}
-                    <strong>Re-run tally</strong> to refresh.
-                </p>
-            )}
-            {error ? (
-                <p style={{color: "#b00020"}}>
-                    Tally failed: <code>{error}</code>
-                </p>
-            ) : !hasRun ? (
-                <Empty>
-                    Press <strong>Run tally</strong> to compute results
-                    from the decoded ballots above.
-                </Empty>
-            ) : outcome == null ? (
-                <Empty>(running…)</Empty>
-            ) : outcome.status === "no-data" ? (
-                <Empty>
-                    No decoded ballots yet. Cast votes from the booth
-                    appear here once the bridge has decrypted them.
-                </Empty>
-            ) : outcome.status === "error" ? (
-                <p style={{color: "#b00020"}}>
-                    Tally failed: <code>{outcome.errorMessage}</code>
-                </p>
-            ) : (
-                <pre style={tallyResultStyle}>
-                    <code>{JSON.stringify(outcome.result, null, 2)}</code>
-                </pre>
-            )}
-            <details style={{marginTop: "1rem"}}>
-                <summary style={{cursor: "pointer", color: "#444"}}>
-                    Decrypted BigUints per cast vote
-                </summary>
-                {decodedRows.length === 0 ? (
-                    <Empty>(none)</Empty>
-                ) : (
-                    <ul style={{paddingLeft: "1.25rem"}}>
-                        {decodedRows.map((r) => (
-                            <li
-                                key={r.castVoteId}
-                                style={{
-                                    margin: "0.25rem 0",
-                                    fontFamily: "monospace",
-                                    fontSize: "0.8rem",
-                                }}
-                            >
-                                <span style={{color: "#888"}}>
-                                    {r.castVoteId}
-                                </span>
-                                {" → "}
-                                {r.decoded ? (
-                                    <span style={{wordBreak: "break-all"}}>
-                                        {r.decoded}
-                                    </span>
-                                ) : (
-                                    // After the strict-keypair import
-                                    // fix, this state strictly means
-                                    // the bridge tried to decrypt and
-                                    // either the cast vote had no
-                                    // `content` or the decrypt threw
-                                    // (logged to the console). It is
-                                    // not "in progress" — nothing
-                                    // retries decrypt after capture.
-                                    <em
-                                        style={{color: "#b22222"}}
-                                        title="Decrypt failed: empty ballot content or decrypt error (see console)."
-                                    >
-                                        (decrypt failed)
-                                    </em>
-                                )}
-                            </li>
-                        ))}
-                    </ul>
-                )}
-            </details>
-        </>
+        <p style={{margin: "0.3rem 0", color: "#444"}}>
+            {decodedCount} of {decodedRows.length} cast vote
+            {decodedRows.length === 1 ? "" : "s"} decoded for this
+            contest. Click <strong>Open in tally</strong> above to run
+            the tally on these ballots in the standalone sandbox, or{" "}
+            <strong>Open in ballot pipeline</strong> to inspect the
+            per-row decrypted BigUints and full encode/encrypt/decrypt
+            round-trip.
+        </p>
     )
-}
-
-const tallyResultStyle: React.CSSProperties = {
-    padding: "0.6rem 0.8rem",
-    background: "#f4f4f4",
-    border: "1px solid #ddd",
-    borderRadius: 3,
-    fontSize: "0.8rem",
-    overflowX: "auto",
-    maxWidth: "44rem",
 }
 
 /**

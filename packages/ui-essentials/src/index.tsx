@@ -41,3 +41,23 @@ export {default as ExpandableText} from "./components/ExpandableText/ExpandableT
 export {ActionsContainer, StyledButton} from "./components/ConfirmationActions/ConfirmationActions"
 export {PlaintextVoteContest} from "./components/PlaintextVoteContest/PlaintextVoteContest"
 export type {PlaintextVoteContestProps} from "./components/PlaintextVoteContest/PlaintextVoteContest"
+export {
+    TallyResultsView,
+    ParticipationSummaryChart,
+    CandidatesResultsCharts,
+    TallyResultsCandidatesPlurality,
+    TallyResultsCandidatesIRV,
+    winningPositionComparator,
+    ECandidateStatus,
+} from "./components/TallyResults"
+export type {
+    TallyCandidate,
+    TallyParticipationSummary,
+    TallyResultsViewModel,
+    RunoffStatus,
+    Round,
+    CandidateReference,
+    CandidateOutcome,
+    CandidatesOutcomes,
+    CandidatesStatus,
+} from "./components/TallyResults"

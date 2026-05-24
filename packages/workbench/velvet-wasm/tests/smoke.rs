@@ -3,26 +3,24 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 //! End-to-end WASM smoke test for the workbench pipeline:
-//! `Contest` JSON + plaintext ballot strings → tally → `ContestResult`.
+//! `Contest` JSON + decoded selections JSON → tally → `ContestResult`.
 //!
 //! Run with `wasm-pack test --node -p velvet-wasm`. This compiles to
 //! `wasm32-unknown-unknown` and executes inside Node's wasm runtime —
 //! no browser needed for the smoke check.
 
 use sequent_core::ballot::Contest;
-use sequent_core::ballot_codec::BigUIntCodec;
 use sequent_core::fixtures::ballot_codec::get_test_contest;
-use velvet_wasm::tally_plaintext_ballots;
+use sequent_core::plaintext::{DecodedVoteChoice, DecodedVoteContest};
+use velvet_wasm::tally_decoded_ballots;
 use wasm_bindgen_test::*;
 
 // wasm-bindgen-test runs in Node by default; no configure needed.
 
-/// Encode a `DecodedVoteContest` (with the given candidate ids selected
-/// in preference order) into the decimal-`BigUint` string format that
-/// the ballot decoder expects.
-fn encode_selection(contest: &Contest, selected_candidate_ids: &[&str]) -> String {
-    use sequent_core::plaintext::{DecodedVoteChoice, DecodedVoteContest};
-
+/// Build a `DecodedVoteContest` JSON string for the given selected
+/// candidate ids (in preference order). Mirrors what the workbench
+/// produces as its "decoded selections" tally input.
+fn decoded_ballot_json(contest: &Contest, selected_candidate_ids: &[&str]) -> String {
     let choices: Vec<DecodedVoteChoice> = contest
         .candidates
         .iter()
@@ -48,10 +46,7 @@ fn encode_selection(contest: &Contest, selected_candidate_ids: &[&str]) -> Strin
         invalid_alerts: vec![],
     };
 
-    contest
-        .encode_plaintext_contest_bigint(&decoded)
-        .expect("encoding decoded ballot must succeed")
-        .to_str_radix(10)
+    serde_json::to_string(&decoded).expect("serialise decoded ballot")
 }
 
 #[wasm_bindgen_test]
@@ -65,12 +60,12 @@ fn plurality_smoke_tally_runs_end_to_end() {
 
     // Three ballots: A, A, B — expect A wins.
     let ballots = vec![
-        encode_selection(&contest, &[&cand_a]),
-        encode_selection(&contest, &[&cand_a]),
-        encode_selection(&contest, &[&cand_b]),
+        decoded_ballot_json(&contest, &[&cand_a]),
+        decoded_ballot_json(&contest, &[&cand_a]),
+        decoded_ballot_json(&contest, &[&cand_b]),
     ];
 
-    let result_json = tally_plaintext_ballots(&contest_json, ballots)
+    let result_json = tally_decoded_ballots(&contest_json, ballots)
         .expect("tally must succeed in wasm runtime");
 
     // Parse the result back as untyped JSON and sanity-check counts.

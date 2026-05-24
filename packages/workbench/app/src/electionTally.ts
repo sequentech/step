@@ -9,25 +9,27 @@
  * The pipeline (entirely in-browser, no portal-source changes):
  *
  *   ballotStyle.ballot_eml.contests[i]
- *     → JSON-stringified, fed verbatim to velvet-wasm's
- *       tally_plaintext_ballots (which deserializes it as the Rust
- *       `sequent_core::ballot::Contest` — same serde shape, no
- *       transformation needed).
+ *     → JSON-stringified, fed verbatim to velvet-wasm as the
+ *       `Contest` argument (same serde shape, no transformation
+ *       needed).
  *
  *   repairedCastVotes[id].decodedBigInts[contestId]
  *     → the decimal `BigUint` recovered by decrypting
- *       `castVote.content` with the workbench-owned secret key. This
- *       is the exact byte `encode_ballot` would produce from the
- *       matching selection, so it feeds `tally_plaintext_ballots`
- *       directly and exercises the *real* encrypt -> decrypt path
- *       rather than re-encoding from the plaintext selection.
+ *       `castVote.content` with the workbench-owned secret key.
+ *       Before tallying we run it through
+ *       `decodeBigIntToDecodedVoteContest` so the tally sees the
+ *       same decoded-selection shape every other call site uses
+ *       (ballot-pipeline tally, standalone tally tool). This
+ *       extra decode step is cheap and keeps the workbench's
+ *       tally entry shape single: decoded selections in,
+ *       `ContestResult` out.
  *
  * Voting-method support is whatever the velvet-wasm tally exposes
  * today (PluralityAtLarge, InstantRunoff). Anything else surfaces as
  * an `unsupported` status, not a crash.
  */
 
-import {runTally} from "./tally"
+import {decodeBigIntToDecodedVoteContest, runTally} from "./tally"
 
 export interface ContestTallyOutcome {
     contestId: string
@@ -77,7 +79,20 @@ export async function runElectionTally(
         const ballots: string[] = []
         for (const decoded of decodedBigIntsByCastVote) {
             const big = decoded[contestId]
-            if (typeof big === "string" && big.length > 0) ballots.push(big)
+            if (typeof big !== "string" || big.length === 0) continue
+            // The bridge captured BigUint plaintexts; the tally entry
+            // shape is decoded selections, so decode each one before
+            // pushing. A single bad row should not poison the batch —
+            // we record the failure on the outcome below if every row
+            // failed, and otherwise skip.
+            try {
+                const decodedSelection =
+                    await decodeBigIntToDecodedVoteContest(contestJson, big)
+                ballots.push(decodedSelection)
+            } catch {
+                // Swallow per-row decode errors. If they were all
+                // bad we'll surface as "no-data" below.
+            }
         }
 
         if (ballots.length === 0) {
