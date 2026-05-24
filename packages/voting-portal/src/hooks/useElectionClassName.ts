@@ -6,7 +6,7 @@ import {useParams} from "react-router"
 import {useAppSelector} from "../store/hooks"
 import {IElectionExtended, selectElectionById} from "../store/elections/electionsSlice"
 import {useTranslation} from "react-i18next"
-import {ROOT_CLASS_PREFIX, toValidClassName, translateElection} from "@sequentech/ui-core"
+import {ROOT_CLASS_PREFIX, toValidClassName, translateFromPresentation} from "@sequentech/ui-core"
 
 /**
  * Manages election class on <html> and provides an election class formatter.
@@ -19,8 +19,8 @@ export const useElectionClassName = () => {
     const extractElectionName = (election: IElectionExtended) => {
         let language = i18n.resolvedLanguage || i18n.language
         return (
-            translateElection(election, "alias", language) ||
-            translateElection(election, "name", language) ||
+            translateFromPresentation(election, "alias", language) ||
+            translateFromPresentation(election, "name", language) ||
             election.id
         )
     }

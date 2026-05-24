@@ -4,6 +4,9 @@
 
 package sequent.keycloak.custom_event_listener;
 
+import static sequent.keycloak.authenticator.Utils.AUTH_NOTE_DENY_TYPE;
+import static sequent.keycloak.authenticator.Utils.CA_CERT_ISSUER_CN;
+import static sequent.keycloak.authenticator.Utils.VOTER_CERT_SUBJECT_DN;
 import static sequent.keycloak.authenticator.Utils.sendErrorNotificationToUser;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -189,11 +192,43 @@ public class CustomEventListenerProvider implements EventListenerProvider {
       }
     }
     // Prepare message body based on event type.
+    Map<String, String> details =
+        event.getDetails() != null ? event.getDetails() : Collections.emptyMap();
+    boolean isLoginWithCertificate =
+        details.containsKey(VOTER_CERT_SUBJECT_DN) && details.containsKey(CA_CERT_ISSUER_CN);
     String body;
-    if (Utils.EVENT_TYPE_COMMUNICATIONS.equals(
-        event.getDetails() != null ? event.getDetails().get("type") : null)) {
-      String msgBody = Optional.ofNullable(event.getDetails().get("msgBody")).orElse("");
+    if (Utils.EVENT_TYPE_COMMUNICATIONS.equals(details.isEmpty() ? null : details.get("type"))) {
+      String msgBody = Optional.ofNullable(details.get("msgBody")).orElse("");
       body = String.format("%s %s", Utils.EVENT_TYPE_COMMUNICATIONS, msgBody);
+    } else if (event.getType() == EventType.LOGIN && isLoginWithCertificate) {
+      String certInfo =
+          VOTER_CERT_SUBJECT_DN
+              + "="
+              + details.get(VOTER_CERT_SUBJECT_DN)
+              + " "
+              + CA_CERT_ISSUER_CN
+              + "="
+              + details.get(CA_CERT_ISSUER_CN);
+      body = certInfo;
+    } else if (event.getType() == EventType.LOGIN_ERROR && isLoginWithCertificate) {
+      String denyType = details.getOrDefault(AUTH_NOTE_DENY_TYPE, "none");
+      if (userId == null) {
+        log.warn(
+            "Login error event with certificate details but no userId. Cannot retrieve username.");
+      }
+      String certInfo =
+          AUTH_NOTE_DENY_TYPE
+              + "="
+              + denyType
+              + " "
+              + VOTER_CERT_SUBJECT_DN
+              + "="
+              + details.getOrDefault(VOTER_CERT_SUBJECT_DN, "unknown")
+              + " "
+              + CA_CERT_ISSUER_CN
+              + "="
+              + details.getOrDefault(CA_CERT_ISSUER_CN, "unknown");
+      body = event.getError() + " " + certInfo;
     } else {
       // Use the event error (or another appropriate field) as body for
       // non-communications events.

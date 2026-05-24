@@ -10,8 +10,10 @@ import {EditContestData} from "./EditContestData"
 import {ListTallySheet} from "../TallySheet/ListTallySheet"
 import {TallySheetWizard, WizardSteps} from "../TallySheet/TallySheetWizard"
 import {CircularProgress} from "@mui/material"
+import {useAliasRenderer} from "@/hooks/useAliasRenderer"
 
 export const ContestTabs: React.FC = () => {
+    const aliasRenderer = useAliasRenderer()
     const record = useRecordContext<Sequent_Backend_Contest>()
 
     const [action, setAction] = useState<number>(WizardSteps.List)
@@ -31,7 +33,10 @@ export const ContestTabs: React.FC = () => {
 
     return (
         <>
-            <ElectionHeader title={record?.name || ""} subtitle="contestScreen.common.subtitle" />
+            <ElectionHeader
+                title={aliasRenderer(record)}
+                subtitle="contestScreen.common.subtitle"
+            />
             <TabbedShowLayout>
                 <TabbedShowLayout.Tab label="Data">
                     <EditContestData />

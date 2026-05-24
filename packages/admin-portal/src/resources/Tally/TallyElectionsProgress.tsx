@@ -35,7 +35,7 @@ export const TallyElectionsProgress: React.FC<TallyElectionsProgressProps> = ({
     tallySessionExecutions: execution,
     allElections,
 }) => {
-    const {t} = useTranslation()
+    const {t, i18n} = useTranslation()
     const aliasRenderer = useAliasRenderer()
 
     const elections = useMemo(() => {
@@ -51,14 +51,15 @@ export const TallyElectionsProgress: React.FC<TallyElectionsProgressProps> = ({
     useEffect(() => {
         if (elections) {
             const temp: Array<Sequent_Backend_Election_Extended> = (elections || []).map(
-                (election, index) => ({
-                    ...election,
-                    rowId: index,
-                    id: election.id || "",
-                    name: election.name,
-                    status: election.status || "",
-                    progress: 0,
-                })
+                (election, index) => {
+                    return {
+                        ...election,
+                        rowId: index,
+                        id: election.id || "",
+                        status: election.status || "",
+                        progress: 0,
+                    }
+                }
             )
             setElectionsData(temp)
         }
@@ -66,12 +67,12 @@ export const TallyElectionsProgress: React.FC<TallyElectionsProgressProps> = ({
 
     const columns: GridColDef[] = [
         {
-            field: "name",
+            field: `presentation.i18n[${i18n.language}].alias`,
             headerName: t("tally.table.elections"),
             flex: 1,
             editable: false,
             renderCell: (props: GridRenderCellParams<any, string>) => {
-                return aliasRenderer(props.row)
+                return props.value ? props.value : aliasRenderer(props.row)
             },
         },
         {
