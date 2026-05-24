@@ -15,13 +15,14 @@ The coverage assessments below use the term **bundled fixture** for `snapshots/*
 
 | Dimension | Value Space Size | Coverage Gap | Notes |
 |-----------|------------------|--------------|-------|
-| Voters & assignments | Unbounded | Yes | Workbench-only; `activeVoterId` + `assignments` pool |
-| Ballot-style count per election | 1..N | Yes | Bundled fixtures use 1 ballot style each |
-| Contest-sharing across ballot styles | 3 classes | Yes | No bundled multi-ballot-style fixture; only reference blobs cover it |
-| Contests per ballot style | 1..N | Yes | All bundled fixtures use exactly 1 contest |
-| CountingAlgType | 10 variants | Significant | Only PluralityAtLarge + IRV bundled; 8 others unimplemented in velvet |
-| min_votes / max_votes | [0..$maxint$] | Yes | Range coverage thin; bundled covers (1,1) and (0,3) |
-| winning_candidates_num | [0..$maxint$] | Yes | Not systematically varied; always 1 in bundled fixtures |
+| Voters & assignments | Unbounded | Partial | `multi-bs-shared-contest` exercises `assignments` + per-voter BS swap |
+| Elections per snapshot | 1..N | Partial | `two-elections` covers N=2; N≥3 untested |
+| Ballot-style count per election | 1..N | Partial | `multi-bs-shared-contest` covers N=2; N≥3 untested |
+| Contest-sharing across ballot styles | 3 classes | Partial | `multi-bs-shared-contest` covers "partial" (shared+disjoint mix) |
+| Contests per ballot style | 1..N | Partial | `mixed-3contests` covers N=3; capacity-near-limit untested |
+| CountingAlgType | 10 variants | Significant | Only PluralityAtLarge + IRV bundled (incl. mixed on one ballot); 8 others unimplemented in velvet |
+| min_votes / max_votes | [0..$maxint$] | Yes | Bundled covers (1,1), (0,3), (1,2); range still thin |
+| winning_candidates_num | [0..$maxint$] | Partial | `mixed-3contests` covers winning=2; values ≥3 untested |
 | Candidates per contest | 1..N | Partial | Bundled fixtures use 2-3; reference blobs go up to 5 |
 | allow_writeins | { true, false } | Yes | No bundled fixture sets allow_writeins (default true); only reference blobs set false |
 | base32_writeins | { true, false } | Yes | Never exercised as false |
@@ -63,11 +64,27 @@ The coverage assessments below use the term **bundled fixture** for `snapshots/*
   - [`packages/workbench/app/src/workbenchStore.ts:L163-L200`](packages/workbench/app/src/workbenchStore.ts#L163) — `setActiveVoter` mutation branches on `assignments` presence to pick which ballot styles to dispatch.
   - [`packages/workbench/app/src/workbenchStore.ts:L91-L120`](packages/workbench/app/src/workbenchStore.ts#L91) — `attributeCastVote` maps `castVote.id` to `activeVoterId` in `castBy` ledger.
 - **Current fixture coverage**: 
-  - `default.json` snapshot: voters array has two personas (Alice, Bob); `activeVoterId` initialized to `null`; `assignments` absent (pre-Phase-1).
-  - `instant-runoff-3cand.json` snapshot: same workbench overlay shape as default; `assignments` absent.
+  - `default.json`, `instant-runoff-3cand.json`, `mixed-3contests.json`, `two-elections.json`: two personas (Alice, Bob); `activeVoterId=null`; `assignments` absent (single-BS fixtures, no swap needed).
+  - `multi-bs-shared-contest.json`: two personas (Alice North, Bob South); `workbench.assignments` populated (`{alice: [bsNorth], bob: [bsSouth]}`); `workbench.ballotStylePool` populated with both BSes; clicking a voter swaps `state.ballotStyles[electionId]` to the assigned BS.
   - Velvet reference blobs (`sample-election-config.json`, `velvet-*.json`): no workbench-extra state — these are not bundled snapshots, just election-config templates for paste-into-form use.
 - **Velvet upstream variants**: Velvet fixture generators do not produce workbench-extra state; pure election configs only.
-- **Coverage gap assessment**: No fixtures exercise `activeVoterId` swaps with multi-ballot-style eligibility (`assignments`). Multi-voter scenarios with cast-vote attribution only minimally tested in workbench manual testing, not in bundled snapshots.
+- **Coverage gap assessment**: `activeVoterId` swap with `assignments` is now exercised in `multi-bs-shared-contest`. Still missing: 3+ voters, voter with >1 assigned BS, cast-vote attribution across multiple voters.
+
+---
+
+### 1b. Elections per Snapshot
+
+- **Field / type**: `state.elections: Record<electionId, Election>` (portal slice) + `state.electionEvent[eventId].elections: string[]` ([`packages/sequent-core/src/ballot.rs`](packages/sequent-core/src/ballot.rs)). One event can host N elections; one snapshot can persist multiple events.
+- **Value space**: 1..N elections per snapshot; bundled hydrator iterates `Object.values(state.elections)` and dispatches each.
+- **Branching sites**:
+  - [`packages/workbench/app/src/persistence.ts`](packages/workbench/app/src/persistence.ts) — `hydrateFromSnapshot` loops elections; one `setBallotSelection` per contest across all elections.
+  - Inspector tree: [`packages/workbench/app/src/WorkbenchInspector.tsx`](packages/workbench/app/src/WorkbenchInspector.tsx) renders one subtree per election under the event.
+  - Booth route `/event/<id>/election/<id>/vote` resolves a single election per render.
+- **Current fixture coverage**:
+  - `two-elections.json` (bundled): one event hosting two independent elections (City council + School board), each with its own BS and its own initial `ballotSelections` entry. Each booth is addressable by its own `/election/<id>/vote` URL.
+  - All other fixtures: exactly one election.
+- **Velvet upstream variants**: Velvet generators produce one election per config blob.
+- **Coverage gap assessment**: N=2 now bundled. N≥3, multiple **events** in one snapshot, and cross-election workbench overlay (e.g. one voter holding assignments across two elections) untested.
 
 ---
 
@@ -81,8 +98,8 @@ The coverage assessments below use the term **bundled fixture** for `snapshots/*
   - Tally aggregation (area-vs-contest operations) loops over all ballot styles per election.
 - **Current fixture coverage**: 
   - Bundled snapshots (`snapshots/*.json`):
-    - `default.json`: one election, one ballot style.
-    - `instant-runoff-3cand.json`: one election, one ballot style.
+    - `default.json`, `instant-runoff-3cand.json`, `mixed-3contests.json`, `two-elections.json` (per-election): one ballot style each.
+    - `multi-bs-shared-contest.json`: **two ballot styles** (North, South) on the same election, with one shared contest + one per-area contest each.
   - Velvet reference blobs (`velvet/*.json`, not bundled — paste-into-form only):
     - `sample-election-config.json`: two ballot styles (different areas, different contests), one election.
     - `velvet-plurality-5cand.json`: one ballot style, one election.
@@ -92,7 +109,7 @@ The coverage assessments below use the term **bundled fixture** for `snapshots/*
   - [`packages/velvet/src/fixtures/elections.rs:L48`](packages/velvet/src/fixtures/elections.rs#L48) (`get_election_config_1`) — one ballot style.
   - [`packages/velvet/src/fixtures/elections.rs:L60`](packages/velvet/src/fixtures/elections.rs#L60) (`get_election_config_2`) — **two ballot styles**, different areas, same contest.
   - [`packages/velvet/src/fixtures/elections.rs:L100`](packages/velvet/src/fixtures/elections.rs#L100) (`get_election_config_3`) — one ballot style, hierarchical areas (parent_id set).
-- **Coverage gap assessment**: Three or more ballot styles per election not exercised. Cross-ballot-style contest aggregation only marginally tested.
+- **Coverage gap assessment**: Three or more ballot styles per election still untested. Cross-ballot-style contest aggregation now bundled (`multi-bs-shared-contest`) but only at N=2.
 
 ---
 
@@ -108,17 +125,18 @@ The coverage assessments below use the term **bundled fixture** for `snapshots/*
   - Tally: [`packages/velvet/src/pipes/do_tally/do_tally.rs`](packages/velvet/src/pipes/do_tally/do_tally.rs) — aggregates results per contest across all areas/ballot styles carrying that contest.
   - Area-contest matching (workbench): determines which contests are visible per area during tally.
 - **Current fixture coverage**: 
-  - Bundled: `default.json` and `instant-runoff-3cand.json` each have one ballot style → trivially "fully shared" (one style).
+  - Bundled single-BS fixtures (`default.json`, `instant-runoff-3cand.json`, `mixed-3contests.json`, `two-elections.json`): one ballot style each → trivially "fully shared" within the style.
+  - `multi-bs-shared-contest.json` (bundled): two ballot styles on one election with a **partial** sharing pattern — the `Federal president` contest (`…00c1`, identical candidates Aldo/Beatriz/Cyrus) appears in both BSes, while `North district representative` (`…00c2`) and `South district representative` (`…00c3`) each appear in exactly one BS. This is the first bundled fixture exercising contest-id sharing across BSes.
   - Reference blobs (not bundled):
     - `sample-election-config.json`: two ballot styles, **disjoint** contests (colour vs shape).
-    - `velvet-multi-bs.json`: two ballot styles, **fully shared** contest id ("44444444-4444-4444-4444-4444444400c1") but **disjoint** candidate pools (Area A vs B have different candidate ids even though contest id is same). This is a **partial shared** scenario discovered in recent velvet-multi-bs audit.
+    - `velvet-multi-bs.json`: two ballot styles, **fully shared** contest id ("44444444-4444-4444-4444-4444444400c1") but **disjoint** candidate pools (Area A vs B have different candidate ids even though contest id is same).
 - **Velvet upstream variants**: 
   - `get_election_config_1` — disjoint (one ballot style).
   - `get_election_config_2` — disjoint (two areas, different contests per style).
   - `get_election_config_3` — disjoint (one ballot style, hierarchical areas).
 - **Coverage gap assessment**: 
-  - Fully shared contests (same contest id, same candidates) across multiple ballot styles not explicitly tested.
-  - Partial sharing (same contest id, different subsets of candidates per area) discovered but not yet fully exercised in tally pipeline.
+  - Partial sharing now bundled (`multi-bs-shared-contest`). Still missing: fully-shared identical contests across ≥2 BSes, and same-contest-id-with-disjoint-candidates (the `velvet-multi-bs` pattern) as a bundled snapshot.
+  - Tally-pipeline aggregation across shared contests still untested.
 
 ---
 
@@ -130,9 +148,12 @@ The coverage assessments below use the term **bundled fixture** for `snapshots/*
   - [`packages/voting-portal/src/components/BoothLayout.tsx`](packages/voting-portal/src/components/BoothLayout.tsx) — renders all contests from `state.ballotSelections` (indexed by contest_id).
   - [`packages/voting-portal/src/store/slices/ballotSelections.ts`](packages/voting-portal/src/store/slices/ballotSelections.ts) — initializes one selection entry per contest in ballot style.
   - Ballot encoding: [`packages/sequent-core/src/ballot_codec/multi_ballot.rs`](packages/sequent-core/src/ballot_codec/multi_ballot.rs) — encodes multiple contests' selections into fixed-size 30-byte payload.
-- **Current fixture coverage**: All bundled fixtures and all reference blobs use exactly 1 contest per ballot style.
+- **Current fixture coverage**: 
+  - `mixed-3contests.json` (bundled): **3 contests** in a single ballot style — Mayor (plurality, max=1), City council (plurality, max=2, winning=2), Park funding (IRV, max=3) — also exercises algorithm mixing on one ballot (see §6).
+  - `multi-bs-shared-contest.json` (bundled): **2 contests per ballot style** (shared Federal president + per-area district representative).
+  - All other bundled fixtures and all reference blobs: exactly 1 contest per ballot style.
 - **Velvet upstream variants**: All generators produce 1 contest per ballot style.
-- **Coverage gap assessment**: Multi-contest ballot styles (N ≥ 2) never tested in fixtures; encoding capacity with multiple contests untested.
+- **Coverage gap assessment**: N=2 and N=3 now bundled. Capacity-near-limit (sum of base-bits approaching 30 bytes) still untested; multi-ballot encoding with non-plurality contests in same style not exercised at the codec level beyond `mixed-3contests`.
 
 ---
 
@@ -160,7 +181,7 @@ The coverage assessments below use the term **bundled fixture** for `snapshots/*
   - Voting booth (UI): [`packages/voting-portal/src/components/Answer/Answer.tsx:L82-L84`](packages/voting-portal/src/components/Answer/Answer.tsx#L82) — `isPreferential()` check (InstantRunoff only) switches answer rendering to ranked-choice style.
 
 - **Current fixture coverage**: 
-  - Bundled: `default.json` uses `PluralityAtLarge`; `instant-runoff-3cand.json` uses `InstantRunoff` (3 candidates, min=0, max=3).
+  - Bundled: `default.json` / `two-elections.json` / `multi-bs-shared-contest.json` use `PluralityAtLarge`; `instant-runoff-3cand.json` uses `InstantRunoff` (3 candidates, min=0, max=3); `mixed-3contests.json` **mixes both** on a single ballot (2 plurality contests + 1 IRV) — exercises booth dispatching `isPreferential()` per-contest within the same render.
   - Reference blobs: all use `PluralityAtLarge`.
   - No bundled Borda, Desborda, Cumulative, or Pairwise fixture exists — see velvet `create_tally()` limitation below.
 
@@ -192,8 +213,11 @@ The coverage assessments below use the term **bundled fixture** for `snapshots/*
 
 - **Current fixture coverage**: 
   - Bundled:
-    - `default.json`: max_votes=1, min_votes=1, winning_candidates_num=1.
-    - `instant-runoff-3cand.json`: max_votes=3, min_votes=0, winning_candidates_num=1.
+    - `default.json`: max=1, min=1, winning=1.
+    - `instant-runoff-3cand.json`: max=3, min=0, winning=1.
+    - `mixed-3contests.json`: per-contest — (max=1, min=1, winning=1), (max=2, min=1, winning=2), (max=3, min=0, winning=1) — first bundled fixture with `winning_candidates_num > 1`.
+    - `multi-bs-shared-contest.json`: all contests (max=1, min=1, winning=1).
+    - `two-elections.json`: both contests (max=1, min=1, winning=1).
   - Reference blobs (not bundled):
     - `sample-election-config.json`: max_votes=1, min_votes=1, winning_candidates_num=1.
     - `velvet-plurality-5cand.json`: max_votes=1, min_votes=0, winning_candidates_num=1 (under-vote allowed).
@@ -205,7 +229,7 @@ The coverage assessments below use the term **bundled fixture** for `snapshots/*
   - `get_contest_min_max_votes(min, max)` — parameterizable; used to generate velvet-approval (min=1, max=3).
 
 - **Coverage gap assessment**: 
-  - **Range**: Only tested min ∈ {0,1}, max ∈ {1,3}. Missing: min ≥ 2, max ≥ 4, winning_candidates_num > 1.
+  - **Range**: Bundled covers min ∈ {0,1}, max ∈ {1,2,3}, winning ∈ {1,2}. Missing: min ≥ 2, max ≥ 4, winning ≥ 3.
   - **Edge cases**: max=0 (impossible vote), min > max (invalid), negative values — not tested.
   - **Interaction with under/over/blank vote policies**: Validation logic is dense; boundary conditions (num_selected exactly at min/max) under-exercised.
 
@@ -457,10 +481,11 @@ The coverage assessments below use the term **bundled fixture** for `snapshots/*
   - [`packages/sequent-core/src/ballot_codec/multi_ballot.rs:L719-L742`](packages/sequent-core/src/ballot_codec/multi_ballot.rs#L719) — `get_bases()` validates no non-PluralityAtLarge contests; errors if mixed.
   - Encoding: [`packages/sequent-core/src/ballot_codec/multi_ballot.rs:L240-L250`](packages/sequent-core/src/ballot_codec/multi_ballot.rs#L240) — comment documents capacity constraint.
 - **Current fixture coverage**: 
-  - All fixtures: 1 contest per ballot style → capacity never stressed.
-  - No multi-contest ballots tested.
+  - `mixed-3contests.json` (bundled): 3 contests per ballot style — exercises multi-contest encoding path; capacity not stressed (3 contests with ≤3 candidates each fits comfortably in 30 bytes).
+  - `multi-bs-shared-contest.json` (bundled): 2 contests per ballot style.
+  - All other fixtures: 1 contest per ballot style.
 - **Velvet upstream variants**: Single-contest only.
-- **Coverage gap assessment**: Multi-contest encoding capacity (near-limit scenarios) never tested; capacity overflow behavior untested.
+- **Coverage gap assessment**: Multi-contest encoding exercised at N∈{2,3} but never near the 30-byte limit; capacity-overflow behaviour and mixed-algorithm encoding edges (e.g. plurality + IRV in `get_bases()`) under-exercised.
 
 ---
 
@@ -486,11 +511,12 @@ The coverage assessments below use the term **bundled fixture** for `snapshots/*
 
 | Dimension | Gap | Impact | Priority |
 |-----------|-----|--------|----------|
-| CountingAlgType — 9/10 unsupported | Only Plurality-at-Large + minimal IRV tested | Tally dispatch, ballot encoding, validation | Critical |
-| Contest-sharing (disjoint/shared/partial) | Only disjoint and partial-with-disjoint-candidates tested | Multi-ballot-style aggregation incomplete | High |
-| Preference policies (Dup/Gap/etc.) | Untested; depends on IRV | Validation of preferential votes incomplete | High |
+| CountingAlgType — 9/10 unsupported | Only Plurality-at-Large + IRV bundled (incl. mixed on one ballot via `mixed-3contests`) | Tally dispatch, ballot encoding, validation | Critical |
+| Contest-sharing (disjoint/shared/partial) | Partial bundled (`multi-bs-shared-contest`); fully-shared-identical and disjoint-candidates-same-id still bundled-only as reference blobs | Multi-ballot-style aggregation incomplete | High |
+| Preference policies (Dup/Gap/etc.) | Untested; depends on IRV; `instant-runoff-3cand` leaves both at default | Validation of preferential votes incomplete | High |
 | Vote constraint policies (under/over/blank/invalid) | Only ALLOWED tested | Validation policy branching incomplete | High |
-| Multi-contest ballot styles | Never tested | 30-byte encoding capacity untested | Medium |
+| Multi-contest ballot styles | N=3 now bundled (`mixed-3contests`); near-30-byte capacity still untested | Encoding capacity untested at limit | Medium |
+| Multiple elections / events per snapshot | N=2 elections now bundled (`two-elections`); multi-event and N≥3 untested | Hydrator + workbench overlay coverage incomplete | Medium |
 | Write-in encoding (allow_writeins=true, text submission) | Never exercised end-to-end | Write-in text encoding/decoding untested | Medium |
 | UI policies (shuffle, columns, checkable-lists, etc.) | Not in fixtures | UI path testing requires browser/visual tests | Low |
 
@@ -500,14 +526,19 @@ The coverage assessments below use the term **bundled fixture** for `snapshots/*
 
 1. **Priority 1: CountingAlgType variants**
    - ✅ `instant-runoff-3cand.json` bundled: min_votes=0, max_votes=3, 3 candidates (minimal IRV) — first preferential bundled fixture.
+   - ✅ `mixed-3contests.json` bundled: plurality + IRV on the same ballot — exercises per-contest algorithm dispatch in the booth.
    - Borda/Desborda/Cumulative/Pairwise fixtures are blocked: velvet's `create_tally()` only dispatches PluralityAtLarge and InstantRunoff and errors on the rest (see [packages/velvet/src/pipes/do_tally/tally.rs](packages/velvet/src/pipes/do_tally/tally.rs#L109-L115)). Defer until velvet tally support lands.
 
 2. **Priority 2: Vote validation policies**
    - Extend velvet fixtures to exercise all combinations of (invalid_vote_policy, under_vote_policy, over_vote_policy, blank_vote_policy) in a small matrix.
 
 3. **Priority 3: Multi-ballot-style scenarios**
-   - Create fixture with 3+ ballot styles (fully shared contest, disjoint contests, partial).
-   - Test contest aggregation across 3+ areas.
+   - ✅ `multi-bs-shared-contest.json` bundled: 2 BSes with one shared contest + per-area contests; exercises `workbench.assignments` + per-voter BS swap.
+   - Still pending: 3+ ballot styles per election; tally aggregation across shared contests; fully-shared-identical-candidates as a bundled fixture.
+
+4. **Priority 4: Multiple elections / events per snapshot**
+   - ✅ `two-elections.json` bundled: two independent elections (City council + School board) under one event.
+   - Still pending: multiple events per snapshot; N≥3 elections; cross-election workbench overlay (one voter, assignments in two elections).
 
 
 ---
