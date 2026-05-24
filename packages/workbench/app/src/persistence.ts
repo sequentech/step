@@ -270,7 +270,7 @@ function writeSnapshot(state: RootState): void {
  * format as {@link writeSnapshot} stores in `localStorage` and the
  * shape that `SnapshotOverviewPage`'s import textarea accepts under
  * the "Import snapshot JSON…" disclosure. Useful for diagnostic
- * pages (e.g. `/build`) that need to surface the current state in
+ * pages (e.g. `/diagnostics`) that need to surface the current state in
  * its canonical exchange form.
  */
 export function buildCurrentSnapshot(state: RootState): PersistedSnapshot {

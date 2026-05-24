@@ -1107,19 +1107,22 @@ export function SnapshotOverviewPage(): JSX.Element {
 }
 
 /**
- * Standalone build-provenance page rendered at `/build`. Wraps
- * {@link BuildStatusCard} with a heading so it can live behind a
- * less-prominent top-level nav link rather than cluttering the
- * snapshots overview (which is otherwise pure snapshot/election
- * data).
+ * Standalone diagnostics page rendered at `/diagnostics`. Two
+ * sections, both troubleshooting/reproduction surfaces:
+ *   1. Build provenance ({@link BuildStatusCard}) — git SHA + wasm
+ *      artifact list, sourced at build time from the
+ *      `virtual:workbench-build-info` module.
+ *   2. Live working-copy state, serialised in the same
+ *      {@link PersistedSnapshot} JSON shape that the snapshots
+ *      overview's "Import snapshot JSON…" textarea accepts. Mirrors
+ *      the bundled snapshot's "Bundled JSON" disclosure (collapsed
+ *      by default, Copy button on top, scrollable `<pre>` body).
  *
- * Also surfaces the live working-copy state in the same
- * {@link PersistedSnapshot} JSON shape that the snapshots overview's
- * "Import snapshot JSON…" textarea accepts. Mirrors the bundled
- * snapshot's "Bundled JSON" disclosure: collapsed by default, Copy
- * button on top, scrollable `<pre>` body.
+ * Lives behind a less-prominent right-aligned nav link rather than
+ * cluttering the snapshots overview (which is otherwise pure
+ * snapshot/election data).
  */
-export function BuildInfoPage(): JSX.Element {
+export function DiagnosticsPage(): JSX.Element {
     const store = useStore()
     // Subscribe to redux *and* the workbench overlay so the displayed
     // JSON stays in sync as the operator runs the pipeline / votes
@@ -1146,11 +1149,12 @@ export function BuildInfoPage(): JSX.Element {
     )
     return (
         <div style={{padding: "1.5rem 2rem"}}>
-            <h1 style={{margin: "0 0 0.5rem 0"}}>Build info</h1>
+            <h1 style={{margin: "0 0 0.5rem 0"}}>Diagnostics</h1>
             <p style={{color: "#555", margin: "0 0 1rem 0"}}>
-                Provenance for the wasm artifacts baked into this workbench
-                bundle. Sourced at build time from the{" "}
-                <code>virtual:workbench-build-info</code> module.
+                Build provenance for the wasm artifacts baked into this
+                workbench bundle (sourced at build time from the{" "}
+                <code>virtual:workbench-build-info</code> module), plus
+                the live workbench state in importable JSON form.
             </p>
             <BuildStatusCard />
             <details style={{marginTop: "1.5rem"}}>
