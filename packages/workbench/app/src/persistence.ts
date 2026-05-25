@@ -22,15 +22,29 @@
 //     changes a payload shape, this file fails to type-check at the
 //     dispatch site, telling us exactly what to update.
 //
-// Slices we currently rehydrate:
-//   elections, electionEvent, ballotStyles, ballotSelections, castVotes,
-//   extra (bypassChooser + isVoted).
+// What we persist:
 //
-// Slices we deliberately skip (rehydration becomes a TODO when a screen
-// that consumes them is lifted):
-//   supportMaterials, documents, auditableBallots, confirmationScreenData.
-// They will simply be empty after a reload until then; that matches the
-// current state of the workbench, so nothing visible regresses.
+// The workbench saves only the *canonical scenario state* — the data
+// that, if absent on reload, would make the scenario look or behave
+// differently to a workbench user. Concretely:
+//
+//   Redux: elections, electionEvent, ballotStyles, ballotSelections,
+//          castVotes, extra (bypassChooser + isVoted).
+//   Workbench overlay: voters, activeVoterId, castBy, repairedCastVotes,
+//                      keypair.
+//
+// Everything else the voting-portal store carries (auditableBallots,
+// supportMaterials, documents, confirmationScreenData) is
+// booth-internal scratch / cache. The encrypted ballot payload that
+// matters for tally lives on each `castVotes[*].content`, so dropping
+// the redundant copy in `auditableBallots` is lossless for the
+// workbench's purposes. Same for the others — they are either
+// re-derived on next booth interaction or refetched from the backend.
+//
+// Consequence: byte-equality between the live canonical projection
+// and a saved blob's `state` is also the *semantic* notion of
+// "unchanged scenario", which is what the dirty indicator wants to
+// answer.
 //
 // See `LIFTING.md` section J ("Persistence + snapshots") for the
 // architectural rationale and the canary table.
@@ -48,6 +62,7 @@ import {
     setBypassChooser,
     setIsVoted,
 } from "voting-portal/src/store/extra/extraSlice"
+
 import {
     attributeCastVote,
     captureRepairedCastVote,
@@ -108,7 +123,16 @@ export interface PersistedSnapshot {
     /** Schema version baked into the JSON itself. Must match
      *  `PERSISTENCE_KEY`'s suffix or the snapshot is rejected. */
     version: "v1"
-    state: RootState
+    /** Canonical scenario state. A {@link projectCanonicalState}
+     *  projection of `RootState` — only the slices a workbench user
+     *  can observe the effects of (elections, electionEvent,
+     *  ballotStyles, ballotSelections, castVotes, extra). Booth-only
+     *  scratch (auditableBallots, supportMaterials, documents,
+     *  confirmationScreenData) is deliberately omitted; see file
+     *  header. The field is typed loosely as `Partial<RootState>` so
+     *  the serialized form doesn't claim to be a full root — callers
+     *  should treat any missing slice as "empty". */
+    state: CanonicalRootState
     /** Workbench-only overlay state (voter directory, attribution
      *  ledger). Optional so snapshots written before this field was
      *  added still load — they just rehydrate with an empty workbench
@@ -120,6 +144,38 @@ export interface PersistedSnapshot {
      *  before provenance was added still load (they hydrate as if
      *  `parentId === null`). See {@link currentParentId}. */
     parentId?: string | null
+}
+
+/** Slices we persist + compare for dirty detection. Adding a slice
+ *  here means "a workbench user can see its effects". Removing one
+ *  means "this is booth-internal scratch". The dirty check and the
+ *  write path both go through {@link projectCanonicalState} so the
+ *  two stay in lockstep. */
+export const CANONICAL_STATE_KEYS = [
+    "elections",
+    "electionEvent",
+    "ballotStyles",
+    "ballotSelections",
+    "castVotes",
+    "extra",
+] as const
+
+export type CanonicalStateKey = (typeof CANONICAL_STATE_KEYS)[number]
+export type CanonicalRootState = Pick<RootState, CanonicalStateKey>
+
+/** Reduce a full `RootState` to the canonical scenario projection.
+ *  Used everywhere we serialize state (writeSnapshot, saveCheckpoint,
+ *  buildCurrentSnapshot) and on the compare side of the dirty check.
+ *  Key order is fixed by `CANONICAL_STATE_KEYS` so `JSON.stringify`
+ *  comparisons are stable. */
+export function projectCanonicalState(state: RootState): CanonicalRootState {
+    const out = {} as CanonicalRootState
+    for (const k of CANONICAL_STATE_KEYS) {
+        // Cast: `out[k]` and `state[k]` have the same per-key type by
+        // construction, but TS can't see that through the mapped loop.
+        ;(out as Record<string, unknown>)[k] = state[k]
+    }
+    return out
 }
 
 /**
@@ -252,7 +308,7 @@ function writeSnapshot(state: RootState): void {
     if (typeof localStorage === "undefined") return
     const snapshot: PersistedSnapshot = {
         version: "v1",
-        state,
+        state: projectCanonicalState(state),
         workbench: getWorkbenchState(),
         parentId: currentParentId,
     }
@@ -277,7 +333,7 @@ function writeSnapshot(state: RootState): void {
 export function buildCurrentSnapshot(state: RootState): PersistedSnapshot {
     return {
         version: "v1",
-        state,
+        state: projectCanonicalState(state),
         workbench: getWorkbenchState(),
         parentId: currentParentId,
     }
@@ -729,7 +785,7 @@ export function saveCheckpoint(
     // picks up the new lineage immediately.
     const snapshot: PersistedSnapshot = {
         version: "v1",
-        state: store.getState(),
+        state: projectCanonicalState(store.getState()),
         workbench: getWorkbenchState(),
         parentId: currentParentId,
     }

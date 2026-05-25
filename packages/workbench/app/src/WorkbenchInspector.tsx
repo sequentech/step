@@ -53,6 +53,7 @@ import {
     loadSnapshotViaReload,
     materializeAsCheckpoint,
     normalizeCheckpointName,
+    projectCanonicalState,
     readCheckpointSnapshot,
     saveCheckpoint,
     type CheckpointMeta,
@@ -3218,20 +3219,83 @@ function useIsWorkingDirty(): boolean {
         if (parentId == null) return false
         const active = loadSnapshotById(parentId)
         if (!active) return false
-        if (JSON.stringify(reduxState) !== JSON.stringify(active.state))
-            return true
+        // Compare canonical projections on both sides. The blob is
+        // already a projection (see `persistence.ts` write path), but
+        // bundled fixtures may carry stray `{}` slices and re-projecting
+        // the live state on every check makes the comparison robust
+        // against any drift between what the store carries and what
+        // counts as a scenario. See `CANONICAL_STATE_KEYS`.
+        const liveCanonical = JSON.stringify(
+            projectCanonicalState(reduxState)
+        )
+        const savedCanonical = JSON.stringify(
+            projectCanonicalState(active.state as RootState)
+        )
+        if (liveCanonical !== savedCanonical) return true
         const liveWb = JSON.stringify(workbenchState)
         const activeWb = JSON.stringify(
             active.workbench ?? {
                 voters: [],
                 activeVoterId: null,
-                attribution: [],
-                repaired: [],
+                castBy: {},
+                repairedCastVotes: {},
                 keypair: null,
             }
         )
         return liveWb !== activeWb
     }, [reduxState, workbenchState, parentId])
+}
+
+// Temporary diagnostic: dumps the first divergence between the live
+// working copy and the currently-active snapshot. Exposed on
+// `window.__dirtyDiff` so we can call it from the browser console
+// when the dirty indicator looks wrong.
+if (typeof window !== "undefined") {
+    ;(window as unknown as {__dirtyDiff: () => unknown}).__dirtyDiff =
+        (): unknown => {
+            const parentId = getCurrentParentId()
+            if (parentId == null) return {reason: "no active parent"}
+            const active = loadSnapshotById(parentId)
+            if (!active) return {reason: "active snapshot unresolvable", parentId}
+            const liveState = (
+                window as unknown as {__store: {getState: () => RootState}}
+            ).__store.getState()
+            const liveWb = getWorkbenchState()
+            const stateA = JSON.stringify(projectCanonicalState(liveState))
+            const stateB = JSON.stringify(
+                projectCanonicalState(active.state as RootState)
+            )
+            const wbA = JSON.stringify(liveWb)
+            const wbB = JSON.stringify(active.workbench)
+            const firstDiff = (a: string, b: string): unknown => {
+                if (a === b) return null
+                for (let i = 0; i < Math.min(a.length, b.length); i++) {
+                    if (a[i] !== b[i]) {
+                        return {
+                            index: i,
+                            live: a.slice(Math.max(0, i - 60), i + 120),
+                            saved: b.slice(Math.max(0, i - 60), i + 120),
+                            liveLen: a.length,
+                            savedLen: b.length,
+                        }
+                    }
+                }
+                return {
+                    index: "tail",
+                    liveLen: a.length,
+                    savedLen: b.length,
+                    liveTail: a.slice(-150),
+                    savedTail: b.slice(-150),
+                }
+            }
+            return {
+                parentId,
+                stateEq: stateA === stateB,
+                wbEq: wbA === wbB,
+                stateDiff: firstDiff(stateA, stateB),
+                wbDiff: firstDiff(wbA, wbB),
+            }
+        }
 }
 
 /**

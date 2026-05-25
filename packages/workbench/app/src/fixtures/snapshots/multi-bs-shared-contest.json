@@ -248,8 +248,6 @@
                 }
             ]
         },
-        "auditableBallots": {},
-        "supportMaterials": {},
         "electionEvent": {
             "33333333-3333-3333-3333-333333333002": {
                 "id": "33333333-3333-3333-3333-333333333002",
@@ -265,9 +263,7 @@
                 }
             }
         },
-        "extra": {"bypassChooser": false, "isVoted": {}},
-        "documents": {},
-        "confirmationScreenData": {}
+        "extra": {"bypassChooser": false, "isVoted": {}}
     },
     "workbench": {
         "voters": [

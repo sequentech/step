@@ -180,9 +180,10 @@ export function assembleSnapshot(args: {
     }
     return {
         version: "v1",
-        // The whole `state` object is typed as RootState upstream;
-        // we build a partial that the hydrator tolerates (it only
-        // reads the slices it knows about). Cast at the seam.
+        // Canonical scenario projection only. Booth-internal slices
+        // (auditableBallots, supportMaterials, documents,
+        // confirmationScreenData) are intentionally omitted; see
+        // `persistence.ts` header.
         state: {
             elections: {[election.id]: election},
             electionEvent: {[electionEvent.id]: electionEvent},
@@ -190,10 +191,6 @@ export function assembleSnapshot(args: {
             ballotSelections,
             castVotes: {},
             extra: {bypassChooser: false, isVoted: {}},
-            supportMaterials: {},
-            documents: {},
-            auditableBallots: {},
-            confirmationScreenData: {},
         } as unknown as PersistedSnapshot["state"],
         workbench,
         parentId: null,
