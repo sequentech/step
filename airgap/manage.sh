@@ -75,7 +75,8 @@ EOF
         
         echo "--- Applying Kubernetes Manifests ---"
         sudo k3s kubectl apply -f "$PROJECT_ROOT/kubernetes/01-namespaces.yaml"
-        sudo k3s kubectl apply -f "$PROJECT_ROOT/kubernetes/02-gitea.yaml"
+        sudo k3s kubectl apply -f "$PROJECT_ROOT/kubernetes/02-ingress.yaml"
+        sudo k3s kubectl apply -f "$PROJECT_ROOT/kubernetes/03-gitea.yaml"
         
         echo "Waiting for Gitea to start so we can generate a runner token..."
         sudo k3s kubectl rollout status deployment/gitea -n gitea
@@ -83,9 +84,8 @@ EOF
         echo "Registering runner with token: $TOKEN"
         sed "s/YOUR_TOKEN_HERE/$TOKEN/g" "$PROJECT_ROOT/kubernetes/06-ci-runner.yaml" | sudo k3s kubectl apply -f -
         
-        sudo k3s kubectl apply -f "$PROJECT_ROOT/kubernetes/03-infra.yaml"
-        sudo k3s kubectl apply -f "$PROJECT_ROOT/kubernetes/04-apps.yaml"
-        sudo k3s kubectl apply -f "$PROJECT_ROOT/kubernetes/05-ingress.yaml"
+        sudo k3s kubectl apply -f "$PROJECT_ROOT/kubernetes/04-infra.yaml"
+        sudo k3s kubectl apply -f "$PROJECT_ROOT/kubernetes/05-apps.yaml"
         
         echo "Stack is deploying! Use 'kubectl get pods -A' to monitor."
         ;;

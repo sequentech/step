@@ -41,6 +41,14 @@ spec:
               value: sqlite3
             - name: GITEA__database__PATH
               value: /data/gitea/gitea.db
+            - name: GITEA__security__INSTALL_LOCK
+              value: "true"
+            - name: GITEA_ADMIN_USERNAME
+              value: "admin"
+            - name: GITEA_ADMIN_PASSWORD
+              value: "admin123"
+            - name: GITEA_ADMIN_EMAIL
+              value: "admin@example.com"
             - name: GITEA__repository__ENABLE_PUSH_CREATE_USER
               value: "true"
             - name: GITEA__repository__ENABLE_PUSH_CREATE_ORG
