@@ -40,7 +40,7 @@
 import type {RootState} from "voting-portal/src/store/store"
 import {NavLink, Outlet, useNavigate, useParams} from "react-router-dom"
 import {useSelector, useStore} from "react-redux"
-import {Fragment, useCallback, useMemo, useState, useSyncExternalStore} from "react"
+import {Fragment, useCallback, useEffect, useMemo, useState, useSyncExternalStore} from "react"
 import {getWorkbenchState, subscribeWorkbench, useWorkbench} from "./workbenchStore"
 import {
     buildCurrentSnapshot,
@@ -49,7 +49,9 @@ import {
     deleteCheckpoint,
     getCurrentParentId,
     listCheckpoints,
+    loadSnapshotById,
     loadSnapshotViaReload,
+    materializeAsCheckpoint,
     normalizeCheckpointName,
     readCheckpointSnapshot,
     saveCheckpoint,
@@ -220,6 +222,7 @@ function buildProvenanceForest(
 function SnapshotsSection(): JSX.Element {
     const checkpoints = useCheckpointList()
     const currentParent = useCurrentParentId()
+    const isDirty = useIsWorkingDirty()
     const bundled = useBundledIds()
     const {roots, orphans} = buildProvenanceForest(bundled, checkpoints)
     return (
@@ -237,6 +240,7 @@ function SnapshotsSection(): JSX.Element {
                         key={n.id}
                         node={n}
                         currentParent={currentParent}
+                        isDirty={isDirty}
                         depth={0}
                     />
                 ))}
@@ -250,6 +254,7 @@ function SnapshotsSection(): JSX.Element {
                                 key={n.id}
                                 node={n}
                                 currentParent={currentParent}
+                                isDirty={isDirty}
                                 depth={0}
                             />
                         ))}
@@ -263,25 +268,48 @@ function SnapshotsSection(): JSX.Element {
 function ProvenanceTreeNode(props: {
     node: ProvenanceNode
     currentParent: string | null
+    isDirty: boolean
     depth: number
 }): JSX.Element {
-    const {node, currentParent, depth} = props
+    const {node, currentParent, isDirty, depth} = props
     const icon = node.kind === "bundled" ? "▣" : "◇"
+    const isActive = currentParent === node.id
     return (
         <li style={{marginLeft: depth === 0 ? 0 : "1rem"}}>
             <NavLink
                 to={`/wb/snapshot/${encodeURIComponent(node.id)}`}
                 style={navLinkStyle}
-                title={node.id}
+                title={
+                    isActive && isDirty
+                        ? `${node.id} — currently loaded (working copy has unsaved changes)`
+                        : isActive
+                        ? `${node.id} — currently loaded`
+                        : node.id
+                }
             >
                 <span style={{marginRight: "0.3rem"}}>{icon}</span>
                 <span
                     style={{
-                        fontWeight: currentParent === node.id ? 600 : 400,
+                        fontWeight: isActive ? 600 : 400,
                     }}
                 >
                     {node.label}
                 </span>
+                {isActive && (
+                    <span
+                        style={{
+                            marginLeft: "0.3rem",
+                            color: isDirty ? "#a33" : "#2c7a2c",
+                        }}
+                        aria-label={
+                            isDirty
+                                ? "active snapshot, working copy modified"
+                                : "active snapshot"
+                        }
+                    >
+                        {isDirty ? "●*" : "●"}
+                    </span>
+                )}
             </NavLink>
             {node.children.length > 0 && (
                 <ul style={listStyle}>
@@ -290,6 +318,7 @@ function ProvenanceTreeNode(props: {
                             key={c.id}
                             node={c}
                             currentParent={currentParent}
+                            isDirty={isDirty}
                             depth={depth + 1}
                         />
                     ))}
@@ -645,14 +674,20 @@ export function SnapshotOverviewPage(): JSX.Element {
                 return
             }
             try {
-                // Wipe + reload: write the imported snapshot to the
-                // auto-resume slot as a root (parentId = null), then
-                // reload so the boot path hydrates a fresh, empty
-                // store. This guarantees the resulting working copy
-                // matches the source JSON exactly with no leftovers
-                // from before. If the user wants to keep it, they
-                // Save… after.
-                loadSnapshotViaReload(parsed, null)
+                // Wipe + reload via an on-the-fly checkpoint: write
+                // the imported snapshot to the checkpoint index
+                // under a timestamped name, then point the auto-
+                // resume slot at it as parent. After the reload the
+                // working copy's `currentParentId` is the new
+                // checkpoint id, so the imported state has a stable
+                // identity in the rail / dirty-check infrastructure
+                // (the same path bundled snapshots and saved
+                // checkpoints take). See LIFTING.md section J.
+                const ckptId = materializeAsCheckpoint(
+                    parsed,
+                    `imported-snapshot-${formatImportTimestamp()}`
+                )
+                loadSnapshotViaReload(parsed, ckptId)
             } catch (e) {
                 setImportError(
                     e instanceof Error ? e.message : String(e)
@@ -669,7 +704,19 @@ export function SnapshotOverviewPage(): JSX.Element {
                 importMode === "ballotStyle"
                     ? await importPortalBallotStyle(importJson)
                     : await importVelvetElection(importJson)
-            loadSnapshotViaReload(snap, null)
+            // Same auto-checkpoint trick as the raw-snapshot path
+            // above: give the imported state an identity in the
+            // checkpoint index so the rail's active-snapshot
+            // highlight has something to point at after reload.
+            const ckptId = materializeAsCheckpoint(
+                snap,
+                `imported-${
+                    importMode === "ballotStyle"
+                        ? "ballot-style"
+                        : "velvet"
+                }-${formatImportTimestamp()}`
+            )
+            loadSnapshotViaReload(snap, ckptId)
         } catch (e) {
             setImportError(e instanceof Error ? e.message : String(e))
         } finally {
@@ -1801,6 +1848,58 @@ export function SnapshotDetailPage(): JSX.Element {
             </>
         )
     }
+    return (
+        <SnapshotDetailPageBody
+            id={id}
+            kind={kind}
+            name={name}
+            snapshot={snapshot}
+            meta={meta}
+        />
+    )
+}
+
+/**
+ * Body of {@link SnapshotDetailPage}, split out so the navigation-time
+ * auto-load effect runs only when we actually have a resolved snapshot
+ * — the `kind === "unknown"` / not-found branch above doesn't have a
+ * snapshot to load and shouldn't be touching `currentParentId`.
+ *
+ * Auto-load semantics (matches the design discussed before this
+ * change): if this page's `id` differs from the currently-active
+ * snapshot AND the working copy is clean (matches the active
+ * snapshot byte-for-byte), we treat the route itself as the load
+ * instruction and reload the auto-resume slot pointed at this
+ * snapshot. If the working copy is dirty, we *don't* destroy it —
+ * we render a divergence banner with explicit Load / Discard
+ * options instead, so the operator decides.
+ */
+function SnapshotDetailPageBody({
+    id,
+    kind,
+    name,
+    snapshot,
+    meta,
+}: {
+    id: string
+    kind: "bundled" | "checkpoint"
+    name: string
+    snapshot: PersistedSnapshot
+    meta: CheckpointMeta | undefined
+}): JSX.Element {
+    const currentParent = useCurrentParentId()
+    const isDirty = useIsWorkingDirty()
+    const isActive = currentParent === id
+    useEffect(() => {
+        // Only auto-load when (a) the route points at a different
+        // snapshot than the one currently loaded, and (b) the
+        // working copy has no unsaved divergence from its active
+        // snapshot. The dirty case falls through to the banner
+        // below; the operator decides whether to lose their work.
+        if (isActive) return
+        if (isDirty) return
+        loadSnapshotViaReload(snapshot, id)
+    }, [id, isActive, isDirty, snapshot])
     const stateCounts = selectStateCounts(snapshot)
     const voterCount = snapshot.workbench?.voters.length ?? 0
     const bundledExport = useMemo(() => {
@@ -1817,7 +1916,24 @@ export function SnapshotDetailPage(): JSX.Element {
             <p style={{color: "#666"}}>
                 <code>{id}</code> &middot;{" "}
                 {kind === "bundled" ? "Bundled snapshot" : "Checkpoint"}
+                {isActive && (
+                    <>
+                        {" "}
+                        &middot;{" "}
+                        <span style={{color: "#2c7a2c"}}>
+                            ● currently loaded
+                            {isDirty && " (working copy modified)"}
+                        </span>
+                    </>
+                )}
             </p>
+            {!isActive && isDirty && (
+                <DivergenceBanner
+                    routeId={id}
+                    activeId={currentParent}
+                    snapshot={snapshot}
+                />
+            )}
             <dl style={dlStyle}>
                 <DlRow label="Forked from">
                     <code>
@@ -1842,14 +1958,16 @@ export function SnapshotDetailPage(): JSX.Element {
                     style={primaryButtonStyle}
                     onClick={() => {
                         // Wipe + reload via the auto-resume slot.
-                        const parentId =
-                            kind === "checkpoint"
-                                ? checkpointId(name)
-                                : bundledId(name)
-                        loadSnapshotViaReload(snapshot, parentId)
+                        loadSnapshotViaReload(snapshot, id)
                     }}
+                    disabled={isActive && !isDirty}
+                    title={
+                        isActive && !isDirty
+                            ? "This snapshot is already loaded and the working copy matches it."
+                            : undefined
+                    }
                 >
-                    Load
+                    {isActive ? "Reload (discard working changes)" : "Load"}
                 </button>
             </div>
             <details style={{marginTop: "1.5rem"}}>
@@ -1860,6 +1978,63 @@ export function SnapshotDetailPage(): JSX.Element {
                 <CopyJsonBlock json={bundledExport} />
             </details>
         </>
+    )
+}
+
+/**
+ * Yellow callout shown on the snapshot detail page when the route's
+ * snapshot id differs from the active snapshot AND the working copy
+ * has unsaved changes. Surfaces the otherwise-invisible
+ * route-vs-active divergence and offers the two reasonable resolutions
+ * explicitly so the operator never silently loses work.
+ */
+function DivergenceBanner({
+    routeId,
+    activeId,
+    snapshot,
+}: {
+    routeId: string
+    activeId: string | null
+    snapshot: PersistedSnapshot
+}): JSX.Element {
+    return (
+        <div
+            style={{
+                marginTop: "1rem",
+                padding: "0.75rem 1rem",
+                border: "1px solid #d4b300",
+                background: "#fffbe6",
+                borderRadius: 4,
+                fontSize: "0.9rem",
+            }}
+        >
+            <strong>Working copy has unsaved changes.</strong>
+            <p style={{margin: "0.4rem 0", color: "#444"}}>
+                Viewing <code>{routeId}</code>, but{" "}
+                <code>{activeId ?? "(no active snapshot)"}</code> is still
+                loaded with unsaved modifications. We did not auto-switch
+                to this snapshot — pick one:
+            </p>
+            <div style={{display: "flex", gap: "0.5rem", flexWrap: "wrap"}}>
+                <button
+                    type="button"
+                    style={primaryButtonStyle}
+                    onClick={() => loadSnapshotViaReload(snapshot, routeId)}
+                >
+                    Discard changes &amp; load this snapshot
+                </button>
+                <span
+                    style={{
+                        alignSelf: "center",
+                        color: "#666",
+                        fontSize: "0.85rem",
+                    }}
+                >
+                    (Or save the working copy as a checkpoint first via
+                    the inspector home, then click again.)
+                </span>
+            </div>
+        </div>
     )
 }
 
@@ -3001,6 +3176,67 @@ function NodeLabel(props: {
 // rail re-renders.
 function useCurrentParentId(): string | null {
     return useWorkbench(() => getCurrentParentId())
+}
+
+/**
+ * Whether the live working copy diverges from the snapshot it was
+ * forked off of. Computed by stringifying the canonical state shape
+ * on both sides — same cost as the `buildCurrentSnapshot` JSON dump
+ * the diagnostics page already pays once per render, and only
+ * computed on screens that actually consume it (rail + snapshot
+ * detail). For workbench-sized state this is microseconds, so we
+ * don't bother caching across components.
+ *
+ * Returns `false` when the active snapshot cannot be resolved
+ * (legacy `parentId == null`, or a checkpoint that was deleted from
+ * under the working copy). "Unknown" defaults to "not dirty" so we
+ * never spuriously gate the auto-load behavior on this hook.
+ */
+function useIsWorkingDirty(): boolean {
+    const store = useStore()
+    const reduxState = useSyncExternalStore(
+        store.subscribe,
+        store.getState
+    ) as RootState
+    const workbenchState = useSyncExternalStore(
+        subscribeWorkbench,
+        getWorkbenchState
+    )
+    const parentId = useCurrentParentId()
+    return useMemo(() => {
+        if (parentId == null) return false
+        const active = loadSnapshotById(parentId)
+        if (!active) return false
+        if (JSON.stringify(reduxState) !== JSON.stringify(active.state))
+            return true
+        const liveWb = JSON.stringify(workbenchState)
+        const activeWb = JSON.stringify(
+            active.workbench ?? {
+                voters: [],
+                activeVoterId: null,
+                attribution: [],
+                repaired: [],
+                keypair: null,
+            }
+        )
+        return liveWb !== activeWb
+    }, [reduxState, workbenchState, parentId])
+}
+
+/**
+ * Format `now()` as `YYYY-MM-DD-HH-MM-SS`. Used to name auto-
+ * checkpoints created on raw-JSON import — sortable, collision-
+ * resistant for human-paced operation, and inside the charset
+ * `normalizeCheckpointName` accepts. Avoids `:` (rejected) and `T`
+ * (looks weird in the rail).
+ */
+function formatImportTimestamp(): string {
+    const d = new Date()
+    const pad = (n: number): string => String(n).padStart(2, "0")
+    return (
+        `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}` +
+        `-${pad(d.getHours())}-${pad(d.getMinutes())}-${pad(d.getSeconds())}`
+    )
 }
 
 // Surface checkpoint list reactively. `listCheckpoints` reads

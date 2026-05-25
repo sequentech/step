@@ -62,6 +62,7 @@ import {
     type WorkbenchExtraState,
 } from "./workbenchStore"
 import {decryptBallotContent} from "./tally"
+import {loadBundledSnapshot} from "./fixtures/bundledSnapshots"
 /**
  * Storage key. The `:v1` suffix is a schema version: when the persisted
  * shape becomes incompatible (e.g. voting-portal removes a slice we
@@ -821,4 +822,83 @@ export function deleteCheckpoint(rawName: string): void {
     )
     // Bump subscribers so the inspector rail drops the row.
     replaceWorkbenchState(getWorkbenchState())
+}
+
+/**
+ * Persist a snapshot under a fresh checkpoint name *without* hydrating
+ * it into the live store. Used by the raw-JSON import flows
+ * (snapshot / ballot-style / velvet) to give the imported state an
+ * identity in the checkpoint index *before* the page reloads — that
+ * way the post-reload boot lands on a snapshot whose `parentId` points
+ * back at this freshly-materialized checkpoint, and the rail can
+ * highlight it as the active snapshot.
+ *
+ * Distinct from {@link saveCheckpoint}, which captures *the live
+ * store's* current state and operates after a Save action. This
+ * helper instead writes a *given* snapshot to localStorage and the
+ * index, and is meant to be paired with
+ * {@link loadSnapshotViaReload}` so the just-materialized
+ * checkpoint becomes the active snapshot after reload.
+ *
+ * Returns the tagged checkpoint id (`checkpoint:<name>`), suitable
+ * for passing straight to {@link loadSnapshotViaReload} as the new
+ * working copy's `parentId`.
+ */
+export function materializeAsCheckpoint(
+    snapshot: PersistedSnapshot,
+    rawName: string
+): string {
+    const name = normalizeCheckpointName(rawName)
+    if (typeof localStorage === "undefined") {
+        throw new Error(
+            "Cannot materialize checkpoint: localStorage is unavailable."
+        )
+    }
+    // Persist the snapshot in the exact shape `loadCheckpoint` /
+    // `readCheckpointSnapshot` expect — same as `saveCheckpoint`
+    // writes — so subsequent Load / Inspect flows treat it
+    // indistinguishably from an operator-saved checkpoint.
+    const blob: PersistedSnapshot = {
+        version: "v1",
+        state: snapshot.state,
+        workbench: snapshot.workbench,
+        // An imported snapshot is conceptually a root in *this*
+        // workbench's lineage even if its source JSON happened to
+        // carry a parentId from some other workbench. We deliberately
+        // discard the foreign parentId here: the rail would otherwise
+        // render this checkpoint as an orphan pointing at a snapshot
+        // we know nothing about.
+        parentId: null,
+    }
+    localStorage.setItem(CHECKPOINT_PREFIX + name, JSON.stringify(blob))
+    const meta: CheckpointMeta = {
+        name,
+        savedAt: new Date().toISOString(),
+        parentId: null,
+    }
+    const next = readCheckpointIndex().filter((e) => e.name !== name)
+    next.push(meta)
+    writeCheckpointIndex(next)
+    return checkpointId(name)
+}
+
+/**
+ * Resolve a tagged snapshot id (`bundled:<name>` /
+ * `checkpoint:<name>`) to the underlying {@link PersistedSnapshot},
+ * or `null` if no such snapshot exists or the id is malformed.
+ *
+ * Used by the dirty-check infrastructure: comparing the live store
+ * against the *currently active* snapshot requires loading whatever
+ * snapshot `getCurrentParentId()` points at, regardless of whether
+ * it is a bundled fixture or a saved checkpoint.
+ */
+export function loadSnapshotById(id: string | null): PersistedSnapshot | null {
+    if (id == null) return null
+    if (id.startsWith("bundled:")) {
+        return loadBundledSnapshot(id.slice("bundled:".length))
+    }
+    if (id.startsWith("checkpoint:")) {
+        return readCheckpointSnapshot(id.slice("checkpoint:".length))
+    }
+    return null
 }
