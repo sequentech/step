@@ -43,6 +43,10 @@ import {
 
 import {runTally} from "./tally"
 import {adaptVelvetContestResult} from "./lib/velvetTallyAdapter"
+import {
+    applyPolicyOverlayToContest,
+    usePolicyOverrides,
+} from "./policyOverridesStore"
 
 // ---------------------------------------------------------------------------
 // Public types
@@ -104,12 +108,51 @@ export function TallyPage(): React.ReactElement {
         [seed?.contestName, contestJson]
     )
 
+    // Effective overlay for the contest currently in the textarea.
+    // Read live so the badge below the textarea updates as the
+    // operator flips switches on the contest detail page.
+    const contestId = useMemo(
+        () => readContestId(contestJson),
+        [contestJson]
+    )
+    const contestOverlay = usePolicyOverrides((m) =>
+        contestId ? m[contestId] : undefined
+    )
+    const overlayFieldCount = contestOverlay
+        ? Object.keys(contestOverlay).length
+        : 0
+
     const handleRunTally = useCallback(async () => {
         setBusy(true)
         setError(null)
         try {
             const ballots = parseDecodedBallots(ballotsJson)
-            const result = await runTally(contestJson, ballots)
+            // Ephemeral policy overlay (see
+            // `policyOverridesStore.ts`): tally run is one of the
+            // two boundary points where the operator's per-contest
+            // policy overrides are applied. The overlay wins for the
+            // six validation policies; everything else in the
+            // textarea passes through untouched. Reading from the
+            // store at click time means the very latest panel state
+            // wins, even if it changed after the textarea was last
+            // edited.
+            const baseContest = JSON.parse(contestJson) as {
+                id?: unknown
+            } & Record<string, unknown>
+            const id =
+                typeof baseContest.id === "string"
+                    ? baseContest.id
+                    : undefined
+            const overlay = id ? contestOverlay : undefined
+            const effective = applyPolicyOverlayToContest(
+                baseContest,
+                overlay
+            )
+            const effectiveJson =
+                effective === baseContest
+                    ? contestJson
+                    : JSON.stringify(effective)
+            const result = await runTally(effectiveJson, ballots)
             const pretty = JSON.stringify(result, null, 2)
             setOutputJson(pretty)
             const next = adaptVelvetContestResult(result, contestName)
@@ -124,7 +167,7 @@ export function TallyPage(): React.ReactElement {
         } finally {
             setBusy(false)
         }
-    }, [contestJson, ballotsJson, contestName])
+    }, [contestJson, ballotsJson, contestName, contestOverlay])
 
     const handleRenderOutput = useCallback(() => {
         setError(null)
@@ -187,6 +230,15 @@ export function TallyPage(): React.ReactElement {
                     >
                         {busy ? "Running…" : "Run tally"}
                     </button>
+                    {overlayFieldCount > 0 ? (
+                        <span
+                            style={styles.overlayBadge}
+                            title={formatOverlayTitle(contestOverlay)}
+                        >
+                            {overlayFieldCount} policy override
+                            {overlayFieldCount === 1 ? "" : "s"} active
+                        </span>
+                    ) : null}
                 </div>
             </Section>
 
@@ -295,9 +347,43 @@ function readContestName(contestJson: string): string | undefined {
     return undefined
 }
 
+/** Best-effort read of `contest.id` — used to look up the contest's
+ *  ephemeral policy overlay. Same parse-failure semantics as
+ *  {@link readContestName}. */
+function readContestId(contestJson: string): string | undefined {
+    try {
+        const parsed = JSON.parse(contestJson) as unknown
+        if (
+            parsed &&
+            typeof parsed === "object" &&
+            "id" in parsed &&
+            typeof (parsed as {id: unknown}).id === "string"
+        ) {
+            return (parsed as {id: string}).id
+        }
+    } catch {
+        // ignore
+    }
+    return undefined
+}
+
 function formatError(e: unknown): string {
     if (e instanceof Error) return e.message
     return String(e)
+}
+
+/** Hover-text for the policy-override badge: one "field = value" line
+ *  per active override. */
+function formatOverlayTitle(
+    overlay: {[key: string]: unknown} | undefined
+): string {
+    if (!overlay) return ""
+    const lines: string[] = []
+    for (const [k, v] of Object.entries(overlay)) {
+        if (v !== undefined) lines.push(`${k} = ${String(v)}`)
+    }
+    if (lines.length === 0) return ""
+    return `Effective at "Run tally":\n${lines.join("\n")}`
 }
 
 // ---------------------------------------------------------------------------
@@ -346,6 +432,16 @@ const styles: Record<string, CSSProperties> = {
         display: "flex",
         gap: "0.5rem",
         marginTop: "0.5rem",
+        alignItems: "center",
+    },
+    overlayBadge: {
+        padding: "0.2rem 0.55rem",
+        fontSize: "0.78rem",
+        background: "#fff3cd",
+        color: "#5c4400",
+        border: "1px solid #f0c200",
+        borderRadius: "0.25rem",
+        cursor: "help",
     },
     button: {
         padding: "0.4rem 0.9rem",

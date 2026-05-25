@@ -79,6 +79,10 @@ import {
 } from "./workbenchStore"
 import {decryptBallotContent} from "./tally"
 import {loadBundledSnapshot} from "./fixtures/bundledSnapshots"
+import {
+    applyPolicyOverlayToBallotStyleRow,
+    getPolicyOverrides,
+} from "./policyOverridesStore"
 /**
  * Storage key. The `:v1` suffix is a schema version: when the persisted
  * shape becomes incompatible (e.g. voting-portal removes a slice we
@@ -490,14 +494,22 @@ function applyEligibilitySwap(
     const wb = getWorkbenchState()
     const pool = wb.ballotStylePool
     if (!pool) return
+    const overrides = getPolicyOverrides()
     for (const electionId of Object.keys(pool)) {
         const row = selectBallotStyleForVoter(voterId, electionId)
         if (!row) continue
-        store.dispatch(
-            setBallotStyle(
-                row as Parameters<typeof setBallotStyle>[0]
-            )
+        // Ephemeral policy overlay (see `policyOverridesStore.ts`):
+        // booth open is one of the two boundary points where the
+        // operator's per-contest policy overrides are applied. We
+        // merge them into the row before dispatch so the portal
+        // slice sees the *effective* contest presentation; the
+        // baseline pool entry is untouched and the override stays
+        // out of persistence.
+        const effective = applyPolicyOverlayToBallotStyleRow(
+            row as Parameters<typeof setBallotStyle>[0],
+            overrides
         )
+        store.dispatch(setBallotStyle(effective))
     }
 }
 

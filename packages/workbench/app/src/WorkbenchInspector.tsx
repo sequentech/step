@@ -66,6 +66,7 @@ import {decodeBigIntToDecodedVoteContest} from "./tally"
 import {setActiveVoter} from "./workbenchStore"
 import {importPortalBallotStyle} from "./import/portalBallotStyleImport"
 import {importVelvetElection} from "./import/velvetElectionImport"
+import {ContestPolicyOverridesPanel} from "./ContestPolicyOverridesPanel"
 import buildInfo, {
     type WorkbenchBuildInfo,
 } from "virtual:workbench-build-info"
@@ -2581,6 +2582,23 @@ export function ContestDetailPage(): JSX.Element {
                     ))}
                 </ul>
             )}
+            <ContestPolicyOverridesPanel
+                contest={{
+                    id: contestId,
+                    counting_algorithm: contest.counting_algorithm as
+                        | string
+                        | null
+                        | undefined,
+                    voting_type: contest.voting_type as
+                        | string
+                        | null
+                        | undefined,
+                    presentation: contest.presentation as
+                        | Record<string, unknown>
+                        | null
+                        | undefined,
+                }}
+            />
             <div
                 style={{
                     display: "flex",
